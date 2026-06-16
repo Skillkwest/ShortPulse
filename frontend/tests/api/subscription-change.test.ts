@@ -41,6 +41,17 @@ const createMockResponse = () => ({
   json: vi.fn().mockReturnThis(),
 });
 
+const createOfferQueryMock = (rows: Record<string, unknown>[]) => ({
+  data: rows,
+  error: null,
+  eq: (column: string, value: unknown) =>
+    createOfferQueryMock(rows.filter((row) => row[column] === value)),
+  maybeSingle: async () => ({
+    data: rows[0] ?? null,
+    error: null,
+  }),
+});
+
 const createSupabaseAdminMock = (params: {
   billingProfile?: Record<string, unknown> | null;
   billingContract?: Record<string, unknown> | null;
@@ -112,24 +123,16 @@ const createSupabaseAdminMock = (params: {
       return {
         select: () => ({
           eq: (column: string, value: unknown) => {
-            if (column === "plan_id") {
-              const result = {
-                data: params.billingOffers ?? [],
-                error: null,
-                eq: () => result,
-              };
-              return result;
-            }
-
-            if (column === "stripe_price_id") {
-              return {
-                maybeSingle: async () => ({
-                  data:
-                    (params.billingOffers ?? []).find((offer) => offer.stripe_price_id === value) ??
-                    null,
-                  error: null,
-                }),
-              };
+            if (
+              column === "plan_id" ||
+              column === "billing_interval" ||
+              column === "is_active" ||
+              column === "acquisition_enabled" ||
+              column === "stripe_price_id"
+            ) {
+              return createOfferQueryMock(
+                (params.billingOffers ?? []).filter((offer) => offer[column] === value)
+              );
             }
 
             throw new Error(`Unexpected billing_plan_offers select eq column ${column}`);
@@ -263,6 +266,87 @@ describe("POST /api/billing/subscription/change", () => {
         "flow_data[subscription_update_confirm][items][0][price]": "price_business",
       })
     );
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("uses the portal update flow for a legacy Stripe paid profile without a contract row", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({
+        billingProfile: {
+          user_id: "user-1",
+          plan_id: "starter",
+          stripe_customer_id: null,
+          stripe_subscription_id: "sub_legacy",
+        },
+        billingContract: null,
+        billingPlan: {
+          id: "starter",
+          display_name: "Starter",
+          is_active: true,
+        },
+        billingOffers: [
+          {
+            id: "starter__year_current",
+            plan_id: "starter",
+            stripe_price_id: "price_starter_year",
+            billing_interval: "year",
+            recurring_price_cents: 18000,
+            acquisition_enabled: true,
+            is_active: true,
+            effective_start_at: "2026-04-01T00:00:00.000Z",
+            created_at: "2026-04-01T00:00:00.000Z",
+          },
+        ],
+      })
+    );
+    readVerifiedStripeSubscriptionForUserMock.mockResolvedValue({
+      id: "sub_legacy",
+      customer: "cus_123",
+      items: {
+        data: [{ id: "si_starter", quantity: 1, price: { id: "price_starter_month" } }],
+      },
+    });
+    stripeGetMock.mockResolvedValueOnce({
+      id: "price_starter_year",
+      active: true,
+      currency: "usd",
+      unit_amount: 18000,
+      recurring: { interval: "year" },
+      metadata: {
+        shortpulse_catalog_type: "plan",
+        shortpulse_plan_id: "starter",
+      },
+      product: null,
+    });
+    stripePostFormMock.mockResolvedValue({
+      id: "bps_legacy",
+      url: "https://stripe.test/portal_update_starter_year",
+    });
+
+    const req = {
+      method: "POST",
+      body: { targetPlanId: "starter", billingInterval: "year" },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(readVerifiedStripeSubscriptionForUserMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      stripeSubscriptionId: "sub_legacy",
+    });
+    expect(stripePostFormMock).toHaveBeenCalledWith(
+      "/billing_portal/sessions",
+      expect.objectContaining({
+        customer: "cus_123",
+        "flow_data[type]": "subscription_update_confirm",
+        "flow_data[subscription_update_confirm][subscription]": "sub_legacy",
+        "flow_data[subscription_update_confirm][items][0][id]": "si_starter",
+        "flow_data[subscription_update_confirm][items][0][price]": "price_starter_year",
+      })
+    );
+    expect(ensureStripeCustomerForUserMock).not.toHaveBeenCalled();
+    expect(stripePostFormMock).not.toHaveBeenCalledWith("/checkout/sessions", expect.any(Object));
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
@@ -450,13 +534,79 @@ describe("POST /api/billing/subscription/change", () => {
     expect(stripePostFormMock).not.toHaveBeenCalled();
   });
 
+  it("fails closed before portal update when the target Stripe price does not match the selected interval", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({
+        billingProfile: {
+          user_id: "user-1",
+          plan_id: "starter",
+          stripe_customer_id: "cus_123",
+          stripe_subscription_id: "sub_123",
+        },
+        billingContract: {
+          id: "contract_1",
+          plan_id: "starter",
+          stripe_subscription_id: "sub_123",
+          stripe_price_id: "price_starter_month",
+          billing_interval: "month",
+          contract_source: "stripe",
+        },
+        billingPlan: {
+          id: "starter",
+          display_name: "Starter",
+          is_active: true,
+        },
+        billingOffers: [
+          {
+            id: "starter__year",
+            plan_id: "starter",
+            stripe_price_id: "price_starter_year",
+            billing_interval: "year",
+            recurring_price_cents: 18000,
+            acquisition_enabled: true,
+            is_active: true,
+            effective_start_at: "2026-04-01T00:00:00.000Z",
+            created_at: "2026-04-01T00:00:00.000Z",
+          },
+        ],
+      })
+    );
+    stripeGetMock.mockResolvedValueOnce({
+      id: "price_starter_year",
+      active: true,
+      currency: "usd",
+      unit_amount: 18000,
+      recurring: { interval: "month" },
+      metadata: {
+        shortpulse_catalog_type: "plan",
+        shortpulse_plan_id: "starter",
+      },
+      product: null,
+    });
+
+    const req = {
+      method: "POST",
+      body: { targetPlanId: "starter", billingInterval: "year" },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({
+      error:
+        "Selected plan update is temporarily unavailable because its Stripe price does not match the billing catalog.",
+    });
+    expect(stripePostFormMock).not.toHaveBeenCalled();
+  });
+
   it("falls back to the generic subscription-update portal flow for multi-item subscriptions", async () => {
     getSupabaseAdminMock.mockReturnValue(
       createSupabaseAdminMock({
         billingProfile: {
           user_id: "user-1",
           plan_id: "media",
-          stripe_customer_id: "cus_123",
+          stripe_customer_id: null,
           stripe_subscription_id: "sub_123",
         },
         billingContract: {
@@ -631,10 +781,12 @@ describe("POST /api/billing/subscription/change", () => {
     expect(stripePostFormMock).toHaveBeenCalledWith(
       "/billing_portal/sessions",
       expect.objectContaining({
+        customer: "cus_123",
         "flow_data[type]": "subscription_cancel",
         "flow_data[subscription_cancel][subscription]": "sub_123",
       })
     );
+    expect(ensureStripeCustomerForUserMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
@@ -736,8 +888,8 @@ describe("POST /api/billing/subscription/change", () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
-  it("returns a sanitized 500 when subscription change setup fails", async () => {
-    ensureStripeCustomerForUserMock.mockRejectedValueOnce(new Error("stripe exploded"));
+  it("returns a sanitized 500 when portal session creation fails", async () => {
+    stripePostFormMock.mockRejectedValueOnce(new Error("portal exploded"));
     getSupabaseAdminMock.mockReturnValue(
       createSupabaseAdminMock({
         billingProfile: {

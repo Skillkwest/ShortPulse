@@ -90,10 +90,78 @@ export type ProfileSectionItem = {
   icon: React.ComponentType<IconProps>;
 };
 
+export type RecurringPaymentSummary = {
+  primaryLabel: string;
+  shortHelperLabel: string;
+  breakdownLabel: string;
+};
+
 /**
  * Formats integer cent amounts as USD strings for profile billing surfaces.
  */
 export const formatCurrencyFromCents = (value: number): string => `$${(value / 100).toFixed(2)}`;
+
+/**
+ * Summarizes the current subscriber payment across plan and recurring storage add-ons.
+ */
+export const resolveRecurringPaymentSummary = ({
+  baseRecurringPriceCents,
+  billingInterval,
+  activeAddonRecurringPriceCents,
+  isInternalCompContract,
+}: {
+  baseRecurringPriceCents: number;
+  billingInterval: "month" | "year";
+  activeAddonRecurringPriceCents: number;
+  isInternalCompContract: boolean;
+}): RecurringPaymentSummary => {
+  const basePriceCents = Math.max(0, Math.round(baseRecurringPriceCents));
+  const addonPriceCents = Math.max(0, Math.round(activeAddonRecurringPriceCents));
+
+  if (isInternalCompContract) {
+    return {
+      primaryLabel: "No Stripe charge",
+      shortHelperLabel: "Managed internally",
+      breakdownLabel: "This account is managed internally outside Stripe billing.",
+    };
+  }
+
+  if (basePriceCents === 0 && addonPriceCents === 0) {
+    return {
+      primaryLabel: "No recurring payment",
+      shortHelperLabel: "No active paid subscription",
+      breakdownLabel: "No paid plan or recurring storage add-ons are active.",
+    };
+  }
+
+  if (billingInterval === "year") {
+    const monthlyEquivalentCents = Math.round(basePriceCents / 12) + addonPriceCents;
+    return {
+      primaryLabel:
+        addonPriceCents > 0
+          ? `${formatCurrencyFromCents(monthlyEquivalentCents)} / month`
+          : `${formatCurrencyFromCents(basePriceCents)} / year`,
+      shortHelperLabel:
+        addonPriceCents > 0
+          ? `Billed as ${formatCurrencyFromCents(basePriceCents)} yearly + add-ons monthly`
+          : `${formatCurrencyFromCents(Math.round(basePriceCents / 12))} / month equivalent`,
+      breakdownLabel:
+        addonPriceCents > 0
+          ? `Plan ${formatCurrencyFromCents(basePriceCents)} / year + add-ons ${formatCurrencyFromCents(addonPriceCents)} / month`
+          : `${formatCurrencyFromCents(Math.round(basePriceCents / 12))} / month equivalent, billed annually`,
+    };
+  }
+
+  const monthlyTotalCents = basePriceCents + addonPriceCents;
+  return {
+    primaryLabel: `${formatCurrencyFromCents(monthlyTotalCents)} / month`,
+    shortHelperLabel: addonPriceCents > 0 ? "Plan + active add-ons" : "Plan only",
+    breakdownLabel:
+      addonPriceCents > 0
+        ? `Plan ${formatCurrencyFromCents(basePriceCents)} / month + add-ons ${formatCurrencyFromCents(addonPriceCents)} / month`
+        : `Plan ${formatCurrencyFromCents(basePriceCents)} / month`,
+  };
+};
 
 /**
  * Formats Stripe minor-unit amounts using the reported invoice currency.

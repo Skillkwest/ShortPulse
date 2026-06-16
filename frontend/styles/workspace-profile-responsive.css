@@ -16,6 +16,7 @@
   }
 
   .profile-account-summary-grid {
+    grid-template-columns: repeat(2, minmax(180px, 1fr));
     width: 100%;
   }
 
@@ -117,6 +118,7 @@
   }
 
   .profile-summary-grid,
+  .profile-account-summary-grid,
   .profile-section-grid,
   .profile-plan-grid,
   .profile-metric-grid {

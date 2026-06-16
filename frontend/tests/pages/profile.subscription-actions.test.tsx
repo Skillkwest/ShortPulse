@@ -510,6 +510,22 @@ describe("Profile subscription actions", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Portal unavailable");
   });
 
+  it("routes current-plan annual billing switches through the subscription change handler", async () => {
+    render(<ProfilePage />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Annual" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Upgrade to annual billing" }));
+
+    await waitFor(() => {
+      expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/billing/subscription/change", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetPlanId: "media", billingInterval: "year" }),
+      });
+    });
+    expect(await screen.findByRole("alert")).toHaveTextContent("Portal unavailable");
+  });
+
   it("disables annual paid-plan actions when the target plan has no live annual offer", async () => {
     fetchWithAuthMock.mockImplementation(async (url: unknown) => {
       if (url === "/api/billing/catalog") {

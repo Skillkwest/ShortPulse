@@ -35,6 +35,8 @@ type ProfileSubscriptionSectionProps = {
   currentSubscriptionBillingInterval: BillingInterval;
   currentSubscriptionPriceCents: number;
   currentSubscriptionStorageLimitBytes: number;
+  recurringPaymentLabel: string;
+  recurringPaymentHelper: string;
   subscriptionRenewalText: string;
   billingPlans: BillingPlanRecord[];
   billingPlansLoading: boolean;
@@ -58,6 +60,8 @@ export function ProfileSubscriptionSection({
   currentSubscriptionBillingInterval,
   currentSubscriptionPriceCents,
   currentSubscriptionStorageLimitBytes,
+  recurringPaymentLabel,
+  recurringPaymentHelper,
   subscriptionRenewalText,
   billingPlans,
   billingPlansLoading,
@@ -143,6 +147,12 @@ export function ProfileSubscriptionSection({
         </div>
 
         <div className={profileClass("profile-hero-meta")}>
+          <ProfileMetricCard
+            className={profileClass("profile-hero-stat-card", "profile-payment-stat-card")}
+            label="Total payment"
+            value={recurringPaymentLabel}
+            helper={recurringPaymentHelper}
+          />
           {showRenewalChip ? (
             <ProfileMetricCard
               className="profile-hero-stat-card"

@@ -350,6 +350,11 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
+.profile-payment-stat-card {
+  border-color: rgba(125, 240, 203, 0.4);
+  background: rgba(12, 24, 23, 0.78);
+}
+
 .profile-subscription-hero-card.plan-free .profile-hero-stat,
 .profile-subscription-hero-card.plan-free .profile-hero-stat-card,
 .profile-storage-hero-card.plan-free .profile-hero-stat,

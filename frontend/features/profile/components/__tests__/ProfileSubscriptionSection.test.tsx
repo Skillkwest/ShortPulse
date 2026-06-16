@@ -96,6 +96,14 @@ const renderSubscriptionSection = ({
       currentSubscriptionBillingInterval={currentSubscriptionBillingInterval}
       currentSubscriptionPriceCents={currentSubscriptionPriceCents}
       currentSubscriptionStorageLimitBytes={GIB}
+      recurringPaymentLabel={
+        currentSubscriptionBillingInterval === "year" ? "$180.00 / year" : "$15.00 / month"
+      }
+      recurringPaymentHelper={
+        currentSubscriptionBillingInterval === "year"
+          ? "$15.00 / month equivalent, billed annually"
+          : "Plan $15.00 / month"
+      }
       subscriptionRenewalText="July 15, 2026"
       billingPlans={billingPlans}
       billingPlansLoading={false}

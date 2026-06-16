@@ -63,6 +63,9 @@ This SOP is the operational runbook for credit ledger migrations, admin balance 
 - `billing_subscription_storage_addons` defines subscriber-specific recurring storage add-on contracts synchronized from Stripe subscription items.
 - `billing_profiles` remains a runtime projection for current plan/customer/subscription linkage, but it is not the long-term authoritative source for grandfathered recurring price.
 - `billing_subscription_contracts.contract_source` distinguishes Stripe-paid recurring contracts from non-public internal comp contracts.
+- Customer-facing `/profile` recurring payment totals must be calculated from `billing_subscription_contracts.recurring_price_cents` plus active `billing_subscription_storage_addons.recurring_price_cents`, not from current public catalog sticker prices or `billing_profiles`.
+- Customer-facing subscription changes use `/api/billing/subscription/change`. Existing owned Stripe subscriptions must be handed to Stripe Billing Portal update flows rather than new Checkout, even when the newer `billing_subscription_contracts` projection is missing and only `billing_profiles.stripe_subscription_id` is available. The route validates the target Stripe price amount and interval against `billing_plan_offers` before creating either a Checkout or Portal update session.
+- Stripe Billing Portal configuration remains part of the customer-facing subscription-change contract. `features.subscription_update.products[*].prices` must include every active monthly and annual paid-plan price that `/api/billing/subscription/change` can target, and interval-shortening changes such as annual to monthly must be scheduled at period end through the portal `schedule_at_period_end` conditions to match the `/profile` downgrade language.
 
 ## Ledger schema contract
 

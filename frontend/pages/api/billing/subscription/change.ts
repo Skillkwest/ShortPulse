@@ -145,6 +145,55 @@ const resolveActivePlanId = (
   return typeof planId === "string" && planId.trim() ? planId : "free";
 };
 
+const hasStripeSubscriptionId = (value: string | null | undefined): value is string =>
+  typeof value === "string" && value.trim().length > 0;
+
+const resolveStripeSubscriptionCustomerId = (
+  subscription: StripeSubscriptionResponse
+): string | null => {
+  if (typeof subscription.customer === "string") {
+    const normalized = subscription.customer.trim();
+    return normalized.length > 0 ? normalized : null;
+  }
+  if (subscription.customer && typeof subscription.customer === "object") {
+    const normalized =
+      typeof subscription.customer.id === "string" ? subscription.customer.id.trim() : "";
+    return normalized.length > 0 ? normalized : null;
+  }
+  return null;
+};
+
+const isStripeManagedSubscription = ({
+  billingContract,
+  stripeSubscriptionId,
+  isInternalCompContract,
+}: {
+  billingContract: BillingContractRow | null;
+  stripeSubscriptionId: string | null;
+  isInternalCompContract: boolean;
+}) =>
+  billingContract?.contract_source === BILLING_CONTRACT_SOURCE_STRIPE ||
+  (!isInternalCompContract && hasStripeSubscriptionId(stripeSubscriptionId));
+
+const validateTargetPlanStripePrice = async ({
+  targetOffer,
+  targetPlanId,
+  billingInterval,
+}: {
+  targetOffer: BillingPlanOfferRow;
+  targetPlanId: string;
+  billingInterval: "month" | "year";
+}) => {
+  await validateStripePriceForCatalogRow({
+    stripePriceId: targetOffer.stripe_price_id,
+    expectedAmountCents: targetOffer.recurring_price_cents,
+    expectedInterval: billingInterval,
+    catalogType: "plan",
+    expectedMetadataIdKey: "shortpulse_plan_id",
+    expectedMetadataIdValue: targetPlanId,
+  });
+};
+
 const loadBillingState = async (userId: string) => {
   const supabaseAdmin = getSupabaseAdmin();
   const [billingProfileResult, billingContractResult] = await Promise.all([
@@ -311,6 +360,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       billingContract?.stripe_subscription_id ?? billingProfile?.stripe_subscription_id ?? null;
     const isInternalCompContract =
       billingContract?.contract_source === BILLING_CONTRACT_SOURCE_INTERNAL_COMP;
+    const useStripePortalForExistingSubscription = isStripeManagedSubscription({
+      billingContract,
+      stripeSubscriptionId,
+      isInternalCompContract,
+    });
     const allowSamePlanMigration = isInternalCompContract && targetPlanId !== "free";
 
     if (
@@ -386,16 +440,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!stripeSubscriptionId) {
         return res.status(409).json({ error: "No active paid subscription was found." });
       }
-      await readVerifiedStripeSubscriptionForUser({
+      const verifiedSubscription = await readVerifiedStripeSubscriptionForUser({
         userId: user.id,
         stripeSubscriptionId,
       });
-
-      const stripeCustomerId = await ensureStripeCustomerForUser({
-        userId: user.id,
-        email: user.email ?? null,
-        displayName: resolveAuthDisplayName(user),
-      });
+      const stripeCustomerId = resolveStripeSubscriptionCustomerId(verifiedSubscription);
+      if (!stripeCustomerId) {
+        throw new Error("Verified Stripe subscription did not include a customer id.");
+      }
       const returnUrl = `${getCanonicalAppBaseUrl()}/profile?section=subscription`;
       const session = await createPortalSession({
         customer: stripeCustomerId,
@@ -434,26 +486,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(501).json({ error: "Stripe is not configured on the server yet." });
     }
 
-    const stripeCustomerId = await ensureStripeCustomerForUser({
-      userId: user.id,
-      email: user.email ?? null,
-      displayName: resolveAuthDisplayName(user),
-    });
-
-    if (
-      billingContract?.contract_source === BILLING_CONTRACT_SOURCE_STRIPE &&
-      typeof stripeSubscriptionId === "string" &&
-      stripeSubscriptionId.length > 0
-    ) {
+    if (useStripePortalForExistingSubscription && hasStripeSubscriptionId(stripeSubscriptionId)) {
       const returnUrl = `${getCanonicalAppBaseUrl()}/profile?section=subscription`;
       const verifiedSubscription = await readVerifiedStripeSubscriptionForUser({
         userId: user.id,
         stripeSubscriptionId,
       });
+      const stripeCustomerId = resolveStripeSubscriptionCustomerId(verifiedSubscription);
+      if (!stripeCustomerId) {
+        throw new Error("Verified Stripe subscription did not include a customer id.");
+      }
       const baseItem = await resolveBaseSubscriptionItem({
         subscription: verifiedSubscription,
         contractStripePriceId: billingContract?.stripe_price_id ?? null,
       });
+
+      try {
+        await validateTargetPlanStripePrice({
+          targetOffer,
+          targetPlanId,
+          billingInterval,
+        });
+      } catch (error) {
+        if (error instanceof CatalogStripePriceValidationError) {
+          return res.status(409).json({
+            error:
+              "Selected plan update is temporarily unavailable because its Stripe price does not match the billing catalog.",
+          });
+        }
+        throw error;
+      }
 
       if (baseItem.itemCount === 1 && baseItem.itemId && targetOffer.stripe_price_id) {
         const session = await createPortalSession({
@@ -493,14 +555,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(409).json({ error: "Selected plan is not purchasable yet." });
     }
 
+    const stripeCustomerId = await ensureStripeCustomerForUser({
+      userId: user.id,
+      email: user.email ?? null,
+      displayName: resolveAuthDisplayName(user),
+    });
+
     try {
-      await validateStripePriceForCatalogRow({
-        stripePriceId: targetOffer.stripe_price_id,
-        expectedAmountCents: targetOffer.recurring_price_cents,
-        expectedInterval: billingInterval,
-        catalogType: "plan",
-        expectedMetadataIdKey: "shortpulse_plan_id",
-        expectedMetadataIdValue: targetPlanId,
+      await validateTargetPlanStripePrice({
+        targetOffer,
+        targetPlanId,
+        billingInterval,
       });
     } catch (error) {
       if (error instanceof CatalogStripePriceValidationError) {

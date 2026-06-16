@@ -30,6 +30,7 @@ import {
   formatLongDateLabel,
   getProfileSectionContent,
   resolveProfileActivePlanId,
+  resolveRecurringPaymentSummary,
   type BillingCatalogResponse,
   type BillingLedgerEvent,
   type BillingProfile,
@@ -633,6 +634,16 @@ export default function ProfilePage() {
 
   const packageCards = useMemo(() => annotateCreditPackages(creditPackages), [creditPackages]);
   const activeAddonStorageBytes = quotaSummary?.addonLimitBytes ?? 0;
+  const activeAddonRecurringPriceCents = activeStorageAddons.reduce(
+    (total, addon) => total + Math.max(0, addon.recurringPriceCents),
+    0
+  );
+  const recurringPaymentSummary = resolveRecurringPaymentSummary({
+    baseRecurringPriceCents: currentSubscriptionPriceCents,
+    billingInterval: currentSubscriptionBillingInterval,
+    activeAddonRecurringPriceCents,
+    isInternalCompContract,
+  });
   const totalStorageLimitBytes =
     quotaSummary?.totalLimitBytes ?? currentSubscriptionStorageLimitBytes;
   const usedStorageBytes = quotaSummary?.usedBytes ?? 0;
@@ -980,6 +991,8 @@ export default function ProfilePage() {
       >
         <ProfileWorkspaceShell
           planLabel={activePlan.displayName}
+          paymentLabel={recurringPaymentSummary.primaryLabel}
+          paymentHelper={recurringPaymentSummary.shortHelperLabel}
           creditsLabel={accountCreditsLabel}
           storageLabel={accountStorageLabel}
           section={section}
@@ -1018,6 +1031,8 @@ export default function ProfilePage() {
               currentSubscriptionBillingInterval={currentSubscriptionBillingInterval}
               currentSubscriptionPriceCents={currentSubscriptionPriceCents}
               currentSubscriptionStorageLimitBytes={currentSubscriptionStorageLimitBytes}
+              recurringPaymentLabel={recurringPaymentSummary.primaryLabel}
+              recurringPaymentHelper={recurringPaymentSummary.breakdownLabel}
               subscriptionRenewalText={subscriptionRenewalText}
               billingPlans={billingPlans}
               billingPlansLoading={billingPlansLoading}

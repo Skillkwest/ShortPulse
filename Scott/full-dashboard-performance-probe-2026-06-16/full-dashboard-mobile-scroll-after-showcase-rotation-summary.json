@@ -1,0 +1,75 @@
+{
+  "branchRule": "local codex/brother-dashboard-aesthetics only; production not touched",
+  "targetUrl": "http://127.0.0.1:3000/",
+  "viewport": {
+    "width": 390,
+    "height": 844,
+    "isMobile": true,
+    "cpuThrottle": 4
+  },
+  "capturedAt": "2026-06-16T20:02:35.385Z",
+  "topState": {
+    "heroSources": 0,
+    "placeholder": false,
+    "showcaseTop": 247,
+    "tutorialCards": 15,
+    "tutorialVideos": 15
+  },
+  "beforeRotation": {
+    "playing": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "sourced": [
+      0,
+      1,
+      2,
+      3
+    ]
+  },
+  "afterRotation": {
+    "playing": [
+      4,
+      5,
+      6,
+      7
+    ],
+    "sourced": [
+      4,
+      5,
+      6,
+      7
+    ]
+  },
+  "scroll": {
+    "count": 897,
+    "p95": 8.4,
+    "p98": 8.5,
+    "max": 33.2,
+    "over50": 0,
+    "over100": 0,
+    "longTaskCount": 0,
+    "longTaskTotal": 0,
+    "playCalls": 11,
+    "pauseCalls": 16,
+    "loadCalls": 9,
+    "rectReads": 15,
+    "scrollY": 695,
+    "playing": [
+      9,
+      10,
+      11,
+      12
+    ],
+    "sourced": [
+      9,
+      10,
+      11,
+      12
+    ],
+    "tutorialCards": 15,
+    "tutorialVideos": 15
+  }
+}

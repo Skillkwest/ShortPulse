@@ -1,0 +1,61 @@
+{
+  "date": "2026-06-16",
+  "branch": "codex/brother-dashboard-aesthetics",
+  "production": "untouched",
+  "browserCheck": {
+    "url": "http://127.0.0.1:3000/",
+    "scrollY": 694,
+    "visiblePlayingIndexes": [9, 10, 11, 12],
+    "result": "visible sourced thumbnails were unpaused, data-playing=true, and currentTime advanced over 900ms"
+  },
+  "mobileWheelProbe": {
+    "browser": "C:/Program Files/Google/Chrome/Application/chrome.exe",
+    "viewport": "390x844",
+    "cpuThrottle": 4,
+    "runs": 4,
+    "averages": {
+      "p95Ms": 14.6,
+      "maxMs": 155.2,
+      "framesOver50Ms": 5.8
+    },
+    "runDetails": [
+      {
+        "run": 1,
+        "p95Ms": 12.5,
+        "maxMs": 145.9,
+        "framesOver50Ms": 6,
+        "sourced": 4,
+        "playing": 3,
+        "movingIndexes": [9, 10, 12]
+      },
+      {
+        "run": 2,
+        "p95Ms": 12.6,
+        "maxMs": 154.2,
+        "framesOver50Ms": 5,
+        "sourced": 4,
+        "playing": 4,
+        "movingIndexes": [9, 10, 11, 12]
+      },
+      {
+        "run": 3,
+        "p95Ms": 16.6,
+        "maxMs": 179.1,
+        "framesOver50Ms": 6,
+        "sourced": 4,
+        "playing": 4,
+        "movingIndexes": [9, 10, 11, 12]
+      },
+      {
+        "run": 4,
+        "p95Ms": 16.7,
+        "maxMs": 141.7,
+        "framesOver50Ms": 6,
+        "sourced": 4,
+        "playing": 4,
+        "movingIndexes": [9, 10, 11, 12]
+      }
+    ]
+  },
+  "proxyConclusion": "A media proxy can help network/cache/range delivery, and this branch already has a local thumbnail API route in progress, but the measured frozen-thumbnail issue was caused by client playback state and stale play-promise handling rather than a proxy gap."
+}

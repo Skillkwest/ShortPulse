@@ -1,0 +1,120 @@
+{
+  "date": "2026-06-16",
+  "branch": "codex/brother-dashboard-aesthetics",
+  "production": "untouched",
+  "change": "Skip play() for already-playing tutorial thumbnail videos",
+  "averages": {
+    "p95": 21.9,
+    "p98": 46.9,
+    "max": 124.9,
+    "over50": 4.8
+  },
+  "runDetails": [
+    {
+      "run": 1,
+      "p95": 16.7,
+      "p98": 41.5,
+      "max": 158.4,
+      "over50": 5,
+      "sourced": 4,
+      "playing": 4,
+      "moving": [
+        9,
+        10,
+        11,
+        12
+      ],
+      "scrollPausedMarkers": 0,
+      "playCount": 13,
+      "pauseCount": 45,
+      "loadCount": 37,
+      "rectReads": 15,
+      "topLongTasks": [
+        129,
+        85,
+        69,
+        63,
+        61
+      ]
+    },
+    {
+      "run": 2,
+      "p95": 25.1,
+      "p98": 41.7,
+      "max": 91.3,
+      "over50": 3,
+      "sourced": 4,
+      "playing": 4,
+      "moving": [
+        9,
+        10,
+        11,
+        12
+      ],
+      "scrollPausedMarkers": 0,
+      "playCount": 20,
+      "pauseCount": 55,
+      "loadCount": 39,
+      "rectReads": 15,
+      "topLongTasks": [
+        68,
+        65,
+        60
+      ]
+    },
+    {
+      "run": 3,
+      "p95": 24.9,
+      "p98": 58.3,
+      "max": 129.1,
+      "over50": 6,
+      "sourced": 4,
+      "playing": 4,
+      "moving": [
+        9,
+        10,
+        11,
+        12
+      ],
+      "scrollPausedMarkers": 0,
+      "playCount": 13,
+      "pauseCount": 45,
+      "loadCount": 37,
+      "rectReads": 15,
+      "topLongTasks": [
+        108,
+        98,
+        72,
+        64,
+        58
+      ]
+    },
+    {
+      "run": 4,
+      "p95": 21,
+      "p98": 45.9,
+      "max": 120.8,
+      "over50": 5,
+      "sourced": 4,
+      "playing": 4,
+      "moving": [
+        9,
+        10,
+        11,
+        12
+      ],
+      "scrollPausedMarkers": 0,
+      "playCount": 13,
+      "pauseCount": 45,
+      "loadCount": 37,
+      "rectReads": 15,
+      "topLongTasks": [
+        89,
+        88,
+        75,
+        57,
+        56
+      ]
+    }
+  ]
+}

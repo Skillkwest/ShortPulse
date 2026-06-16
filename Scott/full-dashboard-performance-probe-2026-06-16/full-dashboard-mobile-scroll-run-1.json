@@ -1,0 +1,406 @@
+{
+  "label": "full-dashboard-mobile-scroll",
+  "runNumber": 1,
+  "timestamp": "2026-06-16T19:39:15.748Z",
+  "viewport": {
+    "width": 390,
+    "height": 844,
+    "cpuThrottle": 4
+  },
+  "pageMetrics": {
+    "initialHeight": 1539,
+    "viewportHeight": 844,
+    "initialVideos": 16,
+    "initialImages": 13,
+    "initialNodes": 311
+  },
+  "frameCount": 869,
+  "p95": 8.400000000000546,
+  "p98": 12.400000000000546,
+  "max": 100.09999999999991,
+  "over50": 2,
+  "over100": 1,
+  "longTaskCount": 6,
+  "longTaskTotal": 966,
+  "longTaskBySection": {
+    "hero": 900,
+    "orbit": 66
+  },
+  "rectReads": 83,
+  "playCalls": 12,
+  "pauseCalls": 44,
+  "loadCalls": 37,
+  "eventCounts": {
+    "window:test": 2,
+    "window:beforeunload": 1,
+    "window:error": 54,
+    "window:unhandledrejection": 3,
+    "window:popstate": 1,
+    "document:selectionchange": 2,
+    "document:visibilitychange": 4,
+    "window:scroll": 4,
+    "window:resize": 2,
+    "document:click": 2,
+    "window:__playwright_global_listeners_check__": 1,
+    "window:mousemove": 1,
+    "window:pointerdown": 1,
+    "window:pointerup": 1,
+    "window:touchstart": 1,
+    "window:touchend": 1,
+    "window:touchcancel": 1,
+    "window:mousedown": 1,
+    "window:mouseup": 1,
+    "window:click": 1,
+    "window:auxclick": 1,
+    "window:dblclick": 1,
+    "window:contextmenu": 1
+  },
+  "videos": [
+    {
+      "className": "public-home-hero-video",
+      "tutorialIndex": null,
+      "hasSrc": false,
+      "attrSrc": null,
+      "sourceSrc": null,
+      "currentSrc": "",
+      "paused": true,
+      "readyState": 0,
+      "currentTime": 0
+    },
+    {
+      "className": "",
+      "tutorialIndex": "0",
+      "hasSrc": false,
+      "attrSrc": null,
+      "sourceSrc": null,
+      "currentSrc": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fa1c40d6d-f8b4-4a2a-9b74-0920a60063e7%2Fdisplay.mp4",
+      "paused": true,
+      "readyState": 0,
+      "currentTime": 0
+    },
+    {
+      "className": "",
+      "tutorialIndex": "1",
+      "hasSrc": false,
+      "attrSrc": null,
+      "sourceSrc": null,
+      "currentSrc": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F7f2ba25f-b70f-4e55-ab5d-168f55688c3b%2Fdisplay.mp4",
+      "paused": true,
+      "readyState": 0,
+      "currentTime": 0
+    },
+    {
+      "className": "",
+      "tutorialIndex": "2",
+      "hasSrc": false,
+      "attrSrc": null,
+      "sourceSrc": null,
+      "currentSrc": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F90ae2587-e0ad-4851-b4a9-dd49694ad387%2Fdisplay.mp4",
+      "paused": true,
+      "readyState": 0,
+      "currentTime": 0
+    },
+    {
+      "className": "",
+      "tutorialIndex": "3",
+      "hasSrc": false,
+      "attrSrc": null,
+      "sourceSrc": null,
+      "currentSrc": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F21321686-7364-46ad-865e-61ae95d447ef%2Fdisplay.mp4",
+      "paused": true,
+      "readyState": 0,
+      "currentTime": 0
+    },
+    {
+      "className": "",
+      "tutorialIndex": "4",
+      "hasSrc": false,
+      "attrSrc": null,
+      "sourceSrc": null,
+      "currentSrc": "",
+      "paused": true,
+      "readyState": 0,
+      "currentTime": 0
+    },
+    {
+      "className": "",
+      "tutorialIndex": "5",
+      "hasSrc": false,
+      "attrSrc": null,
+      "sourceSrc": null,
+      "currentSrc": "",
+      "paused": true,
+      "readyState": 0,
+      "currentTime": 0
+    },
+    {
+      "className": "",
+      "tutorialIndex": "6",
+      "hasSrc": false,
+      "attrSrc": null,
+      "sourceSrc": null,
+      "currentSrc": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fe76d0aa2-bac8-4ec8-843b-20055887e853%2Fdisplay.mp4",
+      "paused": true,
+      "readyState": 0,
+      "currentTime": 0
+    },
+    {
+      "className": "",
+      "tutorialIndex": "7",
+      "hasSrc": false,
+      "attrSrc": null,
+      "sourceSrc": null,
+      "currentSrc": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F21f48e63-9427-4101-945d-641557d7471a%2Fdisplay.mp4",
+      "paused": true,
+      "readyState": 0,
+      "currentTime": 0
+    },
+    {
+      "className": "",
+      "tutorialIndex": "8",
+      "hasSrc": false,
+      "attrSrc": null,
+      "sourceSrc": null,
+      "currentSrc": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F3e13a36d-1761-438a-a426-7b2c9ef05676%2Fdisplay.mp4",
+      "paused": true,
+      "readyState": 0,
+      "currentTime": 0
+    },
+    {
+      "className": "",
+      "tutorialIndex": "9",
+      "hasSrc": true,
+      "attrSrc": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fdf43547f-39d8-425c-bd30-86bb5f34698a%2Fdisplay.mp4",
+      "sourceSrc": null,
+      "currentSrc": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fdf43547f-39d8-425c-bd30-86bb5f34698a%2Fdisplay.mp4",
+      "paused": false,
+      "readyState": 4,
+      "currentTime": 3.795072
+    },
+    {
+      "className": "",
+      "tutorialIndex": "10",
+      "hasSrc": true,
+      "attrSrc": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F59f4b752-3f7a-44a4-a3ac-72915d7a4894%2Fdisplay.mp4",
+      "sourceSrc": null,
+      "currentSrc": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F59f4b752-3f7a-44a4-a3ac-72915d7a4894%2Fdisplay.mp4",
+      "paused": false,
+      "readyState": 4,
+      "currentTime": 3.596582
+    },
+    {
+      "className": "",
+      "tutorialIndex": "11",
+      "hasSrc": true,
+      "attrSrc": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fd477497c-47d7-459b-93ac-ab3a5084d990%2Fdisplay.mp4",
+      "sourceSrc": null,
+      "currentSrc": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fd477497c-47d7-459b-93ac-ab3a5084d990%2Fdisplay.mp4",
+      "paused": false,
+      "readyState": 4,
+      "currentTime": 3.437911
+    },
+    {
+      "className": "",
+      "tutorialIndex": "12",
+      "hasSrc": true,
+      "attrSrc": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F822de2ba-1c02-41a3-b39f-0e282137729e%2Fdisplay.mp4",
+      "sourceSrc": null,
+      "currentSrc": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F822de2ba-1c02-41a3-b39f-0e282137729e%2Fdisplay.mp4",
+      "paused": false,
+      "readyState": 4,
+      "currentTime": 1.280585
+    },
+    {
+      "className": "",
+      "tutorialIndex": "13",
+      "hasSrc": false,
+      "attrSrc": null,
+      "sourceSrc": null,
+      "currentSrc": "",
+      "paused": true,
+      "readyState": 0,
+      "currentTime": 0
+    },
+    {
+      "className": "",
+      "tutorialIndex": "14",
+      "hasSrc": false,
+      "attrSrc": null,
+      "sourceSrc": null,
+      "currentSrc": "",
+      "paused": true,
+      "readyState": 0,
+      "currentTime": 0
+    }
+  ],
+  "sections": [
+    {
+      "selector": ".public-home-hero",
+      "top": -637,
+      "bottom": -397,
+      "height": 240
+    },
+    {
+      "selector": ".public-home-models",
+      "top": -409,
+      "bottom": -376,
+      "height": 33
+    },
+    {
+      "selector": ".public-home-showcase",
+      "top": -448,
+      "bottom": 324,
+      "height": 772
+    },
+    {
+      "selector": ".public-home-orbit",
+      "top": 324,
+      "bottom": 784,
+      "height": 460
+    }
+  ],
+  "finalScrollY": 695,
+  "finalHeight": 1539,
+  "nodeCount": 313,
+  "scrollSamples": [
+    {
+      "time": 3955.0999999940395,
+      "section": "showcase",
+      "scrollY": 220
+    },
+    {
+      "time": 4282.5,
+      "section": "orbit",
+      "scrollY": 695
+    },
+    {
+      "time": 4595.9000000059605,
+      "section": "orbit",
+      "scrollY": 695
+    },
+    {
+      "time": 4935.5999999940395,
+      "section": "orbit",
+      "scrollY": 695
+    },
+    {
+      "time": 5277.800000011921,
+      "section": "orbit",
+      "scrollY": 695
+    },
+    {
+      "time": 5602.800000011921,
+      "section": "orbit",
+      "scrollY": 695
+    },
+    {
+      "time": 5914.4000000059605,
+      "section": "orbit",
+      "scrollY": 695
+    },
+    {
+      "time": 6251.0999999940395,
+      "section": "orbit",
+      "scrollY": 695
+    },
+    {
+      "time": 6577.9000000059605,
+      "section": "orbit",
+      "scrollY": 695
+    },
+    {
+      "time": 6905.699999988079,
+      "section": "orbit",
+      "scrollY": 695
+    }
+  ],
+  "longTasks": [
+    {
+      "name": "self",
+      "startTime": 730.5,
+      "duration": 380,
+      "section": "hero",
+      "scrollY": 0
+    },
+    {
+      "name": "self",
+      "startTime": 1392.699999988079,
+      "duration": 255,
+      "section": "hero",
+      "scrollY": 0
+    },
+    {
+      "name": "self",
+      "startTime": 1212,
+      "duration": 151,
+      "section": "hero",
+      "scrollY": 0
+    },
+    {
+      "name": "self",
+      "startTime": 4074.199999988079,
+      "duration": 66,
+      "section": "orbit",
+      "scrollY": 660
+    },
+    {
+      "name": "self",
+      "startTime": 1714.5999999940395,
+      "duration": 62,
+      "section": "hero",
+      "scrollY": 0
+    },
+    {
+      "name": "self",
+      "startTime": 1877.699999988079,
+      "duration": 52,
+      "section": "hero",
+      "scrollY": 0
+    }
+  ],
+  "longTasksChronological": [
+    {
+      "name": "self",
+      "startTime": 730.5,
+      "duration": 380,
+      "section": "hero",
+      "scrollY": 0
+    },
+    {
+      "name": "self",
+      "startTime": 1212,
+      "duration": 151,
+      "section": "hero",
+      "scrollY": 0
+    },
+    {
+      "name": "self",
+      "startTime": 1392.699999988079,
+      "duration": 255,
+      "section": "hero",
+      "scrollY": 0
+    },
+    {
+      "name": "self",
+      "startTime": 1714.5999999940395,
+      "duration": 62,
+      "section": "hero",
+      "scrollY": 0
+    },
+    {
+      "name": "self",
+      "startTime": 1877.699999988079,
+      "duration": 52,
+      "section": "hero",
+      "scrollY": 0
+    },
+    {
+      "name": "self",
+      "startTime": 4074.199999988079,
+      "duration": 66,
+      "section": "orbit",
+      "scrollY": 660
+    }
+  ],
+  "file": "C:\\CODEX Agents\\Home page CODEX\\ShortPulse\\Scott\\full-dashboard-performance-probe-2026-06-16\\full-dashboard-mobile-scroll-run-1.json"
+}

@@ -175,10 +175,24 @@ describe("admin dashboard tutorial thumbnail upload APIs", () => {
         videoMimeType: "image/gif",
         filename: "tutorial-thumbnails/generated.gif",
         scaleFilter:
-          "scale=720:-2:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2",
+          "scale=360:-2:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2",
         previewSeconds: null,
-        crf: 24,
+        crf: 31,
+        fps: 20,
+        profile: "main",
+        preset: "veryfast",
+        maxRate: "600k",
+        bufSize: "1200k",
         outputBasename: "display.mp4",
+      })
+    );
+    expect(extractVideoPosterBufferMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        videoBuffer: Buffer.from(gifBytes),
+        videoMimeType: "image/gif",
+        filename: "tutorial-thumbnails/generated.gif",
+        posterFilter: "thumbnail,scale=480:-2:force_original_aspect_ratio=decrease",
+        jpegQuality: 5,
       })
     );
     expect(uploadMock).toHaveBeenCalledWith(

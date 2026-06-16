@@ -1,0 +1,193 @@
+[
+  {
+    "name": "baseline-current",
+    "p95": 0,
+    "max": 0,
+    "over50": 0,
+    "playCount": 25.3,
+    "pauseCount": 46.3,
+    "rectReads": 15,
+    "moving": [
+      [
+        9,
+        10,
+        11,
+        12
+      ],
+      [
+        10,
+        11
+      ],
+      [
+        9,
+        10,
+        11,
+        12
+      ]
+    ],
+    "sourced": [
+      4,
+      6,
+      4
+    ],
+    "playing": [
+      4,
+      2,
+      4
+    ],
+    "longTaskDurations": [
+      60,
+      59,
+      55,
+      52,
+      51,
+      51,
+      50
+    ]
+  },
+  {
+    "name": "skip-paused-pause-intervention",
+    "p95": 0,
+    "max": 0,
+    "over50": 0,
+    "playCount": 25,
+    "pauseCount": 45,
+    "rectReads": 15,
+    "moving": [
+      [
+        9,
+        10,
+        11,
+        12
+      ],
+      [
+        9,
+        10,
+        11,
+        12
+      ],
+      [
+        9,
+        10,
+        11,
+        12
+      ]
+    ],
+    "sourced": [
+      4,
+      4,
+      4
+    ],
+    "playing": [
+      4,
+      4,
+      4
+    ],
+    "longTaskDurations": [
+      140,
+      103,
+      100,
+      75,
+      75,
+      63,
+      62,
+      62
+    ]
+  },
+  {
+    "name": "disable-immediate-resume-intervention",
+    "p95": 0,
+    "max": 0,
+    "over50": 0,
+    "playCount": 25,
+    "pauseCount": 45,
+    "rectReads": 15,
+    "moving": [
+      [
+        9,
+        10,
+        11,
+        12
+      ],
+      [
+        9,
+        10,
+        11,
+        12
+      ],
+      [
+        9,
+        10,
+        11,
+        12
+      ]
+    ],
+    "sourced": [
+      4,
+      4,
+      4
+    ],
+    "playing": [
+      4,
+      4,
+      4
+    ],
+    "longTaskDurations": [
+      111,
+      109,
+      100,
+      92,
+      76,
+      61,
+      58,
+      56
+    ]
+  },
+  {
+    "name": "disable-source-release-intervention",
+    "p95": 0,
+    "max": 0,
+    "over50": 0,
+    "playCount": 29.3,
+    "pauseCount": 47,
+    "rectReads": 15,
+    "moving": [
+      [
+        9,
+        10,
+        11,
+        12
+      ],
+      [
+        9,
+        10,
+        11,
+        12
+      ],
+      [
+        9,
+        10,
+        11,
+        12
+      ]
+    ],
+    "sourced": [
+      4,
+      4,
+      4
+    ],
+    "playing": [
+      4,
+      4,
+      4
+    ],
+    "longTaskDurations": [
+      88,
+      80,
+      72,
+      55,
+      52,
+      50
+    ]
+  }
+]

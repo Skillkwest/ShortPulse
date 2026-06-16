@@ -1,0 +1,114 @@
+{
+  "date": "2026-06-16",
+  "branch": "codex/brother-dashboard-aesthetics",
+  "production": "untouched",
+  "change": "Centralize DashboardTutorialGrid document visibility state",
+  "averages": {
+    "p95": 19.8,
+    "p98": 39.6,
+    "max": 97.9,
+    "over50": 3.8
+  },
+  "runDetails": [
+    {
+      "run": 1,
+      "p95": 16.7,
+      "p98": 37.5,
+      "max": 91.7,
+      "over50": 4,
+      "sourced": 4,
+      "playing": 4,
+      "moving": [
+        9,
+        10,
+        11,
+        12
+      ],
+      "scrollPausedMarkers": 0,
+      "visibilityListeners": 4,
+      "playCount": 13,
+      "pauseCount": 45,
+      "loadCount": 37,
+      "rectReads": 15,
+      "topLongTasks": [
+        78
+      ]
+    },
+    {
+      "run": 2,
+      "p95": 20.9,
+      "p98": 37.5,
+      "max": 83.3,
+      "over50": 4,
+      "sourced": 4,
+      "playing": 4,
+      "moving": [
+        9,
+        10,
+        11,
+        12
+      ],
+      "scrollPausedMarkers": 0,
+      "visibilityListeners": 4,
+      "playCount": 13,
+      "pauseCount": 45,
+      "loadCount": 37,
+      "rectReads": 15,
+      "topLongTasks": [
+        69,
+        53
+      ]
+    },
+    {
+      "run": 3,
+      "p95": 20.7,
+      "p98": 41.7,
+      "max": 108.3,
+      "over50": 3,
+      "sourced": 4,
+      "playing": 4,
+      "moving": [
+        9,
+        10,
+        11,
+        12
+      ],
+      "scrollPausedMarkers": 0,
+      "visibilityListeners": 4,
+      "playCount": 13,
+      "pauseCount": 45,
+      "loadCount": 37,
+      "rectReads": 15,
+      "topLongTasks": [
+        73,
+        53
+      ]
+    },
+    {
+      "run": 4,
+      "p95": 20.9,
+      "p98": 41.6,
+      "max": 108.3,
+      "over50": 4,
+      "sourced": 4,
+      "playing": 4,
+      "moving": [
+        9,
+        10,
+        11,
+        12
+      ],
+      "scrollPausedMarkers": 0,
+      "visibilityListeners": 4,
+      "playCount": 13,
+      "pauseCount": 45,
+      "loadCount": 37,
+      "rectReads": 15,
+      "topLongTasks": [
+        76,
+        72,
+        52
+      ]
+    }
+  ]
+}

@@ -1,0 +1,603 @@
+{
+  "branchRule": "local codex/brother-dashboard-aesthetics only; production not touched",
+  "targetUrl": "http://127.0.0.1:3000/",
+  "capturedAt": "2026-06-16T21:23:54.155Z",
+  "viewport": {
+    "width": 390,
+    "height": 844,
+    "isMobile": true,
+    "cpuThrottle": 4
+  },
+  "results": [
+    {
+      "label": "baseline",
+      "domContentLoadedMs": 892,
+      "count": 229,
+      "p95": 33.4,
+      "p98": 120.8,
+      "max": 495.9,
+      "over50": 8,
+      "over100": 5,
+      "longTaskCount": 5,
+      "longTaskTotal": 1022,
+      "topLongTasks": [
+        {
+          "duration": 442,
+          "name": "self",
+          "startTime": 421.6
+        },
+        {
+          "duration": 240,
+          "name": "self",
+          "startTime": 1109.9
+        },
+        {
+          "duration": 179,
+          "name": "self",
+          "startTime": 907.6
+        },
+        {
+          "duration": 102,
+          "name": "self",
+          "startTime": 1426.7
+        },
+        {
+          "duration": 59,
+          "name": "self",
+          "startTime": 1625.7
+        }
+      ],
+      "dom": {
+        "heroSources": 1,
+        "modelLogos": 36,
+        "nodeCount": 315,
+        "orbitPills": 0,
+        "showcaseCards": 15,
+        "tutorialVideos": 15
+      },
+      "resources": [
+        {
+          "duration": 1444.3,
+          "initiatorType": "video",
+          "name": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fc6eb109b-3b0f-4ef3-b239-7d09bab4780a%2Fdisplay.mp4",
+          "transferSize": 321203
+        },
+        {
+          "duration": 1342.1,
+          "initiatorType": "video",
+          "name": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F26af3b7f-b3a5-433f-9414-a4c11130b491%2Fdisplay.mp4",
+          "transferSize": 189050
+        },
+        {
+          "duration": 1316.3,
+          "initiatorType": "video",
+          "name": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F59ba779c-91a8-4d5d-8ab8-09a8f24d57a7%2Fdisplay.mp4",
+          "transferSize": 217859
+        },
+        {
+          "duration": 1284,
+          "initiatorType": "video",
+          "name": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F9ff0dc00-65d0-4506-9b32-ff332aa75e6e%2Fdisplay.mp4",
+          "transferSize": 214092
+        },
+        {
+          "duration": 1205.3,
+          "initiatorType": "video",
+          "name": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fafe07cd8-da89-4aac-a4dc-0167a1a27def%2Fdisplay.mp4",
+          "transferSize": 18980
+        },
+        {
+          "duration": 964.4,
+          "initiatorType": "video",
+          "name": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F9ba8fa3e-8ad2-4e49-be8d-0f404639d039%2Fdisplay.mp4",
+          "transferSize": 199909
+        },
+        {
+          "duration": 856.5,
+          "initiatorType": "video",
+          "name": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fab92ea8f-b2bc-4342-b417-5ccdc33ebebb%2Fdisplay.mp4",
+          "transferSize": 113411
+        },
+        {
+          "duration": 791.3,
+          "initiatorType": "video",
+          "name": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fda77f408-0aad-4cd8-816a-7af656ba26af%2Fdisplay.mp4",
+          "transferSize": 34741
+        },
+        {
+          "duration": 780.2,
+          "initiatorType": "video",
+          "name": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F26284697-39f7-4982-aa77-baadeb061326%2Fdisplay.mp4",
+          "transferSize": 59997
+        },
+        {
+          "duration": 735.2,
+          "initiatorType": "video",
+          "name": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F3321dd81-bd7d-4af0-b01e-6c8304af5d76%2Fdisplay.mp4",
+          "transferSize": 45949
+        },
+        {
+          "duration": 724.3,
+          "initiatorType": "video",
+          "name": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F0724a053-4d40-4377-b223-d7ec22f85ecf%2Fdisplay.mp4",
+          "transferSize": 185127
+        },
+        {
+          "duration": 582.6,
+          "initiatorType": "video",
+          "name": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Ff72170b8-111e-431a-a5cd-d85e9300159d%2Fdisplay.mp4",
+          "transferSize": 86060
+        }
+      ]
+    },
+    {
+      "label": "block-images-and-media",
+      "domContentLoadedMs": 762,
+      "count": 428,
+      "p95": 4.4,
+      "p98": 45.8,
+      "max": 441.7,
+      "over50": 5,
+      "over100": 4,
+      "longTaskCount": 4,
+      "longTaskTotal": 835,
+      "topLongTasks": [
+        {
+          "duration": 414,
+          "name": "self",
+          "startTime": 321.3
+        },
+        {
+          "duration": 199,
+          "name": "self",
+          "startTime": 914
+        },
+        {
+          "duration": 136,
+          "name": "self",
+          "startTime": 774.9
+        },
+        {
+          "duration": 86,
+          "name": "self",
+          "startTime": 1195.2
+        }
+      ],
+      "dom": {
+        "heroSources": 1,
+        "modelLogos": 36,
+        "nodeCount": 327,
+        "orbitPills": 0,
+        "showcaseCards": 15,
+        "tutorialVideos": 15
+      },
+      "resources": [
+        {
+          "duration": 123.2,
+          "initiatorType": "css",
+          "name": "/dashboard/homepage-misty-forest-hero-poster.webp",
+          "transferSize": 0
+        },
+        {
+          "duration": 109.9,
+          "initiatorType": "css",
+          "name": "/kling-logo.png",
+          "transferSize": 0
+        },
+        {
+          "duration": 109.9,
+          "initiatorType": "css",
+          "name": "/bytedance-logo.svg",
+          "transferSize": 0
+        },
+        {
+          "duration": 109.8,
+          "initiatorType": "css",
+          "name": "/google-logo.png",
+          "transferSize": 0
+        },
+        {
+          "duration": 109.5,
+          "initiatorType": "css",
+          "name": "/seedream-logo.png",
+          "transferSize": 0
+        },
+        {
+          "duration": 108.6,
+          "initiatorType": "css",
+          "name": "/elevenlabs-logo.svg",
+          "transferSize": 0
+        },
+        {
+          "duration": 92.4,
+          "initiatorType": "script",
+          "name": "/_next/static/chunks/node_modules_next_dist_compiled_0by8e_8._.js",
+          "transferSize": 246897
+        },
+        {
+          "duration": 92.4,
+          "initiatorType": "script",
+          "name": "/_next/static/chunks/node_modules_react-dom_cjs_react-dom_development_07i0ttg.js",
+          "transferSize": 242376
+        },
+        {
+          "duration": 76.2,
+          "initiatorType": "script",
+          "name": "/_next/static/development/_clientMiddlewareManifest.js",
+          "transferSize": 497
+        },
+        {
+          "duration": 74.9,
+          "initiatorType": "script",
+          "name": "/_next/static/chunks/turbopack-pages_index_061546d._.js",
+          "transferSize": 22758
+        },
+        {
+          "duration": 73.7,
+          "initiatorType": "script",
+          "name": "/_next/static/development/_ssgManifest.js",
+          "transferSize": 376
+        },
+        {
+          "duration": 73.5,
+          "initiatorType": "script",
+          "name": "/_next/static/development/_buildManifest.js",
+          "transferSize": 1859
+        }
+      ]
+    },
+    {
+      "label": "hide-showcase-and-orbit",
+      "domContentLoadedMs": 760,
+      "count": 465,
+      "p95": 8.4,
+      "p98": 16.7,
+      "max": 424.9,
+      "over50": 4,
+      "over100": 3,
+      "longTaskCount": 3,
+      "longTaskTotal": 735,
+      "topLongTasks": [
+        {
+          "duration": 401,
+          "name": "self",
+          "startTime": 329.5
+        },
+        {
+          "duration": 197,
+          "name": "self",
+          "startTime": 930.3
+        },
+        {
+          "duration": 137,
+          "name": "self",
+          "startTime": 772.4
+        }
+      ],
+      "dom": {
+        "heroSources": 1,
+        "modelLogos": 36,
+        "nodeCount": 228,
+        "orbitPills": 0,
+        "showcaseCards": 0,
+        "tutorialVideos": 0
+      },
+      "resources": [
+        {
+          "duration": 84.6,
+          "initiatorType": "script",
+          "name": "/_next/static/chunks/node_modules_next_dist_compiled_0by8e_8._.js",
+          "transferSize": 246897
+        },
+        {
+          "duration": 84.1,
+          "initiatorType": "script",
+          "name": "/_next/static/chunks/node_modules_react-dom_cjs_react-dom_development_07i0ttg.js",
+          "transferSize": 242376
+        },
+        {
+          "duration": 67.2,
+          "initiatorType": "script",
+          "name": "/_next/static/chunks/turbopack-pages_index_061546d._.js",
+          "transferSize": 22758
+        },
+        {
+          "duration": 66.6,
+          "initiatorType": "script",
+          "name": "/_next/static/chunks/node_modules_next_dist_client_0khy5ar._.js",
+          "transferSize": 45577
+        },
+        {
+          "duration": 66.5,
+          "initiatorType": "script",
+          "name": "/_next/static/development/_clientMiddlewareManifest.js",
+          "transferSize": 497
+        },
+        {
+          "duration": 65.5,
+          "initiatorType": "script",
+          "name": "/_next/static/development/_ssgManifest.js",
+          "transferSize": 376
+        },
+        {
+          "duration": 64,
+          "initiatorType": "script",
+          "name": "/_next/static/development/_buildManifest.js",
+          "transferSize": 1859
+        },
+        {
+          "duration": 62.4,
+          "initiatorType": "script",
+          "name": "/_next/static/chunks/node_modules_next_dist_shared_lib_02lkcsc._.js",
+          "transferSize": 62657
+        },
+        {
+          "duration": 58.6,
+          "initiatorType": "script",
+          "name": "/_next/static/chunks/pages_index_07xvfw~._.js",
+          "transferSize": 1112
+        },
+        {
+          "duration": 58.2,
+          "initiatorType": "script",
+          "name": "/_next/static/chunks/node_modules_next_0-xb44e._.js",
+          "transferSize": 1196
+        },
+        {
+          "duration": 56.3,
+          "initiatorType": "script",
+          "name": "/_next/static/chunks/node_modules_next_dist_compiled_0o6l_m6._.js",
+          "transferSize": 236478
+        },
+        {
+          "duration": 55.4,
+          "initiatorType": "script",
+          "name": "/_next/static/chunks/%5Broot-of-the-server%5D__03drsob._.js",
+          "transferSize": 31070
+        }
+      ]
+    },
+    {
+      "label": "pause-css-animations",
+      "domContentLoadedMs": 770,
+      "count": 279,
+      "p95": 20.8,
+      "p98": 54.1,
+      "max": 445.8,
+      "over50": 7,
+      "over100": 4,
+      "longTaskCount": 5,
+      "longTaskTotal": 934,
+      "topLongTasks": [
+        {
+          "duration": 421,
+          "name": "self",
+          "startTime": 324.8
+        },
+        {
+          "duration": 206,
+          "name": "self",
+          "startTime": 947.6
+        },
+        {
+          "duration": 145,
+          "name": "self",
+          "startTime": 783.2
+        },
+        {
+          "duration": 111,
+          "name": "self",
+          "startTime": 1227.6
+        },
+        {
+          "duration": 51,
+          "name": "self",
+          "startTime": 1472.7
+        }
+      ],
+      "dom": {
+        "heroSources": 1,
+        "modelLogos": 36,
+        "nodeCount": 316,
+        "orbitPills": 0,
+        "showcaseCards": 15,
+        "tutorialVideos": 15
+      },
+      "resources": [
+        {
+          "duration": 1660.7,
+          "initiatorType": "video",
+          "name": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F59ba779c-91a8-4d5d-8ab8-09a8f24d57a7%2Fdisplay.mp4",
+          "transferSize": 217859
+        },
+        {
+          "duration": 1367.8,
+          "initiatorType": "video",
+          "name": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F9ff0dc00-65d0-4506-9b32-ff332aa75e6e%2Fdisplay.mp4",
+          "transferSize": 214092
+        },
+        {
+          "duration": 1182,
+          "initiatorType": "video",
+          "name": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F9ba8fa3e-8ad2-4e49-be8d-0f404639d039%2Fdisplay.mp4",
+          "transferSize": 199909
+        },
+        {
+          "duration": 1158.6,
+          "initiatorType": "video",
+          "name": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F26af3b7f-b3a5-433f-9414-a4c11130b491%2Fdisplay.mp4",
+          "transferSize": 189050
+        },
+        {
+          "duration": 1085.6,
+          "initiatorType": "video",
+          "name": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fc6eb109b-3b0f-4ef3-b239-7d09bab4780a%2Fdisplay.mp4",
+          "transferSize": 321203
+        },
+        {
+          "duration": 707,
+          "initiatorType": "video",
+          "name": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F0724a053-4d40-4377-b223-d7ec22f85ecf%2Fdisplay.mp4",
+          "transferSize": 185127
+        },
+        {
+          "duration": 663.4,
+          "initiatorType": "video",
+          "name": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fab92ea8f-b2bc-4342-b417-5ccdc33ebebb%2Fdisplay.mp4",
+          "transferSize": 113411
+        },
+        {
+          "duration": 597.1,
+          "initiatorType": "video",
+          "name": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Ff72170b8-111e-431a-a5cd-d85e9300159d%2Fdisplay.mp4",
+          "transferSize": 86060
+        },
+        {
+          "duration": 581.5,
+          "initiatorType": "video",
+          "name": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F3321dd81-bd7d-4af0-b01e-6c8304af5d76%2Fdisplay.mp4",
+          "transferSize": 45949
+        },
+        {
+          "duration": 543.3,
+          "initiatorType": "video",
+          "name": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fda77f408-0aad-4cd8-816a-7af656ba26af%2Fdisplay.mp4",
+          "transferSize": 34741
+        },
+        {
+          "duration": 520.8,
+          "initiatorType": "video",
+          "name": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F26284697-39f7-4982-aa77-baadeb061326%2Fdisplay.mp4",
+          "transferSize": 59997
+        },
+        {
+          "duration": 172.5,
+          "initiatorType": "img",
+          "name": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F3e799a46-bffd-4d7e-9764-f9ba1431bbae%2Fposter.jpg",
+          "transferSize": 22394
+        }
+      ]
+    },
+    {
+      "label": "hide-model-marquee",
+      "domContentLoadedMs": 921,
+      "count": 275,
+      "p95": 20.9,
+      "p98": 66.7,
+      "max": 508.4,
+      "over50": 7,
+      "over100": 4,
+      "longTaskCount": 5,
+      "longTaskTotal": 987,
+      "topLongTasks": [
+        {
+          "duration": 482,
+          "name": "self",
+          "startTime": 418.8
+        },
+        {
+          "duration": 211,
+          "name": "self",
+          "startTime": 1082.4
+        },
+        {
+          "duration": 139,
+          "name": "self",
+          "startTime": 939.6
+        },
+        {
+          "duration": 104,
+          "name": "self",
+          "startTime": 1379.9
+        },
+        {
+          "duration": 51,
+          "name": "self",
+          "startTime": 1619.1
+        }
+      ],
+      "dom": {
+        "heroSources": 1,
+        "modelLogos": 36,
+        "nodeCount": 316,
+        "orbitPills": 0,
+        "showcaseCards": 15,
+        "tutorialVideos": 15
+      },
+      "resources": [
+        {
+          "duration": 1536.9,
+          "initiatorType": "video",
+          "name": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fc6eb109b-3b0f-4ef3-b239-7d09bab4780a%2Fdisplay.mp4",
+          "transferSize": 321203
+        },
+        {
+          "duration": 1331.4,
+          "initiatorType": "video",
+          "name": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F59ba779c-91a8-4d5d-8ab8-09a8f24d57a7%2Fdisplay.mp4",
+          "transferSize": 217859
+        },
+        {
+          "duration": 1320.6,
+          "initiatorType": "video",
+          "name": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F26af3b7f-b3a5-433f-9414-a4c11130b491%2Fdisplay.mp4",
+          "transferSize": 189050
+        },
+        {
+          "duration": 1070.4,
+          "initiatorType": "video",
+          "name": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fafe07cd8-da89-4aac-a4dc-0167a1a27def%2Fdisplay.mp4",
+          "transferSize": 18980
+        },
+        {
+          "duration": 1016.4,
+          "initiatorType": "video",
+          "name": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F9ff0dc00-65d0-4506-9b32-ff332aa75e6e%2Fdisplay.mp4",
+          "transferSize": 214092
+        },
+        {
+          "duration": 924.5,
+          "initiatorType": "video",
+          "name": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F9ba8fa3e-8ad2-4e49-be8d-0f404639d039%2Fdisplay.mp4",
+          "transferSize": 199909
+        },
+        {
+          "duration": 782.3,
+          "initiatorType": "video",
+          "name": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F0724a053-4d40-4377-b223-d7ec22f85ecf%2Fdisplay.mp4",
+          "transferSize": 185127
+        },
+        {
+          "duration": 638.9,
+          "initiatorType": "video",
+          "name": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fda77f408-0aad-4cd8-816a-7af656ba26af%2Fdisplay.mp4",
+          "transferSize": 34741
+        },
+        {
+          "duration": 622.3,
+          "initiatorType": "video",
+          "name": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F3321dd81-bd7d-4af0-b01e-6c8304af5d76%2Fdisplay.mp4",
+          "transferSize": 45949
+        },
+        {
+          "duration": 559.1,
+          "initiatorType": "video",
+          "name": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F26284697-39f7-4982-aa77-baadeb061326%2Fdisplay.mp4",
+          "transferSize": 59997
+        },
+        {
+          "duration": 548.8,
+          "initiatorType": "video",
+          "name": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Ff72170b8-111e-431a-a5cd-d85e9300159d%2Fdisplay.mp4",
+          "transferSize": 86060
+        },
+        {
+          "duration": 441.8,
+          "initiatorType": "video",
+          "name": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fab92ea8f-b2bc-4342-b417-5ccdc33ebebb%2Fdisplay.mp4",
+          "transferSize": 113411
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,206 @@
+[
+  {
+    "name": "baseline",
+    "p95": 29.1,
+    "p98": 73.6,
+    "max": 122.2,
+    "over50": 7.3,
+    "playCount": 24.7,
+    "pauseCount": 45,
+    "loadCount": 37,
+    "rectReads": 15,
+    "moving": [
+      [
+        9,
+        10,
+        11,
+        12
+      ],
+      [
+        9,
+        10,
+        11,
+        12
+      ],
+      [
+        9,
+        10,
+        11,
+        12
+      ]
+    ],
+    "sourced": [
+      4,
+      4,
+      4
+    ],
+    "playing": [
+      4,
+      4,
+      4
+    ],
+    "topLongTasks": [
+      120,
+      102,
+      100,
+      98,
+      95,
+      91,
+      88,
+      79
+    ]
+  },
+  {
+    "name": "skip-empty-video-load",
+    "p95": 27.8,
+    "p98": 61.2,
+    "max": 138.8,
+    "over50": 7,
+    "playCount": 24.7,
+    "pauseCount": 45,
+    "loadCount": 37,
+    "rectReads": 15,
+    "moving": [
+      [
+        9,
+        10,
+        11,
+        12
+      ],
+      [
+        9,
+        10,
+        11,
+        12
+      ],
+      [
+        9,
+        10,
+        11,
+        12
+      ]
+    ],
+    "sourced": [
+      4,
+      4,
+      4
+    ],
+    "playing": [
+      4,
+      4,
+      4
+    ],
+    "topLongTasks": [
+      150,
+      123,
+      113,
+      101,
+      96,
+      90,
+      80,
+      75
+    ]
+  },
+  {
+    "name": "delay-source-release",
+    "p95": 26.3,
+    "p98": 47.2,
+    "max": 111.1,
+    "over50": 4.7,
+    "playCount": 24.7,
+    "pauseCount": 45,
+    "loadCount": 37,
+    "rectReads": 15,
+    "moving": [
+      [
+        9,
+        10,
+        11,
+        12
+      ],
+      [
+        9,
+        10,
+        11,
+        12
+      ],
+      [
+        9,
+        10,
+        11,
+        12
+      ]
+    ],
+    "sourced": [
+      4,
+      4,
+      4
+    ],
+    "playing": [
+      4,
+      4,
+      4
+    ],
+    "topLongTasks": [
+      104,
+      99,
+      94,
+      85,
+      81,
+      80,
+      76,
+      73
+    ]
+  },
+  {
+    "name": "disable-source-release",
+    "p95": 27.7,
+    "p98": 70.8,
+    "max": 132,
+    "over50": 7,
+    "playCount": 34.3,
+    "pauseCount": 52.3,
+    "loadCount": 30.3,
+    "rectReads": 15,
+    "moving": [
+      [
+        9,
+        10,
+        11,
+        12
+      ],
+      [
+        9,
+        10,
+        11,
+        12
+      ],
+      [
+        9,
+        10,
+        11,
+        12
+      ]
+    ],
+    "sourced": [
+      11,
+      13,
+      13
+    ],
+    "playing": [
+      4,
+      4,
+      4
+    ],
+    "topLongTasks": [
+      135,
+      117,
+      101,
+      100,
+      99,
+      92,
+      85,
+      82
+    ]
+  }
+]

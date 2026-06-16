@@ -1,0 +1,781 @@
+{
+  "startInfo": {
+    "t": 5678.5,
+    "y": 0
+  },
+  "finalY": 695,
+  "frameCount": 0,
+  "p95": 0,
+  "p98": 0,
+  "max": 0,
+  "over50": 0,
+  "sourced": 4,
+  "playing": 4,
+  "scrollPausedMarkers": 0,
+  "moving": [
+    9,
+    10,
+    11,
+    12
+  ],
+  "videoStates": [
+    {
+      "index": 0,
+      "src": false,
+      "playing": false,
+      "paused": true,
+      "readyState": 0,
+      "ct": 0,
+      "loop": false
+    },
+    {
+      "index": 1,
+      "src": false,
+      "playing": false,
+      "paused": true,
+      "readyState": 0,
+      "ct": 0,
+      "loop": false
+    },
+    {
+      "index": 2,
+      "src": false,
+      "playing": false,
+      "paused": true,
+      "readyState": 0,
+      "ct": 0,
+      "loop": false
+    },
+    {
+      "index": 3,
+      "src": false,
+      "playing": false,
+      "paused": true,
+      "readyState": 0,
+      "ct": 0,
+      "loop": false
+    },
+    {
+      "index": 4,
+      "src": false,
+      "playing": false,
+      "paused": true,
+      "readyState": 0,
+      "ct": 0,
+      "loop": false
+    },
+    {
+      "index": 5,
+      "src": false,
+      "playing": false,
+      "paused": true,
+      "readyState": 0,
+      "ct": 0,
+      "loop": false
+    },
+    {
+      "index": 6,
+      "src": false,
+      "playing": false,
+      "paused": true,
+      "readyState": 0,
+      "ct": 0,
+      "loop": false
+    },
+    {
+      "index": 7,
+      "src": false,
+      "playing": false,
+      "paused": true,
+      "readyState": 0,
+      "ct": 0,
+      "loop": false
+    },
+    {
+      "index": 8,
+      "src": false,
+      "playing": false,
+      "paused": true,
+      "readyState": 0,
+      "ct": 0,
+      "loop": false
+    },
+    {
+      "index": 9,
+      "src": true,
+      "playing": true,
+      "paused": false,
+      "readyState": 4,
+      "ct": 1.958023,
+      "loop": true
+    },
+    {
+      "index": 10,
+      "src": true,
+      "playing": true,
+      "paused": false,
+      "readyState": 4,
+      "ct": 1.438395,
+      "loop": true
+    },
+    {
+      "index": 11,
+      "src": true,
+      "playing": true,
+      "paused": false,
+      "readyState": 4,
+      "ct": 1.432092,
+      "loop": true
+    },
+    {
+      "index": 12,
+      "src": true,
+      "playing": true,
+      "paused": false,
+      "readyState": 4,
+      "ct": 2.41751,
+      "loop": true
+    },
+    {
+      "index": 13,
+      "src": false,
+      "playing": false,
+      "paused": true,
+      "readyState": 0,
+      "ct": 0,
+      "loop": false
+    },
+    {
+      "index": 14,
+      "src": false,
+      "playing": false,
+      "paused": true,
+      "readyState": 0,
+      "ct": 0,
+      "loop": false
+    }
+  ],
+  "perf": {
+    "events": [
+      {
+        "t": 7048.4000000059605,
+        "type": "video-rect",
+        "index": "0"
+      },
+      {
+        "t": 7048.800000011921,
+        "type": "video-rect",
+        "index": "1"
+      },
+      {
+        "t": 7048.800000011921,
+        "type": "video-rect",
+        "index": "2"
+      },
+      {
+        "t": 7048.800000011921,
+        "type": "video-rect",
+        "index": "3"
+      },
+      {
+        "t": 7048.800000011921,
+        "type": "video-rect",
+        "index": "4"
+      },
+      {
+        "t": 7048.800000011921,
+        "type": "video-rect",
+        "index": "5"
+      },
+      {
+        "t": 7048.9000000059605,
+        "type": "video-rect",
+        "index": "6"
+      },
+      {
+        "t": 7048.9000000059605,
+        "type": "video-rect",
+        "index": "7"
+      },
+      {
+        "t": 7048.9000000059605,
+        "type": "video-rect",
+        "index": "8"
+      },
+      {
+        "t": 7049,
+        "type": "video-rect",
+        "index": "9"
+      },
+      {
+        "t": 7049.200000017881,
+        "type": "video-rect",
+        "index": "10"
+      },
+      {
+        "t": 7049.200000017881,
+        "type": "video-rect",
+        "index": "11"
+      },
+      {
+        "t": 7049.200000017881,
+        "type": "video-rect",
+        "index": "12"
+      },
+      {
+        "t": 7049.200000017881,
+        "type": "video-rect",
+        "index": "13"
+      },
+      {
+        "t": 7049.200000017881,
+        "type": "video-rect",
+        "index": "14"
+      }
+    ],
+    "longTasks": [
+      {
+        "start": 609.2000000178814,
+        "duration": 571,
+        "name": "self"
+      },
+      {
+        "start": 1272.300000011921,
+        "duration": 241,
+        "name": "self"
+      },
+      {
+        "start": 1538.800000011921,
+        "duration": 338,
+        "name": "self"
+      },
+      {
+        "start": 1941.4000000059605,
+        "duration": 70,
+        "name": "self"
+      },
+      {
+        "start": 2058.4000000059605,
+        "duration": 91,
+        "name": "self"
+      },
+      {
+        "start": 2211.2000000178814,
+        "duration": 72,
+        "name": "self"
+      },
+      {
+        "start": 5728.0999999940395,
+        "duration": 55,
+        "name": "self"
+      },
+      {
+        "start": 5988.700000017881,
+        "duration": 52,
+        "name": "self"
+      }
+    ],
+    "frames": [],
+    "rectReads": 15,
+    "videoPlays": [
+      {
+        "t": 2310.5,
+        "index": null,
+        "src": false,
+        "paused": true,
+        "className": "public-home-hero-video"
+      },
+      {
+        "t": 3480.5999999940395,
+        "index": "0",
+        "src": true,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 3529.300000011921,
+        "index": "0",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 3655.2000000178814,
+        "index": "1",
+        "src": true,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 3702.7000000178814,
+        "index": "1",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 3839.300000011921,
+        "index": "2",
+        "src": true,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 3891.800000011921,
+        "index": "2",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 4014,
+        "index": "3",
+        "src": true,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 4074.800000011921,
+        "index": "3",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 6048,
+        "index": "3",
+        "src": true,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 6129,
+        "index": "6",
+        "src": true,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 6178.5999999940395,
+        "index": "6",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 6346.300000011921,
+        "index": "7",
+        "src": true,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 6400.800000011921,
+        "index": "7",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 6513.4000000059605,
+        "index": "8",
+        "src": true,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 6559.0999999940395,
+        "index": "8",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 6674.800000011921,
+        "index": "12",
+        "src": true,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 6713.9000000059605,
+        "index": "12",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 7125.5999999940395,
+        "index": "9",
+        "src": true,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 7167.5999999940395,
+        "index": "9",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 7588.0999999940395,
+        "index": "10",
+        "src": true,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 7619.9000000059605,
+        "index": "11",
+        "src": true,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 7700.700000017881,
+        "index": "10",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 7702.700000017881,
+        "index": "11",
+        "src": true,
+        "paused": false,
+        "className": ""
+      }
+    ],
+    "videoPauses": [
+      {
+        "t": 1956.4000000059605,
+        "index": "0",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1958.300000011921,
+        "index": "1",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1959.4000000059605,
+        "index": "2",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1960.0999999940395,
+        "index": "3",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1960.7000000178814,
+        "index": "4",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1961.5,
+        "index": "5",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1962.0999999940395,
+        "index": "6",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1962.5,
+        "index": "7",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1963.4000000059605,
+        "index": "8",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1964.800000011921,
+        "index": "9",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1965.9000000059605,
+        "index": "10",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1966.7000000178814,
+        "index": "11",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1967.300000011921,
+        "index": "12",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1967.5999999940395,
+        "index": "13",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1968,
+        "index": "14",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1976.0999999940395,
+        "index": null,
+        "src": false,
+        "paused": true,
+        "className": "public-home-hero-video"
+      },
+      {
+        "t": 2001.5999999940395,
+        "index": "0",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 2002.800000011921,
+        "index": "1",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 2003.4000000059605,
+        "index": "2",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 2004.0999999940395,
+        "index": "3",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 2004.800000011921,
+        "index": "4",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 2005.300000011921,
+        "index": "5",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 2005.5999999940395,
+        "index": "6",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 2006.300000011921,
+        "index": "7",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 2007,
+        "index": "8",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 2007.5,
+        "index": "9",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 2007.7000000178814,
+        "index": "10",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 2007.9000000059605,
+        "index": "11",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 2008.0999999940395,
+        "index": "12",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 2008.5,
+        "index": "13",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 2008.7000000178814,
+        "index": "14",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 2010.300000011921,
+        "index": null,
+        "src": false,
+        "paused": true,
+        "className": "public-home-hero-video"
+      },
+      {
+        "t": 5698.300000011921,
+        "index": "0",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 5698.9000000059605,
+        "index": "1",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 5699.300000011921,
+        "index": "2",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 5699.300000011921,
+        "index": "3",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 5920.800000011921,
+        "index": null,
+        "src": false,
+        "paused": true,
+        "className": "public-home-hero-video"
+      },
+      {
+        "t": 6042.0999999940395,
+        "index": "0",
+        "src": true,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 6042.5,
+        "index": "1",
+        "src": true,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 6042.700000017881,
+        "index": "2",
+        "src": true,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 6042.700000017881,
+        "index": "3",
+        "src": true,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 6122.300000011921,
+        "index": "3",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 7102.5,
+        "index": "6",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 7103.0999999940395,
+        "index": "7",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 7103.300000011921,
+        "index": "8",
+        "src": true,
+        "paused": false,
+        "className": ""
+      }
+    ],
+    "mutations": []
+  },
+  "longTasksAfterStart": [
+    {
+      "start": 5728.0999999940395,
+      "duration": 55,
+      "name": "self"
+    },
+    {
+      "start": 5988.700000017881,
+      "duration": 52,
+      "name": "self"
+    }
+  ]
+}

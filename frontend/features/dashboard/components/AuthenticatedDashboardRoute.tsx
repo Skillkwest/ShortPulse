@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
-import { ChartBar, CloudArrowUp, ShieldCheck, Sparkle } from "phosphor-react";
+import { ChartBar, CloudArrowUp, Globe, ShieldCheck, Sparkle } from "phosphor-react";
 import { useCredits } from "../../ai-studio/hooks/useCredits";
 import {
   buildPlanView,
@@ -26,7 +26,7 @@ import { useProjectCreationDialog } from "../../projects/hooks/useProjectCreatio
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { ensureSupabaseQueryClient, signOutSupabaseSession } from "../../../lib/supabaseClient";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
-import { asDashboardTutorials } from "../logic/dashboardTutorialPayload";
+import { readDashboardTutorialsFromPublicEndpoint } from "../logic/dashboardTutorialEndpointClient";
 
 const DEFAULT_PLAN_TIER = "free";
 const DASHBOARD_HIDE_LEGACY_SECTIONS =
@@ -49,6 +49,7 @@ type ProjectNameModalComponent =
 
 type AuthenticatedDashboardRouteProps = {
   billingCatalog: BillingCatalogSnapshot;
+  dashboardTutorials?: DashboardTutorial[];
   user: User;
 };
 
@@ -119,6 +120,7 @@ const loadProjectNameModal = async (): Promise<ProjectNameModalComponent> => {
  */
 export function AuthenticatedDashboardRoute({
   billingCatalog,
+  dashboardTutorials: initialDashboardTutorials = [],
   user,
 }: AuthenticatedDashboardRouteProps) {
   const router = useRouter();
@@ -139,7 +141,8 @@ export function AuthenticatedDashboardRoute({
   const [dashboardAnnouncement, setDashboardAnnouncement] = useState<DashboardAnnouncement | null>(
     null
   );
-  const [dashboardTutorials, setDashboardTutorials] = useState<DashboardTutorial[]>([]);
+  const [dashboardTutorials, setDashboardTutorials] =
+    useState<DashboardTutorial[]>(initialDashboardTutorials);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -307,21 +310,14 @@ export function AuthenticatedDashboardRoute({
   }, []);
 
   useEffect(() => {
+    if (dashboardTutorials.length > 0) return undefined;
     let active = true;
 
     const loadDashboardTutorials = async () => {
       try {
-        const response = await fetch("/api/dashboard/tutorials", {
-          method: "GET",
-        });
-        if (!response.ok) {
-          throw new Error("Failed to load dashboard tutorials.");
-        }
-        const payload = (await response.json().catch(() => ({}))) as {
-          tutorials?: unknown;
-        };
+        const tutorials = await readDashboardTutorialsFromPublicEndpoint();
         if (!active) return;
-        setDashboardTutorials(asDashboardTutorials(payload.tutorials));
+        setDashboardTutorials(tutorials);
       } catch {
         if (!active) return;
         setDashboardTutorials([]);
@@ -332,7 +328,7 @@ export function AuthenticatedDashboardRoute({
     return () => {
       active = false;
     };
-  }, []);
+  }, [dashboardTutorials.length]);
 
   const storageUsageValue = useMemo(() => {
     if (usageLoading || quotaLoading) return "…";
@@ -350,6 +346,12 @@ export function AuthenticatedDashboardRoute({
         : `${balanceCents.toLocaleString()} credits`;
 
   const authHeaderCards = [
+    {
+      key: "auth-community",
+      label: "Creator hub",
+      value: "Community",
+      icon: Globe,
+    },
     {
       key: "auth-storage",
       label: "Media Storage",
@@ -397,7 +399,10 @@ export function AuthenticatedDashboardRoute({
 
   return (
     <>
-      <main id="main-content" className="page page-wide dashboard-refresh">
+      <main
+        id="main-content"
+        className="page page-wide dashboard-refresh authenticated-dashboard-page"
+      >
         <DashboardAppBar
           brandHref={null}
           cards={authHeaderCards}

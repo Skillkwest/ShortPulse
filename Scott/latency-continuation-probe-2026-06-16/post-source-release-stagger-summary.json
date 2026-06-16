@@ -1,0 +1,110 @@
+{
+  "date": "2026-06-16",
+  "branch": "codex/brother-dashboard-aesthetics",
+  "production": "untouched",
+  "change": "Stagger idle tutorial video source release by 90ms slots",
+  "averages": {
+    "p95": 19.8,
+    "p98": 33.4,
+    "max": 96.9,
+    "over50": 4
+  },
+  "runDetails": [
+    {
+      "run": 1,
+      "p95": 16.7,
+      "p98": 29.1,
+      "max": 87.4,
+      "over50": 3,
+      "sourced": 4,
+      "playing": 4,
+      "moving": [
+        9,
+        10,
+        11,
+        12
+      ],
+      "scrollPausedMarkers": 0,
+      "playCount": 13,
+      "pauseCount": 45,
+      "loadCount": 37,
+      "rectReads": 15,
+      "topLongTasks": [
+        68,
+        50
+      ]
+    },
+    {
+      "run": 2,
+      "p95": 20.9,
+      "p98": 37.6,
+      "max": 91.7,
+      "over50": 4,
+      "sourced": 4,
+      "playing": 4,
+      "moving": [
+        9,
+        10,
+        11,
+        12
+      ],
+      "scrollPausedMarkers": 0,
+      "playCount": 13,
+      "pauseCount": 45,
+      "loadCount": 37,
+      "rectReads": 15,
+      "topLongTasks": [
+        59
+      ]
+    },
+    {
+      "run": 3,
+      "p95": 20.8,
+      "p98": 33.5,
+      "max": 104.2,
+      "over50": 4,
+      "sourced": 4,
+      "playing": 4,
+      "moving": [
+        9,
+        10,
+        11,
+        12
+      ],
+      "scrollPausedMarkers": 0,
+      "playCount": 13,
+      "pauseCount": 45,
+      "loadCount": 37,
+      "rectReads": 15,
+      "topLongTasks": [
+        80,
+        68
+      ]
+    },
+    {
+      "run": 4,
+      "p95": 20.7,
+      "p98": 33.3,
+      "max": 104.2,
+      "over50": 5,
+      "sourced": 4,
+      "playing": 4,
+      "moving": [
+        9,
+        10,
+        11,
+        12
+      ],
+      "scrollPausedMarkers": 0,
+      "playCount": 13,
+      "pauseCount": 45,
+      "loadCount": 37,
+      "rectReads": 15,
+      "topLongTasks": [
+        71,
+        65,
+        58
+      ]
+    }
+  ]
+}

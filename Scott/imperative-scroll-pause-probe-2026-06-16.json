@@ -1,0 +1,79 @@
+{
+  "date": "2026-06-16",
+  "branch": "codex/brother-dashboard-aesthetics",
+  "production": "untouched",
+  "change": {
+    "component": "DashboardTutorialGrid",
+    "summary": "Removed grid-wide React state updates for active scroll pause. The grid now pauses sourced tutorial videos imperatively once per scroll burst, keeps their sources warm, invalidates stale play promises with a DOM playback-attempt token, and resumes scheduled sourced videos after scroll settle."
+  },
+  "rolledBackExperiment": {
+    "summary": "Ignoring shared IntersectionObserver entries during active scroll was tested and removed.",
+    "reason": "It worsened p95 in the 4x CPU mobile wheel probe."
+  },
+  "mobileWheelProbe": {
+    "browser": "C:/Program Files/Google/Chrome/Application/chrome.exe",
+    "viewport": "390x844",
+    "cpuThrottle": 4,
+    "runs": 4,
+    "averages": {
+      "p95Ms": 16.8,
+      "maxMs": 105.2,
+      "framesOver50Ms": 4.3
+    },
+    "runDetails": [
+      {
+        "run": 1,
+        "p95Ms": 8.5,
+        "maxMs": 91.6,
+        "framesOver50Ms": 3,
+        "sourced": 4,
+        "scrollPausedMarkersAfterSettle": 0,
+        "playing": 4,
+        "movingIndexes": [9, 10, 11, 12]
+      },
+      {
+        "run": 2,
+        "p95Ms": 16.6,
+        "maxMs": 121.0,
+        "framesOver50Ms": 5,
+        "sourced": 4,
+        "scrollPausedMarkersAfterSettle": 0,
+        "playing": 4,
+        "movingIndexes": [9, 10, 11, 12]
+      },
+      {
+        "run": 3,
+        "p95Ms": 17.0,
+        "maxMs": 95.8,
+        "framesOver50Ms": 4,
+        "sourced": 4,
+        "scrollPausedMarkersAfterSettle": 0,
+        "playing": 4,
+        "movingIndexes": [9, 10, 11, 12]
+      },
+      {
+        "run": 4,
+        "p95Ms": 24.9,
+        "maxMs": 112.5,
+        "framesOver50Ms": 5,
+        "sourced": 4,
+        "scrollPausedMarkersAfterSettle": 0,
+        "playing": 4,
+        "movingIndexes": [9, 10, 11, 12]
+      }
+    ]
+  },
+  "comparison": {
+    "previousSingleObserverProbe": {
+      "p95Ms": 13.6,
+      "maxMs": 116.6,
+      "framesOver50Ms": 5.5
+    },
+    "imperativeScrollPauseProbe": {
+      "p95Ms": 16.8,
+      "maxMs": 105.2,
+      "framesOver50Ms": 4.3
+    }
+  },
+  "conclusion": "This pass improves worst-frame and over-50ms frame counts while keeping every sourced visible thumbnail moving after settle. p95 remains noisy, so the broader latency goal is still active."
+}

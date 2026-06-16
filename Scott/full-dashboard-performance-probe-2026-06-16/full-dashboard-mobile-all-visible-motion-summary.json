@@ -1,0 +1,648 @@
+{
+  "branchRule": "local codex/brother-dashboard-aesthetics only; production not touched",
+  "capturedAt": "2026-06-16T21:29:30.021Z",
+  "targetUrl": "http://127.0.0.1:3000/",
+  "viewport": {
+    "width": 390,
+    "height": 844,
+    "isMobile": true,
+    "cpuThrottle": 4
+  },
+  "topMotion": {
+    "hero": {
+      "currentTime": 2.903,
+      "paused": false,
+      "readyState": 4,
+      "src": "http://127.0.0.1:3000/dashboard/homepage-hero-background-lite.mp4"
+    },
+    "posters": 3,
+    "scrollY": 0,
+    "visibleAfter": [
+      {
+        "index": 0,
+        "bottom": 479,
+        "currentTime": 2.439,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F6d73e2d6-7bba-4d53-badb-104970b72c26%2Fdisplay.mp4",
+        "top": 359,
+        "visible": true
+      },
+      {
+        "index": 1,
+        "bottom": 479,
+        "currentTime": 2.305,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fe7ef2427-bf98-4209-833e-559d480bc408%2Fdisplay.mp4",
+        "top": 359,
+        "visible": true
+      },
+      {
+        "index": 2,
+        "bottom": 479,
+        "currentTime": 2.236,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fb9e64220-0c57-4f44-b99a-7cef3e45a8c7%2Fdisplay.mp4",
+        "top": 359,
+        "visible": true
+      },
+      {
+        "index": 3,
+        "bottom": 605,
+        "currentTime": 2.052,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Ff6778734-e48a-4f44-bb29-5791c318c83c%2Fdisplay.mp4",
+        "top": 485,
+        "visible": true
+      },
+      {
+        "index": 4,
+        "bottom": 605,
+        "currentTime": 1.854,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F81fa4039-ff94-4cc7-99e6-5a538c5e0694%2Fdisplay.mp4",
+        "top": 485,
+        "visible": true
+      },
+      {
+        "index": 5,
+        "bottom": 605,
+        "currentTime": 1.817,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F2813c9b8-02fb-482d-8886-fe0ee6b77ec9%2Fdisplay.mp4",
+        "top": 485,
+        "visible": true
+      },
+      {
+        "index": 6,
+        "bottom": 731,
+        "currentTime": 1.499,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fc08b2b55-fde5-4e27-b402-70f0a09415a6%2Fdisplay.mp4",
+        "top": 611,
+        "visible": true
+      },
+      {
+        "index": 7,
+        "bottom": 731,
+        "currentTime": 1.831,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F35a497d3-ab55-4bed-85fd-8111a2a646dd%2Fdisplay.mp4",
+        "top": 611,
+        "visible": true
+      },
+      {
+        "index": 8,
+        "bottom": 731,
+        "currentTime": 1.627,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F7c9b15d0-9618-4ec5-a93f-f935afdf99a1%2Fdisplay.mp4",
+        "top": 611,
+        "visible": true
+      },
+      {
+        "index": 9,
+        "bottom": 857,
+        "currentTime": 1.032,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F0432b60d-f815-4da8-a571-755e3ce4d715%2Fdisplay.mp4",
+        "top": 737,
+        "visible": true
+      },
+      {
+        "index": 10,
+        "bottom": 857,
+        "currentTime": 1.101,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F62ef0b84-a4f4-4240-99e9-b74644458067%2Fdisplay.mp4",
+        "top": 737,
+        "visible": true
+      },
+      {
+        "index": 11,
+        "bottom": 857,
+        "currentTime": 1.377,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F63eda1ca-7ed3-47ca-975c-22c9e4398e19%2Fdisplay.mp4",
+        "top": 737,
+        "visible": true
+      }
+    ],
+    "visibleBefore": [
+      {
+        "index": 0,
+        "bottom": 479,
+        "currentTime": 1.626,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F6d73e2d6-7bba-4d53-badb-104970b72c26%2Fdisplay.mp4",
+        "top": 359,
+        "visible": true
+      },
+      {
+        "index": 1,
+        "bottom": 479,
+        "currentTime": 1.492,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fe7ef2427-bf98-4209-833e-559d480bc408%2Fdisplay.mp4",
+        "top": 359,
+        "visible": true
+      },
+      {
+        "index": 2,
+        "bottom": 479,
+        "currentTime": 1.423,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fb9e64220-0c57-4f44-b99a-7cef3e45a8c7%2Fdisplay.mp4",
+        "top": 359,
+        "visible": true
+      },
+      {
+        "index": 3,
+        "bottom": 605,
+        "currentTime": 1.239,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Ff6778734-e48a-4f44-bb29-5791c318c83c%2Fdisplay.mp4",
+        "top": 485,
+        "visible": true
+      },
+      {
+        "index": 4,
+        "bottom": 605,
+        "currentTime": 1.041,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F81fa4039-ff94-4cc7-99e6-5a538c5e0694%2Fdisplay.mp4",
+        "top": 485,
+        "visible": true
+      },
+      {
+        "index": 5,
+        "bottom": 605,
+        "currentTime": 1.005,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F2813c9b8-02fb-482d-8886-fe0ee6b77ec9%2Fdisplay.mp4",
+        "top": 485,
+        "visible": true
+      },
+      {
+        "index": 6,
+        "bottom": 731,
+        "currentTime": 0.69,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fc08b2b55-fde5-4e27-b402-70f0a09415a6%2Fdisplay.mp4",
+        "top": 611,
+        "visible": true
+      },
+      {
+        "index": 7,
+        "bottom": 731,
+        "currentTime": 1.023,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F35a497d3-ab55-4bed-85fd-8111a2a646dd%2Fdisplay.mp4",
+        "top": 611,
+        "visible": true
+      },
+      {
+        "index": 8,
+        "bottom": 731,
+        "currentTime": 0.819,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F7c9b15d0-9618-4ec5-a93f-f935afdf99a1%2Fdisplay.mp4",
+        "top": 611,
+        "visible": true
+      },
+      {
+        "index": 9,
+        "bottom": 857,
+        "currentTime": 0.224,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F0432b60d-f815-4da8-a571-755e3ce4d715%2Fdisplay.mp4",
+        "top": 737,
+        "visible": true
+      },
+      {
+        "index": 10,
+        "bottom": 857,
+        "currentTime": 0.294,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F62ef0b84-a4f4-4240-99e9-b74644458067%2Fdisplay.mp4",
+        "top": 737,
+        "visible": true
+      },
+      {
+        "index": 11,
+        "bottom": 857,
+        "currentTime": 0.57,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F63eda1ca-7ed3-47ca-975c-22c9e4398e19%2Fdisplay.mp4",
+        "top": 737,
+        "visible": true
+      }
+    ]
+  },
+  "scrolledMotion": {
+    "hero": {
+      "currentTime": 5.559,
+      "paused": false,
+      "readyState": 4,
+      "src": "http://127.0.0.1:3000/dashboard/homepage-hero-background-lite.mp4"
+    },
+    "posters": 0,
+    "scrollY": 140,
+    "visibleAfter": [
+      {
+        "index": 0,
+        "bottom": 339,
+        "currentTime": 0.14,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F6d73e2d6-7bba-4d53-badb-104970b72c26%2Fdisplay.mp4",
+        "top": 219,
+        "visible": true
+      },
+      {
+        "index": 1,
+        "bottom": 339,
+        "currentTime": 4.961,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fe7ef2427-bf98-4209-833e-559d480bc408%2Fdisplay.mp4",
+        "top": 219,
+        "visible": true
+      },
+      {
+        "index": 2,
+        "bottom": 339,
+        "currentTime": 1.636,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fb9e64220-0c57-4f44-b99a-7cef3e45a8c7%2Fdisplay.mp4",
+        "top": 219,
+        "visible": true
+      },
+      {
+        "index": 3,
+        "bottom": 465,
+        "currentTime": 0.649,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Ff6778734-e48a-4f44-bb29-5791c318c83c%2Fdisplay.mp4",
+        "top": 345,
+        "visible": true
+      },
+      {
+        "index": 4,
+        "bottom": 465,
+        "currentTime": 4.509,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F81fa4039-ff94-4cc7-99e6-5a538c5e0694%2Fdisplay.mp4",
+        "top": 345,
+        "visible": true
+      },
+      {
+        "index": 5,
+        "bottom": 465,
+        "currentTime": 1.014,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F2813c9b8-02fb-482d-8886-fe0ee6b77ec9%2Fdisplay.mp4",
+        "top": 345,
+        "visible": true
+      },
+      {
+        "index": 6,
+        "bottom": 591,
+        "currentTime": 4.154,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fc08b2b55-fde5-4e27-b402-70f0a09415a6%2Fdisplay.mp4",
+        "top": 471,
+        "visible": true
+      },
+      {
+        "index": 7,
+        "bottom": 591,
+        "currentTime": 1.53,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F35a497d3-ab55-4bed-85fd-8111a2a646dd%2Fdisplay.mp4",
+        "top": 471,
+        "visible": true
+      },
+      {
+        "index": 8,
+        "bottom": 591,
+        "currentTime": 4.283,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F7c9b15d0-9618-4ec5-a93f-f935afdf99a1%2Fdisplay.mp4",
+        "top": 471,
+        "visible": true
+      },
+      {
+        "index": 9,
+        "bottom": 717,
+        "currentTime": 3.688,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F0432b60d-f815-4da8-a571-755e3ce4d715%2Fdisplay.mp4",
+        "top": 597,
+        "visible": true
+      },
+      {
+        "index": 10,
+        "bottom": 717,
+        "currentTime": 3.757,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F62ef0b84-a4f4-4240-99e9-b74644458067%2Fdisplay.mp4",
+        "top": 597,
+        "visible": true
+      },
+      {
+        "index": 11,
+        "bottom": 717,
+        "currentTime": 4.033,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F63eda1ca-7ed3-47ca-975c-22c9e4398e19%2Fdisplay.mp4",
+        "top": 597,
+        "visible": true
+      },
+      {
+        "index": 12,
+        "bottom": 843,
+        "currentTime": 1.978,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fdc235a9a-74d5-4428-8f75-4542bcb22c0e%2Fdisplay.mp4",
+        "top": 723,
+        "visible": true
+      },
+      {
+        "index": 13,
+        "bottom": 843,
+        "currentTime": 1.741,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F89e41e32-e674-4293-84c9-8ac45d8d107f%2Fdisplay.mp4",
+        "top": 723,
+        "visible": true
+      },
+      {
+        "index": 14,
+        "bottom": 843,
+        "currentTime": 1.863,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fef033fd7-c549-4bea-859f-9bf870eceae8%2Fdisplay.mp4",
+        "top": 723,
+        "visible": true
+      }
+    ],
+    "visibleBefore": [
+      {
+        "index": 0,
+        "bottom": 339,
+        "currentTime": 4.287,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F6d73e2d6-7bba-4d53-badb-104970b72c26%2Fdisplay.mp4",
+        "top": 219,
+        "visible": true
+      },
+      {
+        "index": 1,
+        "bottom": 339,
+        "currentTime": 4.153,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fe7ef2427-bf98-4209-833e-559d480bc408%2Fdisplay.mp4",
+        "top": 219,
+        "visible": true
+      },
+      {
+        "index": 2,
+        "bottom": 339,
+        "currentTime": 0.827,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fb9e64220-0c57-4f44-b99a-7cef3e45a8c7%2Fdisplay.mp4",
+        "top": 219,
+        "visible": true
+      },
+      {
+        "index": 3,
+        "bottom": 465,
+        "currentTime": 3.9,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Ff6778734-e48a-4f44-bb29-5791c318c83c%2Fdisplay.mp4",
+        "top": 345,
+        "visible": true
+      },
+      {
+        "index": 4,
+        "bottom": 465,
+        "currentTime": 3.701,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F81fa4039-ff94-4cc7-99e6-5a538c5e0694%2Fdisplay.mp4",
+        "top": 345,
+        "visible": true
+      },
+      {
+        "index": 5,
+        "bottom": 465,
+        "currentTime": 0.206,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F2813c9b8-02fb-482d-8886-fe0ee6b77ec9%2Fdisplay.mp4",
+        "top": 345,
+        "visible": true
+      },
+      {
+        "index": 6,
+        "bottom": 591,
+        "currentTime": 3.346,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fc08b2b55-fde5-4e27-b402-70f0a09415a6%2Fdisplay.mp4",
+        "top": 471,
+        "visible": true
+      },
+      {
+        "index": 7,
+        "bottom": 591,
+        "currentTime": 0.722,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F35a497d3-ab55-4bed-85fd-8111a2a646dd%2Fdisplay.mp4",
+        "top": 471,
+        "visible": true
+      },
+      {
+        "index": 8,
+        "bottom": 591,
+        "currentTime": 3.475,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F7c9b15d0-9618-4ec5-a93f-f935afdf99a1%2Fdisplay.mp4",
+        "top": 471,
+        "visible": true
+      },
+      {
+        "index": 9,
+        "bottom": 717,
+        "currentTime": 2.88,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F0432b60d-f815-4da8-a571-755e3ce4d715%2Fdisplay.mp4",
+        "top": 597,
+        "visible": true
+      },
+      {
+        "index": 10,
+        "bottom": 717,
+        "currentTime": 2.949,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F62ef0b84-a4f4-4240-99e9-b74644458067%2Fdisplay.mp4",
+        "top": 597,
+        "visible": true
+      },
+      {
+        "index": 11,
+        "bottom": 717,
+        "currentTime": 3.225,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F63eda1ca-7ed3-47ca-975c-22c9e4398e19%2Fdisplay.mp4",
+        "top": 597,
+        "visible": true
+      },
+      {
+        "index": 12,
+        "bottom": 843,
+        "currentTime": 1.17,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fdc235a9a-74d5-4428-8f75-4542bcb22c0e%2Fdisplay.mp4",
+        "top": 723,
+        "visible": true
+      },
+      {
+        "index": 13,
+        "bottom": 843,
+        "currentTime": 0.933,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F89e41e32-e674-4293-84c9-8ac45d8d107f%2Fdisplay.mp4",
+        "top": 723,
+        "visible": true
+      },
+      {
+        "index": 14,
+        "bottom": 843,
+        "currentTime": 1.055,
+        "hasPoster": false,
+        "playing": true,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fef033fd7-c549-4bea-859f-9bf870eceae8%2Fdisplay.mp4",
+        "top": 723,
+        "visible": true
+      }
+    ]
+  },
+  "scroll": {
+    "count": 917,
+    "p95": 12.5,
+    "p98": 25,
+    "max": 75,
+    "over50": 4,
+    "over100": 0,
+    "loadCalls": 12,
+    "longTaskCount": 1,
+    "longTaskTotal": 59,
+    "pauseCalls": 16,
+    "playCalls": 6,
+    "scrollY": 1041,
+    "visibleCards": []
+  }
+}

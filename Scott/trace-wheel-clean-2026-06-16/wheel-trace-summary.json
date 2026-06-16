@@ -1,0 +1,704 @@
+{
+  "eventCount": 42384,
+  "topNames": [
+    {
+      "name": "RunTask",
+      "count": 8856,
+      "totalMs": 4322.61,
+      "maxMs": 122.16
+    },
+    {
+      "name": "FunctionCall",
+      "count": 265,
+      "totalMs": 773.72,
+      "maxMs": 120.14
+    },
+    {
+      "name": "MessagePort::Accept",
+      "count": 35,
+      "totalMs": 688.17,
+      "maxMs": 121.75
+    },
+    {
+      "name": "ProxyMain::BeginMainFrame",
+      "count": 55,
+      "totalMs": 471.12,
+      "maxMs": 41.64
+    },
+    {
+      "name": "WebFrameWidgetImpl::UpdateLifecycle",
+      "count": 55,
+      "totalMs": 279.15,
+      "maxMs": 17.4
+    },
+    {
+      "name": "Graphics.Pipeline",
+      "count": 3089,
+      "totalMs": 194.85,
+      "maxMs": 0.9
+    },
+    {
+      "name": "AsyncTask Run",
+      "count": 128,
+      "totalMs": 148.06,
+      "maxMs": 8.54
+    },
+    {
+      "name": "LocalFrameView::RunPaintLifecyclePhase",
+      "count": 55,
+      "totalMs": 142.35,
+      "maxMs": 9.15
+    },
+    {
+      "name": "EventDispatch",
+      "count": 125,
+      "totalMs": 139.14,
+      "maxMs": 7.19
+    },
+    {
+      "name": "LocalFrameView::UpdateStyleAndLayout",
+      "count": 123,
+      "totalMs": 97.76,
+      "maxMs": 19.48
+    },
+    {
+      "name": "LocalFrameView::RunStyleAndLayoutLifecyclePhases",
+      "count": 64,
+      "totalMs": 97.62,
+      "maxMs": 19.69
+    },
+    {
+      "name": "Commit",
+      "count": 55,
+      "totalMs": 85.92,
+      "maxMs": 3.73
+    },
+    {
+      "name": "Blink.Paint.UpdateTime",
+      "count": 55,
+      "totalMs": 71.54,
+      "maxMs": 4.21
+    },
+    {
+      "name": "Blink.Style.UpdateTime",
+      "count": 41,
+      "totalMs": 71,
+      "maxMs": 15.26
+    },
+    {
+      "name": "UpdateLayoutTree",
+      "count": 41,
+      "totalMs": 69.35,
+      "maxMs": 15.25
+    },
+    {
+      "name": "Document::updateStyle",
+      "count": 41,
+      "totalMs": 63.58,
+      "maxMs": 15.04
+    },
+    {
+      "name": "Paint",
+      "count": 108,
+      "totalMs": 63.05,
+      "maxMs": 3.73
+    },
+    {
+      "name": "LatencyInfo.Flow",
+      "count": 152,
+      "totalMs": 61,
+      "maxMs": 26.36
+    },
+    {
+      "name": "GPUTask",
+      "count": 19,
+      "totalMs": 60.03,
+      "maxMs": 17.44
+    },
+    {
+      "name": "LocalFrameView::pushPaintArtifactToCompositor",
+      "count": 55,
+      "totalMs": 58.5,
+      "maxMs": 4.75
+    },
+    {
+      "name": "Blink.CompositingCommit.UpdateTime",
+      "count": 55,
+      "totalMs": 58.34,
+      "maxMs": 4.75
+    },
+    {
+      "name": "Document::recalcStyle",
+      "count": 32,
+      "totalMs": 57.38,
+      "maxMs": 13.42
+    },
+    {
+      "name": "Layerize",
+      "count": 55,
+      "totalMs": 57.33,
+      "maxMs": 4.74
+    },
+    {
+      "name": "WidgetBaseInputHandler::OnHandleInputEvent",
+      "count": 16,
+      "totalMs": 56.09,
+      "maxMs": 26.36
+    },
+    {
+      "name": "PaintArtifactCompositor::Update",
+      "count": 18,
+      "totalMs": 51.15,
+      "maxMs": 4.73
+    },
+    {
+      "name": "TimerBase::run",
+      "count": 41,
+      "totalMs": 48.56,
+      "maxMs": 8.73
+    },
+    {
+      "name": "IntersectionObserverController::computeIntersections",
+      "count": 111,
+      "totalMs": 45.73,
+      "maxMs": 2.24
+    },
+    {
+      "name": "ResponseBodyLoader::OnStateChange",
+      "count": 25,
+      "totalMs": 43.3,
+      "maxMs": 5.51
+    },
+    {
+      "name": "DirectRenderer::DrawFrame",
+      "count": 158,
+      "totalMs": 40.95,
+      "maxMs": 0.65
+    },
+    {
+      "name": "LocalFrameView::UpdateViewportIntersectionsForSubtree",
+      "count": 55,
+      "totalMs": 40.67,
+      "maxMs": 2.25
+    },
+    {
+      "name": "Blink.IntersectionObservation.UpdateTime",
+      "count": 55,
+      "totalMs": 38.81,
+      "maxMs": 2.25
+    },
+    {
+      "name": "LayoutView::HitTest",
+      "count": 8,
+      "totalMs": 38.79,
+      "maxMs": 24.63
+    },
+    {
+      "name": "PrePaint",
+      "count": 64,
+      "totalMs": 35.47,
+      "maxMs": 2.1
+    },
+    {
+      "name": "ProxyImpl::ScheduledActionDraw",
+      "count": 113,
+      "totalMs": 32.44,
+      "maxMs": 0.57
+    },
+    {
+      "name": "MainFrame.Draw",
+      "count": 113,
+      "totalMs": 32.22,
+      "maxMs": 0.56
+    },
+    {
+      "name": "WebFrameWidgetImpl::BeginMainFrame",
+      "count": 55,
+      "totalMs": 29.25,
+      "maxMs": 3.7
+    },
+    {
+      "name": "LocalFrameView::RunPrePaintLifecyclePhase",
+      "count": 64,
+      "totalMs": 26.62,
+      "maxMs": 1.89
+    },
+    {
+      "name": "TimerFire",
+      "count": 14,
+      "totalMs": 26.46,
+      "maxMs": 8.73
+    },
+    {
+      "name": "Blink.PrePaint.UpdateTime",
+      "count": 64,
+      "totalMs": 25.36,
+      "maxMs": 1.88
+    },
+    {
+      "name": "Blink.Animate.UpdateTime",
+      "count": 55,
+      "totalMs": 24.48,
+      "maxMs": 3.69
+    }
+  ],
+  "topCats": [
+    {
+      "cat": "disabled-by-default-devtools.timeline",
+      "count": 9211,
+      "totalMs": 4490.91,
+      "maxMs": 122.16
+    },
+    {
+      "cat": "blink",
+      "count": 1782,
+      "totalMs": 1860.7,
+      "maxMs": 121.75
+    },
+    {
+      "cat": "devtools.timeline",
+      "count": 648,
+      "totalMs": 1115.53,
+      "maxMs": 120.14
+    },
+    {
+      "cat": "cc,benchmark",
+      "count": 2609,
+      "totalMs": 602.59,
+      "maxMs": 41.64
+    },
+    {
+      "cat": "blink,benchmark",
+      "count": 540,
+      "totalMs": 360.64,
+      "maxMs": 19.69
+    },
+    {
+      "cat": "viz,benchmark,graphics.pipeline",
+      "count": 3089,
+      "totalMs": 194.85,
+      "maxMs": 0.9
+    },
+    {
+      "cat": "cc",
+      "count": 6426,
+      "totalMs": 163.63,
+      "maxMs": 6.6
+    },
+    {
+      "cat": "blink,devtools.timeline",
+      "count": 166,
+      "totalMs": 126.74,
+      "maxMs": 15.25
+    },
+    {
+      "cat": "blink,blink_style",
+      "count": 76,
+      "totalMs": 122.2,
+      "maxMs": 15.04
+    },
+    {
+      "cat": "devtools.timeline,disabled-by-default-v8.gc",
+      "count": 201,
+      "totalMs": 85.96,
+      "maxMs": 15.86
+    },
+    {
+      "cat": "input,benchmark,latencyInfo",
+      "count": 152,
+      "totalMs": 61,
+      "maxMs": 26.36
+    },
+    {
+      "cat": "renderer,benchmark,rail,input.scrolling",
+      "count": 16,
+      "totalMs": 56.09,
+      "maxMs": 26.36
+    },
+    {
+      "cat": "viz,benchmark",
+      "count": 316,
+      "totalMs": 41.43,
+      "maxMs": 0.65
+    },
+    {
+      "cat": "blink,rail",
+      "count": 55,
+      "totalMs": 23.08,
+      "maxMs": 3.69
+    },
+    {
+      "cat": "devtools.timeline,v8",
+      "count": 2,
+      "totalMs": 19.79,
+      "maxMs": 17.1
+    },
+    {
+      "cat": "blink,blink.resource",
+      "count": 12,
+      "totalMs": 15.56,
+      "maxMs": 2.65
+    },
+    {
+      "cat": "blink,benchmark,rail,disabled-by-default-blink.debug.layout",
+      "count": 11,
+      "totalMs": 15.01,
+      "maxMs": 2.96
+    },
+    {
+      "cat": "cc,disabled-by-default-devtools.timeline",
+      "count": 22,
+      "totalMs": 11.31,
+      "maxMs": 6.6
+    },
+    {
+      "cat": "loading",
+      "count": 71,
+      "totalMs": 3.06,
+      "maxMs": 0.39
+    }
+  ],
+  "topLong": [
+    {
+      "name": "RunTask",
+      "durMs": 122.16,
+      "cat": "disabled-by-default-devtools.timeline",
+      "data": {}
+    },
+    {
+      "name": "MessagePort::Accept",
+      "durMs": 121.75,
+      "cat": "blink",
+      "data": {}
+    },
+    {
+      "name": "FunctionCall",
+      "durMs": 120.14,
+      "cat": "devtools.timeline",
+      "data": {
+        "columnNumber": 48,
+        "frame": "E544A22E11F855D3DEC60D803C32AF46",
+        "functionName": "performWorkUntilDeadline",
+        "isolate": "5563595369288771673",
+        "lineNumber": 443,
+        "sampleTraceId": 4877770520320950,
+        "scriptId": "15",
+        "url": "http://127.0.0.1:3000/_next/static/chunks/node_modules_0b9d.z6._.js"
+      }
+    },
+    {
+      "name": "RunTask",
+      "durMs": 110.77,
+      "cat": "disabled-by-default-devtools.timeline",
+      "data": {}
+    },
+    {
+      "name": "MessagePort::Accept",
+      "durMs": 110.37,
+      "cat": "blink",
+      "data": {}
+    },
+    {
+      "name": "FunctionCall",
+      "durMs": 109.3,
+      "cat": "devtools.timeline",
+      "data": {
+        "columnNumber": 48,
+        "frame": "E544A22E11F855D3DEC60D803C32AF46",
+        "functionName": "performWorkUntilDeadline",
+        "isolate": "5563595369288771673",
+        "lineNumber": 443,
+        "sampleTraceId": 4877770520320430,
+        "scriptId": "15",
+        "url": "http://127.0.0.1:3000/_next/static/chunks/node_modules_0b9d.z6._.js"
+      }
+    },
+    {
+      "name": "RunTask",
+      "durMs": 106.78,
+      "cat": "disabled-by-default-devtools.timeline",
+      "data": {}
+    },
+    {
+      "name": "MessagePort::Accept",
+      "durMs": 106.58,
+      "cat": "blink",
+      "data": {}
+    },
+    {
+      "name": "RunTask",
+      "durMs": 104.91,
+      "cat": "disabled-by-default-devtools.timeline",
+      "data": {}
+    },
+    {
+      "name": "MessagePort::Accept",
+      "durMs": 104.09,
+      "cat": "blink",
+      "data": {}
+    },
+    {
+      "name": "FunctionCall",
+      "durMs": 102.47,
+      "cat": "devtools.timeline",
+      "data": {
+        "columnNumber": 48,
+        "frame": "E544A22E11F855D3DEC60D803C32AF46",
+        "functionName": "performWorkUntilDeadline",
+        "isolate": "5563595369288771673",
+        "lineNumber": 443,
+        "sampleTraceId": 4877770520320597,
+        "scriptId": "15",
+        "url": "http://127.0.0.1:3000/_next/static/chunks/node_modules_0b9d.z6._.js"
+      }
+    },
+    {
+      "name": "FunctionCall",
+      "durMs": 99.74,
+      "cat": "devtools.timeline",
+      "data": {
+        "columnNumber": 48,
+        "frame": "E544A22E11F855D3DEC60D803C32AF46",
+        "functionName": "performWorkUntilDeadline",
+        "isolate": "5563595369288771673",
+        "lineNumber": 443,
+        "sampleTraceId": 4877770520320140,
+        "scriptId": "15",
+        "url": "http://127.0.0.1:3000/_next/static/chunks/node_modules_0b9d.z6._.js"
+      }
+    },
+    {
+      "name": "RunTask",
+      "durMs": 98.52,
+      "cat": "disabled-by-default-devtools.timeline",
+      "data": {}
+    },
+    {
+      "name": "MessagePort::Accept",
+      "durMs": 97.7,
+      "cat": "blink",
+      "data": {}
+    },
+    {
+      "name": "FunctionCall",
+      "durMs": 97.46,
+      "cat": "devtools.timeline",
+      "data": {
+        "columnNumber": 48,
+        "frame": "E544A22E11F855D3DEC60D803C32AF46",
+        "functionName": "performWorkUntilDeadline",
+        "isolate": "5563595369288771673",
+        "lineNumber": 443,
+        "sampleTraceId": 4877770520320810,
+        "scriptId": "15",
+        "url": "http://127.0.0.1:3000/_next/static/chunks/node_modules_0b9d.z6._.js"
+      }
+    },
+    {
+      "name": "RunTask",
+      "durMs": 42.46,
+      "cat": "disabled-by-default-devtools.timeline",
+      "data": {}
+    },
+    {
+      "name": "ProxyMain::BeginMainFrame",
+      "durMs": 41.64,
+      "cat": "cc,benchmark",
+      "data": {
+        "begin_frame_id": 1128,
+        "main_frame_pipeline": {
+          "main_frame_id": 18055305077021268000,
+          "step": "BEGIN_MAIN_FRAME"
+        }
+      }
+    },
+    {
+      "name": "RunTask",
+      "durMs": 29.01,
+      "cat": "disabled-by-default-devtools.timeline",
+      "data": {}
+    },
+    {
+      "name": "WidgetBaseInputHandler::OnHandleInputEvent",
+      "durMs": 26.36,
+      "cat": "renderer,benchmark,rail,input.scrolling",
+      "data": {
+        "event": "MouseWheel"
+      }
+    },
+    {
+      "name": "LatencyInfo.Flow",
+      "durMs": 26.36,
+      "cat": "input,benchmark,latencyInfo",
+      "data": {
+        "chrome_latency_info": {
+          "step": "STEP_HANDLE_INPUT_EVENT_MAIN",
+          "trace_id": -8510587659814470000
+        },
+        "current_task": {
+          "event_offset_from_task_start_time_us": 1444,
+          "task_queued_time_us": 242244501734,
+          "task_queueing_time_us": 119372,
+          "task_start_time_us": 242244619662
+        }
+      }
+    },
+    {
+      "name": "LayoutView::HitTest",
+      "durMs": 24.63,
+      "cat": "blink",
+      "data": {}
+    },
+    {
+      "name": "RunTask",
+      "durMs": 21.82,
+      "cat": "disabled-by-default-devtools.timeline",
+      "data": {}
+    },
+    {
+      "name": "RunTask",
+      "durMs": 21.38,
+      "cat": "disabled-by-default-devtools.timeline",
+      "data": {}
+    },
+    {
+      "name": "ProxyMain::BeginMainFrame",
+      "durMs": 21.35,
+      "cat": "cc,benchmark",
+      "data": {
+        "begin_frame_id": 1087,
+        "main_frame_pipeline": {
+          "main_frame_id": 18055305077021268000,
+          "step": "BEGIN_MAIN_FRAME"
+        }
+      }
+    },
+    {
+      "name": "LocalFrameView::RunStyleAndLayoutLifecyclePhases",
+      "durMs": 19.69,
+      "cat": "blink,benchmark",
+      "data": {}
+    },
+    {
+      "name": "LocalFrameView::UpdateStyleAndLayout",
+      "durMs": 19.48,
+      "cat": "blink",
+      "data": {}
+    },
+    {
+      "name": "RunTask",
+      "durMs": 18.6,
+      "cat": "disabled-by-default-devtools.timeline",
+      "data": {}
+    },
+    {
+      "name": "ProxyMain::BeginMainFrame",
+      "durMs": 18.4,
+      "cat": "cc,benchmark",
+      "data": {
+        "begin_frame_id": 1177,
+        "main_frame_pipeline": {
+          "main_frame_id": 18055305077021268000,
+          "step": "BEGIN_MAIN_FRAME"
+        }
+      }
+    },
+    {
+      "name": "RunTask",
+      "durMs": 18.31,
+      "cat": "disabled-by-default-devtools.timeline",
+      "data": {}
+    },
+    {
+      "name": "RunTask",
+      "durMs": 17.71,
+      "cat": "disabled-by-default-devtools.timeline",
+      "data": {}
+    },
+    {
+      "name": "ProxyMain::BeginMainFrame",
+      "durMs": 17.67,
+      "cat": "cc,benchmark",
+      "data": {
+        "begin_frame_id": 1374,
+        "main_frame_pipeline": {
+          "main_frame_id": 18055305077021268000,
+          "step": "BEGIN_MAIN_FRAME"
+        }
+      }
+    },
+    {
+      "name": "RunTask",
+      "durMs": 17.45,
+      "cat": "disabled-by-default-devtools.timeline",
+      "data": {}
+    },
+    {
+      "name": "GPUTask",
+      "durMs": 17.44,
+      "cat": "disabled-by-default-devtools.timeline",
+      "data": {
+        "renderer_pid": 16984,
+        "used_bytes": 16204288
+      }
+    },
+    {
+      "name": "WebFrameWidgetImpl::UpdateLifecycle",
+      "durMs": 17.4,
+      "cat": "blink",
+      "data": {}
+    },
+    {
+      "name": "RunTask",
+      "durMs": 17.15,
+      "cat": "disabled-by-default-devtools.timeline",
+      "data": {}
+    },
+    {
+      "name": "MajorGC",
+      "durMs": 17.1,
+      "cat": "devtools.timeline,v8",
+      "data": {
+        "type": "finalize incremental marking via task",
+        "usedHeapSizeAfter": 6492500,
+        "usedHeapSizeBefore": 10831244
+      }
+    },
+    {
+      "name": "ProxyMain::BeginMainFrame",
+      "durMs": 16.76,
+      "cat": "cc,benchmark",
+      "data": {
+        "begin_frame_id": 1083,
+        "main_frame_pipeline": {
+          "main_frame_id": 18055305077021264000,
+          "step": "BEGIN_MAIN_FRAME"
+        }
+      }
+    },
+    {
+      "name": "RunTask",
+      "durMs": 16.38,
+      "cat": "disabled-by-default-devtools.timeline",
+      "data": {}
+    },
+    {
+      "name": "RunTask",
+      "durMs": 16.12,
+      "cat": "disabled-by-default-devtools.timeline",
+      "data": {}
+    },
+    {
+      "name": "ProxyMain::BeginMainFrame",
+      "durMs": 15.94,
+      "cat": "cc,benchmark",
+      "data": {
+        "begin_frame_id": 1608,
+        "main_frame_pipeline": {
+          "main_frame_id": 18055305077021270000,
+          "step": "BEGIN_MAIN_FRAME"
+        }
+      }
+    }
+  ]
+}

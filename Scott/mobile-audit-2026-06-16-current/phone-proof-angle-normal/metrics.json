@@ -1,0 +1,309 @@
+[
+  {
+    "viewport": {
+      "name": "phone-360",
+      "width": 360,
+      "height": 740
+    },
+    "showcase": {
+      "viewportWidth": 360,
+      "scrollWidth": 360,
+      "gridTemplateColumns": "110px 110px 110px",
+      "rowGroups": {
+        "130": 3,
+        "246": 3,
+        "362": 3
+      },
+      "cards": [
+        {
+          "x": 9,
+          "y": 130,
+          "right": 119,
+          "width": 110,
+          "height": 110
+        },
+        {
+          "x": 125,
+          "y": 130,
+          "right": 235,
+          "width": 110,
+          "height": 110
+        },
+        {
+          "x": 241,
+          "y": 130,
+          "right": 351,
+          "width": 110,
+          "height": 110
+        },
+        {
+          "x": 9,
+          "y": 246,
+          "right": 119,
+          "width": 110,
+          "height": 110
+        },
+        {
+          "x": 125,
+          "y": 246,
+          "right": 235,
+          "width": 110,
+          "height": 110
+        },
+        {
+          "x": 241,
+          "y": 246,
+          "right": 351,
+          "width": 110,
+          "height": 110
+        },
+        {
+          "x": 9,
+          "y": 362,
+          "right": 119,
+          "width": 110,
+          "height": 110
+        },
+        {
+          "x": 125,
+          "y": 362,
+          "right": 235,
+          "width": 110,
+          "height": 110
+        },
+        {
+          "x": 241,
+          "y": 362,
+          "right": 351,
+          "width": 110,
+          "height": 110
+        }
+      ]
+    },
+    "orbit": {
+      "viewportWidth": 360,
+      "scrollWidth": 360,
+      "itemCount": 8,
+      "clippedItems": [
+        {
+          "text": "Clone Yourself",
+          "x": -8,
+          "right": 48,
+          "width": 56,
+          "height": 63
+        },
+        {
+          "text": "Generate Image Prompts",
+          "x": -3,
+          "right": 53,
+          "width": 56,
+          "height": 71
+        }
+      ],
+      "items": [
+        {
+          "text": "Generate Images",
+          "x": 188,
+          "right": 244,
+          "width": 56,
+          "height": 63
+        },
+        {
+          "text": "Create Characters",
+          "x": 142,
+          "right": 198,
+          "width": 56,
+          "height": 63
+        },
+        {
+          "text": "Create Influencers",
+          "x": 61,
+          "right": 117,
+          "width": 56,
+          "height": 63
+        },
+        {
+          "text": "Clone Yourself",
+          "x": -8,
+          "right": 48,
+          "width": 56,
+          "height": 63
+        },
+        {
+          "text": "Generate Image Prompts",
+          "x": -3,
+          "right": 53,
+          "width": 56,
+          "height": 71
+        },
+        {
+          "text": "Generate Video Prompts",
+          "x": 120,
+          "right": 176,
+          "width": 56,
+          "height": 71
+        },
+        {
+          "text": "Edit Images",
+          "x": 178,
+          "right": 234,
+          "width": 56,
+          "height": 55
+        },
+        {
+          "text": "Create Storyboards",
+          "x": 239,
+          "right": 295,
+          "width": 56,
+          "height": 63
+        }
+      ]
+    }
+  },
+  {
+    "viewport": {
+      "name": "phone-390",
+      "width": 390,
+      "height": 844
+    },
+    "showcase": {
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "gridTemplateColumns": "120px 120px 120px",
+      "rowGroups": {
+        "184": 3,
+        "310": 3,
+        "436": 3
+      },
+      "cards": [
+        {
+          "x": 9,
+          "y": 184,
+          "right": 129,
+          "width": 120,
+          "height": 120
+        },
+        {
+          "x": 135,
+          "y": 184,
+          "right": 255,
+          "width": 120,
+          "height": 120
+        },
+        {
+          "x": 261,
+          "y": 184,
+          "right": 381,
+          "width": 120,
+          "height": 120
+        },
+        {
+          "x": 9,
+          "y": 310,
+          "right": 129,
+          "width": 120,
+          "height": 120
+        },
+        {
+          "x": 135,
+          "y": 310,
+          "right": 255,
+          "width": 120,
+          "height": 120
+        },
+        {
+          "x": 261,
+          "y": 310,
+          "right": 381,
+          "width": 120,
+          "height": 120
+        },
+        {
+          "x": 9,
+          "y": 436,
+          "right": 129,
+          "width": 120,
+          "height": 120
+        },
+        {
+          "x": 135,
+          "y": 436,
+          "right": 255,
+          "width": 120,
+          "height": 120
+        },
+        {
+          "x": 261,
+          "y": 436,
+          "right": 381,
+          "width": 120,
+          "height": 120
+        }
+      ]
+    },
+    "orbit": {
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "itemCount": 8,
+      "clippedItems": [],
+      "items": [
+        {
+          "text": "Generate Images",
+          "x": 204,
+          "right": 260,
+          "width": 56,
+          "height": 63
+        },
+        {
+          "text": "Create Characters",
+          "x": 158,
+          "right": 214,
+          "width": 56,
+          "height": 63
+        },
+        {
+          "text": "Create Influencers",
+          "x": 77,
+          "right": 133,
+          "width": 56,
+          "height": 63
+        },
+        {
+          "text": "Clone Yourself",
+          "x": 8,
+          "right": 64,
+          "width": 56,
+          "height": 63
+        },
+        {
+          "text": "Generate Image Prompts",
+          "x": 12,
+          "right": 68,
+          "width": 56,
+          "height": 71
+        },
+        {
+          "text": "Generate Video Prompts",
+          "x": 134,
+          "right": 190,
+          "width": 56,
+          "height": 71
+        },
+        {
+          "text": "Edit Images",
+          "x": 192,
+          "right": 248,
+          "width": 56,
+          "height": 55
+        },
+        {
+          "text": "Create Storyboards",
+          "x": 254,
+          "right": 310,
+          "width": 56,
+          "height": 63
+        }
+      ]
+    }
+  }
+]

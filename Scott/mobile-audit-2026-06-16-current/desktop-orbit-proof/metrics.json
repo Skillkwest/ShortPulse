@@ -1,0 +1,549 @@
+[
+  {
+    "viewport": {
+      "name": "laptop-1280",
+      "width": 1280,
+      "height": 900
+    },
+    "metrics": {
+      "viewportWidth": 1280,
+      "viewportHeight": 900,
+      "scrollWidth": 1280,
+      "itemCount": 18,
+      "visibleItemCount": 14,
+      "clippedVisibleItems": [
+        {
+          "text": "Digital Try-ons",
+          "x": -70,
+          "y": 99,
+          "right": 76,
+          "bottom": 201,
+          "width": 146,
+          "height": 102
+        }
+      ],
+      "items": [
+        {
+          "text": "Generate Images",
+          "x": 796,
+          "y": 311,
+          "right": 908,
+          "bottom": 392,
+          "width": 112,
+          "height": 81
+        },
+        {
+          "text": "Create Characters",
+          "x": 837,
+          "y": 439,
+          "right": 959,
+          "bottom": 528,
+          "width": 122,
+          "height": 90
+        },
+        {
+          "text": "Create Influencers",
+          "x": 805,
+          "y": 606,
+          "right": 941,
+          "bottom": 702,
+          "width": 136,
+          "height": 96
+        },
+        {
+          "text": "Clone Yourself",
+          "x": 677,
+          "y": 759,
+          "right": 823,
+          "bottom": 860,
+          "width": 146,
+          "height": 102
+        },
+        {
+          "text": "Generate Image Prompts",
+          "x": 469,
+          "y": 846,
+          "right": 623,
+          "bottom": 954,
+          "width": 154,
+          "height": 108
+        },
+        {
+          "text": "Generate Video Prompts",
+          "x": 446,
+          "y": 491,
+          "right": 558,
+          "bottom": 582,
+          "width": 112,
+          "height": 91
+        },
+        {
+          "text": "Edit Images",
+          "x": 305,
+          "y": 544,
+          "right": 427,
+          "bottom": 634,
+          "width": 122,
+          "height": 90
+        },
+        {
+          "text": "Create Storyboards",
+          "x": 117,
+          "y": 520,
+          "right": 253,
+          "bottom": 616,
+          "width": 136,
+          "height": 96
+        },
+        {
+          "text": "Digital Try-ons",
+          "x": -70,
+          "y": 99,
+          "right": 76,
+          "bottom": 201,
+          "width": 146,
+          "height": 102
+        },
+        {
+          "text": "Create Styles",
+          "x": -59,
+          "y": -127,
+          "right": 95,
+          "bottom": -19,
+          "width": 154,
+          "height": 108
+        },
+        {
+          "text": "Face Repair",
+          "x": 260,
+          "y": 157,
+          "right": 372,
+          "bottom": 238,
+          "width": 112,
+          "height": 81
+        },
+        {
+          "text": "Image to Video",
+          "x": 199,
+          "y": 12,
+          "right": 321,
+          "bottom": 102,
+          "width": 122,
+          "height": 90
+        },
+        {
+          "text": "End Frames",
+          "x": 203,
+          "y": -168,
+          "right": 339,
+          "bottom": -72,
+          "width": 136,
+          "height": 96
+        },
+        {
+          "text": "Multi-shot Video",
+          "x": 875,
+          "y": -218,
+          "right": 1021,
+          "bottom": -116,
+          "width": 146,
+          "height": 102
+        },
+        {
+          "text": "Character Consistency",
+          "x": 1048,
+          "y": -98,
+          "right": 1202,
+          "bottom": 10,
+          "width": 154,
+          "height": 108
+        },
+        {
+          "text": "Multi-character",
+          "x": 605,
+          "y": -34,
+          "right": 717,
+          "bottom": 47,
+          "width": 112,
+          "height": 81
+        },
+        {
+          "text": "Clone Voices",
+          "x": 731,
+          "y": -94,
+          "right": 853,
+          "bottom": -4,
+          "width": 122,
+          "height": 90
+        },
+        {
+          "text": "Swap Voices",
+          "x": 891,
+          "y": -82,
+          "right": 1027,
+          "bottom": 14,
+          "width": 136,
+          "height": 96
+        }
+      ]
+    }
+  },
+  {
+    "viewport": {
+      "name": "desktop-1440",
+      "width": 1440,
+      "height": 1000
+    },
+    "metrics": {
+      "viewportWidth": 1440,
+      "viewportHeight": 1000,
+      "scrollWidth": 1440,
+      "itemCount": 18,
+      "visibleItemCount": 16,
+      "clippedVisibleItems": [],
+      "items": [
+        {
+          "text": "Generate Images",
+          "x": 876,
+          "y": 348,
+          "right": 988,
+          "bottom": 429,
+          "width": 112,
+          "height": 81
+        },
+        {
+          "text": "Create Characters",
+          "x": 916,
+          "y": 475,
+          "right": 1038,
+          "bottom": 565,
+          "width": 122,
+          "height": 90
+        },
+        {
+          "text": "Create Influencers",
+          "x": 884,
+          "y": 643,
+          "right": 1020,
+          "bottom": 739,
+          "width": 136,
+          "height": 96
+        },
+        {
+          "text": "Clone Yourself",
+          "x": 756,
+          "y": 795,
+          "right": 902,
+          "bottom": 897,
+          "width": 146,
+          "height": 102
+        },
+        {
+          "text": "Generate Image Prompts",
+          "x": 549,
+          "y": 883,
+          "right": 703,
+          "bottom": 990,
+          "width": 154,
+          "height": 108
+        },
+        {
+          "text": "Generate Video Prompts",
+          "x": 525,
+          "y": 527,
+          "right": 637,
+          "bottom": 618,
+          "width": 112,
+          "height": 91
+        },
+        {
+          "text": "Edit Images",
+          "x": 384,
+          "y": 580,
+          "right": 506,
+          "bottom": 670,
+          "width": 122,
+          "height": 90
+        },
+        {
+          "text": "Create Storyboards",
+          "x": 196,
+          "y": 555,
+          "right": 332,
+          "bottom": 652,
+          "width": 136,
+          "height": 96
+        },
+        {
+          "text": "Digital Try-ons",
+          "x": 10,
+          "y": 135,
+          "right": 156,
+          "bottom": 236,
+          "width": 146,
+          "height": 102
+        },
+        {
+          "text": "Create Styles",
+          "x": 21,
+          "y": -91,
+          "right": 175,
+          "bottom": 17,
+          "width": 154,
+          "height": 108
+        },
+        {
+          "text": "Face Repair",
+          "x": 340,
+          "y": 192,
+          "right": 452,
+          "bottom": 274,
+          "width": 112,
+          "height": 81
+        },
+        {
+          "text": "Image to Video",
+          "x": 280,
+          "y": 48,
+          "right": 402,
+          "bottom": 137,
+          "width": 122,
+          "height": 90
+        },
+        {
+          "text": "End Frames",
+          "x": 284,
+          "y": -133,
+          "right": 420,
+          "bottom": -36,
+          "width": 136,
+          "height": 96
+        },
+        {
+          "text": "Multi-shot Video",
+          "x": 955,
+          "y": -181,
+          "right": 1101,
+          "bottom": -80,
+          "width": 146,
+          "height": 102
+        },
+        {
+          "text": "Character Consistency",
+          "x": 1128,
+          "y": -61,
+          "right": 1282,
+          "bottom": 46,
+          "width": 154,
+          "height": 108
+        },
+        {
+          "text": "Multi-character",
+          "x": 686,
+          "y": 2,
+          "right": 798,
+          "bottom": 83,
+          "width": 112,
+          "height": 81
+        },
+        {
+          "text": "Clone Voices",
+          "x": 812,
+          "y": -57,
+          "right": 934,
+          "bottom": 33,
+          "width": 122,
+          "height": 90
+        },
+        {
+          "text": "Swap Voices",
+          "x": 972,
+          "y": -45,
+          "right": 1108,
+          "bottom": 51,
+          "width": 136,
+          "height": 96
+        }
+      ]
+    }
+  },
+  {
+    "viewport": {
+      "name": "desktop-1600",
+      "width": 1600,
+      "height": 1000
+    },
+    "metrics": {
+      "viewportWidth": 1600,
+      "viewportHeight": 1000,
+      "scrollWidth": 1600,
+      "itemCount": 18,
+      "visibleItemCount": 16,
+      "clippedVisibleItems": [],
+      "items": [
+        {
+          "text": "Generate Images",
+          "x": 956,
+          "y": 334,
+          "right": 1068,
+          "bottom": 415,
+          "width": 112,
+          "height": 81
+        },
+        {
+          "text": "Create Characters",
+          "x": 997,
+          "y": 462,
+          "right": 1119,
+          "bottom": 552,
+          "width": 122,
+          "height": 90
+        },
+        {
+          "text": "Create Influencers",
+          "x": 965,
+          "y": 629,
+          "right": 1101,
+          "bottom": 725,
+          "width": 136,
+          "height": 96
+        },
+        {
+          "text": "Clone Yourself",
+          "x": 837,
+          "y": 782,
+          "right": 983,
+          "bottom": 883,
+          "width": 146,
+          "height": 102
+        },
+        {
+          "text": "Generate Image Prompts",
+          "x": 629,
+          "y": 869,
+          "right": 783,
+          "bottom": 977,
+          "width": 154,
+          "height": 108
+        },
+        {
+          "text": "Generate Video Prompts",
+          "x": 606,
+          "y": 514,
+          "right": 718,
+          "bottom": 605,
+          "width": 112,
+          "height": 91
+        },
+        {
+          "text": "Edit Images",
+          "x": 464,
+          "y": 567,
+          "right": 586,
+          "bottom": 656,
+          "width": 122,
+          "height": 90
+        },
+        {
+          "text": "Create Storyboards",
+          "x": 277,
+          "y": 542,
+          "right": 413,
+          "bottom": 638,
+          "width": 136,
+          "height": 96
+        },
+        {
+          "text": "Digital Try-ons",
+          "x": 90,
+          "y": 122,
+          "right": 236,
+          "bottom": 223,
+          "width": 146,
+          "height": 102
+        },
+        {
+          "text": "Create Styles",
+          "x": 101,
+          "y": -104,
+          "right": 255,
+          "bottom": 4,
+          "width": 154,
+          "height": 108
+        },
+        {
+          "text": "Face Repair",
+          "x": 420,
+          "y": 179,
+          "right": 532,
+          "bottom": 260,
+          "width": 112,
+          "height": 81
+        },
+        {
+          "text": "Image to Video",
+          "x": 359,
+          "y": 35,
+          "right": 481,
+          "bottom": 124,
+          "width": 122,
+          "height": 90
+        },
+        {
+          "text": "End Frames",
+          "x": 363,
+          "y": -146,
+          "right": 499,
+          "bottom": -50,
+          "width": 136,
+          "height": 96
+        },
+        {
+          "text": "Multi-shot Video",
+          "x": 1035,
+          "y": -195,
+          "right": 1181,
+          "bottom": -93,
+          "width": 146,
+          "height": 102
+        },
+        {
+          "text": "Character Consistency",
+          "x": 1208,
+          "y": -74,
+          "right": 1362,
+          "bottom": 33,
+          "width": 154,
+          "height": 108
+        },
+        {
+          "text": "Multi-character",
+          "x": 765,
+          "y": -11,
+          "right": 877,
+          "bottom": 70,
+          "width": 112,
+          "height": 81
+        },
+        {
+          "text": "Clone Voices",
+          "x": 892,
+          "y": -70,
+          "right": 1014,
+          "bottom": 19,
+          "width": 122,
+          "height": 90
+        },
+        {
+          "text": "Swap Voices",
+          "x": 1051,
+          "y": -59,
+          "right": 1187,
+          "bottom": 37,
+          "width": 136,
+          "height": 96
+        }
+      ]
+    }
+  }
+]

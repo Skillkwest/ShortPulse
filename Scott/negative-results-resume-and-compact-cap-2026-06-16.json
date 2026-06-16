@@ -1,0 +1,43 @@
+{
+  "date": "2026-06-16",
+  "branch": "codex/brother-dashboard-aesthetics",
+  "production": "untouched",
+  "experiments": [
+    {
+      "name": "staggered-scroll-resume",
+      "hypothesis": "Staggering post-scroll video play() calls would reduce resume burst long frames.",
+      "result": {
+        "p95Ms": 21.9,
+        "maxMs": 156.3,
+        "framesOver50Ms": 6.0,
+        "sourced": 4,
+        "playing": 4,
+        "movingIndexes": [9, 10, 11, 12]
+      },
+      "decision": "Rolled back because it was worse than immediate resume."
+    },
+    {
+      "name": "compact-three-video-cap",
+      "hypothesis": "Reducing compact normal playback from four videos to three would reduce decode pressure and long frames.",
+      "result": {
+        "p95Ms": 20.8,
+        "maxMs": 151.0,
+        "framesOver50Ms": 6.0,
+        "sourced": 3,
+        "playing": 3,
+        "movingIndexes": [9, 10, 11]
+      },
+      "decision": "Rolled back because it worsened timing and reduced visible motion."
+    }
+  ],
+  "baselineKept": {
+    "name": "imperative-scroll-pause-with-four-video-compact-cap",
+    "p95Ms": 16.8,
+    "maxMs": 105.2,
+    "framesOver50Ms": 4.3,
+    "sourced": 4,
+    "playing": 4,
+    "movingIndexes": [9, 10, 11, 12]
+  },
+  "conclusion": "The best current measured configuration remains the previous imperative scroll-pause setup. Do not reintroduce staggered resume or reduce compact normal to three videos without new evidence."
+}

@@ -1,0 +1,150 @@
+[
+  {
+    "name": "current-release-burst",
+    "p95": 18.1,
+    "p98": 36.2,
+    "max": 107,
+    "over50": 4.7,
+    "sourced": [
+      4,
+      4,
+      4
+    ],
+    "playing": [
+      4,
+      4,
+      4
+    ],
+    "moving": [
+      [
+        9,
+        10,
+        11,
+        12
+      ],
+      [
+        9,
+        10,
+        11,
+        12
+      ],
+      [
+        9,
+        10,
+        11,
+        12
+      ]
+    ],
+    "playCount": 13,
+    "loadCount": 37,
+    "releaseTimeoutCount": 0,
+    "topLongTasks": [
+      79,
+      72,
+      70,
+      69,
+      56,
+      55,
+      54,
+      54
+    ]
+  },
+  {
+    "name": "release-stagger-90",
+    "p95": 20.8,
+    "p98": 34.7,
+    "max": 101.4,
+    "over50": 4,
+    "sourced": [
+      4,
+      4,
+      4
+    ],
+    "playing": [
+      4,
+      4,
+      4
+    ],
+    "moving": [
+      [
+        9,
+        10,
+        11,
+        12
+      ],
+      [
+        9,
+        10,
+        11,
+        12
+      ],
+      [
+        9,
+        10,
+        11,
+        12
+      ]
+    ],
+    "playCount": 13,
+    "loadCount": 37,
+    "releaseTimeoutCount": 8,
+    "topLongTasks": [
+      71,
+      71,
+      69,
+      65,
+      64,
+      53,
+      53,
+      51
+    ]
+  },
+  {
+    "name": "release-stagger-140",
+    "p95": 18.1,
+    "p98": 36.1,
+    "max": 88.8,
+    "over50": 4.3,
+    "sourced": [
+      6,
+      6,
+      6
+    ],
+    "playing": [
+      4,
+      4,
+      4
+    ],
+    "moving": [
+      [
+        9,
+        10,
+        11,
+        12
+      ],
+      [
+        9,
+        10,
+        11,
+        12
+      ],
+      [
+        9,
+        10,
+        11,
+        12
+      ]
+    ],
+    "playCount": 13,
+    "loadCount": 35,
+    "releaseTimeoutCount": 8,
+    "topLongTasks": [
+      76,
+      70,
+      62,
+      58,
+      57,
+      53
+    ]
+  }
+]

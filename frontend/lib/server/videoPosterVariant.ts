@@ -18,8 +18,12 @@ export const VIDEO_PREVIEW_SCALE_FILTER =
   "scale=360:-2:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2";
 export const VIDEO_PREVIEW_SECONDS = 3;
 export const VIDEO_PREVIEW_CRF = 30;
+export const VIDEO_PREVIEW_FPS: number | null = null;
+export const VIDEO_PREVIEW_PROFILE: VideoPreviewProfile | null = null;
+export const VIDEO_PREVIEW_PRESET: VideoPreviewPreset = "veryfast";
 export const VIDEO_POSTER_SEEK_SECONDS = 0.5;
 export const VIDEO_POSTER_FILTER = "thumbnail,scale=720:-2:force_original_aspect_ratio=decrease";
+export const VIDEO_POSTER_JPEG_QUALITY = 2;
 const VIDEO_EXTENSION_BY_MIME_TYPE: Record<string, string> = {
   "video/mp4": "mp4",
   "video/quicktime": "mov",
@@ -28,6 +32,16 @@ const VIDEO_EXTENSION_BY_MIME_TYPE: Record<string, string> = {
 };
 
 type SupabaseAdminClient = ReturnType<typeof getSupabaseAdmin>;
+type VideoPreviewProfile = "baseline" | "main" | "high";
+type VideoPreviewPreset =
+  | "ultrafast"
+  | "superfast"
+  | "veryfast"
+  | "faster"
+  | "fast"
+  | "medium"
+  | "slow"
+  | "slower";
 
 const normalizeMimeType = (value: string | null | undefined): string | null => {
   const normalized = value?.split(";")[0]?.trim().toLowerCase() ?? "";
@@ -68,13 +82,23 @@ export const buildVideoPosterExtractionArgs = ({
   inputPath,
   outputPath,
   seekSeconds = VIDEO_POSTER_SEEK_SECONDS,
+  posterFilter = VIDEO_POSTER_FILTER,
+  jpegQuality = VIDEO_POSTER_JPEG_QUALITY,
 }: {
   inputPath: string;
   outputPath: string;
   seekSeconds?: number;
+  posterFilter?: string;
+  jpegQuality?: number;
 }): string[] => {
   const normalizedSeekSeconds =
     Number.isFinite(seekSeconds) && seekSeconds > 0 ? seekSeconds : VIDEO_POSTER_SEEK_SECONDS;
+  const normalizedPosterFilter =
+    (posterFilter ?? VIDEO_POSTER_FILTER).trim() || VIDEO_POSTER_FILTER;
+  const normalizedJpegQuality =
+    Number.isFinite(jpegQuality) && jpegQuality >= 2 && jpegQuality <= 31
+      ? Math.trunc(jpegQuality)
+      : VIDEO_POSTER_JPEG_QUALITY;
   return [
     "-y",
     "-ss",
@@ -82,11 +106,11 @@ export const buildVideoPosterExtractionArgs = ({
     "-i",
     inputPath,
     "-vf",
-    VIDEO_POSTER_FILTER,
+    normalizedPosterFilter,
     "-frames:v",
     "1",
     "-q:v",
-    "2",
+    String(normalizedJpegQuality),
     outputPath,
   ];
 };
@@ -94,10 +118,33 @@ export const buildVideoPosterExtractionArgs = ({
 const buildFallbackFirstFramePosterExtractionArgs = ({
   inputPath,
   outputPath,
+  posterFilter = VIDEO_POSTER_FILTER,
+  jpegQuality = 3,
 }: {
   inputPath: string;
   outputPath: string;
-}): string[] => ["-y", "-i", inputPath, "-frames:v", "1", "-q:v", "3", outputPath];
+  posterFilter?: string;
+  jpegQuality?: number;
+}): string[] => {
+  const normalizedPosterFilter =
+    (posterFilter ?? VIDEO_POSTER_FILTER).trim() || VIDEO_POSTER_FILTER;
+  const normalizedJpegQuality =
+    Number.isFinite(jpegQuality) && jpegQuality >= 2 && jpegQuality <= 31
+      ? Math.trunc(jpegQuality)
+      : 3;
+  return [
+    "-y",
+    "-i",
+    inputPath,
+    "-vf",
+    normalizedPosterFilter,
+    "-frames:v",
+    "1",
+    "-q:v",
+    String(normalizedJpegQuality),
+    outputPath,
+  ];
+};
 
 /**
  * Builds ffmpeg arguments for a silent MP4 preview/display derivative.
@@ -108,16 +155,54 @@ export const buildVideoPreviewVariantExtractionArgs = ({
   scaleFilter = VIDEO_PREVIEW_SCALE_FILTER,
   previewSeconds = VIDEO_PREVIEW_SECONDS,
   crf = VIDEO_PREVIEW_CRF,
+  fps = VIDEO_PREVIEW_FPS,
+  profile = VIDEO_PREVIEW_PROFILE,
+  preset = VIDEO_PREVIEW_PRESET,
+  maxRate = null,
+  bufSize = null,
 }: {
   inputPath: string;
   outputPath: string;
   scaleFilter?: string;
   previewSeconds?: number | null;
   crf?: number;
+  fps?: number | null;
+  profile?: string | null;
+  preset?: string | null;
+  maxRate?: string | null;
+  bufSize?: string | null;
 }): string[] => {
   const normalizedScaleFilter = scaleFilter.trim() || VIDEO_PREVIEW_SCALE_FILTER;
   const normalizedCrf =
     Number.isFinite(crf) && crf >= 0 && crf <= 51 ? Math.trunc(crf) : VIDEO_PREVIEW_CRF;
+  const normalizedProfile =
+    profile === "baseline" || profile === "main" || profile === "high"
+      ? profile
+      : VIDEO_PREVIEW_PROFILE;
+  const normalizedPreset =
+    preset === "ultrafast" ||
+    preset === "superfast" ||
+    preset === "veryfast" ||
+    preset === "faster" ||
+    preset === "fast" ||
+    preset === "medium" ||
+    preset === "slow" ||
+    preset === "slower"
+      ? preset
+      : VIDEO_PREVIEW_PRESET;
+  const normalizedMaxRate =
+    typeof maxRate === "string" && /^\d+[kKmM]$/.test(maxRate.trim()) ? maxRate.trim() : null;
+  const normalizedBufSize =
+    typeof bufSize === "string" && /^\d+[kKmM]$/.test(bufSize.trim()) ? bufSize.trim() : null;
+  const normalizedFps =
+    fps === null
+      ? null
+      : Number.isFinite(fps) && fps > 0 && fps <= 60
+        ? Math.trunc(fps)
+        : VIDEO_PREVIEW_FPS;
+  const normalizedVideoFilter = normalizedFps
+    ? `${normalizedScaleFilter},fps=${normalizedFps}`
+    : normalizedScaleFilter;
   const normalizedPreviewSeconds =
     previewSeconds === null
       ? null
@@ -128,21 +213,18 @@ export const buildVideoPreviewVariantExtractionArgs = ({
   if (normalizedPreviewSeconds !== null) {
     args.push("-t", String(normalizedPreviewSeconds));
   }
-  args.push(
-    "-vf",
-    normalizedScaleFilter,
-    "-c:v",
-    "libx264",
-    "-preset",
-    "veryfast",
-    "-crf",
-    String(normalizedCrf),
-    "-pix_fmt",
-    "yuv420p",
-    "-movflags",
-    "+faststart",
-    outputPath
-  );
+  args.push("-vf", normalizedVideoFilter, "-c:v", "libx264");
+  if (normalizedProfile) {
+    args.push("-profile:v", normalizedProfile);
+  }
+  args.push("-preset", normalizedPreset, "-crf", String(normalizedCrf));
+  if (normalizedMaxRate) {
+    args.push("-maxrate", normalizedMaxRate);
+  }
+  if (normalizedBufSize) {
+    args.push("-bufsize", normalizedBufSize);
+  }
+  args.push("-pix_fmt", "yuv420p", "-movflags", "+faststart", outputPath);
   return args;
 };
 
@@ -153,10 +235,14 @@ export const extractVideoPosterBuffer = async ({
   videoBuffer,
   videoMimeType,
   filename,
+  posterFilter,
+  jpegQuality,
 }: {
   videoBuffer: Buffer;
   videoMimeType?: string | null;
   filename?: string | null;
+  posterFilter?: string;
+  jpegQuality?: number;
 }): Promise<Buffer | null> => {
   if (!ffmpegStatic) return null;
   const tempDir = await createTempDir();
@@ -174,6 +260,8 @@ export const extractVideoPosterBuffer = async ({
         buildVideoPosterExtractionArgs({
           inputPath,
           outputPath,
+          posterFilter,
+          jpegQuality,
         })
       );
     } catch {
@@ -182,6 +270,8 @@ export const extractVideoPosterBuffer = async ({
         buildFallbackFirstFramePosterExtractionArgs({
           inputPath,
           outputPath,
+          posterFilter,
+          jpegQuality,
         })
       );
     }
@@ -203,6 +293,11 @@ export const extractVideoPreviewVariantBuffer = async ({
   scaleFilter,
   previewSeconds,
   crf,
+  fps,
+  profile,
+  preset,
+  maxRate,
+  bufSize,
   outputBasename = "preview_loop_360p.mp4",
 }: {
   videoBuffer: Buffer;
@@ -211,6 +306,11 @@ export const extractVideoPreviewVariantBuffer = async ({
   scaleFilter?: string;
   previewSeconds?: number | null;
   crf?: number;
+  fps?: number | null;
+  profile?: string | null;
+  preset?: string | null;
+  maxRate?: string | null;
+  bufSize?: string | null;
   outputBasename?: string;
 }): Promise<Buffer | null> => {
   if (!ffmpegStatic) return null;
@@ -231,6 +331,11 @@ export const extractVideoPreviewVariantBuffer = async ({
         scaleFilter,
         previewSeconds,
         crf,
+        fps,
+        profile,
+        preset,
+        maxRate,
+        bufSize,
       })
     );
     return await fs.readFile(outputPath);

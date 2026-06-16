@@ -4,7 +4,6 @@
  */
 import Link from "next/link";
 import { useEffect, useId } from "react";
-import { ArrowRight, X } from "phosphor-react";
 import { AppMessage } from "../../../components/AppMessage";
 import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { resolveYoutubeEmbedUrl } from "../../tutorials/utils/youtubeEmbed";
@@ -15,6 +14,47 @@ type DashboardTutorialModalProps = {
   launchHref: string;
   onClose: () => void;
 };
+
+function TutorialModalCloseIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg
+      aria-hidden="true"
+      focusable="false"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+    >
+      <path
+        d="M6 6l12 12M18 6 6 18"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function TutorialModalArrowIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg
+      aria-hidden="true"
+      focusable="false"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+    >
+      <path
+        d="M5 12h13m-5-5 5 5-5 5"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 /**
  * Renders the selected tutorial video and the next-step launch action.
@@ -58,7 +98,7 @@ export function DashboardTutorialModal({
             aria-label="Close tutorial"
             onClick={onClose}
           >
-            <X size={18} weight="bold" aria-hidden="true" />
+            <TutorialModalCloseIcon size={18} />
           </button>
         </header>
 
@@ -86,7 +126,7 @@ export function DashboardTutorialModal({
             prefetch={false}
           >
             <span>Launch AI Studio</span>
-            <ArrowRight size={18} weight="bold" aria-hidden="true" />
+            <TutorialModalArrowIcon size={18} />
           </Link>
         </footer>
       </section>

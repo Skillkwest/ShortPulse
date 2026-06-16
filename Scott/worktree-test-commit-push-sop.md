@@ -6,13 +6,21 @@ Purpose: define the standard operating procedure for Scott's Codex agent when as
 
 Run this SOP when Scott says: `run SOP`
 
+## Default Push Target
+
+Until Scott explicitly says otherwise:
+
+- push `codex/brother-dashboard-aesthetics` to `https://github.com/Skillkwest/ShortPulse.git`
+- prefer remote name `skillkwest` when it exists locally
+- do not push `run SOP` commits to the upstream `origin` repo unless Scott explicitly changes that rule
+
 ## Role
 
 The agent's job in this workflow is to:
 
 - test the current worktree changes
 - commit approved changes on the current branch
-- push the current branch upstream
+- push the current branch to Scott's GitHub destination
 
 ## Hard Boundaries
 
@@ -63,8 +71,9 @@ Only commit after reviewing the diff and confirming the set of files is intentio
 ## Push Procedure
 
 1. Push only branch `codex/brother-dashboard-aesthetics`.
-2. Use the current branch upstream when configured.
-3. If upstream is missing, push with explicit branch mapping for `codex/brother-dashboard-aesthetics`.
+2. Default push target is `skillkwest` remote at `https://github.com/Skillkwest/ShortPulse.git`.
+3. If `skillkwest` is missing locally, add or repair that remote before pushing.
+4. Push with explicit branch mapping to `skillkwest` for `codex/brother-dashboard-aesthetics`.
 4. Report the resulting commit hash and remote branch status.
 
 ## Reporting Format

@@ -8,7 +8,10 @@ import {
   readActiveDashboardOffers,
   type DashboardOffer,
 } from "../../../lib/server/api/dashboardOffers";
-import type { DashboardTutorial } from "../../../lib/server/api/dashboardTutorials";
+import {
+  readActiveDashboardTutorials,
+  type DashboardTutorial,
+} from "../../../lib/server/api/dashboardTutorials";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
 
 export type PublicDashboardStaticProps = {
@@ -31,14 +34,26 @@ const loadDashboardOffersSnapshot = async (): Promise<DashboardOffer[]> => {
   }
 };
 
+const loadDashboardTutorialsSnapshot = async (): Promise<DashboardTutorial[]> => {
+  try {
+    return await readActiveDashboardTutorials(getSupabaseAdmin(), undefined, {
+      usePublicDeliveryUrls: true,
+    });
+  } catch {
+    return [];
+  }
+};
+
 /**
- * Loads the public billing catalog snapshot and logged-out dashboard offers.
+ * Loads the public billing catalog, offers, and tutorial snapshots.
  */
 export const loadPublicDashboardStaticProps = async (): Promise<PublicDashboardStaticProps> => {
-  const [billingCatalogResult, dashboardOffersResult] = await Promise.allSettled([
-    loadBillingCatalogSnapshot(),
-    loadDashboardOffersSnapshot(),
-  ]);
+  const [billingCatalogResult, dashboardOffersResult, dashboardTutorialsResult] =
+    await Promise.allSettled([
+      loadBillingCatalogSnapshot(),
+      loadDashboardOffersSnapshot(),
+      loadDashboardTutorialsSnapshot(),
+    ]);
 
   return {
     billingCatalog:
@@ -47,8 +62,7 @@ export const loadPublicDashboardStaticProps = async (): Promise<PublicDashboardS
         : emptyBillingCatalogSnapshot(),
     dashboardOffers:
       dashboardOffersResult.status === "fulfilled" ? dashboardOffersResult.value : [],
-    // Tutorial thumbnails use short-lived signed display URLs, so public users hydrate them
-    // live from `/api/dashboard/tutorials` instead of baking them into static props.
-    dashboardTutorials: [],
+    dashboardTutorials:
+      dashboardTutorialsResult.status === "fulfilled" ? dashboardTutorialsResult.value : [],
   };
 };

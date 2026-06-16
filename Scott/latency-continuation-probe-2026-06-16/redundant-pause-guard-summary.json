@@ -1,0 +1,102 @@
+[
+  {
+    "name": "current-pause",
+    "p95": 20.9,
+    "p98": 48.6,
+    "max": 109.8,
+    "over50": 5.7,
+    "pauseCount": 49,
+    "skippedPauseCount": 0,
+    "playCount": 15.7,
+    "moving": [
+      [
+        9,
+        10,
+        11,
+        12
+      ],
+      [
+        9,
+        10,
+        11,
+        12
+      ],
+      [
+        9,
+        10,
+        11,
+        12
+      ]
+    ],
+    "sourced": [
+      4,
+      4,
+      4
+    ],
+    "playing": [
+      4,
+      4,
+      4
+    ],
+    "topLongTasks": [
+      114,
+      103,
+      92,
+      90,
+      81,
+      81,
+      72,
+      67
+    ]
+  },
+  {
+    "name": "skip-paused-pause-current",
+    "p95": 25.1,
+    "p98": 55.5,
+    "max": 116.7,
+    "over50": 5,
+    "pauseCount": 11,
+    "skippedPauseCount": 34,
+    "playCount": 13,
+    "moving": [
+      [
+        9,
+        10,
+        11,
+        12
+      ],
+      [
+        9,
+        10,
+        11,
+        12
+      ],
+      [
+        9,
+        10,
+        11,
+        12
+      ]
+    ],
+    "sourced": [
+      4,
+      4,
+      4
+    ],
+    "playing": [
+      4,
+      4,
+      4
+    ],
+    "topLongTasks": [
+      121,
+      101,
+      95,
+      90,
+      89,
+      87,
+      81,
+      79
+    ]
+  }
+]

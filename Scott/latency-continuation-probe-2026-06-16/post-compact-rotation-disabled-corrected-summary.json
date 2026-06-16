@@ -1,0 +1,109 @@
+{
+  "label": "post-compact-rotation-disabled-corrected-motion",
+  "generatedAt": "2026-06-16T19:36:41.660Z",
+  "notes": "Movement treats currentTime wrap to 0 on looping thumbnails as motion when the video remains sourced, unpaused, and ready.",
+  "runs": 4,
+  "average": {
+    "p95": 8.400000000000546,
+    "p98": 9.5,
+    "max": 53.125,
+    "over50": 0.5,
+    "attrSourced": 4,
+    "playing": 4,
+    "movingModuloAware": 4,
+    "scrollPausedMarkers": 0,
+    "rectReads": 30
+  },
+  "attrSourcedByRun": [
+    [
+      9,
+      10,
+      11,
+      12
+    ],
+    [
+      9,
+      10,
+      11,
+      12
+    ],
+    [
+      9,
+      10,
+      11,
+      12
+    ],
+    [
+      9,
+      10,
+      11,
+      12
+    ]
+  ],
+  "playingByRun": [
+    [
+      9,
+      10,
+      11,
+      12
+    ],
+    [
+      9,
+      10,
+      11,
+      12
+    ],
+    [
+      9,
+      10,
+      11,
+      12
+    ],
+    [
+      9,
+      10,
+      11,
+      12
+    ]
+  ],
+  "movingModuloAwareByRun": [
+    [
+      9,
+      10,
+      11,
+      12
+    ],
+    [
+      9,
+      10,
+      11,
+      12
+    ],
+    [
+      9,
+      10,
+      11,
+      12
+    ],
+    [
+      9,
+      10,
+      11,
+      12
+    ]
+  ],
+  "loopWrapsByRun": [
+    [
+      11
+    ],
+    [],
+    [],
+    []
+  ],
+  "sourceFiles": [
+    "C:\\CODEX Agents\\Home page CODEX\\ShortPulse\\Scott\\latency-continuation-probe-2026-06-16\\post-compact-rotation-disabled-run-1.json",
+    "C:\\CODEX Agents\\Home page CODEX\\ShortPulse\\Scott\\latency-continuation-probe-2026-06-16\\post-compact-rotation-disabled-run-2.json",
+    "C:\\CODEX Agents\\Home page CODEX\\ShortPulse\\Scott\\latency-continuation-probe-2026-06-16\\post-compact-rotation-disabled-run-3.json",
+    "C:\\CODEX Agents\\Home page CODEX\\ShortPulse\\Scott\\latency-continuation-probe-2026-06-16\\post-compact-rotation-disabled-run-4.json"
+  ]
+}

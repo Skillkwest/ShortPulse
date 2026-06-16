@@ -1,0 +1,261 @@
+{
+  "capturedAt": "2026-06-16T21:32:22.109Z",
+  "branchRule": "local codex/brother-dashboard-aesthetics only; production not touched",
+  "targetUrl": "http://127.0.0.1:3000/",
+  "viewport": {
+    "width": 390,
+    "height": 844,
+    "isMobile": true,
+    "cpuThrottle": 4
+  },
+  "samples": [
+    {
+      "label": "top-visible-window",
+      "count": 289,
+      "p95": 8.6,
+      "p98": 9,
+      "max": 16.6,
+      "over50": 0,
+      "over100": 0,
+      "longTaskCount": 0,
+      "longTaskTotal": 0,
+      "visibleMoving": 12,
+      "visibleCount": 12,
+      "posterLayers": 0,
+      "visibleCards": [
+        {
+          "index": 0,
+          "currentTime": 0.362,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 1,
+          "currentTime": 0.019,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 2,
+          "currentTime": 1.929,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 3,
+          "currentTime": 1.22,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 4,
+          "currentTime": 0.445,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 5,
+          "currentTime": 1.766,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 6,
+          "currentTime": 4.68,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 7,
+          "currentTime": 1.534,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 8,
+          "currentTime": 4.629,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 9,
+          "currentTime": 4.428,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 10,
+          "currentTime": 4.774,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 11,
+          "currentTime": 0.288,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        }
+      ]
+    },
+    {
+      "label": "scrolled-visible-window",
+      "count": 288,
+      "p95": 8.5,
+      "p98": 8.5,
+      "max": 16.7,
+      "over50": 0,
+      "over100": 0,
+      "longTaskCount": 0,
+      "longTaskTotal": 0,
+      "visibleMoving": 15,
+      "visibleCount": 15,
+      "posterLayers": 0,
+      "visibleCards": [
+        {
+          "index": 0,
+          "currentTime": 4.025,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 1,
+          "currentTime": 3.683,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 2,
+          "currentTime": 2.332,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 3,
+          "currentTime": 0.827,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 4,
+          "currentTime": 4.109,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 5,
+          "currentTime": 1.976,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 6,
+          "currentTime": 2.38,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 7,
+          "currentTime": 2.24,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 8,
+          "currentTime": 8.293,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 9,
+          "currentTime": 0.034,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 10,
+          "currentTime": 0.834,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 11,
+          "currentTime": 3.952,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 12,
+          "currentTime": 2.775,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 13,
+          "currentTime": 2.603,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 14,
+          "currentTime": 2.426,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        }
+      ]
+    }
+  ]
+}

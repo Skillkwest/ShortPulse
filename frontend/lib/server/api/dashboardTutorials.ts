@@ -11,7 +11,7 @@ import {
   normalizeDashboardTutorialThumbnailContentType,
   type DashboardTutorialThumbnailDisplayContentType,
   type DashboardTutorialThumbnailContentType,
-} from "./dashboardTutorialAssets";
+} from "./dashboardTutorialThumbnailShared";
 
 export const DASHBOARD_TUTORIAL_TITLE_MAX_LENGTH = 120;
 export const DASHBOARD_TUTORIAL_YOUTUBE_URL_MAX_LENGTH = 500;
@@ -85,6 +85,10 @@ export type DashboardTutorialInputValidation = {
   error: string | null;
 };
 
+type DashboardTutorialSerializationOptions = {
+  usePublicDeliveryUrls?: boolean;
+};
+
 const asTrimmed = (value: unknown): string => {
   if (typeof value !== "string") return "";
   return value.trim();
@@ -135,6 +139,9 @@ const asNullablePositiveInteger = (value: unknown): number | null => {
   return value;
 };
 
+export const buildDashboardTutorialThumbnailDeliveryUrl = (storagePath: string): string =>
+  `/api/dashboard/tutorial-thumbnail?path=${encodeURIComponent(storagePath)}`;
+
 const collectDashboardTutorialThumbnailPaths = (rows: unknown[]): string[] => {
   const storagePaths = new Set<string>();
   rows.forEach((value) => {
@@ -166,11 +173,12 @@ const collectDashboardTutorialThumbnailPaths = (rows: unknown[]): string[] => {
 
 const signDashboardTutorialThumbnailUrls = async (
   supabaseAdmin: SupabaseAdminClient,
-  storagePaths: string[]
+  storagePaths: string[],
+  options: DashboardTutorialSerializationOptions = {}
 ): Promise<Map<string, string | null>> => {
   const signedUrlByPath = new Map<string, string | null>();
   storagePaths.forEach((path) => signedUrlByPath.set(path, null));
-  if (storagePaths.length === 0) return signedUrlByPath;
+  if (storagePaths.length === 0 || options.usePublicDeliveryUrls) return signedUrlByPath;
 
   const { data, error } = await supabaseAdmin.storage
     .from(DASHBOARD_TUTORIAL_THUMBNAIL_BUCKET)
@@ -196,7 +204,8 @@ const signDashboardTutorialThumbnailUrls = async (
 
 const toDashboardTutorial = (
   value: unknown,
-  signedUrlByPath: Map<string, string | null>
+  signedUrlByPath: Map<string, string | null>,
+  options: DashboardTutorialSerializationOptions = {}
 ): DashboardTutorial | null => {
   if (!value || typeof value !== "object") return null;
   const row = value as RawDashboardTutorial;
@@ -212,10 +221,14 @@ const toDashboardTutorial = (
     thumbnailDisplayMediaTypeRaw || asTrimmed(row.thumbnail_media_type) || "image";
   const signableThumbnailStoragePath = thumbnailDisplayStoragePath || thumbnailStoragePath;
   const thumbnailUrl = signableThumbnailStoragePath
-    ? (signedUrlByPath.get(signableThumbnailStoragePath) ?? "")
+    ? options.usePublicDeliveryUrls
+      ? buildDashboardTutorialThumbnailDeliveryUrl(signableThumbnailStoragePath)
+      : (signedUrlByPath.get(signableThumbnailStoragePath) ?? "")
     : storedThumbnailUrl;
   const thumbnailPosterUrl = thumbnailPosterStoragePath
-    ? (signedUrlByPath.get(thumbnailPosterStoragePath) ?? null)
+    ? options.usePublicDeliveryUrls
+      ? buildDashboardTutorialThumbnailDeliveryUrl(thumbnailPosterStoragePath)
+      : (signedUrlByPath.get(thumbnailPosterStoragePath) ?? null)
     : null;
 
   if (
@@ -310,14 +323,16 @@ const missingTutorialStorageColumns = (error: unknown): boolean => {
 
 const serializeTutorialRows = async (
   supabaseAdmin: SupabaseAdminClient,
-  rows: unknown[] | null
+  rows: unknown[] | null,
+  options: DashboardTutorialSerializationOptions = {}
 ): Promise<DashboardTutorial[]> => {
   const rowList = Array.isArray(rows) ? rows : [];
   const signedUrlByPath = await signDashboardTutorialThumbnailUrls(
     supabaseAdmin,
-    collectDashboardTutorialThumbnailPaths(rowList)
+    collectDashboardTutorialThumbnailPaths(rowList),
+    options
   );
-  const tutorials = rowList.map((row) => toDashboardTutorial(row, signedUrlByPath));
+  const tutorials = rowList.map((row) => toDashboardTutorial(row, signedUrlByPath, options));
   return tutorials.filter((tutorial): tutorial is DashboardTutorial => tutorial !== null);
 };
 
@@ -539,7 +554,8 @@ export const normalizeDashboardTutorialInput = (
  */
 export const readActiveDashboardTutorials = async (
   supabaseAdmin: SupabaseAdminClient,
-  limit = DASHBOARD_TUTORIAL_PUBLIC_LIMIT
+  limit = DASHBOARD_TUTORIAL_PUBLIC_LIMIT,
+  options: DashboardTutorialSerializationOptions = {}
 ): Promise<DashboardTutorial[]> => {
   const normalizedLimit = Number.isFinite(limit)
     ? Math.trunc(limit)
@@ -560,14 +576,14 @@ export const readActiveDashboardTutorials = async (
     if (legacyResult.error) {
       throw new Error(legacyResult.error.message || "Failed to load dashboard tutorials.");
     }
-    return serializeTutorialRows(supabaseAdmin, legacyResult.data);
+    return serializeTutorialRows(supabaseAdmin, legacyResult.data, options);
   }
 
   if (error) {
     throw new Error(error.message || "Failed to load dashboard tutorials.");
   }
 
-  return serializeTutorialRows(supabaseAdmin, data);
+  return serializeTutorialRows(supabaseAdmin, data, options);
 };
 
 /**

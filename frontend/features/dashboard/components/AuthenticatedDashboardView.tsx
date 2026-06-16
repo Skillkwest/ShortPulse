@@ -64,10 +64,12 @@ export function AuthenticatedDashboardView({
   return (
     <>
       <section className="dashboard-hero minimal-hero">
-        <div className="hero-primary">
-          <div className="hero-copy">
+        <div className="hero-primary authenticated-home-hero-primary">
+          <div className="authenticated-home-hero-bg" aria-hidden="true" />
+          <div className="hero-copy authenticated-home-hero-copy">
+            <p className="eyebrow tiny authenticated-home-kicker">ShortPulse dashboard</p>
             <h1>
-              Welcome back, <span>{firstName}</span>
+              Welcome back, <span>{firstName}</span>.
             </h1>
             {dashboardAnnouncement ? (
               <AppMessage
@@ -92,7 +94,7 @@ export function AuthenticatedDashboardView({
             />
           </div>
 
-          <div className="hero-quick-row">
+          <div className="hero-quick-row authenticated-home-quick-row">
             {hideLegacySections ? (
               <>
                 <DashboardQuickActionCard

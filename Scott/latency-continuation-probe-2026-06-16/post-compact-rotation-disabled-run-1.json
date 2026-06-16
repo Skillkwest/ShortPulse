@@ -1,0 +1,419 @@
+{
+  "label": "post-compact-rotation-disabled",
+  "runNumber": 1,
+  "timestamp": "2026-06-16T19:35:33.542Z",
+  "viewport": {
+    "width": 390,
+    "height": 844,
+    "cpuThrottle": 4
+  },
+  "frameCount": 528,
+  "p95": 8.400000000000546,
+  "p98": 8.5,
+  "max": 66.69999999999982,
+  "over50": 1,
+  "attrSourced": [
+    9,
+    10,
+    11,
+    12
+  ],
+  "currentSrcSourced": [
+    0,
+    1,
+    2,
+    3,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12
+  ],
+  "playing": [
+    9,
+    10,
+    11,
+    12
+  ],
+  "moving": [
+    9,
+    10,
+    12
+  ],
+  "scrollPausedMarkers": 0,
+  "playCalls": 14,
+  "pauseCalls": 46,
+  "loadCalls": 38,
+  "rectReads": 30,
+  "longTasks": [
+    {
+      "name": "self",
+      "startTime": 842.9000000059605,
+      "duration": 324
+    },
+    {
+      "name": "self",
+      "startTime": 1438.1000000238419,
+      "duration": 253
+    },
+    {
+      "name": "self",
+      "startTime": 1265.800000011921,
+      "duration": 145
+    },
+    {
+      "name": "self",
+      "startTime": 1862.4000000059605,
+      "duration": 58
+    },
+    {
+      "name": "self",
+      "startTime": 1730.800000011921,
+      "duration": 54
+    }
+  ],
+  "motion": {
+    "before": [
+      {
+        "index": 0,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": true,
+        "currentTime": 0,
+        "paused": true,
+        "ended": false,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 1,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": true,
+        "currentTime": 0,
+        "paused": true,
+        "ended": false,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 2,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": true,
+        "currentTime": 0,
+        "paused": true,
+        "ended": false,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 3,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": true,
+        "currentTime": 0,
+        "paused": true,
+        "ended": false,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 4,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": false,
+        "currentTime": 0,
+        "paused": true,
+        "ended": false,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 5,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": false,
+        "currentTime": 0,
+        "paused": true,
+        "ended": false,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 6,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": true,
+        "currentTime": 0,
+        "paused": true,
+        "ended": false,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 7,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": true,
+        "currentTime": 0,
+        "paused": true,
+        "ended": false,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 8,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": true,
+        "currentTime": 0,
+        "paused": true,
+        "ended": false,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 9,
+        "hasSrcAttribute": true,
+        "srcAttribute": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fdf43547f-39d8-425c-bd30-86bb5f34698a%2Fdisplay.mp4",
+        "hasCurrentSrc": true,
+        "currentTime": 4.06672,
+        "paused": false,
+        "ended": false,
+        "readyState": 4,
+        "scrollPaused": false
+      },
+      {
+        "index": 10,
+        "hasSrcAttribute": true,
+        "srcAttribute": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F59f4b752-3f7a-44a4-a3ac-72915d7a4894%2Fdisplay.mp4",
+        "hasCurrentSrc": true,
+        "currentTime": 4.027509,
+        "paused": false,
+        "ended": false,
+        "readyState": 4,
+        "scrollPaused": false
+      },
+      {
+        "index": 11,
+        "hasSrcAttribute": true,
+        "srcAttribute": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fd477497c-47d7-459b-93ac-ab3a5084d990%2Fdisplay.mp4",
+        "hasCurrentSrc": true,
+        "currentTime": 3.42624,
+        "paused": false,
+        "ended": false,
+        "readyState": 4,
+        "scrollPaused": false
+      },
+      {
+        "index": 12,
+        "hasSrcAttribute": true,
+        "srcAttribute": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F822de2ba-1c02-41a3-b39f-0e282137729e%2Fdisplay.mp4",
+        "hasCurrentSrc": true,
+        "currentTime": 0.82447,
+        "paused": false,
+        "ended": false,
+        "readyState": 4,
+        "scrollPaused": false
+      },
+      {
+        "index": 13,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": false,
+        "currentTime": 0,
+        "paused": true,
+        "ended": false,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 14,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": false,
+        "currentTime": 0,
+        "paused": true,
+        "ended": false,
+        "readyState": 0,
+        "scrollPaused": false
+      }
+    ],
+    "after": [
+      {
+        "index": 0,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": true,
+        "currentTime": 0,
+        "paused": true,
+        "ended": false,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 1,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": true,
+        "currentTime": 0,
+        "paused": true,
+        "ended": false,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 2,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": true,
+        "currentTime": 0,
+        "paused": true,
+        "ended": false,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 3,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": true,
+        "currentTime": 0,
+        "paused": true,
+        "ended": false,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 4,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": false,
+        "currentTime": 0,
+        "paused": true,
+        "ended": false,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 5,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": false,
+        "currentTime": 0,
+        "paused": true,
+        "ended": false,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 6,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": true,
+        "currentTime": 0,
+        "paused": true,
+        "ended": false,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 7,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": true,
+        "currentTime": 0,
+        "paused": true,
+        "ended": false,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 8,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": true,
+        "currentTime": 0,
+        "paused": true,
+        "ended": false,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 9,
+        "hasSrcAttribute": true,
+        "srcAttribute": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fdf43547f-39d8-425c-bd30-86bb5f34698a%2Fdisplay.mp4",
+        "hasCurrentSrc": true,
+        "currentTime": 4.968599,
+        "paused": false,
+        "ended": false,
+        "readyState": 4,
+        "scrollPaused": false
+      },
+      {
+        "index": 10,
+        "hasSrcAttribute": true,
+        "srcAttribute": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F59f4b752-3f7a-44a4-a3ac-72915d7a4894%2Fdisplay.mp4",
+        "hasCurrentSrc": true,
+        "currentTime": 4.929522,
+        "paused": false,
+        "ended": false,
+        "readyState": 4,
+        "scrollPaused": false
+      },
+      {
+        "index": 11,
+        "hasSrcAttribute": true,
+        "srcAttribute": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fd477497c-47d7-459b-93ac-ab3a5084d990%2Fdisplay.mp4",
+        "hasCurrentSrc": true,
+        "currentTime": 0.025635,
+        "paused": false,
+        "ended": false,
+        "readyState": 4,
+        "scrollPaused": false
+      },
+      {
+        "index": 12,
+        "hasSrcAttribute": true,
+        "srcAttribute": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F822de2ba-1c02-41a3-b39f-0e282137729e%2Fdisplay.mp4",
+        "hasCurrentSrc": true,
+        "currentTime": 1.726291,
+        "paused": false,
+        "ended": false,
+        "readyState": 4,
+        "scrollPaused": false
+      },
+      {
+        "index": 13,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": false,
+        "currentTime": 0,
+        "paused": true,
+        "ended": false,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 14,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": false,
+        "currentTime": 0,
+        "paused": true,
+        "ended": false,
+        "readyState": 0,
+        "scrollPaused": false
+      }
+    ],
+    "moving": [
+      9,
+      10,
+      12
+    ]
+  },
+  "file": "C:\\CODEX Agents\\Home page CODEX\\ShortPulse\\Scott\\latency-continuation-probe-2026-06-16\\post-compact-rotation-disabled-run-1.json"
+}

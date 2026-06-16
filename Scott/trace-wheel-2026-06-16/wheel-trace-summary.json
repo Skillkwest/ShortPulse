@@ -1,0 +1,523 @@
+{
+  "topNames": [
+    {
+      "name": "RunTask",
+      "count": 4580,
+      "totalMs": 8721.9,
+      "maxMs": 1637.9
+    },
+    {
+      "name": "FunctionCall",
+      "count": 338,
+      "totalMs": 2788.4,
+      "maxMs": 1635.5
+    },
+    {
+      "name": "AsyncTask Run",
+      "count": 166,
+      "totalMs": 1795.2,
+      "maxMs": 1635.9
+    },
+    {
+      "name": "TimerBase::run",
+      "count": 37,
+      "totalMs": 1681.6,
+      "maxMs": 1636.1
+    },
+    {
+      "name": "TimerFire",
+      "count": 20,
+      "totalMs": 1660.1,
+      "maxMs": 1635.9
+    },
+    {
+      "name": "MessagePort::Accept",
+      "count": 50,
+      "totalMs": 1031.3,
+      "maxMs": 91.3
+    },
+    {
+      "name": "ProxyMain::BeginMainFrame",
+      "count": 58,
+      "totalMs": 581.9,
+      "maxMs": 30.2
+    },
+    {
+      "name": "WebFrameWidgetImpl::UpdateLifecycle",
+      "count": 58,
+      "totalMs": 251.7,
+      "maxMs": 17.6
+    },
+    {
+      "name": "EventDispatch",
+      "count": 196,
+      "totalMs": 192.7,
+      "maxMs": 8.4
+    },
+    {
+      "name": "WebFrameWidgetImpl::BeginMainFrame",
+      "count": 55,
+      "totalMs": 181,
+      "maxMs": 17.1
+    },
+    {
+      "name": "ProxyImpl::ScheduledActionDraw",
+      "count": 445,
+      "totalMs": 165.5,
+      "maxMs": 1.1
+    },
+    {
+      "name": "MainFrame.Draw",
+      "count": 445,
+      "totalMs": 164.6,
+      "maxMs": 1.1
+    },
+    {
+      "name": "EventHandler::handleMouseMoveEvent",
+      "count": 23,
+      "totalMs": 151.8,
+      "maxMs": 21.4
+    },
+    {
+      "name": "LocalFrameView::UpdateStyleAndLayout",
+      "count": 61,
+      "totalMs": 143.9,
+      "maxMs": 12
+    },
+    {
+      "name": "LocalFrameView::RunPaintLifecyclePhase",
+      "count": 56,
+      "totalMs": 133.7,
+      "maxMs": 7.5
+    },
+    {
+      "name": "LocalFrameView::RunStyleAndLayoutLifecyclePhases",
+      "count": 60,
+      "totalMs": 121.8,
+      "maxMs": 12
+    },
+    {
+      "name": "Blink.Style.UpdateTime",
+      "count": 55,
+      "totalMs": 103.8,
+      "maxMs": 8.5
+    },
+    {
+      "name": "UpdateLayoutTree",
+      "count": 55,
+      "totalMs": 102.4,
+      "maxMs": 8.5
+    },
+    {
+      "name": "LayoutView::HitTest",
+      "count": 31,
+      "totalMs": 99.6,
+      "maxMs": 14.4
+    },
+    {
+      "name": "Document::updateStyle",
+      "count": 52,
+      "totalMs": 95.1,
+      "maxMs": 8.4
+    },
+    {
+      "name": "Document::recalcStyle",
+      "count": 51,
+      "totalMs": 89.7,
+      "maxMs": 7.8
+    },
+    {
+      "name": "LayerTreeHostImpl::PrepareToDraw",
+      "count": 426,
+      "totalMs": 82.8,
+      "maxMs": 0.5
+    },
+    {
+      "name": "Commit",
+      "count": 58,
+      "totalMs": 77.8,
+      "maxMs": 3.1
+    },
+    {
+      "name": "Blink.Paint.UpdateTime",
+      "count": 51,
+      "totalMs": 61,
+      "maxMs": 3.8
+    },
+    {
+      "name": "LocalFrameView::pushPaintArtifactToCompositor",
+      "count": 37,
+      "totalMs": 57,
+      "maxMs": 5.1
+    },
+    {
+      "name": "Blink.CompositingCommit.UpdateTime",
+      "count": 36,
+      "totalMs": 56.4,
+      "maxMs": 5.1
+    },
+    {
+      "name": "Layerize",
+      "count": 34,
+      "totalMs": 55.7,
+      "maxMs": 5.1
+    },
+    {
+      "name": "Paint",
+      "count": 85,
+      "totalMs": 53.7,
+      "maxMs": 2.8
+    },
+    {
+      "name": "GPUTask",
+      "count": 23,
+      "totalMs": 53.1,
+      "maxMs": 15.2
+    },
+    {
+      "name": "PaintArtifactCompositor::Update",
+      "count": 18,
+      "totalMs": 51,
+      "maxMs": 5.1
+    }
+  ],
+  "topCats": [
+    {
+      "cat": "disabled-by-default-devtools.timeline",
+      "count": 4709,
+      "totalMs": 8865.2,
+      "maxMs": 1637.9
+    },
+    {
+      "cat": "blink",
+      "count": 1062,
+      "totalMs": 5917.3,
+      "maxMs": 1636.1
+    },
+    {
+      "cat": "devtools.timeline",
+      "count": 760,
+      "totalMs": 4807.9,
+      "maxMs": 1635.9
+    },
+    {
+      "cat": "cc,benchmark",
+      "count": 990,
+      "totalMs": 826.9,
+      "maxMs": 30.2
+    },
+    {
+      "cat": "blink,benchmark",
+      "count": 339,
+      "totalMs": 361.4,
+      "maxMs": 12
+    },
+    {
+      "cat": "cc",
+      "count": 1090,
+      "totalMs": 316.9,
+      "maxMs": 6.1
+    },
+    {
+      "cat": "blink,blink_style",
+      "count": 105,
+      "totalMs": 185.6,
+      "maxMs": 8.4
+    },
+    {
+      "cat": "blink,devtools.timeline",
+      "count": 174,
+      "totalMs": 171.3,
+      "maxMs": 8.5
+    },
+    {
+      "cat": "blink,rail",
+      "count": 49,
+      "totalMs": 45.4,
+      "maxMs": 7.3
+    },
+    {
+      "cat": "devtools.timeline,disabled-by-default-v8.gc",
+      "count": 45,
+      "totalMs": 21,
+      "maxMs": 2.3
+    },
+    {
+      "cat": "blink,benchmark,rail,disabled-by-default-blink.debug.layout",
+      "count": 16,
+      "totalMs": 18.2,
+      "maxMs": 2.3
+    },
+    {
+      "cat": "cc,disabled-by-default-devtools.timeline",
+      "count": 16,
+      "totalMs": 14.9,
+      "maxMs": 6.1
+    },
+    {
+      "cat": "blink,blink.resource",
+      "count": 14,
+      "totalMs": 14.1,
+      "maxMs": 2.5
+    },
+    {
+      "cat": "devtools.timeline,v8",
+      "count": 3,
+      "totalMs": 6,
+      "maxMs": 2.5
+    },
+    {
+      "cat": "loading",
+      "count": 2,
+      "totalMs": 0.3,
+      "maxMs": 0.2
+    }
+  ],
+  "topLong": [
+    {
+      "name": "RunTask",
+      "durMs": 1637.92,
+      "cat": "disabled-by-default-devtools.timeline"
+    },
+    {
+      "name": "TimerBase::run",
+      "durMs": 1636.08,
+      "cat": "blink"
+    },
+    {
+      "name": "TimerFire",
+      "durMs": 1635.9,
+      "cat": "devtools.timeline",
+      "data": {
+        "frame": "47BB17AA5BD66CDFE7706079DDA14FAD",
+        "timerId": 7
+      }
+    },
+    {
+      "name": "AsyncTask Run",
+      "durMs": 1635.86,
+      "cat": "blink"
+    },
+    {
+      "name": "FunctionCall",
+      "durMs": 1635.48,
+      "cat": "devtools.timeline",
+      "data": {
+        "columnNumber": 18,
+        "frame": "47BB17AA5BD66CDFE7706079DDA14FAD",
+        "functionName": "init",
+        "isolate": "1397436238272790891",
+        "lineNumber": 2298,
+        "sampleTraceId": 6185231120888854,
+        "scriptId": "12",
+        "url": "http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_client_0pe1dg-._.js"
+      }
+    },
+    {
+      "name": "RunTask",
+      "durMs": 118.09,
+      "cat": "disabled-by-default-devtools.timeline"
+    },
+    {
+      "name": "RunTask",
+      "durMs": 91.77,
+      "cat": "disabled-by-default-devtools.timeline"
+    },
+    {
+      "name": "MessagePort::Accept",
+      "durMs": 91.35,
+      "cat": "blink"
+    },
+    {
+      "name": "RunTask",
+      "durMs": 86.76,
+      "cat": "disabled-by-default-devtools.timeline"
+    },
+    {
+      "name": "MessagePort::Accept",
+      "durMs": 86.54,
+      "cat": "blink"
+    },
+    {
+      "name": "FunctionCall",
+      "durMs": 86.48,
+      "cat": "devtools.timeline",
+      "data": {
+        "columnNumber": 48,
+        "frame": "47BB17AA5BD66CDFE7706079DDA14FAD",
+        "functionName": "performWorkUntilDeadline",
+        "isolate": "1397436238272790891",
+        "lineNumber": 443,
+        "sampleTraceId": 6185231120891022,
+        "scriptId": "14",
+        "url": "http://127.0.0.1:3000/_next/static/chunks/node_modules_0b9d.z6._.js"
+      }
+    },
+    {
+      "name": "FunctionCall",
+      "durMs": 84.91,
+      "cat": "devtools.timeline",
+      "data": {
+        "columnNumber": 48,
+        "frame": "47BB17AA5BD66CDFE7706079DDA14FAD",
+        "functionName": "performWorkUntilDeadline",
+        "isolate": "1397436238272790891",
+        "lineNumber": 443,
+        "sampleTraceId": 6185231120890972,
+        "scriptId": "14",
+        "url": "http://127.0.0.1:3000/_next/static/chunks/node_modules_0b9d.z6._.js"
+      }
+    },
+    {
+      "name": "RunTask",
+      "durMs": 80.19,
+      "cat": "disabled-by-default-devtools.timeline"
+    },
+    {
+      "name": "MessagePort::Accept",
+      "durMs": 79.97,
+      "cat": "blink"
+    },
+    {
+      "name": "FunctionCall",
+      "durMs": 77.95,
+      "cat": "devtools.timeline",
+      "data": {
+        "columnNumber": 48,
+        "frame": "47BB17AA5BD66CDFE7706079DDA14FAD",
+        "functionName": "performWorkUntilDeadline",
+        "isolate": "1397436238272790891",
+        "lineNumber": 443,
+        "sampleTraceId": 6185231120888480,
+        "scriptId": "14",
+        "url": "http://127.0.0.1:3000/_next/static/chunks/node_modules_0b9d.z6._.js"
+      }
+    },
+    {
+      "name": "RunTask",
+      "durMs": 72.87,
+      "cat": "disabled-by-default-devtools.timeline"
+    },
+    {
+      "name": "MessagePort::Accept",
+      "durMs": 72.52,
+      "cat": "blink"
+    },
+    {
+      "name": "FunctionCall",
+      "durMs": 72.49,
+      "cat": "devtools.timeline",
+      "data": {
+        "columnNumber": 48,
+        "frame": "47BB17AA5BD66CDFE7706079DDA14FAD",
+        "functionName": "performWorkUntilDeadline",
+        "isolate": "1397436238272790891",
+        "lineNumber": 443,
+        "sampleTraceId": 6185231120891270,
+        "scriptId": "14",
+        "url": "http://127.0.0.1:3000/_next/static/chunks/node_modules_0b9d.z6._.js"
+      }
+    },
+    {
+      "name": "RunTask",
+      "durMs": 70.16,
+      "cat": "disabled-by-default-devtools.timeline"
+    },
+    {
+      "name": "MessagePort::Accept",
+      "durMs": 69.93,
+      "cat": "blink"
+    },
+    {
+      "name": "FunctionCall",
+      "durMs": 69.56,
+      "cat": "devtools.timeline",
+      "data": {
+        "columnNumber": 48,
+        "frame": "47BB17AA5BD66CDFE7706079DDA14FAD",
+        "functionName": "performWorkUntilDeadline",
+        "isolate": "1397436238272790891",
+        "lineNumber": 443,
+        "sampleTraceId": 6185231120889860,
+        "scriptId": "14",
+        "url": "http://127.0.0.1:3000/_next/static/chunks/node_modules_0b9d.z6._.js"
+      }
+    },
+    {
+      "name": "RunTask",
+      "durMs": 58.92,
+      "cat": "disabled-by-default-devtools.timeline"
+    },
+    {
+      "name": "MessagePort::Accept",
+      "durMs": 58.55,
+      "cat": "blink"
+    },
+    {
+      "name": "FunctionCall",
+      "durMs": 58.5,
+      "cat": "devtools.timeline",
+      "data": {
+        "columnNumber": 48,
+        "frame": "47BB17AA5BD66CDFE7706079DDA14FAD",
+        "functionName": "performWorkUntilDeadline",
+        "isolate": "1397436238272790891",
+        "lineNumber": 443,
+        "sampleTraceId": 6185231120889887,
+        "scriptId": "14",
+        "url": "http://127.0.0.1:3000/_next/static/chunks/node_modules_0b9d.z6._.js"
+      }
+    },
+    {
+      "name": "RunTask",
+      "durMs": 54.66,
+      "cat": "disabled-by-default-devtools.timeline"
+    },
+    {
+      "name": "MessagePort::Accept",
+      "durMs": 54.07,
+      "cat": "blink"
+    },
+    {
+      "name": "RunTask",
+      "durMs": 53.58,
+      "cat": "disabled-by-default-devtools.timeline"
+    },
+    {
+      "name": "MessagePort::Accept",
+      "durMs": 53.37,
+      "cat": "blink"
+    },
+    {
+      "name": "FunctionCall",
+      "durMs": 53.24,
+      "cat": "devtools.timeline",
+      "data": {
+        "columnNumber": 48,
+        "frame": "47BB17AA5BD66CDFE7706079DDA14FAD",
+        "functionName": "performWorkUntilDeadline",
+        "isolate": "1397436238272790891",
+        "lineNumber": 443,
+        "sampleTraceId": 6185231120891675,
+        "scriptId": "14",
+        "url": "http://127.0.0.1:3000/_next/static/chunks/node_modules_0b9d.z6._.js"
+      }
+    },
+    {
+      "name": "FunctionCall",
+      "durMs": 53.17,
+      "cat": "devtools.timeline",
+      "data": {
+        "columnNumber": 48,
+        "frame": "47BB17AA5BD66CDFE7706079DDA14FAD",
+        "functionName": "performWorkUntilDeadline",
+        "isolate": "1397436238272790891",
+        "lineNumber": 443,
+        "sampleTraceId": 6185231120889989,
+        "scriptId": "14",
+        "url": "http://127.0.0.1:3000/_next/static/chunks/node_modules_0b9d.z6._.js"
+      }
+    }
+  ],
+  "eventCount": 74508
+}

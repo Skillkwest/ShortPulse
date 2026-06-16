@@ -1,0 +1,845 @@
+{
+  "startInfo": {
+    "t": 5650.700000017881,
+    "y": 0
+  },
+  "finalY": 695,
+  "frameCount": 0,
+  "p95": 0,
+  "p98": 0,
+  "max": 0,
+  "over50": 0,
+  "sourced": 6,
+  "playing": 2,
+  "scrollPausedMarkers": 0,
+  "moving": [
+    10,
+    11
+  ],
+  "videoStates": [
+    {
+      "index": 0,
+      "src": false,
+      "playing": false,
+      "paused": true,
+      "readyState": 0,
+      "ct": 0,
+      "loop": false
+    },
+    {
+      "index": 1,
+      "src": false,
+      "playing": false,
+      "paused": true,
+      "readyState": 0,
+      "ct": 0,
+      "loop": false
+    },
+    {
+      "index": 2,
+      "src": false,
+      "playing": false,
+      "paused": true,
+      "readyState": 0,
+      "ct": 0,
+      "loop": false
+    },
+    {
+      "index": 3,
+      "src": false,
+      "playing": false,
+      "paused": true,
+      "readyState": 0,
+      "ct": 0,
+      "loop": false
+    },
+    {
+      "index": 4,
+      "src": false,
+      "playing": false,
+      "paused": true,
+      "readyState": 0,
+      "ct": 0,
+      "loop": false
+    },
+    {
+      "index": 5,
+      "src": false,
+      "playing": false,
+      "paused": true,
+      "readyState": 0,
+      "ct": 0,
+      "loop": false
+    },
+    {
+      "index": 6,
+      "src": true,
+      "playing": false,
+      "paused": true,
+      "readyState": 4,
+      "ct": 0.21128,
+      "loop": false
+    },
+    {
+      "index": 7,
+      "src": true,
+      "playing": false,
+      "paused": true,
+      "readyState": 4,
+      "ct": 0.069399,
+      "loop": false
+    },
+    {
+      "index": 8,
+      "src": false,
+      "playing": false,
+      "paused": true,
+      "readyState": 0,
+      "ct": 0,
+      "loop": false
+    },
+    {
+      "index": 9,
+      "src": true,
+      "playing": false,
+      "paused": false,
+      "readyState": 4,
+      "ct": 2.07825,
+      "loop": true
+    },
+    {
+      "index": 10,
+      "src": true,
+      "playing": true,
+      "paused": false,
+      "readyState": 4,
+      "ct": 1.790016,
+      "loop": true
+    },
+    {
+      "index": 11,
+      "src": true,
+      "playing": true,
+      "paused": false,
+      "readyState": 4,
+      "ct": 1.596761,
+      "loop": true
+    },
+    {
+      "index": 12,
+      "src": true,
+      "playing": false,
+      "paused": false,
+      "readyState": 0,
+      "ct": 0,
+      "loop": true
+    },
+    {
+      "index": 13,
+      "src": false,
+      "playing": false,
+      "paused": true,
+      "readyState": 0,
+      "ct": 0,
+      "loop": false
+    },
+    {
+      "index": 14,
+      "src": false,
+      "playing": false,
+      "paused": true,
+      "readyState": 0,
+      "ct": 0,
+      "loop": false
+    }
+  ],
+  "perf": {
+    "events": [
+      {
+        "t": 6985.800000011921,
+        "type": "video-rect",
+        "index": "0"
+      },
+      {
+        "t": 6986.4000000059605,
+        "type": "video-rect",
+        "index": "1"
+      },
+      {
+        "t": 6986.4000000059605,
+        "type": "video-rect",
+        "index": "2"
+      },
+      {
+        "t": 6986.4000000059605,
+        "type": "video-rect",
+        "index": "3"
+      },
+      {
+        "t": 6986.4000000059605,
+        "type": "video-rect",
+        "index": "4"
+      },
+      {
+        "t": 6986.5999999940395,
+        "type": "video-rect",
+        "index": "5"
+      },
+      {
+        "t": 6986.5999999940395,
+        "type": "video-rect",
+        "index": "6"
+      },
+      {
+        "t": 6986.5999999940395,
+        "type": "video-rect",
+        "index": "7"
+      },
+      {
+        "t": 6986.800000011921,
+        "type": "video-rect",
+        "index": "8"
+      },
+      {
+        "t": 6987,
+        "type": "video-rect",
+        "index": "9"
+      },
+      {
+        "t": 6987,
+        "type": "video-rect",
+        "index": "10"
+      },
+      {
+        "t": 6987,
+        "type": "video-rect",
+        "index": "11"
+      },
+      {
+        "t": 6987,
+        "type": "video-rect",
+        "index": "12"
+      },
+      {
+        "t": 6987,
+        "type": "video-rect",
+        "index": "13"
+      },
+      {
+        "t": 6987,
+        "type": "video-rect",
+        "index": "14"
+      }
+    ],
+    "longTasks": [
+      {
+        "start": 535.0999999940395,
+        "duration": 544,
+        "name": "self"
+      },
+      {
+        "start": 1173.4000000059605,
+        "duration": 254,
+        "name": "self"
+      },
+      {
+        "start": 1456.7000000178814,
+        "duration": 380,
+        "name": "self"
+      },
+      {
+        "start": 1904.2000000178814,
+        "duration": 77,
+        "name": "self"
+      },
+      {
+        "start": 2026.5,
+        "duration": 83,
+        "name": "self"
+      },
+      {
+        "start": 2178.0999999940395,
+        "duration": 66,
+        "name": "self"
+      },
+      {
+        "start": 5952,
+        "duration": 51,
+        "name": "self"
+      },
+      {
+        "start": 6042.200000017881,
+        "duration": 51,
+        "name": "self"
+      },
+      {
+        "start": 6604.4000000059605,
+        "duration": 50,
+        "name": "self"
+      }
+    ],
+    "frames": [],
+    "rectReads": 15,
+    "videoPlays": [
+      {
+        "t": 2274,
+        "index": null,
+        "src": false,
+        "paused": true,
+        "className": "public-home-hero-video"
+      },
+      {
+        "t": 3459.0999999940395,
+        "index": "0",
+        "src": true,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 3519.2000000178814,
+        "index": "0",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 3627.4000000059605,
+        "index": "1",
+        "src": true,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 3688.800000011921,
+        "index": "1",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 3805.5,
+        "index": "2",
+        "src": true,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 3851.5,
+        "index": "2",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 4042.7000000178814,
+        "index": "3",
+        "src": true,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 4094.5999999940395,
+        "index": "3",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 6011.200000017881,
+        "index": "3",
+        "src": true,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 6103.800000011921,
+        "index": "6",
+        "src": true,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 6191.800000011921,
+        "index": "6",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 6320.4000000059605,
+        "index": "7",
+        "src": true,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 6378.4000000059605,
+        "index": "7",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 6475.300000011921,
+        "index": "8",
+        "src": true,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 6588.9000000059605,
+        "index": "8",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 6670.0999999940395,
+        "index": "9",
+        "src": true,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 7039.300000011921,
+        "index": "9",
+        "src": true,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 7225.5999999940395,
+        "index": "10",
+        "src": true,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 7281,
+        "index": "10",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 7336.0999999940395,
+        "index": "12",
+        "src": true,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 7372.4000000059605,
+        "index": "12",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 7425.300000011921,
+        "index": "11",
+        "src": true,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 7478.9000000059605,
+        "index": "11",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 8721.59999999404,
+        "index": "6",
+        "src": true,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 8774.200000017881,
+        "index": "6",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 8963.800000011921,
+        "index": "7",
+        "src": true,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 9068.200000017881,
+        "index": "12",
+        "src": true,
+        "paused": true,
+        "className": ""
+      }
+    ],
+    "videoPauses": [
+      {
+        "t": 1918.5,
+        "index": "0",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1920.9000000059605,
+        "index": "1",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1921.800000011921,
+        "index": "2",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1922.5999999940395,
+        "index": "3",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1923.2000000178814,
+        "index": "4",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1924,
+        "index": "5",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1924.4000000059605,
+        "index": "6",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1925.4000000059605,
+        "index": "7",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1927.2000000178814,
+        "index": "8",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1928.5,
+        "index": "9",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1929.0999999940395,
+        "index": "10",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1929.4000000059605,
+        "index": "11",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1930,
+        "index": "12",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1930.300000011921,
+        "index": "13",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1930.7000000178814,
+        "index": "14",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1940.2000000178814,
+        "index": null,
+        "src": false,
+        "paused": true,
+        "className": "public-home-hero-video"
+      },
+      {
+        "t": 1971.5,
+        "index": "0",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1972.4000000059605,
+        "index": "1",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1972.5999999940395,
+        "index": "2",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1972.800000011921,
+        "index": "3",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1973.0999999940395,
+        "index": "4",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1973.800000011921,
+        "index": "5",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1974.4000000059605,
+        "index": "6",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1974.800000011921,
+        "index": "7",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1975.4000000059605,
+        "index": "8",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1975.800000011921,
+        "index": "9",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1976,
+        "index": "10",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1976.2000000178814,
+        "index": "11",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1977.0999999940395,
+        "index": "12",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1977.7000000178814,
+        "index": "13",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1978.300000011921,
+        "index": "14",
+        "src": false,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 1980.5,
+        "index": null,
+        "src": false,
+        "paused": true,
+        "className": "public-home-hero-video"
+      },
+      {
+        "t": 5672.5,
+        "index": "0",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 5673.800000011921,
+        "index": "1",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 5674.200000017881,
+        "index": "2",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 5674.4000000059605,
+        "index": "3",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 5874,
+        "index": null,
+        "src": false,
+        "paused": true,
+        "className": "public-home-hero-video"
+      },
+      {
+        "t": 6004.4000000059605,
+        "index": "0",
+        "src": true,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 6004.9000000059605,
+        "index": "1",
+        "src": true,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 6004.9000000059605,
+        "index": "2",
+        "src": true,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 6005.0999999940395,
+        "index": "3",
+        "src": true,
+        "paused": true,
+        "className": ""
+      },
+      {
+        "t": 6094.800000011921,
+        "index": "3",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 6769.0999999940395,
+        "index": "9",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 7028.700000017881,
+        "index": "6",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 7029.0999999940395,
+        "index": "7",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 7029.5999999940395,
+        "index": "8",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 8721.90000000596,
+        "index": "12",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 8963.5,
+        "index": "6",
+        "src": true,
+        "paused": false,
+        "className": ""
+      },
+      {
+        "t": 9067.5,
+        "index": "7",
+        "src": true,
+        "paused": false,
+        "className": ""
+      }
+    ],
+    "mutations": []
+  },
+  "longTasksAfterStart": [
+    {
+      "start": 5952,
+      "duration": 51,
+      "name": "self"
+    },
+    {
+      "start": 6042.200000017881,
+      "duration": 51,
+      "name": "self"
+    },
+    {
+      "start": 6604.4000000059605,
+      "duration": 50,
+      "name": "self"
+    }
+  ]
+}

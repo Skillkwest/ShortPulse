@@ -4,15 +4,13 @@
  */
 import Image from "next/image";
 import Link from "next/link";
-import type { ReactNode } from "react";
-import type { ForwardRefExoticComponent, RefAttributes } from "react";
-import type { IconProps } from "phosphor-react";
+import type { ElementType, ReactNode } from "react";
 
 type DashboardAppBarCard = {
   key: string;
   label: string;
   value: string;
-  icon: ForwardRefExoticComponent<IconProps & RefAttributes<SVGSVGElement>>;
+  icon: ElementType;
   className?: string;
   href?: string;
 };

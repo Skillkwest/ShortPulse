@@ -1,0 +1,630 @@
+[
+  {
+    "viewport": {
+      "name": "tablet-768",
+      "width": 768,
+      "height": 1024
+    },
+    "metrics": {
+      "viewportWidth": 768,
+      "viewportHeight": 1024,
+      "scrollWidth": 768,
+      "itemCount": 12,
+      "visibleItemCount": 12,
+      "clippedVisibleItems": [],
+      "orbitRect": {
+        "x": 0,
+        "y": 144,
+        "right": 768,
+        "bottom": 964,
+        "width": 768,
+        "height": 820
+      },
+      "stageRect": {
+        "x": 23,
+        "y": 161,
+        "right": 754,
+        "bottom": 891,
+        "width": 731,
+        "height": 731
+      },
+      "items": [
+        {
+          "text": "Generate Images",
+          "x": 430,
+          "y": 514,
+          "right": 514,
+          "bottom": 584,
+          "width": 84,
+          "height": 70
+        },
+        {
+          "text": "Create Characters",
+          "x": 445,
+          "y": 570,
+          "right": 529,
+          "bottom": 648,
+          "width": 84,
+          "height": 78
+        },
+        {
+          "text": "Create Influencers",
+          "x": 430,
+          "y": 647,
+          "right": 514,
+          "bottom": 725,
+          "width": 84,
+          "height": 78
+        },
+        {
+          "text": "Clone Yourself",
+          "x": 380,
+          "y": 735,
+          "right": 464,
+          "bottom": 805,
+          "width": 84,
+          "height": 70
+        },
+        {
+          "text": "Generate Image Prompts",
+          "x": 278,
+          "y": 791,
+          "right": 362,
+          "bottom": 869,
+          "width": 84,
+          "height": 78
+        },
+        {
+          "text": "Generate Video Prompts",
+          "x": 188,
+          "y": 525,
+          "right": 272,
+          "bottom": 604,
+          "width": 84,
+          "height": 78
+        },
+        {
+          "text": "Edit Images",
+          "x": 131,
+          "y": 521,
+          "right": 215,
+          "bottom": 590,
+          "width": 84,
+          "height": 70
+        },
+        {
+          "text": "Create Storyboards",
+          "x": 179,
+          "y": 249,
+          "right": 263,
+          "bottom": 327,
+          "width": 84,
+          "height": 78
+        },
+        {
+          "text": "Digital Try-ons",
+          "x": 229,
+          "y": 177,
+          "right": 313,
+          "bottom": 247,
+          "width": 84,
+          "height": 70
+        },
+        {
+          "text": "Create Styles",
+          "x": 327,
+          "y": 113,
+          "right": 411,
+          "bottom": 183,
+          "width": 84,
+          "height": 70
+        },
+        {
+          "text": "Face Repair",
+          "x": 291,
+          "y": 319,
+          "right": 375,
+          "bottom": 388,
+          "width": 84,
+          "height": 70
+        },
+        {
+          "text": "Image to Video",
+          "x": 336,
+          "y": 274,
+          "right": 420,
+          "bottom": 343,
+          "width": 84,
+          "height": 70
+        }
+      ]
+    }
+  },
+  {
+    "viewport": {
+      "name": "tablet-820",
+      "width": 820,
+      "height": 1180
+    },
+    "metrics": {
+      "viewportWidth": 820,
+      "viewportHeight": 1180,
+      "scrollWidth": 820,
+      "itemCount": 12,
+      "visibleItemCount": 12,
+      "clippedVisibleItems": [],
+      "orbitRect": {
+        "x": 0,
+        "y": 280,
+        "right": 820,
+        "bottom": 1120,
+        "width": 820,
+        "height": 840
+      },
+      "stageRect": {
+        "x": 30,
+        "y": 292,
+        "right": 790,
+        "bottom": 1052,
+        "width": 760,
+        "height": 760
+      },
+      "items": [
+        {
+          "text": "Generate Images",
+          "x": 422,
+          "y": 702,
+          "right": 506,
+          "bottom": 772,
+          "width": 84,
+          "height": 70
+        },
+        {
+          "text": "Create Characters",
+          "x": 424,
+          "y": 752,
+          "right": 508,
+          "bottom": 830,
+          "width": 84,
+          "height": 78
+        },
+        {
+          "text": "Create Influencers",
+          "x": 403,
+          "y": 816,
+          "right": 487,
+          "bottom": 894,
+          "width": 84,
+          "height": 78
+        },
+        {
+          "text": "Clone Yourself",
+          "x": 349,
+          "y": 891,
+          "right": 433,
+          "bottom": 960,
+          "width": 84,
+          "height": 70
+        },
+        {
+          "text": "Generate Image Prompts",
+          "x": 248,
+          "y": 929,
+          "right": 332,
+          "bottom": 1007,
+          "width": 84,
+          "height": 78
+        },
+        {
+          "text": "Generate Video Prompts",
+          "x": 189,
+          "y": 623,
+          "right": 273,
+          "bottom": 701,
+          "width": 84,
+          "height": 78
+        },
+        {
+          "text": "Edit Images",
+          "x": 141,
+          "y": 612,
+          "right": 225,
+          "bottom": 682,
+          "width": 84,
+          "height": 70
+        },
+        {
+          "text": "Create Storyboards",
+          "x": 249,
+          "y": 371,
+          "right": 333,
+          "bottom": 450,
+          "width": 84,
+          "height": 78
+        },
+        {
+          "text": "Digital Try-ons",
+          "x": 303,
+          "y": 314,
+          "right": 387,
+          "bottom": 384,
+          "width": 84,
+          "height": 70
+        },
+        {
+          "text": "Create Styles",
+          "x": 400,
+          "y": 267,
+          "right": 484,
+          "bottom": 336,
+          "width": 84,
+          "height": 70
+        },
+        {
+          "text": "Face Repair",
+          "x": 365,
+          "y": 469,
+          "right": 449,
+          "bottom": 539,
+          "width": 84,
+          "height": 70
+        },
+        {
+          "text": "Image to Video",
+          "x": 410,
+          "y": 437,
+          "right": 494,
+          "bottom": 507,
+          "width": 84,
+          "height": 70
+        }
+      ]
+    }
+  },
+  {
+    "viewport": {
+      "name": "wide-tablet-1080",
+      "width": 1080,
+      "height": 1000
+    },
+    "metrics": {
+      "viewportWidth": 1080,
+      "viewportHeight": 1000,
+      "scrollWidth": 1080,
+      "itemCount": 12,
+      "visibleItemCount": 12,
+      "clippedVisibleItems": [],
+      "orbitRect": {
+        "x": 0,
+        "y": 100,
+        "right": 1080,
+        "bottom": 940,
+        "width": 1080,
+        "height": 840
+      },
+      "stageRect": {
+        "x": 160,
+        "y": 112,
+        "right": 920,
+        "bottom": 872,
+        "width": 760,
+        "height": 760
+      },
+      "items": [
+        {
+          "text": "Generate Images",
+          "x": 583,
+          "y": 478,
+          "right": 667,
+          "bottom": 547,
+          "width": 84,
+          "height": 70
+        },
+        {
+          "text": "Create Characters",
+          "x": 598,
+          "y": 534,
+          "right": 682,
+          "bottom": 612,
+          "width": 84,
+          "height": 78
+        },
+        {
+          "text": "Create Influencers",
+          "x": 584,
+          "y": 611,
+          "right": 668,
+          "bottom": 689,
+          "width": 84,
+          "height": 78
+        },
+        {
+          "text": "Clone Yourself",
+          "x": 534,
+          "y": 701,
+          "right": 618,
+          "bottom": 770,
+          "width": 84,
+          "height": 70
+        },
+        {
+          "text": "Generate Image Prompts",
+          "x": 432,
+          "y": 757,
+          "right": 516,
+          "bottom": 835,
+          "width": 84,
+          "height": 78
+        },
+        {
+          "text": "Generate Video Prompts",
+          "x": 341,
+          "y": 493,
+          "right": 425,
+          "bottom": 572,
+          "width": 84,
+          "height": 78
+        },
+        {
+          "text": "Edit Images",
+          "x": 283,
+          "y": 489,
+          "right": 367,
+          "bottom": 559,
+          "width": 84,
+          "height": 70
+        },
+        {
+          "text": "Create Storyboards",
+          "x": 328,
+          "y": 216,
+          "right": 412,
+          "bottom": 295,
+          "width": 84,
+          "height": 78
+        },
+        {
+          "text": "Digital Try-ons",
+          "x": 378,
+          "y": 144,
+          "right": 462,
+          "bottom": 214,
+          "width": 84,
+          "height": 70
+        },
+        {
+          "text": "Create Styles",
+          "x": 476,
+          "y": 79,
+          "right": 560,
+          "bottom": 149,
+          "width": 84,
+          "height": 70
+        },
+        {
+          "text": "Face Repair",
+          "x": 440,
+          "y": 285,
+          "right": 524,
+          "bottom": 354,
+          "width": 84,
+          "height": 70
+        },
+        {
+          "text": "Image to Video",
+          "x": 485,
+          "y": 239,
+          "right": 569,
+          "bottom": 309,
+          "width": 84,
+          "height": 70
+        }
+      ]
+    }
+  },
+  {
+    "viewport": {
+      "name": "desktop-1440",
+      "width": 1440,
+      "height": 1000
+    },
+    "metrics": {
+      "viewportWidth": 1440,
+      "viewportHeight": 1000,
+      "scrollWidth": 1440,
+      "itemCount": 18,
+      "visibleItemCount": 12,
+      "clippedVisibleItems": [
+        {
+          "text": "Digital Try-ons",
+          "x": -149,
+          "y": 117,
+          "right": -3,
+          "bottom": 219,
+          "width": 146,
+          "height": 102
+        }
+      ],
+      "orbitRect": {
+        "x": 0,
+        "y": -182,
+        "right": 1440,
+        "bottom": 1182,
+        "width": 1440,
+        "height": 1364
+      },
+      "stageRect": {
+        "x": 43,
+        "y": -326,
+        "right": 1397,
+        "bottom": 1028,
+        "width": 1354,
+        "height": 1354
+      },
+      "items": [
+        {
+          "text": "Generate Images",
+          "x": 896,
+          "y": 350,
+          "right": 1008,
+          "bottom": 431,
+          "width": 112,
+          "height": 81
+        },
+        {
+          "text": "Create Characters",
+          "x": 948,
+          "y": 491,
+          "right": 1070,
+          "bottom": 581,
+          "width": 122,
+          "height": 90
+        },
+        {
+          "text": "Create Influencers",
+          "x": 943,
+          "y": 704,
+          "right": 1079,
+          "bottom": 800,
+          "width": 136,
+          "height": 96
+        },
+        {
+          "text": "Clone Yourself",
+          "x": 821,
+          "y": 942,
+          "right": 967,
+          "bottom": 1043,
+          "width": 146,
+          "height": 102
+        },
+        {
+          "text": "Generate Image Prompts",
+          "x": 562,
+          "y": 1117,
+          "right": 716,
+          "bottom": 1225,
+          "width": 154,
+          "height": 108
+        },
+        {
+          "text": "Generate Video Prompts",
+          "x": 523,
+          "y": 547,
+          "right": 635,
+          "bottom": 638,
+          "width": 112,
+          "height": 91
+        },
+        {
+          "text": "Edit Images",
+          "x": 368,
+          "y": 611,
+          "right": 490,
+          "bottom": 701,
+          "width": 122,
+          "height": 90
+        },
+        {
+          "text": "Create Storyboards",
+          "x": 135,
+          "y": 614,
+          "right": 271,
+          "bottom": 710,
+          "width": 136,
+          "height": 96
+        },
+        {
+          "text": "Digital Try-ons",
+          "x": -149,
+          "y": 117,
+          "right": -3,
+          "bottom": 219,
+          "width": 146,
+          "height": 102
+        },
+        {
+          "text": "Create Styles",
+          "x": -189,
+          "y": -196,
+          "right": -35,
+          "bottom": -89,
+          "width": 154,
+          "height": 108
+        },
+        {
+          "text": "Face Repair",
+          "x": 320,
+          "y": 190,
+          "right": 432,
+          "bottom": 271,
+          "width": 112,
+          "height": 81
+        },
+        {
+          "text": "Image to Video",
+          "x": 248,
+          "y": 32,
+          "right": 370,
+          "bottom": 121,
+          "width": 122,
+          "height": 90
+        },
+        {
+          "text": "End Frames",
+          "x": 225,
+          "y": -194,
+          "right": 361,
+          "bottom": -98,
+          "width": 136,
+          "height": 96
+        },
+        {
+          "text": "Multi-shot Video",
+          "x": 1050,
+          "y": -310,
+          "right": 1196,
+          "bottom": -208,
+          "width": 146,
+          "height": 102
+        },
+        {
+          "text": "Character Consistency",
+          "x": 1324,
+          "y": -190,
+          "right": 1478,
+          "bottom": -83,
+          "width": 154,
+          "height": 108
+        },
+        {
+          "text": "Multi-character",
+          "x": 688,
+          "y": -18,
+          "right": 800,
+          "bottom": 63,
+          "width": 112,
+          "height": 81
+        },
+        {
+          "text": "Clone Voices",
+          "x": 828,
+          "y": -88,
+          "right": 950,
+          "bottom": 1,
+          "width": 122,
+          "height": 90
+        },
+        {
+          "text": "Swap Voices",
+          "x": 1033,
+          "y": -104,
+          "right": 1169,
+          "bottom": -8,
+          "width": 136,
+          "height": 96
+        }
+      ]
+    }
+  }
+]

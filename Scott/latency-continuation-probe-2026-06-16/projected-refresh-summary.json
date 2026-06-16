@@ -1,0 +1,120 @@
+[
+  {
+    "name": "current-real-refresh",
+    "p95": 23.9,
+    "p98": 49,
+    "max": 120.9,
+    "over50": 6.3,
+    "realRectReads": 15,
+    "projectedRectReads": 0,
+    "playCount": 19.5,
+    "loadCount": 38.8,
+    "sourced": [
+      4,
+      4,
+      4,
+      4
+    ],
+    "playing": [
+      4,
+      4,
+      4,
+      4
+    ],
+    "moving": [
+      [
+        9,
+        10,
+        11,
+        12
+      ],
+      [
+        9,
+        10,
+        11,
+        12
+      ],
+      [
+        9,
+        10,
+        11,
+        12
+      ],
+      [
+        9,
+        10,
+        11,
+        12
+      ]
+    ],
+    "topLongTasks": [
+      112,
+      92,
+      91,
+      90,
+      86,
+      86,
+      83,
+      80
+    ]
+  },
+  {
+    "name": "projected-refresh",
+    "p95": 25,
+    "p98": 53.2,
+    "max": 129.2,
+    "over50": 6.3,
+    "realRectReads": 15,
+    "projectedRectReads": 15,
+    "playCount": 17,
+    "loadCount": 38,
+    "sourced": [
+      4,
+      4,
+      4,
+      4
+    ],
+    "playing": [
+      4,
+      4,
+      4,
+      4
+    ],
+    "moving": [
+      [
+        9,
+        10,
+        11,
+        12
+      ],
+      [
+        9,
+        10,
+        11,
+        12
+      ],
+      [
+        9,
+        10,
+        11,
+        12
+      ],
+      [
+        9,
+        10,
+        11,
+        12
+      ]
+    ],
+    "topLongTasks": [
+      128,
+      99,
+      98,
+      92,
+      91,
+      87,
+      86,
+      84
+    ]
+  }
+]

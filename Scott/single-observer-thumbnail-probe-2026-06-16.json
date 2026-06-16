@@ -1,0 +1,75 @@
+{
+  "date": "2026-06-16",
+  "branch": "codex/brother-dashboard-aesthetics",
+  "production": "untouched",
+  "cleanTraceBeforePatch": {
+    "path": "Scott/trace-wheel-clean-2026-06-16",
+    "finding": "Without CPU-profiler tracing overhead, the remaining long tasks were React scheduler chunks around performWorkUntilDeadline. Paint/layout were smaller than the React scheduled work."
+  },
+  "change": {
+    "component": "DashboardTutorialGrid",
+    "summary": "Moved tutorial thumbnail viewport observation from one IntersectionObserver per video thumbnail to one grid-level IntersectionObserver with batched viewport-map updates. Children now receive near/visible-poster booleans instead of owning observer effects."
+  },
+  "mobileWheelProbe": {
+    "browser": "C:/Program Files/Google/Chrome/Application/chrome.exe",
+    "viewport": "390x844",
+    "cpuThrottle": 4,
+    "runs": 4,
+    "averages": {
+      "p95Ms": 13.6,
+      "maxMs": 116.6,
+      "framesOver50Ms": 5.5
+    },
+    "runDetails": [
+      {
+        "run": 1,
+        "p95Ms": 8.5,
+        "maxMs": 116.7,
+        "framesOver50Ms": 5,
+        "sourced": 4,
+        "playing": 3,
+        "movingIndexes": [9, 11, 12]
+      },
+      {
+        "run": 2,
+        "p95Ms": 16.6,
+        "maxMs": 112.4,
+        "framesOver50Ms": 5,
+        "sourced": 4,
+        "playing": 4,
+        "movingIndexes": [9, 10, 11, 12]
+      },
+      {
+        "run": 3,
+        "p95Ms": 12.5,
+        "maxMs": 99.9,
+        "framesOver50Ms": 5,
+        "sourced": 4,
+        "playing": 4,
+        "movingIndexes": [9, 10, 11, 12]
+      },
+      {
+        "run": 4,
+        "p95Ms": 16.7,
+        "maxMs": 137.4,
+        "framesOver50Ms": 7,
+        "sourced": 4,
+        "playing": 4,
+        "movingIndexes": [9, 10, 11, 12]
+      }
+    ]
+  },
+  "comparison": {
+    "previousVisibilityChurnProbe": {
+      "p95Ms": 16.7,
+      "maxMs": 142.7,
+      "framesOver50Ms": 6.3
+    },
+    "singleObserverProbe": {
+      "p95Ms": 13.6,
+      "maxMs": 116.6,
+      "framesOver50Ms": 5.5
+    }
+  },
+  "conclusion": "The single-observer pass reduced React scheduling overhead and improved p95/max frame timing. Occasional long frames remain, so the broader latency goal is still active."
+}

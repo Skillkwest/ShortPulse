@@ -1,0 +1,216 @@
+{
+  "label": "post-card-memo",
+  "generatedAt": "2026-06-16T19:27:03.873Z",
+  "runs": 4,
+  "average": {
+    "frameCount": 364.5,
+    "p95": 20.874999999999773,
+    "p98": 39.60000000000059,
+    "max": 99.09999999999968,
+    "over50": 5,
+    "sourced": 11,
+    "playing": 4,
+    "scrollPausedMarkers": 0,
+    "playCalls": 14,
+    "pauseCalls": 46,
+    "loadCalls": 37.25,
+    "rectReads": 105
+  },
+  "movingByRun": [
+    [
+      9,
+      10,
+      11,
+      12
+    ],
+    [
+      9,
+      10,
+      11,
+      12
+    ],
+    [
+      9,
+      10,
+      11,
+      12
+    ],
+    [
+      9,
+      10,
+      11,
+      12
+    ]
+  ],
+  "longTasksByRun": [
+    [
+      {
+        "name": "self",
+        "startTime": 713.0999999940395,
+        "duration": 405
+      },
+      {
+        "name": "self",
+        "startTime": 1432.800000011921,
+        "duration": 283
+      },
+      {
+        "name": "self",
+        "startTime": 1227.300000011921,
+        "duration": 175
+      },
+      {
+        "name": "self",
+        "startTime": 4972.199999988079,
+        "duration": 84
+      },
+      {
+        "name": "self",
+        "startTime": 1752.5,
+        "duration": 69
+      },
+      {
+        "name": "self",
+        "startTime": 1918.0999999940395,
+        "duration": 69
+      },
+      {
+        "name": "self",
+        "startTime": 5959.5999999940395,
+        "duration": 68
+      }
+    ],
+    [
+      {
+        "name": "self",
+        "startTime": 938.8000000119209,
+        "duration": 532
+      },
+      {
+        "name": "self",
+        "startTime": 1928.0999999940395,
+        "duration": 469
+      },
+      {
+        "name": "self",
+        "startTime": 1641.0999999940395,
+        "duration": 245
+      },
+      {
+        "name": "unknown",
+        "startTime": 421.09999999403954,
+        "duration": 116
+      },
+      {
+        "name": "self",
+        "startTime": 2466.199999988079,
+        "duration": 115
+      },
+      {
+        "name": "self",
+        "startTime": 5923.199999988079,
+        "duration": 101
+      },
+      {
+        "name": "self",
+        "startTime": 2785.699999988079,
+        "duration": 93
+      },
+      {
+        "name": "self",
+        "startTime": 3316.800000011921,
+        "duration": 70
+      }
+    ],
+    [
+      {
+        "name": "self",
+        "startTime": 579.2000000178814,
+        "duration": 466
+      },
+      {
+        "name": "self",
+        "startTime": 1592.7000000178814,
+        "duration": 451
+      },
+      {
+        "name": "self",
+        "startTime": 1205.800000011921,
+        "duration": 348
+      },
+      {
+        "name": "self",
+        "startTime": 2144.5,
+        "duration": 95
+      },
+      {
+        "name": "self",
+        "startTime": 5420.600000023842,
+        "duration": 72
+      },
+      {
+        "name": "unknown",
+        "startTime": 320.80000001192093,
+        "duration": 60
+      },
+      {
+        "name": "self",
+        "startTime": 2390,
+        "duration": 58
+      },
+      {
+        "name": "self",
+        "startTime": 5297.5,
+        "duration": 54
+      }
+    ],
+    [
+      {
+        "name": "self",
+        "startTime": 650.2000000178814,
+        "duration": 500
+      },
+      {
+        "name": "self",
+        "startTime": 2084.2000000178814,
+        "duration": 478
+      },
+      {
+        "name": "self",
+        "startTime": 1330.1000000238419,
+        "duration": 256
+      },
+      {
+        "name": "unknown",
+        "startTime": 3458.9000000059605,
+        "duration": 132
+      },
+      {
+        "name": "self",
+        "startTime": 2879.4000000059605,
+        "duration": 120
+      },
+      {
+        "name": "self",
+        "startTime": 6330.100000023842,
+        "duration": 93
+      },
+      {
+        "name": "self",
+        "startTime": 2631,
+        "duration": 91
+      },
+      {
+        "name": "self",
+        "startTime": 5246.800000011921,
+        "duration": 86
+      }
+    ]
+  ],
+  "runFiles": [
+    "C:\\CODEX Agents\\Home page CODEX\\ShortPulse\\Scott\\latency-continuation-probe-2026-06-16\\post-card-memo-run-1.json",
+    "C:\\CODEX Agents\\Home page CODEX\\ShortPulse\\Scott\\latency-continuation-probe-2026-06-16\\post-card-memo-run-2.json",
+    "C:\\CODEX Agents\\Home page CODEX\\ShortPulse\\Scott\\latency-continuation-probe-2026-06-16\\post-card-memo-run-3.json",
+    "C:\\CODEX Agents\\Home page CODEX\\ShortPulse\\Scott\\latency-continuation-probe-2026-06-16\\post-card-memo-run-4.json"
+  ]
+}

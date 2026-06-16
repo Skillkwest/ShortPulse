@@ -1,0 +1,166 @@
+{
+  "label": "post-card-memo-reverted",
+  "generatedAt": "2026-06-16T19:31:14.391Z",
+  "runs": 4,
+  "average": {
+    "frameCount": 465.25,
+    "p95": 10.475000000000364,
+    "p98": 16.625000000000227,
+    "max": 64.60000000000014,
+    "over50": 1.25,
+    "sourced": 11,
+    "playing": 4,
+    "scrollPausedMarkers": 0,
+    "playCalls": 14,
+    "pauseCalls": 46,
+    "loadCalls": 37.25,
+    "rectReads": 105
+  },
+  "movingByRun": [
+    [
+      9,
+      10,
+      11,
+      12
+    ],
+    [
+      9,
+      10,
+      11,
+      12
+    ],
+    [
+      9,
+      10,
+      11,
+      12
+    ],
+    [
+      9,
+      10,
+      11,
+      12
+    ]
+  ],
+  "longTasksByRun": [
+    [
+      {
+        "name": "self",
+        "startTime": 696,
+        "duration": 398
+      },
+      {
+        "name": "self",
+        "startTime": 1415.5999999940395,
+        "duration": 356
+      },
+      {
+        "name": "self",
+        "startTime": 1209.0999999940395,
+        "duration": 174
+      },
+      {
+        "name": "self",
+        "startTime": 1983.4000000059605,
+        "duration": 68
+      },
+      {
+        "name": "self",
+        "startTime": 1828,
+        "duration": 64
+      }
+    ],
+    [
+      {
+        "name": "self",
+        "startTime": 676.7999999821186,
+        "duration": 413
+      },
+      {
+        "name": "self",
+        "startTime": 1413,
+        "duration": 264
+      },
+      {
+        "name": "self",
+        "startTime": 1212.699999988079,
+        "duration": 162
+      },
+      {
+        "name": "self",
+        "startTime": 1765.9000000059605,
+        "duration": 75
+      },
+      {
+        "name": "self",
+        "startTime": 1966.4000000059605,
+        "duration": 61
+      }
+    ],
+    [
+      {
+        "name": "self",
+        "startTime": 491.69999998807907,
+        "duration": 438
+      },
+      {
+        "name": "self",
+        "startTime": 1289.199999988079,
+        "duration": 330
+      },
+      {
+        "name": "self",
+        "startTime": 1072.4000000059605,
+        "duration": 188
+      },
+      {
+        "name": "self",
+        "startTime": 1698.9000000059605,
+        "duration": 65
+      },
+      {
+        "name": "self",
+        "startTime": 1881.699999988079,
+        "duration": 63
+      }
+    ],
+    [
+      {
+        "name": "self",
+        "startTime": 998.2000000178814,
+        "duration": 419
+      },
+      {
+        "name": "self",
+        "startTime": 1751.5999999940395,
+        "duration": 298
+      },
+      {
+        "name": "self",
+        "startTime": 1535.9000000059605,
+        "duration": 180
+      },
+      {
+        "name": "self",
+        "startTime": 2108.5999999940395,
+        "duration": 81
+      },
+      {
+        "name": "self",
+        "startTime": 5316.300000011921,
+        "duration": 69
+      },
+      {
+        "name": "self",
+        "startTime": 2311.7000000178814,
+        "duration": 62
+      }
+    ]
+  ],
+  "runFiles": [
+    "C:\\CODEX Agents\\Home page CODEX\\ShortPulse\\Scott\\latency-continuation-probe-2026-06-16\\post-card-memo-reverted-run-1.json",
+    "C:\\CODEX Agents\\Home page CODEX\\ShortPulse\\Scott\\latency-continuation-probe-2026-06-16\\post-card-memo-reverted-run-2.json",
+    "C:\\CODEX Agents\\Home page CODEX\\ShortPulse\\Scott\\latency-continuation-probe-2026-06-16\\post-card-memo-reverted-run-3.json",
+    "C:\\CODEX Agents\\Home page CODEX\\ShortPulse\\Scott\\latency-continuation-probe-2026-06-16\\post-card-memo-reverted-run-4.json"
+  ]
+}

@@ -1,0 +1,119 @@
+{
+  "date": "2026-06-16",
+  "branch": "codex/brother-dashboard-aesthetics",
+  "production": "untouched",
+  "change": "DASHBOARD_TUTORIAL_SOURCE_IDLE_RELEASE_MS 260 -> 1600",
+  "averages": {
+    "p95": 23,
+    "p98": 57.3,
+    "max": 109.4,
+    "over50": 5.3
+  },
+  "runDetails": [
+    {
+      "run": 1,
+      "p95": 25,
+      "p98": 66.6,
+      "max": 112.6,
+      "over50": 7,
+      "sourced": 4,
+      "playing": 4,
+      "moving": [
+        9,
+        10,
+        11,
+        12
+      ],
+      "scrollPausedMarkers": 0,
+      "playCount": 38,
+      "pauseCount": 55,
+      "loadCount": 39,
+      "rectReads": 15,
+      "topLongTasks": [
+        96,
+        74,
+        72,
+        64,
+        58
+      ]
+    },
+    {
+      "run": 2,
+      "p95": 20.9,
+      "p98": 37.5,
+      "max": 104.1,
+      "over50": 3,
+      "sourced": 4,
+      "playing": 4,
+      "moving": [
+        9,
+        10,
+        11,
+        12
+      ],
+      "scrollPausedMarkers": 0,
+      "playCount": 38,
+      "pauseCount": 55,
+      "loadCount": 39,
+      "rectReads": 15,
+      "topLongTasks": [
+        79,
+        70,
+        58
+      ]
+    },
+    {
+      "run": 3,
+      "p95": 20.9,
+      "p98": 50,
+      "max": 108.3,
+      "over50": 5,
+      "sourced": 4,
+      "playing": 4,
+      "moving": [
+        9,
+        10,
+        11,
+        12
+      ],
+      "scrollPausedMarkers": 0,
+      "playCount": 24,
+      "pauseCount": 45,
+      "loadCount": 37,
+      "rectReads": 15,
+      "topLongTasks": [
+        97,
+        86,
+        69,
+        67
+      ]
+    },
+    {
+      "run": 4,
+      "p95": 25,
+      "p98": 75,
+      "max": 112.5,
+      "over50": 6,
+      "sourced": 4,
+      "playing": 4,
+      "moving": [
+        9,
+        10,
+        11,
+        12
+      ],
+      "scrollPausedMarkers": 0,
+      "playCount": 25,
+      "pauseCount": 45,
+      "loadCount": 37,
+      "rectReads": 15,
+      "topLongTasks": [
+        94,
+        92,
+        86,
+        75,
+        60
+      ]
+    }
+  ]
+}

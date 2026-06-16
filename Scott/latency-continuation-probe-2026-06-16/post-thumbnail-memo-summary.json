@@ -1,0 +1,110 @@
+{
+  "date": "2026-06-16",
+  "branch": "codex/brother-dashboard-aesthetics",
+  "production": "untouched",
+  "change": "Memoize DashboardTutorialVideoThumbnail",
+  "averages": {
+    "p95": 19.8,
+    "p98": 34.4,
+    "max": 102.1,
+    "over50": 4
+  },
+  "runDetails": [
+    {
+      "run": 1,
+      "p95": 16.7,
+      "p98": 33.3,
+      "max": 112.6,
+      "over50": 4,
+      "sourced": 4,
+      "playing": 4,
+      "moving": [
+        9,
+        10,
+        11,
+        12
+      ],
+      "scrollPausedMarkers": 0,
+      "playCount": 21,
+      "pauseCount": 57,
+      "loadCount": 40,
+      "rectReads": 15,
+      "topLongTasks": [
+        84,
+        50
+      ]
+    },
+    {
+      "run": 2,
+      "p95": 16.8,
+      "p98": 29.2,
+      "max": 100.1,
+      "over50": 4,
+      "sourced": 4,
+      "playing": 4,
+      "moving": [
+        9,
+        10,
+        11,
+        12
+      ],
+      "scrollPausedMarkers": 0,
+      "playCount": 13,
+      "pauseCount": 45,
+      "loadCount": 37,
+      "rectReads": 15,
+      "topLongTasks": [
+        79,
+        65
+      ]
+    },
+    {
+      "run": 3,
+      "p95": 24.9,
+      "p98": 37.5,
+      "max": 108.3,
+      "over50": 4,
+      "sourced": 4,
+      "playing": 4,
+      "moving": [
+        9,
+        10,
+        11,
+        12
+      ],
+      "scrollPausedMarkers": 0,
+      "playCount": 13,
+      "pauseCount": 45,
+      "loadCount": 37,
+      "rectReads": 15,
+      "topLongTasks": [
+        86,
+        53
+      ]
+    },
+    {
+      "run": 4,
+      "p95": 20.8,
+      "p98": 37.6,
+      "max": 87.5,
+      "over50": 4,
+      "sourced": 4,
+      "playing": 4,
+      "moving": [
+        9,
+        10,
+        11,
+        12
+      ],
+      "scrollPausedMarkers": 0,
+      "playCount": 13,
+      "pauseCount": 45,
+      "loadCount": 37,
+      "rectReads": 15,
+      "topLongTasks": [
+        60,
+        51
+      ]
+    }
+  ]
+}

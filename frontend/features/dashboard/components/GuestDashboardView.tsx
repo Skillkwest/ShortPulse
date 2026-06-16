@@ -2,53 +2,12 @@
  * Guest-mode dashboard content.
  * Presents the public dashboard hero and guest CTA card.
  */
-import type { CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
-import {
-  Article,
-  ArrowsClockwise,
-  BoundingBox,
-  Browsers,
-  Camera,
-  Cards,
-  ChartLineUp,
-  Copy,
-  Cube,
-  Eye,
-  FaceMask,
-  FileText,
-  FilmSlate,
-  FilmStrip,
-  FrameCorners,
-  Headphones,
-  ImageSquare,
-  MagicWand,
-  MaskHappy,
-  Microphone,
-  MusicNotes,
-  Package,
-  Palette,
-  PaintBrush,
-  PencilSimpleLine,
-  PenNib,
-  Person,
-  PersonSimpleRun,
-  PresentationChart,
-  ShoppingBag,
-  SpeakerHigh,
-  Sparkle,
-  Stack,
-  TextT,
-  TiktokLogo,
-  User,
-  UserFocus,
-  Users,
-  VideoCamera,
-  WaveSine,
-  type Icon,
-} from "phosphor-react";
 import { DashboardTutorialGrid, type DashboardTutorial } from "./DashboardTutorialGrid";
-import { buildPricingPath } from "../../pricing/paths";
+import { DashboardTutorialModal } from "./DashboardTutorialModal";
+import { buildDashboardAuthPath, buildPricingPath } from "../../pricing/paths";
 
 type GuestDashboardViewProps = {
   createProjectHref: string;
@@ -56,68 +15,240 @@ type GuestDashboardViewProps = {
 };
 
 const modelLogos = [
-  { label: "area 2", markClassName: "model-mark-area" },
-  { label: "Veo 3.1", markClassName: "model-mark-veo" },
-  { label: "Ideogram", markClassName: "model-mark-ideogram" },
-  { label: "Runway", markClassName: "model-mark-runway" },
-  { label: "Gemini", markClassName: "model-mark-gemini" },
-  { label: "Flux", markClassName: "model-mark-flux" },
-  { label: "Kling", markClassName: "model-mark-kling" },
+  { label: "Kling 3.0", markClassName: "model-mark-logo model-mark-kling-logo" },
+  { label: "Seedance 2.0", markClassName: "model-mark-logo model-mark-bytedance-logo" },
+  { label: "Nano Banana Pro", markClassName: "model-mark-logo model-mark-google-logo" },
+  { label: "Nano Banana 2", markClassName: "model-mark-logo model-mark-google-logo" },
+  { label: "Seedream 4.5", markClassName: "model-mark-logo model-mark-seedream-logo" },
+  { label: "Seedream 5", markClassName: "model-mark-logo model-mark-seedream-logo" },
+  { label: "GPT Image 2", markClassName: "model-mark-openai" },
+  { label: "Veo 3.1", markClassName: "model-mark-logo model-mark-google-logo" },
+  { label: "ElevenLabs", markClassName: "model-mark-logo model-mark-elevenlabs-logo" },
 ];
 
-const heroBackgroundVideoSrc = "/dashboard/homepage-hero-background.mp4";
+const heroBackgroundVideoSrc = "/dashboard/homepage-hero-background-perf.mp4";
+const liteHeroBackgroundVideoSrc = "/dashboard/homepage-hero-background-lite.mp4";
+const heroDemoTutorial: DashboardTutorial = {
+  id: "shortpulse-hero-watch-demo",
+  title: "ShortPulse Demo",
+  youtubeUrl: "https://youtu.be/k1-J78JLsMs",
+  thumbnailUrl: "",
+  thumbnailMediaType: "image",
+  thumbnailAlt: "ShortPulse demo",
+  displayOrder: 0,
+};
 
-const orbitTools: Array<{
-  label: string;
-  Icon: Icon;
-  tone: "coral" | "cyan" | "gold" | "violet" | "green";
-}> = [
-  { label: "Generate Images", Icon: ImageSquare, tone: "coral" },
-  { label: "Create Characters", Icon: UserFocus, tone: "cyan" },
-  { label: "Create Influencers", Icon: Users, tone: "gold" },
-  { label: "Clone Yourself", Icon: Copy, tone: "violet" },
-  { label: "Generate Image Prompts", Icon: TextT, tone: "green" },
-  { label: "Generate Video Prompts", Icon: FilmStrip, tone: "coral" },
-  { label: "Edit Images", Icon: PencilSimpleLine, tone: "cyan" },
-  { label: "Create Storyboards", Icon: PresentationChart, tone: "gold" },
-  { label: "Digital Try-ons", Icon: ShoppingBag, tone: "violet" },
-  { label: "Create Styles", Icon: Palette, tone: "green" },
-  { label: "Face Repair", Icon: FaceMask, tone: "coral" },
-  { label: "Image to Video", Icon: VideoCamera, tone: "cyan" },
-  { label: "End Frames", Icon: FrameCorners, tone: "gold" },
-  { label: "Multi-shot Video", Icon: Stack, tone: "violet" },
-  { label: "Character Consistency", Icon: Person, tone: "green" },
-  { label: "Multi-character", Icon: Cards, tone: "coral" },
-  { label: "Clone Voices", Icon: Microphone, tone: "cyan" },
-  { label: "Swap Voices", Icon: ArrowsClockwise, tone: "gold" },
-  { label: "SFX", Icon: WaveSine, tone: "violet" },
-  { label: "VFX", Icon: Sparkle, tone: "green" },
-  { label: "Generate Music", Icon: MusicNotes, tone: "coral" },
-  { label: "Voice Swap", Icon: SpeakerHigh, tone: "cyan" },
-  { label: "Music Videos", Icon: FilmSlate, tone: "gold" },
-  { label: "Podcasts", Icon: Headphones, tone: "violet" },
-  { label: "Anime Films", Icon: MaskHappy, tone: "green" },
-  { label: "Cinematic Films", Icon: Camera, tone: "coral" },
-  { label: "Pixar Style Films", Icon: PaintBrush, tone: "cyan" },
-  { label: "UGC", Icon: User, tone: "gold" },
-  { label: "TikTok Shop", Icon: TiktokLogo, tone: "violet" },
-  { label: "Viral Ads", Icon: ChartLineUp, tone: "green" },
-  { label: "Product Ads", Icon: Package, tone: "coral" },
-  { label: "Character Sheets", Icon: Article, tone: "cyan" },
-  { label: "Storyboards", Icon: Browsers, tone: "gold" },
-  { label: "Ideation", Icon: MagicWand, tone: "violet" },
-  { label: "Viral Skits", Icon: PersonSimpleRun, tone: "green" },
-  { label: "Lip Sync", Icon: Microphone, tone: "coral" },
-  { label: "Motion Tracking", Icon: BoundingBox, tone: "cyan" },
-  { label: "Enhance Realism", Icon: Eye, tone: "gold" },
-  { label: "Enhance Skin Texture", Icon: Sparkle, tone: "violet" },
-  { label: "Voiceovers", Icon: PenNib, tone: "green" },
-  { label: "Generate Scripts", Icon: FileText, tone: "coral" },
-  { label: "Product Ads", Icon: Cube, tone: "cyan" },
-];
+const TUTORIAL_AUTOPLAY_BUDGET = 15;
+const TUTORIAL_MAX_SIMULTANEOUS_VIDEOS = 15;
+const COMPACT_TUTORIAL_MAX_SIMULTANEOUS_VIDEOS = 15;
+const COMPACT_LOW_POWER_TUTORIAL_MAX_SIMULTANEOUS_VIDEOS = 15;
+const LOW_POWER_TUTORIAL_MAX_SIMULTANEOUS_VIDEOS = 15;
+const ORBIT_PAINT_READY_DELAY_MS = 360;
+const PAGE_SCROLL_SETTLE_MS = 220;
+const HERO_SOURCE_ATTACH_DELAY_MS = 0;
+const LITE_HERO_SOURCE_ATTACH_DELAY_MS = 0;
 
-const orbitRadii = [330, 455, 585, 710];
-const orbitDurations = [62, 80, 102, 126];
+type NavigatorWithPerformanceHints = Navigator & {
+  connection?: {
+    saveData?: boolean;
+  };
+  deviceMemory?: number;
+};
+
+function shouldUseLiteHomepageMotion() {
+  if (typeof window === "undefined") return false;
+  const connection = (navigator as NavigatorWithPerformanceHints).connection;
+  const deviceMemory = (navigator as NavigatorWithPerformanceHints).deviceMemory;
+  const hardwareConcurrency = navigator.hardwareConcurrency;
+
+  return (
+    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true ||
+    window.matchMedia?.("(update: slow)").matches === true ||
+    connection?.saveData === true ||
+    (typeof hardwareConcurrency === "number" && hardwareConcurrency <= 4) ||
+    (typeof deviceMemory === "number" && deviceMemory <= 4)
+  );
+}
+
+type HomepageMotionLayoutProfile = {
+  hasResolved: boolean;
+  isCompactLayout: boolean;
+  isLiteMotion: boolean;
+  isMediumLayout: boolean;
+};
+
+function useHomepageMotionLayoutProfile() {
+  const [profile, setProfile] = useState<HomepageMotionLayoutProfile>({
+    hasResolved: false,
+    isCompactLayout: false,
+    isLiteMotion: false,
+    isMediumLayout: false,
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const compactMediaQuery = window.matchMedia?.("(max-width: 760px)");
+    const mediumMediaQuery = window.matchMedia?.("(max-width: 1080px)");
+    const reducedMotionMediaQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+    const slowUpdateMediaQuery = window.matchMedia?.("(update: slow)");
+
+    const readProfile = (): HomepageMotionLayoutProfile => ({
+      hasResolved: true,
+      isCompactLayout: compactMediaQuery?.matches ?? false,
+      isLiteMotion: shouldUseLiteHomepageMotion(),
+      isMediumLayout: mediumMediaQuery?.matches ?? false,
+    });
+    const updateProfile = () => {
+      const nextProfile = readProfile();
+      setProfile((currentProfile) =>
+        currentProfile.hasResolved === nextProfile.hasResolved &&
+        currentProfile.isCompactLayout === nextProfile.isCompactLayout &&
+        currentProfile.isLiteMotion === nextProfile.isLiteMotion &&
+        currentProfile.isMediumLayout === nextProfile.isMediumLayout
+          ? currentProfile
+          : nextProfile
+      );
+    };
+
+    const frameId = globalThis.requestAnimationFrame(updateProfile);
+    const mediaQueries = [
+      compactMediaQuery,
+      mediumMediaQuery,
+      reducedMotionMediaQuery,
+      slowUpdateMediaQuery,
+    ].filter((mediaQuery): mediaQuery is MediaQueryList => Boolean(mediaQuery));
+
+    mediaQueries.forEach((mediaQuery) => {
+      mediaQuery.addEventListener?.("change", updateProfile);
+    });
+    return () => {
+      globalThis.cancelAnimationFrame(frameId);
+      mediaQueries.forEach((mediaQuery) => {
+        mediaQuery.removeEventListener?.("change", updateProfile);
+      });
+    };
+  }, []);
+
+  return profile;
+}
+
+type SectionNearViewportOptions = {
+  fallbackNearViewport?: boolean;
+  initialNearViewport?: boolean;
+  rootMargin?: string;
+  threshold?: number;
+};
+
+function useSectionNearViewport<TElement extends Element>({
+  fallbackNearViewport = true,
+  initialNearViewport = true,
+  rootMargin = "520px 0px",
+  threshold = 0.01,
+}: SectionNearViewportOptions = {}) {
+  const [sectionElement, setSectionElement] = useState<TElement | null>(null);
+  const [isNearViewport, setIsNearViewport] = useState(initialNearViewport);
+  const [hasBeenNearViewport, setHasBeenNearViewport] = useState(initialNearViewport);
+  const sectionRef = useCallback((element: TElement | null) => {
+    setSectionElement(element);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!sectionElement) return;
+
+    if (!("IntersectionObserver" in window)) {
+      const frameId = globalThis.requestAnimationFrame(() => {
+        setIsNearViewport(fallbackNearViewport);
+        if (fallbackNearViewport) {
+          setHasBeenNearViewport(true);
+        }
+      });
+      return () => {
+        globalThis.cancelAnimationFrame(frameId);
+      };
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        const nextIsNearViewport = Boolean(entry?.isIntersecting);
+        setIsNearViewport((currentIsNearViewport) =>
+          currentIsNearViewport === nextIsNearViewport ? currentIsNearViewport : nextIsNearViewport
+        );
+        if (nextIsNearViewport) {
+          setHasBeenNearViewport(true);
+        }
+      },
+      {
+        rootMargin,
+        threshold,
+      }
+    );
+
+    observer.observe(sectionElement);
+    return () => {
+      observer.disconnect();
+    };
+  }, [fallbackNearViewport, rootMargin, sectionElement, threshold]);
+
+  return { hasBeenNearViewport, isNearViewport, sectionRef };
+}
+
+function useDocumentVisible() {
+  const [isDocumentVisible, setIsDocumentVisible] = useState(true);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+
+    const updateDocumentVisibility = () => {
+      setIsDocumentVisible(!document.hidden);
+    };
+
+    updateDocumentVisibility();
+    document.addEventListener("visibilitychange", updateDocumentVisibility);
+    return () => {
+      document.removeEventListener("visibilitychange", updateDocumentVisibility);
+    };
+  }, []);
+
+  return isDocumentVisible;
+}
+
+function usePageScrollSettled() {
+  const [isPageScrolling, setIsPageScrolling] = useState(false);
+  const isPageScrollingRef = useRef(false);
+  const scrollSettleTimeoutRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleScroll = () => {
+      if (!isPageScrollingRef.current) {
+        isPageScrollingRef.current = true;
+        setIsPageScrolling(true);
+      }
+      if (scrollSettleTimeoutRef.current) {
+        globalThis.clearTimeout(scrollSettleTimeoutRef.current);
+      }
+      scrollSettleTimeoutRef.current = globalThis.setTimeout(() => {
+        isPageScrollingRef.current = false;
+        setIsPageScrolling(false);
+        scrollSettleTimeoutRef.current = null;
+      }, PAGE_SCROLL_SETTLE_MS);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      isPageScrollingRef.current = false;
+      if (scrollSettleTimeoutRef.current) {
+        globalThis.clearTimeout(scrollSettleTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  return isPageScrolling;
+}
 
 /**
  * Renders the public guest dashboard mode.
@@ -127,22 +258,138 @@ export function GuestDashboardView({
   dashboardTutorials,
 }: GuestDashboardViewProps) {
   const tutorialLaunchHref = buildPricingPath({ intent: "tutorial" });
+  const footerLoginHref = buildDashboardAuthPath();
+  const footerPricingHref = buildPricingPath();
+  const heroVideoRef = useRef<HTMLVideoElement | null>(null);
+  const motionLayoutProfile = useHomepageMotionLayoutProfile();
+  const useLiteMotion = motionLayoutProfile.isLiteMotion;
+  const useCompactLayout = motionLayoutProfile.isCompactLayout;
+  const isDocumentVisible = useDocumentVisible();
+  const isPageScrolling = usePageScrollSettled();
+  const [isOrbitPaintReady, setIsOrbitPaintReady] = useState(false);
+  const [heroSourceReadySrc, setHeroSourceReadySrc] = useState<string | null>(null);
+  const [selectedHeroDemo, setSelectedHeroDemo] = useState<DashboardTutorial | null>(null);
+  const { isNearViewport: isHeroNearViewport, sectionRef: heroSectionRef } =
+    useSectionNearViewport<HTMLElement>({
+      initialNearViewport: false,
+      rootMargin: "0px",
+      threshold: 0.01,
+    });
+  const { isNearViewport: isModelsNearViewport, sectionRef: modelsSectionRef } =
+    useSectionNearViewport<HTMLElement>({ rootMargin: "180px 0px", threshold: 0.01 });
+  const {
+    hasBeenNearViewport: hasActivatedTutorialShowcase,
+    isNearViewport: isShowcaseNearViewport,
+    sectionRef: showcaseSectionRef,
+  } = useSectionNearViewport<HTMLElement>({
+    fallbackNearViewport: true,
+    initialNearViewport: false,
+    rootMargin: "120px 0px",
+    threshold: 0.01,
+  });
+  const { isNearViewport: isOrbitNearViewport, sectionRef: orbitSectionRef } =
+    useSectionNearViewport<HTMLElement>({
+      fallbackNearViewport: false,
+      initialNearViewport: false,
+      rootMargin: "120px 0px",
+      threshold: 0.01,
+    });
+  const shouldPauseTutorialPlayback = !isShowcaseNearViewport;
+  const tutorialAutoPlayBudget = Math.min(TUTORIAL_AUTOPLAY_BUDGET, dashboardTutorials.length);
+  const tutorialMaxSimultaneousVideos =
+    useCompactLayout && useLiteMotion
+      ? COMPACT_LOW_POWER_TUTORIAL_MAX_SIMULTANEOUS_VIDEOS
+      : useCompactLayout
+        ? COMPACT_TUTORIAL_MAX_SIMULTANEOUS_VIDEOS
+        : useLiteMotion
+          ? LOW_POWER_TUTORIAL_MAX_SIMULTANEOUS_VIDEOS
+          : TUTORIAL_MAX_SIMULTANEOUS_VIDEOS;
+  const hasResolvedHeroMotionProfile = motionLayoutProfile.hasResolved;
+  const selectedHeroBackgroundVideoSrc = hasResolvedHeroMotionProfile
+    ? useLiteMotion || useCompactLayout
+      ? liteHeroBackgroundVideoSrc
+      : heroBackgroundVideoSrc
+    : null;
+  const activeHeroBackgroundVideoSrc =
+    isHeroNearViewport && isDocumentVisible && selectedHeroBackgroundVideoSrc === heroSourceReadySrc
+      ? selectedHeroBackgroundVideoSrc
+      : null;
+  const heroSourceAttachDelayMs =
+    useLiteMotion || useCompactLayout
+      ? LITE_HERO_SOURCE_ATTACH_DELAY_MS
+      : HERO_SOURCE_ATTACH_DELAY_MS;
+  const isOrbitPaintPending = isOrbitNearViewport && !isOrbitPaintReady;
+  const shouldPauseModelMarquee = !isModelsNearViewport || isPageScrolling;
+
+  useEffect(() => {
+    if (!isHeroNearViewport || !isDocumentVisible || !selectedHeroBackgroundVideoSrc) return;
+    if (heroSourceReadySrc === selectedHeroBackgroundVideoSrc) return;
+
+    const timeoutId = globalThis.setTimeout(() => {
+      setHeroSourceReadySrc(selectedHeroBackgroundVideoSrc);
+    }, heroSourceAttachDelayMs);
+    return () => {
+      globalThis.clearTimeout(timeoutId);
+    };
+  }, [
+    heroSourceAttachDelayMs,
+    heroSourceReadySrc,
+    isDocumentVisible,
+    isHeroNearViewport,
+    selectedHeroBackgroundVideoSrc,
+  ]);
+
+  useEffect(() => {
+    if (isOrbitPaintReady || !isOrbitNearViewport || isPageScrolling) return;
+
+    const timeoutId = globalThis.setTimeout(() => {
+      setIsOrbitPaintReady(true);
+    }, ORBIT_PAINT_READY_DELAY_MS);
+    return () => {
+      globalThis.clearTimeout(timeoutId);
+    };
+  }, [isOrbitNearViewport, isOrbitPaintReady, isPageScrolling]);
+
+  useEffect(() => {
+    const videoElement = heroVideoRef.current;
+    if (!videoElement) return;
+
+    if (!isHeroNearViewport || !isDocumentVisible) {
+      videoElement.pause();
+      return;
+    }
+
+    const frameId = globalThis.requestAnimationFrame(() => {
+      const playPromise = videoElement.play();
+      if (playPromise && typeof playPromise.catch === "function") {
+        void playPromise.catch(() => {
+          // Muted autoplay can still be blocked; the poster remains as the fallback.
+        });
+      }
+    });
+    return () => {
+      globalThis.cancelAnimationFrame(frameId);
+    };
+  }, [isDocumentVisible, isHeroNearViewport]);
 
   return (
-    <>
-      <section className="dashboard-hero minimal-hero public-home-hero">
+    <div className={useLiteMotion ? "public-home-lite-motion" : undefined}>
+      <section ref={heroSectionRef} className="dashboard-hero minimal-hero public-home-hero">
         <div className="hero-primary public-home-hero-primary">
           <div className="public-home-hero-bg" aria-hidden="true">
             <video
+              ref={heroVideoRef}
+              key={activeHeroBackgroundVideoSrc ?? "homepage-hero-poster"}
               className="public-home-hero-video"
               autoPlay
               muted
               loop
               playsInline
               preload="metadata"
-              poster="/dashboard/homepage-misty-forest-hero-v1.png"
             >
-              <source src={heroBackgroundVideoSrc} type="video/mp4" />
+              {activeHeroBackgroundVideoSrc ? (
+                <source src={activeHeroBackgroundVideoSrc} type="video/mp4" />
+              ) : null}
             </video>
           </div>
           <div className="hero-copy public-home-hero-copy">
@@ -155,13 +402,26 @@ export function GuestDashboardView({
             The top AI models built into the worlds most powerful <span>UX</span>
           </h2>
 
-          <Link href={createProjectHref} className="public-home-launch-button" prefetch={false}>
-            Launch App
-          </Link>
+          <div className="public-home-hero-actions">
+            <Link href={createProjectHref} className="public-home-launch-button" prefetch={false}>
+              Launch App
+            </Link>
+            <button
+              type="button"
+              className="public-home-demo-button"
+              onClick={() => setSelectedHeroDemo(heroDemoTutorial)}
+            >
+              Watch Demo
+            </button>
+          </div>
         </div>
       </section>
 
-      <section className="public-home-models" aria-labelledby="public-home-models-heading">
+      <section
+        ref={modelsSectionRef}
+        className={`public-home-models${shouldPauseModelMarquee ? " public-home-models-idle" : ""}`}
+        aria-labelledby="public-home-models-heading"
+      >
         <div className="public-home-model-strip" aria-label="Supported model families">
           {[0, 1, 2, 3].map((loopIndex) => (
             <div
@@ -184,66 +444,118 @@ export function GuestDashboardView({
       </section>
 
       {dashboardTutorials.length > 0 ? (
-        <section className="public-home-showcase" aria-labelledby="public-home-showcase-heading">
+        <section
+          ref={showcaseSectionRef}
+          className="public-home-showcase"
+          aria-labelledby="public-home-showcase-heading"
+        >
           <h2 id="public-home-showcase-heading" className="sr-only">
             Quick-start tutorial workflows
           </h2>
-          <DashboardTutorialGrid
-            tutorials={dashboardTutorials}
-            launchHref={tutorialLaunchHref}
-            autoPlayBudget={0}
-          />
+          {hasActivatedTutorialShowcase ? (
+            <DashboardTutorialGrid
+              tutorials={dashboardTutorials}
+              launchHref={tutorialLaunchHref}
+              autoPlayBudget={tutorialAutoPlayBudget}
+              enablePlaybackRotation
+              maxSimultaneousVideos={tutorialMaxSimultaneousVideos}
+              pauseVideoPlayback={shouldPauseTutorialPlayback}
+            />
+          ) : (
+            <div className="dashboard-tutorial-grid-placeholder" aria-hidden="true" />
+          )}
         </section>
       ) : null}
 
-      <section className="public-home-orbit" aria-labelledby="public-home-orbit-heading">
+      <section
+        ref={orbitSectionRef}
+        className={`public-home-orbit${isOrbitNearViewport ? "" : " public-home-orbit-idle"}${isOrbitPaintPending ? " public-home-orbit-paint-pending" : ""}`}
+        aria-labelledby="public-home-orbit-heading"
+      >
         <h2 id="public-home-orbit-heading" className="sr-only">
-          Shortpulse replaces <span>all these tools.</span>
+          Join the ShortPulse community
         </h2>
 
-        <div className="public-home-orbit-backdrop-text" aria-hidden="true">
-          <span>CREATE</span>
-          <span>ANYTHING</span>
-        </div>
-
-        <div className="public-home-orbit-stage" aria-label="Creative tools replaced by ShortPulse">
-          <div className="public-home-orbit-ring public-home-orbit-ring-outer" aria-hidden="true" />
-          <div
-            className="public-home-orbit-ring public-home-orbit-ring-middle"
-            aria-hidden="true"
-          />
-          <div className="public-home-orbit-ring public-home-orbit-ring-inner" aria-hidden="true" />
-          <div className="public-home-orbit-core" aria-hidden="true" />
-          {orbitTools.map(({ label, Icon, tone }, index) => {
-            const ringIndex = index % orbitRadii.length;
-            const angle = (index * 137.5 + ringIndex * 10) % 360;
-            const duration = orbitDurations[ringIndex];
-            const orbitStyle = {
-              "--orbit-radius": `${orbitRadii[ringIndex]}px`,
-              "--orbit-angle": `${angle}deg`,
-              "--orbit-counter-start": `${-angle}deg`,
-              "--orbit-counter-end": `${-angle - 360}deg`,
-              "--orbit-duration": `${duration}s`,
-              "--orbit-depth-delay": `${-(angle / 360) * duration}s`,
-            } as CSSProperties;
-
-            return (
-              <div
-                key={`${label}-${index}`}
-                className={`public-home-orbit-path orbit-ring-${ringIndex}`}
-                style={orbitStyle}
-              >
-                <div className={`public-home-orbit-tool orbit-tool-${tone}`}>
-                  <span className="public-home-orbit-icon" aria-hidden="true">
-                    <Icon size={18} weight="bold" />
-                  </span>
-                  <span>{label}</span>
-                </div>
-              </div>
-            );
-          })}
+        <div className="public-home-orbit-simple" aria-label="Join the ShortPulse community">
+          <div className="public-home-orbit-simple-mark" aria-hidden="true">
+            <span>JOIN THE</span>
+            <span>COMMUNITY</span>
+          </div>
+          <Link href={createProjectHref} className="public-home-community-button" prefetch={false}>
+            Join Free
+          </Link>
         </div>
       </section>
-    </>
+
+      <footer className="public-home-footer" aria-label="ShortPulse footer">
+        <div className="public-home-footer-shell">
+          <div className="public-home-footer-brand">
+            <Link href="/" className="public-home-footer-logo" aria-label="ShortPulse home">
+              <Image
+                src="/small good d.png"
+                alt="ShortPulse"
+                width={203}
+                height={64}
+                style={{ height: "auto" }}
+              />
+            </Link>
+            <p>
+              The all-in-one creative engine for images, video, voices, products, ads, and ideas
+              that need to move fast.
+            </p>
+          </div>
+
+          <nav className="public-home-footer-nav" aria-label="Footer navigation">
+            <div>
+              <span>Start</span>
+              <Link href={createProjectHref} prefetch={false}>
+                Launch App
+              </Link>
+              <Link href={footerPricingHref} prefetch={false}>
+                Pricing
+              </Link>
+              <Link href={footerLoginHref} prefetch={false}>
+                Login
+              </Link>
+            </div>
+            <div>
+              <span>Explore</span>
+              <Link href="#public-home-showcase-heading">Workflows</Link>
+              <button type="button" onClick={() => setSelectedHeroDemo(heroDemoTutorial)}>
+                Watch Demo
+              </button>
+              <Link href={createProjectHref} prefetch={false}>
+                Join Free
+              </Link>
+            </div>
+          </nav>
+
+          <div className="public-home-footer-cta">
+            <span>Built for creators who move before the feed does.</span>
+            <Link href={createProjectHref} className="public-home-footer-button" prefetch={false}>
+              Join Free
+            </Link>
+          </div>
+        </div>
+
+        <div className="public-home-footer-bottom">
+          <p>© 2026 ShortPulse. Create what the internet stops scrolling for.</p>
+          <div aria-label="ShortPulse platform highlights">
+            <span>Images</span>
+            <span>Video</span>
+            <span>Voice</span>
+            <span>Ads</span>
+          </div>
+        </div>
+      </footer>
+
+      {selectedHeroDemo ? (
+        <DashboardTutorialModal
+          tutorial={selectedHeroDemo}
+          launchHref={tutorialLaunchHref}
+          onClose={() => setSelectedHeroDemo(null)}
+        />
+      ) : null}
+    </div>
   );
 }

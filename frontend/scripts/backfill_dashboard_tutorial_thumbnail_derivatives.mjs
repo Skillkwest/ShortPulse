@@ -33,6 +33,13 @@ const DEFAULT_TIMEOUT_MS = 120_000;
 const MAX_SOURCE_BYTES = 50 * 1024 * 1024;
 const MAX_DISPLAY_BYTES = dashboardTutorialThumbnailProfile.motionDisplayMaxBytes;
 const VIDEO_PREVIEW_SCALE_FILTER = `scale=${dashboardTutorialThumbnailProfile.motionDisplayMaxDimension}:-2:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2`;
+const VIDEO_PREVIEW_FILTER = `${VIDEO_PREVIEW_SCALE_FILTER},fps=${dashboardTutorialThumbnailProfile.motionDisplayFps}`;
+const VIDEO_PREVIEW_PROFILE = dashboardTutorialThumbnailProfile.motionDisplayProfile;
+const VIDEO_PREVIEW_PRESET = dashboardTutorialThumbnailProfile.motionDisplayPreset;
+const VIDEO_PREVIEW_MAX_RATE = dashboardTutorialThumbnailProfile.motionDisplayMaxRate;
+const VIDEO_PREVIEW_BUF_SIZE = dashboardTutorialThumbnailProfile.motionDisplayBufSize;
+const VIDEO_POSTER_FILTER = `thumbnail,scale=${dashboardTutorialThumbnailProfile.motionPosterMaxDimension}:-2:force_original_aspect_ratio=decrease`;
+const VIDEO_POSTER_JPEG_QUALITY = dashboardTutorialThumbnailProfile.motionPosterJpegQuality;
 const SUPABASE_ENVIRONMENTS = new Set(["development", "staging", "production"]);
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -310,13 +317,19 @@ const createMotionDerivative = async ({
         inputPath,
         "-an",
         "-vf",
-        VIDEO_PREVIEW_SCALE_FILTER,
+        VIDEO_PREVIEW_FILTER,
         "-c:v",
         "libx264",
+        "-profile:v",
+        VIDEO_PREVIEW_PROFILE,
         "-preset",
-        "veryfast",
+        VIDEO_PREVIEW_PRESET,
         "-crf",
         String(dashboardTutorialThumbnailProfile.motionDisplayCrf),
+        "-maxrate",
+        VIDEO_PREVIEW_MAX_RATE,
+        "-bufsize",
+        VIDEO_PREVIEW_BUF_SIZE,
         "-pix_fmt",
         "yuv420p",
         "-movflags",
@@ -334,11 +347,11 @@ const createMotionDerivative = async ({
         "-i",
         inputPath,
         "-vf",
-        "thumbnail,scale=720:-2:force_original_aspect_ratio=decrease",
+        VIDEO_POSTER_FILTER,
         "-frames:v",
         "1",
         "-q:v",
-        "2",
+        String(VIDEO_POSTER_JPEG_QUALITY),
         posterPath,
       ],
       { timeout: timeoutMs }

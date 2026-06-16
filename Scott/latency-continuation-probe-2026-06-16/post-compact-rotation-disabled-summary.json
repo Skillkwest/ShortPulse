@@ -1,0 +1,214 @@
+{
+  "label": "post-compact-rotation-disabled",
+  "generatedAt": "2026-06-16T19:36:10.011Z",
+  "runs": 4,
+  "average": {
+    "frameCount": 487,
+    "p95": 8.400000000000546,
+    "p98": 9.5,
+    "max": 53.125,
+    "over50": 0.5,
+    "attrSourced": 4,
+    "currentSrcSourced": 11,
+    "playing": 4,
+    "moving": 3.75,
+    "scrollPausedMarkers": 0,
+    "playCalls": 13.75,
+    "pauseCalls": 45.75,
+    "loadCalls": 37.25,
+    "rectReads": 30
+  },
+  "attrSourcedByRun": [
+    [
+      9,
+      10,
+      11,
+      12
+    ],
+    [
+      9,
+      10,
+      11,
+      12
+    ],
+    [
+      9,
+      10,
+      11,
+      12
+    ],
+    [
+      9,
+      10,
+      11,
+      12
+    ]
+  ],
+  "playingByRun": [
+    [
+      9,
+      10,
+      11,
+      12
+    ],
+    [
+      9,
+      10,
+      11,
+      12
+    ],
+    [
+      9,
+      10,
+      11,
+      12
+    ],
+    [
+      9,
+      10,
+      11,
+      12
+    ]
+  ],
+  "movingByRun": [
+    [
+      9,
+      10,
+      12
+    ],
+    [
+      9,
+      10,
+      11,
+      12
+    ],
+    [
+      9,
+      10,
+      11,
+      12
+    ],
+    [
+      9,
+      10,
+      11,
+      12
+    ]
+  ],
+  "longTasksByRun": [
+    [
+      {
+        "name": "self",
+        "startTime": 842.9000000059605,
+        "duration": 324
+      },
+      {
+        "name": "self",
+        "startTime": 1438.1000000238419,
+        "duration": 253
+      },
+      {
+        "name": "self",
+        "startTime": 1265.800000011921,
+        "duration": 145
+      },
+      {
+        "name": "self",
+        "startTime": 1862.4000000059605,
+        "duration": 58
+      },
+      {
+        "name": "self",
+        "startTime": 1730.800000011921,
+        "duration": 54
+      }
+    ],
+    [
+      {
+        "name": "self",
+        "startTime": 472,
+        "duration": 343
+      },
+      {
+        "name": "self",
+        "startTime": 1107.3999999761581,
+        "duration": 249
+      },
+      {
+        "name": "self",
+        "startTime": 916.6999999880791,
+        "duration": 157
+      },
+      {
+        "name": "self",
+        "startTime": 1555.8999999761581,
+        "duration": 71
+      },
+      {
+        "name": "self",
+        "startTime": 1413.8999999761581,
+        "duration": 55
+      }
+    ],
+    [
+      {
+        "name": "self",
+        "startTime": 492.10000002384186,
+        "duration": 323
+      },
+      {
+        "name": "self",
+        "startTime": 1091.2000000178814,
+        "duration": 273
+      },
+      {
+        "name": "self",
+        "startTime": 922.5,
+        "duration": 140
+      },
+      {
+        "name": "self",
+        "startTime": 1418.300000011921,
+        "duration": 54
+      }
+    ],
+    [
+      {
+        "name": "self",
+        "startTime": 534,
+        "duration": 277
+      },
+      {
+        "name": "self",
+        "startTime": 1074.5,
+        "duration": 229
+      },
+      {
+        "name": "self",
+        "startTime": 898.8000000119209,
+        "duration": 152
+      },
+      {
+        "name": "self",
+        "startTime": 1350.4000000059605,
+        "duration": 55
+      },
+      {
+        "name": "self",
+        "startTime": 1544.5,
+        "duration": 52
+      },
+      {
+        "name": "self",
+        "startTime": 4454.5,
+        "duration": 50
+      }
+    ]
+  ],
+  "runFiles": [
+    "C:\\CODEX Agents\\Home page CODEX\\ShortPulse\\Scott\\latency-continuation-probe-2026-06-16\\post-compact-rotation-disabled-run-1.json",
+    "C:\\CODEX Agents\\Home page CODEX\\ShortPulse\\Scott\\latency-continuation-probe-2026-06-16\\post-compact-rotation-disabled-run-2.json",
+    "C:\\CODEX Agents\\Home page CODEX\\ShortPulse\\Scott\\latency-continuation-probe-2026-06-16\\post-compact-rotation-disabled-run-3.json",
+    "C:\\CODEX Agents\\Home page CODEX\\ShortPulse\\Scott\\latency-continuation-probe-2026-06-16\\post-compact-rotation-disabled-run-4.json"
+  ]
+}

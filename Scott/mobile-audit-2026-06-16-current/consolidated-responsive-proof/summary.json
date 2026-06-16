@@ -1,0 +1,114 @@
+[
+  {
+    "viewport": {
+      "name": "phone-360",
+      "width": 360,
+      "height": 740,
+      "expectedShowcaseCols": 3
+    },
+    "scrollWidth": 360,
+    "clientWidth": 360,
+    "topOverlapCount": 0,
+    "firstShowcaseRowCount": 3,
+    "expectedShowcaseCols": 3,
+    "titleOverflowCount": 0,
+    "orbitItemCount": 8,
+    "clippedVisibleOrbitCount": 0
+  },
+  {
+    "viewport": {
+      "name": "phone-390",
+      "width": 390,
+      "height": 844,
+      "expectedShowcaseCols": 3
+    },
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "topOverlapCount": 0,
+    "firstShowcaseRowCount": 3,
+    "expectedShowcaseCols": 3,
+    "titleOverflowCount": 0,
+    "orbitItemCount": 8,
+    "clippedVisibleOrbitCount": 0
+  },
+  {
+    "viewport": {
+      "name": "tablet-768",
+      "width": 768,
+      "height": 1024,
+      "expectedShowcaseCols": 4
+    },
+    "scrollWidth": 768,
+    "clientWidth": 768,
+    "topOverlapCount": 0,
+    "firstShowcaseRowCount": 4,
+    "expectedShowcaseCols": 4,
+    "titleOverflowCount": 0,
+    "orbitItemCount": 12,
+    "clippedVisibleOrbitCount": 0
+  },
+  {
+    "viewport": {
+      "name": "tablet-820",
+      "width": 820,
+      "height": 1180,
+      "expectedShowcaseCols": 4
+    },
+    "scrollWidth": 820,
+    "clientWidth": 820,
+    "topOverlapCount": 0,
+    "firstShowcaseRowCount": 4,
+    "expectedShowcaseCols": 4,
+    "titleOverflowCount": 0,
+    "orbitItemCount": 12,
+    "clippedVisibleOrbitCount": 0
+  },
+  {
+    "viewport": {
+      "name": "wide-tablet-1080",
+      "width": 1080,
+      "height": 1000,
+      "expectedShowcaseCols": 4
+    },
+    "scrollWidth": 1080,
+    "clientWidth": 1080,
+    "topOverlapCount": 0,
+    "firstShowcaseRowCount": 4,
+    "expectedShowcaseCols": 4,
+    "titleOverflowCount": 0,
+    "orbitItemCount": 12,
+    "clippedVisibleOrbitCount": 0
+  },
+  {
+    "viewport": {
+      "name": "laptop-1280",
+      "width": 1280,
+      "height": 900,
+      "expectedShowcaseCols": 5
+    },
+    "scrollWidth": 1280,
+    "clientWidth": 1280,
+    "topOverlapCount": 0,
+    "firstShowcaseRowCount": 5,
+    "expectedShowcaseCols": 5,
+    "titleOverflowCount": 0,
+    "orbitItemCount": 18,
+    "clippedVisibleOrbitCount": 0
+  },
+  {
+    "viewport": {
+      "name": "desktop-1440",
+      "width": 1440,
+      "height": 1000,
+      "expectedShowcaseCols": 5
+    },
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "topOverlapCount": 0,
+    "firstShowcaseRowCount": 5,
+    "expectedShowcaseCols": 5,
+    "titleOverflowCount": 0,
+    "orbitItemCount": 18,
+    "clippedVisibleOrbitCount": 1
+  }
+]

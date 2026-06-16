@@ -1,0 +1,90 @@
+{
+  "date": "2026-06-16",
+  "branch": "codex/brother-dashboard-aesthetics",
+  "production": "untouched",
+  "interventionMatrix": {
+    "baseline": {
+      "p95Ms": 26.3,
+      "maxMs": 132.0,
+      "framesOver50Ms": 5.0,
+      "moving": 4
+    },
+    "noModelMarquee": {
+      "p95Ms": 22.2,
+      "maxMs": 113.9,
+      "framesOver50Ms": 5.0,
+      "moving": 4
+    },
+    "noTransitionsOnly": {
+      "p95Ms": 16.7,
+      "maxMs": 122.2,
+      "framesOver50Ms": 5.0,
+      "moving": 4
+    },
+    "noVideoOpacityTransition": {
+      "p95Ms": 15.3,
+      "maxMs": 137.5,
+      "framesOver50Ms": 5.0,
+      "moving": 4
+    }
+  },
+  "change": {
+    "file": "frontend/styles/workspace-dashboard.css",
+    "selector": ".dashboard-tutorial-video-frame video",
+    "summary": "Removed the opacity transition on tutorial thumbnail videos to avoid compositing work when playback state changes."
+  },
+  "postPatchProbe": {
+    "browser": "C:/Program Files/Google/Chrome/Application/chrome.exe",
+    "viewport": "390x844",
+    "cpuThrottle": 4,
+    "runs": 4,
+    "averages": {
+      "p95Ms": 15.6,
+      "maxMs": 121.9,
+      "framesOver50Ms": 4.3
+    },
+    "runDetails": [
+      {
+        "run": 1,
+        "p95Ms": 16.8,
+        "maxMs": 150.0,
+        "framesOver50Ms": 5,
+        "sourced": 4,
+        "playing": 4,
+        "movingIndexes": [9, 10, 11, 12],
+        "videoTransitionProperties": ["none"]
+      },
+      {
+        "run": 2,
+        "p95Ms": 16.6,
+        "maxMs": 133.3,
+        "framesOver50Ms": 5,
+        "sourced": 4,
+        "playing": 4,
+        "movingIndexes": [9, 10, 11, 12],
+        "videoTransitionProperties": ["none"]
+      },
+      {
+        "run": 3,
+        "p95Ms": 16.5,
+        "maxMs": 91.8,
+        "framesOver50Ms": 3,
+        "sourced": 4,
+        "playing": 4,
+        "movingIndexes": [9, 10, 11, 12],
+        "videoTransitionProperties": ["none"]
+      },
+      {
+        "run": 4,
+        "p95Ms": 12.4,
+        "maxMs": 112.4,
+        "framesOver50Ms": 4,
+        "sourced": 4,
+        "playing": 4,
+        "movingIndexes": [9, 10, 11, 12],
+        "videoTransitionProperties": ["none"]
+      }
+    ]
+  },
+  "conclusion": "Removing only the tutorial video opacity transition kept all thumbnail motion intact and improved p95 versus the local intervention baseline. Occasional long max frames remain, so the broader speed goal is still active."
+}

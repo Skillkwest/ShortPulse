@@ -1,0 +1,120 @@
+[
+  {
+    "name": "current-refresh",
+    "p95": 25,
+    "p98": 59.4,
+    "max": 116.6,
+    "over50": 6.5,
+    "videoRectReads": 15,
+    "skippedVideoRectReads": 0,
+    "playCount": 17,
+    "loadCount": 38,
+    "sourced": [
+      4,
+      4,
+      4,
+      4
+    ],
+    "playing": [
+      4,
+      4,
+      4,
+      4
+    ],
+    "moving": [
+      [
+        9,
+        10,
+        11,
+        12
+      ],
+      [
+        9,
+        10,
+        11,
+        12
+      ],
+      [
+        9,
+        10,
+        11,
+        12
+      ],
+      [
+        9,
+        10,
+        11,
+        12
+      ]
+    ],
+    "topLongTasks": [
+      90,
+      89,
+      88,
+      88,
+      83,
+      82,
+      80,
+      80
+    ]
+  },
+  {
+    "name": "no-video-rect-layout-refresh",
+    "p95": 20.9,
+    "p98": 51,
+    "max": 116.7,
+    "over50": 5.8,
+    "videoRectReads": 0,
+    "skippedVideoRectReads": 15,
+    "playCount": 12,
+    "loadCount": 34.8,
+    "sourced": [
+      4,
+      4,
+      4,
+      4
+    ],
+    "playing": [
+      4,
+      4,
+      4,
+      4
+    ],
+    "moving": [
+      [
+        6,
+        7,
+        8,
+        12
+      ],
+      [
+        6,
+        7,
+        8,
+        12
+      ],
+      [
+        6,
+        7,
+        8,
+        12
+      ],
+      [
+        6,
+        7,
+        8,
+        12
+      ]
+    ],
+    "topLongTasks": [
+      132,
+      95,
+      94,
+      85,
+      76,
+      74,
+      71,
+      69
+    ]
+  }
+]

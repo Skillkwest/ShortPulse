@@ -1,0 +1,339 @@
+{
+  "generatedAt": "2026-06-16T19:31:55.148Z",
+  "result": {
+    "attrSourced": [
+      9,
+      10,
+      11,
+      12
+    ],
+    "currentSrcSourced": [
+      0,
+      1,
+      2,
+      3,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ],
+    "playing": [
+      9,
+      10,
+      11
+    ],
+    "moving": [
+      9,
+      10,
+      11
+    ],
+    "scrollPausedMarkers": 0,
+    "before": [
+      {
+        "index": 0,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": true,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 1,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": true,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 2,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": true,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 3,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": true,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 4,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": false,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 5,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": false,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 6,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": true,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 7,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": true,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 8,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": true,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 9,
+        "hasSrcAttribute": true,
+        "srcAttribute": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fdf43547f-39d8-425c-bd30-86bb5f34698a%2Fdisplay.mp4",
+        "hasCurrentSrc": true,
+        "currentTime": 2.959126,
+        "paused": false,
+        "readyState": 4,
+        "scrollPaused": false
+      },
+      {
+        "index": 10,
+        "hasSrcAttribute": true,
+        "srcAttribute": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F59f4b752-3f7a-44a4-a3ac-72915d7a4894%2Fdisplay.mp4",
+        "hasCurrentSrc": true,
+        "currentTime": 2.21638,
+        "paused": false,
+        "readyState": 4,
+        "scrollPaused": false
+      },
+      {
+        "index": 11,
+        "hasSrcAttribute": true,
+        "srcAttribute": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fd477497c-47d7-459b-93ac-ab3a5084d990%2Fdisplay.mp4",
+        "hasCurrentSrc": true,
+        "currentTime": 2.102126,
+        "paused": false,
+        "readyState": 4,
+        "scrollPaused": false
+      },
+      {
+        "index": 12,
+        "hasSrcAttribute": true,
+        "srcAttribute": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F822de2ba-1c02-41a3-b39f-0e282137729e%2Fdisplay.mp4",
+        "hasCurrentSrc": true,
+        "currentTime": 1.86412,
+        "paused": false,
+        "readyState": 4,
+        "scrollPaused": false
+      },
+      {
+        "index": 13,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": false,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 14,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": false,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "scrollPaused": false
+      }
+    ],
+    "after": [
+      {
+        "index": 0,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": true,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 1,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": true,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 2,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": true,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 3,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": true,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 4,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": false,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 5,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": false,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 6,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": true,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 7,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": true,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 8,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": true,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 9,
+        "hasSrcAttribute": true,
+        "srcAttribute": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fdf43547f-39d8-425c-bd30-86bb5f34698a%2Fdisplay.mp4",
+        "hasCurrentSrc": true,
+        "currentTime": 4.00425,
+        "paused": false,
+        "readyState": 4,
+        "scrollPaused": false
+      },
+      {
+        "index": 10,
+        "hasSrcAttribute": true,
+        "srcAttribute": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F59f4b752-3f7a-44a4-a3ac-72915d7a4894%2Fdisplay.mp4",
+        "hasCurrentSrc": true,
+        "currentTime": 3.261483,
+        "paused": false,
+        "readyState": 4,
+        "scrollPaused": false
+      },
+      {
+        "index": 11,
+        "hasSrcAttribute": true,
+        "srcAttribute": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fd477497c-47d7-459b-93ac-ab3a5084d990%2Fdisplay.mp4",
+        "hasCurrentSrc": true,
+        "currentTime": 3.147054,
+        "paused": false,
+        "readyState": 4,
+        "scrollPaused": false
+      },
+      {
+        "index": 12,
+        "hasSrcAttribute": true,
+        "srcAttribute": "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2F822de2ba-1c02-41a3-b39f-0e282137729e%2Fdisplay.mp4",
+        "hasCurrentSrc": true,
+        "currentTime": 0,
+        "paused": false,
+        "readyState": 1,
+        "scrollPaused": false
+      },
+      {
+        "index": 13,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": false,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "scrollPaused": false
+      },
+      {
+        "index": 14,
+        "hasSrcAttribute": false,
+        "srcAttribute": null,
+        "hasCurrentSrc": false,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "scrollPaused": false
+      }
+    ]
+  }
+}

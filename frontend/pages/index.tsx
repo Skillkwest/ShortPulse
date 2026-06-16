@@ -25,6 +25,13 @@ export const getStaticProps: GetStaticProps<PublicDashboardStaticProps> = async 
 export default function IndexPage({
   billingCatalog,
   dashboardOffers,
+  dashboardTutorials,
 }: InferGetStaticPropsType<typeof getStaticProps>) {
-  return <PublicDashboardRoute billingCatalog={billingCatalog} dashboardOffers={dashboardOffers} />;
+  return (
+    <PublicDashboardRoute
+      billingCatalog={billingCatalog}
+      dashboardOffers={dashboardOffers}
+      dashboardTutorials={dashboardTutorials}
+    />
+  );
 }

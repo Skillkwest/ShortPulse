@@ -1,0 +1,84 @@
+[
+  {
+    "viewport": {
+      "name": "phone-360",
+      "width": 360,
+      "height": 740
+    },
+    "metrics": {
+      "scrollWidth": 360,
+      "clientWidth": 360,
+      "overlaps": [],
+      "h1": {
+        "x": 20,
+        "y": 89,
+        "right": 239,
+        "bottom": 141,
+        "width": 219,
+        "height": 52
+      },
+      "model": {
+        "x": 22,
+        "y": 151,
+        "right": 338,
+        "bottom": 185,
+        "width": 317,
+        "height": 35
+      },
+      "cta": {
+        "x": 99,
+        "y": 201,
+        "right": 261,
+        "bottom": 243,
+        "width": 162,
+        "height": 42
+      },
+      "rowGroups": {
+        "359": 3,
+        "475": 3,
+        "591": 3
+      }
+    }
+  },
+  {
+    "viewport": {
+      "name": "phone-390",
+      "width": 390,
+      "height": 844
+    },
+    "metrics": {
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "overlaps": [],
+      "h1": {
+        "x": 20,
+        "y": 89,
+        "right": 239,
+        "bottom": 141,
+        "width": 219,
+        "height": 52
+      },
+      "model": {
+        "x": 25,
+        "y": 151,
+        "right": 365,
+        "bottom": 185,
+        "width": 340,
+        "height": 35
+      },
+      "cta": {
+        "x": 114,
+        "y": 201,
+        "right": 276,
+        "bottom": 243,
+        "width": 162,
+        "height": 42
+      },
+      "rowGroups": {
+        "359": 3,
+        "485": 3,
+        "611": 3
+      }
+    }
+  }
+]

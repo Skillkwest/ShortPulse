@@ -1,0 +1,64 @@
+{
+  "date": "2026-06-16",
+  "branch": "codex/brother-dashboard-aesthetics",
+  "production": "untouched",
+  "traceInput": "Scott/trace-wheel-after-freeze-2026-06-16/wheel-trace-summary.json",
+  "traceFinding": {
+    "remainingHotspot": "React scheduled work after scroll settle, with samples in DashboardTutorialVideoThumbnail, DashboardTutorialGrid, and React event dispatch",
+    "ignoredNoise": "A large CpuProfiler::StartProfiling/event-dispatch span was trace overhead and not treated as app work"
+  },
+  "change": {
+    "component": "DashboardTutorialGrid",
+    "summary": "Avoid React state churn from duplicate intersection updates and store only render-relevant thumbnail visibility state in each thumbnail component."
+  },
+  "mobileWheelProbe": {
+    "browser": "C:/Program Files/Google/Chrome/Application/chrome.exe",
+    "viewport": "390x844",
+    "cpuThrottle": 4,
+    "runs": 4,
+    "averages": {
+      "p95Ms": 16.7,
+      "maxMs": 142.7,
+      "framesOver50Ms": 6.3
+    },
+    "runDetails": [
+      {
+        "run": 1,
+        "p95Ms": 16.6,
+        "maxMs": 141.6,
+        "framesOver50Ms": 6,
+        "sourced": 4,
+        "playing": 4,
+        "movingIndexes": [9, 10, 11, 12]
+      },
+      {
+        "run": 2,
+        "p95Ms": 16.6,
+        "maxMs": 162.5,
+        "framesOver50Ms": 6,
+        "sourced": 4,
+        "playing": 4,
+        "movingIndexes": [9, 10, 11, 12]
+      },
+      {
+        "run": 3,
+        "p95Ms": 16.7,
+        "maxMs": 129.2,
+        "framesOver50Ms": 7,
+        "sourced": 4,
+        "playing": 4,
+        "movingIndexes": [9, 10, 11, 12]
+      },
+      {
+        "run": 4,
+        "p95Ms": 16.7,
+        "maxMs": 137.4,
+        "framesOver50Ms": 6,
+        "sourced": 4,
+        "playing": 4,
+        "movingIndexes": [9, 10, 11, 12]
+      }
+    ]
+  },
+  "conclusion": "This pass reduced unnecessary React update eligibility and made thumbnail movement more consistent, but it did not eliminate occasional long frames. The broader speed goal remains active."
+}

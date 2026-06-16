@@ -1,7 +1,7 @@
 /**
  * Dashboard route tests for the new guest/public mode.
  */
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import DashboardPage from "../../pages/dashboard";
@@ -17,6 +17,24 @@ const readSupabaseSessionBootstrapHintMock = vi.hoisted(() => vi.fn());
 const primeSupabaseSessionMock = vi.hoisted(() => vi.fn());
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
 const publicFetchMock = vi.hoisted(() => vi.fn());
+const loadGrowthTelemetryMock = vi.hoisted(() => vi.fn());
+const trackMarketingPageViewMock = vi.hoisted(() => vi.fn());
+
+const stubMatchMedia = (matchesByQuery: Record<string, boolean>) => {
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn().mockImplementation((query: string) => ({
+      matches: matchesByQuery[query] ?? false,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }))
+  );
+};
 
 vi.mock("next/head", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -26,17 +44,20 @@ vi.mock("next/link", () => ({
   default: ({
     children,
     href,
-    prefetch: _prefetch,
     ...rest
   }: {
     children: ReactNode;
     href: string;
     prefetch?: boolean;
-  } & Record<string, unknown>) => (
-    <a href={href} {...rest}>
-      {children}
-    </a>
-  ),
+  } & Record<string, unknown>) => {
+    const anchorProps = { ...rest };
+    delete (anchorProps as { prefetch?: boolean }).prefetch;
+    return (
+      <a href={href} {...anchorProps}>
+        {children}
+      </a>
+    );
+  },
 }));
 
 vi.mock("next/image", () => ({
@@ -83,6 +104,10 @@ vi.mock("../../lib/authenticatedFetch", () => ({
   fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
 }));
 
+vi.mock("../../lib/growthTelemetryLoader", () => ({
+  loadGrowthTelemetry: (...args: unknown[]) => loadGrowthTelemetryMock(...args),
+}));
+
 describe("Dashboard guest route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -105,6 +130,9 @@ describe("Dashboard guest route", () => {
     });
     readPersistedSupabaseSessionHintMock.mockReturnValue(false);
     readSupabaseSessionBootstrapHintMock.mockReturnValue(false);
+    loadGrowthTelemetryMock.mockResolvedValue({
+      trackMarketingPageView: trackMarketingPageViewMock,
+    });
     useSupabaseSessionStateMock.mockReturnValue({
       initialized: true,
       session: null,
@@ -113,6 +141,7 @@ describe("Dashboard guest route", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -156,34 +185,42 @@ describe("Dashboard guest route", () => {
     );
 
     expect(
-      screen.getByRole("heading", { name: /the creative studio for ai creators/i })
+      screen.getByRole("heading", { name: /a true all-in-one that actually works/i })
     ).toBeInTheDocument();
+    expect(document.querySelector(".public-home-hero-video source")).not.toBeInTheDocument();
+    expect(document.querySelector(".public-home-hero-bg")).toBeInTheDocument();
     expect(
-      screen.getByText(
-        "Watch a quick walkthrough, then build the image, video, character, or edit workflow you need in one focused workspace."
-      )
+      screen.getByRole("heading", {
+        name: /the top ai models built into the worlds most powerful ux/i,
+      })
     ).toBeInTheDocument();
     expect(screen.queryByText("Offer 1")).not.toBeInTheDocument();
     expect(screen.queryByText("Offer 2")).not.toBeInTheDocument();
     expect(screen.queryByText("Offer 3")).not.toBeInTheDocument();
     expect(screen.queryByText("Offer 4")).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Login" })).toHaveAttribute(
+    const guestActions = screen.getByLabelText("Guest actions");
+
+    expect(within(guestActions).getByRole("link", { name: "Login" })).toHaveAttribute(
       "href",
       "/auth?next=%2Fdashboard"
     );
-    expect(screen.getByRole("link", { name: "Pricing" })).toHaveAttribute("href", "/pricing");
-    expect(screen.getByRole("link", { name: "Sign up" })).toHaveAttribute(
+    expect(within(guestActions).getByRole("link", { name: "Pricing" })).toHaveAttribute(
+      "href",
+      "/pricing"
+    );
+    expect(within(guestActions).getByRole("link", { name: "Sign up" })).toHaveAttribute(
       "href",
       "/auth?next=%2Fdashboard&mode=signup"
     );
-    expect(screen.getByRole("link", { name: "ShortPulse home" })).toHaveAttribute("href", "/");
+    expect(screen.getAllByRole("link", { name: "ShortPulse home" })).toSatisfy(
+      (links) => links.length >= 1 && links.every((link) => link.getAttribute("href") === "/")
+    );
     expect(screen.queryByText("Public dashboard")).not.toBeInTheDocument();
     expect(screen.queryByText(/workspace entry are now one surface/i)).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("link", {
-        name: "New Project: Compare plans and unlock your first project",
-      })
-    ).toHaveAttribute("href", "/pricing?intent=create-project");
+    expect(document.querySelector(".public-home-launch-button")).toHaveAttribute(
+      "href",
+      "/pricing?intent=create-project"
+    );
     expect(screen.getByText("ShortPulse · Home")).toBeInTheDocument();
     expect(
       screen.queryByRole("link", {
@@ -199,6 +236,70 @@ describe("Dashboard guest route", () => {
     });
     expect(screen.queryByRole("button", { name: "Profile menu" })).not.toBeInTheDocument();
     expect(useSupabaseSessionStateMock).not.toHaveBeenCalled();
+
+    return waitFor(() => {
+      expect(document.querySelector(".public-home-hero-video source")).toHaveAttribute(
+        "src",
+        "/dashboard/homepage-hero-background-perf.mp4"
+      );
+    });
+  });
+
+  it("pauses the model logo marquee while the page is scrolling", async () => {
+    render(<DashboardPage />);
+
+    const modelMarquee = document.querySelector(".public-home-models");
+
+    expect(modelMarquee).toBeInTheDocument();
+    expect(modelMarquee).not.toHaveClass("public-home-models-idle");
+
+    fireEvent.scroll(window);
+
+    await waitFor(() => {
+      expect(modelMarquee).toHaveClass("public-home-models-idle");
+    });
+  });
+
+  it("defers public growth telemetry until after the startup idle window", async () => {
+    vi.useFakeTimers();
+    let idleCallback: IdleRequestCallback | null = null;
+    vi.stubGlobal(
+      "requestIdleCallback",
+      vi.fn((callback: IdleRequestCallback) => {
+        idleCallback = callback;
+        return 7;
+      })
+    );
+    vi.stubGlobal("cancelIdleCallback", vi.fn());
+
+    render(<DashboardPage />);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3499);
+    });
+
+    expect(loadGrowthTelemetryMock).not.toHaveBeenCalled();
+    expect(trackMarketingPageViewMock).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+
+    expect(loadGrowthTelemetryMock).not.toHaveBeenCalled();
+    expect(idleCallback).not.toBeNull();
+
+    await act(async () => {
+      idleCallback?.({
+        didTimeout: false,
+        timeRemaining: () => 20,
+      });
+      await Promise.resolve();
+    });
+
+    expect(loadGrowthTelemetryMock).toHaveBeenCalledTimes(1);
+    expect(trackMarketingPageViewMock).toHaveBeenCalledWith("dashboard", {
+      page_surface: "dashboard",
+    });
   });
 
   it("renders the public dashboard immediately while anonymous session bootstrap is still unresolved", () => {
@@ -211,12 +312,37 @@ describe("Dashboard guest route", () => {
     render(<DashboardPage />);
 
     expect(
-      screen.getByRole("heading", { name: /the creative studio for ai creators/i })
+      screen.getByRole("heading", { name: /a true all-in-one that actually works/i })
     ).toBeInTheDocument();
     expect(
       screen.queryByText("Checking your session before your dashboard workspace loads.")
     ).not.toBeInTheDocument();
     expect(readSupabaseSessionBootstrapHintMock).toHaveBeenCalled();
+  });
+
+  it("attaches the lite hero video source after compact layout resolution", async () => {
+    stubMatchMedia({
+      "(max-width: 760px)": true,
+      "(max-width: 1080px)": true,
+    });
+
+    render(<DashboardPage />);
+
+    expect(document.querySelector(".public-home-hero-video source")).not.toBeInTheDocument();
+
+    await waitFor(
+      () => {
+        expect(document.querySelector(".public-home-hero-video source")).toHaveAttribute(
+          "src",
+          "/dashboard/homepage-hero-background-lite.mp4"
+        );
+      },
+      { timeout: 3500 }
+    );
+    expect(document.querySelector(".public-home-hero-video source")).not.toHaveAttribute(
+      "src",
+      "/dashboard/homepage-hero-background-perf.mp4"
+    );
   });
 
   it("renders active dashboard offers when supplied", () => {
@@ -250,7 +376,7 @@ describe("Dashboard guest route", () => {
     );
   });
 
-  it("does not render static tutorial props before live endpoint hydration", () => {
+  it("renders static tutorial props without waiting for live endpoint hydration", async () => {
     render(
       <DashboardPage
         dashboardTutorials={[
@@ -281,7 +407,10 @@ describe("Dashboard guest route", () => {
       />
     );
 
-    expect(screen.queryByText("Stale signed thumbnail tutorial")).not.toBeInTheDocument();
+    expect(await screen.findByText("Stale signed thumbnail tutorial")).toBeInTheDocument();
+    expect(publicFetchMock).not.toHaveBeenCalledWith("/api/dashboard/tutorials", {
+      method: "GET",
+    });
   });
 
   it("renders public tutorial cards that open the tutorial modal", async () => {
@@ -304,9 +433,6 @@ describe("Dashboard guest route", () => {
 
     render(<DashboardPage dashboardTutorials={[]} />);
 
-    expect(
-      await screen.findByRole("heading", { name: /pick a workflow and start creating/i })
-    ).toBeInTheDocument();
     expect(await screen.findByText("Generate images with ShortPulse")).toBeInTheDocument();
     fireEvent.click(
       screen.getByRole("button", {
@@ -327,7 +453,7 @@ describe("Dashboard guest route", () => {
     );
   });
 
-  it("renders video tutorial thumbnails with bounded metadata preload", async () => {
+  it("schedules a visible video tutorial thumbnail for immediate playback", async () => {
     publicFetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -354,9 +480,94 @@ describe("Dashboard guest route", () => {
     const thumbnailVideo = tutorialButton.querySelector("video");
 
     expect(thumbnailVideo).toBeInTheDocument();
-    expect(thumbnailVideo).toHaveAttribute("preload", "metadata");
+    await waitFor(
+      () => {
+        expect(thumbnailVideo).toHaveAttribute("preload", "auto");
+        expect(thumbnailVideo).toHaveAttribute("src", "https://cdn.example.com/tutorial.mp4");
+      },
+      { timeout: 2500 }
+    );
     expect(thumbnailVideo).toHaveAttribute("loop");
     expect(thumbnailVideo).toHaveAttribute("poster", "https://cdn.example.com/tutorial-poster.jpg");
+  });
+
+  it("keeps compact tutorial thumbnails eligible for playback", async () => {
+    stubMatchMedia({
+      "(max-width: 760px)": true,
+      "(max-width: 1080px)": true,
+    });
+    publicFetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        tutorials: Array.from({ length: 6 }, (_, index) => ({
+          id: `tutorial-${index + 1}`,
+          title: `Generate video ${index + 1}`,
+          youtubeUrl: "https://www.youtube.com/watch?v=abc123",
+          thumbnailUrl: `https://cdn.example.com/tutorial-${index + 1}.mp4`,
+          thumbnailPosterUrl: `https://cdn.example.com/tutorial-${index + 1}.jpg`,
+          thumbnailMediaType: "video",
+          thumbnailAlt: "Tutorial preview",
+          displayOrder: index + 1,
+        })),
+      }),
+    });
+
+    render(<DashboardPage dashboardTutorials={[]} />);
+
+    await screen.findByRole("button", {
+      name: "Generate video 1: open tutorial",
+    });
+
+    const thumbnailVideos = document.querySelectorAll(".dashboard-tutorial-card video");
+
+    await waitFor(
+      () => {
+        expect(thumbnailVideos[0]).toHaveAttribute("src", "https://cdn.example.com/tutorial-1.mp4");
+        expect(thumbnailVideos[3]).toHaveAttribute("src", "https://cdn.example.com/tutorial-4.mp4");
+        expect(thumbnailVideos[5]).toHaveAttribute("src", "https://cdn.example.com/tutorial-6.mp4");
+      },
+      { timeout: 2500 }
+    );
+  });
+
+  it("keeps compact low-power tutorial thumbnails eligible for playback", async () => {
+    stubMatchMedia({
+      "(max-width: 760px)": true,
+      "(max-width: 1080px)": true,
+      "(update: slow)": true,
+    });
+    publicFetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        tutorials: Array.from({ length: 6 }, (_, index) => ({
+          id: `tutorial-${index + 1}`,
+          title: `Generate video ${index + 1}`,
+          youtubeUrl: "https://www.youtube.com/watch?v=abc123",
+          thumbnailUrl: `https://cdn.example.com/tutorial-${index + 1}.mp4`,
+          thumbnailPosterUrl: `https://cdn.example.com/tutorial-${index + 1}.jpg`,
+          thumbnailMediaType: "video",
+          thumbnailAlt: "Tutorial preview",
+          displayOrder: index + 1,
+        })),
+      }),
+    });
+
+    render(<DashboardPage dashboardTutorials={[]} />);
+
+    await screen.findByRole("button", {
+      name: "Generate video 1: open tutorial",
+    });
+
+    const thumbnailVideos = document.querySelectorAll(".dashboard-tutorial-card video");
+
+    await waitFor(
+      () => {
+        expect(thumbnailVideos[0]).toHaveAttribute("src", "https://cdn.example.com/tutorial-1.mp4");
+        expect(thumbnailVideos[2]).toHaveAttribute("src", "https://cdn.example.com/tutorial-3.mp4");
+        expect(thumbnailVideos[5]).toHaveAttribute("src", "https://cdn.example.com/tutorial-6.mp4");
+      },
+      { timeout: 2500 }
+    );
   });
 
   it("hydrates public tutorial cards from the dashboard tutorials endpoint", async () => {

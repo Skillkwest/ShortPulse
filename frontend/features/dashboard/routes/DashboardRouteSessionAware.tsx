@@ -105,7 +105,11 @@ export function DashboardRouteSessionAware({
           Skip to main content
         </a>
 
-        <AuthenticatedDashboardRoute billingCatalog={billingCatalog} user={user as User} />
+        <AuthenticatedDashboardRoute
+          billingCatalog={billingCatalog}
+          dashboardTutorials={dashboardTutorials}
+          user={user as User}
+        />
       </>
     </ProtectedRouteSessionProvider>
   );

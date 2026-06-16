@@ -1,0 +1,660 @@
+{
+  "label": "post-card-memo",
+  "runNumber": 2,
+  "timestamp": "2026-06-16T19:26:41.513Z",
+  "viewport": {
+    "width": 390,
+    "height": 844,
+    "cpuThrottle": 4
+  },
+  "frameCount": 345,
+  "p95": 16.800000000000182,
+  "p98": 45.70000000000073,
+  "max": 116.59999999999945,
+  "over50": 6,
+  "sourced": 11,
+  "playing": 4,
+  "scrollPausedMarkers": 0,
+  "moving": [
+    9,
+    10,
+    11,
+    12
+  ],
+  "playCalls": 14,
+  "pauseCalls": 46,
+  "loadCalls": 37,
+  "rectReads": 105,
+  "longTasks": [
+    {
+      "name": "self",
+      "startTime": 938.8000000119209,
+      "duration": 532
+    },
+    {
+      "name": "self",
+      "startTime": 1928.0999999940395,
+      "duration": 469
+    },
+    {
+      "name": "self",
+      "startTime": 1641.0999999940395,
+      "duration": 245
+    },
+    {
+      "name": "unknown",
+      "startTime": 421.09999999403954,
+      "duration": 116
+    },
+    {
+      "name": "self",
+      "startTime": 2466.199999988079,
+      "duration": 115
+    },
+    {
+      "name": "self",
+      "startTime": 5923.199999988079,
+      "duration": 101
+    },
+    {
+      "name": "self",
+      "startTime": 2785.699999988079,
+      "duration": 93
+    },
+    {
+      "name": "self",
+      "startTime": 3316.800000011921,
+      "duration": 70
+    },
+    {
+      "name": "self",
+      "startTime": 2657.5999999940395,
+      "duration": 68
+    },
+    {
+      "name": "self",
+      "startTime": 5801.5999999940395,
+      "duration": 60
+    },
+    {
+      "name": "self",
+      "startTime": 4312.800000011921,
+      "duration": 57
+    },
+    {
+      "name": "self",
+      "startTime": 3187,
+      "duration": 56
+    }
+  ],
+  "videos": [
+    {
+      "index": 0,
+      "hasSrc": true,
+      "paused": true,
+      "ended": false,
+      "readyState": 0,
+      "currentTime": 0,
+      "scrollPaused": false,
+      "rect": {
+        "top": -336,
+        "bottom": -216,
+        "width": 120,
+        "height": 120
+      }
+    },
+    {
+      "index": 1,
+      "hasSrc": true,
+      "paused": true,
+      "ended": false,
+      "readyState": 0,
+      "currentTime": 0,
+      "scrollPaused": false,
+      "rect": {
+        "top": -336,
+        "bottom": -216,
+        "width": 120,
+        "height": 120
+      }
+    },
+    {
+      "index": 2,
+      "hasSrc": true,
+      "paused": true,
+      "ended": false,
+      "readyState": 0,
+      "currentTime": 0,
+      "scrollPaused": false,
+      "rect": {
+        "top": -336,
+        "bottom": -216,
+        "width": 120,
+        "height": 120
+      }
+    },
+    {
+      "index": 3,
+      "hasSrc": true,
+      "paused": true,
+      "ended": false,
+      "readyState": 0,
+      "currentTime": 0,
+      "scrollPaused": false,
+      "rect": {
+        "top": -210,
+        "bottom": -90,
+        "width": 120,
+        "height": 120
+      }
+    },
+    {
+      "index": 4,
+      "hasSrc": false,
+      "paused": true,
+      "ended": false,
+      "readyState": 0,
+      "currentTime": 0,
+      "scrollPaused": false,
+      "rect": {
+        "top": -210,
+        "bottom": -90,
+        "width": 120,
+        "height": 120
+      }
+    },
+    {
+      "index": 5,
+      "hasSrc": false,
+      "paused": true,
+      "ended": false,
+      "readyState": 0,
+      "currentTime": 0,
+      "scrollPaused": false,
+      "rect": {
+        "top": -210,
+        "bottom": -90,
+        "width": 120,
+        "height": 120
+      }
+    },
+    {
+      "index": 6,
+      "hasSrc": true,
+      "paused": true,
+      "ended": false,
+      "readyState": 0,
+      "currentTime": 0,
+      "scrollPaused": false,
+      "rect": {
+        "top": -84,
+        "bottom": 36,
+        "width": 120,
+        "height": 120
+      }
+    },
+    {
+      "index": 7,
+      "hasSrc": true,
+      "paused": true,
+      "ended": false,
+      "readyState": 0,
+      "currentTime": 0,
+      "scrollPaused": false,
+      "rect": {
+        "top": -84,
+        "bottom": 36,
+        "width": 120,
+        "height": 120
+      }
+    },
+    {
+      "index": 8,
+      "hasSrc": true,
+      "paused": true,
+      "ended": false,
+      "readyState": 0,
+      "currentTime": 0,
+      "scrollPaused": false,
+      "rect": {
+        "top": -84,
+        "bottom": 36,
+        "width": 120,
+        "height": 120
+      }
+    },
+    {
+      "index": 9,
+      "hasSrc": true,
+      "paused": false,
+      "ended": false,
+      "readyState": 4,
+      "currentTime": 3.058308,
+      "scrollPaused": false,
+      "rect": {
+        "top": 42,
+        "bottom": 162,
+        "width": 120,
+        "height": 120
+      }
+    },
+    {
+      "index": 10,
+      "hasSrc": true,
+      "paused": false,
+      "ended": false,
+      "readyState": 4,
+      "currentTime": 2.545576,
+      "scrollPaused": false,
+      "rect": {
+        "top": 42,
+        "bottom": 162,
+        "width": 120,
+        "height": 120
+      }
+    },
+    {
+      "index": 11,
+      "hasSrc": true,
+      "paused": false,
+      "ended": false,
+      "readyState": 4,
+      "currentTime": 2.373054,
+      "scrollPaused": false,
+      "rect": {
+        "top": 42,
+        "bottom": 162,
+        "width": 120,
+        "height": 120
+      }
+    },
+    {
+      "index": 12,
+      "hasSrc": true,
+      "paused": false,
+      "ended": false,
+      "readyState": 4,
+      "currentTime": 2.137424,
+      "scrollPaused": false,
+      "rect": {
+        "top": 168,
+        "bottom": 288,
+        "width": 120,
+        "height": 120
+      }
+    },
+    {
+      "index": 13,
+      "hasSrc": false,
+      "paused": true,
+      "ended": false,
+      "readyState": 0,
+      "currentTime": 0,
+      "scrollPaused": false,
+      "rect": {
+        "top": 168,
+        "bottom": 288,
+        "width": 120,
+        "height": 120
+      }
+    },
+    {
+      "index": 14,
+      "hasSrc": false,
+      "paused": true,
+      "ended": false,
+      "readyState": 0,
+      "currentTime": 0,
+      "scrollPaused": false,
+      "rect": {
+        "top": 168,
+        "bottom": 288,
+        "width": 120,
+        "height": 120
+      }
+    }
+  ],
+  "motion": {
+    "before": [
+      {
+        "index": 0,
+        "currentTime": 0,
+        "hasSrc": true,
+        "paused": true,
+        "readyState": 0,
+        "width": 0,
+        "height": 0,
+        "top": -336,
+        "bottom": -216
+      },
+      {
+        "index": 1,
+        "currentTime": 0,
+        "hasSrc": true,
+        "paused": true,
+        "readyState": 0,
+        "width": 0,
+        "height": 0,
+        "top": -336,
+        "bottom": -216
+      },
+      {
+        "index": 2,
+        "currentTime": 0,
+        "hasSrc": true,
+        "paused": true,
+        "readyState": 0,
+        "width": 0,
+        "height": 0,
+        "top": -336,
+        "bottom": -216
+      },
+      {
+        "index": 3,
+        "currentTime": 0,
+        "hasSrc": true,
+        "paused": true,
+        "readyState": 0,
+        "width": 0,
+        "height": 0,
+        "top": -210,
+        "bottom": -90
+      },
+      {
+        "index": 4,
+        "currentTime": 0,
+        "hasSrc": false,
+        "paused": true,
+        "readyState": 0,
+        "width": 0,
+        "height": 0,
+        "top": -210,
+        "bottom": -90
+      },
+      {
+        "index": 5,
+        "currentTime": 0,
+        "hasSrc": false,
+        "paused": true,
+        "readyState": 0,
+        "width": 0,
+        "height": 0,
+        "top": -210,
+        "bottom": -90
+      },
+      {
+        "index": 6,
+        "currentTime": 0.839921,
+        "hasSrc": true,
+        "paused": true,
+        "readyState": 4,
+        "width": 360,
+        "height": 360,
+        "top": -84,
+        "bottom": 36
+      },
+      {
+        "index": 7,
+        "currentTime": 0.678924,
+        "hasSrc": true,
+        "paused": true,
+        "readyState": 4,
+        "width": 360,
+        "height": 360,
+        "top": -84,
+        "bottom": 36
+      },
+      {
+        "index": 8,
+        "currentTime": 0,
+        "hasSrc": true,
+        "paused": true,
+        "readyState": 0,
+        "width": 0,
+        "height": 0,
+        "top": -84,
+        "bottom": 36
+      },
+      {
+        "index": 9,
+        "currentTime": 2.000869,
+        "hasSrc": true,
+        "paused": false,
+        "readyState": 4,
+        "width": 360,
+        "height": 360,
+        "top": 42,
+        "bottom": 162
+      },
+      {
+        "index": 10,
+        "currentTime": 1.487943,
+        "hasSrc": true,
+        "paused": false,
+        "readyState": 4,
+        "width": 360,
+        "height": 360,
+        "top": 42,
+        "bottom": 162
+      },
+      {
+        "index": 11,
+        "currentTime": 1.315393,
+        "hasSrc": true,
+        "paused": false,
+        "readyState": 4,
+        "width": 360,
+        "height": 360,
+        "top": 42,
+        "bottom": 162
+      },
+      {
+        "index": 12,
+        "currentTime": 1.079758,
+        "hasSrc": true,
+        "paused": false,
+        "readyState": 4,
+        "width": 360,
+        "height": 360,
+        "top": 168,
+        "bottom": 288
+      },
+      {
+        "index": 13,
+        "currentTime": 0,
+        "hasSrc": false,
+        "paused": true,
+        "readyState": 0,
+        "width": 0,
+        "height": 0,
+        "top": 168,
+        "bottom": 288
+      },
+      {
+        "index": 14,
+        "currentTime": 0,
+        "hasSrc": false,
+        "paused": true,
+        "readyState": 0,
+        "width": 0,
+        "height": 0,
+        "top": 168,
+        "bottom": 288
+      }
+    ],
+    "after": [
+      {
+        "index": 0,
+        "currentTime": 0,
+        "hasSrc": true,
+        "paused": true,
+        "readyState": 0,
+        "width": 0,
+        "height": 0,
+        "top": -336,
+        "bottom": -216
+      },
+      {
+        "index": 1,
+        "currentTime": 0,
+        "hasSrc": true,
+        "paused": true,
+        "readyState": 0,
+        "width": 0,
+        "height": 0,
+        "top": -336,
+        "bottom": -216
+      },
+      {
+        "index": 2,
+        "currentTime": 0,
+        "hasSrc": true,
+        "paused": true,
+        "readyState": 0,
+        "width": 0,
+        "height": 0,
+        "top": -336,
+        "bottom": -216
+      },
+      {
+        "index": 3,
+        "currentTime": 0,
+        "hasSrc": true,
+        "paused": true,
+        "readyState": 0,
+        "width": 0,
+        "height": 0,
+        "top": -210,
+        "bottom": -90
+      },
+      {
+        "index": 4,
+        "currentTime": 0,
+        "hasSrc": false,
+        "paused": true,
+        "readyState": 0,
+        "width": 0,
+        "height": 0,
+        "top": -210,
+        "bottom": -90
+      },
+      {
+        "index": 5,
+        "currentTime": 0,
+        "hasSrc": false,
+        "paused": true,
+        "readyState": 0,
+        "width": 0,
+        "height": 0,
+        "top": -210,
+        "bottom": -90
+      },
+      {
+        "index": 6,
+        "currentTime": 0,
+        "hasSrc": true,
+        "paused": true,
+        "readyState": 0,
+        "width": 0,
+        "height": 0,
+        "top": -84,
+        "bottom": 36
+      },
+      {
+        "index": 7,
+        "currentTime": 0,
+        "hasSrc": true,
+        "paused": true,
+        "readyState": 0,
+        "width": 0,
+        "height": 0,
+        "top": -84,
+        "bottom": 36
+      },
+      {
+        "index": 8,
+        "currentTime": 0,
+        "hasSrc": true,
+        "paused": true,
+        "readyState": 0,
+        "width": 0,
+        "height": 0,
+        "top": -84,
+        "bottom": 36
+      },
+      {
+        "index": 9,
+        "currentTime": 3.028516,
+        "hasSrc": true,
+        "paused": false,
+        "readyState": 4,
+        "width": 360,
+        "height": 360,
+        "top": 42,
+        "bottom": 162
+      },
+      {
+        "index": 10,
+        "currentTime": 2.515578,
+        "hasSrc": true,
+        "paused": false,
+        "readyState": 4,
+        "width": 360,
+        "height": 360,
+        "top": 42,
+        "bottom": 162
+      },
+      {
+        "index": 11,
+        "currentTime": 2.342877,
+        "hasSrc": true,
+        "paused": false,
+        "readyState": 4,
+        "width": 360,
+        "height": 360,
+        "top": 42,
+        "bottom": 162
+      },
+      {
+        "index": 12,
+        "currentTime": 2.107412,
+        "hasSrc": true,
+        "paused": false,
+        "readyState": 4,
+        "width": 360,
+        "height": 360,
+        "top": 168,
+        "bottom": 288
+      },
+      {
+        "index": 13,
+        "currentTime": 0,
+        "hasSrc": false,
+        "paused": true,
+        "readyState": 0,
+        "width": 0,
+        "height": 0,
+        "top": 168,
+        "bottom": 288
+      },
+      {
+        "index": 14,
+        "currentTime": 0,
+        "hasSrc": false,
+        "paused": true,
+        "readyState": 0,
+        "width": 0,
+        "height": 0,
+        "top": 168,
+        "bottom": 288
+      }
+    ],
+    "moving": [
+      9,
+      10,
+      11,
+      12
+    ]
+  },
+  "file": "C:\\CODEX Agents\\Home page CODEX\\ShortPulse\\Scott\\latency-continuation-probe-2026-06-16\\post-card-memo-run-2.json"
+}

@@ -22,6 +22,19 @@ export const DASHBOARD_TUTORIAL_THUMBNAIL_STILL_DISPLAY_MAX_DIMENSION =
 export const DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_DISPLAY_SCALE_FILTER = `scale=${dashboardTutorialThumbnailProfile.motionDisplayMaxDimension}:-2:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2`;
 export const DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_DISPLAY_CRF =
   dashboardTutorialThumbnailProfile.motionDisplayCrf;
+export const DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_DISPLAY_FPS =
+  dashboardTutorialThumbnailProfile.motionDisplayFps;
+export const DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_DISPLAY_PROFILE =
+  dashboardTutorialThumbnailProfile.motionDisplayProfile;
+export const DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_DISPLAY_PRESET =
+  dashboardTutorialThumbnailProfile.motionDisplayPreset;
+export const DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_DISPLAY_MAX_RATE =
+  dashboardTutorialThumbnailProfile.motionDisplayMaxRate;
+export const DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_DISPLAY_BUF_SIZE =
+  dashboardTutorialThumbnailProfile.motionDisplayBufSize;
+export const DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_POSTER_FILTER = `thumbnail,scale=${dashboardTutorialThumbnailProfile.motionPosterMaxDimension}:-2:force_original_aspect_ratio=decrease`;
+export const DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_POSTER_JPEG_QUALITY =
+  dashboardTutorialThumbnailProfile.motionPosterJpegQuality;
 
 export const DASHBOARD_TUTORIAL_THUMBNAIL_MIME_TYPES = [
   "image/gif",
@@ -301,12 +314,19 @@ const createMotionDisplayDerivatives = async ({
       scaleFilter: DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_DISPLAY_SCALE_FILTER,
       previewSeconds: null,
       crf: DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_DISPLAY_CRF,
+      fps: DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_DISPLAY_FPS,
+      profile: DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_DISPLAY_PROFILE,
+      preset: DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_DISPLAY_PRESET,
+      maxRate: DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_DISPLAY_MAX_RATE,
+      bufSize: DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_DISPLAY_BUF_SIZE,
       outputBasename: "display.mp4",
     }),
     extractVideoPosterBuffer({
       videoBuffer: sourceBuffer,
       videoMimeType: mimeType,
       filename: storagePath,
+      posterFilter: DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_POSTER_FILTER,
+      jpegQuality: DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_POSTER_JPEG_QUALITY,
     }),
   ]);
 

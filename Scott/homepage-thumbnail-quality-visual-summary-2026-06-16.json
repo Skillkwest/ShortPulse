@@ -1,0 +1,282 @@
+{
+  "capturedAt": "2026-06-16T21:31:22.205Z",
+  "targetUrl": "http://127.0.0.1:3000/",
+  "summary": [
+    {
+      "label": "desktop",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "screenshot": "C:/CODEX Agents/Home page CODEX/ShortPulse/Scott/homepage-thumbnail-quality-desktop-2026-06-16.png",
+      "hero": {
+        "currentTime": 4.085,
+        "paused": false,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/dashboard/homepage-hero-background-perf.mp4"
+      },
+      "visibleMoving": 10,
+      "visibleVideos": 10,
+      "videos": [
+        {
+          "index": 0,
+          "currentTime": 3.154,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 1,
+          "currentTime": 3.173,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 2,
+          "currentTime": 3.019,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 3,
+          "currentTime": 2.92,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 4,
+          "currentTime": 3.226,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 5,
+          "currentTime": 3.097,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 6,
+          "currentTime": 2.502,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 7,
+          "currentTime": 2.123,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 8,
+          "currentTime": 2.444,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 9,
+          "currentTime": 2.453,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 10,
+          "currentTime": 0,
+          "hasPosterLayer": true,
+          "playing": false,
+          "readyState": 0,
+          "visible": false
+        },
+        {
+          "index": 11,
+          "currentTime": 0,
+          "hasPosterLayer": true,
+          "playing": false,
+          "readyState": 0,
+          "visible": false
+        },
+        {
+          "index": 12,
+          "currentTime": 0,
+          "hasPosterLayer": true,
+          "playing": false,
+          "readyState": 0,
+          "visible": false
+        },
+        {
+          "index": 13,
+          "currentTime": 0,
+          "hasPosterLayer": true,
+          "playing": false,
+          "readyState": 0,
+          "visible": false
+        },
+        {
+          "index": 14,
+          "currentTime": 0,
+          "hasPosterLayer": true,
+          "playing": false,
+          "readyState": 0,
+          "visible": false
+        }
+      ]
+    },
+    {
+      "label": "mobile",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "screenshot": "C:/CODEX Agents/Home page CODEX/ShortPulse/Scott/homepage-thumbnail-quality-mobile-2026-06-16.png",
+      "hero": {
+        "currentTime": 4.284,
+        "paused": false,
+        "readyState": 4,
+        "src": "http://127.0.0.1:3000/dashboard/homepage-hero-background-lite.mp4"
+      },
+      "visibleMoving": 12,
+      "visibleVideos": 12,
+      "videos": [
+        {
+          "index": 0,
+          "currentTime": 3.391,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 1,
+          "currentTime": 3.542,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 2,
+          "currentTime": 0.198,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 3,
+          "currentTime": 3.701,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 4,
+          "currentTime": 3.685,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 5,
+          "currentTime": 0.256,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 6,
+          "currentTime": 3.327,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 7,
+          "currentTime": 0.272,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 8,
+          "currentTime": 2.879,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 9,
+          "currentTime": 2.926,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 10,
+          "currentTime": 2.502,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 11,
+          "currentTime": 2.597,
+          "hasPosterLayer": false,
+          "playing": true,
+          "readyState": 4,
+          "visible": true
+        },
+        {
+          "index": 12,
+          "currentTime": 0,
+          "hasPosterLayer": true,
+          "playing": false,
+          "readyState": 0,
+          "visible": false
+        },
+        {
+          "index": 13,
+          "currentTime": 0,
+          "hasPosterLayer": true,
+          "playing": false,
+          "readyState": 0,
+          "visible": false
+        },
+        {
+          "index": 14,
+          "currentTime": 0,
+          "hasPosterLayer": true,
+          "playing": false,
+          "readyState": 0,
+          "visible": false
+        }
+      ]
+    }
+  ]
+}

@@ -42,6 +42,12 @@ Until Scott explicitly says otherwise:
 
 - The trigger phrase to execute the test/commit/push procedure is `run SOP`.
 
+## SOP Push Target
+
+- `run SOP` should push branch `codex/brother-dashboard-aesthetics` to `https://github.com/Skillkwest/ShortPulse.git`.
+- Prefer the local remote named `skillkwest`.
+- Do not push `run SOP` work to upstream `origin` unless Scott explicitly says otherwise.
+
 ## Current Local Startup Notes
 
 - The dashboard has been opened at `http://localhost:3000/`.

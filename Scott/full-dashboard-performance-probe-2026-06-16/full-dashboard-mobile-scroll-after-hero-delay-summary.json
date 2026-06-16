@@ -1,0 +1,548 @@
+{
+  "label": "full-dashboard-mobile-scroll-after-hero-delay",
+  "generatedAt": "2026-06-16T19:45:00.479Z",
+  "runs": 3,
+  "average": {
+    "p95": 8.433333333333698,
+    "p98": 8.5,
+    "max": 70.73333333333328,
+    "over50": 1,
+    "over100": 0,
+    "longTaskCount": 4.666666666666667,
+    "longTaskTotal": 784,
+    "rectReads": 33.666666666666664,
+    "playCalls": 12.666666666666666,
+    "pauseCalls": 44,
+    "loadCalls": 37
+  },
+  "byRun": [
+    {
+      "runNumber": 1,
+      "p95": 8.400000000000546,
+      "p98": 8.5,
+      "max": 95.69999999999982,
+      "over50": 2,
+      "over100": 0,
+      "longTaskCount": 6,
+      "longTaskTotal": 879,
+      "longTaskBySection": {
+        "hero": 820,
+        "orbit": 59
+      },
+      "heroBeforeScroll": {
+        "hasSource": false,
+        "currentSrc": null
+      },
+      "heroAfterScroll": {
+        "hasSource": false,
+        "currentSrc": null
+      },
+      "rectReads": 39,
+      "playCalls": 13,
+      "pauseCalls": 44,
+      "loadCalls": 37,
+      "finalScrollY": 695,
+      "topLongTasks": [
+        {
+          "name": "self",
+          "startTime": 1185.199999988079,
+          "duration": 279,
+          "section": "hero",
+          "scrollY": 0
+        },
+        {
+          "name": "self",
+          "startTime": 1713.199999988079,
+          "duration": 279,
+          "section": "hero",
+          "scrollY": 0
+        },
+        {
+          "name": "self",
+          "startTime": 1550,
+          "duration": 142,
+          "section": "hero",
+          "scrollY": 0
+        },
+        {
+          "name": "self",
+          "startTime": 2029.5,
+          "duration": 68,
+          "section": "hero",
+          "scrollY": 0
+        },
+        {
+          "name": "self",
+          "startTime": 4321.9000000059605,
+          "duration": 59,
+          "section": "orbit",
+          "scrollY": 660
+        },
+        {
+          "name": "self",
+          "startTime": 2186.7999999821186,
+          "duration": 52,
+          "section": "hero",
+          "scrollY": 0
+        }
+      ],
+      "videoSummary": [
+        {
+          "className": "public-home-hero-video",
+          "tutorialIndex": null,
+          "hasSrc": false,
+          "paused": true,
+          "readyState": 0
+        },
+        {
+          "className": "",
+          "tutorialIndex": "0",
+          "hasSrc": false,
+          "paused": true,
+          "readyState": 0
+        },
+        {
+          "className": "",
+          "tutorialIndex": "1",
+          "hasSrc": false,
+          "paused": true,
+          "readyState": 0
+        },
+        {
+          "className": "",
+          "tutorialIndex": "2",
+          "hasSrc": false,
+          "paused": true,
+          "readyState": 0
+        },
+        {
+          "className": "",
+          "tutorialIndex": "3",
+          "hasSrc": false,
+          "paused": true,
+          "readyState": 0
+        },
+        {
+          "className": "",
+          "tutorialIndex": "4",
+          "hasSrc": false,
+          "paused": true,
+          "readyState": 0
+        },
+        {
+          "className": "",
+          "tutorialIndex": "5",
+          "hasSrc": false,
+          "paused": true,
+          "readyState": 0
+        },
+        {
+          "className": "",
+          "tutorialIndex": "6",
+          "hasSrc": false,
+          "paused": true,
+          "readyState": 0
+        },
+        {
+          "className": "",
+          "tutorialIndex": "7",
+          "hasSrc": false,
+          "paused": true,
+          "readyState": 0
+        },
+        {
+          "className": "",
+          "tutorialIndex": "8",
+          "hasSrc": false,
+          "paused": true,
+          "readyState": 0
+        },
+        {
+          "className": "",
+          "tutorialIndex": "9",
+          "hasSrc": true,
+          "paused": false,
+          "readyState": 4
+        },
+        {
+          "className": "",
+          "tutorialIndex": "10",
+          "hasSrc": true,
+          "paused": false,
+          "readyState": 4
+        },
+        {
+          "className": "",
+          "tutorialIndex": "11",
+          "hasSrc": true,
+          "paused": false,
+          "readyState": 4
+        },
+        {
+          "className": "",
+          "tutorialIndex": "12",
+          "hasSrc": true,
+          "paused": false,
+          "readyState": 4
+        },
+        {
+          "className": "",
+          "tutorialIndex": "13",
+          "hasSrc": false,
+          "paused": true,
+          "readyState": 0
+        },
+        {
+          "className": "",
+          "tutorialIndex": "14",
+          "hasSrc": false,
+          "paused": true,
+          "readyState": 0
+        }
+      ],
+      "file": "C:\\CODEX Agents\\Home page CODEX\\ShortPulse\\Scott\\full-dashboard-performance-probe-2026-06-16\\full-dashboard-mobile-scroll-after-hero-delay-run-1.json"
+    },
+    {
+      "runNumber": 2,
+      "p95": 8.5,
+      "p98": 8.5,
+      "max": 70.80000000000018,
+      "over50": 1,
+      "over100": 0,
+      "longTaskCount": 4,
+      "longTaskTotal": 727,
+      "longTaskBySection": {
+        "hero": 727
+      },
+      "heroBeforeScroll": {
+        "hasSource": false,
+        "currentSrc": null
+      },
+      "heroAfterScroll": {
+        "hasSource": false,
+        "currentSrc": null
+      },
+      "rectReads": 31,
+      "playCalls": 12,
+      "pauseCalls": 44,
+      "loadCalls": 37,
+      "finalScrollY": 695,
+      "topLongTasks": [
+        {
+          "name": "self",
+          "startTime": 519.4000000059605,
+          "duration": 351,
+          "section": "hero",
+          "scrollY": 0
+        },
+        {
+          "name": "self",
+          "startTime": 1105.800000011921,
+          "duration": 208,
+          "section": "hero",
+          "scrollY": 0
+        },
+        {
+          "name": "self",
+          "startTime": 966.6999999880791,
+          "duration": 117,
+          "section": "hero",
+          "scrollY": 0
+        },
+        {
+          "name": "self",
+          "startTime": 1360,
+          "duration": 51,
+          "section": "hero",
+          "scrollY": 0
+        }
+      ],
+      "videoSummary": [
+        {
+          "className": "public-home-hero-video",
+          "tutorialIndex": null,
+          "hasSrc": false,
+          "paused": true,
+          "readyState": 0
+        },
+        {
+          "className": "",
+          "tutorialIndex": "0",
+          "hasSrc": false,
+          "paused": true,
+          "readyState": 0
+        },
+        {
+          "className": "",
+          "tutorialIndex": "1",
+          "hasSrc": false,
+          "paused": true,
+          "readyState": 0
+        },
+        {
+          "className": "",
+          "tutorialIndex": "2",
+          "hasSrc": false,
+          "paused": true,
+          "readyState": 0
+        },
+        {
+          "className": "",
+          "tutorialIndex": "3",
+          "hasSrc": false,
+          "paused": true,
+          "readyState": 0
+        },
+        {
+          "className": "",
+          "tutorialIndex": "4",
+          "hasSrc": false,
+          "paused": true,
+          "readyState": 0
+        },
+        {
+          "className": "",
+          "tutorialIndex": "5",
+          "hasSrc": false,
+          "paused": true,
+          "readyState": 0
+        },
+        {
+          "className": "",
+          "tutorialIndex": "6",
+          "hasSrc": false,
+          "paused": true,
+          "readyState": 0
+        },
+        {
+          "className": "",
+          "tutorialIndex": "7",
+          "hasSrc": false,
+          "paused": true,
+          "readyState": 0
+        },
+        {
+          "className": "",
+          "tutorialIndex": "8",
+          "hasSrc": false,
+          "paused": true,
+          "readyState": 0
+        },
+        {
+          "className": "",
+          "tutorialIndex": "9",
+          "hasSrc": true,
+          "paused": false,
+          "readyState": 4
+        },
+        {
+          "className": "",
+          "tutorialIndex": "10",
+          "hasSrc": true,
+          "paused": false,
+          "readyState": 4
+        },
+        {
+          "className": "",
+          "tutorialIndex": "11",
+          "hasSrc": true,
+          "paused": false,
+          "readyState": 4
+        },
+        {
+          "className": "",
+          "tutorialIndex": "12",
+          "hasSrc": true,
+          "paused": false,
+          "readyState": 4
+        },
+        {
+          "className": "",
+          "tutorialIndex": "13",
+          "hasSrc": false,
+          "paused": true,
+          "readyState": 0
+        },
+        {
+          "className": "",
+          "tutorialIndex": "14",
+          "hasSrc": false,
+          "paused": true,
+          "readyState": 0
+        }
+      ],
+      "file": "C:\\CODEX Agents\\Home page CODEX\\ShortPulse\\Scott\\full-dashboard-performance-probe-2026-06-16\\full-dashboard-mobile-scroll-after-hero-delay-run-2.json"
+    },
+    {
+      "runNumber": 3,
+      "p95": 8.400000000000546,
+      "p98": 8.5,
+      "max": 45.69999999999982,
+      "over50": 0,
+      "over100": 0,
+      "longTaskCount": 4,
+      "longTaskTotal": 746,
+      "longTaskBySection": {
+        "hero": 746
+      },
+      "heroBeforeScroll": {
+        "hasSource": false,
+        "currentSrc": null
+      },
+      "heroAfterScroll": {
+        "hasSource": false,
+        "currentSrc": null
+      },
+      "rectReads": 31,
+      "playCalls": 13,
+      "pauseCalls": 44,
+      "loadCalls": 37,
+      "finalScrollY": 695,
+      "topLongTasks": [
+        {
+          "name": "self",
+          "startTime": 537.5,
+          "duration": 318,
+          "section": "hero",
+          "scrollY": 0
+        },
+        {
+          "name": "self",
+          "startTime": 1105.2999999821186,
+          "duration": 238,
+          "section": "hero",
+          "scrollY": 0
+        },
+        {
+          "name": "self",
+          "startTime": 949.1999999880791,
+          "duration": 134,
+          "section": "hero",
+          "scrollY": 0
+        },
+        {
+          "name": "self",
+          "startTime": 1392.2999999821186,
+          "duration": 56,
+          "section": "hero",
+          "scrollY": 0
+        }
+      ],
+      "videoSummary": [
+        {
+          "className": "public-home-hero-video",
+          "tutorialIndex": null,
+          "hasSrc": false,
+          "paused": true,
+          "readyState": 0
+        },
+        {
+          "className": "",
+          "tutorialIndex": "0",
+          "hasSrc": false,
+          "paused": true,
+          "readyState": 0
+        },
+        {
+          "className": "",
+          "tutorialIndex": "1",
+          "hasSrc": false,
+          "paused": true,
+          "readyState": 0
+        },
+        {
+          "className": "",
+          "tutorialIndex": "2",
+          "hasSrc": false,
+          "paused": true,
+          "readyState": 0
+        },
+        {
+          "className": "",
+          "tutorialIndex": "3",
+          "hasSrc": false,
+          "paused": true,
+          "readyState": 0
+        },
+        {
+          "className": "",
+          "tutorialIndex": "4",
+          "hasSrc": false,
+          "paused": true,
+          "readyState": 0
+        },
+        {
+          "className": "",
+          "tutorialIndex": "5",
+          "hasSrc": false,
+          "paused": true,
+          "readyState": 0
+        },
+        {
+          "className": "",
+          "tutorialIndex": "6",
+          "hasSrc": false,
+          "paused": true,
+          "readyState": 0
+        },
+        {
+          "className": "",
+          "tutorialIndex": "7",
+          "hasSrc": false,
+          "paused": true,
+          "readyState": 0
+        },
+        {
+          "className": "",
+          "tutorialIndex": "8",
+          "hasSrc": false,
+          "paused": true,
+          "readyState": 0
+        },
+        {
+          "className": "",
+          "tutorialIndex": "9",
+          "hasSrc": true,
+          "paused": false,
+          "readyState": 4
+        },
+        {
+          "className": "",
+          "tutorialIndex": "10",
+          "hasSrc": true,
+          "paused": false,
+          "readyState": 4
+        },
+        {
+          "className": "",
+          "tutorialIndex": "11",
+          "hasSrc": true,
+          "paused": false,
+          "readyState": 4
+        },
+        {
+          "className": "",
+          "tutorialIndex": "12",
+          "hasSrc": true,
+          "paused": false,
+          "readyState": 4
+        },
+        {
+          "className": "",
+          "tutorialIndex": "13",
+          "hasSrc": false,
+          "paused": true,
+          "readyState": 0
+        },
+        {
+          "className": "",
+          "tutorialIndex": "14",
+          "hasSrc": false,
+          "paused": true,
+          "readyState": 0
+        }
+      ],
+      "file": "C:\\CODEX Agents\\Home page CODEX\\ShortPulse\\Scott\\full-dashboard-performance-probe-2026-06-16\\full-dashboard-mobile-scroll-after-hero-delay-run-3.json"
+    }
+  ]
+}

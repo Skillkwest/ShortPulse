@@ -1,0 +1,146 @@
+[
+  {
+    "viewport": {
+      "name": "tablet-820",
+      "width": 820,
+      "height": 1180
+    },
+    "metrics": {
+      "viewportWidth": 820,
+      "scrollWidth": 820,
+      "h1": {
+        "x": 255,
+        "y": 136,
+        "right": 565,
+        "bottom": 201,
+        "width": 310,
+        "height": 65,
+        "text": "A true all-in-one that actually works."
+      },
+      "model": {
+        "x": 146,
+        "y": 213,
+        "right": 674,
+        "bottom": 230,
+        "width": 529,
+        "height": 17,
+        "text": "The top AI models built into the worlds most powerful UX"
+      },
+      "cta": {
+        "x": 329,
+        "y": 250,
+        "right": 491,
+        "bottom": 292,
+        "width": 162,
+        "height": 42,
+        "text": "Launch App"
+      },
+      "strip": {
+        "x": 0,
+        "y": 352,
+        "right": 820,
+        "bottom": 402,
+        "width": 820,
+        "height": 50,
+        "text": "Kling 3.0Seedance 2.0Nano Banana ProNano Banana 2Seedream 4.5Seedream 5GPT Image 2Veo 3.1ElevenLabsKling 3.0Seedance 2.0Nano Banana ProNano Banana 2Seedream 4.5Seedream 5GPT Image 2Veo 3.1ElevenLabsKling 3.0Seedance 2.0Nano Banana ProNano Banana 2Seedream 4.5Seedream 5GPT Image 2Veo 3.1ElevenLabsKling 3.0Seedance 2.0Nano Banana ProNano Banana 2Seedream 4.5Seedream 5GPT Image 2Veo 3.1ElevenLabs"
+      },
+      "overlaps": []
+    }
+  },
+  {
+    "viewport": {
+      "name": "tablet-768",
+      "width": 768,
+      "height": 1024
+    },
+    "metrics": {
+      "viewportWidth": 768,
+      "scrollWidth": 768,
+      "h1": {
+        "x": 229,
+        "y": 136,
+        "right": 539,
+        "bottom": 201,
+        "width": 310,
+        "height": 65,
+        "text": "A true all-in-one that actually works."
+      },
+      "model": {
+        "x": 120,
+        "y": 213,
+        "right": 648,
+        "bottom": 230,
+        "width": 529,
+        "height": 17,
+        "text": "The top AI models built into the worlds most powerful UX"
+      },
+      "cta": {
+        "x": 303,
+        "y": 250,
+        "right": 465,
+        "bottom": 292,
+        "width": 162,
+        "height": 42,
+        "text": "Launch App"
+      },
+      "strip": {
+        "x": 0,
+        "y": 352,
+        "right": 768,
+        "bottom": 402,
+        "width": 768,
+        "height": 50,
+        "text": "Kling 3.0Seedance 2.0Nano Banana ProNano Banana 2Seedream 4.5Seedream 5GPT Image 2Veo 3.1ElevenLabsKling 3.0Seedance 2.0Nano Banana ProNano Banana 2Seedream 4.5Seedream 5GPT Image 2Veo 3.1ElevenLabsKling 3.0Seedance 2.0Nano Banana ProNano Banana 2Seedream 4.5Seedream 5GPT Image 2Veo 3.1ElevenLabsKling 3.0Seedance 2.0Nano Banana ProNano Banana 2Seedream 4.5Seedream 5GPT Image 2Veo 3.1ElevenLabs"
+      },
+      "overlaps": []
+    }
+  },
+  {
+    "viewport": {
+      "name": "desktop-1440",
+      "width": 1440,
+      "height": 1000
+    },
+    "metrics": {
+      "viewportWidth": 1440,
+      "scrollWidth": 1440,
+      "h1": {
+        "x": 457,
+        "y": 104,
+        "right": 983,
+        "bottom": 212,
+        "width": 526,
+        "height": 108,
+        "text": "A true all-in-one that actually works."
+      },
+      "model": {
+        "x": 508,
+        "y": 224,
+        "right": 932,
+        "bottom": 237,
+        "width": 424,
+        "height": 13,
+        "text": "The top AI models built into the worlds most powerful UX"
+      },
+      "cta": {
+        "x": 639,
+        "y": 253,
+        "right": 801,
+        "bottom": 295,
+        "width": 162,
+        "height": 42,
+        "text": "Launch App"
+      },
+      "strip": {
+        "x": 0,
+        "y": 391,
+        "right": 1440,
+        "bottom": 441,
+        "width": 1440,
+        "height": 50,
+        "text": "Kling 3.0Seedance 2.0Nano Banana ProNano Banana 2Seedream 4.5Seedream 5GPT Image 2Veo 3.1ElevenLabsKling 3.0Seedance 2.0Nano Banana ProNano Banana 2Seedream 4.5Seedream 5GPT Image 2Veo 3.1ElevenLabsKling 3.0Seedance 2.0Nano Banana ProNano Banana 2Seedream 4.5Seedream 5GPT Image 2Veo 3.1ElevenLabsKling 3.0Seedance 2.0Nano Banana ProNano Banana 2Seedream 4.5Seedream 5GPT Image 2Veo 3.1ElevenLabs"
+      },
+      "overlaps": []
+    }
+  }
+]

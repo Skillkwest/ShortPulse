@@ -1,0 +1,302 @@
+[
+  {
+    "viewport": {
+      "name": "phone-360",
+      "width": 360,
+      "height": 740
+    },
+    "showcase": {
+      "viewportWidth": 360,
+      "scrollWidth": 360,
+      "gridTemplateColumns": "110px 110px 110px",
+      "rowGroups": {
+        "130": 3,
+        "246": 3,
+        "362": 3
+      },
+      "cards": [
+        {
+          "x": 9,
+          "y": 130,
+          "right": 119,
+          "width": 110,
+          "height": 110
+        },
+        {
+          "x": 125,
+          "y": 130,
+          "right": 235,
+          "width": 110,
+          "height": 110
+        },
+        {
+          "x": 241,
+          "y": 130,
+          "right": 351,
+          "width": 110,
+          "height": 110
+        },
+        {
+          "x": 9,
+          "y": 246,
+          "right": 119,
+          "width": 110,
+          "height": 110
+        },
+        {
+          "x": 125,
+          "y": 246,
+          "right": 235,
+          "width": 110,
+          "height": 110
+        },
+        {
+          "x": 241,
+          "y": 246,
+          "right": 351,
+          "width": 110,
+          "height": 110
+        },
+        {
+          "x": 9,
+          "y": 362,
+          "right": 119,
+          "width": 110,
+          "height": 110
+        },
+        {
+          "x": 125,
+          "y": 362,
+          "right": 235,
+          "width": 110,
+          "height": 110
+        },
+        {
+          "x": 241,
+          "y": 362,
+          "right": 351,
+          "width": 110,
+          "height": 110
+        }
+      ]
+    },
+    "orbit": {
+      "viewportWidth": 360,
+      "scrollWidth": 360,
+      "itemCount": 8,
+      "clippedItems": [
+        {
+          "text": "Clone Yourself",
+          "x": -12,
+          "right": 44,
+          "width": 56,
+          "height": 63
+        }
+      ],
+      "items": [
+        {
+          "text": "Generate Images",
+          "x": 190,
+          "right": 246,
+          "width": 56,
+          "height": 63
+        },
+        {
+          "text": "Create Characters",
+          "x": 135,
+          "right": 191,
+          "width": 56,
+          "height": 63
+        },
+        {
+          "text": "Create Influencers",
+          "x": 46,
+          "right": 102,
+          "width": 56,
+          "height": 63
+        },
+        {
+          "text": "Clone Yourself",
+          "x": -12,
+          "right": 44,
+          "width": 56,
+          "height": 63
+        },
+        {
+          "text": "Generate Image Prompts",
+          "x": 32,
+          "right": 88,
+          "width": 56,
+          "height": 71
+        },
+        {
+          "text": "Generate Video Prompts",
+          "x": 118,
+          "right": 174,
+          "width": 56,
+          "height": 71
+        },
+        {
+          "text": "Edit Images",
+          "x": 184,
+          "right": 240,
+          "width": 56,
+          "height": 55
+        },
+        {
+          "text": "Create Storyboards",
+          "x": 242,
+          "right": 298,
+          "width": 56,
+          "height": 63
+        }
+      ]
+    }
+  },
+  {
+    "viewport": {
+      "name": "phone-390",
+      "width": 390,
+      "height": 844
+    },
+    "showcase": {
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "gridTemplateColumns": "120px 120px 120px",
+      "rowGroups": {
+        "184": 3,
+        "310": 3,
+        "436": 3
+      },
+      "cards": [
+        {
+          "x": 9,
+          "y": 184,
+          "right": 129,
+          "width": 120,
+          "height": 120
+        },
+        {
+          "x": 135,
+          "y": 184,
+          "right": 255,
+          "width": 120,
+          "height": 120
+        },
+        {
+          "x": 261,
+          "y": 184,
+          "right": 381,
+          "width": 120,
+          "height": 120
+        },
+        {
+          "x": 9,
+          "y": 310,
+          "right": 129,
+          "width": 120,
+          "height": 120
+        },
+        {
+          "x": 135,
+          "y": 310,
+          "right": 255,
+          "width": 120,
+          "height": 120
+        },
+        {
+          "x": 261,
+          "y": 310,
+          "right": 381,
+          "width": 120,
+          "height": 120
+        },
+        {
+          "x": 9,
+          "y": 436,
+          "right": 129,
+          "width": 120,
+          "height": 120
+        },
+        {
+          "x": 135,
+          "y": 436,
+          "right": 255,
+          "width": 120,
+          "height": 120
+        },
+        {
+          "x": 261,
+          "y": 436,
+          "right": 381,
+          "width": 120,
+          "height": 120
+        }
+      ]
+    },
+    "orbit": {
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "itemCount": 8,
+      "clippedItems": [],
+      "items": [
+        {
+          "text": "Generate Images",
+          "x": 204,
+          "right": 260,
+          "width": 56,
+          "height": 63
+        },
+        {
+          "text": "Create Characters",
+          "x": 149,
+          "right": 205,
+          "width": 56,
+          "height": 63
+        },
+        {
+          "text": "Create Influencers",
+          "x": 60,
+          "right": 116,
+          "width": 56,
+          "height": 63
+        },
+        {
+          "text": "Clone Yourself",
+          "x": 3,
+          "right": 59,
+          "width": 56,
+          "height": 63
+        },
+        {
+          "text": "Generate Image Prompts",
+          "x": 47,
+          "right": 103,
+          "width": 56,
+          "height": 71
+        },
+        {
+          "text": "Generate Video Prompts",
+          "x": 134,
+          "right": 190,
+          "width": 56,
+          "height": 71
+        },
+        {
+          "text": "Edit Images",
+          "x": 200,
+          "right": 256,
+          "width": 56,
+          "height": 55
+        },
+        {
+          "text": "Create Storyboards",
+          "x": 257,
+          "right": 313,
+          "width": 56,
+          "height": 63
+        }
+      ]
+    }
+  }
+]

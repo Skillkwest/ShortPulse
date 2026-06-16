@@ -13,6 +13,17 @@ export type WorkflowReloadCharacterSelection = {
   lookId: string;
 };
 
+export const resolveWorkflowReloadCharacterContextCandidate = (
+  characterContext: StudioOutput["characterContext"] | null | undefined
+): WorkflowReloadCharacterSelection | null => {
+  const characterId = characterContext?.characterId?.trim() ?? "";
+  if (characterContext?.applied !== true || !characterId) return null;
+  return {
+    characterId,
+    lookId: characterContext.lookId?.trim() ?? "",
+  };
+};
+
 export const resolveWorkflowReloadCharacterSelection = ({
   characterContext,
   characterOptions,
@@ -20,14 +31,11 @@ export const resolveWorkflowReloadCharacterSelection = ({
   characterContext: StudioOutput["characterContext"] | null | undefined;
   characterOptions: readonly WorkflowReloadCharacterOption[];
 }): WorkflowReloadCharacterSelection | null => {
-  const characterId = characterContext?.characterId?.trim() ?? "";
-  if (characterContext?.applied !== true || !characterId) return null;
+  const candidate = resolveWorkflowReloadCharacterContextCandidate(characterContext);
+  if (!candidate) return null;
   const characterExists = characterOptions.some(
-    (option) => (option.id?.trim() ?? "") === characterId
+    (option) => (option.id?.trim() ?? "") === candidate.characterId
   );
   if (!characterExists) return null;
-  return {
-    characterId,
-    lookId: characterContext.lookId?.trim() ?? "",
-  };
+  return candidate;
 };

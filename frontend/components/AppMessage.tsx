@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 
 export type AppMessageTone = "error" | "warning" | "info" | "success";
 export type AppMessageMode = "banner" | "inline" | "toast" | "compact";
+export type AppMessageStackPlacement = "flow" | "viewport";
 
 export type AppMessageAction = {
   label: string;
@@ -31,6 +32,14 @@ type AppMessageProps = {
   role?: "alert" | "status" | "note";
   ariaLive?: "assertive" | "polite" | "off";
   busy?: boolean;
+  testId?: string;
+};
+
+type AppMessageStackProps = {
+  children: ReactNode;
+  placement?: AppMessageStackPlacement;
+  className?: string;
+  label?: string;
   testId?: string;
 };
 
@@ -122,6 +131,30 @@ export function AppMessage({
           ) : null}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * Groups page-level app messages.
+ * Inputs: message children plus a flow or viewport placement.
+ * Output: a stack wrapper that can float top-of-app banners without changing layout height.
+ * Side effects: none.
+ */
+export function AppMessageStack({
+  children,
+  placement = "flow",
+  className,
+  label = "Application notifications",
+  testId,
+}: AppMessageStackProps) {
+  const classes = ["app-message-stack", `app-message-stack--${placement}`, className]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <div className={classes} aria-label={label} data-testid={testId}>
+      {children}
     </div>
   );
 }

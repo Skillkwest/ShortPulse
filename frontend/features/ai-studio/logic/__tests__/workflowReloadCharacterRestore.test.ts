@@ -1,7 +1,33 @@
 import { describe, expect, it } from "vitest";
-import { resolveWorkflowReloadCharacterSelection } from "../workflowReloadCharacterRestore";
+import {
+  resolveWorkflowReloadCharacterContextCandidate,
+  resolveWorkflowReloadCharacterSelection,
+} from "../workflowReloadCharacterRestore";
 
 describe("resolveWorkflowReloadCharacterSelection", () => {
+  it("returns an immediate saved character candidate before option refresh confirms availability", () => {
+    expect(
+      resolveWorkflowReloadCharacterContextCandidate({
+        applied: true,
+        characterId: " char-1 ",
+        lookId: " look-main ",
+      })
+    ).toEqual({
+      characterId: "char-1",
+      lookId: "look-main",
+    });
+  });
+
+  it("does not return an immediate candidate when the reload output did not apply character mode", () => {
+    expect(
+      resolveWorkflowReloadCharacterContextCandidate({
+        applied: false,
+        characterId: "char-1",
+        lookId: "look-main",
+      })
+    ).toBeNull();
+  });
+
   it("returns the saved character and look when the character still exists", () => {
     expect(
       resolveWorkflowReloadCharacterSelection({

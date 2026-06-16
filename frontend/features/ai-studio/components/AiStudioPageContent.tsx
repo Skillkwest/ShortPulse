@@ -12,7 +12,7 @@ import {
   StackSimple,
 } from "phosphor-react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
-import { AppMessage } from "../../../components/AppMessage";
+import { AppMessage, AppMessageStack } from "../../../components/AppMessage";
 import { normalizeCustomerFacingProviderError } from "../../../lib/customerFacingProviderText";
 import { AiStudioToolbar } from "./AiStudioToolbar";
 import { AiStudioToolbarRail } from "./AiStudioToolbarRail";
@@ -579,9 +579,16 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
     ? null
     : normalizeCustomerFacingProviderError(uiError, "");
   const groupedFailures = groupVisibleFailuresForAlertStack(visibleFailures);
+  const hasVisibleAlerts = Boolean(effectiveUiError || uiNotice || groupedFailures.length);
+
+  if (!hasVisibleAlerts) return null;
 
   return (
-    <>
+    <AppMessageStack
+      className="ai-alerts-stack"
+      placement="viewport"
+      label="AI Studio notifications"
+    >
       {effectiveUiError ? (
         <AiStudioAlertBanner
           message={effectiveUiError}
@@ -633,7 +640,7 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
           </ul>
         </AppMessage>
       ) : null}
-    </>
+    </AppMessageStack>
   );
 });
 

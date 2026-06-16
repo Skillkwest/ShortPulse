@@ -1,6 +1,6 @@
 import { act, fireEvent, render, renderHook, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { AppMessage, useTransientAppMessage } from "../AppMessage";
+import { AppMessage, AppMessageStack, useTransientAppMessage } from "../AppMessage";
 
 describe("AppMessage", () => {
   it("uses urgent accessibility defaults for errors", () => {
@@ -38,6 +38,19 @@ describe("AppMessage", () => {
 
     expect(onAction).toHaveBeenCalledTimes(1);
     expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders a viewport stack for floating page-level messages", () => {
+    render(
+      <AppMessageStack placement="viewport" label="Workspace notifications">
+        <AppMessage tone="warning" message="Draft restored." />
+      </AppMessageStack>
+    );
+
+    const stack = screen.getByLabelText("Workspace notifications");
+    expect(stack).toHaveClass("app-message-stack");
+    expect(stack).toHaveClass("app-message-stack--viewport");
+    expect(screen.getByText("Draft restored.")).toBeInTheDocument();
   });
 });
 

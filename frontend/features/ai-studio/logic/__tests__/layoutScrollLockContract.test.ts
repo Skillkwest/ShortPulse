@@ -7,6 +7,19 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 const layoutCssPath = path.resolve(process.cwd(), "styles/ai-studio-layout.css");
+const messagesCssPath = path.resolve(process.cwd(), "styles/components-messages.css");
+
+const extractRuleBlock = (css: string, selector: string) => {
+  const escapedSelector = selector
+    .trim()
+    .split(/\s+/)
+    .map((segment) => segment.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("\\s+");
+  const pattern = new RegExp(`(^|\\n)${escapedSelector} \\{[\\s\\S]*?\\n\\}`, "gm");
+  const match = Array.from(css.matchAll(pattern)).at(-1);
+  expect(match).not.toBeUndefined();
+  return match?.[0] ?? "";
+};
 
 describe("ai-studio layout scroll behavior contract", () => {
   it("lets desktop properties workflows grow without clipping the main window", () => {
@@ -72,6 +85,36 @@ describe("ai-studio layout scroll behavior contract", () => {
     expect(css).toContain(".reference-column-sticky");
     expect(css).toContain("height: var(--ai-shell-column-max-height);");
     expect(css).toContain("max-height: var(--ai-shell-column-max-height);");
+  });
+
+  it("keeps AI Studio alerts from increasing the desktop create shell height", () => {
+    const css = fs.readFileSync(layoutCssPath, "utf8");
+    const messagesCss = fs.readFileSync(messagesCssPath, "utf8");
+    const stackRule = extractRuleBlock(css, ".ai-studio-page .ai-alerts-stack");
+    const viewportStackRule = extractRuleBlock(messagesCss, ".app-message-stack--viewport");
+    const stackChildrenRule = extractRuleBlock(messagesCss, ".app-message-stack--viewport > *");
+    const alertBannerRule = extractRuleBlock(css, ".ai-studio-page .ai-alert-banner");
+    const viewportMessageRule = extractRuleBlock(
+      messagesCss,
+      ".app-message-stack--viewport .app-message,\n.app-message-stack--viewport .ai-error-stack"
+    );
+
+    expect(viewportStackRule).toContain("position: fixed;");
+    expect(viewportStackRule).toContain("pointer-events: none;");
+    expect(stackChildrenRule).toContain("pointer-events: auto;");
+    expect(stackRule).toContain(
+      "--app-message-stack-viewport-top: calc(var(--ai-page-pad-top) + 6px);"
+    );
+    expect(stackRule).toContain(
+      "--app-message-stack-viewport-left: calc(var(--ai-rail-width) + 24px);"
+    );
+    expect(stackRule).toContain("--app-message-stack-viewport-z-index: 30;");
+    expect(alertBannerRule).toContain("margin: 0;");
+    expect(viewportMessageRule).toContain("margin: 0;");
+    expect(css).toContain("@media (max-width: 1100px)");
+    expect(css).toMatch(
+      /@media \(max-width: 1100px\) \{[\s\S]*?\.ai-studio-page\s+\.ai-alerts-stack \{[\s\S]*?position: static;/
+    );
   });
 
   it("uses a shared zoom-safe right rail minimum across resizable AI Studio shells", () => {

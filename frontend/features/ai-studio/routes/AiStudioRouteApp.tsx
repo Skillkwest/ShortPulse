@@ -8,7 +8,10 @@ import { resolveClientBilledCredits } from "../logic/clientPricingDisplay";
 import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../logic/editPromptPolicy";
 import { buildDefaultPricingParams } from "../logic/pricing";
 import { resolveAiStudioMediaAutosaveRouteEnabled } from "../logic/mediaAutosaveRouteReadiness";
-import { resolveWorkflowReloadCharacterSelection } from "../logic/workflowReloadCharacterRestore";
+import {
+  resolveWorkflowReloadCharacterContextCandidate,
+  resolveWorkflowReloadCharacterSelection,
+} from "../logic/workflowReloadCharacterRestore";
 import { useAiStudioPageUiNotices } from "../hooks/useAiStudioPageUiNotices";
 import {
   useAiStudioPageBaseRuntime,
@@ -314,7 +317,9 @@ const AiStudioPageRuntimeBody = ({
     setCreateCharacterWorkflowReloadPrep((characterContext) => {
       const requestId = createCharacterWorkflowReloadRequestRef.current + 1;
       createCharacterWorkflowReloadRequestRef.current = requestId;
+      const candidateSelection = resolveWorkflowReloadCharacterContextCandidate(characterContext);
       const clearCharacterWorkflowReloadSelection = () => {
+        if (createCharacterWorkflowReloadRequestRef.current !== requestId) return;
         setIsCreateCharacterModeEnabled(false);
         setCreateSelectedCharacterId("");
         setCreateSelectedCharacterLookId("");
@@ -332,21 +337,25 @@ const AiStudioPageRuntimeBody = ({
         setCreateSelectedCharacterLookId(lookId);
       };
 
-      clearCharacterWorkflowReloadSelection();
-      if (characterContext?.applied !== true || !characterContext.characterId?.trim()) {
+      if (!candidateSelection) {
+        clearCharacterWorkflowReloadSelection();
         return;
       }
+      applyCharacterWorkflowReloadSelection(candidateSelection);
       void refreshCharacterOptions()
         .then((refreshedCharacterOptions) => {
           const refreshedSelection = resolveWorkflowReloadCharacterSelection({
             characterContext,
             characterOptions: refreshedCharacterOptions,
           });
-          if (!refreshedSelection) return;
+          if (!refreshedSelection) {
+            clearCharacterWorkflowReloadSelection();
+            return;
+          }
           applyCharacterWorkflowReloadSelection(refreshedSelection);
         })
         .catch(() => {
-          // Keep selection cleared when the saved character cannot be confirmed.
+          // Submit-time character refresh remains the fail-closed guard if live options cannot load.
         });
     });
     return () => {

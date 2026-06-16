@@ -1,6 +1,7 @@
 import type { AgentContext, AgentPulseWorkflowSession } from "../../../prefabs/agent";
 
-export const PULSE_IMAGE_INTAKE_REQUIRED_NOTICE = "Attach or drop an image to continue this Pulse.";
+export const PULSE_IMAGE_INTAKE_REQUIRED_NOTICE =
+  "This Pulse needs an image first. Attach or drop an image, then send your text with it.";
 
 const PULSE_IMAGE_CONTEXT_INPUT_LABEL = "Uploaded image attached";
 const IMAGE_INTAKE_TEXT_PATTERN =

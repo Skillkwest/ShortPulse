@@ -436,6 +436,7 @@ export function PulsePromptStep({
                 agentInputCollapseOnBlur={agentInputCollapseOnBlur}
                 onAgentInputVisualRowCountChange={onAgentInputVisualRowCountChange}
                 embedSendButtonInInput={embedSendButtonInInput}
+                agentError={agentError}
                 handleAgentSendClick={handleAgentSendClick}
                 agentIsSending={agentIsSending}
                 imageAttachmentCounts={imageAttachmentCounts}
@@ -474,7 +475,7 @@ export function PulsePromptStep({
           </div>
         )
       ) : null}
-      {canUsePromptSurface && agentError && !isCollapsed ? (
+      {canUsePromptSurface && agentError && !isCollapsed && !showInlineChat ? (
         <AppMessage className="inline-error-hint" tone="error" mode="inline" message={agentError} />
       ) : null}
     </div>

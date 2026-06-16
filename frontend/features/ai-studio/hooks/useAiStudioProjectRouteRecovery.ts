@@ -1,16 +1,8 @@
 import { useEffect, useRef } from "react";
-import { fetchWithAuth } from "../../../lib/authenticatedFetch";
-import { normalizeErrorText } from "../../../lib/errorText";
 import type {
   AiStudioProjectIdentityErrorKind,
   AiStudioProjectIdentityStatus,
 } from "./useAiStudioProjectIdentity";
-
-type ProjectsListPayload = {
-  projects?: Array<{ id: string }>;
-  error?: unknown;
-  details?: unknown;
-};
 
 type UseAiStudioProjectRouteRecoveryOptions = {
   requestedProjectId: string | null;
@@ -57,25 +49,8 @@ export const useAiStudioProjectRouteRecovery = ({
 
     void (async () => {
       try {
-        const response = await fetchWithAuth("/api/projects?limit=all", {
-          method: "GET",
-          shortpulseAuthTimeoutMs: 5000,
-          shortpulseRetryNetworkOnce: true,
-        });
-        const payload = (await response.json().catch(() => ({}))) as ProjectsListPayload;
-        if (!response.ok) {
-          throw new Error(
-            normalizeErrorText(payload?.error, { fallback: "" }) ||
-              normalizeErrorText(payload?.details, { fallback: "Failed to load projects." })
-          );
-        }
+        await onClearStaleProjectRoute();
         if (cancelled) return;
-
-        const projects = Array.isArray(payload.projects) ? payload.projects : [];
-        if (projects.length === 0) {
-          await onClearStaleProjectRoute();
-          if (cancelled) return;
-        }
         onOpenProjectsModal();
       } catch {
         if (cancelled) return;

@@ -153,6 +153,11 @@
   margin-bottom: 14px;
 }
 
+.create-composer-panel .create-composer-prompt-step .agent-composer-inline-status {
+  width: auto;
+  margin: 0 var(--create-composer-inline-gutter, clamp(10px, 4vw, 44px)) 8px;
+}
+
 .create-composer-panel .create-composer-prompt-step .agent-composer-row.is-stacked {
   flex-direction: column;
   align-items: stretch;

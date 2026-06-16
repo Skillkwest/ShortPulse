@@ -4,6 +4,7 @@
  */
 import React from "react";
 import { Trash } from "phosphor-react";
+import { AppMessage } from "../../../../components/AppMessage";
 import {
   AgentChatPanel,
   type AgentChatPanelProps,
@@ -70,6 +71,7 @@ type PulsePromptStepChatSurfaceProps = {
   agentInputCollapseOnBlur: boolean;
   onAgentInputVisualRowCountChange?: (rowCount: number) => void;
   pulseLoadingState?: PromptStepPulseLoadingState | null;
+  agentError?: string;
   embedSendButtonInInput: boolean;
   handleAgentSendClick: () => void;
   agentIsSending: boolean;
@@ -124,6 +126,7 @@ export const PulsePromptStepChatSurface: React.FC<PulsePromptStepChatSurfaceProp
   agentInputCollapseOnBlur,
   onAgentInputVisualRowCountChange,
   pulseLoadingState = null,
+  agentError,
   embedSendButtonInInput,
   handleAgentSendClick,
   agentIsSending,
@@ -321,6 +324,15 @@ export const PulsePromptStepChatSurface: React.FC<PulsePromptStepChatSurfaceProp
 
   const chatModeActionsContent = <div className="agent-inline-actions"></div>;
 
+  const inlineAgentErrorContent = agentError ? (
+    <AppMessage
+      className="agent-composer-inline-status"
+      tone="warning"
+      mode="inline"
+      message={agentError}
+    />
+  ) : null;
+
   const composerMiddleControlContent = composerMiddleContent ? (
     <div className="agent-composer-middle">{composerMiddleContent}</div>
   ) : null;
@@ -332,30 +344,33 @@ export const PulsePromptStepChatSurface: React.FC<PulsePromptStepChatSurfaceProp
   ) : null;
 
   const composerRowContent = (
-    <div
-      className={`step2-input-row prompt-actions-compact agent-composer-row ${
-        shouldStackTrailingComposerControls ? "is-stacked" : ""
-      }`.trim()}
-    >
-      {shouldStackTrailingComposerControls ? (
-        <>
-          <div className="agent-composer-primary-row">
-            {chatModeActionsContent}
+    <>
+      {inlineAgentErrorContent}
+      <div
+        className={`step2-input-row prompt-actions-compact agent-composer-row ${
+          shouldStackTrailingComposerControls ? "is-stacked" : ""
+        }`.trim()}
+      >
+        {shouldStackTrailingComposerControls ? (
+          <>
+            <div className="agent-composer-primary-row">
+              {chatModeActionsContent}
+              {inputShellContent}
+              {composerLeadingControlContent}
+            </div>
+            {stackedControlsRowContent}
+          </>
+        ) : (
+          <>
             {inputShellContent}
+            {composerMiddleControlContent}
             {composerLeadingControlContent}
-          </div>
-          {stackedControlsRowContent}
-        </>
-      ) : (
-        <>
-          {inputShellContent}
-          {composerMiddleControlContent}
-          {composerLeadingControlContent}
-          {chatModeActionsContent}
-          {chatSendButtonContent}
-        </>
-      )}
-    </div>
+            {chatModeActionsContent}
+            {chatSendButtonContent}
+          </>
+        )}
+      </div>
+    </>
   );
 
   return (

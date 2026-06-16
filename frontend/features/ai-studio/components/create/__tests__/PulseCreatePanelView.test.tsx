@@ -165,6 +165,24 @@ describe("PulseCreatePanelView", () => {
     expect(onAgentInputChange).toHaveBeenCalledWith("Existing draft Dropped prompt text");
   });
 
+  it("shows Pulse composer guidance inline when the next step needs an image", () => {
+    render(
+      <PulseCreatePanelView
+        {...baseProps}
+        promptStepProps={{
+          ...basePromptStepProps,
+          agentError:
+            "This Pulse needs an image first. Attach or drop an image, then send your text with it.",
+        }}
+      />
+    );
+
+    const inlineStatus = screen.getByText(
+      "This Pulse needs an image first. Attach or drop an image, then send your text with it."
+    );
+    expect(inlineStatus.closest(".agent-composer-inline-status")).toBeTruthy();
+  });
+
   it("registers a Canvas tear-out target that accepts text and image payloads", async () => {
     const registry = createCanvasTearOutComposerTargetRegistry();
     const onAgentInputChange = vi.fn();

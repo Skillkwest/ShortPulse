@@ -149,7 +149,6 @@ export const runPulseCreateAgentSend = async ({
     hasImageAttachment,
   });
   if (pulseImageIntakeBlock) {
-    setUiNotice(pulseImageIntakeBlock);
     setAgentAttachmentError(pulseImageIntakeBlock);
     trackAgentUiEvent("studio_agent_send_blocked_pulse_image_required");
     return;

@@ -162,6 +162,7 @@ Behavior:
 4. On project selection from that modal, the dashboard routes to `/ai-studio?projectId=<uuid>`.
 5. On create failure, the dashboard keeps the user on `/dashboard` and surfaces a create-project error message.
 6. Once already inside AI Studio, the left-rail `Projects` action reuses the same `projectId` handoff boundary by opening that shared saved-project modal, allowing in-modal `New Project` creation, allowing permanent delete for non-current projects, and routing the selected or newly created project back to `/ai-studio?projectId=<uuid>`.
+7. Successful paid acquisition Checkout returns to `/ai-studio?checkout=subscription_success&project=new&checkout_session_id=<stripe-session>`. After auth and media consent clear, the AI Studio route entry creates a saved `Untitled Project` through `POST /api/projects/create`, remembers the Stripe checkout-session-to-project mapping in browser session storage to avoid duplicate project creation on same-session back/refresh, verifies any remembered project still belongs to the current signed-in user before reuse, and replaces the route with `/ai-studio?projectId=<uuid>`.
 
 ## AI Studio identity boundary
 
@@ -170,6 +171,7 @@ Behavior:
 3. When `projectId` is present, AI Studio may start project workspace bootstrap as soon as the route id is syntactically valid, but restore only becomes visible after the owned project record resolves successfully.
 4. Current shipped behavior is coexistence, not full cutover.
 5. Legacy `sid` remains the runtime identity for plain `/ai-studio` routes without `projectId`.
+6. Invalid, deleted, or cross-user project ids are treated as stale route state: the client clears the bad `projectId` before opening the Projects modal so the full-page project-unavailable gate does not trap otherwise valid signed-in users.
 
 ## AI Studio title authority
 

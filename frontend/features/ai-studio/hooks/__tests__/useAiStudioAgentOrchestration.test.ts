@@ -554,9 +554,9 @@ describe("useAiStudioAgentOrchestration", () => {
     expect(sendToAgent).not.toHaveBeenCalled();
     expect(appendUserMessage).not.toHaveBeenCalled();
     expect(setPulseWorkflowSession).not.toHaveBeenCalled();
-    expect(setUiNotice).toHaveBeenCalledWith("Attach or drop an image to continue this Pulse.");
+    expect(setUiNotice).not.toHaveBeenCalled();
     expect(setAgentAttachmentError).toHaveBeenCalledWith(
-      "Attach or drop an image to continue this Pulse."
+      "This Pulse needs an image first. Attach or drop an image, then send your text with it."
     );
     expect(trackAgentUiEvent).toHaveBeenCalledWith(
       "studio_agent_send_blocked_pulse_image_required"
@@ -630,7 +630,9 @@ describe("useAiStudioAgentOrchestration", () => {
       })
     );
     expect(appendUserMessage).toHaveBeenCalledWith("truck left", []);
-    expect(setUiNotice).not.toHaveBeenCalledWith("Attach or drop an image to continue this Pulse.");
+    expect(setUiNotice).not.toHaveBeenCalledWith(
+      "This Pulse needs an image first. Attach or drop an image, then send your text with it."
+    );
   });
 
   it("uses prompt focus for prompt references when no canonical context exists", async () => {

@@ -16,7 +16,7 @@ export const isLikelyStandardWebSearchRequest = (value: string): boolean => {
   if (!normalized.length) {
     return false;
   }
-  return /\b(current|latest|recent|today|tonight|this week|this month|news|updated?|up[- ]to[- ]date|look up|search|web|internet|source|sources|research|verify|fact[- ]check|fact check|price|pricing|law|legal|regulation|api docs|documentation|released?|available|model availability)\b/.test(
+  return /\b(current|latest|recent|today|tonight|this week|this month|right now|live|weather|forecast|temperature|conditions|news|updated?|up[- ]to[- ]date|look up|search|web|internet|online|source|sources|research|verify|fact[- ]check|fact check|price|pricing|law|legal|regulation|api docs|documentation|released?|available|model availability|instagram|tiktok|youtube|profile|account)\b/.test(
     normalized
   );
 };

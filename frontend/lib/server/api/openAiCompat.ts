@@ -124,6 +124,23 @@ const toResponsesContentPart = (part: OpenAiMessageContentPart): Record<string, 
   return null;
 };
 
+const resolveResponsesTextContentType = (
+  role: OpenAiChatMessage["role"]
+): "input_text" | "output_text" => {
+  return role === "assistant" ? "output_text" : "input_text";
+};
+
+const toResponsesContentPartForRole = (
+  role: OpenAiChatMessage["role"],
+  part: OpenAiMessageContentPart
+): Record<string, unknown> | null => {
+  if (part.type === "text") {
+    const text = asString(part.text);
+    return text ? { type: resolveResponsesTextContentType(role), text } : null;
+  }
+  return toResponsesContentPart(part);
+};
+
 export const buildOpenAiResponsesInput = (
   messages: OpenAiChatMessage[]
 ): ResponsesInputMessage[] => {
@@ -134,12 +151,12 @@ export const buildOpenAiResponsesInput = (
         if (!text) return null;
         return {
           role: message.role,
-          content: [{ type: "input_text", text }],
+          content: [{ type: resolveResponsesTextContentType(message.role), text }],
         };
       }
 
       const content = message.content
-        .map((part) => toResponsesContentPart(part))
+        .map((part) => toResponsesContentPartForRole(message.role, part))
         .filter((part): part is Record<string, unknown> => Boolean(part));
       if (!content.length) return null;
       return {

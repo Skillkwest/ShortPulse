@@ -216,9 +216,11 @@ const buildStandardRuntimeContextBlock = (context: AgentContext): string => {
 const buildStandardReplyBehaviorBlock = ({
   context,
   latestUserText,
+  webSearchToolChoice,
 }: {
   context: AgentContext;
   latestUserText: string;
+  webSearchToolChoice?: StandardWebSearchToolChoice | null;
 }): string => {
   const lines: string[] = [
     "Standard reply behavior:",
@@ -250,6 +252,12 @@ const buildStandardReplyBehaviorBlock = ({
         "- The user is brainstorming. Offer multiple distinct options or directions before asking a follow-up question."
       );
     }
+  }
+
+  if (webSearchToolChoice) {
+    lines.push(
+      "- This turn has web search tooling available for current information. Use the provided web search tool and do not claim that you lack web or live lookup access."
+    );
   }
 
   if (isLikelyStandardEvaluationRequest(latestUserText)) {
@@ -323,11 +331,13 @@ const buildStandardOpenAiMessages = ({
   context,
   systemPrompt,
   imageDetail = "high",
+  webSearchToolChoice,
 }: {
   messages: AgentMessage[];
   context: AgentContext;
   systemPrompt?: string | null;
   imageDetail?: StandardOpenAiImageDetail;
+  webSearchToolChoice?: StandardWebSearchToolChoice | null;
 }): OpenAiChatMessage[] => {
   const latestUserText = resolveLatestStandardUserText(messages);
   const promptReferenceSnippets = resolveStandardPromptReferenceSnippets({
@@ -337,6 +347,7 @@ const buildStandardOpenAiMessages = ({
   const replyBehaviorBlock = buildStandardReplyBehaviorBlock({
     context,
     latestUserText,
+    webSearchToolChoice,
   });
   const promptReferenceBlock = promptReferenceSnippets.length
     ? `Attached reference text:\n${promptReferenceSnippets.map((snippet) => `- ${snippet}`).join("\n")}`
@@ -1028,6 +1039,7 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
     context,
     systemPrompt: resolvedSystemPrompt.promptBody,
     imageDetail: executionProfile.imageDetail,
+    webSearchToolChoice,
   });
   try {
     const directResponseResult = await executeStandardOpenAiWithRetry({

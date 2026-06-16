@@ -500,6 +500,89 @@ describe("AI Studio Create agent runtime boundaries", () => {
     );
   });
 
+  it("keeps Standard web-search replay valid when prior assistant turns exist", async () => {
+    process.env.STUDIO_AGENT_STANDARD_WEB_SEARCH_ENABLED = "true";
+    process.env.STUDIO_AGENT_STANDARD_WEB_SEARCH_MODE = "intent";
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: "resp_standard_weather_1",
+          model: "gpt-5.5",
+          output: [
+            {
+              content: [
+                {
+                  type: "output_text",
+                  text: "Current conditions are available from live weather sources.",
+                },
+              ],
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+
+    const req = {
+      method: "POST",
+      body: {
+        ...createBaseRequestBody(),
+        messages: [
+          {
+            role: "assistant",
+            content: "I can't see live weather data from here right now.",
+          },
+          { role: "user", content: "What is it right now?" },
+        ],
+      },
+    };
+    const res = createMockResponse();
+
+    await standardStudioAgentHandler(req as never, res as never);
+
+    const requestBody = JSON.parse(
+      String((fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1]?.body ?? "{}")
+    ) as {
+      input?: Array<{ role?: string; content?: Array<{ type?: string; text?: string }> }>;
+      tools?: Array<{ type?: string }>;
+      tool_choice?: string;
+    };
+    expect(requestBody.tools).toEqual([{ type: "web_search" }]);
+    expect(requestBody.tool_choice).toBe("required");
+    expect(requestBody.input).toEqual([
+      expect.objectContaining({ role: "system" }),
+      expect.objectContaining({
+        role: "assistant",
+        content: [
+          expect.objectContaining({
+            type: "output_text",
+            text: "I can't see live weather data from here right now.",
+          }),
+        ],
+      }),
+      expect.objectContaining({
+        role: "user",
+        content: [
+          expect.objectContaining({
+            type: "input_text",
+            text: "What is it right now?",
+          }),
+        ],
+      }),
+    ]);
+    expect(requestBody.input?.[0]?.content?.[0]?.text).toContain(
+      "do not claim that you lack web or live lookup access"
+    );
+    const payload = res.json.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(payload).toEqual(
+      expect.objectContaining({
+        message: "Current conditions are available from live weather sources.",
+        canonicalPrompt: null,
+        conversationState: null,
+      })
+    );
+  });
+
   it("does not silently fall back to Chat Completions for Standard web-search turns", async () => {
     process.env.STUDIO_AGENT_STANDARD_WEB_SEARCH_ENABLED = "true";
     process.env.STUDIO_AGENT_STANDARD_WEB_SEARCH_MODE = "required";
@@ -680,7 +763,7 @@ describe("AI Studio Create agent runtime boundaries", () => {
         role: "assistant",
         content: [
           expect.objectContaining({
-            type: "input_text",
+            type: "output_text",
             text: expect.stringContaining("Standard session memory:"),
           }),
         ],
@@ -698,7 +781,7 @@ describe("AI Studio Create agent runtime boundaries", () => {
         role: "assistant",
         content: [
           expect.objectContaining({
-            type: "input_text",
+            type: "output_text",
             text: "old assistant reply",
           }),
         ],
@@ -785,7 +868,7 @@ describe("AI Studio Create agent runtime boundaries", () => {
         role: "assistant",
         content: [
           expect.objectContaining({
-            type: "input_text",
+            type: "output_text",
             text: expect.stringContaining(
               "Answered follow-up: What audience should this target first? -> Adults 25-34."
             ),
@@ -805,7 +888,7 @@ describe("AI Studio Create agent runtime boundaries", () => {
         role: "assistant",
         content: [
           expect.objectContaining({
-            type: "input_text",
+            type: "output_text",
             text: "Should the tone feel more clinical or more luxurious?",
           }),
         ],

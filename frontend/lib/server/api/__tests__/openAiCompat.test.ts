@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchOpenAiCompatibleChatCompletion } from "../openAiCompat";
+import { buildOpenAiResponsesInput, fetchOpenAiCompatibleChatCompletion } from "../openAiCompat";
 
 describe("openAiCompat", () => {
   afterEach(() => {
@@ -94,6 +94,45 @@ describe("openAiCompat", () => {
         completion_tokens: 7,
       },
     });
+  });
+
+  it("serializes assistant replay text as Responses output_text", () => {
+    expect(
+      buildOpenAiResponsesInput([
+        { role: "system", content: "System instructions." },
+        { role: "assistant", content: "Prior assistant reply." },
+        { role: "user", content: "Latest user question." },
+      ])
+    ).toEqual([
+      {
+        role: "system",
+        content: [{ type: "input_text", text: "System instructions." }],
+      },
+      {
+        role: "assistant",
+        content: [{ type: "output_text", text: "Prior assistant reply." }],
+      },
+      {
+        role: "user",
+        content: [{ type: "input_text", text: "Latest user question." }],
+      },
+    ]);
+  });
+
+  it("serializes assistant text parts as Responses output_text", () => {
+    expect(
+      buildOpenAiResponsesInput([
+        {
+          role: "assistant",
+          content: [{ type: "text", text: "Assistant memory summary." }],
+        },
+      ])
+    ).toEqual([
+      {
+        role: "assistant",
+        content: [{ type: "output_text", text: "Assistant memory summary." }],
+      },
+    ]);
   });
 
   it("falls back to chat completions when responses request fails", async () => {

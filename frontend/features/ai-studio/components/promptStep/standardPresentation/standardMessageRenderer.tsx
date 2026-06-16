@@ -16,7 +16,12 @@ type StandardMessageRendererProps = {
 };
 
 const renderStandardMessageBody = ({ content, formatMode, tone }: StandardMessagePresentation) => (
-  <CreateChatRichMessageBody content={content} formatMode={formatMode} tone={tone} />
+  <CreateChatRichMessageBody
+    content={content}
+    formatMode={formatMode}
+    tone={tone}
+    linkifyUrls={tone === "assistant"}
+  />
 );
 
 export const StandardMessageRenderer = React.forwardRef<
@@ -30,6 +35,7 @@ export const StandardMessageRenderer = React.forwardRef<
       content={presentation.content}
       formatMode={presentation.formatMode}
       tone={presentation.tone}
+      linkifyUrls={presentation.tone === "assistant"}
     />
   );
 });

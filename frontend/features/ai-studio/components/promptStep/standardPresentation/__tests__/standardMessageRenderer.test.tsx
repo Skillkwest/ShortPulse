@@ -40,6 +40,34 @@ describe("StandardMessageRenderer", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("renders Standard assistant bare URLs as clickable links", () => {
+    render(
+      <StandardMessageRenderer
+        content={"Here’s the Instagram link:\n\nhttps://www.instagram.com/kirk_artman/"}
+        tone="assistant"
+      />
+    );
+
+    const link = screen.getByRole("link", {
+      name: "https://www.instagram.com/kirk_artman/",
+    });
+    expect(link).toHaveAttribute("href", "https://www.instagram.com/kirk_artman/");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  });
+
+  it("renders Standard assistant markdown URLs as clickable links", () => {
+    render(
+      <StandardMessageRenderer
+        content={"Closest confirmed profile: [Skool profile](https://www.skool.com/@kirkartman)."}
+        tone="assistant"
+      />
+    );
+
+    const link = screen.getByRole("link", { name: "Skool profile" });
+    expect(link).toHaveAttribute("href", "https://www.skool.com/@kirkartman");
+  });
+
   it("keeps Standard user content on the basic contract", () => {
     render(
       <StandardMessageRenderer
@@ -54,6 +82,13 @@ describe("StandardMessageRenderer", () => {
       screen.getByText((_, node) => node?.textContent === "Note:\nKeep the tone grounded.")
     ).toBeInTheDocument();
     expect(screen.queryByText("If you want, save the reveal for the end.")).toBeInTheDocument();
+  });
+
+  it("does not linkify Standard user URLs", () => {
+    render(<StandardMessageRenderer content="Check https://example.com/user-input" tone="user" />);
+
+    expect(screen.queryByRole("link")).toBeNull();
+    expect(screen.getByText("Check https://example.com/user-input")).toBeInTheDocument();
   });
 
   it("parses the Standard presentation policy without changing message content", () => {

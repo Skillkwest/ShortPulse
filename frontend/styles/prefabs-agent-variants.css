@@ -303,6 +303,14 @@
   white-space: pre-wrap;
 }
 
+.agent-message-rich-link {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
 .agent-message-rich-lead {
   font-size: 16px;
   font-weight: 500;

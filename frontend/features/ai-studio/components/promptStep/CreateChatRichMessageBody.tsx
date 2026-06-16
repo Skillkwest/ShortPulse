@@ -45,6 +45,7 @@ type CreateChatRichMessageBodyProps = {
   content: string;
   formatMode?: CreateChatRichMessageFormatMode;
   tone?: "assistant" | "user";
+  linkifyUrls?: boolean;
 };
 
 const LABEL_LINE_PATTERN =
@@ -60,6 +61,9 @@ const BULLET_ITEM_PATTERN = /^\s*[-*•]\s+/;
 const HINT_LINE_PATTERN =
   /^(?:Reply with|Type your own|or type your own|Type one|Choose one|Pick one|You can also|If none fit|If you want)/i;
 const SEPARATOR_PATTERN = /^(?:-{3,}|\*{3,}|_{3,})$/;
+const MARKDOWN_LINK_PATTERN = /\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/gi;
+const BARE_URL_PATTERN = /https?:\/\/[^\s<>"']+/gi;
+const TRAILING_URL_PUNCTUATION_PATTERN = /[),.!?;:]+$/;
 
 const normalizeText = (value: string): string =>
   value
@@ -217,7 +221,31 @@ const extractTrailingSectionLabel = (
   return null;
 };
 
-const renderInlineText = (value: string): React.ReactNode[] => {
+const isSafeHttpUrl = (value: string): boolean => {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+};
+
+const renderStandardLink = ({ href, label, key }: { href: string; label: string; key: string }) => (
+  <a
+    key={key}
+    className="agent-message-rich-link"
+    href={href}
+    target="_blank"
+    rel="noopener noreferrer"
+    onClick={(event) => {
+      event.stopPropagation();
+    }}
+  >
+    {label}
+  </a>
+);
+
+const renderInlineEmphasisText = (value: string, keyPrefix: string): React.ReactNode[] => {
   const nodes: React.ReactNode[] = [];
   const normalized = value.replace(/\r\n/g, "\n");
   const pattern = /(\*\*[^*\n]+\*\*|__[^_\n]+__|\*[^*\n]+\*|_[^_\n]+_)/g;
@@ -235,7 +263,10 @@ const renderInlineText = (value: string): React.ReactNode[] => {
       (token.startsWith("__") && token.endsWith("__"))
     ) {
       nodes.push(
-        <strong key={`${index}-${token}`} className="agent-message-rich-inline-strong">
+        <strong
+          key={`${keyPrefix}-strong-${index}-${token}`}
+          className="agent-message-rich-inline-strong"
+        >
           {token.slice(2, -2)}
         </strong>
       );
@@ -244,7 +275,10 @@ const renderInlineText = (value: string): React.ReactNode[] => {
       (token.startsWith("_") && token.endsWith("_"))
     ) {
       nodes.push(
-        <em key={`${index}-${token}`} className="agent-message-rich-inline-emphasis">
+        <em
+          key={`${keyPrefix}-em-${index}-${token}`}
+          className="agent-message-rich-inline-emphasis"
+        >
           {token.slice(1, -1)}
         </em>
       );
@@ -255,6 +289,88 @@ const renderInlineText = (value: string): React.ReactNode[] => {
 
   if (lastIndex < normalized.length) {
     nodes.push(normalized.slice(lastIndex));
+  }
+
+  return nodes;
+};
+
+const renderBareUrlText = (value: string, keyPrefix: string): React.ReactNode[] => {
+  const nodes: React.ReactNode[] = [];
+  let lastIndex = 0;
+
+  for (const match of value.matchAll(BARE_URL_PATTERN)) {
+    const index = match.index ?? 0;
+    const token = match[0] ?? "";
+    const trimmedHref = token.replace(TRAILING_URL_PUNCTUATION_PATTERN, "");
+    const trailingText = token.slice(trimmedHref.length);
+
+    if (index > lastIndex) {
+      nodes.push(...renderInlineEmphasisText(value.slice(lastIndex, index), `${keyPrefix}-pre`));
+    }
+
+    if (trimmedHref && isSafeHttpUrl(trimmedHref)) {
+      nodes.push(
+        renderStandardLink({
+          href: trimmedHref,
+          label: trimmedHref,
+          key: `${keyPrefix}-url-${index}-${trimmedHref}`,
+        })
+      );
+      if (trailingText) {
+        nodes.push(trailingText);
+      }
+    } else {
+      nodes.push(...renderInlineEmphasisText(token, `${keyPrefix}-raw-url-${index}`));
+    }
+
+    lastIndex = index + token.length;
+  }
+
+  if (lastIndex < value.length) {
+    nodes.push(...renderInlineEmphasisText(value.slice(lastIndex), `${keyPrefix}-tail`));
+  }
+
+  return nodes;
+};
+
+const renderInlineText = (
+  value: string,
+  { linkifyUrls = false, keyPrefix = "inline" }: { linkifyUrls?: boolean; keyPrefix?: string } = {}
+): React.ReactNode[] => {
+  if (!linkifyUrls) {
+    return renderInlineEmphasisText(value, keyPrefix);
+  }
+
+  const nodes: React.ReactNode[] = [];
+  let lastIndex = 0;
+
+  for (const match of value.matchAll(MARKDOWN_LINK_PATTERN)) {
+    const index = match.index ?? 0;
+    const rawToken = match[0] ?? "";
+    const label = match[1]?.trim() ?? "";
+    const href = match[2]?.trim() ?? "";
+
+    if (index > lastIndex) {
+      nodes.push(...renderBareUrlText(value.slice(lastIndex, index), `${keyPrefix}-pre-md`));
+    }
+
+    if (label && isSafeHttpUrl(href)) {
+      nodes.push(
+        renderStandardLink({
+          href,
+          label,
+          key: `${keyPrefix}-md-${index}-${href}`,
+        })
+      );
+    } else {
+      nodes.push(...renderBareUrlText(rawToken, `${keyPrefix}-raw-md-${index}`));
+    }
+
+    lastIndex = index + rawToken.length;
+  }
+
+  if (lastIndex < value.length) {
+    nodes.push(...renderBareUrlText(value.slice(lastIndex), `${keyPrefix}-tail-md`));
   }
 
   return nodes;
@@ -525,7 +641,10 @@ const parseCreateChatRichMessageBlocks = ({
 export const CreateChatRichMessageBody = React.forwardRef<
   HTMLDivElement,
   CreateChatRichMessageBodyProps
->(function CreateChatRichMessageBody({ content, formatMode = "basic", tone = "assistant" }, ref) {
+>(function CreateChatRichMessageBody(
+  { content, formatMode = "basic", tone = "assistant", linkifyUrls = false },
+  ref
+) {
   const blocks = React.useMemo(
     () => parseCreateChatRichMessageBlocks({ content, formatMode }),
     [content, formatMode]
@@ -545,7 +664,7 @@ export const CreateChatRichMessageBody = React.forwardRef<
               key={key}
               className={`agent-message-rich-heading agent-message-rich-heading--level-${block.level}`.trim()}
             >
-              {renderInlineText(block.text)}
+              {renderInlineText(block.text, { linkifyUrls, keyPrefix: key })}
             </p>
           );
         }
@@ -553,7 +672,7 @@ export const CreateChatRichMessageBody = React.forwardRef<
         if (block.kind === "paragraph") {
           return (
             <p key={key} className="agent-message-rich-paragraph">
-              {renderInlineText(block.text)}
+              {renderInlineText(block.text, { linkifyUrls, keyPrefix: key })}
             </p>
           );
         }
@@ -561,7 +680,7 @@ export const CreateChatRichMessageBody = React.forwardRef<
         if (block.kind === "hint") {
           return (
             <p key={key} className="agent-message-rich-hint">
-              {renderInlineText(block.text)}
+              {renderInlineText(block.text, { linkifyUrls, keyPrefix: key })}
             </p>
           );
         }
@@ -569,7 +688,9 @@ export const CreateChatRichMessageBody = React.forwardRef<
         if (block.kind === "replyChoices") {
           return (
             <div key={key} className="agent-message-rich-reply-block">
-              <p className="agent-message-rich-reply-intro">{renderInlineText(block.intro)}</p>
+              <p className="agent-message-rich-reply-intro">
+                {renderInlineText(block.intro, { linkifyUrls, keyPrefix: `${key}-intro` })}
+              </p>
               <div className="agent-message-rich-choice-row" aria-label={block.intro}>
                 {block.choices.map((choice, choiceIndex) => (
                   <span
@@ -588,11 +709,14 @@ export const CreateChatRichMessageBody = React.forwardRef<
           return (
             <div key={key} className="agent-message-rich-option-card">
               <p className="agent-message-rich-option-title">
-                {block.number} — {renderInlineText(block.title)}
+                {block.number} — {renderInlineText(block.title, { linkifyUrls, keyPrefix: key })}
               </p>
               {block.description.length ? (
                 <p className="agent-message-rich-option-description">
-                  {renderInlineText(block.description.join("\n"))}
+                  {renderInlineText(block.description.join("\n"), {
+                    linkifyUrls,
+                    keyPrefix: `${key}-description`,
+                  })}
                 </p>
               ) : null}
             </div>
@@ -606,13 +730,17 @@ export const CreateChatRichMessageBody = React.forwardRef<
         return (
           <div key={key} className="agent-message-rich-list-block">
             {block.intro ? (
-              <p className="agent-message-rich-paragraph">{renderInlineText(block.intro)}</p>
+              <p className="agent-message-rich-paragraph">
+                {renderInlineText(block.intro, { linkifyUrls, keyPrefix: `${key}-intro` })}
+              </p>
             ) : null}
             {block.ordered ? (
               <ol className="agent-message-rich-list agent-message-rich-list--ordered">
                 {block.items.map((item, itemIndex) => (
                   <li key={`${key}-${itemIndex}`}>
-                    <span>{renderInlineText(item)}</span>
+                    <span>
+                      {renderInlineText(item, { linkifyUrls, keyPrefix: `${key}-${itemIndex}` })}
+                    </span>
                   </li>
                 ))}
               </ol>
@@ -620,7 +748,9 @@ export const CreateChatRichMessageBody = React.forwardRef<
               <ul className="agent-message-rich-list agent-message-rich-list--unordered">
                 {block.items.map((item, itemIndex) => (
                   <li key={`${key}-${itemIndex}`}>
-                    <span>{renderInlineText(item)}</span>
+                    <span>
+                      {renderInlineText(item, { linkifyUrls, keyPrefix: `${key}-${itemIndex}` })}
+                    </span>
                   </li>
                 ))}
               </ul>

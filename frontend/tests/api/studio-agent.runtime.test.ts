@@ -576,6 +576,9 @@ describe("AI Studio Create agent runtime boundaries", () => {
     expect(requestBody.input?.[0]?.content?.[0]?.text).toContain(
       "provide the direct URL or Markdown link instead of claiming that you opened the page"
     );
+    expect(requestBody.input?.[0]?.content?.[0]?.text).toContain(
+      "treat that URL as the direct answer unless they explicitly ask you to verify it"
+    );
     const payload = res.json.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(payload).toEqual(
       expect.objectContaining({

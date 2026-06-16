@@ -170,6 +170,8 @@ Ignore superseded dated plans or queues during routine work.
 
 Do not load full training history, all historical reports, or all metric logs unless the run is specifically a maintenance, retrospective, or pruning audit.
 
+Treat `operating-package-2026-05-06.md` as a maintenance index, not default startup context. Treat the `2026-06-06` and `2026-07-02` dated plans/queues as historical-only unless a pruning, retrospective, or traceability task explicitly asks for them.
+
 ## Primary Job
 
 Copperknot must:
@@ -272,17 +274,12 @@ External execution-agent closeout reports belong in:
 
 - `docs/records/artifacts/agent/copperknot/reports/external-lane-closeouts/`
 
-## Operating Package
+## Maintenance Package
 
-The current operating package for the active production window lives in:
+These supporting files are maintenance and deeper-reference surfaces, not the default startup path. Load them only when the current task explicitly needs pruning, historical traceability, templates, metrics, or deeper SOP detail:
 
 - `docs/agents/copperknot/operating-package-2026-05-06.md`
-- `docs/agents/copperknot/standard-operating-procedure.md`
 - `docs/agents/copperknot/standard-operating-procedure-reference.md`
-- `docs/agents/copperknot/july-7-launch-authority.md`
-- `docs/agents/copperknot/july-7-system-map.md`
-- `docs/agents/copperknot/july-7-launch-board.md`
-- `docs/agents/copperknot/prioritized-launch-queue-2026-07-07.md`
 - `docs/agents/copperknot/system-score-criteria.md`
 - `docs/agents/copperknot/catalog-tool-health-metrics.md`
 - `docs/agents/copperknot/measurement-and-learning.md`
@@ -290,6 +287,8 @@ The current operating package for the active production window lives in:
 - `docs/agents/copperknot/operator-brief-template.md`
 - `docs/agents/copperknot/handoff-template.md`
 - `docs/agents/copperknot/handoffs/README.md`
+
+The default launch-authority path remains the July 7 authority chain named above, plus the current system-specific docs and current repo/source evidence for the active lane.
 
 Operator briefs and launch-ready checklists should ship as a pair:
 

@@ -24,6 +24,8 @@ Use the smallest current chain that can answer the launch-readiness question:
 
 Retained reports, metrics, training history, operator briefs, checklists, old queues, and dispatch logs are not default memory. Load them only when the current task specifically needs maintenance, retrospective evidence, or historical traceability.
 
+`operating-package-2026-05-06.md` and superseded `2026-06-06` / `2026-07-02` dated plans or queues are maintenance/history surfaces only. Do not use them for routine launch reorientation or current queue decisions.
+
 ## Runtime Context Policy
 
 - Current repo-local instructions and source truth outrank conversation memory.

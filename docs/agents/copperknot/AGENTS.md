@@ -26,6 +26,9 @@ Load these only when the task explicitly requires them:
 - `catalog-tool-health-metrics.md`
 - `measurement-and-learning.md`
 - `standard-operating-procedure-reference.md`
+- `operating-package-2026-05-06.md`
+- superseded historical `production-readiness-plan-2026-06-06.md`
+- superseded historical `prioritized-handoff-queue-2026-06-06.md`
 - superseded historical `production-readiness-plan-2026-07-02.md`
 - superseded historical `prioritized-handoff-queue-2026-07-02.md`
 - `dispatch-ready-audit-output-template.md`
@@ -36,6 +39,7 @@ Load these only when the task explicitly requires them:
 Do not load the full retained artifact history for routine work.
 Do not load the SOP reference during routine startup unless the run needs deeper standards detail than the core SOP already provides.
 Do not load secondary overlays such as the scoreboard, operator brief, launch-ready checklist, or retained metric logs by default when the minimum authority chain already provides the current answer.
+Do not load the operating package, superseded dated plans, or superseded dated queues during routine reorientation. They are maintenance/history surfaces, not launch authority.
 
 ## Operator Brief Rule
 

@@ -90,6 +90,8 @@ export type ReferenceGridCardProps = {
     output: StudioOutput,
     options?: { mediaKindHint?: WorkflowReloadMediaKindHint | null }
   ) => void;
+  onClearLoadingOutput?: (id: string) => void;
+  loadingClearLabel?: string;
   onDeleteOutput?: (id: string) => void;
   onClearGenerationOutput?: (id: string) => void;
   onRemoveCuratedReference?: (id: string) => void;
@@ -174,6 +176,8 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   onRetryStatus,
   onRerollOutput,
   onReloadWorkflowOutput,
+  onClearLoadingOutput,
+  loadingClearLabel,
   onDeleteOutput,
   onClearGenerationOutput,
   onRemoveCuratedReference,
@@ -317,6 +321,12 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   );
   const effectiveIsLoading = isLoading && !hasMediaRenderError;
   const shouldShowLoadingOverlay = effectiveIsLoading && loadingVisual !== "none";
+  const clearLoadingOutput = onClearLoadingOutput ?? onClearGenerationOutput;
+  const clearLoadingLabel =
+    loadingClearLabel ??
+    (onClearGenerationOutput && !onClearLoadingOutput
+      ? "Clear generation from grid"
+      : "Remove loading media from grid");
   const shouldShowMediaUnavailable = hasMediaRenderError && !effectiveIsLoading && !isFailing;
   const markCardMediaLoaded = React.useCallback(() => {
     markLoaded(item.id, { notifyAutoSave: isSelected });
@@ -597,18 +607,18 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
       ) : null}
       {shouldShowLoadingOverlay ? (
         <div className={`reference-loading reference-loading--${loadingVisual}`}>
-          {onClearGenerationOutput ? (
+          {clearLoadingOutput ? (
             <button
               type="button"
               className="reference-card-action-btn reference-card-action-btn--danger reference-loading-clear-btn"
-              aria-label="Clear generation from grid"
+              aria-label={clearLoadingLabel}
               onPointerDown={(event) => {
                 event.stopPropagation();
               }}
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                onClearGenerationOutput(item.id);
+                clearLoadingOutput(item.id);
               }}
             >
               <X size={16} weight="bold" aria-hidden />

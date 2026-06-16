@@ -1,4 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAiStudioReferenceIngestionActions } from "../useAiStudioReferenceIngestionActions";
 import type { StudioOutput } from "../../types";
@@ -591,6 +592,88 @@ describe("useAiStudioReferenceIngestionActions", () => {
       );
       expect(nextOutputs[0]?.taskState).toBeUndefined();
       expect(nextOutputs[0]?.localObjectUrl).toBeUndefined();
+    } finally {
+      Object.defineProperty(URL, "createObjectURL", {
+        configurable: true,
+        value: originalCreateObjectURL,
+      });
+    }
+  });
+
+  it("does not commit a pending file upload after its loading card is removed", async () => {
+    const file = new File(["hello"], "reference.png", { type: "image/png" });
+    const files = {
+      0: file,
+      length: 1,
+      item: (index: number) => (index === 0 ? file : null),
+      [Symbol.iterator]: function* () {
+        yield file;
+      },
+    } as unknown as FileList;
+    let resolveUpload: ((row: ReturnType<typeof makeUploadRow>) => void) | null = null;
+    uploadMediaFileMock.mockReturnValueOnce(
+      new Promise<ReturnType<typeof makeUploadRow>>((resolve) => {
+        resolveUpload = resolve;
+      })
+    );
+    const originalCreateObjectURL = URL.createObjectURL;
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: vi.fn(() => "blob:local-reference"),
+    });
+
+    try {
+      const { result } = renderHook(() => {
+        const [outputs, setOutputs] = useState<StudioOutput[]>([]);
+        const actions = useAiStudioReferenceIngestionActions(
+          createParams({
+            projectId: "project-1",
+            outputs,
+            setOutputs,
+          })
+        );
+        return { actions, outputs, setOutputs };
+      });
+
+      let ingestPromise: Promise<unknown> | null = null;
+      act(() => {
+        ingestPromise = result.current.actions.ingestReferenceFiles(files, "drop");
+      });
+
+      await waitFor(() => {
+        expect(result.current.outputs[0]).toEqual(
+          expect.objectContaining({
+            id: expect.stringMatching(/^upload-/),
+            taskState: "pending",
+            saveState: "saving",
+          })
+        );
+      });
+
+      await act(async () => {
+        result.current.setOutputs([]);
+      });
+
+      await act(async () => {
+        resolveUpload?.(
+          makeUploadRow({
+            id: "media-reference",
+            filename: "reference.png",
+            storage_path: "user-1/uploads/images/reference.png",
+            preview_storage_path: "user-1/uploads/images/reference.png",
+            signedUrl: "https://signed.test/reference.png",
+          })
+        );
+        await ingestPromise!;
+      });
+
+      expect(result.current.outputs).toEqual([]);
+      await expect(ingestPromise!).resolves.toEqual([]);
+      expect(associateMediaFilesWithProjectMock).not.toHaveBeenCalledWith({
+        projectId: "project-1",
+        mediaFileIds: ["media-reference"],
+        userId: CURRENT_USER_ID,
+      });
     } finally {
       Object.defineProperty(URL, "createObjectURL", {
         configurable: true,

@@ -2,7 +2,7 @@
  * Reference ingestion action bundle for AI Studio state.
  * Centralizes agent/paste/library/file ingestion callbacks and agent-context projection.
  */
-import { useCallback, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 import { useResolvedProtectedSessionState } from "../../../lib/protectedRouteSessionContext";
 import type { AgentContext } from "../../ai-agent/types";
 import { randomId } from "../logic/ids";
@@ -268,8 +268,16 @@ export const useAiStudioReferenceIngestionActions = ({
 }: UseAiStudioReferenceIngestionActionsArgs): UseAiStudioReferenceIngestionActionsResult => {
   const sessionSnapshot = useResolvedProtectedSessionState();
   const currentUserId = sessionSnapshot.user?.id ?? null;
+  const visibleOutputIdSetRef = useRef(new Set(outputs.map((output) => output.id)));
   const libraryMediaIngestionErrorMessage =
     "Unable to add that media from Media Library right now. Please try again.";
+  useEffect(() => {
+    visibleOutputIdSetRef.current = new Set(outputs.map((output) => output.id));
+  }, [outputs]);
+  const isReferenceOutputStillVisible = useCallback(
+    (outputId: string): boolean => visibleOutputIdSetRef.current.has(outputId),
+    []
+  );
   const associateMediaWithProject = useCallback(
     (mediaFileId: string | null | undefined) => {
       if (!mediaFileId || !projectId) return;
@@ -402,10 +410,15 @@ export const useAiStudioReferenceIngestionActions = ({
 
       associateMediaWithProject(payload.id);
       setOutputs((prev) => [optimisticOutput, ...prev]);
+      visibleOutputIdSetRef.current = new Set([
+        optimisticOutput.id,
+        ...visibleOutputIdSetRef.current,
+      ]);
 
       void (async () => {
         const prepared = await buildPreparedOutput();
         if (!prepared) return;
+        if (!isReferenceOutputStillVisible(outputId)) return;
         try {
           setOutputs((prev) =>
             prev.map((item) =>
@@ -448,6 +461,7 @@ export const useAiStudioReferenceIngestionActions = ({
       libraryMediaIngestionErrorMessage,
       admitIncomingOutputs,
       associateMediaWithProject,
+      isReferenceOutputStillVisible,
       setOutputs,
       setUiError,
     ]
@@ -630,6 +644,10 @@ export const useAiStudioReferenceIngestionActions = ({
           ...pendingUploads.map((candidate) => candidate.optimisticOutput),
           ...prev,
         ]);
+        visibleOutputIdSetRef.current = new Set([
+          ...pendingUploads.map((candidate) => candidate.outputId),
+          ...visibleOutputIdSetRef.current,
+        ]);
       }
 
       for (const candidate of pendingUploads) {
@@ -638,6 +656,9 @@ export const useAiStudioReferenceIngestionActions = ({
             file: candidate.file,
             destinationTab: candidate.destinationTab,
           });
+          if (!isReferenceOutputStillVisible(candidate.outputId)) {
+            continue;
+          }
           const payload = toLibraryMediaReferencePayloadFromUpload(uploaded);
           const uploadedOutput = buildLibraryMediaOutputWithId(payload, candidate.outputId);
           if (!uploadedOutput) {
@@ -654,6 +675,7 @@ export const useAiStudioReferenceIngestionActions = ({
           void (async () => {
             try {
               const preparedPayload = await prepareLibraryMediaIngestionPayload(payload);
+              if (!isReferenceOutputStillVisible(candidate.outputId)) return;
               const preparedOutput = buildLibraryMediaOutputWithId(
                 preparedPayload,
                 candidate.outputId
@@ -679,6 +701,7 @@ export const useAiStudioReferenceIngestionActions = ({
           importedCount += 1;
         } catch (error) {
           setOutputs((prev) => prev.filter((item) => item.id !== candidate.outputId));
+          visibleOutputIdSetRef.current.delete(candidate.outputId);
           if (!firstErrorMessage) {
             firstErrorMessage =
               error instanceof Error && error.message.trim().length
@@ -715,6 +738,7 @@ export const useAiStudioReferenceIngestionActions = ({
       aspect,
       associateMediaWithProject,
       buildLibraryMediaOutputWithId,
+      isReferenceOutputStillVisible,
       model,
       outputs,
       setOutputs,

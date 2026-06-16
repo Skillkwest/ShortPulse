@@ -594,6 +594,124 @@ describe("useReferenceGridCardRenderController", () => {
     expect(container.querySelector(".reference-spinner")).not.toBeNull();
   });
 
+  it("removes pending upload loading cards through normal output deletion", () => {
+    const output = createOutput({
+      id: "upload-pending",
+      mode: "image",
+      mediaSource: "upload",
+      taskState: "pending",
+      previewUrl: "blob:local-upload",
+    });
+    const visibleCard = {
+      item: projectReferenceGridMediaOutput(output),
+      authorityTier: "preview-only" as const,
+      cardPreviewUrl: "blob:local-upload",
+      isVideoPreview: false,
+      isImagePreview: true,
+      isPriorityHydration: true,
+      imageSrc: "blob:local-upload",
+    };
+    const onDeleteOutput = vi.fn();
+    const onClearGenerationOutput = vi.fn();
+
+    const { result } = renderHook(() =>
+      useReferenceGridCardRenderController({
+        activeOutputId: null,
+        visibleOutputById: { [output.id]: output },
+        autoplayEnabledIdSet: new Set<string>(),
+        linkedPromptReferenceIdSet: new Set<string>(),
+        loadingCardIdSet: new Set<string>([output.id]),
+        generationLoadingCardIdSet: new Set<string>([output.id]),
+        hydrationLoadingCardIdSet: new Set<string>(),
+        perfDegradeLevel: 0,
+        visibleCardItems: [visibleCard],
+        curatedVisibleCardItems: [],
+        visibleQuickSlotIdSet: new Set<string>(),
+        onSelectOutput: vi.fn(),
+        onOpenDetails: vi.fn(),
+        onCardDragStart: vi.fn(),
+        onCardDragEnd: vi.fn(),
+        onCuratedSectionDragOver: vi.fn(),
+        onCuratedCardDrop: vi.fn(),
+        onCuratedSectionDragEnter: vi.fn(),
+        onCuratedSectionDragLeave: vi.fn(),
+        onCuratedCardKeyboardReorder: vi.fn(),
+        registerVideoNode: vi.fn(),
+        markLoaded: vi.fn(),
+        onAutoplayStarted: vi.fn(),
+        onAutoplayStopped: vi.fn(),
+        audioPlaybackController: createAudioControllerStub(),
+        onDeleteOutput,
+        onClearGenerationOutput,
+      })
+    );
+
+    const { getByLabelText } = render(<>{result.current.allRefsCardNodes}</>);
+    fireEvent.click(getByLabelText("Remove loading media from grid"));
+
+    expect(onDeleteOutput).toHaveBeenCalledWith("upload-pending");
+    expect(onClearGenerationOutput).not.toHaveBeenCalled();
+  });
+
+  it("keeps provider generation loading clears on the abandonment path", () => {
+    const output = createOutput({
+      id: "generated-pending",
+      mode: "image",
+      mediaSource: "generated",
+      taskState: "pending",
+      previewUrl: null,
+    });
+    const visibleCard = {
+      item: projectReferenceGridMediaOutput(output),
+      authorityTier: "tracked" as const,
+      cardPreviewUrl: null,
+      isVideoPreview: false,
+      isImagePreview: false,
+      isPriorityHydration: true,
+      imageSrc: undefined,
+    };
+    const onDeleteOutput = vi.fn();
+    const onClearGenerationOutput = vi.fn();
+
+    const { result } = renderHook(() =>
+      useReferenceGridCardRenderController({
+        activeOutputId: null,
+        visibleOutputById: { [output.id]: output },
+        autoplayEnabledIdSet: new Set<string>(),
+        linkedPromptReferenceIdSet: new Set<string>(),
+        loadingCardIdSet: new Set<string>([output.id]),
+        generationLoadingCardIdSet: new Set<string>([output.id]),
+        hydrationLoadingCardIdSet: new Set<string>(),
+        perfDegradeLevel: 0,
+        visibleCardItems: [visibleCard],
+        curatedVisibleCardItems: [],
+        visibleQuickSlotIdSet: new Set<string>(),
+        onSelectOutput: vi.fn(),
+        onOpenDetails: vi.fn(),
+        onCardDragStart: vi.fn(),
+        onCardDragEnd: vi.fn(),
+        onCuratedSectionDragOver: vi.fn(),
+        onCuratedCardDrop: vi.fn(),
+        onCuratedSectionDragEnter: vi.fn(),
+        onCuratedSectionDragLeave: vi.fn(),
+        onCuratedCardKeyboardReorder: vi.fn(),
+        registerVideoNode: vi.fn(),
+        markLoaded: vi.fn(),
+        onAutoplayStarted: vi.fn(),
+        onAutoplayStopped: vi.fn(),
+        audioPlaybackController: createAudioControllerStub(),
+        onDeleteOutput,
+        onClearGenerationOutput,
+      })
+    );
+
+    const { getByLabelText } = render(<>{result.current.allRefsCardNodes}</>);
+    fireEvent.click(getByLabelText("Clear generation from grid"));
+
+    expect(onClearGenerationOutput).toHaveBeenCalledWith("generated-pending");
+    expect(onDeleteOutput).not.toHaveBeenCalled();
+  });
+
   it("suppresses loading visuals for failed local video references", () => {
     const output = createOutput({
       taskState: "fail",

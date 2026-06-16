@@ -161,6 +161,8 @@ export const useReferenceGridCardRenderController = ({
       const isFailing = isReferenceOutputFailing(currentOutput);
       const isGenerationLoading = generationLoadingCardIdSet.has(currentOutput.id);
       const isHydrationLoading = hydrationLoadingCardIdSet.has(currentOutput.id);
+      const shouldClearAsGeneration =
+        isGenerationLoading && currentOutput.mediaSource === "generated";
       const shouldPreferCuratedSurface =
         !options.isCuratedSurface && visibleQuickSlotIdSet.has(currentOutput.id);
       const suppressDuplicateAllRefsLoading = shouldPreferCuratedSurface && !isGenerationLoading;
@@ -248,6 +250,14 @@ export const useReferenceGridCardRenderController = ({
       const videoNodeKey = `${options.surface}:${currentOutput.id}`;
       const audioInstanceKey = `${options.surface}:${currentOutput.id}`;
       const renderContainPreview = currentOutput.mode === "image";
+      const clearLoadingOutputHandler = isCardLoading
+        ? shouldClearAsGeneration
+          ? onClearGenerationOutput
+          : onDeleteOutput
+        : undefined;
+      const clearLoadingLabel = shouldClearAsGeneration
+        ? "Clear generation from grid"
+        : "Remove loading media from grid";
       const audioBackgroundImageUrl =
         currentOutput.mode === "audio" &&
         currentOutput.companionArtUrl &&
@@ -329,7 +339,8 @@ export const useReferenceGridCardRenderController = ({
           onRerollOutput={options.isCuratedSurface ? undefined : onRerollOutput}
           onReloadWorkflowOutput={options.isCuratedSurface ? undefined : onReloadWorkflowOutput}
           onDeleteOutput={options.isCuratedSurface ? undefined : onDeleteOutput}
-          onClearGenerationOutput={isGenerationLoading ? onClearGenerationOutput : undefined}
+          onClearLoadingOutput={clearLoadingOutputHandler}
+          loadingClearLabel={clearLoadingLabel}
           onRemoveCuratedReference={options.isCuratedSurface ? onRemoveCuratedReference : undefined}
           showCuratedRemoveAction={options.isCuratedSurface}
           isMediaStorageFull={isMediaStorageFull}

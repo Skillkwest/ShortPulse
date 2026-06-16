@@ -863,8 +863,41 @@ export const deriveImageWorkflowReloadFromGenerationReplay = (
 
 const VIDEO_MODEL_ID_PATTERN = /(?:kling|veo|seedance|omnihuman|video)/i;
 
+const workflowPayloadKindToMediaKind = (
+  payloadKind: unknown
+): WorkflowReloadMediaKindHint | null => {
+  if (payloadKind === "image" || payloadKind === "video") return payloadKind;
+  if (
+    payloadKind === "music" ||
+    payloadKind === "sound-effects" ||
+    payloadKind === "voiceover" ||
+    payloadKind === "voice-changer"
+  ) {
+    return "audio";
+  }
+  return null;
+};
+
+const outputModeToMediaKind = (outputMode: unknown): WorkflowReloadMediaKindHint | null => {
+  if (outputMode === "image" || outputMode === "video" || outputMode === "audio") {
+    return outputMode;
+  }
+  return null;
+};
+
+const mimeTypeToMediaKind = (
+  mimeType: string | null | undefined
+): WorkflowReloadMediaKindHint | null => {
+  const normalized = mimeType?.trim().toLowerCase() ?? "";
+  if (normalized.startsWith("video/")) return "video";
+  if (normalized.startsWith("audio/")) return "audio";
+  if (normalized.startsWith("image/")) return "image";
+  return null;
+};
+
 const hasVideoDelivery = (output: StudioOutput): boolean => {
   if (output.mode === "video") return true;
+  if (mimeTypeToMediaKind(output.mimeType) === "video") return true;
   const urls = [
     output.previewUrl,
     output.previewPosterUrl,
@@ -878,6 +911,7 @@ const hasVideoDelivery = (output: StudioOutput): boolean => {
 
 const hasNonImageDelivery = (output: StudioOutput): boolean => {
   if (hasVideoDelivery(output) || output.mode === "audio") return true;
+  if (mimeTypeToMediaKind(output.mimeType) === "audio") return true;
   const urls = [
     output.previewUrl,
     output.previewPosterUrl,
@@ -891,6 +925,36 @@ const hasNonImageDelivery = (output: StudioOutput): boolean => {
 
 const asWorkflowReloadRecord = (value: unknown): Record<string, unknown> | null =>
   isObject(value) ? value : null;
+
+export const inferWorkflowReloadMediaKindForOutput = (
+  output: StudioOutput,
+  options: ResolveWorkflowReloadConfigOptions = {}
+): WorkflowReloadMediaKindHint => {
+  if (options.mediaKindHint) return options.mediaKindHint;
+
+  const rawConfig = asWorkflowReloadRecord(output.workflowReload);
+  const rawPayload = asWorkflowReloadRecord(rawConfig?.payload);
+  const validConfig = isWorkflowReloadConfigV1(output.workflowReload)
+    ? output.workflowReload
+    : null;
+  const validPayloadKind = workflowPayloadKindToMediaKind(validConfig?.payload.kind);
+  if (validPayloadKind === "video" || validPayloadKind === "audio") return validPayloadKind;
+
+  const rawOutputMode = outputModeToMediaKind(rawConfig?.outputMode);
+  if (rawOutputMode === "video" || rawOutputMode === "audio") return rawOutputMode;
+  const rawPayloadKind = workflowPayloadKindToMediaKind(rawPayload?.kind);
+  if (rawPayloadKind === "video" || rawPayloadKind === "audio") return rawPayloadKind;
+  if (rawConfig?.panelKind === "video" || rawConfig?.originTool === "video") return "video";
+
+  const mimeKind = mimeTypeToMediaKind(output.mimeType);
+  if (mimeKind) return mimeKind;
+  if (output.mode === "video" || hasVideoDelivery(output)) return "video";
+  if (output.mode === "audio" || hasNonImageDelivery(output)) return "audio";
+  if (validPayloadKind === "image" || rawOutputMode === "image" || rawPayloadKind === "image") {
+    return "image";
+  }
+  return "image";
+};
 
 const resolveVideoFallbackModelId = (
   output: StudioOutput,
@@ -987,11 +1051,14 @@ export const resolveWorkflowReloadConfigForOutput = (
     ? output.workflowReload
     : null;
   if (workflowReload?.payload.kind === "video") return workflowReload;
-  if (options.mediaKindHint === "video" || hasVideoDelivery(output)) {
+  const mediaKind = inferWorkflowReloadMediaKindForOutput(output, options);
+  if (mediaKind === "video") {
     return deriveVideoWorkflowReloadFromOutput(output);
   }
   if (workflowReload) return workflowReload;
-  if (output.workflowReload != null || hasNonImageDelivery(output)) return null;
+  if (output.workflowReload != null || mediaKind === "audio" || hasNonImageDelivery(output)) {
+    return null;
+  }
   return deriveImageWorkflowReloadFromGenerationReplay(output.generationReplay);
 };
 

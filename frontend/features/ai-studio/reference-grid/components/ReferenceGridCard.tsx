@@ -12,7 +12,10 @@ import {
   X,
 } from "phosphor-react";
 import { canRerollOutput } from "../../logic/generationReplay";
-import { canReloadWorkflowOutput } from "../../logic/workflowReload";
+import {
+  canReloadWorkflowOutput,
+  inferWorkflowReloadMediaKindForOutput,
+} from "../../logic/workflowReload";
 import { resolveOutputAudioSourceMode } from "../../logic/audioSourceMode";
 import { canDragReferenceOutput } from "../../logic/referenceOutputAuthority";
 import {
@@ -215,18 +218,16 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   );
   const shouldShowRerollAction = Boolean(onRerollOutput && isImagePreview && canRerollOutput(item));
   const workflowReloadMediaKindHint: WorkflowReloadMediaKindHint =
-    item.mode === "video" || isVideoPreview
-      ? "video"
-      : item.mode === "audio" || isAudioPreview
-        ? "audio"
-        : "image";
+    inferWorkflowReloadMediaKindForOutput(item, {
+      mediaKindHint: isVideoPreview ? "video" : isAudioPreview ? "audio" : null,
+    });
   const shouldShowWorkflowReloadAction = Boolean(
     onReloadWorkflowOutput &&
     canReloadWorkflowOutput(item, { mediaKindHint: workflowReloadMediaKindHint })
   );
   const canShowWorkflowReloadAction = !hideReferenceActions || allowWorkflowReloadWhenActionsHidden;
   const shouldPlaceWorkflowReloadInVideoCorner = Boolean(
-    shouldShowWorkflowReloadAction && (item.mode === "video" || isVideoPreview)
+    shouldShowWorkflowReloadAction && workflowReloadMediaKindHint === "video"
   );
   const shouldShowRerollInBottomActionRow = Boolean(
     !hideReferenceActions && shouldShowRerollAction

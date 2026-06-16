@@ -7,8 +7,11 @@ import React from "react";
 import { FlowArrow, TrashSimple } from "phosphor-react";
 import type { MediaLibraryDetailModalItem } from "../../logic/mediaLibraryDetailModal";
 import { canReloadMediaLibraryWorkflow } from "../../logic/mediaLibraryWorkflowReload";
-import { SharedMediaDetailActionBar } from "../detail-modal/SharedMediaDetailActionBar";
 import { SharedMediaDetailPreviewModal } from "../detail-modal/SharedMediaDetailPreviewModal";
+import type {
+  SharedMediaDetailVideoSnapshotErrorHandler,
+  SharedMediaDetailVideoSnapshotHandler,
+} from "../detail-modal/detailModalPlatformTypes";
 import { resolveSharedMediaDetailMediaActionItems } from "../detail-modal/sharedMediaDetailActions";
 
 type MediaLibraryPanelPreviewModalProps = {
@@ -17,6 +20,8 @@ type MediaLibraryPanelPreviewModalProps = {
   error: string | null;
   onClose: () => void;
   onPreviewError?: (item: MediaLibraryDetailModalItem, failedUrl: string) => void;
+  onSnapshotVideoFrame?: SharedMediaDetailVideoSnapshotHandler;
+  onSnapshotVideoFrameError?: SharedMediaDetailVideoSnapshotErrorHandler;
   onReloadWorkflowItem?: (item: MediaLibraryDetailModalItem) => void;
   onDownloadItem?: (item: MediaLibraryDetailModalItem) => void;
   onDeleteItem?: (item: MediaLibraryDetailModalItem) => void;
@@ -34,6 +39,8 @@ export function MediaLibraryPanelPreviewModal({
   error,
   onClose,
   onPreviewError,
+  onSnapshotVideoFrame,
+  onSnapshotVideoFrameError,
   onReloadWorkflowItem,
   onDownloadItem,
   onDeleteItem,
@@ -81,11 +88,9 @@ export function MediaLibraryPanelPreviewModal({
       onPreviewError={(sharedItem, failedUrl) =>
         handlePreviewError(sharedItem as MediaLibraryDetailModalItem | null, failedUrl)
       }
-      topBarActions={
-        topBarActionItems.length > 0 ? (
-          <SharedMediaDetailActionBar items={topBarActionItems} />
-        ) : null
-      }
+      onSnapshotVideoFrame={onSnapshotVideoFrame}
+      onSnapshotVideoFrameError={onSnapshotVideoFrameError}
+      topBarActionItems={topBarActionItems}
       modalActivityId="media-library-panel-preview-modal"
       backdropClassName="reference-modal-backdrop media-library-panel-preview-backdrop"
       backdropDataTestId="media-library-panel-preview-backdrop"

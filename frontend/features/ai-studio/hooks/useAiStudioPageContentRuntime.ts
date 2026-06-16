@@ -46,6 +46,8 @@ type UseAiStudioPageContentRuntimeParams = {
   onDeleteOutput: AiStudioPageContentProps["onDeleteOutput"];
   onDetailDownload: AiStudioPageContentProps["onDetailDownload"];
   onDetailSaveReference: AiStudioPageContentProps["onDetailSaveReference"];
+  onSnapshotVideoFrame: AiStudioPageContentProps["onSnapshotVideoFrame"];
+  onSnapshotVideoFrameError: AiStudioPageContentProps["onSnapshotVideoFrameError"];
   onDetailReloadWorkflow: AiStudioPageContentProps["onDetailReloadWorkflow"];
   onMediaLibraryReloadWorkflow: AiStudioPageContentProps["onMediaLibraryReloadWorkflow"];
   onDetailSavePrompt: AiStudioPageContentProps["onDetailSavePrompt"];
@@ -122,6 +124,8 @@ export const useAiStudioPageContentRuntime = ({
   onDeleteOutput,
   onDetailDownload,
   onDetailSaveReference,
+  onSnapshotVideoFrame,
+  onSnapshotVideoFrameError,
   onDetailReloadWorkflow,
   onMediaLibraryReloadWorkflow,
   onDetailSavePrompt,
@@ -195,6 +199,8 @@ export const useAiStudioPageContentRuntime = ({
       onDeleteOutput,
       onDetailDownload,
       onDetailSaveReference,
+      onSnapshotVideoFrame,
+      onSnapshotVideoFrameError,
       onDetailReloadWorkflow,
       onMediaLibraryReloadWorkflow,
       onDetailSavePrompt,
@@ -267,6 +273,8 @@ export const useAiStudioPageContentRuntime = ({
       onDeleteOutput,
       onDetailDownload,
       onDetailSaveReference,
+      onSnapshotVideoFrame,
+      onSnapshotVideoFrameError,
       onDetailReloadWorkflow,
       onMediaLibraryReloadWorkflow,
       onDetailSavePrompt,

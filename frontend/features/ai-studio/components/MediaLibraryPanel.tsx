@@ -55,7 +55,11 @@ import { MediaLibraryPanelFolderContent } from "./MediaLibraryPanelFolderContent
 import { MediaLibraryPanelHeader } from "./MediaLibraryPanelHeader";
 import { MediaLibraryPanelRootContent } from "./MediaLibraryPanelRootContent";
 import { MediaLibraryPanelStatusArea } from "./MediaLibraryPanelStatusArea";
-import type { SharedMediaDetailSelectionTarget } from "./detail-modal/detailModalPlatformTypes";
+import type {
+  SharedMediaDetailSelectionTarget,
+  SharedMediaDetailVideoSnapshotErrorHandler,
+  SharedMediaDetailVideoSnapshotHandler,
+} from "./detail-modal/detailModalPlatformTypes";
 import { MediaLibraryAllItemsGrid } from "./media-library-modal/MediaLibraryAllItemsGrid";
 import { MediaLibraryMediaGrid } from "./media-library-modal/MediaLibraryMediaGrid";
 import { MediaLibraryPanelPreviewModal } from "./media-library-modal/MediaLibraryPanelPreviewModal";
@@ -112,6 +116,8 @@ type MediaLibraryPanelProps = {
     output: StudioOutput,
     options?: { mediaKindHint?: WorkflowReloadMediaKindHint | null }
   ) => void;
+  onSnapshotVideoFrame?: SharedMediaDetailVideoSnapshotHandler;
+  onSnapshotVideoFrameError?: SharedMediaDetailVideoSnapshotErrorHandler;
   detailSelectionTarget?: SharedMediaDetailSelectionTarget | null;
   onDetailSelectionTargetChange?: (target: SharedMediaDetailSelectionTarget | null) => void;
 };
@@ -144,6 +150,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   resolveInternalDropItem,
   onDeleteMediaRowsFromWorkspace,
   onReloadWorkflowFromMedia,
+  onSnapshotVideoFrame,
+  onSnapshotVideoFrameError,
   detailSelectionTarget = null,
   onDetailSelectionTargetChange,
 }: MediaLibraryPanelProps) {
@@ -1465,6 +1473,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         error={detailModalError}
         onClose={closeDetailModal}
         onPreviewError={handleDetailModalMediaError}
+        onSnapshotVideoFrame={onSnapshotVideoFrame}
+        onSnapshotVideoFrameError={onSnapshotVideoFrameError}
         onDownloadItem={(item) => {
           handleDownloadMediaFile(item.file);
         }}

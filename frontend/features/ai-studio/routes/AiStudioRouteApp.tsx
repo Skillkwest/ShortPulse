@@ -7,6 +7,7 @@ import { AiStudioPageShell } from "../components/AiStudioPageShell";
 import { resolveClientBilledCredits } from "../logic/clientPricingDisplay";
 import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../logic/editPromptPolicy";
 import { buildDefaultPricingParams } from "../logic/pricing";
+import { captureVideoFrameSnapshotFile } from "../logic/videoFrameSnapshot";
 import { resolveAiStudioMediaAutosaveRouteEnabled } from "../logic/mediaAutosaveRouteReadiness";
 import {
   resolveWorkflowReloadCharacterContextCandidate,
@@ -171,6 +172,7 @@ const AiStudioPageRuntimeBody = ({
     addLibraryMediaReference,
     addLibraryPromptReference,
     addOutputsFromFiles,
+    ingestReferenceFiles,
     aspect,
     balanceCredits,
     balanceError,
@@ -773,6 +775,14 @@ const AiStudioPageRuntimeBody = ({
     [removeReferencesForDeletedMedia]
   );
 
+  const handleSnapshotVideoFrame = useCallback(
+    async (video: HTMLVideoElement, filenameHint?: string | null) => {
+      const snapshotFile = await captureVideoFrameSnapshotFile(video, { filenameHint });
+      await ingestReferenceFiles([snapshotFile], "drop");
+    },
+    [ingestReferenceFiles]
+  );
+
   const pageContentProps = useAiStudioPageContentRuntime({
     sessionId,
     referenceGridFileInputRef,
@@ -860,6 +870,8 @@ const AiStudioPageRuntimeBody = ({
     onDeleteOutput,
     onDetailDownload,
     onDetailSaveReference,
+    onSnapshotVideoFrame: handleSnapshotVideoFrame,
+    onSnapshotVideoFrameError: setUiError,
     onDetailReloadWorkflow: base.reloadWorkflowFromStudioOutput,
     onMediaLibraryReloadWorkflow: base.reloadWorkflowFromStudioOutput,
     onDetailSavePrompt,

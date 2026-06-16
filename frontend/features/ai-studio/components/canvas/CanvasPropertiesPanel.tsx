@@ -10,6 +10,7 @@ import type { CanvasPropertiesPanelProps } from "./useAiStudioCanvasWorkspaceSta
 import { MediaDurationBadge } from "../shared/MediaDurationBadge";
 import { CanvasAudioCard } from "./CanvasAudioCard";
 import { CANVAS_TEXT_ITEM_MIN_HEIGHT } from "./canvasGeometry";
+import { CanvasMediaActionOverlay } from "./CanvasMediaActionOverlay";
 
 const CANVAS_TEAR_OUT_GHOST_CURSOR_INSET_PX = 14;
 const CANVAS_VIEWPORT_CULL_OVERSCAN_PX = 480;
@@ -98,6 +99,7 @@ type CanvasSceneItemViewProps = Pick<
   | "onTextItemEditBlur"
   | "onTextResizeHandlePointerDown"
   | "onCanvasMediaRenderError"
+  | "mediaActions"
 > & {
   item: CanvasSceneItem;
   textResizeHandles: CanvasResizeHandle[];
@@ -137,6 +139,7 @@ const CanvasSceneItemView = React.memo(function CanvasSceneItemView({
   onTextItemEditBlur,
   onTextResizeHandlePointerDown,
   onCanvasMediaRenderError,
+  mediaActions,
   markCanvasMediaError,
   clearCanvasMediaError,
 }: CanvasSceneItemViewProps) {
@@ -343,6 +346,7 @@ const CanvasSceneItemView = React.memo(function CanvasSceneItemView({
             : null}
         </>
       )}
+      <CanvasMediaActionOverlay item={item} actions={mediaActions} />
     </article>
   );
 });
@@ -541,6 +545,7 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
     onTextItemEditKeyDown,
     onTextItemEditBlur,
     onCanvasMediaRenderError,
+    mediaActions,
   } = useResolvedCanvasPropertiesPanelProps(props);
   const textResizeHandles = React.useMemo<CanvasResizeHandle[]>(() => ["nw", "ne", "se", "sw"], []);
   const [mediaErrorKeys, setMediaErrorKeys] = React.useState<Set<string>>(() => new Set());
@@ -884,6 +889,7 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
                     : undefined
                 }
                 onCanvasMediaRenderError={onCanvasMediaRenderError}
+                mediaActions={mediaActions}
                 markCanvasMediaError={markCanvasMediaError}
                 clearCanvasMediaError={clearCanvasMediaError}
               />

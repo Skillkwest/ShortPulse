@@ -491,6 +491,7 @@ export function SharedMediaDetailPreviewMedia({
     return (
       <video
         className={videoClassName ?? imageClassName}
+        crossOrigin="anonymous"
         src={mediaUrl}
         poster={videoPosterUrl?.trim() || undefined}
         ref={videoRef}

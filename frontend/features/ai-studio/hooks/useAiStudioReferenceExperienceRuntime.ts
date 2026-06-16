@@ -12,6 +12,8 @@ import type { AiStudioPageBaseRuntime } from "./useAiStudioPageBaseRuntime";
 import { MEDIA_STORAGE_FULL_USER_MESSAGE } from "../../../lib/mediaStorageQuota";
 import type { useAiStudioWorkspaceActions } from "./useAiStudioWorkspaceActions";
 import type { useAiStudioGenerationController } from "./useAiStudioGenerationController";
+import type { CanvasSceneItem } from "../components/canvas/canvasTypes";
+import type { StudioOutput } from "../types";
 
 type CreatePanelProps = AiStudioPageContentProps["propertiesCreate"];
 type EditPanelProps = AiStudioPageContentProps["propertiesEditExpert"];
@@ -98,6 +100,41 @@ export const useAiStudioReferenceExperienceRuntime = ({
     setUiError,
     isMediaStorageFull,
   });
+  const canvasMediaActions = useMemo(
+    () => ({
+      getOutputForCanvasItem: (item: CanvasSceneItem) => {
+        if (!item.outputId) return null;
+        return findOutputById(item.outputId);
+      },
+      onSelectOutput: handleSelectOutput,
+      onSaveToLibrary: (output: StudioOutput) => handleSaveReference(output.id),
+      onDownload: (output: StudioOutput) => handleDownloadReference(output.id),
+      onRerollOutput: (output: StudioOutput) => rerollOutputFromReplay(output.id),
+      onReloadWorkflowOutput: reloadWorkflowFromStudioOutput,
+      onDeleteOutput: deleteOutput,
+      isMediaStorageFull,
+    }),
+    [
+      deleteOutput,
+      findOutputById,
+      handleDownloadReference,
+      handleSaveReference,
+      handleSelectOutput,
+      isMediaStorageFull,
+      reloadWorkflowFromStudioOutput,
+      rerollOutputFromReplay,
+    ]
+  );
+  const railCanvasPropsWithMediaActions = useMemo(
+    () =>
+      railCanvasProps
+        ? {
+            ...railCanvasProps,
+            mediaActions: canvasMediaActions,
+          }
+        : railCanvasProps,
+    [canvasMediaActions, railCanvasProps]
+  );
   const referenceGridHookProps = useAiStudioReferenceGridProps({
     readOutputsFromStore: true,
     activeOutputId,
@@ -130,7 +167,7 @@ export const useAiStudioReferenceExperienceRuntime = ({
   const referenceGridPageProps = useMemo(
     () => ({
       ...referenceGridHookProps,
-      railCanvasProps,
+      railCanvasProps: railCanvasPropsWithMediaActions,
       onAddDroppedFilesToQuickSlot: handleQuickSlotDroppedFiles,
       onAddPastedMediaReferenceToQuickSlot: handleQuickSlotDroppedMediaReference,
       onAddLibraryMediaReferenceToQuickSlot: handleQuickSlotLibraryMediaDrop,
@@ -141,7 +178,7 @@ export const useAiStudioReferenceExperienceRuntime = ({
       handleQuickSlotDroppedMediaReference,
       handleQuickSlotLibraryMediaDrop,
       handleQuickSlotLibraryPromptDrop,
-      railCanvasProps,
+      railCanvasPropsWithMediaActions,
       referenceGridHookProps,
     ]
   );

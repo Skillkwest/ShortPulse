@@ -16,6 +16,7 @@ import type {
 } from "./canvasSceneState";
 import type { CanvasCamera, CanvasResizeHandle, CanvasSceneItem } from "./canvasTypes";
 import type { CanvasTearOutComposerTargetRegistry } from "../../hooks/useAiStudioCanvasTearOutTargets";
+import type { StudioOutput, WorkflowReloadMediaKindHint } from "../../types";
 
 export type CanvasWorkspaceInstanceId = "main" | "rail";
 
@@ -59,6 +60,20 @@ export type CanvasViewportWheelEvent = Pick<
 export type CanvasPropertiesPanelLivePropsStore = {
   getSnapshot: () => CanvasPropertiesPanelProps;
   subscribe: (listener: () => void) => () => void;
+};
+
+export type CanvasMediaActions = {
+  getOutputForCanvasItem: (item: CanvasSceneItem) => StudioOutput | null;
+  onSelectOutput?: (id: string) => void;
+  onSaveToLibrary?: (output: StudioOutput) => void;
+  onDownload?: (output: StudioOutput) => void;
+  onRerollOutput?: (output: StudioOutput) => void;
+  onReloadWorkflowOutput?: (
+    output: StudioOutput,
+    options?: { mediaKindHint?: WorkflowReloadMediaKindHint | null }
+  ) => void;
+  onDeleteOutput?: (id: string) => void;
+  isMediaStorageFull?: boolean;
 };
 
 export type CanvasPropertiesPanelProps = {
@@ -115,6 +130,7 @@ export type CanvasPropertiesPanelProps = {
   onTextItemEditKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
   onTextItemEditBlur: () => void;
   onCanvasMediaRenderError?: (item: CanvasSceneItem) => void;
+  mediaActions?: CanvasMediaActions;
   canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
 };
 

@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../types";
 import type { AiStudioPageBaseRuntime } from "../useAiStudioPageBaseRuntime";
 import { useAiStudioReferenceExperienceRuntime } from "../useAiStudioReferenceExperienceRuntime";
+import type { CanvasImageItem } from "../../components/canvas/canvasTypes";
+import type { CanvasPropertiesPanelProps } from "../../components/canvas/canvasWorkspaceContracts";
 
 vi.mock("../useAiStudioReferenceAssetActions", () => ({
   useAiStudioReferenceAssetActions: () => ({
@@ -112,5 +114,60 @@ describe("useAiStudioReferenceExperienceRuntime", () => {
 
     expect(reloadWorkflowFromStudioOutput).toHaveBeenCalledWith(output, undefined);
     expect(reloadWorkflowFromOutput).not.toHaveBeenCalled();
+  });
+
+  it("decorates rail Canvas props with the shared Reference Grid media action handlers", () => {
+    const findOutputById = vi.fn(() => output);
+    const handleSelectOutput = vi.fn();
+    const deleteOutput = vi.fn();
+    const rerollOutputFromReplay = vi.fn();
+    const reloadWorkflowFromStudioOutput = vi.fn();
+    const railCanvasProps = {
+      camera: { x: 0, y: 0, zoom: 1 },
+      items: [],
+      pendingItems: [],
+    } as unknown as CanvasPropertiesPanelProps;
+    const base = createBaseRuntime({
+      deleteOutput,
+      findOutputById,
+      railCanvasProps,
+      reloadWorkflowFromStudioOutput,
+      rerollOutputFromReplay,
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioReferenceExperienceRuntime({
+        base,
+        isMediaStorageFull: false,
+        linkedPromptReferenceIds: [],
+        propertiesCreate: {} as never,
+        propertiesEditExpert: {} as never,
+        propertiesVideo: {} as never,
+        handleSelectOutput,
+        handleManualPromptChange: vi.fn(),
+        handleRegenerateWithDebit: vi.fn(),
+        handleOpenMediaLibrary: vi.fn(),
+      })
+    );
+    const mediaActions = result.current.referenceGridProps.railCanvasProps?.mediaActions;
+    const item = {
+      id: "canvas-image-1",
+      kind: "image",
+      outputId: "video-out-1",
+    } as CanvasImageItem;
+
+    expect(mediaActions?.getOutputForCanvasItem(item)).toBe(output);
+
+    mediaActions?.onSelectOutput?.("video-out-1");
+    mediaActions?.onDeleteOutput?.("video-out-1");
+    mediaActions?.onRerollOutput?.(output);
+    mediaActions?.onReloadWorkflowOutput?.(output, { mediaKindHint: "video" });
+
+    expect(handleSelectOutput).toHaveBeenCalledWith("video-out-1");
+    expect(deleteOutput).toHaveBeenCalledWith("video-out-1");
+    expect(rerollOutputFromReplay).toHaveBeenCalledWith("video-out-1");
+    expect(reloadWorkflowFromStudioOutput).toHaveBeenCalledWith(output, {
+      mediaKindHint: "video",
+    });
   });
 });

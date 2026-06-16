@@ -1,6 +1,10 @@
 import React from "react";
 import type { CharacterPanelUploadRequest } from "../../../lib/characterPanelUploadRequest";
-import type { SharedMediaDetailSelectionTarget } from "../../ai-studio/components/detail-modal/detailModalPlatformTypes";
+import type {
+  SharedMediaDetailSelectionTarget,
+  SharedMediaDetailVideoSnapshotErrorHandler,
+  SharedMediaDetailVideoSnapshotHandler,
+} from "../../ai-studio/components/detail-modal/detailModalPlatformTypes";
 import type { ResolveCharacterDropReference } from "../hooks/useCharacterManagerDroppedReferenceController";
 import type { InternalReferenceDragPayload } from "../../ai-studio/utils/dragDrop";
 import { CharacterEmbeddedMediaLibraryPanel } from "./CharacterEmbeddedMediaLibraryPanel";
@@ -21,6 +25,8 @@ type CharacterPanelSplitHostProps = {
   onSelectedCharacterIdChange?: (characterId: string | null) => void;
   detailSelectionTarget?: SharedMediaDetailSelectionTarget | null;
   onDetailSelectionTargetChange?: (target: SharedMediaDetailSelectionTarget | null) => void;
+  onSnapshotVideoFrame?: SharedMediaDetailVideoSnapshotHandler;
+  onSnapshotVideoFrameError?: SharedMediaDetailVideoSnapshotErrorHandler;
 };
 
 const CHARACTER_PANEL_MIN_TOP_HEIGHT_PX = 336;
@@ -42,6 +48,8 @@ export function CharacterPanelSplitHost({
   onSelectedCharacterIdChange,
   detailSelectionTarget = null,
   onDetailSelectionTargetChange,
+  onSnapshotVideoFrame,
+  onSnapshotVideoFrameError,
 }: CharacterPanelSplitHostProps) {
   const bottomSectionStyle = React.useMemo<React.CSSProperties>(
     () => ({
@@ -77,6 +85,8 @@ export function CharacterPanelSplitHost({
           resolveInternalDropItem={resolveMediaLibraryInternalDropItem}
           detailSelectionTarget={detailSelectionTarget}
           onDetailSelectionTargetChange={onDetailSelectionTargetChange}
+          onSnapshotVideoFrame={onSnapshotVideoFrame}
+          onSnapshotVideoFrameError={onSnapshotVideoFrameError}
         />
       </div>
     </div>

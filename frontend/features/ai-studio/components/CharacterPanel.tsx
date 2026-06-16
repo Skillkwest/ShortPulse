@@ -4,7 +4,11 @@
  */
 import React from "react";
 import { CharacterPanelSplitHost } from "../../character-manager/components/CharacterPanelSplitHost";
-import type { SharedMediaDetailSelectionTarget } from "./detail-modal/detailModalPlatformTypes";
+import type {
+  SharedMediaDetailSelectionTarget,
+  SharedMediaDetailVideoSnapshotErrorHandler,
+  SharedMediaDetailVideoSnapshotHandler,
+} from "./detail-modal/detailModalPlatformTypes";
 import { useCharacterPanelPropertiesScrollLock } from "../hooks/useCharacterPanelPropertiesScrollLock";
 import type { ResolveCharacterDropReference } from "../../character-manager/hooks/useCharacterManagerDroppedReferenceController";
 import type { CharacterPanelUploadRequest } from "../../../lib/characterPanelUploadRequest";
@@ -25,6 +29,8 @@ type CharacterPanelProps = {
   onSelectedCharacterIdChange?: (characterId: string | null) => void;
   detailSelectionTarget?: SharedMediaDetailSelectionTarget | null;
   onDetailSelectionTargetChange?: (target: SharedMediaDetailSelectionTarget | null) => void;
+  onSnapshotVideoFrame?: SharedMediaDetailVideoSnapshotHandler;
+  onSnapshotVideoFrameError?: SharedMediaDetailVideoSnapshotErrorHandler;
 };
 
 const CHARACTER_PANEL_SIDE_GUTTER_REDUCTION_PX = 8;
@@ -47,6 +53,8 @@ export function CharacterPanel({
   onSelectedCharacterIdChange,
   detailSelectionTarget = null,
   onDetailSelectionTargetChange,
+  onSnapshotVideoFrame,
+  onSnapshotVideoFrameError,
 }: CharacterPanelProps) {
   const panelRootRef = React.useRef<HTMLDivElement | null>(null);
 
@@ -72,6 +80,8 @@ export function CharacterPanel({
         resolveMediaLibraryInternalDropItem={resolveMediaLibraryInternalDropItem}
         detailSelectionTarget={detailSelectionTarget}
         onDetailSelectionTargetChange={onDetailSelectionTargetChange}
+        onSnapshotVideoFrame={onSnapshotVideoFrame}
+        onSnapshotVideoFrameError={onSnapshotVideoFrameError}
       />
     </div>
   );

@@ -102,6 +102,13 @@ export type SharedMediaDetailActionItem = {
   className?: string;
 };
 
+export type SharedMediaDetailVideoSnapshotHandler = (
+  video: HTMLVideoElement,
+  filenameHint?: string | null
+) => void | Promise<void>;
+
+export type SharedMediaDetailVideoSnapshotErrorHandler = (message: string) => void;
+
 export type SharedMediaDetailSaveActionState =
   | "hidden"
   | "idle"

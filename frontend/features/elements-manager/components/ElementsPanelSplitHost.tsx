@@ -1,6 +1,10 @@
 import React from "react";
 import { ElementsEmbeddedMediaLibraryPanel } from "../../ai-studio/components/ElementsEmbeddedMediaLibraryPanel";
-import type { SharedMediaDetailSelectionTarget } from "../../ai-studio/components/detail-modal/detailModalPlatformTypes";
+import type {
+  SharedMediaDetailSelectionTarget,
+  SharedMediaDetailVideoSnapshotErrorHandler,
+  SharedMediaDetailVideoSnapshotHandler,
+} from "../../ai-studio/components/detail-modal/detailModalPlatformTypes";
 import type { ResolveInternalReferenceDrop } from "../../ai-studio/logic/referenceSource/internalReferenceSource";
 import type { InternalReferenceDragPayload } from "../../ai-studio/utils/dragDrop";
 import { ElementsManagerShell } from "./ElementsManagerShell";
@@ -15,6 +19,8 @@ type ElementsPanelSplitHostProps = {
   externalCreateRequestKey?: number;
   detailSelectionTarget?: SharedMediaDetailSelectionTarget | null;
   onDetailSelectionTargetChange?: (target: SharedMediaDetailSelectionTarget | null) => void;
+  onSnapshotVideoFrame?: SharedMediaDetailVideoSnapshotHandler;
+  onSnapshotVideoFrameError?: SharedMediaDetailVideoSnapshotErrorHandler;
 };
 
 const ELEMENTS_PANEL_MIN_TOP_HEIGHT_PX = 336;
@@ -31,6 +37,8 @@ export function ElementsPanelSplitHost({
   externalCreateRequestKey = 0,
   detailSelectionTarget = null,
   onDetailSelectionTargetChange,
+  onSnapshotVideoFrame,
+  onSnapshotVideoFrameError,
 }: ElementsPanelSplitHostProps) {
   const bottomSectionStyle = React.useMemo<React.CSSProperties>(
     () => ({
@@ -62,6 +70,8 @@ export function ElementsPanelSplitHost({
           resolveInternalDropItem={resolveMediaLibraryInternalDropItem}
           detailSelectionTarget={detailSelectionTarget}
           onDetailSelectionTargetChange={onDetailSelectionTargetChange}
+          onSnapshotVideoFrame={onSnapshotVideoFrame}
+          onSnapshotVideoFrameError={onSnapshotVideoFrameError}
         />
       </div>
     </div>

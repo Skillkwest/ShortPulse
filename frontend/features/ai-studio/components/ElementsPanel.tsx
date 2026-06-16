@@ -4,7 +4,11 @@
  */
 import React from "react";
 import { ElementsPanelSplitHost } from "../../elements-manager/components/ElementsPanelSplitHost";
-import type { SharedMediaDetailSelectionTarget } from "./detail-modal/detailModalPlatformTypes";
+import type {
+  SharedMediaDetailSelectionTarget,
+  SharedMediaDetailVideoSnapshotErrorHandler,
+  SharedMediaDetailVideoSnapshotHandler,
+} from "./detail-modal/detailModalPlatformTypes";
 import { useElementsPanelPropertiesScrollLock } from "../hooks/useElementsPanelPropertiesScrollLock";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
 import type { InternalReferenceDragPayload } from "../utils/dragDrop";
@@ -19,6 +23,8 @@ type ElementsPanelProps = {
   projectId?: string | null;
   detailSelectionTarget?: SharedMediaDetailSelectionTarget | null;
   onDetailSelectionTargetChange?: (target: SharedMediaDetailSelectionTarget | null) => void;
+  onSnapshotVideoFrame?: SharedMediaDetailVideoSnapshotHandler;
+  onSnapshotVideoFrameError?: SharedMediaDetailVideoSnapshotErrorHandler;
 };
 
 const ELEMENTS_PANEL_SIDE_GUTTER_REDUCTION_PX = 8;
@@ -36,6 +42,8 @@ export function ElementsPanel({
   projectId = null,
   detailSelectionTarget = null,
   onDetailSelectionTargetChange,
+  onSnapshotVideoFrame,
+  onSnapshotVideoFrameError,
 }: ElementsPanelProps) {
   const panelRootRef = React.useRef<HTMLDivElement | null>(null);
 
@@ -56,6 +64,8 @@ export function ElementsPanel({
         resolveProfileImageDropSource={resolveProfileImageDropSource}
         detailSelectionTarget={detailSelectionTarget}
         onDetailSelectionTargetChange={onDetailSelectionTargetChange}
+        onSnapshotVideoFrame={onSnapshotVideoFrame}
+        onSnapshotVideoFrameError={onSnapshotVideoFrameError}
       />
     </div>
   );

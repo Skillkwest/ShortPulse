@@ -1,6 +1,13 @@
 import React from "react";
+import { Camera } from "phosphor-react";
 import { isSupabaseRenderImageUrl } from "../../../../lib/mediaPreviewTrustPolicy";
-import type { SharedMediaDetailItemBase } from "./detailModalPlatformTypes";
+import type {
+  SharedMediaDetailActionItem,
+  SharedMediaDetailItemBase,
+  SharedMediaDetailVideoSnapshotErrorHandler,
+  SharedMediaDetailVideoSnapshotHandler,
+} from "./detailModalPlatformTypes";
+import { SharedMediaDetailActionBar } from "./SharedMediaDetailActionBar";
 import { SharedMediaDetailContentLayout } from "./SharedMediaDetailContentLayout";
 import { SharedMediaDetailInfoPanel } from "./SharedMediaDetailInfoPanel";
 import { SharedMediaDetailModalShell } from "./SharedMediaDetailModalShell";
@@ -14,12 +21,79 @@ import {
 } from "./sharedMediaDetailPresentation";
 import { useExclusiveSoundMediaElement } from "../shared/exclusiveSoundPlayback";
 
+type SharedMediaDetailVideoSnapshotActionProps = {
+  item: SharedMediaDetailItemBase;
+  title: string;
+  videoRef: React.RefObject<HTMLVideoElement>;
+  onSnapshotVideoFrame?: SharedMediaDetailVideoSnapshotHandler;
+  onSnapshotVideoFrameError?: SharedMediaDetailVideoSnapshotErrorHandler;
+};
+
+function SharedMediaDetailVideoSnapshotAction({
+  item,
+  title,
+  videoRef,
+  onSnapshotVideoFrame,
+  onSnapshotVideoFrameError,
+}: SharedMediaDetailVideoSnapshotActionProps) {
+  const [isSnapshotCapturing, setIsSnapshotCapturing] = React.useState(false);
+  const handleSnapshotVideoFrame = React.useCallback(() => {
+    if (!onSnapshotVideoFrame || isSnapshotCapturing) return;
+    const video = videoRef.current;
+    if (!video) {
+      onSnapshotVideoFrameError?.("Video frame is not ready yet.");
+      return;
+    }
+    setIsSnapshotCapturing(true);
+    void Promise.resolve(onSnapshotVideoFrame(video, item.media.filename ?? title))
+      .catch((error) => {
+        onSnapshotVideoFrameError?.(
+          error instanceof Error && error.message.trim()
+            ? error.message.trim()
+            : "Unable to capture that video frame."
+        );
+      })
+      .finally(() => {
+        setIsSnapshotCapturing(false);
+      });
+  }, [
+    isSnapshotCapturing,
+    item.media.filename,
+    onSnapshotVideoFrame,
+    onSnapshotVideoFrameError,
+    title,
+    videoRef,
+  ]);
+
+  if (item.media.kind !== "video" || !onSnapshotVideoFrame) return null;
+
+  return (
+    <SharedMediaDetailActionBar
+      items={[
+        {
+          id: "snapshot-video-frame",
+          label: "",
+          onClick: handleSnapshotVideoFrame,
+          ariaLabel: "Snapshot frame",
+          title: "Snapshot frame",
+          disabled: isSnapshotCapturing,
+          icon: <Camera size={16} weight="bold" aria-hidden />,
+          className: "is-icon-only",
+        },
+      ]}
+    />
+  );
+}
+
 type SharedMediaDetailPreviewModalProps = {
   item: SharedMediaDetailItemBase | null;
   isLoading?: boolean;
   error?: string | null;
   onClose: () => void;
   onPreviewError?: (item: SharedMediaDetailItemBase, failedUrl: string) => void;
+  onSnapshotVideoFrame?: SharedMediaDetailVideoSnapshotHandler;
+  onSnapshotVideoFrameError?: SharedMediaDetailVideoSnapshotErrorHandler;
+  topBarActionItems?: SharedMediaDetailActionItem[];
   topBarActions?: React.ReactNode;
   modalActivityId?: string;
   ariaLabelPrefix?: string;
@@ -46,6 +120,9 @@ export function SharedMediaDetailPreviewModal({
   error = null,
   onClose,
   onPreviewError,
+  onSnapshotVideoFrame,
+  onSnapshotVideoFrameError,
+  topBarActionItems = [],
   topBarActions = null,
   modalActivityId = "shared-media-detail-preview-modal",
   ariaLabelPrefix = "Preview",
@@ -136,7 +213,22 @@ export function SharedMediaDetailPreviewModal({
             title={title}
             items={item ? resolveSharedMediaDetailTopBarItems(item) : []}
             centerTitle={isExternalUpload}
-            actions={topBarActions}
+            actions={
+              <>
+                <SharedMediaDetailVideoSnapshotAction
+                  item={item}
+                  title={title}
+                  videoRef={videoRef}
+                  onSnapshotVideoFrame={onSnapshotVideoFrame}
+                  onSnapshotVideoFrameError={onSnapshotVideoFrameError}
+                />
+                {topBarActionItems.length > 0 ? (
+                  <SharedMediaDetailActionBar items={topBarActionItems} />
+                ) : (
+                  topBarActions
+                )}
+              </>
+            }
             onClose={onClose}
             closeLabel={closeLabel}
           />

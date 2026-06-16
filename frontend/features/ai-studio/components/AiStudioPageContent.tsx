@@ -34,7 +34,11 @@ import type {
   VoicesPropertiesPanelProps,
 } from "./VoicesPropertiesPanel";
 import type { ResolveVoiceChangerInternalReferenceSource } from "./VoiceChangerSourceDropzone";
-import type { SharedMediaDetailSelectionTarget } from "./detail-modal/detailModalPlatformTypes";
+import type {
+  SharedMediaDetailSelectionTarget,
+  SharedMediaDetailVideoSnapshotErrorHandler,
+  SharedMediaDetailVideoSnapshotHandler,
+} from "./detail-modal/detailModalPlatformTypes";
 import { useAiStudioShellResize } from "../hooks/useAiStudioShellResize";
 import { useAiStudioShellDndController } from "../hooks/useAiStudioShellDndController";
 import { useAiStudioStylesRuntime } from "../hooks/useAiStudioStylesRuntime";
@@ -687,6 +691,8 @@ export type AiStudioPageContentProps = {
   onDeleteOutput: (id: string) => void;
   onDetailDownload?: (id: string) => void;
   onDetailSaveReference?: (id: string) => void;
+  onSnapshotVideoFrame?: SharedMediaDetailVideoSnapshotHandler;
+  onSnapshotVideoFrameError?: SharedMediaDetailVideoSnapshotErrorHandler;
   onDetailReloadWorkflow?: (
     output: StudioOutput,
     options?: { mediaKindHint?: WorkflowReloadMediaKindHint | null }
@@ -783,6 +789,8 @@ export function AiStudioPageContent({
   onDeleteOutput,
   onDetailDownload,
   onDetailSaveReference,
+  onSnapshotVideoFrame,
+  onSnapshotVideoFrameError,
   onDetailReloadWorkflow,
   onMediaLibraryReloadWorkflow,
   onDetailSavePrompt,
@@ -1412,6 +1420,8 @@ export function AiStudioPageContent({
           resolveMediaLibraryInternalDropItem={resolveMediaLibraryInternalDropItem}
           detailSelectionTarget={mediaLibraryDetailSelectionTarget}
           onDetailSelectionTargetChange={onMediaLibraryDetailSelectionTargetChange}
+          onSnapshotVideoFrame={onSnapshotVideoFrame}
+          onSnapshotVideoFrameError={onSnapshotVideoFrameError}
         />
       </React.Suspense>
     ),
@@ -1423,6 +1433,8 @@ export function AiStudioPageContent({
       pendingCharacterUploadRequest,
       mediaLibraryDetailSelectionTarget,
       onMediaLibraryDetailSelectionTargetChange,
+      onSnapshotVideoFrame,
+      onSnapshotVideoFrameError,
       projectId,
       projectRouteRequested,
       resolveCharacterDropReference,
@@ -1460,6 +1472,8 @@ export function AiStudioPageContent({
           resolveProfileImageDropSource={resolveElementProfileImageDropSource}
           detailSelectionTarget={mediaLibraryDetailSelectionTarget}
           onDetailSelectionTargetChange={onMediaLibraryDetailSelectionTargetChange}
+          onSnapshotVideoFrame={onSnapshotVideoFrame}
+          onSnapshotVideoFrameError={onSnapshotVideoFrameError}
         />
       </React.Suspense>
     ),
@@ -1467,6 +1481,8 @@ export function AiStudioPageContent({
       elementCreateRequestKey,
       mediaLibraryDetailSelectionTarget,
       onMediaLibraryDetailSelectionTargetChange,
+      onSnapshotVideoFrame,
+      onSnapshotVideoFrameError,
       projectId,
       resolveElementProfileImageDropSource,
       resolveMediaLibraryInternalDropItem,
@@ -1517,6 +1533,8 @@ export function AiStudioPageContent({
             resolveInternalDropItem={resolveMediaLibraryInternalDropItem}
             onDeleteMediaRowsFromWorkspace={onDeleteMediaRowsFromWorkspace}
             onReloadWorkflowFromMedia={onMediaLibraryReloadWorkflow}
+            onSnapshotVideoFrame={onSnapshotVideoFrame}
+            onSnapshotVideoFrameError={onSnapshotVideoFrameError}
             detailSelectionTarget={mediaLibraryDetailSelectionTarget}
             onDetailSelectionTargetChange={onMediaLibraryDetailSelectionTargetChange}
           />
@@ -1529,6 +1547,8 @@ export function AiStudioPageContent({
       onAddLibraryPromptReference,
       onDeleteMediaRowsFromWorkspace,
       onMediaLibraryReloadWorkflow,
+      onSnapshotVideoFrame,
+      onSnapshotVideoFrameError,
       mediaLibraryDetailSelectionTarget,
       onMediaLibraryDetailSelectionTargetChange,
       projectId,
@@ -1859,6 +1879,8 @@ export function AiStudioPageContent({
         onDeleteOutput={onDeleteOutput}
         onDownloadReference={onDetailDownload}
         onSaveReference={onDetailSaveReference}
+        onSnapshotVideoFrame={onSnapshotVideoFrame}
+        onSnapshotVideoFrameError={onSnapshotVideoFrameError}
         onReloadWorkflowReference={onDetailReloadWorkflow}
         onSavePrompt={onDetailSavePrompt}
         refreshCharacterOptions={refreshCharacterOptions}
@@ -1867,6 +1889,8 @@ export function AiStudioPageContent({
       <SharedMediaDetailPreviewModal
         item={sharedDetailModalItem}
         onClose={onDetailClose}
+        onSnapshotVideoFrame={onSnapshotVideoFrame}
+        onSnapshotVideoFrameError={onSnapshotVideoFrameError}
         modalActivityId="ai-studio-shared-detail-preview-modal"
         backdropDataTestId="ai-studio-shared-detail-preview-backdrop"
         closeLabel="Close media detail"

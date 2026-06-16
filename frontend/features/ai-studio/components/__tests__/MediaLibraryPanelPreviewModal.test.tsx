@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { MediaFileRow } from "../../logic/mediaLibraryModalModel";
 import { createMediaLibraryDetailModalItem } from "../../logic/mediaLibraryDetailModal";
@@ -436,6 +436,59 @@ describe("MediaLibraryPanelPreviewModal", () => {
 
     expect(onDownloadItem).toHaveBeenCalledWith(item);
     expect(onDeleteItem).toHaveBeenCalledWith(item);
+  });
+
+  it("shows Snapshot only for video library details and passes the preview video element", async () => {
+    const onSnapshotVideoFrame = vi.fn();
+    const videoFile: MediaFileRow = {
+      id: "video-1",
+      filename: "clip.mp4",
+      storage_path: "user-1/uploads/clip.mp4",
+      preview_storage_path: "user-1/uploads/clip.mp4",
+      file_type: "video/mp4",
+      signedUrl: "https://cdn.example.com/clip.mp4",
+    };
+    const imageFile: MediaFileRow = {
+      id: "image-1",
+      filename: "portrait.png",
+      storage_path: "user-1/uploads/portrait.png",
+      preview_storage_path: "user-1/uploads/thumb-portrait.png",
+      file_type: "image/png",
+      signedUrl: "https://cdn.example.com/thumb-portrait.png",
+    };
+    const videoItem = createPreviewItem(videoFile, "https://cdn.example.com/clip.mp4");
+    const { rerender } = render(
+      <MediaLibraryPanelPreviewModal
+        item={videoItem}
+        isLoading={false}
+        error={null}
+        onClose={vi.fn()}
+        onSnapshotVideoFrame={onSnapshotVideoFrame}
+      />
+    );
+
+    const snapshotButton = screen.getByRole("button", { name: "Snapshot frame" });
+    await act(async () => {
+      fireEvent.click(snapshotButton);
+    });
+
+    const video = document.querySelector(
+      "video.media-library-panel-preview-media"
+    ) as HTMLVideoElement | null;
+    expect(video).not.toBeNull();
+    expect(onSnapshotVideoFrame).toHaveBeenCalledWith(video, "clip.mp4");
+
+    rerender(
+      <MediaLibraryPanelPreviewModal
+        item={createPreviewItem(imageFile, "https://cdn.example.com/thumb-portrait.png")}
+        isLoading={false}
+        error={null}
+        onClose={vi.fn()}
+        onSnapshotVideoFrame={onSnapshotVideoFrame}
+      />
+    );
+
+    expect(screen.queryByRole("button", { name: "Snapshot frame" })).toBeNull();
   });
 
   it("hides the prompt blade for uploaded library files and keeps the filename in the header", () => {

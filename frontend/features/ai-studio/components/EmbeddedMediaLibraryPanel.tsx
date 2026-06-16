@@ -62,7 +62,11 @@ import { MediaLibraryMediaGrid } from "./media-library-modal/MediaLibraryMediaGr
 import { MediaLibraryPanelPreviewModal } from "./media-library-modal/MediaLibraryPanelPreviewModal";
 import { MediaLibraryPromptGrid } from "./media-library-modal/MediaLibraryPromptGrid";
 import { useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
-import type { SharedMediaDetailSelectionTarget } from "./detail-modal/detailModalPlatformTypes";
+import type {
+  SharedMediaDetailSelectionTarget,
+  SharedMediaDetailVideoSnapshotErrorHandler,
+  SharedMediaDetailVideoSnapshotHandler,
+} from "./detail-modal/detailModalPlatformTypes";
 import type { InternalReferenceDragPayload } from "../utils/dragDrop";
 import type { StudioOutput, WorkflowReloadMediaKindHint } from "../types";
 
@@ -89,6 +93,8 @@ type EmbeddedMediaLibraryPanelProps = {
     output: StudioOutput,
     options?: { mediaKindHint?: WorkflowReloadMediaKindHint | null }
   ) => void;
+  onSnapshotVideoFrame?: SharedMediaDetailVideoSnapshotHandler;
+  onSnapshotVideoFrameError?: SharedMediaDetailVideoSnapshotErrorHandler;
   detailSelectionTarget?: SharedMediaDetailSelectionTarget | null;
   onDetailSelectionTargetChange?: (target: SharedMediaDetailSelectionTarget | null) => void;
 };
@@ -115,6 +121,8 @@ export function EmbeddedMediaLibraryPanel({
   onSelectMedia,
   onDeleteMediaRowsFromWorkspace,
   onReloadWorkflowFromMedia,
+  onSnapshotVideoFrame,
+  onSnapshotVideoFrameError,
   detailSelectionTarget = null,
   onDetailSelectionTargetChange,
 }: EmbeddedMediaLibraryPanelProps) {
@@ -1085,6 +1093,8 @@ export function EmbeddedMediaLibraryPanel({
         error={detailModalError}
         onClose={closeDetailModal}
         onPreviewError={handleDetailModalMediaError}
+        onSnapshotVideoFrame={onSnapshotVideoFrame}
+        onSnapshotVideoFrameError={onSnapshotVideoFrameError}
         onDownloadItem={(item) => {
           handleDownloadMediaFile(item.file);
         }}

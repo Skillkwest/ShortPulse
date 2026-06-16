@@ -3,7 +3,7 @@
  * Supports prompt-only view and media preview with metadata.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FlowArrow, TrashSimple } from "phosphor-react";
+import { Camera, FlowArrow, TrashSimple } from "phosphor-react";
 import {
   asCanonicalStoragePath,
   logAdaptiveDetailFullQualityUsed,
@@ -49,6 +49,8 @@ import { resolveSharedMediaDetailMediaActionItems } from "./detail-modal/sharedM
 import { SharedMediaDetailTopBar } from "./detail-modal/SharedMediaDetailTopBar";
 import type {
   SharedMediaDetailActionItem,
+  SharedMediaDetailVideoSnapshotErrorHandler,
+  SharedMediaDetailVideoSnapshotHandler,
   SharedMediaDetailTopBarItem,
 } from "./detail-modal/detailModalPlatformTypes";
 import {
@@ -66,6 +68,8 @@ type DetailModalProps = {
   onDeleteOutput: (id: string) => void;
   onDownloadReference?: (id: string) => void;
   onSaveReference?: (id: string) => void;
+  onSnapshotVideoFrame?: SharedMediaDetailVideoSnapshotHandler;
+  onSnapshotVideoFrameError?: SharedMediaDetailVideoSnapshotErrorHandler;
   onReloadWorkflowReference?: (
     output: StudioOutput,
     options?: { mediaKindHint?: WorkflowReloadMediaKindHint | null }
@@ -94,6 +98,8 @@ export function DetailModal({
   onDeleteOutput,
   onDownloadReference,
   onSaveReference,
+  onSnapshotVideoFrame,
+  onSnapshotVideoFrameError,
   onReloadWorkflowReference,
   isMediaStorageFull = false,
   onSavePrompt,
@@ -111,6 +117,8 @@ export function DetailModal({
       onDeleteOutput={onDeleteOutput}
       onDownloadReference={onDownloadReference}
       onSaveReference={onSaveReference}
+      onSnapshotVideoFrame={onSnapshotVideoFrame}
+      onSnapshotVideoFrameError={onSnapshotVideoFrameError}
       onReloadWorkflowReference={onReloadWorkflowReference}
       isMediaStorageFull={isMediaStorageFull}
       onSavePrompt={onSavePrompt}
@@ -183,6 +191,8 @@ function DetailModalContent({
   onDeleteOutput,
   onDownloadReference,
   onSaveReference,
+  onSnapshotVideoFrame,
+  onSnapshotVideoFrameError,
   onReloadWorkflowReference,
   isMediaStorageFull = false,
   onSavePrompt,
@@ -215,6 +225,7 @@ function DetailModalContent({
   const [draftPromptsById, setDraftPromptsById] = useState<Record<string, string>>({});
   const [promptOnlySavedOutputId, setPromptOnlySavedOutputId] = useState<string | null>(null);
   const [promptLibrarySavedOutputId, setPromptLibrarySavedOutputId] = useState<string | null>(null);
+  const [isSnapshotCapturing, setIsSnapshotCapturing] = useState(false);
   const [loadedPreviewAspect, setLoadedPreviewAspect] = useState<{
     outputId: string;
     url: string;
@@ -1235,6 +1246,34 @@ function DetailModalContent({
     if (!outputId || !onSaveReference || isMediaSaveDisabled) return;
     onSaveReference(outputId);
   }, [isMediaSaveDisabled, onSaveReference, outputId]);
+
+  const handleSnapshotVideoFrame = useCallback(() => {
+    if (!onSnapshotVideoFrame || isSnapshotCapturing) return;
+    const video = videoPreviewRef.current;
+    if (!video) {
+      onSnapshotVideoFrameError?.("Video frame is not ready yet.");
+      return;
+    }
+    setIsSnapshotCapturing(true);
+    void Promise.resolve(onSnapshotVideoFrame(video, displayPromptText || output.id))
+      .catch((error) => {
+        onSnapshotVideoFrameError?.(
+          error instanceof Error && error.message.trim()
+            ? error.message.trim()
+            : "Unable to capture that video frame."
+        );
+      })
+      .finally(() => {
+        setIsSnapshotCapturing(false);
+      });
+  }, [
+    displayPromptText,
+    isSnapshotCapturing,
+    onSnapshotVideoFrame,
+    onSnapshotVideoFrameError,
+    output.id,
+  ]);
+
   const handleReloadWorkflowReference = useCallback(() => {
     if (!onReloadWorkflowReference) return;
     onReloadWorkflowReference(output, { mediaKindHint: workflowReloadMediaKindHint });
@@ -1430,6 +1469,20 @@ function DetailModalContent({
             },
           ]
         : []),
+      ...(detailPreviewKind === "video" && onSnapshotVideoFrame
+        ? [
+            {
+              id: "snapshot-video-frame",
+              label: "",
+              onClick: handleSnapshotVideoFrame,
+              ariaLabel: "Snapshot frame",
+              title: "Snapshot frame",
+              disabled: isSnapshotCapturing,
+              icon: <Camera size={16} weight="bold" aria-hidden />,
+              className: "is-icon-only",
+            },
+          ]
+        : []),
       ...resolveSharedMediaDetailMediaActionItems({
         saveState: isMediaSaveButtonVisible ? mediaSaveState : "hidden",
         isStorageFull: isMediaStorageFull,
@@ -1443,14 +1496,18 @@ function DetailModalContent({
     ],
     [
       canDownloadReferenceMedia,
+      detailPreviewKind,
       displayPreviewUrl,
       handleDownload,
       handleReloadWorkflowReference,
       handleRequestDelete,
       handleSaveMediaReference,
+      handleSnapshotVideoFrame,
       isMediaSaveButtonVisible,
       isMediaStorageFull,
       mediaSaveState,
+      isSnapshotCapturing,
+      onSnapshotVideoFrame,
       shouldShowWorkflowReloadAction,
     ]
   );

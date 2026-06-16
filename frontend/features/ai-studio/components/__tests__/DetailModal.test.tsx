@@ -3,7 +3,7 @@
  * Verifies character attribution rendering for character-mode generated outputs.
  */
 import { useState, type ComponentProps } from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { DetailModal } from "../DetailModal";
 import { ReferenceGridCard } from "../../reference-grid/components/ReferenceGridCard";
@@ -461,6 +461,45 @@ describe("DetailModal", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(onSaveReference).toHaveBeenCalledWith("out-1");
+  });
+
+  it("shows Snapshot only for video details and passes the current video element", async () => {
+    const onSnapshotVideoFrame = vi.fn();
+    const { rerender, baseElement } = render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          mode: "video",
+          previewUrl: "https://cdn.test/clip.mp4",
+          mimeType: "video/mp4",
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+        onSnapshotVideoFrame={onSnapshotVideoFrame}
+      />
+    );
+
+    const snapshotButton = screen.getByRole("button", { name: "Snapshot frame" });
+    await act(async () => {
+      fireEvent.click(snapshotButton);
+    });
+
+    const video = baseElement.querySelector("video.art-hero-image") as HTMLVideoElement | null;
+    expect(video).not.toBeNull();
+    expect(onSnapshotVideoFrame).toHaveBeenCalledWith(video, baseOutput.prompt);
+
+    rerender(
+      <DetailModal
+        output={baseOutput}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+        onSnapshotVideoFrame={onSnapshotVideoFrame}
+      />
+    );
+
+    expect(screen.queryByRole("button", { name: "Snapshot frame" })).toBeNull();
   });
 
   it("shows workflow reload in media details only for restorable generated outputs", () => {

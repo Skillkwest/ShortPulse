@@ -210,6 +210,7 @@ Current set:
 - `157_add_generation_projection_error_payload.sql`
 - `158_disable_signup_seed_credit_grants.sql`
 - `159_repair_historical_generation_project_convergence.sql`
+- `160_repair_global_media_library_visibility.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 

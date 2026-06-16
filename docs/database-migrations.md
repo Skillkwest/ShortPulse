@@ -277,6 +277,8 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 155.  `sql/migrations/156_add_user_preferences_deleted_builtin_presets.sql`
 156.  `sql/migrations/157_add_generation_projection_error_payload.sql`
 157.  `sql/migrations/158_disable_signup_seed_credit_grants.sql`
+158.  `sql/migrations/159_repair_historical_generation_project_convergence.sql`
+159.  `sql/migrations/160_repair_global_media_library_visibility.sql`
       Rollback files:
 
 
@@ -466,6 +468,7 @@ Billing safety note:
 - Migration `145_add_project_output_display_items.sql` adds large-project output display records plus checkpoint revision freshness support for project workspace snapshots, backfills display rows from existing rich project snapshots, and adds a display-row trigger that preserves newest-source writes while keeping per-output versions monotonic.
 - Migration `146_harden_control_plane_scheduler_timeouts.sql` hardens the recovery and admin-fleet Supabase scheduler HTTP calls with explicit `60000ms` timeouts and restores the missing `service_role` execute grant for `create_agent_safety_policy_version(...)`.
 - Migration `147_add_plan_concurrency_entitlements.sql` adds versioned plan concurrency entitlements to billing offers and subscriber contracts, seeds the `starter/media/studio/business` `1/2/4/8` active-generation ladder, and sets non-public baseline fallback generation concurrency to `0`.
+- Migration `160_repair_global_media_library_visibility.sql` repairs hosted All Media completeness with a temp-table-free durable storage backfill, including first-class audio storage classes, so production pooler behavior cannot strand global Media Library rows.
 - Read-only performance diagnostics script `sql/check_media_preview_variant_coverage_and_size.sql` reports source-class counts, variant-hint coverage, and p50/p90 size distributions for Media Library preview-risk triage.
 - Read-only derivative backlog diagnostics script `sql/check_media_derivative_processing_backlog.sql` reports image-row processing status/attempt distributions and top retry/exhausted candidates.
 - Read-only Character Media V2 diagnostics script `sql/check_character_media_isolation_backfill.sql` reports `character_media_assets` coverage, unmapped legacy linkage rows, and profile/preset metadata completeness.

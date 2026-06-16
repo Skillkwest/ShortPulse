@@ -137,8 +137,10 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
    - `<uid>/private/images/*` -> `source=private_upload`, `file_type=image`
    - `<uid>/uploads/images/*` and legacy `<uid>/images/*` -> `source=upload`, `file_type=image`
    - `<uid>/uploads/videos/*` and legacy `<uid>/videos/*` -> `source=upload`, `file_type=video`
+   - `<uid>/uploads/audio/*` and legacy `<uid>/audio/*` -> `source=upload`, `file_type=audio`
    - `<uid>/generations/images/*` -> `source=ai_studio`, `file_type=image`
    - `<uid>/generations/videos/*` -> `source=ai_studio`, `file_type=video`
+   - `<uid>/generations/audio/*` -> `source=ai_studio`, `file_type=audio`
 3. Excluded classes:
    - transient provider-reference paths (`<uid>/images/reference/*`, `<uid>/videos/motion-control/*`)
    - character-managed paths (`<uid>/characters/*`)

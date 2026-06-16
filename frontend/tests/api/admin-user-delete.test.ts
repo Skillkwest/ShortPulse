@@ -19,11 +19,90 @@ vi.mock("../../lib/server/api/supabaseAdmin", () => ({
 
 const ADMIN_ID = "11111111-1111-4111-8111-111111111111";
 const USER_ID = "22222222-2222-4222-8222-222222222222";
+const FOOTPRINT_TABLES = [
+  "billing_subscription_contracts",
+  "ai_credit_ledger",
+  "ai_credit_reservations",
+  "ai_generations",
+  "media_files",
+  "projects",
+  "user_owned_custom_voices",
+];
 
 const createMockResponse = () => ({
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
 });
+
+const createSupabaseMock = ({
+  billingProfile = { stripe_customer_id: null, stripe_subscription_id: null },
+  creditBalance = { balance_cents: 0 },
+  footprintCounts = {},
+  storageObjects = [],
+}: {
+  billingProfile?: { stripe_customer_id: string | null; stripe_subscription_id: string | null };
+  creditBalance?: { balance_cents: number };
+  footprintCounts?: Partial<Record<string, number>>;
+  storageObjects?: unknown[];
+} = {}) => {
+  const getUserById = vi.fn().mockResolvedValue({
+    data: { user: { id: USER_ID, email: "target@example.com" } },
+    error: null,
+  });
+  const deleteUser = vi.fn().mockResolvedValue({ data: { user: null }, error: null });
+
+  const from = vi.fn((table: string) => {
+    if (table === "billing_profiles") {
+      return {
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({ data: billingProfile, error: null }),
+          }),
+        }),
+      };
+    }
+
+    if (table === "ai_credit_balance") {
+      return {
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({ data: creditBalance, error: null }),
+          }),
+        }),
+      };
+    }
+
+    if (FOOTPRINT_TABLES.includes(table)) {
+      return {
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({
+            count: footprintCounts[table] ?? 0,
+            error: null,
+          }),
+        }),
+      };
+    }
+
+    throw new Error(`Unexpected table ${table}`);
+  });
+
+  return {
+    auth: {
+      admin: {
+        getUserById,
+        deleteUser,
+      },
+    },
+    from,
+    storage: {
+      from: vi.fn().mockReturnValue({
+        list: vi.fn().mockResolvedValue({ data: storageObjects, error: null }),
+      }),
+    },
+    getUserById,
+    deleteUser,
+  };
+};
 
 describe("DELETE /api/admin/users/[userId]", () => {
   beforeEach(() => {
@@ -79,20 +158,8 @@ describe("DELETE /api/admin/users/[userId]", () => {
   });
 
   it("deletes the user when the confirmation text matches", async () => {
-    const getUserById = vi.fn().mockResolvedValue({
-      data: { user: { id: USER_ID, email: "target@example.com" } },
-      error: null,
-    });
-    const deleteUser = vi.fn().mockResolvedValue({ data: { user: null }, error: null });
-
-    getSupabaseAdminMock.mockReturnValue({
-      auth: {
-        admin: {
-          getUserById,
-          deleteUser,
-        },
-      },
-    });
+    const supabaseMock = createSupabaseMock();
+    getSupabaseAdminMock.mockReturnValue(supabaseMock);
 
     const req = {
       method: "DELETE",
@@ -102,13 +169,45 @@ describe("DELETE /api/admin/users/[userId]", () => {
     const res = createMockResponse();
     await handler(req as never, res as never);
 
-    expect(getUserById).toHaveBeenCalledWith(USER_ID);
-    expect(deleteUser).toHaveBeenCalledWith(USER_ID, false);
+    expect(supabaseMock.getUserById).toHaveBeenCalledWith(USER_ID);
+    expect(supabaseMock.deleteUser).toHaveBeenCalledWith(USER_ID, false);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       ok: true,
       userId: USER_ID,
       email: "target@example.com",
+    });
+  });
+
+  it("blocks deletion while account-owned billing or media footprint remains", async () => {
+    const supabaseMock = createSupabaseMock({
+      billingProfile: {
+        stripe_customer_id: "cus_test_123",
+        stripe_subscription_id: null,
+      },
+      footprintCounts: {
+        media_files: 1,
+      },
+    });
+    getSupabaseAdminMock.mockReturnValue(supabaseMock);
+
+    const req = {
+      method: "DELETE",
+      query: { userId: USER_ID },
+      body: { confirmationText: "target@example.com" },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(supabaseMock.deleteUser).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({
+      error:
+        "User deletion blocked until billing, credits, media, projects, voices, and storage are reviewed.",
+      blockers: expect.arrayContaining([
+        "Stripe-linked billing profile exists",
+        "media rows exist",
+      ]),
     });
   });
 });

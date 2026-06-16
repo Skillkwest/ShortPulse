@@ -81,7 +81,7 @@ Rules:
 - Use `vercel env pull frontend/.env.local --environment development` to materialize local runtime values after the repo is linked.
 - Do not treat `frontend/.env.local`, `.env.agent.local`, `/tmp` exports, or ad-hoc text snapshots as authoritative for deployed values.
 - Current active posture is the lean Fal direct-submit path. Do not add deprecated pre-provider queue env overrides such as `SHORTPULSE_FAL_QUEUE_ENABLED` back into active Vercel environments. Reconciler and admission settings should only govern accepted-job recovery and overload control.
-- Keep tooling-only keys out of Vercel project envs. This includes staging probe helpers and Vercel operator tokens such as `SHORTPULSE_STAGING_BASE_URL`, `SHORTPULSE_STAGING_BEARER_TOKEN`, `SHORTPULSE_VERCEL_API_TOKEN`, `SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN`, `VERCEL_API_TOKEN`, and `VERCEL_AUTOMATION_BYPASS_TOKEN`.
+- Keep tooling-only keys out of Vercel project envs. This includes staging probe helpers, Vercel operator tokens, and Supabase Management API tokens such as `SHORTPULSE_STAGING_BASE_URL`, `SHORTPULSE_STAGING_BEARER_TOKEN`, `SHORTPULSE_VERCEL_API_TOKEN`, `SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN`, `VERCEL_API_TOKEN`, `VERCEL_AUTOMATION_BYPASS_TOKEN`, `SUPABASE_ACCESS_TOKEN`, and `SUPABASE_MANAGEMENT_API_TOKEN`.
 - Environment-specific deploy keys such as `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `APP_BASE_URL`, and `SHORTPULSE_PUBLIC_API_BASE_URL` must not be stored as one shared Vercel record spanning `development`, `preview`, and `production`.
 
 Set these in Vercel project settings (`Development`, `Preview`, and `Production`

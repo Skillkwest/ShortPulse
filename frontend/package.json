@@ -40,6 +40,7 @@
     "billing:contracts:verify": "cd .. && npx tsx scripts/verify_billing_contracts_against_stripe.ts",
     "billing:launch-readiness": "cd .. && node scripts/check_billing_launch_readiness.mjs",
     "auth:signup-config": "cd .. && node scripts/check_supabase_auth_signup_config.mjs",
+    "auth:audit-non-stripe-accounts": "cd .. && node scripts/audit_non_stripe_auth_accounts.mjs",
     "phase12:execution-gate": "cd .. && node scripts/phase12_execution_gate.mjs",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   SHORTPULSE_PRODUCTION_APP_ORIGIN,
+  validateGuardedVercelFlag,
   validatePublicOriginPair,
   validateDeployedPublicOrigin,
 } from "../../../scripts/lib/vercel_env_contract.mjs";
@@ -46,5 +47,27 @@ describe("vercel env contract public origin validation", () => {
     ).toContain(
       "APP_BASE_URL and SHORTPULSE_PUBLIC_API_BASE_URL must match for production when both are configured."
     );
+  });
+
+  it("rejects production public signup being explicitly enabled", () => {
+    expect(
+      validateGuardedVercelFlag({
+        environment: "production",
+        key: "NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED",
+        value: "true",
+      })
+    ).toContain(
+      "NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED must not resolve to true in production because public signup must remain closed during the pre-launch production window."
+    );
+  });
+
+  it("allows non-production public signup smoke-test flags", () => {
+    expect(
+      validateGuardedVercelFlag({
+        environment: "preview",
+        key: "NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED",
+        value: "true",
+      })
+    ).toEqual([]);
   });
 });

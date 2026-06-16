@@ -8,7 +8,11 @@
 import process from "node:process";
 import { loadLocalEnv } from "./lib/load_local_env.mjs";
 
-const DEFAULT_ENV_FILES = [".env.agent.local", ".env.local", "frontend/.env.local"];
+const DEFAULT_ENV_FILES = [
+  ".env.agent.local",
+  ".env.local",
+  "frontend/.env.local",
+];
 const MANAGEMENT_API_BASE_URL = "https://api.supabase.com";
 
 const usage = () => {
@@ -27,6 +31,7 @@ Options:
 
 Required env:
   SUPABASE_ACCESS_TOKEN or SUPABASE_MANAGEMENT_API_TOKEN
+  Optional project-ref fallback: SHORTPULSE_PRODUCTION_SUPABASE_PROJECT_REF or SHORTPULSE_PRODUCTION_PROJECT_REF
 `);
 };
 
@@ -55,7 +60,9 @@ const parseArgs = (argv) => {
       continue;
     }
     if (arg === "--environment") {
-      parsed.environment = argValue(argv, index, "--environment").trim().toLowerCase();
+      parsed.environment = argValue(argv, index, "--environment")
+        .trim()
+        .toLowerCase();
       index += 1;
       continue;
     }
@@ -77,7 +84,11 @@ const parseArgs = (argv) => {
       continue;
     }
     if (arg === "--confirm-disable-signup") {
-      parsed.confirmDisableSignup = argValue(argv, index, "--confirm-disable-signup").trim();
+      parsed.confirmDisableSignup = argValue(
+        argv,
+        index,
+        "--confirm-disable-signup",
+      ).trim();
       index += 1;
       continue;
     }
@@ -107,7 +118,7 @@ const readManagementToken = () => {
     "";
   if (!token) {
     throw new Error(
-      "Missing Supabase Management API token. Set SUPABASE_ACCESS_TOKEN or SUPABASE_MANAGEMENT_API_TOKEN."
+      "Missing Supabase Management API token. Set SUPABASE_ACCESS_TOKEN or SUPABASE_MANAGEMENT_API_TOKEN.",
     );
   }
   return token;
@@ -158,18 +169,22 @@ const main = async () => {
 
   loadLocalEnv({ argv, defaultPaths: DEFAULT_ENV_FILES });
   const projectRef = normalizeProjectRef(
-    args.projectRef || process.env.SHORTPULSE_PRODUCTION_SUPABASE_PROJECT_REF
+    args.projectRef ||
+      process.env.SHORTPULSE_PRODUCTION_SUPABASE_PROJECT_REF ||
+      process.env.SHORTPULSE_PRODUCTION_PROJECT_REF,
   );
   const token = readManagementToken();
 
   if (args.applyDisableSignup && args.confirmDisableSignup !== projectRef) {
-    throw new Error("--confirm-disable-signup must exactly match --project-ref before applying.");
+    throw new Error(
+      "--confirm-disable-signup must exactly match --project-ref before applying.",
+    );
   }
 
   const before = await fetchAuthConfig({ projectRef, token });
   const beforeDisabled = before?.disable_signup === true;
   console.log(
-    `${args.environment} Supabase Auth public signup is ${formatState(beforeDisabled)}.`
+    `${args.environment} Supabase Auth public signup is ${formatState(beforeDisabled)}.`,
   );
 
   if (args.applyDisableSignup && !beforeDisabled) {
@@ -177,10 +192,12 @@ const main = async () => {
     const after = await fetchAuthConfig({ projectRef, token });
     const afterDisabled = after?.disable_signup === true;
     console.log(
-      `${args.environment} Supabase Auth public signup is now ${formatState(afterDisabled)}.`
+      `${args.environment} Supabase Auth public signup is now ${formatState(afterDisabled)}.`,
     );
     if (!afterDisabled) {
-      throw new Error("Supabase accepted the update but disable_signup is still not true.");
+      throw new Error(
+        "Supabase accepted the update but disable_signup is still not true.",
+      );
     }
   }
 
@@ -190,7 +207,7 @@ const main = async () => {
   const finalDisabled = finalConfig?.disable_signup === true;
   if (args.expectDisabled && !finalDisabled) {
     throw new Error(
-      "Launch security check failed: Supabase Auth public signup is still enabled."
+      "Launch security check failed: Supabase Auth public signup is still enabled.",
     );
   }
 };

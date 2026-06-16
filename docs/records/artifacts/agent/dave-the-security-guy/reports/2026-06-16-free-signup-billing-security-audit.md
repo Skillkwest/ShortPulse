@@ -48,6 +48,11 @@ Fix made:
 - Updated the auth/pricing funnel so app-level signup is disabled by default unless `NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED=true` and `next` points to `/pricing` with an explicit paid plan id (`starter`, `media`, `studio`, or `business`). Direct `/auth?mode=signup`, protected-route signup, `/pricing` without a selected paid plan, `plan=free`, and normal production default signup intents fail closed at the app layer.
 - Updated public pricing helpers so guest signup links carry a selected paid plan, the hidden `free` plan is always filtered from public subscription cards, and fallback free presentation metadata no longer advertises storage.
 - Added `scripts/check_supabase_auth_signup_config.mjs` plus `npm -C frontend run auth:signup-config` to verify production Supabase Auth `disable_signup` and optionally apply `disable_signup=true` through an explicit project-ref-confirmed operator command.
+- Added `scripts/audit_non_stripe_auth_accounts.mjs` plus `npm -C frontend run auth:audit-non-stripe-accounts` to classify suspicious Auth users before deletion without mutating Auth, billing, storage, Stripe, or customer data.
+- Hardened `/api/admin/users/[userId]` deletion so Auth deletion fails closed until billing, credits, reservations, generations, media rows, projects, custom voices, and the user's media storage namespace are verified empty. This prevents deleting only the login identity while leaving account-owned private artifacts or billing/credit state behind.
+- Extended the Vercel environment contract so production fails validation when `NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED=true`. This closes the tooling gap between the documented pre-launch signup posture and the launch-readiness verifier.
+- Extended `billing:launch-readiness` so production proof now checks that the hidden `free` plan and any free offers are zero-price, zero-credit, zero-storage, zero-concurrency, have no Stripe price id, and are not acquisition-enabled.
+- Tightened hosted-verification durability: the Supabase Auth config verifier now accepts the repo's existing `SHORTPULSE_PRODUCTION_PROJECT_REF` fallback, `.env.agent.local.example` documents the optional Management API token inputs as local-only, `frontend/.env.example` documents public signup closed by default, and the Vercel env contract treats Supabase Management API tokens as local/tooling-only.
 
 ### 3. Zero-credit accounts should fail closed for paid generation
 
@@ -69,6 +74,12 @@ The repo fix is not live until the SQL migration is applied to production Supaba
 
 If the desired pre-launch posture is "nobody can create an auth account except through the paid-plan funnel," the app now fails closed by default for ShortPulse signup routes. To make it absolute against direct calls to Supabase Auth's public signup endpoint, production Supabase Auth must have `disable_signup=true` or ShortPulse must ship a server-owned paid-checkout-first signup design. No app-only route guard can fully prevent direct Supabase Auth API signup while provider signup remains enabled.
 
+The three highlighted accounts were classified with the read-only audit tool:
+
+- June 15 account: zero credits, zero ledger/reservations/generations/media/projects/voices/storage namespace; candidate for Auth deletion after operator approval.
+- May Gmail account: zero balance but has ledger, reservations, generations, media, project rows, and storage objects; cleanup/reconciliation required before Auth deletion.
+- May iCloud account: zero balance but has ledger/project footprint and local Stripe customer identity state; billing/Stripe reconciliation required before Auth deletion.
+
 ## Validation
 
 - `git diff --check` passed.
@@ -78,6 +89,17 @@ If the desired pre-launch posture is "nobody can create an auth account except t
 - `npx eslint pages/auth.tsx lib/authRedirects.ts features/pricing/paths.ts features/pricing/components/PricingRouteContent.tsx features/billing/catalog.ts tests/lib/authRedirects.test.ts tests/pages/auth.route-behavior.test.tsx tests/pages/pricing.route-behavior.test.tsx pages/api/admin/pricing/plan-offers/create.ts pages/api/admin/pricing/plans/create.ts` passed from `frontend/`.
 - `npm -C frontend run billing:launch-readiness -- --base-url https://www.shortpulse.ai` passed 8 checks with 1 existing Stripe webhook proof warning.
 - `node scripts/check_supabase_auth_signup_config.mjs --help` passed.
+- `node scripts/audit_non_stripe_auth_accounts.mjs --help` passed.
+- `npx vitest run tests/api/admin-user-delete.test.ts tests/lib/authRedirects.test.ts tests/pages/auth.route-behavior.test.tsx tests/pages/pricing.route-behavior.test.tsx` passed from `frontend/`.
+- `npx eslint 'pages/api/admin/users/[userId].ts' tests/api/admin-user-delete.test.ts pages/auth.tsx lib/authRedirects.ts features/pricing/paths.ts features/pricing/components/PricingRouteContent.tsx features/billing/catalog.ts tests/lib/authRedirects.test.ts tests/pages/auth.route-behavior.test.tsx tests/pages/pricing.route-behavior.test.tsx pages/api/admin/pricing/plan-offers/create.ts pages/api/admin/pricing/plans/create.ts` passed from `frontend/`.
+- `npm -C frontend run docs:check` passed with stale model-catalog warnings unrelated to this security lane.
+- `node --check scripts/check_supabase_auth_signup_config.mjs` and `node --check scripts/audit_non_stripe_auth_accounts.mjs` passed.
+- `npm -C frontend run auth:audit-non-stripe-accounts -- --email <highlighted-email> ...` classified all three highlighted accounts without mutating production data.
+- `npx vitest run tests/scripts/vercel-env-contract.test.mjs` passed from `frontend/`.
+- `node scripts/check_vercel_env_contract.mjs --environment production` passed with warnings only for unrelated env-template drift.
+- `npm -C frontend run billing:launch-readiness -- --base-url https://www.shortpulse.ai` passed 9 checks and now includes `production_hidden_free_tier`; the hidden free tier is zero-value and not acquisition-enabled in production.
+- `node --check scripts/check_supabase_auth_signup_config.mjs`, `node --check scripts/lib/vercel_env_contract.mjs`, and `node --check scripts/check_vercel_env_contract.mjs` passed after the verifier/env-template durability update.
+- `npm -C frontend run auth:signup-config -- --project-ref ftgrqgjrchpimronuhop` was blocked by missing `SUPABASE_ACCESS_TOKEN`/`SUPABASE_MANAGEMENT_API_TOKEN`; production `disable_signup` remains an explicit hosted verification step.
 
 ## Stop Condition
 

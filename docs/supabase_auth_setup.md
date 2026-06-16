@@ -41,6 +41,17 @@ Pre-launch production signup posture:
   ```
   This requires `SUPABASE_ACCESS_TOKEN` or `SUPABASE_MANAGEMENT_API_TOKEN` with auth config write permission and must not print or store the token.
 
+Suspicious account removal posture:
+
+- Inventory unknown or non-Stripe users before deletion:
+  ```bash
+  cd frontend
+  npm run auth:audit-non-stripe-accounts -- --email <target-email>
+  ```
+- Treat `zero_footprint_auth_delete_candidate` as safe to remove through the Auth-root admin delete path after operator approval.
+- Treat `owned_footprint_cleanup_required_before_auth_delete` and `stripe_review_required_before_delete` as requiring cleanup/reconciliation review before Auth deletion.
+- Do not manually delete random app rows first; the Auth user is the identity root, and owned storage/provider artifacts must be checked explicitly.
+
 ShortPulse keeps SMTP credentials out of the Next.js app runtime. When you enable custom SMTP for auth email, configure the SMTP host, user, password, and sender identity in Supabase Auth, not in `frontend/.env.local` or Vercel project envs. See [`docs/sops/sop_supabase_auth_email_operations.md`](./sops/sop_supabase_auth_email_operations.md) for the current rollout procedure and the interim Google Workspace posture.
 
 Hosted environment examples:

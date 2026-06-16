@@ -53,21 +53,31 @@ const ensureProductionBaseUrl = (baseUrl, reporter) => {
 
 const checkVercel = async (args, reporter) => {
   if (args.skipVercel) {
-    reporter.warn("vercel_env", "Skipped Vercel env and route checks by request.");
+    reporter.warn(
+      "vercel_env",
+      "Skipped Vercel env and route checks by request.",
+    );
     return;
   }
 
-  const envOutput = await runNodeScript("scripts/check_vercel_env_contract.mjs", [
-    "--environment",
-    "production",
-  ]);
-  reporter.pass("vercel_env", "Production Vercel env contract passed.", envOutput.split("\n")[0]);
+  const envOutput = await runNodeScript(
+    "scripts/check_vercel_env_contract.mjs",
+    ["--environment", "production"],
+  );
+  reporter.pass(
+    "vercel_env",
+    "Production Vercel env contract passed.",
+    envOutput.split("\n")[0],
+  );
 
   const routeArgs = ["--base-url", args.baseUrl];
   for (const routePath of REQUIRED_ROUTE_PATHS) {
     routeArgs.push("--required-route", routePath);
   }
-  const routeOutput = await runNodeScript("scripts/verify_deployment_route_parity.mjs", routeArgs);
+  const routeOutput = await runNodeScript(
+    "scripts/verify_deployment_route_parity.mjs",
+    routeArgs,
+  );
   reporter.pass(
     "vercel_route_parity",
     "Production deployment contains billing-critical routes.",
@@ -91,7 +101,9 @@ const checkAuthCallback = async (args, reporter) => {
     );
     return;
   }
-  if (!callbackUrl.includes("next=%2Fpricing%3Fplan%3Dstarter%26interval%3Dyear")) {
+  if (
+    !callbackUrl.includes("next=%2Fpricing%3Fplan%3Dstarter%26interval%3Dyear")
+  ) {
     reporter.fail(
       "auth_callback_next",
       "Signup callback helper did not preserve the selected pricing target.",
@@ -126,13 +138,19 @@ const checkPublicPricingCatalog = async (args, reporter) => {
         missing.push(`${planId}/${interval}: missing stripe_price_id`);
       }
       if (offer?.acquisition_enabled !== true || offer?.is_active !== true) {
-        missing.push(`${planId}/${interval}: offer not active/acquisition-enabled`);
+        missing.push(
+          `${planId}/${interval}: offer not active/acquisition-enabled`,
+        );
       }
     }
   }
 
   if (missing.length > 0) {
-    reporter.fail("public_pricing_catalog", "Public pricing catalog is not purchasable.", missing);
+    reporter.fail(
+      "public_pricing_catalog",
+      "Public pricing catalog is not purchasable.",
+      missing,
+    );
     return;
   }
 
@@ -145,7 +163,8 @@ const checkPublicPricingCatalog = async (args, reporter) => {
 
 const resolveProductionSupabaseConfig = () => {
   const baseUrl = process.env.SHORTPULSE_PRODUCTION_SUPABASE_URL?.trim() ?? "";
-  const serviceRoleKey = process.env.SHORTPULSE_PRODUCTION_SUPABASE_SERVICE_ROLE_KEY?.trim() ?? "";
+  const serviceRoleKey =
+    process.env.SHORTPULSE_PRODUCTION_SUPABASE_SERVICE_ROLE_KEY?.trim() ?? "";
   if (!baseUrl || !serviceRoleKey) return null;
   return {
     baseUrl: baseUrl.replace(/\/+$/, ""),
@@ -163,7 +182,9 @@ const supabaseRest = async ({ baseUrl, serviceRoleKey }, path) => {
   });
   const body = await response.text();
   if (!response.ok) {
-    throw new Error(`${path} returned ${response.status}: ${body.slice(0, 240)}`);
+    throw new Error(
+      `${path} returned ${response.status}: ${body.slice(0, 240)}`,
+    );
   }
   return body ? JSON.parse(body) : null;
 };
@@ -194,6 +215,17 @@ const checkProductionSupabaseCatalog = async (reporter) => {
     ),
   ]);
 
+  const [freePlans, freeOffers] = await Promise.all([
+    supabaseRest(
+      config,
+      "billing_plans?select=id,monthly_price_cents,monthly_credits_cents,storage_limit_bytes,stripe_price_id,is_active&id=eq.free",
+    ),
+    supabaseRest(
+      config,
+      "billing_plan_offers?select=id,recurring_price_cents,monthly_credits_cents,storage_limit_bytes,max_concurrent_generations,stripe_price_id,acquisition_enabled,is_active&plan_id=eq.free",
+    ),
+  ]);
+
   const offerByKey = new Map(
     (Array.isArray(offers) ? offers : []).map((offer) => [
       `${offer.plan_id}:${offer.billing_interval}`,
@@ -205,11 +237,18 @@ const checkProductionSupabaseCatalog = async (reporter) => {
     for (const interval of REQUIRED_INTERVALS) {
       const offer = offerByKey.get(`${planId}:${interval}`);
       if (!offer) {
-        missingPlanOffers.push(`${planId}/${interval}: missing active acquisition offer`);
+        missingPlanOffers.push(
+          `${planId}/${interval}: missing active acquisition offer`,
+        );
         continue;
       }
-      if (Number(offer.recurring_price_cents ?? 0) > 0 && !offer.stripe_price_id) {
-        missingPlanOffers.push(`${planId}/${interval}: missing stripe_price_id`);
+      if (
+        Number(offer.recurring_price_cents ?? 0) > 0 &&
+        !offer.stripe_price_id
+      ) {
+        missingPlanOffers.push(
+          `${planId}/${interval}: missing stripe_price_id`,
+        );
       }
     }
   }
@@ -217,15 +256,22 @@ const checkProductionSupabaseCatalog = async (reporter) => {
     .filter((pkg) => Number(pkg.price_cents ?? 0) > 0 && !pkg.stripe_price_id)
     .map((pkg) => pkg.id);
   const storageGaps = (Array.isArray(storageOffers) ? storageOffers : [])
-    .filter((offer) => Number(offer.recurring_price_cents ?? 0) > 0 && !offer.stripe_price_id)
+    .filter(
+      (offer) =>
+        Number(offer.recurring_price_cents ?? 0) > 0 && !offer.stripe_price_id,
+    )
     .map((offer) => offer.id);
 
   if (missingPlanOffers.length || packageGaps.length || storageGaps.length) {
-    reporter.fail("production_supabase_catalog", "Production billing catalog has Stripe linkage gaps.", {
-      planOffers: missingPlanOffers,
-      creditPackages: packageGaps,
-      storageOffers: storageGaps,
-    });
+    reporter.fail(
+      "production_supabase_catalog",
+      "Production billing catalog has Stripe linkage gaps.",
+      {
+        planOffers: missingPlanOffers,
+        creditPackages: packageGaps,
+        storageOffers: storageGaps,
+      },
+    );
     return;
   }
 
@@ -250,14 +296,85 @@ const checkProductionSupabaseCatalog = async (reporter) => {
     {
       activePlanOffers: Array.isArray(offers) ? offers.length : 0,
       activeCreditPackages: Array.isArray(packages) ? packages.length : 0,
-      activeStorageOffers: Array.isArray(storageOffers) ? storageOffers.length : 0,
+      activeStorageOffers: Array.isArray(storageOffers)
+        ? storageOffers.length
+        : 0,
+    },
+  );
+
+  const freePlan = Array.isArray(freePlans) ? freePlans[0] : null;
+  const freeOfferRows = Array.isArray(freeOffers) ? freeOffers : [];
+  const hiddenFreeTierGaps = [];
+
+  if (!freePlan) {
+    hiddenFreeTierGaps.push("free billing plan row is missing");
+  } else {
+    if (Number(freePlan.monthly_price_cents ?? 0) !== 0) {
+      hiddenFreeTierGaps.push("free plan has non-zero monthly price");
+    }
+    if (Number(freePlan.monthly_credits_cents ?? 0) !== 0) {
+      hiddenFreeTierGaps.push("free plan has non-zero monthly credits");
+    }
+    if (Number(freePlan.storage_limit_bytes ?? 0) !== 0) {
+      hiddenFreeTierGaps.push("free plan has non-zero storage");
+    }
+    if (freePlan.stripe_price_id) {
+      hiddenFreeTierGaps.push("free plan has a Stripe price id");
+    }
+  }
+
+  for (const offer of freeOfferRows) {
+    if (offer.acquisition_enabled === true) {
+      hiddenFreeTierGaps.push(`${offer.id}: free offer is acquisition-enabled`);
+    }
+    if (Number(offer.recurring_price_cents ?? 0) !== 0) {
+      hiddenFreeTierGaps.push(
+        `${offer.id}: free offer has non-zero recurring price`,
+      );
+    }
+    if (Number(offer.monthly_credits_cents ?? 0) !== 0) {
+      hiddenFreeTierGaps.push(
+        `${offer.id}: free offer has non-zero monthly credits`,
+      );
+    }
+    if (Number(offer.storage_limit_bytes ?? 0) !== 0) {
+      hiddenFreeTierGaps.push(`${offer.id}: free offer has non-zero storage`);
+    }
+    if (Number(offer.max_concurrent_generations ?? 0) !== 0) {
+      hiddenFreeTierGaps.push(
+        `${offer.id}: free offer has generation concurrency`,
+      );
+    }
+    if (offer.stripe_price_id) {
+      hiddenFreeTierGaps.push(`${offer.id}: free offer has a Stripe price id`);
+    }
+  }
+
+  if (hiddenFreeTierGaps.length > 0) {
+    reporter.fail(
+      "production_hidden_free_tier",
+      "Production hidden free tier still carries launch-risk value.",
+      hiddenFreeTierGaps,
+    );
+    return;
+  }
+
+  reporter.pass(
+    "production_hidden_free_tier",
+    "Production hidden free tier is zero-value and not acquisition-enabled.",
+    {
+      freePlanPresent: Boolean(freePlan),
+      freeOfferRows: freeOfferRows.length,
     },
   );
 };
 
 const checkSignupTrigger = async (args, reporter) => {
   if (args.skipDbTrigger) {
-    reporter.warn("signup_billing_trigger", "Skipped hosted DB signup trigger check by request.");
+    reporter.warn(
+      "signup_billing_trigger",
+      "Skipped hosted DB signup trigger check by request.",
+    );
     return;
   }
 
@@ -332,9 +449,15 @@ select coalesce(json_agg(checks order by check_name), '[]'::json) from checks;
     return;
   }
   const rows = JSON.parse(stdout.trim() || "[]");
-  const failed = rows.filter((row) => row.ok !== true).map((row) => row.check_name);
+  const failed = rows
+    .filter((row) => row.ok !== true)
+    .map((row) => row.check_name);
   if (failed.length > 0) {
-    reporter.fail("signup_billing_trigger", "Production signup billing bootstrap is missing DB objects.", failed);
+    reporter.fail(
+      "signup_billing_trigger",
+      "Production signup billing bootstrap is missing DB objects.",
+      failed,
+    );
     return;
   }
   reporter.pass(
@@ -344,7 +467,10 @@ select coalesce(json_agg(checks order by check_name), '[]'::json) from checks;
 };
 
 const checkBillingRenewalFailClosed = async (args, reporter) => {
-  const url = new URL("/api/internal/billing-contract-renewals/run", `${args.baseUrl}/`);
+  const url = new URL(
+    "/api/internal/billing-contract-renewals/run",
+    `${args.baseUrl}/`,
+  );
   const response = await fetch(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -367,7 +493,10 @@ const checkBillingRenewalFailClosed = async (args, reporter) => {
 
 const checkStripeWebhookEndpoint = async (args, reporter) => {
   if (args.skipStripe) {
-    reporter.warn("stripe_webhook_endpoint", "Skipped Stripe webhook endpoint check by request.");
+    reporter.warn(
+      "stripe_webhook_endpoint",
+      "Skipped Stripe webhook endpoint check by request.",
+    );
     return;
   }
   const stripeSecretKey = process.env.STRIPE_SECRET_KEY?.trim() ?? "";
@@ -380,14 +509,19 @@ const checkStripeWebhookEndpoint = async (args, reporter) => {
     return;
   }
 
-  const response = await fetch("https://api.stripe.com/v1/webhook_endpoints?limit=100", {
-    headers: {
-      authorization: `Bearer ${stripeSecretKey}`,
+  const response = await fetch(
+    "https://api.stripe.com/v1/webhook_endpoints?limit=100",
+    {
+      headers: {
+        authorization: `Bearer ${stripeSecretKey}`,
+      },
     },
-  });
+  );
   const body = await response.text();
   if (!response.ok) {
-    throw new Error(`Stripe webhook endpoint list failed (${response.status}): ${body.slice(0, 240)}`);
+    throw new Error(
+      `Stripe webhook endpoint list failed (${response.status}): ${body.slice(0, 240)}`,
+    );
   }
   const payload = JSON.parse(body);
   const expectedUrl = `${args.baseUrl}/api/billing/stripe/webhook`;
@@ -403,11 +537,15 @@ const checkStripeWebhookEndpoint = async (args, reporter) => {
     return;
   }
 
-  const enabledEvents = Array.isArray(endpoint.enabled_events) ? endpoint.enabled_events : [];
+  const enabledEvents = Array.isArray(endpoint.enabled_events)
+    ? endpoint.enabled_events
+    : [];
   const catchesAll = enabledEvents.includes("*");
   const missingEvents = catchesAll
     ? []
-    : REQUIRED_STRIPE_WEBHOOK_EVENTS.filter((eventName) => !enabledEvents.includes(eventName));
+    : REQUIRED_STRIPE_WEBHOOK_EVENTS.filter(
+        (eventName) => !enabledEvents.includes(eventName),
+      );
   if (missingEvents.length > 0) {
     reporter.fail(
       "stripe_webhook_endpoint",
@@ -437,10 +575,14 @@ const printSummary = ({ checks, strict, json }) => {
   } else {
     for (const check of checks) {
       const label = check.status.toUpperCase().padEnd(4);
-      console.log(`[billing-launch-readiness] ${label} ${check.id}: ${check.summary}`);
+      console.log(
+        `[billing-launch-readiness] ${label} ${check.id}: ${check.summary}`,
+      );
       if (check.detail != null) {
         const detail =
-          typeof check.detail === "string" ? check.detail : JSON.stringify(check.detail);
+          typeof check.detail === "string"
+            ? check.detail
+            : JSON.stringify(check.detail);
         console.log(`  ${detail}`);
       }
     }
@@ -468,10 +610,19 @@ const main = async () => {
     ["vercel", () => checkVercel(args, reporter)],
     ["auth_callback", () => checkAuthCallback(args, reporter)],
     ["public_pricing_catalog", () => checkPublicPricingCatalog(args, reporter)],
-    ["production_supabase_catalog", () => checkProductionSupabaseCatalog(reporter)],
+    [
+      "production_supabase_catalog",
+      () => checkProductionSupabaseCatalog(reporter),
+    ],
     ["signup_billing_trigger", () => checkSignupTrigger(args, reporter)],
-    ["billing_renewal_worker_fail_closed", () => checkBillingRenewalFailClosed(args, reporter)],
-    ["stripe_webhook_endpoint", () => checkStripeWebhookEndpoint(args, reporter)],
+    [
+      "billing_renewal_worker_fail_closed",
+      () => checkBillingRenewalFailClosed(args, reporter),
+    ],
+    [
+      "stripe_webhook_endpoint",
+      () => checkStripeWebhookEndpoint(args, reporter),
+    ],
   ];
 
   for (const [id, runCheck] of checks) {
@@ -482,10 +633,16 @@ const main = async () => {
     }
   }
 
-  printSummary({ checks: reporter.checks, strict: args.strict, json: args.json });
+  printSummary({
+    checks: reporter.checks,
+    strict: args.strict,
+    json: args.json,
+  });
 };
 
 main().catch((error) => {
-  console.error(`[billing-launch-readiness] error=${error instanceof Error ? error.message : String(error)}`);
+  console.error(
+    `[billing-launch-readiness] error=${error instanceof Error ? error.message : String(error)}`,
+  );
   process.exit(1);
 });

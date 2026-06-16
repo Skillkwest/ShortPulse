@@ -103,6 +103,8 @@ export const LOCAL_OR_TOOLING_ONLY_KEYS = new Set([
   "SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN",
   "VERCEL_API_TOKEN",
   "VERCEL_AUTOMATION_BYPASS_TOKEN",
+  "SUPABASE_ACCESS_TOKEN",
+  "SUPABASE_MANAGEMENT_API_TOKEN",
   "PLAYWRIGHT_AUDIT_EMAIL",
   "PLAYWRIGHT_AUDIT_PASSWORD",
   "PLAYWRIGHT_BASE_URL",
@@ -135,6 +137,22 @@ export const MUST_RESOLVE_FALSE_VERCEL_KEYS = Object.freeze([
   "SHORTPULSE_MEDIA_SIGNED_TRANSFORMS_ENABLED",
   "NEXT_PUBLIC_MEDIA_SIGNED_TRANSFORMS_ENABLED",
 ]);
+
+export const PRODUCTION_MUST_NOT_RESOLVE_TRUE_VERCEL_KEYS = Object.freeze([
+  "NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED",
+]);
+
+const MUST_RESOLVE_FALSE_REASONS = Object.freeze({
+  SHORTPULSE_MEDIA_SIGNED_TRANSFORMS_ENABLED:
+    "Supabase image transformations are prohibited",
+  NEXT_PUBLIC_MEDIA_SIGNED_TRANSFORMS_ENABLED:
+    "Supabase image transformations are prohibited",
+});
+
+const PRODUCTION_MUST_NOT_RESOLVE_TRUE_REASONS = Object.freeze({
+  NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED:
+    "public signup must remain closed during the pre-launch production window",
+});
 
 export const SENSITIVE_PRESENCE_ONLY_KEYS = new Set([
   "FAL_KEY",
@@ -336,4 +354,30 @@ export const validateDeployedPublicOrigin = ({ environment, key, value }) => {
     );
   }
   return errors;
+};
+
+export const validateGuardedVercelFlag = ({ environment, key, value }) => {
+  const normalizedValue = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  if (!normalizedValue) return [];
+
+  const mustResolveFalseReason = MUST_RESOLVE_FALSE_REASONS[key];
+  if (mustResolveFalseReason && normalizedValue !== "false") {
+    return [`${key} must resolve to false because ${mustResolveFalseReason}.`];
+  }
+
+  const productionMustNotResolveTrueReason =
+    PRODUCTION_MUST_NOT_RESOLVE_TRUE_REASONS[key];
+  if (
+    environment === "production" &&
+    productionMustNotResolveTrueReason &&
+    normalizedValue === "true"
+  ) {
+    return [
+      `${key} must not resolve to true in production because ${productionMustNotResolveTrueReason}.`,
+    ];
+  }
+
+  return [];
 };

@@ -12,6 +12,8 @@ import type { FormEvent } from "react";
 import { AppMessage } from "../components/AppMessage";
 import {
   fetchCanonicalAuthCallbackUrl,
+  isPaidPricingSignupNextPath,
+  isPublicSignupEnabled,
   resolveNextPath,
   resolveNextPathFromAsPath,
   resolveSignupNextPath,
@@ -72,11 +74,13 @@ export default function AuthPage() {
     return resolveNextPathFromAsPath(router.asPath || "");
   }, [router.asPath, router.isReady, router.query.next]);
   const signupNextPath = useMemo(() => resolveSignupNextPath(nextPath), [nextPath]);
-  const postAuthPath = mode === "signup" ? signupNextPath : nextPath;
+  const signupAllowed = isPublicSignupEnabled() && signupNextPath !== null;
+  const activeMode: Mode = mode === "signup" && signupAllowed ? "signup" : "signin";
+  const postAuthPath = activeMode === "signup" && signupNextPath ? signupNextPath : nextPath;
 
   useEffect(() => {
-    setMode(requestedMode);
-  }, [requestedMode]);
+    setMode(requestedMode === "signup" && !signupAllowed ? "signin" : requestedMode);
+  }, [requestedMode, signupAllowed]);
 
   useEffect(() => {
     void readSupabaseSession()
@@ -100,7 +104,12 @@ export default function AuthPage() {
     const normalizedEmail = email.trim();
     try {
       const supabase = ensureSupabaseClient();
-      if (mode === "signup") {
+      if (activeMode === "signup") {
+        if (!signupAllowed || !signupNextPath || !isPaidPricingSignupNextPath(signupNextPath)) {
+          setError("Account creation is temporarily closed.");
+          setMode("signin");
+          return;
+        }
         const emailRedirectTo = await fetchCanonicalAuthCallbackUrl({
           flow: "signup",
           nextPath: signupNextPath,
@@ -190,7 +199,7 @@ export default function AuthPage() {
   return (
     <>
       <Head>
-        <title>{`ShortPulse · ${mode === "signin" ? "Sign in" : "Sign up"}`}</title>
+        <title>{`ShortPulse · ${activeMode === "signin" ? "Sign in" : "Sign up"}`}</title>
       </Head>
       <main className={authClass("auth-shell")}>
         <div className={authClass("auth-overlay")} />
@@ -214,10 +223,10 @@ export default function AuthPage() {
                 />
               </Link>
               <h1 className={authClass("auth-title")}>
-                {mode === "signin" ? "Welcome back" : "Create your account"}
+                {activeMode === "signin" ? "Welcome back" : "Create your account"}
               </h1>
               <p className={authClass("auth-subtitle")}>
-                {mode === "signin"
+                {activeMode === "signin"
                   ? "Use your email and password to continue."
                   : "Create an account to get started."}
               </p>
@@ -231,8 +240,8 @@ export default function AuthPage() {
               <button
                 type="button"
                 role="tab"
-                aria-selected={mode === "signin"}
-                className={authClass(mode === "signin" && "active")}
+                aria-selected={activeMode === "signin"}
+                className={authClass(activeMode === "signin" && "active")}
                 onClick={() => {
                   setMode("signin");
                   setError(null);
@@ -244,9 +253,14 @@ export default function AuthPage() {
               <button
                 type="button"
                 role="tab"
-                aria-selected={mode === "signup"}
-                className={authClass(mode === "signup" && "active")}
+                aria-selected={activeMode === "signup"}
+                className={authClass(activeMode === "signup" && "active")}
+                disabled={!signupAllowed}
                 onClick={() => {
+                  if (!signupAllowed) {
+                    setError("Choose a paid plan from pricing before creating an account.");
+                    return;
+                  }
                   setMode("signup");
                   setError(null);
                   setInfo(null);
@@ -279,7 +293,7 @@ export default function AuthPage() {
                 <label className={authClass("auth-label")} htmlFor="password">
                   Password
                 </label>
-                {mode === "signin" ? (
+                {activeMode === "signin" ? (
                   <button
                     type="button"
                     className={authClass("auth-forgot")}
@@ -298,8 +312,8 @@ export default function AuthPage() {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  minLength={mode === "signup" ? MIN_PASSWORD_LENGTH : 1}
-                  autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                  minLength={activeMode === "signup" ? MIN_PASSWORD_LENGTH : 1}
+                  autoComplete={activeMode === "signin" ? "current-password" : "new-password"}
                   required
                 />
                 <button
@@ -340,21 +354,26 @@ export default function AuthPage() {
               disabled={isSubmitDisabled}
             >
               <SignIn size={18} weight="bold" />
-              {loading ? "Please wait..." : mode === "signin" ? "Sign in" : "Create account"}
+              {loading ? "Please wait..." : activeMode === "signin" ? "Sign in" : "Create account"}
             </button>
 
             <div className={authClass("auth-divider")} />
             <p className={authClass("auth-switch")}>
-              {mode === "signin" ? "Don't have an account?" : "Already have an account?"}{" "}
+              {activeMode === "signin" ? "Don't have an account?" : "Already have an account?"}{" "}
               <button
                 type="button"
                 onClick={() => {
-                  setMode(mode === "signin" ? "signup" : "signin");
+                  if (activeMode === "signin" && !signupAllowed) {
+                    setError("Choose a paid plan from pricing before creating an account.");
+                    return;
+                  }
+                  setMode(activeMode === "signin" ? "signup" : "signin");
                   setError(null);
                   setInfo(null);
                 }}
+                disabled={activeMode === "signin" && !signupAllowed}
               >
-                {mode === "signin" ? "Sign up" : "Sign in"}
+                {activeMode === "signin" ? "Sign up" : "Sign in"}
               </button>
             </p>
             <p className={authClass("auth-footnote")}>

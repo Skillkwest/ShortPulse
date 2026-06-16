@@ -4,6 +4,8 @@ export const AUTH_ENTRY_PATH = "/auth";
 export const AUTH_CALLBACK_PATH = "/auth/callback";
 export const DEFAULT_POST_AUTH_PATH = "/dashboard";
 export const DEFAULT_SIGNUP_NEXT_PATH = "/pricing";
+const PAID_SIGNUP_PLAN_IDS = new Set(["starter", "media", "studio", "business"]);
+const PUBLIC_SIGNUP_ENABLED_VALUE = "true";
 const LEGACY_CHARACTER_AUTH_NEXT_PATHS = new Map<string, string>([
   ["/character", "/ai-studio"],
   ["/character-soon", "/ai-studio"],
@@ -38,11 +40,25 @@ export const resolveNextPathFromAsPath = (asPath: string): string => {
   return resolveNextPath(new URLSearchParams(queryString).get("next") ?? undefined);
 };
 
-export const resolveSignupNextPath = (nextPath: string): string => {
-  const candidatePathname = (nextPath.split(/[?#]/, 1)[0] ?? nextPath).replace(/\/+$/, "") || "/";
-  if (candidatePathname === DEFAULT_SIGNUP_NEXT_PATH) return nextPath;
-  return DEFAULT_SIGNUP_NEXT_PATH;
+export const isPaidPricingSignupNextPath = (nextPath: string): boolean => {
+  if (!nextPath.startsWith("/") || nextPath.startsWith("//") || nextPath.includes("\\")) {
+    return false;
+  }
+  const parsed = new URL(nextPath, "https://shortpulse.local");
+  const candidatePathname = parsed.pathname.replace(/\/+$/, "") || "/";
+  if (candidatePathname !== DEFAULT_SIGNUP_NEXT_PATH) return false;
+  const planId = parsed.searchParams.get("plan")?.trim().toLowerCase() ?? "";
+  return PAID_SIGNUP_PLAN_IDS.has(planId);
 };
+
+export const resolveSignupNextPath = (nextPath: string): string | null => {
+  if (!isPaidPricingSignupNextPath(nextPath)) return null;
+  return nextPath;
+};
+
+export const isPublicSignupEnabled = (): boolean =>
+  process.env.NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED?.trim().toLowerCase() ===
+  PUBLIC_SIGNUP_ENABLED_VALUE;
 
 export const resolveAuthCallbackFlow = (
   value: string | string[] | undefined

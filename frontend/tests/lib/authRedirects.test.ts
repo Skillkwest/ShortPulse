@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   fetchCanonicalAuthCallbackUrl,
+  isPaidPricingSignupNextPath,
+  isPublicSignupEnabled,
   resolveNextPath,
   resolveSignupNextPath,
 } from "../../lib/authRedirects";
@@ -60,12 +62,25 @@ describe("auth redirect helpers", () => {
     expect(resolveNextPath("/auth?next=%2Fcharacter")).toBe("/dashboard");
   });
 
-  it("routes signup returns to pricing while preserving selected pricing plans", () => {
-    expect(resolveSignupNextPath("/dashboard")).toBe("/pricing");
-    expect(resolveSignupNextPath("/ai-studio")).toBe("/pricing");
-    expect(resolveSignupNextPath("/pricing")).toBe("/pricing");
+  it("allows signup only for selected paid pricing plans", () => {
+    expect(resolveSignupNextPath("/dashboard")).toBeNull();
+    expect(resolveSignupNextPath("/ai-studio")).toBeNull();
+    expect(resolveSignupNextPath("/pricing")).toBeNull();
+    expect(resolveSignupNextPath("/pricing?plan=free")).toBeNull();
     expect(resolveSignupNextPath("/pricing?intent=create-project&plan=starter")).toBe(
       "/pricing?intent=create-project&plan=starter"
     );
+    expect(isPaidPricingSignupNextPath("/pricing?intent=create-project&plan=studio")).toBe(true);
+    expect(isPaidPricingSignupNextPath("/pricing?intent=create-project")).toBe(false);
+  });
+
+  it("keeps public signup disabled unless explicitly enabled", () => {
+    expect(isPublicSignupEnabled()).toBe(false);
+
+    vi.stubEnv("NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED", "false");
+    expect(isPublicSignupEnabled()).toBe(false);
+
+    vi.stubEnv("NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED", "true");
+    expect(isPublicSignupEnabled()).toBe(true);
   });
 });

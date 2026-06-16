@@ -57,7 +57,7 @@ const PLAN_TIER_ORDER = ["free", "starter", "media", "studio", "business"] as co
 const GIB = 1024 * 1024 * 1024;
 
 const DEFAULT_PLAN_STORAGE_LIMITS: Record<string, number> = {
-  free: 1 * GIB,
+  free: 0,
   starter: 1 * GIB,
   media: 25 * GIB,
   studio: 100 * GIB,
@@ -167,7 +167,7 @@ const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
     },
     displayBenefits: {
       monthlyCreditsLabel: "No generation credits included",
-      storageLabel: "1.0 GB of media storage",
+      storageLabel: "No media storage included",
     },
   },
   starter: {
@@ -334,8 +334,6 @@ export const normalizePlanId = (value: string | undefined | null): string => {
 };
 
 export const filterPublicSubscriptionPlans = (plans: BillingPlanRecord[]): BillingPlanRecord[] => {
-  const hasPublicStarter = plans.some((plan) => normalizePlanId(plan.id) === "starter");
-  if (!hasPublicStarter) return plans;
   return plans.filter((plan) => normalizePlanId(plan.id) !== "free");
 };
 

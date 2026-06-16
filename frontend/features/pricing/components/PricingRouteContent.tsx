@@ -23,6 +23,7 @@ import {
   buildPricingPath,
   normalizePricingBillingInterval,
   normalizePricingIntent,
+  normalizePaidPricingPlanId,
   normalizePricingPlanId,
 } from "../paths";
 import { loadGrowthTelemetry } from "../../../lib/growthTelemetryLoader";
@@ -75,6 +76,7 @@ export function PricingRouteContent({ billingCatalog, isAuthenticated }: Pricing
   const router = useRouter();
   const intent = normalizePricingIntent(router.query.intent);
   const selectedPlanId = normalizePricingPlanId(router.query.plan);
+  const selectedPaidPlanId = normalizePaidPricingPlanId(router.query.plan);
   const selectedBillingInterval = normalizePricingBillingInterval(router.query.interval);
   const [planActionLoadingId, setPlanActionLoadingId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -93,6 +95,13 @@ export function PricingRouteContent({ billingCatalog, isAuthenticated }: Pricing
   const sortedPlans = useMemo(
     () => sortBillingPlans(filterPublicSubscriptionPlans(billingCatalog.plans)),
     [billingCatalog.plans]
+  );
+  const defaultSignupPlanId = useMemo(
+    () =>
+      selectedPaidPlanId ??
+      sortedPlans.find((plan) => plan.monthly_price_cents > 0 && plan.id !== "free")?.id ??
+      null,
+    [selectedPaidPlanId, sortedPlans]
   );
   const annualSavingsPercent = useMemo(
     () => resolveMaxAnnualSavingsPercent(sortedPlans),
@@ -212,7 +221,7 @@ export function PricingRouteContent({ billingCatalog, isAuthenticated }: Pricing
                 <Link
                   href={buildPricingAuthPath({
                     intent,
-                    planId: selectedPlanId,
+                    planId: defaultSignupPlanId,
                     billingInterval: selectedBillingInterval,
                     mode: "signup",
                   })}

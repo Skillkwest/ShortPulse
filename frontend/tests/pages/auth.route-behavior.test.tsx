@@ -3,7 +3,7 @@
  */
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import AuthPage from "../../pages/auth";
 
 const ensureSupabaseClientMock = vi.hoisted(() => vi.fn());
@@ -45,6 +45,10 @@ vi.mock("../../lib/supabaseClient", () => ({
 }));
 
 describe("Auth route behavior", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     routerState.query = {};
@@ -158,8 +162,35 @@ describe("Auth route behavior", () => {
     });
   });
 
-  it("opens directly in signup mode when requested by the route query", async () => {
+  it("does not open signup mode without a selected paid pricing plan", async () => {
     routerState.query = { mode: "signup" };
+
+    render(<AuthPage />);
+
+    expect(screen.getByRole("heading", { name: "Welcome back" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Sign up" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
+  });
+
+  it("keeps signup closed by default even with a selected paid pricing plan", async () => {
+    routerState.query = {
+      mode: "signup",
+      next: "/pricing?intent=create-project&plan=starter",
+    };
+
+    render(<AuthPage />);
+
+    expect(screen.getByRole("heading", { name: "Welcome back" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Sign up" })).toBeDisabled();
+    expect(signUpMock).not.toHaveBeenCalled();
+  });
+
+  it("opens in signup mode when public signup is explicitly enabled with a paid pricing plan", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED", "true");
+    routerState.query = {
+      mode: "signup",
+      next: "/pricing?intent=create-project&plan=starter",
+    };
 
     render(<AuthPage />);
 
@@ -168,10 +199,29 @@ describe("Auth route behavior", () => {
     expect(screen.getByRole("button", { name: "Create account" })).toBeInTheDocument();
   });
 
-  it("submits signup without a client-selected plan and returns to pricing after confirmation", async () => {
+  it("blocks signup submission without a selected paid pricing plan", async () => {
     render(<AuthPage />);
 
-    fireEvent.click(screen.getByRole("tab", { name: "Sign up" }));
+    expect(screen.getByRole("tab", { name: "Sign up" })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: " new@example.com " } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "strongpass" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    await waitFor(() => {
+      expect(signInWithPasswordMock).toHaveBeenCalled();
+    });
+    expect(signUpMock).not.toHaveBeenCalled();
+  });
+
+  it("submits signup with a selected paid plan and preserves the pricing intent", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED", "true");
+    routerState.query = {
+      mode: "signup",
+      next: "/pricing?intent=create-project&plan=starter",
+    };
+
+    render(<AuthPage />);
+
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: " new@example.com " } });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "strongpass" } });
     fireEvent.click(screen.getByRole("button", { name: "Create account" }));
@@ -183,7 +233,8 @@ describe("Auth route behavior", () => {
       email: "new@example.com",
       password: "strongpass",
       options: {
-        emailRedirectTo: "https://www.shortpulse.ai/auth/callback?flow=signup&next=%2Fpricing",
+        emailRedirectTo:
+          "https://www.shortpulse.ai/auth/callback?flow=signup&next=%2Fpricing%3Fintent%3Dcreate-project%26plan%3Dstarter",
       },
     });
 
@@ -193,8 +244,12 @@ describe("Auth route behavior", () => {
     expect(screen.getByRole("button", { name: "Forgot password?" })).toBeInTheDocument();
   });
 
-  it("redirects direct signup sessions to pricing instead of dashboard", async () => {
-    routerState.query = { mode: "signup", next: "/dashboard" };
+  it("redirects signup sessions to the selected paid pricing plan", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED", "true");
+    routerState.query = {
+      mode: "signup",
+      next: "/pricing?intent=create-project&plan=studio",
+    };
     signUpMock.mockResolvedValue({
       error: null,
       data: { session: { user: { id: "user-new" } } },
@@ -207,11 +262,16 @@ describe("Auth route behavior", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create account" }));
 
     await waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith("/pricing");
+      expect(pushMock).toHaveBeenCalledWith("/pricing?intent=create-project&plan=studio");
     });
   });
 
   it("shows a clear cooldown message when Supabase throttles signup confirmation emails", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED", "true");
+    routerState.query = {
+      mode: "signup",
+      next: "/pricing?intent=create-project&plan=starter",
+    };
     signUpMock.mockResolvedValue({
       error: new Error("email rate limit exceeded"),
       data: { session: null },
@@ -219,7 +279,6 @@ describe("Auth route behavior", () => {
 
     render(<AuthPage />);
 
-    fireEvent.click(screen.getByRole("tab", { name: "Sign up" }));
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "new@example.com" } });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "strongpass" } });
     fireEvent.click(screen.getByRole("button", { name: "Create account" }));

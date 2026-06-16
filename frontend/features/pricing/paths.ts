@@ -10,6 +10,7 @@ export type PricingBillingInterval = "month" | "year";
 
 const DEFAULT_PRICING_INTENT: PricingIntent = "dashboard";
 const DEFAULT_PRICING_BILLING_INTERVAL: PricingBillingInterval = "year";
+const PAID_PRICING_PLAN_IDS = new Set(["starter", "media", "studio", "business"]);
 
 /**
  * Normalizes any incoming pricing intent query value into a supported funnel intent.
@@ -30,6 +31,11 @@ export const normalizePricingPlanId = (value: string | string[] | undefined): st
   const rawValue = Array.isArray(value) ? value[0] : value;
   if (typeof rawValue !== "string" || !rawValue.trim()) return null;
   return normalizePlanId(rawValue);
+};
+
+export const normalizePaidPricingPlanId = (value: string | string[] | undefined): string | null => {
+  const normalized = normalizePricingPlanId(value);
+  return normalized && PAID_PRICING_PLAN_IDS.has(normalized) ? normalized : null;
 };
 
 export const normalizePricingBillingInterval = (
@@ -77,7 +83,14 @@ export const buildPricingAuthPath = (params?: {
   mode?: PricingAuthMode;
 }): string => {
   const query = new URLSearchParams();
-  query.set("next", buildPricingPath(params));
+  const planId = normalizePaidPricingPlanId(params?.planId ?? undefined);
+  query.set(
+    "next",
+    buildPricingPath({
+      ...params,
+      planId,
+    })
+  );
   if (params?.mode === "signup") {
     query.set("mode", "signup");
   }

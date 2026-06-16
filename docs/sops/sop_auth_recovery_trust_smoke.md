@@ -9,6 +9,8 @@ Purpose: define the minimum repeatable smoke test for ShortPulse signup confirma
 - email-change confirmation callback host
 - production and exact-host non-production dry runs
 
+During the pre-launch closed-signup window, production should keep public signup disabled at the app and Supabase Auth provider layers. In that state, skip the live fresh-signup email step and instead verify `npm -C frontend run auth:signup-config -- --project-ref <production-project-ref>` passes. Run the signup-confirmation email step only when public signup has been explicitly opened for a paid-checkout-first launch smoke.
+
 This SOP is for trust verification of auth email flows. It does not replace the broader SMTP configuration and provider posture documented in [docs/sops/sop_supabase_auth_email_operations.md](./sop_supabase_auth_email_operations.md).
 
 ## Why this matters
@@ -79,7 +81,9 @@ If this step fails, stop. Do not trust downstream email tests until origin resol
 
 ### 2. Verify signup confirmation email
 
-1. Start a fresh signup.
+If public signup is intentionally closed for the environment, run the provider-level signup-config check instead and mark this email step as not applicable for that smoke.
+
+1. Start a fresh signup only after public signup has been intentionally opened for launch verification.
 2. Open the email.
 3. Inspect the destination host before completing the flow.
 
@@ -133,13 +137,13 @@ record the result in:
 
 ## Pass criteria
 
-The smoke test passes only if all of these are true:
+The smoke test passes only if all applicable checks are true:
 
 1. callback-url resolution returns the correct environment host
-2. signup confirmation email uses the correct host
+2. signup confirmation email uses the correct host, or public signup is intentionally closed and the provider-level signup-config check passes
 3. password reset email uses the correct host
 4. email-change confirmation uses the correct host
-5. all three callback flows complete successfully
+5. all applicable callback flows complete successfully
 
 ## Failure handling
 

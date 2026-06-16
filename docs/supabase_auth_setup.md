@@ -25,6 +25,22 @@ APP_BASE_URL=http://localhost:3000
 
 Client-initiated signup and password-reset flows now resolve their absolute callback URL through the server-owned `/api/auth/callback-url` route before calling Supabase, so `APP_BASE_URL` should always reflect the real public origin users should open from email for the environment you are configuring.
 
+Pre-launch production signup posture:
+
+- Keep `NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED` unset or set to anything other than `true` unless a paid-checkout-first signup launch has been explicitly approved.
+- In the Supabase production project, keep Auth public signup disabled (`disable_signup=true`) so direct calls to Supabase Auth cannot create non-Stripe accounts.
+- Verify the provider-level state with:
+  ```bash
+  cd frontend
+  npm run auth:signup-config -- --project-ref <production-project-ref>
+  ```
+- If an approved operator needs to close the provider-level gate through the Management API, use:
+  ```bash
+  cd frontend
+  npm run auth:signup-config -- --project-ref <production-project-ref> --apply-disable-signup --confirm-disable-signup <production-project-ref>
+  ```
+  This requires `SUPABASE_ACCESS_TOKEN` or `SUPABASE_MANAGEMENT_API_TOKEN` with auth config write permission and must not print or store the token.
+
 ShortPulse keeps SMTP credentials out of the Next.js app runtime. When you enable custom SMTP for auth email, configure the SMTP host, user, password, and sender identity in Supabase Auth, not in `frontend/.env.local` or Vercel project envs. See [`docs/sops/sop_supabase_auth_email_operations.md`](./sops/sop_supabase_auth_email_operations.md) for the current rollout procedure and the interim Google Workspace posture.
 
 Hosted environment examples:

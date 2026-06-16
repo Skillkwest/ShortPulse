@@ -67,13 +67,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!planId) {
     return res.status(400).json({ error: "planId is required." });
   }
+  if (planId === "free") {
+    return res.status(400).json({
+      error: "The hidden free tier cannot be activated as a billing offer.",
+    });
+  }
   if (!offerName) {
     return res.status(400).json({ error: "offerName is required." });
   }
   if (recurringPriceCents == null) {
     return res.status(400).json({ error: "recurringPriceCents must be a non-negative integer." });
   }
-  if (planId !== "free" && recurringPriceCents <= 0) {
+  if (recurringPriceCents <= 0) {
     return res.status(400).json({ error: "Paid public plan offers must be greater than $0." });
   }
   if (monthlyCreditsCents == null) {

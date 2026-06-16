@@ -279,6 +279,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 157.  `sql/migrations/158_disable_signup_seed_credit_grants.sql`
 158.  `sql/migrations/159_repair_historical_generation_project_convergence.sql`
 159.  `sql/migrations/160_repair_global_media_library_visibility.sql`
+160.  `sql/migrations/161_harden_hidden_free_billing_offer.sql`
       Rollback files:
 
 
@@ -428,6 +429,7 @@ Billing safety note:
 - Migration `156_add_user_preferences_deleted_builtin_presets.sql` adds durable per-user deletion persistence for admin-owned AI Studio built-ins (`user_preferences.expert_edit_deleted_system_preset_ids`, `user_preferences.ai_studio_deleted_builtin_pulse_ids`) so deleted Prompt Presets and Pulses can be restored per account without storing global built-in definitions in user preference payloads.
 - Migration `157_add_generation_projection_error_payload.sql` adds `generation_projection.error_payload` for user-scoped raw provider/client failure detail shown in generated-output detail views.
 - Migration `158_disable_signup_seed_credit_grants.sql` disables hidden-baseline signup credit grants so new users must select a paid Stripe-backed plan before receiving plan credits.
+- Migration `161_harden_hidden_free_billing_offer.sql` forces the hidden `free` billing tier and offers to zero credits, zero storage, zero concurrency, no Stripe price, and non-acquisition status; it also blocks service-role activation of free or zero-price public plan offers.
 - Migration `058_add_user_preferences_ai_studio_style_details_overrides.sql` adds durable per-user Styles Library metadata override persistence (`user_preferences.ai_studio_style_details_overrides`) for editing `style`, `title`, `referenceImageName`, and `stylePrompt` values.
 - Migration `059_add_user_preferences_ai_studio_character_quickswap_tip_hidden.sql` added durable per-user Character panel QuickSwap guidance visibility persistence (`user_preferences.ai_studio_character_quickswap_tip_hidden`) before the embedded QuickSwap UX was retired.
 - Migration `138_retire_character_quickswap_tip_preference.sql` removes the now-unused `user_preferences.ai_studio_character_quickswap_tip_hidden` column from the current schema contract.

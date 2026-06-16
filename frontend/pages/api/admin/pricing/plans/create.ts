@@ -77,6 +77,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .status(400)
       .json({ error: "planId must contain only lowercase letters, numbers, and underscores." });
   }
+  if (planId === "free") {
+    return res.status(400).json({ error: "The hidden free tier is system-owned." });
+  }
   if (!displayName) {
     return res.status(400).json({ error: "displayName is required." });
   }
@@ -88,7 +91,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .status(400)
       .json({ error: "annualRecurringPriceCents must be a non-negative integer." });
   }
-  if (planId !== "free" && (recurringPriceCents <= 0 || annualRecurringPriceCents <= 0)) {
+  if (recurringPriceCents <= 0 || annualRecurringPriceCents <= 0) {
     return res.status(400).json({
       error: "Paid public plans require monthly and annual prices greater than $0.",
     });

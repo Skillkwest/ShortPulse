@@ -100,6 +100,7 @@ export type ReferenceGridCardProps = {
   onSaveToLibrary?: (output: StudioOutput) => void;
   onDownload?: (output: StudioOutput) => void;
   hideReferenceActions?: boolean;
+  allowWorkflowReloadWhenActionsHidden?: boolean;
 };
 
 const renderSaveChip = (item: StudioOutput, isSelected: boolean) => {
@@ -186,6 +187,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   onSaveToLibrary,
   onDownload,
   hideReferenceActions = false,
+  allowWorkflowReloadWhenActionsHidden = false,
 }: ReferenceGridCardProps) {
   const videoNodeRef = React.useRef<HTMLVideoElement | null>(null);
   const hoverAutoplayStartedRef = React.useRef(false);
@@ -222,13 +224,20 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     onReloadWorkflowOutput &&
     canReloadWorkflowOutput(item, { mediaKindHint: workflowReloadMediaKindHint })
   );
+  const canShowWorkflowReloadAction = !hideReferenceActions || allowWorkflowReloadWhenActionsHidden;
   const shouldPlaceWorkflowReloadInVideoCorner = Boolean(
     shouldShowWorkflowReloadAction && (item.mode === "video" || isVideoPreview)
   );
+  const shouldShowRerollInBottomActionRow = Boolean(
+    !hideReferenceActions && shouldShowRerollAction
+  );
+  const shouldShowWorkflowReloadInBottomActionRow = Boolean(
+    canShowWorkflowReloadAction &&
+    shouldShowWorkflowReloadAction &&
+    !shouldPlaceWorkflowReloadInVideoCorner
+  );
   const shouldShowBottomActionRow = Boolean(
-    !hideReferenceActions &&
-    (shouldShowRerollAction ||
-      (shouldShowWorkflowReloadAction && !shouldPlaceWorkflowReloadInVideoCorner))
+    shouldShowRerollInBottomActionRow || shouldShowWorkflowReloadInBottomActionRow
   );
   const bottomActionRowClassName = [
     "reference-card-bottom-actions",
@@ -715,7 +724,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
       ) : null}
       {shouldShowBottomActionRow ? (
         <div className={bottomActionRowClassName} aria-label="Reference replay actions">
-          {shouldShowRerollAction ? (
+          {shouldShowRerollInBottomActionRow ? (
             <button
               type="button"
               className="reference-card-action-btn reference-card-reroll-btn"
@@ -729,7 +738,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
               <ArrowClockwise size={16} weight="bold" aria-hidden />
             </button>
           ) : null}
-          {shouldShowWorkflowReloadAction ? (
+          {shouldShowWorkflowReloadInBottomActionRow ? (
             <button
               type="button"
               className="reference-card-action-btn reference-card-workflow-reload-btn"
@@ -745,7 +754,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           ) : null}
         </div>
       ) : null}
-      {!hideReferenceActions && shouldPlaceWorkflowReloadInVideoCorner ? (
+      {canShowWorkflowReloadAction && shouldPlaceWorkflowReloadInVideoCorner ? (
         <div
           className="reference-card-workflow-reload-actions"
           aria-label="Reference replay actions"

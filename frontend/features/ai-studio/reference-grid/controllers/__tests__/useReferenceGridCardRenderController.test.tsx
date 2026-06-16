@@ -30,8 +30,8 @@ const createOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput =>
     timestamp: "Now",
     taskState: "success",
     previewUrl: "blob:local-video-1",
-    previewStoragePath: null,
-    fullStoragePath: null,
+    previewStoragePath: undefined,
+    fullStoragePath: undefined,
     ...overrides,
   }) as StudioOutput;
 
@@ -48,6 +48,90 @@ describe("useReferenceGridCardRenderController", () => {
     requestPlay: vi.fn(),
     markPlaying: vi.fn(),
     clearActivePlayer: vi.fn(),
+  });
+
+  it("routes Quick Slot video workflow reload through the video media hint", () => {
+    const onReloadWorkflowOutput = vi.fn();
+    const onSelectOutput = vi.fn();
+    const output = createOutput({
+      id: "quick-video-1",
+      mode: "video",
+      mediaSource: "generated",
+      previewUrl: "https://example.com/quick-video.mp4",
+      workflowReload: {
+        version: 1,
+        source: "ai_studio_generation",
+        capturedAt: "2026-06-16T12:00:00.000Z",
+        originTool: "video",
+        panelKind: "video",
+        outputMode: "video",
+        restoreBehavior: "navigate_and_hydrate",
+        createMode: null,
+        pulse: null,
+        prompt: { display: "Restore this Quick Slot video." },
+        model: { id: "kie-ai/kling-3.0" },
+        payload: {
+          kind: "video",
+          aspect: "16:9",
+          videoReferenceMode: "standard",
+          durationSeconds: 6,
+          resolution: "720p",
+          generateAudio: false,
+          cameraFixed: false,
+          autoFix: true,
+          referenceInputs: ["https://example.com/first-frame.png"],
+        },
+      },
+    });
+    const visibleCard = {
+      item: projectReferenceGridMediaOutput(output),
+      authorityTier: "reusable" as const,
+      cardPreviewUrl: "https://example.com/quick-video.mp4",
+      playableMediaUrl: "https://example.com/quick-video.mp4",
+      isVideoPreview: true,
+      isImagePreview: false,
+      isAudioPreview: false,
+      isPriorityHydration: true,
+      imageSrc: undefined,
+    };
+
+    const { result } = renderHook(() =>
+      useReferenceGridCardRenderController({
+        activeOutputId: null,
+        visibleOutputById: { [output.id]: output },
+        autoplayEnabledIdSet: new Set<string>(),
+        linkedPromptReferenceIdSet: new Set<string>(),
+        loadingCardIdSet: new Set<string>(),
+        generationLoadingCardIdSet: new Set<string>(),
+        hydrationLoadingCardIdSet: new Set<string>(),
+        perfDegradeLevel: 0,
+        visibleCardItems: [],
+        curatedVisibleCardItems: [visibleCard],
+        visibleQuickSlotIdSet: new Set<string>([output.id]),
+        onSelectOutput,
+        onOpenDetails: vi.fn(),
+        onCardDragStart: vi.fn(),
+        onCardDragEnd: vi.fn(),
+        onCuratedSectionDragOver: vi.fn(),
+        onCuratedCardDrop: vi.fn(),
+        onCuratedSectionDragEnter: vi.fn(),
+        onCuratedSectionDragLeave: vi.fn(),
+        onCuratedCardKeyboardReorder: vi.fn(),
+        registerVideoNode: vi.fn(),
+        markLoaded: vi.fn(),
+        onAutoplayStarted: vi.fn(),
+        onAutoplayStopped: vi.fn(),
+        audioPlaybackController: createAudioControllerStub(),
+        onReloadWorkflowOutput,
+      })
+    );
+
+    const { getByLabelText } = render(<>{result.current.curatedCardNodes}</>);
+
+    fireEvent.click(getByLabelText("Reload workflow"));
+
+    expect(onSelectOutput).toHaveBeenCalledWith("quick-video-1");
+    expect(onReloadWorkflowOutput).toHaveBeenCalledWith(output, { mediaKindHint: "video" });
   });
 
   it("keeps duplicate quick-slot and all-refs audio players mutually exclusive", () => {
@@ -659,7 +743,7 @@ describe("useReferenceGridCardRenderController", () => {
       mode: "image",
       mediaSource: "generated",
       taskState: "pending",
-      previewUrl: null,
+      previewUrl: undefined,
     });
     const visibleCard = {
       item: projectReferenceGridMediaOutput(output),

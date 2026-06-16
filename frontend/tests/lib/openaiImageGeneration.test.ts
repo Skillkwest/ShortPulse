@@ -185,13 +185,13 @@ describe("generateOpenAiImage", () => {
     });
   });
 
-  it("maps UI resolution to quality while keeping provider size OpenAI-compatible", () => {
+  it("maps UI resolution to quality while keeping the exact requested aspect size", () => {
     expect(
       resolveOpenAiGptImage2OutputSize({
         aspect: "16:9",
         resolution: "4K",
       })
-    ).toBe("1536x1024");
+    ).toBe("3840x2160");
     expect(normalizeOpenAiGptImage2Quality("4K")).toBe("high");
   });
 });

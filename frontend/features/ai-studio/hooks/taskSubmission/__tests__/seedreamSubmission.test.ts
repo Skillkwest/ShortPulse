@@ -423,7 +423,7 @@ describe("Seedream submission payloads", () => {
 
     expect(submitOpenAiGptImage2).toHaveBeenCalledWith({
       prompt: "A polished portrait",
-      size: "1024x1536",
+      size: "2160x3840",
       quality: "high",
       generation_replay: { source: "reference-grid-reroll" },
       workflow_reload: { source: "workflow-reload-test" },
@@ -462,7 +462,7 @@ describe("Seedream submission payloads", () => {
 
     expect(submitOpenAiGptImage2Edit).toHaveBeenCalledWith({
       prompt: "A polished portrait",
-      size: "1536x1024",
+      size: "2048x1152",
       quality: "medium",
       images: [
         { image_url: "https://cdn.test/ref-1.png" },
@@ -510,7 +510,7 @@ describe("Seedream submission payloads", () => {
     expect(submitOpenAiGptImage2Edit).toHaveBeenCalledWith(
       expect.objectContaining({
         prompt: "A polished portrait",
-        size: "1024x1024",
+        size: "2048x2048",
         quality: "medium",
         images: [],
         shortpulse_internal_edit_media_refs: {

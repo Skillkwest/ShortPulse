@@ -30,9 +30,23 @@ Purpose: document the ShortPulse `gpt-image-2` integration that powers AI Studio
 - Model id: `gpt-image-2`
 - Outputs per request: `n = 1`
 - Supported sizes:
+  - `1008x1792`
   - `1024x1024`
+  - `1024x1280`
   - `1024x1536`
+  - `1152x2048`
+  - `1280x1024`
   - `1536x1024`
+  - `1664x2080`
+  - `1792x1008`
+  - `2048x1152`
+  - `2048x2048`
+  - `2080x1664`
+  - `2160x3840`
+  - `2560x3200`
+  - `2880x2880`
+  - `3200x2560`
+  - `3840x2160`
 - Supported quality tiers:
   - `low`
   - `medium`
@@ -118,7 +132,7 @@ Edit route body:
 Validation rules:
 
 - `prompt` is required and trimmed.
-- `size` must be one of the supported phase-1 sizes.
+- `size` must be one of the supported exact output sizes.
 - `quality` must be one of `low | medium | high`.
 - `images` is required for `/api/openai/image-edit` and must contain `1..8` image URLs.
 - `input_fidelity` is optional compatibility input for `/api/openai/image-edit`; when omitted or supplied as a legacy `low | high` value, ShortPulse bills and records `high`. The OpenAI provider request must omit `input_fidelity` for `gpt-image-2`.
@@ -130,11 +144,15 @@ Validation rules:
 
 ## Aspect and quality mapping
 
-AI Studio maps aspect selection onto the supported size matrix:
+AI Studio maps aspect and resolution selection onto exact output sizes:
 
-- `1:1` / `auto` -> `1024x1024`
-- portrait ratios such as `4:5`, `3:4`, `2:3`, `9:16` -> `1024x1536`
-- landscape ratios such as `5:4`, `4:3`, `3:2`, `16:9`, `21:9` -> `1536x1024`
+| Aspect         | 1K          | 2K          | 4K          |
+| -------------- | ----------- | ----------- | ----------- |
+| `9:16`         | `1008x1792` | `1152x2048` | `2160x3840` |
+| `4:5`          | `1024x1280` | `1664x2080` | `2560x3200` |
+| `1:1` / `auto` | `1024x1024` | `2048x2048` | `2880x2880` |
+| `5:4`          | `1280x1024` | `2080x1664` | `3200x2560` |
+| `16:9`         | `1792x1008` | `2048x1152` | `3840x2160` |
 
 AI Studio resolution selection for this model is treated as quality selection:
 

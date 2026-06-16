@@ -505,6 +505,43 @@ describe("DetailModal", () => {
       mediaKindHint: "image",
     });
 
+    const deliveredVideoOutput: StudioOutput = {
+      ...baseOutput,
+      mediaSource: "generated",
+      modelId: "kie-ai/kling-3.0",
+      mimeType: "video/mp4",
+      fullStoragePath: "user-1/generations/videos/generated-video.mp4",
+      durationMs: 6_000,
+      generationReplay: {
+        version: 2,
+        mode: "image",
+        submitTool: "edit",
+        modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+        displayPrompt: "Restore this as video",
+        submissionPrompt: "Restore this as video",
+        aspect: "16:9",
+        imageResolution: "2K",
+        referenceInputs: ["https://example.com/first-frame.png"],
+        internalMediaRefs: [],
+        capturedAt: "2026-06-06T12:00:00.000Z",
+      },
+    };
+    onReloadWorkflowReference.mockClear();
+    rerender(
+      <DetailModal
+        output={deliveredVideoOutput}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+        onReloadWorkflowReference={onReloadWorkflowReference}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Reload workflow" }));
+    expect(onReloadWorkflowReference).toHaveBeenCalledWith(deliveredVideoOutput, {
+      mediaKindHint: "video",
+    });
+
     rerender(
       <DetailModal
         output={{ ...baseOutput, mediaSource: "generated" }}

@@ -101,7 +101,7 @@ describe("mediaLibraryWorkflowReload", () => {
 
     const row = createRow({
       filename: "wolf-motion.mp4",
-      file_type: null,
+      file_type: undefined,
       signedUrl: "https://cdn.example.com/wolf-motion.mp4",
       metadata: {
         workflow_reload: videoWorkflowReload,

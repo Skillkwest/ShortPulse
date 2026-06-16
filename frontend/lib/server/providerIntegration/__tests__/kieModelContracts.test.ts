@@ -254,6 +254,7 @@ describe("kieModelContracts", () => {
       input: {
         prompt: "A cinematic night city poster",
         aspect_ratio: "16:9",
+        size: "16:9",
         resolution: "4K",
         enable_safety_checker: false,
         safety_tolerance: 5,
@@ -276,6 +277,7 @@ describe("kieModelContracts", () => {
       input: {
         prompt: "A square studio portrait",
         aspect_ratio: "1:1",
+        size: "1:1",
         resolution: "2K",
         enable_safety_checker: false,
         safety_tolerance: 5,
@@ -296,6 +298,7 @@ describe("kieModelContracts", () => {
       input: {
         prompt: "A landscape poster using the alias field",
         aspect_ratio: "16:9",
+        size: "16:9",
         resolution: "2K",
         enable_safety_checker: false,
         safety_tolerance: 5,
@@ -340,6 +343,54 @@ describe("kieModelContracts", () => {
     ).toThrow("Kie GPT Image 2 text-to-image submit uses unsupported aspect ratio");
   });
 
+  it("keeps Kie GPT Image 2 16:9 shape explicit across 1K, 2K, and 4K", () => {
+    for (const resolution of ["1K", "2K", "4K"]) {
+      expect(
+        normalizeKieSubmitPayloadForModel({
+          modelId: KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
+          payload: {
+            prompt: `Landscape text ${resolution}`,
+            aspect_ratio: "16:9",
+            resolution,
+          },
+        })
+      ).toEqual({
+        model: "gpt-image-2-text-to-image",
+        input: {
+          prompt: `Landscape text ${resolution}`,
+          aspect_ratio: "16:9",
+          size: "16:9",
+          resolution,
+          enable_safety_checker: false,
+          safety_tolerance: 5,
+        },
+      });
+
+      expect(
+        normalizeKieSubmitPayloadForModel({
+          modelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+          payload: {
+            prompt: `Landscape edit ${resolution}`,
+            input_urls: ["https://example.com/reference.png"],
+            aspect_ratio: "16:9",
+            resolution,
+          },
+        })
+      ).toEqual({
+        model: "gpt-image-2-image-to-image",
+        input: {
+          prompt: `Landscape edit ${resolution}`,
+          input_urls: ["https://example.com/reference.png"],
+          aspect_ratio: "16:9",
+          size: "16:9",
+          resolution,
+          enable_safety_checker: false,
+          safety_tolerance: 5,
+        },
+      });
+    }
+  });
+
   it("normalizes Kie GPT Image 2 image-to-image payloads to the createTask contract", () => {
     expect(
       normalizeKieSubmitPayloadForModel({
@@ -359,6 +410,7 @@ describe("kieModelContracts", () => {
         prompt: "Turn this reference into a cinematic poster",
         input_urls: ["https://example.com/reference.png"],
         aspect_ratio: "4:5",
+        size: "4:5",
         resolution: "2K",
         enable_safety_checker: false,
         safety_tolerance: 5,
@@ -408,6 +460,7 @@ describe("kieModelContracts", () => {
         prompt: "Preserve the face and change the wardrobe",
         input_urls: ["https://example.com/ref-1.png", "https://example.com/ref-2.png"],
         aspect_ratio: "1:1",
+        size: "1:1",
         resolution: "2K",
         enable_safety_checker: false,
         safety_tolerance: 5,
@@ -430,6 +483,7 @@ describe("kieModelContracts", () => {
         prompt: "Alias landscape edit",
         input_urls: ["https://example.com/reference.png"],
         aspect_ratio: "16:9",
+        size: "16:9",
         resolution: "2K",
         enable_safety_checker: false,
         safety_tolerance: 5,

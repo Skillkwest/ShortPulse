@@ -35,6 +35,7 @@ Provider payload after server normalization:
   "input": {
     "prompt": "A cinematic night city poster with neon reflections on a rainy street.",
     "aspect_ratio": "16:9",
+    "size": "16:9",
     "resolution": "2K",
     "enable_safety_checker": false,
     "safety_tolerance": 5
@@ -48,6 +49,7 @@ Provider payload after server normalization:
 - `aspect_ratio` defaults to `auto`; allowed values are `auto`, `1:1`, `3:2`, `2:3`, `4:3`, `3:4`, `5:4`, `4:5`, `16:9`, `9:16`, `2:1`, `1:2`, `3:1`, `1:3`, `21:9`, and `9:21`.
 - `resolution` defaults to `1K`; allowed values are `1K`, `2K`, and `4K`.
 - Kie rejects some aspect/resolution combinations, so ShortPulse normalizes them before submit: `auto` always submits `1K`, and `1:1` with requested `4K` submits `2K`.
+- For concrete non-`auto` aspects, ShortPulse also sends `input.size` with the same aspect token as `input.aspect_ratio`. This preserves Kie's documented `aspect_ratio` field while giving the GPT Image 2 backend an explicit shape token across `1K`, `2K`, and `4K`.
 - ShortPulse submits provider safety at the least restrictive setting: `enable_safety_checker: false` and `safety_tolerance: 5`.
 - `callBackUrl` is supported at the provider boundary when supplied by server/runtime callers, but AI Studio uses polling for this lane.
 

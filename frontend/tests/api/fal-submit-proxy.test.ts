@@ -561,6 +561,8 @@ describe("createFalSubmitHandler", () => {
       body: {
         prompt: "keep the same character",
         input_urls: ["https://stale.internal/character.png"],
+        aspect_ratio: "16:9",
+        resolution: "2K",
         shortpulse_internal_media_refs: [{ version: 1 }],
       },
       headers: {
@@ -578,6 +580,8 @@ describe("createFalSubmitHandler", () => {
         modelId: "kie-ai/gpt-image-2-image-to-image",
         payload: expect.objectContaining({
           input_urls: ["https://fresh.internal/character.png"],
+          aspect_ratio: "16:9",
+          resolution: "2K",
         }),
       })
     );

@@ -3,6 +3,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID } from "../kieModelIds";
 import { dispatchProviderSubmit, ProviderSubmitValidationError } from "../submitProviderDispatcher";
 
 const submitSingleTargetWithRetryMock = vi.fn();
@@ -219,6 +220,79 @@ describe("submitProviderDispatcher", () => {
         }),
       })
     );
+  });
+
+  it("sends Kie GPT Image 2 Edit shape fields in the provider createTask body", async () => {
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID;
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ code: 200, data: { taskId: "kie-gpt-image-2-edit-req" } }), {
+          status: 200,
+        })
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    for (const resolution of ["1K", "2K", "4K"]) {
+      await dispatchProviderSubmit({
+        provider: "kie",
+        modelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+        targets: [{ submitUrl: "https://api.kie.ai/api/v1/jobs/createTask" }],
+        payload: {
+          prompt: `landscape edit ${resolution}`,
+          input_urls: ["https://example.com/reference.png"],
+          aspect_ratio: "16:9",
+          resolution,
+        },
+        apiKey: "key",
+        signal: new AbortController().signal,
+        maxAttemptsPerTarget: 1,
+      });
+    }
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    const bodies = fetchMock.mock.calls.map(([, init]) =>
+      JSON.parse(String((init as RequestInit).body))
+    );
+    expect(bodies).toEqual([
+      {
+        model: "gpt-image-2-image-to-image",
+        input: {
+          prompt: "landscape edit 1K",
+          input_urls: ["https://example.com/reference.png"],
+          aspect_ratio: "16:9",
+          size: "16:9",
+          resolution: "1K",
+          enable_safety_checker: false,
+          safety_tolerance: 5,
+        },
+      },
+      {
+        model: "gpt-image-2-image-to-image",
+        input: {
+          prompt: "landscape edit 2K",
+          input_urls: ["https://example.com/reference.png"],
+          aspect_ratio: "16:9",
+          size: "16:9",
+          resolution: "2K",
+          enable_safety_checker: false,
+          safety_tolerance: 5,
+        },
+      },
+      {
+        model: "gpt-image-2-image-to-image",
+        input: {
+          prompt: "landscape edit 4K",
+          input_urls: ["https://example.com/reference.png"],
+          aspect_ratio: "16:9",
+          size: "16:9",
+          resolution: "4K",
+          enable_safety_checker: false,
+          safety_tolerance: 5,
+        },
+      },
+    ]);
   });
 
   it("attaches Kling media diagnostics to Kie submit results", async () => {

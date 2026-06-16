@@ -116,15 +116,14 @@ export const MODEL_MODAL_PRESENTATION_META: Record<string, ModelModalPresentatio
   },
   [KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID]: {
     provider: "Kie AI",
-    description:
-      "GPT Image 2 through Kie AI supports queued text-to-image generation at 1K, 2K, or 4K.",
+    description: "GPT Image 2 supports queued text-to-image generation at 1K, 2K, or 4K.",
     tags: ["Image", "Text-to-Image", "1K-4K", "Queued"],
     verified: true,
   },
   [KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID]: {
     provider: "Kie AI",
     description:
-      "GPT Image 2 through Kie AI supports queued image-to-image editing with up to 16 reference images at 1K, 2K, or 4K.",
+      "GPT Image 2 supports queued image-to-image editing with up to 16 reference images at 1K, 2K, or 4K.",
     tags: ["Image", "Image-to-Image", "1K-4K", "Queued"],
     verified: true,
   },

@@ -36,6 +36,7 @@ export const KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_ALLOWED_RESOLUTIONS =
 
 export type KieGptImage2AspectRatio = (typeof KIE_GPT_IMAGE_2_ALLOWED_ASPECTS)[number];
 export type KieGptImage2Resolution = (typeof KIE_GPT_IMAGE_2_ALLOWED_RESOLUTIONS)[number];
+export type KieGptImage2Size = Exclude<KieGptImage2AspectRatio, "auto">;
 
 export const KIE_GPT_IMAGE_2_DEFAULT_ASPECT: KieGptImage2AspectRatio = "auto";
 export const KIE_GPT_IMAGE_2_DEFAULT_RESOLUTION: KieGptImage2Resolution = "1K";
@@ -89,4 +90,11 @@ export const normalizeKieGptImage2ResolutionForAspect = ({
   if (normalizedAspect === "auto") return "1K";
   if (normalizedAspect === "1:1" && normalizedResolution === "4K") return "2K";
   return normalizedResolution;
+};
+
+export const resolveKieGptImage2SizeForAspect = (
+  aspect: string | null | undefined
+): KieGptImage2Size | null => {
+  const normalizedAspect = normalizeKieGptImage2AspectRatio(aspect);
+  return normalizedAspect === "auto" ? null : normalizedAspect;
 };

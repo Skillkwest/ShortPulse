@@ -17,6 +17,7 @@ import {
   KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MAX_PROMPT_CHARS,
   KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_PROVIDER_MODEL_ID,
   normalizeKieGptImage2ResolutionForAspect,
+  resolveKieGptImage2SizeForAspect,
 } from "../../model-runtime/kieGptImage2";
 import {
   KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
@@ -807,6 +808,7 @@ const normalizeKieGptImage2TextToImagePayload = (
     aspect: aspectRatio,
     resolution: requestedResolution ?? entry.defaultResolution,
   });
+  const size = resolveKieGptImage2SizeForAspect(aspectRatio);
   const callbackValue = normalizeOptionalStringField({
     payload,
     fields: ["callBackUrl", "callbackUrl", "callback_url"],
@@ -823,6 +825,7 @@ const normalizeKieGptImage2TextToImagePayload = (
     input: {
       prompt,
       aspect_ratio: aspectRatio,
+      ...(size ? { size } : {}),
       resolution,
       enable_safety_checker: KIE_GPT_IMAGE_2_ENABLE_SAFETY_CHECKER,
       safety_tolerance: KIE_GPT_IMAGE_2_SAFETY_TOLERANCE,
@@ -877,6 +880,7 @@ const normalizeKieGptImage2ImageToImagePayload = (
     aspect: aspectRatio,
     resolution: requestedResolution ?? entry.defaultResolution,
   });
+  const size = resolveKieGptImage2SizeForAspect(aspectRatio);
   const callbackValue = normalizeOptionalStringField({
     payload,
     fields: ["callBackUrl", "callbackUrl", "callback_url"],
@@ -894,6 +898,7 @@ const normalizeKieGptImage2ImageToImagePayload = (
       prompt,
       input_urls: inputUrls,
       aspect_ratio: aspectRatio,
+      ...(size ? { size } : {}),
       resolution,
       enable_safety_checker: KIE_GPT_IMAGE_2_ENABLE_SAFETY_CHECKER,
       safety_tolerance: KIE_GPT_IMAGE_2_SAFETY_TOLERANCE,

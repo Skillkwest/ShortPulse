@@ -733,11 +733,12 @@
 
 .video-properties-panel .video-right-generate-slot {
   position: relative;
-  display: flex;
-  flex-direction: row;
+  display: grid;
+  grid-template-columns: minmax(112px, max-content) minmax(0, 1fr) max-content;
   align-items: center;
-  justify-content: flex-end;
-  gap: 40px;
+  justify-content: stretch;
+  column-gap: clamp(12px, 2.8vw, 28px);
+  row-gap: 8px;
   width: 100%;
   margin-top: 8px;
   padding-top: 12px;
@@ -749,7 +750,7 @@
   .video-right-generate-slot {
   margin-top: 4px;
   padding-top: 8px;
-  gap: 28px;
+  column-gap: clamp(10px, 2.4vw, 22px);
 }
 
 .video-properties-panel .video-right-generate-slot::before {
@@ -778,6 +779,8 @@
 }
 
 .video-properties-panel .video-generate-summary-panel {
+  grid-column: 1;
+  justify-self: start;
   width: fit-content;
   min-width: 0;
   max-width: 100%;
@@ -824,6 +827,8 @@
 }
 
 .video-properties-panel .video-right-generate-actions {
+  grid-column: 3;
+  justify-self: end;
   display: inline-flex;
   align-items: flex-end;
   justify-content: center;
@@ -832,6 +837,8 @@
 }
 
 .video-properties-panel .video-inline-warning-bubble {
+  grid-column: 2;
+  justify-self: start;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -847,11 +854,19 @@
   letter-spacing: 0.01em;
   white-space: normal;
   flex: 0 1 auto;
-  max-width: min(260px, 100%);
+  max-width: min(230px, 100%);
   min-width: 0;
   overflow-wrap: anywhere;
   text-align: center;
   box-shadow: none;
+}
+
+.video-properties-panel .video-inline-warning-bubble .app-message__body {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  text-align: inherit;
 }
 
 .video-properties-panel .video-generate-summary-value {

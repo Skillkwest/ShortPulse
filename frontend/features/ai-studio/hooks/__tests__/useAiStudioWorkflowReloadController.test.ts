@@ -546,6 +546,50 @@ describe("useAiStudioWorkflowReloadController", () => {
     expect(params.setEditReferenceText).not.toHaveBeenCalled();
   });
 
+  it("reloads delivered video references into the video panel without a surface hint", () => {
+    const output: StudioOutput = {
+      ...makeOutput(),
+      mode: "image",
+      modelId: "kie-ai/kling-3.0",
+      mimeType: "video/mp4",
+      fullStoragePath: "user-1/generations/videos/generated-video.mp4",
+      durationMs: 6_000,
+      generationReplay: {
+        version: 2,
+        mode: "image",
+        submitTool: "edit",
+        modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+        displayPrompt: "Restore this as video",
+        submissionPrompt: "Restore this as video",
+        aspect: "16:9",
+        imageResolution: "2K",
+        referenceInputs: ["https://example.com/first-frame.png"],
+        internalMediaRefs: [],
+        capturedAt: "2026-06-06T12:00:00.000Z",
+      },
+    };
+    const params = makeParams(output);
+    const { result } = renderHook(() => useAiStudioWorkflowReloadController(params));
+
+    act(() => {
+      result.current.reloadWorkflowFromStudioOutput(output);
+    });
+
+    expect(params.setSelectedTool).toHaveBeenCalledWith("video");
+    expect(params.setShowCreateTools).toHaveBeenCalledWith(false);
+    expect(params.setModel).toHaveBeenCalledWith("kie-ai/kling-3.0");
+    expect(params.setVideoReferenceText).toHaveBeenCalledWith("Restore this as video");
+    expect(params.setVideoReferenceMode).toHaveBeenCalledWith("standard");
+    expect(params.setVideoDurationSeconds).toHaveBeenCalledWith(6);
+    expect(params.setReferenceSelectionState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selectedTool: "video",
+        referenceImageUrl: "https://example.com/first-frame.png",
+      })
+    );
+    expect(params.setEditReferenceText).not.toHaveBeenCalled();
+  });
+
   it("uses delivered video identity to reload image-shaped metadata into the video panel", () => {
     const workflowReload = makeImageReload();
     const output: StudioOutput = {

@@ -19,7 +19,10 @@ const modeFromFileType = (
 
 export const resolveMediaLibraryWorkflowReloadMediaKindHint = (
   file: MediaFileRow
-): WorkflowReloadMediaKindHint | null => modeFromFileType(file.file_type);
+): WorkflowReloadMediaKindHint | null => {
+  const workflowMode = resolveMediaLibraryWorkflowReloadConfig(file.metadata)?.outputMode;
+  return modeFromFileType(file.file_type) ?? modeFromFileType(workflowMode);
+};
 
 const aspectFromWorkflowReload = (config: WorkflowReloadConfigV1): string => {
   if (config.payload.kind === "image" || config.payload.kind === "video") {
@@ -39,8 +42,6 @@ export const createMediaLibraryWorkflowReloadOutput = (file: MediaFileRow): Stud
   if (file.source !== AI_STUDIO_MEDIA_SOURCE) return null;
   const config = resolveMediaLibraryWorkflowReloadConfig(file.metadata);
   if (!config) return null;
-  const fileMode = modeFromFileType(file.file_type);
-  if (fileMode !== config.outputMode) return null;
 
   const timestamp = file.created_at ?? config.capturedAt;
   const previewUrl = file.signedUrl?.trim() || undefined;

@@ -13,7 +13,10 @@ import { isAudioUrl, isVideoUrl, resolveModelLabel } from "../logic/stateParsers
 import { resolveStudioOutputMediaDisplayAuthority } from "../logic/referenceGridMedia";
 import { downloadUrlToFile } from "../logic/referenceDownload";
 import { createStudioOutputDetailModalItem } from "../logic/studioOutputDetailModal";
-import { canReloadWorkflowOutput } from "../logic/workflowReload";
+import {
+  canReloadWorkflowOutput,
+  inferWorkflowReloadMediaKindForOutput,
+} from "../logic/workflowReload";
 import { AppMessage } from "../../../components/AppMessage";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { MEDIA_STORAGE_FULL_USER_MESSAGE } from "../../../lib/mediaStorageQuota";
@@ -77,23 +80,7 @@ type DetailModalProps = {
 
 const resolveDetailWorkflowReloadMediaKindHint = (
   output: StudioOutput
-): WorkflowReloadMediaKindHint => {
-  if (
-    output.mode === "video" ||
-    isVideoUrl(output.previewUrl) ||
-    isVideoUrl(output.fullStoragePath)
-  ) {
-    return "video";
-  }
-  if (
-    output.mode === "audio" ||
-    isAudioUrl(output.previewUrl) ||
-    isAudioUrl(output.fullStoragePath)
-  ) {
-    return "audio";
-  }
-  return "image";
-};
+): WorkflowReloadMediaKindHint => inferWorkflowReloadMediaKindForOutput(output);
 
 /**
  * Renders the detail modal for a selected reference.

@@ -347,6 +347,51 @@ describe("ReferenceGridCard", () => {
     expect(onReloadWorkflowOutput).toHaveBeenCalledWith(output, { mediaKindHint: "video" });
   });
 
+  it("routes delivered video workflow reload through the video media hint even with image preview state", () => {
+    const onReloadWorkflowOutput = vi.fn();
+    const onSelectOutput = vi.fn();
+    const output = createOutput({
+      mode: "image",
+      taskState: "success",
+      mediaSource: "generated",
+      modelId: "kie-ai/kling-3.0",
+      mimeType: "video/mp4",
+      fullStoragePath: "user-1/generations/videos/generated-video.mp4",
+      durationMs: 6_000,
+      generationReplay: {
+        version: 2,
+        mode: "image",
+        submitTool: "edit",
+        modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+        displayPrompt: "Restore this as video",
+        submissionPrompt: "Restore this as video",
+        aspect: "16:9",
+        imageResolution: "2K",
+        referenceInputs: ["https://example.com/first-frame.png"],
+        internalMediaRefs: [],
+        capturedAt: "2026-06-06T12:00:00.000Z",
+      },
+    });
+
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: output,
+          isImagePreview: true,
+          isVideoPreview: false,
+          cardPreviewUrl: "https://example.com/poster.jpg",
+          onReloadWorkflowOutput,
+          onSelectOutput,
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText("Reload workflow"));
+
+    expect(onSelectOutput).toHaveBeenCalledWith("out-1");
+    expect(onReloadWorkflowOutput).toHaveBeenCalledWith(output, { mediaKindHint: "video" });
+  });
+
   it("places workflow reload immediately to the right of image re-roll", () => {
     const output = createOutput({
       taskState: "success",

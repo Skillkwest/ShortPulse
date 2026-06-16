@@ -78,6 +78,44 @@ describe("mediaLibraryWorkflowReload", () => {
     ).toBe("video");
   });
 
+  it("falls back to workflow metadata when saved media file type is missing", () => {
+    const videoWorkflowReload = {
+      ...workflowReload,
+      originTool: "video",
+      panelKind: "video",
+      outputMode: "video",
+      model: { id: "kie-ai/kling-3.0" },
+      payload: {
+        kind: "video",
+        aspect: "16:9",
+        videoReferenceMode: "standard",
+        durationSeconds: 6,
+        resolution: "720p",
+        generateAudio: false,
+        cameraFixed: false,
+        autoFix: false,
+        referenceInputs: ["https://cdn.example.com/first-frame.png"],
+        internalMediaRefs: [],
+      },
+    } as const;
+
+    const row = createRow({
+      filename: "wolf-motion.mp4",
+      file_type: null,
+      signedUrl: "https://cdn.example.com/wolf-motion.mp4",
+      metadata: {
+        workflow_reload: videoWorkflowReload,
+      },
+    });
+
+    expect(resolveMediaLibraryWorkflowReloadMediaKindHint(row)).toBe("video");
+    expect(createMediaLibraryWorkflowReloadOutput(row)).toMatchObject({
+      mode: "video",
+      modelId: "kie-ai/kling-3.0",
+      workflowReload: videoWorkflowReload,
+    });
+  });
+
   it("preserves video workflow sidecar references from saved AI Studio media rows", () => {
     const videoWorkflowReload = {
       ...workflowReload,
@@ -156,7 +194,7 @@ describe("mediaLibraryWorkflowReload", () => {
     );
   });
 
-  it("rejects uploaded media and mismatched saved workflow metadata", () => {
+  it("rejects uploaded media and rows without valid saved workflow metadata", () => {
     expect(
       createMediaLibraryWorkflowReloadOutput(
         createRow({
@@ -167,7 +205,7 @@ describe("mediaLibraryWorkflowReload", () => {
     expect(
       createMediaLibraryWorkflowReloadOutput(
         createRow({
-          file_type: "video/mp4",
+          metadata: null,
         })
       )
     ).toBeNull();

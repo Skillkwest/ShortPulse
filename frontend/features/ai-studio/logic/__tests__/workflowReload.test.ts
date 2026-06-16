@@ -628,6 +628,42 @@ describe("workflowReload", () => {
     expect(
       resolveWorkflowReloadConfigForOutput({
         ...baseOutput,
+        mode: "image",
+        modelId: "kie-ai/kling-3.0",
+        mimeType: "video/mp4",
+        fullStoragePath: "user-1/generations/videos/generated-video.mp4",
+        durationMs: 6_000,
+        generationReplay: {
+          version: 2,
+          mode: "image",
+          submitTool: "edit",
+          modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+          displayPrompt: "Restore this as video without a surface hint",
+          submissionPrompt: "Restore this as video without a surface hint",
+          aspect: "16:9",
+          imageResolution: "2K",
+          referenceInputs: ["https://example.com/first-frame.png"],
+          internalMediaRefs: [],
+          capturedAt: "2026-06-06T12:00:00.000Z",
+        },
+      })
+    ).toEqual(
+      expect.objectContaining({
+        originTool: "video",
+        panelKind: "video",
+        outputMode: "video",
+        model: { id: "kie-ai/kling-3.0" },
+        payload: expect.objectContaining({
+          kind: "video",
+          videoReferenceMode: "standard",
+          durationSeconds: 6,
+          referenceInputs: ["https://example.com/first-frame.png"],
+        }),
+      })
+    );
+    expect(
+      resolveWorkflowReloadConfigForOutput({
+        ...baseOutput,
         mode: "video",
         modelId: "kie-ai/kling-3.0",
         previewUrl: "https://example.com/signed-video",

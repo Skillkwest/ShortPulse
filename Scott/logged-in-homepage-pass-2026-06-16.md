@@ -37,6 +37,9 @@
   - source generated with the built-in image generation tool, then compressed to WebP;
   - prompt intent: plain dark graphite/glass texture with subtle grid, teal accents, ember accents, no people, no objects, no text;
   - CSS reference is scoped to `.authenticated-home-hero-bg` only.
+- Added a signed-in header block for `Community` in `AuthenticatedDashboardRoute`.
+  - It is currently a non-link header card because no safe standalone community route was identified in this pass.
+  - The logged-out community surfaces were not edited.
 
 ## Validation
 

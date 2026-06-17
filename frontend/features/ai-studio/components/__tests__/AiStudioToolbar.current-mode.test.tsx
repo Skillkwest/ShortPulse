@@ -85,14 +85,20 @@ const mockElementRect = (element: Element, rect: Partial<DOMRect>) => {
   });
 };
 
+const railRepeatClickCase = (
+  label: string,
+  selectedTool: ToolId,
+  expectedTool: ToolId
+): [string, ToolId, ToolId] => [label, selectedTool, expectedTool];
+
 const leftRailRepeatClickCases = [
-  ...primaryToolList.map((tool) => [tool.label, tool.id, tool.id]),
+  ...primaryToolList.map((tool) => railRepeatClickCase(tool.label, tool.id, tool.id)),
   ...workflowToolList.map((tool) => {
-    const activeTool = tool.id === "sound" ? "voices" : tool.id;
-    return [tool.label, activeTool, activeTool] satisfies [string, ToolId, ToolId];
+    const activeTool: ToolId = tool.id === "sound" ? "voices" : tool.id;
+    return railRepeatClickCase(tool.label, activeTool, activeTool);
   }),
-  ...soundChildTools.map((tool) => [tool.label, tool.id, tool.id]),
-  ...librariesToolList.map((tool) => [tool.label, tool.id, tool.id]),
+  ...soundChildTools.map((tool) => railRepeatClickCase(tool.label, tool.id, tool.id)),
+  ...librariesToolList.map((tool) => railRepeatClickCase(tool.label, tool.id, tool.id)),
 ] satisfies Array<[string, ToolId, ToolId]>;
 
 describe("AiStudioToolbar current mode", () => {

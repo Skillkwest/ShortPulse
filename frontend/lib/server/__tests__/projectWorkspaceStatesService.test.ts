@@ -1135,9 +1135,29 @@ describe("projectWorkspaceStatesService", () => {
           active: [
             {
               id: "out-fail-active",
-              taskState: "fail",
+              generationId: GENERATION_ID_1,
+              taskState: " FAIL ",
+              previewUrl: "https://expired.example.com/failed-active.png",
+              resultUrls: ["https://expired.example.com/failed-active.png"],
               errorMessage: "Unknown error",
               errorMessageShort: "Unknown error",
+            },
+            {
+              id: "out-failed-active",
+              generationId: GENERATION_ID_2,
+              taskState: "failed",
+              previewUrl: "https://expired.example.com/failed-alias.png",
+              resultUrls: ["https://expired.example.com/failed-alias.png"],
+              errorMessage: "Provider failed",
+              errorMessageShort: "Provider failed",
+            },
+            {
+              id: "out-status-failed-active",
+              previewUrl: "https://expired.example.com/status-failed.png",
+              resultUrls: ["https://expired.example.com/status-failed.png"],
+              status: " failed ",
+              errorMessage: "Legacy status failure",
+              errorMessageShort: "Legacy status failure",
             },
           ],
           archived: [

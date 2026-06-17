@@ -14,7 +14,7 @@ Purpose: reduce change risk and improve maintainability by splitting high-churn 
 - `docs/dev-ground-rules.md`
 - `docs/sops/sop_new_feature_modularization.md`
 - `docs/frontend-architecture.md`
-- `frontend/features/ai-studio/components/MediaLibraryModal.tsx`
+- `frontend/features/ai-studio/components/MediaLibraryPanel.tsx`
 - `frontend/pages/ai-studio.tsx`
 - `frontend/features/ai-studio/hooks/useAiStudioState.ts`
 - `frontend/lib/server/api/generationBilling.ts`

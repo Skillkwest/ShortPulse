@@ -254,6 +254,7 @@ describe("falStatusPersistedResults", () => {
       queueState: "dispatched",
       errorMessageShort: null,
       errorDetail: null,
+      errorPayload: null,
     });
   });
 
@@ -293,6 +294,7 @@ describe("falStatusPersistedResults", () => {
       queueState: null,
       errorMessageShort: "Generation failed",
       errorDetail: "Provider reported failed state during recovery execution.",
+      errorPayload: null,
     });
   });
 
@@ -334,6 +336,7 @@ describe("falStatusPersistedResults", () => {
       queueState: "dispatched",
       errorMessageShort: null,
       errorDetail: null,
+      errorPayload: null,
     });
   });
 
@@ -388,6 +391,7 @@ describe("falStatusPersistedResults", () => {
       queueState: "dispatched",
       errorMessageShort: null,
       errorDetail: null,
+      errorPayload: null,
     });
 
     expect(outputEqCalls).toContainEqual(["generation_id", "gen-projection-output-1"]);
@@ -454,6 +458,7 @@ describe("falStatusPersistedResults", () => {
       queueState: "dispatched",
       errorMessageShort: null,
       errorDetail: null,
+      errorPayload: null,
     });
   });
 
@@ -511,6 +516,7 @@ describe("falStatusPersistedResults", () => {
       queueState: "dispatched",
       errorMessageShort: null,
       errorDetail: null,
+      errorPayload: null,
     });
 
     expect(outputEqCalls).toContainEqual(["generation_id", "gen-processing-1"]);
@@ -631,6 +637,7 @@ describe("falStatusPersistedResults", () => {
       queueState: "dispatched",
       errorMessageShort: null,
       errorDetail: null,
+      errorPayload: null,
     });
   });
 
@@ -676,6 +683,7 @@ describe("falStatusPersistedResults", () => {
       queueState: "dispatched",
       errorMessageShort: null,
       errorDetail: null,
+      errorPayload: null,
     });
   });
 

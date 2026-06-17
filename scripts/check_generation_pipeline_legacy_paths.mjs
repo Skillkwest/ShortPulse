@@ -189,6 +189,10 @@ const bannedPatterns = [
     pattern: 'falls back to legacy `/{requestId}/status` probing',
     reason: "Kie status/result polling must use canonical record-info templates only",
   },
+  {
+    pattern: "Status polling is observational only; it does not capture or release reservations.",
+    reason: "provider status polling can now settle terminal outcomes through canonical direct settlement",
+  },
 ];
 
 const sourceExtensions = new Set([

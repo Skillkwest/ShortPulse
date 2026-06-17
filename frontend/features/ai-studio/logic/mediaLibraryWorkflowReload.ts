@@ -2,16 +2,10 @@
  * Adapts explicit saved media workflow reload metadata into the AI Studio reload contract.
  */
 import type { StudioOutput, WorkflowReloadConfigV1, WorkflowReloadMediaKindHint } from "../types";
-import type { MediaFileRow } from "./mediaLibraryModalModel";
+import { resolveMediaMetadataModelId, type MediaFileRow } from "./mediaLibraryModalModel";
 import { isWorkflowReloadConfigV1 } from "./workflowReload";
 
 const AI_STUDIO_MEDIA_SOURCE = "ai_studio";
-
-const asTrimmedString = (value: unknown): string | null => {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-};
 
 const modeFromFileType = (
   fileType: string | null | undefined
@@ -42,10 +36,10 @@ const resolveSavedMediaWorkflowMode = (
   config: WorkflowReloadConfigV1
 ): StudioOutput["mode"] => modeFromFileType(file.file_type) ?? config.outputMode;
 
-export const resolveSavedMediaWorkflowModelId = (
-  metadata: Record<string, unknown> | null | undefined,
+const resolveSavedMediaWorkflowModelId = (
+  file: MediaFileRow,
   config: WorkflowReloadConfigV1
-): string => asTrimmedString(metadata?.model_id ?? metadata?.modelId) ?? config.model.id;
+): string => resolveMediaMetadataModelId(file.metadata) ?? config.model.id;
 
 export const resolveMediaLibraryWorkflowReloadConfig = (
   metadata: Record<string, unknown> | null | undefined
@@ -64,7 +58,7 @@ export const createMediaLibraryWorkflowReloadOutput = (file: MediaFileRow): Stud
   const storagePath = file.storage_path?.trim() || null;
   const generationId = file.source_ref?.trim() || undefined;
   const mode = resolveSavedMediaWorkflowMode(file, config);
-  const modelId = resolveSavedMediaWorkflowModelId(file.metadata, config);
+  const modelId = resolveSavedMediaWorkflowModelId(file, config);
 
   return {
     id: `media-library:${file.id}`,

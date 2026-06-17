@@ -1,6 +1,6 @@
 ---
 name: adaptive-change-gate
-description: Run the mandatory adaptive media regression gate and report pass/fail evidence before merging changes that touch adaptive media, reference grid, quick slot, media-library modal grid, or character adaptive surfaces.
+description: Run the mandatory adaptive media regression gate and report pass/fail evidence before merging changes that touch adaptive media, reference grid, quick slot, media-library panel grid, or character adaptive surfaces.
 ---
 
 # Adaptive Change Gate

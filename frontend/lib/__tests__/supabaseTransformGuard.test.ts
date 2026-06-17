@@ -70,4 +70,13 @@ describe("supabase transform guard", () => {
 
     expect(offenders.map((file) => path.relative(repoRoot, file))).toEqual([]);
   });
+
+  it("keeps Supabase signing modules free of transform option keys", () => {
+    const offenders = SOURCE_PATHS.flatMap(collectSourceFiles).filter((file) => {
+      const source = readFileSync(file, "utf8");
+      return /createSignedUrls?\s*\(/.test(source) && /\btransform\s*:/.test(source);
+    });
+
+    expect(offenders.map((file) => path.relative(repoRoot, file))).toEqual([]);
+  });
 });

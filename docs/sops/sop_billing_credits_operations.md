@@ -239,7 +239,7 @@ Recommended operator sequence:
   - Success with usable media: capture reservation into `generation_charge` ledger debit.
   - Failed/error/content-policy/malformed output: release reservation (no debit posted).
 - User-cleared in-flight Reference Grid placeholders are recorded in `generation_abandonments` through `POST /api/generation/abandon`. Recovery settlement still converges lifecycle, but abandoned failures are no-refund outcomes: reservations are captured when possible. Later success is persisted for audit/recovery but suppressed from Reference Grid publication/projection.
-- Status polling is observational only; it does not capture or release reservations.
+- Status polling is ownership-gated and may settle terminal provider outcomes through the shared direct settlement path. It must persist canonical outputs and settle request-scoped credits before publishing terminal success visibility.
 - Studio-agent prompt-refine and describe flows currently return usage but are not yet debited.
 
 ## Reservation cleanup operations

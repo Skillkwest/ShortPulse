@@ -843,8 +843,8 @@ Checklist:
   - verify the active panel/grid surfaces still resolve preview URLs as signed originals or durable variants and do not emit Supabase `/storage/v1/render/image/`
 - Inspect open-to-first-media attribution events:
   - `media.modal.open_to_first_media`
-- If modal or panel grids stutter at higher counts, verify the canonical Media Library runtime is intact:
-  - Media Library modal/panel are using the default virtualization, video-budget, and sign-prefetch behavior.
+- If media-library panel grids stutter at higher counts, verify the canonical Media Library runtime is intact:
+  - Media Library panel surfaces are using the default virtualization, video-budget, and sign-prefetch behavior.
 - If Reference Grid interactions degrade in long sessions, verify:
   - no Reference Grid preview path emits Supabase `/storage/v1/render/image/`
   - adaptive preview flags are only active when the runtime remains policy-compliant and transform-free:
@@ -864,23 +864,21 @@ Checklist:
   - panel memoization is enabled (`NEXT_PUBLIC_AI_STUDIO_PANEL_MEMOIZATION` not set to `false`),
   - high-density shell mode is enabled (`NEXT_PUBLIC_AI_STUDIO_HIGH_DENSITY_SHELL_MODE` not set to `false`).
 
-## Media Library modal flashes "Loading media library…" while scrolling
+## Media Library panel flashes "Loading media library…" while scrolling
 
 Symptoms:
 
-- While loading the next page or stale-refreshing, cards disappear and the modal briefly shows a blocking loading message.
+- While loading the next page or stale-refreshing, cards disappear and the panel briefly shows a blocking loading message.
 
 Checklist:
 
-- Confirm modal stale-refresh path is non-blocking:
-  - `frontend/features/ai-studio/components/MediaLibraryModal.tsx` should preserve rows during `stale_refresh`.
+- Confirm panel stale-refresh path is non-blocking:
+  - `frontend/features/ai-studio/components/MediaLibraryPanel.tsx` should preserve rows during refreshes.
   - blocking copy should be gated by `showBlockingLoading` with zero active media rows.
-- Confirm shared fetch transition is active:
-  - `frontend/features/media-library/logic/mediaFetchTransition.ts` should return `preserveRowsDuringFetch=true` for `stale_refresh` with existing rows.
-- Confirm controller parity:
-  - `frontend/features/media-library/hooks/useMediaTabDataController.ts` should apply the same transition behavior as modal.
+- Confirm shared panel runtime behavior is active:
+  - `frontend/features/ai-studio/hooks/useMediaLibraryPanelDataController.ts` should keep existing rows visible while refreshing.
 - Run focused tests:
-  - `npm -C frontend run test -- MediaLibraryModal useMediaTabDataController`
+  - `npm -C frontend run test -- MediaLibraryPanel useMediaLibraryPanelDataController`
 
 ## Character Manager alias drift (historical compatibility window)
 

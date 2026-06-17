@@ -9,9 +9,11 @@ import {
   readGenerationProjectionLinkByProviderRequestId,
   readGenerationProjectionLinkByRequestId,
 } from "./generationProjection";
+import { getSupabaseAdmin } from "./supabaseAdmin";
 
 export type GenerationLineageEvidence =
   | "generation_attempt"
+  | "generation_request_id"
   | "projection_generation_id"
   | "projection_provider_request_id"
   | "projection_request_id";
@@ -56,6 +58,43 @@ const emptyResolution = (
   attemptLookupError,
 });
 
+const lookupGenerationByRequestId = async ({
+  requestId,
+  userId,
+}: {
+  requestId: string;
+  userId?: string | null;
+}): Promise<{
+  generationId: string | null;
+  userId: string | null;
+  modelId: string | null;
+  requestId: string | null;
+} | null> => {
+  const query = getSupabaseAdmin()
+    .from("ai_generations")
+    .select("id, user_id, model_id, request_id")
+    .eq("request_id", requestId)
+    .order("created_at", { ascending: false })
+    .limit(1);
+  const scopedQuery = userId ? query.eq("user_id", userId) : query;
+  const { data, error } = await scopedQuery.maybeSingle();
+  if (error) return null;
+  const row = data as {
+    id?: unknown;
+    user_id?: unknown;
+    model_id?: unknown;
+    request_id?: unknown;
+  } | null;
+  const generationId = normalizeString(row?.id as string | null | undefined);
+  if (!generationId) return null;
+  return {
+    generationId,
+    userId: normalizeString(row?.user_id as string | null | undefined),
+    modelId: normalizeString(row?.model_id as string | null | undefined),
+    requestId: normalizeString(row?.request_id as string | null | undefined),
+  };
+};
+
 /**
  * Resolves the canonical generation/source lineage for a provider request id.
  * Projection rows are treated as repair/read-model evidence, not ownership authority.
@@ -99,6 +138,26 @@ export const resolveGenerationLineageByProviderRequest = async ({
   }
 
   if (!includeProjection || !userId) {
+    if (includeProjection && !generationId) {
+      const generationRequestLink = await lookupGenerationByRequestId({
+        requestId: normalizedProviderRequestId,
+        userId,
+      }).catch(() => null);
+      if (generationRequestLink?.generationId) {
+        return {
+          generationId: generationRequestLink.generationId,
+          generationAttemptId,
+          userId: generationRequestLink.userId,
+          modelId: generationRequestLink.modelId,
+          sourceRef,
+          requestId: generationRequestLink.requestId,
+          providerRequestId: normalizedProviderRequestId,
+          evidence: [...evidence, "generation_request_id"],
+          attemptLookupError,
+        };
+      }
+    }
+
     return {
       generationId,
       generationAttemptId,
@@ -127,6 +186,26 @@ export const resolveGenerationLineageByProviderRequest = async ({
         requestId: projectionLink.requestId,
         providerRequestId: normalizedProviderRequestId,
         evidence: [...evidence, "projection_generation_id"],
+        attemptLookupError,
+      };
+    }
+  }
+
+  if (!generationId) {
+    const generationRequestLink = await lookupGenerationByRequestId({
+      requestId: normalizedProviderRequestId,
+      userId,
+    }).catch(() => null);
+    if (generationRequestLink?.generationId) {
+      return {
+        generationId: generationRequestLink.generationId,
+        generationAttemptId,
+        userId: generationRequestLink.userId,
+        modelId: generationRequestLink.modelId,
+        sourceRef,
+        requestId: generationRequestLink.requestId,
+        providerRequestId: normalizedProviderRequestId,
+        evidence: [...evidence, "generation_request_id"],
         attemptLookupError,
       };
     }

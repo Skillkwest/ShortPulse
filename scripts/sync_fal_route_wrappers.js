@@ -40,7 +40,7 @@ function providerRouteConfigImport(provider, kind) {
 
 function renderGeneratedOwnershipHeader(entry, kind) {
   return [
-    "// Generated compatibility wrapper. Do not hand edit.",
+    "// Generated canonical route wrapper. Do not hand edit.",
     `// Source of truth: scripts/lib/fal_route_inventory.js (${entry.fileBase} ${kind}).`,
     "// Regenerate with: npm -C frontend run fal:routes:sync",
     "",

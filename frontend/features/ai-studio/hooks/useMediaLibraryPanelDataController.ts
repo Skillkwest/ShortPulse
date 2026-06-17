@@ -2,21 +2,25 @@ import React from "react";
 import {
   fetchMediaListPage,
   type MediaListCursor,
-  type MediaListMediaKind,
   type MediaListSurface,
 } from "../../media-library/logic/mediaListApi";
-import type { MediaListProfile } from "../../../lib/mediaListProfile";
 import { shouldAutoLoadNearBottom } from "../../media-library/logic/mediaLoadMoreGating";
 import { mergePageRows } from "../../media-library/logic/mediaLibraryPageHelpers";
 import {
   getMediaLibrarySurfaceConfig,
   useMediaLibraryPanelRuntime,
 } from "../../media-library/runtime";
+import {
+  normalizeMediaLibraryPanelRequestFolderId,
+  resolveMediaLibraryPanelListProfile,
+  resolveMediaLibraryPanelMediaKind,
+  scheduleMediaLibraryPanelBackgroundCountTask,
+  waitForMediaLibraryPanelAnimationFrame,
+  type MediaLibraryPanelItemType,
+} from "../logic/mediaLibraryPanelDataControllerLogic";
 import { fetchMediaPromptListPage, type PromptListCursor } from "../logic/mediaLibraryPanelApi";
 import { toMediaLibraryErrorText } from "../logic/mediaLibraryErrorText";
 import type { MediaFileRow, PromptRow } from "../logic/mediaLibraryModalModel";
-
-type MediaLibraryPanelItemType = "all" | "images" | "videos" | "audio" | "prompts";
 
 type UseMediaLibraryPanelDataControllerParams = {
   projectId?: string | null;
@@ -51,56 +55,6 @@ type UseMediaLibraryPanelDataControllerResult = {
 const MEDIA_PAGE_SIZE = getMediaLibrarySurfaceConfig("panel").pageSize;
 const PROMPT_PAGE_SIZE = MEDIA_PAGE_SIZE;
 const INFINITE_LOAD_BOTTOM_THRESHOLD_PX = 220;
-const MEDIA_FOLDER_UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-const normalizeRequestFolderId = (folderId: string): string => {
-  const normalizedFolderId = folderId.trim();
-  if (!normalizedFolderId || normalizedFolderId === "all_items") {
-    return "all_items";
-  }
-  return MEDIA_FOLDER_UUID_PATTERN.test(normalizedFolderId) ? normalizedFolderId : "all_items";
-};
-
-const resolveMediaKind = (itemType: MediaLibraryPanelItemType): MediaListMediaKind => {
-  if (itemType === "images") return "images";
-  if (itemType === "videos") return "videos";
-  if (itemType === "audio") return "audio";
-  return "all";
-};
-
-const resolveMediaListProfile = (itemType: MediaLibraryPanelItemType): MediaListProfile => {
-  if (itemType === "images") return "minimal";
-  return "expanded";
-};
-
-const waitForAnimationFrame = async (): Promise<void> => {
-  if (typeof window === "undefined") return;
-  await new Promise<void>((resolve) => {
-    window.requestAnimationFrame(() => resolve());
-  });
-};
-
-const scheduleBackgroundLibraryCountTask = (callback: () => void): (() => void) => {
-  if (typeof window === "undefined") {
-    callback();
-    return () => {};
-  }
-  const win = window as Window & {
-    requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
-    cancelIdleCallback?: (handle: number) => void;
-  };
-  if (typeof win.requestIdleCallback === "function") {
-    const handle = win.requestIdleCallback(callback, { timeout: 1500 });
-    return () => {
-      if (typeof win.cancelIdleCallback === "function") {
-        win.cancelIdleCallback(handle);
-      }
-    };
-  }
-  const timeoutId = window.setTimeout(callback, 350);
-  return () => window.clearTimeout(timeoutId);
-};
 
 export const useMediaLibraryPanelDataController = ({
   activeFolderId,
@@ -144,7 +98,7 @@ export const useMediaLibraryPanelDataController = ({
   const promptScopeCacheRef = React.useRef(promptScopeCache);
 
   const requestFolderId = React.useMemo(
-    () => normalizeRequestFolderId(activeFolderId),
+    () => normalizeMediaLibraryPanelRequestFolderId(activeFolderId),
     [activeFolderId]
   );
   const activeRowsScopeKey = `${requestFolderId}|${itemType}|${normalizedSearch}`;
@@ -197,7 +151,7 @@ export const useMediaLibraryPanelDataController = ({
       libraryTotalCountRequestTokenRef.current = requestToken;
       const result = await fetchMediaListPage<MediaFileRow>({
         tab: null,
-        mediaKind: resolveMediaKind(itemType),
+        mediaKind: resolveMediaLibraryPanelMediaKind(itemType),
         query: normalizedSearch,
         cursor: null,
         limit: 1,
@@ -227,12 +181,14 @@ export const useMediaLibraryPanelDataController = ({
     ({ scopeKey }: { scopeKey: string }) => {
       if (!shouldRefreshLibraryTotalCount) return;
       cancelLibraryTotalCountRefresh();
-      cancelLibraryTotalCountRefreshRef.current = scheduleBackgroundLibraryCountTask(() => {
-        cancelLibraryTotalCountRefreshRef.current = null;
-        void refreshLibraryTotalCount({ scopeKey }).catch(() => {
-          // Count badges are non-critical; the visible media grid should remain uninterrupted.
-        });
-      });
+      cancelLibraryTotalCountRefreshRef.current = scheduleMediaLibraryPanelBackgroundCountTask(
+        () => {
+          cancelLibraryTotalCountRefreshRef.current = null;
+          void refreshLibraryTotalCount({ scopeKey }).catch(() => {
+            // Count badges are non-critical; the visible media grid should remain uninterrupted.
+          });
+        }
+      );
     },
     [cancelLibraryTotalCountRefresh, refreshLibraryTotalCount, shouldRefreshLibraryTotalCount]
   );
@@ -269,12 +225,12 @@ export const useMediaLibraryPanelDataController = ({
       try {
         const result = await fetchMediaListPage<MediaFileRow>({
           tab: null,
-          mediaKind: resolveMediaKind(itemType),
+          mediaKind: resolveMediaLibraryPanelMediaKind(itemType),
           query: normalizedSearch,
           cursor: reset ? null : mediaCursorRef.current,
           limit: MEDIA_PAGE_SIZE,
           surface: listSurface,
-          profile: resolveMediaListProfile(itemType),
+          profile: resolveMediaLibraryPanelListProfile(itemType),
           folderId: requestFolderId,
           includeLibraryTotalCount: false,
         });
@@ -474,8 +430,8 @@ export const useMediaLibraryPanelDataController = ({
     }
 
     if (!shouldPreserveScroll) return;
-    await waitForAnimationFrame();
-    await waitForAnimationFrame();
+    await waitForMediaLibraryPanelAnimationFrame();
+    await waitForMediaLibraryPanelAnimationFrame();
     const nextContainer = panelBodyRef.current;
     if (!nextContainer) return;
     const nextMaxTop = Math.max(0, nextContainer.scrollHeight - nextContainer.clientHeight);

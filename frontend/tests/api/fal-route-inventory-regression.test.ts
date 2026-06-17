@@ -28,11 +28,11 @@ describe("fal route inventory regression", () => {
     expect(listFalRouteFiles()).toEqual(listExpectedFalRouteFiles());
   });
 
-  it("keeps every generated Fal route module marked as a compatibility wrapper", () => {
+  it("keeps every generated Fal route module marked as a canonical route wrapper", () => {
     for (const routeFile of listGeneratedFalRouteFiles()) {
       const routePath = path.join(FAL_ROUTES_DIR, routeFile);
       const source = fs.readFileSync(routePath, "utf8");
-      expect(source).toContain("// Generated compatibility wrapper. Do not hand edit.");
+      expect(source).toContain("// Generated canonical route wrapper. Do not hand edit.");
       expect(source).toContain("// Source of truth: scripts/lib/fal_route_inventory.js");
       expect(source).toContain("// Regenerate with: npm -C frontend run fal:routes:sync");
     }
@@ -46,7 +46,7 @@ describe("fal route inventory regression", () => {
     }
   });
 
-  it("keeps the client off retired generic Fal routes and compatibility fallbacks", () => {
+  it("keeps the client off retired generic Fal routes and route fallbacks", () => {
     const source = fs.readFileSync(FAL_CLIENT_PATH, "utf8");
     expect(source).not.toContain("`${FAL_API_BASE}/submit`");
     expect(source).not.toContain("`${FAL_API_BASE}/status`");

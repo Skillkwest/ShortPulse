@@ -5,6 +5,7 @@ const lookupGenerationAttemptByProviderRequestMock = vi.fn();
 const readGenerationProjectionLinkByGenerationIdMock = vi.fn();
 const readGenerationProjectionLinkByProviderRequestIdMock = vi.fn();
 const readGenerationProjectionLinkByRequestIdMock = vi.fn();
+const getSupabaseAdminMock = vi.fn();
 
 vi.mock("../generationAttempts", () => ({
   lookupGenerationAttemptByProviderRequest: (...args: unknown[]) =>
@@ -20,6 +21,39 @@ vi.mock("../generationProjection", () => ({
     readGenerationProjectionLinkByRequestIdMock(...args),
 }));
 
+vi.mock("../supabaseAdmin", () => ({
+  getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
+}));
+
+const createMockSupabase = ({
+  generationData = null,
+}: {
+  generationData?: {
+    id: string;
+    user_id?: string | null;
+    model_id?: string | null;
+    request_id?: string | null;
+  } | null;
+} = {}) => {
+  const generationBuilder: Record<string, unknown> = {};
+  generationBuilder.eq = vi.fn(() => generationBuilder);
+  generationBuilder.order = vi.fn(() => generationBuilder);
+  generationBuilder.limit = vi.fn(() => generationBuilder);
+  generationBuilder.maybeSingle = vi.fn(async () => ({
+    data: generationData,
+    error: null,
+  }));
+
+  return {
+    from: vi.fn((tableName: string) => {
+      if (tableName === "ai_generations") {
+        return { select: vi.fn(() => generationBuilder) };
+      }
+      throw new Error(`Unexpected table ${tableName}`);
+    }),
+  };
+};
+
 describe("resolveGenerationLineageByProviderRequest", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -27,6 +61,7 @@ describe("resolveGenerationLineageByProviderRequest", () => {
     readGenerationProjectionLinkByGenerationIdMock.mockResolvedValue(null);
     readGenerationProjectionLinkByProviderRequestIdMock.mockResolvedValue(null);
     readGenerationProjectionLinkByRequestIdMock.mockResolvedValue(null);
+    getSupabaseAdminMock.mockReturnValue(createMockSupabase());
   });
 
   it("uses generation_attempts before projection repair evidence", async () => {
@@ -91,6 +126,41 @@ describe("resolveGenerationLineageByProviderRequest", () => {
     expect(readGenerationProjectionLinkByRequestIdMock).not.toHaveBeenCalled();
   });
 
+  it("uses ai_generations request_id lifecycle evidence before projection repair evidence", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createMockSupabase({
+        generationData: {
+          id: "gen-request-shell-1",
+          user_id: "user-1",
+          model_id: "model-1",
+          request_id: "req-shell-1",
+        },
+      })
+    );
+    readGenerationProjectionLinkByProviderRequestIdMock.mockResolvedValue({
+      generationId: "gen-projection-1",
+      sourceRef: "source-ref-projection-1",
+      requestId: "req-shell-1",
+    });
+
+    await expect(
+      resolveGenerationLineageByProviderRequest({
+        providerRequestId: "req-shell-1",
+        userId: "user-1",
+      })
+    ).resolves.toEqual(
+      expect.objectContaining({
+        generationId: "gen-request-shell-1",
+        userId: "user-1",
+        modelId: "model-1",
+        requestId: "req-shell-1",
+        evidence: ["generation_request_id"],
+      })
+    );
+    expect(readGenerationProjectionLinkByProviderRequestIdMock).not.toHaveBeenCalled();
+    expect(readGenerationProjectionLinkByRequestIdMock).not.toHaveBeenCalled();
+  });
+
   it("accepts provider_request_id projection lineage even when source_ref is absent", async () => {
     readGenerationProjectionLinkByProviderRequestIdMock.mockResolvedValue({
       generationId: "gen-provider-no-source-1",
@@ -142,6 +212,7 @@ describe("resolveGenerationLineageByProviderRequest", () => {
     expect(readGenerationProjectionLinkByGenerationIdMock).not.toHaveBeenCalled();
     expect(readGenerationProjectionLinkByProviderRequestIdMock).not.toHaveBeenCalled();
     expect(readGenerationProjectionLinkByRequestIdMock).not.toHaveBeenCalled();
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
   });
 
   it("throws attempt lookup errors when recovery requires strict authority", async () => {

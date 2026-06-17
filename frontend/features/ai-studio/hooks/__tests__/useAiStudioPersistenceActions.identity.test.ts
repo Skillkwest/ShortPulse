@@ -370,13 +370,16 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
     };
     const generationReplay = {
       version: 1,
-      source: "ai_studio_generation",
+      mode: "image",
       submitTool: "create",
-      prompt: "A glass lighthouse",
-      model: "fal-ai/imagen4/preview",
+      modelId: "fal-ai/imagen4/preview",
+      displayPrompt: "A glass lighthouse",
+      submissionPrompt: "A glass lighthouse",
       aspect: "16:9",
+      imageResolution: "1K",
       referenceInputs: [],
-    };
+      capturedAt: "2026-06-15T10:00:00.000Z",
+    } satisfies NonNullable<StudioOutput["generationReplay"]>;
     const outputs = new Map<string, StudioOutput>([
       [
         "out-1",
@@ -385,7 +388,7 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
           generationId: EXISTING_GENERATION_ID,
           workflowReload,
           generationReplay,
-          styleContext: { styleId: "style-1", stylePrompt: "studio glass lighting" },
+          styleContext: { applied: true, styleId: "style-1", stylePrompt: "studio glass lighting" },
         } as Partial<StudioOutput>),
       ],
     ]);
@@ -420,7 +423,11 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
         metadata: expect.objectContaining({
           workflow_reload: workflowReload,
           generation_replay: generationReplay,
-          style_context: { styleId: "style-1", stylePrompt: "studio glass lighting" },
+          style_context: {
+            applied: true,
+            styleId: "style-1",
+            stylePrompt: "studio glass lighting",
+          },
         }),
       })
     );

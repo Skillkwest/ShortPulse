@@ -18,7 +18,7 @@ description: Run cross-surface regression smoke checks for adaptive media ingres
 cd frontend
 npm test -- --run \
   features/ai-studio/components/__tests__/ReferenceGrid.curated.test.tsx \
-  features/ai-studio/components/__tests__/MediaLibraryModal.test.tsx \
+  features/ai-studio/components/__tests__/MediaLibraryPanel.test.tsx \
   features/ai-studio/components/__tests__/DetailModal.test.tsx \
   features/media-library/hooks/__tests__/useMediaPreviewSigningController.test.ts \
   features/character-manager/components/__tests__/CharacterPanelWorkspace.test.tsx

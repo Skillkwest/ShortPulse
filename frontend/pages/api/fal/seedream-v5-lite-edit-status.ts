@@ -1,4 +1,4 @@
-// Generated compatibility wrapper. Do not hand edit.
+// Generated canonical route wrapper. Do not hand edit.
 // Source of truth: scripts/lib/fal_route_inventory.js (seedream-v5-lite-edit status).
 // Regenerate with: npm -C frontend run fal:routes:sync
 

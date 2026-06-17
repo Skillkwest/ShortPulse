@@ -356,10 +356,6 @@ vi.mock("../../features/ai-studio/components/AiStudioPageContent", () => ({
   },
 }));
 
-vi.mock("../../features/ai-studio/components/MediaLibraryModal", () => ({
-  MediaLibraryModal: () => null,
-}));
-
 vi.mock("../../features/ai-studio/hooks/useCredits", () => ({
   useCredits: () => ({
     balanceCents: creditsStateMock.balanceCents,

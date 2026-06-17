@@ -1,6 +1,6 @@
 /**
- * Shared adaptive preview resolution for Media Library modal/panel card grids.
- * Keeps pressure-aware preview URL selection consistent across both surfaces.
+ * Shared adaptive preview resolution for Media Library panel card grids.
+ * Keeps pressure-aware preview URL selection consistent across active surfaces.
  */
 import {
   resolveAdaptiveMedia,

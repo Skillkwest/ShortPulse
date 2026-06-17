@@ -130,11 +130,15 @@ export const isProjectGeneratedWorkspaceOutput = (output: Record<string, unknown
   return mediaSource === "generated" || hasProjectRecoverableRuntimeIdentity(output);
 };
 
+const normalizeProjectOutputTaskState = (output: Record<string, unknown>): string =>
+  (asTrimmedString(output.taskState) ?? asTrimmedString(output.status) ?? "").toLowerCase();
 const isInFlightProjectOutput = (output: Record<string, unknown>): boolean => {
-  const taskState =
-    typeof output.taskState === "string" ? output.taskState.trim().toLowerCase() : "";
+  const taskState = normalizeProjectOutputTaskState(output);
   return taskState === "pending" || taskState === "running";
 };
+
+const isFailedProjectOutput = (output: Record<string, unknown>): boolean =>
+  ["fail", "failed"].includes(normalizeProjectOutputTaskState(output));
 
 const isPromptOnlyProjectReference = (output: Record<string, unknown>): boolean => {
   const mode = typeof output.mode === "string" ? output.mode.trim().toLowerCase() : "";
@@ -216,7 +220,7 @@ const trimPromptOnlyProjectWorkspaceOutput = (
 const shouldPersistOutputInProjectWorkspaceSnapshot = (
   output: Record<string, unknown>
 ): boolean => {
-  if (output.taskState === "fail") return false;
+  if (isFailedProjectOutput(output)) return false;
   return (
     hasProjectRestorableOutputPayload(output) ||
     hasProjectDurableOutputAuthority(output) ||

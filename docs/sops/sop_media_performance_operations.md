@@ -7,7 +7,7 @@ Operate and troubleshoot Media Library and AI Studio Reference Grid performance 
 ## Scope
 
 - In scope:
-  - AI Studio Media Library panel and AI Studio Media Library modal.
+  - AI Studio Media Library panel and embedded Media Library panels.
   - Reference Grid autoplay performance controls.
   - Signed URL hydration and batch signing behavior.
   - Local telemetry inspection for tuning and incident triage.
@@ -27,8 +27,6 @@ Use [docs/sops/sop_media_panel_performance_kpi.md](./sop_media_panel_performance
   - `frontend/pages/api/media/resolve-previews.ts`
 - Server-authoritative list API:
   - `frontend/pages/api/media/list.ts`
-- AI Studio Media Library modal:
-  - `frontend/features/ai-studio/components/MediaLibraryModal.tsx`
 - AI Studio Media Library panel:
   - `frontend/features/ai-studio/components/MediaLibraryPanel.tsx`
   - `frontend/features/media-library/logic/mediaLibraryAdaptivePreview.ts`
@@ -172,13 +170,8 @@ Key indicators:
 
 ## Tuning Knobs
 
-- Modal sign budget constants:
-  - `MEDIA_MODAL_SIGN_BUDGET_*` in `frontend/features/ai-studio/components/MediaLibraryModal.tsx`
 - Panel sign budget constants:
   - `MEDIA_LIBRARY_PANEL_SIGN_BUDGET_*` in `frontend/features/ai-studio/components/MediaLibraryPanel.tsx`
-- Modal fetch-transition rules:
-  - `resolveMediaFetchTransition` in `frontend/features/media-library/logic/mediaFetchTransition.ts`
-  - fetch reasons: `initial`, `tab_or_query_reset`, `stale_refresh`, `load_more`
 - Media list/runtime contract:
   - canonical Media Library list/signing runtime (`/api/media/list`, virtualization, video budget, sign prefetch)
 - Reference Grid autoplay caps:
@@ -329,7 +322,7 @@ Monitor these events during rollout:
   - Confirm constrained profile budget is active when expected.
 - Symptom: `All Media` `generations_images` cards fill slowly in AI Studio panel.
   - Verify adaptive surfaces include the active panel/grid surfaces:
-    - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES` includes `media-library-grid`, `media-library-modal-grid`, and `media-library-panel-grid`.
+    - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES` includes `media-library-grid` and `media-library-panel-grid`.
   - Run diagnostics script:
     - `sql/check_media_preview_variant_coverage_and_size.sql`
   - If `ai_studio` image rows show low variant coverage and high p50/p90 bytes, enable and verify derivative worker rollout:

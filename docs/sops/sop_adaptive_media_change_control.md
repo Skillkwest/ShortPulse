@@ -6,14 +6,14 @@ Purpose: prevent regressions while continuing development in other AI Studio and
 
 - Adaptive media module and policy/resolver paths.
 - AI Studio Reference Grid + Quick Slot rendering paths.
-- AI Studio Media Library modal grid and AI Studio Characters grid/detail usage of adaptive delivery.
+- AI Studio Media Library panel grid and AI Studio Characters grid/detail usage of adaptive delivery.
 
 ## Protected Code Paths
 
 - `frontend/lib/adaptive-media/**`
 - `frontend/features/ai-studio/components/ReferenceGrid.tsx`
 - `frontend/features/ai-studio/logic/referenceGridMedia.ts`
-- `frontend/features/ai-studio/components/MediaLibraryModal.tsx`
+- `frontend/features/ai-studio/components/MediaLibraryPanel.tsx`
 - `frontend/features/ai-studio/reference-domain/**`
 - `frontend/features/ai-studio/reference-ingestion/**`
 - `frontend/features/ai-studio/reference-projections/**`
@@ -54,7 +54,7 @@ This gate currently includes:
 - `type-check`
 - `ReferenceGrid.curated` suite
 - `referenceGridMedia` + parity suites
-- `MediaLibraryModal` suite
+- `MediaLibraryPanel` suite
 - `CharacterPanelWorkspace` suite
 - `adaptive-media policy` suite
 - `check:architecture-boundary` (reference-grid boundary lane)
@@ -85,7 +85,7 @@ This gate currently includes:
 
 - Reference Grid
 - Quick Slot
-- AI Studio media-library modal grid
+- AI Studio media-library panel grid
 - AI Studio Characters/panel grids
 
 3. Detail coverage:

@@ -330,7 +330,7 @@ describe("Create agent mode boundaries", () => {
       "features/ai-studio/hooks/useAiStudioVideoPanelProps.ts"
     );
     const standardCreatePanelPropsSource = readFrontendFile(
-      "features/ai-studio/hooks/standardCreateRuntime/useStandardCreatePanelProps.ts"
+      "features/ai-studio/createRuntime/standardPanel/standardCreatePanelContract.ts"
     );
     const pulseCreatePanelPropsSource = readFrontendFile(
       "features/ai-studio/hooks/pulseCreateRuntime/usePulseCreatePanelProps.ts"
@@ -368,7 +368,9 @@ describe("Create agent mode boundaries", () => {
     expect(videoPanelPropsSource).not.toContain("pulsePrompt: string;");
     expect(videoPanelPropsSource).not.toContain("handleStandardPromptChange");
     expect(videoPanelPropsSource).not.toContain("handlePulsePromptChange");
-    expect(standardCreatePanelPropsSource).not.toContain("Pulse");
+    expect(standardCreatePanelPropsSource).not.toContain("PromptStepPulseLoadingState");
+    expect(standardCreatePanelPropsSource).not.toContain("CreatePulsePresetId");
+    expect(standardCreatePanelPropsSource).not.toContain("activeCreatePulsePreset");
     expect(standardCreatePanelPropsSource).not.toContain("pulseWorkflowSession");
     expect(standardCreatePanelPropsSource).not.toContain("onAgentEnhanceSend");
     expect(pulseCreatePanelPropsSource).not.toContain("Standard");

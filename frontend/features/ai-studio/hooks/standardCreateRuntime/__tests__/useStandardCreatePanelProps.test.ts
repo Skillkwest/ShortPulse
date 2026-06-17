@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { buildStandardCreatePanelProps } from "../useStandardCreatePanelProps";
+import { buildStandardCreatePanelProps } from "../../../createRuntime/standardPanel/standardCreatePanelContract";
 
 describe("buildStandardCreatePanelProps", () => {
   const baseParams = {

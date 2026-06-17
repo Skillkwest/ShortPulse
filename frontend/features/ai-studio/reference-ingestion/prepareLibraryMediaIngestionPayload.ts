@@ -28,11 +28,37 @@ type MediaStoragePathRow = {
   width?: unknown;
 };
 
+type MediaIdFallback = {
+  filename: string | null;
+  source: string | null;
+  sourceRef: string | null;
+  modelId: string | null;
+  workflowReload: LibraryMediaPayload["workflowReload"] | null;
+  previewStoragePath: string | null;
+  previewPosterStoragePath: string | null;
+  fullStoragePath: string | null;
+  width: number | undefined;
+  height: number | undefined;
+};
+
 const normalizeText = (value: string | null | undefined): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : null;
 };
+
+const createEmptyMediaIdFallback = (): MediaIdFallback => ({
+  filename: null,
+  source: null,
+  sourceRef: null,
+  modelId: null,
+  workflowReload: null,
+  previewStoragePath: null,
+  previewPosterStoragePath: null,
+  fullStoragePath: null,
+  width: undefined,
+  height: undefined,
+});
 
 const resolveStoragePathsFromRow = (
   row: MediaStoragePathRow | null | undefined,
@@ -112,32 +138,10 @@ const signStoragePath = async (storagePath: string | null): Promise<string | nul
 const resolveStoragePathsFromMediaId = async (
   mediaId: string,
   fileType: LibraryMediaPayload["fileType"]
-): Promise<{
-  filename: string | null;
-  source: string | null;
-  sourceRef: string | null;
-  modelId: string | null;
-  workflowReload: LibraryMediaPayload["workflowReload"] | null;
-  previewStoragePath: string | null;
-  previewPosterStoragePath: string | null;
-  fullStoragePath: string | null;
-  width: number | undefined;
-  height: number | undefined;
-}> => {
+): Promise<MediaIdFallback> => {
   const normalizedMediaId = normalizeText(mediaId);
   if (!normalizedMediaId) {
-    return {
-      filename: null,
-      source: null,
-      sourceRef: null,
-      modelId: null,
-      workflowReload: null,
-      previewStoragePath: null,
-      previewPosterStoragePath: null,
-      fullStoragePath: null,
-      width: undefined,
-      height: undefined,
-    };
+    return createEmptyMediaIdFallback();
   }
   try {
     const supabase = ensureSupabaseQueryClient();
@@ -150,18 +154,7 @@ const resolveStoragePathsFromMediaId = async (
       .limit(1)
       .maybeSingle()) as unknown as { data: MediaStoragePathRow | null; error: unknown };
     if (error) {
-      return {
-        filename: null,
-        source: null,
-        sourceRef: null,
-        modelId: null,
-        workflowReload: null,
-        previewStoragePath: null,
-        previewPosterStoragePath: null,
-        fullStoragePath: null,
-        width: undefined,
-        height: undefined,
-      };
+      return createEmptyMediaIdFallback();
     }
     const paths = resolveStoragePathsFromRow(data, fileType);
     const metadata =
@@ -192,18 +185,7 @@ const resolveStoragePathsFromMediaId = async (
       height,
     };
   } catch {
-    return {
-      filename: null,
-      source: null,
-      sourceRef: null,
-      modelId: null,
-      workflowReload: null,
-      previewStoragePath: null,
-      previewPosterStoragePath: null,
-      fullStoragePath: null,
-      width: undefined,
-      height: undefined,
-    };
+    return createEmptyMediaIdFallback();
   }
 };
 
@@ -251,18 +233,7 @@ export const prepareLibraryMediaIngestionPayload = async (
     (looksLikeGeneratedMedia && (!normalizedSourceRef || !hasWorkflowReload));
   const mediaIdFallbackPaths = needsMediaIdFallback
     ? await resolveStoragePathsFromMediaId(payload.id, payload.fileType)
-    : {
-        filename: null,
-        source: null,
-        sourceRef: null,
-        modelId: null,
-        workflowReload: null,
-        previewStoragePath: null,
-        previewPosterStoragePath: null,
-        fullStoragePath: null,
-        width: undefined,
-        height: undefined,
-      };
+    : createEmptyMediaIdFallback();
   const normalizedPreviewPosterStoragePath =
     payload.fileType === "video"
       ? (initialPreviewPosterStoragePath ?? mediaIdFallbackPaths.previewPosterStoragePath)

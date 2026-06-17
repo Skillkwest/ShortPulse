@@ -90,8 +90,8 @@ describe("ReferenceGridSections", () => {
   it("shows the Canvas camera zoom badge in the Canvas header divider row", () => {
     const { container } = render(<ReferenceGridSections {...createProps()} showQuickSlotSection />);
 
-    const header = container.querySelector(".reference-rail-canvas-header");
-    const divider = container.querySelector(".reference-section-title-divider");
+    const header = container.querySelector<HTMLElement>(".reference-rail-canvas-header");
+    const divider = container.querySelector<HTMLElement>(".reference-section-title-divider");
     const badge = screen.getByTestId("canvas-camera-zoom-badge");
 
     expect(header).toContainElement(badge);

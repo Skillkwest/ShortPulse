@@ -97,15 +97,6 @@ type MediaLibraryHttpRequestError = Error & {
   status: number;
 };
 
-export type MediaFolderCanvasState = {
-  folderId: string;
-  schemaVersion: number;
-  snapshot: Record<string, unknown>;
-  saveSeq: number;
-  createdAt: string;
-  updatedAt: string;
-};
-
 const TRANSIENT_NETWORK_RETRY_ATTEMPTS = 2;
 const TRANSIENT_NETWORK_RETRY_BASE_DELAY_MS = 180;
 

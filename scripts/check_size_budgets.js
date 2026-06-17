@@ -31,10 +31,6 @@ const REFERENCE_GRID_TARGET_BUDGETS = [
     maxLines: 900,
   },
   {
-    file: "frontend/features/ai-studio/components/MediaLibraryModal.tsx",
-    maxLines: 800,
-  },
-  {
     file: "frontend/features/ai-studio/hooks/useAiStudioState.ts",
     maxLines: 750,
   },
@@ -78,10 +74,6 @@ const MEDIA_RENDERING_TARGET_BUDGETS = [
   {
     file: "frontend/features/ai-studio/components/ReferenceGrid.tsx",
     maxLines: 1050,
-  },
-  {
-    file: "frontend/features/ai-studio/components/MediaLibraryModal.tsx",
-    maxLines: 700,
   },
   {
     file: "frontend/features/ai-studio/components/MediaLibraryPanel.tsx",

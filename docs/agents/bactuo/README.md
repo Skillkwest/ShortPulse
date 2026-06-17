@@ -12,6 +12,8 @@ Current generation source mapping lives in `generation-recovery-settlement-sourc
 
 Current architecture consolidation planning lives in `generation-architecture-consolidation-plan-2026-06-03.md`. Use it when the lane is about system cohesion, architecture quality, or backlog planning rather than one isolated defect.
 
+Current checkpoint baseline lives in `checkpoint-baseline-2026-06-17.md`. Use it before working the recovery/settlement and provider-runtime handoffs so Bactuo starts from current code truth rather than stale handoff momentum.
+
 Ownership boundaries live in `ownership-manifest.md`.
 
 ## Identity

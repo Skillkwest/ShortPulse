@@ -15,7 +15,7 @@
 - [mediaListProfile.ts](../../../../frontend/lib/mediaListProfile.ts)
 - [list.ts](../../../../frontend/pages/api/media/list.ts)
 - [mediaListApi.ts](../../../../frontend/features/media-library/logic/mediaListApi.ts)
-- [useMediaTabDataController.ts](../../../../frontend/features/media-library/hooks/useMediaTabDataController.ts)
+- historical path `frontend/features/media-library/hooks/useMediaTabDataController.ts`
 - [useMediaLibraryPanelDataController.ts](../../../../frontend/features/ai-studio/hooks/useMediaLibraryPanelDataController.ts)
 - [media-list.test.ts](../../../../frontend/tests/api/media-list.test.ts)
 - [api-list-profile-spec](../../../planning/media-rendering-hardening-v2-api-list-profile-spec-2026-03-16.md)

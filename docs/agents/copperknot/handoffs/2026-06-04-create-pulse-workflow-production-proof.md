@@ -30,6 +30,7 @@
 - `frontend/features/ai-studio/components/create/StandardCreatePropertiesPanel.tsx` exposes the inline Generate CTA only through the Standard panel control set and hides it when Standard Chat Mode is active.
 - `frontend/features/ai-studio/components/create/PulseCreatePropertiesPanel.tsx` and `frontend/features/ai-studio/components/create/PulseCreatePanelView.tsx` keep Pulse as an agent composer with no Pulse-only Generate CTA.
 - Copperknot added API regression coverage in `frontend/tests/api/studio-agent.runtime.test.ts` for malformed Pulse requests with missing preset ids.
+- Current `2026-06-17` Copperknot guardrail cleanup touched `frontend/features/ai-studio/hooks/useAiStudioTaskSubmission.ts` only for formatting/import-budget reduction. No task-submission behavior, route selection, prompt/reference payload rules, UI, or UX was intentionally changed.
 
 ## Validation Already Run
 
@@ -43,6 +44,12 @@
   - passed.
 - `npm -C frontend run lint`
   - passed with `0` errors and `34` existing warnings.
+- `npm -C frontend run test -- --run features/ai-studio/hooks/__tests__/useAiStudioTaskSubmission.test.ts`
+  - `1` file / `55` tests passed on `2026-06-17`.
+- `npm -C frontend run type-check:touched`
+  - passed on `2026-06-17` for the touched AI Studio task-submission file. Repo-wide typecheck still has unrelated diagnostics and was not used as proof for this handoff refresh.
+- `npm -C frontend run validate:media-rendering-guardrails`
+  - passed on `2026-06-17`; the only remaining output was the known warn-mode `useAiStudioState.ts` size-budget warning.
 
 ## Required Context
 
@@ -94,6 +101,7 @@ Allowed code/docs changes only if a narrow source regression is found:
 - `frontend/features/ai-studio/hooks/agentOrchestration/*`
 - `frontend/features/ai-studio/hooks/useAiStudioCreatePanelRuntime.ts`
 - `frontend/features/ai-studio/hooks/taskSubmission/*`
+- `frontend/features/ai-studio/hooks/useAiStudioTaskSubmission.ts`
 - `frontend/features/ai-studio/components/create/*`
 - directly corresponding tests
 

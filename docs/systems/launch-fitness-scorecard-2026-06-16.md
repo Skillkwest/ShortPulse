@@ -6,8 +6,8 @@ Purpose: provide a current, easy-to-read launch-fitness view for the July 7, 202
 
 - Baseline date: `2026-06-16`
 - Branch: `production`
-- Commit anchor: `d06a54218`
-- Worktree: validated AI Studio media/shell runtime hardening is now committed on the current branch; authenticated launch proof is still pending.
+- Commit anchor: `2bc2faa02`
+- Worktree: Copperknot media-signing guardrail cleanup, Supabase transform guardrail wiring, and launch-control freshness updates are pending locally; authenticated launch proof is still pending.
 - Production URL checked: `https://www.shortpulse.ai`
 - Evidence mode: mixed production-safe checks, current worktree inspection, focused local validation, and existing July 7 launch-control docs.
 
@@ -63,7 +63,7 @@ ShortPulse is not launch-ready today. It is stronger than a prototype, but the r
 
 The project is in a `source-hardening and convergence` phase, not a final-proof phase. The latest AI Studio runtime lane has converged locally: focused workflow-reload/layout tests are green, changed-file typecheck is green, and a production build passed. The immediate media-rendering guardrail blocker is now cleared locally:
 
-- `validate:media-rendering-guardrails` passed on `2026-06-16` after no-behavior size-budget cleanup in `MediaLibraryPanel.tsx` and `useMediaPreviewSigningController.ts`.
+- `validate:media-rendering-guardrails` passed on `2026-06-17` after no-behavior size-budget cleanup in `useMediaPreviewSigningController.ts`; the command now also runs the Supabase transform guard, and the queue freshness note reflects the current `2026-06-17` production route/fail-closed refresh.
 
 The strongest areas right now are public entry/account trust, billing, security fail-closed posture, admin route/docs hygiene, and model catalog hygiene. The weakest areas are recovery/settlement, media organization, right-rail reuse, AI Studio shell/navigation, and Video workflow stability.
 

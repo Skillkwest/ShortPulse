@@ -87,6 +87,8 @@ June 10 post-deploy update: the deployed production route surface and protected-
 
 June 11 post-deploy update: the newest deployment refreshes route parity and unauthenticated fail-closed confidence across public entry, account, Fal, billing, media, projects, generation submit, OpenAI image routes, and protected internal routes. This does not change the top queue order because the missing launch evidence is still authenticated customer task completion, recovery/settlement/output integrity, media organization, storage SQL/derivative posture, and any approved credit-consuming provider proof.
 
+June 17 production-safe freshness update: Copperknot refreshed route parity against deployment `shortpulse-nftngu8vh-kirk-artmans-projects.vercel.app`, created `2026-06-17T13:22:33.696Z`, with `175` route entries inspected. Public `/`, `/pricing`, and `/dashboard` returned `200`; the recovery callback URL returned the canonical production callback; unauthenticated account/Fal probes returned `401`; and protected internal route runtime checks passed for generation recovery, user health fleet, and media derivatives. Local bounded validation is green for the Copperknot media-signing guardrail cleanup (`validate:media-rendering-guardrails`, now including the Supabase transform guard, focused media signing hook tests, touched-file typecheck, docs check, secret exposure, and diff hygiene). This refresh keeps the route/fail-closed floor current but does not change the top queue order or prove authenticated customer workflows, recovery/settlement/output lifecycle, storage SQL/derivative posture, or credit-consuming provider success.
+
 ## Board Rules
 
 - `Blocked` and `Below Floor` systems drive the queue unless fresh evidence reranks them.

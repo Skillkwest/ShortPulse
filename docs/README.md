@@ -121,6 +121,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/bactuo/ownership-manifest.md`
 - `docs/agents/bactuo/generation-recovery-settlement-source-map.md`
 - `docs/agents/bactuo/generation-architecture-consolidation-plan-2026-06-03.md`
+- `docs/agents/bactuo/checkpoint-baseline-2026-06-17.md`
 - `docs/agents/holomony/README.md`
 - `docs/agents/holomony/AGENTS.md`
 - `docs/agents/holomony/standard-operating-procedure.md`

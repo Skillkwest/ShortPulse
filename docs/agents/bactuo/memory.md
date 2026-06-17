@@ -13,6 +13,7 @@ Purpose: keep concise, durable generation, recovery, and settlement truths and w
 - `generation_projection` behaves like product-critical state in practice, but it should still be treated as derivative state, not the only identity bridge.
 - Request-scoped generation settlement is part of the generation lifecycle. It is not optional post-processing.
 - The current architecture has strong primitives but fragmented authority. The main risk is not missing tables; it is too many partial truth resolvers.
+- As of the 2026-06-17 checkpoint, Phase 1 canonical lineage work is partially implemented; start from `docs/agents/bactuo/checkpoint-baseline-2026-06-17.md` before working the recovery/settlement or provider-runtime handoffs.
 
 ## Working Rules
 

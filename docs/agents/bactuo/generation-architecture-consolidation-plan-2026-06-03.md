@@ -1,12 +1,16 @@
 # Bactuo Generation Architecture Consolidation Plan
 
-Status: active planning baseline; implementation not started
+Status: active architecture baseline; Phase 1 partially implemented
 
 Last audited: 2026-06-03
 
+Current checkpoint: 2026-06-17, see `checkpoint-baseline-2026-06-17.md`
+
 Purpose: define the recommended architecture path for making ShortPulse generation, recovery, and settlement more cohesive without throwing away the current system foundations.
 
-Current checkpoint: the current generation system has strong primitives and a real recovery/control-plane model, but too many surfaces are still allowed to decide identity, settlement, and visibility truth independently. The right next move is not endless patching and not a big-bang rewrite. The right move is staged consolidation around one shared generation kernel.
+Original checkpoint: the generation system has strong primitives and a real recovery/control-plane model, but too many surfaces are still allowed to decide identity, settlement, and visibility truth independently. The right next move is not endless patching and not a big-bang rewrite. The right move is staged consolidation around one shared generation kernel.
+
+Current checkpoint: Phase 1 is no longer a blank slate. `frontend/lib/server/api/generationLineageResolver.ts` exists and several high-risk runtime/settlement callers already use it. The next Phase 1 work is to govern, verify, and migrate the remaining highest-risk lineage callers rather than rebuilding the resolver from scratch.
 
 ## Executive Verdict
 

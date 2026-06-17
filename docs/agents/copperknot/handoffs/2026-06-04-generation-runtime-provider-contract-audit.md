@@ -39,13 +39,15 @@
 - `frontend/lib/server/providerIntegration/statusProviderDispatcher.ts` centralizes provider-specific status/result/response-probe dispatch for Fal and Kie.
 - `frontend/lib/server/providerIntegration/providerRuntimeConfig.ts` centralizes Kie runtime flags, model allowlisting, always-on Kie model handling, trusted hosts, and trusted submit/status URL resolution.
 - `frontend/lib/model-runtime/modelCatalog.ts` is the canonical model metadata/catalog surface for provider, lifecycle, execution mode, submit handler, pricing metadata, allowed aspects/resolutions/durations, and API provenance.
+- Current generated Fal/Kie submit/status modules are labeled as generated canonical route wrappers from `scripts/lib/fal_route_inventory.js`, not generic compatibility wrappers.
+- Current `npm -C frontend run validate` and `npm -C frontend run validate:phase11:fal-regression` both run `npm run fal:routes:check`, so generated wrapper drift is now part of the routine and provider-specific validation bars.
 
 ## Validation Already Run
 
 - `npm -C frontend run test -- lib/server/providerIntegration/__tests__/providerRuntimeConfig.test.ts lib/server/providerIntegration/__tests__/submitProviderDispatcher.test.ts lib/server/providerIntegration/__tests__/statusProviderDispatcher.test.ts lib/server/providerIntegration/__tests__/statusProviderPolicy.test.ts lib/server/providerIntegration/__tests__/statusProviderSelection.test.ts lib/server/providerIntegration/__tests__/statusProviderTopology.test.ts lib/server/providerIntegration/__tests__/statusProviderPolling.test.ts lib/server/providerIntegration/__tests__/canonicalProviderPayload.test.ts lib/server/providerIntegration/__tests__/providerHeaderUtils.test.ts lib/server/providerIntegration/__tests__/kieEnvelopeNormalizer.test.ts lib/server/providerIntegration/__tests__/kieStatusContracts.test.ts lib/server/providerIntegration/__tests__/kieModelContracts.test.ts lib/server/providerIntegration/__tests__/kieResultMediaContracts.test.ts lib/server/providerIntegration/__tests__/kieSubmitMediaGuards.test.ts lib/server/providerIntegration/__tests__/kieSubmitTransportContracts.test.ts lib/server/providerIntegration/__tests__/recoveryProviderDispatcher.test.ts lib/model-runtime/__tests__/providerModelIds.test.ts lib/model-runtime/__tests__/falModelIds.test.ts lib/model-runtime/__tests__/modelCatalogDefaultRoles.test.ts`
   - `19` files / `125` tests passed.
 - `npm -C frontend run fal:routes:check`
-  - passed; `14` route families checked.
+  - passed; `17` route families checked.
 - `npm -C frontend run test -- features/ai-studio/hooks/taskSubmission/__tests__/routing.test.ts features/ai-studio/hooks/taskSubmission/__tests__/submissionPayloadMatrix.test.ts features/ai-studio/hooks/taskSubmission/__tests__/videoPayloads.test.ts features/ai-studio/hooks/taskSubmission/__tests__/videoHandlers.test.ts features/ai-studio/hooks/taskSubmission/__tests__/seedreamSubmission.test.ts features/ai-studio/hooks/taskSubmission/__tests__/safetyPolicy.test.ts features/ai-studio/hooks/taskSubmission/__tests__/outputLifecyclePatches.test.ts features/ai-studio/hooks/taskSubmission/__tests__/submitInvariants.test.ts features/ai-studio/hooks/taskSubmission/__tests__/preflightTimeout.test.ts`
   - `9` files / `96` tests passed.
 
@@ -142,6 +144,7 @@ Local/non-credit:
 - Re-run Copperknot's provider contract slice after any source change.
 - Re-run task-submission payload matrix and routing tests after any client submit change.
 - Run `npm -C frontend run fal:routes:check` after route inventory or wrapper changes.
+- Run `npm -C frontend run validate:phase11:fal-regression` for the provider-lane validation bar when a full local provider regression pass is warranted; it now starts with `fal:routes:check`.
 - Run `npm -C frontend run type-check` and `npm -C frontend run lint` after code changes.
 - Run `npm -C frontend run docs:check` after doc changes.
 

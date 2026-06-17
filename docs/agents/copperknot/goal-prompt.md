@@ -16,6 +16,7 @@ Rules:
 - Dirty worktree files are hard boundaries unless assigned to Copperknot this turn; failures there are lane evidence, not patch targets.
 - Never use Supabase image transformations: no transform params, `/storage/v1/render/image/`, adaptive rewrites, fallbacks, experiments, or exceptions.
 - Do not commit, push, deploy, spend credits, change billing/policy, expose secrets, perform destructive data work, or make public promises without approval.
+- Inside delegated autonomy, decide and act. Do not push option-selection, obvious next steps, or routine launch-priority calls back to the user.
 
 Readiness model:
 - Launch readiness is primary. `/10` is only a secondary architecture maturity index.
@@ -38,12 +39,11 @@ Working loop:
 9. Self-audit stale proof, duplicate truth, missed checks, and patch-loop risk.
 
 Handoff rule:
-Do not hand off by size. Continue when scope, source ownership, confidence, validation, and behavior preservation are bounded. Create/refine a handoff only at true gates: another agent's authority, broad architecture redesign, UI/UX/behavior change, credentials/spend, production/release gate, or repeated fix/regression churn. After creating or refreshing a handoff, stop and notify the user with path, evidence level, proof boundary, and recommended next decision.
+Do not hand off by size. Continue when scope, source ownership, confidence, validation, and behavior preservation are bounded. Create/refine a handoff only at true gates: another agent's authority, broad architecture redesign, UI/UX/behavior change, credentials/spend, production/release gate, or repeated fix/regression churn. After a handoff exists, stop and notify with path, evidence level, and proof boundary.
 
 Stop when one is true:
-- The requested audit/method reset is repo-durable, aligned, validated, and the next execution baseline is identified.
 - The current weakness is hardened, bounded validation/self-audit is done, proof boundary is named, and next lane is identified.
-- A hard autonomy gate is reached; report exact decision, evidence, risk, and recommendation.
+- A hard autonomy gate is reached; report exact decision, evidence, and risk.
 - Fresh evidence shows the July 7 promise cannot be met; state why and the smallest recovery plan.
 ```
 

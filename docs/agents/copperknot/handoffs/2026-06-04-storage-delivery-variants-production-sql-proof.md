@@ -32,6 +32,8 @@
 - `frontend/lib/mediaPreviewPathCore.ts` filters direct preview candidates through the shared trust policy and resolves durable variant storage paths before original fallbacks.
 - `frontend/lib/server/mediaDerivatives/processMediaDerivative.ts` generates local WebP thumb variants with `sharp`, uploads durable variant objects, and upserts `media_asset_variants`.
 - Copperknot added a regression test in `frontend/lib/__tests__/mediaPreviewPath.test.ts` proving Supabase render-image URLs are not accepted as direct preview candidates.
+- Current `frontend/lib/__tests__/supabaseTransformGuard.test.ts` also fails any production source that generates Supabase render-image URLs, passes transform options to Supabase signing calls, or combines `createSignedUrl(s)` with a `transform:` option key.
+- Current `npm -C frontend run validate:media-rendering-guardrails` runs `test:supabase-transform-guard` as part of the routine media/storage guardrail bar.
 
 ## Required Context
 
@@ -120,6 +122,7 @@ Allowed code/docs changes only if a narrow source regression is found:
   - confirm returned URLs do not contain `/storage/v1/render/image/`
 - Re-run local tests if source changes:
   - `npm -C frontend run test -- lib/__tests__/supabaseTransformGuard.test.ts lib/__tests__/mediaPreviewTrustPolicy.test.ts lib/__tests__/mediaPreviewPath.test.ts lib/adaptive-media/__tests__/resolver.test.ts features/media-library/logic/__tests__/mediaLibraryAdaptivePreview.test.ts lib/server/mediaDerivatives/__tests__/processMediaDerivative.test.ts`
+  - `npm -C frontend run validate:media-rendering-guardrails`
 - Run `npm -C frontend run docs:check` if docs change.
 
 ## Done State

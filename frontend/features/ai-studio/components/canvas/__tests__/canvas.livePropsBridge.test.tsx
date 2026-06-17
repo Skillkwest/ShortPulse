@@ -79,7 +79,7 @@ describe("CanvasPropertiesPanel live props bridge", () => {
     render(<CanvasPropertiesPanel {...liveProps.props} />);
 
     expect(screen.getByTestId("canvas-viewport")).toHaveAttribute("data-camera-zoom", "1");
-    expect(screen.getByTestId("canvas-camera-zoom-badge")).toHaveTextContent("100%");
+    expect(screen.queryByTestId("canvas-camera-zoom-badge")).toBeNull();
 
     act(() => {
       liveProps.publish(
@@ -96,7 +96,7 @@ describe("CanvasPropertiesPanel live props bridge", () => {
     expect(
       screen.getByTestId("canvas-world").style.getPropertyValue("--canvas-control-scale")
     ).toBe(`${1 / 1.45}`);
-    expect(screen.getByTestId("canvas-camera-zoom-badge")).toHaveTextContent("145%");
+    expect(screen.queryByTestId("canvas-camera-zoom-badge")).toBeNull();
   });
 
   it("routes events to the latest live handlers", () => {

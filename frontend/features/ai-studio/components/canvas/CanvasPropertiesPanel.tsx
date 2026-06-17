@@ -763,8 +763,6 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
 
   const canvasControlScale = camera.zoom > 0 ? 1 / camera.zoom : 1;
   const shouldShowCanvasMediaActions = camera.zoom > CANVAS_MEDIA_ACTION_MIN_VISIBLE_ZOOM;
-  const cameraZoomPercent =
-    Number.isFinite(camera.zoom) && camera.zoom > 0 ? Math.round(camera.zoom * 100) : 100;
 
   return (
     <section className="canvas-properties-panel">
@@ -948,13 +946,6 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
               )}
             </article>
           ) : null}
-        </div>
-        <div
-          className="canvas-camera-zoom-badge"
-          data-testid="canvas-camera-zoom-badge"
-          aria-label={`Canvas zoom ${cameraZoomPercent}%`}
-        >
-          {cameraZoomPercent}%
         </div>
         {marqueeSelectionBox ? (
           <div

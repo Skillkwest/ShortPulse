@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ReferenceGridSections } from "../ReferenceGridSections";
 
@@ -47,7 +47,9 @@ const createProps = (): React.ComponentProps<typeof ReferenceGridSections> => ({
   onTriggerFileSelect: vi.fn(),
   onRestoreArchivedOutput: vi.fn(),
   onRestoreAllArchivedOutputs: vi.fn(),
-  railCanvasProps: {} as never,
+  railCanvasProps: {
+    camera: { x: 0, y: 0, zoom: 1.28 },
+  } as never,
   showRailCanvasSection: true,
   railCanvasSplit: createSplitViewModel(),
   stylesSplit: createSplitViewModel(),
@@ -85,6 +87,57 @@ const createProps = (): React.ComponentProps<typeof ReferenceGridSections> => ({
 });
 
 describe("ReferenceGridSections", () => {
+  it("shows the Canvas camera zoom badge in the Canvas header divider row", () => {
+    const { container } = render(<ReferenceGridSections {...createProps()} showQuickSlotSection />);
+
+    const header = container.querySelector(".reference-rail-canvas-header");
+    const divider = container.querySelector(".reference-section-title-divider");
+    const badge = screen.getByTestId("canvas-camera-zoom-badge");
+
+    expect(header).toContainElement(badge);
+    expect(header).toContainElement(divider);
+    expect(badge).toHaveTextContent("128%");
+    expect(badge).toHaveAttribute("aria-label", "Canvas zoom 128%");
+  });
+
+  it("updates the Canvas header zoom badge from the live Canvas props store", () => {
+    const listeners = new Set<() => void>();
+    let liveSnapshot = {
+      camera: { x: 0, y: 0, zoom: 1.12 },
+    };
+    const railCanvasProps = {
+      camera: liveSnapshot.camera,
+      livePropsStore: {
+        getSnapshot: () => liveSnapshot,
+        subscribe: (listener: () => void) => {
+          listeners.add(listener);
+          return () => {
+            listeners.delete(listener);
+          };
+        },
+      },
+    } as never;
+
+    render(
+      <ReferenceGridSections
+        {...createProps()}
+        railCanvasProps={railCanvasProps}
+        showQuickSlotSection
+      />
+    );
+
+    expect(screen.getByTestId("canvas-camera-zoom-badge")).toHaveTextContent("112%");
+
+    act(() => {
+      liveSnapshot = {
+        camera: { x: 0, y: 0, zoom: 0.37 },
+      };
+      listeners.forEach((listener) => listener());
+    });
+
+    expect(screen.getByTestId("canvas-camera-zoom-badge")).toHaveTextContent("37%");
+  });
+
   it("shows the empty-state helper when no right-rail sections are visible", () => {
     render(
       <ReferenceGridSections

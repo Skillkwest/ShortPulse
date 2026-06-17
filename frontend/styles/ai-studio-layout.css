@@ -1268,7 +1268,7 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   justify-self: stretch;
   position: relative;
   border: 0;
-  background: transparent;
+  background: var(--color-bg);
   margin: 0;
   padding: 0;
   cursor: col-resize;

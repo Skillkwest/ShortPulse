@@ -25,6 +25,32 @@ const QUICK_SLOT_HIDE_CONTENT_BUFFER_PX = 44;
 const CANVAS_COLLAPSE_TOP_HEIGHT_PX = 24;
 const CANVAS_HIDE_CONTENT_BUFFER_PX = 44;
 
+const resolveCanvasCameraZoomPercent = (camera: CanvasPropertiesPanelProps["camera"]): number =>
+  Number.isFinite(camera.zoom) && camera.zoom > 0 ? Math.round(camera.zoom * 100) : 100;
+
+const CanvasCameraZoomBadge = ({
+  railCanvasProps,
+}: {
+  railCanvasProps: CanvasPropertiesPanelProps;
+}) => {
+  const livePropsStore = railCanvasProps.livePropsStore;
+  const liveProps = React.useSyncExternalStore(
+    livePropsStore?.subscribe ?? (() => () => undefined),
+    livePropsStore?.getSnapshot ?? (() => railCanvasProps),
+    livePropsStore?.getSnapshot ?? (() => railCanvasProps)
+  );
+  const cameraZoomPercent = resolveCanvasCameraZoomPercent(liveProps.camera);
+  return (
+    <span
+      className="canvas-camera-zoom-badge"
+      data-testid="canvas-camera-zoom-badge"
+      aria-label={`Canvas zoom ${cameraZoomPercent}%`}
+    >
+      {cameraZoomPercent}%
+    </span>
+  );
+};
+
 type ReferenceGridSectionsProps = {
   isCuratedSplitEnabled: boolean;
   isCuratedDropActive: boolean;
@@ -253,6 +279,7 @@ export function ReferenceGridSections({
                 {showTopCanvasHeaderDivider ? (
                   <span className="reference-section-title-divider" aria-hidden="true" />
                 ) : null}
+                <CanvasCameraZoomBadge railCanvasProps={railCanvasProps} />
               </div>
               <div className="reference-rail-canvas-body">
                 <CanvasPropertiesPanel {...railCanvasProps} />

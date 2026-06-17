@@ -110,7 +110,10 @@ describe("Canvas interaction behavior", () => {
       /\.canvas-workspace-world\s*{[^}]*will-change:\s*transform;/s
     );
     expect(canvasWorkspaceCss).toMatch(
-      /\.canvas-camera-zoom-badge\s*{[^}]*top:\s*8px;[^}]*right:\s*10px;/s
+      /\.canvas-camera-zoom-badge\s*{[^}]*min-width:\s*26px;[^}]*font-size:\s*9px;/s
+    );
+    expect(canvasWorkspaceCss).not.toMatch(
+      /\.canvas-camera-zoom-badge\s*{[^}]*position:\s*absolute;/s
     );
     expect(canvasWorkspaceCss).toMatch(
       /\.canvas-scene-item__media-action-row\s*{[^}]*transform:\s*scale\(var\(--canvas-control-scale,\s*1\)\);/s

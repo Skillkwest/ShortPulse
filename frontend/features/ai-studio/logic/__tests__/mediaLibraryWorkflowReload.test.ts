@@ -9,6 +9,7 @@ import {
   createMediaLibraryWorkflowReloadOutput,
   resolveMediaLibraryWorkflowReloadMediaKindHint,
 } from "../mediaLibraryWorkflowReload";
+import { resolveWorkflowReloadConfigForOutput } from "../workflowReload";
 
 const workflowReload = {
   version: 1,
@@ -113,6 +114,40 @@ describe("mediaLibraryWorkflowReload", () => {
       mode: "video",
       modelId: "kie-ai/kling-3.0",
       workflowReload: videoWorkflowReload,
+    });
+  });
+
+  it("uses saved video file identity when workflow metadata is legacy image-shaped", () => {
+    const row = createRow({
+      filename: "wolf-motion.mp4",
+      file_type: "video/mp4",
+      signedUrl: "https://cdn.example.com/wolf-motion",
+      storage_path: "user-1/media-library/wolf-motion.mp4",
+      metadata: {
+        model_id: "kie-ai/kling-3.0",
+        workflow_reload: workflowReload,
+      },
+    });
+    const output = createMediaLibraryWorkflowReloadOutput(row);
+
+    expect(resolveMediaLibraryWorkflowReloadMediaKindHint(row)).toBe("video");
+    expect(output).toMatchObject({
+      mode: "video",
+      modelId: "kie-ai/kling-3.0",
+      mimeType: "video/mp4",
+      mediaSource: "generated",
+      workflowReload,
+    });
+    expect(
+      output ? resolveWorkflowReloadConfigForOutput(output, { mediaKindHint: "video" }) : null
+    ).toMatchObject({
+      originTool: "video",
+      panelKind: "video",
+      outputMode: "video",
+      model: { id: "kie-ai/kling-3.0" },
+      payload: expect.objectContaining({
+        kind: "video",
+      }),
     });
   });
 

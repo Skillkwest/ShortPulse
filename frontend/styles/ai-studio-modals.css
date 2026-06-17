@@ -598,7 +598,7 @@
 .art-stage-snapshot-control {
   position: absolute;
   right: 34px;
-  bottom: 34px;
+  top: 34px;
   z-index: 4;
   display: inline-flex;
   align-items: center;

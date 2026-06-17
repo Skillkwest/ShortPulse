@@ -1219,8 +1219,9 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 
 .ai-shell-right {
   position: relative;
+  z-index: 2;
   min-width: 0;
-  width: 100%;
+  width: calc(100% + var(--ai-shell-right-overlap-width, 0px));
   min-height: 0;
   height: 100%;
   align-self: stretch;
@@ -1228,6 +1229,7 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   flex-direction: column;
   gap: 14px;
   opacity: var(--ai-shell-right-visibility, 1);
+  transform: translateX(calc(-1 * var(--ai-shell-right-overlap-width, 0px)));
   transition: opacity 40ms linear;
 }
 
@@ -1556,10 +1558,18 @@ body.ai-shell-resizing * {
   opacity: 0;
 }
 
-.ai-studio-page[data-selected-tool="character"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-selected-tool="elements"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-selected-tool="video"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-selected-tool="kling"] .panel.ai-panel.ai-properties {
+.ai-studio-page[data-selected-tool="edit"]:not([data-selected-tool="canvas"])
+  .panel.ai-panel.ai-properties,
+.ai-studio-page[data-selected-tool="image"]:not([data-selected-tool="canvas"])
+  .panel.ai-panel.ai-properties,
+.ai-studio-page[data-selected-tool="video"]:not([data-selected-tool="canvas"])
+  .panel.ai-panel.ai-properties,
+.ai-studio-page[data-selected-tool="kling"]:not([data-selected-tool="canvas"])
+  .panel.ai-panel.ai-properties,
+.ai-studio-page[data-selected-tool="character"]:not([data-selected-tool="canvas"])
+  .panel.ai-panel.ai-properties,
+.ai-studio-page[data-selected-tool="elements"]:not([data-selected-tool="canvas"])
+  .panel.ai-panel.ai-properties {
   background: transparent;
   padding: 0;
 }

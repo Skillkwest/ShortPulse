@@ -5,7 +5,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { useAiStudioShellResize } from "../useAiStudioShellResize";
 import {
   AI_SHELL_DIVIDER_TRACK_PX,
-  AI_SHELL_LEFT_COLLAPSED_MIN_PX,
   AI_SHELL_LEFT_CREATE_MIN_PX,
   AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX,
   AI_SHELL_LEFT_MIN_PX,
@@ -271,7 +270,7 @@ describe("useAiStudioShellResize", () => {
     });
   });
 
-  it("preserves the primary minimum while dragging past it, then snaps left on release", async () => {
+  it("preserves the primary minimum while the right rail overlaps past it", async () => {
     const originalInnerWidth = window.innerWidth;
     Object.defineProperty(window, "innerWidth", {
       configurable: true,
@@ -318,6 +317,7 @@ describe("useAiStudioShellResize", () => {
     expect(result.current.shellStyle).toMatchObject({
       "--ai-shell-left-width": `${AI_SHELL_LEFT_CREATE_MIN_PX}px`,
       "--ai-shell-divider-visual-offset": "-220px",
+      "--ai-shell-right-overlap-width": "220px",
       "--ai-shell-left-visibility": "0",
     });
 
@@ -326,11 +326,12 @@ describe("useAiStudioShellResize", () => {
     });
 
     await waitFor(() => {
-      expect(result.current.leftWidthPx).toBe(AI_SHELL_LEFT_COLLAPSED_MIN_PX);
-      expect(result.current.leftColumnHidden).toBe(true);
+      expect(result.current.leftWidthPx).toBe(AI_SHELL_LEFT_CREATE_MIN_PX);
+      expect(result.current.leftColumnHidden).toBe(false);
       expect(result.current.shellStyle).toMatchObject({
-        "--ai-shell-left-width": `${AI_SHELL_LEFT_COLLAPSED_MIN_PX}px`,
-        "--ai-shell-divider-visual-offset": "0px",
+        "--ai-shell-left-width": `${AI_SHELL_LEFT_CREATE_MIN_PX}px`,
+        "--ai-shell-divider-visual-offset": "-220px",
+        "--ai-shell-right-overlap-width": "220px",
         "--ai-shell-left-visibility": "0",
       });
     });
@@ -341,7 +342,7 @@ describe("useAiStudioShellResize", () => {
     });
   });
 
-  it("reopens from the left-collapsed state without jumping to the primary minimum on pointer down", async () => {
+  it("continues resizing from an overlapped right-rail position without jumping", async () => {
     const originalInnerWidth = window.innerWidth;
     Object.defineProperty(window, "innerWidth", {
       configurable: true,
@@ -362,46 +363,65 @@ describe("useAiStudioShellResize", () => {
         getBoundingClientRect: () => ({ width: 1800 }),
       } as HTMLElement;
       result.current.leftColumnRef.current = {
-        getBoundingClientRect: () => ({ width: 0 }),
+        getBoundingClientRect: () => ({ width: AI_SHELL_LEFT_CREATE_MIN_PX }),
       } as HTMLElement;
-      result.current.restoreWidth(AI_SHELL_LEFT_COLLAPSED_MIN_PX);
     });
 
     await waitFor(() => {
-      expect(result.current.leftColumnHidden).toBe(true);
-      expect(result.current.leftWidthPx).toBe(AI_SHELL_LEFT_COLLAPSED_MIN_PX);
+      expect(result.current.showDivider).toBe(true);
     });
 
     act(() => {
       result.current.dividerProps.onPointerDown?.({
         pointerId: 303,
         button: 0,
-        clientX: 0,
+        clientX: AI_SHELL_LEFT_CREATE_MIN_PX,
         preventDefault: vi.fn(),
       } as unknown as ReactPointerEvent<HTMLButtonElement>);
     });
-
-    expect(result.current.leftWidthPx).toBe(AI_SHELL_LEFT_COLLAPSED_MIN_PX);
 
     act(() => {
       window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 303, clientX: 700 }));
     });
 
-    expect(result.current.leftWidthPx).toBe(AI_SHELL_LEFT_COLLAPSED_MIN_PX);
+    expect(result.current.leftWidthPx).toBe(AI_SHELL_LEFT_CREATE_MIN_PX);
     expect(result.current.shellStyle).toMatchObject({
-      "--ai-shell-divider-visual-offset": "700px",
+      "--ai-shell-divider-visual-offset": "-220px",
+      "--ai-shell-right-overlap-width": "220px",
       "--ai-shell-left-visibility": "0",
     });
 
     act(() => {
-      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 303, clientX: 980 }));
+      window.dispatchEvent(new PointerEvent("pointerup", { pointerId: 303, clientX: 700 }));
+    });
+
+    await waitFor(() => {
+      expect(result.current.isResizing).toBe(false);
+      expect(result.current.leftWidthPx).toBe(AI_SHELL_LEFT_CREATE_MIN_PX);
+    });
+
+    act(() => {
+      result.current.dividerProps.onPointerDown?.({
+        pointerId: 304,
+        button: 0,
+        clientX: 700,
+        preventDefault: vi.fn(),
+      } as unknown as ReactPointerEvent<HTMLButtonElement>);
+    });
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 304, clientX: 980 }));
     });
 
     expect(result.current.leftWidthPx).toBe(980);
     expect(result.current.leftColumnHidden).toBe(false);
+    expect(result.current.shellStyle).toMatchObject({
+      "--ai-shell-divider-visual-offset": "0px",
+      "--ai-shell-right-overlap-width": "0px",
+    });
 
     act(() => {
-      window.dispatchEvent(new PointerEvent("pointerup", { pointerId: 303, clientX: 980 }));
+      window.dispatchEvent(new PointerEvent("pointerup", { pointerId: 304, clientX: 980 }));
     });
 
     await waitFor(() => {

@@ -75,7 +75,7 @@ export const useAiStudioShellResize = ({
   const [containerWidthPx, setContainerWidthPx] = useState(0);
   const [isResizableViewportState, setIsResizableViewportState] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
-  const [dragVisualLeftWidthPx, setDragVisualLeftWidthPx] = useState<number | null>(null);
+  const [visualLeftWidthPx, setVisualLeftWidthPx] = useState<number | null>(null);
 
   const resolveContainerWidth = useCallback((): number => {
     const shellNode = shellRef.current;
@@ -109,7 +109,6 @@ export const useAiStudioShellResize = ({
       detachPointerListenersRef.current = null;
     }
     dragSessionRef.current = null;
-    setDragVisualLeftWidthPx(null);
     setIsResizing(false);
     if (typeof document !== "undefined") {
       document.body.classList.remove(AI_SHELL_RESIZE_BODY_CLASS);
@@ -161,11 +160,7 @@ export const useAiStudioShellResize = ({
           maxLeftWidthPx,
           minRightWidthPx,
         });
-        const resolvedNext =
-          allowLeftCollapse && candidate === AI_SHELL_LEFT_COLLAPSED_MIN_PX
-            ? AI_SHELL_LEFT_COLLAPSED_MIN_PX
-            : next;
-        return prev === resolvedNext ? prev : resolvedNext;
+        return prev === next ? prev : next;
       });
     };
     syncWidthToContainer();
@@ -199,20 +194,9 @@ export const useAiStudioShellResize = ({
         maxLeftWidthPx,
         minRightWidthPx,
       });
-      const resolvedNext =
-        allowLeftCollapse && candidate === AI_SHELL_LEFT_COLLAPSED_MIN_PX
-          ? AI_SHELL_LEFT_COLLAPSED_MIN_PX
-          : next;
-      return prev === resolvedNext ? prev : resolvedNext;
+      return prev === next ? prev : next;
     });
-  }, [
-    allowLeftCollapse,
-    defaultLeftRatio,
-    maxLeftWidthPx,
-    minLeftWidthPx,
-    minRightWidthPx,
-    resolveContainerWidth,
-  ]);
+  }, [defaultLeftRatio, maxLeftWidthPx, minLeftWidthPx, minRightWidthPx, resolveContainerWidth]);
 
   const getLeftColumnFadeThresholds = useCallback(
     (containerWidth: number) => {
@@ -286,6 +270,7 @@ export const useAiStudioShellResize = ({
         maxLeftWidthPx,
         minRightWidthPx,
       });
+      setVisualLeftWidthPx(null);
       setLeftWidthPx((prev) => (prev === bounds.min ? prev : bounds.min));
       setContainerWidthPx(Math.round(containerWidth));
       appliedMinWidthResetKeyRef.current = minWidthResetKey;
@@ -316,15 +301,11 @@ export const useAiStudioShellResize = ({
       });
       if (allowLeftCollapse && requestedWidth < visibleBounds.min) {
         const visualWidth = Math.max(AI_SHELL_LEFT_COLLAPSED_MIN_PX, Math.round(requestedWidth));
-        setDragVisualLeftWidthPx((prev) => (prev === visualWidth ? prev : visualWidth));
-        const pinnedWidth =
-          session.startLeftWidth <= AI_SHELL_LEFT_COLLAPSED_MIN_PX
-            ? AI_SHELL_LEFT_COLLAPSED_MIN_PX
-            : visibleBounds.min;
-        setLeftWidthPx((prev) => (prev === pinnedWidth ? prev : pinnedWidth));
+        setVisualLeftWidthPx((prev) => (prev === visualWidth ? prev : visualWidth));
+        setLeftWidthPx((prev) => (prev === visibleBounds.min ? prev : visibleBounds.min));
         return;
       }
-      setDragVisualLeftWidthPx(null);
+      setVisualLeftWidthPx(null);
       const nextWidth = clampAiShellLeftWidth(requestedWidth, session.containerWidth, {
         minLeftWidthPx,
         maxLeftWidthPx,
@@ -342,6 +323,7 @@ export const useAiStudioShellResize = ({
       if (!containerWidth) return;
 
       const activeLeftWidth =
+        visualLeftWidthPx ??
         leftColumnRef.current?.getBoundingClientRect().width ??
         leftWidthPx ??
         getDefaultAiShellLeftWidth(containerWidth, {
@@ -350,16 +332,23 @@ export const useAiStudioShellResize = ({
           minRightWidthPx,
           preferredRatio: defaultLeftRatio,
         });
-      const isStartingFromLeftCollapsed =
-        allowLeftCollapse &&
-        (leftWidthPx === AI_SHELL_LEFT_COLLAPSED_MIN_PX || activeLeftWidth <= 0);
-      const clampedWidthWithMin = isStartingFromLeftCollapsed
-        ? AI_SHELL_LEFT_COLLAPSED_MIN_PX
-        : clampAiShellLeftWidth(activeLeftWidth, containerWidth, {
-            minLeftWidthPx,
-            maxLeftWidthPx,
-            minRightWidthPx,
-          });
+      const visibleBounds = getAiShellLeftWidthBounds(containerWidth, {
+        minLeftWidthPx,
+        maxLeftWidthPx,
+        minRightWidthPx,
+      });
+      const clampedWidthWithMin =
+        allowLeftCollapse && activeLeftWidth < visibleBounds.min
+          ? visibleBounds.min
+          : clampAiShellLeftWidth(activeLeftWidth, containerWidth, {
+              minLeftWidthPx,
+              maxLeftWidthPx,
+              minRightWidthPx,
+            });
+      const sessionStartLeftWidth =
+        allowLeftCollapse && activeLeftWidth < visibleBounds.min
+          ? Math.max(AI_SHELL_LEFT_COLLAPSED_MIN_PX, Math.round(activeLeftWidth))
+          : clampedWidthWithMin;
       setLeftWidthPx((prev) => (prev === clampedWidthWithMin ? prev : clampedWidthWithMin));
       setContainerWidthPx(Math.round(containerWidth));
       setIsResizing(true);
@@ -369,7 +358,7 @@ export const useAiStudioShellResize = ({
       dragSessionRef.current = {
         pointerId: event.pointerId,
         startClientX: event.clientX,
-        startLeftWidth: clampedWidthWithMin,
+        startLeftWidth: sessionStartLeftWidth,
         containerWidth,
       };
 
@@ -385,8 +374,14 @@ export const useAiStudioShellResize = ({
             minRightWidthPx,
           });
           if (requestedWidth < visibleBounds.min) {
-            setLeftWidthPx(AI_SHELL_LEFT_COLLAPSED_MIN_PX);
+            const visualWidth = Math.max(
+              AI_SHELL_LEFT_COLLAPSED_MIN_PX,
+              Math.round(requestedWidth)
+            );
+            setVisualLeftWidthPx((prev) => (prev === visualWidth ? prev : visualWidth));
+            setLeftWidthPx((prev) => (prev === visibleBounds.min ? prev : visibleBounds.min));
           } else {
+            setVisualLeftWidthPx(null);
             const releaseWidth = clampAiShellLeftWidth(requestedWidth, session.containerWidth, {
               minLeftWidthPx,
               maxLeftWidthPx,
@@ -414,6 +409,7 @@ export const useAiStudioShellResize = ({
       handleWindowPointerMove,
       isResizableViewport,
       leftWidthPx,
+      visualLeftWidthPx,
       maxLeftWidthPx,
       minLeftWidthPx,
       minRightWidthPx,
@@ -436,6 +432,7 @@ export const useAiStudioShellResize = ({
         minRightWidthPx,
       });
       const activeLeftWidth =
+        visualLeftWidthPx ??
         leftWidthPx ??
         leftColumnRef.current?.getBoundingClientRect().width ??
         getDefaultAiShellLeftWidth(containerWidth, {
@@ -447,12 +444,14 @@ export const useAiStudioShellResize = ({
 
       if (event.key === "Home") {
         event.preventDefault();
+        setVisualLeftWidthPx(null);
         setLeftWidthPx(bounds.min);
         setContainerWidthPx(Math.round(containerWidth));
         return;
       }
       if (event.key === "End") {
         event.preventDefault();
+        setVisualLeftWidthPx(null);
         setLeftWidthPx(bounds.max);
         setContainerWidthPx(Math.round(containerWidth));
         return;
@@ -461,18 +460,25 @@ export const useAiStudioShellResize = ({
 
       event.preventDefault();
       const direction = event.key === "ArrowLeft" ? -1 : 1;
-      if (allowLeftCollapse && activeLeftWidth <= 0 && direction > 0) {
-        const visibleBounds = getAiShellLeftWidthBounds(containerWidth, {
-          minLeftWidthPx,
-          maxLeftWidthPx,
-          minRightWidthPx,
-        });
-        setLeftWidthPx((prev) => (prev === visibleBounds.min ? prev : visibleBounds.min));
+      if (allowLeftCollapse && direction < 0 && activeLeftWidth <= bounds.min) {
+        const nextVisualWidth = Math.max(
+          AI_SHELL_LEFT_COLLAPSED_MIN_PX,
+          Math.round(activeLeftWidth - step)
+        );
+        setVisualLeftWidthPx((prev) => (prev === nextVisualWidth ? prev : nextVisualWidth));
+        setLeftWidthPx((prev) => (prev === bounds.min ? prev : bounds.min));
         setContainerWidthPx(Math.round(containerWidth));
         return;
       }
-      if (allowLeftCollapse && direction < 0 && activeLeftWidth <= bounds.min) {
-        setLeftWidthPx(AI_SHELL_LEFT_COLLAPSED_MIN_PX);
+      if (allowLeftCollapse && direction > 0 && activeLeftWidth < bounds.min) {
+        const nextVisualWidth = Math.round(activeLeftWidth + step);
+        if (nextVisualWidth >= bounds.min) {
+          setVisualLeftWidthPx(null);
+          setLeftWidthPx((prev) => (prev === bounds.min ? prev : bounds.min));
+        } else {
+          setVisualLeftWidthPx((prev) => (prev === nextVisualWidth ? prev : nextVisualWidth));
+          setLeftWidthPx((prev) => (prev === bounds.min ? prev : bounds.min));
+        }
         setContainerWidthPx(Math.round(containerWidth));
         return;
       }
@@ -481,6 +487,7 @@ export const useAiStudioShellResize = ({
         maxLeftWidthPx,
         minRightWidthPx,
       });
+      setVisualLeftWidthPx(null);
       setLeftWidthPx((prev) => (prev === nextWidth ? prev : nextWidth));
       setContainerWidthPx(Math.round(containerWidth));
     },
@@ -489,6 +496,7 @@ export const useAiStudioShellResize = ({
       enabled,
       isResizableViewport,
       leftWidthPx,
+      visualLeftWidthPx,
       maxLeftWidthPx,
       minLeftWidthPx,
       minRightWidthPx,
@@ -507,6 +515,7 @@ export const useAiStudioShellResize = ({
       minRightWidthPx,
       preferredRatio: defaultLeftRatio,
     });
+    setVisualLeftWidthPx(null);
     setLeftWidthPx(defaultWidth);
     setContainerWidthPx(Math.round(containerWidth));
   }, [
@@ -528,6 +537,7 @@ export const useAiStudioShellResize = ({
       maxLeftWidthPx,
       minRightWidthPx,
     });
+    setVisualLeftWidthPx(null);
     setLeftWidthPx((prev) => (prev === bounds.min ? prev : bounds.min));
     setContainerWidthPx(Math.round(containerWidth));
   }, [
@@ -549,6 +559,7 @@ export const useAiStudioShellResize = ({
       minRightWidthPx,
       preferredRatio: defaultLeftRatio,
     });
+    setVisualLeftWidthPx(null);
     setLeftWidthPx((prev) => (prev === defaultWidth ? prev : defaultWidth));
     setContainerWidthPx(Math.round(containerWidth));
   }, [
@@ -573,6 +584,7 @@ export const useAiStudioShellResize = ({
           minRightWidthPx,
           preferredRatio: defaultLeftRatio,
         });
+        setVisualLeftWidthPx(null);
         setLeftWidthPx((prev) => (prev === defaultWidth ? prev : defaultWidth));
         setContainerWidthPx(Math.round(containerWidth));
         return;
@@ -582,11 +594,8 @@ export const useAiStudioShellResize = ({
         maxLeftWidthPx,
         minRightWidthPx,
       });
-      const resolvedNextWidth =
-        allowLeftCollapse && widthPx === AI_SHELL_LEFT_COLLAPSED_MIN_PX
-          ? AI_SHELL_LEFT_COLLAPSED_MIN_PX
-          : nextWidth;
-      setLeftWidthPx((prev) => (prev === resolvedNextWidth ? prev : resolvedNextWidth));
+      setVisualLeftWidthPx(null);
+      setLeftWidthPx((prev) => (prev === nextWidth ? prev : nextWidth));
       setContainerWidthPx(Math.round(containerWidth));
     },
     [
@@ -596,7 +605,6 @@ export const useAiStudioShellResize = ({
       maxLeftWidthPx,
       minLeftWidthPx,
       minRightWidthPx,
-      allowLeftCollapse,
       resolveContainerWidth,
     ]
   );
@@ -610,6 +618,7 @@ export const useAiStudioShellResize = ({
       maxLeftWidthPx,
       minRightWidthPx,
     });
+    setVisualLeftWidthPx(null);
     setLeftWidthPx((prev) => (prev === bounds.max ? prev : bounds.max));
     setContainerWidthPx(Math.round(containerWidth));
   }, [
@@ -648,26 +657,20 @@ export const useAiStudioShellResize = ({
       minRightWidthPx: layoutMinRightWidthPx,
       preferredRatio: defaultLeftRatio,
     });
-  const ariaNow =
-    allowLeftCollapse && activeAriaWidth === AI_SHELL_LEFT_COLLAPSED_MIN_PX
-      ? AI_SHELL_LEFT_COLLAPSED_MIN_PX
-      : clampAiShellLeftWidth(activeAriaWidth, Math.max(containerWidthPx, 1), {
-          minLeftWidthPx,
-          maxLeftWidthPx,
-          minRightWidthPx: layoutMinRightWidthPx,
-        });
-  const resolvedLeftWidth =
-    allowLeftCollapse && ariaNow === AI_SHELL_LEFT_COLLAPSED_MIN_PX
-      ? AI_SHELL_LEFT_COLLAPSED_MIN_PX
-      : clampAiShellLeftWidth(ariaNow, Math.max(containerWidthPx, 1), {
-          minLeftWidthPx,
-          maxLeftWidthPx,
-          minRightWidthPx: layoutMinRightWidthPx,
-        });
+  const ariaNow = clampAiShellLeftWidth(activeAriaWidth, Math.max(containerWidthPx, 1), {
+    minLeftWidthPx,
+    maxLeftWidthPx,
+    minRightWidthPx: layoutMinRightWidthPx,
+  });
+  const resolvedLeftWidth = clampAiShellLeftWidth(ariaNow, Math.max(containerWidthPx, 1), {
+    minLeftWidthPx,
+    maxLeftWidthPx,
+    minRightWidthPx: layoutMinRightWidthPx,
+  });
   const { fadeStartPx: leftFadeStartPx, fadeEndPx: leftFadeEndPx } = getLeftColumnFadeThresholds(
     Math.max(containerWidthPx, 1)
   );
-  const effectiveVisualLeftWidth = dragVisualLeftWidthPx ?? resolvedLeftWidth;
+  const effectiveVisualLeftWidth = visualLeftWidthPx ?? resolvedLeftWidth;
   const leftColumnVisibility =
     !allowLeftCollapse || !isSplitLayout
       ? 1
@@ -676,10 +679,10 @@ export const useAiStudioShellResize = ({
         : effectiveVisualLeftWidth >= leftFadeStartPx
           ? 1
           : (effectiveVisualLeftWidth - leftFadeEndPx) / (leftFadeStartPx - leftFadeEndPx);
-  const leftColumnHidden =
-    allowLeftCollapse && isSplitLayout && resolvedLeftWidth <= AI_SHELL_LEFT_COLLAPSED_MIN_PX;
+  const leftColumnHidden = false;
   const dividerVisualOffsetPx =
-    dragVisualLeftWidthPx == null ? 0 : Math.round(dragVisualLeftWidthPx - resolvedLeftWidth);
+    visualLeftWidthPx == null ? 0 : Math.round(visualLeftWidthPx - resolvedLeftWidth);
+  const rightRailOverlapWidthPx = Math.max(0, -dividerVisualOffsetPx);
   const rightColumnWidthPx = Math.max(
     0,
     Math.round(Math.max(containerWidthPx, 0) - resolvedLeftWidth - AI_SHELL_DIVIDER_TRACK_PX)
@@ -702,6 +705,7 @@ export const useAiStudioShellResize = ({
       "--ai-shell-left-width": `${leftWidthPx}px`,
       "--ai-shell-right-min-width": `${Math.max(0, layoutMinRightWidthPx ?? AI_SHELL_RIGHT_MIN_PX)}px`,
       "--ai-shell-divider-visual-offset": `${dividerVisualOffsetPx}px`,
+      "--ai-shell-right-overlap-width": `${rightRailOverlapWidthPx}px`,
       "--ai-shell-left-visibility": `${leftColumnVisibility}`,
       "--ai-shell-right-visibility": `${rightColumnVisibility}`,
     } as CSSProperties;
@@ -710,6 +714,7 @@ export const useAiStudioShellResize = ({
     layoutMinRightWidthPx,
     leftColumnVisibility,
     leftWidthPx,
+    rightRailOverlapWidthPx,
     rightColumnVisibility,
     showDivider,
   ]);

@@ -109,6 +109,14 @@ describe("ai-studio layout scroll behavior contract", () => {
     expect(css).toContain("max-height: var(--ai-shell-column-max-height);");
   });
 
+  it("keeps Edit and Video outer properties rails structural instead of visual wrappers", () => {
+    const css = fs.readFileSync(layoutCssPath, "utf8");
+
+    expect(css).toMatch(
+      /\.ai-studio-page\[data-selected-tool="edit"\]:not\(\[data-selected-tool="canvas"\]\)[\s\S]*?\.ai-studio-page\[data-selected-tool="video"\]:not\(\[data-selected-tool="canvas"\]\)[\s\S]*?\{\n {2}background: transparent;\n {2}padding: 0;\n\}/
+    );
+  });
+
   it("keeps AI Studio alerts from increasing the desktop create shell height", () => {
     const css = fs.readFileSync(layoutCssPath, "utf8");
     const messagesCss = fs.readFileSync(messagesCssPath, "utf8");

@@ -880,6 +880,83 @@ describe("MediaLibraryPanel", () => {
     );
   });
 
+  it("keeps saved video reload actions video-shaped when workflow metadata is legacy image-shaped", async () => {
+    const onReloadWorkflowFromMedia = vi.fn();
+    const workflowReload = {
+      version: 1,
+      source: "ai_studio_generation",
+      capturedAt: "2026-06-13T15:00:00.000Z",
+      originTool: "create",
+      panelKind: "create",
+      outputMode: "image",
+      restoreBehavior: "navigate_and_hydrate",
+      projectId: "project-1",
+      createMode: "standard",
+      pulse: null,
+      prompt: {
+        display: "Legacy-shaped video row",
+      },
+      model: {
+        id: "fal-ai/imagen4/preview",
+      },
+      payload: {
+        kind: "image",
+        submitTool: "create",
+        aspect: "16:9",
+        imageResolution: "1K",
+        referenceInputs: [],
+        internalMediaRefs: [],
+      },
+    };
+    fetchMediaListPageMock.mockResolvedValueOnce({
+      rows: [
+        {
+          id: "legacy-video-reload-1",
+          filename: "legacy-video.mp4",
+          storage_path: "user-1/videos/legacy-video.mp4",
+          preview_storage_path: "user-1/videos/legacy-video.mp4",
+          file_type: "video/mp4",
+          source: "ai_studio",
+          source_ref: "generation-legacy-video-1",
+          created_at: "2026-06-13T15:01:00.000Z",
+          metadata: {
+            model_id: "kie-ai/kling-3.0",
+            workflow_reload: workflowReload,
+          },
+          signedUrl: "https://cdn.example.com/legacy-video",
+        },
+      ],
+      nextCursor: null,
+      hasMore: false,
+      signedById: new Map<string, string>(),
+    });
+
+    render(
+      <MediaLibraryPanel
+        onSelectMedia={vi.fn()}
+        onSelectPrompt={vi.fn()}
+        onReloadWorkflowFromMedia={onReloadWorkflowFromMedia}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mock-all-items-grid")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Reload media workflow legacy-video.mp4" }));
+
+    expect(onReloadWorkflowFromMedia).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "media-library:legacy-video-reload-1",
+        mode: "video",
+        modelId: "kie-ai/kling-3.0",
+        mediaSource: "generated",
+        generationId: "generation-legacy-video-1",
+        workflowReload,
+      }),
+      { mediaKindHint: "video" }
+    );
+  });
+
   it("shows folder prompts and media in the same grid without split section headings", async () => {
     render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
 

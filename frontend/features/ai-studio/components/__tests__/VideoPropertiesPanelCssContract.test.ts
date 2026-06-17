@@ -52,6 +52,11 @@ describe("VideoPropertiesPanel generate footer CSS contract", () => {
       ".video-properties-panel .video-direction-column-shell",
       "max-height: 100%"
     );
+    expectRuleToContain(
+      css,
+      ".video-properties-panel .video-direction-column-shell",
+      "border-radius: 0"
+    );
   });
 
   it("keeps summary, requirement messages, and actions in separate grid tracks", () => {

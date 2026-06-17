@@ -683,6 +683,7 @@ export const useAiStudioShellResize = ({
   const dividerVisualOffsetPx =
     visualLeftWidthPx == null ? 0 : Math.round(visualLeftWidthPx - resolvedLeftWidth);
   const rightRailOverlapWidthPx = Math.max(0, -dividerVisualOffsetPx);
+  const isDividerOverlapActive = rightRailOverlapWidthPx > 0;
   const rightColumnWidthPx = Math.max(
     0,
     Math.round(Math.max(containerWidthPx, 0) - resolvedLeftWidth - AI_SHELL_DIVIDER_TRACK_PX)
@@ -743,6 +744,7 @@ export const useAiStudioShellResize = ({
       "aria-valuemin": allowLeftCollapse ? AI_SHELL_LEFT_COLLAPSED_MIN_PX : bounds.min,
       "aria-valuemax": bounds.max,
       "aria-valuenow": ariaNow,
+      "data-overlap-active": isDividerOverlapActive ? "true" : undefined,
       onPointerDown: beginPointerResize,
       onDoubleClick: handleDividerDoubleClick,
       onKeyDown: handleDividerKeyDown,

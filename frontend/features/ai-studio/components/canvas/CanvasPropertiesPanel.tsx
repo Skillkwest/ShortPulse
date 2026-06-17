@@ -14,7 +14,7 @@ import { CanvasMediaActionOverlay } from "./CanvasMediaActionOverlay";
 
 const CANVAS_TEAR_OUT_GHOST_CURSOR_INSET_PX = 14;
 const CANVAS_VIEWPORT_CULL_OVERSCAN_PX = 480;
-const CANVAS_MEDIA_ACTION_MIN_VISIBLE_ZOOM = 0.45;
+const CANVAS_MEDIA_ACTION_MIN_VISIBLE_ZOOM = 0.5;
 
 type CanvasViewportSize = {
   width: number;

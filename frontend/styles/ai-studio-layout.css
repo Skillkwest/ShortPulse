@@ -1324,6 +1324,7 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 
 .ai-shell-divider:hover::before,
 .ai-shell-divider:focus-visible::before,
+.ai-shell-divider[data-overlap-active="true"]::before,
 .ai-shell.ai-shell-resizing .ai-shell-divider::before {
   background: linear-gradient(
     180deg,
@@ -1337,6 +1338,7 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 
 .ai-shell-divider:hover::after,
 .ai-shell-divider:focus-visible::after,
+.ai-shell-divider[data-overlap-active="true"]::after,
 .ai-shell.ai-shell-resizing .ai-shell-divider::after {
   background: linear-gradient(
     180deg,

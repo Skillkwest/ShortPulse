@@ -197,7 +197,7 @@ describe("CanvasPropertiesPanel live props bridge", () => {
     expect(screen.getByLabelText("Remove reference from grid")).toBeInTheDocument();
   });
 
-  it("hides selected Canvas media action controls at 45% zoom or below", () => {
+  it("hides selected Canvas media action controls at 50% zoom or below", () => {
     const viewportRef = React.createRef<HTMLDivElement>();
     const output: StudioOutput = {
       id: "out-image-1",
@@ -228,7 +228,7 @@ describe("CanvasPropertiesPanel live props bridge", () => {
     ];
     const initialSnapshot = createPanelProps({
       viewportRef,
-      camera: { x: 0, y: 0, zoom: 0.46 },
+      camera: { x: 0, y: 0, zoom: 0.51 },
       items: canvasItems,
     });
     const liveProps = createLivePropsHarness(initialSnapshot);
@@ -251,7 +251,7 @@ describe("CanvasPropertiesPanel live props bridge", () => {
       liveProps.publish(
         createPanelProps({
           viewportRef,
-          camera: { x: 0, y: 0, zoom: 0.45 },
+          camera: { x: 0, y: 0, zoom: 0.5 },
           items: canvasItems,
         })
       );
@@ -264,7 +264,7 @@ describe("CanvasPropertiesPanel live props bridge", () => {
       liveProps.publish(
         createPanelProps({
           viewportRef,
-          camera: { x: 0, y: 0, zoom: 0.451 },
+          camera: { x: 0, y: 0, zoom: 0.501 },
           items: canvasItems,
         })
       );

@@ -160,6 +160,7 @@ describe("expert edit layout contract", () => {
     expect(primaryColumnShell).toContain("display: flex;");
     expect(primaryColumnShell).toContain("align-items: stretch;");
     expect(primaryColumnShell).toContain("align-self: stretch;");
+    expect(primaryColumnShell).toContain("border-radius: 0;");
     expect(primaryColumnShell).toContain("flex: 1 1 auto;");
     expect(primaryColumnShell).toContain("min-height: 0;");
     expect(primaryColumnShell).toContain("height: 100%;");

@@ -314,6 +314,7 @@ describe("useAiStudioShellResize", () => {
 
     expect(result.current.leftWidthPx).toBe(AI_SHELL_LEFT_CREATE_MIN_PX);
     expect(result.current.leftColumnHidden).toBe(false);
+    expect(result.current.dividerProps["data-overlap-active"]).toBe("true");
     expect(result.current.shellStyle).toMatchObject({
       "--ai-shell-left-width": `${AI_SHELL_LEFT_CREATE_MIN_PX}px`,
       "--ai-shell-divider-visual-offset": "-220px",
@@ -328,6 +329,7 @@ describe("useAiStudioShellResize", () => {
     await waitFor(() => {
       expect(result.current.leftWidthPx).toBe(AI_SHELL_LEFT_CREATE_MIN_PX);
       expect(result.current.leftColumnHidden).toBe(false);
+      expect(result.current.dividerProps["data-overlap-active"]).toBe("true");
       expect(result.current.shellStyle).toMatchObject({
         "--ai-shell-left-width": `${AI_SHELL_LEFT_CREATE_MIN_PX}px`,
         "--ai-shell-divider-visual-offset": "-220px",
@@ -385,6 +387,7 @@ describe("useAiStudioShellResize", () => {
     });
 
     expect(result.current.leftWidthPx).toBe(AI_SHELL_LEFT_CREATE_MIN_PX);
+    expect(result.current.dividerProps["data-overlap-active"]).toBe("true");
     expect(result.current.shellStyle).toMatchObject({
       "--ai-shell-divider-visual-offset": "-220px",
       "--ai-shell-right-overlap-width": "220px",
@@ -415,6 +418,7 @@ describe("useAiStudioShellResize", () => {
 
     expect(result.current.leftWidthPx).toBe(980);
     expect(result.current.leftColumnHidden).toBe(false);
+    expect(result.current.dividerProps["data-overlap-active"]).toBeUndefined();
     expect(result.current.shellStyle).toMatchObject({
       "--ai-shell-divider-visual-offset": "0px",
       "--ai-shell-right-overlap-width": "0px",

@@ -7,6 +7,12 @@ import { isWorkflowReloadConfigV1 } from "./workflowReload";
 
 const AI_STUDIO_MEDIA_SOURCE = "ai_studio";
 
+const asTrimmedString = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
 const modeFromFileType = (
   fileType: string | null | undefined
 ): WorkflowReloadMediaKindHint | null => {
@@ -31,6 +37,16 @@ const aspectFromWorkflowReload = (config: WorkflowReloadConfigV1): string => {
   return "auto";
 };
 
+const resolveSavedMediaWorkflowMode = (
+  file: MediaFileRow,
+  config: WorkflowReloadConfigV1
+): StudioOutput["mode"] => modeFromFileType(file.file_type) ?? config.outputMode;
+
+const resolveSavedMediaWorkflowModelId = (
+  file: MediaFileRow,
+  config: WorkflowReloadConfigV1
+): string => asTrimmedString(file.metadata?.model_id ?? file.metadata?.modelId) ?? config.model.id;
+
 export const resolveMediaLibraryWorkflowReloadConfig = (
   metadata: Record<string, unknown> | null | undefined
 ): WorkflowReloadConfigV1 | null => {
@@ -47,14 +63,16 @@ export const createMediaLibraryWorkflowReloadOutput = (file: MediaFileRow): Stud
   const previewUrl = file.signedUrl?.trim() || undefined;
   const storagePath = file.storage_path?.trim() || null;
   const generationId = file.source_ref?.trim() || undefined;
+  const mode = resolveSavedMediaWorkflowMode(file, config);
+  const modelId = resolveSavedMediaWorkflowModelId(file, config);
 
   return {
     id: `media-library:${file.id}`,
     prompt: config.prompt.display,
-    mode: config.outputMode,
+    mode,
     aspect: aspectFromWorkflowReload(config),
-    model: config.model.id,
-    modelId: config.model.id,
+    model: modelId,
+    modelId,
     createdAt: file.created_at ?? config.capturedAt,
     generationId,
     savedMediaIds: [file.id],

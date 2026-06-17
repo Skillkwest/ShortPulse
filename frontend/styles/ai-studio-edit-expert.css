@@ -121,7 +121,6 @@
   border: 0;
   box-shadow: none;
   padding: 0;
-  backdrop-filter: blur(10px);
   overflow: hidden;
   overscroll-behavior: none;
 }

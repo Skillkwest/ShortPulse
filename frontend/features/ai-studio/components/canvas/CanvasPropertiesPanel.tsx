@@ -760,6 +760,8 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
     return () => resizeObserver.disconnect();
   }, [viewportRef]);
 
+  const canvasControlScale = camera.zoom > 0 ? 1 / camera.zoom : 1;
+
   return (
     <section className="canvas-properties-panel">
       <div
@@ -802,6 +804,7 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
           data-testid="canvas-world"
           style={{
             transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.zoom})`,
+            ["--canvas-control-scale" as string]: `${canvasControlScale}`,
           }}
         >
           <div className="canvas-workspace-grid" aria-hidden="true" />

@@ -77,6 +77,7 @@ export function ReferenceAudioPlayer({
     onResolveAudioUrl ? "" : (audioUrl?.trim() ?? "")
   );
   const activeAudioUrlRef = React.useRef(activeAudioUrl);
+  const fallbackAudioUrlRef = React.useRef(audioUrl?.trim() ?? "");
   const onResolveAudioUrlRef = React.useRef(onResolveAudioUrl);
   const audioUrlResolutionPromiseRef = React.useRef<Promise<string> | null>(null);
   const waveformDecodeInFlightKeyRef = React.useRef<string | null>(null);
@@ -123,6 +124,10 @@ export function ReferenceAudioPlayer({
   React.useEffect(() => {
     onResolveAudioUrlRef.current = onResolveAudioUrl;
   }, [onResolveAudioUrl]);
+
+  React.useEffect(() => {
+    fallbackAudioUrlRef.current = audioUrl?.trim() ?? "";
+  }, [audioUrl]);
 
   const audioWaveformColumns = React.useMemo(
     () =>
@@ -182,15 +187,23 @@ export function ReferenceAudioPlayer({
       return audioUrlResolutionPromiseRef.current;
     }
     const resolutionPromise = (async () => {
+      const applyFallbackAudioUrl = () => {
+        const fallbackAudioUrl = fallbackAudioUrlRef.current;
+        if (fallbackAudioUrl) {
+          applyResolvedAudioUrl(fallbackAudioUrl);
+        }
+        return fallbackAudioUrl;
+      };
       try {
         const resolvedUrl = await resolveAudioUrl();
         const normalizedResolvedUrl = resolvedUrl?.trim() ?? "";
         if (normalizedResolvedUrl) {
           applyResolvedAudioUrl(normalizedResolvedUrl);
+          return normalizedResolvedUrl;
         }
-        return normalizedResolvedUrl;
+        return applyFallbackAudioUrl();
       } catch {
-        return "";
+        return applyFallbackAudioUrl();
       }
     })();
     audioUrlResolutionPromiseRef.current = resolutionPromise;

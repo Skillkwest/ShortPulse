@@ -727,6 +727,51 @@ describe("MediaLibraryPanel", () => {
     expect(selectedProps?.selectedIds.has("prompt-1")).toBe(false);
   });
 
+  it("includes audio rows in the root All Media signing queue", async () => {
+    fetchMediaListPageMock.mockResolvedValueOnce({
+      rows: [
+        {
+          id: "image-1",
+          filename: "ref-1.png",
+          storage_path: "user-1/uploads/ref-1.png",
+          preview_storage_path: "user-1/uploads/ref-1.png",
+          file_type: "image/png",
+          source: "upload",
+          created_at: "2026-03-02T00:00:00.000Z",
+          metadata: null,
+          signedUrl: "https://cdn.example.com/ref-1.png",
+        },
+        {
+          id: "audio-1",
+          filename: "theme.mp3",
+          storage_path: "user-1/uploads/theme.mp3",
+          preview_storage_path: "user-1/uploads/theme.mp3",
+          file_type: "audio/mpeg",
+          source: "upload",
+          created_at: "2026-03-01T00:00:00.000Z",
+          metadata: null,
+          signedUrl: null,
+        },
+      ],
+      nextCursor: null,
+      hasMore: false,
+      signedById: new Map<string, string>(),
+      libraryTotalCount: 2,
+    });
+
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mock-all-items-grid")).toBeInTheDocument();
+    });
+
+    const latestSigningArgs = useMediaPreviewSigningControllerMock.mock.calls.at(-1)?.[0] as
+      | { filteredMedia?: Array<{ id: string }> }
+      | undefined;
+
+    expect(latestSigningArgs?.filteredMedia?.map((row) => row.id)).toEqual(["image-1", "audio-1"]);
+  });
+
   it("emits a generated video output with workflow reload metadata from saved media rows", async () => {
     const onReloadWorkflowFromMedia = vi.fn();
     const workflowReload = {
@@ -1169,6 +1214,54 @@ describe("MediaLibraryPanel", () => {
     expect(latestProps.fixedVisualAspectRatio).toBeNull();
     const latestSigningArgs = useMediaPreviewSigningControllerMock.mock.calls.at(-1)?.[0];
     expect(latestSigningArgs?.surface).toBe("elements-media-panel");
+  });
+
+  it("includes audio rows in the embedded Elements all-media signing queue", async () => {
+    fetchMediaListPageMock.mockResolvedValueOnce({
+      rows: [
+        {
+          id: "embedded-image-1",
+          filename: "embedded-ref-1.png",
+          storage_path: "user-1/uploads/embedded-ref-1.png",
+          preview_storage_path: "user-1/uploads/embedded-ref-1.png",
+          file_type: "image/png",
+          source: "upload",
+          created_at: "2026-03-02T00:00:00.000Z",
+          metadata: null,
+          signedUrl: "https://cdn.example.com/embedded-ref-1.png",
+        },
+        {
+          id: "embedded-audio-1",
+          filename: "embedded-theme.mp3",
+          storage_path: "user-1/uploads/embedded-theme.mp3",
+          preview_storage_path: "user-1/uploads/embedded-theme.mp3",
+          file_type: "audio/mpeg",
+          source: "upload",
+          created_at: "2026-03-01T00:00:00.000Z",
+          metadata: null,
+          signedUrl: null,
+        },
+      ],
+      nextCursor: null,
+      hasMore: false,
+      signedById: new Map<string, string>(),
+      libraryTotalCount: 2,
+    });
+
+    render(<ElementsEmbeddedMediaLibraryPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mock-all-items-grid")).toBeInTheDocument();
+    });
+
+    const latestSigningArgs = useMediaPreviewSigningControllerMock.mock.calls.at(-1)?.[0] as
+      | { filteredMedia?: Array<{ id: string }> }
+      | undefined;
+
+    expect(latestSigningArgs?.filteredMedia?.map((row) => row.id)).toEqual([
+      "embedded-image-1",
+      "embedded-audio-1",
+    ]);
   });
 
   it("keeps the embedded Elements all-media grid on true masonry ratios in assignment mode", async () => {

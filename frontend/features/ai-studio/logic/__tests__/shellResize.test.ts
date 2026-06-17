@@ -7,7 +7,6 @@ import {
   AI_SHELL_DIVIDER_TRACK_PX,
   AI_SHELL_LEFT_CHARACTER_DEFAULT_RATIO,
   AI_SHELL_LEFT_CHARACTER_MIN_PX,
-  AI_SHELL_LEFT_COLLAPSED_MIN_PX,
   AI_SHELL_LEFT_CANVAS_DEFAULT_RATIO,
   AI_SHELL_LEFT_CREATE_MAX_PX,
   AI_SHELL_LEFT_CREATE_MIN_PX,
@@ -86,17 +85,6 @@ describe("getAiShellLeftWidthBounds", () => {
       expect(bounds.max).toBe(1700 - AI_SHELL_DIVIDER_TRACK_PX);
     }
   );
-
-  it("keeps the normal maximum while allowing the left column to collapse to zero", () => {
-    const bounds = getAiShellLeftWidthBounds(1700, {
-      minLeftWidthPx: AI_SHELL_LEFT_CREATE_MIN_PX,
-      minRightWidthPx: AI_SHELL_RIGHT_COLLAPSED_MIN_PX,
-      allowLeftCollapse: true,
-    });
-
-    expect(bounds.min).toBe(AI_SHELL_LEFT_COLLAPSED_MIN_PX);
-    expect(bounds.max).toBe(1700 - AI_SHELL_DIVIDER_TRACK_PX);
-  });
 });
 
 describe("clampAiShellLeftWidth", () => {
@@ -145,24 +133,6 @@ describe("clampAiShellLeftWidth", () => {
       ).toBe(1600 - AI_SHELL_DIVIDER_TRACK_PX);
     }
   );
-
-  it("allows explicit zero-width primary-panel collapse when enabled", () => {
-    expect(
-      clampAiShellLeftWidth(100, 1600, {
-        minLeftWidthPx: AI_SHELL_LEFT_CREATE_MIN_PX,
-        minRightWidthPx: AI_SHELL_RIGHT_COLLAPSED_MIN_PX,
-        allowLeftCollapse: true,
-      })
-    ).toBe(100);
-
-    expect(
-      clampAiShellLeftWidth(-100, 1600, {
-        minLeftWidthPx: AI_SHELL_LEFT_CREATE_MIN_PX,
-        minRightWidthPx: AI_SHELL_RIGHT_COLLAPSED_MIN_PX,
-        allowLeftCollapse: true,
-      })
-    ).toBe(AI_SHELL_LEFT_COLLAPSED_MIN_PX);
-  });
 });
 
 describe("getDefaultAiShellLeftWidth", () => {

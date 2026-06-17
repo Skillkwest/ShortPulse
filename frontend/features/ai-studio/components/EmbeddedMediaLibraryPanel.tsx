@@ -233,10 +233,7 @@ export function EmbeddedMediaLibraryPanel({
     () => mediaRows.filter((row) => isAudioFile(row.file_type)),
     [mediaRows]
   );
-  const signableMediaRows = React.useMemo(
-    () => (itemType === "all" ? mediaRows.filter((row) => !isAudioFile(row.file_type)) : mediaRows),
-    [itemType, mediaRows]
-  );
+  const signableMediaRows = React.useMemo(() => mediaRows, [mediaRows]);
   const activeMediaTab = React.useMemo<MediaDataTab | null>(() => {
     if (!shouldShowMedia || mediaRows.length === 0) return null;
     return itemType === "videos" ? "uploaded_videos" : "uploaded_images";

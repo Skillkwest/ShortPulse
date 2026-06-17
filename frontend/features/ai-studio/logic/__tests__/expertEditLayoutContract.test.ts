@@ -135,6 +135,7 @@ describe("expert edit layout contract", () => {
     const secondaryRow = extractRuleBlock(css, ".edit-expert-secondary-row");
 
     expect(css).toContain(".edit-expert-main-stage");
+    expect(css).not.toContain("backdrop-filter: blur(10px);");
     expect(mainStage).toContain("margin: 0;");
     expect(mainStage).toContain("justify-items: start;");
     expect(mainStage).toContain("min-height: 0;");

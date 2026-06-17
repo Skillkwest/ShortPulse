@@ -284,6 +284,7 @@ export const useReferenceGridCardRenderController = ({
           cardPreviewUrl={card.cardPreviewUrl}
           videoPosterUrl={videoPosterUrl}
           hoverVideoUrl={hoverVideoUrl}
+          playableMediaUrl={card.playableMediaUrl ?? null}
           isVideoPreview={card.isVideoPreview}
           isImagePreview={card.isImagePreview}
           isAudioPreview={card.isAudioPreview}

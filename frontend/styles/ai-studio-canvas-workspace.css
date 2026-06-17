@@ -274,16 +274,19 @@
   gap: 6px;
   z-index: 4;
   pointer-events: auto;
+  transform: scale(var(--canvas-control-scale, 1));
 }
 
 .canvas-scene-item__media-action-row--top {
   top: 6px;
   right: 6px;
+  transform-origin: top right;
 }
 
 .canvas-scene-item__media-action-row--bottom {
   right: 6px;
   bottom: 6px;
+  transform-origin: bottom right;
 }
 
 .canvas-scene-item__media-action-row .reference-card-action-btn {
@@ -294,6 +297,11 @@
 .canvas-scene-item.is-selected .canvas-scene-item__media-duration {
   left: 8px;
   right: auto;
+}
+
+.canvas-scene-item > .reference-save-chip {
+  transform: scale(var(--canvas-control-scale, 1));
+  transform-origin: top left;
 }
 
 .canvas-scene-item__audio-frame {

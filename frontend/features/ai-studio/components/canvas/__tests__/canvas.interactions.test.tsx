@@ -109,6 +109,15 @@ describe("Canvas interaction behavior", () => {
     expect(canvasWorkspaceCss).toMatch(
       /\.canvas-workspace-world\s*{[^}]*will-change:\s*transform;/s
     );
+    expect(canvasWorkspaceCss).toMatch(
+      /\.canvas-scene-item__media-action-row\s*{[^}]*transform:\s*scale\(var\(--canvas-control-scale,\s*1\)\);/s
+    );
+    expect(canvasWorkspaceCss).toMatch(
+      /\.canvas-scene-item__media-action-row--top\s*{[^}]*transform-origin:\s*top right;/s
+    );
+    expect(canvasWorkspaceCss).toMatch(
+      /\.canvas-scene-item__media-action-row--bottom\s*{[^}]*transform-origin:\s*bottom right;/s
+    );
   });
 
   it("supports select and deselect interactions", async () => {

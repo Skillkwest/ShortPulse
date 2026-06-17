@@ -1264,6 +1264,30 @@ describe("ReferenceGridCard", () => {
     expect(pauseMock).toHaveBeenCalled();
   });
 
+  it("uses playable media URL for audio playback when card preview URL is missing", () => {
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({
+            mode: "audio",
+            taskState: "success",
+            durationMs: 2000,
+          }),
+          isAudioPreview: true,
+          cardPreviewUrl: null,
+          playableMediaUrl: "https://example.com/playable-audio.mp3",
+        })}
+      />
+    );
+
+    const audioNode = document.querySelector(".reference-card-audio") as HTMLAudioElement | null;
+    expect(audioNode).not.toBeNull();
+    expect(audioNode?.getAttribute("src")).toBe("https://example.com/playable-audio.mp3");
+
+    fireEvent.click(screen.getByRole("button", { name: "Play audio preview" }));
+    expect(playMock).toHaveBeenCalledTimes(1);
+  });
+
   it("renders audio download and grid remove together in the card action row", () => {
     const onDownload = vi.fn();
     const onDeleteOutput = vi.fn();

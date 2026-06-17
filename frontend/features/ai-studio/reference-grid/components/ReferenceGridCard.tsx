@@ -52,6 +52,7 @@ export type ReferenceGridCardProps = {
   cardPreviewUrl: string | null;
   videoPosterUrl?: string | null;
   hoverVideoUrl?: string | null;
+  playableMediaUrl?: string | null;
   isVideoPreview: boolean;
   isImagePreview: boolean;
   isAudioPreview?: boolean;
@@ -147,6 +148,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   cardPreviewUrl,
   videoPosterUrl,
   hoverVideoUrl,
+  playableMediaUrl = null,
   isVideoPreview,
   isImagePreview,
   isAudioPreview = false,
@@ -290,7 +292,9 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     !hasMediaRenderError &&
     ((isVideoPreview && resolvedHoverVideoUrl) || hasPosterBackedVideoPreview)
   );
-  const audioPreviewUrl = isAudioPreview ? (cardPreviewUrl?.trim() ?? "") : "";
+  const audioPreviewUrl = isAudioPreview
+    ? playableMediaUrl?.trim() || cardPreviewUrl?.trim() || ""
+    : "";
   const audioSourceMode = resolveOutputAudioSourceMode(item);
   const primaryImageSrc = hasVideoPosterPreview ? (resolvedVideoPosterUrl ?? undefined) : imageSrc;
   const normalizedPrimaryImageSrc = primaryImageSrc?.trim() || "";
@@ -720,7 +724,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
               onRemoveCuratedReference?.(item.id);
             }}
           >
-            <X size={16} weight="bold" aria-hidden />
+            <TrashSimple size={16} weight="bold" aria-hidden />
           </button>
         </div>
       ) : null}

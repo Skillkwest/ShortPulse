@@ -271,7 +271,7 @@ describe("useAiStudioShellResize", () => {
     });
   });
 
-  it("snaps the primary column to the left edge after dragging below the collapse threshold", async () => {
+  it("preserves the primary minimum while dragging past it, then snaps left on release", async () => {
     const originalInnerWidth = window.innerWidth;
     Object.defineProperty(window, "innerWidth", {
       configurable: true,
@@ -310,13 +310,19 @@ describe("useAiStudioShellResize", () => {
     });
 
     act(() => {
-      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 202, clientX: 200 }));
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 202, clientX: 700 }));
     });
 
-    expect(result.current.leftColumnHidden).toBe(true);
+    expect(result.current.leftWidthPx).toBe(AI_SHELL_LEFT_CREATE_MIN_PX);
+    expect(result.current.leftColumnHidden).toBe(false);
+    expect(result.current.shellStyle).toMatchObject({
+      "--ai-shell-left-width": `${AI_SHELL_LEFT_CREATE_MIN_PX}px`,
+      "--ai-shell-divider-visual-offset": "-220px",
+      "--ai-shell-left-visibility": "0",
+    });
 
     act(() => {
-      window.dispatchEvent(new PointerEvent("pointerup", { pointerId: 202, clientX: 200 }));
+      window.dispatchEvent(new PointerEvent("pointerup", { pointerId: 202, clientX: 700 }));
     });
 
     await waitFor(() => {
@@ -324,8 +330,83 @@ describe("useAiStudioShellResize", () => {
       expect(result.current.leftColumnHidden).toBe(true);
       expect(result.current.shellStyle).toMatchObject({
         "--ai-shell-left-width": `${AI_SHELL_LEFT_COLLAPSED_MIN_PX}px`,
+        "--ai-shell-divider-visual-offset": "0px",
         "--ai-shell-left-visibility": "0",
       });
+    });
+
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: originalInnerWidth,
+    });
+  });
+
+  it("reopens from the left-collapsed state without jumping to the primary minimum on pointer down", async () => {
+    const originalInnerWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1800,
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioShellResize({
+        enabled: true,
+        minLeftWidthPx: AI_SHELL_LEFT_CREATE_MIN_PX,
+        minRightWidthPx: AI_SHELL_RIGHT_COLLAPSED_MIN_PX,
+        allowLeftCollapse: true,
+      })
+    );
+
+    act(() => {
+      result.current.shellRef.current = {
+        getBoundingClientRect: () => ({ width: 1800 }),
+      } as HTMLElement;
+      result.current.leftColumnRef.current = {
+        getBoundingClientRect: () => ({ width: 0 }),
+      } as HTMLElement;
+      result.current.restoreWidth(AI_SHELL_LEFT_COLLAPSED_MIN_PX);
+    });
+
+    await waitFor(() => {
+      expect(result.current.leftColumnHidden).toBe(true);
+      expect(result.current.leftWidthPx).toBe(AI_SHELL_LEFT_COLLAPSED_MIN_PX);
+    });
+
+    act(() => {
+      result.current.dividerProps.onPointerDown?.({
+        pointerId: 303,
+        button: 0,
+        clientX: 0,
+        preventDefault: vi.fn(),
+      } as unknown as ReactPointerEvent<HTMLButtonElement>);
+    });
+
+    expect(result.current.leftWidthPx).toBe(AI_SHELL_LEFT_COLLAPSED_MIN_PX);
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 303, clientX: 700 }));
+    });
+
+    expect(result.current.leftWidthPx).toBe(AI_SHELL_LEFT_COLLAPSED_MIN_PX);
+    expect(result.current.shellStyle).toMatchObject({
+      "--ai-shell-divider-visual-offset": "700px",
+      "--ai-shell-left-visibility": "0",
+    });
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 303, clientX: 980 }));
+    });
+
+    expect(result.current.leftWidthPx).toBe(980);
+    expect(result.current.leftColumnHidden).toBe(false);
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointerup", { pointerId: 303, clientX: 980 }));
+    });
+
+    await waitFor(() => {
+      expect(result.current.isResizing).toBe(false);
+      expect(result.current.leftWidthPx).toBe(980);
     });
 
     Object.defineProperty(window, "innerWidth", {

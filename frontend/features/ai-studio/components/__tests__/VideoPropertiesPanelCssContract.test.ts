@@ -27,6 +27,33 @@ const expectRuleToContain = (css: string, selector: string, declaration: string)
 };
 
 describe("VideoPropertiesPanel generate footer CSS contract", () => {
+  it("lets the inner left and right Video column shells own the full-height panel surfaces", () => {
+    const css = readCss();
+
+    [
+      ".video-properties-panel",
+      ".video-properties-panel .video-properties-workspace",
+      ".video-properties-panel .video-properties-primary-column",
+      ".video-properties-panel .video-properties-main-columns",
+      ".video-properties-panel .video-properties-main-column--left",
+      ".video-properties-panel .video-properties-main-column--right",
+      ".video-properties-panel .video-setup-row-shell",
+      ".video-properties-panel .video-direction-column-shell",
+    ].forEach((selector) => {
+      expectRuleToContain(css, selector, "height: 100%");
+    });
+    expectRuleToContain(
+      css,
+      ".video-properties-panel .video-properties-main-columns",
+      "max-height: 100%"
+    );
+    expectRuleToContain(
+      css,
+      ".video-properties-panel .video-direction-column-shell",
+      "max-height: 100%"
+    );
+  });
+
   it("keeps summary, requirement messages, and actions in separate grid tracks", () => {
     const css = readCss();
 

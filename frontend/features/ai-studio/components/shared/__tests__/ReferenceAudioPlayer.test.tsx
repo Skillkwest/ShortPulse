@@ -121,6 +121,31 @@ describe("ReferenceAudioPlayer", () => {
     expect(audio?.getAttribute("src")).toBe("https://signed.test/fresh-playback.mp3");
   });
 
+  it("falls back to the provided audio URL when fresh resolution is unavailable", async () => {
+    const resolveAudioUrl = vi.fn(async () => "");
+
+    render(
+      <ReferenceAudioPlayer
+        audioId="audio-fallback"
+        audioUrl="https://signed.test/existing-playback.mp3"
+        playLabel="Play audio"
+        pauseLabel="Pause audio"
+        eagerWaveformDecode={false}
+        onResolveAudioUrl={resolveAudioUrl}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Play audio" }));
+
+    await waitFor(() => {
+      expect(HTMLMediaElement.prototype.play).toHaveBeenCalled();
+    });
+    expect(resolveAudioUrl).toHaveBeenCalled();
+    expect(document.querySelector("audio")?.getAttribute("src")).toBe(
+      "https://signed.test/existing-playback.mp3"
+    );
+  });
+
   it("pre-resolves a fresh signed URL so the click path can play synchronously", async () => {
     const resolveAudioUrl = vi.fn(async () => "https://signed.test/pre-resolved-audio.mp3");
 

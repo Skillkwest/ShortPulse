@@ -32,7 +32,6 @@ type ShellResizeBoundsOptions = {
   maxLeftWidthPx?: number;
   minRightWidthPx?: number;
   preferredRatio?: number;
-  allowLeftCollapse?: boolean;
 };
 
 export type AiShellLayoutMode = "split" | "compact-split" | "stacked" | "right-rail-focus";
@@ -97,14 +96,13 @@ export const getAiShellLeftWidthBounds = (
     AI_SHELL_LEFT_MIN_FALLBACK_PX,
     options?.minLeftWidthPx ?? AI_SHELL_LEFT_MIN_PX
   );
-  const visibleMin = Math.min(
+  const min = Math.min(
     requestedMin,
     Math.max(
       AI_SHELL_LEFT_MIN_FALLBACK_PX,
       safeContainerWidth - minRightWidthPx - AI_SHELL_DIVIDER_TRACK_PX
     )
   );
-  const min = options?.allowLeftCollapse ? AI_SHELL_LEFT_COLLAPSED_MIN_PX : visibleMin;
   const containerMax = safeContainerWidth - minRightWidthPx - AI_SHELL_DIVIDER_TRACK_PX;
   const requestedMaxCandidate = options?.maxLeftWidthPx;
   const requestedMax =

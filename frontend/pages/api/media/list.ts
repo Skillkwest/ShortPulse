@@ -10,6 +10,7 @@ import {
   type MediaListProfile,
 } from "../../../lib/mediaListProfile";
 import { resolvePreferredMediaSigningStoragePath } from "../../../lib/mediaPreviewPath";
+import { isSupabaseRenderImageUrl } from "../../../lib/mediaPreviewTrustPolicy";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
@@ -64,6 +65,13 @@ type GenerationProjectionCompanionArtRow = {
   companion_art_status?: unknown;
   companion_art_storage_path?: unknown;
   workflow_reload?: unknown;
+};
+
+type ProjectOutputCompanionArtRow = {
+  generation_id?: unknown;
+  user_id?: unknown;
+  companion_art_storage_path?: unknown;
+  companion_art_url_fallback?: unknown;
 };
 
 type FolderScopedMediaListRow = MediaListRow & {
@@ -305,6 +313,14 @@ const sanitizeScopedPath = (path: string | null | undefined, userId: string): st
   return isSafeScopedPath(path, userId) ? path.trim() : null;
 };
 
+const normalizeTrustedCompanionArtUrlFallback = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed || !/^https?:\/\//i.test(trimmed)) return null;
+  if (isSupabaseRenderImageUrl(trimmed)) return null;
+  return trimmed;
+};
+
 const sanitizeMediaListRowForUser = ({
   row,
   userId,
@@ -357,8 +373,6 @@ const enrichRowsWithGenerationProjectionMetadata = async ({
     .eq("user_id", userId)
     .in("generation_id", generationIds);
 
-  if (error || !Array.isArray(data) || !data.length) return rows;
-
   const projectionByGenerationId = new Map<
     string,
     {
@@ -367,29 +381,76 @@ const enrichRowsWithGenerationProjectionMetadata = async ({
       workflowReload: unknown;
     }
   >();
+  const displayCompanionArtByGenerationId = new Map<
+    string,
+    {
+      storagePath: string | null;
+      urlFallback: string | null;
+    }
+  >();
   const signablePaths = new Set<string>();
-  for (const rawRow of data as GenerationProjectionCompanionArtRow[]) {
-    const generationId =
-      typeof rawRow.generation_id === "string" ? rawRow.generation_id.trim() : "";
-    const ownerUserId = typeof rawRow.user_id === "string" ? rawRow.user_id.trim() : "";
-    const status =
-      typeof rawRow.companion_art_status === "string"
-        ? rawRow.companion_art_status.trim() || null
-        : null;
-    const storagePath =
-      typeof rawRow.companion_art_storage_path === "string"
-        ? rawRow.companion_art_storage_path.trim() || null
-        : null;
-    if (!generationId || ownerUserId !== userId) continue;
-    projectionByGenerationId.set(generationId, {
-      status,
-      storagePath,
-      workflowReload: rawRow.workflow_reload,
-    });
-    if (storagePath && isSafeScopedPath(storagePath, userId)) {
-      signablePaths.add(storagePath);
+  if (!error && Array.isArray(data)) {
+    for (const rawRow of data as GenerationProjectionCompanionArtRow[]) {
+      const generationId =
+        typeof rawRow.generation_id === "string" ? rawRow.generation_id.trim() : "";
+      const ownerUserId = typeof rawRow.user_id === "string" ? rawRow.user_id.trim() : "";
+      const status =
+        typeof rawRow.companion_art_status === "string"
+          ? rawRow.companion_art_status.trim() || null
+          : null;
+      const storagePath = sanitizeScopedPath(
+        typeof rawRow.companion_art_storage_path === "string"
+          ? rawRow.companion_art_storage_path
+          : null,
+        userId
+      );
+      if (!generationId || ownerUserId !== userId) continue;
+      projectionByGenerationId.set(generationId, {
+        status,
+        storagePath,
+        workflowReload: rawRow.workflow_reload,
+      });
+      if (storagePath) {
+        signablePaths.add(storagePath);
+      }
     }
   }
+
+  const { data: displayData, error: displayError } = await supabaseAdmin
+    .from("project_output_display_items")
+    .select("generation_id, user_id, companion_art_storage_path, companion_art_url_fallback")
+    .eq("user_id", userId)
+    .in("generation_id", generationIds);
+
+  if (!displayError && Array.isArray(displayData)) {
+    for (const rawRow of displayData as ProjectOutputCompanionArtRow[]) {
+      const generationId =
+        typeof rawRow.generation_id === "string" ? rawRow.generation_id.trim() : "";
+      const ownerUserId = typeof rawRow.user_id === "string" ? rawRow.user_id.trim() : "";
+      if (!generationId || ownerUserId !== userId) continue;
+      const storagePath = sanitizeScopedPath(
+        typeof rawRow.companion_art_storage_path === "string"
+          ? rawRow.companion_art_storage_path
+          : null,
+        userId
+      );
+      const urlFallback = normalizeTrustedCompanionArtUrlFallback(
+        rawRow.companion_art_url_fallback
+      );
+      if (!storagePath && !urlFallback) continue;
+      const existing = displayCompanionArtByGenerationId.get(generationId);
+      if (existing?.storagePath) continue;
+      displayCompanionArtByGenerationId.set(generationId, {
+        storagePath,
+        urlFallback,
+      });
+      if (storagePath) {
+        signablePaths.add(storagePath);
+      }
+    }
+  }
+
+  if (!projectionByGenerationId.size && !displayCompanionArtByGenerationId.size) return rows;
 
   const signedUrlByPath = new Map<string, string>();
   if (signablePaths.size) {
@@ -413,22 +474,30 @@ const enrichRowsWithGenerationProjectionMetadata = async ({
     const generationId = row.source_ref?.trim() ?? "";
     if (!generationId) return row;
     const projection = projectionByGenerationId.get(generationId);
-    if (!projection) return row;
+    const displayCompanionArt = displayCompanionArtByGenerationId.get(generationId);
+    if (!projection && !displayCompanionArt) return row;
     const nextMetadata =
-      projection.workflowReload && typeof projection.workflowReload === "object"
+      projection?.workflowReload && typeof projection.workflowReload === "object"
         ? {
             ...(row.metadata ?? {}),
             workflow_reload: projection.workflowReload,
           }
         : row.metadata;
+    const companionArtStoragePath =
+      projection?.storagePath ?? displayCompanionArt?.storagePath ?? null;
+    const companionArtSignedUrl = companionArtStoragePath
+      ? (signedUrlByPath.get(companionArtStoragePath) ?? null)
+      : null;
     return {
       ...row,
       metadata: nextMetadata,
-      companion_art_status: projection.status,
-      companion_art_storage_path: projection.storagePath,
+      companion_art_status:
+        projection?.status ?? (displayCompanionArt && companionArtStoragePath ? "ready" : null),
+      companion_art_storage_path: companionArtStoragePath,
       companion_art_url:
-        isAudioFileType(row.file_type) && projection.storagePath
-          ? (signedUrlByPath.get(projection.storagePath) ?? null)
+        isAudioFileType(row.file_type) &&
+        (companionArtSignedUrl || displayCompanionArt?.urlFallback)
+          ? (companionArtSignedUrl ?? displayCompanionArt?.urlFallback ?? null)
           : null,
     };
   });
@@ -471,9 +540,7 @@ const resolveInitialSignedById = async ({
   seedLimit: number;
 }): Promise<Record<string, string | null>> => {
   void surface;
-  const seedRows = rows
-    .filter((row) => !isAudioFileType(row.file_type))
-    .slice(0, Math.max(0, Math.trunc(seedLimit)));
+  const seedRows = rows.slice(0, Math.max(0, Math.trunc(seedLimit)));
   if (!seedRows.length) return {};
 
   const primaryCandidateById = new Map<string, string>();

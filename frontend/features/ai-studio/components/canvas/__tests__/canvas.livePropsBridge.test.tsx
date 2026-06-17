@@ -92,6 +92,9 @@ describe("CanvasPropertiesPanel live props bridge", () => {
     expect(screen.getByTestId("canvas-viewport")).toHaveAttribute("data-camera-x", "12");
     expect(screen.getByTestId("canvas-viewport")).toHaveAttribute("data-camera-y", "18");
     expect(screen.getByTestId("canvas-viewport")).toHaveAttribute("data-camera-zoom", "1.45");
+    expect(
+      screen.getByTestId("canvas-world").style.getPropertyValue("--canvas-control-scale")
+    ).toBe(`${1 / 1.45}`);
   });
 
   it("routes events to the latest live handlers", () => {

@@ -1266,6 +1266,7 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   padding: 0;
   cursor: col-resize;
   touch-action: none;
+  transform: translateX(var(--ai-shell-divider-visual-offset, 0px));
 }
 
 .ai-shell-divider::before {

@@ -59,6 +59,13 @@ type GenerationProjectionRow = {
   workflow_reload?: unknown;
 };
 
+type ProjectOutputDisplayRow = {
+  generation_id: string;
+  user_id: string;
+  companion_art_storage_path: string | null;
+  companion_art_url_fallback?: string | null;
+};
+
 const createMockResponse = () => {
   const headers = new Map<string, string>();
   return {
@@ -125,10 +132,12 @@ const createSupabaseAdminMock = (
   options?: {
     existingFolderIds?: string[];
     generationProjectionRows?: GenerationProjectionRow[];
+    projectOutputDisplayRows?: ProjectOutputDisplayRow[];
   }
 ) => {
   const existingFolderIds = new Set(options?.existingFolderIds ?? []);
   const generationProjectionRows = options?.generationProjectionRows ?? [];
+  const projectOutputDisplayRows = options?.projectOutputDisplayRows ?? [];
   const createSignedUrlsMock = vi.fn(async (paths: string[]) => ({
     data: paths.map((path) => ({
       path,
@@ -392,6 +401,38 @@ const createSupabaseAdminMock = (
               }
               return {
                 data: generationProjectionRows.filter(
+                  (row) =>
+                    (!scopedUserId || row.user_id === scopedUserId) &&
+                    (!scopedGenerationIds.length || scopedGenerationIds.includes(row.generation_id))
+                ),
+                error: null,
+              };
+            });
+            return builder;
+          }),
+        };
+      }
+      if (table === "project_output_display_items") {
+        return {
+          select: vi.fn(() => {
+            let scopedUserId: string | null = null;
+            let scopedGenerationIds: string[] = [];
+            const builder: {
+              eq: ReturnType<typeof vi.fn>;
+              in: ReturnType<typeof vi.fn>;
+            } = {} as never;
+            builder.eq = vi.fn((column: string, value: string) => {
+              if (column === "user_id") {
+                scopedUserId = value;
+              }
+              return builder;
+            });
+            builder.in = vi.fn(async (column: string, values: string[]) => {
+              if (column === "generation_id") {
+                scopedGenerationIds = values;
+              }
+              return {
+                data: projectOutputDisplayRows.filter(
                   (row) =>
                     (!scopedUserId || row.user_id === scopedUserId) &&
                     (!scopedGenerationIds.length || scopedGenerationIds.includes(row.generation_id))
@@ -964,6 +1005,72 @@ describe("POST /api/media/list", () => {
     );
   });
 
+  it("falls back to project output display companion art for audio media rows", async () => {
+    createSupabaseAdminMock(
+      [
+        {
+          id: "audio-display-1",
+          user_id: "user-1",
+          filename: "theme.mp3",
+          storage_path: "user-1/generations/audio/theme.mp3",
+          file_type: "audio/mpeg",
+          file_size: 10,
+          source: "ai_studio",
+          source_ref: "gen-display-audio-1",
+          prompt_id: null,
+          metadata: null,
+          thumb_variant_path: null,
+          poster_variant_path: null,
+          preview_variant_path: null,
+          created_at: "2026-02-20T10:00:00.000Z",
+          updated_at: null,
+        },
+      ],
+      {
+        generationProjectionRows: [],
+        projectOutputDisplayRows: [
+          {
+            generation_id: "gen-display-audio-1",
+            user_id: "user-1",
+            companion_art_storage_path:
+              "user-1/generations/audio/gen-display-audio-1/companion-art/cover.webp",
+            companion_art_url_fallback: "https://expired.example.com/cover.webp",
+          },
+        ],
+      }
+    );
+
+    const req = {
+      method: "POST",
+      body: {
+        mediaKind: "audio",
+        query: "",
+        cursor: null,
+        limit: 36,
+        surface: "media-library-modal",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rows: [
+          expect.objectContaining({
+            id: "audio-display-1",
+            companion_art_status: "ready",
+            companion_art_storage_path:
+              "user-1/generations/audio/gen-display-audio-1/companion-art/cover.webp",
+            companion_art_url:
+              "https://signed.test/user-1%2Fgenerations%2Faudio%2Fgen-display-audio-1%2Fcompanion-art%2Fcover.webp",
+          }),
+        ],
+      })
+    );
+  });
+
   it("enriches saved AI Studio media rows with workflow reload metadata from projection", async () => {
     const workflowReload = {
       version: 1,
@@ -1438,7 +1545,7 @@ describe("POST /api/media/list", () => {
     ];
     const { createSignedUrlsMock, createSignedUrlMock } = createSupabaseAdminMock(rows);
     resolvePreferredMediaSigningStoragePathMock.mockImplementation(
-      (row: MediaRow) => row.thumb_variant_path
+      (row: MediaRow) => row.thumb_variant_path ?? row.storage_path
     );
 
     const req = {
@@ -1457,10 +1564,7 @@ describe("POST /api/media/list", () => {
 
     expect(createSignedUrlsMock).toHaveBeenCalledTimes(1);
     expect(createSignedUrlsMock).toHaveBeenCalledWith(
-      [
-        "user-1/uploads/images/panel-target-thumb.png",
-        "user-1/uploads/images/panel-target-2-thumb.png",
-      ],
+      ["user-1/uploads/audio/audio-1.wav", "user-1/uploads/images/panel-target-thumb.png"],
       3600
     );
     expect(createSignedUrlMock).not.toHaveBeenCalled();
@@ -1473,9 +1577,8 @@ describe("POST /api/media/list", () => {
           expect.objectContaining({ id: "panel-media-3" }),
         ]),
         signedById: {
+          "audio-1": "https://signed.test/user-1%2Fuploads%2Faudio%2Faudio-1.wav",
           "panel-media-1": "https://signed.test/user-1%2Fuploads%2Fimages%2Fpanel-target-thumb.png",
-          "panel-media-2":
-            "https://signed.test/user-1%2Fuploads%2Fimages%2Fpanel-target-2-thumb.png",
         },
       })
     );
@@ -1632,7 +1735,7 @@ describe("POST /api/media/list", () => {
       ];
       const { createSignedUrlsMock } = createSupabaseAdminMock(rows);
       resolvePreferredMediaSigningStoragePathMock.mockImplementation(
-        (row: MediaRow) => row.thumb_variant_path
+        (row: MediaRow) => row.thumb_variant_path ?? row.storage_path
       );
 
       const req = {
@@ -1650,16 +1753,21 @@ describe("POST /api/media/list", () => {
       await handler(req as never, res as never);
 
       expect(createSignedUrlsMock).toHaveBeenCalledWith(
-        ["user-1/uploads/images/elements-target-thumb.png"],
+        [
+          "user-1/uploads/audio/elements-audio-1.wav",
+          "user-1/uploads/images/elements-target-thumb.png",
+        ],
         3600
       );
       expect(res.setHeader).toHaveBeenCalledWith(
         "x-shortpulse-media-list-initial-signed-count",
-        "1"
+        "2"
       );
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({
           signedById: {
+            "elements-audio-1":
+              "https://signed.test/user-1%2Fuploads%2Faudio%2Felements-audio-1.wav",
             "elements-media-1":
               "https://signed.test/user-1%2Fuploads%2Fimages%2Felements-target-thumb.png",
           },

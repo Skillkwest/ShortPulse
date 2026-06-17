@@ -322,10 +322,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     () => isRootFolderSelected && itemType === "all" && normalizedSearch.length === 0,
     [isRootFolderSelected, itemType, normalizedSearch]
   );
-  const signableMediaRows = useMemo(
-    () => (itemType === "all" ? mediaRows.filter((row) => !isAudioFile(row.file_type)) : mediaRows),
-    [itemType, mediaRows]
-  );
+  const signableMediaRows = useMemo(() => mediaRows, [mediaRows]);
   const activeMediaTab = useMemo<MediaDataTab | null>(() => {
     if (!shouldShowMedia || mediaRows.length === 0) return null;
     return resolveSigningTab(itemType);

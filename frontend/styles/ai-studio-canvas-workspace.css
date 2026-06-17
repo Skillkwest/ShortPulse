@@ -64,6 +64,25 @@
   pointer-events: none;
 }
 
+.canvas-camera-zoom-badge {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  z-index: 8;
+  min-width: 44px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(244, 238, 226, 0.16);
+  background: rgba(12, 16, 22, 0.82);
+  color: rgba(244, 238, 226, 0.84);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28);
+  pointer-events: none;
+}
+
 .canvas-scene-item {
   position: absolute;
   left: 0;

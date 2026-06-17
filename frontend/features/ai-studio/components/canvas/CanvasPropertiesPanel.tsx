@@ -761,6 +761,8 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
   }, [viewportRef]);
 
   const canvasControlScale = camera.zoom > 0 ? 1 / camera.zoom : 1;
+  const cameraZoomPercent =
+    Number.isFinite(camera.zoom) && camera.zoom > 0 ? Math.round(camera.zoom * 100) : 100;
 
   return (
     <section className="canvas-properties-panel">
@@ -944,6 +946,13 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
               )}
             </article>
           ) : null}
+        </div>
+        <div
+          className="canvas-camera-zoom-badge"
+          data-testid="canvas-camera-zoom-badge"
+          aria-label={`Canvas zoom ${cameraZoomPercent}%`}
+        >
+          {cameraZoomPercent}%
         </div>
         {marqueeSelectionBox ? (
           <div

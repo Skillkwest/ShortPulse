@@ -1222,6 +1222,10 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   z-index: 2;
   min-width: 0;
   width: calc(100% + var(--ai-shell-right-overlap-width, 0px));
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  background: var(--color-bg);
   min-height: 0;
   height: 100%;
   align-self: stretch;

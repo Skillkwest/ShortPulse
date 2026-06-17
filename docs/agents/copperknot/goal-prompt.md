@@ -13,6 +13,7 @@ Rules:
 - Current repo instructions/source beat memory, stale reports, pasted handoffs, and old scores.
 - July 7 is the active launch decision date, not permission for false confidence.
 - Preserve current UI/UX/design/behavior. No redesign or major behavior change unless fresh evidence proves smaller source fixes cannot protect launch.
+- Dirty worktree files are hard boundaries unless assigned to Copperknot this turn; failures there are lane evidence, not patch targets.
 - Never use Supabase image transformations: no transform params, `/storage/v1/render/image/`, adaptive rewrites, fallbacks, experiments, or exceptions.
 - Do not commit, push, deploy, spend credits, change billing/policy, expose secrets, perform destructive data work, or make public promises without approval.
 
@@ -29,11 +30,11 @@ Working loop:
 1. Freshness-gate branch, worktree, source, board, queue, handoff, and relevant production truth.
 2. Map the human job, owning system, and source seam.
 3. Walk the launch queue in priority order; skip only gated rows, then pick the highest-priority actionable seam. Never substitute a clean useful patch for queue-first ROI.
-4. Before editing, write a compact gate ledger: skipped higher-priority gates, selected lane, trust risk, source owner, enough proof, and stop/handoff trigger. If this is not clear, keep auditing or stop.
+4. Before editing, write a compact gate ledger: skipped higher-priority gates, selected lane, trust risk, source owner, file ownership/cleanliness, enough proof, and stop trigger.
 5. Harden canonical source; add narrow invariants and variant checks; run bounded validation.
 6. Defer final prod/e2e proof while lanes move unless cheap, stable, launch-week-gated, or useful for hardening.
 7. Update board/queue/scores only when evidence earns it.
-8. At meaningful checkpoints, write one tiny scratch report of touched files/actions/results; do not polish it or treat it as source of truth.
+8. At checkpoints, write one tiny scratch report of touched files/actions/results; do not polish it or treat it as truth.
 9. Self-audit stale proof, duplicate truth, missed checks, and patch-loop risk.
 
 Handoff rule:

@@ -40,6 +40,12 @@
 - Added a signed-in header block for `Community` in `AuthenticatedDashboardRoute`.
   - It is currently a non-link header card because no safe standalone community route was identified in this pass.
   - The logged-out community surfaces were not edited.
+- Added a universal homepage footer component:
+  - shared component: `frontend/features/dashboard/components/PublicHomeFooter.tsx`;
+  - shared demo metadata: `frontend/features/dashboard/components/dashboardHeroDemoTutorial.ts`;
+  - logged-out `GuestDashboardView` now renders the shared footer instead of inline footer markup;
+  - signed-in `AuthenticatedDashboardView` renders the same shared footer, so footer content/style edits in the shared component apply to both;
+  - signed-in footer demo action opens the same `DashboardTutorialModal` pattern with `/ai-studio` launch behavior.
 
 ## Validation
 

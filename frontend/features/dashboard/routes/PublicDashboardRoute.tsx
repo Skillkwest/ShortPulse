@@ -275,18 +275,18 @@ export function PublicDashboardRoute({
             <div className="public-dashboard-actions" aria-label="Guest actions">
               <div className="public-dashboard-auth-column">
                 <Link
-                  href={pricingHref}
-                  className="public-dashboard-action public-dashboard-pricing"
-                  prefetch={false}
-                >
-                  Pricing
-                </Link>
-                <Link
                   href="#public-home-orbit-heading"
                   className="public-dashboard-action public-dashboard-community"
                   prefetch={false}
                 >
                   Community
+                </Link>
+                <Link
+                  href={pricingHref}
+                  className="public-dashboard-action public-dashboard-pricing"
+                  prefetch={false}
+                >
+                  Pricing
                 </Link>
                 <Link
                   href={loginHref}

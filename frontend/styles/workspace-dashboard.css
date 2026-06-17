@@ -807,16 +807,15 @@ body.dashboard-body:has(.public-dashboard-page) {
   inset: 0;
   z-index: 1;
   background:
-    radial-gradient(circle at 82% 24%, rgba(255, 124, 55, 0.28), transparent 16%),
+    radial-gradient(circle at 82% 24%, rgba(255, 124, 55, 0.24), transparent 18%),
     linear-gradient(
       180deg,
       rgba(5, 7, 12, 0.1) 0%,
-      rgba(5, 7, 12, 0.34) 48%,
-      rgba(5, 7, 12, 0.86) 86%,
-      #05070c 100%
+      rgba(5, 7, 12, 0.2) 44%,
+      rgba(5, 7, 12, 0.42) 72%,
+      rgba(5, 7, 12, 0.68) 100%
     ),
     linear-gradient(90deg, rgba(5, 7, 12, 0.52), rgba(5, 7, 12, 0.16) 50%, rgba(5, 7, 12, 0.5)),
-    linear-gradient(180deg, transparent 0 54%, rgba(5, 7, 12, 0.74) 100%),
     repeating-linear-gradient(
       90deg,
       rgba(255, 255, 255, 0.04) 0,
@@ -836,15 +835,8 @@ body.dashboard-body:has(.public-dashboard-page) {
   left: 0;
   z-index: 2;
   height: clamp(210px, 17vw, 330px);
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    rgba(5, 7, 12, 0.08) 18%,
-    rgba(5, 7, 12, 0.26) 38%,
-    rgba(5, 7, 12, 0.54) 62%,
-    rgba(5, 7, 12, 0.78) 82%,
-    rgba(5, 7, 12, 0.9) 100%
-  );
+  background: transparent;
+  opacity: 0;
   pointer-events: none;
 }
 
@@ -1093,23 +1085,8 @@ body.dashboard-body:has(.public-dashboard-page) {
 .public-home-models::before {
   inset: -118px 0 -64px;
   border-top: 0;
-  background:
-    linear-gradient(
-      90deg,
-      rgba(5, 7, 12, 0.5),
-      transparent 18%,
-      transparent 82%,
-      rgba(5, 7, 12, 0.5)
-    ),
-    linear-gradient(
-      180deg,
-      transparent 0%,
-      rgba(5, 7, 12, 0.025) 20%,
-      rgba(5, 7, 12, 0.08) 48%,
-      rgba(5, 7, 12, 0.12) 68%,
-      transparent 100%
-    );
-  opacity: 0.34;
+  background: transparent;
+  opacity: 0;
 }
 
 .public-home-models::after {
@@ -1118,13 +1095,8 @@ body.dashboard-body:has(.public-dashboard-page) {
   left: 0;
   z-index: 1;
   height: 150px;
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    rgba(5, 7, 12, 0.14) 30%,
-    rgba(5, 7, 12, 0.32) 58%,
-    transparent 100%
-  );
+  background: transparent;
+  opacity: 0;
 }
 
 .public-home-models h2 {
@@ -1474,17 +1446,7 @@ body.dashboard-body:has(.public-dashboard-page) {
   padding: 124px 8px 30px;
   content-visibility: auto;
   contain-intrinsic-size: 780px;
-  background:
-    radial-gradient(ellipse at 50% 10%, rgba(244, 245, 247, 0.045), transparent 42%),
-    linear-gradient(
-      180deg,
-      transparent 0%,
-      transparent 20%,
-      rgba(5, 7, 12, 0.04) 34%,
-      rgba(5, 7, 12, 0.22) 58%,
-      #05070c 88%,
-      #03060c 100%
-    );
+  background: transparent;
 }
 
 .public-home-showcase .public-home-showcase-header {
@@ -1540,14 +1502,8 @@ body.dashboard-body:has(.public-dashboard-page) {
 
 .public-home-showcase::before {
   top: 0;
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    transparent 22%,
-    rgba(5, 7, 12, 0.06) 48%,
-    rgba(5, 7, 12, 0.3) 76%,
-    #05070c 100%
-  );
+  background: transparent;
+  opacity: 0;
 }
 
 .public-home-showcase::after {
@@ -1873,7 +1829,7 @@ body.dashboard-body:has(.public-dashboard-page) {
   position: relative;
   isolation: isolate;
   margin: 0 -32px -32px;
-  padding: 72px clamp(24px, 5vw, 72px) 28px;
+  padding: 72px clamp(18px, 2.4vw, 42px) 28px;
   overflow: hidden;
   background:
     radial-gradient(circle at 50% 0%, rgba(255, 75, 96, 0.12), transparent 38%),
@@ -1912,7 +1868,7 @@ body.dashboard-body:has(.public-dashboard-page) {
   display: grid;
   grid-template-columns: minmax(260px, 1.15fr) minmax(280px, 0.9fr) minmax(260px, 0.8fr);
   gap: clamp(24px, 4vw, 54px);
-  width: min(100%, 1360px);
+  width: 100%;
   margin: 0 auto;
   padding: clamp(22px, 3vw, 34px);
   border: 1px solid rgba(244, 245, 247, 0.08);
@@ -2072,7 +2028,7 @@ body.dashboard-body:has(.public-dashboard-page) {
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  width: min(100%, 1360px);
+  width: 100%;
   margin: 18px auto 0;
   color: rgba(244, 245, 247, 0.42);
   font-size: 12px;

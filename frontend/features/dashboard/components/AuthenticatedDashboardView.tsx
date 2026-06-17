@@ -4,12 +4,15 @@
  */
 import Image from "next/image";
 import Link from "next/link";
-import type { ForwardRefExoticComponent, RefAttributes } from "react";
+import { useState, type ForwardRefExoticComponent, type RefAttributes } from "react";
 import type { IconProps } from "phosphor-react";
 import { FolderSimple, Plus } from "phosphor-react";
 import { AppMessage } from "../../../components/AppMessage";
+import { dashboardHeroDemoTutorial } from "./dashboardHeroDemoTutorial";
 import { DashboardQuickActionCard } from "./DashboardQuickActionCard";
 import { DashboardTutorialGrid, type DashboardTutorial } from "./DashboardTutorialGrid";
+import { DashboardTutorialModal } from "./DashboardTutorialModal";
+import { PublicHomeFooter } from "./PublicHomeFooter";
 
 export type DashboardAnnouncement = {
   id: string;
@@ -61,6 +64,8 @@ export function AuthenticatedDashboardView({
   onCreateProject,
   onOpenProjects,
 }: AuthenticatedDashboardViewProps) {
+  const [selectedFooterDemo, setSelectedFooterDemo] = useState<DashboardTutorial | null>(null);
+
   return (
     <>
       <section className="dashboard-hero minimal-hero">
@@ -167,12 +172,12 @@ export function AuthenticatedDashboardView({
       {dashboardTutorials.length > 0 ? (
         <section
           className="dashboard-tutorials-section"
-          aria-labelledby="dashboard-tutorials-heading"
+          aria-labelledby="public-home-showcase-heading"
         >
           <div className="dashboard-section-header">
             <div>
               <p className="eyebrow tiny">Tutorial hub</p>
-              <h2 id="dashboard-tutorials-heading">Start with a guided walkthrough</h2>
+              <h2 id="public-home-showcase-heading">Start with a guided walkthrough</h2>
             </div>
           </div>
           <DashboardTutorialGrid tutorials={dashboardTutorials} launchHref="/ai-studio" />
@@ -230,6 +235,21 @@ export function AuthenticatedDashboardView({
         <div className="footer">
           ShortPulse keeps your performance data and media private to your account.
         </div>
+      ) : null}
+
+      <PublicHomeFooter
+        createProjectHref="/ai-studio"
+        footerLoginHref="/profile?section=account"
+        footerPricingHref="/profile?section=subscription"
+        onWatchDemo={() => setSelectedFooterDemo(dashboardHeroDemoTutorial)}
+      />
+
+      {selectedFooterDemo ? (
+        <DashboardTutorialModal
+          tutorial={selectedFooterDemo}
+          launchHref="/ai-studio"
+          onClose={() => setSelectedFooterDemo(null)}
+        />
       ) : null}
     </>
   );

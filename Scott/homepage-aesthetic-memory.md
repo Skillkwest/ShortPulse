@@ -118,6 +118,8 @@ Related signed-out dashboard entry:
 ## Hero Model Strip Direction
 
 - The AI model marquee should not sit on a visible black band. Keep the strip transparent over the hero/video fade, with only subtle edge fading if needed for readability.
+- The AI model marquee should continue moving during mouse-wheel/page scrolling. It may pause when genuinely offscreen, but do not pause it merely because the page is scrolling.
+- Do not use a visible `.public-home-models::before` haze overlay above/behind the model marquee. That pseudo-element created a harsh horizontal band over the hero video; keep it transparent.
 - The transition below the AI model marquee into the thumbnail cards should be soft and seamless. Avoid sharp horizontal lines; use a transparent-to-dark fade before the cards.
 - The transition above the AI model marquee should also be soft. Avoid a fast top mask ramp on `.public-home-models`; use a long feather so the model strip does not create a horizontal seam against the hero video fade.
 - Tutorial thumbnail cards should fade into their title area without a visible media/title seam, but the bottom fade should not feel overly heavy or muddy. Keep the ramp feathered and readable while letting more of the media show through above the title.
@@ -126,14 +128,17 @@ Related signed-out dashboard entry:
 - The hero `Watch Demo` pill should open the same `DashboardTutorialModal` experience as thumbnail demos. Current hero demo video is `https://youtu.be/k1-J78JLsMs`.
 - The lower simple CTA section should read `JOIN THE COMMUNITY` with one pill button underneath labeled `Join Free`. The old visible tool-cloud pills should not appear in that section.
 - The lower community CTA should be visible immediately while scrolling. Do not hide this simple section behind orbit idle/paint-pending lazy-loading rules, and avoid reserving a tall blank block above the headline.
-- The public homepage top-right nav should include `Pricing`, `Community`, and `Login` before the `Sign up` pill. `Community` should jump to the lower `JOIN THE COMMUNITY` CTA section.
+- The public homepage top-right nav should include `Community`, `Pricing`, and `Login` before the `Sign up` pill. `Community` should jump to the lower `JOIN THE COMMUNITY` CTA section.
 - The public hero background video should sit at about 70% opacity over a pure black backing. Do not place a poster image or old background image behind the playing video, because it creates an unwanted double-exposure/ghosting effect.
+- The harsh seam above the AI model marquee was caused by `.public-home-hero-bg::after`, a full-opacity bottom fade overlay that overlapped the model strip. Keep that pseudo-element transparent/disabled and use one soft continuous gradient on `.public-home-hero-bg::before` instead.
+- A second seam source was `.public-home-showcase` overlapping upward into the hero/model transition. Keep the top of `.public-home-showcase` and `.public-home-showcase::before` transparent so it does not paint a rectangular shelf over the video and marquee.
 
 ## Footer Direction
 
 - The homepage footer should feel like a cinematic afterglow: ShortPulse logo, one concise positioning line, useful navigation, and a compact `Join Free` conversion card.
 - Avoid fake legal/footer links until real policy pages exist. Prefer real destinations already available on the page: `Launch App`, `Pricing`, `Login`, `Workflows`, `Watch Demo`, and `Join Free`.
 - Keep the footer dark, glassy, and warm with a subtle coral/orange glow so it feels connected to the hero and orbit sections without competing with them.
+- The main footer glass panel should span the full available homepage width rather than sitting as a capped narrow card. Keep internal padding for readability, but avoid large empty side gutters.
 
 Current implementation audit on 2026-06-15:
 

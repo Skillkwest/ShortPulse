@@ -3,10 +3,11 @@
  * Presents the public dashboard hero and guest CTA card.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { DashboardTutorialGrid, type DashboardTutorial } from "./DashboardTutorialGrid";
 import { DashboardTutorialModal } from "./DashboardTutorialModal";
+import { dashboardHeroDemoTutorial } from "./dashboardHeroDemoTutorial";
+import { PublicHomeFooter } from "./PublicHomeFooter";
 import { buildDashboardAuthPath, buildPricingPath } from "../../pricing/paths";
 
 type GuestDashboardViewProps = {
@@ -28,16 +29,6 @@ const modelLogos = [
 
 const heroBackgroundVideoSrc = "/dashboard/homepage-hero-background-perf.mp4";
 const liteHeroBackgroundVideoSrc = "/dashboard/homepage-hero-background-lite.mp4";
-const heroDemoTutorial: DashboardTutorial = {
-  id: "shortpulse-hero-watch-demo",
-  title: "ShortPulse Demo",
-  youtubeUrl: "https://youtu.be/k1-J78JLsMs",
-  thumbnailUrl: "",
-  thumbnailMediaType: "image",
-  thumbnailAlt: "ShortPulse demo",
-  displayOrder: 0,
-};
-
 const TUTORIAL_AUTOPLAY_BUDGET = 15;
 const TUTORIAL_MAX_SIMULTANEOUS_VIDEOS = 15;
 const COMPACT_TUTORIAL_MAX_SIMULTANEOUS_VIDEOS = 15;
@@ -319,7 +310,7 @@ export function GuestDashboardView({
       ? LITE_HERO_SOURCE_ATTACH_DELAY_MS
       : HERO_SOURCE_ATTACH_DELAY_MS;
   const isOrbitPaintPending = isOrbitNearViewport && !isOrbitPaintReady;
-  const shouldPauseModelMarquee = !isModelsNearViewport || isPageScrolling;
+  const shouldPauseModelMarquee = !isModelsNearViewport;
 
   useEffect(() => {
     if (!isHeroNearViewport || !isDocumentVisible || !selectedHeroBackgroundVideoSrc) return;
@@ -409,7 +400,7 @@ export function GuestDashboardView({
             <button
               type="button"
               className="public-home-demo-button"
-              onClick={() => setSelectedHeroDemo(heroDemoTutorial)}
+              onClick={() => setSelectedHeroDemo(dashboardHeroDemoTutorial)}
             >
               Watch Demo
             </button>
@@ -487,67 +478,12 @@ export function GuestDashboardView({
         </div>
       </section>
 
-      <footer className="public-home-footer" aria-label="ShortPulse footer">
-        <div className="public-home-footer-shell">
-          <div className="public-home-footer-brand">
-            <Link href="/" className="public-home-footer-logo" aria-label="ShortPulse home">
-              <Image
-                src="/small good d.png"
-                alt="ShortPulse"
-                width={203}
-                height={64}
-                style={{ height: "auto" }}
-              />
-            </Link>
-            <p>
-              The all-in-one creative engine for images, video, voices, products, ads, and ideas
-              that need to move fast.
-            </p>
-          </div>
-
-          <nav className="public-home-footer-nav" aria-label="Footer navigation">
-            <div>
-              <span>Start</span>
-              <Link href={createProjectHref} prefetch={false}>
-                Launch App
-              </Link>
-              <Link href={footerPricingHref} prefetch={false}>
-                Pricing
-              </Link>
-              <Link href={footerLoginHref} prefetch={false}>
-                Login
-              </Link>
-            </div>
-            <div>
-              <span>Explore</span>
-              <Link href="#public-home-showcase-heading">Workflows</Link>
-              <button type="button" onClick={() => setSelectedHeroDemo(heroDemoTutorial)}>
-                Watch Demo
-              </button>
-              <Link href={createProjectHref} prefetch={false}>
-                Join Free
-              </Link>
-            </div>
-          </nav>
-
-          <div className="public-home-footer-cta">
-            <span>Built for creators who move before the feed does.</span>
-            <Link href={createProjectHref} className="public-home-footer-button" prefetch={false}>
-              Join Free
-            </Link>
-          </div>
-        </div>
-
-        <div className="public-home-footer-bottom">
-          <p>© 2026 ShortPulse. Create what the internet stops scrolling for.</p>
-          <div aria-label="ShortPulse platform highlights">
-            <span>Images</span>
-            <span>Video</span>
-            <span>Voice</span>
-            <span>Ads</span>
-          </div>
-        </div>
-      </footer>
+      <PublicHomeFooter
+        createProjectHref={createProjectHref}
+        footerLoginHref={footerLoginHref}
+        footerPricingHref={footerPricingHref}
+        onWatchDemo={() => setSelectedHeroDemo(dashboardHeroDemoTutorial)}
+      />
 
       {selectedHeroDemo ? (
         <DashboardTutorialModal

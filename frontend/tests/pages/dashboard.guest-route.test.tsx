@@ -213,7 +213,8 @@ describe("Dashboard guest route", () => {
       "/auth?next=%2Fdashboard&mode=signup"
     );
     expect(screen.getAllByRole("link", { name: "ShortPulse home" })).toSatisfy(
-      (links) => links.length >= 1 && links.every((link) => link.getAttribute("href") === "/")
+      (links: HTMLAnchorElement[]) =>
+        links.length >= 1 && links.every((link) => link.getAttribute("href") === "/")
     );
     expect(screen.queryByText("Public dashboard")).not.toBeInTheDocument();
     expect(screen.queryByText(/workspace entry are now one surface/i)).not.toBeInTheDocument();
@@ -245,7 +246,7 @@ describe("Dashboard guest route", () => {
     });
   });
 
-  it("pauses the model logo marquee while the page is scrolling", async () => {
+  it("keeps the model logo marquee active while the strip remains in view", async () => {
     render(<DashboardPage />);
 
     const modelMarquee = document.querySelector(".public-home-models");
@@ -256,7 +257,7 @@ describe("Dashboard guest route", () => {
     fireEvent.scroll(window);
 
     await waitFor(() => {
-      expect(modelMarquee).toHaveClass("public-home-models-idle");
+      expect(modelMarquee).not.toHaveClass("public-home-models-idle");
     });
   });
 

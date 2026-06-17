@@ -90,11 +90,11 @@ export function SharedMediaDetailVideoSnapshotControl({
         className="art-stage-snapshot-button"
         onClick={handleSnapshotVideoFrame}
         disabled={isSnapshotCapturing}
-        aria-label="Snapshot frame"
-        title="Snapshot frame"
+        aria-label="Frame-shot"
+        title="Frame-shot"
       >
         <Camera size={15} weight="bold" aria-hidden />
-        <span>{isSnapshotCapturing ? "Saving" : "Snapshot"}</span>
+        <span>{isSnapshotCapturing ? "Saving" : "Frame-shot"}</span>
       </button>
     </div>
   );

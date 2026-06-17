@@ -480,7 +480,7 @@ describe("DetailModal", () => {
       />
     );
 
-    const snapshotButton = screen.getByRole("button", { name: "Snapshot frame" });
+    const snapshotButton = screen.getByRole("button", { name: "Frame-shot" });
     expect(snapshotButton.closest(".art-stage-snapshot-control")).not.toBeNull();
     expect(snapshotButton.closest(".art-modal-action-row")).toBeNull();
     await act(async () => {
@@ -502,7 +502,7 @@ describe("DetailModal", () => {
       />
     );
 
-    expect(screen.queryByRole("button", { name: "Snapshot frame" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Frame-shot" })).toBeNull();
   });
 
   it("shows workflow reload in media details only for restorable generated outputs", () => {

@@ -467,7 +467,7 @@ describe("MediaLibraryPanelPreviewModal", () => {
       />
     );
 
-    const snapshotButton = screen.getByRole("button", { name: "Snapshot frame" });
+    const snapshotButton = screen.getByRole("button", { name: "Frame-shot" });
     expect(snapshotButton.closest(".art-stage-snapshot-control")).not.toBeNull();
     expect(snapshotButton.closest(".art-modal-action-row")).toBeNull();
     await act(async () => {
@@ -491,7 +491,7 @@ describe("MediaLibraryPanelPreviewModal", () => {
       />
     );
 
-    expect(screen.queryByRole("button", { name: "Snapshot frame" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Frame-shot" })).toBeNull();
   });
 
   it("hides the prompt blade for uploaded library files and keeps the filename in the header", () => {

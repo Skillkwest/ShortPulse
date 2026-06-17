@@ -93,6 +93,7 @@ describe("mediaLibraryDragPayload", () => {
         source: null,
         sourceRef: null,
         generationId: null,
+        modelId: null,
         transcriptText: null,
         previewStoragePath: null,
         fullStoragePath: null,
@@ -137,6 +138,7 @@ describe("mediaLibraryDragPayload", () => {
         source: null,
         sourceRef: null,
         generationId: null,
+        modelId: null,
         transcriptText: null,
         previewStoragePath: null,
         fullStoragePath: null,
@@ -273,6 +275,7 @@ describe("mediaLibraryDragPayload", () => {
         source: "ai_studio",
         sourceRef: "generation-1",
         generationId: "generation-1",
+        modelId: "kie-ai/kling-3.0",
         workflowReload,
       },
     });
@@ -285,6 +288,10 @@ describe("mediaLibraryDragPayload", () => {
       "text/shortpulse-media-library-generation-id",
       "generation-1"
     );
+    expect(transfer.setData).toHaveBeenCalledWith(
+      "text/shortpulse-media-library-model-id",
+      "kie-ai/kling-3.0"
+    );
     expect(readMediaLibraryDragPayload(transfer)).toEqual({
       kind: "libraryMedia",
       source: "mediaLibrary",
@@ -293,6 +300,7 @@ describe("mediaLibraryDragPayload", () => {
         source: "ai_studio",
         sourceRef: "generation-1",
         generationId: "generation-1",
+        modelId: "kie-ai/kling-3.0",
         workflowReload,
       }),
     });

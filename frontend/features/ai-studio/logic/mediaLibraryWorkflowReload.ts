@@ -42,10 +42,10 @@ const resolveSavedMediaWorkflowMode = (
   config: WorkflowReloadConfigV1
 ): StudioOutput["mode"] => modeFromFileType(file.file_type) ?? config.outputMode;
 
-const resolveSavedMediaWorkflowModelId = (
-  file: MediaFileRow,
+export const resolveSavedMediaWorkflowModelId = (
+  metadata: Record<string, unknown> | null | undefined,
   config: WorkflowReloadConfigV1
-): string => asTrimmedString(file.metadata?.model_id ?? file.metadata?.modelId) ?? config.model.id;
+): string => asTrimmedString(metadata?.model_id ?? metadata?.modelId) ?? config.model.id;
 
 export const resolveMediaLibraryWorkflowReloadConfig = (
   metadata: Record<string, unknown> | null | undefined
@@ -64,7 +64,7 @@ export const createMediaLibraryWorkflowReloadOutput = (file: MediaFileRow): Stud
   const storagePath = file.storage_path?.trim() || null;
   const generationId = file.source_ref?.trim() || undefined;
   const mode = resolveSavedMediaWorkflowMode(file, config);
-  const modelId = resolveSavedMediaWorkflowModelId(file, config);
+  const modelId = resolveSavedMediaWorkflowModelId(file.metadata, config);
 
   return {
     id: `media-library:${file.id}`,

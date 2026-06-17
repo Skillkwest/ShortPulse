@@ -5,6 +5,7 @@
  */
 import type { StudioMode, StudioOutput, WorkflowReloadConfigV1 } from "../types";
 import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
+import { resolveSavedMediaWorkflowModelId } from "../logic/mediaLibraryWorkflowReload";
 import { isWorkflowReloadConfigV1 } from "../logic/workflowReload";
 import { isAudioUrl, isVideoUrl, mapUploadsFromFiles } from "../logic/stateParsers";
 import type {
@@ -155,6 +156,10 @@ const buildLibraryMediaOutput = ({
   const generationId = payload.generationId?.trim() || payload.sourceRef?.trim() || undefined;
   const isGeneratedLibraryMedia = payload.source === "ai_studio" && workflowReload != null;
   const generatedAspect = resolveAspectFromWorkflowReload(workflowReload);
+  const savedModelMetadata = payload.modelId ? { model_id: payload.modelId } : null;
+  const generatedModelId = workflowReload
+    ? resolveSavedMediaWorkflowModelId(savedModelMetadata, workflowReload)
+    : null;
 
   return {
     id,
@@ -162,11 +167,13 @@ const buildLibraryMediaOutput = ({
     transcriptText: payload.transcriptText?.trim() || null,
     mode: payloadMode,
     aspect: isGeneratedLibraryMedia ? generatedAspect : context.aspect,
-    model: isGeneratedLibraryMedia ? workflowReload.model.id : displayModelLabel,
+    model: isGeneratedLibraryMedia
+      ? (generatedModelId ?? workflowReload.model.id)
+      : displayModelLabel,
     // Reference Grid ordering is based on when an item enters the grid, not when
     // the backing Media Library row or generation was originally created.
     createdAt: referenceGridCreatedAt,
-    modelId: isGeneratedLibraryMedia ? workflowReload.model.id : undefined,
+    modelId: isGeneratedLibraryMedia ? (generatedModelId ?? workflowReload.model.id) : undefined,
     generationId: isGeneratedLibraryMedia ? generationId : undefined,
     status: "ready",
     timestamp: payload.source === "ai_studio" ? "Generation" : "Library",

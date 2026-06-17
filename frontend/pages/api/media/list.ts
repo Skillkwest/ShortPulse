@@ -24,6 +24,7 @@ import {
   assertMediaFolderAccessForUser,
   MEDIA_LIBRARY_ROOT_FOLDER_ID,
 } from "../../../lib/server/mediaFoldersService";
+import { buildHiddenMediaArtifactStoragePathLikePatterns } from "../../../lib/mediaHiddenArtifacts";
 
 type MediaListSurface =
   | "media-library-modal"
@@ -243,6 +244,19 @@ const withSafeUserScopedStoragePathFilter = <
     .not("storage_path", "like", `${userId}/..`)
     .not("storage_path", "like", "%/../%")
     .not("storage_path", "like", "%/..");
+
+const withDisplayableMediaArtifactFilter = <
+  T extends {
+    not: (column: string, operator: string, value: string) => T;
+  },
+>(
+  query: T,
+  userId: string
+): T =>
+  buildHiddenMediaArtifactStoragePathLikePatterns(userId).reduce(
+    (nextQuery, pattern) => nextQuery.not("storage_path", "like", pattern),
+    query
+  );
 
 const clampLimit = (surface: MediaListSurface, value: unknown): number => {
   const maxLimit = LIMIT_BY_SURFACE[surface];
@@ -517,6 +531,7 @@ const resolveLibraryTotalCount = async ({
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId);
     query = withSafeUserScopedStoragePathFilter(query, userId);
+    query = withDisplayableMediaArtifactFilter(query, userId);
     if (characterScopeExclusionEnabled) {
       query = query.not("storage_path", "like", `${userId}/characters/%`);
     }
@@ -680,6 +695,7 @@ export default async function handler(
         )
         .eq("user_id", user.id);
       queryBuilder = withSafeUserScopedStoragePathFilter(queryBuilder, user.id);
+      queryBuilder = withDisplayableMediaArtifactFilter(queryBuilder, user.id);
       if (characterScopeExclusionEnabled) {
         queryBuilder = queryBuilder.not("storage_path", "like", `${user.id}/characters/%`);
       }

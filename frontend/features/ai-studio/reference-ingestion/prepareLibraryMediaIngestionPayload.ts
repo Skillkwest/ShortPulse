@@ -116,6 +116,7 @@ const resolveStoragePathsFromMediaId = async (
   filename: string | null;
   source: string | null;
   sourceRef: string | null;
+  modelId: string | null;
   workflowReload: LibraryMediaPayload["workflowReload"] | null;
   previewStoragePath: string | null;
   previewPosterStoragePath: string | null;
@@ -129,6 +130,7 @@ const resolveStoragePathsFromMediaId = async (
       filename: null,
       source: null,
       sourceRef: null,
+      modelId: null,
       workflowReload: null,
       previewStoragePath: null,
       previewPosterStoragePath: null,
@@ -152,6 +154,7 @@ const resolveStoragePathsFromMediaId = async (
         filename: null,
         source: null,
         sourceRef: null,
+        modelId: null,
         workflowReload: null,
         previewStoragePath: null,
         previewPosterStoragePath: null,
@@ -176,6 +179,13 @@ const resolveStoragePathsFromMediaId = async (
       filename: normalizeText(typeof data?.filename === "string" ? data.filename : null),
       source: normalizeText(typeof data?.source === "string" ? data.source : null),
       sourceRef: normalizeText(typeof data?.source_ref === "string" ? data.source_ref : null),
+      modelId: normalizeText(
+        typeof metadata?.model_id === "string"
+          ? metadata.model_id
+          : typeof metadata?.modelId === "string"
+            ? metadata.modelId
+            : null
+      ),
       workflowReload,
       ...paths,
       width,
@@ -186,6 +196,7 @@ const resolveStoragePathsFromMediaId = async (
       filename: null,
       source: null,
       sourceRef: null,
+      modelId: null,
       workflowReload: null,
       previewStoragePath: null,
       previewPosterStoragePath: null,
@@ -244,6 +255,7 @@ export const prepareLibraryMediaIngestionPayload = async (
         filename: null,
         source: null,
         sourceRef: null,
+        modelId: null,
         workflowReload: null,
         previewStoragePath: null,
         previewPosterStoragePath: null,
@@ -325,6 +337,7 @@ export const prepareLibraryMediaIngestionPayload = async (
       normalizeText(payload.generationId) ??
       normalizeText(payload.sourceRef) ??
       mediaIdFallbackPaths.sourceRef,
+    modelId: normalizeText(payload.modelId) ?? mediaIdFallbackPaths.modelId,
     workflowReload: hasWorkflowReload
       ? payload.workflowReload
       : mediaIdFallbackPaths.workflowReload,

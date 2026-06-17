@@ -1,6 +1,7 @@
 import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
 import { hasDurableGeneratedMediaDisplayAuthority } from "../../../lib/generatedMediaDisplayAuthority";
 import { resolveImageDimensionsFromMetadata } from "../../../lib/mediaDimensionMetadata";
+import { isHiddenMediaArtifactStoragePath } from "../../../lib/mediaHiddenArtifacts";
 import { getSignedMediaUrlsBatch } from "../../../lib/mediaSignedUrlCache";
 import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
 import type { StudioOutput } from "../types";
@@ -713,6 +714,7 @@ const toGeneratedMediaFileRecord = (
 ): GeneratedMediaFileRecord | null => {
   const storagePath = asCanonicalStoragePath(asTrimmedString(row?.storage_path));
   if (!storagePath) return null;
+  if (isHiddenMediaArtifactStoragePath(storagePath)) return null;
   return {
     storagePath,
     filename: sanitizeFilename(asTrimmedString(row?.filename)),

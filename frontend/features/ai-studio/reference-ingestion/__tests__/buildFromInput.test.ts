@@ -324,6 +324,7 @@ describe("buildStudioOutputsFromReferenceInput", () => {
           source: "ai_studio",
           sourceRef: "generation-video-1",
           generationId: "generation-video-1",
+          modelId: "kie-ai/kling-3.0",
           workflowReload,
           previewStoragePath: "user/video/preview.mp4",
           previewPosterStoragePath: "user/video/poster.jpg",
@@ -339,6 +340,8 @@ describe("buildStudioOutputsFromReferenceInput", () => {
       expect.objectContaining({
         id: "library-id-1",
         mode: "video",
+        model: "kie-ai/kling-3.0",
+        modelId: "kie-ai/kling-3.0",
         mediaSource: "generated",
         generationId: "generation-video-1",
         workflowReload,

@@ -643,6 +643,23 @@ describe("POST /api/media/list", () => {
   it("pages over displayable caller-scoped media instead of letting newer unsafe rows mask valid rows", async () => {
     createSupabaseAdminMock([
       {
+        id: "hidden-companion-newer",
+        user_id: "user-1",
+        filename: "cover.webp",
+        storage_path: "user-1/generations/audio/gen-audio-1/companion-art/cover.webp",
+        file_type: "audio",
+        file_size: 10,
+        source: "ai_studio",
+        source_ref: null,
+        prompt_id: null,
+        metadata: null,
+        thumb_variant_path: null,
+        poster_variant_path: null,
+        preview_variant_path: null,
+        created_at: "2026-02-22T10:00:00.000Z",
+        updated_at: null,
+      },
+      {
         id: "unsafe-newer",
         user_id: "user-1",
         filename: "unsafe-newer.png",
@@ -735,6 +752,23 @@ describe("POST /api/media/list", () => {
         poster_variant_path: null,
         preview_variant_path: null,
         created_at: "2026-02-21T10:00:00.000Z",
+        updated_at: null,
+      },
+      {
+        id: "hidden-companion-not-counted",
+        user_id: "user-1",
+        filename: "cover.webp",
+        storage_path: "user-1/generations/audio/gen-audio-1/companion-art/cover.webp",
+        file_type: "audio",
+        file_size: 10,
+        source: "ai_studio",
+        source_ref: null,
+        prompt_id: null,
+        metadata: null,
+        thumb_variant_path: null,
+        poster_variant_path: null,
+        preview_variant_path: null,
+        created_at: "2026-02-22T10:00:00.000Z",
         updated_at: null,
       },
       {
@@ -943,6 +977,23 @@ describe("POST /api/media/list", () => {
   it("enriches ai-generated audio rows with signed companion art", async () => {
     createSupabaseAdminMock(
       [
+        {
+          id: "hidden-audio-companion-row",
+          user_id: "user-1",
+          filename: "cover.webp",
+          storage_path: "user-1/generations/audio/gen-audio-1/companion-art/cover.webp",
+          file_type: "audio",
+          file_size: 10,
+          source: "ai_studio",
+          source_ref: null,
+          prompt_id: null,
+          metadata: null,
+          thumb_variant_path: null,
+          poster_variant_path: null,
+          preview_variant_path: null,
+          created_at: "2026-02-21T10:00:00.000Z",
+          updated_at: null,
+        },
         {
           id: "audio-1",
           user_id: "user-1",

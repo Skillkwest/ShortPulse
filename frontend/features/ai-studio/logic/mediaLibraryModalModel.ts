@@ -152,6 +152,19 @@ const normalizeDisplayImageUrlCandidate = (value: unknown): string | null => {
   return trimmed;
 };
 
+export const resolveMediaMetadataModelId = (
+  metadata?: Record<string, unknown> | null
+): string | null => {
+  const candidate =
+    typeof metadata?.model_id === "string"
+      ? metadata.model_id
+      : typeof metadata?.modelId === "string"
+        ? metadata.modelId
+        : "";
+  const trimmed = candidate.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
 export const resolveMediaAudioBackgroundImageUrl = (file: MediaFileRow): string | null => {
   if (!isAudioFile(file.file_type)) return null;
   const metadata = file.metadata ?? null;

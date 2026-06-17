@@ -45,6 +45,7 @@ export type ReferenceIngestionInput =
         source?: string | null;
         sourceRef?: string | null;
         generationId?: string | null;
+        modelId?: string | null;
         workflowReload?: WorkflowReloadConfig | Record<string, unknown> | null;
         previewStoragePath?: string | null;
         fullStoragePath?: string | null;

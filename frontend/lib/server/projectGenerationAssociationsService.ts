@@ -8,6 +8,10 @@ import { filterTrustedMediaDirectPreviewUrls } from "../mediaPreviewTrustPolicy"
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
 import { chunkValues } from "./queryBatching";
 import { hasDurableGeneratedMediaDisplayAuthority } from "../generatedMediaDisplayAuthority";
+import {
+  buildHiddenMediaArtifactStoragePathLikePatterns,
+  isHiddenMediaArtifactStoragePath,
+} from "../mediaHiddenArtifacts";
 
 const PROJECT_GENERATION_PROJECTION_SELECT_COLUMNS = [
   "generation_id",
@@ -587,13 +591,17 @@ const readMediaFileRowsById = async ({
   const supabaseAdmin = getSupabaseAdmin();
   const mediaById = new Map<string, ProjectGenerationMediaFileRow>();
   for (const mediaFileIdChunk of chunkValues(normalizedMediaFileIds)) {
-    const { data, error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from("media_files")
       .select(
         "id, storage_path, file_type, poster_variant_path, thumb_variant_path, preview_variant_path"
       )
       .eq("user_id", userId)
       .in("id", mediaFileIdChunk);
+    for (const pattern of buildHiddenMediaArtifactStoragePathLikePatterns(userId)) {
+      query = query.not("storage_path", "like", pattern);
+    }
+    const { data, error } = await query;
 
     if (error) {
       throw new Error(error.message || "Failed to load project generation media rows");
@@ -604,6 +612,8 @@ const readMediaFileRowsById = async ({
         const row = rawRow as ProjectGenerationMediaFileRow;
         const mediaFileId = asTrimmedString(row.id);
         if (!mediaFileId) return null;
+        if (isHiddenMediaArtifactStoragePath(asTrimmedString(row.storage_path), userId))
+          return null;
         return [mediaFileId, row] as const;
       })
       .filter((entry): entry is readonly [string, ProjectGenerationMediaFileRow] => Boolean(entry))
@@ -776,18 +786,24 @@ const resolveOwnedMediaFileIdsForUser = async ({
   const ownedMediaFileIds = new Set<string>();
 
   for (const mediaFileIdChunk of chunkValues(normalizedMediaFileIds)) {
-    const { data, error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from("media_files")
-      .select("id")
+      .select("id, storage_path")
       .eq("user_id", userId)
       .in("id", mediaFileIdChunk);
+    for (const pattern of buildHiddenMediaArtifactStoragePathLikePatterns(userId)) {
+      query = query.not("storage_path", "like", pattern);
+    }
+    const { data, error } = await query;
 
     if (error) {
       throw new Error(error.message || "Failed to verify owned media files before association");
     }
 
     (Array.isArray(data) ? data : [])
-      .map((row) => asTrimmedString(asRecord(row).id))
+      .map((row) => asRecord(row))
+      .filter((row) => !isHiddenMediaArtifactStoragePath(asTrimmedString(row.storage_path), userId))
+      .map((row) => asTrimmedString(row.id))
       .filter((value): value is string => Boolean(value))
       .forEach((id) => ownedMediaFileIds.add(id));
   }

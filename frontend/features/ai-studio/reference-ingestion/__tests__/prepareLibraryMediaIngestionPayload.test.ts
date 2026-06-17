@@ -270,6 +270,7 @@ describe("prepareLibraryMediaIngestionPayload", () => {
         width: 1280,
         height: 720,
         metadata: {
+          model_id: "kie-ai/kling-3.0",
           workflow_reload: workflowReload,
         },
         thumb_variant_path: "user-1/previews/generated.jpg",
@@ -298,6 +299,7 @@ describe("prepareLibraryMediaIngestionPayload", () => {
     expect(result.source).toBe("ai_studio");
     expect(result.sourceRef).toBe("generation-1");
     expect(result.generationId).toBe("generation-1");
+    expect(result.modelId).toBe("kie-ai/kling-3.0");
     expect(result.workflowReload).toEqual(workflowReload);
     expect(result.filename).toBe("generated.png");
     expect(result.width).toBe(1280);

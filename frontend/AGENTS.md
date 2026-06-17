@@ -9,6 +9,7 @@ Inherit the root startup contract in `../AGENTS.md` first, then apply the scoped
 - Prefer the feature module pattern described in `../docs/frontend-architecture.md` (`features/<name>/{types,constants,data,utils,logic,components}`).
 - Keep `pages/` thin (composition + orchestration only); push logic into `features/*/logic` or `features/*/utils`.
 - Use modular CSS under `styles/` and keep `styles/globals.css` as an import-only aggregator (see `../docs/styles-structure.md`).
+- Treat the current product build as desktop-first. Do not optimize or build mobile-specific layouts, breakpoints, touch-only UX, or mobile polish unless the user explicitly approves mobile scope in the current thread.
 - See `../docs/agent-playbook.md` for the one-page checklist.
 
 ## Don’ts

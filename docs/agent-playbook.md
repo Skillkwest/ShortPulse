@@ -31,6 +31,7 @@ Authority shortcuts:
 
 - Use modular CSS under `frontend/styles/`; do not add rules to `globals.css`.
 - Prefer feature-scoped CSS files rather than growing very large sheets; split when practical.
+- Desktop is the active build and QA target. Do not spend effort optimizing mobile layouts, mobile breakpoints, touch-only UX, or mobile polish unless the user explicitly asks for mobile scope. Keep basic responsive integrity when editing shared styles, but do not treat mobile as a launch requirement.
 
 ## Supabase and security
 

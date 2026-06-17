@@ -2,7 +2,6 @@ import React from "react";
 import { FolderSimple } from "phosphor-react";
 import { isAdaptiveSurfaceEnabled } from "../../../lib/adaptive-media";
 import { MEDIA_PREVIEW_SIGN_BATCH_MAX_ATTEMPTS_PER_ITEM } from "../../../lib/mediaPreviewRuntimePolicy";
-import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import { useResolvedProtectedSessionState } from "../../../lib/protectedRouteSessionContext";
 import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 import { useMediaAdaptivePressure } from "../../media-library/hooks/useMediaAdaptivePressure";
@@ -14,16 +13,11 @@ import {
 } from "../../media-library/logic/mediaLibraryRuntimeConfig";
 import { resolveMediaLibraryAdaptiveCardPreviewUrl } from "../../media-library/logic/mediaLibraryAdaptivePreview";
 import {
-  BUCKET,
   getMediaDataTabForRow,
   isAudioFile,
   isImageFile,
   isNextImageOptimizerUrl,
   isVideoFile,
-  resolveMediaAudioBackgroundImageUrl,
-  resolveMediaMetadataModelId,
-  resolveMediaMetadataPromptText,
-  resolveMediaMetadataTranscriptText,
   resolveNextImageOptimizerSourceUrl,
   sortByCreatedAtDesc,
   type MediaDataTab,
@@ -41,15 +35,9 @@ import {
   resolvePanelMixedAllMediaSignBudget,
 } from "../../media-library/runtime";
 import { MEDIA_LIBRARY_ROOT_FOLDER_ID } from "../logic/mediaLibraryPanelApi";
-import { resolveMediaDragDimensions } from "../logic/mediaLibraryAspectRatio";
-import {
-  attachMediaLibraryDragGhost,
-  clearMediaLibraryDragGhost,
-} from "../logic/mediaLibraryDragGhost";
-import { writeMediaLibraryDragPayload } from "../logic/mediaLibraryDragPayload";
-import { downloadBlobToFile } from "../logic/referenceDownload";
 import { useMediaLibraryPanelDataController } from "../hooks/useMediaLibraryPanelDataController";
 import { useMediaLibraryFolderDropController } from "../hooks/useMediaLibraryFolderDropController";
+import { useMediaLibraryPanelItemInteractions } from "../hooks/useMediaLibraryPanelItemInteractions";
 import { useMediaLibraryPanelMutationController } from "../hooks/useMediaLibraryPanelMutationController";
 import {
   useMediaLibraryPanelSelectionController,
@@ -146,7 +134,6 @@ export function EmbeddedMediaLibraryPanel({
   const [rootFileInputResetKey, setRootFileInputResetKey] = React.useState(0);
   const panelBodyRef = React.useRef<HTMLDivElement | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
-  const mediaDownloadInFlightRef = React.useRef<Record<string, boolean>>({});
   const bulkMoveDialogOpen = false;
   const adaptivePreviewQualityEnabled = isAdaptiveSurfaceEnabled("media-library-panel-grid");
   const panelSurfaceConfig = getMediaLibrarySurfaceConfig("panel");
@@ -448,187 +435,12 @@ export function EmbeddedMediaLibraryPanel({
     },
   });
 
-  const handleMediaCardDragStart = React.useCallback(
-    (event: React.DragEvent<HTMLElement>, file: MediaFileRow) => {
-      const signedUrl = (file.signedUrl ?? "").trim();
-      const durableUrl = (file.storage_path ?? file.preview_storage_path ?? "").trim();
-      const transferUrl = signedUrl || durableUrl;
-      if (!transferUrl) {
-        event.preventDefault();
-        return;
-      }
-      const dragDimensions = resolveMediaDragDimensions({
-        fileType: file.file_type,
-        width: file.width ?? null,
-        height: file.height ?? null,
-        metadata: file.metadata,
-      });
-      const promptText = resolveMediaMetadataPromptText(file.metadata) ?? file.filename ?? "";
-      const transcriptText = resolveMediaMetadataTranscriptText(file.metadata);
-      const workflowReload = resolveMediaLibraryWorkflowReloadConfig(file.metadata);
-      const sourceRef = file.source_ref?.trim() || null;
-      const companionArtUrl = resolveMediaAudioBackgroundImageUrl(file);
-      writeMediaLibraryDragPayload(event.dataTransfer, {
-        kind: "libraryMedia",
-        source: "mediaLibrary",
-        payload: {
-          id: file.id,
-          url: transferUrl,
-          fileType: isAudioFile(file.file_type)
-            ? "audio"
-            : isVideoFile(file.file_type)
-              ? "video"
-              : "image",
-          createdAt: file.created_at ?? null,
-          originFolderId: activeFolderId,
-          filename: file.filename,
-          promptText,
-          transcriptText,
-          source: file.source ?? null,
-          sourceRef,
-          generationId: sourceRef,
-          modelId: resolveMediaMetadataModelId(file.metadata),
-          workflowReload,
-          previewStoragePath: file.preview_storage_path ?? file.storage_path,
-          fullStoragePath: file.storage_path,
-          previewUrl: signedUrl || null,
-          fullUrl: signedUrl || null,
-          companionArtUrl,
-          companionArtStoragePath: isAudioFile(file.file_type)
-            ? (file.companion_art_storage_path ?? null)
-            : null,
-          width: dragDimensions.width,
-          height: dragDimensions.height,
-        },
-      });
-      event.dataTransfer.effectAllowed = "copy";
-      try {
-        event.dataTransfer.setData("text/reference-url", transferUrl);
-        event.dataTransfer.setData("text/uri-list", transferUrl);
-        event.dataTransfer.setData("text/plain", promptText.trim() || transferUrl);
-        if (promptText.trim()) {
-          event.dataTransfer.setData("text/prompt", promptText);
-        }
-      } catch {
-        // Keep drag active even when a specific transfer mime is rejected.
-      }
-      event.currentTarget.classList.add("is-dragging");
-      attachMediaLibraryDragGhost(event, {
-        label: file.filename || "Media",
-        detail: promptText,
-        previewUrl: isAudioFile(file.file_type) ? companionArtUrl : signedUrl || null,
-        previewKind: isVideoFile(file.file_type)
-          ? "video"
-          : isAudioFile(file.file_type)
-            ? "audio"
-            : "image",
-      });
-    },
-    [activeFolderId]
-  );
-
-  const handlePromptCardDragStart = React.useCallback(
-    (event: React.DragEvent<HTMLButtonElement>, prompt: PromptRow) => {
-      const promptText = prompt.prompt_text.trim();
-      if (!promptText) {
-        event.preventDefault();
-        return;
-      }
-      writeMediaLibraryDragPayload(event.dataTransfer, {
-        kind: "libraryPrompt",
-        source: "mediaLibrary",
-        payload: {
-          id: prompt.id,
-          promptText,
-          createdAt: prompt.created_at ?? null,
-          originFolderId: activeFolderId,
-          title: prompt.title,
-        },
-      });
-      event.dataTransfer.effectAllowed = "copy";
-      try {
-        event.dataTransfer.setData("text/prompt", promptText);
-        event.dataTransfer.setData("text/plain", promptText);
-      } catch {
-        // Keep drag active even when a specific transfer mime is rejected.
-      }
-      event.currentTarget.classList.add("is-dragging");
-      attachMediaLibraryDragGhost(event, {
-        label: prompt.title || "Prompt",
-        detail: promptText,
-        template: "prompt",
-      });
-    },
-    [activeFolderId]
-  );
-
-  const handleCardDragEnd = React.useCallback((event: React.DragEvent<HTMLElement>) => {
-    event.currentTarget.classList.remove("is-dragging");
-    clearMediaLibraryDragGhost(event);
-  }, []);
-
-  const resolveDownloadBlob = React.useCallback(
-    async (file: MediaFileRow): Promise<Blob | null> => {
-      const primaryStoragePath = (file.storage_path ?? "").trim();
-      if (primaryStoragePath) {
-        try {
-          const supabase = ensureSupabaseQueryClient();
-          const { data, error: downloadError } = await supabase.storage
-            .from(BUCKET)
-            .download(primaryStoragePath);
-          if (!downloadError && data) {
-            return data as Blob;
-          }
-        } catch {
-          // Fall through to signed-url fetch fallback.
-        }
-      }
-      const signedUrl = (file.signedUrl ?? "").trim();
-      if (!signedUrl) return null;
-      try {
-        const response = await fetch(signedUrl, {
-          method: "GET",
-          credentials: "omit",
-          cache: "no-store",
-        });
-        if (!response.ok) return null;
-        const blob = await response.blob();
-        if (!blob.size) return null;
-        return blob;
-      } catch {
-        return null;
-      }
-    },
-    []
-  );
-
-  const handleDownloadMediaFile = React.useCallback(
-    (file: MediaFileRow) => {
-      const filename = (file.filename ?? "media").trim() || "media";
-      if (mediaDownloadInFlightRef.current[file.id]) return;
-      mediaDownloadInFlightRef.current[file.id] = true;
-      void resolveDownloadBlob(file)
-        .then((blob) => {
-          if (blob) {
-            downloadBlobToFile(blob, filename);
-            return;
-          }
-          const signedUrl = (file.signedUrl ?? "").trim();
-          if (!signedUrl) return;
-          const anchor = document.createElement("a");
-          anchor.href = signedUrl;
-          anchor.download = filename;
-          anchor.rel = "noopener";
-          document.body.appendChild(anchor);
-          anchor.click();
-          anchor.remove();
-        })
-        .finally(() => {
-          mediaDownloadInFlightRef.current[file.id] = false;
-        });
-    },
-    [resolveDownloadBlob]
-  );
+  const {
+    handleCardDragEnd,
+    handleDownloadMediaFile,
+    handleMediaCardDragStart,
+    handlePromptCardDragStart,
+  } = useMediaLibraryPanelItemInteractions({ activeFolderId });
 
   const resolvePanelCardPreviewUrl = React.useCallback(
     ({

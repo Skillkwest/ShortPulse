@@ -3,6 +3,7 @@ import React from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { MEDIA_LIBRARY_PANEL_DENSITY_CONFIG } from "../../../media-library/logic/mediaLibraryRuntimeConfig";
+import { readMediaLibraryDragPayload } from "../../logic/mediaLibraryDragPayload";
 import { ElementsEmbeddedMediaLibraryPanel } from "../ElementsEmbeddedMediaLibraryPanel";
 import { MediaLibraryPanel } from "../MediaLibraryPanel";
 import type { SharedMediaDetailSelectionTarget } from "../detail-modal/detailModalPlatformTypes";
@@ -292,6 +293,16 @@ vi.mock("../media-library-modal/MediaLibraryAllItemsGrid", () => ({
     ) => void;
     onSelectPromptCard: (row: { id: string; title: string | null; prompt_text: string }) => void;
     onMediaDoubleClick?: (row: { id: string; filename: string }) => void;
+    onMediaDragStart?: (
+      event: React.DragEvent<HTMLElement>,
+      row: Record<string, unknown> & { id: string; filename: string }
+    ) => void;
+    onMediaDragEnd?: (event: React.DragEvent<HTMLElement>) => void;
+    onPromptDragStart?: (
+      event: React.DragEvent<HTMLButtonElement>,
+      row: { id: string; title: string | null; prompt_text: string }
+    ) => void;
+    onPromptDragEnd?: (event: React.DragEvent<HTMLElement>) => void;
     resolveCardPreviewUrl?: (args: {
       signedUrl: string | null | undefined;
       fileType?: string | null;
@@ -1339,6 +1350,81 @@ describe("MediaLibraryPanel", () => {
       "embedded-image-1",
       "embedded-audio-1",
     ]);
+  });
+
+  it("uses the shared audio drag payload for embedded Elements audio rows", async () => {
+    fetchMediaListPageMock.mockResolvedValueOnce({
+      rows: [
+        {
+          id: "embedded-audio-1",
+          filename: "embedded-theme.mp3",
+          storage_path: "user-1/uploads/embedded-theme.mp3",
+          preview_storage_path: "user-1/uploads/embedded-theme.mp3",
+          file_type: "audio/mpeg",
+          source: "ai_studio",
+          source_ref: "generation-audio-1",
+          created_at: "2026-03-01T00:00:00.000Z",
+          metadata: {
+            durationMs: 15_000,
+            source_mode: "sound-effects",
+            waveformPeaks: [0.2, 0.6, 0.3],
+          },
+          signedUrl: "https://cdn.example.com/embedded-theme.mp3",
+          companion_art_url: "https://cdn.example.com/embedded-theme-cover.webp",
+          companion_art_storage_path: "user-1/audio/generation-audio-1/cover.webp",
+        },
+      ],
+      nextCursor: null,
+      hasMore: false,
+      signedById: new Map<string, string>(),
+      libraryTotalCount: 1,
+    });
+
+    render(<ElementsEmbeddedMediaLibraryPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mock-all-items-grid")).toBeInTheDocument();
+    });
+
+    const latestProps = allItemsGridPropsSpy.mock.calls.at(-1)?.[0] as
+      | {
+          mediaRows?: Array<Record<string, unknown> & { id: string; filename: string }>;
+          onMediaDragStart?: (
+            event: React.DragEvent<HTMLElement>,
+            row: Record<string, unknown> & { id: string; filename: string }
+          ) => void;
+        }
+      | undefined;
+    const audioRow = latestProps?.mediaRows?.find((row) => row.id === "embedded-audio-1");
+    const transfer = createTransferStore();
+    const dragButton = document.createElement("button");
+    latestProps?.onMediaDragStart?.(
+      {
+        dataTransfer: transfer,
+        currentTarget: dragButton,
+        preventDefault: vi.fn(),
+      } as unknown as React.DragEvent<HTMLElement>,
+      audioRow!
+    );
+
+    const payload = readMediaLibraryDragPayload(transfer);
+    expect(payload).toEqual(
+      expect.objectContaining({
+        kind: "libraryMedia",
+        payload: expect.objectContaining({
+          id: "embedded-audio-1",
+          fileType: "audio",
+          url: "https://cdn.example.com/embedded-theme.mp3",
+          sourceRef: "generation-audio-1",
+          generationId: "generation-audio-1",
+          companionArtUrl: "https://cdn.example.com/embedded-theme-cover.webp",
+          companionArtStoragePath: "user-1/audio/generation-audio-1/cover.webp",
+          audioSourceMode: "sound-effects",
+          durationMs: 15_000,
+          waveformPeaks: [0.2, 0.6, 0.3],
+        }),
+      })
+    );
   });
 
   it("keeps the embedded Elements all-media grid on true masonry ratios in assignment mode", async () => {

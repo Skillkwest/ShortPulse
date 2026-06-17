@@ -197,6 +197,83 @@ describe("CanvasPropertiesPanel live props bridge", () => {
     expect(screen.getByLabelText("Remove reference from grid")).toBeInTheDocument();
   });
 
+  it("hides selected Canvas media action controls at 45% zoom or below", () => {
+    const viewportRef = React.createRef<HTMLDivElement>();
+    const output: StudioOutput = {
+      id: "out-image-1",
+      prompt: "Canvas media",
+      mode: "image",
+      aspect: "1:1",
+      model: "Seedream",
+      status: "ready",
+      timestamp: "2026-06-16T00:00:00.000Z",
+      mediaSource: "upload",
+      previewUrl: "https://example.com/image.png",
+    };
+    const canvasItems: CanvasPropertiesPanelProps["items"] = [
+      {
+        id: "image-1",
+        kind: "image",
+        x: 0,
+        y: 0,
+        z: 1,
+        width: 120,
+        height: 72,
+        selected: true,
+        outputId: "out-image-1",
+        mediaId: "media-image-1",
+        src: "https://example.com/image.png",
+        alt: "Canvas media",
+      },
+    ];
+    const initialSnapshot = createPanelProps({
+      viewportRef,
+      camera: { x: 0, y: 0, zoom: 0.46 },
+      items: canvasItems,
+    });
+    const liveProps = createLivePropsHarness(initialSnapshot);
+
+    render(
+      <CanvasPropertiesPanel
+        {...liveProps.props}
+        mediaActions={{
+          getOutputForCanvasItem: () => output,
+          onDownload: vi.fn(),
+          onDeleteOutput: vi.fn(),
+        }}
+      />
+    );
+
+    expect(screen.getByLabelText("Download reference")).toBeInTheDocument();
+    expect(screen.getByLabelText("Remove reference from grid")).toBeInTheDocument();
+
+    act(() => {
+      liveProps.publish(
+        createPanelProps({
+          viewportRef,
+          camera: { x: 0, y: 0, zoom: 0.45 },
+          items: canvasItems,
+        })
+      );
+    });
+
+    expect(screen.queryByLabelText("Download reference")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Remove reference from grid")).not.toBeInTheDocument();
+
+    act(() => {
+      liveProps.publish(
+        createPanelProps({
+          viewportRef,
+          camera: { x: 0, y: 0, zoom: 0.451 },
+          items: canvasItems,
+        })
+      );
+    });
+
+    expect(screen.getByLabelText("Download reference")).toBeInTheDocument();
+    expect(screen.getByLabelText("Remove reference from grid")).toBeInTheDocument();
+  });
+
   it("raises wrapper interaction callbacks for item-origin gestures", () => {
     const viewportRef = React.createRef<HTMLDivElement>();
     const interactionActiveChange = vi.fn();

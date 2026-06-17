@@ -14,6 +14,7 @@ import { CanvasMediaActionOverlay } from "./CanvasMediaActionOverlay";
 
 const CANVAS_TEAR_OUT_GHOST_CURSOR_INSET_PX = 14;
 const CANVAS_VIEWPORT_CULL_OVERSCAN_PX = 480;
+const CANVAS_MEDIA_ACTION_MIN_VISIBLE_ZOOM = 0.45;
 
 type CanvasViewportSize = {
   width: number;
@@ -761,6 +762,7 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
   }, [viewportRef]);
 
   const canvasControlScale = camera.zoom > 0 ? 1 / camera.zoom : 1;
+  const shouldShowCanvasMediaActions = camera.zoom > CANVAS_MEDIA_ACTION_MIN_VISIBLE_ZOOM;
   const cameraZoomPercent =
     Number.isFinite(camera.zoom) && camera.zoom > 0 ? Math.round(camera.zoom * 100) : 100;
 
@@ -902,7 +904,7 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
                     : undefined
                 }
                 onCanvasMediaRenderError={onCanvasMediaRenderError}
-                mediaActions={mediaActions}
+                mediaActions={shouldShowCanvasMediaActions ? mediaActions : undefined}
                 markCanvasMediaError={markCanvasMediaError}
                 clearCanvasMediaError={clearCanvasMediaError}
               />

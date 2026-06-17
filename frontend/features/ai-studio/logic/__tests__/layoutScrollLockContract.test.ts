@@ -9,6 +9,10 @@ import { describe, expect, it } from "vitest";
 const layoutCssPath = path.resolve(process.cwd(), "styles/ai-studio-layout.css");
 const propertiesCssPath = path.resolve(process.cwd(), "styles/ai-studio-properties.css");
 const messagesCssPath = path.resolve(process.cwd(), "styles/components-messages.css");
+const createComposerResponsiveCssPath = path.resolve(
+  process.cwd(),
+  "styles/ai-studio-create-composer-responsive.css"
+);
 
 const extractRuleBlock = (css: string, selector: string) => {
   const escapedSelector = selector
@@ -171,6 +175,16 @@ describe("ai-studio layout scroll behavior contract", () => {
 
     expect(css).toContain(".ai-shell.ai-shell-resizable.ai-shell-expert-create");
     expect(css).toContain("var(--ai-shell-left-width, minmax(920px, 1040px))");
+  });
+
+  it("keeps Create character mode inline at the desktop panel minimum", () => {
+    const css = fs.readFileSync(createComposerResponsiveCssPath, "utf8");
+
+    expect(css).toContain("@container ai-properties (max-width: 900px)");
+    expect(css).toContain("@container ai-properties (min-width: 760px)");
+    expect(css).toMatch(
+      /@container ai-properties \(min-width: 760px\) \{[\s\S]*?\.create-composer-character-mode-control \{[\s\S]*?width: auto;/
+    );
   });
 
   it("keeps the fixed left toolbar scrollable when browser zoom reduces vertical space", () => {

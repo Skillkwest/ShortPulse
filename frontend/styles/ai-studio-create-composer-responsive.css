@@ -234,3 +234,9 @@
     flex-wrap: wrap;
   }
 }
+
+@container ai-properties (min-width: 760px) {
+  .create-composer-character-mode-control {
+    width: auto;
+  }
+}

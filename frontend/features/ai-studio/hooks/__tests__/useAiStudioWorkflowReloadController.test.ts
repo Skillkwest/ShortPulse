@@ -1,5 +1,5 @@
 import { act, renderHook } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { addBreadcrumb } from "../../../../lib/clientBreadcrumbs";
 import type { AiStudioKlingElement } from "../../logic/klingElements";
 import { resolveInternalMediaRefForUrl } from "../../logic/referenceInputInternalMediaRegistry";
@@ -141,20 +141,9 @@ const makeImageReload = (): WorkflowReloadConfigV1 => ({
 
 describe("useAiStudioWorkflowReloadController", () => {
   beforeEach(() => {
-    vi.useFakeTimers();
     setSelectedVoiceMock.mockReset();
     vi.mocked(addBreadcrumb).mockReset();
   });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  const flushDeferredVideoHydration = () => {
-    act(() => {
-      vi.runOnlyPendingTimers();
-    });
-  };
 
   it("hydrates create image workflow state without submitting", () => {
     const workflowReload = makeImageReload();
@@ -463,11 +452,10 @@ describe("useAiStudioWorkflowReloadController", () => {
 
     expect(params.setSelectedTool).toHaveBeenCalledWith("video");
     expect(params.setShowCreateTools).toHaveBeenCalledWith(false);
-    expect(params.setModel).not.toHaveBeenCalled();
-
-    flushDeferredVideoHydration();
-
     expect(params.setModel).toHaveBeenCalledWith("kie-ai/kling-3.0");
+    expect(params.setSelectedTool.mock.invocationCallOrder[0]).toBeLessThan(
+      params.setModel.mock.invocationCallOrder[0]
+    );
     expect(params.prepareImageStyleWorkflowReload).toHaveBeenCalledWith(
       expect.objectContaining({
         applied: true,
@@ -547,11 +535,10 @@ describe("useAiStudioWorkflowReloadController", () => {
 
     expect(params.setSelectedTool).toHaveBeenCalledWith("video");
     expect(params.setShowCreateTools).toHaveBeenCalledWith(false);
-    expect(params.setModel).not.toHaveBeenCalled();
-
-    flushDeferredVideoHydration();
-
     expect(params.setModel).toHaveBeenCalledWith("kie-ai/kling-3.0");
+    expect(params.setSelectedTool.mock.invocationCallOrder[0]).toBeLessThan(
+      params.setModel.mock.invocationCallOrder[0]
+    );
     expect(params.setVideoReferenceText).toHaveBeenCalledWith("Restore this as video");
     expect(params.setAspect).toHaveBeenCalledWith("16:9");
     expect(params.setVideoReferenceMode).toHaveBeenCalledWith("standard");
@@ -596,11 +583,10 @@ describe("useAiStudioWorkflowReloadController", () => {
 
     expect(params.setSelectedTool).toHaveBeenCalledWith("video");
     expect(params.setShowCreateTools).toHaveBeenCalledWith(false);
-    expect(params.setModel).not.toHaveBeenCalled();
-
-    flushDeferredVideoHydration();
-
     expect(params.setModel).toHaveBeenCalledWith("kie-ai/kling-3.0");
+    expect(params.setSelectedTool.mock.invocationCallOrder[0]).toBeLessThan(
+      params.setModel.mock.invocationCallOrder[0]
+    );
     expect(params.setVideoReferenceText).toHaveBeenCalledWith("Restore this as video");
     expect(params.setVideoReferenceMode).toHaveBeenCalledWith("standard");
     expect(params.setVideoDurationSeconds).toHaveBeenCalledWith(6);
@@ -631,11 +617,10 @@ describe("useAiStudioWorkflowReloadController", () => {
 
     expect(params.setSelectedTool).toHaveBeenCalledWith("video");
     expect(params.setShowCreateTools).toHaveBeenCalledWith(false);
-    expect(params.setModel).not.toHaveBeenCalled();
-
-    flushDeferredVideoHydration();
-
     expect(params.setModel).toHaveBeenCalledWith("kie-ai/kling-3.0");
+    expect(params.setSelectedTool.mock.invocationCallOrder[0]).toBeLessThan(
+      params.setModel.mock.invocationCallOrder[0]
+    );
     expect(params.setVideoReferenceText).toHaveBeenCalledWith("A luminous harbor");
     expect(params.setVideoReferenceMode).toHaveBeenCalledWith("keyframes");
     expect(params.setVideoDurationSeconds).toHaveBeenCalledWith(5);
@@ -751,10 +736,11 @@ describe("useAiStudioWorkflowReloadController", () => {
     });
 
     expect(params.setSelectedTool).toHaveBeenCalledWith("video");
-    expect(params.setReferenceSelectionState).not.toHaveBeenCalled();
-    flushDeferredVideoHydration();
 
     const selectionState = params.setReferenceSelectionState.mock.calls[0]?.[0];
+    expect(params.setSelectedTool.mock.invocationCallOrder[0]).toBeLessThan(
+      params.setReferenceSelectionState.mock.invocationCallOrder[0]
+    );
     expect(selectionState).toEqual(
       expect.objectContaining({
         selectedTool: "video",

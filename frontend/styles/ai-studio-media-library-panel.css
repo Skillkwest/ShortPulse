@@ -7,9 +7,6 @@
 }
 
 .ai-studio-page[data-selected-tool="media-library"] .panel.ai-panel.ai-properties {
-  align-self: stretch;
-  min-height: var(--ai-shell-column-max-height);
-  height: 100%;
   overflow: hidden;
 }
 

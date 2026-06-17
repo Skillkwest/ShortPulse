@@ -2,7 +2,7 @@
  * AI Studio workflow reload controller.
  * Navigates to the originating workflow and hydrates generation-critical state without submitting.
  */
-import { useCallback, useRef, type Dispatch, type SetStateAction } from "react";
+import { useCallback, type Dispatch, type SetStateAction } from "react";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
 import type { InternalMediaRef } from "../../../lib/media/internalMediaRefs";
 import type { VoiceChangerSource } from "../components/VoiceChangerSourceDropzone";
@@ -451,7 +451,6 @@ export const useAiStudioWorkflowReloadController = ({
   setVoiceSelectedVoiceId,
 }: UseAiStudioWorkflowReloadControllerParams) => {
   const { voices, setSelectedVoice } = useSharedVoicesGrid();
-  const videoHydrationRevisionRef = useRef(0);
 
   const fail = useCallback(
     (
@@ -546,76 +545,59 @@ export const useAiStudioWorkflowReloadController = ({
       if (payload.kind === "video") {
         const videoPayload: WorkflowReloadVideoPayload = payload;
         const videoReferences = videoPayload.videoReferences;
-        const hydrationRevision = videoHydrationRevisionRef.current + 1;
-        videoHydrationRevisionRef.current = hydrationRevision;
-        globalThis.setTimeout(() => {
-          if (videoHydrationRevisionRef.current !== hydrationRevision) return;
-          setModel(config.model.id);
-          prepareImageStyleWorkflowReload?.(
-            videoPayload.styleContext ?? output.styleContext ?? null
-          );
-          registerVideoReferenceSlots(videoReferences);
-          setVideoReferenceText(config.prompt.display);
-          setAspect(videoPayload.aspect);
-          setVideoReferenceMode(videoPayload.videoReferenceMode);
-          if (videoPayload.durationSeconds != null)
-            setVideoDurationSeconds(videoPayload.durationSeconds);
-          if (videoPayload.resolution) setVideoResolution(videoPayload.resolution);
-          if (videoPayload.generateAudio != null) setVideoGenerateAudio(videoPayload.generateAudio);
-          if (videoPayload.cameraFixed != null) setVideoCameraFixed(videoPayload.cameraFixed);
-          if (videoPayload.autoFix != null) setVideoAutoFix(videoPayload.autoFix);
-          setReferenceSelectionState(
-            toVideoReferenceSelectionState({ tool: targetTool, videoPayload })
-          );
-          setMotionReferenceVideoUrl(videoPayload.motionReferenceVideoUrl ?? null);
-          if (videoPayload.seedance2InputMode)
-            setSeedance2InputMode(videoPayload.seedance2InputMode);
-          setSeedance2ReferenceImageUrls(
-            videoReferences?.seedance2ReferenceImages
-              ? mediaSlotsToUrls(videoReferences.seedance2ReferenceImages)
-              : (videoPayload.seedance2ReferenceImageUrls ?? [])
-          );
-          setSeedance2ReferenceVideoUrls(
-            videoReferences?.seedance2ReferenceVideos
-              ? mediaSlotsToUrls(videoReferences.seedance2ReferenceVideos)
-              : (videoPayload.seedance2ReferenceVideoUrls ?? [])
-          );
-          setSeedance2ReferenceAudioUrls(
-            videoReferences?.seedance2ReferenceAudio
-              ? mediaSlotsToUrls(videoReferences.seedance2ReferenceAudio)
-              : (videoPayload.seedance2ReferenceAudioUrls ?? [])
-          );
-          if (videoPayload.seedance2ReturnLastFrame != null) {
-            setSeedance2ReturnLastFrame(videoPayload.seedance2ReturnLastFrame);
-          }
-          if (videoPayload.seedance2WebSearch != null) {
-            setSeedance2WebSearch(videoPayload.seedance2WebSearch);
-          }
-          if (videoPayload.klingNegativePrompt != null) {
-            setKlingNegativePrompt(videoPayload.klingNegativePrompt);
-          }
-          if (videoPayload.klingCfgScale != null) setKlingCfgScale(videoPayload.klingCfgScale);
-          if (videoPayload.klingWorkflowMode) setKlingWorkflowMode(videoPayload.klingWorkflowMode);
-          if (videoPayload.klingShotType) setKlingShotType(videoPayload.klingShotType);
-          if (videoPayload.klingVoiceIds) setKlingVoiceIds(videoPayload.klingVoiceIds);
-          setKlingMultiPrompts(videoPayload.klingMultiPrompts ?? []);
-          setKlingElements(
-            videoReferences?.klingElementSlots?.length
-              ? mapKlingElements(videoReferences.klingElementSlots.map((slot) => slot.element))
-              : mapKlingElements(videoPayload.klingElements)
-          );
-          addBreadcrumb({
-            type: "ui",
-            level: "info",
-            message: "workflow_reload_completed",
-            data: {
-              output_id: normalizedOutputId,
-              target_tool: targetTool,
-              payload_kind: payload.kind,
-            },
-          });
-        }, 0);
-        return { status: "success", outputId: normalizedOutputId, targetTool };
+        setModel(config.model.id);
+        prepareImageStyleWorkflowReload?.(videoPayload.styleContext ?? output.styleContext ?? null);
+        registerVideoReferenceSlots(videoReferences);
+        setVideoReferenceText(config.prompt.display);
+        setAspect(videoPayload.aspect);
+        setVideoReferenceMode(videoPayload.videoReferenceMode);
+        if (videoPayload.durationSeconds != null)
+          setVideoDurationSeconds(videoPayload.durationSeconds);
+        if (videoPayload.resolution) setVideoResolution(videoPayload.resolution);
+        if (videoPayload.generateAudio != null) setVideoGenerateAudio(videoPayload.generateAudio);
+        if (videoPayload.cameraFixed != null) setVideoCameraFixed(videoPayload.cameraFixed);
+        if (videoPayload.autoFix != null) setVideoAutoFix(videoPayload.autoFix);
+        setReferenceSelectionState(
+          toVideoReferenceSelectionState({ tool: targetTool, videoPayload })
+        );
+        setMotionReferenceVideoUrl(videoPayload.motionReferenceVideoUrl ?? null);
+        if (videoPayload.seedance2InputMode) {
+          setSeedance2InputMode(videoPayload.seedance2InputMode);
+        }
+        setSeedance2ReferenceImageUrls(
+          videoReferences?.seedance2ReferenceImages
+            ? mediaSlotsToUrls(videoReferences.seedance2ReferenceImages)
+            : (videoPayload.seedance2ReferenceImageUrls ?? [])
+        );
+        setSeedance2ReferenceVideoUrls(
+          videoReferences?.seedance2ReferenceVideos
+            ? mediaSlotsToUrls(videoReferences.seedance2ReferenceVideos)
+            : (videoPayload.seedance2ReferenceVideoUrls ?? [])
+        );
+        setSeedance2ReferenceAudioUrls(
+          videoReferences?.seedance2ReferenceAudio
+            ? mediaSlotsToUrls(videoReferences.seedance2ReferenceAudio)
+            : (videoPayload.seedance2ReferenceAudioUrls ?? [])
+        );
+        if (videoPayload.seedance2ReturnLastFrame != null) {
+          setSeedance2ReturnLastFrame(videoPayload.seedance2ReturnLastFrame);
+        }
+        if (videoPayload.seedance2WebSearch != null) {
+          setSeedance2WebSearch(videoPayload.seedance2WebSearch);
+        }
+        if (videoPayload.klingNegativePrompt != null) {
+          setKlingNegativePrompt(videoPayload.klingNegativePrompt);
+        }
+        if (videoPayload.klingCfgScale != null) setKlingCfgScale(videoPayload.klingCfgScale);
+        if (videoPayload.klingWorkflowMode) setKlingWorkflowMode(videoPayload.klingWorkflowMode);
+        if (videoPayload.klingShotType) setKlingShotType(videoPayload.klingShotType);
+        if (videoPayload.klingVoiceIds) setKlingVoiceIds(videoPayload.klingVoiceIds);
+        setKlingMultiPrompts(videoPayload.klingMultiPrompts ?? []);
+        setKlingElements(
+          videoReferences?.klingElementSlots?.length
+            ? mapKlingElements(videoReferences.klingElementSlots.map((slot) => slot.element))
+            : mapKlingElements(videoPayload.klingElements)
+        );
       }
 
       if (payload.kind === "music") {

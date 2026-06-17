@@ -64,7 +64,7 @@ describe("AiStudioPropertiesRail", () => {
     expect(container.querySelector(".ai-properties-panel-transition-exit")).toBeNull();
   });
 
-  it("bypasses the inherited shell max-height for the character rail inline", () => {
+  it("keeps Character on the shared stylesheet-owned rail sizing contract", () => {
     render(
       <AiStudioPropertiesRail
         selectedTool="character"
@@ -74,11 +74,6 @@ describe("AiStudioPropertiesRail", () => {
       />
     );
 
-    expect(screen.getByText("character panel").parentElement).toHaveStyle({
-      minHeight: "0",
-      height: "auto",
-      maxHeight: "none",
-      overflow: "visible",
-    });
+    expect(screen.getByText("character panel").parentElement).not.toHaveAttribute("style");
   });
 });

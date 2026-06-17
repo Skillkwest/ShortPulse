@@ -25,16 +25,21 @@ const extractRuleBlock = (css: string, selector: string) => {
 describe("character panel layout contract", () => {
   it("gives the Character properties rail the same bounded shell-height contract as Elements", () => {
     const css = fs.readFileSync(layoutCssPath, "utf8");
+    const sharedRailRule = extractRuleBlock(
+      css,
+      '.ai-studio-page[data-selected-tool]:not([data-selected-tool="canvas"]) .panel.ai-panel.ai-properties'
+    );
+    const characterTransparentRule = extractRuleBlock(
+      css,
+      '.ai-studio-page[data-selected-tool="character"] .panel.ai-panel.ai-properties,\n.ai-studio-page[data-selected-tool="elements"] .panel.ai-panel.ai-properties,\n.ai-studio-page[data-selected-tool="video"] .panel.ai-panel.ai-properties,\n.ai-studio-page[data-selected-tool="kling"] .panel.ai-panel.ai-properties'
+    );
 
-    expect(css).toMatch(
-      /\.ai-studio-page\[data-selected-tool="character"\] \.panel\.ai-panel\.ai-properties,[\s\S]*?align-self: stretch;[\s\S]*?min-height: var\(--ai-shell-column-max-height\);[\s\S]*?height: 100%;/
-    );
-    expect(css).toMatch(
-      /\.ai-studio-page\[data-selected-tool="character"\] \.panel\.ai-panel\.ai-properties,[\s\S]*?background: transparent;[\s\S]*?padding: 0;/
-    );
-    expect(css).toMatch(
-      /\.ai-studio-page\[data-selected-tool="character"\] \.panel\.ai-panel\.ai-properties,[\s\S]*?min-height: var\(--ai-shell-column-max-height\);[\s\S]*?max-height: var\(--ai-shell-column-max-height\);/
-    );
+    expect(sharedRailRule).toContain("align-self: stretch;");
+    expect(sharedRailRule).toContain("min-height: var(--ai-shell-column-max-height);");
+    expect(sharedRailRule).toContain("height: 100%;");
+    expect(sharedRailRule).toContain("max-height: var(--ai-shell-column-max-height);");
+    expect(characterTransparentRule).toContain("background: transparent;");
+    expect(characterTransparentRule).toContain("padding: 0;");
   });
 
   it("keeps the Character shell on the shared zoom-safe right-column minimum", () => {

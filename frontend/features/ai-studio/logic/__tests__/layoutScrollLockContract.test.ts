@@ -7,6 +7,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 const layoutCssPath = path.resolve(process.cwd(), "styles/ai-studio-layout.css");
+const propertiesCssPath = path.resolve(process.cwd(), "styles/ai-studio-properties.css");
 const messagesCssPath = path.resolve(process.cwd(), "styles/components-messages.css");
 
 const extractRuleBlock = (css: string, selector: string) => {
@@ -26,12 +27,13 @@ describe("ai-studio layout scroll behavior contract", () => {
     const css = fs.readFileSync(layoutCssPath, "utf8");
 
     expect(css).toContain("@media (min-width: 1101px)");
-    expect(css).toContain('html:has(.ai-studio-page[data-selected-tool="create"])');
-    expect(css).toContain('html:has(.ai-studio-page[data-selected-tool="video"])');
-    expect(css).toContain('html:has(.ai-studio-page[data-selected-tool="character"])');
-    expect(css).toContain('.ai-studio-page[data-selected-tool="create"]');
-    expect(css).toContain('.ai-studio-page[data-selected-tool="video"]');
-    expect(css).toContain('.ai-studio-page[data-selected-tool="character"]');
+    expect(css).toContain(
+      'html:has(.ai-studio-page[data-selected-tool]:not([data-selected-tool="canvas"]))'
+    );
+    expect(css).toContain(
+      'body:has(.ai-studio-page[data-selected-tool]:not([data-selected-tool="canvas"]))'
+    );
+    expect(css).toContain('.ai-studio-page[data-selected-tool]:not([data-selected-tool="canvas"])');
     expect(css).toContain("overflow-y: auto;");
     expect(css).toContain("height: auto;");
     expect(css).toContain("overflow: visible;");
@@ -76,12 +78,32 @@ describe("ai-studio layout scroll behavior contract", () => {
     expect(css).toContain("overflow: hidden;");
   });
 
-  it("lets create mode grow the full shell lower in the viewport", () => {
+  it("lets workflow and library panels grow the full shell lower in the viewport", () => {
     const css = fs.readFileSync(layoutCssPath, "utf8");
-
-    expect(css).toContain(
-      '.ai-studio-page[data-selected-tool="create"] {\n  --ai-page-pad-bottom: 0px;\n}'
+    const propertiesCss = fs.readFileSync(propertiesCssPath, "utf8");
+    const pageRule = extractRuleBlock(
+      css,
+      '.ai-studio-page[data-selected-tool]:not([data-selected-tool="canvas"])'
     );
+    const propertiesRailRule = extractRuleBlock(
+      css,
+      '.ai-studio-page[data-selected-tool]:not([data-selected-tool="canvas"]) .panel.ai-panel.ai-properties'
+    );
+    const propertiesRule = extractRuleBlock(propertiesCss, ".ai-properties");
+    const toolPropertiesRule = extractRuleBlock(propertiesCss, ".ai-properties .tool-properties");
+
+    expect(pageRule).toContain("--ai-page-pad-bottom: 0px;");
+    expect(pageRule).toContain("min-height: var(--app-fixed-height);");
+    expect(propertiesRailRule).toContain("align-self: stretch;");
+    expect(propertiesRailRule).toContain("min-height: var(--ai-shell-column-max-height);");
+    expect(propertiesRailRule).toContain("height: 100%;");
+    expect(propertiesRailRule).toContain("max-height: var(--ai-shell-column-max-height);");
+    expect(propertiesRailRule).toContain("container-name: ai-properties;");
+    expect(propertiesRule).toContain("display: flex;");
+    expect(propertiesRule).toContain("flex-direction: column;");
+    expect(toolPropertiesRule).toContain("flex: 1 1 auto;");
+    expect(toolPropertiesRule).toContain("min-height: 0;");
+    expect(toolPropertiesRule).toContain("width: 100%;");
     expect(css).toContain(".reference-column-sticky");
     expect(css).toContain("height: var(--ai-shell-column-max-height);");
     expect(css).toContain("max-height: var(--ai-shell-column-max-height);");

@@ -94,34 +94,8 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 }
 
 @media (min-width: 1101px) {
-  html:has(.ai-studio-page[data-selected-tool="create"]),
-  body:has(.ai-studio-page[data-selected-tool="create"]),
-  html:has(.ai-studio-page[data-selected-tool="text"]),
-  body:has(.ai-studio-page[data-selected-tool="text"]),
-  html:has(.ai-studio-page[data-selected-tool="edit"]),
-  body:has(.ai-studio-page[data-selected-tool="edit"]),
-  html:has(.ai-studio-page[data-selected-tool="image"]),
-  body:has(.ai-studio-page[data-selected-tool="image"]),
-  html:has(.ai-studio-page[data-selected-tool="video"]),
-  body:has(.ai-studio-page[data-selected-tool="video"]),
-  html:has(.ai-studio-page[data-selected-tool="kling"]),
-  body:has(.ai-studio-page[data-selected-tool="kling"]),
-  html:has(.ai-studio-page[data-selected-tool="sound"]),
-  body:has(.ai-studio-page[data-selected-tool="sound"]),
-  html:has(.ai-studio-page[data-selected-tool="voices"]),
-  body:has(.ai-studio-page[data-selected-tool="voices"]),
-  html:has(.ai-studio-page[data-selected-tool="text-to-speech"]),
-  body:has(.ai-studio-page[data-selected-tool="text-to-speech"]),
-  html:has(.ai-studio-page[data-selected-tool="voice-changer"]),
-  body:has(.ai-studio-page[data-selected-tool="voice-changer"]),
-  html:has(.ai-studio-page[data-selected-tool="sound-effects"]),
-  body:has(.ai-studio-page[data-selected-tool="sound-effects"]),
-  html:has(.ai-studio-page[data-selected-tool="music"]),
-  body:has(.ai-studio-page[data-selected-tool="music"]),
-  html:has(.ai-studio-page[data-selected-tool="character"]),
-  body:has(.ai-studio-page[data-selected-tool="character"]),
-  html:has(.ai-studio-page[data-selected-tool="elements"]),
-  body:has(.ai-studio-page[data-selected-tool="elements"]) {
+  html:has(.ai-studio-page[data-selected-tool]:not([data-selected-tool="canvas"])),
+  body:has(.ai-studio-page[data-selected-tool]:not([data-selected-tool="canvas"])) {
     overflow-y: auto;
   }
 }
@@ -371,40 +345,13 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   overflow: hidden;
 }
 
-.ai-studio-page[data-selected-tool="create"] {
+.ai-studio-page[data-selected-tool]:not([data-selected-tool="canvas"]) {
   --ai-page-pad-bottom: 0px;
-}
-
-.ai-studio-page[data-selected-tool="create"],
-.ai-studio-page[data-selected-tool="text"],
-.ai-studio-page[data-selected-tool="edit"],
-.ai-studio-page[data-selected-tool="image"],
-.ai-studio-page[data-selected-tool="video"],
-.ai-studio-page[data-selected-tool="kling"],
-.ai-studio-page[data-selected-tool="sound"],
-.ai-studio-page[data-selected-tool="voices"],
-.ai-studio-page[data-selected-tool="text-to-speech"],
-.ai-studio-page[data-selected-tool="voice-changer"],
-.ai-studio-page[data-selected-tool="sound-effects"],
-.ai-studio-page[data-selected-tool="music"],
-.ai-studio-page[data-selected-tool="character"] {
   min-height: var(--app-fixed-height);
 }
 
 @media (min-width: 1101px) {
-  .ai-studio-page[data-selected-tool="create"],
-  .ai-studio-page[data-selected-tool="text"],
-  .ai-studio-page[data-selected-tool="edit"],
-  .ai-studio-page[data-selected-tool="image"],
-  .ai-studio-page[data-selected-tool="video"],
-  .ai-studio-page[data-selected-tool="kling"],
-  .ai-studio-page[data-selected-tool="sound"],
-  .ai-studio-page[data-selected-tool="voices"],
-  .ai-studio-page[data-selected-tool="text-to-speech"],
-  .ai-studio-page[data-selected-tool="voice-changer"],
-  .ai-studio-page[data-selected-tool="sound-effects"],
-  .ai-studio-page[data-selected-tool="music"],
-  .ai-studio-page[data-selected-tool="character"] {
+  .ai-studio-page[data-selected-tool]:not([data-selected-tool="canvas"]) {
     height: auto;
     overflow: visible;
   }
@@ -1584,20 +1531,8 @@ body.ai-shell-resizing * {
   border-color: rgba(201, 205, 214, 0.08);
 }
 
-.ai-studio-page[data-selected-tool="create"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-selected-tool="sound"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-selected-tool="voices"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-selected-tool="text-to-speech"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-selected-tool="voice-changer"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-selected-tool="sound-effects"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-selected-tool="music"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-selected-tool="character"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-selected-tool="elements"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-selected-tool="text"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-selected-tool="edit"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-selected-tool="image"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-selected-tool="video"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-selected-tool="kling"] .panel.ai-panel.ai-properties {
+.ai-studio-page[data-selected-tool]:not([data-selected-tool="canvas"])
+  .panel.ai-panel.ai-properties {
   background: #94a0a108;
   border: 0;
   box-shadow: none;
@@ -1607,6 +1542,7 @@ body.ai-shell-resizing * {
   align-self: stretch;
   min-height: var(--ai-shell-column-max-height);
   height: 100%;
+  max-height: var(--ai-shell-column-max-height);
   container-name: ai-properties;
   container-type: inline-size;
 }
@@ -1617,23 +1553,6 @@ body.ai-shell-resizing * {
 .ai-studio-page[data-selected-tool="kling"] .panel.ai-panel.ai-properties {
   background: transparent;
   padding: 0;
-}
-
-.ai-studio-page[data-selected-tool="create"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-selected-tool="sound"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-selected-tool="voices"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-selected-tool="text-to-speech"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-selected-tool="voice-changer"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-selected-tool="sound-effects"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-selected-tool="music"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-selected-tool="character"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-selected-tool="elements"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-selected-tool="edit"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-selected-tool="image"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-selected-tool="video"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-selected-tool="kling"] .panel.ai-panel.ai-properties {
-  min-height: var(--ai-shell-column-max-height);
-  max-height: var(--ai-shell-column-max-height);
 }
 
 /* Hide helper/tip copy in AI Studio properties panels (Create/Edit/Video) without removing markup. */

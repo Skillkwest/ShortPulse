@@ -171,6 +171,8 @@
 }
 
 .ai-properties {
+  display: flex;
+  flex-direction: column;
   padding: 16px;
   max-height: var(--ai-shell-column-max-height, 100%);
   overflow-y: auto;
@@ -270,6 +272,9 @@
 /* In AI Studio, step cards are siblings of other cards (ex: Generate) inside `.ai-properties`.
    Match the panel's visual rhythm so inter-card spacing is consistent. */
 .ai-properties .tool-properties {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
   gap: 14px;
 }
 

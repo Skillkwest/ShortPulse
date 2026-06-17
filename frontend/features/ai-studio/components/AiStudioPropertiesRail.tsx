@@ -23,22 +23,11 @@ export const AiStudioPropertiesRail = React.memo(function AiStudioPropertiesRail
 
   recordAiStudioShellSectionRender("properties");
 
-  const inlineStyle =
-    selectedTool === "character"
-      ? {
-          minHeight: 0,
-          height: "auto",
-          maxHeight: "none",
-          overflow: "visible",
-        }
-      : undefined;
-
   return (
     <aside
       key={panelKey}
       ref={leftColumnRef}
       className="panel ai-panel ai-properties ai-properties--motion-flat ai-properties--panel-enter"
-      style={inlineStyle}
     >
       {panelContent}
     </aside>

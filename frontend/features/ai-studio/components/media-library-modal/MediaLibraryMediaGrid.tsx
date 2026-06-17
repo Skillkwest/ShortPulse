@@ -17,6 +17,7 @@ import { canReloadMediaLibraryWorkflow } from "../../logic/mediaLibraryWorkflowR
 import {
   isAudioFile,
   isVideoFile,
+  resolveMediaAudioBackgroundImageUrl,
   resolveMediaMetadataAudioSourceMode,
   resolveMediaMetadataDurationMs,
   resolveMediaMetadataWaveformPeaks,
@@ -319,7 +320,7 @@ export function MediaLibraryMediaGrid({
                   <ReferenceAudioPlayer
                     audioId={file.id}
                     audioUrl={audioUrl}
-                    backgroundImageUrl={file.companion_art_url ?? null}
+                    backgroundImageUrl={resolveMediaAudioBackgroundImageUrl(file)}
                     audioSourceMode={audioSourceMode}
                     durationMs={durationMs}
                     waveformPeaks={resolveMediaMetadataWaveformPeaks(file.metadata)}

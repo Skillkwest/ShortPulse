@@ -1008,6 +1008,7 @@ export function AiStudioPageContent({
     restoreWidth,
     expandToMax,
     dividerProps,
+    leftColumnHidden,
     rightColumnHidden,
   } = useAiStudioShellResize({
     enabled: Boolean(selectedTool),
@@ -1015,6 +1016,7 @@ export function AiStudioPageContent({
     minRightWidthPx,
     defaultLeftRatio,
     minWidthResetKey: projectId,
+    allowLeftCollapse: isCollapsibleRightRailShell,
   });
   const mediaLibraryExpandedWidthRef = React.useRef<number | null>(null);
   const [isMediaLibraryPanelExpanded, setIsMediaLibraryPanelExpanded] = React.useState(false);
@@ -1818,6 +1820,7 @@ export function AiStudioPageContent({
               showDivider={showDivider}
               dividerProps={dividerProps}
               propertiesPanelKey={selectedTool ? propertiesPanelKind : null}
+              leftColumnHidden={leftColumnHidden}
               rightColumnHidden={effectiveRightColumnHidden}
               propertiesPanelContent={propertiesPanelContent}
               rightColumnDropMode={rightColumnDropMode as RightColumnDropMode}

@@ -11,6 +11,7 @@ type AiStudioPropertiesRailProps = {
   leftColumnRef: React.RefObject<HTMLElement>;
   panelKey: string | null;
   panelContent: React.ReactNode;
+  hidden?: boolean;
 };
 
 export const AiStudioPropertiesRail = React.memo(function AiStudioPropertiesRail({
@@ -18,6 +19,7 @@ export const AiStudioPropertiesRail = React.memo(function AiStudioPropertiesRail
   leftColumnRef,
   panelKey,
   panelContent,
+  hidden,
 }: AiStudioPropertiesRailProps) {
   if (!selectedTool || !panelKey) return null;
 
@@ -28,8 +30,9 @@ export const AiStudioPropertiesRail = React.memo(function AiStudioPropertiesRail
       key={panelKey}
       ref={leftColumnRef}
       className="panel ai-panel ai-properties ai-properties--motion-flat ai-properties--panel-enter"
+      data-left-column-hidden={hidden ? "true" : undefined}
     >
-      {panelContent}
+      {hidden ? null : panelContent}
     </aside>
   );
 });

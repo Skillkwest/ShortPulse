@@ -12,8 +12,16 @@ vi.mock("../AiStudioPreviewRail", () => ({
 }));
 
 vi.mock("../AiStudioPropertiesRail", () => ({
-  AiStudioPropertiesRail: ({ panelContent }: { panelContent: React.ReactNode }) => (
-    <aside data-testid="properties-rail">{panelContent}</aside>
+  AiStudioPropertiesRail: ({
+    panelContent,
+    hidden,
+  }: {
+    panelContent: React.ReactNode;
+    hidden?: boolean;
+  }) => (
+    <aside data-testid="properties-rail" data-hidden={hidden ? "true" : "false"}>
+      {hidden ? null : panelContent}
+    </aside>
   ),
 }));
 
@@ -67,6 +75,13 @@ describe("AiStudioShellFrame", () => {
     expect(container.querySelector(".ai-shell-right")).toBeTruthy();
     expect(screen.queryByTestId("reference-rail")).not.toBeInTheDocument();
     expect(screen.queryByTestId("preview-rail")).not.toBeInTheDocument();
+  });
+
+  it("passes primary hidden state to the properties rail", () => {
+    render(<AiStudioShellFrame {...createProps()} leftColumnHidden />);
+
+    expect(screen.getByTestId("properties-rail")).toHaveAttribute("data-hidden", "true");
+    expect(screen.queryByTestId("properties-panel-content")).not.toBeInTheDocument();
   });
 
   it("renders rail content when the right column is visible", () => {

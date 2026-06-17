@@ -3,7 +3,7 @@
  * Supports prompt-only view and media preview with metadata.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Camera, FlowArrow, TrashSimple } from "phosphor-react";
+import { FlowArrow, TrashSimple } from "phosphor-react";
 import {
   asCanonicalStoragePath,
   logAdaptiveDetailFullQualityUsed,
@@ -47,6 +47,7 @@ import { SharedMediaDetailInfoPanel } from "./detail-modal/SharedMediaDetailInfo
 import { SharedMediaDetailModalShell } from "./detail-modal/SharedMediaDetailModalShell";
 import { resolveSharedMediaDetailMediaActionItems } from "./detail-modal/sharedMediaDetailActions";
 import { SharedMediaDetailTopBar } from "./detail-modal/SharedMediaDetailTopBar";
+import { SharedMediaDetailVideoSnapshotControl } from "./detail-modal/SharedMediaDetailVideoSnapshotControl";
 import type {
   SharedMediaDetailActionItem,
   SharedMediaDetailVideoSnapshotErrorHandler,
@@ -225,7 +226,6 @@ function DetailModalContent({
   const [draftPromptsById, setDraftPromptsById] = useState<Record<string, string>>({});
   const [promptOnlySavedOutputId, setPromptOnlySavedOutputId] = useState<string | null>(null);
   const [promptLibrarySavedOutputId, setPromptLibrarySavedOutputId] = useState<string | null>(null);
-  const [isSnapshotCapturing, setIsSnapshotCapturing] = useState(false);
   const [loadedPreviewAspect, setLoadedPreviewAspect] = useState<{
     outputId: string;
     url: string;
@@ -1247,33 +1247,6 @@ function DetailModalContent({
     onSaveReference(outputId);
   }, [isMediaSaveDisabled, onSaveReference, outputId]);
 
-  const handleSnapshotVideoFrame = useCallback(() => {
-    if (!onSnapshotVideoFrame || isSnapshotCapturing) return;
-    const video = videoPreviewRef.current;
-    if (!video) {
-      onSnapshotVideoFrameError?.("Video frame is not ready yet.");
-      return;
-    }
-    setIsSnapshotCapturing(true);
-    void Promise.resolve(onSnapshotVideoFrame(video, displayPromptText || output.id))
-      .catch((error) => {
-        onSnapshotVideoFrameError?.(
-          error instanceof Error && error.message.trim()
-            ? error.message.trim()
-            : "Unable to capture that video frame."
-        );
-      })
-      .finally(() => {
-        setIsSnapshotCapturing(false);
-      });
-  }, [
-    displayPromptText,
-    isSnapshotCapturing,
-    onSnapshotVideoFrame,
-    onSnapshotVideoFrameError,
-    output.id,
-  ]);
-
   const handleReloadWorkflowReference = useCallback(() => {
     if (!onReloadWorkflowReference) return;
     onReloadWorkflowReference(output, { mediaKindHint: workflowReloadMediaKindHint });
@@ -1469,20 +1442,6 @@ function DetailModalContent({
             },
           ]
         : []),
-      ...(detailPreviewKind === "video" && onSnapshotVideoFrame
-        ? [
-            {
-              id: "snapshot-video-frame",
-              label: "",
-              onClick: handleSnapshotVideoFrame,
-              ariaLabel: "Snapshot frame",
-              title: "Snapshot frame",
-              disabled: isSnapshotCapturing,
-              icon: <Camera size={16} weight="bold" aria-hidden />,
-              className: "is-icon-only",
-            },
-          ]
-        : []),
       ...resolveSharedMediaDetailMediaActionItems({
         saveState: isMediaSaveButtonVisible ? mediaSaveState : "hidden",
         isStorageFull: isMediaStorageFull,
@@ -1496,18 +1455,14 @@ function DetailModalContent({
     ],
     [
       canDownloadReferenceMedia,
-      detailPreviewKind,
       displayPreviewUrl,
       handleDownload,
       handleReloadWorkflowReference,
       handleRequestDelete,
       handleSaveMediaReference,
-      handleSnapshotVideoFrame,
       isMediaSaveButtonVisible,
       isMediaStorageFull,
       mediaSaveState,
-      isSnapshotCapturing,
-      onSnapshotVideoFrame,
       shouldShowWorkflowReloadAction,
     ]
   );
@@ -1606,47 +1561,57 @@ function DetailModalContent({
           onStagePointerUp={isImageOutput ? handleImagePointerUp : undefined}
           onStagePointerCancel={isImageOutput ? handleImagePointerUp : undefined}
           stage={
-            <SharedMediaDetailPreviewMedia
-              mediaUrl={displayPreviewUrl}
-              mediaKind={detailPreviewKind}
-              altText={displayPromptText}
-              isLoading={canonicalPreviewResolvingOutputId === outputId}
-              imageClassName="art-hero-image"
-              videoClassName="art-hero-image"
-              audioClassName="art-hero-audio"
-              audioId={detailModalItem.media.id}
-              audioSourceMode={detailModalItem.media.audioSourceMode ?? null}
-              audioMusicMode={detailModalItem.media.musicMode ?? null}
-              audioLyricsText={detailModalItem.media.lyricsText ?? null}
-              audioDurationMs={detailModalItem.media.durationMs ?? null}
-              audioWaveformPeaks={detailModalItem.media.waveformPeaks ?? null}
-              videoPosterUrl={detailVideoPosterUrl}
-              imageStyle={imageStyle}
-              videoStyle={aspectStyle}
-              videoRef={videoPreviewRef}
-              audioRef={audioPreviewRef}
-              videoLoop
-              videoMuted
-              onImageDragStart={(event) => event.preventDefault()}
-              onImageLoad={handleImageLoad}
-              onImageError={handleDetailImageError}
-              onVideoLoadedMetadata={(event) => {
-                handlePreviewAspectLoad(
-                  event.currentTarget.videoWidth,
-                  event.currentTarget.videoHeight
-                );
-              }}
-              onVideoPlay={videoPreviewPlayback.handlePlay}
-              onVideoPause={videoPreviewPlayback.handlePause}
-              onVideoEnded={videoPreviewPlayback.handleEnded}
-              onVideoError={handleDetailVideoError}
-              onVideoVolumeChange={videoPreviewPlayback.handleVolumeChange}
-              onAudioPlay={audioPreviewPlayback.handlePlay}
-              onAudioPause={audioPreviewPlayback.handlePause}
-              onAudioEnded={audioPreviewPlayback.handleEnded}
-              onAudioError={handleDetailAudioError}
-              onAudioVolumeChange={audioPreviewPlayback.handleVolumeChange}
-            />
+            <>
+              <SharedMediaDetailPreviewMedia
+                mediaUrl={displayPreviewUrl}
+                mediaKind={detailPreviewKind}
+                altText={displayPromptText}
+                isLoading={canonicalPreviewResolvingOutputId === outputId}
+                imageClassName="art-hero-image"
+                videoClassName="art-hero-image"
+                audioClassName="art-hero-audio"
+                audioId={detailModalItem.media.id}
+                audioSourceMode={detailModalItem.media.audioSourceMode ?? null}
+                audioMusicMode={detailModalItem.media.musicMode ?? null}
+                audioLyricsText={detailModalItem.media.lyricsText ?? null}
+                audioDurationMs={detailModalItem.media.durationMs ?? null}
+                audioWaveformPeaks={detailModalItem.media.waveformPeaks ?? null}
+                videoPosterUrl={detailVideoPosterUrl}
+                imageStyle={imageStyle}
+                videoStyle={aspectStyle}
+                videoRef={videoPreviewRef}
+                audioRef={audioPreviewRef}
+                videoLoop
+                videoMuted
+                onImageDragStart={(event) => event.preventDefault()}
+                onImageLoad={handleImageLoad}
+                onImageError={handleDetailImageError}
+                onVideoLoadedMetadata={(event) => {
+                  handlePreviewAspectLoad(
+                    event.currentTarget.videoWidth,
+                    event.currentTarget.videoHeight
+                  );
+                }}
+                onVideoPlay={videoPreviewPlayback.handlePlay}
+                onVideoPause={videoPreviewPlayback.handlePause}
+                onVideoEnded={videoPreviewPlayback.handleEnded}
+                onVideoError={handleDetailVideoError}
+                onVideoVolumeChange={videoPreviewPlayback.handleVolumeChange}
+                onAudioPlay={audioPreviewPlayback.handlePlay}
+                onAudioPause={audioPreviewPlayback.handlePause}
+                onAudioEnded={audioPreviewPlayback.handleEnded}
+                onAudioError={handleDetailAudioError}
+                onAudioVolumeChange={audioPreviewPlayback.handleVolumeChange}
+              />
+              {detailPreviewKind === "video" ? (
+                <SharedMediaDetailVideoSnapshotControl
+                  videoRef={videoPreviewRef}
+                  filenameHint={displayPromptText || output.id}
+                  onSnapshotVideoFrame={onSnapshotVideoFrame}
+                  onSnapshotVideoFrameError={onSnapshotVideoFrameError}
+                />
+              ) : null}
+            </>
           }
           sidePanel={
             shouldUseExternalFileLayout ? null : (

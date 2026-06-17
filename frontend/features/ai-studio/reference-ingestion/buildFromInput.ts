@@ -153,24 +153,21 @@ const buildLibraryMediaOutput = ({
   const payloadMode: StudioMode =
     payload.fileType === "audio" ? "audio" : payload.fileType === "video" ? "video" : "image";
   const generationId = payload.generationId?.trim() || payload.sourceRef?.trim() || undefined;
-  const isReloadableGeneratedLibraryMedia =
-    payload.source === "ai_studio" &&
-    workflowReload != null &&
-    workflowReload.outputMode === payloadMode;
+  const isGeneratedLibraryMedia = payload.source === "ai_studio" && workflowReload != null;
   const generatedAspect = resolveAspectFromWorkflowReload(workflowReload);
 
   return {
     id,
-    prompt: isReloadableGeneratedLibraryMedia ? workflowReload.prompt.display : resolvedPromptText,
+    prompt: isGeneratedLibraryMedia ? workflowReload.prompt.display : resolvedPromptText,
     transcriptText: payload.transcriptText?.trim() || null,
-    mode: isReloadableGeneratedLibraryMedia ? workflowReload.outputMode : payloadMode,
-    aspect: isReloadableGeneratedLibraryMedia ? generatedAspect : context.aspect,
-    model: isReloadableGeneratedLibraryMedia ? workflowReload.model.id : displayModelLabel,
+    mode: payloadMode,
+    aspect: isGeneratedLibraryMedia ? generatedAspect : context.aspect,
+    model: isGeneratedLibraryMedia ? workflowReload.model.id : displayModelLabel,
     // Reference Grid ordering is based on when an item enters the grid, not when
     // the backing Media Library row or generation was originally created.
     createdAt: referenceGridCreatedAt,
-    modelId: isReloadableGeneratedLibraryMedia ? workflowReload.model.id : undefined,
-    generationId: isReloadableGeneratedLibraryMedia ? generationId : undefined,
+    modelId: isGeneratedLibraryMedia ? workflowReload.model.id : undefined,
+    generationId: isGeneratedLibraryMedia ? generationId : undefined,
     status: "ready",
     timestamp: payload.source === "ai_studio" ? "Generation" : "Library",
     previewUrl,
@@ -184,7 +181,7 @@ const buildLibraryMediaOutput = ({
     audioSourceMode: payload.fileType === "audio" ? (payload.audioSourceMode ?? null) : null,
     durationMs: payload.durationMs ?? null,
     waveformPeaks: Array.isArray(payload.waveformPeaks) ? payload.waveformPeaks : null,
-    mediaSource: isReloadableGeneratedLibraryMedia ? "generated" : "library",
+    mediaSource: isGeneratedLibraryMedia ? "generated" : "library",
     previewTier:
       payload.fileType === "video"
         ? "preview_loop"
@@ -196,7 +193,7 @@ const buildLibraryMediaOutput = ({
     saveState: payload.id ? "saved" : "idle",
     saveError: null,
     savedMediaIds: payload.id ? [payload.id] : undefined,
-    workflowReload: isReloadableGeneratedLibraryMedia ? workflowReload : undefined,
+    workflowReload: isGeneratedLibraryMedia ? workflowReload : undefined,
   };
 };
 

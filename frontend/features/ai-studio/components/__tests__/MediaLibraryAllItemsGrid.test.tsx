@@ -387,6 +387,31 @@ describe("MediaLibraryAllItemsGrid", () => {
     });
   });
 
+  it("uses metadata companion art fallbacks for audio card backgrounds", () => {
+    const props = baseProps();
+    props.mediaRows = [
+      {
+        id: "audio-1",
+        filename: "voice-note.wav",
+        storage_path: "user-1/generations/audio/voice-note.wav",
+        file_type: "audio/wav",
+        created_at: "2026-04-08T18:00:00.000Z",
+        signedUrl: "https://cdn.example.com/voice-note.wav",
+        metadata: {
+          companionArtUrl: "https://cdn.example.com/voice-note-metadata-cover.png",
+        },
+      },
+    ];
+
+    const { container } = render(<MediaLibraryAllItemsGrid {...props} />);
+    const audioShell = container.querySelector(".reference-card-audio-shell");
+
+    expect(audioShell).not.toBeNull();
+    expect(audioShell).toHaveStyle({
+      backgroundImage: expect.stringContaining("voice-note-metadata-cover.png"),
+    });
+  });
+
   it("routes video posters through the adaptive preview resolver in the mixed feed", () => {
     const props = baseProps();
     render(<MediaLibraryAllItemsGrid {...props} />);

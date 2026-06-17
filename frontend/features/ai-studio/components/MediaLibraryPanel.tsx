@@ -1,7 +1,3 @@
-/**
- * AI Studio Media Library left-panel surface.
- * Provides folder-aware browsing for media + prompts with adaptive preview/signing parity.
- */
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { FolderSimple } from "phosphor-react";
 import { isAdaptiveSurfaceEnabled } from "../../../lib/adaptive-media";
@@ -66,6 +62,7 @@ import { MediaLibraryPanelPreviewModal } from "./media-library-modal/MediaLibrar
 import { MediaLibraryPromptGrid } from "./media-library-modal/MediaLibraryPromptGrid";
 import { useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 import type { StudioOutput, WorkflowReloadMediaKindHint } from "../types";
+import type { LibraryMediaReferencePayload } from "../reference-grid/referenceGridTypes";
 
 type MediaLibraryPanelItemType = "all" | "images" | "videos" | "audio" | "prompts";
 type RootMediaLibraryTab = MediaLibraryPanelItemType;
@@ -83,21 +80,7 @@ type MoveFolderPickerState = {
 };
 
 type MediaLibraryPanelProps = {
-  onSelectMedia: (payload: {
-    id: string;
-    url: string;
-    fileType: "image" | "video" | "audio";
-    filename?: string | null;
-    promptText?: string | null;
-    transcriptText?: string | null;
-    source?: string | null;
-    previewStoragePath?: string | null;
-    fullStoragePath?: string | null;
-    previewUrl?: string | null;
-    previewPosterUrl?: string | null;
-    previewPosterStoragePath?: string | null;
-    fullUrl?: string | null;
-  }) => void;
+  onSelectMedia: (payload: LibraryMediaReferencePayload) => void;
   onSelectPrompt: (payload: { id: string; promptText: string; title?: string | null }) => void;
   projectId?: string | null;
   projectName?: string | null;

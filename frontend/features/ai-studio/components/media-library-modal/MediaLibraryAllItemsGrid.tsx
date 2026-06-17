@@ -1,5 +1,5 @@
 import React, { type MutableRefObject } from "react";
-import { Check, DownloadSimple, FlowArrow, X } from "phosphor-react";
+import { Check, DownloadSimple, FlowArrow, TrashSimple, X } from "phosphor-react";
 import { useMediaMasonryVirtualization } from "../../../media-library/hooks/useMediaMasonryVirtualization";
 import { resolveMediaLibraryAdaptiveCardPreviewUrl } from "../../../media-library/logic/mediaLibraryAdaptivePreview";
 import {
@@ -19,6 +19,7 @@ import {
   createdAtTime,
   isAudioFile,
   isVideoFile,
+  resolveMediaAudioBackgroundImageUrl,
   resolveMediaMetadataAudioSourceMode,
   resolveMediaMetadataDurationMs,
   resolveMediaMetadataWaveformPeaks,
@@ -210,7 +211,7 @@ function MediaLibraryAllItemsCardActions({
             onDeleteMediaFromLibrary?.(file);
           }}
         >
-          <X size={16} weight="bold" aria-hidden />
+          <TrashSimple size={16} weight="bold" aria-hidden />
         </button>
       ) : null}
     </div>
@@ -613,7 +614,7 @@ function MediaLibraryAllItemsAudioCard({
         <ReferenceAudioPlayer
           audioId={file.id}
           audioUrl={audioUrl}
-          backgroundImageUrl={file.companion_art_url ?? null}
+          backgroundImageUrl={resolveMediaAudioBackgroundImageUrl(file)}
           audioSourceMode={audioSourceMode}
           durationMs={durationMs}
           waveformPeaks={resolveMediaMetadataWaveformPeaks(file.metadata)}

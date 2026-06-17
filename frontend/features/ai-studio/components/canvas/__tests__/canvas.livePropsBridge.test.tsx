@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { CanvasPropertiesPanel } from "../CanvasPropertiesPanel";
 import type { CanvasPropertiesPanelProps } from "../canvasWorkspaceContracts";
+import type { StudioOutput } from "../../../types";
 
 const createPanelProps = (
   overrides: Partial<CanvasPropertiesPanelProps> = {}
@@ -140,6 +141,55 @@ describe("CanvasPropertiesPanel live props bridge", () => {
 
     expect(interactionActiveChange).toHaveBeenNthCalledWith(1, true);
     expect(interactionActiveChange).toHaveBeenNthCalledWith(2, false);
+  });
+
+  it("preserves wrapper media actions that are added around the live store", () => {
+    const viewportRef = React.createRef<HTMLDivElement>();
+    const output: StudioOutput = {
+      id: "out-image-1",
+      prompt: "Canvas media",
+      mode: "image",
+      aspect: "1:1",
+      model: "Seedream",
+      status: "ready",
+      timestamp: "2026-06-16T00:00:00.000Z",
+      mediaSource: "upload",
+      previewUrl: "https://example.com/image.png",
+    };
+    const initialSnapshot = createPanelProps({
+      viewportRef,
+      items: [
+        {
+          id: "image-1",
+          kind: "image",
+          x: 0,
+          y: 0,
+          z: 1,
+          width: 120,
+          height: 72,
+          selected: true,
+          outputId: "out-image-1",
+          mediaId: "media-image-1",
+          src: "https://example.com/image.png",
+          alt: "Canvas media",
+        },
+      ],
+    });
+    const liveProps = createLivePropsHarness(initialSnapshot);
+
+    render(
+      <CanvasPropertiesPanel
+        {...liveProps.props}
+        mediaActions={{
+          getOutputForCanvasItem: () => output,
+          onDownload: vi.fn(),
+          onDeleteOutput: vi.fn(),
+        }}
+      />
+    );
+
+    expect(screen.getByLabelText("Download reference")).toBeInTheDocument();
+    expect(screen.getByLabelText("Remove reference from grid")).toBeInTheDocument();
   });
 
   it("raises wrapper interaction callbacks for item-origin gestures", () => {

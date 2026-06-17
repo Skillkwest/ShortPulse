@@ -8,6 +8,7 @@ import {
   BUCKET,
   isAudioFile,
   isVideoFile,
+  resolveMediaAudioBackgroundImageUrl,
   resolveMediaMetadataAudioSourceMode,
   resolveMediaMetadataDurationMs,
   resolveMediaMetadataPromptText,
@@ -83,6 +84,7 @@ export const useMediaLibraryPanelItemInteractions = ({
       const transcriptText = resolveMediaMetadataTranscriptText(file.metadata);
       const workflowReload = resolveMediaLibraryWorkflowReloadConfig(file.metadata);
       const sourceRef = file.source_ref?.trim() || null;
+      const companionArtUrl = resolveMediaAudioBackgroundImageUrl(file);
       writeMediaLibraryDragPayload(event.dataTransfer, {
         kind: "libraryMedia",
         source: "mediaLibrary",
@@ -105,7 +107,7 @@ export const useMediaLibraryPanelItemInteractions = ({
           previewPosterUrl: posterPreviewUrl,
           previewPosterStoragePath: isVideo ? (file.poster_variant_path ?? null) : null,
           fullUrl: signedUrl || null,
-          companionArtUrl: isAudioFile(file.file_type) ? (file.companion_art_url ?? null) : null,
+          companionArtUrl,
           companionArtStoragePath: isAudioFile(file.file_type)
             ? (file.companion_art_storage_path ?? null)
             : null,
@@ -133,7 +135,7 @@ export const useMediaLibraryPanelItemInteractions = ({
       attachMediaLibraryDragGhost(event, {
         label: file.filename || "Media",
         detail: promptText,
-        previewUrl: isAudioFile(file.file_type) ? (file.companion_art_url ?? null) : previewUrl,
+        previewUrl: isAudioFile(file.file_type) ? companionArtUrl : previewUrl,
         previewKind: isVideoFile(file.file_type)
           ? "video"
           : isAudioFile(file.file_type)

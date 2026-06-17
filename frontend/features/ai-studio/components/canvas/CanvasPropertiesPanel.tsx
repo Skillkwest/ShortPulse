@@ -74,11 +74,19 @@ const useResolvedCanvasPropertiesPanelProps = (
     livePropsStore?.getSnapshot ?? (() => props)
   );
   if (!livePropsStore) return props;
-  if (props.onInteractionActiveChange === liveProps.onInteractionActiveChange) return liveProps;
+  const resolvedInteractionActiveChange =
+    props.onInteractionActiveChange ?? liveProps.onInteractionActiveChange;
+  const resolvedMediaActions = props.mediaActions ?? liveProps.mediaActions;
+  if (
+    resolvedInteractionActiveChange === liveProps.onInteractionActiveChange &&
+    resolvedMediaActions === liveProps.mediaActions
+  ) {
+    return liveProps;
+  }
   return {
     ...liveProps,
-    onInteractionActiveChange:
-      props.onInteractionActiveChange ?? liveProps.onInteractionActiveChange,
+    onInteractionActiveChange: resolvedInteractionActiveChange,
+    mediaActions: resolvedMediaActions,
   };
 };
 

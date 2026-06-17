@@ -2,6 +2,7 @@ import {
   resolveMediaPreviewSignBudget,
   type MediaSignBudget,
 } from "../../../lib/mediaPreviewRuntimePolicy";
+import { isSupabaseRenderImageUrl } from "../../../lib/mediaPreviewTrustPolicy";
 import { normalizeAudioSourceMode } from "./audioSourceMode";
 import type { StudioAudioSourceMode } from "../types";
 import {
@@ -138,6 +139,48 @@ export const isVideoFile = (fileType?: string | null) =>
 
 export const isAudioFile = (fileType?: string | null) =>
   (fileType ?? "").toLowerCase().startsWith("audio");
+
+const asMetadataRecord = (value: unknown): Record<string, unknown> | null =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+
+const normalizeDisplayImageUrlCandidate = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed || isSupabaseRenderImageUrl(trimmed)) return null;
+  return trimmed;
+};
+
+export const resolveMediaAudioBackgroundImageUrl = (file: MediaFileRow): string | null => {
+  if (!isAudioFile(file.file_type)) return null;
+  const metadata = file.metadata ?? null;
+  const workflowReload = asMetadataRecord(metadata?.workflow_reload);
+  const workflowPayload = asMetadataRecord(workflowReload?.payload);
+
+  const candidates = [
+    file.companion_art_url,
+    metadata?.companionArtUrl,
+    metadata?.companion_art_url,
+    metadata?.companionArtUrlFallback,
+    metadata?.companion_art_url_fallback,
+    metadata?.audioCompanionArtUrl,
+    metadata?.audio_companion_art_url,
+    metadata?.coverArtUrl,
+    metadata?.cover_art_url,
+    workflowPayload?.companionArtUrl,
+    workflowPayload?.companion_art_url,
+    workflowPayload?.coverArtUrl,
+    workflowPayload?.cover_art_url,
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizeDisplayImageUrlCandidate(candidate);
+    if (normalized) return normalized;
+  }
+
+  return null;
+};
 
 export const isImageFile = (fileType?: string | null) =>
   (fileType ?? "").toLowerCase().startsWith("image");
@@ -367,6 +410,10 @@ export const resolveMediaMetadataDurationMs = (
       { value: metadata.duration_ms, unit: "ms" },
       { value: metadata.durationSeconds, unit: "seconds" },
       { value: metadata.duration_seconds, unit: "seconds" },
+      { value: metadata.resolvedDurationMs, unit: "ms" },
+      { value: metadata.resolved_duration_ms, unit: "ms" },
+      { value: metadata.resolvedDurationSeconds, unit: "seconds" },
+      { value: metadata.resolved_duration_seconds, unit: "seconds" },
     ],
   ];
 
@@ -376,6 +423,8 @@ export const resolveMediaMetadataDurationMs = (
       { value: metadata.audio_duration_ms, unit: "ms" },
       { value: metadata.audioDurationSeconds, unit: "seconds" },
       { value: metadata.audio_duration_seconds, unit: "seconds" },
+      { value: metadata.source_duration_ms, unit: "ms" },
+      { value: metadata.source_duration_seconds, unit: "seconds" },
     ]);
   }
 
@@ -395,7 +444,7 @@ export const resolveMediaMetadataDurationMs = (
       const durationMs = normalizeMetadataDurationCandidateMs(candidate.value, {
         unit: candidate.unit,
       });
-      if (durationMs != null) return durationMs;
+      if (durationMs != null && durationMs > 0) return durationMs;
     }
   }
 

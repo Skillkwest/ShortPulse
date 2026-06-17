@@ -636,6 +636,42 @@ describe("useAiStudioWorkflowReloadController", () => {
     expect(params.setEditReferenceText).not.toHaveBeenCalled();
   });
 
+  it("uses video model identity to reload image-shaped metadata into the video panel", () => {
+    const workflowReload = makeImageReload();
+    const output: StudioOutput = {
+      ...makeOutput(workflowReload),
+      mode: "image",
+      modelId: "kie-ai/kling-3.0",
+      previewUrl: "https://example.com/signed-generated-video",
+    };
+    const params = makeParams(output);
+    const { result } = renderHook(() => useAiStudioWorkflowReloadController(params));
+
+    act(() => {
+      result.current.reloadWorkflowFromStudioOutput(output);
+    });
+
+    expect(params.setSelectedTool).toHaveBeenCalledWith("video");
+    expect(params.setShowCreateTools).toHaveBeenCalledWith(false);
+    expect(params.setModel).toHaveBeenCalledWith("kie-ai/kling-3.0");
+    expect(params.setSelectedTool.mock.invocationCallOrder[0]).toBeLessThan(
+      params.setModel.mock.invocationCallOrder[0]
+    );
+    expect(params.setVideoReferenceText).toHaveBeenCalledWith("A luminous harbor");
+    expect(params.setVideoReferenceMode).toHaveBeenCalledWith("keyframes");
+    expect(params.setVideoDurationSeconds).not.toHaveBeenCalled();
+    expect(params.setReferenceSelectionState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selectedTool: "video",
+        referenceImageUrl: "https://example.com/ref-a.png",
+        extraImageUrls: ["https://example.com/ref-b.png", null, null],
+        useReferenceImageIndicator: true,
+      })
+    );
+    expect(params.setStandardCreatePrompt).not.toHaveBeenCalled();
+    expect(params.setEditReferenceText).not.toHaveBeenCalled();
+  });
+
   it("hydrates video workflow reference sidecar media and internal refs", () => {
     const firstFrameRef = {
       version: 1 as const,

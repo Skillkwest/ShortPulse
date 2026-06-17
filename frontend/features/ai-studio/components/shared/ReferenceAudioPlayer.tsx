@@ -617,7 +617,7 @@ export function ReferenceAudioPlayer({
               <div className="reference-card-audio-time-row reference-card-audio-time-row--duration-only">
                 <MediaDurationBadge
                   className="reference-card-audio-duration-badge"
-                  durationMs={resolvedAudioDurationMs ?? 0}
+                  durationMs={resolvedAudioDurationMs}
                   mediaKind="audio"
                   audioSourceMode={audioSourceMode}
                 />

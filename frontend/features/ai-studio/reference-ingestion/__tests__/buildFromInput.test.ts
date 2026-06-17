@@ -307,6 +307,47 @@ describe("buildStudioOutputsFromReferenceInput", () => {
     );
   });
 
+  it("preserves workflow metadata when an AI Studio video reference has legacy image-shaped reload metadata", async () => {
+    const context: ReferenceIngestionContext = {
+      ...createContext(),
+      nowIso: () => "2026-05-25T12:34:56.000Z",
+    };
+    const result = await buildStudioOutputsFromReferenceInput(
+      {
+        kind: "libraryMedia",
+        source: "mediaLibrary",
+        payload: {
+          id: "media-video-legacy-reload-1",
+          url: "https://example.com/signed-generated-video",
+          fileType: "video",
+          filename: "Generated video.mp4",
+          source: "ai_studio",
+          sourceRef: "generation-video-1",
+          generationId: "generation-video-1",
+          workflowReload,
+          previewStoragePath: "user/video/preview.mp4",
+          previewPosterStoragePath: "user/video/poster.jpg",
+          fullStoragePath: "user/video/full.mp4",
+        },
+      },
+      context
+    );
+
+    expect(result.outputs).toHaveLength(1);
+    const [output] = result.outputs;
+    expect(output).toEqual(
+      expect.objectContaining({
+        id: "library-id-1",
+        mode: "video",
+        mediaSource: "generated",
+        generationId: "generation-video-1",
+        workflowReload,
+        previewTier: "preview_loop",
+        previewPosterStoragePath: "user/video/poster.jpg",
+      })
+    );
+  });
+
   it("builds library media output from durable authority without a current signed URL", async () => {
     const context: ReferenceIngestionContext = {
       ...createContext(),

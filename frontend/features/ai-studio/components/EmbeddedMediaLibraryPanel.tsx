@@ -20,6 +20,7 @@ import {
   isImageFile,
   isNextImageOptimizerUrl,
   isVideoFile,
+  resolveMediaAudioBackgroundImageUrl,
   resolveMediaMetadataPromptText,
   resolveMediaMetadataTranscriptText,
   resolveNextImageOptimizerSourceUrl,
@@ -468,6 +469,7 @@ export function EmbeddedMediaLibraryPanel({
       const transcriptText = resolveMediaMetadataTranscriptText(file.metadata);
       const workflowReload = resolveMediaLibraryWorkflowReloadConfig(file.metadata);
       const sourceRef = file.source_ref?.trim() || null;
+      const companionArtUrl = resolveMediaAudioBackgroundImageUrl(file);
       writeMediaLibraryDragPayload(event.dataTransfer, {
         kind: "libraryMedia",
         source: "mediaLibrary",
@@ -492,7 +494,7 @@ export function EmbeddedMediaLibraryPanel({
           fullStoragePath: file.storage_path,
           previewUrl: signedUrl || null,
           fullUrl: signedUrl || null,
-          companionArtUrl: isAudioFile(file.file_type) ? (file.companion_art_url ?? null) : null,
+          companionArtUrl,
           companionArtStoragePath: isAudioFile(file.file_type)
             ? (file.companion_art_storage_path ?? null)
             : null,
@@ -515,9 +517,7 @@ export function EmbeddedMediaLibraryPanel({
       attachMediaLibraryDragGhost(event, {
         label: file.filename || "Media",
         detail: promptText,
-        previewUrl: isAudioFile(file.file_type)
-          ? (file.companion_art_url ?? null)
-          : signedUrl || null,
+        previewUrl: isAudioFile(file.file_type) ? companionArtUrl : signedUrl || null,
         previewKind: isVideoFile(file.file_type)
           ? "video"
           : isAudioFile(file.file_type)

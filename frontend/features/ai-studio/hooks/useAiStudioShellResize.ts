@@ -32,6 +32,7 @@ type UseAiStudioShellResizeArgs = {
   minRightWidthPx?: number;
   defaultLeftRatio?: number;
   minWidthResetKey?: string | null;
+  allowLeftCollapse?: boolean;
 };
 
 type DragSession = {
@@ -46,6 +47,8 @@ const AI_SHELL_RESIZE_FAST_STEP_PX = 48;
 const AI_SHELL_RESIZE_BODY_CLASS = "ai-shell-resizing";
 const AI_SHELL_RIGHT_COLUMN_FADE_START_PX = 310;
 const AI_SHELL_RIGHT_COLUMN_FADE_END_PX = 290;
+const AI_SHELL_LEFT_COLUMN_FADE_START_RATIO = 0.38;
+const AI_SHELL_LEFT_COLUMN_FADE_END_RATIO = 0.24;
 
 /**
  * Returns state and handlers for a resizable AI Studio shell divider.
@@ -59,6 +62,7 @@ export const useAiStudioShellResize = ({
   minRightWidthPx,
   defaultLeftRatio,
   minWidthResetKey = null,
+  allowLeftCollapse = false,
 }: UseAiStudioShellResizeArgs) => {
   const shellRef = useRef<HTMLElement | null>(null);
   const leftColumnRef = useRef<HTMLElement | null>(null);
@@ -154,12 +158,14 @@ export const useAiStudioShellResize = ({
           minLeftWidthPx,
           maxLeftWidthPx,
           minRightWidthPx,
+          allowLeftCollapse,
         });
         return prev === next ? prev : next;
       });
     };
     syncWidthToContainer();
   }, [
+    allowLeftCollapse,
     defaultLeftRatio,
     enabled,
     maxLeftWidthPx,
@@ -187,10 +193,37 @@ export const useAiStudioShellResize = ({
         minLeftWidthPx,
         maxLeftWidthPx,
         minRightWidthPx,
+        allowLeftCollapse,
       });
       return prev === next ? prev : next;
     });
-  }, [defaultLeftRatio, maxLeftWidthPx, minLeftWidthPx, minRightWidthPx, resolveContainerWidth]);
+  }, [
+    allowLeftCollapse,
+    defaultLeftRatio,
+    maxLeftWidthPx,
+    minLeftWidthPx,
+    minRightWidthPx,
+    resolveContainerWidth,
+  ]);
+
+  const getLeftColumnFadeThresholds = useCallback(
+    (containerWidth: number) => {
+      const visibleBounds = getAiShellLeftWidthBounds(containerWidth, {
+        minLeftWidthPx,
+        maxLeftWidthPx,
+        minRightWidthPx,
+      });
+      const visibleMinWidth = Math.max(0, visibleBounds.min);
+      return {
+        fadeStartPx: Math.max(
+          160,
+          Math.round(visibleMinWidth * AI_SHELL_LEFT_COLUMN_FADE_START_RATIO)
+        ),
+        fadeEndPx: Math.max(96, Math.round(visibleMinWidth * AI_SHELL_LEFT_COLUMN_FADE_END_RATIO)),
+      };
+    },
+    [maxLeftWidthPx, minLeftWidthPx, minRightWidthPx]
+  );
 
   useEffect(() => {
     if (!enabled || !isResizableViewport) return stopResizing;
@@ -273,11 +306,11 @@ export const useAiStudioShellResize = ({
       const nextWidth = clampAiShellLeftWidth(
         session.startLeftWidth + deltaX,
         session.containerWidth,
-        { minLeftWidthPx, maxLeftWidthPx, minRightWidthPx }
+        { minLeftWidthPx, maxLeftWidthPx, minRightWidthPx, allowLeftCollapse }
       );
       setLeftWidthPx((prev) => (prev === nextWidth ? prev : nextWidth));
     },
-    [maxLeftWidthPx, minLeftWidthPx, minRightWidthPx]
+    [allowLeftCollapse, maxLeftWidthPx, minLeftWidthPx, minRightWidthPx]
   );
 
   const beginPointerResize = useCallback(
@@ -299,11 +332,13 @@ export const useAiStudioShellResize = ({
         minLeftWidthPx,
         maxLeftWidthPx,
         minRightWidthPx,
+        allowLeftCollapse,
       });
       const clampedWidthWithMin = clampAiShellLeftWidth(clampedStartWidth, containerWidth, {
         minLeftWidthPx,
         maxLeftWidthPx,
         minRightWidthPx,
+        allowLeftCollapse,
       });
       setLeftWidthPx((prev) => (prev === clampedWidthWithMin ? prev : clampedWidthWithMin));
       setContainerWidthPx(Math.round(containerWidth));
@@ -321,6 +356,18 @@ export const useAiStudioShellResize = ({
       const handlePointerStop = (nativeEvent: PointerEvent) => {
         const session = dragSessionRef.current;
         if (!session || session.pointerId !== nativeEvent.pointerId) return;
+        if (allowLeftCollapse) {
+          const deltaX = nativeEvent.clientX - session.startClientX;
+          const releaseWidth = clampAiShellLeftWidth(
+            session.startLeftWidth + deltaX,
+            session.containerWidth,
+            { minLeftWidthPx, maxLeftWidthPx, minRightWidthPx, allowLeftCollapse }
+          );
+          const { fadeEndPx } = getLeftColumnFadeThresholds(session.containerWidth);
+          if (releaseWidth <= fadeEndPx) {
+            setLeftWidthPx(0);
+          }
+        }
         stopResizing();
       };
 
@@ -344,6 +391,8 @@ export const useAiStudioShellResize = ({
       minLeftWidthPx,
       minRightWidthPx,
       defaultLeftRatio,
+      allowLeftCollapse,
+      getLeftColumnFadeThresholds,
       resolveContainerWidth,
       stopResizing,
     ]
@@ -359,6 +408,7 @@ export const useAiStudioShellResize = ({
         minLeftWidthPx,
         maxLeftWidthPx,
         minRightWidthPx,
+        allowLeftCollapse,
       });
       const activeLeftWidth =
         leftWidthPx ??
@@ -386,16 +436,31 @@ export const useAiStudioShellResize = ({
 
       event.preventDefault();
       const direction = event.key === "ArrowLeft" ? -1 : 1;
+      if (allowLeftCollapse && activeLeftWidth <= 0 && direction > 0) {
+        const visibleBounds = getAiShellLeftWidthBounds(containerWidth, {
+          minLeftWidthPx,
+          maxLeftWidthPx,
+          minRightWidthPx,
+        });
+        setLeftWidthPx((prev) => (prev === visibleBounds.min ? prev : visibleBounds.min));
+        setContainerWidthPx(Math.round(containerWidth));
+        return;
+      }
       const nextWidth = clampAiShellLeftWidth(activeLeftWidth + direction * step, containerWidth, {
         minLeftWidthPx,
         maxLeftWidthPx,
         minRightWidthPx,
+        allowLeftCollapse,
       });
-      setLeftWidthPx((prev) => (prev === nextWidth ? prev : nextWidth));
+      const { fadeEndPx } = getLeftColumnFadeThresholds(containerWidth);
+      const resolvedNextWidth = allowLeftCollapse && nextWidth <= fadeEndPx ? 0 : nextWidth;
+      setLeftWidthPx((prev) => (prev === resolvedNextWidth ? prev : resolvedNextWidth));
       setContainerWidthPx(Math.round(containerWidth));
     },
     [
+      allowLeftCollapse,
       enabled,
+      getLeftColumnFadeThresholds,
       isResizableViewport,
       leftWidthPx,
       maxLeftWidthPx,
@@ -490,6 +555,7 @@ export const useAiStudioShellResize = ({
         minLeftWidthPx,
         maxLeftWidthPx,
         minRightWidthPx,
+        allowLeftCollapse,
       });
       setLeftWidthPx((prev) => (prev === nextWidth ? prev : nextWidth));
       setContainerWidthPx(Math.round(containerWidth));
@@ -501,6 +567,7 @@ export const useAiStudioShellResize = ({
       maxLeftWidthPx,
       minLeftWidthPx,
       minRightWidthPx,
+      allowLeftCollapse,
       resolveContainerWidth,
     ]
   );
@@ -543,6 +610,7 @@ export const useAiStudioShellResize = ({
     minLeftWidthPx,
     maxLeftWidthPx,
     minRightWidthPx: layoutMinRightWidthPx,
+    allowLeftCollapse,
   });
   const ariaNow = clampAiShellLeftWidth(
     leftWidthPx ??
@@ -553,13 +621,26 @@ export const useAiStudioShellResize = ({
         preferredRatio: defaultLeftRatio,
       }),
     Math.max(containerWidthPx, 1),
-    { minLeftWidthPx, maxLeftWidthPx, minRightWidthPx: layoutMinRightWidthPx }
+    { minLeftWidthPx, maxLeftWidthPx, minRightWidthPx: layoutMinRightWidthPx, allowLeftCollapse }
   );
   const resolvedLeftWidth = clampAiShellLeftWidth(ariaNow, Math.max(containerWidthPx, 1), {
     minLeftWidthPx,
     maxLeftWidthPx,
     minRightWidthPx: layoutMinRightWidthPx,
+    allowLeftCollapse,
   });
+  const { fadeStartPx: leftFadeStartPx, fadeEndPx: leftFadeEndPx } = getLeftColumnFadeThresholds(
+    Math.max(containerWidthPx, 1)
+  );
+  const leftColumnVisibility =
+    !allowLeftCollapse || !isSplitLayout
+      ? 1
+      : resolvedLeftWidth <= leftFadeEndPx
+        ? 0
+        : resolvedLeftWidth >= leftFadeStartPx
+          ? 1
+          : (resolvedLeftWidth - leftFadeEndPx) / (leftFadeStartPx - leftFadeEndPx);
+  const leftColumnHidden = leftColumnVisibility <= 0.01;
   const rightColumnWidthPx = Math.max(
     0,
     Math.round(Math.max(containerWidthPx, 0) - resolvedLeftWidth - AI_SHELL_DIVIDER_TRACK_PX)
@@ -581,9 +662,16 @@ export const useAiStudioShellResize = ({
     return {
       "--ai-shell-left-width": `${leftWidthPx}px`,
       "--ai-shell-right-min-width": `${Math.max(0, layoutMinRightWidthPx ?? AI_SHELL_RIGHT_MIN_PX)}px`,
+      "--ai-shell-left-visibility": `${leftColumnVisibility}`,
       "--ai-shell-right-visibility": `${rightColumnVisibility}`,
     } as CSSProperties;
-  }, [layoutMinRightWidthPx, leftWidthPx, rightColumnVisibility, showDivider]);
+  }, [
+    layoutMinRightWidthPx,
+    leftColumnVisibility,
+    leftWidthPx,
+    rightColumnVisibility,
+    showDivider,
+  ]);
 
   const dividerOrientation = "vertical" as const;
 
@@ -599,6 +687,7 @@ export const useAiStudioShellResize = ({
     resetToDefaultWidth,
     restoreWidth,
     expandToMax,
+    leftColumnHidden,
     rightColumnHidden,
     dividerProps: {
       role: "separator",

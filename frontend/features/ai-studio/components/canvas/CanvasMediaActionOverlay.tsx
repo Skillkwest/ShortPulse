@@ -9,7 +9,7 @@ import {
   DownloadSimple,
   FloppyDisk,
   FlowArrow,
-  X,
+  TrashSimple,
 } from "phosphor-react";
 import { canRerollOutput } from "../../logic/generationReplay";
 import {
@@ -163,7 +163,7 @@ export function CanvasMediaActionOverlay({
                 actions.onDeleteOutput?.(output.id);
               }}
             >
-              <X size={16} weight="bold" aria-hidden />
+              <TrashSimple size={16} weight="bold" aria-hidden />
             </button>
           ) : null}
         </div>

@@ -28,6 +28,8 @@ export type MediaLibraryDetailSelectionPayload = {
   previewPosterUrl?: string | null;
   previewPosterStoragePath?: string | null;
   fullUrl?: string | null;
+  companionArtUrl?: string | null;
+  companionArtStoragePath?: string | null;
   audioSourceMode?: StudioAudioSourceMode | null;
   musicMode?: WorkflowReloadMusicMode | null;
   durationMs?: number | null;
@@ -67,6 +69,8 @@ type MediaLibraryDetailFields = {
   previewPosterUrl?: string | null;
   previewPosterStoragePath?: string | null;
   fullUrl?: string | null;
+  companionArtUrl?: string | null;
+  companionArtStoragePath?: string | null;
   audioSourceMode?: StudioAudioSourceMode | null;
   musicMode?: WorkflowReloadMusicMode | null;
   durationMs?: number | null;

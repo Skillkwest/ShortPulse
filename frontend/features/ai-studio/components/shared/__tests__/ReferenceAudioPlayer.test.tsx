@@ -56,6 +56,20 @@ describe("ReferenceAudioPlayer", () => {
     expect(document.querySelector("audio")?.getAttribute("preload")).toBe("none");
   });
 
+  it("does not render a zero duration badge while duration is unknown", () => {
+    render(
+      <ReferenceAudioPlayer
+        audioId="audio-unknown-duration"
+        audioUrl="https://signed.test/unknown-duration.mp3"
+        playLabel="Play audio"
+        pauseLabel="Pause audio"
+      />
+    );
+
+    expect(screen.queryByText("0:00")).toBeNull();
+    expect(document.querySelector("audio")?.getAttribute("preload")).toBe("metadata");
+  });
+
   it("resolves a fresh signed URL before eager waveform decode", async () => {
     const resolveAudioUrl = vi.fn(async () => "https://signed.test/fresh-audio.mp3");
 

@@ -336,7 +336,7 @@ function SharedMediaDetailAudioPreview({
         <div className="detail-modal-audio-duration-row">
           <MediaDurationBadge
             className="detail-modal-audio-duration-badge"
-            durationMs={resolvedDurationMs ?? 0}
+            durationMs={resolvedDurationMs}
             mediaKind="audio"
             audioSourceMode={audioSourceMode}
           />

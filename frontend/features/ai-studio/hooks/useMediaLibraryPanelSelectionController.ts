@@ -5,6 +5,7 @@ import type { SharedMediaDetailSelectionTarget } from "../components/detail-moda
 import {
   isAudioFile,
   isVideoFile,
+  resolveMediaAudioBackgroundImageUrl,
   resolveMediaMetadataAudioSourceMode,
   resolveMediaMetadataDurationMs,
   resolveMediaMetadataMusicMode,
@@ -100,6 +101,10 @@ export const useMediaLibraryPanelSelectionController = ({
         (fullStoragePath && fullStoragePath !== previewStoragePath
           ? await signStoragePath(fullStoragePath, { forceRefresh: true })
           : null) ?? nextUrl;
+      const companionArtUrl = resolveMediaAudioBackgroundImageUrl(file);
+      const companionArtStoragePath = isAudioFile(file.file_type)
+        ? (file.companion_art_storage_path ?? null)
+        : null;
       onSelectMedia(
         createMediaLibraryDetailSelectionPayload(file.id, {
           url: nextUrl,
@@ -116,6 +121,8 @@ export const useMediaLibraryPanelSelectionController = ({
           previewUrl,
           previewPosterUrl,
           fullUrl,
+          companionArtUrl,
+          companionArtStoragePath,
           audioSourceMode: isAudioFile(file.file_type)
             ? resolveMediaMetadataAudioSourceMode(file.metadata)
             : null,
@@ -189,6 +196,10 @@ export const useMediaLibraryPanelSelectionController = ({
       const previewPosterStoragePath = isVideo
         ? (file.poster_variant_path ?? file.thumb_variant_path ?? null)
         : null;
+      const companionArtUrl = resolveMediaAudioBackgroundImageUrl(file);
+      const companionArtStoragePath = isAudioFile(file.file_type)
+        ? (file.companion_art_storage_path ?? null)
+        : null;
       setDetailModalItem(
         createMediaLibraryDetailModalItem({
           file,
@@ -208,6 +219,8 @@ export const useMediaLibraryPanelSelectionController = ({
             previewUrl: immediatePreviewUrl,
             previewPosterUrl: null,
             fullUrl: null,
+            companionArtUrl,
+            companionArtStoragePath,
             audioSourceMode: isAudioFile(file.file_type)
               ? resolveMediaMetadataAudioSourceMode(file.metadata)
               : null,

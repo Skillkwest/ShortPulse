@@ -1545,6 +1545,14 @@ body.ai-shell-resizing * {
   max-height: var(--ai-shell-column-max-height);
   container-name: ai-properties;
   container-type: inline-size;
+  opacity: var(--ai-shell-left-visibility, 1);
+  transition: opacity 40ms linear;
+}
+
+.ai-studio-page[data-selected-tool]:not([data-selected-tool="canvas"])
+  .panel.ai-panel.ai-properties[data-left-column-hidden="true"] {
+  pointer-events: none;
+  opacity: 0;
 }
 
 .ai-studio-page[data-selected-tool="character"] .panel.ai-panel.ai-properties,

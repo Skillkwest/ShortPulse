@@ -24,6 +24,7 @@ const useAiStudioShellResizeMock = vi.hoisted(() =>
     restoreWidth: vi.fn(),
     expandToMax: vi.fn(),
     dividerProps: {},
+    leftColumnHidden: false,
     rightColumnHidden: false,
   }))
 );
@@ -462,6 +463,7 @@ describe("AiStudioPageContent header project name", () => {
       expect(useAiStudioShellResizeMock).toHaveBeenLastCalledWith(
         expect.objectContaining({
           minRightWidthPx: AI_SHELL_RIGHT_COLLAPSED_MIN_PX,
+          allowLeftCollapse: true,
         })
       );
     }
@@ -482,6 +484,7 @@ describe("AiStudioPageContent header project name", () => {
       expect(useAiStudioShellResizeMock).toHaveBeenLastCalledWith(
         expect.objectContaining({
           minRightWidthPx: undefined,
+          allowLeftCollapse: false,
         })
       );
     }

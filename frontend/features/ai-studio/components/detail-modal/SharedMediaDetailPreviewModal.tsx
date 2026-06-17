@@ -1,5 +1,4 @@
 import React from "react";
-import { Camera } from "phosphor-react";
 import { isSupabaseRenderImageUrl } from "../../../../lib/mediaPreviewTrustPolicy";
 import type {
   SharedMediaDetailActionItem,
@@ -13,6 +12,7 @@ import { SharedMediaDetailInfoPanel } from "./SharedMediaDetailInfoPanel";
 import { SharedMediaDetailModalShell } from "./SharedMediaDetailModalShell";
 import { SharedMediaDetailPreviewMedia } from "./SharedMediaDetailPreviewMedia";
 import { SharedMediaDetailTopBar } from "./SharedMediaDetailTopBar";
+import { SharedMediaDetailVideoSnapshotControl } from "./SharedMediaDetailVideoSnapshotControl";
 import {
   resolveSharedMediaDetailBladePlaceholder,
   resolveSharedMediaDetailBladeContent,
@@ -20,70 +20,6 @@ import {
   resolveSharedMediaDetailTitle,
 } from "./sharedMediaDetailPresentation";
 import { useExclusiveSoundMediaElement } from "../shared/exclusiveSoundPlayback";
-
-type SharedMediaDetailVideoSnapshotActionProps = {
-  item: SharedMediaDetailItemBase;
-  title: string;
-  videoRef: React.RefObject<HTMLVideoElement>;
-  onSnapshotVideoFrame?: SharedMediaDetailVideoSnapshotHandler;
-  onSnapshotVideoFrameError?: SharedMediaDetailVideoSnapshotErrorHandler;
-};
-
-function SharedMediaDetailVideoSnapshotAction({
-  item,
-  title,
-  videoRef,
-  onSnapshotVideoFrame,
-  onSnapshotVideoFrameError,
-}: SharedMediaDetailVideoSnapshotActionProps) {
-  const [isSnapshotCapturing, setIsSnapshotCapturing] = React.useState(false);
-  const handleSnapshotVideoFrame = React.useCallback(() => {
-    if (!onSnapshotVideoFrame || isSnapshotCapturing) return;
-    const video = videoRef.current;
-    if (!video) {
-      onSnapshotVideoFrameError?.("Video frame is not ready yet.");
-      return;
-    }
-    setIsSnapshotCapturing(true);
-    void Promise.resolve(onSnapshotVideoFrame(video, item.media.filename ?? title))
-      .catch((error) => {
-        onSnapshotVideoFrameError?.(
-          error instanceof Error && error.message.trim()
-            ? error.message.trim()
-            : "Unable to capture that video frame."
-        );
-      })
-      .finally(() => {
-        setIsSnapshotCapturing(false);
-      });
-  }, [
-    isSnapshotCapturing,
-    item.media.filename,
-    onSnapshotVideoFrame,
-    onSnapshotVideoFrameError,
-    title,
-    videoRef,
-  ]);
-
-  if (item.media.kind !== "video" || !onSnapshotVideoFrame) return null;
-
-  return (
-    <SharedMediaDetailActionBar
-      items={[
-        {
-          id: "snapshot-video-frame",
-          label: "",
-          onClick: handleSnapshotVideoFrame,
-          ariaLabel: "Snapshot frame",
-          title: "Snapshot frame",
-          disabled: isSnapshotCapturing,
-          icon: <Camera size={16} weight="bold" aria-hidden />,
-          className: "is-icon-only",
-        },
-      ]}
-    />
-  );
-}
 
 type SharedMediaDetailPreviewModalProps = {
   item: SharedMediaDetailItemBase | null;
@@ -214,20 +150,11 @@ export function SharedMediaDetailPreviewModal({
             items={item ? resolveSharedMediaDetailTopBarItems(item) : []}
             centerTitle={isExternalUpload}
             actions={
-              <>
-                <SharedMediaDetailVideoSnapshotAction
-                  item={item}
-                  title={title}
-                  videoRef={videoRef}
-                  onSnapshotVideoFrame={onSnapshotVideoFrame}
-                  onSnapshotVideoFrameError={onSnapshotVideoFrameError}
-                />
-                {topBarActionItems.length > 0 ? (
-                  <SharedMediaDetailActionBar items={topBarActionItems} />
-                ) : (
-                  topBarActions
-                )}
-              </>
+              topBarActionItems.length > 0 ? (
+                <SharedMediaDetailActionBar items={topBarActionItems} />
+              ) : (
+                topBarActions
+              )
             }
             onClose={onClose}
             closeLabel={closeLabel}
@@ -235,37 +162,47 @@ export function SharedMediaDetailPreviewModal({
         }
         stageClassName={stageClassName}
         stage={
-          <SharedMediaDetailPreviewMedia
-            mediaUrl={canRenderMedia ? normalizedPreviewUrl : null}
-            mediaKind={canRenderMedia ? (isVideo ? "video" : isAudio ? "audio" : "image") : null}
-            altText={title}
-            isLoading={isLoading}
-            loadingMessage={loadingMessage}
-            unavailableMessage={error || unavailableMessage}
-            placeholderClassName={placeholderClassName}
-            imageClassName={imageClassName}
-            videoClassName={videoClassName}
-            audioClassName={audioClassName}
-            audioId={item.media.id}
-            audioSourceMode={item.media.audioSourceMode ?? null}
-            audioMusicMode={item.media.musicMode ?? null}
-            audioLyricsText={item.media.lyricsText ?? null}
-            audioDurationMs={item.media.durationMs ?? null}
-            audioWaveformPeaks={item.media.waveformPeaks ?? null}
-            videoRef={videoRef}
-            audioRef={audioRef}
-            onImageError={handlePreviewError}
-            onVideoPlay={videoPlayback.handlePlay}
-            onVideoPause={videoPlayback.handlePause}
-            onVideoEnded={videoPlayback.handleEnded}
-            onVideoError={handleVideoPreviewError}
-            onVideoVolumeChange={videoPlayback.handleVolumeChange}
-            onAudioPlay={audioPlayback.handlePlay}
-            onAudioPause={audioPlayback.handlePause}
-            onAudioEnded={audioPlayback.handleEnded}
-            onAudioError={handleAudioPreviewError}
-            onAudioVolumeChange={audioPlayback.handleVolumeChange}
-          />
+          <>
+            <SharedMediaDetailPreviewMedia
+              mediaUrl={canRenderMedia ? normalizedPreviewUrl : null}
+              mediaKind={canRenderMedia ? (isVideo ? "video" : isAudio ? "audio" : "image") : null}
+              altText={title}
+              isLoading={isLoading}
+              loadingMessage={loadingMessage}
+              unavailableMessage={error || unavailableMessage}
+              placeholderClassName={placeholderClassName}
+              imageClassName={imageClassName}
+              videoClassName={videoClassName}
+              audioClassName={audioClassName}
+              audioId={item.media.id}
+              audioSourceMode={item.media.audioSourceMode ?? null}
+              audioMusicMode={item.media.musicMode ?? null}
+              audioLyricsText={item.media.lyricsText ?? null}
+              audioDurationMs={item.media.durationMs ?? null}
+              audioWaveformPeaks={item.media.waveformPeaks ?? null}
+              videoRef={videoRef}
+              audioRef={audioRef}
+              onImageError={handlePreviewError}
+              onVideoPlay={videoPlayback.handlePlay}
+              onVideoPause={videoPlayback.handlePause}
+              onVideoEnded={videoPlayback.handleEnded}
+              onVideoError={handleVideoPreviewError}
+              onVideoVolumeChange={videoPlayback.handleVolumeChange}
+              onAudioPlay={audioPlayback.handlePlay}
+              onAudioPause={audioPlayback.handlePause}
+              onAudioEnded={audioPlayback.handleEnded}
+              onAudioError={handleAudioPreviewError}
+              onAudioVolumeChange={audioPlayback.handleVolumeChange}
+            />
+            {item.media.kind === "video" ? (
+              <SharedMediaDetailVideoSnapshotControl
+                videoRef={videoRef}
+                filenameHint={item.media.filename ?? title}
+                onSnapshotVideoFrame={onSnapshotVideoFrame}
+                onSnapshotVideoFrameError={onSnapshotVideoFrameError}
+              />
+            ) : null}
+          </>
         }
         sidePanel={
           isExternalUpload ? null : (

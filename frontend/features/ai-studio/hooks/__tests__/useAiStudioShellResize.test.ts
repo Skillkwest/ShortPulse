@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { useAiStudioShellResize } from "../useAiStudioShellResize";
 import {
   AI_SHELL_DIVIDER_TRACK_PX,
+  AI_SHELL_LEFT_COLLAPSED_MIN_PX,
   AI_SHELL_LEFT_CREATE_MIN_PX,
   AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX,
   AI_SHELL_LEFT_MIN_PX,
@@ -173,6 +174,40 @@ describe("useAiStudioShellResize", () => {
     });
   });
 
+  it("keeps programmatic collapse at the visible minimum when left collapse is enabled", async () => {
+    const originalInnerWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1600,
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioShellResize({
+        enabled: true,
+        minLeftWidthPx: AI_SHELL_LEFT_CREATE_MIN_PX,
+        minRightWidthPx: AI_SHELL_RIGHT_COLLAPSED_MIN_PX,
+        allowLeftCollapse: true,
+      })
+    );
+
+    act(() => {
+      result.current.shellRef.current = {
+        getBoundingClientRect: () => ({ width: 1800 }),
+      } as HTMLElement;
+      result.current.collapseToMin();
+    });
+
+    await waitFor(() => {
+      expect(result.current.leftWidthPx).toBe(AI_SHELL_LEFT_CREATE_MIN_PX);
+      expect(result.current.leftColumnHidden).toBe(false);
+    });
+
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: originalInnerWidth,
+    });
+  });
+
   it("persists the dragged shell width only after pointer resizing stops", async () => {
     const originalInnerWidth = window.innerWidth;
     Object.defineProperty(window, "innerWidth", {
@@ -228,6 +263,69 @@ describe("useAiStudioShellResize", () => {
     await waitFor(() => {
       expect(result.current.isResizing).toBe(false);
       expect(setItemSpy).toHaveBeenCalledWith(AI_SHELL_LEFT_WIDTH_STORAGE_KEY, "820");
+    });
+
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: originalInnerWidth,
+    });
+  });
+
+  it("snaps the primary column to the left edge after dragging below the collapse threshold", async () => {
+    const originalInnerWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1800,
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioShellResize({
+        enabled: true,
+        minLeftWidthPx: AI_SHELL_LEFT_CREATE_MIN_PX,
+        minRightWidthPx: AI_SHELL_RIGHT_COLLAPSED_MIN_PX,
+        allowLeftCollapse: true,
+      })
+    );
+
+    act(() => {
+      result.current.shellRef.current = {
+        getBoundingClientRect: () => ({ width: 1800 }),
+      } as HTMLElement;
+      result.current.leftColumnRef.current = {
+        getBoundingClientRect: () => ({ width: AI_SHELL_LEFT_CREATE_MIN_PX }),
+      } as HTMLElement;
+    });
+
+    await waitFor(() => {
+      expect(result.current.showDivider).toBe(true);
+    });
+
+    act(() => {
+      result.current.dividerProps.onPointerDown?.({
+        pointerId: 202,
+        button: 0,
+        clientX: AI_SHELL_LEFT_CREATE_MIN_PX,
+        preventDefault: vi.fn(),
+      } as unknown as ReactPointerEvent<HTMLButtonElement>);
+    });
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 202, clientX: 200 }));
+    });
+
+    expect(result.current.leftColumnHidden).toBe(true);
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointerup", { pointerId: 202, clientX: 200 }));
+    });
+
+    await waitFor(() => {
+      expect(result.current.leftWidthPx).toBe(AI_SHELL_LEFT_COLLAPSED_MIN_PX);
+      expect(result.current.leftColumnHidden).toBe(true);
+      expect(result.current.shellStyle).toMatchObject({
+        "--ai-shell-left-width": `${AI_SHELL_LEFT_COLLAPSED_MIN_PX}px`,
+        "--ai-shell-left-visibility": "0",
+      });
     });
 
     Object.defineProperty(window, "innerWidth", {

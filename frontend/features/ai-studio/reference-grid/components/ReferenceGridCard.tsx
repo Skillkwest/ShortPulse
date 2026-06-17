@@ -9,6 +9,7 @@ import {
   DownloadSimple,
   FloppyDisk,
   FlowArrow,
+  TrashSimple,
   X,
 } from "phosphor-react";
 import { canRerollOutput } from "../../logic/generationReplay";
@@ -688,7 +689,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
               onDeleteOutput(item.id);
             }}
           >
-            <X size={16} weight="bold" aria-hidden />
+            <TrashSimple size={16} weight="bold" aria-hidden />
           </button>
         </div>
       ) : null}
@@ -817,7 +818,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
                 onDeleteOutput(item.id);
               }}
             >
-              <X size={16} weight="bold" aria-hidden />
+              <TrashSimple size={16} weight="bold" aria-hidden />
             </button>
           ) : null}
         </div>

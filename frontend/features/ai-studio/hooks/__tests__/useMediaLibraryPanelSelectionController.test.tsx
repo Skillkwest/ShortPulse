@@ -138,6 +138,55 @@ describe("useMediaLibraryPanelSelectionController", () => {
     });
   });
 
+  it("preserves audio companion art and duration when selecting a media-library audio row", async () => {
+    resolveSignedSelectionUrlMock.mockReset();
+    resolveSignedSelectionUrlMock.mockResolvedValueOnce("https://signed.example.com/audio.mp3");
+    const onSelectMedia = vi.fn();
+    const audioFile = {
+      id: "audio-1",
+      filename: "theme.mp3",
+      file_type: "audio/mpeg",
+      storage_path: "user-1/media/theme.mp3",
+      preview_storage_path: "user-1/media/theme.mp3",
+      signedUrl: null,
+      metadata: {
+        companionArtUrl: "https://signed.example.com/theme-cover.webp",
+        duration_ms: 0,
+        resolved_duration_seconds: 8,
+      },
+      companion_art_storage_path: "user-1/media/theme-cover.webp",
+      source: "ai_studio",
+      source_ref: "generation-1",
+    };
+
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelSelectionController({
+        activeFolderId: "all_items",
+        detailSurface: "media-library-panel",
+        currentUserIdRef: { current: "user-1" },
+        mediaRows: [audioFile],
+        onSelectMedia,
+        refreshSignedUrl: vi.fn(async () => null),
+        signStoragePath: vi.fn(async () => null),
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleSelectMediaFile(audioFile);
+    });
+
+    expect(onSelectMedia).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "audio-1",
+        url: "https://signed.example.com/audio.mp3",
+        fileType: "audio",
+        companionArtUrl: "https://signed.example.com/theme-cover.webp",
+        companionArtStoragePath: "user-1/media/theme-cover.webp",
+        durationMs: 8_000,
+      })
+    );
+  });
+
   it("records an error when preview modal resolution fails", async () => {
     resolveSignedSelectionUrlMock.mockReset();
     resolveSignedSelectionUrlMock.mockRejectedValueOnce(new Error("boom"));

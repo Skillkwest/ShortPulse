@@ -468,6 +468,8 @@ describe("MediaLibraryPanelPreviewModal", () => {
     );
 
     const snapshotButton = screen.getByRole("button", { name: "Snapshot frame" });
+    expect(snapshotButton.closest(".art-stage-snapshot-control")).not.toBeNull();
+    expect(snapshotButton.closest(".art-modal-action-row")).toBeNull();
     await act(async () => {
       fireEvent.click(snapshotButton);
     });
@@ -477,6 +479,7 @@ describe("MediaLibraryPanelPreviewModal", () => {
     ) as HTMLVideoElement | null;
     expect(video).not.toBeNull();
     expect(onSnapshotVideoFrame).toHaveBeenCalledWith(video, "clip.mp4");
+    expect(await screen.findByText("Snapshot saved")).toBeInTheDocument();
 
     rerender(
       <MediaLibraryPanelPreviewModal

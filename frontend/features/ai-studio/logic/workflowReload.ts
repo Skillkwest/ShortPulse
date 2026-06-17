@@ -950,6 +950,14 @@ export const inferWorkflowReloadMediaKindForOutput = (
   if (mimeKind) return mimeKind;
   if (output.mode === "video" || hasVideoDelivery(output)) return "video";
   if (output.mode === "audio" || hasNonImageDelivery(output)) return "audio";
+  const videoModelId = resolveVideoFallbackModelId(
+    output,
+    rawConfig,
+    validConfig?.payload.kind === "image" ? validConfig : null
+  );
+  if (videoModelId && VIDEO_MODEL_ID_PATTERN.test(videoModelId)) {
+    return "video";
+  }
   if (validPayloadKind === "image" || rawOutputMode === "image" || rawPayloadKind === "image") {
     return "image";
   }

@@ -194,13 +194,13 @@ const DEFAULT_ROLE_FALLBACK_MODEL_IDS: Record<ModelDefaultRole, string> = {
   "style-extraction-fallback": "gpt-5.4",
 };
 
-const VERIFIED_AT = "2026-04-30";
+const VERIFIED_AT = "2026-06-16";
 const KONTEXT_INPAINT_VERIFIED_AT = "2026-04-14";
 const GPT_IMAGE_2_VERIFIED_AT = "2026-06-14";
 const KIE_GPT_IMAGE_2_VERIFIED_AT = "2026-06-04";
 const OMNIHUMAN_V15_VERIFIED_AT = "2026-06-08";
 const OPENAI_TEXT_VERIFIED_AT = "2026-05-07";
-const ELEVENLABS_VERIFIED_AT = "2026-05-01";
+const ELEVENLABS_VERIFIED_AT = "2026-06-16";
 const SEEDANCE_ALLOWED_DURATIONS = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] as const;
 type ModelCatalogRuntimeMetadata = Pick<
   ModelCatalogEntry,
@@ -658,7 +658,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
   [KIE_VEO_31_FAST_I2V_MODEL_ID]: {
     modelId: KIE_VEO_31_FAST_I2V_MODEL_ID,
     provider: "kie",
-    sourceUrl: "https://docs.kie.ai/",
+    sourceUrl: "https://docs.kie.ai/veo3-api/quickstart",
     verifiedAt: VERIFIED_AT,
     apiDocFile: "api-kie-veo-3-1-fast-image-to-video.md",
     submitAspectField: "aspect_ratio",
@@ -702,7 +702,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
   [KIE_KLING_30_MODEL_ID]: {
     modelId: KIE_KLING_30_MODEL_ID,
     provider: "kie",
-    sourceUrl: "https://docs.kie.ai/",
+    sourceUrl: "https://docs.kie.ai/market/kling/kling-3-0",
     verifiedAt: VERIFIED_AT,
     apiDocFile: "api-kie-kling-3-0.md",
     submitAspectField: "aspect_ratio",
@@ -1037,7 +1037,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
   [ELEVENLABS_MUSIC_MODEL_ID]: {
     modelId: ELEVENLABS_MUSIC_MODEL_ID,
     provider: "elevenlabs",
-    sourceUrl: "https://elevenlabs.io/docs",
+    sourceUrl: "https://elevenlabs.io/docs/overview/models",
     verifiedAt: ELEVENLABS_VERIFIED_AT,
     apiDocFile: "api-elevenlabs-audio-models.md",
     label: "Music",
@@ -1059,7 +1059,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
   [ELEVENLABS_SOUND_EFFECTS_MODEL_ID]: {
     modelId: ELEVENLABS_SOUND_EFFECTS_MODEL_ID,
     provider: "elevenlabs",
-    sourceUrl: "https://elevenlabs.io/docs",
+    sourceUrl: "https://elevenlabs.io/docs/overview/models",
     verifiedAt: ELEVENLABS_VERIFIED_AT,
     apiDocFile: "api-elevenlabs-audio-models.md",
     label: "Sound Effects",
@@ -1082,7 +1082,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
   [ELEVENLABS_VOICEOVER_MODEL_ID]: {
     modelId: ELEVENLABS_VOICEOVER_MODEL_ID,
     provider: "elevenlabs",
-    sourceUrl: "https://elevenlabs.io/docs",
+    sourceUrl: "https://elevenlabs.io/docs/overview/models",
     verifiedAt: ELEVENLABS_VERIFIED_AT,
     apiDocFile: "api-elevenlabs-audio-models.md",
     label: "Voiceover",
@@ -1102,7 +1102,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
   [ELEVENLABS_VOICE_CHANGER_MODEL_ID]: {
     modelId: ELEVENLABS_VOICE_CHANGER_MODEL_ID,
     provider: "elevenlabs",
-    sourceUrl: "https://elevenlabs.io/docs",
+    sourceUrl: "https://elevenlabs.io/docs/overview/models",
     verifiedAt: ELEVENLABS_VERIFIED_AT,
     apiDocFile: "api-elevenlabs-audio-models.md",
     label: "Voice Changer",
@@ -1122,7 +1122,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
   [ELEVENLABS_VOICE_DESIGN_MODEL_ID]: {
     modelId: ELEVENLABS_VOICE_DESIGN_MODEL_ID,
     provider: "elevenlabs",
-    sourceUrl: "https://elevenlabs.io/docs",
+    sourceUrl: "https://elevenlabs.io/docs/overview/models",
     verifiedAt: ELEVENLABS_VERIFIED_AT,
     apiDocFile: "api-elevenlabs-audio-models.md",
     label: "Voice Design",

@@ -114,6 +114,8 @@ describe("expert edit layout contract", () => {
   it("lets the expert edit center column fill the available lane", () => {
     const css = fs.readFileSync(expertEditCssPath, "utf8");
     const mainStage = extractRuleBlock(css, ".edit-expert-main-stage");
+    const presetToolbar = extractRuleBlock(css, ".edit-expert-preset-toolbar");
+    const sidebarShell = extractRuleBlock(css, ".edit-expert-sidebar-shell");
     const primaryColumn = extractRuleBlock(css, ".edit-expert-primary-column");
     const primaryColumnShell = extractRuleBlock(css, ".edit-expert-primary-column-shell");
     const centerColumnWrappers = extractRuleBlock(
@@ -135,17 +137,30 @@ describe("expert edit layout contract", () => {
     expect(css).toContain(".edit-expert-main-stage");
     expect(mainStage).toContain("margin: 0;");
     expect(mainStage).toContain("justify-items: start;");
+    expect(mainStage).toContain("min-height: 0;");
+    expect(mainStage).toContain("height: 100%;");
+    expect(mainStage).toContain("max-height: 100%;");
     expect(css).toContain("align-items: stretch;");
     expect(css).toContain("flex: 1 1 auto;");
+    expect(presetToolbar).toContain("align-self: stretch;");
+    expect(presetToolbar).toContain("height: 100%;");
+    expect(sidebarShell).toContain("flex: 1 1 auto;");
+    expect(sidebarShell).toContain("min-height: 0;");
+    expect(sidebarShell).toContain("height: 100%;");
     expect(primaryColumn).toContain("width: 100%;");
     expect(primaryColumn).toContain("align-items: stretch;");
     expect(primaryColumn).toContain("align-self: stretch;");
     expect(primaryColumn).toContain("justify-self: start;");
+    expect(primaryColumn).toContain("min-height: 0;");
+    expect(primaryColumn).toContain("height: 100%;");
+    expect(primaryColumn).toContain("max-height: 100%;");
     expect(primaryColumnShell).toContain("width: 100%;");
     expect(primaryColumnShell).toContain("max-width: none;");
     expect(primaryColumnShell).toContain("display: flex;");
     expect(primaryColumnShell).toContain("align-items: stretch;");
     expect(primaryColumnShell).toContain("align-self: stretch;");
+    expect(primaryColumnShell).toContain("flex: 1 1 auto;");
+    expect(primaryColumnShell).toContain("min-height: 0;");
     expect(primaryColumnShell).toContain("height: 100%;");
     expect(centerColumnWrappers).toContain("align-self: stretch;");
     expect(centerColumnWrappers).not.toContain("align-items: stretch;");

@@ -218,6 +218,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/routes.md`
 - `docs/systems/README.md`
 - `docs/systems/catalog.md`
+- `docs/systems/launch-fitness-scorecard-2026-06-16.md`
 - `docs/systems/rating-rubric.md`
 - `docs/systems/rating-pass-template.md`
 - `docs/systems/ship-readiness-scoreboard.md`

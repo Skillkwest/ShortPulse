@@ -7,7 +7,7 @@ Purpose: define the documentation information architecture, ownership rules, and
 - `docs/api/`: provider/API integration references.
 - `docs/sops/`: operational runbooks and workflows.
 - `docs/product/`: product/domain source-of-truth documents.
-- `docs/systems/`: authoritative architecture/risk catalog for current systems, boundaries, and ratings.
+- `docs/systems/`: authoritative architecture/risk catalog for current systems, boundaries, architecture maturity ratings, and launch-fitness scorecards.
 - `docs/planning/`: active plans, backlogs, and stabilization tracks only.
   - `docs/planning/execution-authority.md`: authoritative execution entrypoint for active programs, lane-entry rules, and planning reading priority.
   - `docs/planning/policies/`: machine-checkable policy artifacts for planning/governance enforcement.

@@ -21,6 +21,33 @@ Required shorthand:
 
 Use that as the fast-scan maturity signal after the four core scores are justified. Do not use it as the primary July 7 launch-readiness state; Copperknot's launch board owns floor/below-floor/ready classification for the active launch decision.
 
+## Active launch-fitness score
+
+For the July 7 launch window, use `docs/systems/launch-fitness-scorecard-2026-06-16.md` as the easy-read scorecard.
+
+The launch-fitness score is separate from `Current score (/10)`.
+
+- `Current score (/10)` answers: how mature is this architecture row?
+- `Launch fitness (/10)` answers: can this launch system support the July 7 promise with current evidence?
+
+Launch-fitness scoring uses five equal questions:
+
+1. Can a normal user complete the job without owner rescue?
+2. Are money, account, media, project, and ownership boundaries trustworthy?
+3. Is there current evidence at the right level: production, local, or static?
+4. Are failure states honest, recoverable, and observable?
+5. Is the source seam stable enough to keep hardening without patch-loop churn?
+
+Use these bands:
+
+- `8.0..10`: launch-ready or near-ready after final proof.
+- `7.0..7.9`: launch floor with watch items.
+- `6.0..6.9`: near floor, but still missing important proof or stability.
+- `4.0..5.9`: below floor; highest-ROI source hardening or proof lane needed.
+- `0..3.9`: blocked; launch promise is not credible for this system without repair.
+
+No launch-fitness score can outrank its evidence rung. Production-safe unauthenticated checks strengthen boundary confidence, but they do not prove authenticated customer success or credit-consuming provider behavior.
+
 ## Criticality
 
 How important the system is to product operation, user value, revenue, or safety.

@@ -20,8 +20,9 @@ For the active July 7, 2026 launch decision, use Copperknot's July 7 launch-cont
 - `docs/agents/copperknot/july-7-system-map.md`
 - `docs/agents/copperknot/july-7-launch-board.md`
 - `docs/agents/copperknot/prioritized-launch-queue-2026-07-07.md`
+- `docs/systems/launch-fitness-scorecard-2026-06-16.md`
 
-The systems catalog remains the architecture inventory and score baseline. It does not override the July 7 launch board.
+The systems catalog remains the architecture inventory and score baseline. The launch-fitness scorecard is the easy-read current posture view. Neither overrides the July 7 launch board or queue for exact execution order.
 
 ## Relationship to other docs
 
@@ -290,6 +291,7 @@ npm -C frontend run docs:check
 ## Files in this namespace
 
 - `docs/systems/catalog.md`
+- `docs/systems/launch-fitness-scorecard-2026-06-16.md`
 - `docs/systems/rating-rubric.md`
 - `docs/systems/rating-pass-template.md`
 - `docs/systems/ship-readiness-scoreboard.md`

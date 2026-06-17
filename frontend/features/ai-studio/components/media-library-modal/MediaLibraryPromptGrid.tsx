@@ -1,5 +1,5 @@
 import React from "react";
-import { Check, X } from "phosphor-react";
+import { Check, TrashSimple, X } from "phosphor-react";
 import { formatDate, type PromptRow } from "../../logic/mediaLibraryModalModel";
 import { MediaLibraryPromptReferenceCard } from "./MediaLibraryPromptReferenceCard";
 
@@ -121,7 +121,7 @@ export function MediaLibraryPromptGrid({
                       onDeletePromptFromLibrary(prompt);
                     }}
                   >
-                    <X size={16} weight="bold" aria-hidden />
+                    <TrashSimple size={16} weight="bold" aria-hidden />
                   </button>
                 </div>
               ) : null}

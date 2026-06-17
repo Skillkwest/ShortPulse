@@ -1,5 +1,5 @@
 import React, { type MutableRefObject } from "react";
-import { Check, DownloadSimple, FlowArrow, X } from "phosphor-react";
+import { Check, DownloadSimple, FlowArrow, TrashSimple, X } from "phosphor-react";
 import {
   resolveDurablePreviewStoragePath,
   resolveVideoPosterStoragePath,
@@ -385,7 +385,11 @@ export function MediaLibraryMediaGrid({
                           onRemoveMediaFromFolder?.(file);
                         }}
                       >
-                        <X size={16} weight="bold" aria-hidden />
+                        {canShowDeleteAction ? (
+                          <TrashSimple size={16} weight="bold" aria-hidden />
+                        ) : (
+                          <X size={16} weight="bold" aria-hidden />
+                        )}
                       </button>
                     ) : null}
                   </div>
@@ -547,7 +551,11 @@ export function MediaLibraryMediaGrid({
                         onRemoveMediaFromFolder?.(file);
                       }}
                     >
-                      <X size={16} weight="bold" aria-hidden />
+                      {canShowDeleteAction ? (
+                        <TrashSimple size={16} weight="bold" aria-hidden />
+                      ) : (
+                        <X size={16} weight="bold" aria-hidden />
+                      )}
                     </button>
                   ) : null}
                 </div>

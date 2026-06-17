@@ -1,6 +1,6 @@
 # ShortPulse Backlog
 
-Last audited: 2026-06-03
+Last audited: 2026-06-16
 Status: active
 
 How to use:
@@ -27,27 +27,10 @@ Structure (locked):
 
 ## Program 1: Runtime And Money
 
-- [ ] Execute the Bactuo generation architecture consolidation plan in staged slices, starting with a canonical lineage resolver and one universal settlement-before-visibility rule across async and direct provider families.
-      Reference: `docs/agents/bactuo/generation-architecture-consolidation-plan-2026-06-03.md`
-      Restart scope: begin with identity/lineage consolidation in recovery, billing, ownership, abandonment, and diagnostics before broader orchestrator splitting or cleanup.
-- [ ] Add clear active-generation slot disclosure to public pricing comparison tables, pricing FAQs, or equivalent customer-facing billing education surfaces.
-      Reference: `docs/product/billing-pricing-catalog.md`
-      Restart scope: disclose the current Starter/Media/Studio/Business active-generation ladder without describing provider rate limits or internal throttling mechanics.
-
 ## Program 2: Media And Reference Integrity
-
-- [ ] Audit and resolve the AI Studio passive wheel runtime warning at the canonical gesture-plumbing seam, treating it as a separate lane from the signed-media preview failures.
-      Reference: `docs/records/evidence/ux/2026-06-02-ai-studio-passive-wheel-warning-audit.md`
-      Restart scope: production `https://www.shortpulse.ai`, compare fresh project open versus same-session project switching before editing gesture or restore code.
 
 ## Program 3: Structural Decomposition
 
-- [ ] Revisit typography foundation cleanup after the low-risk Google Fonts import removal: decide whether system fonts should become the canonical primary stack, then normalize remaining hard-coded `Inter` / `Satoshi` references and refresh the related design inventory docs.
-      Reference: `frontend/styles/foundation.css`, `frontend/features/character-manager/components/CharacterDescriptionEditorCard.tsx`, `frontend/features/elements-manager/components/ElementsDescriptionEditorCard.tsx`, `docs/design/ai-studio-style-inventory.md`
-
 ## Program 4: Workflows And Product Surfaces
-
-- [ ] Build a complete, polished collection of small delete buttons.
-- [ ] Build a complete, polished collection of small save buttons.
 
 ## Program 5: Release Confidence And Research

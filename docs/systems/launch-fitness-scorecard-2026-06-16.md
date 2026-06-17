@@ -6,8 +6,8 @@ Purpose: provide a current, easy-to-read launch-fitness view for the July 7, 202
 
 - Baseline date: `2026-06-16`
 - Branch: `production`
-- Commit anchor: `305c638fa`
-- Worktree: AI Studio runtime lane committed locally; remaining docs/governance dirt not accepted as launch proof.
+- Commit anchor: `d06a54218`
+- Worktree: validated AI Studio media/shell runtime hardening is now committed on the current branch; authenticated launch proof is still pending.
 - Production URL checked: `https://www.shortpulse.ai`
 - Evidence mode: mixed production-safe checks, current worktree inspection, focused local validation, and existing July 7 launch-control docs.
 
@@ -40,12 +40,12 @@ No score can outrank its evidence. Production-safe unauthenticated checks can ra
 | Rank | Launch system | Launch fitness | State | Evidence basis | Why it sits there | Next highest-ROI move |
 | ---: | --- | ---: | --- | --- | --- | --- |
 | 1 | `Recovery, settlement, and output integrity` | 4.0 | Blocked | Local historical hardening plus stale handoff | This remains the launch spine for accepted jobs, credit settlement, output visibility, and recovery. It is still missing current production-safe lifecycle proof. | Bactuo-owned lifecycle proof or fresh source audit before any readiness lift. |
-| 2 | `Media library and organization` | 4.5 | Below floor | Prior local proof plus current media guardrail debt | Media save/reuse is core to human trust. The latest shared preview/runtime lane converged locally, but media rendering guardrails still fail on untouched oversized files and integrated authenticated reuse proof is still partial. | Clear the ambient media guardrail debt and then rerun stable-lane media save/reuse proof. |
-| 3 | `Right-rail asset reuse` | 4.5 | Below floor | Current source inspection plus focused local validation | Canvas media actions and reference runtime additions now have focused workflow-reload/type proof, but right-rail state is global launch-critical and still lacks stronger integrated reopen/reuse evidence. | Run a stable-lane integrated right-rail reuse proof after media guardrail debt is cleared. |
+| 2 | `Media library and organization` | 4.8 | Below floor | Prior local proof plus current media guardrail cleanup | Media save/reuse is core to human trust. The media-rendering guardrail is locally green again, but integrated authenticated save/reuse, organization, and return-to-work proof is still partial. | Rerun stable-lane media save/reuse proof on an authenticated customer path. |
+| 3 | `Right-rail asset reuse` | 4.7 | Below floor | Current source inspection plus focused local validation | Canvas media actions and reference runtime additions now have focused workflow-reload/type proof, and the shared media guardrail debt is cleared locally. Right-rail state remains global launch-critical and still lacks stronger integrated reopen/reuse evidence. | Run a stable-lane integrated right-rail reuse proof with authenticated reopen/reuse coverage. |
 | 4 | `AI Studio shell and navigation` | 4.5 | Below floor | Focused local validation plus repo inspection | The shared shell/runtime lane now builds and its focused layout/reload tests are green, but broader authenticated shell/navigation proof is still missing. | Run a preservation-minded shell/navigation pass on the stable lane. |
 | 5 | `Video workflow` | 4.5 | Below floor | Focused local reload proof plus approval-gated provider boundary | Video reload hydration invariants are locally green again, but provider/generation proof remains approval-gated and broader customer-flow proof is still thin. | Keep reload proof green and refresh bounded authenticated Video proof when safe. |
 | 6 | `Create and Pulse workflow` | 5.0 | Below floor | Local route/panel proof, no current authenticated production proof | Local contracts are meaningful, but core generation success and authenticated user journey proof remain unproven. | Refresh authenticated non-credit workflow proof and only then consider approved generation smoke. |
-| 7 | `Generation runtime and providers` | 5.0 | Below floor | Local provider contracts; model catalog stale warnings | Fal route wrappers pass, but provider catalog verification is now 46-47 days old and production provider success remains unproven. | Refresh model/provider verification and keep credit-consuming smoke approval-gated. |
+| 7 | `Generation runtime and providers` | 5.2 | Below floor | Local provider contracts; refreshed model catalog checks | Fal route wrappers pass and model catalog freshness is locally green again, but production provider success remains unproven and credit-consuming smoke remains approval-gated. | Keep catalog parity green and refresh production-safe provider proof before any readiness lift. |
 | 8 | `Storage, delivery, and variants` | 5.5 | Below floor | Production checked for protected routes; local no-transform posture | Supabase image transforms remain prohibited and scans found only guard/test/rejection references, but authenticated sign/list/resolve and hosted derivative posture are not proven. | Run hosted storage/derivative SQL proof and authenticated media delivery proof when safe. |
 | 9 | `Sound workflow` | 5.5 | Below floor | Local route/helper proof | Local ElevenLabs and staging proof helps, but provider/env posture and authenticated output insertion are still not production-proven. | Production-safe provider/env check, then approved minimal sound output proof if needed. |
 | 10 | `Creative libraries` | 5.5 | Below floor | Local source hardening plus current library contract proof | Library reuse seams are stronger than before, and the latest Character/Elements properties-rail contracts are locally green, but integrated authenticated save/reopen/select/reuse proof is still missing. | Prove integrated reuse in a stable authenticated lane. |
@@ -61,11 +61,11 @@ No score can outrank its evidence. Production-safe unauthenticated checks can ra
 
 ShortPulse is not launch-ready today. It is stronger than a prototype, but the remaining launch risk is concentrated in a few systems that decide whether a real customer can create, save, reopen, reuse, and trust paid outputs.
 
-The project is in a `source-hardening and convergence` phase, not a final-proof phase. The latest AI Studio runtime lane has converged locally: focused workflow-reload/layout tests are green, changed-file typecheck is green, and a production build passed. The immediate remaining local blocker is narrower than before:
+The project is in a `source-hardening and convergence` phase, not a final-proof phase. The latest AI Studio runtime lane has converged locally: focused workflow-reload/layout tests are green, changed-file typecheck is green, and a production build passed. The immediate media-rendering guardrail blocker is now cleared locally:
 
-- `validate:media-rendering-guardrails` still fails size budgets in untouched media rendering files (`MediaLibraryPanel.tsx` and `useMediaPreviewSigningController.ts`).
+- `validate:media-rendering-guardrails` passed on `2026-06-16` after no-behavior size-budget cleanup in `MediaLibraryPanel.tsx` and `useMediaPreviewSigningController.ts`.
 
-The strongest areas right now are public entry/account trust, billing, security fail-closed posture, and admin route/docs hygiene. The weakest areas are recovery/settlement, media organization, right-rail reuse, AI Studio shell/navigation, and Video workflow stability.
+The strongest areas right now are public entry/account trust, billing, security fail-closed posture, admin route/docs hygiene, and model catalog hygiene. The weakest areas are recovery/settlement, media organization, right-rail reuse, AI Studio shell/navigation, and Video workflow stability.
 
 ## Decision
 

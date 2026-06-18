@@ -52,6 +52,10 @@ export type WorkflowReloadResult = {
 };
 
 type SetReferenceSelectionState = (nextState: ReferenceSelectionAuthorityStateSeed) => void;
+type SetReferenceSelectionStateForCreateMode = (
+  createMode: "standard" | "pulse",
+  nextState: ReferenceSelectionAuthorityStateSeed
+) => void;
 
 type ReloadReferenceSelectionInput = {
   referenceImageUrl: string | null;
@@ -90,6 +94,7 @@ type UseAiStudioWorkflowReloadControllerParams = {
   setMusicSingerEnabled: Dispatch<SetStateAction<boolean>>;
   setMusicSongBatchCount: Dispatch<SetStateAction<WorkflowReloadMusicSongBatchCount>>;
   setReferenceSelectionState: SetReferenceSelectionState;
+  setReferenceSelectionStateForCreateMode: SetReferenceSelectionStateForCreateMode;
   setSeedance2InputMode: Dispatch<
     SetStateAction<"text" | "first-frame" | "first-last" | "multimodal">
   >;
@@ -426,6 +431,7 @@ export const useAiStudioWorkflowReloadController = ({
   setMusicSingerEnabled,
   setMusicSongBatchCount,
   setReferenceSelectionState,
+  setReferenceSelectionStateForCreateMode,
   setSeedance2InputMode,
   setSeedance2ReferenceAudioUrls,
   setSeedance2ReferenceImageUrls,
@@ -532,7 +538,8 @@ export const useAiStudioWorkflowReloadController = ({
         }
         setAspect(imagePayload.aspect);
         setImageResolution(imagePayload.imageResolution ?? "model_default");
-        setReferenceSelectionState(
+        setReferenceSelectionStateForCreateMode(
+          nextCreateMode,
           toReferenceSelectionState({
             tool: targetTool,
             referenceInputs: imagePayload.referenceInputs,
@@ -681,6 +688,7 @@ export const useAiStudioWorkflowReloadController = ({
       setMusicSingerEnabled,
       setMusicSongBatchCount,
       setReferenceSelectionState,
+      setReferenceSelectionStateForCreateMode,
       setSeedance2InputMode,
       setSeedance2ReferenceAudioUrls,
       setSeedance2ReferenceImageUrls,

@@ -552,6 +552,7 @@ export const useAiStudioState = ({
       setMusicSingerEnabled: setMusicSingerEnabledState,
       setMusicSongBatchCount: setMusicSongBatchCountState,
       setReferenceSelectionState: setReferenceSelectionStateForActiveAuthority,
+      setReferenceSelectionStateForCreateMode,
       setSeedance2InputMode,
       setSeedance2ReferenceAudioUrls,
       setSeedance2ReferenceImageUrls,

@@ -158,6 +158,43 @@ describe("useAiStudioReferenceSelectionState", () => {
     expect(result.current.useReferenceImageIndicator).toBe(false);
   });
 
+  it("restores target create-mode references when workflow reload switches modes", () => {
+    const { result, rerender } = renderHook(
+      ({ authorityKey }: { authorityKey: string }) =>
+        useAiStudioReferenceSelectionState({ activeOutputPreviewUrl: null, authorityKey }),
+      {
+        initialProps: { authorityKey: "session:test:create:pulse" },
+      }
+    );
+
+    act(() => {
+      result.current.setAuthorityState("session:test:create:standard", {
+        selectedTool: "edit",
+        showCreateTools: true,
+        referenceImageUrl: "https://example.com/reload-primary.png",
+        extraImageUrls: [
+          "https://example.com/reload-secondary-1.png",
+          "https://example.com/reload-secondary-2.png",
+        ],
+        motionReferenceVideoUrl: null,
+      });
+    });
+
+    expect(result.current.referenceImageUrl).toBeNull();
+    expect(result.current.extraImageUrls[0]).toBeNull();
+
+    rerender({ authorityKey: "session:test:create:standard" });
+
+    expect(result.current.selectedTool).toBe("edit");
+    expect(result.current.showCreateTools).toBe(true);
+    expect(result.current.referenceImageUrl).toBe("https://example.com/reload-primary.png");
+    expect(result.current.extraImageUrls.slice(0, 3)).toEqual([
+      "https://example.com/reload-secondary-1.png",
+      "https://example.com/reload-secondary-2.png",
+      null,
+    ]);
+  });
+
   it("retains canonical internal refs across create-mode authority switches", () => {
     const { result, rerender } = renderHook(
       ({ authorityKey }: { authorityKey: string }) =>

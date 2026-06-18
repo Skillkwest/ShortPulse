@@ -57,6 +57,7 @@ const makeParams = (output: StudioOutput | null) => ({
   setMusicSingerEnabled: makeSetter<boolean>(),
   setMusicSongBatchCount: makeSetter<1 | 2 | 3 | 4>(),
   setReferenceSelectionState: vi.fn(),
+  setReferenceSelectionStateForCreateMode: vi.fn(),
   setSeedance2InputMode: makeSetter<"text" | "first-frame" | "first-last" | "multimodal">(),
   setSeedance2ReferenceAudioUrls: makeSetter<string[]>(),
   setSeedance2ReferenceImageUrls: makeSetter<string[]>(),
@@ -181,7 +182,10 @@ describe("useAiStudioWorkflowReloadController", () => {
     expect(params.setAspect).toHaveBeenCalledWith("9:16");
     expect(params.setImageResolution).toHaveBeenCalledWith("2K");
     expect(params.setUiNotice).not.toHaveBeenCalled();
-    const selectionState = params.setReferenceSelectionState.mock.calls[0]?.[0];
+    const [createMode, selectionState] =
+      params.setReferenceSelectionStateForCreateMode.mock.calls[0] ?? [];
+    expect(createMode).toBe("standard");
+    expect(params.setReferenceSelectionState).not.toHaveBeenCalled();
     expect(selectionState).toEqual(
       expect.objectContaining({
         selectedTool: "create",
@@ -245,7 +249,10 @@ describe("useAiStudioWorkflowReloadController", () => {
       result.current.reloadWorkflowFromOutput("out-1");
     });
 
-    const selectionState = params.setReferenceSelectionState.mock.calls[0]?.[0];
+    const [createMode, selectionState] =
+      params.setReferenceSelectionStateForCreateMode.mock.calls[0] ?? [];
+    expect(createMode).toBe("standard");
+    expect(params.setReferenceSelectionState).not.toHaveBeenCalled();
     expect(params.setSelectedTool).toHaveBeenCalledWith("edit");
     expect(params.setEditReferenceText).toHaveBeenCalledWith(
       "Use @img10 as the wardrobe reference."
@@ -308,7 +315,10 @@ describe("useAiStudioWorkflowReloadController", () => {
       result.current.reloadWorkflowFromOutput("out-1");
     });
 
-    const selectionState = params.setReferenceSelectionState.mock.calls[0]?.[0];
+    const [createMode, selectionState] =
+      params.setReferenceSelectionStateForCreateMode.mock.calls[0] ?? [];
+    expect(createMode).toBe("standard");
+    expect(params.setReferenceSelectionState).not.toHaveBeenCalled();
     expect(selectionState).toEqual(
       expect.objectContaining({
         selectedTool: "edit",
@@ -399,6 +409,7 @@ describe("useAiStudioWorkflowReloadController", () => {
     });
 
     expect(params.setExpertCreateMode).toHaveBeenCalledWith("pulse");
+    expect(params.setReferenceSelectionStateForCreateMode.mock.calls[0]?.[0]).toBe("pulse");
     expect(params.prepareCreateCharacterWorkflowReload).not.toHaveBeenCalled();
     expect(params.prepareStandardCreateWorkflowReload).not.toHaveBeenCalled();
   });

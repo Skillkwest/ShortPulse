@@ -416,6 +416,54 @@ describe("useAiStudioInternalDropResolvers", () => {
     ).resolves.toBeNull();
   });
 
+  it("resolves motion video drops from Reference Grid storage authority when the image resolver rejects video", async () => {
+    const output = makeOutput({
+      mode: "video",
+      mediaSource: "upload",
+      previewUrl: "blob:local-motion#video=1",
+      localObjectUrl: "blob:local-motion",
+      previewStoragePath: "user-1/variants/videos/out-1/poster.jpg",
+      fullStoragePath: "user-1/uploads/videos/out-1.mp4",
+      resultUrls: ["https://cdn.example.com/out-1.mp4"],
+      savedMediaIds: ["media-video-1"],
+    });
+    resolveInternalReferenceSourceMock.mockResolvedValue(null);
+
+    const { result } = renderHook(() =>
+      useAiStudioInternalDropResolvers({
+        getOutputById: () => output,
+        getOutputSnapshot: () => ({
+          outputOrder: ["out-1"],
+          archivedOutputOrder: [],
+          outputById: { "out-1": output },
+          archivedOutputById: {},
+        }),
+        ensureOutputPersisted: vi.fn(async () => ({
+          ok: true,
+          mediaFileIds: ["media-video-1"],
+          delivery: null,
+          error: null,
+        })),
+      })
+    );
+
+    await expect(
+      result.current.resolveMotionReferenceVideoDropSource(makePayload({ mediaKind: "video" }))
+    ).resolves.toEqual(
+      expect.objectContaining({
+        kind: "internal",
+        sourceKind: "media_library",
+        outputId: "out-1",
+        mediaId: "media-video-1",
+        previewStoragePath: "user-1/uploads/videos/out-1.mp4",
+        fullStoragePath: "user-1/uploads/videos/out-1.mp4",
+        preview: {
+          url: "blob:local-motion",
+        },
+      })
+    );
+  });
+
   it("awaits prompt persistence for media-library text drops before returning prompt ids", async () => {
     const outputsById = new Map<string, StudioOutput>([
       [

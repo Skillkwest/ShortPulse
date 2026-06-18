@@ -4,6 +4,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAiStudioReferenceIngestionActions } from "../useAiStudioReferenceIngestionActions";
 import type { StudioOutput } from "../../types";
 import { REFERENCE_GRID_MAX_VISIBLE_ITEMS } from "../../reference-grid/logic/referenceGridLimits";
+import {
+  forgetObjectUrlBlob,
+  readRememberedObjectUrlBlob,
+} from "../../utils/objectUrlBlobRegistry";
 
 const associateMediaFilesWithProjectMock = vi.hoisted(() => vi.fn());
 const useResolvedProtectedSessionStateMock = vi.hoisted(() => vi.fn());
@@ -562,6 +566,7 @@ describe("useAiStudioReferenceIngestionActions", () => {
           timestamp: "Dropped",
         })
       );
+      expect(readRememberedObjectUrlBlob("blob:local-reference")).toBe(file);
       const pendingOutputId = nextOutputs[0]?.id;
       expect(pendingOutputId).toMatch(/^upload-/);
 
@@ -593,6 +598,7 @@ describe("useAiStudioReferenceIngestionActions", () => {
       expect(nextOutputs[0]?.taskState).toBeUndefined();
       expect(nextOutputs[0]?.localObjectUrl).toBeUndefined();
     } finally {
+      forgetObjectUrlBlob("blob:local-reference");
       Object.defineProperty(URL, "createObjectURL", {
         configurable: true,
         value: originalCreateObjectURL,

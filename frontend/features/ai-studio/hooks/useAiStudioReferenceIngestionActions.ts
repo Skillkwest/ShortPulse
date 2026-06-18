@@ -28,6 +28,7 @@ import {
   REFERENCE_GRID_CAP_REACHED_MESSAGE,
 } from "../reference-grid/logic/referenceGridLimits";
 import { buildAiStudioAgentContext } from "./stateAdapters/agentContextAdapter";
+import { rememberObjectUrlBlob } from "../utils/objectUrlBlobRegistry";
 
 type UseAiStudioReferenceIngestionActionsArgs = {
   activeOutput?: StudioOutput | null;
@@ -105,6 +106,7 @@ const createLocalPreviewUrls = (
   }
   try {
     const objectUrl = URL.createObjectURL(file);
+    rememberObjectUrlBlob(objectUrl, file);
     if (file.type.startsWith("video/")) {
       return {
         previewUrl: `${objectUrl}#video=1`,

@@ -165,7 +165,7 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   padding: 8px 10px;
   border: 1px solid #ff7070;
   border-radius: 8px;
-  background: linear-gradient(180deg, rgba(95, 20, 20, 0.5), rgba(62, 14, 14, 0.56));
+  background: linear-gradient(180deg, #5f1414, #3e0e0e);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 

@@ -134,13 +134,13 @@ export const useAiStudioEditVideoPanelRuntimes = ({
   );
   const handleRecordedMotionVideoReady = useCallback(
     async (upload: VideoUploadResult, sourceFile: File) => {
+      base.setMotionReferenceVideoUrl(upload.url);
       void base.ingestReferenceFiles([sourceFile], "filePicker").then((results) => {
         const outputId = results[0]?.outputId ?? null;
         if (outputId) {
           base.setActiveOutputId(outputId);
         }
       });
-      await base.stageMotionVideoSelection({ videoUrl: upload.url });
     },
     [base]
   );

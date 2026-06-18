@@ -512,6 +512,8 @@ type AiStudioAlertBannerProps = {
   onDismiss: () => void;
 };
 
+const AI_STUDIO_FAILURE_ALERT_AUTO_DISMISS_MS = 9000;
+
 const AiStudioAlertBanner = ({
   message,
   variant,
@@ -582,8 +584,32 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
   const effectiveUiError = suppressUiErrorForFailureStack
     ? null
     : normalizeCustomerFacingProviderError(uiError, "");
-  const groupedFailures = groupVisibleFailuresForAlertStack(visibleFailures);
+  const groupedFailures = React.useMemo(
+    () => groupVisibleFailuresForAlertStack(visibleFailures),
+    [visibleFailures]
+  );
+  const groupedFailureIdsKey = React.useMemo(
+    () =>
+      groupedFailures
+        .flatMap((group) => group.ids)
+        .sort()
+        .join("|"),
+    [groupedFailures]
+  );
+  const dismissGroupedFailures = React.useCallback(() => {
+    groupedFailures.forEach((group) => {
+      group.ids.forEach((id) => onDismissFailure(id));
+    });
+  }, [groupedFailures, onDismissFailure]);
   const hasVisibleAlerts = Boolean(effectiveUiError || uiNotice || groupedFailures.length);
+
+  React.useEffect(() => {
+    if (!groupedFailureIdsKey) return undefined;
+    const timeoutId = window.setTimeout(() => {
+      dismissGroupedFailures();
+    }, AI_STUDIO_FAILURE_ALERT_AUTO_DISMISS_MS);
+    return () => window.clearTimeout(timeoutId);
+  }, [dismissGroupedFailures, groupedFailureIdsKey]);
 
   if (!hasVisibleAlerts) return null;
 
@@ -618,6 +644,7 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
           mode="banner"
           role="alert"
           ariaLive="polite"
+          onDismiss={dismissGroupedFailures}
         >
           <ul className="ai-error-list">
             {groupedFailures.map((group) => {

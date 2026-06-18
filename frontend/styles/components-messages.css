@@ -28,7 +28,7 @@
 
 .app-message--error {
   --app-message-accent: #ff8a8a;
-  --app-message-bg: rgba(54, 25, 31, 0.92);
+  --app-message-bg: #36191f;
   --app-message-border: rgba(255, 138, 138, 0.34);
   --app-message-text: #ffdede;
   --app-message-muted: rgba(255, 222, 222, 0.78);

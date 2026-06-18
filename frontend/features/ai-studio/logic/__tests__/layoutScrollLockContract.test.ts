@@ -127,7 +127,10 @@ describe("ai-studio layout scroll behavior contract", () => {
     const stackRule = extractRuleBlock(css, ".ai-studio-page .ai-alerts-stack");
     const viewportStackRule = extractRuleBlock(messagesCss, ".app-message-stack--viewport");
     const stackChildrenRule = extractRuleBlock(messagesCss, ".app-message-stack--viewport > *");
+    const sharedErrorMessageRule = extractRuleBlock(messagesCss, ".app-message--error");
     const alertBannerRule = extractRuleBlock(css, ".ai-studio-page .ai-alert-banner");
+    const alertErrorBannerRule = extractRuleBlock(css, ".ai-studio-page .ai-alert-banner--error");
+    const groupedFailureRule = extractRuleBlock(css, ".ai-error-stack");
     const viewportMessageRule = extractRuleBlock(
       messagesCss,
       ".app-message-stack--viewport .app-message,\n.app-message-stack--viewport .ai-error-stack"
@@ -144,6 +147,9 @@ describe("ai-studio layout scroll behavior contract", () => {
     );
     expect(stackRule).toContain("--app-message-stack-viewport-z-index: 30;");
     expect(alertBannerRule).toContain("margin: 0;");
+    expect(sharedErrorMessageRule).toContain("--app-message-bg: #36191f;");
+    expect(alertErrorBannerRule).toContain("background: #461818;");
+    expect(groupedFailureRule).toContain("background: linear-gradient(180deg, #5f1414, #3e0e0e);");
     expect(viewportMessageRule).toContain("margin: 0;");
     expect(css).toContain("@media (max-width: 1100px)");
     expect(css).toMatch(

@@ -1382,20 +1382,18 @@ export function VideoPropertiesPanel({
     setIsMotionRecorderOpen(false);
   }, []);
   const handleApplyRecordedMotionVideo = React.useCallback(
-    (upload: VideoUploadResult, sourceFile: File) => {
-      void (async () => {
-        try {
-          if (onRecordedMotionVideoReady) {
-            await onRecordedMotionVideoReady(upload, sourceFile);
-          } else if (onStageMotionVideoSelection) {
-            await onStageMotionVideoSelection({ videoUrl: upload.url });
-          } else {
-            onMotionVideoChange?.(upload.url);
-          }
-        } finally {
-          setIsMotionRecorderOpen(false);
+    async (upload: VideoUploadResult, sourceFile: File) => {
+      try {
+        if (onRecordedMotionVideoReady) {
+          await onRecordedMotionVideoReady(upload, sourceFile);
+        } else if (onStageMotionVideoSelection) {
+          await onStageMotionVideoSelection({ videoUrl: upload.url });
+        } else {
+          onMotionVideoChange?.(upload.url);
         }
-      })();
+      } finally {
+        setIsMotionRecorderOpen(false);
+      }
     },
     [onMotionVideoChange, onRecordedMotionVideoReady, onStageMotionVideoSelection]
   );

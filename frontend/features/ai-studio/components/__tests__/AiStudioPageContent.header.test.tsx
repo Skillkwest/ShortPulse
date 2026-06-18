@@ -3,11 +3,12 @@
  * Verifies the current project title is rendered in the centered hero/header slot only when available.
  */
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AiStudioPageContent } from "../AiStudioPageContent";
 import { AI_SHELL_RIGHT_COLLAPSED_MIN_PX } from "../../logic/shellResize";
-import type { ToolId } from "../../types";
+import { createDefaultRightRailLayout } from "../../logic/rightRailLayout";
+import type { StudioOutput, ToolId } from "../../types";
 
 const voicePanelActiveSourceEffectMock = vi.hoisted(() => vi.fn());
 const mediaLibraryPanelPropsMock = vi.hoisted(() => vi.fn());
@@ -255,6 +256,8 @@ const createProps = (
   onDeleteOutput: vi.fn(),
   projectId: "project-1",
   projectRouteRequested: true,
+  rightRailLayout: createDefaultRightRailLayout(),
+  onRightRailLayoutChange: vi.fn(),
   projectName: null,
   onProjectNameCommit: vi.fn(),
   onOpenProjectNameEditor: vi.fn(),
@@ -270,11 +273,48 @@ const createProps = (
   ...overrides,
 });
 
+const createFailureOutput = (id = "out-failed"): StudioOutput => ({
+  id,
+  prompt: "she sings into the microphone",
+  mode: "video",
+  aspect: "16:9",
+  model: "Kie Kling 3.0",
+  modelId: "kie-ai/kling-3.0",
+  status: "ready",
+  timestamp: "2026-06-18T13:58:20.000Z",
+  taskState: "fail",
+  errorMessage: "File type not supported",
+  errorMessageShort: "File type not supported",
+  errorDetail: "File type not supported",
+});
+
+function StatefulAiStudioPageContent({
+  overrides = {},
+}: {
+  overrides?: Partial<React.ComponentProps<typeof AiStudioPageContent>>;
+}) {
+  const [rightRailLayout, setRightRailLayout] = React.useState(createDefaultRightRailLayout);
+
+  return (
+    <AiStudioPageContent
+      {...createProps({
+        ...overrides,
+        rightRailLayout,
+        onRightRailLayoutChange: setRightRailLayout,
+      })}
+    />
+  );
+}
+
 describe("AiStudioPageContent header project name", () => {
   beforeEach(() => {
     mediaLibraryPanelPropsMock.mockClear();
     useAiStudioShellResizeMock.mockClear();
     useAiStudioStylesRuntimeMock.mockClear();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("renders the credit coin and remaining over total credit label", () => {
@@ -351,6 +391,50 @@ describe("AiStudioPageContent header project name", () => {
     expect(onOpenMediaLibrary).toHaveBeenCalledTimes(1);
   });
 
+  it("lets the grouped failure banner close from the top-right dismiss button", () => {
+    const onDismissFailure = vi.fn();
+
+    render(
+      <AiStudioPageContent
+        {...createProps({
+          visibleFailures: [createFailureOutput()],
+          onDismissFailure,
+        })}
+      />
+    );
+
+    expect(screen.getByRole("alert")).toHaveTextContent("File type not supported");
+
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss message" }));
+
+    expect(onDismissFailure).toHaveBeenCalledWith("out-failed");
+  });
+
+  it("auto-dismisses the grouped failure banner after the reading timeout", () => {
+    vi.useFakeTimers();
+    const onDismissFailure = vi.fn();
+
+    render(
+      <AiStudioPageContent
+        {...createProps({
+          visibleFailures: [createFailureOutput()],
+          onDismissFailure,
+        })}
+      />
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(8999);
+    });
+    expect(onDismissFailure).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+
+    expect(onDismissFailure).toHaveBeenCalledWith("out-failed");
+  });
+
   it("omits the centered project name when no project title is available", () => {
     render(<AiStudioPageContent {...createProps()} projectName={null} />);
 
@@ -358,7 +442,7 @@ describe("AiStudioPageContent header project name", () => {
   });
 
   it("toggles Canvas visibility from the header button through the page shell contract", () => {
-    render(<AiStudioPageContent {...createProps()} />);
+    render(<StatefulAiStudioPageContent />);
 
     const canvasButton = screen.getByRole("button", { name: "Canvas" });
     const shellFrame = screen.getByTestId("ai-studio-shell-frame");

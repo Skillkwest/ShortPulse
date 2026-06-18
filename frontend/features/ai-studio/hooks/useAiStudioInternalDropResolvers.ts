@@ -3,6 +3,7 @@
  * Centralizes page-scoped drop resolution for character, media-library, styles, and element-profile surfaces.
  */
 import { useCallback } from "react";
+import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
 import { rememberObjectUrlBlob } from "../utils/objectUrlBlobRegistry";
 import type {
   PersistOutputSaveOptions,
@@ -67,6 +68,82 @@ const loadBlobFromUrl = async (url: string): Promise<Blob> => {
 
 const canCreateObjectUrl = () =>
   typeof URL !== "undefined" && typeof URL.createObjectURL === "function";
+
+const VIDEO_STORAGE_PATH_PATTERN = /\.(?:m4v|mov|mp4|ogg|ogv|webm)(?:$|[?#])/i;
+
+const normalizeOptionalString = (value: string | null | undefined): string | null => {
+  const normalized = value?.trim() ?? "";
+  return normalized.length ? normalized : null;
+};
+
+const resolveVideoStoragePath = (output: StudioOutput): string | null => {
+  const previewStoragePath = asCanonicalStoragePath(output.previewStoragePath);
+  const fullStoragePath = asCanonicalStoragePath(output.fullStoragePath);
+  if (previewStoragePath && VIDEO_STORAGE_PATH_PATTERN.test(previewStoragePath)) {
+    return previewStoragePath;
+  }
+  return fullStoragePath ?? previewStoragePath;
+};
+
+const resolveVideoPreviewUrl = (output: StudioOutput): string | null =>
+  normalizeOptionalString(output.localObjectUrl)?.replace(/#video=1$/i, "") ||
+  normalizeOptionalString(output.previewUrl) ||
+  normalizeOptionalString(output.resultUrls?.[0]) ||
+  null;
+
+const resolveMotionVideoOutputSource = ({
+  output,
+  payload,
+}: {
+  output: StudioOutput | null;
+  payload: InternalReferenceDragPayload;
+}): ResolvedInternalReferenceSource | null => {
+  if (!output || output.mode !== "video") return null;
+  const storagePath = resolveVideoStoragePath(output);
+  const previewUrl = resolveVideoPreviewUrl(output);
+  if (!storagePath && !previewUrl) return null;
+  const mediaId =
+    normalizeOptionalString(payload.mediaId) ?? resolveSavedMediaIdFromOutput(output, 0);
+  const localObjectUrl = normalizeOptionalString(output.localObjectUrl);
+  const sourceKind = storagePath
+    ? output.mediaSource === "generated"
+      ? "generated_output"
+      : "media_library"
+    : localObjectUrl
+      ? "local_file"
+      : "external_url";
+
+  return {
+    kind: "internal",
+    sourceKind,
+    sourceId: mediaId ?? normalizeOptionalString(output.id) ?? "motion-video-reference",
+    provenance: {
+      origin: payload.origin ?? null,
+      outputId: output.id || null,
+      mediaId,
+      imageIndex: Math.max(0, Math.floor(payload.imageIndex ?? 0)),
+      sourceSurface: payload.sourceSurface ?? null,
+      resolutionReason: storagePath ? "output_storage_path" : "local_object_url",
+    },
+    outputId: output.id || null,
+    generationId: normalizeOptionalString(output.generationId),
+    mediaId,
+    mediaSource: output.mediaSource ?? null,
+    preview: {
+      url: previewUrl,
+    },
+    previewStoragePath: storagePath,
+    fullStoragePath: storagePath,
+    promptText: output.prompt || output.previewText || null,
+    preparedImageUrl: null,
+    loadBlob: async () => {
+      if (!previewUrl) {
+        throw new Error("Motion reference video source is missing a preview URL.");
+      }
+      return await loadBlobFromUrl(previewUrl);
+    },
+  };
+};
 
 /**
  * Builds internal-reference drop resolvers used by the AI Studio page shell.
@@ -275,7 +352,12 @@ export const useAiStudioInternalDropResolvers = ({
         ensureOutputPersisted,
         resolveSavedMediaIdFromOutput,
       });
-      if (!resolvedSource) return null;
+      if (!resolvedSource) {
+        return resolveMotionVideoOutputSource({
+          output: referencedOutput,
+          payload,
+        });
+      }
 
       const resolvedOutput = resolvedSource.outputId?.trim()
         ? getOutputById(resolvedSource.outputId)

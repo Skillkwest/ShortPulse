@@ -234,6 +234,52 @@ const galleryVideoRows = galleryVideoRowSources
   )
   .filter((row) => row.length > 0);
 
+const GALLERY_VIDEO_SOURCE_ROOT_MARGIN = "360px 0px";
+
+function usePublicHomeGalleryCardViewport(enabled: boolean) {
+  const [cardElement, setCardElement] = useState<HTMLElement | null>(null);
+  const [isNearViewport, setIsNearViewport] = useState(!enabled);
+
+  useEffect(() => {
+    if (!enabled) {
+      setIsNearViewport(true);
+      return;
+    }
+
+    setIsNearViewport(false);
+  }, [enabled]);
+
+  useEffect(() => {
+    if (!enabled || !cardElement || typeof window === "undefined") return;
+
+    if (!("IntersectionObserver" in window)) {
+      const frameId = globalThis.requestAnimationFrame(() => {
+        setIsNearViewport(true);
+      });
+      return () => {
+        globalThis.cancelAnimationFrame(frameId);
+      };
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsNearViewport(Boolean(entry?.isIntersecting));
+      },
+      {
+        rootMargin: GALLERY_VIDEO_SOURCE_ROOT_MARGIN,
+        threshold: 0,
+      }
+    );
+
+    observer.observe(cardElement);
+    return () => {
+      observer.disconnect();
+    };
+  }, [cardElement, enabled]);
+
+  return { isNearViewport, setCardElement };
+}
+
 function getGalleryAspectValue(item: PublicHomeGalleryItem) {
   const [width, height] = (item.aspectRatio ?? "1 / 1")
     .split("/")
@@ -246,17 +292,49 @@ function PublicHomeGalleryCard({
   item,
   index,
   onViewPrompt,
+  pausePreviewPlayback,
 }: {
   item: PublicHomeGalleryItem;
   index: number;
   onViewPrompt: (item: PublicHomeGalleryItem) => void;
+  pausePreviewPlayback: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const isVideo = item.mediaType === "video";
+  const { isNearViewport, setCardElement } = usePublicHomeGalleryCardViewport(isVideo);
+  const [hasUserIntent, setHasUserIntent] = useState(false);
+  const [wantsPreviewPlayback, setWantsPreviewPlayback] = useState(false);
+  const shouldAttachVideoSource = isVideo && (isNearViewport || hasUserIntent);
+  const shouldPlayPreview =
+    shouldAttachVideoSource && wantsPreviewPlayback && !pausePreviewPlayback;
 
-  const playPreview = useCallback(() => {
+  const requestPreviewPlayback = useCallback(() => {
+    if (!isVideo) return;
+    setHasUserIntent(true);
+    setWantsPreviewPlayback(true);
+  }, [isVideo]);
+
+  const stopPreviewPlayback = useCallback(() => {
+    if (!isVideo) return;
+    setWantsPreviewPlayback(false);
+  }, [isVideo]);
+
+  useEffect(() => {
     const videoElement = videoRef.current;
-    if (!videoElement) return;
+    if (!videoElement || !isVideo) return;
+
+    if (!shouldPlayPreview) {
+      videoElement.pause();
+      if (!wantsPreviewPlayback || pausePreviewPlayback) {
+        try {
+          videoElement.currentTime = 0;
+        } catch {
+          // Some browsers disallow seeking until enough data is available.
+        }
+      }
+      return;
+    }
+
     videoElement.muted = true;
     const playPromise = videoElement.play();
     if (playPromise && typeof playPromise.catch === "function") {
@@ -264,18 +342,18 @@ function PublicHomeGalleryCard({
         // Hover playback is an enhancement; keep the poster visible if the browser blocks it.
       });
     }
-  }, []);
+  }, [isVideo, pausePreviewPlayback, shouldPlayPreview, wantsPreviewPlayback]);
 
-  const stopPreview = useCallback(() => {
-    const videoElement = videoRef.current;
-    if (!videoElement) return;
-    videoElement.pause();
-    videoElement.currentTime = 0;
+  useEffect(() => {
+    return () => {
+      videoRef.current?.pause();
+    };
   }, []);
 
   const primePreviewFrame = useCallback(() => {
     const videoElement = videoRef.current;
-    if (!videoElement || item.posterSrc || videoElement.currentTime > 0) return;
+    if (!videoElement) return;
+    if (item.posterSrc || videoElement.currentTime > 0) return;
 
     try {
       videoElement.currentTime = 0.01;
@@ -287,13 +365,14 @@ function PublicHomeGalleryCard({
   const handleBlur = useCallback(
     (event: FocusEvent<HTMLElement>) => {
       if (event.currentTarget.contains(event.relatedTarget)) return;
-      stopPreview();
+      stopPreviewPlayback();
     },
-    [stopPreview]
+    [stopPreviewPlayback]
   );
 
   return (
     <figure
+      ref={setCardElement}
       className={`public-home-gallery-card public-home-gallery-card-${item.size}${
         isVideo ? " public-home-gallery-card-video" : ""
       }`}
@@ -305,22 +384,22 @@ function PublicHomeGalleryCard({
           : undefined
       }
       onBlur={handleBlur}
-      onFocus={isVideo ? playPreview : undefined}
-      onMouseEnter={isVideo ? playPreview : undefined}
-      onMouseLeave={isVideo ? stopPreview : undefined}
-      onPointerEnter={isVideo ? playPreview : undefined}
-      onPointerLeave={isVideo ? stopPreview : undefined}
+      onFocus={isVideo ? requestPreviewPlayback : undefined}
+      onMouseEnter={isVideo ? requestPreviewPlayback : undefined}
+      onMouseLeave={isVideo ? stopPreviewPlayback : undefined}
+      onPointerEnter={isVideo ? requestPreviewPlayback : undefined}
+      onPointerLeave={isVideo ? stopPreviewPlayback : undefined}
     >
       {isVideo ? (
         <video
           ref={videoRef}
           className="public-home-gallery-media"
-          src={item.src}
+          src={shouldAttachVideoSource ? item.src : undefined}
           poster={item.posterSrc}
           muted
           loop
           playsInline
-          preload="auto"
+          preload={shouldPlayPreview ? "auto" : shouldAttachVideoSource ? "metadata" : "none"}
           aria-label={item.alt}
           onLoadedMetadata={primePreviewFrame}
         />
@@ -460,6 +539,7 @@ export function PublicHomeVideoGallery({
     null
   );
   const [isGalleryPromptLocked, setIsGalleryPromptLocked] = useState(false);
+  const isPromptModalOpen = selectedGalleryPrompt !== null;
 
   const handleViewGalleryPrompt = useCallback(
     (item: PublicHomeGalleryItem) => {
@@ -475,8 +555,8 @@ export function PublicHomeVideoGallery({
   }, []);
 
   useEffect(() => {
-    onModalOpenChange?.(selectedGalleryPrompt !== null);
-  }, [onModalOpenChange, selectedGalleryPrompt]);
+    onModalOpenChange?.(isPromptModalOpen);
+  }, [isPromptModalOpen, onModalOpenChange]);
 
   return (
     <>
@@ -504,6 +584,7 @@ export function PublicHomeVideoGallery({
                   item={item}
                   index={rowIndex * 4 + itemIndex}
                   onViewPrompt={handleViewGalleryPrompt}
+                  pausePreviewPlayback={isPromptModalOpen}
                 />
               ))}
             </div>

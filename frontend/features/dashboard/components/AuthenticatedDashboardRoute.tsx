@@ -80,6 +80,17 @@ const asDashboardAnnouncement = (value: unknown): DashboardAnnouncement | null =
   };
 };
 
+const getUserDisplayName = (user: User) => {
+  const displayName =
+    typeof user.user_metadata?.display_name === "string"
+      ? user.user_metadata.display_name.trim()
+      : "";
+  const fullName =
+    typeof user.user_metadata?.full_name === "string" ? user.user_metadata.full_name.trim() : "";
+  const email = user.email?.trim() ?? "";
+  return displayName || fullName || email || "Guest";
+};
+
 const dashboardToolCards: DashboardToolCard[] = [
   {
     title: "AI Studio",
@@ -168,15 +179,11 @@ export function AuthenticatedDashboardRoute({
     enabled: true,
     fallbackPlanId: planMeta.id,
   });
-  const displayName =
-    (user.user_metadata?.display_name as string | undefined) ??
-    (user.user_metadata?.full_name as string | undefined) ??
-    user.email ??
-    "Guest";
-  const firstName = (displayName || "creator").split(" ")[0];
+  const displayName = getUserDisplayName(user);
+  const firstName = displayName.split(/\s+/)[0] || "creator";
   const initials =
     displayName
-      .split(" ")
+      .split(/\s+/)
       .filter((part) => part.trim().length > 0)
       .map((part) => part[0])
       .join("")

@@ -279,7 +279,35 @@ describe("Dashboard actions", () => {
     });
 
     expect(screen.getByLabelText("ShortPulse logo")).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "ShortPulse home" })).not.toBeInTheDocument();
+    expect(document.querySelector(".app-bar .brand-mark-logo")).not.toHaveAttribute("href");
+  });
+
+  it("falls back to a trimmed full name when profile display name metadata is blank", async () => {
+    useSupabaseSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: {
+        user: {
+          ...appUser,
+          user_metadata: {
+            display_name: "   ",
+            full_name: " Ada Lovelace ",
+          },
+        },
+      },
+      user: {
+        ...appUser,
+        user_metadata: {
+          display_name: "   ",
+          full_name: " Ada Lovelace ",
+        },
+      },
+    });
+
+    render(<DashboardPage />);
+
+    expect(
+      await screen.findByRole("heading", { name: /welcome back, ada\./i })
+    ).toBeInTheDocument();
   });
 
   it("links signed-in dashboard account summary cards to profile account sections", async () => {

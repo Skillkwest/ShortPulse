@@ -54,6 +54,12 @@ Post-baseline slice completed on 2026-06-17:
 - `generationLineageResolver` now treats `ai_generations.request_id` as lifecycle-shell evidence through the shared resolver contract.
 - `generationBilling/ownershipResolver` no longer hand-rolls generation attempt plus `ai_generations.request_id` ownership lineage; it uses the shared resolver after reservation authority and before projection-only diagnostics.
 - Strict recovery lookups that pass `includeProjection: false` remain attempt-only.
+- `generationLineageResolver` now also owns caller-scoped `source_ref` lineage, using projection source-ref evidence before caller-owned `ai_generations.metadata.source_ref` fallback; `/api/generation/reconcile` no longer hand-rolls this source-ref resolution before delegating to recovery.
+- Reference Grid visibility suppression now also resolves `source_ref` and `request_id` through the shared lineage resolver before suppressing projection/publication visibility; it still does not rewrite provider lifecycle, generation attempts, or settlement state.
+- `/api/admin/generation-trace` now expands user-scoped `requestId` and `traceId` diagnostics through the shared lineage resolver before fanout, so admin trace lookup shares provider-request and source-ref fallback order without changing lifecycle, settlement, provider, or UI behavior.
+- `/api/admin/user-health` deep-report assembly now recognizes `ai_generations.metadata.source_ref` as local lineage evidence before flagging generation charges as missing success linkage, matching the shared resolver source-ref fallback without adding new reads or changing settlement behavior.
+- `/api/admin/user-health-fleet` scan assembly now scopes cost-without-success lineage maps by `user_id` plus identifier and recognizes `ai_generations.metadata.source_ref`, preventing another user's projection or raw identifier collision from hiding fleet risk.
+- `generationOutputConvergence` now carries source-ref and provider-request identity into repaired projection rows when owned output-slot convergence attaches canonical media, so later restore and diagnostics can reuse the same projection lineage instead of relying only on output attachment metadata.
 
 ## Handoff Interpretation
 

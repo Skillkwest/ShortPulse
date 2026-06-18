@@ -1,0 +1,7 @@
+# 2026-06-17 Admin billing pricing auth boundary
+
+- Context: row 7 billing trust plus row 15 owner operability; stayed on clean admin support/read routes and avoided catalog mutation behavior.
+- Touched: `frontend/pages/api/admin/billing/portal.ts`, `frontend/pages/api/admin/billing/customer-sync.ts`, `frontend/pages/api/admin/billing/contracts/update.ts`, `frontend/pages/api/admin/pricing/state.ts`, and matching admin tests.
+- Change: admin billing support and pricing-state routes now catch unexpected admin auth-verification throws before target-user, Stripe, billing-contract, or pricing-state work runs, log route-owned diagnostics, and return existing safe errors.
+- Validation: `npm -C frontend run test -- --run tests/api/admin-billing-portal.test.ts tests/api/admin-billing-customer-sync.test.ts tests/api/admin-billing-contracts-update.test.ts tests/api/admin-pricing-state.test.ts tests/api/credits-snapshot.test.ts tests/api/billing-catalog.test.ts tests/api/billing-credit-packages.test.ts tests/api/model-pricing-policy.test.ts tests/api/stripe-portal.test.ts tests/api/stripe-checkout.test.ts tests/api/transactions.test.ts tests/api/subscription-transactions.test.ts tests/api/subscription-change.test.ts tests/api/storage-addon-change.test.ts tests/api/account-identity.test.ts`; `npm -C frontend run type-check:touched`; `npm -C frontend run docs:check`; `git diff --check`.
+- Boundary: no pricing/catalog policy changes, no Stripe/Supabase mutation, no UI/UX, no commit, no push, no deploy, and no production-mutating proof.

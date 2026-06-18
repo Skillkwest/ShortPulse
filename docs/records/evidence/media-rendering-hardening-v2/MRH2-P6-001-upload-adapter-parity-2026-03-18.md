@@ -14,10 +14,10 @@
 ## Code Changes
 - [mediaUploadService.ts](../../../../frontend/lib/server/mediaUploadService.ts)
 - `frontend/pages/api/upload-image.ts` (retired 2026-06-03)
-- [upload-video.ts](../../../../frontend/pages/api/upload-video.ts)
+- `frontend/pages/api/upload-video.ts` (retired 2026-06-17; successor: [stage-motion-reference-video.ts](../../../../frontend/pages/api/media/stage-motion-reference-video.ts))
 - [media-upload.route.test.ts](../../../../frontend/tests/api/media-upload.route.test.ts)
 - `frontend/tests/api/upload-image-route.test.ts` (retired 2026-06-03)
-- [upload-video-route.test.ts](../../../../frontend/tests/api/upload-video-route.test.ts)
+- `frontend/tests/api/upload-video-route.test.ts` (retired 2026-06-17; successor: [motion-reference-video-upload-route.test.ts](../../../../frontend/tests/api/motion-reference-video-upload-route.test.ts))
 - [legacy-adapter-sunset-spec](../../../planning/media-rendering-hardening-v2-legacy-adapter-sunset-spec-2026-03-16.md)
 
 ## Adapter Decision

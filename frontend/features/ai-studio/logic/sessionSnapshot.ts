@@ -52,6 +52,8 @@ import {
   hasSettledSessionOutputPayload,
   shouldKeepSessionOutputForDurableRestore,
 } from "./sessionOutputAuthority";
+import type { AiStudioRightRailLayoutV1 } from "./rightRailLayout";
+import { sanitizeRightRailLayoutSnapshot } from "./rightRailLayout";
 
 export const LATEST_AI_STUDIO_SESSION_SCHEMA_VERSION = 2;
 
@@ -206,6 +208,7 @@ export type AiStudioSessionWorkspaceV1 = {
   klingMultiPrompts: { id: string; prompt: string; duration: number }[];
   klingElements: AiStudioKlingElement[];
   motionReferenceVideoUrl: string | null;
+  rightRailLayout?: AiStudioRightRailLayoutV1;
 };
 
 export type AiStudioSessionOutputsV1 = {
@@ -317,6 +320,7 @@ export type BuildAiStudioSessionSnapshotInput = {
   klingMultiPrompts: { id: string; prompt: string; duration: number }[];
   klingElements: AiStudioKlingElement[];
   motionReferenceVideoUrl: string | null;
+  rightRailLayout?: AiStudioRightRailLayoutV1 | null;
   outputs: StudioOutput[];
   archivedOutputs: StudioOutput[];
   activeOutputId: string | null;
@@ -957,6 +961,9 @@ export const buildAiStudioSessionSnapshot = (
       klingMultiPrompts: input.klingMultiPrompts,
       klingElements: sanitizeWorkspaceKlingElements(input.klingElements),
       motionReferenceVideoUrl: sanitizeWorkspaceMediaUrl(input.motionReferenceVideoUrl),
+      ...(input.rightRailLayout
+        ? { rightRailLayout: sanitizeRightRailLayoutSnapshot(input.rightRailLayout) }
+        : {}),
     },
     outputs: {
       active: persistedActiveOutputs.map(sanitizeOutput),

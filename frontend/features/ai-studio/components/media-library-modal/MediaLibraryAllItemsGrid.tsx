@@ -1,4 +1,5 @@
 import React, { type MutableRefObject } from "react";
+import { resolveMediaRowKind } from "../../../../lib/mediaRowKind";
 import { useMediaMasonryVirtualization } from "../../../media-library/hooks/useMediaMasonryVirtualization";
 import { resolveMediaLibraryAdaptiveCardPreviewUrl } from "../../../media-library/logic/mediaLibraryAdaptivePreview";
 import {
@@ -14,14 +15,13 @@ import {
   MediaLibraryVisualMediaCard,
   buildMediaLibraryCardActionLabels,
   canShowMediaLibraryWorkflowReloadAction,
+  resolveMediaLibraryCardDisplayLabel,
   type MediaLibraryMediaDragPreview,
 } from "./MediaLibraryMediaCard";
 import { MediaLibraryPromptReferenceCard } from "./MediaLibraryPromptReferenceCard";
 import { useMediaAspectRatioCache } from "./useMediaAspectRatioCache";
 import {
   createdAtTime,
-  isAudioFile,
-  isVideoFile,
   type MediaCardRefCallback,
   type MediaFileRow,
   type PromptRow,
@@ -190,7 +190,7 @@ export function MediaLibraryAllItemsGrid({
     for (const item of chronologicallySortedItems) {
       const isPrioritizedVisualItem =
         item.kind === "media" &&
-        !isAudioFile(item.row.file_type) &&
+        resolveMediaRowKind(item.row) !== "audio" &&
         prioritizedVisualItems.length < visualMediaPriorityCount;
       if (isPrioritizedVisualItem) {
         prioritizedVisualItems.push(item);
@@ -211,7 +211,8 @@ export function MediaLibraryAllItemsGrid({
     getItemId: (item) => item.key,
     getAspectRatio: (item) => {
       if (item.kind === "prompt") return PROMPT_CARD_ASPECT_RATIO;
-      if (isAudioFile(item.row.file_type)) return PROMPT_CARD_ASPECT_RATIO;
+      const mediaKind = resolveMediaRowKind(item.row);
+      if (mediaKind === "audio") return PROMPT_CARD_ASPECT_RATIO;
       if (
         typeof fixedVisualAspectRatio === "number" &&
         Number.isFinite(fixedVisualAspectRatio) &&
@@ -222,7 +223,7 @@ export function MediaLibraryAllItemsGrid({
       const cachedRatio = aspectRatioById[item.id];
       if (Number.isFinite(cachedRatio) && cachedRatio > 0) return cachedRatio;
       return resolveMediaCardAspectRatio({
-        fileType: item.row.file_type,
+        fileType: mediaKind,
         width: item.row.width ?? null,
         height: item.row.height ?? null,
         metadata: item.row.metadata,
@@ -289,7 +290,10 @@ export function MediaLibraryAllItemsGrid({
         }
 
         const file = item.row;
-        const isAudio = isAudioFile(file.file_type);
+        const mediaKind = resolveMediaRowKind(file);
+        const mediaLabel = resolveMediaLibraryCardDisplayLabel(file);
+        const isAudio = mediaKind === "audio";
+        const isVideo = mediaKind === "video";
         const hasDownloadableMediaSource = Boolean(
           (file.storage_path ?? "").trim() || (file.signedUrl ?? "").trim()
         );
@@ -310,14 +314,14 @@ export function MediaLibraryAllItemsGrid({
           canShowDeleteAction;
         const shouldBypassAdaptivePreview = optimizerFallbackMediaIds.has(file.id);
         const previewAspectRatio =
-          !isAudioFile(file.file_type) &&
+          !isAudio &&
           typeof fixedVisualAspectRatio === "number" &&
           Number.isFinite(fixedVisualAspectRatio) &&
           fixedVisualAspectRatio > 0
             ? fixedVisualAspectRatio
             : (aspectRatioById[file.id] ??
               resolveMediaCardAspectRatio({
-                fileType: file.file_type,
+                fileType: mediaKind,
                 width: file.width ?? null,
                 height: file.height ?? null,
                 metadata: file.metadata,
@@ -325,7 +329,7 @@ export function MediaLibraryAllItemsGrid({
         const cardPreviewUrl = resolveCardPreviewUrl
           ? resolveCardPreviewUrl({
               signedUrl: file.signedUrl,
-              fileType: file.file_type,
+              fileType: mediaKind,
               pressureLevel: adaptivePressureLevel,
               adaptivePreviewQualityEnabled,
               shouldBypassAdaptivePreview,
@@ -335,7 +339,7 @@ export function MediaLibraryAllItemsGrid({
           : resolveMediaLibraryAdaptiveCardPreviewUrl({
               surface: "media-library-modal-grid",
               signedUrl: file.signedUrl,
-              fileType: file.file_type,
+              fileType: mediaKind,
               pressureLevel: adaptivePressureLevel,
               adaptivePreviewQualityEnabled,
               shouldBypassAdaptivePreview,
@@ -344,7 +348,7 @@ export function MediaLibraryAllItemsGrid({
             });
         const fetchPriorityAttr = renderItem.index < 8 ? "high" : "auto";
         const signedPosterUrl = signedPosterUrlById[file.id] ?? null;
-        const hoverVideoUrl = isVideoFile(file.file_type)
+        const hoverVideoUrl = isVideo
           ? (signedVideoUrlById[file.id] ??
             (file.signedUrl && isVideoUrl(file.signedUrl) ? file.signedUrl : null))
           : null;
@@ -405,8 +409,8 @@ export function MediaLibraryAllItemsGrid({
                 actionLabels={buildMediaLibraryCardActionLabels(file, {
                   actionAriaLabel: "Media actions",
                   downloadLabelPrefix: "Download media",
-                  removeLabel: `Remove media ${file.filename}`,
-                  deleteLabel: `Delete media ${file.filename}`,
+                  removeLabel: `Remove media ${mediaLabel}`,
+                  deleteLabel: `Delete media ${mediaLabel}`,
                 })}
                 dangerActionMode="separate"
                 onDownloadMediaFile={onDownloadMediaFile}
@@ -446,8 +450,8 @@ export function MediaLibraryAllItemsGrid({
                 actionLabels={buildMediaLibraryCardActionLabels(file, {
                   actionAriaLabel: "Media actions",
                   downloadLabelPrefix: "Download media",
-                  removeLabel: `Remove media ${file.filename}`,
-                  deleteLabel: `Delete media ${file.filename}`,
+                  removeLabel: `Remove media ${mediaLabel}`,
+                  deleteLabel: `Delete media ${mediaLabel}`,
                 })}
                 dangerActionMode="separate"
                 onDownloadMediaFile={onDownloadMediaFile}

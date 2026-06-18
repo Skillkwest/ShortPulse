@@ -119,6 +119,9 @@ describe("Canvas interaction behavior", () => {
       /\.canvas-scene-item__media-action-row\s*{[^}]*transform:\s*scale\(var\(--canvas-control-scale,\s*1\)\);/s
     );
     expect(canvasWorkspaceCss).toMatch(
+      /\.canvas-scene-item__resize-handle\s*{[^}]*transform:\s*scale\(var\(--canvas-control-scale,\s*1\)\);[^}]*transform-origin:\s*center;/s
+    );
+    expect(canvasWorkspaceCss).toMatch(
       /\.canvas-scene-item__media-action-row--top\s*{[^}]*transform-origin:\s*top right;/s
     );
     expect(canvasWorkspaceCss).toMatch(
@@ -1100,6 +1103,7 @@ describe("Canvas interaction behavior", () => {
   it("zooms around the pointer location", async () => {
     render(<CanvasHarness />);
     const viewport = screen.getByTestId("canvas-viewport");
+    const world = screen.getByTestId("canvas-world");
     mockViewportRect(viewport);
 
     fireEvent.wheel(viewport, {
@@ -1110,6 +1114,7 @@ describe("Canvas interaction behavior", () => {
 
     await waitFor(() => {
       expect(Number(viewport.getAttribute("data-camera-zoom"))).toBeGreaterThan(1);
+      expect(Number(world.style.getPropertyValue("--canvas-control-scale"))).toBeLessThan(1);
     });
   });
 

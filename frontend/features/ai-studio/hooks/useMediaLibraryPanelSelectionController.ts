@@ -1,10 +1,9 @@
 import React from "react";
 import type { MediaPreviewTransformProfile } from "../../../lib/mediaPreviewTransformProfile";
+import { resolveMediaRowKind } from "../../../lib/mediaRowKind";
 import { resolveSignedSelectionUrl } from "../../media-library/logic/mediaPreviewResolver";
 import type { SharedMediaDetailSelectionTarget } from "../components/detail-modal/detailModalPlatformTypes";
 import {
-  isAudioFile,
-  isVideoFile,
   resolveMediaAudioBackgroundImageUrl,
   resolveMediaMetadataAudioSourceMode,
   resolveMediaMetadataDurationMs,
@@ -88,7 +87,9 @@ export const useMediaLibraryPanelSelectionController = ({
         file.signedUrl;
       if (!nextUrl) return false;
       const previewStoragePath = file.preview_storage_path ?? file.storage_path;
-      const isVideo = isVideoFile(file.file_type);
+      const mediaKind = resolveMediaRowKind(file);
+      const isVideo = mediaKind === "video";
+      const isAudio = mediaKind === "audio";
       const previewPosterStoragePath = isVideo
         ? (file.poster_variant_path ?? file.thumb_variant_path ?? null)
         : null;
@@ -102,13 +103,11 @@ export const useMediaLibraryPanelSelectionController = ({
           ? await signStoragePath(fullStoragePath, { forceRefresh: true })
           : null) ?? nextUrl;
       const companionArtUrl = resolveMediaAudioBackgroundImageUrl(file);
-      const companionArtStoragePath = isAudioFile(file.file_type)
-        ? (file.companion_art_storage_path ?? null)
-        : null;
+      const companionArtStoragePath = isAudio ? (file.companion_art_storage_path ?? null) : null;
       onSelectMedia(
         createMediaLibraryDetailSelectionPayload(file.id, {
           url: nextUrl,
-          fileType: isAudioFile(file.file_type) ? "audio" : isVideo ? "video" : "image",
+          fileType: isAudio ? "audio" : isVideo ? "video" : "image",
           createdAt: file.created_at ?? null,
           filename: file.filename,
           promptText: resolveMediaMetadataPromptText(file.metadata),
@@ -123,16 +122,10 @@ export const useMediaLibraryPanelSelectionController = ({
           fullUrl,
           companionArtUrl,
           companionArtStoragePath,
-          audioSourceMode: isAudioFile(file.file_type)
-            ? resolveMediaMetadataAudioSourceMode(file.metadata)
-            : null,
-          musicMode: isAudioFile(file.file_type)
-            ? resolveMediaMetadataMusicMode(file.metadata)
-            : null,
+          audioSourceMode: isAudio ? resolveMediaMetadataAudioSourceMode(file.metadata) : null,
+          musicMode: isAudio ? resolveMediaMetadataMusicMode(file.metadata) : null,
           durationMs: resolveMediaMetadataDurationMs(file.metadata, { fileType: file.file_type }),
-          waveformPeaks: isAudioFile(file.file_type)
-            ? resolveMediaMetadataWaveformPeaks(file.metadata)
-            : null,
+          waveformPeaks: isAudio ? resolveMediaMetadataWaveformPeaks(file.metadata) : null,
         })
       );
       return true;
@@ -185,7 +178,9 @@ export const useMediaLibraryPanelSelectionController = ({
     (file: MediaFileRow) => {
       const nextToken = previewResolveTokenRef.current + 1;
       previewResolveTokenRef.current = nextToken;
-      const isVideo = isVideoFile(file.file_type);
+      const mediaKind = resolveMediaRowKind(file);
+      const isVideo = mediaKind === "video";
+      const isAudio = mediaKind === "audio";
       const immediateSignedUrl = (file.signedUrl ?? "").trim() || null;
       const immediatePreviewUrl = isVideo
         ? immediateSignedUrl && isVideoUrl(immediateSignedUrl)
@@ -197,16 +192,14 @@ export const useMediaLibraryPanelSelectionController = ({
         ? (file.poster_variant_path ?? file.thumb_variant_path ?? null)
         : null;
       const companionArtUrl = resolveMediaAudioBackgroundImageUrl(file);
-      const companionArtStoragePath = isAudioFile(file.file_type)
-        ? (file.companion_art_storage_path ?? null)
-        : null;
+      const companionArtStoragePath = isAudio ? (file.companion_art_storage_path ?? null) : null;
       setDetailModalItem(
         createMediaLibraryDetailModalItem({
           file,
           surface: detailSurface,
           fields: {
             url: immediatePreviewUrl ?? "",
-            fileType: isAudioFile(file.file_type) ? "audio" : isVideo ? "video" : "image",
+            fileType: isAudio ? "audio" : isVideo ? "video" : "image",
             createdAt: file.created_at ?? null,
             filename: file.filename,
             promptText: resolveMediaMetadataPromptText(file.metadata),
@@ -221,16 +214,10 @@ export const useMediaLibraryPanelSelectionController = ({
             fullUrl: null,
             companionArtUrl,
             companionArtStoragePath,
-            audioSourceMode: isAudioFile(file.file_type)
-              ? resolveMediaMetadataAudioSourceMode(file.metadata)
-              : null,
-            musicMode: isAudioFile(file.file_type)
-              ? resolveMediaMetadataMusicMode(file.metadata)
-              : null,
+            audioSourceMode: isAudio ? resolveMediaMetadataAudioSourceMode(file.metadata) : null,
+            musicMode: isAudio ? resolveMediaMetadataMusicMode(file.metadata) : null,
             durationMs: resolveMediaMetadataDurationMs(file.metadata, { fileType: file.file_type }),
-            waveformPeaks: isAudioFile(file.file_type)
-              ? resolveMediaMetadataWaveformPeaks(file.metadata)
-              : null,
+            waveformPeaks: isAudio ? resolveMediaMetadataWaveformPeaks(file.metadata) : null,
           },
         })
       );

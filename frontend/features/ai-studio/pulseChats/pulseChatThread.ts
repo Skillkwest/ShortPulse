@@ -6,6 +6,7 @@ import type { AgentPulseWorkflowSession } from "../../../prefabs/agent";
 import type { AiStudioSessionAgentV1 } from "../logic/sessionSnapshot";
 import type { CreateRuntimeAgentHydrationPayload } from "../createRuntime/sessionAgentHydrationBoundary";
 import { buildHydratedAgentRuntime } from "../logic/sessionSnapshotHydrator";
+import { normalizePulseChatTitle, resolvePulseChatThreadTitle } from "./pulseChatTitles";
 
 export const PULSE_CHAT_THREAD_KIND = "pulse_chat_v1" as const;
 export const PULSE_CHAT_THREAD_SCHEMA_VERSION = 1 as const;
@@ -31,6 +32,7 @@ export type PulseChatThreadSnapshot = {
 export type PulseChatThreadListItem = {
   threadId: string;
   title: string;
+  titleSource: "auto" | "manual";
   presetId: string;
   presetLabel: string | null;
   updatedAt: string;
@@ -48,18 +50,10 @@ export type PulseChatProjectState = {
 
 export type PulseChatHydrationPayload = CreateRuntimeAgentHydrationPayload;
 
-const DEFAULT_THREAD_TITLE = "New chat";
-
 const normalizeText = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const normalized = value.trim().replace(/\s+/g, " ");
   return normalized.length > 0 ? normalized : null;
-};
-
-const clipTitle = (value: string): string => {
-  const normalized = value.trim().replace(/\s+/g, " ");
-  if (normalized.length <= 72) return normalized;
-  return `${normalized.slice(0, 69).trimEnd()}...`;
 };
 
 const normalizeIsoTimestamp = (value: unknown): string | null => {
@@ -266,34 +260,29 @@ export const parsePulseChatThreadSnapshot = (value: unknown): PulseChatThreadSna
   };
 };
 
-export const resolvePulseChatThreadTitle = (snapshot: PulseChatThreadSnapshot): string => {
-  for (const message of snapshot.runtime.messages) {
-    if (message.role !== "user") continue;
-    const content = normalizeText(message.content);
-    if (content && !content.startsWith("pulse_activation_seed:")) {
-      return clipTitle(content);
-    }
-  }
-  return clipTitle(snapshot.meta.presetLabel ?? DEFAULT_THREAD_TITLE);
-};
-
 export const buildPulseChatThreadListItem = ({
   threadId,
   title,
+  titleSource,
   snapshot,
   updatedAt,
 }: {
   threadId: string;
   title?: string | null;
+  titleSource?: "auto" | "manual" | null;
   snapshot: PulseChatThreadSnapshot;
   updatedAt?: string;
-}): PulseChatThreadListItem => ({
-  threadId,
-  title: clipTitle(normalizeText(title) ?? resolvePulseChatThreadTitle(snapshot)),
-  presetId: snapshot.workspace.activePulsePresetId,
-  presetLabel: snapshot.meta.presetLabel,
-  updatedAt: updatedAt ?? snapshot.meta.updatedAt,
-});
+}): PulseChatThreadListItem => {
+  const manualTitle = titleSource === "manual" ? normalizePulseChatTitle(title) : null;
+  return {
+    threadId,
+    title: manualTitle ?? resolvePulseChatThreadTitle(snapshot),
+    titleSource: manualTitle ? "manual" : "auto",
+    presetId: snapshot.workspace.activePulsePresetId,
+    presetLabel: snapshot.meta.presetLabel,
+    updatedAt: updatedAt ?? snapshot.meta.updatedAt,
+  };
+};
 
 const sortProjectThreads = (
   threads: readonly PulseChatProjectThreadRecord[]
@@ -315,16 +304,19 @@ export const buildPulseChatProjectThreadRecord = ({
   threadId,
   snapshot,
   title,
+  titleSource,
   updatedAt,
 }: {
   threadId: string;
   snapshot: PulseChatThreadSnapshot;
   title?: string | null;
+  titleSource?: "auto" | "manual" | null;
   updatedAt?: string;
 }): PulseChatProjectThreadRecord => ({
   ...buildPulseChatThreadListItem({
     threadId,
     title,
+    titleSource,
     snapshot,
     updatedAt,
   }),
@@ -382,6 +374,7 @@ export const parsePulseChatProjectState = (value: unknown): PulseChatProjectStat
             threadId,
             snapshot,
             title: typeof row.title === "string" ? row.title : null,
+            titleSource: row.titleSource === "manual" ? "manual" : "auto",
             updatedAt,
           });
         })
@@ -426,6 +419,7 @@ export const resolvePulseChatProjectStateSignature = (value: unknown): string =>
           return {
             threadId,
             title: normalizeText(row.title) ?? null,
+            titleSource: row.titleSource === "manual" ? "manual" : "auto",
             presetId: snapshot.workspace.activePulsePresetId,
             presetLabel: snapshot.meta.presetLabel,
             updatedAt,

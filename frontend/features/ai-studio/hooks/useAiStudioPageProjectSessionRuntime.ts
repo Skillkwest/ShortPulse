@@ -23,6 +23,7 @@ import type { ExpertEditSessionState } from "../components/edit/expertEditSessio
 import { type CreateRuntimeAgentHydrationPayload } from "../createRuntime/sessionAgentHydrationBoundary";
 import { useAiStudioPageSessionPersistence } from "./useAiStudioPageSessionPersistence";
 import type { PulseChatProjectState } from "../pulseChats/pulseChatThread";
+import type { AiStudioRightRailLayoutV1 } from "../logic/rightRailLayout";
 
 type UseAiStudioPageProjectSessionRuntimeParams = {
   activeCreateAgentKind: CreatePageAgentRuntime["kind"];
@@ -52,6 +53,7 @@ type UseAiStudioPageProjectSessionRuntimeParams = {
   hydrateFromSessionSnapshot: (
     snapshot: AiStudioSessionSnapshot
   ) => AiStudioSessionHydrationPayload;
+  hydrateRightRailLayout?: (layout: AiStudioRightRailLayoutV1) => void;
   isAutosaveWorkDeferred?: boolean;
   patchProjectWorkspaceSnapshot?: (snapshot: AiStudioSessionSnapshot) => AiStudioSessionSnapshot;
   persistedAgentRuntime: CreatePageAgentRuntime["persistedAgentRuntime"];
@@ -107,6 +109,7 @@ export const useAiStudioPageProjectSessionRuntime = ({
   hydrateStandardFromSessionAgentSnapshot,
   hydrateCanvasSessionState,
   hydrateFromSessionSnapshot,
+  hydrateRightRailLayout,
   isAutosaveWorkDeferred = false,
   patchProjectWorkspaceSnapshot,
   persistedAgentRuntime,
@@ -224,10 +227,12 @@ export const useAiStudioPageProjectSessionRuntime = ({
         ...payload.pulseChats,
         activeThreadId: null,
       });
+      hydrateRightRailLayout?.(payload.workspace.rightRailLayout);
       return payload;
     },
     [
       hydrateFromSessionSnapshot,
+      hydrateRightRailLayout,
       setCreateSelectedCharacterId,
       setCreateSelectedCharacterLookId,
       setIsCreateCharacterModeEnabled,

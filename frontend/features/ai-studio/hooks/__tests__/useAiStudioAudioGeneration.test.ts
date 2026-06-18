@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../types";
 import { hardcodedMusicModelId } from "../../components/MusicPropertiesPanel";
 import { hardcodedSoundEffectsModelId } from "../../components/SoundEffectsPropertiesPanel";
+import { hardcodedVoiceoverModelId } from "../../utils/voiceAudioModelConfig";
 import { REFERENCE_GRID_MAX_VISIBLE_ITEMS } from "../../reference-grid/logic/referenceGridLimits";
 import { useAiStudioAudioGeneration } from "../useAiStudioAudioGeneration";
 
@@ -395,6 +396,103 @@ describe("useAiStudioAudioGeneration", () => {
     );
   });
 
+  it("updates voiceover placeholders with generated titles", async () => {
+    let outputs: StudioOutput[] = [];
+    let uiError: string | null = null;
+
+    const setUiError = asDispatch<string | null>((value) => {
+      uiError = typeof value === "function" ? value(uiError) : value;
+    });
+    const setOutputs = asDispatch<StudioOutput[]>((value) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+    const insertOptimisticGenerationPlaceholder = vi.fn(({ prompt }: { prompt: string }) => {
+      outputs = [createPlaceholderOutput("out-voiceover", prompt), ...outputs];
+      return "out-voiceover";
+    });
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
+    });
+    const notifyGenerationFailure = vi.fn();
+
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        output: {
+          provider: "elevenlabs",
+          mode: "audio",
+          generationId: "gen-voiceover",
+          mediaFileId: "media-voiceover",
+          requestId: "req-voiceover",
+          previewUrl: "https://example.com/voiceover.mp3",
+          resultUrls: ["https://example.com/voiceover.mp3"],
+          previewStoragePath: "preview/voiceover.mp3",
+          fullStoragePath: "full/voiceover.mp3",
+          mimeType: "audio/mpeg",
+          durationMs: null,
+          waveformPeaks: null,
+          title: "Launch Walkthrough A1B2",
+          modelId: hardcodedVoiceoverModelId,
+          voiceId: "voice-1",
+          voiceName: "Narrator",
+        },
+      }),
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioAudioGeneration({
+        projectId: "project-1",
+        setUiError,
+        insertOptimisticGenerationPlaceholder,
+        notifyGenerationFailure,
+        updateOutputById,
+        setOutputs,
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleVoicesGenerate({
+        mode: "voiceover",
+        voice: {
+          id: "voice-1",
+          name: "Narrator",
+          librarySection: "my",
+          provider: "elevenlabs",
+        },
+        script: "Welcome to the launch walkthrough for creators.",
+        outputFormat: "mp3_44100_128",
+        config: {
+          model_id: hardcodedVoiceoverModelId,
+          language_code: null,
+          voice_settings: {
+            stability: 1,
+            similarity_boost: 1,
+            speed: 1,
+            style: 0,
+            use_speaker_boost: true,
+          },
+        },
+      });
+    });
+
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/elevenlabs/text-to-speech",
+      expect.objectContaining({
+        method: "POST",
+        shortpulseLogScope: "generation",
+      })
+    );
+    expect(uiError).toBeNull();
+    expect(outputs).toHaveLength(1);
+    expect(outputs[0]).toMatchObject({
+      id: "out-voiceover",
+      mode: "audio",
+      title: "Launch Walkthrough A1B2",
+      savedMediaIds: ["media-voiceover"],
+      taskState: "success",
+    });
+  });
+
   it("prepends a remuxed video output for voice changer generations", async () => {
     let outputs: StudioOutput[] = [];
     let uiError: string | null = null;
@@ -430,6 +528,7 @@ describe("useAiStudioAudioGeneration", () => {
           mimeType: "audio/mpeg",
           durationMs: 12_000,
           waveformPeaks: [0.2, 0.4, 0.1],
+          title: "City Take A1B2",
           modelId: "eleven_multilingual_sts_v2",
           voiceId: "voice-1",
           voiceName: "Narrator",
@@ -552,6 +651,7 @@ describe("useAiStudioAudioGeneration", () => {
       transcriptText: "I can hear the city waking up below us.",
       savedMediaIds: ["media-voice"],
       taskState: "success",
+      title: "City Take A1B2",
     });
   });
 

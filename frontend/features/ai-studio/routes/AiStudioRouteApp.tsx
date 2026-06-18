@@ -38,10 +38,15 @@ import {
   type PulseChatProjectState,
 } from "../pulseChats/pulseChatThread";
 import {
+  patchAiStudioSessionSnapshotWorkspace,
   patchAiStudioSessionSnapshotPulseChats,
   type AiStudioSessionSnapshot,
   type AiStudioSessionSnapshotV2,
 } from "../logic/sessionSnapshot";
+import {
+  createDefaultRightRailLayout,
+  sanitizeRightRailLayoutSnapshot,
+} from "../logic/rightRailLayout";
 import { PERF_FLAG_PAGE_OUTPUT_DECOUPLE } from "../logic/perfProfileFlags";
 const FLAG_PAGE_OUTPUT_DECOUPLE = PERF_FLAG_PAGE_OUTPUT_DECOUPLE;
 type CreatePulsePresetPageRuntime = ReturnType<typeof useCreatePulsePresetPageRuntime>;
@@ -296,6 +301,10 @@ const AiStudioPageRuntimeBody = ({
     videoReferenceText,
     videoResolution,
   } = base;
+  const [rightRailLayout, setRightRailLayout] = useState(createDefaultRightRailLayout);
+  const hydrateRightRailLayout = useCallback((layout: unknown) => {
+    setRightRailLayout(sanitizeRightRailLayoutSnapshot(layout));
+  }, []);
   const workspaceRuntimeKey = projectId ? null : sessionId ? `session:${sessionId}` : null;
   const { quotaSummary } = useMediaStorageQuotaSummary({
     enabled: true,
@@ -454,12 +463,16 @@ const AiStudioPageRuntimeBody = ({
       if (snapshot.schemaVersion < 2) {
         return snapshot;
       }
-      return patchAiStudioSessionSnapshotPulseChats(
+      const snapshotWithRightRailLayout = patchAiStudioSessionSnapshotWorkspace(
         snapshot as AiStudioSessionSnapshotV2,
+        { rightRailLayout: sanitizeRightRailLayoutSnapshot(rightRailLayout) }
+      );
+      return patchAiStudioSessionSnapshotPulseChats(
+        snapshotWithRightRailLayout,
         projectPulseChatState.threads.length > 0 ? projectPulseChatState : null
       );
     },
-    [projectPulseChatState]
+    [projectPulseChatState, rightRailLayout]
   );
   const {
     sessionRestoreCandidate,
@@ -488,6 +501,7 @@ const AiStudioPageRuntimeBody = ({
       standardCreateAgentRuntime.hydrateFromSessionAgentSnapshot,
     hydrateCanvasSessionState,
     hydrateFromSessionSnapshot,
+    hydrateRightRailLayout,
     isAutosaveWorkDeferred: isRailCanvasInteractionActive,
     patchProjectWorkspaceSnapshot,
     persistedAgentRuntime,
@@ -888,6 +902,8 @@ const AiStudioPageRuntimeBody = ({
     onMediaLibraryDetailSelectionTargetChange: base.setDetailSelectionTarget,
     projectId,
     projectRouteRequested,
+    rightRailLayout,
+    onRightRailLayoutChange: setRightRailLayout,
     projectName: effectiveProjectName,
     onProjectNameCommit: handleProjectNameCommit,
     onOpenProjectNameEditor: handleOpenMediaLibraryProjectNameEditor,

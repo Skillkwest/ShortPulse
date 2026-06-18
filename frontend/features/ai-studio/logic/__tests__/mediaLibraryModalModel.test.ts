@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   resolveMediaAudioBackgroundImageUrl,
+  resolveMediaMetadataDisplayTitle,
   resolveMediaMetadataDurationMs,
   type MediaFileRow,
 } from "../mediaLibraryModalModel";
@@ -57,5 +58,19 @@ describe("mediaLibraryModalModel audio metadata", () => {
         })
       )
     ).toBe("https://cdn.test/signed-cover.webp");
+  });
+
+  it("resolves generated audio display titles from metadata aliases", () => {
+    expect(
+      resolveMediaMetadataDisplayTitle({
+        display_title: "Midnight Signal A1B2",
+        song_title: "Fallback Song",
+      })
+    ).toBe("Midnight Signal A1B2");
+    expect(
+      resolveMediaMetadataDisplayTitle({
+        voice_changer_title: "City Take Z9Y8",
+      })
+    ).toBe("City Take Z9Y8");
   });
 });

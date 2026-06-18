@@ -304,6 +304,69 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     );
   });
 
+  it("keeps autosave locked until restored right-rail layout is visible", async () => {
+    const restoreSnapshot = {
+      ...createAiStudioProjectWorkspaceSnapshot(createSnapshot()),
+      workspace: {
+        ...createSnapshot().workspace,
+        rightRailLayout: {
+          schemaVersion: 1,
+          panels: {
+            canvas: true,
+            quickSlot: false,
+            referenceGrid: true,
+          },
+          splits: {
+            canvasInventoryTopRatio: 0.34,
+            quickSlotReferenceTopRatio: 0.72,
+          },
+        },
+      },
+    } as AiStudioSessionSnapshotV2;
+    const mismatchedLiveSnapshot = {
+      ...restoreSnapshot,
+      workspace: {
+        ...restoreSnapshot.workspace,
+        rightRailLayout: {
+          ...restoreSnapshot.workspace.rightRailLayout,
+          panels: {
+            ...restoreSnapshot.workspace.rightRailLayout?.panels,
+            quickSlot: true,
+          },
+        },
+      },
+    } as AiStudioSessionSnapshotV2;
+    mockReadyRestoreCandidate(restoreSnapshot);
+    const buildSessionSnapshot = vi.fn(() => mismatchedLiveSnapshot);
+    const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
+
+    const { result } = renderHook(() =>
+      useAiStudioProjectWorkspacePersistenceController({
+        projectId: "project-1",
+        projectRouteRequested: true,
+        sessionId: "session-1",
+        buildBaseSessionSnapshot: buildSessionSnapshot,
+        hydrateFromSessionSnapshot,
+      })
+    );
+
+    const restoreHydrationArgs =
+      mockedUseAiStudioProjectWorkspaceRestoreHydration.mock.calls[0]?.[0];
+    act(() => {
+      restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
+    });
+    await flushBootstrapVisibilityLatch();
+
+    expect(result.current.projectBootstrapSettled).toBe(true);
+    expect(result.current.projectBootstrapApplied).toBe(false);
+    expect(mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({
+        sessionId: "project-1",
+        enabled: false,
+      })
+    );
+  });
+
   it("marks bootstrap settled before the stricter visibility proof matches", async () => {
     const restoreSnapshot = createAiStudioProjectWorkspaceSnapshot(
       createSnapshot()

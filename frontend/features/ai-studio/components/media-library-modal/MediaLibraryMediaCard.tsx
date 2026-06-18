@@ -4,14 +4,15 @@
  */
 import React from "react";
 import { Check, DownloadSimple, FlowArrow, TrashSimple, X } from "phosphor-react";
+import { resolveMediaRowKind } from "../../../../lib/mediaRowKind";
 import { canReloadMediaLibraryWorkflow } from "../../logic/mediaLibraryWorkflowReload";
 import { isVideoUrl } from "../../logic/stateParsers";
 import { MediaDurationBadge } from "../shared/MediaDurationBadge";
 import { ReferenceAudioPlayer } from "../shared/ReferenceAudioPlayer";
 import {
-  isVideoFile,
   resolveMediaAudioBackgroundImageUrl,
   resolveMediaMetadataAudioSourceMode,
+  resolveMediaMetadataDisplayTitle,
   resolveMediaMetadataDurationMs,
   resolveMediaMetadataWaveformPeaks,
   type MediaCardRefCallback,
@@ -99,6 +100,9 @@ type MediaLibraryVisualMediaCardProps = SharedMediaCardProps & {
   getVideoNodeRef?: (id: string) => (node: HTMLVideoElement | null) => void;
 };
 
+export const resolveMediaLibraryCardDisplayLabel = (file: MediaFileRow): string =>
+  (resolveMediaMetadataDisplayTitle(file.metadata) ?? file.filename) || "media";
+
 export const buildMediaLibraryCardActionLabels = (
   file: MediaFileRow,
   {
@@ -114,8 +118,8 @@ export const buildMediaLibraryCardActionLabels = (
   }
 ): MediaLibraryCardActionLabels => ({
   actionAriaLabel,
-  downloadLabel: `${downloadLabelPrefix} ${file.filename || "media"}`,
-  workflowReloadLabel: `Reload workflow for ${file.filename || "media"}`,
+  downloadLabel: `${downloadLabelPrefix} ${resolveMediaLibraryCardDisplayLabel(file)}`,
+  workflowReloadLabel: `Reload workflow for ${resolveMediaLibraryCardDisplayLabel(file)}`,
   removeLabel,
   deleteLabel,
 });
@@ -335,6 +339,8 @@ export function MediaLibraryAudioCard({
   const audioUrl = cardPreviewUrl ?? file.signedUrl ?? null;
   const signedUrlLoadedRef = React.useRef(false);
   const audioSourceMode = resolveMediaMetadataAudioSourceMode(file.metadata);
+  const displayTitle = resolveMediaMetadataDisplayTitle(file.metadata);
+  const audioLabel = resolveMediaLibraryCardDisplayLabel(file);
   const durationMs = resolveMediaMetadataDurationMs(file.metadata, { fileType: file.file_type });
   const shouldSetAriaPressed =
     Boolean(onToggleMediaSelection) || setAriaPressedWithoutSelectionMode;
@@ -383,11 +389,12 @@ export function MediaLibraryAudioCard({
           audioUrl={audioUrl}
           backgroundImageUrl={resolveMediaAudioBackgroundImageUrl(file)}
           audioSourceMode={audioSourceMode}
+          title={displayTitle}
           durationMs={durationMs}
           waveformPeaks={resolveMediaMetadataWaveformPeaks(file.metadata)}
-          playLabel={`Play audio ${file.filename}`}
-          pauseLabel={`Pause audio ${file.filename}`}
-          downloadLabel={`Download audio ${file.filename || "media"}`}
+          playLabel={`Play audio ${audioLabel}`}
+          pauseLabel={`Pause audio ${audioLabel}`}
+          downloadLabel={`Download audio ${audioLabel || "media"}`}
           onResolveAudioUrl={onRequestSignedUrl ? () => onRequestSignedUrl(file) : undefined}
           resolveAudioUrlOnMount={Boolean(onRequestSignedUrl)}
           onReady={markSignedUrlLoaded}
@@ -457,7 +464,7 @@ export function MediaLibraryVisualMediaCard({
   autoPlayEnabled = false,
   getVideoNodeRef,
 }: MediaLibraryVisualMediaCardProps) {
-  const isVideo = isVideoFile(file.file_type);
+  const isVideo = resolveMediaRowKind(file) === "video";
   const posterUrl = posterPreviewUrl;
   const hasPosterBackedVideoPreview = Boolean(isVideo && hoverVideoUrl && posterUrl);
   const shouldRenderFallbackVideo = Boolean(isVideo && hoverVideoUrl && !posterUrl);

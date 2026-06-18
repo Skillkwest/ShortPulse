@@ -184,6 +184,7 @@ export default async function handler(
       promptText: text,
       durationSeconds,
       loop,
+      uniqueSeed: charge.sourceRef,
     });
 
     const generated = await generateElevenLabsSoundEffect({
@@ -272,6 +273,7 @@ export default async function handler(
         }
       },
     });
+    const persistedSoundEffectTitle = persisted.displayTitle ?? soundEffectTitle;
     await markAudioCompanionArtPending({
       generationId: persisted.generationId,
       userId: charge.userId,
@@ -294,7 +296,7 @@ export default async function handler(
         mimeType: generated.contentType,
         durationMs: responseDurationMs,
         waveformPeaks: null,
-        title: soundEffectTitle,
+        title: persistedSoundEffectTitle,
         modelId,
         characterCost: generated.characterCost,
         saveState: persisted.saveState,

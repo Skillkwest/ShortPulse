@@ -131,6 +131,8 @@ export const usePulseChatThreads = ({
       const record = buildPulseChatProjectThreadRecord({
         threadId,
         snapshot,
+        title: shouldReuseActiveThread ? activeThread.title : null,
+        titleSource: shouldReuseActiveThread ? activeThread.titleSource : "auto",
       });
       return upsertPulseChatProjectThread(current, record, {
         activeThreadId: threadId,
@@ -178,6 +180,27 @@ export const usePulseChatThreads = ({
     [openThreadSnapshot, projectPulseChatState, reportError, setProjectPulseChatState]
   );
 
+  const renameThread = useCallback(
+    (threadId: string, title: string) => {
+      setProjectPulseChatState((current) => {
+        const thread = current.threads.find((entry) => entry.threadId === threadId);
+        if (!thread) return current;
+        const renamedThread = buildPulseChatProjectThreadRecord({
+          threadId: thread.threadId,
+          snapshot: thread.snapshot,
+          title,
+          titleSource: "manual",
+          updatedAt: thread.updatedAt,
+        });
+        return upsertPulseChatProjectThread(current, renamedThread, {
+          activeThreadId: current.activeThreadId,
+        });
+      });
+      setError(null);
+    },
+    [setProjectPulseChatState]
+  );
+
   return useMemo(
     () => ({
       threads: projectPulseChatState.threads,
@@ -186,7 +209,8 @@ export const usePulseChatThreads = ({
       error,
       openingThreadId,
       openThread,
+      renameThread,
     }),
-    [error, projectPulseChatState, openThread, openingThreadId]
+    [error, projectPulseChatState, openThread, openingThreadId, renameThread]
   );
 };

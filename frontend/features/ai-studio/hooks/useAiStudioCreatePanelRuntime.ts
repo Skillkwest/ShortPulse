@@ -368,6 +368,7 @@ export const useAiStudioCreatePanelRuntime = ({
                 error: pulseChatHistory.error,
                 openingThreadId: pulseChatHistory.openingThreadId,
                 onOpenThread: pulseChatHistory.openThread,
+                onRenameThread: pulseChatHistory.renameThread,
               }
             : undefined,
         },
@@ -566,6 +567,7 @@ export const useAiStudioCreatePanelRuntime = ({
     pulseChatHistory.loading,
     pulseChatHistory.openThread,
     pulseChatHistory.openingThreadId,
+    pulseChatHistory.renameThread,
     pulseChatHistory.threads,
     pulsePrompt,
     refreshCharacterOptions,

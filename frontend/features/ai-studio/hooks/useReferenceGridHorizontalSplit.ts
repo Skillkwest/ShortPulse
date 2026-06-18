@@ -19,6 +19,8 @@ type UseReferenceGridHorizontalSplitArgs = {
   enabled: boolean;
   containerRef: MutableRefObject<HTMLElement | null>;
   defaultTopRatio?: number;
+  initialTopRatio?: number | null;
+  onTopRatioCommit?: (ratio: number) => void;
   minTopSectionHeightPx?: number;
   minBottomSectionHeightPx?: number;
   maxBottomSectionHeightPx?: number;
@@ -118,6 +120,8 @@ export const useReferenceGridHorizontalSplit = ({
   enabled,
   containerRef,
   defaultTopRatio = DEFAULT_TOP_RATIO,
+  initialTopRatio = null,
+  onTopRatioCommit,
   minTopSectionHeightPx = DEFAULT_MIN_TOP_SECTION_HEIGHT_PX,
   minBottomSectionHeightPx = DEFAULT_MIN_BOTTOM_SECTION_HEIGHT_PX,
   maxBottomSectionHeightPx,
@@ -134,10 +138,11 @@ export const useReferenceGridHorizontalSplit = ({
     null
   );
   const [topRatio, setTopRatio] = useState(() =>
-    clamp(defaultTopRatio, FALLBACK_MIN_RATIO, FALLBACK_MAX_RATIO)
+    clamp(initialTopRatio ?? defaultTopRatio, FALLBACK_MIN_RATIO, FALLBACK_MAX_RATIO)
   );
   const [isResizing, setIsResizing] = useState(false);
   const topRatioRef = useRef(topRatio);
+  const restoredInitialTopRatioRef = useRef<number | null>(initialTopRatio);
   const containerHeightRef = useRef(0);
   const observedContainerHeightRef = useRef(0);
 
@@ -200,6 +205,9 @@ export const useReferenceGridHorizontalSplit = ({
     topRatioRef.current = nextRatio;
     setTopRatio((prev) => (Math.abs(prev - nextRatio) < 0.001 ? prev : nextRatio));
   }, []);
+  const commitPersistedTopRatio = useCallback(() => {
+    onTopRatioCommit?.(topRatioRef.current);
+  }, [onTopRatioCommit]);
 
   const reconcileTopRatioForContainerHeight = useCallback(
     (nextHeight: number) => {
@@ -304,6 +312,7 @@ export const useReferenceGridHorizontalSplit = ({
         } catch {
           // Safe no-op when the pointer is already released.
         }
+        commitPersistedTopRatio();
         stopResizing();
       };
 
@@ -325,6 +334,7 @@ export const useReferenceGridHorizontalSplit = ({
       stopResizing,
       topRatioRef,
       commitTopRatio,
+      commitPersistedTopRatio,
     ]
   );
 
@@ -349,18 +359,22 @@ export const useReferenceGridHorizontalSplit = ({
         event.preventDefault();
         if (!height) {
           commitTopRatio(bounds.min);
+          commitPersistedTopRatio();
           return;
         }
         commitTopRatio(bounds.min);
+        commitPersistedTopRatio();
         return;
       }
       if (event.key === "End") {
         event.preventDefault();
         if (!height) {
           commitTopRatio(bounds.max);
+          commitPersistedTopRatio();
           return;
         }
         commitTopRatio(bounds.max);
+        commitPersistedTopRatio();
         return;
       }
       if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
@@ -369,14 +383,17 @@ export const useReferenceGridHorizontalSplit = ({
         const deltaRatio = event.key === "ArrowUp" ? -step : step;
         const nextRatio = clamp(topRatioRef.current + deltaRatio, bounds.min, bounds.max);
         commitTopRatio(nextRatio);
+        commitPersistedTopRatio();
         return;
       }
       const deltaPx = (event.key === "ArrowUp" ? -step : step) * height;
       applyDeltaPx(deltaPx, height);
+      commitPersistedTopRatio();
     },
     [
       applyDeltaPx,
       commitTopRatio,
+      commitPersistedTopRatio,
       enabled,
       maxBottomSectionHeightPx,
       minBottomSectionHeightPx,
@@ -452,6 +469,7 @@ export const useReferenceGridHorizontalSplit = ({
     const height = resolveContainerHeight();
     if (!height) {
       commitTopRatio(0.995);
+      commitPersistedTopRatio();
       return;
     }
     const bounds = resolveRatioBounds(
@@ -462,8 +480,10 @@ export const useReferenceGridHorizontalSplit = ({
       maxBottomSectionHeightPx
     );
     commitTopRatio(bounds.max);
+    commitPersistedTopRatio();
   }, [
     commitTopRatio,
+    commitPersistedTopRatio,
     maxBottomSectionHeightPx,
     minBottomSectionHeightPx,
     minTopSectionHeightPx,
@@ -482,13 +502,21 @@ export const useReferenceGridHorizontalSplit = ({
         const fallbackRatio = clamp(resolvedTopHeightPx / 600, 0.01, 0.99);
         setAllRefsExpandedThresholdRatio((prev) => (prev === fallbackRatio ? prev : fallbackRatio));
         commitTopRatio(fallbackRatio);
+        commitPersistedTopRatio();
         return;
       }
       const targetRatio = clampTopRatio(resolvedTopHeightPx / Math.max(1, height), height);
       setAllRefsExpandedThresholdRatio((prev) => (prev === targetRatio ? prev : targetRatio));
       commitTopRatio(targetRatio);
+      commitPersistedTopRatio();
     },
-    [allRefsSnapTopHeightPx, clampTopRatio, commitTopRatio, resolveContainerHeight]
+    [
+      allRefsSnapTopHeightPx,
+      clampTopRatio,
+      commitPersistedTopRatio,
+      commitTopRatio,
+      resolveContainerHeight,
+    ]
   );
 
   const nudgeTopSectionHeightByPx = useCallback(
@@ -535,6 +563,24 @@ export const useReferenceGridHorizontalSplit = ({
     },
     [clampTopRatio, commitTopRatio, enabled, normalizedMinTopRatioFloor, resolveContainerHeight]
   );
+
+  useEffect(() => {
+    if (!enabled) return;
+    if (typeof initialTopRatio !== "number" || !Number.isFinite(initialTopRatio)) return;
+    if (
+      restoredInitialTopRatioRef.current != null &&
+      Math.abs(restoredInitialTopRatioRef.current - initialTopRatio) < 0.001
+    ) {
+      return;
+    }
+    restoredInitialTopRatioRef.current = initialTopRatio;
+    if (typeof window === "undefined") {
+      const timeoutId = setTimeout(() => restoreTopRatio(initialTopRatio), 0);
+      return () => clearTimeout(timeoutId);
+    }
+    const frameId = window.requestAnimationFrame(() => restoreTopRatio(initialTopRatio));
+    return () => window.cancelAnimationFrame(frameId);
+  }, [enabled, initialTopRatio, restoreTopRatio]);
 
   const clampToContainerBounds = useCallback(() => {
     if (!enabled) return;

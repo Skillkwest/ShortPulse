@@ -2,6 +2,11 @@
  * Shared media query model helpers used by Media Library page and AI Studio modal.
  * Centralizes tab filters, search clause generation, and prompt user-scope rules.
  */
+import {
+  MEDIA_ROW_AUDIO_EXTENSIONS,
+  MEDIA_ROW_VIDEO_EXTENSIONS,
+  type MediaRowKind,
+} from "../../../lib/mediaRowKind";
 
 export type MediaQueryDataTab =
   | "uploaded_images"
@@ -10,6 +15,27 @@ export type MediaQueryDataTab =
   | "ai_generations";
 
 const DEFAULT_PRIVATE_MEDIA_SOURCE = "private_upload";
+
+type QueryMediaKind = Extract<MediaRowKind, "video" | "audio">;
+
+const buildPathExtensionClauses = (
+  column: "storage_path" | "preview_variant_path",
+  extensions: readonly string[]
+): string[] => extensions.map((extension) => `${column}.ilike.*.${extension}`);
+
+export const buildMediaKindOrClause = (kind: QueryMediaKind): string => {
+  const extensions = kind === "video" ? MEDIA_ROW_VIDEO_EXTENSIONS : MEDIA_ROW_AUDIO_EXTENSIONS;
+  return [
+    `file_type.ilike.${kind}*`,
+    ...buildPathExtensionClauses("storage_path", extensions),
+    ...buildPathExtensionClauses("preview_variant_path", extensions),
+  ].join(",");
+};
+
+export const withPlayableMediaKindFilter = <T extends { or: (clause: string) => T }>(
+  query: T,
+  kind: QueryMediaKind
+): T => query.or(buildMediaKindOrClause(kind));
 
 /**
  * Normalizes a free-text search term for safe `ilike` query usage.
@@ -51,6 +77,7 @@ export const withMediaTabFilter = <
     eq: (column: string, value: string) => T;
     ilike: (column: string, pattern: string) => T;
     not: (column: string, operator: string, value: string) => T;
+    or: (clause: string) => T;
   },
 >(
   query: T,
@@ -62,7 +89,9 @@ export const withMediaTabFilter = <
   if (tab === "ai_generations") {
     return query.eq("source", "ai_studio");
   }
-  if (tab === "uploaded_videos") return query.eq("source", "upload").ilike("file_type", "video%");
+  if (tab === "uploaded_videos") {
+    return withPlayableMediaKindFilter(query.eq("source", "upload"), "video");
+  }
   return query.eq("source", "upload").ilike("file_type", "image%");
 };
 

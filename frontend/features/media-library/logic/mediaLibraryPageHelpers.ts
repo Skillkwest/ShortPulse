@@ -3,6 +3,7 @@
  * Keep this module React-free so page orchestration stays focused on UI and side effects.
  */
 import { type MediaSignBudget } from "../../../lib/mediaPreviewRuntimePolicy";
+import { resolveMediaKindFromFileType, resolveMediaRowKind } from "../../../lib/mediaRowKind";
 import {
   normalizeMediaSearchTerm as normalizeMediaSearchTermShared,
   withMediaSearchFilter as withMediaSearchFilterShared,
@@ -50,7 +51,8 @@ export const fileTypeFromMime = (mime: string) => {
   return "image";
 };
 
-export const isVideoFile = (fileType?: string | null) => (fileType || "").startsWith("video");
+export const isVideoFile = (fileType?: string | null) =>
+  resolveMediaKindFromFileType(fileType) === "video";
 
 export const isPrivateStoragePath = (storagePath?: string | null) =>
   (storagePath ?? "").split("/").filter(Boolean).includes(PRIVATE_MEDIA_FOLDER);
@@ -66,10 +68,14 @@ export const getMediaDataTabForRow = (row: {
   source?: string | null;
   storage_path?: string | null;
   file_type?: string | null;
+  preview_variant_path?: string | null;
+  poster_variant_path?: string | null;
+  thumb_variant_path?: string | null;
+  metadata?: Record<string, unknown> | null;
 }): MediaDataTab => {
   if (isPrivateMediaFile(row)) return "private";
   if ((row.source ?? "upload") === "ai_studio") return "ai_generations";
-  return isVideoFile(row.file_type) ? "uploaded_videos" : "uploaded_images";
+  return resolveMediaRowKind(row) === "video" ? "uploaded_videos" : "uploaded_images";
 };
 
 export const createEmptyMediaTabCache = <TRow>(): MediaTabCache<TRow> => ({
@@ -110,6 +116,7 @@ export const withMediaTabFilter = <
     eq: (column: string, value: string) => T;
     ilike: (column: string, pattern: string) => T;
     not: (column: string, operator: string, value: string) => T;
+    or: (clause: string) => T;
   },
 >(
   query: T,

@@ -72,6 +72,34 @@ describe("MediaLibraryPanelPreviewModal", () => {
     },
   };
 
+  it("uses generated audio display titles for preview presentation", () => {
+    const audioFile: MediaFileRow = {
+      id: "audio-1",
+      filename: "voice-note-1.mp3",
+      storage_path: "user-1/generations/audio/voice-note-1.mp3",
+      preview_storage_path: "user-1/generations/audio/voice-note-1.mp3",
+      file_type: "audio/mpeg",
+      source: "ai_studio",
+      signedUrl: "https://cdn.example.com/voice-note-1.mp3",
+      metadata: {
+        display_title: "City Take A1B2",
+      },
+    };
+
+    const item = createPreviewItem(audioFile, "https://cdn.example.com/voice-note-1.mp3", {
+      source: "ai_studio",
+    });
+
+    expect(item.presentation?.title).toBe("City Take A1B2");
+    expect(item.presentation?.topBarItems).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: "City Take A1B2",
+        }),
+      ])
+    );
+  });
+
   it("shows workflow reload only for saved AI Studio media with explicit reload metadata", () => {
     const onReloadWorkflowItem = vi.fn();
     const generatedFile: MediaFileRow = {
@@ -228,6 +256,46 @@ describe("MediaLibraryPanelPreviewModal", () => {
     expect(onPreviewError).toHaveBeenCalledWith(
       expect.objectContaining({ file: imageFile }),
       "https://cdn.example.com/thumb-portrait.png"
+    );
+    expect(screen.queryByAltText("portrait.png")).not.toBeInTheDocument();
+    expect(screen.getByText("Preview unavailable.")).toBeInTheDocument();
+  });
+
+  it("falls back to an alternate shared preview URL before reporting image failure", () => {
+    const onPreviewError = vi.fn();
+    const imageFile: MediaFileRow = {
+      id: "image-1",
+      filename: "portrait.png",
+      storage_path: "user-1/uploads/portrait.png",
+      preview_storage_path: "user-1/uploads/thumb-portrait.png",
+      file_type: "image/png",
+      signedUrl: "https://cdn.example.com/thumb-portrait.png",
+    };
+
+    render(
+      <MediaLibraryPanelPreviewModal
+        item={createPreviewItem(imageFile, "https://cdn.example.com/thumb-portrait.png", {
+          fullUrl: "https://cdn.example.com/portrait.png",
+        })}
+        isLoading={false}
+        error={null}
+        onClose={vi.fn()}
+        onPreviewError={onPreviewError}
+      />
+    );
+
+    const thumbnailImage = screen.getByAltText("portrait.png") as HTMLImageElement;
+    fireEvent.error(thumbnailImage);
+
+    const fullImage = screen.getByAltText("portrait.png") as HTMLImageElement;
+    expect(fullImage.getAttribute("src")).toBe("https://cdn.example.com/portrait.png");
+    expect(onPreviewError).not.toHaveBeenCalled();
+
+    fireEvent.error(fullImage);
+
+    expect(onPreviewError).toHaveBeenCalledWith(
+      expect.objectContaining({ file: imageFile }),
+      "https://cdn.example.com/portrait.png"
     );
     expect(screen.queryByAltText("portrait.png")).not.toBeInTheDocument();
     expect(screen.getByText("Preview unavailable.")).toBeInTheDocument();

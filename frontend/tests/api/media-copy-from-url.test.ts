@@ -1322,7 +1322,7 @@ describe("POST /api/media/copy-from-url", () => {
     );
   });
 
-  it("repairs an existing ai_studio video row by hydrating missing derivatives from the fetched buffer", async () => {
+  it("repairs an existing ai_studio video row with stale file_type by hydrating missing derivatives", async () => {
     detectVideoMimeTypeMock.mockImplementation((buffer: Buffer) =>
       buffer.toString() === "video-buffer" ? "video/mp4" : null
     );
@@ -1336,7 +1336,7 @@ describe("POST /api/media/copy-from-url", () => {
       existingRow: {
         id: "media-existing-video-1",
         storage_path: "user-1/generations/videos/existing.mp4",
-        file_type: "video",
+        file_type: "image/png",
         metadata: { index: 0 },
         thumb_variant_path: null,
         poster_variant_path: null,

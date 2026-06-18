@@ -3,10 +3,11 @@
  * Lists saved project-owned Pulse threads and exposes explicit reopen actions.
  */
 import React from "react";
-import { ChatCircleDots, X } from "phosphor-react";
+import { ChatCircleDots, PencilSimple, X } from "phosphor-react";
 import { AppMessage } from "../../../../components/AppMessage";
 import { useGuardedBackdropDismiss } from "../../../../components/useGuardedBackdropDismiss";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "../modal-layer/AiStudioModalLayer";
+import { formatPulseChatTimestamp } from "../../pulseChats/pulseChatTitles";
 import type { PulseChatThreadListItem } from "../../pulseChats/pulseChatThread";
 
 export type PulseChatHistoryPanelProps = {
@@ -16,23 +17,13 @@ export type PulseChatHistoryPanelProps = {
   error: string | null;
   openingThreadId: string | null;
   onOpenThread: (threadId: string) => void;
+  onRenameThread: (threadId: string, title: string) => void;
 };
 
 const PULSE_CHAT_RAIL_VISIBLE_LIMIT = 6;
-
-const formatUpdatedAt = (value: string): string => {
-  const timestamp = Date.parse(value);
-  if (!Number.isFinite(timestamp)) return "";
-  const elapsedMs = Date.now() - timestamp;
-  const elapsedMinutes = Math.max(0, Math.floor(elapsedMs / 60000));
-  if (elapsedMinutes < 1) return "Just now";
-  if (elapsedMinutes < 60) return `${elapsedMinutes}m ago`;
-  const elapsedHours = Math.floor(elapsedMinutes / 60);
-  if (elapsedHours < 24) return `${elapsedHours}h ago`;
-  const elapsedDays = Math.floor(elapsedHours / 24);
-  if (elapsedDays < 7) return `${elapsedDays}d ago`;
-  return new Date(timestamp).toLocaleDateString();
-};
+const CONTEXT_MENU_VIEWPORT_PADDING_PX = 8;
+const useIsomorphicLayoutEffect =
+  typeof window === "undefined" ? React.useEffect : React.useLayoutEffect;
 
 const resolveVisibleThreads = (
   threads: PulseChatThreadListItem[],
@@ -58,8 +49,18 @@ export function PulseChatHistoryPanel({
   error,
   openingThreadId,
   onOpenThread,
+  onRenameThread,
 }: PulseChatHistoryPanelProps) {
   const [isAllChatsOpen, setIsAllChatsOpen] = React.useState(false);
+  const [contextMenu, setContextMenu] = React.useState<{
+    threadId: string;
+    title: string;
+    x: number;
+    y: number;
+  } | null>(null);
+  const [renamingThreadId, setRenamingThreadId] = React.useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = React.useState("");
+  const contextMenuRef = React.useRef<HTMLDivElement | null>(null);
   const allChatsModalId = React.useId();
   const hasThreads = threads.length > 0;
   const visibleThreads = React.useMemo(
@@ -71,6 +72,23 @@ export function PulseChatHistoryPanel({
   const openAllChats = React.useCallback(() => setIsAllChatsOpen(true), []);
   const allChatsBackdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(closeAllChats);
   useAiStudioModalActivity("pulse-chat-history-modal", isAllChatsOpen);
+
+  const closeContextMenu = React.useCallback(() => setContextMenu(null), []);
+  const cancelRename = React.useCallback(() => {
+    setRenamingThreadId(null);
+    setRenameDraft("");
+  }, []);
+
+  const commitRename = React.useCallback(() => {
+    if (!renamingThreadId) return;
+    const nextTitle = renameDraft.trim();
+    if (!nextTitle) {
+      cancelRename();
+      return;
+    }
+    onRenameThread(renamingThreadId, nextTitle);
+    cancelRename();
+  }, [cancelRename, onRenameThread, renameDraft, renamingThreadId]);
 
   React.useEffect(() => {
     if (!hasHiddenThreads) {
@@ -93,30 +111,148 @@ export function PulseChatHistoryPanel({
     };
   }, [closeAllChats, isAllChatsOpen]);
 
+  React.useEffect(() => {
+    if (!contextMenu) return undefined;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Node && contextMenuRef.current?.contains(target)) return;
+      closeContextMenu();
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeContextMenu();
+    };
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("scroll", closeContextMenu, true);
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("scroll", closeContextMenu, true);
+    };
+  }, [closeContextMenu, contextMenu]);
+
+  useIsomorphicLayoutEffect(() => {
+    if (!contextMenu) return undefined;
+    const frameId = window.requestAnimationFrame(() => {
+      const menuNode = contextMenuRef.current;
+      if (!menuNode) return;
+      const { height, width } = menuNode.getBoundingClientRect();
+      if (!(height > 0) || !(width > 0)) return;
+      const nextX = Math.min(
+        Math.max(CONTEXT_MENU_VIEWPORT_PADDING_PX, contextMenu.x),
+        Math.max(
+          CONTEXT_MENU_VIEWPORT_PADDING_PX,
+          window.innerWidth - width - CONTEXT_MENU_VIEWPORT_PADDING_PX
+        )
+      );
+      const nextY = Math.min(
+        Math.max(CONTEXT_MENU_VIEWPORT_PADDING_PX, contextMenu.y),
+        Math.max(
+          CONTEXT_MENU_VIEWPORT_PADDING_PX,
+          window.innerHeight - height - CONTEXT_MENU_VIEWPORT_PADDING_PX
+        )
+      );
+      if (nextX === contextMenu.x && nextY === contextMenu.y) return;
+      setContextMenu((current) => (current ? { ...current, x: nextX, y: nextY } : current));
+    });
+    return () => window.cancelAnimationFrame(frameId);
+  }, [contextMenu]);
+
+  React.useEffect(() => {
+    if (!renamingThreadId) return;
+    if (threads.some((thread) => thread.threadId === renamingThreadId)) return;
+    cancelRename();
+  }, [cancelRename, renamingThreadId, threads]);
+
+  const openThreadContextMenu = (
+    event: React.MouseEvent<HTMLElement>,
+    thread: PulseChatThreadListItem
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setContextMenu({
+      threadId: thread.threadId,
+      title: thread.title,
+      x: Math.min(
+        Math.max(CONTEXT_MENU_VIEWPORT_PADDING_PX, event.clientX),
+        window.innerWidth - CONTEXT_MENU_VIEWPORT_PADDING_PX
+      ),
+      y: Math.min(
+        Math.max(CONTEXT_MENU_VIEWPORT_PADDING_PX, event.clientY),
+        window.innerHeight - CONTEXT_MENU_VIEWPORT_PADDING_PX
+      ),
+    });
+  };
+
+  const startRename = (threadId: string, title: string) => {
+    setRenamingThreadId(threadId);
+    setRenameDraft(title);
+    closeContextMenu();
+  };
+
   const renderThreadButton = (
     thread: PulseChatThreadListItem,
     options: { onAfterOpen?: () => void } = {}
   ) => {
     const isActive = activeThreadId === thread.threadId;
     const isOpening = openingThreadId === thread.threadId;
+    const isRenaming = renamingThreadId === thread.threadId;
+    const timestamp = formatPulseChatTimestamp(thread.updatedAt);
+    if (isRenaming) {
+      return (
+        <div
+          key={thread.threadId}
+          className="create-composer-chats-thread-row is-renaming"
+          onContextMenu={(event) => openThreadContextMenu(event, thread)}
+        >
+          <input
+            className="create-composer-chats-rename-input"
+            type="text"
+            value={renameDraft}
+            maxLength={56}
+            autoFocus
+            aria-label={`Rename ${thread.title}`}
+            onChange={(event) => setRenameDraft(event.target.value)}
+            onBlur={commitRename}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                commitRename();
+              }
+              if (event.key === "Escape") {
+                event.preventDefault();
+                cancelRename();
+              }
+            }}
+          />
+        </div>
+      );
+    }
     return (
       <button
         key={thread.threadId}
         type="button"
-        className={`create-composer-presets-btn create-composer-presets-btn--selected create-composer-chats-thread-btn ${isActive ? "create-composer-presets-btn--active" : ""}`.trim()}
+        className={`create-composer-chats-thread-btn ${isActive ? "is-active" : ""} ${
+          isOpening ? "is-opening" : ""
+        }`.trim()}
         aria-pressed={isActive}
         disabled={isOpening}
+        onContextMenu={(event) => openThreadContextMenu(event, thread)}
         onClick={() => {
           onOpenThread(thread.threadId);
           options.onAfterOpen?.();
         }}
       >
-        <span className="create-composer-chats-thread-title">
-          {isOpening ? "Opening..." : thread.title}
+        <span className="create-composer-chats-thread-main">
+          <span className="create-composer-chats-thread-title">
+            {isOpening ? "Opening..." : thread.title}
+          </span>
+          {timestamp ? (
+            <span className="create-composer-chats-thread-time">{timestamp}</span>
+          ) : null}
         </span>
-        <span className="create-composer-chats-thread-meta">
-          {thread.presetLabel ?? "Pulse"} · {formatUpdatedAt(thread.updatedAt)}
-        </span>
+        <span className="create-composer-chats-thread-pulse">{thread.presetLabel ?? "Pulse"}</span>
       </button>
     );
   };
@@ -198,6 +334,30 @@ export function PulseChatHistoryPanel({
                 )}
               </div>
             </div>
+          </div>
+        </AiStudioModalLayer>
+      ) : null}
+      {contextMenu ? (
+        <AiStudioModalLayer>
+          <div
+            ref={contextMenuRef}
+            className="create-composer-chats-context-menu"
+            role="menu"
+            aria-label={`${contextMenu.title} chat actions`}
+            style={{
+              top: `${contextMenu.y}px`,
+              left: `${contextMenu.x}px`,
+            }}
+          >
+            <button
+              type="button"
+              className="create-composer-chats-context-menu-item"
+              role="menuitem"
+              onClick={() => startRename(contextMenu.threadId, contextMenu.title)}
+            >
+              <PencilSimple size={14} weight="bold" aria-hidden />
+              Rename
+            </button>
           </div>
         </AiStudioModalLayer>
       ) : null}

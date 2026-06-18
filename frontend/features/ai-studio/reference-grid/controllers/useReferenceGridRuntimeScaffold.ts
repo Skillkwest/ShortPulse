@@ -79,6 +79,8 @@ type UseReferenceGridRuntimeScaffoldArgs = Pick<
   | "onRemoveCuratedReference"
   | "onReorderCuratedReference"
   | "railCanvasProps"
+  | "rightRailLayout"
+  | "onRightRailLayoutChange"
   | "isShellResizeActive"
 > & {
   isRailCanvasInteractionActive?: boolean;
@@ -141,6 +143,8 @@ export const useReferenceGridRuntimeScaffold = ({
   onRemoveCuratedReference,
   onReorderCuratedReference,
   railCanvasProps,
+  rightRailLayout,
+  onRightRailLayoutChange,
   isShellResizeActive = false,
   isRailCanvasInteractionActive = false,
   isReferenceCardDragActive = false,
@@ -337,10 +341,46 @@ export const useReferenceGridRuntimeScaffold = ({
   });
 
   const referenceGridStylesStackRef = React.useRef<HTMLDivElement | null>(null);
+  const handleQuickSlotReferenceTopRatioCommit = useCallback(
+    (ratio: number) => {
+      onRightRailLayoutChange?.((previous) => {
+        if (Math.abs((previous.splits.quickSlotReferenceTopRatio ?? -1) - ratio) < 0.001) {
+          return previous;
+        }
+        return {
+          ...previous,
+          splits: {
+            ...previous.splits,
+            quickSlotReferenceTopRatio: ratio,
+          },
+        };
+      });
+    },
+    [onRightRailLayoutChange]
+  );
+  const handleCanvasInventoryTopRatioCommit = useCallback(
+    (ratio: number) => {
+      onRightRailLayoutChange?.((previous) => {
+        if (Math.abs((previous.splits.canvasInventoryTopRatio ?? -1) - ratio) < 0.001) {
+          return previous;
+        }
+        return {
+          ...previous,
+          splits: {
+            ...previous.splits,
+            canvasInventoryTopRatio: ratio,
+          },
+        };
+      });
+    },
+    [onRightRailLayoutChange]
+  );
   const horizontalSplit = useReferenceGridHorizontalSplit({
     enabled: isCuratedSplitActive,
     containerRef: inventoryStackRef,
     defaultTopRatio: DEFAULT_CURATED_SPLIT_TOP_RATIO,
+    initialTopRatio: rightRailLayout?.splits.quickSlotReferenceTopRatio ?? null,
+    onTopRatioCommit: handleQuickSlotReferenceTopRatioCommit,
     minTopSectionHeightPx: curatedHeaderHeightPx,
     minBottomSectionHeightPx: horizontalSplitMinBottomSectionHeightPx,
     allRefsSnapTopHeightPx: curatedHeaderHeightPx,
@@ -364,6 +404,8 @@ export const useReferenceGridRuntimeScaffold = ({
     enabled: showRailCanvasSection,
     containerRef: panelRef,
     defaultTopRatio: DEFAULT_CANVAS_SECTION_TOP_RATIO,
+    initialTopRatio: rightRailLayout?.splits.canvasInventoryTopRatio ?? null,
+    onTopRatioCommit: handleCanvasInventoryTopRatioCommit,
     minTopSectionHeightPx: railCanvasHeaderHeightPx,
     minBottomSectionHeightPx: 120,
     allRefsSnapTopHeightPx: railCanvasHeaderHeightPx,
@@ -371,13 +413,14 @@ export const useReferenceGridRuntimeScaffold = ({
     ariaLabel: "Resize Canvas and right-rail sections",
   });
   const { restoreTopRatio: restoreRailCanvasTopRatio } = railCanvasSplit;
+  const savedRailCanvasTopRatio = rightRailLayout?.splits.canvasInventoryTopRatio ?? null;
   const wasRailCanvasSectionVisibleRef = React.useRef(showRailCanvasSection);
   React.useEffect(() => {
     const wasVisible = wasRailCanvasSectionVisibleRef.current;
     wasRailCanvasSectionVisibleRef.current = showRailCanvasSection;
     if (!showRailCanvasSection || wasVisible) return;
-    restoreRailCanvasTopRatio(DEFAULT_CANVAS_SECTION_TOP_RATIO);
-  }, [restoreRailCanvasTopRatio, showRailCanvasSection]);
+    restoreRailCanvasTopRatio(savedRailCanvasTopRatio ?? DEFAULT_CANVAS_SECTION_TOP_RATIO);
+  }, [restoreRailCanvasTopRatio, savedRailCanvasTopRatio, showRailCanvasSection]);
   React.useEffect(() => {
     if (!showRailCanvasSection) return;
     const updateHeaderHeight = () => {

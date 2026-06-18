@@ -38,6 +38,7 @@ import {
 } from "../../../lib/server/mediaAudioExtraction";
 import { transcribeAudioBuffer } from "../../../lib/server/openAiAudioTranscription";
 import { readGenerationWorkspaceRuntimeKeyFromContext } from "../../../lib/server/api/generationWorkspaceRuntimeKey";
+import { generateAudioReferenceTitleBestEffort } from "../../../lib/server/audioTitleGeneration";
 
 type GenerateAudioSuccessResponse = {
   output: {
@@ -56,6 +57,7 @@ type GenerateAudioSuccessResponse = {
     mimeType: string;
     durationMs: number | null;
     waveformPeaks: null;
+    title: string;
     modelId: string;
     voiceId: string;
     voiceName: string;
@@ -395,6 +397,14 @@ export default async function handler(
       }).catch(() => undefined);
       transcriptText = null;
     }
+    const voiceChangerTitle = await generateAudioReferenceTitleBestEffort({
+      sourceMode: "voice-changer",
+      promptText: `${sourceName} -> ${effectiveVoiceName}`,
+      transcriptText,
+      sourceName,
+      voiceName: effectiveVoiceName,
+      uniqueSeed: charge.sourceRef,
+    });
 
     const persisted = await persistGeneratedAudioAsset({
       userId: charge.userId,
@@ -407,6 +417,7 @@ export default async function handler(
       projectId,
       workspaceRuntimeKey,
       sourceMode: "voice-changer",
+      displayTitle: voiceChangerTitle,
       voiceId,
       voiceName: effectiveVoiceName,
       outputBuffer: generated.buffer,
@@ -421,6 +432,7 @@ export default async function handler(
         provider_request_id: providerRequestId,
         source_duration_ms: Math.round(sourceDurationSeconds * 1000),
         source_duration_seconds: sourceDurationSeconds,
+        voice_changer_title: voiceChangerTitle,
         ...(shortpulseContext ? { shortpulse_context: shortpulseContext } : {}),
       },
       beforeVisibleSettlement: async ({ generationId }) => {
@@ -443,6 +455,7 @@ export default async function handler(
         }
       },
     });
+    const persistedVoiceChangerTitle = persisted.displayTitle ?? voiceChangerTitle;
     await markAudioCompanionArtPending({
       generationId: persisted.generationId,
       userId: charge.userId,
@@ -518,6 +531,7 @@ export default async function handler(
         mimeType: generated.contentType,
         durationMs: Math.round(sourceDurationSeconds * 1000),
         waveformPeaks: null,
+        title: persistedVoiceChangerTitle,
         modelId,
         voiceId,
         voiceName: effectiveVoiceName,

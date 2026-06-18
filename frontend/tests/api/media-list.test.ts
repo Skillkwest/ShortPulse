@@ -91,8 +91,7 @@ const applySearchOrClause = (rows: MediaRow[], clause: string): MediaRow[] => {
       const [left, ...rest] = segment.split(".ilike.");
       const pattern = rest.join(".ilike.");
       if (!left || !pattern) return false;
-      const value =
-        left === "filename" ? row.filename : left === "storage_path" ? row.storage_path : "";
+      const value = String((row as Record<string, unknown>)[left] ?? "");
       return matchesIlike(value, pattern);
     })
   );
@@ -162,7 +161,7 @@ const createSupabaseAdminMock = (
     const ltFilters: Array<{ column: string; value: string }> = [];
     const inFilters: Array<{ column: string; values: string[] }> = [];
     const orderFilters: Array<{ column: string; ascending: boolean }> = [];
-    let orClause = "";
+    const orClauses: string[] = [];
 
     const builder: {
       eq: ReturnType<typeof vi.fn>;
@@ -198,7 +197,7 @@ const createSupabaseAdminMock = (
         return builder;
       }),
       or: vi.fn((clause: string) => {
-        orClause = clause;
+        orClauses.push(clause);
         return builder;
       }),
       lt: vi.fn((column: string, value: string) => {
@@ -251,8 +250,8 @@ const createSupabaseAdminMock = (
             return rowValue < filter.value;
           });
         }
-        if (orClause) {
-          filtered = applySearchOrClause(filtered, orClause);
+        for (const clause of orClauses) {
+          filtered = applySearchOrClause(filtered, clause);
         }
         filtered.sort((left, right) => {
           for (const order of orderFilters) {
@@ -2020,6 +2019,64 @@ describe("POST /api/media/list", () => {
     expect(res.status).toHaveBeenCalledWith(200);
     const payload = res.json.mock.calls[0]?.[0];
     expect(payload.rows.map((row: { id: string }) => row.id)).toEqual(["media-audio-1"]);
+  });
+
+  it("includes path-proven videos when mediaKind is videos and file_type is stale", async () => {
+    createSupabaseAdminMock([
+      {
+        id: "media-stale-video-1",
+        user_id: "user-1",
+        filename: "restored-clip.png",
+        storage_path: "user-1/upload/restored-clip.mp4",
+        file_type: "image/png",
+        file_size: 10,
+        source: "upload",
+        source_ref: null,
+        prompt_id: null,
+        metadata: null,
+        thumb_variant_path: "user-1/upload/restored-clip-poster.jpg",
+        poster_variant_path: "user-1/upload/restored-clip-poster.jpg",
+        preview_variant_path: null,
+        created_at: "2026-02-20T10:00:00.000Z",
+        updated_at: null,
+      },
+      {
+        id: "media-image-1",
+        user_id: "user-1",
+        filename: "frame.png",
+        storage_path: "user-1/upload/frame.png",
+        file_type: "image/png",
+        file_size: 10,
+        source: "upload",
+        source_ref: null,
+        prompt_id: null,
+        metadata: null,
+        thumb_variant_path: null,
+        poster_variant_path: null,
+        preview_variant_path: null,
+        created_at: "2026-02-19T10:00:00.000Z",
+        updated_at: null,
+      },
+    ]);
+
+    const req = {
+      method: "POST",
+      body: {
+        mediaKind: "videos",
+        query: "",
+        cursor: null,
+        limit: 36,
+        surface: "media-library-modal",
+        folderId: "all_items",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const payload = res.json.mock.calls[0]?.[0];
+    expect(payload.rows.map((row: { id: string }) => row.id)).toEqual(["media-stale-video-1"]);
   });
 
   it("returns 400 for invalid folder id", async () => {

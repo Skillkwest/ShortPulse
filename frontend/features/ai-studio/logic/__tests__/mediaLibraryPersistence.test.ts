@@ -221,7 +221,7 @@ describe("saveMediaUrlToLibrary", () => {
     );
   });
 
-  it("backfills a durable poster for an existing ai_studio video row when no poster hint exists", async () => {
+  it("backfills a durable poster for an existing ai_studio video row when file_type is stale", async () => {
     mockVideoPosterExtraction();
 
     const maybeSingle = vi
@@ -230,7 +230,7 @@ describe("saveMediaUrlToLibrary", () => {
         data: {
           id: "media-existing-video",
           storage_path: "user-1/generations/videos/existing.mp4",
-          file_type: "video",
+          file_type: "image/png",
           poster_variant_path: null,
           preview_variant_path: "user-1/variants/videos/media-existing-video/preview_loop_360p.mp4",
         },
@@ -240,7 +240,7 @@ describe("saveMediaUrlToLibrary", () => {
         data: {
           id: "legacy-media-existing-video",
           storage_path: "user-1/generations/videos/legacy.mp4",
-          file_type: "video",
+          file_type: "image/png",
           poster_variant_path: null,
           preview_variant_path:
             "user-1/variants/videos/legacy-media-existing-video/preview_loop_360p.mp4",

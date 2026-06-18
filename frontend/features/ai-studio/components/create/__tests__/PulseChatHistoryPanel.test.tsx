@@ -6,6 +6,7 @@ import type { PulseChatThreadListItem } from "../../../pulseChats/pulseChatThrea
 const buildThread = (index: number): PulseChatThreadListItem => ({
   threadId: `thread-${index}`,
   title: `Pulse chat ${index}`,
+  titleSource: "auto",
   presetId: index % 2 === 0 ? "single_shot" : "multi_shot",
   presetLabel: index % 2 === 0 ? "Single Shot Video" : "Multi Shot Video",
   updatedAt: `2026-06-${String(index).padStart(2, "0")}T15:00:00.000Z`,
@@ -19,6 +20,7 @@ describe("PulseChatHistoryPanel", () => {
           {
             threadId: "thread-1",
             title: "First pulse chat",
+            titleSource: "auto",
             presetId: "story_builder",
             presetLabel: "Story Builder",
             updatedAt: "2026-06-03T15:00:00.000Z",
@@ -29,6 +31,7 @@ describe("PulseChatHistoryPanel", () => {
         error={null}
         openingThreadId={null}
         onOpenThread={vi.fn()}
+        onRenameThread={vi.fn()}
       />
     );
 
@@ -37,6 +40,7 @@ describe("PulseChatHistoryPanel", () => {
       "true"
     );
     expect(screen.getByText(/Story Builder/i)).toBeInTheDocument();
+    expect(screen.getByText(/Jun 3/i)).toBeInTheDocument();
   });
 
   it("opens saved threads and hides the new chat entry point", () => {
@@ -48,6 +52,7 @@ describe("PulseChatHistoryPanel", () => {
           {
             threadId: "thread-1",
             title: "First pulse chat",
+            titleSource: "auto",
             presetId: "story_builder",
             presetLabel: "Story Builder",
             updatedAt: "2026-06-03T15:00:00.000Z",
@@ -58,6 +63,7 @@ describe("PulseChatHistoryPanel", () => {
         error={null}
         openingThreadId={null}
         onOpenThread={onOpenThread}
+        onRenameThread={vi.fn()}
       />
     );
 
@@ -78,6 +84,7 @@ describe("PulseChatHistoryPanel", () => {
         error={null}
         openingThreadId={null}
         onOpenThread={vi.fn()}
+        onRenameThread={vi.fn()}
       />
     );
 
@@ -107,6 +114,7 @@ describe("PulseChatHistoryPanel", () => {
         error={null}
         openingThreadId={null}
         onOpenThread={vi.fn()}
+        onRenameThread={vi.fn()}
       />
     );
 
@@ -130,6 +138,7 @@ describe("PulseChatHistoryPanel", () => {
         error={null}
         openingThreadId={null}
         onOpenThread={onOpenThread}
+        onRenameThread={vi.fn()}
       />
     );
 
@@ -139,5 +148,45 @@ describe("PulseChatHistoryPanel", () => {
 
     expect(onOpenThread).toHaveBeenCalledWith("thread-8");
     expect(screen.queryByRole("dialog", { name: /All Pulse chats/i })).not.toBeInTheDocument();
+  });
+
+  it("opens a right-click rename menu and commits an inline title edit", () => {
+    const onRenameThread = vi.fn();
+
+    render(
+      <PulseChatHistoryPanel
+        threads={[
+          {
+            threadId: "thread-1",
+            title: "First pulse chat",
+            titleSource: "auto",
+            presetId: "story_builder",
+            presetLabel: "Story Builder",
+            updatedAt: "2026-06-03T15:00:00.000Z",
+          },
+        ]}
+        activeThreadId={null}
+        loading={false}
+        error={null}
+        openingThreadId={null}
+        onOpenThread={vi.fn()}
+        onRenameThread={onRenameThread}
+      />
+    );
+
+    fireEvent.contextMenu(screen.getByRole("button", { name: /First pulse chat/i }), {
+      clientX: 120,
+      clientY: 220,
+    });
+    fireEvent.click(screen.getByRole("menuitem", { name: /Rename/i }));
+
+    const renameInput = screen.getByLabelText("Rename First pulse chat");
+    fireEvent.change(renameInput, { target: { value: "Launch hook pass" } });
+    fireEvent.keyDown(renameInput, { key: "Enter" });
+
+    expect(onRenameThread).toHaveBeenCalledWith("thread-1", "Launch hook pass");
+    expect(
+      screen.queryByRole("menu", { name: /First pulse chat chat actions/i })
+    ).not.toBeInTheDocument();
   });
 });

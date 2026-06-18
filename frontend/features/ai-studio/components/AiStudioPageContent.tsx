@@ -84,13 +84,13 @@ import {
 } from "../logic/shellResize";
 import { useOutputCounts } from "../hooks/aiStudioOutputStore";
 import {
-  createInitialPanelVisibility,
   resolveEffectivePanelVisibility,
   resolveHeaderShortcutStateMap,
   togglePanelVisibilityByShortcut,
   type HeaderShortcutId,
   type PanelVisibilityState,
 } from "../logic/panelVisibility";
+import type { AiStudioRightRailLayoutV1 } from "../logic/rightRailLayout";
 import {
   EDIT_PRESET_DELETED_OVERRIDE_LABEL,
   EDIT_PRESET_DELETED_OVERRIDE_PROMPT,
@@ -711,6 +711,8 @@ export type AiStudioPageContentProps = {
   ) => void;
   projectId?: string | null;
   projectRouteRequested?: boolean;
+  rightRailLayout: AiStudioRightRailLayoutV1;
+  onRightRailLayoutChange: React.Dispatch<React.SetStateAction<AiStudioRightRailLayoutV1>>;
   projectName?: string | null;
   onProjectNameCommit?: (value: string) => void;
   onOpenProjectNameEditor?: () => void;
@@ -801,6 +803,8 @@ export function AiStudioPageContent({
   onMediaLibraryDetailSelectionTargetChange,
   projectId = null,
   projectRouteRequested = false,
+  rightRailLayout,
+  onRightRailLayoutChange,
   projectName,
   onProjectNameCommit,
   onOpenProjectNameEditor,
@@ -850,22 +854,22 @@ export function AiStudioPageContent({
     showExpertEditPanel || showCreatePropertiesPanel || showVideoPropertiesPanel;
   const isPrimaryCharacterPanelOpen = isPrimaryCharacterTool(selectedTool);
   const isCharacterShellPanelOpen = isCharacterShellTool(selectedTool);
-  const [isCanvasVisible, setIsCanvasVisible] = React.useState(false);
-  const [panelVisibility, setPanelVisibility] = React.useState<PanelVisibilityState>(
-    createInitialPanelVisibility
+  const isCanvasVisible = rightRailLayout.panels.canvas;
+  const [isStylesPanelVisible, setIsStylesPanelVisible] = React.useState(false);
+  const panelVisibility = React.useMemo<PanelVisibilityState>(
+    () => ({
+      quickSlot: rightRailLayout.panels.quickSlot,
+      referenceGrid: rightRailLayout.panels.referenceGrid,
+      styles: isStylesPanelVisible,
+    }),
+    [isStylesPanelVisible, rightRailLayout.panels.quickSlot, rightRailLayout.panels.referenceGrid]
   );
   const [selectedStyleId, setSelectedStyleId] = React.useState<string | null>(null);
   const handleWorkflowReloadStylePrep = React.useCallback(
     (styleContext: StudioOutput["styleContext"] | null) => {
       const nextStyleId = styleContext?.applied ? styleContext.styleId?.trim() || null : null;
       setSelectedStyleId(nextStyleId);
-      setPanelVisibility((previous) => {
-        if (!previous.styles) return previous;
-        return {
-          ...previous,
-          styles: false,
-        };
-      });
+      setIsStylesPanelVisible(false);
     },
     []
   );
@@ -954,15 +958,47 @@ export function AiStudioPageContent({
   const visibleHeaderShortcutButtons = React.useMemo(() => AI_STUDIO_HEADER_SHORTCUT_BUTTONS, []);
   const handleHeaderShortcutToggle = React.useCallback(
     (shortcutId: HeaderShortcutId) => {
-      setPanelVisibility((previous) => {
-        return togglePanelVisibilityByShortcut({
-          panelVisibility: previous,
+      if (shortcutId === "styles") {
+        setIsStylesPanelVisible(
+          (previous) =>
+            togglePanelVisibilityByShortcut({
+              panelVisibility: {
+                quickSlot: rightRailLayout.panels.quickSlot,
+                referenceGrid: rightRailLayout.panels.referenceGrid,
+                styles: previous,
+              },
+              shortcutId,
+              availability: panelToggleAvailability,
+            }).styles
+        );
+        return;
+      }
+      onRightRailLayoutChange((previous) => {
+        const nextVisibility = togglePanelVisibilityByShortcut({
+          panelVisibility: {
+            quickSlot: previous.panels.quickSlot,
+            referenceGrid: previous.panels.referenceGrid,
+            styles: false,
+          },
           shortcutId,
           availability: panelToggleAvailability,
         });
+        return {
+          ...previous,
+          panels: {
+            ...previous.panels,
+            quickSlot: nextVisibility.quickSlot,
+            referenceGrid: nextVisibility.referenceGrid,
+          },
+        };
       });
     },
-    [panelToggleAvailability]
+    [
+      onRightRailLayoutChange,
+      panelToggleAvailability,
+      rightRailLayout.panels.quickSlot,
+      rightRailLayout.panels.referenceGrid,
+    ]
   );
   const { activeCount } = useOutputCounts();
   React.useEffect(() => {
@@ -1140,14 +1176,23 @@ export function AiStudioPageContent({
   ]);
   const rightColumnRef = React.useRef<HTMLDivElement | null>(null);
   const handleStylesPanelToggle = React.useCallback(() => {
-    setPanelVisibility((previous) => {
-      return togglePanelVisibilityByShortcut({
-        panelVisibility: previous,
-        shortcutId: "styles",
-        availability: panelToggleAvailability,
-      });
-    });
-  }, [panelToggleAvailability]);
+    setIsStylesPanelVisible(
+      (previous) =>
+        togglePanelVisibilityByShortcut({
+          panelVisibility: {
+            quickSlot: rightRailLayout.panels.quickSlot,
+            referenceGrid: rightRailLayout.panels.referenceGrid,
+            styles: previous,
+          },
+          shortcutId: "styles",
+          availability: panelToggleAvailability,
+        }).styles
+    );
+  }, [
+    panelToggleAvailability,
+    rightRailLayout.panels.quickSlot,
+    rightRailLayout.panels.referenceGrid,
+  ]);
   const handleExpertCreateModeChange = React.useCallback(
     (nextMode: "standard" | "pulse") => {
       if (expertCreateMode === nextMode) return;
@@ -1160,17 +1205,17 @@ export function AiStudioPageContent({
     [expertCreateMode, isExpertCreateModeControlled, resolvedCreateProperties]
   );
   const handleCanvasVisibilityToggle = React.useCallback(() => {
-    setIsCanvasVisible((previous) => !previous);
-  }, []);
+    onRightRailLayoutChange((previous) => ({
+      ...previous,
+      panels: {
+        ...previous.panels,
+        canvas: !previous.panels.canvas,
+      },
+    }));
+  }, [onRightRailLayoutChange]);
   const handleSelectedStyleIdChange = React.useCallback((styleId: string | null) => {
     setSelectedStyleId(styleId);
-    setPanelVisibility((previous) => {
-      if (!previous.styles) return previous;
-      return {
-        ...previous,
-        styles: false,
-      };
-    });
+    setIsStylesPanelVisible(false);
   }, []);
   const handleToolSelection = React.useCallback(
     (tool: ToolId | null) => {
@@ -1254,6 +1299,8 @@ export function AiStudioPageContent({
     () => ({
       ...resolvedReferenceGridProps,
       railCanvasProps: isCanvasVisible ? resolvedReferenceGridProps.railCanvasProps : undefined,
+      rightRailLayout,
+      onRightRailLayoutChange,
       isShellResizeActive: isResizing,
       panelVisibility: effectivePanelVisibility,
       stylesPanel: {
@@ -1269,7 +1316,9 @@ export function AiStudioPageContent({
       isResizing,
       isStylesPanelOpen,
       isCanvasVisible,
+      onRightRailLayoutChange,
       resolvedReferenceGridProps,
+      rightRailLayout,
       selectedStyleId,
       visibleStylesCatalog,
     ]

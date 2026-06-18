@@ -215,4 +215,22 @@ describe("mediaPreviewPath", () => {
       hoverVideoPath: "user-1/variants/videos/media-4/preview_loop_360p.mp4",
     });
   });
+
+  it("recovers video preview signing from durable paths when file_type is stale", () => {
+    const row = {
+      file_type: "image/png",
+      storage_path: "uploads/videos/restored-video.mp4",
+      preview_variant_path: "variants/videos/media-5/preview_loop_360p.mp4",
+      poster_variant_path: "variants/videos/media-5/poster_720.jpg",
+    };
+
+    expect(resolveVideoPosterStoragePath(row)).toBe("variants/videos/media-5/poster_720.jpg");
+    expect(resolveVideoBrowseSigningCandidates(row, "user-1")).toEqual({
+      posterPaths: [
+        "user-1/variants/videos/media-5/poster_720.jpg",
+        "variants/videos/media-5/poster_720.jpg",
+      ],
+      hoverVideoPath: "user-1/variants/videos/media-5/preview_loop_360p.mp4",
+    });
+  });
 });

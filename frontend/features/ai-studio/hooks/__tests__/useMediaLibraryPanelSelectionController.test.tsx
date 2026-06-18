@@ -138,6 +138,61 @@ describe("useMediaLibraryPanelSelectionController", () => {
     });
   });
 
+  it("opens path-proven videos as video detail items even when file_type is stale", async () => {
+    resolveSignedSelectionUrlMock.mockReset();
+    const videoFile = {
+      id: "video-stale-1",
+      filename: "restored-video.png",
+      file_type: "image/png",
+      storage_path: "user-1/media/restored-video.mp4",
+      preview_storage_path: "user-1/media/restored-video.mp4",
+      poster_variant_path: "user-1/media/restored-video-poster.jpg",
+      signedUrl: "https://signed.example.com/restored-video-poster.jpg",
+      metadata: null,
+      source: "upload",
+    };
+    resolveSignedSelectionUrlMock.mockResolvedValueOnce(
+      "https://signed.example.com/restored-video-poster.jpg"
+    );
+    const signStoragePath = vi.fn(async (storagePath: string) => {
+      if (storagePath === "user-1/media/restored-video.mp4") {
+        return "https://signed.example.com/restored-video.mp4";
+      }
+      if (storagePath === "user-1/media/restored-video-poster.jpg") {
+        return "https://signed.example.com/restored-video-poster.jpg";
+      }
+      return null;
+    });
+
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelSelectionController({
+        activeFolderId: "all_items",
+        detailSurface: "media-library-panel",
+        currentUserIdRef: { current: "user-1" },
+        mediaRows: [videoFile],
+        onSelectMedia: vi.fn(),
+        refreshSignedUrl: vi.fn(async () => null),
+        signStoragePath,
+      })
+    );
+
+    act(() => {
+      result.current.handleMediaCardDoubleClick(videoFile);
+    });
+
+    expect(result.current.detailModalItem?.media.kind).toBe("video");
+    expect(result.current.detailModalItem?.media.previewPosterStoragePath).toBe(
+      "user-1/media/restored-video-poster.jpg"
+    );
+
+    await waitFor(() => {
+      expect(result.current.detailModalItem?.url).toBe(
+        "https://signed.example.com/restored-video.mp4"
+      );
+      expect(result.current.detailModalLoading).toBe(false);
+    });
+  });
+
   it("preserves audio companion art and duration when selecting a media-library audio row", async () => {
     resolveSignedSelectionUrlMock.mockReset();
     resolveSignedSelectionUrlMock.mockResolvedValueOnce("https://signed.example.com/audio.mp3");

@@ -282,6 +282,7 @@ export default async function handler(
       bpm,
       energyPercent,
       providerPrompt,
+      uniqueSeed: charge.sourceRef,
     });
 
     const generated = await generateElevenLabsMusic({
@@ -380,6 +381,7 @@ export default async function handler(
         }
       },
     });
+    const persistedSongTitle = persisted.displayTitle ?? songTitle;
     await markAudioCompanionArtPending({
       generationId: persisted.generationId,
       userId: charge.userId,
@@ -404,7 +406,7 @@ export default async function handler(
         waveformPeaks: null,
         lyricsText: resolvedLyricsText,
         musicMode: mode,
-        title: songTitle,
+        title: persistedSongTitle,
         modelId,
         saveState: persisted.saveState,
         saveError: persisted.saveError,

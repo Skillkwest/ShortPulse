@@ -142,6 +142,54 @@ describe("useMediaVideoBrowsePreviewUrls", () => {
     );
   });
 
+  it("signs restored videos when durable paths prove video despite stale file_type", async () => {
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([
+        [
+          "user-1/variants/videos/video-1/preview_loop_360p.mp4",
+          "https://cdn.example.com/signed/restored-hover.mp4",
+        ],
+        [
+          "user-1/variants/videos/video-1/poster_720.jpg",
+          "https://cdn.example.com/signed/restored-poster.jpg",
+        ],
+      ])
+    );
+
+    const { result } = renderHook(() =>
+      useMediaVideoBrowsePreviewUrls({
+        mediaRows: [
+          makeVideoRow({
+            file_type: "image/png",
+            signedUrl: null,
+            storage_path: "user-1/uploads/restored-video.mp4",
+            preview_variant_path: "user-1/variants/videos/video-1/preview_loop_360p.mp4",
+            poster_variant_path: "user-1/variants/videos/video-1/poster_720.jpg",
+          }),
+        ],
+        currentUserId: "user-1",
+      })
+    );
+
+    await waitFor(() =>
+      expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          bucket: "media_library",
+          storagePaths: expect.arrayContaining([
+            "user-1/variants/videos/video-1/preview_loop_360p.mp4",
+            "user-1/variants/videos/video-1/poster_720.jpg",
+          ]),
+        })
+      )
+    );
+
+    await waitFor(() =>
+      expect(result.current.signedVideoUrlById).toEqual({
+        "video-1": "https://cdn.example.com/signed/restored-hover.mp4",
+      })
+    );
+  });
+
   it("signs poster storage paths when no renderable poster url exists yet", async () => {
     getSignedMediaUrlsBatchMock.mockResolvedValue(
       new Map([

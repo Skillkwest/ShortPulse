@@ -3,6 +3,7 @@ import {
   resolveDurablePreviewStoragePath,
   resolveVideoPosterStoragePath,
 } from "../../../../lib/mediaPreviewPath";
+import { resolveMediaRowKind } from "../../../../lib/mediaRowKind";
 import { useMediaGridVideoBudgetController } from "../../../media-library/hooks/useMediaGridVideoBudgetController";
 import { useMediaMasonryVirtualization } from "../../../media-library/hooks/useMediaMasonryVirtualization";
 import { resolveMediaLibraryAdaptiveCardPreviewUrl } from "../../../media-library/logic/mediaLibraryAdaptivePreview";
@@ -13,7 +14,6 @@ import {
 } from "../../../media-library/logic/mediaLibraryRuntimeConfig";
 import { resolveMediaCardAspectRatio } from "../../logic/mediaLibraryAspectRatio";
 import {
-  isAudioFile,
   isVideoFile,
   type MediaFileRow,
   type MediaCardRefCallback,
@@ -23,6 +23,7 @@ import {
   MediaLibraryVisualMediaCard,
   buildMediaLibraryCardActionLabels,
   canShowMediaLibraryWorkflowReloadAction,
+  resolveMediaLibraryCardDisplayLabel,
   type MediaLibraryMediaDragPreview,
 } from "./MediaLibraryMediaCard";
 import { useMediaAspectRatioCache } from "./useMediaAspectRatioCache";
@@ -118,8 +119,9 @@ export function MediaLibraryMediaGrid({
     items: activeMedia,
     getItemId: (item) => item.id,
     getAspectRatio: (item) => {
+      const mediaKind = resolveMediaRowKind(item);
       if (
-        !isAudioFile(item.file_type) &&
+        mediaKind !== "audio" &&
         typeof fixedVisualAspectRatio === "number" &&
         Number.isFinite(fixedVisualAspectRatio) &&
         fixedVisualAspectRatio > 0
@@ -129,7 +131,7 @@ export function MediaLibraryMediaGrid({
       const cachedRatio = aspectRatioById[item.id];
       if (Number.isFinite(cachedRatio) && cachedRatio > 0) return cachedRatio;
       return resolveMediaCardAspectRatio({
-        fileType: item.file_type,
+        fileType: mediaKind,
         width: item.width ?? null,
         height: item.height ?? null,
         metadata: item.metadata,
@@ -146,7 +148,7 @@ export function MediaLibraryMediaGrid({
   });
 
   const videoBudgetItems = React.useMemo(
-    () => activeMedia.map((file) => ({ id: file.id, fileType: file.file_type })),
+    () => activeMedia.map((file) => ({ id: file.id, fileType: resolveMediaRowKind(file) })),
     [activeMedia]
   );
   const isVideoFileType = React.useCallback(
@@ -195,7 +197,9 @@ export function MediaLibraryMediaGrid({
           const canShowRemoveAction = showRemoveAction && supportsRemoveAction;
           const supportsDeleteAction = Boolean(onDeleteMediaFromLibrary);
           const canShowDeleteAction = showDeleteAction && supportsDeleteAction;
-          const isAudio = isAudioFile(file.file_type);
+          const mediaKind = resolveMediaRowKind(file);
+          const isAudio = mediaKind === "audio";
+          const isVideo = mediaKind === "video";
           const hasDownloadableMediaSource = Boolean(
             (file.storage_path ?? "").trim() || (file.signedUrl ?? "").trim()
           );
@@ -217,14 +221,14 @@ export function MediaLibraryMediaGrid({
             canShowDeleteAction;
           const shouldBypassAdaptivePreview = optimizerFallbackMediaIds.has(file.id);
           const previewAspectRatio =
-            !isAudioFile(file.file_type) &&
+            !isAudio &&
             typeof fixedVisualAspectRatio === "number" &&
             Number.isFinite(fixedVisualAspectRatio) &&
             fixedVisualAspectRatio > 0
               ? fixedVisualAspectRatio
               : (aspectRatioById[file.id] ??
                 resolveMediaCardAspectRatio({
-                  fileType: file.file_type,
+                  fileType: mediaKind,
                   width: file.width ?? null,
                   height: file.height ?? null,
                   metadata: file.metadata,
@@ -232,7 +236,7 @@ export function MediaLibraryMediaGrid({
           const cardPreviewUrl = resolveCardPreviewUrl
             ? resolveCardPreviewUrl({
                 signedUrl: file.signedUrl,
-                fileType: file.file_type,
+                fileType: mediaKind,
                 pressureLevel: adaptivePressureLevel,
                 adaptivePreviewQualityEnabled,
                 shouldBypassAdaptivePreview,
@@ -242,7 +246,7 @@ export function MediaLibraryMediaGrid({
             : resolveMediaLibraryAdaptiveCardPreviewUrl({
                 surface: "media-library-modal-grid",
                 signedUrl: file.signedUrl,
-                fileType: file.file_type,
+                fileType: mediaKind,
                 pressureLevel: adaptivePressureLevel,
                 adaptivePreviewQualityEnabled,
                 shouldBypassAdaptivePreview,
@@ -252,12 +256,13 @@ export function MediaLibraryMediaGrid({
           const durablePreviewPath = resolveDurablePreviewStoragePath(file);
           const posterPreviewPath = resolveVideoPosterStoragePath(file);
           const shouldRenderVideoPreview =
-            isVideoFile(file.file_type) &&
+            isVideo &&
             (!durablePreviewPath || !posterPreviewPath || durablePreviewPath !== posterPreviewPath);
           const autoPlayEnabled = isVideoAutoplayEnabled(file.id);
           const managedVideoSrc = resolveVideoSource(file.id, cardPreviewUrl);
           const fetchPriorityAttr = renderItem.index < 8 ? "high" : "auto";
           const isSelected = selectedIds.has(file.id);
+          const mediaLabel = resolveMediaLibraryCardDisplayLabel(file);
 
           if (isAudio) {
             return (
@@ -287,8 +292,8 @@ export function MediaLibraryMediaGrid({
                 actionLabels={buildMediaLibraryCardActionLabels(file, {
                   actionAriaLabel: "Folder actions",
                   downloadLabelPrefix: "Download audio",
-                  removeLabel: `Remove ${file.filename || "media"} from this folder`,
-                  deleteLabel: `Delete ${file.filename || "media"} from library`,
+                  removeLabel: `Remove ${mediaLabel} from this folder`,
+                  deleteLabel: `Delete ${mediaLabel} from library`,
                 })}
                 dangerActionMode="exclusive"
                 onDownloadMediaFile={onDownloadMediaFile}
@@ -331,8 +336,8 @@ export function MediaLibraryMediaGrid({
               actionLabels={buildMediaLibraryCardActionLabels(file, {
                 actionAriaLabel: "Folder actions",
                 downloadLabelPrefix: "Download",
-                removeLabel: `Remove ${file.filename || "media"} from this folder`,
-                deleteLabel: `Delete ${file.filename || "media"} from library`,
+                removeLabel: `Remove ${mediaLabel} from this folder`,
+                deleteLabel: `Delete ${mediaLabel} from library`,
               })}
               dangerActionMode="exclusive"
               onDownloadMediaFile={onDownloadMediaFile}

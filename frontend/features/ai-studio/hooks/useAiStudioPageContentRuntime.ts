@@ -58,6 +58,8 @@ type UseAiStudioPageContentRuntimeParams = {
   onMediaLibraryDetailSelectionTargetChange: AiStudioPageContentProps["onMediaLibraryDetailSelectionTargetChange"];
   projectId: AiStudioPageContentProps["projectId"];
   projectRouteRequested: AiStudioPageContentProps["projectRouteRequested"];
+  rightRailLayout: AiStudioPageContentProps["rightRailLayout"];
+  onRightRailLayoutChange: AiStudioPageContentProps["onRightRailLayoutChange"];
   projectName: AiStudioPageContentProps["projectName"];
   onProjectNameCommit: AiStudioPageContentProps["onProjectNameCommit"];
   onOpenProjectNameEditor: AiStudioPageContentProps["onOpenProjectNameEditor"];
@@ -136,6 +138,8 @@ export const useAiStudioPageContentRuntime = ({
   onMediaLibraryDetailSelectionTargetChange,
   projectId,
   projectRouteRequested,
+  rightRailLayout,
+  onRightRailLayoutChange,
   projectName,
   onProjectNameCommit,
   onOpenProjectNameEditor,
@@ -211,6 +215,8 @@ export const useAiStudioPageContentRuntime = ({
       onMediaLibraryDetailSelectionTargetChange,
       projectId,
       projectRouteRequested,
+      rightRailLayout,
+      onRightRailLayoutChange,
       projectName,
       onProjectNameCommit,
       onOpenProjectNameEditor,
@@ -285,6 +291,8 @@ export const useAiStudioPageContentRuntime = ({
       onMediaLibraryDetailSelectionTargetChange,
       projectId,
       projectRouteRequested,
+      rightRailLayout,
+      onRightRailLayoutChange,
       projectName,
       onProjectNameCommit,
       onOpenProjectNameEditor,

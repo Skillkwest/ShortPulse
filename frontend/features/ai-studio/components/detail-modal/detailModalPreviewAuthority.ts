@@ -144,7 +144,7 @@ export const createPreviewSelectionState = (
   rejectedUrls,
 });
 
-const shouldResolveCanonicalDetailAuthority = (
+export const shouldResolveCanonicalDetailAuthority = (
   output: Pick<
     StudioOutput,
     | "previewStoragePath"

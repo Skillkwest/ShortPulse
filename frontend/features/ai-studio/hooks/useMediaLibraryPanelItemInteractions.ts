@@ -3,11 +3,10 @@
  * Owns drag payload wiring and download fallback behavior for panel media/prompt cards.
  */
 import { useCallback, useRef } from "react";
+import { resolveMediaRowKind } from "../../../lib/mediaRowKind";
 import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import {
   BUCKET,
-  isAudioFile,
-  isVideoFile,
   resolveMediaAudioBackgroundImageUrl,
   resolveMediaMetadataAudioSourceMode,
   resolveMediaMetadataDurationMs,
@@ -36,10 +35,12 @@ const setTransferDataSafe = (transfer: DataTransfer, type: string, value: string
   }
 };
 
-const resolveLibraryMediaReferenceFileType = (
-  fileType?: string | null
-): "image" | "video" | "audio" =>
-  isAudioFile(fileType) ? "audio" : isVideoFile(fileType) ? "video" : "image";
+const resolveLibraryMediaReferenceFileType = (file: MediaFileRow): "image" | "video" | "audio" =>
+  resolveMediaRowKind(file) === "audio"
+    ? "audio"
+    : resolveMediaRowKind(file) === "video"
+      ? "video"
+      : "image";
 
 type UseMediaLibraryPanelItemInteractionsParams = {
   activeFolderId: string | null;
@@ -66,7 +67,9 @@ export const useMediaLibraryPanelItemInteractions = ({
         event.preventDefault();
         return;
       }
-      const isVideo = isVideoFile(file.file_type);
+      const mediaKind = resolveMediaRowKind(file);
+      const isVideo = mediaKind === "video";
+      const isAudio = mediaKind === "audio";
       const hoverVideoUrl = preview?.hoverVideoUrl?.trim() || signedUrl;
       const posterPreviewUrl = isVideo ? preview?.posterPreviewUrl?.trim() || null : null;
       const resolvedTransferUrl = isVideo ? hoverVideoUrl || transferUrl : transferUrl;
@@ -75,7 +78,7 @@ export const useMediaLibraryPanelItemInteractions = ({
         ? (file.preview_storage_path ?? file.storage_path)
         : (file.preview_storage_path ?? file.storage_path);
       const dragDimensions = resolveMediaDragDimensions({
-        fileType: file.file_type,
+        fileType: mediaKind,
         width: file.width ?? null,
         height: file.height ?? null,
         metadata: file.metadata,
@@ -92,7 +95,7 @@ export const useMediaLibraryPanelItemInteractions = ({
         payload: {
           id: file.id,
           url: resolvedTransferUrl,
-          fileType: resolveLibraryMediaReferenceFileType(file.file_type),
+          fileType: resolveLibraryMediaReferenceFileType(file),
           createdAt: file.created_at ?? null,
           originFolderId: activeFolderId,
           filename: file.filename,
@@ -110,16 +113,10 @@ export const useMediaLibraryPanelItemInteractions = ({
           previewPosterStoragePath: isVideo ? (file.poster_variant_path ?? null) : null,
           fullUrl: signedUrl || null,
           companionArtUrl,
-          companionArtStoragePath: isAudioFile(file.file_type)
-            ? (file.companion_art_storage_path ?? null)
-            : null,
-          audioSourceMode: isAudioFile(file.file_type)
-            ? resolveMediaMetadataAudioSourceMode(file.metadata)
-            : null,
+          companionArtStoragePath: isAudio ? (file.companion_art_storage_path ?? null) : null,
+          audioSourceMode: isAudio ? resolveMediaMetadataAudioSourceMode(file.metadata) : null,
           durationMs: resolveMediaMetadataDurationMs(file.metadata, { fileType: file.file_type }),
-          waveformPeaks: isAudioFile(file.file_type)
-            ? resolveMediaMetadataWaveformPeaks(file.metadata)
-            : null,
+          waveformPeaks: isAudio ? resolveMediaMetadataWaveformPeaks(file.metadata) : null,
           width: dragDimensions.width,
           height: dragDimensions.height,
         },
@@ -137,12 +134,8 @@ export const useMediaLibraryPanelItemInteractions = ({
       attachMediaLibraryDragGhost(event, {
         label: file.filename || "Media",
         detail: promptText,
-        previewUrl: isAudioFile(file.file_type) ? companionArtUrl : previewUrl,
-        previewKind: isVideoFile(file.file_type)
-          ? "video"
-          : isAudioFile(file.file_type)
-            ? "audio"
-            : "image",
+        previewUrl: isAudio ? companionArtUrl : previewUrl,
+        previewKind: isVideo ? "video" : isAudio ? "audio" : "image",
       });
     },
     [activeFolderId]

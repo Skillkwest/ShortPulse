@@ -50,6 +50,8 @@ import {
   hasSettledSessionOutputPayload,
   shouldKeepSessionOutputForDurableRestore,
 } from "./sessionOutputAuthority";
+import type { AiStudioRightRailLayoutV1 } from "./rightRailLayout";
+import { sanitizeRightRailLayoutSnapshot } from "./rightRailLayout";
 
 const FALLBACK_MODE: StudioMode = "text";
 const FALLBACK_ASPECT = "9:16";
@@ -757,6 +759,7 @@ export type AiStudioSessionHydrationPayload = {
       videoUrl: string;
     }[];
     motionReferenceVideoUrl: string | null;
+    rightRailLayout: AiStudioRightRailLayoutV1;
   };
   outputs: {
     active: StudioOutput[];
@@ -1126,6 +1129,9 @@ export const buildAiStudioSessionHydrationPayload = (
       klingMultiPrompts,
       klingElements: asKlingElements(workspace.klingElements),
       motionReferenceVideoUrl: visibleMotionReferenceVideoUrl,
+      rightRailLayout: sanitizeRightRailLayoutSnapshot(
+        (workspace as { rightRailLayout?: unknown }).rightRailLayout
+      ),
     },
     outputs: {
       active: activeOutputs,

@@ -408,6 +408,8 @@
   opacity: 0;
   pointer-events: none;
   touch-action: none;
+  transform: scale(var(--canvas-control-scale, 1));
+  transform-origin: center;
 }
 
 .canvas-scene-item--text.is-selected .canvas-scene-item__resize-handle {

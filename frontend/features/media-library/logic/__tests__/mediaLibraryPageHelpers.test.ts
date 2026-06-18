@@ -70,6 +70,10 @@ describe("mediaLibraryPageHelpers", () => {
         calls.push({ fn: "not", column: `${column}:${operator}`, value });
         return query;
       },
+      or(clause: string) {
+        calls.push({ fn: "or", value: clause });
+        return query;
+      },
     };
 
     withMediaTabFilter(query, "uploaded_videos");
@@ -77,7 +81,7 @@ describe("mediaLibraryPageHelpers", () => {
 
     expect(calls).toEqual([
       { fn: "eq", column: "source", value: "upload" },
-      { fn: "ilike", column: "file_type", value: "video%" },
+      { fn: "or", value: expect.stringContaining("storage_path.ilike.*.mp4") },
       { fn: "eq", column: "source", value: "ai_studio" },
     ]);
   });

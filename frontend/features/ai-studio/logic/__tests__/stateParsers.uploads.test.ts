@@ -253,4 +253,14 @@ describe("mapUploadsFromFiles", () => {
     expect(isVideoUrl(videoWebmUrl)).toBe(true);
     expect(isAudioUrl(videoWebmUrl)).toBe(false);
   });
+
+  it("treats extension-only ogg URLs as audio while preserving explicit video MIME hints", () => {
+    const audioOggUrl = "https://cdn.example.com/uploads/sample.ogg";
+    const videoOggUrl = "https://cdn.example.com/uploads/sample.ogg?mimeType=video%2Fogg";
+
+    expect(isAudioUrl(audioOggUrl)).toBe(true);
+    expect(isVideoUrl(audioOggUrl)).toBe(false);
+    expect(isVideoUrl(videoOggUrl)).toBe(true);
+    expect(isAudioUrl(videoOggUrl)).toBe(false);
+  });
 });

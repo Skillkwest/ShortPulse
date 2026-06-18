@@ -1,4 +1,5 @@
 import type { StudioAudioSourceMode, WorkflowReloadMusicMode } from "../types";
+import { resolveMediaMetadataDisplayTitle } from "./mediaLibraryModalModel";
 import type {
   SharedMediaDetailCapabilities,
   SharedMediaDetailItemBase,
@@ -95,6 +96,9 @@ export const createMediaLibraryDetailModalItem = ({
   fields: MediaLibraryDetailFields;
 }): MediaLibraryDetailModalItem => {
   const resolvedFilename = fields.filename?.trim() || file.filename || file.id;
+  const resolvedDisplayTitle = resolveMediaMetadataDisplayTitle(file.metadata);
+  const resolvedPresentationTitle =
+    fields.fileType === "audio" ? (resolvedDisplayTitle ?? resolvedFilename) : resolvedFilename;
   const isExternalUpload =
     fields.source?.trim()?.toLowerCase() === "upload" && Boolean(resolvedFilename);
 
@@ -114,16 +118,16 @@ export const createMediaLibraryDetailModalItem = ({
       ...fields,
     },
     presentation: {
-      title: resolvedFilename,
+      title: resolvedPresentationTitle,
       kindLabel: fields.fileType,
       topBarItems: isExternalUpload
         ? [{ label: fields.fileType, className: "art-meta-item" }]
         : [
             { label: fields.fileType, className: "art-meta-item" },
             {
-              label: resolvedFilename,
+              label: resolvedPresentationTitle,
               className: "art-meta-item art-meta-filename",
-              title: resolvedFilename,
+              title: resolvedPresentationTitle,
             },
           ],
       bladePlaceholder: "No prompt metadata available.",

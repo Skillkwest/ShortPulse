@@ -53,6 +53,7 @@ import {
   shouldReportProjectWorkspaceQuickSlotDiagnostics,
 } from "../logic/projectWorkspaceQuickSlotDiagnostics";
 import { resolvePulseChatProjectStateSignature } from "../pulseChats/pulseChatThread";
+import { createRightRailLayoutSignature } from "../logic/rightRailLayout";
 import type { AiStudioPersistenceController } from "./aiStudioPersistenceControllerContract";
 
 type UseAiStudioProjectWorkspacePersistenceControllerParams = {
@@ -421,6 +422,7 @@ const resolveProjectAutosaveUnlockSignature = (
       snapshot.outputs?.removedFromAllRefsIds
     ),
     canvasSignature: resolveProjectRestoreCanvasSignature(snapshot),
+    rightRailLayoutSignature: createRightRailLayoutSignature(snapshot.workspace?.rightRailLayout),
     pulseChats:
       snapshot.schemaVersion >= 2
         ? resolvePulseChatProjectStateSignature(
@@ -441,11 +443,15 @@ const resolveProjectRestoreVisibilitySignature = (
     snapshot?.outputs?.removedFromAllRefsIds
   );
   const canvasSignature = resolveProjectRestoreCanvasSignature(snapshot);
+  const rightRailLayoutSignature = createRightRailLayoutSignature(
+    snapshot?.workspace?.rightRailLayout
+  );
   return JSON.stringify({
     activeOutputIds,
     curatedReferenceIds,
     removedFromAllRefsIds,
     canvasSignature,
+    rightRailLayoutSignature,
   });
 };
 

@@ -2,6 +2,7 @@
  * Shared Media Library tab/source routing and move eligibility logic.
  * Used by both the page UI and server API to keep move behavior consistent.
  */
+import { resolveMediaKindFromFileType, resolveMediaRowKind } from "../../../lib/mediaRowKind";
 
 export type MediaTab =
   | "uploaded_images"
@@ -38,6 +39,10 @@ type MediaTabRow = {
   storage_path?: string | null;
   file_type?: string | null;
   filename?: string | null;
+  preview_variant_path?: string | null;
+  poster_variant_path?: string | null;
+  thumb_variant_path?: string | null;
+  metadata?: Record<string, unknown> | null;
 };
 
 const PRIVATE_MEDIA_SOURCE = "private_upload";
@@ -88,14 +93,14 @@ const extractStorageBasename = (storagePath?: string | null): string | null => {
 const buildFallbackName = (row: MediaTabRow): string => {
   const filename = sanitizeStorageSegment(row.filename ?? "");
   if (filename) return filename;
-  return isVideoFile(row.file_type) ? "video" : "image";
+  return resolveMediaRowKind(row) === "video" ? "video" : "image";
 };
 
 /**
  * Returns true when a media row should be treated as a video asset.
  */
 export const isVideoFile = (fileType?: string | null): boolean =>
-  (fileType ?? "").toLowerCase().startsWith("video");
+  resolveMediaKindFromFileType(fileType) === "video";
 
 /**
  * Returns true when a storage path sits in the private media folder namespace.
@@ -119,7 +124,7 @@ export const isPrivateMediaFile = (row: Pick<MediaTabRow, "source" | "storage_pa
 export const getMediaDataTabForRow = (row: MediaTabRow): MediaDataTab => {
   if (isPrivateMediaFile(row)) return "private";
   if ((row.source ?? "upload") === "ai_studio") return "ai_generations";
-  return isVideoFile(row.file_type) ? "uploaded_videos" : "uploaded_images";
+  return resolveMediaRowKind(row) === "video" ? "uploaded_videos" : "uploaded_images";
 };
 
 /**
@@ -137,7 +142,7 @@ export const validateMoveDestination = (
     return { allowed: false, reason: "Text-only tab" };
   }
 
-  const isVideo = isVideoFile(row.file_type);
+  const isVideo = resolveMediaRowKind(row) === "video";
   if (destination === "uploaded_images" && isVideo) {
     return { allowed: false, reason: "Image-only tab" };
   }
@@ -184,7 +189,7 @@ export const buildModalMoveTabOptions = (
 ): Array<MediaTabOption & { tab: MediaDataTab }> => {
   if (!row) return [];
   const dataOptions = buildMoveTabOptions(row).filter(isDataMoveOption);
-  if (!isVideoFile(row.file_type)) {
+  if (resolveMediaRowKind(row) !== "video") {
     return dataOptions.filter(isEnabledDataMoveOption);
   }
 
@@ -304,7 +309,7 @@ export const buildMovedStoragePath = (
   row: MediaTabRow,
   destination: MediaDataTab
 ): string => {
-  const isVideo = isVideoFile(row.file_type);
+  const isVideo = resolveMediaRowKind(row) === "video";
   const tabValidation = validateMoveDestination(row, destination);
   if (!tabValidation.allowed) {
     throw new Error(tabValidation.reason ?? "Invalid move destination");

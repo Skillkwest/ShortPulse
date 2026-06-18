@@ -2,6 +2,11 @@ import {
   resolveMediaPreviewSignBudget,
   type MediaSignBudget,
 } from "../../../lib/mediaPreviewRuntimePolicy";
+import {
+  isMediaRowAudio,
+  resolveMediaKindFromFileType,
+  resolveMediaRowKind,
+} from "../../../lib/mediaRowKind";
 import { isSupabaseRenderImageUrl } from "../../../lib/mediaPreviewTrustPolicy";
 import { normalizeAudioSourceMode } from "./audioSourceMode";
 import type { StudioAudioSourceMode } from "../types";
@@ -135,10 +140,10 @@ export const resolveModalSignBudget = (): MediaSignBudget => {
 };
 
 export const isVideoFile = (fileType?: string | null) =>
-  (fileType ?? "").toLowerCase().startsWith("video");
+  resolveMediaKindFromFileType(fileType) === "video";
 
 export const isAudioFile = (fileType?: string | null) =>
-  (fileType ?? "").toLowerCase().startsWith("audio");
+  resolveMediaKindFromFileType(fileType) === "audio";
 
 const asMetadataRecord = (value: unknown): Record<string, unknown> | null =>
   value && typeof value === "object" && !Array.isArray(value)
@@ -166,7 +171,7 @@ export const resolveMediaMetadataModelId = (
 };
 
 export const resolveMediaAudioBackgroundImageUrl = (file: MediaFileRow): string | null => {
-  if (!isAudioFile(file.file_type)) return null;
+  if (!isMediaRowAudio(file)) return null;
   const metadata = file.metadata ?? null;
   const workflowReload = asMetadataRecord(metadata?.workflow_reload);
   const workflowPayload = asMetadataRecord(workflowReload?.payload);
@@ -196,7 +201,7 @@ export const resolveMediaAudioBackgroundImageUrl = (file: MediaFileRow): string 
 };
 
 export const isImageFile = (fileType?: string | null) =>
-  (fileType ?? "").toLowerCase().startsWith("image");
+  resolveMediaKindFromFileType(fileType) === "image";
 
 export const isPrivateStoragePath = (storagePath?: string | null) =>
   (storagePath ?? "").split("/").filter(Boolean).includes(PRIVATE_MEDIA_FOLDER);
@@ -207,11 +212,22 @@ export const isPrivateMediaFile = (file: Pick<MediaFileRow, "source" | "storage_
 export const isMediaDataTab = (tab: MediaTab): tab is MediaDataTab => tab !== "saved_prompts";
 
 export const getMediaDataTabForRow = (
-  row: Pick<MediaFileRow, "source" | "storage_path" | "file_type">
+  row: Pick<MediaFileRow, "source" | "storage_path" | "file_type"> &
+    Partial<
+      Pick<
+        MediaFileRow,
+        | "preview_storage_path"
+        | "thumb_variant_path"
+        | "poster_variant_path"
+        | "preview_variant_path"
+        | "companion_art_storage_path"
+        | "metadata"
+      >
+    >
 ): MediaDataTab => {
   if (isPrivateMediaFile(row)) return "private";
   if ((row.source ?? "upload") === "ai_studio") return "ai_generations";
-  return isVideoFile(row.file_type) ? "uploaded_videos" : "uploaded_images";
+  return resolveMediaRowKind(row) === "video" ? "uploaded_videos" : "uploaded_images";
 };
 
 export const createEmptyMediaTabCache = (): MediaTabCache => ({
@@ -252,6 +268,7 @@ export const withMediaTabFilter = <
     eq: (column: string, value: string) => T;
     ilike: (column: string, pattern: string) => T;
     not: (column: string, operator: string, value: string) => T;
+    or: (clause: string) => T;
   },
 >(
   query: T,
@@ -335,6 +352,30 @@ export const resolveMediaMetadataPromptText = (
           : "";
   const trimmed = prompt.trim();
   return trimmed.length > 0 ? trimmed : null;
+};
+
+export const resolveMediaMetadataDisplayTitle = (
+  metadata?: Record<string, unknown> | null
+): string | null => {
+  if (!metadata) return null;
+  const candidates = [
+    metadata.display_title,
+    metadata.displayTitle,
+    metadata.song_title,
+    metadata.songTitle,
+    metadata.sound_effect_title,
+    metadata.soundEffectTitle,
+    metadata.voiceover_title,
+    metadata.voiceoverTitle,
+    metadata.voice_changer_title,
+    metadata.voiceChangerTitle,
+  ];
+  for (const candidate of candidates) {
+    if (typeof candidate !== "string") continue;
+    const trimmed = candidate.trim().replace(/\s+/g, " ");
+    if (trimmed.length > 0) return trimmed;
+  }
+  return null;
 };
 
 export const resolveMediaMetadataTranscriptText = (

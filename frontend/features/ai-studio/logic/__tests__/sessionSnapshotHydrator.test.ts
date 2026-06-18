@@ -104,8 +104,55 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.workspace.klingWorkflowMode).toBe("single");
     expect(payload.workspace.expertCreateMode).toBe("standard");
     expect(payload.workspace.activePulsePresetId).toBeNull();
+    expect(payload.workspace.rightRailLayout).toEqual({
+      schemaVersion: 1,
+      panels: {
+        canvas: false,
+        quickSlot: true,
+        referenceGrid: true,
+      },
+      splits: {
+        canvasInventoryTopRatio: null,
+        quickSlotReferenceTopRatio: null,
+      },
+    });
     expect(payload.canvas).toBeNull();
     expect(payload.expertEdit).toBeNull();
+  });
+
+  it("hydrates saved right-rail layout state", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        workspace: {
+          ...createSnapshot().workspace,
+          rightRailLayout: {
+            schemaVersion: 1,
+            panels: {
+              canvas: true,
+              quickSlot: false,
+              referenceGrid: true,
+            },
+            splits: {
+              canvasInventoryTopRatio: 0.32,
+              quickSlotReferenceTopRatio: 0.74,
+            },
+          },
+        },
+      })
+    );
+
+    expect(payload.workspace.rightRailLayout).toEqual({
+      schemaVersion: 1,
+      panels: {
+        canvas: true,
+        quickSlot: false,
+        referenceGrid: true,
+      },
+      splits: {
+        canvasInventoryTopRatio: 0.32,
+        quickSlotReferenceTopRatio: 0.74,
+      },
+    });
   });
 
   it("drops restored authority-empty media outputs and prunes projections", () => {

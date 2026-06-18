@@ -16,6 +16,7 @@ import {
   withCanonicalImageDimensions,
   type ImageDimensions,
 } from "../../../lib/mediaDimensionMetadata";
+import { resolveMediaRowKind, type MediaRowKindInput } from "../../../lib/mediaRowKind";
 import {
   resolveGenerationIdForRequestId as resolveGenerationIdForRequestIdFromAuthority,
   resolvePublishedGenerationMediaByIndex,
@@ -30,6 +31,11 @@ type ExistingAiStudioMediaRow = {
   metadata: Record<string, unknown> | null;
   posterVariantPath: string | null;
   previewVariantPath: string | null;
+};
+
+const resolvePersistedMediaLibraryFileType = (row: MediaRowKindInput): MediaLibraryFileType => {
+  const kind = resolveMediaRowKind(row);
+  return kind === "video" || kind === "audio" ? kind : "image";
 };
 
 const BUCKET = "media_library";
@@ -632,20 +638,23 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
         const id = asOptionalString(canonicalMediaRow.id);
         if (id) {
           const storagePath = asOptionalString(canonicalMediaRow.storage_path);
-          const fileTypeRaw = String(canonicalMediaRow.file_type ?? "").toLowerCase();
-          const fileType =
-            fileTypeRaw === "video"
-              ? ("video" as const)
-              : fileTypeRaw === "audio"
-                ? ("audio" as const)
-                : ("image" as const);
+          const metadata = asRecord(canonicalMediaRow.metadata);
+          const posterVariantPath = asOptionalString(canonicalMediaRow.poster_variant_path);
+          const previewVariantPath = asOptionalString(canonicalMediaRow.preview_variant_path);
+          const fileType = resolvePersistedMediaLibraryFileType({
+            storage_path: storagePath,
+            file_type: asOptionalString(canonicalMediaRow.file_type),
+            metadata,
+            poster_variant_path: posterVariantPath,
+            preview_variant_path: previewVariantPath,
+          });
           return {
             id,
             storagePath,
             fileType,
-            metadata: asRecord(canonicalMediaRow.metadata),
-            posterVariantPath: asOptionalString(canonicalMediaRow.poster_variant_path),
-            previewVariantPath: asOptionalString(canonicalMediaRow.preview_variant_path),
+            metadata,
+            posterVariantPath,
+            previewVariantPath,
           };
         }
       }
@@ -668,20 +677,23 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
     const id = typeof data.id === "string" ? data.id : null;
     if (!id) return null;
     const storagePath = typeof data.storage_path === "string" ? data.storage_path : null;
-    const fileTypeRaw = String(data.file_type ?? "").toLowerCase();
-    const fileType =
-      fileTypeRaw === "video"
-        ? ("video" as const)
-        : fileTypeRaw === "audio"
-          ? ("audio" as const)
-          : ("image" as const);
+    const metadata = asRecord(data.metadata);
+    const posterVariantPath = asOptionalString(data.poster_variant_path);
+    const previewVariantPath = asOptionalString(data.preview_variant_path);
+    const fileType = resolvePersistedMediaLibraryFileType({
+      storage_path: storagePath,
+      file_type: typeof data.file_type === "string" ? data.file_type : null,
+      metadata,
+      poster_variant_path: posterVariantPath,
+      preview_variant_path: previewVariantPath,
+    });
     return {
       id,
       storagePath,
       fileType,
-      metadata: asRecord(data.metadata),
-      posterVariantPath: asOptionalString(data.poster_variant_path),
-      previewVariantPath: asOptionalString(data.preview_variant_path),
+      metadata,
+      posterVariantPath,
+      previewVariantPath,
     };
   };
 
@@ -1257,8 +1269,15 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
       }
       let durablePosterStoragePath = existingRow.posterVariantPath;
       let durablePreviewStoragePath = existingRow.previewVariantPath;
-      const posterSourceUrl = normalizePosterSourceUrl(existingRow.fileType, input.posterUrlHint);
-      if (existingRow.id && existingRow.fileType === "video" && !existingRow.posterVariantPath) {
+      const existingRowFileType = resolvePersistedMediaLibraryFileType({
+        storage_path: existingRow.storagePath,
+        file_type: existingRow.fileType,
+        metadata: existingRow.metadata,
+        poster_variant_path: existingRow.posterVariantPath,
+        preview_variant_path: existingRow.previewVariantPath,
+      });
+      const posterSourceUrl = normalizePosterSourceUrl(existingRowFileType, input.posterUrlHint);
+      if (existingRow.id && existingRowFileType === "video" && !existingRow.posterVariantPath) {
         try {
           durablePosterStoragePath = posterSourceUrl
             ? await upsertVideoPosterVariant({
@@ -1290,7 +1309,7 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
         }
       }
       const previewVariantPath = resolveVideoPreviewVariantCandidatePath({
-        fileType: existingRow.fileType,
+        fileType: existingRowFileType,
         previewStoragePath: input.previewStoragePathHint,
         fullStoragePath: input.fullStoragePathHint ?? existingRow.storagePath,
       });
@@ -1327,7 +1346,7 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
       return {
         mediaFileId: existingRow.id,
         storagePath: existingRow.storagePath ?? "",
-        fileType: existingRow.fileType,
+        fileType: existingRowFileType,
         fileSize: 0,
         delivery,
       } satisfies SaveMediaUrlResult;
@@ -1467,8 +1486,15 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
         }
         let durablePosterStoragePath = existingRow.posterVariantPath;
         let durablePreviewStoragePath = existingRow.previewVariantPath;
-        const posterSourceUrl = normalizePosterSourceUrl(existingRow.fileType, input.posterUrlHint);
-        if (existingRow.id && fileType === "video" && !existingRow.posterVariantPath) {
+        const existingRowFileType = resolvePersistedMediaLibraryFileType({
+          storage_path: existingRow.storagePath,
+          file_type: existingRow.fileType,
+          metadata: existingRow.metadata,
+          poster_variant_path: existingRow.posterVariantPath,
+          preview_variant_path: existingRow.previewVariantPath,
+        });
+        const posterSourceUrl = normalizePosterSourceUrl(existingRowFileType, input.posterUrlHint);
+        if (existingRow.id && existingRowFileType === "video" && !existingRow.posterVariantPath) {
           try {
             durablePosterStoragePath = posterSourceUrl
               ? await upsertVideoPosterVariant({
@@ -1497,7 +1523,7 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
           }
         }
         const previewVariantPath = resolveVideoPreviewVariantCandidatePath({
-          fileType: existingRow.fileType,
+          fileType: existingRowFileType,
           previewStoragePath: input.previewStoragePathHint,
           fullStoragePath: input.fullStoragePathHint ?? existingRow.storagePath,
         });
@@ -1534,7 +1560,7 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
         return {
           mediaFileId: existingRow.id,
           storagePath: existingRow.storagePath ?? storagePath,
-          fileType: existingRow.fileType,
+          fileType: existingRowFileType,
           fileSize: blob.size,
           delivery,
         } satisfies SaveMediaUrlResult;

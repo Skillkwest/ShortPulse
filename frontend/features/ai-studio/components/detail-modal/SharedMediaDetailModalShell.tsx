@@ -12,6 +12,8 @@ type SharedMediaDetailModalShellProps = {
   dialogStyle?: React.CSSProperties;
   backdropDataTestId?: string;
   closeOnEscape?: boolean;
+  ariaModal?: boolean;
+  dialogAriaHidden?: boolean;
   backdropDecoration?: React.ReactNode;
   children: React.ReactNode;
 };
@@ -30,6 +32,8 @@ export function SharedMediaDetailModalShell({
   dialogStyle,
   backdropDataTestId,
   closeOnEscape = false,
+  ariaModal = true,
+  dialogAriaHidden = false,
   backdropDecoration = null,
   children,
 }: SharedMediaDetailModalShellProps) {
@@ -63,7 +67,8 @@ export function SharedMediaDetailModalShell({
         <div
           className={dialogClassName}
           role="dialog"
-          aria-modal="true"
+          aria-modal={ariaModal ? "true" : undefined}
+          aria-hidden={dialogAriaHidden ? "true" : undefined}
           aria-label={ariaLabel}
           style={dialogStyle}
           onClick={(event) => event.stopPropagation()}

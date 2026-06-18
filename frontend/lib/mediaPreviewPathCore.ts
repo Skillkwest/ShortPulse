@@ -1,7 +1,9 @@
 import { filterTrustedMediaDirectPreviewUrls } from "./mediaPreviewTrustPolicy";
+import { resolveMediaRowKind } from "./mediaRowKind";
 
 export type MediaRowLike = {
   storage_path?: string | null;
+  preview_storage_path?: string | null;
   file_type?: string | null;
   metadata?: Record<string, unknown> | null;
   thumb_variant_path?: string | null;
@@ -130,8 +132,7 @@ const resolveDurablePreviewStoragePathWithMetadata = (
   row: MediaRowLike,
   metadataPaths: ResolvedMetadataPaths
 ): string | null => {
-  const type = (row.file_type ?? "").toLowerCase();
-  const isVideo = type.startsWith("video");
+  const isVideo = resolveMediaRowKind(row) === "video";
 
   if (isVideo) {
     return firstNonEmpty(
@@ -180,6 +181,7 @@ const buildMediaSigningStoragePaths = (
   const candidates = [
     preferredPath,
     asStoragePath(row.storage_path),
+    asStoragePath(row.preview_storage_path),
     asStoragePath(row.preview_variant_path),
     asStoragePath(row.poster_variant_path),
     asStoragePath(row.thumb_variant_path),
@@ -217,17 +219,18 @@ const buildMediaDirectPreviewUrls = (
   metadataPaths: ResolvedMetadataPaths,
   userId?: string | null
 ): string[] => {
-  const type = (row.file_type ?? "").toLowerCase();
-  const isVideo = type.startsWith("video");
+  const isVideo = resolveMediaRowKind(row) === "video";
 
   const candidates = isVideo
     ? [
         asHttpUrl(row.preview_variant_path),
+        asHttpUrl(row.preview_storage_path),
         asHttpUrl(row.poster_variant_path),
         asHttpUrl(metadataPaths.videoPreviewPath),
         asHttpUrl(row.storage_path),
       ]
     : [
+        asHttpUrl(row.preview_storage_path),
         asHttpUrl(row.thumb_variant_path),
         asHttpUrl(metadataPaths.imagePreviewPath),
         asHttpUrl(row.storage_path),
@@ -248,8 +251,7 @@ export const resolveDurablePreviewStoragePath = (row: MediaRowLike): string | nu
 };
 
 export const resolveVideoPosterStoragePath = (row: MediaRowLike): string | null => {
-  const type = (row.file_type ?? "").toLowerCase();
-  if (!type.startsWith("video")) return null;
+  if (resolveMediaRowKind(row) !== "video") return null;
 
   const root = toRecord(row.metadata);
   const variantPaths = toRecord(root.variant_paths ?? root.variantPaths);
@@ -302,8 +304,7 @@ export const resolveVideoBrowseSigningCandidates = (
   posterPaths: string[];
   hoverVideoPath: string | null;
 } => {
-  const type = (row.file_type ?? "").toLowerCase();
-  if (!type.startsWith("video")) {
+  if (resolveMediaRowKind(row) !== "video") {
     return {
       posterPaths: [],
       hoverVideoPath: null,

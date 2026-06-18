@@ -21,6 +21,7 @@ import {
 import { resolveVoiceAccessForUser } from "../../../lib/server/elevenlabsVoiceLibrary";
 import { markAudioCompanionArtPending } from "../../../lib/server/audioCompanionArt/processing";
 import { readGenerationWorkspaceRuntimeKeyFromContext } from "../../../lib/server/api/generationWorkspaceRuntimeKey";
+import { generateAudioReferenceTitleBestEffort } from "../../../lib/server/audioTitleGeneration";
 
 type TextToSpeechRequestBody = {
   voiceId?: unknown;
@@ -51,6 +52,7 @@ type GenerateAudioSuccessResponse = {
     mimeType: string;
     durationMs: null;
     waveformPeaks: null;
+    title: string;
     modelId: string;
     voiceId: string;
     voiceName: string;
@@ -188,6 +190,12 @@ export default async function handler(
     });
     if (!charge) return;
     const settledCharge = charge;
+    const titlePromise = generateAudioReferenceTitleBestEffort({
+      sourceMode: "voiceover",
+      promptText: text,
+      voiceName: effectiveVoiceName,
+      uniqueSeed: charge.sourceRef,
+    });
 
     const generated = await generateElevenLabsVoiceover({
       voiceId,
@@ -195,6 +203,7 @@ export default async function handler(
       outputFormat,
       body: config,
     });
+    const voiceoverTitle = await titlePromise;
     const providerRequestId = generated.providerRequestId ?? `elevenlabs:${charge.sourceRef}`;
     const submitLink = await charge.markSubmitted(providerRequestId, {
       source_mode: "voiceover",
@@ -213,6 +222,7 @@ export default async function handler(
       projectId,
       workspaceRuntimeKey,
       sourceMode: "voiceover",
+      displayTitle: voiceoverTitle,
       voiceId,
       voiceName: effectiveVoiceName,
       outputBuffer: generated.buffer,
@@ -225,6 +235,7 @@ export default async function handler(
         debited_credits: charge.credits,
         pricing_metadata: charge.chargeMetadata,
         provider_request_id: providerRequestId,
+        voiceover_title: voiceoverTitle,
         text_character_count: text.length,
         ...(shortpulseContext ? { shortpulse_context: shortpulseContext } : {}),
       },
@@ -247,6 +258,7 @@ export default async function handler(
         }
       },
     });
+    const persistedVoiceoverTitle = persisted.displayTitle ?? voiceoverTitle;
     await markAudioCompanionArtPending({
       generationId: persisted.generationId,
       userId: charge.userId,
@@ -269,6 +281,7 @@ export default async function handler(
         mimeType: generated.contentType,
         durationMs: null,
         waveformPeaks: null,
+        title: persistedVoiceoverTitle,
         modelId,
         voiceId,
         voiceName: effectiveVoiceName,

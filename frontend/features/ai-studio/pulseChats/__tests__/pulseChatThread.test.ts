@@ -5,6 +5,7 @@ import {
   buildPulseChatThreadSnapshot,
   MAX_PULSE_CHAT_SAVED_MESSAGES,
   mergePulseChatThreadRuntime,
+  parsePulseChatProjectState,
   resolvePulseChatProjectStateSignature,
 } from "../pulseChatThread";
 
@@ -121,6 +122,7 @@ describe("resolvePulseChatProjectStateSignature", () => {
     const record = buildPulseChatProjectThreadRecord({
       threadId: "thread-1",
       title: "Thread 1",
+      titleSource: "manual",
       snapshot,
       updatedAt: "2026-04-24T18:00:00.000Z",
     });
@@ -133,6 +135,7 @@ describe("resolvePulseChatProjectStateSignature", () => {
 
     expect(signature).toContain("latest-assistant");
     expect(signature).toContain("Latest answer");
+    expect(signature).toContain('"titleSource":"manual"');
     expect(signature).toContain('"messageCount":2');
     expect(signature).not.toContain("historic transcript payload");
   });
@@ -258,5 +261,35 @@ describe("resolvePulseChatProjectStateSignature", () => {
         threads: [newerRecord, olderRecord],
       })
     );
+  });
+
+  it("keeps manual title metadata while parsing project state", () => {
+    const snapshot = buildPulseChatThreadSnapshot({
+      presetId: "preset-1",
+      presetLabel: "Story Builder",
+      pulseSessionInstanceId: "session-1",
+      pulsePrompt: "Pulse prompt",
+      runtime: buildRuntime([{ id: "message-1", role: "user", content: "Original title" }]),
+      updatedAt: "2026-04-24T18:00:00.000Z",
+    });
+
+    const parsed = parsePulseChatProjectState({
+      schemaVersion: 1,
+      activeThreadId: "thread-1",
+      threads: [
+        {
+          threadId: "thread-1",
+          title: "Renamed chat",
+          titleSource: "manual",
+          presetId: "preset-1",
+          presetLabel: "Story Builder",
+          updatedAt: "2026-04-24T18:00:00.000Z",
+          snapshot,
+        },
+      ],
+    });
+
+    expect(parsed.threads[0]?.title).toBe("Renamed chat");
+    expect(parsed.threads[0]?.titleSource).toBe("manual");
   });
 });

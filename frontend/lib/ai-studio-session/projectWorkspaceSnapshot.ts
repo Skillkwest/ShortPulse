@@ -5,6 +5,7 @@ import {
   serializeAiStudioSessionCanvasState,
 } from "../../features/ai-studio/logic/sessionSnapshotCanvas";
 import { createEmptyExpertEditSecondaryImageUrls } from "../../features/ai-studio/logic/expertEditReferenceSlots";
+import { sanitizeRightRailLayoutSnapshot } from "../../features/ai-studio/logic/rightRailLayout";
 
 type MinimalAiStudioSessionSnapshot = {
   schemaVersion: number;
@@ -393,6 +394,7 @@ const resetProjectWorkspaceFields = (
   klingMultiPrompts: [],
   klingElements: [],
   motionReferenceVideoUrl: null,
+  rightRailLayout: sanitizeRightRailLayoutSnapshot(workspace.rightRailLayout),
 });
 
 const normalizeProjectWorkspaceCanvas = (value: unknown, outputIdAliases: Map<string, string>) => {

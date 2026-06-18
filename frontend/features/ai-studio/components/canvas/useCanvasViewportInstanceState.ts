@@ -225,6 +225,10 @@ export const useCanvasViewportInstanceState = ({
       const worldNode = viewportNode.querySelector<HTMLElement>(".canvas-workspace-world");
       if (worldNode) {
         worldNode.style.transform = `translate(${nextCamera.x}px, ${nextCamera.y}px) scale(${nextCamera.zoom})`;
+        worldNode.style.setProperty(
+          "--canvas-control-scale",
+          String(nextCamera.zoom > 0 ? 1 / nextCamera.zoom : 1)
+        );
       }
     },
     [viewportRef]

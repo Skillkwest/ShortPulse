@@ -387,6 +387,32 @@ describe("MediaLibraryAllItemsGrid", () => {
     });
   });
 
+  it("renders generated audio display titles from metadata", () => {
+    const props = baseProps();
+    props.mediaRows = [
+      {
+        id: "audio-1",
+        filename: "voice-note-1.mp3",
+        storage_path: "user-1/generations/audio/voice-note-1.mp3",
+        preview_storage_path: "user-1/generations/audio/voice-note-1.mp3",
+        file_type: "audio/mpeg",
+        created_at: "2026-04-09T18:00:00.000Z",
+        signedUrl: "https://cdn.example.com/voice-note-1.mp3",
+        metadata: {
+          display_title: "City Take A1B2",
+        },
+      },
+    ];
+
+    render(<MediaLibraryAllItemsGrid {...props} />);
+
+    expect(screen.getByText("City Take A1B2")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Play audio City Take A1B2" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Download media City Take A1B2" })
+    ).toBeInTheDocument();
+  });
+
   it("uses metadata companion art fallbacks for audio card backgrounds", () => {
     const props = baseProps();
     props.mediaRows = [

@@ -48,6 +48,7 @@ type VoicesGenerateSuccessResponse = {
     mimeType: string;
     durationMs: number | null;
     waveformPeaks: number[] | null;
+    title?: string | null;
     modelId: string;
     voiceId: string;
     voiceName: string;

@@ -3,7 +3,7 @@
  * Standardizes the shell, typography, and action variants for app-wide confirm flows.
  */
 import type { ReactNode } from "react";
-import { useId } from "react";
+import { useEffect, useId } from "react";
 import { useGuardedBackdropDismiss } from "./useGuardedBackdropDismiss";
 
 type ConfirmationModalTone = "danger" | "primary";
@@ -18,6 +18,7 @@ type ConfirmationModalProps = {
   confirmDisabled?: boolean;
   cancelDisabled?: boolean;
   confirmBusyLabel?: string;
+  closeOnEscape?: boolean;
   titleId?: string;
   ariaLabel?: string;
 };
@@ -38,6 +39,7 @@ export function ConfirmationModal({
   confirmDisabled = false,
   cancelDisabled = false,
   confirmBusyLabel,
+  closeOnEscape = true,
   titleId,
   ariaLabel,
 }: ConfirmationModalProps) {
@@ -52,6 +54,17 @@ export function ConfirmationModal({
     },
     { disabled: cancelDisabled }
   );
+
+  useEffect(() => {
+    if (!closeOnEscape || cancelDisabled || typeof document === "undefined") return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      event.preventDefault();
+      onCancel();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [cancelDisabled, closeOnEscape, onCancel]);
 
   return (
     <div

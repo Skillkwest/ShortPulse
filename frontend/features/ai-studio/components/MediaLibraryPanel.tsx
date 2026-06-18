@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { FolderSimple } from "phosphor-react";
 import { isAdaptiveSurfaceEnabled } from "../../../lib/adaptive-media";
+import { resolveMediaRowKind } from "../../../lib/mediaRowKind";
 import { MEDIA_PREVIEW_SIGN_BATCH_MAX_ATTEMPTS_PER_ITEM } from "../../../lib/mediaPreviewRuntimePolicy";
 import { useResolvedProtectedSessionState } from "../../../lib/protectedRouteSessionContext";
 import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
@@ -14,10 +15,7 @@ import {
 import { resolveMediaLibraryAdaptiveCardPreviewUrl } from "../../media-library/logic/mediaLibraryAdaptivePreview";
 import {
   getMediaDataTabForRow,
-  isAudioFile,
-  isImageFile,
   isNextImageOptimizerUrl,
-  isVideoFile,
   resolveNextImageOptimizerSourceUrl,
   sortByCreatedAtDesc,
   type MediaDataTab,
@@ -306,15 +304,15 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     [foldersById]
   );
   const visibleImageRows = useMemo(
-    () => mediaRows.filter((row) => isImageFile(row.file_type)),
+    () => mediaRows.filter((row) => resolveMediaRowKind(row) === "image"),
     [mediaRows]
   );
   const visibleVideoRows = useMemo(
-    () => mediaRows.filter((row) => isVideoFile(row.file_type)),
+    () => mediaRows.filter((row) => resolveMediaRowKind(row) === "video"),
     [mediaRows]
   );
   const visibleAudioRows = useMemo(
-    () => mediaRows.filter((row) => isAudioFile(row.file_type)),
+    () => mediaRows.filter((row) => resolveMediaRowKind(row) === "audio"),
     [mediaRows]
   );
   const shouldPreferVisualMediaFirstOnRootAll = useMemo(

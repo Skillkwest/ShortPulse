@@ -1,6 +1,7 @@
 import { resolveVideoBrowseSigningCandidates } from "../../../lib/mediaPreviewPath";
+import { isMediaRowVideo } from "../../../lib/mediaRowKind";
 import { isVideoUrl } from "./stateParsers";
-import { isVideoFile, type MediaFileRow } from "./mediaLibraryModalModel";
+import type { MediaFileRow } from "./mediaLibraryModalModel";
 
 const RENDERABLE_IMAGE_URL_PATTERN = /^(?:https?:\/\/|blob:|data:image\/|\/)/i;
 const RENDERABLE_VIDEO_URL_PATTERN = /^(?:https?:\/\/|blob:|data:video\/|\/)/i;
@@ -23,7 +24,7 @@ export const resolveVideoPosterSourceUrl = (
   hoverVideoUrl: string | null,
   signedPreviewUrl?: string | null
 ): string | null => {
-  if (!isVideoFile(file.file_type)) return null;
+  if (!isMediaRowVideo(file)) return null;
   return (
     asRenderableImageUrl(signedPosterUrl) ??
     asRenderableImageUrl(signedPreviewUrl) ??
@@ -37,7 +38,7 @@ export const resolveHoverVideoSigningPath = (
   file: MediaFileRow,
   currentUserId?: string | null
 ): string | null => {
-  if (!isVideoFile(file.file_type)) return null;
+  if (!isMediaRowVideo(file)) return null;
   if (asRenderableVideoUrl(file.signedUrl)) return null;
   return resolveVideoBrowseSigningCandidates(file, currentUserId).hoverVideoPath;
 };
@@ -61,7 +62,7 @@ export const collectVideoBrowseSigningRequests = (
       storagePaths.add(hoverPath);
     }
 
-    if (!isVideoFile(row.file_type)) continue;
+    if (!isMediaRowVideo(row)) continue;
     if (resolveVideoPosterSourceUrl(row, null, null, row.signedUrl ?? null)) continue;
 
     const posterCandidates = resolveVideoBrowseSigningCandidates(row, currentUserId).posterPaths;

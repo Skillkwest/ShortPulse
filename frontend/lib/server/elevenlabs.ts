@@ -13,6 +13,7 @@ import { persistGenerationOutputRecords } from "./api/generationOutputs";
 import { upsertGenerationProjection } from "./api/generationProjection";
 import { upsertGenerationPublication } from "./api/generationPublications";
 import { writeAppErrorLog } from "./api/appErrorLogs";
+import { GENERATED_AUDIO_REFERENCE_TITLE_MAX_CHARACTERS } from "./audioTitleGeneration";
 import { associateGenerationAndMediaWithProjectForUserBestEffort } from "./projectGenerationAssociationsService";
 import {
   extractAudioTrack,
@@ -165,6 +166,7 @@ export type PersistGeneratedAudioResult = {
   requestId: string;
   storagePath: string;
   signedUrl: string;
+  displayTitle: string | null;
   outputRowId: string | null;
   saveState: "saved" | "idle" | "failed" | "blocked_storage";
   saveError: string | null;
@@ -188,6 +190,93 @@ const normalizeOptionalString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : null;
+};
+
+const appendGeneratedAudioTitleCollisionSuffix = (title: string, suffixValue: string): string => {
+  const suffix = ` ${suffixValue}`;
+  const baseMaxLength = Math.max(1, GENERATED_AUDIO_REFERENCE_TITLE_MAX_CHARACTERS - suffix.length);
+  const baseTitle = title.length > baseMaxLength ? title.slice(0, baseMaxLength).trim() : title;
+  return `${baseTitle || "Audio Reference"}${suffix}`;
+};
+
+const hasGeneratedAudioDisplayTitleForUser = async ({
+  supabaseAdmin,
+  userId,
+  title,
+}: {
+  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>;
+  userId: string;
+  title: string;
+}): Promise<boolean> => {
+  const [mediaResult, generationResult] = await Promise.all([
+    supabaseAdmin
+      .from("media_files")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("source", "ai_studio")
+      .filter("metadata->>display_title", "eq", title)
+      .limit(1),
+    supabaseAdmin
+      .from("ai_generations")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("mode", "audio")
+      .filter("metadata->>display_title", "eq", title)
+      .limit(1),
+  ]);
+
+  if (mediaResult.error || generationResult.error) return false;
+  return Boolean(mediaResult.data?.length || generationResult.data?.length);
+};
+
+const resolveUniqueGeneratedAudioDisplayTitle = async ({
+  supabaseAdmin,
+  userId,
+  title,
+  generationId,
+}: {
+  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>;
+  userId: string;
+  title: string | null;
+  generationId: string;
+}): Promise<string | null> => {
+  if (!title) return null;
+  if (!(await hasGeneratedAudioDisplayTitleForUser({ supabaseAdmin, userId, title }))) {
+    return title;
+  }
+
+  for (let index = 2; index <= 99; index += 1) {
+    const candidate = appendGeneratedAudioTitleCollisionSuffix(title, String(index));
+    if (
+      !(await hasGeneratedAudioDisplayTitleForUser({ supabaseAdmin, userId, title: candidate }))
+    ) {
+      return candidate;
+    }
+  }
+
+  const generationSlug = generationId
+    .replace(/[^a-z0-9]/gi, "")
+    .slice(0, 8)
+    .toUpperCase();
+  const fallback = appendGeneratedAudioTitleCollisionSuffix(title, generationSlug || "REF");
+  return fallback;
+};
+
+const buildGeneratedAudioDisplayTitleMetadata = (
+  sourceMode: ElevenLabsAudioSourceMode,
+  displayTitle: string | null
+): Record<string, string> => {
+  if (!displayTitle) return {};
+  switch (sourceMode) {
+    case "music":
+      return { song_title: displayTitle };
+    case "sound-effects":
+      return { sound_effect_title: displayTitle };
+    case "voiceover":
+      return { voiceover_title: displayTitle };
+    case "voice-changer":
+      return { voice_changer_title: displayTitle };
+  }
 };
 
 const indexOfHeaderSeparator = (
@@ -1144,7 +1233,16 @@ export const persistGeneratedAudioAsset = async ({
     : normalizeGenerationWorkspaceRuntimeKey(workspaceRuntimeKey);
   const createdAtIso = new Date().toISOString();
   const normalizedTranscriptText = normalizeOptionalString(transcriptText);
-  const normalizedDisplayTitle = normalizeOptionalString(displayTitle);
+  const normalizedDisplayTitle = await resolveUniqueGeneratedAudioDisplayTitle({
+    supabaseAdmin,
+    userId,
+    title: normalizeOptionalString(displayTitle),
+    generationId,
+  });
+  const displayTitleMetadata = buildGeneratedAudioDisplayTitleMetadata(
+    sourceMode,
+    normalizedDisplayTitle
+  );
   const mediaAutosavePreference = await readMediaAutosaveEnabledForUser({
     supabaseAdmin,
     userId,
@@ -1157,7 +1255,7 @@ export const persistGeneratedAudioAsset = async ({
     mediaAutosaveEnabled,
   });
   const extension = resolveFileExtension(outputContentType, outputFormat);
-  const filename = `${sanitizeStem(promptText)}.${extension}`;
+  const filename = `${sanitizeStem(normalizedDisplayTitle ?? promptText)}.${extension}`;
   const storagePath = assertUserScopedMediaStoragePath({
     userId,
     path: `${userId}/generations/audio/${generationId}/${filename}`,
@@ -1211,6 +1309,7 @@ export const persistGeneratedAudioAsset = async ({
         project_id: resolvedProjectId,
         workspace_runtime_key: resolvedWorkspaceRuntimeKey,
         ...extraMetadata,
+        ...displayTitleMetadata,
         ...(Object.keys(workflowReload).length > 0 ? { workflow_reload: workflowReload } : {}),
       },
     })
@@ -1255,6 +1354,7 @@ export const persistGeneratedAudioAsset = async ({
         : autosavePolicyDecision.reason,
       project_id: resolvedProjectId,
       ...extraMetadata,
+      ...displayTitleMetadata,
       ...(Object.keys(workflowReload).length > 0 ? { workflow_reload: workflowReload } : {}),
     },
     supabaseAdmin,
@@ -1288,6 +1388,7 @@ export const persistGeneratedAudioAsset = async ({
             autosave_decision_reason: autosavePolicyDecision.reason,
             project_id: resolvedProjectId,
             ...extraMetadata,
+            ...displayTitleMetadata,
             ...(Object.keys(workflowReload).length > 0 ? { workflow_reload: workflowReload } : {}),
           },
           user_id: userId,
@@ -1314,6 +1415,7 @@ export const persistGeneratedAudioAsset = async ({
           autosave_decision_reason: autosavePolicyDecision.reason,
           project_id: resolvedProjectId,
           ...extraMetadata,
+          ...displayTitleMetadata,
           ...(Object.keys(workflowReload).length > 0 ? { workflow_reload: workflowReload } : {}),
         },
         supabaseAdmin,
@@ -1369,6 +1471,7 @@ export const persistGeneratedAudioAsset = async ({
         autosave_decision_reason: autosaveDecisionReason,
         project_id: resolvedProjectId,
         ...extraMetadata,
+        ...displayTitleMetadata,
         ...(Object.keys(workflowReload).length > 0 ? { workflow_reload: workflowReload } : {}),
       },
     });
@@ -1437,6 +1540,7 @@ export const persistGeneratedAudioAsset = async ({
     requestId: resolvedRequestId,
     storagePath,
     signedUrl: signedResult.data.signedUrl,
+    displayTitle: normalizedDisplayTitle,
     outputRowId,
     saveState: saveOutcome.saveState,
     saveError: saveOutcome.saveError,
@@ -1788,6 +1892,7 @@ export const persistGeneratedVideoAsset = async ({
     requestId: resolvedRequestId,
     storagePath,
     signedUrl: signedResult.data.signedUrl,
+    displayTitle: null,
     previewStoragePath,
     fullStoragePath: storagePath,
     previewPosterStoragePath,

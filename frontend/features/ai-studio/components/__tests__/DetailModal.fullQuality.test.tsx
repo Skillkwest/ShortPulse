@@ -97,6 +97,66 @@ describe("DetailModal full-quality media policy", () => {
     }
   });
 
+  it("promotes stale provider previews to canonical media by generation id", async () => {
+    const supabaseSpy = vi
+      .spyOn(supabaseClientModule, "ensureSupabaseQueryClient")
+      .mockReturnValue({} as ReturnType<typeof supabaseClientModule.ensureSupabaseQueryClient>);
+    const downloadTargetSpy = vi
+      .spyOn(referenceDownloadModule, "resolveReferenceDownloadTarget")
+      .mockResolvedValue({
+        fileRecord: {
+          storagePath: "user-1/generations/images/gen-provider-only/output.png",
+          filename: "output.png",
+        },
+        generationId: "gen-provider-only",
+        directUrl: "https://provider.test/stale-preview.png",
+      });
+    const signedUrlSpy = vi
+      .spyOn(mediaSignedUrlCacheModule, "getSignedMediaUrl")
+      .mockResolvedValue("https://signed.test/generated-provider-only.png");
+
+    try {
+      const { baseElement } = render(
+        <DetailModal
+          output={{
+            ...baseOutput,
+            mediaSource: "generated",
+            generationId: "gen-provider-only",
+            previewUrl: "https://provider.test/stale-preview.png",
+            resultUrls: ["https://provider.test/stale-preview.png"],
+            previewStoragePath: null,
+            fullStoragePath: null,
+            savedMediaIds: [],
+          }}
+          projectId="project-1"
+          onClose={vi.fn()}
+          onUpdatePrompt={vi.fn()}
+          onDeleteOutput={vi.fn()}
+        />
+      );
+
+      await waitFor(() => {
+        const image = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
+        expect(image).not.toBeNull();
+        expect(image?.getAttribute("src")).toBe("https://signed.test/generated-provider-only.png");
+      });
+      expect(downloadTargetSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectId: "project-1",
+        })
+      );
+      expect(signedUrlSpy).toHaveBeenCalledWith({
+        bucket: "media_library",
+        storagePath: "user-1/generations/images/gen-provider-only/output.png",
+        previewProfile: "none",
+      });
+    } finally {
+      supabaseSpy.mockRestore();
+      downloadTargetSpy.mockRestore();
+      signedUrlSpy.mockRestore();
+    }
+  });
+
   it("recovers generated detail media when the restored output starts without preview candidates", async () => {
     const supabaseSpy = vi
       .spyOn(supabaseClientModule, "ensureSupabaseQueryClient")

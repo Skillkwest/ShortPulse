@@ -3,6 +3,7 @@
  */
 import { describe, expect, it } from "vitest";
 import {
+  buildMediaKindOrClause,
   buildMediaSearchOrClause,
   normalizeMediaSearchTerm,
   withMediaSearchFilter,
@@ -49,6 +50,10 @@ describe("mediaQueryModel", () => {
         calls.push({ fn: "not", column: `${column}:${operator}`, value });
         return query;
       },
+      or(clause: string) {
+        calls.push({ fn: "or", value: clause });
+        return query;
+      },
     };
 
     withMediaTabFilter(query, "private", { privateMediaSource: "private_upload" });
@@ -58,9 +63,19 @@ describe("mediaQueryModel", () => {
     expect(calls).toEqual([
       { fn: "eq", column: "source", value: "private_upload" },
       { fn: "eq", column: "source", value: "upload" },
-      { fn: "ilike", column: "file_type", value: "video%" },
+      { fn: "or", value: buildMediaKindOrClause("video") },
       { fn: "eq", column: "source", value: "ai_studio" },
     ]);
+  });
+
+  it("builds playable media kind clauses from file_type and durable media paths", () => {
+    expect(buildMediaKindOrClause("video")).toContain("file_type.ilike.video*");
+    expect(buildMediaKindOrClause("video")).toContain("storage_path.ilike.*.mp4");
+    expect(buildMediaKindOrClause("video")).toContain("storage_path.ilike.*.ogv");
+    expect(buildMediaKindOrClause("video")).not.toContain("storage_path.ilike.*.ogg");
+    expect(buildMediaKindOrClause("video")).toContain("preview_variant_path.ilike.*.webm");
+    expect(buildMediaKindOrClause("audio")).toContain("storage_path.ilike.*.mp3");
+    expect(buildMediaKindOrClause("audio")).toContain("storage_path.ilike.*.ogg");
   });
 
   it("builds prompt queries with explicit user scope and stable ordering", () => {

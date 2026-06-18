@@ -4,11 +4,9 @@
  * while its pagination controller is converged in follow-up work.
  */
 import { useCallback, useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { resolveMediaRowKind } from "../../../lib/mediaRowKind";
 import {
   getMediaDataTabForRow,
-  isAudioFile,
-  isImageFile,
-  isVideoFile,
   type MediaFileRow,
   type PromptRow,
 } from "../../ai-studio/logic/mediaLibraryModalModel";
@@ -107,13 +105,13 @@ export const useMediaLibraryPanelRuntime = ({
       signedUrlById: panelSignedUrlById,
     });
     if (itemType === "images") {
-      return sortByCreatedAtDesc(panelRows.filter((row) => isImageFile(row.file_type)));
+      return sortByCreatedAtDesc(panelRows.filter((row) => resolveMediaRowKind(row) === "image"));
     }
     if (itemType === "videos") {
-      return sortByCreatedAtDesc(panelRows.filter((row) => isVideoFile(row.file_type)));
+      return sortByCreatedAtDesc(panelRows.filter((row) => resolveMediaRowKind(row) === "video"));
     }
     if (itemType === "audio") {
-      return sortByCreatedAtDesc(panelRows.filter((row) => isAudioFile(row.file_type)));
+      return sortByCreatedAtDesc(panelRows.filter((row) => resolveMediaRowKind(row) === "audio"));
     }
     if (itemType === "prompts") {
       return [];

@@ -16,6 +16,7 @@ import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
 import {
   normalizeMediaSearchTerm,
+  withPlayableMediaKindFilter,
   withMediaSearchFilter,
   withMediaTabFilter,
   type MediaQueryDataTab,
@@ -217,14 +218,15 @@ const withMediaKindFilter = <
   T extends {
     ilike: (column: string, pattern: string) => T;
     not: (column: string, operator: string, value: string) => T;
+    or: (clause: string) => T;
   },
 >(
   query: T,
   mediaKind: MediaListMediaKind
 ): T => {
   if (mediaKind === "images") return query.ilike("file_type", "image%");
-  if (mediaKind === "videos") return query.ilike("file_type", "video%");
-  if (mediaKind === "audio") return query.ilike("file_type", "audio%");
+  if (mediaKind === "videos") return withPlayableMediaKindFilter(query, "video");
+  if (mediaKind === "audio") return withPlayableMediaKindFilter(query, "audio");
   return query;
 };
 

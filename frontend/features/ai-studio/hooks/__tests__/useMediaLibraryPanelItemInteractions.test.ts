@@ -107,4 +107,47 @@ describe("useMediaLibraryPanelItemInteractions", () => {
       },
     });
   });
+
+  it("writes video drag payloads for path-proven videos with stale file_type", () => {
+    const file: MediaFileRow = {
+      id: "media-stale-video-1",
+      filename: "restored-video.png",
+      storage_path: "user-1/media/restored-video.mp4",
+      preview_storage_path: "user-1/media/restored-video.mp4",
+      poster_variant_path: "user-1/media/restored-video-poster.jpg",
+      file_type: "image/png",
+      metadata: null,
+      signedUrl: "https://signed.example.com/restored-video.mp4",
+    };
+    const currentTarget = document.createElement("button");
+    const dataTransfer = createMutableTransfer();
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelItemInteractions({
+        activeFolderId: "all_items",
+      })
+    );
+
+    result.current.handleMediaCardDragStart(
+      {
+        currentTarget,
+        dataTransfer,
+        preventDefault: vi.fn(),
+      } as unknown as React.DragEvent<HTMLElement>,
+      file,
+      {
+        aspectRatio: 16 / 9,
+        posterPreviewUrl: "https://signed.example.com/restored-video-poster.jpg",
+      }
+    );
+
+    const payload = readMediaLibraryDragPayload(dataTransfer);
+    expect(payload).toMatchObject({
+      kind: "libraryMedia",
+      payload: {
+        id: "media-stale-video-1",
+        fileType: "video",
+        previewPosterStoragePath: "user-1/media/restored-video-poster.jpg",
+      },
+    });
+  });
 });

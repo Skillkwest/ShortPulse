@@ -251,7 +251,7 @@ export const computeModalPosition = (target: HTMLElement): { top: number; left: 
   return { top, left };
 };
 
-const VIDEO_EXTENSION_PATTERN = /\.(m4v|mov|mp4|ogg|ogv|webm)(?:$|[?#])/i;
+const VIDEO_EXTENSION_PATTERN = /\.(m4v|mov|mp4|ogv|webm)(?:$|[?#])/i;
 const AUDIO_EXTENSION_PATTERN = /\.(aac|flac|m4a|mp3|oga|ogg|wav)(?:$|[?#])/i;
 const IMAGE_EXTENSION_PATTERN = /\.(avif|bmp|gif|heic|heif|jpe?g|png|svg|webp)(?:$|[?#])/i;
 const VIDEO_SEGMENT_PATTERN = /\/(?:videos|video)(?:\/|$)/i;

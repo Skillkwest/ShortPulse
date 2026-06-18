@@ -1,8 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   GENERATED_SONG_TITLE_MAX_CHARACTERS,
+  buildFallbackAudioReferenceTitle,
   buildFallbackSoundEffectTitle,
   buildFallbackSongTitle,
+  finalizeAudioReferenceTitle,
+  generateAudioReferenceTitleBestEffort,
   generateMusicSongTitleBestEffort,
   generateSoundEffectTitleBestEffort,
 } from "../audioTitleGeneration";
@@ -101,6 +104,89 @@ describe("audioTitleGeneration", () => {
     expect(fetchOpenAiCompatibleChatCompletionMock).not.toHaveBeenCalled();
     expect(title).toBe("Cinematic Thunder Crack Cave Echo");
     expect(title.length).toBeLessThanOrEqual(GENERATED_SONG_TITLE_MAX_CHARACTERS);
+  });
+
+  it("adds a deterministic compact uniqueness mark when a seed is provided", async () => {
+    process.env.OPENAI_API_KEY = "";
+
+    const firstTitle = await generateMusicSongTitleBestEffort({
+      promptText: "west coast rap about a unicorn riding neon clouds",
+      uniqueSeed: "source-ref-a",
+    });
+    const secondTitle = await generateMusicSongTitleBestEffort({
+      promptText: "west coast rap about a unicorn riding neon clouds",
+      uniqueSeed: "source-ref-b",
+    });
+
+    expect(firstTitle).not.toBe(secondTitle);
+    expect(firstTitle).toMatch(/ [A-Z0-9]{6}$/);
+    expect(secondTitle).toMatch(/ [A-Z0-9]{6}$/);
+    expect(firstTitle.length).toBeLessThanOrEqual(GENERATED_SONG_TITLE_MAX_CHARACTERS);
+    expect(secondTitle.length).toBeLessThanOrEqual(GENERATED_SONG_TITLE_MAX_CHARACTERS);
+  });
+
+  it("builds source-specific fallback titles for voice audio references", () => {
+    expect(
+      buildFallbackAudioReferenceTitle({
+        sourceMode: "voiceover",
+        promptText: "Welcome to the launch walkthrough for creators",
+        voiceName: "Narrator",
+      })
+    ).toBe("Welcome To The Launch Walkthrough");
+    expect(
+      buildFallbackAudioReferenceTitle({
+        sourceMode: "voice-changer",
+        promptText: "take.wav -> Narrator",
+        transcriptText: "I can hear the city waking up below us.",
+        sourceName: "take.wav",
+        voiceName: "Narrator",
+      })
+    ).toBe("I Can Hear The City");
+  });
+
+  it("clamps finalized generated titles after the unique mark is applied", () => {
+    const title = finalizeAudioReferenceTitle({
+      baseTitle: "A Very Long Cinematic Voiceover Title That Will Not Fit In The Card",
+      uniqueSeed: "source-ref-clamp",
+    });
+
+    expect(title).toMatch(/ [A-Z0-9]{6}$/);
+    expect(title.length).toBeLessThanOrEqual(GENERATED_SONG_TITLE_MAX_CHARACTERS);
+  });
+
+  it("uses the structured model response for generic voiceover titles when available", async () => {
+    process.env.OPENAI_API_KEY = "test-openai-key";
+    fetchOpenAiCompatibleChatCompletionMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({ title: "Launch Walkthrough" }),
+              },
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+
+    const title = await generateAudioReferenceTitleBestEffort({
+      sourceMode: "voiceover",
+      promptText: "Welcome to the launch walkthrough for creators",
+      voiceName: "Narrator",
+      uniqueSeed: "voiceover-source-ref",
+    });
+
+    expect(title).toMatch(/^Launch Walkthrough [A-Z0-9]{6}$/);
+    expect(fetchOpenAiCompatibleChatCompletionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        apiKey: "test-openai-key",
+        responseFormat: expect.objectContaining({
+          type: "json_schema",
+        }),
+      })
+    );
   });
 
   it("uses the structured model response for sound effect titles when available", async () => {

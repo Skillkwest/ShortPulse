@@ -10,6 +10,7 @@ import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
 import { parseInternalMediaRefFromSupabaseSignedUrl } from "../../../lib/media/internalMediaRefs";
 import { withCanonicalImageDimensions } from "../../../lib/mediaDimensionMetadata";
 import { resolvePreviewStoragePath } from "../../../lib/mediaPreviewPath";
+import { resolveMediaRowKind, type MediaRowKindInput } from "../../../lib/mediaRowKind";
 import {
   isSupabaseRenderImageUrl,
   resolveMediaPreviewTrustedHosts,
@@ -117,6 +118,11 @@ type ExistingMediaRow = {
   thumbVariantPath: string | null;
   posterVariantPath: string | null;
   previewVariantPath: string | null;
+};
+
+const resolveExistingMediaLibraryFileType = (row: MediaRowKindInput): MediaLibraryFileType => {
+  const kind = resolveMediaRowKind(row);
+  return kind === "video" || kind === "audio" ? kind : "image";
 };
 
 type AiStudioGenerationSourceAuthority = {
@@ -867,35 +873,42 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
       if (!canonicalMediaError && canonicalMedia) {
         const id = asOptionalString(canonicalMedia.id);
         if (id) {
+          const storagePath = toSafeUserScopedPath({
+            path: asOptionalString(canonicalMedia.storage_path),
+            userId,
+            label: "Existing media storage path",
+          });
+          const metadata = asObjectMetadata(canonicalMedia.metadata);
+          const thumbVariantPath = toSafeUserScopedPath({
+            path: asOptionalString(canonicalMedia.thumb_variant_path),
+            userId,
+            label: "Existing media thumb variant path",
+          });
+          const posterVariantPath = toSafeUserScopedPath({
+            path: asOptionalString(canonicalMedia.poster_variant_path),
+            userId,
+            label: "Existing media poster variant path",
+          });
+          const previewVariantPath = toSafeUserScopedPath({
+            path: asOptionalString(canonicalMedia.preview_variant_path),
+            userId,
+            label: "Existing media preview variant path",
+          });
           return {
             id,
-            storagePath: toSafeUserScopedPath({
-              path: asOptionalString(canonicalMedia.storage_path),
-              userId,
-              label: "Existing media storage path",
+            storagePath,
+            fileType: resolveExistingMediaLibraryFileType({
+              storage_path: storagePath,
+              file_type: asOptionalString(canonicalMedia.file_type),
+              metadata,
+              thumb_variant_path: thumbVariantPath,
+              poster_variant_path: posterVariantPath,
+              preview_variant_path: previewVariantPath,
             }),
-            fileType: (() => {
-              const fileTypeRaw = asOptionalString(canonicalMedia.file_type)?.toLowerCase();
-              if (fileTypeRaw === "video") return "video" as const;
-              if (fileTypeRaw === "audio") return "audio" as const;
-              return "image" as const;
-            })(),
-            metadata: asObjectMetadata(canonicalMedia.metadata),
-            thumbVariantPath: toSafeUserScopedPath({
-              path: asOptionalString(canonicalMedia.thumb_variant_path),
-              userId,
-              label: "Existing media thumb variant path",
-            }),
-            posterVariantPath: toSafeUserScopedPath({
-              path: asOptionalString(canonicalMedia.poster_variant_path),
-              userId,
-              label: "Existing media poster variant path",
-            }),
-            previewVariantPath: toSafeUserScopedPath({
-              path: asOptionalString(canonicalMedia.preview_variant_path),
-              userId,
-              label: "Existing media preview variant path",
-            }),
+            metadata,
+            thumbVariantPath,
+            posterVariantPath,
+            previewVariantPath,
           };
         }
       }
@@ -919,35 +932,42 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
     if (error || !data) return null;
     const id = asOptionalString(data.id);
     if (!id) return null;
+    const storagePath = toSafeUserScopedPath({
+      path: asOptionalString(data.storage_path),
+      userId,
+      label: "Existing legacy media storage path",
+    });
+    const metadata = asObjectMetadata(data.metadata);
+    const thumbVariantPath = toSafeUserScopedPath({
+      path: asOptionalString(data.thumb_variant_path),
+      userId,
+      label: "Existing legacy media thumb variant path",
+    });
+    const posterVariantPath = toSafeUserScopedPath({
+      path: asOptionalString(data.poster_variant_path),
+      userId,
+      label: "Existing legacy media poster variant path",
+    });
+    const previewVariantPath = toSafeUserScopedPath({
+      path: asOptionalString(data.preview_variant_path),
+      userId,
+      label: "Existing legacy media preview variant path",
+    });
     return {
       id,
-      storagePath: toSafeUserScopedPath({
-        path: asOptionalString(data.storage_path),
-        userId,
-        label: "Existing legacy media storage path",
+      storagePath,
+      fileType: resolveExistingMediaLibraryFileType({
+        storage_path: storagePath,
+        file_type: asOptionalString(data.file_type),
+        metadata,
+        thumb_variant_path: thumbVariantPath,
+        poster_variant_path: posterVariantPath,
+        preview_variant_path: previewVariantPath,
       }),
-      fileType: (() => {
-        const fileTypeRaw = asOptionalString(data.file_type)?.toLowerCase();
-        if (fileTypeRaw === "video") return "video" as const;
-        if (fileTypeRaw === "audio") return "audio" as const;
-        return "image" as const;
-      })(),
-      metadata: asObjectMetadata(data.metadata),
-      thumbVariantPath: toSafeUserScopedPath({
-        path: asOptionalString(data.thumb_variant_path),
-        userId,
-        label: "Existing legacy media thumb variant path",
-      }),
-      posterVariantPath: toSafeUserScopedPath({
-        path: asOptionalString(data.poster_variant_path),
-        userId,
-        label: "Existing legacy media poster variant path",
-      }),
-      previewVariantPath: toSafeUserScopedPath({
-        path: asOptionalString(data.preview_variant_path),
-        userId,
-        label: "Existing legacy media preview variant path",
-      }),
+      metadata,
+      thumbVariantPath,
+      posterVariantPath,
+      previewVariantPath,
     };
   };
 
@@ -1187,8 +1207,19 @@ const resolveDelivery = async ({
     }) ??
     authoritativeStoragePath ??
     null;
-  const previewPosterStoragePath =
-    row?.file_type === "video" ? (safeRowPosterVariantPath ?? safeRowThumbVariantPath) : null;
+  const isVideoRow =
+    row &&
+    resolveMediaRowKind({
+      storage_path: safeRowStoragePath,
+      file_type: row.file_type ?? null,
+      metadata: row.metadata ?? null,
+      thumb_variant_path: safeRowThumbVariantPath,
+      poster_variant_path: safeRowPosterVariantPath,
+      preview_variant_path: safeRowPreviewVariantPath,
+    }) === "video";
+  const previewPosterStoragePath = isVideoRow
+    ? (safeRowPosterVariantPath ?? safeRowThumbVariantPath)
+    : null;
   const fullStoragePath = authoritativeStoragePath ?? previewStoragePath ?? null;
   const [signedPreviewUrl, signedPreviewPosterUrl, signedFullUrl] = await Promise.all([
     signStoragePath(previewStoragePath),

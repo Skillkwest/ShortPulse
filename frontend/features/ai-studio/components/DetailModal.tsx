@@ -4,13 +4,8 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FlowArrow, TrashSimple } from "phosphor-react";
-import {
-  asCanonicalStoragePath,
-  logAdaptiveDetailFullQualityUsed,
-} from "../../../lib/adaptive-media";
 import type { StudioOutput, WorkflowReloadMediaKindHint } from "../types";
-import { isAudioUrl, isVideoUrl, resolveModelLabel } from "../logic/stateParsers";
-import { resolveStudioOutputMediaDisplayAuthority } from "../logic/referenceGridMedia";
+import { resolveModelLabel } from "../logic/stateParsers";
 import { downloadUrlToFile } from "../logic/referenceDownload";
 import { createStudioOutputDetailModalItem } from "../logic/studioOutputDetailModal";
 import {
@@ -31,15 +26,6 @@ import {
 import { formatImageResolutionLabel } from "../logic/imageResolution";
 import { useExclusiveSoundMediaElement } from "./shared/exclusiveSoundPlayback";
 import { DetailModalContext } from "./detail-modal/detailModalPlatformTypes";
-import {
-  buildUniquePreviewCandidates,
-  createPreviewSelectionState,
-  type DetailPreviewSelectionState,
-  isFullQualityDetailImageUrl,
-  resolveCanonicalDetailAuthorityUrl,
-  resolveDetailPreviewCandidates,
-  resolveNextPreviewCandidateUrl,
-} from "./detail-modal/detailModalPreviewAuthority";
 import { SharedMediaDetailPreviewMedia } from "./detail-modal/SharedMediaDetailPreviewMedia";
 import { SharedMediaDetailContentLayout } from "./detail-modal/SharedMediaDetailContentLayout";
 import { SharedMediaDetailActionBar } from "./detail-modal/SharedMediaDetailActionBar";
@@ -48,6 +34,7 @@ import { SharedMediaDetailModalShell } from "./detail-modal/SharedMediaDetailMod
 import { resolveSharedMediaDetailMediaActionItems } from "./detail-modal/sharedMediaDetailActions";
 import { SharedMediaDetailTopBar } from "./detail-modal/SharedMediaDetailTopBar";
 import { SharedMediaDetailVideoSnapshotControl } from "./detail-modal/SharedMediaDetailVideoSnapshotControl";
+import { AiStudioModalLayer } from "./modal-layer/AiStudioModalLayer";
 import type {
   SharedMediaDetailActionItem,
   SharedMediaDetailVideoSnapshotErrorHandler,
@@ -59,6 +46,7 @@ import {
   resolveSharedMediaDetailBladePlaceholder,
   resolveSharedMediaDetailTopBarItems,
 } from "./detail-modal/sharedMediaDetailPresentation";
+import { useStudioOutputDetailMediaPreview } from "./detail-modal/useStudioOutputDetailMediaPreview";
 
 type DetailModalProps = {
   output: StudioOutput | null;
@@ -133,56 +121,6 @@ type DetailModalContentProps = Omit<DetailModalProps, "output"> & {
   output: StudioOutput;
 };
 
-type ResolvedCanonicalPreviewState = {
-  outputId: string;
-  authorityKey: string;
-  url: string | null;
-};
-
-const serializeDetailAuthorityList = (values: readonly string[] | null | undefined): string =>
-  Array.isArray(values)
-    ? values.map((value) => (typeof value === "string" ? value.trim() : "")).join("\u001f")
-    : "";
-
-const deserializeDetailAuthorityList = (signature: string): string[] =>
-  signature
-    .split("\u001f")
-    .map((value) => value.trim())
-    .filter(Boolean);
-
-const buildDetailCanonicalAuthorityKey = ({
-  savedMediaIdsSignature,
-  resultUrlsSignature,
-  generationId,
-  taskId,
-  mediaSource,
-  previewStoragePath,
-  fullStoragePath,
-  previewUrl,
-  projectId,
-}: {
-  savedMediaIdsSignature: string;
-  resultUrlsSignature: string;
-  generationId?: string | null;
-  taskId?: string | null;
-  mediaSource?: StudioOutput["mediaSource"];
-  previewStoragePath?: string | null;
-  fullStoragePath?: string | null;
-  previewUrl?: string | null;
-  projectId: string | null;
-}): string =>
-  [
-    projectId?.trim() ?? "",
-    savedMediaIdsSignature,
-    generationId?.trim() ?? "",
-    taskId?.trim() ?? "",
-    mediaSource ?? "",
-    previewStoragePath?.trim() ?? "",
-    fullStoragePath?.trim() ?? "",
-    previewUrl?.trim() ?? "",
-    resultUrlsSignature,
-  ].join("\u001e");
-
 function DetailModalContent({
   output,
   context = null,
@@ -250,15 +188,6 @@ function DetailModalContent({
     outputId: string;
     value: boolean;
   } | null>(null);
-  const [previewSelectionByOutput, setPreviewSelectionByOutput] =
-    useState<DetailPreviewSelectionState>(() =>
-      createPreviewSelectionState(output.id, resolveDetailPreviewCandidates(output))
-    );
-  const [resolvedCanonicalPreviewByOutput, setResolvedCanonicalPreviewByOutput] =
-    useState<ResolvedCanonicalPreviewState | null>(null);
-  const [canonicalPreviewResolvingOutputId, setCanonicalPreviewResolvingOutputId] = useState<
-    string | null
-  >(null);
   const [resolvedCharacterAvatarByOutput, setResolvedCharacterAvatarByOutput] = useState<{
     outputId: string;
     url: string | null;
@@ -271,288 +200,25 @@ function DetailModalContent({
     surfaceId: "detail-character-chip",
   });
 
-  const outputId = output?.id ?? null;
-  const workflowReloadMediaKindHint = resolveDetailWorkflowReloadMediaKindHint(output);
-  const savedMediaIdsSignature = serializeDetailAuthorityList(output.savedMediaIds);
-  const resultUrlsSignature = serializeDetailAuthorityList(output.resultUrls);
-  const stableSavedMediaIds = useMemo(
-    () => deserializeDetailAuthorityList(savedMediaIdsSignature),
-    [savedMediaIdsSignature]
-  );
-  const stableResultUrls = useMemo(
-    () => deserializeDetailAuthorityList(resultUrlsSignature),
-    [resultUrlsSignature]
-  );
-  const canonicalAuthorityKey = useMemo(
-    () =>
-      buildDetailCanonicalAuthorityKey({
-        savedMediaIdsSignature,
-        resultUrlsSignature,
-        generationId: output.generationId,
-        taskId: output.taskId,
-        mediaSource: output.mediaSource,
-        previewStoragePath: output.previewStoragePath,
-        fullStoragePath: output.fullStoragePath,
-        previewUrl: output.previewUrl,
-        projectId,
-      }),
-    [
-      output.fullStoragePath,
-      output.generationId,
-      output.mediaSource,
-      output.previewStoragePath,
-      output.previewUrl,
-      output.taskId,
-      projectId,
-      resultUrlsSignature,
-      savedMediaIdsSignature,
-    ]
-  );
-  const resolvedCanonicalPreviewUrl =
-    resolvedCanonicalPreviewByOutput &&
-    resolvedCanonicalPreviewByOutput.outputId === outputId &&
-    resolvedCanonicalPreviewByOutput.authorityKey === canonicalAuthorityKey
-      ? resolvedCanonicalPreviewByOutput.url
-      : null;
-  const detailMediaAuthority = useMemo(() => {
-    if (!output) return null;
-    return resolveStudioOutputMediaDisplayAuthority(
-      {
-        id: output.id,
-        previewStoragePath: output.previewStoragePath,
-        previewPosterStoragePath: output.previewPosterStoragePath,
-        fullStoragePath: resolvedCanonicalPreviewUrl ?? output.fullStoragePath,
-        mediaSource: output.mediaSource,
-        generationId: output.generationId,
-        taskId: output.taskId,
-        taskState: output.taskState,
-        savedMediaIds: stableSavedMediaIds,
-        mode: output.mode,
-        previewUrl: output.previewUrl,
-        previewPosterUrl: output.previewPosterUrl,
-        resultUrls: stableResultUrls,
-      },
-      {
-        strictPreviewLadder: true,
-        adaptivePreviewQuality: false,
-        surface: "detail-modal",
-      }
-    );
-  }, [output, resolvedCanonicalPreviewUrl, stableResultUrls, stableSavedMediaIds]);
-  const preferredDetailMediaUrl =
-    output.mode === "video" || output.mode === "audio"
-      ? (detailMediaAuthority?.playableMediaUrl ?? null)
-      : (detailMediaAuthority?.fullMediaUrl ?? detailMediaAuthority?.cardDisplayUrl ?? null);
-  const detailVideoPosterUrl =
-    output.mode === "video" ? (detailMediaAuthority?.posterPreviewUrl ?? null) : null;
-  const canonicalAuthorityInput = useMemo(
-    () => ({
-      savedMediaIds: stableSavedMediaIds,
-      generationId: output.generationId,
-      taskId: output.taskId,
-      mediaSource: output.mediaSource,
-      previewStoragePath: output.previewStoragePath,
-      fullStoragePath: output.fullStoragePath,
-      previewUrl: output.previewUrl,
-      resultUrls: stableResultUrls,
-    }),
-    [
-      output.fullStoragePath,
-      output.generationId,
-      output.mediaSource,
-      output.previewStoragePath,
-      output.previewUrl,
-      output.taskId,
-      stableResultUrls,
-      stableSavedMediaIds,
-    ]
-  );
-
-  useEffect(() => {
-    if (!output || !preferredDetailMediaUrl) return;
-    logAdaptiveDetailFullQualityUsed({
-      surface: "detail-modal",
-      mediaKind: output.mode === "video" ? "video" : output.mode === "audio" ? "audio" : "image",
-    });
-  }, [output, preferredDetailMediaUrl]);
-  const previewCandidates = useMemo(() => {
-    return buildUniquePreviewCandidates([
-      resolvedCanonicalPreviewUrl,
-      preferredDetailMediaUrl,
-      output.mode === "video" || output.mode === "audio"
-        ? null
-        : (detailMediaAuthority?.thumbnailPreviewUrl ?? null),
-      output.mode === "video" || output.mode === "audio" ? null : output?.previewUrl,
-      ...stableResultUrls,
-    ]);
-  }, [
-    detailMediaAuthority?.thumbnailPreviewUrl,
-    output.mode,
-    output?.previewUrl,
-    preferredDetailMediaUrl,
-    resolvedCanonicalPreviewUrl,
-    stableResultUrls,
-  ]);
-  const fullQualityPromotionUrl = useMemo(() => {
-    const hasExplicitFullStoragePath = Boolean(output?.fullStoragePath?.trim());
-    return (
-      [
-        resolvedCanonicalPreviewUrl,
-        hasExplicitFullStoragePath ? (detailMediaAuthority?.fullMediaUrl ?? null) : null,
-      ].find((candidateUrl) => isFullQualityDetailImageUrl(candidateUrl)) ?? null
-    );
-  }, [detailMediaAuthority?.fullMediaUrl, output?.fullStoragePath, resolvedCanonicalPreviewUrl]);
-  const previewSelection =
-    previewSelectionByOutput && outputId && previewSelectionByOutput.outputId === outputId
-      ? previewSelectionByOutput
-      : null;
-  const displayPreviewUrl = useMemo(() => {
-    if (previewSelection?.currentUrl) {
-      return previewSelection.currentUrl;
-    }
-    return (
-      resolveNextPreviewCandidateUrl({
-        currentUrl: null,
-        previewCandidates,
-        rejectedUrls: previewSelection?.rejectedUrls ?? [],
-      }) ?? null
-    );
-  }, [previewCandidates, previewSelection]);
-  useEffect(() => {
-    if (!outputId) return;
-    // Detail modal media should follow the highest-authority available candidate for the
-    // selected output so restored/saved sessions can promote from compact previews to full media.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPreviewSelectionByOutput((current) => {
-      const rejectedUrls = current?.outputId === outputId ? current.rejectedUrls : [];
-      const nextUrl = resolveNextPreviewCandidateUrl({
-        currentUrl: null,
-        previewCandidates,
-        rejectedUrls,
-      });
-      if (!current || current.outputId !== outputId) {
-        return {
-          outputId,
-          currentUrl: nextUrl,
-          rejectedUrls,
-        };
-      }
-      if (nextUrl === current.currentUrl) {
-        return current;
-      }
-      const shouldPromoteToFullQuality =
-        Boolean(nextUrl) && nextUrl === fullQualityPromotionUrl && current.currentUrl !== nextUrl;
-      const rejectedUrlSet = new Set(rejectedUrls);
-      const currentUrlWasRejected = Boolean(
-        current.currentUrl && rejectedUrlSet.has(current.currentUrl)
-      );
-      const shouldPreserveCurrentUrl =
-        Boolean(current.currentUrl) && !currentUrlWasRejected && !shouldPromoteToFullQuality;
-      if (shouldPreserveCurrentUrl) {
-        return current;
-      }
-      return {
-        ...current,
-        currentUrl: nextUrl,
-      };
-    });
-  }, [fullQualityPromotionUrl, outputId, previewCandidates]);
-  useEffect(() => {
-    if (!outputId) return;
-    let cancelled = false;
-    // Keep the modal in a resolving state instead of showing a false unavailable verdict.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setCanonicalPreviewResolvingOutputId(outputId);
-    setResolvedCanonicalPreviewByOutput((current) =>
-      current?.outputId === outputId && current.authorityKey === canonicalAuthorityKey
-        ? current
-        : { outputId, authorityKey: canonicalAuthorityKey, url: null }
-    );
-    void (async () => {
-      const nextUrl = await resolveCanonicalDetailAuthorityUrl(canonicalAuthorityInput, {
-        projectId,
-      });
-      if (cancelled) return;
-      setResolvedCanonicalPreviewByOutput((current) => {
-        if (nextUrl) {
-          return {
-            outputId,
-            authorityKey: canonicalAuthorityKey,
-            url: nextUrl,
-          };
-        }
-        if (current?.outputId === outputId && current.authorityKey === canonicalAuthorityKey) {
-          return current;
-        }
-        return {
-          outputId,
-          authorityKey: canonicalAuthorityKey,
-          url: null,
-        };
-      });
-      setCanonicalPreviewResolvingOutputId((current) => (current === outputId ? null : current));
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [canonicalAuthorityInput, canonicalAuthorityKey, outputId, projectId]);
-  useEffect(() => {
-    if (!outputId || !resolvedCanonicalPreviewUrl) return;
-    const hasRawStorageAuthority = Boolean(
-      asCanonicalStoragePath(output.previewStoragePath) ||
-      asCanonicalStoragePath(output.fullStoragePath)
-    );
-    if (!hasRawStorageAuthority) return;
-    const legacyUrlCandidates = buildUniquePreviewCandidates([
-      output.previewUrl,
-      ...stableResultUrls,
-    ]);
-    // The detail modal intentionally promotes canonical storage authority after it resolves.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPreviewSelectionByOutput((current) => {
-      if (!current || current.outputId !== outputId) return current;
-      if (current.currentUrl === resolvedCanonicalPreviewUrl) return current;
-      if (current.currentUrl && !legacyUrlCandidates.includes(current.currentUrl)) {
-        return current;
-      }
-      return {
-        ...current,
-        currentUrl: resolvedCanonicalPreviewUrl,
-        rejectedUrls: current.rejectedUrls.filter((value) => value !== resolvedCanonicalPreviewUrl),
-      };
-    });
-  }, [
-    output.fullStoragePath,
-    output.previewStoragePath,
-    output.previewUrl,
+  const {
     outputId,
-    resolvedCanonicalPreviewUrl,
-    stableResultUrls,
-  ]);
-  const isAudioOutput = Boolean(
-    output?.mode === "audio" || (displayPreviewUrl && isAudioUrl(displayPreviewUrl))
-  );
-  const isVideoOutput = Boolean(
-    !isAudioOutput &&
-    output?.mode !== "image" &&
-    (output?.mode === "video" || (displayPreviewUrl && isVideoUrl(displayPreviewUrl)))
-  );
-  const isImageOutput = Boolean(displayPreviewUrl) && !isVideoOutput && !isAudioOutput;
-  const detailPreviewKind = displayPreviewUrl
-    ? isVideoOutput
-      ? "video"
-      : isAudioOutput
-        ? "audio"
-        : "image"
-    : null;
-  const mediaType = displayPreviewUrl
-    ? isAudioOutput
-      ? "Audio"
-      : isVideoOutput
-        ? "Video"
-        : "Image"
-    : "Prompt";
-  const isPromptOnly = output?.mode === "text" && !displayPreviewUrl;
+    detailVideoPosterUrl,
+    displayPreviewUrl,
+    isDetailPreviewLoading,
+    isAudioOutput,
+    isVideoOutput,
+    isImageOutput,
+    detailPreviewKind,
+    mediaType,
+    isPromptOnly,
+    tryAdvancePreviewCandidate,
+    refreshCanonicalPreviewCandidate,
+    resetDetailMediaPreviewState,
+  } = useStudioOutputDetailMediaPreview({
+    output,
+    projectId,
+  });
+  const workflowReloadMediaKindHint = resolveDetailWorkflowReloadMediaKindHint(output);
   const baseDetailModalItem = useMemo(
     () =>
       createStudioOutputDetailModalItem({
@@ -772,69 +438,6 @@ function DetailModalContent({
   }, [isPromptOnly, previewAspectRatio]);
   const isImageZoomed = imageZoomScale > 1.001;
 
-  const tryAdvancePreviewCandidate = useCallback(() => {
-    if (!outputId) return false;
-    const currentUrl = previewSelection?.currentUrl ?? displayPreviewUrl;
-    const rejectedUrls = previewSelection?.rejectedUrls ?? [];
-    const nextUrl = resolveNextPreviewCandidateUrl({
-      currentUrl,
-      previewCandidates,
-      rejectedUrls,
-    });
-    if (!nextUrl) {
-      setPreviewSelectionByOutput((current) => {
-        if (!current || current.outputId !== outputId) {
-          return createPreviewSelectionState(
-            outputId,
-            previewCandidates,
-            currentUrl ? [currentUrl] : []
-          );
-        }
-        const nextRejectedUrls =
-          currentUrl && !current.rejectedUrls.includes(currentUrl)
-            ? [...current.rejectedUrls, currentUrl]
-            : current.rejectedUrls;
-        return {
-          ...current,
-          currentUrl: null,
-          rejectedUrls: nextRejectedUrls,
-        };
-      });
-      return false;
-    }
-    setPreviewSelectionByOutput({
-      outputId,
-      currentUrl: nextUrl,
-      rejectedUrls: currentUrl ? [...rejectedUrls, currentUrl] : rejectedUrls,
-    });
-    return true;
-  }, [displayPreviewUrl, outputId, previewCandidates, previewSelection]);
-
-  const refreshCanonicalPreviewCandidate = useCallback(async () => {
-    if (!outputId) return null;
-    setCanonicalPreviewResolvingOutputId(outputId);
-    const refreshedUrl = await resolveCanonicalDetailAuthorityUrl(canonicalAuthorityInput, {
-      forceRefresh: true,
-      projectId,
-    });
-    setCanonicalPreviewResolvingOutputId((current) => (current === outputId ? null : current));
-    if (!refreshedUrl) return null;
-    setResolvedCanonicalPreviewByOutput({
-      outputId,
-      authorityKey: canonicalAuthorityKey,
-      url: refreshedUrl,
-    });
-    setPreviewSelectionByOutput((current) => {
-      const rejectedUrls = current?.outputId === outputId ? current.rejectedUrls : [];
-      return {
-        outputId,
-        currentUrl: refreshedUrl,
-        rejectedUrls: rejectedUrls.filter((value) => value !== refreshedUrl),
-      };
-    });
-    return refreshedUrl;
-  }, [canonicalAuthorityInput, canonicalAuthorityKey, outputId, projectId]);
-
   const handleDetailImageError = useCallback(() => {
     const advanced = tryAdvancePreviewCandidate();
     if (advanced) return;
@@ -1038,14 +641,15 @@ function DetailModalContent({
     setImagePanningByOutput(null);
     setLoadedImageNaturalSize(null);
     setLoadedPreviewAspect(null);
-    setResolvedCanonicalPreviewByOutput(null);
-    setCanonicalPreviewResolvingOutputId(null);
-    setPreviewSelectionByOutput(
-      createPreviewSelectionState(output.id, resolveDetailPreviewCandidates(output))
-    );
+    resetDetailMediaPreviewState();
     imagePanDragRef.current = null;
     onClose();
-  }, [clearPromptLibrarySavedTimer, commitTextReferenceEdit, onClose, output]);
+  }, [
+    clearPromptLibrarySavedTimer,
+    commitTextReferenceEdit,
+    onClose,
+    resetDetailMediaPreviewState,
+  ]);
   const looksLikeFilename = (value?: string | null) => {
     const candidate = value?.trim();
     if (!candidate) return false;
@@ -1513,236 +1117,242 @@ function DetailModalContent({
   );
 
   return (
-    <SharedMediaDetailModalShell
-      isOpen={Boolean(output)}
-      modalActivityId="detail-modal"
-      onClose={handleCloseModal}
-      ariaLabel="Reference details"
-      backdropClassName="reference-modal-backdrop"
-      dialogClassName={`reference-modal-new ${isPromptOnly ? "is-text-only" : ""} ${isUploadedReference ? "is-uploaded" : ""} ${shouldUseExternalFileLayout ? "is-stage-only" : ""} ${isAudioOutput ? "is-audio-modal" : ""}`}
-      dialogStyle={detailModalStyle}
-      backdropDecoration={
-        displayPreviewUrl ? (
-          <div
-            className="reference-modal-bg-reflect"
-            style={{ backgroundImage: `url(${displayPreviewUrl})` }}
-          />
-        ) : null
-      }
-    >
-      {/* Floating Top Bar (Controls) */}
-      {!isPromptOnly ? (
-        <SharedMediaDetailContentLayout
-          topBar={
-            <SharedMediaDetailTopBar
-              eyebrow="Media detail"
-              title={detailModalItem.presentation?.title ?? null}
-              items={resolveSharedMediaDetailTopBarItems(detailModalItem)}
-              centerTitle={shouldUseExternalFileLayout}
-              actions={
-                <SharedMediaDetailActionBar
-                  items={sharedMediaActionItems}
-                  notice={
-                    isMediaStorageFull && isMediaSaveButtonVisible ? (
-                      <p className="tiny subdued">{MEDIA_STORAGE_FULL_USER_MESSAGE}</p>
-                    ) : null
-                  }
-                />
-              }
-              onClose={handleCloseModal}
+    <>
+      <SharedMediaDetailModalShell
+        isOpen={Boolean(output)}
+        modalActivityId="detail-modal"
+        onClose={handleCloseModal}
+        ariaLabel="Reference details"
+        ariaModal={!isDeleteConfirmOpen}
+        dialogAriaHidden={isDeleteConfirmOpen}
+        backdropClassName="reference-modal-backdrop"
+        dialogClassName={`reference-modal-new ${isPromptOnly ? "is-text-only" : ""} ${isUploadedReference ? "is-uploaded" : ""} ${shouldUseExternalFileLayout ? "is-stage-only" : ""} ${isAudioOutput ? "is-audio-modal" : ""}`}
+        dialogStyle={detailModalStyle}
+        backdropDecoration={
+          displayPreviewUrl ? (
+            <div
+              className="reference-modal-bg-reflect"
+              style={{ backgroundImage: `url(${displayPreviewUrl})` }}
             />
-          }
-          stageRef={imageVesselRef}
-          stageClassName={imageVesselClassName}
-          onStageWheel={isImageOutput ? handleImageWheel : undefined}
-          onStageDoubleClick={isImageOutput ? handleImageDoubleClick : undefined}
-          onStagePointerDown={isImageOutput ? handleImagePointerDown : undefined}
-          onStagePointerMove={isImageOutput ? handleImagePointerMove : undefined}
-          onStagePointerUp={isImageOutput ? handleImagePointerUp : undefined}
-          onStagePointerCancel={isImageOutput ? handleImagePointerUp : undefined}
-          stage={
-            <>
-              <SharedMediaDetailPreviewMedia
-                mediaUrl={displayPreviewUrl}
-                mediaKind={detailPreviewKind}
-                altText={displayPromptText}
-                isLoading={canonicalPreviewResolvingOutputId === outputId}
-                imageClassName="art-hero-image"
-                videoClassName="art-hero-image"
-                audioClassName="art-hero-audio"
-                audioId={detailModalItem.media.id}
-                audioSourceMode={detailModalItem.media.audioSourceMode ?? null}
-                audioMusicMode={detailModalItem.media.musicMode ?? null}
-                audioLyricsText={detailModalItem.media.lyricsText ?? null}
-                audioDurationMs={detailModalItem.media.durationMs ?? null}
-                audioWaveformPeaks={detailModalItem.media.waveformPeaks ?? null}
-                videoPosterUrl={detailVideoPosterUrl}
-                imageStyle={imageStyle}
-                videoStyle={aspectStyle}
-                videoRef={videoPreviewRef}
-                audioRef={audioPreviewRef}
-                videoLoop
-                videoMuted
-                onImageDragStart={(event) => event.preventDefault()}
-                onImageLoad={handleImageLoad}
-                onImageError={handleDetailImageError}
-                onVideoLoadedMetadata={(event) => {
-                  handlePreviewAspectLoad(
-                    event.currentTarget.videoWidth,
-                    event.currentTarget.videoHeight
-                  );
-                }}
-                onVideoPlay={videoPreviewPlayback.handlePlay}
-                onVideoPause={videoPreviewPlayback.handlePause}
-                onVideoEnded={videoPreviewPlayback.handleEnded}
-                onVideoError={handleDetailVideoError}
-                onVideoVolumeChange={videoPreviewPlayback.handleVolumeChange}
-                onAudioPlay={audioPreviewPlayback.handlePlay}
-                onAudioPause={audioPreviewPlayback.handlePause}
-                onAudioEnded={audioPreviewPlayback.handleEnded}
-                onAudioError={handleDetailAudioError}
-                onAudioVolumeChange={audioPreviewPlayback.handleVolumeChange}
-              />
-              {detailPreviewKind === "video" ? (
-                <SharedMediaDetailVideoSnapshotControl
-                  videoRef={videoPreviewRef}
-                  filenameHint={displayPromptText || output.id}
-                  onSnapshotVideoFrame={onSnapshotVideoFrame}
-                  onSnapshotVideoFrameError={onSnapshotVideoFrameError}
-                />
-              ) : null}
-            </>
-          }
-          sidePanel={
-            shouldUseExternalFileLayout ? null : (
-              <SharedMediaDetailInfoPanel
-                leadingContent={
-                  <>
-                    {hasCharacterContext ? (
-                      <div
-                        className="art-character-chip"
-                        aria-label="Character used for generation"
-                      >
-                        {shouldRenderCharacterAvatar ? (
-                          // Character profile URLs can be signed/external and are not guaranteed to be allowlisted.
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            className="art-character-chip-avatar"
-                            src={characterAvatarUrl ?? ""}
-                            alt={`${characterName} profile`}
-                            onLoad={() => {
-                              clearAvatarFailure(characterAvatarRecoveryId);
-                            }}
-                            onError={() => {
-                              void handleAvatarError({
-                                avatarId: characterAvatarRecoveryId,
-                                recoverAvatarUrl: refreshCharacterAvatar,
-                              });
-                            }}
-                          />
-                        ) : (
-                          <span className="art-character-chip-avatar art-character-chip-avatar--fallback">
-                            {characterInitials}
-                          </span>
-                        )}
-                        <div className="art-character-chip-copy">
-                          <span className="art-character-chip-label">
-                            {characterLookName ? `Character · ${characterLookName}` : "Character"}
-                          </span>
-                          <span className="art-character-chip-name">{characterName}</span>
-                        </div>
-                      </div>
-                    ) : null}
-                    {hasStyleContext ? (
-                      <div className="art-character-chip" aria-label="Style used for generation">
-                        {shouldRenderStyleAvatar ? (
-                          // Style previews can point to external URLs and signed Supabase assets.
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            className="art-character-chip-avatar"
-                            src={stylePreviewImageUrl ?? ""}
-                            alt={`${styleName} style`}
-                            onError={() => {
-                              if (!outputId) return;
-                              setStyleAvatarLoadErrorByOutput({ outputId, value: true });
-                            }}
-                          />
-                        ) : (
-                          <span className="art-character-chip-avatar art-character-chip-avatar--fallback art-character-chip-avatar--style">
-                            {styleInitials}
-                          </span>
-                        )}
-                        <div className="art-character-chip-copy">
-                          <span className="art-character-chip-label">Style</span>
-                          <span className="art-character-chip-name">{styleName}</span>
-                        </div>
-                      </div>
-                    ) : null}
-                  </>
+          ) : null
+        }
+      >
+        {/* Floating Top Bar (Controls) */}
+        {!isPromptOnly ? (
+          <SharedMediaDetailContentLayout
+            topBar={
+              <SharedMediaDetailTopBar
+                eyebrow="Media detail"
+                title={detailModalItem.presentation?.title ?? null}
+                items={resolveSharedMediaDetailTopBarItems(detailModalItem)}
+                centerTitle={shouldUseExternalFileLayout}
+                actions={
+                  <SharedMediaDetailActionBar
+                    items={sharedMediaActionItems}
+                    notice={
+                      isMediaStorageFull && isMediaSaveButtonVisible ? (
+                        <p className="tiny subdued">{MEDIA_STORAGE_FULL_USER_MESSAGE}</p>
+                      ) : null
+                    }
+                  />
                 }
-                label={bladeContent.label}
-                value={bladeContent.value}
-                readOnly={!isPromptEditable}
-                rows={3}
-                textareaRef={promptTextareaRef}
-                placeholder={resolveSharedMediaDetailBladePlaceholder(detailModalItem)}
-                onChange={handlePromptChange}
+                onClose={handleCloseModal}
               />
-            )
-          }
-        />
-      ) : null}
-
-      {isPromptOnly ? (
-        <SharedMediaDetailContentLayout
-          topBar={
-            <SharedMediaDetailTopBar
-              eyebrow="Text detail"
-              title={detailModalItem.presentation?.title ?? null}
-              items={[]}
-              actions={
-                <SharedMediaDetailActionBar
-                  items={sharedPromptActionItems}
-                  notice={
-                    isPromptOnlySaved ? (
-                      <AppMessage
-                        className="art-save-feedback"
-                        tone="success"
-                        mode="inline"
-                        message="Changes saved successfully."
-                      />
-                    ) : null
-                  }
+            }
+            stageRef={imageVesselRef}
+            stageClassName={imageVesselClassName}
+            onStageWheel={isImageOutput ? handleImageWheel : undefined}
+            onStageDoubleClick={isImageOutput ? handleImageDoubleClick : undefined}
+            onStagePointerDown={isImageOutput ? handleImagePointerDown : undefined}
+            onStagePointerMove={isImageOutput ? handleImagePointerMove : undefined}
+            onStagePointerUp={isImageOutput ? handleImagePointerUp : undefined}
+            onStagePointerCancel={isImageOutput ? handleImagePointerUp : undefined}
+            stage={
+              <>
+                <SharedMediaDetailPreviewMedia
+                  mediaUrl={displayPreviewUrl}
+                  mediaKind={detailPreviewKind}
+                  altText={displayPromptText}
+                  isLoading={isDetailPreviewLoading}
+                  imageClassName="art-hero-image"
+                  videoClassName="art-hero-image"
+                  audioClassName="art-hero-audio"
+                  audioId={detailModalItem.media.id}
+                  audioSourceMode={detailModalItem.media.audioSourceMode ?? null}
+                  audioMusicMode={detailModalItem.media.musicMode ?? null}
+                  audioLyricsText={detailModalItem.media.lyricsText ?? null}
+                  audioDurationMs={detailModalItem.media.durationMs ?? null}
+                  audioWaveformPeaks={detailModalItem.media.waveformPeaks ?? null}
+                  videoPosterUrl={detailVideoPosterUrl}
+                  imageStyle={imageStyle}
+                  videoStyle={aspectStyle}
+                  videoRef={videoPreviewRef}
+                  audioRef={audioPreviewRef}
+                  videoLoop
+                  videoMuted
+                  onImageDragStart={(event) => event.preventDefault()}
+                  onImageLoad={handleImageLoad}
+                  onImageError={handleDetailImageError}
+                  onVideoLoadedMetadata={(event) => {
+                    handlePreviewAspectLoad(
+                      event.currentTarget.videoWidth,
+                      event.currentTarget.videoHeight
+                    );
+                  }}
+                  onVideoPlay={videoPreviewPlayback.handlePlay}
+                  onVideoPause={videoPreviewPlayback.handlePause}
+                  onVideoEnded={videoPreviewPlayback.handleEnded}
+                  onVideoError={handleDetailVideoError}
+                  onVideoVolumeChange={videoPreviewPlayback.handleVolumeChange}
+                  onAudioPlay={audioPreviewPlayback.handlePlay}
+                  onAudioPause={audioPreviewPlayback.handlePause}
+                  onAudioEnded={audioPreviewPlayback.handleEnded}
+                  onAudioError={handleDetailAudioError}
+                  onAudioVolumeChange={audioPreviewPlayback.handleVolumeChange}
                 />
-              }
-              onClose={handleCloseModal}
-              closeLabel="Close text detail"
-            />
-          }
-          mainContentClassName="art-text-detail-main"
-          stageClassName="art-image-vessel art-text-detail-vessel"
-          stage={
-            <textarea
-              className={`art-text-detail-textarea ${isPromptEditable ? "is-editing" : ""}`.trim()}
-              ref={promptOnlyTextareaRef}
-              value={draftPrompt}
-              onChange={handlePromptChange}
-              readOnly={!isPromptEditable}
-              rows={12}
-              placeholder="Describe your adjustments..."
-            />
-          }
-        />
-      ) : null}
+                {detailPreviewKind === "video" ? (
+                  <SharedMediaDetailVideoSnapshotControl
+                    videoRef={videoPreviewRef}
+                    filenameHint={displayPromptText || output.id}
+                    onSnapshotVideoFrame={onSnapshotVideoFrame}
+                    onSnapshotVideoFrameError={onSnapshotVideoFrameError}
+                  />
+                ) : null}
+              </>
+            }
+            sidePanel={
+              shouldUseExternalFileLayout ? null : (
+                <SharedMediaDetailInfoPanel
+                  leadingContent={
+                    <>
+                      {hasCharacterContext ? (
+                        <div
+                          className="art-character-chip"
+                          aria-label="Character used for generation"
+                        >
+                          {shouldRenderCharacterAvatar ? (
+                            // Character profile URLs can be signed/external and are not guaranteed to be allowlisted.
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              className="art-character-chip-avatar"
+                              src={characterAvatarUrl ?? ""}
+                              alt={`${characterName} profile`}
+                              onLoad={() => {
+                                clearAvatarFailure(characterAvatarRecoveryId);
+                              }}
+                              onError={() => {
+                                void handleAvatarError({
+                                  avatarId: characterAvatarRecoveryId,
+                                  recoverAvatarUrl: refreshCharacterAvatar,
+                                });
+                              }}
+                            />
+                          ) : (
+                            <span className="art-character-chip-avatar art-character-chip-avatar--fallback">
+                              {characterInitials}
+                            </span>
+                          )}
+                          <div className="art-character-chip-copy">
+                            <span className="art-character-chip-label">
+                              {characterLookName ? `Character · ${characterLookName}` : "Character"}
+                            </span>
+                            <span className="art-character-chip-name">{characterName}</span>
+                          </div>
+                        </div>
+                      ) : null}
+                      {hasStyleContext ? (
+                        <div className="art-character-chip" aria-label="Style used for generation">
+                          {shouldRenderStyleAvatar ? (
+                            // Style previews can point to external URLs and signed Supabase assets.
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              className="art-character-chip-avatar"
+                              src={stylePreviewImageUrl ?? ""}
+                              alt={`${styleName} style`}
+                              onError={() => {
+                                if (!outputId) return;
+                                setStyleAvatarLoadErrorByOutput({ outputId, value: true });
+                              }}
+                            />
+                          ) : (
+                            <span className="art-character-chip-avatar art-character-chip-avatar--fallback art-character-chip-avatar--style">
+                              {styleInitials}
+                            </span>
+                          )}
+                          <div className="art-character-chip-copy">
+                            <span className="art-character-chip-label">Style</span>
+                            <span className="art-character-chip-name">{styleName}</span>
+                          </div>
+                        </div>
+                      ) : null}
+                    </>
+                  }
+                  label={bladeContent.label}
+                  value={bladeContent.value}
+                  readOnly={!isPromptEditable}
+                  rows={3}
+                  textareaRef={promptTextareaRef}
+                  placeholder={resolveSharedMediaDetailBladePlaceholder(detailModalItem)}
+                  onChange={handlePromptChange}
+                />
+              )
+            }
+          />
+        ) : null}
+
+        {isPromptOnly ? (
+          <SharedMediaDetailContentLayout
+            topBar={
+              <SharedMediaDetailTopBar
+                eyebrow="Text detail"
+                title={detailModalItem.presentation?.title ?? null}
+                items={[]}
+                actions={
+                  <SharedMediaDetailActionBar
+                    items={sharedPromptActionItems}
+                    notice={
+                      isPromptOnlySaved ? (
+                        <AppMessage
+                          className="art-save-feedback"
+                          tone="success"
+                          mode="inline"
+                          message="Changes saved successfully."
+                        />
+                      ) : null
+                    }
+                  />
+                }
+                onClose={handleCloseModal}
+                closeLabel="Close text detail"
+              />
+            }
+            mainContentClassName="art-text-detail-main"
+            stageClassName="art-image-vessel art-text-detail-vessel"
+            stage={
+              <textarea
+                className={`art-text-detail-textarea ${isPromptEditable ? "is-editing" : ""}`.trim()}
+                ref={promptOnlyTextareaRef}
+                value={draftPrompt}
+                onChange={handlePromptChange}
+                readOnly={!isPromptEditable}
+                rows={12}
+                placeholder="Describe your adjustments..."
+              />
+            }
+          />
+        ) : null}
+      </SharedMediaDetailModalShell>
       {isDeleteConfirmOpen ? (
-        <ConfirmationModal
-          title="Delete this reference?"
-          body={<p>This reference will be removed permanently.</p>}
-          confirmLabel="Delete"
-          onCancel={handleCancelDelete}
-          onConfirm={handleConfirmDelete}
-        />
+        <AiStudioModalLayer>
+          <ConfirmationModal
+            title="Delete this reference?"
+            body={<p>This reference will be removed permanently.</p>}
+            confirmLabel="Delete"
+            onCancel={handleCancelDelete}
+            onConfirm={handleConfirmDelete}
+          />
+        </AiStudioModalLayer>
       ) : null}
-    </SharedMediaDetailModalShell>
+    </>
   );
 }

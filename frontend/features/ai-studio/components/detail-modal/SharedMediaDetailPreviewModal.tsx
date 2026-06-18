@@ -21,6 +21,31 @@ import {
 } from "./sharedMediaDetailPresentation";
 import { useExclusiveSoundMediaElement } from "../shared/exclusiveSoundPlayback";
 
+const normalizePreviewCandidate = (value: string | null | undefined): string | null => {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+};
+
+const isForbiddenImagePreviewUrl = (value: string): boolean =>
+  value.startsWith("/_next/image") || isSupabaseRenderImageUrl(value);
+
+const resolveSharedPreviewCandidates = (item: SharedMediaDetailItemBase | null): string[] => {
+  if (!item) return [];
+  const media = item.media;
+  const candidates =
+    media.kind === "image"
+      ? [media.url, media.fullUrl, media.previewUrl, media.companionArtUrl]
+      : [media.url, media.fullUrl, media.previewUrl];
+  const uniqueCandidates = new Set<string>();
+  candidates.forEach((candidate) => {
+    const normalized = normalizePreviewCandidate(candidate);
+    if (!normalized) return;
+    if (media.kind === "image" && isForbiddenImagePreviewUrl(normalized)) return;
+    uniqueCandidates.add(normalized);
+  });
+  return Array.from(uniqueCandidates);
+};
+
 type SharedMediaDetailPreviewModalProps = {
   item: SharedMediaDetailItemBase | null;
   isLoading?: boolean;
@@ -84,7 +109,7 @@ export function SharedMediaDetailPreviewModal({
     `${modalActivityId}:audio:${item?.media.id ?? "none"}`,
     audioRef
   );
-  const [failedPreviewUrl, setFailedPreviewUrl] = React.useState<string | null>(null);
+  const [failedPreviewUrls, setFailedPreviewUrls] = React.useState<string[]>([]);
   const isVideo = item?.media.kind === "video";
   const isAudio = item?.media.kind === "audio";
   const title = item ? resolveSharedMediaDetailTitle(item) : "Media preview";
@@ -96,25 +121,28 @@ export function SharedMediaDetailPreviewModal({
         item,
       })
     : { label: "PROMPT" as const, value: "" };
-  const normalizedPreviewUrl = item?.media.url?.trim() ?? "";
-  const isForbiddenImagePreviewUrl =
-    !isVideo &&
-    !isAudio &&
-    (normalizedPreviewUrl.startsWith("/_next/image") ||
-      isSupabaseRenderImageUrl(normalizedPreviewUrl));
-  const canRenderMedia = Boolean(
-    normalizedPreviewUrl && normalizedPreviewUrl !== failedPreviewUrl && !isForbiddenImagePreviewUrl
-  );
+  const previewCandidates = React.useMemo(() => resolveSharedPreviewCandidates(item), [item]);
+  const previewCandidatesKey = previewCandidates.join("\n");
+  const activePreviewUrl =
+    previewCandidates.find((candidate) => !failedPreviewUrls.includes(candidate)) ?? null;
+  const canRenderMedia = Boolean(activePreviewUrl);
 
   React.useEffect(() => {
-    setFailedPreviewUrl(null);
-  }, [item?.media.id, normalizedPreviewUrl]);
+    setFailedPreviewUrls([]);
+  }, [item?.media.id, previewCandidatesKey]);
 
   const handlePreviewError = React.useCallback(() => {
-    if (!item || !normalizedPreviewUrl) return;
-    setFailedPreviewUrl(normalizedPreviewUrl);
-    onPreviewError?.(item, normalizedPreviewUrl);
-  }, [item, normalizedPreviewUrl, onPreviewError]);
+    if (!item || !activePreviewUrl) return;
+    const nextFailedPreviewUrls = failedPreviewUrls.includes(activePreviewUrl)
+      ? failedPreviewUrls
+      : [...failedPreviewUrls, activePreviewUrl];
+    const nextPreviewUrl =
+      previewCandidates.find((candidate) => !nextFailedPreviewUrls.includes(candidate)) ?? null;
+    setFailedPreviewUrls(nextFailedPreviewUrls);
+    if (!nextPreviewUrl) {
+      onPreviewError?.(item, activePreviewUrl);
+    }
+  }, [activePreviewUrl, failedPreviewUrls, item, onPreviewError, previewCandidates]);
 
   const handleVideoPreviewError = React.useCallback(() => {
     videoPlayback.handleError();
@@ -125,6 +153,23 @@ export function SharedMediaDetailPreviewModal({
     audioPlayback.handleError();
     handlePreviewError();
   }, [audioPlayback, handlePreviewError]);
+
+  const previewMediaKind = canRenderMedia
+    ? isVideo
+      ? "video"
+      : isAudio
+        ? "audio"
+        : "image"
+    : null;
+
+  const mediaUnavailableMessage = error || unavailableMessage;
+
+  React.useEffect(() => {
+    if (!item || previewCandidates.length > 0) return;
+    onPreviewError?.(item, item.media.url);
+  }, [item, onPreviewError, previewCandidates.length]);
+
+  const shouldRenderSnapshotControl = item?.media.kind === "video" && canRenderMedia;
 
   if (!item) return null;
 
@@ -164,12 +209,12 @@ export function SharedMediaDetailPreviewModal({
         stage={
           <>
             <SharedMediaDetailPreviewMedia
-              mediaUrl={canRenderMedia ? normalizedPreviewUrl : null}
-              mediaKind={canRenderMedia ? (isVideo ? "video" : isAudio ? "audio" : "image") : null}
+              mediaUrl={activePreviewUrl}
+              mediaKind={previewMediaKind}
               altText={title}
               isLoading={isLoading}
               loadingMessage={loadingMessage}
-              unavailableMessage={error || unavailableMessage}
+              unavailableMessage={mediaUnavailableMessage}
               placeholderClassName={placeholderClassName}
               imageClassName={imageClassName}
               videoClassName={videoClassName}
@@ -194,7 +239,7 @@ export function SharedMediaDetailPreviewModal({
               onAudioError={handleAudioPreviewError}
               onAudioVolumeChange={audioPlayback.handleVolumeChange}
             />
-            {item.media.kind === "video" ? (
+            {shouldRenderSnapshotControl ? (
               <SharedMediaDetailVideoSnapshotControl
                 videoRef={videoRef}
                 filenameHint={item.media.filename ?? title}

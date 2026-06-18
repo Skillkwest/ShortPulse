@@ -463,6 +463,40 @@ describe("DetailModal", () => {
     expect(onSaveReference).toHaveBeenCalledWith("out-1");
   });
 
+  it("promotes delete confirmation above the detail dialog and restores modal ownership on Escape", async () => {
+    const onDeleteOutput = vi.fn();
+    render(
+      <DetailModal
+        output={baseOutput}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={onDeleteOutput}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+    const detailDialog = document.querySelector(".reference-modal-new");
+    const confirmDialog = screen.getByRole("dialog", { name: "Delete this reference?" });
+
+    expect(detailDialog).not.toBeNull();
+    expect(detailDialog).not.toHaveAttribute("aria-modal");
+    expect(detailDialog).toHaveAttribute("aria-hidden", "true");
+    expect(confirmDialog).toHaveAttribute("aria-modal", "true");
+    expect(confirmDialog.closest(".reference-modal-new")).toBeNull();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: "Delete this reference?" })).toBeNull();
+    });
+    expect(onDeleteOutput).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog", { name: "Reference details" })).toHaveAttribute(
+      "aria-modal",
+      "true"
+    );
+  });
+
   it("shows Snapshot only for video details and passes the current video element", async () => {
     const onSnapshotVideoFrame = vi.fn();
     const { rerender, baseElement } = render(

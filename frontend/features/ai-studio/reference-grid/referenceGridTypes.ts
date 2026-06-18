@@ -2,8 +2,10 @@
  * Reference Grid public contracts.
  * Keeps component prop/type declarations out of the main render surface so the file can stay orchestration-focused.
  */
+import type { Dispatch, SetStateAction } from "react";
 import type { ExpertEditStyleTile } from "../components/edit/expertEditStyles";
 import type { CanvasPropertiesPanelProps } from "../components/canvas/useAiStudioCanvasWorkspaceState";
+import type { AiStudioRightRailLayoutV1 } from "../logic/rightRailLayout";
 import type { PastedMediaReference } from "./controllers/referenceGridClipboard";
 import type { ReferenceGridPanelVisibility } from "./referenceGridConfig";
 import type { ReferenceIngestionInput } from "../reference-ingestion/types";
@@ -87,6 +89,8 @@ export type ReferenceGridProps = {
   onRestoreArchivedOutput?: (id: string) => void;
   onRestoreAllArchivedOutputs?: () => void;
   railCanvasProps?: CanvasPropertiesPanelProps;
+  rightRailLayout?: AiStudioRightRailLayoutV1;
+  onRightRailLayoutChange?: Dispatch<SetStateAction<AiStudioRightRailLayoutV1>>;
   isShellResizeActive?: boolean;
   panelVisibility?: ReferenceGridPanelVisibility;
   stylesPanel?: {

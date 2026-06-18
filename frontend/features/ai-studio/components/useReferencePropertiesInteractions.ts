@@ -2,7 +2,7 @@
  * Interaction hook for AI Studio reference properties UI.
  * Centralizes collapse state, drag/drop handling, and Kling list mutations.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, DragEvent, RefObject } from "react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import type { AgentComposerDirectDropPayload } from "../logic/agentComposerDirectDropPayload";
@@ -76,7 +76,14 @@ type ReferenceImageDropSnapshot = {
   mediaKind?: string | null;
   previewStoragePath?: string | null;
   fullStoragePath?: string | null;
+  displayPreviewUrl?: string | null;
   preferLocalRenderArtifact?: boolean;
+};
+
+type ImageDisplayPreviewEntry = {
+  sourceUrl: string;
+  displayUrl: string;
+  ownsObjectUrl: boolean;
 };
 
 type ServerCopiedImageResponse = {
@@ -187,6 +194,111 @@ const createUploadedImageInternalMediaRef = (uploaded: ImageUploadResponse) =>
 
 const isHttpImageSourceUrl = (value: string): boolean => /^https?:\/\//i.test(value.trim());
 
+const EDIT_SECONDARY_DISPLAY_PREVIEW_LONG_EDGE_PX = 96;
+const EDIT_SECONDARY_DISPLAY_PREVIEW_QUALITY = 0.62;
+const EDIT_SECONDARY_DISPLAY_PREVIEW_LOAD_TIMEOUT_MS = 250;
+
+const loadImageElementFromObjectUrl = (src: string): Promise<HTMLImageElement> =>
+  new Promise((resolve, reject) => {
+    const image = new Image();
+    const timeoutId = window.setTimeout(() => {
+      image.onload = null;
+      image.onerror = null;
+      reject(new Error("Timed out while loading display preview image."));
+    }, EDIT_SECONDARY_DISPLAY_PREVIEW_LOAD_TIMEOUT_MS);
+    image.onload = () => {
+      window.clearTimeout(timeoutId);
+      resolve(image);
+    };
+    image.onerror = () => {
+      window.clearTimeout(timeoutId);
+      reject(new Error("Unable to load display preview image."));
+    };
+    image.src = src;
+  });
+
+const resolveBlobImageSource = async (
+  blob: Blob
+): Promise<{
+  source: CanvasImageSource;
+  width: number;
+  height: number;
+  release: () => void;
+} | null> => {
+  if (typeof createImageBitmap === "function") {
+    try {
+      const bitmap = await createImageBitmap(blob);
+      return {
+        source: bitmap,
+        width: Math.max(1, Math.round(bitmap.width)),
+        height: Math.max(1, Math.round(bitmap.height)),
+        release: () => bitmap.close(),
+      };
+    } catch {
+      // Fall back to image-element loading below.
+    }
+  }
+
+  let objectUrl: string | null = URL.createObjectURL(blob);
+  const releaseObjectUrl = () => {
+    if (!objectUrl) return;
+    URL.revokeObjectURL(objectUrl);
+    objectUrl = null;
+  };
+  try {
+    const image = await loadImageElementFromObjectUrl(objectUrl);
+    return {
+      source: image,
+      width: Math.max(1, Math.round(image.naturalWidth || image.width || 1)),
+      height: Math.max(1, Math.round(image.naturalHeight || image.height || 1)),
+      release: releaseObjectUrl,
+    };
+  } catch {
+    releaseObjectUrl();
+    return null;
+  }
+};
+
+const canvasToBlob = (
+  canvas: HTMLCanvasElement,
+  mimeType: string,
+  quality: number
+): Promise<Blob | null> =>
+  new Promise((resolve) => {
+    try {
+      canvas.toBlob((blob) => resolve(blob), mimeType, quality);
+    } catch {
+      resolve(null);
+    }
+  });
+
+const createSmallImageDisplayPreviewUrl = async (blob: Blob | null): Promise<string | null> => {
+  if (!blob || typeof document === "undefined") return null;
+  if (!blob.type.toLowerCase().startsWith("image/")) return null;
+  const resolved = await resolveBlobImageSource(blob);
+  if (!resolved) return null;
+  try {
+    const longEdge = Math.max(resolved.width, resolved.height);
+    const scale = Math.min(1, EDIT_SECONDARY_DISPLAY_PREVIEW_LONG_EDGE_PX / longEdge);
+    const width = Math.max(1, Math.round(resolved.width * scale));
+    const height = Math.max(1, Math.round(resolved.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d");
+    if (!context) return null;
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "high";
+    context.drawImage(resolved.source, 0, 0, width, height);
+    const previewBlob =
+      (await canvasToBlob(canvas, "image/webp", EDIT_SECONDARY_DISPLAY_PREVIEW_QUALITY)) ??
+      (await canvasToBlob(canvas, "image/jpeg", EDIT_SECONDARY_DISPLAY_PREVIEW_QUALITY));
+    return previewBlob ? URL.createObjectURL(previewBlob) : null;
+  } finally {
+    resolved.release();
+  }
+};
+
 const copyRemoteImageToStorage = async (sourceUrl: string): Promise<ImageUploadResponse> => {
   const response = await fetchWithAuth("/api/media/copy-from-url", {
     method: "POST",
@@ -250,6 +362,7 @@ const resolveCanvasTearOutReferenceImageSnapshot = (
     imageUrl,
     referenceId,
     mediaKind: internalPayload?.mediaKind ?? null,
+    displayPreviewUrl: trimOptionalString(composerImagePayload?.displayArtifactUrl),
     preferLocalRenderArtifact: Boolean(composerImagePayload?.displayArtifactUrl),
   };
 };
@@ -308,6 +421,8 @@ export const useReferencePropertiesInteractions = ({
   );
   const [seedanceElementImageLoading, setSeedanceElementImageLoading] = useState<boolean[]>([]);
   const [motionVideoDragActive, setMotionVideoDragActive] = useState(false);
+  const extraImageDisplayPreviewEntriesRef = useRef<Array<ImageDisplayPreviewEntry | null>>([]);
+  const [extraImageDisplayPreviewVersion, setExtraImageDisplayPreviewVersion] = useState(0);
   const [collapsedSteps, setCollapsedSteps] = useState<Record<ReferenceStepKey, boolean>>({
     reference: false,
     model: false,
@@ -334,10 +449,67 @@ export const useReferencePropertiesInteractions = ({
 
   const canSwapFrames = Boolean(referenceImageUrl || extraImageUrls[0]);
 
+  const releaseDisplayPreviewEntry = useCallback((entry: ImageDisplayPreviewEntry | null) => {
+    if (!entry?.ownsObjectUrl || !entry.displayUrl.startsWith("blob:")) return;
+    URL.revokeObjectURL(entry.displayUrl);
+  }, []);
+
+  const setExtraImageDisplayPreviewAt = useCallback(
+    (index: number, sourceUrl: string | null, displayUrl: string | null, ownsObjectUrl = false) => {
+      const previous = extraImageDisplayPreviewEntriesRef.current[index] ?? null;
+      releaseDisplayPreviewEntry(previous);
+      const nextEntries = [...extraImageDisplayPreviewEntriesRef.current];
+      nextEntries[index] =
+        sourceUrl && displayUrl
+          ? {
+              sourceUrl,
+              displayUrl,
+              ownsObjectUrl,
+            }
+          : null;
+      extraImageDisplayPreviewEntriesRef.current = nextEntries;
+      setExtraImageDisplayPreviewVersion((version) => version + 1);
+    },
+    [releaseDisplayPreviewEntry]
+  );
+
+  const extraImageDisplayUrls = useMemo(() => {
+    void extraImageDisplayPreviewVersion;
+    return inputRefs.map((_, index) => {
+      const sourceUrl = extraImageUrls[index] ?? null;
+      const entry = extraImageDisplayPreviewEntriesRef.current[index] ?? null;
+      if (!sourceUrl || !entry || entry.sourceUrl !== sourceUrl) return null;
+      return entry.displayUrl;
+    });
+  }, [extraImageDisplayPreviewVersion, extraImageUrls, inputRefs]);
+
   useEffect(() => {
     setExtraDragActive((prev) => reconcileBooleanListLength(prev, inputRefs.length));
     setExtraImageLoading((prev) => reconcileBooleanListLength(prev, inputRefs.length));
   }, [inputRefs.length]);
+
+  useEffect(() => {
+    let didChange = false;
+    const nextEntries = extraImageDisplayPreviewEntriesRef.current.map((entry, index) => {
+      const sourceUrl = extraImageUrls[index] ?? null;
+      if (!entry || entry.sourceUrl === sourceUrl) return entry ?? null;
+      releaseDisplayPreviewEntry(entry);
+      didChange = true;
+      return null;
+    });
+    if (didChange) {
+      extraImageDisplayPreviewEntriesRef.current = nextEntries;
+      setExtraImageDisplayPreviewVersion((version) => version + 1);
+    }
+  }, [extraImageUrls, releaseDisplayPreviewEntry]);
+
+  useEffect(
+    () => () => {
+      extraImageDisplayPreviewEntriesRef.current.forEach(releaseDisplayPreviewEntry);
+      extraImageDisplayPreviewEntriesRef.current = [];
+    },
+    [releaseDisplayPreviewEntry]
+  );
 
   useEffect(() => {
     setSeedanceElementImageDragActive((prev) =>
@@ -567,7 +739,14 @@ export const useReferencePropertiesInteractions = ({
     snapshot: ReferenceImageDropSnapshot,
     setter: (url: string | null) => void,
     setLoading: (value: boolean) => void,
-    options?: { stageForProviderAccess?: boolean }
+    options?: {
+      stageForProviderAccess?: boolean;
+      setDisplayPreview?: (
+        sourceUrl: string | null,
+        displayUrl: string | null,
+        ownsObjectUrl?: boolean
+      ) => void;
+    }
   ) => {
     const {
       internalPayload,
@@ -579,6 +758,7 @@ export const useReferencePropertiesInteractions = ({
       mediaKind,
       previewStoragePath,
       fullStoragePath,
+      displayPreviewUrl: snapshotDisplayPreviewUrl,
       preferLocalRenderArtifact,
     } = snapshot;
     const effectiveMediaKind = internalPayload?.mediaKind ?? mediaKind ?? null;
@@ -591,6 +771,11 @@ export const useReferencePropertiesInteractions = ({
       mediaKind: effectiveMediaKind,
     });
     let nextUrl: string | null = null;
+    let displayPreviewUrl: string | null =
+      snapshotDisplayPreviewUrl && looksLikeImageUrl(snapshotDisplayPreviewUrl)
+        ? snapshotDisplayPreviewUrl
+        : null;
+    let ownsDisplayPreviewUrl = false;
     let resolvedInternalMediaRef = null;
     let didSetLoading = false;
 
@@ -624,6 +809,8 @@ export const useReferencePropertiesInteractions = ({
         }
         const resolvedPreparedImageUrl = resolvedSource?.preparedImageUrl?.trim() || null;
         const resolvedPreviewUrl = resolvedSource?.preview.url?.trim() || null;
+        displayPreviewUrl =
+          resolvedPreviewUrl && looksLikeImageUrl(resolvedPreviewUrl) ? resolvedPreviewUrl : null;
         nextUrl =
           (resolvedPreparedImageUrl && looksLikeImageUrl(resolvedPreparedImageUrl)
             ? resolvedPreparedImageUrl
@@ -696,6 +883,14 @@ export const useReferencePropertiesInteractions = ({
             })
           : nextUrl;
         if (!stableUrl) return;
+        if (stableUrl.startsWith("blob:") && options?.setDisplayPreview) {
+          const displayBlob = readRememberedObjectUrlBlob(stableUrl) ?? imageFile ?? null;
+          const smallDisplayUrl = await createSmallImageDisplayPreviewUrl(displayBlob);
+          if (smallDisplayUrl) {
+            displayPreviewUrl = smallDisplayUrl;
+            ownsDisplayPreviewUrl = true;
+          }
+        }
         const shouldStageProviderImage =
           (options?.stageForProviderAccess ||
             (setter === onPrimaryImageChange && stagePrimaryImageForProviderAccess)) &&
@@ -715,10 +910,16 @@ export const useReferencePropertiesInteractions = ({
             resolvedInternalMediaRef ?? createUploadedImageInternalMediaRef(stagedImage)
           );
           commitImageUrl(setter, stagedImage.url);
+          options?.setDisplayPreview?.(
+            stagedImage.url,
+            displayPreviewUrl ?? stableUrl,
+            ownsDisplayPreviewUrl
+          );
           return;
         }
         registerInternalMediaRefForUrl(stableUrl, resolvedInternalMediaRef);
         commitImageUrl(setter, stableUrl);
+        options?.setDisplayPreview?.(stableUrl, displayPreviewUrl, ownsDisplayPreviewUrl);
       }
     } catch (error) {
       console.error("AI Studio reference image drop ingress failed:", error);
@@ -733,7 +934,14 @@ export const useReferencePropertiesInteractions = ({
     (
       setter: (url: string | null) => void,
       setLoading: (value: boolean) => void,
-      options?: { stageForProviderAccess?: boolean }
+      options?: {
+        stageForProviderAccess?: boolean;
+        setDisplayPreview?: (
+          sourceUrl: string | null,
+          displayUrl: string | null,
+          ownsObjectUrl?: boolean
+        ) => void;
+      }
     ) =>
     async (event: DragEvent<HTMLDivElement>) => {
       event.preventDefault();
@@ -765,6 +973,10 @@ export const useReferencePropertiesInteractions = ({
           mediaKind,
           previewStoragePath: libraryImagePayload?.previewStoragePath ?? null,
           fullStoragePath: libraryImagePayload?.fullStoragePath ?? null,
+          displayPreviewUrl:
+            trimOptionalString(libraryImagePayload?.previewUrl) ??
+            trimOptionalString(composerImagePayload?.displayArtifactUrl) ??
+            null,
           preferLocalRenderArtifact: Boolean(composerDisplayArtifactUrl),
         },
         setter,
@@ -814,7 +1026,11 @@ export const useReferencePropertiesInteractions = ({
     void acceptImageDropSnapshot(
       snapshot,
       (url) => onExtraImageChange(index, url),
-      (value) => setExtraImageLoadingAt(index, value)
+      (value) => setExtraImageLoadingAt(index, value),
+      {
+        setDisplayPreview: (sourceUrl, displayUrl, ownsObjectUrl) =>
+          setExtraImageDisplayPreviewAt(index, sourceUrl, displayUrl, ownsObjectUrl),
+      }
     );
   };
 
@@ -867,8 +1083,36 @@ export const useReferencePropertiesInteractions = ({
     setExtraDragActiveAt(index, false);
     return handleImageDrop(
       (url) => onExtraImageChange(index, url),
-      (value) => setExtraImageLoadingAt(index, value)
+      (value) => setExtraImageLoadingAt(index, value),
+      {
+        setDisplayPreview: (sourceUrl, displayUrl, ownsObjectUrl) =>
+          setExtraImageDisplayPreviewAt(index, sourceUrl, displayUrl, ownsObjectUrl),
+      }
     )(event);
+  };
+
+  const handleExtraFileSelection = (index: number) => (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!isImageFile(file)) {
+      event.target.value = "";
+      return;
+    }
+    setExtraImageLoadingAt(index, true);
+    void (async () => {
+      try {
+        const prepared = await prepareLocalImageFileForEditIngress(file);
+        const sourceUrl = trackOwnedImageObjectUrl(prepared.url, prepared.blob);
+        const displayUrl = await createSmallImageDisplayPreviewUrl(prepared.blob);
+        commitImageUrl((url) => onExtraImageChange(index, url), sourceUrl);
+        setExtraImageDisplayPreviewAt(index, sourceUrl, displayUrl, Boolean(displayUrl));
+      } catch (error) {
+        console.error("AI Studio reference image file ingress failed:", error);
+      } finally {
+        setExtraImageLoadingAt(index, false);
+        event.target.value = "";
+      }
+    })();
   };
 
   const handleSeedanceElementImageFileSelection =
@@ -1011,6 +1255,7 @@ export const useReferencePropertiesInteractions = ({
     seedanceElementImageInputRefs,
     primaryDragActive,
     extraDragActive,
+    extraImageDisplayUrls,
     seedanceElementImageDragActive,
     primaryImageLoading,
     extraImageLoading,
@@ -1030,6 +1275,7 @@ export const useReferencePropertiesInteractions = ({
     addKlingElement,
     removeKlingElement,
     handleFileSelection,
+    handleExtraFileSelection,
     handlePrimaryFileSelection,
     handlePromptDrop,
     handlePrimaryDrop,

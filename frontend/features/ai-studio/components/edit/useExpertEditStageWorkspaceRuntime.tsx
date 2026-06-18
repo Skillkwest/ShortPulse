@@ -68,6 +68,7 @@ type UseExpertEditStageWorkspaceRuntimeArgs = {
   renderMoveControlsContent: (scope: "inline" | "modal" | "rail") => React.ReactNode;
   shouldShowSecondaryReferenceAndStylesRow: boolean;
   extraImageUrls: readonly (string | null)[];
+  extraImageDisplayUrls: readonly (string | null)[];
   visibleSecondarySlotIndexes: readonly number[];
   onAddSecondaryReferenceSlot: () => void;
   onRemoveSecondaryReferenceSlot: (index: number) => void;
@@ -166,6 +167,7 @@ export function useExpertEditStageWorkspaceRuntime({
   renderMoveControlsContent,
   shouldShowSecondaryReferenceAndStylesRow,
   extraImageUrls,
+  extraImageDisplayUrls,
   visibleSecondarySlotIndexes,
   onAddSecondaryReferenceSlot,
   onRemoveSecondaryReferenceSlot,
@@ -287,6 +289,7 @@ export function useExpertEditStageWorkspaceRuntime({
         shouldShowSecondaryReferenceAndStylesRow ? (
           <ExpertEditSecondaryReferences
             extraImageUrls={extraImageUrls}
+            extraImageDisplayUrls={extraImageDisplayUrls}
             visibleSlotIndexes={visibleSecondarySlotIndexes}
             onAddSlot={onAddSecondaryReferenceSlot}
             onRemoveSlot={onRemoveSecondaryReferenceSlot}

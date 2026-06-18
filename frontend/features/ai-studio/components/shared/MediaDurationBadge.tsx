@@ -19,6 +19,11 @@ const mediaDurationProbeInFlightByKey = new Map<string, Promise<number | null>>(
 let mediaDurationProbeInflightCount = 0;
 const mediaDurationProbeQueue: Array<() => void> = [];
 
+type ResolvedMediaDurationState = {
+  cacheKey: string | null;
+  durationMs: number | null;
+};
+
 const normalizeDurationMs = (value: number | null | undefined): number | null => {
   if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return null;
   return Math.max(0, Math.round(value));
@@ -167,25 +172,62 @@ export function MediaDurationBadge({
   className,
   allowProbe = true,
 }: MediaDurationBadgeProps) {
-  const [resolvedDurationMs, setResolvedDurationMs] = React.useState<number | null>(() =>
-    normalizeDurationMs(durationMs)
-  );
+  const [resolvedDuration, setResolvedDuration] = React.useState<ResolvedMediaDurationState>(() => {
+    const normalizedMediaUrl = mediaUrl?.trim() ?? "";
+    const cacheKey = normalizedMediaUrl
+      ? resolveDurationProbeCacheKey({ mediaKind, mediaUrl: normalizedMediaUrl })
+      : null;
+    return {
+      cacheKey,
+      durationMs: normalizeDurationMs(durationMs),
+    };
+  });
+  const resolvedDurationRef = React.useRef(resolvedDuration);
+  const updateResolvedDuration = React.useCallback((nextDuration: ResolvedMediaDurationState) => {
+    const current = resolvedDurationRef.current;
+    if (
+      current.cacheKey === nextDuration.cacheKey &&
+      current.durationMs === nextDuration.durationMs
+    ) {
+      return;
+    }
+    resolvedDurationRef.current = nextDuration;
+    setResolvedDuration(nextDuration);
+  }, []);
+
+  React.useEffect(() => {
+    resolvedDurationRef.current = resolvedDuration;
+  }, [resolvedDuration]);
 
   React.useEffect(() => {
     const normalizedMediaUrl = mediaUrl?.trim() ?? "";
+    const cacheKey = normalizedMediaUrl
+      ? resolveDurationProbeCacheKey({ mediaKind, mediaUrl: normalizedMediaUrl })
+      : null;
     const explicitDurationMs = normalizeDurationMs(durationMs);
     if (explicitDurationMs != null) {
-      if (normalizedMediaUrl) {
-        mediaDurationProbeCache.set(
-          resolveDurationProbeCacheKey({ mediaKind, mediaUrl: normalizedMediaUrl }),
-          explicitDurationMs
-        );
+      if (cacheKey) {
+        mediaDurationProbeCache.set(cacheKey, explicitDurationMs);
       }
-      setResolvedDurationMs(explicitDurationMs);
+      updateResolvedDuration({ cacheKey, durationMs: explicitDurationMs });
       return;
     }
-    if (!allowProbe || !normalizedMediaUrl || typeof document === "undefined") {
-      setResolvedDurationMs(null);
+    if (!cacheKey) {
+      updateResolvedDuration({ cacheKey: null, durationMs: null });
+      return;
+    }
+    if (!allowProbe || typeof document === "undefined") {
+      const cachedDurationMs = mediaDurationProbeCache.has(cacheKey)
+        ? (mediaDurationProbeCache.get(cacheKey) ?? null)
+        : undefined;
+      const current = resolvedDurationRef.current;
+      if (cachedDurationMs !== undefined) {
+        updateResolvedDuration({ cacheKey, durationMs: cachedDurationMs });
+        return;
+      }
+      if (current.cacheKey !== cacheKey) {
+        updateResolvedDuration({ cacheKey, durationMs: null });
+      }
       return;
     }
 
@@ -193,7 +235,7 @@ export function MediaDurationBadge({
     void requestQueuedMediaDurationProbe({ mediaKind, mediaUrl: normalizedMediaUrl }).then(
       (nextDurationMs) => {
         if (!cancelled) {
-          setResolvedDurationMs(nextDurationMs);
+          updateResolvedDuration({ cacheKey, durationMs: nextDurationMs });
         }
       }
     );
@@ -201,8 +243,9 @@ export function MediaDurationBadge({
     return () => {
       cancelled = true;
     };
-  }, [allowProbe, durationMs, mediaKind, mediaUrl]);
+  }, [allowProbe, durationMs, mediaKind, mediaUrl, updateResolvedDuration]);
 
+  const resolvedDurationMs = resolvedDuration.durationMs;
   if (resolvedDurationMs == null) return null;
 
   const badgeKind = resolveMediaDurationBadgeKind({ mediaKind, audioSourceMode });

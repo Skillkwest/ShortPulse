@@ -120,7 +120,9 @@ describe("MediaDurationBadge", () => {
       <MediaDurationBadge mediaKind="video" mediaUrl={mediaUrl} durationMs={42_000} />
     );
 
-    rerender(<MediaDurationBadge mediaKind="video" mediaUrl={mediaUrl} />);
+    act(() => {
+      rerender(<MediaDurationBadge mediaKind="video" mediaUrl={mediaUrl} />);
+    });
 
     expect(createdMediaElements).toHaveLength(0);
     expect(screen.getByText("0:42")).toBeInTheDocument();
@@ -161,5 +163,41 @@ describe("MediaDurationBadge", () => {
 
     expect(createdMediaElements).toHaveLength(0);
     expect(screen.getByText("0:12")).toBeInTheDocument();
+  });
+
+  it("keeps a resolved probed duration visible when probes are temporarily suspended", async () => {
+    const actualCreateElement = document.createElement.bind(document);
+    const createdMediaElements: FakeMediaElement[] = [];
+
+    vi.spyOn(document, "createElement").mockImplementation((tagName: string) => {
+      if (tagName === "audio" || tagName === "video") {
+        const fakeMedia = createFakeMediaElement();
+        createdMediaElements.push(fakeMedia);
+        return fakeMedia as unknown as HTMLElement;
+      }
+      return actualCreateElement(tagName);
+    });
+
+    const mediaUrl = "https://media.test/temporarily-suspended-video.mp4";
+    const { rerender } = render(<MediaDurationBadge mediaKind="video" mediaUrl={mediaUrl} />);
+
+    await resolveLoadedMetadata(createdMediaElements[0]);
+
+    expect(screen.getByText("0:12")).toBeInTheDocument();
+
+    rerender(<MediaDurationBadge mediaKind="video" mediaUrl={mediaUrl} allowProbe={false} />);
+
+    expect(createdMediaElements).toHaveLength(1);
+    expect(screen.getByText("0:12")).toBeInTheDocument();
+
+    rerender(
+      <MediaDurationBadge
+        mediaKind="video"
+        mediaUrl="https://media.test/different-suspended-video.mp4"
+        allowProbe={false}
+      />
+    );
+
+    expect(screen.queryByText("0:12")).not.toBeInTheDocument();
   });
 });

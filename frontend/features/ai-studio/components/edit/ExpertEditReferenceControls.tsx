@@ -12,6 +12,7 @@ import type { ExpertEditStyleTile } from "./expertEditStyles";
 
 type ExpertEditSecondaryReferencesProps = {
   extraImageUrls: readonly (string | null)[];
+  extraImageDisplayUrls?: readonly (string | null)[];
   visibleSlotIndexes: readonly number[];
   onAddSlot: () => void;
   onRemoveSlot: (index: number) => void;
@@ -36,6 +37,7 @@ type ExpertEditSecondaryReferencesProps = {
 
 export function ExpertEditSecondaryReferences({
   extraImageUrls,
+  extraImageDisplayUrls = [],
   visibleSlotIndexes,
   onAddSlot,
   onRemoveSlot,
@@ -108,17 +110,18 @@ export function ExpertEditSecondaryReferences({
         <p className="edit-expert-secondary-title">Reference Images</p>
         <div className="edit-expert-secondary-row">
           {visibleSlotIndexes.map((index) => {
-            const previewUrl = extraImageUrls[index] ?? null;
+            const sourceUrl = extraImageUrls[index] ?? null;
+            const previewUrl = extraImageDisplayUrls[index] ?? sourceUrl;
             const inputRef = inputRefs[index];
             return (
               <div className="edit-expert-secondary-slot" key={`expert-edit-secondary-${index}`}>
                 <div
-                  className={`reference-dropzone extra ${previewUrl ? "has-preview" : ""} ${
+                  className={`reference-dropzone extra ${sourceUrl ? "has-preview" : ""} ${
                     extraDragActive[index] || canvasTearOutActiveSlotIndexes.has(index)
                       ? "is-dragging"
                       : ""
                   } ${
-                    highlightPromptPickerSecondaryTargets && isPromptTokenPickerOpen && previewUrl
+                    highlightPromptPickerSecondaryTargets && isPromptTokenPickerOpen && sourceUrl
                       ? "is-picker-target"
                       : ""
                   } ${
@@ -126,7 +129,7 @@ export function ExpertEditSecondaryReferences({
                       ? "is-picker-selected"
                       : ""
                   }`.trim()}
-                  draggable={Boolean(previewUrl) && allowPromptTokenSecondaryDrag}
+                  draggable={Boolean(sourceUrl) && allowPromptTokenSecondaryDrag}
                   ref={(element) => {
                     if (element) {
                       slotRefs.current.set(index, element);
@@ -140,7 +143,6 @@ export function ExpertEditSecondaryReferences({
                   onDragOver={onSecondaryDragOver(index)}
                   onDragLeave={onSecondaryDragLeave(index)}
                   onClick={() => inputRef?.current?.click()}
-                  style={previewUrl ? { backgroundImage: `url(${previewUrl})` } : undefined}
                   aria-label={`Secondary edit image ${index + 1}`}
                 >
                   <button
@@ -154,7 +156,22 @@ export function ExpertEditSecondaryReferences({
                   >
                     <TrashSimple size={14} weight="regular" />
                   </button>
-                  {previewUrl ? null : <Plus size={18} weight="regular" />}
+                  {sourceUrl && previewUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- Secondary refs can be signed/private runtime URLs; keep this tiny control preview out of the Next image cache/proxy.
+                    <img
+                      className="edit-expert-secondary-preview-img"
+                      src={previewUrl}
+                      alt=""
+                      aria-hidden="true"
+                      width={40}
+                      height={40}
+                      loading="eager"
+                      decoding="async"
+                      draggable={false}
+                    />
+                  ) : (
+                    <Plus size={18} weight="regular" />
+                  )}
                 </div>
               </div>
             );

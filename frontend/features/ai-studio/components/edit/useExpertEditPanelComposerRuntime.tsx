@@ -59,6 +59,7 @@ type UseExpertEditPanelComposerRuntimeArgs = {
   handleFileSelection: (
     onImageResolved: (url: string | null) => void
   ) => React.ChangeEventHandler<HTMLInputElement>;
+  handleExtraFileSelection?: (index: number) => React.ChangeEventHandler<HTMLInputElement>;
   onExtraImageChange: (index: number, url: string | null) => void;
   isCharacterPickerOpen: boolean;
   characterModeEnabled: boolean;
@@ -126,6 +127,7 @@ export function useExpertEditPanelComposerRuntime({
   inputRefs,
   handlePrimaryFileSelection,
   handleFileSelection,
+  handleExtraFileSelection: resolvedHandleExtraFileSelection,
   onExtraImageChange,
   isCharacterPickerOpen,
   characterModeEnabled,
@@ -138,11 +140,15 @@ export function useExpertEditPanelComposerRuntime({
   resolveCharacterAvatarUrlById,
 }: UseExpertEditPanelComposerRuntimeArgs) {
   const handleExtraFileSelection = React.useCallback(
-    (index: number) =>
-      handleFileSelection((url) => {
+    (index: number) => {
+      if (resolvedHandleExtraFileSelection) {
+        return resolvedHandleExtraFileSelection(index);
+      }
+      return handleFileSelection((url) => {
         onExtraImageChange(index, url);
-      }),
-    [handleFileSelection, onExtraImageChange]
+      });
+    },
+    [handleFileSelection, onExtraImageChange, resolvedHandleExtraFileSelection]
   );
 
   const promptAndSelectors = (

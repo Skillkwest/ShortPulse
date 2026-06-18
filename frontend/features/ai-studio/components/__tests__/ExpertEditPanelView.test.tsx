@@ -5,6 +5,7 @@ import {
   COMPOSITE_REGENERATE_COHESION_PROMPT,
   ExpertEditPanelView,
 } from "../edit/ExpertEditPanelView";
+import { ExpertEditSecondaryReferences } from "../edit/ExpertEditReferenceControls";
 import {
   EDIT_PRESET_DEFAULT_PANEL_PRESET_IDS,
   EDIT_PRESET_SURFACE_PRESET_IDS,
@@ -613,6 +614,49 @@ describe("ExpertEditPanelView", () => {
     expect(screen.queryByLabelText("Secondary edit image 3")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Styles" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Remove Background" })).toBeInTheDocument();
+  });
+
+  it("renders secondary references from display-preview URLs without replacing source refs", () => {
+    const inputRefs = [
+      React.createRef<HTMLInputElement>(),
+      React.createRef<HTMLInputElement>(),
+      React.createRef<HTMLInputElement>(),
+    ];
+
+    render(
+      <ExpertEditSecondaryReferences
+        extraImageUrls={["https://example.com/source-slot-1.png", null, null]}
+        extraImageDisplayUrls={["https://example.com/tiny-slot-1.webp", null, null]}
+        visibleSlotIndexes={[0, 1]}
+        onAddSlot={vi.fn()}
+        onRemoveSlot={vi.fn()}
+        inputRefs={inputRefs}
+        extraDragActive={[false, false, false]}
+        isPromptTokenPickerOpen={false}
+        promptTokenPickerSelectedSlotIndex={null}
+        onSecondaryDragStart={vi.fn()}
+        onSecondaryDrop={() => vi.fn()}
+        onSecondaryDragEnter={() => vi.fn()}
+        onSecondaryDragOver={() => vi.fn()}
+        onSecondaryDragLeave={() => vi.fn()}
+      />
+    );
+
+    const secondarySlot = screen.getByLabelText("Secondary edit image 1") as HTMLDivElement;
+    const preview = secondarySlot.querySelector(
+      ".edit-expert-secondary-preview-img"
+    ) as HTMLImageElement | null;
+
+    expect(secondarySlot.style.backgroundImage).toBe("");
+    expect(secondarySlot).toHaveClass("has-preview");
+    expect(secondarySlot).toHaveAttribute("draggable", "true");
+    expect(preview).toBeTruthy();
+    expect(preview).toHaveAttribute("src", "https://example.com/tiny-slot-1.webp");
+    expect(preview).toHaveAttribute("width", "40");
+    expect(preview).toHaveAttribute("height", "40");
+    expect(preview).toHaveAttribute("loading", "eager");
+    expect(preview).toHaveAttribute("decoding", "async");
+    expect(preview).toHaveAttribute("draggable", "false");
   });
 
   it("registers Canvas tear-out targets for edit stage, secondary references, and prompt text", async () => {

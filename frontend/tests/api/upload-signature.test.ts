@@ -4,6 +4,7 @@ import {
   detectAudioMimeType,
   detectImageMimeType,
   detectVideoMimeType,
+  normalizeSupportedMimeType,
 } from "../../lib/server/uploadSignature";
 
 const buildWebmTrackSignature = (trackType: number): Buffer =>
@@ -88,5 +89,11 @@ describe("upload signature helpers", () => {
     expect(areCompatibleMimeTypes("application/ogg", "audio/ogg")).toBe(true);
     expect(areCompatibleMimeTypes("video/x-quicktime", "video/quicktime")).toBe(true);
     expect(areCompatibleMimeTypes("image/png", "image/jpeg")).toBe(false);
+  });
+
+  it("normalizes MIME parameters from browser recorder output", () => {
+    expect(normalizeSupportedMimeType("audio/webm;codecs=opus")).toBe("audio/webm");
+    expect(normalizeSupportedMimeType("video/webm; codecs=vp8,opus")).toBe("video/webm");
+    expect(areCompatibleMimeTypes("audio/webm;codecs=opus", "audio/webm")).toBe(true);
   });
 });

@@ -298,6 +298,7 @@ describe("useAiStudioShellResize", () => {
     await waitFor(() => {
       expect(result.current.showDivider).toBe(true);
     });
+    expect(result.current.shellLayoutMode).toBe("split");
 
     act(() => {
       result.current.dividerProps.onPointerDown?.({
@@ -313,6 +314,7 @@ describe("useAiStudioShellResize", () => {
     });
 
     expect(result.current.leftWidthPx).toBe(AI_SHELL_LEFT_CREATE_MIN_PX);
+    expect(result.current.shellLayoutMode).toBe("split");
     expect(result.current.leftColumnHidden).toBe(false);
     expect(result.current.dividerProps["data-overlap-active"]).toBe("true");
     expect(result.current.shellStyle).toMatchObject({
@@ -336,6 +338,76 @@ describe("useAiStudioShellResize", () => {
         "--ai-shell-right-overlap-width": "220px",
         "--ai-shell-left-visibility": "0",
       });
+    });
+
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: originalInnerWidth,
+    });
+  });
+
+  it("keeps overlap-capable shells in split mode instead of compacting the primary panel", async () => {
+    const originalInnerWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1200,
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioShellResize({
+        enabled: true,
+        minLeftWidthPx: AI_SHELL_LEFT_CREATE_MIN_PX,
+        minRightWidthPx: AI_SHELL_RIGHT_MIN_PX,
+        allowLeftCollapse: true,
+      })
+    );
+
+    act(() => {
+      result.current.shellRef.current = {
+        getBoundingClientRect: () => ({ width: 1100 }),
+      } as HTMLElement;
+      result.current.leftColumnRef.current = {
+        getBoundingClientRect: () => ({ width: AI_SHELL_LEFT_CREATE_MIN_PX }),
+      } as HTMLElement;
+      result.current.collapseToMin();
+    });
+
+    await waitFor(() => {
+      expect(result.current.showDivider).toBe(true);
+      expect(result.current.leftWidthPx).toBe(AI_SHELL_LEFT_CREATE_MIN_PX);
+    });
+
+    expect(result.current.shellLayoutMode).toBe("split");
+    expect(result.current.shellStyle).toMatchObject({
+      "--ai-shell-left-width": `${AI_SHELL_LEFT_CREATE_MIN_PX}px`,
+      "--ai-shell-right-min-width": `${AI_SHELL_RIGHT_MIN_PX}px`,
+    });
+
+    act(() => {
+      result.current.dividerProps.onPointerDown?.({
+        pointerId: 204,
+        button: 0,
+        clientX: AI_SHELL_LEFT_CREATE_MIN_PX,
+        preventDefault: vi.fn(),
+      } as unknown as ReactPointerEvent<HTMLButtonElement>);
+    });
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 204, clientX: 760 }));
+    });
+
+    expect(result.current.shellLayoutMode).toBe("split");
+    expect(result.current.leftWidthPx).toBe(AI_SHELL_LEFT_CREATE_MIN_PX);
+    expect(result.current.dividerProps["data-overlap-active"]).toBe("true");
+    expect(result.current.shellStyle).toMatchObject({
+      "--ai-shell-left-width": `${AI_SHELL_LEFT_CREATE_MIN_PX}px`,
+      "--ai-shell-right-min-width": `${AI_SHELL_RIGHT_MIN_PX}px`,
+      "--ai-shell-divider-visual-offset": "-160px",
+      "--ai-shell-right-overlap-width": "160px",
+    });
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointerup", { pointerId: 204, clientX: 760 }));
     });
 
     Object.defineProperty(window, "innerWidth", {

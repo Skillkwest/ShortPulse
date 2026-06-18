@@ -262,37 +262,22 @@ const CanvasSceneItemView = React.memo(function CanvasSceneItemView({
         />
       ) : item.kind === "video" ? (
         <>
-          {item.posterUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              className="canvas-scene-item__video"
-              src={item.posterUrl}
-              alt={item.title?.trim() || "Canvas video"}
-              draggable={false}
-              loading="lazy"
-              decoding="async"
-              onLoad={() => clearCanvasMediaError(mediaErrorKey)}
-              onError={() => {
-                markCanvasMediaError(mediaErrorKey);
-                onCanvasMediaRenderError?.(item);
-              }}
-            />
-          ) : (
-            <video
-              className="canvas-scene-item__video"
-              src={item.videoUrl}
-              aria-label={item.title?.trim() || "Canvas video"}
-              draggable={false}
-              muted
-              playsInline
-              preload="metadata"
-              onLoadedData={() => clearCanvasMediaError(mediaErrorKey)}
-              onError={() => {
-                markCanvasMediaError(mediaErrorKey);
-                onCanvasMediaRenderError?.(item);
-              }}
-            />
-          )}
+          <video
+            className="canvas-scene-item__video"
+            src={item.videoUrl}
+            poster={item.posterUrl ?? undefined}
+            aria-label={item.title?.trim() || "Canvas video"}
+            draggable={false}
+            muted
+            playsInline
+            preload="metadata"
+            onLoadedMetadata={() => clearCanvasMediaError(mediaErrorKey)}
+            onLoadedData={() => clearCanvasMediaError(mediaErrorKey)}
+            onError={() => {
+              markCanvasMediaError(mediaErrorKey);
+              onCanvasMediaRenderError?.(item);
+            }}
+          />
           <MediaDurationBadge
             className="canvas-scene-item__media-duration"
             durationMs={item.durationMs ?? null}

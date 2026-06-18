@@ -54,6 +54,17 @@ describe("getAiShellLeftWidthBounds", () => {
     expect(bounds.max).toBe(1700 - AI_SHELL_RIGHT_MIN_PX - AI_SHELL_DIVIDER_TRACK_PX);
   });
 
+  it("can preserve the caller-provided minimum for overlap-capable shells", () => {
+    const bounds = getAiShellLeftWidthBounds(900, {
+      minLeftWidthPx: AI_SHELL_LEFT_CREATE_MIN_PX,
+      minRightWidthPx: AI_SHELL_RIGHT_COLLAPSED_MIN_PX,
+      preserveMinLeftWidth: true,
+    });
+
+    expect(bounds.min).toBe(AI_SHELL_LEFT_CREATE_MIN_PX);
+    expect(bounds.max).toBe(AI_SHELL_LEFT_CREATE_MIN_PX);
+  });
+
   it("supports a caller-provided maximum width cap", () => {
     const bounds = getAiShellLeftWidthBounds(1700, {
       maxLeftWidthPx: AI_SHELL_LEFT_CREATE_MAX_PX,
@@ -99,6 +110,16 @@ describe("clampAiShellLeftWidth", () => {
     expect(
       clampAiShellLeftWidth(540, 1600, { minLeftWidthPx: AI_SHELL_LEFT_CHARACTER_MIN_PX })
     ).toBe(AI_SHELL_LEFT_CHARACTER_MIN_PX);
+  });
+
+  it("preserves the caller-provided minimum when overlap mode allows visual coverage", () => {
+    expect(
+      clampAiShellLeftWidth(700, 900, {
+        minLeftWidthPx: AI_SHELL_LEFT_CREATE_MIN_PX,
+        minRightWidthPx: AI_SHELL_RIGHT_COLLAPSED_MIN_PX,
+        preserveMinLeftWidth: true,
+      })
+    ).toBe(AI_SHELL_LEFT_CREATE_MIN_PX);
   });
 
   it("respects caller-provided maximum width", () => {

@@ -335,10 +335,10 @@ describe("Canvas drop behavior", () => {
 
     const item = await screen.findByTestId(/canvas-item-/);
     expect(item).toHaveAttribute("data-kind", "video");
-    expect(screen.getByAltText("Library Video")).toHaveAttribute(
-      "src",
-      "https://example.com/library-video-poster.webp"
-    );
+    const video = item.querySelector("video");
+    expect(video).toHaveAttribute("src", "https://example.com/library-video.mp4");
+    expect(video).toHaveAttribute("poster", "https://example.com/library-video-poster.webp");
+    expect(video).toHaveAttribute("aria-label", "Library Video");
   });
 
   it("sizes poster-backed media-library videos from poster dimensions when drag dimensions are missing", async () => {
@@ -420,10 +420,14 @@ describe("Canvas drop behavior", () => {
       clientY: 200,
     });
 
-    const videoPoster = await screen.findByAltText("Library Video");
-    fireEvent.error(videoPoster);
+    const item = await screen.findByTestId(/canvas-item-/);
+    const video = item.querySelector("video");
+    expect(video).toHaveAttribute("src", "https://example.com/library-video.mp4");
+    expect(video).toHaveAttribute("poster", "https://example.com/library-video-poster.webp");
 
-    expect(screen.queryByAltText("Library Video")).not.toBeInTheDocument();
+    fireEvent.error(video as HTMLVideoElement);
+
+    expect(item.querySelector("video")).not.toBeInTheDocument();
     expect(screen.getByText("Media unavailable")).toBeInTheDocument();
   });
 
@@ -520,9 +524,12 @@ describe("Canvas drop behavior", () => {
       clientY: 200,
     });
 
-    const videoPoster = await screen.findByAltText("External video");
-    expect(videoPoster).toHaveAttribute("src", "https://example.com/external-video-poster.webp");
-    expect(screen.getByTestId(/canvas-item-/)).toHaveAttribute("data-kind", "video");
+    const item = await screen.findByTestId(/canvas-item-/);
+    const video = item.querySelector("video");
+    expect(item).toHaveAttribute("data-kind", "video");
+    expect(video).toHaveAttribute("src", "https://example.com/external-video.mp4");
+    expect(video).toHaveAttribute("poster", "https://example.com/external-video-poster.webp");
+    expect(video).toHaveAttribute("aria-label", "External video");
   });
 
   it("renders dropped external videos without posters as muted canvas video previews", async () => {
@@ -681,10 +688,10 @@ describe("Canvas drop behavior", () => {
 
     const item = await screen.findByTestId(/canvas-item-/);
     expect(item).toHaveAttribute("data-kind", "video");
-    expect(screen.getByAltText("Reference video")).toHaveAttribute(
-      "src",
-      "https://example.com/reference-video-poster.webp"
-    );
+    const video = item.querySelector("video");
+    expect(video).toHaveAttribute("src", "https://example.com/reference-video.mp4");
+    expect(video).toHaveAttribute("poster", "https://example.com/reference-video-poster.webp");
+    expect(video).toHaveAttribute("aria-label", "Reference video");
     expect(Number(item.getAttribute("data-width"))).toBe(275);
     expect(Number(item.getAttribute("data-height"))).toBeCloseTo(154.69, 2);
   });

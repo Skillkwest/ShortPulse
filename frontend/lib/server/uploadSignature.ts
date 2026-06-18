@@ -250,7 +250,7 @@ export const detectAudioMimeType = (buffer: Buffer): string | null => {
 };
 
 export const normalizeSupportedMimeType = (value: string | null | undefined): string => {
-  const normalized = value?.trim().toLowerCase() ?? "";
+  const normalized = value?.split(";")[0]?.trim().toLowerCase() ?? "";
   if (!normalized) return "";
   return MIME_ALIAS_TO_CANONICAL[normalized] ?? normalized;
 };

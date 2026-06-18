@@ -146,6 +146,68 @@ describe("voiceChangerSourceAsset upload helpers", () => {
     );
   });
 
+  it("normalizes recorded audio/webm codec parameters before staging", async () => {
+    fetchWithAuthMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          target: {
+            storagePath: "user-1/voice-changer/source-audio/recorded.webm",
+            uploadToken: "token-1",
+            mimeType: "audio/webm",
+            name: "recorded.webm",
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          source: {
+            storagePath: "user-1/voice-changer/source-audio/recorded.webm",
+            previewUrl: "https://signed.example/recorded.webm",
+            mimeType: "audio/webm",
+            name: "recorded.webm",
+            size: 4,
+          },
+        }),
+      });
+
+    const file = new File(["webm"], "recorded.webm", { type: "audio/webm;codecs=opus" });
+    await uploadVoiceChangerSourceFile({ file, kind: "audio" });
+
+    expect(fetchWithAuthMock).toHaveBeenNthCalledWith(
+      1,
+      "/api/media/prepare-voice-changer-source-upload",
+      expect.objectContaining({
+        body: JSON.stringify({
+          sourceKind: "audio",
+          sourceMimeType: "audio/webm",
+          sourceName: "recorded.webm",
+        }),
+      })
+    );
+    expect(uploadToSignedUrlMock).toHaveBeenCalledWith(
+      "user-1/voice-changer/source-audio/recorded.webm",
+      "token-1",
+      file,
+      expect.objectContaining({
+        contentType: "audio/webm",
+      })
+    );
+    expect(fetchWithAuthMock).toHaveBeenNthCalledWith(
+      2,
+      "/api/media/stage-voice-changer-source",
+      expect.objectContaining({
+        body: JSON.stringify({
+          sourceKind: "audio",
+          sourceMimeType: "audio/webm",
+          sourceName: "recorded.webm",
+          sourceStoragePath: "user-1/voice-changer/source-audio/recorded.webm",
+        }),
+      })
+    );
+  });
+
   it("returns the detected audio/webm mime type when a webm file stages through the video adapter", async () => {
     fetchWithAuthMock
       .mockResolvedValueOnce({

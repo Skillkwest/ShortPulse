@@ -209,26 +209,20 @@ describe("GET /api/dashboard/tutorials", () => {
     const res = createMockResponse();
     await handler(req as never, res as never);
 
-    expect(createSignedUrlsMock).toHaveBeenCalledWith(
-      [
-        "tutorial-thumbnail-variants/variant/display.mp4",
-        "tutorial-thumbnail-variants/variant/poster.jpg",
-      ],
-      86400
-    );
+    expect(createSignedUrlsMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       tutorials: [
         expect.objectContaining({
           id: "tutorial-1",
           thumbnailUrl:
-            "https://supabase.example.com/tutorial-thumbnail-variants/variant/display.mp4",
+            "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fvariant%2Fdisplay.mp4",
           thumbnailMediaType: "video",
           thumbnailDisplayStoragePath: "tutorial-thumbnail-variants/variant/display.mp4",
           thumbnailDisplayContentType: "video/mp4",
           thumbnailDisplayMediaType: "video",
           thumbnailPosterUrl:
-            "https://supabase.example.com/tutorial-thumbnail-variants/variant/poster.jpg",
+            "/api/dashboard/tutorial-thumbnail?path=tutorial-thumbnail-variants%2Fvariant%2Fposter.jpg",
           thumbnailPosterStoragePath: "tutorial-thumbnail-variants/variant/poster.jpg",
         }),
       ],

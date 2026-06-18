@@ -9,7 +9,11 @@ import type { IconProps } from "phosphor-react";
 import { FolderSimple, Plus } from "phosphor-react";
 import { AppMessage } from "../../../components/AppMessage";
 import { DashboardQuickActionCard } from "./DashboardQuickActionCard";
-import { DashboardTutorialGrid, type DashboardTutorial } from "./DashboardTutorialGrid";
+import { type DashboardTutorial } from "./DashboardTutorialGrid";
+import { PublicHomeCommunitySection } from "./PublicHomeCommunitySection";
+import { PublicHomeFooter } from "./PublicHomeFooter";
+import { PublicHomeTutorialShowcase } from "./PublicHomeTutorialShowcase";
+import { PublicHomeVideoGallery } from "./PublicHomeVideoGallery";
 
 export type DashboardAnnouncement = {
   id: string;
@@ -64,10 +68,12 @@ export function AuthenticatedDashboardView({
   return (
     <>
       <section className="dashboard-hero minimal-hero">
-        <div className="hero-primary">
-          <div className="hero-copy">
+        <div className="hero-primary authenticated-home-hero-primary">
+          <div className="authenticated-home-hero-bg" aria-hidden="true" />
+          <div className="hero-copy authenticated-home-hero-copy">
+            <p className="eyebrow tiny authenticated-home-kicker">ShortPulse dashboard</p>
             <h1>
-              Welcome back, <span>{firstName}</span>
+              Welcome back, <span>{firstName}</span>.
             </h1>
             {dashboardAnnouncement ? (
               <AppMessage
@@ -92,7 +98,7 @@ export function AuthenticatedDashboardView({
             />
           </div>
 
-          <div className="hero-quick-row">
+          <div className="hero-quick-row authenticated-home-quick-row">
             {hideLegacySections ? (
               <>
                 <DashboardQuickActionCard
@@ -162,20 +168,11 @@ export function AuthenticatedDashboardView({
         </div>
       </section>
 
-      {dashboardTutorials.length > 0 ? (
-        <section
-          className="dashboard-tutorials-section"
-          aria-labelledby="dashboard-tutorials-heading"
-        >
-          <div className="dashboard-section-header">
-            <div>
-              <p className="eyebrow tiny">Tutorial hub</p>
-              <h2 id="dashboard-tutorials-heading">Start with a guided walkthrough</h2>
-            </div>
-          </div>
-          <DashboardTutorialGrid tutorials={dashboardTutorials} launchHref="/ai-studio" />
-        </section>
-      ) : null}
+      <PublicHomeTutorialShowcase tutorials={dashboardTutorials} launchHref="/ai-studio" />
+
+      <PublicHomeCommunitySection createProjectHref="/ai-studio" />
+
+      <PublicHomeVideoGallery loginHref="/profile?section=account" signupHref="/ai-studio" />
 
       {!hideLegacySections ? (
         <section className="tools-section" aria-labelledby="tools-heading">
@@ -229,6 +226,12 @@ export function AuthenticatedDashboardView({
           ShortPulse keeps your performance data and media private to your account.
         </div>
       ) : null}
+
+      <PublicHomeFooter
+        createProjectHref="/ai-studio"
+        footerLoginHref="/profile?section=account"
+        footerPricingHref="/profile?section=subscription"
+      />
     </>
   );
 }

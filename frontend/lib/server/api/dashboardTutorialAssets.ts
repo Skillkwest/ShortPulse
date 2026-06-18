@@ -7,38 +7,59 @@ import sharp from "sharp";
 import type { getSupabaseAdmin } from "./supabaseAdmin";
 import { extractVideoPosterBuffer, extractVideoPreviewVariantBuffer } from "../videoPosterVariant";
 import dashboardTutorialThumbnailProfile from "./dashboardTutorialThumbnailProfile.json";
+import {
+  DASHBOARD_TUTORIAL_THUMBNAIL_BUCKET,
+  DASHBOARD_TUTORIAL_THUMBNAIL_SIGNED_URL_TTL_SECONDS,
+  DASHBOARD_TUTORIAL_THUMBNAIL_STORAGE_PREFIX,
+  DASHBOARD_TUTORIAL_THUMBNAIL_VARIANT_STORAGE_PREFIX,
+  isDashboardTutorialThumbnailObjectStoragePath,
+  isDashboardTutorialThumbnailStoragePath,
+  normalizeDashboardTutorialThumbnailContentType,
+  resolveDashboardTutorialThumbnailMediaType,
+  type DashboardTutorialThumbnailContentType,
+  type DashboardTutorialThumbnailDisplayContentType,
+} from "./dashboardTutorialThumbnailShared";
+
+export {
+  DASHBOARD_TUTORIAL_THUMBNAIL_BUCKET,
+  DASHBOARD_TUTORIAL_THUMBNAIL_MIME_TYPES,
+  DASHBOARD_TUTORIAL_THUMBNAIL_SIGNED_URL_TTL_SECONDS,
+  DASHBOARD_TUTORIAL_THUMBNAIL_STORAGE_PREFIX,
+  DASHBOARD_TUTORIAL_THUMBNAIL_VARIANT_STORAGE_PREFIX,
+  isDashboardTutorialThumbnailObjectStoragePath,
+  isDashboardTutorialThumbnailStoragePath,
+  isDashboardTutorialThumbnailVariantStoragePath,
+  normalizeDashboardTutorialThumbnailContentType,
+  resolveDashboardTutorialThumbnailMediaType,
+} from "./dashboardTutorialThumbnailShared";
+export type {
+  DashboardTutorialThumbnailContentType,
+  DashboardTutorialThumbnailDisplayContentType,
+} from "./dashboardTutorialThumbnailShared";
 
 type SupabaseAdminClient = ReturnType<typeof getSupabaseAdmin>;
 
-export const DASHBOARD_TUTORIAL_THUMBNAIL_BUCKET = "dashboard_tutorial_thumbnails";
-export const DASHBOARD_TUTORIAL_THUMBNAIL_STORAGE_PREFIX = "tutorial-thumbnails";
-export const DASHBOARD_TUTORIAL_THUMBNAIL_VARIANT_STORAGE_PREFIX = "tutorial-thumbnail-variants";
 export const DASHBOARD_TUTORIAL_THUMBNAIL_MAX_BYTES = 50 * 1024 * 1024;
 export const DASHBOARD_TUTORIAL_THUMBNAIL_DISPLAY_MAX_BYTES =
   dashboardTutorialThumbnailProfile.motionDisplayMaxBytes;
-export const DASHBOARD_TUTORIAL_THUMBNAIL_SIGNED_URL_TTL_SECONDS = 24 * 60 * 60;
 export const DASHBOARD_TUTORIAL_THUMBNAIL_STILL_DISPLAY_MAX_DIMENSION =
   dashboardTutorialThumbnailProfile.stillDisplayMaxDimension;
 export const DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_DISPLAY_SCALE_FILTER = `scale=${dashboardTutorialThumbnailProfile.motionDisplayMaxDimension}:-2:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2`;
 export const DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_DISPLAY_CRF =
   dashboardTutorialThumbnailProfile.motionDisplayCrf;
-
-export const DASHBOARD_TUTORIAL_THUMBNAIL_MIME_TYPES = [
-  "image/gif",
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "video/mp4",
-  "video/quicktime",
-  "video/webm",
-] as const;
-
-export type DashboardTutorialThumbnailContentType =
-  (typeof DASHBOARD_TUTORIAL_THUMBNAIL_MIME_TYPES)[number];
-export type DashboardTutorialThumbnailDisplayContentType =
-  | "image/jpeg"
-  | "image/webp"
-  | "video/mp4";
+export const DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_DISPLAY_FPS =
+  dashboardTutorialThumbnailProfile.motionDisplayFps;
+export const DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_DISPLAY_PROFILE =
+  dashboardTutorialThumbnailProfile.motionDisplayProfile;
+export const DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_DISPLAY_PRESET =
+  dashboardTutorialThumbnailProfile.motionDisplayPreset;
+export const DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_DISPLAY_MAX_RATE =
+  dashboardTutorialThumbnailProfile.motionDisplayMaxRate;
+export const DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_DISPLAY_BUF_SIZE =
+  dashboardTutorialThumbnailProfile.motionDisplayBufSize;
+export const DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_POSTER_FILTER = `thumbnail,scale=${dashboardTutorialThumbnailProfile.motionPosterMaxDimension}:-2:force_original_aspect_ratio=decrease`;
+export const DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_POSTER_JPEG_QUALITY =
+  dashboardTutorialThumbnailProfile.motionPosterJpegQuality;
 
 export type DashboardTutorialPreparedThumbnailUpload = {
   storagePath: string;
@@ -85,7 +106,6 @@ const MIME_TYPE_TO_EXTENSION: Record<DashboardTutorialThumbnailContentType, stri
   "video/webm": "webm",
 };
 
-const ALLOWED_MIME_TYPES = new Set<string>(DASHBOARD_TUTORIAL_THUMBNAIL_MIME_TYPES);
 const STORAGE_SETUP_DETAILS =
   "Apply sql/migrations/154_add_dashboard_tutorial_thumbnail_uploads.sql in this environment.";
 
@@ -93,14 +113,6 @@ const asPositiveSafeInteger = (value: unknown): number | null => {
   const numeric = typeof value === "number" ? value : Number(value);
   if (!Number.isSafeInteger(numeric) || numeric <= 0) return null;
   return numeric;
-};
-
-const normalizeMimeType = (value: unknown): DashboardTutorialThumbnailContentType | null => {
-  if (typeof value !== "string") return null;
-  const normalized = value.trim().toLowerCase();
-  return ALLOWED_MIME_TYPES.has(normalized)
-    ? (normalized as DashboardTutorialThumbnailContentType)
-    : null;
 };
 
 const isMissingBucketStorageError = (error: unknown): boolean => {
@@ -130,9 +142,6 @@ const throwStorageOperationError = (error: unknown, fallback: string): never => 
       : "";
   throw new Error(message || fallback);
 };
-
-const resolveMediaType = (mimeType: DashboardTutorialThumbnailContentType): "image" | "video" =>
-  mimeType.startsWith("video/") ? "video" : "image";
 
 const startsWithBytes = (bytes: Uint8Array, signature: number[]): boolean =>
   signature.every((byte, index) => bytes[index] === byte);
@@ -180,46 +189,6 @@ const isCompatibleDetectedMimeType = ({
   );
 };
 
-export const isDashboardTutorialThumbnailStoragePath = (value: string): boolean => {
-  if (!value || value.length > 500) return false;
-  if (!value.startsWith(`${DASHBOARD_TUTORIAL_THUMBNAIL_STORAGE_PREFIX}/`)) return false;
-  if (
-    value.startsWith("/") ||
-    value.includes("//") ||
-    value.includes("..") ||
-    value.includes("\\")
-  ) {
-    return false;
-  }
-  return true;
-};
-
-export const isDashboardTutorialThumbnailVariantStoragePath = (value: string): boolean => {
-  if (!value || value.length > 500) return false;
-  if (!value.startsWith(`${DASHBOARD_TUTORIAL_THUMBNAIL_VARIANT_STORAGE_PREFIX}/`)) return false;
-  if (
-    value.startsWith("/") ||
-    value.includes("//") ||
-    value.includes("..") ||
-    value.includes("\\")
-  ) {
-    return false;
-  }
-  return true;
-};
-
-export const isDashboardTutorialThumbnailObjectStoragePath = (value: string): boolean =>
-  isDashboardTutorialThumbnailStoragePath(value) ||
-  isDashboardTutorialThumbnailVariantStoragePath(value);
-
-export const normalizeDashboardTutorialThumbnailContentType = (
-  value: unknown
-): DashboardTutorialThumbnailContentType | null => normalizeMimeType(value);
-
-export const resolveDashboardTutorialThumbnailMediaType = (
-  mimeType: DashboardTutorialThumbnailContentType
-): "image" | "video" => resolveMediaType(mimeType);
-
 const validateDeclaredUpload = ({
   sourceMimeType,
   sourceSize,
@@ -227,7 +196,7 @@ const validateDeclaredUpload = ({
   sourceMimeType: unknown;
   sourceSize: unknown;
 }): DashboardTutorialThumbnailContentType => {
-  const mimeType = normalizeMimeType(sourceMimeType);
+  const mimeType = normalizeDashboardTutorialThumbnailContentType(sourceMimeType);
   if (!mimeType) {
     throw new DashboardTutorialAssetError(
       400,
@@ -301,12 +270,19 @@ const createMotionDisplayDerivatives = async ({
       scaleFilter: DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_DISPLAY_SCALE_FILTER,
       previewSeconds: null,
       crf: DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_DISPLAY_CRF,
+      fps: DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_DISPLAY_FPS,
+      profile: DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_DISPLAY_PROFILE,
+      preset: DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_DISPLAY_PRESET,
+      maxRate: DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_DISPLAY_MAX_RATE,
+      bufSize: DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_DISPLAY_BUF_SIZE,
       outputBasename: "display.mp4",
     }),
     extractVideoPosterBuffer({
       videoBuffer: sourceBuffer,
       videoMimeType: mimeType,
       filename: storagePath,
+      posterFilter: DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_POSTER_FILTER,
+      jpegQuality: DASHBOARD_TUTORIAL_THUMBNAIL_MOTION_POSTER_JPEG_QUALITY,
     }),
   ]);
 
@@ -382,7 +358,7 @@ export const prepareDashboardTutorialThumbnailUpload = async (
     storagePath: signedUploadTarget.path,
     uploadToken: signedUploadTarget.token,
     mimeType,
-    mediaType: resolveMediaType(mimeType),
+    mediaType: resolveDashboardTutorialThumbnailMediaType(mimeType),
     maxBytes: DASHBOARD_TUTORIAL_THUMBNAIL_MAX_BYTES,
   };
 };

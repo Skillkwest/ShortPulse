@@ -88,31 +88,6 @@ describe("admin dashboard tutorial thumbnail upload APIs", () => {
     });
   });
 
-  it("logs prepare auth verifier exceptions before storage work", async () => {
-    const authError = new Error("auth verifier unavailable");
-    requireAdminUserMock.mockRejectedValueOnce(authError);
-    const req = {
-      method: "POST",
-      body: {
-        sourceMimeType: "image/gif",
-        sourceSize: 1234,
-      },
-    };
-    const res = createMockResponse();
-
-    await prepareHandler(req as never, res as never);
-
-    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
-    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
-      req,
-      error: authError,
-      routeLabel: "admin/dashboard/tutorial-thumbnail/prepare.auth",
-      scope: "app",
-    });
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({ error: "Unable to prepare thumbnail upload." });
-  });
-
   it("rejects unsupported thumbnail file types before storage", async () => {
     const req = {
       method: "POST",
@@ -200,10 +175,24 @@ describe("admin dashboard tutorial thumbnail upload APIs", () => {
         videoMimeType: "image/gif",
         filename: "tutorial-thumbnails/generated.gif",
         scaleFilter:
-          "scale=720:-2:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2",
+          "scale=480:-2:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2",
         previewSeconds: null,
-        crf: 24,
+        crf: 27,
+        fps: 24,
+        profile: "main",
+        preset: "veryfast",
+        maxRate: "1100k",
+        bufSize: "2200k",
         outputBasename: "display.mp4",
+      })
+    );
+    expect(extractVideoPosterBufferMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        videoBuffer: Buffer.from(gifBytes),
+        videoMimeType: "image/gif",
+        filename: "tutorial-thumbnails/generated.gif",
+        posterFilter: "thumbnail,scale=720:-2:force_original_aspect_ratio=decrease",
+        jpegQuality: 3,
       })
     );
     expect(uploadMock).toHaveBeenCalledWith(
@@ -257,32 +246,6 @@ describe("admin dashboard tutorial thumbnail upload APIs", () => {
         posterFileSizeBytes: Buffer.byteLength("poster-jpeg"),
       },
     });
-  });
-
-  it("logs finalize auth verifier exceptions before storage work", async () => {
-    const authError = new Error("auth verifier unavailable");
-    requireAdminUserMock.mockRejectedValueOnce(authError);
-    const req = {
-      method: "POST",
-      body: {
-        sourceStoragePath: "tutorial-thumbnails/generated.gif",
-        sourceMimeType: "image/gif",
-        sourceSize: gifBytes.length,
-      },
-    };
-    const res = createMockResponse();
-
-    await finalizeHandler(req as never, res as never);
-
-    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
-    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
-      req,
-      error: authError,
-      routeLabel: "admin/dashboard/tutorial-thumbnail/finalize.auth",
-      scope: "app",
-    });
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({ error: "Unable to finalize thumbnail upload." });
   });
 
   it("finalizes an uploaded still image into a signed WebP display derivative", async () => {

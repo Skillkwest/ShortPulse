@@ -1,7 +1,14 @@
 {
   "stillDisplayMaxDimension": 720,
-  "stillDisplayWebpQuality": 82,
-  "motionDisplayMaxDimension": 720,
-  "motionDisplayCrf": 24,
-  "motionDisplayMaxBytes": 15728640
+  "stillDisplayWebpQuality": 80,
+  "motionDisplayMaxDimension": 480,
+  "motionDisplayFps": 24,
+  "motionDisplayProfile": "main",
+  "motionDisplayPreset": "veryfast",
+  "motionDisplayCrf": 27,
+  "motionDisplayMaxRate": "1100k",
+  "motionDisplayBufSize": "2200k",
+  "motionPosterMaxDimension": 720,
+  "motionPosterJpegQuality": 3,
+  "motionDisplayMaxBytes": 5242880
 }

@@ -36,11 +36,14 @@ vi.mock("next/link", () => ({
     children: ReactNode;
     href: string;
     prefetch?: boolean;
-  } & Record<string, unknown>) => (
-    <a href={href} {...rest}>
-      {children}
-    </a>
-  ),
+  } & Record<string, unknown>) => {
+    void _prefetch;
+    return (
+      <a href={href} {...rest}>
+        {children}
+      </a>
+    );
+  },
 }));
 
 vi.mock("next/image", () => ({
@@ -195,10 +198,7 @@ describe("Dashboard actions", () => {
           json: async () => ({ announcement: null }),
         };
       }
-      if (
-        input === "/api/projects?limit=12&offset=0" ||
-        input === "/api/projects?limit=12&offset=0&previewMode=none"
-      ) {
+      if (input === "/api/projects?limit=12&offset=0&previewMode=none") {
         return {
           ok: true,
           json: async () => ({
@@ -221,10 +221,7 @@ describe("Dashboard actions", () => {
           }),
         };
       }
-      if (
-        input === "/api/projects?limit=12&offset=2" ||
-        input === "/api/projects?limit=12&offset=2&previewMode=none"
-      ) {
+      if (input === "/api/projects?limit=12&offset=2&previewMode=none") {
         return {
           ok: true,
           json: async () => ({
@@ -285,7 +282,35 @@ describe("Dashboard actions", () => {
     });
 
     expect(screen.getByLabelText("ShortPulse logo")).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "ShortPulse home" })).not.toBeInTheDocument();
+    expect(document.querySelector(".app-bar .brand-mark-logo")).not.toHaveAttribute("href");
+  });
+
+  it("falls back to a trimmed full name when profile display name metadata is blank", async () => {
+    useSupabaseSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: {
+        user: {
+          ...appUser,
+          user_metadata: {
+            display_name: "   ",
+            full_name: " Ada Lovelace ",
+          },
+        },
+      },
+      user: {
+        ...appUser,
+        user_metadata: {
+          display_name: "   ",
+          full_name: " Ada Lovelace ",
+        },
+      },
+    });
+
+    render(<DashboardPage />);
+
+    expect(
+      await screen.findByRole("heading", { name: /welcome back, ada\./i })
+    ).toBeInTheDocument();
   });
 
   it("links signed-in dashboard account summary cards to profile account sections", async () => {

@@ -20,6 +20,49 @@ type DashboardTutorialsErrorResponse = {
 
 const DASHBOARD_TUTORIALS_CACHE_CONTROL =
   "public, max-age=60, s-maxage=300, stale-while-revalidate=3600";
+const DASHBOARD_TUTORIALS_SERVER_CACHE_TTL_MS = 60_000;
+
+let cachedDashboardTutorials: {
+  loadedAt: number;
+  tutorials: DashboardTutorial[];
+} | null = null;
+let dashboardTutorialsReadPromise: Promise<DashboardTutorial[]> | null = null;
+
+const shouldUseDashboardTutorialsServerCache = () => process.env.NODE_ENV !== "test";
+
+const readCachedActiveDashboardTutorials = async (): Promise<DashboardTutorial[]> => {
+  if (!shouldUseDashboardTutorialsServerCache()) {
+    return readActiveDashboardTutorials(getSupabaseAdmin(), undefined, {
+      usePublicDeliveryUrls: true,
+    });
+  }
+
+  const now = Date.now();
+  if (
+    cachedDashboardTutorials &&
+    now - cachedDashboardTutorials.loadedAt < DASHBOARD_TUTORIALS_SERVER_CACHE_TTL_MS
+  ) {
+    return cachedDashboardTutorials.tutorials;
+  }
+
+  if (!dashboardTutorialsReadPromise) {
+    dashboardTutorialsReadPromise = readActiveDashboardTutorials(getSupabaseAdmin(), undefined, {
+      usePublicDeliveryUrls: true,
+    })
+      .then((tutorials) => {
+        cachedDashboardTutorials = {
+          loadedAt: Date.now(),
+          tutorials,
+        };
+        return tutorials;
+      })
+      .finally(() => {
+        dashboardTutorialsReadPromise = null;
+      });
+  }
+
+  return dashboardTutorialsReadPromise;
+};
 
 export default async function handler(
   req: NextApiRequest,
@@ -31,8 +74,7 @@ export default async function handler(
   }
 
   try {
-    const supabaseAdmin = getSupabaseAdmin();
-    const tutorials = await readActiveDashboardTutorials(supabaseAdmin);
+    const tutorials = await readCachedActiveDashboardTutorials();
     res.setHeader("Cache-Control", DASHBOARD_TUTORIALS_CACHE_CONTROL);
     return res.status(200).json({ tutorials });
   } catch (error) {

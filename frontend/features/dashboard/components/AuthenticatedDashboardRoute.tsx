@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
-import { ChartBar, CloudArrowUp, ShieldCheck, Sparkle } from "phosphor-react";
+import { ChartBar, CloudArrowUp, Globe, ShieldCheck, Sparkle } from "phosphor-react";
 import { useCredits } from "../../ai-studio/hooks/useCredits";
 import {
   buildPlanView,
@@ -26,7 +26,7 @@ import { useProjectCreationDialog } from "../../projects/hooks/useProjectCreatio
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { ensureSupabaseQueryClient, signOutSupabaseSession } from "../../../lib/supabaseClient";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
-import { asDashboardTutorials } from "../logic/dashboardTutorialPayload";
+import { readDashboardTutorialsFromPublicEndpoint } from "../logic/dashboardTutorialEndpointClient";
 
 const DEFAULT_PLAN_TIER = "free";
 const DASHBOARD_HIDE_LEGACY_SECTIONS =
@@ -49,6 +49,7 @@ type ProjectNameModalComponent =
 
 type AuthenticatedDashboardRouteProps = {
   billingCatalog: BillingCatalogSnapshot;
+  dashboardTutorials?: DashboardTutorial[];
   user: User;
 };
 
@@ -77,6 +78,17 @@ const asDashboardAnnouncement = (value: unknown): DashboardAnnouncement | null =
     publishedAt: typeof row.publishedAt === "string" ? row.publishedAt : null,
     updatedAt: typeof row.updatedAt === "string" ? row.updatedAt : null,
   };
+};
+
+const getUserDisplayName = (user: User) => {
+  const displayName =
+    typeof user.user_metadata?.display_name === "string"
+      ? user.user_metadata.display_name.trim()
+      : "";
+  const fullName =
+    typeof user.user_metadata?.full_name === "string" ? user.user_metadata.full_name.trim() : "";
+  const email = user.email?.trim() ?? "";
+  return displayName || fullName || email || "Guest";
 };
 
 const dashboardToolCards: DashboardToolCard[] = [
@@ -119,6 +131,7 @@ const loadProjectNameModal = async (): Promise<ProjectNameModalComponent> => {
  */
 export function AuthenticatedDashboardRoute({
   billingCatalog,
+  dashboardTutorials: initialDashboardTutorials = [],
   user,
 }: AuthenticatedDashboardRouteProps) {
   const router = useRouter();
@@ -139,7 +152,8 @@ export function AuthenticatedDashboardRoute({
   const [dashboardAnnouncement, setDashboardAnnouncement] = useState<DashboardAnnouncement | null>(
     null
   );
-  const [dashboardTutorials, setDashboardTutorials] = useState<DashboardTutorial[]>([]);
+  const [dashboardTutorials, setDashboardTutorials] =
+    useState<DashboardTutorial[]>(initialDashboardTutorials);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -165,15 +179,11 @@ export function AuthenticatedDashboardRoute({
     enabled: true,
     fallbackPlanId: planMeta.id,
   });
-  const displayName =
-    (user.user_metadata?.display_name as string | undefined) ??
-    (user.user_metadata?.full_name as string | undefined) ??
-    user.email ??
-    "Guest";
-  const firstName = (displayName || "creator").split(" ")[0];
+  const displayName = getUserDisplayName(user);
+  const firstName = displayName.split(/\s+/)[0] || "creator";
   const initials =
     displayName
-      .split(" ")
+      .split(/\s+/)
       .filter((part) => part.trim().length > 0)
       .map((part) => part[0])
       .join("")
@@ -307,21 +317,14 @@ export function AuthenticatedDashboardRoute({
   }, []);
 
   useEffect(() => {
+    if (dashboardTutorials.length > 0) return undefined;
     let active = true;
 
     const loadDashboardTutorials = async () => {
       try {
-        const response = await fetch("/api/dashboard/tutorials", {
-          method: "GET",
-        });
-        if (!response.ok) {
-          throw new Error("Failed to load dashboard tutorials.");
-        }
-        const payload = (await response.json().catch(() => ({}))) as {
-          tutorials?: unknown;
-        };
+        const tutorials = await readDashboardTutorialsFromPublicEndpoint();
         if (!active) return;
-        setDashboardTutorials(asDashboardTutorials(payload.tutorials));
+        setDashboardTutorials(tutorials);
       } catch {
         if (!active) return;
         setDashboardTutorials([]);
@@ -332,7 +335,7 @@ export function AuthenticatedDashboardRoute({
     return () => {
       active = false;
     };
-  }, []);
+  }, [dashboardTutorials.length]);
 
   const storageUsageValue = useMemo(() => {
     if (usageLoading || quotaLoading) return "…";
@@ -350,6 +353,12 @@ export function AuthenticatedDashboardRoute({
         : `${balanceCents.toLocaleString()} credits`;
 
   const authHeaderCards = [
+    {
+      key: "auth-community",
+      label: "Creator hub",
+      value: "Community",
+      icon: Globe,
+    },
     {
       key: "auth-storage",
       label: "Media Storage",
@@ -397,7 +406,10 @@ export function AuthenticatedDashboardRoute({
 
   return (
     <>
-      <main id="main-content" className="page page-wide dashboard-refresh">
+      <main
+        id="main-content"
+        className="page page-wide dashboard-refresh authenticated-dashboard-page"
+      >
         <DashboardAppBar
           brandHref={null}
           cards={authHeaderCards}

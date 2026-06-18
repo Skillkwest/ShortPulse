@@ -24,6 +24,7 @@ type DashboardTutorialGridProps = {
   enablePlaybackRotation?: boolean;
   initialAutoPlayDelayMs?: number;
   maxSimultaneousVideos?: number;
+  onModalOpenChange?: (isOpen: boolean) => void;
   pauseVideoPlayback?: boolean;
 };
 
@@ -307,6 +308,7 @@ export const DashboardTutorialGrid = memo(function DashboardTutorialGrid({
   enablePlaybackRotation = true,
   initialAutoPlayDelayMs = DASHBOARD_TUTORIAL_INITIAL_AUTOPLAY_DELAY_MS,
   maxSimultaneousVideos = DASHBOARD_TUTORIAL_MAX_SIMULTANEOUS_VIDEOS,
+  onModalOpenChange,
   pauseVideoPlayback = false,
 }: DashboardTutorialGridProps) {
   const [selectedTutorial, setSelectedTutorial] = useState<DashboardTutorial | null>(null);
@@ -323,6 +325,8 @@ export const DashboardTutorialGrid = memo(function DashboardTutorialGrid({
   const [nearViewportVideoStateByIndex, setNearViewportVideoStateByIndex] = useState<
     Map<number, DashboardTutorialVideoViewportState>
   >(() => new Map());
+  const isTutorialModalOpen = selectedTutorial !== null;
+  const shouldPauseVideoPlayback = pauseVideoPlayback || isTutorialModalOpen;
   const tutorialGridSlots = useMemo(
     () =>
       Array.from(
@@ -375,7 +379,7 @@ export const DashboardTutorialGrid = memo(function DashboardTutorialGrid({
   const playbackRotationStep =
     playbackRotation.candidateKey === playableVideoIndexCandidateKey ? playbackRotation.step : 0;
   const playableVideoIndexes = useMemo(() => {
-    if (pauseVideoPlayback) return new Set<number>();
+    if (shouldPauseVideoPlayback) return new Set<number>();
     if (playableVideoIndexCandidates.length <= maxSimultaneousVideos) {
       return new Set(playableVideoIndexCandidates);
     }
@@ -390,9 +394,9 @@ export const DashboardTutorialGrid = memo(function DashboardTutorialGrid({
     );
   }, [
     maxSimultaneousVideos,
-    pauseVideoPlayback,
     playbackRotationStep,
     playableVideoIndexCandidates,
+    shouldPauseVideoPlayback,
   ]);
   const scheduledVideoIndexes = useMemo(() => {
     const nextIndexes = new Set(playableVideoIndexes);
@@ -450,7 +454,7 @@ export const DashboardTutorialGrid = memo(function DashboardTutorialGrid({
   useEffect(() => {
     if (
       !enablePlaybackRotation ||
-      pauseVideoPlayback ||
+      shouldPauseVideoPlayback ||
       !hasInitialAutoPlayDelayElapsed ||
       playableVideoIndexCandidates.length <= maxSimultaneousVideos
     ) {
@@ -478,18 +482,22 @@ export const DashboardTutorialGrid = memo(function DashboardTutorialGrid({
     enablePlaybackRotation,
     hasInitialAutoPlayDelayElapsed,
     maxSimultaneousVideos,
-    pauseVideoPlayback,
     playableVideoIndexCandidateKey,
     playableVideoIndexCandidates.length,
+    shouldPauseVideoPlayback,
   ]);
 
   useEffect(() => {
-    pauseVideoPlaybackRef.current = pauseVideoPlayback;
-  }, [pauseVideoPlayback]);
+    pauseVideoPlaybackRef.current = shouldPauseVideoPlayback;
+  }, [shouldPauseVideoPlayback]);
 
   useEffect(() => {
     scheduledVideoIndexesRef.current = scheduledVideoIndexes;
   }, [scheduledVideoIndexes]);
+
+  useEffect(() => {
+    onModalOpenChange?.(isTutorialModalOpen);
+  }, [isTutorialModalOpen, onModalOpenChange]);
 
   const applyVideoViewportStates = useCallback(
     (updates: DashboardTutorialVideoViewportUpdate[]) => {
@@ -701,7 +709,7 @@ export const DashboardTutorialGrid = memo(function DashboardTutorialGrid({
                     isNearViewport={
                       nearViewportVideoStateByIndex.get(index)?.isNearViewport === true
                     }
-                    isPlaybackPaused={pauseVideoPlayback}
+                    isPlaybackPaused={shouldPauseVideoPlayback}
                     src={tutorial.thumbnailUrl}
                     poster={tutorial.thumbnailPosterUrl}
                   />

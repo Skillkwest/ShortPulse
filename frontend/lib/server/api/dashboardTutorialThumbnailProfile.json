@@ -1,14 +1,14 @@
 {
   "stillDisplayMaxDimension": 720,
   "stillDisplayWebpQuality": 80,
-  "motionDisplayMaxDimension": 360,
-  "motionDisplayFps": 20,
+  "motionDisplayMaxDimension": 480,
+  "motionDisplayFps": 24,
   "motionDisplayProfile": "main",
   "motionDisplayPreset": "veryfast",
-  "motionDisplayCrf": 31,
-  "motionDisplayMaxRate": "600k",
-  "motionDisplayBufSize": "1200k",
-  "motionPosterMaxDimension": 480,
-  "motionPosterJpegQuality": 5,
+  "motionDisplayCrf": 27,
+  "motionDisplayMaxRate": "1100k",
+  "motionDisplayBufSize": "2200k",
+  "motionPosterMaxDimension": 720,
+  "motionPosterJpegQuality": 3,
   "motionDisplayMaxBytes": 5242880
 }

@@ -8,7 +8,6 @@ type PublicHomeFooterProps = {
   createProjectHref: string;
   footerLoginHref: string;
   footerPricingHref: string;
-  onWatchDemo: () => void;
 };
 
 /**
@@ -18,7 +17,6 @@ export function PublicHomeFooter({
   createProjectHref,
   footerLoginHref,
   footerPricingHref,
-  onWatchDemo,
 }: PublicHomeFooterProps) {
   return (
     <footer className="public-home-footer" aria-label="ShortPulse footer">
@@ -53,19 +51,15 @@ export function PublicHomeFooter({
             </Link>
           </div>
           <div>
-            <span>Explore</span>
-            <Link href="#public-home-showcase-heading">Workflows</Link>
-            <button type="button" onClick={onWatchDemo}>
-              Watch Demo
-            </button>
-            <Link href={createProjectHref} prefetch={false}>
-              Join Free
-            </Link>
+            <span>Resources</span>
+            <Link href="/terms">Terms of Service</Link>
+            <Link href="/privacy">Privacy Policy</Link>
+            <Link href="/refund-policy">Refund Policy</Link>
           </div>
         </nav>
 
         <div className="public-home-footer-cta">
-          <span>Built for creators who move before the feed does.</span>
+          <span>Join the community</span>
           <Link href={createProjectHref} className="public-home-footer-button" prefetch={false}>
             Join Free
           </Link>
@@ -73,13 +67,7 @@ export function PublicHomeFooter({
       </div>
 
       <div className="public-home-footer-bottom">
-        <p>&copy; 2026 ShortPulse. Create what the internet stops scrolling for.</p>
-        <div aria-label="ShortPulse platform highlights">
-          <span>Images</span>
-          <span>Video</span>
-          <span>Voice</span>
-          <span>Ads</span>
-        </div>
+        <p>&copy; 2026 ShortPulse.</p>
       </div>
     </footer>
   );

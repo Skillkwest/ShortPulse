@@ -15,17 +15,19 @@ These temporary rules were explicitly set by the user on 2026-06-14 and override
 
 ## Lane Scope
 
-This lane is for aesthetic work on the ShortPulse home page and related signed-out dashboard surface.
+This lane is for aesthetic work on the ShortPulse logged-out home page and related signed-out dashboard surface.
 
 Primary surfaces:
 
-- signed-in `/dashboard` as the logged-in home page
+- public `/` home page
+- logged-out `/dashboard` when it renders the signed-out/public home experience
 
 Off-limits unless Scott explicitly changes the rule:
 
-- `/`
-- logged-out `/dashboard`
-- logged-out homepage components, data, copy, media, and public-home CSS rules
+- production in all capacities
+- production branch, production environment, production validation, and production changes
+- any branch other than `codex/brother-dashboard-aesthetics`
+- signed-in/authenticated `/dashboard` work unless required to preserve shared behavior
 
 Working expectation:
 
@@ -42,6 +44,14 @@ Working expectation:
 - Keep tutorial thumbnails on signed-in `/dashboard`.
 - Preserve the current tutorial thumbnail behavior: clicking a tutorial opens the existing tutorial modal experience and keeps the same launch path behavior.
 - Production remains fully off-limits; all logged-in homepage work stays on `codex/brother-dashboard-aesthetics`.
+
+## Logged-Out Homepage Direction
+
+- Current 2026-06-17 priority from Scott: work on the logged-out version of the home page.
+- Interpret the logged-out home page as the public `/` surface and any signed-out `/dashboard` route surface that renders the public home experience.
+- Production is off-limits in all capacities: never touch production, never apply changes to production, never switch to production, and never use production for validation or branch operations.
+- Only work on branch `codex/brother-dashboard-aesthetics`; do not leave this branch unless Scott explicitly changes the rule.
+- Save memories, artifacts, and instructions for this work under `Scott/`.
 
 ## Current Canonical Homepage Files
 
@@ -136,9 +146,27 @@ Related signed-out dashboard entry:
 ## Footer Direction
 
 - The homepage footer should feel like a cinematic afterglow: ShortPulse logo, one concise positioning line, useful navigation, and a compact `Join Free` conversion card.
-- Avoid fake legal/footer links until real policy pages exist. Prefer real destinations already available on the page: `Launch App`, `Pricing`, `Login`, `Workflows`, `Watch Demo`, and `Join Free`.
+- The footer should include a `Resources` column with regulation links such as `Terms of Service`, `Privacy Policy`, and `Refund Policy`. Do not include `Acceptable Use` in the visible footer unless Scott asks to add it back.
 - Keep the footer dark, glassy, and warm with a subtle coral/orange glow so it feels connected to the hero and orbit sections without competing with them.
 - The main footer glass panel should span the full available homepage width rather than sitting as a capped narrow card. Keep internal padding for readability, but avoid large empty side gutters.
+
+## Gallery Direction
+
+- Add a `Gallery` section below the `JOIN THE COMMUNITY` CTA and above the footer. Keep the gallery title left-aligned and the rounded masonry grid full-width/full-bleed. It currently uses local placeholder images; replace those placeholders with Scott's final uploaded gallery assets later.
+- The `JOIN THE COMMUNITY` section should fade into the gallery instead of ending at a hard fold. Keep the gallery tucked slightly under the community section with a transparent-to-dark gradient at the top.
+- Gallery items should support uploaded video files plus their generation prompts. Videos stay static by default and play silently only on hover/focus. Each card should reveal a prompt preview from the bottom through a tutorial-card-like shadow fade and include a `View Prompt` pill.
+- If a guest clicks `View Prompt`, show a modal that says `You must be logged in to view this prompt` with Login and Sign up actions. Signed-in users can see the full prompt.
+- The gallery is now rendered as video-only. Static image placeholders remain available as local assets, but should not be shown in the public gallery unless Scott asks for them back. The desktop layout should be explicit row-packing, not auto masonry: rows should align by shared height, with two portrait `9:16`-style videos plus one wider `16:9`-style video where possible, and `1:1` videos placed into balanced mixed rows instead of leaving holes.
+- First real gallery test asset added: `frontend/public/dashboard/gallery/seedance-podcast-demo.mp4`, using Scott's Seedance 2 multi-shot podcast realism prompt. It should sit first in the gallery as the live hover-play test card.
+- Second real gallery test asset added: `frontend/public/dashboard/gallery/monster-wall-break-demo.mp4`, using Scott's one-shot monster wall break thriller prompt. Preserve the source portrait aspect ratio (`720x1280`, `9 / 16`) and keep the same hover-play/prompt-reveal behavior as the first gallery video.
+- Third real gallery test asset added: `frontend/public/dashboard/gallery/anime-cat-dance-demo.mp4`, using Scott's high-energy anime desert rave dance prompt. Preserve the source portrait aspect ratio (`496x864`, `31 / 54`) and keep it static until hover/focus like the other gallery videos.
+- Fourth real gallery test asset added: `frontend/public/dashboard/gallery/panda-villa-tour-demo.mp4`, using Scott's panda luxury jungle villa influencer vlog prompt. Preserve the source landscape aspect ratio (`864x496`, `54 / 31`) and keep it static until hover/focus like the other gallery videos.
+- Fifth real gallery test asset added: `frontend/public/dashboard/gallery/forest-bear-encounter-demo.mp4`, using Scott's live-action survival thriller grizzly encounter prompt. Preserve the source landscape aspect ratio (`1280x720`, `16 / 9`) and keep it static until hover/focus like the other gallery videos.
+- Sixth real gallery test asset added: `frontend/public/dashboard/gallery/viking-longship-storm-demo.mp4`, using Scott's grimdark Nordic longship storm prompt. Preserve the source landscape aspect ratio (`864x496`, `54 / 31`) and keep it static until hover/focus like the other gallery videos.
+- Seventh real gallery test asset added: `frontend/public/dashboard/gallery/fufkin-butterfly-meadow-demo.mp4`, using Scott's Pixar-style Fufkin and damaged butterfly meadow prompt. Preserve the source portrait aspect ratio (`496x864`, `31 / 54`) and keep it static until hover/focus like the other gallery videos.
+- Eighth real gallery test asset updated: `frontend/public/dashboard/gallery/luxury-purse-ugc-demo.mp4`, now using Scott's candid beige monogram shoulder bag UGC fashion showcase prompt. Preserve the source square aspect ratio (`640x640`, `1 / 1`) and keep it static until hover/focus like the other gallery videos.
+- Ninth real gallery test asset added: `frontend/public/dashboard/gallery/alpine-ski-pov-demo.mp4`, using Scott's first-person alpine helmet-cam ski action prompt. Preserve the source portrait aspect ratio (`496x864`, `31 / 54`) and keep it static until hover/focus like the other gallery videos.
+- Tenth real gallery test asset added: `frontend/public/dashboard/gallery/moonbound-crossing-demo.mp4`, using Scott's Moonbound Crossing moonlit desert survival prompt. Preserve the source portrait aspect ratio (`496x864`, `31 / 54`) and keep it static until hover/focus like the other gallery videos.
 
 Current implementation audit on 2026-06-15:
 

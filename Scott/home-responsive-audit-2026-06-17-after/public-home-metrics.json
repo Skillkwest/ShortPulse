@@ -1,0 +1,1028 @@
+[
+  {
+    "name": "mobile-320x568",
+    "viewport": {
+      "width": 320,
+      "height": 568
+    },
+    "docWidth": 320,
+    "overflowX": 0,
+    "tutorialFirstRowCount": 3,
+    "galleryRows": [
+      {
+        "width": 320,
+        "height": 469,
+        "display": "grid",
+        "gridTemplateColumns": "156.5px 156.5px",
+        "childCount": 3,
+        "children": [
+          {
+            "left": 0,
+            "top": 1413,
+            "width": 157,
+            "height": 278
+          },
+          {
+            "left": 164,
+            "top": 1413,
+            "width": 157,
+            "height": 278
+          },
+          {
+            "left": 0,
+            "top": 1698,
+            "width": 320,
+            "height": 184
+          }
+        ]
+      },
+      {
+        "width": 320,
+        "height": 460,
+        "display": "grid",
+        "gridTemplateColumns": "156.5px 156.5px",
+        "childCount": 3,
+        "children": [
+          {
+            "left": 0,
+            "top": 1889,
+            "width": 157,
+            "height": 273
+          },
+          {
+            "left": 164,
+            "top": 1889,
+            "width": 157,
+            "height": 273
+          },
+          {
+            "left": 0,
+            "top": 2168,
+            "width": 320,
+            "height": 180
+          }
+        ]
+      },
+      {
+        "width": 320,
+        "height": 627,
+        "display": "grid",
+        "gridTemplateColumns": "156.5px 156.5px",
+        "childCount": 4,
+        "children": [
+          {
+            "left": 0,
+            "top": 2355,
+            "width": 157,
+            "height": 273
+          },
+          {
+            "left": 164,
+            "top": 2355,
+            "width": 157,
+            "height": 273
+          },
+          {
+            "left": 0,
+            "top": 2635,
+            "width": 157,
+            "height": 157
+          },
+          {
+            "left": 0,
+            "top": 2798,
+            "width": 320,
+            "height": 184
+          }
+        ]
+      }
+    ],
+    "overflowers": [
+      {
+        "tag": "VIDEO",
+        "className": "public-home-hero-video",
+        "left": -10,
+        "right": 330,
+        "width": 339
+      },
+      {
+        "tag": "DIV",
+        "className": "public-home-model-track",
+        "left": -79,
+        "right": 1190,
+        "width": 1269
+      },
+      {
+        "tag": "SPAN",
+        "className": "public-home-model-logo",
+        "left": -79,
+        "right": -3,
+        "width": 76
+      },
+      {
+        "tag": "SPAN",
+        "className": "public-home-model-mark model-mark-logo model-mark-kling-logo",
+        "left": -71,
+        "right": -61,
+        "width": 10
+      },
+      {
+        "tag": "SPAN",
+        "className": "",
+        "left": -56,
+        "right": -9,
+        "width": 47
+      },
+      {
+        "tag": "SPAN",
+        "className": "public-home-model-logo",
+        "left": 356,
+        "right": 465,
+        "width": 109
+      },
+      {
+        "tag": "SPAN",
+        "className": "public-home-model-mark model-mark-logo model-mark-google-logo",
+        "left": 364,
+        "right": 374,
+        "width": 10
+      },
+      {
+        "tag": "SPAN",
+        "className": "",
+        "left": 379,
+        "right": 459,
+        "width": 80
+      },
+      {
+        "tag": "SPAN",
+        "className": "public-home-model-logo",
+        "left": 511,
+        "right": 614,
+        "width": 103
+      },
+      {
+        "tag": "SPAN",
+        "className": "public-home-model-mark model-mark-logo model-mark-seedream-logo",
+        "left": 519,
+        "right": 529,
+        "width": 10
+      }
+    ]
+  },
+  {
+    "name": "mobile-375x812",
+    "viewport": {
+      "width": 375,
+      "height": 812
+    },
+    "docWidth": 375,
+    "overflowX": 0,
+    "tutorialFirstRowCount": 3,
+    "galleryRows": [
+      {
+        "width": 375,
+        "height": 549,
+        "display": "grid",
+        "gridTemplateColumns": "184px 184px",
+        "childCount": 3,
+        "children": [
+          {
+            "left": 0,
+            "top": 1435,
+            "width": 184,
+            "height": 327
+          },
+          {
+            "left": 191,
+            "top": 1435,
+            "width": 184,
+            "height": 327
+          },
+          {
+            "left": 0,
+            "top": 1769,
+            "width": 375,
+            "height": 215
+          }
+        ]
+      },
+      {
+        "width": 375,
+        "height": 538,
+        "display": "grid",
+        "gridTemplateColumns": "184px 184px",
+        "childCount": 3,
+        "children": [
+          {
+            "left": 0,
+            "top": 1991,
+            "width": 184,
+            "height": 321
+          },
+          {
+            "left": 191,
+            "top": 1991,
+            "width": 184,
+            "height": 321
+          },
+          {
+            "left": 0,
+            "top": 2319,
+            "width": 375,
+            "height": 211
+          }
+        ]
+      },
+      {
+        "width": 375,
+        "height": 734,
+        "display": "grid",
+        "gridTemplateColumns": "184px 184px",
+        "childCount": 4,
+        "children": [
+          {
+            "left": 0,
+            "top": 2537,
+            "width": 184,
+            "height": 321
+          },
+          {
+            "left": 191,
+            "top": 2537,
+            "width": 184,
+            "height": 321
+          },
+          {
+            "left": 0,
+            "top": 2864,
+            "width": 184,
+            "height": 184
+          },
+          {
+            "left": 0,
+            "top": 3055,
+            "width": 375,
+            "height": 215
+          }
+        ]
+      }
+    ],
+    "overflowers": [
+      {
+        "tag": "VIDEO",
+        "className": "public-home-hero-video",
+        "left": -11,
+        "right": 386,
+        "width": 398
+      },
+      {
+        "tag": "DIV",
+        "className": "public-home-model-track",
+        "left": -94,
+        "right": 1175,
+        "width": 1269
+      },
+      {
+        "tag": "SPAN",
+        "className": "public-home-model-logo",
+        "left": -94,
+        "right": -18,
+        "width": 76
+      },
+      {
+        "tag": "SPAN",
+        "className": "public-home-model-mark model-mark-logo model-mark-kling-logo",
+        "left": -86,
+        "right": -76,
+        "width": 10
+      },
+      {
+        "tag": "SPAN",
+        "className": "",
+        "left": -71,
+        "right": -24,
+        "width": 47
+      },
+      {
+        "tag": "SPAN",
+        "className": "public-home-model-logo",
+        "left": 342,
+        "right": 450,
+        "width": 109
+      },
+      {
+        "tag": "SPAN",
+        "className": "",
+        "left": 365,
+        "right": 444,
+        "width": 80
+      },
+      {
+        "tag": "SPAN",
+        "className": "public-home-model-logo",
+        "left": 496,
+        "right": 599,
+        "width": 103
+      },
+      {
+        "tag": "SPAN",
+        "className": "public-home-model-mark model-mark-logo model-mark-seedream-logo",
+        "left": 504,
+        "right": 514,
+        "width": 10
+      },
+      {
+        "tag": "SPAN",
+        "className": "",
+        "left": 519,
+        "right": 593,
+        "width": 74
+      }
+    ]
+  },
+  {
+    "name": "mobile-430x932",
+    "viewport": {
+      "width": 430,
+      "height": 932
+    },
+    "docWidth": 430,
+    "overflowX": 0,
+    "tutorialFirstRowCount": 3,
+    "galleryRows": [
+      {
+        "width": 430,
+        "height": 630,
+        "display": "grid",
+        "gridTemplateColumns": "211.5px 211.5px",
+        "childCount": 3,
+        "children": [
+          {
+            "left": 0,
+            "top": 1529,
+            "width": 212,
+            "height": 376
+          },
+          {
+            "left": 219,
+            "top": 1529,
+            "width": 212,
+            "height": 376
+          },
+          {
+            "left": 0,
+            "top": 1912,
+            "width": 430,
+            "height": 247
+          }
+        ]
+      },
+      {
+        "width": 430,
+        "height": 617,
+        "display": "grid",
+        "gridTemplateColumns": "211.5px 211.5px",
+        "childCount": 3,
+        "children": [
+          {
+            "left": 0,
+            "top": 2166,
+            "width": 212,
+            "height": 368
+          },
+          {
+            "left": 219,
+            "top": 2166,
+            "width": 212,
+            "height": 368
+          },
+          {
+            "left": 0,
+            "top": 2541,
+            "width": 430,
+            "height": 242
+          }
+        ]
+      },
+      {
+        "width": 430,
+        "height": 841,
+        "display": "grid",
+        "gridTemplateColumns": "211.5px 211.5px",
+        "childCount": 4,
+        "children": [
+          {
+            "left": 0,
+            "top": 2790,
+            "width": 212,
+            "height": 368
+          },
+          {
+            "left": 219,
+            "top": 2790,
+            "width": 212,
+            "height": 368
+          },
+          {
+            "left": 0,
+            "top": 3166,
+            "width": 212,
+            "height": 212
+          },
+          {
+            "left": 0,
+            "top": 3384,
+            "width": 430,
+            "height": 247
+          }
+        ]
+      }
+    ],
+    "overflowers": [
+      {
+        "tag": "VIDEO",
+        "className": "public-home-hero-video",
+        "left": -13,
+        "right": 443,
+        "width": 456
+      },
+      {
+        "tag": "DIV",
+        "className": "public-home-model-track",
+        "left": -90,
+        "right": 1178,
+        "width": 1269
+      },
+      {
+        "tag": "SPAN",
+        "className": "public-home-model-logo",
+        "left": -90,
+        "right": -14,
+        "width": 76
+      },
+      {
+        "tag": "SPAN",
+        "className": "public-home-model-mark model-mark-logo model-mark-kling-logo",
+        "left": -82,
+        "right": -72,
+        "width": 10
+      },
+      {
+        "tag": "SPAN",
+        "className": "",
+        "left": -67,
+        "right": -20,
+        "width": 47
+      },
+      {
+        "tag": "SPAN",
+        "className": "public-home-model-logo",
+        "left": 345,
+        "right": 454,
+        "width": 109
+      },
+      {
+        "tag": "SPAN",
+        "className": "",
+        "left": 368,
+        "right": 448,
+        "width": 80
+      },
+      {
+        "tag": "SPAN",
+        "className": "public-home-model-logo",
+        "left": 500,
+        "right": 603,
+        "width": 103
+      },
+      {
+        "tag": "SPAN",
+        "className": "public-home-model-mark model-mark-logo model-mark-seedream-logo",
+        "left": 508,
+        "right": 518,
+        "width": 10
+      },
+      {
+        "tag": "SPAN",
+        "className": "",
+        "left": 523,
+        "right": 597,
+        "width": 74
+      }
+    ]
+  },
+  {
+    "name": "mobile-landscape-667x375",
+    "viewport": {
+      "width": 667,
+      "height": 375
+    },
+    "docWidth": 667,
+    "overflowX": 0,
+    "tutorialFirstRowCount": 3,
+    "galleryRows": [
+      {
+        "width": 667,
+        "height": 977,
+        "display": "grid",
+        "gridTemplateColumns": "330px 330px",
+        "childCount": 3,
+        "children": [
+          {
+            "left": 0,
+            "top": 1924,
+            "width": 330,
+            "height": 587
+          },
+          {
+            "left": 337,
+            "top": 1924,
+            "width": 330,
+            "height": 587
+          },
+          {
+            "left": 0,
+            "top": 2518,
+            "width": 667,
+            "height": 383
+          }
+        ]
+      },
+      {
+        "width": 667,
+        "height": 957,
+        "display": "grid",
+        "gridTemplateColumns": "330px 330px",
+        "childCount": 3,
+        "children": [
+          {
+            "left": 0,
+            "top": 2908,
+            "width": 330,
+            "height": 575
+          },
+          {
+            "left": 337,
+            "top": 2908,
+            "width": 330,
+            "height": 575
+          },
+          {
+            "left": 0,
+            "top": 3489,
+            "width": 667,
+            "height": 375
+          }
+        ]
+      },
+      {
+        "width": 667,
+        "height": 1302,
+        "display": "grid",
+        "gridTemplateColumns": "330px 330px",
+        "childCount": 4,
+        "children": [
+          {
+            "left": 0,
+            "top": 3872,
+            "width": 330,
+            "height": 575
+          },
+          {
+            "left": 337,
+            "top": 3872,
+            "width": 330,
+            "height": 575
+          },
+          {
+            "left": 0,
+            "top": 4453,
+            "width": 330,
+            "height": 330
+          },
+          {
+            "left": 0,
+            "top": 4790,
+            "width": 667,
+            "height": 383
+          }
+        ]
+      }
+    ],
+    "overflowers": [
+      {
+        "tag": "VIDEO",
+        "className": "public-home-hero-video",
+        "left": -20,
+        "right": 687,
+        "width": 707
+      },
+      {
+        "tag": "DIV",
+        "className": "public-home-model-track",
+        "left": -88,
+        "right": 1181,
+        "width": 1269
+      },
+      {
+        "tag": "SPAN",
+        "className": "public-home-model-logo",
+        "left": -88,
+        "right": -12,
+        "width": 76
+      },
+      {
+        "tag": "SPAN",
+        "className": "public-home-model-mark model-mark-logo model-mark-kling-logo",
+        "left": -80,
+        "right": -70,
+        "width": 10
+      },
+      {
+        "tag": "SPAN",
+        "className": "",
+        "left": -65,
+        "right": -18,
+        "width": 47
+      },
+      {
+        "tag": "SPAN",
+        "className": "public-home-model-logo",
+        "left": 651,
+        "right": 744,
+        "width": 93
+      },
+      {
+        "tag": "SPAN",
+        "className": "public-home-model-mark model-mark-logo model-mark-seedream-logo",
+        "left": 659,
+        "right": 669,
+        "width": 10
+      },
+      {
+        "tag": "SPAN",
+        "className": "",
+        "left": 674,
+        "right": 738,
+        "width": 64
+      },
+      {
+        "tag": "SPAN",
+        "className": "public-home-model-logo",
+        "left": 790,
+        "right": 886,
+        "width": 97
+      },
+      {
+        "tag": "SPAN",
+        "className": "public-home-model-mark model-mark-openai",
+        "left": 798,
+        "right": 807,
+        "width": 10
+      }
+    ]
+  },
+  {
+    "name": "tablet-768x1024",
+    "viewport": {
+      "width": 768,
+      "height": 1024
+    },
+    "docWidth": 768,
+    "overflowX": 0,
+    "tutorialFirstRowCount": 4,
+    "galleryRows": [
+      {
+        "width": 768,
+        "height": 262,
+        "display": "grid",
+        "gridTemplateColumns": "147.328px 150.375px 456.297px",
+        "childCount": 3,
+        "children": [
+          {
+            "left": 0,
+            "top": 1756,
+            "width": 147,
+            "height": 262
+          },
+          {
+            "left": 154,
+            "top": 1756,
+            "width": 150,
+            "height": 262
+          },
+          {
+            "left": 312,
+            "top": 1756,
+            "width": 456,
+            "height": 262
+          }
+        ]
+      },
+      {
+        "width": 768,
+        "height": 258,
+        "display": "grid",
+        "gridTemplateColumns": "147.922px 147.938px 458.141px",
+        "childCount": 3,
+        "children": [
+          {
+            "left": 0,
+            "top": 2025,
+            "width": 148,
+            "height": 258
+          },
+          {
+            "left": 155,
+            "top": 2025,
+            "width": 148,
+            "height": 258
+          },
+          {
+            "left": 310,
+            "top": 2025,
+            "width": 458,
+            "height": 258
+          }
+        ]
+      },
+      {
+        "width": 768,
+        "height": 173,
+        "display": "grid",
+        "gridTemplateColumns": "99.3438px 173.078px 173.078px 301.5px",
+        "childCount": 4,
+        "children": [
+          {
+            "left": 0,
+            "top": 2290,
+            "width": 99,
+            "height": 173
+          },
+          {
+            "left": 106,
+            "top": 2290,
+            "width": 173,
+            "height": 173
+          },
+          {
+            "left": 286,
+            "top": 2290,
+            "width": 173,
+            "height": 173
+          },
+          {
+            "left": 467,
+            "top": 2290,
+            "width": 302,
+            "height": 173
+          }
+        ]
+      }
+    ],
+    "overflowers": [
+      {
+        "tag": "VIDEO",
+        "className": "public-home-hero-video",
+        "left": -23,
+        "right": 791,
+        "width": 814
+      },
+      {
+        "tag": "DIV",
+        "className": "public-home-model-track",
+        "left": -446,
+        "right": 1317,
+        "width": 1763
+      },
+      {
+        "tag": "SPAN",
+        "className": "public-home-model-logo",
+        "left": -446,
+        "right": -326,
+        "width": 120
+      },
+      {
+        "tag": "SPAN",
+        "className": "public-home-model-mark model-mark-logo model-mark-kling-logo",
+        "left": -440,
+        "right": -413,
+        "width": 27
+      },
+      {
+        "tag": "SPAN",
+        "className": "",
+        "left": -404,
+        "right": -332,
+        "width": 72
+      },
+      {
+        "tag": "SPAN",
+        "className": "public-home-model-logo",
+        "left": -280,
+        "right": -119,
+        "width": 161
+      },
+      {
+        "tag": "SPAN",
+        "className": "public-home-model-mark model-mark-logo model-mark-bytedance-logo",
+        "left": -274,
+        "right": -247,
+        "width": 27
+      },
+      {
+        "tag": "SPAN",
+        "className": "",
+        "left": -238,
+        "right": -125,
+        "width": 113
+      },
+      {
+        "tag": "SPAN",
+        "className": "public-home-model-logo",
+        "left": -73,
+        "right": 115,
+        "width": 188
+      },
+      {
+        "tag": "SPAN",
+        "className": "public-home-model-mark model-mark-logo model-mark-google-logo",
+        "left": -67,
+        "right": -40,
+        "width": 27
+      }
+    ]
+  },
+  {
+    "name": "desktop-1440x900",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "docWidth": 1440,
+    "overflowX": 0,
+    "tutorialFirstRowCount": 5,
+    "galleryRows": [
+      {
+        "width": 1440,
+        "height": 495,
+        "display": "grid",
+        "gridTemplateColumns": "278.266px 283.984px 861.75px",
+        "childCount": 3,
+        "children": [
+          {
+            "left": 0,
+            "top": 2014,
+            "width": 278,
+            "height": 495
+          },
+          {
+            "left": 286,
+            "top": 2014,
+            "width": 284,
+            "height": 495
+          },
+          {
+            "left": 578,
+            "top": 2014,
+            "width": 862,
+            "height": 495
+          }
+        ]
+      },
+      {
+        "width": 1440,
+        "height": 487,
+        "display": "grid",
+        "gridTemplateColumns": "279.391px 279.391px 865.203px",
+        "childCount": 3,
+        "children": [
+          {
+            "left": 0,
+            "top": 2517,
+            "width": 279,
+            "height": 487
+          },
+          {
+            "left": 287,
+            "top": 2517,
+            "width": 279,
+            "height": 487
+          },
+          {
+            "left": 575,
+            "top": 2517,
+            "width": 865,
+            "height": 487
+          }
+        ]
+      },
+      {
+        "width": 1440,
+        "height": 328,
+        "display": "grid",
+        "gridTemplateColumns": "188.328px 328.094px 328.078px 571.5px",
+        "childCount": 4,
+        "children": [
+          {
+            "left": 0,
+            "top": 3011,
+            "width": 188,
+            "height": 328
+          },
+          {
+            "left": 196,
+            "top": 3011,
+            "width": 328,
+            "height": 328
+          },
+          {
+            "left": 532,
+            "top": 3011,
+            "width": 328,
+            "height": 328
+          },
+          {
+            "left": 869,
+            "top": 3011,
+            "width": 572,
+            "height": 328
+          }
+        ]
+      }
+    ],
+    "overflowers": [
+      {
+        "tag": "VIDEO",
+        "className": "public-home-hero-video",
+        "left": -43,
+        "right": 1483,
+        "width": 1526
+      },
+      {
+        "tag": "DIV",
+        "className": "public-home-model-track",
+        "left": -343,
+        "right": 1498,
+        "width": 1840
+      },
+      {
+        "tag": "SPAN",
+        "className": "public-home-model-logo",
+        "left": -343,
+        "right": -217,
+        "width": 126
+      },
+      {
+        "tag": "SPAN",
+        "className": "public-home-model-mark model-mark-logo model-mark-kling-logo",
+        "left": -337,
+        "right": -310,
+        "width": 27
+      },
+      {
+        "tag": "SPAN",
+        "className": "",
+        "left": -301,
+        "right": -223,
+        "width": 78
+      },
+      {
+        "tag": "SPAN",
+        "className": "public-home-model-logo",
+        "left": -171,
+        "right": -1,
+        "width": 170
+      },
+      {
+        "tag": "SPAN",
+        "className": "public-home-model-mark model-mark-logo model-mark-bytedance-logo",
+        "left": -165,
+        "right": -138,
+        "width": 27
+      },
+      {
+        "tag": "SPAN",
+        "className": "",
+        "left": -129,
+        "right": -7,
+        "width": 122
+      },
+      {
+        "tag": "SPAN",
+        "className": "public-home-model-logo",
+        "left": 1302,
+        "right": 1452,
+        "width": 150
+      },
+      {
+        "tag": "SPAN",
+        "className": "",
+        "left": 1344,
+        "right": 1446,
+        "width": 102
+      }
+    ]
+  }
+]

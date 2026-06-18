@@ -4,15 +4,16 @@
  */
 import Image from "next/image";
 import Link from "next/link";
-import { useState, type ForwardRefExoticComponent, type RefAttributes } from "react";
+import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import type { IconProps } from "phosphor-react";
 import { FolderSimple, Plus } from "phosphor-react";
 import { AppMessage } from "../../../components/AppMessage";
-import { dashboardHeroDemoTutorial } from "./dashboardHeroDemoTutorial";
 import { DashboardQuickActionCard } from "./DashboardQuickActionCard";
-import { DashboardTutorialGrid, type DashboardTutorial } from "./DashboardTutorialGrid";
-import { DashboardTutorialModal } from "./DashboardTutorialModal";
+import { type DashboardTutorial } from "./DashboardTutorialGrid";
+import { PublicHomeCommunitySection } from "./PublicHomeCommunitySection";
 import { PublicHomeFooter } from "./PublicHomeFooter";
+import { PublicHomeTutorialShowcase } from "./PublicHomeTutorialShowcase";
+import { PublicHomeVideoGallery } from "./PublicHomeVideoGallery";
 
 export type DashboardAnnouncement = {
   id: string;
@@ -64,8 +65,6 @@ export function AuthenticatedDashboardView({
   onCreateProject,
   onOpenProjects,
 }: AuthenticatedDashboardViewProps) {
-  const [selectedFooterDemo, setSelectedFooterDemo] = useState<DashboardTutorial | null>(null);
-
   return (
     <>
       <section className="dashboard-hero minimal-hero">
@@ -169,20 +168,11 @@ export function AuthenticatedDashboardView({
         </div>
       </section>
 
-      {dashboardTutorials.length > 0 ? (
-        <section
-          className="dashboard-tutorials-section"
-          aria-labelledby="public-home-showcase-heading"
-        >
-          <div className="dashboard-section-header">
-            <div>
-              <p className="eyebrow tiny">Tutorial hub</p>
-              <h2 id="public-home-showcase-heading">Start with a guided walkthrough</h2>
-            </div>
-          </div>
-          <DashboardTutorialGrid tutorials={dashboardTutorials} launchHref="/ai-studio" />
-        </section>
-      ) : null}
+      <PublicHomeTutorialShowcase tutorials={dashboardTutorials} launchHref="/ai-studio" />
+
+      <PublicHomeCommunitySection createProjectHref="/ai-studio" />
+
+      <PublicHomeVideoGallery loginHref="/profile?section=account" signupHref="/ai-studio" />
 
       {!hideLegacySections ? (
         <section className="tools-section" aria-labelledby="tools-heading">
@@ -241,16 +231,7 @@ export function AuthenticatedDashboardView({
         createProjectHref="/ai-studio"
         footerLoginHref="/profile?section=account"
         footerPricingHref="/profile?section=subscription"
-        onWatchDemo={() => setSelectedFooterDemo(dashboardHeroDemoTutorial)}
       />
-
-      {selectedFooterDemo ? (
-        <DashboardTutorialModal
-          tutorial={selectedFooterDemo}
-          launchHref="/ai-studio"
-          onClose={() => setSelectedFooterDemo(null)}
-        />
-      ) : null}
     </>
   );
 }

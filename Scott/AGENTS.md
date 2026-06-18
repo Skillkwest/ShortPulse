@@ -4,17 +4,16 @@ This folder contains the dashboard-lane handoff for Scott and Scott's Codex agen
 
 Before doing any setup or edits, read `README.md` in this folder.
 
-Stay inside the dashboard visual/aesthetic lane unless the ShortPulse owner explicitly expands scope:
+Stay inside the logged-out home page visual/aesthetic lane unless the ShortPulse owner explicitly expands scope:
 
-- Signed-in dashboard: signed-in `/dashboard`.
-- Dashboard tutorial thumbnail presentation.
+- Logged-out home page: `/`.
+- Signed-out dashboard/public home route surfaces that render the logged-out home page experience.
+- Public homepage components, data, copy, media, and public-home CSS rules.
 
-Do not edit the logged-out home page or signed-out dashboard unless Scott explicitly changes this rule:
+Do not edit the signed-in dashboard unless Scott explicitly changes this rule:
 
-- Do not edit `/`.
-- Do not edit logged-out `/dashboard`.
-- Do not edit logged-out homepage components, data, copy, media, or public-home CSS rules.
-- Use the logged-out aesthetic only as visual inspiration for the signed-in `/dashboard` surface.
+- Do not edit the authenticated/signed-in `/dashboard` experience unless it is required to avoid breaking shared code touched for the logged-out home page.
+- Keep signed-in behavior intact when working on shared dashboard files.
 
 ## Temporary Owner Rules
 
@@ -32,12 +31,12 @@ Until Scott explicitly says otherwise:
 
 Until Scott explicitly says otherwise:
 
-- The active job is the logged-in version of the home page: the signed-in `/dashboard` experience.
-- Do not change the logged-out version of the home page or signed-out `/dashboard`.
-- Keep the logged-in page practical and usable; remove unnecessary sales elements such as public hero video, scrolling model strip, and acquisition header behavior.
-- Keep the tutorial thumbnails on the logged-in page and preserve the current click/modal/launch behavior.
-- The active job is mobile optimization for the dashboard/homepage lane.
-- The active job is speed, lag, and latency work for the dashboard/homepage lane.
+- The active job is the logged-out version of the home page.
+- Work on the public/logged-out home page experience and its signed-out route surfaces only.
+- Production remains off-limits in all capacities while doing this work.
+- Stay on branch `codex/brother-dashboard-aesthetics` for all work.
+- The active job includes mobile optimization for the logged-out home page when relevant.
+- The active job includes speed, lag, and latency work for the logged-out home page when relevant.
 - Prioritize responsive layout, touch ergonomics, mobile visual polish, and mobile performance.
 - Favor measurable performance improvements and reduced runtime cost while preserving the intended visual direction.
 - Keep all performance memories, artifacts, and instructions under `Scott/`.

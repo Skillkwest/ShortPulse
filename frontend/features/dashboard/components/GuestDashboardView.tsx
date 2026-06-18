@@ -4,10 +4,13 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { DashboardTutorialGrid, type DashboardTutorial } from "./DashboardTutorialGrid";
+import { type DashboardTutorial } from "./DashboardTutorialGrid";
 import { DashboardTutorialModal } from "./DashboardTutorialModal";
 import { dashboardHeroDemoTutorial } from "./dashboardHeroDemoTutorial";
+import { PublicHomeCommunitySection } from "./PublicHomeCommunitySection";
 import { PublicHomeFooter } from "./PublicHomeFooter";
+import { PublicHomeTutorialShowcase } from "./PublicHomeTutorialShowcase";
+import { PublicHomeVideoGallery } from "./PublicHomeVideoGallery";
 import { buildDashboardAuthPath, buildPricingPath } from "../../pricing/paths";
 
 type GuestDashboardViewProps = {
@@ -162,7 +165,9 @@ function useSectionNearViewport<TElement extends Element>({
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        const nextIsNearViewport = Boolean(entry?.isIntersecting);
+        const nextIsNearViewport = Boolean(
+          entry?.isIntersecting && entry.intersectionRatio >= threshold
+        );
         setIsNearViewport((currentIsNearViewport) =>
           currentIsNearViewport === nextIsNearViewport ? currentIsNearViewport : nextIsNearViewport
         );
@@ -250,6 +255,7 @@ export function GuestDashboardView({
 }: GuestDashboardViewProps) {
   const tutorialLaunchHref = buildPricingPath({ intent: "tutorial" });
   const footerLoginHref = buildDashboardAuthPath();
+  const signupHref = buildDashboardAuthPath({ mode: "signup" });
   const footerPricingHref = buildPricingPath();
   const heroVideoRef = useRef<HTMLVideoElement | null>(null);
   const motionLayoutProfile = useHomepageMotionLayoutProfile();
@@ -260,11 +266,13 @@ export function GuestDashboardView({
   const [isOrbitPaintReady, setIsOrbitPaintReady] = useState(false);
   const [heroSourceReadySrc, setHeroSourceReadySrc] = useState<string | null>(null);
   const [selectedHeroDemo, setSelectedHeroDemo] = useState<DashboardTutorial | null>(null);
+  const [isGalleryPromptModalOpen, setIsGalleryPromptModalOpen] = useState(false);
+  const [isTutorialGridModalOpen, setIsTutorialGridModalOpen] = useState(false);
   const { isNearViewport: isHeroNearViewport, sectionRef: heroSectionRef } =
     useSectionNearViewport<HTMLElement>({
       initialNearViewport: false,
       rootMargin: "0px",
-      threshold: 0.01,
+      threshold: 0.35,
     });
   const { isNearViewport: isModelsNearViewport, sectionRef: modelsSectionRef } =
     useSectionNearViewport<HTMLElement>({ rootMargin: "180px 0px", threshold: 0.01 });
@@ -285,7 +293,9 @@ export function GuestDashboardView({
       rootMargin: "120px 0px",
       threshold: 0.01,
     });
-  const shouldPauseTutorialPlayback = !isShowcaseNearViewport;
+  const shouldPauseHomeMedia =
+    selectedHeroDemo !== null || isGalleryPromptModalOpen || isTutorialGridModalOpen;
+  const shouldPauseTutorialPlayback = !isShowcaseNearViewport || shouldPauseHomeMedia;
   const tutorialAutoPlayBudget = Math.min(TUTORIAL_AUTOPLAY_BUDGET, dashboardTutorials.length);
   const tutorialMaxSimultaneousVideos =
     useCompactLayout && useLiteMotion
@@ -310,7 +320,13 @@ export function GuestDashboardView({
       ? LITE_HERO_SOURCE_ATTACH_DELAY_MS
       : HERO_SOURCE_ATTACH_DELAY_MS;
   const isOrbitPaintPending = isOrbitNearViewport && !isOrbitPaintReady;
-  const shouldPauseModelMarquee = !isModelsNearViewport;
+  const shouldPauseModelMarquee = !isModelsNearViewport || shouldPauseHomeMedia;
+  const handleTutorialGridModalOpenChange = useCallback((isOpen: boolean) => {
+    setIsTutorialGridModalOpen(isOpen);
+  }, []);
+  const handleGalleryPromptModalOpenChange = useCallback((isOpen: boolean) => {
+    setIsGalleryPromptModalOpen(isOpen);
+  }, []);
 
   useEffect(() => {
     if (!isHeroNearViewport || !isDocumentVisible || !selectedHeroBackgroundVideoSrc) return;
@@ -345,7 +361,7 @@ export function GuestDashboardView({
     const videoElement = heroVideoRef.current;
     if (!videoElement) return;
 
-    if (!isHeroNearViewport || !isDocumentVisible) {
+    if (!isHeroNearViewport || !isDocumentVisible || shouldPauseHomeMedia) {
       videoElement.pause();
       return;
     }
@@ -361,7 +377,7 @@ export function GuestDashboardView({
     return () => {
       globalThis.cancelAnimationFrame(frameId);
     };
-  }, [isDocumentVisible, isHeroNearViewport]);
+  }, [isDocumentVisible, isHeroNearViewport, shouldPauseHomeMedia]);
 
   return (
     <div className={useLiteMotion ? "public-home-lite-motion" : undefined}>
@@ -385,12 +401,13 @@ export function GuestDashboardView({
           </div>
           <div className="hero-copy public-home-hero-copy">
             <h1>
-              A true all-in-one that <span>actually works.</span>
+              A true all-in-one for <span>AI creators.</span>
             </h1>
           </div>
 
           <h2 id="public-home-models-heading" className="public-home-hero-model-heading">
-            The top AI models built into the worlds most powerful <span>UX</span>
+            The world's best AI models. Thousands of workflows. One simple workspace.{" "}
+            <span className="public-home-hero-model-heading-break">Zero frustration.</span>
           </h2>
 
           <div className="public-home-hero-actions">
@@ -434,55 +451,36 @@ export function GuestDashboardView({
         </div>
       </section>
 
-      {dashboardTutorials.length > 0 ? (
-        <section
-          ref={showcaseSectionRef}
-          className="public-home-showcase"
-          aria-labelledby="public-home-showcase-heading"
-        >
-          <h2 id="public-home-showcase-heading" className="sr-only">
-            Quick-start tutorial workflows
-          </h2>
-          {hasActivatedTutorialShowcase ? (
-            <DashboardTutorialGrid
-              tutorials={dashboardTutorials}
-              launchHref={tutorialLaunchHref}
-              autoPlayBudget={tutorialAutoPlayBudget}
-              enablePlaybackRotation
-              maxSimultaneousVideos={tutorialMaxSimultaneousVideos}
-              pauseVideoPlayback={shouldPauseTutorialPlayback}
-            />
-          ) : (
-            <div className="dashboard-tutorial-grid-placeholder" aria-hidden="true" />
-          )}
-        </section>
-      ) : null}
+      <PublicHomeTutorialShowcase
+        tutorials={dashboardTutorials}
+        launchHref={tutorialLaunchHref}
+        sectionRef={showcaseSectionRef}
+        hasActivatedTutorialShowcase={hasActivatedTutorialShowcase}
+        autoPlayBudget={tutorialAutoPlayBudget}
+        enablePlaybackRotation
+        maxSimultaneousVideos={tutorialMaxSimultaneousVideos}
+        onModalOpenChange={handleTutorialGridModalOpenChange}
+        pauseVideoPlayback={shouldPauseTutorialPlayback}
+      />
 
-      <section
-        ref={orbitSectionRef}
-        className={`public-home-orbit${isOrbitNearViewport ? "" : " public-home-orbit-idle"}${isOrbitPaintPending ? " public-home-orbit-paint-pending" : ""}`}
-        aria-labelledby="public-home-orbit-heading"
-      >
-        <h2 id="public-home-orbit-heading" className="sr-only">
-          Join the ShortPulse community
-        </h2>
+      <PublicHomeCommunitySection
+        createProjectHref={createProjectHref}
+        sectionRef={orbitSectionRef}
+        isNearViewport={isOrbitNearViewport}
+        isPaintPending={isOrbitPaintPending}
+      />
 
-        <div className="public-home-orbit-simple" aria-label="Join the ShortPulse community">
-          <div className="public-home-orbit-simple-mark" aria-hidden="true">
-            <span>JOIN THE</span>
-            <span>COMMUNITY</span>
-          </div>
-          <Link href={createProjectHref} className="public-home-community-button" prefetch={false}>
-            Join Free
-          </Link>
-        </div>
-      </section>
+      <PublicHomeVideoGallery
+        loginHref={footerLoginHref}
+        signupHref={signupHref}
+        lockPromptsForGuests
+        onModalOpenChange={handleGalleryPromptModalOpenChange}
+      />
 
       <PublicHomeFooter
         createProjectHref={createProjectHref}
         footerLoginHref={footerLoginHref}
         footerPricingHref={footerPricingHref}
-        onWatchDemo={() => setSelectedHeroDemo(dashboardHeroDemoTutorial)}
       />
 
       {selectedHeroDemo ? (

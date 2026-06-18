@@ -141,6 +141,7 @@ describe("Dashboard guest route", () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.useRealTimers();
     vi.unstubAllGlobals();
   });
@@ -185,13 +186,13 @@ describe("Dashboard guest route", () => {
     );
 
     expect(
-      screen.getByRole("heading", { name: /a true all-in-one that actually works/i })
+      screen.getByRole("heading", { name: /a true all-in-one for ai creators/i })
     ).toBeInTheDocument();
     expect(document.querySelector(".public-home-hero-video source")).not.toBeInTheDocument();
     expect(document.querySelector(".public-home-hero-bg")).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /the top ai models built into the worlds most powerful ux/i,
+        name: /the world's best AI models\. Thousands of workflows\. One simple workspace\. Zero frustration\./i,
       })
     ).toBeInTheDocument();
     expect(screen.queryByText("Offer 1")).not.toBeInTheDocument();
@@ -313,7 +314,7 @@ describe("Dashboard guest route", () => {
     render(<DashboardPage />);
 
     expect(
-      screen.getByRole("heading", { name: /a true all-in-one that actually works/i })
+      screen.getByRole("heading", { name: /a true all-in-one for ai creators/i })
     ).toBeInTheDocument();
     expect(
       screen.queryByText("Checking your session before your dashboard workspace loads.")
@@ -464,7 +465,17 @@ describe("Dashboard guest route", () => {
             title: "Generate videos with ShortPulse",
             youtubeUrl: "https://www.youtube.com/watch?v=abc123",
             thumbnailUrl: "https://cdn.example.com/tutorial.mp4",
+            thumbnailStoragePath: null,
+            thumbnailFileSizeBytes: null,
+            thumbnailContentType: null,
             thumbnailPosterUrl: "https://cdn.example.com/tutorial-poster.jpg",
+            thumbnailPosterStoragePath: null,
+            thumbnailPosterFileSizeBytes: null,
+            thumbnailPosterContentType: null,
+            thumbnailDisplayStoragePath: null,
+            thumbnailDisplayFileSizeBytes: null,
+            thumbnailDisplayContentType: null,
+            thumbnailDisplayMediaType: null,
             thumbnailMediaType: "video",
             thumbnailAlt: "Tutorial preview",
             displayOrder: 1,
@@ -490,6 +501,69 @@ describe("Dashboard guest route", () => {
     );
     expect(thumbnailVideo).toHaveAttribute("loop");
     expect(thumbnailVideo).toHaveAttribute("poster", "https://cdn.example.com/tutorial-poster.jpg");
+  });
+
+  it("pauses homepage media while the hero demo modal is open", async () => {
+    const playSpy = vi
+      .spyOn(HTMLMediaElement.prototype, "play")
+      .mockImplementation(() => Promise.resolve());
+    const pauseSpy = vi
+      .spyOn(HTMLMediaElement.prototype, "pause")
+      .mockImplementation(() => undefined);
+
+    render(
+      <DashboardPage
+        dashboardTutorials={[
+          {
+            id: "tutorial-1",
+            title: "Generate videos with ShortPulse",
+            youtubeUrl: "https://www.youtube.com/watch?v=abc123",
+            thumbnailUrl: "https://cdn.example.com/tutorial.mp4",
+            thumbnailStoragePath: null,
+            thumbnailFileSizeBytes: null,
+            thumbnailContentType: null,
+            thumbnailPosterUrl: "https://cdn.example.com/tutorial-poster.jpg",
+            thumbnailPosterStoragePath: null,
+            thumbnailPosterFileSizeBytes: null,
+            thumbnailPosterContentType: null,
+            thumbnailDisplayStoragePath: null,
+            thumbnailDisplayFileSizeBytes: null,
+            thumbnailDisplayContentType: null,
+            thumbnailDisplayMediaType: null,
+            thumbnailMediaType: "video",
+            thumbnailAlt: "Tutorial preview",
+            displayOrder: 1,
+            isActive: true,
+            createdAt: "2026-06-11T00:00:00.000Z",
+            updatedAt: "2026-06-11T00:00:00.000Z",
+          },
+        ]}
+      />
+    );
+
+    const tutorialButton = await screen.findByRole("button", {
+      name: "Generate videos with ShortPulse: open tutorial",
+    });
+    const thumbnailVideo = tutorialButton.querySelector("video");
+
+    await waitFor(
+      () => {
+        expect(thumbnailVideo).toHaveAttribute("src", "https://cdn.example.com/tutorial.mp4");
+        expect(thumbnailVideo).toHaveAttribute("preload", "auto");
+      },
+      { timeout: 2500 }
+    );
+
+    playSpy.mockClear();
+    pauseSpy.mockClear();
+    fireEvent.click(screen.getByRole("button", { name: "Watch Demo" }));
+
+    expect(screen.getByRole("dialog", { name: "ShortPulse Demo" })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(pauseSpy).toHaveBeenCalled();
+      expect(thumbnailVideo).not.toHaveAttribute("loop");
+      expect(thumbnailVideo).toHaveAttribute("preload", "none");
+    });
   });
 
   it("keeps compact tutorial thumbnails eligible for playback", async () => {

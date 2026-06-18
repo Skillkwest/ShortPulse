@@ -381,6 +381,46 @@ describe("DashboardTutorialGrid media loading", () => {
     expect(videos[5]).toHaveAttribute("preload", "auto");
   });
 
+  it("pauses thumbnail playback while a tutorial modal is open", async () => {
+    setReducedMotion(false);
+    const onModalOpenChange = vi.fn();
+    const observer = mockDashboardTutorialIntersectionObserver();
+    renderGrid([buildVideoTutorial(1)], { onModalOpenChange });
+
+    await waitFor(() => {
+      expect(observer.observedCount()).toBe(1);
+    });
+
+    observer.emit(() => ({ top: 120, bottom: 360, height: 240 }));
+
+    const video = document.querySelector("video") as HTMLVideoElement;
+    await waitFor(() => {
+      expect(video).toHaveAttribute("src", "https://cdn.example.com/tutorial-1.mp4");
+    });
+    fireEvent.loadedData(video);
+    expect(video).toHaveAttribute("loop");
+    expect(video).toHaveAttribute("preload", "auto");
+
+    fireEvent.click(screen.getByRole("button", { name: "Tutorial 1: open tutorial" }));
+
+    expect(screen.getByRole("dialog", { name: "Tutorial 1" })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(video).not.toHaveAttribute("loop");
+      expect(video).toHaveAttribute("preload", "none");
+    });
+    expect(onModalOpenChange).toHaveBeenLastCalledWith(true);
+
+    await act(async () => {
+      await new Promise((resolve) => {
+        globalThis.setTimeout(resolve, 1700);
+      });
+    });
+
+    await waitFor(() => {
+      expect(video).not.toHaveAttribute("src");
+    });
+  });
+
   it("prioritizes actually visible thumbnails over near offscreen thumbnails", async () => {
     setReducedMotion(false);
     const observer = mockDashboardTutorialIntersectionObserver();

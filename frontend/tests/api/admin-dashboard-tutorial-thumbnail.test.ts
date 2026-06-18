@@ -175,14 +175,14 @@ describe("admin dashboard tutorial thumbnail upload APIs", () => {
         videoMimeType: "image/gif",
         filename: "tutorial-thumbnails/generated.gif",
         scaleFilter:
-          "scale=360:-2:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2",
+          "scale=480:-2:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2",
         previewSeconds: null,
-        crf: 31,
-        fps: 20,
+        crf: 27,
+        fps: 24,
         profile: "main",
         preset: "veryfast",
-        maxRate: "600k",
-        bufSize: "1200k",
+        maxRate: "1100k",
+        bufSize: "2200k",
         outputBasename: "display.mp4",
       })
     );
@@ -191,8 +191,8 @@ describe("admin dashboard tutorial thumbnail upload APIs", () => {
         videoBuffer: Buffer.from(gifBytes),
         videoMimeType: "image/gif",
         filename: "tutorial-thumbnails/generated.gif",
-        posterFilter: "thumbnail,scale=480:-2:force_original_aspect_ratio=decrease",
-        jpegQuality: 5,
+        posterFilter: "thumbnail,scale=720:-2:force_original_aspect_ratio=decrease",
+        jpegQuality: 3,
       })
     );
     expect(uploadMock).toHaveBeenCalledWith(

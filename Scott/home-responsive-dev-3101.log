@@ -1,0 +1,10 @@
+
+> shortflow@1.0.0 dev:next
+> next dev -p 3101
+
+▲ Next.js 16.2.6 (Turbopack)
+- Local:         http://localhost:3101
+- Network:       http://192.168.1.82:3101
+- Environments: .env.local
+✓ Ready in 345ms
+[?25h

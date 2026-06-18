@@ -94,18 +94,6 @@ const getUniqueBaseVariantOptions = (
   return options;
 };
 
-export const buildAdminPricingCustomRowBaseOptions = (
-  model: AdminPricingModelRow,
-  pricingPolicy: ModelPricingPolicyDocument
-): AdminPricingCustomRowBaseOption[] => getUniqueBaseVariantOptions(model, pricingPolicy);
-
-export const canAddAdminPricingCustomRow = (
-  model: AdminPricingModelRow,
-  pricingPolicy: ModelPricingPolicyDocument
-): boolean =>
-  model.pricingAuthority === "shared_policy" &&
-  buildDraftPricingPreviewVariants(model, pricingPolicy).length > 0;
-
 export const buildAdminPricingCustomRowSpecOptions = (
   model: AdminPricingModelRow,
   pricingPolicy: ModelPricingPolicyDocument
@@ -128,53 +116,6 @@ export const buildAdminPricingCustomRowSpecOptions = (
     label: value == null ? "Default input" : value ? "With video input" : "No video input",
   })),
 });
-
-export const buildDefaultAdminPricingCustomRowDraft = ({
-  model,
-  pricingPolicy,
-}: {
-  model: AdminPricingModelRow;
-  pricingPolicy: ModelPricingPolicyDocument;
-}): AdminPricingCustomRowDraft =>
-  buildAllAdminPricingCustomRowDrafts({
-    model,
-    pricingPolicy,
-  })[0] ?? {
-    baseVariantId: getUniqueBaseVariantOptions(model, pricingPolicy)[0]?.value ?? "default",
-    aspect: shouldShowAspectSpecControl(model) ? model.defaultAspect : null,
-    resolution: shouldShowResolutionSpecControl(model) ? (model.defaultResolution ?? null) : null,
-    audio: shouldShowAudioSpecControl(model) ? (model.defaultAudio ?? true) : null,
-    videoInput: shouldExpandVideoInputPricingVariants(model.pricingStrategy) ? false : null,
-  };
-
-const buildAllAdminPricingCustomRowDrafts = ({
-  model,
-  pricingPolicy,
-}: {
-  model: AdminPricingModelRow;
-  pricingPolicy: ModelPricingPolicyDocument;
-}): AdminPricingCustomRowDraft[] => {
-  const baseOptions = getUniqueBaseVariantOptions(model, pricingPolicy);
-  const aspectOptions = getDraftAspectOptions(model);
-  const resolutionOptions = getDraftResolutionOptions(model);
-  const audioOptions = getDraftAudioOptions(model);
-  const videoInputOptions = getDraftVideoInputOptions(model);
-  return baseOptions.flatMap((baseOption) =>
-    aspectOptions.flatMap((aspect) =>
-      resolutionOptions.flatMap((resolution) =>
-        audioOptions.flatMap((audio) =>
-          videoInputOptions.map((videoInput) => ({
-            baseVariantId: baseOption.value,
-            aspect,
-            resolution,
-            audio,
-            videoInput,
-          }))
-        )
-      )
-    )
-  );
-};
 
 const resolveCustomRowVariantId = ({
   model,

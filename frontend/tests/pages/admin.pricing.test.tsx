@@ -368,7 +368,7 @@ describe("Admin pricing page", () => {
     expect(screen.getAllByRole("group", { name: /simulator plan$/i }).length).toBeGreaterThan(0);
   });
 
-  it("lets the admin add a custom pricing variant row without changing the built-in row", () => {
+  it("does not expose the custom pricing variant row add control", () => {
     useAdminPricingControllerMock.mockReturnValue({
       pricingState: buildPricingState(),
       pricingLoading: false,
@@ -380,11 +380,10 @@ describe("Admin pricing page", () => {
     render(<AdminPricingPage />);
 
     fireEvent.click(screen.getAllByRole("button", { name: /FLUX\.2 Lite/i })[0]!);
-    fireEvent.click(screen.getByRole("button", { name: "Add custom variant" }));
 
-    expect(screen.getByText("Custom variant 1")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add custom variant" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Custom variant 1")).not.toBeInTheDocument();
     expect(screen.getAllByText("FLUX.2 Lite").length).toBeGreaterThan(1);
-    expect(screen.getByRole("button", { name: "Save draft live" })).toBeEnabled();
   });
 
   it("saves model policy drafts and preserves the refreshed preview", async () => {

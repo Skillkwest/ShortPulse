@@ -46,9 +46,7 @@ import type { PricingStrategyId } from "../../lib/model-runtime/pricingTypes";
 import {
   buildAdminPricingCustomRowSpec,
   buildAdminPricingCustomRowSpecOptions,
-  buildDefaultAdminPricingCustomRowDraft,
   buildMergedPricingPreviewVariants,
-  canAddAdminPricingCustomRow,
   resolveAdminPricingCustomRowCandidate,
   sortMergedPricingPreviewVariantRows,
   type AdminPricingCustomRowDraft,
@@ -358,53 +356,6 @@ export function PricingModelWorkbookTable({
     [updateCustomRowsDraft]
   );
 
-  const addCustomRow = React.useCallback(
-    (model: AdminPricingModelRow) => {
-      const draft = buildDefaultAdminPricingCustomRowDraft({
-        model,
-        pricingPolicy: effectiveModelPolicyDraft,
-      });
-      const candidate = resolveAdminPricingCustomRowCandidate({
-        model,
-        pricingPolicy: effectiveModelPolicyDraft,
-        draft,
-      });
-      if (!candidate) return;
-      updateCustomRowsDraft((current) => {
-        const existingRows = current.rowsByModel[model.id] ?? [];
-        const customIndex = existingRows.length + 1;
-        const displayRowId = `custom:${model.id}:${Date.now().toString(36)}:${Math.random()
-          .toString(36)
-          .slice(2, 8)}`;
-        return {
-          ...current,
-          rowsByModel: {
-            ...current.rowsByModel,
-            [model.id]: [
-              ...existingRows,
-              {
-                displayRowId,
-                label: `Custom variant ${customIndex}`,
-                variantId: candidate.variantId,
-                spec: buildAdminPricingCustomRowSpec(draft),
-                overrides: {
-                  markupBps: null,
-                  providerUsdOverride: null,
-                  providerUsdPerSecondOverride: null,
-                },
-              },
-            ],
-          },
-        };
-      });
-      setExpandedModelIds((current) => ({
-        ...current,
-        [model.id]: true,
-      }));
-    },
-    [effectiveModelPolicyDraft, updateCustomRowsDraft]
-  );
-
   const updateCustomRowSpecDraft = React.useCallback(
     (
       model: AdminPricingModelRow,
@@ -529,7 +480,6 @@ export function PricingModelWorkbookTable({
             const markupInputValue =
               markupDraftValue ?? String(resolvedModelPolicy.markupBps / 100);
             const canEditSharedPolicy = model.pricingAuthority === "shared_policy";
-            const canAddCustomRow = canAddAdminPricingCustomRow(model, effectiveModelPolicyDraft);
             const customRowSpecOptions = buildAdminPricingCustomRowSpecOptions(
               model,
               effectiveModelPolicyDraft
@@ -788,15 +738,6 @@ export function PricingModelWorkbookTable({
                         <strong>{model.label}</strong>
                       </button>
                       <small>{variantCountLabel}</small>
-                      {canEditSharedPolicy && canAddCustomRow ? (
-                        <button
-                          type="button"
-                          className={styles.pricingModelSecondaryButton}
-                          onClick={() => addCustomRow(model)}
-                        >
-                          Add custom variant
-                        </button>
-                      ) : null}
                     </div>
                   </span>
                   <span className={`${styles.pricingPrimaryCell} ${styles.pricingTypeCell}`}>

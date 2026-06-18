@@ -44,6 +44,22 @@ describe("useCreatePulsePresetPageRuntime", () => {
     });
   });
 
+  it("warms the Pulse built-in catalog while Standard Create is mounted", () => {
+    renderHook(() =>
+      useCreatePulsePresetPageRuntime(
+        createParams({
+          expertCreateMode: "standard",
+          activeCreatePulsePresetId: null,
+          pulseSessionInstanceId: null,
+        })
+      )
+    );
+
+    expect(useCreatePulseBuiltInCatalogMock).toHaveBeenLastCalledWith({
+      enabled: true,
+    });
+  });
+
   it("recovers a restored built-in Pulse snapshot from the active preset id", () => {
     const clearPulseRuntime = vi.fn();
     const clearPulsePrompt = vi.fn();

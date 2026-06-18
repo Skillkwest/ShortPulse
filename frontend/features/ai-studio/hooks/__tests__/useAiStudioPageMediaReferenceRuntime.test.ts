@@ -1630,6 +1630,72 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
     });
   });
 
+  it("preserves storage-backed canvas video render urls when output metadata is stale", async () => {
+    mockedCanvasSessionState = {
+      items: [
+        {
+          id: "canvas-video-storage-stable-1",
+          kind: "video" as const,
+          x: 10,
+          y: 20,
+          z: 1,
+          selected: false,
+          outputId: "output-video-storage-stable-1",
+          sourceSurface: "curated" as const,
+          mediaId: null,
+          videoUrl:
+            "https://signed.shortpulse.test/user-1/generations/videos/storage-stable/full.mp4",
+          videoStoragePath: "user-1/generations/videos/storage-stable/full.mp4",
+          posterUrl:
+            "https://signed.shortpulse.test/user-1/variants/videos/storage-stable/poster.webp",
+          posterStoragePath: "user-1/variants/videos/storage-stable/poster.webp",
+          title: "Storage stable video",
+          durationMs: null,
+          width: 320,
+          height: 180,
+        },
+      ],
+      draftTextEntry: null,
+      textEditSession: null,
+      draftOwnerInstanceId: null,
+      textEditOwnerInstanceId: null,
+      mainCamera: { x: 0, y: 0, zoom: 1 },
+      railCamera: { x: 0, y: 0, zoom: 1 },
+    };
+    const staleOutput = makeOutput({
+      id: "output-video-storage-stable-1",
+      mode: "video",
+      prompt: "Storage stable video",
+      previewStoragePath: "user-1/variants/videos/storage-stable/preview.mp4",
+      previewPosterStoragePath: "user-1/variants/videos/storage-stable/poster.webp",
+      fullStoragePath: "user-1/generations/videos/storage-stable/full.mp4",
+      previewUrl: "https://expired.shortpulse.test/storage-stable-preview.mp4",
+      previewPosterUrl: "https://expired.shortpulse.test/storage-stable-poster.webp",
+      resultUrls: ["https://expired.shortpulse.test/storage-stable-full.mp4"],
+      savedMediaIds: [],
+    });
+
+    renderHook(() =>
+      useAiStudioPageMediaReferenceRuntime({
+        ...defaultParams,
+        getOutputById: (outputId) => (outputId === staleOutput.id ? staleOutput : null),
+        getOutputSnapshot: () => createOutputSnapshot([staleOutput]),
+      })
+    );
+
+    await waitFor(() => {
+      expect(mediaSigningMocks.getSignedMediaUrl).toHaveBeenCalledWith({
+        bucket: "media_library",
+        storagePath: "user-1/generations/videos/storage-stable/full.mp4",
+      });
+      expect(mediaSigningMocks.getSignedMediaUrl).toHaveBeenCalledWith({
+        bucket: "media_library",
+        storagePath: "user-1/variants/videos/storage-stable/poster.webp",
+      });
+    });
+    expect(hydrateCanvasSessionStateMock).not.toHaveBeenCalled();
+  });
+
   it("reconciles restored canvas output ids through generated-output aliases before refreshing media", async () => {
     mockedCanvasSessionState = {
       items: [
@@ -1947,7 +2013,7 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
     });
   });
 
-  it("retries failed canvas video posters through media id authority and preserves posterless video placeholder", async () => {
+  it("retries failed canvas videos through media id authority without clearing existing posters", async () => {
     mockedCanvasSessionState = {
       items: [
         {
@@ -2023,7 +2089,7 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
           expect.objectContaining({
             id: "canvas-video-render-error-1",
             videoUrl: "https://signed.shortpulse.test/video-full.mp4",
-            posterUrl: null,
+            posterUrl: "https://expired.shortpulse.test/canvas-video-poster.webp",
           }),
         ],
       });

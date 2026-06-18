@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -6,6 +7,7 @@ import { MediaLibraryMediaGrid } from "../media-library-modal/MediaLibraryMediaG
 
 const useMediaMasonryVirtualizationMock = vi.fn();
 const useMediaGridVideoBudgetControllerMock = vi.fn();
+const aiStudioModalsStylesheet = readFileSync("styles/ai-studio-modals.css", "utf8");
 
 vi.mock("../../../media-library/hooks/useMediaMasonryVirtualization", () => ({
   useMediaMasonryVirtualization: (...args: unknown[]) => useMediaMasonryVirtualizationMock(...args),
@@ -101,7 +103,7 @@ describe("MediaLibraryMediaGrid", () => {
       expect.objectContaining({
         targetColumnWidth: 220,
         maxColumnCount: undefined,
-        layoutMode: "masonry",
+        layoutMode: "chronological-grid",
       })
     );
     expect(container.querySelector(".media-library-panel-density-grid")).toBeNull();
@@ -115,7 +117,7 @@ describe("MediaLibraryMediaGrid", () => {
       expect.objectContaining({
         targetColumnWidth: 188,
         maxColumnCount: 5,
-        layoutMode: "masonry",
+        layoutMode: "chronological-grid",
       })
     );
     expect(grid).toHaveClass("media-library-panel-density-grid");
@@ -144,6 +146,18 @@ describe("MediaLibraryMediaGrid", () => {
       expect.objectContaining({
         layoutMode: "chronological-grid",
       })
+    );
+  });
+
+  it("keeps the packed grid fallback in row-readable grid flow", () => {
+    expect(aiStudioModalsStylesheet).toMatch(
+      /\.media-library-modal-grid\.media-library-modal-grid-packed\s*{[^}]*display:\s*grid;/s
+    );
+    expect(aiStudioModalsStylesheet).toMatch(
+      /\.media-library-modal-grid\.media-library-modal-grid-packed\s*{[^}]*grid-template-columns:\s*repeat\(/s
+    );
+    expect(aiStudioModalsStylesheet).toMatch(
+      /\.media-library-modal-grid\.media-library-modal-grid-packed\.media-library-modal-grid-virtualized\s*{[^}]*display:\s*block;/s
     );
   });
 

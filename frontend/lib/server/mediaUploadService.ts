@@ -43,16 +43,24 @@ import {
   resolveMediaStorageExtension,
   uploadMediaBufferToStoragePath,
 } from "./mediaIngest";
-import { MediaAudioExtractionInputError, readStoredMediaBuffer } from "./mediaAudioExtraction";
+import {
+  MAX_VOICE_CHANGER_SOURCE_BYTES,
+  MediaAudioExtractionInputError,
+  readStoredMediaBuffer,
+} from "./mediaAudioExtraction";
 import {
   MotionReferenceVideoNormalizationError,
   normalizeMotionReferenceVideoForProvider,
 } from "./motionReferenceVideoNormalization";
+import {
+  normalizeVoiceChangerSourceVideoForProcessing,
+  VoiceChangerSourceVideoNormalizationError,
+} from "./voiceChangerSourceVideoNormalization";
 import { assertUserScopedMediaStoragePath } from "../mediaStoragePath";
 
 const PRIVATE_MEDIA_SOURCE = "private_upload";
 const MAX_UPLOAD_BYTES = MAX_VIDEO_MEDIA_BYTES;
-const MAX_VOICE_CHANGER_VIDEO_STAGE_BYTES = 40 * 1024 * 1024;
+const MAX_VOICE_CHANGER_VIDEO_PROCESSING_BYTES = MAX_VOICE_CHANGER_SOURCE_BYTES;
 const MAX_VOICE_CHANGER_AUDIO_STAGE_BYTES = 100 * 1024 * 1024;
 const MEDIA_DIRECT_UPLOAD_STAGING_ROOT = "upload-staging";
 const MOTION_REFERENCE_VIDEO_STAGING_FOLDER = `${MEDIA_DIRECT_UPLOAD_STAGING_ROOT}/videos/motion-control`;
@@ -1157,8 +1165,7 @@ export const finalizeVoiceChangerSourceUploadForUser = async ({
     safeStoragePath.split("/").filter(Boolean).pop() ||
     `voice-changer-source.${kind === "video" ? "mp4" : "wav"}`;
   const normalizedMimeType = declaredMimeType.trim();
-  const maxBytes =
-    kind === "video" ? MAX_VOICE_CHANGER_VIDEO_STAGE_BYTES : MAX_VOICE_CHANGER_AUDIO_STAGE_BYTES;
+  const maxBytes = kind === "video" ? MAX_UPLOAD_BYTES : MAX_VOICE_CHANGER_AUDIO_STAGE_BYTES;
 
   try {
     const stored = await readStoredMediaBuffer({
@@ -1193,6 +1200,31 @@ export const finalizeVoiceChangerSourceUploadForUser = async ({
             filename: normalizedFilename,
             buffer: stored.buffer,
           });
+
+    if (kind === "video" && stored.size > MAX_VOICE_CHANGER_VIDEO_PROCESSING_BYTES) {
+      const normalizedVideo = await normalizeVoiceChangerSourceVideoForProcessing({
+        buffer: stored.buffer,
+        filename: normalizedFilename,
+        mimeType,
+        maxBytes: MAX_VOICE_CHANGER_VIDEO_PROCESSING_BYTES,
+      });
+      const uploaded = await uploadScopedStorageBuffer({
+        userId,
+        storageFolder: resolveVoiceChangerSourceStorageFolder("video"),
+        filename: normalizedVideo.filename,
+        mimeType: normalizedVideo.mimeType,
+        buffer: normalizedVideo.buffer,
+      });
+      await removeScopedMediaStorageObject(safeStoragePath);
+      return {
+        url: uploaded.signedUrl,
+        path: uploaded.storagePath,
+        size: uploaded.size,
+        mimeType: normalizedVideo.mimeType,
+        name: normalizedVideo.filename,
+      };
+    }
+
     const signedUrl = await createSignedMediaUrl(safeStoragePath);
     return {
       url: signedUrl,
@@ -1208,6 +1240,9 @@ export const finalizeVoiceChangerSourceUploadForUser = async ({
     }
     if (error instanceof MediaAudioExtractionInputError) {
       throw new MediaUploadServiceError(error.statusCode, "Invalid request", error.message);
+    }
+    if (error instanceof VoiceChangerSourceVideoNormalizationError) {
+      throw new MediaUploadServiceError(error.status, error.message, error.details);
     }
     throw new MediaUploadServiceError(
       500,

@@ -329,11 +329,17 @@
 
 .media-library-modal-grid.media-library-modal-grid-packed {
   --media-library-modal-preview-width: 220px;
-  display: block;
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(min(100%, var(--media-library-modal-preview-width)), 1fr)
+  );
+  align-items: start;
+  gap: 1px;
   margin-top: 0;
   padding: 1px 1px 1px;
-  column-width: var(--media-library-modal-preview-width);
-  column-gap: 1px;
+  column-width: auto;
+  column-gap: 0;
 }
 
 .media-library-modal-card {
@@ -405,6 +411,7 @@
 }
 
 .media-library-modal-grid.media-library-modal-grid-packed.media-library-modal-grid-virtualized {
+  display: block;
   column-width: auto;
   column-gap: 0;
   padding: 0;

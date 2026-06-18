@@ -1,11 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type Dispatch,
-  type SetStateAction,
-} from "react";
+import { useCallback, type Dispatch, type SetStateAction } from "react";
 import type { InternalMediaRef } from "../../../lib/media/internalMediaRefs";
 import { StudioOutput, type ToolId } from "../types";
 import { resolvePreviewUrlById } from "../logic/stateParsers";
@@ -19,7 +12,6 @@ import {
 } from "./useAiStudioReferenceSelectionState";
 import { useAiStudioWorkflowSettings } from "./useAiStudioWorkflowSettings";
 import { useAiStudioStateEffects } from "./useAiStudioStateEffects";
-import { useAiStudioOutputCollectionState } from "./useAiStudioOutputCollectionState";
 import { useAiStudioOutputPersistenceEffects } from "./useAiStudioOutputPersistenceEffects";
 import { useAiStudioReferenceGridPreviewState } from "./useAiStudioReferenceGridPreviewState";
 import {
@@ -31,15 +23,11 @@ import {
 import { useAiStudioCreateRuntimePromptState } from "./useAiStudioCreateRuntimePromptState";
 import { useAiStudioStateOutputControllers } from "./useAiStudioStateOutputControllers";
 import { useAiStudioGeneratedOutputMaintenance } from "./useAiStudioGeneratedOutputMaintenance";
-import { useAiStudioRuntimeAuthorityUiState } from "./useAiStudioRuntimeAuthorityUiState";
+import { useAiStudioRuntimeAuthorityState } from "./useAiStudioRuntimeAuthorityState";
 import { useAiStudioStateRuntimeControllers } from "./useAiStudioStateRuntimeControllers";
 import { useAiStudioStateSupportControllers } from "./useAiStudioStateSupportControllers";
 import { useAiStudioWorkflowReloadController } from "./useAiStudioWorkflowReloadController";
 import type { VoiceChangerSource } from "../components/VoiceChangerSourceDropzone";
-import {
-  createEmptyReferenceProjectionState,
-  type ReferenceProjectionState,
-} from "../reference-projections";
 
 export const useAiStudioState = ({
   projectId = null,
@@ -189,65 +177,42 @@ export const useAiStudioState = ({
     projectRouteRequested,
   });
 
-  const baseRuntimeAuthorityKey =
-    projectRouteRequested && !projectId
-      ? "project:pending"
-      : projectId
-        ? `project:${projectId}`
-        : sessionId
-          ? `session:${sessionId}`
-          : "session:pending";
-  const runtimeAuthorityKey = baseRuntimeAuthorityKey;
-  const createModeRuntimeAuthorityKey = `${baseRuntimeAuthorityKey}:create:${expertCreateMode}`;
-  const workspaceRuntimeKey = !projectId && sessionId ? `session:${sessionId}` : null;
-
   const {
+    activeOutputById,
+    activeOutputByIdRef,
+    activeOutputId,
     activeOutputState,
     setActiveOutputState,
     archivedOutputState,
     setArchivedOutputState,
-    activeOutputByIdRef,
     outputs,
     archivedOutputs,
-    activeOutputById,
     setOutputsState,
     setArchivedOutputs,
-    setOutputCollectionsForAuthority,
-  } = useAiStudioOutputCollectionState({
-    authorityKey: runtimeAuthorityKey,
+    baseRuntimeAuthorityKey,
+    beginManualWorkflowReload,
+    createModeRuntimeAuthorityKey,
+    curatedReferenceIds,
+    manualWorkflowReloadRevision,
+    pendingAutoSavesRef,
+    pendingFinalizeRemovalIdsRef,
+    referenceProjectionState,
+    referenceProjectionStateRef,
+    removedFromAllRefsIds,
+    saved,
+    sessionHydrationSigningRevisionRef,
+    setActiveOutputId,
+    setOutputCollectionsForCreateMode,
+    setReferenceProjectionState,
+    setRuntimeUiStateForCreateMode,
+    setSaved,
+    workspaceRuntimeKey,
+  } = useAiStudioRuntimeAuthorityState({
+    expertCreateMode,
+    projectId,
+    projectRouteRequested,
+    sessionId,
   });
-  const [activeOutputId, setActiveOutputId] = useState<string | null>(null);
-  const [referenceProjectionState, setReferenceProjectionState] =
-    useState<ReferenceProjectionState>(createEmptyReferenceProjectionState);
-  const referenceProjectionStateRef = useRef<ReferenceProjectionState>(referenceProjectionState);
-  const curatedReferenceIds = referenceProjectionState.quickSlotIds;
-  const removedFromAllRefsIds = referenceProjectionState.removedFromAllRefsIds;
-  const [saved, setSaved] = useState(false);
-  const pendingAutoSavesRef = useRef<Record<string, unknown>>({});
-  const pendingFinalizeRemovalIdsRef = useRef<Set<string>>(new Set());
-  const sessionHydrationSigningRevisionRef = useRef(0);
-  const [manualWorkflowReloadRevision, setManualWorkflowReloadRevision] = useState(0);
-  const beginManualWorkflowReload = useCallback(() => {
-    setManualWorkflowReloadRevision((revision) => revision + 1);
-  }, []);
-  const { setOutputCollectionsForCreateMode, setRuntimeUiStateForCreateMode } =
-    useAiStudioRuntimeAuthorityUiState({
-      activeOutputId,
-      baseRuntimeAuthorityKey,
-      referenceProjectionState,
-      runtimeAuthorityKey,
-      saved,
-      sessionHydrationSigningRevisionRef,
-      setActiveOutputId,
-      setOutputCollectionsForAuthority,
-      setReferenceProjectionState,
-      setSaved,
-    });
-
-  useEffect(() => {
-    pendingAutoSavesRef.current = {};
-    pendingFinalizeRemovalIdsRef.current = new Set();
-  }, [runtimeAuthorityKey]);
 
   const {
     activeOutput,

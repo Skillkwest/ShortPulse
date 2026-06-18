@@ -349,10 +349,13 @@ export const useAiStudioPageMediaReferenceRuntime = ({
       height,
       imageIndex = 0,
       preferFallbackUrl = false,
+      fallbackPosterUrl = null,
+      preferFallbackPosterUrl = false,
       displayAuthority = null,
     }: {
       output: StudioOutput;
       fallbackUrl?: string | null;
+      fallbackPosterUrl?: string | null;
       outputId?: string | null;
       mediaId?: string | null;
       sourceSurface?: CanvasDropResolution["sourceSurface"];
@@ -360,6 +363,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
       height?: number | null;
       imageIndex?: number;
       preferFallbackUrl?: boolean;
+      preferFallbackPosterUrl?: boolean;
       displayAuthority?: StudioOutputMediaDisplayAuthority | null;
     }): CanvasDropResolution | null => {
       const visualDimensions =
@@ -376,12 +380,17 @@ export const useAiStudioPageMediaReferenceRuntime = ({
         };
       }
       if (output.mode === "audio") {
-        const audioUrl =
-          displayAuthority?.playableMediaUrl ??
-          output.resultUrls?.[0] ??
-          output.previewUrl ??
-          fallbackUrl ??
-          null;
+        const audioUrl = preferFallbackUrl
+          ? (fallbackUrl ??
+            displayAuthority?.playableMediaUrl ??
+            output.resultUrls?.[0] ??
+            output.previewUrl ??
+            null)
+          : (displayAuthority?.playableMediaUrl ??
+            output.resultUrls?.[0] ??
+            output.previewUrl ??
+            fallbackUrl ??
+            null);
         if (!audioUrl) return null;
         const audioStoragePath = resolveCanvasPrimaryStoragePathFromOutput(output);
         return {
@@ -402,12 +411,17 @@ export const useAiStudioPageMediaReferenceRuntime = ({
         };
       }
       if (output.mode === "video") {
-        const videoUrl =
-          displayAuthority?.playableMediaUrl ??
-          output.resultUrls?.[0] ??
-          output.previewUrl ??
-          fallbackUrl ??
-          null;
+        const videoUrl = preferFallbackUrl
+          ? (fallbackUrl ??
+            displayAuthority?.playableMediaUrl ??
+            output.resultUrls?.[0] ??
+            output.previewUrl ??
+            null)
+          : (displayAuthority?.playableMediaUrl ??
+            output.resultUrls?.[0] ??
+            output.previewUrl ??
+            fallbackUrl ??
+            null);
         if (!videoUrl) return null;
         const videoStoragePath = resolveCanvasPrimaryStoragePathFromOutput(output);
         const posterStoragePath = resolveCanvasPosterStoragePathFromOutput(output);
@@ -417,11 +431,19 @@ export const useAiStudioPageMediaReferenceRuntime = ({
           mediaId,
           videoUrl,
           ...(videoStoragePath ? { videoStoragePath } : {}),
-          posterUrl: resolveCanvasPosterUrl(
-            displayAuthority?.posterPreviewUrl,
-            output.previewPosterUrl,
-            fallbackUrl
-          ),
+          posterUrl: preferFallbackPosterUrl
+            ? resolveCanvasPosterUrl(
+                displayAuthority?.posterPreviewUrl,
+                fallbackPosterUrl,
+                output.previewPosterUrl,
+                fallbackUrl
+              )
+            : resolveCanvasPosterUrl(
+                displayAuthority?.posterPreviewUrl,
+                output.previewPosterUrl,
+                fallbackPosterUrl,
+                fallbackUrl
+              ),
           ...(posterStoragePath ? { posterStoragePath } : {}),
           title: (output.prompt || output.previewText || "Canvas video").trim() || null,
           durationMs: output.durationMs ?? null,
@@ -959,12 +981,10 @@ export const useAiStudioPageMediaReferenceRuntime = ({
       itemId,
       outputId,
       resolved,
-      forceVideoPlaceholderWithoutPoster,
     }: {
       itemId: string;
       outputId: string;
       resolved: CanvasDropResolution;
-      forceVideoPlaceholderWithoutPoster?: boolean;
     }): boolean =>
       applyCanvasSessionItemUpdate(itemId, (item) => {
         if (
@@ -996,9 +1016,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
 
         if (item.kind === "video" && resolved.kind === "video") {
           const nextMediaId = resolved.mediaId ?? item.mediaId ?? null;
-          const nextPosterUrl = forceVideoPlaceholderWithoutPoster
-            ? null
-            : (resolved.posterUrl ?? item.posterUrl ?? null);
+          const nextPosterUrl = resolved.posterUrl ?? item.posterUrl ?? null;
           const nextTitle = resolved.title ?? item.title ?? null;
           const nextDurationMs = resolved.durationMs ?? item.durationMs ?? null;
           if (
@@ -1081,7 +1099,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
 
         if (item.kind === "video") {
           const nextVideoUrl = authority.signedFullUrl ?? authority.signedPreviewUrl;
-          const nextPosterUrl = authority.signedPreviewPosterUrl ?? null;
+          const nextPosterUrl = authority.signedPreviewPosterUrl ?? item.posterUrl ?? null;
           if (
             (!nextVideoUrl || nextVideoUrl === item.videoUrl) &&
             nextPosterUrl === (item.posterUrl ?? null)
@@ -1239,8 +1257,11 @@ export const useAiStudioPageMediaReferenceRuntime = ({
                 outputId: resolvedOutputId,
                 mediaId: "mediaId" in currentItem ? (currentItem.mediaId ?? null) : null,
                 fallbackUrl: resolveCanvasMediaFallbackUrl(currentItem),
+                fallbackPosterUrl: currentItem.kind === "video" ? currentItem.posterUrl : null,
                 width: "width" in currentItem ? currentItem.width : undefined,
                 height: "height" in currentItem ? currentItem.height : undefined,
+                preferFallbackPosterUrl:
+                  currentItem.kind === "video" && !displayAuthority.posterPreviewUrl,
                 displayAuthority,
               });
               if (resolved) {
@@ -1248,8 +1269,6 @@ export const useAiStudioPageMediaReferenceRuntime = ({
                   itemId: currentItem.id,
                   outputId: resolvedOutputId,
                   resolved,
-                  forceVideoPlaceholderWithoutPoster:
-                    currentItem.kind === "video" && !displayAuthority.posterPreviewUrl,
                 });
                 if (applied) return;
               }
@@ -1421,14 +1440,18 @@ export const useAiStudioPageMediaReferenceRuntime = ({
         })[0] ?? item.outputId;
       const output = getOutputById(resolvedOutputId);
       if (!output) return item;
+      const { mediaStoragePath, posterStoragePath } = resolveCanvasSceneItemStoragePaths(item);
       const resolved = resolveCanvasResolutionFromOutput({
         output,
         outputId: resolvedOutputId,
         mediaId: "mediaId" in item ? (item.mediaId ?? null) : null,
         fallbackUrl:
           item.kind === "image" ? item.src : item.kind === "audio" ? item.audioUrl : item.videoUrl,
+        fallbackPosterUrl: item.kind === "video" ? item.posterUrl : null,
         width: "width" in item ? item.width : undefined,
         height: "height" in item ? item.height : undefined,
+        preferFallbackUrl: Boolean(mediaStoragePath),
+        preferFallbackPosterUrl: Boolean(posterStoragePath),
       });
       if (!resolved || resolved.kind !== item.kind) return item;
       if (item.kind === "image" && resolved.kind === "image") {

@@ -92,6 +92,43 @@ describe("useCreatePulsePresetPanelPreference", () => {
     expect(readSupabaseUserId).not.toHaveBeenCalled();
   });
 
+  it("hydrates local Pulse preferences before auth resolution completes", async () => {
+    const userIdDeferred = createDeferred<string | null>();
+    window.localStorage.setItem(
+      CREATE_PULSE_SAVED_PRESETS_STORAGE_KEY,
+      JSON.stringify([
+        {
+          presetId: "pulse_custom",
+          label: "Local Pulse",
+          systemInstructions: "Use local fallback immediately.",
+          createdAt: null,
+        },
+      ])
+    );
+
+    vi.mocked(readSupabaseUserId).mockReturnValue(userIdDeferred.promise);
+    vi.mocked(ensureSupabaseQueryClient).mockReturnValue({ from: vi.fn() } as never);
+
+    const { result } = renderHook(() => useCreatePulsePresetPanelPreference());
+
+    await waitFor(() => {
+      expect(result.current.savedPresets).toEqual([
+        buildExpectedSavedPulse({
+          presetId: "pulse_custom",
+          label: "Local Pulse",
+          systemInstructions: "Use local fallback immediately.",
+          createdAt: null,
+        }),
+      ]);
+    });
+
+    expect(result.current.loading).toBe(true);
+    userIdDeferred.resolve(null);
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+  });
+
   it("keeps Pulse preference loading out of the page root and inside Pulse surfaces", () => {
     const pageSource = readFileSync(`${process.cwd()}/pages/ai-studio.tsx`, "utf8");
     const pulsePageRuntimeSource = readFileSync(

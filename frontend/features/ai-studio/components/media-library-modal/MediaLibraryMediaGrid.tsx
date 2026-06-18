@@ -108,7 +108,6 @@ export function MediaLibraryMediaGrid({
   const { aspectRatioById, cacheAspectRatio } = useMediaAspectRatioCache(activeMedia);
   const targetColumnWidth = densityConfig?.targetColumnWidth ?? 220;
   const cardPreviewLongEdgePx = densityConfig?.previewLongEdgePx ?? 320;
-  const shouldPreserveChronologicalVisualOrder = surface !== "media-library-modal";
 
   const {
     containerRef: virtualContainerRef,
@@ -143,7 +142,7 @@ export function MediaLibraryMediaGrid({
     gap: 1,
     overscanPx: 920,
     minItemsToVirtualize: 24,
-    layoutMode: shouldPreserveChronologicalVisualOrder ? "chronological-grid" : "masonry",
+    layoutMode: "chronological-grid",
   });
 
   const videoBudgetItems = React.useMemo(

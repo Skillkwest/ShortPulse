@@ -510,6 +510,7 @@ export const useCreatePulsePresetPanelPreference = ({
     persistValue,
   } = useUserPreferenceSync<CreatePulsePresetPreferenceStorageValue>({
     enabled,
+    readLocalBeforeUserResolution: true,
     defaultValue: DEFAULT_CREATE_PULSE_PRESET_PREFERENCE_STORAGE_VALUE,
     normalizeValue: normalizePreferenceValue,
     readLocal: readLocalPreferenceValue,

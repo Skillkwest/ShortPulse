@@ -141,7 +141,6 @@ export function MediaLibraryAllItemsGrid({
   const { aspectRatioById, cacheAspectRatio } = useMediaAspectRatioCache(mediaRows);
   const targetColumnWidth = densityConfig?.targetColumnWidth ?? 188;
   const cardPreviewLongEdgePx = densityConfig?.previewLongEdgePx ?? 320;
-  const shouldPreserveChronologicalVisualOrder = surface !== "media-library-modal";
   const {
     signedPosterUrlById: signedPosterUrlByIdFromHook,
     signedVideoUrlById: signedVideoUrlByIdFromHook,
@@ -236,7 +235,7 @@ export function MediaLibraryAllItemsGrid({
     gap: 1,
     overscanPx: 920,
     minItemsToVirtualize: 24,
-    layoutMode: shouldPreserveChronologicalVisualOrder ? "chronological-grid" : "masonry",
+    layoutMode: "chronological-grid",
   });
 
   const gridStyle = React.useMemo<React.CSSProperties | undefined>(() => {

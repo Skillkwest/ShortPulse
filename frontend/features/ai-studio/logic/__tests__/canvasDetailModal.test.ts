@@ -46,8 +46,17 @@ describe("canvasDetailModal", () => {
           previewUrl: "https://cdn.shortpulse.test/canvas-image.png",
           fullUrl: "https://cdn.shortpulse.test/canvas-image.png",
         }),
+        presentation: expect.objectContaining({
+          title: "Canvas image",
+          topBarItems: expect.arrayContaining([
+            expect.objectContaining({
+              label: "Image",
+            }),
+          ]),
+        }),
       })
     );
+    expect(detailItem?.media).not.toHaveProperty("promptText");
   });
 
   it("returns null for text canvas items", () => {

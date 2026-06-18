@@ -6,6 +6,7 @@ import { useCallback } from "react";
 import { useAiStudioEditExpertPanelProps } from "./useAiStudioEditExpertPanelProps";
 import { useAiStudioVideoPanelProps } from "./useAiStudioVideoPanelProps";
 import { resolveReferenceTransferUrl } from "../utils/dragDrop";
+import type { VideoUploadResult } from "../utils/videoUpload";
 import type { AiStudioPageBaseRuntime } from "./useAiStudioPageBaseRuntime";
 import type { useAiStudioWorkspaceActions } from "./useAiStudioWorkspaceActions";
 import type { useAiStudioGenerationController } from "./useAiStudioGenerationController";
@@ -131,6 +132,18 @@ export const useAiStudioEditVideoPanelRuntimes = ({
     },
     [base]
   );
+  const handleRecordedMotionVideoReady = useCallback(
+    async (upload: VideoUploadResult, sourceFile: File) => {
+      void base.ingestReferenceFiles([sourceFile], "filePicker").then((results) => {
+        const outputId = results[0]?.outputId ?? null;
+        if (outputId) {
+          base.setActiveOutputId(outputId);
+        }
+      });
+      await base.stageMotionVideoSelection({ videoUrl: upload.url });
+    },
+    [base]
+  );
   const videoPanelProps = useAiStudioVideoPanelProps({
     aspect: base.aspect,
     model: base.model,
@@ -183,6 +196,7 @@ export const useAiStudioEditVideoPanelRuntimes = ({
     setKlingElements: base.setKlingElements,
     motionReferenceVideoUrl: base.motionReferenceVideoUrl,
     stageMotionVideoSelection: base.stageMotionVideoSelection,
+    onRecordedMotionVideoReady: handleRecordedMotionVideoReady,
     clearMotionVideoSelection: base.clearMotionVideoSelection,
     motionReferenceVideoPending: base.motionReferenceVideoPending,
     motionReferenceVideoError: base.motionReferenceVideoError,

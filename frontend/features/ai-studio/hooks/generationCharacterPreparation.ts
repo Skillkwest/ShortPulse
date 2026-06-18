@@ -3,7 +3,7 @@ import {
   resolveGenerationStartDecision,
 } from "../logic/generationStartPolicy";
 import { shouldCheckPromptAtGenerationStart } from "../logic/editPromptPolicy";
-import type { StudioMode, ToolId } from "../types";
+import type { StudioMode, ToolId, VideoReferenceMode } from "../types";
 import {
   runCharacterModePreflight,
   type CharacterModeFallbackSummary,
@@ -27,6 +27,7 @@ type RunGenerationCharacterPreparationArgs<TBundle, TFallbackCode extends string
   tool: ToolId | null;
   mode: StudioMode;
   effectiveModelId: string | null;
+  videoReferenceMode?: VideoReferenceMode | null;
   promptForGuardrails: string;
   promptForCharacterComposition: string;
   isCharacterModeEnabledForTool: boolean;
@@ -62,6 +63,7 @@ export const runGenerationCharacterPreparation = async <TBundle, TFallbackCode e
   tool,
   mode,
   effectiveModelId,
+  videoReferenceMode = null,
   promptForGuardrails,
   promptForCharacterComposition,
   isCharacterModeEnabledForTool,
@@ -89,6 +91,7 @@ export const runGenerationCharacterPreparation = async <TBundle, TFallbackCode e
     checkPrompt: shouldCheckPromptAtGenerationStart({
       tool,
       modelId: effectiveModelId,
+      videoReferenceMode,
     }),
   });
   if (!startDecision.allow) {

@@ -99,4 +99,40 @@ describe("resolveExpertEditSubmissionDispatch", () => {
       },
     });
   });
+
+  it("passes Expert Edit restore-only secondary refs into regenerate options", () => {
+    expect(
+      resolveExpertEditSubmissionDispatch({
+        editSubmitIntent: "standard",
+        hasSubmissionHandler: true,
+        hasSelectedLayerMask: false,
+        flattenedUrl: "blob:flatten-1",
+        inpaintMaskUrl: null,
+        referenceInputs: ["blob:flatten-1"],
+        expertEditReferences: {
+          version: 1,
+          maxSecondarySlotCount: 10,
+          primaryReferenceInputIndex: 0,
+          secondarySlots: [],
+          restoreSecondarySlots: [{ slotIndex: 1, sourceUrl: "blob:secondary-local" }],
+        },
+      })
+    ).toEqual({
+      status: "ready",
+      referenceInputs: ["blob:flatten-1"],
+      options: {
+        modelIdOverride: undefined,
+        referenceInputsMode: "replace",
+        referenceInputsLimit: 11,
+        expertEditReferences: {
+          version: 1,
+          maxSecondarySlotCount: 10,
+          primaryReferenceInputIndex: 0,
+          secondarySlots: [],
+          restoreSecondarySlots: [{ slotIndex: 1, sourceUrl: "blob:secondary-local" }],
+        },
+        expertEditRestoreImageInputs: ["blob:secondary-local"],
+      },
+    });
+  });
 });

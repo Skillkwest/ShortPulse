@@ -3,7 +3,7 @@
  * Source notes: docs/planning/evidence/ai-studio-expert-edit/2026-03-04-model-capability-notes.md
  */
 import { getModelPromptPolicy } from "../../../lib/model-runtime/modelCatalog";
-import type { ToolId } from "../types";
+import type { ToolId, VideoReferenceMode } from "../types";
 
 export type EditPromptRequirement = "required" | "optional" | "unknown";
 export const BRIA_BACKGROUND_REMOVE_MODEL_ID = "fal-ai/bria/background/remove";
@@ -29,10 +29,15 @@ export const shouldRequirePromptForEditModel = (modelId: string | null | undefin
 export const shouldCheckPromptAtGenerationStart = ({
   tool,
   modelId,
+  videoReferenceMode,
 }: {
   tool: ToolId | null;
   modelId: string | null | undefined;
+  videoReferenceMode?: VideoReferenceMode | null;
 }): boolean => {
+  if ((tool === "video" || tool === "kling") && videoReferenceMode) {
+    return videoReferenceMode !== "motion" && videoReferenceMode !== "lip-sync";
+  }
   if (tool === "edit" || tool === "image") {
     return shouldRequirePromptForEditModel(modelId);
   }

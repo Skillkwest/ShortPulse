@@ -4,6 +4,7 @@
  */
 import { reportAppError } from "../../../../lib/appErrorReporter";
 import { addBreadcrumb } from "../../../../lib/clientBreadcrumbs";
+import type { InternalMediaRef } from "../../../../lib/media/internalMediaRefs";
 import type { InpaintSubmissionOverride } from "../../logic/inpaintSubmission";
 import {
   registerInternalMediaRefForUrl,
@@ -26,12 +27,21 @@ type PrepareSubmissionReferenceInputsParams = {
   modelId: string;
   tool: ToolId | null;
   imageInputs: string[];
+  restoreOnlyImageInputs?: string[];
   inpaintOverride?: InpaintSubmissionOverride | null;
   timeoutMessage: string;
 };
 
+export type PreparedSubmissionReferenceInput = {
+  originalUrl: string;
+  preparedUrl: string;
+  internalMediaRef: InternalMediaRef | null;
+};
+
 type PrepareSubmissionReferenceInputsResult = {
   preparedImageInputs: string[];
+  preparedImageInputRefs: PreparedSubmissionReferenceInput[];
+  preparedRestoreOnlyImageInputs: PreparedSubmissionReferenceInput[];
   preparedInpaintOverride: InpaintSubmissionOverride | null;
 };
 
@@ -40,6 +50,7 @@ export const prepareSubmissionReferenceInputs = async ({
   modelId,
   tool,
   imageInputs,
+  restoreOnlyImageInputs = [],
   inpaintOverride = null,
   timeoutMessage,
 }: PrepareSubmissionReferenceInputsParams): Promise<PrepareSubmissionReferenceInputsResult> => {
@@ -49,7 +60,7 @@ export const prepareSubmissionReferenceInputs = async ({
   ) => resolveInternalMediaRefForUrl(preparedUrl) ?? resolveInternalMediaRefForUrl(originalUrl);
   const shouldPrepareStandardReferences = !inpaintOverride;
   const preflightTimeoutBudget = resolvePrepareReferenceTimeoutBudget({
-    imageInputs,
+    imageInputs: [...imageInputs, ...restoreOnlyImageInputs],
     inpaintOverride,
   });
   const emitPreflightStage = (
@@ -92,29 +103,47 @@ export const prepareSubmissionReferenceInputs = async ({
       timeoutMs: preflightTimeoutBudget.timeoutMs,
       timeoutMessage,
       run: async (abortSignal) => {
-        const preparedReferences = shouldPrepareStandardReferences
-          ? (
-              await Promise.all(
-                imageInputs.map(async (url, index) => {
-                  const normalized = await prepareImageUrlForSubmission(url, {
-                    abortSignal,
-                    onStage: (event) => {
-                      emitPreflightStage(event, "reference", index);
-                    },
-                  });
-                  const internalMediaRef = resolvePreparedInternalMediaRef(normalized, url);
-                  if (normalized && internalMediaRef) {
-                    registerInternalMediaRefForUrl(normalized, internalMediaRef);
-                  }
-                  return normalized ?? null;
-                })
-              )
-            ).filter((url): url is string => Boolean(url))
+        const prepareReferenceList = async (
+          urls: readonly string[],
+          inputIndexOffset = 0
+        ): Promise<PreparedSubmissionReferenceInput[]> =>
+          (
+            await Promise.all(
+              urls.map(async (url, index) => {
+                const normalized = await prepareImageUrlForSubmission(url, {
+                  abortSignal,
+                  onStage: (event) => {
+                    emitPreflightStage(event, "reference", inputIndexOffset + index);
+                  },
+                });
+                const internalMediaRef = resolvePreparedInternalMediaRef(normalized, url);
+                if (normalized && internalMediaRef) {
+                  registerInternalMediaRefForUrl(normalized, internalMediaRef);
+                }
+                return normalized
+                  ? {
+                      originalUrl: url,
+                      preparedUrl: normalized,
+                      internalMediaRef,
+                    }
+                  : null;
+              })
+            )
+          ).filter((item): item is PreparedSubmissionReferenceInput => Boolean(item));
+
+        const preparedReferenceInputs = shouldPrepareStandardReferences
+          ? await prepareReferenceList(imageInputs)
           : [];
+        const preparedRestoreOnlyImageInputs =
+          shouldPrepareStandardReferences && restoreOnlyImageInputs.length > 0
+            ? await prepareReferenceList(restoreOnlyImageInputs, imageInputs.length)
+            : [];
 
         if (!inpaintOverride) {
           return {
-            preparedImageInputs: preparedReferences,
+            preparedImageInputs: preparedReferenceInputs.map((item) => item.preparedUrl),
+            preparedImageInputRefs: preparedReferenceInputs,
+            preparedRestoreOnlyImageInputs,
             preparedInpaintOverride: null,
           };
         }
@@ -144,7 +173,9 @@ export const prepareSubmissionReferenceInputs = async ({
           ]);
 
         return {
-          preparedImageInputs: preparedReferences,
+          preparedImageInputs: [],
+          preparedImageInputRefs: [],
+          preparedRestoreOnlyImageInputs: [],
           preparedInpaintOverride: {
             modelId: inpaintOverride.modelId ?? null,
             baseImageInput: preparedBaseImageInput ?? "",

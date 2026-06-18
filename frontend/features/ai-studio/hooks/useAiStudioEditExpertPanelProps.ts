@@ -190,6 +190,7 @@ export const useAiStudioEditExpertPanelProps = ({
           submissionPromptOverride: options?.submissionPromptOverride,
           referenceInputsLimit: options?.referenceInputsLimit,
           expertEditReferences: options?.expertEditReferences,
+          expertEditRestoreImageInputs: options?.expertEditRestoreImageInputs,
           ...(options?.referenceInputsMode
             ? { referenceInputsMode: options.referenceInputsMode }
             : {}),

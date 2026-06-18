@@ -19,6 +19,7 @@ import type {
   VideoReferenceMode,
   WorkflowReloadConfig,
   WorkflowReloadExpertEditReferences,
+  WorkflowReloadExpertEditRestoreSlot,
   WorkflowReloadPanelKind,
   WorkflowReloadVideoReferences,
 } from "../../types";
@@ -93,6 +94,12 @@ type BuildSubmissionWorkflowReloadSnapshotParams = {
   klingElements?: Array<Record<string, unknown>>;
 };
 
+export type PreparedWorkflowReloadReferenceInput = {
+  originalUrl: string;
+  preparedUrl: string;
+  internalMediaRef?: InternalMediaRef | null;
+};
+
 const MAX_VIDEO_RESTORE_MEDIA_SLOTS = 16;
 
 const asTrimmedString = (value: unknown): string | null => {
@@ -112,6 +119,89 @@ const resolveReloadInternalMediaRef = (
   sourceUrl: string | null | undefined,
   explicitRef?: InternalMediaRef | null
 ): InternalMediaRef | null => explicitRef ?? resolveInternalMediaRefForUrl(sourceUrl);
+
+const findPreparedReferenceInput = (
+  sourceUrl: string,
+  preparedInputs: readonly PreparedWorkflowReloadReferenceInput[]
+): PreparedWorkflowReloadReferenceInput | null => {
+  const normalizedSourceUrl = asTrimmedString(sourceUrl);
+  if (!normalizedSourceUrl) return null;
+  return (
+    preparedInputs.find((item) => {
+      const originalUrl = asTrimmedString(item.originalUrl);
+      const preparedUrl = asTrimmedString(item.preparedUrl);
+      return originalUrl === normalizedSourceUrl || preparedUrl === normalizedSourceUrl;
+    }) ?? null
+  );
+};
+
+const resolvePreparedReferenceInternalMediaRef = (
+  preparedInput: PreparedWorkflowReloadReferenceInput | null | undefined,
+  fallbackUrl: string | null | undefined,
+  explicitRef?: InternalMediaRef | null
+): InternalMediaRef | null =>
+  explicitRef ??
+  preparedInput?.internalMediaRef ??
+  resolveReloadInternalMediaRef(preparedInput?.preparedUrl ?? fallbackUrl);
+
+export const reconcileExpertEditWorkflowReloadReferences = ({
+  expertEditReferences,
+  preparedReferenceInputs,
+  preparedRestoreOnlyReferenceInputs,
+}: {
+  expertEditReferences?: WorkflowReloadExpertEditReferences | null;
+  preparedReferenceInputs?: readonly PreparedWorkflowReloadReferenceInput[];
+  preparedRestoreOnlyReferenceInputs?: readonly PreparedWorkflowReloadReferenceInput[];
+}): WorkflowReloadExpertEditReferences | null => {
+  if (!expertEditReferences) return null;
+  const referenceInputs = preparedReferenceInputs ?? [];
+  const restoreInputs = preparedRestoreOnlyReferenceInputs ?? [];
+  const secondarySlots = expertEditReferences.secondarySlots
+    .map((slot) => {
+      const preparedInput = referenceInputs[slot.referenceInputIndex] ?? null;
+      const internalMediaRef = resolvePreparedReferenceInternalMediaRef(
+        preparedInput,
+        preparedInput?.preparedUrl,
+        slot.internalMediaRef
+      );
+      return {
+        slotIndex: slot.slotIndex,
+        referenceInputIndex: slot.referenceInputIndex,
+        ...(internalMediaRef ? { internalMediaRef } : {}),
+      };
+    })
+    .sort((left, right) => left.slotIndex - right.slotIndex);
+  const restoreSecondarySlots = (expertEditReferences.restoreSecondarySlots ?? [])
+    .map((slot): WorkflowReloadExpertEditRestoreSlot | null => {
+      const sourceUrl = asTrimmedString(slot.sourceUrl);
+      if (!sourceUrl) return null;
+      const preparedInput =
+        findPreparedReferenceInput(sourceUrl, referenceInputs) ??
+        findPreparedReferenceInput(sourceUrl, restoreInputs);
+      const preparedUrl = asTrimmedString(preparedInput?.preparedUrl) ?? sourceUrl;
+      const internalMediaRef = resolvePreparedReferenceInternalMediaRef(
+        preparedInput,
+        preparedUrl,
+        slot.internalMediaRef
+      );
+      if (!shouldKeepReloadMediaUrl(preparedUrl, internalMediaRef)) return null;
+      return {
+        slotIndex: slot.slotIndex,
+        sourceUrl: preparedUrl,
+        ...(internalMediaRef ? { internalMediaRef } : {}),
+      };
+    })
+    .filter((slot): slot is WorkflowReloadExpertEditRestoreSlot => Boolean(slot))
+    .sort((left, right) => left.slotIndex - right.slotIndex);
+  if (secondarySlots.length === 0 && restoreSecondarySlots.length === 0) return null;
+  return {
+    version: 1,
+    maxSecondarySlotCount: expertEditReferences.maxSecondarySlotCount,
+    primaryReferenceInputIndex: expertEditReferences.primaryReferenceInputIndex,
+    secondarySlots,
+    ...(restoreSecondarySlots.length > 0 ? { restoreSecondarySlots } : {}),
+  };
+};
 
 const buildVideoFrameSlot = (
   sourceUrl: string | null | undefined,

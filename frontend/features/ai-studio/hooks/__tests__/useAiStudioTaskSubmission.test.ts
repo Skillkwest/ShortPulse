@@ -2991,6 +2991,112 @@ describe("useAiStudioTaskSubmission", () => {
     expect(outputs[0]?.generationReplay).toBeUndefined();
   });
 
+  it("prepares Expert Edit restore-only secondary refs for workflow reload metadata", async () => {
+    let outputs: StudioOutput[] = [];
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const updateOutputById = createStatefulUpdateOutputById({
+      get: () => outputs,
+      set: (next) => {
+        outputs = next;
+      },
+    });
+    const startPollingTask = vi.fn();
+    const ensureGenerationRecord = vi.fn(async () => null);
+
+    vi.mocked(resolveSubmissionHandlerRoute).mockReturnValueOnce("image");
+    prepareImageUrlForSubmissionMock
+      .mockResolvedValueOnce("https://cdn.test/prepared-primary.png")
+      .mockResolvedValueOnce("https://cdn.test/prepared-secondary.png");
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "1:1",
+        mode: "image",
+        model: "fal-ai/bytedance/seedream/v4.5/edit",
+        prompt: "",
+        selectedTool: "edit",
+        imageResolution: "model_default",
+        videoDurationSeconds: 8,
+        videoResolution: "720p",
+        videoGenerateAudio: false,
+        videoReferenceMode: "standard",
+        videoReferenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "blur, distort, and low quality",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        beginPanelGeneration: vi.fn(),
+        endPanelGeneration: vi.fn(),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 8,
+        notifyGenerationFailure,
+        updateOutputById,
+        startPollingTask,
+        ensureGenerationRecord,
+      })
+    );
+
+    await act(async () => {
+      await result.current("Refine the scene", ["blob:primary"], {
+        modeOverride: "image",
+        selectedToolOverride: "edit",
+        modelIdOverride: "fal-ai/bytedance/seedream/v4.5/edit",
+        expertEditReferences: {
+          version: 1,
+          maxSecondarySlotCount: 10,
+          primaryReferenceInputIndex: 0,
+          secondarySlots: [],
+          restoreSecondarySlots: [{ slotIndex: 1, sourceUrl: "blob:secondary" }],
+        },
+        expertEditRestoreImageInputs: ["blob:secondary"],
+      });
+    });
+
+    expect(prepareImageUrlForSubmissionMock.mock.calls.map((call) => call[0])).toEqual([
+      "blob:primary",
+      "blob:secondary",
+    ]);
+    expect(outputs[0]?.workflowReload?.payload).toEqual(
+      expect.objectContaining({
+        kind: "image",
+        referenceInputs: ["https://cdn.test/prepared-primary.png"],
+        expertEditReferences: {
+          version: 1,
+          maxSecondarySlotCount: 10,
+          primaryReferenceInputIndex: 0,
+          secondarySlots: [],
+          restoreSecondarySlots: [
+            { slotIndex: 1, sourceUrl: "https://cdn.test/prepared-secondary.png" },
+          ],
+        },
+      })
+    );
+    expect(handleImageModelSubmission).toHaveBeenCalledWith(
+      expect.objectContaining({
+        preparedImageInputs: ["https://cdn.test/prepared-primary.png"],
+        workflowReload: expect.objectContaining({
+          payload: expect.objectContaining({
+            referenceInputs: ["https://cdn.test/prepared-primary.png"],
+          }),
+        }),
+      })
+    );
+  });
+
   it("never leaks hidden submission-only prompt text into output prompt", async () => {
     let outputs: StudioOutput[] = [];
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {

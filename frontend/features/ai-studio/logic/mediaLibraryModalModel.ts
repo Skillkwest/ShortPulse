@@ -338,20 +338,37 @@ export const sortByCreatedAtDesc = <T extends { created_at?: string | null; id?:
 export const getErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error ? error.message : fallback;
 
+const asRecord = (value: unknown): Record<string, unknown> | null =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+
+const normalizePromptCandidate = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+const resolveWorkflowReloadPromptText = (metadata: Record<string, unknown>): string | null => {
+  const workflowReload = asRecord(metadata.workflow_reload) ?? asRecord(metadata.workflowReload);
+  const prompt = workflowReload ? asRecord(workflowReload.prompt) : null;
+  return (
+    normalizePromptCandidate(prompt?.display) ??
+    normalizePromptCandidate(prompt?.submission) ??
+    null
+  );
+};
+
 export const resolveMediaMetadataPromptText = (
   metadata?: Record<string, unknown> | null
 ): string | null => {
   if (!metadata) return null;
-  const prompt =
-    typeof metadata.prompt === "string"
-      ? metadata.prompt
-      : typeof metadata.prompt_text === "string"
-        ? metadata.prompt_text
-        : typeof metadata.promptText === "string"
-          ? metadata.promptText
-          : "";
-  const trimmed = prompt.trim();
-  return trimmed.length > 0 ? trimmed : null;
+  return (
+    normalizePromptCandidate(metadata.prompt) ??
+    normalizePromptCandidate(metadata.prompt_text) ??
+    normalizePromptCandidate(metadata.promptText) ??
+    resolveWorkflowReloadPromptText(metadata)
+  );
 };
 
 export const resolveMediaMetadataDisplayTitle = (

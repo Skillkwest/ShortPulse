@@ -90,6 +90,13 @@ export const resolveExpertEditSubmissionDispatch = ({
         referenceInputsMode: "replace",
         referenceInputsLimit: MAX_EXPERT_EDIT_SUBMISSION_REFERENCE_INPUTS,
         ...(expertEditReferences ? { expertEditReferences } : {}),
+        ...(expertEditReferences?.restoreSecondarySlots
+          ? {
+              expertEditRestoreImageInputs: expertEditReferences.restoreSecondarySlots.map(
+                (slot) => slot.sourceUrl
+              ),
+            }
+          : {}),
         ...promptOverrideOptions,
       },
     };
@@ -113,6 +120,13 @@ export const resolveExpertEditSubmissionDispatch = ({
       referenceInputsMode: "replace",
       referenceInputsLimit: MAX_EXPERT_EDIT_SUBMISSION_REFERENCE_INPUTS,
       ...(expertEditReferences ? { expertEditReferences } : {}),
+      ...(expertEditReferences?.restoreSecondarySlots
+        ? {
+            expertEditRestoreImageInputs: expertEditReferences.restoreSecondarySlots.map(
+              (slot) => slot.sourceUrl
+            ),
+          }
+        : {}),
     },
   };
 };

@@ -42,9 +42,11 @@ import type {
   SharedMediaDetailTopBarItem,
 } from "./detail-modal/detailModalPlatformTypes";
 import {
+  resolveSharedMediaDetailGeneratedFallbackName,
   resolveSharedMediaDetailBladeContent,
   resolveSharedMediaDetailBladePlaceholder,
   resolveSharedMediaDetailTopBarItems,
+  shouldRenderSharedMediaDetailInfoPanel,
 } from "./detail-modal/sharedMediaDetailPresentation";
 import { useStudioOutputDetailMediaPreview } from "./detail-modal/useStudioOutputDetailMediaPreview";
 
@@ -291,10 +293,13 @@ function DetailModalContent({
   const shouldRenderStyleAvatar = Boolean(stylePreviewImageUrl) && !isStyleAvatarLoadError;
   const isUploadedReference = useMemo(() => {
     if (!displayPreviewUrl) return false;
+    if (output?.mediaSource === "upload" || output?.mediaSource === "clipboard") return true;
     if (output?.id?.startsWith("upload-")) return true;
+    if (output?.id?.startsWith("media-paste-")) return true;
     if (output?.timestamp === "Dropped") return true;
+    if (output?.timestamp === "Clipboard") return true;
     return false;
-  }, [displayPreviewUrl, output?.id, output?.timestamp]);
+  }, [displayPreviewUrl, output?.id, output?.mediaSource, output?.timestamp]);
   const isNonGeneratedLoadedMedia = useMemo(() => {
     if (!displayPreviewUrl || !output) return false;
     if (output.id.startsWith("library-")) return true;
@@ -653,7 +658,6 @@ function DetailModalContent({
   const looksLikeFilename = (value?: string | null) => {
     const candidate = value?.trim();
     if (!candidate) return false;
-    if (candidate.length > 180) return false;
     if (/^data:/i.test(candidate) || /^blob:/i.test(candidate) || /^https?:\/\//i.test(candidate)) {
       return false;
     }
@@ -677,8 +681,33 @@ function DetailModalContent({
 
   const outputPrompt = displayPromptText.trim() || null;
   const promptFilename = looksLikeFilename(outputPrompt) ? outputPrompt : null;
-  const uploadedHeaderFilename = isUploadedReference ? (promptFilename ?? filenameFromUrl) : null;
-  const shouldUseExternalFileLayout = Boolean(isUploadedReference && uploadedHeaderFilename);
+  const uploadedHeaderFilename = isUploadedReference
+    ? (promptFilename ??
+      filenameFromUrl ??
+      output.title?.trim() ??
+      `Uploaded ${mediaType.toLowerCase()}`)
+    : null;
+  const loadedMediaReferenceName = isNonGeneratedLoadedMedia
+    ? (promptFilename ?? filenameFromUrl ?? output.title?.trim() ?? null)
+    : null;
+  const generatedReferenceFallbackKind =
+    detailPreviewKind ?? (output.mode === "text" ? "prompt" : output.mode);
+  const isGeneratedReference = Boolean(
+    !isNonGeneratedLoadedMedia &&
+    !isUploadedReference &&
+    (output.mediaSource === "generated" || output.generationId?.trim() || output.taskId?.trim())
+  );
+  const generatedReferenceName = isGeneratedReference
+    ? (output.title?.trim() ??
+      resolveSharedMediaDetailGeneratedFallbackName(generatedReferenceFallbackKind))
+    : null;
+  const textReferenceName = isPromptOnly ? (output.title?.trim() ?? "Text reference") : null;
+  const detailReferenceName =
+    uploadedHeaderFilename ??
+    loadedMediaReferenceName ??
+    generatedReferenceName ??
+    textReferenceName;
+  const shouldUseExternalFileLayout = Boolean(isUploadedReference);
   const downloadFilename = uploadedHeaderFilename ?? filenameFromUrl ?? output?.id ?? "media";
   const bladeContent = useMemo(
     () =>
@@ -708,16 +737,21 @@ function DetailModalContent({
     if (shouldUseExternalFileLayout) {
       return [mediaType];
     }
+    if (isPromptOnly) {
+      return [mediaType];
+    }
     if (isActiveVoiceChangerSourceVideo) {
-      return displayAspect ? ["voice changer", displayAspect] : ["voice changer"];
+      return displayAspect
+        ? [mediaType, "voice changer", displayAspect]
+        : [mediaType, "voice changer"];
     }
     if (isGeneratedPureAudioOutput && normalizedAudioWorkflowLabel) {
-      return [normalizedAudioWorkflowLabel];
+      return [mediaType, normalizedAudioWorkflowLabel];
     }
     if (isGeneratedVoiceChangerVideoOutput && normalizedAudioWorkflowLabel) {
       return displayAspect
-        ? [normalizedAudioWorkflowLabel, displayAspect]
-        : [normalizedAudioWorkflowLabel];
+        ? [mediaType, normalizedAudioWorkflowLabel, displayAspect]
+        : [mediaType, normalizedAudioWorkflowLabel];
     }
 
     const items: string[] = [mediaType];
@@ -742,6 +776,7 @@ function DetailModalContent({
     isGeneratedPureAudioOutput,
     isGeneratedVoiceChangerVideoOutput,
     isNonGeneratedLoadedMedia,
+    isPromptOnly,
     isUploadedReference,
     mediaType,
     normalizedAudioWorkflowLabel,
@@ -779,8 +814,8 @@ function DetailModalContent({
         output,
         canSavePrompt: Boolean(onSavePrompt),
         presentation: {
-          title: uploadedHeaderFilename ?? null,
-          kindLabel: mediaType.toLowerCase(),
+          title: detailReferenceName,
+          kindLabel: mediaType,
           topBarItems: sharedTopBarItems,
           bladePlaceholder: generatedVoiceChangerTranscript
             ? "No transcript metadata available."
@@ -788,13 +823,17 @@ function DetailModalContent({
         },
       }),
     [
+      detailReferenceName,
       generatedVoiceChangerTranscript,
       mediaType,
       onSavePrompt,
       output,
       sharedTopBarItems,
-      uploadedHeaderFilename,
     ]
+  );
+  const shouldRenderDetailInfoPanel = shouldRenderSharedMediaDetailInfoPanel(
+    detailModalItem,
+    bladeContent
   );
 
   const handleSaveTextDetail = useCallback(() => {
@@ -1221,7 +1260,7 @@ function DetailModalContent({
               </>
             }
             sidePanel={
-              shouldUseExternalFileLayout ? null : (
+              shouldRenderDetailInfoPanel ? (
                 <SharedMediaDetailInfoPanel
                   leadingContent={
                     <>
@@ -1295,7 +1334,7 @@ function DetailModalContent({
                   placeholder={resolveSharedMediaDetailBladePlaceholder(detailModalItem)}
                   onChange={handlePromptChange}
                 />
-              )
+              ) : null
             }
           />
         ) : null}
@@ -1306,7 +1345,7 @@ function DetailModalContent({
               <SharedMediaDetailTopBar
                 eyebrow="Text detail"
                 title={detailModalItem.presentation?.title ?? null}
-                items={[]}
+                items={resolveSharedMediaDetailTopBarItems(detailModalItem)}
                 actions={
                   <SharedMediaDetailActionBar
                     items={sharedPromptActionItems}

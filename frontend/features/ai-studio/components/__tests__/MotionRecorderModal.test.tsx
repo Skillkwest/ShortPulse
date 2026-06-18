@@ -119,7 +119,16 @@ describe("MotionRecorderModal", () => {
       expect(uploadVideoFileToStorageMock).toHaveBeenCalledWith(expect.any(File));
     });
 
-    expect(onApplyVideo).toHaveBeenCalledWith("https://example.com/staged-motion.mp4");
+    expect(onApplyVideo).toHaveBeenCalledWith(
+      {
+        url: "https://example.com/staged-motion.mp4",
+        path: "videos/motion-control/staged-motion.mp4",
+        size: 1024,
+        mimeType: "video/mp4",
+        name: "motion-reference.mp4",
+      },
+      expect.any(File)
+    );
     expect(onClose).toHaveBeenCalled();
     expect(mediaStreamTrackStop).toHaveBeenCalled();
   });

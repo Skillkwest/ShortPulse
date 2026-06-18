@@ -1,7 +1,10 @@
 import React from "react";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { MediaFileRow } from "../../logic/mediaLibraryModalModel";
+import {
+  resolveMediaMetadataPromptText,
+  type MediaFileRow,
+} from "../../logic/mediaLibraryModalModel";
 import { createMediaLibraryDetailModalItem } from "../../logic/mediaLibraryDetailModal";
 import { MediaLibraryPanelPreviewModal } from "../media-library-modal/MediaLibraryPanelPreviewModal";
 import { ReferenceAudioPlayer } from "../shared/ReferenceAudioPlayer";
@@ -582,7 +585,40 @@ describe("MediaLibraryPanelPreviewModal", () => {
     );
 
     expect(screen.getByRole("heading", { name: "portrait.png" })).toBeInTheDocument();
-    expect(screen.getByText("image")).toBeInTheDocument();
+    expect(screen.getByText("Image")).toBeInTheDocument();
     expect(screen.queryByText("PROMPT")).not.toBeInTheDocument();
+  });
+
+  it("shows generated library prompts recovered from workflow reload metadata", () => {
+    const imageFile: MediaFileRow = {
+      id: "image-1",
+      filename: "portrait.png",
+      storage_path: "user-1/generations/portrait.png",
+      preview_storage_path: "user-1/generations/thumb-portrait.png",
+      file_type: "image/png",
+      source: "ai_studio",
+      signedUrl: "https://cdn.example.com/thumb-portrait.png",
+      metadata: {
+        display_title: "Desert Observatory",
+        workflow_reload: workflowReloadMetadata,
+      },
+    };
+
+    render(
+      <MediaLibraryPanelPreviewModal
+        item={createPreviewItem(imageFile, "https://cdn.example.com/thumb-portrait.png", {
+          source: "ai_studio",
+          promptText: resolveMediaMetadataPromptText(imageFile.metadata),
+        })}
+        isLoading={false}
+        error={null}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("heading", { name: "Desert Observatory" })).toBeInTheDocument();
+    expect(screen.getByText("Image")).toBeInTheDocument();
+    expect(screen.getByText("PROMPT")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("A glass fox in a desert observatory")).toBeInTheDocument();
   });
 });

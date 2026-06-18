@@ -5,7 +5,10 @@
 import { describe, expect, it } from "vitest";
 
 import { registerInternalMediaRefForUrl } from "../../../logic/referenceInputInternalMediaRegistry";
-import { buildSubmissionWorkflowReloadSnapshot } from "../outputBootstrap";
+import {
+  buildSubmissionWorkflowReloadSnapshot,
+  reconcileExpertEditWorkflowReloadReferences,
+} from "../outputBootstrap";
 
 describe("taskSubmission outputBootstrap", () => {
   it("carries Expert Edit slot metadata into image workflow reload payloads", () => {
@@ -41,6 +44,81 @@ describe("taskSubmission outputBootstrap", () => {
           maxSecondarySlotCount: 10,
           primaryReferenceInputIndex: 0,
           secondarySlots: [{ slotIndex: 9, referenceInputIndex: 1 }],
+        },
+      })
+    );
+  });
+
+  it("reconciles local restore-only Expert Edit slots after preflight preparation", () => {
+    const providerRef = {
+      version: 1 as const,
+      kind: "storage_object" as const,
+      bucket: "media_library",
+      storagePath: "user-1/reference/primary.png",
+    };
+    const restoreRef = {
+      version: 1 as const,
+      kind: "storage_object" as const,
+      bucket: "media_library",
+      storagePath: "user-1/reference/secondary.png",
+    };
+    const expertEditReferences = reconcileExpertEditWorkflowReloadReferences({
+      expertEditReferences: {
+        version: 1,
+        maxSecondarySlotCount: 10,
+        primaryReferenceInputIndex: 0,
+        secondarySlots: [],
+        restoreSecondarySlots: [{ slotIndex: 2, sourceUrl: "blob:secondary-local" }],
+      },
+      preparedReferenceInputs: [
+        {
+          originalUrl: "blob:primary-local",
+          preparedUrl: "https://signed.example.com/primary.png",
+          internalMediaRef: providerRef,
+        },
+      ],
+      preparedRestoreOnlyReferenceInputs: [
+        {
+          originalUrl: "blob:secondary-local",
+          preparedUrl: "https://signed.example.com/secondary.png",
+          internalMediaRef: restoreRef,
+        },
+      ],
+    });
+
+    const workflowReload = buildSubmissionWorkflowReloadSnapshot({
+      outputMode: "image",
+      originTool: "edit",
+      panelKind: "edit",
+      projectId: "project-1",
+      modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+      displayPrompt: "Refine the pose.",
+      submissionPrompt: "Refine the pose.",
+      aspect: "1:1",
+      imageResolution: null,
+      referenceInputs: ["https://signed.example.com/primary.png"],
+      internalMediaRefs: [providerRef],
+      expertEditReferences,
+      videoReferenceMode: "standard",
+      durationSeconds: null,
+    });
+
+    expect(workflowReload?.payload).toEqual(
+      expect.objectContaining({
+        kind: "image",
+        referenceInputs: ["https://signed.example.com/primary.png"],
+        expertEditReferences: {
+          version: 1,
+          maxSecondarySlotCount: 10,
+          primaryReferenceInputIndex: 0,
+          secondarySlots: [],
+          restoreSecondarySlots: [
+            {
+              slotIndex: 2,
+              sourceUrl: "https://signed.example.com/secondary.png",
+              internalMediaRef: restoreRef,
+            },
+          ],
         },
       })
     );

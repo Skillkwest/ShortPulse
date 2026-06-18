@@ -412,6 +412,44 @@ vi.mock("../useReferencePropertiesDerivedState", () => ({
   useReferencePropertiesDerivedState: () => useReferencePropertiesDerivedStateMock(),
 }));
 
+vi.mock("../MotionRecorderModal", () => ({
+  MotionRecorderModal: ({
+    isOpen,
+    onApplyVideo,
+  }: {
+    isOpen: boolean;
+    onApplyVideo: (
+      upload: {
+        url: string;
+        path: string;
+        size: number;
+        mimeType: string;
+        name: string;
+      },
+      sourceFile: File
+    ) => void | Promise<void>;
+  }) =>
+    isOpen ? (
+      <button
+        type="button"
+        onClick={() =>
+          void onApplyVideo(
+            {
+              url: "https://example.com/recorded-motion.mp4",
+              path: "user/videos/motion-control/recorded-motion.mp4",
+              size: 2048,
+              mimeType: "video/mp4",
+              name: "recorded-motion.mp4",
+            },
+            new File(["recorded"], "recorded-motion.webm", { type: "video/webm" })
+          )
+        }
+      >
+        Apply recorded motion clip
+      </button>
+    ) : null,
+}));
+
 const baseProps: React.ComponentProps<typeof VideoPropertiesPanel> = {
   aspect: "16:9",
   modelId: KIE_KLING_30_MODEL_ID,
@@ -734,6 +772,48 @@ describe("VideoPropertiesPanel", () => {
     expect(recorderPrompt.compareDocumentPosition(referenceStep)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING
     );
+  });
+
+  it("routes recorded Motion Control clips through the recorded-video bridge", async () => {
+    useReferencePropertiesDerivedStateMock.mockReturnValue({
+      ...defaultDerivedState,
+      activeVideoMode: "motion",
+      isMotionMode: true,
+      isStandardMode: false,
+      referenceStepTitle: "Add Motion Inputs",
+      referenceStepSubtitle: "Add motion inputs",
+    });
+    const onRecordedMotionVideoReady = vi.fn(async () => undefined);
+    const onStageMotionVideoSelection = vi.fn(async () => undefined);
+
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        videoReferenceMode="motion"
+        motionVideoUrl={null}
+        onRecordedMotionVideoReady={onRecordedMotionVideoReady}
+        onStageMotionVideoSelection={onStageMotionVideoSelection}
+      />
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Open motion recorder to add a motion clip" })
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Apply recorded motion clip" }));
+
+    await waitFor(() =>
+      expect(onRecordedMotionVideoReady).toHaveBeenCalledWith(
+        {
+          url: "https://example.com/recorded-motion.mp4",
+          path: "user/videos/motion-control/recorded-motion.mp4",
+          size: 2048,
+          mimeType: "video/mp4",
+          name: "recorded-motion.mp4",
+        },
+        expect.any(File)
+      )
+    );
+    expect(onStageMotionVideoSelection).not.toHaveBeenCalled();
   });
 
   it("registers the primary prompt composer as a Canvas tear-out text target", async () => {

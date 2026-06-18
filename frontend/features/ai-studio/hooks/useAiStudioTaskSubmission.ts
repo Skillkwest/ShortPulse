@@ -57,6 +57,7 @@ import {
   buildSubmissionReplaySnapshot,
   buildSubmissionWorkflowReloadSnapshot,
   reconcilePendingSubmissionOutput,
+  reconcileExpertEditWorkflowReloadReferences,
   resolveSubmissionModeForModelId,
 } from "./taskSubmission/outputBootstrap";
 import {
@@ -68,7 +69,10 @@ import {
   submitNotStartedError,
   type SubmissionInvariantError,
 } from "./taskSubmission/submitInvariants";
-import { prepareSubmissionReferenceInputs } from "./taskSubmission/preflightPreparation";
+import {
+  prepareSubmissionReferenceInputs,
+  type PreparedSubmissionReferenceInput,
+} from "./taskSubmission/preflightPreparation";
 import { createSubmissionLifecycleCallbacks } from "./taskSubmission/submissionLifecycle";
 import { DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS } from "./useAiStudioTasks";
 import type {
@@ -99,6 +103,11 @@ const SUBMIT_NOT_STARTED_USER_ERROR = "Generation failed to start. Please retry.
 const AUTH_SESSION_TIMEOUT_DETAIL = "Session check timed out before provider submit.";
 const hasUsableInternalMediaRefs = (refs: Array<InternalMediaRef | null | undefined>): boolean =>
   refs.some((ref) => Boolean(ref));
+const asTrimmedString = (value: string | null | undefined): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
 
 type AiStudioTaskSubmissionOptions = AiStudioTaskSubmitOptions & {
   submissionOwner?: AiStudioSubmitPanelKey;
@@ -412,17 +421,35 @@ export const useAiStudioTaskSubmission = ({
         setSaved(false);
 
         let preparedImageInputs: string[] = [];
+        let preparedImageInputRefs: PreparedSubmissionReferenceInput[] = [];
+        let preparedRestoreOnlyImageInputs: PreparedSubmissionReferenceInput[] = [];
         let preparedInpaintOverride: InpaintSubmissionOverride | null = null;
         try {
+          const providerReferenceInputUrls = new Set(
+            imageInputs
+              .map((url) => asTrimmedString(url))
+              .filter((url): url is string => Boolean(url))
+          );
+          const restoreOnlyImageInputs = Array.from(
+            new Set(
+              (options?.expertEditRestoreImageInputs ?? [])
+                .map((url) => asTrimmedString(url))
+                .filter((url): url is string => Boolean(url))
+                .filter((url) => !providerReferenceInputUrls.has(url))
+            )
+          );
           const prepared = await prepareSubmissionReferenceInputs({
             outputId: id,
             modelId: finalModel,
             tool: submitTool,
             imageInputs,
+            restoreOnlyImageInputs,
             inpaintOverride: options?.inpaintOverride,
             timeoutMessage: PREPARE_REFERENCE_TIMEOUT_ERROR,
           });
           preparedImageInputs = prepared.preparedImageInputs;
+          preparedImageInputRefs = prepared.preparedImageInputRefs;
+          preparedRestoreOnlyImageInputs = prepared.preparedRestoreOnlyImageInputs;
           preparedInpaintOverride = prepared.preparedInpaintOverride;
         } catch (error) {
           const isPreflightTimeout = error instanceof DeadlineExceededError;
@@ -482,6 +509,17 @@ export const useAiStudioTaskSubmission = ({
             return;
           }
         }
+        const preparedInternalMediaRefs = preparedImageInputs.map(
+          (_url, index) =>
+            preparedImageInputRefs[index]?.internalMediaRef ?? internalMediaRefs[index] ?? null
+        );
+        const submissionInternalMediaRefs =
+          preparedImageInputs.length > 0 ? preparedInternalMediaRefs : internalMediaRefs;
+        const expertEditWorkflowReloadReferences = reconcileExpertEditWorkflowReloadReferences({
+          expertEditReferences: options?.expertEditReferences,
+          preparedReferenceInputs: preparedImageInputRefs,
+          preparedRestoreOnlyReferenceInputs: preparedRestoreOnlyImageInputs,
+        });
         const generationReplay = options?.inpaintOverride
           ? null
           : buildSubmissionReplaySnapshot({
@@ -493,7 +531,7 @@ export const useAiStudioTaskSubmission = ({
               aspect: effectiveAspect,
               imageResolution: isImageGeneration ? (requestedResolution ?? null) : null,
               referenceInputs: preparedImageInputs.slice(0, imageReferenceInputLimit),
-              internalMediaRefs,
+              internalMediaRefs: submissionInternalMediaRefs,
               characterContext: options?.characterContextOverride,
               styleContext: options?.styleContextOverride,
             });
@@ -517,8 +555,8 @@ export const useAiStudioTaskSubmission = ({
               aspect: effectiveAspect,
               imageResolution: isImageGeneration ? (requestedResolution ?? null) : null,
               referenceInputs: preparedImageInputs.slice(0, imageReferenceInputLimit),
-              internalMediaRefs,
-              expertEditReferences: options?.expertEditReferences,
+              internalMediaRefs: submissionInternalMediaRefs,
+              expertEditReferences: expertEditWorkflowReloadReferences,
               characterContext: options?.characterContextOverride,
               styleContext: options?.styleContextOverride,
               videoReferenceMode,
@@ -596,7 +634,7 @@ export const useAiStudioTaskSubmission = ({
           style_id: options?.styleContextOverride?.styleId ?? null,
           reference_count: Math.max(
             preparedImageInputs.length,
-            internalMediaRefs.filter((ref) => Boolean(ref)).length
+            submissionInternalMediaRefs.filter((ref) => Boolean(ref)).length
           ),
           pricing_display_source: usesPricingGridDisplay ? "pricing_grid" : "shared_adapter",
           pricing_policy_ready: true,
@@ -743,7 +781,7 @@ export const useAiStudioTaskSubmission = ({
             modelConfig,
             generationReplay,
             workflowReload,
-            internalMediaRefs,
+            internalMediaRefs: submissionInternalMediaRefs,
             characterContext: options?.characterContextOverride,
             styleContext: options?.styleContextOverride,
             shortpulseContext,

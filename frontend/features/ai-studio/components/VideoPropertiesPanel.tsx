@@ -23,6 +23,7 @@ import { useReferencePropertiesDerivedState } from "./useReferencePropertiesDeri
 import { ReferenceVideoSettingsStep } from "./ReferenceVideoSettingsStep";
 import { useReferencePropertiesInteractions } from "./useReferencePropertiesInteractions";
 import { ReferenceAudioPlayer } from "./shared/ReferenceAudioPlayer";
+import type { VideoUploadResult } from "../utils/videoUpload";
 import { readMediaLibraryDragPayload } from "../logic/mediaLibraryDragPayload";
 import {
   createEmptyLipSyncAudioState,
@@ -219,6 +220,10 @@ export type VideoPropertiesPanelProps = {
     videoFile?: File | null;
     videoUrl?: string | null;
   }) => Promise<void>;
+  onRecordedMotionVideoReady?: (
+    upload: VideoUploadResult,
+    sourceFile: File
+  ) => void | Promise<void>;
   onClearMotionVideo?: () => void;
   motionVideoLoading?: boolean;
   motionVideoError?: string | null;
@@ -310,6 +315,7 @@ export function VideoPropertiesPanel({
   motionVideoUrl = null,
   onMotionVideoChange,
   onStageMotionVideoSelection,
+  onRecordedMotionVideoReady,
   onClearMotionVideo,
   motionVideoLoading = false,
   motionVideoError = null,
@@ -1376,20 +1382,22 @@ export function VideoPropertiesPanel({
     setIsMotionRecorderOpen(false);
   }, []);
   const handleApplyRecordedMotionVideo = React.useCallback(
-    (url: string) => {
+    (upload: VideoUploadResult, sourceFile: File) => {
       void (async () => {
         try {
-          if (onStageMotionVideoSelection) {
-            await onStageMotionVideoSelection({ videoUrl: url });
+          if (onRecordedMotionVideoReady) {
+            await onRecordedMotionVideoReady(upload, sourceFile);
+          } else if (onStageMotionVideoSelection) {
+            await onStageMotionVideoSelection({ videoUrl: upload.url });
           } else {
-            onMotionVideoChange?.(url);
+            onMotionVideoChange?.(upload.url);
           }
         } finally {
           setIsMotionRecorderOpen(false);
         }
       })();
     },
-    [onMotionVideoChange, onStageMotionVideoSelection]
+    [onMotionVideoChange, onRecordedMotionVideoReady, onStageMotionVideoSelection]
   );
   const klingElementDisplayTokens = React.useMemo(
     () => resolveAiStudioKlingElementTokens(selectedKlingElements).map((token) => token.trim()),

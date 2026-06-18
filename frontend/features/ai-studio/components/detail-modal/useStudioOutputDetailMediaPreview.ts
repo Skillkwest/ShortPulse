@@ -400,13 +400,13 @@ export const useStudioOutputDetailMediaPreview = ({
         ? "audio"
         : "image"
     : null;
-  const mediaType: "Audio" | "Video" | "Image" | "Prompt" = displayPreviewUrl
+  const mediaType: "Audio" | "Video" | "Image" | "Text" = displayPreviewUrl
     ? isAudioOutput
       ? "Audio"
       : isVideoOutput
         ? "Video"
         : "Image"
-    : "Prompt";
+    : "Text";
   const isPromptOnly = output.mode === "text" && !displayPreviewUrl;
   const isAwaitingPlayableMedia = Boolean(
     !displayPreviewUrl &&

@@ -138,7 +138,6 @@ const buildWorkflowReloadExpertEditReferences = (
     const sourceUrl = value.trim();
     if (!sourceUrl || slotIndex >= MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT) return;
     const internalMediaRef = resolveInternalMediaRefForUrl(sourceUrl);
-    if (/^blob:|^data:/i.test(sourceUrl) && !internalMediaRef) return;
     restoreSecondarySlots.push({
       slotIndex,
       sourceUrl,

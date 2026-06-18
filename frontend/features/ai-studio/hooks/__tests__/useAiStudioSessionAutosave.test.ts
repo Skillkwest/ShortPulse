@@ -487,6 +487,32 @@ describe("useAiStudioSessionAutosave", () => {
     expect(preparedSnapshot.hash?.length ?? 0).toBeLessThan(32);
   });
 
+  it("includes right-rail layout changes in the autosave semantic hash", () => {
+    const preparedSnapshot = prepareAiStudioSessionAutosaveSnapshot(createSnapshotV2());
+    const preparedRightRailChange = prepareAiStudioSessionAutosaveSnapshot(
+      createSnapshotV2({
+        workspace: {
+          ...createSnapshotV2().workspace,
+          rightRailLayout: {
+            schemaVersion: 1,
+            panels: {
+              canvas: true,
+              quickSlot: false,
+              referenceGrid: true,
+            },
+            splits: {
+              canvasInventoryTopRatio: 0.38,
+              quickSlotReferenceTopRatio: 0.72,
+            },
+          },
+        },
+      })
+    );
+
+    expect(preparedRightRailChange.hash).toMatch(/^fnv1a32:/);
+    expect(preparedRightRailChange.hash).not.toBe(preparedSnapshot.hash);
+  });
+
   it("uses a prepared autosave snapshot when one is supplied", async () => {
     const persistSnapshot = vi.fn().mockResolvedValue(undefined);
     const snapshot = createSnapshotV2();

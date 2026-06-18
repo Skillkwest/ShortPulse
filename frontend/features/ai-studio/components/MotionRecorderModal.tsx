@@ -15,7 +15,7 @@ import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiSt
 type MotionRecorderModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  onApplyVideo: (url: string) => void;
+  onApplyVideo: (upload: VideoUploadResult, sourceFile: File) => void | Promise<void>;
 };
 
 type CapturePermissionState = "granted" | "prompt" | "denied" | "unsupported";
@@ -719,7 +719,7 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
     try {
       const uploaded = preparedClipUpload ?? (await uploadVideoFileToStorage(recordedClipFile));
       setPreparedClipUpload(uploaded);
-      onApplyVideo(uploaded.url);
+      await onApplyVideo(uploaded, recordedClipFile);
       onClose();
     } catch (error) {
       setUploadError(

@@ -3,6 +3,7 @@ import type {
   SharedMediaDetailItemBase,
   SharedMediaDetailSelectionTarget,
 } from "../components/detail-modal/detailModalPlatformTypes";
+import { normalizeSharedMediaDetailKindLabel } from "../components/detail-modal/sharedMediaDetailPresentation";
 import type { CanvasWorkspaceInstanceId } from "../components/canvas/canvasWorkspaceContracts";
 import type {
   CanvasAudioItem,
@@ -55,6 +56,7 @@ export const createCanvasDetailModalItem = ({
   if (item.kind === "text") return null;
 
   const title = resolveCanvasDetailTitle(item);
+  const kindLabel = normalizeSharedMediaDetailKindLabel(item.kind);
 
   return {
     item,
@@ -73,7 +75,6 @@ export const createCanvasDetailModalItem = ({
             kind: "image",
             url: item.src,
             filename: title,
-            promptText: item.alt || null,
             fullUrl: item.src,
             previewUrl: item.src,
           }
@@ -83,7 +84,6 @@ export const createCanvasDetailModalItem = ({
               kind: "video",
               url: item.videoUrl,
               filename: title,
-              promptText: item.title?.trim() || null,
               previewPosterUrl: item.posterUrl ?? null,
               fullUrl: item.videoUrl,
               previewUrl: item.videoUrl,
@@ -94,7 +94,6 @@ export const createCanvasDetailModalItem = ({
               kind: "audio",
               url: item.audioUrl,
               filename: title,
-              promptText: item.title?.trim() || null,
               previewUrl: item.audioUrl,
               fullUrl: item.audioUrl,
               source: item.audioSourceMode ?? null,
@@ -104,9 +103,9 @@ export const createCanvasDetailModalItem = ({
             },
     presentation: {
       title,
-      kindLabel: item.kind,
+      kindLabel,
       topBarItems: [
-        { label: item.kind, className: "art-meta-item" },
+        { label: kindLabel, className: "art-meta-item" },
         {
           label: title,
           className: "art-meta-item art-meta-filename",

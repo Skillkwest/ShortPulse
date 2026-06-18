@@ -6,6 +6,7 @@ import type {
   SharedMediaDetailSelectionTarget,
   SharedMediaDetailSurface,
 } from "../components/detail-modal/detailModalPlatformTypes";
+import { normalizeSharedMediaDetailKindLabel } from "../components/detail-modal/sharedMediaDetailPresentation";
 import type { MediaFileRow } from "./mediaLibraryModalModel";
 
 export type MediaLibraryDetailModalSurface = Extract<
@@ -97,8 +98,8 @@ export const createMediaLibraryDetailModalItem = ({
 }): MediaLibraryDetailModalItem => {
   const resolvedFilename = fields.filename?.trim() || file.filename || file.id;
   const resolvedDisplayTitle = resolveMediaMetadataDisplayTitle(file.metadata);
-  const resolvedPresentationTitle =
-    fields.fileType === "audio" ? (resolvedDisplayTitle ?? resolvedFilename) : resolvedFilename;
+  const resolvedPresentationTitle = resolvedDisplayTitle ?? resolvedFilename;
+  const kindLabel = normalizeSharedMediaDetailKindLabel(fields.fileType);
   const isExternalUpload =
     fields.source?.trim()?.toLowerCase() === "upload" && Boolean(resolvedFilename);
 
@@ -119,11 +120,11 @@ export const createMediaLibraryDetailModalItem = ({
     },
     presentation: {
       title: resolvedPresentationTitle,
-      kindLabel: fields.fileType,
+      kindLabel,
       topBarItems: isExternalUpload
-        ? [{ label: fields.fileType, className: "art-meta-item" }]
+        ? [{ label: kindLabel, className: "art-meta-item" }]
         : [
-            { label: fields.fileType, className: "art-meta-item" },
+            { label: kindLabel, className: "art-meta-item" },
             {
               label: resolvedPresentationTitle,
               className: "art-meta-item art-meta-filename",

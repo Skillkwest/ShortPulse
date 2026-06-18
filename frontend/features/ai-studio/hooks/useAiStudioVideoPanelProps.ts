@@ -9,6 +9,7 @@ import type { AiStudioKlingElement } from "../logic/klingElements";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
 import type { AiStudioVideoPanelContract } from "./contracts/pageContentContracts";
 import type { LipSyncAudioState, VideoReferenceMode } from "../types";
+import type { VideoUploadResult } from "../utils/videoUpload";
 import type { CanvasTearOutComposerTargetRegistry } from "./useAiStudioCanvasTearOutTargets";
 
 type UseAiStudioVideoPanelPropsParams = {
@@ -69,6 +70,10 @@ type UseAiStudioVideoPanelPropsParams = {
     videoFile?: File | null;
     videoUrl?: string | null;
   }) => Promise<void>;
+  onRecordedMotionVideoReady?: (
+    upload: VideoUploadResult,
+    sourceFile: File
+  ) => void | Promise<void>;
   clearMotionVideoSelection: () => void;
   motionReferenceVideoPending: boolean;
   motionReferenceVideoError: string | null;
@@ -153,6 +158,7 @@ export const useAiStudioVideoPanelProps = ({
   motionReferenceVideoUrl,
   setMotionReferenceVideoUrl,
   stageMotionVideoSelection,
+  onRecordedMotionVideoReady,
   clearMotionVideoSelection,
   motionReferenceVideoPending,
   motionReferenceVideoError,
@@ -230,6 +236,7 @@ export const useAiStudioVideoPanelProps = ({
       motionVideoUrl: motionReferenceVideoUrl,
       onMotionVideoChange: setMotionReferenceVideoUrl,
       onStageMotionVideoSelection: stageMotionVideoSelection,
+      onRecordedMotionVideoReady,
       onClearMotionVideo: clearMotionVideoSelection,
       motionVideoLoading: motionReferenceVideoPending,
       motionVideoError: motionReferenceVideoError,
@@ -286,6 +293,7 @@ export const useAiStudioVideoPanelProps = ({
       onCreateCharacter,
       onCreateElement,
       onPinPromptReference,
+      onRecordedMotionVideoReady,
       clearMotionVideoSelection,
       referenceImageUrl,
       referenceImageWarning,

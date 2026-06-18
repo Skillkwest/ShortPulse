@@ -169,6 +169,35 @@ describe("useAiStudioGenerationController", () => {
     );
   });
 
+  it("allows promptless Motion Control generation to reach submit orchestration", async () => {
+    const generateOutput = vi.fn();
+    const setUiError = vi.fn();
+    const params = createParams({
+      mode: "video",
+      selectedTool: "video",
+      model: KIE_KLING_30_MODEL_ID,
+      videoReferenceMode: "motion",
+      resolveDefaultPromptForTool: vi.fn(() => ""),
+      generateOutput,
+      setUiError: asDispatch<string | null>(setUiError),
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleGenerate();
+    });
+
+    expect(generateOutput).toHaveBeenCalledWith(
+      "",
+      expect.objectContaining({
+        modeOverride: "video",
+        selectedToolOverride: "video",
+        modelIdOverride: KIE_KLING_30_MODEL_ID,
+      })
+    );
+    expect(setUiError).not.toHaveBeenCalledWith("Add a prompt to start a generation.");
+  });
+
   it("still blocks on non-cap guardrails while other props change", async () => {
     const generateOutput = vi.fn();
     const initialParams = createParams({

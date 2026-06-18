@@ -154,6 +154,30 @@ describe("prepareExpertEditSubmission integration", () => {
     });
   });
 
+  it("keeps local restore-only secondary refs for submit preflight without provider inputs", () => {
+    const result = prepareExpertEditSubmission({
+      promptText: "Refine the background and styling.",
+      extraImageUrls: ["blob:local-secondary", null, null],
+      flattenedPrimaryUrl: "blob:flatten-primary",
+      flattenedMarkupReferenceUrl: null,
+      editSubmitIntent: "standard",
+    });
+
+    expect(result).toEqual({
+      status: "ready",
+      referenceInputs: ["blob:flatten-primary"],
+      linkedSecondaryReferenceInputs: [],
+      workflowReloadExpertEditReferences: {
+        version: 1,
+        maxSecondarySlotCount: 10,
+        primaryReferenceInputIndex: 0,
+        secondarySlots: [],
+        restoreSecondarySlots: [{ slotIndex: 0, sourceUrl: "blob:local-secondary" }],
+      },
+      promptOverrideOptions: undefined,
+    });
+  });
+
   it("keeps the primary image first and markup composite second for markup submissions", () => {
     const result = prepareExpertEditSubmission({
       promptText: "Apply @main with @img1, @img2, and @img3.",

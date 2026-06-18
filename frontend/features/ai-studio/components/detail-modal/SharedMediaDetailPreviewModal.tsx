@@ -18,6 +18,7 @@ import {
   resolveSharedMediaDetailBladeContent,
   resolveSharedMediaDetailTopBarItems,
   resolveSharedMediaDetailTitle,
+  shouldRenderSharedMediaDetailInfoPanel,
 } from "./sharedMediaDetailPresentation";
 import { useExclusiveSoundMediaElement } from "../shared/exclusiveSoundPlayback";
 
@@ -121,6 +122,9 @@ export function SharedMediaDetailPreviewModal({
         item,
       })
     : { label: "PROMPT" as const, value: "" };
+  const shouldRenderInfoPanel = item
+    ? shouldRenderSharedMediaDetailInfoPanel(item, bladeContent)
+    : false;
   const previewCandidates = React.useMemo(() => resolveSharedPreviewCandidates(item), [item]);
   const previewCandidatesKey = previewCandidates.join("\n");
   const activePreviewUrl =
@@ -250,13 +254,13 @@ export function SharedMediaDetailPreviewModal({
           </>
         }
         sidePanel={
-          isExternalUpload ? null : (
+          shouldRenderInfoPanel ? (
             <SharedMediaDetailInfoPanel
               label={bladeContent.label}
               value={bladeContent.value}
               placeholder={item ? resolveSharedMediaDetailBladePlaceholder(item) : undefined}
             />
-          )
+          ) : null
         }
       />
     </SharedMediaDetailModalShell>

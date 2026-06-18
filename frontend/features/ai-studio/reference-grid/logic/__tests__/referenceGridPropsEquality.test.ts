@@ -56,6 +56,19 @@ const createProps = (overrides: Partial<ReferenceGridProps> = {}): ReferenceGrid
     styles: [],
     onSelectStyle: vi.fn(),
   },
+  rightRailLayout: {
+    schemaVersion: 1,
+    panels: {
+      canvas: false,
+      quickSlot: true,
+      referenceGrid: true,
+    },
+    splits: {
+      canvasInventoryTopRatio: null,
+      quickSlotReferenceTopRatio: null,
+    },
+  },
+  onRightRailLayoutChange: vi.fn(),
   outputs: [makeOutput("output-1")],
   archivedOutputs: [makeOutput("archived-1")],
   ...overrides,
@@ -71,6 +84,13 @@ describe("areReferenceGridPropsEqual", () => {
       linkedPromptReferenceIds: [...(base.linkedPromptReferenceIds ?? [])],
       panelVisibility: base.panelVisibility ? { ...base.panelVisibility } : base.panelVisibility,
       stylesPanel: base.stylesPanel ? { ...base.stylesPanel } : base.stylesPanel,
+      rightRailLayout: base.rightRailLayout
+        ? {
+            schemaVersion: base.rightRailLayout.schemaVersion,
+            panels: { ...base.rightRailLayout.panels },
+            splits: { ...base.rightRailLayout.splits },
+          }
+        : base.rightRailLayout,
     };
 
     expect(areReferenceGridPropsEqual(base, next)).toBe(true);
@@ -107,6 +127,27 @@ describe("areReferenceGridPropsEqual", () => {
     });
     const next = createProps({
       isShellResizeActive: true,
+    });
+
+    expect(areReferenceGridPropsEqual(base, next)).toBe(false);
+  });
+
+  it("detects right-rail split layout changes", () => {
+    const base = createProps();
+    const next = createProps({
+      rightRailLayout: {
+        schemaVersion: 1,
+        panels: {
+          canvas: false,
+          quickSlot: true,
+          referenceGrid: true,
+        },
+        splits: {
+          canvasInventoryTopRatio: null,
+          quickSlotReferenceTopRatio: 0.72,
+        },
+      },
+      onRightRailLayoutChange: base.onRightRailLayoutChange,
     });
 
     expect(areReferenceGridPropsEqual(base, next)).toBe(false);

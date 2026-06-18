@@ -36,6 +36,37 @@ describe("prepareSubmissionReferenceInputs", () => {
     });
 
     expect(result.preparedImageInputs).toEqual([preparedUrl]);
+    expect(result.preparedImageInputRefs).toEqual([
+      {
+        originalUrl,
+        preparedUrl,
+        internalMediaRef: internalRef,
+      },
+    ]);
     expect(resolveInternalMediaRefForUrl(preparedUrl)).toEqual(internalRef);
+  });
+
+  it("prepares restore-only references without adding them to provider inputs", async () => {
+    prepareImageUrlForSubmissionMock
+      .mockResolvedValueOnce("https://signed.example.com/provider-primary.png")
+      .mockResolvedValueOnce("https://signed.example.com/restore-secondary.png");
+
+    const result = await prepareSubmissionReferenceInputs({
+      outputId: "out-restore-only-ref",
+      modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+      tool: "image",
+      imageInputs: ["blob:provider-primary"],
+      restoreOnlyImageInputs: ["blob:restore-secondary"],
+      timeoutMessage: "preflight timed out",
+    });
+
+    expect(result.preparedImageInputs).toEqual(["https://signed.example.com/provider-primary.png"]);
+    expect(result.preparedRestoreOnlyImageInputs).toEqual([
+      {
+        originalUrl: "blob:restore-secondary",
+        preparedUrl: "https://signed.example.com/restore-secondary.png",
+        internalMediaRef: null,
+      },
+    ]);
   });
 });

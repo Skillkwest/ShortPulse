@@ -304,6 +304,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         tool: effectiveTool,
         mode: effectiveMode,
         effectiveModelId,
+        videoReferenceMode,
         promptForGuardrails: promptToUse,
         promptForCharacterComposition: promptToUse,
         isCharacterModeEnabledForTool,
@@ -383,6 +384,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       setUiNotice,
       trackCharacterModeFallback,
       trackCharacterModeEvent,
+      videoReferenceMode,
     ]
   );
 
@@ -460,6 +462,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         tool,
         mode,
         effectiveModelId: effectiveSubmitModelId,
+        videoReferenceMode,
         promptForGuardrails,
         promptForCharacterComposition,
         isCharacterModeEnabledForTool,
@@ -516,6 +519,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         inpaintOverride: options?.inpaintOverride,
         hideOutputFromReferenceGrid: options?.hideOutputFromReferenceGrid,
         expertEditReferences: options?.expertEditReferences,
+        expertEditRestoreImageInputs: options?.expertEditRestoreImageInputs,
         suppressStyle: options?.suppressStyle,
         ...(options?.referenceInputsMode
           ? { referenceInputsMode: options.referenceInputsMode }
@@ -563,6 +567,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       setUiNotice,
       trackCharacterModeFallback,
       trackCharacterModeEvent,
+      videoReferenceMode,
     ]
   );
 

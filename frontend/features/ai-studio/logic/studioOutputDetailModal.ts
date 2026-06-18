@@ -49,6 +49,18 @@ const stringifyErrorPayload = (value: unknown): string | null => {
   }
 };
 
+const resolveStudioOutputDetailSource = (
+  output: StudioOutput
+): StudioOutput["mediaSource"] | null => {
+  if (output.mediaSource) return output.mediaSource;
+  if (output.mode === "text") return "prompt";
+  if (output.id.startsWith("upload-") || output.timestamp === "Dropped") return "upload";
+  if (output.id.startsWith("media-paste-") || output.timestamp === "Clipboard") return "clipboard";
+  if (output.id.startsWith("library-") || output.timestamp === "Library") return "library";
+  if (output.generationId?.trim() || output.taskId?.trim()) return "generated";
+  return null;
+};
+
 /**
  * Creates the canonical detail-modal contract for StudioOutput-backed right-rail previews.
  * This keeps the legacy DetailModal aligned with the shared cross-surface capability model.
@@ -117,7 +129,7 @@ export const createStudioOutputDetailModalItem = ({
       promptText: output.prompt,
       transcriptText: output.transcriptText ?? null,
       lyricsText: resolveStudioOutputLyricsText(output),
-      source: output.mediaSource ?? (output.mode === "text" ? "prompt" : null),
+      source: resolveStudioOutputDetailSource(output),
       previewStoragePath: output.previewStoragePath ?? null,
       fullStoragePath: output.fullStoragePath ?? null,
       previewUrl: output.previewUrl ?? output.localObjectUrl ?? null,

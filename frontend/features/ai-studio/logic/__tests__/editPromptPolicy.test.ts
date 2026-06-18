@@ -46,4 +46,22 @@ describe("editPromptPolicy", () => {
       })
     ).toBe(true);
   });
+
+  it("does not require prompt text for prompt-optional video lanes at generation start", () => {
+    expect(
+      shouldCheckPromptAtGenerationStart({
+        tool: "video",
+        modelId: "kie-ai/kling-3.0",
+        videoReferenceMode: "motion",
+      })
+    ).toBe(false);
+
+    expect(
+      shouldCheckPromptAtGenerationStart({
+        tool: "video",
+        modelId: "fal-ai/bytedance/omnihuman/v1.5",
+        videoReferenceMode: "lip-sync",
+      })
+    ).toBe(false);
+  });
 });

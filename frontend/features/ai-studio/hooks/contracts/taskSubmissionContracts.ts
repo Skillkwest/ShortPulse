@@ -22,6 +22,7 @@ export type AiStudioTaskSubmitOptions = {
   inpaintOverride?: InpaintSubmissionOverride | null;
   hideOutputFromReferenceGrid?: boolean;
   expertEditReferences?: WorkflowReloadExpertEditReferences | null;
+  expertEditRestoreImageInputs?: string[];
 };
 
 type AiStudioImageRerollForwardedOptions = Pick<

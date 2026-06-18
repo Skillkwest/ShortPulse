@@ -46,6 +46,17 @@ const areRailCanvasPropsEqual = (
   right?: ReferenceGridProps["railCanvasProps"]
 ): boolean => left === right;
 
+const areRightRailLayoutsEqual = (
+  left?: ReferenceGridProps["rightRailLayout"],
+  right?: ReferenceGridProps["rightRailLayout"]
+): boolean =>
+  left?.schemaVersion === right?.schemaVersion &&
+  left?.panels.canvas === right?.panels.canvas &&
+  left?.panels.quickSlot === right?.panels.quickSlot &&
+  left?.panels.referenceGrid === right?.panels.referenceGrid &&
+  left?.splits.canvasInventoryTopRatio === right?.splits.canvasInventoryTopRatio &&
+  left?.splits.quickSlotReferenceTopRatio === right?.splits.quickSlotReferenceTopRatio;
+
 export const areReferenceGridPropsEqual = (
   previous: Readonly<ReferenceGridPropsLike>,
   next: Readonly<ReferenceGridPropsLike>
@@ -163,6 +174,12 @@ export const areReferenceGridPropsEqual = (
     return false;
   }
   if (!areRailCanvasPropsEqual(previous.railCanvasProps, next.railCanvasProps)) {
+    return false;
+  }
+  if (!areRightRailLayoutsEqual(previous.rightRailLayout, next.rightRailLayout)) {
+    return false;
+  }
+  if (previous.onRightRailLayoutChange !== next.onRightRailLayoutChange) {
     return false;
   }
   if (previous.isShellResizeActive !== next.isShellResizeActive) {

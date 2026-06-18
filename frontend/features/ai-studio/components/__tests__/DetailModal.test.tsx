@@ -266,7 +266,8 @@ describe("DetailModal", () => {
     expect(modal?.classList.contains("is-text-only")).toBe(true);
     expect(modal?.classList.contains("is-prompt-only")).toBe(false);
     expect(screen.getByText("Text detail")).toBeInTheDocument();
-    expect(baseElement.querySelector(".art-modal-meta-pill")).toBeNull();
+    expect(screen.getByRole("heading", { name: "Text reference" })).toBeInTheDocument();
+    expect(baseElement.querySelector(".art-modal-meta-pill")?.textContent?.trim()).toBe("Text");
     expect(screen.queryByText("16:9")).not.toBeInTheDocument();
     expect(screen.queryByText("Kling 3.0")).not.toBeInTheDocument();
     expect(baseElement.querySelector(".art-prompt-only-header")).toBeNull();
@@ -815,7 +816,7 @@ describe("DetailModal", () => {
     );
 
     const headerPill = baseElement.querySelector(".art-modal-meta-pill");
-    expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("voiceover");
+    expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("Audio/voiceover");
   });
 
   it("renders generated voice changer audio with the normalized header label only", () => {
@@ -832,7 +833,7 @@ describe("DetailModal", () => {
     );
 
     const headerPill = baseElement.querySelector(".art-modal-meta-pill");
-    expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("voice changer");
+    expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("Audio/voice changer");
   });
 
   it("renders generated music audio with the normalized header label and lyrics", () => {
@@ -851,7 +852,7 @@ describe("DetailModal", () => {
     );
 
     const headerPill = baseElement.querySelector(".art-modal-meta-pill");
-    expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("music");
+    expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("Audio/music");
     expect(baseElement.querySelector(".detail-modal-music-preview")).not.toBeNull();
     expect(baseElement.querySelector(".detail-modal-audio-preview--compact-row")).not.toBeNull();
     expect(screen.getByText("LYRICS")).toBeInTheDocument();
@@ -959,7 +960,7 @@ describe("DetailModal", () => {
     );
 
     const headerPill = baseElement.querySelector(".art-modal-meta-pill");
-    expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("SFX");
+    expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("Audio/SFX");
   });
 
   it("uses the audio modal sizing hook for pure audio outputs", () => {
@@ -1013,7 +1014,7 @@ describe("DetailModal", () => {
     );
 
     const headerPill = baseElement.querySelector(".art-modal-meta-pill");
-    expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("voice changer/16:9");
+    expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("Video/voice changer/16:9");
   });
 
   it("prefers transcript text for generated voice changer outputs", () => {
@@ -1069,7 +1070,7 @@ describe("DetailModal", () => {
     );
 
     const headerPill = baseElement.querySelector(".art-modal-meta-pill");
-    expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("voice changer/4:3");
+    expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("Video/voice changer/4:3");
   });
 
   it("keeps image mode previews as images when URL paths contain video-like segments", () => {
@@ -1412,6 +1413,53 @@ describe("DetailModal", () => {
     expect(screen.getByText("Image")).toBeInTheDocument();
     expect(screen.queryByText("PROMPT")).not.toBeInTheDocument();
     expect(screen.queryByDisplayValue("create-page-current.png")).not.toBeInTheDocument();
+  });
+
+  it("hides the prompt blade for uploaded files with very long filenames", () => {
+    const longFilename = `${"campaign-final-reference-".repeat(10)}still.png`;
+    render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          id: "upload-long-name",
+          prompt: longFilename,
+          previewUrl: `https://cdn.test/uploads/${longFilename}`,
+          model: "",
+          modelId: undefined,
+          timestamp: "Dropped",
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("heading", { name: longFilename })).toBeInTheDocument();
+    expect(screen.queryByText("PROMPT")).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue(longFilename)).not.toBeInTheDocument();
+  });
+
+  it("shows generated media prompts and a normalized generated reference name", () => {
+    render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          id: "generated-image-1",
+          prompt: "A crystal observatory under desert stars",
+          mediaSource: "generated",
+          generationId: "generation-1",
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("heading", { name: "Generated image" })).toBeInTheDocument();
+    expect(screen.getByText("PROMPT")).toBeInTheDocument();
+    expect(
+      screen.getByDisplayValue("A crystal observatory under desert stars")
+    ).toBeInTheDocument();
   });
 
   it("prefers canonical preview media over transient preview url in detail rendering", () => {

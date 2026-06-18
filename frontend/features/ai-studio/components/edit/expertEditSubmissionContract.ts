@@ -17,6 +17,7 @@ export type ExpertEditRegenerateOptions = {
   referenceInputsMode?: "merge" | "replace";
   referenceInputsLimit?: number;
   expertEditReferences?: WorkflowReloadExpertEditReferences | null;
+  expertEditRestoreImageInputs?: string[];
 };
 
 export type ExpertEditRegenerateWithReferenceInputsHandler = (

@@ -194,6 +194,33 @@ describe("POST /api/media/upload", () => {
     vi.unstubAllEnvs();
   });
 
+  it("logs auth verifier failures before rate limiting or multipart parsing", async () => {
+    const authError = new Error("auth verifier exploded");
+    requireApiUserMock.mockRejectedValueOnce(authError);
+    const req = {
+      method: "POST",
+      headers: {
+        "content-type": "multipart/form-data; boundary=x",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        error: authError,
+        routeLabel: "media-upload.auth",
+        scope: "app",
+      })
+    );
+    expect(formidableFactoryMock).not.toHaveBeenCalled();
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Upload failed" });
+  });
+
   it("uploads and persists media for a private destination", async () => {
     vi.spyOn(fs, "readFileSync").mockReturnValue(
       Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])

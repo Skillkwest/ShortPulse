@@ -32,6 +32,34 @@ describe("POST /api/media/folders/membership-batch", () => {
     requireApiUserMock.mockResolvedValue({ id: "user-1" });
   });
 
+  it("logs auth verifier failures before folder membership service calls", async () => {
+    const authError = new Error("auth verifier exploded");
+    requireApiUserMock.mockRejectedValueOnce(authError);
+    const req = {
+      method: "POST",
+      body: {
+        folderId: "2d6fc803-2289-47a9-9a07-063ebf2eec4f",
+        action: "assign",
+        mediaIds: ["media-1"],
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        error: authError,
+        routeLabel: "media-folders-membership-batch.auth",
+        scope: "app",
+      })
+    );
+    expect(applyFolderMembershipBatchMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Failed to update folder membership" });
+  });
+
   it("rejects invalid folder ids", async () => {
     const req = {
       method: "POST",

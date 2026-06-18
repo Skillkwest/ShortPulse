@@ -91,15 +91,45 @@ describe("GET /api/admin/access", () => {
     });
   });
 
-  it("returns 500 when access resolution throws", async () => {
-    requireApiUserMock.mockRejectedValue(new Error("boom"));
+  it("logs auth verifier exceptions before resolving admin access", async () => {
+    const authError = new Error("auth verifier unavailable");
+    requireApiUserMock.mockRejectedValueOnce(authError);
 
     const req = { method: "GET" };
     const res = createMockResponse();
 
     await handler(req as never, res as never);
 
-    expect(logApiRouteExceptionMock).toHaveBeenCalledTimes(1);
+    expect(resolveAdminAccessViaMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: authError,
+      routeLabel: "api/admin/access.auth",
+      scope: "app",
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Failed to verify admin access." });
+  });
+
+  it("returns 500 when access resolution throws", async () => {
+    requireApiUserMock.mockResolvedValue({ id: "admin-1", email: "admin@example.com" });
+    resolveAdminAccessViaMock.mockImplementationOnce(() => {
+      throw new Error("boom");
+    });
+
+    const req = { method: "GET" };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "api/admin/access",
+        metadata: expect.objectContaining({
+          source: "api.admin.access",
+        }),
+      })
+    );
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({ error: "Failed to verify admin access." });
   });

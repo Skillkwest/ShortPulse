@@ -130,6 +130,36 @@ describe("product image asset API routes", () => {
     });
   });
 
+  it("logs prepare-route auth verifier exceptions before rate limit or service work", async () => {
+    const authError = new Error("auth verifier unavailable");
+    requireApiUserMock.mockRejectedValueOnce(authError);
+    const req = {
+      method: "POST",
+      body: {
+        characterId: "char-1",
+        intent: "character_sheet_preset",
+        sourceMimeType: "image/png",
+        sourceName: "image.png",
+      },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await prepareHandler(req as never, res as never);
+
+    expect(prepareProductImageAssetUploadForUserMock).not.toHaveBeenCalled();
+    expect(finalizePreparedProductImageAssetUploadForUserMock).not.toHaveBeenCalled();
+    expect(admitProductImageAssetFromStorageForUserMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: authError,
+      routeLabel: "media-prepare-product-image-asset-upload.auth",
+      scope: "app",
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Unable to prepare image asset upload" });
+  });
+
   it("finalizes a staged product image upload through server admission", async () => {
     const req = {
       method: "POST",
@@ -163,6 +193,38 @@ describe("product image asset API routes", () => {
     expect(res.json).toHaveBeenCalledWith({ asset: admittedAsset });
   });
 
+  it("logs finalize-route auth verifier exceptions before rate limit or service work", async () => {
+    const authError = new Error("auth verifier unavailable");
+    requireApiUserMock.mockRejectedValueOnce(authError);
+    const req = {
+      method: "POST",
+      body: {
+        characterId: "char-1",
+        intent: "character_sheet_preset",
+        sourceMimeType: "image/png",
+        sourceName: "image.png",
+        sourceStoragePath:
+          "user-1/upload-staging/product-image-assets/character_sheet_preset/image.png",
+      },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await finalizeHandler(req as never, res as never);
+
+    expect(prepareProductImageAssetUploadForUserMock).not.toHaveBeenCalled();
+    expect(finalizePreparedProductImageAssetUploadForUserMock).not.toHaveBeenCalled();
+    expect(admitProductImageAssetFromStorageForUserMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: authError,
+      routeLabel: "media-finalize-product-image-asset-upload.auth",
+      scope: "app",
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Unable to finalize image asset upload" });
+  });
+
   it("admits an owned storage-backed product image without browser reupload", async () => {
     const req = {
       method: "POST",
@@ -191,6 +253,36 @@ describe("product image asset API routes", () => {
     });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ asset: admittedAsset });
+  });
+
+  it("logs storage-admit auth verifier exceptions before rate limit or service work", async () => {
+    const authError = new Error("auth verifier unavailable");
+    requireApiUserMock.mockRejectedValueOnce(authError);
+    const req = {
+      method: "POST",
+      body: {
+        characterId: "char-1",
+        intent: "character_sheet_preset",
+        sourceName: "generated.png",
+        sourceStoragePath: "user-1/images/generated/generated.png",
+      },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await admitFromStorageHandler(req as never, res as never);
+
+    expect(prepareProductImageAssetUploadForUserMock).not.toHaveBeenCalled();
+    expect(finalizePreparedProductImageAssetUploadForUserMock).not.toHaveBeenCalled();
+    expect(admitProductImageAssetFromStorageForUserMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: authError,
+      routeLabel: "media-admit-image-asset-from-storage.auth",
+      scope: "app",
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Unable to admit image asset" });
   });
 
   it("maps product image validation errors without logging them as server faults", async () => {

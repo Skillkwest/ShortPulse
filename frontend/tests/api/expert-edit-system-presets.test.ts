@@ -38,6 +38,27 @@ describe("GET /api/ai/expert-edit-system-presets", () => {
     expect(res.status).toHaveBeenCalledWith(405);
   });
 
+  it("logs auth verifier exceptions before loading the preset catalog", async () => {
+    const authError = new Error("auth verifier unavailable");
+    requireApiUserMock.mockRejectedValueOnce(authError);
+
+    const req = { method: "GET" };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(resolveRuntimeExpertEditSystemPresetCatalogMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: authError,
+      routeLabel: "api/ai/expert-edit-system-presets.auth",
+      scope: "app",
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Failed to load global Edit system presets.",
+    });
+  });
+
   it("returns the active Edit system preset catalog", async () => {
     resolveRuntimeExpertEditSystemPresetCatalogMock.mockResolvedValue({
       presetDefinitions: [{ presetId: "style_test", label: "Style Test" }],

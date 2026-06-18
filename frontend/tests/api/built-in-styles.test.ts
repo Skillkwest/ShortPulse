@@ -38,6 +38,25 @@ describe("GET /api/ai/built-in-styles", () => {
     expect(res.status).toHaveBeenCalledWith(405);
   });
 
+  it("logs auth verifier exceptions before loading the catalog", async () => {
+    const authError = new Error("auth verifier unavailable");
+    requireApiUserMock.mockRejectedValueOnce(authError);
+
+    const req = { method: "GET" };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(resolveRuntimeBuiltInStyleCatalogMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: authError,
+      routeLabel: "api/ai/built-in-styles.auth",
+      scope: "app",
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Failed to load built-in Styles." });
+  });
+
   it("returns the active built-in Styles catalog", async () => {
     resolveRuntimeBuiltInStyleCatalogMock.mockResolvedValue({
       styleDefinitions: [

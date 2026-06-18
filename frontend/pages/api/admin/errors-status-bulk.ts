@@ -97,10 +97,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const adminUser = await requireAdminUser(req, res);
+  let adminUser: Awaited<ReturnType<typeof requireAdminUser>>;
+  try {
+    adminUser = await requireAdminUser(req, res);
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "admin/errors-status-bulk.auth",
+    });
+    return res.status(500).json({ error: "Unable to update incident status." });
+  }
   if (!adminUser) {
     return;
   }
+  const verifiedAdminUser = adminUser;
 
   const body = (req.body ?? {}) as BulkUpdateStatusRequest;
   const errorIds = asErrorIds(body.errorIds);
@@ -134,8 +145,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             p_event_id: null,
             p_status: status,
             p_note: note,
-            p_admin_user_id: adminUser.id,
-            p_admin_user_email: adminUser.email ?? null,
+            p_admin_user_id: verifiedAdminUser.id,
+            p_admin_user_email: verifiedAdminUser.email ?? null,
           });
           if (error) {
             failures.push(toFailureRow(errorId, error));

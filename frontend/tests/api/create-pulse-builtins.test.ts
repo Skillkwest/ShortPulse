@@ -42,6 +42,25 @@ describe("GET /api/ai/create-pulse-builtins", () => {
     expect(res.status).toHaveBeenCalledWith(405);
   });
 
+  it("logs auth verifier exceptions before loading the built-in catalog", async () => {
+    const authError = new Error("auth verifier unavailable");
+    requireApiUserMock.mockRejectedValueOnce(authError);
+
+    const req = { method: "GET" };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(resolveRuntimeCreatePulseBuiltInCatalogMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: authError,
+      routeLabel: "api/ai/create-pulse-builtins.auth",
+      scope: "app",
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Failed to load Create Pulse built-ins." });
+  });
+
   it("returns the active built-in catalog", async () => {
     resolveRuntimeCreatePulseBuiltInCatalogMock.mockResolvedValue({
       builtInDefinitions: [{ presetId: "image", label: "Video Prompt Magic" }],

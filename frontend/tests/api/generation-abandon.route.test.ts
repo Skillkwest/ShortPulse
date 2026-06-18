@@ -56,6 +56,28 @@ describe("POST /api/generation/abandon", () => {
     expect(recordGenerationAbandonmentMock).not.toHaveBeenCalled();
   });
 
+  it("logs unexpected auth failures before recording abandonment", async () => {
+    const res = createMockResponse();
+    requireApiUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
+
+    await generationAbandonHandler(
+      { method: "POST", body: { generation_id: "gen-1" }, headers: {} } as never,
+      res as never
+    );
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "generation-abandon.auth",
+        scope: "generation",
+      })
+    );
+    expect(recordGenerationAbandonmentMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to abandon generation",
+    });
+  });
+
   it("records visibility suppression for the authenticated owner", async () => {
     const res = createMockResponse();
 

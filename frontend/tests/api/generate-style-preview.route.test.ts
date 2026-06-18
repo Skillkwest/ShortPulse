@@ -106,6 +106,36 @@ describe("POST /api/ai/generate-style-preview", () => {
     expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
   });
 
+  it("logs auth verifier exceptions before billing or provider submission", async () => {
+    const authError = new Error("auth verifier unavailable");
+    requireApiUserMock.mockRejectedValueOnce(authError);
+    const req = {
+      method: "POST",
+      body: {
+        styleId: "style-library-custom-1",
+        styleName: "Dream Glow",
+        stylePrompt: "ethereal bloom and soft highlights",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
+    expect(generateFalFluxKleinStylePreviewImageMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: authError,
+      routeLabel: "ai-generate-style-preview.auth",
+      scope: "generation",
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to generate style preview",
+      details: "Style preview generation failed.",
+    });
+  });
+
   it("rejects missing style inputs before billing", async () => {
     const req = {
       method: "POST",

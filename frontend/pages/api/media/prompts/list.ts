@@ -162,8 +162,20 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const user = await requireApiUser(req, res);
+  let user: Awaited<ReturnType<typeof requireApiUser>>;
+  try {
+    user = await requireApiUser(req, res);
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "media-prompts-list.auth",
+      scope: "app",
+    });
+    return res.status(500).json({ error: "Failed to list prompts" });
+  }
   if (!user) return;
+  const userId = user.id;
 
   try {
     const body = toRequestBody(req.body);
@@ -172,7 +184,7 @@ export default async function handler(
     const cursor = asCursor(body.cursor);
     const limit = clampLimit(body.limit);
 
-    await assertFolderAccess({ userId: user.id, folderId });
+    await assertFolderAccess({ userId, folderId });
 
     const supabaseAdmin = getSupabaseAdmin();
     const selectColumns = "id, title, prompt_text, mode, source, created_at, updated_at";
@@ -185,11 +197,11 @@ export default async function handler(
             ? `${selectColumns}, folder_membership:media_folder_prompt_items!media_folder_prompt_items_prompt_fk!inner(folder_id,user_id)`
             : selectColumns
         )
-        .eq("user_id", user.id);
+        .eq("user_id", userId);
       if (folderScoped) {
         queryBuilder = queryBuilder
           .eq("folder_membership.folder_id", folderId)
-          .eq("folder_membership.user_id", user.id);
+          .eq("folder_membership.user_id", userId);
       }
       if (query) {
         const wildcard = `*${query}*`;

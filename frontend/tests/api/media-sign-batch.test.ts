@@ -79,6 +79,34 @@ describe("POST /api/media/sign-batch", () => {
     expect(res.json).toHaveBeenCalledWith({ error: "Method not allowed" });
   });
 
+  it("logs auth verifier failures before storage signing", async () => {
+    requireApiUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
+    const req = {
+      method: "POST",
+      body: {
+        bucket: "media_library",
+        paths: ["user-1/private/images/example.png"],
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        error: expect.any(Error),
+        routeLabel: "media-sign-batch.auth",
+        scope: "app",
+      })
+    );
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Failed to sign media paths",
+    });
+  });
+
   it("rejects traversal-style segments while allowing valid requests", async () => {
     const createSignedUrlsMock = vi.fn(async () => ({
       data: [{ path: "user-1/private/images/good.png", signedUrl: "https://example.test/signed" }],

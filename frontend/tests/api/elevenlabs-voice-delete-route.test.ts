@@ -39,6 +39,36 @@ describe("DELETE /api/elevenlabs/voices/[voiceId]", () => {
     process.env.ELEVENLABS_API_KEY = "elevenlabs_test_key";
   });
 
+  it("logs auth verifier failures before voice lookup or deletion work", async () => {
+    const authError = new Error("auth verifier exploded");
+    requireApiUserMock.mockRejectedValueOnce(authError);
+    const req = {
+      method: "DELETE",
+      query: { voiceId: "voice-clone-1" },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        error: authError,
+        routeLabel: "elevenlabs-voice-delete.auth",
+        scope: "generation",
+      })
+    );
+    expect(listSavedVoicesForUserMock).not.toHaveBeenCalled();
+    expect(listElevenLabsVoicesMock).not.toHaveBeenCalled();
+    expect(deleteElevenLabsVoiceMock).not.toHaveBeenCalled();
+    expect(deleteSavedVoiceForUserMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to delete voice",
+      details: "Unable to delete voice.",
+    });
+  });
+
   it("removes a saved non-provider-owned voice from ShortPulse only", async () => {
     listSavedVoicesForUserMock.mockResolvedValue([
       {

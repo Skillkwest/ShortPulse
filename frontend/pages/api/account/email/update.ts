@@ -49,7 +49,19 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const user = await requireApiUser(req, res);
+  let user;
+  try {
+    user = await requireApiUser(req, res);
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "account/email/update.auth",
+    });
+    return res.status(500).json({
+      error: "Unable to update your email.",
+    });
+  }
   if (!user) return;
   if (
     !enforceApiRateLimit(req, res, {
@@ -69,17 +81,17 @@ export default async function handler(
   if (!currentPassword.trim()) {
     return res.status(400).json({ error: "Enter your current password." });
   }
-  if (
-    !user.email ||
-    !(await verifySupabasePassword({
-      email: user.email,
-      password: currentPassword,
-    }))
-  ) {
-    return res.status(401).json({ error: "Current password is incorrect." });
-  }
-
   try {
+    if (
+      !user.email ||
+      !(await verifySupabasePassword({
+        email: user.email,
+        password: currentPassword,
+      }))
+    ) {
+      return res.status(401).json({ error: "Current password is incorrect." });
+    }
+
     const requestOrigin = resolvePublicAppOrigin(req);
     if (!requestOrigin) {
       throw new Error("Unable to resolve app origin.");

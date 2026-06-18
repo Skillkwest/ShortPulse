@@ -140,6 +140,36 @@ describe("POST /api/media/stage-voice-changer-source", () => {
     });
   });
 
+  it("logs auth verifier failures before rate limiting or upload finalization", async () => {
+    requireApiUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
+    const req = {
+      method: "POST",
+      body: {
+        sourceKind: "audio",
+        sourceMimeType: "audio/wav",
+        sourceName: "sample.wav",
+        sourceStoragePath: "user-1/voice-changer/source-audio/sample.wav",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        error: expect.any(Error),
+        routeLabel: "media-stage-voice-changer-source.auth",
+        scope: "generation",
+      })
+    );
+    expect(finalizeVoiceChangerSourceUploadForUserMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to stage voice changer source",
+    });
+  });
+
   it("returns a sanitized 500 when finalization fails unexpectedly", async () => {
     finalizeVoiceChangerSourceUploadForUserMock.mockRejectedValueOnce(
       new Error("storage download exploded")

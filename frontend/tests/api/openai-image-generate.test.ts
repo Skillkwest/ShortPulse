@@ -114,12 +114,12 @@ describe("POST /api/openai/image-generate", () => {
     expect(generateOpenAiImageMock).not.toHaveBeenCalled();
   });
 
-  it("rejects stale non-provider GPT Image 2 sizes before billing", async () => {
+  it("rejects unsupported GPT Image 2 sizes before billing", async () => {
     const req = {
       method: "POST",
       body: {
         prompt: "portrait",
-        size: "2048x2048",
+        size: "4096x4096",
         quality: "medium",
       },
     };
@@ -130,6 +130,38 @@ describe("POST /api/openai/image-generate", () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
     expect(generateOpenAiImageMock).not.toHaveBeenCalled();
+  });
+
+  it("logs unexpected auth failures before billing or provider dispatch", async () => {
+    requireApiUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
+
+    const req = {
+      method: "POST",
+      body: {
+        prompt: "cinematic portrait",
+        size: "1024x1024",
+        quality: "medium",
+      },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "openai-image-generate.auth",
+        scope: "generation",
+      })
+    );
+    expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
+    expect(generateOpenAiImageMock).not.toHaveBeenCalled();
+    expect(persistGeneratedImageAssetMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to generate image",
+      details: "auth verifier exploded",
+    });
   });
 
   it("stops before provider submission when billing already returned a fail-closed response", async () => {

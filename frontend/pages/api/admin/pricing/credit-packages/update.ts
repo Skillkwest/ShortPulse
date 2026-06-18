@@ -29,7 +29,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const adminUser = await requireAdminUser(req, res);
+  let adminUser;
+  try {
+    adminUser = await requireAdminUser(req, res);
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "admin/pricing/credit-packages/update.auth",
+      metadata: {
+        source: "api.admin.pricing.credit-packages.update",
+      },
+    });
+    return res.status(500).json({
+      error: "Failed to update the credit package.",
+    });
+  }
   if (!adminUser) return;
 
   const body = (req.body ?? {}) as UpdateCreditPackageRequest;

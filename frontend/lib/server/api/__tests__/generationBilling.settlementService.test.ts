@@ -129,6 +129,69 @@ describe("settleGenerationOutcome linkage repair", () => {
     );
   });
 
+  it("repairs reservation linkage from generation_attempt metadata when projection is absent", async () => {
+    lookupGenerationAttemptByProviderRequestMock.mockResolvedValue({
+      data: {
+        generationId: "gen-attempt-metadata-1",
+        userId: "user-1",
+        providerRequestId: "req-attempt-metadata-1",
+        metadata: {
+          source_ref: "source-ref-attempt-metadata-1",
+        },
+      },
+      error: null,
+    });
+    mockGenerationLookup({});
+    captureGenerationReservationByProviderRequestMock
+      .mockResolvedValueOnce({
+        status: "not_found",
+        sourceRef: null,
+        message: null,
+        code: null,
+      })
+      .mockResolvedValueOnce({
+        status: "captured",
+        sourceRef: "source-ref-attempt-metadata-1",
+        message: null,
+        code: null,
+      });
+    markGenerationReservationSubmittedMock.mockResolvedValue({
+      status: "reserved",
+      sourceRef: "source-ref-attempt-metadata-1",
+      message: null,
+      code: null,
+    });
+
+    const result = await settleGenerationOutcome({
+      userId: "user-1",
+      providerRequestId: "req-attempt-metadata-1",
+      outcome: "success",
+      reason: "capture after success",
+      routeLabel: "api/fal/status",
+      detail: {
+        actor: "test",
+      },
+    });
+
+    expect(result).toEqual({
+      settled: true,
+      sourceRef: "source-ref-attempt-metadata-1",
+      note: "captured",
+    });
+    expect(markGenerationReservationSubmittedMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        sourceRef: "source-ref-attempt-metadata-1",
+        providerRequestId: "req-attempt-metadata-1",
+        metadata: expect.objectContaining({
+          generation_id: "gen-attempt-metadata-1",
+          repair_source: "settlement_repair",
+        }),
+      })
+    );
+    expect(captureGenerationReservationByProviderRequestMock).toHaveBeenCalledTimes(2);
+  });
+
   it("repairs reservation linkage from provider_request_id projection before request_id projection lookup", async () => {
     mockGenerationLookup({
       projectionRows: [

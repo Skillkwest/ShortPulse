@@ -132,6 +132,27 @@ describe("POST /api/admin/agent-safety-policy/activate", () => {
     });
   });
 
+  it("logs unexpected admin auth failures before activation starts", async () => {
+    requireAdminUserMock.mockRejectedValue(new Error("auth verifier exploded"));
+
+    const req = {
+      method: "POST",
+      body: { profileId: "staging_lenient", singleReviewerAck: true },
+      headers: {},
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "admin/agent-safety-policy/activate.auth",
+      })
+    );
+    expect(activateAgentSafetyPolicyMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Unable to activate safety policy." });
+  });
+
   it("logs and returns 500 when rpc throws", async () => {
     activateAgentSafetyPolicyMock.mockRejectedValue(new Error("rpc exploded"));
 

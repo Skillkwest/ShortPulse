@@ -88,6 +88,28 @@ describe("POST /api/media/stage-voice-clone-source", () => {
     });
   });
 
+  it("logs auth verifier failures before rate limiting or source upload", async () => {
+    requireApiUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
+    const req = { method: "POST" };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        error: expect.any(Error),
+        routeLabel: "media-stage-voice-clone-source.auth",
+        scope: "generation",
+      })
+    );
+    expect(uploadVoiceCloneSourceForUserMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to stage voice clone source",
+    });
+  });
+
   it("returns a sanitized 500 when staging fails unexpectedly", async () => {
     uploadVoiceCloneSourceForUserMock.mockRejectedValueOnce(new Error("storage write exploded"));
     const req = { method: "POST" };

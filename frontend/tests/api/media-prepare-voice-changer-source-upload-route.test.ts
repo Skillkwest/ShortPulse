@@ -95,6 +95,35 @@ describe("POST /api/media/prepare-voice-changer-source-upload", () => {
     });
   });
 
+  it("logs auth verifier failures before rate limiting or upload preparation", async () => {
+    requireApiUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
+    const req = {
+      method: "POST",
+      body: {
+        sourceKind: "audio",
+        sourceMimeType: "audio/wav",
+        sourceName: "sample.wav",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        error: expect.any(Error),
+        routeLabel: "media-prepare-voice-changer-source-upload.auth",
+        scope: "generation",
+      })
+    );
+    expect(prepareVoiceChangerSourceUploadForUserMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to prepare voice changer upload",
+    });
+  });
+
   it("returns a sanitized 500 when preparation fails unexpectedly", async () => {
     prepareVoiceChangerSourceUploadForUserMock.mockRejectedValueOnce(
       new Error("signed upload target exploded")

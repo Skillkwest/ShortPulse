@@ -800,12 +800,26 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const user = await requireApiUser(req, res);
+  let user: Awaited<ReturnType<typeof requireApiUser>>;
+  try {
+    user = await requireApiUser(req, res);
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "kie-upload-url.auth",
+      scope: "generation",
+    });
+    return res.status(500).json({
+      error: "Kie upload failed",
+    });
+  }
   if (!user) return;
+  const userId = user.id;
   if (
     !enforceApiRateLimit(req, res, {
       ...KIE_UPLOAD_URL_RATE_LIMIT,
-      keyPrefix: `${KIE_UPLOAD_URL_RATE_LIMIT.keyPrefix}:${user.id}`,
+      keyPrefix: `${KIE_UPLOAD_URL_RATE_LIMIT.keyPrefix}:${userId}`,
     })
   ) {
     return;
@@ -837,7 +851,7 @@ export default async function handler(
               uploadPath,
               fileName,
               mediaKind,
-              userId: user.id,
+              userId,
             });
             return {
               result: storageResult,

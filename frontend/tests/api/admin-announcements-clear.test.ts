@@ -54,6 +54,23 @@ describe("POST /api/admin/announcements/clear", () => {
     expect(getSupabaseAdminMock).not.toHaveBeenCalled();
   });
 
+  it("logs unexpected admin auth failures before clearing starts", async () => {
+    requireAdminUserMock.mockRejectedValue(new Error("auth verifier exploded"));
+
+    const req = { method: "POST", headers: {} };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "admin/announcements/clear.auth",
+      })
+    );
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Unable to clear announcement." });
+  });
+
   it("clears active announcements", async () => {
     const eqMock = vi.fn(async () => ({ error: null }));
     const updateMock = vi.fn(() => ({ eq: eqMock }));

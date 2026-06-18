@@ -7,16 +7,16 @@ import {
 
 const executeGenerationRecoveryMock = vi.fn();
 const getProjectForUserMock = vi.fn();
-const readGenerationProjectionLinkBySourceRefMock = vi.fn();
+const resolveGenerationLineageBySourceRefMock = vi.fn();
 const fromMock = vi.fn();
 
 vi.mock("../../projectsService", () => ({
   getProjectForUser: (...args: unknown[]) => getProjectForUserMock(...args),
 }));
 
-vi.mock("../generationProjection", () => ({
-  readGenerationProjectionLinkBySourceRef: (...args: unknown[]) =>
-    readGenerationProjectionLinkBySourceRefMock(...args),
+vi.mock("../generationLineageResolver", () => ({
+  resolveGenerationLineageBySourceRef: (...args: unknown[]) =>
+    resolveGenerationLineageBySourceRefMock(...args),
 }));
 
 vi.mock("../supabaseAdmin", () => ({
@@ -58,7 +58,7 @@ describe("generationReconcile", () => {
       createdAt: "2026-06-08T00:00:00.000Z",
       updatedAt: "2026-06-08T00:00:00.000Z",
     });
-    readGenerationProjectionLinkBySourceRefMock.mockResolvedValue(null);
+    resolveGenerationLineageBySourceRefMock.mockResolvedValue(null);
     fromMock.mockReturnValue(createGenerationSelectBuilder());
     executeGenerationRecoveryMock.mockResolvedValue({
       ok: true,
@@ -161,8 +161,8 @@ describe("generationReconcile", () => {
     });
   });
 
-  it("resolves source refs through projection before recovery", async () => {
-    readGenerationProjectionLinkBySourceRefMock.mockResolvedValueOnce({
+  it("resolves source refs through shared lineage before recovery", async () => {
+    resolveGenerationLineageBySourceRefMock.mockResolvedValueOnce({
       generationId: "generation-from-projection",
       requestId: "request-from-projection",
       sourceRef: "source-1",
@@ -173,35 +173,39 @@ describe("generationReconcile", () => {
       identities: [{ generationId: null, requestId: null, sourceRef: "source-1" }],
     });
 
-    expect(readGenerationProjectionLinkBySourceRefMock).toHaveBeenCalledWith({
+    expect(resolveGenerationLineageBySourceRefMock).toHaveBeenCalledWith({
       userId: "user-1",
       sourceRef: "source-1",
     });
-    expect(executeGenerationRecoveryMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        generationId: "generation-from-projection",
-        userId: "user-1",
-      })
-    );
+    expect(executeGenerationRecoveryMock).toHaveBeenCalledWith({
+      actor: "user_reconcile",
+      generationId: "generation-from-projection",
+      requestId: "request-from-projection",
+      userId: "user-1",
+      routeLabel: "generation.reconcile",
+    });
   });
 
-  it("falls back to ai_generations source_ref metadata when projection is absent", async () => {
-    fromMock.mockReturnValueOnce(
-      createGenerationSelectBuilder([{ id: "generation-from-metadata" }])
-    );
+  it("uses shared lineage metadata fallback results when projection is absent", async () => {
+    resolveGenerationLineageBySourceRefMock.mockResolvedValueOnce({
+      generationId: "generation-from-metadata",
+      requestId: "request-from-metadata",
+      sourceRef: "source-1",
+    });
 
     await reconcileVisibleGenerationsForUser({
       userId: "user-1",
       identities: [{ generationId: null, requestId: null, sourceRef: "source-1" }],
     });
 
-    expect(fromMock).toHaveBeenCalledWith("ai_generations");
-    expect(executeGenerationRecoveryMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        generationId: "generation-from-metadata",
-        userId: "user-1",
-      })
-    );
+    expect(fromMock).not.toHaveBeenCalled();
+    expect(executeGenerationRecoveryMock).toHaveBeenCalledWith({
+      actor: "user_reconcile",
+      generationId: "generation-from-metadata",
+      requestId: "request-from-metadata",
+      userId: "user-1",
+      routeLabel: "generation.reconcile",
+    });
   });
 
   it("reconciles project-bound in-flight generations even when projection visibility is hidden", async () => {

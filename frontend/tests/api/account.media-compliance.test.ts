@@ -115,6 +115,29 @@ describe("/api/account/media-compliance", () => {
     });
   });
 
+  it("logs auth verifier exceptions before compliance lookups", async () => {
+    const authError = new Error("auth verifier unavailable");
+    requireApiUserMock.mockRejectedValueOnce(authError);
+
+    const req = { method: "GET", headers: {} };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(getMediaComplianceAcceptanceStatusForUserMock).not.toHaveBeenCalled();
+    expect(saveMediaComplianceAcceptanceForUserMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: authError,
+      routeLabel: "account/media-compliance.auth",
+      scope: "app",
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to process the media agreement request.",
+      code: "MEDIA_COMPLIANCE_REQUEST_FAILED",
+    });
+  });
+
   it("returns 503 when the compliance service is unavailable", async () => {
     const unavailableError = Object.assign(
       new Error("Media agreement service is temporarily unavailable."),
@@ -147,7 +170,8 @@ describe("/api/account/media-compliance", () => {
 
     expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        routeLabel: "account/media-compliance",
+        routeLabel: "account/media-compliance.auth",
+        scope: "app",
         metadata: expect.objectContaining({
           reason_code: "AUTH_VERIFICATION_UNAVAILABLE",
         }),

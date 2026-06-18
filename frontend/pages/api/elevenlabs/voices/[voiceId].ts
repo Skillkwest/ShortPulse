@@ -62,8 +62,23 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const user = await requireApiUser(req, res);
+  let user: Awaited<ReturnType<typeof requireApiUser>>;
+  try {
+    user = await requireApiUser(req, res);
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "elevenlabs-voice-delete.auth",
+      scope: "generation",
+    });
+    return res.status(500).json({
+      error: "Unable to delete voice",
+      details: "Unable to delete voice.",
+    });
+  }
   if (!user) return;
+  const userId = user.id;
 
   const voiceId = normalizeVoiceId(req.query.voiceId);
   if (!voiceId) {
@@ -74,7 +89,7 @@ export default async function handler(
   }
 
   try {
-    const savedVoices = await listSavedVoicesForUser(user.id);
+    const savedVoices = await listSavedVoicesForUser(userId);
     const hadSavedVoice = savedVoices.some(
       (voice) => voice.voiceId.trim().toLowerCase() === voiceId.toLowerCase()
     );
@@ -123,7 +138,7 @@ export default async function handler(
 
     if (targetVoice.destructiveAction === "remove") {
       const removedSavedVoice = await deleteSavedVoiceForUser({
-        userId: user.id,
+        userId,
         voiceId,
       });
 
@@ -160,7 +175,7 @@ export default async function handler(
     }
 
     const removedSavedVoice = await deleteSavedVoiceForUser({
-      userId: user.id,
+      userId,
       voiceId,
     });
 

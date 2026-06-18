@@ -190,4 +190,161 @@ describe("runAdminUserHealthFleetScan", () => {
       })
     );
   });
+
+  it("uses generation metadata source_ref lineage to avoid false fleet cost alerts", async () => {
+    loadFleetTargetUsersMock.mockResolvedValue([
+      {
+        userId: "user-1",
+        email: "user@example.com",
+      },
+    ]);
+
+    const rpcMock = vi.fn(async () => ({ error: null }));
+    const buildQuery = (table: string) => {
+      const chain: Record<string, unknown> = {};
+      chain.select = vi.fn(() => chain);
+      chain.in = vi.fn(() => chain);
+      chain.gte = vi.fn(() => chain);
+      chain.lte = vi.fn(() => chain);
+      chain.lt = vi.fn(() => chain);
+      chain.order = vi.fn(() => chain);
+      chain.then = (resolve: (value: unknown) => void, reject?: (reason?: unknown) => void) => {
+        let data: unknown[] = [];
+        if (table === "ai_credit_balance") {
+          data = [{ user_id: "user-1", balance_cents: 100 }];
+        } else if (table === "ai_generations") {
+          data = [
+            {
+              user_id: "user-1",
+              status: "success",
+              recovery_state: null,
+              request_id: null,
+              created_at: "2026-06-03T10:00:00.000Z",
+              metadata: {
+                source_ref: "metadata-source-ref-1",
+              },
+            },
+          ];
+        } else if (table === "ai_credit_ledger") {
+          data = [
+            {
+              user_id: "user-1",
+              change_cents: -5,
+              source: "generation_charge",
+              source_ref: "metadata-source-ref-1",
+              reason: "generation charge",
+              created_at: "2026-06-03T10:01:00.000Z",
+            },
+          ];
+        }
+        return Promise.resolve({ data, error: null }).then(resolve, reject);
+      };
+      return chain;
+    };
+    getSupabaseAdminMock.mockReturnValue({
+      from: (table: string) => buildQuery(table),
+      rpc: rpcMock,
+    });
+
+    const result = await runAdminUserHealthFleetScan({
+      triggerSource: "scheduled",
+    });
+
+    expect(result.status).toBe("completed");
+    const persistedDrafts = persistFleetSnapshotBatchMock.mock.calls[0]?.[0]?.drafts ?? [];
+    expect(persistedDrafts[0]).toEqual(
+      expect.objectContaining({
+        costWithoutSuccessCents: 0,
+        costWithoutSuccessLinkedCents: 0,
+        costWithoutSuccessMissingLinkageCents: 0,
+      })
+    );
+  });
+
+  it("keeps fleet projection lineage scoped to the owning user", async () => {
+    loadFleetTargetUsersMock.mockResolvedValue([
+      {
+        userId: "user-1",
+        email: "one@example.com",
+      },
+      {
+        userId: "user-2",
+        email: "two@example.com",
+      },
+    ]);
+
+    const rpcMock = vi.fn(async () => ({ error: null }));
+    const buildQuery = (table: string) => {
+      const filters = new Map<string, unknown[]>();
+      const chain: Record<string, unknown> = {};
+      chain.select = vi.fn(() => chain);
+      chain.in = vi.fn((field: string, values: unknown[]) => {
+        filters.set(field, values);
+        return chain;
+      });
+      chain.gte = vi.fn(() => chain);
+      chain.lte = vi.fn(() => chain);
+      chain.lt = vi.fn(() => chain);
+      chain.order = vi.fn(() => chain);
+      chain.then = (resolve: (value: unknown) => void, reject?: (reason?: unknown) => void) => {
+        let data: unknown[] = [];
+        if (table === "ai_credit_balance") {
+          data = [
+            { user_id: "user-1", balance_cents: 100 },
+            { user_id: "user-2", balance_cents: 100 },
+          ];
+        } else if (table === "ai_credit_ledger") {
+          data = [
+            {
+              user_id: "user-1",
+              change_cents: -5,
+              source: "generation_charge",
+              source_ref: "shared-source-ref",
+              reason: "generation charge",
+              created_at: "2026-06-03T10:01:00.000Z",
+            },
+          ];
+        } else if (table === "generation_projection") {
+          const sourceRefs = filters.get("source_ref") ?? [];
+          data = sourceRefs.includes("shared-source-ref")
+            ? [
+                {
+                  user_id: "user-2",
+                  source_ref: "shared-source-ref",
+                  request_id: null,
+                  provider_request_id: null,
+                  status: "success",
+                  task_state: "success",
+                  result_urls: ["https://cdn.test/other-user.mp3"],
+                  preview_url: null,
+                },
+              ]
+            : [];
+        }
+        return Promise.resolve({ data, error: null }).then(resolve, reject);
+      };
+      return chain;
+    };
+    getSupabaseAdminMock.mockReturnValue({
+      from: (table: string) => buildQuery(table),
+      rpc: rpcMock,
+    });
+
+    const result = await runAdminUserHealthFleetScan({
+      triggerSource: "scheduled",
+    });
+
+    expect(result.status).toBe("completed");
+    const persistedDrafts = persistFleetSnapshotBatchMock.mock.calls[0]?.[0]?.drafts ?? [];
+    const userOneDraft = persistedDrafts.find(
+      (draft: { userId?: string }) => draft.userId === "user-1"
+    );
+    expect(userOneDraft).toEqual(
+      expect.objectContaining({
+        costWithoutSuccessCents: 5,
+        costWithoutSuccessLinkedCents: 0,
+        costWithoutSuccessMissingLinkageCents: 5,
+      })
+    );
+  });
 });

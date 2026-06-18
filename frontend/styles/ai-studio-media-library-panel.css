@@ -895,8 +895,11 @@
     .media-library-modal-grid-virtualized
   ) {
   --media-library-panel-density-max-columns: 5;
-  column-count: var(--media-library-panel-density-max-columns);
-  column-width: var(--media-library-modal-preview-width);
+  display: grid;
+  grid-template-columns: repeat(var(--media-library-panel-density-max-columns), minmax(0, 1fr));
+  column-count: auto;
+  column-width: auto;
+  gap: 1px;
 }
 
 .media-library-panel

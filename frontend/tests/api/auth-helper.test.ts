@@ -350,6 +350,34 @@ describe("auth helper protected-route auth behavior", () => {
     });
   });
 
+  it("returns 503 when bearer verification returns an unreadable payload", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => {
+        throw new Error("invalid auth json");
+      },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = {
+      url: "/api/media/move",
+      headers: {
+        authorization: "Bearer maybe-valid-token",
+      },
+    };
+    const res = createMockResponse();
+
+    const user = await requireApiUser(req as never, res as never);
+
+    expect(user).toBeNull();
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Authentication verification is temporarily unavailable.",
+      code: "AUTH_VERIFICATION_UNAVAILABLE",
+    });
+  });
+
   it("preserves auth verification outage context for optional-auth callers", async () => {
     const fetchMock = vi.fn(async () => {
       throw new Error("network down");

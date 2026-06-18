@@ -10,6 +10,7 @@ import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
+const retireMotionReferenceVideoStoragePathForUserMock = vi.fn();
 const normalizeMotionReferenceVideoForProviderMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../lib/server/api/auth", () => ({
@@ -22,6 +23,11 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
 
 vi.mock("../../lib/server/api/supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
+}));
+
+vi.mock("../../lib/server/motionReferenceVideoAssetLease", () => ({
+  retireMotionReferenceVideoStoragePathForUser: (...args: unknown[]) =>
+    retireMotionReferenceVideoStoragePathForUserMock(...args),
 }));
 
 vi.mock("../../lib/server/motionReferenceVideoNormalization", () => ({
@@ -57,6 +63,10 @@ describe("motion reference video direct-upload routes", () => {
     vi.clearAllMocks();
     resetApiRateLimitForTests();
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
+    retireMotionReferenceVideoStoragePathForUserMock.mockResolvedValue({
+      deleted: false,
+      waitingOnLease: true,
+    });
     normalizeMotionReferenceVideoForProviderMock.mockImplementation(
       async ({
         buffer,
@@ -195,5 +205,52 @@ describe("motion reference video direct-upload routes", () => {
       mimeType: "video/mp4",
       name: "motion-reference.mp4",
     });
+  });
+
+  it("deletes stale motion-reference clips through the canonical media route", async () => {
+    const removeMock = vi.fn(async () => ({ data: [], error: null }));
+    getSupabaseAdminMock.mockReturnValue({
+      storage: {
+        from: vi.fn(() => ({
+          remove: removeMock,
+        })),
+      },
+    });
+
+    const req = {
+      method: "DELETE",
+      body: {
+        path: "user-1/videos/motion-control/stale.mp4",
+        mode: "stale",
+      },
+    };
+    const res = createMockResponse();
+
+    await stageHandler(req as never, res as never);
+
+    expect(removeMock).toHaveBeenCalledWith(["user-1/videos/motion-control/stale.mp4"]);
+    expect(retireMotionReferenceVideoStoragePathForUserMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(204);
+    expect(res.end).toHaveBeenCalled();
+  });
+
+  it("retires committed motion-reference clips through generation leases", async () => {
+    const req = {
+      method: "DELETE",
+      body: {
+        path: "user-1/videos/motion-control/committed.mp4",
+        mode: "retire",
+      },
+    };
+    const res = createMockResponse();
+
+    await stageHandler(req as never, res as never);
+
+    expect(retireMotionReferenceVideoStoragePathForUserMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      storagePath: "user-1/videos/motion-control/committed.mp4",
+    });
+    expect(res.status).toHaveBeenCalledWith(204);
+    expect(res.end).toHaveBeenCalled();
   });
 });

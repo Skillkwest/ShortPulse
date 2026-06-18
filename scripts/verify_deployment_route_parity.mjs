@@ -8,21 +8,27 @@
 import { execFile } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import { loadLocalEnv } from "./lib/load_local_env.mjs";
 
 const execFileAsync = promisify(execFile);
 
-const DEFAULT_REQUIRED_ROUTES = [
+export const DEFAULT_REQUIRED_ROUTES = [
   "/api/internal/admin-user-health-fleet/run",
   "/api/internal/generation-recovery/run",
   "/api/internal/media-derivatives/run",
 ];
 
-const LOADED_ENV_FILES = loadLocalEnv({
-  argv: process.argv.slice(2),
-  defaultPaths: [".env.agent.local", "frontend/.env.local"],
-});
+export const DEFAULT_FORBIDDEN_ROUTES = [
+  "/landing",
+  "/creator-studio",
+  "/api/upload-image",
+  "/api/upload-video",
+  "/api/upload-audio",
+  "/api/ai/sessions",
+  "/api/media/admit-image-asset",
+];
 
 const usage = () => {
   console.log(`Usage:
@@ -33,6 +39,12 @@ Options:
                           Fallback env: SHORTPULSE_STAGING_BASE_URL, APP_BASE_URL
   --required-route <path> Required route path (repeatable). If omitted, defaults to:
 ${DEFAULT_REQUIRED_ROUTES.map((route) => `                          - ${route}`).join("\n")}
+  --forbidden-route <path>
+                          Forbidden route path (repeatable). Fails if the deployment exposes it.
+                          Default forbidden routes:
+${DEFAULT_FORBIDDEN_ROUTES.map((route) => `                          - ${route}`).join("\n")}
+  --ignore-default-forbidden-routes
+                          Inspect an older deployment without enforcing the default retired-route list.
   --token <token>         Vercel API token.
                           Optional. Falls back to authenticated \`vercel\` CLI state when omitted.
                           Env fallback: SHORTPULSE_VERCEL_API_TOKEN, VERCEL_API_TOKEN
@@ -56,7 +68,7 @@ const readArgValue = (argv, index, label) => {
 
 const sanitizeBaseUrl = (value) => value.trim().replace(/\/+$/, "");
 
-const normalizePathLike = (rawValue) => {
+export const normalizePathLike = (rawValue) => {
   const raw = rawValue.trim();
   if (!raw) return "";
 
@@ -80,7 +92,7 @@ const normalizePathLike = (rawValue) => {
     .toLowerCase()}`;
 };
 
-const parseArgs = (argv) => {
+export const parseArgs = (argv) => {
   const parsed = {
     baseUrl:
       process.env.SHORTPULSE_STAGING_BASE_URL?.trim() ?? process.env.APP_BASE_URL?.trim() ?? "",
@@ -89,6 +101,8 @@ const parseArgs = (argv) => {
       process.env.VERCEL_API_TOKEN?.trim() ??
       "",
     requiredRoutes: [],
+    forbiddenRoutes: [],
+    ignoreDefaultForbiddenRoutes: false,
     maxDeploymentAgeHours: null,
     minCreatedAt: "",
     output: "",
@@ -109,6 +123,15 @@ const parseArgs = (argv) => {
     if (arg === "--required-route") {
       parsed.requiredRoutes.push(readArgValue(argv, index, "--required-route"));
       index += 1;
+      continue;
+    }
+    if (arg === "--forbidden-route") {
+      parsed.forbiddenRoutes.push(readArgValue(argv, index, "--forbidden-route"));
+      index += 1;
+      continue;
+    }
+    if (arg === "--ignore-default-forbidden-routes") {
+      parsed.ignoreDefaultForbiddenRoutes = true;
       continue;
     }
     if (arg === "--token") {
@@ -143,6 +166,9 @@ const parseArgs = (argv) => {
   parsed.baseUrl = sanitizeBaseUrl(parsed.baseUrl);
   parsed.requiredRoutes =
     parsed.requiredRoutes.length > 0 ? parsed.requiredRoutes : [...DEFAULT_REQUIRED_ROUTES];
+  parsed.forbiddenRoutes = parsed.ignoreDefaultForbiddenRoutes
+    ? parsed.forbiddenRoutes
+    : [...DEFAULT_FORBIDDEN_ROUTES, ...parsed.forbiddenRoutes];
   return parsed;
 };
 
@@ -280,7 +306,7 @@ const collectBuildOutputPaths = (inspectResult) => {
   return discovered;
 };
 
-const pathMatchesRequired = (requiredRoute, candidatePath) => {
+export const pathMatchesRequired = (requiredRoute, candidatePath) => {
   if (candidatePath === requiredRoute) return true;
   if (candidatePath.startsWith(`${requiredRoute}.`)) return true;
   if (candidatePath.startsWith(`${requiredRoute}/`)) return true;
@@ -288,6 +314,10 @@ const pathMatchesRequired = (requiredRoute, candidatePath) => {
 };
 
 const run = async () => {
+  const loadedEnvFiles = loadLocalEnv({
+    argv: process.argv.slice(2),
+    defaultPaths: [".env.agent.local", "frontend/.env.local"],
+  });
   const args = parseArgs(process.argv.slice(2));
   if (args.help) {
     usage();
@@ -297,6 +327,9 @@ const run = async () => {
   ensureRequiredInputs(args);
 
   const requiredRoutes = args.requiredRoutes
+    .map((route) => normalizePathLike(route))
+    .filter(Boolean);
+  const forbiddenRoutes = args.forbiddenRoutes
     .map((route) => normalizePathLike(route))
     .filter(Boolean);
   const maxDeploymentAgeHours = parsePositiveNumber(
@@ -340,6 +373,14 @@ const run = async () => {
     }
     return true;
   });
+  const exposedForbiddenRoutes = forbiddenRoutes.filter((forbiddenRoute) => {
+    for (const candidatePath of buildPaths) {
+      if (pathMatchesRequired(forbiddenRoute, candidatePath)) {
+        return true;
+      }
+    }
+    return false;
+  });
 
   console.log(`[route-parity] target: ${args.baseUrl}`);
   console.log(`[route-parity] resolved deployment: ${resolvedDeploymentUrl || "unknown"}`);
@@ -347,7 +388,7 @@ const run = async () => {
   console.log(
     `[route-parity] auth mode: ${usingCliAuth ? "vercel-cli-session" : "token"}`
   );
-  console.log(`[route-parity] loaded env files: ${LOADED_ENV_FILES.length}`);
+  console.log(`[route-parity] loaded env files: ${loadedEnvFiles.length}`);
   console.log(`[route-parity] route entries inspected: ${buildPaths.size}`);
   if (maxDeploymentAgeHours !== null) {
     console.log(`[route-parity] max deployment age hours: ${maxDeploymentAgeHours}`);
@@ -358,6 +399,12 @@ const run = async () => {
   console.log("[route-parity] required routes:");
   for (const route of requiredRoutes) {
     console.log(`  - ${route}`);
+  }
+  if (forbiddenRoutes.length > 0) {
+    console.log("[route-parity] forbidden routes:");
+    for (const route of forbiddenRoutes) {
+      console.log(`  - ${route}`);
+    }
   }
 
   const nowMs = Date.now();
@@ -387,14 +434,19 @@ const run = async () => {
     created_at: createdAt,
     created_at_epoch_ms: createdAtMs,
     deployment_age_hours: deploymentAgeHours,
-    loaded_env_files: LOADED_ENV_FILES,
+    loaded_env_files: loadedEnvFiles,
     route_entries_inspected: buildPaths.size,
     required_routes: requiredRoutes,
     missing_routes: missingRoutes,
+    forbidden_routes: forbiddenRoutes,
+    exposed_forbidden_routes: exposedForbiddenRoutes,
     max_deployment_age_hours: maxDeploymentAgeHours,
     min_created_at_epoch_ms: minCreatedAtMs,
     lineage_failures: lineageFailures,
-    pass: missingRoutes.length === 0 && lineageFailures.length === 0,
+    pass:
+      missingRoutes.length === 0 &&
+      exposedForbiddenRoutes.length === 0 &&
+      lineageFailures.length === 0,
     checked_at: new Date().toISOString(),
   };
 
@@ -414,6 +466,13 @@ const run = async () => {
     }
   }
 
+  if (exposedForbiddenRoutes.length > 0) {
+    console.error("[route-parity] FAIL: exposed forbidden routes:");
+    for (const forbiddenRoute of exposedForbiddenRoutes) {
+      console.error(`  - ${forbiddenRoute}`);
+    }
+  }
+
   if (lineageFailures.length > 0) {
     console.error("[route-parity] FAIL: lineage gates:");
     for (const failure of lineageFailures) {
@@ -428,8 +487,14 @@ const run = async () => {
   console.log("[route-parity] PASS: required route parity verified.");
 };
 
-run().catch((error) => {
-  const message = error instanceof Error ? error.message : String(error);
-  console.error(`[route-parity] ERROR: ${message}`);
-  process.exit(1);
-});
+const isCliEntry = process.argv[1]
+  ? import.meta.url === pathToFileURL(process.argv[1]).href
+  : false;
+
+if (isCliEntry) {
+  run().catch((error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[route-parity] ERROR: ${message}`);
+    process.exit(1);
+  });
+}

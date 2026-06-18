@@ -26,8 +26,10 @@ vi.mock("../../../../lib/supabaseClient", () => ({
 }));
 
 import {
+  deleteUploadedMotionVideoByPath,
   needsMotionReferenceVideoProviderNormalization,
   prepareMotionReferenceVideoUrl,
+  retireCommittedMotionVideoByUrl,
   uploadVideoAssetToStorage,
   uploadVideoFileToStorage,
 } from "../videoUpload";
@@ -348,5 +350,43 @@ describe("videoUpload", () => {
         "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/videos/motion-control/ref.mp4?token=fresh"
       )
     ).toBe(false);
+  });
+
+  it("cleans stale motion-reference uploads through the canonical media route", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
+
+    await deleteUploadedMotionVideoByPath("user-1/videos/motion-control/stale.mp4");
+
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/media/stage-motion-reference-video",
+      expect.objectContaining({
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          path: "user-1/videos/motion-control/stale.mp4",
+          mode: "stale",
+        }),
+      })
+    );
+  });
+
+  it("retires committed motion-reference uploads through the canonical media route", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
+
+    await retireCommittedMotionVideoByUrl(
+      "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/videos/motion-control/committed.mp4?token=fresh"
+    );
+
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/media/stage-motion-reference-video",
+      expect.objectContaining({
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          path: "user-1/videos/motion-control/committed.mp4",
+          mode: "retire",
+        }),
+      })
+    );
   });
 });

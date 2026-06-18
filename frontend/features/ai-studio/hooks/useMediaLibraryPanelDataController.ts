@@ -23,7 +23,6 @@ import { toMediaLibraryErrorText } from "../logic/mediaLibraryErrorText";
 import type { MediaFileRow, PromptRow } from "../logic/mediaLibraryModalModel";
 
 type UseMediaLibraryPanelDataControllerParams = {
-  projectId?: string | null;
   activeFolderId: string;
   itemType: MediaLibraryPanelItemType;
   normalizedSearch: string;
@@ -55,6 +54,12 @@ type UseMediaLibraryPanelDataControllerResult = {
 const MEDIA_PAGE_SIZE = getMediaLibrarySurfaceConfig("panel").pageSize;
 const PROMPT_PAGE_SIZE = MEDIA_PAGE_SIZE;
 const INFINITE_LOAD_BOTTOM_THRESHOLD_PX = 220;
+const AUDIO_COMPANION_ART_REFRESH_INTERVAL_MS = 3_500;
+
+const isPendingAudioCompanionArtRow = (row: MediaFileRow): boolean => {
+  if (!row.file_type.toLowerCase().startsWith("audio")) return false;
+  return row.companion_art_status === "pending" || row.companion_art_status === "processing";
+};
 
 export const useMediaLibraryPanelDataController = ({
   activeFolderId,
@@ -90,6 +95,7 @@ export const useMediaLibraryPanelDataController = ({
     media: false,
     prompts: false,
   });
+  const audioCompanionArtRefreshInFlightRef = React.useRef(false);
   const mediaRowsRef = React.useRef<MediaFileRow[]>([]);
   const promptRowsRef = React.useRef<PromptRow[]>([]);
   const mediaCursorRef = React.useRef<MediaListCursor | null>(null);
@@ -112,6 +118,13 @@ export const useMediaLibraryPanelDataController = ({
   const promptScopeResolved =
     !shouldShowPrompts || promptScopeCache.resolvedScopeKey === activeRowsScopeKey;
   const error = mediaScopeCache.error ?? promptScopeCache.error ?? runtimeError;
+  const pendingAudioCompanionArtRefreshKey = React.useMemo(() => {
+    if (!shouldShowMedia) return "";
+    return mediaRows
+      .filter(isPendingAudioCompanionArtRow)
+      .map((row) => `${row.id}:${row.companion_art_status ?? ""}`)
+      .join("|");
+  }, [mediaRows, shouldShowMedia]);
 
   React.useEffect(() => {
     mediaRowsRef.current = mediaRows;
@@ -445,6 +458,30 @@ export const useMediaLibraryPanelDataController = ({
     }
     nextContainer.scrollTop = Math.min(Math.max(previousScrollTop, 0), nextMaxTop);
   }, [loadMediaPage, loadPromptPage, panelBodyRef, shouldShowMedia, shouldShowPrompts]);
+
+  React.useEffect(() => {
+    if (!pendingAudioCompanionArtRefreshKey) return;
+
+    let cancelled = false;
+    const refreshPendingAudioCompanionArt = () => {
+      if (cancelled || audioCompanionArtRefreshInFlightRef.current) return;
+      audioCompanionArtRefreshInFlightRef.current = true;
+      void refreshActiveRows().finally(() => {
+        audioCompanionArtRefreshInFlightRef.current = false;
+      });
+    };
+
+    const intervalId = globalThis.setInterval(
+      refreshPendingAudioCompanionArt,
+      AUDIO_COMPANION_ART_REFRESH_INTERVAL_MS
+    );
+    refreshPendingAudioCompanionArt();
+
+    return () => {
+      cancelled = true;
+      globalThis.clearInterval(intervalId);
+    };
+  }, [pendingAudioCompanionArtRefreshKey, refreshActiveRows]);
 
   const maybeAutoLoadMore = React.useCallback(() => {
     const container = panelBodyRef.current;

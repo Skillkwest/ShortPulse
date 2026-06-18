@@ -3,6 +3,8 @@
  * Stages blob/data audio through the canonical authenticated Media Library upload path.
  */
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
+import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
+import { BUCKET } from "../../media-library/logic/mediaLibraryPageHelpers";
 
 export type AudioUploadResult = {
   url: string;
@@ -15,6 +17,28 @@ type AudioBlobUploadOptions = {
   sourceName?: string | null;
   mimeType?: string | null;
 };
+
+type PrepareMediaUploadPayload = {
+  target?: {
+    storagePath?: unknown;
+    uploadToken?: unknown;
+    mimeType?: unknown;
+    name?: unknown;
+  };
+  error?: unknown;
+  details?: unknown;
+} | null;
+
+type FinalizeMediaUploadPayload = {
+  file?: {
+    signedUrl?: unknown;
+    storage_path?: unknown;
+    file_size?: unknown;
+    file_type?: unknown;
+  };
+  error?: unknown;
+  details?: unknown;
+} | null;
 
 const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "::1", "0.0.0.0"]);
 const GENERIC_UPLOAD_MIME_TYPES = new Set(["", "application/octet-stream", "binary/octet-stream"]);
@@ -121,31 +145,75 @@ export const uploadAudioBlobToStorage = async (
   const randomString = Math.random().toString(36).substring(7);
   const filename = `reference-audio-${timestamp}-${randomString}.${inferExtension(mimeType)}`;
 
-  const uploadResponse = await fetchWithAuth("/api/media/upload", {
+  const prepareResponse = await fetchWithAuth("/api/media/prepare-upload", {
     method: "POST",
     headers: {
-      "Content-Type": mimeType,
-      "x-shortpulse-upload-filename": filename,
-      "x-shortpulse-upload-destination-tab": "uploaded_videos",
+      "Content-Type": "application/json",
     },
-    body: blob,
+    body: JSON.stringify({
+      destinationTab: "uploaded_videos",
+      sourceMimeType: mimeType,
+      sourceName: filename,
+    }),
+  });
+  const preparePayload = (await prepareResponse
+    .json()
+    .catch(() => null)) as PrepareMediaUploadPayload;
+  const storagePath =
+    typeof preparePayload?.target?.storagePath === "string"
+      ? preparePayload.target.storagePath.trim()
+      : "";
+  const uploadToken =
+    typeof preparePayload?.target?.uploadToken === "string"
+      ? preparePayload.target.uploadToken.trim()
+      : "";
+  const preparedMimeType =
+    typeof preparePayload?.target?.mimeType === "string"
+      ? preparePayload.target.mimeType.trim()
+      : mimeType;
+  const preparedName =
+    typeof preparePayload?.target?.name === "string" ? preparePayload.target.name.trim() : filename;
+
+  if (!prepareResponse.ok || !storagePath || !uploadToken) {
+    const errorMessage =
+      typeof preparePayload?.details === "string" && preparePayload.details.trim().length
+        ? preparePayload.details.trim()
+        : typeof preparePayload?.error === "string" && preparePayload.error.trim().length
+          ? preparePayload.error.trim()
+          : "Audio upload failed";
+    throw new Error(errorMessage);
+  }
+
+  const supabase = ensureSupabaseQueryClient();
+  const uploadToSignedUrlResult = await supabase.storage
+    .from(BUCKET)
+    .uploadToSignedUrl(storagePath, uploadToken, blob, {
+      contentType: preparedMimeType,
+      upsert: false,
+    });
+  if (uploadToSignedUrlResult.error) {
+    throw new Error(uploadToSignedUrlResult.error.message || "Audio upload failed");
+  }
+
+  const finalizeResponse = await fetchWithAuth("/api/media/finalize-upload", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      destinationTab: "uploaded_videos",
+      sourceMimeType: preparedMimeType,
+      sourceName: preparedName,
+      sourceStoragePath: storagePath,
+    }),
   });
 
-  const payload = (await uploadResponse.json().catch(() => null)) as {
-    file?: {
-      signedUrl?: unknown;
-      storage_path?: unknown;
-      file_size?: unknown;
-      file_type?: unknown;
-    };
-    error?: unknown;
-    details?: unknown;
-  } | null;
+  const payload = (await finalizeResponse.json().catch(() => null)) as FinalizeMediaUploadPayload;
   const file = payload?.file;
   const path = typeof file?.storage_path === "string" ? file.storage_path.trim() : "";
   const url = typeof file?.signedUrl === "string" ? file.signedUrl.trim() : "";
   const size = typeof file?.file_size === "number" ? file.file_size : blob.size;
-  if (!uploadResponse.ok || !path || !url) {
+  if (!finalizeResponse.ok || !path || !url) {
     const errorMessage =
       typeof payload?.details === "string" && payload.details.trim().length
         ? payload.details.trim()

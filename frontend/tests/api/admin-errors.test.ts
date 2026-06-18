@@ -80,6 +80,25 @@ describe("GET /api/admin/errors", () => {
     expect(res.status).toHaveBeenCalledWith(405);
   });
 
+  it("returns a safe failure when admin auth verification throws", async () => {
+    const authError = new Error("auth verifier exploded");
+    requireAdminUserMock.mockRejectedValue(authError);
+
+    const req = { method: "GET", query: { page: "1" } };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: authError,
+        routeLabel: "admin/errors.auth",
+      })
+    );
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Unable to load admin errors." });
+  });
+
   it("returns incidents with summary and healthy status", async () => {
     getSupabaseAdminMock.mockReturnValue(
       createSupabaseAdminMock({

@@ -492,6 +492,33 @@ describe("POST /api/media/list", () => {
     expect(getSupabaseAdminMock).not.toHaveBeenCalled();
   });
 
+  it("logs auth verifier failures before media queries or signing", async () => {
+    requireApiUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
+    const req = {
+      method: "POST",
+      body: {
+        tab: "uploaded_images",
+        surface: "media-library-modal",
+        profile: "minimal",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        error: expect.any(Error),
+        routeLabel: "media-list.auth",
+        scope: "app",
+      })
+    );
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Failed to load media" });
+  });
+
   it("returns scoped rows and signed map for a tab/query slice", async () => {
     const { createSignedUrlsMock, createSignedUrlMock } = createSupabaseAdminMock([
       {

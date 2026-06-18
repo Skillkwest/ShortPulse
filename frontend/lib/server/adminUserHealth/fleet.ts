@@ -49,6 +49,7 @@ type GenerationRow = {
   recovery_state: string | null;
   request_id: string | null;
   created_at: string | null;
+  metadata?: Record<string, unknown> | null;
 };
 
 type ProjectionBillingRow = {
@@ -97,6 +98,27 @@ type FleetDrainageSummary = {
   errors: number;
 };
 
+const asRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
+const asTrimmedString = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : null;
+};
+
+const lineageKey = (userId: string, value: string | null | undefined): string | null => {
+  const normalizedValue = asTrimmedString(value);
+  return normalizedValue ? `${userId}:${normalizedValue}` : null;
+};
+
+const readGenerationSourceRef = (row: GenerationRow): string | null => {
+  const metadata = asRecord(row.metadata);
+  return asTrimmedString(metadata.source_ref);
+};
+
 export type FleetScanRunResult = {
   ok: boolean;
   runId: string | null;
@@ -118,6 +140,7 @@ const evaluateCostWithoutSuccess = ({
   ledgerRows,
   reservationBySourceRef,
   generationByRequestId,
+  generationBySourceRef,
   projectionBySourceRef,
   projectionByProviderRequestId,
 }: {
@@ -125,6 +148,7 @@ const evaluateCostWithoutSuccess = ({
   ledgerRows: NormalizedLedgerRow[];
   reservationBySourceRef: Map<string, ReservationRow>;
   generationByRequestId: Map<string, string | null>;
+  generationBySourceRef: Map<string, string | null>;
   projectionBySourceRef: Map<string, ProjectionBillingRow>;
   projectionByProviderRequestId: Map<string, ProjectionBillingRow>;
 }) => {
@@ -142,12 +166,19 @@ const evaluateCostWithoutSuccess = ({
     let generationStatus: string | null = null;
 
     if (row.source_ref) {
-      const reservation = reservationBySourceRef.get(row.source_ref);
+      const sourceRefKey = lineageKey(userId, row.source_ref);
+      const reservation = sourceRefKey ? reservationBySourceRef.get(sourceRefKey) : null;
+      const sourceRefGenerationStatus = sourceRefKey
+        ? (generationBySourceRef.get(sourceRefKey) ?? null)
+        : null;
       if (reservation?.provider_request_id) {
-        generationStatus = generationByRequestId.get(reservation.provider_request_id) ?? null;
+        const providerRequestKey = lineageKey(userId, reservation.provider_request_id);
+        generationStatus = providerRequestKey
+          ? (generationByRequestId.get(providerRequestKey) ?? sourceRefGenerationStatus)
+          : sourceRefGenerationStatus;
         const projection =
-          projectionByProviderRequestId.get(reservation.provider_request_id) ??
-          projectionBySourceRef.get(row.source_ref) ??
+          (providerRequestKey ? projectionByProviderRequestId.get(providerRequestKey) : null) ??
+          (sourceRefKey ? projectionBySourceRef.get(sourceRefKey) : null) ??
           null;
         const projectionStatus = projection?.task_state ?? projection?.status ?? null;
         const projectionResultUrls = Array.isArray(projection?.result_urls)
@@ -163,7 +194,8 @@ const evaluateCostWithoutSuccess = ({
           bucket = "linked";
         }
       } else {
-        const projection = projectionBySourceRef.get(row.source_ref);
+        generationStatus = sourceRefGenerationStatus;
+        const projection = sourceRefKey ? projectionBySourceRef.get(sourceRefKey) : null;
         const projectionStatus = projection?.task_state ?? projection?.status ?? null;
         const projectionResultUrls = Array.isArray(projection?.result_urls)
           ? projection.result_urls
@@ -173,6 +205,9 @@ const evaluateCostWithoutSuccess = ({
           (projectionResultUrls.length > 0 || Boolean(projection?.preview_url));
         if (hasSuccessfulProjectionMedia) {
           continue;
+        }
+        if (generationStatus && generationStatus !== "success") {
+          bucket = "linked";
         }
       }
     }
@@ -226,13 +261,13 @@ const loadChunkMetrics = async ({
         .order("created_at", { ascending: false }),
       supabaseAdmin
         .from("ai_generations")
-        .select("user_id,status,recovery_state,request_id,created_at")
+        .select("user_id,status,recovery_state,request_id,created_at,metadata")
         .in("user_id", userIds)
         .gte("created_at", lookbackStartIso)
         .order("created_at", { ascending: false }),
       supabaseAdmin
         .from("ai_generations")
-        .select("user_id,status,recovery_state,request_id,created_at")
+        .select("user_id,status,recovery_state,request_id,created_at,metadata")
         .in("user_id", userIds)
         .in("status", ["pending", "submitted", "running", "fail"])
         .in("recovery_state", ["queued", "recovering"])
@@ -441,20 +476,27 @@ const loadChunkMetrics = async ({
       }
     }
 
-    if (row.source_ref && !reservationBySourceRef.has(row.source_ref)) {
-      reservationBySourceRef.set(row.source_ref, row);
+    const sourceRefKey = lineageKey(userId, row.source_ref);
+    if (sourceRefKey && !reservationBySourceRef.has(sourceRefKey)) {
+      reservationBySourceRef.set(sourceRefKey, row);
     }
   }
 
   const generationByRequestId = new Map<string, string | null>();
+  const generationBySourceRef = new Map<string, string | null>();
   const failCount24hByUser = new Map<string, number>();
   const totalCount24hByUser = new Map<string, number>();
   for (const row of generationRows) {
     const userId = String(row.user_id);
     if (!userIdSet.has(userId)) continue;
 
-    if (row.request_id && !generationByRequestId.has(row.request_id)) {
-      generationByRequestId.set(row.request_id, row.status ?? null);
+    const requestIdKey = lineageKey(userId, row.request_id);
+    if (requestIdKey && !generationByRequestId.has(requestIdKey)) {
+      generationByRequestId.set(requestIdKey, row.status ?? null);
+    }
+    const sourceRefKey = lineageKey(userId, readGenerationSourceRef(row));
+    if (sourceRefKey && !generationBySourceRef.has(sourceRefKey)) {
+      generationBySourceRef.set(sourceRefKey, row.status ?? null);
     }
 
     const createdAtMs = parseTimestamp(row.created_at);
@@ -476,15 +518,19 @@ const loadChunkMetrics = async ({
   const projectionBySourceRef = new Map<string, ProjectionBillingRow>();
   const projectionByProviderRequestId = new Map<string, ProjectionBillingRow>();
   for (const row of projectionRows) {
-    if (!userIdSet.has(String(row.user_id))) continue;
-    if (row.source_ref && !projectionBySourceRef.has(row.source_ref)) {
-      projectionBySourceRef.set(row.source_ref, row);
+    const userId = String(row.user_id);
+    if (!userIdSet.has(userId)) continue;
+    const sourceRefKey = lineageKey(userId, row.source_ref);
+    if (sourceRefKey && !projectionBySourceRef.has(sourceRefKey)) {
+      projectionBySourceRef.set(sourceRefKey, row);
     }
-    if (row.provider_request_id && !projectionByProviderRequestId.has(row.provider_request_id)) {
-      projectionByProviderRequestId.set(row.provider_request_id, row);
+    const providerRequestKey = lineageKey(userId, row.provider_request_id);
+    if (providerRequestKey && !projectionByProviderRequestId.has(providerRequestKey)) {
+      projectionByProviderRequestId.set(providerRequestKey, row);
     }
-    if (row.request_id && !projectionByProviderRequestId.has(row.request_id)) {
-      projectionByProviderRequestId.set(row.request_id, row);
+    const requestIdKey = lineageKey(userId, row.request_id);
+    if (requestIdKey && !projectionByProviderRequestId.has(requestIdKey)) {
+      projectionByProviderRequestId.set(requestIdKey, row);
     }
   }
 
@@ -503,6 +549,7 @@ const loadChunkMetrics = async ({
       ledgerRows,
       reservationBySourceRef,
       generationByRequestId,
+      generationBySourceRef,
       projectionBySourceRef,
       projectionByProviderRequestId,
     });

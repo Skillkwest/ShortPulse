@@ -66,6 +66,25 @@ describe("GET /api/billing/stripe/subscription-transactions", () => {
     expect(res.status).toHaveBeenCalledWith(405);
   });
 
+  it("returns a safe subscription-history failure when auth verification throws unexpectedly", async () => {
+    requireApiUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
+    const req = { method: "GET", body: {} };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(stripeGetMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: expect.any(Error),
+      routeLabel: "billing/stripe/subscription-transactions.auth",
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to load recent subscription payments.",
+    });
+  });
+
   it("returns recent paid Stripe invoices for the mapped customer", async () => {
     maybeSingleQueue.push(
       { data: { stripe_customer_id: "cus_123" }, error: null },

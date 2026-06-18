@@ -56,7 +56,7 @@ describe("Kie status route wiring", () => {
       provider: "kie",
       modelId: KIE_SEEDANCE_2_MODEL_ID,
       queueBaseUrl: getKieStatusBaseUrlsRequired(KIE_SEEDANCE_2_MODEL_ID),
-      routeLabel: "Kie Seedance 2.0",
+      routeLabel: "Kie Seedance 2",
       timeoutMs: getKieTimeoutMsOrDefault(KIE_SEEDANCE_2_MODEL_ID, 60000),
     });
   });
@@ -73,7 +73,7 @@ describe("Kie status route wiring", () => {
       provider: "kie",
       modelId: KIE_SEEDANCE_2_FAST_MODEL_ID,
       queueBaseUrl: getKieStatusBaseUrlsRequired(KIE_SEEDANCE_2_FAST_MODEL_ID),
-      routeLabel: "Kie Seedance 2.0 Fast",
+      routeLabel: "Kie Seedance 2 Fast",
       timeoutMs: getKieTimeoutMsOrDefault(KIE_SEEDANCE_2_FAST_MODEL_ID, 60000),
     });
   });

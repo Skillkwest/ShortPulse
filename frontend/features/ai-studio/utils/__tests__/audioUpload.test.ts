@@ -5,9 +5,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
+const uploadToSignedUrlMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../../lib/authenticatedFetch", () => ({
   fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
+}));
+
+vi.mock("../../../../lib/supabaseClient", () => ({
+  ensureSupabaseQueryClient: () => ({
+    storage: {
+      from: () => ({
+        uploadToSignedUrl: (...args: unknown[]) => uploadToSignedUrlMock(...args),
+      }),
+    },
+  }),
 }));
 
 import { uploadAudioBlobToStorage } from "../audioUpload";
@@ -21,10 +32,22 @@ const jsonResponse = (payload: unknown, status = 200): Response =>
 describe("audioUpload", () => {
   beforeEach(() => {
     fetchWithAuthMock.mockReset();
+    uploadToSignedUrlMock.mockReset();
+    uploadToSignedUrlMock.mockResolvedValue({ error: null });
   });
 
-  it("uploads local audio from the original File object", async () => {
+  it("uploads local audio from the original File object through the direct media upload path", async () => {
     const file = new File(["voice"], "voice-sample.mp3", { type: "audio/mpeg" });
+    fetchWithAuthMock.mockResolvedValueOnce(
+      jsonResponse({
+        target: {
+          storagePath: "user-1/upload-staging/uploaded_videos/reference.mp3",
+          uploadToken: "upload-token",
+          mimeType: "audio/mpeg",
+          name: "reference.mp3",
+        },
+      })
+    );
     fetchWithAuthMock.mockResolvedValueOnce(
       jsonResponse({
         file: {
@@ -48,15 +71,41 @@ describe("audioUpload", () => {
       mimeType: "audio/mpeg",
     });
     expect(fetchWithAuthMock).toHaveBeenCalledWith(
-      "/api/media/upload",
+      "/api/media/prepare-upload",
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({
-          "Content-Type": "audio/mpeg",
-          "x-shortpulse-upload-filename": expect.stringMatching(/^reference-audio-\d+-.*\.mp3$/),
-          "x-shortpulse-upload-destination-tab": "uploaded_videos",
+          "Content-Type": "application/json",
         }),
-        body: file,
+      })
+    );
+    expect(JSON.parse(String(fetchWithAuthMock.mock.calls[0]?.[1]?.body))).toEqual({
+      destinationTab: "uploaded_videos",
+      sourceMimeType: "audio/mpeg",
+      sourceName: expect.stringMatching(/^reference-audio-\d+-.*\.mp3$/),
+    });
+    expect(uploadToSignedUrlMock).toHaveBeenCalledWith(
+      "user-1/upload-staging/uploaded_videos/reference.mp3",
+      "upload-token",
+      file,
+      {
+        contentType: "audio/mpeg",
+        upsert: false,
+      }
+    );
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/media/finalize-upload",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "Content-Type": "application/json",
+        }),
+        body: JSON.stringify({
+          destinationTab: "uploaded_videos",
+          sourceMimeType: "audio/mpeg",
+          sourceName: "reference.mp3",
+          sourceStoragePath: "user-1/upload-staging/uploaded_videos/reference.mp3",
+        }),
       })
     );
   });

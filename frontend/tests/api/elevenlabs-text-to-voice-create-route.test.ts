@@ -169,6 +169,41 @@ describe("POST /api/elevenlabs/text-to-voice/create", () => {
     });
   });
 
+  it("logs auth verifier failures before tokens, provider creation, samples, cleanup, or ownership persistence", async () => {
+    requireApiUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
+    const req = {
+      method: "POST",
+      body: {
+        voiceName: "Generated Narrator",
+        voiceDescription: "Measured, warm narration with a gentle documentary tone.",
+        generatedVoiceId: "preview-1",
+        generatedVoiceToken: "token-preview-1",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        error: expect.any(Error),
+        routeLabel: "elevenlabs-text-to-voice-create.auth",
+        scope: "generation",
+      })
+    );
+    expect(verifyVoiceDesignPreviewTokenMock).not.toHaveBeenCalled();
+    expect(createElevenLabsDesignedVoiceMock).not.toHaveBeenCalled();
+    expect(createPersistedElevenLabsVoiceSampleMock).not.toHaveBeenCalled();
+    expect(saveVoiceForUserMock).not.toHaveBeenCalled();
+    expect(cleanupFailedElevenLabsCustomVoiceMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to create voice",
+      details: "Unable to create voice.",
+    });
+  });
+
   it("fails closed when ownership persistence does not succeed", async () => {
     saveVoiceForUserMock.mockResolvedValueOnce(null);
     const req = {

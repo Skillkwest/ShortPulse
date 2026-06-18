@@ -35,6 +35,27 @@ describe("admin style extract prompt API", () => {
     requireAdminUserMock.mockResolvedValue({ id: "admin-1", email: "admin@example.com" });
   });
 
+  it("logs admin auth verifier exceptions before prompt access", async () => {
+    const authError = new Error("auth verifier unavailable");
+    requireAdminUserMock.mockRejectedValueOnce(authError);
+
+    const req = { method: "GET" };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(resolveRuntimeAgentPromptForAdminMock).not.toHaveBeenCalled();
+    expect(saveRuntimeAgentPromptMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: authError,
+      routeLabel: "api/admin/agent-instructions/style-extract-prompt.auth",
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Failed to load style extraction prompt.",
+    });
+  });
+
   it("returns the resolved runtime prompt", async () => {
     resolveRuntimeAgentPromptForAdminMock.mockResolvedValue({
       promptId: "OPENAI_PROMPT_STYLE_EXTRACT",

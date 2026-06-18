@@ -177,13 +177,14 @@ describe("ai-studio layout scroll behavior contract", () => {
     expect(css).toContain("var(--ai-shell-left-width, minmax(920px, 1040px))");
   });
 
-  it("keeps Create character mode inline at the desktop panel minimum", () => {
+  it("keeps Create compact container styling below the desktop panel minimum", () => {
     const css = fs.readFileSync(createComposerResponsiveCssPath, "utf8");
 
-    expect(css).toContain("@container ai-properties (max-width: 900px)");
-    expect(css).toContain("@container ai-properties (min-width: 760px)");
+    expect(css).toContain("@media (max-width: 900px)");
+    expect(css).not.toContain("@container ai-properties (max-width: 900px)");
+    expect(css).toContain("@container ai-properties (max-width: 759px)");
     expect(css).toMatch(
-      /@container ai-properties \(min-width: 760px\) \{[\s\S]*?\.create-composer-character-mode-control \{[\s\S]*?width: auto;/
+      /@container ai-properties \(max-width: 759px\) \{[\s\S]*?\.create-composer-character-mode-control \{[\s\S]*?width: 100%;/
     );
   });
 

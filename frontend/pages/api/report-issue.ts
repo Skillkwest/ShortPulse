@@ -68,7 +68,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const user = await requireApiUser(req, res);
+  let user: Awaited<ReturnType<typeof requireApiUser>>;
+  try {
+    user = await requireApiUser(req, res);
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "api.report-issue.auth",
+    });
+    return res.status(500).json({ error: "Unable to save your report right now." });
+  }
   if (!user) {
     return;
   }

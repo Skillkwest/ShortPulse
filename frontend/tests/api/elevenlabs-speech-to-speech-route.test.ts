@@ -264,6 +264,36 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
     });
   });
 
+  it("logs auth verifier failures before parsing, voice lookup, billing, provider, or persistence work", async () => {
+    requireApiUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
+
+    const req = { method: "POST", headers: {} };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        error: expect.any(Error),
+        routeLabel: "elevenlabs-speech-to-speech.auth",
+        scope: "generation",
+      })
+    );
+    expect(formidableFactoryMock).not.toHaveBeenCalled();
+    expect(listSavedVoicesForUserMock).not.toHaveBeenCalled();
+    expect(listElevenLabsVoicesMock).not.toHaveBeenCalled();
+    expect(readStoredMediaBufferMock).not.toHaveBeenCalled();
+    expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
+    expect(generateElevenLabsVoiceChangerMock).not.toHaveBeenCalled();
+    expect(persistGeneratedAudioAssetMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to convert voice",
+      details: "auth verifier exploded",
+    });
+  });
+
   it("stops before provider submission when billing already returned a fail-closed response", async () => {
     chargeGenerationRequestMock.mockImplementationOnce(async ({ res }: { res: MockResponse }) => {
       res.status(429).json({

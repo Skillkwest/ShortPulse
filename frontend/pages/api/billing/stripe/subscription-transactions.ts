@@ -20,7 +20,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const user = await requireApiUser(req, res);
+  let user;
+  try {
+    user = await requireApiUser(req, res);
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "billing/stripe/subscription-transactions.auth",
+    });
+    return res.status(500).json({
+      error: "Unable to load recent subscription payments.",
+    });
+  }
   if (!user) return;
 
   if (!process.env.STRIPE_SECRET_KEY) {

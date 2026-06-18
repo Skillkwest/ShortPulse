@@ -3,7 +3,9 @@ import {
   createDraftCharacter,
   fetchCharacterManagerList,
   getCharacterSheetAssignments,
+  serializeCharacterSheetPresetState,
 } from "../characterManagerPersistenceCore";
+import { createDefaultCharacterSheetPresetState } from "../../constants";
 import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../../lib/supabaseClient";
 import { getSignedMediaUrlsBatch } from "../../../../lib/mediaSignedUrlCache";
 
@@ -356,6 +358,27 @@ describe("characterManagerPersistenceCore", () => {
         "user-1/characters/char-1/presets/look-2-portrait.png",
       ],
       surface: "character-grid",
+    });
+  });
+
+  it("serializes character sheet presets without persisting signed preview urls", () => {
+    const presetState = createDefaultCharacterSheetPresetState();
+    presetState.activePresetId = "2";
+    presetState.tabOrder = ["1", "2"];
+    presetState.presets["2"].portrait = {
+      characterMediaId: "media-look-2-portrait",
+      storagePath: "user-1/characters/char-1/presets/look-2-portrait.png",
+      previewStoragePath: "user-1/variants/characters/char-1/presets/look-2-portrait-thumb.webp",
+      previewUrl: "https://signed.example/look-2-portrait-thumb.webp",
+    };
+
+    const serialized = serializeCharacterSheetPresetState(presetState);
+    const presets = serialized.presets as Record<string, Record<string, Record<string, unknown>>>;
+
+    expect(presets["2"].portrait).toEqual({
+      character_media_id: "media-look-2-portrait",
+      storage_path: "user-1/characters/char-1/presets/look-2-portrait.png",
+      preview_storage_path: "user-1/variants/characters/char-1/presets/look-2-portrait-thumb.webp",
     });
   });
 

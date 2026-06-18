@@ -105,8 +105,10 @@ describe("generationOutputConvergence", () => {
       outputIndex: 0,
       mediaFileId: "media-1",
       resultUrl: "https://cdn.shortpulse.test/1.png",
+      providerRequestId: "provider-request-1",
       metadata: {
         recovery_execution: true,
+        source_ref: "source-ref-1",
       },
     });
 
@@ -115,6 +117,7 @@ describe("generationOutputConvergence", () => {
         generationId: "gen-1",
         outputIndex: 0,
         mediaFileId: "media-1",
+        supabaseAdmin: adminClient,
       })
     );
     expect(upsertGenerationPublicationMock).toHaveBeenCalledTimes(2);
@@ -131,6 +134,9 @@ describe("generationOutputConvergence", () => {
       expect.objectContaining({
         generationId: "gen-1",
         userId: "user-1",
+        sourceRef: "source-ref-1",
+        requestId: "provider-request-1",
+        providerRequestId: "provider-request-1",
         previewStoragePath: "user-1/generations/images/media-1.png",
         fullStoragePath: "user-1/generations/images/media-1.png",
         publicationState: "published",

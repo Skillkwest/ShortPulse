@@ -185,6 +185,35 @@ describe("POST /api/media/prompts/list", () => {
     requireApiUserMock.mockResolvedValue({ id: "user-1" });
   });
 
+  it("logs auth verifier failures before folder or prompt queries", async () => {
+    const authError = new Error("auth verifier exploded");
+    requireApiUserMock.mockRejectedValueOnce(authError);
+    const req = {
+      method: "POST",
+      body: {
+        folderId: "all_items",
+        query: "",
+        cursor: null,
+        limit: 10,
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        error: authError,
+        routeLabel: "media-prompts-list.auth",
+        scope: "app",
+      })
+    );
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Failed to list prompts" });
+  });
+
   it("returns 400 for invalid custom folder ids", async () => {
     const req = {
       method: "POST",

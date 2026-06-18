@@ -83,12 +83,27 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const user = await requireApiUser(req, res);
+  let user: Awaited<ReturnType<typeof requireApiUser>>;
+  try {
+    user = await requireApiUser(req, res);
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "elevenlabs-voice-clone.auth",
+      scope: "generation",
+    });
+    return res.status(500).json({
+      error: "Unable to clone voice",
+      details: "Unable to clone voice.",
+    });
+  }
   if (!user) return;
+  const userId = user.id;
   if (
     !enforceApiRateLimit(req, res, {
       ...ELEVENLABS_VOICE_CLONE_RATE_LIMIT,
-      keyPrefix: `${ELEVENLABS_VOICE_CLONE_RATE_LIMIT.keyPrefix}:${user.id}`,
+      keyPrefix: `${ELEVENLABS_VOICE_CLONE_RATE_LIMIT.keyPrefix}:${userId}`,
     })
   ) {
     return;
@@ -119,7 +134,7 @@ export default async function handler(
 
     const trustedStoragePath = assertUserScopedMediaStoragePath({
       path: sourceStoragePath,
-      userId: user.id,
+      userId,
       label: "Voice clone source storage path",
     });
 
@@ -140,11 +155,11 @@ export default async function handler(
     });
     const voiceSample: Awaited<ReturnType<typeof createPersistedElevenLabsVoiceSample>> =
       await createPersistedElevenLabsVoiceSample({
-        userId: user.id,
+        userId,
         voiceId: clonedVoice.voiceId,
       }).catch(async (sampleError) => {
         const cleanupResult = await cleanupFailedElevenLabsCustomVoice({
-          userId: user.id,
+          userId,
           voiceId: clonedVoice.voiceId,
           sampleStoragePath: null,
         });
@@ -162,7 +177,7 @@ export default async function handler(
 
     try {
       const savedVoice = await saveVoiceForUser({
-        userId: user.id,
+        userId,
         voice: {
           voiceId: clonedVoice.voiceId,
           name: clonedVoice.name,
@@ -186,7 +201,7 @@ export default async function handler(
         user,
       });
       const cleanupResult = await cleanupFailedElevenLabsCustomVoice({
-        userId: user.id,
+        userId,
         voiceId: clonedVoice.voiceId,
         sampleStoragePath: voiceSample.sampleStoragePath,
       });

@@ -157,7 +157,24 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const user = await requireApiUser(req, res);
+  let user: Awaited<ReturnType<typeof requireApiUser>>;
+  try {
+    user = await requireApiUser(req, res);
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "elevenlabs-speech-to-speech.auth",
+      scope: "generation",
+    });
+    return res.status(500).json({
+      error: "Unable to convert voice",
+      details: sanitizeCustomerFacingProviderText(
+        toErrorMessage(error, "Unknown error"),
+        "Unable to convert voice."
+      ),
+    });
+  }
   if (!user) return;
   let charge: Awaited<ReturnType<typeof chargeGenerationRequest>> = null;
 

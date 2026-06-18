@@ -52,6 +52,25 @@ describe("POST /api/admin/user-health", () => {
     expect(res.json).toHaveBeenCalledWith({ error: "lookup is required." });
   });
 
+  it("returns a safe failure when admin auth verification throws", async () => {
+    const authError = new Error("auth verifier exploded");
+    requireAdminUserMock.mockRejectedValue(authError);
+    const req = { method: "POST", body: { lookup: "admin@example.com", lookupMode: "email" } };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: authError,
+        routeLabel: "admin/user-health.auth",
+      })
+    );
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Failed to run user health diagnostics." });
+  });
+
   it("returns 404 when no matching auth user exists", async () => {
     getSupabaseAdminMock.mockReturnValue({
       auth: {

@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import extractStyleHandler from "../../pages/api/ai/extract-style";
 
 const requireApiUserMock = vi.fn();
+const logApiRouteExceptionMock = vi.fn();
 const logGenerationFailureMock = vi.fn();
 const resolveRequiredRuntimeAgentPromptMock = vi.fn();
 
@@ -14,6 +15,7 @@ vi.mock("../../lib/server/api/auth", () => ({
 }));
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
+  logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
   logGenerationFailure: (...args: unknown[]) => logGenerationFailureMock(...args),
 }));
 
@@ -75,6 +77,37 @@ describe("POST /api/ai/extract-style", () => {
         reason_code: "REQUEST_INVALID",
         retryable: false,
         error: "imageDataUrl is required",
+      })
+    );
+  });
+
+  it("logs auth verifier exceptions before style extraction work", async () => {
+    const authError = new Error("auth verifier unavailable");
+    requireApiUserMock.mockRejectedValueOnce(authError);
+    const req = {
+      method: "POST",
+      body: { imageDataUrl: "data:image/jpeg;base64,abc123" },
+    };
+    const res = createMockResponse();
+
+    await extractStyleHandler(req as never, res as never);
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(resolveRequiredRuntimeAgentPromptMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: authError,
+      routeLabel: "ai/extract-style.auth",
+      scope: "app",
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        decision: "error",
+        outcome_class: "route_error",
+        reason_code: "ROUTE_ERROR",
+        retryable: true,
+        error: "Style extraction is temporarily unavailable.",
       })
     );
   });

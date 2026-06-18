@@ -55,6 +55,25 @@ describe("GET /api/admin/credits/ledger", () => {
     expect(res.json).toHaveBeenCalledWith({ error: "userId is required." });
   });
 
+  it("returns a safe failure when admin auth verification throws", async () => {
+    const authError = new Error("auth verifier exploded");
+    requireAdminUserMock.mockRejectedValue(authError);
+
+    const req = { method: "GET", query: { userId: "user-1" } };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: authError,
+        routeLabel: "admin/credits/ledger.auth",
+      })
+    );
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Unable to load credit transactions." });
+  });
+
   it("returns recent transactions with parsed pricing breakdown", async () => {
     const limitMock = vi.fn().mockResolvedValue({
       data: [

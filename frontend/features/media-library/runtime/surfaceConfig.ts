@@ -75,6 +75,8 @@ export const MEDIA_LIBRARY_SURFACE_CONFIG: Record<
   },
   panel: {
     kind: "panel",
+    // Elements and Character panels share this runtime adapter while preserving
+    // their own MediaListSurface labels for API telemetry and signing policy.
     listSurface: "media-library-panel",
     listProfile: "expanded",
     adaptiveSurface: "media-library-panel-grid",

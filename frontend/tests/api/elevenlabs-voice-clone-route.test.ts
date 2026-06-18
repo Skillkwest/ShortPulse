@@ -186,6 +186,40 @@ describe("POST /api/elevenlabs/voices/clone", () => {
     });
   });
 
+  it("logs auth verifier failures before storage reads, provider clone, samples, cleanup, or ownership persistence", async () => {
+    requireApiUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
+    const req = {
+      method: "POST",
+      body: {
+        voiceName: "Cloned Narrator",
+        voiceDescription: "Warm cloned narrator",
+        sourceStoragePath: "user-1/voice-clone/source-audio/sample.mp3",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        error: expect.any(Error),
+        routeLabel: "elevenlabs-voice-clone.auth",
+        scope: "generation",
+      })
+    );
+    expect(readStoredMediaBufferMock).not.toHaveBeenCalled();
+    expect(createElevenLabsClonedVoiceMock).not.toHaveBeenCalled();
+    expect(createPersistedElevenLabsVoiceSampleMock).not.toHaveBeenCalled();
+    expect(saveVoiceForUserMock).not.toHaveBeenCalled();
+    expect(cleanupFailedElevenLabsCustomVoiceMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to clone voice",
+      details: "Unable to clone voice.",
+    });
+  });
+
   it("returns provider validation details when ElevenLabs rejects the clone", async () => {
     const providerError = new Error("Voice clone source audio is too short.") as Error & {
       status: number;

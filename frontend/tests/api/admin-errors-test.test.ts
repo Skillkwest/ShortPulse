@@ -33,6 +33,25 @@ describe("POST /api/admin/errors-test", () => {
     expect(res.json).toHaveBeenCalledWith({ error: "Method not allowed" });
   });
 
+  it("logs admin auth verifier exceptions before writing synthetic incidents", async () => {
+    const authError = new Error("auth verifier unavailable");
+    requireAdminUserMock.mockRejectedValueOnce(authError);
+    const req = { method: "POST", body: {} };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(writeAppErrorLogMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: authError,
+      routeLabel: "admin/errors-test.auth",
+      scope: "app",
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Failed to create synthetic incident." });
+  });
+
   it("creates a generation-scoped synthetic incident", async () => {
     writeAppErrorLogMock.mockResolvedValue({ ok: true, skipped: false, id: "incident-1" });
     const req = {

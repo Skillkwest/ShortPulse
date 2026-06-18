@@ -102,6 +102,44 @@ describe("POST /api/elevenlabs/music", () => {
     probeMediaDurationSecondsMock.mockResolvedValue(null);
   });
 
+  it("logs auth verifier failures before billing, provider, duration probing, or persistence work", async () => {
+    requireApiUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
+
+    const req = {
+      method: "POST",
+      body: {
+        text: "Night-drive synth anthem",
+        durationSeconds: null,
+        bpm: 112,
+        mode: "instrumental",
+        structure: "loop",
+        energyPercent: 58,
+        outputFormat: "mp3_44100_128",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        error: expect.any(Error),
+        routeLabel: "elevenlabs-music.auth",
+        scope: "generation",
+      })
+    );
+    expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
+    expect(generateElevenLabsMusicMock).not.toHaveBeenCalled();
+    expect(probeMediaDurationSecondsMock).not.toHaveBeenCalled();
+    expect(persistGeneratedAudioAssetMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to generate music",
+      details: "auth verifier exploded",
+    });
+  });
+
   it("stops before provider submission when billing already returned a fail-closed response", async () => {
     chargeGenerationRequestMock.mockImplementationOnce(async ({ res }: { res: MockResponse }) => {
       res.status(429).json({

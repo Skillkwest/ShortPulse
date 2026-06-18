@@ -44,6 +44,73 @@ describe("media folder CRUD routes", () => {
     requireApiUserMock.mockResolvedValue({ id: "user-1" });
   });
 
+  it.each([
+    {
+      label: "GET /list",
+      handler: listHandler,
+      req: { method: "GET" },
+      routeLabel: "media-folders-list.auth",
+      responseError: "Failed to list folders",
+      serviceMock: listMediaFoldersForUserMock,
+    },
+    {
+      label: "POST /create",
+      handler: createHandler,
+      req: { method: "POST", body: { name: "Campaign" } },
+      routeLabel: "media-folders-create.auth",
+      responseError: "Failed to create folder",
+      serviceMock: createMediaFolderForUserMock,
+    },
+    {
+      label: "POST /rename",
+      handler: renameHandler,
+      req: {
+        method: "POST",
+        body: { folderId: "2d6fc803-2289-47a9-9a07-063ebf2eec4f", name: "Renamed" },
+      },
+      routeLabel: "media-folders-rename.auth",
+      responseError: "Failed to rename folder",
+      serviceMock: renameMediaFolderForUserMock,
+    },
+    {
+      label: "POST /move",
+      handler: moveHandler,
+      req: {
+        method: "POST",
+        body: { folderId: "2d6fc803-2289-47a9-9a07-063ebf2eec4f", parentFolderId: null },
+      },
+      routeLabel: "media-folders-move.auth",
+      responseError: "Failed to move folder",
+      serviceMock: moveMediaFolderForUserMock,
+    },
+    {
+      label: "POST /delete",
+      handler: deleteHandler,
+      req: { method: "POST", body: { folderId: "2d6fc803-2289-47a9-9a07-063ebf2eec4f" } },
+      routeLabel: "media-folders-delete.auth",
+      responseError: "Failed to delete folder",
+      serviceMock: deleteMediaFolderForUserMock,
+    },
+  ])("$label logs auth verifier failures before folder service calls", async (testCase) => {
+    const authError = new Error("auth verifier exploded");
+    requireApiUserMock.mockRejectedValueOnce(authError);
+    const res = createMockResponse();
+
+    await testCase.handler(testCase.req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req: testCase.req,
+        error: authError,
+        routeLabel: testCase.routeLabel,
+        scope: "app",
+      })
+    );
+    expect(testCase.serviceMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: testCase.responseError });
+  });
+
   it("POST /create returns mapped folder payload", async () => {
     createMediaFolderForUserMock.mockResolvedValueOnce({
       id: "2d6fc803-2289-47a9-9a07-063ebf2eec4f",

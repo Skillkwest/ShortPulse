@@ -428,6 +428,35 @@ describe("POST /api/media/copy-from-url", () => {
     expect(res.json).toHaveBeenCalledWith({ error: "Method not allowed" });
   });
 
+  it("logs auth verifier failures before rate limiting, fetch, or storage work", async () => {
+    const authError = new Error("auth verifier exploded");
+    requireApiUserMock.mockRejectedValueOnce(authError);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const req = {
+      method: "POST",
+      headers: { host: "app.shortpulse.test", "x-forwarded-proto": "https" },
+      socket: { remoteAddress: "127.0.0.1" },
+      body: { url: "https://trusted.example.com/reference.png", mode: "image" },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        error: authError,
+        routeLabel: "media-copy-from-url.auth",
+        scope: "app",
+      })
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Unable to copy media from URL." });
+  });
+
   it("rejects untrusted hosts before any fetch occurs", async () => {
     const req = {
       method: "POST",

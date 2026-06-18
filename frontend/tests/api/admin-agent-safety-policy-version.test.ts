@@ -128,6 +128,28 @@ describe("POST /api/admin/agent-safety-policy/version", () => {
     );
   });
 
+  it("logs unexpected admin auth failures before policy validation starts", async () => {
+    requireAdminUserMock.mockRejectedValue(new Error("auth verifier exploded"));
+
+    const req = {
+      method: "POST",
+      body: { profileId: "prod_safe_v1", policy: { schemaVersion: 1 } },
+      headers: {},
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "admin/agent-safety-policy/version.auth",
+      })
+    );
+    expect(normalizeRequestedSafetyProfileIdMock).not.toHaveBeenCalled();
+    expect(createAgentSafetyPolicyVersionMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Unable to create safety policy version." });
+  });
+
   it("creates a policy version", async () => {
     createAgentSafetyPolicyVersionMock.mockResolvedValue({
       status: "created",

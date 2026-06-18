@@ -1270,4 +1270,27 @@ describe("GET /api/admin/billing-diagnostics", () => {
       expect.arrayContaining([expect.objectContaining({ code: "storage_over_limit" })])
     );
   });
+
+  it("returns a safe failure when admin auth verification throws", async () => {
+    const authError = new Error("auth verifier exploded");
+    requireAdminUserMock.mockRejectedValue(authError);
+
+    const req = {
+      method: "GET",
+      query: { userId: "44444444-4444-4444-8444-444444444444" },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: authError,
+        routeLabel: "admin/billing-diagnostics.auth",
+      })
+    );
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(stripeGetMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Failed to load billing diagnostics." });
+  });
 });

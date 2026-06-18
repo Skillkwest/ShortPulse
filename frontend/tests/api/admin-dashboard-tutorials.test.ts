@@ -66,6 +66,25 @@ describe("/api/admin/dashboard/tutorials", () => {
     expect(res.json).toHaveBeenCalledWith({ error: "Method not allowed" });
   });
 
+  it("logs admin auth verifier exceptions before tutorial management work", async () => {
+    const authError = new Error("auth verifier unavailable");
+    requireAdminUserMock.mockRejectedValueOnce(authError);
+    const req = { method: "GET" };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: authError,
+      routeLabel: "admin/dashboard/tutorials.auth",
+      scope: "app",
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Unable to manage dashboard tutorials." });
+  });
+
   it("rejects non-YouTube tutorial destinations", async () => {
     const req = {
       method: "POST",

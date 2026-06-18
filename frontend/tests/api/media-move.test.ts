@@ -270,6 +270,33 @@ describe("POST /api/media/move", () => {
     expect(getSupabaseAdminMock).not.toHaveBeenCalled();
   });
 
+  it("logs auth verifier failures before media move service work", async () => {
+    const authError = new Error("auth verifier exploded");
+    requireApiUserMock.mockRejectedValueOnce(authError);
+    const req = {
+      method: "POST",
+      body: {
+        fileId: "file-1",
+        destinationTab: "private",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        error: authError,
+        routeLabel: "media-move.auth",
+        scope: "app",
+      })
+    );
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Failed to move media file" });
+  });
+
   it("attempts storage rollback when metadata update fails", async () => {
     const fileRow = createBaseFile();
     const { moveMock } = setupSupabaseAdminMock({

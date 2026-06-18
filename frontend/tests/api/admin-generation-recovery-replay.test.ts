@@ -52,6 +52,23 @@ describe("POST /api/admin/generation-recovery/replay", () => {
     expect(res.json).toHaveBeenCalledWith({ error: "Provide generationId or requestId." });
   });
 
+  it("logs unexpected admin auth failures before replay starts", async () => {
+    requireAdminUserMock.mockRejectedValue(new Error("auth verifier exploded"));
+
+    const req = { method: "POST", body: { requestId: "req-1" }, headers: {} };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "admin.generation_recovery.replay.auth",
+      })
+    );
+    expect(executeGenerationRecoveryMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Failed to replay generation recovery." });
+  });
+
   it("returns 404 when generation is not found", async () => {
     executeGenerationRecoveryMock.mockResolvedValue({
       ok: false,

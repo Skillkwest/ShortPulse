@@ -56,6 +56,141 @@ describe("admin pricing mutation routes", () => {
     });
   });
 
+  it("does not mutate credit packages when admin auth verification throws unexpectedly", async () => {
+    requireAdminUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
+    const req = {
+      method: "POST",
+      body: {
+        id: "growth_2000",
+        displayName: "Growth 2,000",
+        creditAmountCents: 2000,
+        priceCents: 2600,
+        stripePriceId: "price_growth_2000",
+        isActive: true,
+        sortOrder: 20,
+      },
+    };
+    const res = createMockResponse();
+
+    await updateCreditPackageHandler(req as never, res as never);
+
+    expect(stripeGetMock).not.toHaveBeenCalled();
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: expect.any(Error),
+      routeLabel: "admin/pricing/credit-packages/update.auth",
+      metadata: {
+        source: "api.admin.pricing.credit-packages.update",
+      },
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Failed to update the credit package.",
+    });
+  });
+
+  it("does not create plan offers when admin auth verification throws unexpectedly", async () => {
+    requireAdminUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
+    const req = {
+      method: "POST",
+      body: {
+        planId: "studio",
+        offerName: "Studio Admin Offer",
+        recurringPriceCents: 4900,
+        monthlyCreditsCents: 3500,
+        storageLimitBytes: 107374182400,
+        maxConcurrentGenerations: 4,
+        stripePriceId: "price_studio_admin",
+      },
+    };
+    const res = createMockResponse();
+
+    await createPlanOfferHandler(req as never, res as never);
+
+    expect(stripeGetMock).not.toHaveBeenCalled();
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: expect.any(Error),
+      routeLabel: "admin/pricing/plan-offers/create.auth",
+      metadata: {
+        source: "api.admin.pricing.plan-offers.create",
+      },
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Failed to create the next plan offer.",
+    });
+  });
+
+  it("does not create plans when admin auth verification throws unexpectedly", async () => {
+    requireAdminUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
+    const req = {
+      method: "POST",
+      body: {
+        planId: "creator",
+        displayName: "Creator",
+        recurringPriceCents: 5900,
+        annualRecurringPriceCents: 59000,
+        monthlyCreditsCents: 4500,
+        storageLimitBytes: 214748364800,
+        maxConcurrentGenerations: 6,
+        sortOrder: 40,
+      },
+    };
+    const res = createMockResponse();
+
+    await createPlanHandler(req as never, res as never);
+
+    expect(stripePostFormMock).not.toHaveBeenCalled();
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: expect.any(Error),
+      routeLabel: "admin/pricing/plans/create.auth",
+      metadata: {
+        source: "api.admin.pricing.plans.create",
+      },
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Failed to create the plan.",
+    });
+  });
+
+  it("does not create storage offers when admin auth verification throws unexpectedly", async () => {
+    requireAdminUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
+    const req = {
+      method: "POST",
+      body: {
+        storageAddonId: "storage_25gb",
+        offerName: "Extra 25 GB Admin Offer",
+        storageLimitBytes: 26843545600,
+        recurringPriceCents: 700,
+        stripePriceId: "price_storage_admin",
+      },
+    };
+    const res = createMockResponse();
+
+    await createStorageOfferHandler(req as never, res as never);
+
+    expect(stripeGetMock).not.toHaveBeenCalled();
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: expect.any(Error),
+      routeLabel: "admin/pricing/storage-offers/create.auth",
+      metadata: {
+        source: "api.admin.pricing.storage-offers.create",
+      },
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Failed to create the next storage add-on offer.",
+    });
+  });
+
   it("updates a credit package", async () => {
     getSupabaseAdminMock.mockReturnValue({
       from: (table: string) => {

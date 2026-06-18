@@ -186,7 +186,21 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const user = await requireApiUser(req, res);
+  let user: Awaited<ReturnType<typeof requireApiUser>>;
+  try {
+    user = await requireApiUser(req, res);
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "openai-image-edit.auth",
+      scope: "generation",
+    });
+    return res.status(500).json({
+      error: "Unable to edit image",
+      details: toErrorMessage(error, "Unknown error"),
+    });
+  }
   if (!user) return;
   let charge: Awaited<ReturnType<typeof chargeGenerationRequest>> = null;
 

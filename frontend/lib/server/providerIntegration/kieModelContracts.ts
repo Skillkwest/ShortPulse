@@ -915,7 +915,7 @@ const normalizeKieSeedance2Payload = ({
   payload: Record<string, unknown>;
   modelId: SupportedKieModelId;
   providerModelName: "bytedance/seedance-2" | "bytedance/seedance-2-fast";
-  providerModelLabel: "Kie Seedance 2.0" | "Kie Seedance 2.0 Fast";
+  providerModelLabel: "Kie Seedance 2" | "Kie Seedance 2 Fast";
 }): Record<string, unknown> => {
   const inputPayload = asRecord(payload.input);
   const source = Object.keys(inputPayload).length ? inputPayload : payload;
@@ -1091,7 +1091,7 @@ export const normalizeKieSubmitPayloadForModel = ({
       payload: source,
       modelId,
       providerModelName: "bytedance/seedance-2",
-      providerModelLabel: "Kie Seedance 2.0",
+      providerModelLabel: "Kie Seedance 2",
     });
   }
   if (modelId === KIE_SEEDANCE_2_FAST_MODEL_ID) {
@@ -1099,7 +1099,7 @@ export const normalizeKieSubmitPayloadForModel = ({
       payload: source,
       modelId,
       providerModelName: "bytedance/seedance-2-fast",
-      providerModelLabel: "Kie Seedance 2.0 Fast",
+      providerModelLabel: "Kie Seedance 2 Fast",
     });
   }
   throw new Error(`Unsupported Kie model contract: ${modelId}`);

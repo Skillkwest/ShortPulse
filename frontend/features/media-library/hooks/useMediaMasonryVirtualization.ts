@@ -10,6 +10,7 @@ import {
 import {
   computeMediaVirtualLayoutFrame,
   resolveVisibleMediaVirtualItems,
+  type MediaVirtualLayoutMode,
   type MediaVirtualItem,
 } from "../logic/mediaGridVirtualization";
 
@@ -24,6 +25,7 @@ type UseMediaMasonryVirtualizationArgs<TItem> = {
   gap: number;
   overscanPx: number;
   minItemsToVirtualize?: number;
+  layoutMode?: MediaVirtualLayoutMode;
 };
 
 export type VirtualizedRenderItem<TItem> = {
@@ -56,6 +58,7 @@ export const useMediaMasonryVirtualization = <TItem>({
   gap,
   overscanPx,
   minItemsToVirtualize = 24,
+  layoutMode = "masonry",
 }: UseMediaMasonryVirtualizationArgs<TItem>): UseMediaMasonryVirtualizationResult<TItem> => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const rafIdRef = useRef<number | null>(null);
@@ -156,8 +159,17 @@ export const useMediaMasonryVirtualization = <TItem>({
       targetColumnWidth,
       maxColumnCount,
       gap,
+      layoutMode,
     });
-  }, [containerWidth, gap, maxColumnCount, shouldVirtualize, sourceItems, targetColumnWidth]);
+  }, [
+    containerWidth,
+    gap,
+    layoutMode,
+    maxColumnCount,
+    shouldVirtualize,
+    sourceItems,
+    targetColumnWidth,
+  ]);
 
   const layout = useMemo(() => {
     if (!shouldVirtualize || !layoutFrame) return null;

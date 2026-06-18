@@ -108,4 +108,21 @@ describe("GET /api/announcements/active", () => {
     expect(res.json).toHaveBeenCalledWith({ error: "Unauthorized" });
     expect(getSupabaseAdminMock).not.toHaveBeenCalled();
   });
+
+  it("logs unexpected auth failures before reading announcement state", async () => {
+    requireApiUserMock.mockRejectedValue(new Error("auth verifier exploded"));
+
+    const req = { method: "GET", headers: {} };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "announcements/active.auth",
+      })
+    );
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Unable to load active announcement." });
+  });
 });

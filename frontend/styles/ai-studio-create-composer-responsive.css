@@ -116,7 +116,7 @@
   }
 }
 
-@container ai-properties (max-width: 900px) {
+@container ai-properties (max-width: 759px) {
   .create-composer-panel .create-composer-panel-shell {
     gap: var(--create-composer-panel-gap);
     flex-direction: column;
@@ -232,11 +232,5 @@
 
   .create-composer-secondary-row {
     flex-wrap: wrap;
-  }
-}
-
-@container ai-properties (min-width: 760px) {
-  .create-composer-character-mode-control {
-    width: auto;
   }
 }

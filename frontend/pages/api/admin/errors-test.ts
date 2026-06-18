@@ -60,7 +60,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const adminUser = await requireAdminUser(req, res);
+  let adminUser: Awaited<ReturnType<typeof requireAdminUser>>;
+  try {
+    adminUser = await requireAdminUser(req, res);
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "admin/errors-test.auth",
+      scope: "app",
+    });
+    return res.status(500).json({ error: "Failed to create synthetic incident." });
+  }
   if (!adminUser) return;
 
   const body = (req.body ?? {}) as TriggerRequest;

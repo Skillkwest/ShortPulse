@@ -3,7 +3,7 @@
  * Gives reopened AI Studio sessions a bounded way to ask the server-owned
  * recovery engine to re-check visible in-flight generations.
  */
-import { readGenerationProjectionLinkBySourceRef } from "./generationProjection";
+import { resolveGenerationLineageBySourceRef } from "./generationLineageResolver";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 import {
   executeGenerationRecovery,
@@ -104,34 +104,24 @@ export const normalizeGenerationReconcileIdentities = (
 export const normalizeGenerationReconcileProjectId = (value: unknown): string | null =>
   normalizeString(value);
 
-const resolveGenerationIdBySourceRef = async ({
+const resolveGenerationIdentityBySourceRef = async ({
   userId,
   sourceRef,
 }: {
   userId: string;
   sourceRef: string | null;
-}): Promise<string | null> => {
+}): Promise<{ generationId: string | null; requestId: string | null }> => {
   const normalizedSourceRef = normalizeString(sourceRef);
-  if (!normalizedSourceRef) return null;
+  if (!normalizedSourceRef) return { generationId: null, requestId: null };
 
-  const projectionLink = await readGenerationProjectionLinkBySourceRef({
+  const lineage = await resolveGenerationLineageBySourceRef({
     userId,
     sourceRef: normalizedSourceRef,
   }).catch(() => null);
-  if (projectionLink?.generationId) return projectionLink.generationId;
-
-  const { data, error } = await getSupabaseAdmin()
-    .from("ai_generations")
-    .select("id, created_at")
-    .eq("user_id", userId)
-    .filter("metadata->>source_ref", "eq", normalizedSourceRef)
-    .order("created_at", { ascending: false })
-    .limit(1);
-  if (error || !Array.isArray(data) || !data.length) return null;
-  const row = data[0];
-  return row && typeof row === "object" && !Array.isArray(row)
-    ? normalizeString((row as Record<string, unknown>).id)
-    : null;
+  return {
+    generationId: lineage?.generationId ?? null,
+    requestId: lineage?.requestId ?? null,
+  };
 };
 
 const reconcileOneGeneration = async ({
@@ -141,13 +131,14 @@ const reconcileOneGeneration = async ({
   identity: GenerationReconcileIdentity;
   userId: string;
 }): Promise<GenerationReconcileResult> => {
-  const generationId =
-    normalizeString(identity.generationId) ??
-    (await resolveGenerationIdBySourceRef({
-      userId,
-      sourceRef: identity.sourceRef ?? null,
-    }));
-  const requestId = normalizeString(identity.requestId);
+  const sourceRefIdentity = normalizeString(identity.generationId)
+    ? { generationId: null, requestId: null }
+    : await resolveGenerationIdentityBySourceRef({
+        userId,
+        sourceRef: identity.sourceRef ?? null,
+      });
+  const generationId = normalizeString(identity.generationId) ?? sourceRefIdentity.generationId;
+  const requestId = normalizeString(identity.requestId) ?? sourceRefIdentity.requestId;
 
   let result: RecoveryExecutionResult;
   try {

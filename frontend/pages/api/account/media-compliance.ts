@@ -41,7 +41,21 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const user = await requireApiUser(req, res);
+  let user: Awaited<ReturnType<typeof requireApiUser>>;
+  try {
+    user = await requireApiUser(req, res);
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "account/media-compliance.auth",
+      scope: "app",
+    });
+    return res.status(500).json({
+      error: "Unable to process the media agreement request.",
+      code: "MEDIA_COMPLIANCE_REQUEST_FAILED",
+    });
+  }
   if (!user) {
     if (res.statusCode === 503) {
       await logApiRouteException({
@@ -49,7 +63,8 @@ export default async function handler(
         error: Object.assign(new Error("Authentication verification is temporarily unavailable."), {
           code: "AUTH_VERIFICATION_UNAVAILABLE",
         }),
-        routeLabel: "account/media-compliance",
+        routeLabel: "account/media-compliance.auth",
+        scope: "app",
         metadata: {
           reason_code: "AUTH_VERIFICATION_UNAVAILABLE",
         },

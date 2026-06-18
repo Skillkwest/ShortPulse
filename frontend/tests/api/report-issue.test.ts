@@ -77,6 +77,33 @@ describe("POST /api/report-issue", () => {
     });
   });
 
+  it("returns a safe failure when auth verification throws", async () => {
+    const authError = new Error("auth verifier exploded");
+    requireApiUserMock.mockRejectedValue(authError);
+
+    const req = {
+      method: "POST",
+      body: {
+        message: "The dashboard spinner never settled.",
+      },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: authError,
+        routeLabel: "api.report-issue.auth",
+      })
+    );
+    expect(enforceApiRateLimitMock).not.toHaveBeenCalled();
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Unable to save your report right now." });
+  });
+
   it("stores a validated report for an authenticated user", async () => {
     const singleMock = vi.fn().mockResolvedValue({
       data: { id: "report-1" },

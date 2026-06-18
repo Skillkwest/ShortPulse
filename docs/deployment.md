@@ -271,6 +271,22 @@ node scripts/verify_deployment_route_parity.mjs \
   --required-route /api/internal/media-derivatives/run
 ```
 
+The verifier enforces the current default retired-route list, so normal launch parity fails when a known fallback, legacy, or backup route is still exposed. Add `--forbidden-route` for any newly retired route not yet in the default list:
+
+```bash
+node scripts/verify_deployment_route_parity.mjs \
+  --base-url https://<staging-or-prod-alias> \
+  --forbidden-route /api/<retired-route>
+```
+
+Use `--ignore-default-forbidden-routes` only when intentionally inspecting an older deployment and labeling the result as a stale/deploy-boundary baseline, not as launch parity:
+
+```bash
+node scripts/verify_deployment_route_parity.mjs \
+  --base-url https://<staging-or-prod-alias> \
+  --ignore-default-forbidden-routes
+```
+
 Optional token-auth override:
 
 ```bash
@@ -282,6 +298,7 @@ node scripts/verify_deployment_route_parity.mjs \
 Behavior:
 
 - Hard-fails (non-zero exit) if any required route is missing from deployment build output.
+- Hard-fails (non-zero exit) if any default or configured forbidden route is exposed in deployment build output.
 - Prints resolved deployment URL and deployment creation timestamp to prevent alias/deployment drift mistakes.
 - Supports env fallbacks:
   - base URL: `SHORTPULSE_STAGING_BASE_URL`, then `APP_BASE_URL`

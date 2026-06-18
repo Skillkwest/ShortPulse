@@ -42,6 +42,25 @@ describe("admin built-in Styles API", () => {
     requireAdminUserMock.mockResolvedValue({ id: "admin-1", email: "admin@example.com" });
   });
 
+  it("logs admin auth verifier exceptions before catalog access", async () => {
+    const authError = new Error("auth verifier unavailable");
+    requireAdminUserMock.mockRejectedValueOnce(authError);
+
+    const req = { method: "GET" };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(resolveBuiltInStyleCatalogForAdminMock).not.toHaveBeenCalled();
+    expect(saveBuiltInStyleCatalogMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: authError,
+      routeLabel: "api/admin/agent-instructions/built-in-styles.auth",
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Failed to load built-in Styles." });
+  });
+
   it("returns the resolved built-in Styles catalog", async () => {
     resolveBuiltInStyleCatalogForAdminMock.mockResolvedValue({
       styleDefinitions: [

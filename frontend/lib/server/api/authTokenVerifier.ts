@@ -141,7 +141,15 @@ export const fetchSupabaseUser = async (token: string): Promise<AuthenticatedApi
         response.status
       );
     }
-    const data = (await response.json()) as AuthenticatedApiUser;
+    let data: AuthenticatedApiUser;
+    try {
+      data = (await response.json()) as AuthenticatedApiUser;
+    } catch {
+      throw createAuthVerificationUnavailableError(
+        "Authentication verification is temporarily unavailable.",
+        response.status
+      );
+    }
     if (!data?.id) return null;
     writeCachedVerifiedUser(token, data);
     return data;

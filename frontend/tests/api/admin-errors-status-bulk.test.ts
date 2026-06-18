@@ -54,6 +54,25 @@ describe("POST /api/admin/errors-status-bulk", () => {
     });
   });
 
+  it("returns a safe failure when admin auth verification throws", async () => {
+    const authError = new Error("auth verifier exploded");
+    requireAdminUserMock.mockRejectedValue(authError);
+
+    const req = { method: "POST", body: { errorIds: ["inc-1"], status: "resolved" } };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: authError,
+        routeLabel: "admin/errors-status-bulk.auth",
+      })
+    );
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Unable to update incident status." });
+  });
+
   it("updates multiple incidents in one batch", async () => {
     const rpcMock = vi
       .fn()

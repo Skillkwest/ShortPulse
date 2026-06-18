@@ -4,7 +4,7 @@
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../lib/server/api/auth";
-import { writeAppErrorLog } from "../../../lib/server/api/appErrorLogs";
+import { logApiRouteException, writeAppErrorLog } from "../../../lib/server/api/appErrorLogs";
 import { enforceApiRateLimit } from "../../../lib/server/api/rateLimit";
 
 type ClientErrorRequest = {
@@ -32,7 +32,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const user = await requireApiUser(req, res);
+  let user: Awaited<ReturnType<typeof requireApiUser>>;
+  try {
+    user = await requireApiUser(req, res);
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "api.log.client-error.auth",
+    });
+    return res.status(500).json({ error: "Client error log ingestion failed." });
+  }
   if (!user) {
     return;
   }

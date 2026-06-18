@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { resolvePanelMixedAllMediaSignBudget } from "../surfaceConfig";
+import {
+  MEDIA_LIBRARY_SURFACE_CONFIG,
+  resolvePanelMixedAllMediaSignBudget,
+} from "../surfaceConfig";
 
 describe("resolvePanelMixedAllMediaSignBudget", () => {
   it("limits mixed all-media signing to the first visible panel column set", () => {
@@ -27,6 +30,17 @@ describe("resolvePanelMixedAllMediaSignBudget", () => {
       initialSignLimit: 5,
       prefetchWindow: 5,
       signBatchSize: 5,
+    });
+  });
+});
+
+describe("MEDIA_LIBRARY_SURFACE_CONFIG", () => {
+  it("keeps embedded right-rail surfaces on the shared panel runtime adapter", () => {
+    expect(Object.keys(MEDIA_LIBRARY_SURFACE_CONFIG).sort()).toEqual(["modal", "panel"]);
+    expect(MEDIA_LIBRARY_SURFACE_CONFIG.panel).toMatchObject({
+      kind: "panel",
+      listSurface: "media-library-panel",
+      adaptiveSurface: "media-library-panel-grid",
     });
   });
 });

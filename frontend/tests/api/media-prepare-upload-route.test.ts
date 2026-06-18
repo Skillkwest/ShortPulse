@@ -94,6 +94,35 @@ describe("POST /api/media/prepare-upload", () => {
     });
   });
 
+  it("logs auth verifier failures before rate limiting or upload preparation", async () => {
+    requireApiUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
+    const req = {
+      method: "POST",
+      body: {
+        destinationTab: "uploaded_images",
+        sourceMimeType: "image/webp",
+        sourceName: "image.webp",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        error: expect.any(Error),
+        routeLabel: "media-prepare-upload.auth",
+        scope: "app",
+      })
+    );
+    expect(prepareMediaUploadForUserMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to prepare media upload",
+    });
+  });
+
   it("returns a sanitized 500 when preparation fails unexpectedly", async () => {
     prepareMediaUploadForUserMock.mockRejectedValueOnce(new Error("signed upload target exploded"));
     const req = {

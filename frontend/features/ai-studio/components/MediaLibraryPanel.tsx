@@ -244,7 +244,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     loadPromptPage,
     refreshActiveRows,
   } = useMediaLibraryPanelDataController({
-    projectId,
     activeFolderId,
     itemType,
     normalizedSearch,

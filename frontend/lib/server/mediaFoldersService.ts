@@ -19,7 +19,6 @@ type FolderItemCountRpcRow = {
 };
 const MEDIA_FOLDER_SELECT_COLUMNS =
   "id, user_id, name, parent_folder_id, created_at, updated_at" as const;
-const LEGACY_MEDIA_FOLDER_SELECT_COLUMNS = "id, user_id, name, created_at, updated_at" as const;
 
 export type MediaFolderRow = {
   id: string;
@@ -104,36 +103,6 @@ const isHierarchyConflict = (error: unknown): boolean => {
     message.includes("folder cannot be its own parent") ||
     message.includes("folder hierarchy cannot contain cycles")
   );
-};
-
-const isMissingParentFolderColumnError = (error: unknown): boolean => {
-  const message = ((error as DbErrorLike)?.message ?? "").toLowerCase();
-  return message.includes("parent_folder_id") && message.includes("column");
-};
-
-const toMediaFolderRow = (
-  row: Record<string, unknown> | null | undefined,
-  { parentFolderId = null }: { parentFolderId?: string | null } = {}
-): MediaFolderRow | null => {
-  if (!row) return null;
-  const id = typeof row.id === "string" ? row.id.trim() : "";
-  const userId = typeof row.user_id === "string" ? row.user_id.trim() : "";
-  const name = typeof row.name === "string" ? row.name.trim() : "";
-  const createdAt = typeof row.created_at === "string" ? row.created_at.trim() : "";
-  const updatedAt = typeof row.updated_at === "string" ? row.updated_at.trim() : "";
-  if (!id || !userId || !name) return null;
-  return {
-    id,
-    user_id: userId,
-    name,
-    parent_folder_id:
-      typeof row.parent_folder_id === "string"
-        ? row.parent_folder_id.trim() || null
-        : parentFolderId,
-    created_at: createdAt,
-    updated_at: updatedAt,
-    item_count: 0,
-  };
 };
 
 const toNonNegativeCount = (value: unknown): number => {
@@ -225,9 +194,6 @@ const countDirectChildFoldersForUser = async ({
     .eq("user_id", userId)
     .eq("parent_folder_id", folderId);
   if (error) {
-    if (isMissingParentFolderColumnError(error)) {
-      return 0;
-    }
     throw new Error(error.message || "Failed to load child folder counts");
   }
   return Math.max(0, Math.trunc(count ?? 0));
@@ -353,32 +319,17 @@ export const listMediaFoldersForUser = async (userId: string): Promise<MediaFold
     .order("created_at", { ascending: true })
     .order("id", { ascending: true });
 
-  if (error && !isMissingParentFolderColumnError(error)) {
+  if (error) {
     throw new Error(error.message || "Failed to list media folders");
   }
-  if (!error) {
-    const rows = (data ?? []) as Array<Omit<MediaFolderRow, "item_count">>;
-    const membershipCounts = await toFolderItemCountMap({
-      supabaseAdmin,
-      userId,
-      folderIds: rows.map((row) => row.id),
-    });
-    const counts = addDirectChildFolderCounts({ counts: membershipCounts, folders: rows });
-    return rows.map((row) => withFolderItemCount(row, counts.get(row.id) ?? 0));
-  }
-
-  const { data: legacyData, error: legacyError } = await supabaseAdmin
-    .from("media_folders")
-    .select(LEGACY_MEDIA_FOLDER_SELECT_COLUMNS)
-    .eq("user_id", userId)
-    .order("created_at", { ascending: true })
-    .order("id", { ascending: true });
-  if (legacyError) {
-    throw new Error(legacyError.message || "Failed to list media folders");
-  }
-  return (legacyData ?? [])
-    .map((row) => toMediaFolderRow(row as Record<string, unknown>, { parentFolderId: null }))
-    .filter((row): row is MediaFolderRow => Boolean(row));
+  const rows = (data ?? []) as Array<Omit<MediaFolderRow, "item_count">>;
+  const membershipCounts = await toFolderItemCountMap({
+    supabaseAdmin,
+    userId,
+    folderIds: rows.map((row) => row.id),
+  });
+  const counts = addDirectChildFolderCounts({ counts: membershipCounts, folders: rows });
+  return rows.map((row) => withFolderItemCount(row, counts.get(row.id) ?? 0));
 };
 
 /**
@@ -419,40 +370,16 @@ export const createMediaFolderForUser = async ({
     .select(MEDIA_FOLDER_SELECT_COLUMNS)
     .maybeSingle();
 
-  if (error && !isMissingParentFolderColumnError(error)) {
+  if (error) {
     if (isUniqueViolation(error)) {
       throw new Error("Folder name already exists");
     }
     throw new Error(error.message || "Failed to create folder");
   }
-  if (!error && data) {
+  if (data) {
     return withFolderItemCount(data as Omit<MediaFolderRow, "item_count">, 0);
   }
-  if (parentFolderId) {
-    throw new Error("Nested folders require the latest database migration");
-  }
-  const { data: legacyData, error: legacyError } = await supabaseAdmin
-    .from("media_folders")
-    .insert({
-      user_id: userId,
-      name,
-      created_at: timestamp,
-      updated_at: timestamp,
-    })
-    .select(LEGACY_MEDIA_FOLDER_SELECT_COLUMNS)
-    .maybeSingle();
-
-  if (legacyError) {
-    if (isUniqueViolation(legacyError)) {
-      throw new Error("Folder name already exists");
-    }
-    throw new Error(legacyError.message || "Failed to create folder");
-  }
-  const folder = toMediaFolderRow(legacyData as Record<string, unknown>, { parentFolderId: null });
-  if (!folder) {
-    throw new Error("Failed to create folder");
-  }
-  return folder;
+  throw new Error("Failed to create folder");
 };
 
 /**
@@ -503,46 +430,27 @@ export const renameMediaFolderForUser = async ({
     .select(MEDIA_FOLDER_SELECT_COLUMNS)
     .maybeSingle();
 
-  if (error && !isMissingParentFolderColumnError(error)) {
+  if (error) {
     if (isUniqueViolation(error)) {
       throw new Error("Folder name already exists");
     }
     throw new Error(error.message || "Failed to rename folder");
   }
-  if (!error) {
-    if (!data) return null;
-    const counts = await toFolderItemCountMap({
-      supabaseAdmin,
-      userId,
-      folderIds: [folderId],
-    });
-    const directChildFolderCount = await countDirectChildFoldersForUser({
-      supabaseAdmin,
-      userId,
-      folderId,
-    });
-    return withFolderItemCount(
-      data as Omit<MediaFolderRow, "item_count">,
-      (counts.get(folderId) ?? 0) + directChildFolderCount
-    );
-  }
-  const { data: legacyData, error: legacyError } = await supabaseAdmin
-    .from("media_folders")
-    .update({
-      name,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", folderId)
-    .eq("user_id", userId)
-    .select(LEGACY_MEDIA_FOLDER_SELECT_COLUMNS)
-    .maybeSingle();
-  if (legacyError) {
-    if (isUniqueViolation(legacyError)) {
-      throw new Error("Folder name already exists");
-    }
-    throw new Error(legacyError.message || "Failed to rename folder");
-  }
-  return toMediaFolderRow(legacyData as Record<string, unknown>, { parentFolderId: null });
+  if (!data) return null;
+  const counts = await toFolderItemCountMap({
+    supabaseAdmin,
+    userId,
+    folderIds: [folderId],
+  });
+  const directChildFolderCount = await countDirectChildFoldersForUser({
+    supabaseAdmin,
+    userId,
+    folderId,
+  });
+  return withFolderItemCount(
+    data as Omit<MediaFolderRow, "item_count">,
+    (counts.get(folderId) ?? 0) + directChildFolderCount
+  );
 };
 
 /**
@@ -575,9 +483,6 @@ export const moveMediaFolderForUser = async ({
     .eq("user_id", userId)
     .maybeSingle();
   if (folderError) {
-    if (isMissingParentFolderColumnError(folderError)) {
-      throw new Error("Nested folders require the latest database migration");
-    }
     throw new Error(folderError.message || "Failed to load folder");
   }
   if (!folderRow) {

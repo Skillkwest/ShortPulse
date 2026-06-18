@@ -86,6 +86,41 @@ describe("POST /api/kie/upload-url", () => {
     vi.unstubAllGlobals();
   });
 
+  it("logs auth verifier failures before reading upload bodies or provider config", async () => {
+    const authError = new Error("auth verifier exploded");
+    requireApiUserMock.mockRejectedValueOnce(authError);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const req = createMockRequest({
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        fileUrl: "https://example.com/public-image.jpg",
+        uploadPath: "shortpulse/kie-video/images",
+      }),
+    });
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        error: authError,
+        routeLabel: "kie-upload-url.auth",
+        scope: "generation",
+      })
+    );
+    expect(readProviderApiKeyMock).not.toHaveBeenCalled();
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Kie upload failed",
+    });
+  });
+
   it("uses Kie URL upload for public remote URLs", async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce({
       ok: true,

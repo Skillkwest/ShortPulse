@@ -101,6 +101,7 @@ describe("MediaLibraryMediaGrid", () => {
       expect.objectContaining({
         targetColumnWidth: 220,
         maxColumnCount: undefined,
+        layoutMode: "masonry",
       })
     );
     expect(container.querySelector(".media-library-panel-density-grid")).toBeNull();
@@ -114,6 +115,7 @@ describe("MediaLibraryMediaGrid", () => {
       expect.objectContaining({
         targetColumnWidth: 188,
         maxColumnCount: 5,
+        layoutMode: "masonry",
       })
     );
     expect(grid).toHaveClass("media-library-panel-density-grid");
@@ -124,6 +126,23 @@ describe("MediaLibraryMediaGrid", () => {
     expect(props.resolveCardPreviewUrl).toHaveBeenLastCalledWith(
       expect.objectContaining({
         cardLongEdgePx: 188,
+      })
+    );
+  });
+
+  it("uses chronological layout mode for panel surfaces", () => {
+    const props = baseProps();
+    render(
+      <MediaLibraryMediaGrid
+        {...props}
+        surface="media-library-panel"
+        densityConfig={MEDIA_LIBRARY_PANEL_DENSITY_CONFIG}
+      />
+    );
+
+    expect(useMediaMasonryVirtualizationMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        layoutMode: "chronological-grid",
       })
     );
   });

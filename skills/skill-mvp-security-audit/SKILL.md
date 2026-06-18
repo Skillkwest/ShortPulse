@@ -16,7 +16,7 @@ Purpose: execute the pre-tester P0 security pass with consistent checks, fixes, 
 - `frontend/pages/api/billing/stripe/checkout.ts`
 - `frontend/pages/api/billing/stripe/portal.ts`
 - `frontend/pages/api/media/upload.ts`
-- `frontend/pages/api/upload-video.ts`
+- `frontend/pages/api/media/stage-motion-reference-video.ts`
 - `frontend/proxy.ts`
 
 ## Workflow

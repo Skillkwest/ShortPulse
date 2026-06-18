@@ -95,6 +95,35 @@ describe("POST /api/media/stage-reference-image", () => {
     });
   });
 
+  it("logs auth verifier failures before rate limiting or upload finalization", async () => {
+    requireApiUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
+    const req = {
+      method: "POST",
+      body: {
+        sourceMimeType: "image/png",
+        sourceName: "reference.png",
+        sourceStoragePath: "user-1/upload-staging/images/reference/reference.png",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        error: expect.any(Error),
+        routeLabel: "media-stage-reference-image.auth",
+        scope: "generation",
+      })
+    );
+    expect(finalizeReferenceImageUploadForUserMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to stage reference image",
+    });
+  });
+
   it("returns a sanitized 500 when finalization fails unexpectedly", async () => {
     finalizeReferenceImageUploadForUserMock.mockRejectedValueOnce(
       new Error("storage download exploded")

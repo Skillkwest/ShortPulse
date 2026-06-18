@@ -4,6 +4,8 @@ const getSupabaseAdminMock = vi.fn();
 const settleGenerationOutcomeMock = vi.fn();
 const cleanupAudioCompanionArtMock = vi.fn();
 const writeAppErrorLogMock = vi.fn();
+const resolveGenerationLineageBySourceRefMock = vi.fn();
+const resolveGenerationLineageByProviderRequestMock = vi.fn();
 
 vi.mock("../supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
@@ -11,6 +13,13 @@ vi.mock("../supabaseAdmin", () => ({
 
 vi.mock("../generationBilling", () => ({
   settleGenerationOutcome: (...args: unknown[]) => settleGenerationOutcomeMock(...args),
+}));
+
+vi.mock("../generationLineageResolver", () => ({
+  resolveGenerationLineageBySourceRef: (...args: unknown[]) =>
+    resolveGenerationLineageBySourceRefMock(...args),
+  resolveGenerationLineageByProviderRequest: (...args: unknown[]) =>
+    resolveGenerationLineageByProviderRequestMock(...args),
 }));
 
 vi.mock("../../audioCompanionArt/cleanup", () => ({
@@ -107,11 +116,18 @@ describe("recordGenerationAbandonment", () => {
       storageDeleted: true,
     });
     writeAppErrorLogMock.mockResolvedValue({ ok: true, skipped: false, id: "evt-1" });
+    resolveGenerationLineageBySourceRefMock.mockResolvedValue(null);
+    resolveGenerationLineageByProviderRequestMock.mockResolvedValue(null);
   });
 
   it("suppresses active generation visibility without rewriting provider lifecycle", async () => {
     const supabase = createSupabaseMock({ generationStatus: "running" });
     getSupabaseAdminMock.mockReturnValue(supabase.client);
+    resolveGenerationLineageBySourceRefMock.mockResolvedValueOnce({
+      generationId: "gen-1",
+      requestId: "req-1",
+      sourceRef: "source-1",
+    });
 
     const result = await recordGenerationAbandonment({
       userId: "user-1",
@@ -123,6 +139,11 @@ describe("recordGenerationAbandonment", () => {
     expect(result).toEqual({
       abandonmentId: null,
       matchedGenerationIds: ["gen-1"],
+    });
+    expect(resolveGenerationLineageBySourceRefMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      sourceRef: "source-1",
+      supabaseAdmin: supabase.client,
     });
     expect(supabase.updates.generations).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -169,6 +190,38 @@ describe("recordGenerationAbandonment", () => {
         }),
       })
     );
+  });
+
+  it("suppresses by request id through shared lineage without rewriting provider lifecycle", async () => {
+    const supabase = createSupabaseMock({ generationStatus: "running" });
+    getSupabaseAdminMock.mockReturnValue(supabase.client);
+    resolveGenerationLineageByProviderRequestMock.mockResolvedValueOnce({
+      generationId: "gen-1",
+      requestId: "req-1",
+      sourceRef: null,
+    });
+
+    const result = await recordGenerationAbandonment({
+      userId: "user-1",
+      requestId: "req-1",
+      noRefund: true,
+    });
+
+    expect(result.matchedGenerationIds).toEqual(["gen-1"]);
+    expect(resolveGenerationLineageByProviderRequestMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      providerRequestId: "req-1",
+      supabaseAdmin: supabase.client,
+    });
+    expect(supabase.updates.generations).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "fail",
+        failure_reason_code: "user_abandoned",
+        recovery_state: "exhausted",
+      })
+    );
+    expect(supabase.updates.attempts).not.toHaveBeenCalled();
+    expect(settleGenerationOutcomeMock).not.toHaveBeenCalled();
   });
 
   it("does not reopen or rewrite terminal generation status during suppression", async () => {

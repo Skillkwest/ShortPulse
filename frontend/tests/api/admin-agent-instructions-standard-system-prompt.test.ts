@@ -47,6 +47,27 @@ describe("admin standard system prompt API", () => {
     requireAdminUserMock.mockResolvedValue({ id: "admin-1", email: "admin@example.com" });
   });
 
+  it("logs admin auth verifier exceptions before prompt access", async () => {
+    const authError = new Error("auth verifier unavailable");
+    requireAdminUserMock.mockRejectedValueOnce(authError);
+
+    const req = { method: "GET" };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(resolveRuntimeAgentPromptForAdminMock).not.toHaveBeenCalled();
+    expect(saveRuntimeAgentPromptMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: authError,
+      routeLabel: "api/admin/agent-instructions/standard-system-prompt.auth",
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Failed to load the Standard system prompt.",
+    });
+  });
+
   it("returns the resolved runtime prompt", async () => {
     resolveRuntimeAgentPromptForAdminMock.mockResolvedValue({
       promptId: "STUDIO_AGENT_SYSTEM",

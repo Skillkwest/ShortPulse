@@ -7,14 +7,18 @@ import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { enforceApiRateLimit } from "../../../lib/server/api/rateLimit";
 import {
+  deleteSignedStorageAssetForUser,
   finalizeMotionReferenceVideoUploadForUser,
   MediaUploadServiceError,
 } from "../../../lib/server/mediaUploadService";
+import { retireMotionReferenceVideoStoragePathForUser } from "../../../lib/server/motionReferenceVideoAssetLease";
 
 type StageMotionReferenceVideoRequestBody = {
   sourceMimeType?: unknown;
   sourceName?: unknown;
   sourceStoragePath?: unknown;
+  path?: unknown;
+  mode?: unknown;
 };
 
 type StageMotionReferenceVideoSuccessResponse = {
@@ -36,6 +40,8 @@ const STAGE_MOTION_REFERENCE_VIDEO_RATE_LIMIT = {
   windowMs: 10 * 60 * 1000,
 } as const;
 
+const MOTION_CONTROL_STORAGE_FOLDER = "videos/motion-control";
+
 const normalizeOptionalString = (value: unknown): string => {
   if (typeof value !== "string") return "";
   return value.trim();
@@ -47,7 +53,7 @@ export default async function handler(
     StageMotionReferenceVideoSuccessResponse | StageMotionReferenceVideoErrorResponse
   >
 ) {
-  if (req.method !== "POST") {
+  if (req.method !== "POST" && req.method !== "DELETE") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
@@ -64,6 +70,30 @@ export default async function handler(
 
   try {
     const body = (req.body ?? {}) as StageMotionReferenceVideoRequestBody;
+
+    if (req.method === "DELETE") {
+      const storagePath = normalizeOptionalString(body.path);
+      if (!storagePath) {
+        return res.status(400).json({
+          error: "Invalid request",
+          details: "Motion reference video storage path is required.",
+        });
+      }
+      if (body.mode === "retire") {
+        await retireMotionReferenceVideoStoragePathForUser({
+          userId: user.id,
+          storagePath,
+        });
+      } else {
+        await deleteSignedStorageAssetForUser({
+          userId: user.id,
+          storagePath,
+          storageFolderOverride: MOTION_CONTROL_STORAGE_FOLDER,
+        });
+      }
+      return res.status(204).end();
+    }
+
     const sourceName = normalizeOptionalString(body.sourceName);
     const sourceMimeType = normalizeOptionalString(body.sourceMimeType).toLowerCase();
     const sourceStoragePath = normalizeOptionalString(body.sourceStoragePath);

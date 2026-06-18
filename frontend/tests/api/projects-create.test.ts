@@ -24,6 +24,7 @@ const deleteProjectForUserMock = vi.fn();
 const updateProjectTitleForUserMock = vi.fn();
 const getProjectWorkspaceStateForUserMock = vi.fn();
 const upsertProjectWorkspaceStateForUserMock = vi.fn();
+const deleteProjectWorkspaceStateForUserMock = vi.fn();
 const parseProjectIdMock = vi.fn();
 const parseProjectListLimitMock = vi.fn();
 const parseProjectListOffsetMock = vi.fn();
@@ -52,6 +53,8 @@ vi.mock("../../lib/server/projectsService", () => ({
 }));
 
 vi.mock("../../lib/server/projectWorkspaceStatesService", () => ({
+  deleteProjectWorkspaceStateForUser: (...args: unknown[]) =>
+    deleteProjectWorkspaceStateForUserMock(...args),
   getProjectWorkspaceStateForUser: (...args: unknown[]) =>
     getProjectWorkspaceStateForUserMock(...args),
   InvalidProjectWorkspaceSnapshotError: MockInvalidProjectWorkspaceSnapshotError,
@@ -151,6 +154,7 @@ describe("projects routes", () => {
       createdAt: "2026-04-23T00:00:00.000Z",
       updatedAt: "2026-04-23T01:00:00.000Z",
     });
+    deleteProjectWorkspaceStateForUserMock.mockResolvedValue(undefined);
   });
 
   it("creates the project without bootstrapping legacy media folders", async () => {
@@ -442,6 +446,27 @@ describe("projects routes", () => {
       deletedProjectId: "project-1",
     });
   });
+
+  it.each(["GET", "PATCH", "DELETE"] as const)(
+    "returns 404 for project item %s when the project is not caller-owned",
+    async (method) => {
+      if (method === "GET") getProjectForUserMock.mockResolvedValueOnce(null);
+      if (method === "PATCH") updateProjectTitleForUserMock.mockResolvedValueOnce(null);
+      if (method === "DELETE") deleteProjectForUserMock.mockResolvedValueOnce(null);
+      const req = {
+        method,
+        query: { projectId: "project-1" },
+        body: method === "PATCH" ? { title: "Renamed" } : undefined,
+      };
+      const res = createMockResponse();
+
+      await itemHandler(req as never, res as never);
+
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({ error: "Project not found" });
+      expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+    }
+  );
 
   it("returns 400 for invalid project id on item routes", async () => {
     parseProjectIdMock.mockReturnValueOnce(null);
@@ -854,6 +879,41 @@ describe("projects routes", () => {
     expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
   });
 
+  it.each(["GET", "PUT", "DELETE"] as const)(
+    "returns 404 and skips workspace %s when the project is not caller-owned",
+    async (method) => {
+      getProjectForUserMock.mockResolvedValueOnce(null);
+      const req = {
+        method,
+        query: { projectId: "project-1" },
+        body:
+          method === "PUT"
+            ? {
+                schemaVersion: 2,
+                snapshot: {
+                  schemaVersion: 2,
+                  sessionId: "session-2",
+                },
+              }
+            : undefined,
+      };
+      const res = createMockResponse();
+
+      await workspaceHandler(req as never, res as never);
+
+      expect(getProjectForUserMock).toHaveBeenCalledWith({
+        userId: "user-1",
+        projectId: "project-1",
+      });
+      expect(getProjectWorkspaceStateForUserMock).not.toHaveBeenCalled();
+      expect(upsertProjectWorkspaceStateForUserMock).not.toHaveBeenCalled();
+      expect(deleteProjectWorkspaceStateForUserMock).not.toHaveBeenCalled();
+      expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({ error: "Project not found" });
+    }
+  );
+
   it("returns a structured 500 when project workspace auth resolution throws unexpectedly", async () => {
     requireApiUserMock.mockRejectedValueOnce(new Error("auth bootstrap failed"));
     const req = { method: "PUT", query: { projectId: "project-1" }, body: {} };
@@ -925,6 +985,60 @@ describe("projects routes", () => {
       error: "Failed to save project workspace",
       details: "Failed to save project workspace during project lookup.",
       failureStage: "project lookup",
+    });
+  });
+
+  it("returns a structured 500 when project workspace read fails", async () => {
+    getProjectWorkspaceStateForUserMock.mockRejectedValueOnce(
+      new Error("workspace read unavailable")
+    );
+    const req = { method: "GET", query: { projectId: "project-1" } };
+    const res = createMockResponse();
+
+    await workspaceHandler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: expect.any(Error),
+      routeLabel: "projects-workspace-read",
+      user: { id: "user-1" },
+      metadata: {
+        workspace_failure_stage: "workspace read",
+        source: "api.projects.workspace.read",
+      },
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Failed to load project workspace",
+      details: "Failed to load project workspace during workspace read.",
+      failureStage: "workspace read",
+    });
+  });
+
+  it("returns a structured 500 when project workspace reset fails", async () => {
+    deleteProjectWorkspaceStateForUserMock.mockRejectedValueOnce(
+      new Error("workspace reset unavailable")
+    );
+    const req = { method: "DELETE", query: { projectId: "project-1" } };
+    const res = createMockResponse();
+
+    await workspaceHandler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: expect.any(Error),
+      routeLabel: "projects-workspace-delete",
+      user: { id: "user-1" },
+      metadata: {
+        workspace_failure_stage: "workspace delete",
+        source: "api.projects.workspace.delete",
+      },
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Failed to reset project workspace",
+      details: "Failed to reset project workspace during workspace delete.",
+      failureStage: "workspace delete",
     });
   });
 });

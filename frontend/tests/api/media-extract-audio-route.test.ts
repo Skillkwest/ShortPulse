@@ -207,6 +207,40 @@ describe("POST /api/media/extract-audio", () => {
     expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
   });
 
+  it("logs auth verifier failures before rate limiting, media reads, extraction, or storage work", async () => {
+    requireApiUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
+    const req = {
+      method: "POST",
+      body: {
+        sourceName: "clip.mp4",
+        sourceOrigin: "local",
+        sourceMimeType: "video/mp4",
+        sourceStoragePath: "user-1/voice-changer/source-video/clip.mp4",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        error: expect.any(Error),
+        routeLabel: "media-extract-audio.auth",
+        scope: "generation",
+      })
+    );
+    expect(readStoredMediaBufferMock).not.toHaveBeenCalled();
+    expect(assertTrustedRemoteMediaUrlMock).not.toHaveBeenCalled();
+    expect(makeTempFileHandleMock).not.toHaveBeenCalled();
+    expect(extractAudioTrackMock).not.toHaveBeenCalled();
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to extract audio",
+    });
+  });
+
   it("returns 413 when the staged video exceeds the extraction byte limit", async () => {
     readStoredMediaBufferMock.mockRejectedValueOnce(
       new MockMediaAudioExtractionInputError(

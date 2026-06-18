@@ -134,6 +134,99 @@ describe("useReferenceGridCardRenderController", () => {
     expect(onReloadWorkflowOutput).toHaveBeenCalledWith(output, { mediaKindHint: "video" });
   });
 
+  it("normalizes visual video cards before reloading image-shaped output metadata", () => {
+    const onReloadWorkflowOutput = vi.fn();
+    const onSelectOutput = vi.fn();
+    const output = createOutput({
+      id: "legacy-video-1",
+      mode: "image",
+      mediaSource: "generated",
+      modelId: "kie-ai/kling-3.0",
+      mimeType: "image/png",
+      previewUrl: undefined,
+      workflowReload: {
+        version: 1,
+        source: "ai_studio_generation",
+        capturedAt: "2026-06-16T12:00:00.000Z",
+        originTool: "create",
+        panelKind: "create",
+        outputMode: "image",
+        restoreBehavior: "navigate_and_hydrate",
+        createMode: null,
+        pulse: null,
+        prompt: { display: "Restore this legacy-shaped video." },
+        model: { id: "fal-ai/imagen4/preview" },
+        payload: {
+          kind: "image",
+          submitTool: "create",
+          aspect: "16:9",
+          imageResolution: "1K",
+          referenceInputs: ["https://example.com/first-frame.png"],
+          internalMediaRefs: [],
+        },
+      },
+    });
+    const visibleCard = {
+      item: projectReferenceGridMediaOutput(output),
+      authorityTier: "reusable" as const,
+      cardPreviewUrl: "https://example.com/video-poster.jpg",
+      playableMediaUrl: "https://example.com/generated-video.mp4",
+      isVideoPreview: true,
+      isImagePreview: false,
+      isAudioPreview: false,
+      isPriorityHydration: true,
+      imageSrc: undefined,
+    };
+
+    const { result } = renderHook(() =>
+      useReferenceGridCardRenderController({
+        activeOutputId: null,
+        visibleOutputById: { [output.id]: output },
+        autoplayEnabledIdSet: new Set<string>(),
+        linkedPromptReferenceIdSet: new Set<string>(),
+        loadingCardIdSet: new Set<string>(),
+        generationLoadingCardIdSet: new Set<string>(),
+        hydrationLoadingCardIdSet: new Set<string>(),
+        perfDegradeLevel: 0,
+        visibleCardItems: [visibleCard],
+        curatedVisibleCardItems: [],
+        visibleQuickSlotIdSet: new Set<string>(),
+        onSelectOutput,
+        onOpenDetails: vi.fn(),
+        onCardDragStart: vi.fn(),
+        onCardDragEnd: vi.fn(),
+        onCuratedSectionDragOver: vi.fn(),
+        onCuratedCardDrop: vi.fn(),
+        onCuratedSectionDragEnter: vi.fn(),
+        onCuratedSectionDragLeave: vi.fn(),
+        onCuratedCardKeyboardReorder: vi.fn(),
+        registerVideoNode: vi.fn(),
+        markLoaded: vi.fn(),
+        onAutoplayStarted: vi.fn(),
+        onAutoplayStopped: vi.fn(),
+        audioPlaybackController: createAudioControllerStub(),
+        onReloadWorkflowOutput,
+      })
+    );
+
+    const { getByLabelText } = render(<>{result.current.allRefsCardNodes}</>);
+
+    fireEvent.click(getByLabelText("Reload workflow"));
+
+    expect(onSelectOutput).toHaveBeenCalledWith("legacy-video-1");
+    const [reloadOutput, options] = onReloadWorkflowOutput.mock.calls[0] ?? [];
+    expect(reloadOutput).toEqual(
+      expect.objectContaining({
+        id: "legacy-video-1",
+        mode: "video",
+        mimeType: "video/mp4",
+        modelId: "kie-ai/kling-3.0",
+        previewUrl: "https://example.com/generated-video.mp4",
+      })
+    );
+    expect(options).toEqual({ mediaKindHint: "video" });
+  });
+
   it("keeps duplicate quick-slot and all-refs audio players mutually exclusive", () => {
     playMock.mockClear();
     pauseMock.mockClear();

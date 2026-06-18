@@ -54,6 +54,23 @@ describe("POST /api/admin/announcements/publish", () => {
     expect(getSupabaseAdminMock).not.toHaveBeenCalled();
   });
 
+  it("logs unexpected admin auth failures before validating or publishing", async () => {
+    requireAdminUserMock.mockRejectedValue(new Error("auth verifier exploded"));
+
+    const req = { method: "POST", body: { title: "T", message: "M" }, headers: {} };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "admin/announcements/publish.auth",
+      })
+    );
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Unable to publish announcement." });
+  });
+
   it("returns 400 for invalid payloads", async () => {
     const req = { method: "POST", body: { title: "   ", message: "" } };
     const res = createMockResponse();

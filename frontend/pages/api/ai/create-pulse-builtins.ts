@@ -13,7 +13,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const user = await requireApiUser(req, res);
+  let user: Awaited<ReturnType<typeof requireApiUser>>;
+  try {
+    user = await requireApiUser(req, res);
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "api/ai/create-pulse-builtins.auth",
+      scope: "app",
+    });
+    return res.status(500).json({ error: "Failed to load Create Pulse built-ins." });
+  }
   if (!user) return;
 
   try {

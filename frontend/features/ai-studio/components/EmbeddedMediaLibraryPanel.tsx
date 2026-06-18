@@ -167,7 +167,6 @@ export function EmbeddedMediaLibraryPanel({
     loadPromptPage,
     refreshActiveRows,
   } = useMediaLibraryPanelDataController({
-    projectId,
     activeFolderId,
     itemType,
     normalizedSearch,

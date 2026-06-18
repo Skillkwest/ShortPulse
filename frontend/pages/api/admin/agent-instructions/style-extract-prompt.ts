@@ -44,7 +44,17 @@ const validateExpectedUpdatedAt = (
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const adminUser = await requireAdminUser(req, res);
+  let adminUser: Awaited<ReturnType<typeof requireAdminUser>>;
+  try {
+    adminUser = await requireAdminUser(req, res);
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "api/admin/agent-instructions/style-extract-prompt.auth",
+    });
+    return res.status(500).json({ error: "Failed to load style extraction prompt." });
+  }
   if (!adminUser) return;
   res.setHeader("Cache-Control", "no-store, max-age=0");
 

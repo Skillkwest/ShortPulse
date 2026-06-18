@@ -41,6 +41,26 @@ describe("POST /api/admin/credits/adjust", () => {
     expect(res.json).toHaveBeenCalledWith({ error: "changeCents must be a non-zero number." });
   });
 
+  it("returns a safe failure when admin auth verification throws", async () => {
+    const authError = new Error("auth verifier exploded");
+    requireAdminUserMock.mockRejectedValue(authError);
+
+    const req = { method: "POST", body: { userId: "user-1", changeCents: 100 } };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: authError,
+        routeLabel: "admin/credits/adjust.auth",
+      })
+    );
+    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Credit adjustment failed." });
+  });
+
   it("returns updated balance after successful adjustment", async () => {
     insertCreditLedgerEntryMock.mockResolvedValue({ error: null });
     getSupabaseAdminMock.mockReturnValue({

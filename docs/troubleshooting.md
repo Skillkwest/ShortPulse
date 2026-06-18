@@ -48,7 +48,7 @@ Checklist:
 - AI Studio now auto-resizes local/blob/data reference images before upload when possible.
 - The canonical server upload path now also auto-normalizes oversized still images before the final 25 MB image cap is enforced.
 - Treat this as a reference-image upload size limit, not a model/reference token error.
-- The Reference Grid `Add files` lane and AI Studio Media Library upload lane now use the canonical `POST /api/media/upload` path.
+- The Reference Grid `Add files` lane and AI Studio Media Library upload lane now use the canonical `POST /api/media/prepare-upload` -> browser direct storage upload -> `POST /api/media/finalize-upload` path.
 - AI Studio local/blob/data still-image preflight now uses the staged `POST /api/media/prepare-reference-image-upload` -> browser direct upload -> `POST /api/media/stage-reference-image` contract before provider submit.
 - Confirm the reference image is under the 25 MB image upload cap enforced by the canonical upload service.
 - Oversized animated images are still not auto-resized server-side; export a smaller animated file or a static frame and try again.
@@ -934,7 +934,7 @@ Checklist:
 - This durability flow does **not** create `media_files` rows and does not auto-add items to Media Library tabs.
 - If a local reference is still missing after refresh:
   - inspect client breadcrumbs for `ai_studio_session_reference_durability_upload_failed`,
-  - verify `POST /api/media/prepare-reference-image-upload` -> browser direct upload -> `POST /api/media/stage-reference-image`, `POST /api/media/prepare-motion-reference-video-upload` -> browser direct upload -> `POST /api/media/stage-motion-reference-video`, or legacy `POST /api/upload-video` returned `200`,
+  - verify `POST /api/media/prepare-reference-image-upload` -> browser direct upload -> `POST /api/media/stage-reference-image`, or `POST /api/media/prepare-motion-reference-video-upload` -> browser direct upload -> `POST /api/media/stage-motion-reference-video` returned `200`,
   - confirm the local preview URL was still present (not removed/replaced) before upload completed.
 
 ## AI Studio legacy `sid` session persistence is retired

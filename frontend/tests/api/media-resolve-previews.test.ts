@@ -149,6 +149,34 @@ describe("POST /api/media/resolve-previews", () => {
     vi.unstubAllEnvs();
   });
 
+  it("logs auth verifier failures before media row or storage lookup", async () => {
+    const authError = new Error("auth verifier exploded");
+    requireApiUserMock.mockRejectedValueOnce(authError);
+    const req = {
+      method: "POST",
+      body: {
+        ids: ["media-1"],
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        error: authError,
+        routeLabel: "media-resolve-previews.auth",
+        scope: "app",
+      })
+    );
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Failed to resolve media previews",
+    });
+  });
+
   it("signs scoped media paths for user-owned rows", async () => {
     const row = createRow();
     const { createSignedUrlMock } = setupSupabaseAdmin({

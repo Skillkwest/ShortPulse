@@ -215,15 +215,11 @@ export const useMediaPreviewSigningController = <
     queueStateByIdRef.current = queuePass.queueState.queueStateById;
     const signBatch = queuePass.signBatch;
     if (!signBatch.length) {
-      if (deferredQueueRef.current.length > 0) {
-        scheduleDeferredDrain();
-      }
+      if (deferredQueueRef.current.length > 0) scheduleDeferredDrain();
       return;
     }
     const drainPriority = queuePass.drainPriority === "deferred" ? "deferred" : "urgent";
-    if (drainPriority === "deferred") {
-      deferredDrainArmedRef.current = false;
-    }
+    if (drainPriority === "deferred") deferredDrainArmedRef.current = false;
     clearDeferredDrainTimeout();
     const tabForBatch = activeMediaTab;
     const queryForBatch = activeMediaQuery;

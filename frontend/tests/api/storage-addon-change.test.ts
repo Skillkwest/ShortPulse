@@ -155,6 +155,30 @@ describe("POST /api/billing/storage-addon/change", () => {
     expect(res.status).toHaveBeenCalledWith(405);
   });
 
+  it("returns a safe storage-addon failure when auth verification throws unexpectedly", async () => {
+    requireApiUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
+    const req = {
+      method: "POST",
+      body: { storageAddonId: "storage_100gb", action: "add" },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(readVerifiedStripeSubscriptionForUserMock).not.toHaveBeenCalled();
+    expect(stripePostFormMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: expect.any(Error),
+      routeLabel: "billing.storage-addon.change.auth",
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to update recurring storage right now.",
+    });
+  });
+
   it("adds a recurring storage add-on for a Stripe-managed paid subscriber", async () => {
     getSupabaseAdminMock.mockReturnValue(
       createSupabaseAdminMock({

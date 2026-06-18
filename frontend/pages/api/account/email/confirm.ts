@@ -17,7 +17,17 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const user = await requireApiUser(req, res);
+  let user;
+  try {
+    user = await requireApiUser(req, res);
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "account/email/confirm.auth",
+    });
+    return res.status(500).json({ error: "Unable to finish syncing your confirmed email." });
+  }
   if (!user) return;
 
   try {

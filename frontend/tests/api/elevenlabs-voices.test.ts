@@ -45,6 +45,32 @@ describe("GET /api/elevenlabs/voices", () => {
     vi.useRealTimers();
   });
 
+  it("logs auth verifier failures before saved voice lookup or provider inventory", async () => {
+    const authError = new Error("auth verifier exploded");
+    requireApiUserMock.mockRejectedValueOnce(authError);
+    process.env.ELEVENLABS_API_KEY = "elevenlabs_test_key";
+    const req = { method: "GET" };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        error: authError,
+        routeLabel: "elevenlabs-voices.auth",
+        scope: "generation",
+      })
+    );
+    expect(listSavedVoicesForUserWithDiagnosticsMock).not.toHaveBeenCalled();
+    expect(listElevenLabsVoicesMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to load voices",
+      details: "Unable to load voices.",
+    });
+  });
+
   it("returns merged live and saved voices when available", async () => {
     listSavedVoicesForUserWithDiagnosticsMock.mockResolvedValue({
       voices: [

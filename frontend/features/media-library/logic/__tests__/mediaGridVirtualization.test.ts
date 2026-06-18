@@ -35,6 +35,33 @@ describe("mediaGridVirtualization", () => {
     expect(layout.totalHeight).toBeGreaterThan(0);
   });
 
+  it("can preserve chronological row order for display-scanned media grids", () => {
+    const layout = computeMediaVirtualLayout({
+      items: makeItems([0.5, 2, 0.75, 1.4, 3, 0.8]),
+      containerWidth: 900,
+      viewportTop: 0,
+      viewportHeight: 1200,
+      targetColumnWidth: 220,
+      gap: 8,
+      overscanPx: 0,
+      layoutMode: "chronological-grid",
+    });
+
+    expect(layout.columnCount).toBe(3);
+    expect(layout.visibleItems.map((entry) => entry.id)).toEqual([
+      "item-1",
+      "item-2",
+      "item-3",
+      "item-4",
+      "item-5",
+      "item-6",
+    ]);
+    expect(layout.visibleItems.slice(0, 3).map((entry) => entry.top)).toEqual([0, 0, 0]);
+    expect(layout.visibleItems[3]?.top).toBeGreaterThan(layout.visibleItems[0]?.top ?? 0);
+    expect(layout.visibleItems[4]?.top).toBe(layout.visibleItems[3]?.top);
+    expect(layout.visibleItems[5]?.top).toBe(layout.visibleItems[3]?.top);
+  });
+
   it("reflows columns when container width changes", () => {
     const items = makeItems([1, 1, 1, 1, 1, 1, 1, 1]);
     const narrow = computeMediaVirtualLayout({

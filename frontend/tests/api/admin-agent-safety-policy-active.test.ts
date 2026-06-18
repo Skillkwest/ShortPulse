@@ -88,6 +88,23 @@ describe("GET /api/admin/agent-safety-policy/active", () => {
     });
   });
 
+  it("logs unexpected admin auth failures before policy lookup starts", async () => {
+    requireAdminUserMock.mockRejectedValue(new Error("auth verifier exploded"));
+
+    const req = { method: "GET", headers: {} };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "admin/agent-safety-policy/active.auth",
+      })
+    );
+    expect(fetchActiveAgentSafetyPolicyMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Unable to read active safety policy." });
+  });
+
   it("logs and returns 500 when lookup fails", async () => {
     fetchActiveAgentSafetyPolicyMock.mockRejectedValue(new Error("rpc failed"));
 

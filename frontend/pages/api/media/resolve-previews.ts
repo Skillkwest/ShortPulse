@@ -223,8 +223,22 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const user = await requireApiUser(req, res);
+  let user: Awaited<ReturnType<typeof requireApiUser>>;
+  try {
+    user = await requireApiUser(req, res);
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "media-resolve-previews.auth",
+      scope: "app",
+    });
+    return res.status(500).json({
+      error: "Failed to resolve media previews",
+    });
+  }
   if (!user) return;
+  const userId = user.id;
 
   try {
     const body =
@@ -246,7 +260,7 @@ export default async function handler(
       .select(
         "id, user_id, filename, storage_path, file_type, metadata, thumb_variant_path, poster_variant_path, preview_variant_path"
       )
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .in("id", mediaIds);
     if (rowsError) {
       throw new Error(rowsError.message || "Failed to resolve media rows.");
@@ -258,7 +272,7 @@ export default async function handler(
     const allCandidates: string[] = [];
     const directPreviewUrlById = new Map<string, string>();
     for (const row of rows) {
-      const directPreviewUrl = resolvePreferredMediaDirectPreviewUrl(row, user.id);
+      const directPreviewUrl = resolvePreferredMediaDirectPreviewUrl(row, userId);
       if (directPreviewUrl) {
         directPreviewUrlById.set(row.id, directPreviewUrl);
         if (preferTrustedDirectPreviewFirst) {
@@ -267,9 +281,9 @@ export default async function handler(
       }
       const candidates = (
         preferTrustedDirectPreviewFirst
-          ? resolveBrowseSurfaceSigningStoragePaths(row, user.id)
-          : resolveMediaSigningStoragePaths(row, user.id)
-      ).filter((candidate) => isUserScopedStoragePath(candidate, user.id));
+          ? resolveBrowseSurfaceSigningStoragePaths(row, userId)
+          : resolveMediaSigningStoragePaths(row, userId)
+      ).filter((candidate) => isUserScopedStoragePath(candidate, userId));
       candidatesById.set(row.id, candidates);
       allCandidates.push(...candidates);
     }
@@ -303,7 +317,7 @@ export default async function handler(
         continue;
       }
 
-      const directPreviewUrl = resolvePreferredMediaDirectPreviewUrl(row, user.id);
+      const directPreviewUrl = resolvePreferredMediaDirectPreviewUrl(row, userId);
       if (directPreviewUrl) {
         directPreviewUrlById.set(row.id, directPreviewUrl);
         continue;
@@ -320,7 +334,7 @@ export default async function handler(
     }
 
     const basenameMatchByKey = await resolveBasenameMatchesBounded({
-      userId: user.id,
+      userId,
       basenames: fallbackBasenames,
     });
     const fallbackLookupCount = basenameMatchByKey.size;
@@ -331,14 +345,14 @@ export default async function handler(
       const basenameCandidates = basenameCandidatesById.get(row.id) ?? [];
       for (const basename of basenameCandidates) {
         const matchedObject = basenameMatchByKey.get(basenameLookupKey(basename)) ?? null;
-        if (!matchedObject || !isUserScopedStoragePath(matchedObject, user.id)) continue;
+        if (!matchedObject || !isUserScopedStoragePath(matchedObject, userId)) continue;
         resolvedPathById.set(row.id, matchedObject);
         break;
       }
     }
 
     const pathsToSign = Array.from(new Set(Array.from(resolvedPathById.values()))).filter((path) =>
-      isUserScopedStoragePath(path, user.id)
+      isUserScopedStoragePath(path, userId)
     );
     const signedUrlByPath = new Map<string, string | null>();
     if (pathsToSign.length) {
@@ -374,7 +388,7 @@ export default async function handler(
         continue;
       }
       urls[mediaId] =
-        directPreviewUrlById.get(mediaId) ?? resolvePreferredMediaDirectPreviewUrl(row, user.id);
+        directPreviewUrlById.get(mediaId) ?? resolvePreferredMediaDirectPreviewUrl(row, userId);
     }
 
     res.setHeader("x-shortpulse-media-resolve-row-count", String(mediaIds.length));

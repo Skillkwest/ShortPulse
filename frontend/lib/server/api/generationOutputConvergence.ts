@@ -19,6 +19,9 @@ const asString = (value: unknown): string | null => {
 const asObject = (value: unknown): JsonObject =>
   value && typeof value === "object" && !Array.isArray(value) ? (value as JsonObject) : {};
 
+const readSourceRef = (metadata: JsonObject): string | null =>
+  asString(asObject(metadata).source_ref);
+
 export type ReconcileOwnedGenerationOutputSlotInput = {
   generationId: string;
   userId: string;
@@ -61,6 +64,7 @@ export const reconcileOwnedGenerationOutputSlot = async ({
     providerRequestId,
     generationAttemptId,
     metadata,
+    supabaseAdmin: adminClient,
   });
 
   const persistedOutputRows = await readPersistedGenerationOutputs({
@@ -120,6 +124,9 @@ export const reconcileOwnedGenerationOutputSlot = async ({
     supabaseAdmin: adminClient,
     generationId,
     userId,
+    sourceRef: readSourceRef(metadata),
+    requestId: asString(providerRequestId),
+    providerRequestId: asString(providerRequestId),
     previewUrl: normalizedResultUrls[0] ?? asString(resultUrl) ?? undefined,
     resultUrls: normalizedResultUrls,
     savedMediaIds,

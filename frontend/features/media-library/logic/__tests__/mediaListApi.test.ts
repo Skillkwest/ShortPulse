@@ -33,7 +33,6 @@ describe("fetchMediaListPage", () => {
       limit: 36,
       mediaKind: "images",
       profile: "minimal",
-      projectId: "project-1",
       query: "",
       surface: "media-library-panel",
       tab: null,
@@ -65,7 +64,6 @@ describe("fetchMediaListPage", () => {
       fetchMediaListPage({
         cursor: null,
         limit: 36,
-        projectId: "project-1",
         query: "",
         surface: "media-library-panel",
         fetcher,
@@ -84,7 +82,6 @@ describe("fetchMediaListPage", () => {
       fetchMediaListPage({
         cursor: null,
         limit: 36,
-        projectId: "project-1",
         query: "",
         surface: "media-library-panel",
         fetcher,

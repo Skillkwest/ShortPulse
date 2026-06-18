@@ -74,4 +74,33 @@ describe("mediaPreviewSigningBatch", () => {
     expect(results[0]?.resolvedPathKind).toBe("original");
     expect(summarizeMediaSignResults(results).resolvedOriginalCount).toBe(1);
   });
+
+  it("does not use Supabase render-image direct urls when signing fails", () => {
+    const row = {
+      id: "media-3",
+      storage_path: "user-1/uploads/images/original.png",
+    };
+    const results = mapMediaSignResults({
+      currentUserId: "user-1",
+      entries: [
+        {
+          id: row.id,
+          primaryPath: row.storage_path,
+          primaryPathKind: "original",
+          candidates: [row.storage_path],
+          directUrl:
+            "https://project.supabase.co/storage/v1/render/image/sign/media_library/user-1/uploads/images/original.png?token=abc&width=320",
+          directUrlKind: "original",
+        },
+      ],
+      rowsById: new Map([[row.id, row]]),
+      signedByPath: new Map(),
+    });
+
+    expect(results[0]?.signedUrl).toBeNull();
+    expect(summarizeMediaSignResults(results)).toMatchObject({
+      failedCount: 1,
+      transformedCount: 0,
+    });
+  });
 });

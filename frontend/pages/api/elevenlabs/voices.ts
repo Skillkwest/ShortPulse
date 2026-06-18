@@ -74,13 +74,28 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const user = await requireApiUser(req, res);
+  let user: Awaited<ReturnType<typeof requireApiUser>>;
+  try {
+    user = await requireApiUser(req, res);
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "elevenlabs-voices.auth",
+      scope: "generation",
+    });
+    return res.status(500).json({
+      error: "Unable to load voices",
+      details: "Unable to load voices.",
+    });
+  }
   if (!user) return;
+  const userId = user.id;
   let savedVoices: SavedAiStudioVoice[] = [];
   let savedVoicesWarning: string | null = null;
   try {
     const savedVoiceResult = await withTimeout({
-      promise: listSavedVoicesForUserWithDiagnostics(user.id),
+      promise: listSavedVoicesForUserWithDiagnostics(userId),
       timeoutMs: SAVED_VOICES_LOAD_TIMEOUT_MS,
       message: "Saved voices lookup timed out.",
     });

@@ -1267,12 +1267,24 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const user = await requireApiUser(req, res);
+  let user: Awaited<ReturnType<typeof requireApiUser>>;
+  try {
+    user = await requireApiUser(req, res);
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "media-copy-from-url.auth",
+      scope: "app",
+    });
+    return res.status(500).json({ error: "Unable to copy media from URL." });
+  }
   if (!user) return;
+  const userId = user.id;
   if (
     !enforceApiRateLimit(req, res, {
       ...MEDIA_COPY_FROM_URL_RATE_LIMIT,
-      keyPrefix: `${MEDIA_COPY_FROM_URL_RATE_LIMIT.keyPrefix}:${user.id}`,
+      keyPrefix: `${MEDIA_COPY_FROM_URL_RATE_LIMIT.keyPrefix}:${userId}`,
     })
   ) {
     return;
@@ -1300,7 +1312,7 @@ export default async function handler(
   const promptId = asOptionalString(input.promptId);
   const previewStoragePathHintResult = normalizeOwnedStoragePathHint({
     value: input.previewStoragePathHint,
-    userId: user.id,
+    userId,
     label: "Preview storage path hint",
   });
   if (!previewStoragePathHintResult.ok) {
@@ -1311,7 +1323,7 @@ export default async function handler(
   }
   const fullStoragePathHintResult = normalizeOwnedStoragePathHint({
     value: input.fullStoragePathHint,
-    userId: user.id,
+    userId,
     label: "Full storage path hint",
   });
   if (!fullStoragePathHintResult.ok) {
@@ -1338,7 +1350,7 @@ export default async function handler(
   try {
     if (source === "ai_studio" && generationId) {
       const existing = await readExistingAiStudioMediaRowByOutputIndex({
-        userId: user.id,
+        userId,
         generationId,
         index,
       });
@@ -1366,14 +1378,14 @@ export default async function handler(
             if (posterUrlHint) {
               try {
                 durablePosterStoragePath = await persistVideoPosterVariant({
-                  userId: user.id,
+                  userId,
                   mediaFileId: existing.id,
                   posterSourceUrl: posterUrlHint,
                   req,
                 });
               } catch (error) {
                 await logVideoVariantHydrationFailure({
-                  userId: user.id,
+                  userId,
                   mediaFileId: existing.id,
                   variantKind: "poster",
                   source,
@@ -1388,13 +1400,13 @@ export default async function handler(
           if (!durablePreviewVariantPath && previewVariantPath) {
             try {
               durablePreviewVariantPath = await persistVideoPreviewVariantReference({
-                userId: user.id,
+                userId,
                 mediaFileId: existing.id,
                 previewStoragePath: previewVariantPath,
               });
             } catch (error) {
               await logVideoVariantHydrationFailure({
-                userId: user.id,
+                userId,
                 mediaFileId: existing.id,
                 variantKind: "preview",
                 source,
@@ -1406,7 +1418,7 @@ export default async function handler(
           }
           try {
             await maybeFillMissingWorkflowReloadMetadata({
-              userId: user.id,
+              userId,
               mediaFileId: existing.id,
               existingMetadata: existing.metadata,
               incomingMetadata: metadata,
@@ -1417,7 +1429,7 @@ export default async function handler(
           try {
             await reconcileOwnedGenerationOutputSlot({
               generationId,
-              userId: user.id,
+              userId,
               outputIndex: index,
               mediaFileId: existing.id,
               resultUrl: parsedUrl.toString(),
@@ -1430,7 +1442,7 @@ export default async function handler(
             // best-effort canonical output-slot convergence only
           }
           const delivery = await resolveDelivery({
-            userId: user.id,
+            userId,
             row: {
               storage_path: existing.storagePath,
               file_type: existing.fileType,
@@ -1456,7 +1468,7 @@ export default async function handler(
       }
 
       const sourceAuthority = await validateAiStudioGenerationSourceUrl({
-        userId: user.id,
+        userId,
         generationId,
         index,
         candidateUrl: parsedUrl,
@@ -1519,8 +1531,8 @@ export default async function handler(
     const typeFolder = fileType === "video" ? "videos" : fileType === "audio" ? "audio" : "images";
     const storageName = `${randomUUID()}-${index}.${extension}`;
     const storagePath = assertUserScopedMediaStoragePath({
-      path: `${user.id}/${rootFolder}/${typeFolder}/${storageName}`,
-      userId: user.id,
+      path: `${userId}/${rootFolder}/${typeFolder}/${storageName}`,
+      userId,
       label: "AI Studio media copy storage path",
     });
 
@@ -1561,7 +1573,7 @@ export default async function handler(
     }
 
     const { data, error: insertError } = await insertMediaFileRow({
-      userId: user.id,
+      userId,
       filename: friendlyName,
       storagePath,
       fileType,
@@ -1584,7 +1596,7 @@ export default async function handler(
       const duplicateInsert = isDuplicateInsertError(insertError);
       if (duplicateInsert && source === "ai_studio" && generationId) {
         const existing = await readExistingAiStudioMediaRowByOutputIndex({
-          userId: user.id,
+          userId,
           generationId,
           index,
         });
@@ -1593,7 +1605,7 @@ export default async function handler(
           try {
             await reconcileOwnedGenerationOutputSlot({
               generationId,
-              userId: user.id,
+              userId,
               outputIndex: index,
               mediaFileId: existing.id,
               resultUrl: parsedUrl.toString(),
@@ -1610,14 +1622,14 @@ export default async function handler(
             if (posterUrlHint) {
               try {
                 durablePosterStoragePath = await persistVideoPosterVariant({
-                  userId: user.id,
+                  userId,
                   mediaFileId: existing.id,
                   posterSourceUrl: posterUrlHint,
                   req,
                 });
               } catch (error) {
                 await logVideoVariantHydrationFailure({
-                  userId: user.id,
+                  userId,
                   mediaFileId: existing.id,
                   variantKind: "poster",
                   source,
@@ -1629,7 +1641,7 @@ export default async function handler(
             } else {
               durablePosterStoragePath = await upsertVideoPosterVariantFromBuffer({
                 supabaseAdmin: getSupabaseAdmin(),
-                userId: user.id,
+                userId,
                 mediaFileId: existing.id,
                 videoBuffer: fetched.buffer,
                 videoMimeType: mimeType,
@@ -1643,7 +1655,7 @@ export default async function handler(
                 },
               }).catch(async () => {
                 await logVideoVariantHydrationFailure({
-                  userId: user.id,
+                  userId,
                   mediaFileId: existing.id,
                   variantKind: "poster",
                   source,
@@ -1664,7 +1676,7 @@ export default async function handler(
           if (!durablePreviewVariantPath && existing.fileType === "video") {
             try {
               durablePreviewVariantPath = await hydrateVideoPreviewVariant({
-                userId: user.id,
+                userId,
                 mediaFileId: existing.id,
                 previewStoragePath: previewVariantPath,
                 videoBuffer: fetched.buffer,
@@ -1676,7 +1688,7 @@ export default async function handler(
               });
             } catch (error) {
               await logVideoVariantHydrationFailure({
-                userId: user.id,
+                userId,
                 mediaFileId: existing.id,
                 variantKind: "preview",
                 source,
@@ -1688,7 +1700,7 @@ export default async function handler(
           }
           try {
             await maybeFillMissingWorkflowReloadMetadata({
-              userId: user.id,
+              userId,
               mediaFileId: existing.id,
               existingMetadata: existing.metadata,
               incomingMetadata: metadata,
@@ -1697,7 +1709,7 @@ export default async function handler(
             // best-effort saved media metadata mirror only
           }
           const delivery = await resolveDelivery({
-            userId: user.id,
+            userId,
             row: {
               storage_path: existing.storagePath,
               file_type: existing.fileType,
@@ -1740,7 +1752,7 @@ export default async function handler(
     if (insertedMediaFileId && fileType === "video" && !durablePreviewVariantPath) {
       try {
         durablePreviewVariantPath = await hydrateVideoPreviewVariant({
-          userId: user.id,
+          userId,
           mediaFileId: insertedMediaFileId,
           previewStoragePath: previewVariantPath,
           videoBuffer: fetched.buffer,
@@ -1752,7 +1764,7 @@ export default async function handler(
         });
       } catch (error) {
         await logVideoVariantHydrationFailure({
-          userId: user.id,
+          userId,
           mediaFileId: insertedMediaFileId,
           variantKind: "preview",
           source,
@@ -1767,14 +1779,14 @@ export default async function handler(
       if (posterUrlHint) {
         try {
           durablePosterStoragePath = await persistVideoPosterVariant({
-            userId: user.id,
+            userId,
             mediaFileId: insertedMediaFileId,
             posterSourceUrl: posterUrlHint,
             req,
           });
         } catch (error) {
           await logVideoVariantHydrationFailure({
-            userId: user.id,
+            userId,
             mediaFileId: insertedMediaFileId,
             variantKind: "poster",
             source,
@@ -1786,7 +1798,7 @@ export default async function handler(
       } else {
         durablePosterStoragePath = await upsertVideoPosterVariantFromBuffer({
           supabaseAdmin: getSupabaseAdmin(),
-          userId: user.id,
+          userId,
           mediaFileId: insertedMediaFileId,
           videoBuffer: fetched.buffer,
           videoMimeType: mimeType,
@@ -1800,7 +1812,7 @@ export default async function handler(
           },
         }).catch(async () => {
           await logVideoVariantHydrationFailure({
-            userId: user.id,
+            userId,
             mediaFileId: insertedMediaFileId,
             variantKind: "poster",
             source,
@@ -1813,7 +1825,7 @@ export default async function handler(
       }
     }
     const delivery = await resolveDelivery({
-      userId: user.id,
+      userId,
       row: {
         storage_path: asOptionalString(data?.storage_path),
         file_type: asOptionalString(data?.file_type),
@@ -1832,7 +1844,7 @@ export default async function handler(
       try {
         await reconcileOwnedGenerationOutputSlot({
           generationId,
-          userId: user.id,
+          userId,
           outputIndex: index,
           mediaFileId: insertedMediaFileId,
           resultUrl: parsedUrl.toString(),

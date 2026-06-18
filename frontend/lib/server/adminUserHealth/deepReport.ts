@@ -311,6 +311,11 @@ const readGenerationProjectId = (row: GenerationRow): string | null => {
   );
 };
 
+const readGenerationSourceRef = (row: GenerationRow): string | null => {
+  const metadata = asRecord(row.metadata);
+  return asTrimmedString(metadata.source_ref);
+};
+
 export const buildAdminHealthResponse = ({
   lookup,
   lookupMode,
@@ -344,11 +349,17 @@ export const buildAdminHealthResponse = ({
   });
 
   const generationByRequestId = new Map<string, GenerationRow>();
+  const generationBySourceRef = new Map<string, GenerationRow>();
   generations.forEach((row) => {
     if (!row.request_id) return;
     if (!generationByRequestId.has(row.request_id)) {
       generationByRequestId.set(row.request_id, row);
     }
+  });
+  generations.forEach((row) => {
+    const sourceRef = readGenerationSourceRef(row);
+    if (!sourceRef || generationBySourceRef.has(sourceRef)) return;
+    generationBySourceRef.set(sourceRef, row);
   });
 
   const generationByAttemptProviderRequestId = new Map<string, GenerationRow>();
@@ -549,7 +560,8 @@ export const buildAdminHealthResponse = ({
             const generation =
               generationByRequestId.get(reservation.provider_request_id) ??
               generationByRequestId.get(row.source_ref) ??
-              generationByAttemptProviderRequestId.get(reservation.provider_request_id);
+              generationByAttemptProviderRequestId.get(reservation.provider_request_id) ??
+              generationBySourceRef.get(row.source_ref);
             const projection = resolveBillingProjection(
               row.source_ref,
               metadataProviderRequestId ?? reservation.provider_request_id
@@ -577,13 +589,23 @@ export const buildAdminHealthResponse = ({
           } else if (reservation) {
             reason = "Reservation has no provider_request_id linkage.";
           } else {
+            const generation = generationBySourceRef.get(row.source_ref) ?? null;
             const projection = resolveBillingProjection(row.source_ref, metadataProviderRequestId);
             const projectionStatus = projection?.task_state ?? projection?.status ?? null;
-            generationStatus = projectionStatus;
-            canonicalSuccessEvidence = hasSuccessfulProjectionMedia(projection);
+            generationStatus = generation?.status ?? projectionStatus;
+            canonicalSuccessEvidence =
+              (generation?.id !== undefined &&
+                (outputCountByGenerationId.get(generation.id) ?? 0) > 0) ||
+              hasSuccessfulProjectionMedia(projection);
+            intentionalNoRefundAbandonment = isUserAbandonedNoRefundGeneration(generation);
             reason = canonicalSuccessEvidence
               ? ""
-              : "No reservation linkage and no successful projection media found for charge row.";
+              : generationStatus
+                ? `Linked source_ref generation is ${generationStatus}.`
+                : "No reservation linkage and no successful projection media found for charge row.";
+            if (generationStatus) {
+              bucket = "linked_non_success_generation";
+            }
           }
         } else {
           reason = "Generation charge row has no source_ref.";

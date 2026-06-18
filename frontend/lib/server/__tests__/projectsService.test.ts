@@ -1,9 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
 import {
+  deleteProjectForUser,
+  getProjectForUser,
   listProjectsForUser,
   resolveProjectCardPreviewSigningStoragePaths,
   resolveProjectPreviewImageUrlsFromSnapshot,
+  updateProjectTitleForUser,
 } from "../projectsService";
 
 vi.mock("../api/supabaseAdmin", () => ({
@@ -30,6 +33,18 @@ const createAwaitableQuery = <T>(result: T) => {
   query.order = vi.fn(() => query);
   query.limit = vi.fn(() => query);
   query.then = Promise.resolve(result).then.bind(Promise.resolve(result));
+  return query;
+};
+
+const createProjectSingleQuery = <T>(result: T) => {
+  const query = {} as {
+    eq: ReturnType<typeof vi.fn>;
+    select: ReturnType<typeof vi.fn>;
+    maybeSingle: ReturnType<typeof vi.fn>;
+  };
+  query.eq = vi.fn(() => query);
+  query.select = vi.fn(() => query);
+  query.maybeSingle = vi.fn(async () => result);
   return query;
 };
 
@@ -71,37 +86,37 @@ const mockProjectListSupabase = ({
     data: paths.map((path) => ({ path, signedUrl: `signed:${path}` })),
     error: null,
   }));
+  const projectListQuery = createAwaitableQuery({
+    data: projectRows,
+    error: null,
+  });
+  const workspaceEq = vi.fn(() => ({
+    in: workspaceIn,
+  }));
+  const displayQuery: {
+    eq: ReturnType<typeof vi.fn>;
+    in: ReturnType<typeof vi.fn>;
+  } = {
+    eq: vi.fn(() => displayQuery),
+    in: displayProjectIn,
+  };
   const supabaseMock = {
     from: vi.fn((table: string) => {
       if (table === "projects") {
         return {
-          select: vi.fn(() =>
-            createAwaitableQuery({
-              data: projectRows,
-              error: null,
-            })
-          ),
+          select: vi.fn(() => projectListQuery),
         };
       }
       if (table === "project_workspace_states") {
         return {
           select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              in: workspaceIn,
-            })),
+            eq: workspaceEq,
           })),
         };
       }
       if (table === "project_output_display_items") {
-        const query: {
-          eq: ReturnType<typeof vi.fn>;
-          in: ReturnType<typeof vi.fn>;
-        } = {
-          eq: vi.fn(() => query),
-          in: displayProjectIn,
-        };
         return {
-          select: vi.fn(() => query),
+          select: vi.fn(() => displayQuery),
         };
       }
       throw new Error(`Unexpected table: ${table}`);
@@ -113,8 +128,81 @@ const mockProjectListSupabase = ({
     },
   };
   getSupabaseAdminMock.mockReturnValue(supabaseMock as never);
-  return { createSignedUrls, displayOutputIn, displayProjectIn, workspaceIn };
+  return {
+    createSignedUrls,
+    displayOutputIn,
+    displayProjectIn,
+    displayQuery,
+    projectListQuery,
+    workspaceEq,
+    workspaceIn,
+  };
 };
+
+describe("project owner-scoped record access", () => {
+  const projectRow = {
+    id: PROJECT_ID_1,
+    user_id: "user-1",
+    title: "Project One",
+    created_at: "2026-06-03T10:00:00.000Z",
+    updated_at: "2026-06-03T11:00:00.000Z",
+  };
+
+  it("reads one project through the caller-owned user scope", async () => {
+    const query = createProjectSingleQuery({ data: projectRow, error: null });
+    const select = vi.fn(() => query);
+    getSupabaseAdminMock.mockReturnValue({
+      from: vi.fn(() => ({ select })),
+    } as never);
+
+    await expect(getProjectForUser({ userId: "user-1", projectId: PROJECT_ID_1 })).resolves.toEqual(
+      {
+        id: PROJECT_ID_1,
+        userId: "user-1",
+        title: "Project One",
+        createdAt: "2026-06-03T10:00:00.000Z",
+        updatedAt: "2026-06-03T11:00:00.000Z",
+      }
+    );
+
+    expect(query.eq).toHaveBeenCalledWith("id", PROJECT_ID_1);
+    expect(query.eq).toHaveBeenCalledWith("user_id", "user-1");
+  });
+
+  it("updates one project through the caller-owned user scope", async () => {
+    const query = createProjectSingleQuery({ data: projectRow, error: null });
+    const update = vi.fn(() => query);
+    getSupabaseAdminMock.mockReturnValue({
+      from: vi.fn(() => ({ update })),
+    } as never);
+
+    await expect(
+      updateProjectTitleForUser({
+        userId: "user-1",
+        projectId: PROJECT_ID_1,
+        title: "Project One",
+      })
+    ).resolves.toEqual(expect.objectContaining({ id: PROJECT_ID_1, userId: "user-1" }));
+
+    expect(query.eq).toHaveBeenCalledWith("id", PROJECT_ID_1);
+    expect(query.eq).toHaveBeenCalledWith("user_id", "user-1");
+  });
+
+  it("deletes one project through the caller-owned user scope", async () => {
+    const query = createProjectSingleQuery({ data: projectRow, error: null });
+    const deleteProject = vi.fn(() => query);
+    getSupabaseAdminMock.mockReturnValue({
+      from: vi.fn(() => ({ delete: deleteProject })),
+    } as never);
+
+    await expect(
+      deleteProjectForUser({ userId: "user-1", projectId: PROJECT_ID_1 })
+    ).resolves.toEqual(expect.objectContaining({ id: PROJECT_ID_1, userId: "user-1" }));
+
+    expect(query.eq).toHaveBeenCalledWith("id", PROJECT_ID_1);
+    expect(query.eq).toHaveBeenCalledWith("user_id", "user-1");
+  });
+});
 
 describe("resolveProjectPreviewImageUrlsFromSnapshot", () => {
   it("prefers the first four quick-slot image previews", () => {
@@ -278,48 +366,49 @@ describe("resolveProjectPreviewImageUrlsFromSnapshot", () => {
 
 describe("listProjectsForUser preview composition", () => {
   it("prefers checkpoint plus display-record previews over rich snapshot parsing", async () => {
-    const { displayOutputIn, displayProjectIn } = mockProjectListSupabase({
-      workspaceSnapshot: {
-        outputs: {
-          curatedReferenceIds: ["quick-display"],
-          active: [
-            {
-              id: "grid-display",
-              mode: "image",
-            },
-            {
-              id: "quick-display",
-              mode: "image",
-            },
-          ],
-          archived: [],
+    const { displayOutputIn, displayProjectIn, displayQuery, projectListQuery, workspaceEq } =
+      mockProjectListSupabase({
+        workspaceSnapshot: {
+          outputs: {
+            curatedReferenceIds: ["quick-display"],
+            active: [
+              {
+                id: "grid-display",
+                mode: "image",
+              },
+              {
+                id: "quick-display",
+                mode: "image",
+              },
+            ],
+            archived: [],
+          },
         },
-      },
-      displayRows: [
-        {
-          project_id: PROJECT_ID_1,
-          output_id: "grid-display",
-          mode: "image",
-          task_state: "success",
-          preview_url_fallback: "https://cdn.example.com/display-grid.png",
-          result_urls_fallback: [],
-          preview_storage_path: "user-1/generated/display-grid.png",
-          full_storage_path: null,
-          hidden_in_reference_grid: false,
-        },
-        {
-          project_id: PROJECT_ID_1,
-          output_id: "quick-display",
-          mode: "image",
-          task_state: "success",
-          preview_url_fallback: "https://cdn.example.com/display-quick.png",
-          result_urls_fallback: [],
-          preview_storage_path: "user-1/generated/display-quick.png",
-          full_storage_path: null,
-          hidden_in_reference_grid: false,
-        },
-      ],
-    });
+        displayRows: [
+          {
+            project_id: PROJECT_ID_1,
+            output_id: "grid-display",
+            mode: "image",
+            task_state: "success",
+            preview_url_fallback: "https://cdn.example.com/display-grid.png",
+            result_urls_fallback: [],
+            preview_storage_path: "user-1/generated/display-grid.png",
+            full_storage_path: null,
+            hidden_in_reference_grid: false,
+          },
+          {
+            project_id: PROJECT_ID_1,
+            output_id: "quick-display",
+            mode: "image",
+            task_state: "success",
+            preview_url_fallback: "https://cdn.example.com/display-quick.png",
+            result_urls_fallback: [],
+            preview_storage_path: "user-1/generated/display-quick.png",
+            full_storage_path: null,
+            hidden_in_reference_grid: false,
+          },
+        ],
+      });
 
     await expect(listProjectsForUser({ userId: "user-1", limit: "all" })).resolves.toEqual([
       expect.objectContaining({
@@ -329,6 +418,10 @@ describe("listProjectsForUser preview composition", () => {
     ]);
     expect(displayProjectIn).toHaveBeenCalledWith("project_id", [PROJECT_ID_1]);
     expect(displayOutputIn).toHaveBeenCalledWith("output_id", ["quick-display", "grid-display"]);
+    expect(projectListQuery.eq).toHaveBeenCalledWith("user_id", "user-1");
+    expect(workspaceEq).toHaveBeenCalledWith("user_id", "user-1");
+    expect(displayQuery.eq).toHaveBeenCalledWith("user_id", "user-1");
+    expect(displayQuery.eq).toHaveBeenCalledWith("mode", "image");
   });
 
   it("falls back to snapshot-derived project previews when display records are unavailable", async () => {

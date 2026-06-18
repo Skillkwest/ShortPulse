@@ -53,7 +53,7 @@ and must not create Lip Sync result cards.
 - Prompt text is optional.
 - `1080p` accepts voice audio under `30s`.
 - `720p` accepts voice audio under `60s`.
-- Local voice-audio picker/drop source files upload through `/api/media/upload`
+- Local voice-audio picker/drop source files stage through `/api/media/prepare-upload` -> browser direct upload -> `/api/media/finalize-upload`
   before they become ready Lip Sync state.
 - ShortPulse blocks known over-limit audio before provider submit.
 - The Lip Sync submit adapter stages both the selected character image and voice audio through `/api/fal/upload-url`; upstream `image_url` and `audio_url` must be fresh verified Fal CDN URLs, not Kie temporary upload URLs. When app-owned storage authority is known, the adapter submits storage paths to the staging helper instead of reusing signed/display URLs. URL-only inputs, including existing Fal CDN URLs, are re-staged with explicit `mediaKind` so the staged file has image/audio-compatible MIME.

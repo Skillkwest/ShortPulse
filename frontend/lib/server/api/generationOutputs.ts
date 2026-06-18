@@ -10,6 +10,7 @@ export type PersistGenerationOutputsInput = {
   resultUrls: string[];
   mediaFileIds?: string[];
   metadata?: JsonObject;
+  supabaseAdmin?: ReturnType<typeof getSupabaseAdmin>;
 };
 
 export type PersistedGenerationOutputRow = {
@@ -91,6 +92,7 @@ export const persistGenerationOutputRecords = async ({
   resultUrls,
   mediaFileIds = [],
   metadata = {},
+  supabaseAdmin,
 }: PersistGenerationOutputsInput): Promise<PersistedGenerationOutputRow[]> => {
   if (!resultUrls.length) return [];
 
@@ -125,7 +127,7 @@ export const persistGenerationOutputRecords = async ({
 
   if (!rows.length) return [];
 
-  const adminClient = getSupabaseAdmin();
+  const adminClient = supabaseAdmin ?? getSupabaseAdmin();
   const { data, error } = await adminClient
     .from("ai_generation_outputs")
     .upsert(rows, { onConflict: "generation_id,output_index" })
@@ -187,6 +189,7 @@ export const attachMediaFileToGenerationOutput = async ({
   providerRequestId,
   generationAttemptId,
   metadata = {},
+  supabaseAdmin,
 }: {
   generationId: string;
   userId: string;
@@ -196,8 +199,9 @@ export const attachMediaFileToGenerationOutput = async ({
   providerRequestId?: string | null;
   generationAttemptId?: string | null;
   metadata?: JsonObject;
+  supabaseAdmin?: ReturnType<typeof getSupabaseAdmin>;
 }): Promise<void> => {
-  const adminClient = getSupabaseAdmin();
+  const adminClient = supabaseAdmin ?? getSupabaseAdmin();
   const existingRows = await readPersistedGenerationOutputs({
     generationId,
     userId,

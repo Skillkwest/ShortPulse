@@ -52,7 +52,19 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const adminUser = await requireAdminUser(req, res);
+  let adminUser: Awaited<ReturnType<typeof requireAdminUser>>;
+  try {
+    adminUser = await requireAdminUser(req, res);
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "admin/agent-safety-policy/rollback.auth",
+    });
+    return res.status(500).json({
+      error: "Unable to rollback safety policy.",
+    });
+  }
   if (!adminUser) return;
 
   const body = (req.body ?? {}) as RollbackPolicyRequest;

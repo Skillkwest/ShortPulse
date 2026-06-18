@@ -13,6 +13,11 @@ import type {
 
 export type MediaLibrarySurfaceKind = "modal" | "panel";
 
+export type MediaLibraryPanelAdapterSurface = Extract<
+  MediaListSurface,
+  "media-library-panel" | "elements-media-panel" | "character-media-panel"
+>;
+
 export type MediaLibraryAdaptiveSurface =
   | "media-library-grid"
   | "media-library-modal-grid"

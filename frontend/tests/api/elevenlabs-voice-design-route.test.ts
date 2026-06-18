@@ -108,6 +108,36 @@ describe("POST /api/elevenlabs/text-to-voice/design", () => {
     });
   });
 
+  it("logs auth verifier failures before rate limiting, provider preview, or token issuance", async () => {
+    requireApiUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
+    const req = {
+      method: "POST",
+      body: {
+        voiceName: "Night Host",
+        voiceDescription: "Warm, intimate late-night radio host with crisp diction.",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        error: expect.any(Error),
+        routeLabel: "elevenlabs-text-to-voice-design.auth",
+        scope: "generation",
+      })
+    );
+    expect(designElevenLabsVoiceMock).not.toHaveBeenCalled();
+    expect(issueVoiceDesignPreviewTokenMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to generate voice previews",
+      details: "Unable to generate voice previews.",
+    });
+  });
+
   it("rate limits repeated voice design preview requests for the same authenticated user", async () => {
     designElevenLabsVoiceMock.mockResolvedValue({
       previews: [

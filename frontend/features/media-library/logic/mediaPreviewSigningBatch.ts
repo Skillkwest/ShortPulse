@@ -3,6 +3,7 @@ import {
   resolveMediaPreviewCandidates,
   type MediaPreviewPathKind,
 } from "../../../lib/mediaPreviewPath";
+import { isSupabaseRenderImageUrl } from "../../../lib/mediaPreviewTrustPolicy";
 import { logMediaPerf, type MediaPerfEventName } from "../../../lib/mediaPerfTelemetry";
 
 type PreviewSigningRowLike = {
@@ -108,7 +109,10 @@ export const mapMediaSignResults = <TRow extends PreviewSigningRowLike>(params: 
   return entries.map((entry) => {
     const matchedPath = entry.candidates.find((path) => Boolean(signedByPath.get(path))) ?? null;
     const signedFromPath = matchedPath ? (signedByPath.get(matchedPath) ?? null) : null;
-    const directUrl = signedFromPath ? null : entry.directUrl;
+    const directUrl =
+      signedFromPath || !entry.directUrl || isSupabaseRenderImageUrl(entry.directUrl)
+        ? null
+        : entry.directUrl;
     const signedUrl = signedFromPath ?? directUrl;
     const resolvedPreviewSource = matchedPath ?? directUrl;
     return {

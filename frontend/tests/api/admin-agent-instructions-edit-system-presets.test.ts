@@ -36,6 +36,27 @@ describe("admin edit system presets API", () => {
     requireAdminUserMock.mockResolvedValue({ id: "admin-1", email: "admin@example.com" });
   });
 
+  it("logs admin auth verifier exceptions before catalog access", async () => {
+    const authError = new Error("auth verifier unavailable");
+    requireAdminUserMock.mockRejectedValueOnce(authError);
+
+    const req = { method: "GET" };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(resolveExpertEditSystemPresetCatalogForAdminMock).not.toHaveBeenCalled();
+    expect(saveExpertEditSystemPresetCatalogMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: authError,
+      routeLabel: "api/admin/agent-instructions/edit-system-presets.auth",
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Failed to load global Edit system presets.",
+    });
+  });
+
   it("returns the resolved preset catalog", async () => {
     resolveExpertEditSystemPresetCatalogForAdminMock.mockResolvedValue({
       presetDefinitions: [{ presetId: "selfie", label: "Selfie", prompt: "Prompt text" }],

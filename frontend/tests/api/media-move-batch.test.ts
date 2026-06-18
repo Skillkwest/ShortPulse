@@ -143,6 +143,34 @@ describe("POST /api/media/move-batch", () => {
     expect(moveMediaFileForUserMock).not.toHaveBeenCalled();
   });
 
+  it("logs auth verifier failures before rate limiting or batched media moves", async () => {
+    const authError = new Error("auth verifier exploded");
+    requireApiUserMock.mockRejectedValueOnce(authError);
+    const req = {
+      method: "POST",
+      body: {
+        destinationTab: "private",
+        fileIds: ["file-1"],
+      },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        error: authError,
+        routeLabel: "media-move-batch.auth",
+        scope: "app",
+      })
+    );
+    expect(moveMediaFileForUserMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Failed to move media files" });
+  });
+
   it("returns a sanitized 500 when batched media moves fail unexpectedly", async () => {
     moveMediaFileForUserMock.mockRejectedValueOnce(new Error("database exploded"));
 

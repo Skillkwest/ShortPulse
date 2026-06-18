@@ -4,12 +4,14 @@ import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 
 const requireApiUserMock = vi.fn();
 const writeAppErrorLogMock = vi.fn();
+const logApiRouteExceptionMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
 }));
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
+  logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
   writeAppErrorLog: (...args: unknown[]) => writeAppErrorLogMock(...args),
 }));
 
@@ -115,6 +117,29 @@ describe("POST /api/log/client-error", () => {
         }),
       })
     );
+  });
+
+  it("returns a safe failure when auth verification throws", async () => {
+    const authError = new Error("auth verifier exploded");
+    requireApiUserMock.mockRejectedValue(authError);
+    const req = {
+      method: "POST",
+      body: { message: "failure" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: authError,
+        routeLabel: "api.log.client-error.auth",
+      })
+    );
+    expect(writeAppErrorLogMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Client error log ingestion failed." });
   });
 
   it("returns 500 when telemetry write fails", async () => {

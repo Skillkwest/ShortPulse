@@ -64,12 +64,27 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const user = await requireApiUser(req, res);
+  let user: Awaited<ReturnType<typeof requireApiUser>>;
+  try {
+    user = await requireApiUser(req, res);
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "elevenlabs-text-to-voice-create.auth",
+      scope: "generation",
+    });
+    return res.status(500).json({
+      error: "Unable to create voice",
+      details: "Unable to create voice.",
+    });
+  }
   if (!user) return;
+  const userId = user.id;
   if (
     !enforceApiRateLimit(req, res, {
       ...ELEVENLABS_VOICE_CREATE_RATE_LIMIT,
-      keyPrefix: `${ELEVENLABS_VOICE_CREATE_RATE_LIMIT.keyPrefix}:${user.id}`,
+      keyPrefix: `${ELEVENLABS_VOICE_CREATE_RATE_LIMIT.keyPrefix}:${userId}`,
     })
   ) {
     return;
@@ -106,7 +121,7 @@ export default async function handler(
       !verifyVoiceDesignPreviewToken({
         generatedVoiceId,
         token: generatedVoiceToken,
-        userId: user.id,
+        userId,
       })
     ) {
       return res.status(403).json({
@@ -121,7 +136,7 @@ export default async function handler(
       return verifyVoiceDesignPreviewToken({
         generatedVoiceId: voiceId,
         token,
-        userId: user.id,
+        userId,
       });
     });
 
@@ -143,11 +158,11 @@ export default async function handler(
     });
     const voiceSample: Awaited<ReturnType<typeof createPersistedElevenLabsVoiceSample>> =
       await createPersistedElevenLabsVoiceSample({
-        userId: user.id,
+        userId,
         voiceId: createdVoice.voiceId,
       }).catch(async (sampleError) => {
         const cleanupResult = await cleanupFailedElevenLabsCustomVoice({
-          userId: user.id,
+          userId,
           voiceId: createdVoice.voiceId,
           sampleStoragePath: null,
         });
@@ -165,7 +180,7 @@ export default async function handler(
 
     try {
       const savedVoice = await saveVoiceForUser({
-        userId: user.id,
+        userId,
         voice: {
           voiceId: createdVoice.voiceId,
           name: createdVoice.name,
@@ -189,7 +204,7 @@ export default async function handler(
         user,
       });
       const cleanupResult = await cleanupFailedElevenLabsCustomVoice({
-        userId: user.id,
+        userId,
         voiceId: createdVoice.voiceId,
         sampleStoragePath: voiceSample.sampleStoragePath,
       });

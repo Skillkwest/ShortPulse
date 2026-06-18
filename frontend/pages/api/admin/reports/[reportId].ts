@@ -21,7 +21,17 @@ const getReportId = (value: string | string[] | undefined): string | null => {
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const adminUser = await requireAdminUser(req, res);
+  let adminUser: Awaited<ReturnType<typeof requireAdminUser>>;
+  try {
+    adminUser = await requireAdminUser(req, res);
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "api.admin.reports.[reportId].auth",
+    });
+    return res.status(500).json({ error: "Unable to verify report access." });
+  }
   if (!adminUser) {
     return;
   }

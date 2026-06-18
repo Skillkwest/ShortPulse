@@ -38,6 +38,7 @@ type EnsureAcceptedGenerationAttemptResult =
 type LookupGenerationAttemptByProviderRequestInput = {
   providerRequestId: string;
   userId?: string | null;
+  supabaseAdmin?: ReturnType<typeof getSupabaseAdmin>;
 };
 
 type LookupLatestGenerationAttemptInput = {
@@ -164,6 +165,7 @@ const lookupAttemptByProviderRequest = async ({
 export const lookupGenerationAttemptByProviderRequest = async ({
   providerRequestId,
   userId = null,
+  supabaseAdmin,
 }: LookupGenerationAttemptByProviderRequestInput): Promise<{
   data: GenerationAttemptLookupRow | null;
   error: { code?: string | null; message?: string | null } | null;
@@ -173,7 +175,8 @@ export const lookupGenerationAttemptByProviderRequest = async ({
     return { data: null, error: null };
   }
 
-  const query = getSupabaseAdmin()
+  const adminClient = supabaseAdmin ?? getSupabaseAdmin();
+  const query = adminClient
     .from("generation_attempts")
     .select("id, generation_id, user_id, attempt_number, model_id, provider_request_id, metadata")
     .eq("provider_request_id", normalizedProviderRequestId)

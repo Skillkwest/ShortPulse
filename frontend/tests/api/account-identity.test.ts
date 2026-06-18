@@ -127,6 +127,28 @@ describe("account identity routes", () => {
     expect(res.json).toHaveBeenCalledWith({ displayName: "Alice Example" });
   });
 
+  it("returns a safe profile update failure when auth verification throws unexpectedly", async () => {
+    requireApiUserMock.mockRejectedValueOnce(new Error("Auth verifier exploded."));
+    const req = {
+      method: "POST",
+      body: { displayName: "Alice Example" },
+      headers: { authorization: "Bearer token" },
+    };
+    const res = createMockResponse();
+
+    await profileHandler(req as never, res as never);
+
+    expect(updateSupabaseAuthUserMock).not.toHaveBeenCalled();
+    expect(syncStripeCustomerForUserMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: expect.any(Error),
+      routeLabel: "account/profile/update.auth",
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Unable to update your profile." });
+  });
+
   it("updates email through the server-owned email route using forwarded request origin when no canonical base url is configured", async () => {
     const req = {
       method: "POST",
@@ -327,6 +349,50 @@ describe("account identity routes", () => {
     expect(res.json).toHaveBeenCalledWith({ error: "Current password is incorrect." });
   });
 
+  it("returns a safe email update failure when password verification is unavailable", async () => {
+    verifySupabasePasswordMock.mockRejectedValueOnce(new Error("Supabase auth is not configured."));
+    const req = {
+      method: "POST",
+      body: { email: "alice@example.com", currentPassword: "secret-pass" },
+      headers: { authorization: "Bearer token" },
+    };
+    const res = createMockResponse();
+
+    await emailHandler(req as never, res as never);
+
+    expect(updateSupabaseAuthUserMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: expect.any(Error),
+      routeLabel: "account/email/update",
+      user: expect.objectContaining({ id: "user-1" }),
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Unable to update your email." });
+  });
+
+  it("returns a safe email update failure when auth verification throws unexpectedly", async () => {
+    requireApiUserMock.mockRejectedValueOnce(new Error("Auth verifier exploded."));
+    const req = {
+      method: "POST",
+      body: { email: "alice@example.com", currentPassword: "secret-pass" },
+      headers: { authorization: "Bearer token" },
+    };
+    const res = createMockResponse();
+
+    await emailHandler(req as never, res as never);
+
+    expect(verifySupabasePasswordMock).not.toHaveBeenCalled();
+    expect(updateSupabaseAuthUserMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: expect.any(Error),
+      routeLabel: "account/email/update.auth",
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Unable to update your email." });
+  });
+
   it("rate limits repeated email update attempts for the same authenticated user", async () => {
     for (let index = 0; index < 5; index += 1) {
       const req = {
@@ -395,5 +461,27 @@ describe("account identity routes", () => {
     });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ email: "user@example.com" });
+  });
+
+  it("returns a safe confirmed email sync failure when auth verification throws unexpectedly", async () => {
+    requireApiUserMock.mockRejectedValueOnce(new Error("Auth verifier exploded."));
+    const req = {
+      method: "POST",
+      headers: { authorization: "Bearer token" },
+    };
+    const res = createMockResponse();
+
+    await confirmEmailHandler(req as never, res as never);
+
+    expect(syncStripeCustomerForUserMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: expect.any(Error),
+      routeLabel: "account/email/confirm.auth",
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to finish syncing your confirmed email.",
+    });
   });
 });

@@ -1,6 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireAdminUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
+import {
+  resolveGenerationLineageByProviderRequest,
+  resolveGenerationLineageBySourceRef,
+} from "../../../lib/server/api/generationLineageResolver";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
 
 type JsonRow = Record<string, unknown>;
@@ -309,7 +313,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const adminUser = await requireAdminUser(req, res);
+  let adminUser: Awaited<ReturnType<typeof requireAdminUser>>;
+  try {
+    adminUser = await requireAdminUser(req, res);
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "admin.generation_trace.auth",
+    });
+    return res.status(500).json({ error: "Failed to load generation trace timeline." });
+  }
   if (!adminUser) return;
 
   const generationId = asSingleString(req.query.generationId);
@@ -327,6 +341,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const supabaseAdmin = getSupabaseAdmin();
     const warnings: string[] = [];
     const generationRows: JsonRow[] = [];
+    const resolvedRequestIds = new Set<string>();
+
+    const appendLineageGeneration = async ({
+      generationId: resolvedGenerationId,
+      label,
+    }: {
+      generationId: string | null;
+      label: string;
+    }) => {
+      if (!resolvedGenerationId) return;
+      const { data, error } = await runGenerationQueryWithFallback({
+        warnings,
+        label,
+        execute: (selectFields) =>
+          supabaseAdmin
+            .from("ai_generations")
+            .select(selectFields)
+            .eq("id", resolvedGenerationId)
+            .limit(5),
+      });
+      if (error) {
+        warnings.push(`${label} failed: ${readErrorMessage(error)}`);
+      } else {
+        appendObjectRows(generationRows, data);
+      }
+    };
 
     if (generationId) {
       const { data, error } = await runGenerationQueryWithFallback({
@@ -435,12 +475,49 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
+    if (userId && requestId) {
+      try {
+        const lineage = await resolveGenerationLineageByProviderRequest({
+          userId,
+          providerRequestId: requestId,
+          supabaseAdmin,
+        });
+        await appendLineageGeneration({
+          generationId: lineage.generationId,
+          label: "shared lineage provider request lookup",
+        });
+        if (lineage.requestId) resolvedRequestIds.add(lineage.requestId);
+        if (lineage.providerRequestId) resolvedRequestIds.add(lineage.providerRequestId);
+      } catch (error) {
+        warnings.push(`shared lineage provider request lookup failed: ${readErrorMessage(error)}`);
+      }
+    }
+
+    if (userId && traceId) {
+      try {
+        const lineage = await resolveGenerationLineageBySourceRef({
+          userId,
+          sourceRef: traceId,
+          supabaseAdmin,
+        });
+        await appendLineageGeneration({
+          generationId: lineage.generationId,
+          label: "shared lineage source_ref lookup",
+        });
+        if (lineage.requestId) resolvedRequestIds.add(lineage.requestId);
+        if (lineage.providerRequestId) resolvedRequestIds.add(lineage.providerRequestId);
+      } catch (error) {
+        warnings.push(`shared lineage source_ref lookup failed: ${readErrorMessage(error)}`);
+      }
+    }
+
     let generations = sortRowsDesc(dedupeRowsById(generationRows));
     let generationIds = generations
       .map((row) => row.id)
       .filter((value): value is string => typeof value === "string" && value.length > 0);
     const requestIds = new Set<string>();
     if (requestId) requestIds.add(requestId);
+    resolvedRequestIds.forEach((resolvedRequestId) => requestIds.add(resolvedRequestId));
     generations.forEach((row) => {
       const rowRequestId = readRequestId(row);
       if (rowRequestId) requestIds.add(rowRequestId);

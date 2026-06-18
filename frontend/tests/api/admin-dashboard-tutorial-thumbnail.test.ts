@@ -88,6 +88,31 @@ describe("admin dashboard tutorial thumbnail upload APIs", () => {
     });
   });
 
+  it("logs prepare auth verifier exceptions before storage work", async () => {
+    const authError = new Error("auth verifier unavailable");
+    requireAdminUserMock.mockRejectedValueOnce(authError);
+    const req = {
+      method: "POST",
+      body: {
+        sourceMimeType: "image/gif",
+        sourceSize: 1234,
+      },
+    };
+    const res = createMockResponse();
+
+    await prepareHandler(req as never, res as never);
+
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: authError,
+      routeLabel: "admin/dashboard/tutorial-thumbnail/prepare.auth",
+      scope: "app",
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Unable to prepare thumbnail upload." });
+  });
+
   it("rejects unsupported thumbnail file types before storage", async () => {
     const req = {
       method: "POST",
@@ -232,6 +257,32 @@ describe("admin dashboard tutorial thumbnail upload APIs", () => {
         posterFileSizeBytes: Buffer.byteLength("poster-jpeg"),
       },
     });
+  });
+
+  it("logs finalize auth verifier exceptions before storage work", async () => {
+    const authError = new Error("auth verifier unavailable");
+    requireAdminUserMock.mockRejectedValueOnce(authError);
+    const req = {
+      method: "POST",
+      body: {
+        sourceStoragePath: "tutorial-thumbnails/generated.gif",
+        sourceMimeType: "image/gif",
+        sourceSize: gifBytes.length,
+      },
+    };
+    const res = createMockResponse();
+
+    await finalizeHandler(req as never, res as never);
+
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: authError,
+      routeLabel: "admin/dashboard/tutorial-thumbnail/finalize.auth",
+      scope: "app",
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Unable to finalize thumbnail upload." });
   });
 
   it("finalizes an uploaded still image into a signed WebP display derivative", async () => {

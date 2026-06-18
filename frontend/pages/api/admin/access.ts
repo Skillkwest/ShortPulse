@@ -34,10 +34,21 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  let user: Awaited<ReturnType<typeof requireApiUser>>;
   try {
-    const user = await requireApiUser(req, res);
-    if (!user) return;
+    user = await requireApiUser(req, res);
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "api/admin/access.auth",
+      scope: "app",
+    });
+    return res.status(500).json({ error: "Failed to verify admin access." });
+  }
+  if (!user) return;
 
+  try {
     const accessVia = resolveAdminAccessVia(user);
     if (accessVia === "none") {
       return res.status(403).json({

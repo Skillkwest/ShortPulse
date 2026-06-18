@@ -3,9 +3,6 @@
  * Used by domain surfaces that need storage-backed image assets without trusting client paths.
  */
 import crypto from "crypto";
-import fs from "fs";
-import formidable from "formidable";
-import type { NextApiRequest } from "next";
 import type { ImageAdmissionMetadata } from "../imageAdmissionPolicy";
 import { assertUserScopedMediaStoragePath } from "../mediaStoragePath";
 import { extractImageDimensionsFromBuffer } from "./imageDimensions";
@@ -32,7 +29,7 @@ export type ProductImageAssetIntent =
   | "character_slot"
   | "element_profile";
 
-type ParsedProductImageAssetUpload = {
+type ProductImageAssetUploadInput = {
   buffer: Buffer;
   declaredMimeType: string;
   filename: string;
@@ -41,10 +38,7 @@ type ParsedProductImageAssetUpload = {
   characterSheetId: string;
   slotKey: string;
   elementId: string;
-  tempFilePath?: string;
 };
-
-type ProductImageAssetUploadInput = Omit<ParsedProductImageAssetUpload, "tempFilePath">;
 
 export type ProductImageAssetAdmissionResponse = {
   bucket: typeof MEDIA_BUCKET;
@@ -88,11 +82,6 @@ export class ProductImageAssetAdmissionError extends Error {
   }
 }
 
-const readFieldString = (value: string | string[] | undefined): string => {
-  if (Array.isArray(value)) return value[0]?.trim() ?? "";
-  return value?.trim() ?? "";
-};
-
 const normalizeContentType = (value: string | null | undefined): string =>
   normalizeSupportedMimeType(value?.split(";")[0] ?? "");
 
@@ -132,7 +121,7 @@ const resolveStoragePath = ({
   mimeType,
 }: {
   userId: string;
-  upload: ParsedProductImageAssetUpload;
+  upload: ProductImageAssetUploadInput;
   mimeType: string;
 }): string => {
   const extension = resolveMediaStorageExtension(mimeType, "jpg") || "jpg";
@@ -188,7 +177,7 @@ const assertOwnedDomainTarget = async ({
   upload,
 }: {
   userId: string;
-  upload: ParsedProductImageAssetUpload;
+  upload: ProductImageAssetUploadInput;
 }): Promise<void> => {
   const supabaseAdmin = getSupabaseAdmin();
 
@@ -405,62 +394,6 @@ const readStorageBuffer = async ({
     throw new ProductImageAssetAdmissionError(413, "Upload failed: file too large");
   }
   return buffer;
-};
-
-export const parseProductImageAssetUpload = async (
-  req: NextApiRequest
-): Promise<ParsedProductImageAssetUpload> => {
-  const form = formidable({
-    maxFileSize: PRODUCT_IMAGE_ASSET_TRANSPORT_MAX_BYTES,
-    keepExtensions: true,
-  });
-
-  let fields: formidable.Fields;
-  let files: formidable.Files;
-  try {
-    [fields, files] = await new Promise<[formidable.Fields, formidable.Files]>(
-      (resolve, reject) => {
-        form.parse(req, (error, parsedFields, parsedFiles) => {
-          if (error) {
-            reject(error);
-            return;
-          }
-          resolve([parsedFields, parsedFiles]);
-        });
-      }
-    );
-  } catch (error) {
-    if (
-      error &&
-      typeof error === "object" &&
-      "httpCode" in error &&
-      (error as { httpCode?: number }).httpCode === 413
-    ) {
-      throw new ProductImageAssetAdmissionError(413, "Upload failed: file too large");
-    }
-    throw error;
-  }
-
-  const fileInput = files.file;
-  if (!fileInput) {
-    throw new ProductImageAssetAdmissionError(400, "Upload failed", "No file uploaded");
-  }
-  const parsedFile = Array.isArray(fileInput) ? fileInput[0] : fileInput;
-
-  return {
-    buffer: fs.readFileSync(parsedFile.filepath),
-    declaredMimeType: normalizeContentType(parsedFile.mimetype ?? ""),
-    filename: parsedFile.originalFilename?.trim() || "upload",
-    intent: resolveIntent(
-      readFieldString(fields.intent as string | string[] | undefined) ||
-        readFieldString(fields.surface as string | string[] | undefined)
-    ),
-    characterId: readFieldString(fields.characterId as string | string[] | undefined),
-    characterSheetId: readFieldString(fields.characterSheetId as string | string[] | undefined),
-    slotKey: readFieldString(fields.slotKey as string | string[] | undefined),
-    elementId: readFieldString(fields.elementId as string | string[] | undefined),
-    tempFilePath: parsedFile.filepath,
-  };
 };
 
 const admitProductImageAssetBufferForUser = async ({
@@ -693,28 +626,4 @@ export const admitProductImageAssetFromStorageForUser = async ({
       elementId,
     },
   });
-};
-
-export const admitProductImageAssetUploadForUser = async ({
-  req,
-  userId,
-}: {
-  req: NextApiRequest;
-  userId: string;
-}): Promise<ProductImageAssetAdmissionResponse> => {
-  const parsedUpload = await parseProductImageAssetUpload(req);
-  try {
-    return await admitProductImageAssetBufferForUser({
-      userId,
-      upload: parsedUpload,
-    });
-  } finally {
-    if (parsedUpload.tempFilePath) {
-      try {
-        fs.unlinkSync(parsedUpload.tempFilePath);
-      } catch {
-        // best-effort temp file cleanup
-      }
-    }
-  }
 };

@@ -748,12 +748,26 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const user = await requireApiUser(req, res);
+  let user: Awaited<ReturnType<typeof requireApiUser>>;
+  try {
+    user = await requireApiUser(req, res);
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "fal-upload-url.auth",
+      scope: "generation",
+    });
+    return res.status(500).json({
+      error: "Fal upload failed",
+    });
+  }
   if (!user) return;
+  const userId = user.id;
   if (
     !enforceApiRateLimit(req, res, {
       ...FAL_UPLOAD_URL_RATE_LIMIT,
-      keyPrefix: `${FAL_UPLOAD_URL_RATE_LIMIT.keyPrefix}:${user.id}`,
+      keyPrefix: `${FAL_UPLOAD_URL_RATE_LIMIT.keyPrefix}:${userId}`,
     })
   ) {
     return;
@@ -781,7 +795,7 @@ export default async function handler(
               storagePath,
               fileName,
               mediaKind,
-              userId: user.id,
+              userId,
               compatibilityTarget,
             });
           }

@@ -52,7 +52,6 @@ type FetchMediaListPageArgs = {
   surface: MediaListSurface;
   profile?: MediaListProfile;
   folderId?: string | null;
-  projectId?: string | null;
   mediaKind?: MediaListMediaKind | null;
   includeLibraryTotalCount?: boolean;
   countOnly?: boolean;

@@ -219,8 +219,8 @@ Pause implementation and ask for an explicit decision if any of these occur:
 | `/api/upload-image` | removed | Deleted route and route test; removed API registry entry and upload-adapter telemetry label; runtime image helper already uses staged reference-image upload routes. | no active route, auth registry entry, route docs, route tests, or runtime caller |
 | `/api/ai/sessions/*` | removed | Deleted route family, retired 410 tests, and session RPC helper module; project workspace validation now owns its own payload-size guard. | no active route/test/API-doc listing; project workspace persistence remains canonical |
 | `ai_studio_sessions` schema/RPCs | deferred-db-decision | Runtime callers are gone; data dictionary/security/migration docs now mark the schema/RPC contract dormant until a separate DB decommission decision. | SQL untouched by this lane; follow-up schema decision required |
-| `/api/upload-video` | kept-active | Current callers in `frontend/features/ai-studio/utils/videoUpload.ts`; docs describe it as the motion-control compatibility adapter. | retained as live compatibility path |
-| `/api/upload-audio` | kept-active | Current caller in `frontend/features/ai-studio/utils/audioUpload.ts`; API docs list the local audio-reference upload adapter. | retained as live compatibility path |
+| `/api/upload-video` | removed | Motion-reference create, stale cleanup, and lease-aware committed-clip retirement now use `/api/media/prepare-motion-reference-video-upload` plus `/api/media/stage-motion-reference-video`; deleted route and route test; removed auth registry entry and active route docs. | no active route, auth registry entry, route docs, route tests, or runtime caller |
+| `/api/upload-audio` | removed | Current audio-reference caller `frontend/features/ai-studio/utils/audioUpload.ts` uses `/api/media/prepare-upload` -> browser direct storage upload -> `/api/media/finalize-upload`; deleted route, route test, telemetry shim, API docs row, and auth registry entry. | no active route, auth registry entry, route docs, route tests, telemetry shim, or runtime caller |
 | `/api/media/copy-from-url` | kept-active | Current callers in media-library persistence/style ingestion logic; troubleshooting docs identify it as the CORS/security fallback. | retained as server copy fallback |
 | `/api/media/resolve-previews` | kept-active | Current caller in `frontend/features/media-library/logic/mediaPreviewResolver.ts`; active docs and tests cover preview resolution. | retained as preview delivery route |
 | `SHORTPULSE_MEDIA_UPLOAD_API_ENABLED` | kept-active | Read by `frontend/pages/api/media/upload.ts`; tests cover disabled-route behavior. | retained as server route gate |
@@ -279,15 +279,15 @@ Likely touched areas:
 
 - `frontend/pages/api/upload-image.ts`
 - `frontend/lib/server/api/protectedApiPaths.ts`
-- `frontend/lib/server/mediaUploadAdapterTelemetry.ts`
+- retired upload-adapter telemetry shims when no live adapter route remains
 - upload-image route tests
 - active API and troubleshooting docs
 
 Proof:
 
 - Local reference images still use the staged upload path.
-- `/api/upload-video` and `/api/upload-audio` remain untouched unless their
-  own active callers are being changed in a separate lane.
+- `/api/upload-audio` is removed only when exact source inspection proves no
+  active caller remains and the canonical media upload path owns audio refs.
 
 ### Phase 4: Retired AI Session Runtime
 
@@ -389,7 +389,7 @@ Validation run on 2026-06-03:
 
 - `npm -C frontend run test -- app.ai-studio-entry app.ai-studio-gates app.route-change telemetry-growth`
   passed with 4 files and 16 tests.
-- `npm -C frontend run test -- imageUpload protected-api-paths.parity upload-audio-route upload-video-route`
+- `npm -C frontend run test -- imageUpload protected-api-paths.parity motion-reference-video-upload-route`
   passed with 5 files and 36 tests.
 - `npm -C frontend run test -- auth-guarded-ai-routes projectWorkspaceStatesService projects-create protected-api-paths.parity`
   passed with 4 files and 70 tests.

@@ -210,6 +210,45 @@ describe("projectWorkspaceApiClient", () => {
     });
   });
 
+  it("surfaces safe plain-text project workspace save errors", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      new Response("Project workspace service temporarily unavailable", {
+        status: 503,
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+        },
+      })
+    );
+
+    await expect(
+      saveAiStudioProjectWorkspaceSnapshotViaApi({
+        projectId: "project-1",
+        snapshot: {
+          schemaVersion: 2,
+          sessionId: "session-1",
+          updatedAt: "2026-04-25T00:00:00.000Z",
+        } as never,
+      })
+    ).rejects.toThrow(
+      "Failed to save project workspace snapshot: Project workspace service temporarily unavailable"
+    );
+
+    expect(addBreadcrumbMock).toHaveBeenCalledWith({
+      type: "network",
+      level: "error",
+      message: "ai_studio_project_workspace_save_failed",
+      data: {
+        project_id: "project-1",
+        status: 503,
+        failure_stage: null,
+        error: "",
+        content_type: "text/plain",
+        payload_parse_mode: "text",
+        raw_error_excerpt: "Project workspace service temporarily unavailable",
+      },
+    });
+  });
+
   it("records the structured failure stage for project workspace save errors", async () => {
     fetchWithAuthMock.mockResolvedValueOnce(
       new Response(
@@ -516,6 +555,40 @@ describe("projectWorkspaceApiClient", () => {
         content_type: "text/html",
         payload_parse_mode: "text",
         raw_error_excerpt: "Server returned an invalid error response.",
+      },
+    });
+  });
+
+  it("surfaces safe plain-text project workspace load errors", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      new Response("Project workspace read timed out", {
+        status: 504,
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+        },
+      })
+    );
+
+    await expect(
+      getAiStudioProjectWorkspaceSnapshotViaApi({
+        projectId: "project-1",
+      })
+    ).rejects.toThrow(
+      "Failed to load project workspace snapshot: Project workspace read timed out"
+    );
+
+    expect(addBreadcrumbMock).toHaveBeenCalledWith({
+      type: "network",
+      level: "error",
+      message: "ai_studio_project_workspace_bootstrap_failed",
+      data: {
+        project_id: "project-1",
+        status: 504,
+        failure_stage: null,
+        error: "",
+        content_type: "text/plain",
+        payload_parse_mode: "text",
+        raw_error_excerpt: "Project workspace read timed out",
       },
     });
   });

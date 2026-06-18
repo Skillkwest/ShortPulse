@@ -48,6 +48,26 @@ describe("POST /api/billing/stripe/portal", () => {
     expect(res.status).toHaveBeenCalledWith(405);
   });
 
+  it("returns a safe portal failure when auth verification throws unexpectedly", async () => {
+    requireApiUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
+    const req = { method: "POST", body: {} };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(ensureStripeCustomerForUserMock).not.toHaveBeenCalled();
+    expect(stripePostFormMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: expect.any(Error),
+      routeLabel: "billing/stripe/portal.auth",
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to create billing portal session.",
+    });
+  });
+
   it("creates a portal session through bootstrap-safe customer resolution", async () => {
     const req = { method: "POST", body: {}, socket: { remoteAddress: "127.0.0.1" } };
     const res = createMockResponse();

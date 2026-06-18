@@ -12,6 +12,6 @@ export default createFalStatusHandler({
   modelId: "kie-ai/seedance-2-fast",
   provider: "kie",
   queueBaseUrl: getKieStatusBaseUrlsRequired("kie-ai/seedance-2-fast"),
-  routeLabel: "Kie Seedance 2.0 Fast",
+  routeLabel: "Kie Seedance 2 Fast",
   timeoutMs: getKieTimeoutMsOrDefault("kie-ai/seedance-2-fast", 60000),
 });

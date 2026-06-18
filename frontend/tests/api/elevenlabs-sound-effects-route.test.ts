@@ -109,6 +109,43 @@ describe("POST /api/elevenlabs/sound-effects", () => {
     generateSoundEffectTitleBestEffortMock.mockResolvedValue("Huge Downlift Boom");
   });
 
+  it("logs auth verifier failures before billing, provider, title, duration, or persistence work", async () => {
+    requireApiUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
+
+    const req = {
+      method: "POST",
+      body: {
+        text: "Huge downlift boom.",
+        durationSeconds: null,
+        loop: false,
+        outputFormat: "mp3_44100_128",
+        modelId: "eleven_text_to_sound_v2",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        error: expect.any(Error),
+        routeLabel: "elevenlabs-sound-effects.auth",
+        scope: "generation",
+      })
+    );
+    expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
+    expect(generateElevenLabsSoundEffectMock).not.toHaveBeenCalled();
+    expect(generateSoundEffectTitleBestEffortMock).not.toHaveBeenCalled();
+    expect(probeMediaDurationSecondsMock).not.toHaveBeenCalled();
+    expect(persistGeneratedAudioAssetMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to generate sound effect",
+      details: "auth verifier exploded",
+    });
+  });
+
   it("rejects out-of-range explicit durations", async () => {
     const req = {
       method: "POST",

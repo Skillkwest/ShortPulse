@@ -45,4 +45,28 @@ describe("PATCH /api/admin/reports/[reportId]", () => {
       error: `Admin notes must be ${ISSUE_REPORT_ADMIN_NOTES_MAX_LENGTH} characters or fewer.`,
     });
   });
+
+  it("returns a safe failure when admin auth verification throws", async () => {
+    const authError = new Error("auth verifier exploded");
+    requireAdminUserMock.mockRejectedValue(authError);
+
+    const req = {
+      method: "PATCH",
+      query: { reportId: "report-1" },
+      body: { status: "reviewing" },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: authError,
+        routeLabel: "api.admin.reports.[reportId].auth",
+      })
+    );
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Unable to verify report access." });
+  });
 });

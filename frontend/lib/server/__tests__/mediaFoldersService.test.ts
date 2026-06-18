@@ -364,19 +364,7 @@ describe("mediaFoldersService helpers", () => {
     expect(sanitizeMediaFolderParentId("not-a-folder")).toBeUndefined();
   });
 
-  it("falls back to legacy folder listing when parent_folder_id is unavailable", async () => {
-    const legacySelectMock = vi.fn().mockResolvedValue({
-      data: [
-        {
-          id: SOURCE_FOLDER_ID,
-          user_id: "user-1",
-          name: "Folder A",
-          created_at: "2026-03-01T00:00:00.000Z",
-          updated_at: "2026-03-02T00:00:00.000Z",
-        },
-      ],
-      error: null,
-    });
+  it("fails closed when canonical folder parent schema is unavailable during listing", async () => {
     const primarySelectMock = vi.fn().mockResolvedValue({
       data: null,
       error: { message: 'column "parent_folder_id" does not exist' },
@@ -390,33 +378,17 @@ describe("mediaFoldersService helpers", () => {
         })),
       })),
     };
-    const legacyQuery = {
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          order: vi.fn(() => ({
-            order: legacySelectMock,
-          })),
-        })),
-      })),
-    };
     const supabaseMock = {
-      from: vi.fn().mockReturnValueOnce(primaryQuery).mockReturnValueOnce(legacyQuery),
+      from: vi.fn().mockReturnValueOnce(primaryQuery),
     };
     getSupabaseAdminMock.mockReturnValue(
       supabaseMock as unknown as ReturnType<typeof getSupabaseAdmin>
     );
 
-    await expect(listMediaFoldersForUser("user-1")).resolves.toEqual([
-      {
-        id: SOURCE_FOLDER_ID,
-        user_id: "user-1",
-        name: "Folder A",
-        parent_folder_id: null,
-        created_at: "2026-03-01T00:00:00.000Z",
-        updated_at: "2026-03-02T00:00:00.000Z",
-        item_count: 0,
-      },
-    ]);
+    await expect(listMediaFoldersForUser("user-1")).rejects.toThrow(
+      'column "parent_folder_id" does not exist'
+    );
+    expect(supabaseMock.from).toHaveBeenCalledTimes(1);
   });
 
   it("includes direct child folders in listed folder item counts", async () => {
@@ -483,17 +455,7 @@ describe("mediaFoldersService helpers", () => {
     ]);
   });
 
-  it("falls back to legacy root-folder creation when parent_folder_id is unavailable", async () => {
-    const legacyInsertMock = vi.fn().mockResolvedValue({
-      data: {
-        id: SOURCE_FOLDER_ID,
-        user_id: "user-1",
-        name: "Folder A",
-        created_at: "2026-03-01T00:00:00.000Z",
-        updated_at: "2026-03-02T00:00:00.000Z",
-      },
-      error: null,
-    });
+  it("fails closed when canonical folder parent schema is unavailable during creation", async () => {
     const primaryInsertMock = vi.fn().mockResolvedValue({
       data: null,
       error: { message: 'column "parent_folder_id" does not exist' },
@@ -505,15 +467,8 @@ describe("mediaFoldersService helpers", () => {
         })),
       })),
     };
-    const legacyInsertQuery = {
-      insert: vi.fn(() => ({
-        select: vi.fn(() => ({
-          maybeSingle: legacyInsertMock,
-        })),
-      })),
-    };
     const supabaseMock = {
-      from: vi.fn().mockReturnValueOnce(primaryInsertQuery).mockReturnValueOnce(legacyInsertQuery),
+      from: vi.fn().mockReturnValueOnce(primaryInsertQuery),
     };
     getSupabaseAdminMock.mockReturnValue(
       supabaseMock as unknown as ReturnType<typeof getSupabaseAdmin>
@@ -525,15 +480,8 @@ describe("mediaFoldersService helpers", () => {
         name: "Folder A",
         parentFolderId: null,
       })
-    ).resolves.toEqual({
-      id: SOURCE_FOLDER_ID,
-      user_id: "user-1",
-      name: "Folder A",
-      parent_folder_id: null,
-      created_at: "2026-03-01T00:00:00.000Z",
-      updated_at: "2026-03-02T00:00:00.000Z",
-      item_count: 0,
-    });
+    ).rejects.toThrow('column "parent_folder_id" does not exist');
+    expect(supabaseMock.from).toHaveBeenCalledTimes(1);
   });
 
   it("seeds a default root folder when the user has no custom folders", async () => {

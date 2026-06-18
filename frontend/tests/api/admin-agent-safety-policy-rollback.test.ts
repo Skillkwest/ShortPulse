@@ -116,6 +116,23 @@ describe("POST /api/admin/agent-safety-policy/rollback", () => {
     });
   });
 
+  it("logs unexpected admin auth failures before rollback starts", async () => {
+    requireAdminUserMock.mockRejectedValue(new Error("auth verifier exploded"));
+
+    const req = { method: "POST", body: {}, headers: {} };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "admin/agent-safety-policy/rollback.auth",
+      })
+    );
+    expect(rollbackAgentSafetyPolicyMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Unable to rollback safety policy." });
+  });
+
   it("logs and returns 500 when rollback rpc fails", async () => {
     rollbackAgentSafetyPolicyMock.mockRejectedValue(new Error("rpc failed"));
 

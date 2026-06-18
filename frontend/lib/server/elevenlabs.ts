@@ -1257,6 +1257,7 @@ export const persistGeneratedAudioAsset = async ({
       ...extraMetadata,
       ...(Object.keys(workflowReload).length > 0 ? { workflow_reload: workflowReload } : {}),
     },
+    supabaseAdmin,
   });
 
   if (autosavePolicyDecision.allowed) {
@@ -1315,6 +1316,7 @@ export const persistGeneratedAudioAsset = async ({
           ...extraMetadata,
           ...(Object.keys(workflowReload).length > 0 ? { workflow_reload: workflowReload } : {}),
         },
+        supabaseAdmin,
       });
     } catch (error) {
       autosaveDecision = "autosave_skipped";
@@ -1579,6 +1581,7 @@ export const persistGeneratedVideoAsset = async ({
       ...extraMetadata,
       ...(Object.keys(workflowReload).length > 0 ? { workflow_reload: workflowReload } : {}),
     },
+    supabaseAdmin,
   });
 
   if (autosavePolicyDecision.allowed) {
@@ -1665,6 +1668,7 @@ export const persistGeneratedVideoAsset = async ({
           ...extraMetadata,
           ...(Object.keys(workflowReload).length > 0 ? { workflow_reload: workflowReload } : {}),
         },
+        supabaseAdmin,
       });
     } catch (error) {
       autosaveDecision = "autosave_skipped";

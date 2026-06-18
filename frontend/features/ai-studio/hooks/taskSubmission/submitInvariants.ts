@@ -5,6 +5,11 @@
 import type { StudioMode, ToolId } from "../../types";
 
 export type NormalizedSubmissionTool = ToolId | "image" | "video";
+export type SubmissionInvariantError = Error & {
+  code?: "SUBMIT_NOT_STARTED" | "SUBMIT_LIFECYCLE_CONTRACT";
+  detail?: string;
+};
+
 export const CREATE_TEXT_MODE_SUBMIT_BLOCK_ERROR =
   "Switch to image generation before running this action.";
 
@@ -26,6 +31,28 @@ export const shouldSkipTextCreateSubmission = (
   tool: ToolId | null | undefined,
   mode: StudioMode
 ): boolean => (tool === "create" || tool === "text") && mode === "text";
+
+/**
+ * Creates the invariant error used when a submit route finishes without provider handoff.
+ */
+export const submitNotStartedError = (detail: string): SubmissionInvariantError => {
+  const error = new Error("Provider task did not start.") as SubmissionInvariantError;
+  error.code = "SUBMIT_NOT_STARTED";
+  error.detail = detail;
+  return error;
+};
+
+/**
+ * Creates the invariant error used when queued/direct submit lifecycle rules are violated.
+ */
+export const submitLifecycleContractError = (detail: string): SubmissionInvariantError => {
+  const error = new Error(
+    "Provider submission lifecycle contract was violated."
+  ) as SubmissionInvariantError;
+  error.code = "SUBMIT_LIFECYCLE_CONTRACT";
+  error.detail = detail;
+  return error;
+};
 
 type SubmissionStartUiErrorInput = {
   cleanedSubmissionPrompt: string;

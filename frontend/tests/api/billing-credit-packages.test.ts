@@ -38,6 +38,25 @@ describe("GET /api/billing/credit-packages", () => {
     expect(res.json).toHaveBeenCalledWith({ error: "Method not allowed" });
   });
 
+  it("returns a safe credit-package failure when auth verification throws unexpectedly", async () => {
+    requireApiUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
+    const req = { method: "GET" };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: expect.any(Error),
+      routeLabel: "billing/credit-packages.auth",
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to load credit packages.",
+    });
+  });
+
   it("returns active credit packages", async () => {
     getSupabaseAdminMock.mockReturnValue({
       from: () => ({

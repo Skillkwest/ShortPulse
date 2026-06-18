@@ -4,6 +4,7 @@
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../lib/server/api/auth";
+import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { applyAgentLegacyDeprecationHeaders } from "../../../features/agent-runtime/legacyDeprecation";
 import { buildAgentMachineOutcome } from "../../../features/agent-runtime/agentMachineOutcome";
 import {
@@ -52,7 +53,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   }
 
-  const user = await requireApiUser(req, res);
+  let user: Awaited<ReturnType<typeof requireApiUser>>;
+  try {
+    user = await requireApiUser(req, res);
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: `${routeLabel}.auth`,
+      scope: "app",
+    });
+    return res.status(500).json({
+      ...buildAgentMachineOutcome({
+        outcomeClass: "route_error",
+        reasonCode: "ROUTE_ERROR",
+      }),
+      error: "Style extraction is temporarily unavailable.",
+    });
+  }
   if (!user) return;
   const result = await executeStyleExtraction({
     req,

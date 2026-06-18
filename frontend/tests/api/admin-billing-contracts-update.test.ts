@@ -41,6 +41,33 @@ describe("POST /api/admin/billing/contracts/update", () => {
     vi.useRealTimers();
   });
 
+  it("returns a safe contract-update failure when admin auth verification throws unexpectedly", async () => {
+    requireAdminUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
+    const req = {
+      method: "POST",
+      body: {
+        userId: "user-1",
+        action: "grant_internal_comp",
+        planId: "business",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: expect.any(Error),
+      routeLabel: "admin/billing/contracts/update.auth",
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Billing contract update failed.",
+    });
+  });
+
   it("grants internal comp access and seeds the current period credits", async () => {
     const profileQuery = {
       eq: vi.fn().mockReturnValue({

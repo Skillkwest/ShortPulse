@@ -478,6 +478,71 @@ describe("buildAdminHealthResponse", () => {
     );
   });
 
+  it("uses ai_generations metadata source_ref lineage before flagging charge leakage", () => {
+    const result = buildAdminHealthResponse({
+      lookup: "user-1",
+      lookupMode: "user_id",
+      lookbackDays: 30,
+      authUser: {
+        id: "user-1",
+        email: "user@example.com",
+      },
+      generationsSelectUsed: "id,status,recovery_state,request_id,metadata",
+      reservationsSupported: true,
+      ledgerLegacySchema: false,
+      compatibilityWarnings: [],
+      balance: null,
+      generations: [
+        {
+          id: "gen-source-ref-1",
+          status: "success",
+          recovery_state: null,
+          provider: "fal",
+          model_id: "model-1",
+          request_id: null,
+          created_at: "2026-03-17T11:00:00.000Z",
+          completed_at: "2026-03-17T11:05:00.000Z",
+          failure_reason_code: null,
+          next_recovery_at: null,
+          metadata: {
+            source_ref: "src-metadata-lineage-1",
+          },
+        },
+      ],
+      attempts: [],
+      outputs: [
+        {
+          id: "output-source-ref-1",
+          generation_id: "gen-source-ref-1",
+          media_file_id: "media-source-ref-1",
+          created_at: "2026-03-17T11:05:00.000Z",
+        },
+      ],
+      reservations: [],
+      ledger: [
+        {
+          id: "ledger-source-ref-1",
+          user_id: "user-1",
+          change_cents: -20,
+          reason: "generation charge",
+          source: "generation_charge",
+          source_ref: "src-metadata-lineage-1",
+          metadata: null,
+          created_at: "2026-03-17T11:06:00.000Z",
+        },
+      ],
+      nowMs: Date.parse("2026-03-17T12:00:00.000Z"),
+    });
+
+    expect(result.drainage.costWithoutSuccessfulGeneration.debitCents).toBe(0);
+    expect(result.findings.map((finding) => finding.code)).not.toEqual(
+      expect.arrayContaining([
+        "CHARGED_MISSING_LINKAGE_DATA",
+        "CHARGED_LINKED_NON_SUCCESS_GENERATION",
+      ])
+    );
+  });
+
   it("surfaces generation output, project association, and terminal hold invariants", () => {
     const result = buildAdminHealthResponse({
       lookup: "user-1",

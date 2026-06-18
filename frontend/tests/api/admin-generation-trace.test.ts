@@ -4,6 +4,8 @@ import handler from "../../pages/api/admin/generation-trace";
 const requireAdminUserMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
+const resolveGenerationLineageByProviderRequestMock = vi.fn();
+const resolveGenerationLineageBySourceRefMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireAdminUser: (...args: unknown[]) => requireAdminUserMock(...args),
@@ -15,6 +17,13 @@ vi.mock("../../lib/server/api/supabaseAdmin", () => ({
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
+}));
+
+vi.mock("../../lib/server/api/generationLineageResolver", () => ({
+  resolveGenerationLineageByProviderRequest: (...args: unknown[]) =>
+    resolveGenerationLineageByProviderRequestMock(...args),
+  resolveGenerationLineageBySourceRef: (...args: unknown[]) =>
+    resolveGenerationLineageBySourceRefMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -69,10 +78,59 @@ const createOutputColumnGuardBuilder = (rows: unknown[]) => {
   };
 };
 
+const createIdOnlyGenerationBuilder = (rowsById: Record<string, unknown>) => ({
+  select: vi.fn(() => {
+    let selectedId: string | null = null;
+    let shouldReturnRows = false;
+    const builder: Record<string, unknown> = {};
+    builder.eq = vi.fn((column: string, value: string) => {
+      selectedId = value;
+      shouldReturnRows = column === "id";
+      return builder;
+    });
+    builder.in = vi.fn(() => {
+      shouldReturnRows = false;
+      return builder;
+    });
+    builder.contains = vi.fn(() => {
+      shouldReturnRows = false;
+      return builder;
+    });
+    builder.order = vi.fn(() => builder);
+    builder.limit = vi.fn(async () => ({
+      data: shouldReturnRows && selectedId && rowsById[selectedId] ? [rowsById[selectedId]] : [],
+      error: null,
+    }));
+    return builder;
+  }),
+});
+
 describe("GET /api/admin/generation-trace", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireAdminUserMock.mockResolvedValue({ id: "admin-1", email: "admin@example.com" });
+    resolveGenerationLineageByProviderRequestMock.mockResolvedValue({
+      generationId: null,
+      generationAttemptId: null,
+      userId: null,
+      modelId: null,
+      sourceRef: null,
+      requestId: null,
+      providerRequestId: "",
+      evidence: [],
+      attemptLookupError: null,
+    });
+    resolveGenerationLineageBySourceRefMock.mockResolvedValue({
+      generationId: null,
+      generationAttemptId: null,
+      userId: null,
+      modelId: null,
+      sourceRef: null,
+      requestId: null,
+      providerRequestId: "",
+      evidence: [],
+      attemptLookupError: null,
+    });
   });
 
   it("rejects non-GET methods", async () => {
@@ -80,6 +138,25 @@ describe("GET /api/admin/generation-trace", () => {
     const res = createMockResponse();
     await handler(req as never, res as never);
     expect(res.status).toHaveBeenCalledWith(405);
+  });
+
+  it("logs unexpected admin auth failures before trace queries run", async () => {
+    requireAdminUserMock.mockRejectedValue(new Error("auth verifier exploded"));
+    const supabaseAdmin = { from: vi.fn() };
+    getSupabaseAdminMock.mockReturnValue(supabaseAdmin);
+
+    const req = { method: "GET", query: { generationId: "gen-1" } };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "admin.generation_trace.auth",
+      })
+    );
+    expect(supabaseAdmin.from).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Failed to load generation trace timeline." });
   });
 
   it("requires at least one query identifier", async () => {
@@ -482,6 +559,122 @@ describe("GET /api/admin/generation-trace", () => {
         summary: expect.objectContaining({
           generations: 1,
         }),
+      })
+    );
+  });
+
+  it("uses shared provider-request lineage when user-scoped admin trace direct lookups miss", async () => {
+    const generationRow = {
+      id: "gen-shared-provider-1",
+      user_id: "user-1",
+      request_id: null,
+      status: "success",
+      metadata: {},
+      created_at: "2026-02-19T16:00:00.000Z",
+    };
+    resolveGenerationLineageByProviderRequestMock.mockResolvedValue({
+      generationId: "gen-shared-provider-1",
+      generationAttemptId: null,
+      userId: "user-1",
+      modelId: null,
+      sourceRef: "source-shared-provider-1",
+      requestId: "req-projection-provider-1",
+      providerRequestId: "req-admin-provider-1",
+      evidence: ["projection_provider_request_id"],
+      attemptLookupError: null,
+    });
+
+    const supabaseAdmin = {
+      from: (table: string) => {
+        switch (table) {
+          case "ai_generations":
+            return createIdOnlyGenerationBuilder({ "gen-shared-provider-1": generationRow });
+          default:
+            return createQueryBuilder([]);
+        }
+      },
+    };
+    getSupabaseAdminMock.mockReturnValue(supabaseAdmin);
+
+    const req = {
+      method: "GET",
+      query: { requestId: "req-admin-provider-1", userId: "user-1" },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(resolveGenerationLineageByProviderRequestMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      providerRequestId: "req-admin-provider-1",
+      supabaseAdmin,
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        summary: expect.objectContaining({
+          generations: 1,
+        }),
+        generations: expect.arrayContaining([
+          expect.objectContaining({ id: "gen-shared-provider-1" }),
+        ]),
+      })
+    );
+  });
+
+  it("uses shared source-ref lineage when user-scoped traceId direct lookups miss", async () => {
+    const generationRow = {
+      id: "gen-shared-source-1",
+      user_id: "user-1",
+      request_id: "req-shared-source-1",
+      status: "running",
+      metadata: {},
+      created_at: "2026-02-19T16:10:00.000Z",
+    };
+    resolveGenerationLineageBySourceRefMock.mockResolvedValue({
+      generationId: "gen-shared-source-1",
+      generationAttemptId: null,
+      userId: "user-1",
+      modelId: null,
+      sourceRef: "source-shared-1",
+      requestId: "req-shared-source-1",
+      providerRequestId: "",
+      evidence: ["projection_source_ref"],
+      attemptLookupError: null,
+    });
+
+    const supabaseAdmin = {
+      from: (table: string) => {
+        switch (table) {
+          case "ai_generations":
+            return createIdOnlyGenerationBuilder({ "gen-shared-source-1": generationRow });
+          default:
+            return createQueryBuilder([]);
+        }
+      },
+    };
+    getSupabaseAdminMock.mockReturnValue(supabaseAdmin);
+
+    const req = {
+      method: "GET",
+      query: { traceId: "source-shared-1", userId: "user-1" },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(resolveGenerationLineageBySourceRefMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      sourceRef: "source-shared-1",
+      supabaseAdmin,
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        summary: expect.objectContaining({
+          generations: 1,
+        }),
+        generations: expect.arrayContaining([
+          expect.objectContaining({ id: "gen-shared-source-1" }),
+        ]),
       })
     );
   });

@@ -132,6 +132,25 @@ describe("GET /api/admin/user-health-fleet", () => {
     );
   });
 
+  it("returns a safe failure when admin auth verification throws", async () => {
+    const authError = new Error("auth verifier exploded");
+    requireAdminUserMock.mockRejectedValue(authError);
+    const req = { method: "GET", query: { runId: "run-1" } };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: authError,
+        routeLabel: "admin/user-health-fleet.auth",
+      })
+    );
+    expect(readAdminUserHealthFleetReportMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Unable to load fleet health report." });
+  });
+
   it("logs and returns 500 when report load fails", async () => {
     readAdminUserHealthFleetReportMock.mockRejectedValueOnce(new Error("fleet read failed"));
     const req = { method: "GET", query: { page: "1" } };

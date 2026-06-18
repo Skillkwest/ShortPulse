@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useMediaLibraryPanelDataController } from "../useMediaLibraryPanelDataController";
 
 const fetchMediaListPageMock = vi.hoisted(() => vi.fn());
@@ -101,6 +101,10 @@ describe("useMediaLibraryPanelDataController", () => {
     });
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("applies seeded signed urls returned by the reset page load", async () => {
     const signedById = new Map([["media-1", "https://signed.example/media-1-thumb.png"]]);
 
@@ -121,7 +125,6 @@ describe("useMediaLibraryPanelDataController", () => {
 
     renderHook(() =>
       useMediaLibraryPanelDataController({
-        projectId: "project-1",
         activeFolderId: "all_items",
         itemType: "all",
         normalizedSearch: "",
@@ -145,7 +148,6 @@ describe("useMediaLibraryPanelDataController", () => {
   it("normalizes transient pending folder ids back to the root folder for data loads", async () => {
     renderHook(() =>
       useMediaLibraryPanelDataController({
-        projectId: "project-1",
         activeFolderId: "__pending_new_folder__123",
         itemType: "all",
         normalizedSearch: "",
@@ -176,7 +178,6 @@ describe("useMediaLibraryPanelDataController", () => {
     const { rerender } = renderHook(
       ({ activeFolderId }) =>
         useMediaLibraryPanelDataController({
-          projectId: "project-1",
           activeFolderId,
           itemType: "all",
           normalizedSearch: "",
@@ -209,7 +210,7 @@ describe("useMediaLibraryPanelDataController", () => {
     expect(fetchMediaPromptListPageMock).not.toHaveBeenCalled();
   });
 
-  it("keeps resolved global media and prompt rows across project switches", async () => {
+  it("keeps resolved global media and prompt rows across parent project rerenders", async () => {
     fetchMediaListPageMock.mockResolvedValueOnce({
       rows: [],
       nextCursor: null,
@@ -224,9 +225,8 @@ describe("useMediaLibraryPanelDataController", () => {
     });
 
     const { result, rerender } = renderHook(
-      ({ projectId }) =>
+      ({ projectId: _projectId }: { projectId: string }) =>
         useMediaLibraryPanelDataController({
-          projectId,
           activeFolderId: "all_items",
           itemType: "all",
           normalizedSearch: "",
@@ -295,7 +295,6 @@ describe("useMediaLibraryPanelDataController", () => {
 
       const { result } = renderHook(() =>
         useMediaLibraryPanelDataController({
-          projectId: "project-1",
           activeFolderId: "all_items",
           itemType: "all",
           normalizedSearch: "",
@@ -394,7 +393,6 @@ describe("useMediaLibraryPanelDataController", () => {
 
     const { result } = renderHook(() =>
       useMediaLibraryPanelDataController({
-        projectId: "project-1",
         activeFolderId: "all_items",
         itemType: "all",
         normalizedSearch: "",
@@ -445,7 +443,6 @@ describe("useMediaLibraryPanelDataController", () => {
 
     const { result } = renderHook(() =>
       useMediaLibraryPanelDataController({
-        projectId: "project-1",
         activeFolderId: "all_items",
         itemType: "all",
         normalizedSearch: "",
@@ -526,7 +523,6 @@ describe("useMediaLibraryPanelDataController", () => {
 
     const { result } = renderHook(() =>
       useMediaLibraryPanelDataController({
-        projectId: "project-1",
         activeFolderId: "all_items",
         itemType: "all",
         normalizedSearch: "",
@@ -598,7 +594,6 @@ describe("useMediaLibraryPanelDataController", () => {
 
     const { result } = renderHook(() =>
       useMediaLibraryPanelDataController({
-        projectId: "project-1",
         activeFolderId: "all_items",
         itemType: "all",
         normalizedSearch: "",
@@ -663,7 +658,6 @@ describe("useMediaLibraryPanelDataController", () => {
 
     const { result } = renderHook(() =>
       useMediaLibraryPanelDataController({
-        projectId: "project-1",
         activeFolderId: "all_items",
         itemType: "all",
         normalizedSearch: "",
@@ -719,7 +713,6 @@ describe("useMediaLibraryPanelDataController", () => {
 
     const { result } = renderHook(() =>
       useMediaLibraryPanelDataController({
-        projectId: "project-1",
         activeFolderId: "all_items",
         itemType: "prompts",
         normalizedSearch: "",
@@ -760,7 +753,6 @@ describe("useMediaLibraryPanelDataController", () => {
     const { rerender } = renderHook(
       ({ itemType }: { itemType: "images" | "videos" }) =>
         useMediaLibraryPanelDataController({
-          projectId: "project-1",
           activeFolderId: "all_items",
           itemType,
           normalizedSearch: "",
@@ -799,7 +791,6 @@ describe("useMediaLibraryPanelDataController", () => {
   it("keeps the expanded media list profile for the mixed all-items tab", async () => {
     renderHook(() =>
       useMediaLibraryPanelDataController({
-        projectId: "project-1",
         activeFolderId: "all_items",
         itemType: "all",
         normalizedSearch: "",
@@ -814,6 +805,73 @@ describe("useMediaLibraryPanelDataController", () => {
         expect.objectContaining({
           profile: "expanded",
         })
+      );
+    });
+  });
+
+  it("refreshes pending audio companion art rows while the media panel is open", async () => {
+    fetchMediaListPageMock
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "audio-1",
+            filename: "tiny-glitch.mp3",
+            storage_path: "user-1/generations/audio/audio-1.mp3",
+            file_type: "audio/mpeg",
+            source: "ai_studio",
+            source_ref: "gen-audio-1",
+            companion_art_status: "pending",
+            companion_art_storage_path: null,
+            companion_art_url: null,
+            created_at: "2026-06-17T12:00:00.000Z",
+          },
+        ],
+        nextCursor: null,
+        hasMore: false,
+        signedById: new Map(),
+        libraryTotalCount: 1,
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "audio-1",
+            filename: "tiny-glitch.mp3",
+            storage_path: "user-1/generations/audio/audio-1.mp3",
+            file_type: "audio/mpeg",
+            source: "ai_studio",
+            source_ref: "gen-audio-1",
+            companion_art_status: "ready",
+            companion_art_storage_path:
+              "user-1/generations/audio/gen-audio-1/companion-art/cover.webp",
+            companion_art_url: "https://signed.test/gen-audio-1-cover.webp",
+            created_at: "2026-06-17T12:00:00.000Z",
+          },
+        ],
+        nextCursor: null,
+        hasMore: false,
+        signedById: new Map(),
+        libraryTotalCount: 1,
+      });
+
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelDataController({
+        activeFolderId: "all_items",
+        itemType: "all",
+        normalizedSearch: "",
+        shouldShowMedia: true,
+        shouldShowPrompts: false,
+        panelBodyRef: { current: null },
+      })
+    );
+
+    await waitFor(() => {
+      expect(fetchMediaListPageMock).toHaveBeenCalledTimes(2);
+    });
+
+    await waitFor(() => {
+      expect(result.current.mediaRows[0]?.companion_art_status).toBe("ready");
+      expect(result.current.mediaRows[0]?.companion_art_url).toBe(
+        "https://signed.test/gen-audio-1-cover.webp"
       );
     });
   });

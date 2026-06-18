@@ -88,6 +88,26 @@ describe("model pricing policy routes", () => {
     });
   });
 
+  it("returns a safe model-policy failure when auth verification throws unexpectedly", async () => {
+    requireApiUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
+    const req = { method: "GET" };
+    const res = createMockResponse();
+
+    await userPolicyHandler(req as never, res as never);
+
+    expect(resolveRuntimeModelPricingPolicyMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: expect.any(Error),
+      routeLabel: "pricing/model-policy.auth",
+      metadata: {
+        source: "api.pricing.model-policy",
+      },
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Unable to load model pricing policy." });
+  });
+
   it("applies a new admin policy", async () => {
     const submittedPolicy = {
       schemaVersion: 1 as const,
@@ -139,6 +159,41 @@ describe("model pricing policy routes", () => {
         activePolicyVersion: 5,
       })
     );
+  });
+
+  it("does not apply model policy when admin auth verification throws unexpectedly", async () => {
+    requireAdminUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
+    const req = {
+      method: "POST",
+      body: {
+        policy: {
+          schemaVersion: 1,
+          global: {
+            creditUsdScale: 100,
+            defaultRoundingMode: "ceil",
+            defaultRoundingIncrement: 1,
+          },
+          perModel: {},
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await applyPolicyHandler(req as never, res as never);
+
+    expect(applyModelPricingPolicyMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: expect.any(Error),
+      routeLabel: "admin/pricing/model-policy/apply.auth",
+      metadata: {
+        source: "api.admin.pricing.model-policy.apply",
+      },
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to apply model pricing policy.",
+    });
   });
 
   it("maps apply initialization errors to 503", async () => {
@@ -255,5 +310,32 @@ describe("model pricing policy routes", () => {
         status: "not_initialized",
       })
     );
+  });
+
+  it("does not rollback model policy when admin auth verification throws unexpectedly", async () => {
+    requireAdminUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
+    const req = {
+      method: "POST",
+      body: {
+        reason: "Undo change",
+      },
+    };
+    const res = createMockResponse();
+
+    await rollbackPolicyHandler(req as never, res as never);
+
+    expect(rollbackModelPricingPolicyMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: expect.any(Error),
+      routeLabel: "admin/pricing/model-policy/rollback.auth",
+      metadata: {
+        source: "api.admin.pricing.model-policy.rollback",
+      },
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to rollback model pricing policy.",
+    });
   });
 });

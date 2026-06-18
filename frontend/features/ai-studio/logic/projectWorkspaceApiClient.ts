@@ -60,6 +60,7 @@ class ProjectWorkspaceBootstrapApiError extends Error {
 }
 
 const INVALID_PROJECT_WORKSPACE_SNAPSHOT_PATTERN = /invalid project workspace snapshot/i;
+const INVALID_ERROR_RESPONSE_MESSAGE = "Server returned an invalid error response.";
 
 const resolveProjectWorkspacePayloadMessage = ({
   payload,
@@ -86,6 +87,12 @@ const resolveProjectWorkspaceApiErrorMessage = (
   });
   if (payloadMessage) return payloadMessage;
   if (scalarMessage) return scalarMessage;
+  if (
+    responseDetails.rawErrorExcerpt &&
+    responseDetails.rawErrorExcerpt !== INVALID_ERROR_RESPONSE_MESSAGE
+  ) {
+    return responseDetails.rawErrorExcerpt;
+  }
 
   return `HTTP ${response.status}${contentType ? ` ${contentType}` : ""}`;
 };

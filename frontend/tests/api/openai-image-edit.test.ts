@@ -164,12 +164,12 @@ describe("POST /api/openai/image-edit", () => {
     expect(editOpenAiImageMock).not.toHaveBeenCalled();
   });
 
-  it("rejects stale non-provider GPT Image 2 sizes before billing", async () => {
+  it("rejects unsupported GPT Image 2 sizes before billing", async () => {
     const req = {
       method: "POST",
       body: {
         prompt: "restyle this photo",
-        size: "2048x2048",
+        size: "4096x4096",
         quality: "medium",
         images: [{ image_url: "https://example.com/base.png" }],
       },
@@ -181,6 +181,41 @@ describe("POST /api/openai/image-edit", () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
     expect(editOpenAiImageMock).not.toHaveBeenCalled();
+  });
+
+  it("logs unexpected auth failures before media resolution, billing, or provider dispatch", async () => {
+    requireApiUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
+
+    const req = {
+      method: "POST",
+      body: {
+        prompt: "cinematic portrait edit",
+        size: "1024x1024",
+        quality: "medium",
+        images: [{ image_url: "https://example.com/base.png" }],
+      },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "openai-image-edit.auth",
+        scope: "generation",
+      })
+    );
+    expect(readInternalMediaRefsFromPayloadMock).not.toHaveBeenCalled();
+    expect(readInternalEditMediaRefsFromPayloadMock).not.toHaveBeenCalled();
+    expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
+    expect(editOpenAiImageMock).not.toHaveBeenCalled();
+    expect(persistGeneratedImageAssetMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to edit image",
+      details: "auth verifier exploded",
+    });
   });
 
   it("stops before provider submission when billing already returned a fail-closed response", async () => {

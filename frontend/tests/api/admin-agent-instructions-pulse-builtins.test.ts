@@ -46,6 +46,27 @@ describe("admin pulse built-ins API", () => {
     requireAdminUserMock.mockResolvedValue({ id: "admin-1", email: "admin@example.com" });
   });
 
+  it("logs admin auth verifier exceptions before catalog access", async () => {
+    const authError = new Error("auth verifier unavailable");
+    requireAdminUserMock.mockRejectedValueOnce(authError);
+
+    const req = { method: "GET" };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(resolveCreatePulseBuiltInCatalogForAdminMock).not.toHaveBeenCalled();
+    expect(saveCreatePulseBuiltInCatalogMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: authError,
+      routeLabel: "api/admin/agent-instructions/pulse-builtins.auth",
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Failed to load built-in guided workflows.",
+    });
+  });
+
   it("returns the resolved Pulse catalog", async () => {
     resolveCreatePulseBuiltInCatalogForAdminMock.mockResolvedValue({
       builtInDefinitions: CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS,

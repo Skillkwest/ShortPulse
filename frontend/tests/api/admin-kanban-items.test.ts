@@ -86,6 +86,66 @@ describe("admin kanban API routes", () => {
     expect(res.json).toHaveBeenCalledWith({ items: [item] });
   });
 
+  it("logs admin auth verifier exceptions before board reads or writes", async () => {
+    const authError = new Error("auth verifier unavailable");
+    const cases = [
+      {
+        handler: itemsHandler,
+        req: { method: "GET", body: {} },
+        routeLabel: "admin/kanban/items.auth",
+        response: { error: "Unable to update admin kanban board." },
+      },
+      {
+        handler: itemHandler,
+        req: { method: "GET", query: { itemId: "task-1" }, body: {} },
+        routeLabel: "admin/kanban/items/[itemId].auth",
+        response: { error: "Unable to update admin kanban item." },
+      },
+      {
+        handler: moveHandler,
+        req: { method: "POST", query: { itemId: "task-1" }, body: { status: "review" } },
+        routeLabel: "admin/kanban/items/[itemId]/move.auth",
+        response: { error: "Unable to move admin kanban item." },
+      },
+      {
+        handler: archiveHandler,
+        req: { method: "POST", query: { itemId: "task-1" }, body: {} },
+        routeLabel: "admin/kanban/items/[itemId]/archive.auth",
+        response: { error: "Unable to archive admin kanban item." },
+      },
+      {
+        handler: activityHandler,
+        req: { method: "GET", query: { itemId: "task-1" }, body: {} },
+        routeLabel: "admin/kanban/items/[itemId]/activity.auth",
+        response: { error: "Unable to load admin kanban item activity." },
+      },
+      {
+        handler: actionLogHandler,
+        req: { method: "GET", query: { limit: "25" }, body: {} },
+        routeLabel: "admin/kanban/activity.auth",
+        response: { error: "Unable to load Ophestivus action log." },
+      },
+    ];
+
+    for (const testCase of cases) {
+      vi.clearAllMocks();
+      requireAdminUserMock.mockRejectedValueOnce(authError);
+      const res = createMockResponse();
+
+      await testCase.handler(testCase.req as never, res as never);
+
+      expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+      expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+        req: testCase.req,
+        error: authError,
+        routeLabel: testCase.routeLabel,
+        scope: "app",
+      });
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith(testCase.response);
+    }
+  });
+
   it("creates backlog items with normalized input", async () => {
     const item = makeItem({ title: "Ship board", details: "Review docs" });
     createAdminKanbanItemMock.mockResolvedValue(item);

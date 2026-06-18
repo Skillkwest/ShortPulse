@@ -233,7 +233,7 @@ const deleteUploadedMotionVideoResult = async ({
   storagePath: string;
   mode: "stale" | "retire";
 }): Promise<void> => {
-  const response = await fetchWithAuth("/api/upload-video", {
+  const response = await fetchWithAuth("/api/media/stage-motion-reference-video", {
     method: "DELETE",
     headers: {
       "Content-Type": "application/json",

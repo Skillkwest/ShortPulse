@@ -42,7 +42,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const adminUser = await requireAdminUser(req, res);
+  let adminUser;
+  try {
+    adminUser = await requireAdminUser(req, res);
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "admin/pricing/storage-offers/create.auth",
+      metadata: {
+        source: "api.admin.pricing.storage-offers.create",
+      },
+    });
+    return res.status(500).json({
+      error: "Failed to create the next storage add-on offer.",
+    });
+  }
   if (!adminUser) return;
 
   const body = (req.body ?? {}) as CreateStorageOfferRequest;

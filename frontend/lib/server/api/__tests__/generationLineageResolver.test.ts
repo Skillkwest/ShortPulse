@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { resolveGenerationLineageByProviderRequest } from "../generationLineageResolver";
+import {
+  resolveGenerationLineageByProviderRequest,
+  resolveGenerationLineageBySourceRef,
+} from "../generationLineageResolver";
 
 const lookupGenerationAttemptByProviderRequestMock = vi.fn();
 const readGenerationProjectionLinkByGenerationIdMock = vi.fn();
 const readGenerationProjectionLinkByProviderRequestIdMock = vi.fn();
 const readGenerationProjectionLinkByRequestIdMock = vi.fn();
+const readGenerationProjectionLinkBySourceRefMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
 
 vi.mock("../generationAttempts", () => ({
@@ -19,6 +23,8 @@ vi.mock("../generationProjection", () => ({
     readGenerationProjectionLinkByProviderRequestIdMock(...args),
   readGenerationProjectionLinkByRequestId: (...args: unknown[]) =>
     readGenerationProjectionLinkByRequestIdMock(...args),
+  readGenerationProjectionLinkBySourceRef: (...args: unknown[]) =>
+    readGenerationProjectionLinkBySourceRefMock(...args),
 }));
 
 vi.mock("../supabaseAdmin", () => ({
@@ -33,10 +39,12 @@ const createMockSupabase = ({
     user_id?: string | null;
     model_id?: string | null;
     request_id?: string | null;
+    metadata?: Record<string, unknown> | null;
   } | null;
 } = {}) => {
   const generationBuilder: Record<string, unknown> = {};
   generationBuilder.eq = vi.fn(() => generationBuilder);
+  generationBuilder.filter = vi.fn(() => generationBuilder);
   generationBuilder.order = vi.fn(() => generationBuilder);
   generationBuilder.limit = vi.fn(() => generationBuilder);
   generationBuilder.maybeSingle = vi.fn(async () => ({
@@ -61,6 +69,7 @@ describe("resolveGenerationLineageByProviderRequest", () => {
     readGenerationProjectionLinkByGenerationIdMock.mockResolvedValue(null);
     readGenerationProjectionLinkByProviderRequestIdMock.mockResolvedValue(null);
     readGenerationProjectionLinkByRequestIdMock.mockResolvedValue(null);
+    readGenerationProjectionLinkBySourceRefMock.mockResolvedValue(null);
     getSupabaseAdminMock.mockReturnValue(createMockSupabase());
   });
 
@@ -68,6 +77,10 @@ describe("resolveGenerationLineageByProviderRequest", () => {
     lookupGenerationAttemptByProviderRequestMock.mockResolvedValue({
       data: {
         generationId: "gen-attempt-1",
+        providerRequestId: "req-attempt-1",
+        metadata: {
+          source_ref: "source-ref-attempt-metadata-1",
+        },
       },
       error: null,
     });
@@ -96,6 +109,35 @@ describe("resolveGenerationLineageByProviderRequest", () => {
     expect(lookupGenerationAttemptByProviderRequestMock).toHaveBeenCalledWith({
       providerRequestId: "req-attempt-1",
       userId: "user-1",
+    });
+  });
+
+  it("passes injected Supabase admin clients through provider-request lineage", async () => {
+    const injectedSupabase = createMockSupabase();
+    lookupGenerationAttemptByProviderRequestMock.mockResolvedValue({
+      data: {
+        generationId: "gen-attempt-1",
+      },
+      error: null,
+    });
+
+    await expect(
+      resolveGenerationLineageByProviderRequest({
+        providerRequestId: "req-attempt-1",
+        userId: "user-1",
+        includeProjection: false,
+        supabaseAdmin: injectedSupabase as never,
+      })
+    ).resolves.toEqual(
+      expect.objectContaining({
+        generationId: "gen-attempt-1",
+        evidence: ["generation_attempt"],
+      })
+    );
+    expect(lookupGenerationAttemptByProviderRequestMock).toHaveBeenCalledWith({
+      providerRequestId: "req-attempt-1",
+      userId: "user-1",
+      supabaseAdmin: injectedSupabase,
     });
   });
 
@@ -188,6 +230,10 @@ describe("resolveGenerationLineageByProviderRequest", () => {
     lookupGenerationAttemptByProviderRequestMock.mockResolvedValue({
       data: {
         generationId: "gen-recovery-1",
+        providerRequestId: "req-recovery-1",
+        metadata: {
+          source_ref: "source-ref-recovery-1",
+        },
       },
       error: null,
     });
@@ -203,8 +249,8 @@ describe("resolveGenerationLineageByProviderRequest", () => {
       generationAttemptId: null,
       userId: null,
       modelId: null,
-      sourceRef: null,
-      requestId: null,
+      sourceRef: "source-ref-recovery-1",
+      requestId: "req-recovery-1",
       providerRequestId: "req-recovery-1",
       evidence: ["generation_attempt"],
       attemptLookupError: null,
@@ -213,6 +259,80 @@ describe("resolveGenerationLineageByProviderRequest", () => {
     expect(readGenerationProjectionLinkByProviderRequestIdMock).not.toHaveBeenCalled();
     expect(readGenerationProjectionLinkByRequestIdMock).not.toHaveBeenCalled();
     expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+  });
+
+  it("preserves attempt request and source lineage when projection is absent", async () => {
+    lookupGenerationAttemptByProviderRequestMock.mockResolvedValue({
+      data: {
+        id: "attempt-1",
+        generationId: "gen-attempt-1",
+        userId: "user-1",
+        modelId: "model-1",
+        providerRequestId: "req-attempt-1",
+        metadata: {
+          source_ref: "source-ref-attempt-1",
+        },
+      },
+      error: null,
+    });
+
+    await expect(
+      resolveGenerationLineageByProviderRequest({
+        providerRequestId: "req-attempt-1",
+        userId: "user-1",
+      })
+    ).resolves.toEqual({
+      generationId: "gen-attempt-1",
+      generationAttemptId: "attempt-1",
+      userId: "user-1",
+      modelId: "model-1",
+      sourceRef: "source-ref-attempt-1",
+      requestId: "req-attempt-1",
+      providerRequestId: "req-attempt-1",
+      evidence: ["generation_attempt"],
+      attemptLookupError: null,
+    });
+  });
+
+  it("does not let provider-request projection override canonical attempt lineage", async () => {
+    lookupGenerationAttemptByProviderRequestMock.mockResolvedValue({
+      data: {
+        id: "attempt-1",
+        generationId: "gen-attempt-1",
+        userId: "user-1",
+        modelId: "model-1",
+        providerRequestId: "req-attempt-1",
+        metadata: {
+          source_ref: "source-ref-attempt-1",
+        },
+      },
+      error: null,
+    });
+    readGenerationProjectionLinkByGenerationIdMock.mockResolvedValue(null);
+    readGenerationProjectionLinkByProviderRequestIdMock.mockResolvedValue({
+      generationId: "gen-projection-drift-1",
+      sourceRef: "source-ref-projection-drift-1",
+      requestId: "req-attempt-1",
+    });
+
+    await expect(
+      resolveGenerationLineageByProviderRequest({
+        providerRequestId: "req-attempt-1",
+        userId: "user-1",
+      })
+    ).resolves.toEqual({
+      generationId: "gen-attempt-1",
+      generationAttemptId: "attempt-1",
+      userId: "user-1",
+      modelId: "model-1",
+      sourceRef: "source-ref-attempt-1",
+      requestId: "req-attempt-1",
+      providerRequestId: "req-attempt-1",
+      evidence: ["generation_attempt"],
+      attemptLookupError: null,
+    });
+    expect(readGenerationProjectionLinkByProviderRequestIdMock).not.toHaveBeenCalled();
+    expect(readGenerationProjectionLinkByRequestIdMock).not.toHaveBeenCalled();
   });
 
   it("throws attempt lookup errors when recovery requires strict authority", async () => {
@@ -230,5 +350,140 @@ describe("resolveGenerationLineageByProviderRequest", () => {
         throwOnAttemptLookupError: true,
       })
     ).rejects.toThrow("relation generation_attempts does not exist");
+  });
+});
+
+describe("resolveGenerationLineageBySourceRef", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    readGenerationProjectionLinkBySourceRefMock.mockResolvedValue(null);
+    getSupabaseAdminMock.mockReturnValue(createMockSupabase());
+  });
+
+  it("prefers caller-owned ai_generations source-ref metadata before projection", async () => {
+    readGenerationProjectionLinkBySourceRefMock.mockResolvedValue({
+      generationId: "gen-projection-source-1",
+      sourceRef: "source-ref-1",
+      requestId: "req-projection-source-1",
+    });
+    getSupabaseAdminMock.mockReturnValue(
+      createMockSupabase({
+        generationData: {
+          id: "gen-metadata-source-1",
+          user_id: "user-1",
+          model_id: "model-1",
+          request_id: "req-metadata-source-1",
+          metadata: { source_ref: "source-ref-1" },
+        },
+      })
+    );
+
+    await expect(
+      resolveGenerationLineageBySourceRef({
+        sourceRef: " source-ref-1 ",
+        userId: " user-1 ",
+      })
+    ).resolves.toEqual({
+      generationId: "gen-metadata-source-1",
+      generationAttemptId: null,
+      userId: "user-1",
+      modelId: "model-1",
+      sourceRef: "source-ref-1",
+      requestId: "req-metadata-source-1",
+      providerRequestId: "",
+      evidence: ["generation_source_ref"],
+      attemptLookupError: null,
+    });
+    expect(readGenerationProjectionLinkBySourceRefMock).not.toHaveBeenCalled();
+  });
+
+  it("falls back to projection source-ref lineage when canonical metadata is absent", async () => {
+    readGenerationProjectionLinkBySourceRefMock.mockResolvedValue({
+      generationId: "gen-projection-source-1",
+      sourceRef: "source-ref-1",
+      requestId: "req-projection-source-1",
+    });
+
+    await expect(
+      resolveGenerationLineageBySourceRef({
+        sourceRef: "source-ref-1",
+        userId: "user-1",
+      })
+    ).resolves.toEqual({
+      generationId: "gen-projection-source-1",
+      generationAttemptId: null,
+      userId: "user-1",
+      modelId: null,
+      sourceRef: "source-ref-1",
+      requestId: "req-projection-source-1",
+      providerRequestId: "",
+      evidence: ["projection_source_ref"],
+      attemptLookupError: null,
+    });
+    expect(readGenerationProjectionLinkBySourceRefMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      sourceRef: "source-ref-1",
+    });
+  });
+
+  it("uses caller-owned ai_generations source-ref metadata", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createMockSupabase({
+        generationData: {
+          id: "gen-metadata-source-1",
+          user_id: "user-1",
+          model_id: "model-1",
+          request_id: "req-metadata-source-1",
+          metadata: { source_ref: "source-ref-1" },
+        },
+      })
+    );
+
+    await expect(
+      resolveGenerationLineageBySourceRef({
+        sourceRef: "source-ref-1",
+        userId: "user-1",
+      })
+    ).resolves.toEqual({
+      generationId: "gen-metadata-source-1",
+      generationAttemptId: null,
+      userId: "user-1",
+      modelId: "model-1",
+      sourceRef: "source-ref-1",
+      requestId: "req-metadata-source-1",
+      providerRequestId: "",
+      evidence: ["generation_source_ref"],
+      attemptLookupError: null,
+    });
+
+    const supabase = getSupabaseAdminMock.mock.results[0]?.value;
+    expect(supabase.from).toHaveBeenCalledWith("ai_generations");
+  });
+
+  it("uses an injected Supabase admin client for source-ref lookups", async () => {
+    const injectedSupabase = createMockSupabase({
+      generationData: {
+        id: "gen-injected-source-1",
+        user_id: "user-1",
+        model_id: "model-1",
+        request_id: "req-injected-source-1",
+        metadata: { source_ref: "source-ref-1" },
+      },
+    });
+
+    await expect(
+      resolveGenerationLineageBySourceRef({
+        sourceRef: "source-ref-1",
+        userId: "user-1",
+        includeProjection: false,
+        supabaseAdmin: injectedSupabase as never,
+      })
+    ).resolves.toEqual(
+      expect.objectContaining({
+        generationId: "gen-injected-source-1",
+        evidence: ["generation_source_ref"],
+      })
+    );
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
   });
 });

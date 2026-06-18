@@ -62,6 +62,27 @@ describe("POST /api/admin/billing/portal", () => {
     expect(res.status).toHaveBeenCalledWith(405);
   });
 
+  it("returns a safe portal failure when admin auth verification throws unexpectedly", async () => {
+    requireAdminUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
+    const req = { method: "POST", body: { userId: "user-1" } };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(ensureStripeCustomerForUserMock).not.toHaveBeenCalled();
+    expect(stripePostFormMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: expect.any(Error),
+      routeLabel: "admin/billing/portal.auth",
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to create Stripe billing session.",
+    });
+  });
+
   it("creates a Stripe billing portal session for the selected account", async () => {
     stripePostFormMock.mockResolvedValue({ id: "bps_1", url: "https://stripe.test/portal_1" });
 

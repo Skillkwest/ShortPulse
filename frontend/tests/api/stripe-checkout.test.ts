@@ -56,6 +56,25 @@ describe("POST /api/billing/stripe/checkout", () => {
     expect(res.status).toHaveBeenCalledWith(405);
   });
 
+  it("returns a safe checkout failure when auth verification throws unexpectedly", async () => {
+    requireApiUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
+    const req = { method: "POST", body: { packageId: "pkg_studio_10000" } };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(ensureStripeCustomerForUserMock).not.toHaveBeenCalled();
+    expect(stripePostFormMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: expect.any(Error),
+      routeLabel: "billing/stripe/checkout.auth",
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Unable to create checkout session." });
+  });
+
   it("requires packageId", async () => {
     const req = { method: "POST", body: {} };
     const res = createMockResponse();

@@ -101,6 +101,36 @@ describe("POST /api/media/finalize-upload", () => {
     });
   });
 
+  it("logs auth verifier failures before rate limiting or upload finalization", async () => {
+    requireApiUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
+    const req = {
+      method: "POST",
+      body: {
+        destinationTab: "uploaded_images",
+        sourceMimeType: "image/webp",
+        sourceName: "image.webp",
+        sourceStoragePath: "user-1/upload-staging/uploaded_images/image.webp",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        error: expect.any(Error),
+        routeLabel: "media-finalize-upload.auth",
+        scope: "app",
+      })
+    );
+    expect(finalizePreparedMediaUploadForUserMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to finalize media upload",
+    });
+  });
+
   it("returns a sanitized 500 when finalization fails unexpectedly", async () => {
     finalizePreparedMediaUploadForUserMock.mockRejectedValueOnce(
       new Error("storage download exploded")

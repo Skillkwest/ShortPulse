@@ -33,6 +33,8 @@ export type MediaVirtualLayoutFrame = {
   items: MediaVirtualLayoutItem[];
 };
 
+export type MediaVirtualLayoutMode = "masonry" | "chronological-grid";
+
 export type ComputeMediaVirtualLayoutArgs = {
   items: MediaVirtualItem[];
   containerWidth: number;
@@ -42,6 +44,7 @@ export type ComputeMediaVirtualLayoutArgs = {
   maxColumnCount?: number;
   gap: number;
   overscanPx: number;
+  layoutMode?: MediaVirtualLayoutMode;
 };
 
 export type ResolveMediaVirtualWindowArgs = {
@@ -96,6 +99,7 @@ export const computeMediaVirtualLayoutFrame = ({
   targetColumnWidth,
   maxColumnCount,
   gap,
+  layoutMode = "masonry",
 }: Omit<
   ComputeMediaVirtualLayoutArgs,
   "viewportTop" | "viewportHeight" | "overscanPx"
@@ -111,9 +115,42 @@ export const computeMediaVirtualLayoutFrame = ({
     1,
     (toFinitePositive(containerWidth, 1) - safeGap * (columnCount - 1)) / columnCount
   );
-  const columnHeights = new Array<number>(columnCount).fill(0);
   const layoutItems: MediaVirtualLayoutItem[] = [];
 
+  if (layoutMode === "chronological-grid") {
+    let rowTop = 0;
+    for (let rowStart = 0; rowStart < items.length; rowStart += columnCount) {
+      const rowItems = items.slice(rowStart, rowStart + columnCount);
+      const rowHeights = rowItems.map((item) => columnWidth / clampAspectRatio(item.aspectRatio));
+      const rowHeight = rowHeights.length ? Math.max(...rowHeights) : 0;
+      for (let column = 0; column < rowItems.length; column += 1) {
+        const item = rowItems[column];
+        const index = rowStart + column;
+        const itemHeight = rowHeights[column] ?? columnWidth;
+        const left = column * (columnWidth + safeGap);
+        layoutItems.push({
+          id: item.id,
+          index,
+          column,
+          top: rowTop,
+          left,
+          width: columnWidth,
+          height: itemHeight,
+          bottom: rowTop + itemHeight,
+        });
+      }
+      rowTop += rowHeight + safeGap;
+    }
+
+    return {
+      columnCount,
+      columnWidth,
+      totalHeight: Math.max(0, rowTop - safeGap),
+      items: layoutItems,
+    };
+  }
+
+  const columnHeights = new Array<number>(columnCount).fill(0);
   for (let index = 0; index < items.length; index += 1) {
     const item = items[index];
     let targetColumn = 0;
@@ -185,6 +222,7 @@ export const computeMediaVirtualLayout = ({
   maxColumnCount,
   gap,
   overscanPx,
+  layoutMode,
 }: ComputeMediaVirtualLayoutArgs): MediaVirtualLayoutResult => {
   const layout = computeMediaVirtualLayoutFrame({
     items,
@@ -192,6 +230,7 @@ export const computeMediaVirtualLayout = ({
     targetColumnWidth,
     maxColumnCount,
     gap,
+    layoutMode,
   });
 
   return {

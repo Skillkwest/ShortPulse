@@ -4,6 +4,10 @@
  */
 import { cleanupAudioCompanionArt } from "../audioCompanionArt/cleanup";
 import { writeAppErrorLog } from "./appErrorLogs";
+import {
+  resolveGenerationLineageByProviderRequest,
+  resolveGenerationLineageBySourceRef,
+} from "./generationLineageResolver";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 
 type JsonObject = Record<string, unknown>;
@@ -63,26 +67,22 @@ const resolveGenerationIds = async ({
   const normalizedRequestId = normalizeString(requestId);
   if (normalizedGenerationId) ids.add(normalizedGenerationId);
 
-  const addProjectionMatches = async (column: "source_ref" | "request_id", value: string) => {
-    const { data, error } = await adminClient
-      .from("generation_projection")
-      .select("generation_id")
-      .eq("user_id", userId)
-      .eq(column, value)
-      .limit(20);
-    if (error || !Array.isArray(data)) return;
-    data.forEach((row) => {
-      const id = normalizeString((row as Record<string, unknown>).generation_id);
-      if (id) ids.add(id);
-    });
-  };
-
   if (normalizedSourceRef) {
-    await addProjectionMatches("source_ref", normalizedSourceRef);
+    const lineage = await resolveGenerationLineageBySourceRef({
+      userId,
+      sourceRef: normalizedSourceRef,
+      supabaseAdmin: adminClient,
+    }).catch(() => null);
+    if (lineage?.generationId) ids.add(lineage.generationId);
   }
 
   if (normalizedRequestId) {
-    await addProjectionMatches("request_id", normalizedRequestId);
+    const lineage = await resolveGenerationLineageByProviderRequest({
+      userId,
+      providerRequestId: normalizedRequestId,
+      supabaseAdmin: adminClient,
+    }).catch(() => null);
+    if (lineage?.generationId) ids.add(lineage.generationId);
   }
 
   return [...ids];

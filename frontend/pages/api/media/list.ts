@@ -642,8 +642,20 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const user = await requireApiUser(req, res);
+  let user: Awaited<ReturnType<typeof requireApiUser>>;
+  try {
+    user = await requireApiUser(req, res);
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "media-list.auth",
+      scope: "app",
+    });
+    return res.status(500).json({ error: "Failed to load media" });
+  }
   if (!user) return;
+  const userId = user.id;
 
   try {
     const requestBody = asRecord(req.body);
@@ -668,7 +680,7 @@ export default async function handler(
     const limit = clampLimit(surface, requestBody.limit);
     try {
       await assertFolderAccess({
-        userId: user.id,
+        userId,
         folderId,
       });
     } catch (folderError) {
@@ -693,16 +705,16 @@ export default async function handler(
             ? `${selectColumns}, folder_membership:media_folder_media_items!media_folder_media_items_media_file_fk!inner(folder_id,user_id)`
             : selectColumns
         )
-        .eq("user_id", user.id);
-      queryBuilder = withSafeUserScopedStoragePathFilter(queryBuilder, user.id);
-      queryBuilder = withDisplayableMediaArtifactFilter(queryBuilder, user.id);
+        .eq("user_id", userId);
+      queryBuilder = withSafeUserScopedStoragePathFilter(queryBuilder, userId);
+      queryBuilder = withDisplayableMediaArtifactFilter(queryBuilder, userId);
       if (characterScopeExclusionEnabled) {
-        queryBuilder = queryBuilder.not("storage_path", "like", `${user.id}/characters/%`);
+        queryBuilder = queryBuilder.not("storage_path", "like", `${userId}/characters/%`);
       }
       if (folderScoped) {
         queryBuilder = queryBuilder
           .eq("folder_membership.folder_id", folderId)
-          .eq("folder_membership.user_id", user.id);
+          .eq("folder_membership.user_id", userId);
       }
       if (mediaKind) {
         queryBuilder = withMediaKindFilter(queryBuilder, mediaKind);
@@ -774,15 +786,15 @@ export default async function handler(
       }
 
       rows = mergeUniqueRows(fetchedRows, limit)
-        .map((row) => sanitizeMediaListRowForUser({ row, userId: user.id }))
+        .map((row) => sanitizeMediaListRowForUser({ row, userId }))
         .filter((row): row is MediaListRow => row !== null);
       rows = (
         await enrichRowsWithGenerationProjectionMetadata({
           rows,
-          userId: user.id,
+          userId,
         })
       )
-        .map((row) => sanitizeMediaListRowForUser({ row, userId: user.id }))
+        .map((row) => sanitizeMediaListRowForUser({ row, userId }))
         .filter((row): row is MediaListRow => row !== null);
       nextCursor = buildCursor(rows);
       hasMore = rows.length === limit && Boolean(nextCursor);

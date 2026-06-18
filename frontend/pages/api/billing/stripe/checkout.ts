@@ -30,7 +30,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(501).json({ error: "Stripe is not configured on the server yet." });
   }
 
-  const user = await requireApiUser(req, res);
+  let user;
+  try {
+    user = await requireApiUser(req, res);
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "billing/stripe/checkout.auth",
+    });
+    return res.status(500).json({
+      error: "Unable to create checkout session.",
+    });
+  }
   if (!user) {
     return;
   }

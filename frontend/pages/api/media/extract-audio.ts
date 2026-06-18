@@ -72,12 +72,26 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const user = await requireApiUser(req, res);
+  let user: Awaited<ReturnType<typeof requireApiUser>>;
+  try {
+    user = await requireApiUser(req, res);
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "media-extract-audio.auth",
+      scope: "generation",
+    });
+    return res.status(500).json({
+      error: "Unable to extract audio",
+    });
+  }
   if (!user) return;
+  const userId = user.id;
   if (
     !enforceApiRateLimit(req, res, {
       ...EXTRACT_AUDIO_RATE_LIMIT,
-      keyPrefix: `${EXTRACT_AUDIO_RATE_LIMIT.keyPrefix}:${user.id}`,
+      keyPrefix: `${EXTRACT_AUDIO_RATE_LIMIT.keyPrefix}:${userId}`,
     })
   ) {
     return;
@@ -104,7 +118,7 @@ export default async function handler(
     if (sourceStoragePath) {
       const safeStoragePath = assertUserScopedMediaStoragePath({
         path: sourceStoragePath,
-        userId: user.id,
+        userId,
         label: "Voice changer source storage path",
       });
       const stored = await readStoredMediaBuffer({
@@ -118,7 +132,7 @@ export default async function handler(
       const trustedSourceUrl = await assertTrustedRemoteMediaUrl({
         rawUrl: sourceUrl!,
         req,
-        userId: user.id,
+        userId,
         requireUserScope: true,
         label: "Voice changer source URL",
       });
@@ -153,8 +167,8 @@ export default async function handler(
       const extractedBuffer = await fs.readFile(extractedHandle.path);
       const filename = `${sanitizeStem(path.parse(resolvedSourceName).name)}.wav`;
       const storagePath = assertUserScopedMediaStoragePath({
-        path: `${user.id}/voice-changer/staged-audio/${randomUUID()}-${filename}`,
-        userId: user.id,
+        path: `${userId}/voice-changer/staged-audio/${randomUUID()}-${filename}`,
+        userId,
         label: "Extracted voice changer audio storage path",
       });
 

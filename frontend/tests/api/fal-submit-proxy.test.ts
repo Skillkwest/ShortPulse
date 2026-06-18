@@ -887,7 +887,7 @@ describe("createFalSubmitHandler", () => {
       modelId: "kie-ai/seedance-2",
       provider: "kie",
       submitUrl: "https://api.kie.ai/api/v1/jobs/createTask",
-      routeLabel: "Kie Seedance 2.0",
+      routeLabel: "Kie Seedance 2",
     });
 
     const req = {
@@ -956,7 +956,7 @@ describe("createFalSubmitHandler", () => {
       modelId: "kie-ai/seedance-2",
       provider: "kie",
       submitUrl: "https://api.kie.ai/api/v1/jobs/createTask",
-      routeLabel: "Kie Seedance 2.0",
+      routeLabel: "Kie Seedance 2",
     });
 
     const req = {
@@ -1054,7 +1054,7 @@ describe("createFalSubmitHandler", () => {
       modelId: "kie-ai/seedance-2",
       provider: "kie",
       submitUrl: "https://api.kie.ai/api/v1/jobs/createTask",
-      routeLabel: "Kie Seedance 2.0",
+      routeLabel: "Kie Seedance 2",
     });
 
     const req = {

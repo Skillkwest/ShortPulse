@@ -27,7 +27,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(501).json({ error: "Stripe is not configured on the server yet." });
   }
 
-  const adminUser = await requireAdminUser(req, res);
+  let adminUser;
+  try {
+    adminUser = await requireAdminUser(req, res);
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "admin/billing/portal.auth",
+    });
+    return res.status(500).json({
+      error: "Unable to create Stripe billing session.",
+    });
+  }
   if (!adminUser) return;
 
   const normalizedUserId = asSingleString((req.body as PortalRequestBody | null)?.userId).trim();

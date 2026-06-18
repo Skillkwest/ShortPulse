@@ -147,6 +147,27 @@ describe("GET /api/admin/pricing/state", () => {
     expect(res.json).toHaveBeenCalledWith({ error: "Method not allowed" });
   });
 
+  it("returns a safe pricing-state failure when admin auth verification throws unexpectedly", async () => {
+    requireAdminUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
+    const req = { method: "GET" };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(resolveRuntimeModelPricingPolicyMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: expect.any(Error),
+      routeLabel: "admin/pricing/state.auth",
+      metadata: {
+        source: "api.admin.pricing.state",
+      },
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Unable to load pricing state." });
+  });
+
   it("returns current model pricing policy and active catalog rows", async () => {
     listModelConfigsMock.mockReturnValue([
       {

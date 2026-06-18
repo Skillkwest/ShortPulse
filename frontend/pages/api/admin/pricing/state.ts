@@ -346,7 +346,20 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const adminUser = await requireAdminUser(req, res);
+  let adminUser;
+  try {
+    adminUser = await requireAdminUser(req, res);
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "admin/pricing/state.auth",
+      metadata: {
+        source: "api.admin.pricing.state",
+      },
+    });
+    return res.status(500).json({ error: "Unable to load pricing state." });
+  }
   if (!adminUser) return;
 
   try {

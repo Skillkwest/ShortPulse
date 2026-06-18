@@ -661,12 +661,12 @@ describe("MediaLibraryPanel", () => {
     expect(mediaLibraryPanelStylesheet).toMatch(
       /\.media-library-panel\s+\.media-library-modal-grid\.media-library-modal-grid-packed\.media-library-panel-density-grid:not/
     );
+    expect(mediaLibraryPanelStylesheet).toContain("display: grid;");
     expect(mediaLibraryPanelStylesheet).toContain(
-      "column-count: var(--media-library-panel-density-max-columns);"
+      "var(--media-library-panel-density-max-columns),"
     );
-    expect(mediaLibraryPanelStylesheet).toContain(
-      "column-width: var(--media-library-modal-preview-width);"
-    );
+    expect(mediaLibraryPanelStylesheet).toContain("grid-template-columns: repeat(");
+    expect(mediaLibraryPanelStylesheet).toContain("column-count: auto;");
     expect(mediaLibraryPanelStylesheet).toMatch(
       /\.media-library-panel\s+\.media-library-modal-grid\.media-library-modal-grid-packed\.media-library-panel-density-grid\.media-library-modal-grid-virtualized/
     );

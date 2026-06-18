@@ -64,6 +64,9 @@ import {
   normalizeSubmissionTool,
   resolveSubmissionStartUiError,
   shouldSkipTextCreateSubmission,
+  submitLifecycleContractError,
+  submitNotStartedError,
+  type SubmissionInvariantError,
 } from "./taskSubmission/submitInvariants";
 import { prepareSubmissionReferenceInputs } from "./taskSubmission/preflightPreparation";
 import { createSubmissionLifecycleCallbacks } from "./taskSubmission/submissionLifecycle";
@@ -89,10 +92,6 @@ import type {
 } from "./generationFailureReporting";
 
 type GenerationMetadata = Record<string, unknown>;
-type SubmissionInvariantError = Error & {
-  code?: "SUBMIT_NOT_STARTED" | "SUBMIT_LIFECYCLE_CONTRACT";
-  detail?: string;
-};
 
 const PREPARE_REFERENCE_TIMEOUT_ERROR =
   "Preparation timed out before generation started. Please retry.";
@@ -100,21 +99,6 @@ const SUBMIT_NOT_STARTED_USER_ERROR = "Generation failed to start. Please retry.
 const AUTH_SESSION_TIMEOUT_DETAIL = "Session check timed out before provider submit.";
 const hasUsableInternalMediaRefs = (refs: Array<InternalMediaRef | null | undefined>): boolean =>
   refs.some((ref) => Boolean(ref));
-const submitNotStartedError = (detail: string): SubmissionInvariantError => {
-  const error = new Error("Provider task did not start.") as SubmissionInvariantError;
-  error.code = "SUBMIT_NOT_STARTED";
-  error.detail = detail;
-  return error;
-};
-
-const submitLifecycleContractError = (detail: string): SubmissionInvariantError => {
-  const error = new Error(
-    "Provider submission lifecycle contract was violated."
-  ) as SubmissionInvariantError;
-  error.code = "SUBMIT_LIFECYCLE_CONTRACT";
-  error.detail = detail;
-  return error;
-};
 
 type AiStudioTaskSubmissionOptions = AiStudioTaskSubmitOptions & {
   submissionOwner?: AiStudioSubmitPanelKey;

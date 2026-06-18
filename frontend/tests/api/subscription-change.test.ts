@@ -200,6 +200,30 @@ describe("POST /api/billing/subscription/change", () => {
     expect(res.status).toHaveBeenCalledWith(405);
   });
 
+  it("returns a safe subscription-change failure when auth verification throws unexpectedly", async () => {
+    requireApiUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
+    const req = {
+      method: "POST",
+      body: { targetPlanId: "business", billingInterval: "month" },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(ensureStripeCustomerForUserMock).not.toHaveBeenCalled();
+    expect(stripePostFormMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: expect.any(Error),
+      routeLabel: "billing/subscription/change.auth",
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to start the subscription change.",
+    });
+  });
+
   it("creates a targeted portal update flow for a Stripe-managed paid plan", async () => {
     getSupabaseAdminMock.mockReturnValue(
       createSupabaseAdminMock({

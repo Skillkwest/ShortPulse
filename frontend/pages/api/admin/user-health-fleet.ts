@@ -44,7 +44,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const adminUser = await requireAdminUser(req, res);
+  let adminUser: Awaited<ReturnType<typeof requireAdminUser>>;
+  try {
+    adminUser = await requireAdminUser(req, res);
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      routeLabel: "admin/user-health-fleet.auth",
+      error,
+    });
+    return res.status(500).json({ error: "Unable to load fleet health report." });
+  }
   if (!adminUser) return;
 
   const page = asPositiveInt(req.query.page, DEFAULT_PAGE);

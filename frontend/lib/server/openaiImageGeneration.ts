@@ -680,6 +680,7 @@ export const persistGeneratedImageAsset = async ({
     userId,
     resultUrls: [signedResult.data.signedUrl],
     metadata: generationMetadata,
+    supabaseAdmin,
   });
 
   if (autosavePolicyDecision.allowed) {
@@ -710,6 +711,7 @@ export const persistGeneratedImageAsset = async ({
         resultUrl: signedResult.data.signedUrl,
         providerRequestId: resolvedProviderRequestId,
         metadata: generationMetadata,
+        supabaseAdmin,
       });
       outputRows = await persistGenerationOutputRecords({
         generationId,
@@ -718,6 +720,7 @@ export const persistGeneratedImageAsset = async ({
         resultUrls: [signedResult.data.signedUrl],
         mediaFileIds: [mediaFileId],
         metadata: generationMetadata,
+        supabaseAdmin,
       });
     } catch (error) {
       autosaveDecision = "autosave_skipped";

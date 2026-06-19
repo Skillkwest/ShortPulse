@@ -747,7 +747,7 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
       setUploadError(
         error instanceof Error && error.message.trim()
           ? error.message.trim()
-          : "Unable to download the recorded clip right now."
+          : "Unable to export the recorded clip right now."
       );
     } finally {
       setIsUploadingClip(false);
@@ -997,7 +997,7 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
                       disabled={isUploadingClip || !recordedClipFile}
                     >
                       <DownloadSimple size={14} weight="bold" />
-                      <span>Download clip</span>
+                      <span>Export clip</span>
                     </button>
                     <button
                       type="button"

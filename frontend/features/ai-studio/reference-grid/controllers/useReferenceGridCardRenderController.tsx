@@ -98,29 +98,6 @@ const NOOP_AUDIO_PLAYBACK_CONTROLLER: ReferenceGridSingleAudioPlaybackController
   clearActivePlayer: () => undefined,
 };
 
-const resolveCardWorkflowReloadOutput = (
-  output: StudioOutput,
-  card: ReferenceGridVisibleCard
-): StudioOutput => {
-  if (!card.isVideoPreview) return output;
-  if (output.mode === "video") return output;
-  const playableVideoUrl =
-    card.playableMediaUrl?.trim() ||
-    (card.cardPreviewUrl && isVideoUrl(card.cardPreviewUrl) ? card.cardPreviewUrl : null) ||
-    (output.previewUrl && isVideoUrl(output.previewUrl) ? output.previewUrl : null) ||
-    (output.resultUrls ?? []).find((url) => Boolean(url && isVideoUrl(url))) ||
-    null;
-
-  return {
-    ...output,
-    mode: "video",
-    mimeType: output.mimeType?.trim().toLowerCase().startsWith("video/")
-      ? output.mimeType
-      : "video/mp4",
-    previewUrl: output.previewUrl ?? playableVideoUrl ?? undefined,
-  };
-};
-
 /**
  * Returns curated/all-refs card node arrays with unchanged card behavior wiring.
  */
@@ -281,7 +258,6 @@ export const useReferenceGridCardRenderController = ({
       const clearLoadingLabel = shouldClearAsGeneration
         ? "Clear generation from grid"
         : "Remove loading media from grid";
-      const workflowReloadOutput = resolveCardWorkflowReloadOutput(currentOutput, card);
       const audioBackgroundImageUrl =
         currentOutput.mode === "audio" &&
         currentOutput.companionArtUrl &&
@@ -365,7 +341,7 @@ export const useReferenceGridCardRenderController = ({
           onReloadWorkflowOutput={
             onReloadWorkflowOutput
               ? (_output, reloadOptions) => {
-                  onReloadWorkflowOutput(workflowReloadOutput, reloadOptions);
+                  onReloadWorkflowOutput(currentOutput, reloadOptions);
                 }
               : undefined
           }

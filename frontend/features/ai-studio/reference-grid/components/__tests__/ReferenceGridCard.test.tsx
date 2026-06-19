@@ -347,7 +347,7 @@ describe("ReferenceGridCard", () => {
     expect(onReloadWorkflowOutput).toHaveBeenCalledWith(output, { mediaKindHint: "video" });
   });
 
-  it("routes delivered video workflow reload through the video media hint even with image preview state", () => {
+  it("hides workflow reload for delivered videos without video reload metadata", () => {
     const onReloadWorkflowOutput = vi.fn();
     const onSelectOutput = vi.fn();
     const output = createOutput({
@@ -386,13 +386,12 @@ describe("ReferenceGridCard", () => {
       />
     );
 
-    fireEvent.click(screen.getByLabelText("Reload workflow"));
-
-    expect(onSelectOutput).toHaveBeenCalledWith("out-1");
-    expect(onReloadWorkflowOutput).toHaveBeenCalledWith(output, { mediaKindHint: "video" });
+    expect(screen.queryByLabelText("Reload workflow")).toBeNull();
+    expect(onSelectOutput).not.toHaveBeenCalled();
+    expect(onReloadWorkflowOutput).not.toHaveBeenCalled();
   });
 
-  it("routes video-model workflow reload through the video media hint without URL, MIME, or duration hints", () => {
+  it("keeps image-shaped workflow reload on the image media hint without delivery hints", () => {
     const onReloadWorkflowOutput = vi.fn();
     const onSelectOutput = vi.fn();
     const output = createOutput({
@@ -439,7 +438,7 @@ describe("ReferenceGridCard", () => {
     fireEvent.click(screen.getByLabelText("Reload workflow"));
 
     expect(onSelectOutput).toHaveBeenCalledWith("out-1");
-    expect(onReloadWorkflowOutput).toHaveBeenCalledWith(output, { mediaKindHint: "video" });
+    expect(onReloadWorkflowOutput).toHaveBeenCalledWith(output, { mediaKindHint: "image" });
   });
 
   it("places workflow reload immediately to the right of image re-roll", () => {
@@ -514,7 +513,7 @@ describe("ReferenceGridCard", () => {
     expect(screen.queryByLabelText("Reload workflow")).toBeNull();
   });
 
-  it("routes video preview workflow reload through the video media hint", () => {
+  it("hides video preview workflow reload when only image replay metadata exists", () => {
     const onReloadWorkflowOutput = vi.fn();
     const onSelectOutput = vi.fn();
     const output = createOutput({
@@ -548,10 +547,9 @@ describe("ReferenceGridCard", () => {
       />
     );
 
-    fireEvent.click(screen.getByLabelText("Reload workflow"));
-
-    expect(onSelectOutput).toHaveBeenCalledWith("out-1");
-    expect(onReloadWorkflowOutput).toHaveBeenCalledWith(output, { mediaKindHint: "video" });
+    expect(screen.queryByLabelText("Reload workflow")).toBeNull();
+    expect(onSelectOutput).not.toHaveBeenCalled();
+    expect(onReloadWorkflowOutput).not.toHaveBeenCalled();
   });
 
   it("starts and stops video playback on hover", async () => {

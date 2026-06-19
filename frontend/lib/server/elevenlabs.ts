@@ -57,6 +57,7 @@ const ELEVENLABS_TRANSIENT_UPSTREAM_STATUSES = new Set([502, 503, 504]);
 const ELEVENLABS_TRANSIENT_UPSTREAM_CODES = new Set(["rate_limit_exceeded", "system_busy"]);
 const ELEVENLABS_SOUND_EFFECT_MAX_ATTEMPTS = 2;
 const ELEVENLABS_JSON_REQUEST_TIMEOUT_MS = 10_000;
+const GENERATED_AUDIO_REFERENCE_TITLE_MAX_WORDS = 3;
 
 type ElevenLabsMusicDetailedMetadata = {
   composition_plan?: {
@@ -194,8 +195,16 @@ const normalizeOptionalString = (value: unknown): string | null => {
 
 const appendGeneratedAudioTitleCollisionSuffix = (title: string, suffixValue: string): string => {
   const suffix = ` ${suffixValue}`;
+  const wordClampedTitle = title
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, GENERATED_AUDIO_REFERENCE_TITLE_MAX_WORDS - 1)
+    .join(" ");
   const baseMaxLength = Math.max(1, GENERATED_AUDIO_REFERENCE_TITLE_MAX_CHARACTERS - suffix.length);
-  const baseTitle = title.length > baseMaxLength ? title.slice(0, baseMaxLength).trim() : title;
+  const baseTitle =
+    wordClampedTitle.length > baseMaxLength
+      ? wordClampedTitle.slice(0, baseMaxLength).trim()
+      : wordClampedTitle;
   return `${baseTitle || "Audio Reference"}${suffix}`;
 };
 

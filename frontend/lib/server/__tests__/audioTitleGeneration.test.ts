@@ -39,7 +39,7 @@ describe("audioTitleGeneration", () => {
     });
 
     expect(fetchOpenAiCompatibleChatCompletionMock).not.toHaveBeenCalled();
-    expect(title).toBe("West Coast Rap About A Unicorn");
+    expect(title).toBe("West Coast Rap");
     expect(title.length).toBeLessThanOrEqual(GENERATED_SONG_TITLE_MAX_CHARACTERS);
   });
 
@@ -102,7 +102,7 @@ describe("audioTitleGeneration", () => {
     });
 
     expect(fetchOpenAiCompatibleChatCompletionMock).not.toHaveBeenCalled();
-    expect(title).toBe("Cinematic Thunder Crack Cave Echo");
+    expect(title).toBe("Cinematic Thunder Crack");
     expect(title.length).toBeLessThanOrEqual(GENERATED_SONG_TITLE_MAX_CHARACTERS);
   });
 
@@ -132,7 +132,7 @@ describe("audioTitleGeneration", () => {
         promptText: "Welcome to the launch walkthrough for creators",
         voiceName: "Narrator",
       })
-    ).toBe("Welcome To The Launch Walkthrough");
+    ).toBe("Welcome To The");
     expect(
       buildFallbackAudioReferenceTitle({
         sourceMode: "voice-changer",
@@ -141,7 +141,17 @@ describe("audioTitleGeneration", () => {
         sourceName: "take.wav",
         voiceName: "Narrator",
       })
-    ).toBe("I Can Hear The City");
+    ).toBe("I Can Hear");
+  });
+
+  it("limits finalized reference titles to three words including the unique mark", () => {
+    const title = finalizeAudioReferenceTitle({
+      baseTitle: "Launch Walkthrough For Creators",
+      uniqueSeed: "source-ref-word-count",
+    });
+
+    expect(title.split(/\s+/)).toHaveLength(3);
+    expect(title).toMatch(/^Launch Walkthrough [A-Z0-9]{6}$/);
   });
 
   it("clamps finalized generated titles after the unique mark is applied", () => {

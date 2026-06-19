@@ -516,7 +516,7 @@ describe("useAiStudioWorkflowReloadController", () => {
     expect(params.setKlingElements).toHaveBeenCalledWith([{ id: "el-1", frontalImageUrl: "" }]);
   });
 
-  it("uses the video media hint to reload misclassified video references into the video panel", () => {
+  it("blocks video media hints when only image replay metadata is available", () => {
     const output: StudioOutput = {
       ...makeOutput(),
       mode: "image",
@@ -540,30 +540,18 @@ describe("useAiStudioWorkflowReloadController", () => {
     const params = makeParams(output);
     const { result } = renderHook(() => useAiStudioWorkflowReloadController(params));
 
+    let status: ReturnType<typeof result.current.reloadWorkflowFromStudioOutput> | null = null;
     act(() => {
-      result.current.reloadWorkflowFromStudioOutput(output, { mediaKindHint: "video" });
+      status = result.current.reloadWorkflowFromStudioOutput(output, { mediaKindHint: "video" });
     });
 
-    expect(params.setSelectedTool).toHaveBeenCalledWith("video");
-    expect(params.setShowCreateTools).toHaveBeenCalledWith(false);
-    expect(params.setModel).toHaveBeenCalledWith("kie-ai/kling-3.0");
-    expect(params.setSelectedTool.mock.invocationCallOrder[0]).toBeLessThan(
-      params.setModel.mock.invocationCallOrder[0]
-    );
-    expect(params.setVideoReferenceText).toHaveBeenCalledWith("Restore this as video");
-    expect(params.setAspect).toHaveBeenCalledWith("16:9");
-    expect(params.setVideoReferenceMode).toHaveBeenCalledWith("standard");
-    expect(params.setVideoDurationSeconds).toHaveBeenCalledWith(6);
-    expect(params.setReferenceSelectionState).toHaveBeenCalledWith(
-      expect.objectContaining({
-        selectedTool: "video",
-        referenceImageUrl: "https://example.com/first-frame.png",
-      })
-    );
+    expect(status).toEqual({ status: "unsupported_legacy_output", outputId: "out-1" });
+    expect(params.beginManualWorkflowReload).not.toHaveBeenCalled();
+    expect(params.setSelectedTool).not.toHaveBeenCalled();
     expect(params.setEditReferenceText).not.toHaveBeenCalled();
   });
 
-  it("reloads delivered video references into the video panel without a surface hint", () => {
+  it("blocks delivered video identity when only image replay metadata is available", () => {
     const output: StudioOutput = {
       ...makeOutput(),
       mode: "image",
@@ -588,29 +576,18 @@ describe("useAiStudioWorkflowReloadController", () => {
     const params = makeParams(output);
     const { result } = renderHook(() => useAiStudioWorkflowReloadController(params));
 
+    let status: ReturnType<typeof result.current.reloadWorkflowFromStudioOutput> | null = null;
     act(() => {
-      result.current.reloadWorkflowFromStudioOutput(output);
+      status = result.current.reloadWorkflowFromStudioOutput(output);
     });
 
-    expect(params.setSelectedTool).toHaveBeenCalledWith("video");
-    expect(params.setShowCreateTools).toHaveBeenCalledWith(false);
-    expect(params.setModel).toHaveBeenCalledWith("kie-ai/kling-3.0");
-    expect(params.setSelectedTool.mock.invocationCallOrder[0]).toBeLessThan(
-      params.setModel.mock.invocationCallOrder[0]
-    );
-    expect(params.setVideoReferenceText).toHaveBeenCalledWith("Restore this as video");
-    expect(params.setVideoReferenceMode).toHaveBeenCalledWith("standard");
-    expect(params.setVideoDurationSeconds).toHaveBeenCalledWith(6);
-    expect(params.setReferenceSelectionState).toHaveBeenCalledWith(
-      expect.objectContaining({
-        selectedTool: "video",
-        referenceImageUrl: "https://example.com/first-frame.png",
-      })
-    );
+    expect(status).toEqual({ status: "unsupported_legacy_output", outputId: "out-1" });
+    expect(params.beginManualWorkflowReload).not.toHaveBeenCalled();
+    expect(params.setSelectedTool).not.toHaveBeenCalled();
     expect(params.setEditReferenceText).not.toHaveBeenCalled();
   });
 
-  it("uses delivered video identity to reload image-shaped metadata into the video panel", () => {
+  it("blocks delivered video identity when workflow metadata is image-shaped", () => {
     const workflowReload = makeImageReload();
     const output: StudioOutput = {
       ...makeOutput(workflowReload),
@@ -622,32 +599,19 @@ describe("useAiStudioWorkflowReloadController", () => {
     const params = makeParams(output);
     const { result } = renderHook(() => useAiStudioWorkflowReloadController(params));
 
+    let status: ReturnType<typeof result.current.reloadWorkflowFromStudioOutput> | null = null;
     act(() => {
-      result.current.reloadWorkflowFromStudioOutput(output);
+      status = result.current.reloadWorkflowFromStudioOutput(output);
     });
 
-    expect(params.setSelectedTool).toHaveBeenCalledWith("video");
-    expect(params.setShowCreateTools).toHaveBeenCalledWith(false);
-    expect(params.setModel).toHaveBeenCalledWith("kie-ai/kling-3.0");
-    expect(params.setSelectedTool.mock.invocationCallOrder[0]).toBeLessThan(
-      params.setModel.mock.invocationCallOrder[0]
-    );
-    expect(params.setVideoReferenceText).toHaveBeenCalledWith("A luminous harbor");
-    expect(params.setVideoReferenceMode).toHaveBeenCalledWith("keyframes");
-    expect(params.setVideoDurationSeconds).toHaveBeenCalledWith(5);
-    expect(params.setReferenceSelectionState).toHaveBeenCalledWith(
-      expect.objectContaining({
-        selectedTool: "video",
-        referenceImageUrl: "https://example.com/ref-a.png",
-        extraImageUrls: ["https://example.com/ref-b.png", null, null],
-        useReferenceImageIndicator: true,
-      })
-    );
+    expect(status).toEqual({ status: "unsupported_legacy_output", outputId: "out-1" });
+    expect(params.beginManualWorkflowReload).not.toHaveBeenCalled();
+    expect(params.setSelectedTool).not.toHaveBeenCalled();
     expect(params.setStandardCreatePrompt).not.toHaveBeenCalled();
     expect(params.setEditReferenceText).not.toHaveBeenCalled();
   });
 
-  it("uses video model identity to reload image-shaped metadata into the video panel", () => {
+  it("keeps image-shaped workflow metadata on the image reload path", () => {
     const workflowReload = makeImageReload();
     const output: StudioOutput = {
       ...makeOutput(workflowReload),
@@ -662,24 +626,26 @@ describe("useAiStudioWorkflowReloadController", () => {
       result.current.reloadWorkflowFromStudioOutput(output);
     });
 
-    expect(params.setSelectedTool).toHaveBeenCalledWith("video");
-    expect(params.setShowCreateTools).toHaveBeenCalledWith(false);
-    expect(params.setModel).toHaveBeenCalledWith("kie-ai/kling-3.0");
+    expect(params.setSelectedTool).toHaveBeenCalledWith("create");
+    expect(params.setShowCreateTools).toHaveBeenCalledWith(true);
+    expect(params.setModel).toHaveBeenCalledWith("fal-ai/bytedance/seedream/v4.5/text-to-image");
     expect(params.setSelectedTool.mock.invocationCallOrder[0]).toBeLessThan(
       params.setModel.mock.invocationCallOrder[0]
     );
-    expect(params.setVideoReferenceText).toHaveBeenCalledWith("A luminous harbor");
-    expect(params.setVideoReferenceMode).toHaveBeenCalledWith("keyframes");
+    expect(params.setStandardCreatePrompt).toHaveBeenCalledWith("A luminous harbor");
+    expect(params.setVideoReferenceText).not.toHaveBeenCalled();
     expect(params.setVideoDurationSeconds).not.toHaveBeenCalled();
-    expect(params.setReferenceSelectionState).toHaveBeenCalledWith(
+    expect(params.setReferenceSelectionStateForCreateMode).toHaveBeenCalledWith(
+      "standard",
       expect.objectContaining({
-        selectedTool: "video",
+        selectedTool: "create",
         referenceImageUrl: "https://example.com/ref-a.png",
-        extraImageUrls: ["https://example.com/ref-b.png", null, null],
         useReferenceImageIndicator: true,
       })
     );
-    expect(params.setStandardCreatePrompt).not.toHaveBeenCalled();
+    expect(
+      params.setReferenceSelectionStateForCreateMode.mock.calls[0]?.[1].extraImageUrls[0]
+    ).toBe("https://example.com/ref-b.png");
     expect(params.setEditReferenceText).not.toHaveBeenCalled();
   });
 

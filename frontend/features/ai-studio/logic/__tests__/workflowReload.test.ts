@@ -666,19 +666,7 @@ describe("workflowReload", () => {
         },
         { mediaKindHint: "video" }
       )
-    ).toEqual(
-      expect.objectContaining({
-        originTool: "video",
-        panelKind: "video",
-        outputMode: "video",
-        model: { id: "kie-ai/kling-3.0" },
-        payload: expect.objectContaining({
-          kind: "video",
-          videoReferenceMode: "standard",
-          referenceInputs: ["https://example.com/first-frame.png"],
-        }),
-      })
-    );
+    ).toBeNull();
     expect(
       resolveWorkflowReloadConfigForOutput({
         ...baseOutput,
@@ -701,20 +689,7 @@ describe("workflowReload", () => {
           capturedAt: "2026-06-06T12:00:00.000Z",
         },
       })
-    ).toEqual(
-      expect.objectContaining({
-        originTool: "video",
-        panelKind: "video",
-        outputMode: "video",
-        model: { id: "kie-ai/kling-3.0" },
-        payload: expect.objectContaining({
-          kind: "video",
-          videoReferenceMode: "standard",
-          durationSeconds: 6,
-          referenceInputs: ["https://example.com/first-frame.png"],
-        }),
-      })
-    );
+    ).toBeNull();
     expect(
       resolveWorkflowReloadConfigForOutput({
         ...baseOutput,
@@ -723,18 +698,7 @@ describe("workflowReload", () => {
         previewUrl: "https://example.com/signed-video",
         workflowReload: workflowReload ?? undefined,
       })
-    ).toEqual(
-      expect.objectContaining({
-        originTool: "video",
-        panelKind: "video",
-        outputMode: "video",
-        model: { id: "kie-ai/kling-3.0" },
-        payload: expect.objectContaining({
-          kind: "video",
-          videoReferenceMode: "standard",
-        }),
-      })
-    );
+    ).toBeNull();
     expect(
       resolveWorkflowReloadConfigForOutput({
         ...baseOutput,
@@ -745,13 +709,11 @@ describe("workflowReload", () => {
       })
     ).toEqual(
       expect.objectContaining({
-        originTool: "video",
-        panelKind: "video",
-        outputMode: "video",
-        model: { id: "kie-ai/kling-3.0" },
+        originTool: "create",
+        panelKind: "create",
+        outputMode: "image",
         payload: expect.objectContaining({
-          kind: "video",
-          durationSeconds: null,
+          kind: "image",
         }),
       })
     );

@@ -7,6 +7,8 @@ import type { PulseChatThreadSnapshot } from "./pulseChatThread";
 
 const DEFAULT_THREAD_TITLE = "New chat";
 const MAX_THREAD_TITLE_LENGTH = 56;
+const MAX_THREAD_TITLE_WORDS = 4;
+const TITLE_WORD_PATTERN = /[\p{L}\p{N}]+(?:['-][\p{L}\p{N}]+)?/gu;
 
 const normalizeText = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
@@ -26,8 +28,10 @@ const firstSentence = (value: string): string => {
 
 const clipTitle = (value: string): string => {
   const normalized = value.trim().replace(/\s+/g, " ");
-  if (normalized.length <= MAX_THREAD_TITLE_LENGTH) return normalized;
-  return `${normalized.slice(0, MAX_THREAD_TITLE_LENGTH - 3).trimEnd()}...`;
+  const words = normalized.match(TITLE_WORD_PATTERN);
+  const wordLimited = words?.slice(0, MAX_THREAD_TITLE_WORDS).join(" ") ?? normalized;
+  if (wordLimited.length <= MAX_THREAD_TITLE_LENGTH) return wordLimited;
+  return `${wordLimited.slice(0, MAX_THREAD_TITLE_LENGTH - 3).trimEnd()}...`;
 };
 
 const resolveMessageContent = (

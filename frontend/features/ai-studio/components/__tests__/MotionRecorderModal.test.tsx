@@ -133,7 +133,7 @@ describe("MotionRecorderModal", () => {
     expect(mediaStreamTrackStop).toHaveBeenCalled();
   });
 
-  it("downloads the recorded clip from the review state", async () => {
+  it("exports the recorded clip from the review state", async () => {
     const mediaStream = {
       getTracks: () => [{ stop: vi.fn() }],
       getVideoTracks: () => [{ getSettings: () => ({ deviceId: "camera-1" }) }],
@@ -231,7 +231,7 @@ describe("MotionRecorderModal", () => {
         return element;
       });
 
-    fireEvent.click(await screen.findByRole("button", { name: "Download clip" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Export clip" }));
 
     await waitFor(() => {
       expect(linkClickMock).toHaveBeenCalledTimes(1);

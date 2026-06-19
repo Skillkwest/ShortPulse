@@ -2,6 +2,7 @@ import {
   createEmptyAiStudioSessionSnapshot,
   patchAiStudioSessionSnapshotCanvas,
   patchAiStudioSessionSnapshotOutputs,
+  patchAiStudioSessionSnapshotWorkspace,
   patchAiStudioSessionSnapshotPulseChats,
   type AiStudioSessionSnapshot,
   type AiStudioSessionSnapshotV2,
@@ -10,6 +11,7 @@ import {
   createProjectDurableAiStudioSessionCanvasState,
   parseAiStudioSessionCanvasState,
 } from "./sessionSnapshotCanvas";
+import { sanitizeRightRailLayoutSnapshot } from "./rightRailLayout";
 import { createAiStudioProjectWorkspaceSnapshot } from "../../../lib/ai-studio-session/projectWorkspaceSnapshot";
 
 const normalizeProjectRestoreOutputIds = (
@@ -43,19 +45,18 @@ export const createProjectRestoreSnapshot = (
       activeOutputIds
     ),
   });
-  const pulseChats =
-    snapshot.schemaVersion >= 2 && "pulseChats" in snapshot
-      ? (snapshot as AiStudioSessionSnapshotV2).pulseChats
-      : undefined;
   if (snapshot.schemaVersion < 2) return outputRestoredSnapshot;
+  const snapshotV2 = snapshot as AiStudioSessionSnapshotV2;
+  const workspaceRestoredSnapshot = patchAiStudioSessionSnapshotWorkspace(outputRestoredSnapshot, {
+    rightRailLayout: sanitizeRightRailLayoutSnapshot(snapshotV2.workspace.rightRailLayout),
+  });
+  const pulseChats = "pulseChats" in snapshot ? snapshotV2.pulseChats : undefined;
 
-  const parsedCanvas = parseAiStudioSessionCanvasState(
-    (snapshot as AiStudioSessionSnapshotV2).canvas ?? null
-  );
+  const parsedCanvas = parseAiStudioSessionCanvasState(snapshotV2.canvas ?? null);
   const durableCanvas = createProjectDurableAiStudioSessionCanvasState(parsedCanvas);
   const canvasRestoredSnapshot = durableCanvas
-    ? patchAiStudioSessionSnapshotCanvas(outputRestoredSnapshot, durableCanvas)
-    : outputRestoredSnapshot;
+    ? patchAiStudioSessionSnapshotCanvas(workspaceRestoredSnapshot, durableCanvas)
+    : workspaceRestoredSnapshot;
   return pulseChats !== undefined
     ? patchAiStudioSessionSnapshotPulseChats(canvasRestoredSnapshot, pulseChats)
     : canvasRestoredSnapshot;

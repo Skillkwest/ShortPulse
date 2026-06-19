@@ -91,6 +91,18 @@ describe("useAiStudioPageProjectSessionRuntime", () => {
           selectedCharacterLookId: "look-1",
           prompt: "A portrait",
           standardPrompt: "A portrait",
+          rightRailLayout: {
+            schemaVersion: 1,
+            panels: {
+              canvas: true,
+              quickSlot: false,
+              referenceGrid: true,
+            },
+            splits: {
+              canvasInventoryTopRatio: 0.42,
+              quickSlotReferenceTopRatio: 0.68,
+            },
+          },
         }),
         {
           active: [
@@ -156,6 +168,18 @@ describe("useAiStudioPageProjectSessionRuntime", () => {
     expect(normalized.workspace.model).toBeNull();
     expect(normalized.workspace.selectedCharacterId).toBeNull();
     expect(normalized.workspace.selectedCharacterLookId).toBeNull();
+    expect(normalized.workspace.rightRailLayout).toEqual({
+      schemaVersion: 1,
+      panels: {
+        canvas: true,
+        quickSlot: false,
+        referenceGrid: true,
+      },
+      splits: {
+        canvasInventoryTopRatio: 0.42,
+        quickSlotReferenceTopRatio: 0.68,
+      },
+    });
     expect(normalized.outputs.active.map((output) => output.id)).toEqual(["out-1"]);
     expect(normalized.outputs.archived).toEqual([]);
     expect(normalized.outputs.activeOutputId).toBeNull();

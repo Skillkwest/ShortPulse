@@ -117,7 +117,7 @@ describe("mediaLibraryWorkflowReload", () => {
     });
   });
 
-  it("uses saved video file identity when workflow metadata is legacy image-shaped", () => {
+  it("does not reload saved video rows with legacy image-shaped workflow metadata", () => {
     const row = createRow({
       filename: "wolf-motion.mp4",
       file_type: "video/mp4",
@@ -138,20 +138,13 @@ describe("mediaLibraryWorkflowReload", () => {
       mediaSource: "generated",
       workflowReload,
     });
+    expect(canReloadMediaLibraryWorkflow(row)).toBe(false);
     expect(
       output ? resolveWorkflowReloadConfigForOutput(output, { mediaKindHint: "video" }) : null
-    ).toMatchObject({
-      originTool: "video",
-      panelKind: "video",
-      outputMode: "video",
-      model: { id: "kie-ai/kling-3.0" },
-      payload: expect.objectContaining({
-        kind: "video",
-      }),
-    });
+    ).toBeNull();
   });
 
-  it("uses path-backed saved video identity when legacy file type metadata is stale", () => {
+  it("does not reload path-backed saved videos when workflow metadata is legacy image-shaped", () => {
     const row = createRow({
       filename: "wolf-motion.mp4",
       file_type: "image/png",
@@ -171,16 +164,10 @@ describe("mediaLibraryWorkflowReload", () => {
       mediaSource: "generated",
       workflowReload,
     });
+    expect(canReloadMediaLibraryWorkflow(row)).toBe(false);
     expect(
       output ? resolveWorkflowReloadConfigForOutput(output, { mediaKindHint: "video" }) : null
-    ).toMatchObject({
-      originTool: "video",
-      panelKind: "video",
-      outputMode: "video",
-      payload: expect.objectContaining({
-        kind: "video",
-      }),
-    });
+    ).toBeNull();
   });
 
   it("preserves video workflow sidecar references from saved AI Studio media rows", () => {

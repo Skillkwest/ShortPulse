@@ -134,7 +134,7 @@ describe("useReferenceGridCardRenderController", () => {
     expect(onReloadWorkflowOutput).toHaveBeenCalledWith(output, { mediaKindHint: "video" });
   });
 
-  it("normalizes visual video cards before reloading image-shaped output metadata", () => {
+  it("hides reload on visual video cards with image-shaped workflow metadata", () => {
     const onReloadWorkflowOutput = vi.fn();
     const onSelectOutput = vi.fn();
     const output = createOutput({
@@ -209,22 +209,11 @@ describe("useReferenceGridCardRenderController", () => {
       })
     );
 
-    const { getByLabelText } = render(<>{result.current.allRefsCardNodes}</>);
+    const { queryByLabelText } = render(<>{result.current.allRefsCardNodes}</>);
 
-    fireEvent.click(getByLabelText("Reload workflow"));
-
-    expect(onSelectOutput).toHaveBeenCalledWith("legacy-video-1");
-    const [reloadOutput, options] = onReloadWorkflowOutput.mock.calls[0] ?? [];
-    expect(reloadOutput).toEqual(
-      expect.objectContaining({
-        id: "legacy-video-1",
-        mode: "video",
-        mimeType: "video/mp4",
-        modelId: "kie-ai/kling-3.0",
-        previewUrl: "https://example.com/generated-video.mp4",
-      })
-    );
-    expect(options).toEqual({ mediaKindHint: "video" });
+    expect(queryByLabelText("Reload workflow")).toBeNull();
+    expect(onSelectOutput).not.toHaveBeenCalled();
+    expect(onReloadWorkflowOutput).not.toHaveBeenCalled();
   });
 
   it("keeps duplicate quick-slot and all-refs audio players mutually exclusive", () => {

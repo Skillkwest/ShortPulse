@@ -861,8 +861,6 @@ export const deriveImageWorkflowReloadFromGenerationReplay = (
   });
 };
 
-const VIDEO_MODEL_ID_PATTERN = /(?:kling|veo|seedance|omnihuman|video)/i;
-
 const workflowPayloadKindToMediaKind = (
   payloadKind: unknown
 ): WorkflowReloadMediaKindHint | null => {
@@ -878,10 +876,10 @@ const workflowPayloadKindToMediaKind = (
   return null;
 };
 
-const outputModeToMediaKind = (outputMode: unknown): WorkflowReloadMediaKindHint | null => {
-  if (outputMode === "image" || outputMode === "video" || outputMode === "audio") {
-    return outputMode;
-  }
+const studioOutputModeToMediaKind = (
+  mode: StudioOutput["mode"] | null | undefined
+): WorkflowReloadMediaKindHint | null => {
+  if (mode === "image" || mode === "video" || mode === "audio") return mode;
   return null;
 };
 
@@ -895,9 +893,7 @@ const mimeTypeToMediaKind = (
   return null;
 };
 
-const hasVideoDelivery = (output: StudioOutput): boolean => {
-  if (output.mode === "video") return true;
-  if (mimeTypeToMediaKind(output.mimeType) === "video") return true;
+const deliveryUrlsToMediaKind = (output: StudioOutput): WorkflowReloadMediaKindHint | null => {
   const urls = [
     output.previewUrl,
     output.previewPosterUrl,
@@ -906,149 +902,31 @@ const hasVideoDelivery = (output: StudioOutput): boolean => {
     output.localObjectUrl,
     ...(output.resultUrls ?? []),
   ];
-  return urls.some((url) => Boolean(url && isVideoUrl(url)));
+  if (urls.some((url) => Boolean(url && isVideoUrl(url)))) return "video";
+  if (urls.some((url) => Boolean(url && isAudioUrl(url)))) return "audio";
+  return null;
 };
 
-const hasNonImageDelivery = (output: StudioOutput): boolean => {
-  if (hasVideoDelivery(output) || output.mode === "audio") return true;
-  if (mimeTypeToMediaKind(output.mimeType) === "audio") return true;
-  const urls = [
-    output.previewUrl,
-    output.previewPosterUrl,
-    output.previewStoragePath,
-    output.fullStoragePath,
-    output.localObjectUrl,
-    ...(output.resultUrls ?? []),
-  ];
-  return urls.some((url) => Boolean(url && isAudioUrl(url)));
-};
-
-const asWorkflowReloadRecord = (value: unknown): Record<string, unknown> | null =>
-  isObject(value) ? value : null;
+const resolveVisibleMediaKindForOutput = (
+  output: StudioOutput,
+  options: ResolveWorkflowReloadConfigOptions = {}
+): WorkflowReloadMediaKindHint | null =>
+  options.mediaKindHint ??
+  mimeTypeToMediaKind(output.mimeType) ??
+  deliveryUrlsToMediaKind(output) ??
+  studioOutputModeToMediaKind(output.mode);
 
 export const inferWorkflowReloadMediaKindForOutput = (
   output: StudioOutput,
   options: ResolveWorkflowReloadConfigOptions = {}
 ): WorkflowReloadMediaKindHint => {
   if (options.mediaKindHint) return options.mediaKindHint;
-
-  const rawConfig = asWorkflowReloadRecord(output.workflowReload);
-  const rawPayload = asWorkflowReloadRecord(rawConfig?.payload);
   const validConfig = isWorkflowReloadConfigV1(output.workflowReload)
     ? output.workflowReload
     : null;
   const validPayloadKind = workflowPayloadKindToMediaKind(validConfig?.payload.kind);
-  if (validPayloadKind === "video" || validPayloadKind === "audio") return validPayloadKind;
-
-  const rawOutputMode = outputModeToMediaKind(rawConfig?.outputMode);
-  if (rawOutputMode === "video" || rawOutputMode === "audio") return rawOutputMode;
-  const rawPayloadKind = workflowPayloadKindToMediaKind(rawPayload?.kind);
-  if (rawPayloadKind === "video" || rawPayloadKind === "audio") return rawPayloadKind;
-  if (rawConfig?.panelKind === "video" || rawConfig?.originTool === "video") return "video";
-
-  const mimeKind = mimeTypeToMediaKind(output.mimeType);
-  if (mimeKind) return mimeKind;
-  if (output.mode === "video" || hasVideoDelivery(output)) return "video";
-  if (output.mode === "audio" || hasNonImageDelivery(output)) return "audio";
-  const videoModelId = resolveVideoFallbackModelId(
-    output,
-    rawConfig,
-    validConfig?.payload.kind === "image" ? validConfig : null
-  );
-  if (videoModelId && VIDEO_MODEL_ID_PATTERN.test(videoModelId)) {
-    return "video";
-  }
-  if (validPayloadKind === "image" || rawOutputMode === "image" || rawPayloadKind === "image") {
-    return "image";
-  }
-  return "image";
-};
-
-const resolveVideoFallbackModelId = (
-  output: StudioOutput,
-  rawConfig: Record<string, unknown> | null,
-  imageReload: WorkflowReloadConfigV1 | null
-): string | null => {
-  const outputModelId = asTrimmedString(output.modelId);
-  if (outputModelId) return outputModelId;
-  const rawModelId = normalizeModel(rawConfig?.model)?.id ?? null;
-  if (rawModelId && VIDEO_MODEL_ID_PATTERN.test(rawModelId)) return rawModelId;
-  const replayModelId = imageReload?.model.id ?? null;
-  if (replayModelId && VIDEO_MODEL_ID_PATTERN.test(replayModelId)) return replayModelId;
-  return null;
-};
-
-const deriveVideoWorkflowReloadFromOutput = (
-  output: StudioOutput
-): WorkflowReloadConfigV1 | null => {
-  const rawConfig = asWorkflowReloadRecord(output.workflowReload);
-  const rawPayload = asWorkflowReloadRecord(rawConfig?.payload);
-  const rawPrompt = normalizePrompt(rawConfig?.prompt);
-  const rawProjectId = asOptionalString(rawConfig?.projectId);
-
-  if (rawPayload?.kind === "video") {
-    const rawVideoModelId = normalizeModel(rawConfig?.model)?.id ?? asTrimmedString(output.modelId);
-    if (rawVideoModelId) {
-      const coercedVideoReload = buildWorkflowReloadConfigV1({
-        capturedAt: asTrimmedString(rawConfig?.capturedAt) ?? undefined,
-        originTool: isOriginTool(rawConfig?.originTool) ? rawConfig?.originTool : "video",
-        panelKind: "video",
-        outputMode: "video",
-        projectId: rawProjectId,
-        prompt: rawPrompt ?? { display: output.prompt },
-        model: { id: rawVideoModelId },
-        payload: rawPayload as unknown as WorkflowReloadVideoPayload,
-      });
-      if (coercedVideoReload) return coercedVideoReload;
-    }
-  }
-
-  const imageReload =
-    isWorkflowReloadConfigV1(output.workflowReload) &&
-    output.workflowReload.payload.kind === "image"
-      ? output.workflowReload
-      : deriveImageWorkflowReloadFromGenerationReplay(output.generationReplay);
-  const imagePayload = imageReload?.payload.kind === "image" ? imageReload.payload : null;
-  const modelId = resolveVideoFallbackModelId(output, rawConfig, imageReload);
-  const aspect = asTrimmedString(imagePayload?.aspect) ?? asTrimmedString(output.aspect);
-  if (!modelId || !aspect) return null;
-
-  const referenceInputs = imagePayload?.referenceInputs ?? [];
-  const internalMediaRefs = imagePayload?.internalMediaRefs ?? [];
-  const durationSeconds =
-    typeof output.durationMs === "number" && Number.isFinite(output.durationMs)
-      ? Math.max(0, Math.round(output.durationMs / 1000))
-      : null;
-
-  return buildWorkflowReloadConfigV1({
-    capturedAt: imageReload?.capturedAt,
-    originTool: "video",
-    panelKind: "video",
-    outputMode: "video",
-    projectId: imageReload?.projectId ?? rawProjectId,
-    prompt: imageReload?.prompt ?? rawPrompt ?? { display: output.prompt },
-    model: { id: modelId },
-    payload: {
-      kind: "video",
-      aspect,
-      videoReferenceMode: referenceInputs.length >= 2 ? "keyframes" : "standard",
-      durationSeconds,
-      resolution: null,
-      generateAudio: null,
-      cameraFixed: null,
-      autoFix: null,
-      referenceInputs,
-      internalMediaRefs,
-      styleContext: imagePayload?.styleContext ?? output.styleContext,
-      seedance2InputMode: null,
-      seedance2ReferenceImageUrls: [],
-      seedance2ReferenceVideoUrls: [],
-      seedance2ReferenceAudioUrls: [],
-      seedance2ReturnLastFrame: null,
-      seedance2WebSearch: null,
-      klingElements: [],
-    },
-  });
+  if (validPayloadKind) return validPayloadKind;
+  return resolveVisibleMediaKindForOutput(output, options) ?? "image";
 };
 
 export const resolveWorkflowReloadConfigForOutput = (
@@ -1058,20 +936,17 @@ export const resolveWorkflowReloadConfigForOutput = (
   const workflowReload = isWorkflowReloadConfigV1(output.workflowReload)
     ? output.workflowReload
     : null;
-  if (workflowReload?.payload.kind === "video") return workflowReload;
-  if (
-    workflowReload &&
-    workflowPayloadKindToMediaKind(workflowReload.payload.kind) === "audio" &&
-    (options.mediaKindHint === "video" || hasVideoDelivery(output))
-  ) {
-    return null;
+  if (workflowReload) {
+    const reloadMediaKind = workflowPayloadKindToMediaKind(workflowReload.payload.kind);
+    const visibleMediaKind = resolveVisibleMediaKindForOutput(output, options);
+    if (reloadMediaKind && visibleMediaKind && reloadMediaKind !== visibleMediaKind) {
+      return null;
+    }
+    return workflowReload;
   }
+
   const mediaKind = inferWorkflowReloadMediaKindForOutput(output, options);
-  if (mediaKind === "video") {
-    return deriveVideoWorkflowReloadFromOutput(output);
-  }
-  if (workflowReload) return workflowReload;
-  if (output.workflowReload != null || mediaKind === "audio" || hasNonImageDelivery(output)) {
+  if (output.workflowReload != null || mediaKind !== "image") {
     return null;
   }
   return deriveImageWorkflowReloadFromGenerationReplay(output.generationReplay);

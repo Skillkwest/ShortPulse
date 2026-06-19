@@ -3,6 +3,7 @@ import { fetchOpenAiCompatibleChatCompletion } from "./api/openAiCompat";
 
 export const GENERATED_AUDIO_REFERENCE_TITLE_MAX_CHARACTERS = 34;
 export const GENERATED_SONG_TITLE_MAX_CHARACTERS = GENERATED_AUDIO_REFERENCE_TITLE_MAX_CHARACTERS;
+const GENERATED_AUDIO_REFERENCE_TITLE_MAX_WORDS = 3;
 
 const TITLE_GENERATION_TIMEOUT_MS = 2_000;
 const UNTITLED_TRACK_TITLE = "Untitled Track";
@@ -52,21 +53,31 @@ export type GenerateSoundEffectTitleInput = {
   uniqueSeed?: string | null;
 };
 
+const clampWords = (value: string, maxWords: number): string =>
+  value.split(/\s+/).filter(Boolean).slice(0, maxWords).join(" ");
+
 const normalizeString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim().replace(/\s+/g, " ");
   return trimmed.length > 0 ? trimmed : null;
 };
 
-export const clampGeneratedSongTitle = (value: unknown): string | null => {
+export const clampGeneratedSongTitle = (
+  value: unknown,
+  options: { maxWords?: number } = {}
+): string | null => {
   const normalized = normalizeString(value)
     ?.replace(/^["'`]+|["'`]+$/g, "")
     .replace(/[<>]/g, "")
     .trim();
   if (!normalized) return null;
-  return normalized.length > GENERATED_SONG_TITLE_MAX_CHARACTERS
-    ? normalized.slice(0, GENERATED_SONG_TITLE_MAX_CHARACTERS).trim()
-    : normalized;
+  const wordClamped = clampWords(
+    normalized,
+    options.maxWords ?? GENERATED_AUDIO_REFERENCE_TITLE_MAX_WORDS
+  );
+  return wordClamped.length > GENERATED_SONG_TITLE_MAX_CHARACTERS
+    ? wordClamped.slice(0, GENERATED_SONG_TITLE_MAX_CHARACTERS).trim()
+    : wordClamped;
 };
 
 export const clampGeneratedAudioReferenceTitle = clampGeneratedSongTitle;
@@ -88,8 +99,13 @@ export const finalizeAudioReferenceTitle = ({
   baseTitle: string;
   uniqueSeed?: string | null;
 }): string => {
-  const normalizedBase = clampGeneratedAudioReferenceTitle(baseTitle) ?? UNTITLED_TRACK_TITLE;
   const mark = buildReferenceTitleMark(uniqueSeed);
+  const normalizedBase =
+    clampGeneratedAudioReferenceTitle(baseTitle, {
+      maxWords: mark
+        ? Math.max(1, GENERATED_AUDIO_REFERENCE_TITLE_MAX_WORDS - 1)
+        : GENERATED_AUDIO_REFERENCE_TITLE_MAX_WORDS,
+    }) ?? UNTITLED_TRACK_TITLE;
   if (!mark) return normalizedBase;
   const suffix = ` ${mark}`;
   const baseMaxLength = Math.max(1, GENERATED_AUDIO_REFERENCE_TITLE_MAX_CHARACTERS - suffix.length);
@@ -252,6 +268,9 @@ export const generateAudioReferenceTitleBestEffort = async (
   });
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) return fallbackTitle;
+  const modelTitleMaxWords = input.uniqueSeed
+    ? GENERATED_AUDIO_REFERENCE_TITLE_MAX_WORDS - 1
+    : GENERATED_AUDIO_REFERENCE_TITLE_MAX_WORDS;
 
   try {
     const response = await fetchOpenAiCompatibleChatCompletion({
@@ -261,7 +280,7 @@ export const generateAudioReferenceTitleBestEffort = async (
       messages: [
         {
           role: "system",
-          content: `Create one concise original ${describeTitleKind(input.sourceMode)} title for an audio reference. Return JSON only. The title must be ${GENERATED_AUDIO_REFERENCE_TITLE_MAX_CHARACTERS} characters or fewer before any app suffix, readable in a small media card, and contain no quotes, emoji, provider names, filenames, hash ids, or explanations.`,
+          content: `Create one concise original ${describeTitleKind(input.sourceMode)} title for an audio reference. Return JSON only. The title must be ${modelTitleMaxWords} words or fewer, ${GENERATED_AUDIO_REFERENCE_TITLE_MAX_CHARACTERS} characters or fewer before any app suffix, readable in a small media card, and contain no quotes, emoji, provider names, filenames, hash ids, or explanations.`,
         },
         {
           role: "user",

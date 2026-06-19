@@ -643,20 +643,11 @@ describe("ExpertEditPanelView", () => {
     );
 
     const secondarySlot = screen.getByLabelText("Secondary edit image 1") as HTMLDivElement;
-    const preview = secondarySlot.querySelector(
-      ".edit-expert-secondary-preview-img"
-    ) as HTMLImageElement | null;
 
-    expect(secondarySlot.style.backgroundImage).toBe("");
+    expect(secondarySlot.style.backgroundImage).toBe('url("https://example.com/tiny-slot-1.webp")');
     expect(secondarySlot).toHaveClass("has-preview");
     expect(secondarySlot).toHaveAttribute("draggable", "true");
-    expect(preview).toBeTruthy();
-    expect(preview).toHaveAttribute("src", "https://example.com/tiny-slot-1.webp");
-    expect(preview).toHaveAttribute("width", "40");
-    expect(preview).toHaveAttribute("height", "40");
-    expect(preview).toHaveAttribute("loading", "eager");
-    expect(preview).toHaveAttribute("decoding", "async");
-    expect(preview).toHaveAttribute("draggable", "false");
+    expect(secondarySlot.querySelector(".edit-expert-secondary-preview-img")).toBeNull();
   });
 
   it("registers Canvas tear-out targets for edit stage, secondary references, and prompt text", async () => {

@@ -41,6 +41,12 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
   - remote media probe rejects content-type mismatches (`image/*` for images, `video/*` for videos; `application/octet-stream` remains compatibility-accepted)
   - deterministic route error on violation: `code=KIE_MEDIA_INPUT_INVALID`
   - runtime probe override (optional): `SHORTPULSE_KIE_MEDIA_PROBE_ENABLED=true|false` (`unset` defaults to enabled outside test runtime)
+- Kie Motion Control provider admission before temp upload:
+  - character images use `/api/kie/upload-url` with `admissionProfile="kie_motion_control_character_image"`
+  - provider-facing character images are JPEG/JPG/PNG only, under 10 MB, at least 341 px on both sides, and aspect ratio 2:5 to 5:2
+  - product-valid WebP/AVIF or over-10 MB still images are converted to provider-use JPEG/PNG bytes or rejected before Kie submit
+  - original/full-quality Reference Grid and Media Library authority is not replaced by this provider-use derivative
+  - motion videos are normalized to provider-facing MP4, must remain 3-30 seconds, must be under 100 MB after normalization, and have dimensions/aspect checked when ffmpeg exposes metadata
 - Required fields:
   - `prompt`
   - at least one image URL (`image_url`/`image_urls` aliases accepted, normalized to `input.image_urls`)

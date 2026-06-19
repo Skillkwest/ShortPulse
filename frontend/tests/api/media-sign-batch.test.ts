@@ -69,6 +69,58 @@ describe("POST /api/media/sign-batch", () => {
     });
   });
 
+  it("does not sign stale variant paths when storage metadata shows the object is missing", async () => {
+    const staleThumbPath = "user-1/variants/images/media-1/thumb_480";
+    const originalPath = "user-1/uploads/images/media-1.png";
+    const createSignedUrlsMock = vi.fn(async () => ({
+      data: [{ path: originalPath, signedUrl: "https://example.test/original-signed" }],
+      error: null,
+    }));
+    const storageObjectsInMock = vi.fn(async () => ({
+      data: [{ name: originalPath }],
+      error: null,
+    }));
+
+    getSupabaseAdminMock.mockReturnValue({
+      schema: vi.fn(() => ({
+        from: vi.fn(() => ({
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              in: storageObjectsInMock,
+            })),
+          })),
+        })),
+      })),
+      storage: {
+        from: vi.fn(() => ({
+          createSignedUrls: createSignedUrlsMock,
+          createSignedUrl: vi.fn(),
+        })),
+      },
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        bucket: "media_library",
+        paths: [staleThumbPath, originalPath],
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(storageObjectsInMock).toHaveBeenCalledWith("name", [staleThumbPath, originalPath]);
+    expect(createSignedUrlsMock).toHaveBeenCalledWith([originalPath], 3600);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      urls: {
+        [staleThumbPath]: null,
+        [originalPath]: "https://example.test/original-signed",
+      },
+    });
+  });
+
   it("rejects non-POST methods", async () => {
     const req = { method: "GET" };
     const res = createMockResponse();

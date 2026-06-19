@@ -18,6 +18,10 @@ const execFileAsync = promisify(execFile);
 
 export const MOTION_REFERENCE_VIDEO_MIN_DURATION_SECONDS = 3;
 export const MOTION_REFERENCE_VIDEO_MAX_DURATION_SECONDS = 30;
+export const MOTION_REFERENCE_VIDEO_MAX_BYTES = 100 * 1024 * 1024;
+export const MOTION_REFERENCE_VIDEO_MIN_DIMENSION_PX = 341;
+export const MOTION_REFERENCE_VIDEO_MIN_ASPECT_RATIO = 2 / 5;
+export const MOTION_REFERENCE_VIDEO_MAX_ASPECT_RATIO = 5 / 2;
 
 const SOURCE_EXTENSION_BY_MIME_TYPE: Record<string, string> = {
   "video/mp4": "mp4",
@@ -53,6 +57,62 @@ const replaceFileExtension = (filename: string, extension: string): string => {
   const parsed = path.parse(filename.trim() || "motion-reference");
   const baseName = parsed.name || parsed.base || "motion-reference";
   return `${baseName}.${extension}`;
+};
+
+const parseVideoDimensions = (value: string): { width: number; height: number } | null => {
+  const match = value.match(/Video:[^\n\r]*?[, ](\d{2,5})x(\d{2,5})(?:[, \n\r]|$)/i);
+  if (!match) return null;
+  const width = Number.parseInt(match[1] ?? "", 10);
+  const height = Number.parseInt(match[2] ?? "", 10);
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return null;
+  }
+  return { width, height };
+};
+
+const probeMotionReferenceVideoDimensions = async ({
+  buffer,
+  filename,
+  mimeType,
+}: {
+  buffer: Buffer;
+  filename: string;
+  mimeType: string;
+}): Promise<{ width: number; height: number } | null> => {
+  if (!ffmpegStatic) {
+    throw new MotionReferenceVideoNormalizationError(
+      503,
+      "Motion reference video preparation is temporarily unavailable."
+    );
+  }
+
+  const inputHandle = await makeTempFileHandle({
+    buffer,
+    extension: resolveSourceExtension({ filename, mimeType }),
+  });
+  try {
+    try {
+      const { stdout, stderr } = await execFileAsync(ffmpegStatic, [
+        "-hide_banner",
+        "-i",
+        inputHandle.path,
+        "-f",
+        "null",
+        "-",
+      ]);
+      return parseVideoDimensions(`${stdout}\n${stderr}`);
+    } catch (error) {
+      const stderr =
+        typeof (error as { stderr?: unknown }).stderr === "string"
+          ? (error as { stderr: string }).stderr
+          : error instanceof Error
+            ? error.message
+            : "";
+      return parseVideoDimensions(stderr);
+    }
+  } finally {
+    await inputHandle.cleanup().catch(() => undefined);
+  }
 };
 
 const assertMotionReferenceDuration = async ({
@@ -95,10 +155,12 @@ const transcodeMotionReferenceToMp4 = async ({
   buffer,
   filename,
   mimeType,
+  maxBytes,
 }: {
   buffer: Buffer;
   filename: string;
   mimeType: string;
+  maxBytes: number;
 }): Promise<Buffer> => {
   if (!ffmpegStatic) {
     throw new MotionReferenceVideoNormalizationError(
@@ -141,8 +203,16 @@ const transcodeMotionReferenceToMp4 = async ({
     if (detectVideoMimeType(normalizedBuffer) !== "video/mp4") {
       throw new Error("Normalized video did not produce an MP4 container.");
     }
+    if (normalizedBuffer.length > maxBytes) {
+      throw new MotionReferenceVideoNormalizationError(
+        413,
+        "Invalid motion reference video",
+        "Motion reference video must be under Kie's 100 MB provider limit after preparation."
+      );
+    }
     return normalizedBuffer;
-  } catch {
+  } catch (error) {
+    if (error instanceof MotionReferenceVideoNormalizationError) throw error;
     throw new MotionReferenceVideoNormalizationError(
       400,
       "Invalid motion reference video",
@@ -155,6 +225,40 @@ const transcodeMotionReferenceToMp4 = async ({
   }
 };
 
+const assertMotionReferenceDimensions = async ({
+  buffer,
+  filename,
+  mimeType,
+  minDimensionPx,
+  minAspectRatio,
+  maxAspectRatio,
+}: {
+  buffer: Buffer;
+  filename: string;
+  mimeType: string;
+  minDimensionPx: number;
+  minAspectRatio: number;
+  maxAspectRatio: number;
+}): Promise<void> => {
+  const dimensions = await probeMotionReferenceVideoDimensions({ buffer, filename, mimeType });
+  if (!dimensions) return;
+  if (dimensions.width < minDimensionPx || dimensions.height < minDimensionPx) {
+    throw new MotionReferenceVideoNormalizationError(
+      400,
+      "Invalid motion reference video",
+      "Motion reference video must be at least 341 px wide and 341 px tall."
+    );
+  }
+  const aspectRatio = dimensions.width / dimensions.height;
+  if (aspectRatio < minAspectRatio || aspectRatio > maxAspectRatio) {
+    throw new MotionReferenceVideoNormalizationError(
+      400,
+      "Invalid motion reference video",
+      "Motion reference video aspect ratio must be between 2:5 and 5:2."
+    );
+  }
+};
+
 /**
  * Returns a provider-ready Motion Control source video buffer.
  */
@@ -162,10 +266,18 @@ export const normalizeMotionReferenceVideoForProvider = async ({
   buffer,
   filename,
   mimeType,
+  maxBytes = MOTION_REFERENCE_VIDEO_MAX_BYTES,
+  minDimensionPx = MOTION_REFERENCE_VIDEO_MIN_DIMENSION_PX,
+  minAspectRatio = MOTION_REFERENCE_VIDEO_MIN_ASPECT_RATIO,
+  maxAspectRatio = MOTION_REFERENCE_VIDEO_MAX_ASPECT_RATIO,
 }: {
   buffer: Buffer;
   filename: string;
   mimeType: string;
+  maxBytes?: number;
+  minDimensionPx?: number;
+  minAspectRatio?: number;
+  maxAspectRatio?: number;
 }): Promise<{
   buffer: Buffer;
   filename: string;
@@ -173,7 +285,20 @@ export const normalizeMotionReferenceVideoForProvider = async ({
 }> => {
   await assertMotionReferenceDuration({ buffer, filename, mimeType });
 
-  const normalizedBuffer = await transcodeMotionReferenceToMp4({ buffer, filename, mimeType });
+  const normalizedBuffer = await transcodeMotionReferenceToMp4({
+    buffer,
+    filename,
+    mimeType,
+    maxBytes,
+  });
+  await assertMotionReferenceDimensions({
+    buffer: normalizedBuffer,
+    filename: replaceFileExtension(filename, "mp4"),
+    mimeType: "video/mp4",
+    minDimensionPx,
+    minAspectRatio,
+    maxAspectRatio,
+  });
   return {
     buffer: normalizedBuffer,
     filename: replaceFileExtension(filename, "mp4"),

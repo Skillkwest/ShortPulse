@@ -86,4 +86,46 @@ describe("normalizeMotionReferenceVideoForProvider", () => {
       mimeType: "video/mp4",
     });
   });
+
+  it("rejects normalized MP4 output over Kie's Motion Control byte cap", async () => {
+    readFileMock.mockResolvedValueOnce(Buffer.from("normalized-mp4-over-cap"));
+
+    await expect(
+      normalizeMotionReferenceVideoForProvider({
+        buffer: Buffer.from("source-mp4"),
+        filename: "phone-clip.mp4",
+        mimeType: "video/mp4",
+        maxBytes: 4,
+      })
+    ).rejects.toMatchObject({
+      status: 413,
+      details:
+        "Motion reference video must be under Kie's 100 MB provider limit after preparation.",
+    });
+  });
+
+  it("rejects normalized MP4 output below Kie's Motion Control dimension floor when probeable", async () => {
+    execFileMock
+      .mockImplementationOnce((_bin, _args, callback) => callback(null, "", ""))
+      .mockImplementationOnce((_bin, _args, callback) =>
+        callback(
+          Object.assign(new Error("probe failed"), {
+            stderr: "Stream #0:0: Video: h264, yuv420p, 320x720, 30 fps",
+          }),
+          "",
+          "Stream #0:0: Video: h264, yuv420p, 320x720, 30 fps"
+        )
+      );
+
+    await expect(
+      normalizeMotionReferenceVideoForProvider({
+        buffer: Buffer.from("source-mp4"),
+        filename: "phone-clip.mp4",
+        mimeType: "video/mp4",
+      })
+    ).rejects.toMatchObject({
+      status: 400,
+      details: "Motion reference video must be at least 341 px wide and 341 px tall.",
+    });
+  });
 });

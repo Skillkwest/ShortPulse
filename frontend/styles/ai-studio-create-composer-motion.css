@@ -9,6 +9,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .create-composer-panel .create-composer-panel-shell,
+  .create-composer-panel.is-pulse-rail-active,
   .create-composer-panel .create-composer-left-panel,
   .create-composer-character-mode-control,
   .create-composer-panel .create-composer-character-picker-trigger,

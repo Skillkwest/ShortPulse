@@ -5372,17 +5372,10 @@
 }
 
 .edit-expert-panel .edit-expert-secondary-slot .reference-dropzone.extra.has-preview {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   border: none;
-}
-
-.edit-expert-panel .edit-expert-secondary-preview-img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  border-radius: var(--edit-expert-secondary-radius);
-  object-fit: cover;
-  pointer-events: none;
-  user-select: none;
 }
 
 .edit-expert-panel

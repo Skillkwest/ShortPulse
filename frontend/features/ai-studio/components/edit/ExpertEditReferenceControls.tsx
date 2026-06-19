@@ -143,6 +143,9 @@ export function ExpertEditSecondaryReferences({
                   onDragOver={onSecondaryDragOver(index)}
                   onDragLeave={onSecondaryDragLeave(index)}
                   onClick={() => inputRef?.current?.click()}
+                  style={
+                    sourceUrl && previewUrl ? { backgroundImage: `url(${previewUrl})` } : undefined
+                  }
                   aria-label={`Secondary edit image ${index + 1}`}
                 >
                   <button
@@ -156,22 +159,7 @@ export function ExpertEditSecondaryReferences({
                   >
                     <TrashSimple size={14} weight="regular" />
                   </button>
-                  {sourceUrl && previewUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element -- Secondary refs can be signed/private runtime URLs; keep this tiny control preview out of the Next image cache/proxy.
-                    <img
-                      className="edit-expert-secondary-preview-img"
-                      src={previewUrl}
-                      alt=""
-                      aria-hidden="true"
-                      width={40}
-                      height={40}
-                      loading="eager"
-                      decoding="async"
-                      draggable={false}
-                    />
-                  ) : (
-                    <Plus size={18} weight="regular" />
-                  )}
+                  {sourceUrl && previewUrl ? null : <Plus size={18} weight="regular" />}
                 </div>
               </div>
             );

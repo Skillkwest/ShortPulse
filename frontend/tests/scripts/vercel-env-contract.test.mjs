@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  getRequiredVercelKeysForEnvironment,
+  SENSITIVE_PRESENCE_ONLY_KEYS,
   SHORTPULSE_PRODUCTION_APP_ORIGIN,
   validateGuardedVercelFlag,
   validatePublicOriginPair,
@@ -69,5 +71,15 @@ describe("vercel env contract public origin validation", () => {
         value: "true",
       })
     ).toEqual([]);
+  });
+});
+
+describe("vercel env contract provider keys", () => {
+  it("requires ElevenLabs credentials for production Sound workflow readiness", () => {
+    expect(getRequiredVercelKeysForEnvironment("production")).toContain("ELEVENLABS_API_KEY");
+  });
+
+  it("treats ElevenLabs credentials as sensitive presence-only values", () => {
+    expect(SENSITIVE_PRESENCE_ONLY_KEYS.has("ELEVENLABS_API_KEY")).toBe(true);
   });
 });

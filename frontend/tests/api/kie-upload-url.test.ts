@@ -1,4 +1,5 @@
 import { EventEmitter } from "node:events";
+import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/kie/upload-url";
 import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
@@ -299,6 +300,135 @@ describe("POST /api/kie/upload-url", () => {
       url: "https://tempfile.redpandaai.co/files/storage-image.png",
       fileName: "storage-image.png",
       mimeType: "image/png",
+    });
+  });
+
+  it("admits Motion Control character images from owned storage before Kie upload", async () => {
+    const webpImage = await sharp({
+      create: {
+        width: 512,
+        height: 512,
+        channels: 3,
+        background: { r: 30, g: 90, b: 140 },
+      },
+    })
+      .webp()
+      .toBuffer();
+    const downloadMock = vi.fn().mockResolvedValue({
+      data: {
+        size: webpImage.length,
+        type: "image/webp",
+        arrayBuffer: async () =>
+          webpImage.buffer.slice(webpImage.byteOffset, webpImage.byteOffset + webpImage.byteLength),
+      },
+      error: null,
+    });
+    const fromMock = vi.fn(() => ({ download: downloadMock }));
+    getSupabaseAdminMock.mockReturnValueOnce({
+      storage: {
+        from: fromMock,
+      },
+    });
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        msg: "File uploaded successfully",
+        data: {
+          downloadUrl: "https://tempfile.redpandaai.co/files/character.jpg",
+          fileName: "character.jpg",
+          mimeType: "image/jpeg",
+        },
+      }),
+    } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = createMockRequest({
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        storagePath: "user-1/references/character.webp",
+        mediaKind: "image",
+        uploadPath: "shortpulse/kie-video/images",
+        admissionProfile: "kie_motion_control_character_image",
+      }),
+    });
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("https://kieai.redpandaai.co/api/file-stream-upload");
+    const uploadInit = fetchMock.mock.calls[0]?.[1] as { body?: FormData };
+    const uploadedFile = (uploadInit.body as FormData).get("file") as File;
+    expect(uploadedFile.type).toBe("image/jpeg");
+    expect(uploadedFile.name).toBe("character.jpg");
+    expect((uploadInit.body as FormData).get("fileName")).toBe("character.jpg");
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      url: "https://tempfile.redpandaai.co/files/character.jpg",
+      fileName: "character.jpg",
+      mimeType: "image/jpeg",
+    });
+  });
+
+  it("rejects Motion Control image admission profiles outside the Kie image upload path", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = createMockRequest({
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        storagePath: "user-1/videos/motion-control/motion.mp4",
+        mediaKind: "video",
+        uploadPath: "shortpulse/kie-video/videos",
+        admissionProfile: "kie_motion_control_character_image",
+      }),
+    });
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Invalid upload request",
+      details: "admissionProfile is only supported for Kie Motion Control image uploads.",
+    });
+  });
+
+  it("returns deterministic source-fetch failures for profiled remote Motion Control images", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: false,
+      status: 404,
+      headers: new Headers({ "content-type": "text/plain" }),
+      arrayBuffer: async () => new ArrayBuffer(0),
+    } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = createMockRequest({
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        fileUrl: "https://cdn.example.com/missing-character.webp",
+        uploadPath: "shortpulse/kie-video/images",
+        admissionProfile: "kie_motion_control_character_image",
+      }),
+    });
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("https://cdn.example.com/missing-character.webp");
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Invalid upload request",
+      details: "Source fetch failed (404).",
     });
   });
 

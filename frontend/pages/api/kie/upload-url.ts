@@ -7,6 +7,10 @@ import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { enforceApiRateLimit } from "../../../lib/server/api/rateLimit";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
+import {
+  admitKieMotionControlCharacterImage,
+  KieMotionControlMediaAdmissionError,
+} from "../../../lib/server/kieMotionControlMediaAdmission";
 import { readProviderApiKey } from "../../../lib/server/providerIntegration/providerRuntimeConfig";
 
 const KIE_FILE_URL_UPLOAD_ENDPOINT =
@@ -21,6 +25,7 @@ const MAX_SOURCE_REDIRECTS = 3;
 const MAX_RAW_UPLOAD_BYTES = 100 * 1024 * 1024;
 const MAX_REMOTE_SOURCE_BYTES = 100 * 1024 * 1024;
 const MEDIA_LIBRARY_BUCKET = "media_library";
+const KIE_IMAGE_UPLOAD_PATH = "shortpulse/kie-video/images";
 
 export const config = {
   api: {
@@ -41,6 +46,7 @@ type ErrorResponse = {
 
 type UploadTransport = "url_upload" | "remote_stream_upload" | "binary_stream_upload";
 type KieUploadMediaKind = "image" | "video" | "audio";
+type KieUploadAdmissionProfile = "kie_motion_control_character_image";
 
 type UploadDiagnostics = {
   transport: UploadTransport;
@@ -209,6 +215,35 @@ const resolveMediaKind = (value: unknown): KieUploadMediaKind | null => {
   return null;
 };
 
+const resolveAdmissionProfile = (value: unknown): KieUploadAdmissionProfile | null => {
+  const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
+  if (normalized === "kie_motion_control_character_image") return normalized;
+  if (!normalized) return null;
+  throw new KieUploadRequestError("admissionProfile is not supported.");
+};
+
+const assertAdmissionProfileAllowed = ({
+  admissionProfile,
+  mediaKind,
+  uploadPath,
+}: {
+  admissionProfile: KieUploadAdmissionProfile | null;
+  mediaKind: KieUploadMediaKind;
+  uploadPath: string;
+}): void => {
+  if (!admissionProfile) return;
+  if (
+    admissionProfile === "kie_motion_control_character_image" &&
+    mediaKind === "image" &&
+    uploadPath === KIE_IMAGE_UPLOAD_PATH
+  ) {
+    return;
+  }
+  throw new KieUploadRequestError(
+    "admissionProfile is only supported for Kie Motion Control image uploads."
+  );
+};
+
 const inferMimeTypeFromPath = (
   storagePathOrName: string,
   mediaKind: KieUploadMediaKind
@@ -232,6 +267,57 @@ const inferMimeTypeFromPath = (
   if (/\.(?:ogg|oga)(?:$|[?#])/i.test(normalized)) return "audio/ogg";
   if (/\.webm(?:$|[?#])/i.test(normalized)) return "audio/webm";
   return "audio/mpeg";
+};
+
+const replaceFileExtension = (filename: string | null, extension: string): string => {
+  const safeFilename = filename?.trim() || "upload";
+  const withoutExtension = safeFilename.replace(/\.[^/.]+$/, "");
+  return `${withoutExtension || "upload"}.${extension}`;
+};
+
+const admitUploadBufferForProvider = async ({
+  admissionProfile,
+  fileBuffer,
+  fileName,
+  mimeType,
+}: {
+  admissionProfile: KieUploadAdmissionProfile | null;
+  fileBuffer: Buffer;
+  fileName: string | null;
+  mimeType: string | null;
+}): Promise<{
+  fileBuffer: Buffer;
+  fileName: string | null;
+  mimeType: string | null;
+}> => {
+  if (!admissionProfile) {
+    return {
+      fileBuffer,
+      fileName,
+      mimeType,
+    };
+  }
+
+  if (admissionProfile === "kie_motion_control_character_image") {
+    const admitted = await admitKieMotionControlCharacterImage({
+      buffer: fileBuffer,
+      filename: fileName ?? "motion-control-character",
+      mimeType: mimeType ?? "application/octet-stream",
+    });
+    return {
+      fileBuffer: admitted.buffer,
+      fileName:
+        admitted.filename ||
+        replaceFileExtension(fileName, admitted.mimeType === "image/png" ? "png" : "jpg"),
+      mimeType: admitted.mimeType,
+    };
+  }
+
+  return {
+    fileBuffer,
+    fileName,
+    mimeType,
+  };
 };
 
 const readUploadPayload = (
@@ -307,16 +393,33 @@ const attemptKieUploadWithFallback = async ({
   sourceUrl,
   uploadPath,
   fileName,
+  admissionProfile = null,
 }: {
   apiKey: string;
   sourceUrl: URL;
   uploadPath: string;
   fileName: string | null;
+  admissionProfile?: KieUploadAdmissionProfile | null;
 }): Promise<{
   result: UploadAttemptResult;
   primaryResult: UploadAttemptResult;
   fallbackResult: UploadAttemptResult | null;
 }> => {
+  if (admissionProfile) {
+    const result = await uploadFileStreamToKie({
+      apiKey,
+      sourceUrl,
+      uploadPath,
+      fileName,
+      admissionProfile,
+    });
+    return {
+      result,
+      primaryResult: result,
+      fallbackResult: null,
+    };
+  }
+
   const primaryResult = await uploadFileUrlToKie({
     apiKey,
     fileUrl: sourceUrl.toString(),
@@ -599,33 +702,41 @@ const uploadFileStreamToKie = async ({
   sourceUrl,
   uploadPath,
   fileName,
+  admissionProfile = null,
 }: {
   apiKey: string;
   sourceUrl: URL;
   uploadPath: string;
   fileName: string | null;
+  admissionProfile?: KieUploadAdmissionProfile | null;
 }) => {
   const controller = new AbortController();
   const timeoutId = globalThis.setTimeout(() => controller.abort(), SOURCE_FETCH_TIMEOUT_MS);
   try {
     const sourceResponse = await fetchPublicSource(sourceUrl, controller.signal);
     if (!sourceResponse.ok) {
-      throw new Error(`Source fetch failed (${sourceResponse.status}).`);
+      throw new KieUploadRequestError(`Source fetch failed (${sourceResponse.status}).`);
     }
 
     const sourceBuffer = await readResponseBodyWithLimit(sourceResponse, MAX_REMOTE_SOURCE_BYTES);
     const sourceMimeType = asNonEmptyString(sourceResponse.headers.get("content-type"));
+    const admittedSource = await admitUploadBufferForProvider({
+      admissionProfile,
+      fileBuffer: sourceBuffer,
+      fileName: fileName ?? inferFileNameFromUrl(sourceUrl),
+      mimeType: sourceMimeType,
+    });
     const formData = new FormData();
     formData.append(
       "file",
-      new Blob([sourceBuffer], {
-        type: sourceMimeType ?? "application/octet-stream",
+      new Blob([admittedSource.fileBuffer], {
+        type: admittedSource.mimeType ?? "application/octet-stream",
       }),
-      fileName ?? inferFileNameFromUrl(sourceUrl) ?? "upload"
+      admittedSource.fileName ?? "upload"
     );
     formData.append("uploadPath", uploadPath);
-    if (fileName) {
-      formData.append("fileName", fileName);
+    if (admittedSource.fileName) {
+      formData.append("fileName", admittedSource.fileName);
     }
 
     const upstream = await fetch(KIE_FILE_STREAM_UPLOAD_ENDPOINT, {
@@ -730,6 +841,7 @@ const uploadStorageSourceToKie = async ({
   fileName,
   mediaKind,
   userId,
+  admissionProfile = null,
 }: {
   apiKey: string;
   storagePath: string;
@@ -737,18 +849,26 @@ const uploadStorageSourceToKie = async ({
   fileName: string | null;
   mediaKind: KieUploadMediaKind;
   userId: string;
+  admissionProfile?: KieUploadAdmissionProfile | null;
 }): Promise<UploadAttemptResult> => {
+  assertAdmissionProfileAllowed({ admissionProfile, mediaKind, uploadPath });
   const storageObject = await downloadStorageObjectWithLimit({ storagePath, userId });
   const storageBuffer = await readResponseBodyWithLimit(storageObject, MAX_RAW_UPLOAD_BYTES);
   const storageMimeType =
     asNonEmptyString((storageObject as { type?: unknown }).type) ??
     inferMimeTypeFromPath(fileName ?? storagePath, mediaKind);
-  return await uploadFileBufferToKie({
-    apiKey,
+  const admittedSource = await admitUploadBufferForProvider({
+    admissionProfile,
     fileBuffer: storageBuffer,
-    uploadPath,
     fileName: fileName ?? inferFileNameFromStoragePath(storagePath),
     mimeType: storageMimeType,
+  });
+  return await uploadFileBufferToKie({
+    apiKey,
+    fileBuffer: admittedSource.fileBuffer,
+    uploadPath,
+    fileName: admittedSource.fileName,
+    mimeType: admittedSource.mimeType,
   });
 };
 
@@ -836,6 +956,7 @@ export default async function handler(
           const uploadPath = asNonEmptyString(payload.uploadPath);
           const fileName = asNonEmptyString(payload.fileName);
           const mediaKind = resolveMediaKind(payload.mediaKind);
+          const admissionProfile = resolveAdmissionProfile(payload.admissionProfile);
           if (!uploadPath) {
             throw new KieUploadRequestError("uploadPath is required.");
           }
@@ -852,6 +973,7 @@ export default async function handler(
               fileName,
               mediaKind,
               userId,
+              admissionProfile,
             });
             return {
               result: storageResult,
@@ -862,30 +984,46 @@ export default async function handler(
           if (!fileUrl) {
             throw new KieUploadRequestError("fileUrl or storagePath is required.");
           }
+          if (admissionProfile) {
+            assertAdmissionProfileAllowed({ admissionProfile, mediaKind: "image", uploadPath });
+          }
           const sourceUrl = await parseSafeHttpUrl(fileUrl);
           return await attemptKieUploadWithFallback({
             apiKey,
             sourceUrl,
             uploadPath,
             fileName,
+            admissionProfile,
           });
         })()
       : await (async () => {
           const uploadPath = asNonEmptyString(req.headers["x-shortpulse-upload-path"]);
           const fileName = asNonEmptyString(req.headers["x-shortpulse-upload-filename"]);
           const mimeType = asNonEmptyString(req.headers["content-type"]);
+          const admissionProfile = resolveAdmissionProfile(
+            req.headers["x-shortpulse-admission-profile"]
+          );
           if (!uploadPath) {
             throw new KieUploadRequestError("uploadPath is required for binary uploads.");
           }
           if (!bodyBuffer.length) {
             throw new KieUploadRequestError("Binary upload body is empty.");
           }
-          return await uploadFileBufferToKie({
-            apiKey,
+          if (admissionProfile) {
+            assertAdmissionProfileAllowed({ admissionProfile, mediaKind: "image", uploadPath });
+          }
+          const admittedSource = await admitUploadBufferForProvider({
+            admissionProfile,
             fileBuffer: bodyBuffer,
-            uploadPath,
             fileName,
             mimeType,
+          });
+          return await uploadFileBufferToKie({
+            apiKey,
+            fileBuffer: admittedSource.fileBuffer,
+            uploadPath,
+            fileName: admittedSource.fileName,
+            mimeType: admittedSource.mimeType,
           });
         })().then((uploadResult) => ({
           result: uploadResult,
@@ -976,6 +1114,12 @@ export default async function handler(
       mimeType: result.parsed.mimeType,
     });
   } catch (error) {
+    if (error instanceof KieMotionControlMediaAdmissionError) {
+      return res.status(error.statusCode).json({
+        error: "Invalid upload request",
+        details: error.details,
+      });
+    }
     if (error instanceof KieUploadRequestError) {
       return res.status(error.statusCode).json({
         error: "Invalid upload request",

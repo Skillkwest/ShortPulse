@@ -179,6 +179,7 @@ type KieUploadRoutePayload = {
 };
 
 type KieUploadRouteResponseBodyFormat = "json" | "html" | "text" | "empty" | "unavailable";
+type KieUploadAdmissionProfile = "kie_motion_control_character_image";
 
 const readKieUploadRoutePayload = async (
   response: Response
@@ -256,10 +257,12 @@ const uploadUrlToKieTemporaryFile = async ({
   url,
   mediaKind,
   cache,
+  admissionProfile = null,
 }: {
   url: string;
   mediaKind: "image" | "video" | "audio";
   cache: Map<string, Promise<string>>;
+  admissionProfile?: KieUploadAdmissionProfile | null;
 }): Promise<string> => {
   const normalizedUrl = url.trim();
   if (!normalizedUrl) return "";
@@ -273,11 +276,13 @@ const uploadUrlToKieTemporaryFile = async ({
         storagePath,
         mediaKind,
         cache,
+        admissionProfile,
       });
     }
   }
 
-  const cached = cache.get(normalizedUrl);
+  const cacheKey = admissionProfile ? `${admissionProfile}:${normalizedUrl}` : normalizedUrl;
+  const cached = cache.get(cacheKey);
   if (cached) return await cached;
 
   const uploadPromise = (async () => {
@@ -294,6 +299,7 @@ const uploadUrlToKieTemporaryFile = async ({
             : mediaKind === "video"
               ? "shortpulse/kie-video/videos"
               : "shortpulse/kie-video/audio",
+        ...(admissionProfile ? { admissionProfile } : {}),
       }),
       shortpulseLogScope: "generation",
     });
@@ -316,11 +322,11 @@ const uploadUrlToKieTemporaryFile = async ({
     return uploadedUrl;
   })();
 
-  cache.set(normalizedUrl, uploadPromise);
+  cache.set(cacheKey, uploadPromise);
   try {
     return await uploadPromise;
   } catch (error) {
-    cache.delete(normalizedUrl);
+    cache.delete(cacheKey);
     throw error;
   }
 };
@@ -329,14 +335,16 @@ const uploadStoragePathToKieTemporaryFile = async ({
   storagePath,
   mediaKind,
   cache,
+  admissionProfile = null,
 }: {
   storagePath: string;
   mediaKind: "image" | "video" | "audio";
   cache: Map<string, Promise<string>>;
+  admissionProfile?: KieUploadAdmissionProfile | null;
 }): Promise<string> => {
   const normalizedStoragePath = storagePath.trim();
   if (!normalizedStoragePath) return "";
-  const cacheKey = `storage:${mediaKind}:${normalizedStoragePath}`;
+  const cacheKey = `storage:${mediaKind}:${admissionProfile ?? "none"}:${normalizedStoragePath}`;
   const cached = cache.get(cacheKey);
   if (cached) return await cached;
 
@@ -350,6 +358,7 @@ const uploadStoragePathToKieTemporaryFile = async ({
         storagePath: normalizedStoragePath,
         mediaKind,
         uploadPath: resolveKieUploadPath(mediaKind),
+        ...(admissionProfile ? { admissionProfile } : {}),
       }),
       shortpulseLogScope: "generation",
     });
@@ -386,11 +395,13 @@ const uploadBlobToKieTemporaryFile = async ({
   mediaKind,
   cacheKey,
   cache,
+  admissionProfile = null,
 }: {
   blob: Blob;
   mediaKind: "image" | "video" | "audio";
   cacheKey: string;
   cache: Map<string, Promise<string>>;
+  admissionProfile?: KieUploadAdmissionProfile | null;
 }): Promise<string> => {
   const cached = cache.get(cacheKey);
   if (cached) return await cached;
@@ -402,6 +413,7 @@ const uploadBlobToKieTemporaryFile = async ({
         "Content-Type": resolveKieUploadMimeType(mediaKind, blob.type),
         "x-shortpulse-upload-path": resolveKieUploadPath(mediaKind),
         "x-shortpulse-upload-filename": resolveKieUploadFilename(mediaKind, blob.type),
+        ...(admissionProfile ? { "x-shortpulse-admission-profile": admissionProfile } : {}),
       },
       body: blob,
       shortpulseLogScope: "generation",
@@ -438,14 +450,16 @@ const uploadSourceUrlToKieTemporaryFile = async ({
   sourceUrl,
   mediaKind,
   cache,
+  admissionProfile = null,
 }: {
   sourceUrl: string;
   mediaKind: "image" | "video" | "audio";
   cache: Map<string, Promise<string>>;
+  admissionProfile?: KieUploadAdmissionProfile | null;
 }): Promise<string> => {
   const normalizedUrl = sourceUrl.trim();
   if (!normalizedUrl) return "";
-  const cacheKey = `source:${mediaKind}:${normalizedUrl}`;
+  const cacheKey = `source:${mediaKind}:${admissionProfile ?? "none"}:${normalizedUrl}`;
   const cached = cache.get(cacheKey);
   if (cached) return await cached;
 
@@ -459,6 +473,7 @@ const uploadSourceUrlToKieTemporaryFile = async ({
         mediaKind,
         cacheKey: `${cacheKey}:blob`,
         cache,
+        admissionProfile,
       });
     }
     const dataUrlBlob = normalizedUrl.startsWith("data:")
@@ -470,6 +485,7 @@ const uploadSourceUrlToKieTemporaryFile = async ({
         mediaKind,
         cacheKey: `${cacheKey}:data-url`,
         cache,
+        admissionProfile,
       });
     }
     if (normalizedUrl.startsWith("blob:")) {
@@ -480,6 +496,7 @@ const uploadSourceUrlToKieTemporaryFile = async ({
         url: normalizedUrl,
         mediaKind,
         cache,
+        admissionProfile,
       });
     }
     throw new Error(`Unsupported local ${mediaKind} input URL.`);
@@ -921,11 +938,13 @@ const prepareKieInputUrl = async ({
   preparedUrl,
   mediaKind,
   cache,
+  admissionProfile = null,
 }: {
   rawUrl?: string | null;
   preparedUrl?: string | null;
   mediaKind: "image" | "video" | "audio";
   cache: Map<string, Promise<string>>;
+  admissionProfile?: KieUploadAdmissionProfile | null;
 }): Promise<string> => {
   const normalizedRawUrl = rawUrl?.trim() ?? "";
   const normalizedPreparedUrl = preparedUrl?.trim() ?? "";
@@ -943,6 +962,7 @@ const prepareKieInputUrl = async ({
       sourceUrl: browserUploadSourceUrl,
       mediaKind,
       cache,
+      admissionProfile,
     });
   }
 
@@ -952,6 +972,7 @@ const prepareKieInputUrl = async ({
     url: sourceUrl,
     mediaKind,
     cache,
+    admissionProfile,
   });
 };
 
@@ -1595,6 +1616,7 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
             preparedUrl: preparedCharacterImageUrl,
             mediaKind: "image",
             cache: kieUploadCache,
+            admissionProfile: "kie_motion_control_character_image",
           });
           if (!characterImageUrl) {
             throw new Error("Character image is missing.");

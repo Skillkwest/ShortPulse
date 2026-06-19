@@ -130,11 +130,15 @@ const createSupabaseAdminMock = (
   rows: MediaRow[],
   options?: {
     existingFolderIds?: string[];
+    existingStorageObjectPaths?: string[];
     generationProjectionRows?: GenerationProjectionRow[];
     projectOutputDisplayRows?: ProjectOutputDisplayRow[];
   }
 ) => {
   const existingFolderIds = new Set(options?.existingFolderIds ?? []);
+  const existingStorageObjectPaths = options?.existingStorageObjectPaths
+    ? new Set(options.existingStorageObjectPaths)
+    : null;
   const generationProjectionRows = options?.generationProjectionRows ?? [];
   const projectOutputDisplayRows = options?.projectOutputDisplayRows ?? [];
   const createSignedUrlsMock = vi.fn(async (paths: string[]) => ({
@@ -152,6 +156,12 @@ const createSupabaseAdminMock = (
       error: batchResult.error,
     };
   });
+  const storageObjectsInMock = vi.fn(async (_column: string, values: string[]) => ({
+    data: values
+      .filter((path) => !existingStorageObjectPaths || existingStorageObjectPaths.has(path))
+      .map((name) => ({ name })),
+    error: null,
+  }));
 
   const createQueryBuilder = (selectClause: string) => {
     const eqFilters: Array<{ column: string; value: string }> = [];
@@ -348,6 +358,30 @@ const createSupabaseAdminMock = (
   };
 
   getSupabaseAdminMock.mockReturnValue({
+    schema: vi.fn((schemaName: string) => {
+      if (schemaName !== "storage") {
+        throw new Error(`Unexpected schema: ${schemaName}`);
+      }
+      return {
+        from: vi.fn((table: string) => {
+          if (table !== "objects") {
+            throw new Error(`Unexpected storage table: ${table}`);
+          }
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn((column: string, value: string) => {
+                if (column !== "bucket_id" || value !== "media_library") {
+                  throw new Error(`Unexpected storage object filter: ${column}=${value}`);
+                }
+                return {
+                  in: storageObjectsInMock,
+                };
+              }),
+            })),
+          };
+        }),
+      };
+    }),
     from: vi.fn((table: string) => {
       if (table === "media_files") {
         return {
@@ -456,6 +490,7 @@ const createSupabaseAdminMock = (
   return {
     createSignedUrlsMock,
     createSignedUrlMock,
+    storageObjectsInMock,
   };
 };
 
@@ -1076,6 +1111,71 @@ describe("POST /api/media/list", () => {
               "user-1/generations/audio/gen-audio-1/companion-art/cover.webp",
             companion_art_url:
               "https://signed.test/user-1%2Fgenerations%2Faudio%2Fgen-audio-1%2Fcompanion-art%2Fcover.webp",
+          }),
+        ],
+      })
+    );
+  });
+
+  it("keeps stale companion art storage paths from receiving signed urls", async () => {
+    const staleCompanionPath = "user-1/generations/audio/gen-audio-stale/companion-art/cover.webp";
+    const { createSignedUrlsMock } = createSupabaseAdminMock(
+      [
+        {
+          id: "audio-stale-companion-1",
+          user_id: "user-1",
+          filename: "voice-note.wav",
+          storage_path: "user-1/generations/audio/voice-note.wav",
+          file_type: "audio/wav",
+          file_size: 10,
+          source: "ai_studio",
+          source_ref: "gen-audio-stale",
+          prompt_id: null,
+          metadata: null,
+          thumb_variant_path: null,
+          poster_variant_path: null,
+          preview_variant_path: null,
+          created_at: "2026-02-20T10:00:00.000Z",
+          updated_at: null,
+        },
+      ],
+      {
+        existingStorageObjectPaths: [],
+        generationProjectionRows: [
+          {
+            generation_id: "gen-audio-stale",
+            user_id: "user-1",
+            companion_art_status: "ready",
+            companion_art_storage_path: staleCompanionPath,
+          },
+        ],
+      }
+    );
+
+    const req = {
+      method: "POST",
+      body: {
+        mediaKind: "audio",
+        query: "",
+        cursor: null,
+        limit: 36,
+        surface: "media-library-modal",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(createSignedUrlsMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rows: [
+          expect.objectContaining({
+            id: "audio-stale-companion-1",
+            companion_art_status: "ready",
+            companion_art_storage_path: staleCompanionPath,
+            companion_art_url: null,
           }),
         ],
       })
@@ -1720,6 +1820,60 @@ describe("POST /api/media/list", () => {
           "panel-foreign-variant-1":
             "https://signed.test/user-1%2Fuploads%2Fimages%2Fpanel-target.png",
         },
+      })
+    );
+  });
+
+  it("skips stale primary preview seeds when the variant object is missing", async () => {
+    const staleThumbPath = "user-1/uploads/images/panel-target-thumb.png";
+    const originalPath = "user-1/uploads/images/panel-target.png";
+    const rows = [
+      {
+        id: "panel-stale-seed-1",
+        user_id: "user-1",
+        filename: "panel-target.png",
+        storage_path: originalPath,
+        file_type: "image/png",
+        file_size: 10,
+        source: "upload",
+        source_ref: null,
+        prompt_id: null,
+        metadata: null,
+        thumb_variant_path: staleThumbPath,
+        poster_variant_path: null,
+        preview_variant_path: null,
+        created_at: "2026-02-20T11:00:00.000Z",
+        updated_at: null,
+      } satisfies MediaRow,
+    ];
+    const { createSignedUrlsMock, storageObjectsInMock } = createSupabaseAdminMock(rows, {
+      existingStorageObjectPaths: [originalPath],
+    });
+    resolvePreferredMediaSigningStoragePathMock.mockImplementation(
+      (row: MediaRow) => row.thumb_variant_path ?? row.storage_path
+    );
+
+    const req = {
+      method: "POST",
+      body: {
+        mediaKind: "all",
+        cursor: null,
+        query: "",
+        limit: 36,
+        surface: "media-library-panel",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(storageObjectsInMock).toHaveBeenCalledWith("name", [staleThumbPath]);
+    expect(createSignedUrlsMock).not.toHaveBeenCalled();
+    expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-list-initial-signed-count", "0");
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rows: [expect.objectContaining({ id: "panel-stale-seed-1" })],
+        signedById: undefined,
       })
     );
   });

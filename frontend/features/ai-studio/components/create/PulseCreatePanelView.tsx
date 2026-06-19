@@ -291,71 +291,71 @@ const PulseCreatePanelViewContent = ({
   return (
     <div
       ref={panelRootRef}
-      className={`tool-properties text-properties-panel create-composer-panel ${isNoHistoryShell ? "create-composer-panel--no-history" : ""}`.trim()}
+      className={`tool-properties text-properties-panel create-composer-panel is-pulse-rail-active ${
+        isNoHistoryShell ? "create-composer-panel--no-history" : ""
+      }`.trim()}
       role="group"
       aria-label="Create composer"
     >
       <div className="tool-header">
         <p className="eyebrow">Create</p>
       </div>
-      <div className="create-composer-panel-shell is-pulse-rail-active">
-        <div className="create-composer-left-panel is-pulse-active">
-          <div className="create-composer-left-panel-inner">
-            <CreatePulsePresetPanel
-              selectedPresetIds={selectedPulsePresetIds}
-              onSelectedPresetIdsChange={onSelectedPulsePresetIdsChange}
-              activePresetId={activePulsePresetId}
-              onActivePresetIdChange={onActivePulsePresetIdChange}
-              onPresetStart={onPulsePresetStart}
-              isActivationBusy={isPulseSessionLocked}
-              builtInDefinitions={builtInDefinitions}
-              refreshBuiltInDefinitions={refreshBuiltInDefinitions}
-              savedPresets={savedPulsePresets}
-              onSavedPresetsChange={onSavedPulsePresetsChange}
-              onOpenPresetsLibrary={onOpenPresetsLibrary}
-              shouldRestartActivePreset={shouldRestartActivePreset}
-            />
-            {pulseChatHistory ? <PulseChatHistoryPanel {...pulseChatHistory} /> : null}
-          </div>
+      <div className="create-composer-left-panel is-pulse-active">
+        <div className="create-composer-left-panel-inner">
+          <CreatePulsePresetPanel
+            selectedPresetIds={selectedPulsePresetIds}
+            onSelectedPresetIdsChange={onSelectedPulsePresetIdsChange}
+            activePresetId={activePulsePresetId}
+            onActivePresetIdChange={onActivePulsePresetIdChange}
+            onPresetStart={onPulsePresetStart}
+            isActivationBusy={isPulseSessionLocked}
+            builtInDefinitions={builtInDefinitions}
+            refreshBuiltInDefinitions={refreshBuiltInDefinitions}
+            savedPresets={savedPulsePresets}
+            onSavedPresetsChange={onSavedPulsePresetsChange}
+            onOpenPresetsLibrary={onOpenPresetsLibrary}
+            shouldRestartActivePreset={shouldRestartActivePreset}
+          />
+          {pulseChatHistory ? <PulseChatHistoryPanel {...pulseChatHistory} /> : null}
         </div>
-        <div className="create-composer-right-panel">
-          <div
-            ref={panelBodyRef}
-            className={`create-composer-right-panel-inner ${
-              promptStepProps.agentDropActive || canvasTearOutActive ? "is-drop-active" : ""
-            }`.trim()}
-            onDragEnter={handlePanelMediaDragEnter}
-            onDragOver={handlePanelMediaDragOver}
-            onDragLeave={handlePanelMediaDragLeave}
-            onDrop={handlePanelMediaDrop}
-          >
-            <div className="create-composer-right-panel-topbar">
-              <div className="create-composer-right-panel-topbar-center">{createModeToggle}</div>
-              <div className="create-composer-topbar-actions">
-                {handleClearAgentChat ? (
-                  <button
-                    type="button"
-                    className="create-composer-topbar-clear-btn"
-                    onClick={handleClearAgentChat}
-                    aria-label={isActivePulseSession ? "Deactivate pulse" : "Clear chat"}
-                    disabled={isPulseSessionLocked}
-                  >
-                    {isActivePulseSession ? (
-                      <Power size={14} weight="bold" aria-hidden />
-                    ) : (
-                      <Trash size={14} weight="bold" aria-hidden />
-                    )}
-                    <span>{isActivePulseSession ? "Deactivate Pulse" : "Clear"}</span>
-                  </button>
-                ) : null}
-              </div>
+      </div>
+      <div className="create-composer-right-panel">
+        <div
+          ref={panelBodyRef}
+          className={`create-composer-right-panel-inner ${
+            promptStepProps.agentDropActive || canvasTearOutActive ? "is-drop-active" : ""
+          }`.trim()}
+          onDragEnter={handlePanelMediaDragEnter}
+          onDragOver={handlePanelMediaDragOver}
+          onDragLeave={handlePanelMediaDragLeave}
+          onDrop={handlePanelMediaDrop}
+        >
+          <div className="create-composer-right-panel-topbar">
+            <div className="create-composer-right-panel-topbar-center">{createModeToggle}</div>
+            <div className="create-composer-topbar-actions">
+              {handleClearAgentChat ? (
+                <button
+                  type="button"
+                  className="create-composer-topbar-clear-btn"
+                  onClick={handleClearAgentChat}
+                  aria-label={isActivePulseSession ? "Deactivate pulse" : "Clear chat"}
+                  disabled={isPulseSessionLocked}
+                >
+                  {isActivePulseSession ? (
+                    <Power size={14} weight="bold" aria-hidden />
+                  ) : (
+                    <Trash size={14} weight="bold" aria-hidden />
+                  )}
+                  <span>{isActivePulseSession ? "Deactivate Pulse" : "Clear"}</span>
+                </button>
+              ) : null}
             </div>
-            {isNoHistoryShell ? (
-              <div className="create-composer-empty-state-shell">{promptAndControls}</div>
-            ) : (
-              <div className="create-composer-flow-shell">{promptAndControls}</div>
-            )}
           </div>
+          {isNoHistoryShell ? (
+            <div className="create-composer-empty-state-shell">{promptAndControls}</div>
+          ) : (
+            <div className="create-composer-flow-shell">{promptAndControls}</div>
+          )}
         </div>
       </div>
     </div>

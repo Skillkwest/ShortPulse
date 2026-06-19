@@ -25,6 +25,30 @@ type SignedUrlRow = {
   signedUrl?: unknown;
 };
 
+type StorageObjectRow = {
+  name?: unknown;
+};
+
+type StorageObjectQueryClient = {
+  from: (table: string) => {
+    select: (columns: string) => {
+      eq: (
+        column: string,
+        value: string
+      ) => {
+        in: (
+          column: string,
+          values: string[]
+        ) => Promise<{ data?: StorageObjectRow[] | null; error?: { message?: string } | null }>;
+      };
+    };
+  };
+};
+
+type SupabaseAdminWithStorageSchema = {
+  schema?: unknown;
+};
+
 const MEDIA_BUCKET = "media_library";
 const DEFAULT_SIGNED_URL_TTL_SECONDS = 3600;
 const MIN_SIGNED_URL_TTL_SECONDS = 60;
@@ -99,6 +123,35 @@ const toPreviewProfile = (value: unknown): MediaPreviewTransformProfile | null =
   return null;
 };
 
+const resolveExistingStorageObjectPaths = async ({
+  supabaseAdmin,
+  paths,
+}: {
+  supabaseAdmin: SupabaseAdminWithStorageSchema;
+  paths: string[];
+}): Promise<Set<string>> => {
+  if (!paths.length) return new Set();
+  if (typeof supabaseAdmin.schema !== "function") {
+    return new Set(paths);
+  }
+  const storageSchemaClient = supabaseAdmin.schema("storage") as StorageObjectQueryClient;
+
+  const { data, error } = await storageSchemaClient
+    .from("objects")
+    .select("name")
+    .eq("bucket_id", MEDIA_BUCKET)
+    .in("name", paths);
+  if (error) {
+    return new Set(paths);
+  }
+
+  return new Set(
+    (data ?? [])
+      .map((row) => (typeof row.name === "string" ? row.name.trim() : ""))
+      .filter((path): path is string => Boolean(path))
+  );
+};
+
 /**
  * Signs media storage paths in a single call for lower list-render latency.
  */
@@ -163,8 +216,14 @@ export default async function handler(
       urls[path] = null;
     }
 
-    if (paths.length) {
-      const { data, error } = await storage.createSignedUrls(paths, expiresInSeconds);
+    const existingPaths = await resolveExistingStorageObjectPaths({
+      supabaseAdmin,
+      paths,
+    });
+    const signablePaths = paths.filter((path) => existingPaths.has(path));
+
+    if (signablePaths.length) {
+      const { data, error } = await storage.createSignedUrls(signablePaths, expiresInSeconds);
       if (!error) {
         for (const signedItem of data ?? []) {
           const path = toSafePath((signedItem as SignedUrlRow).path);

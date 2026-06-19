@@ -10,9 +10,7 @@
   margin-top: var(--create-composer-bottom-block-offset);
 }
 
-.create-composer-panel
-  .create-composer-panel-shell.is-pulse-rail-active
-  .create-composer-bottom-block {
+.create-composer-panel.is-pulse-rail-active .create-composer-bottom-block {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;

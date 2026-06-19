@@ -60,6 +60,7 @@ APP_BASE_URL=https://www.shortpulse.ai
 SHORTPULSE_PUBLIC_API_BASE_URL=https://preview.shortpulse.test
 STRIPE_SECRET_KEY=stripe
 STRIPE_WEBHOOK_SECRET=whsec
+ELEVENLABS_API_KEY=elevenlabs
 `);
 
     expect(() =>

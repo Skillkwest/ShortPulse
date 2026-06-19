@@ -73,6 +73,17 @@ describe("PulseCreatePanelView", () => {
     vi.unstubAllGlobals();
   });
 
+  it("renders Pulse columns without the full panel shell wrapper", () => {
+    const { container } = render(<PulseCreatePanelView {...baseProps} />);
+
+    expect(container.querySelector(".create-composer-panel-shell")).toBeNull();
+    expect(container.querySelector(".create-composer-left-panel")).toBeTruthy();
+    expect(container.querySelector(".create-composer-right-panel")).toBeTruthy();
+    expect(screen.getByRole("group", { name: "Create composer" })).toHaveClass(
+      "is-pulse-rail-active"
+    );
+  });
+
   it("accepts media drops from the wider create panel body", () => {
     const onAgentAttachmentDrop = vi.fn();
     const onAgentAttachmentDragEnter = vi.fn();

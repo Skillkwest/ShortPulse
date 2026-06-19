@@ -781,6 +781,7 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
         body: JSON.stringify({
           fileUrl: "https://example.com/character.png",
           uploadPath: "shortpulse/kie-video/images",
+          admissionProfile: "kie_motion_control_character_image",
         }),
       })
     );
@@ -2128,6 +2129,34 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
         resolution: "720p",
         image_url: KIE_TEMP_CHARACTER_IMAGE_URL,
         video_url: KIE_TEMP_MOTION_REFERENCE_URL,
+      })
+    );
+    expect(fetchWithAuth).toHaveBeenCalledWith(
+      "/api/kie/upload-url",
+      expect.objectContaining({
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fileUrl: "https://example.com/character.png",
+          uploadPath: "shortpulse/kie-video/images",
+          admissionProfile: "kie_motion_control_character_image",
+        }),
+      })
+    );
+    expect(fetchWithAuth).toHaveBeenCalledWith(
+      "/api/kie/upload-url",
+      expect.objectContaining({
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          storagePath: "user-1/videos/motion-control/motion.mp4",
+          mediaKind: "video",
+          uploadPath: "shortpulse/kie-video/videos",
+        }),
       })
     );
     expect(submitKieKlingImageToVideo).not.toHaveBeenCalledWith(

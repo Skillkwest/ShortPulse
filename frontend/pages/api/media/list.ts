@@ -93,6 +93,30 @@ type MediaListErrorResponse = {
   details?: string;
 };
 
+type StorageObjectRow = {
+  name?: unknown;
+};
+
+type StorageObjectQueryClient = {
+  from: (table: string) => {
+    select: (columns: string) => {
+      eq: (
+        column: string,
+        value: string
+      ) => {
+        in: (
+          column: string,
+          values: string[]
+        ) => Promise<{ data?: StorageObjectRow[] | null; error?: { message?: string } | null }>;
+      };
+    };
+  };
+};
+
+type SupabaseAdminWithStorageSchema = {
+  schema?: unknown;
+};
+
 const MEDIA_BUCKET = "media_library";
 const DEFAULT_SIGNED_URL_TTL_SECONDS = 3600;
 const TRAVERSAL_SEGMENT_REGEX = /(?:^|\/)\.\.(?:\/|$)/;
@@ -471,16 +495,23 @@ const enrichRowsWithGenerationProjectionMetadata = async ({
   const signedUrlByPath = new Map<string, string>();
   if (signablePaths.size) {
     const signPaths = Array.from(signablePaths);
-    const { data: signedData, error: signError } = await supabaseAdmin.storage
-      .from(MEDIA_BUCKET)
-      .createSignedUrls(signPaths, DEFAULT_SIGNED_URL_TTL_SECONDS);
-    if (!signError) {
-      for (const signedItem of signedData ?? []) {
-        const path = typeof signedItem?.path === "string" ? signedItem.path.trim() : "";
-        const signedUrl =
-          typeof signedItem?.signedUrl === "string" ? signedItem.signedUrl.trim() : "";
-        if (path && signedUrl) {
-          signedUrlByPath.set(path, signedUrl);
+    const existingPaths = await resolveExistingStorageObjectPaths({
+      supabaseAdmin,
+      paths: signPaths,
+    });
+    const existingSignPaths = signPaths.filter((path) => existingPaths.has(path));
+    if (existingSignPaths.length) {
+      const { data: signedData, error: signError } = await supabaseAdmin.storage
+        .from(MEDIA_BUCKET)
+        .createSignedUrls(existingSignPaths, DEFAULT_SIGNED_URL_TTL_SECONDS);
+      if (!signError) {
+        for (const signedItem of signedData ?? []) {
+          const path = typeof signedItem?.path === "string" ? signedItem.path.trim() : "";
+          const signedUrl =
+            typeof signedItem?.signedUrl === "string" ? signedItem.signedUrl.trim() : "";
+          if (path && signedUrl) {
+            signedUrlByPath.set(path, signedUrl);
+          }
         }
       }
     }
@@ -545,6 +576,35 @@ const resolveLibraryTotalCount = async ({
   }
 };
 
+const resolveExistingStorageObjectPaths = async ({
+  supabaseAdmin,
+  paths,
+}: {
+  supabaseAdmin: SupabaseAdminWithStorageSchema;
+  paths: string[];
+}): Promise<Set<string>> => {
+  if (!paths.length) return new Set();
+  if (typeof supabaseAdmin.schema !== "function") {
+    return new Set(paths);
+  }
+  const storageSchemaClient = supabaseAdmin.schema("storage") as StorageObjectQueryClient;
+
+  const { data, error } = await storageSchemaClient
+    .from("objects")
+    .select("name")
+    .eq("bucket_id", MEDIA_BUCKET)
+    .in("name", paths);
+  if (error) {
+    return new Set(paths);
+  }
+
+  return new Set(
+    (data ?? [])
+      .map((row) => (typeof row.name === "string" ? row.name.trim() : ""))
+      .filter((path): path is string => Boolean(path))
+  );
+};
+
 const resolveInitialSignedById = async ({
   rows,
   userId,
@@ -593,15 +653,20 @@ const resolveInitialSignedById = async ({
     rowIdsForPath.push(rowId);
     batchEligibleRowIdsByPath.set(candidate, rowIdsForPath);
   }
+  const existingPaths = await resolveExistingStorageObjectPaths({
+    supabaseAdmin,
+    paths: batchEligiblePaths,
+  });
+  const existingBatchEligiblePaths = batchEligiblePaths.filter((path) => existingPaths.has(path));
 
-  if (batchEligiblePaths.length) {
+  if (existingBatchEligiblePaths.length) {
     const { data, error } = await storage.createSignedUrls(
-      batchEligiblePaths,
+      existingBatchEligiblePaths,
       DEFAULT_SIGNED_URL_TTL_SECONDS
     );
     if (error) {
       await Promise.all(
-        batchEligiblePaths.map(async (path) => {
+        existingBatchEligiblePaths.map(async (path) => {
           const rowIdsForPath = batchEligibleRowIdsByPath.get(path) ?? [];
           await Promise.all(rowIdsForPath.map((rowId) => signSingleCandidate({ rowId, path })));
         })

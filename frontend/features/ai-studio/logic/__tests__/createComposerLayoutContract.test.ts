@@ -148,11 +148,11 @@ describe("create composer layout contract", () => {
     const css = fs.readFileSync(createComposerChatCssPath, "utf8");
     const activePulseFlowShell = extractRuleBlock(
       css,
-      ".create-composer-panel:not(.create-composer-panel--no-history) .create-composer-panel-shell.is-pulse-rail-active .create-composer-flow-shell"
+      ".create-composer-panel.is-pulse-rail-active:not(.create-composer-panel--no-history) .create-composer-flow-shell"
     );
     const activePulseMessages = extractRuleBlock(
       css,
-      ".create-composer-panel .create-composer-panel-shell.is-pulse-rail-active .create-composer-prompt-step .agent-messages"
+      ".create-composer-panel.is-pulse-rail-active .create-composer-prompt-step .agent-messages"
     );
 
     expect(activePulseFlowShell).toContain("flex: 1 1 auto;");

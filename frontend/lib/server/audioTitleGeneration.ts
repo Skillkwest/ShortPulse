@@ -1,7 +1,7 @@
 import { resolveRequiredAiStudioTextPromptModelId } from "../model-runtime/modelCatalog";
 import { fetchOpenAiCompatibleChatCompletion } from "./api/openAiCompat";
 
-export const GENERATED_AUDIO_REFERENCE_TITLE_MAX_CHARACTERS = 40;
+export const GENERATED_AUDIO_REFERENCE_TITLE_MAX_CHARACTERS = 34;
 export const GENERATED_SONG_TITLE_MAX_CHARACTERS = GENERATED_AUDIO_REFERENCE_TITLE_MAX_CHARACTERS;
 
 const TITLE_GENERATION_TIMEOUT_MS = 2_000;

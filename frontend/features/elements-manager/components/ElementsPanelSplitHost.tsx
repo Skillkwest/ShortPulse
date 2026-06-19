@@ -6,6 +6,7 @@ import type {
   SharedMediaDetailVideoSnapshotHandler,
 } from "../../ai-studio/components/detail-modal/detailModalPlatformTypes";
 import type { ResolveInternalReferenceDrop } from "../../ai-studio/logic/referenceSource/internalReferenceSource";
+import type { CanvasTearOutComposerTargetRegistry } from "../../ai-studio/hooks/useAiStudioCanvasTearOutTargets";
 import type { InternalReferenceDragPayload } from "../../ai-studio/utils/dragDrop";
 import { ElementsManagerShell } from "./ElementsManagerShell";
 
@@ -16,6 +17,7 @@ type ElementsPanelSplitHostProps = {
     id: string;
   } | null>;
   resolveProfileImageDropSource?: ResolveInternalReferenceDrop;
+  canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
   externalCreateRequestKey?: number;
   detailSelectionTarget?: SharedMediaDetailSelectionTarget | null;
   onDetailSelectionTargetChange?: (target: SharedMediaDetailSelectionTarget | null) => void;
@@ -34,6 +36,7 @@ export function ElementsPanelSplitHost({
   projectId = null,
   resolveMediaLibraryInternalDropItem,
   resolveProfileImageDropSource,
+  canvasTearOutTargetRegistry,
   externalCreateRequestKey = 0,
   detailSelectionTarget = null,
   onDetailSelectionTargetChange,
@@ -59,6 +62,7 @@ export function ElementsPanelSplitHost({
         <ElementsManagerShell
           externalCreateRequestKey={externalCreateRequestKey}
           resolveProfileImageDropSource={resolveProfileImageDropSource}
+          canvasTearOutTargetRegistry={canvasTearOutTargetRegistry}
         />
       </div>
 

@@ -7,6 +7,8 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { describe, expect, it, vi } from "vitest";
 import { ElementsPanel } from "../ElementsPanel";
 import { INTERNAL_REFERENCE_DRAG_ORIGIN } from "../../utils/dragDrop";
+import { createCanvasTearOutComposerTargetRegistry } from "../../hooks/useAiStudioCanvasTearOutTargets";
+import type { AgentComposerDirectDropPayload } from "../../logic/agentComposerDirectDropPayload";
 import {
   COMPOSER_IMAGE_DROP_SESSION_TYPE,
   registerComposerImageDropSession,
@@ -237,6 +239,26 @@ const createDeferred = <T,>() => {
     reject = nextReject;
   });
   return { promise, resolve, reject };
+};
+
+const setMockElementRect = (
+  element: Element,
+  rect: { left: number; top: number; width: number; height: number }
+) => {
+  Object.defineProperty(element, "getBoundingClientRect", {
+    configurable: true,
+    value: () => ({
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height,
+      right: rect.left + rect.width,
+      bottom: rect.top + rect.height,
+      x: rect.left,
+      y: rect.top,
+      toJSON: () => undefined,
+    }),
+  });
 };
 
 const addInternalReferenceDragPayload = (
@@ -492,6 +514,50 @@ describe("ElementsPanel layout", () => {
 
     await waitFor(() => {
       expect(screen.getByAltText("Secondary View reference")).toBeInTheDocument();
+    });
+  });
+
+  it("accepts a Canvas tear-out image payload into an element reference slot", async () => {
+    const registry = createCanvasTearOutComposerTargetRegistry();
+    render(<ElementsPanel canvasTearOutTargetRegistry={registry} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+    await waitForElementEditor();
+
+    const targetZone = screen.getByText("Secondary View").closest("article");
+    if (!targetZone) {
+      throw new Error("Expected secondary reference zone.");
+    }
+    setMockElementRect(targetZone, { left: 10, top: 20, width: 120, height: 150 });
+
+    const payload: AgentComposerDirectDropPayload = {
+      kind: "image",
+      internalPayload: {
+        version: 1,
+        origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
+        referenceId: "output-canvas-elements",
+        outputId: "output-canvas-elements",
+        imageIndex: 0,
+        mediaId: "media-canvas-elements",
+        mediaKind: "image",
+        referenceUrl: "https://example.com/canvas-elements-drop.png",
+        sourceSurface: "all-refs",
+      },
+      composerImagePayload: null,
+    };
+
+    const resolvedTarget = registry.resolveTargetAtPoint({ clientX: 20, clientY: 30 }, payload);
+    expect(resolvedTarget?.id).toBe("elements-reference-slot-1");
+
+    act(() => {
+      resolvedTarget?.target.accept(payload);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByAltText("Secondary View reference")).toHaveAttribute(
+        "src",
+        "https://example.com/canvas-elements-drop.png"
+      );
     });
   });
 

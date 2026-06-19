@@ -181,7 +181,11 @@ type KieUploadRoutePayload = {
 };
 
 type KieUploadRouteResponseBodyFormat = "json" | "html" | "text" | "empty" | "unavailable";
-type KieUploadAdmissionProfile = "kie_motion_control_character_image";
+type KieUploadAdmissionProfile =
+  | "kie_motion_control_character_image"
+  | "kie_seedance_reference_image";
+const KIE_SEEDANCE_REFERENCE_IMAGE_ADMISSION_PROFILE: KieUploadAdmissionProfile =
+  "kie_seedance_reference_image";
 
 const readKieUploadRoutePayload = async (
   response: Response
@@ -859,10 +863,12 @@ const uploadUrlsToKieTemporaryFiles = async ({
   urls,
   mediaKind,
   cache,
+  admissionProfile = null,
 }: {
   urls: string[];
   mediaKind: "image" | "video" | "audio";
   cache: Map<string, Promise<string>>;
+  admissionProfile?: KieUploadAdmissionProfile | null;
 }): Promise<string[]> =>
   (
     await Promise.all(
@@ -871,6 +877,7 @@ const uploadUrlsToKieTemporaryFiles = async ({
           url,
           mediaKind,
           cache,
+          admissionProfile,
         })
       )
     )
@@ -879,9 +886,11 @@ const uploadUrlsToKieTemporaryFiles = async ({
 const prepareKieHostedKlingElementForSubmission = async ({
   element,
   cache,
+  imageAdmissionProfile = null,
 }: {
   element: AiStudioKlingElement;
   cache: Map<string, Promise<string>>;
+  imageAdmissionProfile?: KieUploadAdmissionProfile | null;
 }): Promise<AiStudioKlingElement> => {
   const rawImageUrls = getAiStudioKlingElementReferenceUrls(element)
     .map((value) => value.trim())
@@ -896,6 +905,7 @@ const prepareKieHostedKlingElementForSubmission = async ({
             sourceUrl: url,
             mediaKind: "image",
             cache,
+            admissionProfile: imageAdmissionProfile,
           });
         }
         const preparedUrl = await prepareImageUrlForSubmission(url);
@@ -904,6 +914,7 @@ const prepareKieHostedKlingElementForSubmission = async ({
               url: preparedUrl,
               mediaKind: "image",
               cache,
+              admissionProfile: imageAdmissionProfile,
             })
           : "";
       })
@@ -1426,6 +1437,7 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
                 await prepareKieHostedKlingElementForSubmission({
                   element,
                   cache: seedanceUploadCache,
+                  imageAdmissionProfile: KIE_SEEDANCE_REFERENCE_IMAGE_ADMISSION_PROFILE,
                 })
             )
           );
@@ -1483,6 +1495,7 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
               preparedUrl: preparedImageInputs[0] ?? "",
               mediaKind: "image",
               cache: kieUploadCache,
+              admissionProfile: KIE_SEEDANCE_REFERENCE_IMAGE_ADMISSION_PROFILE,
             })
           : Promise.resolve(""),
         effectiveInputMode === "first-last"
@@ -1491,6 +1504,7 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
               preparedUrl: preparedImageInputs[1] ?? "",
               mediaKind: "image",
               cache: kieUploadCache,
+              admissionProfile: KIE_SEEDANCE_REFERENCE_IMAGE_ADMISSION_PROFILE,
             })
           : Promise.resolve(""),
         effectiveInputMode === "multimodal"
@@ -1500,6 +1514,7 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
               ),
               mediaKind: "image",
               cache: kieUploadCache,
+              admissionProfile: KIE_SEEDANCE_REFERENCE_IMAGE_ADMISSION_PROFILE,
             })
           : Promise.resolve([]),
         effectiveInputMode === "multimodal"

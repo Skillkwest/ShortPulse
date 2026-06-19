@@ -1350,6 +1350,30 @@ describe("handleVideoModelSubmission (Kie Seedance 2)", () => {
 
     expect(handled).toBe(true);
     expect(fetchWithAuth).toHaveBeenCalledTimes(2);
+    expect(fetchWithAuth).toHaveBeenNthCalledWith(
+      1,
+      "/api/kie/upload-url",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          fileUrl: "https://example.com/first.png",
+          uploadPath: "shortpulse/kie-video/images",
+          admissionProfile: "kie_seedance_reference_image",
+        }),
+      })
+    );
+    expect(fetchWithAuth).toHaveBeenNthCalledWith(
+      2,
+      "/api/kie/upload-url",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          fileUrl: "https://example.com/last.png",
+          uploadPath: "shortpulse/kie-video/images",
+          admissionProfile: "kie_seedance_reference_image",
+        }),
+      })
+    );
     expect(submitKieSeedance2Video).toHaveBeenCalledWith(
       expect.objectContaining({
         first_frame_url:
@@ -2468,6 +2492,7 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
           storagePath: "user-1/references/red-lantern-front.png",
           mediaKind: "image",
           uploadPath: "shortpulse/kie-video/images",
+          admissionProfile: "kie_seedance_reference_image",
         }),
       })
     );
@@ -2518,6 +2543,7 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
         body: JSON.stringify({
           fileUrl: signedReferenceUrl,
           uploadPath: "shortpulse/kie-video/images",
+          admissionProfile: "kie_seedance_reference_image",
         }),
       })
     );
@@ -2594,6 +2620,7 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
           storagePath: "user-1/references/direct-slot.png",
           mediaKind: "image",
           uploadPath: "shortpulse/kie-video/images",
+          admissionProfile: "kie_seedance_reference_image",
         }),
       })
     );

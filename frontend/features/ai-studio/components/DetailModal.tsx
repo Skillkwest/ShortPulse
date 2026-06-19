@@ -893,7 +893,8 @@ function DetailModalContent({
   const handleReloadWorkflowReference = useCallback(() => {
     if (!onReloadWorkflowReference) return;
     onReloadWorkflowReference(output, { mediaKindHint: workflowReloadMediaKindHint });
-  }, [onReloadWorkflowReference, output, workflowReloadMediaKindHint]);
+    handleCloseModal();
+  }, [handleCloseModal, onReloadWorkflowReference, output, workflowReloadMediaKindHint]);
 
   const handlePreviewAspectLoad = useCallback(
     (width: number, height: number) => {

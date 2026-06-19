@@ -7,11 +7,13 @@ import type {
 } from "../../ai-studio/components/detail-modal/detailModalPlatformTypes";
 import type { ResolveCharacterDropReference } from "../hooks/useCharacterManagerDroppedReferenceController";
 import type { InternalReferenceDragPayload } from "../../ai-studio/utils/dragDrop";
+import type { CanvasTearOutComposerTargetRegistry } from "../../ai-studio/hooks/useAiStudioCanvasTearOutTargets";
 import { CharacterEmbeddedMediaLibraryPanel } from "./CharacterEmbeddedMediaLibraryPanel";
 import { CharacterPanelWorkspace } from "./CharacterPanelWorkspace";
 
 type CharacterPanelSplitHostProps = {
   resolveCharacterDropReference?: ResolveCharacterDropReference;
+  canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
   resolveMediaLibraryInternalDropItem?: (payload: InternalReferenceDragPayload) => Promise<{
     kind: "media" | "prompt";
     id: string;
@@ -38,6 +40,7 @@ const CHARACTER_PANEL_TOP_SECTION_INLINE_STYLE: React.CSSProperties = {
 
 export function CharacterPanelSplitHost({
   resolveCharacterDropReference,
+  canvasTearOutTargetRegistry,
   resolveMediaLibraryInternalDropItem,
   externalCreateRequestKey = 0,
   externalUploadRequest = null,
@@ -68,6 +71,7 @@ export function CharacterPanelSplitHost({
       <div className="character-panel-top-section" style={CHARACTER_PANEL_TOP_SECTION_INLINE_STYLE}>
         <CharacterPanelWorkspace
           resolveCharacterDropReference={resolveCharacterDropReference}
+          canvasTearOutTargetRegistry={canvasTearOutTargetRegistry}
           externalCreateRequestKey={externalCreateRequestKey}
           externalUploadRequest={externalUploadRequest}
           onExternalUploadRequestHandled={onExternalUploadRequestHandled}

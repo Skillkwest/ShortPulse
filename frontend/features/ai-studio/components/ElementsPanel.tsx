@@ -10,11 +10,13 @@ import type {
   SharedMediaDetailVideoSnapshotHandler,
 } from "./detail-modal/detailModalPlatformTypes";
 import { useElementsPanelPropertiesScrollLock } from "../hooks/useElementsPanelPropertiesScrollLock";
+import type { CanvasTearOutComposerTargetRegistry } from "../hooks/useAiStudioCanvasTearOutTargets";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
 import type { InternalReferenceDragPayload } from "../utils/dragDrop";
 
 type ElementsPanelProps = {
   resolveProfileImageDropSource?: ResolveInternalReferenceDrop;
+  canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
   resolveMediaLibraryInternalDropItem?: (payload: InternalReferenceDragPayload) => Promise<{
     kind: "media" | "prompt";
     id: string;
@@ -37,6 +39,7 @@ const ELEMENTS_PANEL_ROOT_INLINE_STYLE: React.CSSProperties = {
 
 export function ElementsPanel({
   resolveProfileImageDropSource,
+  canvasTearOutTargetRegistry,
   resolveMediaLibraryInternalDropItem,
   createRequestKey = 0,
   projectId = null,
@@ -62,6 +65,7 @@ export function ElementsPanel({
         projectId={projectId}
         resolveMediaLibraryInternalDropItem={resolveMediaLibraryInternalDropItem}
         resolveProfileImageDropSource={resolveProfileImageDropSource}
+        canvasTearOutTargetRegistry={canvasTearOutTargetRegistry}
         detailSelectionTarget={detailSelectionTarget}
         onDetailSelectionTargetChange={onDetailSelectionTargetChange}
         onSnapshotVideoFrame={onSnapshotVideoFrame}

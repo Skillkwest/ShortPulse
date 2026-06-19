@@ -8,7 +8,7 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/seedan
 - Model id: `kie-ai/seedance-2`
 - Canonical source reference: [Kie Seedance 2.0](https://docs.kie.ai/market/bytedance/seedance-2)
 - Runtime status: active always-on Kie video lane
-- Primary-source snapshot: captured from Kie docs on `2026-04-30`
+- Primary-source snapshot: refreshed from Kie docs on `2026-06-19`
 
 ## Current Runtime Contract
 
@@ -20,7 +20,7 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/seedan
   - payload body under `input`
 - Allowed aspects: `1:1`, `21:9`, `4:3`, `3:4`, `16:9`, `9:16`
 - Allowed resolutions: `480p`, `720p`, `1080p`
-- Allowed durations: `5`, `10`, `15` (seconds)
+- Allowed durations: integer seconds from `4` through `15`
 - Required fields:
   - `prompt`
 - Optional validated fields:
@@ -47,6 +47,16 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/seedan
   - Kling-pattern `Single`/`Multi` shot controls with Seedance-specific hidden prompt composition
   - linked Character/Element references compiled into Seedance-native prompt + `reference_*_urls` payload fields
 - Frame mode and multimodal reference mode are mutually exclusive.
+- Provider-facing Seedance image inputs use `/api/kie/upload-url` with
+  `admissionProfile="kie_seedance_reference_image"` before Kie temp upload. This applies to
+  `first_frame_url`, `last_frame_url`, and `reference_image_urls`, including direct image slots and
+  linked Character/Element image references.
+- Seedance image admission preserves the original ShortPulse media asset and normalizes only the
+  provider-facing bytes: still images must be readable, under `30 MB`, within aspect ratio `0.4..2.5`,
+  and both width and height must land within `300..6000` px. Undersized stills are upscaled,
+  oversized stills are downscaled, and invalid aspect/unreadable inputs fail before provider submit.
+- Supabase image transformations are prohibited; Seedance admission uses app-owned server-side image
+  encoding only.
 
 ## Related Routes
 

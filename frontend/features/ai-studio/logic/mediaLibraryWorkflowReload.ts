@@ -2,6 +2,7 @@
  * Adapts explicit saved media workflow reload metadata into the AI Studio reload contract.
  */
 import type { StudioOutput, WorkflowReloadConfigV1, WorkflowReloadMediaKindHint } from "../types";
+import { resolveMediaRowKind } from "../../../lib/mediaRowKind";
 import { resolveMediaMetadataModelId, type MediaFileRow } from "./mediaLibraryModalModel";
 import { isWorkflowReloadConfigV1 } from "./workflowReload";
 
@@ -20,8 +21,10 @@ const modeFromFileType = (
 export const resolveMediaLibraryWorkflowReloadMediaKindHint = (
   file: MediaFileRow
 ): WorkflowReloadMediaKindHint | null => {
+  const rowKind = resolveMediaRowKind(file);
+  if (rowKind !== "unknown") return rowKind;
   const workflowMode = resolveMediaLibraryWorkflowReloadConfig(file.metadata)?.outputMode;
-  return modeFromFileType(file.file_type) ?? modeFromFileType(workflowMode);
+  return modeFromFileType(workflowMode);
 };
 
 const aspectFromWorkflowReload = (config: WorkflowReloadConfigV1): string => {
@@ -34,7 +37,11 @@ const aspectFromWorkflowReload = (config: WorkflowReloadConfigV1): string => {
 const resolveSavedMediaWorkflowMode = (
   file: MediaFileRow,
   config: WorkflowReloadConfigV1
-): StudioOutput["mode"] => modeFromFileType(file.file_type) ?? config.outputMode;
+): StudioOutput["mode"] => {
+  const rowKind = resolveMediaRowKind(file);
+  if (rowKind !== "unknown") return rowKind;
+  return config.outputMode;
+};
 
 const resolveSavedMediaWorkflowModelId = (
   file: MediaFileRow,

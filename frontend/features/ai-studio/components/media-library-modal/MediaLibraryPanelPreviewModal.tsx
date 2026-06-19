@@ -52,6 +52,13 @@ export function MediaLibraryPanelPreviewModal({
     },
     [onPreviewError]
   );
+  const handleReloadWorkflowItem = React.useCallback(
+    (nextItem: MediaLibraryDetailModalItem) => {
+      onReloadWorkflowItem?.(nextItem);
+      onClose();
+    },
+    [onClose, onReloadWorkflowItem]
+  );
   const topBarActionItems = React.useMemo(() => {
     if (!item) return [];
     return [
@@ -62,7 +69,7 @@ export function MediaLibraryPanelPreviewModal({
               label: "",
               ariaLabel: "Reload workflow",
               title: "Reload workflow",
-              onClick: () => onReloadWorkflowItem(item),
+              onClick: () => handleReloadWorkflowItem(item),
               icon: <FlowArrow size={16} weight="bold" aria-hidden />,
               className: "is-icon-only",
             },
@@ -77,7 +84,7 @@ export function MediaLibraryPanelPreviewModal({
         deleteIcon: <TrashSimple size={16} weight="bold" aria-hidden />,
       }),
     ];
-  }, [item, onDeleteItem, onDownloadItem, onReloadWorkflowItem]);
+  }, [handleReloadWorkflowItem, item, onDeleteItem, onDownloadItem, onReloadWorkflowItem]);
 
   return (
     <SharedMediaDetailPreviewModal

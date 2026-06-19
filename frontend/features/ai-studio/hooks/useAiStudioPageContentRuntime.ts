@@ -71,6 +71,7 @@ type UseAiStudioPageContentRuntimeParams = {
   handleReferenceGridFiles: AiStudioPageContentProps["handleReferenceGridFiles"];
   triggerFilePicker: AiStudioPageContentProps["triggerFilePicker"];
   resolveCharacterDropReference: AiStudioPageContentProps["resolveCharacterDropReference"];
+  canvasTearOutTargetRegistry: AiStudioPageContentProps["canvasTearOutTargetRegistry"];
   pendingCharacterUploadRequest: AiStudioPageContentProps["pendingCharacterUploadRequest"];
   onCharacterUploadRequestHandled: AiStudioPageContentProps["onCharacterUploadRequestHandled"];
   createSelectedCharacterId: AiStudioPageContentProps["createSelectedCharacterId"];
@@ -151,6 +152,7 @@ export const useAiStudioPageContentRuntime = ({
   handleReferenceGridFiles,
   triggerFilePicker,
   resolveCharacterDropReference,
+  canvasTearOutTargetRegistry,
   pendingCharacterUploadRequest,
   onCharacterUploadRequestHandled,
   createSelectedCharacterId,
@@ -228,6 +230,7 @@ export const useAiStudioPageContentRuntime = ({
       handleReferenceGridFiles,
       triggerFilePicker,
       resolveCharacterDropReference,
+      canvasTearOutTargetRegistry,
       pendingCharacterUploadRequest,
       onCharacterUploadRequestHandled,
       createSelectedCharacterId,
@@ -304,6 +307,7 @@ export const useAiStudioPageContentRuntime = ({
       handleReferenceGridFiles,
       triggerFilePicker,
       resolveCharacterDropReference,
+      canvasTearOutTargetRegistry,
       pendingCharacterUploadRequest,
       onCharacterUploadRequestHandled,
       createSelectedCharacterId,

@@ -212,6 +212,7 @@ Current set:
 - `159_repair_historical_generation_project_convergence.sql`
 - `160_repair_global_media_library_visibility.sql`
 - `161_harden_hidden_free_billing_offer.sql`
+- `162_repair_generation_projection_workflow_reload.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 

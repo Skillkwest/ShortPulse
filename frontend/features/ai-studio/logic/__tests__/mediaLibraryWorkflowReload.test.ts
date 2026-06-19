@@ -151,6 +151,38 @@ describe("mediaLibraryWorkflowReload", () => {
     });
   });
 
+  it("uses path-backed saved video identity when legacy file type metadata is stale", () => {
+    const row = createRow({
+      filename: "wolf-motion.mp4",
+      file_type: "image/png",
+      signedUrl: "https://cdn.example.com/wolf-motion.mp4",
+      storage_path: "user-1/media-library/wolf-motion.mp4",
+      metadata: {
+        model_id: "kie-ai/kling-3.0",
+        workflow_reload: workflowReload,
+      },
+    });
+    const output = createMediaLibraryWorkflowReloadOutput(row);
+
+    expect(resolveMediaLibraryWorkflowReloadMediaKindHint(row)).toBe("video");
+    expect(output).toMatchObject({
+      mode: "video",
+      modelId: "kie-ai/kling-3.0",
+      mediaSource: "generated",
+      workflowReload,
+    });
+    expect(
+      output ? resolveWorkflowReloadConfigForOutput(output, { mediaKindHint: "video" }) : null
+    ).toMatchObject({
+      originTool: "video",
+      panelKind: "video",
+      outputMode: "video",
+      payload: expect.objectContaining({
+        kind: "video",
+      }),
+    });
+  });
+
   it("preserves video workflow sidecar references from saved AI Studio media rows", () => {
     const videoWorkflowReload = {
       ...workflowReload,

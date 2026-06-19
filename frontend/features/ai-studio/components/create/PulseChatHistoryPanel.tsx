@@ -258,11 +258,15 @@ export function PulseChatHistoryPanel({
           <span className="create-composer-chats-thread-title">
             {isOpening ? "Opening..." : thread.title}
           </span>
+        </span>
+        <span className="create-composer-chats-thread-meta">
+          <span className="create-composer-chats-thread-pulse">
+            {thread.presetLabel ?? "Pulse"}
+          </span>
           {timestamp ? (
             <span className="create-composer-chats-thread-time">{timestamp}</span>
           ) : null}
         </span>
-        <span className="create-composer-chats-thread-pulse">{thread.presetLabel ?? "Pulse"}</span>
       </button>
     );
   };

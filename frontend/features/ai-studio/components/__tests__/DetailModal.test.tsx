@@ -542,6 +542,7 @@ describe("DetailModal", () => {
 
   it("shows workflow reload in media details only for restorable generated outputs", () => {
     const onReloadWorkflowReference = vi.fn();
+    const onClose = vi.fn();
     const restorableOutput: StudioOutput = {
       ...baseOutput,
       mediaSource: "generated",
@@ -570,7 +571,7 @@ describe("DetailModal", () => {
     const { rerender } = render(
       <DetailModal
         output={restorableOutput}
-        onClose={vi.fn()}
+        onClose={onClose}
         onUpdatePrompt={vi.fn()}
         onDeleteOutput={vi.fn()}
         onReloadWorkflowReference={onReloadWorkflowReference}
@@ -581,6 +582,7 @@ describe("DetailModal", () => {
     expect(onReloadWorkflowReference).toHaveBeenCalledWith(restorableOutput, {
       mediaKindHint: "image",
     });
+    expect(onClose).toHaveBeenCalledTimes(1);
 
     const deliveredVideoOutput: StudioOutput = {
       ...baseOutput,
@@ -607,7 +609,7 @@ describe("DetailModal", () => {
     rerender(
       <DetailModal
         output={deliveredVideoOutput}
-        onClose={vi.fn()}
+        onClose={onClose}
         onUpdatePrompt={vi.fn()}
         onDeleteOutput={vi.fn()}
         onReloadWorkflowReference={onReloadWorkflowReference}
@@ -618,6 +620,7 @@ describe("DetailModal", () => {
     expect(onReloadWorkflowReference).toHaveBeenCalledWith(deliveredVideoOutput, {
       mediaKindHint: "video",
     });
+    expect(onClose).toHaveBeenCalledTimes(2);
 
     rerender(
       <DetailModal

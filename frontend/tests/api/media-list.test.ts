@@ -1411,6 +1411,79 @@ describe("POST /api/media/list", () => {
     );
   });
 
+  it("treats project output display companion art as ready when projection status is stale", async () => {
+    createSupabaseAdminMock(
+      [
+        {
+          id: "audio-display-stale-projection-1",
+          user_id: "user-1",
+          filename: "theme.mp3",
+          storage_path: "user-1/generations/audio/theme.mp3",
+          file_type: "audio/mpeg",
+          file_size: 10,
+          source: "ai_studio",
+          source_ref: "gen-display-stale-projection-1",
+          prompt_id: null,
+          metadata: null,
+          thumb_variant_path: null,
+          poster_variant_path: null,
+          preview_variant_path: null,
+          created_at: "2026-02-20T10:00:00.000Z",
+          updated_at: null,
+        },
+      ],
+      {
+        generationProjectionRows: [
+          {
+            generation_id: "gen-display-stale-projection-1",
+            user_id: "user-1",
+            companion_art_status: "pending",
+            companion_art_storage_path: null,
+          },
+        ],
+        projectOutputDisplayRows: [
+          {
+            generation_id: "gen-display-stale-projection-1",
+            user_id: "user-1",
+            companion_art_storage_path:
+              "user-1/generations/audio/gen-display-stale-projection-1/companion-art/cover.webp",
+            companion_art_url_fallback: "https://expired.example.com/cover.webp",
+          },
+        ],
+      }
+    );
+
+    const req = {
+      method: "POST",
+      body: {
+        mediaKind: "audio",
+        query: "",
+        cursor: null,
+        limit: 36,
+        surface: "media-library-modal",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rows: [
+          expect.objectContaining({
+            id: "audio-display-stale-projection-1",
+            companion_art_status: "ready",
+            companion_art_storage_path:
+              "user-1/generations/audio/gen-display-stale-projection-1/companion-art/cover.webp",
+            companion_art_url:
+              "https://signed.test/user-1%2Fgenerations%2Faudio%2Fgen-display-stale-projection-1%2Fcompanion-art%2Fcover.webp",
+          }),
+        ],
+      })
+    );
+  });
+
   it("enriches saved AI Studio media rows with workflow reload metadata from projection", async () => {
     const workflowReload = {
       version: 1,

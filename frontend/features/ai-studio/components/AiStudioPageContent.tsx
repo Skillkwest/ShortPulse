@@ -42,6 +42,7 @@ import type {
 import { useAiStudioShellResize } from "../hooks/useAiStudioShellResize";
 import { useAiStudioShellDndController } from "../hooks/useAiStudioShellDndController";
 import { useAiStudioStylesRuntime } from "../hooks/useAiStudioStylesRuntime";
+import type { CanvasTearOutComposerTargetRegistry } from "../hooks/useAiStudioCanvasTearOutTargets";
 import type { CharacterPanelUploadRequest } from "../../../lib/characterPanelUploadRequest";
 import type { ResolveCharacterDropReference } from "../../character-manager/hooks/useCharacterManagerDroppedReferenceController";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
@@ -766,6 +767,7 @@ export type AiStudioPageContentProps = {
   handleReferenceGridFiles: (files: FileList) => void;
   triggerFilePicker: () => void;
   resolveCharacterDropReference?: ResolveCharacterDropReference;
+  canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
   pendingCharacterUploadRequest?: CharacterPanelUploadRequest | null;
   onCharacterUploadRequestHandled?: (requestId: number) => void;
   createSelectedCharacterId?: string | null;
@@ -843,6 +845,7 @@ export function AiStudioPageContent({
   handleReferenceGridFiles,
   triggerFilePicker,
   resolveCharacterDropReference,
+  canvasTearOutTargetRegistry,
   pendingCharacterUploadRequest = null,
   onCharacterUploadRequestHandled,
   createSelectedCharacterId = null,
@@ -1495,6 +1498,7 @@ export function AiStudioPageContent({
           selectedCharacterId={createSelectedCharacterId}
           onSelectedCharacterIdChange={onCreateSelectedCharacterIdChange}
           resolveCharacterDropReference={resolveCharacterDropReference}
+          canvasTearOutTargetRegistry={canvasTearOutTargetRegistry}
           resolveMediaLibraryInternalDropItem={resolveMediaLibraryInternalDropItem}
           detailSelectionTarget={mediaLibraryDetailSelectionTarget}
           onDetailSelectionTargetChange={onMediaLibraryDetailSelectionTargetChange}
@@ -1505,6 +1509,7 @@ export function AiStudioPageContent({
     ),
     [
       characterCreateRequestKey,
+      canvasTearOutTargetRegistry,
       createSelectedCharacterId,
       onCharacterUploadRequestHandled,
       onCreateSelectedCharacterIdChange,
@@ -1548,6 +1553,7 @@ export function AiStudioPageContent({
           projectId={projectId}
           resolveMediaLibraryInternalDropItem={resolveMediaLibraryInternalDropItem}
           resolveProfileImageDropSource={resolveElementProfileImageDropSource}
+          canvasTearOutTargetRegistry={canvasTearOutTargetRegistry}
           detailSelectionTarget={mediaLibraryDetailSelectionTarget}
           onDetailSelectionTargetChange={onMediaLibraryDetailSelectionTargetChange}
           onSnapshotVideoFrame={onSnapshotVideoFrame}
@@ -1557,6 +1563,7 @@ export function AiStudioPageContent({
     ),
     [
       elementCreateRequestKey,
+      canvasTearOutTargetRegistry,
       mediaLibraryDetailSelectionTarget,
       onMediaLibraryDetailSelectionTargetChange,
       onSnapshotVideoFrame,

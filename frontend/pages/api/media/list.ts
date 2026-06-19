@@ -561,11 +561,15 @@ const enrichRowsWithGenerationProjectionMetadata = async ({
     const companionArtSignedUrl = companionArtStoragePath
       ? (signedUrlByPath.get(companionArtStoragePath) ?? null)
       : null;
+    const companionArtStatus = projection?.storagePath
+      ? (projection.status ?? "ready")
+      : displayCompanionArt && companionArtStoragePath
+        ? "ready"
+        : (projection?.status ?? null);
     return {
       ...row,
       metadata: nextMetadata,
-      companion_art_status:
-        projection?.status ?? (displayCompanionArt && companionArtStoragePath ? "ready" : null),
+      companion_art_status: companionArtStatus,
       companion_art_storage_path: companionArtStoragePath,
       companion_art_url:
         isAudioFileType(row.file_type) &&

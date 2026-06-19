@@ -373,6 +373,78 @@ describe("POST /api/kie/upload-url", () => {
     });
   });
 
+  it("admits undersized Seedance reference images from owned storage before Kie upload", async () => {
+    const smallImage = await sharp({
+      create: {
+        width: 240,
+        height: 180,
+        channels: 3,
+        background: { r: 40, g: 80, b: 120 },
+      },
+    })
+      .png()
+      .toBuffer();
+    const downloadMock = vi.fn().mockResolvedValue({
+      data: {
+        size: smallImage.length,
+        type: "image/png",
+        arrayBuffer: async () =>
+          smallImage.buffer.slice(
+            smallImage.byteOffset,
+            smallImage.byteOffset + smallImage.byteLength
+          ),
+      },
+      error: null,
+    });
+    const fromMock = vi.fn(() => ({ download: downloadMock }));
+    getSupabaseAdminMock.mockReturnValueOnce({
+      storage: {
+        from: fromMock,
+      },
+    });
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        msg: "File uploaded successfully",
+        data: {
+          downloadUrl: "https://tempfile.redpandaai.co/files/seedance-reference.png",
+          fileName: "seedance-reference.png",
+          mimeType: "image/png",
+        },
+      }),
+    } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = createMockRequest({
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        storagePath: "user-1/references/seedance-reference.png",
+        mediaKind: "image",
+        uploadPath: "shortpulse/kie-video/images",
+        admissionProfile: "kie_seedance_reference_image",
+      }),
+    });
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("https://kieai.redpandaai.co/api/file-stream-upload");
+    const uploadInit = fetchMock.mock.calls[0]?.[1] as { body?: FormData };
+    const uploadedFile = (uploadInit.body as FormData).get("file") as File;
+    expect(uploadedFile.type).toBe("image/png");
+    expect(uploadedFile.name).toBe("seedance-reference.png");
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      url: "https://tempfile.redpandaai.co/files/seedance-reference.png",
+      fileName: "seedance-reference.png",
+      mimeType: "image/png",
+    });
+  });
+
   it("rejects Motion Control image admission profiles outside the Kie image upload path", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
@@ -396,7 +468,7 @@ describe("POST /api/kie/upload-url", () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({
       error: "Invalid upload request",
-      details: "admissionProfile is only supported for Kie Motion Control image uploads.",
+      details: "admissionProfile is only supported for Kie image uploads.",
     });
   });
 

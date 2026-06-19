@@ -12,6 +12,7 @@ import {
   type InternalReferenceDragPayload,
 } from "../../../lib/internalReferenceDragPayload";
 import type { ResolveInternalReferenceDrop } from "../../ai-studio/logic/referenceSource/internalReferenceSource";
+import type { AgentComposerDirectDropPayload } from "../../ai-studio/logic/agentComposerDirectDropPayload";
 import { uploadImageBlobToStorage, uploadImageToStorage } from "../../ai-studio/utils/imageUpload";
 import {
   extractDroppedFiles,
@@ -775,6 +776,29 @@ export const useElementsManagerViewState = ({
     ]
   );
 
+  const onHandleCanvasTearOutImageReferenceAtIndex = React.useCallback(
+    async (index: number, payload: AgentComposerDirectDropPayload): Promise<boolean> => {
+      if (payload.kind !== "image") return false;
+      if (payload.internalPayload) {
+        await onSetImageReferenceFromInternalDropAtIndex(index, payload.internalPayload);
+        return true;
+      }
+
+      if (payload.composerImagePayload) {
+        const normalizedInternalPayload = buildInternalPayloadFromComposerDropPayload(
+          payload.composerImagePayload
+        );
+        if (normalizedInternalPayload) {
+          await onSetImageReferenceFromInternalDropAtIndex(index, normalizedInternalPayload);
+          return true;
+        }
+      }
+
+      return false;
+    },
+    [onSetImageReferenceFromInternalDropAtIndex]
+  );
+
   React.useEffect(() => {
     const targetId = selectedElementId;
     if (!targetId) return;
@@ -842,6 +866,7 @@ export const useElementsManagerViewState = ({
     isSavingElement,
     updateDraftField,
     onHandleImageReferenceTransferAtIndex,
+    onHandleCanvasTearOutImageReferenceAtIndex,
     clearActiveImageReferenceAtIndex,
     assignActiveVideoReference,
     clearActiveVideoReference,

@@ -28,6 +28,8 @@ import {
 } from "../../ai-studio/components/picker/AiStudioPickerPrimitives";
 import { AiStudioModalLayer } from "../../ai-studio/components/modal-layer/AiStudioModalLayer";
 import { readMediaLibraryDragPayload } from "../../ai-studio/logic/mediaLibraryDragPayload";
+import type { AgentComposerDirectDropPayload } from "../../ai-studio/logic/agentComposerDirectDropPayload";
+import type { CanvasTearOutComposerTargetRegistry } from "../../ai-studio/hooks/useAiStudioCanvasTearOutTargets";
 import type { ResolveInternalReferenceDrop } from "../../ai-studio/logic/referenceSource/internalReferenceSource";
 import { hasDroppedImageReferenceTransfer } from "../../character-manager/logic/characterDropPayload";
 import { buildElementProfileImageBackgroundStyle } from "../logic/elementProfileImageTransform";
@@ -45,6 +47,7 @@ import { ElementsDescriptionEditorCard } from "./ElementsDescriptionEditorCard";
 type ElementsManagerShellProps = {
   resolveProfileImageDropSource?: ResolveInternalReferenceDrop;
   externalCreateRequestKey?: number;
+  canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
 };
 
 const IMAGE_REFERENCE_SLOT_LABELS = ["Primary View", "Secondary View", "Detail View"] as const;
@@ -356,9 +359,11 @@ const buildElementInitials = (name: string): string => {
 export function ElementsManagerShell({
   resolveProfileImageDropSource,
   externalCreateRequestKey = 0,
+  canvasTearOutTargetRegistry,
 }: ElementsManagerShellProps) {
   const editorColumnPanelRef = React.useRef<HTMLDivElement | null>(null);
   const elementNameInputRef = React.useRef<HTMLInputElement | null>(null);
+  const referenceSlotElementRefs = React.useRef(new Map<number, HTMLElement>());
   const {
     elements,
     selectedElementId,
@@ -375,6 +380,7 @@ export function ElementsManagerShell({
     clearActiveImageReferenceAtIndex,
     clearActiveVideoReference,
     onHandleImageReferenceTransferAtIndex,
+    onHandleCanvasTearOutImageReferenceAtIndex,
     onCreateElement,
     onSaveElement,
     onSelectElement,
@@ -875,6 +881,64 @@ export function ElementsManagerShell({
     ]
   );
 
+  const canAcceptCanvasTearOutImagePayload = React.useCallback(
+    (payload: AgentComposerDirectDropPayload): boolean =>
+      draft.assetType === "image" &&
+      payload.kind === "image" &&
+      Boolean(payload.internalPayload || payload.composerImagePayload),
+    [draft.assetType]
+  );
+
+  const acceptCanvasTearOutImageReferenceAtIndex = React.useCallback(
+    (slotIndex: number, payload: AgentComposerDirectDropPayload) => {
+      if (!canAcceptCanvasTearOutImagePayload(payload) || isReferenceSlotPending(slotIndex)) {
+        return;
+      }
+      setActiveSheetDropIndex(null);
+      setReferenceSlotPending(slotIndex, 1);
+      void onHandleCanvasTearOutImageReferenceAtIndex(slotIndex, payload).finally(() => {
+        setReferenceSlotPending(slotIndex, -1);
+      });
+    },
+    [
+      canAcceptCanvasTearOutImagePayload,
+      isReferenceSlotPending,
+      onHandleCanvasTearOutImageReferenceAtIndex,
+      setReferenceSlotPending,
+    ]
+  );
+
+  React.useEffect(() => {
+    if (!canvasTearOutTargetRegistry || draft.assetType !== "image") return;
+
+    const unregisterTargets = IMAGE_REFERENCE_SLOT_LABELS.map((_, slotIndex) => {
+      const element = referenceSlotElementRefs.current.get(slotIndex) ?? null;
+      if (!element) return null;
+      return canvasTearOutTargetRegistry.registerTarget({
+        id: `elements-reference-slot-${slotIndex}`,
+        element,
+        canAccept: (payload) =>
+          canAcceptCanvasTearOutImagePayload(payload) && !isReferenceSlotPending(slotIndex),
+        accept: (payload) => acceptCanvasTearOutImageReferenceAtIndex(slotIndex, payload),
+        setActive: (active) => {
+          setActiveSheetDropIndex((current) =>
+            active ? slotIndex : current === slotIndex ? null : current
+          );
+        },
+      });
+    }).filter((unregister): unregister is () => void => Boolean(unregister));
+
+    return () => {
+      unregisterTargets.forEach((unregister) => unregister());
+    };
+  }, [
+    acceptCanvasTearOutImageReferenceAtIndex,
+    canAcceptCanvasTearOutImagePayload,
+    canvasTearOutTargetRegistry,
+    draft.assetType,
+    isReferenceSlotPending,
+  ]);
+
   const handleReferenceSlotDragStart = React.useCallback(
     (slotIndex: number) => (event: React.DragEvent<HTMLElement>) => {
       const slotValue = draft.imageReferenceUrls[slotIndex]?.trim() ?? "";
@@ -988,6 +1052,20 @@ export function ElementsManagerShell({
     referenceCardMeasureObserverRef.current = observer;
     syncHeight();
   }, []);
+
+  const handleReferenceSlotElementRef = React.useCallback(
+    (slotIndex: number, node: HTMLElement | null) => {
+      if (node) {
+        referenceSlotElementRefs.current.set(slotIndex, node);
+      } else {
+        referenceSlotElementRefs.current.delete(slotIndex);
+      }
+      if (slotIndex === 0) {
+        handleReferenceCardMeasureRef(node);
+      }
+    },
+    [handleReferenceCardMeasureRef]
+  );
 
   return (
     <div className="elements-manager-shell elements-manager-shell--panel" data-surface="panel">
@@ -1173,7 +1251,7 @@ export function ElementsManagerShell({
                             return (
                               <article
                                 key={`${slotLabel}-${index + 1}`}
-                                ref={index === 0 ? handleReferenceCardMeasureRef : null}
+                                ref={(node) => handleReferenceSlotElementRef(index, node)}
                                 className={`elements-reference-card ${
                                   slotValue ? "is-filled" : "is-empty"
                                 } ${activeSheetDropIndex === index ? "is-drop-active" : ""} ${

@@ -49,6 +49,10 @@ type UseCharacterManagerDroppedReferenceControllerResult = {
     zoneKey: CharacterSheetDropZoneKey,
     transfer: DataTransfer
   ) => Promise<void>;
+  handleCharacterSheetInternalReferenceDrop: (
+    zoneKey: CharacterSheetDropZoneKey,
+    payload: InternalReferenceDragPayload
+  ) => Promise<void>;
 };
 
 type DroppedStorageCandidate = {
@@ -323,16 +327,14 @@ export const useCharacterManagerDroppedReferenceController = ({
     []
   );
 
-  const resolveInternalCharacterDrop = useCallback(
+  const resolveInternalCharacterDropPayload = useCallback(
     async ({
-      transfer,
+      payload,
       zoneKey,
     }: {
-      transfer: DataTransfer;
+      payload: InternalReferenceDragPayload;
       zoneKey?: CharacterSheetDropZoneKey;
     }): Promise<ResolvedCharacterDropReference | null> => {
-      const payload = extractInternalReferenceDragPayload(transfer);
-      if (!payload) return null;
       logCharacterDropBreadcrumb("character_drop_attempt", {
         target: "character_sheet",
         zone_key: zoneKey ?? null,
@@ -401,6 +403,21 @@ export const useCharacterManagerDroppedReferenceController = ({
     [logCharacterDropBreadcrumb, resolveCharacterDropReference]
   );
 
+  const resolveInternalCharacterDrop = useCallback(
+    async ({
+      transfer,
+      zoneKey,
+    }: {
+      transfer: DataTransfer;
+      zoneKey?: CharacterSheetDropZoneKey;
+    }): Promise<ResolvedCharacterDropReference | null> => {
+      const payload = extractInternalReferenceDragPayload(transfer);
+      if (!payload) return null;
+      return resolveInternalCharacterDropPayload({ payload, zoneKey });
+    },
+    [resolveInternalCharacterDropPayload]
+  );
+
   const ingestCharacterSheetDroppedReference = useCallback(
     async (zoneKey: CharacterSheetDropZoneKey, reference: DroppedImageReference) => {
       try {
@@ -428,6 +445,79 @@ export const useCharacterManagerDroppedReferenceController = ({
     [setCharacterSheetPresetFile]
   );
 
+  const ingestResolvedInternalCharacterDrop = useCallback(
+    async (
+      zoneKey: CharacterSheetDropZoneKey,
+      resolvedReference: ResolvedCharacterDropReference
+    ) => {
+      const resolvedMediaId = resolvedReference.mediaId.trim();
+      let previewUrl = resolvedReference.previewUrl?.trim() || null;
+      if (!previewUrl && resolvedMediaId) {
+        const mediaReference = await resolveMediaReferenceById(resolvedMediaId);
+        previewUrl = mediaReference?.previewUrl?.trim() || null;
+      }
+      if (!previewUrl) {
+        void reportAppError({
+          source: DROPPED_REFERENCE_TELEMETRY_SOURCE,
+          scope: "app",
+          severity: "low",
+          message: "character_sheet_drop_reference_missing_preview_url",
+          metadata: {
+            target: "character_sheet",
+            drop_zone_key: zoneKey,
+            output_id: resolvedReference.outputId ?? null,
+            image_index: resolvedReference.imageIndex ?? null,
+            media_id: resolvedMediaId || null,
+          },
+        });
+        logCharacterDropBreadcrumb("character_drop_rejected", {
+          target: "character_sheet",
+          zone_key: zoneKey,
+          reason: "missing_preview_url",
+          output_id: resolvedReference.outputId ?? null,
+          image_index: resolvedReference.imageIndex ?? null,
+          media_id: resolvedMediaId || null,
+        });
+        return;
+      }
+      if (resolvedReference.storagePath && setCharacterSheetPresetStorageReference) {
+        await setCharacterSheetPresetStorageReference(zoneKey, {
+          storagePath: resolvedReference.storagePath,
+          previewUrl,
+          filename: filenameFromStoragePath(resolvedReference.storagePath),
+          mimeType: null,
+        });
+        return;
+      }
+      await ingestCharacterSheetDroppedReference(zoneKey, {
+        url: previewUrl,
+        mimeType: null,
+        characterMediaId: resolvedMediaId || null,
+        storagePath: resolvedReference.storagePath ?? null,
+      });
+    },
+    [
+      ingestCharacterSheetDroppedReference,
+      logCharacterDropBreadcrumb,
+      resolveMediaReferenceById,
+      setCharacterSheetPresetStorageReference,
+    ]
+  );
+
+  const handleCharacterSheetInternalReferenceDrop = useCallback(
+    async (zoneKey: CharacterSheetDropZoneKey, payload: InternalReferenceDragPayload) => {
+      const resolvedReference = await resolveInternalCharacterDropPayload({
+        payload,
+        zoneKey,
+      });
+      if (!resolvedReference) {
+        return;
+      }
+      await ingestResolvedInternalCharacterDrop(zoneKey, resolvedReference);
+    },
+    [ingestResolvedInternalCharacterDrop, resolveInternalCharacterDropPayload]
+  );
+
   const handleCharacterSheetReferenceDrop = useCallback(
     async (zoneKey: CharacterSheetDropZoneKey, transfer: DataTransfer) => {
       const internalReference = extractInternalReferenceDragPayload(transfer);
@@ -440,51 +530,7 @@ export const useCharacterManagerDroppedReferenceController = ({
         if (!resolvedReference) {
           return;
         }
-        const resolvedMediaId = resolvedReference.mediaId.trim();
-        let previewUrl = resolvedReference.previewUrl?.trim() || null;
-        if (!previewUrl && resolvedMediaId) {
-          const mediaReference = await resolveMediaReferenceById(resolvedMediaId);
-          previewUrl = mediaReference?.previewUrl?.trim() || null;
-        }
-        if (!previewUrl) {
-          void reportAppError({
-            source: DROPPED_REFERENCE_TELEMETRY_SOURCE,
-            scope: "app",
-            severity: "low",
-            message: "character_sheet_drop_reference_missing_preview_url",
-            metadata: {
-              target: "character_sheet",
-              drop_zone_key: zoneKey,
-              output_id: resolvedReference.outputId ?? null,
-              image_index: resolvedReference.imageIndex ?? null,
-              media_id: resolvedMediaId || null,
-            },
-          });
-          logCharacterDropBreadcrumb("character_drop_rejected", {
-            target: "character_sheet",
-            zone_key: zoneKey,
-            reason: "missing_preview_url",
-            output_id: resolvedReference.outputId ?? null,
-            image_index: resolvedReference.imageIndex ?? null,
-            media_id: resolvedMediaId || null,
-          });
-          return;
-        }
-        if (resolvedReference.storagePath && setCharacterSheetPresetStorageReference) {
-          await setCharacterSheetPresetStorageReference(zoneKey, {
-            storagePath: resolvedReference.storagePath,
-            previewUrl,
-            filename: filenameFromStoragePath(resolvedReference.storagePath),
-            mimeType: null,
-          });
-          return;
-        }
-        await ingestCharacterSheetDroppedReference(zoneKey, {
-          url: previewUrl,
-          mimeType: null,
-          characterMediaId: resolvedMediaId || null,
-          storagePath: resolvedReference.storagePath ?? null,
-        });
+        await ingestResolvedInternalCharacterDrop(zoneKey, resolvedReference);
         return;
       }
 
@@ -557,14 +603,15 @@ export const useCharacterManagerDroppedReferenceController = ({
       setCharacterSheetPresetFile,
       setCharacterSheetPresetStorageReference,
       ingestCharacterSheetDroppedReference,
+      ingestResolvedInternalCharacterDrop,
       logCharacterDropBreadcrumb,
       resolveCharacterDropReference,
       resolveInternalCharacterDrop,
-      resolveMediaReferenceById,
     ]
   );
 
   return {
     handleCharacterSheetReferenceDrop,
+    handleCharacterSheetInternalReferenceDrop,
   };
 };

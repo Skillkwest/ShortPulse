@@ -472,10 +472,10 @@ export const upsertGenerationProjection = async ({
   publicationState,
   resultUrls = [],
   savedMediaIds = [],
-  generationReplay = {},
-  workflowReload = {},
-  characterContext = {},
-  styleContext = {},
+  generationReplay,
+  workflowReload,
+  characterContext,
+  styleContext,
   startedAt,
   completedAt,
 }: UpsertGenerationProjectionInput): Promise<void> => {
@@ -484,12 +484,12 @@ export const upsertGenerationProjection = async ({
     user_id: userId,
     result_urls: resultUrls,
     saved_media_ids: savedMediaIds,
-    generation_replay: generationReplay,
-    workflow_reload: workflowReload,
-    character_context: characterContext,
-    style_context: styleContext,
     updated_at: new Date().toISOString(),
   };
+  if (generationReplay !== undefined) payload.generation_replay = generationReplay;
+  if (workflowReload !== undefined) payload.workflow_reload = workflowReload;
+  if (characterContext !== undefined) payload.character_context = characterContext;
+  if (styleContext !== undefined) payload.style_context = styleContext;
 
   const stringFields: Record<string, string | null | undefined> = {
     project_id: projectId,

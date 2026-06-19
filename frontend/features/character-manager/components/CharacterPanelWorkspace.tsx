@@ -12,6 +12,10 @@ import {
 import { AppMessage } from "../../../components/AppMessage";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import type { CharacterPanelUploadRequest } from "../../../lib/characterPanelUploadRequest";
+import {
+  buildInternalPayloadFromComposerDropPayload,
+  type InternalReferenceDragPayload,
+} from "../../../lib/internalReferenceDragPayload";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import {
   CHARACTER_PANEL_FIELD_BACKGROUND,
@@ -44,9 +48,12 @@ import {
   AiStudioPickerSection,
 } from "../../ai-studio/components/picker/AiStudioPickerPrimitives";
 import { AiStudioModalLayer } from "../../ai-studio/components/modal-layer/AiStudioModalLayer";
+import type { CanvasTearOutComposerTargetRegistry } from "../../ai-studio/hooks/useAiStudioCanvasTearOutTargets";
+import type { AgentComposerDirectDropPayload } from "../../ai-studio/logic/agentComposerDirectDropPayload";
 
 type CharacterPanelWorkspaceProps = {
   resolveCharacterDropReference?: ResolveCharacterDropReference;
+  canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
   externalCreateRequestKey?: number;
   externalUploadRequest?: CharacterPanelUploadRequest | null;
   onExternalUploadRequestHandled?: (requestId: number) => void;
@@ -355,6 +362,7 @@ const getCharacterInitials = (name: string): string => {
 
 export function CharacterPanelWorkspace({
   resolveCharacterDropReference,
+  canvasTearOutTargetRegistry,
   externalCreateRequestKey = 0,
   externalUploadRequest = null,
   onExternalUploadRequestHandled,
@@ -363,6 +371,9 @@ export function CharacterPanelWorkspace({
   onSelectedCharacterIdChange,
 }: CharacterPanelWorkspaceProps) {
   const editorColumnPanelRef = React.useRef<HTMLDivElement | null>(null);
+  const characterSheetDropZoneRefs = React.useRef(
+    new Map<CharacterSheetDropZoneKey, HTMLElement>()
+  );
   const {
     characters,
     selectedCharacterId,
@@ -823,11 +834,12 @@ export function CharacterPanelWorkspace({
     [setCharacterSheetPresetStorageReference, setCharacterSheetSlotPending]
   );
 
-  const { handleCharacterSheetReferenceDrop } = useCharacterManagerDroppedReferenceController({
-    setCharacterSheetPresetFile,
-    setCharacterSheetPresetStorageReference: setCharacterSheetPresetStorageReferenceWithPending,
-    resolveCharacterDropReference,
-  });
+  const { handleCharacterSheetReferenceDrop, handleCharacterSheetInternalReferenceDrop } =
+    useCharacterManagerDroppedReferenceController({
+      setCharacterSheetPresetFile,
+      setCharacterSheetPresetStorageReference: setCharacterSheetPresetStorageReferenceWithPending,
+      resolveCharacterDropReference,
+    });
 
   const handleCharacterSheetReferenceDropWithPending = React.useCallback(
     async (zoneKey: CharacterSheetDropZoneKey, transfer: DataTransfer) => {
@@ -840,6 +852,90 @@ export function CharacterPanelWorkspace({
     },
     [handleCharacterSheetReferenceDrop, setCharacterSheetSlotPending]
   );
+
+  const handleCharacterSheetInternalReferenceDropWithPending = React.useCallback(
+    async (zoneKey: CharacterSheetDropZoneKey, payload: InternalReferenceDragPayload) => {
+      setCharacterSheetSlotPending(zoneKey, 1);
+      try {
+        await handleCharacterSheetInternalReferenceDrop(zoneKey, payload);
+      } finally {
+        setCharacterSheetSlotPending(zoneKey, -1);
+      }
+    },
+    [handleCharacterSheetInternalReferenceDrop, setCharacterSheetSlotPending]
+  );
+
+  const resolveCanvasTearOutInternalReferencePayload = React.useCallback(
+    (payload: AgentComposerDirectDropPayload) => {
+      if (payload.kind !== "image") return null;
+      if (payload.internalPayload) return payload.internalPayload;
+      if (payload.composerImagePayload) {
+        return buildInternalPayloadFromComposerDropPayload(payload.composerImagePayload);
+      }
+      return null;
+    },
+    []
+  );
+
+  const canAcceptCanvasTearOutImagePayload = React.useCallback(
+    (payload: AgentComposerDirectDropPayload): boolean =>
+      !structuralBusy &&
+      Boolean(resolveCharacterDropReference) &&
+      Boolean(resolveCanvasTearOutInternalReferencePayload(payload)),
+    [resolveCanvasTearOutInternalReferencePayload, resolveCharacterDropReference, structuralBusy]
+  );
+
+  const acceptCanvasTearOutCharacterSheetPayload = React.useCallback(
+    (zoneKey: CharacterSheetDropZoneKey, payload: AgentComposerDirectDropPayload) => {
+      if (!canAcceptCanvasTearOutImagePayload(payload) || isCharacterSheetSlotPending(zoneKey)) {
+        return;
+      }
+      const internalPayload = resolveCanvasTearOutInternalReferencePayload(payload);
+      if (!internalPayload) return;
+      setActiveCharacterSheetDropZone(null);
+      void handleCharacterSheetInternalReferenceDropWithPending(zoneKey, internalPayload).finally(
+        () => {
+          setActiveCharacterSheetDropZone((current) => (current === zoneKey ? null : current));
+        }
+      );
+    },
+    [
+      canAcceptCanvasTearOutImagePayload,
+      handleCharacterSheetInternalReferenceDropWithPending,
+      isCharacterSheetSlotPending,
+      resolveCanvasTearOutInternalReferencePayload,
+    ]
+  );
+
+  React.useEffect(() => {
+    if (!canvasTearOutTargetRegistry) return;
+
+    const unregisterTargets = CHARACTER_SHEET_DROP_ZONES.map((dropZone) => {
+      const element = characterSheetDropZoneRefs.current.get(dropZone.key) ?? null;
+      if (!element) return null;
+      return canvasTearOutTargetRegistry.registerTarget({
+        id: `character-reference-slot-${dropZone.key}`,
+        element,
+        canAccept: (payload) =>
+          canAcceptCanvasTearOutImagePayload(payload) && !isCharacterSheetSlotPending(dropZone.key),
+        accept: (payload) => acceptCanvasTearOutCharacterSheetPayload(dropZone.key, payload),
+        setActive: (active) => {
+          setActiveCharacterSheetDropZone((current) =>
+            active ? dropZone.key : current === dropZone.key ? null : current
+          );
+        },
+      });
+    }).filter((unregister): unregister is () => void => Boolean(unregister));
+
+    return () => {
+      unregisterTargets.forEach((unregister) => unregister());
+    };
+  }, [
+    acceptCanvasTearOutCharacterSheetPayload,
+    canAcceptCanvasTearOutImagePayload,
+    canvasTearOutTargetRegistry,
+    isCharacterSheetSlotPending,
+  ]);
 
   const openCharacterSheetPicker = React.useCallback((zoneKey: CharacterSheetDropZoneKey) => {
     setPendingCharacterSheetUploadZoneKey(zoneKey);
@@ -942,6 +1038,20 @@ export function CharacterPanelWorkspace({
     referenceCardMeasureObserverRef.current = observer;
     syncHeight();
   }, []);
+
+  const handleCharacterSheetDropZoneRef = React.useCallback(
+    (zoneKey: CharacterSheetDropZoneKey, node: HTMLElement | null) => {
+      if (node) {
+        characterSheetDropZoneRefs.current.set(zoneKey, node);
+      } else {
+        characterSheetDropZoneRefs.current.delete(zoneKey);
+      }
+      if (zoneKey === "portrait") {
+        handleReferenceCardMeasureRef(node);
+      }
+    },
+    [handleReferenceCardMeasureRef]
+  );
 
   React.useEffect(
     () => () => {
@@ -1336,10 +1446,8 @@ export function CharacterPanelWorkspace({
                                 return (
                                   <article
                                     key={dropZone.key}
-                                    ref={
-                                      dropZone.key === "portrait"
-                                        ? handleReferenceCardMeasureRef
-                                        : null
+                                    ref={(node) =>
+                                      handleCharacterSheetDropZoneRef(dropZone.key, node)
                                     }
                                     className={`character-character-sheet-card ${
                                       assignedReference ? "is-filled" : "is-empty"

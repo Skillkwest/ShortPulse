@@ -87,6 +87,7 @@ const maxVoiceChangerBottomSectionHeightPx = 600;
 const fixedVoiceChangerBottomSectionHeightPx = 600;
 const droppedImageUrlPattern = /^https?:\/\/\S+\.(?:png|jpe?g|gif|webp|svg)(?:\?.*)?$/i;
 const droppedVideoUrlPattern = /^https?:\/\/\S+\.(?:mp4|mov|webm|m4v)(?:\?.*)?$/i;
+const voiceoverAudioTagPattern = /\[[^\]\r\n]{1,48}\]/g;
 const cloneVoiceSourceDropzoneCopy = {
   inputAriaLabel: "Voice clone source file input",
   dropzoneAriaLabel: "Voice clone source drop zone",
@@ -168,6 +169,36 @@ const buildVoiceDesignPreviewAudioSrc = (
 ): string => `data:${mediaType?.trim() || "audio/mpeg"};base64,${audioBase64}`;
 
 const buildVoicePreviewInstanceKey = (voiceId: string): string => `voices:voice-preview:${voiceId}`;
+
+const renderVoiceoverScriptHighlight = (script: string): React.ReactNode[] => {
+  if (!script) return [];
+
+  const nodes: React.ReactNode[] = [];
+  let cursor = 0;
+  let match: RegExpExecArray | null;
+  voiceoverAudioTagPattern.lastIndex = 0;
+
+  while ((match = voiceoverAudioTagPattern.exec(script)) !== null) {
+    if (match.index > cursor) {
+      nodes.push(script.slice(cursor, match.index));
+    }
+    nodes.push(
+      <span className="voices-properties-script-audio-tag" key={`tag-${match.index}`}>
+        {match[0]}
+      </span>
+    );
+    cursor = match.index + match[0].length;
+  }
+
+  if (cursor < script.length) {
+    nodes.push(script.slice(cursor));
+  }
+  if (script.endsWith("\n")) {
+    nodes.push("\u00a0");
+  }
+
+  return nodes;
+};
 
 const buildDesignedPreviewInstanceKey = (previewId: string): string =>
   `voices:designed-preview:${previewId}`;
@@ -405,6 +436,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const [voiceScriptState, setVoiceScriptState] = React.useState("");
   const [isEnhancingVoiceover, setIsEnhancingVoiceover] = React.useState(false);
   const [voiceoverEnhanceError, setVoiceoverEnhanceError] = React.useState<string | null>(null);
+  const voiceScriptHighlightRef = React.useRef<HTMLDivElement | null>(null);
   const [activePreviewVoiceId, setActivePreviewVoiceId] = React.useState<string | null>(null);
   const {
     voiceChangerSource: uncontrolledVoiceChangerSource,
@@ -1737,6 +1769,12 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     }
   }, [isEnhancingVoiceover, setVoiceScript, voiceScript]);
 
+  const handleVoiceScriptScroll = React.useCallback((event: React.UIEvent<HTMLTextAreaElement>) => {
+    if (!voiceScriptHighlightRef.current) return;
+    voiceScriptHighlightRef.current.scrollTop = event.currentTarget.scrollTop;
+    voiceScriptHighlightRef.current.scrollLeft = event.currentTarget.scrollLeft;
+  }, []);
+
   const cloneSourceIntake = (
     <VoiceChangerSourceDropzone
       source={cloneVoiceSource}
@@ -1821,20 +1859,30 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
             <section className="voices-properties-compose-area" style={composeAreaStyle}>
               {surfaceMode === "create" ? (
                 <div className="voices-properties-script-input-shell">
-                  <textarea
-                    ref={voiceScriptRef}
-                    className="voices-properties-script-input"
-                    value={voiceScript}
-                    onChange={(event) => {
-                      setVoiceScript(event.target.value);
-                      setVoiceoverEnhanceError(null);
-                    }}
-                    onDrop={handleVoiceScriptDrop}
-                    onDragOver={handleVoicePromptDragOver}
-                    maxLength={maxVoiceScriptCharacters}
-                    placeholder={voiceScriptPlaceholder}
-                    aria-label="Voice script"
-                  />
+                  <div className="voices-properties-script-editor">
+                    <div
+                      ref={voiceScriptHighlightRef}
+                      className="voices-properties-script-highlight"
+                      aria-hidden="true"
+                    >
+                      {renderVoiceoverScriptHighlight(voiceScript)}
+                    </div>
+                    <textarea
+                      ref={voiceScriptRef}
+                      className="voices-properties-script-input"
+                      value={voiceScript}
+                      onChange={(event) => {
+                        setVoiceScript(event.target.value);
+                        setVoiceoverEnhanceError(null);
+                      }}
+                      onScroll={handleVoiceScriptScroll}
+                      onDrop={handleVoiceScriptDrop}
+                      onDragOver={handleVoicePromptDragOver}
+                      maxLength={maxVoiceScriptCharacters}
+                      placeholder={voiceScriptPlaceholder}
+                      aria-label="Voice script"
+                    />
+                  </div>
                   <div className="voices-properties-script-meta-row">
                     <div className="voices-properties-script-meta-status">
                       {surfaceMode === "create" && voiceoverEnhanceError ? (

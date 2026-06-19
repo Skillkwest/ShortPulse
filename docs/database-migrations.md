@@ -280,6 +280,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 158.  `sql/migrations/159_repair_historical_generation_project_convergence.sql`
 159.  `sql/migrations/160_repair_global_media_library_visibility.sql`
 160.  `sql/migrations/161_harden_hidden_free_billing_offer.sql`
+161.  `sql/migrations/162_repair_generation_projection_workflow_reload.sql`
       Rollback files:
 
 

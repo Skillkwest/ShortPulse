@@ -2,6 +2,9 @@ import type { ReactNode } from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CharacterPanelWorkspace } from "../CharacterPanelWorkspace";
+import { INTERNAL_REFERENCE_DRAG_ORIGIN } from "../../../../lib/internalReferenceDragPayload";
+import { createCanvasTearOutComposerTargetRegistry } from "../../../ai-studio/hooks/useAiStudioCanvasTearOutTargets";
+import type { AgentComposerDirectDropPayload } from "../../../ai-studio/logic/agentComposerDirectDropPayload";
 import {
   CHARACTER_SHEET_PRESET_IDS,
   createDefaultCharacterSheetPresetState,
@@ -14,6 +17,7 @@ const setCharacterSheetPresetFileMock = vi.fn();
 const setErrorMessageMock = vi.fn();
 const handleCharacterSheetCardClickMock = vi.fn();
 const clearCharacterSheetAssignmentMock = vi.fn();
+const handleCharacterSheetInternalReferenceDropMock = vi.fn();
 const deleteCharacterSheetPresetMock = vi.fn();
 const createCharacterDraftMock = vi.fn();
 
@@ -89,6 +93,7 @@ vi.mock("../../hooks/useCharacterManagerDraft", () => ({
 vi.mock("../../hooks/useCharacterManagerDroppedReferenceController", () => ({
   useCharacterManagerDroppedReferenceController: () => ({
     handleCharacterSheetReferenceDrop: async () => undefined,
+    handleCharacterSheetInternalReferenceDrop: handleCharacterSheetInternalReferenceDropMock,
   }),
 }));
 
@@ -155,6 +160,26 @@ vi.mock("../../../../components/ConfirmationModal", () => ({
   ),
 }));
 
+const setMockElementRect = (
+  element: Element,
+  rect: { left: number; top: number; width: number; height: number }
+) => {
+  Object.defineProperty(element, "getBoundingClientRect", {
+    configurable: true,
+    value: () => ({
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height,
+      right: rect.left + rect.width,
+      bottom: rect.top + rect.height,
+      x: rect.left,
+      y: rect.top,
+      toJSON: () => undefined,
+    }),
+  });
+};
+
 describe("CharacterPanelWorkspace", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -163,6 +188,8 @@ describe("CharacterPanelWorkspace", () => {
     setCharacterSheetPresetFileMock.mockResolvedValue(true);
     handleCharacterSheetCardClickMock.mockReset();
     clearCharacterSheetAssignmentMock.mockReset();
+    handleCharacterSheetInternalReferenceDropMock.mockReset();
+    handleCharacterSheetInternalReferenceDropMock.mockResolvedValue(undefined);
     deleteCharacterSheetPresetMock.mockReset();
     deleteCharacterSheetPresetMock.mockResolvedValue(true);
     createCharacterDraftMock.mockReset();
@@ -409,6 +436,54 @@ describe("CharacterPanelWorkspace", () => {
     expect(portraitCard).not.toBeNull();
     fireEvent.click(portraitCard!);
     expect(handleCharacterSheetCardClickMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("accepts a Canvas tear-out image payload into a character reference slot", async () => {
+    const registry = createCanvasTearOutComposerTargetRegistry();
+    const resolveCharacterDropReference = vi.fn();
+    render(
+      <CharacterPanelWorkspace
+        canvasTearOutTargetRegistry={registry}
+        resolveCharacterDropReference={resolveCharacterDropReference}
+      />
+    );
+
+    const closeUpCard = screen.getByText("Close-up").closest("article");
+    if (!closeUpCard) {
+      throw new Error("Expected Close-Up reference card.");
+    }
+    setMockElementRect(closeUpCard, { left: 20, top: 30, width: 120, height: 150 });
+
+    const internalPayload = {
+      version: 1,
+      origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
+      referenceId: "output-canvas-character",
+      outputId: "output-canvas-character",
+      imageIndex: 0,
+      mediaId: "media-canvas-character",
+      mediaKind: "image" as const,
+      referenceUrl: "https://example.com/canvas-character-drop.png",
+      sourceSurface: "all-refs" as const,
+    };
+    const payload: AgentComposerDirectDropPayload = {
+      kind: "image",
+      internalPayload,
+      composerImagePayload: null,
+    };
+
+    const resolvedTarget = registry.resolveTargetAtPoint({ clientX: 30, clientY: 40 }, payload);
+    expect(resolvedTarget?.id).toBe("character-reference-slot-close_up");
+
+    act(() => {
+      resolvedTarget?.target.accept(payload);
+    });
+
+    await waitFor(() => {
+      expect(handleCharacterSheetInternalReferenceDropMock).toHaveBeenCalledWith(
+        "close_up",
+        internalPayload
+      );
+    });
   });
 
   it("keeps save available for existing characters and triggers an explicit save", async () => {

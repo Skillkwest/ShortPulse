@@ -166,6 +166,60 @@ describe("generationOutputConvergence", () => {
     });
   });
 
+  it("carries workflow reload metadata through owned-media convergence", async () => {
+    const adminClient = createAdminClient({
+      storageRows: [{ id: "media-1", storage_path: "user-1/generations/videos/media-1.mp4" }],
+    });
+    getSupabaseAdminMock.mockReturnValue(adminClient);
+    readPersistedGenerationOutputsMock.mockResolvedValue([
+      {
+        id: "output-1",
+        outputIndex: 0,
+        resultUrl: "https://cdn.shortpulse.test/video.mp4",
+        mediaFileId: "media-1",
+      },
+    ]);
+    const workflowReload = {
+      version: 1,
+      source: "ai_studio_generation",
+      originTool: "video",
+      panelKind: "video",
+      outputMode: "video",
+      restoreBehavior: "navigate_and_hydrate",
+      prompt: { display: "Restore video" },
+      model: { id: "kie-ai/kling-3.0" },
+      payload: {
+        kind: "video",
+        aspect: "16:9",
+        videoReferenceMode: "standard",
+        referenceInputs: ["https://cdn.shortpulse.test/frame.png"],
+      },
+    };
+
+    await reconcileOwnedGenerationOutputSlot({
+      generationId: "gen-video",
+      userId: "user-1",
+      outputIndex: 0,
+      mediaFileId: "media-1",
+      resultUrl: "https://cdn.shortpulse.test/video.mp4",
+      metadata: {
+        source_ref: "source-ref-video",
+        workflow_reload: workflowReload,
+      },
+    });
+
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-video",
+        userId: "user-1",
+        sourceRef: "source-ref-video",
+        workflowReload,
+        resultUrls: ["https://cdn.shortpulse.test/video.mp4"],
+        savedMediaIds: ["media-1"],
+      })
+    );
+  });
+
   it("updates partial owned-media convergence without forcing published projection state", async () => {
     const adminClient = createAdminClient({
       storageRows: [{ id: "media-1", storage_path: "user-1/generations/images/media-1.png" }],

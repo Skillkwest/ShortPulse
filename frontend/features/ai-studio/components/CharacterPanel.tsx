@@ -10,12 +10,14 @@ import type {
   SharedMediaDetailVideoSnapshotHandler,
 } from "./detail-modal/detailModalPlatformTypes";
 import { useCharacterPanelPropertiesScrollLock } from "../hooks/useCharacterPanelPropertiesScrollLock";
+import type { CanvasTearOutComposerTargetRegistry } from "../hooks/useAiStudioCanvasTearOutTargets";
 import type { ResolveCharacterDropReference } from "../../character-manager/hooks/useCharacterManagerDroppedReferenceController";
 import type { CharacterPanelUploadRequest } from "../../../lib/characterPanelUploadRequest";
 import type { InternalReferenceDragPayload } from "../utils/dragDrop";
 
 type CharacterPanelProps = {
   resolveCharacterDropReference?: ResolveCharacterDropReference;
+  canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
   resolveMediaLibraryInternalDropItem?: (payload: InternalReferenceDragPayload) => Promise<{
     kind: "media" | "prompt";
     id: string;
@@ -43,6 +45,7 @@ const CHARACTER_PANEL_ROOT_INLINE_STYLE: React.CSSProperties = {
 
 export function CharacterPanel({
   resolveCharacterDropReference,
+  canvasTearOutTargetRegistry,
   resolveMediaLibraryInternalDropItem,
   createRequestKey = 0,
   externalUploadRequest = null,
@@ -77,6 +80,7 @@ export function CharacterPanel({
         suppressSelectedCharacterPersistence={projectRouteRequested || Boolean(projectId)}
         onSelectedCharacterIdChange={onSelectedCharacterIdChange}
         resolveCharacterDropReference={resolveCharacterDropReference}
+        canvasTearOutTargetRegistry={canvasTearOutTargetRegistry}
         resolveMediaLibraryInternalDropItem={resolveMediaLibraryInternalDropItem}
         detailSelectionTarget={detailSelectionTarget}
         onDetailSelectionTargetChange={onDetailSelectionTargetChange}

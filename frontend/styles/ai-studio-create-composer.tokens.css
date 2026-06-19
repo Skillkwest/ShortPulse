@@ -83,8 +83,12 @@
 .create-composer-panel.is-pulse-rail-active {
   gap: var(--create-composer-panel-gap);
   align-items: stretch;
+  align-self: stretch;
   height: 100%;
+  max-height: 100%;
   background: transparent;
+  box-shadow: none;
+  overflow: hidden;
   --create-composer-chat-composer-overlay-bottom-offset: 28px;
 }
 
@@ -161,9 +165,14 @@
 
 .create-composer-panel.is-pulse-rail-active > .create-composer-left-panel,
 .create-composer-panel.is-pulse-rail-active > .create-composer-right-panel {
+  align-self: stretch;
   height: 100%;
   max-height: 100%;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
   background: #131518;
+  box-shadow: none;
   box-sizing: border-box;
 }
 

@@ -3473,6 +3473,130 @@ describe("projectWorkspaceStatesService", () => {
     });
   });
 
+  it("repairs audio companion art from projection while preserving durable display rows on workspace read", async () => {
+    createSupabaseMock({
+      workspaceSnapshot: {
+        schemaVersion: 2,
+        sessionId: "session-audio-companion-art-read",
+        updatedAt: "2026-06-03T12:00:00.000Z",
+        workspace: {
+          selectedTool: "sound",
+        },
+        outputs: {
+          active: [
+            {
+              id: "generated-audio-display-1",
+              mode: "audio",
+              mediaSource: "generated",
+              generationId: GENERATION_ID_2,
+            },
+          ],
+          archived: [],
+          activeOutputId: "generated-audio-display-1",
+          curatedReferenceIds: ["generated-audio-display-1"],
+          removedFromAllRefsIds: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+      outputDisplayRows: [
+        {
+          project_id: "project-1",
+          user_id: "user-1",
+          output_id: "generated-audio-display-1",
+          version: 2,
+          source_snapshot_updated_at: "2026-06-03T12:00:00.000Z",
+          mode: "audio",
+          media_source: "generated",
+          created_at: "2026-06-03T11:55:00.000Z",
+          generation_id: GENERATION_ID_2,
+          prompt_id: null,
+          task_id: "task-generated-audio-display-1",
+          source_ref: "source-generated-audio-display-1",
+          generation_trace_id: null,
+          preview_text: null,
+          display_prompt_summary: null,
+          mime_type: "audio/mpeg",
+          width: null,
+          height: null,
+          duration_ms: 24000,
+          preview_storage_path: "user-1/generations/audio/audio-display.mp3",
+          full_storage_path: "user-1/generations/audio/audio-display.mp3",
+          preview_poster_storage_path: null,
+          companion_art_storage_path: null,
+          preview_url_fallback: "https://expired.example.com/audio-display.mp3",
+          preview_poster_url_fallback: null,
+          companion_art_url_fallback: null,
+          result_urls_fallback: ["https://expired.example.com/audio-display.mp3"],
+          saved_media_ids: [MEDIA_ID_1],
+          task_state: "success",
+          queue_state: "dispatched",
+          save_state: "saved",
+          status: "ready",
+          error_message_short: null,
+          hidden_in_reference_grid: false,
+          updated_at: "2026-06-03T12:00:01.000Z",
+        },
+      ],
+      associatedSnapshotGenerationIds: [GENERATION_ID_2],
+      recentGenerationIds: [],
+      generationRows: [
+        {
+          id: GENERATION_ID_2,
+          request_id: "task-generated-audio-display-1",
+        },
+      ],
+      projectionRows: [
+        {
+          generation_id: GENERATION_ID_2,
+          request_id: "task-generated-audio-display-1",
+          source_ref: "source-generated-audio-display-1",
+          preview_url: "https://cdn.example.com/audio-display.mp3",
+          result_urls: ["https://cdn.example.com/audio-display.mp3"],
+          preview_storage_path: "user-1/generations/audio/audio-display.mp3",
+          full_storage_path: "user-1/generations/audio/audio-display.mp3",
+          companion_art_status: "ready",
+          companion_art_storage_path:
+            "user-1/generations/audio/audio-display/companion-art/cover.webp",
+          task_state: "success",
+          queue_state: "dispatched",
+          display_prompt: "Audio display row prompt",
+          provider: "elevenlabs",
+          model_id: "elevenlabs/music",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+        },
+      ],
+    });
+
+    const result = await getProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+    });
+
+    expect(result?.snapshot.outputs).toMatchObject({
+      active: [
+        expect.objectContaining({
+          id: `generated:${GENERATION_ID_2}`,
+          generationId: GENERATION_ID_2,
+          mode: "audio",
+          previewStoragePath: "user-1/generations/audio/audio-display.mp3",
+          fullStoragePath: "user-1/generations/audio/audio-display.mp3",
+          companionArtStatus: "ready",
+          companionArtStoragePath:
+            "user-1/generations/audio/audio-display/companion-art/cover.webp",
+        }),
+      ],
+      curatedReferenceIds: [`generated:${GENERATION_ID_2}`],
+    });
+  });
+
   it("does not overwrite newer display rows when an older compatibility snapshot arrives", async () => {
     const { outputDisplayUpsert } = createSupabaseMock({
       workspaceSnapshot: {

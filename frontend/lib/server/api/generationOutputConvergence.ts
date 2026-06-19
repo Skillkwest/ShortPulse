@@ -131,6 +131,22 @@ export const reconcileOwnedGenerationOutputSlot = async ({
     resultUrls: normalizedResultUrls,
     savedMediaIds,
   };
+  const generationReplay = asObject(metadata.generation_replay);
+  const workflowReload = asObject(metadata.workflow_reload);
+  const characterContext = asObject(metadata.character_context);
+  const styleContext = asObject(metadata.style_context);
+  if (Object.keys(generationReplay).length > 0) {
+    projectionPayload.generationReplay = generationReplay;
+  }
+  if (Object.keys(workflowReload).length > 0) {
+    projectionPayload.workflowReload = workflowReload;
+  }
+  if (Object.keys(characterContext).length > 0) {
+    projectionPayload.characterContext = characterContext;
+  }
+  if (Object.keys(styleContext).length > 0) {
+    projectionPayload.styleContext = styleContext;
+  }
   if (firstOwnedDeliveryPaths) {
     projectionPayload.previewStoragePath = firstOwnedDeliveryPaths.previewStoragePath;
     projectionPayload.fullStoragePath = firstOwnedDeliveryPaths.fullStoragePath;

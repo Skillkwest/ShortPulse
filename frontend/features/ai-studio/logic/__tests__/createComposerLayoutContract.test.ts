@@ -65,8 +65,15 @@ describe("create composer layout contract", () => {
     );
 
     expect(pulseRoot).toContain("background: transparent;");
+    expect(pulseRoot).toContain("box-shadow: none;");
+    expect(pulseRoot).toContain("overflow: hidden;");
+    expect(pulseColumns).toContain("align-self: stretch;");
     expect(pulseColumns).toContain("height: 100%;");
+    expect(pulseColumns).toContain("min-height: 0;");
+    expect(pulseColumns).toContain("border: 0;");
+    expect(pulseColumns).toContain("border-radius: 0;");
     expect(pulseColumns).toContain("background: #131518;");
+    expect(pulseColumns).toContain("box-shadow: none;");
     expect(pulseInnerColumns).toContain("padding: 0;");
     expect(pulseInnerColumns).toContain("background: transparent;");
   });

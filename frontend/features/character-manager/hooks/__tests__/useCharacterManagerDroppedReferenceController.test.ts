@@ -271,6 +271,59 @@ describe("useCharacterManagerDroppedReferenceController", () => {
     expect(vi.mocked(reportAppError)).not.toHaveBeenCalled();
   });
 
+  it("copies direct internal character drops without requiring a browser DataTransfer", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const setCharacterSheetPresetFile = vi.fn().mockResolvedValue(true);
+    const setCharacterSheetPresetStorageReference = vi.fn().mockResolvedValue(true);
+    const resolveCharacterDropReference = vi.fn().mockResolvedValue({
+      mediaId: "media-canvas-1",
+      previewUrl: "https://signed.example/canvas-preview.png",
+      storagePath: "user-1/generations/images/canvas.png",
+      outputId: "out-canvas-1",
+      imageIndex: 0,
+      sourceSurface: "all-refs",
+    });
+
+    const { result } = renderHook(() =>
+      useCharacterManagerDroppedReferenceController({
+        setCharacterSheetPresetFile,
+        setCharacterSheetPresetStorageReference,
+        resolveCharacterDropReference,
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleCharacterSheetInternalReferenceDrop("close_up", {
+        version: 1,
+        origin: "ai-studio-reference-grid",
+        referenceId: "out-canvas-1",
+        outputId: "out-canvas-1",
+        imageIndex: 0,
+        mediaId: "media-canvas-1",
+        mediaKind: "image",
+        referenceUrl: "https://cdn.example.com/canvas-preview.png",
+        sourceSurface: "all-refs",
+      });
+    });
+
+    expect(resolveCharacterDropReference).toHaveBeenCalledWith(
+      expect.objectContaining({
+        origin: "ai-studio-reference-grid",
+        outputId: "out-canvas-1",
+        mediaId: "media-canvas-1",
+      })
+    );
+    expect(setCharacterSheetPresetStorageReference).toHaveBeenCalledWith("close_up", {
+      storagePath: "user-1/generations/images/canvas.png",
+      previewUrl: "https://signed.example/canvas-preview.png",
+      filename: "canvas.png",
+      mimeType: null,
+    });
+    expect(setCharacterSheetPresetFile).not.toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(vi.mocked(reportAppError)).not.toHaveBeenCalled();
+  });
+
   it("prefers degraded internal reference hints over synthetic browser files", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue({
       ok: true,

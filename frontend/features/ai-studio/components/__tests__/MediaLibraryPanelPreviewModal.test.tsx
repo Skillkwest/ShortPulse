@@ -105,6 +105,7 @@ describe("MediaLibraryPanelPreviewModal", () => {
 
   it("shows workflow reload only for saved AI Studio media with explicit reload metadata", () => {
     const onReloadWorkflowItem = vi.fn();
+    const onClose = vi.fn();
     const generatedFile: MediaFileRow = {
       id: "image-1",
       filename: "portrait.png",
@@ -125,7 +126,7 @@ describe("MediaLibraryPanelPreviewModal", () => {
         })}
         isLoading={false}
         error={null}
-        onClose={vi.fn()}
+        onClose={onClose}
         onReloadWorkflowItem={onReloadWorkflowItem}
       />
     );
@@ -135,6 +136,7 @@ describe("MediaLibraryPanelPreviewModal", () => {
     expect(onReloadWorkflowItem).toHaveBeenCalledWith(
       expect.objectContaining({ file: generatedFile })
     );
+    expect(onClose).toHaveBeenCalledTimes(1);
 
     rerender(
       <MediaLibraryPanelPreviewModal

@@ -1922,19 +1922,59 @@
   box-shadow: none;
 }
 
+.bootstrapStyleScope:global(.voices-properties-script-editor),
+.bootstrapStyleScope :global(.voices-properties-script-editor) {
+  position: relative;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+}
+
+.bootstrapStyleScope:global(.voices-properties-script-highlight),
+.bootstrapStyleScope :global(.voices-properties-script-highlight),
 .bootstrapStyleScope:global(.voices-properties-script-input),
 .bootstrapStyleScope :global(.voices-properties-script-input) {
+  position: absolute;
+  inset: 0;
   width: 100%;
-  flex: 1 1 auto;
-  height: auto;
-  min-height: 0;
+  height: 100%;
   padding: 16px 18px;
-  border: 0;
-  background: transparent;
-  color: #f5f9ff;
   font-size: 16px;
   font-family: var(--font-secondary);
   line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  box-sizing: border-box;
+}
+
+.bootstrapStyleScope:global(.voices-properties-script-highlight),
+.bootstrapStyleScope :global(.voices-properties-script-highlight) {
+  color: #f5f9ff;
+  overflow: auto;
+  pointer-events: none;
+  scrollbar-width: none;
+  scrollbar-gutter: stable both-edges;
+}
+
+.bootstrapStyleScope:global(.voices-properties-script-highlight)::-webkit-scrollbar,
+.bootstrapStyleScope :global(.voices-properties-script-highlight)::-webkit-scrollbar {
+  display: none;
+}
+
+.bootstrapStyleScope:global(.voices-properties-script-audio-tag),
+.bootstrapStyleScope :global(.voices-properties-script-audio-tag) {
+  color: rgba(149, 235, 228, 0.98);
+  font-weight: 800;
+  text-shadow: 0 0 12px rgba(149, 235, 228, 0.2);
+}
+
+.bootstrapStyleScope:global(.voices-properties-script-input),
+.bootstrapStyleScope :global(.voices-properties-script-input) {
+  border: 0;
+  background: transparent;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  caret-color: #f5f9ff;
   outline: none;
   resize: none;
   box-shadow: none;
@@ -1947,6 +1987,17 @@
   overscroll-behavior: contain;
   transition: none;
   cursor: text;
+}
+
+.bootstrapStyleScope:global(.voices-properties-script-input)::placeholder,
+.bootstrapStyleScope :global(.voices-properties-script-input)::placeholder {
+  color: rgba(245, 249, 255, 0.42);
+  -webkit-text-fill-color: rgba(245, 249, 255, 0.42);
+}
+
+.bootstrapStyleScope:global(.voices-properties-script-input)::selection,
+.bootstrapStyleScope :global(.voices-properties-script-input)::selection {
+  background: rgba(149, 235, 228, 0.22);
 }
 
 .bootstrapStyleScope:global(.voices-properties-script-meta-row),
@@ -1984,8 +2035,67 @@
 
 .bootstrapStyleScope:global(.voices-properties-enhance-btn),
 .bootstrapStyleScope :global(.voices-properties-enhance-btn) {
-  min-width: 104px;
+  min-width: 106px;
   height: 34px;
+  padding: 0 13px;
+  border: 1px solid rgba(149, 235, 228, 0.3);
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(25, 34, 39, 0.96), rgba(12, 18, 22, 0.96)),
+    radial-gradient(circle at 20% 0%, rgba(149, 235, 228, 0.16), transparent 52%);
+  color: rgba(224, 245, 242, 0.94);
+  font-family: var(--font-secondary);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 0 0 1px rgba(149, 235, 228, 0.06);
+  transform: none;
+  transition:
+    border-color 140ms ease,
+    background 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.bootstrapStyleScope:global(.voices-properties-enhance-btn) svg,
+.bootstrapStyleScope :global(.voices-properties-enhance-btn) svg {
+  color: rgba(149, 235, 228, 0.98);
+}
+
+.bootstrapStyleScope:global(.voices-properties-enhance-btn):hover:not(:disabled),
+.bootstrapStyleScope :global(.voices-properties-enhance-btn):hover:not(:disabled) {
+  border-color: rgba(149, 235, 228, 0.58);
+  background:
+    linear-gradient(180deg, rgba(32, 45, 50, 0.98), rgba(14, 25, 29, 0.98)),
+    radial-gradient(circle at 20% 0%, rgba(149, 235, 228, 0.26), transparent 58%);
+  color: #f6fffd;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 0 0 1px rgba(149, 235, 228, 0.12),
+    0 8px 18px rgba(0, 0, 0, 0.2);
+  transform: none;
+}
+
+.bootstrapStyleScope:global(.voices-properties-enhance-btn):focus-visible,
+.bootstrapStyleScope :global(.voices-properties-enhance-btn):focus-visible {
+  outline: 2px solid rgba(149, 235, 228, 0.46);
+  outline-offset: 2px;
+}
+
+.bootstrapStyleScope:global(.voices-properties-enhance-btn):disabled,
+.bootstrapStyleScope :global(.voices-properties-enhance-btn):disabled {
+  border-color: rgba(201, 205, 214, 0.12);
+  background: rgba(57, 63, 67, 0.16);
+  color: rgba(201, 205, 214, 0.42);
+  box-shadow: none;
+  opacity: 1;
+}
+
+.bootstrapStyleScope:global(.voices-properties-enhance-btn):disabled svg,
+.bootstrapStyleScope :global(.voices-properties-enhance-btn):disabled svg {
+  color: rgba(201, 205, 214, 0.36);
 }
 
 .bootstrapStyleScope:global(.voices-properties-script-input):focus,

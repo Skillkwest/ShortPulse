@@ -11,6 +11,10 @@ import {
   admitKieMotionControlCharacterImage,
   KieMotionControlMediaAdmissionError,
 } from "../../../lib/server/kieMotionControlMediaAdmission";
+import {
+  admitKieSeedanceReferenceImage,
+  KieSeedanceImageAdmissionError,
+} from "../../../lib/server/kieSeedanceImageAdmission";
 import { readProviderApiKey } from "../../../lib/server/providerIntegration/providerRuntimeConfig";
 
 const KIE_FILE_URL_UPLOAD_ENDPOINT =
@@ -46,7 +50,9 @@ type ErrorResponse = {
 
 type UploadTransport = "url_upload" | "remote_stream_upload" | "binary_stream_upload";
 type KieUploadMediaKind = "image" | "video" | "audio";
-type KieUploadAdmissionProfile = "kie_motion_control_character_image";
+type KieUploadAdmissionProfile =
+  | "kie_motion_control_character_image"
+  | "kie_seedance_reference_image";
 
 type UploadDiagnostics = {
   transport: UploadTransport;
@@ -218,6 +224,7 @@ const resolveMediaKind = (value: unknown): KieUploadMediaKind | null => {
 const resolveAdmissionProfile = (value: unknown): KieUploadAdmissionProfile | null => {
   const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
   if (normalized === "kie_motion_control_character_image") return normalized;
+  if (normalized === "kie_seedance_reference_image") return normalized;
   if (!normalized) return null;
   throw new KieUploadRequestError("admissionProfile is not supported.");
 };
@@ -233,15 +240,14 @@ const assertAdmissionProfileAllowed = ({
 }): void => {
   if (!admissionProfile) return;
   if (
-    admissionProfile === "kie_motion_control_character_image" &&
+    (admissionProfile === "kie_motion_control_character_image" ||
+      admissionProfile === "kie_seedance_reference_image") &&
     mediaKind === "image" &&
     uploadPath === KIE_IMAGE_UPLOAD_PATH
   ) {
     return;
   }
-  throw new KieUploadRequestError(
-    "admissionProfile is only supported for Kie Motion Control image uploads."
-  );
+  throw new KieUploadRequestError("admissionProfile is only supported for Kie image uploads.");
 };
 
 const inferMimeTypeFromPath = (
@@ -302,6 +308,21 @@ const admitUploadBufferForProvider = async ({
     const admitted = await admitKieMotionControlCharacterImage({
       buffer: fileBuffer,
       filename: fileName ?? "motion-control-character",
+      mimeType: mimeType ?? "application/octet-stream",
+    });
+    return {
+      fileBuffer: admitted.buffer,
+      fileName:
+        admitted.filename ||
+        replaceFileExtension(fileName, admitted.mimeType === "image/png" ? "png" : "jpg"),
+      mimeType: admitted.mimeType,
+    };
+  }
+
+  if (admissionProfile === "kie_seedance_reference_image") {
+    const admitted = await admitKieSeedanceReferenceImage({
+      buffer: fileBuffer,
+      filename: fileName ?? "seedance-reference-image",
       mimeType: mimeType ?? "application/octet-stream",
     });
     return {
@@ -1114,7 +1135,10 @@ export default async function handler(
       mimeType: result.parsed.mimeType,
     });
   } catch (error) {
-    if (error instanceof KieMotionControlMediaAdmissionError) {
+    if (
+      error instanceof KieMotionControlMediaAdmissionError ||
+      error instanceof KieSeedanceImageAdmissionError
+    ) {
       return res.status(error.statusCode).json({
         error: "Invalid upload request",
         details: error.details,

@@ -1037,6 +1037,31 @@ describe("upsertGenerationProjection", () => {
     });
   });
 
+  it("preserves projection metadata fields when a partial upsert omits them", async () => {
+    const supabaseAdmin = createSupabaseAdmin({
+      projectionRows: [],
+      generationRows: [],
+    });
+
+    await upsertGenerationProjection({
+      generationId: "gen-partial",
+      userId: "user-partial",
+      companionArtStatus: "pending",
+      supabaseAdmin: supabaseAdmin as never,
+    });
+
+    const [payload] = supabaseAdmin.upsert.mock.calls[0] ?? [];
+    expect(payload).toMatchObject({
+      generation_id: "gen-partial",
+      user_id: "user-partial",
+      companion_art_status: "pending",
+    });
+    expect(payload).not.toHaveProperty("generation_replay");
+    expect(payload).not.toHaveProperty("workflow_reload");
+    expect(payload).not.toHaveProperty("character_context");
+    expect(payload).not.toHaveProperty("style_context");
+  });
+
   it("writes raw error payloads onto failed projection rows", async () => {
     const supabaseAdmin = createSupabaseAdmin({
       projectionRows: [],

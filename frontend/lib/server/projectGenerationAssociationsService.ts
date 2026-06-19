@@ -1104,9 +1104,11 @@ const patchSnapshotOutputRow = ({
 };
 
 const patchSnapshotOutputMetadataRow = ({
+  userId,
   row,
   projection,
 }: {
+  userId: string;
   row: SnapshotRecord;
   projection: ProjectGenerationProjectionRow;
 }): SnapshotRecord => {
@@ -1122,6 +1124,14 @@ const patchSnapshotOutputMetadataRow = ({
   const nextCharacterContext = asRecord(projection.character_context);
   const nextStyleContext = asRecord(projection.style_context);
   const nextAspect = asTrimmedString(nextGenerationReplay.aspect);
+  const nextMode = asTrimmedString(row.mode) ?? resolveSnapshotOutputMode(projection);
+  const nextCompanionArtStatus = asTrimmedString(projection.companion_art_status);
+  const safeRowCompanionArtStoragePath = toSafeUserScopedPath(row.companionArtStoragePath, userId);
+  const nextCompanionArtStoragePath = toSafeUserScopedPath(
+    projection.companion_art_storage_path,
+    userId
+  );
+  const shouldRepairAudioCompanionArt = nextMode === "audio";
   const nextRow = {
     ...row,
     prompt: nextPrompt ?? row.prompt ?? "",
@@ -1139,6 +1149,17 @@ const patchSnapshotOutputMetadataRow = ({
     characterContext:
       Object.keys(nextCharacterContext).length > 0 ? nextCharacterContext : row.characterContext,
     styleContext: Object.keys(nextStyleContext).length > 0 ? nextStyleContext : row.styleContext,
+    ...(shouldRepairAudioCompanionArt
+      ? {
+          companionArtStoragePath:
+            safeRowCompanionArtStoragePath ?? nextCompanionArtStoragePath ?? null,
+          companionArtStatus:
+            nextCompanionArtStatus ??
+            (safeRowCompanionArtStoragePath || nextCompanionArtStoragePath
+              ? "ready"
+              : (row.companionArtStatus ?? null)),
+        }
+      : {}),
   };
   return JSON.stringify(nextRow) === JSON.stringify(row) ? row : nextRow;
 };
@@ -1455,6 +1476,7 @@ export const hydrateProjectSnapshotGeneratedOutputs = async ({
           hasSnapshotRowDurableDisplayAuthority({ userId, row: normalizedRow })
         ) {
           const metadataPatchedRow = patchSnapshotOutputMetadataRow({
+            userId,
             row: normalizedRow,
             projection,
           });

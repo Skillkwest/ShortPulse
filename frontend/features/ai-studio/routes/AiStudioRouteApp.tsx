@@ -915,6 +915,7 @@ const AiStudioPageRuntimeBody = ({
     handleReferenceGridFiles,
     triggerFilePicker,
     resolveCharacterDropReference,
+    canvasTearOutTargetRegistry: base.canvasTearOutTargetRegistry,
     pendingCharacterUploadRequest,
     onCharacterUploadRequestHandled: clearPendingCharacterUploadRequest,
     createSelectedCharacterId,

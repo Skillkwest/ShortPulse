@@ -337,6 +337,65 @@ describe("VoicesPropertiesPanel", () => {
     );
   });
 
+  it("keeps bracketed voiceover tags in the generation payload", async () => {
+    fetchWithAuthMock.mockImplementation(async (url: string) => {
+      if (url === "/api/ai/voiceover-enhance") {
+        return new Response(
+          JSON.stringify({ enhancedScript: "[confused] Updated launch script." }),
+          {
+            status: 200,
+          }
+        );
+      }
+      if (url === "/api/elevenlabs/voices") {
+        return new Response(
+          JSON.stringify({
+            source: "api",
+            voices: [
+              {
+                voiceId: "voice_live_darian_123",
+                name: "Darian",
+                previewUrl: "https://cdn.elevenlabs.test/darian.mp3",
+                description: "Warm, grounded storyteller",
+                isFallback: false,
+              },
+            ],
+          }),
+          { status: 200 }
+        );
+      }
+      return new Response(JSON.stringify({}), { status: 200 });
+    });
+    const onGenerate = vi.fn();
+    const { container } = render(<VoicesPropertiesPanel onGenerate={onGenerate} />);
+
+    const scriptInput = screen.getByRole("textbox", { name: "Voice script" });
+    fireEvent.change(scriptInput, { target: { value: "Updated launch script." } });
+    fireEvent.click(screen.getByRole("button", { name: "Enhance voiceover script" }));
+
+    await waitFor(() => {
+      expect(scriptInput).toHaveValue("[confused] Updated launch script.");
+    });
+    expect(container.querySelector(".voices-properties-script-audio-tag")).toHaveTextContent(
+      "[confused]"
+    );
+
+    const generateButton = screen.getByRole("button", { name: "Generate" });
+    await waitFor(() => {
+      expect(generateButton).toBeEnabled();
+    });
+    fireEvent.click(generateButton);
+
+    await waitFor(() => {
+      expect(onGenerate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mode: "voiceover",
+          script: "[confused] Updated launch script.",
+        })
+      );
+    });
+  });
+
   it("shows a voiceover enhance error when the enhance route fails", async () => {
     fetchWithAuthMock.mockResolvedValueOnce(
       new Response(

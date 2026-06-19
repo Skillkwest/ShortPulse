@@ -20,7 +20,7 @@ const responsiveSurfaceContracts: ResponsiveSurfaceContract[] = [
   {
     label: "Create",
     fileName: "ai-studio-create-composer-responsive.css",
-    containerBreakpoints: [900],
+    containerBreakpoints: [759],
   },
   {
     label: "Edit",
@@ -74,7 +74,7 @@ const responsiveSurfaceContracts: ResponsiveSurfaceContract[] = [
   },
   {
     label: "Styles",
-    fileName: "ai-studio-styles-library.css",
+    fileName: "ai-studio-styles-library.module.css",
     fluidGridPattern: "grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));",
   },
   {
@@ -104,6 +104,16 @@ const approvedExplicitColumnPlacements = [
   {
     fileName: "ai-studio-music-properties.css",
     selector: ".music-properties-topbar-center",
+    column: "2",
+  },
+  {
+    fileName: "ai-studio-video-theme.css",
+    selector: ".video-properties-panel .video-right-generate-actions",
+    column: "3",
+  },
+  {
+    fileName: "ai-studio-video-theme.css",
+    selector: ".video-properties-panel .video-inline-warning-bubble",
     column: "2",
   },
 ] as const;

@@ -24,15 +24,20 @@ vi.mock("next/link", () => ({
   default: ({
     children,
     href,
+    prefetch,
     ...rest
   }: {
     children: ReactNode;
     href: string;
-  } & Record<string, unknown>) => (
-    <a href={href} {...rest}>
-      {children}
-    </a>
-  ),
+    prefetch?: boolean;
+  } & Record<string, unknown>) => {
+    void prefetch;
+    return (
+      <a href={href} {...rest}>
+        {children}
+      </a>
+    );
+  },
 }));
 
 vi.mock("next/image", () => ({
@@ -114,11 +119,14 @@ describe("Index route behavior", () => {
     );
 
     expect(
-      screen.getByRole("heading", { name: /the creative studio for ai creators/i })
+      screen.getByRole("heading", { name: /a true all-in-one for ai creators/i })
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Login" })).toHaveAttribute(
-      "href",
-      "/auth?next=%2Fdashboard"
+    expect(screen.getAllByRole("link", { name: "Login" })).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          href: expect.stringContaining("/auth?next=%2Fdashboard"),
+        }),
+      ])
     );
   });
 });

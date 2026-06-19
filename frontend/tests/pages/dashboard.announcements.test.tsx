@@ -254,14 +254,15 @@ describe("Dashboard announcement rendering", () => {
     render(<DashboardPage />);
 
     await screen.findByRole("button", { name: "Profile menu" });
-    await screen.findByRole("heading", { name: /start with a guided walkthrough/i });
+    await screen.findByRole("heading", { name: /quick-start tutorial workflows/i });
     const tutorialButton = await screen.findByRole("button", {
       name: "Create your first project: open tutorial",
     });
-    expect(tutorialButton.querySelector("video")).toHaveAttribute(
-      "poster",
-      "https://cdn.example.com/tutorial-poster.jpg"
-    );
+    expect(
+      tutorialButton.querySelector(
+        '[data-next-image="https://cdn.example.com/tutorial-poster.jpg"]'
+      )
+    ).toBeInTheDocument();
     fireEvent.click(tutorialButton);
 
     expect(screen.getByRole("dialog", { name: "Create your first project" })).toBeInTheDocument();

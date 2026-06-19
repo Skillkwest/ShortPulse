@@ -25,8 +25,8 @@ const QUICK_SLOT_HIDE_CONTENT_BUFFER_PX = 44;
 const CANVAS_COLLAPSE_TOP_HEIGHT_PX = 24;
 const CANVAS_HIDE_CONTENT_BUFFER_PX = 44;
 
-const resolveCanvasCameraZoomPercent = (camera: CanvasPropertiesPanelProps["camera"]): number =>
-  Number.isFinite(camera.zoom) && camera.zoom > 0 ? Math.round(camera.zoom * 100) : 100;
+const resolveCanvasCameraZoomPercent = (camera?: CanvasPropertiesPanelProps["camera"]): number =>
+  camera && Number.isFinite(camera.zoom) && camera.zoom > 0 ? Math.round(camera.zoom * 100) : 100;
 
 const CanvasCameraZoomBadge = ({
   railCanvasProps,

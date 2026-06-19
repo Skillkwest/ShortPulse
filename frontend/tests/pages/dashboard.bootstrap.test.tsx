@@ -196,7 +196,7 @@ describe("Dashboard bootstrap state", () => {
     useSupabaseSessionStateMock.mockImplementation(() => snapshot);
 
     expect(renderToString(<DashboardPage />)).toContain(
-      "The creative studio for <span>AI creators</span>"
+      "A true all-in-one for <span>AI creators.</span>"
     );
 
     const { rerender } = render(<DashboardPage />);

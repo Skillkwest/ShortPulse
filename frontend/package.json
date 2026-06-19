@@ -173,7 +173,7 @@
   },
   "overrides": {
     "postcss": "8.5.12",
-    "ws": "8.20.1"
+    "ws": "8.21.0"
   },
   "knip": {
     "ignoreFiles": [

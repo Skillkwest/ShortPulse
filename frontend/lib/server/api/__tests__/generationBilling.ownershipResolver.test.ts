@@ -2,16 +2,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { resolveProviderRequestOwnership } from "../generationBilling/ownershipResolver";
 
 const getSupabaseAdminMock = vi.fn();
-const lookupGenerationAttemptByProviderRequestMock = vi.fn();
+const resolveGenerationLineageByProviderRequestMock = vi.fn();
 const readGenerationProjectionOwnershipByProviderRequestIdMock = vi.fn();
 
 vi.mock("../supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
 }));
 
-vi.mock("../generationAttempts", () => ({
-  lookupGenerationAttemptByProviderRequest: (...args: unknown[]) =>
-    lookupGenerationAttemptByProviderRequestMock(...args),
+vi.mock("../generationLineageResolver", () => ({
+  resolveGenerationLineageByProviderRequest: (...args: unknown[]) =>
+    resolveGenerationLineageByProviderRequestMock(...args),
 }));
 
 vi.mock("../generationProjection", () => ({
@@ -62,17 +62,14 @@ const mockOwnershipTables = ({
 describe("resolveProviderRequestOwnership", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    lookupGenerationAttemptByProviderRequestMock.mockResolvedValue({ data: null, error: null });
+    resolveGenerationLineageByProviderRequestMock.mockResolvedValue({ userId: null });
     readGenerationProjectionOwnershipByProviderRequestIdMock.mockResolvedValue({ userIds: [] });
     mockOwnershipTables({});
   });
 
   it("uses generation attempts as canonical ownership before projection", async () => {
-    lookupGenerationAttemptByProviderRequestMock.mockResolvedValue({
-      data: {
-        userId: "user-1",
-      },
-      error: null,
+    resolveGenerationLineageByProviderRequestMock.mockResolvedValue({
+      userId: "user-1",
     });
     mockOwnershipTables({
       generationOwner: "user-2",
@@ -87,19 +84,17 @@ describe("resolveProviderRequestOwnership", () => {
         providerRequestId: "req-1",
       })
     ).resolves.toBe("owned");
-    expect(lookupGenerationAttemptByProviderRequestMock).toHaveBeenCalledWith({
+    expect(resolveGenerationLineageByProviderRequestMock).toHaveBeenCalledWith({
       providerRequestId: "req-1",
       userId: "user-1",
+      includeProjection: true,
     });
   });
 
   it("returns forbidden when the canonical generation attempt belongs to another user", async () => {
-    lookupGenerationAttemptByProviderRequestMock.mockResolvedValue({
-      data: {
-        userId: "user-2",
-      },
-      error: null,
-    });
+    resolveGenerationLineageByProviderRequestMock
+      .mockResolvedValueOnce({ userId: null })
+      .mockResolvedValueOnce({ userId: "user-2" });
 
     await expect(
       resolveProviderRequestOwnership({
@@ -139,8 +134,8 @@ describe("resolveProviderRequestOwnership", () => {
   });
 
   it("uses ai_generations request ownership before projection fallback", async () => {
-    mockOwnershipTables({
-      generationOwner: "user-1",
+    resolveGenerationLineageByProviderRequestMock.mockResolvedValue({
+      userId: "user-1",
     });
     readGenerationProjectionOwnershipByProviderRequestIdMock.mockResolvedValue({
       userIds: ["user-2"],
@@ -158,14 +153,9 @@ describe("resolveProviderRequestOwnership", () => {
     readGenerationProjectionOwnershipByProviderRequestIdMock.mockResolvedValue({
       userIds: ["user-1"],
     });
-    lookupGenerationAttemptByProviderRequestMock
-      .mockResolvedValueOnce({ data: null, error: null })
-      .mockResolvedValueOnce({
-        data: {
-          userId: "user-2",
-        },
-        error: null,
-      });
+    resolveGenerationLineageByProviderRequestMock
+      .mockResolvedValueOnce({ userId: null })
+      .mockResolvedValueOnce({ userId: "user-2" });
 
     await expect(
       resolveProviderRequestOwnership({
@@ -176,14 +166,9 @@ describe("resolveProviderRequestOwnership", () => {
   });
 
   it("returns forbidden when another user owns the provider request and the caller has no scoped proof", async () => {
-    lookupGenerationAttemptByProviderRequestMock
-      .mockResolvedValueOnce({ data: null, error: null })
-      .mockResolvedValueOnce({
-        data: {
-          userId: "user-2",
-        },
-        error: null,
-      });
+    resolveGenerationLineageByProviderRequestMock
+      .mockResolvedValueOnce({ userId: null })
+      .mockResolvedValueOnce({ userId: "user-2" });
 
     await expect(
       resolveProviderRequestOwnership({
@@ -191,13 +176,15 @@ describe("resolveProviderRequestOwnership", () => {
         providerRequestId: "req-foreign",
       })
     ).resolves.toBe("forbidden");
-    expect(lookupGenerationAttemptByProviderRequestMock).toHaveBeenNthCalledWith(1, {
+    expect(resolveGenerationLineageByProviderRequestMock).toHaveBeenNthCalledWith(1, {
       providerRequestId: "req-foreign",
       userId: "user-1",
+      includeProjection: true,
     });
-    expect(lookupGenerationAttemptByProviderRequestMock).toHaveBeenNthCalledWith(2, {
+    expect(resolveGenerationLineageByProviderRequestMock).toHaveBeenNthCalledWith(2, {
       providerRequestId: "req-foreign",
       userId: null,
+      includeProjection: true,
     });
   });
 });

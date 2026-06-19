@@ -172,7 +172,7 @@ describe("referenceGridCardVisualState", () => {
     expect(state.loadingVisual).toBe("none");
   });
 
-  it("keeps rendered preview-only generated rows loading while provider is still running", () => {
+  it("does not keep non-provider generated rows loading after preview media can render", () => {
     const state = classifyReferenceGridCardVisualState({
       item: createOutput({
         taskState: "running",
@@ -187,9 +187,9 @@ describe("referenceGridCardVisualState", () => {
       imageSrc: "https://cdn.test/generated-preview.png",
     });
 
-    expect(state.isGenerationLoading).toBe(true);
+    expect(state.isGenerationLoading).toBe(false);
     expect(state.isMediaHydrating).toBe(false);
-    expect(state.loadingVisual).toBe("spinner");
+    expect(state.loadingVisual).toBe("none");
   });
 
   it("uses spinner visual for local video references pending durable persistence", () => {

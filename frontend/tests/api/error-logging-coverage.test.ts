@@ -50,6 +50,9 @@ const ALLOWLIST_LOCATIONS = new Set<string>([
   "kie/upload-url.ts:674",
   "kie/upload-url.ts:702",
   "kie/upload-url.ts:813",
+  // Storage-object verification fallback: if schema access fails, the helper falls back to
+  // Storage API listing before deciding whether to throw a route-level error.
+  "media/list.ts:631",
 ]);
 
 const LOG_CALL_PATTERNS = [

@@ -14,6 +14,7 @@ import {
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 import {
   createProjectDurableAiStudioSessionCanvasState,
+  parseAiStudioSessionCanvasState,
   serializeAiStudioSessionCanvasState,
   type AiStudioSessionCanvasState,
 } from "../logic/sessionSnapshotCanvas";
@@ -172,7 +173,11 @@ export const useAiStudioPageProjectSessionRuntime = ({
       state: durableCanvasState,
     };
   }, [canvasSessionState]);
-  const projectDurableCanvasState = projectDurableCanvasPayload.state;
+  const projectDurableCanvasState = useMemo(() => {
+    if (!projectDurableCanvasPayload.signature) return null;
+
+    return parseAiStudioSessionCanvasState(JSON.parse(projectDurableCanvasPayload.signature));
+  }, [projectDurableCanvasPayload.signature]);
 
   const persistedAgentRuntimes = useMemo<AiStudioSessionAgentRuntimesV2>(
     () => ({

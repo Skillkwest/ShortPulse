@@ -17,6 +17,7 @@ let ownedGenerationProjectionQueryResult: { data: unknown; error: unknown } = {
 const ownedMediaSelectBuilder = {
   eq: vi.fn(),
   in: vi.fn(),
+  not: vi.fn(),
   then: (...args: Parameters<Promise<{ data: unknown; error: unknown }>["then"]>) =>
     Promise.resolve(ownedMediaQueryResult).then(...args),
   catch: (...args: Parameters<Promise<{ data: unknown; error: unknown }>["catch"]>) =>
@@ -26,6 +27,7 @@ const ownedMediaSelectBuilder = {
 };
 ownedMediaSelectBuilder.eq.mockReturnValue(ownedMediaSelectBuilder);
 ownedMediaSelectBuilder.in.mockReturnValue(ownedMediaSelectBuilder);
+ownedMediaSelectBuilder.not.mockReturnValue(ownedMediaSelectBuilder);
 const ownedGenerationSelectBuilder = {
   eq: vi.fn(),
   in: vi.fn(),
@@ -66,6 +68,7 @@ const createAwaitableSelectBuilder = (result: { data: unknown; error: unknown })
   const builder: {
     eq: ReturnType<typeof vi.fn>;
     in: ReturnType<typeof vi.fn>;
+    not: ReturnType<typeof vi.fn>;
     order: ReturnType<typeof vi.fn>;
     limit: ReturnType<typeof vi.fn>;
     then: Promise<{ data: unknown; error: unknown }>["then"];
@@ -74,6 +77,7 @@ const createAwaitableSelectBuilder = (result: { data: unknown; error: unknown })
   } = {
     eq: vi.fn(),
     in: vi.fn(),
+    not: vi.fn(),
     order: vi.fn(),
     limit: vi.fn(),
     then: (...args) => Promise.resolve(result).then(...args),
@@ -82,6 +86,7 @@ const createAwaitableSelectBuilder = (result: { data: unknown; error: unknown })
   };
   builder.eq.mockReturnValue(builder);
   builder.in.mockReturnValue(builder);
+  builder.not.mockReturnValue(builder);
   builder.order.mockReturnValue(builder);
   builder.limit.mockReturnValue(builder);
   return builder;
@@ -145,6 +150,7 @@ describe("associateGenerationWithProjectForUser", () => {
     ownedGenerationProjectionQueryResult = { data: [], error: null };
     ownedMediaSelectBuilder.eq.mockReturnValue(ownedMediaSelectBuilder);
     ownedMediaSelectBuilder.in.mockReturnValue(ownedMediaSelectBuilder);
+    ownedMediaSelectBuilder.not.mockReturnValue(ownedMediaSelectBuilder);
     ownedGenerationSelectBuilder.eq.mockReturnValue(ownedGenerationSelectBuilder);
     ownedGenerationSelectBuilder.in.mockReturnValue(ownedGenerationSelectBuilder);
     generationOwnershipSelectMock.mockImplementation(() => ownedGenerationSelectBuilder);

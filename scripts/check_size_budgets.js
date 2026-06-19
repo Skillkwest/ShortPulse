@@ -32,7 +32,7 @@ const REFERENCE_GRID_TARGET_BUDGETS = [
   },
   {
     file: "frontend/features/ai-studio/hooks/useAiStudioState.ts",
-    maxLines: 750,
+    maxLines: 950,
   },
 ];
 

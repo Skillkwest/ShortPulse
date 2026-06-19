@@ -2,6 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import type { Dispatch, SetStateAction } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AiStudioSessionHydrationPayload } from "../../logic/sessionSnapshotHydrator";
+import { createDefaultRightRailLayout } from "../../logic/rightRailLayout";
 import type { StudioOutput } from "../../types";
 
 const addBreadcrumbMock = vi.hoisted(() => vi.fn());
@@ -104,6 +105,7 @@ const createHydrationPayload = (active: StudioOutput[]): AiStudioSessionHydratio
     klingMultiPrompts: [],
     klingElements: [],
     motionReferenceVideoUrl: null,
+    rightRailLayout: createDefaultRightRailLayout(),
   },
   outputs: {
     active,

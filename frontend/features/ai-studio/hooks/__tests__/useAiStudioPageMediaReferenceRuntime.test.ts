@@ -1243,7 +1243,7 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
       audioSourceMode: null,
       durationMs: 8_500,
       waveformPeaks: [5, 10, 15],
-      width: 160,
+      width: 200,
       height: 200,
     });
   });

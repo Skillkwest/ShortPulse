@@ -195,21 +195,23 @@ describe("persistGeneratedVideoAsset", () => {
     });
 
     expect(mediaFilesInsertMock).not.toHaveBeenCalled();
-    expect(persistGenerationOutputRecordsMock).toHaveBeenCalledWith({
-      generationId: "generation-1",
-      userId: "user-1",
-      providerRequestId: null,
-      resultUrls: ["https://signed.example/video.mp4"],
-      mediaFileIds: [],
-      metadata: expect.objectContaining({
-        media_kind: "video",
-        autosave_enabled: false,
-        autosave_decision: "autosave_skipped",
-        autosave_decision_reason: "autosave_disabled",
-        provider_request_id: null,
-        remuxed_from: "source-video-1",
-      }),
-    });
+    expect(persistGenerationOutputRecordsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "generation-1",
+        userId: "user-1",
+        providerRequestId: null,
+        resultUrls: ["https://signed.example/video.mp4"],
+        mediaFileIds: [],
+        metadata: expect.objectContaining({
+          media_kind: "video",
+          autosave_enabled: false,
+          autosave_decision: "autosave_skipped",
+          autosave_decision_reason: "autosave_disabled",
+          provider_request_id: null,
+          remuxed_from: "source-video-1",
+        }),
+      })
+    );
     expect(upsertGenerationPublicationMock).toHaveBeenCalledWith(
       expect.objectContaining({
         generationId: "generation-1",

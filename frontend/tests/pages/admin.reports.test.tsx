@@ -110,9 +110,7 @@ describe("AdminReportsPage", () => {
       );
     });
 
-    fireEvent.change(screen.getByRole("combobox"), {
-      target: { value: "reviewing" },
-    });
+    fireEvent.click(screen.getByRole("button", { name: /reviewing reports/i }));
 
     await waitFor(() => {
       expect(fetchWithAuthMock).toHaveBeenCalledWith(

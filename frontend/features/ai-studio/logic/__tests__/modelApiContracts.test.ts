@@ -26,12 +26,12 @@ describe("model API contracts", () => {
     const verifiedAtValues = new Set(contracts.map((contract) => contract.verifiedAt));
     expect([...verifiedAtValues].sort()).toEqual([
       "2026-04-14",
-      "2026-04-30",
-      "2026-05-01",
       "2026-05-07",
       "2026-06-04",
       "2026-06-08",
       "2026-06-14",
+      "2026-06-16",
+      "2026-06-19",
     ]);
   });
 

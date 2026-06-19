@@ -82,6 +82,9 @@
 
 .create-composer-panel.is-pulse-rail-active {
   gap: var(--create-composer-panel-gap);
+  align-items: stretch;
+  height: 100%;
+  background: transparent;
   --create-composer-chat-composer-overlay-bottom-offset: 28px;
 }
 
@@ -154,6 +157,35 @@
   border-radius: 0;
   background: #131518;
   box-sizing: border-box;
+}
+
+.create-composer-panel.is-pulse-rail-active > .create-composer-left-panel,
+.create-composer-panel.is-pulse-rail-active > .create-composer-right-panel {
+  height: 100%;
+  max-height: 100%;
+  background: #131518;
+  box-sizing: border-box;
+}
+
+.create-composer-panel.is-pulse-rail-active > .create-composer-left-panel {
+  padding: 12px;
+  overflow: hidden;
+}
+
+.create-composer-panel.is-pulse-rail-active > .create-composer-right-panel {
+  padding: 12px var(--create-composer-column-inline-padding)
+    var(--create-composer-column-bottom-padding);
+}
+
+.create-composer-panel.is-pulse-rail-active .create-composer-left-panel-inner,
+.create-composer-panel.is-pulse-rail-active .create-composer-right-panel-inner {
+  height: 100%;
+  padding: 0;
+  background: transparent;
+}
+
+.create-composer-panel.is-pulse-rail-active .create-composer-left-panel-inner {
+  overflow-y: auto;
 }
 
 .create-composer-panel .create-composer-right-panel-inner.is-drop-active {

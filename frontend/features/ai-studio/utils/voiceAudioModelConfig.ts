@@ -12,7 +12,7 @@ export type ElevenVoiceoverRequestConfig = {
     similarity_boost: number;
     speed: number;
     style: 0;
-    use_speaker_boost: boolean;
+    use_speaker_boost?: boolean;
   };
 };
 
@@ -27,6 +27,12 @@ export const hardcodedVoiceGenerationDefaults = {
   style: 0,
   use_speaker_boost: true,
 } as const;
+export const hardcodedVoiceoverV3Defaults = {
+  stability: 0.5,
+  similarity_boost: 0.75,
+  speed: 1,
+  style: 0,
+} as const;
 export const hardcodedVoiceOutputFormat = "mp3_44100_128";
 export const hardcodedVoiceChangerNoiseReductionEnabled = false;
 export const hardcodedVoiceChangerModel = resolveRequiredAudioVoiceChangerModelId();
@@ -34,15 +40,14 @@ export const hardcodedVoiceChangerInputFormat = "other";
 
 const hardcodedVoiceChangerSpeakerBoostEnabled = true;
 
-export const buildVoiceoverElevenV3RequestConfig = (): ElevenVoiceoverRequestConfig => ({
+export const buildVoiceoverRequestConfig = (): ElevenVoiceoverRequestConfig => ({
   model_id: hardcodedVoiceoverModelId,
   language_code: hardcodedVoiceoverLanguageCode,
   voice_settings: {
-    stability: hardcodedVoiceGenerationDefaults.stability,
-    similarity_boost: hardcodedVoiceGenerationDefaults.similarity_boost,
-    speed: hardcodedVoiceGenerationDefaults.speed,
+    stability: hardcodedVoiceoverV3Defaults.stability,
+    similarity_boost: hardcodedVoiceoverV3Defaults.similarity_boost,
+    speed: hardcodedVoiceoverV3Defaults.speed,
     style: hardcodedVoiceoverStyleValue,
-    use_speaker_boost: hardcodedVoiceGenerationDefaults.use_speaker_boost,
   },
 });
 

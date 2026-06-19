@@ -32,6 +32,7 @@ describe("PulseChatHistoryPanel", () => {
         openingThreadId={null}
         onOpenThread={vi.fn()}
         onRenameThread={vi.fn()}
+        onDeleteThread={vi.fn()}
       />
     );
 
@@ -64,6 +65,7 @@ describe("PulseChatHistoryPanel", () => {
         openingThreadId={null}
         onOpenThread={onOpenThread}
         onRenameThread={vi.fn()}
+        onDeleteThread={vi.fn()}
       />
     );
 
@@ -85,6 +87,7 @@ describe("PulseChatHistoryPanel", () => {
         openingThreadId={null}
         onOpenThread={vi.fn()}
         onRenameThread={vi.fn()}
+        onDeleteThread={vi.fn()}
       />
     );
 
@@ -115,6 +118,7 @@ describe("PulseChatHistoryPanel", () => {
         openingThreadId={null}
         onOpenThread={vi.fn()}
         onRenameThread={vi.fn()}
+        onDeleteThread={vi.fn()}
       />
     );
 
@@ -139,6 +143,7 @@ describe("PulseChatHistoryPanel", () => {
         openingThreadId={null}
         onOpenThread={onOpenThread}
         onRenameThread={vi.fn()}
+        onDeleteThread={vi.fn()}
       />
     );
 
@@ -171,6 +176,7 @@ describe("PulseChatHistoryPanel", () => {
         openingThreadId={null}
         onOpenThread={vi.fn()}
         onRenameThread={onRenameThread}
+        onDeleteThread={vi.fn()}
       />
     );
 
@@ -185,6 +191,43 @@ describe("PulseChatHistoryPanel", () => {
     fireEvent.keyDown(renameInput, { key: "Enter" });
 
     expect(onRenameThread).toHaveBeenCalledWith("thread-1", "Launch hook pass");
+    expect(
+      screen.queryByRole("menu", { name: /First pulse chat chat actions/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it("opens a right-click menu and deletes a saved chat", () => {
+    const onDeleteThread = vi.fn();
+
+    render(
+      <PulseChatHistoryPanel
+        threads={[
+          {
+            threadId: "thread-1",
+            title: "First pulse chat",
+            titleSource: "auto",
+            presetId: "story_builder",
+            presetLabel: "Story Builder",
+            updatedAt: "2026-06-03T15:00:00.000Z",
+          },
+        ]}
+        activeThreadId={null}
+        loading={false}
+        error={null}
+        openingThreadId={null}
+        onOpenThread={vi.fn()}
+        onRenameThread={vi.fn()}
+        onDeleteThread={onDeleteThread}
+      />
+    );
+
+    fireEvent.contextMenu(screen.getByRole("button", { name: /First pulse chat/i }), {
+      clientX: 120,
+      clientY: 220,
+    });
+    fireEvent.click(screen.getByRole("menuitem", { name: /Delete/i }));
+
+    expect(onDeleteThread).toHaveBeenCalledWith("thread-1");
     expect(
       screen.queryByRole("menu", { name: /First pulse chat chat actions/i })
     ).not.toBeInTheDocument();

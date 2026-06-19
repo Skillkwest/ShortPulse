@@ -209,6 +209,106 @@ describe("usePulseChatThreads", () => {
     });
   });
 
+  it("deletes an active saved thread without autosaving the same Pulse session back", async () => {
+    const openThreadSnapshot = vi.fn(async () => undefined);
+
+    const { result, rerender } = renderHook(
+      (props: HookProps) => {
+        const [projectPulseChatState, setProjectPulseChatState] = useState<PulseChatProjectState>({
+          schemaVersion: 1 as const,
+          activeThreadId: null,
+          threads: [],
+        });
+
+        return usePulseChatThreads({
+          enabled: true,
+          projectPulseChatState,
+          setProjectPulseChatState,
+          expertCreateMode: props.expertCreateMode,
+          activePresetId: props.activePresetId,
+          activePresetLabel: props.activePresetLabel,
+          pulseSessionInstanceId: props.pulseSessionInstanceId,
+          pulsePrompt: props.pulsePrompt,
+          persistedAgentRuntime: props.persistedAgentRuntime,
+          openThreadSnapshot,
+        });
+      },
+      {
+        initialProps: {
+          expertCreateMode: "pulse",
+          activePresetId: "preset-1",
+          activePresetLabel: "Story Builder",
+          pulseSessionInstanceId: "session-1",
+          pulsePrompt: "",
+          persistedAgentRuntime: buildRuntime([
+            {
+              id: "message-1",
+              role: "user",
+              content: "Delete this active chat.",
+            },
+          ]),
+        },
+      }
+    );
+
+    await waitFor(() => {
+      expect(result.current.threads).toHaveLength(1);
+    });
+
+    const threadId = result.current.activeThreadId;
+    expect(threadId).toBeTruthy();
+    act(() => {
+      result.current.deleteThread(threadId ?? "");
+    });
+
+    expect(result.current.threads).toHaveLength(0);
+    expect(result.current.activeThreadId).toBeNull();
+
+    rerender({
+      expertCreateMode: "pulse",
+      activePresetId: "preset-1",
+      activePresetLabel: "Story Builder",
+      pulseSessionInstanceId: "session-1",
+      pulsePrompt: "Updated prompt",
+      persistedAgentRuntime: buildRuntime([
+        {
+          id: "message-1",
+          role: "user",
+          content: "Delete this active chat.",
+        },
+        {
+          id: "message-2",
+          role: "assistant",
+          content: "This same session should stay deleted.",
+        },
+      ]),
+    });
+
+    await waitFor(() => {
+      expect(result.current.threads).toHaveLength(0);
+    });
+
+    rerender({
+      expertCreateMode: "pulse",
+      activePresetId: "preset-1",
+      activePresetLabel: "Story Builder",
+      pulseSessionInstanceId: "session-2",
+      pulsePrompt: "",
+      persistedAgentRuntime: buildRuntime([
+        {
+          id: "message-3",
+          role: "assistant",
+          content: "A new Pulse session can be saved.",
+        },
+      ]),
+    });
+
+    await waitFor(() => {
+      expect(result.current.threads).toHaveLength(1);
+      expect(result.current.activeThreadId).toBeTruthy();
+    });
+  });
+
   it("opens an existing project-owned thread and marks it active", async () => {
     const savedSnapshot = buildPulseChatThreadSnapshot({
       presetId: "preset-1",

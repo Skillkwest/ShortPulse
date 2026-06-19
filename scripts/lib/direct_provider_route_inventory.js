@@ -53,7 +53,7 @@ const DIRECT_PROVIDER_ROUTE_INVENTORY = [
   },
   {
     routePath: "frontend/pages/api/elevenlabs/text-to-speech.ts",
-    modelId: "eleven_multilingual_v2",
+    modelId: "eleven_v3",
     provider: "elevenlabs",
     directRouteKind: "audio-generate",
     authority: "catalog-default-role-allowlist",

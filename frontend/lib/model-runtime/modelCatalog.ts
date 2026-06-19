@@ -200,7 +200,7 @@ const GPT_IMAGE_2_VERIFIED_AT = "2026-06-14";
 const KIE_GPT_IMAGE_2_VERIFIED_AT = "2026-06-04";
 const OMNIHUMAN_V15_VERIFIED_AT = "2026-06-08";
 const OPENAI_TEXT_VERIFIED_AT = "2026-05-07";
-const ELEVENLABS_VERIFIED_AT = "2026-06-16";
+const ELEVENLABS_VERIFIED_AT = "2026-06-19";
 const SEEDANCE_ALLOWED_DURATIONS = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] as const;
 type ModelCatalogRuntimeMetadata = Pick<
   ModelCatalogEntry,

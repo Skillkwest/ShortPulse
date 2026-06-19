@@ -11,10 +11,11 @@ Purpose: document the canonical ElevenLabs model ids and ShortPulse route contra
 
 ## Canonical model ids
 
-- `eleven_multilingual_v2`
+- `eleven_v3`
   - ShortPulse label: ElevenLabs Voiceover
   - Route: `POST /api/elevenlabs/text-to-speech`
   - Billing basis: billed character count
+  - Script helper: `POST /api/ai/voiceover-enhance` can prepare an ElevenLabs v3-ready script with square-bracket audio/performance tags before generation. This helper is authenticated, OpenAI-backed, and does not call ElevenLabs or bill audio generation credits.
 - `eleven_multilingual_sts_v2`
   - ShortPulse label: ElevenLabs Voice Changer
   - Route: `POST /api/elevenlabs/speech-to-speech`
@@ -50,6 +51,8 @@ All ShortPulse ElevenLabs routes use handler-level bearer auth via `requireApiUs
 - Voiceover generation:
   - route: `POST /api/elevenlabs/text-to-speech`
   - input family: text prompt plus selected saved/provider voice
+  - model: catalog-backed `eleven_v3`
+  - optional preparation: `POST /api/ai/voiceover-enhance` returns a reviewable enhanced script for the user-facing script box
   - output: persisted audio payload for Reference Grid insertion
 - Voice changer generation:
   - route: `POST /api/elevenlabs/speech-to-speech`
@@ -86,7 +89,7 @@ All ShortPulse ElevenLabs routes use handler-level bearer auth via `requireApiUs
 ## Runtime pricing notes
 
 - Shared runtime pricing treats these ids as canonical pricing subjects:
-  - `eleven_multilingual_v2`
+  - `eleven_v3`
   - `eleven_multilingual_sts_v2`
   - `eleven_text_to_sound_v2`
   - `music_v1`

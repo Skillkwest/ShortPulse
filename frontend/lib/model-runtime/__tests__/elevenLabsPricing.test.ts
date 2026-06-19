@@ -3,7 +3,7 @@ import { buildDefaultPricingParams, computeCostForModel } from "../pricing";
 
 describe("ElevenLabs runtime pricing", () => {
   it("prices voiceover from billed character count", () => {
-    const breakdown = computeCostForModel("eleven_multilingual_v2", {
+    const breakdown = computeCostForModel("eleven_v3", {
       textCharacters: 1000,
     });
 

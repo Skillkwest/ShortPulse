@@ -95,7 +95,7 @@ describe("getAdminModelWorkflowType", () => {
 
     expect(
       getAdminModelWorkflowType({
-        id: "eleven_multilingual_v2",
+        id: "eleven_v3",
         mediaType: "audio",
         generationLanes: ["text-to-speech"],
       })

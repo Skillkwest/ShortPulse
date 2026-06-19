@@ -55,9 +55,9 @@ describe("scaffold_model", () => {
   it("prints direct ElevenLabs allowlist guidance with route authority symbols", () => {
     const output = runScaffold([
       "--model-id",
-      "eleven_multilingual_v2",
+      "eleven_v3",
       "--label",
-      "Eleven Multilingual v2",
+      "Eleven v3",
       "--provider",
       "elevenlabs",
       "--media-type",

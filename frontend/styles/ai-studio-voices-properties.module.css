@@ -1952,8 +1952,40 @@
 .bootstrapStyleScope:global(.voices-properties-script-meta-row),
 .bootstrapStyleScope :global(.voices-properties-script-meta-row) {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding: 0 18px 14px;
+}
+
+.bootstrapStyleScope:global(.voices-properties-script-meta-status),
+.bootstrapStyleScope :global(.voices-properties-script-meta-status) {
+  min-width: 0;
+  flex: 1;
+}
+
+.bootstrapStyleScope:global(.voices-properties-script-meta-actions),
+.bootstrapStyleScope :global(.voices-properties-script-meta-actions) {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.bootstrapStyleScope:global(.voices-properties-script-error),
+.bootstrapStyleScope :global(.voices-properties-script-error) {
+  margin: 0;
+  color: rgba(255, 150, 150, 0.9);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.bootstrapStyleScope:global(.voices-properties-enhance-btn),
+.bootstrapStyleScope :global(.voices-properties-enhance-btn) {
+  min-width: 104px;
+  height: 34px;
 }
 
 .bootstrapStyleScope:global(.voices-properties-script-input):focus,

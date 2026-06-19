@@ -2704,7 +2704,7 @@ describe("generatedMediaAuthority", () => {
           request_id: "req-project-failed-1",
           source_ref: "source-project-failed-1",
           provider: "elevenlabs",
-          model_id: "eleven_multilingual_v2",
+          model_id: "eleven_v3",
           display_prompt: "A failed voiceover",
           preview_url: null,
           result_urls: [],

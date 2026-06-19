@@ -97,6 +97,10 @@ type StorageObjectRow = {
   name?: unknown;
 };
 
+type StorageListObject = {
+  name?: unknown;
+};
+
 type StorageObjectQueryClient = {
   from: (table: string) => {
     select: (columns: string) => {
@@ -113,8 +117,21 @@ type StorageObjectQueryClient = {
   };
 };
 
-type SupabaseAdminWithStorageSchema = {
+type StorageVerificationBucketClient = {
+  list?: (
+    path?: string,
+    options?: {
+      limit?: number;
+      search?: string;
+    }
+  ) => Promise<{ data?: StorageListObject[] | null; error?: { message?: string } | null }>;
+};
+
+type SupabaseAdminWithStorageVerification = {
   schema?: unknown;
+  storage?: {
+    from?: (bucket: string) => StorageVerificationBucketClient;
+  };
 };
 
 const MEDIA_BUCKET = "media_library";
@@ -361,6 +378,15 @@ const normalizeTrustedCompanionArtUrlFallback = (value: unknown): string | null 
   return trimmed;
 };
 
+const splitStoragePath = (path: string): { folder: string; name: string } | null => {
+  const normalized = path.trim();
+  const slashIndex = normalized.lastIndexOf("/");
+  const folder = slashIndex >= 0 ? normalized.slice(0, slashIndex) : "";
+  const name = slashIndex >= 0 ? normalized.slice(slashIndex + 1) : normalized;
+  if (!name) return null;
+  return { folder, name };
+};
+
 const sanitizeMediaListRowForUser = ({
   row,
   userId,
@@ -580,29 +606,60 @@ const resolveExistingStorageObjectPaths = async ({
   supabaseAdmin,
   paths,
 }: {
-  supabaseAdmin: SupabaseAdminWithStorageSchema;
+  supabaseAdmin: SupabaseAdminWithStorageVerification;
   paths: string[];
 }): Promise<Set<string>> => {
   if (!paths.length) return new Set();
-  if (typeof supabaseAdmin.schema !== "function") {
+  let schemaErrorMessage: string | null = null;
+  if (typeof supabaseAdmin.schema === "function") {
+    try {
+      const storageSchemaClient = supabaseAdmin.schema("storage") as StorageObjectQueryClient;
+
+      const { data, error } = await storageSchemaClient
+        .from("objects")
+        .select("name")
+        .eq("bucket_id", MEDIA_BUCKET)
+        .in("name", paths);
+      if (!error) {
+        return new Set(
+          (data ?? [])
+            .map((row) => (typeof row.name === "string" ? row.name.trim() : ""))
+            .filter((path): path is string => Boolean(path))
+        );
+      }
+      schemaErrorMessage = error.message || "Unable to verify media storage objects.";
+    } catch (error) {
+      schemaErrorMessage =
+        error instanceof Error ? error.message : "Unable to verify media storage objects.";
+    }
+  }
+
+  const storageBucket = supabaseAdmin.storage?.from?.(MEDIA_BUCKET);
+  if (typeof storageBucket?.list !== "function") {
+    if (schemaErrorMessage) {
+      throw new Error(schemaErrorMessage);
+    }
     return new Set(paths);
   }
-  const storageSchemaClient = supabaseAdmin.schema("storage") as StorageObjectQueryClient;
 
-  const { data, error } = await storageSchemaClient
-    .from("objects")
-    .select("name")
-    .eq("bucket_id", MEDIA_BUCKET)
-    .in("name", paths);
-  if (error) {
-    throw new Error(error.message || "Unable to verify media storage objects.");
+  const existingPaths = new Set<string>();
+  const uniquePaths = Array.from(new Set(paths.map((path) => path.trim()).filter(Boolean)));
+  for (const path of uniquePaths) {
+    const splitPath = splitStoragePath(path);
+    if (!splitPath) continue;
+    const { data, error } = await storageBucket.list(splitPath.folder, {
+      limit: 100,
+      search: splitPath.name,
+    });
+    if (error) {
+      throw new Error(error.message || "Unable to verify media storage objects.");
+    }
+    const exists = (data ?? []).some((row) => row.name === splitPath.name);
+    if (exists) {
+      existingPaths.add(path);
+    }
   }
-
-  return new Set(
-    (data ?? [])
-      .map((row) => (typeof row.name === "string" ? row.name.trim() : ""))
-      .filter((path): path is string => Boolean(path))
-  );
+  return existingPaths;
 };
 
 const resolveInitialSignedById = async ({

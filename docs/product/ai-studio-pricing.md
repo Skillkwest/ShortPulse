@@ -59,10 +59,11 @@ Short version: the admin pricing grid now owns final AI usage billed credits. Mo
   - Voice Design preview/create helper flows
   - voice clone helper flow
 - ElevenLabs sound generation now bills through the shared model-pricing engine for:
-  - `eleven_multilingual_v2` (voiceover) by billed character count
+  - `eleven_v3` (voiceover) by billed character count
   - `eleven_multilingual_sts_v2` (voice changer) by processed source duration
   - `eleven_text_to_sound_v2` (sound effects) by generation or explicit duration
   - `music_v1` (music) by requested duration
+- Voiceover Enhance (`POST /api/ai/voiceover-enhance`) is a non-audio helper route. It prepares script text for `eleven_v3` and does not reserve ElevenLabs generation credits or persist media.
 - `metadata_only` ElevenLabs rows remain informational only for supporting/provider-preview models that are not user-billable through the shared runtime pricing policy.
 - Billable submit paths now attach `shortpulse_context.displayed_billed_credits` plus `pricing_display_source` and `pricing_policy_ready` so server-side billing can persist `pricing_observability` deltas for operator diagnostics.
 

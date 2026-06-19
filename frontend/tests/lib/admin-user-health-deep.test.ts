@@ -59,7 +59,7 @@ describe("admin user-health deep parsing", () => {
           status: "captured",
           source_ref: "sync-request-1",
           provider_request_id: "provider-request-1",
-          model_id: "eleven_multilingual_v2",
+          model_id: "eleven_v3",
           amount_cents: 5,
           metadata: null,
           created_at: "2026-04-30T00:00:00.000Z",

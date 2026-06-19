@@ -465,11 +465,10 @@ describe("useAiStudioAudioGeneration", () => {
           model_id: hardcodedVoiceoverModelId,
           language_code: null,
           voice_settings: {
-            stability: 1,
-            similarity_boost: 1,
+            stability: 0.5,
+            similarity_boost: 0.75,
             speed: 1,
             style: 0,
-            use_speaker_boost: true,
           },
         },
       });
@@ -564,11 +563,10 @@ describe("useAiStudioAudioGeneration", () => {
           model_id: hardcodedVoiceoverModelId,
           language_code: null,
           voice_settings: {
-            stability: 1,
-            similarity_boost: 1,
+            stability: 0.5,
+            similarity_boost: 0.75,
             speed: 1,
             style: 0,
-            use_speaker_boost: true,
           },
         },
       });

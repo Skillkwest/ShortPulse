@@ -90,7 +90,7 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
     ]);
     chargeGenerationRequestMock.mockResolvedValue({
       userId: "user-1",
-      modelId: "eleven_multilingual_v2",
+      modelId: "eleven_v3",
       credits: 15,
       sourceRef: "billing-source-tts-1",
       billingMode: "reservation",
@@ -137,7 +137,7 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
         text: "Voiceover auth failure verification script.",
         outputFormat: "mp3_44100_128",
         config: {
-          model_id: "eleven_multilingual_v2",
+          model_id: "eleven_v3",
         },
       },
     };
@@ -184,7 +184,7 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
         text: "Voiceover billing path verification script.",
         outputFormat: "mp3_44100_128",
         config: {
-          model_id: "eleven_multilingual_v2",
+          model_id: "eleven_v3",
         },
       },
     };
@@ -261,7 +261,7 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
           pricing_display_source: "pricing_grid",
         },
         config: {
-          model_id: "eleven_multilingual_v2",
+          model_id: "eleven_v3",
         },
       },
     };
@@ -271,7 +271,7 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
 
     expect(chargeGenerationRequestMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        modelId: "eleven_multilingual_v2",
+        modelId: "eleven_v3",
         payload: expect.objectContaining({
           text_characters: "Voiceover billing path verification script.".length,
         }),
@@ -332,7 +332,7 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
         durationMs: null,
         waveformPeaks: null,
         title: "Voiceover Billing Path Verificati 2Y56RG",
-        modelId: "eleven_multilingual_v2",
+        modelId: "eleven_v3",
         voiceId: "voice-1",
         voiceName: "Darian",
         saveState: undefined,
@@ -344,7 +344,7 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
   it("passes through provider concurrency responses with retry guidance", async () => {
     const charge = {
       userId: "user-1",
-      modelId: "eleven_multilingual_v2",
+      modelId: "eleven_v3",
       credits: 15,
       sourceRef: "billing-source-tts-1",
       billingMode: "reservation",
@@ -378,7 +378,7 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
         text: "Voiceover billing path verification script.",
         outputFormat: "mp3_44100_128",
         config: {
-          model_id: "eleven_multilingual_v2",
+          model_id: "eleven_v3",
         },
       },
     };
@@ -418,7 +418,7 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
         text: "Voiceover billing path verification script.",
         outputFormat: "mp3_44100_128",
         config: {
-          model_id: "eleven_multilingual_v2",
+          model_id: "eleven_v3",
         },
       },
     };
@@ -456,7 +456,7 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
         text: "Nope.",
         outputFormat: "mp3_44100_128",
         config: {
-          model_id: "eleven_multilingual_v2",
+          model_id: "eleven_v3",
         },
       },
     };
@@ -494,7 +494,7 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
         text: "Nope.",
         outputFormat: "mp3_44100_128",
         config: {
-          model_id: "eleven_multilingual_v2",
+          model_id: "eleven_v3",
         },
       },
     };

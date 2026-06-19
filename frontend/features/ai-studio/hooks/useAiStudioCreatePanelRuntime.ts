@@ -369,6 +369,7 @@ export const useAiStudioCreatePanelRuntime = ({
                 openingThreadId: pulseChatHistory.openingThreadId,
                 onOpenThread: pulseChatHistory.openThread,
                 onRenameThread: pulseChatHistory.renameThread,
+                onDeleteThread: pulseChatHistory.deleteThread,
               }
             : undefined,
         },
@@ -563,6 +564,7 @@ export const useAiStudioCreatePanelRuntime = ({
     persistedAgentRuntime,
     pulsePreferenceRuntime,
     pulseChatHistory.activeThreadId,
+    pulseChatHistory.deleteThread,
     pulseChatHistory.error,
     pulseChatHistory.loading,
     pulseChatHistory.openThread,

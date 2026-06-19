@@ -9,9 +9,10 @@ import { clampCustomVoiceNameInput } from "../../../lib/customVoiceName";
 import { useResolvedProtectedSessionState } from "../../../lib/protectedRouteSessionContext";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { sanitizeCustomerFacingProviderText } from "../../../lib/customerFacingProviderText";
+import { AgentEnhanceButton } from "../../../prefabs/agent";
 import {
   buildVoiceChangerRequestSettings,
-  buildVoiceoverElevenV3RequestConfig,
+  buildVoiceoverRequestConfig,
   hardcodedVoiceChangerInputFormat,
   hardcodedVoiceChangerModel,
   hardcodedVoiceChangerNoiseReductionEnabled,
@@ -53,9 +54,10 @@ import {
 import styles from "../../../styles/ai-studio-voices-properties.module.css";
 
 export {
-  buildVoiceoverElevenV3RequestConfig,
+  buildVoiceoverRequestConfig,
   hardcodedVoiceDesignModelId,
   hardcodedVoiceGenerationDefaults,
+  hardcodedVoiceoverV3Defaults,
   hardcodedVoiceOutputFormat,
   hardcodedVoiceoverLanguageCode,
   hardcodedVoiceoverModelId,
@@ -401,6 +403,8 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     React.useState<VoicesLibrarySection>("my");
   const [activeDesignedPreviewId, setActiveDesignedPreviewId] = React.useState<string | null>(null);
   const [voiceScriptState, setVoiceScriptState] = React.useState("");
+  const [isEnhancingVoiceover, setIsEnhancingVoiceover] = React.useState(false);
+  const [voiceoverEnhanceError, setVoiceoverEnhanceError] = React.useState<string | null>(null);
   const [activePreviewVoiceId, setActivePreviewVoiceId] = React.useState<string | null>(null);
   const {
     voiceChangerSource: uncontrolledVoiceChangerSource,
@@ -491,6 +495,8 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     (surfaceMode === "create"
       ? voiceScript.trim().length > 0
       : voiceChangerSource?.status === "ready");
+  const isVoiceoverEnhanceEnabled =
+    surfaceMode === "create" && voiceScript.trim().length > 0 && !isEnhancingVoiceover;
   const isCreateVoiceEnabled =
     voiceName.trim().length > 0 &&
     normalizedVoicePromptLength >= minVoicePromptCharacters &&
@@ -1646,7 +1652,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
         voice: selectedLibraryVoice,
         script: voiceScript.trim(),
         outputFormat: hardcodedVoiceOutputFormat,
-        config: buildVoiceoverElevenV3RequestConfig(),
+        config: buildVoiceoverRequestConfig(),
         displayedBilledCredits: estimatedCredits,
         pricingPolicyReady,
       });
@@ -1674,6 +1680,62 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     voiceChangerSource,
     voiceScript,
   ]);
+
+  const handleEnhanceVoiceoverScript = React.useCallback(async () => {
+    const script = voiceScript.trim();
+    if (!script || isEnhancingVoiceover) return;
+    setVoiceoverEnhanceError(null);
+    setIsEnhancingVoiceover(true);
+    try {
+      const response = await fetchWithAuth("/api/ai/voiceover-enhance", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ script }),
+        shortpulseLogScope: "generation",
+        shortpulseSkipErrorLogging: true,
+      });
+      const payload = (await response.json().catch(() => null)) as {
+        enhancedScript?: unknown;
+        error?: unknown;
+        details?: unknown;
+      } | null;
+      if (!response.ok) {
+        throw new Error(
+          sanitizeCustomerFacingProviderText(
+            typeof payload?.details === "string"
+              ? payload.details
+              : typeof payload?.error === "string"
+                ? payload.error
+                : null,
+            "Unable to enhance voiceover."
+          )
+        );
+      }
+      if (typeof payload?.enhancedScript !== "string" || !payload.enhancedScript.trim()) {
+        throw new Error("Unable to enhance voiceover.");
+      }
+      setVoiceScript(payload.enhancedScript.slice(0, maxVoiceScriptCharacters));
+      const restoreFocus = () => {
+        voiceScriptRef.current?.focus();
+      };
+      if (typeof window.requestAnimationFrame === "function") {
+        window.requestAnimationFrame(restoreFocus);
+      } else {
+        restoreFocus();
+      }
+    } catch (error) {
+      setVoiceoverEnhanceError(
+        sanitizeCustomerFacingProviderText(
+          error instanceof Error ? error.message : null,
+          "Unable to enhance voiceover."
+        )
+      );
+    } finally {
+      setIsEnhancingVoiceover(false);
+    }
+  }, [isEnhancingVoiceover, setVoiceScript, voiceScript]);
 
   const cloneSourceIntake = (
     <VoiceChangerSourceDropzone
@@ -1763,7 +1825,10 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                     ref={voiceScriptRef}
                     className="voices-properties-script-input"
                     value={voiceScript}
-                    onChange={(event) => setVoiceScript(event.target.value)}
+                    onChange={(event) => {
+                      setVoiceScript(event.target.value);
+                      setVoiceoverEnhanceError(null);
+                    }}
                     onDrop={handleVoiceScriptDrop}
                     onDragOver={handleVoicePromptDragOver}
                     maxLength={maxVoiceScriptCharacters}
@@ -1771,9 +1836,26 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                     aria-label="Voice script"
                   />
                   <div className="voices-properties-script-meta-row">
-                    <p className="voices-properties-script-count" aria-live="polite">
-                      {`${voiceScript.length.toLocaleString()} / ${maxVoiceScriptCharacters.toLocaleString()}`}
-                    </p>
+                    <div className="voices-properties-script-meta-status">
+                      {surfaceMode === "create" && voiceoverEnhanceError ? (
+                        <p className="voices-properties-script-error" role="alert">
+                          {voiceoverEnhanceError}
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="voices-properties-script-meta-actions">
+                      {surfaceMode === "create" ? (
+                        <AgentEnhanceButton
+                          onClick={handleEnhanceVoiceoverScript}
+                          disabled={!isVoiceoverEnhanceEnabled}
+                          ariaLabel="Enhance voiceover script"
+                          className="voices-properties-enhance-btn"
+                        />
+                      ) : null}
+                      <p className="voices-properties-script-count" aria-live="polite">
+                        {`${voiceScript.length.toLocaleString()} / ${maxVoiceScriptCharacters.toLocaleString()}`}
+                      </p>
+                    </div>
                   </div>
                 </div>
               ) : (

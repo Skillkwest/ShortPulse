@@ -132,6 +132,7 @@ const createSupabaseAdminMock = (
     existingFolderIds?: string[];
     existingStorageObjectPaths?: string[];
     storageObjectsError?: { message?: string };
+    storageListError?: { message?: string };
     generationProjectionRows?: GenerationProjectionRow[];
     projectOutputDisplayRows?: ProjectOutputDisplayRow[];
   }
@@ -165,6 +166,19 @@ const createSupabaseAdminMock = (
           .map((name) => ({ name })),
     error: options?.storageObjectsError ?? null,
   }));
+  const storageListMock = vi.fn(async (folder = "", listOptions?: { search?: string }) => {
+    const name = listOptions?.search ?? "";
+    const fullPath = folder ? `${folder}/${name}` : name;
+    return {
+      data:
+        options?.storageListError || !name
+          ? null
+          : !existingStorageObjectPaths || existingStorageObjectPaths.has(fullPath)
+            ? [{ name }]
+            : [],
+      error: options?.storageListError ?? null,
+    };
+  });
 
   const createQueryBuilder = (selectClause: string) => {
     const eqFilters: Array<{ column: string; value: string }> = [];
@@ -486,6 +500,7 @@ const createSupabaseAdminMock = (
       from: vi.fn(() => ({
         createSignedUrls: createSignedUrlsMock,
         createSignedUrl: createSignedUrlMock,
+        list: storageListMock,
       })),
     },
   });
@@ -494,6 +509,7 @@ const createSupabaseAdminMock = (
     createSignedUrlsMock,
     createSignedUrlMock,
     storageObjectsInMock,
+    storageListMock,
   };
 };
 
@@ -1185,6 +1201,81 @@ describe("POST /api/media/list", () => {
     );
   });
 
+  it("falls back to the Storage API when storage schema verification is unavailable", async () => {
+    const companionPath =
+      "user-1/generations/audio/gen-audio-schema-fallback/companion-art/cover.webp";
+    const { createSignedUrlsMock, storageListMock } = createSupabaseAdminMock(
+      [
+        {
+          id: "audio-schema-fallback-companion-1",
+          user_id: "user-1",
+          filename: "voice-note.wav",
+          storage_path: "user-1/generations/audio/voice-note.wav",
+          file_type: "audio/wav",
+          file_size: 10,
+          source: "ai_studio",
+          source_ref: "gen-audio-schema-fallback",
+          prompt_id: null,
+          metadata: null,
+          thumb_variant_path: null,
+          poster_variant_path: null,
+          preview_variant_path: null,
+          created_at: "2026-02-20T10:00:00.000Z",
+          updated_at: null,
+        },
+      ],
+      {
+        existingStorageObjectPaths: [companionPath],
+        storageObjectsError: { message: "storage schema unavailable" },
+        generationProjectionRows: [
+          {
+            generation_id: "gen-audio-schema-fallback",
+            user_id: "user-1",
+            companion_art_status: "ready",
+            companion_art_storage_path: companionPath,
+          },
+        ],
+      }
+    );
+
+    const req = {
+      method: "POST",
+      body: {
+        mediaKind: "audio",
+        query: "",
+        cursor: null,
+        limit: 36,
+        surface: "media-library-modal",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(storageListMock).toHaveBeenCalledWith(
+      "user-1/generations/audio/gen-audio-schema-fallback/companion-art",
+      {
+        limit: 100,
+        search: "cover.webp",
+      }
+    );
+    expect(createSignedUrlsMock).toHaveBeenCalledWith([companionPath], 3600);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rows: [
+          expect.objectContaining({
+            id: "audio-schema-fallback-companion-1",
+            companion_art_status: "ready",
+            companion_art_storage_path: companionPath,
+            companion_art_url:
+              "https://signed.test/user-1%2Fgenerations%2Faudio%2Fgen-audio-schema-fallback%2Fcompanion-art%2Fcover.webp",
+          }),
+        ],
+      })
+    );
+  });
+
   it("fails closed before companion art signing when storage metadata verification fails", async () => {
     const companionPath =
       "user-1/generations/audio/gen-audio-storage-error/companion-art/cover.webp";
@@ -1210,6 +1301,7 @@ describe("POST /api/media/list", () => {
       ],
       {
         storageObjectsError: { message: "storage metadata unavailable" },
+        storageListError: { message: "storage metadata unavailable" },
         generationProjectionRows: [
           {
             generation_id: "gen-audio-storage-error",
@@ -1949,6 +2041,67 @@ describe("POST /api/media/list", () => {
     );
   });
 
+  it("falls back to the Storage API before initial panel seed signing", async () => {
+    const thumbPath = "user-1/uploads/images/panel-schema-fallback-thumb.png";
+    const rows = [
+      {
+        id: "panel-schema-fallback-seed-1",
+        user_id: "user-1",
+        filename: "panel-schema-fallback.png",
+        storage_path: "user-1/uploads/images/panel-schema-fallback.png",
+        file_type: "image/png",
+        file_size: 10,
+        source: "upload",
+        source_ref: null,
+        prompt_id: null,
+        metadata: null,
+        thumb_variant_path: thumbPath,
+        poster_variant_path: null,
+        preview_variant_path: null,
+        created_at: "2026-02-20T11:00:00.000Z",
+        updated_at: null,
+      } satisfies MediaRow,
+    ];
+    const { createSignedUrlsMock, storageListMock } = createSupabaseAdminMock(rows, {
+      existingStorageObjectPaths: [thumbPath],
+      storageObjectsError: { message: "storage schema unavailable" },
+    });
+    resolvePreferredMediaSigningStoragePathMock.mockImplementation(
+      (row: MediaRow) => row.thumb_variant_path ?? row.storage_path
+    );
+
+    const req = {
+      method: "POST",
+      body: {
+        mediaKind: "all",
+        cursor: null,
+        query: "",
+        limit: 36,
+        surface: "media-library-panel",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(storageListMock).toHaveBeenCalledWith("user-1/uploads/images", {
+      limit: 100,
+      search: "panel-schema-fallback-thumb.png",
+    });
+    expect(createSignedUrlsMock).toHaveBeenCalledWith([thumbPath], 3600);
+    expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-list-initial-signed-count", "1");
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rows: [expect.objectContaining({ id: "panel-schema-fallback-seed-1" })],
+        signedById: {
+          "panel-schema-fallback-seed-1":
+            "https://signed.test/user-1%2Fuploads%2Fimages%2Fpanel-schema-fallback-thumb.png",
+        },
+      })
+    );
+  });
+
   it("fails closed before initial panel seed signing when storage metadata verification fails", async () => {
     const thumbPath = "user-1/uploads/images/panel-storage-error-thumb.png";
     const rows = [
@@ -1972,6 +2125,7 @@ describe("POST /api/media/list", () => {
     ];
     const { createSignedUrlsMock, storageObjectsInMock } = createSupabaseAdminMock(rows, {
       storageObjectsError: { message: "storage metadata unavailable" },
+      storageListError: { message: "storage metadata unavailable" },
     });
     resolvePreferredMediaSigningStoragePathMock.mockImplementation(
       (row: MediaRow) => row.thumb_variant_path ?? row.storage_path

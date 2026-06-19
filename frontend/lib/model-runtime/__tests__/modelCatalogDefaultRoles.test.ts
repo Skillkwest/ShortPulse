@@ -25,7 +25,7 @@ describe("modelCatalog default roles", () => {
     expect(resolveEditStartupModelId()).toBe("fal-ai/bytedance/seedream/v4.5/edit");
     expect(resolveAudioMusicModelId()).toBe("music_v1");
     expect(resolveAudioSoundEffectsModelId()).toBe("eleven_text_to_sound_v2");
-    expect(resolveAudioVoiceoverModelId()).toBe("eleven_multilingual_v2");
+    expect(resolveAudioVoiceoverModelId()).toBe("eleven_v3");
     expect(resolveAudioVoiceChangerModelId()).toBe("eleven_multilingual_sts_v2");
     expect(resolveAudioVoiceDesignModelId()).toBe("eleven_multilingual_ttv_v2");
     expect(resolveAiStudioTextPromptModelId()).toBe("gpt-5.5");
@@ -42,7 +42,7 @@ describe("modelCatalog default roles", () => {
       ["edit-startup", "fal-ai/bytedance/seedream/v4.5/edit"],
       ["audio-music", "music_v1"],
       ["audio-sfx", "eleven_text_to_sound_v2"],
-      ["audio-voiceover", "eleven_multilingual_v2"],
+      ["audio-voiceover", "eleven_v3"],
       ["audio-voice-changer", "eleven_multilingual_sts_v2"],
       ["audio-voice-design", "eleven_multilingual_ttv_v2"],
       ["ai-studio-text-prompt", "gpt-5.5"],

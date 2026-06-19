@@ -28,7 +28,7 @@ const buildGeneratedAudioOutput = (overrides: Partial<StudioOutput> = {}): Studi
   mode: "audio",
   aspect: "9:16",
   model: "ElevenLabs Voiceover",
-  modelId: "eleven_multilingual_v2",
+  modelId: "eleven_v3",
   mediaSource: "generated",
   generationId: "gen-audio-1",
   previewUrl: "https://cdn.test/audio.mp3",

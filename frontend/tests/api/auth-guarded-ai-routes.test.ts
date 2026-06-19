@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import extractStyleHandler from "../../pages/api/ai/extract-style";
 import generateStylePreviewHandler from "../../pages/api/ai/generate-style-preview";
 import standardStudioAgentHandler from "../../pages/api/ai/studio-agent-standard";
+import voiceoverEnhanceHandler from "../../pages/api/ai/voiceover-enhance";
 
 const requireApiUserMock = vi.fn();
 
@@ -71,6 +72,19 @@ describe("API auth guards: AI routes", () => {
     const res = createMockResponse();
 
     await standardStudioAgentHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(requireApiUserMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects unauthenticated voiceover enhance requests", async () => {
+    const req = {
+      method: "POST",
+      body: { script: "Enhance this voiceover." },
+    };
+    const res = createMockResponse();
+
+    await voiceoverEnhanceHandler(req as never, res as never);
 
     expect(res.status).toHaveBeenCalledWith(401);
     expect(requireApiUserMock).toHaveBeenCalledTimes(1);

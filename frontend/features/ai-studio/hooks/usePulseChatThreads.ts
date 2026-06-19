@@ -67,6 +67,15 @@ const matchesPulseRuntime = (
   thread?.snapshot.workspace.activePulsePresetId === activePresetId &&
   thread.snapshot.workspace.pulseSessionInstanceId === pulseSessionInstanceId;
 
+const resolvePulseRuntimeKey = (presetId: string, pulseSessionInstanceId: string): string =>
+  `${presetId}\u0000${pulseSessionInstanceId}`;
+
+const resolveThreadRuntimeKey = (thread: PulseChatProjectThreadRecord): string =>
+  resolvePulseRuntimeKey(
+    thread.snapshot.workspace.activePulsePresetId,
+    thread.snapshot.workspace.pulseSessionInstanceId
+  );
+
 export const usePulseChatThreads = ({
   enabled,
   projectPulseChatState,
@@ -84,6 +93,7 @@ export const usePulseChatThreads = ({
   const [openingThreadId, setOpeningThreadId] = useState<string | null>(null);
   const lastRuntimeSignatureRef = useRef<string | null>(null);
   const openingThreadRef = useRef<PulseChatProjectThreadRecord | null>(null);
+  const deletedRuntimeKeysRef = useRef<Set<string>>(new Set());
 
   const reportError = useCallback(
     (message: string) => {
@@ -99,6 +109,7 @@ export const usePulseChatThreads = ({
     setOpeningThreadId(null);
     lastRuntimeSignatureRef.current = null;
     openingThreadRef.current = null;
+    deletedRuntimeKeysRef.current.clear();
   }, [enabled]);
 
   useEffect(() => {
@@ -117,6 +128,13 @@ export const usePulseChatThreads = ({
       return;
     }
     lastRuntimeSignatureRef.current = runtimeSignature;
+    if (
+      deletedRuntimeKeysRef.current.has(
+        resolvePulseRuntimeKey(activePresetId, pulseSessionInstanceId)
+      )
+    ) {
+      return;
+    }
 
     setProjectPulseChatState((current) => {
       const activeThread =
@@ -228,6 +246,26 @@ export const usePulseChatThreads = ({
     [setProjectPulseChatState]
   );
 
+  const deleteThread = useCallback(
+    (threadId: string) => {
+      setProjectPulseChatState((current) => {
+        const thread = current.threads.find((entry) => entry.threadId === threadId);
+        if (!thread) return current;
+        deletedRuntimeKeysRef.current.add(resolveThreadRuntimeKey(thread));
+        if (openingThreadRef.current?.threadId === threadId) {
+          openingThreadRef.current = null;
+        }
+        return {
+          schemaVersion: current.schemaVersion,
+          activeThreadId: current.activeThreadId === threadId ? null : current.activeThreadId,
+          threads: current.threads.filter((entry) => entry.threadId !== threadId),
+        };
+      });
+      setError(null);
+    },
+    [setProjectPulseChatState]
+  );
+
   return useMemo(
     () => ({
       threads: projectPulseChatState.threads,
@@ -237,7 +275,8 @@ export const usePulseChatThreads = ({
       openingThreadId,
       openThread,
       renameThread,
+      deleteThread,
     }),
-    [error, projectPulseChatState, openThread, openingThreadId, renameThread]
+    [deleteThread, error, projectPulseChatState, openThread, openingThreadId, renameThread]
   );
 };

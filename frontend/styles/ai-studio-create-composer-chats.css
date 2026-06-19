@@ -254,6 +254,15 @@
   outline: none;
 }
 
+.create-composer-chats-context-menu-item.is-danger {
+  color: rgba(255, 154, 154, 0.94);
+}
+
+.create-composer-chats-context-menu-item.is-danger:hover,
+.create-composer-chats-context-menu-item.is-danger:focus-visible {
+  background: rgba(255, 92, 92, 0.12);
+}
+
 @media (max-width: 640px) {
   .create-composer-chats-modal-backdrop {
     align-items: stretch;

@@ -3,7 +3,7 @@
  * Lists saved project-owned Pulse threads and exposes explicit reopen actions.
  */
 import React from "react";
-import { ChatCircleDots, PencilSimple, X } from "phosphor-react";
+import { ChatCircleDots, PencilSimple, Trash, X } from "phosphor-react";
 import { AppMessage } from "../../../../components/AppMessage";
 import { useGuardedBackdropDismiss } from "../../../../components/useGuardedBackdropDismiss";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "../modal-layer/AiStudioModalLayer";
@@ -18,6 +18,7 @@ export type PulseChatHistoryPanelProps = {
   openingThreadId: string | null;
   onOpenThread: (threadId: string) => void;
   onRenameThread: (threadId: string, title: string) => void;
+  onDeleteThread: (threadId: string) => void;
 };
 
 const PULSE_CHAT_RAIL_VISIBLE_LIMIT = 6;
@@ -50,6 +51,7 @@ export function PulseChatHistoryPanel({
   openingThreadId,
   onOpenThread,
   onRenameThread,
+  onDeleteThread,
 }: PulseChatHistoryPanelProps) {
   const [isAllChatsOpen, setIsAllChatsOpen] = React.useState(false);
   const [contextMenu, setContextMenu] = React.useState<{
@@ -188,6 +190,14 @@ export function PulseChatHistoryPanel({
   const startRename = (threadId: string, title: string) => {
     setRenamingThreadId(threadId);
     setRenameDraft(title);
+    closeContextMenu();
+  };
+
+  const deleteThread = (threadId: string) => {
+    onDeleteThread(threadId);
+    if (renamingThreadId === threadId) {
+      cancelRename();
+    }
     closeContextMenu();
   };
 
@@ -357,6 +367,15 @@ export function PulseChatHistoryPanel({
             >
               <PencilSimple size={14} weight="bold" aria-hidden />
               Rename
+            </button>
+            <button
+              type="button"
+              className="create-composer-chats-context-menu-item is-danger"
+              role="menuitem"
+              onClick={() => deleteThread(contextMenu.threadId)}
+            >
+              <Trash size={14} weight="bold" aria-hidden />
+              Delete
             </button>
           </div>
         </AiStudioModalLayer>

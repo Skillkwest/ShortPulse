@@ -10,10 +10,11 @@ import { resolvePricingGridBilledCredits } from "../../../../lib/model-runtime/p
 import { resetSharedVoicesGridStore } from "../../hooks/useSharedVoicesGrid";
 import { useVoiceChangerSourceController } from "../../hooks/useVoiceChangerSourceController";
 import {
-  buildVoiceoverElevenV3RequestConfig,
   hardcodedVoiceGenerationDefaults,
   hardcodedVoiceOutputFormat,
+  hardcodedVoiceoverV3Defaults,
   hardcodedVoiceoverModelId,
+  buildVoiceoverRequestConfig,
   VoicesPropertiesPanel,
 } from "../VoicesPropertiesPanel";
 import { createVoiceChangerSourceFromFile } from "../VoiceChangerSourceDropzone";
@@ -310,6 +311,47 @@ describe("VoicesPropertiesPanel", () => {
         name: "Enter your prompt",
       })
     ).toHaveValue("Updated controlled description.");
+  });
+
+  it("enhances the voiceover script through the protected enhance route", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ enhancedScript: "[excited] Updated launch script." }), {
+        status: 200,
+      })
+    );
+    render(<VoicesPropertiesPanel />);
+
+    const scriptInput = screen.getByRole("textbox", { name: "Voice script" });
+    fireEvent.change(scriptInput, { target: { value: "Updated launch script." } });
+    fireEvent.click(screen.getByRole("button", { name: "Enhance voiceover script" }));
+
+    await waitFor(() => {
+      expect(scriptInput).toHaveValue("[excited] Updated launch script.");
+    });
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/ai/voiceover-enhance",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ script: "Updated launch script." }),
+      })
+    );
+  });
+
+  it("shows a voiceover enhance error when the enhance route fails", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ error: "Voiceover Enhance failed", details: "Try again shortly." }),
+        { status: 503 }
+      )
+    );
+    render(<VoicesPropertiesPanel />);
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Voice script" }), {
+      target: { value: "Updated launch script." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Enhance voiceover script" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Try again shortly.");
   });
 
   it("allows the voiceover compose area to grow beyond the old fixed height while keeping voice changer locked", () => {
@@ -1926,15 +1968,14 @@ describe("VoicesPropertiesPanel", () => {
   });
 
   it("hard-codes the correct Eleven v3 voiceover request defaults", () => {
-    expect(buildVoiceoverElevenV3RequestConfig()).toEqual({
+    expect(buildVoiceoverRequestConfig()).toEqual({
       model_id: hardcodedVoiceoverModelId,
       language_code: null,
       voice_settings: {
-        stability: hardcodedVoiceGenerationDefaults.stability,
-        similarity_boost: hardcodedVoiceGenerationDefaults.similarity_boost,
-        speed: hardcodedVoiceGenerationDefaults.speed,
-        style: hardcodedVoiceGenerationDefaults.style,
-        use_speaker_boost: hardcodedVoiceGenerationDefaults.use_speaker_boost,
+        stability: hardcodedVoiceoverV3Defaults.stability,
+        similarity_boost: hardcodedVoiceoverV3Defaults.similarity_boost,
+        speed: hardcodedVoiceoverV3Defaults.speed,
+        style: hardcodedVoiceoverV3Defaults.style,
       },
     });
   });
@@ -2781,11 +2822,10 @@ describe("VoicesPropertiesPanel", () => {
           model_id: hardcodedVoiceoverModelId,
           language_code: null,
           voice_settings: {
-            stability: hardcodedVoiceGenerationDefaults.stability,
-            similarity_boost: hardcodedVoiceGenerationDefaults.similarity_boost,
-            speed: hardcodedVoiceGenerationDefaults.speed,
-            style: hardcodedVoiceGenerationDefaults.style,
-            use_speaker_boost: hardcodedVoiceGenerationDefaults.use_speaker_boost,
+            stability: hardcodedVoiceoverV3Defaults.stability,
+            similarity_boost: hardcodedVoiceoverV3Defaults.similarity_boost,
+            speed: hardcodedVoiceoverV3Defaults.speed,
+            style: hardcodedVoiceoverV3Defaults.style,
           },
         },
         voice: expect.objectContaining({

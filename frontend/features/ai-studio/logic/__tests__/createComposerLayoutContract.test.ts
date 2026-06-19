@@ -52,6 +52,25 @@ describe("create composer layout contract", () => {
     expect(css).toContain("--create-composer-left-rail-width: 236px;");
   });
 
+  it("keeps Pulse visual surfaces on the two column wrappers", () => {
+    const css = fs.readFileSync(createComposerTokensCssPath, "utf8");
+    const pulseRoot = extractRuleBlock(css, ".create-composer-panel.is-pulse-rail-active");
+    const pulseColumns = extractRuleBlock(
+      css,
+      ".create-composer-panel.is-pulse-rail-active > .create-composer-left-panel, .create-composer-panel.is-pulse-rail-active > .create-composer-right-panel"
+    );
+    const pulseInnerColumns = extractRuleBlock(
+      css,
+      ".create-composer-panel.is-pulse-rail-active .create-composer-left-panel-inner, .create-composer-panel.is-pulse-rail-active .create-composer-right-panel-inner"
+    );
+
+    expect(pulseRoot).toContain("background: transparent;");
+    expect(pulseColumns).toContain("height: 100%;");
+    expect(pulseColumns).toContain("background: #131518;");
+    expect(pulseInnerColumns).toContain("padding: 0;");
+    expect(pulseInnerColumns).toContain("background: transparent;");
+  });
+
   it("bottom-aligns the composer row columns on desktop", () => {
     const css = fs.readFileSync(createComposerLayoutCssPath, "utf8");
     const composerRow = extractRuleBlock(

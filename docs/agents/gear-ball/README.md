@@ -52,7 +52,7 @@ Closeouts must stay explicit about:
 - treat post-commit revalidation as exception-only: rerun only when hooks changed validated files, the lane widened with related tails, or a later fix altered committed content, and then rerun only the affected rung set instead of the full earlier ladder by reflex
 - prefer the fewest honest lanes
 - reload from repo-local authority at the start of each lane
-- treat conversational material older than one hour as cold by default unless the current lane explicitly needs that historical evidence
+- treat conversational material older than 30 minutes as cold by default unless the current lane explicitly needs that historical evidence
 - defer adjacent non-critical work instead of absorbing it
 
 `run your SOP` means run Gear Ball's full authorized ladder on the current approved branch.

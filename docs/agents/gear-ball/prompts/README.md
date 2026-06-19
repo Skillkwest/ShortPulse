@@ -11,4 +11,5 @@ Purpose: store reusable Gear Ball-owned prompts that should live with Gear Ball 
 
 ## Prompts
 
+- `audit-and-prune-current-agent.md`: Gear Ball-owned self-audit and pruning prompt for Gear Ball's own workspace.
 - `trim-prompt.md`: stored trim prompt for Gear Ball's own workspace only.

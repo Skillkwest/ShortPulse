@@ -16,7 +16,7 @@ Purpose: keep the current training synthesis short and actionable.
 - Keep closeout suggestions inside Gear Ball’s own lane unless the user explicitly asks for broader recommendations.
 - Treat tool-backed side effects as evidence-gated; do not use completion language before the tool confirms success.
 - Treat each new lane as a fresh startup and reload from repo-local authority instead of carrying conversational residue by default.
-- Treat conversational material older than one hour as cold unless the task explicitly needs that historical thread evidence.
+- Treat conversational material older than 30 minutes as cold unless the task explicitly needs that historical thread evidence.
 - When model-catalog or route-parity checks fail on active Fal models, verify live `frontend/pages/api/fal` wrapper coverage and sync ownership before editing docs or treating the route family as intentionally retired.
 - Re-rate runs based on control quality, not just eventual recovery. A run with multiple preventable correction cycles belongs in the `7.x` band even if the final tree ships cleanly.
 
@@ -27,14 +27,8 @@ Purpose: keep the current training synthesis short and actionable.
 
 ## Current Priorities
 
-1. Make the first cleanup pass one-shot more often, especially on mixed manifests and macOS shell invocations, and skip the wrapper immediately when ignore-matched config files like `frontend/next.config.js` are in the lane.
-2. Keep broad shared-runtime lanes collapsed when one validation seam can honestly carry them.
-3. Preserve strict end-of-run integrity: no stale closeout, no early score-loop writeback, no unclassified tails, and one last `git diff --name-only` scan before the score loop when a broad lane touched shared runtime seams.
-4. Keep startup and retained-history loading lean by default.
-5. On mixed frontend/docs/sql lanes, split the first cleanup pass by tool ownership so raw SQL does not steal time from the real validation ladder.
-6. When one broad shared-runtime lane brushes a large stale UI suite, validate the exact touched expectations plus the modern integration/launch-lock seams first, and only reopen the full legacy suite if the runtime evidence genuinely points there.
-7. When validation commands derive from the manifest, build them from `git status --short` instead of tracked diffs alone so new source files join the first lint pass and page-to-hook contract seams surface earlier.
-8. When a shared-runtime lane tightens internal drag or authority behavior, sanity-check whether failing tests are asserting an old permissive fallback before reopening the runtime path.
-9. When a monolithic legacy UI suite still throws unrelated React queue noise after the modern focused seams and the final build are green, treat that suite as cold debt to reconcile later rather than letting it block the current converged publish lane.
-10. When canonical route metadata or memoization boundaries move, update repo-side drift checks and optimization-sensitive test expectations in the same first pass so the last blockers are not toolchain seams around the code change.
-11. Build the first manifest from full live status plus one sibling-surface sweep, especially around touched routes, helpers, and page entry points, so late tails do not drag an otherwise good run into recovery mode.
+1. Make the first manifest and cleanup pass one-shot more often by starting from full live `git status --short` and one sibling-surface sweep.
+2. Keep broad shared-runtime changes collapsed when one honest validation seam can carry them, and avoid duplicate reruns once the final committed tree already matches the proof.
+3. Preserve strict closeout integrity: no early score-row writeback, no stale report snapshot, and no unclassified tail after the final validation rung.
+4. Keep runtime context lean: active contract, memory, and hot-path first; cold reports, old handoffs, and historical traces only when the lane truly needs them.
+5. Treat large noisy legacy suites as cold debt unless focused owning seams or the final build point back to them.

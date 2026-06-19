@@ -45,7 +45,7 @@ Purpose: keep Gear Ball's active startup context lean so normal runs load only t
 - older score-loop rows beyond what the current run needs
 - prompt-library files unrelated to the current task
 - training artifacts that do not affect the current operational decision
-- conversational material older than one hour unless the current task explicitly needs that historical evidence
+- conversational material older than 30 minutes unless the current task explicitly needs that historical evidence
 
 ## Trim Rule
 

@@ -12,13 +12,21 @@ Purpose: repeatable workflow for Gutan image-ingestion audits, plans, and implem
 
 ## 2. Load Gutan Context
 
-Load:
+Load the lean operating spine:
 
 - `docs/agents/gutan/README.md`
 - `docs/agents/gutan/AGENTS.md`
 - `docs/agents/gutan/ownership-manifest.md`
 - `docs/agents/gutan/memory.md`
-- `docs/records/artifacts/agent/gutan/image-admission-surface-inventory.md`
+
+Then load the current scoped source of truth, not every historical artifact:
+
+- product image admission inventory/policy lanes: `image-admission-surface-inventory.md` and `image-admission-policy.md`;
+- broad legacy phase lanes: `image-admission-implementation-plan.md`;
+- Kie Motion Control provider-admission lanes: `reports/2026-06-18-kie-motion-control-provider-admission-handoff.md`;
+- local/blob/data provider-submit admission lanes: `phase-6-ephemeral-provider-submit-admission-plan.md`.
+
+Skip `training-history.md`, old review packets, and post-smoke reports unless the task explicitly asks for training, prior proof, or that named artifact.
 
 For implementation, also load the relevant code paths and tests from `frontend/`.
 

@@ -64,5 +64,22 @@
   - planning/control docs may still drift from code reality and need periodic audit instead of blind obedience
 - Next training focus:
   - keep using structural hardening only when it materially improves a launch-critical ship path
- - Artifact updates:
-   - created `reports/2026-05-26-launch-readiness-doctrine-extraction.md` as the concise distilled reference for future launch-window work
+- Artifact updates:
+  - created `reports/2026-05-26-launch-readiness-doctrine-extraction.md` as the concise distilled reference for future launch-window work
+
+## 2026-06-19 - Self Audit And Runtime Prune
+
+- Prompt used: run `docs/agents/gottspan-the-admin/prompts/audit-and-prune-agent-prompt.md` against Babineaux the Engineer's own workspace.
+- Behavior learned:
+  - Babineaux's owned surface was already compact; deletion would create more churn than value.
+  - the highest-value drag was stale launch-window authority plus an under-explicit default-load policy for retained reports, training history, KPI snapshots, workspace scratch, and older conversational context.
+  - prior-thread material should be treated as training-only until re-verified against current repo docs, code, and validation.
+- SOP updates:
+  - corrected the launch decision window to `2026-07-07`.
+  - added an explicit no-default-load boundary for retained history and old conversation context.
+- Tool changes:
+  - none.
+- Remaining friction:
+  - long-run drift resistance still depends on future Babineaux runs obeying the lean default-load policy instead of treating retained artifacts as active authority.
+- Next training focus:
+  - keep startup context small, current, and evidence-backed; load retained history only when it changes the task decision.

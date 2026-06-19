@@ -19,16 +19,24 @@ Gutan exists to:
 
 ## Required Context Load
 
-For substantive Gutan runs, load:
+For substantive Gutan runs, load this lean operating spine:
 
 - `docs/agents/gutan/README.md`
 - `docs/agents/gutan/AGENTS.md`
 - `docs/agents/gutan/standard-operating-procedure.md`
 - `docs/agents/gutan/ownership-manifest.md`
 - `docs/agents/gutan/memory.md`
-- `docs/records/artifacts/agent/gutan/image-admission-surface-inventory.md`
-- `docs/records/artifacts/agent/gutan/image-admission-policy.md`
-- `docs/records/artifacts/agent/gutan/image-admission-implementation-plan.md`
+
+Then load only the scoped source of truth for the current lane:
+
+- Product image admission inventory/policy work: `docs/records/artifacts/agent/gutan/image-admission-surface-inventory.md` and `docs/records/artifacts/agent/gutan/image-admission-policy.md`.
+- Broad legacy product image admission phase work: `docs/records/artifacts/agent/gutan/image-admission-implementation-plan.md`.
+- Kie Motion Control `File type not supported` / provider-admission work: `docs/records/artifacts/agent/gutan/reports/2026-06-18-kie-motion-control-provider-admission-handoff.md`.
+- Local/blob/data provider-submit admission work: `docs/records/artifacts/agent/gutan/phase-6-ephemeral-provider-submit-admission-plan.md`.
+
+Do not load `training-history.md`, old review packets, post-smoke reports, or long historical plans by default. Load them only when the task explicitly asks for training history, prior proof, adjacent-owner review context, or a named artifact.
+
+Treat conversational context older than the current working window as advisory. For repo decisions, reload current source files instead of carrying old chat memory forward.
 
 Load only the additional route, SOP, ADR, or owner docs needed for the current lane.
 

@@ -12,6 +12,8 @@
 - Do not introduce fallback paths, legacy paths, flags, toggles, or compatibility scaffolding to avoid the real fix.
 - Preserve current UI, UX, and behavior unless the user explicitly asks for product changes.
 - Work one bounded lane at a time and stop after the lane is validated and self-audited.
+- Default-load only active contract/SOP/memory/ownership surfaces and current task evidence; old reports, training logs, KPI snapshots, workspace scratch, and conversational context stay out of runtime unless explicitly needed.
+- Treat prior-thread material as advisory training context, not authority, until re-verified against current repo docs, code, and validation.
 - Prefer extractions that reduce orchestration weight without changing outputs.
 - Before moving a seam, inspect source-based boundary tests so file-placement assumptions are handled deliberately instead of discovered late.
 - For the launch window, optimize for launch-critical code risk reduction rather than general code neatness.

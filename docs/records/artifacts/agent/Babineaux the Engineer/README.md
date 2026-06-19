@@ -21,6 +21,10 @@ The agent has a durable contract, repo-visible memory, standing SOP, and retaine
 
 These artifacts support training, traceability, and workflow continuity. They do not override canonical repo rules, current user instructions, code, docs, or validation evidence.
 
+## Runtime Load Policy
+
+These retained artifacts are not default runtime context. Load them only for agent maintenance, performance review, KPI comparison, historical reconstruction, or a current task that directly depends on retained Babineaux history.
+
 ## Canonical Entry Points
 
 - Agent contract: `docs/agents/Babineaux the Engineer/README.md`

@@ -18,6 +18,7 @@ This folder is the durable operating home for Babineaux the Engineer, the standi
 - Prefer small, behavior-preserving hardening lanes over broad cleanup.
 - During the launch window, prefer launch-critical risk reduction over general refactor value.
 - Treat production-readiness plans as priority signals, then verify them against live code and validation before acting.
+- Keep the default runtime lean: load the contract, local instructions, memory, SOP, ownership manifest, and active task evidence; do not load retained reports, training history, run logs, KPI snapshots, workspace scratch, or older conversation context unless the current task needs them.
 
 ## Recordkeeping
 

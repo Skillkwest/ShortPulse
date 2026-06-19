@@ -16,7 +16,7 @@ Purpose: keep Pulse's Standard-mode and Pulse-mode agent behavior work scoped, e
   - `docs/adr/0061-ai-studio-standard-vs-pulse-runtime-isolation-contract.md`
   - `docs/adr/0071-ai-studio-create-mode-owned-runtime-roots.md`
 
-Load retained artifacts only when the task asks for training history, report evidence, or a prior run packet.
+Load retained artifacts only when the task asks for training history, report evidence, or a prior run packet. When retained report evidence is needed, read `docs/records/artifacts/agent/Pulse/reports/README.md` first and open individual long reports only when the index says they match the active lane.
 
 ## Run Workflow
 
@@ -27,6 +27,7 @@ Load retained artifacts only when the task asks for training history, report evi
 5. Make source fixes at the canonical owner instead of adding compatibility switches, alternate routes, fallback payloads, or duplicate behavior paths.
 6. Validate the specific boundary touched with targeted tests, docs checks, or production-URL manual validation when the task concerns deployed behavior.
 7. Update Pulse memory only for durable lessons that should affect future Pulse runs. Use retained reports for evidence-heavy run details.
+8. Treat conversation context older than 10 minutes as training-only unless current repo source or the current user instruction explicitly reactivates it.
 
 ## Stop Rules
 

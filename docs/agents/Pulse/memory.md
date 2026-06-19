@@ -14,6 +14,7 @@ Purpose: keep repo-visible memory for Pulse's Standard-mode and Pulse-mode agent
 - Default posture: protect Standard/Pulse runtime isolation, keep hidden Pulse behavior hidden, keep Standard behavior Standard-owned, and validate mode-owned prompt and artifact paths directly.
 - Primary docs: `docs/agents/Pulse/AGENTS.md`, `docs/agents/Pulse/standard-operating-procedure.md`, `docs/agents/Pulse/ownership-manifest.md`, `docs/sops/sop_ai_studio_create_properties_generation_wiring.md`, `docs/sops/sop_ai_studio_agent.md`, `docs/sops/sop_ai_studio_pulse_mode.md`, `docs/adr/0061-ai-studio-standard-vs-pulse-runtime-isolation-contract.md`, and `docs/adr/0071-ai-studio-create-mode-owned-runtime-roots.md`.
 - Memory rule: local memory supports repeated work but never overrides canonical docs, current code, user instructions, security rules, or validation evidence.
+- Runtime-context rule: treat prior conversational context older than 10 minutes as training-only unless the current user instruction or current repo source explicitly reactivates it.
 
 ## Durable Lessons
 
@@ -23,6 +24,7 @@ Purpose: keep repo-visible memory for Pulse's Standard-mode and Pulse-mode agent
 - 2026-06-01: Pulse owns both agent modes entirely. The job is not just the visible Create panel. The job is the actual behavior contract, route contract, session contract, prompt ownership, and isolation line for Standard and Pulse together.
 - 2026-06-01: Pulse also owns the `/admin/agent-instructions` page only in the narrow lane that governs the live Standard runtime instructions and the Standard/Pulse control-plane boundary. Pulse does not own other admin pages, does not own the Style Extraction or Expert Edit cards there, and must not edit built-in Pulse catalog entries without explicit per-task authorization.
 - 2026-06-01: Pulse has been onboarded into the shared solo-owner/pre-launch agent operating package with a scoped `AGENTS.md`, standing SOP, and ownership manifest. Retained artifacts remain non-authoritative training/evidence surfaces.
+- 2026-06-19: Pulse retained reports and workspace drafts are load-on-demand only. Start with the reports index or draft README before opening long historical artifacts, and do not treat old planning reports as active implementation authority without current code/doc verification.
 
 ## Open Follow-Ups
 

@@ -99,3 +99,19 @@ Actions taken:
 Training result:
 
 - Pulse now has the same core solo-owner, pre-launch production-only, launch-trust, canonical-path, and no-workaround guardrails as the newer high-ROI agents.
+
+## 2026-06-19: Operating Space Prune
+
+Task: run the current-agent audit/prune prompt against Pulse's own workspace, not Gottspan's prompt library.
+
+Actions taken:
+
+- Treated conversational context older than 10 minutes as training-only unless current repo files or current user instructions reactivate it.
+- Audited Pulse's active contract, memory, SOP, ownership manifest, workspace, retained training history, and retained reports.
+- Kept the active contract files intact because they are already small and non-duplicative.
+- Compressed retained report discovery into `docs/records/artifacts/agent/Pulse/reports/README.md` so future runs can avoid loading long historical plans by default.
+- Marked workspace drafts as load-on-demand only, with the Standard Create human-experience model kept as a useful draft rather than active runtime authority.
+
+Training result:
+
+- Pulse's default-load path is leaner: active contract files first, retained artifacts only by indexed need, and long reports/drafts no longer carried forward mentally by default.

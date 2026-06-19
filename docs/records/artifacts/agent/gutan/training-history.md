@@ -329,7 +329,7 @@ Remaining friction:
 
 - Future runs should still avoid over-reading praise as blanket permission to skip repo checks, validation, or boundary discipline.
 - User trust here was earned through evidence-backed behavior; it should be treated as conditional on maintaining the same standard.
-- Post-smoke closeout is complete for Phase 5 generated-image admitted variants; the next planned lane is the deferred Phase 6 ephemeral provider-submit admission audit/plan, not active implementation.
+- Post-smoke closeout is complete for Phase 5 generated-image admitted variants; the next planned lane is the parked Phase 6 ephemeral provider-submit admission audit/plan, not active implementation.
 
 Next training focus:
 
@@ -339,3 +339,34 @@ Next training focus:
   - stop at adjacent-owner boundaries,
   - validate thoroughly,
   - close with durable artifacts and a non-speculative stop recommendation.
+
+## 2026-06-19 - Operating Space Audit And Default-Load Prune
+
+Prompt used:
+
+```text
+/Users/worldbuilder/Desktop/ShortPulse Dev/ShortPulse/docs/agents/gottspan-the-admin/prompts/audit-and-prune-agent-prompt.md -- Run this prompt for you in your workspace, target yourself. You may also clear your conversational context memory of anything older than 10 minutes ago.
+```
+
+Behavior learned:
+
+- Gutan's biggest current performance drag was default-load bloat, not obsolete artifacts. The workspace should preserve historical proof packets while preventing them from being loaded into every run.
+- The safer prune is routing: load the lean operating spine first, then the one scoped source-of-truth artifact for the active lane.
+- Conversational context older than the current working window should be treated as non-authoritative; repo files and scoped artifacts must be reloaded for decisions.
+
+SOP or template updates:
+
+- Updated Gutan `AGENTS.md`, SOP, artifact README, and memory to stop default-loading long historical plans, old review packets, post-smoke reports, and training history.
+- Added the Kie Motion Control provider-admission handoff as the active scoped source for Motion Control `File type not supported` work.
+
+Tool changes:
+
+- No new tools.
+
+Remaining friction:
+
+- Historical artifacts are still retained and somewhat large, but they are no longer default-load surfaces. Delete/archive only if a future cleanup proves they are obsolete and safe to remove.
+
+Next training focus:
+
+- On future Gutan starts, choose the scoped artifact first and avoid reconstructing current plans from chat memory or old phase docs.

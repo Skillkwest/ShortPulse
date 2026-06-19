@@ -66,8 +66,12 @@ Use this path when setting up a new agent for a new recurring task:
 - `docs/agents/gear-ball/README.md`: worktree, branch, environment, Vercel, and database coordination contract and memory entrypoint.
   - `docs/agents/gear-ball/github-operations.md`: Gear Ball's local GitHub push, PR, review, and merge coordination summary.
 - `docs/agents/nuclo/README.md`: Nuclo version, environment ladder, Vercel, and Supabase coordination contract and memory entrypoint.
+  - `docs/agents/nuclo/CURRENT-HANDOFF.md`: active Nuclo handoff entrypoint; use this before reports when status is active.
+  - `docs/agents/nuclo/memory.md`: Nuclo's concise repo-visible durable memory.
   - `docs/agents/nuclo/environment-ledger-template.md`: reviewed matrix template for branch, Vercel, GitHub Environment, and Supabase mapping before cutover work.
+  - `docs/agents/nuclo/previous-handoffs/`: archived Nuclo handoff summaries; historical only unless explicitly relevant.
   - `docs/agents/nuclo/workspace/README.md`: Nuclo-owned operational workspace for managed scratch, inbox material, and handoff preparation.
+  - retained artifacts live under `docs/records/artifacts/agent/nuclo/`.
 - `docs/agents/latency/README.md`: Latency app-wide latency optimization steward contract, memory entrypoint, and source-of-truth prompt for the July 7 2026 latency launch plan.
   - `docs/agents/latency/AGENTS.md`: Latency-scoped execution overlay for high-ROI, preserve-behavior performance work.
   - `docs/agents/latency/job-description.md`: Latency's durable job title, job description, responsibilities, authority, success criteria, and hard boundaries.

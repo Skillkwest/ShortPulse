@@ -16,7 +16,7 @@ Purpose: run one behavior-preserving code-quality lane at a time against the Sho
 
 ## Launch-Readiness Mode
 
-Use this mode during a defined launch window such as the current Copperknot launch decision window ending `2026-07-02`.
+Use this mode during a defined launch window such as the current Copperknot launch decision window ending `2026-07-07`.
 
 ### Priority Rule
 
@@ -87,6 +87,7 @@ Choose structural work only when it clearly reduces one of the launch-critical r
 - No fallback behavior or backup paths.
 - No continuation by momentum after a lane is complete.
 - No launch-window cleanup that does not clearly improve a ship-critical path.
+- No retained reports, old training logs, KPI snapshots, workspace scratch, or prior-thread memory in default runtime unless the current task explicitly depends on that history.
 
 ## Validation Rule
 

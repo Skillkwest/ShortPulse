@@ -29,8 +29,10 @@ Purpose: concise durable memory for Gutan's image-ingestion normalization lane.
 - `/api/media/copy-from-url` now admits trusted remote still images through the canonical image admission helper before storing the copied object; video/audio copy behavior stays outside this still-image admission change.
 - Nuclo and Dave approved Phase 5 generated-image reuse admission in their 2026-05-30 reports, with the constraint that admitted derivatives are first-class `media_asset_variants` rows, server-authored under `<user_id>/variants/images/<media_file_id>/admitted_reference_25mb.<ext>`, fail closed, and never use Supabase transformations.
 - Phase 5 generated-image reuse admission is complete after migration, deployment, user manual production smoke testing, and a clean Nuclo post-smoke proof. Closeout evidence lives at `docs/records/artifacts/agent/gutan/reports/2026-05-31-generated-image-admitted-variant-post-smoke-closeout.md`.
-- Phase 6 is planned but not started. The deferred plan lives at `docs/records/artifacts/agent/gutan/phase-6-ephemeral-provider-submit-admission-plan.md` and should begin with an audit-only covered/gap matrix before any code changes.
-- Post-smoke reporting is now the active retained state for this lane; do not treat Phase 6 as implementation-authorized until a future task explicitly opens that audit/build path.
+- Kie Motion Control provider-admission is the current implementation-ready Motion Control plan when the symptom is `/api/fal/kie-kling-submit` `500` / `File type not supported`. Load `docs/records/artifacts/agent/gutan/reports/2026-06-18-kie-motion-control-provider-admission-handoff.md` for that lane.
+- Phase 6 local/blob/data provider-submit admission is parked, not active. Its plan lives at `docs/records/artifacts/agent/gutan/phase-6-ephemeral-provider-submit-admission-plan.md` and should begin with an audit-only covered/gap matrix before any code changes.
+- Post-smoke reporting is the retained proof state for the generated-image admitted-variant lane; do not treat old phase plans as implementation-authorized until a future task explicitly opens that audit/build path.
+- Runtime-context hygiene: do not carry conversational context older than the current working window as active authority. Reload current repo source files and the scoped Gutan artifact instead of mentally replaying old chat.
 
 ## Current First-Job Aim
 

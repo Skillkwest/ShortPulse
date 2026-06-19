@@ -40,6 +40,18 @@ const extractRuleBlock = (css: string, selector: string) => {
 };
 
 describe("create composer layout contract", () => {
+  it("keeps the active Pulse panel root as a desktop two-column flex row", () => {
+    const css = fs.readFileSync(createComposerTokensCssPath, "utf8");
+    const pulsePanelRoot = extractRuleBlock(
+      css,
+      ".create-composer-panel .create-composer-panel-shell, .create-composer-panel.is-pulse-rail-active"
+    );
+
+    expect(pulsePanelRoot).toContain("display: flex;");
+    expect(pulsePanelRoot).toContain("flex-direction: row;");
+    expect(css).toContain("--create-composer-left-rail-width: 236px;");
+  });
+
   it("bottom-aligns the composer row columns on desktop", () => {
     const css = fs.readFileSync(createComposerLayoutCssPath, "utf8");
     const composerRow = extractRuleBlock(

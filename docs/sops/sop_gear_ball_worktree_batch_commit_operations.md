@@ -184,6 +184,10 @@ Default to minimal user-facing output.
   - if a timer, automation, commit, push, branch action, or similar operation has not yet succeeded
   - do not report it as complete
   - describe the intended action or in-progress state instead
+- If a GitHub run after push does not match the local proof, report the divergence explicitly:
+  - what passed locally
+  - what failed in GitHub
+  - whether the remaining failures still look like the same lane
 - If suggesting next steps after a normal SOP run, keep those suggestions inside Gear Ball's lane by default:
   - SOP/process improvements
   - self-scoring/training-loop improvements
@@ -218,6 +222,13 @@ After the last validation rung and final live-tree check:
 6. Keep this loop subordinate to the main job: Gear Ball's primary responsibility remains analyzing the worktree, validating the right batches, committing them correctly, and pushing them safely.
 7. Do not record or commit the score loop until the post-commit convergence loop has gone clean on the final shipped tree.
 8. Do not rerun the same validation ladder on the final committed tree unless hooks, folded tails, or another material content change actually altered that final tree relative to the already-validated state. When rerun is required, rerun only the affected rung set instead of replaying the whole earlier ladder by habit.
+9. If the run goal was CI recovery and the post-push GitHub run still fails, classify the remaining failures before editing again:
+   - `same-root`
+   - `adjacent-test-contract`
+   - `environment-only`
+   - `new-product-risk`
+10. If local full tests passed but GitHub unit tests still fail, start the follow-up lane with the exact failed-file set from CI. Do not default to a broad rerun or product rewrite.
+11. If the remaining failures are no longer clearly the same lane, would require user-facing behavior changes to satisfy tests, or widen beyond the bounded failed-file set, stop and report the follow-up lane instead of continuing automatically.
 
 ## Batch Principles
 

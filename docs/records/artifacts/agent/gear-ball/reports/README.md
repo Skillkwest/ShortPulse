@@ -18,6 +18,7 @@ Create a dated report when a Gear Ball run:
 
 ## High-Signal Reports
 
+- `2026-06-19-production-ci-red-checks-recovery-training-report.md`
 - `2026-05-22-production-full-worktree-accountability-pivot.md`
 - `2026-05-22-production-score-loop-and-mixed-lane-hardening-run.md`
 - `2026-05-23-production-closeout-integrity-and-report-utility-pivot.md`

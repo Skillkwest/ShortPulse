@@ -81,10 +81,17 @@ Purpose: give Gear Ball the compact execution checklist for its real job: analyz
 
 If rerun is required, rerun only the affected rung set (`gear-ball:preflight`, owning tests, `build`, or `docs:check`). Do not duplicate the full earlier ladder just because a commit happened.
 14. After the last validation rung and before the final report, rerun `git status --short`. If any non-temp repo-backed file is still live, the run is not finished.
-15. Push only the approved branch.
-16. For timers, automations, commits, pushes, branch changes, and similar tool-backed side effects, do not use completion language until the tool confirms success.
-17. Do not broaden the lane into general process, governance, or ops work unless the user explicitly asked for that separate job.
-18. Treat routine progress narration as an efficiency cost. Unless blocked or asked for status, keep normal execution chatter internal.
+15. After a CI-recovery push, classify any remaining or newly exposed GitHub failures before editing again:
+   - `same-root`
+   - `adjacent-test-contract`
+   - `environment-only`
+   - `new-product-risk`
+16. If local full tests passed but GitHub unit tests still fail, begin with the exact failed files from CI. Do not jump straight to broad reruns or product rewrites.
+17. If the post-push failures are no longer clearly the same lane, would require user-facing behavior changes just to satisfy tests, or widen beyond the bounded failed-file set, stop and report the new lane instead of continuing by momentum.
+18. Push only the approved branch.
+19. For timers, automations, commits, pushes, branch changes, and similar tool-backed side effects, do not use completion language until the tool confirms success.
+20. Do not broaden the lane into general process, governance, or ops work unless the user explicitly asked for that separate job.
+21. Treat routine progress narration as an efficiency cost. Unless blocked or asked for status, keep normal execution chatter internal.
 
 ## Closeout
 
@@ -98,12 +105,16 @@ If rerun is required, rerun only the affected rung set (`gear-ball:preflight`, o
 5. Append one compact training row for the run to `docs/records/artifacts/agent/gear-ball/performance-ledger.md` only after the final commit set is actually complete.
 6. If the run scored below `9.0` or taught a new durable lesson, update only the smallest retained surfaces needed.
 7. Build the final chat report from the actual pushed commits and final live status, not from an earlier mental snapshot.
-8. Keep suggested next steps inside Gear Ball's lane by default:
+8. If a post-push GitHub run diverges from local proof, say that plainly:
+   - what passed locally
+   - what failed in GitHub
+   - whether the remaining work is the same lane or a new lane
+9. Keep suggested next steps inside Gear Ball's lane by default:
    - SOP/process improvements
    - self-scoring improvements
    - validation/manifest/leftover-discipline improvements
-9. Do not expand the run into Gear Ball process maintenance unless the user explicitly asked for that separate job.
-10. Treat user corrections about missing full-worktree accounting as behavior/SOP drift and record them in retained training data when the lesson is still new.
+10. Do not expand the run into Gear Ball process maintenance unless the user explicitly asked for that separate job.
+11. Treat user corrections about missing full-worktree accounting as behavior/SOP drift and record them in retained training data when the lesson is still new.
 
 ## Stop Conditions
 

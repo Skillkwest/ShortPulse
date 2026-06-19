@@ -33,6 +33,10 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - Token-efficiency rule: optimize for low-token SOP execution without degrading control quality. Keep updates terse, run only the minimum honest validation needed for the current lane, and avoid extra analysis or narration once the commit/push decision is already well-supported.
 - Validation-repeat rule: do not rerun the same validation ladder just because a commit occurred. Rerun only when hooks, stash restore, folded tails, or another material change altered the final committed content relative to the already-validated tree.
 - Post-commit rerun-scope rule: when rerun is required after commit, rerun only the affected rung set (`gear-ball:preflight`, owning tests, `build`, or `docs:check`) instead of replaying the full earlier ladder unless the changed seam actually widened that far.
+- CI-divergence rule: report local validation proof and GitHub CI proof separately. Do not collapse `local full suite passed` into `the pushed branch is green` until the GitHub run confirms it.
+- Post-push CI classification rule: after a CI-recovery push, classify any newly exposed GitHub failures before editing again as `same-root`, `adjacent-test-contract`, `environment-only`, or `new-product-risk`.
+- Failed-file-first rule: if local full tests passed but GitHub unit tests still fail, start with the exact failed-file batch from CI before rerunning or rewriting broader suites.
+- Lane-shift stop rule: if post-push failures are no longer clearly the same root cause, require user-facing behavior changes to satisfy tests, or widen beyond the bounded failed-file set, stop and treat the next work as a new lane.
 - Test-integrity rule: never change UI, UX, or user-facing product behavior just to get tests green. If a test fails, repair the canonical implementation or the test contract without using user-visible behavior drift as the escape hatch.
 - Narrow-job rule: Gear Ball only needs to analyze the worktree, validate the intended batch enough, commit it, and push it.
 
@@ -53,6 +57,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - The score loop and final report happen only after the final shipped tree is complete. Build the report from real pushed commits and fresh `git status --short`, not memory.
 - Prefer file-backed manifests and explicit local binaries on large runs. If a wrapper path or long-running validation session goes stale, rerun the required gates on the corrected final tree.
 - A clean `git status --short` is necessary but not sufficient for push confidence. What matters is whether the final committed content materially differs from the already-validated content; if yes, rerun only the affected rung set instead of replaying the whole ladder by habit.
+- When a pushed CI-recovery commit turns the red check story into a smaller follow-up unit-test lane, rename the problem immediately. Do not keep editing under the original `fix CI` framing once the remaining failures are narrower and differently classified.
 - If the manifest includes ignore-matched config files like `frontend/next.config.js`, skip the wrapper preflight immediately and run the manual ladder so ESLint ignore noise does not steal the first pass.
 - When a dashboard or other public surface introduces a new image element, check the nearby `next/image` pattern first so `@next/next/no-img-element` does not burn a late validation cycle on an otherwise settled lane.
 - Shared-contract changes need first-manifest fan-out; final builds should confirm, not discover, obvious downstream seam breaks.

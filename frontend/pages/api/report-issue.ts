@@ -143,6 +143,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .single();
 
     if (error) {
+      await logApiRouteException({
+        req,
+        error,
+        routeLabel: "api.report-issue.insert",
+        user,
+      });
       return res.status(500).json({ error: "Unable to save your report right now." });
     }
 

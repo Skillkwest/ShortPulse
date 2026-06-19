@@ -504,6 +504,9 @@ const createSignedUploadTarget = async ({
   if (error || !data?.path || !data.token) {
     throw new Error(error?.message || "Unable to create signed upload target.");
   }
+  if (data.path !== storagePath) {
+    throw new Error("Signed upload target path did not match requested storage path.");
+  }
   return {
     path: data.path,
     token: data.token,

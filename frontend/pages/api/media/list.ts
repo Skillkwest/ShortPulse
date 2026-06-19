@@ -595,7 +595,7 @@ const resolveExistingStorageObjectPaths = async ({
     .eq("bucket_id", MEDIA_BUCKET)
     .in("name", paths);
   if (error) {
-    return new Set(paths);
+    throw new Error(error.message || "Unable to verify media storage objects.");
   }
 
   return new Set(

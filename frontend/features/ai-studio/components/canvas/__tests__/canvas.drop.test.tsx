@@ -303,7 +303,7 @@ describe("Canvas drop behavior", () => {
 
     const item = await screen.findByTestId(/canvas-item-/);
     expect(item).toHaveAttribute("data-kind", "audio");
-    expect(Number(item.getAttribute("data-width"))).toBe(160);
+    expect(Number(item.getAttribute("data-width"))).toBe(200);
     expect(Number(item.getAttribute("data-height"))).toBe(200);
     expect(screen.getByRole("button", { name: "Play Library Audio" })).toBeInTheDocument();
     expect(
@@ -661,7 +661,7 @@ describe("Canvas drop behavior", () => {
 
     const item = await screen.findByTestId(/canvas-item-/);
     expect(item).toHaveAttribute("data-kind", "audio");
-    expect(Number(item.getAttribute("data-width"))).toBe(160);
+    expect(Number(item.getAttribute("data-width"))).toBe(200);
     expect(Number(item.getAttribute("data-height"))).toBe(200);
     expect(screen.getByRole("button", { name: "Play Reference audio" })).toBeInTheDocument();
     expect(

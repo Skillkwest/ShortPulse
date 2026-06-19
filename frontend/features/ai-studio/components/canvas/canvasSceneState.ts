@@ -20,6 +20,7 @@ import {
   CANVAS_TEXT_ITEM_MIN_HEIGHT,
   CANVAS_TEXT_ITEM_WIDTH,
   fitCanvasImageToProxyFrame,
+  resolveCanvasAudioItemDimensions,
 } from "./canvasGeometry";
 import type { CanvasDropResolution, CanvasInsertResult, CanvasSceneItem } from "./canvasTypes";
 
@@ -193,6 +194,20 @@ export const setCanvasSceneSelectionByIds = (
   return changed ? nextItems : items;
 };
 
+const normalizeCanvasSceneItemDimensions = (item: CanvasSceneItem): CanvasSceneItem => {
+  if (item.kind !== "audio") return item;
+  const dimensions = resolveCanvasAudioItemDimensions({
+    width: item.width,
+    height: item.height,
+  });
+  if (item.width === dimensions.width && item.height === dimensions.height) return item;
+  return {
+    ...item,
+    width: dimensions.width,
+    height: dimensions.height,
+  };
+};
+
 export const moveCanvasSceneItemsByIdSet = (
   items: CanvasSceneItem[],
   selectedIds: Set<string>,
@@ -320,18 +335,10 @@ const resolveCanvasVideoDimensions = async (
 const resolveCanvasAudioDimensions = (
   resolved: Extract<CanvasDropResolution, { kind: "audio" }>
 ): { width: number; height: number } => {
-  const width =
-    typeof resolved.width === "number" && Number.isFinite(resolved.width) && resolved.width > 0
-      ? resolved.width
-      : CANVAS_AUDIO_ITEM_WIDTH;
-  const height =
-    typeof resolved.height === "number" && Number.isFinite(resolved.height) && resolved.height > 0
-      ? resolved.height
-      : CANVAS_AUDIO_ITEM_HEIGHT;
-  return {
-    width: Math.round(width * 100) / 100,
-    height: Math.round(height * 100) / 100,
-  };
+  return resolveCanvasAudioItemDimensions({
+    width: resolved.width,
+    height: resolved.height,
+  });
 };
 
 const waitForNextAnimationFrame = async (): Promise<void> => {
@@ -737,7 +744,7 @@ export const useCanvasSharedSceneState = ({
       textEditSession: CanvasTextEditSession | null;
     }) => {
       setPendingItems([]);
-      setItems(next.items);
+      setItems(next.items.map(normalizeCanvasSceneItemDimensions));
       setDraftTextEntry(next.draftTextEntry);
       setTextEditSession(next.textEditSession);
     },

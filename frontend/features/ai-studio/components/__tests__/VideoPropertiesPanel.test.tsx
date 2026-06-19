@@ -2104,6 +2104,56 @@ describe("VideoPropertiesPanel", () => {
     });
   });
 
+  it("preserves Seedance-only linked slots when editing a visible Kling slot", async () => {
+    const onKlingElementsChange = vi.fn();
+    const seedanceOnlyElement: AiStudioKlingElement = {
+      id: "seedance-slot-five",
+      slotIndex: 4,
+      sourceKind: "element",
+      sourceElementId: "element-seedance-only",
+      sourceCharacterId: null,
+      sourceCharacterLookId: null,
+      sourceCharacterLookLabel: null,
+      name: "Seedance Prop",
+      alias: "seedanceprop",
+      description: "Only visible in Seedance slot five.",
+      profileImageUrl: "https://example.com/seedance-prop-profile.jpg",
+      profileImageTransform: null,
+      frontalImageUrl: "https://example.com/seedance-prop-front.jpg",
+      referenceImageUrls: "https://example.com/seedance-prop-side.jpg",
+      videoUrl: "",
+    };
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        modelId={KIE_KLING_30_MODEL_ID}
+        modelLabel="Kling 3.0"
+        klingElements={[seedanceOnlyElement]}
+        onKlingElementsChange={onKlingElementsChange}
+      />
+    );
+
+    expect(screen.queryByText("Seedance Prop")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Add element to slot 1" }));
+    fireEvent.click(await screen.findByRole("button", { name: /red lantern/i }));
+
+    await waitFor(() => {
+      expect(onKlingElementsChange).toHaveBeenCalledWith([
+        expect.objectContaining({
+          slotIndex: 0,
+          sourceKind: "element",
+          sourceElementId: "element-red-lantern",
+          name: "Red Lantern",
+        }),
+        expect.objectContaining({
+          id: "seedance-slot-five",
+          slotIndex: 4,
+          name: "Seedance Prop",
+        }),
+      ]);
+    });
+  });
+
   it("does not reload a freshly attached saved element after the parent state updates", async () => {
     const onCommit = vi.fn();
     render(<KlingElementAttachHarness onCommit={onCommit} />);

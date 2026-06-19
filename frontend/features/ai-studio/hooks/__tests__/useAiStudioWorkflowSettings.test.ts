@@ -7,11 +7,17 @@ import {
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../lib/model-runtime/providerModelIds";
 import type { StudioMode, ToolId, VideoReferenceMode } from "../../types";
+import type { LipSyncAudioState } from "../../types";
 import {
   WORKFLOW_SETTINGS_SESSION_KEY,
   useAiStudioWorkflowSettings,
 } from "../useAiStudioWorkflowSettings";
 import type { AiStudioKlingElement } from "../../logic/klingElements";
+import {
+  createEmptyLipSyncAudioState,
+  createReadyLipSyncAudioState,
+  createUploadingLipSyncAudioState,
+} from "../../logic/lipSyncAudioState";
 
 const createTestKlingElement = (
   overrides: Partial<AiStudioKlingElement> = {}
@@ -40,6 +46,9 @@ const useHarness = (
   const [aspect, setAspect] = useState("9:16");
   const [imageResolution, setImageResolution] = useState("model_default");
   const [videoReferenceMode, setVideoReferenceMode] = useState<VideoReferenceMode>("standard");
+  const [lipSyncAudio, setLipSyncAudio] = useState<LipSyncAudioState>(
+    createEmptyLipSyncAudioState()
+  );
   const [videoDurationSeconds, setVideoDurationSeconds] = useState(6);
   const [videoResolution, setVideoResolution] = useState("1080p");
   const [videoGenerateAudio, setVideoGenerateAudio] = useState(false);
@@ -79,6 +88,7 @@ const useHarness = (
     aspect,
     imageResolution,
     videoReferenceMode,
+    lipSyncAudio,
     videoDurationSeconds,
     videoResolution,
     videoGenerateAudio,
@@ -102,6 +112,7 @@ const useHarness = (
     setAspect,
     setImageResolution,
     setVideoReferenceMode,
+    setLipSyncAudio,
     setVideoDurationSeconds,
     setVideoResolution,
     setVideoGenerateAudio,
@@ -139,10 +150,18 @@ const useHarness = (
     setImageResolution,
     videoReferenceMode,
     setVideoReferenceMode,
+    lipSyncAudio,
+    setLipSyncAudio,
     videoResolution,
     setVideoResolution,
     klingWorkflowMode,
     setKlingWorkflowMode,
+    seedance2ReferenceImageUrls,
+    setSeedance2ReferenceImageUrls,
+    seedance2ReferenceVideoUrls,
+    setSeedance2ReferenceVideoUrls,
+    seedance2ReferenceAudioUrls,
+    setSeedance2ReferenceAudioUrls,
     klingMultiPrompts,
     setKlingMultiPrompts,
     klingElements,
@@ -644,6 +663,149 @@ describe("useAiStudioWorkflowSettings", () => {
     const raw = window.sessionStorage.getItem(WORKFLOW_SETTINGS_SESSION_KEY);
     const parsed = raw ? (JSON.parse(raw) as Record<string, { klingElements?: unknown[] }>) : {};
     expect(parsed.video?.klingElements).toEqual([]);
+  });
+
+  it("preserves Seedance multimodal references when switching away from and back to video", async () => {
+    window.sessionStorage.clear();
+    const { result } = renderHook(() => useHarness("video"));
+
+    await waitFor(() =>
+      expect(window.sessionStorage.getItem(WORKFLOW_SETTINGS_SESSION_KEY)).not.toBeNull()
+    );
+
+    act(() => {
+      result.current.setSeedance2ReferenceImageUrls(["https://example.com/seedance-image.png"]);
+      result.current.setSeedance2ReferenceVideoUrls(["https://example.com/seedance-video.mp4"]);
+      result.current.setSeedance2ReferenceAudioUrls(["https://example.com/seedance-audio.mp3"]);
+    });
+
+    act(() => {
+      result.current.setSelectedTool("create");
+    });
+
+    await waitFor(() => expect(result.current.selectedTool).toBe("create"));
+
+    act(() => {
+      result.current.setSelectedTool("video");
+    });
+
+    await waitFor(() => expect(result.current.selectedTool).toBe("video"));
+    expect(result.current.seedance2ReferenceImageUrls).toEqual([
+      "https://example.com/seedance-image.png",
+    ]);
+    expect(result.current.seedance2ReferenceVideoUrls).toEqual([
+      "https://example.com/seedance-video.mp4",
+    ]);
+    expect(result.current.seedance2ReferenceAudioUrls).toEqual([
+      "https://example.com/seedance-audio.mp3",
+    ]);
+  });
+
+  it("preserves ready Lip Sync audio when switching away from and back to video", async () => {
+    window.sessionStorage.clear();
+    const { result } = renderHook(() => useHarness("video"));
+
+    await waitFor(() =>
+      expect(window.sessionStorage.getItem(WORKFLOW_SETTINGS_SESSION_KEY)).not.toBeNull()
+    );
+
+    act(() => {
+      result.current.setVideoReferenceMode("lip-sync");
+    });
+
+    await waitFor(() => expect(result.current.videoReferenceMode).toBe("lip-sync"));
+
+    act(() => {
+      result.current.setLipSyncAudio(
+        createReadyLipSyncAudioState({
+          url: "https://example.com/voice.mp3",
+          durationMs: 12_000,
+          sourceKind: "local",
+          storagePath: "audio/lip-sync/voice.mp3",
+          previewUrl: "blob:voice-preview#audio=1",
+          mimeType: "audio/mpeg",
+          size: 1024,
+        })
+      );
+    });
+
+    await waitFor(() => {
+      const raw = window.sessionStorage.getItem(WORKFLOW_SETTINGS_SESSION_KEY);
+      const parsed = raw
+        ? (JSON.parse(raw) as Record<string, { lipSyncAudioUrl?: string | null }>)
+        : {};
+      expect(parsed.video?.lipSyncAudioUrl).toBe("https://example.com/voice.mp3");
+    });
+
+    act(() => {
+      result.current.setSelectedTool("edit");
+    });
+
+    await waitFor(() => expect(result.current.selectedTool).toBe("edit"));
+
+    act(() => {
+      result.current.setSelectedTool("video");
+    });
+
+    await waitFor(() => expect(result.current.selectedTool).toBe("video"));
+    expect(result.current.videoReferenceMode).toBe("lip-sync");
+    expect(result.current.lipSyncAudio).toEqual(
+      expect.objectContaining({
+        url: "https://example.com/voice.mp3",
+        durationMs: 12_000,
+        sourceKind: "library",
+        status: "ready",
+        storagePath: "audio/lip-sync/voice.mp3",
+      })
+    );
+    expect(result.current.lipSyncAudio.previewUrl).toBeNull();
+  });
+
+  it("does not restore transient uploading Lip Sync audio from workflow session storage", async () => {
+    window.sessionStorage.clear();
+    const { result, unmount } = renderHook(() => useHarness("video", "session-lip-sync"));
+
+    await waitFor(() =>
+      expect(window.sessionStorage.getItem(WORKFLOW_SETTINGS_SESSION_KEY)).not.toBeNull()
+    );
+
+    act(() => {
+      result.current.setVideoReferenceMode("lip-sync");
+    });
+
+    await waitFor(() => expect(result.current.videoReferenceMode).toBe("lip-sync"));
+
+    act(() => {
+      result.current.setLipSyncAudio(
+        createUploadingLipSyncAudioState({
+          durationMs: 10_000,
+          previewUrl: "blob:voice-preview#audio=1",
+          mimeType: "audio/mpeg",
+          size: 512,
+        })
+      );
+    });
+
+    await waitFor(() => {
+      const raw = window.sessionStorage.getItem(WORKFLOW_SETTINGS_SESSION_KEY);
+      const parsed = raw
+        ? (JSON.parse(raw) as Record<
+            string,
+            { lipSyncAudioUrl?: string | null; videoReferenceMode?: string }
+          >)
+        : {};
+      expect(parsed.video?.lipSyncAudioUrl).toBeNull();
+      expect(parsed.video?.videoReferenceMode).toBe("lip-sync");
+    });
+
+    unmount();
+
+    const { result: restored } = renderHook(() => useHarness("video", "session-lip-sync"));
+
+    await waitFor(() => expect(restored.current.selectedTool).toBe("video"));
+    expect(restored.current.videoReferenceMode).toBe("lip-sync");
+    expect(restored.current.lipSyncAudio.status).toBe("empty");
+    expect(restored.current.lipSyncAudio.previewUrl).toBeUndefined();
   });
 
   it("restores in-memory Kling elements on same-session video return even though session storage strips them", async () => {

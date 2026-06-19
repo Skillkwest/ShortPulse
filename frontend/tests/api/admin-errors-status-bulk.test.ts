@@ -156,6 +156,19 @@ describe("POST /api/admin/errors-status-bulk", () => {
     const res = createMockResponse();
     await handler(req as never, res as never);
 
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: expect.any(Error),
+      routeLabel: "admin/errors-status-bulk.partial",
+      user: { id: "admin-1", email: "admin@example.com" },
+      metadata: {
+        requested_status: "ignored",
+        requested_count: 2,
+        updated_count: 1,
+        failed_count: 1,
+        failed_preview: [{ errorId: "inc-missing", error: "Incident not found.", code: "P0002" }],
+      },
+    });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       ok: false,
@@ -185,6 +198,19 @@ describe("POST /api/admin/errors-status-bulk", () => {
     const res = createMockResponse();
     await handler(req as never, res as never);
 
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: expect.any(Error),
+      routeLabel: "admin/errors-status-bulk.partial",
+      user: { id: "admin-1", email: "admin@example.com" },
+      metadata: {
+        requested_status: "resolved",
+        requested_count: 1,
+        updated_count: 0,
+        failed_count: 1,
+        failed_preview: [{ errorId: "inc-missing", error: "Incident not found.", code: "P0002" }],
+      },
+    });
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({
       ok: false,

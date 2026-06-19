@@ -576,6 +576,18 @@ describe("GET /api/admin/error-events", () => {
       degraded: true,
     });
     expect(payload.health.reason).toContain("pagination totals are estimated");
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: expect.any(Error),
+      routeLabel: "admin/error-events.summary",
+      user: { id: "admin-1", email: "admin@example.com" },
+      metadata: {
+        filtered_count_error: "db failure",
+        summary_errors: [],
+        incident_enrichment_error: null,
+        actionable_incident_filter: false,
+      },
+    });
     expect(payload.pagination).toMatchObject({
       page: 1,
       totalPages: 1,
@@ -612,6 +624,12 @@ describe("GET /api/admin/error-events", () => {
     await handler(req as never, res as never);
 
     expect(res.status).toHaveBeenCalledWith(500);
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: { message: "core events failure" },
+      routeLabel: "admin/error-events.list",
+      user: { id: "admin-1", email: "admin@example.com" },
+    });
     const payload = res.json.mock.calls[0]?.[0] as { error: string };
     expect(payload.error).toContain("core events failure");
   });

@@ -415,9 +415,9 @@ export const useCharacterManagerBootstrapController = ({
           });
           return;
         }
-        const preferredCharacterId = readPersistedSelectedCharacterId(
-          scopedUserId ? { userId: scopedUserId } : undefined
-        );
+        const preferredCharacterId = scopedUserId
+          ? readPersistedSelectedCharacterId({ userId: scopedUserId })
+          : null;
         const snapshot = await loadLatestCharacterManagerDraft(preferredCharacterId);
         if (!active) return;
         if (snapshot) {

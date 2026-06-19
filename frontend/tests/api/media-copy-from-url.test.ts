@@ -536,6 +536,50 @@ describe("POST /api/media/copy-from-url", () => {
     });
   });
 
+  it("does not let caller-provided storage hints authorize an ai_studio source URL", async () => {
+    const forgedStoragePath = "user-1/generations/images/forged-preview.png";
+    const supabase = createSupabaseAdmin({
+      generationOutputRows: [
+        {
+          id: "gen-output-authorized-1",
+          output_index: 0,
+          result_url: "https://trusted.example.com/authorized-output.png",
+          media_file_id: null,
+        },
+      ],
+      generationProjectionRow: {
+        preview_url: "https://trusted.example.com/authorized-output.png",
+        result_urls: ["https://trusted.example.com/authorized-output.png"],
+        preview_storage_path: null,
+        full_storage_path: null,
+      },
+    });
+    getSupabaseAdminMock.mockReturnValue(supabase.admin);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = {
+      method: "POST",
+      headers: { host: "app.shortpulse.test", "x-forwarded-proto": "https" },
+      body: {
+        url: `https://trusted.example.com/storage/v1/object/sign/media_library/${forgedStoragePath}`,
+        source: "ai_studio",
+        generationId: "gen-forged-hint-1",
+        index: 0,
+        previewStoragePathHint: forgedStoragePath,
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(422);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "URL does not belong to the requested generation output.",
+    });
+  });
+
   it("allows owned AI Studio provider media URLs without enabling direct external previews", async () => {
     const providerResultUrl = "https://tempfile.aiquickdraw.com/gpt-image-2-kie/output.png";
     const supabase = createSupabaseAdmin({

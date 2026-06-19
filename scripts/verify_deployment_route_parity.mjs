@@ -16,6 +16,7 @@ const execFileAsync = promisify(execFile);
 
 export const DEFAULT_REQUIRED_ROUTES = [
   "/api/internal/admin-user-health-fleet/run",
+  "/api/internal/billing-contract-renewals/run",
   "/api/internal/generation-recovery/run",
   "/api/internal/media-derivatives/run",
 ];
@@ -95,7 +96,9 @@ export const normalizePathLike = (rawValue) => {
 export const parseArgs = (argv) => {
   const parsed = {
     baseUrl:
-      process.env.SHORTPULSE_STAGING_BASE_URL?.trim() ?? process.env.APP_BASE_URL?.trim() ?? "",
+      process.env.SHORTPULSE_STAGING_BASE_URL?.trim() ??
+      process.env.APP_BASE_URL?.trim() ??
+      "",
     token:
       process.env.SHORTPULSE_VERCEL_API_TOKEN?.trim() ??
       process.env.VERCEL_API_TOKEN?.trim() ??
@@ -126,7 +129,9 @@ export const parseArgs = (argv) => {
       continue;
     }
     if (arg === "--forbidden-route") {
-      parsed.forbiddenRoutes.push(readArgValue(argv, index, "--forbidden-route"));
+      parsed.forbiddenRoutes.push(
+        readArgValue(argv, index, "--forbidden-route"),
+      );
       index += 1;
       continue;
     }
@@ -140,12 +145,20 @@ export const parseArgs = (argv) => {
       continue;
     }
     if (arg === "--max-deployment-age-hours") {
-      parsed.maxDeploymentAgeHours = readArgValue(argv, index, "--max-deployment-age-hours").trim();
+      parsed.maxDeploymentAgeHours = readArgValue(
+        argv,
+        index,
+        "--max-deployment-age-hours",
+      ).trim();
       index += 1;
       continue;
     }
     if (arg === "--min-created-at") {
-      parsed.minCreatedAt = readArgValue(argv, index, "--min-created-at").trim();
+      parsed.minCreatedAt = readArgValue(
+        argv,
+        index,
+        "--min-created-at",
+      ).trim();
       index += 1;
       continue;
     }
@@ -165,7 +178,9 @@ export const parseArgs = (argv) => {
 
   parsed.baseUrl = sanitizeBaseUrl(parsed.baseUrl);
   parsed.requiredRoutes =
-    parsed.requiredRoutes.length > 0 ? parsed.requiredRoutes : [...DEFAULT_REQUIRED_ROUTES];
+    parsed.requiredRoutes.length > 0
+      ? parsed.requiredRoutes
+      : [...DEFAULT_REQUIRED_ROUTES];
   parsed.forbiddenRoutes = parsed.ignoreDefaultForbiddenRoutes
     ? parsed.forbiddenRoutes
     : [...DEFAULT_FORBIDDEN_ROUTES, ...parsed.forbiddenRoutes];
@@ -177,7 +192,9 @@ const ensureRequiredInputs = ({ baseUrl, requiredRoutes }) => {
   if (!baseUrl) {
     missing.push("SHORTPULSE_STAGING_BASE_URL or APP_BASE_URL (or --base-url)");
   }
-  const normalized = requiredRoutes.map((route) => normalizePathLike(route)).filter(Boolean);
+  const normalized = requiredRoutes
+    .map((route) => normalizePathLike(route))
+    .filter(Boolean);
   if (normalized.length === 0) {
     missing.push("at least one valid --required-route value");
   }
@@ -215,9 +232,13 @@ const parseInspectJson = (stdout) => {
 
 const summarizeExecFailure = (error) => {
   const stderr =
-    typeof error?.stderr === "string" && error.stderr.trim() ? error.stderr.trim() : "";
+    typeof error?.stderr === "string" && error.stderr.trim()
+      ? error.stderr.trim()
+      : "";
   const stdout =
-    typeof error?.stdout === "string" && error.stdout.trim() ? error.stdout.trim() : "";
+    typeof error?.stdout === "string" && error.stdout.trim()
+      ? error.stdout.trim()
+      : "";
 
   if (stderr) return stderr;
   if (stdout) return stdout;
@@ -334,9 +355,11 @@ const run = async () => {
     .filter(Boolean);
   const maxDeploymentAgeHours = parsePositiveNumber(
     args.maxDeploymentAgeHours,
-    "--max-deployment-age-hours"
+    "--max-deployment-age-hours",
   );
-  const minCreatedAtMs = args.minCreatedAt ? asEpochMs(args.minCreatedAt) : null;
+  const minCreatedAtMs = args.minCreatedAt
+    ? asEpochMs(args.minCreatedAt)
+    : null;
   if (args.minCreatedAt && minCreatedAtMs === null) {
     throw new Error(`Invalid --min-created-at: ${args.minCreatedAt}`);
   }
@@ -359,8 +382,14 @@ const run = async () => {
   }
 
   const inspectResult = parseInspectJson(stdout);
-  const resolvedDeploymentUrl = extractResolvedDeploymentUrl(inspectResult, args.baseUrl);
-  const createdAtRaw = inspectResult?.createdAt ?? inspectResult?.meta?.createdAt ?? inspectResult?.created;
+  const resolvedDeploymentUrl = extractResolvedDeploymentUrl(
+    inspectResult,
+    args.baseUrl,
+  );
+  const createdAtRaw =
+    inspectResult?.createdAt ??
+    inspectResult?.meta?.createdAt ??
+    inspectResult?.created;
   const createdAt = asIsoTimestamp(createdAtRaw);
   const createdAtMs = asEpochMs(createdAtRaw);
 
@@ -383,18 +412,24 @@ const run = async () => {
   });
 
   console.log(`[route-parity] target: ${args.baseUrl}`);
-  console.log(`[route-parity] resolved deployment: ${resolvedDeploymentUrl || "unknown"}`);
+  console.log(
+    `[route-parity] resolved deployment: ${resolvedDeploymentUrl || "unknown"}`,
+  );
   console.log(`[route-parity] created at: ${createdAt}`);
   console.log(
-    `[route-parity] auth mode: ${usingCliAuth ? "vercel-cli-session" : "token"}`
+    `[route-parity] auth mode: ${usingCliAuth ? "vercel-cli-session" : "token"}`,
   );
   console.log(`[route-parity] loaded env files: ${loadedEnvFiles.length}`);
   console.log(`[route-parity] route entries inspected: ${buildPaths.size}`);
   if (maxDeploymentAgeHours !== null) {
-    console.log(`[route-parity] max deployment age hours: ${maxDeploymentAgeHours}`);
+    console.log(
+      `[route-parity] max deployment age hours: ${maxDeploymentAgeHours}`,
+    );
   }
   if (minCreatedAtMs !== null) {
-    console.log(`[route-parity] minimum created at: ${new Date(minCreatedAtMs).toISOString()}`);
+    console.log(
+      `[route-parity] minimum created at: ${new Date(minCreatedAtMs).toISOString()}`,
+    );
   }
   console.log("[route-parity] required routes:");
   for (const route of requiredRoutes) {
@@ -416,14 +451,17 @@ const run = async () => {
     }
   } else {
     deploymentAgeHours = (nowMs - createdAtMs) / (60 * 60 * 1000);
-    if (maxDeploymentAgeHours !== null && deploymentAgeHours > maxDeploymentAgeHours) {
+    if (
+      maxDeploymentAgeHours !== null &&
+      deploymentAgeHours > maxDeploymentAgeHours
+    ) {
       lineageFailures.push(
-        `deployment_age_exceeds_limit(actual=${deploymentAgeHours.toFixed(2)}h limit=${maxDeploymentAgeHours}h)`
+        `deployment_age_exceeds_limit(actual=${deploymentAgeHours.toFixed(2)}h limit=${maxDeploymentAgeHours}h)`,
       );
     }
     if (minCreatedAtMs !== null && createdAtMs < minCreatedAtMs) {
       lineageFailures.push(
-        `deployment_created_before_minimum(actual=${new Date(createdAtMs).toISOString()} minimum=${new Date(minCreatedAtMs).toISOString()})`
+        `deployment_created_before_minimum(actual=${new Date(createdAtMs).toISOString()} minimum=${new Date(minCreatedAtMs).toISOString()})`,
       );
     }
   }
@@ -452,7 +490,11 @@ const run = async () => {
 
   if (args.output) {
     const outputPath = path.resolve(process.cwd(), args.output);
-    fs.writeFileSync(outputPath, `${JSON.stringify(summary, null, 2)}\n`, "utf8");
+    fs.writeFileSync(
+      outputPath,
+      `${JSON.stringify(summary, null, 2)}\n`,
+      "utf8",
+    );
     console.log(`[route-parity] artifact=${outputPath}`);
   }
 

@@ -13,6 +13,7 @@ import {
   resolveVeoDuration,
   resolveVeoResolution,
 } from "../videoPayloads";
+import { createSeedanceImageReferenceSlot } from "../../../logic/klingElements";
 import type { SubmissionModelConfig } from "../types";
 
 const makeModelConfig = (
@@ -229,5 +230,43 @@ describe("buildKieKlingElementsPayload", () => {
         },
       ])
     ).toThrow("needs at least 2 image references");
+  });
+
+  it("ignores Seedance-only direct image refs and slots outside Kling's first three", () => {
+    const payload = buildKieKlingElementsPayload([
+      createSeedanceImageReferenceSlot({
+        slotIndex: 0,
+        imageUrl: "https://example.com/direct.png",
+      }),
+      {
+        id: "slot-2",
+        slotIndex: 1,
+        name: "Taylor",
+        alias: "taylor",
+        frontalImageUrl: "https://example.com/taylor-front.png",
+        referenceImageUrls: "https://example.com/taylor-side.png",
+        videoUrl: "",
+      },
+      {
+        id: "slot-4",
+        slotIndex: 3,
+        name: "Seedance Only",
+        alias: "seedanceonly",
+        frontalImageUrl: "https://example.com/seedance-front.png",
+        referenceImageUrls: "https://example.com/seedance-side.png",
+        videoUrl: "",
+      },
+    ]);
+
+    expect(payload).toEqual([
+      {
+        name: "element2",
+        description: "Reference images for Taylor",
+        element_input_urls: [
+          "https://example.com/taylor-front.png",
+          "https://example.com/taylor-side.png",
+        ],
+      },
+    ]);
   });
 });

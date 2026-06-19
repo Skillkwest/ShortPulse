@@ -245,6 +245,23 @@ describe("useCharacterManagerDraft", () => {
     expect(persistSelectedCharacterIdMock).toHaveBeenCalledWith("char-1", { userId: "user-1" });
   });
 
+  it("does not read an unscoped persisted selection when user scope is unavailable", async () => {
+    readSupabaseUserIdMock.mockResolvedValue(null);
+    readPersistedSelectedCharacterIdMock.mockReturnValue("legacy-char");
+    loadLatestCharacterManagerDraftMock.mockResolvedValue(null);
+    listCharacterManagerCharactersMock.mockResolvedValue([] as never);
+
+    const { result } = renderHook(() => useCharacterManagerDraft());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(readPersistedSelectedCharacterIdMock).not.toHaveBeenCalled();
+    expect(loadLatestCharacterManagerDraftMock).toHaveBeenCalledWith(null);
+    expect(result.current.selectedCharacterId).toBeNull();
+  });
+
   it("boots into a local unsaved draft when the library is empty", async () => {
     readSupabaseUserIdMock.mockResolvedValue("user-1");
     readPersistedSelectedCharacterIdMock.mockReturnValue(null);

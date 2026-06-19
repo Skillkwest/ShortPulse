@@ -170,4 +170,38 @@ describe("getSignedMediaUrlsBatch", () => {
     expect(firstBatch.get(path)).toBe("https://signed.test/shared-path");
     expect(secondBatch.get(path)).toBe("https://signed.test/shared-path");
   });
+
+  it("fails closed instead of direct-signing when the canonical sign-batch route fails", async () => {
+    const createSignedUrlMock = vi.fn(async () => ({
+      data: { signedUrl: "https://direct-signed.test/unsafe-fallback" },
+      error: null,
+    }));
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      storage: {
+        from: () => ({
+          createSignedUrl: createSignedUrlMock,
+        }),
+      },
+    } as unknown as ReturnType<typeof ensureSupabaseQueryClient>);
+    fetchWithAuthMock.mockResolvedValue(
+      new Response(JSON.stringify({ error: "storage metadata unavailable" }), {
+        status: 500,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+    );
+
+    const path = "user/stale-or-unverified-path.png";
+    const signedByPath = await getSignedMediaUrlsBatch({
+      bucket: "media_library",
+      storagePaths: [path],
+      forceRefresh: true,
+    });
+
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
+    expect(createSignedUrlMock).not.toHaveBeenCalled();
+    expect(ensureSupabaseQueryClientMock).not.toHaveBeenCalled();
+    expect(signedByPath.get(path)).toBeNull();
+  });
 });

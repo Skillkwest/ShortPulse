@@ -11,6 +11,7 @@ describe("deployment route parity launch gate", () => {
     const args = parseArgs(["--base-url", "https://www.shortpulse.ai"]);
 
     expect(args.forbiddenRoutes).toEqual(DEFAULT_FORBIDDEN_ROUTES);
+    expect(args.requiredRoutes).toContain("/api/internal/billing-contract-renewals/run");
     expect(args.forbiddenRoutes).toContain("/api/upload-video");
     expect(args.forbiddenRoutes).toContain("/api/upload-audio");
     expect(args.forbiddenRoutes).toContain("/api/media/admit-image-asset");

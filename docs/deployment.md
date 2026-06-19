@@ -253,6 +253,7 @@ Before any scheduler URL updates, manual drain/recovery operations, or post-depl
 Default required routes:
 
 - `/api/internal/admin-user-health-fleet/run`
+- `/api/internal/billing-contract-renewals/run`
 - `/api/internal/generation-recovery/run`
 - `/api/internal/media-derivatives/run`
 
@@ -267,6 +268,7 @@ node scripts/verify_deployment_route_parity.mjs \
 node scripts/verify_deployment_route_parity.mjs \
   --base-url https://<staging-or-prod-alias> \
   --required-route /api/internal/admin-user-health-fleet/run \
+  --required-route /api/internal/billing-contract-renewals/run \
   --required-route /api/internal/generation-recovery/run \
   --required-route /api/internal/media-derivatives/run
 ```
@@ -317,6 +319,8 @@ Command example:
 node scripts/verify_internal_route_runtime.mjs \
   --base-url https://<staging-or-prod-alias>
 ```
+
+The default sweep skips authenticated billing-renewal execution because that worker can advance contracts and insert credit grants. To intentionally prove that route with operator auth, run it explicitly with `--route billing_renewals --allow-mutating-auth` after confirming the target environment and data-mutation risk.
 
 Optional narrower probe:
 

@@ -126,7 +126,7 @@ describe("mediaLibraryDragGhost", () => {
     node.remove();
   });
 
-  it("keeps audio ghosts on the shared media-card template instead of the prompt template", () => {
+  it("keeps audio ghosts square on the shared media-card template instead of the prompt template", () => {
     const node = document.createElement("button");
     document.body.appendChild(node);
     setNodeRect(node, 220, 260);
@@ -145,7 +145,8 @@ describe("mediaLibraryDragGhost", () => {
     expect(ghost.querySelector("img")?.getAttribute("src")).toBe(
       "https://cdn.example.com/audio-cover.webp"
     );
-    expect(ghost.style.width).toBe("96px");
+    expect(ghost.style.aspectRatio).toBe("1 / 1");
+    expect(ghost.style.width).toBe("120px");
     expect(ghost.style.height).toBe("120px");
     expect(setDragImage).toHaveBeenCalledWith(ghost, 12, 12);
 

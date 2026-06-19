@@ -19,7 +19,7 @@ import {
   persistGeneratedAudioAsset,
 } from "../../../lib/server/elevenlabs";
 import { resolveVoiceAccessForUser } from "../../../lib/server/elevenlabsVoiceLibrary";
-import { markAudioCompanionArtPending } from "../../../lib/server/audioCompanionArt/processing";
+import { markAudioCompanionArtPendingBestEffort } from "../../../lib/server/audioCompanionArt/routePending";
 import { readGenerationWorkspaceRuntimeKeyFromContext } from "../../../lib/server/api/generationWorkspaceRuntimeKey";
 import { generateAudioReferenceTitleBestEffort } from "../../../lib/server/audioTitleGeneration";
 
@@ -259,9 +259,12 @@ export default async function handler(
       },
     });
     const persistedVoiceoverTitle = persisted.displayTitle ?? voiceoverTitle;
-    await markAudioCompanionArtPending({
+    await markAudioCompanionArtPendingBestEffort({
+      req,
+      routeLabel: "elevenlabs-text-to-speech",
       generationId: persisted.generationId,
       userId: charge.userId,
+      user,
     });
 
     return res.status(200).json({

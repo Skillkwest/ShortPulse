@@ -106,6 +106,25 @@ const hasKlingElementVisibleMedia = (element: AiStudioKlingElement): boolean =>
     element.profileImageUrl?.trim()
   );
 
+const resolveKlingElementPanelSlotIndex = (
+  element: AiStudioKlingElement,
+  fallbackIndex: number
+): number | null =>
+  typeof element.slotIndex === "number" &&
+  Number.isInteger(element.slotIndex) &&
+  element.slotIndex >= 0
+    ? element.slotIndex
+    : fallbackIndex >= 0
+      ? fallbackIndex
+      : null;
+
+const sortKlingElementsBySlotIndex = (elements: AiStudioKlingElement[]): AiStudioKlingElement[] =>
+  [...elements].sort((a, b) => {
+    const left = a.slotIndex ?? 0;
+    const right = b.slotIndex ?? 0;
+    return left - right;
+  });
+
 type KlingPromptCharacterCounterProps = {
   count: number;
   limit: number;
@@ -411,17 +430,26 @@ export function VideoPropertiesPanel({
     : VIDEO_KLING_ELEMENT_SLOT_COUNT;
   const commitSelectedKlingElements = React.useCallback(
     (elements: Array<AiStudioKlingElement | null>) => {
+      const visibleSlotIndexes = new Set(
+        Array.from({ length: klingElementSlotCount }, (_, index) => index)
+      );
+      const committedVisibleElements = elements
+        .map((item, index) => {
+          if (!item) return null;
+          const slotIndex = resolveKlingElementPanelSlotIndex(item, index);
+          if (slotIndex == null || !visibleSlotIndexes.has(slotIndex)) return null;
+          return item.slotIndex === slotIndex ? item : { ...item, slotIndex };
+        })
+        .filter((item): item is AiStudioKlingElement => Boolean(item));
+      const preservedHiddenElements = klingElements.filter((element, index) => {
+        const slotIndex = resolveKlingElementPanelSlotIndex(element, index);
+        return slotIndex != null && !visibleSlotIndexes.has(slotIndex);
+      });
       onKlingElementsChange?.(
-        elements
-          .filter((item): item is AiStudioKlingElement => Boolean(item))
-          .sort((a, b) => {
-            const left = a.slotIndex ?? 0;
-            const right = b.slotIndex ?? 0;
-            return left - right;
-          })
+        sortKlingElementsBySlotIndex([...preservedHiddenElements, ...committedVisibleElements])
       );
     },
-    [onKlingElementsChange]
+    [klingElementSlotCount, klingElements, onKlingElementsChange]
   );
   const selectedKlingElements = React.useMemo(() => {
     const slots = Array.from(
@@ -431,15 +459,13 @@ export function VideoPropertiesPanel({
     const legacyElements: AiStudioKlingElement[] = [];
 
     klingElements.forEach((element) => {
-      const slotIndex =
-        typeof element.slotIndex === "number" &&
-        Number.isInteger(element.slotIndex) &&
-        element.slotIndex >= 0 &&
-        element.slotIndex < klingElementSlotCount
-          ? element.slotIndex
-          : null;
+      const slotIndex = resolveKlingElementPanelSlotIndex(element, -1);
 
-      if (slotIndex == null) {
+      if (slotIndex != null && slotIndex >= klingElementSlotCount) {
+        return;
+      }
+
+      if (slotIndex == null || slotIndex < 0) {
         legacyElements.push(element);
         return;
       }

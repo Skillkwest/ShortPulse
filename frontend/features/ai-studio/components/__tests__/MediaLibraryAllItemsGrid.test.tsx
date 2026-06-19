@@ -203,6 +203,8 @@ describe("MediaLibraryAllItemsGrid", () => {
       expect.objectContaining({
         targetColumnWidth: 188,
         maxColumnCount: 5,
+        layoutMode: "masonry",
+        minItemsToVirtualize: 1,
       })
     );
     expect(grid).toHaveClass("media-library-panel-density-grid");
@@ -250,6 +252,40 @@ describe("MediaLibraryAllItemsGrid", () => {
 
     const frame = container.querySelector(".media-library-panel-media-frame");
     expect(frame).toHaveStyle({ aspectRatio: "0.8" });
+  });
+
+  it("keeps audio cards square when the assignment layout contract is enabled", () => {
+    const props = baseProps();
+    props.mediaRows = [
+      {
+        id: "audio-1",
+        filename: "voice-note.mp3",
+        storage_path: "user-1/uploads/voice-note.mp3",
+        preview_storage_path: "user-1/uploads/voice-note.mp3",
+        file_type: "audio/mpeg",
+        created_at: "2026-04-08T18:00:00.000Z",
+        signedUrl: "https://cdn.example.com/voice-note.mp3",
+        metadata: { aspect_ratio: 4 / 5 },
+      },
+    ];
+
+    const { container } = render(
+      <MediaLibraryAllItemsGrid {...props} fixedVisualAspectRatio={4 / 5} />
+    );
+
+    const latestVirtualizationArgs = useMediaMasonryVirtualizationMock.mock.calls.at(-1)?.[0];
+    expect(
+      latestVirtualizationArgs?.getAspectRatio({
+        key: "media:audio-1",
+        kind: "media",
+        id: "audio-1",
+        createdAt: 0,
+        row: props.mediaRows[0],
+      })
+    ).toBe(1);
+
+    const audioCard = container.querySelector(".media-library-panel-audio-reference-card");
+    expect(audioCard).toHaveStyle({ aspectRatio: "1" });
   });
 
   it("can prioritize preview-bearing visual media ahead of audio-heavy mixed chronology", () => {

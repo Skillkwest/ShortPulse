@@ -337,20 +337,10 @@ export const getSignedMediaUrlsBatch = async ({
             return;
           }
         } catch {
-          // Fall through to direct sign fallback below.
+          // Fail closed below; server-side signing owns storage-object verification.
         }
 
-        await Promise.all(
-          unresolvedChunk.map(async (path) => {
-            const signedUrl = await signStoragePathDirect(
-              bucket,
-              path,
-              expiresInSeconds,
-              resolvedPreviewProfile
-            ).catch(() => null);
-            settleOwnedPath(path, signedUrl ?? null);
-          })
-        );
+        unresolvedChunk.forEach((path) => settleOwnedPath(path, null));
       }
     );
   } finally {

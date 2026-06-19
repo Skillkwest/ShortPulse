@@ -117,7 +117,13 @@ const normalizeRestoredVideoReferenceMode = (
   value: Partial<WorkflowSettingsSnapshot>["videoReferenceMode"],
   fallback: VideoReferenceMode
 ): VideoReferenceMode => {
-  if (value === "standard" || value === "modify" || value === "kling3" || value === "motion") {
+  if (
+    value === "standard" ||
+    value === "modify" ||
+    value === "kling3" ||
+    value === "motion" ||
+    value === "lip-sync"
+  ) {
     return value;
   }
   // Hidden keyframes snapshot values should reopen on the visible Standard lane.

@@ -35,7 +35,8 @@ import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../../../lib/model-runtime/falModelI
 import { normalizeDurationForModel } from "../../../lib/model-runtime/modelDurationConstraints";
 import { needsVideoUpload } from "../utils/videoUpload";
 import {
-  getAiStudioKlingElementReferenceUrls,
+  resolveKieKlingElementsValidationMessage,
+  resolveSeedanceElementProviderEligibility,
   type AiStudioKlingElement,
 } from "../logic/klingElements";
 import {
@@ -231,14 +232,28 @@ export const useAiStudioViewModel = ({
     seedance2ReferenceImageUrls.length > 0 ||
     seedance2ReferenceVideoUrls.length > 0 ||
     seedance2ReferenceAudioUrls.length > 0;
+  const seedanceLinkedElementEligibilities = useMemo(
+    () => klingElements.map((element) => resolveSeedanceElementProviderEligibility(element)),
+    [klingElements]
+  );
   const seedance2VideoInputCount = useMemo(
     () =>
       seedance2ReferenceVideoUrls.filter((value) => value.trim().length > 0).length +
-      klingElements.filter((element) => element.videoUrl.trim().length > 0).length,
-    [klingElements, seedance2ReferenceVideoUrls]
+      seedanceLinkedElementEligibilities.reduce(
+        (count, eligibility) => count + eligibility.videoUrls.length,
+        0
+      ),
+    [seedance2ReferenceVideoUrls, seedanceLinkedElementEligibilities]
   );
-  const hasSeedance2LinkedAssetReferences = klingElements.some(
-    (element) => element.videoUrl.trim() || getAiStudioKlingElementReferenceUrls(element).length > 0
+  const hasSeedance2LinkedAssetReferences = seedanceLinkedElementEligibilities.some(
+    (eligibility) => eligibility.isSubmittable
+  );
+  const klingElementProviderGuardrail = useMemo(
+    () =>
+      isVideoTool && videoReferenceMode === "standard" && model === KIE_KLING_30_MODEL_ID
+        ? resolveKieKlingElementsValidationMessage(klingElements)
+        : null,
+    [isVideoTool, klingElements, model, videoReferenceMode]
   );
   const seedance2UsesMultimodalReferences =
     seedance2InputMode === "multimodal" || hasSeedance2LinkedAssetReferences;
@@ -836,6 +851,9 @@ export const useAiStudioViewModel = ({
     ) {
       return "Add a first frame image before generating with Kling 3.0.";
     }
+    if (klingElementProviderGuardrail) {
+      return klingElementProviderGuardrail;
+    }
     if (
       isVideoTool &&
       videoReferenceMode === "standard" &&
@@ -884,6 +902,7 @@ export const useAiStudioViewModel = ({
     hasDescribeImage,
     hasSeedance2LinkedAssetReferences,
     hasSeedance2MultimodalReferences,
+    klingElementProviderGuardrail,
     seedance2UsesMultimodalReferences,
     isVideoTool,
     isDescribeMode,

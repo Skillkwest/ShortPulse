@@ -173,6 +173,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const failedCount = failures.length;
     const updatedCount = updatedIncidentIds.length;
+    if (failedCount > 0) {
+      await logApiRouteException({
+        req,
+        error: new Error("Bulk admin error status update had failures."),
+        routeLabel: "admin/errors-status-bulk.partial",
+        user: verifiedAdminUser,
+        metadata: {
+          requested_status: status,
+          requested_count: errorIds.length,
+          updated_count: updatedCount,
+          failed_count: failedCount,
+          failed_preview: failures.slice(0, MAX_FAILURES_IN_RESPONSE),
+        },
+      });
+    }
     const responsePayload = {
       ok: failedCount === 0,
       partial: failedCount > 0 && updatedCount > 0,

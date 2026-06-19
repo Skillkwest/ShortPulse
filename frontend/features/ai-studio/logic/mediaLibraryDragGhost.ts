@@ -14,8 +14,8 @@ import {
 const dragGhostMap = new WeakMap<HTMLElement, HTMLElement>();
 const GHOST_MAX_TEXT_LENGTH = 180;
 const DRAG_GHOST_ASPECT_RATIO = 4 / 5;
+const AUDIO_DRAG_GHOST_ASPECT_RATIO = 1;
 const DRAG_GHOST_HEIGHT_PX = 120;
-const DRAG_GHOST_WIDTH_PX = Math.round(DRAG_GHOST_HEIGHT_PX * DRAG_GHOST_ASPECT_RATIO);
 const FOLDER_GHOST_WIDTH_PX = 118;
 const FOLDER_GHOST_HEIGHT_PX = 104;
 const GHOST_SNAPSHOT_WIDTH = 384;
@@ -171,7 +171,8 @@ const buildGhostNode = ({
       : "media-library-drag-ghost reference-drag-ghost";
   ghost.style.width = `${ghostWidth}px`;
   ghost.style.height = `${ghostHeight}px`;
-  ghost.style.aspectRatio = template === "folder" ? "118 / 104" : "4 / 5";
+  ghost.style.aspectRatio =
+    template === "folder" ? "118 / 104" : previewKind === "audio" ? "1 / 1" : "4 / 5";
   ghost.style.boxSizing = "border-box";
   ghost.style.position = "absolute";
   ghost.style.top = "-9999px";
@@ -299,7 +300,12 @@ export const attachMediaLibraryDragGhost = (
         ? FOLDER_GHOST_WIDTH_PX
         : template === "prompt"
           ? CANVAS_PROMPT_DRAG_GHOST_WIDTH_PX
-          : DRAG_GHOST_WIDTH_PX;
+          : Math.round(
+              DRAG_GHOST_HEIGHT_PX *
+                (options.previewKind === "audio"
+                  ? AUDIO_DRAG_GHOST_ASPECT_RATIO
+                  : DRAG_GHOST_ASPECT_RATIO)
+            );
     const ghostHeight =
       template === "folder"
         ? FOLDER_GHOST_HEIGHT_PX

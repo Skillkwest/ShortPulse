@@ -7,7 +7,7 @@ const chargeGenerationRequestMock = vi.fn();
 const captureSucceededGenerationByProviderRequestMock = vi.fn();
 const generateElevenLabsSoundEffectMock = vi.fn();
 const persistGeneratedAudioAssetMock = vi.fn();
-const markAudioCompanionArtPendingMock = vi.fn();
+const markAudioCompanionArtPendingBestEffortMock = vi.fn();
 const probeMediaDurationSecondsMock = vi.fn();
 const generateSoundEffectTitleBestEffortMock = vi.fn();
 
@@ -55,8 +55,9 @@ vi.mock("../../lib/server/elevenlabs", () => ({
   },
 }));
 
-vi.mock("../../lib/server/audioCompanionArt/processing", () => ({
-  markAudioCompanionArtPending: (...args: unknown[]) => markAudioCompanionArtPendingMock(...args),
+vi.mock("../../lib/server/audioCompanionArt/routePending", () => ({
+  markAudioCompanionArtPendingBestEffort: (...args: unknown[]) =>
+    markAudioCompanionArtPendingBestEffortMock(...args),
 }));
 
 vi.mock("../../lib/server/mediaAudioExtraction", () => ({
@@ -104,7 +105,7 @@ describe("POST /api/elevenlabs/sound-effects", () => {
       sourceRef: "billing-source-sfx-1",
       note: "captured",
     });
-    markAudioCompanionArtPendingMock.mockResolvedValue(undefined);
+    markAudioCompanionArtPendingBestEffortMock.mockResolvedValue(undefined);
     probeMediaDurationSecondsMock.mockResolvedValue(2.4);
     generateSoundEffectTitleBestEffortMock.mockResolvedValue("Huge Downlift Boom");
   });
@@ -302,6 +303,7 @@ describe("POST /api/elevenlabs/sound-effects", () => {
       promptText: "Huge downlift boom.",
       durationSeconds: null,
       loop: true,
+      uniqueSeed: "billing-source-sfx-1",
     });
     expect(captureSucceededGenerationByProviderRequestMock).toHaveBeenCalledWith({
       userId: "user-1",

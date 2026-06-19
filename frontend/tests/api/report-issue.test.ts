@@ -145,6 +145,43 @@ describe("POST /api/report-issue", () => {
     });
   });
 
+  it("logs report insert failures while returning the safe customer error", async () => {
+    const insertError = new Error("database temporarily unavailable");
+    const singleMock = vi.fn().mockResolvedValue({
+      data: null,
+      error: insertError,
+    });
+    const selectMock = vi.fn(() => ({ single: singleMock }));
+    const insertMock = vi.fn(() => ({ select: selectMock }));
+    const fromMock = vi.fn(() => ({ insert: insertMock }));
+    getSupabaseAdminMock.mockReturnValue({
+      from: fromMock,
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        message: "I could not reopen my project.",
+        sourcePath: "/ai-studio",
+      },
+      headers: {
+        "user-agent": "Mozilla/5.0 Test Browser",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: insertError,
+      routeLabel: "api.report-issue.insert",
+      user: { id: "user-1", email: "user@example.com" },
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Unable to save your report right now." });
+  });
+
   it("rejects oversized route context values instead of clipping them", async () => {
     const req = {
       method: "POST",

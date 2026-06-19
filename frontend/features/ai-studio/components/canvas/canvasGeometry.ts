@@ -14,8 +14,9 @@ export const CANVAS_MIN_ZOOM = 0.2;
 export const CANVAS_MAX_ZOOM = 2.5;
 export const CANVAS_IMAGE_ITEM_WIDTH = 220;
 export const CANVAS_IMAGE_ITEM_HEIGHT = 275;
-export const CANVAS_AUDIO_ITEM_WIDTH = 160;
-export const CANVAS_AUDIO_ITEM_HEIGHT = 200;
+export const CANVAS_AUDIO_ITEM_SIZE = 200;
+export const CANVAS_AUDIO_ITEM_WIDTH = CANVAS_AUDIO_ITEM_SIZE;
+export const CANVAS_AUDIO_ITEM_HEIGHT = CANVAS_AUDIO_ITEM_SIZE;
 export const CANVAS_TEXT_ITEM_WIDTH = 260;
 export const CANVAS_TEXT_ITEM_MIN_WIDTH = 180;
 export const CANVAS_TEXT_ITEM_MAX_WIDTH = 720;
@@ -24,6 +25,29 @@ export const CANVAS_TEXT_ITEM_MAX_HEIGHT = 720;
 const CANVAS_IMAGE_PROXY_LONG_EDGE = Math.max(CANVAS_IMAGE_ITEM_WIDTH, CANVAS_IMAGE_ITEM_HEIGHT);
 
 const roundCanvasCoordinate = (value: number): number => Math.round(value * 100) / 100;
+
+/**
+ * Keeps Canvas audio references square while preserving any larger explicit side length.
+ */
+export const resolveCanvasAudioItemDimensions = ({
+  width,
+  height,
+}: {
+  width?: number | null;
+  height?: number | null;
+} = {}): { width: number; height: number } => {
+  const resolvedWidth =
+    typeof width === "number" && Number.isFinite(width) && width > 0 ? width : null;
+  const resolvedHeight =
+    typeof height === "number" && Number.isFinite(height) && height > 0 ? height : null;
+  const side = roundCanvasCoordinate(
+    Math.max(resolvedWidth ?? 0, resolvedHeight ?? 0, CANVAS_AUDIO_ITEM_SIZE)
+  );
+  return {
+    width: side,
+    height: side,
+  };
+};
 
 /**
  * Constrains camera zoom to the supported V1 range.

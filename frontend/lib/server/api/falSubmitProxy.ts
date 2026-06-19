@@ -11,7 +11,6 @@ import {
   readInternalMediaRefsFromPayload,
   resolveSignedUrlsForInternalEditMediaRefs,
   resolveSignedUrlsForInternalMediaRefs,
-  type InternalEditMediaRefs,
 } from "./internalMediaRefResolution";
 import { resolveRuntimeSafetyProfile } from "./agentSafetyPolicyControlPlane";
 import { logGenerationFailure, writeAppErrorLog } from "./appErrorLogs";
@@ -445,17 +444,6 @@ const mergeInternalImagePayloadUrls = ({
   return nextPayload;
 };
 
-const countAvailableImagePayloadUrls = (payload: Record<string, unknown>): number =>
-  dedupeStrings(
-    [
-      asProviderString(payload.image_url),
-      asProviderString(payload.input_url),
-      ...asTrimmedStringArray(payload.image_urls),
-      ...asTrimmedStringArray(payload.input_urls),
-    ],
-    20
-  ).length;
-
 const supportsInlineSubmitForGenerationMode = ({
   provider,
   generationMode,
@@ -466,69 +454,6 @@ const supportsInlineSubmitForGenerationMode = ({
   if (provider === "kie") return true;
   if (provider !== "fal") return false;
   return generationMode === "image" || generationMode === "video";
-};
-
-const resolveExternalEditPayloadUrl = ({
-  value,
-  ref,
-}: {
-  value: unknown;
-  ref: InternalMediaRef | null;
-}): string | null => {
-  const normalized = asProviderString(value);
-  if (!normalized) return null;
-  if (!ref) return normalized;
-  return filterExternalUrlsFromInternalRefs([normalized], [ref])[0] ?? null;
-};
-
-const stripInternalEditPayloadUrls = ({
-  payload,
-  refs,
-}: {
-  payload: Record<string, unknown>;
-  refs: InternalEditMediaRefs;
-}): {
-  payload: Record<string, unknown>;
-  resolvedFallbackCount: number;
-  expectedFallbackCount: number;
-} => {
-  const nextPayload = { ...payload };
-  const baseImageUrl = resolveExternalEditPayloadUrl({
-    value: payload.image_url,
-    ref: refs.baseImageRef,
-  });
-  const maskUrl = resolveExternalEditPayloadUrl({
-    value: payload.mask_url,
-    ref: refs.maskRef,
-  });
-  const referenceImageUrl = resolveExternalEditPayloadUrl({
-    value: payload.reference_image_url,
-    ref: refs.referenceImageRef,
-  });
-  const expectedFallbackCount = [refs.baseImageRef, refs.maskRef, refs.referenceImageRef].filter(
-    (ref) => Boolean(ref)
-  ).length;
-
-  if (refs.baseImageRef) {
-    if (baseImageUrl) nextPayload.image_url = baseImageUrl;
-    else delete nextPayload.image_url;
-  }
-  if (refs.maskRef) {
-    if (maskUrl) nextPayload.mask_url = maskUrl;
-    else delete nextPayload.mask_url;
-  }
-  if (refs.referenceImageRef) {
-    if (referenceImageUrl) nextPayload.reference_image_url = referenceImageUrl;
-    else delete nextPayload.reference_image_url;
-  }
-
-  return {
-    payload: nextPayload,
-    resolvedFallbackCount: [baseImageUrl, maskUrl, referenceImageUrl].filter((value) =>
-      Boolean(value)
-    ).length,
-    expectedFallbackCount,
-  };
 };
 
 const applyInternalEditPayloadUrls = ({
@@ -635,51 +560,25 @@ export const createFalSubmitHandler = ({
           signedUrls,
         });
       } catch (error) {
-        const fallbackPayload = mergeInternalImagePayloadUrls({
-          modelId,
-          payload,
-          internalMediaRefs,
-          signedUrls: [],
-        });
-        const fallbackReferenceCount = countAvailableImagePayloadUrls(fallbackPayload);
         const detail = error instanceof Error ? error.message : String(error);
-        if (fallbackReferenceCount > 0) {
-          payload = fallbackPayload;
-          await logGenerationFailure({
-            req,
-            routeLabel,
-            source: "telemetry.api.fal_submit.internal_media_ref_sign_fallback",
-            message:
-              "Internal reference signing failed; continuing submit with remaining external references.",
-            statusCode: 200,
-            userId: user.id,
-            userEmail: user.email ?? null,
-            metadata: {
-              model_id: modelId,
-              fallback_reference_count: fallbackReferenceCount,
-              detail,
-            },
-          });
-        } else {
-          await logGenerationFailure({
-            req,
-            routeLabel,
-            source: "api.fal_submit.internal_media_ref_sign_failed",
-            message: "Reference media could not be prepared. Please retry.",
-            statusCode: 503,
-            userId: user.id,
-            userEmail: user.email ?? null,
-            metadata: {
-              model_id: modelId,
-              detail,
-            },
-          });
-          res.setHeader("Retry-After", "20");
-          return res.status(503).json({
-            error: "Reference media could not be prepared. Please retry.",
-            detail: "Unable to refresh internal reference media URLs.",
-          });
-        }
+        await logGenerationFailure({
+          req,
+          routeLabel,
+          source: "api.fal_submit.internal_media_ref_sign_failed",
+          message: "Reference media could not be prepared. Please retry.",
+          statusCode: 503,
+          userId: user.id,
+          userEmail: user.email ?? null,
+          metadata: {
+            model_id: modelId,
+            detail,
+          },
+        });
+        res.setHeader("Retry-After", "20");
+        return res.status(503).json({
+          error: "Reference media could not be prepared. Please retry.",
+          detail: "Unable to refresh internal reference media URLs.",
+        });
       }
     }
     if (
@@ -700,53 +599,25 @@ export const createFalSubmitHandler = ({
           referenceImageUrl: signedEditUrls.referenceImageUrl,
         });
       } catch (error) {
-        const fallback = stripInternalEditPayloadUrls({
-          payload,
-          refs: internalEditMediaRefs,
-        });
         const detail = error instanceof Error ? error.message : String(error);
-        if (
-          fallback.expectedFallbackCount > 0 &&
-          fallback.resolvedFallbackCount === fallback.expectedFallbackCount
-        ) {
-          payload = fallback.payload;
-          await logGenerationFailure({
-            req,
-            routeLabel,
-            source: "telemetry.api.fal_submit.internal_edit_media_ref_sign_fallback",
-            message:
-              "Internal edit reference signing failed; continuing submit with external fallback URLs.",
-            statusCode: 200,
-            userId: user.id,
-            userEmail: user.email ?? null,
-            metadata: {
-              model_id: modelId,
-              fallback_reference_count: fallback.resolvedFallbackCount,
-              detail,
-            },
-          });
-        } else {
-          await logGenerationFailure({
-            req,
-            routeLabel,
-            source: "api.fal_submit.internal_edit_media_ref_sign_failed",
-            message: "Edit reference media could not be prepared. Please retry.",
-            statusCode: 503,
-            userId: user.id,
-            userEmail: user.email ?? null,
-            metadata: {
-              model_id: modelId,
-              expected_fallback_count: fallback.expectedFallbackCount,
-              resolved_fallback_count: fallback.resolvedFallbackCount,
-              detail,
-            },
-          });
-          res.setHeader("Retry-After", "20");
-          return res.status(503).json({
-            error: "Edit reference media could not be prepared. Please retry.",
-            detail: "Unable to refresh internal edit media URLs.",
-          });
-        }
+        await logGenerationFailure({
+          req,
+          routeLabel,
+          source: "api.fal_submit.internal_edit_media_ref_sign_failed",
+          message: "Edit reference media could not be prepared. Please retry.",
+          statusCode: 503,
+          userId: user.id,
+          userEmail: user.email ?? null,
+          metadata: {
+            model_id: modelId,
+            detail,
+          },
+        });
+        res.setHeader("Retry-After", "20");
+        return res.status(503).json({
+          error: "Edit reference media could not be prepared. Please retry.",
+          detail: "Unable to refresh internal edit media URLs.",
+        });
       }
     }
     const promptForPolicy = resolveGenerationPromptFromPayload(routeLabel, payload);

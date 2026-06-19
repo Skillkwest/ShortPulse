@@ -38,7 +38,23 @@ const scanTargets = [
 const bannedPatterns = [
   {
     pattern: "SHORTPULSE_FAL_DIRECT_DEBIT_FALLBACK_ENABLED",
-    reason: "reservation-mode generation billing must fail closed instead of direct-debit fallback",
+    reason:
+      "reservation-mode generation billing must fail closed instead of direct-debit fallback",
+  },
+  {
+    pattern: "/api/upload-image",
+    reason:
+      "retired upload-image route must not return to active generation code/docs",
+  },
+  {
+    pattern: "/api/upload-video",
+    reason:
+      "retired upload-video route must not return to active generation code/docs",
+  },
+  {
+    pattern: "/api/upload-audio",
+    reason:
+      "retired upload-audio route must not return to active generation code/docs",
   },
   {
     pattern: "directDebitFallbackEnabled",
@@ -70,7 +86,8 @@ const bannedPatterns = [
   },
   {
     pattern: '.contains("metadata", { source_ref',
-    reason: "generation runtime must not recover by scanning legacy metadata source refs",
+    reason:
+      "generation runtime must not recover by scanning legacy metadata source refs",
   },
   {
     pattern: "allowLegacyFallback",
@@ -82,11 +99,13 @@ const bannedPatterns = [
   },
   {
     pattern: "lookupLegacyCharge",
-    reason: "provider-request settlement must not scan legacy direct-debit charges",
+    reason:
+      "provider-request settlement must not scan legacy direct-debit charges",
   },
   {
     pattern: "settleLegacyDirectDebit",
-    reason: "provider-request settlement must not fall back to direct-debit charge rows",
+    reason:
+      "provider-request settlement must not fall back to direct-debit charge rows",
   },
   {
     pattern: /\bSHORTPULSE_FAL_INTEGRATION_MODE\b/,
@@ -112,44 +131,54 @@ const bannedPatterns = [
   {
     pattern: /(^|[^a-zA-Z0-9_])files\.file([^a-zA-Z0-9_]|$)/,
     label: "files.file",
-    reason: "ElevenLabs speech-to-speech final generation must not accept direct local uploads",
+    reason:
+      "ElevenLabs speech-to-speech final generation must not accept direct local uploads",
   },
   {
     pattern: "sourceFileInput",
-    reason: "ElevenLabs speech-to-speech final generation must not accept direct local uploads",
+    reason:
+      "ElevenLabs speech-to-speech final generation must not accept direct local uploads",
   },
   {
     pattern: "compatibility local upload",
-    reason: "Voice Changer final generation must require staged storage or trusted URL input",
+    reason:
+      "Voice Changer final generation must require staged storage or trusted URL input",
   },
   {
     pattern: "Compatibility local upload",
-    reason: "Voice Changer final generation must require staged storage or trusted URL input",
+    reason:
+      "Voice Changer final generation must require staged storage or trusted URL input",
   },
   {
     pattern: "Legacy Fal compatibility wrapper",
-    reason: "Fal status/runtime policy must use canonical providerIntegration helpers directly",
+    reason:
+      "Fal status/runtime policy must use canonical providerIntegration helpers directly",
   },
   {
     pattern: "defaulting to Fal",
-    reason: "provider resolution must fail closed instead of silently defaulting to Fal",
+    reason:
+      "provider resolution must fail closed instead of silently defaulting to Fal",
   },
   {
     pattern: /resolveProviderFrom(ModelId|GenerationContext)\(\{[^}]*fallback/,
     label: "resolveProviderFrom* fallback",
-    reason: "provider resolution must use catalog/provider context without fallback defaults",
+    reason:
+      "provider resolution must use catalog/provider context without fallback defaults",
   },
   {
     pattern: "submitEndpointRegistry",
-    reason: "Fal browser client must derive submit routes from canonical model catalog metadata",
+    reason:
+      "Fal browser client must derive submit routes from canonical model catalog metadata",
   },
   {
     pattern: "statusEndpointRegistry",
-    reason: "Fal browser client must derive status routes from canonical model catalog metadata",
+    reason:
+      "Fal browser client must derive status routes from canonical model catalog metadata",
   },
   {
     pattern: "endpointModelIdRegistry",
-    reason: "Fal browser client must derive model routes directly from canonical model catalog metadata",
+    reason:
+      "Fal browser client must derive model routes directly from canonical model catalog metadata",
   },
   {
     pattern: "submitFalEndpoint",
@@ -178,20 +207,25 @@ const bannedPatterns = [
   {
     pattern: /\bexport const submit(Fal|Kie)[A-Z]/,
     label: "export const submitFal*/submitKie*",
-    reason: "queued generation submits must use submitQueuedGenerationByModelId",
+    reason:
+      "queued generation submits must use submitQueuedGenerationByModelId",
   },
   {
     pattern: /\bexport const fetch(Fal|Kie)[A-Z][A-Za-z0-9]+Status\b/,
     label: "export const fetchFal*/fetchKie*Status",
-    reason: "queued generation status polling must use fetchQueuedGenerationStatusByModelId",
+    reason:
+      "queued generation status polling must use fetchQueuedGenerationStatusByModelId",
   },
   {
-    pattern: 'falls back to legacy `/{requestId}/status` probing',
-    reason: "Kie status/result polling must use canonical record-info templates only",
+    pattern: "falls back to legacy `/{requestId}/status` probing",
+    reason:
+      "Kie status/result polling must use canonical record-info templates only",
   },
   {
-    pattern: "Status polling is observational only; it does not capture or release reservations.",
-    reason: "provider status polling can now settle terminal outcomes through canonical direct settlement",
+    pattern:
+      "Status polling is observational only; it does not capture or release reservations.",
+    reason:
+      "provider status polling can now settle terminal outcomes through canonical direct settlement",
   },
 ];
 
@@ -242,7 +276,10 @@ for (const filePath of scannedFiles) {
   const content = readFileSync(filePath, "utf8");
   const relativePath = path.relative(repoRoot, filePath);
   for (const { pattern, label, reason } of bannedPatterns) {
-    const found = typeof pattern === "string" ? content.includes(pattern) : pattern.test(content);
+    const found =
+      typeof pattern === "string"
+        ? content.includes(pattern)
+        : pattern.test(content);
     if (!found) continue;
     failures.push({
       relativePath,
@@ -255,9 +292,13 @@ for (const filePath of scannedFiles) {
 if (failures.length > 0) {
   console.error("Retired generation pipeline markers were found:");
   for (const failure of failures) {
-    console.error(`- ${failure.relativePath}: ${failure.pattern} (${failure.reason})`);
+    console.error(
+      `- ${failure.relativePath}: ${failure.pattern} (${failure.reason})`,
+    );
   }
   process.exit(1);
 }
 
-console.log(`Generation pipeline legacy-path guard passed (${scannedFiles.size} files scanned).`);
+console.log(
+  `Generation pipeline legacy-path guard passed (${scannedFiles.size} files scanned).`,
+);

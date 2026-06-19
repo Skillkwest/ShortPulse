@@ -104,6 +104,7 @@ describe("MediaLibraryMediaGrid", () => {
         targetColumnWidth: 220,
         maxColumnCount: undefined,
         layoutMode: "chronological-grid",
+        minItemsToVirtualize: 24,
       })
     );
     expect(container.querySelector(".media-library-panel-density-grid")).toBeNull();
@@ -117,7 +118,8 @@ describe("MediaLibraryMediaGrid", () => {
       expect.objectContaining({
         targetColumnWidth: 188,
         maxColumnCount: 5,
-        layoutMode: "chronological-grid",
+        layoutMode: "masonry",
+        minItemsToVirtualize: 1,
       })
     );
     expect(grid).toHaveClass("media-library-panel-density-grid");
@@ -132,7 +134,7 @@ describe("MediaLibraryMediaGrid", () => {
     );
   });
 
-  it("uses chronological layout mode for panel surfaces", () => {
+  it("uses packed masonry layout mode for panel density surfaces", () => {
     const props = baseProps();
     render(
       <MediaLibraryMediaGrid
@@ -144,7 +146,8 @@ describe("MediaLibraryMediaGrid", () => {
 
     expect(useMediaMasonryVirtualizationMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        layoutMode: "chronological-grid",
+        layoutMode: "masonry",
+        minItemsToVirtualize: 1,
       })
     );
   });
@@ -203,6 +206,31 @@ describe("MediaLibraryMediaGrid", () => {
     const image = screen.getByAltText("portrait.png");
     expect(image).toHaveStyle({ aspectRatio: "0.8" });
     expect(container.querySelector(".media-library-modal-grid")).toBeInTheDocument();
+  });
+
+  it("keeps audio cards square when the assignment layout contract is enabled", () => {
+    const props = baseProps();
+    props.activeMedia = [
+      {
+        id: "audio-1",
+        filename: "voice-note.mp3",
+        storage_path: "user-1/uploads/voice-note.mp3",
+        file_type: "audio/mpeg",
+        created_at: "2026-04-08T18:00:00.000Z",
+        signedUrl: "https://cdn.example.com/voice-note.mp3",
+        metadata: { aspect_ratio: 4 / 5 },
+      },
+    ];
+
+    const { container } = render(
+      <MediaLibraryMediaGrid {...props} fixedVisualAspectRatio={4 / 5} />
+    );
+
+    const latestVirtualizationArgs = useMediaMasonryVirtualizationMock.mock.calls.at(-1)?.[0];
+    expect(latestVirtualizationArgs?.getAspectRatio(props.activeMedia[0])).toBe(1);
+
+    const audioCard = container.querySelector(".media-library-panel-audio-reference-card");
+    expect(audioCard).toHaveStyle({ aspectRatio: "1" });
   });
 
   it("requests a missing signed audio URL and starts playback from one play click", async () => {

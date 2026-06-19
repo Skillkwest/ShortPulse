@@ -701,8 +701,12 @@ export default function ProfilePage() {
         throw new Error(data?.error || "Profile update failed.");
       }
 
+      const savedDisplayName =
+        typeof data?.displayName === "string" && data.displayName.trim().length > 0
+          ? data.displayName.trim()
+          : nextName;
       void refreshSupabaseSession({ preserveSnapshotOnError: true }).catch(() => null);
-      setDisplayNameInput(nextName);
+      setDisplayNameInput(savedDisplayName);
       setNotice({ tone: "success", message: "Profile updated." });
     } catch (error) {
       setNotice({

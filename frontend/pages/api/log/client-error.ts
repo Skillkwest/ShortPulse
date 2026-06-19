@@ -85,7 +85,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       skipped: writeResult.skipped,
       id: writeResult.id,
     });
-  } catch {
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "api.log.client-error.write",
+      user,
+    });
     return res.status(500).json({
       error: "Client error log ingestion failed.",
     });

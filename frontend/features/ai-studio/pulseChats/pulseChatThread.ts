@@ -294,6 +294,61 @@ const sortProjectThreads = (
     return right.threadId.localeCompare(left.threadId);
   });
 
+const resolveProjectThreadRuntimeKey = (thread: PulseChatProjectThreadRecord): string =>
+  `${thread.snapshot.workspace.activePulsePresetId}\u0000${thread.snapshot.workspace.pulseSessionInstanceId}`;
+
+const compareProjectThreadPreference = (
+  left: PulseChatProjectThreadRecord,
+  right: PulseChatProjectThreadRecord,
+  preferredThreadId: string | null
+): PulseChatProjectThreadRecord => {
+  if (right.threadId === preferredThreadId && left.threadId !== preferredThreadId) return right;
+  if (left.threadId === preferredThreadId && right.threadId !== preferredThreadId) return left;
+  const leftMs = Date.parse(left.updatedAt);
+  const rightMs = Date.parse(right.updatedAt);
+  if (leftMs !== rightMs) return rightMs > leftMs ? right : left;
+  return right.threadId.localeCompare(left.threadId) > 0 ? right : left;
+};
+
+const mergeDuplicateProjectThreads = (
+  left: PulseChatProjectThreadRecord,
+  right: PulseChatProjectThreadRecord,
+  preferredThreadId: string | null
+): PulseChatProjectThreadRecord => {
+  const primary = compareProjectThreadPreference(left, right, preferredThreadId);
+  const manualTitleThread =
+    right.titleSource === "manual" && left.titleSource !== "manual"
+      ? right
+      : left.titleSource === "manual" && right.titleSource !== "manual"
+        ? left
+        : null;
+  return manualTitleThread
+    ? {
+        ...primary,
+        title: manualTitleThread.title,
+        titleSource: "manual",
+      }
+    : primary;
+};
+
+const dedupeProjectThreadsByRuntime = (
+  threads: readonly PulseChatProjectThreadRecord[],
+  preferredThreadId: string | null = null
+): PulseChatProjectThreadRecord[] => {
+  const threadsByRuntime = new Map<string, PulseChatProjectThreadRecord>();
+  for (const thread of threads) {
+    const runtimeKey = resolveProjectThreadRuntimeKey(thread);
+    const existingThread = threadsByRuntime.get(runtimeKey);
+    threadsByRuntime.set(
+      runtimeKey,
+      existingThread
+        ? mergeDuplicateProjectThreads(existingThread, thread, preferredThreadId)
+        : thread
+    );
+  }
+  return sortProjectThreads([...threadsByRuntime.values()]);
+};
+
 export const createEmptyPulseChatProjectState = (): PulseChatProjectState => ({
   schemaVersion: PULSE_CHAT_PROJECT_STATE_SCHEMA_VERSION,
   activeThreadId: null,
@@ -330,10 +385,10 @@ export const upsertPulseChatProjectThread = (
     activeThreadId?: string | null;
   }
 ): PulseChatProjectState => {
-  const nextThreads = sortProjectThreads([
-    record,
-    ...state.threads.filter((thread) => thread.threadId !== record.threadId),
-  ]);
+  const nextThreads = dedupeProjectThreadsByRuntime(
+    [record, ...state.threads.filter((thread) => thread.threadId !== record.threadId)],
+    record.threadId
+  );
   const nextActiveThreadId =
     options && "activeThreadId" in options
       ? (options.activeThreadId ?? null)
@@ -382,14 +437,15 @@ export const parsePulseChatProjectState = (value: unknown): PulseChatProjectStat
     : [];
 
   const activeThreadId = normalizeText(typed.activeThreadId);
+  const dedupedThreads = dedupeProjectThreadsByRuntime(parsedThreads, activeThreadId);
 
   return {
     schemaVersion: PULSE_CHAT_PROJECT_STATE_SCHEMA_VERSION,
     activeThreadId:
-      activeThreadId && parsedThreads.some((thread) => thread.threadId === activeThreadId)
+      activeThreadId && dedupedThreads.some((thread) => thread.threadId === activeThreadId)
         ? activeThreadId
         : null,
-    threads: sortProjectThreads(parsedThreads),
+    threads: dedupedThreads,
   };
 };
 

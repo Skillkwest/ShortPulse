@@ -9,7 +9,7 @@ const captureSucceededGenerationByProviderRequestMock = vi.fn();
 const generateElevenLabsVoiceoverMock = vi.fn();
 const listElevenLabsVoicesMock = vi.fn();
 const persistGeneratedAudioAssetMock = vi.fn();
-const markAudioCompanionArtPendingMock = vi.fn();
+const markAudioCompanionArtPendingBestEffortMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -60,8 +60,9 @@ vi.mock("../../lib/server/elevenlabs", () => ({
   },
 }));
 
-vi.mock("../../lib/server/audioCompanionArt/processing", () => ({
-  markAudioCompanionArtPending: (...args: unknown[]) => markAudioCompanionArtPendingMock(...args),
+vi.mock("../../lib/server/audioCompanionArt/routePending", () => ({
+  markAudioCompanionArtPendingBestEffort: (...args: unknown[]) =>
+    markAudioCompanionArtPendingBestEffortMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -111,7 +112,7 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
       sourceRef: "billing-source-tts-1",
       note: "captured",
     });
-    markAudioCompanionArtPendingMock.mockResolvedValue(undefined);
+    markAudioCompanionArtPendingBestEffortMock.mockResolvedValue(undefined);
   });
 
   it("rejects invalid payloads", async () => {
@@ -330,9 +331,12 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
         mimeType: "audio/mpeg",
         durationMs: null,
         waveformPeaks: null,
+        title: "Voiceover Billing Path Verificati 2Y56RG",
         modelId: "eleven_multilingual_v2",
         voiceId: "voice-1",
         voiceName: "Darian",
+        saveState: undefined,
+        saveError: undefined,
       },
     });
   });

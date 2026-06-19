@@ -2,7 +2,7 @@ import sharp from "sharp";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   admitProductImageAssetFromStorageForUser,
-  ProductImageAssetAdmissionError,
+  prepareProductImageAssetUploadForUser,
 } from "../productImageAssetAdmission";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
 
@@ -122,5 +122,26 @@ describe("admitProductImageAssetFromStorageForUser", () => {
         height: 40,
       })
     );
+  });
+
+  it("fails closed when a prepared upload target returns a different storage path", async () => {
+    const { createSignedUploadUrlMock } = setupSupabaseAdmin();
+    createSignedUploadUrlMock.mockResolvedValueOnce({
+      data: {
+        path: "user-2/upload-staging/product-image-assets/character_sheet_preset/source.png",
+        token: "upload-token",
+      },
+      error: null,
+    });
+
+    await expect(
+      prepareProductImageAssetUploadForUser({
+        userId: "user-1",
+        intent: "character_sheet_preset",
+        characterId: "char-1",
+        filename: "source.png",
+        declaredMimeType: "image/png",
+      })
+    ).rejects.toThrow("Signed upload target path did not match requested storage path.");
   });
 });

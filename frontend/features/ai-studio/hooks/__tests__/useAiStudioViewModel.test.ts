@@ -797,6 +797,84 @@ describe("useAiStudioViewModel motion guardrails", () => {
     );
   });
 
+  it("blocks Kling 3.0 standard generation when a visible linked element has only one image", () => {
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        model: KIE_KLING_30_MODEL_ID,
+        videoReferenceMode: "standard",
+        referenceImageUrl: "https://example.com/first-frame.png",
+        motionReferenceVideoUrl: null,
+        klingElements: [
+          {
+            id: "element-1",
+            slotIndex: 0,
+            sourceKind: "element",
+            sourceElementId: "element-1",
+            sourceCharacterId: null,
+            name: "Red Lantern",
+            alias: "redlantern",
+            description: "",
+            profileImageUrl: "https://example.com/red-lantern-profile.png",
+            frontalImageUrl: "https://example.com/red-lantern-front.png",
+            referenceImageUrls: "",
+            videoUrl: "",
+          },
+        ],
+      })
+    );
+
+    expect(result.current.generationGuardrail).toBe(
+      "Kling element Red Lantern needs at least 2 image references before generating."
+    );
+    expect(result.current.isGenerateDisabled).toBe(true);
+  });
+
+  it("does not block Kling 3.0 for hidden Seedance direct images or slots beyond Kling's first three", () => {
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        model: KIE_KLING_30_MODEL_ID,
+        videoReferenceMode: "standard",
+        referenceImageUrl: "https://example.com/first-frame.png",
+        motionReferenceVideoUrl: null,
+        klingElements: [
+          {
+            id: "image-ref-1",
+            slotIndex: 0,
+            sourceKind: "reference-image",
+            sourceElementId: null,
+            sourceCharacterId: null,
+            name: "Image reference",
+            alias: "",
+            description: "",
+            profileImageUrl: "https://example.com/direct-image.png",
+            frontalImageUrl: "https://example.com/direct-image.png",
+            referenceImageUrls: "",
+            videoUrl: "",
+          },
+          {
+            id: "seedance-slot-four",
+            slotIndex: 3,
+            sourceKind: "element",
+            sourceElementId: "element-4",
+            sourceCharacterId: null,
+            name: "Seedance Only",
+            alias: "seedanceonly",
+            description: "",
+            profileImageUrl: "https://example.com/seedance-only-profile.png",
+            frontalImageUrl: "https://example.com/seedance-only-front.png",
+            referenceImageUrls: "",
+            videoUrl: "",
+          },
+        ],
+      })
+    );
+
+    expect(result.current.generationGuardrail).toBeNull();
+    expect(result.current.isGenerateDisabled).toBe(false);
+  });
+
   it("shows the billed cost for Kling motion mode when both motion inputs are present", () => {
     const expectedCost = computeCostForModel(
       KIE_KLING_30_MODEL_ID,

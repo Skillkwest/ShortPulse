@@ -175,6 +175,24 @@ describe("Profile account actions", () => {
     expect(refreshSupabaseSessionModuleMock).toHaveBeenCalledTimes(1);
   });
 
+  it("reflects the server-normalized display name after save", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ displayName: "Alice Normalized" }),
+    });
+    render(<ProfilePage />);
+
+    fireEvent.change(screen.getByLabelText("Display name"), {
+      target: { value: "Alice Normalized With Unsaved Suffix" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Display name")).toHaveValue("Alice Normalized");
+    });
+    expect(await screen.findByRole("status")).toHaveTextContent("Profile updated.");
+  });
+
   it("updates the email through Supabase auth", async () => {
     render(<ProfilePage />);
 

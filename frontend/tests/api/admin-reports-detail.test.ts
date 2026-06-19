@@ -69,4 +69,70 @@ describe("PATCH /api/admin/reports/[reportId]", () => {
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({ error: "Unable to verify report access." });
   });
+
+  it("logs detail load query failures before returning the safe load error", async () => {
+    const loadError = { message: "detail load failed" };
+    const maybeSingleMock = vi.fn().mockResolvedValue({
+      data: null,
+      error: loadError,
+    });
+    const eqMock = vi.fn(() => ({ maybeSingle: maybeSingleMock }));
+    const selectMock = vi.fn(() => ({ eq: eqMock }));
+    const fromMock = vi.fn(() => ({ select: selectMock }));
+    getSupabaseAdminMock.mockReturnValue({ from: fromMock });
+
+    const req = {
+      method: "GET",
+      query: { reportId: "report-1" },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: loadError,
+      routeLabel: "api.admin.reports.[reportId].get",
+      user: { id: "admin-1", email: "admin@example.com" },
+      metadata: {
+        report_id: "report-1",
+      },
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Unable to load that report right now." });
+  });
+
+  it("logs report update failures before returning the safe update error", async () => {
+    const updateError = { message: "report update failed" };
+    const maybeSingleMock = vi.fn().mockResolvedValue({
+      data: null,
+      error: updateError,
+    });
+    const selectMock = vi.fn(() => ({ maybeSingle: maybeSingleMock }));
+    const eqMock = vi.fn(() => ({ select: selectMock }));
+    const updateMock = vi.fn(() => ({ eq: eqMock }));
+    const fromMock = vi.fn(() => ({ update: updateMock }));
+    getSupabaseAdminMock.mockReturnValue({ from: fromMock });
+
+    const req = {
+      method: "PATCH",
+      query: { reportId: "report-1" },
+      body: { status: "reviewing" },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: updateError,
+      routeLabel: "api.admin.reports.[reportId].patch",
+      user: { id: "admin-1", email: "admin@example.com" },
+      metadata: {
+        report_id: "report-1",
+      },
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Unable to update that report right now." });
+  });
 });

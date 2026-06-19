@@ -40,6 +40,7 @@ describe("useReferenceGridCardItemsController", () => {
   it("paints visible non-priority image cards while hydration catches up", () => {
     const item = output({
       mediaSource: "generated",
+      taskState: "success",
       previewUrl: "https://provider.example.com/generated-preview.png",
     });
 

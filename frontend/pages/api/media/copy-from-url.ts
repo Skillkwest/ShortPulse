@@ -1071,28 +1071,17 @@ const validateAiStudioGenerationSourceUrl = async ({
   generationId,
   index,
   candidateUrl,
-  previewStoragePathHint,
-  fullStoragePathHint,
 }: {
   userId: string;
   generationId: string;
   index: number;
   candidateUrl: URL;
-  previewStoragePathHint: string | null;
-  fullStoragePathHint: string | null;
 }): Promise<{ ok: true } | { ok: false; error: string }> => {
   const authority = await readAiStudioGenerationSourceAuthorityByOutputIndex({
     userId,
     generationId,
     index,
   });
-
-  if (previewStoragePathHint) {
-    authority.allowedStoragePaths.add(previewStoragePathHint);
-  }
-  if (fullStoragePathHint) {
-    authority.allowedStoragePaths.add(fullStoragePathHint);
-  }
 
   const internalMediaRef = parseInternalMediaRefFromSupabaseSignedUrl(candidateUrl.toString());
   if (internalMediaRef?.bucket === MEDIA_LIBRARY_BUCKET) {
@@ -1503,8 +1492,6 @@ export default async function handler(
         generationId,
         index,
         candidateUrl: parsedUrl,
-        previewStoragePathHint,
-        fullStoragePathHint,
       });
       if (!sourceAuthority.ok) {
         return res.status(422).json({

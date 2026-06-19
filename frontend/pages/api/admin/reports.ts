@@ -120,6 +120,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     let listResult = await loadPage(requestedPage);
     if (listResult.error) {
+      await logApiRouteException({
+        req,
+        error: listResult.error,
+        routeLabel: "api.admin.reports.list",
+        user: adminUser,
+      });
       return res.status(500).json({
         error: listResult.error.message || "Unable to load reports.",
       });
@@ -132,6 +138,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (page !== requestedPage) {
       listResult = await loadPage(page);
       if (listResult.error) {
+        await logApiRouteException({
+          req,
+          error: listResult.error,
+          routeLabel: "api.admin.reports.list",
+          user: adminUser,
+        });
         return res.status(500).json({
           error: listResult.error.message || "Unable to load reports.",
         });
@@ -160,6 +172,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       hasQueryError(newCountResult) ||
       hasQueryError(reviewingCountResult) ||
       hasQueryError(resolvedCountResult);
+    if (healthDegraded) {
+      await logApiRouteException({
+        req,
+        error: new Error("Issue report summary count query failed."),
+        routeLabel: "api.admin.reports.summary",
+        user: adminUser,
+        metadata: {
+          total_count_error: totalCountResult.error?.message ?? null,
+          new_count_error: newCountResult.error?.message ?? null,
+          reviewing_count_error: reviewingCountResult.error?.message ?? null,
+          resolved_count_error: resolvedCountResult.error?.message ?? null,
+        },
+      });
+    }
 
     return res.status(200).json({
       reports: listResult.data ?? [],

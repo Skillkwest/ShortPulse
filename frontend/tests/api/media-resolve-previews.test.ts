@@ -53,11 +53,13 @@ const setupSupabaseAdmin = ({
   existingObjectNames,
   basenameMatches,
   signedUrlsByPath,
+  storageObjectsError = null,
 }: {
   rows: MediaLookupRow[];
   existingObjectNames: string[];
   basenameMatches?: Record<string, string | null>;
   signedUrlsByPath?: Record<string, string>;
+  storageObjectsError?: { message: string } | null;
 }) => {
   let capturedInNames: string[] = [];
   const ilikePatterns: string[] = [];
@@ -99,10 +101,12 @@ const setupSupabaseAdmin = ({
         in: vi.fn(async (_column: string, names: string[]) => {
           capturedInNames = names;
           return {
-            data: names
-              .filter((name) => existingObjectNames.includes(name))
-              .map((name) => ({ name })),
-            error: null,
+            data: storageObjectsError
+              ? null
+              : names
+                  .filter((name) => existingObjectNames.includes(name))
+                  .map((name) => ({ name })),
+            error: storageObjectsError,
           };
         }),
         ilike: ilikeMock,
@@ -203,6 +207,44 @@ describe("POST /api/media/resolve-previews", () => {
       urls: {
         [row.id]: "https://example.test/signed-scoped",
       },
+    });
+  });
+
+  it("fails closed without signing when storage metadata verification fails", async () => {
+    const row = createRow({
+      id: "media-storage-error-1",
+      storage_path: "user-1/images/storage-error.jpg",
+    });
+    const { createSignedUrlMock, getCapturedInNames, getIlikePatterns } = setupSupabaseAdmin({
+      rows: [row],
+      existingObjectNames: [],
+      storageObjectsError: { message: "storage metadata unavailable" },
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        ids: [row.id],
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(getCapturedInNames()).toEqual([row.storage_path as string]);
+    expect(getIlikePatterns()).toEqual([]);
+    expect(createSignedUrlMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        error: expect.any(Error),
+        routeLabel: "media-resolve-previews",
+        user: { id: "user-1" },
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Failed to resolve media previews",
     });
   });
 

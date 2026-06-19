@@ -24,7 +24,9 @@ import { readRememberedObjectUrlBlob } from "../../utils/objectUrlBlobRegistry";
 import type { VideoSubmissionArgs } from "./types";
 import {
   getAiStudioKlingElementReferenceUrls,
+  getKieKlingSubmittableSlotElements,
   isPromptTokenEligibleKlingElement,
+  resolveKieKlingElementsValidationMessage,
   resolveAiStudioKlingElementDisplayLabel,
   resolveAiStudioKlingElementLegacyTokens,
   resolveKieKlingElementToken,
@@ -1675,10 +1677,21 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
       }
       const kieUploadCache = new Map<string, Promise<string>>();
       let elementsPayload: ReturnType<typeof buildKieKlingElementsPayload>;
-      let preparedKlingElements: AiStudioKlingElement[] = klingElements;
+      let preparedKlingElements: AiStudioKlingElement[] =
+        getKieKlingSubmittableSlotElements(klingElements);
+      const klingElementValidationMessage = resolveKieKlingElementsValidationMessage(klingElements);
+      if (klingElementValidationMessage) {
+        notifyGenerationFailure(
+          id,
+          klingElementValidationMessage,
+          undefined,
+          VALIDATION_FAILURE_CONTEXT
+        );
+        return { handled: true };
+      }
       try {
         preparedKlingElements = await Promise.all(
-          klingElements.filter(isPromptTokenEligibleKlingElement).map(
+          preparedKlingElements.map(
             async (element) =>
               await prepareKieHostedKlingElementForSubmission({
                 element,

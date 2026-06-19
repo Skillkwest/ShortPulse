@@ -1797,6 +1797,48 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     );
   });
 
+  it("fails closed before provider submit when a visible Kling element has only one image", async () => {
+    const args = makeArgs({
+      finalModel: KIE_KLING_30_MODEL_ID,
+      modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
+      videoReferenceMode: "standard",
+      cleanedPrompt: "A dancer twirls",
+      preparedImageInputs: ["https://example.com/start.png"],
+      rawImageInputs: ["https://example.com/start.png"],
+      klingElements: [
+        {
+          id: "element-1",
+          slotIndex: 0,
+          sourceKind: "element",
+          sourceElementId: "element-1",
+          sourceCharacterId: null,
+          name: "Red Lantern",
+          alias: "redlantern",
+          description: "",
+          profileImageUrl: "https://example.com/red-lantern-profile.png",
+          frontalImageUrl: "https://example.com/red-lantern-front.png",
+          referenceImageUrls: "",
+          videoUrl: "",
+        },
+      ],
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
+      expect.any(String),
+      "Kling element Red Lantern needs at least 2 image references before generating.",
+      undefined,
+      {
+        telemetryMode: "validation",
+        reasonCode: "USER_INPUT_VALIDATION",
+      }
+    );
+    expect(fetchWithAuth).not.toHaveBeenCalled();
+    expect(submitKieKlingImageToVideo).not.toHaveBeenCalled();
+  });
+
   it("normalizes stale Kling custom state to the visible Multi payload contract", async () => {
     const args = makeArgs({
       finalModel: KIE_KLING_30_MODEL_ID,

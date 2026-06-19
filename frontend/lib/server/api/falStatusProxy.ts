@@ -896,8 +896,13 @@ export const createFalStatusHandler = ({
         resolvedQueueBaseUrl = queueBaseUrls[0] ?? null;
       }
 
+      // Kie status payloads can echo input media while still running; only terminal Kie status media settles.
       const bestStatusMediaCandidate = statusCandidates.find(
-        (candidate) => candidate.probe.isHttpOk && candidate.probe.hasMedia && candidate.data.isJson
+        (candidate) =>
+          candidate.probe.isHttpOk &&
+          candidate.probe.hasMedia &&
+          candidate.data.isJson &&
+          (providerKey !== "kie" || candidate.probe.isCompleted)
       );
       if (bestStatusMediaCandidate) {
         return captureAndRespondSuccess({
@@ -982,7 +987,13 @@ export const createFalStatusHandler = ({
             payload: statusData.json,
           })
         ) {
-          if (payloadHasMedia(statusData.json)) {
+          if (
+            payloadHasMedia(statusData.json) &&
+            (providerKey !== "kie" ||
+              (normalizedStatus
+                ? isProviderCompletedStatus({ provider: providerKey, status: normalizedStatus })
+                : false))
+          ) {
             return captureAndRespondSuccess({
               payload: statusData.json,
               payloadStatus: resolveProviderSuccessfulPayloadStatus({

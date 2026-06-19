@@ -493,6 +493,102 @@ describe("useAiStudioAudioGeneration", () => {
     });
   });
 
+  it("keeps generated audio playable when autosave is blocked by storage limits", async () => {
+    let outputs: StudioOutput[] = [];
+    let uiError: string | null = null;
+
+    const setUiError = asDispatch<string | null>((value) => {
+      uiError = typeof value === "function" ? value(uiError) : value;
+    });
+    const setOutputs = asDispatch<StudioOutput[]>((value) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+    const insertOptimisticGenerationPlaceholder = vi.fn(({ prompt }: { prompt: string }) => {
+      outputs = [createPlaceholderOutput("out-voiceover-storage", prompt), ...outputs];
+      return "out-voiceover-storage";
+    });
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
+    });
+    const notifyGenerationFailure = vi.fn();
+
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        output: {
+          provider: "elevenlabs",
+          mode: "audio",
+          generationId: "gen-voiceover-storage",
+          mediaFileId: null,
+          requestId: "req-voiceover-storage",
+          previewUrl: "https://example.com/voiceover-storage.mp3",
+          resultUrls: ["https://example.com/voiceover-storage.mp3"],
+          previewStoragePath: "preview/voiceover-storage.mp3",
+          fullStoragePath: "full/voiceover-storage.mp3",
+          mimeType: "audio/mpeg",
+          durationMs: null,
+          waveformPeaks: null,
+          title: "Storage Limit Voiceover A1B2",
+          modelId: hardcodedVoiceoverModelId,
+          voiceId: "voice-1",
+          voiceName: "Narrator",
+          saveState: "blocked_storage",
+          saveError: "Storage is full. Delete media or upgrade storage to save this output.",
+        },
+      }),
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioAudioGeneration({
+        projectId: "project-1",
+        setUiError,
+        insertOptimisticGenerationPlaceholder,
+        notifyGenerationFailure,
+        updateOutputById,
+        setOutputs,
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleVoicesGenerate({
+        mode: "voiceover",
+        voice: {
+          id: "voice-1",
+          name: "Narrator",
+          librarySection: "my",
+          provider: "elevenlabs",
+        },
+        script: "This audio should stay playable even when autosave is blocked.",
+        outputFormat: "mp3_44100_128",
+        config: {
+          model_id: hardcodedVoiceoverModelId,
+          language_code: null,
+          voice_settings: {
+            stability: 1,
+            similarity_boost: 1,
+            speed: 1,
+            style: 0,
+            use_speaker_boost: true,
+          },
+        },
+      });
+    });
+
+    expect(uiError).toBeNull();
+    expect(notifyGenerationFailure).not.toHaveBeenCalled();
+    expect(outputs).toHaveLength(1);
+    expect(outputs[0]).toMatchObject({
+      id: "out-voiceover-storage",
+      mode: "audio",
+      title: "Storage Limit Voiceover A1B2",
+      savedMediaIds: [],
+      taskState: "success",
+      previewUrl: "https://example.com/voiceover-storage.mp3",
+      saveState: "blocked_storage",
+      saveError: "Storage is full. Delete media or upgrade storage to save this output.",
+    });
+  });
+
   it("prepends a remuxed video output for voice changer generations", async () => {
     let outputs: StudioOutput[] = [];
     let uiError: string | null = null;
@@ -533,6 +629,8 @@ describe("useAiStudioAudioGeneration", () => {
           voiceId: "voice-1",
           voiceName: "Narrator",
           transcriptText: "I can hear the city waking up below us.",
+          saveState: "blocked_storage",
+          saveError: "Storage is full. Delete media or upgrade storage to save this output.",
         },
         remuxedVideo: {
           provider: "elevenlabs",
@@ -549,6 +647,8 @@ describe("useAiStudioAudioGeneration", () => {
           mimeType: "video/mp4",
           modelId: "eleven_multilingual_sts_v2",
           transcriptText: "I can hear the city waking up below us.",
+          saveState: "blocked_storage",
+          saveError: "Storage is full. Delete media or upgrade storage to save this video.",
         },
       }),
     });
@@ -643,6 +743,8 @@ describe("useAiStudioAudioGeneration", () => {
       previewPosterUrl: "https://example.com/voice-poster.jpg",
       previewPosterStoragePath: "preview/posters/voice.jpg",
       aspect: "16:9",
+      saveState: "blocked_storage",
+      saveError: "Storage is full. Delete media or upgrade storage to save this video.",
     });
     expect(outputs[1]).toMatchObject({
       id: "out-voice",
@@ -652,6 +754,8 @@ describe("useAiStudioAudioGeneration", () => {
       savedMediaIds: ["media-voice"],
       taskState: "success",
       title: "City Take A1B2",
+      saveState: "blocked_storage",
+      saveError: "Storage is full. Delete media or upgrade storage to save this output.",
     });
   });
 

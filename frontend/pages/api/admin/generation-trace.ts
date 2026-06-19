@@ -489,6 +489,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (lineage.requestId) resolvedRequestIds.add(lineage.requestId);
         if (lineage.providerRequestId) resolvedRequestIds.add(lineage.providerRequestId);
       } catch (error) {
+        await logApiRouteException({
+          req,
+          error,
+          routeLabel: "admin.generation_trace.provider_request_lineage",
+          metadata: {
+            query_user_id: userId ?? null,
+            provider_request_id: requestId ?? null,
+          },
+          user: adminUser,
+        });
         warnings.push(`shared lineage provider request lookup failed: ${readErrorMessage(error)}`);
       }
     }
@@ -507,6 +517,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (lineage.requestId) resolvedRequestIds.add(lineage.requestId);
         if (lineage.providerRequestId) resolvedRequestIds.add(lineage.providerRequestId);
       } catch (error) {
+        await logApiRouteException({
+          req,
+          error,
+          routeLabel: "admin.generation_trace.source_ref_lineage",
+          metadata: {
+            query_user_id: userId ?? null,
+            trace_id: traceId ?? null,
+          },
+          user: adminUser,
+        });
         warnings.push(`shared lineage source_ref lookup failed: ${readErrorMessage(error)}`);
       }
     }

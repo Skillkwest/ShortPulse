@@ -95,6 +95,62 @@ describe("account identity routes", () => {
     expect(res.json).toHaveBeenCalledWith({ displayName: "Alice Example" });
   });
 
+  it("trims and caps display names before writing account identity", async () => {
+    const longDisplayName = `  ${"A".repeat(100)}  `;
+    const req = {
+      method: "POST",
+      body: { displayName: longDisplayName },
+      headers: { authorization: "Bearer token" },
+    };
+    const res = createMockResponse();
+
+    await profileHandler(req as never, res as never);
+
+    const normalizedDisplayName = "A".repeat(80);
+    expect(updateSupabaseAuthUserMock).toHaveBeenCalledWith({
+      req,
+      payload: {
+        data: {
+          display_name: normalizedDisplayName,
+          full_name: normalizedDisplayName,
+        },
+      },
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ displayName: normalizedDisplayName });
+  });
+
+  it("rate limits repeated profile update attempts for the same authenticated user", async () => {
+    for (let index = 0; index < 10; index += 1) {
+      const req = {
+        method: "POST",
+        body: { displayName: `Alice ${index}` },
+        headers: { authorization: "Bearer token" },
+        socket: { remoteAddress: "127.0.0.1" },
+      };
+      const res = createMockResponse();
+      await profileHandler(req as never, res as never);
+      expect(res.status).toHaveBeenCalledWith(200);
+    }
+
+    const blockedReq = {
+      method: "POST",
+      body: { displayName: "Blocked Alice" },
+      headers: { authorization: "Bearer token" },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
+    const blockedRes = createMockResponse();
+
+    await profileHandler(blockedReq as never, blockedRes as never);
+
+    expect(updateSupabaseAuthUserMock).toHaveBeenCalledTimes(10);
+    expect(blockedRes.status).toHaveBeenCalledWith(429);
+    expect(blockedRes.json).toHaveBeenCalledWith({
+      error: "Too many requests",
+      retryAfterSeconds: expect.any(Number),
+    });
+  });
+
   it("keeps a successful profile update when downstream Stripe sync fails", async () => {
     syncStripeCustomerForUserMock.mockRejectedValueOnce(
       new Error("Stripe customer mode mismatch detected.")

@@ -465,6 +465,60 @@ describe("workflowReload", () => {
     expect(isWorkflowReloadConfigV1(voiceChangerReload)).toBe(true);
   });
 
+  it("does not coerce audio workflow reload metadata into a video reload", () => {
+    const voiceChangerReload = buildWorkflowReloadConfigV1({
+      capturedAt: "2026-06-06T12:00:00.000Z",
+      originTool: "voice-changer",
+      panelKind: "voices",
+      outputMode: "audio",
+      prompt: { display: "source.mp4 -> Narrator" },
+      model: { id: "elevenlabs/voice-changer" },
+      payload: {
+        kind: "voice-changer",
+        source: {
+          name: "source.mp4",
+          origin: "storage",
+          storagePath: "user-1/voice-changer/source.wav",
+          extractedFrom: {
+            name: "source.mp4",
+            storagePath: "user-1/voice-changer/source.mp4",
+            mimeType: "video/mp4",
+            aspect: "16:9",
+          },
+        },
+        voiceId: "voice-1",
+        voiceName: "Narrator",
+        outputFormat: "mp3_44100_128",
+        modelId: "elevenlabs/voice-changer",
+        inputFormat: "wav",
+        removeBackgroundNoise: true,
+        voiceSettings: { stability: 1 },
+      },
+    });
+    const remuxedVideoOutput: StudioOutput = {
+      id: "generated:video-1",
+      prompt: "source.mp4 -> Narrator video",
+      mode: "video",
+      aspect: "16:9",
+      model: "ElevenLabs Voice Changer",
+      modelId: "elevenlabs/voice-changer",
+      status: "ready",
+      timestamp: "Just now",
+      taskState: "success",
+      mediaSource: "generated",
+      mimeType: "video/mp4",
+      previewUrl: "https://example.com/remuxed.mp4",
+      workflowReload: voiceChangerReload ?? undefined,
+    };
+
+    expect(resolveWorkflowReloadConfigForOutput(remuxedVideoOutput)).toBeNull();
+    expect(
+      resolveWorkflowReloadConfigForOutput(remuxedVideoOutput, { mediaKindHint: "video" })
+    ).toBeNull();
+    expect(canReloadWorkflowOutput(remuxedVideoOutput)).toBe(false);
+    expect(canReloadWorkflowOutput(remuxedVideoOutput, { mediaKindHint: "video" })).toBe(false);
+  });
+
   it("derives a documented image reload config from valid generation replay", () => {
     const reload = deriveImageWorkflowReloadFromGenerationReplay({
       version: 2,

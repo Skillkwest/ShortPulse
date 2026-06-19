@@ -1059,6 +1059,13 @@ export const resolveWorkflowReloadConfigForOutput = (
     ? output.workflowReload
     : null;
   if (workflowReload?.payload.kind === "video") return workflowReload;
+  if (
+    workflowReload &&
+    workflowPayloadKindToMediaKind(workflowReload.payload.kind) === "audio" &&
+    (options.mediaKindHint === "video" || hasVideoDelivery(output))
+  ) {
+    return null;
+  }
   const mediaKind = inferWorkflowReloadMediaKindForOutput(output, options);
   if (mediaKind === "video") {
     return deriveVideoWorkflowReloadFromOutput(output);

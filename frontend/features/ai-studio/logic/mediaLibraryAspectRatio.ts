@@ -16,6 +16,7 @@ type MediaDragDimensionsInput = MediaAspectRatioInput & {
 };
 
 const MEDIA_IMAGE_FALLBACK_ASPECT_RATIO = 4 / 5;
+export const MEDIA_AUDIO_CARD_ASPECT_RATIO = 1;
 const MEDIA_VIDEO_FALLBACK_ASPECT_RATIO = 16 / 9;
 const MEDIA_ASPECT_RATIO_MIN = 0.3;
 const MEDIA_ASPECT_RATIO_MAX = 3;
@@ -33,6 +34,9 @@ const clampAspectRatio = (ratio: number): number =>
 
 const isVideoFileType = (fileType?: string | null): boolean =>
   (fileType ?? "").toLowerCase().startsWith("video");
+
+const isAudioFileType = (fileType?: string | null): boolean =>
+  (fileType ?? "").toLowerCase().startsWith("audio");
 
 const resolveMetadataAspectRatio = (metadata?: Record<string, unknown> | null): number | null => {
   if (!metadata) return null;
@@ -71,6 +75,7 @@ export const resolveMediaCardAspectRatio = ({
   height,
   metadata,
 }: MediaAspectRatioInput): number => {
+  if (isAudioFileType(fileType)) return MEDIA_AUDIO_CARD_ASPECT_RATIO;
   const rowRatio = resolveRowAspectRatio({ width, height });
   if (rowRatio) return rowRatio;
   const metadataRatio = resolveMetadataAspectRatio(metadata);
@@ -91,6 +96,13 @@ export const resolveMediaDragDimensions = ({
   metadata,
   visualAspectRatio,
 }: MediaDragDimensionsInput): { width: number; height: number } => {
+  if (isAudioFileType(fileType)) {
+    return {
+      width: MEDIA_DRAG_DIMENSION_BASE,
+      height: MEDIA_DRAG_DIMENSION_BASE,
+    };
+  }
+
   const resolvedWidth = toPositiveNumber(width);
   const resolvedHeight = toPositiveNumber(height);
   if (resolvedWidth && resolvedHeight) {

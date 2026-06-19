@@ -132,6 +132,18 @@ describe("POST /api/admin/errors-status", () => {
     const res = createMockResponse();
     await handler(req as never, res as never);
 
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: { code: "P0002", message: "Event not found." },
+      routeLabel: "admin/errors-status.rpc",
+      user: { id: "admin-1", email: "admin@example.com" },
+      metadata: {
+        target_error_id: null,
+        target_event_id: "evt-missing",
+        target_status: "open",
+        rpc_error_code: "P0002",
+      },
+    });
     expect(res.status).toHaveBeenCalledWith(404);
     expect(res.json).toHaveBeenCalledWith({ error: "Event not found." });
   });
@@ -189,6 +201,17 @@ describe("POST /api/admin/errors-status", () => {
     const res = createMockResponse();
     await handler(req as never, res as never);
 
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: expect.any(Error),
+      routeLabel: "admin/errors-status.rpc-payload",
+      user: { id: "admin-1", email: "admin@example.com" },
+      metadata: {
+        target_error_id: "inc-missing",
+        target_event_id: null,
+        target_status: "resolved",
+      },
+    });
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({ error: "Unable to update incident status." });
   });

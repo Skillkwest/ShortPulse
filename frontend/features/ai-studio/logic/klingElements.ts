@@ -35,6 +35,20 @@ export type AiStudioKlingElement = {
   videoUrl: string;
 };
 
+export type AiStudioKlingElementMediaKind = "none" | "image" | "video" | "mixed";
+
+export type AiStudioKlingElementProviderEligibility = {
+  isSubmittable: boolean;
+  mediaKind: AiStudioKlingElementMediaKind;
+  imageUrls: string[];
+  videoUrls: string[];
+  reason: string | null;
+};
+
+export const KIE_KLING_ELEMENT_SLOT_LIMIT = 3;
+export const KIE_KLING_MIN_IMAGE_ELEMENT_URLS = 2;
+export const KIE_KLING_MAX_IMAGE_ELEMENT_URLS = 4;
+
 export const createEmptyAiStudioKlingElement = (): AiStudioKlingElement => ({
   id: randomId(),
   slotIndex: undefined,
@@ -95,6 +109,155 @@ export const getAiStudioKlingElementReferenceUrls = (
     .map((value) => value.trim())
     .filter(Boolean);
   return [frontal, ...references].filter(Boolean);
+};
+
+const resolveKlingElementDisplayName = (
+  element: Pick<AiStudioKlingElement, "name" | "alias" | "slotIndex">,
+  fallbackLabel?: string | null
+): string => {
+  const label = fallbackLabel?.trim();
+  if (label) return label;
+  const name = element.name?.trim();
+  if (name) return name;
+  const alias = element.alias?.trim();
+  if (alias) return alias;
+  return `slot ${(element.slotIndex ?? 0) + 1}`;
+};
+
+const dedupeTrimmedUrls = (urls: string[]): string[] =>
+  Array.from(new Set(urls.map((url) => url.trim()).filter(Boolean)));
+
+export const resolveAiStudioKlingElementMediaKind = (
+  element: Pick<AiStudioKlingElement, "frontalImageUrl" | "referenceImageUrls" | "videoUrl">
+): AiStudioKlingElementMediaKind => {
+  const hasImages = getAiStudioKlingElementReferenceUrls(element).length > 0;
+  const hasVideo = element.videoUrl.trim().length > 0;
+  if (hasImages && hasVideo) return "mixed";
+  if (hasVideo) return "video";
+  if (hasImages) return "image";
+  return "none";
+};
+
+/**
+ * Resolves whether a linked slot can be sent to Kie Kling's `kling_elements` contract.
+ */
+export const resolveKieKlingElementProviderEligibility = (
+  element: AiStudioKlingElement,
+  options: { displayName?: string | null } = {}
+): AiStudioKlingElementProviderEligibility => {
+  const imageUrls = dedupeTrimmedUrls(getAiStudioKlingElementReferenceUrls(element));
+  const videoUrls = dedupeTrimmedUrls([element.videoUrl]);
+  const hasImages = imageUrls.length > 0;
+  const hasVideo = videoUrls.length > 0;
+  const displayName = resolveKlingElementDisplayName(element, options.displayName);
+
+  if (isSeedanceImageReferenceSlot(element)) {
+    return {
+      isSubmittable: false,
+      mediaKind: hasImages ? "image" : "none",
+      imageUrls,
+      videoUrls: [],
+      reason: null,
+    };
+  }
+
+  if (hasImages && hasVideo) {
+    return {
+      isSubmittable: false,
+      mediaKind: "mixed",
+      imageUrls,
+      videoUrls,
+      reason: `Kling element ${displayName} must use either one video reference or 2-4 image references, not both.`,
+    };
+  }
+
+  if (hasVideo) {
+    return {
+      isSubmittable: true,
+      mediaKind: "video",
+      imageUrls: [],
+      videoUrls,
+      reason: null,
+    };
+  }
+
+  if (hasImages) {
+    if (imageUrls.length < KIE_KLING_MIN_IMAGE_ELEMENT_URLS) {
+      return {
+        isSubmittable: false,
+        mediaKind: "image",
+        imageUrls,
+        videoUrls: [],
+        reason: `Kling element ${displayName} needs at least 2 image references before generating.`,
+      };
+    }
+    return {
+      isSubmittable: true,
+      mediaKind: "image",
+      imageUrls: imageUrls.slice(0, KIE_KLING_MAX_IMAGE_ELEMENT_URLS),
+      videoUrls: [],
+      reason: null,
+    };
+  }
+
+  return {
+    isSubmittable: false,
+    mediaKind: "none",
+    imageUrls: [],
+    videoUrls: [],
+    reason: null,
+  };
+};
+
+export const resolveSeedanceElementProviderEligibility = (
+  element: AiStudioKlingElement
+): AiStudioKlingElementProviderEligibility => {
+  const imageUrls = dedupeTrimmedUrls(getAiStudioKlingElementReferenceUrls(element));
+  const videoUrls = dedupeTrimmedUrls([element.videoUrl]);
+  const mediaKind = resolveAiStudioKlingElementMediaKind(element);
+  return {
+    isSubmittable: Boolean(imageUrls.length || videoUrls.length),
+    mediaKind,
+    imageUrls,
+    videoUrls,
+    reason: null,
+  };
+};
+
+const resolveElementSlotIndex = (element: AiStudioKlingElement, fallbackIndex: number): number =>
+  typeof element.slotIndex === "number" &&
+  Number.isInteger(element.slotIndex) &&
+  element.slotIndex >= 0
+    ? element.slotIndex
+    : fallbackIndex;
+
+export const getKieKlingSubmittableSlotElements = (
+  elements: AiStudioKlingElement[]
+): AiStudioKlingElement[] =>
+  elements
+    .map((element, index) => ({
+      element,
+      slotIndex: resolveElementSlotIndex(element, index),
+    }))
+    .filter(({ element, slotIndex }) =>
+      Boolean(
+        slotIndex < KIE_KLING_ELEMENT_SLOT_LIMIT && isPromptTokenEligibleKlingElement(element)
+      )
+    )
+    .sort((left, right) => left.slotIndex - right.slotIndex)
+    .map(({ element, slotIndex }) =>
+      element.slotIndex === slotIndex ? element : { ...element, slotIndex }
+    );
+
+export const resolveKieKlingElementsValidationMessage = (
+  elements: AiStudioKlingElement[]
+): string | null => {
+  const submittableSlotElements = getKieKlingSubmittableSlotElements(elements);
+  for (const element of submittableSlotElements) {
+    const eligibility = resolveKieKlingElementProviderEligibility(element);
+    if (eligibility.reason) return eligibility.reason;
+  }
+  return null;
 };
 
 export const normalizeAiStudioKlingCharacterToken = (value: string): string =>

@@ -84,6 +84,60 @@ describe("useAiStudioReferenceSelectionState", () => {
     );
   });
 
+  it("preserves video frame and motion references when navigating away from video and back", async () => {
+    const { result } = renderHook(() =>
+      useAiStudioReferenceSelectionState({ activeOutputPreviewUrl: null })
+    );
+
+    act(() => {
+      result.current.setSelectedTool("video");
+    });
+
+    await waitFor(() => expect(result.current.selectedTool).toBe("video"));
+
+    act(() => {
+      result.current.setReferenceImageUrl("https://example.com/video-character.png");
+      result.current.setExtraImageUrl(0, "https://example.com/video-last-frame.png");
+    });
+
+    await waitFor(() =>
+      expect(result.current.referenceImageUrl).toBe("https://example.com/video-character.png")
+    );
+
+    act(() => {
+      result.current.setMotionReferenceVideoUrl("https://example.com/motion-reference.mp4");
+    });
+
+    act(() => {
+      result.current.setSelectedTool("create");
+    });
+
+    expect(result.current.referenceImageUrl).toBeNull();
+    expect(result.current.extraImageUrls.every((url) => url === null)).toBe(true);
+
+    act(() => {
+      result.current.setSelectedTool("edit");
+    });
+
+    expect(result.current.referenceImageUrl).toBeNull();
+
+    act(() => {
+      result.current.setSelectedTool("video");
+    });
+
+    await waitFor(() => expect(result.current.selectedTool).toBe("video"));
+
+    expect(result.current.referenceImageUrl).toBe("https://example.com/video-character.png");
+    expect(result.current.extraImageUrls[0]).toBe("https://example.com/video-last-frame.png");
+    expect(result.current.motionReferenceVideoUrl).toBe("https://example.com/motion-reference.mp4");
+    expect(result.current.resolveReferenceInputsForTool("video")).toEqual(
+      expect.objectContaining({
+        referenceImageUrl: "https://example.com/video-character.png",
+        extraImageUrls: ["https://example.com/video-last-frame.png", null, null],
+      })
+    );
+  });
+
   it("keeps reference inputs isolated by project/session authority key", () => {
     const { result, rerender } = renderHook(
       ({ authorityKey }: { authorityKey: string }) =>

@@ -54,8 +54,8 @@ describe("admin dashboard tutorial thumbnail upload APIs", () => {
   });
 
   it("prepares a signed upload target for a valid thumbnail file", async () => {
-    const createSignedUploadUrlMock = vi.fn(async () => ({
-      data: { path: "tutorial-thumbnails/generated.gif", token: "upload-token" },
+    const createSignedUploadUrlMock = vi.fn(async (storagePath: string) => ({
+      data: { path: storagePath, token: "upload-token" },
       error: null,
     }));
     const storageFromMock = vi.fn(() => ({ createSignedUploadUrl: createSignedUploadUrlMock }));
@@ -79,13 +79,46 @@ describe("admin dashboard tutorial thumbnail upload APIs", () => {
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       target: {
-        storagePath: "tutorial-thumbnails/generated.gif",
+        storagePath: expect.stringMatching(/^tutorial-thumbnails\/.+\.gif$/),
         uploadToken: "upload-token",
         mimeType: "image/gif",
         mediaType: "image",
         maxBytes: 52428800,
       },
     });
+  });
+
+  it("fails closed when thumbnail preparation returns a different storage path", async () => {
+    const createSignedUploadUrlMock = vi.fn(async () => ({
+      data: { path: "tutorial-thumbnails/foreign.gif", token: "upload-token" },
+      error: null,
+    }));
+    const storageFromMock = vi.fn(() => ({ createSignedUploadUrl: createSignedUploadUrlMock }));
+    getSupabaseAdminMock.mockReturnValue({ storage: { from: storageFromMock } });
+
+    const req = {
+      method: "POST",
+      body: {
+        sourceMimeType: "image/gif",
+        sourceSize: 1234,
+      },
+    };
+    const res = createMockResponse();
+
+    await prepareHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to prepare thumbnail upload.",
+    });
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "admin/dashboard/tutorial-thumbnail/prepare",
+        error: expect.objectContaining({
+          message: "Signed upload target path did not match requested storage path.",
+        }),
+      })
+    );
   });
 
   it("rejects unsupported thumbnail file types before storage", async () => {

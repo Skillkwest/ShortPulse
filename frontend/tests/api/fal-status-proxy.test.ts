@@ -421,6 +421,69 @@ describe("createFalStatusHandler", () => {
     expect(settleDirectGenerationSuccessMock).not.toHaveBeenCalled();
   });
 
+  it("does not settle nonterminal Kie media echoes before provider completion", async () => {
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/kling-3.0";
+    process.env.SHORTPULSE_KIE_TRUSTED_HOSTS = "kie.ai";
+    process.env.KIE_API_KEY = "test-kie-key";
+    persistedGenerationRows = [
+      {
+        id: "gen-kie-running-echo",
+        request_id: "req-kie-running-echo",
+        status: "processing",
+        metadata: {},
+      },
+    ];
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          code: 200,
+          msg: "success",
+          data: {
+            taskId: "req-kie-running-echo",
+            successFlag: 0,
+            response: {
+              image_url: "https://cdn.shortpulse.test/input-character.png",
+            },
+          },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      provider: "kie",
+      modelId: "kie-ai/kling-3.0",
+      queueBaseUrl: "https://api.kie.ai/api/v1/jobs/recordInfo?taskId={requestId}",
+      routeLabel: "Kie Kling 3.0",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-kie-running-echo" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(settleDirectGenerationSuccessMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-kie-running-echo",
+        shortpulseLifecycle: expect.objectContaining({
+          taskState: "running",
+          isTerminal: false,
+          providerState: "running",
+        }),
+      })
+    );
+  });
+
   it("returns canonical completed payload immediately when direct settlement persists outputs", async () => {
     process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
     process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";

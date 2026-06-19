@@ -20,7 +20,7 @@ import {
   generateElevenLabsMusic,
   persistGeneratedAudioAsset,
 } from "../../../lib/server/elevenlabs";
-import { markAudioCompanionArtPending } from "../../../lib/server/audioCompanionArt/processing";
+import { markAudioCompanionArtPendingBestEffort } from "../../../lib/server/audioCompanionArt/routePending";
 import { probeMediaDurationSeconds } from "../../../lib/server/mediaAudioExtraction";
 import { readGenerationWorkspaceRuntimeKeyFromContext } from "../../../lib/server/api/generationWorkspaceRuntimeKey";
 import { generateMusicSongTitleBestEffort } from "../../../lib/server/audioTitleGeneration";
@@ -382,9 +382,12 @@ export default async function handler(
       },
     });
     const persistedSongTitle = persisted.displayTitle ?? songTitle;
-    await markAudioCompanionArtPending({
+    await markAudioCompanionArtPendingBestEffort({
+      req,
+      routeLabel: "elevenlabs-music",
       generationId: persisted.generationId,
       userId: charge.userId,
+      user,
     });
 
     return res.status(200).json({

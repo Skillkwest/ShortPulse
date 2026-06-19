@@ -62,11 +62,12 @@ export const classifyReferenceGridCardVisualState = ({
   const hasDurableMediaAuthority = hasStorageAuthority(item);
   const hasDurableStoragePathAuthority = hasOutputStoragePaths(item);
   const hasRenderableCardMedia = hasRenderablePreview && (!isImagePreview || Boolean(imageSrc));
-  const hasRenderableGeneratedMedia = item.mediaSource === "generated" && hasRenderableCardMedia;
-  const hasLoadedGeneratedMedia =
-    item.mediaSource === "generated" &&
-    hasRenderablePreview &&
-    (isLoaded || hasRenderableGeneratedMedia);
+  const hasTerminalGeneratedPreview =
+    item.mediaSource === "generated" && item.taskState === "success" && hasRenderableCardMedia;
+  const hasRenderableGeneratedMedia =
+    (item.mediaSource === "generated" && hasRenderableCardMedia && hasDurableMediaAuthority) ||
+    hasTerminalGeneratedPreview;
+  const hasLoadedGeneratedMedia = hasRenderableGeneratedMedia;
   const isGenerationLoading =
     !isFailing &&
     !hasDurableMediaAuthority &&

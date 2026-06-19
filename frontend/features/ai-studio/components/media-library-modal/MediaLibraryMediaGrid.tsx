@@ -12,7 +12,10 @@ import {
   MEDIA_LIBRARY_VIRTUALIZATION_ENABLED,
   type MediaLibraryGridDensityConfig,
 } from "../../../media-library/logic/mediaLibraryRuntimeConfig";
-import { resolveMediaCardAspectRatio } from "../../logic/mediaLibraryAspectRatio";
+import {
+  MEDIA_AUDIO_CARD_ASPECT_RATIO,
+  resolveMediaCardAspectRatio,
+} from "../../logic/mediaLibraryAspectRatio";
 import {
   isVideoFile,
   type MediaFileRow,
@@ -109,6 +112,7 @@ export function MediaLibraryMediaGrid({
   const { aspectRatioById, cacheAspectRatio } = useMediaAspectRatioCache(activeMedia);
   const targetColumnWidth = densityConfig?.targetColumnWidth ?? 220;
   const cardPreviewLongEdgePx = densityConfig?.previewLongEdgePx ?? 320;
+  const shouldUsePackedMasonryLayout = Boolean(densityConfig);
 
   const {
     containerRef: virtualContainerRef,
@@ -120,8 +124,8 @@ export function MediaLibraryMediaGrid({
     getItemId: (item) => item.id,
     getAspectRatio: (item) => {
       const mediaKind = resolveMediaRowKind(item);
+      if (mediaKind === "audio") return MEDIA_AUDIO_CARD_ASPECT_RATIO;
       if (
-        mediaKind !== "audio" &&
         typeof fixedVisualAspectRatio === "number" &&
         Number.isFinite(fixedVisualAspectRatio) &&
         fixedVisualAspectRatio > 0
@@ -143,8 +147,8 @@ export function MediaLibraryMediaGrid({
     maxColumnCount: densityConfig?.maxColumnCount,
     gap: 1,
     overscanPx: 920,
-    minItemsToVirtualize: 24,
-    layoutMode: "chronological-grid",
+    minItemsToVirtualize: shouldUsePackedMasonryLayout ? 1 : 24,
+    layoutMode: shouldUsePackedMasonryLayout ? "masonry" : "chronological-grid",
   });
 
   const videoBudgetItems = React.useMemo(
@@ -220,11 +224,11 @@ export function MediaLibraryMediaGrid({
             canShowRemoveAction ||
             canShowDeleteAction;
           const shouldBypassAdaptivePreview = optimizerFallbackMediaIds.has(file.id);
-          const previewAspectRatio =
-            !isAudio &&
-            typeof fixedVisualAspectRatio === "number" &&
-            Number.isFinite(fixedVisualAspectRatio) &&
-            fixedVisualAspectRatio > 0
+          const previewAspectRatio = isAudio
+            ? MEDIA_AUDIO_CARD_ASPECT_RATIO
+            : typeof fixedVisualAspectRatio === "number" &&
+                Number.isFinite(fixedVisualAspectRatio) &&
+                fixedVisualAspectRatio > 0
               ? fixedVisualAspectRatio
               : (aspectRatioById[file.id] ??
                 resolveMediaCardAspectRatio({

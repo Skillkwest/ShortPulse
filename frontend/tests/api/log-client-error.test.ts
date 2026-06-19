@@ -143,7 +143,8 @@ describe("POST /api/log/client-error", () => {
   });
 
   it("returns 500 when telemetry write fails", async () => {
-    writeAppErrorLogMock.mockRejectedValue(new Error("db down"));
+    const writeError = new Error("db down");
+    writeAppErrorLogMock.mockRejectedValue(writeError);
     const req = {
       method: "POST",
       body: { message: "failure" },
@@ -153,6 +154,12 @@ describe("POST /api/log/client-error", () => {
 
     await handler(req as never, res as never);
 
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: writeError,
+      routeLabel: "api.log.client-error.write",
+      user: { id: "user-1", email: "user@example.com" },
+    });
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({ error: "Client error log ingestion failed." });
   });

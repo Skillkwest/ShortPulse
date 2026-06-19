@@ -18,7 +18,7 @@ import {
   assertTrustedRemoteMediaUrl,
   TrustedRemoteMediaUrlError,
 } from "../../../lib/server/api/trustedRemoteMediaUrl";
-import { markAudioCompanionArtPending } from "../../../lib/server/audioCompanionArt/processing";
+import { markAudioCompanionArtPendingBestEffort } from "../../../lib/server/audioCompanionArt/routePending";
 import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
 import {
   createRemuxedVoiceChangerVideo,
@@ -456,9 +456,12 @@ export default async function handler(
       },
     });
     const persistedVoiceChangerTitle = persisted.displayTitle ?? voiceChangerTitle;
-    await markAudioCompanionArtPending({
+    await markAudioCompanionArtPendingBestEffort({
+      req,
+      routeLabel: "elevenlabs-speech-to-speech",
       generationId: persisted.generationId,
       userId: charge.userId,
+      user,
     });
 
     let remuxedVideo: Awaited<ReturnType<typeof createRemuxedVoiceChangerVideo>> | null = null;

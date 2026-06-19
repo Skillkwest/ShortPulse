@@ -131,6 +131,7 @@ const createSupabaseAdminMock = (
   options?: {
     existingFolderIds?: string[];
     existingStorageObjectPaths?: string[];
+    storageObjectsError?: { message?: string };
     generationProjectionRows?: GenerationProjectionRow[];
     projectOutputDisplayRows?: ProjectOutputDisplayRow[];
   }
@@ -157,10 +158,12 @@ const createSupabaseAdminMock = (
     };
   });
   const storageObjectsInMock = vi.fn(async (_column: string, values: string[]) => ({
-    data: values
-      .filter((path) => !existingStorageObjectPaths || existingStorageObjectPaths.has(path))
-      .map((name) => ({ name })),
-    error: null,
+    data: options?.storageObjectsError
+      ? null
+      : values
+          .filter((path) => !existingStorageObjectPaths || existingStorageObjectPaths.has(path))
+          .map((name) => ({ name })),
+    error: options?.storageObjectsError ?? null,
   }));
 
   const createQueryBuilder = (selectClause: string) => {
@@ -1182,6 +1185,74 @@ describe("POST /api/media/list", () => {
     );
   });
 
+  it("fails closed before companion art signing when storage metadata verification fails", async () => {
+    const companionPath =
+      "user-1/generations/audio/gen-audio-storage-error/companion-art/cover.webp";
+    const { createSignedUrlsMock } = createSupabaseAdminMock(
+      [
+        {
+          id: "audio-storage-error-companion-1",
+          user_id: "user-1",
+          filename: "voice-note.wav",
+          storage_path: "user-1/generations/audio/voice-note.wav",
+          file_type: "audio/wav",
+          file_size: 10,
+          source: "ai_studio",
+          source_ref: "gen-audio-storage-error",
+          prompt_id: null,
+          metadata: null,
+          thumb_variant_path: null,
+          poster_variant_path: null,
+          preview_variant_path: null,
+          created_at: "2026-02-20T10:00:00.000Z",
+          updated_at: null,
+        },
+      ],
+      {
+        storageObjectsError: { message: "storage metadata unavailable" },
+        generationProjectionRows: [
+          {
+            generation_id: "gen-audio-storage-error",
+            user_id: "user-1",
+            companion_art_status: "ready",
+            companion_art_storage_path: companionPath,
+          },
+        ],
+      }
+    );
+
+    const req = {
+      method: "POST",
+      body: {
+        mediaKind: "audio",
+        query: "",
+        cursor: null,
+        limit: 36,
+        surface: "media-library-modal",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(createSignedUrlsMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        error: expect.any(Error),
+        routeLabel: "media-list",
+        user: { id: "user-1" },
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: "Failed to list media",
+        details: "storage metadata unavailable",
+      })
+    );
+  });
+
   it("falls back to project output display companion art for audio media rows", async () => {
     createSupabaseAdminMock(
       [
@@ -1874,6 +1945,67 @@ describe("POST /api/media/list", () => {
       expect.objectContaining({
         rows: [expect.objectContaining({ id: "panel-stale-seed-1" })],
         signedById: undefined,
+      })
+    );
+  });
+
+  it("fails closed before initial panel seed signing when storage metadata verification fails", async () => {
+    const thumbPath = "user-1/uploads/images/panel-storage-error-thumb.png";
+    const rows = [
+      {
+        id: "panel-storage-error-seed-1",
+        user_id: "user-1",
+        filename: "panel-storage-error.png",
+        storage_path: "user-1/uploads/images/panel-storage-error.png",
+        file_type: "image/png",
+        file_size: 10,
+        source: "upload",
+        source_ref: null,
+        prompt_id: null,
+        metadata: null,
+        thumb_variant_path: thumbPath,
+        poster_variant_path: null,
+        preview_variant_path: null,
+        created_at: "2026-02-20T11:00:00.000Z",
+        updated_at: null,
+      } satisfies MediaRow,
+    ];
+    const { createSignedUrlsMock, storageObjectsInMock } = createSupabaseAdminMock(rows, {
+      storageObjectsError: { message: "storage metadata unavailable" },
+    });
+    resolvePreferredMediaSigningStoragePathMock.mockImplementation(
+      (row: MediaRow) => row.thumb_variant_path ?? row.storage_path
+    );
+
+    const req = {
+      method: "POST",
+      body: {
+        mediaKind: "all",
+        cursor: null,
+        query: "",
+        limit: 36,
+        surface: "media-library-panel",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(storageObjectsInMock).toHaveBeenCalledWith("name", [thumbPath]);
+    expect(createSignedUrlsMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        error: expect.any(Error),
+        routeLabel: "media-list",
+        user: { id: "user-1" },
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: "Failed to list media",
+        details: "storage metadata unavailable",
       })
     );
   });

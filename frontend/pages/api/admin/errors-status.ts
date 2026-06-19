@@ -100,6 +100,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     if (error) {
+      await logApiRouteException({
+        req,
+        error,
+        routeLabel: "admin/errors-status.rpc",
+        user: adminUser,
+        metadata: {
+          target_error_id: errorId,
+          target_event_id: eventId,
+          target_status: status,
+          rpc_error_code: error.code ?? null,
+        },
+      });
       return res
         .status(mapRpcErrorToStatus(error))
         .json({ error: error.message || "Unable to update incident status." });
@@ -111,6 +123,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const updatedAt = asTrimmedString(payload?.updated_at, 80) ?? new Date().toISOString();
     const resolvedEventId = asTrimmedString(payload?.event_id, 120);
     if (!incidentId) {
+      await logApiRouteException({
+        req,
+        error: new Error("Admin error status RPC returned no incident id."),
+        routeLabel: "admin/errors-status.rpc-payload",
+        user: adminUser,
+        metadata: {
+          target_error_id: errorId,
+          target_event_id: eventId,
+          target_status: status,
+        },
+      });
       return res.status(500).json({ error: "Unable to update incident status." });
     }
 

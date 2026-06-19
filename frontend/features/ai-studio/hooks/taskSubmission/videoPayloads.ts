@@ -5,7 +5,10 @@ import { resolveKlingV3Duration } from "../../logic/stateParsers";
 import { normalizeDurationForModel } from "../../../../lib/model-runtime/modelDurationConstraints";
 import { KIE_VEO_31_FAST_I2V_MODEL_ID } from "../../../../lib/model-runtime/providerModelIds";
 import {
-  getAiStudioKlingElementReferenceUrls,
+  KIE_KLING_ELEMENT_SLOT_LIMIT,
+  KIE_KLING_MAX_IMAGE_ELEMENT_URLS as KIE_KLING_MAX_IMAGE_ELEMENT_URLS_VALUE,
+  getKieKlingSubmittableSlotElements,
+  resolveKieKlingElementProviderEligibility,
   resolveKieKlingElementToken,
 } from "../../logic/klingElements";
 import { getModelApiContract, resolveEffectiveAspectForModel } from "../../logic/modelApiContracts";
@@ -22,9 +25,8 @@ type KieKlingElementPayload = {
   element_input_video_urls?: string[];
 };
 
-const KIE_KLING_MAX_ELEMENTS = 3;
-const KIE_KLING_MIN_IMAGE_ELEMENT_URLS = 2;
-export const KIE_KLING_MAX_IMAGE_ELEMENT_URLS = 4;
+const KIE_KLING_MAX_ELEMENTS = KIE_KLING_ELEMENT_SLOT_LIMIT;
+export { KIE_KLING_MAX_IMAGE_ELEMENT_URLS } from "../../logic/klingElements";
 
 const resolveAspectForModelConfig = (
   aspect: string,
@@ -301,7 +303,7 @@ export const buildKlingElementsPayload = (
 export const buildKieKlingElementsPayload = (
   klingElements: VideoSubmissionArgs["klingElements"]
 ): KieKlingElementPayload[] | undefined => {
-  const orderedElements = [...klingElements].sort((a, b) => {
+  const orderedElements = getKieKlingSubmittableSlotElements(klingElements).sort((a, b) => {
     const left = a.slotIndex ?? 0;
     const right = b.slotIndex ?? 0;
     return left - right;
@@ -316,33 +318,30 @@ export const buildKieKlingElementsPayload = (
         element.slotIndex ?? index,
         orderedElements
       );
-      const imageList = Array.from(new Set(getAiStudioKlingElementReferenceUrls(element)));
       const displayName = element.name?.trim() || tokenName;
+      const eligibility = resolveKieKlingElementProviderEligibility(element, { displayName });
 
-      if (element.videoUrl.trim()) {
-        if (imageList.length) {
-          throw new Error(
-            `Kling element ${displayName} must use either one video reference or 2-4 image references, not both.`
-          );
-        }
+      if (eligibility.reason) {
+        throw new Error(eligibility.reason);
+      }
+
+      if (eligibility.mediaKind === "video" && eligibility.videoUrls[0]) {
         accumulator.push({
           name: tokenName,
           description: `Reference video for ${displayName}`,
-          element_input_video_urls: [element.videoUrl.trim()],
+          element_input_video_urls: [eligibility.videoUrls[0]],
         });
         return accumulator;
       }
 
-      if (imageList.length) {
-        if (imageList.length < KIE_KLING_MIN_IMAGE_ELEMENT_URLS) {
-          throw new Error(
-            `Kling element ${displayName} needs at least 2 image references before generating.`
-          );
-        }
+      if (eligibility.mediaKind === "image" && eligibility.imageUrls.length) {
         accumulator.push({
           name: tokenName,
           description: `Reference images for ${displayName}`,
-          element_input_urls: imageList.slice(0, KIE_KLING_MAX_IMAGE_ELEMENT_URLS),
+          element_input_urls: eligibility.imageUrls.slice(
+            0,
+            KIE_KLING_MAX_IMAGE_ELEMENT_URLS_VALUE
+          ),
         });
       }
       return accumulator;

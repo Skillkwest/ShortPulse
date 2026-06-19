@@ -203,6 +203,8 @@ describe("sessionSnapshotCanvas", () => {
         audioSourceMode: "sound-effects",
         durationMs: null,
         waveformPeaks: [10, 45, 80, 45, 10],
+        width: 200,
+        height: 200,
       }),
     ]);
 
@@ -218,7 +220,7 @@ describe("sessionSnapshotCanvas", () => {
         audioSourceMode: "sound-effects",
         durationMs: null,
         waveformPeaks: [10, 45, 80, 45, 10],
-        width: 160,
+        width: 200,
         height: 200,
       }),
     ]);

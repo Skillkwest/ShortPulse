@@ -10,6 +10,7 @@ import {
   CANVAS_IMAGE_ITEM_HEIGHT,
   CANVAS_IMAGE_ITEM_WIDTH,
   CANVAS_TEXT_ITEM_MIN_HEIGHT,
+  resolveCanvasAudioItemDimensions,
 } from "../components/canvas/canvasGeometry";
 import type {
   CanvasDraftTextEntry,
@@ -271,14 +272,10 @@ const sanitizeCanvasSceneItem = (
       };
     }
     const audioStoragePath = asCanvasStoragePath(value.audioStoragePath);
-    const width = Math.max(
-      1,
-      Math.round(asFiniteNumber(value.width, CANVAS_AUDIO_ITEM_WIDTH) * 100) / 100
-    );
-    const height = Math.max(
-      1,
-      Math.round(asFiniteNumber(value.height, CANVAS_AUDIO_ITEM_HEIGHT) * 100) / 100
-    );
+    const audioDimensions = resolveCanvasAudioItemDimensions({
+      width: asFiniteNumber(value.width, CANVAS_AUDIO_ITEM_WIDTH),
+      height: asFiniteNumber(value.height, CANVAS_AUDIO_ITEM_HEIGHT),
+    });
     return {
       item: {
         id: value.id,
@@ -301,8 +298,8 @@ const sanitizeCanvasSceneItem = (
             ? Math.max(0, Math.round(value.durationMs))
             : null,
         waveformPeaks: sanitizeWaveformPeaks(value.waveformPeaks),
-        width,
-        height,
+        width: audioDimensions.width,
+        height: audioDimensions.height,
       },
       skippedNonDurableImage: false,
     };
@@ -582,6 +579,10 @@ const parseCanvasSceneItems = (value: unknown): CanvasSceneItem[] => {
       if (!isDurableCanvasMediaSource(audioUrl)) return;
       const durationMs = asNullableFiniteNumber(record.durationMs);
       const audioStoragePath = asCanvasStoragePath(record.audioStoragePath);
+      const audioDimensions = resolveCanvasAudioItemDimensions({
+        width: asFiniteNumber(record.width, CANVAS_AUDIO_ITEM_WIDTH),
+        height: asFiniteNumber(record.height, CANVAS_AUDIO_ITEM_HEIGHT),
+      });
       parsed.push({
         id,
         kind: "audio",
@@ -600,14 +601,8 @@ const parseCanvasSceneItems = (value: unknown): CanvasSceneItem[] => {
         audioSourceMode: normalizeAudioSourceMode(record.audioSourceMode),
         durationMs: durationMs === null ? null : Math.max(0, Math.round(durationMs)),
         waveformPeaks: sanitizeWaveformPeaks(record.waveformPeaks),
-        width: Math.max(
-          1,
-          Math.round(asFiniteNumber(record.width, CANVAS_AUDIO_ITEM_WIDTH) * 100) / 100
-        ),
-        height: Math.max(
-          1,
-          Math.round(asFiniteNumber(record.height, CANVAS_AUDIO_ITEM_HEIGHT) * 100) / 100
-        ),
+        width: audioDimensions.width,
+        height: audioDimensions.height,
       });
       return;
     }

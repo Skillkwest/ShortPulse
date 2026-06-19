@@ -353,6 +353,12 @@ export const prepareDashboardTutorialThumbnailUpload = async (
     throwStorageOperationError(error, "Unable to prepare thumbnail upload.");
   }
   const signedUploadTarget = data as NonNullable<typeof data>;
+  if (signedUploadTarget.path !== storagePath) {
+    throwStorageOperationError(
+      { message: "Signed upload target path did not match requested storage path." },
+      "Unable to prepare thumbnail upload."
+    );
+  }
 
   return {
     storagePath: signedUploadTarget.path,

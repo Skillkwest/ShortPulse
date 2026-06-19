@@ -20,6 +20,7 @@ import {
   resolvePulseChatRuntimeSignature,
   upsertPulseChatProjectThread,
   type PulseChatProjectState,
+  type PulseChatProjectThreadRecord,
   type PulseChatThreadSnapshot,
 } from "../pulseChats/pulseChatThread";
 
@@ -58,6 +59,14 @@ const createThreadId = (): string => {
   return fallbackUuid();
 };
 
+const matchesPulseRuntime = (
+  thread: PulseChatProjectThreadRecord | null,
+  activePresetId: string,
+  pulseSessionInstanceId: string
+): thread is PulseChatProjectThreadRecord =>
+  thread?.snapshot.workspace.activePulsePresetId === activePresetId &&
+  thread.snapshot.workspace.pulseSessionInstanceId === pulseSessionInstanceId;
+
 export const usePulseChatThreads = ({
   enabled,
   projectPulseChatState,
@@ -74,6 +83,7 @@ export const usePulseChatThreads = ({
   const [error, setError] = useState<string | null>(null);
   const [openingThreadId, setOpeningThreadId] = useState<string | null>(null);
   const lastRuntimeSignatureRef = useRef<string | null>(null);
+  const openingThreadRef = useRef<PulseChatProjectThreadRecord | null>(null);
 
   const reportError = useCallback(
     (message: string) => {
@@ -88,6 +98,7 @@ export const usePulseChatThreads = ({
     setError(null);
     setOpeningThreadId(null);
     lastRuntimeSignatureRef.current = null;
+    openingThreadRef.current = null;
   }, [enabled]);
 
   useEffect(() => {
@@ -112,10 +123,22 @@ export const usePulseChatThreads = ({
         current.activeThreadId != null
           ? (current.threads.find((thread) => thread.threadId === current.activeThreadId) ?? null)
           : null;
-      const shouldReuseActiveThread =
-        activeThread?.snapshot.workspace.activePulsePresetId === activePresetId &&
-        activeThread.snapshot.workspace.pulseSessionInstanceId === pulseSessionInstanceId;
-      const threadId = shouldReuseActiveThread ? activeThread.threadId : createThreadId();
+      const openingThread =
+        openingThreadRef.current != null
+          ? (current.threads.find(
+              (thread) => thread.threadId === openingThreadRef.current?.threadId
+            ) ?? openingThreadRef.current)
+          : null;
+      const reusableThread = matchesPulseRuntime(
+        activeThread,
+        activePresetId,
+        pulseSessionInstanceId
+      )
+        ? activeThread
+        : matchesPulseRuntime(openingThread, activePresetId, pulseSessionInstanceId)
+          ? openingThread
+          : null;
+      const threadId = reusableThread?.threadId ?? createThreadId();
       const existingThreadSnapshot =
         current.threads.find((thread) => thread.threadId === threadId)?.snapshot ?? null;
       const snapshot = buildPulseChatThreadSnapshot({
@@ -131,8 +154,8 @@ export const usePulseChatThreads = ({
       const record = buildPulseChatProjectThreadRecord({
         threadId,
         snapshot,
-        title: shouldReuseActiveThread ? activeThread.title : null,
-        titleSource: shouldReuseActiveThread ? activeThread.titleSource : "auto",
+        title: reusableThread?.title ?? null,
+        titleSource: reusableThread?.titleSource ?? "auto",
       });
       return upsertPulseChatProjectThread(current, record, {
         activeThreadId: threadId,
@@ -159,6 +182,7 @@ export const usePulseChatThreads = ({
       }
       setOpeningThreadId(threadId);
       setError(null);
+      openingThreadRef.current = thread;
       try {
         await openThreadSnapshot({
           threadId,
@@ -174,6 +198,9 @@ export const usePulseChatThreads = ({
           errorValue instanceof Error ? errorValue.message : "Failed to open Pulse chat."
         );
       } finally {
+        if (openingThreadRef.current?.threadId === threadId) {
+          openingThreadRef.current = null;
+        }
         setOpeningThreadId(null);
       }
     },

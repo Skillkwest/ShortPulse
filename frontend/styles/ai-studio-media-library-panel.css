@@ -895,11 +895,11 @@
     .media-library-modal-grid-virtualized
   ) {
   --media-library-panel-density-max-columns: 5;
-  display: grid;
-  grid-template-columns: repeat(var(--media-library-panel-density-max-columns), minmax(0, 1fr));
-  column-count: auto;
+  display: block;
+  column-count: var(--media-library-panel-density-max-columns);
   column-width: auto;
-  gap: 1px;
+  column-gap: 1px;
+  gap: 0;
 }
 
 .media-library-panel

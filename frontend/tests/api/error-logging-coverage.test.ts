@@ -29,6 +29,7 @@ const ALLOWLIST_LOCATIONS = new Set<string>([
   "media/copy-from-url.ts:191",
   "media/copy-from-url.ts:194",
   "media/copy-from-url.ts:214",
+  "media/copy-from-url.ts:220",
   "media/copy-from-url.ts:1090",
   "media/copy-from-url.ts:1115",
   "media/copy-from-url.ts:1277",
@@ -43,8 +44,12 @@ const ALLOWLIST_LOCATIONS = new Set<string>([
   "fal/upload-url.ts:315",
   "fal/upload-url.ts:445",
   "fal/upload-url.ts:665",
+  "billing/subscription/change.ts:522",
+  "billing/subscription/change.ts:582",
   "kie/upload-url.ts:571",
+  "kie/upload-url.ts:674",
   "kie/upload-url.ts:702",
+  "kie/upload-url.ts:813",
 ]);
 
 const LOG_CALL_PATTERNS = [

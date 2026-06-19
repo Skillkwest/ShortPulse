@@ -223,6 +223,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           })
         );
       }
+      await logApiRouteException({
+        req,
+        error: logsResult.error,
+        routeLabel: "admin/errors.list",
+        user: adminUser,
+      });
       return res
         .status(500)
         .json({ error: logsResult.error.message || "Unable to load admin errors." });
@@ -257,6 +263,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         filters
       )) as unknown as ListQueryResult;
       if (fallbackLogsResult.error) {
+        await logApiRouteException({
+          req,
+          error: fallbackLogsResult.error,
+          routeLabel: "admin/errors.list",
+          user: adminUser,
+        });
         return res.status(500).json({ error: fallbackLogsResult.error.message });
       }
       logs = fallbackLogsResult.data ?? [];
@@ -280,6 +292,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           ? "Some admin error summary metrics are temporarily unavailable."
           : null,
     };
+    if (health.degraded) {
+      await logApiRouteException({
+        req,
+        error: new Error("Admin error summary query degraded."),
+        routeLabel: "admin/errors.summary",
+        user: adminUser,
+        metadata: {
+          filtered_count_error: filteredCountResult.error?.message ?? null,
+          open_count_error: openCountResult.error?.message ?? null,
+          high_severity_open_error: highSeverityOpenResult.error?.message ?? null,
+          app_open_count_error: appOpenCountResult.error?.message ?? null,
+          generation_open_count_error: generationOpenCountResult.error?.message ?? null,
+          last_24h_count_error: last24hResult.error?.message ?? null,
+        },
+      });
+    }
 
     return res.status(200).json({
       errors: logs,

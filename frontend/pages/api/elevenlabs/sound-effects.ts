@@ -20,7 +20,7 @@ import {
   generateElevenLabsSoundEffect,
   persistGeneratedAudioAsset,
 } from "../../../lib/server/elevenlabs";
-import { markAudioCompanionArtPending } from "../../../lib/server/audioCompanionArt/processing";
+import { markAudioCompanionArtPendingBestEffort } from "../../../lib/server/audioCompanionArt/routePending";
 import { probeMediaDurationSeconds } from "../../../lib/server/mediaAudioExtraction";
 import { readGenerationWorkspaceRuntimeKeyFromContext } from "../../../lib/server/api/generationWorkspaceRuntimeKey";
 import { generateSoundEffectTitleBestEffort } from "../../../lib/server/audioTitleGeneration";
@@ -274,9 +274,12 @@ export default async function handler(
       },
     });
     const persistedSoundEffectTitle = persisted.displayTitle ?? soundEffectTitle;
-    await markAudioCompanionArtPending({
+    await markAudioCompanionArtPendingBestEffort({
+      req,
+      routeLabel: "elevenlabs-sound-effects",
       generationId: persisted.generationId,
       userId: charge.userId,
+      user,
     });
 
     return res.status(200).json({

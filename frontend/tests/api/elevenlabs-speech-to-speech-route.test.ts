@@ -17,7 +17,7 @@ const probeMediaDurationSecondsMock = vi.fn();
 const readRemoteSourceBufferMock = vi.fn();
 const readRemoteMediaBufferMock = vi.fn();
 const readStoredMediaBufferMock = vi.fn();
-const markAudioCompanionArtPendingMock = vi.fn();
+const markAudioCompanionArtPendingBestEffortMock = vi.fn();
 const transcribeAudioBufferMock = vi.fn();
 
 let mockFields: Record<string, unknown> = {};
@@ -133,8 +133,9 @@ vi.mock("../../lib/server/mediaAudioExtraction", () => ({
   MediaAudioExtractionInputError: MockMediaAudioExtractionInputError,
 }));
 
-vi.mock("../../lib/server/audioCompanionArt/processing", () => ({
-  markAudioCompanionArtPending: (...args: unknown[]) => markAudioCompanionArtPendingMock(...args),
+vi.mock("../../lib/server/audioCompanionArt/routePending", () => ({
+  markAudioCompanionArtPendingBestEffort: (...args: unknown[]) =>
+    markAudioCompanionArtPendingBestEffortMock(...args),
 }));
 
 vi.mock("../../lib/server/openAiAudioTranscription", () => ({
@@ -193,10 +194,10 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
     readRemoteMediaBufferMock.mockReset();
     readStoredMediaBufferMock.mockReset();
     probeMediaDurationSecondsMock.mockReset();
-    markAudioCompanionArtPendingMock.mockReset();
+    markAudioCompanionArtPendingBestEffortMock.mockReset();
     transcribeAudioBufferMock.mockReset();
     probeMediaDurationSecondsMock.mockResolvedValue(12);
-    markAudioCompanionArtPendingMock.mockResolvedValue(undefined);
+    markAudioCompanionArtPendingBestEffortMock.mockResolvedValue(undefined);
     transcribeAudioBufferMock.mockResolvedValue("I can hear the city waking up below us.");
     chargeGenerationRequestMock.mockResolvedValue({
       userId: "user-1",
@@ -496,10 +497,13 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
         mimeType: "audio/mpeg",
         durationMs: 12000,
         waveformPeaks: null,
+        title: "I Can Hear The City I0OZ21",
         modelId: "eleven_multilingual_sts_v2",
         voiceId: "voice-1",
         voiceName: "Darian",
         transcriptText: "I can hear the city waking up below us.",
+        saveState: undefined,
+        saveError: undefined,
       },
       remuxedVideo: {
         provider: "elevenlabs",
@@ -516,6 +520,8 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
         mimeType: "video/mp4",
         modelId: "eleven_multilingual_sts_v2",
         transcriptText: "I can hear the city waking up below us.",
+        saveState: undefined,
+        saveError: undefined,
       },
     });
     expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
@@ -804,10 +810,13 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
         mimeType: "audio/mpeg",
         durationMs: 12000,
         waveformPeaks: null,
+        title: "I Can Hear The City I0OZ21",
         modelId: "eleven_multilingual_sts_v2",
         voiceId: "voice-1",
         voiceName: "Darian",
         transcriptText: "I can hear the city waking up below us.",
+        saveState: undefined,
+        saveError: undefined,
       },
     });
     expect(logApiRouteExceptionMock).toHaveBeenCalledWith(

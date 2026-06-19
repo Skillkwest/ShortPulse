@@ -164,6 +164,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           })
         );
       }
+      await logApiRouteException({
+        req,
+        error: eventsResult.error,
+        routeLabel: "admin/error-events.list",
+        user: adminUser,
+      });
       return res.status(500).json({
         error: eventsResult.error.message || "Unable to load error events.",
       });
@@ -206,6 +212,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             })
           );
         }
+        await logApiRouteException({
+          req,
+          error: actionableEventData.openEventsResult.error,
+          routeLabel: "admin/error-events.actionable-open",
+          user: adminUser,
+        });
         return res.status(500).json({
           error:
             actionableEventData.openEventsResult.error.message || "Unable to load error events.",
@@ -224,6 +236,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             })
           );
         }
+        await logApiRouteException({
+          req,
+          error: actionableEventData.unlinkedEventsResult.error,
+          routeLabel: "admin/error-events.actionable-unlinked",
+          user: adminUser,
+        });
         return res.status(500).json({
           error:
             actionableEventData.unlinkedEventsResult.error.message ||
@@ -289,6 +307,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         limit,
       });
       if (fallbackResult.error) {
+        await logApiRouteException({
+          req,
+          error: fallbackResult.error,
+          routeLabel: "admin/error-events.list",
+          user: adminUser,
+        });
         return res.status(500).json({ error: fallbackResult.error.message });
       }
       events = fallbackResult.data ?? [];
@@ -349,6 +373,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           reason: healthReasons.join(" "),
         }
       : healthyState();
+    if (health.degraded) {
+      await logApiRouteException({
+        req,
+        error: new Error("Admin error-events health degraded."),
+        routeLabel: "admin/error-events.summary",
+        user: adminUser,
+        metadata: {
+          filtered_count_error: filteredCountResult.error?.message ?? null,
+          summary_errors: summaryErrorMessages,
+          incident_enrichment_error: enrichedEventsResult.reason ?? null,
+          actionable_incident_filter: isActionableIncidentFilter,
+        },
+      });
+    }
 
     return res.status(200).json({
       events: responseEvents,

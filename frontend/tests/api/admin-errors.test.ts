@@ -209,6 +209,20 @@ describe("GET /api/admin/errors", () => {
     expect(payload.health.degraded).toBe(true);
     expect(payload.health.reason).toContain("summary metrics");
     expect(payload.summary.openCount).toBe(0);
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: expect.any(Error),
+      routeLabel: "admin/errors.summary",
+      user: { id: "admin-1", email: "admin@example.com" },
+      metadata: {
+        filtered_count_error: "count failure",
+        open_count_error: "open count failure",
+        high_severity_open_error: null,
+        app_open_count_error: null,
+        generation_open_count_error: null,
+        last_24h_count_error: null,
+      },
+    });
     expect(payload.pagination).toMatchObject({
       page: 1,
       totalPages: 1,
@@ -272,6 +286,12 @@ describe("GET /api/admin/errors", () => {
     await handler(req as never, res as never);
 
     expect(res.status).toHaveBeenCalledWith(500);
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: { message: "core incident failure" },
+      routeLabel: "admin/errors.list",
+      user: { id: "admin-1", email: "admin@example.com" },
+    });
     const payload = res.json.mock.calls[0]?.[0] as { error: string };
     expect(payload.error).toContain("core incident failure");
   });

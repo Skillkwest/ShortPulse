@@ -6,7 +6,10 @@ import {
   MEDIA_LIBRARY_VIRTUALIZATION_ENABLED,
   type MediaLibraryGridDensityConfig,
 } from "../../../media-library/logic/mediaLibraryRuntimeConfig";
-import { resolveMediaCardAspectRatio } from "../../logic/mediaLibraryAspectRatio";
+import {
+  MEDIA_AUDIO_CARD_ASPECT_RATIO,
+  resolveMediaCardAspectRatio,
+} from "../../logic/mediaLibraryAspectRatio";
 import { resolveVideoPosterSourceUrl } from "../../logic/mediaVideoBrowsePreview";
 import { useMediaVideoBrowsePreviewUrls } from "../../hooks/useMediaVideoBrowsePreviewUrls";
 import { isVideoUrl } from "../../logic/stateParsers";
@@ -141,6 +144,7 @@ export function MediaLibraryAllItemsGrid({
   const { aspectRatioById, cacheAspectRatio } = useMediaAspectRatioCache(mediaRows);
   const targetColumnWidth = densityConfig?.targetColumnWidth ?? 188;
   const cardPreviewLongEdgePx = densityConfig?.previewLongEdgePx ?? 320;
+  const shouldUsePackedMasonryLayout = Boolean(densityConfig);
   const {
     signedPosterUrlById: signedPosterUrlByIdFromHook,
     signedVideoUrlById: signedVideoUrlByIdFromHook,
@@ -212,7 +216,7 @@ export function MediaLibraryAllItemsGrid({
     getAspectRatio: (item) => {
       if (item.kind === "prompt") return PROMPT_CARD_ASPECT_RATIO;
       const mediaKind = resolveMediaRowKind(item.row);
-      if (mediaKind === "audio") return PROMPT_CARD_ASPECT_RATIO;
+      if (mediaKind === "audio") return MEDIA_AUDIO_CARD_ASPECT_RATIO;
       if (
         typeof fixedVisualAspectRatio === "number" &&
         Number.isFinite(fixedVisualAspectRatio) &&
@@ -235,8 +239,8 @@ export function MediaLibraryAllItemsGrid({
     maxColumnCount: densityConfig?.maxColumnCount,
     gap: 1,
     overscanPx: 920,
-    minItemsToVirtualize: 24,
-    layoutMode: "chronological-grid",
+    minItemsToVirtualize: shouldUsePackedMasonryLayout ? 1 : 24,
+    layoutMode: shouldUsePackedMasonryLayout ? "masonry" : "chronological-grid",
   });
 
   const gridStyle = React.useMemo<React.CSSProperties | undefined>(() => {
@@ -313,11 +317,11 @@ export function MediaLibraryAllItemsGrid({
           canShowRemoveAction ||
           canShowDeleteAction;
         const shouldBypassAdaptivePreview = optimizerFallbackMediaIds.has(file.id);
-        const previewAspectRatio =
-          !isAudio &&
-          typeof fixedVisualAspectRatio === "number" &&
-          Number.isFinite(fixedVisualAspectRatio) &&
-          fixedVisualAspectRatio > 0
+        const previewAspectRatio = isAudio
+          ? MEDIA_AUDIO_CARD_ASPECT_RATIO
+          : typeof fixedVisualAspectRatio === "number" &&
+              Number.isFinite(fixedVisualAspectRatio) &&
+              fixedVisualAspectRatio > 0
             ? fixedVisualAspectRatio
             : (aspectRatioById[file.id] ??
               resolveMediaCardAspectRatio({

@@ -338,6 +338,7 @@ Checklist:
   ```
 - Confirm required routes are present in build output:
   - `/api/internal/admin-user-health-fleet/run`
+  - `/api/internal/billing-contract-renewals/run`
   - `/api/internal/generation-recovery/run`
   - `/api/internal/media-derivatives/run`
 - Confirm hosted runtime flags and secrets are restored when the route should be available:

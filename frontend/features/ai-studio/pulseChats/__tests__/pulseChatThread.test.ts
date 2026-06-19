@@ -7,6 +7,7 @@ import {
   mergePulseChatThreadRuntime,
   parsePulseChatProjectState,
   resolvePulseChatProjectStateSignature,
+  upsertPulseChatProjectThread,
 } from "../pulseChatThread";
 
 const buildRuntime = (messages: AiStudioSessionAgentV1["messages"]): AiStudioSessionAgentV1 => ({
@@ -291,5 +292,83 @@ describe("resolvePulseChatProjectStateSignature", () => {
 
     expect(parsed.threads[0]?.title).toBe("Renamed chat");
     expect(parsed.threads[0]?.titleSource).toBe("manual");
+  });
+
+  it("deduplicates saved threads that point at the same Pulse session on parse", () => {
+    const olderSnapshot = buildPulseChatThreadSnapshot({
+      presetId: "preset-1",
+      presetLabel: "Story Builder",
+      pulseSessionInstanceId: "session-1",
+      pulsePrompt: "Pulse prompt",
+      runtime: buildRuntime([{ id: "older", role: "user", content: "Older duplicate" }]),
+      updatedAt: "2026-04-24T18:00:00.000Z",
+    });
+    const newerSnapshot = buildPulseChatThreadSnapshot({
+      presetId: "preset-1",
+      presetLabel: "Story Builder",
+      pulseSessionInstanceId: "session-1",
+      pulsePrompt: "Pulse prompt",
+      runtime: buildRuntime([{ id: "newer", role: "user", content: "Newer duplicate" }]),
+      updatedAt: "2026-04-24T18:01:00.000Z",
+    });
+
+    const parsed = parsePulseChatProjectState({
+      schemaVersion: 1,
+      activeThreadId: null,
+      threads: [
+        buildPulseChatProjectThreadRecord({
+          threadId: "older-thread",
+          snapshot: olderSnapshot,
+          title: "Manual keeper",
+          titleSource: "manual",
+          updatedAt: "2026-04-24T18:00:00.000Z",
+        }),
+        buildPulseChatProjectThreadRecord({
+          threadId: "newer-thread",
+          snapshot: newerSnapshot,
+          updatedAt: "2026-04-24T18:01:00.000Z",
+        }),
+      ],
+    });
+
+    expect(parsed.threads).toHaveLength(1);
+    expect(parsed.threads[0]?.threadId).toBe("newer-thread");
+    expect(parsed.threads[0]?.title).toBe("Manual keeper");
+    expect(parsed.threads[0]?.titleSource).toBe("manual");
+  });
+
+  it("removes sibling duplicate threads when upserting a reopened Pulse session", () => {
+    const snapshot = buildPulseChatThreadSnapshot({
+      presetId: "preset-1",
+      presetLabel: "Story Builder",
+      pulseSessionInstanceId: "session-1",
+      pulsePrompt: "Pulse prompt",
+      runtime: buildRuntime([{ id: "message-1", role: "user", content: "Saved chat" }]),
+      updatedAt: "2026-04-24T18:00:00.000Z",
+    });
+    const firstRecord = buildPulseChatProjectThreadRecord({
+      threadId: "thread-1",
+      snapshot,
+      updatedAt: "2026-04-24T18:00:00.000Z",
+    });
+    const duplicateRecord = buildPulseChatProjectThreadRecord({
+      threadId: "thread-duplicate",
+      snapshot,
+      updatedAt: "2026-04-24T18:00:00.000Z",
+    });
+
+    const nextState = upsertPulseChatProjectThread(
+      {
+        schemaVersion: 1,
+        activeThreadId: "thread-duplicate",
+        threads: [firstRecord, duplicateRecord],
+      },
+      firstRecord,
+      { activeThreadId: "thread-1" }
+    );
+
+    expect(nextState.threads).toHaveLength(1);
+    expect(nextState.threads[0]?.threadId).toBe("thread-1");
+    expect(nextState.activeThreadId).toBe("thread-1");
   });
 });

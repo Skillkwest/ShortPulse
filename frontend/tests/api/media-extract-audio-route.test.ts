@@ -303,6 +303,49 @@ describe("POST /api/media/extract-audio", () => {
     });
   });
 
+  it("removes extracted audio storage when signing the uploaded audio fails", async () => {
+    const uploadMock = vi.fn(async () => ({ error: null }));
+    const createSignedUrlMock = vi.fn(async () => ({
+      data: null,
+      error: { message: "storage sign exploded" },
+    }));
+    const removeMock = vi.fn(async () => ({ error: null }));
+    getSupabaseAdminMock.mockReturnValueOnce({
+      storage: {
+        from: vi.fn(() => ({
+          upload: uploadMock,
+          createSignedUrl: createSignedUrlMock,
+          remove: removeMock,
+        })),
+      },
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        sourceName: "clip.mp4",
+        sourceOrigin: "local",
+        sourceMimeType: "video/mp4",
+        sourceStoragePath: "user-1/voice-changer/source-video/clip.mp4",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    const uploadCalls = uploadMock.mock.calls as unknown as Array<
+      [string, Buffer, { contentType: string; upsert: boolean }]
+    >;
+    const uploadedPath = uploadCalls[0]?.[0];
+    expect(uploadedPath).toEqual(expect.stringMatching(/^user-1\/voice-changer\/staged-audio\//));
+    expect(createSignedUrlMock).toHaveBeenCalledWith(uploadedPath, 60 * 60);
+    expect(removeMock).toHaveBeenCalledWith([uploadedPath]);
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to extract audio",
+    });
+  });
+
   it("rate limits repeated audio extraction requests for the same authenticated user", async () => {
     const buildReq = () => ({
       method: "POST",

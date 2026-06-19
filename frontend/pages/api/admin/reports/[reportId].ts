@@ -53,6 +53,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .maybeSingle();
 
       if (error) {
+        await logApiRouteException({
+          req,
+          error,
+          routeLabel: "api.admin.reports.[reportId].get",
+          user: adminUser,
+          metadata: {
+            report_id: reportId,
+          },
+        });
         return res.status(500).json({ error: "Unable to load that report right now." });
       }
       if (!data) {
@@ -124,6 +133,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .maybeSingle();
 
     if (error) {
+      await logApiRouteException({
+        req,
+        error,
+        routeLabel: "api.admin.reports.[reportId].patch",
+        user: adminUser,
+        metadata: {
+          report_id: reportId,
+        },
+      });
       return res.status(500).json({ error: "Unable to update that report right now." });
     }
     if (!data) {

@@ -262,4 +262,93 @@ describe("usePulseChatThreads", () => {
     expect(result.current.activeThreadId).toBe("thread-1");
     expect(result.current.openingThreadId).toBeNull();
   });
+
+  it("does not duplicate a saved thread when reopen hydration updates the runtime first", async () => {
+    const savedSnapshot = buildPulseChatThreadSnapshot({
+      presetId: "preset-1",
+      presetLabel: "Story Builder",
+      pulseSessionInstanceId: "session-1",
+      pulsePrompt: "Saved prompt",
+      runtime: buildRuntime([
+        {
+          id: "message-1",
+          role: "user",
+          content: "Open this saved chat.",
+        },
+      ]),
+      updatedAt: "2026-06-15T12:00:00.000Z",
+    });
+    const savedThread = buildPulseChatProjectThreadRecord({
+      threadId: "thread-1",
+      snapshot: savedSnapshot,
+    });
+    let rerenderHook: ((props: HookProps) => void) | null = null;
+    let resolveOpenThreadSnapshot: (() => void) | null = null;
+    const openThreadSnapshot = vi.fn(() => {
+      rerenderHook?.({
+        expertCreateMode: "pulse",
+        activePresetId: "preset-1",
+        activePresetLabel: "Story Builder",
+        pulseSessionInstanceId: "session-1",
+        pulsePrompt: "Saved prompt",
+        persistedAgentRuntime: savedSnapshot.runtime,
+      });
+      return new Promise<void>((resolve) => {
+        resolveOpenThreadSnapshot = resolve;
+      });
+    });
+
+    const { result, rerender } = renderHook(
+      (props: HookProps) => {
+        const [projectPulseChatState, setProjectPulseChatState] = useState<PulseChatProjectState>({
+          schemaVersion: 1 as const,
+          activeThreadId: null,
+          threads: [savedThread],
+        });
+
+        return usePulseChatThreads({
+          enabled: true,
+          projectPulseChatState,
+          setProjectPulseChatState,
+          expertCreateMode: props.expertCreateMode,
+          activePresetId: props.activePresetId,
+          activePresetLabel: props.activePresetLabel,
+          pulseSessionInstanceId: props.pulseSessionInstanceId,
+          pulsePrompt: props.pulsePrompt,
+          persistedAgentRuntime: props.persistedAgentRuntime,
+          openThreadSnapshot,
+        });
+      },
+      {
+        initialProps: {
+          expertCreateMode: "pulse",
+          activePresetId: null,
+          activePresetLabel: null,
+          pulseSessionInstanceId: null,
+          pulsePrompt: "",
+          persistedAgentRuntime: buildRuntime([]),
+        },
+      }
+    );
+    rerenderHook = rerender;
+
+    let openPromise: Promise<void> | null = null;
+    await act(async () => {
+      openPromise = result.current.openThread("thread-1");
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(result.current.threads).toHaveLength(1);
+    expect(result.current.threads[0]?.threadId).toBe("thread-1");
+
+    await act(async () => {
+      resolveOpenThreadSnapshot?.();
+      await openPromise;
+    });
+
+    expect(result.current.threads).toHaveLength(1);
+    expect(result.current.threads[0]?.threadId).toBe("thread-1");
+    expect(result.current.activeThreadId).toBe("thread-1");
+  });
 });

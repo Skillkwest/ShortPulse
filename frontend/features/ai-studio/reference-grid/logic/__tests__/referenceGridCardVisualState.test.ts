@@ -86,11 +86,12 @@ describe("referenceGridCardVisualState", () => {
     expect(state.loadingVisual).toBe("spinner");
   });
 
-  it("does not keep renderable generated rows in any loading visual state", () => {
+  it("keeps live provider-task previews loading until terminal success", () => {
     const state = classifyReferenceGridCardVisualState({
       item: createOutput({
         taskState: "running",
         mediaSource: "generated",
+        submissionMode: "provider-task",
         previewUrl: "https://cdn.test/generated-preview.png",
       }),
       cardPreviewUrl: "https://cdn.test/generated-preview.png",
@@ -101,9 +102,9 @@ describe("referenceGridCardVisualState", () => {
       imageSrc: "https://cdn.test/generated-preview.png",
     });
 
-    expect(state.isGenerationLoading).toBe(false);
+    expect(state.isGenerationLoading).toBe(true);
     expect(state.isMediaHydrating).toBe(false);
-    expect(state.loadingVisual).toBe("none");
+    expect(state.loadingVisual).toBe("spinner");
   });
 
   it("treats durable generated media with stale running task state as media hydration", () => {
@@ -171,7 +172,7 @@ describe("referenceGridCardVisualState", () => {
     expect(state.loadingVisual).toBe("none");
   });
 
-  it("does not keep rendered generated rows in any loading visual state", () => {
+  it("keeps rendered preview-only generated rows loading while provider is still running", () => {
     const state = classifyReferenceGridCardVisualState({
       item: createOutput({
         taskState: "running",
@@ -186,9 +187,9 @@ describe("referenceGridCardVisualState", () => {
       imageSrc: "https://cdn.test/generated-preview.png",
     });
 
-    expect(state.isGenerationLoading).toBe(false);
+    expect(state.isGenerationLoading).toBe(true);
     expect(state.isMediaHydrating).toBe(false);
-    expect(state.loadingVisual).toBe("none");
+    expect(state.loadingVisual).toBe("spinner");
   });
 
   it("uses spinner visual for local video references pending durable persistence", () => {

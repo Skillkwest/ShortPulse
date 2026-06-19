@@ -4,7 +4,11 @@ const fs = require("fs");
 const path = require("path");
 
 const REPO_ROOT = process.cwd();
-const DEFAULT_OPERATOR_MAP_PATH = path.join(REPO_ROOT, "docs", "operator-map.md");
+const DEFAULT_OPERATOR_MAP_PATH = path.join(
+  REPO_ROOT,
+  "docs",
+  "operator-map.md",
+);
 const DEFAULT_DOCS_INDEX_PATH = path.join(REPO_ROOT, "docs", "README.md");
 
 const REQUIRED_COLUMNS = [
@@ -40,9 +44,11 @@ const REQUIRED_OPERATIONAL_ROUTES = [
   "/api/internal/generation-recovery/run",
   "/api/internal/media-derivatives/run",
   "/api/internal/admin-user-health-fleet/run",
+  "/api/internal/billing-contract-renewals/run",
 ];
 
-const OWNER_PLACEHOLDER_PATTERN = /^(tbd|todo|unknown|unassigned|n\/a|na|-|none|null|<.*>)$/i;
+const OWNER_PLACEHOLDER_PATTERN =
+  /^(tbd|todo|unknown|unassigned|n\/a|na|-|none|null|<.*>)$/i;
 
 function resolveInputPath(rawPath, fallbackAbsolutePath) {
   if (!rawPath || !rawPath.trim()) {
@@ -107,10 +113,12 @@ function extractSystemRegistryRows(operatorMapText, errors) {
   }
 
   const headerCells = parseTableRow(tableLines[0]).map(normalizeHeader);
-  const requiredHeaders = REQUIRED_COLUMNS.map((column) => normalizeHeader(column));
+  const requiredHeaders = REQUIRED_COLUMNS.map((column) =>
+    normalizeHeader(column),
+  );
   if (headerCells.length !== requiredHeaders.length) {
     errors.push(
-      `System Registry header column count mismatch: expected ${requiredHeaders.length}, got ${headerCells.length}.`
+      `System Registry header column count mismatch: expected ${requiredHeaders.length}, got ${headerCells.length}.`,
     );
     return [];
   }
@@ -118,7 +126,7 @@ function extractSystemRegistryRows(operatorMapText, errors) {
   for (let i = 0; i < requiredHeaders.length; i += 1) {
     if (headerCells[i] !== requiredHeaders[i]) {
       errors.push(
-        `System Registry header mismatch at column ${i + 1}: expected "${requiredHeaders[i]}", got "${headerCells[i]}".`
+        `System Registry header mismatch at column ${i + 1}: expected "${requiredHeaders[i]}", got "${headerCells[i]}".`,
       );
     }
   }
@@ -131,7 +139,7 @@ function extractSystemRegistryRows(operatorMapText, errors) {
     }
     if (cells.length !== requiredHeaders.length) {
       errors.push(
-        `System Registry row has ${cells.length} columns; expected ${requiredHeaders.length}. Row: ${dataLine.trim()}`
+        `System Registry row has ${cells.length} columns; expected ${requiredHeaders.length}. Row: ${dataLine.trim()}`,
       );
       continue;
     }
@@ -171,7 +179,9 @@ function fileExistsWithMarkdownFallback(targetPath) {
 function validateRunbookLinks(value, errors, systemId, operatorMapPath) {
   const linkMatches = [...value.matchAll(/\[[^\]]+]\(([^)]+)\)/g)];
   if (linkMatches.length === 0) {
-    errors.push(`system_id "${systemId}" must include at least one markdown link in "primary runbook".`);
+    errors.push(
+      `system_id "${systemId}" must include at least one markdown link in "primary runbook".`,
+    );
     return;
   }
 
@@ -195,7 +205,7 @@ function validateRunbookLinks(value, errors, systemId, operatorMapPath) {
 
   if (!hasResolvableLocalLink) {
     errors.push(
-      `system_id "${systemId}" has no valid local doc/runbook link in "primary runbook".`
+      `system_id "${systemId}" has no valid local doc/runbook link in "primary runbook".`,
     );
   }
 }
@@ -203,21 +213,25 @@ function validateRunbookLinks(value, errors, systemId, operatorMapPath) {
 function validateDateNotFuture(rawDate, errors, systemId) {
   const value = stripBackticks(rawDate);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    errors.push(`system_id "${systemId}" has invalid "last validated" date format: "${rawDate}"`);
+    errors.push(
+      `system_id "${systemId}" has invalid "last validated" date format: "${rawDate}"`,
+    );
     return;
   }
   const date = new Date(`${value}T00:00:00Z`);
   if (Number.isNaN(date.getTime())) {
-    errors.push(`system_id "${systemId}" has unparsable "last validated" date: "${rawDate}"`);
+    errors.push(
+      `system_id "${systemId}" has unparsable "last validated" date: "${rawDate}"`,
+    );
     return;
   }
   const now = new Date();
   const todayIso = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-${String(
-    now.getUTCDate()
+    now.getUTCDate(),
   ).padStart(2, "0")}`;
   if (value > todayIso) {
     errors.push(
-      `system_id "${systemId}" has future "last validated" date ${value} (today UTC ${todayIso}).`
+      `system_id "${systemId}" has future "last validated" date ${value} (today UTC ${todayIso}).`,
     );
   }
 }
@@ -229,7 +243,9 @@ function validateOwnerField(rawOwner, ownerField, errors, systemId) {
     return;
   }
   if (OWNER_PLACEHOLDER_PATTERN.test(value)) {
-    errors.push(`system_id "${systemId}" has placeholder "${ownerField}" value "${rawOwner}".`);
+    errors.push(
+      `system_id "${systemId}" has placeholder "${ownerField}" value "${rawOwner}".`,
+    );
   }
 }
 
@@ -237,20 +253,29 @@ function run() {
   const errors = [];
   const operatorMapPath = resolveInputPath(
     process.env.SHORTPULSE_OPERATOR_MAP_PATH,
-    DEFAULT_OPERATOR_MAP_PATH
+    DEFAULT_OPERATOR_MAP_PATH,
   );
-  const docsIndexPath = resolveInputPath(process.env.SHORTPULSE_DOCS_INDEX_PATH, DEFAULT_DOCS_INDEX_PATH);
+  const docsIndexPath = resolveInputPath(
+    process.env.SHORTPULSE_DOCS_INDEX_PATH,
+    DEFAULT_DOCS_INDEX_PATH,
+  );
 
-  const operatorMapText = readTextOrFail(operatorMapPath, errors, "operator map doc");
+  const operatorMapText = readTextOrFail(
+    operatorMapPath,
+    errors,
+    "operator map doc",
+  );
   const docsIndexText = readTextOrFail(docsIndexPath, errors, "docs index");
 
   if (docsIndexText && !docsIndexText.includes("docs/operator-map.md")) {
     errors.push(
-      `${path.relative(REPO_ROOT, docsIndexPath)} must index docs/operator-map.md.`
+      `${path.relative(REPO_ROOT, docsIndexPath)} must index docs/operator-map.md.`,
     );
   }
 
-  const rows = operatorMapText ? extractSystemRegistryRows(operatorMapText, errors) : [];
+  const rows = operatorMapText
+    ? extractSystemRegistryRows(operatorMapText, errors)
+    : [];
   const bySystemId = new Map();
   const entrypointValues = [];
 
@@ -267,9 +292,24 @@ function run() {
     bySystemId.set(systemId, row);
 
     entrypointValues.push(row["entrypoints"] || "");
-    validateOwnerField(row["primary owner"] || "", "primary owner", errors, systemId);
-    validateOwnerField(row["backup owner"] || "", "backup owner", errors, systemId);
-    validateRunbookLinks(row["primary runbook"] || "", errors, systemId, operatorMapPath);
+    validateOwnerField(
+      row["primary owner"] || "",
+      "primary owner",
+      errors,
+      systemId,
+    );
+    validateOwnerField(
+      row["backup owner"] || "",
+      "backup owner",
+      errors,
+      systemId,
+    );
+    validateRunbookLinks(
+      row["primary runbook"] || "",
+      errors,
+      systemId,
+      operatorMapPath,
+    );
     validateDateNotFuture(row["last validated"] || "", errors, systemId);
   }
 
@@ -282,7 +322,9 @@ function run() {
   const entrypointsJoined = entrypointValues.join(" ");
   for (const requiredRoute of REQUIRED_OPERATIONAL_ROUTES) {
     if (!entrypointsJoined.includes(requiredRoute)) {
-      errors.push(`Required operational route missing from entrypoints: ${requiredRoute}`);
+      errors.push(
+        `Required operational route missing from entrypoints: ${requiredRoute}`,
+      );
     }
   }
 
@@ -295,7 +337,7 @@ function run() {
   }
 
   console.log(
-    `Operator map drift check passed (${path.relative(REPO_ROOT, operatorMapPath)}; ${rows.length} system rows).`
+    `Operator map drift check passed (${path.relative(REPO_ROOT, operatorMapPath)}; ${rows.length} system rows).`,
   );
 }
 

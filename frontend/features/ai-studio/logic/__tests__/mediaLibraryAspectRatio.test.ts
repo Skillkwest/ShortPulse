@@ -17,6 +17,18 @@ describe("resolveMediaCardAspectRatio", () => {
     expect(resolveMediaCardAspectRatio({ fileType: "video/mp4", metadata: null })).toBe(16 / 9);
   });
 
+  it("uses a square ratio for audio cards regardless of visual metadata", () => {
+    expect(resolveMediaCardAspectRatio({ fileType: "audio/mpeg", metadata: null })).toBe(1);
+    expect(
+      resolveMediaCardAspectRatio({
+        fileType: "audio/mpeg",
+        width: 1200,
+        height: 1800,
+        metadata: { aspect_ratio: 4 / 5 },
+      })
+    ).toBe(1);
+  });
+
   it("prefers explicit aspect ratio metadata values", () => {
     expect(
       resolveMediaCardAspectRatio({ fileType: "image/png", metadata: { aspect_ratio: 1.75 } })
@@ -96,6 +108,21 @@ describe("resolveMediaCardAspectRatio", () => {
       })
     ).toEqual({
       width: 1820,
+      height: 1024,
+    });
+  });
+
+  it("keeps audio drag dimensions square even when stale visual dimensions exist", () => {
+    expect(
+      resolveMediaDragDimensions({
+        fileType: "audio/mpeg",
+        width: 1200,
+        height: 1800,
+        metadata: { aspect_ratio: 4 / 5 },
+        visualAspectRatio: 4 / 5,
+      })
+    ).toEqual({
+      width: 1024,
       height: 1024,
     });
   });

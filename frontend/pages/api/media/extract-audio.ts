@@ -172,20 +172,18 @@ export default async function handler(
         label: "Extracted voice changer audio storage path",
       });
 
-      const uploadResult = await getSupabaseAdmin()
-        .storage.from(MEDIA_BUCKET)
-        .upload(storagePath, extractedBuffer, {
-          contentType: "audio/wav",
-          upsert: false,
-        });
+      const storage = getSupabaseAdmin().storage.from(MEDIA_BUCKET);
+      const uploadResult = await storage.upload(storagePath, extractedBuffer, {
+        contentType: "audio/wav",
+        upsert: false,
+      });
       if (uploadResult.error) {
         throw new Error(uploadResult.error.message || "Unable to store extracted audio.");
       }
 
-      const signedResult = await getSupabaseAdmin()
-        .storage.from(MEDIA_BUCKET)
-        .createSignedUrl(storagePath, 60 * 60);
+      const signedResult = await storage.createSignedUrl(storagePath, 60 * 60);
       if (signedResult.error || !signedResult.data?.signedUrl) {
+        await storage.remove([storagePath]).catch(() => undefined);
         throw new Error(signedResult.error?.message || "Unable to sign extracted audio.");
       }
 

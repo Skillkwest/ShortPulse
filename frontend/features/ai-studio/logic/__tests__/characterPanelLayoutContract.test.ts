@@ -31,7 +31,7 @@ describe("character panel layout contract", () => {
     );
     const characterTransparentRule = extractRuleBlock(
       css,
-      '.ai-studio-page[data-selected-tool="character"] .panel.ai-panel.ai-properties,\n.ai-studio-page[data-selected-tool="elements"] .panel.ai-panel.ai-properties,\n.ai-studio-page[data-selected-tool="video"] .panel.ai-panel.ai-properties,\n.ai-studio-page[data-selected-tool="kling"] .panel.ai-panel.ai-properties'
+      '.ai-studio-page[data-selected-tool="edit"]:not([data-selected-tool="canvas"]) .panel.ai-panel.ai-properties,\n.ai-studio-page[data-selected-tool="image"]:not([data-selected-tool="canvas"]) .panel.ai-panel.ai-properties,\n.ai-studio-page[data-selected-tool="video"]:not([data-selected-tool="canvas"]) .panel.ai-panel.ai-properties,\n.ai-studio-page[data-selected-tool="kling"]:not([data-selected-tool="canvas"]) .panel.ai-panel.ai-properties,\n.ai-studio-page[data-selected-tool="character"]:not([data-selected-tool="canvas"]) .panel.ai-panel.ai-properties,\n.ai-studio-page[data-selected-tool="elements"]:not([data-selected-tool="canvas"]) .panel.ai-panel.ai-properties'
     );
 
     expect(sharedRailRule).toContain("align-self: stretch;");

@@ -587,7 +587,7 @@ describe("createFalSubmitHandler", () => {
     );
   });
 
-  it("falls back to external image refs when internal ref signing fails", async () => {
+  it("returns a structured 503 when internal image ref signing fails even with external refs", async () => {
     readInternalMediaRefsFromPayloadMock.mockReturnValue([
       {
         version: 1,
@@ -623,23 +623,20 @@ describe("createFalSubmitHandler", () => {
 
     await handler(req as never, res as never);
 
-    expect(dispatchProviderSubmitMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        payload: expect.objectContaining({
-          image_urls: ["https://external.example/ref.png"],
-        }),
-      })
-    );
+    expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
+    expect(dispatchProviderSubmitMock).not.toHaveBeenCalled();
     expect(logGenerationFailureMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        source: "telemetry.api.fal_submit.internal_media_ref_sign_fallback",
-        statusCode: 200,
-        metadata: expect.objectContaining({
-          fallback_reference_count: 1,
-        }),
+        source: "api.fal_submit.internal_media_ref_sign_failed",
+        statusCode: 503,
       })
     );
-    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.setHeader).toHaveBeenCalledWith("Retry-After", "20");
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Reference media could not be prepared. Please retry.",
+      detail: "Unable to refresh internal reference media URLs.",
+    });
   });
 
   it("returns a structured 503 when only internal image refs are available and signing fails", async () => {
@@ -761,7 +758,7 @@ describe("createFalSubmitHandler", () => {
     );
   });
 
-  it("falls back to external edit refs when internal edit signing fails", async () => {
+  it("returns a structured 503 when internal edit ref signing fails even with external refs", async () => {
     readInternalEditMediaRefsFromPayloadMock.mockReturnValue({
       baseImageRef: {
         version: 1,
@@ -815,24 +812,20 @@ describe("createFalSubmitHandler", () => {
 
     await handler(req as never, res as never);
 
-    expect(dispatchProviderSubmitMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        payload: expect.objectContaining({
-          image_url: "https://external.example/base.png",
-          mask_url: "https://external.example/mask.png",
-          reference_image_url: "https://external.example/ref.png",
-        }),
-      })
-    );
+    expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
+    expect(dispatchProviderSubmitMock).not.toHaveBeenCalled();
     expect(logGenerationFailureMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        source: "telemetry.api.fal_submit.internal_edit_media_ref_sign_fallback",
-        statusCode: 200,
-        metadata: expect.objectContaining({
-          fallback_reference_count: 3,
-        }),
+        source: "api.fal_submit.internal_edit_media_ref_sign_failed",
+        statusCode: 503,
       })
     );
+    expect(res.setHeader).toHaveBeenCalledWith("Retry-After", "20");
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Edit reference media could not be prepared. Please retry.",
+      detail: "Unable to refresh internal edit media URLs.",
+    });
   });
 
   it("submits Kie video routes directly and returns a provider request id", async () => {

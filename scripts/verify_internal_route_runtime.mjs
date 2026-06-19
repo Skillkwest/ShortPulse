@@ -8,9 +8,10 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { loadLocalEnv } from "./lib/load_local_env.mjs";
 
-const DEFAULT_ROUTE_CONFIGS = [
+export const DEFAULT_ROUTE_CONFIGS = [
   {
     id: "generation_recovery",
     path: "/api/internal/generation-recovery/run",
@@ -30,17 +31,13 @@ const DEFAULT_ROUTE_CONFIGS = [
     id: "billing_renewals",
     path: "/api/internal/billing-contract-renewals/run",
     secretEnv: "SHORTPULSE_INTERNAL_BILLING_RENEWALS_CRON_SECRET",
+    mutatesOnAuthProbe: true,
   },
 ];
 
 const DEFAULT_TIMEOUT_MS = 20_000;
 const resolveRouteSecret = (route) =>
   process.env[route.secretEnv]?.trim() ?? process.env.CRON_SECRET?.trim() ?? "";
-
-loadLocalEnv({
-  argv: process.argv.slice(2),
-  defaultPaths: [".env.agent.local", "frontend/.env.local"],
-});
 
 const usage = () => {
   console.log(`Usage:
@@ -55,6 +52,8 @@ Options:
   --output <json-path>      Optional machine-readable summary output path.
   --skip-unauth             Skip the unauthenticated 401 protection check.
   --skip-auth               Skip the authenticated 200 runtime check.
+  --allow-mutating-auth     Allow authenticated probes for routes that can mutate data.
+                            Explicitly required for billing_renewals auth probes.
   --env-file <path>         Optional env file path (repeatable). Parsed by shared loader.
   --help                    Show this message.
 `);
@@ -68,7 +67,7 @@ const readArgValue = (argv, index, label) => {
   return value.trim();
 };
 
-const parseArgs = (argv) => {
+export const parseArgs = (argv) => {
   const parsed = {
     baseUrl:
       process.env.SHORTPULSE_STAGING_BASE_URL?.trim() ??
@@ -79,6 +78,7 @@ const parseArgs = (argv) => {
     output: "",
     runUnauth: true,
     runAuth: true,
+    allowMutatingAuth: false,
     help: false,
   };
 
@@ -119,6 +119,10 @@ const parseArgs = (argv) => {
       parsed.runAuth = false;
       continue;
     }
+    if (arg === "--allow-mutating-auth") {
+      parsed.allowMutatingAuth = true;
+      continue;
+    }
     if (arg === "--env-file") {
       readArgValue(argv, index, "--env-file");
       index += 1;
@@ -144,7 +148,7 @@ const parseArgs = (argv) => {
   return parsed;
 };
 
-const resolveRoutes = (routeIds) => {
+export const resolveRoutes = (routeIds) => {
   if (routeIds.length === 0) return [...DEFAULT_ROUTE_CONFIGS];
 
   return routeIds.map((routeId) => {
@@ -158,15 +162,23 @@ const resolveRoutes = (routeIds) => {
   });
 };
 
-const ensureInputs = ({ baseUrl, routes, runAuth }) => {
+const ensureInputs = ({ baseUrl, routes, args, explicitRouteSelection }) => {
   if (!baseUrl) {
     throw new Error(
       "Missing required base URL. Set --base-url or SHORTPULSE_STAGING_BASE_URL / APP_BASE_URL.",
     );
   }
 
-  if (runAuth) {
+  if (args.runAuth) {
     const missingSecretKeys = routes
+      .filter(
+        (route) =>
+          !shouldSkipAuthenticatedProbe({
+            route,
+            args,
+            explicitRouteSelection,
+          }),
+      )
       .filter((route) => !resolveRouteSecret(route))
       .map((route) => `${route.secretEnv} or CRON_SECRET`);
     if (missingSecretKeys.length > 0) {
@@ -175,6 +187,36 @@ const ensureInputs = ({ baseUrl, routes, runAuth }) => {
       );
     }
   }
+};
+
+export const shouldSkipAuthenticatedProbe = ({
+  route,
+  args,
+  explicitRouteSelection,
+}) =>
+  Boolean(
+    route.mutatesOnAuthProbe &&
+    args.runAuth &&
+    !args.allowMutatingAuth &&
+    !explicitRouteSelection,
+  );
+
+export const assertAllowedProbePlan = ({
+  routes,
+  args,
+  explicitRouteSelection,
+}) => {
+  if (!args.runAuth || args.allowMutatingAuth || !explicitRouteSelection)
+    return;
+  const blockedRoutes = routes.filter((route) => route.mutatesOnAuthProbe);
+  if (blockedRoutes.length === 0) return;
+  throw new Error(
+    `Authenticated probe for ${blockedRoutes
+      .map((route) => route.id)
+      .join(
+        ", ",
+      )} can mutate data. Re-run with --allow-mutating-auth if this is intentional.`,
+  );
 };
 
 const normalizeBodyPreview = (bodyText) =>
@@ -236,14 +278,20 @@ const writeJsonOutput = (outputPath, summary) => {
 };
 
 const main = async () => {
+  loadLocalEnv({
+    argv: process.argv.slice(2),
+    defaultPaths: [".env.agent.local", "frontend/.env.local"],
+  });
   const args = parseArgs(process.argv.slice(2));
   if (args.help) {
     usage();
     return;
   }
 
+  const explicitRouteSelection = args.routeIds.length > 0;
   const routes = resolveRoutes(args.routeIds);
-  ensureInputs({ ...args, routes });
+  assertAllowedProbePlan({ routes, args, explicitRouteSelection });
+  ensureInputs({ baseUrl: args.baseUrl, routes, args, explicitRouteSelection });
 
   const bypassToken =
     process.env.SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN?.trim() ?? "";
@@ -278,7 +326,19 @@ const main = async () => {
       }
     }
 
-    if (args.runAuth) {
+    if (shouldSkipAuthenticatedProbe({ route, args, explicitRouteSelection })) {
+      routeResult.auth = {
+        ok: true,
+        status: null,
+        bodyPreview: "",
+        expectedStatus: 200,
+        pass: true,
+        skipped: true,
+        reason: "mutating_auth_probe_requires_explicit_allow",
+        secretEnv: route.secretEnv,
+        usedCronFallback: false,
+      };
+    } else if (args.runAuth) {
       const secret = resolveRouteSecret(route);
       const authResult = await probeRoute({
         url,
@@ -317,9 +377,15 @@ const main = async () => {
       }
     }
     if (routeResult.auth) {
-      console.log(
-        `  auth: status=${routeResult.auth.status ?? "error"} expected=200 pass=${routeResult.auth.pass}`,
-      );
+      if (routeResult.auth.skipped) {
+        console.log(
+          `  auth: skipped=${routeResult.auth.reason} expected=200 pass=${routeResult.auth.pass}`,
+        );
+      } else {
+        console.log(
+          `  auth: status=${routeResult.auth.status ?? "error"} expected=200 pass=${routeResult.auth.pass}`,
+        );
+      }
       if (!routeResult.auth.pass) {
         console.log(
           `    detail=${routeResult.auth.error ?? routeResult.auth.bodyPreview ?? "no body"}`,
@@ -343,11 +409,17 @@ const main = async () => {
   }
 
   console.log(
-    "[route-runtime] PASS: protected internal routes fail closed unauthenticated and succeed with operator auth.",
+    "[route-runtime] PASS: protected internal routes fail closed unauthenticated; non-mutating auth probes succeeded.",
   );
 };
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exit(1);
-});
+const isCliEntry = process.argv[1]
+  ? import.meta.url === pathToFileURL(process.argv[1]).href
+  : false;
+
+if (isCliEntry) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  });
+}

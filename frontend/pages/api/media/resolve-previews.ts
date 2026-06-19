@@ -297,11 +297,12 @@ export default async function handler(
         .select("name")
         .eq("bucket_id", MEDIA_BUCKET)
         .in("name", dedupedCandidates);
-      if (!existingError) {
-        for (const row of (existingRows ?? []) as Array<{ name?: string | null }>) {
-          const name = typeof row.name === "string" ? row.name.trim() : "";
-          if (name) existingPaths.add(name);
-        }
+      if (existingError) {
+        throw new Error(existingError.message || "Unable to verify media preview storage objects.");
+      }
+      for (const row of (existingRows ?? []) as Array<{ name?: string | null }>) {
+        const name = typeof row.name === "string" ? row.name.trim() : "";
+        if (name) existingPaths.add(name);
       }
     }
 

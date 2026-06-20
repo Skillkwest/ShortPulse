@@ -249,6 +249,15 @@ export const useAiStudioViewModel = ({
   const hasSeedance2LinkedAssetReferences = seedanceLinkedElementEligibilities.some(
     (eligibility) => eligibility.isSubmittable
   );
+  const videoPricingResolution = useMemo(() => {
+    if (!effectiveVideoPricingModelId) return videoResolution;
+    const config = getModelConfig(effectiveVideoPricingModelId);
+    const allowedResolutions = config?.allowedResolutions ?? [];
+    if (!allowedResolutions.length || allowedResolutions.includes(videoResolution)) {
+      return videoResolution;
+    }
+    return config?.defaultResolution ?? allowedResolutions[0] ?? videoResolution;
+  }, [effectiveVideoPricingModelId, videoResolution]);
   const klingElementProviderGuardrail = useMemo(
     () =>
       isVideoTool && videoReferenceMode === "standard" && model === KIE_KLING_30_MODEL_ID
@@ -267,7 +276,7 @@ export const useAiStudioViewModel = ({
               fallbackDurationSeconds: videoDurationSeconds,
             })
           : videoDurationSeconds,
-      resolution: videoResolution,
+      resolution: videoPricingResolution,
       audio: resolvedVideoLane === "lip-sync" ? true : videoGenerateAudio,
       ...(isSeedance2PricingModel ? { inputVideoCount: seedance2VideoInputCount } : {}),
     }),
@@ -278,7 +287,7 @@ export const useAiStudioViewModel = ({
       seedance2VideoInputCount,
       videoDurationSeconds,
       videoGenerateAudio,
-      videoResolution,
+      videoPricingResolution,
     ]
   );
   const requiresResolvedPricingPolicy =

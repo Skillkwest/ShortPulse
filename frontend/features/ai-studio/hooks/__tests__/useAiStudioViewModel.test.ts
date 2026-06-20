@@ -147,6 +147,47 @@ const editInput = {
 };
 
 describe("useAiStudioViewModel motion guardrails", () => {
+  it("resolves Generate button pricing for every active video pricing model from the materialized policy", () => {
+    [
+      {
+        modelId: KIE_VEO_31_FAST_I2V_MODEL_ID,
+        referenceMode: "standard" as const,
+      },
+      {
+        modelId: KIE_KLING_30_MODEL_ID,
+        referenceMode: "standard" as const,
+      },
+      {
+        modelId: KIE_SEEDANCE_2_MODEL_ID,
+        referenceMode: "standard" as const,
+      },
+      {
+        modelId: KIE_SEEDANCE_2_FAST_MODEL_ID,
+        referenceMode: "standard" as const,
+      },
+      {
+        modelId: FAL_OMNIHUMAN_V15_MODEL_ID,
+        referenceMode: "lip-sync" as const,
+      },
+    ].forEach(({ modelId, referenceMode }) => {
+      const { result } = renderHook(() =>
+        useAiStudioViewModel({
+          ...baseInput,
+          model: modelId,
+          videoReferenceMode: referenceMode,
+          costParamsForModel: makeCostParamsForModel(modelId),
+          pricingPolicy: pricingGridPolicy,
+        })
+      );
+
+      expect(result.current.currentCostCredits).toBeGreaterThan(0);
+      expect(result.current.modelPickerCostCredits).toBeGreaterThan(0);
+      expect(result.current.generationGuardrail).not.toBe(
+        "Pricing is unavailable for this configuration. Retry in a moment."
+      );
+    });
+  });
+
   it("uses pricing-grid billed credits for active video settings", () => {
     const modelId = KIE_KLING_30_MODEL_ID;
     const costParamsForModel = (

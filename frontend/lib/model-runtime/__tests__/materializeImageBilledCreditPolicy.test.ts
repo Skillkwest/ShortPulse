@@ -9,7 +9,17 @@ import {
   FAL_FLUX_2_KLEIN_9B_MODEL_ID,
   FAL_FLUX_2_KLEIN_AUDIO_COMPANION_ART_VARIANT_BASE_ID,
   FAL_FLUX_2_KLEIN_STYLE_PREVIEW_VARIANT_BASE_ID,
+  FAL_OMNIHUMAN_V15_MODEL_ID,
 } from "../falModelIds";
+import {
+  KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
+  KIE_SEEDANCE_2_FAST_MODEL_ID,
+  KIE_VEO_31_FAST_I2V_MODEL_ID,
+} from "../providerModelIds";
+import { getModelConfig } from "../modelRegistry";
+import { resolvePricingGridCostBreakdown } from "../pricingGridBilledCredits";
+import { resolveVideoBilledCreditLookup } from "../videoBilledCredits";
 
 const basePolicy = {
   ...getDefaultModelPricingPolicyDocument(),
@@ -70,5 +80,63 @@ describe("materializeImageBilledCreditPolicy", () => {
         `${FAL_FLUX_2_KLEIN_STYLE_PREVIEW_VARIANT_BASE_ID}|res:model_default|aspect:1:1`
       ).billedCreditsOverride
     ).toBe(2);
+  });
+
+  it("materializes canonical billed-credit rows for video variants", () => {
+    const materialized = materializeImageBilledCreditPolicy(basePolicy);
+    const videoModelIds = [
+      KIE_VEO_31_FAST_I2V_MODEL_ID,
+      KIE_KLING_30_MODEL_ID,
+      KIE_SEEDANCE_2_MODEL_ID,
+      KIE_SEEDANCE_2_FAST_MODEL_ID,
+      FAL_OMNIHUMAN_V15_MODEL_ID,
+    ];
+
+    videoModelIds.forEach((modelId) => {
+      const config = getModelConfig(modelId);
+      expect(config).toBeTruthy();
+      const resolutions = config?.allowedResolutions?.length
+        ? config.allowedResolutions
+        : [config?.defaultResolution].filter((value): value is string => Boolean(value));
+      const audioOptions =
+        config?.defaultAudio != null &&
+        !["seedance-2-per-second", "seedance-2-fast-per-second"].includes(
+          config.pricingStrategy ?? ""
+        )
+          ? [true, false]
+          : [undefined];
+      const videoInputOptions = [KIE_SEEDANCE_2_MODEL_ID, KIE_SEEDANCE_2_FAST_MODEL_ID].includes(
+        modelId
+      )
+        ? [false, true]
+        : [undefined];
+
+      resolutions.forEach((resolution) => {
+        audioOptions.forEach((audio) => {
+          videoInputOptions.forEach((videoInput) => {
+            const params = {
+              resolution,
+              ...(audio != null ? { audio } : {}),
+              ...(videoInput != null ? { inputVideoCount: videoInput ? 1 : 0 } : {}),
+            };
+            const gridBreakdown = resolvePricingGridCostBreakdown({
+              modelId,
+              params,
+              pricingPolicy: basePolicy,
+            });
+            const strictVideoBreakdown = resolveVideoBilledCreditLookup({
+              modelId,
+              params,
+              pricingPolicy: materialized,
+            }).breakdown;
+
+            expect(strictVideoBreakdown).toMatchObject({
+              variantId: gridBreakdown?.variantId,
+            });
+            expect(strictVideoBreakdown?.credits).toBeGreaterThan(0);
+          });
+        });
+      });
+    });
   });
 });

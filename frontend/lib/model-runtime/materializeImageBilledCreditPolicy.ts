@@ -3,6 +3,7 @@ import { resolveModelPricingVariantId } from "./modelPricingVariants";
 import type { ModelConfig } from "./modelRegistry";
 import { getDefaultAdminPricingCustomRowsDocument } from "./adminPricingCustomRows";
 import { normalizeCreateImageBilledPricingParams } from "./createImageBilledCredits";
+import { normalizeVideoBilledPricingParams } from "./videoBilledCredits";
 import {
   compactModelPricingPolicyDocument,
   type ModelPricingPerModelOverride,
@@ -14,6 +15,7 @@ import { resolvePricingGridCostBreakdown } from "./pricingGridBilledCredits";
 import {
   shouldExpandAspectPricingVariants,
   shouldExpandResolutionPricingVariants,
+  shouldExpandVideoInputPricingVariants,
 } from "./pricingGridVariantRules";
 
 type ImageVariantBase = { editLike: boolean };
@@ -109,6 +111,19 @@ const buildImageVariantBases = (model: ModelConfig): ImageVariantBase[] => {
   return variantBases;
 };
 
+const keepsAudioInVideoPricingGrid = (model: ModelConfig): boolean =>
+  model.defaultAudio != null &&
+  model.mediaType.toLowerCase().includes("video") &&
+  !["seedance-2-per-second", "seedance-2-fast-per-second"].includes(model.pricingStrategy ?? "");
+
+const buildVideoAudioOptions = (model: ModelConfig): Array<boolean | undefined> => {
+  if (!keepsAudioInVideoPricingGrid(model)) return [undefined];
+  return model.defaultAudio === false ? [false, true] : [true, false];
+};
+
+const buildVideoInputOptions = (model: ModelConfig): Array<boolean | undefined> =>
+  shouldExpandVideoInputPricingVariants(model.pricingStrategy) ? [false, true] : [undefined];
+
 const mergeVariantOverride = (
   override: ModelPricingPerModelOverride | undefined,
   variantId: string,
@@ -141,10 +156,11 @@ const mergeRuntimeAuthorities = (
 });
 
 /**
- * Produces a runtime-only policy document where image-model billed credits are
- * materialized per pricing-grid variant. This preserves Scott's admin pricing
- * page as the calculator/authoring surface while letting product runtime paths
- * consume explicit billed-credit rows instead of falling back to shared-policy math.
+ * Produces a runtime-only policy document where billed credits are materialized
+ * per pricing-grid variant for strict runtime paths. This preserves Scott's
+ * admin pricing page as the calculator/authoring surface while letting product
+ * runtime paths consume explicit billed-credit rows instead of falling back to
+ * shared-policy math.
  */
 export const materializeImageBilledCreditPolicy = (
   policy: ModelPricingPolicyDocument | null | undefined
@@ -240,6 +256,51 @@ export const materializeImageBilledCreditPolicy = (
         row.variantId,
         breakdown.credits
       );
+    });
+  });
+
+  pricingModels.forEach((model) => {
+    if (!model.mediaType.toLowerCase().includes("video")) return;
+
+    const aspects = buildAspectOptions(model);
+    const resolutions = buildResolutionOptions(model);
+    const audioOptions = buildVideoAudioOptions(model);
+    const videoInputOptions = buildVideoInputOptions(model);
+
+    aspects.forEach((aspect) => {
+      resolutions.forEach((resolution) => {
+        audioOptions.forEach((audio) => {
+          videoInputOptions.forEach((videoInput) => {
+            const params = normalizeVideoBilledPricingParams(
+              model.id,
+              buildDefaultPricingParams(model.id, {
+                ...(aspect ? { aspect } : {}),
+                ...(resolution ? { resolution } : {}),
+                ...(audio != null ? { audio } : {}),
+                ...(videoInput != null ? { inputVideoCount: videoInput ? 1 : 0 } : {}),
+              })
+            );
+
+            const breakdown = resolvePricingGridCostBreakdown({
+              modelId: model.id,
+              params,
+              pricingPolicy: normalized,
+            });
+            if (!breakdown?.credits || breakdown.credits <= 0) return;
+
+            const variantId = resolveModelPricingVariantId({
+              modelId: model.id,
+              ...params,
+            });
+
+            nextPolicy.perModel[model.id] = mergeVariantOverride(
+              nextPolicy.perModel[model.id],
+              variantId,
+              breakdown.credits
+            );
+          });
+        });
+      });
     });
   });
 

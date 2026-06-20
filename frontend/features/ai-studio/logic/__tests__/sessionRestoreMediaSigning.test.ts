@@ -13,12 +13,14 @@ import {
 const getSignedMediaUrlsBatchMock = vi.fn();
 const mediaFilesQueryMock = vi.fn();
 const generationPublicationsQueryMock = vi.fn();
+const readSupabaseSessionMock = vi.fn();
 
 vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
   getSignedMediaUrlsBatch: (...args: unknown[]) => getSignedMediaUrlsBatchMock(...args),
 }));
 
 vi.mock("../../../../lib/supabaseClient", () => ({
+  readSupabaseSession: (...args: unknown[]) => readSupabaseSessionMock(...args),
   ensureSupabaseQueryClient: () => ({
     from: (table: string) => {
       const queryState: Record<string, unknown> = {
@@ -66,6 +68,7 @@ const createOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput => ({
 describe("sessionRestoreMediaSigning", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    readSupabaseSessionMock.mockResolvedValue({ access_token: "token" });
     mediaFilesQueryMock.mockResolvedValue({ data: [], error: null });
     generationPublicationsQueryMock.mockResolvedValue({ data: [], error: null });
   });
@@ -431,6 +434,18 @@ describe("sessionRestoreMediaSigning", () => {
     );
   });
 
+  it("skips direct media authority lookup when no Supabase session is available", async () => {
+    readSupabaseSessionMock.mockResolvedValueOnce(null);
+
+    const authorityByMediaId = await resolveSessionRestoreSignedMediaAuthorityByMediaId([
+      "media-canvas-1",
+    ]);
+
+    expect(authorityByMediaId.size).toBe(0);
+    expect(mediaFilesQueryMock).not.toHaveBeenCalled();
+    expect(getSignedMediaUrlsBatchMock).not.toHaveBeenCalled();
+  });
+
   it("dedupes concurrent media authority lookups for the same restored media id", async () => {
     let resolveMediaQuery!: (value: unknown) => void;
     mediaFilesQueryMock.mockReturnValueOnce(
@@ -449,7 +464,7 @@ describe("sessionRestoreMediaSigning", () => {
       "media-shared",
     ]);
 
-    expect(mediaFilesQueryMock).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(mediaFilesQueryMock).toHaveBeenCalledTimes(1));
     expect(mediaFilesQueryMock).toHaveBeenCalledWith("id", ["media-shared"]);
 
     resolveMediaQuery({

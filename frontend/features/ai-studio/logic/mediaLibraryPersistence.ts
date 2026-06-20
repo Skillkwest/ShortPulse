@@ -4,6 +4,7 @@
  */
 import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
+import { getSignedMediaUrlsBatch } from "../../../lib/mediaSignedUrlCache";
 import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
 import {
   isMediaStorageQuotaExceededError,
@@ -274,6 +275,69 @@ const shouldPreferServerCopyForAiStudioVideo = (input: SaveMediaUrlInput): boole
   Boolean(input.generationId) &&
   URL_PROTOCOL_PATTERN.test(input.url) &&
   !input.previewStoragePathHint;
+
+const signMediaDeliveryPaths = async (
+  storagePaths: Array<string | null | undefined>
+): Promise<Map<string, string | null>> => {
+  const normalizedStoragePaths = Array.from(
+    new Set(
+      storagePaths
+        .map((storagePath) => asOptionalString(storagePath))
+        .filter((storagePath): storagePath is string => Boolean(storagePath))
+    )
+  );
+  if (!normalizedStoragePaths.length) return new Map();
+  try {
+    return await getSignedMediaUrlsBatch({
+      bucket: BUCKET,
+      storagePaths: normalizedStoragePaths,
+    });
+  } catch {
+    return new Map();
+  }
+};
+
+const resolveSavedMediaDelivery = async ({
+  previewStoragePath,
+  previewPosterStoragePath,
+  fullStoragePath,
+  previewUrlHint,
+  previewPosterUrlHint,
+  fullUrlHint,
+}: {
+  previewStoragePath: string | null;
+  previewPosterStoragePath: string | null;
+  fullStoragePath: string | null;
+  previewUrlHint?: string | null;
+  previewPosterUrlHint?: string | null;
+  fullUrlHint?: string | null;
+}): Promise<SaveMediaUrlResult["delivery"]> => {
+  const normalizedPreviewStoragePath = asOptionalString(previewStoragePath);
+  const normalizedPosterStoragePath = asOptionalString(previewPosterStoragePath);
+  const normalizedFullStoragePath = asOptionalString(fullStoragePath);
+  const signedByPath = await signMediaDeliveryPaths([
+    normalizedPreviewStoragePath,
+    normalizedPosterStoragePath,
+    normalizedFullStoragePath,
+  ]);
+  const signedPreviewUrl = normalizedPreviewStoragePath
+    ? asOptionalString(signedByPath.get(normalizedPreviewStoragePath))
+    : null;
+  const signedPosterUrl = normalizedPosterStoragePath
+    ? asOptionalString(signedByPath.get(normalizedPosterStoragePath))
+    : null;
+  const signedFullUrl = normalizedFullStoragePath
+    ? asOptionalString(signedByPath.get(normalizedFullStoragePath))
+    : null;
+  return {
+    previewStoragePath: normalizedPreviewStoragePath,
+    previewPosterStoragePath: normalizedPosterStoragePath,
+    fullStoragePath: normalizedFullStoragePath,
+    previewUrl: signedPreviewUrl ?? previewUrlHint ?? null,
+    previewPosterUrl: signedPosterUrl ?? previewPosterUrlHint ?? null,
+    fullUrl: signedFullUrl ?? fullUrlHint ?? previewUrlHint ?? null,
+  };
+};
 
 const logProjectAssociationWarning = ({
   projectId,
@@ -1334,15 +1398,15 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
           });
         }
       }
-      const delivery = {
+      const delivery = await resolveSavedMediaDelivery({
         previewStoragePath:
           durablePreviewStoragePath ?? input.previewStoragePathHint ?? existingRow.storagePath,
         previewPosterStoragePath: durablePosterStoragePath,
         fullStoragePath: input.fullStoragePathHint ?? existingRow.storagePath,
-        previewUrl: input.previewUrlHint ?? null,
-        previewPosterUrl: input.posterUrlHint ?? null,
-        fullUrl: input.fullUrlHint ?? input.previewUrlHint ?? null,
-      };
+        previewUrlHint: input.previewUrlHint,
+        previewPosterUrlHint: input.posterUrlHint,
+        fullUrlHint: input.fullUrlHint,
+      });
       return {
         mediaFileId: existingRow.id,
         storagePath: existingRow.storagePath ?? "",
@@ -1548,15 +1612,15 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
             });
           }
         }
-        const delivery = {
+        const delivery = await resolveSavedMediaDelivery({
           previewStoragePath:
             durablePreviewStoragePath ?? input.previewStoragePathHint ?? existingRow.storagePath,
           previewPosterStoragePath: durablePosterStoragePath,
           fullStoragePath: input.fullStoragePathHint ?? existingRow.storagePath,
-          previewUrl: input.previewUrlHint ?? null,
-          previewPosterUrl: input.posterUrlHint ?? null,
-          fullUrl: input.fullUrlHint ?? input.previewUrlHint ?? null,
-        };
+          previewUrlHint: input.previewUrlHint,
+          previewPosterUrlHint: input.posterUrlHint,
+          fullUrlHint: input.fullUrlHint,
+        });
         return {
           mediaFileId: existingRow.id,
           storagePath: existingRow.storagePath ?? storagePath,
@@ -1598,14 +1662,14 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
     }
   }
 
-  const delivery = {
+  const delivery = await resolveSavedMediaDelivery({
     previewStoragePath: durablePreviewStoragePath ?? input.previewStoragePathHint ?? storagePath,
-    previewPosterStoragePath: null as string | null,
+    previewPosterStoragePath: null,
     fullStoragePath: input.fullStoragePathHint ?? storagePath,
-    previewUrl: input.previewUrlHint ?? null,
-    previewPosterUrl: input.posterUrlHint ?? null,
-    fullUrl: input.fullUrlHint ?? input.previewUrlHint ?? null,
-  };
+    previewUrlHint: input.previewUrlHint,
+    previewPosterUrlHint: input.posterUrlHint,
+    fullUrlHint: input.fullUrlHint,
+  });
 
   const projectId = normalizeProjectId(input.projectId);
   if (mediaFileId && projectId) {

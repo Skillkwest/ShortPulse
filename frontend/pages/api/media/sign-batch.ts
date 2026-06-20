@@ -45,8 +45,25 @@ type StorageObjectQueryClient = {
   };
 };
 
+type StorageListObject = {
+  name?: unknown;
+};
+
+type StorageVerificationBucketClient = {
+  list?: (
+    path?: string,
+    options?: {
+      limit?: number;
+      search?: string;
+    }
+  ) => Promise<{ data?: StorageListObject[] | null; error?: { message?: string } | null }>;
+};
+
 type SupabaseAdminWithStorageSchema = {
   schema?: unknown;
+  storage?: {
+    from?: (bucket: string) => StorageVerificationBucketClient;
+  };
 };
 
 const MEDIA_BUCKET = "media_library";
@@ -123,6 +140,19 @@ const toPreviewProfile = (value: unknown): MediaPreviewTransformProfile | null =
   return null;
 };
 
+const splitStoragePath = (storagePath: string): { folder: string; name: string } | null => {
+  const segments = storagePath
+    .split("/")
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+  const name = segments.pop();
+  if (!name) return null;
+  return {
+    folder: segments.join("/"),
+    name,
+  };
+};
+
 const resolveExistingStorageObjectPaths = async ({
   supabaseAdmin,
   paths,
@@ -131,25 +161,58 @@ const resolveExistingStorageObjectPaths = async ({
   paths: string[];
 }): Promise<Set<string>> => {
   if (!paths.length) return new Set();
+  let schemaErrorMessage: string | null = null;
   if (typeof supabaseAdmin.schema !== "function") {
+    schemaErrorMessage = null;
+  } else {
+    try {
+      const storageSchemaClient = supabaseAdmin.schema("storage") as StorageObjectQueryClient;
+
+      const { data, error } = await storageSchemaClient
+        .from("objects")
+        .select("name")
+        .eq("bucket_id", MEDIA_BUCKET)
+        .in("name", paths);
+      if (!error) {
+        return new Set(
+          (data ?? [])
+            .map((row) => (typeof row.name === "string" ? row.name.trim() : ""))
+            .filter((path): path is string => Boolean(path))
+        );
+      }
+      schemaErrorMessage = error.message || "Unable to verify media storage objects.";
+    } catch (error) {
+      schemaErrorMessage =
+        error instanceof Error ? error.message : "Unable to verify media storage objects.";
+    }
+  }
+
+  const storageBucket = supabaseAdmin.storage?.from?.(MEDIA_BUCKET);
+  if (typeof storageBucket?.list !== "function") {
+    if (schemaErrorMessage) {
+      throw new Error(schemaErrorMessage);
+    }
     return new Set(paths);
   }
-  const storageSchemaClient = supabaseAdmin.schema("storage") as StorageObjectQueryClient;
 
-  const { data, error } = await storageSchemaClient
-    .from("objects")
-    .select("name")
-    .eq("bucket_id", MEDIA_BUCKET)
-    .in("name", paths);
-  if (error) {
-    throw new Error(error.message || "Unable to verify media storage objects.");
+  const existingPaths = new Set<string>();
+  const uniquePaths = Array.from(new Set(paths.map((path) => path.trim()).filter(Boolean)));
+  for (const path of uniquePaths) {
+    const splitPath = splitStoragePath(path);
+    if (!splitPath) continue;
+    const { data, error } = await storageBucket.list(splitPath.folder, {
+      limit: 100,
+      search: splitPath.name,
+    });
+    if (error) {
+      throw new Error(error.message || "Unable to verify media storage objects.");
+    }
+    const exists = (data ?? []).some((row) => row.name === splitPath.name);
+    if (exists) {
+      existingPaths.add(path);
+    }
   }
-
-  return new Set(
-    (data ?? [])
-      .map((row) => (typeof row.name === "string" ? row.name.trim() : ""))
-      .filter((path): path is string => Boolean(path))
-  );
+  return existingPaths;
 };
 
 /**

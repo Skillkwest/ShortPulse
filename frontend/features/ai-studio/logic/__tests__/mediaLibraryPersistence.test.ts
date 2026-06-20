@@ -221,6 +221,141 @@ describe("saveMediaUrlToLibrary", () => {
     );
   });
 
+  it("signs durable delivery for an existing ai_studio video instead of returning provider hints", async () => {
+    const maybeSingle = vi
+      .fn()
+      .mockResolvedValueOnce({
+        data: {
+          id: "media-existing-video",
+          storage_path: "user-1/generations/videos/existing.mp4",
+          file_type: "video",
+          metadata: null,
+          poster_variant_path: "user-1/variants/videos/media-existing-video/poster_720.jpg",
+          preview_variant_path: "user-1/variants/videos/media-existing-video/preview_loop_360p.mp4",
+        },
+        error: null,
+      })
+      .mockResolvedValue({
+        data: null,
+        error: null,
+      });
+    const selectBuilder = createMediaFileSelectBuilder(maybeSingle);
+    const generationOutputMaybeSingle = vi
+      .fn()
+      .mockResolvedValueOnce({
+        data: { media_file_id: "media-existing-video" },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: { id: "gen-output-existing-video" },
+        error: null,
+      });
+    const generationOutputSelectBuilder = createGenerationOutputSelectBuilder(
+      generationOutputMaybeSingle
+    );
+    const generationOutputUpdate = vi.fn(() => ({
+      eq: vi.fn(() => ({
+        eq: vi.fn(async () => ({ error: null })),
+      })),
+    }));
+    const insert = vi.fn();
+    const upload = vi.fn();
+    fetchWithAuthMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          urls: {
+            "user-1/variants/videos/media-existing-video/preview_loop_360p.mp4":
+              "https://signed.shortpulse.test/user-1%2Fvariants%2Fvideos%2Fmedia-existing-video%2Fpreview_loop_360p.mp4",
+            "user-1/variants/videos/media-existing-video/poster_720.jpg":
+              "https://signed.shortpulse.test/user-1%2Fvariants%2Fvideos%2Fmedia-existing-video%2Fposter_720.jpg",
+            "user-1/generations/videos/existing.mp4":
+              "https://signed.shortpulse.test/user-1%2Fgenerations%2Fvideos%2Fexisting.mp4",
+          },
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }
+      )
+    );
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "media_files") {
+          return {
+            select: vi.fn(() => selectBuilder),
+            insert,
+          };
+        }
+        if (table === "ai_generation_outputs") {
+          return {
+            select: vi.fn(() => generationOutputSelectBuilder),
+            update: generationOutputUpdate,
+            insert: vi.fn(),
+          };
+        }
+        if (table === "media_events") {
+          return mockMediaEventsTable();
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+      storage: {
+        from: vi.fn(() => ({
+          upload,
+          remove: vi.fn(),
+        })),
+      },
+    });
+
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await saveMediaUrlToLibrary({
+      url: "https://tempfile.aiquickdraw.com/r/generated-video.mp4",
+      mode: "video",
+      source: "ai_studio",
+      generationId: "gen-video-1",
+      index: 0,
+      previewUrlHint: "https://tempfile.aiquickdraw.com/r/generated-video.mp4",
+      fullUrlHint: "https://tempfile.aiquickdraw.com/r/generated-video.mp4",
+    });
+
+    expect(result.mediaFileId).toBe("media-existing-video");
+    expect(result.delivery.previewUrl).toBe(
+      "https://signed.shortpulse.test/user-1%2Fvariants%2Fvideos%2Fmedia-existing-video%2Fpreview_loop_360p.mp4"
+    );
+    expect(result.delivery.previewPosterUrl).toBe(
+      "https://signed.shortpulse.test/user-1%2Fvariants%2Fvideos%2Fmedia-existing-video%2Fposter_720.jpg"
+    );
+    expect(result.delivery.fullUrl).toBe(
+      "https://signed.shortpulse.test/user-1%2Fgenerations%2Fvideos%2Fexisting.mp4"
+    );
+    expect(result.delivery.previewUrl).not.toContain("tempfile.aiquickdraw.com");
+    expect(result.delivery.fullUrl).not.toContain("tempfile.aiquickdraw.com");
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(upload).not.toHaveBeenCalled();
+    expect(insert).not.toHaveBeenCalled();
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/media/sign-batch",
+      expect.objectContaining({
+        method: "POST",
+        shortpulseLogScope: "app",
+      })
+    );
+    const signBatchBody = JSON.parse(String(fetchWithAuthMock.mock.calls.at(-1)?.[1]?.body));
+    expect(signBatchBody).toEqual(
+      expect.objectContaining({
+        bucket: "media_library",
+        paths: [
+          "user-1/variants/videos/media-existing-video/preview_loop_360p.mp4",
+          "user-1/variants/videos/media-existing-video/poster_720.jpg",
+          "user-1/generations/videos/existing.mp4",
+        ],
+        expiresInSeconds: 3600,
+      })
+    );
+  });
+
   it("backfills a durable poster for an existing ai_studio video row when file_type is stale", async () => {
     mockVideoPosterExtraction();
 

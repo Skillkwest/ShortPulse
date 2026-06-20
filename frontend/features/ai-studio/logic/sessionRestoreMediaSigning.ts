@@ -9,7 +9,7 @@ import {
   type InternalMediaRef,
 } from "../../../lib/media/internalMediaRefs";
 import { getSignedMediaUrlsBatch } from "../../../lib/mediaSignedUrlCache";
-import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient, readSupabaseSession } from "../../../lib/supabaseClient";
 import type { StudioOutput } from "../types";
 import { resolveReferenceDownloadTarget } from "./referenceDownload";
 import {
@@ -176,22 +176,25 @@ const resolveMediaStorageAuthorityByMediaId = async (
     });
 
     const resolvedAuthorityByMediaId = new Map<string, MediaStorageAuthority>();
-    const supabase = ensureSupabaseQueryClient();
+    const session = await readSupabaseSession().catch(() => null);
     let data: MediaStoragePathRow[] | null = null;
-    try {
-      const response = await supabase
-        .from("media_files")
-        .select(
-          "id, storage_path, file_type, poster_variant_path, thumb_variant_path, preview_variant_path"
-        )
-        .in("id", mediaIdsToQuery);
-      data = response.error
-        ? []
-        : Array.isArray(response.data)
-          ? (response.data as MediaStoragePathRow[])
-          : [];
-    } catch {
-      data = [];
+    if (session) {
+      const supabase = ensureSupabaseQueryClient();
+      try {
+        const response = await supabase
+          .from("media_files")
+          .select(
+            "id, storage_path, file_type, poster_variant_path, thumb_variant_path, preview_variant_path"
+          )
+          .in("id", mediaIdsToQuery);
+        data = response.error
+          ? []
+          : Array.isArray(response.data)
+            ? (response.data as MediaStoragePathRow[])
+            : [];
+      } catch {
+        data = [];
+      }
     }
 
     (data ?? []).forEach((row) => {
@@ -330,6 +333,9 @@ const resolveSessionRestoreRecoveredStorageAuthority = async (
     });
   }
 
+  const session = await readSupabaseSession().catch(() => null);
+  if (!session) return recoveredAuthorityByOutputId;
+
   const supabase = ensureSupabaseQueryClient();
   await Promise.all(
     generationRecoveryOutputs.map(async (output) => {
@@ -369,6 +375,7 @@ export const resolveSessionRestoreSignedMediaAuthorityByMediaId = async (
     if (authority.fullStoragePath) storagePaths.add(authority.fullStoragePath);
     if (authority.previewPosterStoragePath) storagePaths.add(authority.previewPosterStoragePath);
   });
+  if (storagePaths.size === 0) return new Map();
 
   const signedByPath = await getSignedMediaUrlsBatch({
     bucket: "media_library",

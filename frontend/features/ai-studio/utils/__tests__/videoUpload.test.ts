@@ -389,4 +389,12 @@ describe("videoUpload", () => {
       })
     );
   });
+
+  it("does not retire legacy motion-reference urls without a user-scoped storage path", async () => {
+    await retireCommittedMotionVideoByUrl(
+      "https://example.supabase.co/storage/v1/object/sign/media_library/videos/motion-control/legacy.mp4?token=fresh"
+    );
+
+    expect(fetchWithAuthMock).not.toHaveBeenCalled();
+  });
 });

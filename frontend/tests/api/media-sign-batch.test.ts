@@ -121,6 +121,66 @@ describe("POST /api/media/sign-batch", () => {
     });
   });
 
+  it("falls back to bucket listing when storage metadata verification is unavailable", async () => {
+    const path = "user-1/uploads/images/media-1.png";
+    const createSignedUrlsMock = vi.fn(async () => ({
+      data: [{ path, signedUrl: "https://example.test/fallback-signed" }],
+      error: null,
+    }));
+    const storageObjectsInMock = vi.fn(async () => ({
+      data: null,
+      error: { message: "storage metadata unavailable" },
+    }));
+    const listMock = vi.fn(async () => ({
+      data: [{ name: "media-1.png" }],
+      error: null,
+    }));
+
+    getSupabaseAdminMock.mockReturnValue({
+      schema: vi.fn(() => ({
+        from: vi.fn(() => ({
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              in: storageObjectsInMock,
+            })),
+          })),
+        })),
+      })),
+      storage: {
+        from: vi.fn(() => ({
+          createSignedUrls: createSignedUrlsMock,
+          createSignedUrl: vi.fn(),
+          list: listMock,
+        })),
+      },
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        bucket: "media_library",
+        paths: [path],
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(storageObjectsInMock).toHaveBeenCalledWith("name", [path]);
+    expect(listMock).toHaveBeenCalledWith("user-1/uploads/images", {
+      limit: 100,
+      search: "media-1.png",
+    });
+    expect(createSignedUrlsMock).toHaveBeenCalledWith([path], 3600);
+    expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      urls: {
+        [path]: "https://example.test/fallback-signed",
+      },
+    });
+  });
+
   it("fails closed without signing when storage metadata verification fails", async () => {
     const path = "user-1/uploads/images/media-1.png";
     const createSignedUrlsMock = vi.fn(async () => ({

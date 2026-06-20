@@ -11,7 +11,16 @@ export const isMotionReferenceVideoStoragePath = (
 ): storagePath is string => {
   if (typeof storagePath !== "string") return false;
   const normalized = storagePath.trim();
-  return normalized.includes(MOTION_REFERENCE_VIDEO_STORAGE_SEGMENT);
+  if (!normalized || normalized.startsWith("/") || normalized.includes("\\")) return false;
+  const segments = normalized.split("/");
+  return (
+    segments.length >= 4 &&
+    Boolean(segments[0]) &&
+    segments[1] === "videos" &&
+    segments[2] === "motion-control" &&
+    Boolean(segments[3]) &&
+    !segments.includes("..")
+  );
 };
 
 export const resolveMotionReferenceVideoStoragePathFromUrl = (

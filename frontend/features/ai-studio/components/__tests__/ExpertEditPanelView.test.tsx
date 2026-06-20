@@ -8223,8 +8223,10 @@ describe("ExpertEditPanelView", () => {
     await uploadPrimaryFile(container, "layer-1.png");
     await uploadPrimaryFile(container, "layer-2.png");
 
+    vi.useFakeTimers();
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Remove Background" }));
+      vi.advanceTimersByTime(180);
       await Promise.resolve();
     });
 
@@ -8241,6 +8243,97 @@ describe("ExpertEditPanelView", () => {
     ).mock.calls[0] ?? [[], undefined];
     expect(referenceInputs?.[0]).toMatch(/^blob:file-layer-2\.png-\d+$/);
     expect(referenceInputs).toHaveLength(1);
+    expect(options).toEqual(
+      expect.objectContaining({
+        modelIdOverride: "fal-ai/bria/background/remove",
+        referenceInputsMode: "replace",
+      })
+    );
+  });
+
+  it("flattens first when Flatten Layers is clicked before rapid Remove Background", async () => {
+    const onRegenerateWithReferenceInputs: NonNullable<
+      React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
+    > = vi.fn(async (referenceInputs, options) => {
+      void referenceInputs;
+      void options;
+    });
+    const { container } = render(
+      <ExpertEditPanelView
+        {...baseProps}
+        onRegenerateWithReferenceInputs={onRegenerateWithReferenceInputs}
+      />
+    );
+
+    await uploadPrimaryFile(container, "layer-1.png");
+    await uploadPrimaryFile(container, "layer-2.png");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Flatten Layers" }));
+      fireEvent.click(screen.getByRole("button", { name: "Remove Background" }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(composePrimaryStageLayersToBlobMock).toHaveBeenCalledTimes(1);
+    expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(1);
+    const [referenceInputs, options] = (
+      onRegenerateWithReferenceInputs as unknown as {
+        mock: {
+          calls: Array<
+            [string[], { modelIdOverride?: string | null; referenceInputsMode?: string }?]
+          >;
+        };
+      }
+    ).mock.calls[0] ?? [[], undefined];
+    expect(referenceInputs?.[0]).toMatch(/^blob:flatten-/);
+    expect(options).toEqual(
+      expect.objectContaining({
+        modelIdOverride: "fal-ai/bria/background/remove",
+        referenceInputsMode: "replace",
+      })
+    );
+  });
+
+  it("flattens first when Remove Background is clicked before rapid Flatten Layers", async () => {
+    const onRegenerateWithReferenceInputs: NonNullable<
+      React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
+    > = vi.fn(async (referenceInputs, options) => {
+      void referenceInputs;
+      void options;
+    });
+    const { container } = render(
+      <ExpertEditPanelView
+        {...baseProps}
+        onRegenerateWithReferenceInputs={onRegenerateWithReferenceInputs}
+      />
+    );
+
+    await uploadPrimaryFile(container, "layer-1.png");
+    await uploadPrimaryFile(container, "layer-2.png");
+
+    vi.useFakeTimers();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Remove Background" }));
+      fireEvent.click(screen.getByRole("button", { name: "Flatten Layers" }));
+      vi.advanceTimersByTime(180);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(composePrimaryStageLayersToBlobMock).toHaveBeenCalledTimes(1);
+    expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(1);
+    const [referenceInputs, options] = (
+      onRegenerateWithReferenceInputs as unknown as {
+        mock: {
+          calls: Array<
+            [string[], { modelIdOverride?: string | null; referenceInputsMode?: string }?]
+          >;
+        };
+      }
+    ).mock.calls[0] ?? [[], undefined];
+    expect(referenceInputs?.[0]).toMatch(/^blob:flatten-/);
+    expect(referenceInputs?.[0]).not.toMatch(/^blob:file-/);
     expect(options).toEqual(
       expect.objectContaining({
         modelIdOverride: "fal-ai/bria/background/remove",

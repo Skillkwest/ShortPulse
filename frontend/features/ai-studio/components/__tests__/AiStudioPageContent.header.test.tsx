@@ -462,6 +462,43 @@ describe("AiStudioPageContent header project name", () => {
     expect(shellFrame).toHaveAttribute("data-canvas-visible", "false");
   });
 
+  it.each([
+    ["Canvas", "canvas"],
+    ["Quick Slot Inventory", "quickSlot"],
+    ["Reference Grid", "referenceGrid"],
+  ] as const)(
+    "writes the %s header toggle into the project-durable right-rail layout without resetting splits",
+    (buttonName, panelKey) => {
+      const onRightRailLayoutChange = vi.fn();
+      const rightRailLayout = {
+        ...createDefaultRightRailLayout(),
+        splits: {
+          canvasInventoryTopRatio: 0.42,
+          quickSlotReferenceTopRatio: 0.67,
+        },
+      };
+
+      render(
+        <AiStudioPageContent
+          {...createProps({
+            rightRailLayout,
+            onRightRailLayoutChange,
+          })}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: buttonName }));
+
+      expect(onRightRailLayoutChange).toHaveBeenCalledTimes(1);
+      const update = onRightRailLayoutChange.mock.calls[0]?.[0] as React.SetStateAction<
+        typeof rightRailLayout
+      >;
+      const nextLayout = typeof update === "function" ? update(rightRailLayout) : update;
+      expect(nextLayout.panels[panelKey]).toBe(!rightRailLayout.panels[panelKey]);
+      expect(nextLayout.splits).toEqual(rightRailLayout.splits);
+    }
+  );
+
   it.each(["Canvas", "Quick Slot Inventory", "Reference Grid"] as const)(
     "does not expand %s from a double-click sequence",
     (buttonName) => {

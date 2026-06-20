@@ -220,6 +220,42 @@ describe("Canvas text behavior", () => {
     expect(screen.queryByTestId("canvas-text-edit-input")).not.toBeInTheDocument();
   });
 
+  it("keeps the text edit caret at the insertion point while typing in the middle", async () => {
+    render(<CanvasHarness />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/plain": "Original note",
+      }),
+      clientX: 260,
+      clientY: 170,
+    });
+
+    const item = await screen.findByTestId(/canvas-item-/);
+    fireEvent.doubleClick(item);
+
+    const input = screen.getByTestId("canvas-text-edit-input") as HTMLTextAreaElement;
+    input.focus();
+    input.setSelectionRange("Original ".length, "Original ".length);
+
+    const nextValue = "Original middle note";
+    const nextCaret = "Original middle".length;
+    fireEvent.change(input, {
+      target: {
+        value: nextValue,
+        selectionStart: nextCaret,
+        selectionEnd: nextCaret,
+        selectionDirection: "none",
+      },
+    });
+
+    await waitFor(() => expect(input).toHaveValue(nextValue));
+    expect(input.selectionStart).toBe(nextCaret);
+    expect(input.selectionEnd).toBe(nextCaret);
+  });
+
   it("renders resize handles for a selected text item and hides them while editing", async () => {
     render(<CanvasHarness />);
     const viewport = screen.getByTestId("canvas-viewport");

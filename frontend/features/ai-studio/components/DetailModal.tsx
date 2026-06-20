@@ -8,12 +8,14 @@ import type { StudioOutput, WorkflowReloadMediaKindHint } from "../types";
 import { resolveModelLabel } from "../logic/stateParsers";
 import { downloadUrlToFile } from "../logic/referenceDownload";
 import { createStudioOutputDetailModalItem } from "../logic/studioOutputDetailModal";
-import { canReloadWorkflowOutput } from "../logic/workflowReload";
+import {
+  canReloadWorkflowOutput,
+  inferWorkflowReloadMediaKindForOutput,
+} from "../logic/workflowReload";
 import { AppMessage } from "../../../components/AppMessage";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { MEDIA_STORAGE_FULL_USER_MESSAGE } from "../../../lib/mediaStorageQuota";
 import { resolveCustomerFacingModelLabel } from "../../../lib/customerFacingProviderText";
-import { resolveExpertEditStyleById } from "./edit/expertEditStyles";
 import { useAvatarResilience } from "../hooks/useAvatarResilience";
 import {
   parseAspectToken,
@@ -72,11 +74,7 @@ type DetailModalProps = {
 
 const resolveDetailWorkflowReloadMediaKindHint = (
   output: StudioOutput
-): WorkflowReloadMediaKindHint => {
-  if (output.mode === "video") return "video";
-  if (output.mode === "audio") return "audio";
-  return "image";
-};
+): WorkflowReloadMediaKindHint => inferWorkflowReloadMediaKindForOutput(output);
 
 /**
  * Renders the detail modal for a selected reference.
@@ -248,11 +246,8 @@ function DetailModalContent({
   const stylePreviewImageUrl = useMemo(() => {
     const explicitPreviewUrl = styleContext?.stylePreviewImageUrl?.trim() || "";
     if (explicitPreviewUrl) return explicitPreviewUrl;
-    const fallbackStyleId = styleContext?.styleId?.trim() || null;
-    const catalogStyle = resolveExpertEditStyleById(fallbackStyleId);
-    const catalogPreviewUrl = catalogStyle?.previewUrl?.trim() || "";
-    return catalogPreviewUrl || null;
-  }, [styleContext?.styleId, styleContext?.stylePreviewImageUrl]);
+    return null;
+  }, [styleContext?.stylePreviewImageUrl]);
   const characterInitials = useMemo(() => {
     const trimmed = characterName.trim();
     if (!trimmed) return "PC";
@@ -1069,7 +1064,7 @@ function DetailModalContent({
   };
   const shouldShowWorkflowReloadAction = Boolean(
     onReloadWorkflowReference &&
-    canReloadWorkflowOutput(output, { mediaKindHint: workflowReloadMediaKindHint })
+    (canReloadWorkflowOutput(output) || canReloadWorkflowOutput(output, { mediaKindHint: "image" }))
   );
 
   const sharedMediaActionItems = useMemo<SharedMediaDetailActionItem[]>(

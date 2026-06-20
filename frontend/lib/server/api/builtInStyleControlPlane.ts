@@ -55,6 +55,10 @@ export const getSeededBuiltInStyleDefinitions = (): BuiltInStyleDefinition[] => 
   ...SEEDED_BUILT_IN_STYLE_DEFINITIONS,
 ];
 
+export const isAuthoritativeBuiltInStyleCatalogResolution = (
+  resolution: RuntimeBuiltInStyleCatalogResolution
+): boolean => resolution.source === "control_plane" && resolution.degraded !== true;
+
 export const fetchActiveBuiltInStyleCatalog = async ({
   supabaseAdmin = getSupabaseAdmin(),
 }: ControlPlaneCatalogSupabaseParams = {}): Promise<ActiveBuiltInStyleCatalog | null> => {

@@ -59,7 +59,7 @@ describe("useReferenceGridSignedStorageUrlController", () => {
     vi.mocked(resolveSessionRestoreSignedMediaAuthorityByMediaId).mockResolvedValue(new Map());
   });
 
-  it("collects preview storage paths for card rendering without collecting eager full media", () => {
+  it("collects a bounded preview-first fallback ladder for card rendering", () => {
     const paths = collectReferenceGridStoragePaths([
       createStorageBackedImage({
         previewStoragePath: "/user-1/variants/images/image-1/preview.webp",
@@ -67,7 +67,11 @@ describe("useReferenceGridSignedStorageUrlController", () => {
       }),
     ]);
 
-    expect(paths).toEqual(["user-1/variants/images/image-1/preview.webp"]);
+    expect(paths).toEqual([
+      "user-1/variants/images/image-1/preview.webp",
+      "user-1/generations/images/image-1.png",
+      "user-1/results/image-1.png",
+    ]);
   });
 
   it("collects full-authority storage paths when explicitly requested", () => {
@@ -150,7 +154,10 @@ describe("useReferenceGridSignedStorageUrlController", () => {
 
     expect(getSignedMediaUrlsBatch).toHaveBeenCalledWith({
       bucket: "media_library",
-      storagePaths: ["user-1/variants/images/image-1/preview.webp"],
+      storagePaths: [
+        "user-1/variants/images/image-1/preview.webp",
+        "user-1/generations/images/image-1.png",
+      ],
       surface: "reference-grid",
       queryMode: "default",
     });
@@ -442,6 +449,22 @@ describe("useReferenceGridSignedStorageUrlController", () => {
     expect(output.fullStoragePath).toBe("user-1/generations/images/image-1.png");
     expect(projected.fullStoragePath).toBe("user-1/generations/images/image-1.png");
     expect(projected.previewUrl).toBe("https://signed.shortpulse.test/preview.webp");
+    expect(projected.resultUrls).toEqual(["https://signed.shortpulse.test/full.png"]);
+  });
+
+  it("projects signed full storage when preview signing returns no url", () => {
+    const output = createStorageBackedImage({
+      previewUrl: undefined,
+      resultUrls: undefined,
+    });
+    const projected = applySignedStorageUrlsToReferenceGridMediaOutput(
+      output,
+      new Map([
+        ["user-1/generations/images/image-1.png", "https://signed.shortpulse.test/full.png"],
+      ])
+    );
+
+    expect(projected.previewUrl).toBeUndefined();
     expect(projected.resultUrls).toEqual(["https://signed.shortpulse.test/full.png"]);
   });
 

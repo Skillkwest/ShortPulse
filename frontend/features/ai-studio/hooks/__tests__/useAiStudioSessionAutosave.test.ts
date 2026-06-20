@@ -513,6 +513,83 @@ describe("useAiStudioSessionAutosave", () => {
     expect(preparedRightRailChange.hash).not.toBe(preparedSnapshot.hash);
   });
 
+  it("persists a right-rail-only change even when the snapshot timestamp is unchanged", async () => {
+    const persistSnapshot = vi.fn().mockResolvedValue(undefined);
+    const initialSnapshot = createSnapshotV2({
+      workspace: {
+        ...createSnapshotV2().workspace,
+        rightRailLayout: {
+          schemaVersion: 1,
+          panels: {
+            canvas: false,
+            quickSlot: true,
+            referenceGrid: true,
+          },
+          splits: {
+            canvasInventoryTopRatio: null,
+            quickSlotReferenceTopRatio: null,
+          },
+        },
+      },
+    });
+    const editedSnapshot = createSnapshotV2({
+      updatedAt: initialSnapshot.updatedAt,
+      workspace: {
+        ...initialSnapshot.workspace,
+        rightRailLayout: {
+          schemaVersion: 1,
+          panels: {
+            canvas: true,
+            quickSlot: false,
+            referenceGrid: true,
+          },
+          splits: {
+            canvasInventoryTopRatio: 0.41,
+            quickSlotReferenceTopRatio: 0.68,
+          },
+        },
+      },
+    });
+
+    const { rerender } = renderHook(
+      ({ snapshot }) =>
+        useAiStudioSessionAutosave({
+          sessionId: snapshot.sessionId,
+          snapshot,
+          enabled: true,
+          persistSnapshot,
+        }),
+      {
+        initialProps: {
+          snapshot: initialSnapshot,
+        },
+      }
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2500);
+    });
+
+    expect(persistSnapshot).toHaveBeenCalledTimes(1);
+    const initialSnapshotHash = persistSnapshot.mock.calls[0]?.[2]?.snapshotHash;
+    expect(initialSnapshotHash).toMatch(/^fnv1a32:/);
+
+    rerender({ snapshot: editedSnapshot });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2500);
+    });
+
+    expect(persistSnapshot).toHaveBeenCalledTimes(2);
+    expect(persistSnapshot).toHaveBeenLastCalledWith(
+      editedSnapshot.sessionId,
+      editedSnapshot,
+      expect.objectContaining({
+        snapshotHash: expect.stringMatching(/^fnv1a32:/),
+      })
+    );
+    expect(persistSnapshot.mock.calls[1]?.[2]?.snapshotHash).not.toBe(initialSnapshotHash);
+  });
+
   it("uses a prepared autosave snapshot when one is supplied", async () => {
     const persistSnapshot = vi.fn().mockResolvedValue(undefined);
     const snapshot = createSnapshotV2();

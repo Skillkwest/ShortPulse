@@ -54,6 +54,10 @@ describe("create composer layout contract", () => {
 
   it("keeps Pulse visual surfaces on the two column wrappers", () => {
     const css = fs.readFileSync(createComposerTokensCssPath, "utf8");
+    const createPropertiesRail = extractRuleBlock(
+      css,
+      '.ai-studio-page[data-selected-tool="create"]:not([data-selected-tool="canvas"]) .panel.ai-panel.ai-properties'
+    );
     const pulseRoot = extractRuleBlock(css, ".create-composer-panel.is-pulse-rail-active");
     const pulseWorkspace = extractRuleBlock(
       css,
@@ -68,6 +72,8 @@ describe("create composer layout contract", () => {
       ".create-composer-panel.is-pulse-rail-active .create-composer-left-panel-inner, .create-composer-panel.is-pulse-rail-active .create-composer-right-panel-inner"
     );
 
+    expect(createPropertiesRail).toContain("background: transparent;");
+    expect(createPropertiesRail).toContain("padding: 0;");
     expect(pulseRoot).toContain("background: transparent;");
     expect(pulseRoot).toContain("box-shadow: none;");
     expect(pulseRoot).toContain("overflow: hidden;");

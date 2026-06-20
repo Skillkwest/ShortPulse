@@ -75,12 +75,13 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 
 ### 4) `all_media` display contract
 
-1. `All Media` renders one root-level tab strip with four tabs:
+1. `All Media` renders one root-level tab strip with five tabs:
    - `All Media` tab: aggregate root view showing saved image, video, and audio media cards only.
    - `Images` tab: masonry grid preserving each image’s true aspect ratio.
    - `Videos` tab: masonry grid preserving each video’s true aspect ratio.
+   - `Audio` tab: audio-card grid for saved/uploaded/generated audio assets.
    - `Prompts` tab: prompt cards use text reference-card presentation.
-2. Audio is a first-class saved media type and renders inside the mixed `All Media` tab plus custom-folder mixed views instead of using a dedicated root tab.
+2. Audio is a first-class saved media type and renders inside the mixed `All Media` tab, the dedicated root `Audio` tab, and custom-folder mixed views.
 3. Search and pagination apply consistently to the active tab through shared list APIs.
 4. `All Media` media tabs auto-load the next page when scrolling near the bottom, with one global footer control retained as manual fallback.
 5. Panel card previews use the canonical adaptive browse-speed compaction path when those panel surfaces are included in the adaptive-media allowlist; detail modal stays full-quality.
@@ -167,7 +168,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 
 1. `All Media` inline-tab layout:
    - Status: Aligned.
-   - Current: `All Media`, `Images`, `Videos`, and `Prompts` render as root-level tabs in the same `All Media` folder. The aggregate `All Media` view shows saved images, videos, and audio in one mixed feed, while `Prompts` remains the prompt-only view.
+   - Current: `All Media`, `Images`, `Videos`, `Audio`, and `Prompts` render as root-level tabs in the same `All Media` folder. The aggregate `All Media` view shows saved images, videos, and audio in one mixed media-only feed, `Audio` filters to audio assets, and `Prompts` remains the prompt-only view.
 2. `All Media` media pagination behavior:
    - Status: Aligned.
    - Current: Root media tabs auto-load additional pages near the bottom, and one global footer control remains visible as a manual fallback.
@@ -276,7 +277,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 26. Saved-audio browse and upload support:
 
 - Status: Aligned.
-- Current: Audio is a first-class Media Library asset in AI Studio. Audio can be saved from eligible Reference Grid references, uploaded from desktop or `Add files`, dropped from the Reference Grid into `All Media` or custom folders, and browsed from the mixed `All Media` plus custom-folder feeds without falling through image-only render paths.
+- Current: Audio is a first-class Media Library asset in AI Studio. Audio can be saved from eligible Reference Grid references, uploaded from desktop or `Add files`, dropped from the Reference Grid into `All Media` or custom folders, and browsed from the root `Audio` tab, the mixed `All Media` feed, and custom-folder feeds without falling through image-only render paths.
 
 27. Autosave toggle scope:
 
@@ -301,8 +302,9 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
    - Drag a visible folder onto the `All Media` breadcrumb and confirm it returns to root.
    - Reparent a folder via `Move to...` and confirm invalid destinations are absent.
 2. `All Media` display:
-   - `All Media` root tabs render as `All Media`, `Images`, `Videos`, and `Prompts`.
+   - `All Media` root tabs render as `All Media`, `Images`, `Videos`, `Audio`, and `Prompts`.
    - The aggregate `All Media` tab renders saved images, videos, and audio in one mixed masonry feed.
+   - The `Audio` tab renders saved/uploaded/generated audio assets.
    - `Prompts` tab renders text reference cards.
    - `Images` and `Videos` tabs render masonry with true aspect ratio.
 3. Membership semantics:

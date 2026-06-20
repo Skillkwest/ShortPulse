@@ -7,6 +7,7 @@ import {
   resolvePreviewProfileForSurface,
   type MediaPreviewTransformProfile,
 } from "../../../lib/mediaPreviewTransformProfile";
+import { isUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
 import {
   resolvePreferredMediaDirectPreviewUrl,
   resolvePreferredMediaSigningStoragePath,
@@ -43,7 +44,6 @@ const MIN_SIGNED_URL_TTL_SECONDS = 60;
 const MAX_SIGNED_URL_TTL_SECONDS = 3600;
 const MAX_MEDIA_IDS = 40;
 const MAX_BASENAME_LOOKUP_CONCURRENCY = 6;
-const TRAVERSAL_SEGMENT_REGEX = /(?:^|\/)\.\.(?:\/|$)/;
 const ALLOWED_SURFACE_VALUES = new Set([
   "media-library-modal",
   "media-library-panel",
@@ -75,14 +75,6 @@ const resolveBrowseSurfaceSigningStoragePaths = (row: MediaLookupRow, userId: st
     deduped.push(candidate);
   }
   return deduped;
-};
-
-const isUserScopedStoragePath = (path: string, userId: string): boolean => {
-  const normalized = path.trim();
-  if (!normalized) return false;
-  if (normalized.startsWith("/") || normalized.includes("\\")) return false;
-  if (TRAVERSAL_SEGMENT_REGEX.test(normalized)) return false;
-  return normalized.startsWith(`${userId}/`);
 };
 
 const toSafeMediaIdList = (value: unknown): string[] => {
@@ -283,7 +275,7 @@ export default async function handler(
         preferTrustedDirectPreviewFirst
           ? resolveBrowseSurfaceSigningStoragePaths(row, userId)
           : resolveMediaSigningStoragePaths(row, userId)
-      ).filter((candidate) => isUserScopedStoragePath(candidate, userId));
+      ).filter((candidate) => isUserScopedMediaStoragePath(candidate, userId));
       candidatesById.set(row.id, candidates);
       allCandidates.push(...candidates);
     }
@@ -324,10 +316,13 @@ export default async function handler(
         continue;
       }
 
+      const storagePathBasename = row.storage_path
+        ? isUserScopedMediaStoragePath(row.storage_path, userId)
+          ? basenameOf(row.storage_path)
+          : null
+        : null;
       const basenameCandidates = Array.from(
-        new Set(
-          [basenameOf(row.filename), basenameOf(row.storage_path)].filter(Boolean) as string[]
-        )
+        new Set([basenameOf(row.filename), storagePathBasename].filter(Boolean) as string[])
       ).filter(isResolvableBasename);
       if (!basenameCandidates.length) continue;
       basenameCandidatesById.set(row.id, basenameCandidates);
@@ -346,14 +341,14 @@ export default async function handler(
       const basenameCandidates = basenameCandidatesById.get(row.id) ?? [];
       for (const basename of basenameCandidates) {
         const matchedObject = basenameMatchByKey.get(basenameLookupKey(basename)) ?? null;
-        if (!matchedObject || !isUserScopedStoragePath(matchedObject, userId)) continue;
+        if (!matchedObject || !isUserScopedMediaStoragePath(matchedObject, userId)) continue;
         resolvedPathById.set(row.id, matchedObject);
         break;
       }
     }
 
     const pathsToSign = Array.from(new Set(Array.from(resolvedPathById.values()))).filter((path) =>
-      isUserScopedStoragePath(path, userId)
+      isUserScopedMediaStoragePath(path, userId)
     );
     const signedUrlByPath = new Map<string, string | null>();
     if (pathsToSign.length) {

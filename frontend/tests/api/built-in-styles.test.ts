@@ -14,6 +14,10 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
 }));
 
 vi.mock("../../lib/server/api/builtInStyleControlPlane", () => ({
+  isAuthoritativeBuiltInStyleCatalogResolution: (resolution: {
+    source?: string;
+    degraded?: boolean;
+  }) => resolution.source === "control_plane" && resolution.degraded !== true,
   resolveRuntimeBuiltInStyleCatalog: (...args: unknown[]) =>
     resolveRuntimeBuiltInStyleCatalogMock(...args),
 }));
@@ -96,6 +100,36 @@ describe("GET /api/ai/built-in-styles", () => {
       updatedAt: "2026-06-10T18:00:00.000Z",
       updatedByEmail: "admin@example.com",
       degraded: false,
+    });
+  });
+
+  it("fails closed when runtime resolution returns seeded fallback styles", async () => {
+    resolveRuntimeBuiltInStyleCatalogMock.mockResolvedValue({
+      styleDefinitions: [
+        {
+          styleId: "photorealistic",
+          title: "Photorealistic",
+          stylePrompt: "legacy prompt",
+          previewImageUrl: "/Styles/Photoreal.png",
+          referenceImageName: null,
+          schemaVersion: 1,
+        },
+      ],
+      source: "seed",
+      updatedAt: null,
+      updatedByEmail: null,
+      degraded: true,
+    });
+
+    const req = { method: "GET" };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Built-in Styles are temporarily unavailable. Reload and try again.",
+      source: "seed",
+      degraded: true,
     });
   });
 });

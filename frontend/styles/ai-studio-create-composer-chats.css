@@ -54,7 +54,7 @@
 }
 
 .create-composer-chats-thread-btn.is-active {
-  color: rgba(203, 244, 250, 0.96);
+  color: rgba(230, 236, 245, 0.88);
 }
 
 .create-composer-chats-thread-btn:focus-visible .create-composer-chats-thread-title {
@@ -75,9 +75,9 @@
 
 .create-composer-chats-thread-title {
   min-width: 0;
-  color: inherit;
+  color: rgba(230, 236, 245, 0.88);
   font-size: 12px;
-  font-weight: 650;
+  font-weight: 400;
   line-height: 1.35;
   overflow: hidden;
   text-overflow: ellipsis;

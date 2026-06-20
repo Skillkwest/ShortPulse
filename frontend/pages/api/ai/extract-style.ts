@@ -5,8 +5,8 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
-import { applyAgentLegacyDeprecationHeaders } from "../../../features/agent-runtime/legacyDeprecation";
 import { buildAgentMachineOutcome } from "../../../features/agent-runtime/agentMachineOutcome";
+import { setAgentContractVersionHeader } from "../../../features/agent-runtime/agentContractHeaders";
 import {
   executeStyleExtraction,
   type StyleExtractionDiagnostics,
@@ -42,7 +42,7 @@ const applyDiagnosticsHeaders = (
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const routeLabel = "ai/extract-style";
-  applyAgentLegacyDeprecationHeaders(res);
+  setAgentContractVersionHeader(res);
   if (req.method !== "POST") {
     return res.status(405).json({
       ...buildAgentMachineOutcome({

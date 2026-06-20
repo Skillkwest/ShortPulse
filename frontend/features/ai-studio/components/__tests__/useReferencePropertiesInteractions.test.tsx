@@ -1107,6 +1107,127 @@ describe("useReferencePropertiesInteractions", () => {
     expect(readRememberedObjectUrlBlob("blob:selected-file")).toBe(file);
   });
 
+  it("creates secondary display previews at a higher-fidelity slot-sized resolution", async () => {
+    const extraImageUrls: (string | null)[] = [null, null, null];
+    const onExtraImageChange = vi.fn((index: number, url: string | null) => {
+      extraImageUrls[index] = url;
+    });
+    const bitmapClose = vi.fn();
+    const originalCreateImageBitmap = globalThis.createImageBitmap;
+    const originalGetContext = HTMLCanvasElement.prototype.getContext;
+    const originalToBlob = HTMLCanvasElement.prototype.toBlob;
+    const drawImage = vi.fn();
+    const encodedCanvases: Array<{
+      width: number;
+      height: number;
+      mimeType: string;
+      quality: number;
+    }> = [];
+
+    URL.createObjectURL = vi
+      .fn()
+      .mockReturnValueOnce("blob:selected-file")
+      .mockReturnValueOnce("blob:display-preview");
+    Object.defineProperty(globalThis, "createImageBitmap", {
+      configurable: true,
+      writable: true,
+      value: vi.fn(async () => ({
+        width: 4000,
+        height: 3000,
+        close: bitmapClose,
+      })),
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+      configurable: true,
+      writable: true,
+      value: vi.fn(() => ({
+        imageSmoothingEnabled: false,
+        imageSmoothingQuality: "low",
+        drawImage,
+      })),
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, "toBlob", {
+      configurable: true,
+      writable: true,
+      value: vi.fn(function (
+        this: HTMLCanvasElement,
+        callback: BlobCallback,
+        mimeType?: string,
+        quality?: number
+      ) {
+        encodedCanvases.push({
+          width: this.width,
+          height: this.height,
+          mimeType: mimeType ?? "",
+          quality: quality ?? 0,
+        });
+        callback(new Blob(["display-preview"], { type: mimeType ?? "image/webp" }));
+      }),
+    });
+
+    try {
+      const { result, rerender } = renderHook(() =>
+        useReferencePropertiesInteractions({
+          referenceImageUrl: null,
+          extraImageUrls,
+          onPrimaryImageChange: vi.fn(),
+          onExtraImageChange,
+          onPromptTextChange: vi.fn(),
+          klingMultiPrompts: [],
+          klingElements: [],
+        })
+      );
+
+      const file = new File(["secondary-ref"], "secondary.png", { type: "image/png" });
+      const event = {
+        target: {
+          files: [file],
+          value: "secondary.png",
+        },
+      };
+
+      await act(async () => {
+        result.current.handleExtraFileSelection(0)(event as never);
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      rerender();
+
+      expect(onExtraImageChange).toHaveBeenCalledWith(0, "blob:selected-file");
+      expect(encodedCanvases).toEqual([
+        {
+          width: 224,
+          height: 168,
+          mimeType: "image/webp",
+          quality: 0.82,
+        },
+      ]);
+      expect(drawImage).toHaveBeenCalledWith(expect.anything(), 0, 0, 224, 168);
+      expect(result.current.extraImageDisplayUrls[0]).toBe("blob:display-preview");
+      expect(bitmapClose).toHaveBeenCalledTimes(1);
+    } finally {
+      if (originalCreateImageBitmap) {
+        Object.defineProperty(globalThis, "createImageBitmap", {
+          configurable: true,
+          writable: true,
+          value: originalCreateImageBitmap,
+        });
+      } else {
+        Reflect.deleteProperty(globalThis, "createImageBitmap");
+      }
+      Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+        configurable: true,
+        writable: true,
+        value: originalGetContext,
+      });
+      Object.defineProperty(HTMLCanvasElement.prototype, "toBlob", {
+        configurable: true,
+        writable: true,
+        value: originalToBlob,
+      });
+    }
+  });
+
   it("accepts file-selected images when the browser omits MIME type", async () => {
     const onExtraImageChange = vi.fn();
     URL.createObjectURL = vi.fn(() => "blob:selected-file");

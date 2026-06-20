@@ -10,6 +10,7 @@ import {
   type AiStudioSessionSnapshot,
   type AiStudioSessionSnapshotV2,
 } from "../../logic/sessionSnapshot";
+import type { AiStudioRightRailLayoutV1 } from "../../logic/rightRailLayout";
 import {
   PROJECT_WORKSPACE_AUTOSAVE_MAX_SNAPSHOT_BYTES,
   PROJECT_WORKSPACE_KEEPALIVE_MAX_SNAPSHOT_BYTES,
@@ -1837,6 +1838,108 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
         }),
       })
     );
+  });
+
+  it("enables project autosave when only the right-rail layout patch changes", async () => {
+    const baseSnapshot = createSnapshot();
+    const initialLayout: AiStudioRightRailLayoutV1 = {
+      schemaVersion: 1,
+      panels: {
+        canvas: false,
+        quickSlot: true,
+        referenceGrid: true,
+      },
+      splits: {
+        canvasInventoryTopRatio: null,
+        quickSlotReferenceTopRatio: null,
+      },
+    };
+    const editedLayout: AiStudioRightRailLayoutV1 = {
+      schemaVersion: 1,
+      panels: {
+        canvas: true,
+        quickSlot: false,
+        referenceGrid: true,
+      },
+      splits: {
+        canvasInventoryTopRatio: 0.41,
+        quickSlotReferenceTopRatio: 0.68,
+      },
+    };
+    const buildSessionSnapshot = vi.fn(() => baseSnapshot);
+    const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
+    const patchWithRightRailLayout = (layout: AiStudioRightRailLayoutV1) =>
+      vi.fn((snapshot: AiStudioSessionSnapshot) => ({
+        ...snapshot,
+        workspace: {
+          ...snapshot.workspace,
+          rightRailLayout: layout,
+        },
+      }));
+    const initialPatchSessionSnapshot = patchWithRightRailLayout(initialLayout);
+    const editedPatchSessionSnapshot = patchWithRightRailLayout(editedLayout);
+
+    const { result, rerender } = renderHook(
+      ({ patchSessionSnapshot }) =>
+        useAiStudioProjectWorkspacePersistenceController({
+          projectId: "project-1",
+          projectRouteRequested: true,
+          sessionId: "session-1",
+          buildBaseSessionSnapshot: buildSessionSnapshot,
+          patchSessionSnapshot,
+          hydrateFromSessionSnapshot,
+        }),
+      {
+        initialProps: {
+          patchSessionSnapshot: initialPatchSessionSnapshot as (
+            snapshot: AiStudioSessionSnapshot
+          ) => AiStudioSessionSnapshot,
+        },
+      }
+    );
+
+    const restoreHydrationArgs =
+      mockedUseAiStudioProjectWorkspaceRestoreHydration.mock.calls[0]?.[0];
+    act(() => {
+      restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
+    });
+
+    rerender({ patchSessionSnapshot: initialPatchSessionSnapshot });
+    await flushBootstrapVisibilityLatch();
+    expect(result.current.projectBootstrapApplied).toBe(true);
+    const initialAutosaveArgs = mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0];
+    expect(initialAutosaveArgs).toEqual(
+      expect.objectContaining({
+        sessionId: "project-1",
+        enabled: true,
+        snapshot: expect.objectContaining({
+          workspace: expect.objectContaining({
+            rightRailLayout: initialLayout,
+          }),
+        }),
+      })
+    );
+    const initialPreparedHash = initialAutosaveArgs?.preparedSnapshot?.hash;
+    expect(initialPreparedHash).toMatch(/^fnv1a32:/);
+
+    rerender({ patchSessionSnapshot: editedPatchSessionSnapshot });
+    await flushBootstrapVisibilityLatch();
+
+    const editedAutosaveArgs = mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0];
+    expect(editedAutosaveArgs).toEqual(
+      expect.objectContaining({
+        sessionId: "project-1",
+        enabled: true,
+        snapshot: expect.objectContaining({
+          updatedAt: baseSnapshot.updatedAt,
+          workspace: expect.objectContaining({
+            rightRailLayout: editedLayout,
+          }),
+        }),
+      })
+    );
+    expect(editedAutosaveArgs?.preparedSnapshot?.hash).toMatch(/^fnv1a32:/);
+    expect(editedAutosaveArgs?.preparedSnapshot?.hash).not.toBe(initialPreparedHash);
   });
 
   it("ignores stale bootstrap state after leaving and re-entering the same project", async () => {

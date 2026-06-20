@@ -194,8 +194,8 @@ const createUploadedImageInternalMediaRef = (uploaded: ImageUploadResponse) =>
 
 const isHttpImageSourceUrl = (value: string): boolean => /^https?:\/\//i.test(value.trim());
 
-const EDIT_SECONDARY_DISPLAY_PREVIEW_LONG_EDGE_PX = 96;
-const EDIT_SECONDARY_DISPLAY_PREVIEW_QUALITY = 0.62;
+const EDIT_SECONDARY_DISPLAY_PREVIEW_LONG_EDGE_PX = 224;
+const EDIT_SECONDARY_DISPLAY_PREVIEW_QUALITY = 0.82;
 const EDIT_SECONDARY_DISPLAY_PREVIEW_LOAD_TIMEOUT_MS = 250;
 
 const loadImageElementFromObjectUrl = (src: string): Promise<HTMLImageElement> =>

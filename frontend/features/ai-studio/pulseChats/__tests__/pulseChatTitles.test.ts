@@ -37,7 +37,7 @@ describe("pulseChatTitles", () => {
       ]),
     });
 
-    expect(resolvePulseChatThreadTitle(snapshot)).toBe("Build a cold open");
+    expect(resolvePulseChatThreadTitle(snapshot)).toBe("Build a cold open for");
   });
 
   it("falls back to assistant text and then preset labels", () => {
@@ -62,14 +62,14 @@ describe("pulseChatTitles", () => {
       runtime: buildRuntime([]),
     });
 
-    expect(resolvePulseChatThreadTitle(assistantSnapshot)).toBe("Tell me the setting");
+    expect(resolvePulseChatThreadTitle(assistantSnapshot)).toBe("Tell me the setting first");
     expect(resolvePulseChatThreadTitle(emptySnapshot)).toBe("Story Builder");
   });
 
   it("normalizes manual titles and formats explicit timestamps", () => {
     expect(normalizePulseChatTitle("  Launch    hook pass  ")).toBe("Launch hook pass");
     expect(normalizePulseChatTitle("The witch queen golden ritual performance")).toBe(
-      "The witch queen golden"
+      "The witch queen golden ritual"
     );
     expect(formatPulseChatTimestamp("2026-06-03T15:00:00.000Z")).toMatch(/Jun 3/i);
   });

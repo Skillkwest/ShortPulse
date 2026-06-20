@@ -11,6 +11,7 @@ import {
 } from "../../../lib/mediaListProfile";
 import { resolvePreferredMediaSigningStoragePath } from "../../../lib/mediaPreviewPath";
 import { isSupabaseRenderImageUrl } from "../../../lib/mediaPreviewTrustPolicy";
+import { isUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
@@ -136,7 +137,6 @@ type SupabaseAdminWithStorageVerification = {
 
 const MEDIA_BUCKET = "media_library";
 const DEFAULT_SIGNED_URL_TTL_SECONDS = 3600;
-const TRAVERSAL_SEGMENT_REGEX = /(?:^|\/)\.\.(?:\/|$)/;
 
 const LIMIT_BY_SURFACE: Record<MediaListSurface, number> = {
   "media-library-modal": 36,
@@ -354,20 +354,12 @@ const stripFolderMembershipRows = (
   });
 };
 
-const isSafeScopedPath = (path: string, userId: string): boolean => {
-  const normalized = path.trim();
-  if (!normalized) return false;
-  if (normalized.startsWith("/") || normalized.includes("\\")) return false;
-  if (TRAVERSAL_SEGMENT_REGEX.test(normalized)) return false;
-  return normalized.startsWith(`${userId}/`);
-};
-
 const isAudioFileType = (value: string | null | undefined): boolean =>
   (value ?? "").toLowerCase().startsWith("audio");
 
 const sanitizeScopedPath = (path: string | null | undefined, userId: string): string | null => {
   if (typeof path !== "string") return null;
-  return isSafeScopedPath(path, userId) ? path.trim() : null;
+  return isUserScopedMediaStoragePath(path, userId) ? path.trim() : null;
 };
 
 const normalizeTrustedCompanionArtUrlFallback = (value: unknown): string | null => {
@@ -684,7 +676,7 @@ const resolveInitialSignedById = async ({
   const primaryCandidateById = new Map<string, string>();
   for (const row of seedRows) {
     const primaryCandidate = resolvePreferredMediaSigningStoragePath(row, userId);
-    if (!primaryCandidate || !isSafeScopedPath(primaryCandidate, userId)) continue;
+    if (!primaryCandidate || !isUserScopedMediaStoragePath(primaryCandidate, userId)) continue;
     primaryCandidateById.set(row.id, primaryCandidate);
   }
   if (!primaryCandidateById.size) return {};

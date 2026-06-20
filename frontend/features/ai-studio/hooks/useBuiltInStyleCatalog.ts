@@ -1,7 +1,6 @@
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import {
   normalizeBuiltInStyleDefinitions,
-  resolveBuiltInStyleDefinitions,
   type BuiltInStyleDefinition,
 } from "../../../lib/model-runtime/builtInStyles";
 import { useControlPlaneCatalog } from "./useControlPlaneCatalog";
@@ -19,6 +18,8 @@ export type UseBuiltInStyleCatalogResult = {
   isAuthoritative: boolean;
   refresh: () => Promise<void>;
 };
+
+const getEmptyBuiltInStyleDefinitions = (): BuiltInStyleDefinition[] => [];
 
 const loadBuiltInStyleCatalog = async (): Promise<{
   value: BuiltInStyleDefinition[];
@@ -52,7 +53,7 @@ export const useBuiltInStyleCatalog = ({
 }: UseBuiltInStyleCatalogOptions = {}): UseBuiltInStyleCatalogResult => {
   const catalog = useControlPlaneCatalog({
     enabled,
-    getSeededValue: resolveBuiltInStyleDefinitions,
+    getSeededValue: getEmptyBuiltInStyleDefinitions,
     loadCatalog: loadBuiltInStyleCatalog,
     fallbackErrorMessage: "Unable to load built-in Styles.",
   });

@@ -1,7 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../lib/server/api/auth";
-import { resolveRuntimeBuiltInStyleCatalog } from "../../../lib/server/api/builtInStyleControlPlane";
+import {
+  isAuthoritativeBuiltInStyleCatalogResolution,
+  resolveRuntimeBuiltInStyleCatalog,
+} from "../../../lib/server/api/builtInStyleControlPlane";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   res.setHeader("Cache-Control", "no-store, max-age=0");
@@ -26,6 +29,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const builtInCatalog = await resolveRuntimeBuiltInStyleCatalog({ bypassCache: true });
+    if (!isAuthoritativeBuiltInStyleCatalogResolution(builtInCatalog)) {
+      return res.status(503).json({
+        error: "Built-in Styles are temporarily unavailable. Reload and try again.",
+        source: builtInCatalog.source,
+        degraded: builtInCatalog.degraded,
+      });
+    }
     return res.status(200).json({
       styleDefinitions: builtInCatalog.styleDefinitions,
       source: builtInCatalog.source,

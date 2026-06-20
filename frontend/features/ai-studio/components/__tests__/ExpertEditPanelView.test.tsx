@@ -972,7 +972,20 @@ describe("ExpertEditPanelView", () => {
   });
 
   it("shows selected style preview filling the styles button", () => {
-    render(<ExpertEditPanelView {...baseProps} selectedStyleId="cinematic" />);
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        selectedStyleId="cinematic"
+        stylesCatalog={[
+          {
+            id: "cinematic",
+            title: "Cinematic",
+            previewUrl: "/Styles/Cinematic.png",
+            placeholder: false,
+          },
+        ]}
+      />
+    );
 
     const stylesButton = screen.getByRole("button", { name: "Styles" });
     const preview = stylesButton.querySelector(

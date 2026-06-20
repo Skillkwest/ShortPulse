@@ -411,6 +411,39 @@ describe("POST /api/media/resolve-previews", () => {
     });
   });
 
+  it("does not query or sign traversal-shaped storage paths", async () => {
+    const traversalPath = "user-1/images/../secret.jpg";
+    const row = createRow({
+      id: "media-traversal-1",
+      storage_path: traversalPath,
+      filename: "legacy_unsafe_name.jpg",
+    });
+    const { createSignedUrlMock, getCapturedInNames, getIlikePatterns } = setupSupabaseAdmin({
+      rows: [row],
+      existingObjectNames: [traversalPath],
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        ids: [row.id],
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(getCapturedInNames()).toEqual([]);
+    expect(getIlikePatterns()).toEqual([]);
+    expect(createSignedUrlMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      urls: {
+        [row.id]: null,
+      },
+    });
+  });
+
   it("logs and sanitizes media row lookup failures", async () => {
     getSupabaseAdminMock.mockReturnValue({
       from: vi.fn(() => ({

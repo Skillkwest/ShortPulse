@@ -412,6 +412,7 @@ export function ElementsManagerShell({
   >(null);
   const [editorPanelWidth, setEditorPanelWidth] = React.useState(0);
   const saveSuccessHideTimerRef = React.useRef<number | null>(null);
+  const referenceCardMeasureNodeRef = React.useRef<HTMLElement | null>(null);
   const referenceCardMeasureObserverRef = React.useRef<ResizeObserver | null>(null);
   const selectedElement = elements.find((item) => item.id === selectedElementId) ?? null;
   const pendingDeleteElement = pendingDeleteElementId
@@ -685,6 +686,7 @@ export function ElementsManagerShell({
   React.useEffect(
     () => () => {
       referenceCardMeasureObserverRef.current?.disconnect();
+      referenceCardMeasureNodeRef.current = null;
     },
     []
   );
@@ -1032,6 +1034,10 @@ export function ElementsManagerShell({
   }, [onSaveElement, triggerSaveSuccessIndicator]);
 
   const handleReferenceCardMeasureRef = React.useCallback((node: HTMLElement | null) => {
+    if (referenceCardMeasureNodeRef.current === node) {
+      return;
+    }
+    referenceCardMeasureNodeRef.current = node;
     referenceCardMeasureObserverRef.current?.disconnect();
     referenceCardMeasureObserverRef.current = null;
 
@@ -1065,6 +1071,13 @@ export function ElementsManagerShell({
       }
     },
     [handleReferenceCardMeasureRef]
+  );
+  const referenceSlotElementRefCallbacks = React.useMemo<Array<(node: HTMLElement | null) => void>>(
+    () =>
+      IMAGE_REFERENCE_SLOT_LABELS.map(
+        (_, slotIndex) => (node) => handleReferenceSlotElementRef(slotIndex, node)
+      ),
+    [handleReferenceSlotElementRef]
   );
 
   return (
@@ -1251,7 +1264,7 @@ export function ElementsManagerShell({
                             return (
                               <article
                                 key={`${slotLabel}-${index + 1}`}
-                                ref={(node) => handleReferenceSlotElementRef(index, node)}
+                                ref={referenceSlotElementRefCallbacks[index]}
                                 className={`elements-reference-card ${
                                   slotValue ? "is-filled" : "is-empty"
                                 } ${activeSheetDropIndex === index ? "is-drop-active" : ""} ${

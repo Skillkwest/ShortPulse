@@ -7,6 +7,7 @@ import {
   resolvePreviewProfileForSurface,
   type MediaPreviewTransformProfile,
 } from "../../../lib/mediaPreviewTransformProfile";
+import { isUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
@@ -241,6 +242,7 @@ export default async function handler(
     });
   }
   if (!user) return;
+  const userId = user.id;
 
   try {
     const body =
@@ -265,8 +267,7 @@ export default async function handler(
     const resolvedPreviewProfile =
       requestedPreviewProfile ?? resolvePreviewProfileForSurface(telemetrySurface);
 
-    const userPrefix = `${user.id}/`;
-    const hasOutOfScopePath = paths.some((path) => !path.startsWith(userPrefix));
+    const hasOutOfScopePath = paths.some((path) => !isUserScopedMediaStoragePath(path, userId));
     if (hasOutOfScopePath) {
       return res.status(403).json({ error: "Forbidden" });
     }

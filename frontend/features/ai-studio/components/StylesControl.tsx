@@ -6,7 +6,6 @@ import React from "react";
 import { Palette } from "phosphor-react";
 import {
   type ExpertEditStyleTile,
-  resolveExpertEditStyleById,
   resolveStylePreviewBackgroundImage,
 } from "./edit/expertEditStyles";
 
@@ -27,12 +26,12 @@ export function StylesControl({
   controlsId = "reference-rail-styles-section",
   className = "",
 }: StylesControlProps) {
-  const selectedStyleTile = React.useMemo(
-    () =>
-      styles?.find((style) => !style.placeholder && style.id === (selectedStyleId ?? null)) ??
-      resolveExpertEditStyleById(selectedStyleId ?? null),
-    [selectedStyleId, styles]
-  );
+  const selectedStyleTile = React.useMemo(() => {
+    const normalizedSelectedStyleId = selectedStyleId ?? null;
+    return (
+      styles?.find((style) => !style.placeholder && style.id === normalizedSelectedStyleId) ?? null
+    );
+  }, [selectedStyleId, styles]);
 
   return (
     <div className={`edit-expert-styles-control ${isOpen ? "is-open" : ""} ${className}`.trim()}>

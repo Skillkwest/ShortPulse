@@ -153,7 +153,7 @@ describe("DetailModal", () => {
     expect(styleName.compareDocumentPosition(promptLabel)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 
-  it("uses style catalog preview when style context has id but no explicit preview url", () => {
+  it("does not fall back to legacy seeded style previews when style context has no explicit preview url", () => {
     render(
       <DetailModal
         output={{
@@ -171,7 +171,9 @@ describe("DetailModal", () => {
       />
     );
 
-    expect(screen.getByAltText("Photorealistic style")).toBeInTheDocument();
+    expect(screen.getByText("Photorealistic")).toBeInTheDocument();
+    expect(screen.queryByAltText("Photorealistic style")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Style used for generation")).toHaveTextContent("PH");
   });
 
   it("recovers character chip avatar via injected refresh/resolver callbacks", async () => {

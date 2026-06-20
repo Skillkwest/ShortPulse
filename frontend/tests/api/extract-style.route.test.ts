@@ -81,6 +81,21 @@ describe("POST /api/ai/extract-style", () => {
     );
   });
 
+  it("keeps the active route contract header without legacy deprecation metadata", async () => {
+    const req = {
+      method: "POST",
+      body: {},
+    };
+    const res = createMockResponse();
+
+    await extractStyleHandler(req as never, res as never);
+
+    expect(res.setHeader).toHaveBeenCalledWith("Agent-Contract-Version", "1");
+    expect(res.setHeader).not.toHaveBeenCalledWith("Deprecation", expect.anything());
+    expect(res.setHeader).not.toHaveBeenCalledWith("Sunset", expect.anything());
+    expect(res.setHeader).not.toHaveBeenCalledWith("Link", expect.stringContaining("deprecation"));
+  });
+
   it("logs auth verifier exceptions before style extraction work", async () => {
     const authError = new Error("auth verifier unavailable");
     requireApiUserMock.mockRejectedValueOnce(authError);

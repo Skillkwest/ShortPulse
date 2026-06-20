@@ -13,7 +13,8 @@
   --ai-expert-create-properties-gap: 0;
 }
 
-.ai-studio-page[data-selected-tool="create"] .panel.ai-panel.ai-properties {
+.ai-studio-page[data-selected-tool="create"]:not([data-selected-tool="canvas"])
+  .panel.ai-panel.ai-properties {
   background: transparent;
   padding: 0;
 }

@@ -530,7 +530,7 @@ describe("projectWorkspaceStatesService", () => {
     ).rejects.toBeInstanceOf(InvalidProjectWorkspaceSnapshotError);
   });
 
-  it("persists right-rail layout changes in the lightweight project checkpoint", async () => {
+  it("persists right-rail layout changes in the lightweight project checkpoint when the timestamp is unchanged", async () => {
     const existingSnapshot = {
       schemaVersion: 2,
       sessionId: "session-right-rail",
@@ -592,7 +592,7 @@ describe("projectWorkspaceStatesService", () => {
       schemaVersion: 2,
       snapshot: {
         ...existingSnapshot,
-        updatedAt: "2026-04-23T01:00:05.000Z",
+        updatedAt: existingSnapshot.updatedAt,
         workspace: {
           ...existingSnapshot.workspace,
           rightRailLayout: nextRightRailLayout,

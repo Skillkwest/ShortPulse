@@ -21,6 +21,12 @@ type CanvasViewportSize = {
   height: number;
 };
 
+type CanvasTextareaSelection = {
+  start: number;
+  end: number;
+  direction: "forward" | "backward" | "none";
+};
+
 const resolveCanvasMediaErrorKey = (item: CanvasSceneItem): string | null => {
   if (item.kind === "image") {
     return `${item.id}:image:${item.src}`;
@@ -153,6 +159,8 @@ const CanvasSceneItemView = React.memo(function CanvasSceneItemView({
   clearCanvasMediaError,
 }: CanvasSceneItemViewProps) {
   const isExportDragArmedRef = React.useRef(false);
+  const textEditorRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const pendingTextSelectionRef = React.useRef<CanvasTextareaSelection | null>(null);
   const dragPreviewKind =
     item.kind === "image" || item.kind === "video" || item.kind === "audio" || item.kind === "text"
       ? item.kind
@@ -173,6 +181,19 @@ const CanvasSceneItemView = React.memo(function CanvasSceneItemView({
         : item.kind === "audio"
           ? (item.companionArtUrl ?? undefined)
           : undefined;
+
+  React.useLayoutEffect(() => {
+    const pendingSelection = pendingTextSelectionRef.current;
+    const textarea = textEditorRef.current;
+    if (!pendingSelection || !textarea) return;
+    pendingTextSelectionRef.current = null;
+    if (typeof document !== "undefined" && document.activeElement !== textarea) return;
+    const valueLength = textarea.value.length;
+    const start = Math.min(pendingSelection.start, valueLength);
+    const end = Math.min(pendingSelection.end, valueLength);
+    textarea.setSelectionRange(start, end, pendingSelection.direction);
+  }, [editingTextValue]);
+
   return (
     <article
       className={`canvas-scene-item canvas-scene-item--${item.kind}${item.selected ? " is-selected" : ""}${isGhostSource ? " is-ghost-source" : ""}${hasMediaError ? " is-media-unavailable" : ""}`}
@@ -289,9 +310,17 @@ const CanvasSceneItemView = React.memo(function CanvasSceneItemView({
           <textarea
             className="canvas-scene-item__text-editor"
             data-testid="canvas-text-edit-input"
+            ref={textEditorRef}
             value={editingTextValue}
             onPointerDown={(event) => event.stopPropagation()}
-            onChange={(event) => onTextItemEditChange(event.target.value)}
+            onChange={(event) => {
+              pendingTextSelectionRef.current = {
+                start: event.currentTarget.selectionStart,
+                end: event.currentTarget.selectionEnd,
+                direction: event.currentTarget.selectionDirection ?? "none",
+              };
+              onTextItemEditChange(event.target.value);
+            }}
             onKeyDown={onTextItemEditKeyDown}
             onBlur={onTextItemEditBlur}
             autoFocus

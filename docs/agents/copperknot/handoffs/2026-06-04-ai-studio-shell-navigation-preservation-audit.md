@@ -8,23 +8,33 @@
 
 - This packet is intended for Abismia as the UI/UX and visible-runtime owner.
 - Copperknot owns final readiness interpretation after the returned closeout.
-- Treat this as a preservation-minded audit and blocker-fix lane. Do not redesign AI Studio, re-theme the product, or change intended behavior unless current evidence proves a smaller preserve-behavior fix cannot protect launch readiness.
+- Execution authorization: Abismia should work through this lane as a preservation-minded audit and blocker-fix lane. Classify issues first, then implement narrow blocker fixes that preserve current UI/UX/design/behavior.
+- Do not redesign AI Studio, re-theme the product, or change intended behavior unless current evidence proves a smaller preserve-behavior fix cannot protect launch readiness.
+
+## Current Freshness Addendum - 2026-06-19
+
+- Current queue state: P5 `AI Studio shell and navigation` is `Below Floor - Handoff Ready` with `Repo Inspected` evidence.
+- This packet is handoff-ready for Abismia. It authorizes audit plus narrow blocker fixes; it does not authorize indiscriminate patching of every listed surface.
+- The exact dirty-file list below is historical. Refresh `git status --short` as the first step, identify owner overlap, then work clean/assigned files only.
+- Current product scope is desktop-first. Do not spend this lane on mobile-specific layouts, touch-only UX, mobile polish, or mobile breakpoints unless the user explicitly approves mobile scope in the current thread.
+- Current local repo has active dirty AI Studio/right-rail/Create-adjacent work from other lanes. Treat dirty files as ownership boundaries unless assigned, but continue on clean/assigned surfaces inside the lane.
+- Remaining proof boundary: preservation-minded classification of workflow navigation, shell layout, shared right rail, modal/detail behavior, drag/drop overlays, and blocker/watch/polish issues. Preserve current UI/UX/design/behavior; no redesign by default.
 
 ## Why This Task
 
 - Launch system: `AI Studio shell and navigation`
-- Launch state: `Below Bar - Handoff Ready`
+- Launch state: `Below Floor - Handoff Ready`
 - Evidence level: `Repo Inspected`
 - Human risk: `High`
 - Operational risk: `Medium`
 - Technical risk: `High`
 - Why now: after Recovery, Media Library, Storage, and Create/Pulse lanes were handed off or locally strengthened, this is the next unblocked July 7 queue item.
-- Why Copperknot is stopping: the lane spans workflow navigation, left-rail/tool ownership, shared right rail, modal/detail behavior, drag/drop overlays, and desktop/mobile fit. That is significant visible-runtime/UI work and should be owned by Abismia rather than patched by Copperknot by momentum.
+- Why Copperknot is stopping: this is now assigned execution/proof work for Abismia. The lane spans workflow navigation, left-rail/tool ownership, shared right rail, modal/detail behavior, drag/drop overlays, and desktop fit, so Abismia should execute the preservation-minded audit/fix loop instead of Copperknot patching it by momentum.
 
 ## Current Copperknot Evidence
 
 - Branch and branch guard are `production`.
-- Current worktree is dirty with overlapping AI Studio changes. Do not assume the current shell is a clean committed baseline.
+- Historical note: this packet was created while the worktree was dirty with overlapping AI Studio changes. Do not assume the current shell is a clean committed baseline; refresh `git status --short` before action.
 - Dirty AI Studio shell-adjacent files currently include:
   - `frontend/features/ai-studio/components/canvas/CanvasPropertiesPanel.tsx`
   - `frontend/features/ai-studio/components/canvas/canvasWorkspaceContracts.ts`

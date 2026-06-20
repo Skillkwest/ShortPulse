@@ -9,18 +9,27 @@
 - This packet is intended for Holomony as the primary media-health owner.
 - Dave the Security Guy should own any security-boundary interpretation.
 - Nuclo should own any production Supabase/Vercel credential or target-selection work if needed.
-- Treat this as a proof-and-findings lane first. Do not broaden into Media Library UX, folder organization, or Create/Pulse workflow behavior.
+- Execution authorization: the assigned owner should work through this lane. Start with proof/inspection, then implement a narrow source fix only if that proof finds a concrete storage/delivery/variant regression.
+- Do not broaden into Media Library UX, folder organization, or Create/Pulse workflow behavior.
+
+## Current Freshness Addendum - 2026-06-19
+
+- Current queue state: P3 `Storage, delivery, and variants` is `Below Floor - Source Hardened` with `Locally Tested` evidence.
+- This packet is handoff-ready as a standalone agent packet. The current queue row remains the priority authority, and current July 7 launch-state language in this addendum controls.
+- Additional Copperknot source hardening after this packet: `frontend/pages/api/media/list.ts`, `frontend/pages/api/media/sign-batch.ts`, and `frontend/pages/api/media/resolve-previews.ts` now share `isUserScopedMediaStoragePath`; `resolve-previews` no longer uses malformed storage-path basenames for repair lookup before signing.
+- Current focused validation after that hardening: media sign-batch, resolve-previews, media-list, and media-storage-path tests passed `78`; Supabase transform guard passed `3`; changed-file type check passed; `docs:check` and `git diff --check` passed.
+- Remaining proof boundary is unchanged: authenticated production media sign/list/resolve behavior plus hosted derivative backlog, terminal failure, variant coverage, storage-scope drift SQL, and object-delivery checks. No Supabase image transformations, no destructive data work, no Docker Supabase workflows.
 
 ## Why This Task
 
 - Launch system: `Storage, delivery, and variants`
-- Launch state: `Below Bar - Handoff Ready`
-- Evidence level: `Production Checked`
+- Launch state: `Below Floor - Source Hardened`
+- Evidence level: `Locally Tested`
 - Human risk: `High`
 - Operational risk: `High`
 - Technical risk: `High`
 - Why now: Copperknot has current repo/local proof that signing, preview trust, adaptive preview rejection, and derivative generation are transform-free, but the lane cannot move toward launch reliance until hosted production media/storage posture is proven.
-- Why Copperknot is stopping: the next proof requires explicit production Supabase target handling and likely authenticated production media behavior. The local Supabase CLI is linked to `ShortPulse - working-development`, while production is a separate project ref: `ftgrqgjrchpimronuhop`.
+- Why Copperknot is stopping: this is now assigned execution/proof work for the named owner. The next proof requires explicit production Supabase target handling and likely authenticated production media behavior. The local Supabase CLI is linked to `ShortPulse - working-development`, while production is a separate project ref: `ftgrqgjrchpimronuhop`.
 
 ## Current Copperknot Evidence
 
@@ -34,6 +43,8 @@
 - Copperknot added a regression test in `frontend/lib/__tests__/mediaPreviewPath.test.ts` proving Supabase render-image URLs are not accepted as direct preview candidates.
 - Current `frontend/lib/__tests__/supabaseTransformGuard.test.ts` also fails any production source that generates Supabase render-image URLs, passes transform options to Supabase signing calls, or combines `createSignedUrl(s)` with a `transform:` option key.
 - Current `npm -C frontend run validate:media-rendering-guardrails` runs `test:supabase-transform-guard` as part of the routine media/storage guardrail bar.
+- `frontend/pages/api/media/list.ts`, `frontend/pages/api/media/sign-batch.ts`, and `frontend/pages/api/media/resolve-previews.ts` now use the shared `isUserScopedMediaStoragePath` helper for hot-path signing/list/resolve scope checks.
+- `frontend/tests/api/media-resolve-previews.test.ts` proves traversal-shaped storage paths are not queried, repaired by basename, or signed.
 
 ## Required Context
 

@@ -1,6 +1,23 @@
 # Media Library And Organization Launch Readiness Handoff
 
-Status: marked handoff for Holomony continuation; Copperknot stopped before broad media-lane churn.
+Status: source-hardened after Holomony/Copperknot completion pass; authenticated production proof remains the watch boundary.
+
+## Current Freshness Addendum - 2026-06-19
+
+- Current queue state: P2 `Media library and organization` is ready to move from `Below Floor - Handed Off` to `Below Floor - Source Hardened` with `Locally Tested` evidence.
+- Use `docs/agents/copperknot/prioritized-launch-queue-2026-07-07.md` as the live priority/source-of-truth layer, then use this packet as the Holomony continuation scope.
+- The refreshed pass audited branch, worktree, owning files, current Media Library routes/components, and production-safe route proof before claiming source-hardening progress.
+- The evidence below includes historical local evidence from the 2026-06-03 Copperknot pass plus the refreshed local/prod-safe proof recorded in the completion addendum.
+- Remaining proof boundary: authenticated production customer behavior for save, browse, organize, reuse, and reopen across Media Library and AI Studio surfaces. Preserve current UI/UX/design/behavior; do not redesign Media Library or make folders project-local.
+
+## Completion Addendum - 2026-06-19
+
+- Source-audited canonical ingest/save continuity across direct upload prepare/finalize, compatibility upload, copy-from-url, and AI Studio save-to-library persistence.
+- Source-audited global folder authority in `mediaFoldersService`, folder CRUD routes, membership mutation routes, and project/non-project list behavior; folders remain global user-owned library containers, not project-local containers.
+- Source-audited autosave-off and project-association semantics in the AI Studio autosave orchestrator, autosave policy, persistence actions, and media-library persistence helpers.
+- Source-audited preview signing/list/resolve surfaces for shared user-scoped storage-path validation, storage-object existence gating, wrong-asset avoidance, and the no-Supabase-transform policy.
+- Validated the refreshed local proof slice: media ingest/folder/list/sign/resolve/autosave/persistence tests passed at `15` files / `224` tests; display/modal/signing tests passed at `20` files / `273` tests with `8` skipped; workflow reload/reference-grid tests passed at `6` files / `120` tests; adaptive media runtime passed lint/type-check and `7` files / `218` tests with `8` skipped; media rendering guardrails and docs checks passed.
+- Production-safe proof remains fail-closed and route-surface only: strict production route parity passed against `https://www.shortpulse.ai`, and unauthenticated media list/sign/resolve/upload/copy/folder-membership routes returned `401`. This does not prove authenticated customer success.
 
 ## Large-Lane Stop Marker
 
@@ -61,7 +78,7 @@ Holomony should continue with a bounded launch-readiness audit, not a redesign:
 
 ## Acceptance Bar
 
-This system can move out of `Below Bar - Handed Off` only when:
+This system can move out of `Below Floor - Handed Off` only when:
 
 - canonical save/ingest paths are source-audited and covered by current tests or production-safe proof,
 - global folder membership behavior is current for project and non-project routes,

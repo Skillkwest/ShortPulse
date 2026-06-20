@@ -7,18 +7,26 @@
 ## Copy/Paste Use
 
 - This packet is intended for the Pulse/Create Workflow owner, with Copperknot review.
-- Treat this as proof-and-findings first. Do not redesign Create, Pulse, the composer, the right rail, or generation behavior.
+- Execution authorization: the Pulse/Create Workflow owner should work through this lane. Start with production-safe authenticated proof/inspection, then implement a narrow source fix only if that proof finds a concrete Create/Pulse regression.
+- Do not redesign Create, Pulse, the composer, the right rail, or generation behavior.
+
+## Current Freshness Addendum - 2026-06-19
+
+- Current queue state: P4 `Create and Pulse workflow` is `Below Floor - Handoff Ready` with `Locally Tested` evidence.
+- This packet remains handoff-ready for the Pulse/Create Workflow owner when paired with the current queue row. Current July 7 launch-state language in this addendum controls.
+- Current local repo has active dirty AI Studio/Create-adjacent work from other lanes. Refresh `git status --short` as the first step, identify owner overlap, then work clean/assigned files only.
+- Remaining proof boundary: production-safe authenticated Standard/Pulse workflow behavior, with any credit-consuming generation proof explicitly approved. Preserve current UI/UX/design/behavior and do not alter Generate CTA semantics.
 
 ## Why This Task
 
 - Launch system: `Create and Pulse workflow`
-- Launch state: `Below Bar - Handoff Ready`
+- Launch state: `Below Floor - Handoff Ready`
 - Evidence level: `Locally Tested`
 - Human risk: `Critical`
 - Operational risk: `High`
 - Technical risk: `High`
 - Why now: Copperknot found and fixed a narrow Pulse route-boundary source gap where `/api/ai/studio-agent-pulse` did not directly enforce that the Pulse session namespace preset matched `context.pulse.presetId`.
-- Why Copperknot is stopping: the remaining done proof requires authenticated production behavior and possibly credit-consuming generation smoke, both outside Copperknot's current autonomy gates.
+- Why Copperknot is stopping: this is now assigned execution/proof work for the named owner. The remaining done proof requires authenticated production behavior and possibly credit-consuming generation smoke, both outside Copperknot's current autonomy gates.
 
 ## Current Copperknot Evidence
 

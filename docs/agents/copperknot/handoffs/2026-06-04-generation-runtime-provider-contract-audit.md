@@ -8,18 +8,27 @@
 
 - This packet is intended for Bactuo as the generation lifecycle/provider owner.
 - Copperknot owns final readiness interpretation after the returned closeout.
-- Treat this as a provider-contract and generation-lifecycle audit first. Do not broaden into UI redesign, pricing policy, production deployment, or environment mutation.
+- Execution authorization: Bactuo should work through this lane. Start with provider-contract and generation-lifecycle audit, then implement narrow source fixes for concrete provider/runtime regressions found inside this scope.
+- Do not broaden into UI redesign, pricing policy, production deployment, or environment mutation.
+
+## Current Freshness Addendum - 2026-06-19
+
+- Current queue state: P6 `Generation runtime and providers` is `Below Floor - Source Hardened` with `Locally Tested` evidence.
+- This packet is handoff-ready for Bactuo as a standalone agent packet. The current queue row remains the priority authority, and current July 7 launch-state language in this addendum controls.
+- Additional Copperknot source hardening after this packet: provider recovery/status interpretation now gives provider failure/error payloads precedence over media-shaped result fields, so failed/error provider responses are not promoted to completed media.
+- Current focused validation after that hardening: recovery provider probe, status proxy runtime, provider status selection, type check, and Fal style-preview generation slices passed. The remaining proof is production-safe provider/env posture and any explicitly approved minimal generation smoke.
+- Preserve current UI/UX/design/behavior. Do not use this packet to change pricing policy, billing policy, deployment, provider spending, or recovery/settlement architecture without the proper owner gate.
 
 ## Why This Task
 
 - Launch system: `Generation runtime and providers`
-- Launch state: `Below Bar - Handoff Ready`
+- Launch state: `Below Floor - Source Hardened`
 - Evidence level: `Locally Tested`
 - Human risk: `High`
 - Operational risk: `High`
 - Technical risk: `High`
 - Why now: after Recovery, Media Library, Storage, Create/Pulse, and AI Studio shell lanes were handed off or locally strengthened, this is the next unblocked July 7 queue item.
-- Why Copperknot is stopping: the lane spans OpenAI direct-complete routes, Fal/Kie submit/status/recovery adapters, ElevenLabs audio generation routes, provider env posture, live provider compatibility, and Bactuo's known architecture-consolidation risks around identity, settlement, and visibility. That is significant Bactuo-owned generation lifecycle work, not a couple Copperknot patches.
+- Why Copperknot is stopping: this is now assigned execution/proof work for Bactuo. The lane spans OpenAI direct-complete routes, Fal/Kie submit/status/recovery adapters, ElevenLabs audio generation routes, provider env posture, live provider compatibility, and Bactuo's known architecture-consolidation risks around identity, settlement, and visibility.
 
 ## Current Copperknot Evidence
 
@@ -41,6 +50,8 @@
 - `frontend/lib/model-runtime/modelCatalog.ts` is the canonical model metadata/catalog surface for provider, lifecycle, execution mode, submit handler, pricing metadata, allowed aspects/resolutions/durations, and API provenance.
 - Current generated Fal/Kie submit/status modules are labeled as generated canonical route wrappers from `scripts/lib/fal_route_inventory.js`, not generic compatibility wrappers.
 - Current `npm -C frontend run validate` and `npm -C frontend run validate:phase11:fal-regression` both run `npm run fal:routes:check`, so generated wrapper drift is now part of the routine and provider-specific validation bars.
+- `frontend/lib/server/falIntegration/recoveryProviderProbe.ts` and `frontend/lib/server/falIntegration/statusProxyRuntime.ts` now treat provider failure/error state as authoritative before accepting media-shaped payloads as success.
+- `frontend/lib/server/falIntegration/__tests__/recoveryProviderProbe.test.ts` and `frontend/lib/server/falIntegration/__tests__/statusProxyRuntime.test.ts` cover provider failure/error precedence over media-shaped payloads.
 
 ## Validation Already Run
 

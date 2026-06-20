@@ -2,6 +2,33 @@
 
 Status: marked handoff for Bactuo continuation; Copperknot implementation stopped after five focused passes.
 
+## Current Freshness Addendum - 2026-06-19
+
+- Current queue state: P1 `Recovery, settlement, and output integrity` is `Blocked - Handed Off` with `Locally Tested` evidence.
+- Use `docs/agents/copperknot/prioritized-launch-queue-2026-07-07.md` as the live priority/source-of-truth layer, then use this packet as the implementation history and Bactuo continuation scope.
+- Execution authorization: Bactuo should work through this lane. Start by refreshing branch, worktree, owning files, and any production-safe lifecycle evidence, then implement or validate the smallest source-level recovery/settlement fix that moves the lane toward the done proof.
+- The validation listed below is historical local evidence from the five Copperknot passes. Treat it as scope and prior proof, not a reason to stop.
+- Remaining proof boundary: production-safe lifecycle proof for accepted-job recovery, settlement, publication, visible output convergence, persisted status reads, direct-provider persistence, and diagnostics. Do not broaden into UI/UX, billing policy, credit-spending provider smoke, deploy, or release work without explicit approval.
+
+## Bactuo Completion Addendum - 2026-06-19
+
+- Bactuo refreshed the repo startup spine, Bactuo source map/checkpoint, current Copperknot queue, this handoff, recovery/billing SOPs, branch guard, and dirty-worktree ownership before editing.
+- Current local branch and `shortpulse.allowedBranch` are both `production`.
+- Current source audit found the runtime lifecycle path source/test-convergent enough to avoid a rewrite: strict recovery still resolves accepted jobs through attempt authority, status polling can settle terminal provider outcomes, direct terminal success persists canonical output records before billing settlement, and visibility sync happens only after settlement succeeds.
+- Bactuo made one focused diagnostics-convergence fix: `/api/admin/user-health` deep-report terminal reserved-hold detection now recognizes `generation_projection` provider/request lineage when a terminal generation has no direct `ai_generations.request_id` or `generation_attempts` bridge. This prevents per-user diagnostics from missing a reserved hold already linked to terminal output truth through projection lineage.
+- No UI/UX, pricing policy, provider behavior, public promise, destructive data operation, deploy, push, or credit-consuming generation smoke was performed.
+- Local validation refreshed after the fix:
+  - `npm -C frontend run test -- ...` recovery/settlement/output-integrity bundle: `36` files passed, `320` tests passed.
+  - `npm -C frontend run docs:check`: passed.
+  - `npm -C frontend run check:generation-pipeline-legacy`: passed.
+  - `npm -C frontend run fal:routes:check`: passed.
+  - `npx eslint ...` targeted recovery/settlement/provider/admin-health files from `frontend/`: passed.
+- Production-safe, non-credit probes refreshed:
+  - `node scripts/verify_deployment_route_parity.mjs --base-url https://www.shortpulse.ai`: passed against deployment `shortpulse-l7d8cjqfs-kirk-artmans-projects.vercel.app`, created `2026-06-20T02:04:19.530Z`, with `174` route entries inspected.
+  - `node scripts/verify_internal_route_runtime.mjs --base-url https://www.shortpulse.ai --skip-auth --route generation_recovery --route user_health_fleet --route media_derivatives`: unauthenticated `401` fail-closed checks passed.
+  - Unauthenticated production GET probes returned `401` for `/api/admin/generation-trace`, `/api/admin/user-health`, `/api/admin/user-health-fleet`, `/api/fal/nano-banana-pro-status`, `/api/openai/image-generate`, and `/api/elevenlabs/text-to-speech`.
+- Remaining proof boundary: this is still local source/test proof plus unauthenticated production surface proof. It does not prove the local uncommitted diagnostic fix is deployed, and it does not prove authenticated lifecycle convergence, credit-consuming generation acceptance, or production settlement/output convergence. Moving this lane out of `Blocked - Handed Off` still requires Copperknot acceptance after deploy/authenticated production proof or an explicit waiver.
+
 ## Large-Lane Stop Marker
 
 Copperknot has already made five focused source and validation passes in this lane. Under the July 7 goal prompt, this is now too large for Copperknot to keep personally pushing by momentum. The lane is therefore marked for Bactuo continuation, with Copperknot retaining readiness acceptance authority after Bactuo returns evidence.

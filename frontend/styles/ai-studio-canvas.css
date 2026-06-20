@@ -710,7 +710,7 @@
   position: absolute;
   top: 8px;
   left: 10px;
-  right: 44px;
+  right: 10px;
   z-index: 2;
   display: -webkit-box;
   max-height: 28px;
@@ -725,6 +725,10 @@
   pointer-events: none;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+}
+
+.reference-card-audio-shell.has-audio-download .reference-card-audio-title {
+  right: 44px;
 }
 
 .reference-card-audio-player {

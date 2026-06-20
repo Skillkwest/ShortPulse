@@ -1710,7 +1710,9 @@ describe("StylesLibraryPanel", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Style tile: Cinematic" }));
 
-    expect(screen.getByRole("dialog", { name: "Edit style" })).toBeInTheDocument();
+    const editDialog = screen.getByRole("dialog", { name: "Edit style" });
+    expect(editDialog).toBeInTheDocument();
+    expect(editDialog.closest('[class*="bootstrapStyleScope"]')).not.toBeNull();
     expect(screen.getByLabelText("Style")).toHaveValue("Cinematic");
     expect(
       screen.getByRole("button", { name: "Drop reference image or click to upload" })

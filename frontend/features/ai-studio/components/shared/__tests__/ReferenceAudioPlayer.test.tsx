@@ -70,6 +70,39 @@ describe("ReferenceAudioPlayer", () => {
     expect(document.querySelector("audio")?.getAttribute("preload")).toBe("metadata");
   });
 
+  it("only reserves title space for the in-card download button when that button is rendered", () => {
+    const { rerender } = render(
+      <ReferenceAudioPlayer
+        audioId="audio-title-no-download"
+        audioUrl="https://signed.test/title.mp3"
+        title="Ember A Horse"
+        playLabel="Play audio"
+        pauseLabel="Pause audio"
+      />
+    );
+
+    expect(document.querySelector(".reference-card-audio-title")).toHaveTextContent(
+      "Ember A Horse"
+    );
+    expect(document.querySelector(".reference-card-audio-shell")).not.toHaveClass(
+      "has-audio-download"
+    );
+
+    rerender(
+      <ReferenceAudioPlayer
+        audioId="audio-title-with-download"
+        audioUrl="https://signed.test/title.mp3"
+        title="Ember A Horse"
+        playLabel="Play audio"
+        pauseLabel="Pause audio"
+        onDownload={vi.fn()}
+      />
+    );
+
+    expect(document.querySelector(".reference-card-audio-shell")).toHaveClass("has-audio-download");
+    expect(screen.getByLabelText("Download audio")).toBeInTheDocument();
+  });
+
   it("resolves a fresh signed URL before eager waveform decode", async () => {
     const resolveAudioUrl = vi.fn(async () => "https://signed.test/fresh-audio.mp3");
 

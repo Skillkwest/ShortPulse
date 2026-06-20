@@ -120,6 +120,9 @@ export function ReferenceAudioPlayer({
       backgroundPosition: "center center, center top, center center",
     };
   }, [backgroundImageUrl]);
+  const audioShellClassName = ["reference-card-audio-shell", onDownload ? "has-audio-download" : ""]
+    .filter(Boolean)
+    .join(" ");
 
   React.useEffect(() => {
     onResolveAudioUrlRef.current = onResolveAudioUrl;
@@ -535,7 +538,7 @@ export function ReferenceAudioPlayer({
 
   return (
     <>
-      <div className="reference-card-audio-shell" style={audioShellStyle}>
+      <div className={audioShellClassName} style={audioShellStyle}>
         {onDownload ? (
           <button
             type="button"

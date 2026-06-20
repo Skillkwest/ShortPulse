@@ -1,10 +1,12 @@
 import { getModelConfig } from "./modelRegistry";
 import { computeCostForModel } from "./pricing";
+import { normalizeDurationForModelConfig } from "./modelDurationConstraints";
 import { resolveModelPricingForModel, type ModelPricingPolicyDocument } from "./pricingPolicy";
 import { resolveModelPricingVariantId } from "./modelPricingVariants";
 import type { CostBreakdown, PricingParams } from "./pricingTypes";
 import {
   shouldExpandAspectPricingVariants,
+  shouldExpandDurationPricingVariants,
   shouldExpandResolutionPricingVariants,
   shouldExpandVideoInputPricingVariants,
 } from "./pricingGridVariantRules";
@@ -86,6 +88,19 @@ const normalizePricingGridParams = (
 
   if (!shouldExpandVideoInputPricingVariants(config.pricingStrategy)) {
     delete normalizedParams.inputVideoCount;
+  }
+
+  if (shouldExpandDurationPricingVariants(config.pricingStrategy)) {
+    const duration =
+      normalizeDurationForModelConfig(
+        typeof normalizedParams.durationSeconds === "number"
+          ? normalizedParams.durationSeconds
+          : null,
+        config
+      ) ?? normalizeDurationForModelConfig(config.defaultDurationSeconds ?? null, config);
+    if (duration != null) {
+      normalizedParams.durationSeconds = duration;
+    }
   }
 
   return normalizedParams;

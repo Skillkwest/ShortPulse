@@ -572,23 +572,24 @@ export function PricingModelWorkbookTable({
                 variantProviderCostPerSecondDraftValue !== undefined
                   ? parsedVariantProviderCostPerSecondDraft
                   : effectiveRowProviderUsdPerSecondOverride;
+              const rowDurationSeconds = variant?.durationSeconds ?? resolvedDurationSeconds;
               const activeProviderCostUsd = getEffectiveProviderCostUsd({
                 breakdown: activePreview,
                 providerUsdOverride: previewVariantProviderUsdOverride,
                 providerUsdPerSecondOverride: previewVariantProviderUsdPerSecondOverride,
-                durationSeconds: resolvedDurationSeconds,
+                durationSeconds: rowDurationSeconds,
                 usageRateMultiplier,
               });
               const activeProviderCostUsdPerSecond = getEffectiveProviderCostUsdPerSecond({
                 providerCostUsd: activeProviderCostUsd,
                 providerUsdPerSecondOverride: previewVariantProviderUsdPerSecondOverride,
-                durationSeconds: resolvedDurationSeconds,
+                durationSeconds: rowDurationSeconds,
               });
               const activeRateSourceCostUsd = getRateSourceCostUsd({
                 rateSourceInputMode,
                 providerCostUsd: activeProviderCostUsd,
                 providerCostUsdPerSecond: activeProviderCostUsdPerSecond,
-                durationSeconds: resolvedDurationSeconds,
+                durationSeconds: rowDurationSeconds,
                 usageRateMultiplier,
               });
               const variantProviderCostInputValue =
@@ -669,7 +670,7 @@ export function PricingModelWorkbookTable({
                 variantDraftKey,
                 variantId,
                 rowLabel,
-                resolvedDurationSeconds,
+                resolvedDurationSeconds: rowDurationSeconds,
                 usageRateMultiplier,
                 variantMarkupInputValue,
                 variantProviderCostInputValue,

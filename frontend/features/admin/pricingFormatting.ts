@@ -162,10 +162,14 @@ export const getVariantSpecSummary = (
   const parts: string[] = [];
   const resolution = variant?.resolution ?? resolvedSpec.resolution;
   const aspect = variant?.aspect ?? resolvedSpec.aspect;
+  const durationSeconds = variant?.durationSeconds ?? null;
   const audio = variant?.audio ?? resolvedSpec.audio;
   const videoInput = variant?.videoInput ?? null;
   if (resolution) parts.push(resolution);
   if (aspect) parts.push(aspect);
+  if (durationSeconds != null && Number.isFinite(durationSeconds)) {
+    parts.push(`${Number(durationSeconds.toFixed(3))}s`);
+  }
   if (videoInput != null) parts.push(videoInput ? "with video input" : "no video input");
   if (audio != null) parts.push(audio ? "audio on" : "audio off");
   const baseSpec = parts.length ? parts.join(" / ") : model.workflowType;

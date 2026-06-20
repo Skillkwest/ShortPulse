@@ -91,7 +91,7 @@ describe("videoBilledCredits", () => {
       }).breakdown
     ).toMatchObject({
       credits: 42,
-      variantId: "default|res:1080p|aspect:16:9|audio:off",
+      variantId: "default|res:1080p|aspect:16:9|duration:6s|audio:off",
     });
   });
 
@@ -123,7 +123,9 @@ describe("videoBilledCredits", () => {
     });
 
     expect(clientLookup.breakdown?.variantId).toBe(serverLookup.breakdown?.variantId);
-    expect(serverLookup.breakdown?.variantId).toBe("default|res:720p|aspect:16:9|audio:on");
+    expect(serverLookup.breakdown?.variantId).toBe(
+      "default|res:720p|aspect:16:9|duration:10s|audio:on"
+    );
     expect(clientLookup.breakdown?.credits).toBe(31);
     expect(serverLookup.breakdown?.credits).toBe(31);
   });
@@ -149,7 +151,7 @@ describe("videoBilledCredits", () => {
       }).breakdown
     ).toMatchObject({
       credits: 44,
-      variantId: "default|res:720p|aspect:16:9|audio:on|video_input:with",
+      variantId: "default|res:720p|aspect:16:9|duration:10s|audio:on|video_input:with",
     });
   });
 

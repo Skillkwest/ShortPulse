@@ -4,10 +4,12 @@
  */
 import { describe, expect, it } from "vitest";
 import { buildModelEconomicsRows } from "../pricingAnalysis";
+import { buildDraftPricingPreviewVariants } from "../pricingCostDocs";
 import { getModelRateSourceInputMode, getRateSourceCostUsd } from "../pricingWorkbookMath";
 import { getModelUsageRateMultiplier } from "../pricingDrafts";
 import type { AdminPricingModelRow } from "../types";
 import { getDefaultModelPricingPolicyDocument } from "../../../lib/model-runtime/pricingPolicy";
+import { KIE_SEEDANCE_2_MODEL_ID } from "../../../lib/model-runtime/providerModelIds";
 
 const buildModelRow = (overrides: Partial<AdminPricingModelRow>): AdminPricingModelRow =>
   ({
@@ -52,6 +54,63 @@ const buildModelRow = (overrides: Partial<AdminPricingModelRow>): AdminPricingMo
   }) as AdminPricingModelRow;
 
 describe("pricing grid invariants", () => {
+  it("emits exact duration rows for Seedance video configurations", () => {
+    const pricingPolicy = {
+      ...getDefaultModelPricingPolicyDocument(),
+      global: {
+        ...getDefaultModelPricingPolicyDocument().global,
+        creditUsdScale: 30,
+      },
+    };
+    const model = buildModelRow({
+      id: KIE_SEEDANCE_2_MODEL_ID,
+      label: "Seedance 2.0",
+      provider: "kie",
+      sourceUrl: "https://docs.kie.ai/market/bytedance/seedance-2",
+      workflowType: "image-to-video",
+      pricingStrategy: "seedance-2-per-second",
+      pricingStrategyLabel: "Per output second",
+      defaultAspect: "16:9",
+      allowedAspects: ["1:1", "21:9", "4:3", "3:4", "16:9", "9:16"],
+      defaultResolution: "1080p",
+      allowedResolutions: ["1080p", "720p", "480p"],
+      defaultDurationSeconds: 5,
+      minDurationSeconds: 5,
+      maxDurationSeconds: 15,
+      allowedDurations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+      defaultAudio: true,
+    });
+    const rows = buildDraftPricingPreviewVariants(model, pricingPolicy);
+    const row = rows.find(
+      (candidate) =>
+        candidate.id === "default|res:720p|aspect:16:9|duration:12s|audio:on|video_input:none"
+    );
+
+    expect(row).toMatchObject({
+      resolution: "720p",
+      durationSeconds: 12,
+      videoInput: false,
+      breakdown: {
+        billedCredits: 119,
+      },
+    });
+
+    const economicsRows = buildModelEconomicsRows({
+      models: [model],
+      pricingPolicy,
+      durationDrafts: {
+        [model.id]: "15",
+      },
+    });
+    const economicsRow = economicsRows.find((candidate) => candidate.variantId === row?.id);
+
+    expect(economicsRow).toMatchObject({
+      durationSeconds: 12,
+      usageValueLabel: "12",
+      billedCredits: 119,
+    });
+  });
+
   it("keeps per-image rate fixed while amount scales total provider cost", () => {
     const model = buildModelRow({});
     const rows = buildModelEconomicsRows({

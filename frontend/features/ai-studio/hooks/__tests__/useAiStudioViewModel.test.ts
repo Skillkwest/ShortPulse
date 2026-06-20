@@ -234,6 +234,56 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.currentCostCredits).toBe(expectedCost);
   });
 
+  it("shows the exact Seedance 2 pricing-grid row for the active duration and resolution", () => {
+    const modelId = KIE_SEEDANCE_2_MODEL_ID;
+    const costParamsForModel = (
+      targetModelId: string,
+      overrides?: Omit<PricingParams, "modelId">
+    ): PricingParams => ({
+      modelId: targetModelId,
+      aspect: "16:9",
+      durationSeconds: 12,
+      resolution: "720p",
+      audio: true,
+      ...overrides,
+    });
+    const pricingParams = costParamsForModel(modelId, {
+      durationSeconds: 12,
+      resolution: "720p",
+      inputVideoCount: 0,
+    });
+
+    expect(
+      resolveVideoBilledCredits({
+        modelId,
+        params: pricingParams,
+        pricingPolicy: pricingGridPolicy,
+      })
+    ).toBe(119);
+
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        mode: "video",
+        selectedTool: "video",
+        model: modelId,
+        videoReferenceMode: "standard",
+        videoDurationSeconds: 12,
+        videoResolution: "720p",
+        videoGenerateAudio: true,
+        seedance2InputMode: "multimodal",
+        seedance2ReferenceImageUrls: ["https://example.com/seedance-image.png"],
+        seedance2ReferenceVideoUrls: [],
+        costParamsForModel,
+        pricingPolicy: pricingGridPolicy,
+      })
+    );
+
+    expect(result.current.currentCostCredits).toBe(119);
+    expect(result.current.modelPickerCostCredits).toBe(119);
+    expect(result.current.generationGuardrail).toBeNull();
+  });
+
   it("uses active video settings for prompt-reference generate cost", () => {
     const modelId = KIE_KLING_30_MODEL_ID;
     const costParamsForModel = (

@@ -4,6 +4,7 @@ import type { ModelConfig } from "./modelRegistry";
 import { getDefaultAdminPricingCustomRowsDocument } from "./adminPricingCustomRows";
 import { normalizeCreateImageBilledPricingParams } from "./createImageBilledCredits";
 import { normalizeVideoBilledPricingParams } from "./videoBilledCredits";
+import { normalizeDurationForModelConfig } from "./modelDurationConstraints";
 import {
   compactModelPricingPolicyDocument,
   type ModelPricingPerModelOverride,
@@ -14,6 +15,7 @@ import {
 import { resolvePricingGridCostBreakdown } from "./pricingGridBilledCredits";
 import {
   shouldExpandAspectPricingVariants,
+  shouldExpandDurationPricingVariants,
   shouldExpandResolutionPricingVariants,
   shouldExpandVideoInputPricingVariants,
 } from "./pricingGridVariantRules";
@@ -64,7 +66,10 @@ const CREATE_IMAGE_RUNTIME_AUTHORITY_BY_STRATEGY: Partial<
   },
 };
 
-const orderWithDefaultFirst = <T extends string | null>(values: T[], defaultValue: T): T[] => {
+const orderWithDefaultFirst = <T extends string | number | null>(
+  values: T[],
+  defaultValue: T
+): T[] => {
   const ordered: T[] = [];
   if (values.some((value) => value === defaultValue)) {
     ordered.push(defaultValue);
@@ -123,6 +128,26 @@ const buildVideoAudioOptions = (model: ModelConfig): Array<boolean | undefined> 
 
 const buildVideoInputOptions = (model: ModelConfig): Array<boolean | undefined> =>
   shouldExpandVideoInputPricingVariants(model.pricingStrategy) ? [false, true] : [undefined];
+
+const buildVideoDurationOptions = (model: ModelConfig): Array<number | undefined> => {
+  if (!shouldExpandDurationPricingVariants(model.pricingStrategy)) return [undefined];
+  const minDuration = model.minDurationSeconds ?? Number.NEGATIVE_INFINITY;
+  const maxDuration = model.maxDurationSeconds ?? Number.POSITIVE_INFINITY;
+  const allowedDurations = (model.allowedDurations ?? [])
+    .filter((duration) => duration >= minDuration && duration <= maxDuration)
+    .sort((left, right) => left - right);
+  const durationOptions = allowedDurations.length
+    ? allowedDurations
+    : model.defaultDurationSeconds != null
+      ? [model.defaultDurationSeconds]
+      : [];
+  return orderWithDefaultFirst(
+    durationOptions
+      .map((duration) => normalizeDurationForModelConfig(duration, model))
+      .filter((duration): duration is number => duration != null),
+    normalizeDurationForModelConfig(model.defaultDurationSeconds ?? null, model) ?? null
+  ).filter((duration): duration is number => duration != null);
+};
 
 const mergeVariantOverride = (
   override: ModelPricingPerModelOverride | undefined,
@@ -266,38 +291,42 @@ export const materializeImageBilledCreditPolicy = (
     const resolutions = buildResolutionOptions(model);
     const audioOptions = buildVideoAudioOptions(model);
     const videoInputOptions = buildVideoInputOptions(model);
+    const durationOptions = buildVideoDurationOptions(model);
 
     aspects.forEach((aspect) => {
       resolutions.forEach((resolution) => {
-        audioOptions.forEach((audio) => {
-          videoInputOptions.forEach((videoInput) => {
-            const params = normalizeVideoBilledPricingParams(
-              model.id,
-              buildDefaultPricingParams(model.id, {
-                ...(aspect ? { aspect } : {}),
-                ...(resolution ? { resolution } : {}),
-                ...(audio != null ? { audio } : {}),
-                ...(videoInput != null ? { inputVideoCount: videoInput ? 1 : 0 } : {}),
-              })
-            );
+        durationOptions.forEach((durationSeconds) => {
+          audioOptions.forEach((audio) => {
+            videoInputOptions.forEach((videoInput) => {
+              const params = normalizeVideoBilledPricingParams(
+                model.id,
+                buildDefaultPricingParams(model.id, {
+                  ...(aspect ? { aspect } : {}),
+                  ...(resolution ? { resolution } : {}),
+                  ...(durationSeconds != null ? { durationSeconds } : {}),
+                  ...(audio != null ? { audio } : {}),
+                  ...(videoInput != null ? { inputVideoCount: videoInput ? 1 : 0 } : {}),
+                })
+              );
 
-            const breakdown = resolvePricingGridCostBreakdown({
-              modelId: model.id,
-              params,
-              pricingPolicy: normalized,
+              const breakdown = resolvePricingGridCostBreakdown({
+                modelId: model.id,
+                params,
+                pricingPolicy: normalized,
+              });
+              if (!breakdown?.credits || breakdown.credits <= 0) return;
+
+              const variantId = resolveModelPricingVariantId({
+                modelId: model.id,
+                ...params,
+              });
+
+              nextPolicy.perModel[model.id] = mergeVariantOverride(
+                nextPolicy.perModel[model.id],
+                variantId,
+                breakdown.credits
+              );
             });
-            if (!breakdown?.credits || breakdown.credits <= 0) return;
-
-            const variantId = resolveModelPricingVariantId({
-              modelId: model.id,
-              ...params,
-            });
-
-            nextPolicy.perModel[model.id] = mergeVariantOverride(
-              nextPolicy.perModel[model.id],
-              variantId,
-              breakdown.credits
-            );
           });
         });
       });

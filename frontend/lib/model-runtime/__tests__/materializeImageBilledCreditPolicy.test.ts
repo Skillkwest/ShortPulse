@@ -139,4 +139,23 @@ describe("materializeImageBilledCreditPolicy", () => {
       });
     });
   });
+
+  it("materializes the exact Seedance 2 pricing-grid row for 720p 12s no-video-input runs", () => {
+    const materialized = materializeImageBilledCreditPolicy(basePolicy);
+    const params = {
+      durationSeconds: 12,
+      resolution: "720p",
+      inputVideoCount: 0,
+    };
+    const strictVideoBreakdown = resolveVideoBilledCreditLookup({
+      modelId: KIE_SEEDANCE_2_MODEL_ID,
+      params,
+      pricingPolicy: materialized,
+    }).breakdown;
+
+    expect(strictVideoBreakdown).toMatchObject({
+      credits: 119,
+      variantId: "default|res:720p|aspect:16:9|duration:12s|audio:on|video_input:none",
+    });
+  });
 });

@@ -1,10 +1,13 @@
 import { getModelConfig } from "./modelRegistry";
 import type { PricingParams } from "./pricingTypes";
+import { normalizeDurationForModelConfig } from "./modelDurationConstraints";
+import { shouldExpandDurationPricingVariants } from "./pricingGridVariantRules";
 
 export type ModelPricingVariantParts = {
   baseVariantId?: string | null;
   aspect?: string | null;
   resolution?: string | null;
+  durationSeconds?: number | null;
   audio?: boolean | null;
   videoInput?: boolean | null;
   inputImageCount?: number | null;
@@ -18,6 +21,7 @@ export const buildModelPricingVariantId = ({
   baseVariantId,
   aspect,
   resolution,
+  durationSeconds,
   audio,
   videoInput,
   inputImageCount,
@@ -27,6 +31,9 @@ export const buildModelPricingVariantId = ({
   const idParts = [baseVariantId?.trim() || "default"];
   if (resolution) idParts.push(`res:${resolution}`);
   if (aspect) idParts.push(`aspect:${aspect}`);
+  if (durationSeconds != null && Number.isFinite(durationSeconds)) {
+    idParts.push(`duration:${Number(durationSeconds.toFixed(3))}s`);
+  }
   if (audio != null) idParts.push(`audio:${audio ? "on" : "off"}`);
   if (videoInput != null) idParts.push(`video_input:${videoInput ? "with" : "none"}`);
   if (inputImageCount != null && Number.isFinite(inputImageCount)) {
@@ -65,6 +72,14 @@ export const resolveModelPricingVariantId = (params: PricingParams): string => {
       : typeof config?.defaultAudio === "boolean"
         ? config.defaultAudio
         : null;
+  const durationSeconds = shouldExpandDurationPricingVariants(config?.pricingStrategy)
+    ? (normalizeDurationForModelConfig(
+        typeof params.durationSeconds === "number" ? params.durationSeconds : null,
+        config
+      ) ??
+      normalizeDurationForModelConfig(config?.defaultDurationSeconds ?? null, config) ??
+      null)
+    : null;
   const videoInput =
     typeof params.inputVideoCount === "number" && Number.isFinite(params.inputVideoCount)
       ? params.inputVideoCount > 0
@@ -75,6 +90,7 @@ export const resolveModelPricingVariantId = (params: PricingParams): string => {
     baseVariantId: resolveBaseVariantId(params),
     aspect,
     resolution,
+    durationSeconds,
     audio,
     videoInput,
     inputImageCount:

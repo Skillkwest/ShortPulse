@@ -530,6 +530,90 @@ describe("projectWorkspaceStatesService", () => {
     ).rejects.toBeInstanceOf(InvalidProjectWorkspaceSnapshotError);
   });
 
+  it("persists right-rail layout changes in the lightweight project checkpoint", async () => {
+    const existingSnapshot = {
+      schemaVersion: 2,
+      sessionId: "session-right-rail",
+      updatedAt: "2026-04-23T01:00:00.000Z",
+      meta: {
+        generatedAt: "2026-04-23T01:00:00.000Z",
+        checksum: "fnv1a32:right-rail-existing",
+      },
+      workspace: {
+        rightRailLayout: {
+          schemaVersion: 1,
+          panels: {
+            canvas: false,
+            quickSlot: true,
+            referenceGrid: true,
+          },
+          splits: {
+            canvasInventoryTopRatio: null,
+            quickSlotReferenceTopRatio: null,
+          },
+        },
+      },
+      outputs: {
+        active: [],
+        archived: [],
+        activeOutputId: null,
+        curatedReferenceIds: [],
+        removedFromAllRefsIds: [],
+      },
+      agent: {
+        messages: [],
+        input: "",
+        latestAgentPrompt: null,
+        promptOrigin: "manual",
+        chatModeEnabled: true,
+        pulseWorkflowSession: null,
+      },
+    };
+    const { workspaceUpsert } = createSupabaseMock({
+      workspaceSnapshot: createCanonicalCheckpointSnapshot(existingSnapshot),
+      workspaceSnapshotUpdatedAt: "2026-04-23T01:00:00.000Z",
+    });
+    const nextRightRailLayout = {
+      schemaVersion: 1,
+      panels: {
+        canvas: true,
+        quickSlot: false,
+        referenceGrid: true,
+      },
+      splits: {
+        canvasInventoryTopRatio: 0.41,
+        quickSlotReferenceTopRatio: 0.67,
+      },
+    };
+
+    await upsertProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+      schemaVersion: 2,
+      snapshot: {
+        ...existingSnapshot,
+        updatedAt: "2026-04-23T01:00:05.000Z",
+        workspace: {
+          ...existingSnapshot.workspace,
+          rightRailLayout: nextRightRailLayout,
+        },
+      },
+    });
+
+    expect(workspaceUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        snapshot: expect.objectContaining({
+          workspace: expect.objectContaining({
+            rightRailLayout: nextRightRailLayout,
+          }),
+        }),
+      }),
+      expect.objectContaining({
+        onConflict: "project_id",
+      })
+    );
+  });
+
   it("backfills owned media and prompt ids from the workspace snapshot before saving", async () => {
     const {
       mediaAssociationUpsert,

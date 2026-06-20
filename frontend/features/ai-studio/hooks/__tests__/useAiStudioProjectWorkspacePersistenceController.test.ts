@@ -1654,7 +1654,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
       })
     );
 
-    expect(applyEmptyProjectState).toHaveBeenCalledTimes(1);
+    expect(applyEmptyProjectState).not.toHaveBeenCalled();
     expect(mockedResetAiStudioOutputStore).toHaveBeenCalledTimes(1);
     expect(buildSessionSnapshot).not.toHaveBeenCalled();
     expect(mockedUseAiStudioSessionAutosave.mock.calls[0]?.[0]).toEqual(
@@ -1701,7 +1701,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
 
     rerender({ projectId: "project-2" });
 
-    expect(applyEmptyProjectState).toHaveBeenCalledTimes(2);
+    expect(applyEmptyProjectState).not.toHaveBeenCalled();
     expect(mockedResetAiStudioOutputStore).toHaveBeenCalledTimes(2);
     expect(result.current.projectBootstrapApplied).toBe(false);
     const lastWriteShadowArgs =
@@ -1773,7 +1773,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     await flushBootstrapVisibilityLatch();
 
     expect(result.current.projectBootstrapApplied).toBe(true);
-    expect(applyEmptyProjectState).toHaveBeenCalledTimes(1);
+    expect(applyEmptyProjectState).not.toHaveBeenCalled();
     expect(nextApplyEmptyProjectState).not.toHaveBeenCalled();
     expect(mockedResetAiStudioOutputStore).toHaveBeenCalledTimes(1);
     expect(mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0]).toEqual(
@@ -1888,7 +1888,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     });
 
     expect(result.current.projectBootstrapApplied).toBe(false);
-    expect(applyEmptyProjectState).toHaveBeenCalledTimes(2);
+    expect(applyEmptyProjectState).not.toHaveBeenCalled();
     expect(mockedResetAiStudioOutputStore).toHaveBeenCalledTimes(2);
     expect(mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0]).toEqual(
       expect.objectContaining({
@@ -1930,7 +1930,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
       projectRouteRequested: true,
     });
 
-    expect(applyEmptyProjectState).toHaveBeenCalledTimes(1);
+    expect(applyEmptyProjectState).not.toHaveBeenCalled();
     expect(mockedResetAiStudioOutputStore).toHaveBeenCalledTimes(1);
     expect(result.current.projectBootstrapApplied).toBe(false);
     expect(result.current.projectBootstrapError).toBeNull();

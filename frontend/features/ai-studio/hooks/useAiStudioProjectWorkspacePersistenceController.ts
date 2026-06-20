@@ -1021,10 +1021,10 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     }
     if (invalidatedRevisionRef.current === projectRuntimeRevision) return;
     invalidatedRevisionRef.current = projectRuntimeRevision;
-    // Fail closed for decoupled selector-store surfaces before async restore finishes.
+    // Fail closed for the decoupled output store before async restore finishes.
+    // Snapshot hydration, including empty-project defaults, is owned by the restore hydrator.
     resetAiStudioOutputStore();
-    applyEmptyProjectState?.();
-  }, [applyEmptyProjectState, projectRuntimeAuthority, projectRuntimeRevision]);
+  }, [projectRuntimeAuthority, projectRuntimeRevision]);
 
   useEffect(() => {
     if (!projectId || autosaveSnapshotSelection.fallbackKind === "full") return;

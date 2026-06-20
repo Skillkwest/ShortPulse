@@ -77,6 +77,7 @@ export function MediaLibraryPanelPreviewModal({
         : []),
       ...resolveSharedMediaDetailMediaActionItems({
         saveState: "saved",
+        showSavedState: true,
         canDownload: item.capabilities.canDownload,
         onDownload: onDownloadItem ? () => onDownloadItem(item) : null,
         canDelete: item.capabilities.canDelete,

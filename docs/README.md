@@ -57,6 +57,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/solo-owner-launch-trust-standard.md`
 - `docs/planning/ai-studio-right-rail-drag-drop-buildout-plan-2026-06-08.md`
 - `docs/planning/ai-studio-reference-grid-media-reliability-buildout-plan-2026-06-08.md`
+- `docs/planning/ai-studio-detail-modal-reference-audit-system-2026-06-20.md`
 - `docs/planning/ai-studio-generation-persistence-architecture-plan-2026-06-10.md`
 - `docs/planning/dashboard-tutorial-hub-buildout-plan-2026-06-10.md`
 - `docs/agents/ako/README.md`
@@ -370,6 +371,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
   - `docs/planning/kie-gpt-image-2-image-to-image-implementation-plan-2026-06-04.md`
 - `docs/planning/ai-studio-full-workflow-reload-plan-2026-06-06.md`
 - `docs/planning/ai-studio-generation-reference-grid-restoration-plan-2026-06-08.md`
+- `docs/planning/ai-studio-detail-modal-reference-audit-system-2026-06-20.md`
 - `docs/planning/ai-studio-agent-modularization-program.md`
   - `docs/planning/ai-studio-agent-modularization-tracker.md`
   - `docs/planning/ai-studio-reference-grid-modularization-program.md`

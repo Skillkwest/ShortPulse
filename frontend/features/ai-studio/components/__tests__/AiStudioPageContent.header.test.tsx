@@ -13,6 +13,7 @@ import type { StudioOutput, ToolId } from "../../types";
 
 const voicePanelActiveSourceEffectMock = vi.hoisted(() => vi.fn());
 const mediaLibraryPanelPropsMock = vi.hoisted(() => vi.fn());
+const downloadUrlToFileMock = vi.hoisted(() => vi.fn());
 const useAiStudioShellResizeMock = vi.hoisted(() =>
   vi.fn(() => ({
     shellRef: { current: null },
@@ -192,6 +193,10 @@ vi.mock("../../hooks/useAiStudioStylesRuntime", () => ({
   useAiStudioStylesRuntime: useAiStudioStylesRuntimeMock,
 }));
 
+vi.mock("../../logic/referenceDownload", () => ({
+  downloadUrlToFile: downloadUrlToFileMock,
+}));
+
 vi.mock("../../hooks/aiStudioOutputStore", () => ({
   useOutputCounts: () => ({ activeCount: 0 }),
 }));
@@ -310,6 +315,7 @@ function StatefulAiStudioPageContent({
 describe("AiStudioPageContent header project name", () => {
   beforeEach(() => {
     mediaLibraryPanelPropsMock.mockClear();
+    downloadUrlToFileMock.mockClear();
     useAiStudioShellResizeMock.mockClear();
     useAiStudioStylesRuntimeMock.mockClear();
   });
@@ -373,6 +379,50 @@ describe("AiStudioPageContent header project name", () => {
     expect(
       screen.getByRole("status", { name: "Current project: Campaign Alpha" })
     ).toHaveTextContent("Campaign Alpha");
+  });
+
+  it("shows a download action for canvas fallback detail items", () => {
+    const sharedDetailModalItem = {
+      surface: "right-rail-canvas",
+      selectionTarget: {
+        kind: "canvas-item",
+        itemId: "canvas-image-1",
+        surface: "right-rail-canvas",
+        instanceId: "rail",
+      },
+      capabilities: {
+        canSaveToLibrary: false,
+        canDownload: true,
+        canDelete: false,
+        canEditPrompt: false,
+        canSavePrompt: false,
+        canShowCharacterContext: false,
+        canShowStyleContext: false,
+      },
+      media: {
+        id: "canvas-image-1",
+        kind: "image",
+        url: "https://cdn.example.com/canvas-image-preview.png",
+        previewUrl: "https://cdn.example.com/canvas-image-preview.png",
+        fullUrl: "https://cdn.example.com/canvas-image-full.png",
+        filename: "canvas-image.png",
+      },
+      presentation: {
+        title: "Canvas image",
+        kindLabel: "Image",
+      },
+    } satisfies NonNullable<
+      React.ComponentProps<typeof AiStudioPageContent>["sharedDetailModalItem"]
+    >;
+
+    render(<AiStudioPageContent {...createProps({ sharedDetailModalItem })} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Download" }));
+
+    expect(downloadUrlToFileMock).toHaveBeenCalledWith(
+      "https://cdn.example.com/canvas-image-full.png",
+      "canvas-image.png"
+    );
   });
 
   it("opens the Media panel rename path from the header pencil button", () => {

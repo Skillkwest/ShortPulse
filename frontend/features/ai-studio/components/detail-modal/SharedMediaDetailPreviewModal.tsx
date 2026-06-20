@@ -283,6 +283,7 @@ export function SharedMediaDetailPreviewModal({
               audioLyricsText={item.media.lyricsText ?? null}
               audioDurationMs={item.media.durationMs ?? null}
               audioWaveformPeaks={item.media.waveformPeaks ?? null}
+              videoPosterUrl={item.media.previewPosterUrl ?? null}
               videoRef={videoRef}
               audioRef={audioRef}
               deferImagePromotion={false}

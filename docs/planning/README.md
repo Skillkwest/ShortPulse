@@ -42,6 +42,7 @@ Purpose: provide the active execution entrypoint for planning work without forci
 - `docs/known-issues.md`
 - `docs/planning/ai-studio-right-rail-drag-drop-buildout-plan-2026-06-08.md`
 - `docs/planning/ai-studio-reference-grid-media-reliability-buildout-plan-2026-06-08.md`
+- `docs/planning/ai-studio-detail-modal-reference-audit-system-2026-06-20.md`
 - `docs/planning/ai-studio-live-session-check-media-panel-handoff-2026-04-05.md`
 - `docs/planning/ai-studio-audio-companion-art-plan-2026-05-11.md`
 - `docs/planning/ai-studio-full-workflow-reload-plan-2026-06-06.md`

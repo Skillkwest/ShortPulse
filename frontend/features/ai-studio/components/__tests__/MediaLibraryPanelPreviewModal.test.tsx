@@ -502,13 +502,41 @@ describe("MediaLibraryPanelPreviewModal", () => {
       />
     );
 
-    expect(screen.queryByRole("button", { name: "Saved" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Saved" })).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Download" }));
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
     expect(onDownloadItem).toHaveBeenCalledWith(item);
     expect(onDeleteItem).toHaveBeenCalledWith(item);
+  });
+
+  it("passes stored video posters into the shared preview media", () => {
+    const videoFile: MediaFileRow = {
+      id: "video-1",
+      filename: "clip.mp4",
+      storage_path: "user-1/uploads/clip.mp4",
+      preview_storage_path: "user-1/uploads/clip.mp4",
+      file_type: "video/mp4",
+      signedUrl: "https://cdn.example.com/clip.mp4",
+    };
+
+    render(
+      <MediaLibraryPanelPreviewModal
+        item={createPreviewItem(videoFile, "https://cdn.example.com/clip.mp4", {
+          previewPosterUrl: "https://cdn.example.com/poster.jpg",
+        })}
+        isLoading={false}
+        error={null}
+        onClose={vi.fn()}
+      />
+    );
+
+    const video = document.querySelector(
+      "video.media-library-panel-preview-media"
+    ) as HTMLVideoElement | null;
+    expect(video).not.toBeNull();
+    expect(video?.getAttribute("poster")).toBe("https://cdn.example.com/poster.jpg");
   });
 
   it("shows Snapshot only for video library details and passes the preview video element", async () => {

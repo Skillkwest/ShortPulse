@@ -23,6 +23,7 @@ import { CreateModeToggle } from "./create/CreateModeToggle";
 import { DetailModal } from "./DetailModal";
 import { SharedMediaDetailPreviewModal } from "./detail-modal/SharedMediaDetailPreviewModal";
 import type { SharedMediaDetailItemBase } from "./detail-modal/detailModalPlatformTypes";
+import { resolveSharedMediaDetailMediaActionItems } from "./detail-modal/sharedMediaDetailActions";
 import { ModelModal, type ModelModalContext } from "./ModelModal";
 import { AiStudioShellFrame } from "./AiStudioShellFrame";
 import { StudioPreview } from "./StudioPreview";
@@ -60,6 +61,7 @@ import { resolvePropertiesPanelKind } from "../logic/propertiesPanelRouting";
 import { isCharacterShellTool, isPrimaryCharacterTool } from "../logic/primaryCharacterTool";
 import { isSoundWorkflow } from "../logic/workflowIdentity";
 import { resolveAiStudioErrorPresentation } from "../logic/errorPresentation";
+import { downloadUrlToFile } from "../logic/referenceDownload";
 import {
   PERF_FLAG_SHELL_BOUNDARY_SPLIT,
   PERF_FLAG_SHELL_DECOUPLE,
@@ -1524,6 +1526,21 @@ export function AiStudioPageContent({
       resolveMediaLibraryInternalDropItem,
     ]
   );
+  const sharedDetailModalActionItems = React.useMemo(() => {
+    if (!sharedDetailModalItem) return [];
+    const downloadUrl =
+      sharedDetailModalItem.media.fullUrl?.trim() ||
+      sharedDetailModalItem.media.previewUrl?.trim() ||
+      sharedDetailModalItem.media.url.trim();
+    const downloadName =
+      sharedDetailModalItem.media.filename?.trim() ||
+      sharedDetailModalItem.presentation?.title?.trim() ||
+      sharedDetailModalItem.media.id;
+    return resolveSharedMediaDetailMediaActionItems({
+      canDownload: sharedDetailModalItem.capabilities.canDownload,
+      onDownload: downloadUrl ? () => downloadUrlToFile(downloadUrl, downloadName) : null,
+    });
+  }, [sharedDetailModalItem]);
   const presetsPropertiesPanelContent = React.useMemo(
     () => (
       <PresetsPanelLoader
@@ -1977,6 +1994,7 @@ export function AiStudioPageContent({
         onClose={onDetailClose}
         onSnapshotVideoFrame={onSnapshotVideoFrame}
         onSnapshotVideoFrameError={onSnapshotVideoFrameError}
+        topBarActionItems={sharedDetailModalActionItems}
         modalActivityId="ai-studio-shared-detail-preview-modal"
         backdropDataTestId="ai-studio-shared-detail-preview-backdrop"
         closeLabel="Close media detail"

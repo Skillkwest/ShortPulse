@@ -12,6 +12,7 @@ import type {
 
 type ResolveSharedMediaDetailMediaActionsOptions = {
   saveState?: SharedMediaDetailSaveActionState;
+  showSavedState?: boolean;
   isStorageFull?: boolean;
   onSaveToLibrary?: (() => void) | null;
   canDownload?: boolean;
@@ -29,6 +30,7 @@ type ResolveSharedMediaDetailMediaActionsOptions = {
  */
 export const resolveSharedMediaDetailMediaActionItems = ({
   saveState = "hidden",
+  showSavedState = false,
   isStorageFull = false,
   onSaveToLibrary = null,
   canDownload = false,
@@ -52,7 +54,17 @@ export const resolveSharedMediaDetailMediaActionItems = ({
     });
   }
 
-  if (saveState !== "hidden" && saveState !== "saved") {
+  if (saveState === "saved" && showSavedState) {
+    items.push({
+      id: "save-media",
+      label: "Saved",
+      onClick: () => {},
+      disabled: true,
+      title: "Saved to media library",
+      intent: "save",
+      state: "saved",
+    });
+  } else if (saveState !== "hidden" && saveState !== "saved") {
     const label = isStorageFull
       ? "Storage Full"
       : saveState === "saving"

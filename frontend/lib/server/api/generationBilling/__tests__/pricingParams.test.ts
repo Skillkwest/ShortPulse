@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { KIE_KLING_30_MODEL_ID } from "../../../../model-runtime/providerModelIds";
 import { buildPricingParams } from "../pricingParams";
 
 describe("buildPricingParams", () => {
@@ -66,6 +67,24 @@ describe("buildPricingParams", () => {
     ).toEqual(
       expect.objectContaining({
         inputImageCount: 10,
+      })
+    );
+  });
+
+  it("maps Kling Motion Control mode resolution onto the canonical billing resolution", () => {
+    expect(
+      buildPricingParams(KIE_KLING_30_MODEL_ID, {
+        model: "kling-3.0/motion-control",
+        mode: "720p",
+        generate_audio: true,
+      })
+    ).toEqual(
+      expect.objectContaining({
+        aspect: "16:9",
+        durationSeconds: 10,
+        resolution: "720p",
+        mode: "720p",
+        audio: true,
       })
     );
   });

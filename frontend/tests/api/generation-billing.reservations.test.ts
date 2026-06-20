@@ -10,6 +10,7 @@ import { resolvePricingGridCostBreakdown } from "../../lib/model-runtime/pricing
 import { resolveVideoBilledCreditLookup } from "../../lib/model-runtime/videoBilledCredits";
 import { materializeImageBilledCreditPolicy } from "../../lib/model-runtime/materializeImageBilledCreditPolicy";
 import {
+  KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
 } from "../../lib/model-runtime/providerModelIds";
@@ -691,6 +692,107 @@ describe("generationBilling reservation RPC handling", () => {
             billed_credits: expectedBreakdown?.credits,
             billed_usd: expectedBreakdown?.usd,
             ...(expectedBreakdown?.variantId ? { variant_id: expectedBreakdown.variantId } : {}),
+          }),
+        }),
+      })
+    );
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it("reserves Kling Motion Control requests when provider mode carries the resolution", async () => {
+    const rpcMock = vi.fn().mockResolvedValueOnce({
+      data: [{ status: "reserved", source_ref: "req-kling-motion-grid", message: null }],
+      error: null,
+    });
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
+
+    const req = {
+      headers: {
+        "x-shortpulse-request-id": "req-kling-motion-grid",
+      },
+      url: "/api/fal/kie-kling-submit",
+      body: {
+        shortpulse_context: {
+          selected_tool: "video",
+          mode: "video",
+          displayed_billed_credits: 31,
+          pricing_display_source: "pricing_grid",
+          pricing_policy_ready: true,
+        },
+      },
+    };
+    const res = createMockResponse();
+    const payload = {
+      prompt: "Transfer motion from reference video to character",
+      model: "kling-3.0/motion-control",
+      image_url: "https://example.com/character.png",
+      video_url: "https://example.com/motion.mp4",
+      mode: "720p",
+      generate_audio: true,
+      shortpulse_context: {
+        selected_tool: "video",
+        mode: "video",
+      },
+    };
+    const expectedPricingParams = buildPricingParams(KIE_KLING_30_MODEL_ID, payload);
+    const explicitVideoPolicy = withVideoBilledCreditsOverride({
+      modelId: KIE_KLING_30_MODEL_ID,
+      params: {
+        durationSeconds: 10,
+        resolution: "720p",
+        audio: true,
+      },
+      credits: 31,
+    });
+    resolveRuntimeModelPricingPolicyMock.mockResolvedValueOnce({
+      policy: explicitVideoPolicy,
+      activePolicyVersion: null,
+      activePolicyVersionId: null,
+      source: "control_plane",
+      updatedAt: "2026-04-29T00:00:00.000Z",
+      updatedByEmail: "pricing@example.com",
+    });
+
+    const charge = await chargeGenerationRequest({
+      req: req as never,
+      res: res as never,
+      modelId: KIE_KLING_30_MODEL_ID,
+      payload,
+      reason: "Kling Motion Control video generation",
+      shortpulseContext: {
+        selected_tool: "video",
+        mode: "video",
+      },
+    });
+
+    const expectedBreakdown = resolveVideoBilledCreditLookup({
+      modelId: KIE_KLING_30_MODEL_ID,
+      params: expectedPricingParams,
+      pricingPolicy: explicitVideoPolicy,
+    }).breakdown;
+
+    expect(charge).not.toBeNull();
+    expect(expectedPricingParams).toEqual(
+      expect.objectContaining({
+        resolution: "720p",
+        mode: "720p",
+        audio: true,
+      })
+    );
+    expect(expectedBreakdown).toMatchObject({
+      credits: 31,
+      variantId: "default|res:720p|aspect:16:9|audio:on",
+    });
+    expect(rpcMock).toHaveBeenCalledWith(
+      "admit_and_reserve_generation_credits",
+      expect.objectContaining({
+        p_amount_cents: 31,
+        p_metadata: expect.objectContaining({
+          model_id: KIE_KLING_30_MODEL_ID,
+          debited_credits: 31,
+          pricing_breakdown: expect.objectContaining({
+            billed_credits: 31,
+            variant_id: "default|res:720p|aspect:16:9|audio:on",
           }),
         }),
       })

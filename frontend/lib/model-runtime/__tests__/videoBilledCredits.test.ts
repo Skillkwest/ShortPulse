@@ -95,6 +95,39 @@ describe("videoBilledCredits", () => {
     });
   });
 
+  it("keeps Kling Motion Control server mode lookup on the same billed row as client resolution", () => {
+    const clientParams = {
+      durationSeconds: 10,
+      resolution: "720p",
+      audio: true,
+    };
+    const explicitPolicy = withVideoBilledCreditsOverride({
+      modelId: KIE_KLING_30_MODEL_ID,
+      params: clientParams,
+      credits: 31,
+    });
+    const clientLookup = resolveVideoBilledCreditLookup({
+      modelId: KIE_KLING_30_MODEL_ID,
+      params: clientParams,
+      pricingPolicy: explicitPolicy,
+    });
+    const serverLookup = resolveVideoBilledCreditLookup({
+      modelId: KIE_KLING_30_MODEL_ID,
+      params: buildPricingParams(KIE_KLING_30_MODEL_ID, {
+        model: "kling-3.0/motion-control",
+        image_url: "https://example.com/character.png",
+        mode: "720p",
+        generate_audio: true,
+      }),
+      pricingPolicy: explicitPolicy,
+    });
+
+    expect(clientLookup.breakdown?.variantId).toBe(serverLookup.breakdown?.variantId);
+    expect(serverLookup.breakdown?.variantId).toBe("default|res:720p|aspect:16:9|audio:on");
+    expect(clientLookup.breakdown?.credits).toBe(31);
+    expect(serverLookup.breakdown?.credits).toBe(31);
+  });
+
   it("keeps Seedance video-input lookup on the authored video-input row", () => {
     const params = {
       aspect: "1:1",

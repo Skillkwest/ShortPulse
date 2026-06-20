@@ -40,7 +40,10 @@ export const normalizeVideoBilledPricingParams = (
   _modelId: string,
   params: Omit<PricingParams, "modelId"> = {}
 ): Omit<PricingParams, "modelId"> => {
-  const normalized: Omit<PricingParams, "modelId"> = { ...params };
+  const normalized: Omit<PricingParams, "modelId"> = {
+    ...params,
+    variantBaseId: "default",
+  };
 
   if (
     typeof normalized.inputVideoCount === "number" &&

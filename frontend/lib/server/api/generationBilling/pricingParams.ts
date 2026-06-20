@@ -164,6 +164,9 @@ const resolveResolution = (payload: JsonObject): string | undefined => {
   const quality = asString(payload.quality);
   if (quality) return quality;
 
+  const mode = asString(payload.mode);
+  if (mode && /^(480p|720p|1080p)$/i.test(mode.trim())) return mode.trim();
+
   const imageSize = asString(payload.image_size);
   if (!imageSize) return undefined;
   const normalized = imageSize.toLowerCase();

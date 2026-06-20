@@ -7,7 +7,7 @@ import type { PulseChatThreadSnapshot } from "./pulseChatThread";
 
 const DEFAULT_THREAD_TITLE = "New chat";
 const MAX_THREAD_TITLE_LENGTH = 56;
-const MAX_THREAD_TITLE_WORDS = 5;
+const MAX_THREAD_TITLE_WORDS = 4;
 const TITLE_WORD_PATTERN = /[\p{L}\p{N}]+(?:['-][\p{L}\p{N}]+)?/gu;
 
 const normalizeText = (value: unknown): string | null => {

@@ -13,6 +13,7 @@ import {
   SEEDED_BUILT_IN_STYLE_DEFINITIONS,
   type BuiltInStyleDefinition,
 } from "../../lib/model-runtime/builtInStyles";
+import { STYLE_PROMPT_MAX_CHARACTERS } from "../../lib/model-runtime/styleCreatorLimits";
 import AdminAgentInstructionsPage from "../../pages/admin/agent-instructions";
 
 const useProtectedRouteMock = vi.hoisted(() => vi.fn());
@@ -421,7 +422,20 @@ describe("Admin agent instructions page", () => {
     fireEvent.change(within(derivedStyleCard).getByRole("textbox", { name: "Style name" }), {
       target: { value: "Lo-fi Noir" },
     });
-    fireEvent.change(within(derivedStyleCard).getByRole("textbox", { name: "Style Prompt" }), {
+    const derivedStylePromptInput = within(derivedStyleCard).getByRole("textbox", {
+      name: "Style Prompt",
+    }) as HTMLTextAreaElement;
+    expect(derivedStylePromptInput.maxLength).toBe(STYLE_PROMPT_MAX_CHARACTERS);
+    fireEvent.change(derivedStylePromptInput, {
+      target: { value: "x".repeat(STYLE_PROMPT_MAX_CHARACTERS + 50) },
+    });
+    expect(derivedStylePromptInput).toHaveValue("x".repeat(STYLE_PROMPT_MAX_CHARACTERS));
+    expect(
+      within(derivedStyleCard).getByText(
+        `${STYLE_PROMPT_MAX_CHARACTERS} / ${STYLE_PROMPT_MAX_CHARACTERS}`
+      )
+    ).toBeInTheDocument();
+    fireEvent.change(derivedStylePromptInput, {
       target: { value: "grainy black-and-white street photography, strong contrast" },
     });
     fireEvent.change(within(derivedStyleCard).getByLabelText("Preview image"), {

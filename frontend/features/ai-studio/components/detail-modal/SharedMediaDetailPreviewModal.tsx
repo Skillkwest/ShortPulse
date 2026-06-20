@@ -111,8 +111,12 @@ export function SharedMediaDetailPreviewModal({
     audioRef
   );
   const [failedPreviewUrls, setFailedPreviewUrls] = React.useState<string[]>([]);
+  const [displayPreviewUrl, setDisplayPreviewUrl] = React.useState<string | null>(null);
   const isVideo = item?.media.kind === "video";
   const isAudio = item?.media.kind === "audio";
+  const itemIdentityKey = item
+    ? `${item.surface}:${item.selectionTarget.kind}:${item.media.kind}:${item.media.id}`
+    : "none";
   const title = item ? resolveSharedMediaDetailTitle(item) : "Media preview";
   const isExternalUpload = Boolean(
     item?.media.source?.trim()?.toLowerCase() === "upload" && item.media.filename?.trim()
@@ -126,14 +130,64 @@ export function SharedMediaDetailPreviewModal({
     ? shouldRenderSharedMediaDetailInfoPanel(item, bladeContent)
     : false;
   const previewCandidates = React.useMemo(() => resolveSharedPreviewCandidates(item), [item]);
-  const previewCandidatesKey = previewCandidates.join("\n");
-  const activePreviewUrl =
+  const preferredPreviewUrl =
     previewCandidates.find((candidate) => !failedPreviewUrls.includes(candidate)) ?? null;
+  const activePreviewUrl = displayPreviewUrl;
   const canRenderMedia = Boolean(activePreviewUrl);
 
   React.useEffect(() => {
     setFailedPreviewUrls([]);
-  }, [item?.media.id, previewCandidatesKey]);
+    setDisplayPreviewUrl(null);
+  }, [itemIdentityKey]);
+
+  React.useEffect(() => {
+    if (!item || !preferredPreviewUrl) {
+      setDisplayPreviewUrl(null);
+      return;
+    }
+
+    if (item.media.kind !== "image") {
+      setDisplayPreviewUrl(preferredPreviewUrl);
+      return;
+    }
+
+    setDisplayPreviewUrl((currentPreviewUrl) => {
+      if (!currentPreviewUrl || !previewCandidates.includes(currentPreviewUrl)) {
+        return preferredPreviewUrl;
+      }
+      if (currentPreviewUrl === preferredPreviewUrl) return currentPreviewUrl;
+      if (failedPreviewUrls.includes(currentPreviewUrl)) return preferredPreviewUrl;
+      return currentPreviewUrl;
+    });
+  }, [failedPreviewUrls, item, preferredPreviewUrl, previewCandidates]);
+
+  React.useEffect(() => {
+    if (!item || item.media.kind !== "image") return;
+    if (!preferredPreviewUrl || displayPreviewUrl === preferredPreviewUrl) return;
+    if (failedPreviewUrls.includes(preferredPreviewUrl)) return;
+
+    let isCancelled = false;
+    const image = new Image();
+    image.onload = () => {
+      if (isCancelled) return;
+      setDisplayPreviewUrl(preferredPreviewUrl);
+    };
+    image.onerror = () => {
+      if (isCancelled) return;
+      setFailedPreviewUrls((currentFailedUrls) =>
+        currentFailedUrls.includes(preferredPreviewUrl)
+          ? currentFailedUrls
+          : [...currentFailedUrls, preferredPreviewUrl]
+      );
+    };
+    image.src = preferredPreviewUrl;
+
+    return () => {
+      isCancelled = true;
+      image.onload = null;
+      image.onerror = null;
+    };
+  }, [displayPreviewUrl, failedPreviewUrls, item, preferredPreviewUrl]);
 
   const handlePreviewError = React.useCallback(() => {
     if (!item || !activePreviewUrl) return;

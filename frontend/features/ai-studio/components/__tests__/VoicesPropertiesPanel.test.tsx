@@ -337,6 +337,36 @@ describe("VoicesPropertiesPanel", () => {
     );
   });
 
+  it("shows voiceover enhance progress while the script is being enhanced", async () => {
+    const enhanceResponse = createDeferred<Response>();
+    fetchWithAuthMock.mockReturnValueOnce(enhanceResponse.promise);
+    render(<VoicesPropertiesPanel />);
+
+    const scriptInput = screen.getByRole("textbox", { name: "Voice script" });
+    fireEvent.change(scriptInput, { target: { value: "Updated launch script." } });
+    fireEvent.click(screen.getByRole("button", { name: "Enhance voiceover script" }));
+
+    const loadingButton = screen.getByRole("button", { name: "Enhancing voiceover script" });
+    expect(loadingButton).toBeDisabled();
+    expect(loadingButton).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByText("Enhancing script...")).toBeInTheDocument();
+
+    await act(async () => {
+      enhanceResponse.resolve(
+        new Response(JSON.stringify({ enhancedScript: "[excited] Updated launch script." }), {
+          status: 200,
+        })
+      );
+      await enhanceResponse.promise;
+    });
+
+    await waitFor(() => {
+      expect(scriptInput).toHaveValue("[excited] Updated launch script.");
+    });
+    expect(screen.queryByText("Enhancing script...")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Enhance voiceover script" })).toBeEnabled();
+  });
+
   it("keeps bracketed voiceover tags in the generation payload", async () => {
     fetchWithAuthMock.mockImplementation(async (url: string) => {
       if (url === "/api/ai/voiceover-enhance") {

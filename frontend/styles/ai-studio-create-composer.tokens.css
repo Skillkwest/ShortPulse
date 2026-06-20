@@ -69,7 +69,7 @@
 }
 
 .create-composer-panel .create-composer-panel-shell,
-.create-composer-panel.is-pulse-rail-active {
+.create-composer-panel .create-composer-pulse-columns {
   position: relative;
   display: flex;
   flex: 1 1 auto;
@@ -81,6 +81,23 @@
 }
 
 .create-composer-panel.is-pulse-rail-active {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: hidden;
+  --create-composer-chat-composer-overlay-bottom-offset: 28px;
+}
+
+.create-composer-panel .create-composer-pulse-columns {
   gap: var(--create-composer-panel-gap);
   align-items: stretch;
   align-self: stretch;
@@ -89,7 +106,6 @@
   background: transparent;
   box-shadow: none;
   overflow: hidden;
-  --create-composer-chat-composer-overlay-bottom-offset: 28px;
 }
 
 .create-composer-panel .create-composer-left-panel {
@@ -163,8 +179,8 @@
   box-sizing: border-box;
 }
 
-.create-composer-panel.is-pulse-rail-active > .create-composer-left-panel,
-.create-composer-panel.is-pulse-rail-active > .create-composer-right-panel {
+.create-composer-panel .create-composer-pulse-columns > .create-composer-left-panel,
+.create-composer-panel .create-composer-pulse-columns > .create-composer-right-panel {
   align-self: stretch;
   height: 100%;
   max-height: 100%;
@@ -176,12 +192,12 @@
   box-sizing: border-box;
 }
 
-.create-composer-panel.is-pulse-rail-active > .create-composer-left-panel {
+.create-composer-panel .create-composer-pulse-columns > .create-composer-left-panel {
   padding: 12px;
   overflow: hidden;
 }
 
-.create-composer-panel.is-pulse-rail-active > .create-composer-right-panel {
+.create-composer-panel .create-composer-pulse-columns > .create-composer-right-panel {
   padding: 12px var(--create-composer-column-inline-padding)
     var(--create-composer-column-bottom-padding);
 }

@@ -77,8 +77,10 @@ describe("PulseCreatePanelView", () => {
     const { container } = render(<PulseCreatePanelView {...baseProps} />);
 
     expect(container.querySelector(".create-composer-panel-shell")).toBeNull();
-    expect(container.querySelector(".create-composer-left-panel")).toBeTruthy();
-    expect(container.querySelector(".create-composer-right-panel")).toBeTruthy();
+    const columns = container.querySelector(".create-composer-pulse-columns");
+    expect(columns).toBeTruthy();
+    expect(columns?.querySelector(":scope > .create-composer-left-panel")).toBeTruthy();
+    expect(columns?.querySelector(":scope > .create-composer-right-panel")).toBeTruthy();
     expect(screen.getByRole("group", { name: "Create composer" })).toHaveClass(
       "is-pulse-rail-active"
     );

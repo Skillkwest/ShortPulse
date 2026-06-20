@@ -1,6 +1,6 @@
 @media (max-width: 900px) {
   .create-composer-panel .create-composer-panel-shell,
-  .create-composer-panel.is-pulse-rail-active {
+  .create-composer-panel .create-composer-pulse-columns {
     gap: var(--create-composer-panel-gap);
     flex-direction: column;
   }
@@ -119,7 +119,7 @@
 
 @container ai-properties (max-width: 759px) {
   .create-composer-panel .create-composer-panel-shell,
-  .create-composer-panel.is-pulse-rail-active {
+  .create-composer-panel .create-composer-pulse-columns {
     gap: var(--create-composer-panel-gap);
     flex-direction: column;
   }

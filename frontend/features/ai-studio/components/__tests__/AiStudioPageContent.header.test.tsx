@@ -2,6 +2,7 @@
  * Regression coverage for the AI Studio header project-name display.
  * Verifies the current project title is rendered in the centered hero/header slot only when available.
  */
+import { readFileSync } from "node:fs";
 import React from "react";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -480,6 +481,22 @@ describe("AiStudioPageContent header project name", () => {
       }
     }
   );
+
+  it("shows the Canvas header shortcut while the Elements panel is active", () => {
+    render(<AiStudioPageContent {...createProps()} selectedTool="elements" />);
+
+    expect(screen.getByRole("button", { name: "Canvas" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Quick Slot Inventory" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reference Grid" })).toBeInTheDocument();
+  });
+
+  it("does not hide the first header shortcut for the Elements panel in CSS", () => {
+    const layoutCss = readFileSync("styles/ai-studio-layout.css", "utf8");
+
+    expect(layoutCss).not.toMatch(
+      /\.ai-studio-page\[data-selected-tool="elements"\]\s+\.ai-hero-shortcut-button:first-child\s*{[^}]*display:\s*none/i
+    );
+  });
 
   it("settles when the Voices panel reports the same active voice changer video source", async () => {
     voicePanelActiveSourceEffectMock.mockClear();

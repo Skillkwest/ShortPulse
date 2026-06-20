@@ -1889,6 +1889,10 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                         <p className="voices-properties-script-error" role="alert">
                           {voiceoverEnhanceError}
                         </p>
+                      ) : surfaceMode === "create" && isEnhancingVoiceover ? (
+                        <p className="voices-properties-script-processing" role="status">
+                          Enhancing script...
+                        </p>
                       ) : null}
                     </div>
                     <div className="voices-properties-script-meta-actions">
@@ -1896,7 +1900,13 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                         <AgentEnhanceButton
                           onClick={handleEnhanceVoiceoverScript}
                           disabled={!isVoiceoverEnhanceEnabled}
-                          ariaLabel="Enhance voiceover script"
+                          loading={isEnhancingVoiceover}
+                          ariaLabel={
+                            isEnhancingVoiceover
+                              ? "Enhancing voiceover script"
+                              : "Enhance voiceover script"
+                          }
+                          loadingLabel="Enhancing"
                           className="voices-properties-enhance-btn"
                         />
                       ) : null}

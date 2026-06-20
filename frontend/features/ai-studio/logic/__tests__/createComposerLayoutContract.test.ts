@@ -40,24 +40,28 @@ const extractRuleBlock = (css: string, selector: string) => {
 };
 
 describe("create composer layout contract", () => {
-  it("keeps the active Pulse panel root as a desktop two-column flex row", () => {
+  it("keeps the active Pulse workspace as a desktop two-column flex row", () => {
     const css = fs.readFileSync(createComposerTokensCssPath, "utf8");
-    const pulsePanelRoot = extractRuleBlock(
+    const pulseColumns = extractRuleBlock(
       css,
-      ".create-composer-panel .create-composer-panel-shell, .create-composer-panel.is-pulse-rail-active"
+      ".create-composer-panel .create-composer-panel-shell, .create-composer-panel .create-composer-pulse-columns"
     );
 
-    expect(pulsePanelRoot).toContain("display: flex;");
-    expect(pulsePanelRoot).toContain("flex-direction: row;");
+    expect(pulseColumns).toContain("display: flex;");
+    expect(pulseColumns).toContain("flex-direction: row;");
     expect(css).toContain("--create-composer-left-rail-width: 236px;");
   });
 
   it("keeps Pulse visual surfaces on the two column wrappers", () => {
     const css = fs.readFileSync(createComposerTokensCssPath, "utf8");
     const pulseRoot = extractRuleBlock(css, ".create-composer-panel.is-pulse-rail-active");
+    const pulseWorkspace = extractRuleBlock(
+      css,
+      ".create-composer-panel .create-composer-pulse-columns"
+    );
     const pulseColumns = extractRuleBlock(
       css,
-      ".create-composer-panel.is-pulse-rail-active > .create-composer-left-panel, .create-composer-panel.is-pulse-rail-active > .create-composer-right-panel"
+      ".create-composer-panel .create-composer-pulse-columns > .create-composer-left-panel, .create-composer-panel .create-composer-pulse-columns > .create-composer-right-panel"
     );
     const pulseInnerColumns = extractRuleBlock(
       css,
@@ -67,6 +71,8 @@ describe("create composer layout contract", () => {
     expect(pulseRoot).toContain("background: transparent;");
     expect(pulseRoot).toContain("box-shadow: none;");
     expect(pulseRoot).toContain("overflow: hidden;");
+    expect(pulseWorkspace).toContain("background: transparent;");
+    expect(pulseWorkspace).toContain("box-shadow: none;");
     expect(pulseColumns).toContain("align-self: stretch;");
     expect(pulseColumns).toContain("height: 100%;");
     expect(pulseColumns).toContain("min-height: 0;");

@@ -2033,9 +2033,18 @@
   line-height: 1.35;
 }
 
+.bootstrapStyleScope:global(.voices-properties-script-processing),
+.bootstrapStyleScope :global(.voices-properties-script-processing) {
+  margin: 0;
+  color: rgba(149, 235, 228, 0.9);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
 .bootstrapStyleScope:global(.voices-properties-enhance-btn),
 .bootstrapStyleScope :global(.voices-properties-enhance-btn) {
-  min-width: 106px;
+  min-width: 116px;
   height: 34px;
   padding: 0 13px;
   border: 1px solid rgba(149, 235, 228, 0.3);
@@ -2092,6 +2101,17 @@
 .bootstrapStyleScope:global(.voices-properties-enhance-btn):disabled svg,
 .bootstrapStyleScope :global(.voices-properties-enhance-btn):disabled svg {
   color: rgba(201, 205, 214, 0.36);
+}
+
+.bootstrapStyleScope:global(.voices-properties-enhance-btn):global(.is-loading):disabled,
+.bootstrapStyleScope :global(.voices-properties-enhance-btn):global(.is-loading):disabled {
+  border-color: rgba(149, 235, 228, 0.42);
+  background: rgba(28, 32, 37, 0.98);
+  color: rgba(224, 245, 242, 0.94);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 0 1px rgba(149, 235, 228, 0.1);
+  cursor: wait;
 }
 
 .bootstrapStyleScope:global(.voices-properties-script-input):focus,

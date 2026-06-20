@@ -7,8 +7,7 @@ import { createPortal } from "react-dom";
 import { PERF_FLAG_MODAL_STABILITY_V1 } from "../../logic/perfProfileFlags";
 
 const AI_STUDIO_MODAL_LAYER_ROOT_ID = "ai-studio-modal-layer-root";
-const useIsomorphicLayoutEffect =
-  typeof window === "undefined" ? React.useEffect : React.useLayoutEffect;
+let cachedModalLayerRoot: HTMLElement | null = null;
 
 type AiStudioModalActivityActionsContextValue = {
   setModalOpen: (modalId: string, isOpen: boolean) => void;
@@ -20,12 +19,19 @@ const AiStudioModalOpenStateContext = React.createContext<boolean>(false);
 
 const ensureModalLayerRoot = (): HTMLElement | null => {
   if (typeof document === "undefined") return null;
+  if (cachedModalLayerRoot && document.body.contains(cachedModalLayerRoot)) {
+    return cachedModalLayerRoot;
+  }
   const existingRoot = document.getElementById(AI_STUDIO_MODAL_LAYER_ROOT_ID);
-  if (existingRoot) return existingRoot;
+  if (existingRoot) {
+    cachedModalLayerRoot = existingRoot;
+    return existingRoot;
+  }
   const nextRoot = document.createElement("div");
   nextRoot.id = AI_STUDIO_MODAL_LAYER_ROOT_ID;
   nextRoot.setAttribute("data-ai-studio-modal-layer-root", "true");
   document.body.appendChild(nextRoot);
+  cachedModalLayerRoot = nextRoot;
   return nextRoot;
 };
 
@@ -82,11 +88,7 @@ export const useAiStudioAnyModalOpen = (): boolean => {
 };
 
 export const AiStudioModalLayer = ({ children }: { children: React.ReactNode }) => {
-  const [layerRoot, setLayerRoot] = React.useState<HTMLElement | null>(null);
-
-  useIsomorphicLayoutEffect(() => {
-    setLayerRoot(ensureModalLayerRoot());
-  }, []);
+  const [layerRoot] = React.useState<HTMLElement | null>(() => ensureModalLayerRoot());
 
   if (!layerRoot) {
     return null;

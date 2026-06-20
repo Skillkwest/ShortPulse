@@ -344,6 +344,51 @@ describe("useMediaLibraryPanelSelectionController", () => {
     });
   });
 
+  it("keeps an open controlled detail modal mounted when media rows temporarily refresh empty", async () => {
+    resolveSignedSelectionUrlMock.mockReset();
+    const signStoragePath = vi.fn(async (storagePath: string) =>
+      storagePath === "user-1/media/original.png" ? "https://signed.example.com/full.png" : null
+    );
+    const setDetailSelectionTarget = vi.fn();
+    const detailSelectionTarget = {
+      kind: "media-file" as const,
+      fileId: imageFile.id,
+      surface: "media-library-panel" as const,
+    };
+    const { result, rerender } = renderHook(
+      ({ mediaRows }) =>
+        useMediaLibraryPanelSelectionController({
+          activeFolderId: "all_items",
+          detailSurface: "media-library-panel",
+          currentUserIdRef: { current: "user-1" },
+          mediaRows,
+          detailSelectionTarget,
+          setDetailSelectionTarget,
+          onSelectMedia: vi.fn(),
+          refreshSignedUrl: vi.fn(async () => "https://signed.example.com/fallback.png"),
+          signStoragePath,
+        }),
+      {
+        initialProps: {
+          mediaRows: [imageFile],
+        },
+      }
+    );
+
+    await waitFor(() => {
+      expect(result.current.detailModalItem?.file.id).toBe(imageFile.id);
+      expect(result.current.detailModalItem?.url).toBe("https://signed.example.com/full.png");
+      expect(result.current.detailModalLoading).toBe(false);
+    });
+
+    rerender({ mediaRows: [] });
+
+    expect(result.current.detailModalItem?.file.id).toBe(imageFile.id);
+    expect(result.current.detailModalItem?.url).toBe("https://signed.example.com/full.png");
+    expect(result.current.detailModalLoading).toBe(false);
+    expect(setDetailSelectionTarget).not.toHaveBeenCalled();
+  });
+
   it("publishes a shared detail-selection target instead of opening local state when externally controlled", () => {
     const setDetailSelectionTarget = vi.fn();
     const { result } = renderHook(() =>

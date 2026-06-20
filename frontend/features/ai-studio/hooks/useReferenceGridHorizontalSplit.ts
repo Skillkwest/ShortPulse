@@ -205,9 +205,12 @@ export const useReferenceGridHorizontalSplit = ({
     topRatioRef.current = nextRatio;
     setTopRatio((prev) => (Math.abs(prev - nextRatio) < 0.001 ? prev : nextRatio));
   }, []);
-  const commitPersistedTopRatio = useCallback(() => {
-    onTopRatioCommit?.(topRatioRef.current);
-  }, [onTopRatioCommit]);
+  const commitPersistedTopRatio = useCallback(
+    (ratio = topRatioRef.current) => {
+      onTopRatioCommit?.(ratio);
+    },
+    [onTopRatioCommit]
+  );
 
   const reconcileTopRatioForContainerHeight = useCallback(
     (nextHeight: number) => {
@@ -277,8 +280,15 @@ export const useReferenceGridHorizontalSplit = ({
       if (Math.abs(nextRatio - topRatioRef.current) < 0.001) return;
       setAllRefsExpandedThresholdRatio((prev) => (prev == null ? prev : null));
       commitTopRatio(nextRatio);
+      commitPersistedTopRatio(nextRatio);
     },
-    [clampTopRatio, commitTopRatio, resolveContainerHeight, resolveContainerTop]
+    [
+      clampTopRatio,
+      commitPersistedTopRatio,
+      commitTopRatio,
+      resolveContainerHeight,
+      resolveContainerTop,
+    ]
   );
 
   const handleDividerPointerDown = useCallback(

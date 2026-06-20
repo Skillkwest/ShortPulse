@@ -24,17 +24,17 @@
 .create-composer-chats-thread-btn,
 .create-composer-chats-thread-row {
   width: 100%;
-  min-height: 42px;
-  border-radius: 8px;
-  border: 1px solid rgba(201, 205, 214, 0.1);
-  background: rgba(201, 205, 214, 0.035);
+  min-height: 36px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: rgba(230, 236, 245, 0.88);
   display: flex;
   flex-direction: column;
   align-items: stretch;
   justify-content: center;
   gap: 4px;
-  padding: 7px 8px;
+  padding: 5px 8px;
   box-sizing: border-box;
 }
 
@@ -50,14 +50,17 @@
 .create-composer-chats-thread-btn:hover,
 .create-composer-chats-thread-btn:focus-visible {
   outline: none;
-  border-color: rgba(100, 209, 230, 0.28);
-  background: rgba(100, 209, 230, 0.08);
   color: rgba(240, 249, 252, 0.94);
 }
 
 .create-composer-chats-thread-btn.is-active {
-  border-color: rgba(100, 209, 230, 0.34);
-  background: rgba(100, 209, 230, 0.12);
+  color: rgba(203, 244, 250, 0.96);
+}
+
+.create-composer-chats-thread-btn:focus-visible .create-composer-chats-thread-title {
+  text-decoration: underline;
+  text-decoration-color: rgba(100, 209, 230, 0.72);
+  text-underline-offset: 3px;
 }
 
 .create-composer-chats-thread-btn.is-opening {

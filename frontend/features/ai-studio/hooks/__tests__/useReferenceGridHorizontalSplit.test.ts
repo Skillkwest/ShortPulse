@@ -321,11 +321,13 @@ describe("useReferenceGridHorizontalSplit", () => {
   it("tracks the divider to the pointer's absolute Y position while dragging", () => {
     vi.stubGlobal("ResizeObserver", MockResizeObserver);
     const containerRef = { current: createContainer(400) };
+    const onTopRatioCommit = vi.fn();
     const { result } = renderHook(() =>
       useReferenceGridHorizontalSplit({
         enabled: true,
         containerRef,
         defaultTopRatio: 0.5,
+        onTopRatioCommit,
         minTopSectionHeightPx: 100,
         minBottomSectionHeightPx: 100,
       })
@@ -355,6 +357,7 @@ describe("useReferenceGridHorizontalSplit", () => {
     });
 
     expect(result.current.topRatio).toBeCloseTo(0.3, 3);
+    expect(onTopRatioCommit).toHaveBeenCalledWith(expect.closeTo(0.3, 3));
 
     act(() => {
       window.dispatchEvent(new PointerEvent("pointerup", { pointerId: 101, clientY: 120 }));

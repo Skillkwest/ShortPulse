@@ -74,6 +74,7 @@ export const useMediaLibraryPanelSelectionController = ({
     detailSelectionTarget?.kind === "media-file" && detailSelectionTarget.surface === detailSurface
       ? detailSelectionTarget
       : null;
+  const detailModalItemFileId = detailModalItem?.file.id ?? null;
 
   const addMediaReferenceFromFile = React.useCallback(
     async (file: MediaFileRow) => {
@@ -286,14 +287,16 @@ export const useMediaLibraryPanelSelectionController = ({
     const matchingFile =
       mediaRows.find((row) => row.id === controlledSelectionTarget.fileId) ?? null;
     if (!matchingFile) {
+      if (detailModalItemFileId === controlledSelectionTarget.fileId) return;
+      if (!detailModalItemFileId) return;
       resetDetailModalState();
       return;
     }
-    if (detailModalItem?.file.id === matchingFile.id) return;
+    if (detailModalItemFileId === matchingFile.id) return;
     openDetailModalForFile(matchingFile);
   }, [
     controlledSelectionTarget,
-    detailModalItem?.file.id,
+    detailModalItemFileId,
     isExternallyControlled,
     mediaRows,
     openDetailModalForFile,

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../../lib/model-runtime/falModelIds";
+import {
+  FAL_FLUX_2_KLEIN_9B_MODEL_ID,
+  FAL_FLUX_2_KLEIN_AUDIO_COMPANION_ART_VARIANT_BASE_ID,
+  FAL_FLUX_2_KLEIN_STYLE_PREVIEW_VARIANT_BASE_ID,
+  FAL_OMNIHUMAN_V15_MODEL_ID,
+} from "../../lib/model-runtime/falModelIds";
 import { KIE_SEEDANCE_2_MODEL_ID } from "../../lib/model-runtime/providerModelIds";
 import { buildPricingParams } from "../../lib/server/api/generationBilling/pricingParams";
 
@@ -58,6 +63,42 @@ describe("generationBilling pricing params normalization", () => {
     });
 
     expect(params.webSearch).toBe(true);
+  });
+
+  it("maps Flux2 Klein style placeholder previews to the style-preview pricing variant", () => {
+    const params = buildPricingParams(
+      FAL_FLUX_2_KLEIN_9B_MODEL_ID,
+      {
+        image_size: { width: 1024, height: 1024 },
+      },
+      {
+        shortpulseContext: {
+          source_mode: "style_preview",
+        },
+      }
+    );
+
+    expect(params.variantBaseId).toBe(FAL_FLUX_2_KLEIN_STYLE_PREVIEW_VARIANT_BASE_ID);
+    expect(params.aspect).toBe("1:1");
+    expect(params.resolution).toBe("model_default");
+  });
+
+  it("maps Flux2 Klein audio companion art to the audio-reference background pricing variant", () => {
+    const params = buildPricingParams(
+      FAL_FLUX_2_KLEIN_9B_MODEL_ID,
+      {
+        image_size: { width: 1024, height: 1024 },
+      },
+      {
+        shortpulseContext: {
+          source_mode: "audio_companion_art",
+        },
+      }
+    );
+
+    expect(params.variantBaseId).toBe(FAL_FLUX_2_KLEIN_AUDIO_COMPANION_ART_VARIANT_BASE_ID);
+    expect(params.aspect).toBe("1:1");
+    expect(params.resolution).toBe("model_default");
   });
 
   it("normalizes 0.5K resolution for nano-banana-2", () => {

@@ -8,6 +8,11 @@ import {
   resolveOpenAiGptImage2AspectForSize,
   normalizeOpenAiGptImage2Quality,
 } from "../../../model-runtime/openAiImage2";
+import {
+  FAL_FLUX_2_KLEIN_9B_MODEL_ID,
+  FAL_FLUX_2_KLEIN_AUDIO_COMPANION_ART_VARIANT_BASE_ID,
+  FAL_FLUX_2_KLEIN_STYLE_PREVIEW_VARIANT_BASE_ID,
+} from "../../../model-runtime/falModelIds";
 import type { JsonObject } from "./types";
 import { asBoolean, asNumber, asString } from "./utils";
 
@@ -275,6 +280,24 @@ const resolveWebSearchFlag = (payload: JsonObject, modelId: string): boolean | u
   return resolveBooleanAlias(payload, Array.from(aliasSet));
 };
 
+const resolveFlux2KleinSourceVariantBaseId = (
+  modelId: string,
+  context?: JsonObject | null
+): string | undefined => {
+  if (modelId !== FAL_FLUX_2_KLEIN_9B_MODEL_ID || !context) return undefined;
+  const sourceMode = asString(context.source_mode)?.trim().toLowerCase();
+  switch (sourceMode) {
+    case "style_preview":
+      return FAL_FLUX_2_KLEIN_STYLE_PREVIEW_VARIANT_BASE_ID;
+    case "audio_companion_art":
+    case "audio_reference_background":
+    case "companion_art":
+      return FAL_FLUX_2_KLEIN_AUDIO_COMPANION_ART_VARIANT_BASE_ID;
+    default:
+      return undefined;
+  }
+};
+
 export const summarizePayload = (payload: JsonObject): JsonObject => {
   const keys = [
     "aspect",
@@ -317,6 +340,13 @@ export const buildPricingParams = (
 ): Omit<PricingParams, "modelId"> => {
   const params: Omit<PricingParams, "modelId"> = {};
   const config = getModelConfig(modelId);
+  const sourceVariantBaseId = resolveFlux2KleinSourceVariantBaseId(
+    modelId,
+    options?.shortpulseContext
+  );
+  if (sourceVariantBaseId) {
+    params.variantBaseId = sourceVariantBaseId;
+  }
 
   const imageDimensions =
     resolveImageDimensions(payload) ?? resolveContextImageDimensions(options?.shortpulseContext);

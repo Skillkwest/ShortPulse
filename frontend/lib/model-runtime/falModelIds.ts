@@ -4,6 +4,8 @@
  */
 
 export const FAL_FLUX_2_KLEIN_9B_MODEL_ID = "fal-ai/flux-2/klein/9b";
+export const FAL_FLUX_2_KLEIN_AUDIO_COMPANION_ART_VARIANT_BASE_ID = "audio_companion_art";
+export const FAL_FLUX_2_KLEIN_STYLE_PREVIEW_VARIANT_BASE_ID = "style_preview";
 
 export const FAL_NANO_BANANA_2_MODEL_ID = "fal-ai/nano-banana-2";
 export const FAL_NANO_BANANA_2_EDIT_MODEL_ID = "fal-ai/nano-banana-2/edit";

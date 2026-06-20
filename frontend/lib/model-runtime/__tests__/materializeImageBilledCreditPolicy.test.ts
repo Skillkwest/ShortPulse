@@ -5,6 +5,11 @@ import {
   getDefaultModelPricingPolicyDocument,
 } from "../pricingPolicy";
 import { materializeImageBilledCreditPolicy } from "../materializeImageBilledCreditPolicy";
+import {
+  FAL_FLUX_2_KLEIN_9B_MODEL_ID,
+  FAL_FLUX_2_KLEIN_AUDIO_COMPANION_ART_VARIANT_BASE_ID,
+  FAL_FLUX_2_KLEIN_STYLE_PREVIEW_VARIANT_BASE_ID,
+} from "../falModelIds";
 
 const basePolicy = {
   ...getDefaultModelPricingPolicyDocument(),
@@ -45,5 +50,25 @@ describe("materializeImageBilledCreditPolicy", () => {
       unitBasis: "per_image",
       quantityDrivers: ["generation_count", "input_image_count"],
     });
+  });
+
+  it("materializes built-in Flux2 Klein semantic rows for runtime billing", () => {
+    const materialized = materializeImageBilledCreditPolicy(basePolicy);
+
+    expect(
+      resolveModelPricingForModel(
+        materialized,
+        FAL_FLUX_2_KLEIN_9B_MODEL_ID,
+        `${FAL_FLUX_2_KLEIN_AUDIO_COMPANION_ART_VARIANT_BASE_ID}|res:model_default|aspect:1:1`
+      ).billedCreditsOverride
+    ).toBe(2);
+
+    expect(
+      resolveModelPricingForModel(
+        materialized,
+        FAL_FLUX_2_KLEIN_9B_MODEL_ID,
+        `${FAL_FLUX_2_KLEIN_STYLE_PREVIEW_VARIANT_BASE_ID}|res:model_default|aspect:1:1`
+      ).billedCreditsOverride
+    ).toBe(2);
   });
 });

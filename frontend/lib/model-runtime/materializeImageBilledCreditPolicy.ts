@@ -1,6 +1,7 @@
 import { buildDefaultPricingParams, listPricingModelConfigs } from "./pricing";
 import { resolveModelPricingVariantId } from "./modelPricingVariants";
 import type { ModelConfig } from "./modelRegistry";
+import { getDefaultAdminPricingCustomRowsDocument } from "./adminPricingCustomRows";
 import { normalizeCreateImageBilledPricingParams } from "./createImageBilledCredits";
 import {
   compactModelPricingPolicyDocument,
@@ -207,6 +208,38 @@ export const materializeImageBilledCreditPolicy = (
           );
         });
       });
+    });
+
+    const builtInCustomRows =
+      getDefaultAdminPricingCustomRowsDocument().rowsByModel[model.id] ?? [];
+    builtInCustomRows.forEach((row) => {
+      const params = normalizeCreateImageBilledPricingParams(
+        model.id,
+        buildDefaultPricingParams(model.id, {
+          variantBaseId: row.spec.baseVariantId ?? undefined,
+          aspect: row.spec.aspect ?? undefined,
+          resolution: row.spec.resolution ?? undefined,
+          audio: row.spec.audio ?? undefined,
+          inputVideoCount:
+            row.spec.videoInput == null ? undefined : row.spec.videoInput === true ? 1 : 0,
+          inputImageCount: row.spec.inputImageCount ?? undefined,
+          inputFidelity: row.spec.inputFidelity ?? undefined,
+          maskPresent: row.spec.maskPresent ?? undefined,
+        })
+      );
+
+      const breakdown = resolvePricingGridCostBreakdown({
+        modelId: model.id,
+        params,
+        pricingPolicy: normalized,
+      });
+      if (!breakdown?.credits || breakdown.credits <= 0) return;
+
+      nextPolicy.perModel[model.id] = mergeVariantOverride(
+        nextPolicy.perModel[model.id],
+        row.variantId,
+        breakdown.credits
+      );
     });
   });
 

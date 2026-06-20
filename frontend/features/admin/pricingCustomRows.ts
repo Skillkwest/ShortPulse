@@ -200,6 +200,8 @@ export const buildMergedPricingPreviewVariants = ({
     const variant =
       buildDraftPricingPreviewVariants(model, pricingPolicy, {
         usageAmount,
+        baseVariantId: customRow.spec.baseVariantId ?? undefined,
+        label: customRow.label ?? undefined,
         aspect: customRow.spec.aspect ?? undefined,
         resolution: customRow.spec.resolution ?? undefined,
         audio: customRow.spec.audio ?? undefined,

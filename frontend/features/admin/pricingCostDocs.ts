@@ -270,6 +270,8 @@ export const buildDraftPricingPreviewVariants = (
   pricingPolicy: Parameters<typeof computeCostForModel>[2],
   options: {
     usageAmount?: number | null;
+    baseVariantId?: string | null;
+    label?: string | null;
     aspect?: string | null;
     resolution?: string | null;
     audio?: boolean | null;
@@ -318,9 +320,17 @@ export const buildDraftPricingPreviewVariants = (
     ];
   }
 
-  const variants = serverVariants.length
-    ? serverVariants
-    : [{ id: "default", label: "Default", breakdown: null }];
+  const variants = options.baseVariantId
+    ? [
+        {
+          id: options.baseVariantId,
+          label: options.label?.trim() || options.baseVariantId,
+          breakdown: null,
+        },
+      ]
+    : serverVariants.length
+      ? serverVariants
+      : [{ id: "default", label: "Default", breakdown: null }];
   const aspectOptions = buildAspectOptions(model, { aspect: options.aspect });
   const resolutionOptions = buildResolutionOptions(model, { resolution: options.resolution });
   const audioOptions = buildAudioOptions(model, { audio: options.audio });
@@ -337,6 +347,7 @@ export const buildDraftPricingPreviewVariants = (
                 options.usageAmount ?? null
               );
               const params = buildDefaultPricingParams(model.id, {
+                variantBaseId: variant.id,
                 ...(aspect ? { aspect } : {}),
                 ...(resolution ? { resolution } : {}),
                 ...(audio != null ? { audio } : {}),

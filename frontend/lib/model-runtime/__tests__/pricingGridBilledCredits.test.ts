@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 
+import {
+  FAL_FLUX_2_KLEIN_9B_MODEL_ID,
+  FAL_FLUX_2_KLEIN_AUDIO_COMPANION_ART_VARIANT_BASE_ID,
+  FAL_FLUX_2_KLEIN_STYLE_PREVIEW_VARIANT_BASE_ID,
+} from "../falModelIds";
 import { resolvePricingGridCostBreakdown } from "../pricingGridBilledCredits";
 import { getDefaultModelPricingPolicyDocument } from "../pricingPolicy";
 import { materializeImageBilledCreditPolicy } from "../materializeImageBilledCreditPolicy";
@@ -72,6 +77,38 @@ describe("pricingGridBilledCredits", () => {
     ).toMatchObject({
       credits: 4,
       variantId: "create|res:medium|aspect:16:9",
+    });
+  });
+
+  it("resolves Flux2 Klein semantic admin rows for audio background and style placeholder image variants", () => {
+    expect(
+      resolvePricingGridCostBreakdown({
+        modelId: FAL_FLUX_2_KLEIN_9B_MODEL_ID,
+        params: {
+          variantBaseId: FAL_FLUX_2_KLEIN_AUDIO_COMPANION_ART_VARIANT_BASE_ID,
+          aspect: "1:1",
+          resolution: "model_default",
+        },
+        pricingPolicy: pricingGridPolicy,
+      })
+    ).toMatchObject({
+      credits: 2,
+      variantId: `${FAL_FLUX_2_KLEIN_AUDIO_COMPANION_ART_VARIANT_BASE_ID}|res:model_default|aspect:1:1`,
+    });
+
+    expect(
+      resolvePricingGridCostBreakdown({
+        modelId: FAL_FLUX_2_KLEIN_9B_MODEL_ID,
+        params: {
+          variantBaseId: FAL_FLUX_2_KLEIN_STYLE_PREVIEW_VARIANT_BASE_ID,
+          aspect: "1:1",
+          resolution: "model_default",
+        },
+        pricingPolicy: pricingGridPolicy,
+      })
+    ).toMatchObject({
+      credits: 2,
+      variantId: `${FAL_FLUX_2_KLEIN_STYLE_PREVIEW_VARIANT_BASE_ID}|res:model_default|aspect:1:1`,
     });
   });
 

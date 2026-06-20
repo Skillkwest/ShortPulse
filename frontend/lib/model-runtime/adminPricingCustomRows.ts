@@ -2,6 +2,11 @@
  * Admin pricing custom-row manifest defaults, normalization, and equality helpers.
  * These rows add operator-authored display rows without changing pricing-policy math.
  */
+import {
+  FAL_FLUX_2_KLEIN_9B_MODEL_ID,
+  FAL_FLUX_2_KLEIN_AUDIO_COMPANION_ART_VARIANT_BASE_ID,
+  FAL_FLUX_2_KLEIN_STYLE_PREVIEW_VARIANT_BASE_ID,
+} from "./falModelIds";
 import { getModelConfig } from "./modelRegistry";
 import {
   buildModelPricingVariantId,
@@ -124,12 +129,71 @@ const normalizeCustomRow = (modelId: string, value: unknown): AdminPricingCustom
   };
 };
 
+const createBuiltInFlux2KleinCustomRow = ({
+  displayRowId,
+  label,
+  baseVariantId,
+}: {
+  displayRowId: string;
+  label: string;
+  baseVariantId: string;
+}): AdminPricingCustomRow => {
+  const spec: AdminPricingCustomRowSpec = {
+    baseVariantId,
+    aspect: "1:1",
+    resolution: "model_default",
+    audio: null,
+    videoInput: null,
+    inputImageCount: null,
+    inputFidelity: null,
+    maskPresent: null,
+  };
+  return {
+    displayRowId,
+    label,
+    variantId: buildModelPricingVariantId(spec),
+    spec,
+    overrides: {
+      markupBps: null,
+      providerUsdOverride: null,
+      providerUsdPerSecondOverride: null,
+    },
+  };
+};
+
+const cloneCustomRowsByModel = (
+  rowsByModel: Record<string, AdminPricingCustomRow[]>
+): Record<string, AdminPricingCustomRow[]> =>
+  Object.fromEntries(
+    Object.entries(rowsByModel).map(([modelId, rows]) => [
+      modelId,
+      rows.map((row) => ({
+        ...row,
+        spec: { ...row.spec },
+        overrides: { ...row.overrides },
+      })),
+    ])
+  );
+
 /**
- * Returns the empty custom-row manifest used when no operator-authored rows exist.
+ * Returns the built-in custom-row manifest used before operator-authored rows are merged.
  */
 export const getDefaultAdminPricingCustomRowsDocument = (): AdminPricingCustomRowsDocument => ({
   schemaVersion: ADMIN_PRICING_CUSTOM_ROWS_SCHEMA_VERSION,
-  rowsByModel: {},
+  rowsByModel: cloneCustomRowsByModel({
+    [FAL_FLUX_2_KLEIN_9B_MODEL_ID]: [
+      createBuiltInFlux2KleinCustomRow({
+        displayRowId: "builtin:flux-2-klein-audio-companion-art",
+        label: "Audio reference background",
+        baseVariantId: FAL_FLUX_2_KLEIN_AUDIO_COMPANION_ART_VARIANT_BASE_ID,
+      }),
+      createBuiltInFlux2KleinCustomRow({
+        displayRowId: "builtin:flux-2-klein-style-preview",
+        label: "Style placeholder preview",
+        baseVariantId: FAL_FLUX_2_KLEIN_STYLE_PREVIEW_VARIANT_BASE_ID,
+      }),
+    ],
+  }),
 });
 
 /**
@@ -143,25 +207,34 @@ export const normalizeAdminPricingCustomRowsDocument = (
   if (!record) return defaults;
 
   const rowsByModelRecord = asObjectRecord(record.rowsByModel);
-  const rowsByModel = Object.entries(rowsByModelRecord ?? {}).reduce<
-    Record<string, AdminPricingCustomRow[]>
-  >((accumulator, [modelId, rows]) => {
-    if (!Array.isArray(rows)) return accumulator;
-    const seenDisplayRowIds = new Set<string>();
-    const normalizedRows = rows.reduce<AdminPricingCustomRow[]>((nextRows, row) => {
+  const rowsByModel = cloneCustomRowsByModel(defaults.rowsByModel);
+  const mergeNormalizedRow = (modelId: string, normalizedRow: AdminPricingCustomRow) => {
+    const rows = rowsByModel[modelId] ?? [];
+    const existingIndex = rows.findIndex(
+      (candidate) => candidate.displayRowId === normalizedRow.displayRowId
+    );
+    if (existingIndex >= 0) {
+      rows[existingIndex] = normalizedRow;
+    } else {
+      rows.push(normalizedRow);
+    }
+    rowsByModel[modelId] = rows;
+  };
+
+  const seenInputDisplayRowIdsByModel = new Map<string, Set<string>>();
+  Object.entries(rowsByModelRecord ?? {}).forEach(([modelId, rows]) => {
+    if (!Array.isArray(rows)) return;
+    const seenDisplayRowIds = seenInputDisplayRowIdsByModel.get(modelId) ?? new Set<string>();
+    seenInputDisplayRowIdsByModel.set(modelId, seenDisplayRowIds);
+    rows.forEach((row) => {
       const normalizedRow = normalizeCustomRow(modelId, row);
       if (!normalizedRow || seenDisplayRowIds.has(normalizedRow.displayRowId)) {
-        return nextRows;
+        return;
       }
       seenDisplayRowIds.add(normalizedRow.displayRowId);
-      nextRows.push(normalizedRow);
-      return nextRows;
-    }, []);
-    if (normalizedRows.length > 0) {
-      accumulator[modelId] = normalizedRows;
-    }
-    return accumulator;
-  }, {});
+      mergeNormalizedRow(modelId, normalizedRow);
+    });
+  });
 
   return {
     schemaVersion: ADMIN_PRICING_CUSTOM_ROWS_SCHEMA_VERSION,

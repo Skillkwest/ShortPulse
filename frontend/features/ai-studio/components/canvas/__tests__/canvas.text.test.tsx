@@ -191,7 +191,7 @@ describe("Canvas text behavior", () => {
     expect(screen.getAllByTestId("canvas-draft-text-input")).toHaveLength(1);
   });
 
-  it("edits a text reference in place on double click and saves with Enter", async () => {
+  it("edits a text reference in place on double click and saves on blur", async () => {
     render(<CanvasHarness />);
     const viewport = screen.getByTestId("canvas-viewport");
     mockViewportRect(viewport);
@@ -211,13 +211,42 @@ describe("Canvas text behavior", () => {
     fireEvent.change(input, {
       target: { value: "Edited note" },
     });
-    fireEvent.keyDown(input, {
-      key: "Enter",
-    });
+    fireEvent.blur(input);
 
     expect(screen.getByText("Edited note")).toBeInTheDocument();
     expect(screen.queryByText("Original note")).not.toBeInTheDocument();
     expect(screen.queryByTestId("canvas-text-edit-input")).not.toBeInTheDocument();
+  });
+
+  it("keeps Enter as a newline while editing a canvas text reference", async () => {
+    render(<CanvasHarness />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/plain": "Original note",
+      }),
+      clientX: 260,
+      clientY: 170,
+    });
+
+    const item = await screen.findByTestId(/canvas-item-/);
+    fireEvent.doubleClick(item);
+
+    const input = screen.getByTestId("canvas-text-edit-input") as HTMLTextAreaElement;
+    fireEvent.change(input, {
+      target: { value: "Edited\nnote" },
+    });
+    fireEvent.keyDown(input, {
+      key: "Enter",
+    });
+
+    expect(input).toHaveValue("Edited\nnote");
+    expect(screen.getByTestId("canvas-text-edit-input")).toBeInTheDocument();
+
+    fireEvent.blur(input);
+    expect((item as HTMLElement).textContent).toContain("Edited\nnote");
   });
 
   it("keeps the text edit caret at the insertion point while typing in the middle", async () => {

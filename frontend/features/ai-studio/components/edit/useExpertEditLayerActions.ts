@@ -16,6 +16,8 @@ import {
   type ExpertEditLayer,
 } from "./expertEditLayerSessionUtils";
 
+const REMOVE_BACKGROUND_INTENT_COALESCE_MS = 180;
+
 type UseExpertEditLayerActionsParams = {
   layers: ExpertEditLayer[];
   foundationLayerId: string | null;
@@ -62,9 +64,34 @@ export function useExpertEditLayerActions({
   >(null);
   const removeBackgroundPendingTimeoutRef = React.useRef<number | null>(null);
   const removeBackgroundPendingSourceUrlRef = React.useRef<string | null>(null);
+  const removeBackgroundIntentTimeoutRef = React.useRef<number | null>(null);
+  const removeBackgroundIntentRef = React.useRef<{
+    layer: ExpertEditLayer | null;
+    imageUrl: string;
+    sourceImageUrl: string | null;
+  } | null>(null);
+  const isFlattenOperationInFlightRef = React.useRef(false);
+  const hasRemoveBackgroundSubmissionStartedRef = React.useRef(false);
+  const queuedRemoveBackgroundAfterFlattenRef = React.useRef(false);
+  const latestActionStateRef = React.useRef({
+    layers,
+    foundationLayerId,
+    selectedLayer,
+    selectedLayerImageUrl,
+    populatedLayerCount,
+  });
+
+  latestActionStateRef.current = {
+    layers,
+    foundationLayerId,
+    selectedLayer,
+    selectedLayerImageUrl,
+    populatedLayerCount,
+  };
 
   const clearRemoveBackgroundPending = React.useCallback(() => {
     clearWindowTimeoutRef(removeBackgroundPendingTimeoutRef);
+    hasRemoveBackgroundSubmissionStartedRef.current = false;
     removeBackgroundPendingSourceUrlRef.current = null;
     setRemoveBackgroundPendingLayerId(null);
   }, []);
@@ -85,21 +112,31 @@ export function useExpertEditLayerActions({
   React.useEffect(
     () => () => {
       clearWindowTimeoutRef(removeBackgroundPendingTimeoutRef);
+      clearWindowTimeoutRef(removeBackgroundIntentTimeoutRef);
     },
     []
   );
 
-  const handleManualFlatten = React.useCallback(async () => {
-    if (populatedLayerCount <= 0) {
-      showStatusToast("Add at least one layer image before flattening.");
-      return;
-    }
-    if (isFlattenPending) return;
+  const clearScheduledRemoveBackgroundIntent = React.useCallback(() => {
+    clearWindowTimeoutRef(removeBackgroundIntentTimeoutRef);
+    removeBackgroundIntentRef.current = null;
+  }, []);
 
-    setIsFlattenPending(true);
+  const runFlattenOperation = React.useCallback(async () => {
+    const {
+      layers: latestLayers,
+      foundationLayerId: latestFoundationLayerId,
+      populatedLayerCount: latestPopulatedLayerCount,
+    } = latestActionStateRef.current;
+
+    if (latestPopulatedLayerCount <= 0) {
+      showStatusToast("Add at least one layer image before flattening.");
+      return null;
+    }
+
     try {
       const flattenSnapshot = resolveStageFlattenSnapshot();
-      const exportBlob = await composePrimaryStageLayersToBlob(layers, {
+      const exportBlob = await composePrimaryStageLayersToBlob(latestLayers, {
         mimeType: "image/png",
         outputAspectRatio: flattenSnapshot.outputAspectRatio,
         camera: flattenSnapshot.camera,
@@ -113,8 +150,8 @@ export function useExpertEditLayerActions({
         rememberObjectUrlBlob(flattenedReferenceGridUrl, exportBlob);
       }
       const layerOne =
-        layers.find((layer) => layer.id === foundationLayerId) ??
-        layers[0] ??
+        latestLayers.find((layer) => layer.id === latestFoundationLayerId) ??
+        latestLayers[0] ??
         createLayer({ indexOneBased: layerIdCounterRef.current });
       const flattenedLayer: ExpertEditLayer = {
         ...layerOne,
@@ -127,6 +164,13 @@ export function useExpertEditLayerActions({
       };
       suppressNextPrimaryPublishUrlRef.current = flattenedLayerUrl;
       queuePanelHistoryBaselineFromCurrent();
+      latestActionStateRef.current = {
+        ...latestActionStateRef.current,
+        layers: [flattenedLayer],
+        selectedLayer: flattenedLayer,
+        selectedLayerImageUrl: flattenedLayerUrl,
+        populatedLayerCount: 1,
+      };
       setLayers([flattenedLayer]);
       setSelectedLayerIndex(0);
       clearLayerEditing();
@@ -143,19 +187,15 @@ export function useExpertEditLayerActions({
           );
         }
       }
+      return flattenedLayer;
     } catch {
       showStatusToast("Unable to flatten layers.");
-    } finally {
-      setIsFlattenPending(false);
+      return null;
     }
   }, [
     clearLayerEditing,
     createLayer,
-    foundationLayerId,
-    isFlattenPending,
     layerIdCounterRef,
-    layers,
-    populatedLayerCount,
     queuePanelHistoryBaselineFromCurrent,
     resolveStageFlattenSnapshot,
     setLayers,
@@ -165,19 +205,22 @@ export function useExpertEditLayerActions({
     suppressNextPrimaryPublishUrlRef,
   ]);
 
-  const handleRemoveBackground = React.useCallback(() => {
-    const run = async () => {
-      const selectedLayerInput = selectedLayerImageUrl?.trim() ?? "";
-      if (!selectedLayerInput) {
-        showStatusToast("Select a layer with an image before removing background.");
-        return;
-      }
-      if (!onRegenerateWithReferenceInputs) {
-        showStatusToast("Remove background is unavailable in this session.");
-        return;
-      }
-      const pendingLayerId = selectedLayer?.id ?? null;
-      beginRemoveBackgroundPending(pendingLayerId, selectedLayer?.imageUrl ?? null);
+  const submitRemoveBackgroundForLayer = React.useCallback(
+    async ({
+      layer,
+      imageUrl,
+      sourceImageUrl,
+    }: {
+      layer: ExpertEditLayer | null;
+      imageUrl: string;
+      sourceImageUrl: string | null;
+    }) => {
+      const selectedLayerInput = imageUrl.trim();
+      if (!selectedLayerInput) return;
+      if (!onRegenerateWithReferenceInputs) return;
+
+      beginRemoveBackgroundPending(layer?.id ?? null, sourceImageUrl);
+      hasRemoveBackgroundSubmissionStartedRef.current = true;
 
       try {
         await onRegenerateWithReferenceInputs([selectedLayerInput], {
@@ -188,15 +231,102 @@ export function useExpertEditLayerActions({
         clearRemoveBackgroundPending();
         showStatusToast("Unable to remove background.");
       }
+    },
+    [
+      beginRemoveBackgroundPending,
+      clearRemoveBackgroundPending,
+      onRegenerateWithReferenceInputs,
+      showStatusToast,
+    ]
+  );
+
+  const handleManualFlatten = React.useCallback(async () => {
+    if (isFlattenOperationInFlightRef.current) return;
+    if (
+      hasRemoveBackgroundSubmissionStartedRef.current &&
+      removeBackgroundPendingLayerId != null &&
+      !removeBackgroundIntentRef.current
+    ) {
+      showStatusToast("Background removal is already processing.");
+      return;
+    }
+
+    const shouldRemoveBackgroundAfterFlatten = removeBackgroundIntentRef.current != null;
+    if (shouldRemoveBackgroundAfterFlatten) {
+      clearScheduledRemoveBackgroundIntent();
+      clearRemoveBackgroundPending();
+      queuedRemoveBackgroundAfterFlattenRef.current = true;
+    }
+
+    isFlattenOperationInFlightRef.current = true;
+    setIsFlattenPending(true);
+    try {
+      const flattenedLayer = await runFlattenOperation();
+      if (flattenedLayer && queuedRemoveBackgroundAfterFlattenRef.current) {
+        await submitRemoveBackgroundForLayer({
+          layer: flattenedLayer,
+          imageUrl: flattenedLayer.imageUrl ?? "",
+          sourceImageUrl: flattenedLayer.imageUrl,
+        });
+      }
+    } finally {
+      queuedRemoveBackgroundAfterFlattenRef.current = false;
+      isFlattenOperationInFlightRef.current = false;
+      setIsFlattenPending(false);
+    }
+  }, [
+    clearRemoveBackgroundPending,
+    clearScheduledRemoveBackgroundIntent,
+    removeBackgroundPendingLayerId,
+    runFlattenOperation,
+    showStatusToast,
+    submitRemoveBackgroundForLayer,
+  ]);
+
+  const handleRemoveBackground = React.useCallback(() => {
+    if (!onRegenerateWithReferenceInputs) {
+      showStatusToast("Remove background is unavailable in this session.");
+      return;
+    }
+    if (isFlattenOperationInFlightRef.current) {
+      queuedRemoveBackgroundAfterFlattenRef.current = true;
+      return;
+    }
+    if (removeBackgroundIntentRef.current || removeBackgroundPendingLayerId != null) {
+      return;
+    }
+
+    const {
+      selectedLayer: latestSelectedLayer,
+      selectedLayerImageUrl: latestSelectedLayerImageUrl,
+    } = latestActionStateRef.current;
+    const selectedLayerInput = latestSelectedLayerImageUrl?.trim() ?? "";
+    if (!selectedLayerInput) {
+      showStatusToast("Select a layer with an image before removing background.");
+      return;
+    }
+    removeBackgroundIntentRef.current = {
+      layer: latestSelectedLayer,
+      imageUrl: selectedLayerInput,
+      sourceImageUrl: latestSelectedLayer?.imageUrl ?? null,
     };
-    void run();
+    beginRemoveBackgroundPending(
+      latestSelectedLayer?.id ?? null,
+      latestSelectedLayer?.imageUrl ?? null
+    );
+    removeBackgroundIntentTimeoutRef.current = window.setTimeout(() => {
+      const pendingIntent = removeBackgroundIntentRef.current;
+      removeBackgroundIntentRef.current = null;
+      removeBackgroundIntentTimeoutRef.current = null;
+      if (!pendingIntent) return;
+      void submitRemoveBackgroundForLayer(pendingIntent);
+    }, REMOVE_BACKGROUND_INTENT_COALESCE_MS);
   }, [
     beginRemoveBackgroundPending,
-    clearRemoveBackgroundPending,
     onRegenerateWithReferenceInputs,
-    selectedLayer,
-    selectedLayerImageUrl,
     showStatusToast,
+    removeBackgroundPendingLayerId,
+    submitRemoveBackgroundForLayer,
   ]);
 
   return {

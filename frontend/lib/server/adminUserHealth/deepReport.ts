@@ -753,9 +753,12 @@ export const buildAdminHealthResponse = ({
     providerRequestId: string | null
   ): GenerationRow | null => {
     if (!providerRequestId) return null;
+    const projectionGenerationId =
+      projectionBillingByProviderRequestId.get(providerRequestId)?.generation_id ?? null;
     return (
       generationByRequestId.get(providerRequestId) ??
       generationByAttemptProviderRequestId.get(providerRequestId) ??
+      (projectionGenerationId ? (generationById.get(projectionGenerationId) ?? null) : null) ??
       null
     );
   };

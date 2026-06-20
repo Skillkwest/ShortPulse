@@ -10,6 +10,7 @@ const generateElevenLabsVoiceoverMock = vi.fn();
 const listElevenLabsVoicesMock = vi.fn();
 const persistGeneratedAudioAssetMock = vi.fn();
 const markAudioCompanionArtPendingBestEffortMock = vi.fn();
+const generateAudioReferenceTitleBestEffortMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -65,6 +66,11 @@ vi.mock("../../lib/server/audioCompanionArt/routePending", () => ({
     markAudioCompanionArtPendingBestEffortMock(...args),
 }));
 
+vi.mock("../../lib/server/audioTitleGeneration", () => ({
+  generateAudioReferenceTitleBestEffort: (...args: unknown[]) =>
+    generateAudioReferenceTitleBestEffortMock(...args),
+}));
+
 const createMockResponse = () => ({
   setHeader: vi.fn().mockReturnThis(),
   status: vi.fn().mockReturnThis(),
@@ -113,6 +119,9 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
       note: "captured",
     });
     markAudioCompanionArtPendingBestEffortMock.mockResolvedValue(undefined);
+    generateAudioReferenceTitleBestEffortMock.mockResolvedValue(
+      "Voiceover Billing Path Verificati 2Y56RG"
+    );
   });
 
   it("rejects invalid payloads", async () => {

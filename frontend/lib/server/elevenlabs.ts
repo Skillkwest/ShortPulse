@@ -371,7 +371,7 @@ const parseElevenLabsMusicDetailedMultipart = ({
   }
 
   return {
-    audioBuffer: audioBuffer ?? buffer,
+    audioBuffer: audioBuffer ?? Buffer.alloc(0),
     audioContentType,
     metadata,
   };
@@ -697,6 +697,27 @@ const resolveOutputContentType = (
   return OUTPUT_CONTENT_TYPE_BY_FORMAT_PREFIX[formatPrefix] ?? "application/octet-stream";
 };
 
+const assertGeneratedAudioPayload = ({
+  buffer,
+  contentType,
+  label,
+}: {
+  buffer: Buffer;
+  contentType: string;
+  label: string;
+}): void => {
+  const normalizedContentType = contentType.split(";")[0]?.trim().toLowerCase() ?? "";
+  if (!buffer.length) {
+    throw new Error(`${label} returned an empty audio payload.`);
+  }
+  if (
+    !normalizedContentType.startsWith("audio/") &&
+    normalizedContentType !== "application/octet-stream"
+  ) {
+    throw new Error(`${label} returned a non-audio payload.`);
+  }
+};
+
 const sanitizeStem = (value: string): string => {
   const normalized = value.trim().replace(/\s+/g, " ").slice(0, 72);
   const sanitized = normalized.replace(/[^a-z0-9._-]+/gi, "_").replace(/^_+|_+$/g, "");
@@ -996,9 +1017,16 @@ export const generateElevenLabsVoiceover = async ({
     throw await buildElevenLabsProviderError(response, "ElevenLabs voiceover request failed.");
   }
   const arrayBuffer = await response.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+  const contentType = resolveOutputContentType(outputFormat, response.headers.get("content-type"));
+  assertGeneratedAudioPayload({
+    buffer,
+    contentType,
+    label: "ElevenLabs voiceover request",
+  });
   return {
-    buffer: Buffer.from(arrayBuffer),
-    contentType: resolveOutputContentType(outputFormat, response.headers.get("content-type")),
+    buffer,
+    contentType,
     providerRequestId: readProviderRequestId(response.headers),
   };
 };
@@ -1035,9 +1063,19 @@ export const generateElevenLabsSoundEffect = async ({
     );
     if (response.ok) {
       const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const contentType = resolveOutputContentType(
+        outputFormat,
+        response.headers.get("content-type")
+      );
+      assertGeneratedAudioPayload({
+        buffer,
+        contentType,
+        label: "ElevenLabs sound effects request",
+      });
       return {
-        buffer: Buffer.from(arrayBuffer),
-        contentType: resolveOutputContentType(outputFormat, response.headers.get("content-type")),
+        buffer,
+        contentType,
         characterCost: parseOptionalNumber(response.headers.get("character-cost")),
         providerRequestId: readProviderRequestId(response.headers),
       };
@@ -1097,9 +1135,15 @@ export const generateElevenLabsMusic = async ({
     buffer: Buffer.from(arrayBuffer),
     contentType: response.headers.get("content-type"),
   });
+  const contentType = resolveOutputContentType(outputFormat, detailedResponse.audioContentType);
+  assertGeneratedAudioPayload({
+    buffer: detailedResponse.audioBuffer,
+    contentType,
+    label: "ElevenLabs music request",
+  });
   return {
     buffer: detailedResponse.audioBuffer,
-    contentType: resolveOutputContentType(outputFormat, detailedResponse.audioContentType),
+    contentType,
     providerRequestId: readProviderRequestId(response.headers),
     songId: normalizeOptionalString(response.headers.get("song-id")),
     lyricsText: extractLyricsTextFromMusicMetadata(detailedResponse.metadata),
@@ -1168,9 +1212,19 @@ export const generateElevenLabsVoiceChanger = async ({
       );
     }
     const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const contentType = resolveOutputContentType(
+      outputFormat,
+      response.headers.get("content-type")
+    );
+    assertGeneratedAudioPayload({
+      buffer,
+      contentType,
+      label: "ElevenLabs voice changer request",
+    });
     return {
-      buffer: Buffer.from(arrayBuffer),
-      contentType: resolveOutputContentType(outputFormat, response.headers.get("content-type")),
+      buffer,
+      contentType,
       providerRequestId: readProviderRequestId(response.headers),
     };
   } finally {

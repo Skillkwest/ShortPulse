@@ -645,6 +645,80 @@ describe("buildAdminHealthResponse", () => {
     expect(result.reservations.reservedLinkedTerminalGenerationCount).toBe(1);
   });
 
+  it("uses projection provider lineage before missing terminal reserved holds", () => {
+    const result = buildAdminHealthResponse({
+      lookup: "user-1",
+      lookupMode: "user_id",
+      lookbackDays: 30,
+      authUser: {
+        id: "user-1",
+        email: "user@example.com",
+      },
+      generationsSelectUsed: "id,status,request_id",
+      reservationsSupported: true,
+      ledgerLegacySchema: false,
+      compatibilityWarnings: [],
+      balance: null,
+      generations: [
+        {
+          id: "gen-projection-terminal",
+          status: "success",
+          recovery_state: null,
+          provider: "elevenlabs",
+          model_id: "music_v1",
+          request_id: null,
+          created_at: "2026-03-17T11:00:00.000Z",
+          completed_at: "2026-03-17T11:05:00.000Z",
+          failure_reason_code: null,
+          next_recovery_at: null,
+          metadata: null,
+        },
+      ],
+      attempts: [],
+      outputs: [
+        {
+          id: "output-projection-terminal",
+          generation_id: "gen-projection-terminal",
+          media_file_id: "media-projection-terminal",
+          created_at: "2026-03-17T11:05:00.000Z",
+        },
+      ],
+      generationProjectionBillingRows: [
+        {
+          generation_id: "gen-projection-terminal",
+          source_ref: "projection-source-ref",
+          request_id: "provider-projection-terminal",
+          provider_request_id: null,
+          status: "success",
+          task_state: "success",
+          result_urls: ["https://cdn.test/audio.mp3"],
+          preview_url: null,
+        },
+      ],
+      reservations: [
+        {
+          id: "res-projection-terminal",
+          status: "reserved",
+          source_ref: "ledger-source-ref",
+          provider_request_id: "provider-projection-terminal",
+          model_id: "music_v1",
+          amount_cents: 5,
+          metadata: null,
+          created_at: "2026-03-17T11:00:00.000Z",
+          released_at: null,
+          captured_at: null,
+        },
+      ],
+      ledger: [],
+      nowMs: Date.parse("2026-03-17T12:00:00.000Z"),
+    });
+
+    expect(result.findings.map((finding) => finding.code)).toEqual(
+      expect.arrayContaining(["RESERVED_HOLD_LINKED_TERMINAL_GENERATION"])
+    );
+    expect(result.reservations.reservedLinkedTerminalGenerationCount).toBe(1);
+  });
+
   it("ignores project association drift for metadata that points at deleted projects", () => {
     const result = buildAdminHealthResponse({
       lookup: "user@example.com",

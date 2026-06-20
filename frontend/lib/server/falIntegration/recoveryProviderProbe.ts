@@ -225,16 +225,6 @@ export const probeProviderResult = async ({
       provider: providerKey,
       candidates: statusCandidates,
     });
-    if (bestStatus?.hasMedia) {
-      const payload = payloadByStatusIndex.get(bestStatus.index) ?? null;
-      if (payload) {
-        return {
-          state: "completed",
-          payload,
-          mediaUrls: extractRecoveryMediaUrls(payload, { provider: providerKey, modelId }),
-        };
-      }
-    }
     const bestStatusPayload =
       bestStatus && payloadByStatusIndex.has(bestStatus.index)
         ? (payloadByStatusIndex.get(bestStatus.index) ?? null)
@@ -244,6 +234,16 @@ export const probeProviderResult = async ({
       (bestStatus?.isTerminal && payloadHasProviderError(bestStatusPayload))
     ) {
       return { state: "failed", payload: bestStatusPayload, mediaUrls: [] };
+    }
+    if (bestStatus?.hasMedia) {
+      const payload = payloadByStatusIndex.get(bestStatus.index) ?? null;
+      if (payload) {
+        return {
+          state: "completed",
+          payload,
+          mediaUrls: extractRecoveryMediaUrls(payload, { provider: providerKey, modelId }),
+        };
+      }
     }
     const responseProbe = await probeResponseUrlsForMedia({
       provider: providerKey,
@@ -391,6 +391,22 @@ export const probeProviderResult = async ({
       provider: providerKey,
       candidates: resultCandidates,
     });
+    const bestResultPayload =
+      bestResult && payloadByResultIndex.has(bestResult.index)
+        ? (payloadByResultIndex.get(bestResult.index) ?? null)
+        : null;
+    const bestResultHasProviderFailure = Boolean(
+      bestResult?.isHttpOk &&
+      (bestResult.hasError ||
+        (bestResult.status &&
+          isProviderFailedStatus({
+            provider: providerKey,
+            status: bestResult.status,
+          })))
+    );
+    if (bestStatus?.isFailed || bestResultHasProviderFailure) {
+      return { state: "failed", payload: bestResultPayload, mediaUrls: [] };
+    }
     if (bestResult?.hasMedia) {
       const payload = payloadByResultIndex.get(bestResult.index) ?? null;
       if (payload) {
@@ -415,16 +431,6 @@ export const probeProviderResult = async ({
       };
     }
 
-    if (
-      bestStatus?.isFailed ||
-      (bestResult?.status &&
-        isProviderFailedStatus({
-          provider: providerKey,
-          status: bestResult.status,
-        }))
-    ) {
-      return { state: "failed", payload: null, mediaUrls: [] };
-    }
     return { state: "running", payload: null, mediaUrls: [] };
   } finally {
     pollingSession.dispose();

@@ -7,7 +7,10 @@ import {
   providerPayloadHasMedia,
   readProviderLifecycleStatus,
 } from "../providerIntegration/statusProviderPayload";
-import { resolveProviderSuccessfulPayloadStatus } from "../providerIntegration/statusProviderPolicy";
+import {
+  isProviderFailedStatus,
+  resolveProviderSuccessfulPayloadStatus,
+} from "../providerIntegration/statusProviderPolicy";
 import { selectBestProviderResultCandidate } from "../providerIntegration/statusProviderSelection";
 import type { ResultProbeCandidate } from "./contracts";
 
@@ -211,6 +214,13 @@ export const probeResponseUrlsForMedia = async ({
       modelId,
       payload: responseProbeData.json,
     });
+    if (
+      Boolean(responseProbeData.json.error) ||
+      Boolean(responseProbeData.json.detail) ||
+      isProviderFailedStatus({ provider, status: responseProbeStatus })
+    ) {
+      continue;
+    }
     const probeStatus = resolveProviderSuccessfulPayloadStatus({
       provider,
       candidates: [
@@ -315,6 +325,11 @@ export const probeResultBasesForMedia = async ({
     !bestResultCandidate ||
     !bestResultCandidate.probe.isHttpOk ||
     !bestResultCandidate.data.isJson ||
+    bestResultCandidate.probe.hasError ||
+    isProviderFailedStatus({
+      provider,
+      status: bestResultCandidate.probe.status,
+    }) ||
     !bestResultCandidate.probe.hasMedia
   ) {
     return null;

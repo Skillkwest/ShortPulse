@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildFalStatusTransientPayload,
   readJsonSafe,
+  probeResultBasesForMedia,
   probeResponseUrlsForMedia,
 } from "../statusProxyRuntime";
 import {
@@ -194,6 +195,58 @@ describe("statusProxyRuntime", () => {
       expect.any(Object)
     );
     expect(result?.payloadStatus).toBe("completed");
+  });
+
+  it("does not promote failed response payloads just because they contain media", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          status: "FAILED",
+          error: "provider failed after producing partial output",
+          images: [{ url: "https://cdn.shortpulse.test/partial.png" }],
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await probeResponseUrlsForMedia({
+      responseUrls: ["https://queue.fal.run/example/requests/req-1"],
+      statusHint: "running",
+      apiKey: "test-key",
+      signal: new AbortController().signal,
+    });
+
+    expect(result).toBeNull();
+  });
+
+  it("does not promote failed result payloads just because they contain media", async () => {
+    const result = await probeResultBasesForMedia({
+      resultBaseUrls: ["https://queue.fal.run/example"],
+      requestId: "req-1",
+      statusHint: "running",
+      apiKey: "test-key",
+      signal: new AbortController().signal,
+      requestResult: () =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              status: "FAILED",
+              detail: "provider failed after producing partial output",
+              images: [{ url: "https://cdn.shortpulse.test/partial.png" }],
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }
+          )
+        ),
+    });
+
+    expect(result).toBeNull();
   });
 
   it("probes trusted kie response urls when model id is provided", async () => {

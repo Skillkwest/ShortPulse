@@ -160,6 +160,40 @@ describe("recoveryProviderProbe trusted base policy", () => {
     });
   });
 
+  it("treats failed status payloads with media-shaped fields as failed", async () => {
+    process.env.SHORTPULSE_FAL_TRUSTED_HOSTS = "queue.fal.run";
+
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          status: "FAILED",
+          request_id: "req-1",
+          error: "provider failed after producing partial output",
+          images: [{ url: "https://fal.media/files/partial.png" }],
+        }),
+        { status: 200 }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const observation = await probeProviderResult({
+      requestId: "req-1",
+      modelId: "fal-ai/nano-banana-2/edit",
+      apiKey: "test-fal-key",
+    });
+
+    expect(observation).toEqual({
+      state: "failed",
+      payload: {
+        status: "FAILED",
+        request_id: "req-1",
+        error: "provider failed after producing partial output",
+        images: [{ url: "https://fal.media/files/partial.png" }],
+      },
+      mediaUrls: [],
+    });
+  });
+
   it("probes response and result endpoints before settling completed without media", async () => {
     process.env.SHORTPULSE_FAL_TRUSTED_HOSTS = "queue.fal.run";
 

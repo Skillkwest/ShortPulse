@@ -19,6 +19,7 @@ const readRemoteMediaBufferMock = vi.fn();
 const readStoredMediaBufferMock = vi.fn();
 const markAudioCompanionArtPendingBestEffortMock = vi.fn();
 const transcribeAudioBufferMock = vi.fn();
+const generateAudioReferenceTitleBestEffortMock = vi.fn();
 
 let mockFields: Record<string, unknown> = {};
 let mockFiles: Record<string, unknown> = {};
@@ -138,6 +139,11 @@ vi.mock("../../lib/server/audioCompanionArt/routePending", () => ({
     markAudioCompanionArtPendingBestEffortMock(...args),
 }));
 
+vi.mock("../../lib/server/audioTitleGeneration", () => ({
+  generateAudioReferenceTitleBestEffort: (...args: unknown[]) =>
+    generateAudioReferenceTitleBestEffortMock(...args),
+}));
+
 vi.mock("../../lib/server/openAiAudioTranscription", () => ({
   transcribeAudioBuffer: (...args: unknown[]) => transcribeAudioBufferMock(...args),
 }));
@@ -196,9 +202,11 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
     probeMediaDurationSecondsMock.mockReset();
     markAudioCompanionArtPendingBestEffortMock.mockReset();
     transcribeAudioBufferMock.mockReset();
+    generateAudioReferenceTitleBestEffortMock.mockReset();
     probeMediaDurationSecondsMock.mockResolvedValue(12);
     markAudioCompanionArtPendingBestEffortMock.mockResolvedValue(undefined);
     transcribeAudioBufferMock.mockResolvedValue("I can hear the city waking up below us.");
+    generateAudioReferenceTitleBestEffortMock.mockResolvedValue("I Can Hear The City I0OZ21");
     chargeGenerationRequestMock.mockResolvedValue({
       userId: "user-1",
       modelId: "eleven_multilingual_sts_v2",

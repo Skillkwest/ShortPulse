@@ -3,5 +3,5 @@
  * Keeping these outside UI component folders prevents API/runtime routes from
  * importing presentation-layer modules for billing-adjacent validation.
  */
-export const STYLE_PROMPT_MAX_CHARACTERS = 1000;
-export const STYLE_PROMPT_NEAR_LIMIT_CHARACTERS = 900;
+export const STYLE_PROMPT_MAX_CHARACTERS = 300;
+export const STYLE_PROMPT_NEAR_LIMIT_CHARACTERS = 270;

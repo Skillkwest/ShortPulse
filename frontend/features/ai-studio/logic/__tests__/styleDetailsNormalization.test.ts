@@ -73,11 +73,11 @@ describe("styleDetailsNormalization", () => {
       style: "Noir",
       title: "Noir",
       referenceImageName: "Noir",
-      stylePrompt: "a".repeat(1100),
+      stylePrompt: "a".repeat(350),
       previewImageUrl: "/Styles/Cinematic.png",
     });
 
-    expect(normalized.stylePrompt.length).toBe(1000);
+    expect(normalized.stylePrompt.length).toBe(300);
   });
 
   it("normalizes style details maps and compares equality by core fields", () => {

@@ -10,6 +10,7 @@ import {
   resolveRequiredStyleExtractionFallbackVisionModelId,
   resolveRequiredStyleExtractionVisionModelId,
 } from "../../lib/model-runtime/modelCatalog";
+import { STYLE_PROMPT_MAX_CHARACTERS } from "../../lib/model-runtime/styleCreatorLimits";
 import type { AuthenticatedApiUser } from "../../lib/server/api/auth";
 import { logGenerationFailure } from "../../lib/server/api/appErrorLogs";
 import {
@@ -37,7 +38,7 @@ import type { AgentMachineOutcomeFields } from "../../prefabs/agent/outcomeContr
 const STYLE_EXTRACTOR_ID: AgentPromptId = "OPENAI_PROMPT_STYLE_EXTRACT";
 const DEFAULT_VISION_MODEL = resolveRequiredStyleExtractionVisionModelId();
 const DEFAULT_FALLBACK_VISION_MODEL = resolveRequiredStyleExtractionFallbackVisionModelId();
-const MAX_STYLE_PROMPT_LENGTH = 4000;
+const MAX_STYLE_PROMPT_LENGTH = STYLE_PROMPT_MAX_CHARACTERS;
 const MAX_STYLE_TITLE_LENGTH = 80;
 const DEFAULT_STYLE_TITLE_FALLBACK = "Extracted Style";
 const STYLE_EXTRACTION_UNAVAILABLE_MESSAGE = "Style extraction is temporarily unavailable.";

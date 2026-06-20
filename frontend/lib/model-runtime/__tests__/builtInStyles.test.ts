@@ -60,6 +60,19 @@ describe("built-in Styles domain", () => {
     ]);
   });
 
+  it("clamps built-in style prompts to the shared style prompt budget", () => {
+    const [definition] = normalizeBuiltInStyleDefinitions([
+      {
+        styleId: "long-style",
+        title: "Long Style",
+        stylePrompt: "a".repeat(350),
+        previewImageUrl: "/Styles/Long.png",
+      },
+    ]);
+
+    expect(definition?.stylePrompt).toHaveLength(300);
+  });
+
   it("preserves legacy stored style ids that are non-canonical but within budget", () => {
     expect(
       normalizeBuiltInStyleDefinitions([

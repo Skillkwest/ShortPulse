@@ -17,6 +17,7 @@ import {
   resolveUniqueBuiltInStyleId,
   type BuiltInStyleDefinition,
 } from "../../../lib/model-runtime/builtInStyles";
+import { STYLE_PROMPT_MAX_CHARACTERS } from "../../../lib/model-runtime/styleCreatorLimits";
 import {
   CREATE_PULSE_GUIDED_AUTHORING_KIND,
   CREATE_PULSE_SCHEMA_VERSION,
@@ -282,7 +283,7 @@ const buildBuiltInStyleDefinitionsFromDrafts = (
     return {
       styleId,
       title: draft.title.trim(),
-      stylePrompt: draft.stylePrompt.trim(),
+      stylePrompt: draft.stylePrompt.trim().slice(0, STYLE_PROMPT_MAX_CHARACTERS).trim(),
       previewImageUrl: draft.previewImageUrl.trim(),
       referenceImageName: null,
       schemaVersion: BUILT_IN_STYLE_SCHEMA_VERSION,
@@ -1883,13 +1884,21 @@ export function AdminAgentInstructionsSection() {
                         id={`admin-built-in-style-prompt-${draft.localId}`}
                         className={styles.agentInstructionTextarea}
                         value={draft.stylePrompt}
+                        maxLength={STYLE_PROMPT_MAX_CHARACTERS}
                         onChange={(event) =>
-                          updateBuiltInStyleDraft(draft.localId, "stylePrompt", event.target.value)
+                          updateBuiltInStyleDraft(
+                            draft.localId,
+                            "stylePrompt",
+                            event.target.value.slice(0, STYLE_PROMPT_MAX_CHARACTERS)
+                          )
                         }
                         placeholder="Describe the style add-on prompt."
                         spellCheck={false}
                         rows={7}
                       />
+                      <span className={styles.agentInstructionNote}>
+                        {draft.stylePrompt.length} / {STYLE_PROMPT_MAX_CHARACTERS}
+                      </span>
                     </div>
                   </article>
                 );

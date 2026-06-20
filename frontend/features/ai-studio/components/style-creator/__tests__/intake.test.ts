@@ -23,6 +23,7 @@ import {
   canAcceptStyleLibraryImageDropHint,
   clampStylePromptCharacters,
   normalizeStylePromptFallbackText,
+  prepareStyleCreationSource,
   preprocessStyleImageDataUrl,
   resolveDroppedStylePreview,
   resolveStyleSource,
@@ -855,7 +856,30 @@ describe("style-creator prompt sanitization and drop acceptance", () => {
     expect(normalizeStylePromptFallbackText("cinematic dog portrait")).toBe(
       "cinematic dog portrait"
     );
-    expect(normalizeStylePromptFallbackText("a".repeat(1100)).length).toBe(1000);
-    expect(clampStylePromptCharacters("b".repeat(1100)).length).toBe(1000);
+    expect(normalizeStylePromptFallbackText("a".repeat(350)).length).toBe(300);
+    expect(clampStylePromptCharacters("b".repeat(350)).length).toBe(300);
+  });
+
+  it("clamps automatically extracted style prompts before create persistence", () => {
+    const prepared = prepareStyleCreationSource({
+      resolvedSource: {
+        promptText: "",
+        previewImageUrl: "data:image/jpeg;base64,preview",
+      },
+      extractionResult: {
+        outcome: "success",
+        sourceUrlKind: "data",
+        stylePrompt: "c".repeat(350),
+        styleTitle: "Long Extracted Style",
+        attemptCount: 1,
+        probeMs: null,
+        openAiMs: 100,
+        totalMs: 120,
+        modelUsed: "gpt-4.1-mini",
+      },
+    });
+
+    expect(prepared.stylePrompt).toHaveLength(300);
+    expect(prepared.styleTitle).toBe("Long Extracted Style");
   });
 });

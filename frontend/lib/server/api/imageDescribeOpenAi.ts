@@ -3,6 +3,7 @@
  * Encapsulates retries, fallback decisions, and structured style extraction.
  */
 import { fetchOpenAiResponse } from "./openAiCompat";
+import { STYLE_PROMPT_MAX_CHARACTERS } from "../../model-runtime/styleCreatorLimits";
 
 const OPENAI_TIMEOUT_MS = 25000;
 const OPENAI_UPSTREAM_MAX_ATTEMPTS = 2;
@@ -89,7 +90,7 @@ const STYLE_EXTRACTION_JSON_SCHEMA = {
       stylePrompt: {
         type: "string",
         minLength: 1,
-        maxLength: 4000,
+        maxLength: STYLE_PROMPT_MAX_CHARACTERS,
       },
     },
     required: ["styleTitle", "stylePrompt"],
@@ -270,7 +271,7 @@ const requestOpenAiStructuredStyleExtraction = async ({
             content: [
               {
                 type: "input_text",
-                text: "Analyze this image and extract only reusable visual style descriptors. Return the structured result only.",
+                text: `Analyze this image and extract only reusable visual style descriptors. Keep stylePrompt ${STYLE_PROMPT_MAX_CHARACTERS} characters or fewer. Return the structured result only.`,
               },
               {
                 type: "input_image",

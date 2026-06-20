@@ -11,7 +11,7 @@ import {
 
 export const KLING_SINGLE_PROMPT_MAX_CHARACTERS = 2500;
 export const KLING_MULTI_SHOT_PROMPT_MAX_CHARACTERS = 500;
-const KLING_SINGLE_PROMPT_VISIBLE_MAX_CHARACTERS = 2200;
+const KLING_SINGLE_PROMPT_VISIBLE_MAX_CHARACTERS = 2000;
 
 export type HiddenShotModePromptCompositionMode = "single" | "multi";
 
@@ -21,7 +21,7 @@ const HIDDEN_SHOT_MODE_INSTRUCTIONS: Record<HiddenShotModePromptCompositionMode,
   multi:
     "Create this as a multi-shot sequence with multiple distinct shots or scene beats. Use cuts or shot changes as needed to cover the described action while preserving continuity.",
   single:
-    "Create this as one continuous uninterrupted shot only. Do not introduce cuts, shot changes, montage beats, or separate camera setups. If multiple actions are described, stage them inside the same continuous shot.",
+    "Create this as one continuous uninterrupted shot only. Do not add cuts, shot changes, montage beats, separate camera setups, or scene breaks. Stage every described action inside one continuous take.",
 };
 
 const HIDDEN_SHOT_MODE_RESERVED_CHARACTERS = Math.floor(

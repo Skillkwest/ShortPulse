@@ -10,7 +10,7 @@ import {
 } from "../klingShotModePromptComposition";
 
 describe("klingShotModePromptComposition", () => {
-  it("uses the even 2,200 visible prompt limit for both shot modes", () => {
+  it("uses the even 2,000 visible prompt limit for both shot modes", () => {
     const singleComposed = composeHiddenShotModePrompt({ prompt: "A", mode: "single" });
     const multiComposed = composeHiddenShotModePrompt({ prompt: "A", mode: "multi" });
     const singleOverhead = singleComposed.length - 1;
@@ -18,10 +18,10 @@ describe("klingShotModePromptComposition", () => {
     const reservedVisibleLimit =
       KLING_SINGLE_PROMPT_MAX_CHARACTERS - Math.max(singleOverhead, multiOverhead);
 
-    expect(singleOverhead).toBe(214);
+    expect(singleOverhead).toBe(200);
     expect(multiOverhead).toBe(177);
-    expect(reservedVisibleLimit).toBe(2286);
-    expect(resolveKlingSinglePromptVisibleCharacterLimit("single")).toBe(2200);
-    expect(resolveKlingSinglePromptVisibleCharacterLimit("multi")).toBe(2200);
+    expect(reservedVisibleLimit).toBe(2300);
+    expect(resolveKlingSinglePromptVisibleCharacterLimit("single")).toBe(2000);
+    expect(resolveKlingSinglePromptVisibleCharacterLimit("multi")).toBe(2000);
   });
 });

@@ -163,7 +163,7 @@ describe("POST /api/ai/generate-style-preview", () => {
       body: {
         styleId: "style-library-custom-1",
         styleName: "Dream Glow",
-        stylePrompt: "a".repeat(1001),
+        stylePrompt: "a".repeat(301),
       },
     };
     const res = createMockResponse();
@@ -173,7 +173,7 @@ describe("POST /api/ai/generate-style-preview", () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({
       error: "Invalid request",
-      details: "stylePrompt must be 1000 characters or fewer.",
+      details: "stylePrompt must be 300 characters or fewer.",
     });
     expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
     expect(generateFalFluxKleinStylePreviewImageMock).not.toHaveBeenCalled();

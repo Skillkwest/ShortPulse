@@ -116,7 +116,7 @@ describe("StylesLibraryPanel", () => {
       screen.getByRole("button", { name: "Drop reference image or click to upload" })
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Style Prompt")).toHaveValue("");
-    expect(screen.getByText("0 / 1000")).toBeInTheDocument();
+    expect(screen.getByText("0 / 300")).toBeInTheDocument();
   });
 
   it("opens built-in styles read-only without a save action", () => {
@@ -134,17 +134,17 @@ describe("StylesLibraryPanel", () => {
     expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
   });
 
-  it("shows a style prompt character counter and enforces the 1000-char input cap", () => {
+  it("shows a style prompt character counter and enforces the 300-char input cap", () => {
     render(<StylesLibraryPanel styles={createStyles()} />);
     fireEvent.click(screen.getByRole("button", { name: "Add style" }));
 
     const stylePromptInput = screen.getByLabelText("Style Prompt");
-    fireEvent.change(stylePromptInput, { target: { value: "a".repeat(950) } });
-    expect(screen.getByText("950 / 1000")).toHaveClass("is-near-limit");
+    fireEvent.change(stylePromptInput, { target: { value: "a".repeat(285) } });
+    expect(screen.getByText("285 / 300")).toHaveClass("is-near-limit");
 
-    fireEvent.change(stylePromptInput, { target: { value: "a".repeat(1100) } });
-    expect(stylePromptInput).toHaveValue("a".repeat(1000));
-    expect(screen.getByText("1000 / 1000")).toHaveClass("is-limit-reached");
+    fireEvent.change(stylePromptInput, { target: { value: "a".repeat(350) } });
+    expect(stylePromptInput).toHaveValue("a".repeat(300));
+    expect(screen.getByText("300 / 300")).toHaveClass("is-limit-reached");
   });
 
   it("saves a prompt-only new style, then updates it with a generated preview", async () => {

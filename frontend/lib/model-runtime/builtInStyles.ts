@@ -2,6 +2,8 @@
  * Canonical AI Studio built-in Styles catalog domain.
  * Admin writes these definitions globally; user preference storage may only hide them.
  */
+import { STYLE_PROMPT_MAX_CHARACTERS } from "./styleCreatorLimits";
+
 export const BUILT_IN_STYLE_SCHEMA_VERSION = 1;
 export const BUILT_IN_STYLE_ID_MAX_LENGTH = 160;
 
@@ -20,6 +22,13 @@ const normalizeNonEmptyString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const normalized = value.trim();
   return normalized.length > 0 ? normalized : null;
+};
+
+const normalizeStylePrompt = (value: unknown): string | null => {
+  const normalized = normalizeNonEmptyString(value);
+  if (!normalized) return null;
+  if (normalized.length <= STYLE_PROMPT_MAX_CHARACTERS) return normalized;
+  return normalized.slice(0, STYLE_PROMPT_MAX_CHARACTERS).trim();
 };
 
 const trimBuiltInStyleIdToBudget = (value: string, maxLength = BUILT_IN_STYLE_ID_MAX_LENGTH) =>
@@ -144,7 +153,7 @@ const normalizeBuiltInStyleDefinitionRecord = (value: unknown): BuiltInStyleDefi
   if (!value || typeof value !== "object") return null;
   const styleId = normalizeStoredBuiltInStyleId((value as { styleId?: unknown }).styleId);
   const title = normalizeNonEmptyString((value as { title?: unknown }).title);
-  const stylePrompt = normalizeNonEmptyString((value as { stylePrompt?: unknown }).stylePrompt);
+  const stylePrompt = normalizeStylePrompt((value as { stylePrompt?: unknown }).stylePrompt);
   const previewImageUrl = normalizeNonEmptyString(
     (value as { previewImageUrl?: unknown }).previewImageUrl
   );

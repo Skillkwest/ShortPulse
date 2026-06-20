@@ -54,7 +54,7 @@ Rules:
 2. Intake resolves two derived image artifacts from the dropped/uploaded source:
    - Preview image: center-cropped square `512x512` JPEG for style-card rendering.
    - Extraction source: aspect-preserving bounded JPEG (`max(width,height)=1024`, no upscaling) used for `/api/ai/extract-style`.
-   - Style Prompt editor enforces a `1000` character max (live counter + input clamp, near-limit warning at `900`) to keep style add-ons within the runtime prompt budget used by extraction and submit-path append behavior.
+   - Style Prompt editor enforces a `300` character max (live counter + input clamp, near-limit warning at `270`) to keep style add-ons within the runtime prompt budget used by extraction and submit-path append behavior.
 3. Extraction calls `/api/ai/extract-style` through the client helper with the derived extraction image as `imageDataUrl`, one bounded request timeout, and an overall deadline cap.
    - The route owns upstream retry/fallback behavior; the client does not retry extraction requests.
    - Extraction normalization enforces a deterministic leading hard style class descriptor as the first `stylePrompt` token.

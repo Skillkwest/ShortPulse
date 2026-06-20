@@ -4,6 +4,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import extractStyleHandler from "../../pages/api/ai/extract-style";
+import { STYLE_PROMPT_MAX_CHARACTERS } from "../../lib/model-runtime/styleCreatorLimits";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
@@ -179,6 +180,13 @@ describe("POST /api/ai/extract-style", () => {
           type: "json_schema",
           name: "style_extraction",
           strict: true,
+          schema: {
+            properties: {
+              stylePrompt: {
+                maxLength: STYLE_PROMPT_MAX_CHARACTERS,
+              },
+            },
+          },
         },
       },
     });
@@ -193,6 +201,10 @@ describe("POST /api/ai/extract-style", () => {
         detail: "high",
       })
     );
+    expect(requestBody.input[1].content[0]).toEqual({
+      type: "input_text",
+      text: `Analyze this image and extract only reusable visual style descriptors. Keep stylePrompt ${STYLE_PROMPT_MAX_CHARACTERS} characters or fewer. Return the structured result only.`,
+    });
 
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
@@ -210,6 +222,41 @@ describe("POST /api/ai/extract-style", () => {
         },
       })
     );
+  });
+
+  it("clamps over-budget generated style prompts before returning the extraction result", async () => {
+    const fetchMock = fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          output_text: JSON.stringify({
+            styleTitle: "Long Style",
+            stylePrompt: `cinematic editorial photography, ${"a".repeat(360)}`,
+          }),
+          usage: { input_tokens: 11, output_tokens: 14 },
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      )
+    );
+
+    const req = {
+      method: "POST",
+      body: { imageDataUrl: "data:image/jpeg;base64,abc123" },
+    };
+    const res = createMockResponse();
+
+    await extractStyleHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const payload = vi.mocked(res.json).mock.calls[0]?.[0] as {
+      stylePrompt?: unknown;
+    };
+    expect(typeof payload.stylePrompt).toBe("string");
+    expect((payload.stylePrompt as string).length).toBeLessThanOrEqual(STYLE_PROMPT_MAX_CHARACTERS);
+    expect((payload.stylePrompt as string).length).toBe(STYLE_PROMPT_MAX_CHARACTERS);
   });
 
   it("classifies malformed structured output as a deterministic contract failure", async () => {

@@ -12,13 +12,16 @@ const phase1Actions = [
     modelIdSource:
       "Selected model plus create/edit coercion via useAiStudioViewModel and useAiStudioGenerationController",
     pricingDisplaySource:
-      "useAiStudioViewModel -> clientPricingDisplay.ts -> computeCostForModel(...).credits",
+      "useAiStudioViewModel -> canonical billed-credit resolvers for create/edit/video; helper-only flows stay excluded",
     submitPath:
       "useAiStudioGenerationController -> useAiStudioTaskSubmission -> dispatchSubmissionByRoute",
     serverDebitPath:
       "Provider submit routes charge via chargeGenerationRequest on the server",
     references: [
       "frontend/features/ai-studio/hooks/useAiStudioViewModel.ts",
+      "frontend/lib/model-runtime/createImageBilledCredits.ts",
+      "frontend/lib/model-runtime/editImageBilledCredits.ts",
+      "frontend/lib/model-runtime/videoBilledCredits.ts",
       "frontend/features/ai-studio/hooks/useAiStudioGenerationController.ts",
       "frontend/features/ai-studio/hooks/useAiStudioTaskSubmission.ts",
       "frontend/features/ai-studio/hooks/taskSubmission/routeDispatch.ts",

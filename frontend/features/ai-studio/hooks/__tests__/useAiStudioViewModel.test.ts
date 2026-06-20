@@ -17,9 +17,16 @@ import {
 } from "../../logic/inpaintSubmission";
 import { resolveCreateImageBilledCredits } from "../../../../lib/model-runtime/createImageBilledCredits";
 import { resolveEditImageBilledCredits } from "../../../../lib/model-runtime/editImageBilledCredits";
+import { resolveVideoBilledCredits } from "../../../../lib/model-runtime/videoBilledCredits";
 import { useAiStudioViewModel } from "../useAiStudioViewModel";
-import { resolvePricingGridBilledCredits } from "../../../../lib/model-runtime/pricingGridBilledCredits";
-import { getDefaultModelPricingPolicyDocument } from "../../../../lib/model-runtime/pricingPolicy";
+import {
+  resolvePricingGridBilledCredits,
+  resolvePricingGridCostBreakdown,
+} from "../../../../lib/model-runtime/pricingGridBilledCredits";
+import {
+  getDefaultModelPricingPolicyDocument,
+  type ModelPricingPolicyDocument,
+} from "../../../../lib/model-runtime/pricingPolicy";
 import { materializeImageBilledCreditPolicy } from "../../../../lib/model-runtime/materializeImageBilledCreditPolicy";
 import type { CharacterModeInjectionBundle } from "../useAiStudioCharacterModeController";
 import {
@@ -34,6 +41,42 @@ const pricingGridPolicy = materializeImageBilledCreditPolicy({
     creditUsdScale: 30,
   },
 });
+
+const withVideoBilledCreditsOverride = ({
+  modelId,
+  params,
+  credits,
+  pricingPolicy = pricingGridPolicy,
+}: {
+  modelId: string;
+  params: Omit<PricingParams, "modelId">;
+  credits: number;
+  pricingPolicy?: ModelPricingPolicyDocument;
+}): ModelPricingPolicyDocument => {
+  const variantId = resolvePricingGridCostBreakdown({
+    modelId,
+    params,
+    pricingPolicy,
+  })?.variantId;
+  if (!variantId) return pricingPolicy;
+  const currentModelPolicy = pricingPolicy.perModel[modelId] ?? {};
+  return {
+    ...pricingPolicy,
+    perModel: {
+      ...pricingPolicy.perModel,
+      [modelId]: {
+        ...currentModelPolicy,
+        variants: {
+          ...(currentModelPolicy.variants ?? {}),
+          [variantId]: {
+            ...(currentModelPolicy.variants?.[variantId] ?? {}),
+            billedCreditsOverride: credits,
+          },
+        },
+      },
+    },
+  };
+};
 
 const makeCostParamsForModel =
   (modelId: string) =>
@@ -54,6 +97,16 @@ const makeCostParamsForModel =
       ...overrides,
     };
   };
+
+const baseKlingVideoPricingPolicy = withVideoBilledCreditsOverride({
+  modelId: KIE_KLING_30_MODEL_ID,
+  params: makeCostParamsForModel(KIE_KLING_30_MODEL_ID)({
+    durationSeconds: 6,
+    resolution: "1080p",
+    audio: false,
+  }),
+  credits: 42,
+});
 
 const baseInput = {
   mode: "video" as const,
@@ -80,6 +133,7 @@ const baseInput = {
   seedance2ReferenceAudioUrls: [] as string[],
   balanceCredits: 999,
   costParamsForModel: makeCostParamsForModel(KIE_KLING_30_MODEL_ID),
+  pricingPolicy: baseKlingVideoPricingPolicy,
 };
 
 const editInput = {
@@ -106,14 +160,20 @@ describe("useAiStudioViewModel motion guardrails", () => {
       audio: true,
       ...overrides,
     });
-    const expectedCost = resolvePricingGridBilledCredits({
+    const pricingParams = costParamsForModel(modelId, {
+      durationSeconds: 5,
+      resolution: "1080p",
+      audio: false,
+    });
+    const videoPricingPolicy = withVideoBilledCreditsOverride({
       modelId,
-      params: costParamsForModel(modelId, {
-        durationSeconds: 5,
-        resolution: "1080p",
-        audio: false,
-      }),
-      pricingPolicy: pricingGridPolicy,
+      params: pricingParams,
+      credits: 37,
+    });
+    const expectedCost = resolveVideoBilledCredits({
+      modelId,
+      params: pricingParams,
+      pricingPolicy: videoPricingPolicy,
     });
 
     const { result } = renderHook(() =>
@@ -126,7 +186,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
         videoResolution: "1080p",
         videoGenerateAudio: false,
         costParamsForModel,
-        pricingPolicy: pricingGridPolicy,
+        pricingPolicy: videoPricingPolicy,
       })
     );
 
@@ -148,15 +208,27 @@ describe("useAiStudioViewModel motion guardrails", () => {
     });
     const activeDurationSeconds = 5;
     const activeAudio = false;
-    const expectedCost = computeCostForModel(
+    const activePricingParams = costParamsForModel(modelId, {
+      durationSeconds: activeDurationSeconds,
+      resolution: "1080p",
+      audio: activeAudio,
+    });
+    const defaultPricingParams = costParamsForModel(modelId);
+    const videoPricingPolicy = withVideoBilledCreditsOverride({
       modelId,
-      costParamsForModel(modelId, {
-        durationSeconds: activeDurationSeconds,
-        resolution: "1080p",
-        audio: activeAudio,
-      })
-    )?.credits;
-    const defaultCost = computeCostForModel(modelId, costParamsForModel(modelId))?.credits;
+      params: activePricingParams,
+      credits: 37,
+    });
+    const expectedCost = resolveVideoBilledCredits({
+      modelId,
+      params: activePricingParams,
+      pricingPolicy: videoPricingPolicy,
+    });
+    const defaultCost = resolveVideoBilledCredits({
+      modelId,
+      params: defaultPricingParams,
+      pricingPolicy: videoPricingPolicy,
+    });
 
     const { result } = renderHook(() =>
       useAiStudioViewModel({
@@ -171,6 +243,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
         videoDurationSeconds: activeDurationSeconds,
         videoResolution: "1080p",
         videoGenerateAudio: activeAudio,
+        pricingPolicy: videoPricingPolicy,
       })
     );
 
@@ -761,6 +834,15 @@ describe("useAiStudioViewModel motion guardrails", () => {
   });
 
   it("allows standard video generation without a frame image so the lane can resolve to text", () => {
+    const videoPricingPolicy = withVideoBilledCreditsOverride({
+      modelId: KIE_VEO_31_FAST_I2V_MODEL_ID,
+      params: makeCostParamsForModel(KIE_VEO_31_FAST_I2V_MODEL_ID)({
+        durationSeconds: 6,
+        resolution: "1080p",
+        audio: false,
+      }),
+      credits: 46,
+    });
     const { result } = renderHook(() =>
       useAiStudioViewModel({
         ...baseInput,
@@ -769,6 +851,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
         referenceImageUrl: null,
         motionReferenceVideoUrl: null,
         costParamsForModel: makeCostParamsForModel(KIE_VEO_31_FAST_I2V_MODEL_ID),
+        pricingPolicy: videoPricingPolicy,
       })
     );
 
@@ -876,14 +959,21 @@ describe("useAiStudioViewModel motion guardrails", () => {
   });
 
   it("shows the billed cost for Kling motion mode when both motion inputs are present", () => {
-    const expectedCost = computeCostForModel(
-      KIE_KLING_30_MODEL_ID,
-      makeCostParamsForModel(KIE_KLING_30_MODEL_ID)({
-        durationSeconds: 6,
-        resolution: "1080p",
-        audio: false,
-      })
-    )?.credits;
+    const pricingParams = makeCostParamsForModel(KIE_KLING_30_MODEL_ID)({
+      durationSeconds: 6,
+      resolution: "1080p",
+      audio: false,
+    });
+    const videoPricingPolicy = withVideoBilledCreditsOverride({
+      modelId: KIE_KLING_30_MODEL_ID,
+      params: pricingParams,
+      credits: 42,
+    });
+    const expectedCost = resolveVideoBilledCredits({
+      modelId: KIE_KLING_30_MODEL_ID,
+      params: pricingParams,
+      pricingPolicy: videoPricingPolicy,
+    });
     const { result } = renderHook(() =>
       useAiStudioViewModel({
         ...baseInput,
@@ -891,6 +981,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
         referenceImageUrl: "https://example.com/character.png",
         motionReferenceVideoUrl: "https://example.com/motion.mp4",
         costParamsForModel: makeCostParamsForModel(KIE_KLING_30_MODEL_ID),
+        pricingPolicy: videoPricingPolicy,
       })
     );
 
@@ -937,6 +1028,15 @@ describe("useAiStudioViewModel motion guardrails", () => {
   });
 
   it("allows Kie Veo with a single frame because the lane resolves to single-image", () => {
+    const videoPricingPolicy = withVideoBilledCreditsOverride({
+      modelId: KIE_VEO_31_FAST_I2V_MODEL_ID,
+      params: makeCostParamsForModel(KIE_VEO_31_FAST_I2V_MODEL_ID)({
+        durationSeconds: 6,
+        resolution: "1080p",
+        audio: false,
+      }),
+      credits: 46,
+    });
     const { result } = renderHook(() =>
       useAiStudioViewModel({
         ...baseInput,
@@ -945,6 +1045,8 @@ describe("useAiStudioViewModel motion guardrails", () => {
         referenceImageUrl: "https://example.com/first.png",
         extraImageUrls: [null, null, null],
         motionReferenceVideoUrl: null,
+        costParamsForModel: makeCostParamsForModel(KIE_VEO_31_FAST_I2V_MODEL_ID),
+        pricingPolicy: videoPricingPolicy,
       })
     );
 
@@ -953,6 +1055,15 @@ describe("useAiStudioViewModel motion guardrails", () => {
   });
 
   it("allows standard video generation without a reference for text-to-video models", () => {
+    const videoPricingPolicy = withVideoBilledCreditsOverride({
+      modelId: KIE_VEO_31_FAST_I2V_MODEL_ID,
+      params: makeCostParamsForModel(KIE_VEO_31_FAST_I2V_MODEL_ID)({
+        durationSeconds: 6,
+        resolution: "1080p",
+        audio: false,
+      }),
+      credits: 46,
+    });
     const { result } = renderHook(() =>
       useAiStudioViewModel({
         ...baseInput,
@@ -961,6 +1072,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
         referenceImageUrl: null,
         motionReferenceVideoUrl: null,
         costParamsForModel: makeCostParamsForModel(KIE_VEO_31_FAST_I2V_MODEL_ID),
+        pricingPolicy: videoPricingPolicy,
       })
     );
 
@@ -980,14 +1092,21 @@ describe("useAiStudioViewModel motion guardrails", () => {
       audio: true,
       ...overrides,
     });
-    const expectedCost = computeCostForModel(
-      KIE_SEEDANCE_2_MODEL_ID,
-      costParamsForModel(KIE_SEEDANCE_2_MODEL_ID, {
-        durationSeconds: 5,
-        resolution: "1080p",
-        inputVideoCount: 0,
-      })
-    )?.credits;
+    const pricingParams = costParamsForModel(KIE_SEEDANCE_2_MODEL_ID, {
+      durationSeconds: 5,
+      resolution: "1080p",
+      inputVideoCount: 0,
+    });
+    const videoPricingPolicy = withVideoBilledCreditsOverride({
+      modelId: KIE_SEEDANCE_2_MODEL_ID,
+      params: pricingParams,
+      credits: 43,
+    });
+    const expectedCost = resolveVideoBilledCredits({
+      modelId: KIE_SEEDANCE_2_MODEL_ID,
+      params: pricingParams,
+      pricingPolicy: videoPricingPolicy,
+    });
 
     const { result } = renderHook(() =>
       useAiStudioViewModel({
@@ -1002,6 +1121,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
         videoGenerateAudio: true,
         seedance2InputMode: "first-last",
         costParamsForModel,
+        pricingPolicy: videoPricingPolicy,
       })
     );
 
@@ -1020,14 +1140,21 @@ describe("useAiStudioViewModel motion guardrails", () => {
       audio: false,
       ...overrides,
     });
-    const expectedCost = computeCostForModel(
-      KIE_SEEDANCE_2_FAST_MODEL_ID,
-      costParamsForModel(KIE_SEEDANCE_2_FAST_MODEL_ID, {
-        durationSeconds: 10,
-        resolution: "720p",
-        inputVideoCount: 1,
-      })
-    )?.credits;
+    const pricingParams = costParamsForModel(KIE_SEEDANCE_2_FAST_MODEL_ID, {
+      durationSeconds: 10,
+      resolution: "720p",
+      inputVideoCount: 1,
+    });
+    const videoPricingPolicy = withVideoBilledCreditsOverride({
+      modelId: KIE_SEEDANCE_2_FAST_MODEL_ID,
+      params: pricingParams,
+      credits: 44,
+    });
+    const expectedCost = resolveVideoBilledCredits({
+      modelId: KIE_SEEDANCE_2_FAST_MODEL_ID,
+      params: pricingParams,
+      pricingPolicy: videoPricingPolicy,
+    });
 
     const { result } = renderHook(() =>
       useAiStudioViewModel({
@@ -1042,6 +1169,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
         seedance2InputMode: "multimodal",
         seedance2ReferenceVideoUrls: ["https://example.com/reference.mp4"],
         costParamsForModel,
+        pricingPolicy: videoPricingPolicy,
       })
     );
 
@@ -1069,6 +1197,16 @@ describe("useAiStudioViewModel motion guardrails", () => {
   });
 
   it("does not require custom shot prompts for stale Seedance 2 custom mode", () => {
+    const videoPricingPolicy = withVideoBilledCreditsOverride({
+      modelId: KIE_SEEDANCE_2_MODEL_ID,
+      params: makeCostParamsForModel(KIE_SEEDANCE_2_MODEL_ID)({
+        durationSeconds: 6,
+        resolution: "1080p",
+        audio: false,
+        inputVideoCount: 0,
+      }),
+      credits: 43,
+    });
     const { result } = renderHook(() =>
       useAiStudioViewModel({
         ...baseInput,
@@ -1079,6 +1217,8 @@ describe("useAiStudioViewModel motion guardrails", () => {
         seedance2InputMode: "text",
         klingWorkflowMode: "custom",
         klingMultiPrompts: [],
+        costParamsForModel: makeCostParamsForModel(KIE_SEEDANCE_2_MODEL_ID),
+        pricingPolicy: videoPricingPolicy,
       })
     );
 
@@ -1087,6 +1227,16 @@ describe("useAiStudioViewModel motion guardrails", () => {
   });
 
   it("allows Seedance 2.0 Fast multimodal mode to override stale frame images", () => {
+    const videoPricingPolicy = withVideoBilledCreditsOverride({
+      modelId: KIE_SEEDANCE_2_FAST_MODEL_ID,
+      params: makeCostParamsForModel(KIE_SEEDANCE_2_FAST_MODEL_ID)({
+        durationSeconds: 6,
+        resolution: "1080p",
+        audio: false,
+        inputVideoCount: 1,
+      }),
+      credits: 44,
+    });
     const { result } = renderHook(() =>
       useAiStudioViewModel({
         ...baseInput,
@@ -1096,6 +1246,8 @@ describe("useAiStudioViewModel motion guardrails", () => {
         motionReferenceVideoUrl: null,
         seedance2InputMode: "multimodal",
         seedance2ReferenceVideoUrls: ["https://example.com/reference.mp4"],
+        costParamsForModel: makeCostParamsForModel(KIE_SEEDANCE_2_FAST_MODEL_ID),
+        pricingPolicy: videoPricingPolicy,
       })
     );
 
@@ -1125,6 +1277,16 @@ describe("useAiStudioViewModel motion guardrails", () => {
   });
 
   it("treats linked Seedance assets as valid multimodal references", () => {
+    const videoPricingPolicy = withVideoBilledCreditsOverride({
+      modelId: KIE_SEEDANCE_2_MODEL_ID,
+      params: makeCostParamsForModel(KIE_SEEDANCE_2_MODEL_ID)({
+        durationSeconds: 6,
+        resolution: "1080p",
+        audio: false,
+        inputVideoCount: 0,
+      }),
+      credits: 43,
+    });
     const { result } = renderHook(() =>
       useAiStudioViewModel({
         ...baseInput,
@@ -1143,6 +1305,8 @@ describe("useAiStudioViewModel motion guardrails", () => {
             videoUrl: "",
           },
         ],
+        costParamsForModel: makeCostParamsForModel(KIE_SEEDANCE_2_MODEL_ID),
+        pricingPolicy: videoPricingPolicy,
       })
     );
 
@@ -1152,6 +1316,16 @@ describe("useAiStudioViewModel motion guardrails", () => {
   });
 
   it("treats direct Seedance image-reference slots as valid multimodal references", () => {
+    const videoPricingPolicy = withVideoBilledCreditsOverride({
+      modelId: KIE_SEEDANCE_2_MODEL_ID,
+      params: makeCostParamsForModel(KIE_SEEDANCE_2_MODEL_ID)({
+        durationSeconds: 6,
+        resolution: "1080p",
+        audio: false,
+        inputVideoCount: 0,
+      }),
+      credits: 43,
+    });
     const { result } = renderHook(() =>
       useAiStudioViewModel({
         ...baseInput,
@@ -1177,6 +1351,8 @@ describe("useAiStudioViewModel motion guardrails", () => {
             videoUrl: "",
           },
         ],
+        costParamsForModel: makeCostParamsForModel(KIE_SEEDANCE_2_MODEL_ID),
+        pricingPolicy: videoPricingPolicy,
       })
     );
 
@@ -1186,6 +1362,16 @@ describe("useAiStudioViewModel motion guardrails", () => {
   });
 
   it("allows Seedance linked assets to override stale frame images", () => {
+    const videoPricingPolicy = withVideoBilledCreditsOverride({
+      modelId: KIE_SEEDANCE_2_FAST_MODEL_ID,
+      params: makeCostParamsForModel(KIE_SEEDANCE_2_FAST_MODEL_ID)({
+        durationSeconds: 6,
+        resolution: "1080p",
+        audio: false,
+        inputVideoCount: 1,
+      }),
+      credits: 44,
+    });
     const { result } = renderHook(() =>
       useAiStudioViewModel({
         ...baseInput,
@@ -1204,6 +1390,8 @@ describe("useAiStudioViewModel motion guardrails", () => {
             videoUrl: "https://example.com/steamtrain.mp4",
           },
         ],
+        costParamsForModel: makeCostParamsForModel(KIE_SEEDANCE_2_FAST_MODEL_ID),
+        pricingPolicy: videoPricingPolicy,
       })
     );
 
@@ -1215,14 +1403,20 @@ describe("useAiStudioViewModel motion guardrails", () => {
 
 describe("useAiStudioViewModel lip sync guardrails", () => {
   it("prices Lip Sync against OmniHuman audio duration when the selected model is stale", () => {
-    const expectedCost = resolvePricingGridBilledCredits({
+    const pricingParams = makeCostParamsForModel(FAL_OMNIHUMAN_V15_MODEL_ID)({
+      durationSeconds: 12,
+      resolution: "720p",
+      audio: true,
+    });
+    const videoPricingPolicy = withVideoBilledCreditsOverride({
       modelId: FAL_OMNIHUMAN_V15_MODEL_ID,
-      params: makeCostParamsForModel(FAL_OMNIHUMAN_V15_MODEL_ID)({
-        durationSeconds: 12,
-        resolution: "720p",
-        audio: true,
-      }),
-      pricingPolicy: pricingGridPolicy,
+      params: pricingParams,
+      credits: 45,
+    });
+    const expectedCost = resolveVideoBilledCredits({
+      modelId: FAL_OMNIHUMAN_V15_MODEL_ID,
+      params: pricingParams,
+      pricingPolicy: videoPricingPolicy,
     });
 
     const { result } = renderHook(() =>
@@ -1238,7 +1432,7 @@ describe("useAiStudioViewModel lip sync guardrails", () => {
           durationMs: 12_400,
           sourceKind: "library",
         }),
-        pricingPolicy: pricingGridPolicy,
+        pricingPolicy: videoPricingPolicy,
       })
     );
 
@@ -1294,6 +1488,15 @@ describe("useAiStudioViewModel lip sync guardrails", () => {
   });
 
   it("allows generation when character reference and voice audio are present", () => {
+    const videoPricingPolicy = withVideoBilledCreditsOverride({
+      modelId: FAL_OMNIHUMAN_V15_MODEL_ID,
+      params: makeCostParamsForModel(FAL_OMNIHUMAN_V15_MODEL_ID)({
+        durationSeconds: 12.4,
+        resolution: "1080p",
+        audio: true,
+      }),
+      credits: 45,
+    });
     const { result } = renderHook(() =>
       useAiStudioViewModel({
         ...baseInput,
@@ -1306,6 +1509,7 @@ describe("useAiStudioViewModel lip sync guardrails", () => {
           durationMs: 12_400,
           sourceKind: "library",
         }),
+        pricingPolicy: videoPricingPolicy,
       })
     );
 
@@ -1337,6 +1541,15 @@ describe("useAiStudioViewModel lip sync guardrails", () => {
   });
 
   it("allows 720p Lip Sync for voice audio under 60 seconds", () => {
+    const videoPricingPolicy = withVideoBilledCreditsOverride({
+      modelId: FAL_OMNIHUMAN_V15_MODEL_ID,
+      params: makeCostParamsForModel(FAL_OMNIHUMAN_V15_MODEL_ID)({
+        durationSeconds: 45,
+        resolution: "720p",
+        audio: true,
+      }),
+      credits: 45,
+    });
     const { result } = renderHook(() =>
       useAiStudioViewModel({
         ...baseInput,
@@ -1350,6 +1563,7 @@ describe("useAiStudioViewModel lip sync guardrails", () => {
           durationMs: 45_000,
           sourceKind: "library",
         }),
+        pricingPolicy: videoPricingPolicy,
       })
     );
 

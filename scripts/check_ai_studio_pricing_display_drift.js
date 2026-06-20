@@ -31,9 +31,20 @@ const fileChecks = [
     requireIncludes: [
       "resolveClientBilledCredits",
       "resolveClientPricingBreakdown",
+      "resolveVideoBilledCreditLookup",
+      "resolveVideoBilledCredits",
       "pricingPolicyReady: !isPricingPolicyUnavailable",
     ],
     forbidIncludes: ["computeCostForModel("],
+  },
+  {
+    file: "frontend/lib/model-runtime/videoBilledCredits.ts",
+    label: "canonical video billed-credit resolver",
+    requireIncludes: [
+      "supportsCanonicalVideoBilledPricing",
+      "resolveVideoBilledCreditLookup",
+      "requireExplicitBilledCreditsOverride: true",
+    ],
   },
   {
     file: "frontend/features/ai-studio/hooks/useAiStudioCreatePanelRuntime.ts",
@@ -101,8 +112,10 @@ const fileChecks = [
   },
   {
     file: "frontend/lib/server/api/generationBilling.ts",
-    label: "generation billing audio path",
+    label: "generation billing canonical pricing path",
     requireIncludes: [
+      "resolveVideoBilledCreditLookup",
+      "api.generation_billing_missing_canonical_video_price",
       "const isAudioBillingPath = ({",
       "api.generation_billing_missing_canonical_audio_price",
     ],

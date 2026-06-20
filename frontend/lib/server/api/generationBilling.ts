@@ -13,6 +13,7 @@ import {
   supportsCanonicalEditImageBilledPricing,
 } from "../../model-runtime/editImageBilledCredits";
 import { resolvePricingGridCostBreakdown } from "../../model-runtime/pricingGridBilledCredits";
+import { resolveVideoBilledCreditLookup } from "../../model-runtime/videoBilledCredits";
 import { materializeImageBilledCreditPolicy } from "../../model-runtime/materializeImageBilledCreditPolicy";
 import { requireApiUser } from "./auth";
 import { resolveBillingConcurrencyEntitlement } from "./billingConcurrencyEntitlements";
@@ -296,15 +297,16 @@ export const chargeGenerationRequest = async ({
           pricingPolicy: effectivePricingPolicy,
         })
       : null;
-  const videoPricingBreakdown = isVideoBillingPath({
+  const videoPricingLookup = isVideoBillingPath({
     shortpulseContext,
   })
-    ? resolvePricingGridCostBreakdown({
+    ? resolveVideoBilledCreditLookup({
         modelId,
         params: pricingParams,
         pricingPolicy: effectivePricingPolicy,
       })
     : null;
+  const videoPricingBreakdown = videoPricingLookup?.breakdown ?? null;
   const audioPricingBreakdown = isAudioBillingPath({
     shortpulseContext,
   })
@@ -320,7 +322,10 @@ export const chargeGenerationRequest = async ({
     videoPricingBreakdown ??
     audioPricingBreakdown;
   const canonicalPricingParams =
-    createImagePricingLookup?.params ?? editImagePricingLookup?.params ?? pricingParams;
+    createImagePricingLookup?.params ??
+    editImagePricingLookup?.params ??
+    videoPricingLookup?.params ??
+    pricingParams;
   const requiresCanonicalEditImagePricing =
     isEditImageBillingPath({
       shortpulseContext,

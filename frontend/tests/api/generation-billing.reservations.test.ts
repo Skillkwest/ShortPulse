@@ -1,9 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { computeCostForModel } from "../../lib/model-runtime/pricing";
-import { getDefaultModelPricingPolicyDocument } from "../../lib/model-runtime/pricingPolicy";
+import {
+  getDefaultModelPricingPolicyDocument,
+  type ModelPricingPolicyDocument,
+} from "../../lib/model-runtime/pricingPolicy";
 import { resolveCreateImageBilledCreditLookup } from "../../lib/model-runtime/createImageBilledCredits";
 import { resolveEditImageBilledCreditLookup } from "../../lib/model-runtime/editImageBilledCredits";
 import { resolvePricingGridCostBreakdown } from "../../lib/model-runtime/pricingGridBilledCredits";
+import { resolveVideoBilledCreditLookup } from "../../lib/model-runtime/videoBilledCredits";
 import { materializeImageBilledCreditPolicy } from "../../lib/model-runtime/materializeImageBilledCreditPolicy";
 import {
   KIE_SEEDANCE_2_FAST_MODEL_ID,
@@ -54,6 +58,42 @@ const createMockResponse = () => ({
   json: vi.fn().mockReturnThis(),
   setHeader: vi.fn().mockReturnThis(),
 });
+
+const withVideoBilledCreditsOverride = ({
+  modelId,
+  params,
+  credits,
+  policy = getDefaultModelPricingPolicyDocument(),
+}: {
+  modelId: string;
+  params: ReturnType<typeof buildPricingParams>;
+  credits: number;
+  policy?: ModelPricingPolicyDocument;
+}): ModelPricingPolicyDocument => {
+  const variantId = resolvePricingGridCostBreakdown({
+    modelId,
+    params,
+    pricingPolicy: policy,
+  })?.variantId;
+  if (!variantId) return policy;
+  const currentModelPolicy = policy.perModel[modelId] ?? {};
+  return {
+    ...policy,
+    perModel: {
+      ...policy.perModel,
+      [modelId]: {
+        ...currentModelPolicy,
+        variants: {
+          ...(currentModelPolicy.variants ?? {}),
+          [variantId]: {
+            ...(currentModelPolicy.variants?.[variantId] ?? {}),
+            billedCreditsOverride: credits,
+          },
+        },
+      },
+    },
+  };
+};
 
 describe("generationBilling reservation RPC handling", () => {
   beforeEach(() => {
@@ -569,7 +609,7 @@ describe("generationBilling reservation RPC handling", () => {
     );
   });
 
-  it("reserves video requests from the pricing-grid resolver when shortpulse_context marks video billing", async () => {
+  it("reserves video requests from the explicit admin billed row when shortpulse_context marks video billing", async () => {
     const rpcMock = vi.fn().mockResolvedValueOnce({
       data: [{ status: "reserved", source_ref: "req-video-grid", message: null }],
       error: null,
@@ -605,6 +645,21 @@ describe("generationBilling reservation RPC handling", () => {
       },
     };
 
+    const expectedPricingParams = buildPricingParams(KIE_SEEDANCE_2_FAST_MODEL_ID, payload);
+    const explicitVideoPolicy = withVideoBilledCreditsOverride({
+      modelId: KIE_SEEDANCE_2_FAST_MODEL_ID,
+      params: expectedPricingParams,
+      credits: 24,
+    });
+    resolveRuntimeModelPricingPolicyMock.mockResolvedValueOnce({
+      policy: explicitVideoPolicy,
+      activePolicyVersion: null,
+      activePolicyVersionId: null,
+      source: "control_plane",
+      updatedAt: "2026-04-29T00:00:00.000Z",
+      updatedByEmail: "pricing@example.com",
+    });
+
     const charge = await chargeGenerationRequest({
       req: req as never,
       res: res as never,
@@ -617,12 +672,11 @@ describe("generationBilling reservation RPC handling", () => {
       },
     });
 
-    const expectedPricingParams = buildPricingParams(KIE_SEEDANCE_2_FAST_MODEL_ID, payload);
-    const expectedBreakdown = resolvePricingGridCostBreakdown({
+    const expectedBreakdown = resolveVideoBilledCreditLookup({
       modelId: KIE_SEEDANCE_2_FAST_MODEL_ID,
       params: expectedPricingParams,
-      pricingPolicy: materializeImageBilledCreditPolicy(getDefaultModelPricingPolicyDocument()),
-    });
+      pricingPolicy: explicitVideoPolicy,
+    }).breakdown;
 
     expect(charge).not.toBeNull();
     expect(expectedBreakdown).not.toBeNull();
@@ -642,6 +696,63 @@ describe("generationBilling reservation RPC handling", () => {
       })
     );
     expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when a canonical video billed row is missing", async () => {
+    const rpcMock = vi.fn();
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
+
+    const req = {
+      headers: {
+        "x-shortpulse-request-id": "req-video-missing-row",
+      },
+      url: "/api/fal/kie-seedance-2-fast-submit",
+      body: {
+        shortpulse_context: {
+          selected_tool: "video",
+          mode: "video",
+          displayed_billed_credits: 20,
+          pricing_display_source: "pricing_grid",
+          pricing_policy_ready: true,
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    const charge = await chargeGenerationRequest({
+      req: req as never,
+      res: res as never,
+      modelId: KIE_SEEDANCE_2_FAST_MODEL_ID,
+      payload: {
+        prompt: "product hero turntable shot",
+        duration: 10,
+        resolution: "720p",
+        aspect_ratio: "1:1",
+        generate_audio: false,
+        shortpulse_context: {
+          selected_tool: "video",
+          mode: "video",
+        },
+      },
+      reason: "Seedance 2 Fast video generation",
+      shortpulseContext: {
+        selected_tool: "video",
+        mode: "video",
+      },
+    });
+
+    expect(charge).toBeNull();
+    expect(rpcMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Pricing is unavailable for this configuration.",
+    });
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "api.generation_billing_missing_canonical_video_price",
+        statusCode: 500,
+      })
+    );
   });
 
   it("reserves audio requests from the pricing-grid resolver when shortpulse_context marks sound billing", async () => {

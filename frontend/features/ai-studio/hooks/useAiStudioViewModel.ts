@@ -14,9 +14,10 @@ import {
   supportsCanonicalEditImageBilledPricing,
 } from "../../../lib/model-runtime/editImageBilledCredits";
 import {
-  resolvePricingGridBilledCredits,
-  resolvePricingGridCostBreakdown,
-} from "../../../lib/model-runtime/pricingGridBilledCredits";
+  resolveVideoBilledCreditLookup,
+  resolveVideoBilledCredits,
+  supportsCanonicalVideoBilledPricing,
+} from "../../../lib/model-runtime/videoBilledCredits";
 import { getModelConfig } from "../logic/pricing";
 import type { PricingParams } from "../logic/pricingTypes";
 import { estimateDescribeTokens, estimatePromptTokens } from "../logic/tokenEstimates";
@@ -286,6 +287,7 @@ export const useAiStudioViewModel = ({
   const canUseStandardCreatePricingGrid =
     isCreateWorkflowSelected && Boolean(model) && !isPricingPolicyUnavailable;
   const canResolveStandardEditPricingGrid = isEditWorkflowSelected && !isPricingPolicyUnavailable;
+  const canResolveVideoPricingGrid = isVideoTool && !isPricingPolicyUnavailable;
   const canUseCurrentEditPricingGrid =
     canResolveStandardEditPricingGrid &&
     normalizedEditSubmitIntent === "standard" &&
@@ -367,6 +369,23 @@ export const useAiStudioViewModel = ({
       pricingPolicy,
     ]
   );
+  const currentVideoPricingLookup = useMemo(
+    () =>
+      canResolveVideoPricingGrid && effectiveVideoPricingModelId
+        ? resolveVideoBilledCreditLookup({
+            modelId: effectiveVideoPricingModelId,
+            params: costParamsForModel(effectiveVideoPricingModelId, videoPricingParams),
+            pricingPolicy,
+          })
+        : null,
+    [
+      canResolveVideoPricingGrid,
+      costParamsForModel,
+      effectiveVideoPricingModelId,
+      pricingPolicy,
+      videoPricingParams,
+    ]
+  );
 
   const estimatedTextTokens = useMemo(() => estimatePromptTokens(prompt), [prompt]);
   const estimatedDescribeTokens = useMemo(
@@ -390,11 +409,12 @@ export const useAiStudioViewModel = ({
       }
       if (mode === "video") {
         if (!model) return null;
-        return resolvePricingGridCostBreakdown({
+        if (isPricingPolicyUnavailable) return null;
+        return resolveVideoBilledCreditLookup({
           modelId: model,
           params: costParamsForModel(model, { durationSeconds: getDefaultDurationSeconds(model) }),
           pricingPolicy,
-        });
+        }).breakdown;
       }
       if (mode === "text") {
         if (isDescribeMode) {
@@ -433,11 +453,7 @@ export const useAiStudioViewModel = ({
 
     if (isVideoTool) {
       if (!effectiveVideoPricingModelId) return null;
-      return resolvePricingGridCostBreakdown({
-        modelId: effectiveVideoPricingModelId,
-        params: costParamsForModel(effectiveVideoPricingModelId, videoPricingParams),
-        pricingPolicy,
-      });
+      return currentVideoPricingLookup?.breakdown ?? null;
     }
 
     return null;
@@ -459,8 +475,8 @@ export const useAiStudioViewModel = ({
     isVideoTool,
     currentCreatePricingLookup,
     currentEditPricingLookup,
+    currentVideoPricingLookup,
     pricingPolicy,
-    videoPricingParams,
     pricingImageResolution,
     isPricingPolicyUnavailable,
   ]);
@@ -490,6 +506,15 @@ export const useAiStudioViewModel = ({
       return resolveEditImageBilledCredits({
         modelId: effectiveEditSubmitModelId,
         params: buildEditPricingParams(pricingImageResolution),
+        pricingPolicy,
+      });
+    }
+    if (isVideoTool) {
+      const pricingModelId = effectiveVideoPricingModelId ?? effectiveEditSubmitModelId;
+      if (!pricingModelId || isPricingPolicyUnavailable) return null;
+      return resolveVideoBilledCredits({
+        modelId: pricingModelId,
+        params: costParamsForModel(pricingModelId, videoPricingParams),
         pricingPolicy,
       });
     }
@@ -569,8 +594,8 @@ export const useAiStudioViewModel = ({
           currentModel: modelIdForChip,
           lane: resolvedVideoLane,
         });
-        if (!pricingModelId) return null;
-        return resolvePricingGridBilledCredits({
+        if (!pricingModelId || isPricingPolicyUnavailable) return null;
+        return resolveVideoBilledCredits({
           modelId: pricingModelId,
           params: costParamsForModel(pricingModelId, videoPricingParams),
           pricingPolicy,
@@ -749,6 +774,19 @@ export const useAiStudioViewModel = ({
       ? "Pricing is unavailable for this configuration. Retry in a moment."
       : null;
   }, [canUseCurrentEditPricingGrid, currentCostCredits]);
+  const missingCanonicalVideoPricingAuthorityGuardrail = useMemo(() => {
+    if (!isVideoTool || !isPricingPolicyUnavailable) return null;
+    return supportsCanonicalVideoBilledPricing(effectiveVideoPricingModelId)
+      ? "Unable to load pricing. Retry in a moment."
+      : null;
+  }, [effectiveVideoPricingModelId, isPricingPolicyUnavailable, isVideoTool]);
+  const missingCanonicalVideoBilledCreditsGuardrail = useMemo(() => {
+    if (!canResolveVideoPricingGrid) return null;
+    return supportsCanonicalVideoBilledPricing(effectiveVideoPricingModelId) &&
+      currentCostCredits == null
+      ? "Pricing is unavailable for this configuration. Retry in a moment."
+      : null;
+  }, [canResolveVideoPricingGrid, currentCostCredits, effectiveVideoPricingModelId]);
   const hasSufficientCreditsForPromptReferenceGenerate =
     balanceCredits == null || promptReferenceGenerateCostCredits == null
       ? true
@@ -863,18 +901,6 @@ export const useAiStudioViewModel = ({
     ) {
       return "Add at least one custom Kling shot prompt before generating.";
     }
-    if (missingCanonicalCreatePricingAuthorityGuardrail) {
-      return missingCanonicalCreatePricingAuthorityGuardrail;
-    }
-    if (missingCanonicalCreateBilledCreditsGuardrail) {
-      return missingCanonicalCreateBilledCreditsGuardrail;
-    }
-    if (missingCanonicalEditPricingAuthorityGuardrail) {
-      return missingCanonicalEditPricingAuthorityGuardrail;
-    }
-    if (missingCanonicalEditBilledCreditsGuardrail) {
-      return missingCanonicalEditBilledCreditsGuardrail;
-    }
     if (isVideoTool && isSeedance2Model) {
       if (seedance2UsesMultimodalReferences) {
         if (!hasSeedance2MultimodalReferences && !hasSeedance2LinkedAssetReferences) {
@@ -895,6 +921,24 @@ export const useAiStudioViewModel = ({
       ) {
         return "Add both first and last frame images before generating with Seedance 2.0.";
       }
+    }
+    if (missingCanonicalCreatePricingAuthorityGuardrail) {
+      return missingCanonicalCreatePricingAuthorityGuardrail;
+    }
+    if (missingCanonicalCreateBilledCreditsGuardrail) {
+      return missingCanonicalCreateBilledCreditsGuardrail;
+    }
+    if (missingCanonicalEditPricingAuthorityGuardrail) {
+      return missingCanonicalEditPricingAuthorityGuardrail;
+    }
+    if (missingCanonicalEditBilledCreditsGuardrail) {
+      return missingCanonicalEditBilledCreditsGuardrail;
+    }
+    if (missingCanonicalVideoPricingAuthorityGuardrail) {
+      return missingCanonicalVideoPricingAuthorityGuardrail;
+    }
+    if (missingCanonicalVideoBilledCreditsGuardrail) {
+      return missingCanonicalVideoBilledCreditsGuardrail;
     }
     return null;
   }, [
@@ -926,6 +970,8 @@ export const useAiStudioViewModel = ({
     missingCanonicalCreateBilledCreditsGuardrail,
     missingCanonicalEditPricingAuthorityGuardrail,
     missingCanonicalEditBilledCreditsGuardrail,
+    missingCanonicalVideoPricingAuthorityGuardrail,
+    missingCanonicalVideoBilledCreditsGuardrail,
   ]);
 
   const isGenerateDisabled = Boolean(generationGuardrail) || creditStateBlocksGenerate;

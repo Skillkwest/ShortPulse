@@ -10,6 +10,40 @@ const UNTITLED_TRACK_TITLE = "Untitled Track";
 const UNTITLED_SOUND_EFFECT_TITLE = "Untitled Effect";
 const UNTITLED_VOICEOVER_TITLE = "Voiceover";
 const UNTITLED_VOICE_CHANGER_TITLE = "Voice Take";
+const AUDIO_REFERENCE_TITLE_VARIANTS = [
+  "Amber",
+  "Bright",
+  "Clear",
+  "Coastal",
+  "Cosmic",
+  "Crimson",
+  "Deep",
+  "Electric",
+  "Ember",
+  "Fresh",
+  "Golden",
+  "Hidden",
+  "Lunar",
+  "Midnight",
+  "Modern",
+  "Neon",
+  "Northern",
+  "Open",
+  "Quiet",
+  "Radiant",
+  "Rapid",
+  "River",
+  "Silver",
+  "Soft",
+  "Solar",
+  "Steady",
+  "Urban",
+  "Velvet",
+  "Warm",
+  "Wild",
+] as const;
+export const GENERATED_AUDIO_REFERENCE_TITLE_VARIANT_COUNT = AUDIO_REFERENCE_TITLE_VARIANTS.length;
+const AUDIO_REFERENCE_TITLE_VARIANT_SET = new Set<string>(AUDIO_REFERENCE_TITLE_VARIANTS);
 
 export type AudioReferenceTitleSourceMode =
   | "music"
@@ -62,6 +96,14 @@ const normalizeString = (value: unknown): string | null => {
   return trimmed.length > 0 ? trimmed : null;
 };
 
+const hashReferenceTitleSeed = (seed: string): number => {
+  let hash = 5381;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash = ((hash << 5) + hash) ^ seed.charCodeAt(index);
+  }
+  return hash >>> 0;
+};
+
 export const clampGeneratedSongTitle = (
   value: unknown,
   options: { maxWords?: number } = {}
@@ -82,14 +124,42 @@ export const clampGeneratedSongTitle = (
 
 export const clampGeneratedAudioReferenceTitle = clampGeneratedSongTitle;
 
-const buildReferenceTitleMark = (seed: string | null | undefined): string | null => {
+export const buildAudioReferenceTitleVariant = (
+  seed: string | null | undefined,
+  variantOffset = 0
+): string | null => {
   const normalized = normalizeString(seed);
   if (!normalized) return null;
-  let hash = 5381;
-  for (let index = 0; index < normalized.length; index += 1) {
-    hash = ((hash << 5) + hash) ^ normalized.charCodeAt(index);
+  const variantIndex =
+    (hashReferenceTitleSeed(normalized) + Math.max(0, variantOffset)) %
+    GENERATED_AUDIO_REFERENCE_TITLE_VARIANT_COUNT;
+  return AUDIO_REFERENCE_TITLE_VARIANTS[variantIndex];
+};
+
+export const applyAudioReferenceTitleVariant = ({
+  baseTitle,
+  uniqueSeed,
+  variantOffset,
+}: {
+  baseTitle: string;
+  uniqueSeed?: string | null;
+  variantOffset?: number;
+}): string => {
+  const variant = buildAudioReferenceTitleVariant(uniqueSeed, variantOffset);
+  if (!variant) {
+    return clampGeneratedAudioReferenceTitle(baseTitle) ?? UNTITLED_TRACK_TITLE;
   }
-  return (hash >>> 0).toString(36).toUpperCase().padStart(6, "0").slice(-6);
+  const base = clampGeneratedAudioReferenceTitle(baseTitle, {
+    maxWords: GENERATED_AUDIO_REFERENCE_TITLE_MAX_WORDS,
+  });
+  const words = base?.split(/\s+/).filter(Boolean) ?? [];
+  const titleWords =
+    words.length > 1 && AUDIO_REFERENCE_TITLE_VARIANT_SET.has(words[0]) ? words.slice(1) : words;
+  const clampedBase = titleWords.slice(0, GENERATED_AUDIO_REFERENCE_TITLE_MAX_WORDS - 1).join(" ");
+  return (
+    clampGeneratedAudioReferenceTitle(`${variant} ${clampedBase || UNTITLED_TRACK_TITLE}`) ??
+    variant
+  );
 };
 
 export const finalizeAudioReferenceTitle = ({
@@ -99,21 +169,7 @@ export const finalizeAudioReferenceTitle = ({
   baseTitle: string;
   uniqueSeed?: string | null;
 }): string => {
-  const mark = buildReferenceTitleMark(uniqueSeed);
-  const normalizedBase =
-    clampGeneratedAudioReferenceTitle(baseTitle, {
-      maxWords: mark
-        ? Math.max(1, GENERATED_AUDIO_REFERENCE_TITLE_MAX_WORDS - 1)
-        : GENERATED_AUDIO_REFERENCE_TITLE_MAX_WORDS,
-    }) ?? UNTITLED_TRACK_TITLE;
-  if (!mark) return normalizedBase;
-  const suffix = ` ${mark}`;
-  const baseMaxLength = Math.max(1, GENERATED_AUDIO_REFERENCE_TITLE_MAX_CHARACTERS - suffix.length);
-  const clampedBase =
-    normalizedBase.length > baseMaxLength
-      ? normalizedBase.slice(0, baseMaxLength).trim()
-      : normalizedBase;
-  return `${clampedBase || UNTITLED_TRACK_TITLE}${suffix}`;
+  return applyAudioReferenceTitleVariant({ baseTitle, uniqueSeed });
 };
 
 const toTitleCase = (value: string): string =>
@@ -280,7 +336,7 @@ export const generateAudioReferenceTitleBestEffort = async (
       messages: [
         {
           role: "system",
-          content: `Create one concise original ${describeTitleKind(input.sourceMode)} title for an audio reference. Return JSON only. The title must be ${modelTitleMaxWords} words or fewer, ${GENERATED_AUDIO_REFERENCE_TITLE_MAX_CHARACTERS} characters or fewer before any app suffix, readable in a small media card, and contain no quotes, emoji, provider names, filenames, hash ids, or explanations.`,
+          content: `Create one concise original ${describeTitleKind(input.sourceMode)} title for an audio reference. Return JSON only. The title must be ${modelTitleMaxWords} words or fewer, ${GENERATED_AUDIO_REFERENCE_TITLE_MAX_CHARACTERS} characters or fewer, readable in a small media card, and contain no quotes, emoji, provider names, filenames, codes, ids, labels, or explanations.`,
         },
         {
           role: "user",

@@ -225,15 +225,17 @@ describe("useMediaLibraryPanelDataController", () => {
     });
 
     const { result, rerender } = renderHook(
-      ({ projectId: _projectId }: { projectId: string }) =>
-        useMediaLibraryPanelDataController({
+      ({ projectId }: { projectId: string }) => {
+        void projectId;
+        return useMediaLibraryPanelDataController({
           activeFolderId: "all_items",
           itemType: "all",
           normalizedSearch: "",
           shouldShowMedia: true,
           shouldShowPrompts: true,
           panelBodyRef: { current: null },
-        }),
+        });
+      },
       {
         initialProps: {
           projectId: "project-1",
@@ -870,6 +872,73 @@ describe("useMediaLibraryPanelDataController", () => {
 
     await waitFor(() => {
       expect(result.current.mediaRows[0]?.companion_art_status).toBe("ready");
+      expect(result.current.mediaRows[0]?.companion_art_url).toBe(
+        "https://signed.test/gen-audio-1-cover.webp"
+      );
+    });
+  });
+
+  it("refreshes ready audio companion art rows that have storage authority but no signed url", async () => {
+    fetchMediaListPageMock
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "audio-1",
+            filename: "energy-boom.mp3",
+            storage_path: "user-1/generations/audio/audio-1.mp3",
+            file_type: "audio",
+            source: "ai_studio",
+            source_ref: "gen-audio-1",
+            companion_art_status: "ready",
+            companion_art_storage_path:
+              "user-1/generations/audio/gen-audio-1/companion-art/cover.webp",
+            companion_art_url: null,
+            created_at: "2026-06-19T22:55:59.000Z",
+          },
+        ],
+        nextCursor: null,
+        hasMore: false,
+        signedById: new Map(),
+        libraryTotalCount: 1,
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "audio-1",
+            filename: "energy-boom.mp3",
+            storage_path: "user-1/generations/audio/audio-1.mp3",
+            file_type: "audio",
+            source: "ai_studio",
+            source_ref: "gen-audio-1",
+            companion_art_status: "ready",
+            companion_art_storage_path:
+              "user-1/generations/audio/gen-audio-1/companion-art/cover.webp",
+            companion_art_url: "https://signed.test/gen-audio-1-cover.webp",
+            created_at: "2026-06-19T22:55:59.000Z",
+          },
+        ],
+        nextCursor: null,
+        hasMore: false,
+        signedById: new Map(),
+        libraryTotalCount: 1,
+      });
+
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelDataController({
+        activeFolderId: "all_items",
+        itemType: "all",
+        normalizedSearch: "",
+        shouldShowMedia: true,
+        shouldShowPrompts: false,
+        panelBodyRef: { current: null },
+      })
+    );
+
+    await waitFor(() => {
+      expect(fetchMediaListPageMock).toHaveBeenCalledTimes(2);
+    });
+
+    await waitFor(() => {
       expect(result.current.mediaRows[0]?.companion_art_url).toBe(
         "https://signed.test/gen-audio-1-cover.webp"
       );

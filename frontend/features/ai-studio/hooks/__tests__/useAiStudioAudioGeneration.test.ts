@@ -431,7 +431,7 @@ describe("useAiStudioAudioGeneration", () => {
           mimeType: "audio/mpeg",
           durationMs: null,
           waveformPeaks: null,
-          title: "Launch Walkthrough A1B2",
+          title: "Fresh Launch Walkthrough",
           modelId: hardcodedVoiceoverModelId,
           voiceId: "voice-1",
           voiceName: "Narrator",
@@ -486,7 +486,7 @@ describe("useAiStudioAudioGeneration", () => {
     expect(outputs[0]).toMatchObject({
       id: "out-voiceover",
       mode: "audio",
-      title: "Launch Walkthrough A1B2",
+      title: "Fresh Launch Walkthrough",
       savedMediaIds: ["media-voiceover"],
       taskState: "success",
     });
@@ -527,7 +527,7 @@ describe("useAiStudioAudioGeneration", () => {
           mimeType: "audio/mpeg",
           durationMs: null,
           waveformPeaks: null,
-          title: "Storage Limit Voiceover A1B2",
+          title: "Storage Limit Voiceover",
           modelId: hardcodedVoiceoverModelId,
           voiceId: "voice-1",
           voiceName: "Narrator",
@@ -578,7 +578,7 @@ describe("useAiStudioAudioGeneration", () => {
     expect(outputs[0]).toMatchObject({
       id: "out-voiceover-storage",
       mode: "audio",
-      title: "Storage Limit Voiceover A1B2",
+      title: "Storage Limit Voiceover",
       savedMediaIds: [],
       taskState: "success",
       previewUrl: "https://example.com/voiceover-storage.mp3",
@@ -622,7 +622,7 @@ describe("useAiStudioAudioGeneration", () => {
           mimeType: "audio/mpeg",
           durationMs: 12_000,
           waveformPeaks: [0.2, 0.4, 0.1],
-          title: "City Take A1B2",
+          title: "Quiet City Take",
           modelId: "eleven_multilingual_sts_v2",
           voiceId: "voice-1",
           voiceName: "Narrator",
@@ -751,7 +751,7 @@ describe("useAiStudioAudioGeneration", () => {
       transcriptText: "I can hear the city waking up below us.",
       savedMediaIds: ["media-voice"],
       taskState: "success",
-      title: "City Take A1B2",
+      title: "Quiet City Take",
       saveState: "blocked_storage",
       saveError: "Storage is full. Delete media or upgrade storage to save this output.",
     });

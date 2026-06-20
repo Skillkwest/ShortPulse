@@ -14,8 +14,8 @@ import { compileAudioCompanionArtPrompt, type AudioCompanionArtSourceMode } from
 const MEDIA_BUCKET = "media_library";
 const MAX_AUDIO_COMPANION_ART_ATTEMPTS = 3;
 const AUDIO_COMPANION_ART_STYLE_PROMPT_ID = "AUDIO_COMPANION_ART_STYLE_SYSTEM";
-const RETRYABLE_COMPANION_ART_STATUSES_FILTER =
-  "companion_art_status.eq.pending,companion_art_status.eq.failed";
+const GENERATABLE_COMPANION_ART_STATUSES_FILTER =
+  "companion_art_status.is.null,companion_art_status.eq.pending,companion_art_status.eq.failed";
 const AUDIO_COMPANION_ART_DELIVERY_MIME_TYPE = "image/webp";
 const AUDIO_COMPANION_ART_DELIVERY_WIDTH_PX = 480;
 const AUDIO_COMPANION_ART_DELIVERY_QUALITY = 68;
@@ -237,7 +237,7 @@ export const processPendingAudioCompanionArtBatch = async ({
     .eq("task_state", "success")
     .not("publication_state", "eq", "suppressed")
     .lt("companion_art_attempt_count", MAX_AUDIO_COMPANION_ART_ATTEMPTS)
-    .or(RETRYABLE_COMPANION_ART_STATUSES_FILTER)
+    .or(GENERATABLE_COMPANION_ART_STATUSES_FILTER)
     .order("updated_at", { ascending: true })
     .limit(boundedLimit);
 
@@ -271,7 +271,7 @@ export const processPendingAudioCompanionArtBatch = async ({
       .eq("user_id", userId)
       .not("publication_state", "eq", "suppressed")
       .lt("companion_art_attempt_count", MAX_AUDIO_COMPANION_ART_ATTEMPTS)
-      .or(RETRYABLE_COMPANION_ART_STATUSES_FILTER)
+      .or(GENERATABLE_COMPANION_ART_STATUSES_FILTER)
       .select("generation_id")
       .maybeSingle();
 

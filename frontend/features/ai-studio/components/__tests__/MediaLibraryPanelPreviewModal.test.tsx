@@ -85,7 +85,7 @@ describe("MediaLibraryPanelPreviewModal", () => {
       source: "ai_studio",
       signedUrl: "https://cdn.example.com/voice-note-1.mp3",
       metadata: {
-        display_title: "City Take A1B2",
+        display_title: "Quiet City Take",
       },
     };
 
@@ -93,11 +93,11 @@ describe("MediaLibraryPanelPreviewModal", () => {
       source: "ai_studio",
     });
 
-    expect(item.presentation?.title).toBe("City Take A1B2");
+    expect(item.presentation?.title).toBe("Quiet City Take");
     expect(item.presentation?.topBarItems).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          label: "City Take A1B2",
+          label: "Quiet City Take",
         }),
       ])
     );

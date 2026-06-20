@@ -13,7 +13,10 @@ import { persistGenerationOutputRecords } from "./api/generationOutputs";
 import { upsertGenerationProjection } from "./api/generationProjection";
 import { upsertGenerationPublication } from "./api/generationPublications";
 import { writeAppErrorLog } from "./api/appErrorLogs";
-import { GENERATED_AUDIO_REFERENCE_TITLE_MAX_CHARACTERS } from "./audioTitleGeneration";
+import {
+  GENERATED_AUDIO_REFERENCE_TITLE_VARIANT_COUNT,
+  applyAudioReferenceTitleVariant,
+} from "./audioTitleGeneration";
 import { associateGenerationAndMediaWithProjectForUserBestEffort } from "./projectGenerationAssociationsService";
 import {
   extractAudioTrack,
@@ -57,7 +60,6 @@ const ELEVENLABS_TRANSIENT_UPSTREAM_STATUSES = new Set([502, 503, 504]);
 const ELEVENLABS_TRANSIENT_UPSTREAM_CODES = new Set(["rate_limit_exceeded", "system_busy"]);
 const ELEVENLABS_SOUND_EFFECT_MAX_ATTEMPTS = 2;
 const ELEVENLABS_JSON_REQUEST_TIMEOUT_MS = 10_000;
-const GENERATED_AUDIO_REFERENCE_TITLE_MAX_WORDS = 3;
 
 type ElevenLabsMusicDetailedMetadata = {
   composition_plan?: {
@@ -193,21 +195,6 @@ const normalizeOptionalString = (value: unknown): string | null => {
   return trimmed.length ? trimmed : null;
 };
 
-const appendGeneratedAudioTitleCollisionSuffix = (title: string, suffixValue: string): string => {
-  const suffix = ` ${suffixValue}`;
-  const wordClampedTitle = title
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, GENERATED_AUDIO_REFERENCE_TITLE_MAX_WORDS - 1)
-    .join(" ");
-  const baseMaxLength = Math.max(1, GENERATED_AUDIO_REFERENCE_TITLE_MAX_CHARACTERS - suffix.length);
-  const baseTitle =
-    wordClampedTitle.length > baseMaxLength
-      ? wordClampedTitle.slice(0, baseMaxLength).trim()
-      : wordClampedTitle;
-  return `${baseTitle || "Audio Reference"}${suffix}`;
-};
-
 const hasGeneratedAudioDisplayTitleForUser = async ({
   supabaseAdmin,
   userId,
@@ -254,8 +241,16 @@ const resolveUniqueGeneratedAudioDisplayTitle = async ({
     return title;
   }
 
-  for (let index = 2; index <= 99; index += 1) {
-    const candidate = appendGeneratedAudioTitleCollisionSuffix(title, String(index));
+  for (
+    let variantOffset = 1;
+    variantOffset <= GENERATED_AUDIO_REFERENCE_TITLE_VARIANT_COUNT;
+    variantOffset += 1
+  ) {
+    const candidate = applyAudioReferenceTitleVariant({
+      baseTitle: title,
+      uniqueSeed: generationId,
+      variantOffset,
+    });
     if (
       !(await hasGeneratedAudioDisplayTitleForUser({ supabaseAdmin, userId, title: candidate }))
     ) {
@@ -263,12 +258,7 @@ const resolveUniqueGeneratedAudioDisplayTitle = async ({
     }
   }
 
-  const generationSlug = generationId
-    .replace(/[^a-z0-9]/gi, "")
-    .slice(0, 8)
-    .toUpperCase();
-  const fallback = appendGeneratedAudioTitleCollisionSuffix(title, generationSlug || "REF");
-  return fallback;
+  return applyAudioReferenceTitleVariant({ baseTitle: title, uniqueSeed: generationId });
 };
 
 const buildGeneratedAudioDisplayTitleMetadata = (

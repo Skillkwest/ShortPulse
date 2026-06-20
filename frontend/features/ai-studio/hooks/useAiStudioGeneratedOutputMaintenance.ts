@@ -18,6 +18,7 @@ const CANONICAL_GENERATED_OUTPUT_SYNC_IDLE_GRACE_MS = 120_000;
 const CANONICAL_GENERATED_OUTPUT_SYNC_BATCH_SIZE = 6;
 const CANONICAL_GENERATED_OUTPUT_RECONCILE_MIN_INTERVAL_MS = 60_000;
 const AUDIO_COMPANION_ART_SYNC_INTERVAL_MS = 5_000;
+const AUDIO_COMPANION_ART_SYNC_IDLE_GRACE_MS = 120_000;
 const AUDIO_COMPANION_ART_SYNC_BATCH_SIZE = 6;
 const GENERATED_VIDEO_POSTER_REPAIR_BATCH_SIZE = 4;
 const STORAGE_VIDEO_POSTER_REPAIR_BATCH_SIZE = 12;
@@ -93,10 +94,26 @@ const isCanonicalGeneratedOutputSyncCandidate = (output: StudioOutput): boolean 
   return hasGenerationIdentity || Boolean(output.sourceRef);
 };
 
-const isPendingAudioCompanionArtCandidate = (output: StudioOutput): boolean => {
+const isRefreshableAudioCompanionArtCandidate = (output: StudioOutput): boolean => {
   if (output.mode !== "audio") return false;
   if (output.mediaSource !== "generated" && !output.generationId && !output.taskId) return false;
-  return output.companionArtStatus === "pending" || output.companionArtStatus === "processing";
+  if (output.companionArtStatus === "pending" || output.companionArtStatus === "processing") {
+    return true;
+  }
+  if (output.companionArtStatus === "failed") return false;
+  if (output.companionArtStoragePath?.trim() && !output.companionArtUrl?.trim()) return true;
+
+  const createdAtMs = output.createdAt ? Date.parse(output.createdAt) : Number.NaN;
+  const isRecentAudioOutput =
+    output.timestamp === "Just now" ||
+    (Number.isFinite(createdAtMs) &&
+      Date.now() - createdAtMs <= AUDIO_COMPANION_ART_SYNC_IDLE_GRACE_MS);
+  return (
+    isRecentAudioOutput &&
+    output.taskState === "success" &&
+    !output.companionArtUrl?.trim() &&
+    !output.companionArtStoragePath?.trim()
+  );
 };
 
 const isGeneratedVideoPosterRepairCandidate = (output: StudioOutput): boolean => {
@@ -255,12 +272,12 @@ export const useAiStudioGeneratedOutputMaintenance = ({
         : [],
     [outputs, shouldRunCanonicalGeneratedOutputSync]
   );
-  const pendingAudioCompanionArtCandidates = useMemo(
+  const refreshableAudioCompanionArtCandidates = useMemo(
     () =>
       hasPendingWorkflowRestore
         ? []
         : outputs
-            .filter(isPendingAudioCompanionArtCandidate)
+            .filter(isRefreshableAudioCompanionArtCandidate)
             .slice(0, AUDIO_COMPANION_ART_SYNC_BATCH_SIZE),
     [hasPendingWorkflowRestore, outputs]
   );
@@ -476,7 +493,7 @@ export const useAiStudioGeneratedOutputMaintenance = ({
   useEffect(() => {
     if (hasPendingWorkflowRestore) return;
     if (!documentVisible) return;
-    if (pendingAudioCompanionArtCandidates.length === 0) return;
+    if (refreshableAudioCompanionArtCandidates.length === 0) return;
     let cancelled = false;
 
     const syncPendingAudioCompanionArt = async () => {
@@ -485,7 +502,7 @@ export const useAiStudioGeneratedOutputMaintenance = ({
       audioCompanionArtSyncInFlightRef.current = true;
       try {
         const reconciles = await Promise.all(
-          pendingAudioCompanionArtCandidates.map(async (output) => ({
+          refreshableAudioCompanionArtCandidates.map(async (output) => ({
             outputId: output.id,
             reconcile: await resolveVisibleGenerationReconcile({
               generationId: output.generationId ?? null,
@@ -549,7 +566,7 @@ export const useAiStudioGeneratedOutputMaintenance = ({
   }, [
     documentVisible,
     hasPendingWorkflowRestore,
-    pendingAudioCompanionArtCandidates,
+    refreshableAudioCompanionArtCandidates,
     projectId,
     setOutputsState,
   ]);

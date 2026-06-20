@@ -63,14 +63,14 @@ describe("mediaLibraryModalModel audio metadata", () => {
   it("resolves generated audio display titles from metadata aliases", () => {
     expect(
       resolveMediaMetadataDisplayTitle({
-        display_title: "Midnight Signal A1B2",
+        display_title: "Lunar Midnight Signal",
         song_title: "Fallback Song",
       })
-    ).toBe("Midnight Signal A1B2");
+    ).toBe("Lunar Midnight Signal");
     expect(
       resolveMediaMetadataDisplayTitle({
-        voice_changer_title: "City Take Z9Y8",
+        voice_changer_title: "Warm City Take",
       })
-    ).toBe("City Take Z9Y8");
+    ).toBe("Warm City Take");
   });
 });

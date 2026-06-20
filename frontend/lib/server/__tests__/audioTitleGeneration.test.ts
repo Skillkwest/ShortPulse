@@ -106,7 +106,7 @@ describe("audioTitleGeneration", () => {
     expect(title.length).toBeLessThanOrEqual(GENERATED_SONG_TITLE_MAX_CHARACTERS);
   });
 
-  it("adds a deterministic compact uniqueness mark when a seed is provided", async () => {
+  it("adds a deterministic natural variation when a seed is provided", async () => {
     process.env.OPENAI_API_KEY = "";
 
     const firstTitle = await generateMusicSongTitleBestEffort({
@@ -119,8 +119,10 @@ describe("audioTitleGeneration", () => {
     });
 
     expect(firstTitle).not.toBe(secondTitle);
-    expect(firstTitle).toMatch(/ [A-Z0-9]{6}$/);
-    expect(secondTitle).toMatch(/ [A-Z0-9]{6}$/);
+    expect(firstTitle).not.toMatch(/\b[A-Z0-9]{6}\b$/);
+    expect(secondTitle).not.toMatch(/\b[A-Z0-9]{6}\b$/);
+    expect(firstTitle.split(/\s+/).length).toBeLessThanOrEqual(3);
+    expect(secondTitle.split(/\s+/).length).toBeLessThanOrEqual(3);
     expect(firstTitle.length).toBeLessThanOrEqual(GENERATED_SONG_TITLE_MAX_CHARACTERS);
     expect(secondTitle.length).toBeLessThanOrEqual(GENERATED_SONG_TITLE_MAX_CHARACTERS);
   });
@@ -144,23 +146,25 @@ describe("audioTitleGeneration", () => {
     ).toBe("I Can Hear");
   });
 
-  it("limits finalized reference titles to three words including the unique mark", () => {
+  it("limits finalized reference titles to three words including natural variation", () => {
     const title = finalizeAudioReferenceTitle({
       baseTitle: "Launch Walkthrough For Creators",
       uniqueSeed: "source-ref-word-count",
     });
 
     expect(title.split(/\s+/)).toHaveLength(3);
-    expect(title).toMatch(/^Launch Walkthrough [A-Z0-9]{6}$/);
+    expect(title).toMatch(/^[A-Z][a-z]+ Launch Walkthrough$/);
+    expect(title).not.toMatch(/\b[A-Z0-9]{6}\b$/);
   });
 
-  it("clamps finalized generated titles after the unique mark is applied", () => {
+  it("clamps finalized generated titles after the natural variation is applied", () => {
     const title = finalizeAudioReferenceTitle({
       baseTitle: "A Very Long Cinematic Voiceover Title That Will Not Fit In The Card",
       uniqueSeed: "source-ref-clamp",
     });
 
-    expect(title).toMatch(/ [A-Z0-9]{6}$/);
+    expect(title).not.toMatch(/\b[A-Z0-9]{6}\b$/);
+    expect(title.split(/\s+/).length).toBeLessThanOrEqual(3);
     expect(title.length).toBeLessThanOrEqual(GENERATED_SONG_TITLE_MAX_CHARACTERS);
   });
 
@@ -188,7 +192,8 @@ describe("audioTitleGeneration", () => {
       uniqueSeed: "voiceover-source-ref",
     });
 
-    expect(title).toMatch(/^Launch Walkthrough [A-Z0-9]{6}$/);
+    expect(title).toMatch(/^[A-Z][a-z]+ Launch Walkthrough$/);
+    expect(title).not.toMatch(/\b[A-Z0-9]{6}\b$/);
     expect(fetchOpenAiCompatibleChatCompletionMock).toHaveBeenCalledWith(
       expect.objectContaining({
         apiKey: "test-openai-key",

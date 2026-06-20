@@ -435,17 +435,17 @@ describe("MediaLibraryAllItemsGrid", () => {
         created_at: "2026-04-09T18:00:00.000Z",
         signedUrl: "https://cdn.example.com/voice-note-1.mp3",
         metadata: {
-          display_title: "City Take A1B2",
+          display_title: "Quiet City Take",
         },
       },
     ];
 
     render(<MediaLibraryAllItemsGrid {...props} />);
 
-    expect(screen.getByText("City Take A1B2")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Play audio City Take A1B2" })).toBeInTheDocument();
+    expect(screen.getByText("Quiet City Take")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Play audio Quiet City Take" })).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Download media City Take A1B2" })
+      screen.getByRole("button", { name: "Download media Quiet City Take" })
     ).toBeInTheDocument();
   });
 

@@ -191,7 +191,10 @@ describe("audioCompanionArt processing", () => {
       errors: 0,
     });
     expect(projectionSelectBuilder.or).toHaveBeenCalledWith(
-      "companion_art_status.eq.pending,companion_art_status.eq.failed"
+      "companion_art_status.is.null,companion_art_status.eq.pending,companion_art_status.eq.failed"
+    );
+    expect(claimBuilder.or).toHaveBeenCalledWith(
+      "companion_art_status.is.null,companion_art_status.eq.pending,companion_art_status.eq.failed"
     );
     expect(projectionSelectBuilder.not).toHaveBeenCalledWith(
       "publication_state",
@@ -409,7 +412,7 @@ describe("audioCompanionArt processing", () => {
     );
   });
 
-  it("resets new audio rows to attempt zero on enqueue without scanning null-status history", async () => {
+  it("resets new audio rows to attempt zero on enqueue", async () => {
     await expect(
       markAudioCompanionArtPending({
         generationId: "gen-queued",

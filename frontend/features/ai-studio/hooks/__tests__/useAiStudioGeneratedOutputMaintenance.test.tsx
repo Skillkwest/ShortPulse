@@ -550,6 +550,102 @@ describe("useAiStudioGeneratedOutputMaintenance", () => {
     });
   });
 
+  it("reconciles generated audio when companion art has durable storage but no signed url", async () => {
+    resolveVisibleGenerationReconcileMock.mockResolvedValueOnce({
+      generationId: "audio-generation-1",
+      previewUrl: "https://cdn.example.com/audio.mp3",
+      previewPosterUrl: null,
+      previewPosterStoragePath: null,
+      companionArtUrl: "https://signed.test/audio-cover.webp",
+      companionArtStoragePath:
+        "user-1/generations/audio/audio-generation-1/companion-art/cover.webp",
+      companionArtStatus: "ready",
+      previewStoragePath: "user-1/generations/audio/audio-generation-1/audio.mp3",
+      fullStoragePath: "user-1/generations/audio/audio-generation-1/audio.mp3",
+      resultUrls: ["https://cdn.example.com/audio.mp3"],
+    });
+
+    const { result } = renderMaintenanceHook({
+      projectId: null,
+      initialOutputs: [
+        {
+          ...hydratedOutput,
+          id: "audio-generation-1",
+          mode: "audio",
+          generationId: "audio-generation-1",
+          taskId: "audio-task-1",
+          taskState: "success",
+          previewUrl: "https://cdn.example.com/audio.mp3",
+          resultUrls: ["https://cdn.example.com/audio.mp3"],
+          companionArtStatus: "ready",
+          companionArtUrl: null,
+          companionArtStoragePath:
+            "user-1/generations/audio/audio-generation-1/companion-art/cover.webp",
+        },
+      ],
+    });
+
+    await waitFor(() => {
+      expect(resolveVisibleGenerationReconcileMock).toHaveBeenCalledWith({
+        generationId: "audio-generation-1",
+        requestId: "audio-task-1",
+        projectId: null,
+      });
+      expect(result.current.outputs[0]?.companionArtUrl).toBe(
+        "https://signed.test/audio-cover.webp"
+      );
+    });
+  });
+
+  it("reconciles recent successful generated audio when companion art status is absent", async () => {
+    const createdAt = new Date().toISOString();
+    resolveVisibleGenerationReconcileMock.mockResolvedValueOnce({
+      generationId: "audio-generation-2",
+      previewUrl: "https://cdn.example.com/audio-2.mp3",
+      previewPosterUrl: null,
+      previewPosterStoragePath: null,
+      companionArtUrl: "https://signed.test/audio-cover-2.webp",
+      companionArtStoragePath:
+        "user-1/generations/audio/audio-generation-2/companion-art/cover.webp",
+      companionArtStatus: "ready",
+      previewStoragePath: "user-1/generations/audio/audio-generation-2/audio.mp3",
+      fullStoragePath: "user-1/generations/audio/audio-generation-2/audio.mp3",
+      resultUrls: ["https://cdn.example.com/audio-2.mp3"],
+    });
+
+    const { result } = renderMaintenanceHook({
+      projectId: null,
+      initialOutputs: [
+        {
+          ...hydratedOutput,
+          id: "audio-generation-2",
+          mode: "audio",
+          generationId: "audio-generation-2",
+          taskId: "audio-task-2",
+          taskState: "success",
+          createdAt,
+          timestamp: "Just now",
+          previewUrl: "https://cdn.example.com/audio-2.mp3",
+          resultUrls: ["https://cdn.example.com/audio-2.mp3"],
+          companionArtStatus: null,
+          companionArtUrl: null,
+          companionArtStoragePath: null,
+        },
+      ],
+    });
+
+    await waitFor(() => {
+      expect(resolveVisibleGenerationReconcileMock).toHaveBeenCalledWith({
+        generationId: "audio-generation-2",
+        requestId: "audio-task-2",
+        projectId: null,
+      });
+      expect(result.current.outputs[0]?.companionArtStoragePath).toBe(
+        "user-1/generations/audio/audio-generation-2/companion-art/cover.webp"
+      );
+    });
+  });
+
   it("pauses generated-video poster repair while the document is hidden", async () => {
     const visibilitySpy = mockDocumentVisibility("hidden");
 

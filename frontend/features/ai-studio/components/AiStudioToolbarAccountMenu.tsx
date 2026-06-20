@@ -13,23 +13,11 @@ import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { normalizeIssueReportSourcePath } from "../../../lib/issueReports";
 import { useResolvedProtectedSessionState } from "../../../lib/protectedRouteSessionContext";
 import { signOutSupabaseSession } from "../../../lib/supabaseClient";
+import { ACCOUNT_MENU_LINKS } from "../../profile/accountMenuLinks";
 
 type MenuStyle = React.CSSProperties & {
   "--ai-toolbar-account-menu-transform-origin"?: string;
 };
-
-type AccountMenuLink = {
-  href: string;
-  label: string;
-};
-
-const ACCOUNT_MENU_LINKS: AccountMenuLink[] = [
-  { href: "/profile?section=account", label: "Account settings" },
-  { href: "/profile?section=subscription", label: "Subscription" },
-  { href: "/profile?section=credits", label: "Credits & billing" },
-  { href: "/profile?section=storage", label: "Storage" },
-  { href: "/profile?section=transactions", label: "Transactions" },
-];
 
 const MENU_WIDTH_PX = 238;
 const MENU_MARGIN_PX = 12;

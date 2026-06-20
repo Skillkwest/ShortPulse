@@ -15,6 +15,7 @@ import {
 } from "../../billing/catalog";
 import { formatStorageUsageValue } from "../../billing/storage";
 import { useMediaStorageQuotaSummary } from "../../billing/useMediaStorageQuotaSummary";
+import { ACCOUNT_MENU_LINKS } from "../../profile/accountMenuLinks";
 import {
   AuthenticatedDashboardView,
   type DashboardAnnouncement,
@@ -157,14 +158,25 @@ export function AuthenticatedDashboardRoute({
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
+    if (!profileMenuOpen) return;
+
     function handleClick(event: MouseEvent) {
       if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
         setProfileMenuOpen(false);
       }
     }
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setProfileMenuOpen(false);
+      }
+    }
     document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [profileMenuOpen]);
 
   const fallbackPlanView = buildPlanView({
     planId: DEFAULT_PLAN_TIER,
@@ -423,44 +435,49 @@ export function AuthenticatedDashboardRoute({
                 <div className="avatar">{initials}</div>
               </button>
               {profileMenuOpen ? (
-                <div className="profile-dropdown">
-                  <Link
-                    href="/profile?section=account"
-                    onClick={() => setProfileMenuOpen(false)}
-                    prefetch={false}
-                  >
-                    Account & profile settings
-                  </Link>
-                  <Link
-                    href="/profile?section=subscription"
-                    onClick={() => setProfileMenuOpen(false)}
-                    prefetch={false}
-                  >
-                    Subscription plans
-                  </Link>
-                  <Link
-                    href="/profile?section=credits"
-                    onClick={() => setProfileMenuOpen(false)}
-                    prefetch={false}
-                  >
-                    Credits & billing
-                  </Link>
-                  <Link
-                    href="/report-issue?from=%2Fdashboard"
-                    onClick={() => setProfileMenuOpen(false)}
-                    prefetch={false}
-                  >
-                    Report an issue
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setProfileMenuOpen(false);
-                      setShowLogoutConfirm(true);
-                    }}
-                  >
-                    Log out
-                  </button>
+                <div className="profile-dropdown" role="menu" aria-label="Account settings">
+                  <div className="profile-dropdown__identity" aria-label="Signed-in account">
+                    <span className="profile-dropdown__avatar" aria-hidden="true">
+                      {initials}
+                    </span>
+                    <span className="profile-dropdown__identity-copy">
+                      <strong>{displayName}</strong>
+                      {user.email ? <span>{user.email}</span> : null}
+                    </span>
+                  </div>
+                  <div className="profile-dropdown__links">
+                    {ACCOUNT_MENU_LINKS.map((item) => (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        role="menuitem"
+                        onClick={() => setProfileMenuOpen(false)}
+                        prefetch={false}
+                      >
+                        {item.label}
+                      </Link>
+                    ))}
+                  </div>
+                  <div className="profile-dropdown__actions">
+                    <Link
+                      href="/report-issue?from=%2Fdashboard"
+                      role="menuitem"
+                      onClick={() => setProfileMenuOpen(false)}
+                      prefetch={false}
+                    >
+                      Report an issue
+                    </Link>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setProfileMenuOpen(false);
+                        setShowLogoutConfirm(true);
+                      }}
+                    >
+                      Log out
+                    </button>
+                  </div>
                 </div>
               ) : null}
             </div>

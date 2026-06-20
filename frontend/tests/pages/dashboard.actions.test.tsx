@@ -1,7 +1,7 @@
 /**
  * Dashboard page tests for profile-menu and logout behavior.
  */
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import DashboardPage from "../../pages/dashboard";
@@ -330,35 +330,47 @@ describe("Dashboard actions", () => {
     );
   });
 
-  it("opens the profile menu with account, subscription, billing, and issue-report links", async () => {
+  it("opens the profile menu with account sections, issue reporting, and logout", async () => {
     render(<DashboardPage />);
 
     fireEvent.click(await screen.findByRole("button", { name: "Profile menu" }));
 
-    expect(screen.getByRole("link", { name: "Account & profile settings" })).toHaveAttribute(
+    const menu = screen.getByRole("menu", { name: "Account settings" });
+    expect(menu).toBeInTheDocument();
+    expect(within(menu).getByText("Kirk")).toBeInTheDocument();
+    expect(within(menu).getByText("user@example.com")).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Account settings" })).toHaveAttribute(
       "href",
       "/profile?section=account"
     );
-    expect(screen.getByRole("link", { name: "Subscription plans" })).toHaveAttribute(
+    expect(screen.getByRole("menuitem", { name: "Subscription" })).toHaveAttribute(
       "href",
       "/profile?section=subscription"
     );
-    expect(screen.getByRole("link", { name: "Credits & billing" })).toHaveAttribute(
+    expect(screen.getByRole("menuitem", { name: "Credits & billing" })).toHaveAttribute(
       "href",
       "/profile?section=credits"
     );
-    expect(screen.getByRole("link", { name: "Report an issue" })).toHaveAttribute(
+    expect(screen.getByRole("menuitem", { name: "Storage" })).toHaveAttribute(
+      "href",
+      "/profile?section=storage"
+    );
+    expect(screen.getByRole("menuitem", { name: "Transactions" })).toHaveAttribute(
+      "href",
+      "/profile?section=transactions"
+    );
+    expect(screen.getByRole("menuitem", { name: "Report an issue" })).toHaveAttribute(
       "href",
       "/report-issue?from=%2Fdashboard"
     );
-    expect(screen.getByRole("button", { name: "Log out" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Log out" })).toBeInTheDocument();
   });
 
   it("opens and closes the logout confirmation modal", async () => {
     render(<DashboardPage />);
 
     fireEvent.click(await screen.findByRole("button", { name: "Profile menu" }));
-    fireEvent.click(screen.getByRole("button", { name: "Log out" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Log out" }));
 
     expect(screen.getByRole("dialog", { name: "Log out?" })).toBeInTheDocument();
 
@@ -373,7 +385,7 @@ describe("Dashboard actions", () => {
     render(<DashboardPage />);
 
     fireEvent.click(await screen.findByRole("button", { name: "Profile menu" }));
-    fireEvent.click(screen.getByRole("button", { name: "Log out" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Log out" }));
     fireEvent.click(screen.getByRole("button", { name: "Log out" }));
 
     await waitFor(() => {

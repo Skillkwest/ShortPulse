@@ -1226,9 +1226,11 @@ function DetailModalContent({
                   audioRef={audioPreviewRef}
                   videoLoop
                   videoMuted
+                  imageIdentityKey={outputId}
                   onImageDragStart={(event) => event.preventDefault()}
                   onImageLoad={handleImageLoad}
                   onImageError={handleDetailImageError}
+                  onImageCandidateError={handleDetailImageError}
                   onVideoLoadedMetadata={(event) => {
                     handlePreviewAspectLoad(
                       event.currentTarget.videoWidth,

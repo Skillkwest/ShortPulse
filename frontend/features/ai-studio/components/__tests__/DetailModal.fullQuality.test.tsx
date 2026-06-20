@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import * as mediaSignedUrlCacheModule from "../../../../lib/mediaSignedUrlCache";
 import * as supabaseClientModule from "../../../../lib/supabaseClient";
@@ -18,6 +18,49 @@ const baseOutput: StudioOutput = {
   previewUrl: "https://cdn.test/preview.png",
   previewStoragePath: "user-1/media/variants/preview.png",
   fullStoragePath: "user-1/media/full.png",
+};
+
+type MockImageInstance = {
+  onload: (() => void) | null;
+  onerror: (() => void) | null;
+  src: string;
+};
+
+const installDeferredImagePreloadMock = () => {
+  const originalImage = globalThis.Image;
+  const imageInstances: MockImageInstance[] = [];
+
+  class MockImage {
+    onload: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    private nextSrc = "";
+
+    get src() {
+      return this.nextSrc;
+    }
+
+    set src(value: string) {
+      this.nextSrc = value;
+      imageInstances.push(this);
+    }
+  }
+
+  Object.defineProperty(globalThis, "Image", {
+    configurable: true,
+    writable: true,
+    value: MockImage,
+  });
+
+  return {
+    imageInstances,
+    restore: () => {
+      Object.defineProperty(globalThis, "Image", {
+        configurable: true,
+        writable: true,
+        value: originalImage,
+      });
+    },
+  };
 };
 
 describe("DetailModal full-quality media policy", () => {
@@ -43,6 +86,7 @@ describe("DetailModal full-quality media policy", () => {
   });
 
   it("promotes restored generated images to signed canonical media authority", async () => {
+    const { imageInstances, restore } = installDeferredImagePreloadMock();
     const supabaseSpy = vi
       .spyOn(supabaseClientModule, "ensureSupabaseQueryClient")
       .mockReturnValue({} as ReturnType<typeof supabaseClientModule.ensureSupabaseQueryClient>);
@@ -79,10 +123,22 @@ describe("DetailModal full-quality media policy", () => {
       );
 
       await waitFor(() => {
-        const image = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
-        expect(image).not.toBeNull();
-        expect(image?.getAttribute("src")).toBe("https://signed.test/generated-output.png");
+        expect(imageInstances.map((instance) => instance.src)).toContain(
+          "https://signed.test/generated-output.png"
+        );
       });
+      const image = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
+      expect(image).not.toBeNull();
+      expect(image?.getAttribute("src")).toBe("https://provider.test/stale-preview.png");
+
+      act(() => {
+        imageInstances
+          .filter((instance) => instance.src === "https://signed.test/generated-output.png")
+          .at(-1)
+          ?.onload?.();
+      });
+
+      expect(image?.getAttribute("src")).toBe("https://signed.test/generated-output.png");
       expect(supabaseSpy).toHaveBeenCalled();
       expect(downloadTargetSpy).toHaveBeenCalled();
       expect(signedUrlSpy).toHaveBeenCalledWith({
@@ -91,6 +147,7 @@ describe("DetailModal full-quality media policy", () => {
         previewProfile: "none",
       });
     } finally {
+      restore();
       supabaseSpy.mockRestore();
       downloadTargetSpy.mockRestore();
       signedUrlSpy.mockRestore();
@@ -98,6 +155,7 @@ describe("DetailModal full-quality media policy", () => {
   });
 
   it("promotes stale provider previews to canonical media by generation id", async () => {
+    const { imageInstances, restore } = installDeferredImagePreloadMock();
     const supabaseSpy = vi
       .spyOn(supabaseClientModule, "ensureSupabaseQueryClient")
       .mockReturnValue({} as ReturnType<typeof supabaseClientModule.ensureSupabaseQueryClient>);
@@ -136,10 +194,22 @@ describe("DetailModal full-quality media policy", () => {
       );
 
       await waitFor(() => {
-        const image = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
-        expect(image).not.toBeNull();
-        expect(image?.getAttribute("src")).toBe("https://signed.test/generated-provider-only.png");
+        expect(imageInstances.map((instance) => instance.src)).toContain(
+          "https://signed.test/generated-provider-only.png"
+        );
       });
+      const image = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
+      expect(image).not.toBeNull();
+      expect(image?.getAttribute("src")).toBe("https://provider.test/stale-preview.png");
+
+      act(() => {
+        imageInstances
+          .filter((instance) => instance.src === "https://signed.test/generated-provider-only.png")
+          .at(-1)
+          ?.onload?.();
+      });
+
+      expect(image?.getAttribute("src")).toBe("https://signed.test/generated-provider-only.png");
       expect(downloadTargetSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           projectId: "project-1",
@@ -151,6 +221,7 @@ describe("DetailModal full-quality media policy", () => {
         previewProfile: "none",
       });
     } finally {
+      restore();
       supabaseSpy.mockRestore();
       downloadTargetSpy.mockRestore();
       signedUrlSpy.mockRestore();

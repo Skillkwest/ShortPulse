@@ -74,10 +74,13 @@ type SharedMediaDetailPreviewMediaProps = {
   audioWaveformPeaks?: number[] | null;
   audioPlayLabel?: string;
   audioPauseLabel?: string;
+  deferImagePromotion?: boolean;
   imageDraggable?: boolean;
+  imageIdentityKey?: string | null;
   onImageDragStart?: React.DragEventHandler<HTMLImageElement>;
   onImageLoad?: React.ReactEventHandler<HTMLImageElement>;
   onImageError?: React.ReactEventHandler<HTMLImageElement>;
+  onImageCandidateError?: (failedUrl: string) => void;
   onVideoLoadedMetadata?: React.ReactEventHandler<HTMLVideoElement>;
   onVideoPlay?: React.ReactEventHandler<HTMLVideoElement>;
   onVideoPause?: React.ReactEventHandler<HTMLVideoElement>;
@@ -463,10 +466,13 @@ export function SharedMediaDetailPreviewMedia({
   audioWaveformPeaks,
   audioPlayLabel,
   audioPauseLabel,
+  deferImagePromotion = true,
   imageDraggable = false,
+  imageIdentityKey = null,
   onImageDragStart,
   onImageLoad,
   onImageError,
+  onImageCandidateError,
   onVideoLoadedMetadata,
   onVideoPlay,
   onVideoPause,
@@ -479,7 +485,81 @@ export function SharedMediaDetailPreviewMedia({
   onAudioError,
   onAudioVolumeChange,
 }: SharedMediaDetailPreviewMediaProps) {
-  if (!mediaUrl) {
+  const normalizedImageIdentityKey = imageIdentityKey?.trim() || altText;
+  const [renderedImageState, setRenderedImageState] = React.useState<{
+    identityKey: string;
+    url: string | null;
+  }>(() => ({
+    identityKey: normalizedImageIdentityKey,
+    url: mediaKind === "image" ? mediaUrl : null,
+  }));
+
+  React.useEffect(() => {
+    if (mediaKind !== "image") {
+      setRenderedImageState({
+        identityKey: normalizedImageIdentityKey,
+        url: null,
+      });
+      return;
+    }
+    setRenderedImageState((current) => {
+      if (current.identityKey !== normalizedImageIdentityKey) {
+        return {
+          identityKey: normalizedImageIdentityKey,
+          url: mediaUrl,
+        };
+      }
+      if (!current.url || !deferImagePromotion) {
+        return {
+          identityKey: normalizedImageIdentityKey,
+          url: mediaUrl,
+        };
+      }
+      return current;
+    });
+  }, [deferImagePromotion, mediaKind, mediaUrl, normalizedImageIdentityKey]);
+
+  React.useEffect(() => {
+    if (!deferImagePromotion) return;
+    if (mediaKind !== "image") return;
+    if (!mediaUrl) return;
+    if (renderedImageState.identityKey !== normalizedImageIdentityKey) return;
+    if (renderedImageState.url === mediaUrl) return;
+    if (!renderedImageState.url) return;
+
+    let isCancelled = false;
+    const image = new Image();
+    image.onload = () => {
+      if (isCancelled) return;
+      setRenderedImageState({
+        identityKey: normalizedImageIdentityKey,
+        url: mediaUrl,
+      });
+    };
+    image.onerror = () => {
+      if (isCancelled) return;
+      onImageCandidateError?.(mediaUrl);
+    };
+    image.src = mediaUrl;
+
+    return () => {
+      isCancelled = true;
+      image.onload = null;
+      image.onerror = null;
+    };
+  }, [
+    mediaKind,
+    mediaUrl,
+    normalizedImageIdentityKey,
+    onImageCandidateError,
+    deferImagePromotion,
+    renderedImageState.identityKey,
+    renderedImageState.url,
+  ]);
+
+  const displayedMediaUrl = mediaKind === "image" ? (renderedImageState.url ?? mediaUrl) : mediaUrl;
+
+  if (!displayedMediaUrl) {
     return (
       <div className={placeholderClassName}>
         <p>{isLoading ? loadingMessage : unavailableMessage}</p>
@@ -492,7 +572,7 @@ export function SharedMediaDetailPreviewMedia({
       <video
         className={videoClassName ?? imageClassName}
         crossOrigin="anonymous"
-        src={mediaUrl}
+        src={displayedMediaUrl}
         poster={videoPosterUrl?.trim() || undefined}
         ref={videoRef}
         controls={videoControls}
@@ -515,7 +595,7 @@ export function SharedMediaDetailPreviewMedia({
     if (audioSourceMode === "music") {
       return (
         <SharedMediaDetailMusicPreview
-          mediaUrl={mediaUrl}
+          mediaUrl={displayedMediaUrl}
           audioId={audioId}
           audioClassName={audioClassName ?? imageClassName}
           audioRef={audioRef}
@@ -539,7 +619,7 @@ export function SharedMediaDetailPreviewMedia({
 
     return (
       <SharedMediaDetailAudioPreview
-        mediaUrl={mediaUrl}
+        mediaUrl={displayedMediaUrl}
         audioId={audioId}
         audioClassName={audioClassName ?? imageClassName}
         audioRef={audioRef}
@@ -565,7 +645,7 @@ export function SharedMediaDetailPreviewMedia({
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         className={imageClassName}
-        src={mediaUrl}
+        src={displayedMediaUrl}
         alt={altText}
         style={imageStyle}
         draggable={imageDraggable}

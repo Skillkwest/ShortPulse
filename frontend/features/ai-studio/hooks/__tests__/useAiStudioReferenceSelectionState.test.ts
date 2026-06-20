@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getSignedMediaUrlsBatch } from "../../../../lib/mediaSignedUrlCache";
+import type { StudioOutput } from "../../types";
 import { useAiStudioReferenceSelectionState } from "../useAiStudioReferenceSelectionState";
 
 const uploadVideoFileToStorageMock = vi.hoisted(() => vi.fn());
@@ -55,6 +56,41 @@ describe("useAiStudioReferenceSelectionState", () => {
 
     expect(result.current.selectedTool).toBe("create");
     expect(result.current.showCreateTools).toBe(false);
+  });
+
+  it("preserves the detail output snapshot when the opener also confirms the output id", () => {
+    const outputSnapshot: StudioOutput = {
+      id: "out-1",
+      prompt: "Stable detail preview",
+      mode: "image",
+      aspect: "1:1",
+      model: "Seedream 4.5",
+      status: "ready",
+      taskState: "success",
+      timestamp: "now",
+      previewUrl: "https://example.com/out-1.png",
+    };
+    const { result } = renderHook(() =>
+      useAiStudioReferenceSelectionState({ activeOutputPreviewUrl: null })
+    );
+
+    act(() => {
+      result.current.setDetailSelectionTarget({
+        kind: "studio-output",
+        outputId: outputSnapshot.id,
+        surface: "reference-grid",
+        outputSnapshot,
+      });
+      result.current.setDetailOutputId(outputSnapshot.id);
+    });
+
+    expect(result.current.detailOutputId).toBe(outputSnapshot.id);
+    expect(result.current.detailSelectionTarget).toEqual({
+      kind: "studio-output",
+      outputId: outputSnapshot.id,
+      surface: "reference-grid",
+      outputSnapshot,
+    });
   });
 
   it("routes reference and extra image updates by selected tool", () => {

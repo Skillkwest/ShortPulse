@@ -390,7 +390,18 @@ export const useAiStudioReferenceSelectionState = ({
   );
 
   const setDetailOutputId = useCallback((value: string | null) => {
-    setDetailSelectionTargetState(createDetailSelectionTargetFromOutputId(value));
+    setDetailSelectionTargetState((current) => {
+      const nextTarget = createDetailSelectionTargetFromOutputId(value);
+      if (
+        nextTarget &&
+        nextTarget.kind === "studio-output" &&
+        current?.kind === "studio-output" &&
+        current.outputId === nextTarget.outputId
+      ) {
+        return current;
+      }
+      return nextTarget;
+    });
   }, []);
 
   const resolveReferenceInputsForTool = useCallback(

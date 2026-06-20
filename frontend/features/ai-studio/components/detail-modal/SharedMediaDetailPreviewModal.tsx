@@ -285,6 +285,7 @@ export function SharedMediaDetailPreviewModal({
               audioWaveformPeaks={item.media.waveformPeaks ?? null}
               videoRef={videoRef}
               audioRef={audioRef}
+              deferImagePromotion={false}
               onImageError={handlePreviewError}
               onVideoPlay={videoPlayback.handlePlay}
               onVideoPause={videoPlayback.handlePause}

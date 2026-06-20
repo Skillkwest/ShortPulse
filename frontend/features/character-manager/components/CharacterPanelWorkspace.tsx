@@ -73,6 +73,8 @@ const FULL_SLOT_UPLOAD_ERROR =
   "All character reference slots are filled. Clear a slot before adding more media.";
 const BUSY_SLOT_UPLOAD_ERROR =
   "Character reference slots are busy. Wait for current uploads to finish before adding more media.";
+const PENDING_CHARACTER_REFERENCE_SAVE_ERROR =
+  "Wait for character references to finish loading before saving.";
 const CHARACTER_SAVE_SUCCESS_BADGE_DURATION_MS = 2200;
 const CHARACTER_PANEL_FIELD_BORDER_COLOR = CHARACTER_PANEL_FIELD_BORDER;
 const createCharacterSheetSlotPendingCounts = (): Record<CharacterSheetDropZoneKey, number> => ({
@@ -448,10 +450,15 @@ export function CharacterPanelWorkspace({
   const saveSuccessHideTimerRef = React.useRef<number | null>(null);
   const characterSheetFileInputRef = React.useRef<HTMLInputElement | null>(null);
   const characterNameInputRef = React.useRef<HTMLInputElement | null>(null);
+  const pendingCharacterSheetUploadCountRef = React.useRef(0);
   const [editorPanelSize, setEditorPanelSize] = React.useState(() => ({
     width: 0,
     height: 0,
   }));
+  const isAnyCharacterSheetSlotPending = React.useMemo(
+    () => Object.values(pendingCharacterSheetUploadCounts).some((count) => count > 0),
+    [pendingCharacterSheetUploadCounts]
+  );
   const structuralBusy =
     loading ||
     isSwitchingCharacter ||
@@ -470,14 +477,10 @@ export function CharacterPanelWorkspace({
   const characterLibraryButtonDisabled =
     loading || isSwitchingCharacter || isCreatingCharacter || isDeletingCharacter;
   const characterLibrarySelectionDisabled = pageBusy;
-  const saveActionDisabled = pageBusy;
+  const saveActionDisabled = pageBusy || isAnyCharacterSheetSlotPending;
   const createActionDisabled = pageBusy;
   const resolvedCharacterSaveProgressMessage =
     characterSaveProgressMessage ?? "Saving character...";
-  const isAnyCharacterSheetSlotPending = React.useMemo(
-    () => Object.values(pendingCharacterSheetUploadCounts).some((count) => count > 0),
-    [pendingCharacterSheetUploadCounts]
-  );
   const slotMutationBusy = pageBusy || isAnyCharacterSheetSlotPending;
 
   const resolvedCharacterSheetPresetAssignments = React.useMemo(
@@ -789,6 +792,10 @@ export function CharacterPanelWorkspace({
 
   const setCharacterSheetSlotPending = React.useCallback(
     (zoneKey: CharacterSheetDropZoneKey, direction: 1 | -1) => {
+      pendingCharacterSheetUploadCountRef.current = Math.max(
+        0,
+        pendingCharacterSheetUploadCountRef.current + direction
+      );
       setPendingCharacterSheetUploadCounts((current) => ({
         ...current,
         [zoneKey]: Math.max(0, (current[zoneKey] ?? 0) + direction),
@@ -1009,15 +1016,24 @@ export function CharacterPanelWorkspace({
   }, []);
 
   const handleSaveCharacter = React.useCallback(async () => {
+    if (pendingCharacterSheetUploadCountRef.current > 0) {
+      setErrorMessage(PENDING_CHARACTER_REFERENCE_SAVE_ERROR);
+      return;
+    }
     setShowSaveSuccessIndicator(false);
     const saved = await saveCharacter();
     if (saved) {
       triggerSaveSuccessIndicator();
     }
-  }, [saveCharacter, triggerSaveSuccessIndicator]);
+  }, [saveCharacter, setErrorMessage, triggerSaveSuccessIndicator]);
 
+  const referenceCardMeasureNodeRef = React.useRef<HTMLElement | null>(null);
   const referenceCardMeasureObserverRef = React.useRef<ResizeObserver | null>(null);
   const handleReferenceCardMeasureRef = React.useCallback((node: HTMLElement | null) => {
+    if (referenceCardMeasureNodeRef.current === node) {
+      return;
+    }
+    referenceCardMeasureNodeRef.current = node;
     referenceCardMeasureObserverRef.current?.disconnect();
     referenceCardMeasureObserverRef.current = null;
 
@@ -1052,10 +1068,21 @@ export function CharacterPanelWorkspace({
     },
     [handleReferenceCardMeasureRef]
   );
+  const characterSheetDropZoneRefCallbacks = React.useMemo<
+    Record<CharacterSheetDropZoneKey, (node: HTMLElement | null) => void>
+  >(
+    () => ({
+      portrait: (node) => handleCharacterSheetDropZoneRef("portrait", node),
+      close_up: (node) => handleCharacterSheetDropZoneRef("close_up", node),
+      front_shot: (node) => handleCharacterSheetDropZoneRef("front_shot", node),
+    }),
+    [handleCharacterSheetDropZoneRef]
+  );
 
   React.useEffect(
     () => () => {
       referenceCardMeasureObserverRef.current?.disconnect();
+      referenceCardMeasureNodeRef.current = null;
     },
     []
   );
@@ -1446,9 +1473,7 @@ export function CharacterPanelWorkspace({
                                 return (
                                   <article
                                     key={dropZone.key}
-                                    ref={(node) =>
-                                      handleCharacterSheetDropZoneRef(dropZone.key, node)
-                                    }
+                                    ref={characterSheetDropZoneRefCallbacks[dropZone.key]}
                                     className={`character-character-sheet-card ${
                                       assignedReference ? "is-filled" : "is-empty"
                                     } ${isDropActive ? "is-drop-active" : ""} ${

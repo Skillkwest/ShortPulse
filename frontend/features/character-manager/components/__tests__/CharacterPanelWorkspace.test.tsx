@@ -558,6 +558,47 @@ describe("CharacterPanelWorkspace", () => {
     });
   });
 
+  it("blocks Save while dropped character references are still loading", async () => {
+    let resolveUploadPromise!: (value: boolean) => void;
+    const uploadPromise = new Promise<boolean>((resolve) => {
+      resolveUploadPromise = resolve;
+    });
+    const saveCharacterMock = vi.fn(async () => true);
+    setCharacterSheetPresetFileMock.mockImplementation(() => uploadPromise);
+    currentDraftState = {
+      ...createDraftState(),
+      saveCharacter: saveCharacterMock,
+    };
+
+    render(
+      <CharacterPanelWorkspace
+        externalUploadRequest={{
+          requestId: 22,
+          files: [new File(["x"], "ref.png", { type: "image/png" })],
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(setCharacterSheetPresetFileMock).toHaveBeenCalledWith("portrait", expect.any(File));
+    });
+
+    const saveButton = screen.getByRole("button", { name: "Save" });
+    expect(saveButton).toBeDisabled();
+
+    await act(async () => {
+      fireEvent.click(saveButton);
+      await Promise.resolve();
+    });
+
+    expect(saveCharacterMock).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveUploadPromise(true);
+      await uploadPromise;
+    });
+  });
+
   it("keeps the Characters modal browsable but read-only while character save is in progress", () => {
     const selectCharacterMock = vi.fn(async () => undefined);
     const createCharacterMock = vi.fn(async () => undefined);

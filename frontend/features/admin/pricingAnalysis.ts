@@ -184,10 +184,8 @@ const buildModelEconomicsRow = ({
     customRow?.overrides.providerUsdPerSecondOverride ??
     resolvedPolicy.providerUsdPerSecondOverride;
   const isSharedPolicyModel = model.pricingAuthority === "shared_policy";
-  const usageValue =
-    variant.durationSeconds ?? durationSecondsOverride ?? getModelUsageValue(model, undefined);
-  const durationSeconds =
-    variant.durationSeconds ?? getModelDurationSecondsForUsage(model, usageValue);
+  const usageValue = durationSecondsOverride ?? getModelUsageValue(model, undefined);
+  const durationSeconds = getModelDurationSecondsForUsage(model, usageValue);
   const usageRateMultiplier = getModelUsageRateMultiplier(model, usageValue);
   const providerCostUsd = isSharedPolicyModel
     ? getEffectiveProviderCostUsd({

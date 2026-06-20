@@ -43,7 +43,7 @@ const fileChecks = [
     requireIncludes: [
       "supportsCanonicalVideoBilledPricing",
       "resolveVideoBilledCreditLookup",
-      "requireExplicitBilledCreditsOverride: true",
+      "resolvePricingGridCostBreakdown({",
     ],
   },
   {

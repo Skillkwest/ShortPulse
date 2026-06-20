@@ -1790,7 +1790,11 @@ export function AdminAgentInstructionsSection() {
             className={styles.agentInstructionCollapsibleBody}
             hidden={builtInStyleCardCollapsed}
           >
-            <div className={styles.agentEditPresetGrid} role="list" aria-label="Built-in Styles">
+            <div
+              className={`${styles.agentEditPresetGrid} ${styles.agentBuiltInStyleGrid}`}
+              role="list"
+              aria-label="Built-in Styles"
+            >
               {builtInStyleDrafts.map((draft, index) => {
                 const cardTitle =
                   draft.title.trim().length > 0 ? draft.title : `Style ${index + 1}`;

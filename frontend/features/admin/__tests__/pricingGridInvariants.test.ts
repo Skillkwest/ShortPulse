@@ -54,7 +54,7 @@ const buildModelRow = (overrides: Partial<AdminPricingModelRow>): AdminPricingMo
   }) as AdminPricingModelRow;
 
 describe("pricing grid invariants", () => {
-  it("emits exact duration rows for Seedance video configurations", () => {
+  it("keeps Seedance duration as a usage input instead of expanding duration variants", () => {
     const pricingPolicy = {
       ...getDefaultModelPricingPolicyDocument(),
       global: {
@@ -80,34 +80,50 @@ describe("pricing grid invariants", () => {
       allowedDurations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
       defaultAudio: true,
     });
-    const rows = buildDraftPricingPreviewVariants(model, pricingPolicy);
+    const rows = buildDraftPricingPreviewVariants(model, pricingPolicy, { usageAmount: 12 });
     const row = rows.find(
-      (candidate) =>
-        candidate.id === "default|res:720p|aspect:16:9|duration:12s|audio:on|video_input:none"
+      (candidate) => candidate.id === "default|res:720p|aspect:16:9|audio:on|video_input:none"
     );
+    const rowAtFifteenSeconds = buildDraftPricingPreviewVariants(model, pricingPolicy, {
+      usageAmount: 15,
+    }).find((candidate) => candidate.id === row?.id);
 
+    expect(rows).toHaveLength(6);
     expect(row).toMatchObject({
       resolution: "720p",
-      durationSeconds: 12,
       videoInput: false,
       breakdown: {
         billedCredits: 119,
       },
     });
+    expect(rowAtFifteenSeconds?.id).toBe(row?.id);
 
     const economicsRows = buildModelEconomicsRows({
+      models: [model],
+      pricingPolicy,
+      durationDrafts: {
+        [model.id]: "12",
+      },
+    });
+
+    expect(economicsRows.find((candidate) => candidate.variantId === row?.id)).toMatchObject({
+      durationSeconds: 12,
+      billedCredits: 119,
+    });
+
+    const economicsRowsAtFifteenSeconds = buildModelEconomicsRows({
       models: [model],
       pricingPolicy,
       durationDrafts: {
         [model.id]: "15",
       },
     });
-    const economicsRow = economicsRows.find((candidate) => candidate.variantId === row?.id);
 
-    expect(economicsRow).toMatchObject({
-      durationSeconds: 12,
-      usageValueLabel: "12",
-      billedCredits: 119,
+    expect(
+      economicsRowsAtFifteenSeconds.find((candidate) => candidate.variantId === row?.id)
+    ).toMatchObject({
+      durationSeconds: 15,
+      billedCredits: 149,
     });
   });
 

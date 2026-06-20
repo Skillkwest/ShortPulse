@@ -82,7 +82,7 @@ describe("materializeImageBilledCreditPolicy", () => {
     ).toBe(2);
   });
 
-  it("materializes canonical billed-credit rows for video variants", () => {
+  it("resolves canonical billed-credit rows for video variants without duration expansion", () => {
     const materialized = materializeImageBilledCreditPolicy(basePolicy);
     const videoModelIds = [
       KIE_VEO_31_FAST_I2V_MODEL_ID,
@@ -140,7 +140,7 @@ describe("materializeImageBilledCreditPolicy", () => {
     });
   });
 
-  it("materializes the exact Seedance 2 pricing-grid row for 720p 12s no-video-input runs", () => {
+  it("resolves the exact Seedance 2 pricing-grid value for 720p 12s no-video-input runs", () => {
     const materialized = materializeImageBilledCreditPolicy(basePolicy);
     const params = {
       durationSeconds: 12,
@@ -155,7 +155,8 @@ describe("materializeImageBilledCreditPolicy", () => {
 
     expect(strictVideoBreakdown).toMatchObject({
       credits: 119,
-      variantId: "default|res:720p|aspect:16:9|duration:12s|audio:on|video_input:none",
+      variantId: "default|res:720p|aspect:16:9|audio:on|video_input:none",
     });
+    expect(materialized.perModel[KIE_SEEDANCE_2_MODEL_ID]?.variants).toBeUndefined();
   });
 });

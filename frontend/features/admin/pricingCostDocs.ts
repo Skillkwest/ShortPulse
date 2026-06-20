@@ -12,11 +12,9 @@ import {
 import { convertUsdToCredits } from "../../lib/model-runtime/pricingCredits";
 import {
   shouldExpandAspectPricingVariants,
-  shouldExpandDurationPricingVariants,
   shouldExpandResolutionPricingVariants,
   shouldExpandVideoInputPricingVariants,
 } from "../../lib/model-runtime/pricingGridVariantRules";
-import { normalizeDurationForModelConfig } from "../../lib/model-runtime/modelDurationConstraints";
 
 export type CostDocsPopover = {
   x: number;
@@ -205,7 +203,7 @@ const mapDraftPricingBreakdown = (
   };
 };
 
-const orderWithDefaultFirst = <T extends string | number | boolean | null>(
+const orderWithDefaultFirst = <T extends string | boolean | null>(
   values: T[],
   defaultValue: T
 ): T[] => {
@@ -267,57 +265,11 @@ const buildVideoInputOptions = (
   return [true, false];
 };
 
-const normalizeDurationForAdminModel = (
-  duration: number | null | undefined,
-  model: AdminPricingModelRow
-): number | undefined => {
-  const workflowType = model.workflowType.toLowerCase();
-  return normalizeDurationForModelConfig(duration, {
-    allowedDurations: model.allowedDurations,
-    defaultDurationSeconds: model.defaultDurationSeconds ?? undefined,
-    maxDurationSeconds: model.maxDurationSeconds ?? undefined,
-    mediaType:
-      workflowType.includes("audio") ||
-      workflowType.includes("sound") ||
-      workflowType.includes("music")
-        ? "audio"
-        : "video",
-    minDurationSeconds: model.minDurationSeconds ?? undefined,
-  });
-};
-
-const buildDurationOptions = (
-  model: AdminPricingModelRow,
-  options: { durationSeconds?: number | null; usageAmount?: number | null }
-): Array<number | null> => {
-  if (!shouldExpandDurationPricingVariants(model.pricingStrategy)) {
-    const usageDuration = normalizeDurationForAdminModel(options.usageAmount ?? null, model);
-    return [usageDuration ?? null];
-  }
-  if (options.durationSeconds !== undefined) {
-    return [normalizeDurationForAdminModel(options.durationSeconds, model) ?? null];
-  }
-  const minDuration = model.minDurationSeconds ?? Number.NEGATIVE_INFINITY;
-  const maxDuration = model.maxDurationSeconds ?? Number.POSITIVE_INFINITY;
-  const allowedDurations = model.allowedDurations
-    .filter((duration) => duration >= minDuration && duration <= maxDuration)
-    .sort((left, right) => left - right);
-  const durationOptions = allowedDurations.length
-    ? allowedDurations
-    : model.defaultDurationSeconds != null
-      ? [model.defaultDurationSeconds]
-      : [];
-  return orderWithDefaultFirst(durationOptions, model.defaultDurationSeconds ?? null).filter(
-    (duration): duration is number => duration != null
-  );
-};
-
 export const buildDraftPricingPreviewVariants = (
   model: AdminPricingModelRow,
   pricingPolicy: Parameters<typeof computeCostForModel>[2],
   options: {
     usageAmount?: number | null;
-    durationSeconds?: number | null;
     baseVariantId?: string | null;
     label?: string | null;
     aspect?: string | null;
@@ -383,63 +335,53 @@ export const buildDraftPricingPreviewVariants = (
   const resolutionOptions = buildResolutionOptions(model, { resolution: options.resolution });
   const audioOptions = buildAudioOptions(model, { audio: options.audio });
   const videoInputOptions = buildVideoInputOptions(model, { videoInput: options.videoInput });
-  const durationOptions = buildDurationOptions(model, {
-    durationSeconds: options.durationSeconds,
-    usageAmount: options.usageAmount,
-  });
-  const expandsDuration = shouldExpandDurationPricingVariants(model.pricingStrategy);
 
   const draftVariants = variants
     .flatMap((variant) =>
       resolutionOptions.flatMap((resolution) =>
         aspectOptions.flatMap((aspect) =>
           videoInputOptions.flatMap((videoInput) =>
-            durationOptions.flatMap((durationSeconds) =>
-              audioOptions.map((audio): AdminPricingPreviewVariant | null => {
-                const usageOverrides = buildModelUsagePricingOverrides(
-                  model,
-                  expandsDuration ? null : (options.usageAmount ?? null)
-                );
-                const params = buildDefaultPricingParams(model.id, {
+            audioOptions.map((audio): AdminPricingPreviewVariant | null => {
+              const usageOverrides = buildModelUsagePricingOverrides(
+                model,
+                options.usageAmount ?? null
+              );
+              const params = buildDefaultPricingParams(model.id, {
+                variantBaseId: variant.id,
+                ...(aspect ? { aspect } : {}),
+                ...(resolution ? { resolution } : {}),
+                ...(audio != null ? { audio } : {}),
+                ...(videoInput != null ? { inputVideoCount: videoInput ? 1 : 0 } : {}),
+                ...usageOverrides,
+                ...(variant.id === "edit" ? { inputImageCount: 1, inputFidelity: "high" } : {}),
+              });
+              const breakdown =
+                mapDraftPricingBreakdown(model.id, params, pricingPolicy) ?? variant.breakdown;
+              if (!breakdown) return null;
+              return {
+                id: resolveModelPricingVariantId({
+                  modelId: model.id,
                   variantBaseId: variant.id,
                   ...(aspect ? { aspect } : {}),
                   ...(resolution ? { resolution } : {}),
-                  ...(durationSeconds != null ? { durationSeconds } : {}),
                   ...(audio != null ? { audio } : {}),
                   ...(videoInput != null ? { inputVideoCount: videoInput ? 1 : 0 } : {}),
-                  ...usageOverrides,
-                  ...(variant.id === "edit" ? { inputImageCount: 1, inputFidelity: "high" } : {}),
-                });
-                const breakdown =
-                  mapDraftPricingBreakdown(model.id, params, pricingPolicy) ?? variant.breakdown;
-                if (!breakdown) return null;
-                return {
-                  id: resolveModelPricingVariantId({
-                    modelId: model.id,
-                    variantBaseId: variant.id,
-                    ...(aspect ? { aspect } : {}),
-                    ...(resolution ? { resolution } : {}),
-                    ...(durationSeconds != null ? { durationSeconds } : {}),
-                    ...(audio != null ? { audio } : {}),
-                    ...(videoInput != null ? { inputVideoCount: videoInput ? 1 : 0 } : {}),
-                    ...(variant.id === "edit"
-                      ? {
-                          inputImageCount: 1,
-                          inputFidelity: "high",
-                          maskPresent: false,
-                        }
-                      : {}),
-                  }),
-                  label: variant.label,
-                  aspect,
-                  resolution,
-                  durationSeconds,
-                  audio,
-                  videoInput,
-                  breakdown,
-                } satisfies AdminPricingPreviewVariant;
-              })
-            )
+                  ...(variant.id === "edit"
+                    ? {
+                        inputImageCount: 1,
+                        inputFidelity: "high",
+                        maskPresent: false,
+                      }
+                    : {}),
+                }),
+                label: variant.label,
+                aspect,
+                resolution,
+                audio,
+                videoInput,
+                breakdown,
+              } satisfies AdminPricingPreviewVariant;
+            })
           )
         )
       )

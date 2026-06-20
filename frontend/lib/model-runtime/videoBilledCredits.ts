@@ -76,7 +76,6 @@ export const resolveVideoBilledCreditLookup = ({
           modelId,
           params: normalizedParams,
           pricingPolicy,
-          requireExplicitBilledCreditsOverride: true,
         })
       : null,
   };

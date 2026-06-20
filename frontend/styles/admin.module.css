@@ -1045,6 +1045,10 @@
   gap: 12px;
 }
 
+.agentBuiltInStyleGrid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
 .agentEditPresetTile {
   position: relative;
   display: grid;
@@ -4357,6 +4361,10 @@
 }
 
 @media (max-width: 1200px) {
+  .agentBuiltInStyleGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .searchRow {
     align-items: stretch;
     flex-direction: column;
@@ -4722,6 +4730,10 @@
 }
 
 @media (max-width: 980px) {
+  .agentBuiltInStyleGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .adminHeader {
     flex-direction: column;
     align-items: flex-start;
@@ -4902,6 +4914,10 @@
 }
 
 @media (max-width: 720px) {
+  .agentBuiltInStyleGrid {
+    grid-template-columns: 1fr;
+  }
+
   .adminToolbar,
   .statsWorkspaceMetaRow {
     align-items: stretch;

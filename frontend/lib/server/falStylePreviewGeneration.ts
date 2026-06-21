@@ -52,6 +52,7 @@ type GenerateFalFluxKleinImageInput = {
   payload: FalFluxKleinImagePayload;
   timeoutMs?: number;
   pollIntervalMs?: number;
+  initialPollDelayMs?: number;
 };
 
 type GenerateFalFluxKleinStylePreviewImageInput = GenerateFalFluxKleinImageInput;
@@ -68,11 +69,13 @@ export type FalFluxKleinStylePreviewImageResult = FalFluxKleinImageResult;
 const FAL_PROVIDER_KEY = "fal";
 export const FAL_FLUX_2_KLEIN_MODEL_ID = FAL_FLUX_2_KLEIN_9B_MODEL_ID;
 export const FAL_FLUX_2_KLEIN_SQUARE_SIZE = "1024x1024";
+export const FAL_FLUX_2_KLEIN_AUDIO_COMPANION_ART_SIZE = "512x512";
 export const FAL_FLUX_2_KLEIN_OUTPUT_FORMAT = "jpeg";
 export const FAL_FLUX_2_KLEIN_STYLE_PREVIEW_MODEL_ID = FAL_FLUX_2_KLEIN_MODEL_ID;
 export const FAL_FLUX_2_KLEIN_STYLE_PREVIEW_SIZE = FAL_FLUX_2_KLEIN_SQUARE_SIZE;
 export const FAL_FLUX_2_KLEIN_STYLE_PREVIEW_OUTPUT_FORMAT = FAL_FLUX_2_KLEIN_OUTPUT_FORMAT;
 const STYLE_PREVIEW_ASPECT = "1:1";
+const AUDIO_COMPANION_ART_IMAGE_SIZE = { width: 512, height: 512 } as const;
 const FAL_FLUX_2_KLEIN_POLL_INTERVAL_MS = 2000;
 const FAL_FLUX_2_KLEIN_SUBMIT_TIMEOUT_SECONDS = 30;
 const STYLE_PREVIEW_STATUS_CHECK_FAILED_MESSAGE = "Style preview generation status check failed.";
@@ -151,6 +154,7 @@ const resolvePayloadWithMedia = async ({
   apiKey,
   statusBaseUrls,
   pollIntervalMs,
+  initialPollDelayMs,
   signal,
   timeoutAt,
 }: {
@@ -158,11 +162,15 @@ const resolvePayloadWithMedia = async ({
   apiKey: string;
   statusBaseUrls: string[];
   pollIntervalMs: number;
+  initialPollDelayMs: number;
   signal: AbortSignal;
   timeoutAt: number;
 }): Promise<Record<string, unknown>> => {
+  let pollAttempt = 0;
   while (Date.now() < timeoutAt) {
-    await sleep(pollIntervalMs, signal);
+    const delayMs = pollAttempt === 0 ? initialPollDelayMs : pollIntervalMs;
+    pollAttempt += 1;
+    await sleep(delayMs, signal);
     let nonRetryableStatusFailure: string | null = null;
     for (const baseUrl of statusBaseUrls) {
       const response = await dispatchProviderStatusRequest({
@@ -275,10 +283,22 @@ export const buildFalFluxKleinStylePreviewPayload = (
   prompt: string
 ): FalFluxKleinStylePreviewPayload => buildFalFluxKleinImagePayload(prompt, STYLE_PREVIEW_ASPECT);
 
+export const buildFalFluxKleinAudioCompanionArtPayload = (
+  prompt: string
+): FalFluxKleinImagePayload => ({
+  prompt,
+  image_size: { ...AUDIO_COMPANION_ART_IMAGE_SIZE },
+  num_images: 1,
+  output_format: FAL_FLUX_2_KLEIN_OUTPUT_FORMAT,
+  num_inference_steps: 4,
+  enable_safety_checker: false,
+});
+
 export const generateFalFluxKleinImage = async ({
   payload,
   timeoutMs = getFalTimeoutMsOrDefault(FAL_FLUX_2_KLEIN_MODEL_ID, 60000),
   pollIntervalMs = FAL_FLUX_2_KLEIN_POLL_INTERVAL_MS,
+  initialPollDelayMs = FAL_FLUX_2_KLEIN_POLL_INTERVAL_MS,
 }: GenerateFalFluxKleinImageInput): Promise<FalFluxKleinImageResult> => {
   const projectedPayload = validateFalFluxKleinPayload(payload);
   const submitUrl = getFalSubmitUrlRequired(FAL_FLUX_2_KLEIN_MODEL_ID);
@@ -320,6 +340,7 @@ export const generateFalFluxKleinImage = async ({
             apiKey,
             statusBaseUrls,
             pollIntervalMs,
+            initialPollDelayMs,
             signal: controller.signal,
             timeoutAt: Date.now() + timeoutMs,
           });

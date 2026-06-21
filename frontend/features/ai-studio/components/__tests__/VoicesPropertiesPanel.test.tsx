@@ -367,6 +367,19 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.getByRole("button", { name: "Enhance voiceover script" })).toBeEnabled();
   });
 
+  it("keeps voiceover script text visible in the native typing layer", () => {
+    const { container } = render(<VoicesPropertiesPanel />);
+
+    const scriptInput = screen.getByRole("textbox", { name: "Voice script" });
+    fireEvent.change(scriptInput, {
+      target: { value: "[calm] Native textarea text stays visible." },
+    });
+
+    expect(container.querySelector(".voices-properties-script-highlight")).not.toBeInTheDocument();
+    expect(scriptInput).toHaveValue("[calm] Native textarea text stays visible.");
+    expect(scriptInput).toHaveClass("voices-properties-script-input");
+  });
+
   it("keeps bracketed voiceover tags in the generation payload", async () => {
     fetchWithAuthMock.mockImplementation(async (url: string) => {
       if (url === "/api/ai/voiceover-enhance") {
@@ -397,7 +410,7 @@ describe("VoicesPropertiesPanel", () => {
       return new Response(JSON.stringify({}), { status: 200 });
     });
     const onGenerate = vi.fn();
-    const { container } = render(<VoicesPropertiesPanel onGenerate={onGenerate} />);
+    render(<VoicesPropertiesPanel onGenerate={onGenerate} />);
 
     const scriptInput = screen.getByRole("textbox", { name: "Voice script" });
     fireEvent.change(scriptInput, { target: { value: "Updated launch script." } });
@@ -406,9 +419,6 @@ describe("VoicesPropertiesPanel", () => {
     await waitFor(() => {
       expect(scriptInput).toHaveValue("[confused] Updated launch script.");
     });
-    expect(container.querySelector(".voices-properties-script-audio-tag")).toHaveTextContent(
-      "[confused]"
-    );
 
     const generateButton = screen.getByRole("button", { name: "Generate" });
     await waitFor(() => {

@@ -570,11 +570,12 @@ describe("ReferenceGridCard", () => {
     const videoSource = videoNode?.querySelector("source");
 
     expect(videoNode?.draggable).toBe(false);
-    expect(videoNode?.getAttribute("src")).toBe("https://example.com/video.mp4");
+    expect(videoNode?.getAttribute("src")).toBeNull();
     expect(videoSource).toBeNull();
 
     fireEvent.pointerEnter(card);
     expect(playMock).toHaveBeenCalled();
+    expect(videoNode?.getAttribute("src")).toBe("https://example.com/video.mp4");
 
     fireEvent.pointerLeave(card);
     expect(pauseMock).toHaveBeenCalled();
@@ -603,10 +604,12 @@ describe("ReferenceGridCard", () => {
 
     expect(videoNode).not.toBeNull();
     expect(videoNode?.classList.contains("is-visible")).toBe(false);
+    expect(videoNode?.getAttribute("src")).toBeNull();
 
     fireEvent.pointerEnter(card);
 
     expect(playMock).toHaveBeenCalled();
+    expect(videoNode?.getAttribute("src")).toBe("https://example.com/generated-video.mp4");
     expect(videoNode?.classList.contains("is-visible")).toBe(true);
   });
 
@@ -627,6 +630,27 @@ describe("ReferenceGridCard", () => {
 
     expect(loadMock).toHaveBeenCalled();
     expect(playMock).toHaveBeenCalled();
+  });
+
+  it("releases the media source when a warmed video leaves the autoplay budget", () => {
+    const videoProps = createProps({
+      item: createOutput({ mode: "video" }),
+      isVideoPreview: true,
+      cardPreviewUrl: "https://example.com/video.mp4",
+      canAutoplayVideo: true,
+      videoPreload: "metadata",
+    });
+    const { rerender } = render(<ReferenceGridCard {...videoProps} />);
+
+    const videoNode = document.querySelector(".reference-card-video") as HTMLVideoElement | null;
+    expect(videoNode).not.toBeNull();
+    expect(videoNode?.getAttribute("src")).toBe("https://example.com/video.mp4");
+
+    rerender(<ReferenceGridCard {...videoProps} canAutoplayVideo={false} videoPreload="none" />);
+
+    expect(pauseMock).toHaveBeenCalled();
+    expect(loadMock).toHaveBeenCalled();
+    expect(videoNode?.getAttribute("src")).toBeNull();
   });
 
   it("renders a video duration badge when duration metadata is available", () => {

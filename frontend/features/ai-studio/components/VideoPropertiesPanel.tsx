@@ -7,7 +7,7 @@ import { AppMessage } from "../../../components/AppMessage";
 import type { AspectOption, LipSyncAudioState, VideoReferenceMode } from "../types";
 import { modelLogos } from "../constants";
 import { AgentGenerateButton } from "../../../prefabs/agent";
-import { extractInternalReferenceDragPayload, extractPromptDropText } from "../utils/dragDrop";
+import { extractPromptDropText } from "../utils/dragDrop";
 import { insertDroppedPromptTextAtSelection } from "./promptStep/agentComposerDrop";
 import { ElementPickerModal } from "./ElementPickerModal";
 import type { ModelModalContext } from "./ModelModal";
@@ -25,7 +25,8 @@ import { VideoSettingsCardPrefab } from "./VideoSettingsCardPrefab";
 import { useReferencePropertiesInteractions } from "./useReferencePropertiesInteractions";
 import { ReferenceAudioPlayer } from "./shared/ReferenceAudioPlayer";
 import type { VideoUploadResult } from "../utils/videoUpload";
-import { readMediaLibraryDragPayload } from "../logic/mediaLibraryDragPayload";
+import { captureAiStudioDropSnapshot } from "../logic/aiStudioDropSnapshot";
+import { resolveLipSyncAudioDropSource } from "../logic/lipSyncAudioDropSource";
 import {
   createEmptyLipSyncAudioState,
   createFailedLipSyncAudioState,
@@ -173,19 +174,6 @@ const resolveDurableLipSyncDropAudioUrl = (
     ],
     storagePathCandidates: [internalPayload?.fullStoragePath, internalPayload?.previewStoragePath],
   });
-};
-
-const resolveDurableLipSyncReferenceAudioDrop = (
-  transfer: DataTransfer
-): { url: string | null; storagePath: string | null } | null => {
-  const internalPayload = extractInternalReferenceDragPayload(transfer);
-  if (!internalPayload || internalPayload.mediaKind !== "audio") return null;
-  const { url, storagePath } = resolveLipSyncAudioDurableSource({
-    urlCandidates: [internalPayload.referenceUrl, internalPayload.referenceRenderUrl],
-    storagePathCandidates: [internalPayload.fullStoragePath, internalPayload.previewStoragePath],
-  });
-  if (!url && !storagePath) return null;
-  return { url, storagePath };
 };
 
 export type VideoPropertiesPanelProps = {
@@ -653,46 +641,31 @@ export function VideoPropertiesPanel({
     [handleLipSyncAudioFile]
   );
   const handleLipSyncAudioDrop = React.useCallback(
-    (event: React.DragEvent<HTMLDivElement>) => {
+    async (event: React.DragEvent<HTMLDivElement>) => {
       event.preventDefault();
       setLipSyncAudioDragActive(false);
-      const libraryPayload = readMediaLibraryDragPayload(event.dataTransfer);
-      if (libraryPayload?.kind === "libraryMedia" && libraryPayload.payload.fileType === "audio") {
-        const audioUrl =
-          libraryPayload.payload.fullUrl ??
-          libraryPayload.payload.previewUrl ??
-          libraryPayload.payload.url;
-        const storagePath =
-          libraryPayload.payload.fullStoragePath ??
-          libraryPayload.payload.previewStoragePath ??
-          null;
-        if (audioUrl || storagePath) {
-          applyLipSyncAudio(
-            createLipSyncAudioStateFromDurableUrl({
-              url: audioUrl ?? null,
-              durationMs: libraryPayload.payload.durationMs ?? null,
-              sourceKind: "library",
-              storagePath,
-            })
-          );
-        }
-        return;
-      }
-      const referenceAudio = resolveDurableLipSyncReferenceAudioDrop(event.dataTransfer);
-      if (referenceAudio) {
+      const snapshot = captureAiStudioDropSnapshot(event.dataTransfer);
+      const resolvedSource = await resolveLipSyncAudioDropSource({
+        snapshot,
+        resolvePreviewUrlById,
+      });
+      if (resolvedSource?.kind === "durable") {
         applyLipSyncAudio(
           createLipSyncAudioStateFromDurableUrl({
-            url: referenceAudio.url,
-            durationMs: null,
-            sourceKind: "reference",
-            storagePath: referenceAudio.storagePath,
+            url: resolvedSource.url,
+            durationMs: resolvedSource.durationMs,
+            sourceKind: resolvedSource.sourceKind,
+            storagePath: resolvedSource.storagePath,
           })
         );
         return;
       }
-      void handleLipSyncAudioFile(event.dataTransfer.files?.[0]);
+      if (resolvedSource?.kind === "file") {
+        void handleLipSyncAudioFile(resolvedSource.audioFile);
+        return;
+      }
     },
-    [applyLipSyncAudio, handleLipSyncAudioFile]
+    [applyLipSyncAudio, handleLipSyncAudioFile, resolvePreviewUrlById]
   );
   const canAcceptLipSyncAudioCanvasTearOutPayload = React.useCallback(
     (payload: AgentComposerDirectDropPayload) => payload.kind === "audio",

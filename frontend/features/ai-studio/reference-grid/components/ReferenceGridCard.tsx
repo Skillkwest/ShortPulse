@@ -197,6 +197,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
 }: ReferenceGridCardProps) {
   const videoNodeRef = React.useRef<HTMLVideoElement | null>(null);
   const hoverAutoplayStartedRef = React.useRef(false);
+  const attachedVideoSourceRef = React.useRef<string | null>(null);
   const [isHoveringVideo, setIsHoveringVideo] = React.useState(false);
   const [isHoverVideoVisible, setIsHoverVideoVisible] = React.useState(false);
   const [hasPosterImageError, setHasPosterImageError] = React.useState(false);
@@ -292,6 +293,16 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     !hasMediaRenderError &&
     ((isVideoPreview && resolvedHoverVideoUrl) || hasPosterBackedVideoPreview)
   );
+  const shouldAttachVideoSource = Boolean(
+    shouldRenderVideoElement &&
+    resolvedHoverVideoUrl &&
+    (canAutoplayVideo ||
+      isHoveringVideo ||
+      isHoverVideoVisible ||
+      isSelected ||
+      hasPosterImageError)
+  );
+  const attachedVideoSourceUrl = shouldAttachVideoSource ? resolvedHoverVideoUrl : null;
   const audioPreviewUrl = isAudioPreview
     ? playableMediaUrl?.trim() || cardPreviewUrl?.trim() || ""
     : "";
@@ -370,6 +381,9 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     }
     node.muted = true;
     node.playsInline = true;
+    if (node.getAttribute("src") !== resolvedHoverVideoUrl) {
+      node.src = resolvedHoverVideoUrl;
+    }
     if (!node.currentSrc && node.readyState === HTMLMediaElement.HAVE_NOTHING) {
       node.load();
     }
@@ -400,6 +414,21 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     hoverAutoplayStartedRef.current = false;
     videoNodeRef.current?.pause();
   }, [canAutoplayVideo]);
+
+  React.useEffect(() => {
+    const previousAttachedVideoSource = attachedVideoSourceRef.current;
+    attachedVideoSourceRef.current = attachedVideoSourceUrl;
+    const node = videoNodeRef.current;
+    if (!node || attachedVideoSourceUrl) return;
+    if (!previousAttachedVideoSource && !node.currentSrc && !node.getAttribute("src")) return;
+    node.pause();
+    node.removeAttribute("src");
+    try {
+      node.load();
+    } catch {
+      // Some browser/test environments throw when resetting detached media.
+    }
+  }, [attachedVideoSourceUrl]);
   const saveIcon =
     item.saveState === "failed" ? (
       <ArrowClockwise size={16} weight="bold" aria-hidden />
@@ -504,7 +533,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
             videoNodeRef.current = node;
             registerVideoNode(videoNodeKey, item.id, node);
           }}
-          src={resolvedHoverVideoUrl ?? undefined}
+          src={attachedVideoSourceUrl ?? undefined}
           autoPlay={canAutoplayVideo}
           muted
           loop

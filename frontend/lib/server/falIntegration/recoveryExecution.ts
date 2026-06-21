@@ -1203,20 +1203,6 @@ export const executeGenerationRecovery = async ({
         decision_reason: autosavePolicyDecision.reason,
       },
     });
-    await syncRecoveredGenerationProjection({
-      abandonmentOverride: terminalAbandonmentPolicy.abandonment,
-      actor,
-      autosaveDecision: "autosave_skipped",
-      autosaveDecisionReason: autosavePolicyDecision.reason,
-      autosavePreferenceLookupMessage,
-      generation,
-      metadataOverride: terminalAbandonmentPolicy.metadata,
-      mediaFileIds: [],
-      nowIso,
-      persistedOutputRows,
-      recoveredUrls,
-      routeLabel,
-    });
     await logRecoveryAutosaveDecisionEvent({
       generationId: generation.id,
       userId: generation.user_id,
@@ -1240,6 +1226,20 @@ export const executeGenerationRecovery = async ({
         autosaveDecision: "autosave_skipped",
         autosaveDecisionReason: autosavePolicyDecision.reason,
       }),
+    });
+    await syncRecoveredGenerationProjection({
+      abandonmentOverride: terminalAbandonmentPolicy.abandonment,
+      actor,
+      autosaveDecision: "autosave_skipped",
+      autosaveDecisionReason: autosavePolicyDecision.reason,
+      autosavePreferenceLookupMessage,
+      generation,
+      metadataOverride: terminalAbandonmentPolicy.metadata,
+      mediaFileIds: [],
+      nowIso,
+      persistedOutputRows,
+      recoveredUrls,
+      routeLabel,
     });
     void requestGenerationControlPlaneWake({
       routeLabel,
@@ -1312,19 +1312,6 @@ export const executeGenerationRecovery = async ({
           decision_reason: autosaveDecisionReason,
         },
       });
-      await syncRecoveredGenerationProjection({
-        abandonmentOverride: terminalAbandonmentPolicy.abandonment,
-        actor,
-        autosaveDecision: "autosave_skipped",
-        autosaveDecisionReason,
-        generation,
-        metadataOverride: terminalAbandonmentPolicy.metadata,
-        mediaFileIds: [],
-        nowIso,
-        persistedOutputRows,
-        recoveredUrls,
-        routeLabel,
-      });
       await logRecoveryAutosaveDecisionEvent({
         generationId: generation.id,
         userId: generation.user_id,
@@ -1363,6 +1350,19 @@ export const executeGenerationRecovery = async ({
           autosaveDecision: "autosave_skipped",
           autosaveDecisionReason,
         }),
+      });
+      await syncRecoveredGenerationProjection({
+        abandonmentOverride: terminalAbandonmentPolicy.abandonment,
+        actor,
+        autosaveDecision: "autosave_skipped",
+        autosaveDecisionReason,
+        generation,
+        metadataOverride: terminalAbandonmentPolicy.metadata,
+        mediaFileIds: [],
+        nowIso,
+        persistedOutputRows,
+        recoveredUrls,
+        routeLabel,
       });
       void requestGenerationControlPlaneWake({
         routeLabel,
@@ -1407,7 +1407,11 @@ export const executeGenerationRecovery = async ({
         generation_id: generation.id,
         persistence_error_class: "invalid_generation_owner",
       },
-    }).catch(() => undefined);
+    });
+    await applyRecoveryTransition({
+      generation,
+      generationUpdates: buildProviderFailedUpdate(nowIso, "media_persistence_failed"),
+    });
     await syncFailedGenerationProjection({
       abandonmentOverride: terminalAbandonmentPolicy.abandonment,
       actor,
@@ -1419,10 +1423,6 @@ export const executeGenerationRecovery = async ({
       metadataOverride: terminalAbandonmentPolicy.metadata,
       routeLabel,
     }).catch(() => undefined);
-    await applyRecoveryTransition({
-      generation,
-      generationUpdates: buildProviderFailedUpdate(nowIso, "media_persistence_failed"),
-    });
     void requestGenerationControlPlaneWake({
       routeLabel,
       reason: "media_persistence_failed",
@@ -1482,20 +1482,6 @@ export const executeGenerationRecovery = async ({
       decision_reason: autosavePolicyDecision.reason,
     },
   });
-  await syncRecoveredGenerationProjection({
-    abandonmentOverride: terminalAbandonmentPolicy.abandonment,
-    actor,
-    autosaveDecision: "auto_persisted",
-    autosaveDecisionReason: autosavePolicyDecision.reason,
-    autosavePreferenceLookupMessage,
-    generation,
-    metadataOverride: terminalAbandonmentPolicy.metadata,
-    mediaFileIds,
-    nowIso,
-    persistedOutputRows,
-    recoveredUrls,
-    routeLabel,
-  });
   await logRecoveryAutosaveDecisionEvent({
     generationId: generation.id,
     userId: generation.user_id,
@@ -1505,20 +1491,6 @@ export const executeGenerationRecovery = async ({
     autosavePreferenceSource: mediaAutosavePreference.source,
     autosaveDecision: "auto_persisted",
     decisionReason: autosavePolicyDecision.reason,
-  });
-  await logRecoveryMediaVisibleEvent({
-    actor,
-    autosaveEnabled: mediaAutosaveEnabled,
-    autosavePreferenceSource: mediaAutosavePreference.source,
-    generation,
-    mediaFileCount: mediaFileIds.length,
-    mediaVisibleAt: new Date(),
-    providerTerminalObservedAtIso,
-    recoveredUrls,
-    routeLabel,
-    usedExistingMediaRows: false,
-    usedObservationMediaUrls: currentObservation.mediaUrls.length > 0,
-    usedObservationPayload: Boolean(currentObservation.payload),
   });
   await applyRecoveryTransition({
     generation,
@@ -1533,6 +1505,34 @@ export const executeGenerationRecovery = async ({
       autosaveDecision: "auto_persisted",
       autosaveDecisionReason: autosavePolicyDecision.reason,
     }),
+  });
+  await syncRecoveredGenerationProjection({
+    abandonmentOverride: terminalAbandonmentPolicy.abandonment,
+    actor,
+    autosaveDecision: "auto_persisted",
+    autosaveDecisionReason: autosavePolicyDecision.reason,
+    autosavePreferenceLookupMessage,
+    generation,
+    metadataOverride: terminalAbandonmentPolicy.metadata,
+    mediaFileIds,
+    nowIso,
+    persistedOutputRows,
+    recoveredUrls,
+    routeLabel,
+  });
+  await logRecoveryMediaVisibleEvent({
+    actor,
+    autosaveEnabled: mediaAutosaveEnabled,
+    autosavePreferenceSource: mediaAutosavePreference.source,
+    generation,
+    mediaFileCount: mediaFileIds.length,
+    mediaVisibleAt: new Date(),
+    providerTerminalObservedAtIso,
+    recoveredUrls,
+    routeLabel,
+    usedExistingMediaRows: false,
+    usedObservationMediaUrls: currentObservation.mediaUrls.length > 0,
+    usedObservationPayload: Boolean(currentObservation.payload),
   });
   void requestGenerationControlPlaneWake({
     routeLabel,

@@ -650,6 +650,12 @@ describe("generatedMediaAuthority", () => {
     expect(projectionSelect).toHaveBeenCalledWith(
       expect.stringContaining("companion_art_storage_path")
     );
+    const projectionSelectCalls = projectionSelect.mock.calls as unknown as Array<[string]>;
+    const projectionSelectColumns = projectionSelectCalls[0]?.[0] ?? "";
+    expect(projectionSelectColumns).not.toContain("generation_replay");
+    expect(projectionSelectColumns).not.toContain("workflow_reload");
+    expect(projectionSelectColumns).not.toContain("character_context");
+    expect(projectionSelectColumns).not.toContain("style_context");
   });
 
   it("signs projection poster storage for completed generated video reconcile", async () => {
@@ -906,12 +912,13 @@ describe("generatedMediaAuthority", () => {
       data: [],
       error: null,
     });
+    const projectionSelect = vi.fn(() => projectionBuilder);
 
     ensureSupabaseQueryClientMock.mockReturnValue({
       from: vi.fn((table: string) => {
         if (table === "generation_projection") {
           return {
-            select: vi.fn(() => projectionBuilder),
+            select: projectionSelect,
           };
         }
         if (table === "generation_publications") {
@@ -954,6 +961,12 @@ describe("generatedMediaAuthority", () => {
         },
       }),
     ]);
+    const projectionSelectCalls = projectionSelect.mock.calls as unknown as Array<[string]>;
+    const projectionSelectColumns = projectionSelectCalls[0]?.[0] ?? "";
+    expect(projectionSelectColumns).toContain("generation_replay");
+    expect(projectionSelectColumns).toContain("workflow_reload");
+    expect(projectionSelectColumns).toContain("character_context");
+    expect(projectionSelectColumns).toContain("style_context");
   });
 
   it("keeps provider-url-only success rows visible during restore", async () => {
@@ -2278,6 +2291,74 @@ describe("generatedMediaAuthority", () => {
       }),
     ]);
     expect(projectionBuilder.eq).toHaveBeenCalledWith("workspace_runtime_key", "session:session-1");
+  });
+
+  it("omits heavy workflow context columns for lightweight visible-output hydration", async () => {
+    const projectionBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-session-lightweight-1",
+          workspace_runtime_key: "session:session-1",
+          request_id: "req-session-lightweight-1",
+          source_ref: "source-session-lightweight-1",
+          provider: "kie",
+          model_id: "kie-ai/gpt-image-2-text-to-image",
+          display_prompt: "A lightweight session output",
+          preview_url: "https://kie.test/session-lightweight-preview.png",
+          result_urls: ["https://kie.test/session-lightweight-full.png"],
+          task_state: "running",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+          updated_at: "2026-06-08T16:13:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const canonicalOutputBuilder = createAwaitableSelectBuilder({
+      data: [],
+      error: null,
+    });
+    const projectionSelect = vi.fn(() => projectionBuilder);
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "generation_projection") {
+          return {
+            select: projectionSelect,
+          };
+        }
+        if (table === "ai_generation_outputs") {
+          return {
+            select: vi.fn(() => canonicalOutputBuilder),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(
+      listVisibleGeneratedOutputs({
+        projectId: null,
+        workspaceRuntimeKey: "session:session-1",
+        includeWorkflowContext: false,
+      })
+    ).resolves.toEqual([
+      expect.objectContaining({
+        id: "generated:gen-session-lightweight-1",
+        generationId: "gen-session-lightweight-1",
+        taskId: "req-session-lightweight-1",
+        previewUrl: "https://kie.test/session-lightweight-preview.png",
+        resultUrls: ["https://kie.test/session-lightweight-full.png"],
+      }),
+    ]);
+    const projectionSelectCalls = projectionSelect.mock.calls as unknown as Array<[string]>;
+    const projectionSelectColumns = projectionSelectCalls[0]?.[0] ?? "";
+    expect(projectionSelectColumns).toContain("preview_url");
+    expect(projectionSelectColumns).toContain("task_state");
+    expect(projectionSelectColumns).not.toContain("generation_replay");
+    expect(projectionSelectColumns).not.toContain("workflow_reload");
+    expect(projectionSelectColumns).not.toContain("character_context");
+    expect(projectionSelectColumns).not.toContain("style_context");
   });
 
   it("retries plain-session projection hydration without display_title when hosted schema is stale", async () => {

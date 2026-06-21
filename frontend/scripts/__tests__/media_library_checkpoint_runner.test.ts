@@ -26,6 +26,7 @@ describe("media_library_checkpoint_runner", () => {
     const checkpoint = getCheckpoint("count-hot-path");
     expect(checkpoint?.title).toBe("Count Hot Path");
     expect(getCheckpoint("panel-runtime-churn")?.title).toBe("Panel Runtime Churn");
+    expect(getCheckpoint("deep-scroll-performance")?.title).toBe("Deep Scroll Performance");
     expect(getCheckpoint("route-runtime-churn")).toBeNull();
     expect(getCheckpoint("missing")).toBeNull();
   });
@@ -38,5 +39,20 @@ describe("media_library_checkpoint_runner", () => {
     expect(summary).toContain("Checkpoint: preview-authority");
     expect(summary).toContain("Commands:");
     expect(summary).toContain("Done hint:");
+  });
+
+  it("documents the authenticated browser proof boundary for deep-scroll performance", () => {
+    const checkpoint = getCheckpoint("deep-scroll-performance");
+    expect(checkpoint).not.toBeNull();
+
+    const summary = buildCheckpointSummary("deep-scroll-performance", checkpoint);
+    expect(summary).toContain(
+      "features/media-library/logic/__tests__/mediaGridVirtualization.test.ts"
+    );
+    expect(summary).toContain(
+      "features/media-library/logic/__tests__/mediaPreviewSigningPass.test.ts"
+    );
+    expect(summary).toContain("npm run type-check:touched");
+    expect(summary).toContain("npm run test:e2e:media-library-runtime separately");
   });
 });

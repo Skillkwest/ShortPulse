@@ -1930,8 +1930,6 @@
   min-height: 0;
 }
 
-.bootstrapStyleScope:global(.voices-properties-script-highlight),
-.bootstrapStyleScope :global(.voices-properties-script-highlight),
 .bootstrapStyleScope:global(.voices-properties-script-input),
 .bootstrapStyleScope :global(.voices-properties-script-input) {
   position: absolute;
@@ -1947,33 +1945,12 @@
   box-sizing: border-box;
 }
 
-.bootstrapStyleScope:global(.voices-properties-script-highlight),
-.bootstrapStyleScope :global(.voices-properties-script-highlight) {
-  color: #f5f9ff;
-  overflow: auto;
-  pointer-events: none;
-  scrollbar-width: none;
-  scrollbar-gutter: stable both-edges;
-}
-
-.bootstrapStyleScope:global(.voices-properties-script-highlight)::-webkit-scrollbar,
-.bootstrapStyleScope :global(.voices-properties-script-highlight)::-webkit-scrollbar {
-  display: none;
-}
-
-.bootstrapStyleScope:global(.voices-properties-script-audio-tag),
-.bootstrapStyleScope :global(.voices-properties-script-audio-tag) {
-  color: rgba(149, 235, 228, 0.98);
-  font-weight: 800;
-  text-shadow: 0 0 12px rgba(149, 235, 228, 0.2);
-}
-
 .bootstrapStyleScope:global(.voices-properties-script-input),
 .bootstrapStyleScope :global(.voices-properties-script-input) {
   border: 0;
   background: transparent;
-  color: transparent;
-  -webkit-text-fill-color: transparent;
+  color: #f5f9ff;
+  -webkit-text-fill-color: #f5f9ff;
   caret-color: #f5f9ff;
   outline: none;
   resize: none;

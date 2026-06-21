@@ -1332,6 +1332,26 @@ export const persistGeneratedAudioAsset = async ({
     throw new Error(signedResult.error?.message || "Unable to sign generated audio.");
   }
 
+  const generationMetadata = {
+    provider_request_id: resolvedProviderRequestId,
+    source_mode: sourceMode,
+    display_title: normalizedDisplayTitle,
+    voice_id: voiceId,
+    voice_name: voiceName,
+    transcript_text: normalizedTranscriptText,
+    autosave_enabled: mediaAutosaveEnabled,
+    autosave_preference_source: mediaAutosavePreference.source,
+    autosave_decision: autosavePolicyDecision.allowed ? "autosave_requested" : "autosave_skipped",
+    autosave_decision_reason: autosavePolicyDecision.reason,
+    output_format: outputFormat,
+    mime_type: outputContentType,
+    project_id: resolvedProjectId,
+    workspace_runtime_key: resolvedWorkspaceRuntimeKey,
+    ...extraMetadata,
+    ...displayTitleMetadata,
+    ...(Object.keys(workflowReload).length > 0 ? { workflow_reload: workflowReload } : {}),
+  };
+
   const generationInsert = await supabaseAdmin
     .from("ai_generations")
     .insert({
@@ -1342,29 +1362,8 @@ export const persistGeneratedAudioAsset = async ({
       model_id: modelId,
       prompt_text: promptText,
       request_id: resolvedRequestId,
-      status: "success",
-      completed_at: createdAtIso,
-      metadata: {
-        provider_request_id: resolvedProviderRequestId,
-        source_mode: sourceMode,
-        display_title: normalizedDisplayTitle,
-        voice_id: voiceId,
-        voice_name: voiceName,
-        transcript_text: normalizedTranscriptText,
-        autosave_enabled: mediaAutosaveEnabled,
-        autosave_preference_source: mediaAutosavePreference.source,
-        autosave_decision: autosavePolicyDecision.allowed
-          ? "autosave_requested"
-          : "autosave_skipped",
-        autosave_decision_reason: autosavePolicyDecision.reason,
-        output_format: outputFormat,
-        mime_type: outputContentType,
-        project_id: resolvedProjectId,
-        workspace_runtime_key: resolvedWorkspaceRuntimeKey,
-        ...extraMetadata,
-        ...displayTitleMetadata,
-        ...(Object.keys(workflowReload).length > 0 ? { workflow_reload: workflowReload } : {}),
-      },
+      status: "running",
+      metadata: generationMetadata,
     })
     .select("id")
     .single();
@@ -1377,15 +1376,6 @@ export const persistGeneratedAudioAsset = async ({
     ? "auto_persisted"
     : "autosave_skipped";
   let autosaveDecisionReason: string = autosavePolicyDecision.reason;
-  await beforeVisibleSettlement?.({
-    generationId,
-    requestId: resolvedRequestId,
-    providerRequestId: resolvedProviderRequestId,
-    outputRowId: null,
-    mediaFileId: null,
-    mediaKind: "audio",
-    sourceMode,
-  });
 
   let outputRows = await persistGenerationOutputRecords({
     generationId,
@@ -1501,6 +1491,71 @@ export const persistGeneratedAudioAsset = async ({
     autosaveDecisionReason,
     autosavePreferenceLookupMessage,
   });
+  const publicationMetadata = {
+    ...generationMetadata,
+    autosave_decision: autosaveDecision,
+    autosave_decision_reason: autosaveDecisionReason,
+  };
+  try {
+    await beforeVisibleSettlement?.({
+      generationId,
+      requestId: resolvedRequestId,
+      providerRequestId: resolvedProviderRequestId,
+      outputRowId,
+      mediaFileId,
+      mediaKind: "audio",
+      sourceMode,
+    });
+  } catch (error) {
+    const settlementError = toErrorMessage(error, "billing_settlement_failed");
+    const failureUpdate = await supabaseAdmin
+      .from("ai_generations")
+      .update({
+        status: "fail",
+        completed_at: new Date().toISOString(),
+        failure_reason_code: "billing_settlement_failed",
+        error_message: settlementError,
+        metadata: {
+          ...publicationMetadata,
+          direct_provider_settlement_failed: true,
+          settlement_error: settlementError,
+        },
+      })
+      .eq("id", generationId)
+      .eq("user_id", userId);
+    if (failureUpdate.error) {
+      await writeAppErrorLog({
+        source: "telemetry.elevenlabs_audio.settlement_failure_lifecycle_update_failed",
+        message:
+          "ElevenLabs audio generation settlement failed before visibility, and failure lifecycle update failed.",
+        requestId: resolvedRequestId,
+        userId,
+        statusCode: 500,
+        metadata: {
+          generation_id: generationId,
+          provider_request_id: resolvedProviderRequestId,
+          settlement_error: settlementError,
+          lifecycle_update_error: failureUpdate.error.message,
+        },
+      }).catch(() => undefined);
+    }
+    throw error;
+  }
+
+  const successUpdate = await supabaseAdmin
+    .from("ai_generations")
+    .update({
+      status: "success",
+      completed_at: createdAtIso,
+      failure_reason_code: null,
+      error_message: null,
+      metadata: publicationMetadata,
+    })
+    .eq("id", generationId)
+    .eq("user_id", userId);
+  if (successUpdate.error) {
+    throw new Error(successUpdate.error.message || "Unable to finalize audio generation.");
+  }
 
   if (outputRowId) {
     await upsertGenerationPublication({
@@ -1514,19 +1569,7 @@ export const persistGeneratedAudioAsset = async ({
       previewStoragePath: storagePath,
       fullStoragePath: storagePath,
       publishedAt: createdAtIso,
-      metadata: {
-        media_kind: "audio",
-        display_title: normalizedDisplayTitle,
-        provider_request_id: resolvedProviderRequestId,
-        autosave_enabled: mediaAutosaveEnabled,
-        autosave_preference_source: mediaAutosavePreference.source,
-        autosave_decision: autosaveDecision,
-        autosave_decision_reason: autosaveDecisionReason,
-        project_id: resolvedProjectId,
-        ...extraMetadata,
-        ...displayTitleMetadata,
-        ...(Object.keys(workflowReload).length > 0 ? { workflow_reload: workflowReload } : {}),
-      },
+      metadata: { ...publicationMetadata, media_kind: "audio" },
     });
   }
 
@@ -1664,6 +1707,21 @@ export const persistGeneratedVideoAsset = async ({
     throw new Error(signedResult.error?.message || "Unable to sign generated video.");
   }
 
+  const generationMetadata = {
+    provider_request_id: resolvedProviderRequestId,
+    source_mode: sourceMode,
+    transcript_text: normalizedTranscriptText,
+    autosave_enabled: mediaAutosaveEnabled,
+    autosave_preference_source: mediaAutosavePreference.source,
+    autosave_decision: autosavePolicyDecision.allowed ? "autosave_requested" : "autosave_skipped",
+    autosave_decision_reason: autosavePolicyDecision.reason,
+    mime_type: outputContentType,
+    project_id: resolvedProjectId,
+    workspace_runtime_key: resolvedWorkspaceRuntimeKey,
+    ...extraMetadata,
+    ...(Object.keys(workflowReload).length > 0 ? { workflow_reload: workflowReload } : {}),
+  };
+
   const generationInsert = await supabaseAdmin
     .from("ai_generations")
     .insert({
@@ -1674,24 +1732,8 @@ export const persistGeneratedVideoAsset = async ({
       model_id: modelId,
       prompt_text: promptText,
       request_id: resolvedRequestId,
-      status: "success",
-      completed_at: createdAtIso,
-      metadata: {
-        provider_request_id: resolvedProviderRequestId,
-        source_mode: sourceMode,
-        transcript_text: normalizedTranscriptText,
-        autosave_enabled: mediaAutosaveEnabled,
-        autosave_preference_source: mediaAutosavePreference.source,
-        autosave_decision: autosavePolicyDecision.allowed
-          ? "autosave_requested"
-          : "autosave_skipped",
-        autosave_decision_reason: autosavePolicyDecision.reason,
-        mime_type: outputContentType,
-        project_id: resolvedProjectId,
-        workspace_runtime_key: resolvedWorkspaceRuntimeKey,
-        ...extraMetadata,
-        ...(Object.keys(workflowReload).length > 0 ? { workflow_reload: workflowReload } : {}),
-      },
+      status: "running",
+      metadata: generationMetadata,
     })
     .select("id")
     .single();
@@ -1707,15 +1749,6 @@ export const persistGeneratedVideoAsset = async ({
   let previewStoragePath: string = storagePath;
   let previewPosterStoragePath: string | null = null;
   let previewPosterUrl: string | null = null;
-  await beforeVisibleSettlement?.({
-    generationId,
-    requestId: resolvedRequestId,
-    providerRequestId: resolvedProviderRequestId,
-    outputRowId: null,
-    mediaFileId: null,
-    mediaKind: "video",
-    sourceMode,
-  });
 
   let outputRows = await persistGenerationOutputRecords({
     generationId,
@@ -1855,6 +1888,71 @@ export const persistGeneratedVideoAsset = async ({
     autosaveDecisionReason,
     autosavePreferenceLookupMessage,
   });
+  const publicationMetadata = {
+    ...generationMetadata,
+    autosave_decision: autosaveDecision,
+    autosave_decision_reason: autosaveDecisionReason,
+  };
+  try {
+    await beforeVisibleSettlement?.({
+      generationId,
+      requestId: resolvedRequestId,
+      providerRequestId: resolvedProviderRequestId,
+      outputRowId,
+      mediaFileId,
+      mediaKind: "video",
+      sourceMode,
+    });
+  } catch (error) {
+    const settlementError = toErrorMessage(error, "billing_settlement_failed");
+    const failureUpdate = await supabaseAdmin
+      .from("ai_generations")
+      .update({
+        status: "fail",
+        completed_at: new Date().toISOString(),
+        failure_reason_code: "billing_settlement_failed",
+        error_message: settlementError,
+        metadata: {
+          ...publicationMetadata,
+          direct_provider_settlement_failed: true,
+          settlement_error: settlementError,
+        },
+      })
+      .eq("id", generationId)
+      .eq("user_id", userId);
+    if (failureUpdate.error) {
+      await writeAppErrorLog({
+        source: "telemetry.elevenlabs_video.settlement_failure_lifecycle_update_failed",
+        message:
+          "ElevenLabs video generation settlement failed before visibility, and failure lifecycle update failed.",
+        requestId: resolvedRequestId,
+        userId,
+        statusCode: 500,
+        metadata: {
+          generation_id: generationId,
+          provider_request_id: resolvedProviderRequestId,
+          settlement_error: settlementError,
+          lifecycle_update_error: failureUpdate.error.message,
+        },
+      }).catch(() => undefined);
+    }
+    throw error;
+  }
+
+  const successUpdate = await supabaseAdmin
+    .from("ai_generations")
+    .update({
+      status: "success",
+      completed_at: createdAtIso,
+      failure_reason_code: null,
+      error_message: null,
+      metadata: publicationMetadata,
+    })
+    .eq("id", generationId)
+    .eq("user_id", userId);
+  if (successUpdate.error) {
+    throw new Error(successUpdate.error.message || "Unable to finalize video generation.");
+  }
 
   if (outputRowId) {
     await upsertGenerationPublication({
@@ -1868,17 +1966,7 @@ export const persistGeneratedVideoAsset = async ({
       previewStoragePath,
       fullStoragePath: storagePath,
       publishedAt: createdAtIso,
-      metadata: {
-        media_kind: "video",
-        provider_request_id: resolvedProviderRequestId,
-        autosave_enabled: mediaAutosaveEnabled,
-        autosave_preference_source: mediaAutosavePreference.source,
-        autosave_decision: autosaveDecision,
-        autosave_decision_reason: autosaveDecisionReason,
-        project_id: resolvedProjectId,
-        ...extraMetadata,
-        ...(Object.keys(workflowReload).length > 0 ? { workflow_reload: workflowReload } : {}),
-      },
+      metadata: { ...publicationMetadata, media_kind: "video" },
     });
   }
 

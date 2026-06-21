@@ -132,17 +132,26 @@ const GENERATION_PROJECTION_DELIVERY_SELECT_COLUMN_LIST = [
   "updated_at",
 ] as const;
 
-const GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS =
-  GENERATION_PROJECTION_DELIVERY_SELECT_COLUMN_LIST.join(", ");
+const HEAVY_GENERATION_PROJECTION_CONTEXT_COLUMNS = new Set<string>([
+  "generation_replay",
+  "workflow_reload",
+  "character_context",
+  "style_context",
+]);
+const GENERATION_PROJECTION_LIGHTWEIGHT_DELIVERY_SELECT_COLUMN_LIST =
+  GENERATION_PROJECTION_DELIVERY_SELECT_COLUMN_LIST.filter(
+    (column) => !HEAVY_GENERATION_PROJECTION_CONTEXT_COLUMNS.has(column)
+  );
 const OPTIONAL_GENERATION_PROJECTION_DELIVERY_COLUMNS = ["display_title", "error_payload"] as const;
 type OptionalGenerationProjectionDeliveryColumn =
   (typeof OPTIONAL_GENERATION_PROJECTION_DELIVERY_COLUMNS)[number];
 const buildGenerationProjectionDeliverySelectColumns = (
-  omittedColumns: ReadonlySet<OptionalGenerationProjectionDeliveryColumn>
+  omittedColumns: ReadonlySet<OptionalGenerationProjectionDeliveryColumn>,
+  columnList: readonly string[]
 ): string =>
-  GENERATION_PROJECTION_DELIVERY_SELECT_COLUMN_LIST.filter(
-    (column) => !omittedColumns.has(column as OptionalGenerationProjectionDeliveryColumn)
-  ).join(", ");
+  columnList
+    .filter((column) => !omittedColumns.has(column as OptionalGenerationProjectionDeliveryColumn))
+    .join(", ");
 
 const resolveMissingGenerationProjectionOptionalColumn = (
   error: unknown
@@ -172,13 +181,19 @@ const resolveMissingGenerationProjectionOptionalColumn = (
 const loadGenerationProjectionWithOptionalColumnFallback = async <
   TResult extends { error: unknown },
 >(
-  loadRows: (selectColumns: string) => Promise<TResult>
+  loadRows: (selectColumns: string) => Promise<TResult>,
+  {
+    columnList = GENERATION_PROJECTION_DELIVERY_SELECT_COLUMN_LIST,
+  }: {
+    columnList?: readonly string[];
+  } = {}
 ): Promise<TResult> => {
   const omittedColumns = new Set<OptionalGenerationProjectionDeliveryColumn>();
   while (true) {
-    const selectColumns = omittedColumns.size
-      ? buildGenerationProjectionDeliverySelectColumns(omittedColumns)
-      : GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS;
+    const selectColumns = buildGenerationProjectionDeliverySelectColumns(
+      omittedColumns,
+      columnList
+    );
     const result = await loadRows(selectColumns);
     const missingColumn = resolveMissingGenerationProjectionOptionalColumn(result.error);
     if (!missingColumn || omittedColumns.has(missingColumn)) return result;
@@ -1109,8 +1124,12 @@ const resolveProjectionDeliveryBatch = async (
     }
     return await projectionQuery;
   };
-  const { data, error } =
-    await loadGenerationProjectionWithOptionalColumnFallback(loadProjectionRows);
+  const { data, error } = await loadGenerationProjectionWithOptionalColumnFallback(
+    loadProjectionRows,
+    {
+      columnList: GENERATION_PROJECTION_LIGHTWEIGHT_DELIVERY_SELECT_COLUMN_LIST,
+    }
+  );
   if (error) return deliveryByEntry;
 
   const projectionRows = Array.isArray(data) ? data : data ? [data] : [];
@@ -2272,11 +2291,13 @@ export const listVisibleGeneratedOutputs = async ({
   projectId = null,
   workspaceRuntimeKey = null,
   runtimeIdentities = null,
+  includeWorkflowContext = true,
 }: {
   limit?: number;
   projectId?: string | null;
   workspaceRuntimeKey?: string | null;
   runtimeIdentities?: VisibleGeneratedOutputRuntimeIdentity[] | null;
+  includeWorkflowContext?: boolean;
 } = {}): Promise<StudioOutput[]> => {
   try {
     const supabase = ensureSupabaseQueryClient();
@@ -2308,6 +2329,9 @@ export const listVisibleGeneratedOutputs = async ({
     if (!normalizedProjectId && !normalizedWorkspaceRuntimeKey && !hasScopedGenerationFilter) {
       return [];
     }
+    const projectionColumnList = includeWorkflowContext
+      ? GENERATION_PROJECTION_DELIVERY_SELECT_COLUMN_LIST
+      : GENERATION_PROJECTION_LIGHTWEIGHT_DELIVERY_SELECT_COLUMN_LIST;
 
     let data: unknown[] = [];
     if (normalizedProjectId) {
@@ -2375,8 +2399,12 @@ export const listVisibleGeneratedOutputs = async ({
       };
       const [{ data: directProjectData, error: directProjectError }, associatedProjectionResult] =
         await Promise.all([
-          loadGenerationProjectionWithOptionalColumnFallback(loadDirectProjectRows),
-          loadGenerationProjectionWithOptionalColumnFallback(loadAssociatedProjectionRows),
+          loadGenerationProjectionWithOptionalColumnFallback(loadDirectProjectRows, {
+            columnList: projectionColumnList,
+          }),
+          loadGenerationProjectionWithOptionalColumnFallback(loadAssociatedProjectionRows, {
+            columnList: projectionColumnList,
+          }),
         ]);
       if (directProjectError && associatedProjectionResult.error) return [];
 
@@ -2441,8 +2469,12 @@ export const listVisibleGeneratedOutputs = async ({
         }
         return await projectionQuery.limit(boundedLimit);
       };
-      const projectionResult =
-        await loadGenerationProjectionWithOptionalColumnFallback(loadProjectionRows);
+      const projectionResult = await loadGenerationProjectionWithOptionalColumnFallback(
+        loadProjectionRows,
+        {
+          columnList: projectionColumnList,
+        }
+      );
       if (projectionResult.error || !Array.isArray(projectionResult.data)) return [];
       data = [...projectionResult.data].sort((a, b) => {
         const aRecencyMs =

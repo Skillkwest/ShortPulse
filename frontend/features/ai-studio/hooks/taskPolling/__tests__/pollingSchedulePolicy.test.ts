@@ -8,6 +8,7 @@ import {
   getStatusConcurrencyRetryDelayMs,
   isStatusErrorRetryBudgetExhausted,
   resolveNoMediaRetryPolicy,
+  VIDEO_NO_MEDIA_MAX_ATTEMPTS,
 } from "../pollingSchedulePolicy";
 
 describe("pollingSchedulePolicy", () => {
@@ -42,7 +43,7 @@ describe("pollingSchedulePolicy", () => {
       noMediaAttempt: 1,
       fallbackDelayMs: 5000,
     });
-    expect(videoPolicy.maxNoMediaAttempts).toBe(30);
+    expect(videoPolicy.maxNoMediaAttempts).toBe(VIDEO_NO_MEDIA_MAX_ATTEMPTS);
     expect(videoPolicy.retryDelayMs).toBe(5000);
 
     const lipSyncPolicy = resolveNoMediaRetryPolicy({
@@ -50,7 +51,7 @@ describe("pollingSchedulePolicy", () => {
       noMediaAttempt: 1,
       fallbackDelayMs: 5000,
     });
-    expect(lipSyncPolicy.maxNoMediaAttempts).toBe(30);
+    expect(lipSyncPolicy.maxNoMediaAttempts).toBe(VIDEO_NO_MEDIA_MAX_ATTEMPTS);
     expect(lipSyncPolicy.retryDelayMs).toBe(5000);
   });
 

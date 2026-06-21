@@ -15,6 +15,7 @@ type MockQueryResult = {
 
 const mediaFilesInsertMock = vi.fn();
 const aiGenerationsInsertMock = vi.fn();
+const aiGenerationsUpdateMock = vi.fn();
 const userPreferencesMaybeSingleMock = vi.fn();
 const uploadMock = vi.fn();
 const createSignedUrlMock = vi.fn();
@@ -39,6 +40,7 @@ const supabaseAdminMock = {
     if (table === "ai_generations") {
       return {
         insert: aiGenerationsInsertMock,
+        update: aiGenerationsUpdateMock,
       };
     }
     if (table === "media_files") {
@@ -133,6 +135,15 @@ const resolveInsertSingle = (result: MockQueryResult) => ({
   })),
 });
 
+const resolveUpdate = (result: MockQueryResult = { error: null }) => ({
+  eq: vi.fn(() => ({
+    eq: vi.fn(async () => ({
+      data: result.data ?? null,
+      error: result.error ?? null,
+    })),
+  })),
+});
+
 describe("persistGeneratedAudioAsset", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -150,6 +161,7 @@ describe("persistGeneratedAudioAsset", () => {
     aiGenerationsInsertMock.mockImplementation((payload: { id: string }) =>
       resolveInsertSingle({ data: { id: payload.id } })
     );
+    aiGenerationsUpdateMock.mockImplementation(() => resolveUpdate());
     mediaFilesInsertMock.mockImplementation(() => resolveInsertSingle({ data: { id: "media-1" } }));
     persistGenerationOutputRecordsMock.mockResolvedValue([
       {
@@ -300,13 +312,32 @@ describe("persistGeneratedAudioAsset", () => {
       generationId: "generation-1",
       requestId: "request-audio-1",
       providerRequestId: "provider-audio-1",
-      outputRowId: null,
+      outputRowId: "output-1",
       mediaFileId: null,
       mediaKind: "audio",
       sourceMode: "music",
     });
+    expect(aiGenerationsInsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "generation-1",
+        status: "running",
+      })
+    );
+    expect(persistGenerationOutputRecordsMock.mock.invocationCallOrder[0]).toBeLessThan(
+      beforeVisibleSettlement.mock.invocationCallOrder[0]
+    );
     expect(beforeVisibleSettlement.mock.invocationCallOrder[0]).toBeLessThan(
-      persistGenerationOutputRecordsMock.mock.invocationCallOrder[0]
+      aiGenerationsUpdateMock.mock.invocationCallOrder[0]
+    );
+    expect(aiGenerationsUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "success",
+        failure_reason_code: null,
+        error_message: null,
+      })
+    );
+    expect(aiGenerationsUpdateMock.mock.invocationCallOrder[0]).toBeLessThan(
+      upsertGenerationPublicationMock.mock.invocationCallOrder[0]
     );
     expect(beforeVisibleSettlement.mock.invocationCallOrder[0]).toBeLessThan(
       upsertGenerationPublicationMock.mock.invocationCallOrder[0]
@@ -341,8 +372,21 @@ describe("persistGeneratedAudioAsset", () => {
 
     expect(upsertGenerationPublicationMock).not.toHaveBeenCalled();
     expect(upsertGenerationProjectionMock).not.toHaveBeenCalled();
-    expect(persistGenerationOutputRecordsMock).not.toHaveBeenCalled();
+    expect(persistGenerationOutputRecordsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "generation-1",
+        providerRequestId: "provider-audio-1",
+        resultUrls: ["https://signed.example/audio.mp3"],
+      })
+    );
     expect(mediaFilesInsertMock).not.toHaveBeenCalled();
+    expect(aiGenerationsUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "fail",
+        failure_reason_code: "billing_settlement_failed",
+        error_message: "billing capture failed",
+      })
+    );
     expect(associateGenerationWithProjectForUserMock).not.toHaveBeenCalled();
     expect(associateMediaFilesWithProjectForUserMock).not.toHaveBeenCalled();
   });

@@ -79,6 +79,10 @@ Short version: the admin pricing grid now owns final AI usage billed credits. Mo
   - Fal lanes: `$0.112/s` audio-off, `$0.168/s` audio-on, `$0.196/s` audio+voice
   - Kie lane (`kie-ai/kling-3.0`): bill on Kie `mode` rather than raw `resolution`; observed `std` audio-off = `14` Kie credits/s (`$0.07/s`), observed `pro` audio-off = `18` Kie credits/s (`$0.09/s`), and current runtime keeps a `1.5x` sound-on premium for those mode baselines until richer Kie evidence is captured.
 - `veo-3-per-second`: Fal lanes use `$0.20/$0.40` (no-audio/audio) for non-4K and `$0.40/$0.60` for 4K; `kie-ai/veo-3.1-fast-i2v` uses fixed `$0.40` per video from current Kie pricing evidence.
+- `elevenlabs-text-to-speech-per-kchar`: `eleven_v3` uses `$0.10` per 1,000 text characters.
+- `elevenlabs-voice-changer-per-minute`: `eleven_multilingual_sts_v2` uses `$0.12` per processed source minute.
+- `elevenlabs-sound-effect`: `eleven_text_to_sound_v2` uses `$0.12` per auto-duration API generation, or `$0.0132/s` when explicit duration is set.
+- `elevenlabs-music-per-minute`: `music_v1` uses `$0.15` per generated music minute.
 - `openai-text-token`: OpenAI standard short-context token rates for `gpt-5.4` (`$2.50`/M input, `$0.25`/M cached input, `$15.00`/M output), `gpt-5.4-mini` (`$0.75`/M input, `$0.075`/M cached input, `$4.50`/M output), and `gpt-5.4-nano` (`$0.20`/M input, `$0.02`/M cached input, `$1.25`/M output), then shared credit conversion plus any per-model markup and row-specific round-nearest override.
 
 ## Tests

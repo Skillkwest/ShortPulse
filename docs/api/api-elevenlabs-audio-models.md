@@ -94,6 +94,11 @@ All ShortPulse ElevenLabs routes use handler-level bearer auth via `requireApiUs
   - `eleven_text_to_sound_v2`
   - `music_v1`
 - `eleven_multilingual_ttv_v2` remains `metadata_only` in `frontend/lib/model-runtime/modelCatalog.ts` and exists to keep provider preview/create metadata under canonical model-id governance.
+- Current provider-cost bases used by the admin pricing grid and runtime pricing math:
+  - `eleven_v3`: `$0.10` per 1,000 text characters.
+  - `eleven_multilingual_sts_v2`: `$0.12` per processed source minute.
+  - `eleven_text_to_sound_v2`: `$0.12` per auto-duration API generation, or `$0.0132/s` when explicit duration is set.
+  - `music_v1`: `$0.15` per generated music minute.
 
 ## Related docs
 

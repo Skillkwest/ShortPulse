@@ -1747,6 +1747,67 @@ describe("useAiStudioTasks", () => {
     expect(output.errorMessage).toBe("Generation completed without usable media. Please retry.");
   });
 
+  it("keeps long-running video no-media completions in recovery past the old short retry budget", async () => {
+    fetchKieKlingImageToVideoStatusMock.mockResolvedValueOnce(
+      asKieKlingStatusResponse({
+        status: "completed",
+        shortpulseLifecycle: {
+          taskState: "success",
+          isTerminal: true,
+          resultUrls: [],
+          providerState: "completed",
+          recoveryPending: true,
+        },
+      })
+    );
+
+    let output: StudioOutput = {
+      ...makeOutput(),
+      mode: "video",
+      modelId: "kie-ai/kling-3.0",
+      taskState: "running",
+      timestamp: "Processing...",
+    };
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+    const findOutputById = vi.fn((id: string) => (id === output.id ? output : null));
+    const notifyGenerationFailure = vi.fn();
+    const onGenerationFailure = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        findOutputById,
+        notifyGenerationFailure,
+        onGenerationFailure,
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask(
+        "kie-kling-no-media",
+        "out-1",
+        0,
+        "kie-kling",
+        Date.now(),
+        30
+      );
+    });
+
+    await vi.advanceTimersByTimeAsync(2_300);
+    await flushQueuedOutputUpdates();
+
+    expect(fetchKieKlingImageToVideoStatusMock).toHaveBeenCalledWith("kie-kling-no-media");
+    expect(notifyGenerationFailure).not.toHaveBeenCalled();
+    expect(onGenerationFailure).not.toHaveBeenCalled();
+    expect(output.taskState).toBe("running");
+    expect(output.timestamp).toBe("Processing...");
+    expect(output.errorMessage ?? null).toBeNull();
+  });
+
   it("normalizes provider nonterminal states to running task state", async () => {
     fetchFalNanoBananaStatusMock.mockResolvedValueOnce({ status: "processing" });
 

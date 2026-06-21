@@ -41,5 +41,7 @@ describe("AdminPageHeader", () => {
     expect(links[0]).toHaveAttribute("aria-current", "page");
     expect(links[1]).toHaveTextContent("Support");
     expect(links[1]).toHaveAttribute("href", "/admin");
+    expect(links[2]).toHaveTextContent("Legal");
+    expect(links[2]).toHaveAttribute("href", "/admin/legal");
   });
 });

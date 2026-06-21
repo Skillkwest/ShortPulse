@@ -1104,12 +1104,14 @@ describe("useReferenceGridCardRenderController", () => {
     const posterImage = container.querySelector(
       ".reference-card-image--poster"
     ) as HTMLImageElement | null;
+    const card = container.querySelector(".reference-card") as HTMLElement | null;
     const hoverVideo = container.querySelector(".reference-card-video") as HTMLVideoElement | null;
 
     expect(posterImage).not.toBeNull();
     expect(posterImage?.getAttribute("src")).toBe("https://signed.test/video-poster.jpg");
+    expect(card?.dataset.dragPlayableUrl).toBe("https://signed.test/video-full.mp4");
     expect(hoverVideo).not.toBeNull();
-    expect(hoverVideo?.getAttribute("src")).toBe("https://signed.test/video-full.mp4");
+    expect(hoverVideo?.getAttribute("src")).toBeNull();
   });
 
   it("uses the resolved fallback video url when poster-backed cards have no raw hover source", () => {
@@ -1163,10 +1165,12 @@ describe("useReferenceGridCardRenderController", () => {
     );
 
     const { container } = render(<>{result.current.allRefsCardNodes}</>);
+    const card = container.querySelector(".reference-card") as HTMLElement | null;
     const hoverVideo = container.querySelector(".reference-card-video") as HTMLVideoElement | null;
 
+    expect(card?.dataset.dragPlayableUrl).toBe("https://signed.test/video-2-full.mp4");
     expect(hoverVideo).not.toBeNull();
-    expect(hoverVideo?.getAttribute("src")).toBe("https://signed.test/video-2-full.mp4");
+    expect(hoverVideo?.getAttribute("src")).toBeNull();
   });
 
   it("uses the resolved card preview as the source for posterless generated videos without auto-preload", () => {

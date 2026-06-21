@@ -1,8 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { markAudioCompanionArtPending, processPendingAudioCompanionArtBatch } from "../processing";
+import {
+  generateAudioCompanionArtForGeneration,
+  markAudioCompanionArtPending,
+  processPendingAudioCompanionArtBatch,
+} from "../processing";
 
 const getSupabaseAdminMock = vi.fn();
-const buildFalFluxKleinImagePayloadMock = vi.fn();
+const buildFalFluxKleinAudioCompanionArtPayloadMock = vi.fn();
 const generateFalFluxKleinImageMock = vi.fn();
 const upsertGenerationProjectionMock = vi.fn();
 const writeAppErrorLogMock = vi.fn();
@@ -23,7 +27,8 @@ vi.mock("../../api/supabaseAdmin", () => ({
 }));
 
 vi.mock("../../falStylePreviewGeneration", () => ({
-  buildFalFluxKleinImagePayload: (...args: unknown[]) => buildFalFluxKleinImagePayloadMock(...args),
+  buildFalFluxKleinAudioCompanionArtPayload: (...args: unknown[]) =>
+    buildFalFluxKleinAudioCompanionArtPayloadMock(...args),
   generateFalFluxKleinImage: (...args: unknown[]) => generateFalFluxKleinImageMock(...args),
 }));
 
@@ -72,10 +77,9 @@ describe("audioCompanionArt processing", () => {
       deletedStoragePath: null,
       storageDeleted: false,
     });
-    buildFalFluxKleinImagePayloadMock.mockImplementation((prompt: string, aspect: string) => ({
+    buildFalFluxKleinAudioCompanionArtPayloadMock.mockImplementation((prompt: string) => ({
       prompt,
-      image_size: { width: 1024, height: 1024 },
-      aspect,
+      image_size: { width: 512, height: 512 },
       num_images: 1,
       output_format: "jpeg",
       num_inference_steps: 4,
@@ -201,17 +205,18 @@ describe("audioCompanionArt processing", () => {
       "eq",
       "suppressed"
     );
-    expect(buildFalFluxKleinImagePayloadMock).toHaveBeenCalledWith(
-      expect.stringContaining("Control-plane branded style line."),
-      "1:1"
+    expect(buildFalFluxKleinAudioCompanionArtPayloadMock).toHaveBeenCalledWith(
+      expect.stringContaining("Control-plane branded style line.")
     );
     expect(generateFalFluxKleinImageMock).toHaveBeenCalledWith(
       expect.objectContaining({
         payload: expect.objectContaining({
           prompt: expect.stringContaining("Control-plane branded style line."),
-          image_size: { width: 1024, height: 1024 },
+          image_size: { width: 512, height: 512 },
           num_inference_steps: 4,
         }),
+        pollIntervalMs: 500,
+        initialPollDelayMs: 0,
       })
     );
     expect(sharpMock).toHaveBeenCalledWith(Buffer.from("cover"), { failOn: "error" });
@@ -408,6 +413,101 @@ describe("audioCompanionArt processing", () => {
         generationId: "gen-suppressed",
         userId: "user-suppressed",
         supabaseAdmin: expect.any(Object),
+      })
+    );
+  });
+
+  it("generates, persists, and signs immediate companion art for a voice generation", async () => {
+    const projectionEligibilityBuilder = createSelectBuilder({
+      data: {
+        publication_state: "published",
+        hidden_in_reference_grid: false,
+        reference_grid_visible: true,
+      },
+      error: null,
+    });
+    const generationProjectionTable = {
+      select: vi.fn(() => projectionEligibilityBuilder),
+    };
+    const aiGenerationsTable = {
+      select: vi.fn(() =>
+        createSelectBuilder({
+          data: {
+            id: "gen-now",
+            user_id: "user-now",
+            prompt_text: "A lighthouse keeper narrates an ocean storm.",
+            metadata: {
+              source_mode: "voiceover",
+              voice_name: "Marin",
+            },
+          },
+          error: null,
+        })
+      ),
+    };
+    const uploadMock = vi.fn(async () => ({ error: null }));
+    const createSignedUrlMock = vi.fn(async () => ({
+      data: { signedUrl: "https://signed.example/cover.webp" },
+      error: null,
+    }));
+
+    getSupabaseAdminMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "generation_projection") return generationProjectionTable;
+        if (table === "ai_generations") return aiGenerationsTable;
+        throw new Error(`Unexpected table ${table}`);
+      }),
+      storage: {
+        from: vi.fn(() => ({
+          upload: uploadMock,
+          createSignedUrl: createSignedUrlMock,
+        })),
+      },
+    });
+    generateFalFluxKleinImageMock.mockResolvedValue({
+      buffer: Buffer.from("cover"),
+      contentType: "image/png",
+    });
+
+    await expect(
+      generateAudioCompanionArtForGeneration({
+        generationId: "gen-now",
+        userId: "user-now",
+      })
+    ).resolves.toEqual({
+      companionArtStatus: "ready",
+      companionArtStoragePath: "user-now/generations/audio/gen-now/companion-art/cover.webp",
+      companionArtUrl: "https://signed.example/cover.webp",
+    });
+
+    expect(generateFalFluxKleinImageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          prompt: expect.stringContaining("lighthouse keeper"),
+          image_size: { width: 512, height: 512 },
+        }),
+        pollIntervalMs: 500,
+        initialPollDelayMs: 0,
+      })
+    );
+    expect(uploadMock).toHaveBeenCalledWith(
+      "user-now/generations/audio/gen-now/companion-art/cover.webp",
+      Buffer.from("cover-webp"),
+      expect.objectContaining({
+        contentType: "image/webp",
+        upsert: true,
+      })
+    );
+    expect(createSignedUrlMock).toHaveBeenCalledWith(
+      "user-now/generations/audio/gen-now/companion-art/cover.webp",
+      60 * 60
+    );
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-now",
+        userId: "user-now",
+        companionArtStatus: "ready",
+        companionArtStoragePath: "user-now/generations/audio/gen-now/companion-art/cover.webp",
       })
     );
   });

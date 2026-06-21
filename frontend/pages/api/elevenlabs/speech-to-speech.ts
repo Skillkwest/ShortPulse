@@ -18,7 +18,10 @@ import {
   assertTrustedRemoteMediaUrl,
   TrustedRemoteMediaUrlError,
 } from "../../../lib/server/api/trustedRemoteMediaUrl";
-import { markAudioCompanionArtPendingBestEffort } from "../../../lib/server/audioCompanionArt/routePending";
+import {
+  generateAudioCompanionArtNowBestEffort,
+  markAudioCompanionArtPendingBestEffort,
+} from "../../../lib/server/audioCompanionArt/routePending";
 import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
 import {
   createRemuxedVoiceChangerVideo,
@@ -51,9 +54,9 @@ type GenerateAudioSuccessResponse = {
     resultUrls: string[];
     previewStoragePath: string;
     fullStoragePath: string;
-    companionArtUrl: null;
-    companionArtStoragePath: null;
-    companionArtStatus: "pending";
+    companionArtUrl: string | null;
+    companionArtStoragePath: string | null;
+    companionArtStatus: "pending" | "ready";
     mimeType: string;
     durationMs: number | null;
     waveformPeaks: null;
@@ -463,6 +466,13 @@ export default async function handler(
       userId: charge.userId,
       user,
     });
+    const companionArt = await generateAudioCompanionArtNowBestEffort({
+      req,
+      routeLabel: "elevenlabs-speech-to-speech",
+      generationId: persisted.generationId,
+      userId: charge.userId,
+      user,
+    });
 
     let remuxedVideo: Awaited<ReturnType<typeof createRemuxedVoiceChangerVideo>> | null = null;
     let persistedRemuxedVideo: Awaited<ReturnType<typeof persistGeneratedVideoAsset>> | null = null;
@@ -528,9 +538,9 @@ export default async function handler(
         resultUrls: [persisted.signedUrl],
         previewStoragePath: persisted.storagePath,
         fullStoragePath: persisted.storagePath,
-        companionArtUrl: null,
-        companionArtStoragePath: null,
-        companionArtStatus: "pending",
+        companionArtUrl: companionArt?.companionArtUrl ?? null,
+        companionArtStoragePath: companionArt?.companionArtStoragePath ?? null,
+        companionArtStatus: companionArt?.companionArtStatus ?? "pending",
         mimeType: generated.contentType,
         durationMs: Math.round(sourceDurationSeconds * 1000),
         waveformPeaks: null,

@@ -651,8 +651,7 @@ export const persistGeneratedImageAsset = async ({
       model_id: modelId,
       prompt_text: promptText,
       request_id: resolvedRequestId,
-      status: "success",
-      completed_at: createdAtIso,
+      status: "running",
       metadata: generationMetadata,
     })
     .select("id")
@@ -665,13 +664,6 @@ export const persistGeneratedImageAsset = async ({
     ? "auto_persisted"
     : "autosave_skipped";
   let autosaveDecisionReason: string = autosavePolicyDecision.reason;
-  await beforeVisibleSettlement?.({
-    generationId,
-    requestId: resolvedRequestId,
-    providerRequestId: resolvedProviderRequestId,
-    outputRowId: null,
-    mediaFileId: null,
-  });
 
   let mediaFileId: string | null = null;
   let outputRows = await persistGenerationOutputRecords({
@@ -752,6 +744,64 @@ export const persistGeneratedImageAsset = async ({
     autosave_decision: autosaveDecision,
     autosave_decision_reason: autosaveDecisionReason,
   };
+  try {
+    await beforeVisibleSettlement?.({
+      generationId,
+      requestId: resolvedRequestId,
+      providerRequestId: resolvedProviderRequestId,
+      outputRowId,
+      mediaFileId,
+    });
+  } catch (error) {
+    const settlementError = toErrorMessage(error, "billing_settlement_failed");
+    const failureUpdate = await supabaseAdmin
+      .from("ai_generations")
+      .update({
+        status: "fail",
+        completed_at: new Date().toISOString(),
+        failure_reason_code: "billing_settlement_failed",
+        error_message: settlementError,
+        metadata: {
+          ...publicationMetadata,
+          direct_provider_settlement_failed: true,
+          settlement_error: settlementError,
+        },
+      })
+      .eq("id", generationId)
+      .eq("user_id", userId);
+    if (failureUpdate.error) {
+      await writeAppErrorLog({
+        source: "telemetry.openai_image.settlement_failure_lifecycle_update_failed",
+        message:
+          "OpenAI image generation settlement failed before visibility, and failure lifecycle update failed.",
+        requestId: resolvedRequestId,
+        userId,
+        statusCode: 500,
+        metadata: {
+          generation_id: generationId,
+          provider_request_id: resolvedProviderRequestId,
+          settlement_error: settlementError,
+          lifecycle_update_error: failureUpdate.error.message,
+        },
+      }).catch(() => undefined);
+    }
+    throw error;
+  }
+
+  const successUpdate = await supabaseAdmin
+    .from("ai_generations")
+    .update({
+      status: "success",
+      completed_at: createdAtIso,
+      failure_reason_code: null,
+      error_message: null,
+      metadata: publicationMetadata,
+    })
+    .eq("id", generationId)
+    .eq("user_id", userId);
+  if (successUpdate.error) {
+    throw new Error(successUpdate.error.message || "Unable to finalize image generation.");
+  }
 
   if (outputRowId) {
     await upsertGenerationPublication({

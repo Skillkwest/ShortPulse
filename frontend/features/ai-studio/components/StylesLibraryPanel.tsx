@@ -95,6 +95,10 @@ export function StylesLibraryPanel({
     handleStyleDrop,
     handleStyleGridDragOver,
     handleStyleGridDrop,
+    handleStyleStartDropZoneDragOver,
+    handleStyleStartDropZoneDrop,
+    handleStyleEndDropZoneDragOver,
+    handleStyleEndDropZoneDrop,
     handleStyleDragEnd,
     applyStylePreviewFromTransfer,
     applyStylePreviewFile,
@@ -236,6 +240,8 @@ export function StylesLibraryPanel({
         className={`styles-library-scroll ${
           stylesLibraryDropActive ? "is-external-drop-active" : ""
         }`.trim()}
+        onDragOver={handleStyleGridDragOver}
+        onDrop={handleStyleGridDrop}
       >
         <div
           className="styles-library-grid"
@@ -265,9 +271,15 @@ export function StylesLibraryPanel({
                   isNoneStyle ? undefined : (event) => handleStyleDragStart(style.id, event)
                 }
                 onDragOver={
-                  isNoneStyle ? undefined : (event) => handleStyleDragOver(style.id, event)
+                  isNoneStyle
+                    ? handleStyleStartDropZoneDragOver
+                    : (event) => handleStyleDragOver(style.id, event)
                 }
-                onDrop={isNoneStyle ? undefined : (event) => handleStyleDrop(style.id, event)}
+                onDrop={
+                  isNoneStyle
+                    ? handleStyleStartDropZoneDrop
+                    : (event) => handleStyleDrop(style.id, event)
+                }
                 onDragEnd={handleStyleDragEnd}
               >
                 {!style.placeholder && !isNoneStyle ? (
@@ -347,7 +359,12 @@ export function StylesLibraryPanel({
               </div>
             </article>
           ) : null}
-          <article role="listitem" className="styles-library-tile styles-library-add-tile">
+          <article
+            role="listitem"
+            className="styles-library-tile styles-library-add-tile"
+            onDragOver={handleStyleEndDropZoneDragOver}
+            onDrop={handleStyleEndDropZoneDrop}
+          >
             <button
               type="button"
               className="styles-library-tile-select styles-library-add-button"

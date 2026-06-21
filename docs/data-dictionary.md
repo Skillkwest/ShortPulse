@@ -719,6 +719,47 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Reverts to last-known-safe policy version and applies bounded cooldown (`1..168` hours).
   - Records rollback audit events for operator traceability.
 
+### legal_policy_versions
+
+- `id` (bigint identity, pk): Immutable legal policy version row id.
+- `slug` (text): Managed public policy key (`terms | privacy | refund-policy`).
+- `version` (integer): Slug-local version number (`>=1`).
+- `markdown` (text): Canonical Markdown body rendered by the public policy route.
+- `note` (text, nullable): Optional operator note for the version.
+- `created_by_user_id` / `created_by_email` (nullable): Operator attribution metadata.
+- `created_at` (timestamptz, default now).
+- RLS: enabled; service-role RPC/API paths are authoritative for reads/writes.
+
+### legal_policy_runtime
+
+- `slug` (text, pk): Managed public policy key.
+- `active_policy_version_id` (bigint fk -> `legal_policy_versions.id`): Currently active version for the public route.
+- `last_known_safe_policy_version_id` (bigint fk -> `legal_policy_versions.id`, nullable): Rollback target version for future rollback tooling.
+- `updated_by_user_id` / `updated_by_email` (nullable): Last operator/system update attribution.
+- `updated_at` (timestamptz): Last runtime-state mutation timestamp and stale-write token.
+- RLS: enabled; service-role RPC/API paths are authoritative for reads/writes.
+
+### legal_policy_events
+
+- `id` (bigint identity, pk): Event row id.
+- `slug` (text): Managed public policy key.
+- `event_type` (text): `publish | rollback`.
+- `from_policy_version_id` / `to_policy_version_id` (nullable fk -> `legal_policy_versions.id`): Policy transition pointers.
+- `actor_user_id` / `actor_email` (nullable): Operator attribution metadata.
+- `reason` / `note` / `source` (text, nullable): Mutation context.
+- `metadata` (jsonb object): Event context for future policy tooling.
+- `created_at` (timestamptz, default now).
+- RLS: enabled; service-role RPC/API paths are authoritative for reads/writes.
+
+### Legal policy control-plane RPC contract
+
+- `get_active_legal_policy(p_slug)`
+  - Service-role-only read helper for active public legal policy Markdown and version metadata.
+- `publish_legal_policy(p_slug, p_markdown, p_expected_updated_at, p_note, p_actor_user_id, p_actor_email, p_source)`
+  - Service-role-only publication helper.
+  - Enforces slug allowlisting, non-empty Markdown, advisory-lock serialization, and `expectedUpdatedAt` stale-write protection.
+  - Creates the next immutable policy version row, updates the runtime pointer, and records a `publish` audit event.
+
 ### model_pricing_policy_versions
 
 - `id` (bigint identity, pk): Immutable model-pricing policy version row id.

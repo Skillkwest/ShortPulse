@@ -372,6 +372,86 @@ describe("createFalStatusHandler", () => {
     expect(logGenerationFailureMock).not.toHaveBeenCalled();
   });
 
+  it("uses narrow metadata URL projection when resolving provider-returned status bases", async () => {
+    const selectCallsByTable = new Map<string, string[]>();
+    const createRowsBuilder = (rows: Array<Record<string, unknown>>) => {
+      const queryChain = {
+        eq: vi.fn(),
+        order: vi.fn(),
+        limit: vi.fn(async () => ({ data: rows, error: null })),
+      };
+      queryChain.eq.mockReturnValue(queryChain);
+      queryChain.order.mockReturnValue(queryChain);
+      return queryChain;
+    };
+    const generationRows = [
+      {
+        id: "gen-provider-url-1",
+        request_id: "req-provider-url-1",
+        status: "processing",
+        provider_status_url:
+          "https://queue.fal.run/fal-ai/provider-returned/requests/req-provider-url-1/status",
+        provider_response_url:
+          "https://queue.fal.run/fal-ai/provider-returned/requests/req-provider-url-1",
+      },
+    ];
+    getSupabaseAdminMock.mockImplementation(() => ({
+      from: vi.fn((tableName: string) => {
+        let rows: Array<Record<string, unknown>>;
+        if (tableName === "ai_generations") {
+          rows = generationRows;
+        } else if (tableName === "generation_projection") {
+          rows = persistedProjectionRows;
+        } else if (tableName === "ai_generation_outputs") {
+          rows = persistedOutputRows;
+        } else {
+          throw new Error(`Unexpected table ${tableName}`);
+        }
+        return {
+          select: vi.fn((selectColumns: string) => {
+            const tableCalls = selectCallsByTable.get(tableName) ?? [];
+            tableCalls.push(selectColumns);
+            selectCallsByTable.set(tableName, tableCalls);
+            return createRowsBuilder(rows);
+          }),
+        };
+      }),
+    }));
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          status: "IN_PROGRESS",
+          request_id: "req-provider-url-1",
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      queueBaseUrl: "https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/text-to-image/requests",
+      routeLabel: "Fal Seedream",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-provider-url-1" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    const aiGenerationSelectCalls = selectCallsByTable.get("ai_generations") ?? [];
+    expect(aiGenerationSelectCalls).toContain(
+      "provider_status_url:metadata->>provider_status_url, provider_response_url:metadata->>provider_response_url"
+    );
+    expect(aiGenerationSelectCalls).not.toContain("metadata");
+    expect(fetchMock).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
   it("does not settle nonterminal response_url media before provider completion", async () => {
     persistedGenerationRows = [
       {

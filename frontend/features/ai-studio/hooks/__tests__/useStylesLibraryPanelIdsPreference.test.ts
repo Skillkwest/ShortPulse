@@ -106,4 +106,46 @@ describe("useStylesLibraryPanelIdsPreference", () => {
     expect(result.current.stylePanelIds).toEqual([]);
     expect(window.localStorage.getItem("shortpulse.ai_studio.style_panel_ids:user-123")).toBe("[]");
   });
+
+  it("keeps the local visual order when remote persistence fails", async () => {
+    const upsert = vi.fn().mockResolvedValue({ error: new Error("RLS rejected write") });
+    useResolvedProtectedSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: { user: { id: "user-123" } } as never,
+      user: { id: "user-123" } as never,
+    });
+    supabaseQueryClientMock.from = vi.fn(() => ({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+        })),
+      })),
+      upsert,
+    }));
+
+    const { result } = renderHook(() => useStylesLibraryPanelIdsPreference());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    let saved = true;
+    await act(async () => {
+      saved = await result.current.setStylePanelIds(["anime", "cinematic"]);
+    });
+
+    expect(saved).toBe(false);
+    expect(upsert).toHaveBeenCalledWith(
+      { user_id: "user-123", ai_studio_style_panel_ids: ["anime", "cinematic"] },
+      { onConflict: "user_id" }
+    );
+    expect(result.current.stylePanelIds).toEqual(["anime", "cinematic"]);
+    expect(
+      JSON.parse(
+        window.localStorage.getItem("shortpulse.ai_studio.style_panel_ids:user-123") ?? "[]"
+      )
+    ).toEqual(["anime", "cinematic"]);
+    expect(result.current.syncState).toBe("error");
+    expect(result.current.error).toBe("RLS rejected write");
+  });
 });

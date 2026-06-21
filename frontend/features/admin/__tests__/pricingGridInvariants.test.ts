@@ -168,20 +168,20 @@ describe("pricing grid invariants", () => {
       minDurationSeconds: 0.5,
       maxDurationSeconds: 30,
       pricingPreview: {
-        usdRaw: 0.01,
-        rawCredits: 1,
-        billedCredits: 2,
-        billedUsd: 0.02,
+        usdRaw: 0.066,
+        rawCredits: 11,
+        billedCredits: 11,
+        billedUsd: 0.11,
       },
       pricingPreviewVariants: [
         {
           id: "default",
           label: "Default",
           breakdown: {
-            usdRaw: 0.01,
-            rawCredits: 1,
-            billedCredits: 2,
-            billedUsd: 0.02,
+            usdRaw: 0.066,
+            rawCredits: 11,
+            billedCredits: 11,
+            billedUsd: 0.11,
           },
         },
       ],
@@ -197,8 +197,8 @@ describe("pricing grid invariants", () => {
 
     expect(row).toMatchObject({
       durationSeconds: 10,
-      providerCostUsd: 0.02,
-      costPerSecondUsd: 0.002,
+      providerCostUsd: 0.132,
+      costPerSecondUsd: 0.0132,
     });
     expect(
       getRateSourceCostUsd({
@@ -207,7 +207,7 @@ describe("pricing grid invariants", () => {
         providerCostUsdPerSecond: row?.costPerSecondUsd,
         durationSeconds: row?.durationSeconds,
       })
-    ).toBe(0.002);
+    ).toBe(0.0132);
   });
 
   it("keeps the OpenAI per-50,000-character rate fixed while character usage scales total provider cost", () => {

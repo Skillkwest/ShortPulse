@@ -5,7 +5,7 @@ import { upsertGenerationProjection } from "../api/generationProjection";
 import { resolveRuntimeAgentPrompt } from "../api/runtimeAgentPromptControlPlane";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
 import {
-  buildFalFluxKleinImagePayload,
+  buildFalFluxKleinAudioCompanionArtPayload,
   generateFalFluxKleinImage,
 } from "../falStylePreviewGeneration";
 import { cleanupAudioCompanionArt } from "./cleanup";
@@ -19,6 +19,7 @@ const GENERATABLE_COMPANION_ART_STATUSES_FILTER =
 const AUDIO_COMPANION_ART_DELIVERY_MIME_TYPE = "image/webp";
 const AUDIO_COMPANION_ART_DELIVERY_WIDTH_PX = 480;
 const AUDIO_COMPANION_ART_DELIVERY_QUALITY = 68;
+const AUDIO_COMPANION_ART_POLL_INTERVAL_MS = 500;
 
 type JsonObject = Record<string, unknown>;
 
@@ -52,6 +53,19 @@ export type AudioCompanionArtBatchMetrics = {
   skipped: number;
   errors: number;
 };
+
+export type AudioCompanionArtDelivery = {
+  companionArtStatus: "ready";
+  companionArtStoragePath: string;
+  companionArtUrl: string | null;
+};
+
+class AudioCompanionArtSkippedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AudioCompanionArtSkippedError";
+  }
+}
 
 const asTrimmedString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
@@ -92,6 +106,20 @@ const buildCompanionArtStoragePath = ({
     path: `${userId}/generations/audio/${generationId}/companion-art/cover.webp`,
     label: "Audio companion art storage path",
   });
+
+const signAudioCompanionArtStoragePath = async ({
+  storagePath,
+  supabaseAdmin,
+}: {
+  storagePath: string;
+  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>;
+}): Promise<string | null> => {
+  const signedResult = await supabaseAdmin.storage
+    .from(MEDIA_BUCKET)
+    .createSignedUrl(storagePath, 60 * 60);
+  if (signedResult.error || !signedResult.data?.signedUrl) return null;
+  return signedResult.data.signedUrl;
+};
 
 const isAudioCompanionArtEligible = (
   row: AudioCompanionArtProjectionEligibilityRow | null | undefined
@@ -212,6 +240,122 @@ const markAudioCompanionArtFailed = async ({
   }).catch(() => undefined);
 };
 
+const generateAndPersistAudioCompanionArt = async ({
+  generationId,
+  userId,
+  supabaseAdmin,
+  runtimeStyleLine,
+}: {
+  generationId: string;
+  userId: string;
+  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>;
+  runtimeStyleLine: string | null | undefined;
+}): Promise<{ storagePath: string; runtimeStyleLine: string | null }> => {
+  if (!(await loadAudioCompanionArtEligibility({ generationId, userId }))) {
+    await cleanupAudioCompanionArt({
+      generationId,
+      userId,
+      supabaseAdmin,
+    });
+    throw new AudioCompanionArtSkippedError("Audio companion art is no longer eligible.");
+  }
+
+  const generationRow = await loadAudioGenerationRow({
+    generationId,
+    userId,
+  });
+  if (!generationRow) {
+    throw new Error("Audio generation row not found.");
+  }
+
+  const promptText = asTrimmedString(generationRow.prompt_text) ?? "Audio reference cover art";
+  const metadata = asObject(generationRow.metadata);
+  const sourceMode = readSourceMode(metadata);
+  if (!sourceMode) {
+    throw new Error("Audio source mode metadata is unavailable.");
+  }
+
+  let resolvedRuntimeStyleLine = runtimeStyleLine;
+  if (resolvedRuntimeStyleLine === undefined) {
+    const resolvedRuntimePrompt = await resolveRuntimeAgentPrompt({
+      promptId: AUDIO_COMPANION_ART_STYLE_PROMPT_ID,
+    });
+    resolvedRuntimeStyleLine = resolvedRuntimePrompt.promptBody;
+  }
+
+  const generationSpec = compileAudioCompanionArtPrompt({
+    promptText,
+    sourceMode,
+    metadata,
+    styleLine: resolvedRuntimeStyleLine,
+  });
+  const generated = await generateFalFluxKleinImage({
+    payload: buildFalFluxKleinAudioCompanionArtPayload(generationSpec.prompt),
+    pollIntervalMs: AUDIO_COMPANION_ART_POLL_INTERVAL_MS,
+    initialPollDelayMs: 0,
+  });
+  const deliveryBuffer = await encodeAudioCompanionArtDeliveryBuffer(generated.buffer);
+  if (!(await loadAudioCompanionArtEligibility({ generationId, userId }))) {
+    await cleanupAudioCompanionArt({
+      generationId,
+      userId,
+      supabaseAdmin,
+    });
+    throw new AudioCompanionArtSkippedError("Audio companion art became ineligible.");
+  }
+
+  const storagePath = buildCompanionArtStoragePath({
+    userId,
+    generationId,
+  });
+  const uploadResult = await supabaseAdmin.storage
+    .from(MEDIA_BUCKET)
+    .upload(storagePath, deliveryBuffer, {
+      contentType: AUDIO_COMPANION_ART_DELIVERY_MIME_TYPE,
+      upsert: true,
+    });
+  if (uploadResult.error) {
+    throw new Error(uploadResult.error.message || "Unable to persist audio companion art.");
+  }
+
+  await upsertGenerationProjection({
+    generationId,
+    userId,
+    companionArtStatus: "ready",
+    companionArtStoragePath: storagePath,
+  });
+
+  return {
+    storagePath,
+    runtimeStyleLine: resolvedRuntimeStyleLine ?? null,
+  };
+};
+
+export const generateAudioCompanionArtForGeneration = async ({
+  generationId,
+  userId,
+}: {
+  generationId: string;
+  userId: string;
+}): Promise<AudioCompanionArtDelivery> => {
+  const supabaseAdmin = getSupabaseAdmin();
+  const generated = await generateAndPersistAudioCompanionArt({
+    generationId,
+    userId,
+    supabaseAdmin,
+    runtimeStyleLine: undefined,
+  });
+  const signedUrl = await signAudioCompanionArtStoragePath({
+    storagePath: generated.storagePath,
+    supabaseAdmin,
+  });
+  return {
+    companionArtStatus: "ready",
+    companionArtStoragePath: generated.storagePath,
+    companionArtUrl: signedUrl,
+  };
+};
+
 export const processPendingAudioCompanionArtBatch = async ({
   limit,
 }: {
@@ -287,82 +431,21 @@ export const processPendingAudioCompanionArtBatch = async ({
     metrics.claimed += 1;
 
     try {
-      if (!(await loadAudioCompanionArtEligibility({ generationId, userId }))) {
-        metrics.processed += 1;
-        metrics.skipped += 1;
-        await cleanupAudioCompanionArt({
-          generationId,
-          userId,
-          supabaseAdmin,
-        });
-        continue;
-      }
-
-      const generationRow = await loadAudioGenerationRow({
+      const generated = await generateAndPersistAudioCompanionArt({
         generationId,
         userId,
+        supabaseAdmin,
+        runtimeStyleLine,
       });
-      if (!generationRow) {
-        throw new Error("Audio generation row not found.");
-      }
-
-      const promptText = asTrimmedString(generationRow.prompt_text) ?? "Audio reference cover art";
-      const metadata = asObject(generationRow.metadata);
-      const sourceMode = readSourceMode(metadata);
-      if (!sourceMode) {
-        throw new Error("Audio source mode metadata is unavailable.");
-      }
-      if (runtimeStyleLine === undefined) {
-        const resolvedRuntimePrompt = await resolveRuntimeAgentPrompt({
-          promptId: AUDIO_COMPANION_ART_STYLE_PROMPT_ID,
-        });
-        runtimeStyleLine = resolvedRuntimePrompt.promptBody;
-      }
-
-      const generationSpec = compileAudioCompanionArtPrompt({
-        promptText,
-        sourceMode,
-        metadata,
-        styleLine: runtimeStyleLine,
-      });
-      const generated = await generateFalFluxKleinImage({
-        payload: buildFalFluxKleinImagePayload(generationSpec.prompt, "1:1"),
-      });
-      const deliveryBuffer = await encodeAudioCompanionArtDeliveryBuffer(generated.buffer);
-      if (!(await loadAudioCompanionArtEligibility({ generationId, userId }))) {
-        metrics.processed += 1;
-        metrics.skipped += 1;
-        await cleanupAudioCompanionArt({
-          generationId,
-          userId,
-          supabaseAdmin,
-        });
-        continue;
-      }
-      const storagePath = buildCompanionArtStoragePath({
-        userId,
-        generationId,
-      });
-      const uploadResult = await supabaseAdmin.storage
-        .from(MEDIA_BUCKET)
-        .upload(storagePath, deliveryBuffer, {
-          contentType: AUDIO_COMPANION_ART_DELIVERY_MIME_TYPE,
-          upsert: true,
-        });
-      if (uploadResult.error) {
-        throw new Error(uploadResult.error.message || "Unable to persist audio companion art.");
-      }
-
-      await upsertGenerationProjection({
-        generationId,
-        userId,
-        companionArtStatus: "ready",
-        companionArtStoragePath: storagePath,
-      });
+      runtimeStyleLine = generated.runtimeStyleLine;
       metrics.processed += 1;
       metrics.ready += 1;
     } catch (processingError) {
       metrics.processed += 1;
+      if (processingError instanceof AudioCompanionArtSkippedError) {
+        metrics.skipped += 1;
+        continue;
+      }
       metrics.failed += 1;
       await markAudioCompanionArtFailed({
         generationId,

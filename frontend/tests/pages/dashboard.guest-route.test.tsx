@@ -199,6 +199,18 @@ describe("Dashboard guest route", () => {
     expect(screen.queryByText("Offer 2")).not.toBeInTheDocument();
     expect(screen.queryByText("Offer 3")).not.toBeInTheDocument();
     expect(screen.queryByText("Offer 4")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Terms of Service" })).toHaveAttribute(
+      "href",
+      "/terms"
+    );
+    expect(screen.getByRole("link", { name: "Privacy Policy" })).toHaveAttribute(
+      "href",
+      "/privacy"
+    );
+    expect(screen.getByRole("link", { name: "Refund Policy" })).toHaveAttribute(
+      "href",
+      "/refund-policy"
+    );
     const guestActions = screen.getByLabelText("Guest actions");
 
     expect(within(guestActions).getByRole("link", { name: "Login" })).toHaveAttribute(

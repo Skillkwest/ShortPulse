@@ -1,0 +1,237 @@
+/**
+ * Admin Legal workspace styles.
+ * Keeps legal document management layout scoped away from the large shared admin stylesheet.
+ */
+.policyCards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.policyCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 116px;
+  padding: 14px;
+  border: 1px solid var(--admin-border-soft);
+  border-radius: 8px;
+  background: var(--admin-surface-2);
+  color: var(--admin-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.policyCard:hover {
+  border-color: var(--admin-accent-border);
+}
+
+.policyCardActive {
+  border-color: var(--admin-accent-border-strong);
+  background: var(--admin-accent-soft);
+}
+
+.policyCardIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  color: var(--admin-accent-text);
+  background: var(--admin-accent-soft-2);
+}
+
+.policyCardBody {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.policyCardTitle {
+  color: var(--admin-text-strong);
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.policyCardMeta {
+  color: var(--admin-text-muted);
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.workspaceGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.editorPanel,
+.previewPanel,
+.historyPanel {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--admin-border-soft);
+  border-radius: 8px;
+  background: var(--admin-surface-3);
+}
+
+.panelHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.panelHeader h3 {
+  margin: 0;
+  color: var(--admin-text-strong);
+  font-size: 17px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.markdownEditor,
+.noteInput {
+  width: 100%;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: #0f1317;
+  color: var(--admin-text-strong);
+  font: inherit;
+}
+
+.markdownEditor {
+  min-height: 560px;
+  padding: 12px;
+  resize: vertical;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+    monospace;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.noteInput {
+  min-height: 38px;
+  padding: 8px 10px;
+}
+
+.actionRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.fileInput {
+  display: none;
+}
+
+.previewMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  color: var(--admin-text-muted);
+  font-size: 12px;
+}
+
+.versionPill {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--admin-border);
+  border-radius: 999px;
+  color: var(--admin-text-strong);
+  background: var(--admin-surface-2);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.previewDocument {
+  display: grid;
+  gap: 12px;
+  max-height: 700px;
+  overflow: auto;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid var(--admin-border-soft);
+  background: #f7f3ec;
+  color: #151515;
+}
+
+.previewDocument h3,
+.previewDocument h4,
+.previewDocument p,
+.previewDocument ul {
+  margin: 0;
+}
+
+.previewDocument h3 {
+  margin-top: 8px;
+  font-size: 18px;
+}
+
+.previewDocument h4 {
+  font-size: 15px;
+}
+
+.previewDocument p,
+.previewDocument li {
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.previewDocument ul {
+  padding-left: 20px;
+}
+
+.historyPanel {
+  margin-top: 14px;
+}
+
+.historyList {
+  display: grid;
+  gap: 6px;
+}
+
+.historyRow {
+  display: grid;
+  grid-template-columns: 0.7fr 0.6fr 1.4fr 1.3fr minmax(0, 1.6fr);
+  gap: 8px;
+  align-items: center;
+  padding: 9px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--admin-border-soft);
+  background: var(--admin-surface-2);
+  color: var(--admin-text-muted);
+  font-size: 12px;
+}
+
+.historyRow span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 980px) {
+  .policyCards,
+  .workspaceGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .historyRow {
+    grid-template-columns: 0.7fr 0.5fr 1fr;
+  }
+
+  .historyRow span:nth-child(n + 4) {
+    display: none;
+  }
+}

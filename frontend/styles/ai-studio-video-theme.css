@@ -1353,7 +1353,7 @@
 }
 
 .video-properties-panel .prompt-enhanced-wrapper .prompt-token-highlight-segment {
-  color: rgba(245, 249, 255, 0.94);
+  color: transparent;
 }
 
 .video-properties-panel .prompt-enhanced-wrapper .prompt-token-highlight-segment.is-token {
@@ -1368,13 +1368,6 @@
 
 .video-properties-panel .prompt-enhanced-wrapper .prompt-token-highlight-segment.is-invalid-token {
   color: rgba(255, 132, 132, 0.96);
-}
-
-.video-properties-panel
-  .prompt-enhanced-wrapper.has-token-highlight
-  .enhanced-prompt-input:not(:placeholder-shown) {
-  color: transparent;
-  caret-color: #f5f9ff;
 }
 
 .video-properties-panel .prompt-enhanced-wrapper .enhanced-prompt-input {

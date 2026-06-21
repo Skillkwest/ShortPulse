@@ -47,6 +47,13 @@ Google sign-in posture:
 - Do not enable Google as a generic public signup path. Paid Google acquisition requires a separate Supabase-side user-creation gate, such as a reviewed Before User Created Auth Hook, that can reject OAuth-created users without a valid paid-plan intent before an `auth.users` row is inserted.
 - Configure Google Cloud OAuth with `https://www.shortpulse.ai` as the production JavaScript origin and the Supabase project callback URL (`https://<project-ref>.supabase.co/auth/v1/callback`) as the authorized redirect URI.
 - In Supabase Auth, enable the Google provider only after adding the Google client ID/secret and confirming the production redirect allowlist includes `https://www.shortpulse.ai/auth/callback`.
+- Verify and, when the required Management API token plus Google OAuth credentials are available, apply the narrow hosted-provider patch with:
+  ```bash
+  cd frontend
+  npm run auth:google-config -- --project-ref <production-project-ref>
+  npm run auth:google-config -- --project-ref <production-project-ref> --apply-enable-google --apply-redirect-url --confirm-enable-google <production-project-ref>
+  ```
+  This command summarizes only credential presence and provider state; it must not print the Management API token, Google client secret, or raw auth config.
 
 Suspicious account removal posture:
 

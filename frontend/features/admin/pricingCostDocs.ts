@@ -145,15 +145,15 @@ const getProviderPricingDocLines = (
       ];
     case "elevenlabs-music-per-minute":
       return [
-        "Provider cost basis used here: $0.30 per generated music minute.",
+        "Provider cost basis used here: $0.15 per generated music minute.",
         "Workbook formula: duration seconds / 60 multiplied by the provider rate.",
         "Duration controls follow the current ShortPulse music request range.",
       ];
     case "elevenlabs-sound-effect":
       return [
-        "Provider cost basis used here: $0.12 per auto-duration sound-effect generation.",
-        "Explicit-duration sound effects are normalized to $0.024 per second.",
-        "The workbook starts at 5s because 5s matches the auto-duration $0.12 baseline.",
+        "Provider cost basis used here: $0.12 per auto-duration API sound-effect generation.",
+        "Explicit-duration API sound effects are normalized to $0.0132 per second.",
+        "The workbook starts at 5s because ShortPulse defaults this workflow to an explicit 5-second clip.",
       ];
     case "elevenlabs-text-to-speech-per-kchar":
       return [

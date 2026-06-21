@@ -281,6 +281,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 159.  `sql/migrations/160_repair_global_media_library_visibility.sql`
 160.  `sql/migrations/161_harden_hidden_free_billing_offer.sql`
 161.  `sql/migrations/162_repair_generation_projection_workflow_reload.sql`
+162.  `sql/migrations/163_add_legal_policy_control_plane.sql`
       Rollback files:
 
 
@@ -450,6 +451,7 @@ Billing safety note:
 - Migration `062_add_dashboard_announcements.sql` adds global dashboard announcement persistence with one-active-row enforcement, authenticated active-only reads, and service-role-only publish RPC semantics for admin-managed broadcasts.
 - Migration `150_restore_dashboard_announcement_publish_grants.sql` restores service-role execute access for the dashboard announcement publish RPC while keeping public, anon, and authenticated browser roles denied.
 - Migration `151_add_ai_studio_builtin_style_control_plane.sql` adds the service-role-only `ai_studio_builtin_style_runtime` singleton control-plane table for global built-in AI Studio Styles edited from `/admin/agent-instructions` and read by authenticated runtime clients through `/api/ai/built-in-styles`.
+- Migration `163_add_legal_policy_control_plane.sql` adds service-role-only version/runtime/event tables plus `get_active_legal_policy` and `publish_legal_policy` RPCs for runtime-backed public legal policy pages edited from `/admin/legal`.
 - Migration `153_add_dashboard_tutorials.sql` adds the admin-managed `dashboard_tutorials` table for signed-in dashboard tutorial cards with active ordered reads, service-role writes, an atomic service-role reorder RPC, HTTPS thumbnail metadata, and no Supabase image transformations.
 - Migration `154_add_dashboard_tutorial_thumbnail_uploads.sql` adds the private `dashboard_tutorial_thumbnails` bucket plus stored-thumbnail columns so admins can upload local GIF/image/video tutorial thumbnail source files without Supabase image transformations.
 - Migration `sql/migrations/155_add_dashboard_tutorial_thumbnail_display_derivatives.sql` adds durable display-derivative and poster metadata for dashboard tutorial thumbnails so dashboard reads can sign small app-owned display objects while preserving uploaded originals as source material.

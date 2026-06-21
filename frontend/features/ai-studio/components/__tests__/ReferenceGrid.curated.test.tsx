@@ -582,7 +582,7 @@ describe("ReferenceGrid curated split", () => {
       ".reference-card-video"
     ) as HTMLVideoElement | null;
     expect(videoNode).toBeTruthy();
-    expect(videoNode?.getAttribute("src")).toBe("https://example.com/imported-no-autoplay.mp4");
+    expect(videoNode?.getAttribute("src")).toBeNull();
     expect(videoNode?.getAttribute("preload")).toBe("none");
     expect(dormantCard?.querySelector(".reference-spinner")).toBeNull();
   });

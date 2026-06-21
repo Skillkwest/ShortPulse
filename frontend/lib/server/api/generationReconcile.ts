@@ -48,7 +48,6 @@ const PROJECT_GENERATION_RECONCILE_SELECT_COLUMNS = [
 const AI_GENERATION_PROJECT_RECONCILE_SELECT_COLUMNS = [
   "id",
   "request_id",
-  "metadata",
   "status",
   "recovery_state",
   "failure_reason_code",
@@ -235,7 +234,7 @@ const parseProjectAiGenerationIdentity = (
       : {};
   const generationId = normalizeString(row.id);
   const requestId = normalizeString(row.request_id);
-  const sourceRef = normalizeString(metadata.source_ref);
+  const sourceRef = normalizeString(row.source_ref) ?? normalizeString(metadata.source_ref);
   if (!generationId && !requestId && !sourceRef) return null;
   const recencyMs =
     recencyMsOverride ??

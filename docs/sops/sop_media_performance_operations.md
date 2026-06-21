@@ -17,6 +17,15 @@ Operate and troubleshoot Media Library and AI Studio Reference Grid performance 
 
 Use [docs/sops/sop_media_panel_performance_kpi.md](./sop_media_panel_performance_kpi.md) when you need a scored KPI report for the AI Studio media panel or the Elements embedded media panel rather than raw telemetry alone.
 
+For Media Library deep-scroll or older-media browse work, run the fast local guard before closeout:
+
+```bash
+cd frontend
+npm run media:checkpoint:deep-scroll-performance
+```
+
+This checkpoint protects the cursor append, panel runtime ordering, indexed virtualization, visible-scoped signing, and touched-file type-check seams. It is local implementation proof only. When authenticated browser or deployed-surface proof is required, run `npm run test:e2e:media-library-runtime` with a real audit account and the intended base URL.
+
 ## Key Components
 
 - Client signing/cache:
@@ -70,6 +79,7 @@ Use [docs/sops/sop_media_panel_performance_kpi.md](./sop_media_panel_performance
    - Existing cards remain visible while refresh is in-flight.
    - `Loading media library…` appears only when there are zero visible media rows.
    - `Refreshing media…` can appear while cards remain mounted.
+7. For older-media browse or deep-scroll changes, require the deep-scroll checkpoint above before claiming the lane is locally guarded.
 
 ### 2) Validate Batch Signing Contract
 

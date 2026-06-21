@@ -460,6 +460,7 @@ export const useAiStudioGeneratedOutputMaintenance = ({
           workspaceRuntimeKey: projectId ? null : workspaceRuntimeKey,
           limit: runtimeIdentities.length,
           runtimeIdentities,
+          includeWorkflowContext: false,
         });
         if (cancelled || hydratedOutputs.length === 0) return;
         setOutputsState((currentOutputs) =>

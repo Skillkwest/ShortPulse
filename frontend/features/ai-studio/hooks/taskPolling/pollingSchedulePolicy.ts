@@ -11,6 +11,7 @@ export const POLL_DELAY_INITIAL_MS = 900;
 export const POLL_DELAY_BACKOFF_STEP_MS = 300;
 export const POLL_DELAY_MAX_MS = 3_000;
 export const IMAGE_NO_MEDIA_RETRY_DELAYS_MS = [300, 600, 900, 1200, 1600, 2200];
+export const VIDEO_NO_MEDIA_MAX_ATTEMPTS = Math.ceil(VIDEO_POLL_MAX_WAIT_MS / POLL_DELAY_MAX_MS);
 export const STATUS_NOT_FOUND_MAX_ATTEMPTS = 5;
 export const STATUS_ERROR_MAX_ATTEMPTS = 30;
 
@@ -53,7 +54,7 @@ export const resolveNoMediaRetryPolicy = ({
   fallbackDelayMs,
 }: NoMediaRetryPolicyInput): NoMediaRetryPolicy => {
   const maxNoMediaAttempts = longRunningVideoProviders.has(provider)
-    ? 30
+    ? VIDEO_NO_MEDIA_MAX_ATTEMPTS
     : IMAGE_NO_MEDIA_RETRY_DELAYS_MS.length;
   const shouldRetryForMedia = noMediaAttempt < maxNoMediaAttempts;
   const retryDelayMs = longRunningVideoProviders.has(provider)

@@ -54,6 +54,23 @@ const CHECKPOINTS = {
     doneHint:
       "Done when panel refresh, append, and signed-preview paths validate without broad panel-suite noise and without redundant runtime row churn.",
   },
+  "deep-scroll-performance": {
+    title: "Deep Scroll Performance",
+    description:
+      "Protects older-media browsing by validating cursor append order, aggregate runtime ordering, indexed virtualization windows, visible-scoped signing, and long-session media callback cleanup.",
+    commands: [
+      "npm test -- features/media-library/logic/__tests__/mediaLibraryPageHelpers.test.ts",
+      "npm test -- features/ai-studio/hooks/__tests__/useMediaLibraryPanelDataController.test.tsx",
+      "npm test -- features/media-library/runtime/__tests__/store.test.ts",
+      "npm test -- features/media-library/runtime/__tests__/useMediaLibraryPanelRuntime.test.ts",
+      "npm test -- features/media-library/logic/__tests__/mediaGridVirtualization.test.ts",
+      "npm test -- features/media-library/logic/__tests__/mediaPreviewSigningPass.test.ts",
+      "npm test -- features/media-library/hooks/__tests__/useMediaPreviewSigningController.test.ts",
+      "npm run type-check:touched",
+    ],
+    doneHint:
+      "Done when deep-scroll append, render-window, signing, and runtime-order tests pass; run npm run test:e2e:media-library-runtime separately when authenticated browser proof is required.",
+  },
 };
 
 const normalizeString = (value) => (typeof value === "string" ? value.trim() : "");

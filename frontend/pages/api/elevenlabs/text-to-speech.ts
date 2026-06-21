@@ -19,7 +19,10 @@ import {
   persistGeneratedAudioAsset,
 } from "../../../lib/server/elevenlabs";
 import { resolveVoiceAccessForUser } from "../../../lib/server/elevenlabsVoiceLibrary";
-import { markAudioCompanionArtPendingBestEffort } from "../../../lib/server/audioCompanionArt/routePending";
+import {
+  generateAudioCompanionArtNowBestEffort,
+  markAudioCompanionArtPendingBestEffort,
+} from "../../../lib/server/audioCompanionArt/routePending";
 import { readGenerationWorkspaceRuntimeKeyFromContext } from "../../../lib/server/api/generationWorkspaceRuntimeKey";
 import { generateAudioReferenceTitleBestEffort } from "../../../lib/server/audioTitleGeneration";
 
@@ -46,9 +49,9 @@ type GenerateAudioSuccessResponse = {
     resultUrls: string[];
     previewStoragePath: string;
     fullStoragePath: string;
-    companionArtUrl: null;
-    companionArtStoragePath: null;
-    companionArtStatus: "pending";
+    companionArtUrl: string | null;
+    companionArtStoragePath: string | null;
+    companionArtStatus: "pending" | "ready";
     mimeType: string;
     durationMs: null;
     waveformPeaks: null;
@@ -266,6 +269,13 @@ export default async function handler(
       userId: charge.userId,
       user,
     });
+    const companionArt = await generateAudioCompanionArtNowBestEffort({
+      req,
+      routeLabel: "elevenlabs-text-to-speech",
+      generationId: persisted.generationId,
+      userId: charge.userId,
+      user,
+    });
 
     return res.status(200).json({
       output: {
@@ -278,9 +288,9 @@ export default async function handler(
         resultUrls: [persisted.signedUrl],
         previewStoragePath: persisted.storagePath,
         fullStoragePath: persisted.storagePath,
-        companionArtUrl: null,
-        companionArtStoragePath: null,
-        companionArtStatus: "pending",
+        companionArtUrl: companionArt?.companionArtUrl ?? null,
+        companionArtStoragePath: companionArt?.companionArtStoragePath ?? null,
+        companionArtStatus: companionArt?.companionArtStatus ?? "pending",
         mimeType: generated.contentType,
         durationMs: null,
         waveformPeaks: null,

@@ -274,6 +274,7 @@ describe("useAiStudioGeneratedOutputMaintenance", () => {
           sourceRef: null,
         },
       ],
+      includeWorkflowContext: false,
     });
   });
 
@@ -312,6 +313,7 @@ describe("useAiStudioGeneratedOutputMaintenance", () => {
             sourceRef: "source-runtime-1",
           },
         ],
+        includeWorkflowContext: false,
       });
     });
     expect(fetchWithAuthMock).toHaveBeenCalledWith(
@@ -378,6 +380,7 @@ describe("useAiStudioGeneratedOutputMaintenance", () => {
             sourceRef: null,
           },
         ],
+        includeWorkflowContext: false,
       });
     });
   });
@@ -416,6 +419,7 @@ describe("useAiStudioGeneratedOutputMaintenance", () => {
             sourceRef: "source-plain-runtime-1",
           },
         ],
+        includeWorkflowContext: false,
       });
     });
   });
@@ -506,6 +510,7 @@ describe("useAiStudioGeneratedOutputMaintenance", () => {
             sourceRef: null,
           },
         ],
+        includeWorkflowContext: false,
       });
     });
   });

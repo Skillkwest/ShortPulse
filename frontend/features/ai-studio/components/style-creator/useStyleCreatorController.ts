@@ -1045,6 +1045,104 @@ export const useStyleCreatorController = ({
     [draggedStyleId, onReorderStyle, renderedStyles]
   );
 
+  const handleStyleStartDropZoneDragOver = React.useCallback(
+    (event: React.DragEvent<HTMLElement>) => {
+      const sourceStyleId = draggedStyleIdRef.current || draggedStyleId;
+      if (!sourceStyleId) return;
+      const targetStyle = renderedStyles.find(
+        (style) => !style.placeholder && style.id !== sourceStyleId
+      );
+      if (!targetStyle) return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.dataTransfer.dropEffect = "move";
+      if (dropTargetStyle?.styleId !== targetStyle.id || dropTargetStyle.placement !== "before") {
+        setDropTargetStyle({ styleId: targetStyle.id, placement: "before" });
+      }
+    },
+    [draggedStyleId, dropTargetStyle, renderedStyles]
+  );
+
+  const handleStyleStartDropZoneDrop = React.useCallback(
+    (event: React.DragEvent<HTMLElement>) => {
+      const sourceStyleId = resolveKnownDraggedStyleId(
+        event,
+        renderedStyles,
+        draggedStyleIdRef.current || draggedStyleId
+      );
+      if (!sourceStyleId) return;
+      const targetStyle = renderedStyles.find(
+        (style) => !style.placeholder && style.id !== sourceStyleId
+      );
+      if (!targetStyle) {
+        setDropTargetStyle(null);
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      if (onReorderStyle) {
+        void onReorderStyle(sourceStyleId, targetStyle.id, "before");
+      } else {
+        setOrderedStyleIds((previous) =>
+          reorderById(previous, sourceStyleId, targetStyle.id, "before")
+        );
+      }
+      setDropTargetStyle(null);
+      draggedStyleIdRef.current = null;
+      setDraggedStyleId(null);
+    },
+    [draggedStyleId, onReorderStyle, renderedStyles]
+  );
+
+  const handleStyleEndDropZoneDragOver = React.useCallback(
+    (event: React.DragEvent<HTMLElement>) => {
+      const sourceStyleId = draggedStyleIdRef.current || draggedStyleId;
+      if (!sourceStyleId) return;
+      const targetStyle = [...renderedStyles]
+        .reverse()
+        .find((style) => !style.placeholder && style.id !== sourceStyleId);
+      if (!targetStyle) return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.dataTransfer.dropEffect = "move";
+      if (dropTargetStyle?.styleId !== targetStyle.id || dropTargetStyle.placement !== "after") {
+        setDropTargetStyle({ styleId: targetStyle.id, placement: "after" });
+      }
+    },
+    [draggedStyleId, dropTargetStyle, renderedStyles]
+  );
+
+  const handleStyleEndDropZoneDrop = React.useCallback(
+    (event: React.DragEvent<HTMLElement>) => {
+      const sourceStyleId = resolveKnownDraggedStyleId(
+        event,
+        renderedStyles,
+        draggedStyleIdRef.current || draggedStyleId
+      );
+      if (!sourceStyleId) return;
+      const targetStyle = [...renderedStyles]
+        .reverse()
+        .find((style) => !style.placeholder && style.id !== sourceStyleId);
+      if (!targetStyle) {
+        setDropTargetStyle(null);
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      if (onReorderStyle) {
+        void onReorderStyle(sourceStyleId, targetStyle.id, "after");
+      } else {
+        setOrderedStyleIds((previous) =>
+          reorderById(previous, sourceStyleId, targetStyle.id, "after")
+        );
+      }
+      setDropTargetStyle(null);
+      draggedStyleIdRef.current = null;
+      setDraggedStyleId(null);
+    },
+    [draggedStyleId, onReorderStyle, renderedStyles]
+  );
+
   const handleStyleDragEnd = React.useCallback(() => {
     draggedStyleIdRef.current = null;
     setDraggedStyleId(null);
@@ -1144,6 +1242,10 @@ export const useStyleCreatorController = ({
     handleStyleDrop,
     handleStyleGridDragOver,
     handleStyleGridDrop,
+    handleStyleStartDropZoneDragOver,
+    handleStyleStartDropZoneDrop,
+    handleStyleEndDropZoneDragOver,
+    handleStyleEndDropZoneDrop,
     handleStyleDragEnd,
     applyStylePreviewFromTransfer,
     applyStylePreviewFile,

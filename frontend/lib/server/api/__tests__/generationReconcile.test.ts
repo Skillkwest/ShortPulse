@@ -339,6 +339,9 @@ describe("generationReconcile", () => {
     expect(associatedGenerationRowsBuilder.in).toHaveBeenCalledWith("id", [
       "generation-associated",
     ]);
+    expect(associatedGenerationRowsBuilder.select).toHaveBeenCalledWith(
+      expect.not.stringContaining("metadata")
+    );
     expect(executeGenerationRecoveryMock).toHaveBeenCalledTimes(1);
     expect(executeGenerationRecoveryMock).toHaveBeenCalledWith({
       actor: "user_reconcile",
@@ -449,6 +452,9 @@ describe("generationReconcile", () => {
       "metadata->shortpulseContext->>projectId",
       "eq",
       "project-1"
+    );
+    expect(camelMetadataRowsBuilder.select).toHaveBeenCalledWith(
+      expect.not.stringContaining("metadata")
     );
     expect(executeGenerationRecoveryMock).toHaveBeenCalledTimes(1);
     expect(executeGenerationRecoveryMock).toHaveBeenCalledWith({

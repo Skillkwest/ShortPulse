@@ -39,12 +39,9 @@ const KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_USD_BY_RESOLUTION: Record<KieGptImage2Resolu
 export const DEFAULT_KLING_DURATION_SECONDS = 10;
 const ELEVENLABS_TEXT_TO_SPEECH_USD_PER_1K_CHARACTERS = 0.1;
 const ELEVENLABS_VOICE_CHANGER_USD_PER_MINUTE = 0.12;
-const ELEVENLABS_SOUND_EFFECT_AUTO_USD_PER_GENERATION = 0.01;
-// ElevenLabs API pricing documents sound effects at 100 credits / generation for auto-duration
-// and 20 credits / second when duration is explicitly requested.
-const ELEVENLABS_SOUND_EFFECT_EXPLICIT_USD_PER_SECOND =
-  ELEVENLABS_SOUND_EFFECT_AUTO_USD_PER_GENERATION / 5;
-const ELEVENLABS_MUSIC_USD_PER_MINUTE = 0.3;
+const ELEVENLABS_SOUND_EFFECT_AUTO_USD_PER_GENERATION = 0.12;
+const ELEVENLABS_SOUND_EFFECT_EXPLICIT_USD_PER_SECOND = 0.0132;
+const ELEVENLABS_MUSIC_USD_PER_MINUTE = 0.15;
 type OpenAiTextTokenRateSet = {
   standard: { input: number; cachedInput: number; output: number };
   long?: { input: number; cachedInput: number; output: number };

@@ -5,6 +5,7 @@ import {
   writeAdminPricingWorkspaceDraftToStorage,
   type AdminPricingWorkspaceDraftSnapshot,
 } from "../pricingWorkspacePersistence";
+import { getDefaultAdminPricingCustomRowsDocument } from "../../../../lib/model-runtime/adminPricingCustomRows";
 import { compactModelPricingPolicyDocument } from "../../../../lib/model-runtime/pricingPolicy";
 
 const createMemoryStorage = () => {
@@ -60,7 +61,7 @@ const buildSnapshot = (): AdminPricingWorkspaceDraftSnapshot => ({
   providerCostDrafts: {},
   providerCostPerSecondDrafts: {},
   variantProviderCostDrafts: {
-    "elevenlabs-sound-effect::default": "0.002",
+    "elevenlabs-sound-effect::default": "0.0132",
   },
   variantProviderCostPerSecondDrafts: {},
   modelSearchQuery: "sound",
@@ -100,6 +101,7 @@ describe("pricingWorkspacePersistence", () => {
     const expected = {
       ...snapshot,
       modelPolicyDraft: compactModelPricingPolicyDocument(snapshot.modelPolicyDraft!),
+      customRowsDraft: getDefaultAdminPricingCustomRowsDocument(),
     };
 
     writeAdminPricingWorkspaceDraftToStorage(storage, snapshot);

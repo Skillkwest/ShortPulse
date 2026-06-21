@@ -178,6 +178,7 @@ const createAiGenerationsAdmin = (
 
   return {
     admin: { from },
+    aiGenerationsUpdateMock: table.update,
     updatePayloads,
     mediaEventInserts,
   };
@@ -951,6 +952,12 @@ describe("executeGenerationRecovery", () => {
       upsertGenerationPublicationMock.mock.invocationCallOrder[0]
     );
     expect(settleGenerationOutcomeMock.mock.invocationCallOrder[0]).toBeLessThan(
+      upsertGenerationProjectionMock.mock.invocationCallOrder[0]
+    );
+    expect(scenario.aiGenerationsUpdateMock.mock.invocationCallOrder[0]).toBeLessThan(
+      upsertGenerationPublicationMock.mock.invocationCallOrder[0]
+    );
+    expect(scenario.aiGenerationsUpdateMock.mock.invocationCallOrder[0]).toBeLessThan(
       upsertGenerationProjectionMock.mock.invocationCallOrder[0]
     );
     expect(scenario.updatePayloads).toHaveLength(1);

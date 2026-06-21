@@ -28,7 +28,7 @@ describe("ElevenLabs runtime pricing", () => {
     });
 
     expect(breakdown).toMatchObject({
-      usdRaw: 0.01,
+      usdRaw: 0.12,
     });
   });
 
@@ -39,7 +39,7 @@ describe("ElevenLabs runtime pricing", () => {
     );
 
     expect(breakdown).toMatchObject({
-      usdRaw: 0.01,
+      usdRaw: 0.066,
     });
   });
 
@@ -49,7 +49,7 @@ describe("ElevenLabs runtime pricing", () => {
     });
 
     expect(breakdown).toMatchObject({
-      usdRaw: 0.02,
+      usdRaw: 0.132,
     });
   });
 
@@ -59,7 +59,7 @@ describe("ElevenLabs runtime pricing", () => {
     });
 
     expect(breakdown).toMatchObject({
-      usdRaw: 0.15,
+      usdRaw: 0.075,
     });
   });
 
@@ -67,7 +67,7 @@ describe("ElevenLabs runtime pricing", () => {
     const breakdown = computeCostForModel("music_v1", {});
 
     expect(breakdown).toMatchObject({
-      usdRaw: 0.3,
+      usdRaw: 0.15,
     });
   });
 });

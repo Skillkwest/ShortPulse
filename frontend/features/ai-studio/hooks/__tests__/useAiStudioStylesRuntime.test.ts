@@ -313,6 +313,38 @@ describe("useAiStudioStylesRuntime", () => {
     ]);
   });
 
+  it("reflects persisted reorder in the shared visible catalog used by the panel and right rail", async () => {
+    panelIdsPreference.stylePanelIds = [
+      "cinematic",
+      "anime",
+      "photorealistic",
+      "cell-phone-snapshot",
+    ];
+    panelIdsPreference.setStylePanelIds.mockImplementation(async (nextOrder: string[]) => {
+      panelIdsPreference.stylePanelIds = nextOrder;
+      return true;
+    });
+
+    const { result, rerender } = renderHook(() =>
+      useAiStudioStylesRuntime({
+        selectedStyleId: null,
+        setSelectedStyleId: vi.fn(),
+      })
+    );
+
+    await act(async () => {
+      result.current.handleReorderStyle("cinematic", "anime", "after");
+    });
+    rerender();
+
+    expect(result.current.visibleStylesCatalog.map((style) => style.id)).toEqual([
+      "anime",
+      "cinematic",
+      "photorealistic",
+      "cell-phone-snapshot",
+    ]);
+  });
+
   it("clears an invalid selected style when the style is no longer visible", async () => {
     const setSelectedStyleId = vi.fn();
     const onSelectedStylePromptChange = vi.fn();

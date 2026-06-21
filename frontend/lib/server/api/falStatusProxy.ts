@@ -170,6 +170,39 @@ const deriveFalStatusBaseFromProviderUrl = ({
   return null;
 };
 
+const PROVIDER_RETURNED_STATUS_BASE_SELECT_COLUMNS = [
+  "provider_status_url:metadata->>provider_status_url",
+  "provider_response_url:metadata->>provider_response_url",
+].join(", ");
+
+const PROVIDER_RETURNED_STATUS_BASE_FALLBACK_SELECT_COLUMNS = "metadata";
+
+const readProviderReturnedStatusUrlRow = async ({
+  requestId,
+  selectColumns,
+  userId,
+}: {
+  requestId: string;
+  selectColumns: string;
+  userId: string;
+}): Promise<{ data: Record<string, unknown> | null; error: unknown }> => {
+  const { data, error } = await getSupabaseAdmin()
+    .from("ai_generations")
+    .select(selectColumns)
+    .eq("user_id", userId)
+    .eq("request_id", requestId)
+    .order("created_at", { ascending: false })
+    .limit(1);
+  if (error || !Array.isArray(data) || !data.length) {
+    return { data: null, error };
+  }
+  const row = data[0];
+  return {
+    data: row && typeof row === "object" && !Array.isArray(row) ? row : null,
+    error: null,
+  };
+};
+
 const readProviderReturnedStatusBases = async ({
   provider,
   requestId,
@@ -181,22 +214,34 @@ const readProviderReturnedStatusBases = async ({
 }): Promise<string[]> => {
   if (provider !== "fal") return [];
   try {
-    const { data, error } = await getSupabaseAdmin()
-      .from("ai_generations")
-      .select("metadata")
-      .eq("user_id", userId)
-      .eq("request_id", requestId)
-      .order("created_at", { ascending: false })
-      .limit(1);
-    if (error || !Array.isArray(data) || !data.length) return [];
-    const metadata = asObject(asObject(data[0]).metadata);
+    let { data: row, error } = await readProviderReturnedStatusUrlRow({
+      requestId,
+      selectColumns: PROVIDER_RETURNED_STATUS_BASE_SELECT_COLUMNS,
+      userId,
+    });
+    if (error) {
+      const fallbackResult = await readProviderReturnedStatusUrlRow({
+        requestId,
+        selectColumns: PROVIDER_RETURNED_STATUS_BASE_FALLBACK_SELECT_COLUMNS,
+        userId,
+      });
+      row = fallbackResult.data;
+      error = fallbackResult.error;
+    }
+    if (error || !row) return [];
+    const metadata = asObject(row.metadata);
+    const providerStatusUrl =
+      asProviderString(row.provider_status_url) ?? asProviderString(metadata.provider_status_url);
+    const providerResponseUrl =
+      asProviderString(row.provider_response_url) ??
+      asProviderString(metadata.provider_response_url);
     const statusBase = deriveFalStatusBaseFromProviderUrl({
       requestId,
-      url: asProviderString(metadata.provider_status_url),
+      url: providerStatusUrl,
     });
     const responseBase = deriveFalStatusBaseFromProviderUrl({
       requestId,
-      url: asProviderString(metadata.provider_response_url),
+      url: providerResponseUrl,
     });
     return [
       ...new Set([statusBase, responseBase].filter((value): value is string => Boolean(value))),

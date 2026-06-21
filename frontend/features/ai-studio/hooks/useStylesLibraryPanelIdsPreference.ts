@@ -207,7 +207,6 @@ export const useStylesLibraryPanelIdsPreference = (): UseStylesLibraryPanelIdsPr
           setSyncState("ready");
           return true;
         }
-        updateLocalValue(previousValue, userId);
         setError(err instanceof Error ? err.message : "Unable to save style order.");
         setSyncState("error");
         return false;

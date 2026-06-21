@@ -5539,7 +5539,7 @@
 }
 
 .edit-expert-prompt-highlight-segment {
-  color: #f5f9ff;
+  color: transparent;
 }
 
 .edit-expert-prompt-highlight-segment.is-valid-token {
@@ -5558,7 +5558,7 @@
   box-shadow: none;
   width: 100%;
   flex: 1 1 auto;
-  color: transparent;
+  color: #f5f9ff;
   caret-color: #f5f9ff;
   font-size: 15px;
   line-height: 1.55;

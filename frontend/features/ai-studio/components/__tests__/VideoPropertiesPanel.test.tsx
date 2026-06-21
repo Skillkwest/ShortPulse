@@ -479,12 +479,15 @@ const baseProps: React.ComponentProps<typeof VideoPropertiesPanel> = {
 
 const createTransferStore = () => {
   const store: Record<string, string> = {};
+  const types: string[] = [];
   return {
     effectAllowed: "copy",
     dropEffect: "copy",
-    types: [],
+    types,
+    files: [],
     setData: vi.fn((type: string, value: string) => {
       store[type] = value;
+      if (!types.includes(type)) types.push(type);
     }),
     getData: vi.fn((type: string) => store[type] ?? ""),
   } as unknown as DataTransfer;
@@ -498,6 +501,15 @@ const createDeferred = <T,>() => {
     reject = rej;
   });
   return { promise, resolve, reject };
+};
+
+const attachTransferFiles = (transfer: DataTransfer, files: File[]) => {
+  Object.defineProperty(transfer, "files", {
+    configurable: true,
+    value: files,
+  });
+  const mutableTypes = transfer.types as unknown as string[];
+  if (!mutableTypes.includes("Files")) mutableTypes.push("Files");
 };
 
 function KlingModeStateHarness() {
@@ -1127,7 +1139,7 @@ describe("VideoPropertiesPanel", () => {
     });
   });
 
-  it("preserves Media Library audio storage path for Lip Sync submit authority", () => {
+  it("preserves Media Library audio storage path for Lip Sync submit authority", async () => {
     useReferencePropertiesDerivedStateMock.mockReturnValue({
       ...defaultDerivedState,
       activeVideoMode: "lip-sync",
@@ -1166,19 +1178,21 @@ describe("VideoPropertiesPanel", () => {
     expect(audioDropzone).not.toBeNull();
     fireEvent.drop(audioDropzone as Element, { dataTransfer: transfer });
 
-    expect(onLipSyncAudioChange).toHaveBeenCalledWith({
-      url: "https://signed.shortpulse.test/voice-full.mp3",
-      durationMs: 12400,
-      status: "ready",
-      sourceKind: "library",
-      storagePath: "user-1/audio/reference-grid/voice-full.mp3",
-      previewUrl: null,
-      mimeType: null,
-      size: null,
-    });
+    await waitFor(() =>
+      expect(onLipSyncAudioChange).toHaveBeenCalledWith({
+        url: "https://signed.shortpulse.test/voice-full.mp3",
+        durationMs: 12400,
+        status: "ready",
+        sourceKind: "library",
+        storagePath: "user-1/audio/reference-grid/voice-full.mp3",
+        previewUrl: null,
+        mimeType: null,
+        size: null,
+      })
+    );
   });
 
-  it("accepts Reference Grid audio drops for Lip Sync voice audio", () => {
+  it("accepts Reference Grid audio drops for Lip Sync voice audio", async () => {
     useReferencePropertiesDerivedStateMock.mockReturnValue({
       ...defaultDerivedState,
       activeVideoMode: "lip-sync",
@@ -1211,16 +1225,149 @@ describe("VideoPropertiesPanel", () => {
     expect(audioDropzone).not.toBeNull();
     fireEvent.drop(audioDropzone as Element, { dataTransfer: transfer });
 
-    expect(onLipSyncAudioChange).toHaveBeenCalledWith({
-      url: "https://signed.shortpulse.test/reference-voice.mp3",
-      durationMs: null,
-      status: "ready",
-      sourceKind: "reference",
-      storagePath: "user-1/audio/reference-grid/reference-voice.mp3",
-      previewUrl: null,
-      mimeType: null,
-      size: null,
+    await waitFor(() =>
+      expect(onLipSyncAudioChange).toHaveBeenCalledWith({
+        url: "https://signed.shortpulse.test/reference-voice.mp3",
+        durationMs: null,
+        status: "ready",
+        sourceKind: "reference",
+        storagePath: "user-1/audio/reference-grid/reference-voice.mp3",
+        previewUrl: null,
+        mimeType: null,
+        size: null,
+      })
+    );
+  });
+
+  it("keeps Reference Grid audio authority ahead of synthetic browser files", async () => {
+    useReferencePropertiesDerivedStateMock.mockReturnValue({
+      ...defaultDerivedState,
+      activeVideoMode: "lip-sync",
+      isKling3Mode: false,
+      isKlingPatternMode: false,
+      isLipSyncMode: true,
+      isMotionMode: false,
+      referenceStepTitle: "Character image",
+      referenceStepSubtitle: "Add a character image.",
+      promptBadge: "Prompt optional",
     });
+    const onLipSyncAudioChange = vi.fn();
+    const transfer = createTransferStore();
+    transfer.setData("text/reference-origin", "ai-studio-reference-grid");
+    transfer.setData("text/reference-id", "audio-output-1");
+    transfer.setData("text/reference-output-id", "audio-output-1");
+    transfer.setData("text/reference-media-kind", "audio");
+    transfer.setData("text/reference-url", "https://signed.shortpulse.test/reference-voice.mp3");
+    transfer.setData(
+      "text/reference-full-storage-path",
+      "user-1/audio/reference-grid/reference-voice.mp3"
+    );
+    attachTransferFiles(transfer, [
+      new File(["synthetic"], "browser-synthetic-audio.mp3", { type: "audio/mpeg" }),
+    ]);
+
+    const { container } = render(
+      <VideoPropertiesPanel {...baseProps} onLipSyncAudioChange={onLipSyncAudioChange} />
+    );
+
+    const audioDropzone = container.querySelector(".video-lip-sync-audio-dropzone");
+    expect(audioDropzone).not.toBeNull();
+    fireEvent.drop(audioDropzone as Element, { dataTransfer: transfer });
+
+    await waitFor(() =>
+      expect(onLipSyncAudioChange).toHaveBeenCalledWith(
+        expect.objectContaining({
+          url: "https://signed.shortpulse.test/reference-voice.mp3",
+          sourceKind: "reference",
+          storagePath: "user-1/audio/reference-grid/reference-voice.mp3",
+          status: "ready",
+        })
+      )
+    );
+    expect(onLipSyncAudioChange).not.toHaveBeenCalledWith(
+      expect.objectContaining({ sourceKind: "local" })
+    );
+  });
+
+  it("resolves degraded Reference Grid audio by id before using synthetic files", async () => {
+    useReferencePropertiesDerivedStateMock.mockReturnValue({
+      ...defaultDerivedState,
+      activeVideoMode: "lip-sync",
+      isKling3Mode: false,
+      isKlingPatternMode: false,
+      isLipSyncMode: true,
+      isMotionMode: false,
+      referenceStepTitle: "Character image",
+      referenceStepSubtitle: "Add a character image.",
+      promptBadge: "Prompt optional",
+    });
+    const onLipSyncAudioChange = vi.fn();
+    const transfer = createTransferStore();
+    transfer.setData("text/reference-origin", "ai-studio-reference-grid");
+    transfer.setData("text/reference-id", "audio-output-1");
+    transfer.setData("text/reference-output-id", "audio-output-1");
+    transfer.setData("text/reference-media-kind", "audio");
+    attachTransferFiles(transfer, [
+      new File(["synthetic"], "browser-synthetic-audio.mp3", { type: "audio/mpeg" }),
+    ]);
+
+    const { container } = render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        onLipSyncAudioChange={onLipSyncAudioChange}
+        resolvePreviewUrlById={(id) =>
+          id === "audio-output-1" ? "https://signed.shortpulse.test/id-voice.mp3" : null
+        }
+      />
+    );
+
+    const audioDropzone = container.querySelector(".video-lip-sync-audio-dropzone");
+    expect(audioDropzone).not.toBeNull();
+    fireEvent.drop(audioDropzone as Element, { dataTransfer: transfer });
+
+    await waitFor(() =>
+      expect(onLipSyncAudioChange).toHaveBeenCalledWith(
+        expect.objectContaining({
+          url: "https://signed.shortpulse.test/id-voice.mp3",
+          sourceKind: "reference",
+          storagePath: null,
+          status: "ready",
+        })
+      )
+    );
+    expect(onLipSyncAudioChange).not.toHaveBeenCalledWith(
+      expect.objectContaining({ sourceKind: "local" })
+    );
+  });
+
+  it("ignores non-audio local file drops in the Lip Sync voice slot", async () => {
+    useReferencePropertiesDerivedStateMock.mockReturnValue({
+      ...defaultDerivedState,
+      activeVideoMode: "lip-sync",
+      isKling3Mode: false,
+      isKlingPatternMode: false,
+      isLipSyncMode: true,
+      isMotionMode: false,
+      referenceStepTitle: "Character image",
+      referenceStepSubtitle: "Add a character image.",
+      promptBadge: "Prompt optional",
+    });
+    const onLipSyncAudioChange = vi.fn();
+    const transfer = createTransferStore();
+    attachTransferFiles(transfer, [new File(["image"], "not-audio.png", { type: "image/png" })]);
+
+    const { container } = render(
+      <VideoPropertiesPanel {...baseProps} onLipSyncAudioChange={onLipSyncAudioChange} />
+    );
+
+    const audioDropzone = container.querySelector(".video-lip-sync-audio-dropzone");
+    expect(audioDropzone).not.toBeNull();
+    fireEvent.drop(audioDropzone as Element, { dataTransfer: transfer });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(onLipSyncAudioChange).not.toHaveBeenCalled();
   });
 
   it("keeps Lip Sync Canvas tear-out blocked when audio has only a local preview", async () => {

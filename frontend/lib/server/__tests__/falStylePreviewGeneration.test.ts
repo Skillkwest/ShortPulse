@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  buildFalFluxKleinAudioCompanionArtPayload,
   buildFalFluxKleinStylePreviewPayload,
   generateFalFluxKleinStylePreviewImage,
 } from "../falStylePreviewGeneration";
@@ -14,6 +15,24 @@ describe("falStylePreviewGeneration", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     process.env.FAL_KEY = originalFalKey;
+  });
+
+  it("keeps style previews large while audio companion art uses the compact card size", () => {
+    expect(buildFalFluxKleinStylePreviewPayload("dream glow")).toMatchObject({
+      image_size: { width: 1024, height: 1024 },
+      num_images: 1,
+      output_format: "jpeg",
+      num_inference_steps: 4,
+      enable_safety_checker: false,
+    });
+
+    expect(buildFalFluxKleinAudioCompanionArtPayload("dream glow")).toMatchObject({
+      image_size: { width: 512, height: 512 },
+      num_images: 1,
+      output_format: "jpeg",
+      num_inference_steps: 4,
+      enable_safety_checker: false,
+    });
   });
 
   it("submits the Flux Klein style-preview payload and downloads direct media", async () => {

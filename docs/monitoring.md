@@ -167,6 +167,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 - Use `docs/sops/sop_generation_recovery_diagnostics.md` as the canonical drain/remediation sequence.
 - Use `sql/check_generation_queue_dispatch_latency.sql` to measure queue-to-dispatch latency from `telemetry.queue.dispatch.submitted` events in `app_error_events`.
 - Use `sql/check_generation_recovery_media_visible_latency.sql` to measure provider-terminal-to-media-visible latency from `telemetry.generation.recovery.media_visible` events in `app_error_events`.
+- Terminal projection repair/backfill runs only in primary cycles and is cadence-gated by `SHORTPULSE_FAL_PROJECTION_REPAIR_INTERVAL_SECONDS` (default `300`, `0` to run every primary cycle). This keeps active and rescue recovery frequent while preventing every control-plane cycle from repeating heavy generation projection metadata scans before new rows are likely to cross the stale-repair age.
 - Background control-plane ownership is now explicitly split into:
   - stage orchestration: `frontend/lib/server/generationControlPlane/runCycle.ts`
   - recovery batch acquisition: `frontend/lib/server/generationControlPlane/recoveryBatchAcquisition.ts`
@@ -176,7 +177,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
   - observation inbox: `observationClaimed`, `observationProcessed`, `observationIgnored`, `observationFailed`, `observationErrors`
   - cleanup: `reservationCleanupScanned`, `reservationCleanupReleased`, `reservationCleanupErrors`
   - audio companion art: `audioCompanionArtClaimed`, `audioCompanionArtProcessed`, `audioCompanionArtReady`, `audioCompanionArtFailed`, `audioCompanionArtSkipped`, `audioCompanionArtErrors`
-  - projection repair counts: `projectionRepairScanned`, `projectionRepairRepaired`, `projectionRepairSkipped`
+  - projection repair cadence/counts: `projectionRepairRan`, `projectionRepairScanned`, `projectionRepairRepaired`, `projectionRepairSkipped`
   - stage timings: `stageTimings.reservationCleanup.durationMs`, `stageTimings.providerAttachedReservationCleanup.durationMs`, `stageTimings.observationInboxProcessing.durationMs`, `stageTimings.recoveryClaim.durationMs`, `stageTimings.recoveryExecution.durationMs`, `stageTimings.projectionRepair.durationMs`, `stageTimings.audioCompanionArtProcessing.durationMs`
 - Convergence target:
   - no sustained active workload (`claimed`, `requeued` no longer persistently elevated),

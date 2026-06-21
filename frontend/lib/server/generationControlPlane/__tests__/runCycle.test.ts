@@ -77,6 +77,7 @@ describe("runGenerationControlPlaneCycle", () => {
     process.env.SHORTPULSE_FAL_RECONCILER_BATCH_SIZE = "10";
     process.env.SHORTPULSE_FAL_RECONCILER_MAX_ATTEMPTS = "5";
     process.env.SHORTPULSE_FAL_RECONCILER_MIN_AGE_SECONDS = "0";
+    process.env.SHORTPULSE_FAL_PROJECTION_REPAIR_INTERVAL_SECONDS = "0";
     process.env.SHORTPULSE_FAL_INTEGRATION_MODEL_ALLOWLIST = "*";
     processPendingGenerationObservationsMock.mockResolvedValue({
       claimed: 2,
@@ -233,6 +234,7 @@ describe("runGenerationControlPlaneCycle", () => {
       minAgeSeconds: 0,
       leaseSeconds: expect.any(Number),
     });
+    expect(repairStaleTerminalGenerationProjectionsMock).not.toHaveBeenCalled();
   });
 
   it("repairs stale terminal projections in primary mode", async () => {
@@ -265,6 +267,46 @@ describe("runGenerationControlPlaneCycle", () => {
       minAgeSeconds: 0,
       leaseSeconds: expect.any(Number),
     });
+  });
+
+  it("throttles expensive projection repair scans without pausing active recovery", async () => {
+    const supabase = createSupabaseMock();
+    getSupabaseAdminMock.mockReturnValue({
+      rpc: supabase.rpc,
+      from: supabase.from,
+    });
+    process.env.SHORTPULSE_FAL_PROJECTION_REPAIR_INTERVAL_SECONDS = "60";
+    let nowMs = 1_000_000;
+    const dateNowSpy = vi.spyOn(Date, "now").mockImplementation(() => nowMs);
+
+    try {
+      const firstResult = await runGenerationControlPlaneCycle({
+        context: {
+          routeLabel: "worker/generation-control-plane-throttle-test",
+        },
+      });
+      const secondResult = await runGenerationControlPlaneCycle({
+        context: {
+          routeLabel: "worker/generation-control-plane-throttle-test",
+        },
+      });
+      nowMs += 60_000;
+      const thirdResult = await runGenerationControlPlaneCycle({
+        context: {
+          routeLabel: "worker/generation-control-plane-throttle-test",
+        },
+      });
+      expect(firstResult.projectionRepairRan).toBe(true);
+      expect(secondResult.projectionRepairRan).toBe(false);
+      expect(thirdResult.projectionRepairRan).toBe(true);
+    } finally {
+      dateNowSpy.mockRestore();
+    }
+
+    expect(repairStaleTerminalGenerationProjectionsMock).toHaveBeenCalledTimes(2);
+    expect(claimGenerationRecoveryBatchMock).toHaveBeenCalledTimes(3);
+    expect(executeClaimedRecoveryBatchMock).toHaveBeenCalledTimes(3);
+    expect(processPendingGenerationObservationsMock).toHaveBeenCalledTimes(3);
   });
 
   it("surfaces projection repair metrics and logs project association repair failures", async () => {

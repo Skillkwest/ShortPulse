@@ -28,6 +28,7 @@ export type FalRuntimeFlags = {
   providerAttachedReservationCleanupEnabled: boolean;
   providerAttachedReservationCleanupMinAgeSeconds: number;
   providerAttachedReservationOrphanMinAgeSeconds: number;
+  projectionRepairIntervalSeconds: number;
   queueBaseBackoffSeconds: number;
   queueMaxWaitSeconds: number;
   recoveryProbeTimeoutMs: number;
@@ -130,6 +131,11 @@ export const readFalRuntimeFlags = (): FalRuntimeFlags => ({
   providerAttachedReservationOrphanMinAgeSeconds: parseInteger(
     process.env.SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_ORPHAN_MIN_AGE_SECONDS,
     86400,
+    0
+  ),
+  projectionRepairIntervalSeconds: parseInteger(
+    process.env.SHORTPULSE_FAL_PROJECTION_REPAIR_INTERVAL_SECONDS,
+    300,
     0
   ),
   queueBaseBackoffSeconds: parseInteger(

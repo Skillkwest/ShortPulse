@@ -138,6 +138,38 @@ with classified as (
             else 'other'
         end as relation_class,
         case
+            when query like '%"public"."generation_projection"%'
+              and query like '%"public"."generation_projection"."generation_id" = ANY%'
+              and query like '%generation_replay%'
+              and query like '%workflow_reload%'
+                then 'terminal_projection_repair_projection_by_generation_ids'
+            when query like '%"public"."generation_projection"%'
+              and query like '%"public"."generation_projection"."task_state" = ANY%'
+              and query like '%"public"."generation_projection"."updated_at" <=%'
+              and query like '%generation_replay%'
+              and query like '%workflow_reload%'
+                then 'terminal_projection_repair_projection_scan'
+            when query like '%"public"."ai_generations"%'
+              and query like '%"public"."ai_generations"."status" = ANY%'
+              and query like '%"public"."ai_generations"."completed_at" <=%'
+              and query like '%metadata%'
+                then 'terminal_projection_repair_generation_scan'
+            when query like '%workspace_runtime_key%'
+              and (
+                query like '%generation_replay%'
+                or query like '%workflow_reload%'
+                or query like '%style_context%'
+                or query like '%character_context%'
+              )
+                then 'generated_output_full_context_hydration'
+            when query like '%workspace_runtime_key%'
+                then 'generated_output_lightweight_hydration'
+            when query like '%provider_status_url:metadata%'
+              or query like '%provider_response_url:metadata%'
+                then 'provider_status_url_scalar_projection'
+            else 'other'
+        end as query_path,
+        case
             when query like '%generation_replay%'
               or query like '%workflow_reload%'
               or query like '%style_context%'
@@ -156,6 +188,12 @@ with classified as (
             else 'selects_narrow_or_unknown_columns'
         end as projection_risk,
         case
+            when query like '%"public"."generation_projection"."generation_id" = ANY%'
+              or query like '%"public"."ai_generations"."id" = ANY%'
+                then 'generation_id'
+            when query like '%"public"."generation_projection"."task_state" = ANY%'
+              and query like '%"public"."generation_projection"."updated_at" <=%'
+                then 'terminal_repair'
             when query like '%workspace_runtime_key%' then 'workspace_runtime_key'
             when query like '%request_id%' then 'request_id'
             when query like '%project_id%' then 'project_id'
@@ -180,6 +218,7 @@ with classified as (
 )
 select
     relation_class,
+    query_path,
     projection_risk,
     filter_shape,
     count(*)::bigint as statement_count,
@@ -189,5 +228,5 @@ select
     round(sum(total_exec_time)::numeric, 2) as total_exec_ms,
     round((sum(total_exec_time)::numeric / nullif(sum(calls), 0)), 3) as weighted_mean_exec_ms
 from classified
-group by relation_class, projection_risk, filter_shape
+group by relation_class, query_path, projection_risk, filter_shape
 order by calls desc;

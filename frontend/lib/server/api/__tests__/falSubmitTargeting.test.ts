@@ -39,6 +39,7 @@ const createFlags = (overrides: Partial<FalRuntimeFlags> = {}): FalRuntimeFlags 
     overrides.providerAttachedReservationCleanupMinAgeSeconds ?? 7200,
   providerAttachedReservationOrphanMinAgeSeconds:
     overrides.providerAttachedReservationOrphanMinAgeSeconds ?? 86400,
+  projectionRepairIntervalSeconds: overrides.projectionRepairIntervalSeconds ?? 300,
   queueMaxWaitSeconds: overrides.queueMaxWaitSeconds ?? 1200,
   recoveryProbeTimeoutMs: overrides.recoveryProbeTimeoutMs ?? 15000,
   noMediaExhaustMinAgeSeconds: overrides.noMediaExhaustMinAgeSeconds ?? 7200,

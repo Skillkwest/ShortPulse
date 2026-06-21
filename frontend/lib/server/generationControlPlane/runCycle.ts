@@ -29,6 +29,29 @@ const asNumber = (value: unknown): number | null => {
   return null;
 };
 
+const lastProjectionRepairRunMsByMode = new Map<string, number>();
+
+const shouldRunProjectionRepair = ({
+  intervalSeconds,
+  mode,
+  nowMs,
+  routeLabel,
+}: {
+  intervalSeconds: number;
+  mode: "primary" | "rescue";
+  nowMs: number;
+  routeLabel: string;
+}): boolean => {
+  if (intervalSeconds <= 0) return true;
+  const key = `${routeLabel}:${mode}`;
+  const lastRunMs = lastProjectionRepairRunMsByMode.get(key);
+  if (typeof lastRunMs === "number" && nowMs - lastRunMs < intervalSeconds * 1000) {
+    return false;
+  }
+  lastProjectionRepairRunMsByMode.set(key, nowMs);
+  return true;
+};
+
 const parseCleanupMetrics = (value: unknown): ReservationCleanupMetrics => {
   const row =
     Array.isArray(value) && value.length > 0 && value[0] && typeof value[0] === "object"
@@ -102,6 +125,7 @@ export const runGenerationControlPlaneCycle = async ({
   let reservationCleanupScanned = 0;
   let reservationCleanupReleased = 0;
   let reservationCleanupErrors = 0;
+  let projectionRepairRan = false;
   let projectionRepairScanned = 0;
   let projectionRepairRepaired = 0;
   let projectionRepairSkipped = 0;
@@ -230,46 +254,57 @@ export const runGenerationControlPlaneCycle = async ({
       })
     );
 
-  await measureStage("projectionRepair", async () => {
-    try {
-      const projectionRepairMetrics = await repairStaleTerminalGenerationProjections({
-        supabaseAdmin,
-        limit: Math.max(effectiveReconcilerBatchSize, 10),
-        onAssociationFailure: async ({
-          stage,
-          userId,
-          projectId,
-          generationId,
-          mediaFileIds,
-          error,
-        }) => {
-          await logControlPlaneException({
-            context,
+  if (
+    mode === "primary" &&
+    shouldRunProjectionRepair({
+      intervalSeconds: flags.projectionRepairIntervalSeconds,
+      mode,
+      nowMs: Date.now(),
+      routeLabel: context.routeLabel,
+    })
+  ) {
+    projectionRepairRan = true;
+    await measureStage("projectionRepair", async () => {
+      try {
+        const projectionRepairMetrics = await repairStaleTerminalGenerationProjections({
+          supabaseAdmin,
+          limit: Math.max(effectiveReconcilerBatchSize, 10),
+          onAssociationFailure: async ({
+            stage,
+            userId,
+            projectId,
+            generationId,
+            mediaFileIds,
             error,
-            metadata: {
-              stage: "projection_repair_project_association",
-              association_stage: stage,
-              user_id: userId,
-              project_id: projectId,
-              generation_id: generationId,
-              media_file_ids: mediaFileIds ?? [],
-            },
-          });
-        },
-      });
-      projectionRepairScanned = projectionRepairMetrics.scanned;
-      projectionRepairRepaired = projectionRepairMetrics.repaired;
-      projectionRepairSkipped = projectionRepairMetrics.skipped;
-    } catch (error) {
-      await logControlPlaneException({
-        context,
-        error,
-        metadata: {
-          stage: "projection_repair",
-        },
-      });
-    }
-  });
+          }) => {
+            await logControlPlaneException({
+              context,
+              error,
+              metadata: {
+                stage: "projection_repair_project_association",
+                association_stage: stage,
+                user_id: userId,
+                project_id: projectId,
+                generation_id: generationId,
+                media_file_ids: mediaFileIds ?? [],
+              },
+            });
+          },
+        });
+        projectionRepairScanned = projectionRepairMetrics.scanned;
+        projectionRepairRepaired = projectionRepairMetrics.repaired;
+        projectionRepairSkipped = projectionRepairMetrics.skipped;
+      } catch (error) {
+        await logControlPlaneException({
+          context,
+          error,
+          metadata: {
+            stage: "projection_repair",
+          },
+        });
+      }
+    });
+  }
 
   await measureStage("audioCompanionArtProcessing", async () => {
     try {
@@ -312,6 +347,7 @@ export const runGenerationControlPlaneCycle = async ({
     reservationCleanupScanned,
     reservationCleanupReleased,
     reservationCleanupErrors,
+    projectionRepairRan,
     projectionRepairScanned,
     projectionRepairRepaired,
     projectionRepairSkipped,

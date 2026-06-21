@@ -142,6 +142,8 @@ describe("Admin Legal page", () => {
         value: "# ShortPulse Privacy Policy\n\nLast updated: June 22, 2026\n\n## Privacy body\n",
       },
     });
+    expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+
     fireEvent.change(screen.getByLabelText("Publish note"), {
       target: { value: "Owner-approved privacy update" },
     });

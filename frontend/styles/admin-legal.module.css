@@ -27,6 +27,11 @@
   border-color: var(--admin-accent-border);
 }
 
+.policyCardWarning {
+  border-color: var(--admin-warning-border);
+  background: var(--admin-warning-soft);
+}
+
 .policyCardActive {
   border-color: var(--admin-accent-border-strong);
   background: var(--admin-accent-soft);
@@ -93,6 +98,37 @@
   font-size: 17px;
 }
 
+.panelTitleGroup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-width: 0;
+}
+
+.panelTitleGroup p {
+  flex-basis: 100%;
+}
+
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--admin-border);
+  border-radius: 999px;
+  color: var(--admin-text-muted);
+  background: var(--admin-surface-2);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.statusPillDirty {
+  border-color: var(--admin-warning-border-strong);
+  color: var(--admin-warning-text);
+  background: var(--admin-warning-soft-2);
+}
+
 .field {
   display: grid;
   gap: 6px;
@@ -129,6 +165,12 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+}
+
+.publishButton:not(:disabled) {
+  border-color: var(--admin-accent-border-strong);
+  background: var(--admin-accent-soft-2);
+  color: var(--admin-accent-text);
 }
 
 .fileInput {
@@ -192,6 +234,48 @@
 
 .previewDocument ul {
   padding-left: 20px;
+}
+
+.previewTableScroll {
+  overflow-x: auto;
+}
+
+.previewTable {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.previewTable th,
+.previewTable td {
+  padding: 8px;
+  border: 1px solid rgba(21, 21, 21, 0.16);
+  text-align: left;
+  vertical-align: top;
+}
+
+.previewTable th {
+  background: rgba(21, 21, 21, 0.07);
+  font-weight: 800;
+}
+
+.previewEmpty {
+  color: rgba(21, 21, 21, 0.62);
+  font-style: italic;
+}
+
+.statePanel {
+  display: flex;
+  align-items: center;
+  min-height: 96px;
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px dashed var(--admin-border);
+  border-radius: 8px;
+  color: var(--admin-text-muted);
+  background: var(--admin-surface-2);
 }
 
 .historyPanel {

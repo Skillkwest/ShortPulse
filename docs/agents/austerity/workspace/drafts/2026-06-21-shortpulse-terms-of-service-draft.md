@@ -1,7 +1,5 @@
 # ShortPulse Terms of Service
 
-Publication status: publication candidate pending final legal entity, contact, governing-law, venue, and counsel review.
-
 Last updated: June 21, 2026
 
 These Terms of Service ("Terms") govern your access to and use of ShortPulse, including our websites, applications, AI Studio tools, media library, project workspace, billing features, support features, and related services (collectively, the "Service").
@@ -10,14 +8,16 @@ By creating an account, subscribing, buying credits, uploading media, generating
 
 ## 1. Who We Are
 
-"ShortPulse," "we," "us," and "our" refer to [LEGAL ENTITY NAME].
+"ShortPulse," "we," "us," and "our" refer to ShortPulse, the operator of the Service.
 
 Contact:
 
-- Support: [SUPPORT EMAIL]
-- Legal notices: [LEGAL EMAIL]
-- Copyright notices: [COPYRIGHT EMAIL]
-- Mailing address: [MAILING ADDRESS]
+- Support: support@shortpulse.ai
+- Billing: billing@shortpulse.ai
+- Privacy: privacy@shortpulse.ai
+- Legal notices: legal@shortpulse.ai
+- Copyright notices: copyright@shortpulse.ai
+- Safety and abuse reports: safety@shortpulse.ai
 
 ## 2. Eligibility
 
@@ -37,7 +37,9 @@ We may require account authentication, media-rights confirmation, billing verifi
 
 ShortPulse may offer paid subscriptions, one-time credit packs, recurring storage add-ons, and other paid features. Payments are processed by third-party payment processors such as Stripe. You authorize us and our payment processors to charge your payment method for purchases, recurring subscriptions, applicable taxes, and other charges you approve.
 
-Subscriptions renew automatically unless canceled through the account controls, Stripe Billing Portal, or another cancellation path we make available. The available cancellation, upgrade, downgrade, billing-interval, and proration options may depend on your active plan, billing state, Stripe configuration, and current catalog.
+Subscriptions renew automatically unless canceled through the account billing controls, Stripe Billing Portal, or another cancellation path we make available. Before you buy a recurring subscription, the checkout or pricing flow should disclose the plan, price, billing interval, renewal behavior, and cancellation path. After purchase, you can manage or cancel eligible Stripe-managed subscriptions through the secure billing controls we provide.
+
+Canceling a subscription stops future renewals according to the active billing configuration. Unless the product flow, Stripe configuration, applicable law, or our Refund Policy says otherwise, canceling does not automatically refund past payments, current-period charges, one-time credit packs, storage add-ons, taxes, or already-used credits. You may generally keep paid subscription access through the end of the paid period when the cancellation is scheduled at period end. Immediate cancellation, payment failure, chargeback, fraud, abuse, or Terms violations may end access sooner.
 
 Paid plans may include recurring credits, storage capacity, and active-generation limits. Credit packs are one-time top-ups. Credits are used for AI generation and related billable actions. Credit debit amounts may vary by model, workflow, settings, provider costs, and the active ShortPulse pricing policy.
 
@@ -53,6 +55,8 @@ Our Refund Policy explains when payments, subscriptions, add-ons, and credits ma
 
 You retain whatever rights you already have in Your Content. You grant ShortPulse a worldwide, non-exclusive, royalty-free license to host, store, process, transmit, display, reproduce, modify, create technical derivatives of, and otherwise use Your Content as needed to provide, secure, support, improve, and operate the Service. This includes sending Your Content to service providers and AI model providers when needed to perform the actions you request.
 
+ShortPulse does not currently use your private workspace content to train ShortPulse-owned foundation models. We may use account data, usage data, logs, support reports, provider status, safety events, aggregated information, and deidentified information to operate, secure, debug, measure, and improve ShortPulse. That kind of product improvement is different from training a public or foundation AI model on your private content. Our Privacy Policy explains this in more detail.
+
 You represent and warrant that:
 
 - you own Your Content or have all rights, licenses, consents, and permissions needed to use it in ShortPulse;
@@ -61,15 +65,17 @@ You represent and warrant that:
 - you have the legal rights and consents required to clone, synthesize, imitate, upload, or use any voice, likeness, image, video, audio, identity material, brand, product, or client material;
 - Your Content and your use of the Service will not violate law, infringe rights, invade privacy, mislead others, impersonate anyone, exploit anyone, or violate these Terms.
 
-## 6. AI Outputs
+## 6. AI Outputs And Commercial Use
 
 "Output" means images, videos, audio, text, prompts, style descriptors, generated voices, generated media, and other material generated or returned by ShortPulse or third-party AI providers based on Your Content or your use of the Service.
 
-As between you and ShortPulse, and to the extent permitted by law, your input rights, third-party rights, and our provider agreements, ShortPulse does not claim ownership of Output merely because it was generated through ShortPulse. You may use Output for personal or commercial purposes only if you have all rights, consents, and legal authority required for that use.
+As between you and ShortPulse, and to the extent permitted by law, your input rights, third-party rights, and our provider agreements, ShortPulse does not claim ownership of Output merely because it was generated through ShortPulse.
 
-AI systems can produce inaccurate, offensive, infringing, non-unique, unsafe, misleading, or unusable Output. Similar or identical Output may be generated for other users. You are responsible for reviewing Output before using, publishing, selling, distributing, advertising, or relying on it.
+Plain English: you may use Output for commercial purposes, including client work, ads, social posts, product mockups, campaigns, and monetized content, if you have the rights, permissions, consents, releases, and legal basis required for that use. ShortPulse gives you access to creative tools; it does not clear copyright, trademark, publicity, privacy, union, guild, music, model-release, platform, advertising, or client-approval rights for you.
 
-ShortPulse does not guarantee that Output is unique, copyrightable, protectable, non-infringing, commercially usable, platform-compliant, legally compliant, acceptable to social platforms, acceptable to ad platforms, or fit for any particular purpose.
+You may not commercially use Output in a way that violates law, provider rules, platform rules, third-party rights, these Terms, or required AI disclosure obligations. You are responsible for reviewing Output before using, publishing, selling, distributing, advertising, or relying on it.
+
+AI systems can produce inaccurate, offensive, infringing, non-unique, unsafe, misleading, or unusable Output. Similar or identical Output may be generated for other users. ShortPulse does not guarantee that Output is unique, copyrightable, protectable, non-infringing, commercially usable, platform-compliant, legally compliant, acceptable to social platforms, acceptable to ad platforms, or fit for any particular purpose.
 
 You are responsible for disclosing AI-generated or AI-altered content when required by law, platform rules, advertising rules, election rules, consumer-protection rules, professional obligations, or your relationship with clients, audiences, or third parties.
 
@@ -77,7 +83,7 @@ You are responsible for disclosing AI-generated or AI-altered content when requi
 
 ShortPulse uses third-party services for hosting, authentication, storage, payments, AI generation, voice generation, video generation, image generation, analytics, logging, tutorials, operations, and support.
 
-These providers may include Supabase, Stripe, OpenAI, Fal, Kie, ElevenLabs, Vercel, YouTube, and similar infrastructure, model, payment, hosting, and operations providers.
+These providers may include Supabase, Stripe, OpenAI, Fal, Kie.ai, ElevenLabs, Vercel, YouTube, and similar infrastructure, model, payment, hosting, and operations providers.
 
 When you use ShortPulse, Your Content, account data, billing data, technical data, and Output may be processed by these providers as needed to provide the Service. Your use of certain features may also be subject to provider terms, acceptable-use policies, safety rules, technical limits, and destination-platform policies.
 
@@ -154,7 +160,7 @@ If you send us feedback, suggestions, bug reports, ideas, feature requests, or o
 
 ## 16. Copyright And Rights Takedown Requests
 
-If you believe content in ShortPulse infringes your copyright or other rights, contact us at [COPYRIGHT/LEGAL EMAIL] with enough information for us to review the request.
+If you believe content in ShortPulse infringes your copyright or other rights, contact us at copyright@shortpulse.ai with enough information for us to review the request.
 
 Copyright notices should include:
 
@@ -165,9 +171,25 @@ Copyright notices should include:
 - a statement that you have a good-faith belief that the disputed use is not authorized by the copyright owner, its agent, or the law;
 - a statement that the information in your notice is accurate and, under penalty of perjury, that you are the copyright owner or authorized to act for the owner.
 
+Counter-notices should include:
+
+- your physical or electronic signature;
+- identification of the material removed or disabled and where it appeared before removal;
+- a statement under penalty of perjury that you have a good-faith belief the material was removed or disabled because of mistake or misidentification;
+- your name, address, telephone number, and consent to the jurisdiction required by 17 U.S.C. 512(g);
+- a statement that you will accept service of process from the person who sent the original notice or that person's agent.
+
+ShortPulse's copyright intake contact is:
+
+ShortPulse Copyright Agent
+
+copyright@shortpulse.ai
+
+DMCA safe-harbor protection requires a qualifying service provider to publish designated-agent contact information and register the same agent information with the U.S. Copyright Office's online DMCA Designated Agent Directory. This Terms page provides ShortPulse's copyright intake path, but ShortPulse should not claim registered DMCA safe-harbor status until the operator completes and maintains the Copyright Office registration.
+
 We may remove or disable access to material alleged to infringe rights, notify the affected user where appropriate, process counter-notices where legally required, terminate repeat infringers, and preserve records needed for legal compliance, safety, fraud prevention, or dispute handling.
 
-You may also report non-consensual intimate imagery, child-safety concerns, impersonation, privacy violations, or other abuse at [SAFETY/LEGAL EMAIL].
+You may also report non-consensual intimate imagery, child-safety concerns, impersonation, privacy violations, or other abuse at safety@shortpulse.ai.
 
 ## 17. Disclaimers
 
@@ -198,9 +220,13 @@ To the maximum extent permitted by law, you agree to defend, indemnify, and hold
 
 ## 20. Governing Law And Dispute Resolution
 
-These Terms and any disputes relating to them or the Service are governed by the laws of [GOVERNING LAW JURISDICTION], excluding its conflict-of-law rules.
+These Terms and any disputes relating to them or the Service are governed by the laws of the State of Arizona, excluding its conflict-of-law rules.
 
-The courts located in [VENUE] will have exclusive jurisdiction over disputes that are not subject to arbitration or small-claims procedures, unless applicable law gives you a non-waivable right to bring claims elsewhere.
+The state and federal courts located in Maricopa County, Arizona will have exclusive jurisdiction over disputes relating to these Terms or the Service, unless applicable law gives you a non-waivable right to bring claims elsewhere.
+
+These Terms do not include a mandatory arbitration clause or class-action waiver.
+
+Nothing in these Terms limits any non-waivable consumer, privacy, payment, cancellation, refund, or other statutory rights that apply to you.
 
 ## 21. Changes To These Terms
 
@@ -210,4 +236,4 @@ Your continued use of ShortPulse after updated Terms become effective means you 
 
 ## 22. Contact
 
-Questions about these Terms should be sent to [LEGAL/SUPPORT EMAIL].
+Questions about these Terms should be sent to legal@shortpulse.ai or support@shortpulse.ai.

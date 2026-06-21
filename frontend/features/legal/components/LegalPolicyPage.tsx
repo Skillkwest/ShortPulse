@@ -81,6 +81,33 @@ export function LegalPolicyPage({ markdown, policy }: LegalPolicyPageProps) {
                 );
               }
 
+              if (block.type === "table") {
+                return (
+                  <div key={block.id} className="legal-policy-table-scroll">
+                    <table className="legal-policy-table">
+                      <thead>
+                        <tr>
+                          {block.headers.map((header, index) => (
+                            <th key={`${block.id}-header-${index}`}>{header}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {block.rows.map((row, rowIndex) => (
+                          <tr key={`${block.id}-row-${rowIndex}`}>
+                            {block.headers.map((_, cellIndex) => (
+                              <td key={`${block.id}-row-${rowIndex}-${cellIndex}`}>
+                                {row[cellIndex] ?? ""}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              }
+
               return <p key={block.id}>{block.text}</p>;
             })}
           </div>

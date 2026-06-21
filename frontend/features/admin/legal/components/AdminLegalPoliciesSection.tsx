@@ -71,6 +71,31 @@ const renderPreviewBlock = (block: LegalPolicyBlock) => {
     );
   }
 
+  if (block.type === "table") {
+    return (
+      <div key={block.id} className={legalStyles.previewTableScroll}>
+        <table className={legalStyles.previewTable}>
+          <thead>
+            <tr>
+              {block.headers.map((header, index) => (
+                <th key={`${block.id}-header-${index}`}>{header}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {block.rows.map((row, rowIndex) => (
+              <tr key={`${block.id}-row-${rowIndex}`}>
+                {block.headers.map((_, cellIndex) => (
+                  <td key={`${block.id}-row-${rowIndex}-${cellIndex}`}>{row[cellIndex] ?? ""}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
   return <p key={block.id}>{block.text}</p>;
 };
 
@@ -101,6 +126,7 @@ export function AdminLegalPoliciesSection({
   const selectedPolicy = LEGAL_POLICY_SOURCES[selectedSlug];
   const draftChanged = Boolean(selectedDocument && draftMarkdown !== selectedDocument.markdown);
   const actionLocked = loading || publishing || uploadReading;
+  const hasDocuments = documents.length > 0 && Boolean(selectedDocument);
 
   const handleUploadChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
@@ -131,151 +157,192 @@ export function AdminLegalPoliciesSection({
       {error ? <AppMessage tone="error" mode="inline" message={error} /> : null}
       {result ? <AppMessage tone="success" mode="inline" message={result} /> : null}
 
-      <div className={legalStyles.policyCards} aria-label="Legal policy documents">
-        {documents.map((document) => {
-          const policy = LEGAL_POLICY_SOURCES[document.slug];
-          const active = document.slug === selectedSlug;
-          return (
-            <button
-              type="button"
-              key={document.slug}
-              className={`${legalStyles.policyCard} ${active ? legalStyles.policyCardActive : ""}`}
-              onClick={() => onSelectSlug(document.slug)}
-              aria-pressed={active}
-            >
-              <span className={legalStyles.policyCardIcon}>
-                <FileText size={18} weight="bold" aria-hidden />
-              </span>
-              <span className={legalStyles.policyCardBody}>
-                <span className={legalStyles.policyCardTitle}>{policy.documentTitle}</span>
-                <span className={legalStyles.policyCardMeta}>
-                  {document.version ? `v${document.version}` : "Seed"} ·{" "}
-                  {document.degraded ? "Degraded" : document.source}
-                </span>
-                <span className={legalStyles.policyCardMeta}>
-                  {formatPolicyTime(document.updatedAt)}
-                </span>
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className={legalStyles.workspaceGrid}>
-        <div className={legalStyles.editorPanel}>
-          <div className={legalStyles.panelHeader}>
-            <div>
-              <p className={adminStyles.adminSectionEyebrow}>Draft</p>
-              <h3>{selectedPolicy.documentTitle}</h3>
-            </div>
-            <Link href={selectedPolicy.routePath} className="ghost-btn mini" target="_blank">
-              Open live page
-            </Link>
-          </div>
-
-          <label className={legalStyles.field}>
-            <span className="tiny subdued">Markdown</span>
-            <textarea
-              className={legalStyles.markdownEditor}
-              value={draftMarkdown}
-              onChange={(event) => onChangeDraftMarkdown(event.target.value)}
-              disabled={actionLocked}
-              spellCheck={false}
-            />
-          </label>
-
-          <label className={legalStyles.field}>
-            <span className="tiny subdued">Publish note</span>
-            <input
-              className={legalStyles.noteInput}
-              type="text"
-              value={publishNote}
-              onChange={(event) => onChangePublishNote(event.target.value)}
-              maxLength={400}
-              disabled={actionLocked}
-            />
-          </label>
-
-          <div className={legalStyles.actionRow}>
-            <input
-              ref={uploadInputRef}
-              className={legalStyles.fileInput}
-              type="file"
-              accept=".md,.markdown,.txt,text/markdown,text/plain"
-              onChange={handleUploadChange}
-            />
-            <button
-              type="button"
-              className="ghost-btn mini"
-              onClick={() => uploadInputRef.current?.click()}
-              disabled={actionLocked}
-            >
-              <UploadSimple size={15} weight="bold" aria-hidden />
-              {uploadReading ? "Reading..." : "Upload text"}
-            </button>
-            <button
-              type="button"
-              className="ghost-btn mini"
-              onClick={onResetDraft}
-              disabled={actionLocked || !selectedDocument || !draftChanged}
-            >
-              <ClockCounterClockwise size={15} weight="bold" aria-hidden />
-              Reset to live
-            </button>
-            <button
-              type="button"
-              className="ghost-btn mini"
-              onClick={onPublish}
-              disabled={actionLocked || !selectedDocument || !draftChanged}
-            >
-              <FloppyDisk size={15} weight="bold" aria-hidden />
-              {publishing ? "Publishing..." : "Publish update"}
-            </button>
-          </div>
+      {loading && documents.length === 0 ? (
+        <div className={legalStyles.statePanel} role="status">
+          Loading legal documents...
         </div>
+      ) : null}
 
-        <div className={legalStyles.previewPanel}>
-          <div className={legalStyles.panelHeader}>
-            <div>
-              <p className={adminStyles.adminSectionEyebrow}>Preview</p>
-              <h3>{parsedDraft.title || selectedPolicy.documentTitle}</h3>
-            </div>
-            {selectedDocument ? (
-              <span className={legalStyles.versionPill}>
-                {selectedDocument.version ? `Live v${selectedDocument.version}` : "Seed"}
-              </span>
-            ) : null}
-          </div>
-          <div className={legalStyles.previewMeta}>
-            <span>Last updated: {parsedDraft.lastUpdated ?? "Not listed"}</span>
-            <span>Status: {parsedDraft.publicationStatus ?? "Not listed"}</span>
-          </div>
-          <article className={legalStyles.previewDocument}>
-            {parsedDraft.blocks.map(renderPreviewBlock)}
-          </article>
+      {!loading && !hasDocuments && !error ? (
+        <div className={legalStyles.statePanel} role="status">
+          No legal documents are available.
         </div>
-      </div>
+      ) : null}
 
-      {selectedDocument?.history.length ? (
-        <div className={legalStyles.historyPanel}>
-          <div className={legalStyles.panelHeader}>
-            <div>
-              <p className={adminStyles.adminSectionEyebrow}>History</p>
-              <h3>Recent versions</h3>
-            </div>
+      {hasDocuments ? (
+        <>
+          <div className={legalStyles.policyCards} aria-label="Legal policy documents">
+            {documents.map((document) => {
+              const policy = LEGAL_POLICY_SOURCES[document.slug];
+              const active = document.slug === selectedSlug;
+              return (
+                <button
+                  type="button"
+                  key={document.slug}
+                  className={[
+                    legalStyles.policyCard,
+                    active ? legalStyles.policyCardActive : "",
+                    document.degraded ? legalStyles.policyCardWarning : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  onClick={() => onSelectSlug(document.slug)}
+                  aria-pressed={active}
+                >
+                  <span className={legalStyles.policyCardIcon}>
+                    <FileText size={18} weight="bold" aria-hidden />
+                  </span>
+                  <span className={legalStyles.policyCardBody}>
+                    <span className={legalStyles.policyCardTitle}>{policy.documentTitle}</span>
+                    <span className={legalStyles.policyCardMeta}>
+                      {document.version ? `v${document.version}` : "Seed"} ·{" "}
+                      {document.degraded ? "Degraded" : document.source}
+                    </span>
+                    <span className={legalStyles.policyCardMeta}>
+                      {formatPolicyTime(document.updatedAt)}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
           </div>
-          <div className={legalStyles.historyList}>
-            {selectedDocument.history.map((entry) => (
-              <div key={entry.versionId} className={legalStyles.historyRow}>
-                <span>{entry.isActive ? "Active" : "Stored"}</span>
-                <span>v{entry.version}</span>
-                <span>{formatPolicyTime(entry.createdAt)}</span>
-                <span>{entry.createdByEmail ?? "Unknown"}</span>
-                <span>{entry.note ?? "No note"}</span>
+
+          <div className={legalStyles.workspaceGrid}>
+            <div className={legalStyles.editorPanel}>
+              <div className={legalStyles.panelHeader}>
+                <div className={legalStyles.panelTitleGroup}>
+                  <p className={adminStyles.adminSectionEyebrow}>Draft</p>
+                  <h3>{selectedPolicy.documentTitle}</h3>
+                  <span
+                    className={[
+                      legalStyles.statusPill,
+                      draftChanged ? legalStyles.statusPillDirty : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                  >
+                    {draftChanged ? "Unsaved changes" : "Live copy"}
+                  </span>
+                </div>
+                <Link
+                  href={selectedPolicy.routePath}
+                  className="ghost-btn mini"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Open live page
+                </Link>
               </div>
-            ))}
+
+              <label className={legalStyles.field}>
+                <span className="tiny subdued">Markdown</span>
+                <textarea
+                  className={legalStyles.markdownEditor}
+                  value={draftMarkdown}
+                  onChange={(event) => onChangeDraftMarkdown(event.target.value)}
+                  disabled={actionLocked}
+                  spellCheck={false}
+                />
+              </label>
+
+              <label className={legalStyles.field}>
+                <span className="tiny subdued">Publish note</span>
+                <input
+                  className={legalStyles.noteInput}
+                  type="text"
+                  value={publishNote}
+                  onChange={(event) => onChangePublishNote(event.target.value)}
+                  maxLength={400}
+                  disabled={actionLocked}
+                />
+              </label>
+
+              <div className={legalStyles.actionRow}>
+                <input
+                  ref={uploadInputRef}
+                  className={legalStyles.fileInput}
+                  type="file"
+                  accept=".md,.markdown,.txt,text/markdown,text/plain"
+                  onChange={handleUploadChange}
+                />
+                <button
+                  type="button"
+                  className="ghost-btn mini"
+                  onClick={() => uploadInputRef.current?.click()}
+                  disabled={actionLocked}
+                >
+                  <UploadSimple size={15} weight="bold" aria-hidden />
+                  {uploadReading ? "Reading..." : "Upload text"}
+                </button>
+                <button
+                  type="button"
+                  className="ghost-btn mini"
+                  onClick={onResetDraft}
+                  disabled={actionLocked || !selectedDocument || !draftChanged}
+                >
+                  <ClockCounterClockwise size={15} weight="bold" aria-hidden />
+                  Reset to live
+                </button>
+                <button
+                  type="button"
+                  className={`ghost-btn mini ${legalStyles.publishButton}`}
+                  onClick={onPublish}
+                  disabled={actionLocked || !selectedDocument || !draftChanged}
+                >
+                  <FloppyDisk size={15} weight="bold" aria-hidden />
+                  {publishing ? "Publishing..." : "Publish update"}
+                </button>
+              </div>
+            </div>
+
+            <div className={legalStyles.previewPanel}>
+              <div className={legalStyles.panelHeader}>
+                <div>
+                  <p className={adminStyles.adminSectionEyebrow}>Preview</p>
+                  <h3>{parsedDraft.title || selectedPolicy.documentTitle}</h3>
+                </div>
+                {selectedDocument ? (
+                  <span className={legalStyles.versionPill}>
+                    {selectedDocument.version ? `Live v${selectedDocument.version}` : "Seed"}
+                  </span>
+                ) : null}
+              </div>
+              <div className={legalStyles.previewMeta}>
+                <span>Last updated: {parsedDraft.lastUpdated ?? "Not listed"}</span>
+                <span>Status: {parsedDraft.publicationStatus ?? "Not listed"}</span>
+              </div>
+              <article className={legalStyles.previewDocument}>
+                {parsedDraft.blocks.length ? (
+                  parsedDraft.blocks.map(renderPreviewBlock)
+                ) : (
+                  <p className={legalStyles.previewEmpty}>No preview content.</p>
+                )}
+              </article>
+            </div>
           </div>
-        </div>
+
+          {selectedDocument?.history.length ? (
+            <div className={legalStyles.historyPanel}>
+              <div className={legalStyles.panelHeader}>
+                <div>
+                  <p className={adminStyles.adminSectionEyebrow}>History</p>
+                  <h3>Recent versions</h3>
+                </div>
+              </div>
+              <div className={legalStyles.historyList}>
+                {selectedDocument.history.map((entry) => (
+                  <div key={entry.versionId} className={legalStyles.historyRow}>
+                    <span>{entry.isActive ? "Active" : "Stored"}</span>
+                    <span>v{entry.version}</span>
+                    <span>{formatPolicyTime(entry.createdAt)}</span>
+                    <span>{entry.createdByEmail ?? "Unknown"}</span>
+                    <span>{entry.note ?? "No note"}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </>
       ) : null}
     </section>
   );

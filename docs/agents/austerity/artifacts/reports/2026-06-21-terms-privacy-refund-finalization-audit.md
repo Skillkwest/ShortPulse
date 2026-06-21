@@ -1,8 +1,8 @@
 # Terms Privacy Refund Finalization Audit
 
-Purpose: Austerity retained audit record for the June 21, 2026 finalization pass on ShortPulse's Terms of Service, Privacy Policy, and Refund Policy publication-candidate documents.
+Purpose: Austerity retained audit record for the June 21, 2026 finalization pass on ShortPulse's Terms of Service, Privacy Policy, and Refund Policy documents.
 
-Status: internal Austerity audit. The three policy documents are polished publication candidates, not live public routes and not counsel signoff.
+Status: internal Austerity audit. Superseded by `2026-06-21-policy-rewrite-research-and-decision-record.md` for the later placeholder-removal, DMCA, privacy, refund, and international-posture polish pass.
 
 ## Documents Updated
 
@@ -18,38 +18,28 @@ Status: internal Austerity audit. The three policy documents are polished public
 
 ## Audit Findings
 
-- The previous documents were strong research drafts but still carried source ledgers, publication blockers, TBD language, and internal audit notes inside the policy body.
+- The previous documents were strong research drafts but still carried source ledgers, publication blockers, unfinished scaffolding, and internal audit notes inside the policy body.
 - Terms needed stronger customer-facing AI output caveats, user-rights warranties, provider-flowdown language, platform-disclosure language, DMCA-style notice content, repeat-infringer handling, and NCII/child-safety reporting language.
 - Privacy needed cleaner AI-provider processing language, stronger voice/face/likeness/sensitive-data handling, clearer sale/share/targeted-advertising posture, retention categories, state privacy rights, and international posture.
 - Refund needed tighter alignment with Stripe subscriptions, credits, storage add-ons, generation reservations/captures, failed-generation restoration, abandonment, chargebacks, and mandatory consumer-law exceptions.
 
 ## Changes Made
 
-- Replaced the three draft documents with publication-candidate policy text.
-- Removed old source ledgers, publication blocker lists, TBD scaffolding, and Austerity audit sections from the policy bodies.
-- Preserved only factual placeholders that cannot be safely invented from the repo:
-  - legal entity;
-  - support/legal/privacy/billing/copyright/safety contact emails;
-  - mailing address;
-  - governing law and venue.
+- Replaced the three draft documents with polished policy text for later business/legal fill-in.
+- Removed old source ledgers, publication blocker lists, unfinished scaffolding, and Austerity audit sections from the policy bodies.
+- At the time of this audit, factual business/legal values still required confirmation. The later rewrite record supersedes this section with resolved policy text and remaining external-action notes.
 - Set the refund review request window to 14 days, with mandatory-law carveouts.
 - Kept the service posture adult-only, authenticated, private-workspace-first, and AI-provider-integrated.
 - Kept output rights conditional and avoided promises of uniqueness, copyrightability, non-infringement, platform acceptance, or commercial/legal fitness.
 - Added/retained mandatory-law carveouts so consumer rights override the no-refund default where required.
 
-## Remaining Publication Fill-Ins
+## Superseded Open Items
 
-Before these documents become public policy pages, the user or counsel must confirm:
+This report's original open items have been superseded by the later rewrite decision record. Remaining external actions now are:
 
-- legal entity name;
-- legal mailing address;
-- support, legal, privacy, billing, copyright, and safety email addresses;
-- governing law and venue;
-- whether arbitration/class waiver language should be added or deliberately omitted;
-- whether launch is U.S.-only or actively international;
-- final cookie/tracking/provider inventory;
-- final privacy retention posture;
-- Stripe portal cancellation/proration behavior in production.
+- register and maintain the DMCA designated agent if ShortPulse wants DMCA safe-harbor protection;
+- confirm the operational email aliases are created and monitored;
+- have licensed counsel review entity identity, governing law, venue, consumer-law exceptions, subscription disclosures, privacy posture, and any future arbitration/class-action waiver language.
 
 ## Validation
 
@@ -60,4 +50,4 @@ Both checks passed on June 21, 2026.
 
 ## Residual Risk
 
-These policies are polished and legally stronger than the prior drafts, but they should not be published without filling the remaining business/legal placeholders and doing counsel review. Public route implementation, production URL proof, and footer-link launch closeout remain separate work.
+These policies were legally stronger than the prior drafts at the time of this audit. The later rewrite decision record is the current Austerity retained reference for the updated drafts, PDFs, remaining external actions, and counsel-review boundary. Public route implementation, production URL proof, and footer-link launch closeout remain separate work.

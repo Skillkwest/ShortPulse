@@ -66,7 +66,13 @@ describe("public legal policy pages", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Last updated: June 21, 2026")).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 2, name: "1. Who We Are" })).toBeInTheDocument();
-    expect(screen.getByText(/refer to \[LEGAL ENTITY NAME\]/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/refer to ShortPulse, the operator of the Service/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Plain English: you may use Output for commercial purposes/i)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/DMCA safe-harbor protection requires/i)).toBeInTheDocument();
   });
 
   it("renders the Privacy Policy route with legal navigation", async () => {
@@ -77,7 +83,12 @@ describe("public legal policy pages", () => {
     expect(
       screen.getByRole("heading", { level: 1, name: "ShortPulse Privacy Policy" })
     ).toBeInTheDocument();
-    expect(screen.getByText(/privacy-rights intake/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 2, name: "4. Providers And Data Processing" })
+    ).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Provider or category" })).toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "Supabase" })).toBeInTheDocument();
+    expect(screen.getAllByText(/Global Privacy Control/i).length).toBeGreaterThan(0);
     expect(screen.getByRole("link", { name: "Terms of Service" })).toHaveAttribute(
       "href",
       "/terms"

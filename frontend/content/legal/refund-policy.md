@@ -1,12 +1,10 @@
 # ShortPulse Refund Policy
 
-Publication status: publication candidate pending final legal entity, contact, Stripe portal configuration, launch jurisdictions, and counsel review.
-
 Last updated: June 21, 2026
 
 This Refund Policy explains how ShortPulse handles refunds, credits, subscriptions, credit packs, storage add-ons, generation charges, and billing disputes.
 
-"ShortPulse," "we," "us," and "our" mean [LEGAL ENTITY NAME].
+"ShortPulse," "we," "us," and "our" mean ShortPulse, the operator of the Service.
 
 This Refund Policy is part of our Terms of Service. If this Refund Policy conflicts with a non-waivable consumer-protection law that applies to you, that law controls.
 
@@ -20,11 +18,17 @@ We may approve refunds, account credits, service credits, credit restorations, o
 
 If we approve a refund or charge reversal, we may revoke or reduce related credits, subscription access, storage access, promotional benefits, invoice credits, or generated-service entitlements to prevent double recovery.
 
-## 2. Subscriptions
+## 2. Checkout, Renewal, And Cancellation Disclosures
 
-ShortPulse subscriptions renew automatically until canceled.
+Before you buy a recurring subscription, the checkout or pricing flow should disclose the plan, price, billing interval, renewal behavior, and cancellation path. By completing checkout, you authorize recurring charges until you cancel.
 
-You can cancel through the account billing controls, Stripe Billing Portal, or another cancellation path we make available. Canceling stops future subscription renewals according to the active billing configuration. It does not automatically refund past payments, current-period payments, one-time credit packs, storage add-ons, taxes, or already-used credits.
+ShortPulse subscriptions renew automatically until canceled. You can cancel through the account billing controls, Stripe Billing Portal, or another cancellation path we make available.
+
+Canceling stops future subscription renewals according to the active billing configuration. It does not automatically refund past payments, current-period payments, one-time credit packs, storage add-ons, taxes, or already-used credits.
+
+If checkout is canceled before payment completes, no purchase should be created from that checkout session. If checkout errors after a charge is created and ShortPulse does not deliver the purchased subscription access, storage add-on, or credits, contact billing@shortpulse.ai for review.
+
+## 3. Subscriptions
 
 Subscription fees are generally non-refundable for the current billing period after payment is processed. If you cancel during a billing period, you may keep subscription access through the end of the paid period unless the active Stripe configuration, product flow, legal requirement, or account status provides otherwise.
 
@@ -32,7 +36,7 @@ If you upgrade a subscription, the change may take effect immediately and may cr
 
 If ShortPulse materially discontinues a paid subscription service before the end of a prepaid period, we may provide a prorated refund, account credit, service credit, or other remedy where required by law or appropriate under the circumstances.
 
-## 3. Credit Packs And Usage Credits
+## 4. Credit Packs And Usage Credits
 
 Credits are used for AI generation and related billable actions in ShortPulse. Paid subscriptions may include recurring credits. Credit packs are one-time top-ups.
 
@@ -44,7 +48,7 @@ If we approve a refund for a credit pack, we may remove unused credits from that
 
 ShortPulse profile copy currently states that credits never expire. This means ShortPulse does not currently intend to expire valid unused credits only because time passes. It does not mean credits can be redeemed for cash, transferred outside ShortPulse, used after account termination for breach, or preserved where law, fraud prevention, chargebacks, payment failure, account deletion, or security requirements require another result.
 
-## 4. Generation Failures And Credit Adjustments
+## 5. Generation Failures And Credit Adjustments
 
 ShortPulse uses credit reservations and captures for generation workflows.
 
@@ -63,7 +67,7 @@ The following usually do not qualify for a cash refund or credit restoration:
 - provider outages, delays, queue times, or rate limits temporarily affect availability but do not result in a failed charged generation under ShortPulse's billing records;
 - credits, outputs, or subscription benefits from the purchase have already been used or consumed.
 
-## 5. Storage Add-Ons
+## 6. Storage Add-Ons
 
 ShortPulse may offer recurring storage add-ons.
 
@@ -71,7 +75,7 @@ Storage add-on fees are generally non-refundable once charged. Removing a storag
 
 If your stored content exceeds your remaining storage limit after removing an add-on or downgrading a plan, ShortPulse may block new uploads or certain storage actions until you reduce usage or add more storage.
 
-## 6. Refunds We May Consider
+## 7. Refunds We May Consider
 
 We may consider a refund, account credit, service credit, or credit restoration when:
 
@@ -86,9 +90,9 @@ We may deny refund requests involving used credits, completed generation attempt
 
 If a purchase included both used and unused credits, access, storage, or benefits, any approved adjustment may be partial.
 
-## 7. How To Request A Refund Or Billing Review
+## 8. How To Request A Refund Or Billing Review
 
-To request a refund, credit restoration, or billing review, contact [BILLING/SUPPORT EMAIL].
+To request a refund, credit restoration, or billing review, contact billing@shortpulse.ai or support@shortpulse.ai.
 
 Include:
 
@@ -105,40 +109,40 @@ You should contact us promptly after discovering the issue. Refund and billing r
 
 We may need to verify your identity, account ownership, billing records, generation records, Stripe records, provider status, and product logs before making a decision.
 
-## 8. Chargebacks And Payment Disputes
+## 9. Chargebacks And Payment Disputes
 
 If you dispute a charge with your payment provider instead of contacting us, we may suspend account access, pause credits, restrict generation, or preserve records while the dispute is reviewed.
 
 Chargebacks, payment failures, fraud indicators, or repeated billing disputes may result in account restrictions, loss of promotional pricing, reversal of credits, or termination where permitted by law and our Terms.
 
-## 9. Taxes, Fees, Currency, And Payment Processor Rules
+## 10. Taxes, Fees, Currency, And Payment Processor Rules
 
 Refunds may exclude taxes, processor fees, currency-conversion differences, bank fees, card-network fees, or other amounts that ShortPulse cannot recover, unless applicable law requires otherwise.
 
 Approved refunds are usually sent back to the original payment method through Stripe or the payment processor. Processing times depend on Stripe, payment networks, banks, and your payment method.
 
-## 10. Annual Plans, Promotions, Coupons, Grandfathered Plans, And Manual Adjustments
+## 11. Annual Plans, Promotions, Coupons, Grandfathered Plans, And Manual Adjustments
 
 Annual plans, promotions, coupons, discounted plans, grandfathered pricing, internal credits, account credits, manual adjustments, manual invoices, enterprise arrangements, pre-launch invites, or complimentary credits may have special terms. Unless we say otherwise in writing, promotional or complimentary credits have no cash value and are not refundable.
 
 If you cancel and later restart, change plans, or lose eligibility for a grandfathered plan, you may not be able to return to the old price or terms.
 
-## 11. Account Suspension, Termination, Or Deletion
+## 12. Account Suspension, Termination, Or Deletion
 
 If your account is suspended or terminated for violating our Terms, provider rules, safety rules, payment rules, or law, you may lose access to subscriptions, credits, storage, media, outputs, or account features without a refund, to the maximum extent permitted by law.
 
 If you delete your account or request deletion of account data, we may not be able to restore credits, media, outputs, invoices, or generation records after deletion, except where retained records are legally or operationally required.
 
-## 12. Consumer-Law Exceptions
+## 13. Consumer-Law Exceptions
 
 Nothing in this Refund Policy limits any non-waivable rights you may have under applicable consumer-protection, automatic-renewal, cancellation, cooling-off, digital-goods, payment, or refund laws.
 
 If you live in a jurisdiction with mandatory refund, cancellation, withdrawal, or subscription-renewal rights, those rights apply even if this policy would otherwise say a payment is non-refundable.
 
-## 13. Changes To This Refund Policy
+## 14. Changes To This Refund Policy
 
 We may update this Refund Policy from time to time. If we make material changes, we will provide notice in a reasonable way, such as posting the updated policy, updating the date, sending an email, or showing an in-product notice.
 
-## 14. Contact
+## 15. Contact
 
-Refund and billing questions should be sent to [BILLING/SUPPORT EMAIL].
+Refund and billing questions should be sent to billing@shortpulse.ai or support@shortpulse.ai.

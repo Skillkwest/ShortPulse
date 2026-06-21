@@ -14,6 +14,12 @@ export type LegalPolicyBlock =
       id: string;
       items: string[];
       type: "list";
+    }
+  | {
+      headers: string[];
+      id: string;
+      rows: string[][];
+      type: "table";
     };
 
 export type ParsedLegalPolicy = {
@@ -35,6 +41,18 @@ const slugifyHeading = (value: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
+const isTableRow = (line: string) => line.startsWith("|") && line.endsWith("|");
+
+const splitTableRow = (line: string) =>
+  line
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((cell) => cell.trim());
+
+const isTableDelimiterRow = (cells: string[]) =>
+  cells.length > 0 && cells.every((cell) => /^:?-{3,}:?$/.test(cell));
+
 export function parseLegalPolicyMarkdown(markdown: string): ParsedLegalPolicy {
   const lines = markdown.replace(/\r\n/g, "\n").split("\n");
   const blocks: LegalPolicyBlock[] = [];
@@ -43,6 +61,7 @@ export function parseLegalPolicyMarkdown(markdown: string): ParsedLegalPolicy {
   let lastUpdated: string | null = null;
   let paragraphLines: string[] = [];
   let listItems: string[] = [];
+  let tableRows: string[][] = [];
 
   const flushParagraph = () => {
     const text = normalizeParagraph(paragraphLines);
@@ -67,26 +86,48 @@ export function parseLegalPolicyMarkdown(markdown: string): ParsedLegalPolicy {
     listItems = [];
   };
 
+  const flushTable = () => {
+    if (tableRows.length > 0) {
+      const [headerRow, ...bodyRows] = tableRows;
+      const rows = bodyRows.filter((row) => !isTableDelimiterRow(row));
+      if (headerRow.length > 0 && rows.length > 0) {
+        blocks.push({
+          headers: headerRow,
+          id: `table-${blocks.length + 1}`,
+          rows,
+          type: "table",
+        });
+      } else {
+        paragraphLines.push(...tableRows.map((row) => `| ${row.join(" | ")} |`));
+      }
+    }
+    tableRows = [];
+  };
+
   for (const rawLine of lines) {
     const line = rawLine.trim();
 
     if (!line) {
       flushParagraph();
       flushList();
+      flushTable();
       continue;
     }
 
     if (line.startsWith("# ")) {
+      flushTable();
       title = line.replace(/^#\s+/, "").trim();
       continue;
     }
 
     if (line.startsWith("Publication status:")) {
+      flushTable();
       publicationStatus = line.replace(/^Publication status:\s*/, "").trim();
       continue;
     }
 
     if (line.startsWith("Last updated:")) {
+      flushTable();
       lastUpdated = line.replace(/^Last updated:\s*/, "").trim();
       continue;
     }
@@ -94,6 +135,7 @@ export function parseLegalPolicyMarkdown(markdown: string): ParsedLegalPolicy {
     if (line.startsWith("## ")) {
       flushParagraph();
       flushList();
+      flushTable();
       const text = line.replace(/^##\s+/, "").trim();
       blocks.push({
         id: slugifyHeading(text) || `heading-${blocks.length + 1}`,
@@ -107,6 +149,7 @@ export function parseLegalPolicyMarkdown(markdown: string): ParsedLegalPolicy {
     if (line.startsWith("### ")) {
       flushParagraph();
       flushList();
+      flushTable();
       const text = line.replace(/^###\s+/, "").trim();
       blocks.push({
         id: slugifyHeading(text) || `heading-${blocks.length + 1}`,
@@ -119,16 +162,26 @@ export function parseLegalPolicyMarkdown(markdown: string): ParsedLegalPolicy {
 
     if (line.startsWith("- ")) {
       flushParagraph();
+      flushTable();
       listItems.push(line.replace(/^-\s+/, "").trim());
       continue;
     }
 
+    if (isTableRow(line)) {
+      flushParagraph();
+      flushList();
+      tableRows.push(splitTableRow(line));
+      continue;
+    }
+
     flushList();
+    flushTable();
     paragraphLines.push(line);
   }
 
   flushParagraph();
   flushList();
+  flushTable();
 
   return {
     blocks,

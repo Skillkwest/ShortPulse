@@ -4,7 +4,8 @@ Purpose: conditional-load index for retained Austerity legal-policy reviews, lau
 
 ## Current Reports
 
-- `2026-06-21-terms-privacy-refund-finalization-audit.md`: retained audit record for the finalized publication-candidate Terms, Privacy Policy, and Refund Policy drafts.
+- `2026-06-21-policy-rewrite-research-and-decision-record.md`: research-backed decision record for the final placeholder-removal and polish pass across Terms, Privacy Policy, and Refund Policy.
+- `2026-06-21-terms-privacy-refund-finalization-audit.md`: retained audit record for the finalized Terms, Privacy Policy, and Refund Policy drafts.
 - `2026-06-21-ugc-ai-future-reference-synthesis.md`: compact future-reference synthesis for recurring UGC AI legal-policy work.
 - `2026-06-21-ugc-ai-content-generation-legal-research-brief.md`: source-backed legal research brief for ShortPulse as a UGC AI content generation service.
 - `2026-06-21-ugc-ai-content-generation-risk-control-matrix.md`: operating control matrix translating the research brief into product, policy, launch-gate, and review controls.

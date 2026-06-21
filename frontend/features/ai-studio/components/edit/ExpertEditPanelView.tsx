@@ -467,7 +467,6 @@ export function ExpertEditPanelView({
     hasPromptText,
     imageResolutionValue,
     imageResolutionOptions,
-    inlineGuardrailReason,
     inputRefs,
     inpaintLayerSources,
     inpaintPromptReferencePolicy,
@@ -1377,7 +1376,6 @@ export function ExpertEditPanelView({
     handleInlineGenerate,
     inlineGenerateDisabled,
     costCredits,
-    inlineGuardrailReason,
     effectiveSelectorModelId,
     isModelPickerLocked,
     isModelModalOpen,
@@ -1551,9 +1549,7 @@ export function ExpertEditPanelView({
       ref={panelRootRef}
       className={`tool-properties edit-expert-panel ${
         isMarkupExpandSelected ? "is-markup-modal-open" : ""
-      } ${isSecondaryReferenceTrayWrapped ? "has-wrapped-secondary-references" : ""} ${
-        inlineGenerateDisabled && inlineGuardrailReason ? "has-generate-guardrail" : ""
-      }`.trim()}
+      } ${isSecondaryReferenceTrayWrapped ? "has-wrapped-secondary-references" : ""}`.trim()}
       role="group"
       aria-label="Expert edit composer"
       onDragEnterCapture={handleMarkupModalRootDragCapture}

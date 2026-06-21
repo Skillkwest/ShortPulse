@@ -4,7 +4,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../types";
 import { hardcodedMusicModelId } from "../../components/MusicPropertiesPanel";
 import { hardcodedSoundEffectsModelId } from "../../components/SoundEffectsPropertiesPanel";
-import { hardcodedVoiceoverModelId } from "../../utils/voiceAudioModelConfig";
+import {
+  buildVoiceoverRequestConfig,
+  hardcodedVoiceoverModelId,
+} from "../../utils/voiceAudioModelConfig";
 import {
   REFERENCE_GRID_CAP_REACHED_MESSAGE,
   REFERENCE_GRID_MAX_VISIBLE_ITEMS,
@@ -1029,5 +1032,118 @@ describe("useAiStudioAudioGeneration", () => {
     expect(insertOptimisticGenerationPlaceholder).not.toHaveBeenCalled();
     expect(fetchWithAuthMock).not.toHaveBeenCalled();
     expect(uiError).toBe(REFERENCE_GRID_CAP_REACHED_MESSAGE);
+  });
+
+  it("blocks music generation when the known balance cannot cover the full batch", async () => {
+    let uiError: string | null = null;
+    const setUiError = asDispatch<string | null>((value) => {
+      uiError = typeof value === "function" ? value(uiError) : value;
+    });
+    const insertOptimisticGenerationPlaceholder = vi.fn(() => "out-music");
+
+    const { result } = renderHook(() =>
+      useAiStudioAudioGeneration({
+        balanceCredits: 10,
+        setUiError,
+        insertOptimisticGenerationPlaceholder,
+        notifyGenerationFailure: vi.fn(),
+        updateOutputById: vi.fn(),
+        setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
+      })
+    );
+
+    let accepted: boolean | void = true;
+    await act(async () => {
+      accepted = await result.current.handleMusicGenerate({
+        text: "two polished intro sting variations",
+        durationSeconds: null,
+        bpm: 112,
+        mode: "instrumental",
+        structure: "loop",
+        energyPercent: 58,
+        outputFormat: "mp3_44100_128",
+        modelId: hardcodedMusicModelId,
+        songBatchCount: 2,
+        displayedBilledCredits: 8,
+      });
+    });
+
+    expect(accepted).toBe(false);
+    expect(insertOptimisticGenerationPlaceholder).not.toHaveBeenCalled();
+    expect(fetchWithAuthMock).not.toHaveBeenCalled();
+    expect(uiError).toBe("You do not have enough credits for this run.");
+  });
+
+  it("blocks sound effects generation when the known balance is short", async () => {
+    let uiError: string | null = null;
+    const setUiError = asDispatch<string | null>((value) => {
+      uiError = typeof value === "function" ? value(uiError) : value;
+    });
+    const insertOptimisticGenerationPlaceholder = vi.fn(() => "out-sfx");
+
+    const { result } = renderHook(() =>
+      useAiStudioAudioGeneration({
+        balanceCredits: 4,
+        setUiError,
+        insertOptimisticGenerationPlaceholder,
+        notifyGenerationFailure: vi.fn(),
+        updateOutputById: vi.fn(),
+        setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleSoundEffectsGenerate({
+        text: "bright transition sparkle",
+        durationSeconds: null,
+        loop: false,
+        outputFormat: "mp3_44100_128",
+        modelId: hardcodedSoundEffectsModelId,
+        displayedBilledCredits: 8,
+      });
+    });
+
+    expect(insertOptimisticGenerationPlaceholder).not.toHaveBeenCalled();
+    expect(fetchWithAuthMock).not.toHaveBeenCalled();
+    expect(uiError).toBe("You do not have enough credits for this run.");
+  });
+
+  it("blocks voiceover generation when the known balance is short", async () => {
+    let uiError: string | null = null;
+    const setUiError = asDispatch<string | null>((value) => {
+      uiError = typeof value === "function" ? value(uiError) : value;
+    });
+    const insertOptimisticGenerationPlaceholder = vi.fn(() => "out-voice");
+
+    const { result } = renderHook(() =>
+      useAiStudioAudioGeneration({
+        balanceCredits: 2,
+        setUiError,
+        insertOptimisticGenerationPlaceholder,
+        notifyGenerationFailure: vi.fn(),
+        updateOutputById: vi.fn(),
+        setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleVoicesGenerate({
+        mode: "voiceover",
+        voice: {
+          id: "voice-1",
+          name: "Narrator",
+          librarySection: "my",
+          provider: "elevenlabs",
+        },
+        script: "Launch narration.",
+        outputFormat: "mp3_44100_128",
+        config: buildVoiceoverRequestConfig(),
+        displayedBilledCredits: 8,
+      });
+    });
+
+    expect(insertOptimisticGenerationPlaceholder).not.toHaveBeenCalled();
+    expect(fetchWithAuthMock).not.toHaveBeenCalled();
+    expect(uiError).toBe("You do not have enough credits for this run.");
   });
 });

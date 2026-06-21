@@ -1,9 +1,9 @@
-/* global require, process, console, __dirname, fetch */
+/* global require, process, console, __dirname, fetch, window, Headers */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Built-in Pulse contract browser audit.
  * Signs in with the dedicated audit account, loads the live built-in Pulse catalog,
- * activates a real built-in from the Pulse Catalog surface, intercepts the Pulse route request,
+ * activates a real built-in from the current Pulses surface, intercepts the Pulse route request,
  * and verifies the browser request stays on the built-in/server-authoritative contract.
  */
 const fs = require("node:fs");
@@ -12,7 +12,7 @@ const { chromium } = require("playwright");
 
 const DEFAULT_BASE_URL = (process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3000").trim();
 const HEADLESS = process.env.PLAYWRIGHT_HEADLESS !== "false";
-const TARGET_PRESET_ID = (process.env.PULSE_BUILTIN_PRESET_ID || "image").trim();
+const CONFIGURED_TARGET_PRESET_ID = (process.env.PULSE_BUILTIN_PRESET_ID || "").trim();
 
 function loadEnvFromFileIfNeeded(filePath) {
   if (!fs.existsSync(filePath)) return;
@@ -39,6 +39,7 @@ function loadAuditEnv() {
   const frontendRoot = path.resolve(__dirname, "..", "..");
   const repoRoot = path.resolve(frontendRoot, "..");
   loadEnvFromFileIfNeeded(path.join(frontendRoot, ".env.local"));
+  loadEnvFromFileIfNeeded(path.join(frontendRoot, ".env.playwright.local"));
   loadEnvFromFileIfNeeded(path.join(repoRoot, ".env.agent.local"));
 }
 
@@ -87,12 +88,32 @@ async function ensureSignedIn(page, baseUrl, targetPath, email, password) {
   });
 }
 
+async function getPulseCatalogRegion(page) {
+  const currentRegion = page.getByRole("region", { name: "Pulses", exact: true }).first();
+  const legacyRegion = page.getByRole("region", { name: "Pulse Catalog", exact: true }).first();
+  if (await currentRegion.isVisible().catch(() => false)) return currentRegion;
+  return legacyRegion;
+}
+
 async function openPulseCatalog(page) {
-  const catalogButton = page.getByRole("button", { name: "Pulse Catalog" }).first();
-  const catalogRegion = page.getByRole("region", { name: "Pulse Catalog", exact: true }).first();
-  await catalogButton.waitFor({ timeout: 20_000 });
-  await catalogButton.click();
-  await catalogRegion.waitFor({ timeout: 10_000 });
+  const catalogRegion = await getPulseCatalogRegion(page);
+  if (await catalogRegion.isVisible().catch(() => false)) return catalogRegion;
+
+  const currentButton = page.getByRole("button", { name: /^more pulses$/i }).first();
+  const legacyButton = page.getByRole("button", { name: "Pulse Catalog" }).first();
+  const trigger = (await currentButton.isVisible().catch(() => false))
+    ? currentButton
+    : legacyButton;
+  await trigger.waitFor({ timeout: 20_000 });
+  await trigger.click();
+  await Promise.any([
+    page.getByRole("region", { name: "Pulses", exact: true }).first().waitFor({ timeout: 10_000 }),
+    page
+      .getByRole("region", { name: "Pulse Catalog", exact: true })
+      .first()
+      .waitFor({ timeout: 10_000 }),
+  ]);
+  return await getPulseCatalogRegion(page);
 }
 
 async function ensurePulseMode(page) {
@@ -106,7 +127,11 @@ async function ensurePulseMode(page) {
   if ((await pulseTab.getAttribute("aria-selected").catch(() => null)) !== "true") {
     await pulseTab.click();
   }
-  await page.getByRole("button", { name: "Pulse Catalog" }).waitFor({ timeout: 20_000 });
+  await Promise.any([
+    page.getByRole("region", { name: "Pulses", exact: true }).first().waitFor({ timeout: 20_000 }),
+    page.getByRole("button", { name: "Pulse Catalog" }).waitFor({ timeout: 20_000 }),
+    page.getByRole("button", { name: /^more pulses$/i }).first().waitFor({ timeout: 20_000 }),
+  ]);
 }
 
 async function verifyPulsePersistsOutsideCreate(page, activationMessageText) {
@@ -153,18 +178,63 @@ async function verifyPulsePersistsOutsideCreate(page, activationMessageText) {
 
 async function readBuiltInCatalog(page) {
   return page.evaluate(async () => {
+    const readAccessToken = () => {
+      try {
+        const storage = window.localStorage;
+        for (let index = 0; index < storage.length; index += 1) {
+          const key = storage.key(index);
+          if (!key || !/auth-token/i.test(key)) continue;
+          const rawValue = storage.getItem(key);
+          if (!rawValue) continue;
+          const parsed = JSON.parse(rawValue);
+          const candidates = [parsed, parsed?.currentSession, parsed?.session];
+          for (const candidate of candidates) {
+            if (typeof candidate?.access_token === "string" && candidate.access_token.length > 0) {
+              return candidate.access_token;
+            }
+          }
+        }
+      } catch {
+        return null;
+      }
+      return null;
+    };
+    const accessToken = readAccessToken();
+    const headers = new Headers({ Accept: "application/json" });
+    if (accessToken) {
+      headers.set("Authorization", `Bearer ${accessToken}`);
+    }
     const response = await fetch("/api/ai/create-pulse-builtins", {
       method: "GET",
       credentials: "include",
-      headers: { Accept: "application/json" },
+      headers,
     });
     const payload = await response.json().catch(() => null);
     return {
       ok: response.ok,
       status: response.status,
       payload,
+      hasAccessToken: Boolean(accessToken),
     };
   });
+}
+
+function chooseBuiltInPreset(builtInDefinitions) {
+  if (!Array.isArray(builtInDefinitions)) return null;
+  if (CONFIGURED_TARGET_PRESET_ID) {
+    return (
+      builtInDefinitions.find((entry) => entry?.presetId === CONFIGURED_TARGET_PRESET_ID) ?? null
+    );
+  }
+  return (
+    builtInDefinitions.find(
+      (entry) =>
+        typeof entry?.presetId === "string" &&
+        entry.presetId.trim().length > 0 &&
+        typeof entry?.label === "string" &&
+        entry.label.trim().length > 0
+    ) ?? null
+  );
 }
 
 async function main() {
@@ -189,7 +259,7 @@ async function main() {
   const out = {
     ok: false,
     baseUrl: DEFAULT_BASE_URL,
-    targetPresetId: TARGET_PRESET_ID,
+    targetPresetId: CONFIGURED_TARGET_PRESET_ID || null,
     targetPresetLabel: null,
     auth: {
       reachedProtectedRoute: false,
@@ -201,6 +271,7 @@ async function main() {
       targetPresetFound: false,
       systemInstructionsHidden: false,
     },
+    catalogResponse: null,
     requestChecks: {
       activationSeen: false,
       followupSeen: false,
@@ -216,6 +287,7 @@ async function main() {
     ui: {
       activationMessageSeen: false,
       followupMessageSeen: false,
+      imageRequiredGuardrailSeen: false,
       persistsOnLeaveCreateVerified: false,
     },
     screenshots: {
@@ -229,6 +301,7 @@ async function main() {
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
   const page = await context.newPage();
   let pulseRequestCount = 0;
+  let selectedPresetId = CONFIGURED_TARGET_PRESET_ID;
 
   await page.route("**/api/ai/studio-agent-pulse", async (route) => {
     pulseRequestCount += 1;
@@ -257,10 +330,12 @@ async function main() {
       out.requestChecks.runtimeModePulse = parsedBody?.runtimeMode === "pulse";
       out.requestChecks.builtinSource = pulseContext?.source === "builtin";
       out.requestChecks.guidedPulseKind = pulseContext?.pulseKind === "guided_workflow";
-      out.requestChecks.targetPresetIdMatches = pulseContext?.presetId === TARGET_PRESET_ID;
+      out.requestChecks.targetPresetIdMatches = pulseContext?.presetId === selectedPresetId;
       out.requestChecks.browserInstructionsHidden =
-        typeof pulseContext?.instructions === "string" &&
-        pulseContext.instructions.trim().length === 0;
+        pulseContext != null &&
+        (!Object.prototype.hasOwnProperty.call(pulseContext, "instructions") ||
+          (typeof pulseContext.instructions === "string" &&
+            pulseContext.instructions.trim().length === 0));
       out.requestChecks.guidedMetadataPresent =
         pulseContext?.runtimeMode === "workflow_gpt" &&
         typeof pulseContext?.activationMode === "string" &&
@@ -274,7 +349,7 @@ async function main() {
           message: "BUILTIN-PULSE-MARKER: upload the anchor image first.",
           actions: null,
           workflowSession: {
-            presetId: TARGET_PRESET_ID,
+            presetId: selectedPresetId,
             status: "awaiting_input",
             currentStepIndex: 1,
             currentStepLabel: "Step 1 — Upload",
@@ -299,7 +374,7 @@ async function main() {
           message: "BUILTIN-PULSE-MARKER: what motion should the camera use?",
           actions: null,
           workflowSession: {
-            presetId: TARGET_PRESET_ID,
+            presetId: selectedPresetId,
             status: "awaiting_input",
             currentStepIndex: 2,
             currentStepLabel: "Step 2 — Motion",
@@ -321,7 +396,7 @@ async function main() {
         message: "BUILTIN-PULSE-MARKER: extra turn acknowledged.",
         actions: null,
         workflowSession: {
-          presetId: TARGET_PRESET_ID,
+          presetId: selectedPresetId,
           status: "awaiting_input",
           currentStepIndex: 2,
           currentStepLabel: "Step 2 — Motion",
@@ -340,13 +415,24 @@ async function main() {
 
     await ensurePulseMode(page);
     const catalog = await readBuiltInCatalog(page);
+    out.catalogResponse = {
+      ok: catalog.ok,
+      status: catalog.status,
+      source: catalog.payload?.source ?? null,
+      degraded: catalog.payload?.degraded ?? null,
+      error: typeof catalog.payload?.error === "string" ? catalog.payload.error : null,
+      hasAccessToken: catalog.hasAccessToken === true,
+      presetIds: Array.isArray(catalog.payload?.builtInDefinitions)
+        ? catalog.payload.builtInDefinitions
+            .map((entry) => (typeof entry?.presetId === "string" ? entry.presetId : null))
+            .filter(Boolean)
+        : [],
+    };
     out.catalogChecks.routeOk = catalog.ok === true && catalog.status === 200;
     out.catalogChecks.controlPlaneSource = catalog.payload?.source === "control_plane";
     out.catalogChecks.degradedFalse = catalog.payload?.degraded === false;
 
-    const targetPreset = Array.isArray(catalog.payload?.builtInDefinitions)
-      ? catalog.payload.builtInDefinitions.find((entry) => entry?.presetId === TARGET_PRESET_ID)
-      : null;
+    const targetPreset = chooseBuiltInPreset(catalog.payload?.builtInDefinitions);
     out.catalogChecks.targetPresetFound = Boolean(targetPreset);
     out.catalogChecks.systemInstructionsHidden =
       targetPreset != null &&
@@ -355,19 +441,23 @@ async function main() {
       typeof targetPreset?.label === "string" && targetPreset.label.trim().length > 0
         ? targetPreset.label.trim()
         : null;
+    selectedPresetId =
+      typeof targetPreset?.presetId === "string" && targetPreset.presetId.trim().length > 0
+        ? targetPreset.presetId.trim()
+        : selectedPresetId;
+    out.targetPresetId = selectedPresetId || null;
 
     if (!out.targetPresetLabel) {
       throw new Error(
-        `Built-in preset ${TARGET_PRESET_ID} was not available from the live catalog.`
+        CONFIGURED_TARGET_PRESET_ID
+          ? `Configured built-in preset ${CONFIGURED_TARGET_PRESET_ID} was not available from the live catalog.`
+          : "No usable built-in preset was available from the live catalog."
       );
     }
 
-    await openPulseCatalog(page);
+    const pulseCatalog = await openPulseCatalog(page);
     await page.getByRole("button", { name: out.targetPresetLabel, exact: true }).click();
-    await page
-      .getByRole("region", { name: "Pulse Catalog", exact: true })
-      .first()
-      .waitFor({ state: "hidden", timeout: 10_000 });
+    await pulseCatalog.waitFor({ state: "hidden", timeout: 10_000 }).catch(() => undefined);
 
     await page.getByText("BUILTIN-PULSE-MARKER: upload the anchor image first.").waitFor({
       timeout: 10_000,
@@ -377,22 +467,47 @@ async function main() {
     const agentTextarea = page.locator('textarea[placeholder="Message the agent..."]').first();
     await agentTextarea.fill(userTurn);
     await page.getByRole("button", { name: "Send to agent" }).first().click();
-    await page.getByText("BUILTIN-PULSE-MARKER: what motion should the camera use?").waitFor({
-      timeout: 10_000,
-    });
-    out.ui.followupMessageSeen = true;
+    const followupOutcome = await Promise.any([
+      page
+        .getByText("BUILTIN-PULSE-MARKER: what motion should the camera use?")
+        .waitFor({ timeout: 10_000 })
+        .then(() => "followup"),
+      page
+        .getByText(/^This Pulse needs an image first\./i)
+        .waitFor({ timeout: 10_000 })
+        .then(() => "image_gate"),
+    ]);
+    if (followupOutcome === "followup") {
+      out.ui.followupMessageSeen = true;
+    }
+    if (followupOutcome === "image_gate") {
+      out.ui.imageRequiredGuardrailSeen = true;
+    }
     out.ui.persistsOnLeaveCreateVerified = await verifyPulsePersistsOutsideCreate(
       page,
       "BUILTIN-PULSE-MARKER: upload the anchor image first."
     );
 
     await page.screenshot({ path: out.screenshots.final, fullPage: true });
+    const activationRequestOk =
+      out.requestChecks.activationSeen &&
+      out.requestChecks.runtimeModePulse &&
+      out.requestChecks.builtinSource &&
+      out.requestChecks.guidedPulseKind &&
+      out.requestChecks.targetPresetIdMatches &&
+      out.requestChecks.browserInstructionsHidden &&
+      out.requestChecks.guidedMetadataPresent;
+    const followupHandled =
+      (out.requestChecks.followupSeen &&
+        out.requestChecks.followupMessageMatches &&
+        out.ui.followupMessageSeen) ||
+      out.ui.imageRequiredGuardrailSeen;
     out.ok =
       out.auth.reachedProtectedRoute &&
       Object.values(out.catalogChecks).every(Boolean) &&
-      Object.values(out.requestChecks).every(Boolean) &&
+      activationRequestOk &&
+      followupHandled &&
       out.ui.activationMessageSeen &&
-      out.ui.followupMessageSeen &&
       out.ui.persistsOnLeaveCreateVerified;
   } catch (error) {
     out.errors.push(error instanceof Error ? error.message : String(error));

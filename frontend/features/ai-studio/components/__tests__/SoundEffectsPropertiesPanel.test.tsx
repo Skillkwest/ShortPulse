@@ -17,6 +17,10 @@ describe("SoundEffectsPropertiesPanel", () => {
 
     expect(container.querySelector('[aria-label="Available sound effects"]')).toBeNull();
     expect(screen.getByRole("heading", { name: "Sound Effects" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Sound effects overview")).toBeInTheDocument();
+    expect(
+      screen.getByText("Impacts, transitions, ambience, and loopable audio accents.")
+    ).toBeInTheDocument();
     expect(
       screen
         .getByRole("heading", { name: "Sound Effects" })
@@ -165,6 +169,7 @@ describe("SoundEffectsPropertiesPanel", () => {
 
     expect(generateButton).toHaveAttribute("data-credit-confidence", "covered");
     expect(generateButton.getAttribute("title")).toContain("balance 10000 credits");
+    expect(screen.getByText("Balance covers this run")).toBeInTheDocument();
   });
 
   it("submits the mapped request payload with hardcoded mp3 output", () => {

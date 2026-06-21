@@ -222,6 +222,7 @@ describe("VoicesPropertiesPanel", () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Save voice" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate" })).toBeInTheDocument();
+    expect(screen.getByText("Cost unavailable")).toBeInTheDocument();
     expect(screen.getByText("Voice Mode")).toBeInTheDocument();
     expect(screen.getByRole("tablist", { name: "Voice mode" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Voice Clone" })).not.toBeInTheDocument();
@@ -326,8 +327,13 @@ describe("VoicesPropertiesPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Enhance voiceover script" }));
 
     await waitFor(() => {
-      expect(scriptInput).toHaveValue("[excited] Updated launch script.");
+      expect(screen.getByText("Enhanced version ready")).toBeInTheDocument();
     });
+    expect(scriptInput).toHaveValue("Updated launch script.");
+    expect(screen.getByText("[excited] Updated launch script.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+
+    expect(scriptInput).toHaveValue("[excited] Updated launch script.");
     expect(fetchWithAuthMock).toHaveBeenCalledWith(
       "/api/ai/voiceover-enhance",
       expect.objectContaining({
@@ -361,8 +367,9 @@ describe("VoicesPropertiesPanel", () => {
     });
 
     await waitFor(() => {
-      expect(scriptInput).toHaveValue("[excited] Updated launch script.");
+      expect(screen.getByText("Enhanced version ready")).toBeInTheDocument();
     });
+    expect(scriptInput).toHaveValue("Updated launch script.");
     expect(screen.queryByText("Enhancing script...")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Enhance voiceover script" })).toBeEnabled();
   });
@@ -417,8 +424,11 @@ describe("VoicesPropertiesPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Enhance voiceover script" }));
 
     await waitFor(() => {
-      expect(scriptInput).toHaveValue("[confused] Updated launch script.");
+      expect(screen.getByText("Enhanced version ready")).toBeInTheDocument();
     });
+    expect(scriptInput).toHaveValue("Updated launch script.");
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    expect(scriptInput).toHaveValue("[confused] Updated launch script.");
 
     const generateButton = screen.getByRole("button", { name: "Generate" });
     await waitFor(() => {

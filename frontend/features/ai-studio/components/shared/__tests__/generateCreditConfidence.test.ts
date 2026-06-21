@@ -15,6 +15,7 @@ describe("resolveGenerateCreditConfidence", () => {
         formatCredits,
       })
     ).toEqual({
+      summary: "Balance covers this run",
       title: "Generate music, costs 8 credits, balance 10000 credits",
       status: "covered",
     });
@@ -29,6 +30,7 @@ describe("resolveGenerateCreditConfidence", () => {
         formatCredits,
       })
     ).toEqual({
+      summary: "Needs 5.5 credits more",
       title: "Generate sound effect, costs 8.5 credits, balance 3 credits, short by 5.5 credits",
       status: "short",
     });
@@ -43,6 +45,7 @@ describe("resolveGenerateCreditConfidence", () => {
         formatCredits,
       })
     ).toEqual({
+      summary: "Cost unavailable",
       title: "Generate voiceover, cost unavailable, balance unavailable",
       status: "unknown",
     });

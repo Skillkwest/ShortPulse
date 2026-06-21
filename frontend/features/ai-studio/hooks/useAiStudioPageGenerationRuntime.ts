@@ -391,6 +391,7 @@ export const useAiStudioPageGenerationRuntime = ({
   } = useAiStudioAudioGeneration({
     projectId,
     workspaceRuntimeKey,
+    balanceCredits,
     outputs: outputs ?? [],
     setUiError,
     insertOptimisticGenerationPlaceholder,

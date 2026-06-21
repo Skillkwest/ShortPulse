@@ -54,7 +54,7 @@ describe("MusicPropertiesPanel", () => {
       "aria-checked",
       "false"
     );
-    expect(screen.getByRole("button", { name: "Songs per generate" })).toHaveTextContent("2");
+    expect(screen.getByRole("button", { name: "Songs per generate" })).toHaveTextContent("2 songs");
     expect(screen.getByRole("button", { name: "Music duration" })).toHaveTextContent("Auto");
     expect(screen.getByRole("button", { name: "Music duration" })).toHaveAttribute(
       "title",
@@ -170,7 +170,7 @@ describe("MusicPropertiesPanel", () => {
     );
 
     expect(screen.getByRole("tab", { name: "Standard" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("button", { name: "Songs per generate" })).toHaveTextContent("4");
+    expect(screen.getByRole("button", { name: "Songs per generate" })).toHaveTextContent("4 songs");
 
     fireEvent.click(screen.getByRole("switch", { name: "Instrumental" }));
     fireEvent.click(screen.getByRole("button", { name: "Songs per generate" }));
@@ -218,6 +218,7 @@ describe("MusicPropertiesPanel", () => {
 
     expect(generateButton).toHaveAttribute("data-credit-confidence", "covered");
     expect(generateButton.getAttribute("title")).toContain("balance 10000 credits");
+    expect(screen.getByText("Balance covers this run")).toBeInTheDocument();
   });
 
   it("switches between simple and custom composer modes", () => {

@@ -138,6 +138,7 @@ type AudioGenerateErrorResponse = {
 type UseAiStudioAudioGenerationParams = {
   projectId?: string | null;
   workspaceRuntimeKey?: string | null;
+  balanceCredits?: number | null;
   outputs?: StudioOutput[];
   setUiError: Dispatch<SetStateAction<string | null>>;
   insertOptimisticGenerationPlaceholder: (args: {
@@ -163,6 +164,7 @@ const VOICEOVER_MODEL_ID = resolveRequiredAudioVoiceoverModelId();
 const VOICE_CHANGER_MODEL_ID = resolveRequiredAudioVoiceChangerModelId();
 const MUSIC_MODEL_ID = resolveRequiredAudioMusicModelId();
 const SOUND_EFFECTS_MODEL_ID = resolveRequiredAudioSoundEffectsModelId();
+const INSUFFICIENT_AUDIO_CREDITS_MESSAGE = "You do not have enough credits for this run.";
 
 const buildVoicesOutputModelLabel = (request: VoicesGenerateRequest): string =>
   request.mode === "voiceover"
@@ -186,6 +188,18 @@ const resolveAudioGenerateErrorMessage = ({
       payload?.error?.trim(),
     "Audio generation failed."
   );
+
+const normalizeAudioCreditAmount = (value: number | null | undefined): number | null =>
+  typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
+
+const resolveRequiredAudioCredits = (
+  displayedBilledCredits: number | null | undefined,
+  generationCount = 1
+): number | null => {
+  const normalizedDisplayedCredits = normalizeAudioCreditAmount(displayedBilledCredits);
+  if (normalizedDisplayedCredits == null) return null;
+  return normalizedDisplayedCredits * Math.max(1, Math.floor(generationCount));
+};
 
 const buildAudioShortpulseContext = ({
   selectedTool,
@@ -492,6 +506,7 @@ const applyAudioOutputToPlaceholder = ({
 export const useAiStudioAudioGeneration = ({
   projectId = null,
   workspaceRuntimeKey = null,
+  balanceCredits = null,
   outputs = [],
   setUiError,
   insertOptimisticGenerationPlaceholder,
@@ -505,6 +520,16 @@ export const useAiStudioAudioGeneration = ({
   const musicIsGenerating = musicGenerationCount > 0;
   const voicesIsGenerating = voicesGenerationCount > 0;
   const soundEffectsIsGenerating = soundEffectsGenerationCount > 0;
+  const canSubmitKnownAudioCreditCost = useCallback(
+    (requiredCredits: number | null): boolean => {
+      const normalizedBalanceCredits = normalizeAudioCreditAmount(balanceCredits);
+      if (normalizedBalanceCredits == null || requiredCredits == null) return true;
+      if (normalizedBalanceCredits >= requiredCredits) return true;
+      setUiError(INSUFFICIENT_AUDIO_CREDITS_MESSAGE);
+      return false;
+    },
+    [balanceCredits, setUiError]
+  );
 
   const handleVoicesGenerate = useCallback(
     async (request: VoicesGenerateRequest) => {
@@ -514,6 +539,11 @@ export const useAiStudioAudioGeneration = ({
         request.mode === "voice-changer" && request.source.extractedFrom ? 2 : 1;
       if (getReferenceGridAvailableSlots(outputs) < requiredVisibleSlots) {
         setUiError(REFERENCE_GRID_CAP_REACHED_MESSAGE);
+        return;
+      }
+      if (
+        !canSubmitKnownAudioCreditCost(resolveRequiredAudioCredits(request.displayedBilledCredits))
+      ) {
         return;
       }
 
@@ -681,6 +711,7 @@ export const useAiStudioAudioGeneration = ({
     },
     [
       insertOptimisticGenerationPlaceholder,
+      canSubmitKnownAudioCreditCost,
       notifyGenerationFailure,
       outputs,
       projectId,
@@ -701,6 +732,13 @@ export const useAiStudioAudioGeneration = ({
         return false;
       }
       const { displayedBilledCredits, pricingPolicyReady = true } = request;
+      if (
+        !canSubmitKnownAudioCreditCost(
+          resolveRequiredAudioCredits(displayedBilledCredits, requiredVisibleSlots)
+        )
+      ) {
+        return false;
+      }
       const providerRequest = {
         text: request.text,
         lyrics: request.lyrics ?? "",
@@ -799,6 +837,7 @@ export const useAiStudioAudioGeneration = ({
     },
     [
       insertOptimisticGenerationPlaceholder,
+      canSubmitKnownAudioCreditCost,
       notifyGenerationFailure,
       outputs,
       projectId,
@@ -813,6 +852,9 @@ export const useAiStudioAudioGeneration = ({
       const promptText = request.text.trim();
       if (!promptText) return;
       const { displayedBilledCredits, pricingPolicyReady = true, ...providerRequest } = request;
+      if (!canSubmitKnownAudioCreditCost(resolveRequiredAudioCredits(displayedBilledCredits))) {
+        return;
+      }
 
       setUiError(null);
       setSoundEffectsGenerationCount((count) => count + 1);
@@ -898,6 +940,7 @@ export const useAiStudioAudioGeneration = ({
     },
     [
       insertOptimisticGenerationPlaceholder,
+      canSubmitKnownAudioCreditCost,
       notifyGenerationFailure,
       projectId,
       setUiError,

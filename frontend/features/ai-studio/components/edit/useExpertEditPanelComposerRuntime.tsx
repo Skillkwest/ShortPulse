@@ -35,7 +35,6 @@ type UseExpertEditPanelComposerRuntimeArgs = {
   handleInlineGenerate: () => void;
   inlineGenerateDisabled: boolean;
   costCredits?: number | null;
-  inlineGuardrailReason?: string | null;
   effectiveSelectorModelId: string | null;
   isModelPickerLocked: boolean;
   isModelModalOpen: boolean;
@@ -105,7 +104,6 @@ export function useExpertEditPanelComposerRuntime({
   handleInlineGenerate,
   inlineGenerateDisabled,
   costCredits = null,
-  inlineGuardrailReason = null,
   effectiveSelectorModelId,
   isModelPickerLocked,
   isModelModalOpen,
@@ -176,7 +174,6 @@ export function useExpertEditPanelComposerRuntime({
       onGenerate={handleInlineGenerate}
       inlineGenerateDisabled={inlineGenerateDisabled}
       costCredits={costCredits}
-      inlineGuardrailReason={inlineGuardrailReason}
       modelId={effectiveSelectorModelId}
       isModelPickerLocked={isModelPickerLocked}
       isModelModalOpen={isModelModalOpen}

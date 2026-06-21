@@ -404,6 +404,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const [activeDesignedPreviewId, setActiveDesignedPreviewId] = React.useState<string | null>(null);
   const [voiceScriptState, setVoiceScriptState] = React.useState("");
   const [isEnhancingVoiceover, setIsEnhancingVoiceover] = React.useState(false);
+  const [voiceoverEnhanceDraft, setVoiceoverEnhanceDraft] = React.useState<string | null>(null);
   const [voiceoverEnhanceError, setVoiceoverEnhanceError] = React.useState<string | null>(null);
   const [activePreviewVoiceId, setActivePreviewVoiceId] = React.useState<string | null>(null);
   const {
@@ -1691,6 +1692,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     const script = voiceScript.trim();
     if (!script || isEnhancingVoiceover) return;
     setVoiceoverEnhanceError(null);
+    setVoiceoverEnhanceDraft(null);
     setIsEnhancingVoiceover(true);
     try {
       const response = await fetchWithAuth("/api/ai/voiceover-enhance", {
@@ -1722,7 +1724,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       if (typeof payload?.enhancedScript !== "string" || !payload.enhancedScript.trim()) {
         throw new Error("Unable to enhance voiceover.");
       }
-      setVoiceScript(payload.enhancedScript.slice(0, maxVoiceScriptCharacters));
+      setVoiceoverEnhanceDraft(payload.enhancedScript.slice(0, maxVoiceScriptCharacters));
       const restoreFocus = () => {
         voiceScriptRef.current?.focus();
       };
@@ -1741,7 +1743,19 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     } finally {
       setIsEnhancingVoiceover(false);
     }
-  }, [isEnhancingVoiceover, setVoiceScript, voiceScript]);
+  }, [isEnhancingVoiceover, voiceScript]);
+
+  const handleApplyVoiceoverEnhanceDraft = React.useCallback(() => {
+    if (!voiceoverEnhanceDraft) return;
+    setVoiceScript(voiceoverEnhanceDraft);
+    setVoiceoverEnhanceDraft(null);
+    voiceScriptRef.current?.focus();
+  }, [setVoiceScript, voiceoverEnhanceDraft]);
+
+  const handleDismissVoiceoverEnhanceDraft = React.useCallback(() => {
+    setVoiceoverEnhanceDraft(null);
+    voiceScriptRef.current?.focus();
+  }, []);
 
   const cloneSourceIntake = (
     <VoiceChangerSourceDropzone
@@ -1834,6 +1848,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                       value={voiceScript}
                       onChange={(event) => {
                         setVoiceScript(event.target.value);
+                        setVoiceoverEnhanceDraft(null);
                         setVoiceoverEnhanceError(null);
                       }}
                       onDrop={handleVoiceScriptDrop}
@@ -1875,6 +1890,34 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                       </p>
                     </div>
                   </div>
+                  {voiceoverEnhanceDraft ? (
+                    <div className="voices-properties-enhance-review" role="status">
+                      <div className="voices-properties-enhance-review-copy">
+                        <p className="voices-properties-enhance-review-label">
+                          Enhanced version ready
+                        </p>
+                        <p className="voices-properties-enhance-review-preview">
+                          {voiceoverEnhanceDraft}
+                        </p>
+                      </div>
+                      <div className="voices-properties-enhance-review-actions">
+                        <button
+                          type="button"
+                          className="voices-properties-enhance-review-btn voices-properties-enhance-review-btn--primary"
+                          onClick={handleApplyVoiceoverEnhanceDraft}
+                        >
+                          Apply
+                        </button>
+                        <button
+                          type="button"
+                          className="voices-properties-enhance-review-btn"
+                          onClick={handleDismissVoiceoverEnhanceDraft}
+                        >
+                          Keep original
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               ) : (
                 <VoiceChangerSourceDropzone
@@ -1934,6 +1977,12 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                         {selectedGenerateVoiceName}
                       </span>
                     </span>
+                  </span>
+                  <span
+                    className="voices-properties-credit-confidence"
+                    data-credit-confidence={generateCreditConfidence.status}
+                  >
+                    {generateCreditConfidence.summary}
                   </span>
                 </div>
                 <button

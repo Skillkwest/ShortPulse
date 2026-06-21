@@ -174,15 +174,6 @@ export const useExpertEditPromptComposerRuntime = ({
   const shouldShowResolutionControl = imageResolutionOptions.length > 0;
   const hasPromptText = promptTextValue.trim().length > 0;
   const [isPromptComposerExpanded, setIsPromptComposerExpanded] = React.useState(false);
-  const suppressInlineReferenceGuardrail =
-    guardrailReason === "Add a reference image before generating.";
-  const inlineGuardrailReason = !hasPromptText
-    ? "Describe what should change before generating."
-    : populatedLayerCount <= 0
-      ? "Add a primary image before generating."
-      : suppressInlineReferenceGuardrail
-        ? null
-        : guardrailReason;
   const inpaintLayerSources = React.useMemo(
     () => layers.map((layer) => ({ id: layer.id, imageUrl: layer.imageUrl })),
     [layers]
@@ -310,7 +301,6 @@ export const useExpertEditPromptComposerRuntime = ({
     hasPromptText,
     imageResolutionValue,
     imageResolutionOptions,
-    inlineGuardrailReason,
     inputRefs,
     inpaintLayerSources,
     inpaintPromptReferencePolicy,

@@ -269,8 +269,16 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
         <div ref={splitContainerRef} className="sound-effects-properties-main">
           <section
             className="sound-effects-properties-top-spacer"
+            aria-label="Sound effects overview"
             style={topSectionStyle}
-          ></section>
+          >
+            <div className="sound-effects-properties-top-copy">
+              <p className="sound-effects-properties-top-kicker">Sound Effects</p>
+              <p className="sound-effects-properties-top-text">
+                Impacts, transitions, ambience, and loopable audio accents.
+              </p>
+            </div>
+          </section>
 
           <div
             className="sound-effects-properties-divider-wrap reference-grid-horizontal-divider-wrap"
@@ -437,25 +445,34 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  className="sound-effects-properties-generate-btn"
-                  data-credit-confidence={generateCreditConfidence.status}
-                  disabled={!isGenerateEnabled}
-                  onClick={() => {
-                    void handleGenerate();
-                  }}
-                  aria-label="Generate"
-                  title={generateCreditConfidence.title}
-                >
-                  <span className="sound-effects-properties-generate-label">Generate</span>
-                  <span className="sound-effects-properties-generate-pill" aria-hidden="true">
-                    <span className="sound-effects-properties-generate-cost-icon">✦</span>
-                    <span className="sound-effects-properties-generate-cost-value">
-                      {generateCost != null ? formatCreditValue(generateCost) : "—"}
+                <div className="sound-effects-properties-generate-stack">
+                  <button
+                    type="button"
+                    className="sound-effects-properties-generate-btn"
+                    data-credit-confidence={generateCreditConfidence.status}
+                    disabled={!isGenerateEnabled}
+                    onClick={() => {
+                      void handleGenerate();
+                    }}
+                    aria-label="Generate"
+                    title={generateCreditConfidence.title}
+                  >
+                    <span className="sound-effects-properties-generate-label">Generate</span>
+                    <span className="sound-effects-properties-generate-pill" aria-hidden="true">
+                      <span className="sound-effects-properties-generate-cost-icon">✦</span>
+                      <span className="sound-effects-properties-generate-cost-value">
+                        {generateCost != null ? formatCreditValue(generateCost) : "—"}
+                      </span>
                     </span>
-                  </span>
-                </button>
+                  </button>
+                  <p
+                    className="sound-effects-properties-credit-confidence"
+                    data-credit-confidence={generateCreditConfidence.status}
+                    aria-live="polite"
+                  >
+                    {generateCreditConfidence.summary}
+                  </p>
+                </div>
               </div>
             </div>
           </div>

@@ -39,7 +39,6 @@ type ExpertEditPromptSelectorsColumnProps = {
   onGenerate: () => void;
   inlineGenerateDisabled: boolean;
   costCredits?: number | null;
-  inlineGuardrailReason?: string | null;
   modelId: string | null;
   isModelPickerLocked: boolean;
   isModelModalOpen: boolean;
@@ -80,7 +79,6 @@ export function ExpertEditPromptSelectorsColumn({
   onGenerate,
   inlineGenerateDisabled,
   costCredits = null,
-  inlineGuardrailReason = null,
   modelId,
   isModelPickerLocked,
   isModelModalOpen,
@@ -122,7 +120,6 @@ export function ExpertEditPromptSelectorsColumn({
         onGenerate={onGenerate}
         inlineGenerateDisabled={inlineGenerateDisabled}
         costCredits={costCredits}
-        inlineGuardrailReason={inlineGuardrailReason}
       />
       <ExpertEditSelectorControls
         modelId={modelId}

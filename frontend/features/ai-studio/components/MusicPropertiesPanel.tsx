@@ -731,7 +731,9 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
                             <path d="M3.5 17 12 21.5 20.5 17" />
                           </svg>
                         </span>
-                        <span className="music-properties-footer-pill-value">{songBatchCount}</span>
+                        <span className="music-properties-footer-pill-value">
+                          {songBatchCount} {songBatchCount === 1 ? "song" : "songs"}
+                        </span>
                       </button>
                       {activeFooterMenu === "songs" ? (
                         <div className="music-properties-footer-dropdown-menu" role="menu">
@@ -828,6 +830,13 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
                     </span>
                   </button>
                 </div>
+                <p
+                  className="music-properties-credit-confidence"
+                  data-credit-confidence={generateCreditConfidence.status}
+                  aria-live="polite"
+                >
+                  {generateCreditConfidence.summary}
+                </p>
               </div>
             </div>
           </div>

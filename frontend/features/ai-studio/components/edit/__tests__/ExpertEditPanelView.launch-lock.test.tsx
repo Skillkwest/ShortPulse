@@ -100,13 +100,15 @@ describe("ExpertEditPanelView launch lock", () => {
     expect(screen.getByRole("button", { name: /redo move action/i })).toBeInTheDocument();
   });
 
-  it("explains disabled Generate readiness without showing it when ready", () => {
+  it("keeps Generate disabled until ready without showing a warning strip", () => {
     const { rerender } = render(<ExpertEditPanelView {...baseProps} referenceText="" />);
 
     expect(screen.getByRole("button", { name: "Generate" })).toBeDisabled();
     expect(screen.getByPlaceholderText("Describe what should change...")).toBeInTheDocument();
-    expect(screen.getByText("Describe what should change before generating.")).toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "Expert edit composer" })).toHaveClass(
+    expect(
+      screen.queryByText("Describe what should change before generating.")
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Expert edit composer" })).not.toHaveClass(
       "has-generate-guardrail"
     );
 
@@ -131,7 +133,7 @@ describe("ExpertEditPanelView launch lock", () => {
     );
 
     expect(screen.getByText("Add an image to start editing.")).toBeInTheDocument();
-    expect(screen.getByText("Add a primary image before generating.")).toBeInTheDocument();
+    expect(screen.queryByText("Add a primary image before generating.")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate" })).toBeDisabled();
   });
 

@@ -41,7 +41,6 @@ type ExpertEditPromptComposerProps = {
   onGenerate: () => void;
   inlineGenerateDisabled: boolean;
   costCredits?: number | null;
-  inlineGuardrailReason?: string | null;
 };
 
 export function ExpertEditPromptComposer({
@@ -68,12 +67,8 @@ export function ExpertEditPromptComposer({
   onGenerate,
   inlineGenerateDisabled,
   costCredits = null,
-  inlineGuardrailReason = null,
 }: ExpertEditPromptComposerProps) {
   const shouldRenderPromptMirror = promptTextValue.length > 0;
-  const shouldShowGenerateGuardrail = Boolean(
-    inlineGenerateDisabled && inlineGuardrailReason && !promptTokenInlineError
-  );
 
   return (
     <div className={`edit-expert-bottom-row ${isExpanded ? "is-expanded" : "is-collapsed"}`}>
@@ -208,14 +203,6 @@ export function ExpertEditPromptComposer({
             tone="error"
             mode="inline"
             message={promptTokenInlineError}
-          />
-        ) : null}
-        {shouldShowGenerateGuardrail ? (
-          <AppMessage
-            className="edit-expert-generate-guardrail"
-            tone="warning"
-            mode="compact"
-            message={inlineGuardrailReason}
           />
         ) : null}
       </div>

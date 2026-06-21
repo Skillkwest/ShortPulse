@@ -2019,6 +2019,93 @@
   line-height: 1.35;
 }
 
+.bootstrapStyleScope:global(.voices-properties-enhance-review),
+.bootstrapStyleScope :global(.voices-properties-enhance-review) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(149, 235, 228, 0.18);
+  border-radius: 8px;
+  background: rgba(20, 28, 31, 0.72);
+}
+
+.bootstrapStyleScope:global(.voices-properties-enhance-review-copy),
+.bootstrapStyleScope :global(.voices-properties-enhance-review-copy) {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bootstrapStyleScope:global(.voices-properties-enhance-review-label),
+.bootstrapStyleScope :global(.voices-properties-enhance-review-label),
+.bootstrapStyleScope:global(.voices-properties-enhance-review-preview),
+.bootstrapStyleScope :global(.voices-properties-enhance-review-preview) {
+  margin: 0;
+}
+
+.bootstrapStyleScope:global(.voices-properties-enhance-review-label),
+.bootstrapStyleScope :global(.voices-properties-enhance-review-label) {
+  color: rgba(224, 245, 242, 0.92);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.bootstrapStyleScope:global(.voices-properties-enhance-review-preview),
+.bootstrapStyleScope :global(.voices-properties-enhance-review-preview) {
+  display: -webkit-box;
+  max-height: 40px;
+  overflow: hidden;
+  color: rgba(201, 205, 214, 0.72);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.bootstrapStyleScope:global(.voices-properties-enhance-review-actions),
+.bootstrapStyleScope :global(.voices-properties-enhance-review-actions) {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bootstrapStyleScope:global(.voices-properties-enhance-review-btn),
+.bootstrapStyleScope :global(.voices-properties-enhance-review-btn) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid rgba(201, 205, 214, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(224, 232, 238, 0.86);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.bootstrapStyleScope:global(.voices-properties-enhance-review-btn--primary),
+.bootstrapStyleScope :global(.voices-properties-enhance-review-btn--primary) {
+  border-color: rgba(149, 235, 228, 0.38);
+  background: rgba(149, 235, 228, 0.12);
+  color: rgba(238, 255, 252, 0.96);
+}
+
+.bootstrapStyleScope:global(.voices-properties-enhance-review-btn):hover,
+.bootstrapStyleScope :global(.voices-properties-enhance-review-btn):hover,
+.bootstrapStyleScope:global(.voices-properties-enhance-review-btn):focus-visible,
+.bootstrapStyleScope :global(.voices-properties-enhance-review-btn):focus-visible {
+  border-color: rgba(149, 235, 228, 0.42);
+  background: rgba(149, 235, 228, 0.1);
+  outline: none;
+}
+
 .bootstrapStyleScope:global(.voices-properties-enhance-btn),
 .bootstrapStyleScope :global(.voices-properties-enhance-btn) {
   min-width: 116px;
@@ -2676,6 +2763,30 @@
   align-items: flex-start;
   gap: 2px;
   min-width: 0;
+}
+
+.bootstrapStyleScope:global(.voices-properties-credit-confidence),
+.bootstrapStyleScope :global(.voices-properties-credit-confidence) {
+  display: block;
+  max-width: 180px;
+  overflow: hidden;
+  color: rgba(164, 235, 226, 0.76);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bootstrapStyleScope:global(.voices-properties-credit-confidence[data-credit-confidence="short"]),
+.bootstrapStyleScope :global(.voices-properties-credit-confidence[data-credit-confidence="short"]) {
+  color: rgba(255, 177, 148, 0.9);
+}
+
+.bootstrapStyleScope:global(.voices-properties-credit-confidence[data-credit-confidence="unknown"]),
+.bootstrapStyleScope
+  :global(.voices-properties-credit-confidence[data-credit-confidence="unknown"]) {
+  color: rgba(201, 205, 214, 0.68);
 }
 
 .bootstrapStyleScope:global(.voices-properties-generate-context-value--loaded),

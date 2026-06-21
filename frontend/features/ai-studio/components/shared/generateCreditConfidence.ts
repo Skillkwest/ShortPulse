@@ -10,6 +10,7 @@ export type GenerateCreditConfidenceInput = {
 };
 
 export type GenerateCreditConfidence = {
+  summary: string;
   title: string;
   status: "covered" | "short" | "unknown";
 };
@@ -36,6 +37,7 @@ export const resolveGenerateCreditConfidence = ({
         : `balance ${pluralizeCredits(formatCredits(normalizedBalance))}`;
     const copy = `${actionLabel}, cost unavailable, ${balanceCopy}`;
     return {
+      summary: "Cost unavailable",
       title: copy,
       status: "unknown",
     };
@@ -45,6 +47,7 @@ export const resolveGenerateCreditConfidence = ({
   if (normalizedBalance == null) {
     const copy = `${actionLabel}, ${costCopy}, balance unavailable`;
     return {
+      summary: "Balance unavailable",
       title: copy,
       status: "unknown",
     };
@@ -57,6 +60,7 @@ export const resolveGenerateCreditConfidence = ({
     )}`;
     const copy = `${actionLabel}, ${costCopy}, ${balanceCopy}, ${shortfallCopy}`;
     return {
+      summary: `Needs ${pluralizeCredits(formatCredits(normalizedCost - normalizedBalance))} more`,
       title: copy,
       status: "short",
     };
@@ -64,6 +68,7 @@ export const resolveGenerateCreditConfidence = ({
 
   const copy = `${actionLabel}, ${costCopy}, ${balanceCopy}`;
   return {
+    summary: "Balance covers this run",
     title: copy,
     status: "covered",
   };

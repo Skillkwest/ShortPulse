@@ -39,7 +39,8 @@ Conditional loads:
 - `docs/data-dictionary.md`
   - load when table or column authority is part of the claim.
 - `docs/records/artifacts/agent/bactuo/training-history.md`
-  - load for training updates, agent-maintenance work, or when prior supervised lessons are directly relevant.
+  - load for supervised training updates or when prior supervised lessons are directly relevant.
+  - do not load by default for routine self-prune or maintenance prompts; start from the current contract, SOP, memory, source map, and artifact index instead.
 
 Load only the additional code files, tests, routes, SQL, or production surfaces needed for the current lane.
 
@@ -64,6 +65,7 @@ Load only the additional code files, tests, routes, SQL, or production surfaces 
 8. If a generation bug belongs to the canonical submit, recovery, settlement, or terminal-sync seam, fix that seam instead of adding another resolver, fallback, or duplicate lane.
 9. When the lane is explanation or audit only, avoid implementation drift by editing only the docs or Bactuo artifacts that genuinely need updating.
 10. Keep Bactuo's workspace temporary and Bactuo's retained artifacts durable.
+11. When the user authorizes clearing or ignoring older conversational context, treat older chat as stale execution noise. Do not rely on it unless current repo files or fresh validation re-prove the claim.
 
 ## Deliverable Rules
 

@@ -28,7 +28,8 @@ Do not also load Bactuo artifacts, reports, tools inventory, training history, o
 - `docs/agents/bactuo/ownership-manifest.md`
   - when the lane might cross ownership boundaries
 - `docs/records/artifacts/agent/bactuo/training-history.md`
-  - for training updates or when prior supervised lessons are directly relevant
+  - for supervised training updates or when prior supervised lessons are directly relevant
+  - not for routine self-prune/maintenance runs unless a named prior lesson is needed
 - `docs/records/artifacts/agent/bactuo/README.md`
   - when artifact retention or pruning is part of the lane
 - `docs/agents/bactuo/workspace/README.md`
@@ -118,6 +119,7 @@ Update one or more of these only when the run teaches something reusable:
 Do not store chat noise as memory.
 Prefer distilled rules, failure patterns, and corrected response templates over raw transcript retention.
 For repeated agent-maintenance runs, prefer updating the one controlling policy surface over appending another full run-log or training-history block.
+When the user permits clearing older conversational context, treat older chat as stale and reload current repo files. Literal transcript erasure is not available; operational non-reliance is the enforceable behavior.
 
 ## Definition Of Done
 

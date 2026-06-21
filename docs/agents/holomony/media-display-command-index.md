@@ -211,6 +211,7 @@ Run from `frontend/` unless using `npm -C frontend`.
 - Media-library preview modal: `npm run test -- MediaLibraryPanelPreviewModal`
 - Media-library grid rendering: `npm run test -- MediaLibraryMediaGrid MediaLibraryAllItemsGrid`
 - Media-library panel and double-click handoff: `npm run test -- MediaLibraryPanel`
+- Media-library deep-scroll performance guard: `npm run media:checkpoint:deep-scroll-performance`
 - Embedded wrappers: `npm run test -- ElementsPanelSplitHost CharacterPanelSplitHost CharacterEmbeddedMediaLibraryPanel`
 - Shared runtime: `npm run test -- useMediaLibraryPanelRuntime useMediaLibraryPanelDataController useMediaSurfacePreviewRuntime useMediaSurfacePreviewSigning`
 - Right rail: `npm run test -- ReferenceGrid.curated useAiStudioReferenceGridProps useReferenceGridCardRenderController`

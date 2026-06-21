@@ -8,6 +8,13 @@ If Nuclo is taking over an active task, check this file first:
 
 - `docs/agents/nuclo/CURRENT-HANDOFF.md`
 
+Default-load discipline:
+
+- Load this contract, `docs/agents/nuclo/memory.md`, and `docs/agents/nuclo/CURRENT-HANDOFF.md`.
+- Do not load retained reports, previous handoffs, training history, or workspace scratch by default.
+- For active egress, Supabase, Vercel, SQL, or deployment tasks, load the relevant SOPs and the single matching Nuclo report section through `docs/records/artifacts/agent/nuclo/reports/README.md`.
+- Treat prior-thread material and dated reports as advisory until re-verified against current repo rules, live provider/dashboard state, and direct validation.
+
 Current standing routing:
 
 - active hosted environment, Supabase, SQL remediation, deployment-targeting, and promotion-risk handoffs belong to Nuclo

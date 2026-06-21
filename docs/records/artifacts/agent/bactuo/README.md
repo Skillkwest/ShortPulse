@@ -17,13 +17,16 @@ These artifacts are retained history, not active scratch space. Temporary notes,
 
 Bactuo operates inside the ShortPulse solo-owner model and current pre-launch production-only branch policy. Launch-relevant Bactuo reports must follow `docs/agents/solo-owner-launch-trust-standard.md`.
 
-## Canonical Entry Points
+## Default Entry Points
 
 - Agent contract: `docs/agents/bactuo/README.md`
 - Agent instructions: `docs/agents/bactuo/AGENTS.md`
 - Repo-visible memory: `docs/agents/bactuo/memory.md`
 - Standing SOP: `docs/agents/bactuo/standard-operating-procedure.md`
-- Ownership manifest: `docs/agents/bactuo/ownership-manifest.md`
 - Source map: `docs/agents/bactuo/generation-recovery-settlement-source-map.md`
+
+## Conditional Entry Points
+
+- Ownership manifest: `docs/agents/bactuo/ownership-manifest.md`
 - Architecture plan: `docs/agents/bactuo/generation-architecture-consolidation-plan-2026-06-03.md`
 - Temporary workspace: `docs/agents/bactuo/workspace/`

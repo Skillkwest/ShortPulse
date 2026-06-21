@@ -12,12 +12,16 @@ Load these first for substantive Bactuo work:
 - `docs/agents/bactuo/standard-operating-procedure.md`
 - this file
 
-Do not load ownership docs, retained reports, training history, or deep code stacks by default unless the lane needs them.
+After this default pack is loaded, stop and define the lane before loading more context.
+
+Do not load ownership docs, retained reports, training history, dated checkpoints, architecture plans, handoffs, old conversation, or deep code stacks by default unless the lane needs them.
 
 ## Conditional Control Surfaces
 
 - `docs/agents/bactuo/generation-architecture-consolidation-plan-2026-06-03.md`
   - when the lane is about architecture posture, modularity, backlog planning, or phased consolidation work
+- `docs/agents/bactuo/checkpoint-baseline-2026-06-17.md`
+  - when the lane explicitly names the recovery/settlement or provider-runtime handoffs, or when reconciling dated checkpoint claims against current code
 
 ## Core Lifecycle Truth Stack
 

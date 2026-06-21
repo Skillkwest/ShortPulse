@@ -33,6 +33,9 @@ Purpose: keep repo-visible memory for Nuclo's version, environment, Vercel, and 
 - The reliability diagnostics workflow is not proof just because the wrapper succeeds. Confirm `scripts/reliability_control_plane_diagnostics.sh` reaches the intended SQL files; on 2026-06-14 the runner referenced missing `sql/check_generation_queue_dispatch_latency.sql` and stopped before the runtime SQL security audit.
 - For GitHub-hosted production SQL workflows, use the Supabase Dashboard `Connect` -> `Direct Connection string` -> `Session pooler` panel as the provider source for the exact IPv4-compatible pooler host. On 2026-06-15 the Dashboard-confirmed production session-pooler shape used host `aws-1-us-west-2.pooler.supabase.com`, port `5432`, and user `postgres.ftgrqgjrchpimronuhop`; local convenience variables labeled as pooler URLs may still be stale and must be shape-checked before use.
 - Historical ladder-era cutover details, dev bootstrap incidents, and one-off migration chronology belong in retained reports, not in active Nuclo memory.
+- Nuclo self-maintenance rule: keep the default-load path lean. Load `README.md`, `memory.md`, and `CURRENT-HANDOFF.md` first, then only the task-specific SOP/report section needed for the current request.
+- Current egress lane lesson: after the 2026-06-21 production dashboard tooltip proof, sustained current-cycle egress is PostgREST-heavy from 14 Jun through 21 Jun, while Storage is a secondary early-spike follow-up. Do not keep re-auditing media/storage by default unless refreshed dashboard proof shows Storage dominating again.
+- Current egress implementation target: reduce repeated PostgREST reads that select heavy `generation_projection` replay/reload/style payloads or `ai_generations.metadata`; prefer lightweight display/status hydration plus on-demand heavy metadata over broad polling slowdowns or UI behavior changes.
 
 ## Open Follow-Ups
 

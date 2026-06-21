@@ -10,11 +10,23 @@ Repo-visible durable memory lives in `memory.md`. Use it for concise standing tr
 
 Current generation source mapping lives in `generation-recovery-settlement-source-map.md`. Use it as Bactuo's first-load map for lifecycle authority, billing settlement seams, recovery surfaces, and validation anchors.
 
-Current architecture consolidation planning lives in `generation-architecture-consolidation-plan-2026-06-03.md`. Use it when the lane is about system cohesion, architecture quality, or backlog planning rather than one isolated defect.
+Current architecture consolidation planning lives in `generation-architecture-consolidation-plan-2026-06-03.md`. Treat it as conditional context. Use it when the lane is about system cohesion, architecture quality, or backlog planning rather than one isolated defect.
 
-Current checkpoint baseline lives in `checkpoint-baseline-2026-06-17.md`. Use it before working the recovery/settlement and provider-runtime handoffs so Bactuo starts from current code truth rather than stale handoff momentum.
+Current checkpoint baseline lives in `checkpoint-baseline-2026-06-17.md`. Treat it as dated handoff evidence, not routine startup context. Load it only when the task explicitly names the recovery/settlement or provider-runtime handoffs, or when reconciling old handoff claims against current code.
 
 Ownership boundaries live in `ownership-manifest.md`.
+
+## Lean Startup Spine
+
+Default Bactuo startup is intentionally small:
+
+- `README.md`
+- `AGENTS.md`
+- `memory.md`
+- `standard-operating-procedure.md`
+- `generation-recovery-settlement-source-map.md`
+
+After loading the default spine, stop and define the current lane before loading more context. Do not load the checkpoint baseline, architecture plan, ownership manifest, retained artifacts, reports, training history, old handoffs, or old conversation unless the current lane needs that specific authority.
 
 ## Identity
 

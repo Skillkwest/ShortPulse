@@ -24,7 +24,7 @@ Current context note:
 - `2026-06-02-kie-vercel-production-env-audit.md`: read-only Vercel environment audit for Kie/Kling auth failures, covering key-name precedence, submit-URL override posture, effective env-pull observations, and the remaining contradiction between CLI pull output and operator dashboard claim.
 - `2026-06-14-production-security-billing-proof-closeout.md`: production-only hosted SQL security and billing bootstrap closeout, including runtime SQL audit `failing_checks = 0`, signup trigger proof, billing readiness results, and explicit deferrals for Stripe/two-account/workflow proof.
 - `2026-06-14-production-supabase-db-url-reliability-diagnostics-closeout.md`: production GitHub Environment `SUPABASE_DB_URL` session-pooler repair plus hosted reliability diagnostics closeout; environment connectivity passed, but async convergence proof remains blocked by nonzero production defect classes.
-- `2026-06-20-supabase-egress-optimization-production-audit.md`: production egress optimization audit with live route proof, transform guard proof, production storage variant coverage, object delivery samples, and the Gearball-owned media API stop boundary.
+- `2026-06-20-supabase-egress-optimization-production-audit.md`: production egress optimization audit with live route proof, transform guard proof, storage and media byte-risk proof, Supabase dashboard service-split tooltip proof, and the current PostgREST-heavy optimization direction.
 
 Load when:
 
@@ -36,7 +36,12 @@ Load when:
 - you need the Kie/Kling Vercel env audit packet before another agent continues the runtime auth-failure investigation
 - you need the production security/billing hosted proof boundary before continuing Stripe, two-account isolation, or reliability-workflow release evidence
 - you need the hosted production reliability diagnostics result after the GitHub `SUPABASE_DB_URL` IPv4/session-pooler repair
-- you need the latest Nuclo proof packet for Supabase egress optimization, video variant coverage, storage object delivery health, or the Gearball media API ownership boundary
+- you need the latest Nuclo proof packet for Supabase egress optimization, video variant coverage, storage object delivery health, dashboard service split, or PostgREST payload/cadence optimization
+
+Load guidance for the egress report:
+
+- Do not load the full report by default. Start at the latest dashboard/service-split and PostgREST payload sections unless the task explicitly asks for historical media/storage proof.
+- Treat media/storage cleanup as secondary unless refreshed Supabase Usage proof shows Storage dominating again.
 
 ### Foundation And Environment Model
 

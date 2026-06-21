@@ -29,7 +29,7 @@ const asNumber = (value: unknown): number | null => {
   return null;
 };
 
-const lastProjectionRepairRunMsByMode = new Map<string, number>();
+const lastProjectionRepairRunBucketByMode = new Map<string, number>();
 
 const shouldRunProjectionRepair = ({
   intervalSeconds,
@@ -43,12 +43,20 @@ const shouldRunProjectionRepair = ({
   routeLabel: string;
 }): boolean => {
   if (intervalSeconds <= 0) return true;
-  const key = `${routeLabel}:${mode}`;
-  const lastRunMs = lastProjectionRepairRunMsByMode.get(key);
-  if (typeof lastRunMs === "number" && nowMs - lastRunMs < intervalSeconds * 1000) {
+  const intervalMs = intervalSeconds * 1000;
+  const bucket = Math.floor(nowMs / intervalMs);
+  const elapsedInBucketMs = nowMs - bucket * intervalMs;
+  const eligibleWindowMs = Math.min(60_000, intervalMs);
+  if (elapsedInBucketMs >= eligibleWindowMs) {
     return false;
   }
-  lastProjectionRepairRunMsByMode.set(key, nowMs);
+
+  const key = `${routeLabel}:${mode}`;
+  const lastRunBucket = lastProjectionRepairRunBucketByMode.get(key);
+  if (lastRunBucket === bucket) {
+    return false;
+  }
+  lastProjectionRepairRunBucketByMode.set(key, bucket);
   return true;
 };
 

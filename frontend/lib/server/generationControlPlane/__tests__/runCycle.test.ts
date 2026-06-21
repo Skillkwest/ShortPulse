@@ -275,8 +275,8 @@ describe("runGenerationControlPlaneCycle", () => {
       rpc: supabase.rpc,
       from: supabase.from,
     });
-    process.env.SHORTPULSE_FAL_PROJECTION_REPAIR_INTERVAL_SECONDS = "60";
-    let nowMs = 1_000_000;
+    process.env.SHORTPULSE_FAL_PROJECTION_REPAIR_INTERVAL_SECONDS = "300";
+    let nowMs = 900_000;
     const dateNowSpy = vi.spyOn(Date, "now").mockImplementation(() => nowMs);
 
     try {
@@ -285,12 +285,13 @@ describe("runGenerationControlPlaneCycle", () => {
           routeLabel: "worker/generation-control-plane-throttle-test",
         },
       });
+      nowMs += 60_000;
       const secondResult = await runGenerationControlPlaneCycle({
         context: {
-          routeLabel: "worker/generation-control-plane-throttle-test",
+          routeLabel: "worker/generation-control-plane-throttle-test-cold-start",
         },
       });
-      nowMs += 60_000;
+      nowMs += 240_000;
       const thirdResult = await runGenerationControlPlaneCycle({
         context: {
           routeLabel: "worker/generation-control-plane-throttle-test",

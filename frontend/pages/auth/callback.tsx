@@ -11,8 +11,11 @@ import {
   hasPasswordRecoveryHint,
   readHashParams,
   resolveAuthCallbackError,
+  resolveAuthCallbackErrorCode,
   resolveAuthCallbackFlow,
   resolveAuthCallbackFlowFromAsPath,
+  resolveAuthCallbackOAuthProvider,
+  resolveAuthCallbackOAuthProviderFromAsPath,
   resolveNextPath,
   resolveNextPathFromAsPath,
 } from "../../lib/authRedirects";
@@ -75,6 +78,22 @@ const readCallbackAccessToken = (asPath: string, hash: string): string | null =>
 const isCallbackCompletionEvent = (event: string): event is CompletionAuthEvent =>
   event === "SIGNED_IN" || event === "USER_UPDATED";
 
+const buildAuthReturnPath = (options: {
+  nextPath: string;
+  callbackFlow: "signin" | "signup" | "recovery" | "email-change";
+  oauthStatus?: "cancelled";
+}): string => {
+  const params = new URLSearchParams();
+  params.set("next", options.nextPath);
+  if (options.callbackFlow === "signup") {
+    params.set("mode", "signup");
+  }
+  if (options.oauthStatus) {
+    params.set("oauth", options.oauthStatus);
+  }
+  return `/auth?${params.toString()}`;
+};
+
 export default function AuthCallbackPage() {
   const router = useRouter();
   const replace = router.replace;
@@ -94,6 +113,23 @@ export default function AuthCallbackPage() {
     }
     return resolveNextPathFromAsPath(router.asPath || "");
   }, [router.asPath, router.isReady, router.query.next]);
+  const oauthProvider = useMemo(() => {
+    if (router.isReady) {
+      return (
+        resolveAuthCallbackOAuthProvider(router.query.provider) ??
+        resolveAuthCallbackOAuthProviderFromAsPath(router.asPath || "")
+      );
+    }
+    return resolveAuthCallbackOAuthProviderFromAsPath(router.asPath || "");
+  }, [router.asPath, router.isReady, router.query.provider]);
+  const callbackErrorCode = useMemo(
+    () =>
+      resolveAuthCallbackErrorCode(
+        router.asPath || "",
+        typeof window === "undefined" ? "" : window.location.hash
+      ),
+    [router.asPath]
+  );
   const callbackError = useMemo(
     () =>
       resolveAuthCallbackError(
@@ -102,6 +138,8 @@ export default function AuthCallbackPage() {
       ),
     [router.asPath]
   );
+  const isGoogleOAuthCallback = oauthProvider === "google";
+  const isGoogleOAuthAccessDenied = isGoogleOAuthCallback && callbackErrorCode === "access_denied";
   const recoveryFlowHint = useMemo(
     () =>
       hasPasswordRecoveryHint(
@@ -133,25 +171,34 @@ export default function AuthCallbackPage() {
   const [loading, setLoading] = useState(false);
   const [retryingEmailSync, setRetryingEmailSync] = useState(false);
   const [emailSyncRetryAvailable, setEmailSyncRetryAvailable] = useState(false);
-  const [error, setError] = useState<string | null>(callbackError);
+  const [error, setError] = useState<string | null>(
+    callbackError && !isGoogleOAuthAccessDenied ? callbackError : null
+  );
   const [info, setInfo] = useState<string | null>(null);
   const completionStartedRef = useRef(false);
   const completionEventSeenRef = useRef(false);
   const recoveryEventSeenRef = useRef(false);
 
   const signInHref = useMemo(() => {
-    const params = new URLSearchParams();
-    params.set("next", nextPath);
-    return `/auth?${params.toString()}`;
-  }, [nextPath]);
+    return buildAuthReturnPath({ nextPath, callbackFlow });
+  }, [callbackFlow, nextPath]);
+  const oauthCancelledHref = useMemo(
+    () => buildAuthReturnPath({ nextPath, callbackFlow, oauthStatus: "cancelled" }),
+    [callbackFlow, nextPath]
+  );
 
   useEffect(() => {
-    if (!callbackError) return;
+    if (!isGoogleOAuthAccessDenied) return;
+    void replace(oauthCancelledHref);
+  }, [isGoogleOAuthAccessDenied, oauthCancelledHref, replace]);
+
+  useEffect(() => {
+    if (!callbackError || isGoogleOAuthAccessDenied) return;
     setStatus("error");
     setError(callbackError);
     setInfo(null);
     setEmailSyncRetryAvailable(false);
-  }, [callbackError]);
+  }, [callbackError, isGoogleOAuthAccessDenied]);
 
   useEffect(() => {
     let cancelled = false;
@@ -230,7 +277,7 @@ export default function AuthCallbackPage() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      if (callbackError) return;
+      if (callbackError || isGoogleOAuthAccessDenied) return;
       primeSupabaseSession(session ?? null);
       if (event === "PASSWORD_RECOVERY") {
         if (cancelled) return;
@@ -255,13 +302,13 @@ export default function AuthCallbackPage() {
 
     void readSupabaseSession()
       .then((session) => {
-        if (cancelled || callbackError) return;
+        if (cancelled || callbackError || isGoogleOAuthAccessDenied) return;
         if (session && isTrustedInitialSession(session)) {
           void handleResolvedSession(session);
           return;
         }
         window.setTimeout(() => {
-          if (cancelled || callbackError) return;
+          if (cancelled || callbackError || isGoogleOAuthAccessDenied) return;
           if (callbackFlow === "recovery") {
             if (recoveryEventSeenRef.current) {
               return;
@@ -273,6 +320,14 @@ export default function AuthCallbackPage() {
             return;
           }
           if (completionEventSeenRef.current) return;
+          if (
+            isGoogleOAuthCallback &&
+            !callbackArtifactsPresent &&
+            (callbackFlow === "signin" || callbackFlow === "signup")
+          ) {
+            void replace(oauthCancelledHref);
+            return;
+          }
           setStatus("error");
           setInfo(null);
           setEmailSyncRetryAvailable(false);
@@ -296,7 +351,10 @@ export default function AuthCallbackPage() {
     callbackArtifactsPresent,
     callbackError,
     callbackFlow,
+    isGoogleOAuthAccessDenied,
+    isGoogleOAuthCallback,
     nextPath,
+    oauthCancelledHref,
     recoveryFlowHint,
     replace,
   ]);

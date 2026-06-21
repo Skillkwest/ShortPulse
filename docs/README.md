@@ -49,6 +49,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/dev-ground-rules.md`
 - `docs/conventions.md`
 - `docs/agent-playbook.md`
+- `docs/adr/0094-paid-signup-intent-gate.md`
 - `docs/AGENTS.md`
 - `docs/developer-analytics-stat-sheet.md`
 - `docs/ux-decision-framework.md`
@@ -293,7 +294,6 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/sops/sop_media_performance_operations.md`
 - `docs/sops/sop_media_panel_performance_kpi.md`
 - `docs/sops/sop_adaptive_media_change_control.md`
-- `docs/sops/sop_performance_ai_detection.md`
 - `docs/sops/sop_ai_studio_index.md`
 - `docs/sops/sop_ai_studio_agent.md`
 - `docs/sops/sop_ai_studio_agent_chat_ops.md`
@@ -343,8 +343,6 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/product/media-storage-save-blocking.md`
 - `docs/product/growth-analytics-admin-stats.md`
 - `docs/product/shortpulse_ai_studio.md`
-- `docs/product/shortflow_outlier_source_of_truth.md`
-- `docs/product/shortpulse_top_performing_videos_source_of_truth.md`
 - `docs/product/short_pulse_ideal_customer_profile_icp.md`
 
 ## Planning And History
@@ -531,7 +529,6 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/design/ai-studio-color-inventory.tsv`
 - `docs/design/ai-studio-inline-color-inventory.tsv`
 - `docs/design/ai-studio-typography-inventory.tsv`
-- `docs/design/short-flow-color-system-design-rationale.md`
 - `docs/brainstorming/README.md`
 
 ## Automation

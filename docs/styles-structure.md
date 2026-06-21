@@ -16,9 +16,6 @@ Purpose: explain how CSS is split to keep files focused and under the line limit
 - `styles/workspace-profile.css`: Profile/account/billing surfaces.
 - `styles/prefabs-agent.css`: Core styling for agent prefabs shared across features.
 - `styles/prefabs-agent-variants.css`: Compact/variant treatments for agent prefabs (chat shell, compact buttons).
-- `styles/performance-core.css`: Analytics chart shell, tooltips, filter bars, compact list cards.
-- `styles/performance-detail.css`: Modal, trend cards, selection/detail treatments.
-- `styles/performance-responsive.css`: Detail/responsive tweaks and focus states for analytics surfaces.
 - `styles/landing-core.css`: Marketing nav/hero/core layout.
 - `styles/landing-sections.css`: Marketing feature/pricing/FAQ sections and responsive rules.
 - `styles/ai-studio-layout.css`: AI Studio chrome (page shell, hero strip, toolbar/column layout).
@@ -76,6 +73,5 @@ Purpose: explain how CSS is split to keep files focused and under the line limit
 5. prefabs (`prefabs-agent.css`, `prefabs-agent-variants.css`)
 6. ai-studio secondary/editor layers (`ai-studio-properties` through `ai-studio-create-expert-responsive`)
 7. character + workspace route sheets (`character.css`, `character-manager.css`, `workspace-tools.css`, `workspace-media.css`, `workspace-profile.css`)
-8. performance (`performance-core.css`, `performance-detail.css`, `performance-responsive.css`)
-9. landing (`landing-core.css`, `landing-sections.css`)
-10. auth + viewport lock (`auth.css`, `viewport-lock.css`)
+8. landing (`landing-core.css`, `landing-sections.css`)
+9. auth + viewport lock (`auth.css`, `viewport-lock.css`)

@@ -6,6 +6,7 @@ import Link from "next/link";
 
 type PublicHomeFooterProps = {
   createProjectHref: string;
+  communityHref: string;
   footerLoginHref: string;
   footerPricingHref: string;
   launchAppLabel?: string;
@@ -19,6 +20,7 @@ type PublicHomeFooterProps = {
  */
 export function PublicHomeFooter({
   createProjectHref,
+  communityHref,
   footerLoginHref,
   footerPricingHref,
   launchAppLabel = "Launch App",
@@ -68,7 +70,7 @@ export function PublicHomeFooter({
 
         <div className="public-home-footer-cta">
           <span>Join the community</span>
-          <Link href={createProjectHref} className="public-home-footer-button" prefetch={false}>
+          <Link href={communityHref} className="public-home-footer-button" prefetch={false}>
             {communityCtaLabel}
           </Link>
         </div>

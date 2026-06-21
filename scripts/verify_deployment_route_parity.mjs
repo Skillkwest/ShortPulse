@@ -22,6 +22,8 @@ export const DEFAULT_REQUIRED_ROUTES = [
 ];
 
 export const DEFAULT_FORBIDDEN_ROUTES = [
+  "/performance",
+  "/performance-soon",
   "/landing",
   "/creator-studio",
   "/onboarding",

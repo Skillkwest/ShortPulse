@@ -276,22 +276,6 @@ Checklist:
   npm install
   ```
 
-## Next image host not configured (`images.pexels.com`)
-
-Symptoms:
-
-- Runtime error:
-  - `Invalid src prop (...) hostname "images.pexels.com" is not configured under images in your next.config.js`
-
-Checklist:
-
-- Confirm `frontend/next.config.js` `images.remotePatterns` includes `images.pexels.com`.
-- Restart `npm run dev` after any `next.config.js` updates.
-
-Mitigation:
-
-- Add `images.pexels.com` to trusted image hosts in `frontend/next.config.js` and restart dev server.
-
 ## Media Library card previews hit `/_next/image` `500` with Supabase signed URLs
 
 Symptoms:

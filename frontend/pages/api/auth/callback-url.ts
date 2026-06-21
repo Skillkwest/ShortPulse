@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import {
   buildAuthCallbackUrl,
   resolveAuthCallbackFlow,
+  resolveAuthCallbackOAuthProvider,
   resolveNextPath,
 } from "../../../lib/authRedirects";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
@@ -37,6 +38,7 @@ export default async function handler(
   if (!flow) {
     return res.status(400).json({ error: "Invalid auth callback flow." });
   }
+  const oauthProvider = resolveAuthCallbackOAuthProvider(req.query.provider);
 
   try {
     const origin = resolvePublicAppOrigin(req);
@@ -57,6 +59,7 @@ export default async function handler(
         origin,
         flow,
         nextPath: resolveNextPath(readQueryValue(req.query.next) ?? undefined),
+        oauthProvider: oauthProvider ?? undefined,
       }),
     });
   } catch (error) {

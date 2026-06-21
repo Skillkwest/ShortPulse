@@ -5,6 +5,8 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthenticatedDashboardView } from "../../features/dashboard/components/AuthenticatedDashboardView";
+import { SHORTPULSE_COMMUNITY_URL } from "../../features/dashboard/communityLinks";
+import { DashboardAppBar } from "../../features/dashboard/components/DashboardAppBar";
 import DashboardPage from "../../pages/dashboard";
 
 const useRouterMock = vi.hoisted(() => vi.fn());
@@ -288,6 +290,14 @@ describe("Dashboard actions", () => {
     expect(document.querySelector(".app-bar .brand-mark-logo")).not.toHaveAttribute("href");
   });
 
+  it("renders the dashboard logo with a ShortPulse wordmark", () => {
+    render(<DashboardAppBar cards={[]} actionSlot={<span />} brandHref={null} />);
+
+    expect(screen.getByLabelText("ShortPulse logo")).toBeInTheDocument();
+    expect(screen.getByText("ShortPulse")).toBeInTheDocument();
+    expect(document.querySelector(".app-bar .brand-mark-logo")).not.toHaveAttribute("href");
+  });
+
   it("updates the route announcer when the authenticated dashboard branch resolves", async () => {
     const routeAnnouncer = document.createElement("p");
     routeAnnouncer.id = "__next-route-announcer__";
@@ -334,6 +344,10 @@ describe("Dashboard actions", () => {
   it("links signed-in dashboard account summary cards to profile account sections", async () => {
     render(<DashboardPage />);
 
+    expect(await screen.findByRole("link", { name: /^Creator hub:/i })).toHaveAttribute(
+      "href",
+      SHORTPULSE_COMMUNITY_URL
+    );
     expect(await screen.findByRole("link", { name: /^Media Storage:/i })).toHaveAttribute(
       "href",
       "/profile?section=storage"
@@ -363,10 +377,13 @@ describe("Dashboard actions", () => {
       "/profile?section=subscription"
     );
     expect(within(footer).queryByRole("link", { name: "Login" })).not.toBeInTheDocument();
-    expect(within(footer).queryByRole("link", { name: "Join Free" })).not.toBeInTheDocument();
+    expect(within(footer).getByRole("link", { name: "Join Free" })).toHaveAttribute(
+      "href",
+      SHORTPULSE_COMMUNITY_URL
+    );
     expect(within(footer).getAllByRole("link", { name: "Open AI Studio" })).toSatisfy(
       (links: HTMLAnchorElement[]) =>
-        links.length === 2 && links.every((link) => link.getAttribute("href") === "/ai-studio")
+        links.length === 1 && links.every((link) => link.getAttribute("href") === "/ai-studio")
     );
   });
 

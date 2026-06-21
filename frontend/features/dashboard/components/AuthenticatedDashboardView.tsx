@@ -14,6 +14,7 @@ import { PublicHomeCommunitySection } from "./PublicHomeCommunitySection";
 import { PublicHomeFooter } from "./PublicHomeFooter";
 import { PublicHomeTutorialShowcase } from "./PublicHomeTutorialShowcase";
 import { PublicHomeVideoGallery } from "./PublicHomeVideoGallery";
+import { SHORTPULSE_COMMUNITY_URL } from "../communityLinks";
 
 export type DashboardAnnouncement = {
   id: string;
@@ -130,7 +131,7 @@ export function AuthenticatedDashboardView({
 
       <PublicHomeTutorialShowcase tutorials={dashboardTutorials} launchHref="/ai-studio" />
 
-      <PublicHomeCommunitySection createProjectHref="/ai-studio" />
+      <PublicHomeCommunitySection communityHref={SHORTPULSE_COMMUNITY_URL} />
 
       <PublicHomeVideoGallery loginHref="/profile?section=account" signupHref="/ai-studio" />
 
@@ -189,12 +190,12 @@ export function AuthenticatedDashboardView({
 
       <PublicHomeFooter
         createProjectHref="/ai-studio"
+        communityHref={SHORTPULSE_COMMUNITY_URL}
         footerLoginHref="/profile?section=account"
         footerPricingHref="/profile?section=subscription"
         launchAppLabel="Open AI Studio"
         footerPricingLabel="Subscription"
         footerLoginLabel="Account"
-        communityCtaLabel="Open AI Studio"
       />
     </>
   );

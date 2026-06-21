@@ -80,6 +80,10 @@ Safety posture:
 - Fallback: execute targeted corrective SQL and redeploy the previous known-good app revision.
 - Always document migration failures and corrections in project docs.
 
+## Auth signup gate
+
+Paid Google/email signup requires `sql/migrations/164_add_paid_signup_intent_gate.sql` plus the hosted Supabase Auth Before User Created hook pointed at `public.hook_shortpulse_paid_signup_intent(event jsonb)`. The paired rollback is `sql/migrations/rollback/164_add_paid_signup_intent_gate_rollback.sql`, but disable the hosted hook before dropping the function.
+
 ## Current required migration set (billing + generation)
 
 For environments bootstrapped from `docs/supabase_full_schema.sql`, apply these migrations to match current API behavior:

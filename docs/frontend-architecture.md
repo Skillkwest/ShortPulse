@@ -5,20 +5,20 @@ Purpose: describe how the frontend is structured after modularization so new wor
 ## Top-level layout
 
 - `pages/`: Route entry points. Keep them lean; orchestrate data + composed components.
-- `components/`: Reusable UI elements shared across features (e.g., `PerformanceScatter`).
+- `components/`: Reusable UI elements shared across features (for example, `AppMessage` and shared modal primitives).
 - `prefabs/{domain}/`: Prefab UI kits that need consistent styling across features (current: `prefabs/agent`).
 - `features/{featureName}/`: Feature-scoped folders. Each feature owns its types, data, logic, utils, and components.
 - `styles/`: Modular CSS files imported via `styles/globals.css`.
 - `lib/`: Cross-cutting clients/helpers (e.g., `supabaseClient`).
 
-## Feature module pattern (example: `features/performance`)
+## Feature module pattern
 
 - `types.ts`: Shared TypeScript types/enums for the feature.
-- `constants.ts`: Thresholds, labels, sample assets.
-- `data/`: Fixtures or seed data (`data/sampleVideos.ts`).
-- `utils/`: Pure helpers (`formatters.ts`, `statistics.ts`).
-- `logic/`: Pure business logic (`scoring.ts`, `analytics.ts`).
-- `components/`: Feature-scoped UI building blocks (`FilterBars`, `CompactVideoCard`, etc.).
+- `constants.ts`: Thresholds, labels, and local feature constants.
+- `data/`: Fixtures or seed data when the feature needs them.
+- `utils/`: Pure helpers.
+- `logic/`: Pure business logic.
+- `components/`: Feature-scoped UI building blocks.
 - Page layer imports from these folders; no business logic should live directly in `pages/`.
 
 ## Prefabs (shared UI kits)

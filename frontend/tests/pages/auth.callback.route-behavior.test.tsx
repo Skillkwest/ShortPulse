@@ -110,8 +110,8 @@ describe("Auth callback route behavior", () => {
 
   it("redirects after a Google sign-in callback without running email-change sync", async () => {
     setCallbackRoute(
-      "/auth/callback?flow=signin&next=%2Fprofile%3Fsection%3Daccount#access_token=test-token&refresh_token=refresh-token",
-      { flow: "signin", next: "/profile?section=account" }
+      "/auth/callback?flow=signin&next=%2Fprofile%3Fsection%3Daccount&provider=google#access_token=test-token&refresh_token=refresh-token",
+      { flow: "signin", next: "/profile?section=account", provider: "google" }
     );
     readSupabaseSessionMock.mockResolvedValue({
       user: { id: "user-1" },
@@ -312,6 +312,48 @@ describe("Auth callback route behavior", () => {
       await screen.findByText("This sign-in link is invalid or has expired. Try signing in again.")
     ).toBeInTheDocument();
     expect(replaceMock).not.toHaveBeenCalled();
+  });
+
+  it("returns to auth when Google sign-in is cancelled by the provider", async () => {
+    setCallbackRoute(
+      "/auth/callback?flow=signin&next=%2Fdashboard&provider=google&error=access_denied",
+      { flow: "signin", next: "/dashboard", provider: "google", error: "access_denied" }
+    );
+    readSupabaseSessionMock.mockResolvedValue(null);
+
+    render(<AuthCallbackPage />);
+
+    await waitFor(() => {
+      expect(replaceMock).toHaveBeenCalledWith("/auth?next=%2Fdashboard&oauth=cancelled");
+    });
+    expect(
+      screen.queryByText("This sign-in link is invalid or has expired. Try signing in again.")
+    ).not.toBeInTheDocument();
+  });
+
+  it("returns to signup auth when a Google signup callback has no artifacts or session", async () => {
+    setCallbackRoute(
+      "/auth/callback?flow=signup&next=%2Fpricing%3Fintent%3Dcreate-project%26plan%3Dstarter&provider=google",
+      {
+        flow: "signup",
+        next: "/pricing?intent=create-project&plan=starter",
+        provider: "google",
+      }
+    );
+    readSupabaseSessionMock.mockResolvedValue(null);
+
+    render(<AuthCallbackPage />);
+
+    await waitFor(() => {
+      expect(replaceMock).toHaveBeenCalledWith(
+        "/auth?next=%2Fpricing%3Fintent%3Dcreate-project%26plan%3Dstarter&mode=signup&oauth=cancelled"
+      );
+    });
+    expect(
+      screen.queryByText(
+        "This confirmation link is invalid or has expired. Sign up again to request a new confirmation email."
+      )
+    ).not.toBeInTheDocument();
   });
 
   it("allows retrying email sync after Supabase confirms the email but downstream sync fails", async () => {

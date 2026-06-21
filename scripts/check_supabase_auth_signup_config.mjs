@@ -3,6 +3,8 @@
 /**
  * Verifies and optionally disables public Supabase Auth signups via the
  * Supabase Management API without printing secrets or raw config values.
+ * Default posture remains pre-launch closed signup. Use --expect-enabled only
+ * after the paid signup intent hook is configured and verified separately.
  */
 
 import process from "node:process";
@@ -23,6 +25,7 @@ Options:
   --environment <name>                 Label for output. Default: production.
   --project-ref <ref>                  Supabase project ref to inspect.
   --expect-disabled                    Exit non-zero unless disable_signup is true. Default.
+  --expect-enabled                     Exit non-zero unless disable_signup is false.
   --no-expect-disabled                 Report only.
   --apply-disable-signup               PATCH disable_signup=true.
   --confirm-disable-signup <ref>       Required with --apply-disable-signup; must match project ref.
@@ -47,7 +50,7 @@ const parseArgs = (argv) => {
   const parsed = {
     environment: "production",
     projectRef: "",
-    expectDisabled: true,
+    expectedSignupState: "disabled",
     applyDisableSignup: false,
     confirmDisableSignup: "",
     help: false,
@@ -72,11 +75,15 @@ const parseArgs = (argv) => {
       continue;
     }
     if (arg === "--expect-disabled") {
-      parsed.expectDisabled = true;
+      parsed.expectedSignupState = "disabled";
+      continue;
+    }
+    if (arg === "--expect-enabled") {
+      parsed.expectedSignupState = "enabled";
       continue;
     }
     if (arg === "--no-expect-disabled") {
-      parsed.expectDisabled = false;
+      parsed.expectedSignupState = "report-only";
       continue;
     }
     if (arg === "--apply-disable-signup") {
@@ -205,9 +212,14 @@ const main = async () => {
     ? await fetchAuthConfig({ projectRef, token })
     : before;
   const finalDisabled = finalConfig?.disable_signup === true;
-  if (args.expectDisabled && !finalDisabled) {
+  if (args.expectedSignupState === "disabled" && !finalDisabled) {
     throw new Error(
       "Launch security check failed: Supabase Auth public signup is still enabled.",
+    );
+  }
+  if (args.expectedSignupState === "enabled" && finalDisabled) {
+    throw new Error(
+      "Launch signup check failed: Supabase Auth public signup is still disabled.",
     );
   }
 };

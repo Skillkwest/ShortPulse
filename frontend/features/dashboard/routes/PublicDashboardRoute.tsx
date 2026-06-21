@@ -13,6 +13,7 @@ import { loadGrowthTelemetry } from "../../../lib/growthTelemetryLoader";
 import type { PublicDashboardStaticProps } from "./publicDashboardData";
 import { readDashboardTutorialsFromPublicEndpoint } from "../logic/dashboardTutorialEndpointClient";
 import { asDashboardTutorials } from "../logic/dashboardTutorialPayload";
+import { SHORTPULSE_COMMUNITY_URL } from "../communityLinks";
 
 type PublicDashboardRouteProps = Partial<PublicDashboardStaticProps>;
 type PublicDashboardRouteInternalProps = PublicDashboardRouteProps & {
@@ -131,7 +132,7 @@ export function PublicDashboardRoute({
             <div className="public-dashboard-actions" aria-label="Guest actions">
               <div className="public-dashboard-auth-column">
                 <Link
-                  href="#public-home-orbit-heading"
+                  href={SHORTPULSE_COMMUNITY_URL}
                   className="public-dashboard-action public-dashboard-community"
                   prefetch={false}
                 >

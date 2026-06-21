@@ -1,7 +1,0 @@
-/**
- * Route-owned performance analytics stylesheet entry.
- * Keeps analytics-only chart, filter, list, and modal styles out of the global bundle.
- */
-@import "./performance-core.css";
-@import "./performance-detail.css";
-@import "./performance-responsive.css";

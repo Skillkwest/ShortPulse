@@ -108,7 +108,7 @@ describe("auth callback url route", () => {
     vi.stubEnv("VERCEL_ENV", "production");
     const req = {
       method: "GET",
-      query: { flow: "signin", next: "/profile?section=account" },
+      query: { flow: "signin", next: "/profile?section=account", provider: "google" },
       headers: {
         host: "www.shortpulse.ai",
         "x-forwarded-proto": "https",
@@ -120,7 +120,7 @@ describe("auth callback url route", () => {
 
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
-      url: "https://www.shortpulse.ai/auth/callback?flow=signin&next=%2Fprofile%3Fsection%3Daccount",
+      url: "https://www.shortpulse.ai/auth/callback?flow=signin&next=%2Fprofile%3Fsection%3Daccount&provider=google",
     });
   });
 

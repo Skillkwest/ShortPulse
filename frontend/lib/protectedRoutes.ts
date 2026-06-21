@@ -4,7 +4,6 @@
  * public entry points like the shared app shell.
  */
 export const PROTECTED_ROUTES = [
-  "/performance",
   "/saved-creators",
   "/profile",
   "/report-issue",

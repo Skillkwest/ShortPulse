@@ -28,6 +28,7 @@ import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { ensureSupabaseQueryClient, signOutSupabaseSession } from "../../../lib/supabaseClient";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { readDashboardTutorialsFromPublicEndpoint } from "../logic/dashboardTutorialEndpointClient";
+import { SHORTPULSE_COMMUNITY_URL } from "../communityLinks";
 
 const DEFAULT_PLAN_TIER = "free";
 const DASHBOARD_HIDE_LEGACY_SECTIONS =
@@ -103,17 +104,6 @@ const dashboardToolCards: DashboardToolCard[] = [
     variant: "tool-creator",
     image: "/dashboard/creator-studio.png",
     icon: Sparkle,
-  },
-  {
-    title: "Performance Analytics",
-    eyebrow: "Analytics",
-    description:
-      "Compare high-performing Reels, TikToks, and Shorts across niches (Analytics coming soon).",
-    href: "/performance-soon",
-    cta: "Open analytics →",
-    variant: "tool-performance",
-    image: "/dashboard/performance-analytics.png",
-    icon: ChartBar,
   },
 ];
 
@@ -369,6 +359,7 @@ export function AuthenticatedDashboardRoute({
       key: "auth-community",
       label: "Creator hub",
       value: "Community",
+      href: SHORTPULSE_COMMUNITY_URL,
       icon: Globe,
     },
     {

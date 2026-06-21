@@ -34,11 +34,61 @@ type Mode = "signin" | "signup";
 
 const MIN_PASSWORD_LENGTH = 8;
 
+type SignupIntentResponse = {
+  ok?: unknown;
+  error?: unknown;
+};
+
 const authClass = (...names: Array<string | false | null | undefined>) =>
   names.filter((name): name is string => Boolean(name)).join(" ");
 
 const getErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error ? error.message : fallback;
+
+const createPaidSignupIntent = async (options: { email: string; nextPath: string }) => {
+  const response = await fetch("/api/auth/signup-intent", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify(options),
+  });
+  const payload = (await response.json().catch(() => null)) as SignupIntentResponse | null;
+  if (!response.ok || payload?.ok !== true) {
+    const errorMessage =
+      typeof payload?.error === "string" && payload.error.trim()
+        ? payload.error.trim()
+        : "Unable to prepare account creation right now.";
+    throw new Error(errorMessage);
+  }
+};
+
+const GoogleIcon = () => (
+  <svg
+    className={authClass("auth-oauth-icon")}
+    aria-hidden="true"
+    viewBox="0 0 24 24"
+    focusable="false"
+  >
+    <path
+      fill="#4285F4"
+      d="M23.04 12.26c0-.82-.07-1.6-.2-2.36H12v4.46h6.2a5.3 5.3 0 0 1-2.3 3.48v2.9h3.72c2.18-2 3.42-4.94 3.42-8.48Z"
+    />
+    <path
+      fill="#34A853"
+      d="M12 23.5c3.1 0 5.7-1.03 7.62-2.77l-3.72-2.9c-1.03.7-2.35 1.1-3.9 1.1-3 0-5.54-2.02-6.45-4.74H1.7v3c1.9 3.75 5.78 6.31 10.3 6.31Z"
+    />
+    <path
+      fill="#FBBC05"
+      d="M5.55 14.19a6.9 6.9 0 0 1 0-4.38v-3H1.7a11.48 11.48 0 0 0 0 10.38l3.85-3Z"
+    />
+    <path
+      fill="#EA4335"
+      d="M12 5.07c1.68 0 3.18.58 4.37 1.71l3.32-3.32C17.68 1.59 15.08.5 12 .5 7.48.5 3.6 3.06 1.7 6.81l3.85 3C6.46 7.09 9 5.07 12 5.07Z"
+    />
+  </svg>
+);
 
 const resolveMode = (value: string | string[] | undefined): Mode => {
   const rawValue = Array.isArray(value) ? value[0] : value;
@@ -49,6 +99,18 @@ function resolveModeFromAsPath(asPath: string): Mode {
   const queryString = asPath.includes("?") ? asPath.slice(asPath.indexOf("?") + 1) : "";
   if (!queryString) return "signin";
   return resolveMode(new URLSearchParams(queryString).get("mode") ?? undefined);
+}
+
+const resolveOauthStatus = (value: string | string[] | undefined): string | null => {
+  const rawValue = Array.isArray(value) ? value[0] : value;
+  return typeof rawValue === "string" && rawValue.trim() ? rawValue.trim() : null;
+};
+
+function resolveOauthStatusFromAsPath(asPath: string): string | null {
+  const beforeHash = asPath.split("#", 1)[0] ?? asPath;
+  const queryString = beforeHash.includes("?") ? beforeHash.slice(beforeHash.indexOf("?") + 1) : "";
+  if (!queryString) return null;
+  return resolveOauthStatus(new URLSearchParams(queryString).get("oauth") ?? undefined);
 }
 
 export default function AuthPage() {
@@ -68,6 +130,12 @@ export default function AuthPage() {
   const [resettingPassword, setResettingPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const oauthStatus = useMemo(() => {
+    if (router.isReady) {
+      return resolveOauthStatus(router.query.oauth);
+    }
+    return resolveOauthStatusFromAsPath(router.asPath || "");
+  }, [router.asPath, router.isReady, router.query.oauth]);
   const nextPath = useMemo(() => {
     if (router.isReady) {
       return resolveNextPath(router.query.next);
@@ -82,6 +150,12 @@ export default function AuthPage() {
   useEffect(() => {
     setMode(requestedMode === "signup" && !signupAllowed ? "signin" : requestedMode);
   }, [requestedMode, signupAllowed]);
+
+  useEffect(() => {
+    if (oauthStatus !== "cancelled") return;
+    setError(null);
+    setInfo("Google sign-in was canceled.");
+  }, [oauthStatus]);
 
   useEffect(() => {
     void readSupabaseSession()
@@ -111,6 +185,10 @@ export default function AuthPage() {
           setMode("signin");
           return;
         }
+        await createPaidSignupIntent({
+          email: normalizedEmail,
+          nextPath: signupNextPath,
+        });
         const emailRedirectTo = await fetchCanonicalAuthCallbackUrl({
           flow: "signup",
           nextPath: signupNextPath,
@@ -203,9 +281,32 @@ export default function AuthPage() {
     setOauthLoading(true);
     try {
       const supabase = ensureSupabaseClient();
+      const normalizedEmail = email.trim();
+      if (activeMode === "signup") {
+        if (!signupAllowed || !signupNextPath || !isPaidPricingSignupNextPath(signupNextPath)) {
+          setError("Account creation is temporarily closed.");
+          setMode("signin");
+          setOauthLoading(false);
+          return;
+        }
+        if (!normalizedEmail) {
+          setError("Enter the email you want to use, then continue with Google.");
+          setOauthLoading(false);
+          return;
+        }
+        await createPaidSignupIntent({
+          email: normalizedEmail,
+          nextPath: signupNextPath,
+        });
+        trackSignupSubmitted({
+          auth_surface: "auth_page",
+          signup_method: "google",
+        });
+      }
       const redirectTo = await fetchCanonicalAuthCallbackUrl({
-        flow: "signin",
-        nextPath,
+        flow: activeMode === "signup" ? "signup" : "signin",
+        nextPath: activeMode === "signup" && signupNextPath ? signupNextPath : nextPath,
+        oauthProvider: "google",
       });
       if (!redirectTo) {
         throw new Error(
@@ -309,29 +410,7 @@ export default function AuthPage() {
                   }}
                   disabled={loading || oauthLoading}
                 >
-                  <svg
-                    className={authClass("auth-oauth-icon")}
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    focusable="false"
-                  >
-                    <path
-                      fill="#4285F4"
-                      d="M23.04 12.26c0-.82-.07-1.6-.2-2.36H12v4.46h6.2a5.3 5.3 0 0 1-2.3 3.48v2.9h3.72c2.18-2 3.42-4.94 3.42-8.48Z"
-                    />
-                    <path
-                      fill="#34A853"
-                      d="M12 23.5c3.1 0 5.7-1.03 7.62-2.77l-3.72-2.9c-1.03.7-2.35 1.1-3.9 1.1-3 0-5.54-2.02-6.45-4.74H1.7v3c1.9 3.75 5.78 6.31 10.3 6.31Z"
-                    />
-                    <path
-                      fill="#FBBC05"
-                      d="M5.55 14.19a6.9 6.9 0 0 1 0-4.38v-3H1.7a11.48 11.48 0 0 0 0 10.38l3.85-3Z"
-                    />
-                    <path
-                      fill="#EA4335"
-                      d="M12 5.07c1.68 0 3.18.58 4.37 1.71l3.32-3.32C17.68 1.59 15.08.5 12 .5 7.48.5 3.6 3.06 1.7 6.81l3.85 3C6.46 7.09 9 5.07 12 5.07Z"
-                    />
-                  </svg>
+                  <GoogleIcon />
                   {oauthLoading ? "Opening Google..." : "Continue with Google"}
                 </button>
                 <div className={authClass("auth-choice-divider")}>
@@ -357,6 +436,25 @@ export default function AuthPage() {
                 />
               </div>
             </div>
+
+            {activeMode === "signup" ? (
+              <>
+                <button
+                  className={authClass("auth-oauth-button")}
+                  type="button"
+                  onClick={() => {
+                    void onGoogleSignIn();
+                  }}
+                  disabled={!email.trim() || loading || oauthLoading}
+                >
+                  <GoogleIcon />
+                  {oauthLoading ? "Opening Google..." : "Sign up with Google"}
+                </button>
+                <div className={authClass("auth-choice-divider")}>
+                  <span>or create a password</span>
+                </div>
+              </>
+            ) : null}
 
             <div className={authClass("auth-field-stack")}>
               <div className={authClass("auth-label-row")}>

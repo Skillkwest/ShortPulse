@@ -41,8 +41,6 @@ const resolveTrustedImageHosts = () => {
   const hosts = new Set();
   const supabaseHost = resolveSupabaseHost();
   if (supabaseHost) hosts.add(supabaseHost);
-  // Public demo/stub assets referenced across landing/performance surfaces.
-  hosts.add("images.pexels.com");
 
   for (const host of parseHostList(
     process.env.SHORTPULSE_MEDIA_DIRECT_URL_ALLOWED_HOSTS ??

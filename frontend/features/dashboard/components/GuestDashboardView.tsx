@@ -12,6 +12,7 @@ import { PublicHomeFooter } from "./PublicHomeFooter";
 import { PublicHomeTutorialShowcase } from "./PublicHomeTutorialShowcase";
 import { PublicHomeVideoGallery } from "./PublicHomeVideoGallery";
 import { buildDashboardAuthPath, buildPricingPath } from "../../pricing/paths";
+import { SHORTPULSE_COMMUNITY_URL } from "../communityLinks";
 
 type GuestDashboardViewProps = {
   createProjectHref: string;
@@ -464,7 +465,7 @@ export function GuestDashboardView({
       />
 
       <PublicHomeCommunitySection
-        createProjectHref={createProjectHref}
+        communityHref={SHORTPULSE_COMMUNITY_URL}
         sectionRef={orbitSectionRef}
         isNearViewport={isOrbitNearViewport}
         isPaintPending={isOrbitPaintPending}
@@ -479,6 +480,7 @@ export function GuestDashboardView({
 
       <PublicHomeFooter
         createProjectHref={createProjectHref}
+        communityHref={SHORTPULSE_COMMUNITY_URL}
         footerLoginHref={footerLoginHref}
         footerPricingHref={footerPricingHref}
       />

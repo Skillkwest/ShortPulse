@@ -1,10 +1,27 @@
 export type AuthCallbackFlow = "signin" | "signup" | "recovery" | "email-change";
+export type AuthCallbackOAuthProvider = "google";
 
 export const AUTH_ENTRY_PATH = "/auth";
 export const AUTH_CALLBACK_PATH = "/auth/callback";
 export const DEFAULT_POST_AUTH_PATH = "/dashboard";
 export const DEFAULT_SIGNUP_NEXT_PATH = "/pricing";
-const PAID_SIGNUP_PLAN_IDS = new Set(["starter", "media", "studio", "business"]);
+export type PaidSignupPlanId = "starter" | "media" | "studio" | "business";
+export type PaidSignupBillingInterval = "month" | "year";
+export type PaidSignupPricingIntent = "create-project" | "open-projects" | "dashboard" | "tutorial";
+
+export type PaidSignupPricingSelection = {
+  planId: PaidSignupPlanId;
+  billingInterval: PaidSignupBillingInterval;
+  pricingIntent: PaidSignupPricingIntent;
+};
+
+const PAID_SIGNUP_PLAN_IDS = new Set<PaidSignupPlanId>(["starter", "media", "studio", "business"]);
+const PAID_SIGNUP_PRICING_INTENTS = new Set<PaidSignupPricingIntent>([
+  "create-project",
+  "open-projects",
+  "dashboard",
+  "tutorial",
+]);
 const PUBLIC_SIGNUP_ENABLED_VALUE = "true";
 const LEGACY_CHARACTER_AUTH_NEXT_PATHS = new Map<string, string>([
   ["/character", "/ai-studio"],
@@ -40,15 +57,42 @@ export const resolveNextPathFromAsPath = (asPath: string): string => {
   return resolveNextPath(new URLSearchParams(queryString).get("next") ?? undefined);
 };
 
-export const isPaidPricingSignupNextPath = (nextPath: string): boolean => {
+const normalizePaidSignupBillingInterval = (value: string | null): PaidSignupBillingInterval =>
+  value?.trim().toLowerCase() === "month" ? "month" : "year";
+
+const normalizePaidSignupPricingIntent = (value: string | null): PaidSignupPricingIntent => {
+  const normalized = value?.trim().toLowerCase() ?? "";
+  return PAID_SIGNUP_PRICING_INTENTS.has(normalized as PaidSignupPricingIntent)
+    ? (normalized as PaidSignupPricingIntent)
+    : "dashboard";
+};
+
+export const resolvePaidSignupPricingSelection = (
+  nextPath: string
+): PaidSignupPricingSelection | null => {
   if (!nextPath.startsWith("/") || nextPath.startsWith("//") || nextPath.includes("\\")) {
-    return false;
+    return null;
   }
-  const parsed = new URL(nextPath, "https://shortpulse.local");
+  let parsed: URL;
+  try {
+    parsed = new URL(nextPath, "https://shortpulse.local");
+  } catch {
+    return null;
+  }
   const candidatePathname = parsed.pathname.replace(/\/+$/, "") || "/";
-  if (candidatePathname !== DEFAULT_SIGNUP_NEXT_PATH) return false;
+  if (candidatePathname !== DEFAULT_SIGNUP_NEXT_PATH) return null;
   const planId = parsed.searchParams.get("plan")?.trim().toLowerCase() ?? "";
-  return PAID_SIGNUP_PLAN_IDS.has(planId);
+  if (!PAID_SIGNUP_PLAN_IDS.has(planId as PaidSignupPlanId)) return null;
+
+  return {
+    planId: planId as PaidSignupPlanId,
+    billingInterval: normalizePaidSignupBillingInterval(parsed.searchParams.get("interval")),
+    pricingIntent: normalizePaidSignupPricingIntent(parsed.searchParams.get("intent")),
+  };
+};
+
+export const isPaidPricingSignupNextPath = (nextPath: string): boolean => {
+  return resolvePaidSignupPricingSelection(nextPath) !== null;
 };
 
 export const resolveSignupNextPath = (nextPath: string): string | null => {
@@ -71,6 +115,13 @@ export const resolveAuthCallbackFlow = (
   return null;
 };
 
+export const resolveAuthCallbackOAuthProvider = (
+  value: string | string[] | undefined
+): AuthCallbackOAuthProvider | null => {
+  const rawValue = Array.isArray(value) ? value[0] : value;
+  return rawValue === "google" ? "google" : null;
+};
+
 export const resolveAuthCallbackFlowFromType = (value: string | null): AuthCallbackFlow | null => {
   if (value === "signup") return "signup";
   if (value === "recovery") return "recovery";
@@ -85,6 +136,14 @@ export const resolveAuthCallbackFlowFromAsPath = (asPath: string): AuthCallbackF
     resolveAuthCallbackFlow(queryParams.get("flow") ?? undefined) ??
     resolveAuthCallbackFlowFromType(queryParams.get("type"))
   );
+};
+
+export const resolveAuthCallbackOAuthProviderFromAsPath = (
+  asPath: string
+): AuthCallbackOAuthProvider | null => {
+  const queryString = readQueryStringFromAsPath(asPath);
+  const queryParams = new URLSearchParams(queryString);
+  return resolveAuthCallbackOAuthProvider(queryParams.get("provider") ?? undefined);
 };
 
 export const hasPasswordRecoveryHint = (asPath: string, hash: string): boolean => {
@@ -107,13 +166,26 @@ export const resolveAuthCallbackError = (asPath: string, hash: string): string |
   return normalized.length > 0 ? normalized : null;
 };
 
+export const resolveAuthCallbackErrorCode = (asPath: string, hash: string): string | null => {
+  const queryParams = new URLSearchParams(readQueryStringFromAsPath(asPath));
+  const hashParams = readHashParams(hash);
+  const candidate = queryParams.get("error") ?? hashParams.get("error") ?? null;
+  if (!candidate) return null;
+  const normalized = candidate.trim();
+  return normalized.length > 0 ? normalized : null;
+};
+
 export const buildAuthCallbackPath = (options: {
   flow: AuthCallbackFlow;
   nextPath?: string;
+  oauthProvider?: AuthCallbackOAuthProvider;
 }): string => {
   const params = new URLSearchParams();
   params.set("flow", options.flow);
   params.set("next", resolveNextPath(options.nextPath));
+  if (options.oauthProvider) {
+    params.set("provider", options.oauthProvider);
+  }
   return `${AUTH_CALLBACK_PATH}?${params.toString()}`;
 };
 
@@ -121,6 +193,7 @@ export const buildAuthCallbackUrl = (options: {
   origin: string;
   flow: AuthCallbackFlow;
   nextPath?: string;
+  oauthProvider?: AuthCallbackOAuthProvider;
 }): string => `${options.origin}${buildAuthCallbackPath(options)}`;
 
 type AuthCallbackUrlResponse = {
@@ -144,18 +217,21 @@ const isProductionClientEnvironment = (): boolean => {
 export const resolveBrowserAuthCallbackUrl = (options: {
   flow: AuthCallbackFlow;
   nextPath?: string;
+  oauthProvider?: AuthCallbackOAuthProvider;
 }): string | null => {
   if (typeof window === "undefined") return null;
   return buildAuthCallbackUrl({
     origin: window.location.origin,
     flow: options.flow,
     nextPath: options.nextPath,
+    oauthProvider: options.oauthProvider,
   });
 };
 
 export const fetchCanonicalAuthCallbackUrl = async (options: {
   flow: AuthCallbackFlow;
   nextPath?: string;
+  oauthProvider?: AuthCallbackOAuthProvider;
 }): Promise<string | null> => {
   const fallbackUrl = resolveBrowserAuthCallbackUrl(options);
   const allowBrowserFallback = !isProductionClientEnvironment();
@@ -165,6 +241,9 @@ export const fetchCanonicalAuthCallbackUrl = async (options: {
     const params = new URLSearchParams();
     params.set("flow", options.flow);
     params.set("next", resolveNextPath(options.nextPath));
+    if (options.oauthProvider) {
+      params.set("provider", options.oauthProvider);
+    }
     const response = await fetch(`/api/auth/callback-url?${params.toString()}`, {
       method: "GET",
       cache: "no-store",

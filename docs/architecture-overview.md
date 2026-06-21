@@ -33,13 +33,6 @@ ShortPulse is a Next.js pages-router app with both browser surfaces and first-pa
 - Responsibility: launch surface + high-level status tiles.
 - Data: session-derived user metadata for plan/identity display.
 
-### `/performance`
-- Responsibility: analytics over a demo dataset (today) and a defined contract for future real data.
-- Source of truth:
-  - Outlier model: `docs/product/shortflow_outlier_source_of_truth.md`
-  - Product contract: `docs/product/shortpulse_top_performing_videos_source_of_truth.md`
-  - AI labeling rules (non-ranking): `docs/sops/sop_performance_ai_detection.md`
-
 ### `/saved-creators`
 - Responsibility: per-user CRUD for creator handles.
 - Data model and RLS expectations: `docs/data-dictionary.md`, `docs/security-checklist.md`

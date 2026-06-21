@@ -26,14 +26,17 @@ type DashboardAppBarProps = {
  */
 export function DashboardAppBar({ cards, actionSlot, brandHref = "/" }: DashboardAppBarProps) {
   const brandLogo = (
-    <Image
-      src="/small good d.png"
-      alt="ShortPulse logo"
-      className="brand-logo"
-      width={203}
-      height={64}
-      style={{ height: "auto" }}
-    />
+    <>
+      <Image
+        src="/small good d.png"
+        alt="ShortPulse logo"
+        className="brand-logo"
+        width={203}
+        height={64}
+        style={{ height: "auto" }}
+      />
+      <span className="brand-name">ShortPulse</span>
+    </>
   );
 
   return (

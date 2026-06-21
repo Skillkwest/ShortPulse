@@ -2,14 +2,14 @@ import Link from "next/link";
 import { type Ref } from "react";
 
 type PublicHomeCommunitySectionProps = {
-  createProjectHref: string;
+  communityHref: string;
   isNearViewport?: boolean;
   isPaintPending?: boolean;
   sectionRef?: Ref<HTMLElement>;
 };
 
 export function PublicHomeCommunitySection({
-  createProjectHref,
+  communityHref,
   isNearViewport = true,
   isPaintPending = false,
   sectionRef,
@@ -31,7 +31,7 @@ export function PublicHomeCommunitySection({
           <span>JOIN THE</span>
           <span>COMMUNITY</span>
         </div>
-        <Link href={createProjectHref} className="public-home-community-button" prefetch={false}>
+        <Link href={communityHref} className="public-home-community-button" prefetch={false}>
           Join Free
         </Link>
       </div>

@@ -65,14 +65,25 @@ describe("Auth route behavior", () => {
     fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
       const rawUrl = typeof input === "string" ? input : input.toString();
       const parsed = new URL(rawUrl, "https://shortpulse.test");
+      if (parsed.pathname === "/api/auth/signup-intent") {
+        return {
+          ok: true,
+          json: async () => ({
+            ok: true,
+            expiresAt: "2026-06-21T18:00:00.000Z",
+          }),
+        } as Response;
+      }
       const flow = parsed.searchParams.get("flow") ?? "signup";
       const next = parsed.searchParams.get("next") ?? "/dashboard";
+      const provider = parsed.searchParams.get("provider");
+      const providerQuery = provider ? `&provider=${encodeURIComponent(provider)}` : "";
       return {
         ok: true,
         json: async () => ({
           url: `https://www.shortpulse.ai/auth/callback?flow=${flow}&next=${encodeURIComponent(
             next
-          )}`,
+          )}${providerQuery}`,
         }),
       } as Response;
     });
@@ -158,7 +169,7 @@ describe("Auth route behavior", () => {
         provider: "google",
         options: {
           redirectTo:
-            "https://www.shortpulse.ai/auth/callback?flow=signin&next=%2Fprofile%3Fsection%3Daccount",
+            "https://www.shortpulse.ai/auth/callback?flow=signin&next=%2Fprofile%3Fsection%3Daccount&provider=google",
         },
       });
     });
@@ -177,10 +188,22 @@ describe("Auth route behavior", () => {
       expect(signInWithOAuthMock).toHaveBeenCalledWith({
         provider: "google",
         options: {
-          redirectTo: "https://www.shortpulse.ai/auth/callback?flow=signin&next=%2Fdashboard",
+          redirectTo:
+            "https://www.shortpulse.ai/auth/callback?flow=signin&next=%2Fdashboard&provider=google",
         },
       });
     });
+  });
+
+  it("shows a calm message after Google OAuth is cancelled", async () => {
+    routerState.query = { oauth: "cancelled", next: "/dashboard" };
+    routerState.asPath = "/auth?next=%2Fdashboard&oauth=cancelled";
+
+    render(<AuthPage />);
+
+    expect(await screen.findByText("Google sign-in was canceled.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Continue with Google" })).toBeInTheDocument();
+    expect(replaceMock).not.toHaveBeenCalled();
   });
 
   it("uses asPath fallback while router query is hydrating", async () => {
@@ -237,6 +260,7 @@ describe("Auth route behavior", () => {
     expect(screen.getByRole("heading", { name: "Create your account" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Sign up" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("button", { name: "Create account" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign up with Google" })).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Continue with Google" })).not.toBeInTheDocument();
   });
 
@@ -270,6 +294,16 @@ describe("Auth route behavior", () => {
     await waitFor(() => {
       expect(signUpMock).toHaveBeenCalled();
     });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/auth/signup-intent",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          email: "new@example.com",
+          nextPath: "/pricing?intent=create-project&plan=starter",
+        }),
+      })
+    );
     expect(signUpMock).toHaveBeenCalledWith({
       email: "new@example.com",
       password: "strongpass",
@@ -305,6 +339,51 @@ describe("Auth route behavior", () => {
     await waitFor(() => {
       expect(pushMock).toHaveBeenCalledWith("/pricing?intent=create-project&plan=studio");
     });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/auth/signup-intent",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          email: "buyer@example.com",
+          nextPath: "/pricing?intent=create-project&plan=studio",
+        }),
+      })
+    );
+  });
+
+  it("starts Google signup only after creating a paid signup intent for the entered email", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED", "true");
+    routerState.query = {
+      mode: "signup",
+      next: "/pricing?intent=open-projects&plan=media&interval=month",
+    };
+
+    render(<AuthPage />);
+
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: " buyer@example.com " } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign up with Google" }));
+
+    await waitFor(() => {
+      expect(signInWithOAuthMock).toHaveBeenCalledWith({
+        provider: "google",
+        options: {
+          redirectTo:
+            "https://www.shortpulse.ai/auth/callback?flow=signup&next=%2Fpricing%3Fintent%3Dopen-projects%26plan%3Dmedia%26interval%3Dmonth&provider=google",
+        },
+      });
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/auth/signup-intent",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          email: "buyer@example.com",
+          nextPath: "/pricing?intent=open-projects&plan=media&interval=month",
+        }),
+      })
+    );
+    expect(signUpMock).not.toHaveBeenCalled();
+    expect(signInWithPasswordMock).not.toHaveBeenCalled();
   });
 
   it("shows a clear cooldown message when Supabase throttles signup confirmation emails", async () => {

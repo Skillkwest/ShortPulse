@@ -1,17 +1,18 @@
 # ADR 0001: Client-only architecture and demo data strategy
 
 ## Status
-Accepted
+Accepted; amended 2026-06-21 for Performance Analytics retirement
 
 ## Context
 - The repo previously included a FastAPI backend and ingestion pipeline but was removed on 2026-12-29.
-- Current product requirements prioritize fast iteration on UI, Supabase auth/storage, and demo analytics without managing server infra.
+- Current product requirements prioritize fast iteration on UI and Supabase auth/storage without managing server infra.
 - Supabase is used client-side only (anon key) with RLS enforcing per-user isolation.
+- The old in-browser Performance Analytics demo route was retired on 2026-06-21; this ADR no longer authorizes demo analytics routes, fixtures, or scoring UI.
 
 ## Decision
 - Keep the app client-only using the Next.js pages router; do not introduce a backend service without a new ADR.
 - Use Supabase client for auth, `saved_creators`, and `media_library` storage only; no server-side service role usage.
-- Provide demo performance analytics data in-browser with refresh/rescore actions; defer ingestion/backfill to a future ADR if needed.
+- Do not ship demo Performance Analytics data, refresh/rescore actions, or analytics scoring UI under this ADR.
 
 ## Consequences
 - Positive:

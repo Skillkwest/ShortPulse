@@ -31,10 +31,16 @@
   --create-composer-selector-hover-border: rgba(201, 205, 214, 0.3);
   --edit-expert-post-stage-composer-clearance: 8px;
   --edit-expert-post-stage-overlay-gap: 8px;
+  --edit-expert-generate-guardrail-height: 0px;
   --edit-expert-post-stage-overlay-reserve: calc(
     var(--edit-expert-prompt-input-min-height) + var(--create-composer-selector-height) +
-      var(--edit-expert-post-stage-composer-clearance) + var(--edit-expert-post-stage-overlay-gap)
+      var(--edit-expert-post-stage-composer-clearance) + var(--edit-expert-post-stage-overlay-gap) +
+      var(--edit-expert-generate-guardrail-height)
   );
+}
+
+.edit-expert-panel.has-generate-guardrail {
+  --edit-expert-generate-guardrail-height: 30px;
 }
 
 .edit-expert-panel.is-generation-mode-tall-stage {
@@ -965,6 +971,7 @@
 }
 
 .edit-expert-preset-btn {
+  position: relative;
   width: 100%;
   min-height: 28px;
   border-radius: 8px;
@@ -995,10 +1002,29 @@
   background: transparent;
   color: var(--edit-expert-selected-text);
   cursor: grab;
+  padding-right: 42px;
 }
 
 .edit-expert-preset-btn--selected:active {
   cursor: grabbing;
+}
+
+.edit-expert-preset-btn--selected::after {
+  content: "Apply";
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translate3d(0, calc(-50% + 1px), 0);
+  color: rgba(245, 185, 66, 0.92);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
 }
 
 .edit-expert-preset-btn:hover {
@@ -1014,6 +1040,12 @@
   background: var(--edit-expert-control-surface);
   color: var(--edit-expert-selected-text);
   transform: translateY(-1px);
+}
+
+.edit-expert-preset-btn--selected:hover::after,
+.edit-expert-preset-btn--selected:focus-visible::after {
+  opacity: 1;
+  transform: translate3d(0, -50%, 0);
 }
 
 .edit-expert-preset-btn:focus-visible {
@@ -2313,6 +2345,22 @@
   line-height: 1;
   letter-spacing: 0.02em;
   white-space: nowrap;
+}
+
+.edit-expert-secondary-helper {
+  max-width: 260px;
+  margin: -1px 0 1px;
+  color: rgba(168, 179, 193, 0.68);
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  text-align: center;
+}
+
+.edit-expert-panel.has-wrapped-secondary-references:not(.is-generation-mode-tall-stage)
+  .edit-expert-secondary-helper {
+  display: none;
 }
 
 .edit-expert-secondary-row .reference-dropzone.is-picker-target {
@@ -5741,6 +5789,15 @@
   color: rgba(255, 130, 130, 0.95);
   font-size: 12px;
   line-height: 1.35;
+}
+
+.edit-expert-generate-guardrail {
+  margin: 6px 2px 0;
+  min-height: 24px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.25;
 }
 
 .edit-expert-selector-row {

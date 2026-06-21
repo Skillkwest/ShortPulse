@@ -211,6 +211,15 @@ describe("MusicPropertiesPanel", () => {
     expect(screen.getByText("—")).toBeInTheDocument();
   });
 
+  it("shows balance context on the generate control without changing the command label", () => {
+    render(<MusicPropertiesPanel onGenerate={() => undefined} balanceCredits={10000} />);
+
+    const generateButton = screen.getByRole("button", { name: "Generate music" });
+
+    expect(generateButton).toHaveAttribute("data-credit-confidence", "covered");
+    expect(generateButton.getAttribute("title")).toContain("balance 10000 credits");
+  });
+
   it("switches between simple and custom composer modes", () => {
     render(<MusicPropertiesPanel />);
 

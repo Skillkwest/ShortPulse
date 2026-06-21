@@ -197,9 +197,80 @@ describe("audioTitleGeneration", () => {
     expect(fetchOpenAiCompatibleChatCompletionMock).toHaveBeenCalledWith(
       expect.objectContaining({
         apiKey: "test-openai-key",
+        messages: expect.arrayContaining([
+          expect.objectContaining({
+            role: "system",
+            content: expect.stringContaining("base the title on the User prompt/script text"),
+          }),
+        ]),
         responseFormat: expect.objectContaining({
           type: "json_schema",
         }),
+      })
+    );
+  });
+
+  it("rejects unrelated generated voiceover titles and falls back to the prompt text", async () => {
+    process.env.OPENAI_API_KEY = "test-openai-key";
+    fetchOpenAiCompatibleChatCompletionMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({ title: "Bug Sin" }),
+              },
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+
+    await expect(
+      generateAudioReferenceTitleBestEffort({
+        sourceMode: "voiceover",
+        promptText: "Welcome to the launch walkthrough for creators",
+        voiceName: "Narrator",
+      })
+    ).resolves.toBe("Welcome To The");
+  });
+
+  it("rejects unrelated generated voice-changer titles and falls back to the transcript", async () => {
+    process.env.OPENAI_API_KEY = "test-openai-key";
+    fetchOpenAiCompatibleChatCompletionMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({ title: "Neon Bug" }),
+              },
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+
+    await expect(
+      generateAudioReferenceTitleBestEffort({
+        sourceMode: "voice-changer",
+        promptText: "take.wav -> Narrator",
+        transcriptText: "I can hear the city waking up below us.",
+        sourceName: "take.wav",
+        voiceName: "Narrator",
+      })
+    ).resolves.toBe("I Can Hear");
+
+    expect(fetchOpenAiCompatibleChatCompletionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messages: expect.arrayContaining([
+          expect.objectContaining({
+            role: "system",
+            content: expect.stringContaining("base the title on the transcript"),
+          }),
+        ]),
       })
     );
   });

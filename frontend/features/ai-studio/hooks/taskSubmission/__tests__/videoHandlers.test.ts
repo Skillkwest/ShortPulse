@@ -148,7 +148,6 @@ const makeArgs = (overrides: Partial<VideoSubmissionArgs> = {}): VideoSubmission
   videoReferenceMode: "motion",
   videoReferenceImageUrl: "https://example.com/character.png",
   motionReferenceVideoUrl: CANONICAL_MOTION_REFERENCE_URL,
-  videoCameraFixed: false,
   klingCfgScale: 0.5,
   klingWorkflowMode: "single",
   klingMultiPrompts: [],
@@ -1538,7 +1537,7 @@ describe("handleVideoModelSubmission (Kie Seedance 2)", () => {
     });
 
     await expect(handleVideoModelSubmission(args)).rejects.toThrow(
-      "Seedance 2.0 submit uses unsupported resolution: 4k. Allowed: 1080p, 720p, 480p"
+      "Seedance 2 submit uses unsupported resolution: 4k. Allowed: 1080p, 720p, 480p"
     );
     expect(submitKieSeedance2Video).not.toHaveBeenCalled();
   });
@@ -2167,6 +2166,54 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     );
     expect(vi.mocked(submitKieKlingImageToVideo).mock.calls[0]?.[0]?.prompt).toMatch(
       /^Create this as one continuous uninterrupted shot only\./
+    );
+  });
+
+  it("admits linked character element media through the Kling element adapter", async () => {
+    mockKieUploadRouteForFileUrls({
+      "https://example.com/characters/taylor-front.png":
+        "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/taylor-front.png",
+      "https://example.com/characters/taylor-side.png":
+        "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/taylor-side.png",
+    });
+    const args = makeArgs({
+      finalModel: KIE_KLING_30_MODEL_ID,
+      modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
+      videoReferenceMode: "standard",
+      cleanedPrompt: "the woman walks into the scene",
+      preparedImageInputs: ["https://example.com/start.png"],
+      klingElements: [
+        {
+          id: "character-1",
+          slotIndex: 0,
+          sourceKind: "character",
+          sourceCharacterId: "character-taylor",
+          name: "Taylor Swift",
+          alias: "",
+          frontalImageUrl: "https://example.com/characters/taylor-front.png",
+          referenceImageUrls: "https://example.com/characters/taylor-side.png",
+          videoUrl: "",
+        },
+      ],
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(args.notifyGenerationFailure).not.toHaveBeenCalled();
+    expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kling_elements: [
+          {
+            name: "element1",
+            description: "Reference images for Taylor Swift",
+            element_input_urls: [
+              "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/taylor-front.png",
+              "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/taylor-side.png",
+            ],
+          },
+        ],
+      })
     );
   });
 

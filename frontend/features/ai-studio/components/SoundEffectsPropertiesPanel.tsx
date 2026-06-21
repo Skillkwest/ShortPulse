@@ -10,6 +10,7 @@ import { resolvePricingGridBilledCredits } from "../../../lib/model-runtime/pric
 import type { ModelPricingPolicyDocument } from "../../../lib/model-runtime/pricingPolicy";
 import { useAudioInspirationRail } from "../hooks/useAudioInspirationRail";
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
+import { resolveGenerateCreditConfidence } from "./shared/generateCreditConfidence";
 
 export type SoundEffectFormat = "mp3_44100_128" | "pcm_48000";
 export const hardcodedSoundEffectsModelId = resolveRequiredAudioSoundEffectsModelId();
@@ -95,7 +96,7 @@ const ClockIcon = () => (
 );
 
 export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPropertiesPanel({
-  balanceCredits: _balanceCredits = null,
+  balanceCredits = null,
   durationSeconds: controlledDurationSeconds,
   isGenerating = false,
   onDurationChange,
@@ -107,7 +108,6 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
   loopEnabled: controlledLoopEnabled,
   prompt: controlledPrompt,
 }: SoundEffectsPropertiesPanelProps) {
-  void _balanceCredits;
   const splitContainerRef = React.useRef<HTMLDivElement | null>(null);
   const durationMenuRef = React.useRef<HTMLDivElement | null>(null);
   const [uncontrolledPrompt, setUncontrolledPrompt] = React.useState("");
@@ -207,6 +207,12 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
           pricingPolicy,
         })
       : null) ?? null;
+  const generateCreditConfidence = resolveGenerateCreditConfidence({
+    actionLabel: "Generate sound effect",
+    estimatedCredits: generateCost,
+    balanceCredits,
+    formatCredits: formatCreditValue,
+  });
   const isGenerateEnabled = Boolean(onGenerate) && prompt.trim().length > 0;
   const selectedDurationOption =
     ELEVENLABS_SOUND_EFFECT_DURATION_OPTIONS.find((option) => option.value === durationSeconds) ??
@@ -434,11 +440,13 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
                 <button
                   type="button"
                   className="sound-effects-properties-generate-btn"
+                  data-credit-confidence={generateCreditConfidence.status}
                   disabled={!isGenerateEnabled}
                   onClick={() => {
                     void handleGenerate();
                   }}
                   aria-label="Generate"
+                  title={generateCreditConfidence.title}
                 >
                   <span className="sound-effects-properties-generate-label">Generate</span>
                   <span className="sound-effects-properties-generate-pill" aria-hidden="true">

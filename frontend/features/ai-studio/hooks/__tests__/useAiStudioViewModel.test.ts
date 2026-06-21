@@ -1267,7 +1267,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.currentCostCredits).toBe(expectedCost);
   });
 
-  it("blocks Seedance 2.0 multimodal mode when no multimodal references are present", () => {
+  it("blocks Seedance 2 multimodal mode when no multimodal references are present", () => {
     const { result } = renderHook(() =>
       useAiStudioViewModel({
         ...baseInput,
@@ -1280,10 +1280,10 @@ describe("useAiStudioViewModel motion guardrails", () => {
     );
 
     expect(result.current.generationGuardrail).toBe(
-      "Add at least one image, video, or audio reference before generating with Seedance 2.0."
+      "Add at least one image, video, or audio reference before generating with Seedance 2."
     );
     expect(result.current.referenceImageWarning).toBe(
-      "Seedance 2.0 multimodal mode requires at least one image, video, or audio reference."
+      "Seedance 2 multimodal mode requires at least one image, video, or audio reference."
     );
   });
 
@@ -1317,7 +1317,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.referenceImageWarning).toBeNull();
   });
 
-  it("allows Seedance 2.0 Fast multimodal mode to override stale frame images", () => {
+  it("allows Seedance 2 Fast multimodal mode to override stale frame images", () => {
     const videoPricingPolicy = withVideoBilledCreditsOverride({
       modelId: KIE_SEEDANCE_2_FAST_MODEL_ID,
       params: makeCostParamsForModel(KIE_SEEDANCE_2_FAST_MODEL_ID)({
@@ -1347,7 +1347,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.isGenerateDisabled).toBe(false);
   });
 
-  it("requires both first and last frame images for explicit Seedance 2.0 first-last mode", () => {
+  it("requires both first and last frame images for explicit Seedance 2 first-last mode", () => {
     const { result } = renderHook(() =>
       useAiStudioViewModel({
         ...baseInput,
@@ -1360,10 +1360,10 @@ describe("useAiStudioViewModel motion guardrails", () => {
     );
 
     expect(result.current.generationGuardrail).toBe(
-      "Add both first and last frame images before generating with Seedance 2.0."
+      "Add both first and last frame images before generating with Seedance 2."
     );
     expect(result.current.referenceImageWarning).toBe(
-      "Seedance 2.0 requires both first and last frame images in first/last-frame mode."
+      "Seedance 2 requires both first and last frame images in first/last-frame mode."
     );
   });
 

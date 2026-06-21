@@ -34,21 +34,6 @@ export const normalizeStylesLibraryOrderedIds = (value: unknown): string[] => {
 };
 
 /**
- * Merges remote/local ordering while preserving the local sequence as the current source of truth.
- */
-export const mergeStylesLibraryOrderedIds = (
-  remoteValue: string[],
-  localValue: string[]
-): string[] => {
-  const normalizedLocal = normalizeStylesLibraryOrderedIds(localValue);
-  const localSet = new Set(normalizedLocal);
-  const appendedRemote = normalizeStylesLibraryOrderedIds(remoteValue).filter(
-    (styleId) => !localSet.has(styleId)
-  );
-  return [...normalizedLocal, ...appendedRemote];
-};
-
-/**
  * Orders the visible styles catalog against a persisted id sequence and appends unseen styles.
  */
 export const resolveOrderedStylesCatalog = (

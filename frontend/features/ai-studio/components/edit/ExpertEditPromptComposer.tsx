@@ -68,8 +68,12 @@ export function ExpertEditPromptComposer({
   onGenerate,
   inlineGenerateDisabled,
   costCredits = null,
+  inlineGuardrailReason = null,
 }: ExpertEditPromptComposerProps) {
   const shouldRenderPromptMirror = promptTextValue.length > 0;
+  const shouldShowGenerateGuardrail = Boolean(
+    inlineGenerateDisabled && inlineGuardrailReason && !promptTokenInlineError
+  );
 
   return (
     <div className={`edit-expert-bottom-row ${isExpanded ? "is-expanded" : "is-collapsed"}`}>
@@ -111,7 +115,7 @@ export function ExpertEditPromptComposer({
               onDragOver={(event) => event.preventDefault()}
               onScroll={onPromptScroll}
               onBlur={onPromptBlur}
-              placeholder="Write your prompt..."
+              placeholder="Describe what should change..."
               aria-label="Edit prompt"
               spellCheck={false}
               autoCorrect="off"
@@ -204,6 +208,14 @@ export function ExpertEditPromptComposer({
             tone="error"
             mode="inline"
             message={promptTokenInlineError}
+          />
+        ) : null}
+        {shouldShowGenerateGuardrail ? (
+          <AppMessage
+            className="edit-expert-generate-guardrail"
+            tone="warning"
+            mode="compact"
+            message={inlineGuardrailReason}
           />
         ) : null}
       </div>

@@ -205,6 +205,41 @@ describe("useAiStudioStylesRuntime", () => {
     });
   });
 
+  it("uses deterministic custom-style fallback order when no user order exists", () => {
+    detailsPreference.styleDetailsById = {
+      "style-library-custom-200": {
+        style: "Second Custom",
+        title: "Second Custom",
+        referenceImageName: "Second Custom",
+        stylePrompt: "second custom finish",
+        previewImageUrl: "data:image/png;base64,second",
+      },
+      "style-library-custom-100": {
+        style: "First Custom",
+        title: "First Custom",
+        referenceImageName: "First Custom",
+        stylePrompt: "first custom finish",
+        previewImageUrl: "data:image/png;base64,first",
+      },
+    };
+
+    const { result } = renderHook(() =>
+      useAiStudioStylesRuntime({
+        selectedStyleId: null,
+        setSelectedStyleId: vi.fn(),
+      })
+    );
+
+    expect(result.current.visibleStylesCatalog.map((style) => style.id)).toEqual([
+      "photorealistic",
+      "cinematic",
+      "cell-phone-snapshot",
+      "anime",
+      "style-library-custom-100",
+      "style-library-custom-200",
+    ]);
+  });
+
   it("deletes seeded styles through the deleted-id preference and custom styles through details storage", async () => {
     deletedPreference.deleteStyleId.mockResolvedValue(true);
     detailsPreference.deleteStyleDetails.mockResolvedValue(true);

@@ -88,7 +88,7 @@ export const startPulsePreset = async ({
     });
     return {
       status: "blocked_busy",
-      message: "Wait for the current Pulse step to finish before switching.",
+      message: "This Pulse is still finishing its response. You can switch after it completes.",
     };
   }
 

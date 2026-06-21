@@ -67,6 +67,10 @@ export function ExpertEditSecondaryReferences({
     (payload: AgentComposerDirectDropPayload) => payload.kind === "image",
     []
   );
+  const hasVisibleSecondaryReference = visibleSlotIndexes.some((index) => {
+    const sourceUrl = extraImageUrls[index];
+    return typeof sourceUrl === "string" && sourceUrl.trim().length > 0;
+  });
 
   React.useEffect(() => {
     if (!canvasTearOutTargetRegistry || !onSecondaryCanvasTearOutDrop) return;
@@ -108,6 +112,11 @@ export function ExpertEditSecondaryReferences({
     <>
       <div className="edit-expert-secondary-control">
         <p className="edit-expert-secondary-title">Reference Images</p>
+        {!hasVisibleSecondaryReference ? (
+          <p className="edit-expert-secondary-helper">
+            Add references for specific faces, products, or style details.
+          </p>
+        ) : null}
         <div className="edit-expert-secondary-row">
           {visibleSlotIndexes.map((index) => {
             const sourceUrl = extraImageUrls[index] ?? null;

@@ -288,7 +288,7 @@ describe("Create generate guardrail messaging", () => {
       />
     );
 
-    expect(screen.getByText("What do you want to make?")).toBeInTheDocument();
+    expect(screen.getByText("Choose a Pulse to start")).toBeInTheDocument();
     expect(screen.queryByText("Send your next instruction.")).not.toBeInTheDocument();
   });
 
@@ -315,10 +315,11 @@ describe("Create generate guardrail messaging", () => {
       name: "Starting Multi Sequence Video Prompt",
     });
     expect(screen.getByText("Starting Pulse")).toBeInTheDocument();
+    expect(screen.getByText("Getting the first response ready.")).toBeInTheDocument();
     expect(screen.queryByText("Preparing your guided workflow...")).not.toBeInTheDocument();
     expect(screen.queryByText(/Next up:/)).not.toBeInTheDocument();
     expect(within(startupStatus).getByText(/Multi Sequence Video Prompt/)).toBeInTheDocument();
-    expect(screen.queryByText("What do you want to make?")).not.toBeInTheDocument();
+    expect(screen.queryByText("Choose a Pulse to start")).not.toBeInTheDocument();
   });
 
   it("shows the deactivate action for an active Pulse session without a restart control", () => {
@@ -355,7 +356,7 @@ describe("Create generate guardrail messaging", () => {
       />
     );
 
-    expect(screen.getByText("What do you want to make?")).toBeInTheDocument();
+    expect(screen.getByText("Choose a Pulse to start")).toBeInTheDocument();
     expect(screen.queryByText("Send your next instruction.")).not.toBeInTheDocument();
   });
 

@@ -1,21 +1,14 @@
 /**
  * Hook for storing per-user style ordering for the shared AI Studio styles catalog.
- * Keeps a local fallback while synchronizing with `user_preferences.ai_studio_style_panel_ids`.
+ * Uses `user_preferences.ai_studio_style_panel_ids` as the canonical order authority.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabaseQueryClient } from "../../../lib/supabaseClient";
 import { useResolvedProtectedSessionState } from "../../../lib/protectedRouteSessionContext";
-import { buildUserScopedStorageKey } from "../../character-manager/logic/userScopedLocalStorage";
 import {
-  mergeStylesLibraryOrderedIds,
   normalizeStylesLibraryOrderedIds,
   removeStylesLibraryOrderedId,
 } from "../logic/stylesLibraryCatalog";
-
-const STYLE_PANEL_IDS_STORAGE_KEY = "shortpulse.ai_studio.style_panel_ids";
-
-const buildStylePanelIdsStorageKey = (userId?: string | null): string =>
-  buildUserScopedStorageKey(STYLE_PANEL_IDS_STORAGE_KEY, userId);
 
 export type StylesLibraryPanelIdsSyncState = "loading" | "ready" | "saving" | "error";
 
@@ -29,42 +22,17 @@ type UseStylesLibraryPanelIdsPreferenceResult = {
   resetStylePanelIds: () => Promise<boolean>;
 };
 
-const readLocalStylePanelIds = (userId?: string | null): string[] => {
-  if (typeof window === "undefined") return [];
-  const stored = window.localStorage.getItem(buildStylePanelIdsStorageKey(userId));
-  if (!stored) return [];
-  try {
-    return normalizeStylesLibraryOrderedIds(JSON.parse(stored) as unknown);
-  } catch {
-    return [];
+const resolveStyleOrderErrorMessage = (error: unknown, fallbackMessage: string): string => {
+  if (error instanceof Error && error.message.trim()) return error.message;
+  if (error && typeof error === "object") {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string" && message.trim()) return message;
   }
-};
-
-const writeLocalStylePanelIds = (value: string[], userId?: string | null): void => {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(buildStylePanelIdsStorageKey(userId), JSON.stringify(value));
-};
-
-const isMissingStylePanelIdsStorageError = (error: unknown): boolean => {
-  if (!error || typeof error !== "object") return false;
-  const maybeError = error as { code?: string; message?: string };
-  if (
-    maybeError.code === "PGRST205" ||
-    maybeError.code === "PGRST204" ||
-    maybeError.code === "42P01" ||
-    maybeError.code === "42703"
-  ) {
-    return true;
-  }
-  if (typeof maybeError.message !== "string") return false;
-  return (
-    maybeError.message.includes("user_preferences") ||
-    maybeError.message.includes("ai_studio_style_panel_ids")
-  );
+  return fallbackMessage;
 };
 
 /**
- * Reads and writes shared style ordering with Supabase persistence when available.
+ * Reads and writes shared style ordering through the canonical user preference row.
  */
 export const useStylesLibraryPanelIdsPreference = (): UseStylesLibraryPanelIdsPreferenceResult => {
   const sessionSnapshot = useResolvedProtectedSessionState();
@@ -76,18 +44,12 @@ export const useStylesLibraryPanelIdsPreference = (): UseStylesLibraryPanelIdsPr
   const [userId, setUserId] = useState<string | null>(null);
   const latestValueRef = useRef<string[]>([]);
   const writeVersionRef = useRef(0);
-  const remoteSyncEnabledRef = useRef(true);
-  const hasLocalOverrideRef = useRef(false);
 
-  const updateLocalValue = useCallback(
-    (value: string[], storageUserId?: string | null) => {
-      const normalizedValue = normalizeStylesLibraryOrderedIds(value);
-      latestValueRef.current = normalizedValue;
-      setStylePanelIdsState(normalizedValue);
-      writeLocalStylePanelIds(normalizedValue, storageUserId ?? userId);
-    },
-    [userId]
-  );
+  const updateValue = useCallback((value: string[]) => {
+    const normalizedValue = normalizeStylesLibraryOrderedIds(value);
+    latestValueRef.current = normalizedValue;
+    setStylePanelIdsState(normalizedValue);
+  }, []);
 
   useEffect(() => {
     if (!sessionSnapshot.initialized) {
@@ -102,18 +64,12 @@ export const useStylesLibraryPanelIdsPreference = (): UseStylesLibraryPanelIdsPr
     (async () => {
       try {
         if (!supabaseQueryClient) {
-          if (!active) return;
-          updateLocalValue(readLocalStylePanelIds(), null);
-          remoteSyncEnabledRef.current = false;
-          setUserId(null);
-          setError(null);
-          setSyncState("ready");
-          return;
+          throw new Error("Style order persistence is unavailable.");
         }
 
         if (!sessionUserId) {
           if (!active) return;
-          updateLocalValue(readLocalStylePanelIds(), null);
+          updateValue([]);
           setUserId(null);
           setError(null);
           setSyncState("ready");
@@ -121,8 +77,6 @@ export const useStylesLibraryPanelIdsPreference = (): UseStylesLibraryPanelIdsPr
         }
         if (!active) return;
         setUserId(sessionUserId);
-        const localValue = readLocalStylePanelIds(sessionUserId);
-        updateLocalValue(localValue, sessionUserId);
 
         const { data: storedPreference, error: preferenceError } = await supabaseQueryClient
           .from("user_preferences")
@@ -135,23 +89,15 @@ export const useStylesLibraryPanelIdsPreference = (): UseStylesLibraryPanelIdsPr
         const remoteValue = normalizeStylesLibraryOrderedIds(
           storedPreference?.ai_studio_style_panel_ids
         );
-        const mergedValue = mergeStylesLibraryOrderedIds(remoteValue, localValue);
-        if (!hasLocalOverrideRef.current) {
-          updateLocalValue(mergedValue, sessionUserId);
-        }
+        updateValue(remoteValue);
 
         if (!active) return;
         setError(null);
         setSyncState("ready");
       } catch (err) {
         if (!active) return;
-        if (isMissingStylePanelIdsStorageError(err)) {
-          remoteSyncEnabledRef.current = false;
-          setError(null);
-          setSyncState("ready");
-          return;
-        }
-        setError(err instanceof Error ? err.message : "Unable to load style order.");
+        updateValue([]);
+        setError(resolveStyleOrderErrorMessage(err, "Unable to load style order."));
         setSyncState("error");
       } finally {
         if (active) setLoading(false);
@@ -161,13 +107,12 @@ export const useStylesLibraryPanelIdsPreference = (): UseStylesLibraryPanelIdsPr
     return () => {
       active = false;
     };
-  }, [sessionSnapshot.initialized, sessionUserId, updateLocalValue]);
+  }, [sessionSnapshot.initialized, sessionUserId, updateValue]);
 
   const persistNextValue = useCallback(
     async (nextValue: string[]): Promise<boolean> => {
       const requestVersion = writeVersionRef.current + 1;
       writeVersionRef.current = requestVersion;
-      hasLocalOverrideRef.current = true;
 
       const normalizedNextValue = normalizeStylesLibraryOrderedIds(nextValue);
       const previousValue = latestValueRef.current;
@@ -176,15 +121,17 @@ export const useStylesLibraryPanelIdsPreference = (): UseStylesLibraryPanelIdsPr
         normalizedNextValue.every((value, index) => previousValue[index] === value);
       if (valuesMatch) return true;
 
-      updateLocalValue(normalizedNextValue, userId);
+      updateValue(normalizedNextValue);
       setSyncState("saving");
       setError(null);
 
-      if (!userId || !remoteSyncEnabledRef.current || !supabaseQueryClient) {
+      if (!userId || !supabaseQueryClient) {
         if (requestVersion === writeVersionRef.current) {
-          setSyncState("ready");
+          updateValue(previousValue);
+          setError("Style order persistence is unavailable.");
+          setSyncState("error");
         }
-        return true;
+        return false;
       }
 
       try {
@@ -201,18 +148,13 @@ export const useStylesLibraryPanelIdsPreference = (): UseStylesLibraryPanelIdsPr
         return true;
       } catch (err) {
         if (requestVersion !== writeVersionRef.current) return true;
-        if (isMissingStylePanelIdsStorageError(err)) {
-          remoteSyncEnabledRef.current = false;
-          setError(null);
-          setSyncState("ready");
-          return true;
-        }
-        setError(err instanceof Error ? err.message : "Unable to save style order.");
+        updateValue(previousValue);
+        setError(resolveStyleOrderErrorMessage(err, "Unable to save style order."));
         setSyncState("error");
         return false;
       }
     },
-    [updateLocalValue, userId]
+    [updateValue, userId]
   );
 
   const setStylePanelIds = useCallback(

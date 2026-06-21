@@ -104,7 +104,7 @@ export const useReferencePropertiesDerivedState = ({
     ? isMotionMode
       ? "Add Motion Inputs"
       : isSeedance2FamilyModel
-        ? "Add Seedance 2.0 Frames"
+        ? "Add Seedance 2 Frames"
         : isKlingPatternMode
           ? "Add Kling 3.0 References"
           : isKeyframesMode
@@ -115,7 +115,7 @@ export const useReferencePropertiesDerivedState = ({
     ? isMotionMode
       ? "Upload one character image and one motion video."
       : isSeedance2FamilyModel
-        ? "Upload optional start/end frames, then use linked assets or multimodal references for Seedance 2.0."
+        ? "Upload optional start/end frames, then use linked assets or multimodal references for Seedance 2."
         : isKlingPatternMode
           ? "Upload start/end frames plus Kling controls."
           : isKeyframesMode

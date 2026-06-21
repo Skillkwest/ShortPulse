@@ -140,12 +140,6 @@ export const ReferenceKlingAdvancedSteps: React.FC<ReferenceKlingAdvancedStepsPr
         </div>
         {!collapsedKlingAdvanced ? (
           <div className="create-controls kling-advanced-grid">
-            <div className="kling-pill-row">
-              <span className="kling-pill">Launch limit: 3 concurrent</span>
-              <span className="kling-pill">
-                Cost: $0.224s (no audio) · $0.336s (audio) · $0.392s (voice)
-              </span>
-            </div>
             <div className="control-row compact">
               <label className="input-label">Shot type</label>
               <select

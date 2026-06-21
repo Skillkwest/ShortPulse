@@ -767,7 +767,6 @@ export const useAiStudioTaskSubmission = ({
             motionReferenceVideoUrl: activeMotionReferenceVideoUrl,
             lipSyncAudio: activeLipSyncAudio,
             lipSyncTurboMode: isLipSyncSubmission ? lipSyncTurboMode : false,
-            videoCameraFixed,
             rawImageInputs: imageInputs,
             seedance2InputMode,
             seedance2ReferenceImageUrls,

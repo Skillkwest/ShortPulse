@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { normalizeDurationForModel } from "../modelDurationConstraints";
-import { KIE_KLING_30_MODEL_ID, KIE_VEO_31_FAST_I2V_MODEL_ID } from "../providerModelIds";
+import {
+  KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_2_FAST_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
+  KIE_VEO_31_FAST_I2V_MODEL_ID,
+} from "../providerModelIds";
 
 describe("normalizeDurationForModel", () => {
   it("keeps supported Veo durations unchanged", () => {
@@ -16,5 +21,14 @@ describe("normalizeDurationForModel", () => {
 
   it("clamps lower Kling durations up to the first supported option", () => {
     expect(normalizeDurationForModel(2, KIE_KLING_30_MODEL_ID)).toBe(3);
+  });
+
+  it("keeps active Seedance 2 duration bounds aligned to the supported options", () => {
+    expect(normalizeDurationForModel(3, KIE_SEEDANCE_2_MODEL_ID)).toBe(4);
+    expect(normalizeDurationForModel(4, KIE_SEEDANCE_2_MODEL_ID)).toBe(4);
+    expect(normalizeDurationForModel(16, KIE_SEEDANCE_2_MODEL_ID)).toBe(15);
+    expect(normalizeDurationForModel(3, KIE_SEEDANCE_2_FAST_MODEL_ID)).toBe(4);
+    expect(normalizeDurationForModel(4, KIE_SEEDANCE_2_FAST_MODEL_ID)).toBe(4);
+    expect(normalizeDurationForModel(16, KIE_SEEDANCE_2_FAST_MODEL_ID)).toBe(15);
   });
 });

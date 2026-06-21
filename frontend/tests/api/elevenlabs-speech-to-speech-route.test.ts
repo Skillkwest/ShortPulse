@@ -18,6 +18,7 @@ const readRemoteSourceBufferMock = vi.fn();
 const readRemoteMediaBufferMock = vi.fn();
 const readStoredMediaBufferMock = vi.fn();
 const markAudioCompanionArtPendingBestEffortMock = vi.fn();
+const generateAudioCompanionArtNowBestEffortMock = vi.fn();
 const transcribeAudioBufferMock = vi.fn();
 const generateAudioReferenceTitleBestEffortMock = vi.fn();
 
@@ -137,6 +138,8 @@ vi.mock("../../lib/server/mediaAudioExtraction", () => ({
 vi.mock("../../lib/server/audioCompanionArt/routePending", () => ({
   markAudioCompanionArtPendingBestEffort: (...args: unknown[]) =>
     markAudioCompanionArtPendingBestEffortMock(...args),
+  generateAudioCompanionArtNowBestEffort: (...args: unknown[]) =>
+    generateAudioCompanionArtNowBestEffortMock(...args),
 }));
 
 vi.mock("../../lib/server/audioTitleGeneration", () => ({
@@ -158,6 +161,7 @@ type MockResponse = ReturnType<typeof createMockResponse>;
 describe("POST /api/elevenlabs/speech-to-speech", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.ELEVENLABS_API_KEY = "test-key";
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
     listSavedVoicesForUserMock.mockResolvedValue([]);
     assertTrustedRemoteMediaUrlMock.mockReset();
@@ -201,10 +205,12 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
     readStoredMediaBufferMock.mockReset();
     probeMediaDurationSecondsMock.mockReset();
     markAudioCompanionArtPendingBestEffortMock.mockReset();
+    generateAudioCompanionArtNowBestEffortMock.mockReset();
     transcribeAudioBufferMock.mockReset();
     generateAudioReferenceTitleBestEffortMock.mockReset();
     probeMediaDurationSecondsMock.mockResolvedValue(12);
     markAudioCompanionArtPendingBestEffortMock.mockResolvedValue(undefined);
+    generateAudioCompanionArtNowBestEffortMock.mockResolvedValue(null);
     transcribeAudioBufferMock.mockResolvedValue("I can hear the city waking up below us.");
     generateAudioReferenceTitleBestEffortMock.mockResolvedValue("I Can Hear The City I0OZ21");
     chargeGenerationRequestMock.mockResolvedValue({
@@ -300,6 +306,28 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
     expect(res.json).toHaveBeenCalledWith({
       error: "Unable to convert voice",
       details: "auth verifier exploded",
+    });
+  });
+
+  it("fails closed before parsing, voice lookup, billing, or provider work when the ElevenLabs key is missing", async () => {
+    delete process.env.ELEVENLABS_API_KEY;
+
+    const req = { method: "POST", headers: {} };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(formidableFactoryMock).not.toHaveBeenCalled();
+    expect(listSavedVoicesForUserMock).not.toHaveBeenCalled();
+    expect(listElevenLabsVoicesMock).not.toHaveBeenCalled();
+    expect(readStoredMediaBufferMock).not.toHaveBeenCalled();
+    expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
+    expect(generateElevenLabsVoiceChangerMock).not.toHaveBeenCalled();
+    expect(persistGeneratedAudioAssetMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Service unavailable",
+      details: "Audio generation is temporarily unavailable.",
     });
   });
 

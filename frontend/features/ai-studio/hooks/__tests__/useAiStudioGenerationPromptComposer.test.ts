@@ -2,7 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { createInternalMediaRef } from "../../../../lib/media/internalMediaRefs";
 import { KIE_VEO_31_FAST_I2V_MODEL_ID } from "../../../../lib/model-runtime/providerModelIds";
-import type { StudioOutput, ToolId } from "../../types";
+import type { StudioOutput, ToolId, WorkflowReloadExpertEditReferences } from "../../types";
 import { useAiStudioGenerationPromptComposer } from "../useAiStudioGenerationPromptComposer";
 
 const createParams = (
@@ -174,6 +174,48 @@ describe("useAiStudioGenerationPromptComposer", () => {
       "edit prompt",
       referenceInputs,
       expect.objectContaining({ displayPromptOverride: "edit prompt" })
+    );
+  });
+
+  it("forwards Expert Edit reload and restore metadata to task submission", () => {
+    const submitTask = vi.fn();
+    const params = createParams({ submitTask, selectedTool: "edit" });
+    const { result } = renderHook(() => useAiStudioGenerationPromptComposer(params));
+    const expertEditReferences: WorkflowReloadExpertEditReferences = {
+      version: 1,
+      maxSecondarySlotCount: 10,
+      primaryReferenceInputIndex: 0,
+      secondarySlots: [{ slotIndex: 1, referenceInputIndex: 2 }],
+      restoreSecondarySlots: [
+        {
+          slotIndex: 4,
+          sourceUrl: "blob:restore-only-secondary",
+        },
+      ],
+    };
+
+    act(() => {
+      result.current.regenerateOutput({
+        referenceInputsOverride: [
+          "blob:flattened-primary",
+          "blob:linked-secondary",
+          "blob:second-linked-secondary",
+        ],
+        referenceInputsMode: "replace",
+        referenceInputsLimit: 11,
+        expertEditReferences,
+        expertEditRestoreImageInputs: ["blob:restore-only-secondary"],
+      });
+    });
+
+    expect(submitTask).toHaveBeenCalledWith(
+      "edit prompt",
+      ["blob:flattened-primary", "blob:linked-secondary", "blob:second-linked-secondary"],
+      expect.objectContaining({
+        selectedToolOverride: "edit",
+        expertEditReferences,
+        expertEditRestoreImageInputs: ["blob:restore-only-secondary"],
+      })
     );
   });
 

@@ -5,7 +5,10 @@ import type { StudioOutput } from "../../types";
 import { hardcodedMusicModelId } from "../../components/MusicPropertiesPanel";
 import { hardcodedSoundEffectsModelId } from "../../components/SoundEffectsPropertiesPanel";
 import { hardcodedVoiceoverModelId } from "../../utils/voiceAudioModelConfig";
-import { REFERENCE_GRID_MAX_VISIBLE_ITEMS } from "../../reference-grid/logic/referenceGridLimits";
+import {
+  REFERENCE_GRID_CAP_REACHED_MESSAGE,
+  REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+} from "../../reference-grid/logic/referenceGridLimits";
 import { useAiStudioAudioGeneration } from "../useAiStudioAudioGeneration";
 
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
@@ -983,5 +986,48 @@ describe("useAiStudioAudioGeneration", () => {
       expect(result.current.musicIsGenerating).toBe(false);
     });
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
+  });
+
+  it("blocks multi-song music batches when the Reference Grid lacks enough slots", async () => {
+    let uiError: string | null = null;
+    const existingOutputs = Array.from(
+      { length: REFERENCE_GRID_MAX_VISIBLE_ITEMS - 1 },
+      (_, index) => createPlaceholderOutput(`existing-${index + 1}`, `Existing ${index + 1}`)
+    );
+    const setUiError = asDispatch<string | null>((value) => {
+      uiError = typeof value === "function" ? value(uiError) : value;
+    });
+    const insertOptimisticGenerationPlaceholder = vi.fn(() => "out-music");
+
+    const { result } = renderHook(() =>
+      useAiStudioAudioGeneration({
+        outputs: existingOutputs,
+        setUiError,
+        insertOptimisticGenerationPlaceholder,
+        notifyGenerationFailure: vi.fn(),
+        updateOutputById: vi.fn(),
+        setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
+      })
+    );
+
+    let accepted: boolean | void = true;
+    await act(async () => {
+      accepted = await result.current.handleMusicGenerate({
+        text: "four variations of a branded synth sting",
+        durationSeconds: null,
+        bpm: 112,
+        mode: "instrumental",
+        structure: "loop",
+        energyPercent: 58,
+        outputFormat: "mp3_44100_128",
+        modelId: hardcodedMusicModelId,
+        songBatchCount: 2,
+      });
+    });
+
+    expect(accepted).toBe(false);
+    expect(insertOptimisticGenerationPlaceholder).not.toHaveBeenCalled();
+    expect(fetchWithAuthMock).not.toHaveBeenCalled();
+    expect(uiError).toBe(REFERENCE_GRID_CAP_REACHED_MESSAGE);
   });
 });

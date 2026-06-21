@@ -1551,7 +1551,9 @@ export function ExpertEditPanelView({
       ref={panelRootRef}
       className={`tool-properties edit-expert-panel ${
         isMarkupExpandSelected ? "is-markup-modal-open" : ""
-      } ${isSecondaryReferenceTrayWrapped ? "has-wrapped-secondary-references" : ""}`.trim()}
+      } ${isSecondaryReferenceTrayWrapped ? "has-wrapped-secondary-references" : ""} ${
+        inlineGenerateDisabled && inlineGuardrailReason ? "has-generate-guardrail" : ""
+      }`.trim()}
       role="group"
       aria-label="Expert edit composer"
       onDragEnterCapture={handleMarkupModalRootDragCapture}

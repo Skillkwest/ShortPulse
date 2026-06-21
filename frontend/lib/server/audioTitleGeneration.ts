@@ -44,6 +44,36 @@ const AUDIO_REFERENCE_TITLE_VARIANTS = [
 ] as const;
 export const GENERATED_AUDIO_REFERENCE_TITLE_VARIANT_COUNT = AUDIO_REFERENCE_TITLE_VARIANTS.length;
 const AUDIO_REFERENCE_TITLE_VARIANT_SET = new Set<string>(AUDIO_REFERENCE_TITLE_VARIANTS);
+const VOICE_TITLE_RELEVANCE_STOP_WORDS = new Set([
+  "a",
+  "an",
+  "and",
+  "are",
+  "as",
+  "at",
+  "be",
+  "by",
+  "for",
+  "from",
+  "i",
+  "in",
+  "is",
+  "it",
+  "me",
+  "my",
+  "of",
+  "on",
+  "or",
+  "our",
+  "the",
+  "this",
+  "to",
+  "us",
+  "we",
+  "with",
+  "you",
+  "your",
+]);
 
 export type AudioReferenceTitleSourceMode =
   | "music"
@@ -183,6 +213,50 @@ const toTitleCase = (value: string): string =>
     })
     .join(" ");
 
+const extractVoiceTitleRelevanceTokens = (value: string | null | undefined): Set<string> => {
+  const normalized = normalizeString(value);
+  if (!normalized) return new Set();
+  return new Set(
+    normalized
+      .toLowerCase()
+      .replace(/\b(script|voiceover|narration|dialogue|copy|source|voice|transcript)\b\s*:/gi, " ")
+      .replace(/\s+->\s+/g, " ")
+      .replace(/\.[a-z0-9]{2,5}\b/gi, " ")
+      .split(/[^a-z0-9']+/)
+      .map((token) => token.trim())
+      .filter(
+        (token) =>
+          token.length > 2 && !VOICE_TITLE_RELEVANCE_STOP_WORDS.has(token) && !/^\d+$/.test(token)
+      )
+  );
+};
+
+const buildVoiceTitleRelevanceSource = (input: GenerateAudioReferenceTitleInput): string | null => {
+  if (input.sourceMode === "voiceover") {
+    return normalizeString(input.promptText);
+  }
+  if (input.sourceMode === "voice-changer") {
+    return (
+      normalizeString(input.transcriptText) ??
+      normalizeString(input.promptText) ??
+      normalizeString(input.sourceName)
+    );
+  }
+  return null;
+};
+
+const isGeneratedVoiceTitleRelevant = (
+  input: GenerateAudioReferenceTitleInput,
+  title: string
+): boolean => {
+  if (input.sourceMode !== "voiceover" && input.sourceMode !== "voice-changer") return true;
+  const sourceTokens = extractVoiceTitleRelevanceTokens(buildVoiceTitleRelevanceSource(input));
+  if (sourceTokens.size === 0) return true;
+  const titleTokens = extractVoiceTitleRelevanceTokens(title);
+  if (titleTokens.size === 0) return false;
+  return Array.from(titleTokens).some((token) => sourceTokens.has(token));
+};
+
 export const buildFallbackSongTitle = (input: GenerateSongTitleInput): string => {
   const source =
     normalizeString(input.promptText) ??
@@ -315,6 +389,24 @@ const describeTitleKind = (sourceMode: AudioReferenceTitleSourceMode): string =>
   }
 };
 
+const buildTitleSystemPrompt = (
+  input: GenerateAudioReferenceTitleInput,
+  modelTitleMaxWords: number
+): string => {
+  const base =
+    `Create one concise original ${describeTitleKind(input.sourceMode)} title for an audio reference. ` +
+    `Return JSON only. The title must be ${modelTitleMaxWords} words or fewer, ` +
+    `${GENERATED_AUDIO_REFERENCE_TITLE_MAX_CHARACTERS} characters or fewer, readable in a small media card, ` +
+    "and contain no quotes, emoji, provider names, filenames, codes, ids, labels, or explanations.";
+  if (input.sourceMode === "voiceover") {
+    return `${base} For voiceover titles, base the title on the User prompt/script text. Use a distinctive noun, image, action, or subject from that text. Do not title the speaker or voice.`;
+  }
+  if (input.sourceMode === "voice-changer") {
+    return `${base} For voice-changer titles, base the title on the transcript or user/source text. Use a distinctive noun, image, action, or subject from that text. Do not title the speaker, voice, filename, or conversion.`;
+  }
+  return base;
+};
+
 export const generateAudioReferenceTitleBestEffort = async (
   input: GenerateAudioReferenceTitleInput
 ): Promise<string> => {
@@ -336,7 +428,7 @@ export const generateAudioReferenceTitleBestEffort = async (
       messages: [
         {
           role: "system",
-          content: `Create one concise original ${describeTitleKind(input.sourceMode)} title for an audio reference. Return JSON only. The title must be ${modelTitleMaxWords} words or fewer, ${GENERATED_AUDIO_REFERENCE_TITLE_MAX_CHARACTERS} characters or fewer, readable in a small media card, and contain no quotes, emoji, provider names, filenames, codes, ids, labels, or explanations.`,
+          content: buildTitleSystemPrompt(input, modelTitleMaxWords),
         },
         {
           role: "user",
@@ -364,7 +456,7 @@ export const generateAudioReferenceTitleBestEffort = async (
     });
     if (!response.ok) return fallbackTitle;
     const generatedTitle = readGeneratedTitle(await response.json().catch(() => null));
-    return generatedTitle
+    return generatedTitle && isGeneratedVoiceTitleRelevant(input, generatedTitle)
       ? finalizeAudioReferenceTitle({ baseTitle: generatedTitle, uniqueSeed: input.uniqueSeed })
       : fallbackTitle;
   } catch {

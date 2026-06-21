@@ -915,7 +915,7 @@ export const useAiStudioViewModel = ({
     if (isVideoTool && isSeedance2Model) {
       if (seedance2UsesMultimodalReferences) {
         if (!hasSeedance2MultimodalReferences && !hasSeedance2LinkedAssetReferences) {
-          return "Add at least one image, video, or audio reference before generating with Seedance 2.0.";
+          return "Add at least one image, video, or audio reference before generating with Seedance 2.";
         }
       }
       if (
@@ -923,14 +923,14 @@ export const useAiStudioViewModel = ({
         seedance2InputMode === "first-frame" &&
         !referenceImageUrl
       ) {
-        return "Add a first frame image before generating with Seedance 2.0.";
+        return "Add a first frame image before generating with Seedance 2.";
       }
       if (
         !seedance2UsesMultimodalReferences &&
         seedance2InputMode === "first-last" &&
         !(referenceImageUrl && extraImageUrls[0])
       ) {
-        return "Add both first and last frame images before generating with Seedance 2.0.";
+        return "Add both first and last frame images before generating with Seedance 2.";
       }
     }
     if (missingCanonicalCreatePricingAuthorityGuardrail) {
@@ -1024,7 +1024,7 @@ export const useAiStudioViewModel = ({
       if (isSeedance2Model) {
         if (seedance2UsesMultimodalReferences) {
           if (!hasSeedance2MultimodalReferences && !hasSeedance2LinkedAssetReferences) {
-            return "Seedance 2.0 multimodal mode requires at least one image, video, or audio reference.";
+            return "Seedance 2 multimodal mode requires at least one image, video, or audio reference.";
           }
         }
         if (
@@ -1032,14 +1032,14 @@ export const useAiStudioViewModel = ({
           seedance2InputMode === "first-frame" &&
           !hasReference
         ) {
-          return "Seedance 2.0 requires a first frame image in first-frame mode.";
+          return "Seedance 2 requires a first frame image in first-frame mode.";
         }
         if (
           !seedance2UsesMultimodalReferences &&
           seedance2InputMode === "first-last" &&
           !(hasReference && extraImageUrls[0])
         ) {
-          return "Seedance 2.0 requires both first and last frame images in first/last-frame mode.";
+          return "Seedance 2 requires both first and last frame images in first/last-frame mode.";
         }
       }
     }

@@ -68,7 +68,6 @@ export type VideoSubmissionArgs = BaseSubmissionArgs & {
   lipSyncAudio: LipSyncAudioState;
   lipSyncTurboMode: boolean;
   rawImageInputs?: string[];
-  videoCameraFixed: boolean;
   seedance2InputMode?: "text" | "first-frame" | "first-last" | "multimodal";
   seedance2ReferenceImageUrls?: string[];
   seedance2ReferenceVideoUrls?: string[];

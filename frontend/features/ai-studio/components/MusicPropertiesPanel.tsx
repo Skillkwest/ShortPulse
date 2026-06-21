@@ -10,6 +10,7 @@ import { resolvePricingGridBilledCredits } from "../../../lib/model-runtime/pric
 import type { ModelPricingPolicyDocument } from "../../../lib/model-runtime/pricingPolicy";
 import { useAudioInspirationRail } from "../hooks/useAudioInspirationRail";
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
+import { resolveGenerateCreditConfidence } from "./shared/generateCreditConfidence";
 
 export type MusicMode = "instrumental" | "vocal";
 export type MusicStructure = "loop" | "full-track" | "cinematic";
@@ -141,7 +142,7 @@ const formatCreditValue = (value: number): string =>
   Number.isInteger(value) ? String(value) : value.toFixed(1);
 
 export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
-  balanceCredits: _balanceCredits = null,
+  balanceCredits = null,
   durationSeconds: controlledDurationSeconds,
   isGenerating = false,
   onDurationChange,
@@ -161,7 +162,6 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   singerEnabled: controlledSingerEnabled,
   songBatchCount: controlledSongBatchCount,
 }: MusicPropertiesPanelProps) {
-  void _balanceCredits;
   const splitContainerRef = React.useRef<HTMLDivElement | null>(null);
   const songBatchMenuRef = React.useRef<HTMLDivElement | null>(null);
   const durationMenuRef = React.useRef<HTMLDivElement | null>(null);
@@ -322,6 +322,12 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
       : null) ?? null;
   const estimatedCredits =
     estimatedCreditsPerSong != null ? estimatedCreditsPerSong * songBatchCount : null;
+  const generateCreditConfidence = resolveGenerateCreditConfidence({
+    actionLabel: "Generate music",
+    estimatedCredits,
+    balanceCredits,
+    formatCredits: formatCreditValue,
+  });
   const promptPlaceholder =
     composerMode === "simple" ? musicPromptPlaceholder : customMusicPromptPlaceholder;
   const buildSubmissionText = React.useCallback(
@@ -805,8 +811,10 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
                   <button
                     type="button"
                     className="music-properties-generate-btn"
+                    data-credit-confidence={generateCreditConfidence.status}
                     disabled={!isGenerateEnabled}
                     aria-label="Generate music"
+                    title={generateCreditConfidence.title}
                     onClick={() => {
                       void handleGenerate();
                     }}

@@ -21,12 +21,14 @@
   align-items: center;
   gap: 8px;
   font-weight: 800;
-  letter-spacing: 0.01em;
+  letter-spacing: 0;
   font-size: 20px;
+  color: #f8fbff;
+  text-decoration: none;
 }
 
 .brand-mark.brand-mark-logo {
-  gap: 10px;
+  gap: 14px;
 }
 
 .brand-logo {
@@ -38,6 +40,7 @@
 
 .brand-name {
   font-weight: 800;
+  line-height: 1;
 }
 
 .brand-mark .logo-dot {

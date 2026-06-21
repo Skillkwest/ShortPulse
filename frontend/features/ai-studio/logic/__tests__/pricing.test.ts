@@ -157,6 +157,11 @@ describe("computeCostForModel (Kling 3.0)", () => {
     });
     expectDefaultMarkedUpCredits(cost, 0.21, 6);
   });
+
+  it("advertises the full active Kling duration range", () => {
+    expect(getModelConfig(KIE_KLING_30_MODEL_ID)?.minDurationSeconds).toBe(3);
+    expect(getModelConfig(KIE_KLING_30_MODEL_ID)?.maxDurationSeconds).toBe(15);
+  });
 });
 
 describe("computeCostForModel (Kie Seedance 2)", () => {
@@ -178,7 +183,9 @@ describe("computeCostForModel (Kie Seedance 2)", () => {
   });
 
   it("advertises 15s as the max for both Seedance 2 pricing configs", () => {
+    expect(getModelConfig(KIE_SEEDANCE_2_MODEL_ID)?.minDurationSeconds).toBe(4);
     expect(getModelConfig(KIE_SEEDANCE_2_MODEL_ID)?.maxDurationSeconds).toBe(15);
+    expect(getModelConfig(KIE_SEEDANCE_2_FAST_MODEL_ID)?.minDurationSeconds).toBe(4);
     expect(getModelConfig(KIE_SEEDANCE_2_FAST_MODEL_ID)?.maxDurationSeconds).toBe(15);
   });
 });

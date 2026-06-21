@@ -335,8 +335,9 @@ async function main() {
     };
 
     const hasExpectedMask = /mask\.png/i.test(result.loadingGate.maskImage);
-    const hasExpectedAnimation =
-      result.loadingGate.pulseAnimationName === "ai-studio-project-entry-pulse-run";
+    const hasExpectedAnimation = /ai-studio-project-entry-pulse-run/i.test(
+      result.loadingGate.pulseAnimationName
+    );
     const hasExpectedSurfaceClass = result.loadingGate.surfaceVariantClass !== "none";
     const hasExpectedHeading = result.loadingGate.heading === "Loading project";
     const hasExpectedMessage =

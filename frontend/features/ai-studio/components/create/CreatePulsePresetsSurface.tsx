@@ -207,9 +207,7 @@ export const CreatePulsePresetsSurface = ({
         <div className="create-composer-presets-surface-title-group">
           <h3 className="create-composer-presets-surface-title">Pulses</h3>
           <p className="create-composer-presets-surface-subtitle">
-            Custom and built-in Pulses share the same grid. Click to pin a Pulse to the rail. Drag
-            to pin without closing this view. Activating or deactivating from the rail starts a
-            fresh Pulse session.
+            Click a Pulse to start it. Drag a Pulse to pin it without starting.
           </p>
         </div>
         <div className="create-composer-presets-surface-actions">

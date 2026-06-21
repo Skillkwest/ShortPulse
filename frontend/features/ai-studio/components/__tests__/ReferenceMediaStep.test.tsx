@@ -1,5 +1,5 @@
 import React from "react";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ReferenceMediaStep } from "../ReferenceMediaStep";
 import { loadVideoPreviewMetadata } from "../../logic/videoPreviewMetadata";
@@ -62,6 +62,223 @@ const setElementRect = (
 };
 
 describe("ReferenceMediaStep motion intake", () => {
+  it("opens Motion Control file pickers from keyboard-activated dropzones", () => {
+    const inputClick = vi
+      .spyOn(HTMLInputElement.prototype, "click")
+      .mockImplementation(() => undefined);
+    render(
+      <ReferenceMediaStep
+        referenceOrder={1}
+        collapsedReference={false}
+        onExpandReference={vi.fn()}
+        onToggleReference={vi.fn()}
+        isVideoVariant={true}
+        referenceStepTitle="Add Motion Inputs"
+        referenceStepSubtitle="Add references"
+        isMotionMode={true}
+        isKling3Mode={false}
+        isStandardMode={false}
+        isKeyframesMode={false}
+        referenceImageUrl={null}
+        extraImageUrls={[null, null, null]}
+        motionVideoUrl={null}
+        primaryDragActive={false}
+        extraDragActive={[false, false, false]}
+        motionVideoDragActive={false}
+        setMotionVideoDragActive={vi.fn()}
+        handlePrimaryDrop={vi.fn()}
+        handlePrimaryDragEnter={vi.fn()}
+        handlePrimaryDragOver={vi.fn()}
+        handlePrimaryDragLeave={vi.fn()}
+        handleExtraDrop={() => vi.fn()}
+        handleExtraDragEnter={() => vi.fn()}
+        handleExtraDragOver={() => vi.fn()}
+        handleExtraDragLeave={() => vi.fn()}
+        allowVideoDrag={vi.fn(() => false)}
+        handleMotionVideoDrop={vi.fn()}
+        primaryInputRef={{ current: null }}
+        extraOneInputRef={{ current: null }}
+        extraTwoInputRef={{ current: null }}
+        extraThreeInputRef={{ current: null }}
+        motionVideoInputRef={{ current: null }}
+        onPrimaryImageChange={vi.fn()}
+        onExtraImageChange={vi.fn()}
+        onMotionVideoChange={vi.fn()}
+        handleFileSelection={() => vi.fn()}
+        handleMotionVideoSelection={vi.fn()}
+      />
+    );
+
+    fireEvent.keyDown(screen.getByRole("button", { name: "Upload character image" }), {
+      key: "Enter",
+    });
+    fireEvent.keyDown(screen.getByRole("button", { name: "Upload motion clip" }), { key: " " });
+
+    expect(inputClick).toHaveBeenCalledTimes(2);
+    inputClick.mockRestore();
+  });
+
+  it("does not nest a keyboard upload button around filled Motion Control clear buttons", () => {
+    render(
+      <ReferenceMediaStep
+        referenceOrder={1}
+        collapsedReference={false}
+        onExpandReference={vi.fn()}
+        onToggleReference={vi.fn()}
+        isVideoVariant={true}
+        referenceStepTitle="Add Motion Inputs"
+        referenceStepSubtitle="Add references"
+        isMotionMode={true}
+        isKling3Mode={false}
+        isStandardMode={false}
+        isKeyframesMode={false}
+        referenceImageUrl="https://example.com/character.png"
+        extraImageUrls={[null, null, null]}
+        motionVideoUrl="https://example.com/motion.mp4"
+        primaryDragActive={false}
+        extraDragActive={[false, false, false]}
+        motionVideoDragActive={false}
+        setMotionVideoDragActive={vi.fn()}
+        handlePrimaryDrop={vi.fn()}
+        handlePrimaryDragEnter={vi.fn()}
+        handlePrimaryDragOver={vi.fn()}
+        handlePrimaryDragLeave={vi.fn()}
+        handleExtraDrop={() => vi.fn()}
+        handleExtraDragEnter={() => vi.fn()}
+        handleExtraDragOver={() => vi.fn()}
+        handleExtraDragLeave={() => vi.fn()}
+        allowVideoDrag={vi.fn(() => false)}
+        handleMotionVideoDrop={vi.fn()}
+        primaryInputRef={{ current: null }}
+        extraOneInputRef={{ current: null }}
+        extraTwoInputRef={{ current: null }}
+        extraThreeInputRef={{ current: null }}
+        motionVideoInputRef={{ current: null }}
+        onPrimaryImageChange={vi.fn()}
+        onExtraImageChange={vi.fn()}
+        onMotionVideoChange={vi.fn()}
+        handleFileSelection={() => vi.fn()}
+        handleMotionVideoSelection={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByRole("button", { name: "Upload character image" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Upload motion clip" })).toBeNull();
+    expect(screen.getAllByRole("button", { name: "×" })).toHaveLength(2);
+  });
+
+  it("opens Standard video frame file pickers from keyboard-activated dropzones", () => {
+    const inputClick = vi
+      .spyOn(HTMLInputElement.prototype, "click")
+      .mockImplementation(() => undefined);
+    render(
+      <ReferenceMediaStep
+        referenceOrder={1}
+        collapsedReference={false}
+        onExpandReference={vi.fn()}
+        onToggleReference={vi.fn()}
+        isVideoVariant={true}
+        referenceStepTitle="Add references"
+        referenceStepSubtitle="Add references"
+        isMotionMode={false}
+        isKling3Mode={false}
+        isStandardMode={true}
+        isKeyframesMode={false}
+        referenceImageUrl={null}
+        extraImageUrls={[null, null, null]}
+        motionVideoUrl={null}
+        primaryDragActive={false}
+        extraDragActive={[false, false, false]}
+        motionVideoDragActive={false}
+        setMotionVideoDragActive={vi.fn()}
+        handlePrimaryDrop={vi.fn()}
+        handlePrimaryDragEnter={vi.fn()}
+        handlePrimaryDragOver={vi.fn()}
+        handlePrimaryDragLeave={vi.fn()}
+        handleExtraDrop={() => vi.fn()}
+        handleExtraDragEnter={() => vi.fn()}
+        handleExtraDragOver={() => vi.fn()}
+        handleExtraDragLeave={() => vi.fn()}
+        allowVideoDrag={vi.fn(() => false)}
+        handleMotionVideoDrop={vi.fn()}
+        primaryInputRef={{ current: null }}
+        extraOneInputRef={{ current: null }}
+        extraTwoInputRef={{ current: null }}
+        extraThreeInputRef={{ current: null }}
+        motionVideoInputRef={{ current: null }}
+        onPrimaryImageChange={vi.fn()}
+        onExtraImageChange={vi.fn()}
+        onMotionVideoChange={vi.fn()}
+        handleFileSelection={() => vi.fn()}
+        handleMotionVideoSelection={vi.fn()}
+      />
+    );
+
+    fireEvent.keyDown(screen.getByRole("button", { name: "Upload first frame" }), {
+      key: "Enter",
+    });
+    fireEvent.keyDown(screen.getByRole("button", { name: "Upload last frame" }), { key: " " });
+
+    expect(inputClick).toHaveBeenCalledTimes(2);
+    inputClick.mockRestore();
+  });
+
+  it("opens Kling start and end frame file pickers from keyboard-activated dropzones", () => {
+    const inputClick = vi
+      .spyOn(HTMLInputElement.prototype, "click")
+      .mockImplementation(() => undefined);
+    render(
+      <ReferenceMediaStep
+        referenceOrder={1}
+        collapsedReference={false}
+        onExpandReference={vi.fn()}
+        onToggleReference={vi.fn()}
+        isVideoVariant={true}
+        referenceStepTitle="Add references"
+        referenceStepSubtitle="Add references"
+        isMotionMode={false}
+        isKling3Mode={true}
+        isStandardMode={false}
+        isKeyframesMode={false}
+        referenceImageUrl={null}
+        extraImageUrls={[null, null, null]}
+        motionVideoUrl={null}
+        primaryDragActive={false}
+        extraDragActive={[false, false, false]}
+        motionVideoDragActive={false}
+        setMotionVideoDragActive={vi.fn()}
+        handlePrimaryDrop={vi.fn()}
+        handlePrimaryDragEnter={vi.fn()}
+        handlePrimaryDragOver={vi.fn()}
+        handlePrimaryDragLeave={vi.fn()}
+        handleExtraDrop={() => vi.fn()}
+        handleExtraDragEnter={() => vi.fn()}
+        handleExtraDragOver={() => vi.fn()}
+        handleExtraDragLeave={() => vi.fn()}
+        allowVideoDrag={vi.fn(() => false)}
+        handleMotionVideoDrop={vi.fn()}
+        primaryInputRef={{ current: null }}
+        extraOneInputRef={{ current: null }}
+        extraTwoInputRef={{ current: null }}
+        extraThreeInputRef={{ current: null }}
+        motionVideoInputRef={{ current: null }}
+        onPrimaryImageChange={vi.fn()}
+        onExtraImageChange={vi.fn()}
+        onMotionVideoChange={vi.fn()}
+        handleFileSelection={() => vi.fn()}
+        handleMotionVideoSelection={vi.fn()}
+      />
+    );
+
+    fireEvent.keyDown(screen.getByRole("button", { name: "Upload start frame" }), {
+      key: "Enter",
+    });
+    fireEvent.keyDown(screen.getByRole("button", { name: "Upload end frame" }), { key: " " });
+
+    expect(inputClick).toHaveBeenCalledTimes(2);
+    inputClick.mockRestore();
+  });
+
   it("keeps the Motion tile focused on upload/drop intake and accepts WEBM clips", () => {
     const { container } = render(
       <ReferenceMediaStep

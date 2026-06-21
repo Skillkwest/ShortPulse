@@ -363,7 +363,7 @@ export function PrimaryCanvasFrameStack({
       <div className="edit-expert-primary-canvas-frame" aria-hidden="true" />
       {!isPopulated ? (
         <p className="edit-expert-primary-empty-helper" aria-hidden="true">
-          Drag &amp; drop an image from the Reference Grid
+          Add an image to start editing.
         </p>
       ) : null}
       {children}

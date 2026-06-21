@@ -19,6 +19,16 @@ import type { AgentComposerDirectDropPayload } from "../logic/agentComposerDirec
 
 const MOTION_VIDEO_POSTER_CAPTURE_TIME_SECONDS = 3;
 
+const openDropzoneFilePicker = (inputRef: React.MutableRefObject<HTMLInputElement | null>) => {
+  inputRef.current?.click();
+};
+
+const shouldOpenDropzoneFilePickerFromKey = (event: React.KeyboardEvent<HTMLDivElement>) => {
+  if (event.key !== "Enter" && event.key !== " ") return false;
+  event.preventDefault();
+  return true;
+};
+
 const useMotionVideoPreviewMetadata = (motionVideoUrl: string | null) => {
   const [preview, setPreview] = React.useState<{
     durationMs: number | null;
@@ -298,7 +308,19 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                 onDragEnter={handlePrimaryDragEnter}
                 onDragOver={handlePrimaryDragOver}
                 onDragLeave={handlePrimaryDragLeave}
-                onClick={() => primaryInputRef.current?.click()}
+                onClick={() => openDropzoneFilePicker(primaryInputRef)}
+                onKeyDown={
+                  referenceImageUrl
+                    ? undefined
+                    : (event) => {
+                        if (shouldOpenDropzoneFilePickerFromKey(event)) {
+                          openDropzoneFilePicker(primaryInputRef);
+                        }
+                      }
+                }
+                role={referenceImageUrl ? undefined : "button"}
+                tabIndex={referenceImageUrl ? undefined : 0}
+                aria-label={referenceImageUrl ? undefined : "Upload character image"}
                 style={
                   referenceImageUrl ? { backgroundImage: `url(${referenceImageUrl})` } : undefined
                 }
@@ -341,7 +363,19 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                   }
                 }}
                 onDragLeave={() => setMotionVideoDragActive(false)}
-                onClick={() => motionVideoInputRef.current?.click()}
+                onClick={() => openDropzoneFilePicker(motionVideoInputRef)}
+                onKeyDown={
+                  motionVideoUrl
+                    ? undefined
+                    : (event) => {
+                        if (shouldOpenDropzoneFilePickerFromKey(event)) {
+                          openDropzoneFilePicker(motionVideoInputRef);
+                        }
+                      }
+                }
+                role={motionVideoUrl ? undefined : "button"}
+                tabIndex={motionVideoUrl ? undefined : 0}
+                aria-label={motionVideoUrl ? undefined : "Upload motion clip"}
               >
                 {motionVideoLoading ? renderLoadingOverlay() : null}
                 <span className="dropzone-tag">Motion</span>
@@ -454,7 +488,19 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
               onDragEnter={handlePrimaryDragEnter}
               onDragOver={handlePrimaryDragOver}
               onDragLeave={handlePrimaryDragLeave}
-              onClick={() => primaryInputRef.current?.click()}
+              onClick={() => openDropzoneFilePicker(primaryInputRef)}
+              onKeyDown={
+                referenceImageUrl
+                  ? undefined
+                  : (event) => {
+                      if (shouldOpenDropzoneFilePickerFromKey(event)) {
+                        openDropzoneFilePicker(primaryInputRef);
+                      }
+                    }
+              }
+              role={referenceImageUrl ? undefined : "button"}
+              tabIndex={referenceImageUrl ? undefined : 0}
+              aria-label={referenceImageUrl ? undefined : "Upload start frame"}
               style={
                 referenceImageUrl ? { backgroundImage: `url(${referenceImageUrl})` } : undefined
               }
@@ -487,7 +533,19 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
               onDragEnter={handleExtraDragEnter(0)}
               onDragOver={handleExtraDragOver(0)}
               onDragLeave={handleExtraDragLeave(0)}
-              onClick={() => extraOneInputRef.current?.click()}
+              onClick={() => openDropzoneFilePicker(extraOneInputRef)}
+              onKeyDown={
+                extraImageUrls[0]
+                  ? undefined
+                  : (event) => {
+                      if (shouldOpenDropzoneFilePickerFromKey(event)) {
+                        openDropzoneFilePicker(extraOneInputRef);
+                      }
+                    }
+              }
+              role={extraImageUrls[0] ? undefined : "button"}
+              tabIndex={extraImageUrls[0] ? undefined : 0}
+              aria-label={extraImageUrls[0] ? undefined : "Upload end frame"}
               style={
                 extraImageUrls[0] ? { backgroundImage: `url(${extraImageUrls[0]})` } : undefined
               }
@@ -523,7 +581,25 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
               onDragEnter={handlePrimaryDragEnter}
               onDragOver={handlePrimaryDragOver}
               onDragLeave={handlePrimaryDragLeave}
-              onClick={() => primaryInputRef.current?.click()}
+              onClick={() => openDropzoneFilePicker(primaryInputRef)}
+              onKeyDown={
+                referenceImageUrl
+                  ? undefined
+                  : (event) => {
+                      if (shouldOpenDropzoneFilePickerFromKey(event)) {
+                        openDropzoneFilePicker(primaryInputRef);
+                      }
+                    }
+              }
+              role={referenceImageUrl ? undefined : "button"}
+              tabIndex={referenceImageUrl ? undefined : 0}
+              aria-label={
+                referenceImageUrl
+                  ? undefined
+                  : isStandardMode
+                    ? "Upload first frame"
+                    : "Upload reference image"
+              }
               style={
                 referenceImageUrl ? { backgroundImage: `url(${referenceImageUrl})` } : undefined
               }
@@ -580,7 +656,19 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                   onDragEnter={handleExtraDragEnter(0)}
                   onDragOver={handleExtraDragOver(0)}
                   onDragLeave={handleExtraDragLeave(0)}
-                  onClick={() => extraOneInputRef.current?.click()}
+                  onClick={() => openDropzoneFilePicker(extraOneInputRef)}
+                  onKeyDown={
+                    extraImageUrls[0]
+                      ? undefined
+                      : (event) => {
+                          if (shouldOpenDropzoneFilePickerFromKey(event)) {
+                            openDropzoneFilePicker(extraOneInputRef);
+                          }
+                        }
+                  }
+                  role={extraImageUrls[0] ? undefined : "button"}
+                  tabIndex={extraImageUrls[0] ? undefined : 0}
+                  aria-label={extraImageUrls[0] ? undefined : "Upload last frame"}
                   style={
                     extraImageUrls[0] ? { backgroundImage: `url(${extraImageUrls[0]})` } : undefined
                   }

@@ -48,7 +48,9 @@ export const buildStylesCatalogWithDetails = (
   >
 ): ExpertEditStyleTile[] => {
   const builtInStyleIds = new Set(builtInStyles.map((style) => style.id));
-  const overrideEntries = Object.entries(styleDetailsById);
+  const overrideEntries = Object.entries(styleDetailsById).sort(([leftStyleId], [rightStyleId]) =>
+    leftStyleId.localeCompare(rightStyleId)
+  );
 
   const customStyleTiles: ExpertEditStyleTile[] = overrideEntries
     .filter(([styleId]) => !builtInStyleIds.has(styleId))

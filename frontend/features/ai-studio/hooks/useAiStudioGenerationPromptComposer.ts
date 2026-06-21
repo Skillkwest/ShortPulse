@@ -107,6 +107,8 @@ const buildTaskSubmitOptions = ({
   imageResolutionOverride,
   inpaintOverride,
   hideOutputFromReferenceGrid,
+  expertEditReferences,
+  expertEditRestoreImageInputs,
   outputIdOverride,
 }: {
   modeOverride?: AiStudioTaskSubmitOptions["modeOverride"];
@@ -121,6 +123,8 @@ const buildTaskSubmitOptions = ({
   imageResolutionOverride?: AiStudioTaskSubmitOptions["imageResolutionOverride"];
   inpaintOverride?: AiStudioTaskSubmitOptions["inpaintOverride"];
   hideOutputFromReferenceGrid?: AiStudioTaskSubmitOptions["hideOutputFromReferenceGrid"];
+  expertEditReferences?: AiStudioTaskSubmitOptions["expertEditReferences"];
+  expertEditRestoreImageInputs?: AiStudioTaskSubmitOptions["expertEditRestoreImageInputs"];
   outputIdOverride?: AiStudioTaskSubmitOptions["outputIdOverride"];
 }): AiStudioTaskSubmitOptions => {
   const nextOptions = {
@@ -135,6 +139,8 @@ const buildTaskSubmitOptions = ({
     imageResolutionOverride,
     inpaintOverride,
     hideOutputFromReferenceGrid,
+    expertEditReferences,
+    expertEditRestoreImageInputs,
     ...(styleContextOverrideToSubmit
       ? {
           styleContextOverride: styleContextOverrideToSubmit,
@@ -271,6 +277,8 @@ export const useAiStudioGenerationPromptComposer = ({
           imageResolutionOverride: options?.imageResolutionOverride,
           inpaintOverride: options?.inpaintOverride,
           hideOutputFromReferenceGrid: options?.hideOutputFromReferenceGrid,
+          expertEditReferences: options?.expertEditReferences,
+          expertEditRestoreImageInputs: options?.expertEditRestoreImageInputs,
           outputIdOverride: options?.outputIdOverride,
         })
       );
@@ -360,6 +368,8 @@ export const useAiStudioGenerationPromptComposer = ({
           outputIdOverride: options?.outputIdOverride,
           inpaintOverride: options?.inpaintOverride,
           hideOutputFromReferenceGrid: options?.hideOutputFromReferenceGrid,
+          expertEditReferences: options?.expertEditReferences,
+          expertEditRestoreImageInputs: options?.expertEditRestoreImageInputs,
         })
       );
     },

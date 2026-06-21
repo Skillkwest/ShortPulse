@@ -695,6 +695,11 @@ export const useAiStudioAudioGeneration = ({
     async (request: MusicGenerateRequest) => {
       const promptText = request.text.trim();
       if (!promptText) return false;
+      const requiredVisibleSlots = Math.max(1, request.songBatchCount ?? 1);
+      if (getReferenceGridAvailableSlots(outputs) < requiredVisibleSlots) {
+        setUiError(REFERENCE_GRID_CAP_REACHED_MESSAGE);
+        return false;
+      }
       const { displayedBilledCredits, pricingPolicyReady = true } = request;
       const providerRequest = {
         text: request.text,
@@ -795,6 +800,7 @@ export const useAiStudioAudioGeneration = ({
     [
       insertOptimisticGenerationPlaceholder,
       notifyGenerationFailure,
+      outputs,
       projectId,
       setUiError,
       updateOutputById,

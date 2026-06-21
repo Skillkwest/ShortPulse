@@ -1063,8 +1063,7 @@ function DetailModalContent({
     handleCloseModal();
   };
   const shouldShowWorkflowReloadAction = Boolean(
-    onReloadWorkflowReference &&
-    (canReloadWorkflowOutput(output) || canReloadWorkflowOutput(output, { mediaKindHint: "image" }))
+    onReloadWorkflowReference && canReloadWorkflowOutput(output)
   );
 
   const sharedMediaActionItems = useMemo<SharedMediaDetailActionItem[]>(
@@ -1159,6 +1158,7 @@ function DetailModalContent({
         modalActivityId="detail-modal"
         onClose={handleCloseModal}
         ariaLabel="Reference details"
+        closeOnEscape={!isDeleteConfirmOpen}
         ariaModal={!isDeleteConfirmOpen}
         dialogAriaHidden={isDeleteConfirmOpen}
         backdropClassName="reference-modal-backdrop"

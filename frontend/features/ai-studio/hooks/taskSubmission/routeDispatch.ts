@@ -47,7 +47,6 @@ export type DispatchSubmissionByRouteParams = {
   motionReferenceVideoUrl: string | null;
   lipSyncAudio: LipSyncAudioState;
   lipSyncTurboMode: boolean;
-  videoCameraFixed: boolean;
   rawImageInputs?: string[];
   seedance2InputMode?: "text" | "first-frame" | "first-last" | "multimodal";
   seedance2ReferenceImageUrls?: string[];
@@ -102,7 +101,6 @@ const submissionRouteAdapters: Record<
     motionReferenceVideoUrl,
     lipSyncAudio,
     lipSyncTurboMode,
-    videoCameraFixed,
     rawImageInputs,
     seedance2InputMode,
     seedance2ReferenceImageUrls,
@@ -140,7 +138,6 @@ const submissionRouteAdapters: Record<
       motionReferenceVideoUrl,
       lipSyncAudio,
       lipSyncTurboMode,
-      videoCameraFixed,
       rawImageInputs,
       seedance2InputMode,
       seedance2ReferenceImageUrls,
@@ -285,7 +282,6 @@ export const dispatchSubmissionByRoute = async ({
   motionReferenceVideoUrl,
   lipSyncAudio,
   lipSyncTurboMode,
-  videoCameraFixed,
   rawImageInputs,
   seedance2InputMode,
   seedance2ReferenceImageUrls,
@@ -338,7 +334,6 @@ export const dispatchSubmissionByRoute = async ({
     motionReferenceVideoUrl,
     lipSyncAudio,
     lipSyncTurboMode,
-    videoCameraFixed,
     rawImageInputs,
     seedance2InputMode,
     seedance2ReferenceImageUrls,

@@ -582,7 +582,7 @@ function SeedanceReferenceModeHarness({
       <VideoPropertiesPanel
         {...baseProps}
         modelId={KIE_SEEDANCE_2_MODEL_ID}
-        modelLabel="Seedance 2.0"
+        modelLabel="Seedance 2"
         referenceImageUrl={referenceImageUrl}
         extraImageUrls={extraImageUrls}
         seedance2InputMode={seedance2InputMode}
@@ -692,6 +692,47 @@ describe("VideoPropertiesPanel", () => {
     vi.mocked(loadCharacterManagerDraftByCharacterId).mockClear();
     vi.mocked(fetchElementsManagerList).mockClear();
     vi.mocked(loadElementManagerDraftByElementId).mockClear();
+  });
+
+  it("supports keyboard navigation on the shared video mode tabs", () => {
+    const onVideoReferenceModeChange = vi.fn();
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        onVideoReferenceModeChange={onVideoReferenceModeChange}
+      />
+    );
+
+    const modeTabs = screen.getByRole("tablist", { name: "Video reference mode" });
+    expect(screen.getByRole("tab", { name: "Standard" })).toHaveAttribute("tabIndex", "0");
+    expect(screen.getByRole("tab", { name: "Motion Control" })).toHaveAttribute("tabIndex", "-1");
+
+    fireEvent.keyDown(modeTabs, { key: "ArrowRight" });
+
+    expect(onVideoReferenceModeChange).toHaveBeenCalledWith("motion");
+  });
+
+  it("supports keyboard navigation on the Kling shot mode tabs", () => {
+    render(<KlingModeStateHarness />);
+
+    const shotTabs = screen.getByRole("tablist", { name: "Shot structure mode" });
+    expect(screen.getByTestId("kling-mode-state")).toHaveTextContent("custom");
+
+    fireEvent.keyDown(shotTabs, { key: "ArrowLeft" });
+
+    expect(screen.getByTestId("kling-mode-state")).toHaveTextContent("single");
+  });
+
+  it("supports keyboard navigation on Seedance reference mode tabs", () => {
+    render(<SeedanceReferenceModeHarness />);
+
+    const referenceTabs = screen.getByRole("tablist", { name: "Seedance reference mode" });
+
+    fireEvent.keyDown(referenceTabs, { key: "End" });
+    expect(screen.getByTestId("seedance-input-mode")).toHaveTextContent("text");
+
+    fireEvent.keyDown(referenceTabs, { key: "Home" });
+    expect(screen.getByTestId("seedance-input-mode")).toHaveTextContent("multimodal");
   });
 
   it("shows the Kling reference image warning when both standard frame slots are empty", () => {
@@ -1716,7 +1757,7 @@ describe("VideoPropertiesPanel", () => {
   it("does not render the stale Seedance regional disclaimer", () => {
     render(<VideoPropertiesPanel {...baseProps} />);
 
-    expect(screen.queryByText("Seedance 2.0 is currently unavailable in the U.S.")).toBeNull();
+    expect(screen.queryByText("Seedance 2 is currently unavailable in the U.S.")).toBeNull();
   });
 
   it("uses the standard single-shot prompt guidance when Kling Multi mode is selected", () => {
@@ -1972,7 +2013,7 @@ describe("VideoPropertiesPanel", () => {
       <VideoPropertiesPanel
         {...baseProps}
         modelId={KIE_SEEDANCE_2_FAST_MODEL_ID}
-        modelLabel="Seedance 2.0 Fast"
+        modelLabel="Seedance 2 Fast"
       />
     );
 
@@ -1988,7 +2029,7 @@ describe("VideoPropertiesPanel", () => {
       <VideoPropertiesPanel
         {...baseProps}
         modelId={KIE_SEEDANCE_2_MODEL_ID}
-        modelLabel="Seedance 2.0"
+        modelLabel="Seedance 2"
         klingWorkflowMode="custom"
       />
     );
@@ -2006,7 +2047,7 @@ describe("VideoPropertiesPanel", () => {
       <VideoPropertiesPanel
         {...baseProps}
         modelId={KIE_SEEDANCE_2_MODEL_ID}
-        modelLabel="Seedance 2.0"
+        modelLabel="Seedance 2"
       />
     );
 
@@ -2032,7 +2073,7 @@ describe("VideoPropertiesPanel", () => {
       <VideoPropertiesPanel
         {...baseProps}
         modelId={KIE_SEEDANCE_2_MODEL_ID}
-        modelLabel="Seedance 2.0"
+        modelLabel="Seedance 2"
         onKlingElementsChange={onKlingElementsChange}
       />
     );
@@ -2062,7 +2103,7 @@ describe("VideoPropertiesPanel", () => {
       <VideoPropertiesPanel
         {...baseProps}
         modelId={KIE_SEEDANCE_2_MODEL_ID}
-        modelLabel="Seedance 2.0"
+        modelLabel="Seedance 2"
         onKlingElementsChange={onKlingElementsChange}
       />
     );
@@ -2092,7 +2133,7 @@ describe("VideoPropertiesPanel", () => {
       <VideoPropertiesPanel
         {...baseProps}
         modelId={KIE_SEEDANCE_2_MODEL_ID}
-        modelLabel="Seedance 2.0"
+        modelLabel="Seedance 2"
         canvasTearOutTargetRegistry={registry}
         onKlingElementsChange={onKlingElementsChange}
       />
@@ -2137,7 +2178,7 @@ describe("VideoPropertiesPanel", () => {
       <VideoPropertiesPanel
         {...baseProps}
         modelId={KIE_SEEDANCE_2_MODEL_ID}
-        modelLabel="Seedance 2.0"
+        modelLabel="Seedance 2"
         klingElements={[
           {
             id: "direct-image",
@@ -2164,6 +2205,41 @@ describe("VideoPropertiesPanel", () => {
     expect(directImageTile).toHaveClass("video-elements-placeholder-tile--reference-image");
     expect(directImageTile).not.toHaveAttribute("draggable", "true");
     expect(screen.queryByRole("button", { name: /Insert @element1/i })).toBeNull();
+  });
+
+  it("exposes a file-replace control for filled Seedance image reference slots", () => {
+    const inputClick = vi
+      .spyOn(HTMLInputElement.prototype, "click")
+      .mockImplementation(() => undefined);
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        modelId={KIE_SEEDANCE_2_MODEL_ID}
+        modelLabel="Seedance 2"
+        klingElements={[
+          {
+            id: "direct-image",
+            slotIndex: 0,
+            sourceKind: "reference-image",
+            sourceElementId: null,
+            sourceCharacterId: null,
+            name: "Image reference",
+            alias: "",
+            description: "",
+            profileImageUrl: "https://example.com/direct-image.png",
+            profileImageTransform: null,
+            frontalImageUrl: "https://example.com/direct-image.png",
+            referenceImageUrls: "",
+            videoUrl: "",
+          },
+        ]}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Upload image reference to slot 1" }));
+
+    expect(inputClick).toHaveBeenCalledTimes(1);
+    inputClick.mockRestore();
   });
 
   it("hides direct Seedance image references after switching to Kling while preserving them for Seedance", () => {
@@ -2203,7 +2279,7 @@ describe("VideoPropertiesPanel", () => {
       <VideoPropertiesPanel
         {...baseProps}
         modelId={KIE_SEEDANCE_2_MODEL_ID}
-        modelLabel="Seedance 2.0"
+        modelLabel="Seedance 2"
         klingElements={klingElements}
       />
     );
@@ -2237,7 +2313,7 @@ describe("VideoPropertiesPanel", () => {
       <VideoPropertiesPanel
         {...baseProps}
         modelId={KIE_SEEDANCE_2_MODEL_ID}
-        modelLabel="Seedance 2.0"
+        modelLabel="Seedance 2"
         klingElements={klingElements}
       />
     );

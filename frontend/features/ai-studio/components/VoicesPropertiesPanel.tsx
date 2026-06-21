@@ -39,6 +39,7 @@ import {
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 import { CreateVoiceModal, type CreateVoiceModalPreview } from "./CreateVoiceModal";
 import { VoiceLibraryContent } from "./VoiceLibraryContent";
+import { resolveGenerateCreditConfidence } from "./shared/generateCreditConfidence";
 import {
   releaseVoiceChangerSource,
   VoiceChangerSourceDropzone,
@@ -325,7 +326,7 @@ const resolveActiveVoiceChangerSourceVideo = ({
  * Renders the dedicated Voices workflow panel.
  */
 export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
-  balanceCredits: _balanceCredits = null,
+  balanceCredits = null,
   pricingPolicy = null,
   pricingPolicyReady = true,
   selectedTool = null,
@@ -343,7 +344,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
 }: VoicesPropertiesPanelProps) {
   const sessionSnapshot = useResolvedProtectedSessionState();
   const sessionUserId = sessionSnapshot.user?.id ?? null;
-  void _balanceCredits;
   const {
     voices: libraryVoices,
     selectedVoice: sharedSelectedLibraryVoice,
@@ -489,6 +489,12 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
               pricingPolicy,
             })
           : null) ?? null);
+  const generateCreditConfidence = resolveGenerateCreditConfidence({
+    actionLabel: surfaceMode === "create" ? "Generate voiceover" : "Generate voice changer",
+    estimatedCredits,
+    balanceCredits,
+    formatCredits: formatCreditValue,
+  });
   const isGenerateEnabled =
     Boolean(selectedLibraryVoice?.id) &&
     (!requiresProviderVoice || isSelectedVoiceProviderReady) &&
@@ -1933,8 +1939,10 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                 <button
                   type="button"
                   className="voices-properties-generate-btn"
+                  data-credit-confidence={generateCreditConfidence.status}
                   disabled={!isGenerateEnabled}
                   aria-label="Generate"
+                  title={generateCreditConfidence.title}
                   onClick={handleGenerate}
                 >
                   <span className="voices-properties-generate-label">Generate</span>

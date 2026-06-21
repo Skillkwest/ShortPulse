@@ -158,6 +158,15 @@ describe("SoundEffectsPropertiesPanel", () => {
     expect(screen.getByText("—")).toBeInTheDocument();
   });
 
+  it("shows balance context on the generate control without changing the command label", () => {
+    render(<SoundEffectsPropertiesPanel onGenerate={vi.fn()} balanceCredits={10000} />);
+
+    const generateButton = screen.getByRole("button", { name: "Generate" });
+
+    expect(generateButton).toHaveAttribute("data-credit-confidence", "covered");
+    expect(generateButton.getAttribute("title")).toContain("balance 10000 credits");
+  });
+
   it("submits the mapped request payload with hardcoded mp3 output", () => {
     const onGenerate = vi.fn();
     render(<SoundEffectsPropertiesPanel onGenerate={onGenerate} />);

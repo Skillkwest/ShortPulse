@@ -83,6 +83,33 @@ const VIDEO_SEEDANCE_ELEMENT_SLOT_COUNT = 6;
 const VIDEO_KLING_ELEMENT_SLOT_SIZE = 68;
 // Deferred past the July 7 launch while the turbo path remains internally wired.
 const SHOW_LIP_SYNC_TURBO_CONTROL = false;
+const VIDEO_REFERENCE_MODE_TAB_VALUES: VideoReferenceMode[] = ["standard", "motion", "lip-sync"];
+const SHOT_MODE_TAB_VALUES = ["single", "multi"] as const;
+const SEEDANCE_REFERENCE_MODE_TAB_VALUES = ["elements", "keyframes"] as const;
+
+const handleSegmentedTabListKeyDown = (
+  event: React.KeyboardEvent<HTMLElement>,
+  activeIndex: number,
+  tabCount: number,
+  selectIndex: (index: number) => void
+) => {
+  if (tabCount <= 0) return;
+  let nextIndex: number | null = null;
+  if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+    nextIndex = (activeIndex + 1) % tabCount;
+  } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+    nextIndex = (activeIndex - 1 + tabCount) % tabCount;
+  } else if (event.key === "Home") {
+    nextIndex = 0;
+  } else if (event.key === "End") {
+    nextIndex = tabCount - 1;
+  }
+  if (nextIndex == null) return;
+  event.preventDefault();
+  selectIndex(nextIndex);
+  const tabs = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+  tabs[nextIndex]?.focus({ preventScroll: true });
+};
 
 const buildSavedKlingElementRefreshKey = (
   element: AiStudioKlingElement,
@@ -219,7 +246,6 @@ export type VideoPropertiesPanelProps = {
   videoDurationSeconds?: number;
   videoResolution?: string;
   videoGenerateAudio?: boolean;
-  videoCameraFixed?: boolean;
   videoAutoFix?: boolean;
   seedance2InputMode?: "text" | "first-frame" | "first-last" | "multimodal";
   seedance2ReferenceImageUrls?: string[];
@@ -230,7 +256,6 @@ export type VideoPropertiesPanelProps = {
   onVideoDurationChange?: (value: number) => void;
   onVideoResolutionChange?: (value: string) => void;
   onVideoGenerateAudioChange?: (value: boolean) => void;
-  onVideoCameraFixedChange?: (value: boolean) => void;
   onVideoAutoFixChange?: (value: boolean) => void;
   onSeedance2InputModeChange?: (
     value: "text" | "first-frame" | "first-last" | "multimodal"
@@ -311,13 +336,11 @@ export function VideoPropertiesPanel({
   videoDurationSeconds,
   videoResolution,
   videoGenerateAudio,
-  videoCameraFixed = false,
   videoAutoFix = false,
   seedance2InputMode = "multimodal",
   onVideoDurationChange,
   onVideoResolutionChange,
   onVideoGenerateAudioChange,
-  onVideoCameraFixedChange,
   onVideoAutoFixChange,
   onSeedance2InputModeChange,
   aspectOptions,
@@ -2040,12 +2063,22 @@ export function VideoPropertiesPanel({
                       role="tablist"
                       aria-label="Video reference mode"
                       style={videoModeTabsStyle}
+                      onKeyDown={(event) =>
+                        handleSegmentedTabListKeyDown(
+                          event,
+                          videoModeIndex,
+                          VIDEO_REFERENCE_MODE_TAB_VALUES.length,
+                          (index) =>
+                            onVideoReferenceModeChange?.(VIDEO_REFERENCE_MODE_TAB_VALUES[index])
+                        )
+                      }
                     >
                       <span className="video-reference-mode-indicator" aria-hidden="true" />
                       <button
                         type="button"
                         role="tab"
                         aria-selected={visibleVideoMode === "standard"}
+                        tabIndex={visibleVideoMode === "standard" ? 0 : -1}
                         className={`video-reference-mode-tab ${visibleVideoMode === "standard" ? "is-active" : ""}`}
                         onClick={() => onVideoReferenceModeChange?.("standard")}
                       >
@@ -2055,6 +2088,7 @@ export function VideoPropertiesPanel({
                         type="button"
                         role="tab"
                         aria-selected={visibleVideoMode === "motion"}
+                        tabIndex={visibleVideoMode === "motion" ? 0 : -1}
                         className={`video-reference-mode-tab ${visibleVideoMode === "motion" ? "is-active" : ""}`}
                         onClick={() => onVideoReferenceModeChange?.("motion")}
                       >
@@ -2064,6 +2098,7 @@ export function VideoPropertiesPanel({
                         type="button"
                         role="tab"
                         aria-selected={visibleVideoMode === "lip-sync"}
+                        tabIndex={visibleVideoMode === "lip-sync" ? 0 : -1}
                         className={`video-reference-mode-tab ${visibleVideoMode === "lip-sync" ? "is-active" : ""}`}
                         onClick={() => onVideoReferenceModeChange?.("lip-sync")}
                       >
@@ -2091,7 +2126,6 @@ export function VideoPropertiesPanel({
                           durationOptions={durationOptions}
                           resolutionOptions={resolutionOptions}
                           videoGenerateAudioValue={videoGenerateAudioValue}
-                          videoCameraFixed={videoCameraFixed}
                           isVeoModel={isVeoModel}
                           videoAutoFix={videoAutoFix}
                           onAspectChange={onAspectChange}
@@ -2099,7 +2133,6 @@ export function VideoPropertiesPanel({
                           onVideoDurationChange={onVideoDurationChange}
                           onVideoResolutionChange={onVideoResolutionChange}
                           onVideoGenerateAudioChange={onVideoGenerateAudioChange}
-                          onVideoCameraFixedChange={onVideoCameraFixedChange}
                           onVideoAutoFixChange={onVideoAutoFixChange}
                         />
                       </div>
@@ -2147,7 +2180,6 @@ export function VideoPropertiesPanel({
                             resolutionOptions={resolutionOptions}
                             videoGenerateAudioValue={videoGenerateAudioValue}
                             isMotionMode={false}
-                            videoCameraFixed={videoCameraFixed}
                             isVeoModel={isVeoModel}
                             videoAutoFix={videoAutoFix}
                             onAspectChange={onAspectChange}
@@ -2155,7 +2187,6 @@ export function VideoPropertiesPanel({
                             onVideoDurationChange={onVideoDurationChange}
                             onVideoResolutionChange={onVideoResolutionChange}
                             onVideoGenerateAudioChange={onVideoGenerateAudioChange}
-                            onVideoCameraFixedChange={onVideoCameraFixedChange}
                             onVideoAutoFixChange={onVideoAutoFixChange}
                           />
                         </div>
@@ -2199,7 +2230,7 @@ export function VideoPropertiesPanel({
                       <div className="video-setup-elements-slot">
                         <div className="step-card video-elements-card">
                           <div className="video-elements-card-title video-elements-card-title--large">
-                            {isSeedance2FamilyModelSelected ? "Seedance 2.0 Settings" : "Elements"}
+                            {isSeedance2FamilyModelSelected ? "Seedance 2 Settings" : "Elements"}
                           </div>
                           {shouldShowShotModeSelector ? (
                             <div className="video-shot-mode-section video-elements-shot-mode-section">
@@ -2212,6 +2243,15 @@ export function VideoPropertiesPanel({
                                 }`.trim()}
                                 role="tablist"
                                 aria-label="Shot structure mode"
+                                onKeyDown={(event) =>
+                                  handleSegmentedTabListKeyDown(
+                                    event,
+                                    visibleShotMode === "multi" ? 1 : 0,
+                                    SHOT_MODE_TAB_VALUES.length,
+                                    (index) =>
+                                      handleSetKlingWorkflowMode(SHOT_MODE_TAB_VALUES[index])
+                                  )
+                                }
                                 style={
                                   {
                                     "--video-shot-mode-slots": shotModeTabCount,
@@ -2224,6 +2264,7 @@ export function VideoPropertiesPanel({
                                   type="button"
                                   role="tab"
                                   aria-selected={visibleShotMode === "single"}
+                                  tabIndex={visibleShotMode === "single" ? 0 : -1}
                                   aria-label="Single shot"
                                   className={`video-shot-mode-tab ${visibleShotMode === "single" ? "is-active" : ""}`}
                                   onClick={() => handleSetKlingWorkflowMode("single")}
@@ -2234,6 +2275,7 @@ export function VideoPropertiesPanel({
                                   type="button"
                                   role="tab"
                                   aria-selected={visibleShotMode === "multi"}
+                                  tabIndex={visibleShotMode === "multi" ? 0 : -1}
                                   aria-label="Multi-shot"
                                   className={`video-shot-mode-tab ${visibleShotMode === "multi" ? "is-active" : ""}`}
                                   onClick={() => handleSetKlingWorkflowMode("multi")}
@@ -2252,6 +2294,17 @@ export function VideoPropertiesPanel({
                                 className="video-shot-mode-tabs video-shot-mode-tabs--compact"
                                 role="tablist"
                                 aria-label="Seedance reference mode"
+                                onKeyDown={(event) =>
+                                  handleSegmentedTabListKeyDown(
+                                    event,
+                                    seedanceReferenceMode === "elements" ? 0 : 1,
+                                    SEEDANCE_REFERENCE_MODE_TAB_VALUES.length,
+                                    (index) =>
+                                      handleSetSeedanceReferenceMode(
+                                        SEEDANCE_REFERENCE_MODE_TAB_VALUES[index]
+                                      )
+                                  )
+                                }
                                 style={
                                   {
                                     "--video-shot-mode-slots": 2,
@@ -2265,6 +2318,7 @@ export function VideoPropertiesPanel({
                                   type="button"
                                   role="tab"
                                   aria-selected={seedanceReferenceMode === "elements"}
+                                  tabIndex={seedanceReferenceMode === "elements" ? 0 : -1}
                                   aria-label="References"
                                   className={`video-shot-mode-tab ${
                                     seedanceReferenceMode === "elements" ? "is-active" : ""
@@ -2277,6 +2331,7 @@ export function VideoPropertiesPanel({
                                   type="button"
                                   role="tab"
                                   aria-selected={seedanceReferenceMode === "keyframes"}
+                                  tabIndex={seedanceReferenceMode === "keyframes" ? 0 : -1}
                                   aria-label="Keyframes"
                                   className={`video-shot-mode-tab ${
                                     seedanceReferenceMode === "keyframes" ? "is-active" : ""
@@ -2503,6 +2558,19 @@ export function VideoPropertiesPanel({
                                         />
                                       ) : null}
                                       <span className="video-elements-slot-actions">
+                                        {canUseSeedanceImageIngress ? (
+                                          <button
+                                            type="button"
+                                            className="video-elements-slot-upload"
+                                            aria-label={`Upload image reference to slot ${index + 1}`}
+                                            onClick={(event) => {
+                                              event.stopPropagation();
+                                              openImageFilePicker();
+                                            }}
+                                          >
+                                            <UploadSimple size={12} />
+                                          </button>
+                                        ) : null}
                                         <button
                                           type="button"
                                           className="ghost-btn mini"

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { KIE_SEEDANCE_2_FAST_MODEL_ID, KIE_SEEDANCE_2_MODEL_ID } from "../providerModelIds";
 import {
+  getModelCatalogEntry,
   getModelDefaultRoles,
   type ModelDefaultRole,
   resolveAiStudioTextPromptModelId,
@@ -19,6 +21,11 @@ import {
 } from "../modelCatalog";
 
 describe("modelCatalog default roles", () => {
+  it("uses active Seedance 2 labels for the canonical Kie model ids", () => {
+    expect(getModelCatalogEntry(KIE_SEEDANCE_2_MODEL_ID)?.label).toBe("Seedance 2");
+    expect(getModelCatalogEntry(KIE_SEEDANCE_2_FAST_MODEL_ID)?.label).toBe("Seedance 2 Fast");
+  });
+
   it("resolves canonical audio and helper default model ids", () => {
     expect(resolveCreateStartupModelId()).toBe("fal-ai/bytedance/seedream/v4.5/text-to-image");
     expect(resolveCreateCharacterModeStartupModelId()).toBe("fal-ai/bytedance/seedream/v4.5/edit");

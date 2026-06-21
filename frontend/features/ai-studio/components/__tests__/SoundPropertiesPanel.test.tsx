@@ -11,8 +11,8 @@ describe("SoundPropertiesPanel", () => {
   it("renders the sound workflow hub instead of a fake inspector", () => {
     render(<SoundPropertiesPanel />);
 
-    expect(screen.getByText("Sound Workflows")).toBeInTheDocument();
-    expect(screen.getByText("Pick a sound lane")).toBeInTheDocument();
+    expect(screen.getByText("Sound Studio")).toBeInTheDocument();
+    expect(screen.getByText("Start with the sound you need")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Open Voice workflow" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Open Music workflow" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Open SFX workflow" })).toBeInTheDocument();

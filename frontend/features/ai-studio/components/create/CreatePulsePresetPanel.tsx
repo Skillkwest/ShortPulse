@@ -200,10 +200,15 @@ export function CreatePulsePresetPanel({
   const isPulseActivationEnabled = Boolean(onActivePresetIdChange);
   const isPulsePresetInteractionBlocked =
     !isPulseActivationEnabled || (isActivationBusy && !activePresetId);
+  const shouldEmphasizePulseRail = !activePresetId;
 
   return (
     <section className="create-composer-presets-panel" aria-label="Create pulse presets">
-      <div className="create-composer-presets-card">
+      <div
+        className={`create-composer-presets-card ${
+          shouldEmphasizePulseRail ? "is-awaiting-pulse-selection" : ""
+        }`.trim()}
+      >
         <div className="create-composer-presets-title-card">
           <p className="create-composer-presets-title">Pulses</p>
           <span className="create-composer-presets-title-icon" aria-hidden="true">
@@ -246,7 +251,7 @@ export function CreatePulsePresetPanel({
                 aria-label="Empty pulse preset drop target"
                 onClick={() => setIsMorePresetsSurfaceOpen(true)}
               >
-                Open pulse catalog
+                Choose from catalog
               </button>
             )}
           </div>

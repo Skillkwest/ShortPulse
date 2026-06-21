@@ -259,6 +259,9 @@ const PulseCreatePanelViewContent = ({
             <span className="create-composer-pulse-start-shell-spinner" aria-hidden="true" />
             <div className="create-composer-pulse-start-shell-copy">
               <p className="create-composer-pulse-start-shell-title">Starting Pulse</p>
+              <p className="create-composer-pulse-start-shell-subtitle">
+                Getting the first response ready.
+              </p>
             </div>
           </div>
         </div>
@@ -271,7 +274,7 @@ const PulseCreatePanelViewContent = ({
               <p
                 className={`create-composer-ready-text ${shouldHideReadyTitle ? "is-hidden" : ""}`.trim()}
               >
-                What do you want to make?
+                Choose a Pulse to start
               </p>
             </div>
             <div className="create-composer-lower-preview-frame" aria-hidden="true" />

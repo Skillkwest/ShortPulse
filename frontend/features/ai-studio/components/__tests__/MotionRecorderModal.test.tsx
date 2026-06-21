@@ -29,6 +29,54 @@ describe("MotionRecorderModal", () => {
     vi.unstubAllGlobals();
   });
 
+  it("moves focus into the modal and restores it to the opener on close", async () => {
+    const Harness = () => {
+      const [isOpen, setIsOpen] = React.useState(false);
+      return (
+        <>
+          <button type="button" onClick={() => setIsOpen(true)}>
+            Open recorder
+          </button>
+          <MotionRecorderModal
+            isOpen={isOpen}
+            onClose={() => setIsOpen(false)}
+            onApplyVideo={vi.fn()}
+          />
+        </>
+      );
+    };
+
+    render(<Harness />);
+
+    const opener = screen.getByRole("button", { name: "Open recorder" });
+    opener.focus();
+    fireEvent.click(opener);
+
+    expect(screen.getByRole("button", { name: "Close motion recorder" })).toHaveFocus();
+
+    fireEvent.click(screen.getByRole("button", { name: "Close motion recorder" }));
+
+    await waitFor(() => {
+      expect(opener).toHaveFocus();
+    });
+  });
+
+  it("keeps keyboard tab focus inside the open modal", () => {
+    render(<MotionRecorderModal isOpen={true} onClose={vi.fn()} onApplyVideo={vi.fn()} />);
+
+    const dialog = screen.getByRole("dialog", { name: "Record a motion clip" });
+    const closeButton = screen.getByRole("button", { name: "Close motion recorder" });
+    const cancelButton = screen.getByRole("button", { name: "Cancel" });
+
+    expect(closeButton).toHaveFocus();
+
+    fireEvent.keyDown(dialog, { key: "Tab", shiftKey: true });
+    expect(cancelButton).toHaveFocus();
+
+    fireEvent.keyDown(dialog, { key: "Tab" });
+    expect(closeButton).toHaveFocus();
+  });
+
   it("starts the preview on open, then records and stages a motion clip into the canonical motion URL flow", async () => {
     const mediaStreamTrackStop = vi.fn();
     const mediaStream = {

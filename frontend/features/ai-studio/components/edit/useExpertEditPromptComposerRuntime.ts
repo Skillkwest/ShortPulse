@@ -176,7 +176,13 @@ export const useExpertEditPromptComposerRuntime = ({
   const [isPromptComposerExpanded, setIsPromptComposerExpanded] = React.useState(false);
   const suppressInlineReferenceGuardrail =
     guardrailReason === "Add a reference image before generating.";
-  const inlineGuardrailReason = suppressInlineReferenceGuardrail ? null : guardrailReason;
+  const inlineGuardrailReason = !hasPromptText
+    ? "Describe what should change before generating."
+    : populatedLayerCount <= 0
+      ? "Add a primary image before generating."
+      : suppressInlineReferenceGuardrail
+        ? null
+        : guardrailReason;
   const inpaintLayerSources = React.useMemo(
     () => layers.map((layer) => ({ id: layer.id, imageUrl: layer.imageUrl })),
     [layers]

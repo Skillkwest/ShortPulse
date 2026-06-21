@@ -30,8 +30,6 @@ type UseAiStudioVideoPanelPropsParams = {
   setVideoDurationSeconds: Dispatch<SetStateAction<number>>;
   setVideoResolution: Dispatch<SetStateAction<string>>;
   setVideoGenerateAudio: Dispatch<SetStateAction<boolean>>;
-  videoCameraFixed: boolean;
-  setVideoCameraFixed: Dispatch<SetStateAction<boolean>>;
   videoAutoFix: boolean;
   setVideoAutoFix: Dispatch<SetStateAction<boolean>>;
   seedance2InputMode: "text" | "first-frame" | "first-last" | "multimodal";
@@ -125,8 +123,6 @@ export const useAiStudioVideoPanelProps = ({
   setVideoDurationSeconds,
   setVideoResolution,
   setVideoGenerateAudio,
-  videoCameraFixed,
-  setVideoCameraFixed,
   videoAutoFix,
   setVideoAutoFix,
   seedance2InputMode,
@@ -203,8 +199,6 @@ export const useAiStudioVideoPanelProps = ({
       onVideoDurationChange: setVideoDurationSeconds,
       onVideoResolutionChange: setVideoResolution,
       onVideoGenerateAudioChange: setVideoGenerateAudio,
-      videoCameraFixed,
-      onVideoCameraFixedChange: setVideoCameraFixed,
       videoAutoFix,
       onVideoAutoFixChange: setVideoAutoFix,
       seedance2InputMode,
@@ -331,9 +325,7 @@ export const useAiStudioVideoPanelProps = ({
       setVideoReferenceMode,
       setVideoResolution,
       setVideoAutoFix,
-      setVideoCameraFixed,
       videoAutoFix,
-      videoCameraFixed,
       videoDurationSeconds,
       videoGenerateAudio,
       videoReferenceMode,

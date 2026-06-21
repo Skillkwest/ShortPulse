@@ -155,7 +155,7 @@ describe("useReferencePropertiesDerivedState", () => {
 
     expect(result.current.isKlingPatternMode).toBe(true);
     expect(result.current.isSeedance2FamilyModel).toBe(true);
-    expect(result.current.referenceStepTitle).toBe("Add Seedance 2.0 Frames");
+    expect(result.current.referenceStepTitle).toBe("Add Seedance 2 Frames");
     expect(result.current.durationOptions).toEqual([4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
     expect(result.current.klingAssetsSummary).toBe("1 element · Prompt tokens ready");
     expect(result.current.klingGuidanceSummary).toBe("Storyboard + linked refs");

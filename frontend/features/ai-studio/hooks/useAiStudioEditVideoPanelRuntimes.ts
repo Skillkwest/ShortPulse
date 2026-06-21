@@ -135,12 +135,17 @@ export const useAiStudioEditVideoPanelRuntimes = ({
   const handleRecordedMotionVideoReady = useCallback(
     async (upload: VideoUploadResult, sourceFile: File) => {
       base.setMotionReferenceVideoUrl(upload.url);
-      void base.ingestReferenceFiles([sourceFile], "filePicker").then((results) => {
-        const outputId = results[0]?.outputId ?? null;
-        if (outputId) {
-          base.setActiveOutputId(outputId);
-        }
-      });
+      void base
+        .ingestReferenceFiles([sourceFile], "filePicker")
+        .then((results) => {
+          const outputId = results[0]?.outputId ?? null;
+          if (outputId) {
+            base.setActiveOutputId(outputId);
+          }
+        })
+        .catch((error) => {
+          console.warn("[ai-studio] failed to ingest recorded motion clip", error);
+        });
     },
     [base]
   );
@@ -159,7 +164,6 @@ export const useAiStudioEditVideoPanelRuntimes = ({
     videoDurationSeconds: base.videoDurationSeconds,
     videoResolution: base.videoResolution,
     videoGenerateAudio: base.videoGenerateAudio,
-    videoCameraFixed: base.videoCameraFixed,
     videoAutoFix: base.videoAutoFix,
     seedance2InputMode: base.seedance2InputMode,
     seedance2ReferenceImageUrls: base.seedance2ReferenceImageUrls,
@@ -171,7 +175,6 @@ export const useAiStudioEditVideoPanelRuntimes = ({
     setVideoDurationSeconds: base.setVideoDurationSeconds,
     setVideoResolution: base.setVideoResolution,
     setVideoGenerateAudio: base.setVideoGenerateAudio,
-    setVideoCameraFixed: base.setVideoCameraFixed,
     setVideoAutoFix: base.setVideoAutoFix,
     setSeedance2InputMode: base.setSeedance2InputMode,
     setSeedance2ReferenceImageUrls: base.setSeedance2ReferenceImageUrls,

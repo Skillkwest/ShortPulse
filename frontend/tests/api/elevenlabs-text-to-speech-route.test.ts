@@ -10,6 +10,7 @@ const generateElevenLabsVoiceoverMock = vi.fn();
 const listElevenLabsVoicesMock = vi.fn();
 const persistGeneratedAudioAssetMock = vi.fn();
 const markAudioCompanionArtPendingBestEffortMock = vi.fn();
+const generateAudioCompanionArtNowBestEffortMock = vi.fn();
 const generateAudioReferenceTitleBestEffortMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
@@ -64,6 +65,8 @@ vi.mock("../../lib/server/elevenlabs", () => ({
 vi.mock("../../lib/server/audioCompanionArt/routePending", () => ({
   markAudioCompanionArtPendingBestEffort: (...args: unknown[]) =>
     markAudioCompanionArtPendingBestEffortMock(...args),
+  generateAudioCompanionArtNowBestEffort: (...args: unknown[]) =>
+    generateAudioCompanionArtNowBestEffortMock(...args),
 }));
 
 vi.mock("../../lib/server/audioTitleGeneration", () => ({
@@ -81,6 +84,7 @@ type MockResponse = ReturnType<typeof createMockResponse>;
 describe("POST /api/elevenlabs/text-to-speech", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.ELEVENLABS_API_KEY = "test-key";
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
     listSavedVoicesForUserMock.mockResolvedValue([]);
     listElevenLabsVoicesMock.mockResolvedValue([
@@ -119,6 +123,7 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
       note: "captured",
     });
     markAudioCompanionArtPendingBestEffortMock.mockResolvedValue(undefined);
+    generateAudioCompanionArtNowBestEffortMock.mockResolvedValue(null);
     generateAudioReferenceTitleBestEffortMock.mockResolvedValue(
       "Voiceover Billing Path Verificati 2Y56RG"
     );
@@ -171,6 +176,37 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
     expect(res.json).toHaveBeenCalledWith({
       error: "Unable to generate speech",
       details: "auth verifier exploded",
+    });
+  });
+
+  it("fails closed before voice lookup, billing, or provider work when the ElevenLabs key is missing", async () => {
+    delete process.env.ELEVENLABS_API_KEY;
+
+    const req = {
+      method: "POST",
+      body: {
+        voiceId: "voice-1",
+        voiceName: "Darian",
+        text: "Voiceover env failure verification script.",
+        outputFormat: "mp3_44100_128",
+        config: {
+          model_id: "eleven_v3",
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(listSavedVoicesForUserMock).not.toHaveBeenCalled();
+    expect(listElevenLabsVoicesMock).not.toHaveBeenCalled();
+    expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
+    expect(generateElevenLabsVoiceoverMock).not.toHaveBeenCalled();
+    expect(persistGeneratedAudioAssetMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Service unavailable",
+      details: "Audio generation is temporarily unavailable.",
     });
   });
 

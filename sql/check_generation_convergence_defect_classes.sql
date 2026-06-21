@@ -7,7 +7,7 @@
 -- 1. success generations with canonical outputs but missing publication rows
 -- 2. success generations with publications but missing/nonterminal projection state
 -- 3. terminal observation evidence with nonterminal consumer state
--- 4. project-scoped terminal outputs missing project generation/media associations
+-- 4. owned project-scoped terminal outputs missing project generation/media associations
 -- 5. ignored/missing-generation observation inbox rows that can hide convergence defects
 
 with output_summary as (
@@ -65,6 +65,32 @@ terminal_observation_summary as (
   where lower(coalesce(goi.observation_type, '')) in ('completed', 'failed')
   group by goi.generation_id
 ),
+generation_project_metadata as (
+  select
+    raw.generation_id,
+    raw.metadata_project_id,
+    case
+      when raw.metadata_project_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+        then raw.metadata_project_id::uuid
+      else null
+    end as metadata_project_uuid
+  from (
+    select
+      g.id as generation_id,
+      nullif(
+        coalesce(
+          g.metadata ->> 'project_id',
+          g.metadata ->> 'projectId',
+          g.metadata -> 'shortpulse_context' ->> 'project_id',
+          g.metadata -> 'shortpulse_context' ->> 'projectId',
+          g.metadata -> 'shortpulseContext' ->> 'project_id',
+          g.metadata -> 'shortpulseContext' ->> 'projectId'
+        ),
+        ''
+      ) as metadata_project_id
+    from public.ai_generations g
+  ) raw
+),
 success_generations as (
   select
     g.id as generation_id,
@@ -74,17 +100,8 @@ success_generations as (
     g.model_id,
     g.created_at,
     g.completed_at,
-    nullif(
-      coalesce(
-        g.metadata ->> 'project_id',
-        g.metadata ->> 'projectId',
-        g.metadata -> 'shortpulse_context' ->> 'project_id',
-        g.metadata -> 'shortpulse_context' ->> 'projectId',
-        g.metadata -> 'shortpulseContext' ->> 'project_id',
-        g.metadata -> 'shortpulseContext' ->> 'projectId'
-      ),
-      ''
-    ) as metadata_project_id,
+    gpm.metadata_project_id,
+    owned_project.id is not null as metadata_project_owned,
     os.output_count,
     os.saved_media_count,
     coalesce(ps.publication_count, 0) as publication_count,
@@ -116,6 +133,11 @@ success_generations as (
     on pmm.generation_id = g.id
   left join terminal_observation_summary tos
     on tos.generation_id = g.id
+  left join generation_project_metadata gpm
+    on gpm.generation_id = g.id
+  left join public.projects owned_project
+    on owned_project.id = gpm.metadata_project_uuid
+   and owned_project.user_id = g.user_id
   where lower(coalesce(g.status, '')) = 'success'
 ),
 defect_rows as (
@@ -139,6 +161,7 @@ defect_rows as (
         )
         then 'terminal_observation_with_nonterminal_projection'
       when sg.metadata_project_id is not null
+        and sg.metadata_project_owned = true
         and (
           sg.projection_project_id is null
           or sg.projection_project_id::text <> sg.metadata_project_id
@@ -193,10 +216,16 @@ from (
   select 'project_metadata_missing_projection_project_scope', count(*)::bigint
   from success_generations
   where metadata_project_id is not null
+    and metadata_project_owned = true
     and (
       projection_project_id is null
       or projection_project_id::text <> metadata_project_id
     )
+  union all
+  select 'project_metadata_without_owned_project', count(*)::bigint
+  from success_generations
+  where metadata_project_id is not null
+    and metadata_project_owned = false
   union all
   select 'project_projection_missing_generation_association', count(*)::bigint
   from success_generations
@@ -279,6 +308,32 @@ terminal_observation_summary as (
   from public.generation_observation_inbox goi
   where lower(coalesce(goi.observation_type, '')) in ('completed', 'failed')
   group by goi.generation_id
+),
+generation_project_metadata as (
+  select
+    raw.generation_id,
+    raw.metadata_project_id,
+    case
+      when raw.metadata_project_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+        then raw.metadata_project_id::uuid
+      else null
+    end as metadata_project_uuid
+  from (
+    select
+      g.id as generation_id,
+      nullif(
+        coalesce(
+          g.metadata ->> 'project_id',
+          g.metadata ->> 'projectId',
+          g.metadata -> 'shortpulse_context' ->> 'project_id',
+          g.metadata -> 'shortpulse_context' ->> 'projectId',
+          g.metadata -> 'shortpulseContext' ->> 'project_id',
+          g.metadata -> 'shortpulseContext' ->> 'projectId'
+        ),
+        ''
+      ) as metadata_project_id
+    from public.ai_generations g
+  ) raw
 )
 select
   case
@@ -295,30 +350,11 @@ select
     when coalesce(tos.terminal_observation_count, 0) > 0
       and (pr.task_state is null or pr.task_state not in ('success', 'fail'))
       then 'terminal_observation_with_nonterminal_projection'
-    when nullif(
-      coalesce(
-        g.metadata ->> 'project_id',
-        g.metadata ->> 'projectId',
-        g.metadata -> 'shortpulse_context' ->> 'project_id',
-        g.metadata -> 'shortpulse_context' ->> 'projectId',
-        g.metadata -> 'shortpulseContext' ->> 'project_id',
-        g.metadata -> 'shortpulseContext' ->> 'projectId'
-      ),
-      ''
-    ) is not null
+    when gpm.metadata_project_id is not null
+      and owned_project.id is not null
       and (
         pr.project_id is null
-        or pr.project_id::text <> nullif(
-          coalesce(
-            g.metadata ->> 'project_id',
-            g.metadata ->> 'projectId',
-            g.metadata -> 'shortpulse_context' ->> 'project_id',
-            g.metadata -> 'shortpulse_context' ->> 'projectId',
-            g.metadata -> 'shortpulseContext' ->> 'project_id',
-            g.metadata -> 'shortpulseContext' ->> 'projectId'
-          ),
-          ''
-        )
+        or pr.project_id::text <> gpm.metadata_project_id
       )
       then 'project_metadata_missing_projection_project_scope'
     when pr.project_id is not null and pgi.generation_id is null
@@ -334,17 +370,8 @@ select
   g.model_id,
   g.created_at,
   g.completed_at,
-  nullif(
-    coalesce(
-      g.metadata ->> 'project_id',
-      g.metadata ->> 'projectId',
-      g.metadata -> 'shortpulse_context' ->> 'project_id',
-      g.metadata -> 'shortpulse_context' ->> 'projectId',
-      g.metadata -> 'shortpulseContext' ->> 'project_id',
-      g.metadata -> 'shortpulseContext' ->> 'projectId'
-    ),
-    ''
-  ) as metadata_project_id,
+  gpm.metadata_project_id,
+  owned_project.id is not null as metadata_project_owned,
   os.output_count,
   os.saved_media_count,
   coalesce(ps.publication_count, 0) as publication_count,
@@ -376,6 +403,11 @@ left join (
   on pmm.generation_id = g.id
 left join terminal_observation_summary tos
   on tos.generation_id = g.id
+left join generation_project_metadata gpm
+  on gpm.generation_id = g.id
+left join public.projects owned_project
+  on owned_project.id = gpm.metadata_project_uuid
+ and owned_project.user_id = g.user_id
 where lower(coalesce(g.status, '')) = 'success'
   and (
     (os.output_count > 0 and coalesce(ps.publication_count, 0) = 0)
@@ -388,30 +420,11 @@ where lower(coalesce(g.status, '')) = 'success'
       and (pr.task_state is null or pr.task_state not in ('success', 'fail'))
     )
     or (
-      nullif(
-        coalesce(
-          g.metadata ->> 'project_id',
-          g.metadata ->> 'projectId',
-          g.metadata -> 'shortpulse_context' ->> 'project_id',
-          g.metadata -> 'shortpulse_context' ->> 'projectId',
-          g.metadata -> 'shortpulseContext' ->> 'project_id',
-          g.metadata -> 'shortpulseContext' ->> 'projectId'
-        ),
-        ''
-      ) is not null
+      gpm.metadata_project_id is not null
+      and owned_project.id is not null
       and (
         pr.project_id is null
-        or pr.project_id::text <> nullif(
-          coalesce(
-            g.metadata ->> 'project_id',
-            g.metadata ->> 'projectId',
-            g.metadata -> 'shortpulse_context' ->> 'project_id',
-            g.metadata -> 'shortpulse_context' ->> 'projectId',
-            g.metadata -> 'shortpulseContext' ->> 'project_id',
-            g.metadata -> 'shortpulseContext' ->> 'projectId'
-          ),
-          ''
-        )
+        or pr.project_id::text <> gpm.metadata_project_id
       )
     )
     or (pr.project_id is not null and pgi.generation_id is null)

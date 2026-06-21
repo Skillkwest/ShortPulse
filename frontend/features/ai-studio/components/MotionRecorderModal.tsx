@@ -35,8 +35,23 @@ const MOTION_RECORDER_VIDEO_DEVICE_STORAGE_KEY =
   "shortpulse.aiStudio.motionRecorder.preferredVideoDeviceId";
 const MOTION_REFERENCE_MAX_RECORDING_MS = 30_000;
 const MOTION_REFERENCE_DOWNLOAD_FALLBACK_NAME = "motion-reference.mp4";
+const MODAL_FOCUSABLE_SELECTOR = [
+  "a[href]",
+  "button:not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  "input:not([disabled])",
+  '[tabindex]:not([tabindex="-1"])',
+].join(",");
 
 const isClient = (): boolean => typeof window !== "undefined" && typeof navigator !== "undefined";
+
+const getModalFocusableElements = (root: HTMLElement | null): HTMLElement[] => {
+  if (!root) return [];
+  return Array.from(root.querySelectorAll<HTMLElement>(MODAL_FOCUSABLE_SELECTOR)).filter(
+    (element) => !element.hasAttribute("disabled") && element.getAttribute("aria-hidden") !== "true"
+  );
+};
 
 const readStoredDeviceId = (storageKey: string): string => {
   if (!isClient()) return "";
@@ -273,6 +288,8 @@ const queryPermissionState = async (
 
 export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRecorderModalProps) {
   useAiStudioModalActivity("motion-recorder-modal", isOpen);
+  const modalRef = React.useRef<HTMLElement | null>(null);
+  const restoreFocusRef = React.useRef<HTMLElement | null>(null);
   const previewRef = React.useRef<HTMLVideoElement | null>(null);
   const previewStreamRef = React.useRef<MediaStream | null>(null);
   const recorderRef = React.useRef<MediaRecorder | null>(null);
@@ -494,6 +511,21 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
   }, [isOpen]);
 
   React.useEffect(() => {
+    if (!isOpen || typeof document === "undefined") return undefined;
+    restoreFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const focusTarget = getModalFocusableElements(modalRef.current)[0] ?? modalRef.current;
+    focusTarget?.focus({ preventScroll: true });
+    return () => {
+      const restoreTarget = restoreFocusRef.current;
+      restoreFocusRef.current = null;
+      if (restoreTarget?.isConnected) {
+        restoreTarget.focus({ preventScroll: true });
+      }
+    };
+  }, [isOpen]);
+
+  React.useEffect(() => {
     if (!isOpen) {
       previewRequestIdRef.current += 1;
       hasAutoStartedPreviewRef.current = false;
@@ -540,6 +572,30 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [closeModal, isOpen, isUploadingClip]);
+
+  const handleModalKeyDown = React.useCallback((event: React.KeyboardEvent<HTMLElement>) => {
+    if (event.key !== "Tab") return;
+    const focusableElements = getModalFocusableElements(modalRef.current);
+    if (focusableElements.length === 0) {
+      event.preventDefault();
+      modalRef.current?.focus({ preventScroll: true });
+      return;
+    }
+
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+    const activeElement =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    if (event.shiftKey && activeElement === firstElement) {
+      event.preventDefault();
+      lastElement.focus({ preventScroll: true });
+      return;
+    }
+    if (!event.shiftKey && activeElement === lastElement) {
+      event.preventDefault();
+      firstElement.focus({ preventScroll: true });
+    }
+  }, []);
 
   React.useEffect(() => {
     if (!isOpen) return undefined;
@@ -829,10 +885,13 @@ export function MotionRecorderModal({ isOpen, onClose, onApplyVideo }: MotionRec
     <AiStudioModalLayer>
       <div className="motion-recorder-modal-backdrop" {...backdropDismiss}>
         <section
+          ref={modalRef}
           className="motion-recorder-modal"
           role="dialog"
           aria-modal="true"
           aria-labelledby="motion-recorder-modal-title"
+          tabIndex={-1}
+          onKeyDown={handleModalKeyDown}
         >
           <header className="motion-recorder-modal-header">
             <div className="motion-recorder-modal-title-group">

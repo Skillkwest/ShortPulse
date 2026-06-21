@@ -40,7 +40,6 @@ export type VideoSettingsCardPrefabProps = {
   resolutionOptions: VideoSettingsResolutionOption[];
   videoGenerateAudioValue: boolean;
   isMotionMode: boolean;
-  videoCameraFixed: boolean;
   isVeoModel: boolean;
   videoAutoFix: boolean;
   onAspectChange: (value: string) => void;
@@ -52,7 +51,6 @@ export type VideoSettingsCardPrefabProps = {
   onVideoDurationChange?: (value: number) => void;
   onVideoResolutionChange?: (value: string) => void;
   onVideoGenerateAudioChange?: (value: boolean) => void;
-  onVideoCameraFixedChange?: (value: boolean) => void;
   onVideoAutoFixChange?: (value: boolean) => void;
 };
 
@@ -86,9 +84,23 @@ function PrefabDropdown<T extends string | number>({
 }: PrefabDropdownProps<T>) {
   const [isOpen, setIsOpen] = React.useState(false);
   const dropdownRef = React.useRef<HTMLDivElement | null>(null);
+  const triggerRef = React.useRef<HTMLButtonElement | null>(null);
+  const optionRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
+  const pendingFocusIndexRef = React.useRef<number | null>(null);
   const selectedOption = React.useMemo(
     () => options.find((option) => option.value === value) ?? options[0],
     [options, value]
+  );
+  const selectedOptionIndex = React.useMemo(() => {
+    const index = options.findIndex((option) => option.value === value);
+    return index >= 0 ? index : 0;
+  }, [options, value]);
+  const focusOptionAtIndex = React.useCallback(
+    (index: number) => {
+      const boundedIndex = Math.min(Math.max(index, 0), Math.max(options.length - 1, 0));
+      optionRefs.current[boundedIndex]?.focus({ preventScroll: true });
+    },
+    [options.length]
   );
 
   React.useEffect(() => {
@@ -103,9 +115,62 @@ function PrefabDropdown<T extends string | number>({
     return () => document.removeEventListener("mousedown", handlePointerDown);
   }, [isOpen]);
 
+  React.useEffect(() => {
+    if (!isOpen || pendingFocusIndexRef.current === null) return;
+    const nextFocusIndex = pendingFocusIndexRef.current;
+    pendingFocusIndexRef.current = null;
+    focusOptionAtIndex(nextFocusIndex);
+  }, [focusOptionAtIndex, isOpen]);
+
+  const closeAndFocusTrigger = React.useCallback(() => {
+    setIsOpen(false);
+    triggerRef.current?.focus({ preventScroll: true });
+  }, []);
+
+  const handleTriggerKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLButtonElement>) => {
+      if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+      event.preventDefault();
+      pendingFocusIndexRef.current = selectedOptionIndex;
+      setIsOpen(true);
+    },
+    [selectedOptionIndex]
+  );
+
+  const handleOptionKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeAndFocusTrigger();
+        return;
+      }
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        focusOptionAtIndex(index + 1 >= options.length ? 0 : index + 1);
+        return;
+      }
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        focusOptionAtIndex(index - 1 < 0 ? options.length - 1 : index - 1);
+        return;
+      }
+      if (event.key === "Home") {
+        event.preventDefault();
+        focusOptionAtIndex(0);
+        return;
+      }
+      if (event.key === "End") {
+        event.preventDefault();
+        focusOptionAtIndex(options.length - 1);
+      }
+    },
+    [closeAndFocusTrigger, focusOptionAtIndex, options.length]
+  );
+
   return (
     <div className="video-settings-prefab__dropdown" ref={dropdownRef}>
       <button
+        ref={triggerRef}
         type="button"
         className={`${triggerClassName}${isOpen ? " is-open" : ""}`}
         aria-haspopup="listbox"
@@ -113,12 +178,13 @@ function PrefabDropdown<T extends string | number>({
         aria-label={ariaLabel}
         disabled={!onSelect || options.length === 0}
         onClick={() => setIsOpen((open) => !open)}
+        onKeyDown={handleTriggerKeyDown}
       >
         {renderTriggerValue(selectedOption)}
       </button>
       {isOpen ? (
         <div className={menuClassName} role="listbox" aria-label={ariaLabel}>
-          {options.map((option) => {
+          {options.map((option, index) => {
             const isActive = option.value === value;
             return (
               <button
@@ -127,9 +193,13 @@ function PrefabDropdown<T extends string | number>({
                 className={`${optionClassName}${isActive ? " is-active" : ""}`}
                 role="option"
                 aria-selected={isActive}
+                ref={(node) => {
+                  optionRefs.current[index] = node;
+                }}
+                onKeyDown={(event) => handleOptionKeyDown(event, index)}
                 onClick={() => {
                   onSelect?.(option.value);
-                  setIsOpen(false);
+                  closeAndFocusTrigger();
                 }}
               >
                 {renderOption ? (

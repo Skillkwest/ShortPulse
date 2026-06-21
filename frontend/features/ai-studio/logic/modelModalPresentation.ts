@@ -157,7 +157,7 @@ export const MODEL_MODAL_PRESENTATION_META: Record<string, ModelModalPresentatio
   [KIE_SEEDANCE_2_MODEL_ID]: {
     provider: "Kie AI",
     description:
-      "Seedance 2.0 supports prompt-only video, first-frame animation, first/last-frame transitions, and multimodal reference-to-video workflows.",
+      "Seedance 2 supports prompt-only video, first-frame animation, first/last-frame transitions, and multimodal reference-to-video workflows.",
     tags: [
       "Video",
       "Text-to-Video",
@@ -172,7 +172,7 @@ export const MODEL_MODAL_PRESENTATION_META: Record<string, ModelModalPresentatio
   [KIE_SEEDANCE_2_FAST_MODEL_ID]: {
     provider: "Kie AI",
     description:
-      "Seedance 2.0 Fast supports prompt-only video, first-frame animation, first/last-frame transitions, and faster multimodal reference-to-video workflows.",
+      "Seedance 2 Fast supports prompt-only video, first-frame animation, first/last-frame transitions, and faster multimodal reference-to-video workflows.",
     tags: [
       "Video",
       "Text-to-Video",

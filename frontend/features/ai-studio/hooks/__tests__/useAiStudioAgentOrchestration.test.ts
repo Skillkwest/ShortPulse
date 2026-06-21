@@ -1214,7 +1214,7 @@ describe("useAiStudioAgentOrchestration", () => {
 
     expect(startResult).toEqual({
       status: "blocked_busy",
-      message: "Wait for the current Pulse step to finish before switching.",
+      message: "This Pulse is still finishing its response. You can switch after it completes.",
     });
     expect(sendToAgent).not.toHaveBeenCalled();
     expect(setPulseWorkflowSession).not.toHaveBeenCalled();

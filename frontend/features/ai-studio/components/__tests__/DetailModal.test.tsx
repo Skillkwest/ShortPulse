@@ -543,6 +543,22 @@ describe("DetailModal", () => {
     );
   });
 
+  it("closes the base detail modal on Escape when no confirmation dialog is open", () => {
+    const onClose = vi.fn();
+    render(
+      <DetailModal
+        output={baseOutput}
+        onClose={onClose}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it("shows Snapshot only for video details and passes the current video element", async () => {
     const onSnapshotVideoFrame = vi.fn();
     const { rerender, baseElement } = render(
@@ -661,8 +677,54 @@ describe("DetailModal", () => {
       />
     );
 
+    expect(screen.queryByRole("button", { name: "Reload workflow" })).toBeNull();
+    expect(onReloadWorkflowReference).not.toHaveBeenCalled();
+
+    const restorableVideoOutput: StudioOutput = {
+      ...baseOutput,
+      mode: "video",
+      mediaSource: "generated",
+      modelId: "kie-ai/kling-3.0",
+      previewUrl: "https://cdn.test/generated-video.mp4",
+      mimeType: "video/mp4",
+      fullStoragePath: "user-1/generations/videos/generated-video.mp4",
+      durationMs: 6_000,
+      workflowReload: {
+        version: 1,
+        source: "ai_studio_generation",
+        capturedAt: "2026-06-06T12:00:00.000Z",
+        originTool: "video",
+        panelKind: "video",
+        outputMode: "video",
+        restoreBehavior: "navigate_and_hydrate",
+        pulse: null,
+        prompt: { display: "A cinematic tracking shot." },
+        model: { id: "kie-ai/kling-3.0" },
+        payload: {
+          kind: "video",
+          aspect: "16:9",
+          videoReferenceMode: "standard",
+          durationSeconds: 6,
+          resolution: "1080p",
+          generateAudio: true,
+          cameraFixed: false,
+          autoFix: true,
+          referenceInputs: ["https://example.com/first-frame.png"],
+        },
+      },
+    };
+    rerender(
+      <DetailModal
+        output={restorableVideoOutput}
+        onClose={onClose}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+        onReloadWorkflowReference={onReloadWorkflowReference}
+      />
+    );
+
     fireEvent.click(screen.getByRole("button", { name: "Reload workflow" }));
-    expect(onReloadWorkflowReference).toHaveBeenCalledWith(deliveredVideoOutput, {
+    expect(onReloadWorkflowReference).toHaveBeenCalledWith(restorableVideoOutput, {
       mediaKindHint: "video",
     });
     expect(onClose).toHaveBeenCalledTimes(2);

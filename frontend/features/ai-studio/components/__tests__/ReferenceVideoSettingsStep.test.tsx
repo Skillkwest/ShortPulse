@@ -26,7 +26,6 @@ const baseProps = {
   durationOptions: [5, 8, 10],
   resolutionOptions: [{ value: "1080p", label: "1080p (Full HD)" }],
   videoGenerateAudioValue: true,
-  videoCameraFixed: false,
   isVeoModel: false,
   videoAutoFix: false,
   onAspectChange: vi.fn(),
@@ -34,7 +33,6 @@ const baseProps = {
   onVideoDurationChange: vi.fn(),
   onVideoResolutionChange: vi.fn(),
   onVideoGenerateAudioChange: vi.fn(),
-  onVideoCameraFixedChange: vi.fn(),
   onVideoAutoFixChange: vi.fn(),
 };
 
@@ -73,5 +71,24 @@ describe("ReferenceVideoSettingsStep", () => {
     fireEvent.click(screen.getByRole("button", { name: "Disable audio generation" }));
 
     expect(baseProps.onVideoGenerateAudioChange).toHaveBeenCalledWith(false);
+  });
+
+  it("supports keyboard navigation inside video settings dropdown menus", () => {
+    render(<ReferenceVideoSettingsStep {...baseProps} />);
+
+    const durationTrigger = screen.getByRole("button", { name: "Video duration" });
+    durationTrigger.focus();
+    fireEvent.keyDown(durationTrigger, { key: "ArrowDown" });
+
+    const selectedDurationOption = screen.getByRole("option", { name: "8s" });
+    const nextDurationOption = screen.getByRole("option", { name: "10s" });
+    expect(selectedDurationOption).toHaveFocus();
+
+    fireEvent.keyDown(selectedDurationOption, { key: "ArrowDown" });
+    expect(nextDurationOption).toHaveFocus();
+
+    fireEvent.keyDown(nextDurationOption, { key: "Escape" });
+    expect(screen.queryByRole("listbox", { name: "Video duration" })).toBeNull();
+    expect(durationTrigger).toHaveFocus();
   });
 });

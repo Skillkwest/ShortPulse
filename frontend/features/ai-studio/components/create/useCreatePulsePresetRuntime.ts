@@ -146,8 +146,9 @@ export const useCreatePulsePresetRuntime = ({
         builtInDefinitions
       );
       const allowInterruptCurrentPulse = Boolean(activePresetId) && activePresetId !== presetId;
-      if (isActivationBusy && !allowInterruptCurrentPulse) {
-        const blockedMessage = "Wait for the current Pulse step to finish before switching.";
+      if (isActivationBusy) {
+        const blockedMessage =
+          "This Pulse is still finishing its response. You can switch after it completes.";
         showPersistentStatus(blockedMessage, "warning");
         return {
           status: "blocked_busy",
@@ -209,7 +210,7 @@ export const useCreatePulsePresetRuntime = ({
         startResult = (await onPresetStart?.(resolvedPreset, {
           pulseSessionInstanceId,
           deferWorkflowSessionCommit: true,
-          allowInterruptCurrentPulse,
+          allowInterruptCurrentPulse: !isActivationBusy && allowInterruptCurrentPulse,
         })) ?? { status: "started" };
       }
       if (startResult.status === "blocked_busy") {
@@ -254,9 +255,13 @@ export const useCreatePulsePresetRuntime = ({
 
   const handleSurfacePresetSelect = React.useCallback(
     async (presetId: CreatePulsePresetId) => {
-      return addPresetToPanel(presetId);
+      const addResult = await addPresetToPanel(presetId);
+      if (addResult === "added" || addResult === "already_present") {
+        await handlePanelPresetApply(presetId);
+      }
+      return addResult;
     },
-    [addPresetToPanel]
+    [addPresetToPanel, handlePanelPresetApply]
   );
 
   const handleCustomPresetSave = React.useCallback(

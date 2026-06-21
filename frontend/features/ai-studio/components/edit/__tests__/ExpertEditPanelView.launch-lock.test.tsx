@@ -55,6 +55,9 @@ describe("ExpertEditPanelView launch lock", () => {
     const onExtraImageChange = vi.fn();
     render(<ExpertEditPanelView {...baseProps} onExtraImageChange={onExtraImageChange} />);
 
+    expect(
+      screen.getByText("Add references for specific faces, products, or style details.")
+    ).toBeInTheDocument();
     expect(screen.getByLabelText("Secondary edit image 1")).toBeInTheDocument();
     expect(screen.getByLabelText("Secondary edit image 2")).toBeInTheDocument();
     expect(screen.queryByLabelText("Secondary edit image 3")).not.toBeInTheDocument();
@@ -95,6 +98,41 @@ describe("ExpertEditPanelView launch lock", () => {
     expect(screen.queryByLabelText("Inpaint action tools")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /undo move action/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /redo move action/i })).toBeInTheDocument();
+  });
+
+  it("explains disabled Generate readiness without showing it when ready", () => {
+    const { rerender } = render(<ExpertEditPanelView {...baseProps} referenceText="" />);
+
+    expect(screen.getByRole("button", { name: "Generate" })).toBeDisabled();
+    expect(screen.getByPlaceholderText("Describe what should change...")).toBeInTheDocument();
+    expect(screen.getByText("Describe what should change before generating.")).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Expert edit composer" })).toHaveClass(
+      "has-generate-guardrail"
+    );
+
+    rerender(<ExpertEditPanelView {...baseProps} referenceText="Clean up the image." />);
+
+    expect(screen.getByRole("button", { name: "Generate" })).not.toBeDisabled();
+    expect(
+      screen.queryByText("Describe what should change before generating.")
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Expert edit composer" })).not.toHaveClass(
+      "has-generate-guardrail"
+    );
+  });
+
+  it("guides empty primary image intake before editing can start", () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl={null}
+        referenceText="Clean up the image."
+      />
+    );
+
+    expect(screen.getByText("Add an image to start editing.")).toBeInTheDocument();
+    expect(screen.getByText("Add a primary image before generating.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Generate" })).toBeDisabled();
   });
 
   it("removes the context-menu expand entry while launch lock is active", () => {

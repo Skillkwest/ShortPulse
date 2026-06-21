@@ -30,7 +30,6 @@ type ReferenceVideoSettingsStepProps = {
   durationOptions: number[];
   resolutionOptions: VideoSettingsResolutionOption[];
   videoGenerateAudioValue: boolean;
-  videoCameraFixed: boolean;
   isVeoModel: boolean;
   videoAutoFix: boolean;
   onAspectChange: (value: string) => void;
@@ -44,7 +43,6 @@ type ReferenceVideoSettingsStepProps = {
   onVideoDurationChange?: (value: number) => void;
   onVideoResolutionChange?: (value: string) => void;
   onVideoGenerateAudioChange?: (value: boolean) => void;
-  onVideoCameraFixedChange?: (value: boolean) => void;
   onVideoAutoFixChange?: (value: boolean) => void;
 };
 
@@ -69,7 +67,6 @@ export const ReferenceVideoSettingsStep: React.FC<ReferenceVideoSettingsStepProp
   durationOptions,
   resolutionOptions,
   videoGenerateAudioValue,
-  videoCameraFixed,
   isVeoModel,
   videoAutoFix,
   onAspectChange,
@@ -79,7 +76,6 @@ export const ReferenceVideoSettingsStep: React.FC<ReferenceVideoSettingsStepProp
   onVideoDurationChange,
   onVideoResolutionChange,
   onVideoGenerateAudioChange,
-  onVideoCameraFixedChange,
   onVideoAutoFixChange,
 }) => {
   const settingsOrder = isMotionMode ? motionAudioOrder : videoSettingsOrder;
@@ -104,7 +100,6 @@ export const ReferenceVideoSettingsStep: React.FC<ReferenceVideoSettingsStepProp
       resolutionOptions={resolutionOptions}
       videoGenerateAudioValue={videoGenerateAudioValue}
       isMotionMode={isMotionMode}
-      videoCameraFixed={videoCameraFixed}
       isVeoModel={isVeoModel}
       videoAutoFix={videoAutoFix}
       onAspectChange={onAspectChange}
@@ -112,7 +107,6 @@ export const ReferenceVideoSettingsStep: React.FC<ReferenceVideoSettingsStepProp
       onVideoDurationChange={onVideoDurationChange}
       onVideoResolutionChange={onVideoResolutionChange}
       onVideoGenerateAudioChange={onVideoGenerateAudioChange}
-      onVideoCameraFixedChange={onVideoCameraFixedChange}
       onVideoAutoFixChange={onVideoAutoFixChange}
     />
   );

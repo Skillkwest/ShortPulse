@@ -114,6 +114,13 @@ export default async function handler(
   if (!user) return;
   let charge: Awaited<ReturnType<typeof chargeGenerationRequest>> = null;
 
+  if (!process.env.ELEVENLABS_API_KEY?.trim()) {
+    return res.status(503).json({
+      error: "Service unavailable",
+      details: "Audio generation is temporarily unavailable.",
+    });
+  }
+
   try {
     const body = (req.body ?? {}) as TextToSpeechRequestBody;
     const voiceId = normalizeRequiredString(body.voiceId);

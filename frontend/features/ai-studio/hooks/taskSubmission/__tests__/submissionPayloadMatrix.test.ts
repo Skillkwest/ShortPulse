@@ -271,7 +271,6 @@ const makeVideoArgs = (
         })
       : createEmptyLipSyncAudioState(),
     lipSyncTurboMode: false,
-    videoCameraFixed: false,
     klingCfgScale: 0.5,
     klingMultiPrompts: [],
     klingElements: [],

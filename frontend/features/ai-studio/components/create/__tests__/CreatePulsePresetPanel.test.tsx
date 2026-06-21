@@ -43,6 +43,23 @@ class MockDataTransfer implements DataTransfer {
 }
 
 describe("CreatePulsePresetPanel", () => {
+  it("emphasizes the empty rail catalog action before a Pulse is active", () => {
+    const { container } = render(
+      <CreatePulsePresetPanel
+        selectedPresetIds={[]}
+        onSelectedPresetIdsChange={vi.fn()}
+        onActivePresetIdChange={vi.fn()}
+      />
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Empty pulse preset drop target" })
+    ).toHaveTextContent("Choose from catalog");
+    expect(container.querySelector(".create-composer-presets-card")).toHaveClass(
+      "is-awaiting-pulse-selection"
+    );
+  });
+
   it("activates the selected pulse preset without mutating the visible composer", async () => {
     const onActivePresetIdChange = vi.fn();
     render(<CreatePulsePresetPanel onActivePresetIdChange={onActivePresetIdChange} />);
@@ -306,11 +323,11 @@ describe("CreatePulsePresetPanel", () => {
     expect(onActivePresetIdChange).not.toHaveBeenCalled();
     expect(onPresetStart).not.toHaveBeenCalled();
     expect(screen.getByRole("alert")).toHaveTextContent(
-      "Wait for the current Pulse step to finish before switching."
+      "This Pulse is still finishing its response. You can switch after it completes."
     );
   });
 
-  it("replaces the active pulse even while the current pulse is busy", async () => {
+  it("does not replace the active pulse while the current pulse is busy", async () => {
     const onActivePresetIdChange = vi.fn(() => "pulse-session-next");
     const onPresetStart = vi.fn().mockResolvedValue({ status: "started" as const });
 
@@ -325,28 +342,11 @@ describe("CreatePulsePresetPanel", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "DFY Story Builder preset" }));
 
-    await waitFor(() => {
-      expect(onPresetStart).toHaveBeenCalledWith(
-        expect.objectContaining({ presetId: "story_builder" }),
-        expect.objectContaining({
-          pulseSessionInstanceId: expect.any(String),
-          deferWorkflowSessionCommit: true,
-          allowInterruptCurrentPulse: true,
-        })
-      );
-      expect(onActivePresetIdChange).toHaveBeenCalledWith(
-        "story_builder",
-        expect.objectContaining({
-          forceNewSession: true,
-          preserveWorkflowSession: true,
-          sessionInstanceIdOverride: expect.any(String),
-        })
-      );
-    });
-
-    expect(
-      screen.queryByText("Wait for the current Pulse step to finish before switching.")
-    ).not.toBeInTheDocument();
+    expect(onPresetStart).not.toHaveBeenCalled();
+    expect(onActivePresetIdChange).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "This Pulse is still finishing its response. You can switch after it completes."
+    );
   });
 
   it("keeps the previous active pulse when replacement kickoff fails", async () => {
@@ -873,7 +873,7 @@ describe("CreatePulsePresetPanel", () => {
     });
   });
 
-  it("pins a pulse from the Pulses surface without starting it", async () => {
+  it("starts and pins a pulse from the Pulses surface", async () => {
     const onActivePresetIdChange = vi.fn();
     const onSelectedPresetIdsChange = vi.fn();
     const onPresetStart = vi.fn().mockResolvedValue(undefined);
@@ -894,8 +894,25 @@ describe("CreatePulsePresetPanel", () => {
       expect(onSelectedPresetIdsChange).toHaveBeenCalledWith(["multi_shot"]);
     });
 
-    expect(onActivePresetIdChange).not.toHaveBeenCalled();
-    expect(onPresetStart).not.toHaveBeenCalled();
+    expect(onPresetStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        presetId: "multi_shot",
+        runtimeMode: "workflow_gpt",
+        activationMode: "activate_and_start",
+      }),
+      expect.objectContaining({
+        pulseSessionInstanceId: expect.any(String),
+        deferWorkflowSessionCommit: true,
+      })
+    );
+    expect(onActivePresetIdChange).toHaveBeenCalledWith(
+      "multi_shot",
+      expect.objectContaining({
+        forceNewSession: true,
+        preserveWorkflowSession: true,
+        sessionInstanceIdOverride: expect.any(String),
+      })
+    );
     expect(screen.queryByRole("region", { name: "Pulses" })).not.toBeInTheDocument();
   });
 

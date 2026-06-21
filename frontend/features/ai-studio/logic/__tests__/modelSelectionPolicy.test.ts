@@ -79,12 +79,12 @@ const videoReferenceOptions: ModelOption[] = [
   },
   {
     value: KIE_SEEDANCE_2_MODEL_ID,
-    label: "Seedance 2.0",
+    label: "Seedance 2",
     mediaType: "image-to-video",
   },
   {
     value: KIE_SEEDANCE_2_FAST_MODEL_ID,
-    label: "Seedance 2.0 Fast",
+    label: "Seedance 2 Fast",
     mediaType: "image-to-video",
   },
   {

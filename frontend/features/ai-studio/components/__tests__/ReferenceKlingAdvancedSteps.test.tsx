@@ -46,6 +46,13 @@ const baseProps: React.ComponentProps<typeof ReferenceKlingAdvancedSteps> = {
 };
 
 describe("ReferenceKlingAdvancedSteps", () => {
+  it("does not render static provider-dollar launch cost copy", () => {
+    render(<ReferenceKlingAdvancedSteps {...baseProps} collapsedKlingAdvanced={false} />);
+
+    expect(screen.queryByText(/Cost:/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Launch limit:/)).not.toBeInTheDocument();
+  });
+
   it("renders sparse model-visible element slots without exposing hidden Seedance image refs", () => {
     const onOpenKlingElementPicker = vi.fn();
     render(

@@ -1199,7 +1199,6 @@ type VideoHandlerContext = {
   motionReferenceVideoUrl: string | null;
   lipSyncAudio: VideoSubmissionArgs["lipSyncAudio"];
   lipSyncTurboMode: VideoSubmissionArgs["lipSyncTurboMode"];
-  videoCameraFixed: boolean;
   seedance2InputMode?: VideoSubmissionArgs["seedance2InputMode"];
   seedance2ReferenceImageUrls: string[];
   seedance2ReferenceVideoUrls: string[];
@@ -1886,7 +1885,6 @@ export const handleVideoModelSubmission = async ({
   motionReferenceVideoUrl,
   lipSyncAudio,
   lipSyncTurboMode,
-  videoCameraFixed,
   seedance2InputMode = "text",
   seedance2ReferenceImageUrls = [],
   seedance2ReferenceVideoUrls = [],
@@ -1905,7 +1903,7 @@ export const handleVideoModelSubmission = async ({
     ...(styleContext ? { style_context: styleContext } : {}),
     ...(shortpulseContext ? { shortpulse_context: shortpulseContext } : {}),
   };
-  const candidateMediaUrls = [
+  const directMediaUrls = [
     ...preparedImageInputs,
     videoReferenceImageUrl ?? "",
     motionReferenceVideoUrl ?? "",
@@ -1913,12 +1911,10 @@ export const handleVideoModelSubmission = async ({
     ...seedance2ReferenceImageUrls,
     ...seedance2ReferenceVideoUrls,
     ...seedance2ReferenceAudioUrls,
-    ...klingElements.flatMap((element) => getAiStudioKlingElementReferenceUrls(element)),
-    ...klingElements.map((element) => element.videoUrl.trim()),
   ]
     .map((value) => value.trim())
     .filter(Boolean);
-  if (candidateMediaUrls.some((value) => isCharacterScopedMediaUrl(value))) {
+  if (directMediaUrls.some((value) => isCharacterScopedMediaUrl(value))) {
     notifyGenerationFailure(
       id,
       "Character media references are blocked for video models. Use non-character media assets."
@@ -1946,7 +1942,6 @@ export const handleVideoModelSubmission = async ({
     motionReferenceVideoUrl,
     lipSyncAudio,
     lipSyncTurboMode,
-    videoCameraFixed,
     seedance2InputMode,
     seedance2ReferenceImageUrls,
     seedance2ReferenceVideoUrls,

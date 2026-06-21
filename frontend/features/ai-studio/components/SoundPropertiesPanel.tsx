@@ -1,6 +1,6 @@
 /**
  * Sound landing properties panel for AI Studio.
- * Routes users into the real Voice, Music, and SFX workflows instead of showing a fake inspector.
+ * Routes users into the dedicated Voice, Music, and SFX workflows.
  */
 import React from "react";
 import { Microphone, SpeakerHigh, WaveSine, type Icon } from "phosphor-react";
@@ -55,10 +55,10 @@ export const SoundPropertiesPanel = React.memo(function SoundPropertiesPanel({
       <div className="tool-header sound-properties-header">
         <div>
           <p className="eyebrow">Sound</p>
-          <h2 className="panel-title">Sound Workflows</h2>
+          <h2 className="panel-title">Sound Studio</h2>
           <p className="tiny subdued sound-properties-subtitle">
-            Choose the dedicated workflow you want to work in. Voice, Music, and SFX each keep their
-            own controls and generation surface.
+            Choose the sound tool for the track you want to make. Voice, Music, and SFX each keep
+            focused controls for their own kind of audio.
           </p>
         </div>
       </div>
@@ -66,11 +66,11 @@ export const SoundPropertiesPanel = React.memo(function SoundPropertiesPanel({
       <div className="sound-properties-shell sound-properties-shell--landing">
         <section className="sound-properties-card sound-properties-landing-card">
           <div className="sound-properties-landing-copy">
-            <p className="sound-properties-card-kicker">Workflow hub</p>
-            <h3 className="sound-properties-card-title">Pick a sound lane</h3>
+            <p className="sound-properties-card-kicker">Audio tools</p>
+            <h3 className="sound-properties-card-title">Start with the sound you need</h3>
             <p className="sound-properties-card-text">
-              The top-level Sound view is now a router into the real audio tools instead of a
-              generic inspector.
+              Move into Voice, Music, or SFX and work directly with the controls built for that
+              audio type.
             </p>
           </div>
           <div className="sound-properties-landing-grid" aria-label="Available sound workflows">

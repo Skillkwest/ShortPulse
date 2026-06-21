@@ -5,7 +5,7 @@ Updated on: 2026-06-03
 
 No active Holomony handoff is pending.
 
-Conversational context older than 7 hours is not active handoff state. Reload current repo docs/code instead of carrying old thread material forward.
+Conversational context older than 10 minutes is not active handoff state. Reload current repo docs/code instead of carrying old thread material forward.
 
 For new work, do not load archived handoffs by default. Start with the lean command index for the lane:
 

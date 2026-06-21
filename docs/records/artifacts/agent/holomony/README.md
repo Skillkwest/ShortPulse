@@ -42,6 +42,8 @@ For ordinary Holomony runs, use the lean startup path in `docs/agents/holomony/A
 4. Load the lane command index: `docs/agents/holomony/media-display-command-index.md` for media-display/detail-modal lanes, or `docs/agents/holomony/right-rail-command-index.md` for right-rail lanes.
 5. Load exact owner docs, code, tests, or current reports only when the command index or task needs decision-grade proof.
 
+Freshness gate: files under `reports/current/` are retained entrypoints, not automatic present-tense production proof. Before relying on a dated packet or report, compare it to the current repo branch, current production surface, and any newer user-reported incident or launch-lane handoff.
+
 Do not load these by default unless the current run specifically needs scoring, KPI history, historical evidence, or self-maintenance context:
 
 - `baseline-kpi.md`

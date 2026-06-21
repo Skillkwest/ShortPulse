@@ -2,123 +2,69 @@
 
 Scope: `docs/agents/copperknot/`
 
-Use this folder as the canonical operating surface for the Copperknot.
+This folder is Copperknot's canonical launch-control operating surface.
 
-## Load Order
+## Fast Load Path
 
-For normal Copperknot execution, load in this order:
+For normal Copperknot work, load only:
 
 1. `README.md`
-2. `standard-operating-procedure.md`
-3. `goal-prompt.md`
+2. `goal-prompt.md`
+3. `memory.md`
 4. `july-7-launch-authority.md`
 5. `july-7-system-map.md`
 6. `july-7-launch-board.md`
 7. `prioritized-launch-queue-2026-07-07.md`
-8. latest launch-state truth:
-   - the latest dated verification, launch-state refresh, or baseline-reset report when needed
-9. the system-specific docs in scope
+8. the active lane's owning source/docs/proof packet, only as needed
 
-Treat that load order as the minimum authority chain. If those surfaces already answer the question, do not widen the load by default.
+Load `standard-operating-procedure.md` only when the task needs step-by-step Copperknot procedure beyond the fast path.
 
-Load these only when the task explicitly requires them:
+Load `standard-operating-procedure-reference.md`, old plans/queues, handoff library, templates, metrics, training history, reports, operator briefs, launch checklists, and retained checkpoint history only when the current task explicitly requires maintenance, report intake, handoff refresh, retrospective, pruning, or proof reconstruction.
 
-- `catalog-tool-health-metrics.md`
-- `measurement-and-learning.md`
-- `standard-operating-procedure-reference.md`
-- `operating-package-2026-05-06.md`
-- superseded historical `production-readiness-plan-2026-06-06.md`
-- superseded historical `prioritized-handoff-queue-2026-06-06.md`
-- superseded historical `production-readiness-plan-2026-07-02.md`
-- superseded historical `prioritized-handoff-queue-2026-07-02.md`
-- `dispatch-ready-audit-output-template.md`
-- `operator-brief-template.md`
-- `handoff-template.md`
-- `handoffs/`
+## Non-Negotiables
 
-Do not load the full retained artifact history for routine work.
-Do not load the SOP reference during routine startup unless the run needs deeper standards detail than the core SOP already provides.
-Do not load secondary overlays such as the scoreboard, operator brief, launch-ready checklist, or retained metric logs by default when the minimum authority chain already provides the current answer.
-Do not load the operating package, superseded dated plans, or superseded dated queues during routine reorientation. They are maintenance/history surfaces, not launch authority.
+- The July 7 queue is the next-work authority.
+- Launch state and evidence level outrank `/10` scores.
+- Current repo/source/production truth outranks old chat, reports, handoffs, and retained notes.
+- Dirty or actively owned worktree files are hard boundaries unless assigned to Copperknot this turn.
+- Preserve current UI, UX, visual design, and intended behavior unless the user explicitly approves a change.
+- Supabase image transformations are forbidden in every form.
+- No commit, push, deploy, release, credit spend, billing/policy change, destructive data work, secret exposure, or public promise without approval.
 
-## Operator Brief Rule
+## Before Editing
 
-- Default Copperknot artifact format is Markdown.
-- Only these artifacts should keep a sibling HTML render by default:
-  - operator briefs
-  - launch-ready checklists
-- Do not create HTML companions for handoffs, queues, plans, audits, rerating passes, dispatch logs, closeout reviews, or closeout intake artifacts unless the user explicitly asks for them.
-- Do not create or refresh operator briefs and launch-ready checklists by default after ordinary Copperknot runs.
-- Create or refresh those overlays only when one of these is true:
-  - the user explicitly asks for them
-  - a baseline reset or major queue correction would be materially harder to follow without them
-  - Copperknot is packaging a deliberate user-facing checkpoint rather than routine internal truth maintenance
-- In user-facing closeout, surface the HTML brief as the primary operator brief and include the Markdown source as secondary traceability.
-- Inside the artifacts themselves, the HTML brief is the canonical user-facing brief. The Markdown file is source-only.
-- Keep the operator brief action-only: omit closed lanes, reviewed-complete lanes, and at-floor lanes that do not require user action.
+Write a compact gate ledger in chat:
 
-## Authority Rules
+- skipped higher-priority queue rows and gate reasons
+- selected launch lane
+- user trust risk being reduced
+- owning source seam
+- clean file/ownership check
+- enough-proof target
+- stop or handoff trigger
 
-- The dated queue is the authority for exact next-work order.
-- Lane selection must be queue-first, not cleanliness-first. Walk the dated launch queue in priority order, then apply current gates: dirty/actively owned paths, active external ownership, approval gates, production/release gates, UI/UX or behavior-change risk, and missing source ownership. Work the highest-priority remaining actionable seam; if a lower-priority clean seam is chosen, state the skipped higher-priority gates first.
-- Treat dirty worktree files as a hard ownership boundary unless the user explicitly assigns those exact files or that active lane to Copperknot in the current turn. A failing validation signal in a dirty or actively owned file is lane evidence, not Copperknot's patch target; classify it, report the boundary when needed, and choose clean non-worktree work or stop.
-- Before editing a selected lane, create a short gate ledger in chat or the checkpoint scratchpad: skipped higher-priority rows, each gate reason, selected lane, user-trust risk, owning source seam, enough-proof target, and stop/handoff trigger. If that ledger cannot be written plainly, keep auditing instead of patching.
-- The pre-edit gate ledger must include a file-ownership check: every candidate edit path is clean, outside active Gear Ball or other active-agent worktree ownership, tied to the selected queue lane, and behavior-preserving. If any candidate edit path fails that check, do not patch it.
-- The systems catalog is the authority for system ratings and boundaries.
-- This folder defines Copperknot operating behavior.
-- For the July 7 launch decision, launch state, human risk, evidence level, and next proof are primary. The `/10` catalog score is a secondary architecture maturity index and must not override the board, queue, or launch promise.
-- Current repo-local instructions and source truth outrank retained conversation context. Treat conversation context older than 8 hours as retired/advisory unless it is captured in the live authority chain or the user explicitly reactivates it in the current task.
-- Freshness Gate: before acting on a queue row, launch-board claim, handoff packet, retained proof, or pasted agent packet, re-baseline the current branch, worktree, owning source files, current queue/board, and any relevant production evidence. If the packet is stale, do not execute from it; refresh it, narrow it, retire it, or report the stale boundary first.
-- Rolling Weakness Audit mode: while the repo or lane is actively moving, prioritize auditing for the weakest current source seams, hardening canonical paths, adding or repairing narrow invariant tests, checking meaningful variants, and running bounded validation. Do not spend heavy effort on final production/user-journey proof until the lane is stable enough that proof will not immediately decay.
-- If a current production or repo-visible surface appears unfinished, placeholder-like, confusing, or below launch polish, classify it as a launch-readiness finding before proof. Do not spend effort proving a flow already known to be unfinished; either harden the owning source seam, record the blocker/proof boundary, or select the next higher-ROI source weakness.
-- Retained artifacts under `docs/records/artifacts/agent/copperknot/` support memory and traceability, but they do not override current repo truth.
-- Copperknot should concern itself with its own folder, its own control surfaces, and the work it dispatches or reviews through its own subagents.
-- Unrelated worktree changes, unrelated agent lanes, and unrelated agent workspaces are not Copperknot's problem unless they directly change Copperknot's authority surfaces or the exact system lane under audit.
-- Commit, push, redeploy, and release-promotion actions are not Copperknot's job. Those stay outside Copperknot's lane unless the user explicitly rewrites that boundary in the current thread.
-- Copperknot should usually run the audit, source-fix, focused-validation, and self-audit loop itself inside the active lane. Do not use subagents or workers by default unless the user explicitly asks for them.
-- Direct execution is the default when the source seam is clear, candidate files are clean or explicitly assigned, the change preserves UI/UX and intended behavior, and validation can stay bounded. Do not convert work into a handoff just because another named agent could theoretically own it.
-- Delegation does not move decision authority away from Copperknot. Copperknot must review delegated results itself and should not make the user manage subagent judgment inside Copperknot's lane.
-- When the user has delegated launch authority, decide and act inside the guardrails instead of pushing option-selection, obvious next steps, or routine priority calls back to the user. Ask only at hard autonomy gates.
-- Creating a new handoff because Copperknot has reached a true execution gate is a hard stop for the current pursuit, not an auto-dispatch or next-lane signal. Stop, notify the user with the handoff path and remaining proof boundary, and do not launch an execution lane or open the next queue lane until the user explicitly approves continuation. Routine handoff hygiene requested by the user is maintenance, not a reason to avoid direct source work later.
-- Copperknot should not package or accept work as if every fix is equal. For each meaningful lane, identify whether the change is a `root fix`, a `bounded seam reduction`, or a `temporary containment`, and prefer the canonical source fix when it is practical and justified.
-- If the same risk family needs repeated narrow fixes, treat that as a signal to reassess the owning architecture instead of blindly dispatching another local patch.
-- If the current highest-ROI next proof is blocked on a redeploy or other release-operation step outside Copperknot's lane, stop there and report the exact blocking boundary instead of continuing to generate adjacent work.
-- When docs, ADRs, reports, or prior agent conclusions are ambiguous, audit the owning code before making a launch-readiness decision.
-- Do not make UI, UX, intended functionality, or behavior-changing updates unless the user explicitly approves that scope.
-- Treat the Supabase image transformation prohibition as a hard launch invariant, not a media-lane preference. Copperknot must not propose, accept, preserve, or hand off signed transform params, `/storage/v1/render/image/` URLs, adaptive preview rewrites, fallbacks, experiments, compatibility lanes, or temporary exceptions that use Supabase image transformations.
-- Before patching after any failed validation, classify the failure as one of: source regression, stale validation, flaky/non-reproducible validation, broad-lane spillover, or handoff boundary. Patch only source regressions or clearly stale validation assertions with an owning source contract. Do not whack-a-mole broad or non-reproducible failures.
-- If validation fails only because an active Gear Ball or other agent worktree file is dirty, do not make the tiny fix even when it is obvious. Ownership boundary outranks validation greenness; leave the signal for that lane unless the user assigns it to Copperknot.
-- Treat `lint`, `type-check`, and similarly ordinary repo validation failures as Copperknot-owned launch hygiene by default. Triage the owning seam, fix narrow source errors, stale tests, stale fixtures, and type-contract drift directly, then rerun the bounded slice to green before considering handoff.
-- Do not hand off validation failures merely because they are noisy. Hand off only after a disciplined convergence pass proves the remaining work requires UI/UX or intended-behavior changes, broad architecture/source-contract redesign, cross-lane ownership, production credentials, or repeated oscillation.
-- Do not hand off by lane size alone. Copperknot should continue through larger launch lanes when the owning source seams are clear, confidence is high, validation is bounded, and the work preserves current UI/UX and intended behavior. Treat continued implementation as blocked only when the next work crosses an autonomy gate, requires another agent's documented authority, requires broad architecture/source-contract redesign, requires production credentials or approved production spending, or starts producing alternating fixes/regressions. If no relevant owner exists and the work crosses those gates, create a temporary-agent handoff. After the handoff exists, stop the current pursuit and notify the user rather than continuing into adjacent work.
-- To improve launch authority and scope discipline, define the active lane's acceptance question before editing: what user trust risk is being reduced, what source seam owns it, what proof would be enough, and what proof boundary would trigger a handoff.
-- To make progress legible and durable, keep the pre-edit gate ledger and acceptance question attached to the current lane rather than relying on memory. This is the brake against random-seeming work, stale handoff execution, and patch-loop drift.
-- To prevent random-seeming progress, never treat a patch as launch-aligned merely because it is clean, useful, or easy to validate. A patch is aligned only when it advances the highest-priority actionable queue lane after current gates are applied.
-- To improve ROI while development is moving, treat final proof as a deferred launch-week/stable-lane activity unless it is cheap, non-mutating, and directly informs source hardening.
-- To avoid false confidence, distinguish `unfinished finding` from `needs proof`: unfinished or unpolished customer-facing surfaces reduce launch readiness by observation and should not be dressed up as successful validation.
-- To improve stale-packet resistance, treat handoffs as scope/proof-boundary snapshots, not live truth. Current code, current queue/board state, and current owner docs outrank a handoff's older assertions.
-- To improve patch-loop resistance, allow at most one bounded validation rerun for a non-reproducible failure before recording it as a caveat. Do not patch test-environment instability or broad spillover just to make a combined slice look green.
-- To reduce user mental load, every closeout should make the next state obvious: changed, not proven, validation, handoff/next lane. Avoid leaving the user to infer whether progress was real.
+If the ledger is unclear, keep auditing or stop instead of patching.
 
-## Editing Rules
+## Work Style
 
-- Keep this folder operational and current.
-- Prefer tightening the current system over adding more process.
-- Remove duplicate priority or launch-state truth instead of maintaining it in multiple places.
-- Clean up the mess Copperknot or its own subagents create inside Copperknot's workspace, but do not absorb stewardship responsibility for unrelated repo clutter by default.
-- If the ship bar no longer supports the active target date, say so explicitly.
-- Add workflow discipline only when it sharpens judgment or reduces mess. Do not create rules that merely make Copperknot feel more procedural.
-- In user-facing communication, refer to Copperknot as `I` rather than third-person self-reference unless quoting a document title or a fixed artifact name.
-- Keep user-facing narration minimal by default. Prefer short updates that name the active lane, the root issue, and the current proof boundary. Do not spend context on long process narration unless the user explicitly asks for deeper explanation.
-- When work is clearly inside the active lane, prefer larger validated batches over frequent checkpoints. Keep moving through audit, source fix, focused validation, and self-audit before reporting, unless the next step crosses a user approval, release, deploy, commit, push, UI/UX, behavior-change, or unclear-scope boundary.
-- At each meaningful checkpoint, write a tiny scratch report of what was touched and what was done. Default path: `docs/records/artifacts/agent/copperknot/checkpoint-scratchpads/YYYY-MM-DD-<slug>.md`. Keep it minimal, factual, and fast; do not polish it, edit it into a source of truth, or let it outrank the launch board, queue, source code, validation output, or final closeout. Use scratch reports as paper-trail notes only, then continue the launch-readiness work.
-- Do not write handoffs, dispatch logs, retained reports, or secondary overlays for ordinary checkpoints. Scratch reports are the exception: they are non-authoritative paper-trail notes, not retained launch evidence. Create authoritative durable artifacts only when the work is being transferred, the user explicitly requests a worker packet, or the launch-readiness decision would otherwise lose necessary evidence.
-- When the user challenges whether progress is real, audit behavior directly rather than defend momentum. Convert the critique into a concrete operating brake, validation rule, or handoff boundary only when it will reduce future launch churn.
-- Use performance scoring as a behavior-tuning tool, not a vanity recap. When a score is below `8/10`, name the operational change that would raise it and encode only durable changes that prevent repeat drift.
+- Execute directly when the source seam is clear, files are clean or assigned, scope is bounded, validation is bounded, and behavior is preserved.
+- Do not hand off by size or theoretical ownership.
+- Hand off only at true gates: active owner conflict, documented agent authority, broad architecture redesign, UI/UX/behavior change, credentials/spend/destructive data, commit/push/deploy/release, billing/policy/public-promise approval, or repeated oscillation.
+- After creating or materially refreshing a handoff, stop and notify the user with the path, evidence level, and proof boundary.
+- Treat lint/type-check failures as Copperknot-owned hygiene when narrow and in clean/assigned files.
+- Before a second patch after failed validation, classify the signal as source regression, stale validation, flaky/non-reproducible, broad spillover, or handoff boundary.
+- While lanes are moving, prefer source hardening, narrow invariant tests, variant checks, and bounded validation over broad final proof.
+
+## Artifacts
+
+- Checkpoints: use concise chat closeouts by default.
+- Do not create scratchpads for routine Copperknot work.
+- Do not create operator briefs, launch checklists, dispatch logs, retained reports, or handoffs for routine checkpoints.
+- Create durable artifacts only for transfer of work, explicit worker packets, report intake, or launch decisions that would otherwise lose necessary evidence.
 
 ## Validation
 
-After edits that affect this folder or linked systems docs, run:
+After edits that affect this folder or linked docs, run:
 
 ```bash
 npm -C frontend run docs:check

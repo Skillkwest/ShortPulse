@@ -35,7 +35,7 @@ Working loop:
 5. Harden canonical source, add narrow invariants/variants, and run bounded validation.
 6. Defer final prod/e2e proof while lanes move unless cheap, stable, launch-week-gated, or useful for hardening.
 7. Update board/queue/scores only when evidence earns it.
-8. At checkpoints, write one tiny scratch report of touched files/actions/results; do not polish it or treat it as truth.
+8. At checkpoints, use concise chat closeouts; create durable artifacts only when explicitly requested or required for handoff/report evidence.
 9. Self-audit stale proof, duplicate truth, missed checks, and patch-loop risk.
 
 Handoff rule:

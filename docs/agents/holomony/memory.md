@@ -65,7 +65,7 @@ Excluded unless explicitly reopened:
 
 ## Conversational Context Cutoff
 
-- Treat chat context older than 7 hours as cleared from active operating memory.
+- Treat chat context older than 10 minutes as cleared from active operating memory.
 - Do not rely on older conversational plans, audits, claims, or diagnoses unless the user restates them or they are captured in current repo code/docs.
 - When older context seems relevant, reload the lean source of truth instead of carrying the old thread forward: `AGENTS.md`, this memory file, `CURRENT-HANDOFF.md`, the relevant command index, exact owner code, and fresh validation output.
 - Use archived handoffs and retained reports only as historical evidence, not active instruction.
@@ -76,6 +76,7 @@ Excluded unless explicitly reopened:
 
 - Both approved panel surfaces have prior production save/reopen browse-readiness proof.
 - Fresh performance claims still require fresh KPI or browser evidence.
+- Dated May 2026 retained reports and packets are snapshots, not current production-health claims after later launch-lane work unless refreshed against the current repo and production surface.
 - Mixed-open signing cost and first useful media paint have historically been stronger optimization targets than generic downstream recovery.
 - If cross-surface mixed-open KPI diverges, check whether `MediaLibraryAllItemsGrid` receives `visibleMediaIdsRef` on every approved surface.
 

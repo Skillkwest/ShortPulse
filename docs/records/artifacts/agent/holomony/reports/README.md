@@ -13,7 +13,7 @@ Use this folder for:
 ## Layout
 
 - `current/`
-  - the small set of reports and retained packets that still act as current source-of-truth references for active Holomony work
+  - the small set of retained reports and packets that may still be useful first reads for active Holomony work, subject to freshness checks
 - `archive/`
   - older retained packets, superseded baselines, completed audit narratives, and historical training evidence that should stay preserved but not dominate the default reading path
 - `run-report-template.md`
@@ -49,24 +49,20 @@ Use:
 - surface onboarding reports
 - workflow and user-alignment audits
 
-## Current Source-Of-Truth Set
+## Current Entry Set
 
 - `current/2026-05-21-approved-panel-runtime-check.md`
-  - latest paired runtime check for the approved panel surfaces on current production
+  - paired runtime check for the approved panel surfaces; refresh before making current production-health claims
 - `current/2026-05-19-approved-panel-baseline-refresh.md`
   - approved-panel baseline refresh and the current repeated KPI/persistence read for AI Studio plus Elements
 - `current/2026-05-20-ai-studio-media-library-incident-hotfix.md`
-  - latest retained AI Studio media-library incident and hotfix runtime read
+  - retained AI Studio media-library incident and hotfix runtime read
 - `current/2026-05-18-media-library-five-column-density-plan.md`
   - active retained density-plan contract for the five-column library lane
 - `current/2026-05-18-character-panel-media-assignment-onboarding-audit.md`
   - current onboarding audit for the character-panel candidate surface
 - `current/2026-05-25-reference-grid-onboarding-plan.md`
   - audited onboarding plan and stop/decision contract for the Reference Grid candidate surface
-- `current/2026-05-29-holomony-context-refresh.md`
-  - latest retained self-maintenance/context-load cleanup read for Holomony's operating space
-- `current/2026-05-28-holomony-operating-space-audit-prune.md`
-  - prior retained operating-space audit/prune read for Holomony's operating space
 - `current/2026-05-19-ai-studio-panel-baseline.packet.json`
 - `current/2026-05-19-ai-studio-panel-persistence-audit.json`
 - `current/2026-05-19-elements-media-panel-baseline.packet.json`
@@ -76,4 +72,5 @@ Use:
 
 - `archive/` keeps historical evidence intact rather than deleting it.
 - Earlier packets and reports are still useful training/history, but they are not the default current-state surface anymore.
+- `archive/2026-05-28-holomony-operating-space-audit-prune.md` and `archive/2026-05-29-holomony-context-refresh.md` are historical self-maintenance reads; current default-load policy lives in `docs/agents/holomony/AGENTS.md`, `docs/agents/holomony/memory.md`, and this reports index.
 - `archive/2026-05-25-reference-grid-production-baseline.md` is the first retained Reference Grid production baseline, archived because later user-visible production incidents superseded its old `no clear blocker` health read.

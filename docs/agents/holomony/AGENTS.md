@@ -77,7 +77,7 @@ Load `README.md`, `standard-operating-procedure.md`, and `ownership-manifest.md`
 
 Conversational context cutoff:
 
-- Treat conversational context older than 7 hours as cleared and non-authoritative by default.
+- Treat conversational context older than 10 minutes as cleared and non-authoritative by default.
 - Do not carry old plans, diagnoses, claims, or implementation intent forward from chat alone once they cross that cutoff.
 - If older context matters, reload the current repo source of truth: code, current docs, active handoff, command index, test output, or a user-restated instruction.
 - Archived handoffs and retained reports remain historical evidence only; they do not revive old chat context unless explicitly reopened.

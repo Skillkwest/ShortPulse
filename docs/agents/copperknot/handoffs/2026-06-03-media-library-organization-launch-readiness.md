@@ -2,17 +2,18 @@
 
 Status: source-hardened after Holomony/Copperknot completion pass; authenticated production proof remains the watch boundary.
 
-## Current Freshness Addendum - 2026-06-19
+## Current Freshness Addendum - 2026-06-20
 
 - Current queue state: P2 `Media library and organization` is ready to move from `Below Floor - Handed Off` to `Below Floor - Source Hardened` with `Locally Tested` evidence.
 - Use `docs/agents/copperknot/prioritized-launch-queue-2026-07-07.md` as the live priority/source-of-truth layer, then use this packet as the Holomony continuation scope.
 - The refreshed pass audited branch, worktree, owning files, current Media Library routes/components, and production-safe route proof before claiming source-hardening progress.
 - The evidence below includes historical local evidence from the 2026-06-03 Copperknot pass plus the refreshed local/prod-safe proof recorded in the completion addendum.
+- The old multipart/raw `/api/media/upload` compatibility route is now retired. Do not use `frontend/tests/api/media-upload.route.test.ts` or `SHORTPULSE_MEDIA_UPLOAD_API_ENABLED` as current proof targets; the canonical local Media Library / Reference Grid upload route pair is `/api/media/prepare-upload` -> browser direct storage upload -> `/api/media/finalize-upload`.
 - Remaining proof boundary: authenticated production customer behavior for save, browse, organize, reuse, and reopen across Media Library and AI Studio surfaces. Preserve current UI/UX/design/behavior; do not redesign Media Library or make folders project-local.
 
 ## Completion Addendum - 2026-06-19
 
-- Source-audited canonical ingest/save continuity across direct upload prepare/finalize, compatibility upload, copy-from-url, and AI Studio save-to-library persistence.
+- Source-audited canonical ingest/save continuity across direct upload prepare/finalize, copy-from-url, and AI Studio save-to-library persistence.
 - Source-audited global folder authority in `mediaFoldersService`, folder CRUD routes, membership mutation routes, and project/non-project list behavior; folders remain global user-owned library containers, not project-local containers.
 - Source-audited autosave-off and project-association semantics in the AI Studio autosave orchestrator, autosave policy, persistence actions, and media-library persistence helpers.
 - Source-audited preview signing/list/resolve surfaces for shared user-scoped storage-path validation, storage-object existence gating, wrong-asset avoidance, and the no-Supabase-transform policy.
@@ -48,14 +49,10 @@ Preserve the current UI, UX, visual design, and intended behavior. This lane is 
 - Confirmed the Media Library SOP still defines `All Media` as the virtual global user inventory and custom folders as one global folder authority across project and non-project AI Studio routes.
 - Confirmed `frontend/lib/server/mediaFoldersService.ts` keeps `all_items` virtual, validates user-owned custom folders, validates media/prompt ownership before membership mutation, and rejects character-scoped media ids.
 - Confirmed `frontend/features/ai-studio/logic/mediaLibraryPersistence.ts` has current coverage for project association on saved media/prompts, generated-media generation-id enforcement, and server-copy fallback.
-- Fixed stale test expectation in `frontend/tests/api/media-upload.route.test.ts`: oversized image upload metadata now asserts the current `image_admission` contract instead of the retired `upload_normalization` shape.
+- Historical note: Copperknot previously fixed a stale assertion in `frontend/tests/api/media-upload.route.test.ts`, but that compatibility-route test was retired with `/api/media/upload` on 2026-06-20. Do not treat it as current evidence.
 
 ## Current Evidence
 
-- `npm -C frontend run test -- tests/api/media-upload.route.test.ts`
-- Result: `1` test file passed, `9` tests passed.
-- `npx eslint tests/api/media-upload.route.test.ts`
-- Result: passed.
 - `npm -C frontend run test -- tests/api/media-folders-crud.test.ts tests/api/media-folders-membership-batch.test.ts tests/api/media-list.test.ts tests/api/media-copy-from-url.test.ts tests/api/media-finalize-upload-route.test.ts features/media-library/hooks/__tests__/useMediaUploadController.test.ts features/media-library/hooks/__tests__/useMediaFileModalCrud.test.ts features/media-library/runtime/__tests__/useMediaLibraryPanelRuntime.test.ts`
 - Result: `8` test files passed, `91` tests passed.
 - `npm -C frontend run test -- features/ai-studio/logic/__tests__/mediaLibraryPersistence.test.ts`
@@ -69,7 +66,7 @@ Known validation caveat:
 
 Holomony should continue with a bounded launch-readiness audit, not a redesign:
 
-1. Prove server-authoritative ingest and save continuity across direct upload prepare/finalize, compatibility upload, and copy-from-url.
+1. Prove server-authoritative ingest and save continuity across direct upload prepare/finalize and copy-from-url.
 2. Prove folder CRUD, nested folder hierarchy, and membership assignment/move/remove preserve one global user-owned folder authority across project and non-project routes.
 3. Prove autosave-off behavior still blocks automatic Media Library persistence without breaking in-session playback, project association, or private restore durability.
 4. Prove saved media and prompts attach to active projects when appropriate, without duplicating global Media Library rows or making folders project-local.

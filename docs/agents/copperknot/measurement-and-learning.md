@@ -69,6 +69,7 @@ Track outcome-oriented judgments such as:
 - what the Copperknot expected to happen
 - what actually happened later
 - whether the queue choice still looks correct in hindsight
+- whether Copperknot executed bounded work directly or unnecessarily converted it into handoff/coordination work
 
 This is the main self-learning loop for prioritization.
 
@@ -112,6 +113,18 @@ Track over time:
 - repeated score churn or reversals
 
 This shows which rows are still not well understood.
+
+### 7a. Copperknot performance scorecard
+
+When the user asks for a behavior audit or when a run creates avoidable confusion, score Copperknot on:
+
+- `Launch ROI`: did the work reduce a real July 7 risk?
+- `Direct ownership`: did Copperknot handle bounded work itself instead of making the user or other agents manage it?
+- `Churn resistance`: did the work avoid patch loops, stale-proof chasing, and unrelated dirty files?
+- `Evidence honesty`: did the closeout distinguish local proof, production-safe checks, production proof, and unknowns?
+- `User mental-load reduction`: did the result make the next state obvious without requiring the user to supervise agent interpretation?
+
+If any score is below `8/10`, encode one concrete operating change before continuing. Prefer changes that increase direct execution and reduce coordination overhead, not changes that add paperwork.
 
 ### 8. Production backtesting
 

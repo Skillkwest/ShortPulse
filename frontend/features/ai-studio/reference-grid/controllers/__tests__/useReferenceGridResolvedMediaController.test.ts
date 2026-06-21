@@ -190,6 +190,48 @@ describe("useReferenceGridResolvedMediaController", () => {
     expect(resolved.isImagePreview).toBe(true);
   });
 
+  it("returns signed audio companion art for generated audio backgrounds", () => {
+    const output = {
+      id: "audio-1",
+      prompt: "Launch voiceover",
+      mode: "audio",
+      aspect: "1:1",
+      model: "Voiceover",
+      status: "ready",
+      timestamp: "Just now",
+      taskState: "success",
+      mediaSource: "generated",
+      generationId: "audio-1",
+      previewStoragePath: "user-1/generations/audio/audio-1/audio.mp3",
+      fullStoragePath: "user-1/generations/audio/audio-1/audio.mp3",
+      resultUrls: undefined,
+      companionArtUrl: null,
+      companionArtStoragePath: "user-1/generations/audio/audio-1/companion-art/cover.webp",
+      companionArtStatus: "ready",
+    } as unknown as StudioOutput;
+    const { result } = renderHook(() =>
+      useReferenceGridResolvedMediaController({
+        previewQualityPressureLevel: 0,
+        strictPreviewLadder: true,
+        adaptivePreviewRoutingEnabled: true,
+        signedStorageUrlByPath: new Map([
+          [
+            "user-1/generations/audio/audio-1/companion-art/cover.webp",
+            "https://signed.shortpulse.test/audio-cover.webp",
+          ],
+        ]),
+      })
+    );
+
+    const resolved = result.current.resolveCardMedia({
+      item: projectReferenceGridMediaOutput(output),
+      mediaSurface: "reference-grid",
+      cardLongEdgePx: 320,
+    });
+
+    expect(resolved.companionArtUrl).toBe("https://signed.shortpulse.test/audio-cover.webp");
+  });
+
   it("uses the same signed full fallback ladder for quick-slot image cards", () => {
     const output = {
       ...createImageOutput("out-restored-quick-slot-storage-only"),

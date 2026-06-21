@@ -14,6 +14,8 @@ type MediaDurationBadgeProps = {
 export type MediaDurationBadgeKind = "audio" | "music" | "sound-effects" | "video";
 
 const MEDIA_DURATION_PROBE_MAX_INFLIGHT = 2;
+const MEDIA_DURATION_PROBE_MAX_CACHE_ENTRIES = 300;
+const MEDIA_DURATION_PROBE_TIMEOUT_MS = 8_000;
 const mediaDurationProbeCache = new Map<string, number | null>();
 const mediaDurationProbeInFlightByKey = new Map<string, Promise<number | null>>();
 let mediaDurationProbeInflightCount = 0;
@@ -76,6 +78,17 @@ const resolveDurationProbeCacheKey = ({
   mediaUrl: string;
 }): string => `${mediaKind}:${mediaUrl}`;
 
+const rememberMediaDurationProbeResult = (cacheKey: string, durationMs: number | null) => {
+  if (!mediaDurationProbeCache.has(cacheKey)) {
+    while (mediaDurationProbeCache.size >= MEDIA_DURATION_PROBE_MAX_CACHE_ENTRIES) {
+      const oldestCacheKey = mediaDurationProbeCache.keys().next().value;
+      if (typeof oldestCacheKey !== "string") break;
+      mediaDurationProbeCache.delete(oldestCacheKey);
+    }
+  }
+  mediaDurationProbeCache.set(cacheKey, durationMs);
+};
+
 const runNextDurationProbe = () => {
   if (mediaDurationProbeInflightCount >= MEDIA_DURATION_PROBE_MAX_INFLIGHT) return;
   const nextProbe = mediaDurationProbeQueue.shift();
@@ -113,6 +126,7 @@ const requestQueuedMediaDurationProbe = ({
       }
 
       let settled = false;
+      let timeoutId: ReturnType<typeof globalThis.setTimeout> | null = null;
       const media =
         mediaKind === "audio" ? document.createElement("audio") : document.createElement("video");
       media.preload = "metadata";
@@ -133,7 +147,11 @@ const requestQueuedMediaDurationProbe = ({
       function settle(nextDurationMs: number | null) {
         if (settled) return;
         settled = true;
-        mediaDurationProbeCache.set(cacheKey, nextDurationMs);
+        if (timeoutId != null) {
+          globalThis.clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        rememberMediaDurationProbeResult(cacheKey, nextDurationMs);
         mediaDurationProbeInFlightByKey.delete(cacheKey);
         media.removeEventListener("loadedmetadata", handleLoadedMetadata);
         media.removeEventListener("error", handleError);
@@ -149,6 +167,9 @@ const requestQueuedMediaDurationProbe = ({
 
       media.addEventListener("loadedmetadata", handleLoadedMetadata, { once: true });
       media.addEventListener("error", handleError, { once: true });
+      timeoutId = globalThis.setTimeout(() => {
+        settle(null);
+      }, MEDIA_DURATION_PROBE_TIMEOUT_MS);
       media.src = mediaUrl;
       try {
         media.load();
@@ -207,7 +228,7 @@ export function MediaDurationBadge({
     const explicitDurationMs = normalizeDurationMs(durationMs);
     if (explicitDurationMs != null) {
       if (cacheKey) {
-        mediaDurationProbeCache.set(cacheKey, explicitDurationMs);
+        rememberMediaDurationProbeResult(cacheKey, explicitDurationMs);
       }
       updateResolvedDuration({ cacheKey, durationMs: explicitDurationMs });
       return;

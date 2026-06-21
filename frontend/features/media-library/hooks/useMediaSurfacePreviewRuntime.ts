@@ -212,6 +212,7 @@ export const useMediaSurfacePreviewRuntime = <
       }
       if (!node) {
         mediaCardNodesRef.current.delete(fileId);
+        delete mediaCardRefCallbacksRef.current[fileId];
         if (visibleMediaIdsRef.current.delete(fileId)) {
           setVisibleMediaVersion((prev) => prev + 1);
         }

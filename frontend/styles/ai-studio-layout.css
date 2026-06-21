@@ -404,6 +404,26 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   color: #dfe8f5;
   font-weight: 600;
   background: none;
+  text-decoration: none;
+}
+
+a.ai-credit-inline {
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    opacity 0.15s ease,
+    transform 0.15s ease;
+}
+
+a.ai-credit-inline:hover {
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+a.ai-credit-inline:focus-visible {
+  outline: 2px solid rgba(91, 225, 238, 0.9);
+  outline-offset: 4px;
 }
 
 .ai-credit-inline .credit-label {

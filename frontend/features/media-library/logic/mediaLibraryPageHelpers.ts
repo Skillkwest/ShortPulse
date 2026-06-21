@@ -2,7 +2,6 @@
  * Shared Media Library page helpers for tab routing, cache state, and pagination utilities.
  * Keep this module React-free so page orchestration stays focused on UI and side effects.
  */
-import { type MediaSignBudget } from "../../../lib/mediaPreviewRuntimePolicy";
 import { resolveMediaKindFromFileType, resolveMediaRowKind } from "../../../lib/mediaRowKind";
 import {
   normalizeMediaSearchTerm as normalizeMediaSearchTermShared,
@@ -163,6 +162,34 @@ export const mergePageRows = <TRow extends { id: string; created_at?: string | n
     if (createdDelta !== 0) return createdDelta;
     return b.id.localeCompare(a.id);
   });
+};
+
+export const appendCursorPageRows = <TRow extends { id: string }>(
+  current: TRow[],
+  incoming: TRow[]
+): TRow[] => {
+  if (!incoming.length) return current;
+  if (!current.length) return incoming;
+
+  const indexById = new Map(current.map((row, index) => [row.id, index]));
+  let changed = false;
+  const nextRows = current.slice();
+
+  for (const row of incoming) {
+    const existingIndex = indexById.get(row.id);
+    if (existingIndex !== undefined) {
+      if (nextRows[existingIndex] !== row) {
+        nextRows[existingIndex] = row;
+        changed = true;
+      }
+      continue;
+    }
+    indexById.set(row.id, nextRows.length);
+    nextRows.push(row);
+    changed = true;
+  }
+
+  return changed ? nextRows : current;
 };
 
 export const formatDate = (value?: string | null) => {

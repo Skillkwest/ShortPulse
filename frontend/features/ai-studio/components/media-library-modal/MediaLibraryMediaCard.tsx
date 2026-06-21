@@ -339,8 +339,8 @@ export function MediaLibraryAudioCard({
   const audioUrl = cardPreviewUrl ?? file.signedUrl ?? null;
   const signedUrlLoadedRef = React.useRef(false);
   const audioSourceMode = resolveMediaMetadataAudioSourceMode(file.metadata);
-  const displayTitle = resolveMediaMetadataDisplayTitle(file.metadata);
   const audioLabel = resolveMediaLibraryCardDisplayLabel(file);
+  const displayTitle = audioLabel === "media" ? null : audioLabel;
   const durationMs = resolveMediaMetadataDurationMs(file.metadata, { fileType: file.file_type });
   const shouldSetAriaPressed =
     Boolean(onToggleMediaSelection) || setAriaPressedWithoutSelectionMode;

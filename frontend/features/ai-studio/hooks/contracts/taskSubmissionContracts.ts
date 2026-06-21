@@ -1,5 +1,6 @@
 import type { InpaintSubmissionOverride } from "../../logic/inpaintSubmission";
 import type { InternalMediaRef } from "../../../../lib/media/internalMediaRefs";
+import type { Provider } from "../../logic/stateParsers";
 import type {
   StudioMode,
   StudioOutput,
@@ -23,6 +24,17 @@ export type AiStudioTaskSubmitOptions = {
   hideOutputFromReferenceGrid?: boolean;
   expertEditReferences?: WorkflowReloadExpertEditReferences | null;
   expertEditRestoreImageInputs?: string[];
+};
+
+export type GenerationMetadata = Record<string, unknown>;
+
+export type EnsureGenerationRecordInput = {
+  outputId: string;
+  provider: Provider;
+  taskId?: string;
+  durationSeconds?: number;
+  resolution?: string | null;
+  metadata?: GenerationMetadata;
 };
 
 type AiStudioImageRerollForwardedOptions = Pick<

@@ -83,7 +83,8 @@ For Create properties panel, model-selector, and submission wiring details, see 
 
 - The Video mode toggle exposes `Standard`, `Motion Control`, and `Lip Sync`.
 - `Lip Sync` does not expose a model picker chip or provider/model-specific labels.
-- The left panel requires a `Character image` and `Voice audio`, exposes `720p` / `1080p`, and may expose generic `Faster generation`.
+- The left panel requires a `Character image` and `Voice audio`, and exposes `720p` / `1080p` through the shared video-settings resolution dropdown.
+- `Faster generation` / turbo mode remains wired internally but is hidden from users for the July 7 launch; do not expose it until a future launch lane completes the product behavior.
 - Prompt text is optional; empty prompt is valid when required image/audio inputs are present.
 - Local voice-audio file picker/drop inputs use `/api/media/prepare-upload` -> browser direct upload -> `/api/media/finalize-upload` into app-owned durable audio storage and must reach a ready state before submit; already reachable Media Library / Reference Grid / Canvas audio URLs remain accepted when durable.
 - Audio duration guardrails are enforced before provider submit: `1080p` requires audio under `30s` and `720p` requires audio under `60s`.

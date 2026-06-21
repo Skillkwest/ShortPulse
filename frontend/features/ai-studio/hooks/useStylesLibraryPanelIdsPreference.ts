@@ -26,6 +26,7 @@ type UseStylesLibraryPanelIdsPreferenceResult = {
   syncState: StylesLibraryPanelIdsSyncState;
   setStylePanelIds: (styleIds: string[]) => Promise<boolean>;
   removeStylePanelId: (styleId: string) => Promise<boolean>;
+  resetStylePanelIds: () => Promise<boolean>;
 };
 
 const readLocalStylePanelIds = (userId?: string | null): string[] => {
@@ -226,6 +227,11 @@ export const useStylesLibraryPanelIdsPreference = (): UseStylesLibraryPanelIdsPr
     [persistNextValue]
   );
 
+  const resetStylePanelIds = useCallback(
+    async (): Promise<boolean> => persistNextValue([]),
+    [persistNextValue]
+  );
+
   return {
     stylePanelIds,
     loading,
@@ -233,5 +239,6 @@ export const useStylesLibraryPanelIdsPreference = (): UseStylesLibraryPanelIdsPr
     syncState,
     setStylePanelIds,
     removeStylePanelId,
+    resetStylePanelIds,
   };
 };

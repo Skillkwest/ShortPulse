@@ -31,6 +31,7 @@ export type ReferenceGridVisibleCardItem = {
   authorityTier: ReferenceGridMediaAuthorityTier;
   cardPreviewUrl: string | null;
   videoPosterUrl?: string | null;
+  audioBackgroundImageUrl?: string | null;
   playableMediaUrl?: string | null;
   fallbackUrl: string | null;
   previewQualityBand: ReferenceGridPreviewQualityBand;
@@ -134,6 +135,7 @@ export const useReferenceGridCardItemsController = ({
             authorityTier: "preview-only" as const,
             cardPreviewUrl: null,
             videoPosterUrl: null,
+            audioBackgroundImageUrl: null,
             playableMediaUrl: null,
             fallbackUrl: null,
             previewQualityBand: "high" as const,
@@ -206,6 +208,7 @@ export const useReferenceGridCardItemsController = ({
           authorityTier: resolvedMedia.authorityTier,
           cardPreviewUrl: resolvedMedia.previewUrl,
           videoPosterUrl: resolvedMedia.posterPreviewUrl,
+          audioBackgroundImageUrl: resolvedMedia.companionArtUrl,
           playableMediaUrl: resolvedMedia.playableMediaUrl,
           fallbackUrl: resolvedMedia.fallbackUrl,
           previewQualityBand: resolvedMedia.previewQualityBand,

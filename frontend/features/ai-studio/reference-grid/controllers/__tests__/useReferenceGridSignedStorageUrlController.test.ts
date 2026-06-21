@@ -52,6 +52,10 @@ describe("useReferenceGridSignedStorageUrlController", () => {
           "user-1/variants/videos/video-1/poster.webp",
           "https://signed.shortpulse.test/video-poster.webp",
         ],
+        [
+          "user-1/generations/audio/audio-1/companion-art/cover.webp",
+          "https://signed.shortpulse.test/audio-cover.webp",
+        ],
         ["user-1/generations/images/image-1.png", "https://signed.shortpulse.test/full.png"],
         ["user-1/results/image-1.png", "https://signed.shortpulse.test/result.png"],
       ])
@@ -112,6 +116,24 @@ describe("useReferenceGridSignedStorageUrlController", () => {
         }),
       ])
     ).toEqual(["user-1/generations/images/image-1.png"]);
+  });
+
+  it("collects audio companion-art storage paths for generated reference backgrounds", () => {
+    const paths = collectReferenceGridStoragePaths([
+      createStorageBackedImage({
+        id: "audio-1",
+        mode: "audio",
+        previewStoragePath: "user-1/generations/audio/audio-1/audio.mp3",
+        fullStoragePath: "user-1/generations/audio/audio-1/audio.mp3",
+        resultUrls: ["user-1/generations/audio/audio-1/audio.mp3"],
+        companionArtStoragePath: "user-1/generations/audio/audio-1/companion-art/cover.webp",
+      }),
+    ]);
+
+    expect(paths).toEqual([
+      "user-1/generations/audio/audio-1/audio.mp3",
+      "user-1/generations/audio/audio-1/companion-art/cover.webp",
+    ]);
   });
 
   it("collects saved media ids for media-row authority even when storage paths exist", () => {
@@ -466,6 +488,33 @@ describe("useReferenceGridSignedStorageUrlController", () => {
 
     expect(projected.previewUrl).toBeUndefined();
     expect(projected.resultUrls).toEqual(["https://signed.shortpulse.test/full.png"]);
+  });
+
+  it("projects signed companion-art storage into generated audio background url", () => {
+    const output = createStorageBackedImage({
+      id: "audio-1",
+      mode: "audio",
+      previewStoragePath: "user-1/generations/audio/audio-1/audio.mp3",
+      fullStoragePath: "user-1/generations/audio/audio-1/audio.mp3",
+      resultUrls: ["user-1/generations/audio/audio-1/audio.mp3"],
+      companionArtUrl: null,
+      companionArtStoragePath: "user-1/generations/audio/audio-1/companion-art/cover.webp",
+      companionArtStatus: "ready",
+    });
+    const projected = applySignedStorageUrlsToReferenceGridMediaOutput(
+      output,
+      new Map([
+        [
+          "user-1/generations/audio/audio-1/companion-art/cover.webp",
+          "https://signed.shortpulse.test/audio-cover.webp",
+        ],
+      ])
+    );
+
+    expect(projected.companionArtStoragePath).toBe(
+      "user-1/generations/audio/audio-1/companion-art/cover.webp"
+    );
+    expect(projected.companionArtUrl).toBe("https://signed.shortpulse.test/audio-cover.webp");
   });
 
   it("projects signed media-id authority into render fields while recovering durable paths", () => {

@@ -7,6 +7,10 @@ import {
   type PersistedGenerationOutputRow,
 } from "./generationOutputs";
 import { getSupabaseAdmin } from "./supabaseAdmin";
+import {
+  readGenerationProjectIdFromContext,
+  readGenerationWorkspaceRuntimeKeyFromMetadata,
+} from "./generationWorkspaceRuntimeKey";
 
 type JsonObject = Record<string, unknown>;
 
@@ -21,6 +25,12 @@ const asObject = (value: unknown): JsonObject =>
 
 const readSourceRef = (metadata: JsonObject): string | null =>
   asString(asObject(metadata).source_ref);
+
+const readProjectIdFromMetadata = (metadata: JsonObject): string | null =>
+  readGenerationProjectIdFromContext(metadata) ??
+  readGenerationProjectIdFromContext(
+    asObject(metadata.shortpulse_context ?? metadata.shortpulseContext)
+  );
 
 export type ReconcileOwnedGenerationOutputSlotInput = {
   generationId: string;
@@ -124,6 +134,8 @@ export const reconcileOwnedGenerationOutputSlot = async ({
     supabaseAdmin: adminClient,
     generationId,
     userId,
+    projectId: readProjectIdFromMetadata(metadata),
+    workspaceRuntimeKey: readGenerationWorkspaceRuntimeKeyFromMetadata(metadata),
     sourceRef: readSourceRef(metadata),
     requestId: asString(providerRequestId),
     providerRequestId: asString(providerRequestId),

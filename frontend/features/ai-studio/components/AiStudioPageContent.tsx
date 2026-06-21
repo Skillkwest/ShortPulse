@@ -2,6 +2,7 @@
  * AI Studio page layout (presentational only).
  * Receives a prepared view model from the page and renders toolbar, panels, previews, and system banners.
  */
+import Link from "next/link";
 import React from "react";
 import {
   FlowArrow,
@@ -1002,8 +1003,22 @@ export function AiStudioPageContent({
     return baseVisibility;
   }, [panelToggleAvailability, panelVisibility, selectedTool]);
   const isStylesPanelOpen = effectivePanelVisibility.styles;
-  const shouldLoadStylesCatalog =
-    isStylesPanelOpen || selectedTool === "styles" || selectedStyleId != null;
+  const isStandardCreateStylesSurface =
+    showCreatePropertiesPanel && resolvedStandardCreateProperties != null;
+  const shouldWarmStylesCatalog =
+    isStandardCreateStylesSurface ||
+    showExpertEditPanel ||
+    showVideoPropertiesPanel ||
+    isStylesPanelOpen ||
+    selectedTool === "styles" ||
+    selectedStyleId != null;
+  const [stylesCatalogWarmRequested, setStylesCatalogWarmRequested] =
+    React.useState(shouldWarmStylesCatalog);
+  React.useEffect(() => {
+    if (stylesCatalogWarmRequested || !shouldWarmStylesCatalog) return;
+    setStylesCatalogWarmRequested(true);
+  }, [shouldWarmStylesCatalog, stylesCatalogWarmRequested]);
+  const shouldLoadStylesCatalog = stylesCatalogWarmRequested || shouldWarmStylesCatalog;
   const {
     handleDeleteStyle,
     handleReorderStyle,
@@ -1857,7 +1872,11 @@ export function AiStudioPageContent({
         <section className="ai-hero panel hero-banner ai-amber-hero">
           <div className="hero-text">
             <h1 className="ai-hero-title">AI Studio</h1>
-            <div className="ai-credit-inline header-embedded">
+            <Link
+              href="/profile?section=credits"
+              className="ai-credit-inline header-embedded"
+              aria-label="Open credits and billing"
+            >
               <span className="credit-label">Credits</span>
               <CreditFillCoin
                 remainingCredits={balanceCredits}
@@ -1865,7 +1884,7 @@ export function AiStudioPageContent({
                 loading={balanceLoading}
               />
               <span className="credit-value">{creditValueLabel}</span>
-            </div>
+            </Link>
           </div>
           {visibleProjectName ? (
             <div className="ai-hero-project-name">

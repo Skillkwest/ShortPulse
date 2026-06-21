@@ -736,6 +736,7 @@ describe("useAiStudioReferenceIngestionActions", () => {
       expect.objectContaining({
         mode: "audio",
         prompt: "reference.mp3",
+        title: "reference.mp3",
         previewUrl: "https://signed.test/reference.mp3",
         resultUrls: ["https://signed.test/reference.mp3"],
         previewStoragePath: "user-1/uploads/audio/reference.mp3",

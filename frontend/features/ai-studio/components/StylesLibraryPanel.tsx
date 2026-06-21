@@ -93,6 +93,8 @@ export function StylesLibraryPanel({
     handleStyleDragStart,
     handleStyleDragOver,
     handleStyleDrop,
+    handleStyleGridDragOver,
+    handleStyleGridDrop,
     handleStyleDragEnd,
     applyStylePreviewFromTransfer,
     applyStylePreviewFile,
@@ -235,7 +237,13 @@ export function StylesLibraryPanel({
           stylesLibraryDropActive ? "is-external-drop-active" : ""
         }`.trim()}
       >
-        <div className="styles-library-grid" role="list" aria-label="Styles library tiles">
+        <div
+          className="styles-library-grid"
+          role="list"
+          aria-label="Styles library tiles"
+          onDragOver={handleStyleGridDragOver}
+          onDrop={handleStyleGridDrop}
+        >
           {stylesWithNoneFirst.map((style) => {
             const isNoneStyle = style.id === NONE_STYLE_ID;
             const isStylePreviewGenerating = stylePreviewGenerationStyleIds.includes(style.id);
@@ -665,7 +673,7 @@ export function StylesLibraryPanel({
               body={
                 <div>
                   <p>Restore the current ShortPulse built-in Styles to your style library.</p>
-                  <p>Your custom Styles and custom order will stay unchanged.</p>
+                  <p>Your custom Styles stay unchanged. The built-in order returns to default.</p>
                   {restoreError ? <p>{restoreError}</p> : null}
                 </div>
               }

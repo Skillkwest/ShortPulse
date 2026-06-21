@@ -19,6 +19,7 @@ import {
   prepareMediaSigningState,
   type PreparedSignState,
   resolveMediaSignQueuePass,
+  resolveVisibleScopedSigningSourceRows,
 } from "../logic/mediaPreviewSigningPass";
 import {
   collectMediaSignPaths,
@@ -114,6 +115,15 @@ export const useMediaPreviewSigningController = <
   const deferredDrainArmedRef = useRef(false);
   const queueScopeKeyRef = useRef<string>("");
   const preparedSignStateRef = useRef<PreparedSignState<TRow> | null>(null);
+  const visibleScopedSigningRowsRef = useRef<{
+    sourceRows: TRow[];
+    visibleMediaVersion: number;
+    includePrefetchWindow: boolean;
+    initialSignLimit: number;
+    prefetchWindow: number;
+    signBatchSize: number;
+    rows: TRow[];
+  } | null>(null);
   const failedSignAttemptKeyByIdRef = useRef<Record<string, string>>({});
   const clearDeferredDrainTimeout = useCallback(() => {
     if (deferredDrainTimeoutRef.current == null || typeof window === "undefined") return;
@@ -155,16 +165,49 @@ export const useMediaPreviewSigningController = <
     const signCandidateCap = Number.isFinite(maxSignCandidatesPerRow)
       ? Math.max(1, Math.trunc(maxSignCandidatesPerRow))
       : 4;
+    const isVisibleScopedSurface = VISIBLE_SCOPED_SIGN_SURFACES.has(surface);
+    const sourceRowsForSigning = isVisibleScopedSurface
+      ? (() => {
+          const cachedRows = visibleScopedSigningRowsRef.current;
+          if (
+            cachedRows &&
+            cachedRows.sourceRows === filteredMedia &&
+            cachedRows.visibleMediaVersion === visibleMediaVersion &&
+            cachedRows.includePrefetchWindow === isSignPrefetchEnabled &&
+            cachedRows.initialSignLimit === signBudget.initialSignLimit &&
+            cachedRows.prefetchWindow === signBudget.prefetchWindow &&
+            cachedRows.signBatchSize === signBudget.signBatchSize
+          ) {
+            return cachedRows.rows;
+          }
+          const rows = resolveVisibleScopedSigningSourceRows({
+            sourceRows: filteredMedia,
+            signBudget,
+            visibleMediaIds: visibleMediaIdsRef.current,
+            includePrefetchWindow: isSignPrefetchEnabled,
+          });
+          visibleScopedSigningRowsRef.current = {
+            sourceRows: filteredMedia,
+            visibleMediaVersion,
+            includePrefetchWindow: isSignPrefetchEnabled,
+            initialSignLimit: signBudget.initialSignLimit,
+            prefetchWindow: signBudget.prefetchWindow,
+            signBatchSize: signBudget.signBatchSize,
+            rows,
+          };
+          return rows;
+        })()
+      : filteredMedia;
     const cachedPreparedSignState = preparedSignStateRef.current;
     const preparedSignState =
       cachedPreparedSignState &&
-      cachedPreparedSignState.sourceRows === filteredMedia &&
+      cachedPreparedSignState.sourceRows === sourceRowsForSigning &&
       cachedPreparedSignState.currentUserId === currentUserId &&
       cachedPreparedSignState.signCandidateCap === signCandidateCap
         ? cachedPreparedSignState
         : (() => {
             const nextState = prepareMediaSigningState({
-              sourceRows: filteredMedia,
+              sourceRows: sourceRowsForSigning,
               currentUserId,
               signCandidateCap,
             });
@@ -182,7 +225,7 @@ export const useMediaPreviewSigningController = <
     const resolveBlockedSignAttemptKey = (rowId: string) => {
       const entry = signCandidateEntryById.get(rowId);
       const candidateKey = [entry?.directUrl ?? "", ...(entry?.candidates ?? [])].join("\0");
-      if (VISIBLE_SCOPED_SIGN_SURFACES.has(surface) && !visibleMediaIdsRef.current.has(rowId)) {
+      if (isVisibleScopedSurface && !visibleMediaIdsRef.current.has(rowId)) {
         return `panel-offscreen|${candidateKey}`;
       }
       return `${signPassAttemptScopeKey}|${candidateKey}`;

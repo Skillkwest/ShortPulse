@@ -28,6 +28,7 @@ export type ReferenceGridVisibleCard = {
   authorityTier: ReferenceGridMediaAuthorityTier;
   cardPreviewUrl: string | null;
   videoPosterUrl?: string | null;
+  audioBackgroundImageUrl?: string | null;
   playableMediaUrl?: string | null;
   fallbackUrl?: string | null;
   isVideoPreview: boolean;
@@ -258,12 +259,14 @@ export const useReferenceGridCardRenderController = ({
       const clearLoadingLabel = shouldClearAsGeneration
         ? "Clear generation from grid"
         : "Remove loading media from grid";
+      const resolvedAudioBackgroundSource =
+        card.audioBackgroundImageUrl?.trim() || currentOutput.companionArtUrl?.trim() || null;
       const audioBackgroundImageUrl =
         currentOutput.mode === "audio" &&
-        currentOutput.companionArtUrl &&
-        !isSupabaseRenderImageUrl(currentOutput.companionArtUrl)
+        resolvedAudioBackgroundSource &&
+        !isSupabaseRenderImageUrl(resolvedAudioBackgroundSource)
           ? applyAdaptivePreviewTransform({
-              url: currentOutput.companionArtUrl,
+              url: resolvedAudioBackgroundSource,
               qualityBand: card.previewQualityBand ?? "compact",
               targetLongEdgePx: card.targetLongEdgePx ?? 320,
               mediaKindHint: "image",

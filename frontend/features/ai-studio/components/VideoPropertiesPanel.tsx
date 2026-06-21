@@ -21,6 +21,7 @@ import { ComposerPinButton } from "./shared/ComposerPinButton";
 import { useReferencePropertiesConstraintEffects } from "./useReferencePropertiesConstraintEffects";
 import { useReferencePropertiesDerivedState } from "./useReferencePropertiesDerivedState";
 import { ReferenceVideoSettingsStep } from "./ReferenceVideoSettingsStep";
+import { VideoSettingsCardPrefab } from "./VideoSettingsCardPrefab";
 import { useReferencePropertiesInteractions } from "./useReferencePropertiesInteractions";
 import { ReferenceAudioPlayer } from "./shared/ReferenceAudioPlayer";
 import type { VideoUploadResult } from "../utils/videoUpload";
@@ -79,6 +80,8 @@ import type { AgentComposerDirectDropPayload } from "../logic/agentComposerDirec
 const VIDEO_KLING_ELEMENT_SLOT_COUNT = 3;
 const VIDEO_SEEDANCE_ELEMENT_SLOT_COUNT = 6;
 const VIDEO_KLING_ELEMENT_SLOT_SIZE = 68;
+// Deferred past the July 7 launch while the turbo path remains internally wired.
+const SHOW_LIP_SYNC_TURBO_CONTROL = false;
 
 const buildSavedKlingElementRefreshKey = (
   element: AiStudioKlingElement,
@@ -1105,7 +1108,8 @@ export function VideoPropertiesPanel({
       : "Single";
   const showShotModeSelector = activeVideoMode === "standard";
   const shouldShowShotModeSelector = showShotModeSelector && isKlingPatternModelSelected;
-  const shouldShowKlingAdvancedSteps = isKlingPatternMode && !isSeedance2FamilyModelSelected;
+  const shouldShowKlingAdvancedSteps =
+    isKlingPatternMode && !isSeedance2FamilyModelSelected && !isMotionMode;
   const shouldShowVideoElementSettings =
     isKlingPatternModelSelected && (!isMotionMode || isKieKlingModelSelected);
   const textareaResizeFrameMapRef = React.useRef(new WeakMap<HTMLTextAreaElement, number>());
@@ -2147,53 +2151,71 @@ export function VideoPropertiesPanel({
                       <div className="video-setup-reference-slot">{renderReferenceMediaStep()}</div>
                     ) : null}
                     {isLipSyncMode ? (
-                      <div className="video-lip-sync-setup-card">
-                        <input
-                          ref={lipSyncAudioInputRef}
-                          className="sr-only"
-                          type="file"
-                          accept="audio/*"
-                          onChange={handleLipSyncAudioSelection}
-                        />
-                        <div className="video-lip-sync-reference-slot video-setup-reference-slot">
-                          {renderReferenceMediaStep()}
+                      <>
+                        <div className="video-lip-sync-settings-slot">
+                          <VideoSettingsCardPrefab
+                            title="Lip Sync Settings"
+                            showModelRow={false}
+                            showAspectControl={false}
+                            showDurationControl={false}
+                            showGenerateAudioControl={false}
+                            resolutionAriaLabel="Lip Sync resolution"
+                            modelId={modelId}
+                            modelLabel={modelLabel}
+                            modelLogoSrc={modelLogoSrc}
+                            isModelModalOpen={isModelModalOpen}
+                            modelModalAnchor={modelModalAnchor}
+                            modelModalContext={modelPickerContext}
+                            aspect={aspect}
+                            aspectOptionsForModel={aspectOptionsForModel}
+                            videoDurationValue={videoDurationValue}
+                            videoResolutionValue={videoResolutionValue}
+                            durationOptions={durationOptions}
+                            resolutionOptions={resolutionOptions}
+                            videoGenerateAudioValue={videoGenerateAudioValue}
+                            isMotionMode={false}
+                            videoCameraFixed={videoCameraFixed}
+                            isVeoModel={isVeoModel}
+                            videoAutoFix={videoAutoFix}
+                            onAspectChange={onAspectChange}
+                            onModelPickerOpen={onModelPickerOpen}
+                            onVideoDurationChange={onVideoDurationChange}
+                            onVideoResolutionChange={onVideoResolutionChange}
+                            onVideoGenerateAudioChange={onVideoGenerateAudioChange}
+                            onVideoCameraFixedChange={onVideoCameraFixedChange}
+                            onVideoAutoFixChange={onVideoAutoFixChange}
+                          />
                         </div>
-                        <div
-                          className="video-lip-sync-resolution-row"
-                          aria-label="Lip Sync resolution"
-                        >
-                          {["720p", "1080p"].map((resolution) => (
-                            <button
-                              key={resolution}
-                              type="button"
-                              className={
-                                videoResolutionValue === resolution
-                                  ? "video-lip-sync-resolution-button is-active"
-                                  : "video-lip-sync-resolution-button"
-                              }
-                              aria-pressed={videoResolutionValue === resolution}
-                              onClick={() => onVideoResolutionChange?.(resolution)}
-                            >
-                              {resolution}
-                            </button>
-                          ))}
+                        <div className="video-lip-sync-setup-card">
+                          <input
+                            ref={lipSyncAudioInputRef}
+                            className="sr-only"
+                            type="file"
+                            accept="audio/*"
+                            onChange={handleLipSyncAudioSelection}
+                          />
+                          {SHOW_LIP_SYNC_TURBO_CONTROL ? (
+                            <label className="video-lip-sync-toggle-row">
+                              <span>Faster generation</span>
+                              <button
+                                type="button"
+                                className={`video-lip-sync-switch audio-toggle ${lipSyncTurboMode ? "is-active" : ""}`}
+                                role="switch"
+                                aria-checked={lipSyncTurboMode}
+                                aria-label="Faster generation"
+                                onClick={() => onLipSyncTurboModeChange?.(!lipSyncTurboMode)}
+                              >
+                                <span className="audio-toggle-track" aria-hidden="true">
+                                  <span className="audio-toggle-dot" />
+                                </span>
+                              </button>
+                            </label>
+                          ) : null}
+                          <div className="video-lip-sync-reference-slot video-setup-reference-slot">
+                            {renderReferenceMediaStep()}
+                          </div>
                         </div>
-                        <label className="video-lip-sync-toggle-row">
-                          <span>Faster generation</span>
-                          <button
-                            type="button"
-                            className={`video-lip-sync-switch audio-toggle ${lipSyncTurboMode ? "is-active" : ""}`}
-                            role="switch"
-                            aria-checked={lipSyncTurboMode}
-                            aria-label="Faster generation"
-                            onClick={() => onLipSyncTurboModeChange?.(!lipSyncTurboMode)}
-                          >
-                            <span className="audio-toggle-track" aria-hidden="true">
-                              <span className="audio-toggle-dot" />
-                            </span>
-                          </button>
-                        </label>
-                      </div>
+                      </>
                     ) : null}
                     <MotionRecorderModal
                       isOpen={isMotionMode && isMotionRecorderOpen}
@@ -2204,9 +2226,7 @@ export function VideoPropertiesPanel({
                       <div className="video-setup-elements-slot">
                         <div className="step-card video-elements-card">
                           <div className="video-elements-card-title video-elements-card-title--large">
-                            {isSeedance2FamilyModelSelected
-                              ? "Seedance 2.0 Settings"
-                              : "Kling 3.0 Settings"}
+                            {isSeedance2FamilyModelSelected ? "Seedance 2.0 Settings" : "Elements"}
                           </div>
                           {shouldShowShotModeSelector ? (
                             <div className="video-shot-mode-section video-elements-shot-mode-section">
@@ -2715,16 +2735,14 @@ export function VideoPropertiesPanel({
                           {videoModeSummaryLabel}
                         </span>
                       </div>
-                      <div className="video-generate-summary-item">
-                        <span className="video-generate-summary-label">Shot</span>
-                        <span className="video-generate-summary-value">
-                          {visibleVideoMode === "lip-sync"
-                            ? "Voice audio"
-                            : visibleVideoMode === "motion"
-                              ? "Single"
-                              : shotModeSummaryLabel}
-                        </span>
-                      </div>
+                      {visibleVideoMode === "standard" ? (
+                        <div className="video-generate-summary-item">
+                          <span className="video-generate-summary-label">Shot</span>
+                          <span className="video-generate-summary-value">
+                            {shotModeSummaryLabel}
+                          </span>
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                   {shouldShowKlingReferenceImageWarning ? (

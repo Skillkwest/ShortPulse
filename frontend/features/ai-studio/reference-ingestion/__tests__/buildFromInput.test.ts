@@ -525,6 +525,7 @@ describe("buildStudioOutputsFromReferenceInput", () => {
     expect(result.outputs).toHaveLength(1);
     const [output] = result.outputs;
     expect(output?.mode).toBe("audio");
+    expect(output?.title).toBe("Library Audio");
     expect(output?.previewTier).toBe("full");
     expect(output?.previewUrl).toBe("https://example.com/library-audio.mp3");
     expect(output?.resultUrls).toEqual(["https://example.com/library-audio.mp3"]);

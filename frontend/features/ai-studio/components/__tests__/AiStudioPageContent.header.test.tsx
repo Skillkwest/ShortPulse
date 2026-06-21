@@ -335,9 +335,11 @@ describe("AiStudioPageContent header project name", () => {
     );
 
     const coin = screen.getByTestId("credit-fill-coin");
+    const creditLink = screen.getByRole("link", { name: "Open credits and billing" });
 
     expect(screen.getByText("Credits")).toBeInTheDocument();
     expect(screen.getByText("9,748 / 10,000")).toBeInTheDocument();
+    expect(creditLink).toHaveAttribute("href", "/profile?section=credits");
     expect(coin).toHaveAttribute("data-fill-state", "ready");
     expect(coin.getAttribute("style")).toContain("--credit-spent-degrees: 9.07deg");
   });
@@ -602,6 +604,88 @@ describe("AiStudioPageContent header project name", () => {
 
     expect(useAiStudioStylesRuntimeMock).toHaveBeenCalledWith(
       expect.objectContaining({ enabled: false })
+    );
+  });
+
+  it("keeps the styles catalog disabled for the wide shell without an active tool", () => {
+    render(<AiStudioPageContent {...createProps()} selectedTool={null} />);
+
+    expect(useAiStudioStylesRuntimeMock).toHaveBeenCalledWith(
+      expect.objectContaining({ enabled: false })
+    );
+  });
+
+  it("preloads the styles catalog when Standard Create is active", () => {
+    render(<AiStudioPageContent {...createProps()} selectedTool="create" />);
+
+    expect(useAiStudioStylesRuntimeMock).toHaveBeenCalledWith(
+      expect.objectContaining({ enabled: true })
+    );
+  });
+
+  it("keeps the styles catalog disabled when Pulse Create is active", () => {
+    render(
+      <AiStudioPageContent
+        {...createProps({
+          selectedTool: "create",
+          propertiesCreate: {
+            expertCreateMode: "pulse",
+            standard: {},
+            pulse: {},
+            onExpertCreateModeChange: vi.fn(),
+          } as never,
+        })}
+      />
+    );
+
+    expect(useAiStudioStylesRuntimeMock).toHaveBeenCalledWith(
+      expect.objectContaining({ enabled: false })
+    );
+  });
+
+  it("keeps the styles catalog enabled after the mounted session has warmed it", () => {
+    const { rerender } = render(<AiStudioPageContent {...createProps()} selectedTool="create" />);
+
+    expect(useAiStudioStylesRuntimeMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ enabled: true })
+    );
+
+    rerender(<AiStudioPageContent {...createProps()} selectedTool="media-library" />);
+
+    expect(useAiStudioStylesRuntimeMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ enabled: true })
+    );
+  });
+
+  it("enables the styles catalog immediately when workflow reload restores a selected style", () => {
+    let reloadStylePrep: ((styleContext: StudioOutput["styleContext"] | null) => void) | null =
+      null;
+    render(
+      <AiStudioPageContent
+        {...createProps({
+          selectedTool: "media-library",
+          onRegisterWorkflowReloadStylePrep: (handler) => {
+            reloadStylePrep = handler;
+          },
+        })}
+      />
+    );
+
+    expect(useAiStudioStylesRuntimeMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ enabled: false })
+    );
+
+    act(() => {
+      reloadStylePrep?.({
+        applied: true,
+        styleId: "cinematic",
+        styleName: "Cinematic",
+        stylePrompt: "cinematic prompt",
+      });
+    });
+
+    expect(useAiStudioStylesRuntimeMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ enabled: true })
     );
   });
 

@@ -1620,6 +1620,34 @@ describe("StylesLibraryPanel", () => {
     expect(onReorderStyle).toHaveBeenCalledWith("cinematic", "anime", "after");
   });
 
+  it("drops a dragged style into empty grid space as a move to the end", () => {
+    render(<StylesLibraryPanel styles={createStyles()} />);
+
+    const sourceTile = screen
+      .getByRole("button", { name: "Style tile: Cinematic" })
+      .closest("article");
+    const grid = screen.getByRole("list", { name: "Styles library tiles" });
+    expect(sourceTile).toBeTruthy();
+
+    const transfer = {
+      setData: vi.fn(),
+      getData: vi.fn(() => "cinematic"),
+      effectAllowed: "move",
+      dropEffect: "move",
+    } as unknown as DataTransfer;
+
+    fireEvent.dragStart(sourceTile as HTMLElement, { dataTransfer: transfer });
+    fireEvent.dragOver(grid, { dataTransfer: transfer });
+    fireEvent.drop(grid, { dataTransfer: transfer });
+
+    const titles = screen
+      .getAllByRole("button", { name: /Style tile:/i })
+      .map((button) => button.textContent?.trim());
+    expect(titles[0]).toContain("None");
+    expect(titles[1]).toContain("Anime");
+    expect(titles[2]).toContain("Cinematic");
+  });
+
   it("uses pointer placement when delegating a style reorder", () => {
     const onReorderStyle = vi.fn();
     render(<StylesLibraryPanel styles={createStyles()} onReorderStyle={onReorderStyle} />);
@@ -1658,6 +1686,27 @@ describe("StylesLibraryPanel", () => {
     fireEvent.drop(targetTile, { dataTransfer: transfer, clientX: 10, clientY: 10 });
 
     expect(onReorderStyle).toHaveBeenCalledWith("anime", "cinematic", "before");
+  });
+
+  it("ignores plain text drops that are not known style ids", () => {
+    const onReorderStyle = vi.fn();
+    render(<StylesLibraryPanel styles={createStyles()} onReorderStyle={onReorderStyle} />);
+
+    const targetTile = screen
+      .getByRole("button", { name: "Style tile: Cinematic" })
+      .closest("article");
+    expect(targetTile).toBeTruthy();
+
+    const transfer = {
+      setData: vi.fn(),
+      getData: vi.fn((type: string) => (type === "text/plain" ? "not-a-style-id" : "")),
+      effectAllowed: "copy",
+      dropEffect: "copy",
+    } as unknown as DataTransfer;
+
+    fireEvent.drop(targetTile as HTMLElement, { dataTransfer: transfer });
+
+    expect(onReorderStyle).not.toHaveBeenCalled();
   });
 
   it("opens and closes the delete confirmation modal", () => {
@@ -1714,7 +1763,7 @@ describe("StylesLibraryPanel", () => {
 
       fireEvent.click(screen.getByRole("button", { name: "Restore built-ins" }));
       expect(screen.getByRole("dialog", { name: "Restore built-in styles?" })).toHaveTextContent(
-        "Your custom Styles and custom order will stay unchanged."
+        "Your custom Styles stay unchanged. The built-in order returns to default."
       );
       fireEvent.click(screen.getByRole("button", { name: "Restore" }));
 

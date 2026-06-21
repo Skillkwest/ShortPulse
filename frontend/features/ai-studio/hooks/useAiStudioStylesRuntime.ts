@@ -88,7 +88,7 @@ export const useAiStudioStylesRuntime = ({
     deleteStyleId,
     restoreDeletedStyleIds,
   } = useStylesLibraryDeletedStyleIdsPreference();
-  const { setStylePanelIds, removeStylePanelId, stylePanelIds } =
+  const { setStylePanelIds, removeStylePanelId, resetStylePanelIds, stylePanelIds } =
     useStylesLibraryPanelIdsPreference();
   const builtInStyleCatalog = useBuiltInStyleCatalog({ enabled });
 
@@ -144,10 +144,13 @@ export const useAiStudioStylesRuntime = ({
     [setStylePanelIds, visibleStylesCatalog]
   );
 
-  const handleRestoreBuiltInStyles = React.useCallback(
-    async (): Promise<boolean> => restoreDeletedStyleIds(),
-    [restoreDeletedStyleIds]
-  );
+  const handleRestoreBuiltInStyles = React.useCallback(async (): Promise<boolean> => {
+    const [deletedIdsRestored, orderReset] = await Promise.all([
+      restoreDeletedStyleIds(),
+      resetStylePanelIds(),
+    ]);
+    return deletedIdsRestored && orderReset;
+  }, [resetStylePanelIds, restoreDeletedStyleIds]);
 
   React.useEffect(() => {
     if (!selectedStyleId) return;

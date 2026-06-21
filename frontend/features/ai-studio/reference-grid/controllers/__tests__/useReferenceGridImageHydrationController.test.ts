@@ -230,6 +230,80 @@ describe("useReferenceGridImageHydrationController", () => {
     });
   });
 
+  it("does not hydrate stale in-flight image URLs after a card URL changes", async () => {
+    const requestedUrls: string[] = [];
+    const imageInstances: MockImage[] = [];
+    class MockImage {
+      decoding = "";
+      onload: null | (() => void) = null;
+      onerror: null | (() => void) = null;
+
+      constructor() {
+        imageInstances.push(this);
+      }
+
+      set src(value: string) {
+        requestedUrls.push(value);
+      }
+    }
+
+    Object.defineProperty(window, "Image", {
+      configurable: true,
+      writable: true,
+      value: MockImage,
+    });
+
+    const output = createOutput("out-1");
+    const runNonUrgentUpdate = vi.fn((updater: () => void) => updater());
+    const liveWatchdogDegradeLevelRef = { current: 0 as 0 | 1 | 2 };
+
+    const { result } = renderHook(() =>
+      useReferenceGridImageHydrationController({
+        decodeBudgetEnabled: true,
+        suspendHydrationProcessing: false,
+        adaptivePreviewRoutingEnabled: false,
+        imageDecodeBudget: 1,
+        activeOutputId: null,
+        validOutputIds: [output.id],
+        runNonUrgentUpdate,
+        liveWatchdogDegradeLevelRef,
+      })
+    );
+
+    act(() => {
+      result.current.enqueueImageHydration("out-1", "https://cdn.example.com/old-preview.jpg");
+    });
+
+    await waitFor(() => {
+      expect(requestedUrls).toEqual(["https://cdn.example.com/old-preview.jpg"]);
+      expect(result.current.imageHydrationState.decodeInflight).toBe(1);
+    });
+
+    act(() => {
+      result.current.enqueueImageHydration("out-1", "https://cdn.example.com/new-preview.jpg");
+      imageInstances[0]?.onload?.();
+    });
+
+    await waitFor(() => {
+      expect(requestedUrls).toEqual([
+        "https://cdn.example.com/old-preview.jpg",
+        "https://cdn.example.com/new-preview.jpg",
+      ]);
+    });
+    expect(result.current.imageHydrationState.hydratedById).toEqual({});
+
+    act(() => {
+      imageInstances[1]?.onload?.();
+    });
+
+    await waitFor(() => {
+      expect(result.current.imageHydrationState.hydratedById["out-1"]).toEqual({
+        sourceUrl: "https://cdn.example.com/new-preview.jpg",
+        renderUrl: "https://cdn.example.com/new-preview.jpg",
+      });
+    });
+  });
+
   it("uses the enqueued media surface for adaptive hydration decisions", async () => {
     const requestedUrls: string[] = [];
     const imageInstances: MockImage[] = [];

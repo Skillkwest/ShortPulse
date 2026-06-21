@@ -220,6 +220,85 @@ describe("generationOutputConvergence", () => {
     );
   });
 
+  it("carries project scope from generation metadata through owned-media convergence", async () => {
+    const adminClient = createAdminClient({
+      storageRows: [{ id: "media-1", storage_path: "user-1/generations/images/media-1.png" }],
+    });
+    getSupabaseAdminMock.mockReturnValue(adminClient);
+    readPersistedGenerationOutputsMock.mockResolvedValue([
+      {
+        id: "output-1",
+        outputIndex: 0,
+        resultUrl: "https://cdn.shortpulse.test/project.png",
+        mediaFileId: "media-1",
+      },
+    ]);
+
+    await reconcileOwnedGenerationOutputSlot({
+      generationId: "gen-project",
+      userId: "user-1",
+      outputIndex: 0,
+      mediaFileId: "media-1",
+      resultUrl: "https://cdn.shortpulse.test/project.png",
+      metadata: {
+        source_ref: "source-ref-project",
+        shortpulse_context: {
+          project_id: "project-1",
+          workspace_runtime_key: "session:ignored-for-project",
+        },
+      },
+    });
+
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-project",
+        userId: "user-1",
+        projectId: "project-1",
+        workspaceRuntimeKey: null,
+        sourceRef: "source-ref-project",
+      })
+    );
+  });
+
+  it("carries workspace runtime scope for non-project owned-media convergence", async () => {
+    const adminClient = createAdminClient({
+      storageRows: [{ id: "media-1", storage_path: "user-1/generations/images/media-1.png" }],
+    });
+    getSupabaseAdminMock.mockReturnValue(adminClient);
+    readPersistedGenerationOutputsMock.mockResolvedValue([
+      {
+        id: "output-1",
+        outputIndex: 0,
+        resultUrl: "https://cdn.shortpulse.test/session.png",
+        mediaFileId: "media-1",
+      },
+    ]);
+
+    await reconcileOwnedGenerationOutputSlot({
+      generationId: "gen-session",
+      userId: "user-1",
+      outputIndex: 0,
+      mediaFileId: "media-1",
+      resultUrl: "https://cdn.shortpulse.test/session.png",
+      metadata: {
+        source_ref: "source-ref-session",
+        shortpulse_context: {
+          workspace_runtime_key: "session:abc123",
+        },
+      },
+    });
+
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-session",
+        userId: "user-1",
+        projectId: null,
+        workspaceRuntimeKey: "session:abc123",
+        sourceRef: "source-ref-session",
+      })
+    );
+  });
+
   it("updates partial owned-media convergence without forcing published projection state", async () => {
     const adminClient = createAdminClient({
       storageRows: [{ id: "media-1", storage_path: "user-1/generations/images/media-1.png" }],

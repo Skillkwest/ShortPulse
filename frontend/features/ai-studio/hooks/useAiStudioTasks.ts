@@ -381,6 +381,76 @@ export function useAiStudioTasks({
     [updateOutputById]
   );
 
+  const settlePollingFailure = useCallback(
+    ({
+      outputId,
+      taskId,
+      provider,
+      message,
+      detail = message,
+      reasonCode,
+      providerState,
+      pollAttempt,
+      noMediaAttempt,
+      elapsedMs,
+      maxWaitMs,
+      errorPayload,
+      timestamp = "Generation failed",
+    }: {
+      outputId: string;
+      taskId?: string;
+      provider: Provider;
+      message: string;
+      detail?: string;
+      reasonCode: GenerationFailureReason;
+      providerState?: string | null;
+      pollAttempt?: number;
+      noMediaAttempt?: number;
+      elapsedMs?: number;
+      maxWaitMs?: number;
+      errorPayload?: unknown;
+      timestamp?: string;
+    }) => {
+      const shortMessage = createShortErrorMessage(message);
+      notifyGenerationFailure(outputId, message, detail, {
+        reasonCode,
+        providerState,
+        pollAttempt,
+        noMediaAttempt,
+        elapsedMs,
+        maxWaitMs,
+        errorPayload,
+      });
+      queueOutputUpdate(outputId, (item) => ({
+        ...item,
+        status: item.status === "ready" ? item.status : "ready",
+        taskState: item.taskState === "fail" ? item.taskState : "fail",
+        timestamp: item.timestamp === timestamp ? item.timestamp : timestamp,
+        errorMessage: item.errorMessage === message ? item.errorMessage : message,
+        errorMessageShort:
+          item.errorMessageShort === shortMessage ? item.errorMessageShort : shortMessage,
+        errorDetail: item.errorDetail === detail ? item.errorDetail : detail,
+        errorPayload:
+          errorPayload === undefined
+            ? (item.errorPayload ?? null)
+            : item.errorPayload === errorPayload
+              ? item.errorPayload
+              : errorPayload,
+      }));
+      if (onGenerationFailure) {
+        onGenerationFailure({
+          outputId,
+          taskId,
+          provider,
+          message: detail,
+          reasonCode,
+        });
+      }
+      clearPollTimer(outputId);
+    },
+    [clearPollTimer, notifyGenerationFailure, onGenerationFailure, queueOutputUpdate]
+  );
+
   const settleOutputFromVisibleGenerationState = useCallback(
     async ({
       outputId,
@@ -771,21 +841,18 @@ export function useAiStudioTasks({
             max_wait_ms: maxWaitMs,
           },
         });
-        queueOutputUpdate(outputId, (item) => ({
-          ...item,
-          taskState: item.taskState === "running" ? item.taskState : "running",
-          status: item.status === "ready" ? item.status : "ready",
-          timestamp:
-            item.timestamp === SERVER_RECOVERY_PENDING_TIMESTAMP
-              ? item.timestamp
-              : RECOVERY_RECHECK_TIMESTAMP,
-          errorMessage: null,
-          errorMessageShort: null,
-          errorDetail: null,
-        }));
-        scheduleRecoveryRecheckPoll({
-          nextStartedAt: Date.now(),
-          nextNoMediaAttempt: 0,
+        settlePollingFailure({
+          outputId,
+          taskId,
+          provider,
+          message: "Generation timed out. Please retry.",
+          detail: "The generation stopped making progress after provider handoff. Please retry.",
+          reasonCode: "poll_timeout",
+          pollAttempt: attempt,
+          noMediaAttempt,
+          elapsedMs,
+          maxWaitMs,
+          timestamp: "Generation timed out",
         });
         return;
       }
@@ -889,6 +956,11 @@ export function useAiStudioTasks({
               (lifecycleHint?.recoveryPending ? RECOVERY_RECHECK_TIMESTAMP : null);
             if (lifecycleTaskState === "success") {
               if (lifecycleResultUrls.length === 0) {
+                const noMediaPolicy = resolveNoMediaRetryPolicy({
+                  provider,
+                  noMediaAttempt,
+                  fallbackDelayMs: delay,
+                });
                 const visibleGenerationSettled = await settleOutputFromVisibleGenerationState({
                   outputId,
                   taskId,
@@ -896,6 +968,24 @@ export function useAiStudioTasks({
                   timestamp: lifecycleStatusLabel ?? "Just now",
                 });
                 if (visibleGenerationSettled) {
+                  return;
+                }
+                if (!noMediaPolicy.shouldRetryForMedia) {
+                  settlePollingFailure({
+                    outputId,
+                    taskId,
+                    provider,
+                    message: "Generation completed without usable media. Please retry.",
+                    detail:
+                      "The provider reported success, but ShortPulse could not find compatible media after retrying.",
+                    reasonCode: "no_media_after_terminal_success",
+                    providerState: lifecycleHint?.providerState ?? "success",
+                    pollAttempt: attempt,
+                    noMediaAttempt,
+                    elapsedMs: Date.now() - startedAt,
+                    maxWaitMs,
+                    errorPayload: status,
+                  });
                   return;
                 }
                 addBreadcrumb({
@@ -926,6 +1016,7 @@ export function useAiStudioTasks({
                 }));
                 scheduleRecoveryRecheckPoll({
                   nextNoMediaAttempt: noMediaAttempt + 1,
+                  nextDelayMs: noMediaPolicy.retryDelayMs,
                 });
                 return;
               }
@@ -1210,12 +1301,35 @@ export function useAiStudioTasks({
             const { state } = resolveProviderStatusState(status);
 
             if (terminalSuccessStates.has(state)) {
+              const noMediaPolicy = resolveNoMediaRetryPolicy({
+                provider,
+                noMediaAttempt,
+                fallbackDelayMs: delay,
+              });
               const visibleGenerationSettled = await settleOutputFromVisibleGenerationState({
                 outputId,
                 taskId,
                 provider,
               });
               if (visibleGenerationSettled) {
+                return;
+              }
+              if (!noMediaPolicy.shouldRetryForMedia) {
+                settlePollingFailure({
+                  outputId,
+                  taskId,
+                  provider,
+                  message: "Generation completed without usable media. Please retry.",
+                  detail:
+                    "The provider reported success, but ShortPulse could not find compatible media after retrying.",
+                  reasonCode: "no_media_after_terminal_success",
+                  providerState: state,
+                  pollAttempt: attempt,
+                  noMediaAttempt,
+                  elapsedMs: Date.now() - startedAt,
+                  maxWaitMs,
+                  errorPayload: status,
+                });
                 return;
               }
               addBreadcrumb({
@@ -1244,6 +1358,7 @@ export function useAiStudioTasks({
               }));
               scheduleRecoveryRecheckPoll({
                 nextNoMediaAttempt: noMediaAttempt + 1,
+                nextDelayMs: noMediaPolicy.retryDelayMs,
               });
               return;
             }
@@ -1350,21 +1465,19 @@ export function useAiStudioTasks({
           } catch (error) {
             const message = error instanceof Error ? error.message : "Unable to check status";
             if (isStatusErrorRetryBudgetExhausted({ message, attempt })) {
-              queueOutputUpdate(outputId, (item) => ({
-                ...item,
-                taskState: item.taskState === "running" ? item.taskState : "running",
-                status: item.status === "ready" ? item.status : "ready",
-                timestamp:
-                  item.timestamp === SERVER_RECOVERY_PENDING_TIMESTAMP
-                    ? item.timestamp
-                    : RECOVERY_RECHECK_TIMESTAMP,
-                errorMessage: null,
-                errorMessageShort: null,
-                errorDetail: null,
-              }));
-              scheduleRecoveryRecheckPoll({
-                nextStartedAt: Date.now(),
-                nextNoMediaAttempt: 0,
+              settlePollingFailure({
+                outputId,
+                taskId,
+                provider,
+                message: "Unable to check generation status. Please retry.",
+                detail:
+                  "The generation status could not be checked after repeated attempts. Please retry.",
+                reasonCode: "status_poll_error",
+                pollAttempt: attempt,
+                noMediaAttempt,
+                elapsedMs: Date.now() - startedAt,
+                maxWaitMs,
+                errorPayload: { message },
               });
               return;
             }
@@ -1432,6 +1545,7 @@ export function useAiStudioTasks({
       outputLookupMissesRef,
       outputLookupMissingSinceRef,
       queueOutputUpdate,
+      settlePollingFailure,
       settleOutputFromVisibleGenerationState,
     ]
   );

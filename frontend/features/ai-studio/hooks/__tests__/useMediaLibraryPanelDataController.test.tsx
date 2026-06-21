@@ -26,7 +26,7 @@ vi.mock("../../../media-library/logic/mediaLoadMoreGating", () => ({
 }));
 
 vi.mock("../../../media-library/logic/mediaLibraryPageHelpers", () => ({
-  mergePageRows: (_existing: unknown[], next: unknown[]) => next,
+  appendCursorPageRows: (existing: unknown[], next: unknown[]) => [...existing, ...next],
 }));
 
 vi.mock("../../../media-library/runtime", async () => {

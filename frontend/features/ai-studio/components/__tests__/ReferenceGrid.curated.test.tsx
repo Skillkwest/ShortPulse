@@ -1244,6 +1244,7 @@ describe("ReferenceGrid curated split", () => {
     const audioOutput: StudioOutput = {
       id: "audio-out-1",
       prompt: "Audio reference",
+      title: "desktop-reference.mp3",
       mode: "audio",
       aspect: "1:1",
       model: "Model",
@@ -1268,9 +1269,40 @@ describe("ReferenceGrid curated split", () => {
 
     fireEvent.click(getByLabelText("Download reference"));
 
+    expect(getByLabelText("Download reference").closest(".reference-card")).toHaveTextContent(
+      "desktop-reference.mp3"
+    );
     expect(onDownload).toHaveBeenCalledWith(expect.objectContaining({ id: "audio-out-1" }));
     expect(onSelectOutput).toHaveBeenCalledWith("audio-out-1");
     expect(playSpy).not.toHaveBeenCalled();
+  });
+
+  it("renders audio titles directly on quick slot cards", () => {
+    const audioOutput: StudioOutput = {
+      id: "audio-quick-slot-1",
+      prompt: "Audio reference",
+      title: "quick-slot-reference.mp3",
+      mode: "audio",
+      aspect: "1:1",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "https://example.com/quick-slot-reference.mp3",
+      mediaSource: "library",
+      savedMediaIds: ["media-audio-1"],
+    };
+
+    const { getAllByText } = render(
+      <ReferenceGrid
+        {...createProps({
+          outputs: [audioOutput],
+          activeOutputId: audioOutput.id,
+          curatedReferenceIds: [audioOutput.id],
+        })}
+      />
+    );
+
+    expect(getAllByText("quick-slot-reference.mp3").length).toBeGreaterThan(0);
   });
 
   it("shows curated remove and download actions in quick slot card actions for image media", () => {

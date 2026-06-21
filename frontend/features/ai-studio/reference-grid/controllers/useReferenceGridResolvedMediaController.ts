@@ -30,6 +30,7 @@ export type ReferenceGridResolvedCardMedia = {
   previewUrl: string | null;
   fullUrl: string | null;
   posterPreviewUrl: string | null;
+  companionArtUrl: string | null;
   playableMediaUrl: string | null;
   fallbackUrl: string | null;
   authorityTier: ReferenceGridMediaAuthorityTier;
@@ -70,6 +71,7 @@ const getResolvedMediaCacheKey = ({
   const signedStorageKey = [
     item.previewStoragePath,
     item.previewPosterStoragePath,
+    item.companionArtStoragePath,
     item.fullStoragePath,
     ...(item.resultUrls ?? []),
   ]
@@ -96,6 +98,8 @@ const getResolvedMediaCacheKey = ({
     item.mode ?? "",
     item.previewStoragePath ?? "",
     item.previewPosterStoragePath ?? "",
+    item.companionArtStoragePath ?? "",
+    item.companionArtUrl ?? "",
     item.fullStoragePath ?? "",
     item.previewUrl ?? "",
     item.previewPosterUrl ?? "",
@@ -195,6 +199,7 @@ export const useReferenceGridResolvedMediaController = ({
             ? displayAuthority.fullMediaUrl
             : null;
       const posterPreviewUrl = displayAuthority.posterPreviewUrl;
+      const companionArtUrl = mediaItem.companionArtUrl?.trim() || null;
       const playableMediaUrl = displayAuthority.playableMediaUrl;
       const fallbackUrl =
         resolvedCardUrls.authorityTier === "preview-only" && isGeneratedOutput(item)
@@ -214,6 +219,7 @@ export const useReferenceGridResolvedMediaController = ({
         previewUrl,
         fullUrl,
         posterPreviewUrl,
+        companionArtUrl,
         playableMediaUrl,
         fallbackUrl,
         authorityTier: resolvedCardUrls.authorityTier,

@@ -5,6 +5,7 @@ import {
   replaceSurfaceMediaRowsByTabs,
   replaceSurfaceMediaTabRows,
   replaceSurfacePromptRows,
+  selectSurfaceAggregateMediaRows,
   selectSurfaceMediaTabCacheRecord,
   selectSurfaceMediaRows,
   selectSurfacePromptRows,
@@ -227,6 +228,31 @@ describe("media runtime store", () => {
     ).toEqual(["ai-1"]);
     expect(state.surfaceStateByKind.panel.cacheByTab.uploaded_images.pagesLoaded).toBe(1);
     expect(state.surfaceStateByKind.panel.cacheByTab.uploaded_videos.pagesLoaded).toBe(1);
+  });
+
+  it("preserves aggregate media order for mixed-tab panel rows", () => {
+    let state = createMediaLibraryRuntimeState();
+    state = replaceSurfaceMediaRowsByTabs(state, {
+      surface: "panel",
+      mediaIds: ["video-1", "image-1", "ai-1"],
+      rowsByTab: {
+        uploaded_images: [makeMediaRow("image-1")],
+        uploaded_videos: [makeMediaRow("video-1", { file_type: "video/mp4" })],
+        private: [],
+        ai_generations: [makeMediaRow("ai-1", { source: "ai_studio" })],
+      },
+    });
+
+    expect(state.surfaceStateByKind.panel.orderedViews.mediaIds).toEqual([
+      "video-1",
+      "image-1",
+      "ai-1",
+    ]);
+    expect(selectSurfaceAggregateMediaRows(state, "panel").map((row) => row.id)).toEqual([
+      "video-1",
+      "image-1",
+      "ai-1",
+    ]);
   });
 
   it("treats semantically identical prompt rows and promptsLoaded state as a no-op", () => {

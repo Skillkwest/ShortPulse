@@ -62,6 +62,7 @@ export type MediaLibraryPromptRow = {
 export type MediaLibraryEntityMap<TRow extends { id: string }> = Record<string, TRow>;
 
 export type MediaLibraryOrderedViews = {
+  mediaIds: string[];
   mediaIdsByTab: Record<MediaDataTab, string[]>;
   promptIds: string[];
 };

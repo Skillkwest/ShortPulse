@@ -13,6 +13,13 @@ type PreparedSigningRowLike = {
   signedUrl?: string | null;
 };
 
+type VisibleScopedSigningSourceRowsParams<TRow extends { id: string }> = {
+  sourceRows: TRow[];
+  signBudget: MediaSignBudget;
+  visibleMediaIds: Set<string>;
+  includePrefetchWindow: boolean;
+};
+
 export type PreparedSignState<TRow extends PreparedSigningRowLike> = {
   sourceRows: TRow[];
   currentUserId: string | null;
@@ -61,6 +68,58 @@ export const prepareMediaSigningState = <TRow extends PreparedSigningRowLike>(pa
     rowById: new Map(readyRows.map((row) => [row.id, row] as const)),
     readyIds: new Set(readyRows.map((row) => row.id)),
   };
+};
+
+export const resolveVisibleScopedSigningSourceRows = <TRow extends { id: string }>({
+  sourceRows,
+  signBudget,
+  visibleMediaIds,
+  includePrefetchWindow,
+}: VisibleScopedSigningSourceRowsParams<TRow>): TRow[] => {
+  const selectedRows: TRow[] = [];
+  const selectedIds = new Set<string>();
+  const appendRow = (row: TRow | undefined) => {
+    if (!row || selectedIds.has(row.id)) return;
+    selectedRows.push(row);
+    selectedIds.add(row.id);
+  };
+
+  const initialEnd = Math.min(sourceRows.length, Math.max(0, signBudget.initialSignLimit));
+  for (let index = 0; index < initialEnd; index += 1) {
+    appendRow(sourceRows[index]);
+  }
+
+  if (!includePrefetchWindow || !visibleMediaIds.size) {
+    return selectedRows;
+  }
+
+  let firstVisibleIndex = -1;
+  let lastVisibleIndex = -1;
+  for (let index = 0; index < sourceRows.length; index += 1) {
+    if (!visibleMediaIds.has(sourceRows[index].id)) continue;
+    if (firstVisibleIndex === -1) firstVisibleIndex = index;
+    lastVisibleIndex = index;
+  }
+  if (firstVisibleIndex === -1) return selectedRows;
+
+  const before = Math.floor(signBudget.prefetchWindow / 3);
+  const start = Math.max(0, firstVisibleIndex - before);
+  const immediateVisibleWindow = Math.max(
+    signBudget.initialSignLimit,
+    signBudget.signBatchSize * 2
+  );
+  const end = Math.min(
+    sourceRows.length,
+    Math.max(
+      firstVisibleIndex + immediateVisibleWindow,
+      lastVisibleIndex + 1 + signBudget.prefetchWindow
+    )
+  );
+  for (let index = start; index < end; index += 1) {
+    appendRow(sourceRows[index]);
+  }
+
+  return selectedRows;
 };
 
 export const resolveMediaSignQueuePass = <TRow extends PreparedSigningRowLike>(params: {

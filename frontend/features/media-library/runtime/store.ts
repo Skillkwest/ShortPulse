@@ -32,6 +32,7 @@ const createEmptyMediaLibraryTabCacheState = (): MediaLibraryTabCacheState => {
 };
 
 const createEmptyOrderedViews = (): MediaLibraryOrderedViews => ({
+  mediaIds: [],
   mediaIdsByTab: {
     uploaded_images: [],
     uploaded_videos: [],
@@ -144,6 +145,15 @@ const areOrderedRowsEqual = <TRow extends Record<string, unknown>>(
   return true;
 };
 
+const areOrderedIdsEqual = (left: string[], right: string[]): boolean => {
+  if (left === right) return true;
+  if (left.length !== right.length) return false;
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] !== right[index]) return false;
+  }
+  return true;
+};
+
 const areTabCacheStatesEqual = (
   left: MediaLibraryTabCacheState,
   right: MediaLibraryTabCacheState
@@ -224,14 +234,18 @@ export const replaceSurfaceMediaRowsByTabs = <
   {
     surface,
     rowsByTab,
+    mediaIds,
     cacheByTab,
   }: {
     surface: MediaLibrarySurfaceKind;
     rowsByTab: Record<MediaDataTab, TMedia[]>;
+    mediaIds?: string[];
     cacheByTab?: Partial<Record<MediaDataTab, Partial<MediaLibraryTabCacheState>>>;
   }
 ): MediaLibraryRuntimeState<TMedia, TPrompt> => {
   const currentSurfaceState = state.surfaceStateByKind[surface];
+  const nextMediaIds =
+    mediaIds ?? MEDIA_DATA_TABS.flatMap((tab) => rowsByTab[tab].map((row) => row.id));
   const nextCacheByTab = {} as Record<MediaDataTab, MediaLibraryTabCacheState>;
   const changedTabs = new Set<MediaDataTab>();
 
@@ -252,7 +266,12 @@ export const replaceSurfaceMediaRowsByTabs = <
     }
   }
 
-  if (changedTabs.size === 0) {
+  const mediaOrderChanged = !areOrderedIdsEqual(
+    currentSurfaceState.orderedViews.mediaIds,
+    nextMediaIds
+  );
+
+  if (changedTabs.size === 0 && !mediaOrderChanged) {
     return state;
   }
 
@@ -277,6 +296,7 @@ export const replaceSurfaceMediaRowsByTabs = <
 
   surfaceState.orderedViews = {
     ...surfaceState.orderedViews,
+    mediaIds: mediaOrderChanged ? nextMediaIds : surfaceState.orderedViews.mediaIds,
     mediaIdsByTab: nextMediaIdsByTab,
   };
   surfaceState.cacheByTab = mergedCacheByTab;
@@ -549,6 +569,45 @@ export const selectSurfaceMediaRows = <
       };
     })
     .filter((row): row is TMedia => Boolean(row));
+};
+
+export const resolveMediaRowsForOrderedIds = <
+  TMedia extends { id: string; signedUrl?: string | null },
+>({
+  mediaById,
+  mediaIds,
+  signedUrlById,
+}: {
+  mediaById: Record<string, TMedia>;
+  mediaIds: string[];
+  signedUrlById: Record<string, string>;
+}): TMedia[] =>
+  mediaIds
+    .map((id) => {
+      const row = mediaById[id];
+      if (!row) return null;
+      const signedUrl = signedUrlById[id];
+      if (!signedUrl || row.signedUrl === signedUrl) return row;
+      return {
+        ...row,
+        signedUrl,
+      };
+    })
+    .filter((row): row is TMedia => Boolean(row));
+
+export const selectSurfaceAggregateMediaRows = <
+  TMedia extends MediaLibraryMediaRow,
+  TPrompt extends MediaLibraryPromptRow,
+>(
+  state: MediaLibraryRuntimeState<TMedia, TPrompt>,
+  surface: MediaLibrarySurfaceKind
+): TMedia[] => {
+  const surfaceState = state.surfaceStateByKind[surface];
+  return resolveMediaRowsForOrderedIds({
+    mediaById: state.mediaById,
+    mediaIds: surfaceState.orderedViews.mediaIds,
+    signedUrlById: surfaceState.preview.signedUrlById,
+  });
 };
 
 export const selectSurfacePromptRows = <

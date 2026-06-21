@@ -79,6 +79,53 @@ describe("MediaDurationBadge", () => {
     await resolveLoadedMetadata(createdMediaElements[3]);
   });
 
+  it("times out stalled hidden duration probes and continues queued probes", async () => {
+    vi.useFakeTimers();
+    try {
+      const actualCreateElement = document.createElement.bind(document);
+      const createdMediaElements: FakeMediaElement[] = [];
+
+      vi.spyOn(document, "createElement").mockImplementation((tagName: string) => {
+        if (tagName === "audio" || tagName === "video") {
+          const fakeMedia = createFakeMediaElement();
+          createdMediaElements.push(fakeMedia);
+          return fakeMedia as unknown as HTMLElement;
+        }
+        return actualCreateElement(tagName);
+      });
+
+      render(
+        <>
+          {[0, 1, 2].map((index) => (
+            <MediaDurationBadge
+              key={index}
+              mediaKind="video"
+              mediaUrl={`https://media.test/stalled-video-${index}.mp4`}
+            />
+          ))}
+        </>
+      );
+
+      expect(createdMediaElements).toHaveLength(2);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(8_000);
+      });
+
+      expect(createdMediaElements).toHaveLength(3);
+      expect(createdMediaElements[0]?.removeAttribute).toHaveBeenCalledWith("src");
+      expect(createdMediaElements[1]?.removeAttribute).toHaveBeenCalledWith("src");
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(8_000);
+      });
+
+      expect(createdMediaElements[2]?.removeAttribute).toHaveBeenCalledWith("src");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("dedupes in-flight probes for matching media URLs", () => {
     const actualCreateElement = document.createElement.bind(document);
     const createdMediaElements: FakeMediaElement[] = [];

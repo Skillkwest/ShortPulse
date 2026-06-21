@@ -231,6 +231,7 @@ describe("MediaLibraryMediaGrid", () => {
 
     const audioCard = container.querySelector(".media-library-panel-audio-reference-card");
     expect(audioCard).toHaveStyle({ aspectRatio: "1" });
+    expect(screen.getByText("voice-note.mp3")).toBeInTheDocument();
   });
 
   it("requests a missing signed audio URL and starts playback from one play click", async () => {

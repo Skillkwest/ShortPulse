@@ -199,4 +199,35 @@ describe("mediaGridVirtualization", () => {
     expect(lowerWindow.length).toBeGreaterThan(0);
     expect(upperWindow.map((entry) => entry.id)).not.toEqual(lowerWindow.map((entry) => entry.id));
   });
+
+  it("resolves deep virtual windows with indexed bounds matching the full-filter result", () => {
+    const frame = computeMediaVirtualLayoutFrame({
+      items: makeItems(
+        Array.from({ length: 300 }, (_, index) => (index % 7 === 0 ? 0.65 : 1 + (index % 5) * 0.2))
+      ),
+      containerWidth: 944,
+      targetColumnWidth: 188,
+      maxColumnCount: 5,
+      gap: 1,
+    });
+    const viewportTop = Math.max(0, frame.totalHeight - 900);
+    const viewportHeight = 520;
+    const overscanPx = 180;
+    const visibleStart = Math.max(0, viewportTop - overscanPx);
+    const visibleEnd = viewportTop + viewportHeight + overscanPx;
+    const fullFilterIds = frame.items
+      .filter((item) => item.bottom >= visibleStart && item.top <= visibleEnd)
+      .map((item) => item.id);
+
+    const resolvedIds = resolveVisibleMediaVirtualItems({
+      layout: frame,
+      viewportTop,
+      viewportHeight,
+      overscanPx,
+    }).map((item) => item.id);
+
+    expect(frame.itemsByTop).toHaveLength(frame.items.length);
+    expect(frame.itemsByBottom).toHaveLength(frame.items.length);
+    expect(resolvedIds).toEqual(fullFilterIds);
+  });
 });

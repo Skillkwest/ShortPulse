@@ -158,7 +158,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-1", "out-1", 0, "fal-nano-banana-2", Date.now(), 20);
+      result.current.startPollingTask("task-1", "out-1", 0, "fal-nano-banana-2", Date.now(), 1);
     });
 
     await vi.advanceTimersByTimeAsync(2_500);
@@ -1700,7 +1700,7 @@ describe("useAiStudioTasks", () => {
     expect(fetchFalSeedreamStatusMock.mock.calls.length).toBeGreaterThanOrEqual(3);
   });
 
-  it("keeps image outputs live when terminal success lacks media", async () => {
+  it("fails image outputs when terminal success exhausts the no-media retry budget", async () => {
     fetchFalSeedreamStatusMock.mockResolvedValue({ status: "done" });
 
     let output = makeOutput();
@@ -1719,21 +1719,32 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("seedream-task-bounded", "out-1", 0, "fal-seedream");
+      result.current.startPollingTask(
+        "seedream-task-bounded",
+        "out-1",
+        0,
+        "fal-seedream",
+        Date.now(),
+        6
+      );
     });
 
     await vi.advanceTimersByTimeAsync(2_100);
     await flushQueuedOutputUpdates();
 
-    expect(fetchFalSeedreamStatusMock.mock.calls.length).toBeGreaterThanOrEqual(2);
-    expect(notifyGenerationFailure).not.toHaveBeenCalled();
-    expect(output.taskState).toBe("running");
-    expect(output.timestamp).toBe("Processing...");
-
-    await vi.advanceTimersByTimeAsync(1_250);
-    await flushQueuedOutputUpdates();
-
-    expect(fetchFalSeedreamStatusMock.mock.calls.length).toBeGreaterThanOrEqual(3);
+    expect(fetchFalSeedreamStatusMock).toHaveBeenCalledTimes(1);
+    expect(notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-1",
+      "Generation completed without usable media. Please retry.",
+      "The provider reported success, but ShortPulse could not find compatible media after retrying.",
+      expect.objectContaining({
+        reasonCode: "no_media_after_terminal_success",
+        noMediaAttempt: 6,
+      })
+    );
+    expect(output.taskState).toBe("fail");
+    expect(output.timestamp).toBe("Generation failed");
+    expect(output.errorMessage).toBe("Generation completed without usable media. Please retry.");
   });
 
   it("normalizes provider nonterminal states to running task state", async () => {
@@ -1994,7 +2005,7 @@ describe("useAiStudioTasks", () => {
     expect(output.timestamp).toBe("Processing...");
   });
 
-  it("keeps output live and stays in server-recovery posture when polling exceeds max wait", async () => {
+  it("fails output when polling exceeds the max wait budget", async () => {
     let output = makeOutput();
     const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
       if (id === output.id) {
@@ -2026,10 +2037,26 @@ describe("useAiStudioTasks", () => {
 
     await flushQueuedOutputUpdates();
 
-    expect(notifyGenerationFailure).not.toHaveBeenCalled();
-    expect(onGenerationFailure).not.toHaveBeenCalled();
-    expect(output.taskState).toBe("running");
-    expect(output.errorMessage ?? null).toBeNull();
+    expect(notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-1",
+      "Generation timed out. Please retry.",
+      "The generation stopped making progress after provider handoff. Please retry.",
+      expect.objectContaining({
+        reasonCode: "poll_timeout",
+        pollAttempt: 4,
+      })
+    );
+    expect(onGenerationFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputId: "out-1",
+        taskId: "task-timeout",
+        provider: "fal-nano-banana-2",
+        reasonCode: "poll_timeout",
+      })
+    );
+    expect(output.taskState).toBe("fail");
+    expect(output.timestamp).toBe("Generation timed out");
+    expect(output.errorMessage).toBe("Generation timed out. Please retry.");
   });
 
   it("retries timeout-classified status transport errors and succeeds on a later poll", async () => {
@@ -2131,7 +2158,7 @@ describe("useAiStudioTasks", () => {
     expect(output.timestamp).toBe("Retrying status...");
   });
 
-  it("keeps output live when status transport errors exhaust the retry budget", async () => {
+  it("fails output when status transport errors exhaust the retry budget", async () => {
     fetchFalNanoBananaStatusMock.mockRejectedValue(new Error("status transport unavailable"));
 
     let output = makeOutput();
@@ -2158,11 +2185,26 @@ describe("useAiStudioTasks", () => {
     await vi.advanceTimersByTimeAsync(4_600);
     await flushQueuedOutputUpdates();
 
-    expect(notifyGenerationFailure).not.toHaveBeenCalled();
-    expect(onGenerationFailure).not.toHaveBeenCalled();
-    expect(output.taskState).toBe("running");
-    expect(output.timestamp).toBe("Processing...");
-    expect(output.errorMessage).toBeNull();
+    expect(notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-1",
+      "Unable to check generation status. Please retry.",
+      "The generation status could not be checked after repeated attempts. Please retry.",
+      expect.objectContaining({
+        reasonCode: "status_poll_error",
+        pollAttempt: 30,
+      })
+    );
+    expect(onGenerationFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputId: "out-1",
+        taskId: "task-status-error",
+        provider: "fal-nano-banana-2",
+        reasonCode: "status_poll_error",
+      })
+    );
+    expect(output.taskState).toBe("fail");
+    expect(output.timestamp).toBe("Generation failed");
+    expect(output.errorMessage).toBe("Unable to check generation status. Please retry.");
   });
 
   it("skips polling when the output was removed before the poll starts", async () => {
@@ -2459,7 +2501,7 @@ describe("useAiStudioTasks", () => {
     expect(onGenerationSuccess).toHaveBeenCalledTimes(MAX_CONCURRENT_STATUS_REQUESTS + 1);
   });
 
-  it("keeps direct polling alive across repeated no-media terminal responses", async () => {
+  it("stops direct polling after repeated no-media terminal responses exhaust the budget", async () => {
     fetchFalNanoBananaStatusMock.mockResolvedValue({ status: "completed" });
 
     let output = makeOutput();
@@ -2491,17 +2533,19 @@ describe("useAiStudioTasks", () => {
     await vi.advanceTimersByTimeAsync(1_250);
     await flushQueuedOutputUpdates();
     expect(fetchFalNanoBananaStatusMock).toHaveBeenCalledTimes(1);
+    expect(notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-1",
+      "Generation completed without usable media. Please retry.",
+      "The provider reported success, but ShortPulse could not find compatible media after retrying.",
+      expect.objectContaining({
+        reasonCode: "no_media_after_terminal_success",
+        noMediaAttempt: 20,
+      })
+    );
+    expect(output.taskState).toBe("fail");
 
-    await vi.advanceTimersByTimeAsync(4_600);
+    await vi.advanceTimersByTimeAsync(10_000);
     await flushQueuedOutputUpdates();
-    expect(fetchFalNanoBananaStatusMock.mock.calls.length).toBeGreaterThanOrEqual(2);
-
-    await vi.advanceTimersByTimeAsync(4_600);
-    await flushQueuedOutputUpdates();
-    expect(fetchFalNanoBananaStatusMock.mock.calls.length).toBeGreaterThanOrEqual(3);
-
-    await vi.advanceTimersByTimeAsync(4_600);
-    await flushQueuedOutputUpdates();
-    expect(fetchFalNanoBananaStatusMock.mock.calls.length).toBeGreaterThanOrEqual(4);
+    expect(fetchFalNanoBananaStatusMock).toHaveBeenCalledTimes(1);
   });
 });

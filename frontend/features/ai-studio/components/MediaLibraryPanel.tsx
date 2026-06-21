@@ -47,6 +47,7 @@ import { MediaLibraryPanelBulkActions } from "./MediaLibraryPanelBulkActions";
 import { MediaLibraryPanelDialogs } from "./MediaLibraryPanelDialogs";
 import { MediaLibraryPanelFolderContent } from "./MediaLibraryPanelFolderContent";
 import { MediaLibraryPanelHeader } from "./MediaLibraryPanelHeader";
+import { MediaLibraryPanelPromptsSection } from "./MediaLibraryPanelPromptsSection";
 import { MediaLibraryPanelRootContent } from "./MediaLibraryPanelRootContent";
 import { MediaLibraryPanelStatusArea } from "./MediaLibraryPanelStatusArea";
 import type {
@@ -58,7 +59,6 @@ import { MediaLibraryAllItemsGrid } from "./media-library-modal/MediaLibraryAllI
 import { MediaLibraryMediaGrid } from "./media-library-modal/MediaLibraryMediaGrid";
 import { MediaLibraryPanelPreviewModal } from "./media-library-modal/MediaLibraryPanelPreviewModal";
 import { MediaLibraryPromptDetailModal } from "./media-library-modal/MediaLibraryPromptDetailModal";
-import { MediaLibraryPromptGrid } from "./media-library-modal/MediaLibraryPromptGrid";
 import { useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 import type { StudioOutput, WorkflowReloadMediaKindHint } from "../types";
 import type { LibraryMediaReferencePayload } from "../reference-grid/referenceGridTypes";
@@ -68,7 +68,6 @@ import {
 } from "../logic/mediaLibraryPromptDetailModal";
 
 type MediaLibraryPanelItemType = "all" | "images" | "videos" | "audio" | "prompts";
-type RootMediaLibraryTab = MediaLibraryPanelItemType;
 
 type FolderContextMenuState = {
   folderId: string;
@@ -170,7 +169,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   } = useMediaLibraryFoldersState(projectId);
 
   const isRootFolderSelected = activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID;
-  const [rootTab, setRootTab] = useState<RootMediaLibraryTab>("all");
+  const [rootTab, setRootTab] = useState<MediaLibraryPanelItemType>("all");
   const itemType: MediaLibraryPanelItemType = isRootFolderSelected ? rootTab : "all";
 
   const [error, setError] = useState<string | null>(null);
@@ -1031,61 +1030,26 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
 
   const renderPromptsSection = useCallback(
     ({ showHeading = true }: { showHeading?: boolean } = {}) => (
-      <section className="media-library-panel-section">
-        {showHeading ? (
-          <div className="media-library-panel-section-head">
-            <p className="tiny subdued">
-              Prompts ({visiblePromptRows.length})
-              {promptLoading && visiblePromptRows.length > 0 ? " · Refreshing" : ""}
-            </p>
-          </div>
-        ) : null}
-        {promptLoading && visiblePromptRows.length === 0 ? (
-          <p className="tiny subdued">Loading prompts…</p>
-        ) : null}
-        {!promptLoading && visiblePromptRows.length === 0 ? (
-          <p className="tiny subdued">No prompts found for this folder.</p>
-        ) : null}
-        <div id="media-library-panel-prompts-section">
-          {visiblePromptRows.length > 0 ? (
-            <MediaLibraryPromptGrid
-              prompts={visiblePromptRows}
-              sortedPrompts={visiblePromptRows}
-              selectedIds={selectedPromptIds}
-              onSelectPromptCard={handleToggleSelectedPrompt}
-              onPromptDoubleClick={handlePromptCardDoubleClick}
-              onPromptDragStart={handlePromptCardDragStart}
-              onPromptDragEnd={handleCardDragEnd}
-              showRemoveAction={canShowFolderItemRemoveAction}
-              showDeleteAction={activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID}
-              onRemovePromptFromFolder={(prompt) => {
-                void handleRemoveItemFromActiveFolder({ kind: "prompt", id: prompt.id });
-              }}
-              onDeletePromptFromLibrary={(prompt) => {
-                setPendingLibraryDelete({
-                  kind: "prompt",
-                  prompt,
-                });
-              }}
-              variant="reference-card"
-            />
-          ) : null}
-          {promptHasMore ? (
-            <div className="media-load-more">
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => {
-                  void loadPromptPage({ reset: false });
-                }}
-                disabled={promptLoading}
-              >
-                {promptLoading ? "Loading more..." : "Load more prompts"}
-              </button>
-            </div>
-          ) : null}
-        </div>
-      </section>
+      <MediaLibraryPanelPromptsSection
+        showHeading={showHeading}
+        visiblePromptRows={visiblePromptRows}
+        promptLoading={promptLoading}
+        promptHasMore={promptHasMore}
+        selectedPromptIds={selectedPromptIds}
+        canShowFolderItemRemoveAction={canShowFolderItemRemoveAction}
+        canDeleteFromLibrary={activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID}
+        onSelectPromptCard={handleToggleSelectedPrompt}
+        onPromptDoubleClick={handlePromptCardDoubleClick}
+        onPromptDragStart={handlePromptCardDragStart}
+        onPromptDragEnd={handleCardDragEnd}
+        onRemovePromptFromFolder={(prompt) => {
+          void handleRemoveItemFromActiveFolder({ kind: "prompt", id: prompt.id });
+        }}
+        onDeletePromptFromLibrary={(prompt) => {
+          setPendingLibraryDelete({ kind: "prompt", prompt });
+        }}
+        loadPromptPage={loadPromptPage}
+      />
     ),
     [
       activeFolderId,
@@ -1292,22 +1256,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         },
       }
     : null;
-  const renderRootAllItemsGrid = useCallback(
-    () => renderAllItemsGrid({ gridPromptRows: [] }),
-    [renderAllItemsGrid]
-  );
-  const renderRootImageGrid = useCallback(
-    () => renderMediaGrid(visibleImageRows),
-    [renderMediaGrid, visibleImageRows]
-  );
-  const renderRootVideoGrid = useCallback(
-    () => renderMediaGrid(visibleVideoRows),
-    [renderMediaGrid, visibleVideoRows]
-  );
-  const renderRootPromptsGrid = useCallback(
-    () => renderPromptsSection({ showHeading: false }),
-    [renderPromptsSection]
-  );
   useEffect(() => {
     if (!selectedIds.size) return;
     const visibleIdSet = new Set(bulkVisibleMediaRows.map((row) => row.id));
@@ -1445,11 +1393,11 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                 visibleImageRowsLength={visibleImageRows.length}
                 visibleVideoRowsLength={visibleVideoRows.length}
                 visibleAudioRowsLength={visibleAudioRows.length}
-                renderAllItemsGrid={renderRootAllItemsGrid}
-                renderImageGrid={renderRootImageGrid}
-                renderVideoGrid={renderRootVideoGrid}
+                renderAllItemsGrid={() => renderAllItemsGrid({ gridPromptRows: [] })}
+                renderImageGrid={() => renderMediaGrid(visibleImageRows)}
+                renderVideoGrid={() => renderMediaGrid(visibleVideoRows)}
                 renderAudioGrid={renderAudioGrid}
-                renderPromptsSection={renderRootPromptsGrid}
+                renderPromptsSection={() => renderPromptsSection({ showHeading: false })}
                 mediaHasMore={mediaHasMore}
                 loadMediaPage={loadMediaPage}
               />

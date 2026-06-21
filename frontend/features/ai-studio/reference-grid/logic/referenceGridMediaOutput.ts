@@ -8,17 +8,24 @@ export type ReferenceGridMediaOutput = Pick<
   StudioOutput,
   | "id"
   | "mode"
+  | "title"
   | "mediaSource"
   | "previewText"
   | "previewUrl"
   | "previewPosterUrl"
   | "previewPosterStoragePath"
+  | "companionArtUrl"
+  | "companionArtStoragePath"
+  | "companionArtStatus"
   | "localObjectUrl"
   | "previewStoragePath"
   | "fullStoragePath"
   | "resultUrls"
   | "generationId"
   | "savedMediaIds"
+  | "audioSourceMode"
+  | "durationMs"
+  | "waveformPeaks"
 > & {
   isPlaceholderOnly: boolean;
 };
@@ -34,6 +41,19 @@ const hasSavedMedia = (output: StudioOutput): boolean =>
 const areStringArrayValuesEqual = (
   left: readonly string[] | null | undefined,
   right: readonly string[] | null | undefined
+) => {
+  if (left === right) return true;
+  if (!left || !right) return !left && !right;
+  if (left.length !== right.length) return false;
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] !== right[index]) return false;
+  }
+  return true;
+};
+
+const areNumberArrayValuesEqual = (
+  left: readonly number[] | null | undefined,
+  right: readonly number[] | null | undefined
 ) => {
   if (left === right) return true;
   if (!left || !right) return !left && !right;
@@ -64,17 +84,24 @@ export const projectReferenceGridMediaOutput = (output: StudioOutput): Reference
   return {
     id: output.id,
     mode: output.mode,
+    title: output.title,
     mediaSource: output.mediaSource,
     previewText: output.previewText,
     previewUrl: output.previewUrl,
     previewPosterUrl: output.previewPosterUrl,
     previewPosterStoragePath: output.previewPosterStoragePath,
+    companionArtUrl: output.companionArtUrl,
+    companionArtStoragePath: output.companionArtStoragePath,
+    companionArtStatus: output.companionArtStatus,
     localObjectUrl: output.localObjectUrl,
     previewStoragePath: output.previewStoragePath,
     fullStoragePath: output.fullStoragePath,
     resultUrls: output.resultUrls ?? undefined,
     generationId: output.generationId,
     savedMediaIds: output.savedMediaIds ?? undefined,
+    audioSourceMode: output.audioSourceMode,
+    durationMs: output.durationMs,
+    waveformPeaks: output.waveformPeaks ?? undefined,
     isPlaceholderOnly,
   };
 };
@@ -92,15 +119,21 @@ export const areReferenceGridMediaOutputsEqual = (
     if (
       lhs.id !== rhs.id ||
       lhs.mode !== rhs.mode ||
+      lhs.title !== rhs.title ||
       lhs.mediaSource !== rhs.mediaSource ||
       lhs.previewText !== rhs.previewText ||
       lhs.previewUrl !== rhs.previewUrl ||
       lhs.previewPosterUrl !== rhs.previewPosterUrl ||
       lhs.previewPosterStoragePath !== rhs.previewPosterStoragePath ||
+      lhs.companionArtUrl !== rhs.companionArtUrl ||
+      lhs.companionArtStoragePath !== rhs.companionArtStoragePath ||
+      lhs.companionArtStatus !== rhs.companionArtStatus ||
       lhs.localObjectUrl !== rhs.localObjectUrl ||
       lhs.previewStoragePath !== rhs.previewStoragePath ||
       lhs.fullStoragePath !== rhs.fullStoragePath ||
       lhs.generationId !== rhs.generationId ||
+      lhs.audioSourceMode !== rhs.audioSourceMode ||
+      lhs.durationMs !== rhs.durationMs ||
       lhs.isPlaceholderOnly !== rhs.isPlaceholderOnly
     ) {
       return false;
@@ -109,6 +142,9 @@ export const areReferenceGridMediaOutputsEqual = (
       return false;
     }
     if (!areStringArrayValuesEqual(lhs.savedMediaIds, rhs.savedMediaIds)) {
+      return false;
+    }
+    if (!areNumberArrayValuesEqual(lhs.waveformPeaks, rhs.waveformPeaks)) {
       return false;
     }
   }

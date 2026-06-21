@@ -161,6 +161,7 @@ const buildLibraryMediaOutput = ({
   return {
     id,
     prompt: isGeneratedLibraryMedia ? workflowReload.prompt.display : resolvedPromptText,
+    ...(payload.fileType === "audio" ? { title: filenameLabel || null } : {}),
     transcriptText: payload.transcriptText?.trim() || null,
     mode: payloadMode,
     aspect: isGeneratedLibraryMedia ? generatedAspect : context.aspect,

@@ -366,6 +366,16 @@ export const useReferenceGridImageHydrationController = ({
           processHydrationQueueRef.current();
           return;
         }
+        const currentUrl = hydrationUrlByIdRef.current[nextId];
+        if (currentUrl && currentUrl !== sourceUrl) {
+          if (!hydrationQueuedIdSetRef.current.has(nextId)) {
+            hydrationQueuedIdSetRef.current.add(nextId);
+            hydrationQueueRef.current.unshift(nextId);
+          }
+          syncImageHydrationState();
+          processHydrationQueueRef.current();
+          return;
+        }
         hydrationPendingLoadedRef.current[nextId] = {
           sourceUrl,
           renderUrl,

@@ -44,7 +44,7 @@ describe("useStylesLibraryPanelIdsPreference", () => {
     expect(result.current.error).toBeNull();
   });
 
-  it("persists reordered ids and supports removing a deleted custom style locally", async () => {
+  it("persists reordered ids, removes deleted custom styles, and resets local order overrides", async () => {
     useResolvedProtectedSessionStateMock.mockReturnValue({
       initialized: true,
       session: null,
@@ -66,6 +66,15 @@ describe("useStylesLibraryPanelIdsPreference", () => {
     expect(
       JSON.parse(window.localStorage.getItem("shortpulse.ai_studio.style_panel_ids") ?? "[]")
     ).toEqual(["cinematic", "anime"]);
+
+    await act(async () => {
+      await result.current.resetStylePanelIds();
+    });
+
+    expect(result.current.stylePanelIds).toEqual([]);
+    expect(
+      JSON.parse(window.localStorage.getItem("shortpulse.ai_studio.style_panel_ids") ?? "[]")
+    ).toEqual([]);
   });
 
   it("does not hydrate signed-in style order from global localStorage fallback", async () => {

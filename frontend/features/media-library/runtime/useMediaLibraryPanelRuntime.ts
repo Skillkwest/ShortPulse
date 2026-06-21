@@ -13,9 +13,10 @@ import {
 import {
   createMediaLibraryRuntimeState,
   replaceSurfaceMediaRowsByTabs,
-  replaceSurfaceMediaTabRows,
   replaceSurfacePromptRows,
+  resolveMediaRowsForOrderedIds,
   selectSurfaceAggregateScopeCache,
+  selectSurfaceAggregateMediaRows,
   setSurfaceAggregateScopeCache,
   setSurfaceError,
   setSurfaceSignedUrls,
@@ -43,50 +44,6 @@ type UseMediaLibraryPanelRuntimeResult = {
   runtimeState: MediaLibraryRuntimeState<MediaFileRow, PromptRow>;
 };
 
-const panelTabOrder = ["uploaded_images", "uploaded_videos", "private", "ai_generations"] as const;
-
-const selectPanelMediaRows = ({
-  mediaById,
-  mediaIdsByTab,
-  signedUrlById,
-}: {
-  mediaById: MediaLibraryRuntimeState<MediaFileRow, PromptRow>["mediaById"];
-  mediaIdsByTab: MediaLibraryRuntimeState<
-    MediaFileRow,
-    PromptRow
-  >["surfaceStateByKind"]["panel"]["orderedViews"]["mediaIdsByTab"];
-  signedUrlById: MediaLibraryRuntimeState<
-    MediaFileRow,
-    PromptRow
-  >["surfaceStateByKind"]["panel"]["preview"]["signedUrlById"];
-}) =>
-  panelTabOrder.flatMap((tab) =>
-    mediaIdsByTab[tab]
-      .map((id) => {
-        const row = mediaById[id];
-        if (!row) return null;
-        const signedUrl = signedUrlById[id];
-        if (!signedUrl || row.signedUrl === signedUrl) return row;
-        return {
-          ...row,
-          signedUrl,
-        };
-      })
-      .filter((row): row is MediaFileRow => Boolean(row))
-  );
-
-const sortByCreatedAtDesc = (rows: MediaFileRow[]): MediaFileRow[] =>
-  [...rows].sort((left, right) => {
-    const leftTime = Date.parse(left.created_at ?? "");
-    const rightTime = Date.parse(right.created_at ?? "");
-    if (!Number.isNaN(rightTime) || !Number.isNaN(leftTime)) {
-      const delta =
-        (Number.isNaN(rightTime) ? 0 : rightTime) - (Number.isNaN(leftTime) ? 0 : leftTime);
-      if (delta !== 0) return delta;
-    }
-    return right.id.localeCompare(left.id);
-  });
-
 export const useMediaLibraryPanelRuntime = ({
   itemType,
 }: UseMediaLibraryPanelRuntimeArgs): UseMediaLibraryPanelRuntimeResult => {
@@ -94,30 +51,30 @@ export const useMediaLibraryPanelRuntime = ({
     createMediaLibraryRuntimeState<MediaFileRow, PromptRow>()
   );
   const panelSurfaceState = runtimeState.surfaceStateByKind.panel;
-  const panelMediaIdsByTab = panelSurfaceState.orderedViews.mediaIdsByTab;
+  const panelMediaIds = panelSurfaceState.orderedViews.mediaIds;
   const panelPromptIds = panelSurfaceState.orderedViews.promptIds;
   const panelSignedUrlById = panelSurfaceState.preview.signedUrlById;
 
   const mediaRows = useMemo(() => {
-    const panelRows = selectPanelMediaRows({
+    const panelRows = resolveMediaRowsForOrderedIds({
       mediaById: runtimeState.mediaById,
-      mediaIdsByTab: panelMediaIdsByTab,
+      mediaIds: panelMediaIds,
       signedUrlById: panelSignedUrlById,
     });
     if (itemType === "images") {
-      return sortByCreatedAtDesc(panelRows.filter((row) => resolveMediaRowKind(row) === "image"));
+      return panelRows.filter((row) => resolveMediaRowKind(row) === "image");
     }
     if (itemType === "videos") {
-      return sortByCreatedAtDesc(panelRows.filter((row) => resolveMediaRowKind(row) === "video"));
+      return panelRows.filter((row) => resolveMediaRowKind(row) === "video");
     }
     if (itemType === "audio") {
-      return sortByCreatedAtDesc(panelRows.filter((row) => resolveMediaRowKind(row) === "audio"));
+      return panelRows.filter((row) => resolveMediaRowKind(row) === "audio");
     }
     if (itemType === "prompts") {
       return [];
     }
-    return sortByCreatedAtDesc(panelRows);
-  }, [itemType, panelMediaIdsByTab, panelSignedUrlById, runtimeState.mediaById]);
+    return panelRows;
+  }, [itemType, panelMediaIds, panelSignedUrlById, runtimeState.mediaById]);
 
   const promptRows = useMemo(
     () =>
@@ -138,11 +95,7 @@ export const useMediaLibraryPanelRuntime = ({
 
   const setMediaRows = useCallback<Dispatch<SetStateAction<MediaFileRow[]>>>((updater) => {
     setRuntimeState((prev) => {
-      const currentRows = selectPanelMediaRows({
-        mediaById: prev.mediaById,
-        mediaIdsByTab: prev.surfaceStateByKind.panel.orderedViews.mediaIdsByTab,
-        signedUrlById: prev.surfaceStateByKind.panel.preview.signedUrlById,
-      });
+      const currentRows = selectSurfaceAggregateMediaRows(prev, "panel");
       const nextRows = typeof updater === "function" ? updater(currentRows) : updater;
       if (nextRows === currentRows) return prev;
 
@@ -160,6 +113,7 @@ export const useMediaLibraryPanelRuntime = ({
       return replaceSurfaceMediaRowsByTabs(prev, {
         surface: "panel",
         rowsByTab,
+        mediaIds: nextRows.map((row) => row.id),
         cacheByTab: {
           uploaded_images: prev.surfaceStateByKind.panel.cacheByTab.uploaded_images,
           uploaded_videos: prev.surfaceStateByKind.panel.cacheByTab.uploaded_videos,

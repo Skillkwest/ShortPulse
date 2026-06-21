@@ -327,7 +327,19 @@ export const useMediaGridVideoBudgetController = <TItem extends VideoBudgetItem>
         }
         if (!node) {
           nodeByIdRef.current.delete(id);
+          delete refCallbackByIdRef.current[id];
           visibleVideoIdsRef.current.delete(id);
+          previousEnabledIdsRef.current.delete(id);
+          const detachTimeoutId = detachTimeoutByIdRef.current.get(id);
+          if (detachTimeoutId != null) {
+            window.clearTimeout(detachTimeoutId);
+            detachTimeoutByIdRef.current.delete(id);
+          }
+          if (attachedVideoIdsRef.current.has(id)) {
+            const nextAttachedIds = new Set(attachedVideoIdsRef.current);
+            nextAttachedIds.delete(id);
+            commitAttachedVideoIds(nextAttachedIds);
+          }
           recomputeEnabledVideos();
           return;
         }
@@ -338,7 +350,7 @@ export const useMediaGridVideoBudgetController = <TItem extends VideoBudgetItem>
       refCallbackByIdRef.current[id] = callback;
       return callback;
     },
-    [recomputeEnabledVideos]
+    [commitAttachedVideoIds, recomputeEnabledVideos]
   );
 
   const enabledVideoIdSet = useMemo(() => new Set(enabledVideoIds), [enabledVideoIds]);

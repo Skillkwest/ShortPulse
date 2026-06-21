@@ -20,7 +20,12 @@ type VideoSettingsDropdownOption<T extends string | number> = {
 };
 
 export type VideoSettingsCardPrefabProps = {
+  title?: string;
   showModelRow?: boolean;
+  showAspectControl?: boolean;
+  showDurationControl?: boolean;
+  showGenerateAudioControl?: boolean;
+  resolutionAriaLabel?: string;
   modelId: string | null;
   modelLabel: string;
   modelLogoSrc?: string;
@@ -216,7 +221,12 @@ function VideoSettingsPrefabToggle({
  * Keeps all existing callbacks and conditional rows intact while avoiding shared selector skins.
  */
 export function VideoSettingsCardPrefab({
+  title,
   showModelRow = true,
+  showAspectControl = true,
+  showDurationControl = true,
+  showGenerateAudioControl = true,
+  resolutionAriaLabel,
   modelId,
   modelLabel,
   modelLogoSrc,
@@ -241,8 +251,10 @@ export function VideoSettingsCardPrefab({
   onVideoAutoFixChange,
 }: VideoSettingsCardPrefabProps) {
   const shouldShowResolutionControl = resolutionOptions.length > 0;
-  const shouldShowAspectControl = !isMotionMode;
-  const shouldShowDurationControl = !isMotionMode;
+  const shouldShowAspectControl = showAspectControl && !isMotionMode;
+  const shouldShowDurationControl = showDurationControl && !isMotionMode;
+  const effectiveResolutionAriaLabel =
+    resolutionAriaLabel ?? (isMotionMode ? "Motion output mode" : "Video resolution");
   const isVeo31Model =
     modelId?.includes("veo3.1") === true || modelId?.includes("veo-3.1") === true;
   const resolutionDropdownOptions = React.useMemo(
@@ -262,7 +274,7 @@ export function VideoSettingsCardPrefab({
   return (
     <div className={`video-settings-prefab ${styles.bootstrapStyleScope}`}>
       <div className="video-settings-prefab__title">
-        {isMotionMode ? "Motion Settings" : "Video Settings"}
+        {title ?? (isMotionMode ? "Motion Settings" : "Video Settings")}
       </div>
       {showModelRow ? (
         <div className="video-settings-prefab__row">
@@ -345,13 +357,13 @@ export function VideoSettingsCardPrefab({
         </div>
       ) : null}
 
-      {isMotionMode && shouldShowResolutionControl ? (
+      {shouldShowResolutionControl && !shouldShowDurationControl ? (
         <div className="video-settings-prefab__row">
           <PrefabDropdown
             value={videoResolutionValue}
             options={resolutionDropdownOptions}
             onSelect={onVideoResolutionChange}
-            ariaLabel="Motion output mode"
+            ariaLabel={effectiveResolutionAriaLabel}
             triggerClassName="video-settings-prefab__select-trigger"
             menuClassName="video-settings-prefab__menu"
             optionClassName="video-settings-prefab__menu-option"
@@ -397,7 +409,7 @@ export function VideoSettingsCardPrefab({
             />
           </div>
         </div>
-      ) : (
+      ) : shouldShowDurationControl ? (
         <div className="video-settings-prefab__row">
           <PrefabDropdown
             value={videoDurationValue}
@@ -414,18 +426,20 @@ export function VideoSettingsCardPrefab({
             )}
           />
         </div>
-      )}
+      ) : null}
 
-      <div className="video-settings-prefab__toggle-row">
-        <span className="video-settings-prefab__toggle-label">Generate audio</span>
-        <VideoSettingsPrefabToggle
-          active={videoGenerateAudioValue}
-          ariaLabel={
-            videoGenerateAudioValue ? "Disable audio generation" : "Enable audio generation"
-          }
-          onClick={() => onVideoGenerateAudioChange?.(!videoGenerateAudioValue)}
-        />
-      </div>
+      {showGenerateAudioControl ? (
+        <div className="video-settings-prefab__toggle-row">
+          <span className="video-settings-prefab__toggle-label">Generate audio</span>
+          <VideoSettingsPrefabToggle
+            active={videoGenerateAudioValue}
+            ariaLabel={
+              videoGenerateAudioValue ? "Disable audio generation" : "Enable audio generation"
+            }
+            onClick={() => onVideoGenerateAudioChange?.(!videoGenerateAudioValue)}
+          />
+        </div>
+      ) : null}
 
       {!isMotionMode && isVeoModel && !isVeo31Model ? (
         <div className="video-settings-prefab__toggle-row">

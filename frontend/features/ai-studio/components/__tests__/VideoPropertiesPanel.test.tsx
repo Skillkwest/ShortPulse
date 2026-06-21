@@ -809,11 +809,12 @@ describe("VideoPropertiesPanel", () => {
       />
     );
 
-    expect(screen.getByText("Kling 3.0 Settings")).toBeInTheDocument();
+    expect(screen.getByText("Elements")).toBeInTheDocument();
     expect(screen.getByLabelText("Element reference slots")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /Replace attached element Red Lantern/ })
     ).toBeInTheDocument();
+    expect(screen.queryByTestId("reference-kling-advanced-steps")).not.toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "Single shot" })).not.toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "Multi-shot" })).not.toBeInTheDocument();
   });
@@ -1288,6 +1289,10 @@ describe("VideoPropertiesPanel", () => {
       isStandardMode: false,
       referenceStepTitle: "Character image",
       referenceStepSubtitle: "Add a character image",
+      resolutionOptions: [
+        { value: "720p", label: "720p" },
+        { value: "1080p", label: "1080p" },
+      ],
       videoResolutionValue: "1080p",
     });
 
@@ -1305,11 +1310,14 @@ describe("VideoPropertiesPanel", () => {
     );
 
     expect(screen.getByRole("tab", { name: "Lip Sync" })).toBeInTheDocument();
+    expect(screen.getByText("Lip Sync Settings")).toBeInTheDocument();
     expect(screen.getByText("Add Lip Sync Inputs")).toBeInTheDocument();
     expect(screen.getAllByText("Voice audio").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByRole("button", { name: "720p" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "1080p" })).toBeInTheDocument();
-    expect(screen.getByText("Faster generation")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Lip Sync resolution" })).toHaveTextContent("1080p");
+    expect(screen.queryByRole("button", { name: "720p" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "1080p" })).toBeNull();
+    expect(screen.queryByText("Faster generation")).toBeNull();
+    expect(screen.queryByRole("switch", { name: "Faster generation" })).toBeNull();
     const lipSyncInputRow = container.querySelector(".video-lip-sync-drop-row");
     expect(lipSyncInputRow?.children[0]).toHaveClass("primary-drop");
     expect(lipSyncInputRow?.children[1]).toHaveClass("primary-drop");
@@ -1317,6 +1325,11 @@ describe("VideoPropertiesPanel", () => {
     expect(lipSyncInputRow?.children[1]).toHaveTextContent("Voice audio");
     expect(screen.queryByText(/Kling/i)).toBeNull();
     expect(screen.queryByTestId("reference-video-settings-step")).toBeNull();
+    const summaryPanel = screen.getByLabelText("Current video settings");
+    expect(within(summaryPanel).getByText("Mode")).toBeInTheDocument();
+    expect(within(summaryPanel).getByText("Lip Sync")).toBeInTheDocument();
+    expect(within(summaryPanel).queryByText("Shot")).toBeNull();
+    expect(within(summaryPanel).queryByText("Voice audio")).toBeNull();
     expect(document.body).not.toHaveTextContent(/Fal|OmniHuman|Bytedance|fal-ai\/bytedance/i);
   });
 
@@ -1330,6 +1343,10 @@ describe("VideoPropertiesPanel", () => {
       isLipSyncMode: true,
       isStandardMode: false,
       referenceStepTitle: "Character image",
+      resolutionOptions: [
+        { value: "720p", label: "720p" },
+        { value: "1080p", label: "1080p" },
+      ],
       videoResolutionValue: "1080p",
     });
 
@@ -1343,12 +1360,15 @@ describe("VideoPropertiesPanel", () => {
       />
     );
 
-    expect(screen.getByRole("button", { name: "1080p" })).toHaveAttribute("aria-pressed", "true");
-    fireEvent.click(screen.getByRole("button", { name: "720p" }));
+    const resolutionTrigger = screen.getByRole("button", { name: "Lip Sync resolution" });
+    expect(resolutionTrigger).toHaveTextContent("1080p");
+    fireEvent.click(resolutionTrigger);
+    expect(resolutionTrigger).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(screen.getByRole("option", { name: "720p" }));
     expect(onVideoResolutionChange).toHaveBeenCalledWith("720p");
   });
 
-  it("routes the Lip Sync faster-generation switch through the turbo setter", () => {
+  it("hides the deferred Lip Sync faster-generation switch", () => {
     const onLipSyncTurboModeChange = vi.fn();
     useReferencePropertiesDerivedStateMock.mockReturnValue({
       ...defaultDerivedState,
@@ -1372,10 +1392,9 @@ describe("VideoPropertiesPanel", () => {
       />
     );
 
-    const switchControl = screen.getByRole("switch", { name: "Faster generation" });
-    expect(switchControl).toHaveAttribute("aria-checked", "false");
-    fireEvent.click(switchControl);
-    expect(onLipSyncTurboModeChange).toHaveBeenCalledWith(true);
+    expect(screen.queryByText("Faster generation")).toBeNull();
+    expect(screen.queryByRole("switch", { name: "Faster generation" })).toBeNull();
+    expect(onLipSyncTurboModeChange).not.toHaveBeenCalled();
   });
 
   it("keeps the Kling reference image warning visible when only the last-frame slot has an image", () => {
@@ -1485,6 +1504,11 @@ describe("VideoPropertiesPanel", () => {
     );
 
     expect(screen.getByRole("button", { name: /Generate/ })).not.toBeDisabled();
+    const summaryPanel = screen.getByLabelText("Current video settings");
+    expect(within(summaryPanel).getByText("Mode")).toBeInTheDocument();
+    expect(within(summaryPanel).getByText("Motion Control")).toBeInTheDocument();
+    expect(within(summaryPanel).queryByText("Shot")).toBeNull();
+    expect(within(summaryPanel).queryByText("Single")).toBeNull();
   });
 
   it("maps stale Kling custom mode to the Multi tab without custom shot controls", () => {
@@ -1513,7 +1537,7 @@ describe("VideoPropertiesPanel", () => {
   it("keeps the compact Kling settings shot mode selector to Single and Multi only", () => {
     render(<VideoPropertiesPanel {...baseProps} klingWorkflowMode="single" />);
 
-    const settingsCard = screen.getByText("Kling 3.0 Settings").closest(".step-card");
+    const settingsCard = screen.getByText("Elements").closest(".step-card");
     expect(settingsCard).not.toBeNull();
     const settings = within(settingsCard as HTMLElement);
 

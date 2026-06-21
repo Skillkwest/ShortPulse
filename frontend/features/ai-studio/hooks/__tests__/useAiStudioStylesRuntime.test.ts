@@ -54,6 +54,7 @@ type MockStylePanelIdsPreference = {
   stylePanelIds: string[];
   setStylePanelIds: ReturnType<typeof vi.fn>;
   removeStylePanelId: ReturnType<typeof vi.fn>;
+  resetStylePanelIds: ReturnType<typeof vi.fn>;
 };
 
 const createDetailsPreference = (): MockStyleDetailsPreference => ({
@@ -74,6 +75,7 @@ const createPanelIdsPreference = (): MockStylePanelIdsPreference => ({
   stylePanelIds: [],
   setStylePanelIds: vi.fn(),
   removeStylePanelId: vi.fn(),
+  resetStylePanelIds: vi.fn(),
 });
 
 describe("useAiStudioStylesRuntime", () => {
@@ -231,9 +233,10 @@ describe("useAiStudioStylesRuntime", () => {
     expect(panelIdsPreference.removeStylePanelId).toHaveBeenCalledWith("style-library-custom-1");
   });
 
-  it("restores built-in styles through the deleted-id preference only", async () => {
+  it("restores built-in styles and resets user order to the admin default", async () => {
     deletedPreference.deletedStyleIds = ["photorealistic"];
     deletedPreference.restoreDeletedStyleIds.mockResolvedValue(true);
+    panelIdsPreference.resetStylePanelIds.mockResolvedValue(true);
 
     const { result } = renderHook(() =>
       useAiStudioStylesRuntime({
@@ -247,6 +250,7 @@ describe("useAiStudioStylesRuntime", () => {
     });
 
     expect(deletedPreference.restoreDeletedStyleIds).toHaveBeenCalledTimes(1);
+    expect(panelIdsPreference.resetStylePanelIds).toHaveBeenCalledTimes(1);
     expect(detailsPreference.deleteStyleDetails).not.toHaveBeenCalled();
     expect(detailsPreference.upsertStyleDetails).not.toHaveBeenCalled();
     expect(panelIdsPreference.setStylePanelIds).not.toHaveBeenCalled();

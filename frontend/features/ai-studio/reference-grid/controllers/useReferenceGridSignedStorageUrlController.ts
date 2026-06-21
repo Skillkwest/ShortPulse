@@ -28,6 +28,7 @@ const collectOutputStoragePaths = (
 
   pushPath(output.previewStoragePath);
   pushPath(output.previewPosterStoragePath);
+  pushPath(output.companionArtStoragePath);
 
   if (signingMode === "full-authority") {
     pushPath(output.fullStoragePath);
@@ -139,6 +140,7 @@ export const applySignedStorageUrlsToReferenceGridMediaOutput = (
   const signedPreviewUrl =
     signedUrlFor(output.previewStoragePath) ?? signedUrlFor(output.previewPosterStoragePath);
   const signedPosterUrl = signedUrlFor(output.previewPosterStoragePath);
+  const signedCompanionArtUrl = signedUrlFor(output.companionArtStoragePath);
   let hasSignedResultUrl = false;
   let firstSignedResultUrl: string | null = null;
   const signedResultUrls =
@@ -160,7 +162,7 @@ export const applySignedStorageUrlsToReferenceGridMediaOutput = (
     ? [signedFullUrl, ...signedResultUrls.filter((value) => value !== signedFullUrl)]
     : signedResultUrls;
 
-  if (!signedPreviewUrl && !signedFullUrl && !hasSignedResultUrl) {
+  if (!signedPreviewUrl && !signedFullUrl && !signedCompanionArtUrl && !hasSignedResultUrl) {
     return output;
   }
 
@@ -168,6 +170,7 @@ export const applySignedStorageUrlsToReferenceGridMediaOutput = (
     ...output,
     previewUrl: signedPreviewUrl ?? output.previewUrl,
     previewPosterUrl: signedPosterUrl ?? output.previewPosterUrl,
+    companionArtUrl: signedCompanionArtUrl ?? output.companionArtUrl,
     resultUrls: nextResultUrls.length > 0 ? nextResultUrls : output.resultUrls,
   };
 };

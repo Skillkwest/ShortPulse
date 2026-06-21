@@ -5,6 +5,10 @@
 const MOTION_REFERENCE_LOCAL_PRESTAGE_THRESHOLD_BYTES = 20 * 1024 * 1024;
 const MOTION_REFERENCE_LOCAL_PRESTAGE_TARGET_BYTES = 18 * 1024 * 1024;
 const MOTION_REFERENCE_LOCAL_PRESTAGE_FPS = 24;
+const MOTION_REFERENCE_MIN_DURATION_SECONDS = 3;
+const MOTION_REFERENCE_MAX_DURATION_SECONDS = 30;
+const MOTION_REFERENCE_METADATA_TIMEOUT_MS = 7_000;
+const MOTION_REFERENCE_PLAYBACK_TIMEOUT_PADDING_MS = 3_000;
 const MOTION_REFERENCE_LOCAL_PRESTAGE_PLANS = [
   { longEdge: 1280, videoBitsPerSecond: 4_000_000 },
   { longEdge: 960, videoBitsPerSecond: 2_500_000 },
@@ -38,7 +42,12 @@ const loadVideoElementForPrestage = async (objectUrl: string): Promise<HTMLVideo
   video.preload = "auto";
 
   const loaded = new Promise<HTMLVideoElement | null>((resolve) => {
+    const timeoutId = window.setTimeout(() => {
+      cleanup();
+      resolve(null);
+    }, MOTION_REFERENCE_METADATA_TIMEOUT_MS);
     const cleanup = () => {
+      window.clearTimeout(timeoutId);
       video.onloadedmetadata = null;
       video.onerror = null;
     };
@@ -60,6 +69,37 @@ const loadVideoElementForPrestage = async (objectUrl: string): Promise<HTMLVideo
   }
 
   return await loaded;
+};
+
+const waitForVideoPlaybackToEnd = async (video: HTMLVideoElement): Promise<boolean> => {
+  const durationMs =
+    Number.isFinite(video.duration) && video.duration > 0
+      ? Math.ceil(video.duration * 1000)
+      : MOTION_REFERENCE_MAX_DURATION_SECONDS * 1000;
+  const timeoutMs = Math.min(
+    durationMs + MOTION_REFERENCE_PLAYBACK_TIMEOUT_PADDING_MS,
+    (MOTION_REFERENCE_MAX_DURATION_SECONDS + 5) * 1000
+  );
+
+  return await new Promise<boolean>((resolve) => {
+    const cleanup = () => {
+      window.clearTimeout(timeoutId);
+      video.onended = null;
+      video.onerror = null;
+    };
+    const timeoutId = window.setTimeout(() => {
+      cleanup();
+      resolve(false);
+    }, timeoutMs);
+    video.onended = () => {
+      cleanup();
+      resolve(true);
+    };
+    video.onerror = () => {
+      cleanup();
+      resolve(false);
+    };
+  });
 };
 
 const resolvePrestageDimensions = ({
@@ -100,6 +140,13 @@ const transcodeMotionReferenceBlobWithCanvas = async ({
     const sourceWidth = Math.max(0, Math.round(video?.videoWidth ?? 0));
     const sourceHeight = Math.max(0, Math.round(video?.videoHeight ?? 0));
     if (!video || sourceWidth <= 0 || sourceHeight <= 0) return null;
+    if (
+      Number.isFinite(video.duration) &&
+      (video.duration < MOTION_REFERENCE_MIN_DURATION_SECONDS ||
+        video.duration > MOTION_REFERENCE_MAX_DURATION_SECONDS)
+    ) {
+      return null;
+    }
     const dimensions = resolvePrestageDimensions({
       width: sourceWidth,
       height: sourceHeight,
@@ -145,11 +192,10 @@ const transcodeMotionReferenceBlobWithCanvas = async ({
     recorder.start(250);
     await video.play();
     drawFrame();
-    await new Promise<void>((resolve) => {
-      video.onended = () => resolve();
-    });
+    const completed = await waitForVideoPlaybackToEnd(video);
     if (recorder.state !== "inactive") recorder.stop();
-    return await recorded;
+    const blob = await recorded;
+    return completed ? blob : null;
   } catch {
     return null;
   } finally {

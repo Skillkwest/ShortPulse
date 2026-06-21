@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  appendCursorPageRows,
   createMediaTabCacheState,
   getMediaDataTabForRow,
   isMissingRelationError,
@@ -114,6 +115,31 @@ describe("mediaLibraryPageHelpers", () => {
     );
 
     expect(merged.map((row) => row.id)).toEqual(["a", "b", "c"]);
+  });
+
+  it("appends cursor page rows without resorting the accumulated list", () => {
+    const current = [
+      { id: "newest", created_at: "2026-01-05T00:00:00.000Z" },
+      { id: "middle", created_at: "2026-01-04T00:00:00.000Z" },
+    ];
+    const appended = appendCursorPageRows(current, [
+      { id: "oldest", created_at: "2026-01-01T00:00:00.000Z" },
+      { id: "middle", created_at: "2026-01-04T00:00:00.000Z", refreshed: true },
+    ]);
+
+    expect(appended.map((row) => row.id)).toEqual(["newest", "middle", "oldest"]);
+    expect(appended[1]).toEqual({
+      id: "middle",
+      created_at: "2026-01-04T00:00:00.000Z",
+      refreshed: true,
+    });
+  });
+
+  it("keeps the same array reference when an appended page has no new rows", () => {
+    const current = [{ id: "a" }];
+
+    expect(appendCursorPageRows(current, [])).toBe(current);
+    expect(appendCursorPageRows(current, [current[0]])).toBe(current);
   });
 
   it("identifies missing relation errors", () => {

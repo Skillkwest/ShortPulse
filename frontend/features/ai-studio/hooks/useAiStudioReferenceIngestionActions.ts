@@ -148,6 +148,7 @@ const buildPendingReferenceFileOutput = ({
   return {
     id: outputId,
     prompt: file.name || "Media upload",
+    title: isAudio ? file.name || null : null,
     mode: isAudio ? "audio" : isVideo ? "video" : "image",
     aspect,
     model: modelLabel,
@@ -197,6 +198,7 @@ const applyLibraryMediaOutputPatch = (
 ): StudioOutput => ({
   ...current,
   prompt: prepared.prompt,
+  title: prepared.title,
   transcriptText: prepared.transcriptText,
   mode: prepared.mode,
   aspect: prepared.aspect,

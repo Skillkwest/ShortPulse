@@ -83,6 +83,29 @@ describe("useMediaLibraryPanelRuntime", () => {
     expect(result.current.mediaRows.map((row) => row.id)).toEqual(["audio-1"]);
   });
 
+  it("preserves panel media row order instead of re-sorting on read", () => {
+    const { result } = renderHook(() => useMediaLibraryPanelRuntime({ itemType: "all" }));
+
+    act(() => {
+      result.current.setMediaRows([
+        makeMediaRow("older-video", {
+          file_type: "video/mp4",
+          created_at: "2026-03-20T00:00:00.000Z",
+        }),
+        makeMediaRow("newer-image", {
+          file_type: "image/png",
+          created_at: "2026-03-29T00:00:00.000Z",
+        }),
+      ]);
+    });
+
+    expect(result.current.mediaRows.map((row) => row.id)).toEqual(["older-video", "newer-image"]);
+    expect(result.current.runtimeState.surfaceStateByKind.panel.orderedViews.mediaIds).toEqual([
+      "older-video",
+      "newer-image",
+    ]);
+  });
+
   it("stores panel prompt rows in the shared runtime surface", () => {
     const { result } = renderHook(() => useMediaLibraryPanelRuntime({ itemType: "prompts" }));
 

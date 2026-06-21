@@ -31,6 +31,8 @@ export type MediaVirtualLayoutFrame = {
   columnWidth: number;
   totalHeight: number;
   items: MediaVirtualLayoutItem[];
+  itemsByTop: MediaVirtualLayoutItem[];
+  itemsByBottom: MediaVirtualLayoutItem[];
 };
 
 export type MediaVirtualLayoutMode = "masonry" | "chronological-grid";
@@ -90,6 +92,22 @@ const resolveColumnCount = ({
   return Math.min(uncappedCount, Math.max(1, Math.floor(maxColumnCount)));
 };
 
+const createVirtualLayoutFrame = ({
+  columnCount,
+  columnWidth,
+  totalHeight,
+  items,
+}: Omit<MediaVirtualLayoutFrame, "itemsByTop" | "itemsByBottom">): MediaVirtualLayoutFrame => ({
+  columnCount,
+  columnWidth,
+  totalHeight,
+  items,
+  itemsByTop: [...items].sort((left, right) => left.top - right.top || left.index - right.index),
+  itemsByBottom: [...items].sort(
+    (left, right) => left.bottom - right.bottom || left.index - right.index
+  ),
+});
+
 /**
  * Computes absolute-positioned masonry coordinates for the full item set.
  */
@@ -142,12 +160,12 @@ export const computeMediaVirtualLayoutFrame = ({
       rowTop += rowHeight + safeGap;
     }
 
-    return {
+    return createVirtualLayoutFrame({
       columnCount,
       columnWidth,
       totalHeight: Math.max(0, rowTop - safeGap),
       items: layoutItems,
-    };
+    });
   }
 
   const columnHeights = new Array<number>(columnCount).fill(0);
@@ -185,12 +203,43 @@ export const computeMediaVirtualLayoutFrame = ({
   const rawTotalHeight = columnHeights.length ? Math.max(...columnHeights) - safeGap : 0;
   const totalHeight = Math.max(0, rawTotalHeight);
 
-  return {
+  return createVirtualLayoutFrame({
     columnCount,
     columnWidth,
     totalHeight,
     items: layoutItems,
-  };
+  });
+};
+
+const findFirstBottomAtOrAfter = (
+  itemsByBottom: MediaVirtualLayoutItem[],
+  visibleStart: number
+): number => {
+  let low = 0;
+  let high = itemsByBottom.length;
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2);
+    if ((itemsByBottom[middle]?.bottom ?? 0) < visibleStart) {
+      low = middle + 1;
+    } else {
+      high = middle;
+    }
+  }
+  return low;
+};
+
+const findFirstTopAfter = (itemsByTop: MediaVirtualLayoutItem[], visibleEnd: number): number => {
+  let low = 0;
+  let high = itemsByTop.length;
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2);
+    if ((itemsByTop[middle]?.top ?? 0) <= visibleEnd) {
+      low = middle + 1;
+    } else {
+      high = middle;
+    }
+  }
+  return low;
 };
 
 /**
@@ -207,7 +256,24 @@ export const resolveVisibleMediaVirtualItems = ({
   const safeOverscan = Math.max(0, toFinitePositive(overscanPx, 0));
   const visibleStart = Math.max(0, safeViewportTop - safeOverscan);
   const visibleEnd = safeViewportTop + safeViewportHeight + safeOverscan;
-  return layout.items.filter((item) => item.bottom >= visibleStart && item.top <= visibleEnd);
+  if (!layout.itemsByTop.length || !layout.itemsByBottom.length) {
+    return layout.items.filter((item) => item.bottom >= visibleStart && item.top <= visibleEnd);
+  }
+
+  const itemsByTop = layout.itemsByTop;
+  const itemsByBottom = layout.itemsByBottom;
+  const topEndIndex = findFirstTopAfter(itemsByTop, visibleEnd);
+  const bottomStartIndex = findFirstBottomAtOrAfter(itemsByBottom, visibleStart);
+  const topCandidateCount = topEndIndex;
+  const bottomCandidateCount = itemsByBottom.length - bottomStartIndex;
+  const candidates =
+    topCandidateCount <= bottomCandidateCount
+      ? itemsByTop.slice(0, topEndIndex)
+      : itemsByBottom.slice(bottomStartIndex);
+
+  return candidates
+    .filter((item) => item.bottom >= visibleStart && item.top <= visibleEnd)
+    .sort((left, right) => left.index - right.index);
 };
 
 /**

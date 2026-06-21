@@ -6,10 +6,7 @@ import { useCallback } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { reportAppError } from "../../../lib/appErrorReporter";
 import { isAuthSessionTimeoutError } from "../../../lib/authenticatedFetch";
-import {
-  dedupeInternalMediaRefs,
-  type InternalMediaRef,
-} from "../../../lib/media/internalMediaRefs";
+import { dedupeInternalMediaRefs } from "../../../lib/media/internalMediaRefs";
 import { buildMotionReferenceAssetShortpulseContext } from "../../../lib/motionReferenceVideoStorage";
 import { buildGenerationSubmissionTraceId, randomId } from "../logic/ids";
 import { getModelConfig } from "../logic/pricing";
@@ -70,6 +67,11 @@ import {
   type SubmissionInvariantError,
 } from "./taskSubmission/submitInvariants";
 import {
+  hasUsableInternalMediaRefs,
+  resolveRestoreOnlyImageInputs,
+  resolveSubmissionOwner,
+} from "./taskSubmission/submissionInputHelpers";
+import {
   prepareSubmissionReferenceInputs,
   type PreparedSubmissionReferenceInput,
 } from "./taskSubmission/preflightPreparation";
@@ -89,37 +91,21 @@ import {
 } from "../logic/lipSyncAudioState";
 import type { AiStudioKlingElement } from "../logic/klingElements";
 import type { AiStudioSubmitPanelKey } from "./useAiStudioCreationState";
-import type { AiStudioTaskSubmitOptions } from "./contracts/taskSubmissionContracts";
+import type {
+  AiStudioTaskSubmitOptions,
+  EnsureGenerationRecordInput,
+} from "./contracts/taskSubmissionContracts";
 import type {
   GenerationFailureContext,
   NotifyGenerationFailure,
 } from "./generationFailureReporting";
 
-type GenerationMetadata = Record<string, unknown>;
-
 const PREPARE_REFERENCE_TIMEOUT_ERROR =
   "Preparation timed out before generation started. Please retry.";
 const SUBMIT_NOT_STARTED_USER_ERROR = "Generation failed to start. Please retry.";
 const AUTH_SESSION_TIMEOUT_DETAIL = "Session check timed out before provider submit.";
-const hasUsableInternalMediaRefs = (refs: Array<InternalMediaRef | null | undefined>): boolean =>
-  refs.some((ref) => Boolean(ref));
-const asTrimmedString = (value: string | null | undefined): string | null => {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-};
-
 type AiStudioTaskSubmissionOptions = AiStudioTaskSubmitOptions & {
   submissionOwner?: AiStudioSubmitPanelKey;
-};
-
-type EnsureGenerationRecordInput = {
-  outputId: string;
-  provider: Provider;
-  taskId?: string;
-  durationSeconds?: number;
-  resolution?: string | null;
-  metadata?: GenerationMetadata;
 };
 
 type UseAiStudioTaskSubmissionParams = {
@@ -337,13 +323,11 @@ export const useAiStudioTaskSubmission = ({
         return;
       }
 
-      const submissionOwner: AiStudioSubmitPanelKey =
-        options?.submissionOwner ??
-        (isVideoSubmission
-          ? "video"
-          : effectiveTool === "image" || effectiveTool === "edit"
-            ? "edit"
-            : "create");
+      const submissionOwner = resolveSubmissionOwner({
+        override: options?.submissionOwner,
+        isVideoSubmission,
+        effectiveTool,
+      });
       beginPanelGeneration(submissionOwner);
       try {
         const id = optimisticOutputId ?? `out-${randomId()}`;
@@ -425,19 +409,10 @@ export const useAiStudioTaskSubmission = ({
         let preparedRestoreOnlyImageInputs: PreparedSubmissionReferenceInput[] = [];
         let preparedInpaintOverride: InpaintSubmissionOverride | null = null;
         try {
-          const providerReferenceInputUrls = new Set(
-            imageInputs
-              .map((url) => asTrimmedString(url))
-              .filter((url): url is string => Boolean(url))
-          );
-          const restoreOnlyImageInputs = Array.from(
-            new Set(
-              (options?.expertEditRestoreImageInputs ?? [])
-                .map((url) => asTrimmedString(url))
-                .filter((url): url is string => Boolean(url))
-                .filter((url) => !providerReferenceInputUrls.has(url))
-            )
-          );
+          const restoreOnlyImageInputs = resolveRestoreOnlyImageInputs({
+            providerImageInputs: imageInputs,
+            restoreImageInputs: options?.expertEditRestoreImageInputs,
+          });
           const prepared = await prepareSubmissionReferenceInputs({
             outputId: id,
             modelId: finalModel,

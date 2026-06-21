@@ -5,7 +5,7 @@ import {
   type MediaListSurface,
 } from "../../media-library/logic/mediaListApi";
 import { shouldAutoLoadNearBottom } from "../../media-library/logic/mediaLoadMoreGating";
-import { mergePageRows } from "../../media-library/logic/mediaLibraryPageHelpers";
+import { appendCursorPageRows } from "../../media-library/logic/mediaLibraryPageHelpers";
 import {
   getMediaLibrarySurfaceConfig,
   useMediaLibraryPanelRuntime,
@@ -255,8 +255,9 @@ export const useMediaLibraryPanelDataController = ({
           throw new Error("Unable to load media.");
         }
         if (mediaRequestTokenRef.current !== requestToken) return;
-        const existingRows = reset ? [] : mediaRowsRef.current;
-        const nextRows = mergePageRows(existingRows, result.rows);
+        const nextRows = reset
+          ? result.rows
+          : appendCursorPageRows(mediaRowsRef.current, result.rows);
         const derivedLibraryTotalCount = result.hasMore ? null : nextRows.length;
         const returnedLibraryTotalCount =
           typeof result.libraryTotalCount === "number" ? result.libraryTotalCount : null;
@@ -349,7 +350,9 @@ export const useMediaLibraryPanelDataController = ({
           source: row.source,
           created_at: row.created_at,
         }));
-        const nextRows = mergePageRows(reset ? [] : promptRowsRef.current, normalizedRows);
+        const nextRows = reset
+          ? normalizedRows
+          : appendCursorPageRows(promptRowsRef.current, normalizedRows);
         setPromptRows(nextRows);
         setPromptScopeCache((prev) => ({
           ...prev,

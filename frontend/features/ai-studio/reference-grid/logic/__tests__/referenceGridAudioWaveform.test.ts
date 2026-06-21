@@ -1,11 +1,17 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildFallbackWaveformPeaks,
+  extractAudioWaveformPeaksFromUrl,
   normalizeStoredWaveformPeaks,
   resampleWaveformPeaks,
 } from "../referenceGridAudioWaveform";
 
 describe("referenceGridAudioWaveform", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
   it("resamples waveform peaks to the target card density", () => {
     const peaks = resampleWaveformPeaks([10, 30, 50, 70], 8);
     expect(peaks).toHaveLength(8);
@@ -37,5 +43,41 @@ describe("referenceGridAudioWaveform", () => {
     const peaks = buildFallbackWaveformPeaks(6, 56);
     expect(Math.max(...peaks)).toBeLessThanOrEqual(100);
     expect(Math.min(...peaks)).toBeGreaterThanOrEqual(12);
+  });
+
+  it("dedupes concurrent full-audio waveform decodes for the same URL", async () => {
+    const channelData = new Float32Array(256).fill(0).map((_, index) => (index % 8) / 10);
+    const audioBuffer = {
+      duration: 3,
+      length: channelData.length,
+      numberOfChannels: 1,
+      getChannelData: vi.fn(() => channelData),
+    } as unknown as AudioBuffer;
+    const decodeAudioData = vi.fn(async () => audioBuffer);
+    const close = vi.fn(async () => undefined);
+
+    class MockAudioContext {
+      decodeAudioData = decodeAudioData;
+      close = close;
+    }
+
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      arrayBuffer: async () => new ArrayBuffer(16),
+    }));
+
+    vi.stubGlobal("AudioContext", MockAudioContext);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const audioUrl = "https://media.test/waveform-dedupe.mp3";
+    const [cardDensityPeaks, compactPeaks] = await Promise.all([
+      extractAudioWaveformPeaksFromUrl(audioUrl, 56),
+      extractAudioWaveformPeaksFromUrl(audioUrl, 20),
+    ]);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(decodeAudioData).toHaveBeenCalledTimes(1);
+    expect(cardDensityPeaks).toHaveLength(56);
+    expect(compactPeaks).toHaveLength(20);
   });
 });

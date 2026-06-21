@@ -8,8 +8,10 @@ const DEFAULT_AUDIO_WAVEFORM_BAR_COUNT = 56;
 const MIN_FALLBACK_WAVEFORM_PEAK = 12;
 const MAX_AUDIO_WAVEFORM_PEAK = 100;
 const AUDIO_WAVEFORM_NOISE_FLOOR = 0.008;
+const AUDIO_WAVEFORM_CACHE_MAX_ENTRIES = 128;
 
 const audioWaveformCache = new Map<string, number[]>();
+const audioWaveformInFlightByUrl = new Map<string, Promise<number[] | null>>();
 
 type AudioContextWindow = Window &
   typeof globalThis & {
@@ -167,6 +169,40 @@ const resolveAudioContextConstructor = (): typeof AudioContext | null => {
   return audioWindow.AudioContext ?? audioWindow.webkitAudioContext ?? null;
 };
 
+const rememberAudioWaveformPeaks = (audioUrl: string, peaks: number[]) => {
+  if (!audioWaveformCache.has(audioUrl)) {
+    while (audioWaveformCache.size >= AUDIO_WAVEFORM_CACHE_MAX_ENTRIES) {
+      const oldestAudioUrl = audioWaveformCache.keys().next().value;
+      if (typeof oldestAudioUrl !== "string") break;
+      audioWaveformCache.delete(oldestAudioUrl);
+    }
+  }
+  audioWaveformCache.set(audioUrl, peaks);
+};
+
+const decodeAudioWaveformPeaksFromUrl = async (audioUrl: string): Promise<number[] | null> => {
+  const AudioContextConstructor = resolveAudioContextConstructor();
+  if (!AudioContextConstructor) return null;
+
+  let audioContext: AudioContext | null = null;
+  try {
+    const response = await fetch(audioUrl);
+    if (!response.ok) return null;
+    const audioBytes = await response.arrayBuffer();
+    audioContext = new AudioContextConstructor();
+    const decodedBuffer = await audioContext.decodeAudioData(audioBytes.slice(0));
+    const peaks = buildDecodedWaveformPeaks(decodedBuffer);
+    rememberAudioWaveformPeaks(audioUrl, peaks);
+    return peaks;
+  } catch {
+    return null;
+  } finally {
+    if (audioContext) {
+      void audioContext.close().catch(() => undefined);
+    }
+  }
+};
+
 /**
  * Fetches and decodes an audio URL into compact waveform peaks.
  */
@@ -178,24 +214,18 @@ export const extractAudioWaveformPeaksFromUrl = async (
   const cachedPeaks = audioWaveformCache.get(audioUrl);
   if (cachedPeaks) return resampleWaveformPeaks(cachedPeaks, targetCount);
 
-  const AudioContextConstructor = resolveAudioContextConstructor();
-  if (!AudioContextConstructor) return null;
+  const existingDecode = audioWaveformInFlightByUrl.get(audioUrl);
+  const decodePromise = existingDecode ?? decodeAudioWaveformPeaksFromUrl(audioUrl);
+  if (!existingDecode) {
+    audioWaveformInFlightByUrl.set(audioUrl, decodePromise);
+  }
 
-  let audioContext: AudioContext | null = null;
   try {
-    const response = await fetch(audioUrl);
-    if (!response.ok) return null;
-    const audioBytes = await response.arrayBuffer();
-    audioContext = new AudioContextConstructor();
-    const decodedBuffer = await audioContext.decodeAudioData(audioBytes.slice(0));
-    const peaks = buildDecodedWaveformPeaks(decodedBuffer, targetCount);
-    audioWaveformCache.set(audioUrl, peaks);
-    return peaks;
-  } catch {
-    return null;
+    const peaks = await decodePromise;
+    return peaks ? resampleWaveformPeaks(peaks, targetCount) : null;
   } finally {
-    if (audioContext) {
-      void audioContext.close().catch(() => undefined);
+    if (audioWaveformInFlightByUrl.get(audioUrl) === decodePromise) {
+      audioWaveformInFlightByUrl.delete(audioUrl);
     }
   }
 };

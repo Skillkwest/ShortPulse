@@ -35,6 +35,10 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/audit_billing_credit_rls.sql`: billing RLS audit checks.
 - `sql/check_media_storage_scope_drift.sql`: media storage scope drift diagnostics (read-only).
 - `sql/check_media_all_media_completeness_drift.sql`: All Media completeness drift diagnostics for durable storage objects missing `media_files` rows (read-only).
+- `sql/check_storage_object_egress_risk_breakdown.sql`: storage object byte-risk breakdown by safe bucket/path class and media tracking state, without printing object paths or user ids (read-only).
+- `sql/check_database_egress_query_stats.sql`: `pg_stat_statements` query-class summary plus hot-path table scan/cache/index posture for database/API egress risk without printing raw query text or row data (read-only).
+- `sql/check_postgrest_payload_projection_risk.sql`: PostgREST payload projection risk summary for generation tables, including aggregate column-size posture and hot query projection classes without printing raw query text or row data (read-only).
+- `sql/check_scheduler_egress_activity.sql`: Supabase Cron and `pg_net` activity profile for distinguishing expected scheduler cadence from duplicate jobs or failing HTTP patterns, without printing URLs, headers, bodies, or secrets (read-only).
 - `sql/check_media_derivative_processing_backlog.sql`: media derivative backlog/retry diagnostics for image rows (read-only).
 - `sql/check_media_derivative_terminal_failures.sql`: terminal derivative failure diagnostics for image rows exhausted out of retry (read-only).
 - `sql/repair_media_derivative_requeue_terminal_row.sql`: targeted operator requeue for a repaired terminal image row (read-write).

@@ -311,6 +311,10 @@ Monitor these events during rollout:
   - Validate API response shape and auth headers.
 - Symptom: slow p95 sign duration.
   - Confirm batched signing calls are used (not per-item direct signing fallback).
+  - If Supabase Storage egress is suspected, run `sql/check_storage_object_egress_risk_breakdown.sql` with the hosted `SUPABASE_DB_URL` to separate tracked originals, tracked variants, dashboard tutorial objects, and untracked storage classes before changing signing budgets.
+  - If Supabase Database/PostgREST egress is suspected, run `sql/check_database_egress_query_stats.sql` with the hosted `SUPABASE_DB_URL` to separate high-frequency API/query behavior from high-row payload behavior and to confirm hot table scan/cache/index posture before proposing schema changes.
+  - If PostgREST egress is confirmed or strongly suspected, run `sql/check_postgrest_payload_projection_risk.sql` with the hosted `SUPABASE_DB_URL` to verify whether hot generation reads are selecting heavy replay/reload/style/metadata payload columns before changing AI Studio restore or polling behavior.
+  - If internal scheduler traffic looks inflated in Vercel or Supabase logs, run `sql/check_scheduler_egress_activity.sql` with the hosted `SUPABASE_DB_URL` before changing cron cadence; raw Vercel CLI log output can repeat identical log ids and should be deduped before inferring request volume.
   - Reduce batch/prefetch budgets for constrained profiles.
   - For `private` tab specifically, prefer narrower per-pass signing fanout:
     - lower `signBatchSize`

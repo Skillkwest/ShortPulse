@@ -1,4 +1,4 @@
-export type AuthCallbackFlow = "signup" | "recovery" | "email-change";
+export type AuthCallbackFlow = "signin" | "signup" | "recovery" | "email-change";
 
 export const AUTH_ENTRY_PATH = "/auth";
 export const AUTH_CALLBACK_PATH = "/auth/callback";
@@ -64,6 +64,7 @@ export const resolveAuthCallbackFlow = (
   value: string | string[] | undefined
 ): AuthCallbackFlow | null => {
   const rawValue = Array.isArray(value) ? value[0] : value;
+  if (rawValue === "signin") return "signin";
   if (rawValue === "signup") return "signup";
   if (rawValue === "recovery") return "recovery";
   if (rawValue === "email-change") return "email-change";

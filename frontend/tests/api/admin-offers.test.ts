@@ -3,6 +3,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/admin/offers/index";
+import { readActiveDashboardOffers } from "../../lib/server/api/dashboardOffers";
 
 const requireAdminUserMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
@@ -162,6 +163,40 @@ describe("/api/admin/offers", () => {
       }),
       message: "Offer saved as inactive.",
     });
+  });
+
+  it("excludes active placeholder offers from public offer reads before page serialization", async () => {
+    const limitMock = vi.fn(async () => ({
+      data: [
+        {
+          ...savedOfferRow,
+          id: "placeholder-offer",
+          eyebrow: "tsting",
+          title: "teseting",
+          display_order: 1,
+        },
+        {
+          ...savedOfferRow,
+          id: "public-offer",
+          eyebrow: "Launch deal",
+          title: "Save on Studio",
+          display_order: 2,
+        },
+      ],
+      error: null,
+    }));
+    const secondOrderMock = vi.fn(() => ({ limit: limitMock }));
+    const firstOrderMock = vi.fn(() => ({ order: secondOrderMock }));
+    const eqMock = vi.fn(() => ({ order: firstOrderMock }));
+    const selectMock = vi.fn(() => ({ eq: eqMock }));
+    const fromMock = vi.fn(() => ({ select: selectMock }));
+
+    const offers = await readActiveDashboardOffers({ from: fromMock } as never, 1);
+
+    expect(offers).toHaveLength(1);
+    expect(offers[0]?.id).toBe("public-offer");
+    expect(offers[0]?.title).toBe("Save on Studio");
+    expect(limitMock).toHaveBeenCalledWith(100);
   });
 
   it("creates a normalized dashboard offer", async () => {

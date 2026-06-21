@@ -68,6 +68,8 @@
 .auth-card-header,
 .auth-mode-toggle,
 .auth-plan-note,
+.auth-oauth-button,
+.auth-choice-divider,
 .auth-field-stack,
 .auth-label-row,
 .auth-input,
@@ -144,6 +146,62 @@
 
 .auth-mode-toggle button:hover {
   color: #f5f9ff;
+}
+
+.auth-oauth-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 50px;
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid rgba(201, 205, 214, 0.18);
+  background: rgba(245, 249, 255, 0.96);
+  color: #171b24;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease,
+    background-color 140ms ease;
+}
+
+.auth-oauth-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: #ffffff;
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.22);
+}
+
+.auth-oauth-button:disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.auth-oauth-icon {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+
+.auth-choice-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(201, 205, 214, 0.62);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.auth-choice-divider::before,
+.auth-choice-divider::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid rgba(193, 217, 232, 0.14);
 }
 
 .auth-plan-note {

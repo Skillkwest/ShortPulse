@@ -108,6 +108,29 @@ describe("Auth callback route behavior", () => {
     });
   });
 
+  it("redirects after a Google sign-in callback without running email-change sync", async () => {
+    setCallbackRoute(
+      "/auth/callback?flow=signin&next=%2Fprofile%3Fsection%3Daccount#access_token=test-token&refresh_token=refresh-token",
+      { flow: "signin", next: "/profile?section=account" }
+    );
+    readSupabaseSessionMock.mockResolvedValue({
+      user: { id: "user-1" },
+      access_token: "test-token",
+    });
+
+    render(<AuthCallbackPage />);
+
+    await waitFor(() => {
+      expect(primeSupabaseSessionMock).toHaveBeenCalledWith({
+        user: { id: "user-1" },
+        access_token: "test-token",
+      });
+      expect(replaceMock).toHaveBeenCalledWith("/profile?section=account");
+    });
+    expect(refreshSupabaseSessionMock).not.toHaveBeenCalled();
+    expect(fetchWithAuthMock).not.toHaveBeenCalled();
+  });
+
   it("renders the auth callback stylesheet class contract used by auth.css", async () => {
     setCallbackRoute("/auth/callback?flow=recovery&next=%2Fdashboard#type=recovery", {
       flow: "recovery",
@@ -272,6 +295,21 @@ describe("Auth callback route behavior", () => {
       await screen.findByText(
         "This confirmation link is invalid or has expired. Sign up again to request a new confirmation email."
       )
+    ).toBeInTheDocument();
+    expect(replaceMock).not.toHaveBeenCalled();
+  });
+
+  it("fails closed for a sign-in callback with no resolved session", async () => {
+    setCallbackRoute("/auth/callback?flow=signin&next=%2Fdashboard", {
+      flow: "signin",
+      next: "/dashboard",
+    });
+    readSupabaseSessionMock.mockResolvedValue(null);
+
+    render(<AuthCallbackPage />);
+
+    expect(
+      await screen.findByText("This sign-in link is invalid or has expired. Try signing in again.")
     ).toBeInTheDocument();
     expect(replaceMock).not.toHaveBeenCalled();
   });

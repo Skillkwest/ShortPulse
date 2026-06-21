@@ -55,6 +55,8 @@ Notes:
    - `NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED` is unset or not `true` in Vercel `Production` unless paid-checkout-first public signup has been explicitly launched
    - Supabase production Auth config has `disable_signup=true` during the pre-launch closed-signup window
    - `npm -C frontend run auth:signup-config -- --project-ref <production-project-ref>` passes before claiming production public signup is closed
+   - if Google sign-in is enabled, the Supabase Google provider is configured only for existing-user sign-in while `disable_signup=true`
+   - Google Cloud OAuth allows `https://www.shortpulse.ai` as the production JavaScript origin and the Supabase project callback URL as the production redirect URI
    - `APP_BASE_URL` is the canonical public-origin authority for the target environment
    - If `SHORTPULSE_PUBLIC_API_BASE_URL` is set, it exactly matches `APP_BASE_URL`
    - Preview `APP_BASE_URL=https://<preview-host>` in Vercel `Preview`
@@ -62,6 +64,7 @@ Notes:
    - `SHORTPULSE_PUBLIC_API_BASE_URL=https://www.shortpulse.ai` in Vercel `Production` only when mirroring `APP_BASE_URL`
    - if a non-production dry run is used, Supabase redirect allowlist includes that one exact dry-run callback URL
    - Supabase redirect allowlist includes `https://www.shortpulse.ai/auth/callback`
+   - `GET /api/auth/callback-url?flow=signin&next=%2Fdashboard` resolves to `https://www.shortpulse.ai/auth/callback?...`
    - if a non-production dry run is used, `GET /api/auth/callback-url?flow=recovery&next=%2Fdashboard` resolves to that exact dry-run host
    - `GET /api/auth/callback-url?flow=recovery&next=%2Fdashboard` resolves to `https://www.shortpulse.ai/auth/callback?...`
    - Supabase custom SMTP is configured for the target environment

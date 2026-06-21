@@ -18,8 +18,10 @@ import { ProtectedRouteSessionProvider } from "../../../lib/protectedRouteSessio
 import { readPersistedSupabaseSessionHint } from "../../../lib/supabaseSessionHints";
 
 const DASHBOARD_BOOTSTRAP_ROUTE = "/dashboard";
+const DASHBOARD_AUTHENTICATED_TITLE = "ShortPulse · Dashboard";
 const DASHBOARD_BOOTSTRAP_TITLE = "Loading dashboard";
 const DASHBOARD_BOOTSTRAP_MESSAGE = "Checking your session before your dashboard workspace loads.";
+const NEXT_ROUTE_ANNOUNCER_ID = "__next-route-announcer__";
 
 const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
@@ -49,7 +51,6 @@ const renderDashboardBootstrap = () => (
  */
 export function DashboardRouteSessionAware({
   billingCatalog = emptyBillingCatalogSnapshot(),
-  dashboardOffers = [],
   dashboardTutorials = [],
 }: DashboardRouteSessionAwareProps) {
   const router = useRouter();
@@ -71,6 +72,15 @@ export function DashboardRouteSessionAware({
     setShouldHoldForPersistedSession(readPersistedSupabaseSessionHint());
   }, [initialized, router.pathname]);
 
+  useEffect(() => {
+    if (!isAuthenticated || typeof document === "undefined") return;
+    document.title = DASHBOARD_AUTHENTICATED_TITLE;
+    const routeAnnouncer = document.getElementById(NEXT_ROUTE_ANNOUNCER_ID);
+    if (routeAnnouncer) {
+      routeAnnouncer.textContent = DASHBOARD_AUTHENTICATED_TITLE;
+    }
+  }, [isAuthenticated]);
+
   if (isDashboardBootstrapPending) {
     return renderDashboardBootstrap();
   }
@@ -79,7 +89,6 @@ export function DashboardRouteSessionAware({
     return (
       <PublicDashboardRoute
         billingCatalog={billingCatalog}
-        dashboardOffers={dashboardOffers}
         dashboardTutorials={dashboardTutorials}
         manageBodyClass={false}
       />
@@ -94,7 +103,7 @@ export function DashboardRouteSessionAware({
     <ProtectedRouteSessionProvider session={session} user={user}>
       <>
         <Head>
-          <title>ShortPulse · Dashboard</title>
+          <title>{DASHBOARD_AUTHENTICATED_TITLE}</title>
           <meta
             name="description"
             content="ShortPulse dashboard bootstrap while your authenticated workspace session resolves."

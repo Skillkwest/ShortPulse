@@ -239,6 +239,7 @@ export const readActiveDashboardOffers = async (
     .map(toDashboardOffer)
     .filter((offer): offer is DashboardOffer => {
       if (!offer) return false;
+      if (!hasLaunchReadyDashboardOfferHeaderCopy(offer)) return false;
       const startsAtMs = offer.startsAt ? new Date(offer.startsAt).getTime() : null;
       const endsAtMs = offer.endsAt ? new Date(offer.endsAt).getTime() : null;
       return (startsAtMs == null || startsAtMs <= nowMs) && (endsAtMs == null || endsAtMs > nowMs);

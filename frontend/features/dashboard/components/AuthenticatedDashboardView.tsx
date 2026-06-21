@@ -191,6 +191,10 @@ export function AuthenticatedDashboardView({
         createProjectHref="/ai-studio"
         footerLoginHref="/profile?section=account"
         footerPricingHref="/profile?section=subscription"
+        launchAppLabel="Open AI Studio"
+        footerPricingLabel="Subscription"
+        footerLoginLabel="Account"
+        communityCtaLabel="Open AI Studio"
       />
     </>
   );

@@ -18,6 +18,7 @@ const routerState = vi.hoisted(() => ({
 }));
 const getSessionMock = vi.hoisted(() => vi.fn());
 const signInWithPasswordMock = vi.hoisted(() => vi.fn());
+const signInWithOAuthMock = vi.hoisted(() => vi.fn());
 const signUpMock = vi.hoisted(() => vi.fn());
 const resetPasswordForEmailMock = vi.hoisted(() => vi.fn());
 const fetchMock = vi.hoisted(() => vi.fn());
@@ -58,6 +59,7 @@ describe("Auth route behavior", () => {
 
     readSupabaseSessionMock.mockResolvedValue(null);
     signInWithPasswordMock.mockResolvedValue({ error: null, data: { session: null } });
+    signInWithOAuthMock.mockResolvedValue({ error: null, data: {} });
     signUpMock.mockResolvedValue({ error: null, data: { session: null } });
     resetPasswordForEmailMock.mockResolvedValue({ error: null });
     fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
@@ -80,6 +82,7 @@ describe("Auth route behavior", () => {
       auth: {
         getSession: getSessionMock,
         signInWithPassword: signInWithPasswordMock,
+        signInWithOAuth: signInWithOAuthMock,
         signUp: signUpMock,
         resetPasswordForEmail: resetPasswordForEmailMock,
       },
@@ -143,6 +146,43 @@ describe("Auth route behavior", () => {
     });
   });
 
+  it("starts Google sign-in through the canonical callback URL and preserves safe next", async () => {
+    routerState.query = { next: "/profile?section=account" };
+
+    render(<AuthPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+
+    await waitFor(() => {
+      expect(signInWithOAuthMock).toHaveBeenCalledWith({
+        provider: "google",
+        options: {
+          redirectTo:
+            "https://www.shortpulse.ai/auth/callback?flow=signin&next=%2Fprofile%3Fsection%3Daccount",
+        },
+      });
+    });
+    expect(signInWithPasswordMock).not.toHaveBeenCalled();
+    expect(signUpMock).not.toHaveBeenCalled();
+  });
+
+  it("falls back to /dashboard when Google sign-in receives an unsafe redirect target", async () => {
+    routerState.query = { next: "https://evil.example/account" };
+
+    render(<AuthPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+
+    await waitFor(() => {
+      expect(signInWithOAuthMock).toHaveBeenCalledWith({
+        provider: "google",
+        options: {
+          redirectTo: "https://www.shortpulse.ai/auth/callback?flow=signin&next=%2Fdashboard",
+        },
+      });
+    });
+  });
+
   it("uses asPath fallback while router query is hydrating", async () => {
     routerState.isReady = false;
     routerState.asPath = "/auth?next=%2Fai-studio";
@@ -197,6 +237,7 @@ describe("Auth route behavior", () => {
     expect(screen.getByRole("heading", { name: "Create your account" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Sign up" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("button", { name: "Create account" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Continue with Google" })).not.toBeInTheDocument();
   });
 
   it("blocks signup submission without a selected paid pricing plan", async () => {

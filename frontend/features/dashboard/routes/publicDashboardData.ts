@@ -4,10 +4,7 @@
  */
 import type { BillingCatalogSnapshot } from "../../billing/catalog";
 import { loadBillingCatalogSnapshot } from "../../../lib/server/api/billingCatalog";
-import {
-  readActiveDashboardOffers,
-  type DashboardOffer,
-} from "../../../lib/server/api/dashboardOffers";
+import type { DashboardOffer } from "../../../lib/server/api/dashboardOffers";
 import {
   readActiveDashboardTutorials,
   type DashboardTutorial,
@@ -26,14 +23,6 @@ export const emptyBillingCatalogSnapshot = (): BillingCatalogSnapshot => ({
   storageAddons: [],
 });
 
-const loadDashboardOffersSnapshot = async (): Promise<DashboardOffer[]> => {
-  try {
-    return await readActiveDashboardOffers(getSupabaseAdmin());
-  } catch {
-    return [];
-  }
-};
-
 const loadDashboardTutorialsSnapshot = async (): Promise<DashboardTutorial[]> => {
   try {
     return await readActiveDashboardTutorials(getSupabaseAdmin(), undefined, {
@@ -45,23 +34,21 @@ const loadDashboardTutorialsSnapshot = async (): Promise<DashboardTutorial[]> =>
 };
 
 /**
- * Loads the public billing catalog, offers, and tutorial snapshots.
+ * Loads the public billing catalog and tutorial snapshots.
+ * Dashboard offers are intentionally hidden for the July 7 launch window.
  */
 export const loadPublicDashboardStaticProps = async (): Promise<PublicDashboardStaticProps> => {
-  const [billingCatalogResult, dashboardOffersResult, dashboardTutorialsResult] =
-    await Promise.allSettled([
-      loadBillingCatalogSnapshot(),
-      loadDashboardOffersSnapshot(),
-      loadDashboardTutorialsSnapshot(),
-    ]);
+  const [billingCatalogResult, dashboardTutorialsResult] = await Promise.allSettled([
+    loadBillingCatalogSnapshot(),
+    loadDashboardTutorialsSnapshot(),
+  ]);
 
   return {
     billingCatalog:
       billingCatalogResult.status === "fulfilled"
         ? billingCatalogResult.value
         : emptyBillingCatalogSnapshot(),
-    dashboardOffers:
-      dashboardOffersResult.status === "fulfilled" ? dashboardOffersResult.value : [],
+    dashboardOffers: [],
     dashboardTutorials:
       dashboardTutorialsResult.status === "fulfilled" ? dashboardTutorialsResult.value : [],
   };

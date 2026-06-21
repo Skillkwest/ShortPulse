@@ -104,6 +104,26 @@ describe("auth callback url route", () => {
     });
   });
 
+  it("returns a canonical sign-in callback URL for Google OAuth", async () => {
+    vi.stubEnv("VERCEL_ENV", "production");
+    const req = {
+      method: "GET",
+      query: { flow: "signin", next: "/profile?section=account" },
+      headers: {
+        host: "www.shortpulse.ai",
+        "x-forwarded-proto": "https",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      url: "https://www.shortpulse.ai/auth/callback?flow=signin&next=%2Fprofile%3Fsection%3Daccount",
+    });
+  });
+
   it("fails closed in production when no approved public auth origin can be resolved", async () => {
     vi.stubEnv("VERCEL_ENV", "production");
     process.env.APP_BASE_URL = "https://preview.shortpulse.test";

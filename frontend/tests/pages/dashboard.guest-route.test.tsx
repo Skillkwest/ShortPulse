@@ -347,7 +347,7 @@ describe("Dashboard guest route", () => {
     );
   });
 
-  it("renders active dashboard offers when supplied", () => {
+  it("hides dashboard offers from the public header while offers are deferred", () => {
     render(
       <DashboardPage
         dashboardOffers={[
@@ -372,13 +372,12 @@ describe("Dashboard guest route", () => {
       />
     );
 
-    expect(screen.getByRole("link", { name: "Launch deal: Save on Studio" })).toHaveAttribute(
-      "href",
-      "/pricing"
-    );
+    expect(
+      screen.queryByRole("link", { name: "Launch deal: Save on Studio" })
+    ).not.toBeInTheDocument();
   });
 
-  it("does not render placeholder dashboard offers on the public header", () => {
+  it("does not render placeholder or launch-ready dashboard offers on the public header", () => {
     render(
       <DashboardPage
         dashboardOffers={[
@@ -421,10 +420,9 @@ describe("Dashboard guest route", () => {
     );
 
     expect(screen.queryByRole("link", { name: "tsting: teseting" })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Launch deal: Save on Studio" })).toHaveAttribute(
-      "href",
-      "/pricing"
-    );
+    expect(
+      screen.queryByRole("link", { name: "Launch deal: Save on Studio" })
+    ).not.toBeInTheDocument();
   });
 
   it("renders static tutorial props without waiting for live endpoint hydration", async () => {

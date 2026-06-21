@@ -8,6 +8,10 @@ type PublicHomeFooterProps = {
   createProjectHref: string;
   footerLoginHref: string;
   footerPricingHref: string;
+  launchAppLabel?: string;
+  footerPricingLabel?: string;
+  footerLoginLabel?: string;
+  communityCtaLabel?: string;
 };
 
 /**
@@ -17,6 +21,10 @@ export function PublicHomeFooter({
   createProjectHref,
   footerLoginHref,
   footerPricingHref,
+  launchAppLabel = "Launch App",
+  footerPricingLabel = "Pricing",
+  footerLoginLabel = "Login",
+  communityCtaLabel = "Join Free",
 }: PublicHomeFooterProps) {
   return (
     <footer className="public-home-footer" aria-label="ShortPulse footer">
@@ -41,13 +49,13 @@ export function PublicHomeFooter({
           <div>
             <span>Start</span>
             <Link href={createProjectHref} prefetch={false}>
-              Launch App
+              {launchAppLabel}
             </Link>
             <Link href={footerPricingHref} prefetch={false}>
-              Pricing
+              {footerPricingLabel}
             </Link>
             <Link href={footerLoginHref} prefetch={false}>
-              Login
+              {footerLoginLabel}
             </Link>
           </div>
           <div>
@@ -61,7 +69,7 @@ export function PublicHomeFooter({
         <div className="public-home-footer-cta">
           <span>Join the community</span>
           <Link href={createProjectHref} className="public-home-footer-button" prefetch={false}>
-            Join Free
+            {communityCtaLabel}
           </Link>
         </div>
       </div>

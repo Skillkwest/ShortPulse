@@ -255,6 +255,8 @@ describe("Dashboard actions", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    document.getElementById("__next-route-announcer__")?.remove();
+    document.title = "";
     document.body.classList.remove("dashboard-body");
     document.documentElement.classList.remove("dashboard-body");
   });
@@ -284,6 +286,21 @@ describe("Dashboard actions", () => {
 
     expect(screen.getByLabelText("ShortPulse logo")).toBeInTheDocument();
     expect(document.querySelector(".app-bar .brand-mark-logo")).not.toHaveAttribute("href");
+  });
+
+  it("updates the route announcer when the authenticated dashboard branch resolves", async () => {
+    const routeAnnouncer = document.createElement("p");
+    routeAnnouncer.id = "__next-route-announcer__";
+    routeAnnouncer.textContent = "ShortPulse · Home";
+    document.body.appendChild(routeAnnouncer);
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Profile menu" })).toBeInTheDocument();
+    });
+    expect(routeAnnouncer).toHaveTextContent("ShortPulse · Dashboard");
+    expect(document.title).toBe("ShortPulse · Dashboard");
   });
 
   it("falls back to a trimmed full name when profile display name metadata is blank", async () => {
@@ -328,6 +345,28 @@ describe("Dashboard actions", () => {
     expect(await screen.findByRole("link", { name: /^Plan:/i })).toHaveAttribute(
       "href",
       "/profile?section=subscription"
+    );
+  });
+
+  it("uses signed-in labels for shared footer links", async () => {
+    render(<DashboardPage />);
+
+    await screen.findByRole("button", { name: "Profile menu" });
+    const footer = await screen.findByRole("contentinfo", { name: "ShortPulse footer" });
+
+    expect(within(footer).getByRole("link", { name: "Account" })).toHaveAttribute(
+      "href",
+      "/profile?section=account"
+    );
+    expect(within(footer).getByRole("link", { name: "Subscription" })).toHaveAttribute(
+      "href",
+      "/profile?section=subscription"
+    );
+    expect(within(footer).queryByRole("link", { name: "Login" })).not.toBeInTheDocument();
+    expect(within(footer).queryByRole("link", { name: "Join Free" })).not.toBeInTheDocument();
+    expect(within(footer).getAllByRole("link", { name: "Open AI Studio" })).toSatisfy(
+      (links: HTMLAnchorElement[]) =>
+        links.length === 2 && links.every((link) => link.getAttribute("href") === "/ai-studio")
     );
   });
 
@@ -421,6 +460,20 @@ describe("Dashboard actions", () => {
         },
       });
     });
+  });
+
+  it("closes the new project modal with Escape", async () => {
+    render(<DashboardPage />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /New Project:/i }));
+    expect(await screen.findByRole("dialog", { name: "Name project" })).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: "Name project" })).not.toBeInTheDocument();
+    });
+    expect(fetchWithAuthMock).not.toHaveBeenCalledWith("/api/projects/create", expect.anything());
   });
 
   it("opens the shared projects modal from the dashboard projects card", async () => {

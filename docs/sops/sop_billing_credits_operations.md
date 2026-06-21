@@ -259,6 +259,7 @@ Recommended operator sequence:
   - `reservedCents`: sum of active `ai_credit_reservations` holds (`status='reserved'`).
   - `spendableCents`: `max(0, availableCents - reservedCents)`.
 - Use this endpoint for customer-facing credit displays when generation reservations are in flight.
+- AI Studio credit displays that act as account navigation should route to `/profile?section=credits`, the canonical customer top-up section.
 
 ## Failure-settlement lifecycle (Fal)
 

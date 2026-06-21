@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  buildAuthCallbackPath,
   fetchCanonicalAuthCallbackUrl,
   isPaidPricingSignupNextPath,
   isPublicSignupEnabled,
+  resolveAuthCallbackFlow,
   resolveNextPath,
   resolveSignupNextPath,
 } from "../../lib/authRedirects";
@@ -51,6 +53,16 @@ describe("auth redirect helpers", () => {
     expect(resolveNextPath("/character-soon")).toBe("/ai-studio");
     expect(resolveNextPath("/character?tab=profile")).toBe("/ai-studio");
     expect(resolveNextPath("/character-soon#legacy")).toBe("/ai-studio");
+  });
+
+  it("supports the sign-in callback flow for OAuth redirects", () => {
+    expect(resolveAuthCallbackFlow("signin")).toBe("signin");
+    expect(buildAuthCallbackPath({ flow: "signin", nextPath: "/profile?section=account" })).toBe(
+      "/auth/callback?flow=signin&next=%2Fprofile%3Fsection%3Daccount"
+    );
+    expect(buildAuthCallbackPath({ flow: "signin", nextPath: "//evil.example" })).toBe(
+      "/auth/callback?flow=signin&next=%2Fdashboard"
+    );
   });
 
   it("fails closed for invalid next paths and auth self-redirects", () => {

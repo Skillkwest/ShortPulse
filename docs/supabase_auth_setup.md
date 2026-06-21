@@ -28,7 +28,7 @@ Client-initiated signup and password-reset flows now resolve their absolute call
 Pre-launch production signup posture:
 
 - Keep `NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED` unset or set to anything other than `true` unless a paid-checkout-first signup launch has been explicitly approved.
-- In the Supabase production project, keep Auth public signup disabled (`disable_signup=true`) so direct calls to Supabase Auth cannot create non-Stripe accounts.
+- In the Supabase production project, keep Auth public signup disabled (`disable_signup=true`) so direct calls to Supabase Auth or enabled OAuth providers cannot create non-Stripe accounts.
 - Verify the provider-level state with:
   ```bash
   cd frontend
@@ -40,6 +40,13 @@ Pre-launch production signup posture:
   npm run auth:signup-config -- --project-ref <production-project-ref> --apply-disable-signup --confirm-disable-signup <production-project-ref>
   ```
   This requires `SUPABASE_ACCESS_TOKEN` or `SUPABASE_MANAGEMENT_API_TOKEN` with auth config write permission and must not print or store the token.
+
+Google sign-in posture:
+
+- ShortPulse may expose Google on `/auth` as an existing-user sign-in method only while the pre-launch closed-signup window is active.
+- Do not enable Google as a generic public signup path. Paid Google acquisition requires a separate Supabase-side user-creation gate, such as a reviewed Before User Created Auth Hook, that can reject OAuth-created users without a valid paid-plan intent before an `auth.users` row is inserted.
+- Configure Google Cloud OAuth with `https://www.shortpulse.ai` as the production JavaScript origin and the Supabase project callback URL (`https://<project-ref>.supabase.co/auth/v1/callback`) as the authorized redirect URI.
+- In Supabase Auth, enable the Google provider only after adding the Google client ID/secret and confirming the production redirect allowlist includes `https://www.shortpulse.ai/auth/callback`.
 
 Suspicious account removal posture:
 
@@ -82,7 +89,7 @@ Role-based admin access for `/admin` APIs:
 
 - Browser/client calls should use `frontend/lib/supabaseClient.ts` (anon key only).
 - Server-side admin operations should use a service-role client (`frontend/lib/server/api/supabaseAdmin.ts`).
-- Add the exact callback URL path you use in the app to the Supabase redirect allowlist. ShortPulse now expects `/auth/callback` to be allowed for signup confirmation, password reset, and email-change confirmation flows. Local development should allow `http://localhost:3000/auth/callback`, any non-production dry run should use one exact allowlisted external host, and production should allow `https://www.shortpulse.ai/auth/callback`.
+- Add the exact callback URL path you use in the app to the Supabase redirect allowlist. ShortPulse now expects `/auth/callback` to be allowed for signup confirmation, password reset, email-change confirmation, and Google sign-in completion flows. Local development should allow `http://localhost:3000/auth/callback`, any non-production dry run should use one exact allowlisted external host, and production should allow `https://www.shortpulse.ai/auth/callback`.
 - If you use custom SMTP for production, raise Supabase Auth email rate limits above the default post-setup baseline before launch. The repo’s current launch planning assumes a higher limit than the Supabase default. See [`docs/sops/sop_supabase_auth_email_operations.md`](./sops/sop_supabase_auth_email_operations.md).
 
 ## Security requirements
@@ -97,6 +104,8 @@ Role-based admin access for `/admin` APIs:
 2. Verify password reset emails return to `/auth/callback` and allow `updateUser({ password })` completion.
 3. Verify protected routes redirect to `/auth` when signed out and preserve a safe `next` return path.
 4. Verify email-change confirmation returns through `/auth/callback` and only then syncs downstream billing identity.
-5. Verify user-scoped data is isolated across two test users.
-6. Verify billing/credit tables (`billing_profiles`, `ai_credit_balance`, `ai_credit_ledger`) obey RLS.
-7. Verify admin access works for one operator account with the expected `raw_app_meta_data` role.
+5. Verify an existing approved Google account can sign in through `/auth` and return through `/auth/callback?flow=signin`.
+6. Verify an unknown Google account cannot create a new Supabase Auth user while `disable_signup=true`.
+7. Verify user-scoped data is isolated across two test users.
+8. Verify billing/credit tables (`billing_profiles`, `ai_credit_balance`, `ai_credit_ledger`) obey RLS.
+9. Verify admin access works for one operator account with the expected `raw_app_meta_data` role.

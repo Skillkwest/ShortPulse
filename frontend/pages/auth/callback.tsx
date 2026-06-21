@@ -37,7 +37,12 @@ type CompletionAuthEvent = "SIGNED_IN" | "USER_UPDATED";
 const getErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error ? error.message : fallback;
 
-const resolveCallbackErrorMessage = (flow: "signup" | "recovery" | "email-change"): string => {
+const resolveCallbackErrorMessage = (
+  flow: "signin" | "signup" | "recovery" | "email-change"
+): string => {
+  if (flow === "signin") {
+    return "This sign-in link is invalid or has expired. Try signing in again.";
+  }
   if (flow === "recovery") {
     return "This password reset link is invalid or has expired. Request a new one.";
   }
@@ -182,7 +187,9 @@ export default function AuthCallbackPage() {
       setInfo(
         callbackFlow === "email-change"
           ? "Email confirmed. Redirecting..."
-          : "Account confirmed. Redirecting..."
+          : callbackFlow === "signin"
+            ? "Sign-in confirmed. Redirecting..."
+            : "Account confirmed. Redirecting..."
       );
 
       try {

@@ -64,6 +64,7 @@ export default function AuthPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState(false);
   const [resettingPassword, setResettingPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
@@ -94,7 +95,7 @@ export default function AuthPage() {
       });
   }, [router, postAuthPath]);
 
-  const isSubmitDisabled = !email.trim() || !password || loading;
+  const isSubmitDisabled = !email.trim() || !password || loading || oauthLoading;
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -165,7 +166,7 @@ export default function AuthPage() {
   const onResetPassword = async () => {
     setError(null);
     setInfo(null);
-    if (loading) return;
+    if (loading || oauthLoading) return;
     if (!email.trim()) {
       setError("Enter your email first, then request a reset link.");
       return;
@@ -193,6 +194,34 @@ export default function AuthPage() {
       setError(resolvePasswordResetErrorMessage(err, "Unable to send password reset link."));
     } finally {
       setResettingPassword(false);
+    }
+  };
+
+  const onGoogleSignIn = async () => {
+    setError(null);
+    setInfo(null);
+    setOauthLoading(true);
+    try {
+      const supabase = ensureSupabaseClient();
+      const redirectTo = await fetchCanonicalAuthCallbackUrl({
+        flow: "signin",
+        nextPath,
+      });
+      if (!redirectTo) {
+        throw new Error(
+          "Unable to resolve the public Google sign-in destination. Please try again in a moment."
+        );
+      }
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo,
+        },
+      });
+      if (oauthError) throw oauthError;
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Unable to start Google sign-in."));
+      setOauthLoading(false);
     }
   };
 
@@ -270,6 +299,47 @@ export default function AuthPage() {
               </button>
             </div>
 
+            {activeMode === "signin" ? (
+              <>
+                <button
+                  className={authClass("auth-oauth-button")}
+                  type="button"
+                  onClick={() => {
+                    void onGoogleSignIn();
+                  }}
+                  disabled={loading || oauthLoading}
+                >
+                  <svg
+                    className={authClass("auth-oauth-icon")}
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    focusable="false"
+                  >
+                    <path
+                      fill="#4285F4"
+                      d="M23.04 12.26c0-.82-.07-1.6-.2-2.36H12v4.46h6.2a5.3 5.3 0 0 1-2.3 3.48v2.9h3.72c2.18-2 3.42-4.94 3.42-8.48Z"
+                    />
+                    <path
+                      fill="#34A853"
+                      d="M12 23.5c3.1 0 5.7-1.03 7.62-2.77l-3.72-2.9c-1.03.7-2.35 1.1-3.9 1.1-3 0-5.54-2.02-6.45-4.74H1.7v3c1.9 3.75 5.78 6.31 10.3 6.31Z"
+                    />
+                    <path
+                      fill="#FBBC05"
+                      d="M5.55 14.19a6.9 6.9 0 0 1 0-4.38v-3H1.7a11.48 11.48 0 0 0 0 10.38l3.85-3Z"
+                    />
+                    <path
+                      fill="#EA4335"
+                      d="M12 5.07c1.68 0 3.18.58 4.37 1.71l3.32-3.32C17.68 1.59 15.08.5 12 .5 7.48.5 3.6 3.06 1.7 6.81l3.85 3C6.46 7.09 9 5.07 12 5.07Z"
+                    />
+                  </svg>
+                  {oauthLoading ? "Opening Google..." : "Continue with Google"}
+                </button>
+                <div className={authClass("auth-choice-divider")}>
+                  <span>or sign in with email</span>
+                </div>
+              </>
+            ) : null}
+
             <div className={authClass("auth-field-stack")}>
               <label className={authClass("auth-label")} htmlFor="email">
                 Email
@@ -298,7 +368,7 @@ export default function AuthPage() {
                     type="button"
                     className={authClass("auth-forgot")}
                     onClick={onResetPassword}
-                    disabled={resettingPassword || loading}
+                    disabled={resettingPassword || loading || oauthLoading}
                   >
                     {resettingPassword ? "Sending reset link..." : "Forgot password?"}
                   </button>

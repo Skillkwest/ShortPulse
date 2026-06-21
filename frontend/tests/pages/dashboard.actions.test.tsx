@@ -4,6 +4,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { AuthenticatedDashboardView } from "../../features/dashboard/components/AuthenticatedDashboardView";
 import DashboardPage from "../../pages/dashboard";
 
 const useRouterMock = vi.hoisted(() => vi.fn());
@@ -455,5 +456,28 @@ describe("Dashboard actions", () => {
         },
       });
     });
+  });
+
+  it("keeps the legacy dashboard flag off retired onboarding routes", () => {
+    render(
+      <AuthenticatedDashboardView
+        dashboardAnnouncement={null}
+        dashboardFallbackHelperCopy="Start a project from your dashboard."
+        dashboardTutorials={[]}
+        firstName="Kirk"
+        hideLegacySections={false}
+        isCreatingProject={false}
+        projectCreateError={null}
+        toolCards={[]}
+        onCreateProject={vi.fn()}
+        onOpenProjects={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: /New Project:/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Open Projects: Open saved projects" })
+    ).toBeInTheDocument();
+    expect(document.querySelector('a[href^="/onboarding"]')).not.toBeInTheDocument();
   });
 });

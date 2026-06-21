@@ -378,6 +378,55 @@ describe("Dashboard guest route", () => {
     );
   });
 
+  it("does not render placeholder dashboard offers on the public header", () => {
+    render(
+      <DashboardPage
+        dashboardOffers={[
+          {
+            id: "placeholder-offer",
+            eyebrow: "tsting",
+            title: "teseting",
+            description: "Internal test copy",
+            offerKind: "custom",
+            discountLabel: "",
+            targetLabel: "",
+            ctaLabel: "View offer",
+            ctaHref: "/pricing",
+            displayOrder: 1,
+            isActive: true,
+            startsAt: null,
+            endsAt: null,
+            createdAt: "2026-06-20T00:00:00.000Z",
+            updatedAt: "2026-06-20T00:00:00.000Z",
+          },
+          {
+            id: "public-offer",
+            eyebrow: "Launch deal",
+            title: "Save on Studio",
+            description: "",
+            offerKind: "plan",
+            discountLabel: "",
+            targetLabel: "",
+            ctaLabel: "View offer",
+            ctaHref: "/pricing",
+            displayOrder: 2,
+            isActive: true,
+            startsAt: null,
+            endsAt: null,
+            createdAt: "2026-06-20T00:00:00.000Z",
+            updatedAt: "2026-06-20T00:00:00.000Z",
+          },
+        ]}
+      />
+    );
+
+    expect(screen.queryByRole("link", { name: "tsting: teseting" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Launch deal: Save on Studio" })).toHaveAttribute(
+      "href",
+      "/pricing"
+    );
+  });
+
   it("renders static tutorial props without waiting for live endpoint hydration", async () => {
     render(
       <DashboardPage

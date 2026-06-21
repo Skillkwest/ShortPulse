@@ -25,7 +25,6 @@ import {
 } from "../logic/mediaLibraryModalModel";
 import {
   createMediaLibraryWorkflowReloadOutput,
-  resolveMediaLibraryWorkflowReloadConfig,
   resolveMediaLibraryWorkflowReloadMediaKindHint,
 } from "../logic/mediaLibraryWorkflowReload";
 import {
@@ -48,8 +47,13 @@ import { MediaLibraryPanelStatusArea } from "./MediaLibraryPanelStatusArea";
 import { MediaLibraryAllItemsGrid } from "./media-library-modal/MediaLibraryAllItemsGrid";
 import { MediaLibraryMediaGrid } from "./media-library-modal/MediaLibraryMediaGrid";
 import { MediaLibraryPanelPreviewModal } from "./media-library-modal/MediaLibraryPanelPreviewModal";
+import { MediaLibraryPromptDetailModal } from "./media-library-modal/MediaLibraryPromptDetailModal";
 import { MediaLibraryPromptGrid } from "./media-library-modal/MediaLibraryPromptGrid";
 import { useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
+import {
+  createMediaLibraryPromptDetailModalItem,
+  type MediaLibraryPromptDetailModalItem,
+} from "../logic/mediaLibraryPromptDetailModal";
 import type {
   SharedMediaDetailSelectionTarget,
   SharedMediaDetailVideoSnapshotErrorHandler,
@@ -126,6 +130,8 @@ export function EmbeddedMediaLibraryPanel({
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
   const [selectedPromptIds, setSelectedPromptIds] = React.useState<Set<string>>(new Set());
   const [pendingBulkDeleteIds, setPendingBulkDeleteIds] = React.useState<string[] | null>(null);
+  const [promptDetailModalItem, setPromptDetailModalItem] =
+    React.useState<MediaLibraryPromptDetailModalItem | null>(null);
   const [optimizerFallbackMediaIds, setOptimizerFallbackMediaIds] = React.useState<Set<string>>(
     new Set()
   );
@@ -359,7 +365,41 @@ export function EmbeddedMediaLibraryPanel({
 
   React.useEffect(() => {
     closeDetailModal();
-  }, [closeDetailModal, itemType]);
+    setPromptDetailModalItem(null);
+    onDetailSelectionTargetChange?.(null);
+  }, [closeDetailModal, itemType, onDetailSelectionTargetChange]);
+
+  const handlePromptCardDoubleClick = React.useCallback(
+    (prompt: PromptRow) => {
+      setPromptDetailModalItem(
+        (() => {
+          const item = createMediaLibraryPromptDetailModalItem({
+            prompt,
+            surface,
+          });
+          onDetailSelectionTargetChange?.(item.selectionTarget);
+          return item;
+        })()
+      );
+    },
+    [onDetailSelectionTargetChange, surface]
+  );
+
+  const handleClosePromptDetailModal = React.useCallback(() => {
+    setPromptDetailModalItem(null);
+    onDetailSelectionTargetChange?.(null);
+  }, [onDetailSelectionTargetChange]);
+
+  const handleDeletePromptDetailItem = React.useCallback(
+    (item: MediaLibraryPromptDetailModalItem) => {
+      setPendingLibraryDelete({
+        kind: "prompt",
+        prompt: item.prompt,
+      });
+      handleClosePromptDetailModal();
+    },
+    [handleClosePromptDetailModal, setPendingLibraryDelete]
+  );
 
   const handleToggleSelectedPrompt = React.useCallback((prompt: PromptRow) => {
     setPendingBulkDeleteIds(null);
@@ -560,6 +600,7 @@ export function EmbeddedMediaLibraryPanel({
         onToggleMediaSelection={mediaCardUsesAssignment ? undefined : handleToggleSelectedMedia}
         onSelectPromptCard={handleToggleSelectedPrompt}
         onMediaDoubleClick={handleMediaCardDoubleClick}
+        onPromptDoubleClick={handlePromptCardDoubleClick}
         onMediaDragStart={handleMediaCardDragStart}
         onPromptDragStart={handlePromptCardDragStart}
         onMediaDragEnd={handleCardDragEnd}
@@ -607,6 +648,7 @@ export function EmbeddedMediaLibraryPanel({
       handleMediaCardDragStart,
       handleMediaPreviewError,
       handleSelectMediaFile,
+      handlePromptCardDoubleClick,
       handlePromptCardDragStart,
       handleToggleSelectedMedia,
       handleToggleSelectedPrompt,
@@ -648,6 +690,7 @@ export function EmbeddedMediaLibraryPanel({
               sortedPrompts={visiblePromptRows}
               selectedIds={selectedPromptIds}
               onSelectPromptCard={handleToggleSelectedPrompt}
+              onPromptDoubleClick={handlePromptCardDoubleClick}
               onPromptDragStart={handlePromptCardDragStart}
               onPromptDragEnd={handleCardDragEnd}
               showDeleteAction
@@ -679,6 +722,7 @@ export function EmbeddedMediaLibraryPanel({
     ),
     [
       handleCardDragEnd,
+      handlePromptCardDoubleClick,
       handlePromptCardDragStart,
       handleToggleSelectedPrompt,
       loadPromptPage,
@@ -915,6 +959,11 @@ export function EmbeddedMediaLibraryPanel({
             file: item.file,
           });
         }}
+      />
+      <MediaLibraryPromptDetailModal
+        item={promptDetailModalItem}
+        onClose={handleClosePromptDetailModal}
+        onDeletePromptItem={handleDeletePromptDetailItem}
       />
       <MediaLibraryPanelDialogs
         pendingBulkDeleteIds={pendingBulkDeleteIds}

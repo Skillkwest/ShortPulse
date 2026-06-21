@@ -1617,7 +1617,47 @@ describe("StylesLibraryPanel", () => {
     fireEvent.dragOver(targetTile as HTMLElement, { dataTransfer: transfer });
     fireEvent.drop(targetTile as HTMLElement, { dataTransfer: transfer });
 
-    expect(onReorderStyle).toHaveBeenCalledWith("cinematic", "anime");
+    expect(onReorderStyle).toHaveBeenCalledWith("cinematic", "anime", "after");
+  });
+
+  it("uses pointer placement when delegating a style reorder", () => {
+    const onReorderStyle = vi.fn();
+    render(<StylesLibraryPanel styles={createStyles()} onReorderStyle={onReorderStyle} />);
+
+    const sourceTile = screen.getByRole("button", { name: "Style tile: Anime" }).closest("article");
+    const targetTile = screen
+      .getByRole("button", { name: "Style tile: Cinematic" })
+      .closest("article") as HTMLElement;
+    expect(sourceTile).toBeTruthy();
+    expect(targetTile).toBeTruthy();
+
+    targetTile.getBoundingClientRect = vi.fn(
+      () =>
+        ({
+          x: 0,
+          y: 0,
+          left: 0,
+          top: 0,
+          right: 100,
+          bottom: 100,
+          width: 100,
+          height: 100,
+          toJSON: () => ({}),
+        }) as DOMRect
+    );
+
+    const transfer = {
+      setData: vi.fn(),
+      getData: vi.fn(() => "anime"),
+      effectAllowed: "move",
+      dropEffect: "move",
+    } as unknown as DataTransfer;
+
+    fireEvent.dragStart(sourceTile as HTMLElement, { dataTransfer: transfer });
+    fireEvent.dragOver(targetTile, { dataTransfer: transfer, clientX: 10, clientY: 10 });
+    fireEvent.drop(targetTile, { dataTransfer: transfer, clientX: 10, clientY: 10 });
+
+    expect(onReorderStyle).toHaveBeenCalledWith("anime", "cinematic", "before");
   });
 
   it("opens and closes the delete confirmation modal", () => {

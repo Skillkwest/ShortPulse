@@ -3,6 +3,7 @@
  * Owns session/compliance checks for non-AI-Studio protected routes so the
  * shared app shell does not statically own those runtime dependencies.
  */
+import Head from "next/head";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, type ReactNode } from "react";
 import { MediaComplianceGate } from "../components/MediaComplianceGate";
@@ -15,11 +16,16 @@ type ProtectedRouteBootstrapGateProps = {
 };
 
 const GenericProtectedLoader = ({ message }: { message: string }) => (
-  <main className="page page-wide">
-    <div className="panel">
-      <p className="subdued">{message}</p>
-    </div>
-  </main>
+  <>
+    <Head>
+      <title>ShortPulse · Loading</title>
+    </Head>
+    <main className="page page-wide">
+      <div className="panel">
+        <p className="subdued">{message}</p>
+      </div>
+    </main>
+  </>
 );
 
 /**

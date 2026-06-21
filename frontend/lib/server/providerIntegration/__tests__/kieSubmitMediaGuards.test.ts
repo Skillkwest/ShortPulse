@@ -75,6 +75,48 @@ describe("kieSubmitMediaGuards", () => {
     });
   });
 
+  it("includes Kling element media in diagnostics and validation", async () => {
+    const payload = {
+      model: "kling-3.0/motion-control",
+      input: {
+        input_urls: ["https://cdn.example.com/character.png"],
+        video_urls: ["https://cdn.example.com/motion.mp4"],
+        kling_elements: [
+          {
+            name: "element1",
+            description: "Reference images for element1",
+            element_input_urls: [
+              "https://cdn.example.com/element-a.png",
+              "https://cdn.example.com/element-b.png",
+            ],
+          },
+          {
+            name: "element2",
+            description: "Reference video for element2",
+            element_input_video_urls: ["https://cdn.example.com/element-video.mp4"],
+          },
+        ],
+      },
+    };
+
+    const diagnostics = buildKieSubmitMediaDiagnostics(payload);
+    expect(diagnostics.motion_control).toBe(true);
+    expect(diagnostics.media.map((media) => `${media.kind}:${media.extension}`)).toEqual([
+      "image:png",
+      "image:png",
+      "image:png",
+      "video:mp4",
+      "video:mp4",
+    ]);
+
+    await expect(
+      validateKieKlingSubmitMediaInputs({
+        payload,
+        signal: new AbortController().signal,
+      })
+    ).resolves.toEqual(expect.objectContaining({ ok: true }));
+  });
+
   it("accepts valid Kling media URLs", async () => {
     const result = await validateKieKlingSubmitMediaInputs({
       payload: {

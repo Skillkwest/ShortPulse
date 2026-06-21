@@ -130,6 +130,14 @@ describe("ai-studio layout scroll behavior contract", () => {
     const sharedErrorMessageRule = extractRuleBlock(messagesCss, ".app-message--error");
     const alertBannerRule = extractRuleBlock(css, ".ai-studio-page .ai-alert-banner");
     const alertErrorBannerRule = extractRuleBlock(css, ".ai-studio-page .ai-alert-banner--error");
+    const alertActionsRule = extractRuleBlock(
+      css,
+      ".ai-studio-page .ai-alert-banner .app-message__actions"
+    );
+    const alertDismissRule = extractRuleBlock(
+      css,
+      ".ai-studio-page .ai-alert-banner .app-message__dismiss"
+    );
     const groupedFailureRule = extractRuleBlock(css, ".ai-error-stack");
     const viewportMessageRule = extractRuleBlock(
       messagesCss,
@@ -137,7 +145,13 @@ describe("ai-studio layout scroll behavior contract", () => {
     );
 
     expect(viewportStackRule).toContain("position: fixed;");
+    expect(viewportStackRule).toContain("width: auto;");
     expect(viewportStackRule).toContain("pointer-events: none;");
+    expect(viewportStackRule).toContain("max-width: calc(");
+    expect(viewportStackRule).toContain(
+      "100vw - var(--app-message-stack-viewport-left, var(--spacing-16)) -"
+    );
+    expect(viewportStackRule).toContain("overflow-x: hidden;");
     expect(stackChildrenRule).toContain("pointer-events: auto;");
     expect(stackRule).toContain(
       "--app-message-stack-viewport-top: calc(var(--ai-page-pad-top) + 6px);"
@@ -145,8 +159,16 @@ describe("ai-studio layout scroll behavior contract", () => {
     expect(stackRule).toContain(
       "--app-message-stack-viewport-left: calc(var(--ai-rail-width) + 24px);"
     );
+    expect(stackRule).toContain(
+      "--app-message-stack-viewport-right: max(24px, env(safe-area-inset-right));"
+    );
     expect(stackRule).toContain("--app-message-stack-viewport-z-index: 30;");
+    expect(alertBannerRule).toContain("width: 100%;");
+    expect(alertBannerRule).toContain("min-width: 0;");
     expect(alertBannerRule).toContain("margin: 0;");
+    expect(alertActionsRule).toContain("flex: 0 0 auto;");
+    expect(alertDismissRule).toContain("flex: 0 0 28px;");
+    expect(alertDismissRule).toContain("width: 28px;");
     expect(sharedErrorMessageRule).toContain("--app-message-bg: #36191f;");
     expect(alertErrorBannerRule).toContain("background: #461818;");
     expect(groupedFailureRule).toContain("background: linear-gradient(180deg, #5f1414, #3e0e0e);");

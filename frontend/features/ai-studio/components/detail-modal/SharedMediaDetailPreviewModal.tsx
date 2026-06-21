@@ -223,9 +223,10 @@ export function SharedMediaDetailPreviewModal({
   const mediaUnavailableMessage = error || unavailableMessage;
 
   React.useEffect(() => {
+    if (isLoading) return;
     if (!item || previewCandidates.length > 0) return;
     onPreviewError?.(item, item.media.url);
-  }, [item, onPreviewError, previewCandidates.length]);
+  }, [isLoading, item, onPreviewError, previewCandidates.length]);
 
   const shouldRenderSnapshotControl = item?.media.kind === "video" && canRenderMedia;
 

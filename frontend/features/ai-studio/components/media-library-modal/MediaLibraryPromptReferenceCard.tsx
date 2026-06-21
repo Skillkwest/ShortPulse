@@ -6,6 +6,7 @@ type MediaLibraryPromptReferenceCardProps = {
   prompt: PromptRow;
   isSelected: boolean;
   onSelectPromptCard: (prompt: PromptRow) => void;
+  onPromptDoubleClick?: (prompt: PromptRow) => void;
   onPromptDragStart?: (event: React.DragEvent<HTMLButtonElement>, prompt: PromptRow) => void;
   onPromptDragEnd?: (event: React.DragEvent<HTMLButtonElement>, prompt: PromptRow) => void;
   showRemoveAction?: boolean;
@@ -21,6 +22,7 @@ export function MediaLibraryPromptReferenceCard({
   prompt,
   isSelected,
   onSelectPromptCard,
+  onPromptDoubleClick,
   onPromptDragStart,
   onPromptDragEnd,
   showRemoveAction = false,
@@ -57,6 +59,11 @@ export function MediaLibraryPromptReferenceCard({
         aria-pressed={isSelected}
         draggable={Boolean(onPromptDragStart)}
         onClick={() => onSelectPromptCard(prompt)}
+        onDoubleClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onPromptDoubleClick?.(prompt);
+        }}
         onDragStart={(event) => onPromptDragStart?.(event, prompt)}
         onDragEnd={(event) => onPromptDragEnd?.(event, prompt)}
       >

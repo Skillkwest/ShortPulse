@@ -162,6 +162,58 @@ describe("video contract parity", () => {
     );
   });
 
+  it("keeps Kie Kling motion-control element fields aligned with route contract and provider normalizer", () => {
+    const normalized = assertNormalizedVideoPayload("kie-ai/kling-3.0", {
+      prompt: "motion transfer @element1",
+      image_url: "https://cdn.shortpulse.test/character.png",
+      input_url: "https://cdn.shortpulse.test/character.png",
+      video_url: "https://cdn.shortpulse.test/motion.mp4",
+      callback_url: "https://api.shortpulse.test/callback",
+      resolution: "1080p",
+      mode: "1080p",
+      generate_audio: true,
+      kling_elements: [
+        {
+          name: "element1",
+          description: "Reference images for Element01",
+          element_input_urls: [
+            "https://cdn.shortpulse.test/element-a.png",
+            "https://cdn.shortpulse.test/element-b.png",
+          ],
+        },
+      ],
+    });
+
+    const contractResult = evaluateFalPayloadContractForModel("kie-ai/kling-3.0", {
+      enforceAllowedTopLevelFields: true,
+      projectAllowedTopLevelFields: true,
+    })(normalized.payload);
+    expect(contractResult.valid).toBe(true);
+    if (!contractResult.valid) throw new Error(contractResult.error);
+
+    const providerPayload = normalizeKieSubmitPayloadForModel({
+      modelId: "kie-ai/kling-3.0",
+      payload: contractResult.projectedPayload,
+    });
+    expect(providerPayload).toEqual(
+      expect.objectContaining({
+        model: "kling-3.0/motion-control",
+        input: expect.objectContaining({
+          kling_elements: [
+            {
+              name: "element1",
+              description: "Reference images for Element01",
+              element_input_urls: [
+                "https://cdn.shortpulse.test/element-a.png",
+                "https://cdn.shortpulse.test/element-b.png",
+              ],
+            },
+          ],
+        }),
+      })
+    );
+  });
+
   it("keeps Kie Kling advanced payload fields aligned with route contract and provider normalizer", () => {
     const normalized = assertNormalizedVideoPayload("kie-ai/kling-3.0", {
       prompt: "cinematic sequence",

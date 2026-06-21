@@ -4,6 +4,7 @@
  */
 import type { AppProps } from "next/app";
 import dynamic from "next/dynamic";
+import Head from "next/head";
 import { useRouter } from "next/router";
 import { useEffect } from "react";
 import { AppErrorBoundary } from "../components/AppErrorBoundary";
@@ -20,11 +21,16 @@ const SharedProtectedRouteBootstrapGate = dynamic(
     ),
   {
     loading: () => (
-      <main className="page page-wide">
-        <div className="panel">
-          <p className="subdued">Checking your session…</p>
-        </div>
-      </main>
+      <>
+        <Head>
+          <title>ShortPulse · Loading</title>
+        </Head>
+        <main className="page page-wide">
+          <div className="panel">
+            <p className="subdued">Checking your session…</p>
+          </div>
+        </main>
+      </>
     ),
   }
 );

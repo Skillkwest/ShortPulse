@@ -27,6 +27,11 @@ export type SharedMediaDetailSelectionTarget =
       surface: SharedMediaDetailSurface;
     }
   | {
+      kind: "media-prompt";
+      promptId: string;
+      surface: SharedMediaDetailSurface;
+    }
+  | {
       kind: "canvas-item";
       itemId: string;
       surface: SharedMediaDetailSurface;

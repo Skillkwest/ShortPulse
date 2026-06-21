@@ -24,10 +24,12 @@ export const DEFAULT_REQUIRED_ROUTES = [
 export const DEFAULT_FORBIDDEN_ROUTES = [
   "/landing",
   "/creator-studio",
+  "/onboarding",
   "/api/upload-image",
   "/api/upload-video",
   "/api/upload-audio",
   "/api/ai/sessions",
+  "/api/media/upload",
   "/api/media/admit-image-asset",
 ];
 

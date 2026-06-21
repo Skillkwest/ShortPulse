@@ -260,7 +260,9 @@ export const useAiStudioViewModel = ({
   }, [effectiveVideoPricingModelId, videoResolution]);
   const klingElementProviderGuardrail = useMemo(
     () =>
-      isVideoTool && videoReferenceMode === "standard" && model === KIE_KLING_30_MODEL_ID
+      isVideoTool &&
+      (videoReferenceMode === "standard" || videoReferenceMode === "motion") &&
+      model === KIE_KLING_30_MODEL_ID
         ? resolveKieKlingElementsValidationMessage(klingElements)
         : null,
     [isVideoTool, klingElements, model, videoReferenceMode]
@@ -861,7 +863,7 @@ export const useAiStudioViewModel = ({
     }
     if (isVideoTool && resolvedVideoLane === "lip-sync") {
       const hasCharacterReference = Boolean(referenceImageUrl);
-      const hasVoiceAudio = Boolean(lipSyncAudio.url);
+      const hasVoiceAudio = isLipSyncAudioReadyForSubmit(lipSyncAudio) || Boolean(lipSyncAudio.url);
       const hasPreviewOrError =
         Boolean(lipSyncAudio.previewUrl) || lipSyncAudio.status === "failed";
       if (!hasCharacterReference && !hasVoiceAudio) {

@@ -515,7 +515,18 @@ type AiStudioAlertBannerProps = {
   onDismiss: () => void;
 };
 
-const AI_STUDIO_FAILURE_ALERT_AUTO_DISMISS_MS = 9000;
+const AI_STUDIO_ALERT_AUTO_DISMISS_MIN_MS = 9000;
+const AI_STUDIO_ALERT_AUTO_DISMISS_MAX_MS = 16000;
+const AI_STUDIO_ALERT_AUTO_DISMISS_MS_PER_CHAR = 60;
+
+export const resolveAiStudioAlertAutoDismissMs = (message: string): number => {
+  const textLength = message.trim().length;
+  const calculatedMs = 3000 + textLength * AI_STUDIO_ALERT_AUTO_DISMISS_MS_PER_CHAR;
+  return Math.min(
+    AI_STUDIO_ALERT_AUTO_DISMISS_MAX_MS,
+    Math.max(AI_STUDIO_ALERT_AUTO_DISMISS_MIN_MS, calculatedMs)
+  );
+};
 
 const AiStudioAlertBanner = ({
   message,
@@ -605,14 +616,43 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
     });
   }, [groupedFailures, onDismissFailure]);
   const hasVisibleAlerts = Boolean(effectiveUiError || uiNotice || groupedFailures.length);
+  const dismissUiErrorRef = React.useRef(onDismissUiError);
+  const dismissUiNoticeRef = React.useRef(onDismissUiNotice);
+
+  React.useEffect(() => {
+    dismissUiErrorRef.current = onDismissUiError;
+  }, [onDismissUiError]);
+
+  React.useEffect(() => {
+    dismissUiNoticeRef.current = onDismissUiNotice;
+  }, [onDismissUiNotice]);
+
+  React.useEffect(() => {
+    if (!effectiveUiError) return undefined;
+    const timeoutId = window.setTimeout(() => {
+      dismissUiErrorRef.current();
+    }, resolveAiStudioAlertAutoDismissMs(effectiveUiError));
+    return () => window.clearTimeout(timeoutId);
+  }, [effectiveUiError]);
+
+  React.useEffect(() => {
+    if (!uiNotice) return undefined;
+    const timeoutId = window.setTimeout(() => {
+      dismissUiNoticeRef.current();
+    }, resolveAiStudioAlertAutoDismissMs(uiNotice));
+    return () => window.clearTimeout(timeoutId);
+  }, [uiNotice]);
 
   React.useEffect(() => {
     if (!groupedFailureIdsKey) return undefined;
+    const groupedFailureText = groupedFailures
+      .map((group) => `${group.modelLabel} ${group.failureMessage}`)
+      .join(" ");
     const timeoutId = window.setTimeout(() => {
       dismissGroupedFailures();
-    }, AI_STUDIO_FAILURE_ALERT_AUTO_DISMISS_MS);
+    }, resolveAiStudioAlertAutoDismissMs(groupedFailureText));
     return () => window.clearTimeout(timeoutId);
-  }, [dismissGroupedFailures, groupedFailureIdsKey]);
+  }, [dismissGroupedFailures, groupedFailureIdsKey, groupedFailures]);
 
   if (!hasVisibleAlerts) return null;
 

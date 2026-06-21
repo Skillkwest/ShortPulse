@@ -57,10 +57,15 @@ import type {
 import { MediaLibraryAllItemsGrid } from "./media-library-modal/MediaLibraryAllItemsGrid";
 import { MediaLibraryMediaGrid } from "./media-library-modal/MediaLibraryMediaGrid";
 import { MediaLibraryPanelPreviewModal } from "./media-library-modal/MediaLibraryPanelPreviewModal";
+import { MediaLibraryPromptDetailModal } from "./media-library-modal/MediaLibraryPromptDetailModal";
 import { MediaLibraryPromptGrid } from "./media-library-modal/MediaLibraryPromptGrid";
 import { useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 import type { StudioOutput, WorkflowReloadMediaKindHint } from "../types";
 import type { LibraryMediaReferencePayload } from "../reference-grid/referenceGridTypes";
+import {
+  createMediaLibraryPromptDetailModalItem,
+  type MediaLibraryPromptDetailModalItem,
+} from "../logic/mediaLibraryPromptDetailModal";
 
 type MediaLibraryPanelItemType = "all" | "images" | "videos" | "audio" | "prompts";
 type RootMediaLibraryTab = MediaLibraryPanelItemType;
@@ -119,7 +124,7 @@ const resolveSigningTab = (itemType: MediaLibraryPanelItemType): MediaDataTab =>
 
 export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   onSelectMedia,
-  onSelectPrompt: _onSelectPrompt,
+  onSelectPrompt,
   projectId = null,
   projectName = null,
   onProjectNameCommit,
@@ -178,7 +183,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const [folderContextMenu, setFolderContextMenu] = useState<FolderContextMenuState | null>(null);
   const [moveFolderPicker, setMoveFolderPicker] = useState<MoveFolderPickerState | null>(null);
   const [projectNameDraft, setProjectNameDraft] = useState(projectName ?? "");
-  void _onSelectPrompt;
+  const [promptDetailModalItem, setPromptDetailModalItem] =
+    useState<MediaLibraryPromptDetailModalItem | null>(null);
 
   const rootUploadInputRef = useRef<HTMLInputElement | null>(null);
   const projectNameInputRef = useRef<HTMLInputElement | null>(null);
@@ -519,6 +525,46 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     signStoragePath,
   });
 
+  const closePromptDetailModal = useCallback(() => {
+    setPromptDetailModalItem(null);
+    onDetailSelectionTargetChange?.(null);
+  }, [onDetailSelectionTargetChange]);
+
+  const handlePromptCardDoubleClick = useCallback(
+    (prompt: PromptRow) => {
+      const item = createMediaLibraryPromptDetailModalItem({
+        prompt,
+        surface: "media-library-panel",
+      });
+      setPromptDetailModalItem(item);
+      onDetailSelectionTargetChange?.(item.selectionTarget);
+    },
+    [onDetailSelectionTargetChange]
+  );
+
+  const handleUsePromptDetailItem = useCallback(
+    (item: MediaLibraryPromptDetailModalItem) => {
+      onSelectPrompt({
+        id: item.prompt.id,
+        promptText: item.prompt.prompt_text,
+        title: item.prompt.title,
+      });
+      closePromptDetailModal();
+    },
+    [closePromptDetailModal, onSelectPrompt]
+  );
+
+  const handleDeletePromptDetailItem = useCallback(
+    (item: MediaLibraryPromptDetailModalItem) => {
+      setPendingLibraryDelete({
+        kind: "prompt",
+        prompt: item.prompt,
+      });
+      closePromptDetailModal();
+    },
+    [closePromptDetailModal, setPendingLibraryDelete]
+  );
+
   const handleToggleSelectedPrompt = useCallback((prompt: PromptRow) => {
     setPendingBulkDeleteIds(null);
     setBulkMoveDialogOpen(false);
@@ -622,7 +668,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   useEffect(() => {
     resetDeleteConfirmState();
     closeDetailModal();
-  }, [activeFolderId, closeDetailModal, resetDeleteConfirmState]);
+    closePromptDetailModal();
+  }, [activeFolderId, closeDetailModal, closePromptDetailModal, resetDeleteConfirmState]);
 
   const foldersDropController = useMediaLibraryFolderDropController({
     projectId,
@@ -901,6 +948,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         onToggleMediaSelection={toggleSelectedMediaFile}
         onSelectPromptCard={handleToggleSelectedPrompt}
         onMediaDoubleClick={handleMediaCardDoubleClick}
+        onPromptDoubleClick={handlePromptCardDoubleClick}
         onMediaDragStart={handleMediaCardDragStart}
         onPromptDragStart={handlePromptCardDragStart}
         onMediaDragEnd={handleCardDragEnd}
@@ -955,6 +1003,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       handleMediaCardContextMenu,
       handleMediaPreviewError,
       handleReloadWorkflowFromMedia,
+      handlePromptCardDoubleClick,
       handlePromptCardDragStart,
       handleRemoveItemFromActiveFolder,
       combinedSelectedIds,
@@ -1004,6 +1053,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
               sortedPrompts={visiblePromptRows}
               selectedIds={selectedPromptIds}
               onSelectPromptCard={handleToggleSelectedPrompt}
+              onPromptDoubleClick={handlePromptCardDoubleClick}
               onPromptDragStart={handlePromptCardDragStart}
               onPromptDragEnd={handleCardDragEnd}
               showRemoveAction={canShowFolderItemRemoveAction}
@@ -1041,6 +1091,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       activeFolderId,
       canShowFolderItemRemoveAction,
       handleCardDragEnd,
+      handlePromptCardDoubleClick,
       handlePromptCardDragStart,
       handleRemoveItemFromActiveFolder,
       handleToggleSelectedPrompt,
@@ -1464,6 +1515,12 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
             file: item.file,
           });
         }}
+      />
+      <MediaLibraryPromptDetailModal
+        item={promptDetailModalItem}
+        onClose={closePromptDetailModal}
+        onUsePromptItem={handleUsePromptDetailItem}
+        onDeletePromptItem={handleDeletePromptDetailItem}
       />
       <MediaLibraryPanelDialogs
         pendingBulkDeleteIds={pendingBulkDeleteIds}

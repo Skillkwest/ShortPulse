@@ -661,6 +661,7 @@ const normalizeKieKlingPayload = (payload: Record<string, unknown>): Record<stri
         "Kie Kling 3.0 motion-control submit field callBackUrl must be a valid http(s) URL."
       );
     }
+    const klingElements = readKieKlingElementList(source);
     return {
       model: "kling-3.0/motion-control",
       ...(callbackUrl ? { callBackUrl: callbackUrl } : {}),
@@ -672,6 +673,7 @@ const normalizeKieKlingPayload = (payload: Record<string, unknown>): Record<stri
         ...(generateAudio !== null ? { generate_audio: generateAudio } : {}),
         character_orientation: characterOrientation,
         background_source: backgroundSource,
+        ...(klingElements.length ? { kling_elements: klingElements } : {}),
       },
     };
   }

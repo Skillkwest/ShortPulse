@@ -15,6 +15,7 @@ import { useBuiltInStyleCatalog } from "./useBuiltInStyleCatalog";
 import {
   reorderStylesLibraryOrderedIds,
   resolveOrderedStylesCatalog,
+  type StylesLibraryReorderPlacement,
 } from "../logic/stylesLibraryCatalog";
 import type { StudioOutput } from "../types";
 
@@ -131,11 +132,12 @@ export const useAiStudioStylesRuntime = ({
   );
 
   const handleReorderStyle = React.useCallback(
-    (sourceStyleId: string, targetStyleId: string) => {
+    (sourceStyleId: string, targetStyleId: string, placement?: StylesLibraryReorderPlacement) => {
       const nextOrder = reorderStylesLibraryOrderedIds(
         visibleStylesCatalog.map((style) => style.id),
         sourceStyleId,
-        targetStyleId
+        targetStyleId,
+        placement
       );
       void setStylePanelIds(nextOrder);
     },

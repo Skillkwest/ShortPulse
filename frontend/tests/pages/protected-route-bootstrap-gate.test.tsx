@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProtectedRouteBootstrapGate } from "../../features/compliance/routes/ProtectedRouteBootstrapGate";
 
@@ -15,6 +16,10 @@ vi.mock("next/router", () => ({
     asPath: routerState.asPath,
     replace: replaceMock,
   }),
+}));
+
+vi.mock("next/head", () => ({
+  default: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
 vi.mock("../../lib/authGuard", () => ({
@@ -83,6 +88,7 @@ describe("ProtectedRouteBootstrapGate", () => {
     renderGate();
 
     expect(screen.getByText("Checking your session…")).toBeInTheDocument();
+    expect(screen.getByText("ShortPulse · Loading")).toBeInTheDocument();
     expect(screen.queryByTestId("protected-page")).not.toBeInTheDocument();
   });
 
@@ -97,6 +103,7 @@ describe("ProtectedRouteBootstrapGate", () => {
     renderGate();
 
     expect(screen.getByText("Checking your media agreement…")).toBeInTheDocument();
+    expect(screen.getByText("ShortPulse · Loading")).toBeInTheDocument();
     expect(screen.queryByTestId("protected-page")).not.toBeInTheDocument();
   });
 

@@ -48,6 +48,7 @@ import {
   resolveVeoTextAspect,
 } from "./videoPayloads";
 import {
+  KLING_SINGLE_PROMPT_MAX_CHARACTERS,
   composeHiddenShotModePrompt,
   isKlingSinglePromptOverComposedLimit,
   rewritePromptWithKieElementTokens,
@@ -946,6 +947,42 @@ const prepareKieHostedKlingElementForSubmission = async ({
   };
 };
 
+const prepareKieKlingElementsForSubmission = async ({
+  klingElements,
+  cache,
+  imageAdmissionProfile = null,
+}: {
+  klingElements: AiStudioKlingElement[];
+  cache: Map<string, Promise<string>>;
+  imageAdmissionProfile?: KieUploadAdmissionProfile | null;
+}): Promise<
+  | {
+      preparedKlingElements: AiStudioKlingElement[];
+      elementsPayload: ReturnType<typeof buildKieKlingElementsPayload>;
+    }
+  | { error: string }
+> => {
+  const klingElementValidationMessage = resolveKieKlingElementsValidationMessage(klingElements);
+  if (klingElementValidationMessage) {
+    return { error: klingElementValidationMessage };
+  }
+
+  const preparedKlingElements = await Promise.all(
+    getKieKlingSubmittableSlotElements(klingElements).map(
+      async (element) =>
+        await prepareKieHostedKlingElementForSubmission({
+          element,
+          cache,
+          imageAdmissionProfile,
+        })
+    )
+  );
+  return {
+    preparedKlingElements,
+    elementsPayload: buildKieKlingElementsPayload(preparedKlingElements),
+  };
+};
+
 const prepareKieInputUrl = async ({
   rawUrl,
   preparedUrl,
@@ -1626,8 +1663,29 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
 
         let characterImageUrl = preparedCharacterImageUrl;
         let motionVideoUrlFinal = motionReferenceVideoUrl;
+        const kieUploadCache = new Map<string, Promise<string>>();
+        let preparedKlingElementResult: Exclude<
+          Awaited<ReturnType<typeof prepareKieKlingElementsForSubmission>>,
+          { error: string }
+        >;
         try {
-          const kieUploadCache = new Map<string, Promise<string>>();
+          const result = await prepareKieKlingElementsForSubmission({
+            klingElements,
+            cache: kieUploadCache,
+          });
+          if ("error" in result) {
+            notifyGenerationFailure(id, result.error, undefined, VALIDATION_FAILURE_CONTEXT);
+            return { handled: true };
+          }
+          preparedKlingElementResult = result;
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : "Kling element reference preparation failed";
+          notifyGenerationFailure(id, `Kling element reference preparation failed: ${message}`);
+          return { handled: true };
+        }
+
+        try {
           characterImageUrl = await prepareKieInputUrl({
             rawUrl: rawImageInputs[0] ?? videoReferenceImageUrl,
             preparedUrl: preparedCharacterImageUrl,
@@ -1655,8 +1713,22 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
           return { handled: true };
         }
 
+        const baseMotionPrompt =
+          cleanedPrompt || "Transfer motion from reference video to character";
+        const finalPrompt = rewritePromptWithKieElementTokens(
+          baseMotionPrompt,
+          preparedKlingElementResult.preparedKlingElements
+        );
+        if (finalPrompt.length > KLING_SINGLE_PROMPT_MAX_CHARACTERS) {
+          notifyGenerationFailure(
+            id,
+            "Prompt exceeds Kling's 2,500 character limit.",
+            undefined,
+            VALIDATION_FAILURE_CONTEXT
+          );
+          return { handled: true };
+        }
         const motionResolution = resolveKlingResolution(requestedResolution);
-        const finalPrompt = cleanedPrompt || "Transfer motion from reference video to character";
         const response = await submitQueuedGenerationByModelId(finalModel, {
           prompt: finalPrompt,
           image_url: characterImageUrl,
@@ -1669,6 +1741,7 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
           generate_audio: requestedAudio,
           character_orientation: "image",
           background_source: "input_video",
+          kling_elements: preparedKlingElementResult.elementsPayload,
           ...shortpulseSubmitPayload,
         });
         return {
@@ -1692,29 +1765,23 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
       }
       const kieUploadCache = new Map<string, Promise<string>>();
       let elementsPayload: ReturnType<typeof buildKieKlingElementsPayload>;
-      let preparedKlingElements: AiStudioKlingElement[] =
-        getKieKlingSubmittableSlotElements(klingElements);
-      const klingElementValidationMessage = resolveKieKlingElementsValidationMessage(klingElements);
-      if (klingElementValidationMessage) {
-        notifyGenerationFailure(
-          id,
-          klingElementValidationMessage,
-          undefined,
-          VALIDATION_FAILURE_CONTEXT
-        );
-        return { handled: true };
-      }
+      let preparedKlingElements: AiStudioKlingElement[] = [];
       try {
-        preparedKlingElements = await Promise.all(
-          preparedKlingElements.map(
-            async (element) =>
-              await prepareKieHostedKlingElementForSubmission({
-                element,
-                cache: kieUploadCache,
-              })
-          )
-        );
-        elementsPayload = buildKieKlingElementsPayload(preparedKlingElements);
+        const preparedKlingElementResult = await prepareKieKlingElementsForSubmission({
+          klingElements,
+          cache: kieUploadCache,
+        });
+        if ("error" in preparedKlingElementResult) {
+          notifyGenerationFailure(
+            id,
+            preparedKlingElementResult.error,
+            undefined,
+            VALIDATION_FAILURE_CONTEXT
+          );
+          return { handled: true };
+        }
+        preparedKlingElements = preparedKlingElementResult.preparedKlingElements;
+        elementsPayload = preparedKlingElementResult.elementsPayload;
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Kling element reference preparation failed";
@@ -1846,6 +1913,7 @@ export const handleVideoModelSubmission = async ({
     ...seedance2ReferenceImageUrls,
     ...seedance2ReferenceVideoUrls,
     ...seedance2ReferenceAudioUrls,
+    ...klingElements.flatMap((element) => getAiStudioKlingElementReferenceUrls(element)),
     ...klingElements.map((element) => element.videoUrl.trim()),
   ]
     .map((value) => value.trim())

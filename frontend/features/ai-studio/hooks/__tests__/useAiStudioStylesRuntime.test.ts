@@ -270,7 +270,35 @@ describe("useAiStudioStylesRuntime", () => {
     );
 
     await act(async () => {
-      result.current.handleReorderStyle("anime", "cinematic");
+      result.current.handleReorderStyle("anime", "cinematic", "before");
+    });
+
+    expect(panelIdsPreference.setStylePanelIds).toHaveBeenCalledWith([
+      "anime",
+      "cinematic",
+      "photorealistic",
+      "cell-phone-snapshot",
+    ]);
+  });
+
+  it("persists explicit after placement so the right rail receives the same reordered catalog", async () => {
+    panelIdsPreference.stylePanelIds = [
+      "cinematic",
+      "anime",
+      "photorealistic",
+      "cell-phone-snapshot",
+    ];
+    panelIdsPreference.setStylePanelIds.mockResolvedValue(true);
+
+    const { result } = renderHook(() =>
+      useAiStudioStylesRuntime({
+        selectedStyleId: null,
+        setSelectedStyleId: vi.fn(),
+      })
+    );
+
+    await act(async () => {
+      result.current.handleReorderStyle("cinematic", "anime", "after");
     });
 
     expect(panelIdsPreference.setStylePanelIds).toHaveBeenCalledWith([

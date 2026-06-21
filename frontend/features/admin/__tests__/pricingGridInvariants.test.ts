@@ -67,7 +67,7 @@ describe("pricing grid invariants", () => {
       label: "Seedance 2.0",
       provider: "kie",
       sourceUrl: "https://docs.kie.ai/market/bytedance/seedance-2",
-      workflowType: "image-to-video",
+      workflowType: "Image to video",
       pricingStrategy: "seedance-2-per-second",
       pricingStrategyLabel: "Per output second",
       defaultAspect: "16:9",

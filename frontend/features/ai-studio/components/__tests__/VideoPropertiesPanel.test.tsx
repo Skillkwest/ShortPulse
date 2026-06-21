@@ -774,6 +774,50 @@ describe("VideoPropertiesPanel", () => {
     );
   });
 
+  it("shows Kling element slots in Motion Control without showing shot mode controls", () => {
+    useReferencePropertiesDerivedStateMock.mockReturnValue({
+      ...defaultDerivedState,
+      activeVideoMode: "motion",
+      isMotionMode: true,
+      isStandardMode: false,
+      referenceStepTitle: "Add Motion Inputs",
+      referenceStepSubtitle: "Add motion inputs",
+    });
+
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        videoReferenceMode="motion"
+        motionVideoUrl={null}
+        klingElements={[
+          {
+            id: "element-1",
+            slotIndex: 0,
+            sourceKind: "element",
+            sourceElementId: "element-1",
+            sourceCharacterId: null,
+            name: "Red Lantern",
+            alias: "redlantern",
+            description: "Warm lacquered lantern",
+            profileImageUrl: "https://example.com/red-lantern.png",
+            profileImageTransform: null,
+            frontalImageUrl: "https://example.com/red-lantern-front.png",
+            referenceImageUrls: "https://example.com/red-lantern-side.png",
+            videoUrl: "",
+          },
+        ]}
+      />
+    );
+
+    expect(screen.getByText("Kling 3.0 Settings")).toBeInTheDocument();
+    expect(screen.getByLabelText("Element reference slots")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Replace attached element Red Lantern/ })
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Single shot" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Multi-shot" })).not.toBeInTheDocument();
+  });
+
   it("routes recorded Motion Control clips through the recorded-video bridge", async () => {
     useReferencePropertiesDerivedStateMock.mockReturnValue({
       ...defaultDerivedState,
@@ -1001,6 +1045,77 @@ describe("VideoPropertiesPanel", () => {
     });
     expect(onLipSyncAudioChange).toHaveBeenCalledWith({
       url: "https://signed.shortpulse.test/audio-reference.mp3",
+      durationMs: 30000,
+      status: "ready",
+      sourceKind: "canvas",
+      storagePath: "user-1/audio/audio-reference.mp3",
+      previewUrl: null,
+      mimeType: null,
+      size: null,
+    });
+  });
+
+  it("uses internal audio storage authority from Canvas tear-out when no durable URL is available", async () => {
+    useReferencePropertiesDerivedStateMock.mockReturnValue({
+      ...defaultDerivedState,
+      activeVideoMode: "lip-sync",
+      isKling3Mode: false,
+      isKlingPatternMode: false,
+      isLipSyncMode: true,
+      isMotionMode: false,
+      referenceStepTitle: "Character image",
+      referenceStepSubtitle: "Add a character image.",
+      promptBadge: "Prompt optional",
+    });
+    const registry = createCanvasTearOutComposerTargetRegistry();
+    const onLipSyncAudioChange = vi.fn();
+    const audioPayload: AgentComposerDirectDropPayload = {
+      kind: "audio",
+      audioUrl: "blob:https://www.shortpulse.ai/local-audio-preview",
+      internalPayload: {
+        version: 1,
+        origin: "ai-studio-reference-grid",
+        referenceId: "audio-output-1",
+        outputId: "audio-output-1",
+        imageIndex: 0,
+        mediaId: "media-audio-1",
+        mediaKind: "audio",
+        referenceUrl: "blob:https://www.shortpulse.ai/local-audio-preview",
+        referenceRenderUrl: "blob:https://www.shortpulse.ai/local-audio-preview",
+        fullStoragePath: "user-1/audio/audio-reference.mp3",
+        sourceSurface: "all-refs",
+        sessionBacked: true,
+      },
+      outputId: "audio-output-1",
+      mediaId: "media-audio-1",
+      durationMs: 30000,
+      audioSourceMode: "voiceover",
+    };
+    const audioPoint: CanvasTearOutPoint = { clientX: 40, clientY: 40 };
+
+    const { container } = render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        canvasTearOutTargetRegistry={registry}
+        onLipSyncAudioChange={onLipSyncAudioChange}
+      />
+    );
+
+    const audioDropzone = container.querySelector(".video-lip-sync-audio-dropzone");
+    expect(audioDropzone).not.toBeNull();
+    setElementRect(audioDropzone as Element, { left: 10, top: 10, width: 360, height: 120 });
+
+    await waitFor(() =>
+      expect(registry.resolveTargetAtPoint(audioPoint, audioPayload)?.id).toBe(
+        "video-lip-sync-audio"
+      )
+    );
+
+    act(() => {
+      registry.resolveTargetAtPoint(audioPoint, audioPayload)?.target.accept(audioPayload);
+    });
+    expect(onLipSyncAudioChange).toHaveBeenCalledWith({
+      url: null,
       durationMs: 30000,
       status: "ready",
       sourceKind: "canvas",

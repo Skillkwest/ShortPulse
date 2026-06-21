@@ -54,6 +54,26 @@ export const isNonDurableLipSyncAudioUrl = (value: string | null | undefined): b
   return isPrivateIpv4Address(hostname);
 };
 
+export const resolveLipSyncAudioDurableSource = ({
+  urlCandidates,
+  storagePathCandidates,
+}: {
+  urlCandidates: (string | null | undefined)[];
+  storagePathCandidates?: (string | null | undefined)[];
+}): { url: string | null; storagePath: string | null } => {
+  const url =
+    urlCandidates
+      .map(normalizeLipSyncAudioUrl)
+      .find((candidate): candidate is string =>
+        Boolean(candidate && !isNonDurableLipSyncAudioUrl(candidate))
+      ) ?? null;
+  const storagePath =
+    (storagePathCandidates ?? [])
+      .map(normalizeLipSyncAudioStoragePath)
+      .find((candidate): candidate is string => Boolean(candidate)) ?? null;
+  return { url, storagePath };
+};
+
 export const createEmptyLipSyncAudioState = (): LipSyncAudioState => ({
   url: null,
   durationMs: null,

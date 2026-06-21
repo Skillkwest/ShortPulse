@@ -41,6 +41,73 @@ const jsonResponse = (payload: unknown, status = 200): Response =>
     headers: { "Content-Type": "application/json" },
   });
 
+const installMotionVideoPrestageMocks = (chunk: Blob) => {
+  const originalCreateElement = document.createElement.bind(document);
+  const videoElement = {
+    muted: false,
+    playsInline: false,
+    preload: "",
+    src: "",
+    videoWidth: 1920,
+    videoHeight: 1080,
+    paused: false,
+    ended: false,
+    onloadedmetadata: null as null | (() => void),
+    onerror: null as null | (() => void),
+    onended: null as null | (() => void),
+    load() {
+      this.onloadedmetadata?.();
+    },
+    async play() {
+      window.setTimeout(() => {
+        this.ended = true;
+        this.onended?.();
+      }, 0);
+    },
+  };
+  const stopTrackMock = vi.fn();
+  const canvasElement = {
+    width: 0,
+    height: 0,
+    getContext: vi.fn(() => ({
+      drawImage: vi.fn(),
+    })),
+    captureStream: vi.fn(() => ({
+      getTracks: () => [{ stop: stopTrackMock }],
+    })),
+  };
+  const createElementSpy = vi.spyOn(document, "createElement").mockImplementation((tagName) => {
+    if (tagName === "video") return videoElement as unknown as HTMLVideoElement;
+    if (tagName === "canvas") return canvasElement as unknown as HTMLCanvasElement;
+    return originalCreateElement(tagName);
+  });
+  class MockMediaRecorder {
+    static isTypeSupported = vi.fn((mimeType: string) => mimeType.startsWith("video/webm"));
+    state: RecordingState = "inactive";
+    ondataavailable: ((event: BlobEvent) => void) | null = null;
+    onerror: (() => void) | null = null;
+    onstop: (() => void) | null = null;
+
+    constructor(
+      public readonly stream: MediaStream,
+      public readonly options: MediaRecorderOptions
+    ) {}
+
+    start() {
+      this.state = "recording";
+    }
+
+    stop() {
+      this.state = "inactive";
+      this.ondataavailable?.({ data: chunk } as BlobEvent);
+      this.onstop?.();
+    }
+  }
+  vi.stubGlobal("MediaRecorder", MockMediaRecorder);
+  vi.stubGlobal("requestAnimationFrame", vi.fn());
+  return { createElementSpy, stopTrackMock };
+};
+
 describe("videoUpload", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -123,6 +190,55 @@ describe("videoUpload", () => {
       sourceName: "motion-reference.webm",
       sourceStoragePath: "user-1/upload-staging/videos/motion-control/ref.webm",
     });
+  });
+
+  it("pre-stages oversized local motion videos before browser-direct storage upload", async () => {
+    const prestagedBlob = new Blob(["prestaged-motion"], { type: "video/webm" });
+    const { createElementSpy } = installMotionVideoPrestageMocks(prestagedBlob);
+    const oversizedFile = new File([new Uint8Array(21 * 1024 * 1024)], "large-motion.mp4", {
+      type: "video/mp4",
+    });
+    fetchWithAuthMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          target: {
+            storagePath: "user-1/upload-staging/videos/motion-control/large-motion.webm",
+            uploadToken: "upload-token",
+            mimeType: "video/webm",
+            name: "large-motion.webm",
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          url: "https://signed.example/large-motion.mp4",
+          path: "user-1/videos/motion-control/large-motion.mp4",
+          size: 2048,
+          mimeType: "video/mp4",
+          name: "large-motion.mp4",
+        })
+      );
+
+    try {
+      const uploaded = await uploadVideoFileToStorage(oversizedFile);
+
+      expect(uploaded.url).toBe("https://signed.example/large-motion.mp4");
+      expect(JSON.parse(String(fetchWithAuthMock.mock.calls[0]?.[1]?.body))).toMatchObject({
+        sourceMimeType: "video/webm",
+        sourceName: expect.stringMatching(/^large-motion-\d+-[a-z0-9]+\.webm$/),
+      });
+      expect(uploadToSignedUrlMock).toHaveBeenCalledWith(
+        "user-1/upload-staging/videos/motion-control/large-motion.webm",
+        "upload-token",
+        prestagedBlob,
+        expect.objectContaining({
+          contentType: "video/webm",
+          upsert: false,
+        })
+      );
+    } finally {
+      createElementSpy.mockRestore();
+    }
   });
 
   it("infers motion-reference MIME type from filename when browsers omit file.type", async () => {

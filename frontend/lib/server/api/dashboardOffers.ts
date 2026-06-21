@@ -3,6 +3,7 @@
  * Normalizes offer payloads and centralizes public/admin offer reads and writes.
  */
 import type { getSupabaseAdmin } from "./supabaseAdmin";
+import { hasLaunchReadyDashboardOfferHeaderCopy } from "../../dashboardOfferPublicCopy";
 
 export const DASHBOARD_OFFER_EYEBROW_MAX_LENGTH = 32;
 export const DASHBOARD_OFFER_TITLE_MAX_LENGTH = 72;
@@ -136,6 +137,16 @@ export const normalizeDashboardOfferInput = (body: unknown): DashboardOfferInput
   }
   if (title.length > DASHBOARD_OFFER_TITLE_MAX_LENGTH) {
     return { offer: emptyNormalizedOffer(), error: "Title is too long." };
+  }
+  if (
+    typeof isActive === "boolean" &&
+    isActive &&
+    !hasLaunchReadyDashboardOfferHeaderCopy({ eyebrow, title })
+  ) {
+    return {
+      offer: emptyNormalizedOffer(),
+      error: "Active public offers cannot use placeholder or test header copy.",
+    };
   }
   if (description.length > DASHBOARD_OFFER_DESCRIPTION_MAX_LENGTH) {
     return { offer: emptyNormalizedOffer(), error: "Description is too long." };

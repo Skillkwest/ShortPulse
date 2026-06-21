@@ -5,6 +5,7 @@
 import React from "react";
 import { ArrowCounterClockwise, CircleNotch, Prohibit, UploadSimple, X } from "phosphor-react";
 import type { StylesLibraryStyleDetails } from "../types";
+import type { StylesLibraryReorderPlacement } from "../logic/stylesLibraryCatalog";
 import {
   NONE_STYLE_ID,
   prependNoneStyleTile,
@@ -25,7 +26,11 @@ import styleLibraryStyles from "../../../styles/ai-studio-styles-library.module.
 
 export type StylesLibraryPanelProps = {
   styles: readonly ExpertEditStyleTile[];
-  onReorderStyle?: (sourceStyleId: string, targetStyleId: string) => Promise<void> | void;
+  onReorderStyle?: (
+    sourceStyleId: string,
+    targetStyleId: string,
+    placement?: StylesLibraryReorderPlacement
+  ) => Promise<void> | void;
   onDeleteStyle?: (styleId: string) => Promise<boolean> | boolean;
   deleteError?: string | null;
   onRestoreBuiltInStyles?: () => Promise<boolean> | boolean;
@@ -54,7 +59,7 @@ export function StylesLibraryPanel({
     renderedStyles,
     pendingEditPreviewImageUrl,
     draggedStyleId,
-    dropTargetStyleId,
+    dropTargetStyle,
     pendingDeleteStyle,
     pendingStyleEdit,
     deleteSubmitting,
@@ -239,7 +244,11 @@ export function StylesLibraryPanel({
                 key={style.id}
                 role="listitem"
                 className={`styles-library-tile ${draggedStyleId === style.id ? "is-dragging" : ""} ${
-                  dropTargetStyleId === style.id ? "is-drop-target" : ""
+                  dropTargetStyle?.styleId === style.id ? "is-drop-target" : ""
+                } ${
+                  dropTargetStyle?.styleId === style.id
+                    ? `is-drop-${dropTargetStyle.placement}`
+                    : ""
                 } ${style.placeholder ? "is-placeholder" : ""} ${
                   isStylePreviewGenerating ? "is-preview-generating" : ""
                 }`.trim()}

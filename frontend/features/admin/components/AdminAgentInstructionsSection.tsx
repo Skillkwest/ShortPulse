@@ -3,7 +3,7 @@
  * Standard, Style Extraction, Edit system presets, and Pulse built-ins all persist to shared global control planes.
  */
 import React from "react";
-import { CaretDown } from "phosphor-react";
+import { CaretDown, DotsSixVertical } from "phosphor-react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { agentPrompts } from "../../../lib/agentPromptsConfig";
 import {
@@ -117,6 +117,8 @@ type PulseBuiltInCatalogDraft = {
 const STANDARD_AGENT_ENTRY_ID = "standard-create-agent";
 const SEEDED_STANDARD_SYSTEM_PROMPT = agentPrompts.STUDIO_AGENT_SYSTEM;
 const SEEDED_STYLE_EXTRACT_PROMPT = agentPrompts.OPENAI_PROMPT_STYLE_EXTRACT;
+const BUILT_IN_STYLE_REORDER_TRANSFER_TYPE = "application/x-shortpulse-admin-built-in-style";
+const BUILT_IN_STYLE_DROP_END_ID = "__built_in_style_drop_end__";
 const PULSE_ARTIFACT_TARGET_OPTIONS: Array<{
   value: CreatePulseArtifactTarget;
   label: string;
@@ -331,6 +333,30 @@ const areBuiltInStyleDraftListsEqual = (
     const candidate = right[index];
     return candidate ? areBuiltInStyleDraftsEqual(draft, candidate) : false;
   });
+
+const reorderBuiltInStyleDrafts = (
+  drafts: readonly AdminBuiltInStyleDraft[],
+  draggedLocalId: string,
+  targetLocalId: string | null
+): AdminBuiltInStyleDraft[] => {
+  const fromIndex = drafts.findIndex((draft) => draft.localId === draggedLocalId);
+  if (fromIndex === -1) return [...drafts];
+  const targetIndex =
+    targetLocalId === null
+      ? drafts.length
+      : drafts.findIndex((draft) => draft.localId === targetLocalId);
+  if (targetIndex === -1 || fromIndex === targetIndex) return [...drafts];
+
+  const next = [...drafts];
+  const [movedDraft] = next.splice(fromIndex, 1);
+  if (!movedDraft) return [...drafts];
+  const normalizedTargetIndex =
+    targetLocalId === null
+      ? next.length
+      : Math.max(0, targetIndex > fromIndex ? targetIndex - 1 : targetIndex);
+  next.splice(normalizedTargetIndex, 0, movedDraft);
+  return next;
+};
 
 const buildAdminEditPresetDrafts = (
   presetDefinitions: readonly ExpertEditSystemPresetDefinition[] = SEEDED_EXPERT_EDIT_SYSTEM_PRESET_DEFINITIONS
@@ -562,6 +588,10 @@ export function AdminAgentInstructionsSection() {
     string | null
   >(null);
   const [builtInStyleSaveIssue, setBuiltInStyleSaveIssue] = React.useState<string | null>(null);
+  const [draggedBuiltInStyleDraftId, setDraggedBuiltInStyleDraftId] = React.useState<string | null>(
+    null
+  );
+  const [builtInStyleDragOverId, setBuiltInStyleDragOverId] = React.useState<string | null>(null);
   const [builtInStylePreviewUploadIssueById, setBuiltInStylePreviewUploadIssueById] =
     React.useState<CopyFeedbackMap>({});
   const [editSystemPresetCardCollapsed, setEditSystemPresetCardCollapsed] = React.useState(true);
@@ -1072,11 +1102,63 @@ export function AdminAgentInstructionsSection() {
     setBuiltInStyleSaveIssue(null);
   }, [nextBuiltInStyleDraftIndex]);
 
+  const handleBuiltInStyleDraftDragStart = React.useCallback(
+    (event: React.DragEvent<HTMLElement>, localId: string) => {
+      if (builtInStyleLoading || builtInStyleSaveState === "saving") {
+        event.preventDefault();
+        return;
+      }
+      event.stopPropagation();
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData(BUILT_IN_STYLE_REORDER_TRANSFER_TYPE, localId);
+      event.dataTransfer.setData("text/plain", localId);
+      setDraggedBuiltInStyleDraftId(localId);
+      setBuiltInStyleDragOverId(localId);
+    },
+    [builtInStyleLoading, builtInStyleSaveState]
+  );
+
+  const handleBuiltInStyleDraftDragEnd = React.useCallback(
+    (event: React.DragEvent<HTMLElement>) => {
+      event.stopPropagation();
+      setDraggedBuiltInStyleDraftId(null);
+      setBuiltInStyleDragOverId(null);
+    },
+    []
+  );
+
+  const handleBuiltInStyleDraftDragOver = React.useCallback(
+    (event: React.DragEvent<HTMLElement>, targetLocalId: string | null) => {
+      if (!draggedBuiltInStyleDraftId) return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.dataTransfer.dropEffect = "move";
+      const nextDragOverId = targetLocalId ?? BUILT_IN_STYLE_DROP_END_ID;
+      setBuiltInStyleDragOverId(nextDragOverId);
+      setBuiltInStyleDrafts((current) => {
+        const next = reorderBuiltInStyleDrafts(current, draggedBuiltInStyleDraftId, targetLocalId);
+        return areBuiltInStyleDraftListsEqual(current, next) ? current : next;
+      });
+      setBuiltInStyleSaveState("idle");
+      setBuiltInStyleSaveIssue(null);
+    },
+    [draggedBuiltInStyleDraftId]
+  );
+
+  const handleBuiltInStyleDraftDrop = React.useCallback((event: React.DragEvent<HTMLElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setDraggedBuiltInStyleDraftId(null);
+    setBuiltInStyleDragOverId(null);
+  }, []);
+
   const handleResetBuiltInStyleDrafts = React.useCallback(() => {
     setBuiltInStyleDrafts(storedBuiltInStyleDrafts);
     setNextBuiltInStyleDraftIndex(storedBuiltInStyleDrafts.length + 1);
     setBuiltInStyleSaveState("idle");
     setBuiltInStyleSaveIssue(null);
+    setDraggedBuiltInStyleDraftId(null);
+    setBuiltInStyleDragOverId(null);
   }, [storedBuiltInStyleDrafts]);
 
   const handleSaveBuiltInStyleDrafts = React.useCallback(async () => {
@@ -1803,7 +1885,17 @@ export function AdminAgentInstructionsSection() {
                   <article
                     key={draft.localId}
                     role="listitem"
-                    className={`${styles.agentEditPresetTile} ${styles.agentBuiltInStyleTile}`}
+                    className={`${styles.agentEditPresetTile} ${styles.agentBuiltInStyleTile} ${
+                      draggedBuiltInStyleDraftId === draft.localId
+                        ? styles.agentBuiltInStyleTileDragging
+                        : ""
+                    } ${
+                      builtInStyleDragOverId === draft.localId
+                        ? styles.agentBuiltInStyleTileDropTarget
+                        : ""
+                    }`}
+                    onDragOver={(event) => handleBuiltInStyleDraftDragOver(event, draft.localId)}
+                    onDrop={handleBuiltInStyleDraftDrop}
                   >
                     <button
                       type="button"
@@ -1817,6 +1909,23 @@ export function AdminAgentInstructionsSection() {
                     <div
                       className={`${styles.agentEditPresetTileButton} ${styles.agentBuiltInStyleTileHeader}`}
                     >
+                      <button
+                        type="button"
+                        className={styles.agentBuiltInStyleDragHandle}
+                        aria-label={`Drag ${cardTitle} built-in Style to reorder`}
+                        title="Drag to reorder"
+                        draggable={!builtInStyleLoading && builtInStyleSaveState !== "saving"}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                        }}
+                        onDragStart={(event) =>
+                          handleBuiltInStyleDraftDragStart(event, draft.localId)
+                        }
+                        onDragEnd={handleBuiltInStyleDraftDragEnd}
+                      >
+                        <DotsSixVertical size={17} weight="bold" aria-hidden="true" />
+                      </button>
                       <span className={styles.agentEditPresetTileTitle}>{cardTitle}</span>
                     </div>
                     <div
@@ -1909,9 +2018,15 @@ export function AdminAgentInstructionsSection() {
               })}
               <button
                 type="button"
-                className={`${styles.agentEditPresetTile} ${styles.agentEditPresetTileAdd}`}
+                className={`${styles.agentEditPresetTile} ${styles.agentEditPresetTileAdd} ${
+                  builtInStyleDragOverId === BUILT_IN_STYLE_DROP_END_ID
+                    ? styles.agentBuiltInStyleTileDropTarget
+                    : ""
+                }`}
                 onClick={handleAddBuiltInStyleDraft}
                 disabled={builtInStyleLoading || builtInStyleSaveState === "saving"}
+                onDragOver={(event) => handleBuiltInStyleDraftDragOver(event, null)}
+                onDrop={handleBuiltInStyleDraftDrop}
               >
                 <span className={styles.agentEditPresetTileAddIcon}>+</span>
                 <span className={styles.agentEditPresetTileTitle}>Add built-in Style</span>

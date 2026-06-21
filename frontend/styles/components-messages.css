@@ -112,9 +112,15 @@
   top: var(--app-message-stack-viewport-top, var(--spacing-16));
   right: var(--app-message-stack-viewport-right, var(--spacing-16));
   left: var(--app-message-stack-viewport-left, var(--spacing-16));
+  width: auto;
   z-index: var(--app-message-stack-viewport-z-index, var(--z-toast, 100));
+  max-width: calc(
+    100vw - var(--app-message-stack-viewport-left, var(--spacing-16)) -
+      var(--app-message-stack-viewport-right, var(--spacing-16))
+  );
   max-height: var(--app-message-stack-viewport-max-height, min(38vh, 320px));
   overflow-y: auto;
+  overflow-x: hidden;
   overscroll-behavior: contain;
   pointer-events: none;
 }

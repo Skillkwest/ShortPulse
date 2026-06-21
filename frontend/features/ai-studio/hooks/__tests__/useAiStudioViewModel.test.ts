@@ -1608,6 +1608,37 @@ describe("useAiStudioViewModel lip sync guardrails", () => {
     expect(result.current.isGenerateDisabled).toBe(false);
   });
 
+  it("allows Lip Sync when voice audio has storage authority without a playback URL", () => {
+    const videoPricingPolicy = withVideoBilledCreditsOverride({
+      modelId: FAL_OMNIHUMAN_V15_MODEL_ID,
+      params: makeCostParamsForModel(FAL_OMNIHUMAN_V15_MODEL_ID)({
+        durationSeconds: 12.4,
+        resolution: "1080p",
+        audio: true,
+      }),
+      credits: 45,
+    });
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        model: FAL_OMNIHUMAN_V15_MODEL_ID,
+        costParamsForModel: makeCostParamsForModel(FAL_OMNIHUMAN_V15_MODEL_ID),
+        referenceImageUrl: "https://example.com/character.jpg",
+        videoReferenceMode: "lip-sync",
+        lipSyncAudio: createReadyLipSyncAudioState({
+          url: null,
+          storagePath: "user-1/audio/reference-grid/voice.mp3",
+          durationMs: 12_400,
+          sourceKind: "library",
+        }),
+        pricingPolicy: videoPricingPolicy,
+      })
+    );
+
+    expect(result.current.generationGuardrail).toBeNull();
+    expect(result.current.isGenerateDisabled).toBe(false);
+  });
+
   it("blocks 1080p Lip Sync when voice audio is 30 seconds or longer", () => {
     const { result } = renderHook(() =>
       useAiStudioViewModel({

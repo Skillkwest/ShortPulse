@@ -129,8 +129,6 @@ as applicable):
   - `SHORTPULSE_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS` (defaults to `false`)
   - `NEXT_PUBLIC_MEDIA_DIRECT_URL_ALLOWED_HOSTS` (optional client-side trusted direct-preview hosts; keep aligned with server value)
   - `NEXT_PUBLIC_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS` (defaults to `false`; keep aligned with server value)
-  - `SHORTPULSE_MEDIA_UPLOAD_API_ENABLED` (defaults to `true`; server-authoritative Media Library upload route gate)
-  - `NEXT_PUBLIC_MEDIA_UPLOAD_API_ENABLED` (defaults to `true`; client upload-controller migration gate)
   - Media Library modal/panel now ship with one canonical list runtime: `/api/media/list` plus the default virtualization, video-budget, sign-prefetch, and gesture behaviors.
   - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES` (comma-separated adaptive surface allowlist; this is not permission to emit Supabase `/storage/v1/render/image/` URLs, and blank/whitespace is not a safe disable state under the current parser fallback)
   - `SHORTPULSE_MEDIA_SIGNED_TRANSFORMS_ENABLED` (deny-only compatibility flag; must remain `false`; do not use as a rollout control)

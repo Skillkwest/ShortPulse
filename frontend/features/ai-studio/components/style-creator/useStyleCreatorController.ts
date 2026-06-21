@@ -11,6 +11,7 @@ import {
 import { sanitizeCustomerFacingProviderText } from "../../../../lib/customerFacingProviderText";
 import type { StylesLibraryStyleDetails } from "../../types";
 import type { ExpertEditStyleTile } from "../edit/expertEditStyles";
+import type { StylesLibraryReorderPlacement } from "../../logic/stylesLibraryCatalog";
 import {
   extractComposerImageDropPayload,
   extractInternalReferenceDragPayload,
@@ -56,7 +57,11 @@ import type {
 
 type UseStyleCreatorControllerParams = {
   styles: readonly ExpertEditStyleTile[];
-  onReorderStyle?: (sourceStyleId: string, targetStyleId: string) => Promise<void> | void;
+  onReorderStyle?: (
+    sourceStyleId: string,
+    targetStyleId: string,
+    placement?: StylesLibraryReorderPlacement
+  ) => Promise<void> | void;
   onDeleteStyle?: (styleId: string) => Promise<boolean> | boolean;
   onSaveStyleDetails?: (
     styleId: string,
@@ -197,6 +202,33 @@ const countRawSnapshotUrlSeeds = (
   }, 0);
 };
 
+const resolvePointerDropPlacement = (
+  event: React.DragEvent<HTMLElement>
+): StylesLibraryReorderPlacement | null => {
+  const rect = event.currentTarget.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return null;
+  if (!Number.isFinite(event.clientX) || !Number.isFinite(event.clientY)) return null;
+  const horizontalOffset = (event.clientX - rect.left) / rect.width - 0.5;
+  const verticalOffset = (event.clientY - rect.top) / rect.height - 0.5;
+  return Math.abs(horizontalOffset) >= Math.abs(verticalOffset)
+    ? horizontalOffset >= 0
+      ? "after"
+      : "before"
+    : verticalOffset >= 0
+      ? "after"
+      : "before";
+};
+
+const resolveCatalogDropPlacement = (
+  styles: readonly ExpertEditStyleTile[],
+  sourceStyleId: string,
+  targetStyleId: string
+): StylesLibraryReorderPlacement => {
+  const sourceIndex = styles.findIndex((style) => style.id === sourceStyleId);
+  const targetIndex = styles.findIndex((style) => style.id === targetStyleId);
+  return sourceIndex >= 0 && targetIndex >= 0 && sourceIndex < targetIndex ? "after" : "before";
+};
+
 const trackStyleSourceDiagnosticFromSnapshot = ({
   dropSnapshot,
   flow,
@@ -280,7 +312,10 @@ export const useStyleCreatorController = ({
 
   const [orderedStyleIds, setOrderedStyleIds] = React.useState<string[]>([]);
   const [draggedStyleId, setDraggedStyleId] = React.useState<string | null>(null);
-  const [dropTargetStyleId, setDropTargetStyleId] = React.useState<string | null>(null);
+  const [dropTargetStyle, setDropTargetStyle] = React.useState<{
+    styleId: string;
+    placement: StylesLibraryReorderPlacement;
+  } | null>(null);
   const [pendingDeleteStyle, setPendingDeleteStyle] = React.useState<ExpertEditStyleTile | null>(
     null
   );
@@ -883,9 +918,10 @@ export const useStyleCreatorController = ({
   const handleStyleDragStart = React.useCallback(
     (styleId: string, event: React.DragEvent<HTMLElement>) => {
       setDraggedStyleId(styleId);
-      setDropTargetStyleId(null);
+      setDropTargetStyle(null);
       event.dataTransfer.effectAllowed = "move";
       event.dataTransfer.setData("text/style-library-id", styleId);
+      event.dataTransfer.setData("text/plain", styleId);
     },
     []
   );
@@ -895,11 +931,13 @@ export const useStyleCreatorController = ({
       if (!draggedStyleId || draggedStyleId === styleId) return;
       event.preventDefault();
       event.dataTransfer.dropEffect = "move";
-      if (dropTargetStyleId !== styleId) {
-        setDropTargetStyleId(styleId);
+      const placement = resolvePointerDropPlacement(event);
+      if (!placement) return;
+      if (dropTargetStyle?.styleId !== styleId || dropTargetStyle.placement !== placement) {
+        setDropTargetStyle({ styleId, placement });
       }
     },
-    [draggedStyleId, dropTargetStyleId]
+    [draggedStyleId, dropTargetStyle]
   );
 
   const handleStyleDrop = React.useCallback(
@@ -908,22 +946,29 @@ export const useStyleCreatorController = ({
       const sourceStyleId =
         draggedStyleId || event.dataTransfer.getData("text/style-library-id") || null;
       if (!sourceStyleId || sourceStyleId === targetStyleId) {
-        setDropTargetStyleId(null);
+        setDropTargetStyle(null);
         return;
       }
+      const placement =
+        dropTargetStyle?.styleId === targetStyleId
+          ? dropTargetStyle.placement
+          : (resolvePointerDropPlacement(event) ??
+            resolveCatalogDropPlacement(renderedStyles, sourceStyleId, targetStyleId));
       if (onReorderStyle) {
-        void onReorderStyle(sourceStyleId, targetStyleId);
+        void onReorderStyle(sourceStyleId, targetStyleId, placement);
       } else {
-        setOrderedStyleIds((previous) => reorderById(previous, sourceStyleId, targetStyleId));
+        setOrderedStyleIds((previous) =>
+          reorderById(previous, sourceStyleId, targetStyleId, placement)
+        );
       }
-      setDropTargetStyleId(null);
+      setDropTargetStyle(null);
     },
-    [draggedStyleId, onReorderStyle]
+    [draggedStyleId, dropTargetStyle, onReorderStyle, renderedStyles]
   );
 
   const handleStyleDragEnd = React.useCallback(() => {
     setDraggedStyleId(null);
-    setDropTargetStyleId(null);
+    setDropTargetStyle(null);
   }, []);
 
   React.useEffect(() => {
@@ -982,7 +1027,7 @@ export const useStyleCreatorController = ({
     renderedStyles,
     pendingEditPreviewImageUrl,
     draggedStyleId,
-    dropTargetStyleId,
+    dropTargetStyle,
     pendingDeleteStyle,
     pendingStyleEdit,
     deleteSubmitting,

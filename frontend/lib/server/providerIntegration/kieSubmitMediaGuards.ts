@@ -127,6 +127,23 @@ const readTopLevelMediaInput = (payload: Record<string, unknown>): ParsedMediaIn
   return { model: model ?? null, motionControl, imageUrls, videoUrls };
 };
 
+const readKlingElementMediaInput = (
+  payload: Record<string, unknown>
+): { imageUrls: string[]; videoUrls: string[] } => {
+  const input = asRecord(payload.input);
+  const source = Object.keys(input).length ? input : payload;
+  const elements = Array.isArray(source.kling_elements) ? source.kling_elements : [];
+  return elements.reduce<{ imageUrls: string[]; videoUrls: string[] }>(
+    (accumulator, element) => {
+      const record = asRecord(element);
+      accumulator.imageUrls.push(...readStringList(record.element_input_urls));
+      accumulator.videoUrls.push(...readStringList(record.element_input_video_urls));
+      return accumulator;
+    },
+    { imageUrls: [], videoUrls: [] }
+  );
+};
+
 const readPathExtension = (url: URL): string | null => {
   const lastSegment = url.pathname.split("/").filter(Boolean).pop() ?? "";
   if (!lastSegment.includes(".")) return null;
@@ -356,8 +373,9 @@ export const buildKieSubmitMediaDiagnostics = (
   payload: Record<string, unknown>
 ): KieSubmitMediaDiagnostics => {
   const parsed = readTopLevelMediaInput(payload);
+  const elementMedia = readKlingElementMediaInput(payload);
   const media: MediaDiagnostic[] = [];
-  parsed.imageUrls.forEach((url) => {
+  unique([...parsed.imageUrls, ...elementMedia.imageUrls]).forEach((url) => {
     try {
       const parsedUrl = new URL(url);
       media.push({
@@ -379,7 +397,7 @@ export const buildKieSubmitMediaDiagnostics = (
       });
     }
   });
-  parsed.videoUrls.forEach((url) => {
+  unique([...parsed.videoUrls, ...elementMedia.videoUrls]).forEach((url) => {
     try {
       const parsedUrl = new URL(url);
       media.push({
@@ -419,10 +437,17 @@ export const validateKieKlingSubmitMediaInputs = async ({
   signal: AbortSignal;
 }): Promise<KieSubmitMediaValidationResult> => {
   const parsed = readTopLevelMediaInput(payload);
+  const elementMedia = readKlingElementMediaInput(payload);
   const diagnostics = buildKieSubmitMediaDiagnostics(payload);
   const mediaToValidate: Array<{ url: string; kind: MediaKind }> = [
-    ...parsed.imageUrls.map((url) => ({ url, kind: "image" as const })),
-    ...parsed.videoUrls.map((url) => ({ url, kind: "video" as const })),
+    ...unique([...parsed.imageUrls, ...elementMedia.imageUrls]).map((url) => ({
+      url,
+      kind: "image" as const,
+    })),
+    ...unique([...parsed.videoUrls, ...elementMedia.videoUrls]).map((url) => ({
+      url,
+      kind: "video" as const,
+    })),
   ];
   for (const [index, media] of mediaToValidate.entries()) {
     const failure = await validateOneMediaUrl({

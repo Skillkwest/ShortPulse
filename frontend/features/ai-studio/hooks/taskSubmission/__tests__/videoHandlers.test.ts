@@ -2232,6 +2232,89 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     );
   });
 
+  it("submits Kling motion-control with prepared linked elements and no shot-mode prompt injection", async () => {
+    videoUploadMocks.prepareMotionReferenceVideoUrlOverride = vi.fn(async (url) => url);
+    mockKieUploadRouteForFileUrls({
+      "https://example.com/character.png": KIE_TEMP_CHARACTER_IMAGE_URL,
+      "user-1/videos/motion-control/motion.mp4": KIE_TEMP_MOTION_REFERENCE_URL,
+      "https://example.com/element-a.png":
+        "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/element-a.png",
+      "https://example.com/element-b.png":
+        "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/element-b.png",
+      "https://example.com/element-video.mp4":
+        "https://tempfile.aiquickdraw.com/shortpulse/kie-video/videos/element-video.mp4",
+    });
+    const args = makeArgs({
+      finalModel: KIE_KLING_30_MODEL_ID,
+      modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
+      videoReferenceMode: "motion",
+      cleanedPrompt: "Transfer this movement to the lantern and train",
+      videoReferenceImageUrl: "https://example.com/character.png",
+      motionReferenceVideoUrl: CANONICAL_MOTION_REFERENCE_URL,
+      preparedImageInputs: ["https://example.com/character.png"],
+      klingWorkflowMode: "multi",
+      klingElements: [
+        {
+          id: "element-1",
+          slotIndex: 0,
+          name: "Red Lantern",
+          alias: "redlantern",
+          frontalImageUrl: "https://example.com/element-a.png",
+          referenceImageUrls: "https://example.com/element-b.png",
+          videoUrl: "",
+        },
+        {
+          id: "element-2",
+          slotIndex: 1,
+          name: "Steam Train",
+          alias: "steamtrain",
+          frontalImageUrl: "",
+          referenceImageUrls: "",
+          videoUrl: "https://example.com/element-video.mp4",
+        },
+      ],
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: "Transfer this movement to the lantern and train @element1 @element2",
+        image_url: KIE_TEMP_CHARACTER_IMAGE_URL,
+        input_urls: [KIE_TEMP_CHARACTER_IMAGE_URL],
+        video_url: KIE_TEMP_MOTION_REFERENCE_URL,
+        video_urls: [KIE_TEMP_MOTION_REFERENCE_URL],
+        mode: "1080p",
+        kling_elements: [
+          {
+            name: "element1",
+            description: "Reference images for Red Lantern",
+            element_input_urls: [
+              "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/element-a.png",
+              "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/element-b.png",
+            ],
+          },
+          {
+            name: "element2",
+            description: "Reference video for Steam Train",
+            element_input_video_urls: [
+              "https://tempfile.aiquickdraw.com/shortpulse/kie-video/videos/element-video.mp4",
+            ],
+          },
+        ],
+      })
+    );
+    const submittedPrompt = vi.mocked(submitKieKlingImageToVideo).mock.calls[0]?.[0]?.prompt;
+    expect(submittedPrompt).not.toMatch(/^Create this as a multi-shot sequence/);
+    expect(submitKieKlingImageToVideo).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        aspect_ratio: expect.any(String),
+        duration: expect.any(Number),
+      })
+    );
+  });
+
   it("normalizes restored WebM motion-control videos before provider submit", async () => {
     const prepareMotionReferenceVideoUrlMock = vi
       .fn()

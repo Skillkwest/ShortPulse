@@ -53,6 +53,7 @@ type MediaLibraryAllItemsGridProps = {
   onSelectMediaFile: (file: MediaFileRow) => void;
   onSelectPromptCard: (prompt: PromptRow) => void;
   onMediaDoubleClick?: (file: MediaFileRow) => void;
+  onPromptDoubleClick?: (prompt: PromptRow) => void;
   onMediaDragStart?: (
     event: React.DragEvent<HTMLElement>,
     file: MediaFileRow,
@@ -112,6 +113,7 @@ export function MediaLibraryAllItemsGrid({
   onSelectMediaFile,
   onSelectPromptCard,
   onMediaDoubleClick,
+  onPromptDoubleClick,
   onMediaDragStart,
   onPromptDragStart,
   onMediaDragEnd,
@@ -280,6 +282,7 @@ export function MediaLibraryAllItemsGrid({
               prompt={prompt}
               isSelected={isSelected}
               onSelectPromptCard={onSelectPromptCard}
+              onPromptDoubleClick={onPromptDoubleClick}
               onPromptDragStart={onPromptDragStart}
               onPromptDragEnd={onPromptDragEnd}
               showRemoveAction={showRemoveAction}

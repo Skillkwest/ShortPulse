@@ -800,8 +800,11 @@ describe("generationBilling reservation RPC handling", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
-  it("fails closed when a canonical video billed row is missing", async () => {
-    const rpcMock = vi.fn();
+  it("reserves Seedance video requests from the shared-policy canonical row by default", async () => {
+    const rpcMock = vi.fn().mockResolvedValueOnce({
+      data: [{ status: "reserved", source_ref: "req-video-missing-row", message: null }],
+      error: null,
+    });
     getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
 
     const req = {
@@ -843,18 +846,44 @@ describe("generationBilling reservation RPC handling", () => {
       },
     });
 
-    expect(charge).toBeNull();
-    expect(rpcMock).not.toHaveBeenCalled();
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({
-      error: "Pricing is unavailable for this configuration.",
+    const expectedPricingParams = buildPricingParams(KIE_SEEDANCE_2_FAST_MODEL_ID, {
+      prompt: "product hero turntable shot",
+      duration: 10,
+      resolution: "720p",
+      aspect_ratio: "1:1",
+      generate_audio: false,
+      shortpulse_context: {
+        selected_tool: "video",
+        mode: "video",
+      },
     });
-    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+    const expectedBreakdown = resolveVideoBilledCreditLookup({
+      modelId: KIE_SEEDANCE_2_FAST_MODEL_ID,
+      params: expectedPricingParams,
+      pricingPolicy: materializeImageBilledCreditPolicy(getDefaultModelPricingPolicyDocument()),
+    }).breakdown;
+
+    expect(charge).not.toBeNull();
+    expect(expectedBreakdown).toMatchObject({
+      variantId: "default|res:720p|aspect:16:9|audio:on",
+    });
+    expect(rpcMock).toHaveBeenCalledWith(
+      "admit_and_reserve_generation_credits",
       expect.objectContaining({
-        source: "api.generation_billing_missing_canonical_video_price",
-        statusCode: 500,
+        p_amount_cents: Math.abs(expectedBreakdown?.credits ?? 0),
+        p_metadata: expect.objectContaining({
+          model_id: KIE_SEEDANCE_2_FAST_MODEL_ID,
+          debited_credits: expectedBreakdown?.credits,
+          pricing_breakdown: expect.objectContaining({
+            billed_credits: expectedBreakdown?.credits,
+            billed_usd: expectedBreakdown?.usd,
+            variant_id: expectedBreakdown?.variantId,
+          }),
+        }),
       })
     );
+    expect(res.status).not.toHaveBeenCalled();
+    expect(logGenerationFailureMock).not.toHaveBeenCalled();
   });
 
   it("reserves audio requests from the pricing-grid resolver when shortpulse_context marks sound billing", async () => {

@@ -28,6 +28,7 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
   - Motion Control:
     - root: `model="kling-3.0/motion-control"`, optional `callBackUrl`
     - payload body under `input` with `input_urls` (one character image URL), `video_urls` (one motion reference video URL), and resolution mode (`mode=720p|1080p`)
+    - optional linked elements use the same `kling_elements` contract as Standard Kling and are referenced from the Motion prompt with `@elementN` tokens
 - Allowed aspects: `16:9`, `9:16`, `1:1` for Standard image-to-video only
 - Allowed resolutions: `720p`, `1080p`
 - Allowed durations: `5`, `10` (seconds) for Standard image-to-video only
@@ -55,13 +56,14 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
   - `sound` (or alias `generate_audio`)
   - `multi_shots` (requires `sound=true` when enabled)
   - `multi_prompt[]` is provider-supported, but the current AI Studio panel does not submit it for `Single`, `Multi`, or restored legacy custom state
-  - `kling_elements` for inline `@ElementName` prompt references; a valid element uses either `2-4` image URLs in `element_input_urls` or exactly one video URL in `element_input_video_urls`, and a single task may include at most `3` elements
+  - `kling_elements` for inline `@ElementName` prompt references in Standard and Motion Control; a valid element uses either `2-4` image URLs in `element_input_urls` or exactly one video URL in `element_input_video_urls`, and a single task may include at most `3` elements
   - `cfg_scale`
   - canonical callback URL field `callback_url` (edge aliases `callBackUrl` / `callbackUrl` normalized at ingress)
   - Motion Control canonical fields: `input_urls`, `video_urls`, `character_orientation`, `background_source`, and resolution mode (`mode=720p|1080p`)
 - Motion Control product notes:
   - Motion UI hides aspect and duration because the motion-control provider payload does not use them.
   - Motion UI keeps audio enabled as a supported setting for this lane.
+  - Motion UI exposes the same linked Character/Element slots as Standard Kling. Submit compilation rewrites missing inline element tokens into the Motion prompt but does not prepend Standard `Single`/`Multi` hidden shot-mode instructions.
   - Motion cost estimate is intentionally suppressed until provider-backed billing evidence exists for this lane.
   - Motion reference source videos must be provider-facing MP4 or QuickTime/MOV and 3-30 seconds. Local/browser-recorded MP4, MOV, and WebM are accepted only as ShortPulse intake formats and are normalized to canonical MP4 before the Motion slot receives the provider-facing URL.
 
@@ -84,6 +86,12 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
   - submits top-level `prompt`
   - sends first frame and optional last frame
   - keeps `multi_shots=false`
+- Motion Control
+  - submits top-level `prompt` through the motion-control route
+  - requires one character image and one motion reference video
+  - sends linked elements through the same `kling_elements` contract as Standard Kling
+  - rewrites missing `@elementN` prompt tokens before submit
+  - does not apply Standard hidden shot-mode prompt composition
 
 ## Pricing (ShortPulse runtime)
 

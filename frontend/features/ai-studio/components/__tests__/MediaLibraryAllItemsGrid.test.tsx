@@ -389,6 +389,27 @@ describe("MediaLibraryAllItemsGrid", () => {
     });
   });
 
+  it("opens prompt detail through the mixed feed prompt card double click handler", () => {
+    const props = baseProps();
+    props.promptRows = [
+      {
+        id: "prompt-1",
+        title: "Prompt One",
+        prompt_text: "Cinematic portrait prompt",
+        created_at: "2026-04-09T18:00:00.000Z",
+      },
+    ];
+    props.onPromptDoubleClick = vi.fn();
+
+    render(<MediaLibraryAllItemsGrid {...props} />);
+
+    fireEvent.doubleClick(screen.getByText("Cinematic portrait prompt"));
+
+    expect(props.onPromptDoubleClick).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "prompt-1" })
+    );
+  });
+
   it("reports poster image loads as signed-url and paint completion for video cards", () => {
     const props = baseProps();
     render(<MediaLibraryAllItemsGrid {...props} />);

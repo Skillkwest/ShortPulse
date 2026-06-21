@@ -43,10 +43,11 @@ Rules:
 3. JSONB storage remains in `user_preferences.ai_studio_style_details_overrides` for user-created custom Styles only.
 4. Shared style order persists separately in `user_preferences.ai_studio_style_panel_ids`.
 5. Global built-in Styles are sourced from `ai_studio_builtin_style_runtime`, edited only from `/admin/agent-instructions`, and ignored when a matching id appears in `ai_studio_style_details_overrides`.
-6. Custom-style delete must remove the source row from the details override map; built-in Style delete uses the per-user delete denylist for hide semantics without mutating the global built-in definition. Restoring built-in Styles clears only that per-user denylist and must not reset custom Styles or shared style order.
-7. Admin built-in Style preview uploads use the same local image preprocessing as custom Styles and write the processed preview image URL/data URL into the global built-in Style definition.
-8. Admin built-in Style ids are generated automatically from the first saved style name, normalized as lowercase hyphenated ids, capped at 160 characters, and preserved on later renames. Existing ids must not be regenerated unless the product intentionally replaces or migrates that built-in Style identity.
-9. Customer-facing built-in Styles runtime must fail closed instead of returning seeded fallback content. The local seeded catalog is admin recovery/operator visibility only; it must not be rendered by AI Studio Styles Library, the right-rail Styles panel, selected-style controls, or generation detail previews.
+6. Admin drag reorder of built-in Styles persists the ordered global catalog array and becomes the default built-in Style sort order for all users.
+7. Custom-style delete must remove the source row from the details override map; built-in Style delete uses the per-user delete denylist for hide semantics without mutating the global built-in definition. Restoring built-in Styles clears only that per-user denylist and must not reset custom Styles or shared style order.
+8. Admin built-in Style preview uploads use the same local image preprocessing as custom Styles and write the processed preview image URL/data URL into the global built-in Style definition.
+9. Admin built-in Style ids are generated automatically from the first saved style name, normalized as lowercase hyphenated ids, capped at 160 characters, and preserved on later renames. Existing ids must not be regenerated unless the product intentionally replaces or migrates that built-in Style identity.
+10. Customer-facing built-in Styles runtime must fail closed instead of returning seeded fallback content. The local seeded catalog is admin recovery/operator visibility only; it must not be rendered by AI Studio Styles Library, the right-rail Styles panel, selected-style controls, or generation detail previews.
 
 ## Workflow
 

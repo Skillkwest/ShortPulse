@@ -7,6 +7,7 @@ import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import { resolveMotionReferenceVideoStoragePathFromUrl } from "../../../lib/motionReferenceVideoStorage";
 import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import { BUCKET } from "../../media-library/logic/mediaLibraryPageHelpers";
+import { maybePrestageMotionReferenceVideoBlob } from "./motionReferenceVideoPrestage";
 import { readRememberedObjectUrlBlob } from "./objectUrlBlobRegistry";
 import { parseSupabaseSignedObjectRef, shouldRefreshSupabaseSignedUrl } from "./supabaseSignedUrl";
 
@@ -127,6 +128,12 @@ const inferVideoBlobMimeType = (blob: Blob, filename: string): string => {
 
 const inferVideoFileExtensionFromMimeType = (mimeType: string): string =>
   VIDEO_EXTENSION_BY_MIME_TYPE.get(normalizeVideoUploadMimeType(mimeType)) ?? "mp4";
+
+const replaceVideoFileExtension = (filename: string, extension: string): string => {
+  const trimmedFilename = filename.trim() || "motion-reference";
+  const nextExtension = extension.replace(/^\./, "").trim() || "mp4";
+  return trimmedFilename.replace(/\.[^/.]+$/, "") + `.${nextExtension}`;
+};
 
 const readDataVideoUrlBlob = (url: string): Blob | null => {
   const match = url.match(/^data:([^;,]+)((?:;[^,]*)?),(.*)$/is);
@@ -263,7 +270,14 @@ const uploadVideoBlob = async ({
   mimeType: string;
   filename: string;
 }): Promise<VideoUploadResult> => {
-  const normalizedMimeType = normalizeVideoUploadMimeType(mimeType || blob.type);
+  const preparedBlob = await maybePrestageMotionReferenceVideoBlob(blob);
+  const wasPrestaged = preparedBlob !== blob;
+  const normalizedMimeType = normalizeVideoUploadMimeType(
+    (wasPrestaged ? preparedBlob.type : mimeType) || preparedBlob.type
+  );
+  const uploadFilename = wasPrestaged
+    ? replaceVideoFileExtension(filename, inferVideoFileExtensionFromMimeType(normalizedMimeType))
+    : filename;
   const prepareResponse = await fetchWithAuth("/api/media/prepare-motion-reference-video-upload", {
     method: "POST",
     headers: {
@@ -271,7 +285,7 @@ const uploadVideoBlob = async ({
     },
     body: JSON.stringify({
       sourceMimeType: normalizedMimeType,
-      sourceName: filename,
+      sourceName: uploadFilename,
     }),
     shortpulseLogScope: "generation",
     shortpulseAuthTimeoutMs: MOTION_REFERENCE_UPLOAD_AUTH_TIMEOUT_MS,
@@ -293,7 +307,9 @@ const uploadVideoBlob = async ({
       ? preparePayload.target.mimeType.trim()
       : normalizedMimeType;
   const preparedName =
-    typeof preparePayload?.target?.name === "string" ? preparePayload.target.name.trim() : filename;
+    typeof preparePayload?.target?.name === "string"
+      ? preparePayload.target.name.trim()
+      : uploadFilename;
 
   if (!prepareResponse.ok || !storagePath || !uploadToken) {
     throw new Error(
@@ -307,7 +323,7 @@ const uploadVideoBlob = async ({
   const supabase = ensureSupabaseQueryClient();
   const uploadToSignedUrlResult = await supabase.storage
     .from(BUCKET)
-    .uploadToSignedUrl(storagePath, uploadToken, blob, {
+    .uploadToSignedUrl(storagePath, uploadToken, preparedBlob, {
       contentType: preparedMimeType,
       upsert: false,
     });
@@ -343,7 +359,7 @@ const uploadVideoBlob = async ({
 
   const url = typeof result?.url === "string" ? result.url.trim() : "";
   const path = typeof result?.path === "string" ? result.path.trim() : "";
-  const size = typeof result?.size === "number" ? result.size : blob.size;
+  const size = typeof result?.size === "number" ? result.size : preparedBlob.size;
   const resultMimeType = typeof result?.mimeType === "string" ? result.mimeType.trim() : "";
   const resultName = typeof result?.name === "string" ? result.name.trim() : "";
   if (!url || !path) {

@@ -4,9 +4,17 @@
  * protected-route prerequisites are satisfied.
  */
 import dynamic from "next/dynamic";
+import Head from "next/head";
 import type { ParsedUrlQuery } from "querystring";
 import { useRouter } from "next/router";
-import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentProps,
+  type ComponentType,
+} from "react";
 import { AppErrorBoundary } from "../../../components/AppErrorBoundary";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { useProtectedRoute } from "../../../lib/authGuard";
@@ -18,9 +26,23 @@ import { AiStudioProjectEntryState } from "../components/AiStudioProjectEntrySta
 
 const loadAiStudioRouteApp = () => import("./AiStudioRouteApp");
 
+const AiStudioEntryHead = () => (
+  <Head>
+    <title>ShortPulse · AI Studio</title>
+    <meta name="description" content="AI Studio — prompt, generate, preview, save." />
+  </Head>
+);
+
+const AiStudioEntryStateFrame = (props: ComponentProps<typeof AiStudioProjectEntryState>) => (
+  <>
+    <AiStudioEntryHead />
+    <AiStudioProjectEntryState {...props} />
+  </>
+);
+
 const AiStudioRouteApp = dynamic(loadAiStudioRouteApp, {
   loading: () => (
-    <AiStudioProjectEntryState
+    <AiStudioEntryStateFrame
       variant="loading"
       phase="resolving-project"
       stepsAriaLabel="Project loading progress"
@@ -302,7 +324,7 @@ export default function AiStudioProtectedRouteEntry({
 
   if (loading || !session) {
     return (
-      <AiStudioProjectEntryState
+      <AiStudioEntryStateFrame
         variant="loading"
         phase="resolving-project"
         message="Checking your session before project restore continues."
@@ -314,7 +336,7 @@ export default function AiStudioProtectedRouteEntry({
 
   if (mediaCompliance.status === "loading") {
     return (
-      <AiStudioProjectEntryState
+      <AiStudioEntryStateFrame
         variant="loading"
         phase="resolving-project"
         message="Checking your media agreement before project restore continues."
@@ -326,7 +348,7 @@ export default function AiStudioProtectedRouteEntry({
 
   if (mediaCompliance.status === "auth_recovery_required") {
     return (
-      <AiStudioProjectEntryState
+      <AiStudioEntryStateFrame
         variant="loading"
         phase="resolving-project"
         message="Refreshing your session before project restore continues."
@@ -370,7 +392,7 @@ export default function AiStudioProtectedRouteEntry({
   if (mediaCompliance.status === "accepted" && checkoutProjectLaunchIntent) {
     if (checkoutProjectLaunchState.status === "failed") {
       return (
-        <AiStudioProjectEntryState
+        <AiStudioEntryStateFrame
           variant="error"
           phase="resolving-project"
           errorTitle="Project creation failed"
@@ -386,7 +408,7 @@ export default function AiStudioProtectedRouteEntry({
     }
 
     return (
-      <AiStudioProjectEntryState
+      <AiStudioEntryStateFrame
         variant="loading"
         phase="resolving-project"
         title={`Creating ${CHECKOUT_SUCCESS_PROJECT_TITLE}`}

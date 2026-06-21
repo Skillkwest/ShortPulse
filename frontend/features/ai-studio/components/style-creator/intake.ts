@@ -11,6 +11,10 @@ import type {
 } from "./types";
 import type { ExpertEditStyleTile } from "../edit/expertEditStyles";
 import {
+  reorderStylesLibraryOrderedIds,
+  type StylesLibraryReorderPlacement,
+} from "../../logic/stylesLibraryCatalog";
+import {
   buildStyleDropSnapshotTransfer,
   canAcceptStyleLibraryImageDropHint,
   captureStyleDropSnapshot,
@@ -68,22 +72,14 @@ export type PreparedStyleCreationSource = {
 };
 
 /**
- * Reorders an id list by moving source id before target id.
+ * Reorders an id list by moving source id around target id.
  */
 export const reorderById = (
   ids: readonly string[],
   sourceId: string,
-  targetId: string
-): string[] => {
-  if (sourceId === targetId) return [...ids];
-  const sourceIndex = ids.indexOf(sourceId);
-  const targetIndex = ids.indexOf(targetId);
-  if (sourceIndex < 0 || targetIndex < 0) return [...ids];
-  const next = [...ids];
-  const [moved] = next.splice(sourceIndex, 1);
-  next.splice(targetIndex, 0, moved);
-  return next;
-};
+  targetId: string,
+  placement?: StylesLibraryReorderPlacement
+): string[] => reorderStylesLibraryOrderedIds(ids, sourceId, targetId, placement);
 
 /**
  * Builds style detail defaults from an existing catalog tile.

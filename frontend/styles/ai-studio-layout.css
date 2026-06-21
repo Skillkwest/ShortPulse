@@ -102,7 +102,7 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 
 .ai-studio-page .ai-alerts-stack {
   --app-message-stack-viewport-top: calc(var(--ai-page-pad-top) + 6px);
-  --app-message-stack-viewport-right: 24px;
+  --app-message-stack-viewport-right: max(24px, env(safe-area-inset-right));
   --app-message-stack-viewport-left: calc(var(--ai-rail-width) + 24px);
   --app-message-stack-viewport-z-index: 30;
 }
@@ -112,6 +112,8 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+  width: 100%;
+  min-width: 0;
   padding: 12px 14px;
   margin: 0;
   border-radius: 8px;
@@ -135,6 +137,23 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   flex: 1;
   font-size: 14px;
   line-height: 1.4;
+}
+
+.ai-studio-page .ai-alert-banner .app-message__copy {
+  min-width: 0;
+}
+
+.ai-studio-page .ai-alert-banner .app-message__actions {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.ai-studio-page .ai-alert-banner .app-message__dismiss {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .ai-studio-page .ai-alert-banner__dismiss {
@@ -229,7 +248,7 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 
 @media (max-width: 1320px) {
   .ai-studio-page .ai-alerts-stack {
-    --app-message-stack-viewport-right: 16px;
+    --app-message-stack-viewport-right: max(16px, env(safe-area-inset-right));
     --app-message-stack-viewport-left: calc(var(--ai-rail-width) + 16px);
   }
 }

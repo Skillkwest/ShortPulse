@@ -30,7 +30,7 @@ but submit previously staged the display URL when preparing Fal CDN inputs.
    image/audio. It accepts caller-owned `media_library` storage paths for
    app-owned media and existing public `fileUrl` inputs only for URL-only media.
 4. Local Lip Sync voice-audio files enter app-owned storage through the canonical
-   `/api/media/upload` Media Library upload path before submit-time Fal staging.
+   `/api/media/prepare-upload` -> `/api/media/finalize-upload` Media Library upload path before submit-time Fal staging.
 5. The Fal staging helper verifies the returned Fal CDN URL before returning
    success, so OmniHuman submit does not receive an unverified staged URL.
 6. The Fal submit proxy enforces the same boundary before billing/provider

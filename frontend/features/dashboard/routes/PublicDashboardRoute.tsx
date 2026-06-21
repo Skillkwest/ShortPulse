@@ -10,6 +10,7 @@ import { DashboardAppBar } from "../components/DashboardAppBar";
 import { GuestDashboardView } from "../components/GuestDashboardView";
 import type { DashboardTutorial } from "../components/DashboardTutorialGrid";
 import { buildDashboardAuthPath, buildPricingPath } from "../../pricing/paths";
+import { hasLaunchReadyDashboardOfferHeaderCopy } from "../../../lib/dashboardOfferPublicCopy";
 import { loadGrowthTelemetry } from "../../../lib/growthTelemetryLoader";
 import type { DashboardOffer } from "../../../lib/server/api/dashboardOffers";
 import type { PublicDashboardStaticProps } from "./publicDashboardData";
@@ -160,13 +161,16 @@ const getOfferIcon = (offer: DashboardOffer) => {
 };
 
 const buildGuestHeaderCards = (offers: DashboardOffer[]): DashboardHeaderCard[] => {
-  return offers.slice(0, 4).map((offer) => ({
-    key: offer.id,
-    label: offer.eyebrow,
-    value: offer.title,
-    icon: getOfferIcon(offer),
-    href: offer.ctaHref,
-  }));
+  return offers
+    .filter(hasLaunchReadyDashboardOfferHeaderCopy)
+    .slice(0, 4)
+    .map((offer) => ({
+      key: offer.id,
+      label: offer.eyebrow,
+      value: offer.title,
+      icon: getOfferIcon(offer),
+      href: offer.ctaHref,
+    }));
 };
 
 /**

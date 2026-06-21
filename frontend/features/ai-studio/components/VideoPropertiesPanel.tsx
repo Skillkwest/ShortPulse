@@ -33,7 +33,7 @@ import {
   createReadyLipSyncAudioState,
   createUploadingLipSyncAudioState,
   getLipSyncAudioPlaybackUrl,
-  isNonDurableLipSyncAudioUrl,
+  resolveLipSyncAudioDurableSource,
 } from "../logic/lipSyncAudioState";
 import { uploadAudioBlobToStorage } from "../utils/audioUpload";
 import {
@@ -162,29 +162,14 @@ const resolveDurableLipSyncDropAudioUrl = (
   payload: Extract<AgentComposerDirectDropPayload, { kind: "audio" }>
 ): { url: string | null; storagePath: string | null } => {
   const internalPayload = payload.internalPayload;
-  const candidates = [
-    internalPayload?.referenceUrl,
-    internalPayload?.referenceRenderUrl,
-    internalPayload?.fullStoragePath,
-    internalPayload?.previewStoragePath,
-    payload.audioUrl,
-  ];
-  const url =
-    candidates.find(
-      (candidate): candidate is string =>
-        typeof candidate === "string" && !isNonDurableLipSyncAudioUrl(candidate)
-    ) ?? null;
-  const storagePath =
-    [internalPayload?.fullStoragePath, internalPayload?.previewStoragePath]
-      .map((candidate) => candidate?.trim() ?? "")
-      .find(
-        (candidate) =>
-          candidate.length > 0 &&
-          isNonDurableLipSyncAudioUrl(candidate) &&
-          !candidate.startsWith("blob:") &&
-          !candidate.startsWith("data:")
-      ) || null;
-  return { url, storagePath };
+  return resolveLipSyncAudioDurableSource({
+    urlCandidates: [
+      internalPayload?.referenceUrl,
+      internalPayload?.referenceRenderUrl,
+      payload.audioUrl,
+    ],
+    storagePathCandidates: [internalPayload?.fullStoragePath, internalPayload?.previewStoragePath],
+  });
 };
 
 const resolveDurableLipSyncReferenceAudioDrop = (
@@ -192,20 +177,10 @@ const resolveDurableLipSyncReferenceAudioDrop = (
 ): { url: string | null; storagePath: string | null } | null => {
   const internalPayload = extractInternalReferenceDragPayload(transfer);
   if (!internalPayload || internalPayload.mediaKind !== "audio") return null;
-  const url =
-    [internalPayload.referenceUrl, internalPayload.referenceRenderUrl]
-      .map((candidate) => candidate?.trim() ?? "")
-      .find((candidate) => candidate.length > 0 && !isNonDurableLipSyncAudioUrl(candidate)) || null;
-  const storagePath =
-    [internalPayload.fullStoragePath, internalPayload.previewStoragePath]
-      .map((candidate) => candidate?.trim() ?? "")
-      .find(
-        (candidate) =>
-          candidate.length > 0 &&
-          isNonDurableLipSyncAudioUrl(candidate) &&
-          !candidate.startsWith("blob:") &&
-          !candidate.startsWith("data:")
-      ) || null;
+  const { url, storagePath } = resolveLipSyncAudioDurableSource({
+    urlCandidates: [internalPayload.referenceUrl, internalPayload.referenceRenderUrl],
+    storagePathCandidates: [internalPayload.fullStoragePath, internalPayload.previewStoragePath],
+  });
   if (!url && !storagePath) return null;
   return { url, storagePath };
 };
@@ -726,7 +701,7 @@ export function VideoPropertiesPanel({
       setLipSyncAudioDragActive(false);
       const resolvedAudio = resolveDurableLipSyncDropAudioUrl(payload);
       applyLipSyncAudio(
-        resolvedAudio.url
+        resolvedAudio.url || resolvedAudio.storagePath
           ? createLipSyncAudioStateFromDurableUrl({
               url: resolvedAudio.url,
               durationMs: payload.durationMs ?? null,
@@ -1131,6 +1106,8 @@ export function VideoPropertiesPanel({
   const showShotModeSelector = activeVideoMode === "standard";
   const shouldShowShotModeSelector = showShotModeSelector && isKlingPatternModelSelected;
   const shouldShowKlingAdvancedSteps = isKlingPatternMode && !isSeedance2FamilyModelSelected;
+  const shouldShowVideoElementSettings =
+    isKlingPatternModelSelected && (!isMotionMode || isKieKlingModelSelected);
   const textareaResizeFrameMapRef = React.useRef(new WeakMap<HTMLTextAreaElement, number>());
 
   const resizeTextareaToViewport = React.useCallback((textarea: HTMLTextAreaElement | null) => {
@@ -2223,7 +2200,7 @@ export function VideoPropertiesPanel({
                       onClose={handleCloseMotionRecorder}
                       onApplyVideo={handleApplyRecordedMotionVideo}
                     />
-                    {isKlingPatternModelSelected && !isMotionMode ? (
+                    {shouldShowVideoElementSettings ? (
                       <div className="video-setup-elements-slot">
                         <div className="step-card video-elements-card">
                           <div className="video-elements-card-title video-elements-card-title--large">

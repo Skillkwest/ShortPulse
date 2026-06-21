@@ -293,6 +293,7 @@ vi.mock("../media-library-modal/MediaLibraryAllItemsGrid", () => ({
     ) => void;
     onSelectPromptCard: (row: { id: string; title: string | null; prompt_text: string }) => void;
     onMediaDoubleClick?: (row: { id: string; filename: string }) => void;
+    onPromptDoubleClick?: (row: { id: string; title: string | null; prompt_text: string }) => void;
     onMediaDragStart?: (
       event: React.DragEvent<HTMLElement>,
       row: Record<string, unknown> & { id: string; filename: string }
@@ -407,6 +408,11 @@ vi.mock("../media-library-modal/MediaLibraryAllItemsGrid", () => ({
             <button type="button" onClick={() => props.onSelectPromptCard(row)}>
               Select prompt {row.title || row.id}
             </button>
+            {props.onPromptDoubleClick ? (
+              <button type="button" onDoubleClick={() => props.onPromptDoubleClick?.(row)}>
+                Open prompt {row.title || row.id}
+              </button>
+            ) : null}
             {props.showRemoveAction && props.onRemovePromptFromFolder ? (
               <button type="button" onClick={() => props.onRemovePromptFromFolder?.(row)}>
                 Remove prompt {row.title || row.id}
@@ -426,8 +432,9 @@ vi.mock("../media-library-modal/MediaLibraryAllItemsGrid", () => ({
 
 vi.mock("../media-library-modal/MediaLibraryPromptGrid", () => ({
   MediaLibraryPromptGrid: (props: {
-    sortedPrompts: Array<{ id: string; title: string | null }>;
+    sortedPrompts: Array<{ id: string; title: string | null; prompt_text?: string }>;
     onSelectPromptCard: (row: { id: string; title: string | null; prompt_text: string }) => void;
+    onPromptDoubleClick?: (row: { id: string; title: string | null; prompt_text: string }) => void;
     showRemoveAction?: boolean;
     onRemovePromptFromFolder?: (row: {
       id: string;
@@ -458,6 +465,20 @@ vi.mock("../media-library-modal/MediaLibraryPromptGrid", () => ({
             >
               Select prompt {row.title || row.id}
             </button>
+            {props.onPromptDoubleClick ? (
+              <button
+                type="button"
+                onDoubleClick={() =>
+                  props.onPromptDoubleClick?.({
+                    id: row.id,
+                    title: row.title,
+                    prompt_text: row.prompt_text ?? "Prompt text",
+                  })
+                }
+              >
+                Open prompt {row.title || row.id}
+              </button>
+            ) : null}
             {props.showRemoveAction && props.onRemovePromptFromFolder ? (
               <button
                 type="button"
@@ -736,6 +757,30 @@ describe("MediaLibraryPanel", () => {
       | { selectedIds: Set<string> }
       | undefined;
     expect(selectedProps?.selectedIds.has("prompt-1")).toBe(false);
+  });
+
+  it("opens saved prompt details from the Prompts tab and can use the prompt", async () => {
+    const onSelectPrompt = vi.fn();
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={onSelectPrompt} />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Prompts" }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Open prompt Prompt One" })).toBeInTheDocument();
+    });
+
+    fireEvent.doubleClick(screen.getByRole("button", { name: "Open prompt Prompt One" }));
+
+    expect(await screen.findByRole("dialog", { name: "Saved prompt detail" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Prompt One" })).toBeInTheDocument();
+    expect((screen.getByDisplayValue("Prompt text") as HTMLTextAreaElement).readOnly).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "Use prompt" }));
+
+    expect(onSelectPrompt).toHaveBeenCalledWith({
+      id: "prompt-1",
+      promptText: "Prompt text",
+      title: "Prompt One",
+    });
   });
 
   it("includes audio rows in the root All Media signing queue", async () => {

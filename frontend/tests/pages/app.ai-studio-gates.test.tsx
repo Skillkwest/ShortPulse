@@ -38,6 +38,10 @@ vi.mock("next/router", () => ({
   })(),
 }));
 
+vi.mock("next/head", () => ({
+  default: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
+
 vi.mock("../../components/AppErrorBoundary", () => ({
   AppErrorBoundary: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
@@ -137,6 +141,7 @@ describe("AiStudioProtectedRouteEntry", () => {
     renderRouteEntry();
 
     expect(screen.getByRole("status")).toHaveTextContent("Loading project");
+    expect(screen.getByText("ShortPulse · AI Studio")).toBeInTheDocument();
     expect(
       screen.getByText("Checking your session before project restore continues.")
     ).toBeInTheDocument();

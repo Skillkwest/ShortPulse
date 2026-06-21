@@ -1090,6 +1090,17 @@
   padding: 14px;
 }
 
+.agentBuiltInStyleTileDragging {
+  opacity: 0.62;
+}
+
+.agentBuiltInStyleTileDropTarget {
+  border-color: rgba(37, 169, 191, 0.72);
+  box-shadow:
+    0 0 0 1px rgba(37, 169, 191, 0.28),
+    0 16px 30px rgba(0, 0, 0, 0.26);
+}
+
 .agentBuiltInStyleTile .agentInstructionCollapsibleBody {
   display: grid;
   gap: 12px;
@@ -1097,8 +1108,39 @@
 
 .agentBuiltInStyleTileHeader {
   min-height: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
   padding: 0 72px 2px 0;
   cursor: default;
+}
+
+.agentBuiltInStyleDragHandle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid rgba(112, 126, 136, 0.22);
+  border-radius: 8px;
+  background: rgba(16, 18, 21, 0.66);
+  color: var(--admin-text-faint);
+  cursor: grab;
+  touch-action: none;
+  transition:
+    border-color 0.14s ease,
+    color 0.14s ease,
+    background-color 0.14s ease;
+}
+
+.agentBuiltInStyleDragHandle:hover {
+  border-color: rgba(37, 169, 191, 0.5);
+  color: var(--admin-text-strong);
+  background: rgba(22, 30, 34, 0.92);
+}
+
+.agentBuiltInStyleDragHandle:active {
+  cursor: grabbing;
 }
 
 .agentEditPresetTileDelete {

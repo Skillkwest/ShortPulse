@@ -97,6 +97,73 @@ describe("/api/admin/offers", () => {
     expect(getSupabaseAdminMock).not.toHaveBeenCalled();
   });
 
+  it("rejects active public offers with placeholder header copy", async () => {
+    const req = {
+      method: "POST",
+      body: {
+        eyebrow: "tsting",
+        title: "teseting",
+        ctaHref: "/pricing",
+        isActive: true,
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Active public offers cannot use placeholder or test header copy.",
+    });
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+  });
+
+  it("allows inactive draft offers with placeholder header copy", async () => {
+    const maybeSingleMock = vi.fn(async () => ({
+      data: {
+        ...savedOfferRow,
+        eyebrow: "tsting",
+        title: "teseting",
+        is_active: false,
+      },
+      error: null,
+    }));
+    const selectMock = vi.fn(() => ({ maybeSingle: maybeSingleMock }));
+    const insertMock = vi.fn(() => ({ select: selectMock }));
+    const fromMock = vi.fn(() => ({ insert: insertMock }));
+    getSupabaseAdminMock.mockReturnValue({ from: fromMock });
+
+    const req = {
+      method: "POST",
+      body: {
+        eyebrow: "tsting",
+        title: "teseting",
+        ctaHref: "/pricing",
+        isActive: false,
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(insertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eyebrow: "tsting",
+        title: "teseting",
+        is_active: false,
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      offer: expect.objectContaining({
+        eyebrow: "tsting",
+        title: "teseting",
+        isActive: false,
+      }),
+      message: "Offer saved as inactive.",
+    });
+  });
+
   it("creates a normalized dashboard offer", async () => {
     const maybeSingleMock = vi.fn(async () => ({ data: savedOfferRow, error: null }));
     const selectMock = vi.fn(() => ({ maybeSingle: maybeSingleMock }));

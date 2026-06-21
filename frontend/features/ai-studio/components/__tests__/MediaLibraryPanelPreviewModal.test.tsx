@@ -234,6 +234,50 @@ describe("MediaLibraryPanelPreviewModal", () => {
     expect(screen.queryByText("Loading preview…")).not.toBeInTheDocument();
   });
 
+  it("does not report unavailable preview while a focused media asset is still loading", () => {
+    const onPreviewError = vi.fn();
+    const videoFile: MediaFileRow = {
+      id: "video-1",
+      filename: "clip.mp4",
+      storage_path: "user-1/uploads/clip.mp4",
+      preview_storage_path: "user-1/uploads/clip.mp4",
+      file_type: "video/mp4",
+      signedUrl: null,
+    };
+
+    const { rerender } = render(
+      <MediaLibraryPanelPreviewModal
+        item={createPreviewItem(videoFile, "", {
+          previewUrl: null,
+          fullUrl: null,
+        })}
+        isLoading
+        error={null}
+        onClose={vi.fn()}
+        onPreviewError={onPreviewError}
+      />
+    );
+
+    expect(onPreviewError).not.toHaveBeenCalled();
+    expect(screen.getByText("Loading preview...")).toBeInTheDocument();
+
+    rerender(
+      <MediaLibraryPanelPreviewModal
+        item={createPreviewItem(videoFile, "", {
+          previewUrl: null,
+          fullUrl: null,
+        })}
+        isLoading={false}
+        error={null}
+        onClose={vi.fn()}
+        onPreviewError={onPreviewError}
+      />
+    );
+
+    expect(onPreviewError).toHaveBeenCalledWith(expect.objectContaining({ file: videoFile }), "");
+    expect(screen.getByText("Preview unavailable.")).toBeInTheDocument();
+  });
+
   it("moves image preview failures into controlled unavailable UI", () => {
     const onPreviewError = vi.fn();
     const imageFile: MediaFileRow = {

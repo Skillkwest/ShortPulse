@@ -70,12 +70,13 @@ Symptoms:
 Interpretation:
 
 - Kie Kling 3.0 Motion Control accepts provider-facing MP4 or QuickTime/MOV videos only, with a 3-30 second duration window.
-- User-selected or browser-recorded MP4, MOV, and WebM clips are ShortPulse intake formats only. Motion Control staging normalizes every clip to canonical provider-facing MP4 so provider-hostile MP4 encodings do not reach Kie unchanged.
+- User-selected or browser-recorded MP4, MOV, and WebM clips are ShortPulse intake formats only. Oversized local clips are browser-prestaged into a smaller upload candidate before the signed storage upload, then Motion Control staging normalizes every clip to canonical provider-facing MP4 so provider-hostile MP4 encodings do not reach Kie unchanged.
 - Kie Motion Control character images are stricter than normal ShortPulse product images: provider-facing bytes must be JPEG/JPG/PNG, under 10 MB, at least 341 px on both sides, and within a 2:5 to 5:2 aspect ratio. Motion Control character-image upload to Kie now runs the explicit `kie_motion_control_character_image` admission profile before Kie temp upload.
 
 Checklist:
 
 - Confirm `POST /api/media/stage-motion-reference-video` returned a `mimeType` of `video/mp4` or `video/quicktime` and a final path ending in `.mp4` or `.mov`.
+- If the browser shows `The object exceeded the maximum allowed size`, confirm the current client bundle includes Motion Control local pre-staging; oversized local source files should not be sent raw to Supabase signed upload.
 - Confirm any local Motion Control character-image file completed the reference-image staging path (`POST /api/media/prepare-reference-image-upload` -> browser direct upload -> `POST /api/media/stage-reference-image`) and then Kie temp upload through `/api/kie/upload-url` with `admissionProfile="kie_motion_control_character_image"`, so product-valid WebP/AVIF or over-10 MB stills do not reach Kie unchanged.
 - Confirm the recorder modal stopped the capture at 30 seconds or the uploaded clip is already between 3 and 30 seconds.
 - Confirm Kie submit preflight rejects any remaining provider-facing `.webm` Motion Control URL before dispatch.

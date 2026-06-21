@@ -99,71 +99,31 @@ export function AuthenticatedDashboardView({
           </div>
 
           <div className="hero-quick-row authenticated-home-quick-row">
-            {hideLegacySections ? (
-              <>
-                <DashboardQuickActionCard
-                  ariaLabel="New Project: Name and create a new project"
-                  className="hero-onboarding hero-new-project-card"
-                  title="New Project"
-                  helperText={
-                    isCreatingProject
-                      ? "Creating your project..."
-                      : projectCreateError
-                        ? projectCreateError
-                        : "Name your project and open AI Studio"
-                  }
-                  onClick={onCreateProject}
-                  disabled={isCreatingProject}
-                  busy={isCreatingProject}
-                  icon={<Plus size={30} weight="bold" className="hero-new-project-icon" />}
-                />
+            <DashboardQuickActionCard
+              ariaLabel="New Project: Name and create a new project"
+              className="hero-onboarding hero-new-project-card"
+              title="New Project"
+              helperText={
+                isCreatingProject
+                  ? "Creating your project..."
+                  : projectCreateError
+                    ? projectCreateError
+                    : "Name your project and open AI Studio"
+              }
+              onClick={onCreateProject}
+              disabled={isCreatingProject}
+              busy={isCreatingProject}
+              icon={<Plus size={30} weight="bold" className="hero-new-project-icon" />}
+            />
 
-                <DashboardQuickActionCard
-                  ariaLabel="Open Projects: Open saved projects"
-                  className="hero-sessions-group hero-sessions-group-button hero-open-projects-card"
-                  title="Open Projects"
-                  helperText="Open the project library"
-                  onClick={onOpenProjects}
-                  icon={
-                    <FolderSimple size={30} weight="duotone" className="hero-open-projects-icon" />
-                  }
-                />
-              </>
-            ) : (
-              <>
-                <Link
-                  href="/onboarding"
-                  className="hero-onboarding"
-                  aria-label="Onboarding Courses: Guided walkthroughs for Creator Studio workflows"
-                  prefetch={false}
-                >
-                  <div>
-                    <p className="eyebrow tiny">Quick start</p>
-                    <h3>Onboarding Courses</h3>
-                    <p className="subdued tiny">
-                      Guided walkthroughs for Creator Studio workflows.
-                    </p>
-                  </div>
-                  <span>Enter →</span>
-                </Link>
-
-                <Link
-                  href="/onboarding?section=workflows"
-                  className="hero-onboarding hero-workflow-card"
-                  aria-label="AI Workflow Lessons: Deep dives on creation playbooks and applied prompts"
-                  prefetch={false}
-                >
-                  <div>
-                    <p className="eyebrow tiny">Workflows</p>
-                    <h3>AI Workflow Lessons</h3>
-                    <p className="subdued tiny">
-                      Deep dives on creation playbooks and applied prompts.
-                    </p>
-                  </div>
-                  <span>Explore →</span>
-                </Link>
-              </>
-            )}
+            <DashboardQuickActionCard
+              ariaLabel="Open Projects: Open saved projects"
+              className="hero-sessions-group hero-sessions-group-button hero-open-projects-card"
+              title="Open Projects"
+              helperText="Open the project library"
+              onClick={onOpenProjects}
+              icon={<FolderSimple size={30} weight="duotone" className="hero-open-projects-icon" />}
+            />
           </div>
         </div>
       </section>

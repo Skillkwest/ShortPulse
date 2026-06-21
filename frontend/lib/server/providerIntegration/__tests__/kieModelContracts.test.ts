@@ -923,4 +923,47 @@ describe("kieModelContracts", () => {
       })
     ).toThrow('Kie Kling 3.0 submit field "generate_audio" must be boolean when provided.');
   });
+
+  it("preserves Kling elements on motion-control payloads", () => {
+    expect(
+      normalizeKieSubmitPayloadForModel({
+        modelId: KIE_KLING_30_MODEL_ID,
+        payload: {
+          prompt: "motion clip @element1",
+          image_url: "https://example.com/character.png",
+          video_url: "https://example.com/motion.mp4",
+          mode: "1080p",
+          kling_elements: [
+            {
+              name: "element1",
+              description: "Reference images for Red Lantern",
+              element_input_urls: [
+                "https://example.com/element-a.png",
+                "https://example.com/element-b.png",
+              ],
+            },
+          ],
+        },
+      })
+    ).toEqual(
+      expect.objectContaining({
+        model: "kling-3.0/motion-control",
+        input: expect.objectContaining({
+          input_urls: ["https://example.com/character.png"],
+          video_urls: ["https://example.com/motion.mp4"],
+          mode: "1080p",
+          kling_elements: [
+            {
+              name: "element1",
+              description: "Reference images for Red Lantern",
+              element_input_urls: [
+                "https://example.com/element-a.png",
+                "https://example.com/element-b.png",
+              ],
+            },
+          ],
+        }),
+      })
+    );
+  });
 });

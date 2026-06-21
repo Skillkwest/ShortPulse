@@ -8,6 +8,7 @@ type MediaLibraryPromptGridProps = {
   sortedPrompts: PromptRow[];
   selectedIds: Set<string>;
   onSelectPromptCard: (prompt: PromptRow) => void;
+  onPromptDoubleClick?: (prompt: PromptRow) => void;
   onPromptDragStart?: (event: React.DragEvent<HTMLButtonElement>, prompt: PromptRow) => void;
   onPromptDragEnd?: (event: React.DragEvent<HTMLButtonElement>, prompt: PromptRow) => void;
   showRemoveAction?: boolean;
@@ -22,6 +23,7 @@ export function MediaLibraryPromptGrid({
   sortedPrompts,
   selectedIds,
   onSelectPromptCard,
+  onPromptDoubleClick,
   onPromptDragStart,
   onPromptDragEnd,
   showRemoveAction = false,
@@ -44,6 +46,7 @@ export function MediaLibraryPromptGrid({
                 prompt={prompt}
                 isSelected={isSelected}
                 onSelectPromptCard={onSelectPromptCard}
+                onPromptDoubleClick={onPromptDoubleClick}
                 onPromptDragStart={onPromptDragStart}
                 onPromptDragEnd={onPromptDragEnd}
                 showRemoveAction={showRemoveAction}
@@ -76,6 +79,11 @@ export function MediaLibraryPromptGrid({
                 aria-pressed={isSelected}
                 draggable={Boolean(onPromptDragStart)}
                 onClick={() => onSelectPromptCard(prompt)}
+                onDoubleClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onPromptDoubleClick?.(prompt);
+                }}
                 onDragStart={(event) => onPromptDragStart?.(event, prompt)}
                 onDragEnd={(event) => onPromptDragEnd?.(event, prompt)}
               >

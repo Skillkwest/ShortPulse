@@ -345,6 +345,11 @@ export const useMediaLibraryPanelSelectionController = ({
                 ...current,
                 url: normalizedRefreshedUrl,
                 fullUrl: normalizedRefreshedUrl,
+                media: {
+                  ...current.media,
+                  url: normalizedRefreshedUrl,
+                  fullUrl: normalizedRefreshedUrl,
+                },
               };
             });
             return;
@@ -354,6 +359,10 @@ export const useMediaLibraryPanelSelectionController = ({
             return {
               ...current,
               url: "",
+              media: {
+                ...current.media,
+                url: "",
+              },
             };
           });
           setDetailModalError("Preview unavailable.");

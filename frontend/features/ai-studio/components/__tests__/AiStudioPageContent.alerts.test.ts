@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { groupVisibleFailuresForAlertStack } from "../AiStudioPageContent";
+import {
+  groupVisibleFailuresForAlertStack,
+  resolveAiStudioAlertAutoDismissMs,
+} from "../AiStudioPageContent";
 import { AI_STUDIO_ERROR_SCENARIOS } from "../../testing/errorScenarioFixtures";
+
+describe("resolveAiStudioAlertAutoDismissMs", () => {
+  it("keeps short alerts readable while capping long alerts", () => {
+    expect(resolveAiStudioAlertAutoDismissMs("Short failure.")).toBe(9000);
+    expect(resolveAiStudioAlertAutoDismissMs("x".repeat(500))).toBe(16000);
+  });
+});
 
 describe("groupVisibleFailuresForAlertStack", () => {
   it.each(AI_STUDIO_ERROR_SCENARIOS)("uses normalized banner copy for $label", (scenario) => {

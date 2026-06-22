@@ -37,6 +37,7 @@ Purpose: keep concise, durable project-persistence truths and working rules for 
 - Durable learning belongs here or in `docs/records/artifacts/agent/datserok/`, not in chat alone.
 - When a project route is entered or switched, the UI intentionally fails closed to an empty project shell before async restore finishes. If visible project state leaks before bootstrap, treat it as a canonical persistence regression.
 - Do not carry prior incident narratives as active truth into a new persistence lane. Start from the current project, current code, current production evidence, and the source map; load old handoffs or reports only when the current proof question names that history.
+- For self-maintenance, optimize routing before deletion. Load report indexes before report bodies, then open only the one retained report that directly answers the active proof question.
 
 ## Common Drift To Reject
 

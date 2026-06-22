@@ -7,6 +7,41 @@ Purpose: retain dated project-persistence audit packets, implementation investig
 - Create a dated report here only when the run produces reusable persistence evidence.
 - Prefer concise summaries that link back to the active contract, code owners, tests, or production observations.
 - Do not store raw chat transcripts here.
+- For future audits, read this index first, then load only the single report or smallest report set named by the active proof question.
+
+## Retention Map
+
+### Current Start Points
+
+- `2026-06-03-large-project-persistence-implementation-handoff.md`
+  - best first historical report for the hybrid large-project persistence build; ties together the measured hotspot, ADR 0089, build contract, and next implementation scope
+- `2026-06-03-large-project-persistence-implementation-checkpoint.md`
+  - best first proof boundary after the hybrid persistence patch; use before reopening old architecture debate
+- `2026-06-15-ai-studio-large-project-canvas-responsiveness-handoff.md`
+  - start-here packet for Canvas/responsiveness symptoms that may wake project persistence or media-repair work
+- `2026-05-31-project-persistence-authority-audit.md`
+  - baseline authority audit for the project-persistence ownership chain and current project/global/runtime boundaries
+
+### Deep Architecture Packet
+
+Load these only when redesigning or auditing the large-project persistence architecture itself:
+
+- `2026-06-03-large-project-persistence-architecture-prep-current-state.md`
+- `2026-06-03-large-project-persistence-external-pattern-memo.md`
+- `2026-06-03-large-project-persistence-candidate-architecture-matrix.md`
+- `2026-06-03-large-project-persistence-checkpoint-boundary-proposal.md`
+- `2026-06-03-large-project-persistence-output-display-record-proposal.md`
+- `2026-06-03-large-project-persistence-implementation-path.md`
+- `2026-06-03-large-project-persistence-build-contract-v1.md`
+- `2026-06-03-large-project-persistence-schema-and-transport-spec-v1.md`
+- `2026-06-03-large-project-persistence-migration-and-rollout-plan.md`
+- `2026-06-03-large-project-persistence-proof-and-observability-plan.md`
+
+### Practical Load Rule
+
+- For bug triage, prefer the source map plus current code/tests over historical reports.
+- For architecture recall, start with the implementation handoff/checkpoint before opening proposal-era reports.
+- For proof claims, use the report only to find the seam, then re-verify against current repo code and validation.
 
 ## Current Reports
 

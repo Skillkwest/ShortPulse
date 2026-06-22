@@ -43,7 +43,7 @@ Load these only when the lane truly needs them:
 - `docs/records/artifacts/agent/datserok/reports/README.md`
   - when reviewing report retention or filing a new report
 - dated reports under `docs/records/artifacts/agent/datserok/reports/`
-  - only when historical persistence evidence is needed
+  - only when historical persistence evidence is needed; read the reports index first, then load the single named report or smallest report set that answers the proof question
 - `docs/agents/datserok/workspace/README.md`
   - when workspace scratch, drafts, or intake handling is part of the task
 - files under `docs/agents/datserok/workspace/`
@@ -60,6 +60,7 @@ These are useful retained surfaces, but they should stay out of normal Datserok 
 - workspace scratch areas
 - prior incident handoffs
 - deep ADR/SOP reads beyond the current proof question
+- old conversational context, unless the current task explicitly asks to reconstruct that history
 
 ## Practical Rule
 
@@ -70,3 +71,7 @@ When in doubt:
 3. load the SOP, ownership manifest, deeper persistence docs, or retained artifacts only if the current lane truly needs them
 
 Do not carry old incident narratives or retained-history material into a new persistence lane by momentum.
+
+## Self-Maintenance Rule
+
+For Datserok performance audits, prefer tightening this routing policy, the source map, memory, or artifact indexes over appending new retained-history entries. The recurring maintenance risk is bulk-loading old reports and prior-thread narratives, not loss of retained evidence.

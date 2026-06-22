@@ -7,11 +7,13 @@ Purpose: store non-authoritative retained artifacts for Datserok's project persi
 - `training-history.md`: supervised setup history and future training runs.
 - `run-log.md`: append-only ledger of substantive Datserok runs.
 - `tools.md`: helper inventory and future tooling needs.
-- `reports/`: dated project-persistence audits, source-of-truth packets, and retained investigation summaries when a run needs durable detail.
+- `reports/`: dated project-persistence audits, source-of-truth packets, and retained investigation summaries when a run needs durable detail. Use `reports/README.md` as the routing index before opening report bodies.
 
 ## Authority
 
 These artifacts support training, traceability, and workflow continuity. They do not override canonical repo rules, user instructions, current code, current docs, ADRs, or direct validation evidence.
+
+Retained artifacts are conditional lookup surfaces, not default startup context. Prefer the agent contract, memory, runtime load policy, and source map first; open retained history only when the active lane names or requires it.
 
 Datserok operates inside the ShortPulse solo-owner model and current pre-launch production-only branch policy. Launch-relevant Datserok reports must follow `docs/agents/solo-owner-launch-trust-standard.md`.
 

@@ -113,7 +113,10 @@ const buildSupabaseClient = () => ({
         select: vi.fn(() => ({
           eq: vi.fn(() => ({
             is: vi.fn(() => ({
-              maybeSingle: vi.fn(async () => ({ data: { plan_id: "business" }, error: null })),
+              maybeSingle: vi.fn(async () => ({
+                data: { plan_id: "business", monthly_credits_cents: 12000 },
+                error: null,
+              })),
             })),
           })),
         })),
@@ -348,14 +351,12 @@ describe("Dashboard actions", () => {
       "href",
       SHORTPULSE_COMMUNITY_URL
     );
-    expect(await screen.findByRole("link", { name: /^Media Storage:/i })).toHaveAttribute(
-      "href",
-      "/profile?section=storage"
-    );
-    expect(await screen.findByRole("link", { name: /^AI credits:/i })).toHaveAttribute(
-      "href",
-      "/profile?section=credits"
-    );
+    expect(
+      await screen.findByRole("link", { name: "Media Storage: 0.0 MB / 500.0 GB" })
+    ).toHaveAttribute("href", "/profile?section=storage");
+    expect(
+      await screen.findByRole("link", { name: "AI credits: 86 credits / 12,000 credits" })
+    ).toHaveAttribute("href", "/profile?section=credits");
     expect(await screen.findByRole("link", { name: /^Plan:/i })).toHaveAttribute(
       "href",
       "/profile?section=subscription"

@@ -13,7 +13,7 @@ import {
   type BillingCatalogSnapshot,
   type BillingPlanRecord,
 } from "../../billing/catalog";
-import { formatStorageUsageValue } from "../../billing/storage";
+import { formatStorageBytes } from "../../billing/storage";
 import { useMediaStorageQuotaSummary } from "../../billing/useMediaStorageQuotaSummary";
 import { ACCOUNT_MENU_LINKS } from "../../profile/accountMenuLinks";
 import {
@@ -38,6 +38,7 @@ const DASHBOARD_FALLBACK_HELPER_COPY =
 
 type CurrentSubscriptionContractRow = {
   plan_id: string | null;
+  monthly_credits_cents: number | null;
 };
 
 type BillingProfilePlanRow = {
@@ -93,6 +94,16 @@ const getUserDisplayName = (user: User) => {
   return displayName || fullName || email || "Guest";
 };
 
+const formatCreditUsageValue = (
+  balanceCents: number | null,
+  monthlyCreditsCents: number
+): string => {
+  if (balanceCents == null) return "Credits unavailable";
+  const balanceLabel = `${Math.max(0, balanceCents).toLocaleString()} credits`;
+  if (monthlyCreditsCents <= 0) return balanceLabel;
+  return `${balanceLabel}\n/ ${monthlyCreditsCents.toLocaleString()} credits`;
+};
+
 const dashboardToolCards: DashboardToolCard[] = [
   {
     title: "AI Studio",
@@ -133,6 +144,7 @@ export function AuthenticatedDashboardRoute({
     id: string;
     label: string;
     className: string;
+    monthlyCreditsCents: number;
   } | null>(null);
   const [isProjectsModalOpen, setIsProjectsModalOpen] = useState(false);
   const [ProjectsModalComponent, setProjectsModalComponent] =
@@ -176,6 +188,7 @@ export function AuthenticatedDashboardRoute({
     id: fallbackPlanView.id,
     label: fallbackPlanView.displayName,
     className: fallbackPlanView.className,
+    monthlyCreditsCents: fallbackPlanView.monthlyCreditsCents,
   };
   const { quotaSummary, loading: quotaLoading } = useMediaStorageQuotaSummary({
     enabled: true,
@@ -226,7 +239,7 @@ export function AuthenticatedDashboardRoute({
           await Promise.all([
             supabase
               .from("billing_subscription_contracts")
-              .select("plan_id")
+              .select("plan_id, monthly_credits_cents")
               .eq("user_id", user.id)
               .is("ended_at", null)
               .maybeSingle(),
@@ -254,6 +267,11 @@ export function AuthenticatedDashboardRoute({
           !billingContractResponse.error && billingContractResponse.data
             ? ((billingContractResponse.data as CurrentSubscriptionContractRow).plan_id ?? null)
             : null;
+        const contractMonthlyCreditsCents =
+          !billingContractResponse.error && billingContractResponse.data
+            ? ((billingContractResponse.data as CurrentSubscriptionContractRow)
+                .monthly_credits_cents ?? null)
+            : null;
         const billingPlanId =
           !billingProfileResponse.error && billingProfileResponse.data
             ? ((billingProfileResponse.data as BillingProfilePlanRow).plan_id ?? null)
@@ -273,6 +291,7 @@ export function AuthenticatedDashboardRoute({
           id: planView.id,
           label: planView.displayName,
           className: planView.className,
+          monthlyCreditsCents: contractMonthlyCreditsCents ?? planView.monthlyCreditsCents,
         });
       } catch {
         if (!active) return;
@@ -341,18 +360,15 @@ export function AuthenticatedDashboardRoute({
 
   const storageUsageValue = useMemo(() => {
     if (usageLoading || quotaLoading) return "…";
-    return formatStorageUsageValue(
-      quotaSummary?.usedBytes ?? 0,
-      quotaSummary?.totalLimitBytes ?? 0
-    );
+    const usedStorage = formatStorageBytes(quotaSummary?.usedBytes ?? 0);
+    const totalStorage = formatStorageBytes(quotaSummary?.totalLimitBytes ?? 0);
+    return `${usedStorage}\n/ ${totalStorage}`;
   }, [quotaLoading, quotaSummary, usageLoading]);
 
   const aiCreditsValue =
     balanceLoading && balanceCents == null
       ? "…"
-      : balanceCents == null
-        ? "Credits unavailable"
-        : `${balanceCents.toLocaleString()} credits`;
+      : formatCreditUsageValue(balanceCents, planMeta.monthlyCreditsCents);
 
   const authHeaderCards = [
     {

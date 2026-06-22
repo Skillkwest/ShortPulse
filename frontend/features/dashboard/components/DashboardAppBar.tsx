@@ -22,6 +22,8 @@ type DashboardAppBarProps = {
   brandHref?: string | null;
 };
 
+const formatCardAriaValue = (value: string): string => value.replace(/\s+/g, " ").trim();
+
 /**
  * Renders the dashboard app bar with a shared visual shell.
  */
@@ -58,6 +60,7 @@ export function DashboardAppBar({ cards, actionSlot, brandHref = "/" }: Dashboar
       <div className="app-bar-right">
         <div className="header-cards">
           {cards.map((item) => {
+            const itemAriaValue = formatCardAriaValue(item.value);
             const cardBody = (
               <>
                 <div className="status-icon compact">
@@ -88,7 +91,7 @@ export function DashboardAppBar({ cards, actionSlot, brandHref = "/" }: Dashboar
                   key={item.key}
                   href={item.href}
                   className="header-stat-card header-stat-card-link"
-                  aria-label={`${item.label}: ${item.value}`}
+                  aria-label={`${item.label}: ${itemAriaValue}`}
                   prefetch={false}
                 >
                   {cardBody}

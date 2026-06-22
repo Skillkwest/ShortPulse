@@ -471,10 +471,10 @@ body.dashboard-body:has(.authenticated-dashboard-page) {
 }
 
 .authenticated-dashboard-page .app-bar {
-  --header-card-height: 92px;
+  --header-card-height: 104px;
   align-items: center;
   margin: 0 auto 20px;
-  padding: 12px 14px;
+  padding: 14px;
   border: 1px solid #242a33;
   border-radius: 8px;
   background: #12181f;
@@ -506,7 +506,7 @@ body.dashboard-body:has(.authenticated-dashboard-page) {
   width: clamp(218px, 14.2vw, 264px);
   min-width: 218px;
   min-height: 0;
-  padding: 11px 12px;
+  padding: 12px;
   gap: 12px;
   border-radius: 8px;
   border-color: #2a313b;
@@ -524,7 +524,7 @@ body.dashboard-body:has(.authenticated-dashboard-page) {
 .authenticated-dashboard-page .status-icon.compact {
   flex: 0 0 70px;
   width: 70px;
-  height: 68px;
+  height: 76px;
   border-radius: 0;
   color: #ff7a50;
   background: transparent;
@@ -533,9 +533,9 @@ body.dashboard-body:has(.authenticated-dashboard-page) {
 .authenticated-dashboard-page .header-stat-card-icon-image {
   display: block;
   width: auto;
-  height: 62px;
+  height: 68px;
   max-width: 70px;
-  max-height: 62px;
+  max-height: 68px;
   object-fit: contain;
   filter: drop-shadow(0 6px 14px rgba(219, 52, 93, 0.16));
 }
@@ -545,13 +545,13 @@ body.dashboard-body:has(.authenticated-dashboard-page) {
   display: grid;
   flex: 1 1 auto;
   min-width: 0;
-  height: 66px;
+  height: 76px;
   align-content: center;
   justify-items: center;
   padding: 10px 16px 16px;
-  border: 1px solid #101826;
-  border-radius: 2px;
-  background: #0d1420;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   text-align: center;
 }
 
@@ -578,9 +578,9 @@ body.dashboard-body:has(.authenticated-dashboard-page) {
 .authenticated-dashboard-page .status-value.small {
   margin: 2px 0 0;
   color: #f8fbff;
-  font-size: 17px;
-  line-height: 1.12;
-  white-space: nowrap;
+  font-size: 16px;
+  line-height: 1.08;
+  white-space: pre-line;
 }
 
 .authenticated-dashboard-page .avatar-card {
@@ -1638,23 +1638,6 @@ body.dashboard-body:has(.public-dashboard-page) {
   text-shadow:
     0 2px 10px rgba(0, 0, 0, 0.98),
     0 0 24px rgba(0, 0, 0, 0.76);
-}
-
-.public-home-showcase .dashboard-tutorial-title::before {
-  content: "";
-  position: absolute;
-  top: clamp(25px, 2vw, 38px);
-  left: clamp(12px, 1vw, 18px);
-  width: clamp(26px, 2.1vw, 40px);
-  height: 1px;
-  border-radius: 999px;
-  background: linear-gradient(
-    90deg,
-    var(--showcase-accent),
-    rgba(255, 255, 255, 0.22),
-    transparent
-  );
-  box-shadow: 0 0 16px color-mix(in srgb, var(--showcase-accent) 46%, transparent);
 }
 
 .public-home-showcase .dashboard-tutorial-title::after {
@@ -4435,7 +4418,6 @@ body.dashboard-modal-open {
     text-shadow: 0 1px 5px rgba(0, 0, 0, 0.86);
   }
 
-  .public-home-showcase .dashboard-tutorial-title::before,
   .public-home-showcase .dashboard-tutorial-card::after {
     display: none;
   }

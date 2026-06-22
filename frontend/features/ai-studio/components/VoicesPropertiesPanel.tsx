@@ -24,24 +24,23 @@ import { resolvePricingGridBilledCredits } from "../../../lib/model-runtime/pric
 import type { ModelPricingPolicyDocument } from "../../../lib/model-runtime/pricingPolicy";
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
 import { useVoiceChangerSourceController } from "../hooks/useVoiceChangerSourceController";
+import { useVoiceCloneSourceController } from "../hooks/useVoiceCloneSourceController";
+import { useVoiceLibraryLoader } from "../hooks/useVoiceLibraryLoader";
+import {
+  isTransientVoicePreviewNotice,
+  useVoicePreviewPlayback,
+} from "../hooks/useVoicePreviewPlayback";
 import {
   resetSharedVoicesGridStore,
   useSharedVoicesGrid,
   type SharedVoiceOption,
 } from "../hooks/useSharedVoicesGrid";
 import type { ToolId } from "../types";
-import {
-  resolveVoiceChangerMediaDurationMs,
-  resolveVoiceChangerSourceStoragePath,
-  signVoiceSourceStoragePath,
-  uploadVoiceCloneSourceFile,
-} from "../utils/voiceChangerSourceAsset";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 import { CreateVoiceModal, type CreateVoiceModalPreview } from "./CreateVoiceModal";
 import { VoiceLibraryContent } from "./VoiceLibraryContent";
 import { resolveGenerateCreditConfidence } from "./shared/generateCreditConfidence";
 import {
-  releaseVoiceChangerSource,
   VoiceChangerSourceDropzone,
   type ResolveVoiceChangerInternalReferenceSource,
   type VoiceChangerSource,
@@ -78,7 +77,6 @@ const maxVoicePromptCharacters = 1000;
 const minVoicePromptCharacters = 20;
 const maxVoiceScriptCharacters = 5000;
 const voiceLoadingSkeletonCount = 12;
-const voiceLibraryLoadTimeoutMs = 15_000;
 const maxVoicePromptHeightPx = 264;
 const minVoiceoverTopSectionHeightPx = 72;
 const minVoiceoverBottomSectionHeightPx = 240;
@@ -105,9 +103,6 @@ const cloneVoiceSourceDropzoneCopy = {
   uploadingAudioDetail: "Staging the voice sample so it is ready for cloning.",
   failedFallbackDetail: "Unable to prepare the selected voice sample.",
 };
-const voicePreviewUnavailableNotice = "This voice does not have a preview sample yet.";
-const voicePreviewBrowserUnavailableNotice = "Audio previews are not available in this browser.";
-const voicePreviewPlaybackErrorNotice = "Unable to play this voice sample right now.";
 const loadedVoiceArrowInlineStyle: React.CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
@@ -128,11 +123,6 @@ const loadedVoiceValueInlineStyle: React.CSSProperties = {
   color: "rgba(239, 255, 252, 1)",
   textShadow: "0 0 16px rgba(105, 220, 203, 0.28)",
 };
-const isTransientVoicePreviewNotice = (value: string | null): boolean =>
-  value === voicePreviewUnavailableNotice ||
-  value === voicePreviewBrowserUnavailableNotice ||
-  value === voicePreviewPlaybackErrorNotice;
-
 const extractDroppedPromptText = (transfer: DataTransfer): string | null => {
   const promptText = (
     transfer.getData("text/prompt") ||
@@ -168,8 +158,6 @@ const buildVoiceDesignPreviewAudioSrc = (
   mediaType: string | null | undefined
 ): string => `data:${mediaType?.trim() || "audio/mpeg"};base64,${audioBase64}`;
 
-const buildVoicePreviewInstanceKey = (voiceId: string): string => `voices:voice-preview:${voiceId}`;
-
 const buildDesignedPreviewInstanceKey = (previewId: string): string =>
   `voices:designed-preview:${previewId}`;
 
@@ -177,33 +165,6 @@ const getVoiceChipDisplayName = (voiceName: string): string => {
   const trimmedName = voiceName.trim();
   if (!trimmedName) return "";
   return trimmedName.split(/\s*(?::|[—–-])\s*/u, 1)[0] ?? trimmedName;
-};
-
-type VoicesListResponse = {
-  voices?: Array<{
-    voiceId?: string;
-    name?: string;
-    previewUrl?: string | null;
-    description?: string | null;
-    isFallback?: boolean;
-    librarySection?: "default" | "my";
-    providerCategory?: string | null;
-    providerVoiceType?: string | null;
-    originKind?:
-      | "fallback-default"
-      | "provider-default"
-      | "provider-saved"
-      | "provider-user-created"
-      | "legacy-saved";
-    canRemoveFromLibrary?: boolean;
-    canDeleteFromProvider?: boolean;
-    destructiveAction?: "none" | "remove" | "delete";
-    destructiveActionLabel?: "Remove" | "Delete" | null;
-    destructiveActionDescription?: string | null;
-    destructiveActionDisabledReason?: string | null;
-  }>;
-  source?: "api" | "fallback";
-  warning?: string;
 };
 
 type VoiceDesignPreview = {
@@ -371,9 +332,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   );
   const [createVoiceMode, setCreateVoiceMode] = React.useState<CreateVoiceMode>("generate");
   const [isCreatePanelOpen, setIsCreatePanelOpen] = React.useState(false);
-  const [isVoicesLoading, setIsVoicesLoading] = React.useState(false);
-  const [voicesLoadError, setVoicesLoadError] = React.useState<string | null>(null);
-  const [voicesLoadNotice, setVoicesLoadNotice] = React.useState<string | null>(null);
   const [voiceName, setVoiceName] = React.useState(createVoiceDefaultName);
   const [voicePromptState, setVoicePromptState] = React.useState("");
   const [voiceDesignPreviews, setVoiceDesignPreviews] = React.useState<CreateVoiceModalPreview[]>(
@@ -390,9 +348,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const [saveVoiceError, setSaveVoiceError] = React.useState<string | null>(null);
   const [isDesigningVoice, setIsDesigningVoice] = React.useState(false);
   const [isSavingDesignedVoice, setIsSavingDesignedVoice] = React.useState(false);
-  const [cloneVoiceSource, setCloneVoiceSource] = React.useState<VoiceChangerSource | null>(null);
   const [isCloneConsentChecked, setIsCloneConsentChecked] = React.useState(false);
-  const [cloneVoiceError, setCloneVoiceError] = React.useState<string | null>(null);
   const [isCloningVoice, setIsCloningVoice] = React.useState(false);
   const [isDeletingSelectedVoice, setIsDeletingSelectedVoice] = React.useState(false);
   const [pendingDeleteVoice, setPendingDeleteVoice] = React.useState<SharedVoiceOption | null>(
@@ -406,11 +362,17 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const [isEnhancingVoiceover, setIsEnhancingVoiceover] = React.useState(false);
   const [voiceoverEnhanceDraft, setVoiceoverEnhanceDraft] = React.useState<string | null>(null);
   const [voiceoverEnhanceError, setVoiceoverEnhanceError] = React.useState<string | null>(null);
-  const [activePreviewVoiceId, setActivePreviewVoiceId] = React.useState<string | null>(null);
   const {
     voiceChangerSource: uncontrolledVoiceChangerSource,
     handleVoiceChangerSourceChange: handleUncontrolledVoiceChangerSourceChange,
   } = useVoiceChangerSourceController();
+  const {
+    cloneVoiceSource,
+    cloneVoiceError,
+    setCloneVoiceError,
+    resetCloneVoiceSource,
+    handleCloneVoiceSourceChange,
+  } = useVoiceCloneSourceController();
   const handleVoiceNameChange = React.useCallback((nextValue: string) => {
     setVoiceName(clampCustomVoiceNameInput(nextValue));
   }, []);
@@ -446,16 +408,12 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const voiceScriptRef = React.useRef<HTMLTextAreaElement | null>(null);
   const splitContainerRef = React.useRef<HTMLDivElement | null>(null);
   const voicesLibraryTriggerRef = React.useRef<HTMLButtonElement | null>(null);
-  const previewAudioRef = React.useRef<HTMLAudioElement | null>(null);
-  const previewAudioVoiceIdRef = React.useRef<string | null>(null);
   const designedPreviewAudioRef = React.useRef<HTMLAudioElement | null>(null);
   const designedPreviewAudioIdRef = React.useRef<string | null>(null);
-  const previousCloneVoiceSourceRef = React.useRef<VoiceChangerSource | null>(null);
   const shouldFocusCreateControlsRef = React.useRef(false);
   const shouldRestoreVoicesLibraryTriggerFocusRef = React.useRef(false);
   const shouldRestoreCreateVoiceTriggerFocusRef = React.useRef(false);
   const createVoiceTriggerRef = React.useRef<HTMLButtonElement | null>(null);
-  const cloneVoiceSourceRequestIdRef = React.useRef(0);
   const voiceChangerSource =
     controlledVoiceChangerSource !== undefined
       ? controlledVoiceChangerSource
@@ -463,6 +421,23 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const loadedVoiceCueTimeoutRef = React.useRef<number | null>(null);
   const requiresProviderVoice = Boolean(onGenerate);
   const shouldLoadVoiceLibrary = requiresProviderVoice && Boolean(sessionUserId);
+  const {
+    isVoicesLoading,
+    voicesLoadError,
+    setVoicesLoadError,
+    voicesLoadNotice,
+    setVoicesLoadNotice,
+  } = useVoiceLibraryLoader({
+    replaceVoices,
+    sessionUserId,
+    setActiveVoicesLibrarySection,
+    shouldLoadVoiceLibrary,
+  });
+  const { activePreviewVoiceId, stopActiveVoicePreview, handleVoicePreviewPlay } =
+    useVoicePreviewPlayback({
+      setVoicesLoadError,
+      setVoicesLoadNotice,
+    });
   const isCreateVoiceModalOpen = isCreatePanelOpen;
   const isSelectedVoiceProviderReady =
     selectedLibraryVoice?.provider === "elevenlabs" && !selectedLibraryVoice?.isFallback;
@@ -720,8 +695,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const resetCreateVoiceModalState = React.useCallback(
     (nextMode: CreateVoiceMode = "generate") => {
       stopActiveDesignedPreview();
-      releaseVoiceChangerSource(previousCloneVoiceSourceRef.current);
-      previousCloneVoiceSourceRef.current = null;
       setVoiceName(createVoiceDefaultName);
       setVoicePrompt("");
       setCreateVoiceMode(nextMode);
@@ -733,12 +706,11 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       setSaveVoiceError(null);
       setIsDesigningVoice(false);
       setIsSavingDesignedVoice(false);
-      setCloneVoiceSource(null);
+      resetCloneVoiceSource();
       setIsCloneConsentChecked(false);
-      setCloneVoiceError(null);
       setIsCloningVoice(false);
     },
-    [setVoicePrompt, stopActiveDesignedPreview]
+    [resetCloneVoiceSource, setVoicePrompt, stopActiveDesignedPreview]
   );
 
   const handleVoiceChangerSourceChange = React.useCallback(
@@ -752,110 +724,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     [handleUncontrolledVoiceChangerSourceChange, onControlledVoiceChangerSourceChange]
   );
 
-  const handleCloneVoiceSourceChange = React.useCallback(
-    (nextSource: VoiceChangerSource | null) => {
-      const requestId = cloneVoiceSourceRequestIdRef.current + 1;
-      cloneVoiceSourceRequestIdRef.current = requestId;
-      setCloneVoiceError(null);
-
-      if (!nextSource) {
-        setCloneVoiceSource(null);
-        return;
-      }
-
-      const resolveErrorMessage = (error: unknown): string => {
-        if (error instanceof Error && error.message.trim()) return error.message.trim();
-        return "Unable to prepare the selected voice sample.";
-      };
-
-      if (nextSource.kind !== "audio") {
-        setCloneVoiceSource({
-          ...nextSource,
-          status: "failed",
-          errorMessage: "Clone Voice accepts audio samples only.",
-        });
-        return;
-      }
-
-      const initialStatus = nextSource.file ? "uploading" : "ready";
-      const initialSource: VoiceChangerSource = {
-        ...nextSource,
-        status: initialStatus,
-        storagePath:
-          nextSource.storagePath ?? resolveVoiceChangerSourceStoragePath(nextSource.sourceUrl),
-        errorMessage: null,
-        extractedFrom: null,
-      };
-
-      setCloneVoiceSource(initialSource);
-
-      void (async () => {
-        let stagedStoragePath = initialSource.storagePath;
-        let stagedSourceUrl = initialSource.sourceUrl;
-        let stagedMimeType = initialSource.mimeType;
-        let stagedName = initialSource.name;
-        let stagedDurationMs = initialSource.durationMs;
-
-        try {
-          if (initialSource.file) {
-            const uploaded = await uploadVoiceCloneSourceFile({ file: initialSource.file });
-            stagedStoragePath = uploaded.storagePath;
-            stagedSourceUrl = uploaded.signedUrl ?? stagedSourceUrl;
-            stagedMimeType = uploaded.mimeType;
-            stagedName = uploaded.name;
-          } else if (stagedStoragePath) {
-            stagedSourceUrl = await signVoiceSourceStoragePath(stagedStoragePath);
-          }
-
-          if (cloneVoiceSourceRequestIdRef.current !== requestId) return;
-          if (!stagedSourceUrl || !stagedStoragePath) {
-            throw new Error("Unable to resolve the staged voice sample.");
-          }
-
-          stagedDurationMs =
-            stagedDurationMs ??
-            (await resolveVoiceChangerMediaDurationMs(stagedSourceUrl, "audio").catch(() => null));
-
-          setCloneVoiceSource({
-            ...initialSource,
-            kind: "audio",
-            status: "ready",
-            aspect: null,
-            durationMs: stagedDurationMs,
-            name: stagedName,
-            mimeType: stagedMimeType,
-            file: null,
-            previewUrl: null,
-            sourceUrl: stagedSourceUrl,
-            objectUrl: initialSource.objectUrl,
-            storagePath: stagedStoragePath,
-            errorMessage: null,
-            extractedFrom: null,
-          });
-        } catch (error) {
-          if (cloneVoiceSourceRequestIdRef.current !== requestId) return;
-          setCloneVoiceSource({
-            ...initialSource,
-            status: "failed",
-            file: null,
-            sourceUrl: stagedSourceUrl,
-            storagePath: stagedStoragePath,
-            errorMessage: resolveErrorMessage(error),
-          });
-        }
-      })();
-    },
-    []
-  );
-
-  React.useEffect(() => {
-    const previousSource = previousCloneVoiceSourceRef.current;
-    if (previousSource?.objectUrl && previousSource.objectUrl !== cloneVoiceSource?.objectUrl) {
-      releaseVoiceChangerSource(previousSource);
-    }
-    previousCloneVoiceSourceRef.current = cloneVoiceSource;
-  }, [cloneVoiceSource]);
-
   React.useEffect(() => {
     onActiveVoiceChangerSourceVideoChange?.(
       resolveActiveVoiceChangerSourceVideo({
@@ -867,30 +735,18 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
 
   React.useEffect(() => {
     return () => {
-      releaseVoiceChangerSource(previousCloneVoiceSourceRef.current);
-      const previewAudio = previewAudioRef.current;
-      if (previewAudio) {
-        previewAudio.pause();
-        previewAudio.src = "";
-      }
       const designedPreviewAudio = designedPreviewAudioRef.current;
       if (designedPreviewAudio) {
         designedPreviewAudio.pause();
         designedPreviewAudio.src = "";
-      }
-      if (previewAudioVoiceIdRef.current) {
-        clearExclusiveSoundPlayback(buildVoicePreviewInstanceKey(previewAudioVoiceIdRef.current));
       }
       if (designedPreviewAudioIdRef.current) {
         clearExclusiveSoundPlayback(
           buildDesignedPreviewInstanceKey(designedPreviewAudioIdRef.current)
         );
       }
-      previewAudioRef.current = null;
-      previewAudioVoiceIdRef.current = null;
       designedPreviewAudioRef.current = null;
       designedPreviewAudioIdRef.current = null;
-      cloneVoiceSourceRequestIdRef.current += 1;
     };
   }, []);
 
@@ -905,125 +761,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     }
   }, [selectedTool]);
 
-  React.useEffect(() => {
-    if (!shouldLoadVoiceLibrary) {
-      return;
-    }
-    let cancelled = false;
-    const abortController = new AbortController();
-    const timeoutId = window.setTimeout(() => {
-      abortController.abort();
-    }, voiceLibraryLoadTimeoutMs);
-    const loadVoices = async () => {
-      setIsVoicesLoading(true);
-      setVoicesLoadError(null);
-      setVoicesLoadNotice(null);
-      resetSharedVoicesGridStore();
-      try {
-        const response = await fetchWithAuth("/api/elevenlabs/voices", {
-          shortpulseLogScope: "generation",
-          shortpulseAuthTimeoutMs: 5_000,
-          signal: abortController.signal,
-        });
-        const payload = (await response.json().catch(() => null)) as VoicesListResponse | null;
-        if (!response.ok) {
-          throw new Error("Unable to load voices.");
-        }
-        const nextVoices: SharedVoiceOption[] = (payload?.voices ?? []).flatMap((voice) => {
-          const voiceId = voice.voiceId?.trim() ?? "";
-          const name = voice.name?.trim() ?? "";
-          if (!voiceId || !name) return [];
-          const resolvedLibrarySection =
-            voice.librarySection === "default"
-              ? "default"
-              : voice.librarySection === "my"
-                ? "my"
-                : voice.isFallback
-                  ? "default"
-                  : "my";
-          const canRemoveFromLibrary =
-            typeof voice.canRemoveFromLibrary === "boolean"
-              ? voice.canRemoveFromLibrary
-              : resolvedLibrarySection === "my";
-          const canDeleteFromProvider = Boolean(voice.canDeleteFromProvider);
-          const destructiveAction =
-            voice.destructiveAction ??
-            (canDeleteFromProvider ? "delete" : canRemoveFromLibrary ? "remove" : "none");
-          const destructiveActionLabel =
-            voice.destructiveActionLabel ??
-            (destructiveAction === "delete"
-              ? "Delete"
-              : destructiveAction === "remove"
-                ? "Remove"
-                : null);
-          const destructiveActionDisabledReason =
-            voice.destructiveActionDisabledReason?.trim() ||
-            (destructiveAction === "none" && voice.isFallback
-              ? "Built-in voices can't be deleted here."
-              : destructiveAction === "none"
-                ? "This voice can't be deleted here."
-                : null);
-          return [
-            {
-              id: voiceId,
-              name: sanitizeCustomerFacingProviderText(name, "Voice"),
-              previewUrl: voice.previewUrl?.trim() || null,
-              description: sanitizeCustomerFacingProviderText(voice.description, "") || null,
-              isFallback: Boolean(voice.isFallback),
-              librarySection: resolvedLibrarySection,
-              provider: "elevenlabs" as const,
-              providerCategory: voice.providerCategory?.trim().toLowerCase() || null,
-              providerVoiceType: voice.providerVoiceType?.trim().toLowerCase() || null,
-              originKind:
-                voice.originKind ?? (voice.isFallback ? "fallback-default" : "legacy-saved"),
-              canRemoveFromLibrary,
-              canDeleteFromProvider,
-              destructiveAction,
-              destructiveActionLabel,
-              destructiveActionDescription:
-                sanitizeCustomerFacingProviderText(voice.destructiveActionDescription, "") || null,
-              destructiveActionDisabledReason:
-                sanitizeCustomerFacingProviderText(destructiveActionDisabledReason, "") || null,
-            },
-          ];
-        });
-        if (!cancelled) {
-          if (nextVoices.length > 0) {
-            replaceVoices(nextVoices);
-          }
-          setVoicesLoadNotice(sanitizeCustomerFacingProviderText(payload?.warning, "") || null);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          resetSharedVoicesGridStore();
-          setActiveVoicesLibrarySection("default");
-          setVoicesLoadError(
-            sanitizeCustomerFacingProviderText(
-              error instanceof Error && error.name === "AbortError"
-                ? "Voice library took too long to load. Showing built-in voices for now."
-                : error instanceof Error
-                  ? error.message
-                  : null,
-              "Unable to load voices."
-            )
-          );
-        }
-      } finally {
-        window.clearTimeout(timeoutId);
-        if (!cancelled) {
-          setIsVoicesLoading(false);
-        }
-      }
-    };
-
-    void loadVoices();
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timeoutId);
-      abortController.abort();
-    };
-  }, [replaceVoices, sessionUserId, shouldLoadVoiceLibrary]);
-
   const handleSurfaceModeChange = React.useCallback((nextMode: VoicesSurfaceMode) => {
     setSurfaceMode(nextMode);
     if (nextMode !== "create") {
@@ -1031,12 +768,15 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     }
   }, []);
 
-  const handleCreateVoiceModeChange = React.useCallback((nextMode: CreateVoiceMode) => {
-    setCreateVoiceMode(nextMode);
-    setVoiceDesignError(null);
-    setSaveVoiceError(null);
-    setCloneVoiceError(null);
-  }, []);
+  const handleCreateVoiceModeChange = React.useCallback(
+    (nextMode: CreateVoiceMode) => {
+      setCreateVoiceMode(nextMode);
+      setVoiceDesignError(null);
+      setSaveVoiceError(null);
+      setCloneVoiceError(null);
+    },
+    [setCloneVoiceError]
+  );
 
   const handleCreateVoicePreviewGeneration = React.useCallback(async () => {
     const nextVoiceName = voiceName.trim();
@@ -1177,7 +917,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     setActiveVoicesLibrarySection("my");
     setVoicesLoadNotice((current) => (isTransientVoicePreviewNotice(current) ? null : current));
     setIsVoicesLibraryModalOpen(true);
-  }, []);
+  }, [setVoicesLoadNotice]);
 
   React.useEffect(() => {
     if (!isCreateVoiceModalOpen) {
@@ -1196,34 +936,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     };
   }, [handleCloseCreatePanel, isCreateVoiceModalOpen]);
 
-  const stopActiveVoicePreview = React.useCallback(() => {
-    const activeAudio = previewAudioRef.current;
-    const activeInstanceKey = previewAudioVoiceIdRef.current
-      ? buildVoicePreviewInstanceKey(previewAudioVoiceIdRef.current)
-      : null;
-    if (!activeAudio) {
-      if (activeInstanceKey) {
-        clearExclusiveSoundPlayback(activeInstanceKey);
-      }
-      setActivePreviewVoiceId(null);
-      previewAudioVoiceIdRef.current = null;
-      return;
-    }
-    activeAudio.onplay = null;
-    activeAudio.onpause = null;
-    activeAudio.onended = null;
-    activeAudio.onerror = null;
-    activeAudio.pause();
-    activeAudio.currentTime = 0;
-    activeAudio.src = "";
-    if (activeInstanceKey) {
-      clearExclusiveSoundPlayback(activeInstanceKey);
-    }
-    previewAudioRef.current = null;
-    previewAudioVoiceIdRef.current = null;
-    setActivePreviewVoiceId(null);
-  }, []);
-
   React.useEffect(() => {
     resetSharedVoicesGridStore();
     stopActiveVoicePreview();
@@ -1237,7 +949,13 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     setActiveVoicesLibrarySection("my");
     setPendingLoadedVoiceCueVoiceId(null);
     setLoadedVoiceCueVoiceId(null);
-  }, [resetCreateVoiceModalState, sessionUserId, stopActiveVoicePreview]);
+  }, [
+    resetCreateVoiceModalState,
+    sessionUserId,
+    setVoicesLoadError,
+    setVoicesLoadNotice,
+    stopActiveVoicePreview,
+  ]);
 
   const handleCloseVoicesLibraryModal = React.useCallback(() => {
     stopActiveVoicePreview();
@@ -1260,83 +978,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       window.removeEventListener("keydown", handleEscape);
     };
   }, [handleCloseVoicesLibraryModal, isVoicesLibraryModalOpen]);
-
-  const handleVoicePreviewPlay = React.useCallback(
-    (voiceId: string, previewUrl: string | null | undefined) => {
-      const nextUrl = previewUrl?.trim() ?? "";
-      if (!nextUrl) {
-        setVoicesLoadError(null);
-        setVoicesLoadNotice(voicePreviewUnavailableNotice);
-        return;
-      }
-      if (typeof Audio === "undefined") {
-        setVoicesLoadError(null);
-        setVoicesLoadNotice(voicePreviewBrowserUnavailableNotice);
-        return;
-      }
-      setVoicesLoadError(null);
-      setVoicesLoadNotice(null);
-      const activeAudio = previewAudioRef.current;
-      const isSameVoice = previewAudioVoiceIdRef.current === voiceId;
-      if (activeAudio && isSameVoice) {
-        stopActiveVoicePreview();
-        return;
-      }
-
-      if (activeAudio) {
-        stopActiveVoicePreview();
-      }
-
-      const nextAudio = new Audio(nextUrl);
-      const nextInstanceKey = buildVoicePreviewInstanceKey(voiceId);
-      nextAudio.preload = "none";
-      nextAudio.onplay = () => {
-        if (previewAudioRef.current !== nextAudio) return;
-        markExclusiveSoundPlaying({
-          instanceKey: nextInstanceKey,
-          pause: () => {
-            nextAudio.pause();
-          },
-        });
-        setActivePreviewVoiceId(voiceId);
-      };
-      nextAudio.onpause = () => {
-        if (previewAudioRef.current !== nextAudio) return;
-        if (nextAudio.ended || nextAudio.currentTime <= 0) {
-          stopActiveVoicePreview();
-        }
-      };
-      nextAudio.onended = () => {
-        if (previewAudioRef.current !== nextAudio) return;
-        stopActiveVoicePreview();
-      };
-      nextAudio.onerror = () => {
-        if (previewAudioRef.current !== nextAudio) return;
-        setVoicesLoadError(null);
-        setVoicesLoadNotice(voicePreviewPlaybackErrorNotice);
-        stopActiveVoicePreview();
-      };
-      previewAudioRef.current = nextAudio;
-      previewAudioVoiceIdRef.current = voiceId;
-      requestExclusiveSoundPlayback({
-        instanceKey: nextInstanceKey,
-        pause: () => {
-          nextAudio.pause();
-        },
-      });
-      const playResult = nextAudio.play();
-      if (playResult && typeof playResult.catch === "function") {
-        void playResult.catch(() => {
-          if (previewAudioRef.current === nextAudio) {
-            setVoicesLoadError(null);
-            setVoicesLoadNotice(voicePreviewPlaybackErrorNotice);
-            stopActiveVoicePreview();
-          }
-        });
-      }
-    },
-    [stopActiveVoicePreview]
-  );
 
   const handleDesignedPreviewPlay = React.useCallback(
     (previewId: string, previewUrl: string) => {
@@ -1568,6 +1209,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     cloneVoiceSource,
     isCloneConsentChecked,
     resetCreateVoiceModalState,
+    setCloneVoiceError,
     upsertSharedVoice,
     voiceName,
   ]);
@@ -1584,7 +1226,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     }
 
     setPendingDeleteVoice(selectedLibraryVoice);
-  }, [selectedLibraryVoice]);
+  }, [selectedLibraryVoice, setVoicesLoadError]);
 
   const closeDeleteVoiceConfirm = React.useCallback(() => {
     if (isDeletingSelectedVoice) {
@@ -1640,6 +1282,8 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     libraryVoices,
     pendingDeleteVoice,
     replaceVoices,
+    setVoicesLoadError,
+    setVoicesLoadNotice,
     stopActiveVoicePreview,
   ]);
 

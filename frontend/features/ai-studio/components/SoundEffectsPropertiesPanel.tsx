@@ -465,13 +465,6 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
                       </span>
                     </span>
                   </button>
-                  <p
-                    className="sound-effects-properties-credit-confidence"
-                    data-credit-confidence={generateCreditConfidence.status}
-                    aria-live="polite"
-                  >
-                    {generateCreditConfidence.summary}
-                  </p>
                 </div>
               </div>
             </div>

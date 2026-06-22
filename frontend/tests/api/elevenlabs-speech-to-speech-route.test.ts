@@ -389,8 +389,36 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({
       error: "Invalid request",
-      details: "sourceStoragePath or sourceUrl is required.",
+      details:
+        "Voice changer generation requires a staged sourceStoragePath or trusted sourceUrl; direct media uploads are not accepted.",
     });
+    expect(readStoredMediaBufferMock).not.toHaveBeenCalled();
+    expect(readRemoteSourceBufferMock).not.toHaveBeenCalled();
+    expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
+    expect(generateElevenLabsVoiceChangerMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects direct multipart media even when a staged source is also supplied", async () => {
+    mockFiles = {
+      source: {
+        filepath: "/tmp/direct-source.wav",
+        originalFilename: "direct-source.wav",
+        mimetype: "audio/wav",
+      },
+    };
+
+    const req = { method: "POST" };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Invalid request",
+      details:
+        "Voice changer generation requires a staged sourceStoragePath or trusted sourceUrl; direct media uploads are not accepted.",
+    });
+    expect(listSavedVoicesForUserMock).not.toHaveBeenCalled();
     expect(readStoredMediaBufferMock).not.toHaveBeenCalled();
     expect(readRemoteSourceBufferMock).not.toHaveBeenCalled();
     expect(chargeGenerationRequestMock).not.toHaveBeenCalled();

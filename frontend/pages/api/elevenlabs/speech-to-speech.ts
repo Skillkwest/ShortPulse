@@ -128,6 +128,9 @@ const parseBooleanField = (value: string | string[] | undefined): boolean => {
   return normalized === "true";
 };
 
+const hasUploadedFiles = (files: formidable.Files): boolean =>
+  Object.values(files).some((entry) => (Array.isArray(entry) ? entry.length > 0 : Boolean(entry)));
+
 const parseMultipart = async (req: NextApiRequest): Promise<ParsedMultipart> => {
   const form = formidable({
     maxFileSize: 100 * 1024 * 1024,
@@ -188,7 +191,14 @@ export default async function handler(
   }
 
   try {
-    const { fields } = await parseMultipart(req);
+    const { fields, files } = await parseMultipart(req);
+    if (hasUploadedFiles(files)) {
+      return res.status(400).json({
+        error: "Invalid request",
+        details:
+          "Voice changer generation requires a staged sourceStoragePath or trusted sourceUrl; direct media uploads are not accepted.",
+      });
+    }
     const voiceId = readFieldString(fields.voiceId);
     const voiceName = readFieldString(fields.voiceName);
     const outputFormat = readFieldString(fields.outputFormat);

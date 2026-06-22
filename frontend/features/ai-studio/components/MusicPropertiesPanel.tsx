@@ -830,13 +830,6 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
                     </span>
                   </button>
                 </div>
-                <p
-                  className="music-properties-credit-confidence"
-                  data-credit-confidence={generateCreditConfidence.status}
-                  aria-live="polite"
-                >
-                  {generateCreditConfidence.summary}
-                </p>
               </div>
             </div>
           </div>

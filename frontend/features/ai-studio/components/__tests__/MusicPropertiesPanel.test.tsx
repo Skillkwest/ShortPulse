@@ -218,7 +218,7 @@ describe("MusicPropertiesPanel", () => {
 
     expect(generateButton).toHaveAttribute("data-credit-confidence", "covered");
     expect(generateButton.getAttribute("title")).toContain("balance 10000 credits");
-    expect(screen.getByText("Balance covers this run")).toBeInTheDocument();
+    expect(screen.queryByText("Balance covers this run")).not.toBeInTheDocument();
   });
 
   it("switches between simple and custom composer modes", () => {

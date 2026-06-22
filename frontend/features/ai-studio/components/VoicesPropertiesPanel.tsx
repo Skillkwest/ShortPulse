@@ -1978,12 +1978,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                       </span>
                     </span>
                   </span>
-                  <span
-                    className="voices-properties-credit-confidence"
-                    data-credit-confidence={generateCreditConfidence.status}
-                  >
-                    {generateCreditConfidence.summary}
-                  </span>
                 </div>
                 <button
                   type="button"

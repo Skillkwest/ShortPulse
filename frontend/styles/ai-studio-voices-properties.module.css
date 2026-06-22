@@ -2763,30 +2763,6 @@
   min-width: 0;
 }
 
-.bootstrapStyleScope:global(.voices-properties-credit-confidence),
-.bootstrapStyleScope :global(.voices-properties-credit-confidence) {
-  display: block;
-  max-width: 180px;
-  overflow: hidden;
-  color: rgba(164, 235, 226, 0.76);
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1.3;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.bootstrapStyleScope:global(.voices-properties-credit-confidence[data-credit-confidence="short"]),
-.bootstrapStyleScope :global(.voices-properties-credit-confidence[data-credit-confidence="short"]) {
-  color: rgba(255, 177, 148, 0.9);
-}
-
-.bootstrapStyleScope:global(.voices-properties-credit-confidence[data-credit-confidence="unknown"]),
-.bootstrapStyleScope
-  :global(.voices-properties-credit-confidence[data-credit-confidence="unknown"]) {
-  color: rgba(201, 205, 214, 0.68);
-}
-
 .bootstrapStyleScope:global(.voices-properties-generate-context-value--loaded),
 .bootstrapStyleScope :global(.voices-properties-generate-context-value--loaded) {
   animation: voices-properties-loaded-voice-flash 1.8s ease-out;

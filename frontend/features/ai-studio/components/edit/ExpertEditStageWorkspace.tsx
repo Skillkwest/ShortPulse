@@ -129,6 +129,10 @@ export function ExpertEditStageWorkspace({
   modalSurface,
   contextMenu,
 }: ExpertEditStageWorkspaceProps) {
+  const shouldShowStageOverlayActions =
+    !isMorePresetsSurfaceOpen &&
+    (Boolean(inlineStageHeaderControls) || (hasPrimaryCompositePreview && selectedLayerName));
+
   return (
     <>
       <div className="edit-expert-main-stage">
@@ -144,7 +148,7 @@ export function ExpertEditStageWorkspace({
             isEmpty={!hasPrimaryCompositePreview}
             isBusy={isPrimaryStageBusy}
             overlayActions={
-              inlineStageHeaderControls || (hasPrimaryCompositePreview && selectedLayerName) ? (
+              shouldShowStageOverlayActions ? (
                 <div className="edit-expert-stage-overlay-ui">
                   {inlineStageHeaderControls}
                   {hasPrimaryCompositePreview && selectedLayerName ? (

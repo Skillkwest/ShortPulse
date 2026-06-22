@@ -887,9 +887,12 @@
 }
 
 .video-properties-panel .video-inline-warning-bubble--requirement {
-  border-color: rgba(245, 185, 66, 0.52);
-  background: rgba(245, 185, 66, 0.12);
-  color: rgba(255, 239, 202, 0.96);
+  border-color: var(--video-accent-strong);
+  background: linear-gradient(135deg, rgba(153, 42, 201, 0.46), rgba(67, 58, 169, 0.48));
+  color: var(--ai-warm-start, rgba(245, 185, 66, 0.96));
+  box-shadow:
+    0 0 0 1px rgba(170, 101, 239, 0.16),
+    0 8px 22px rgba(153, 42, 201, 0.16);
 }
 
 .video-properties-panel .video-inline-warning-bubble .app-message__body {

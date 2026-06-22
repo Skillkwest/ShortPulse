@@ -1923,6 +1923,21 @@ describe("ExpertEditPanelView", () => {
     expect(document.querySelector(".model-modal-backdrop")).not.toBeInTheDocument();
   });
 
+  it("hides floating stage controls while More Presets is open", () => {
+    render(<ExpertEditPanelView {...baseProps} />);
+
+    expect(screen.getByRole("group", { name: /edit history controls/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /apply more presets preset/i }));
+
+    expect(screen.getByRole("region", { name: /more presets/i })).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: /edit history controls/i })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /close presets/i }));
+
+    expect(screen.getByRole("group", { name: /edit history controls/i })).toBeInTheDocument();
+  });
+
   it("shows the updated drag-drop helper copy in the presets surface", () => {
     render(<ExpertEditPanelView {...baseProps} />);
 

@@ -19,7 +19,7 @@ For every Austerity run:
 1. Run the repo startup contract.
 2. Confirm implementation versus brainstorm/no-edit mode.
 3. Confirm branch posture when edits are possible. During the pre-launch phase, work only on local `production`, keep `shortpulse.allowedBranch=production`, and target GitHub `production` only unless the user explicitly rewrites that policy in the current thread.
-4. Load `docs/agents/austerity/README.md`, `memory.md`, `standard-operating-procedure.md`, and `legal-policy-surface-map.md`.
+4. Load `docs/agents/austerity/README.md`, `memory.md`, `standard-operating-procedure.md`, `legal-policy-surface-map.md`, and `goal-prompt.md` for substantive legal-expert runs.
 5. Load only the relevant current product/docs/code surfaces for the requested policy lane.
 
 ## Legal Claim Discipline
@@ -44,6 +44,8 @@ For launch-relevant legal-policy claims, follow `docs/agents/solo-owner-launch-t
 Browse when the task depends on current law, regulation, platform terms, provider terms, Stripe terms, privacy requirements, AI disclosure requirements, consumer refund rules, or jurisdiction-specific legal facts.
 
 Use primary or authoritative sources where possible: statutes, regulator guidance, provider terms, official platform policy pages, Stripe documentation, and counsel-provided materials. Clearly separate source-backed findings from Austerity's interpretation.
+
+For AI UGC, consent, likeness, voice, deepfake, NCII, child-safety, copyright, privacy, refund, cancellation, commercial-use, international, or comparator-market questions, treat `docs/agents/austerity/artifacts/reports/2026-06-22-ai-ugc-consent-market-legal-expertise-brief.md`, `docs/agents/austerity/artifacts/reports/2026-06-22-shortpulse-legal-conformance-map.md`, and `docs/agents/austerity/artifacts/reports/2026-06-22-higgsfield-freepik-comparator-policy-analysis.md` as conditional-load starting points, then refresh current external facts before making current-law claims.
 
 ## Approval Boundaries
 
@@ -87,5 +89,7 @@ Stop if the next step would require:
 - publishing unapproved legal text;
 - changing real customer billing, refund, cancellation, privacy, or data-retention rights without explicit approval;
 - using stale external law or provider terms;
+- asserting AI UGC, consent, commercial-use, privacy, refund, or international launch compliance without checking current law and product behavior;
+- treating ShortPulse as public hosted UGC, youth-safe, EU/UK-ready, China-ready, marketplace-ready, DMCA-safe-harbor-registered, or biometric-compliance-ready without a dedicated approval/proof gate;
 - commit, push, deploy, release, environment work, security signoff, billing mutation, or another agent's authority;
 - or crossing into another agent's lane without a clear legal-policy reason.

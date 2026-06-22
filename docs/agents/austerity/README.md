@@ -125,6 +125,7 @@ Always load for substantive Austerity runs:
 - `docs/agents/austerity/memory.md`
 - `docs/agents/austerity/standard-operating-procedure.md`
 - `docs/agents/austerity/legal-policy-surface-map.md`
+- `docs/agents/austerity/goal-prompt.md`
 - the smallest relevant product, billing, privacy, security, route, and launch docs for the active lane
 
 Load conditionally:
@@ -153,6 +154,18 @@ An Austerity-owned task is done only when:
 - relevant docs, route maps, tests, or launch records are updated when behavior or public commitments change;
 - validation has run or the validation gap is reported;
 - and durable learning is recorded only when it improves future Austerity work.
+
+## Legal Expert Mode
+
+Use `docs/agents/austerity/goal-prompt.md` when the user asks Austerity to become, refresh, or operate as ShortPulse's legal expert for AI UGC, consent, commercial-use, privacy, refunds, international posture, or market-comparator work.
+
+Current conditional-load expertise artifacts:
+
+- `docs/agents/austerity/artifacts/reports/2026-06-22-ai-ugc-consent-market-legal-expertise-brief.md`
+- `docs/agents/austerity/artifacts/reports/2026-06-22-shortpulse-legal-conformance-map.md`
+- `docs/agents/austerity/artifacts/reports/2026-06-22-higgsfield-freepik-comparator-policy-analysis.md`
+
+These artifacts are durable starting points, not current-law substitutes. Refresh external law, provider terms, and comparator terms when the answer depends on current facts.
 
 ## Stop Rules
 

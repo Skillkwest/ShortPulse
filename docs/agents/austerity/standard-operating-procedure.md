@@ -13,7 +13,8 @@ Use this SOP when the user says `run Austerity`, asks for legal advice, asks for
 3. Confirm the local branch is `production` and `shortpulse.allowedBranch` is `production` when edits are possible.
 4. Run the workspace artifact/backup safety check before broad commands.
 5. Load Austerity's contract, local instructions, memory, SOP, and legal-policy surface map.
-6. Use the solo-owner model: ShortPulse is one human owner/operator supported by named AI agents, and Austerity is a bounded legal-policy authority surface.
+6. For legal-expert, AI UGC, consent, comparator, international, commercial-use, or market-law work, load `docs/agents/austerity/goal-prompt.md` and the smallest relevant 2026-06-22 expertise artifact.
+7. Use the solo-owner model: ShortPulse is one human owner/operator supported by named AI agents, and Austerity is a bounded legal-policy authority surface.
 
 ## 2. Classify The Legal-Policy Lane
 
@@ -25,6 +26,8 @@ Classify the task as one or more of:
 - billing, subscription, credit, or commerce-policy review;
 - media-rights, likeness, custom voice, or user-upload policy review;
 - AI-generated content, acceptable use, or provider-terms review;
+- AI UGC, consent, likeness, voice, deepfake, NCII, child-safety, or international compliance review;
+- market-comparator review, including Higgsfield, Freepik/Magnific, or similar AI creative platforms;
 - customer support policy escalation;
 - public-page implementation;
 - launch-gate closeout;
@@ -39,7 +42,11 @@ Always prefer local repo sources first.
 
 Common local references:
 
+- `docs/agents/austerity/goal-prompt.md`
 - `docs/agents/austerity/legal-policy-surface-map.md`
+- `docs/agents/austerity/artifacts/reports/2026-06-22-ai-ugc-consent-market-legal-expertise-brief.md`
+- `docs/agents/austerity/artifacts/reports/2026-06-22-shortpulse-legal-conformance-map.md`
+- `docs/agents/austerity/artifacts/reports/2026-06-22-higgsfield-freepik-comparator-policy-analysis.md`
 - `docs/agents/solo-owner-launch-trust-standard.md`
 - `docs/agents/copperknot/handoffs/2026-06-20-public-legal-policy-pages-launch-gate.md`
 - `frontend/features/dashboard/components/PublicHomeFooter.tsx`
@@ -52,6 +59,13 @@ Common local references:
 - relevant ADRs, SOPs, API docs, and implementation files for the active lane
 
 External research is required when the answer depends on current or jurisdiction-specific legal rules, provider terms, platform terms, Stripe terms, privacy obligations, consumer refund rules, or AI disclosure/content rules.
+
+For external research, prefer source classes in this order:
+
+1. official regulator/statute/court/provider/platform policy;
+2. official competitor policy page for comparator work;
+3. reputable legal analysis only to explain uncertain or fragmented law;
+4. user reports or social posts only as reputation/trust signals, not legal authority.
 
 ## 4. Build The Policy Claim Ledger
 
@@ -119,6 +133,7 @@ Stop and ask for human review when:
 - current law, provider terms, platform terms, or Stripe terms are required and have not been researched;
 - counsel review is required before publication;
 - product behavior conflicts with desired policy text;
+- the user asks for public hosted UGC, youth access, marketplace/community sharing, targeted advertising, model training on user content, EU/UK expansion, China availability, biometric identity use, political/civic output, or celebrity/public-figure likeness use without an approved legal gate;
 - the lane crosses into billing, security, environment, or support ownership without the appropriate owner coordination;
 - the next proof requires commit, push, deploy, release, environment work, billing mutation, security signoff, or another agent's authority;
 - or the remaining work would become speculative legal advice.

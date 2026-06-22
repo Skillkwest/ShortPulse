@@ -169,7 +169,6 @@ Claim status: `supporting claimed surface`. Holomony owns media grid display and
 
 Known media-adjacent surfaces outside the immediate grid/modal claim:
 
-- `frontend/features/performance/components/VideoDetailModal.tsx`: performance analytics video modal. Classify as `pending evidence` for Holomony media display/performance authority; do not edit until a product-media symptom or explicit task targets it.
 - `frontend/features/ai-studio/components/StudioPreview.tsx`: stage/preview rail display. Classify as `boundary`; Holomony owns media display only when preview media authority or render performance is the symptom.
 - `frontend/features/ai-studio/components/ReferenceMediaStep.tsx`: reference input step. Classify as `boundary`; Holomony owns media display only when preview/media authority is the symptom.
 - Admin report/error detail modals: `handoff only`; they are not user media-display surfaces.

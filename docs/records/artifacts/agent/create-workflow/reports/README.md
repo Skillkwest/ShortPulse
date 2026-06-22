@@ -4,6 +4,7 @@ Purpose: store retained reports and attempt ledgers for Create Workflow.
 
 ## Current Reports
 
+- `2026-06-22-create-panel-launch-checkpoint.md`: current launch checkpoint for Create panel source hardening, route/API boundaries, validation evidence, and Copperknot reopen conditions.
 - `2026-05-19-composer-image-insertion-retrospective.md`: resolved summary of the composer image-insertion incident, including the product-contract pivot and the decisive drag-classification fix.
 - `2026-05-16-create-composer-attachment-incident-audit.md`: historical attempt ledger covering the unresolved investigation phase from 2026-05-12 through 2026-05-16.
 

@@ -2,7 +2,7 @@
  * Reference Grid storage signing controller.
  * Converts canonical storage paths into temporary render URLs for visible rail media.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { asCanonicalStoragePath } from "../../../../lib/adaptive-media";
 import { getSignedMediaUrlsBatch } from "../../../../lib/mediaSignedUrlCache";
 import {
@@ -246,6 +246,11 @@ export const useReferenceGridSignedStorageUrlController = ({
   const [signedMediaAuthorityByMediaId, setSignedMediaAuthorityByMediaId] = useState<
     Map<string, SessionSignedMediaRestoreAuthority>
   >(() => new Map());
+  const signedStorageUrlByPathRef = useRef(signedStorageUrlByPath);
+
+  useEffect(() => {
+    signedStorageUrlByPathRef.current = signedStorageUrlByPath;
+  }, [signedStorageUrlByPath]);
 
   useEffect(() => {
     const pathsForRequest = storagePathKey ? storagePathKey.split("\n") : [];
@@ -266,7 +271,9 @@ export const useReferenceGridSignedStorageUrlController = ({
     queueMicrotask(() => {
       if (cancelled) return;
       setSigningPendingStoragePathSet((previous) => {
-        const next = new Set(pathsForRequest);
+        const next = new Set(
+          pathsForRequest.filter((path) => !signedStorageUrlByPathRef.current.has(path))
+        );
         return areStringSetsEqual(previous, next) ? previous : next;
       });
     });
@@ -316,16 +323,18 @@ export const useReferenceGridSignedStorageUrlController = ({
     if (suspendSigningRequests || !mediaIdsForRequest.length) return;
 
     let cancelled = false;
-    void resolveSessionRestoreSignedMediaAuthorityByMediaId(mediaIdsForRequest).then(
-      (resolvedAuthority) => {
+    void resolveSessionRestoreSignedMediaAuthorityByMediaId(mediaIdsForRequest)
+      .then((resolvedAuthority) => {
         if (cancelled) return;
         setSignedMediaAuthorityByMediaId((previous) =>
           areSignedMediaAuthorityMapsEqual(previous, resolvedAuthority)
             ? previous
             : new Map(resolvedAuthority)
         );
-      }
-    );
+      })
+      .catch(() => {
+        // Saved-media authority recovery is best-effort; keep any previously resolved authority.
+      });
 
     return () => {
       cancelled = true;

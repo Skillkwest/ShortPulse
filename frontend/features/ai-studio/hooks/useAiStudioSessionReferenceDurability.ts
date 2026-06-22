@@ -124,6 +124,14 @@ const resolveCandidateUploadUrl = (output: StudioOutput): string | null => {
 const toLocalReferenceCandidate = (output: StudioOutput): LocalReferenceCandidate | null => {
   if (!output?.id) return null;
   if (output.mode !== "image" && output.mode !== "video" && output.mode !== "audio") return null;
+  if (
+    output.mediaSource === "generated" ||
+    output.mediaSource === "library" ||
+    output.mediaSource === "prompt"
+  ) {
+    return null;
+  }
+  if (output.generationId || output.submissionMode === "provider-task") return null;
   if (!isLocalPreviewUrl(output.previewUrl)) return null;
   if (
     asCanonicalStoragePath(output.previewStoragePath) ||
@@ -146,6 +154,26 @@ const toLocalReferenceCandidate = (output: StudioOutput): LocalReferenceCandidat
     previewPosterUrl,
     signature: resolveCandidateSignature(output),
   };
+};
+
+const settleDurableLocalReferenceLifecycle = (row: StudioOutput): StudioOutput => {
+  const next: StudioOutput = {
+    ...row,
+    localObjectUrl: null,
+    saveError: null,
+  };
+
+  if (next.saveState === "saving") {
+    next.saveState = "idle";
+  }
+  if (next.taskState === "pending" || next.taskState === "running") {
+    delete next.taskState;
+    delete next.taskId;
+    delete next.queueState;
+    delete next.queueEnqueuedAtMs;
+  }
+
+  return next;
 };
 
 const patchOutputIfUnchanged = ({
@@ -178,12 +206,17 @@ const patchOutputIfUnchanged = ({
       asCanonicalStoragePath(row.previewStoragePath) === nextPreviewStoragePath &&
       asCanonicalStoragePath(row.fullStoragePath) === canonicalPath &&
       asCanonicalStoragePath(row.previewPosterStoragePath) === canonicalPosterPath &&
-      (row.mode !== "video" || (row.previewPosterUrl ?? null) === (signedPosterUrl ?? null))
+      (row.mode !== "video" || (row.previewPosterUrl ?? null) === (signedPosterUrl ?? null)) &&
+      !row.localObjectUrl &&
+      row.saveState !== "saving" &&
+      row.saveError == null &&
+      row.taskState !== "pending" &&
+      row.taskState !== "running"
     ) {
       return row;
     }
     changed = true;
-    return {
+    return settleDurableLocalReferenceLifecycle({
       ...row,
       previewUrl: signedUrl,
       previewPosterUrl:
@@ -192,7 +225,7 @@ const patchOutputIfUnchanged = ({
       previewStoragePath: nextPreviewStoragePath,
       fullStoragePath: canonicalPath,
       localObjectUrl: null,
-    };
+    });
   });
   return { rows: patched, changed };
 };

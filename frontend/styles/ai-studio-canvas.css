@@ -1148,6 +1148,16 @@
   background: linear-gradient(180deg, rgba(12, 15, 22, 0.22), rgba(12, 15, 22, 0.34));
 }
 
+.reference-loading-label {
+  max-width: calc(100% - 20px);
+  padding: 0 6px;
+  color: rgba(236, 243, 247, 0.84);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+}
+
 .reference-card-media-unavailable {
   position: absolute;
   inset: 0;

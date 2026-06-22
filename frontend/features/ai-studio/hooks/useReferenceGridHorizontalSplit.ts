@@ -362,33 +362,10 @@ export const useReferenceGridHorizontalSplit = ({
               maxBottomSectionHeightPx
             )
           : FALLBACK_RATIO_BOUNDS;
-      const step = event.shiftKey ? KEYBOARD_FAST_STEP : KEYBOARD_STEP;
-      setAllRefsExpandedThresholdRatio((prev) => (prev == null ? prev : null));
-
-      if (event.key === "Home") {
-        event.preventDefault();
-        if (!height) {
-          commitTopRatio(bounds.min);
-          commitPersistedTopRatio();
-          return;
-        }
-        commitTopRatio(bounds.min);
-        commitPersistedTopRatio();
-        return;
-      }
-      if (event.key === "End") {
-        event.preventDefault();
-        if (!height) {
-          commitTopRatio(bounds.max);
-          commitPersistedTopRatio();
-          return;
-        }
-        commitTopRatio(bounds.max);
-        commitPersistedTopRatio();
-        return;
-      }
       if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
       event.preventDefault();
+      const step = event.shiftKey ? KEYBOARD_FAST_STEP : KEYBOARD_STEP;
+      setAllRefsExpandedThresholdRatio((prev) => (prev == null ? prev : null));
       if (!height) {
         const deltaRatio = event.key === "ArrowUp" ? -step : step;
         const nextRatio = clamp(topRatioRef.current + deltaRatio, bounds.min, bounds.max);

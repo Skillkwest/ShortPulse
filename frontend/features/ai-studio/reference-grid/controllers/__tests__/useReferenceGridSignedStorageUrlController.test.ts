@@ -316,6 +316,76 @@ describe("useReferenceGridSignedStorageUrlController", () => {
     });
   });
 
+  it("does not mark already signed storage paths pending during refreshes", async () => {
+    const initialOutput = createStorageBackedImage();
+    const nextOutput = createStorageBackedImage({
+      id: "image-2",
+      previewStoragePath: "user-1/variants/images/image-2/preview.webp",
+      fullStoragePath: "user-1/generations/images/image-2.png",
+      generationId: "gen-2",
+    });
+    const { rerender, result } = renderHook(
+      ({ outputs }: { outputs: ReferenceGridMediaOutput[] }) =>
+        useReferenceGridSignedStorageUrlController({
+          outputs,
+        }),
+      {
+        initialProps: {
+          outputs: [initialOutput],
+        },
+      }
+    );
+
+    await waitFor(() => {
+      expect(
+        result.current.signedStorageUrlByPath.get(initialOutput.previewStoragePath ?? "")
+      ).toBe("https://signed.shortpulse.test/preview.webp");
+    });
+
+    let resolveBatch: (value: Map<string, string>) => void = () => undefined;
+    vi.mocked(getSignedMediaUrlsBatch).mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveBatch = resolve;
+      })
+    );
+
+    rerender({
+      outputs: [initialOutput, nextOutput],
+    });
+
+    await waitFor(() => {
+      expect(
+        result.current.signingPendingStoragePathSet.has(initialOutput.previewStoragePath ?? "")
+      ).toBe(false);
+      expect(
+        result.current.signingPendingStoragePathSet.has(initialOutput.fullStoragePath ?? "")
+      ).toBe(false);
+      expect(
+        result.current.signingPendingStoragePathSet.has(nextOutput.previewStoragePath ?? "")
+      ).toBe(true);
+    });
+
+    resolveBatch(
+      new Map([
+        [
+          "user-1/variants/images/image-2/preview.webp",
+          "https://signed.shortpulse.test/image-2-preview.webp",
+        ],
+        [
+          "user-1/generations/images/image-2.png",
+          "https://signed.shortpulse.test/image-2-full.png",
+        ],
+      ])
+    );
+
+    await waitFor(() => {
+      expect(result.current.signingPendingStoragePathSet.size).toBe(0);
+      expect(result.current.signedStorageUrlByPath.get(nextOutput.previewStoragePath ?? "")).toBe(
+        "https://signed.shortpulse.test/image-2-preview.webp"
+      );
+    });
+  });
+
   it("clears pending signing state when storage signing fails", async () => {
     vi.mocked(getSignedMediaUrlsBatch).mockRejectedValueOnce(new Error("signing failed"));
     const output = createStorageBackedImage();
@@ -422,6 +492,33 @@ describe("useReferenceGridSignedStorageUrlController", () => {
       expect(
         result.current.signedMediaAuthorityByMediaId.get("saved-media-1")?.signedPreviewUrl
       ).toBe("https://signed.shortpulse.test/saved-preview.webp");
+    });
+  });
+
+  it("keeps saved media authority signing failures contained", async () => {
+    vi.mocked(resolveSessionRestoreSignedMediaAuthorityByMediaId).mockRejectedValueOnce(
+      new Error("authority signing failed")
+    );
+    const output = createStorageBackedImage({
+      previewStoragePath: null,
+      fullStoragePath: null,
+      resultUrls: [],
+      savedMediaIds: ["saved-media-1"],
+    });
+    const { result } = renderHook(() =>
+      useReferenceGridSignedStorageUrlController({
+        outputs: [output],
+      })
+    );
+
+    await waitFor(() => {
+      expect(resolveSessionRestoreSignedMediaAuthorityByMediaId).toHaveBeenCalledWith([
+        "saved-media-1",
+      ]);
+    });
+
+    await waitFor(() => {
+      expect(result.current.signedMediaAuthorityByMediaId.size).toBe(0);
     });
   });
 

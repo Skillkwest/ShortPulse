@@ -59,23 +59,6 @@
   opacity: 0.92;
 }
 
-.ai-studio-page[data-selected-tool="edit"]
-  .reference-grid-horizontal-divider-wrap:hover
-  .reference-grid-horizontal-divider-pill,
-.ai-studio-page[data-selected-tool="image"]
-  .reference-grid-horizontal-divider-wrap:hover
-  .reference-grid-horizontal-divider-pill,
-.ai-studio-page[data-selected-tool="edit"]
-  .reference-grid-horizontal-divider-wrap:focus-visible
-  .reference-grid-horizontal-divider-pill,
-.ai-studio-page[data-selected-tool="image"]
-  .reference-grid-horizontal-divider-wrap:focus-visible
-  .reference-grid-horizontal-divider-pill {
-  color: var(--edit-accent-highlight);
-  border-color: var(--edit-accent-border-faint);
-  background: var(--edit-accent-surface-tint);
-}
-
 .ai-studio-page[data-selected-tool="edit"] .ai-shell-divider:focus-visible,
 .ai-studio-page[data-selected-tool="image"] .ai-shell-divider:focus-visible {
   outline: 2px solid var(--edit-accent-border-emphasis);

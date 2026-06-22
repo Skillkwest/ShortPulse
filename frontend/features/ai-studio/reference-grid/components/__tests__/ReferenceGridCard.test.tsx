@@ -787,6 +787,7 @@ describe("ReferenceGridCard", () => {
     expect(container.querySelector(".reference-loading")).not.toBeNull();
     expect(container.querySelector(".reference-loading--spinner")).not.toBeNull();
     expect(container.querySelector(".reference-spinner")).not.toBeNull();
+    expect(screen.getByText("Generating")).toBeInTheDocument();
   });
 
   it("clears a generation loading placeholder from the grid", () => {
@@ -881,6 +882,7 @@ describe("ReferenceGridCard", () => {
 
     expect(container.querySelector(".reference-card-image")).toBeNull();
     expect(container.querySelector(".reference-loading--hydrating")).not.toBeNull();
+    expect(screen.getByText("Loading media")).toBeInTheDocument();
     expect(screen.queryByText("Preview unavailable")).toBeNull();
 
     await act(async () => {

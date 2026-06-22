@@ -81,6 +81,32 @@ describe("Canvas drop behavior", () => {
     expect(viewport).toHaveClass("is-drop-active");
   });
 
+  it("shows feedback when an internal reference drop cannot be resolved", async () => {
+    const resolveCanvasDropReference = vi.fn(() => null) satisfies ResolveCanvasDropReference;
+
+    render(<CanvasHarness resolveCanvasDropReference={resolveCanvasDropReference} />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    dispatchDropAtPoint({
+      viewport,
+      dataTransfer: createTransfer({
+        "text/reference-origin": "ai-studio-reference-grid",
+        "text/reference-version": "1",
+        "text/reference-id": "missing-reference",
+        "text/reference-output-id": "missing-reference",
+        "text/reference-source-surface": "all-refs",
+      }),
+      clientX: 240,
+      clientY: 160,
+    });
+
+    expect(await screen.findByTestId("canvas-drop-feedback")).toHaveTextContent(
+      "Unable to add that reference to the canvas."
+    );
+    expect(screen.queryByTestId(/canvas-item-/)).toBeNull();
+  });
+
   it("does not block internal dragover packets when browser includes Files type with zero files", () => {
     render(<CanvasHarness />);
     const viewport = screen.getByTestId("canvas-viewport");

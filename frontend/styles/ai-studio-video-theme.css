@@ -1974,17 +1974,6 @@
   opacity: 0.9;
 }
 
-.ai-studio-page[data-selected-tool="video"]
-  .reference-grid-horizontal-divider-wrap:hover
-  .reference-grid-horizontal-divider-pill,
-.ai-studio-page[data-selected-tool="video"]
-  .reference-grid-horizontal-divider-wrap:focus-visible
-  .reference-grid-horizontal-divider-pill {
-  color: rgba(205, 173, 246, 0.9);
-  border-color: rgba(170, 101, 239, 0.38);
-  background: rgba(170, 101, 239, 0.08);
-}
-
 .ai-studio-page[data-selected-tool="video"] .ai-shell-divider:focus-visible {
   outline: 2px solid rgba(170, 101, 239, 0.9);
 }

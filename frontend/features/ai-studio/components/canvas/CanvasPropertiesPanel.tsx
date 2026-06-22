@@ -548,6 +548,7 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
     viewportRef,
     isDropActive,
     isDropResolving,
+    dropFeedback,
     draftTextEntry,
     isDraftTextEditable = true,
     editingTextItemId,
@@ -835,6 +836,17 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
         onDragLeave={onViewportDragLeave}
         onDrop={onViewportDrop}
       >
+        {dropFeedback ? (
+          <div
+            key={dropFeedback.id}
+            className="canvas-drop-feedback"
+            role="status"
+            aria-live="polite"
+            data-testid="canvas-drop-feedback"
+          >
+            {dropFeedback.message}
+          </div>
+        ) : null}
         <div
           className="canvas-workspace-world"
           data-testid="canvas-world"

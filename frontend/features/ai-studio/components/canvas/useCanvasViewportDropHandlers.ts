@@ -57,6 +57,7 @@ type UseCanvasViewportDropHandlersParams = {
 type CanvasDropHandlers = {
   isDropActive: boolean;
   isDropResolving: boolean;
+  dropFeedback: { id: string; message: string } | null;
   onViewportDragEnter: (event: DragEvent<HTMLDivElement>) => void;
   onViewportDragOver: (event: DragEvent<HTMLDivElement>) => void;
   onViewportDragLeave: (event: DragEvent<HTMLDivElement>) => void;
@@ -64,6 +65,7 @@ type CanvasDropHandlers = {
 };
 
 const CANVAS_DROP_RESOLVING_FAILSAFE_MS = 8000;
+const CANVAS_DROP_FEEDBACK_TIMEOUT_MS = 3600;
 
 /**
  * Returns drop-active state and drag/drop handlers for a viewport surface.
@@ -81,8 +83,10 @@ export const useCanvasViewportDropHandlers = ({
   const dragDepthRef = useRef(0);
   const dropResolvingCountRef = useRef(0);
   const dropResolvingTimeoutRef = useRef<number | null>(null);
+  const dropFeedbackTimeoutRef = useRef<number | null>(null);
   const [isDropActive, setIsDropActive] = useState(false);
   const [isDropResolving, setIsDropResolving] = useState(false);
+  const [dropFeedback, setDropFeedback] = useState<{ id: string; message: string } | null>(null);
 
   const clearDropResolvingTimeout = useCallback(() => {
     if (dropResolvingTimeoutRef.current != null) {
@@ -90,6 +94,30 @@ export const useCanvasViewportDropHandlers = ({
       dropResolvingTimeoutRef.current = null;
     }
   }, []);
+
+  const clearDropFeedbackTimeout = useCallback(() => {
+    if (dropFeedbackTimeoutRef.current != null) {
+      window.clearTimeout(dropFeedbackTimeoutRef.current);
+      dropFeedbackTimeoutRef.current = null;
+    }
+  }, []);
+
+  const clearDropFeedback = useCallback(() => {
+    clearDropFeedbackTimeout();
+    setDropFeedback(null);
+  }, [clearDropFeedbackTimeout]);
+
+  const showDropFeedback = useCallback(
+    (message: string) => {
+      clearDropFeedbackTimeout();
+      setDropFeedback({ id: `${Date.now()}:${message}`, message });
+      dropFeedbackTimeoutRef.current = window.setTimeout(() => {
+        dropFeedbackTimeoutRef.current = null;
+        setDropFeedback(null);
+      }, CANVAS_DROP_FEEDBACK_TIMEOUT_MS);
+    },
+    [clearDropFeedbackTimeout]
+  );
 
   const beginDropResolving = useCallback(() => {
     dropResolvingCountRef.current += 1;
@@ -124,9 +152,10 @@ export const useCanvasViewportDropHandlers = ({
   useEffect(
     () => () => {
       clearDropResolvingTimeout();
+      clearDropFeedbackTimeout();
       dropResolvingCountRef.current = 0;
     },
-    [clearDropResolvingTimeout]
+    [clearDropFeedbackTimeout, clearDropResolvingTimeout]
   );
 
   const normalizePreparedDrop = useCallback(
@@ -223,10 +252,11 @@ export const useCanvasViewportDropHandlers = ({
     (event: DragEvent<HTMLDivElement>) => {
       if (!canHandleViewportTransfer(event.dataTransfer)) return;
       event.preventDefault();
+      clearDropFeedback();
       dragDepthRef.current += 1;
       setIsDropActive(true);
     },
-    [canHandleViewportTransfer]
+    [canHandleViewportTransfer, clearDropFeedback]
   );
 
   const onViewportDragOver = useCallback(
@@ -283,6 +313,7 @@ export const useCanvasViewportDropHandlers = ({
             const wasHandled = await handleResolvedInternalDrop(internalPayload, point);
             if (!wasHandled) {
               logUnresolvedInternalDrop(internalPayload, "resolve_miss");
+              showDropFeedback("Unable to add that reference to the canvas.");
             }
           } catch (error) {
             logUnresolvedInternalDrop(
@@ -290,6 +321,7 @@ export const useCanvasViewportDropHandlers = ({
               "resolver_exception",
               error instanceof Error ? error.message : String(error)
             );
+            showDropFeedback("Unable to add that reference to the canvas.");
           }
         });
         return;
@@ -398,7 +430,10 @@ export const useCanvasViewportDropHandlers = ({
                     height,
                   };
                 })();
-          if (!preparedDrop) return;
+          if (!preparedDrop) {
+            showDropFeedback("Unable to add that media to the canvas.");
+            return;
+          }
           const normalizedPreparedDrop = normalizePreparedDrop(preparedDrop);
           const insertResult = await addResolvedItem(
             normalizedPreparedDrop.resolved,
@@ -418,7 +453,10 @@ export const useCanvasViewportDropHandlers = ({
         event.stopPropagation();
         void runDropResolvingTask(async () => {
           const resolvedItem = await resolveCanvasDroppedMediaReference(droppedMediaReference);
-          if (!resolvedItem) return;
+          if (!resolvedItem) {
+            showDropFeedback("Unable to add that media to the canvas.");
+            return;
+          }
           await addResolvedItem(resolvedItem, point.x, point.y, {
             showLoadingPlaceholder: true,
           });
@@ -431,7 +469,10 @@ export const useCanvasViewportDropHandlers = ({
         event.stopPropagation();
         void runDropResolvingTask(async () => {
           const resolvedItems = await resolveCanvasDropFiles(droppedFiles);
-          if (!resolvedItems?.length) return;
+          if (!resolvedItems?.length) {
+            showDropFeedback("Unable to add those files to the canvas.");
+            return;
+          }
           const offsetStep = 24;
           for (let index = 0; index < resolvedItems.length; index += 1) {
             const resolvedItem = resolvedItems[index];
@@ -463,6 +504,7 @@ export const useCanvasViewportDropHandlers = ({
     [
       addResolvedItem,
       camera,
+      showDropFeedback,
       handleResolvedInternalDrop,
       logUnresolvedInternalDrop,
       prepareCanvasMediaLibraryDrop,
@@ -477,6 +519,7 @@ export const useCanvasViewportDropHandlers = ({
   return {
     isDropActive,
     isDropResolving,
+    dropFeedback,
     onViewportDragEnter,
     onViewportDragOver,
     onViewportDragLeave,

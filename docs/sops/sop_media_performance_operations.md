@@ -118,9 +118,7 @@ This checkpoint protects the cursor append, panel runtime ordering, indexed virt
 ### 3b) Validate Curated Split Behavior
 
 1. Confirm top `Canvas` section renders above `Quick Slot Inventory` and remains interactive.
-2. Drag/keyboard resize the top divider and validate pills:
-   - left pill `Canvas ↓` expands the canvas section
-   - right pill `Inventory ↑` collapses canvas to header height
+2. Drag the top divider and confirm Canvas / Quick Slot resize without exposing shortcut controls.
 3. Confirm `Quick Slot Inventory` remains empty by default and accepts both internal drags from `All refs` and Media Library media/prompt payloads.
 4. Drag a card from bottom `All refs` into `Quick Slot Inventory`; verify add + dedupe semantics.
 5. Drag media and prompt items from Media Library into `Quick Slot Inventory`; verify the drop lands in Quick Slot without shell reroute and preserves dedupe semantics.

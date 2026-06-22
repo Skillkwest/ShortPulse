@@ -192,6 +192,12 @@ export const useReferenceGridCardRenderController = ({
             : isHydrationLoading
               ? "hydrating"
               : "none";
+      const loadingStatusLabel =
+        loadingVisual === "hydrating"
+          ? "Loading media"
+          : isLocalVideoPersistenceLoading
+            ? "Saving media"
+            : "Generating";
       const canAutoplayVideo =
         card.isVideoPreview &&
         !shouldPreferCuratedSurface &&
@@ -284,6 +290,7 @@ export const useReferenceGridCardRenderController = ({
           authorityTier={card.authorityTier}
           isLoading={isCardLoading}
           loadingVisual={loadingVisual}
+          loadingStatusLabel={loadingStatusLabel}
           cardPreviewUrl={card.cardPreviewUrl}
           videoPosterUrl={videoPosterUrl}
           hoverVideoUrl={hoverVideoUrl}

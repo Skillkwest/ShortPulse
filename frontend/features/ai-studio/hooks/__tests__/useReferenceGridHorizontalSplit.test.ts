@@ -171,6 +171,34 @@ describe("useReferenceGridHorizontalSplit", () => {
     expect(result.current.topRatio).toBeCloseTo(beforeRatio, 3);
   });
 
+  it("ignores non-arrow divider keys without changing the split", () => {
+    vi.stubGlobal("ResizeObserver", MockResizeObserver);
+    const containerRef = { current: createContainer(400) };
+    const { result } = renderHook(() =>
+      useReferenceGridHorizontalSplit({
+        enabled: true,
+        containerRef,
+        defaultTopRatio: 0.5,
+        minTopSectionHeightPx: 100,
+        minBottomSectionHeightPx: 100,
+      })
+    );
+
+    const beforeRatio = result.current.topRatio;
+    const preventDefault = vi.fn();
+
+    act(() => {
+      result.current.dividerProps.onKeyDown?.({
+        key: "Home",
+        shiftKey: false,
+        preventDefault,
+      } as unknown as ReactKeyboardEvent<HTMLDivElement>);
+    });
+
+    expect(preventDefault).not.toHaveBeenCalled();
+    expect(result.current.topRatio).toBeCloseTo(beforeRatio, 3);
+  });
+
   it("preserves top section pixel height when the split container grows", () => {
     vi.stubGlobal("ResizeObserver", MockResizeObserver);
     let containerHeight = 400;

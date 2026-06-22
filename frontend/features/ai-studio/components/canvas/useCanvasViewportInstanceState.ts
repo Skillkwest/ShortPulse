@@ -649,6 +649,7 @@ export const useCanvasViewportInstanceState = ({
   const {
     isDropActive,
     isDropResolving,
+    dropFeedback,
     onViewportDragEnter,
     onViewportDragOver,
     onViewportDragLeave,
@@ -1531,6 +1532,7 @@ export const useCanvasViewportInstanceState = ({
       viewportRef,
       isDropActive,
       isDropResolving,
+      dropFeedback,
       draftTextEntry,
       isDraftTextEditable,
       editingTextItemId: textEditSession?.itemId ?? null,
@@ -1588,6 +1590,7 @@ export const useCanvasViewportInstanceState = ({
       isDraftTextEditable,
       isDropActive,
       isDropResolving,
+      dropFeedback,
       isTextResizeActive,
       isTextEditEditable,
       itemDragPreview,

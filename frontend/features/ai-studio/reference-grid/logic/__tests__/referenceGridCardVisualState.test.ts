@@ -51,6 +51,28 @@ describe("referenceGridCardVisualState", () => {
     expect(state.loadingVisual).toBe("spinner");
   });
 
+  it("does not use spinner visual for storage-backed upload rows after durability settles", () => {
+    const state = classifyReferenceGridCardVisualState({
+      item: createOutput({
+        mediaSource: "upload",
+        saveState: "idle",
+        previewUrl: "https://signed.test/frame-shot.png",
+        previewStoragePath: "user-1/images/frame-shot.png",
+        fullStoragePath: "user-1/images/frame-shot.png",
+      }),
+      cardPreviewUrl: "https://signed.test/frame-shot.png",
+      isLoaded: true,
+      decodeBudgetEnabled: false,
+      isImagePreview: true,
+      isPriorityHydration: true,
+      imageSrc: "https://signed.test/frame-shot.png",
+    });
+
+    expect(state.isGenerationLoading).toBe(false);
+    expect(state.isMediaHydrating).toBe(false);
+    expect(state.loadingVisual).toBe("none");
+  });
+
   it("uses hydration visual for decode lag after generation success", () => {
     const state = classifyReferenceGridCardVisualState({
       item: createOutput({ taskState: "success" }),

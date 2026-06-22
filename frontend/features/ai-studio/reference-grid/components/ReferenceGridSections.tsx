@@ -13,8 +13,6 @@ type HorizontalSplitViewModel = {
   bottomSectionHeightPx: number;
   topSectionStyle?: React.CSSProperties;
   dividerProps: React.HTMLAttributes<HTMLDivElement>;
-  snapToInventoryExpanded: () => void;
-  snapToAllRefsExpanded: (targetTopHeightPx?: number) => void;
   isInventoryExpanded: boolean;
   bottomSectionStyle?: React.CSSProperties;
 };
@@ -195,9 +193,6 @@ export function ReferenceGridSections({
   const isReferenceGridCollapsedForStyles =
     showStylesReferenceDivider &&
     (stylesSplit.isAllRefsExpanded || isReferenceGridNearCollapsedForStyles);
-  const stylesInventoryDividerUpperSectionLabel = showStylesReferenceDivider
-    ? "Reference Grid"
-    : "Quick Slot Inventory";
   const allRefsInventoryExpanded = showStylesInventoryDivider
     ? stylesSplit.isInventoryExpanded
     : showQuickSlotReferenceDivider
@@ -293,36 +288,7 @@ export function ReferenceGridSections({
                 <span className="reference-grid-horizontal-divider-title" aria-hidden="true">
                   {canvasInventoryDividerTitle}
                 </span>
-                <button
-                  type="button"
-                  className="reference-grid-horizontal-divider-pill"
-                  onPointerDown={(event) => {
-                    event.stopPropagation();
-                  }}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    railCanvasSplit.snapToInventoryExpanded();
-                  }}
-                >
-                  Canvas ↓
-                </button>
                 <div className="reference-grid-horizontal-divider" />
-                <button
-                  type="button"
-                  className="reference-grid-horizontal-divider-pill"
-                  onPointerDown={(event) => {
-                    event.stopPropagation();
-                  }}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    const headerNode = railCanvasHeaderRef.current;
-                    const targetTopHeightPx =
-                      headerNode instanceof HTMLElement ? headerNode.offsetHeight : undefined;
-                    railCanvasSplit.snapToAllRefsExpanded(targetTopHeightPx);
-                  }}
-                >
-                  Inventory ↑
-                </button>
               </div>
             ) : null}
           </>
@@ -420,40 +386,7 @@ export function ReferenceGridSections({
                     <span className="reference-grid-horizontal-divider-title" aria-hidden="true">
                       Reference Grid
                     </span>
-                    <button
-                      type="button"
-                      className="reference-grid-horizontal-divider-pill"
-                      onPointerDown={(event) => {
-                        event.stopPropagation();
-                      }}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        horizontalSplit.snapToInventoryExpanded();
-                      }}
-                    >
-                      Inventory ↓
-                    </button>
                     <div className="reference-grid-horizontal-divider" />
-                    <button
-                      type="button"
-                      className="reference-grid-horizontal-divider-pill"
-                      onPointerDown={(event) => {
-                        event.stopPropagation();
-                      }}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        const curatedHeaderNode = curatedSectionRef.current?.querySelector(
-                          ".reference-curated-header"
-                        );
-                        const targetTopHeightPx =
-                          curatedHeaderNode instanceof HTMLElement
-                            ? curatedHeaderNode.offsetHeight
-                            : undefined;
-                        horizontalSplit.snapToAllRefsExpanded(targetTopHeightPx);
-                      }}
-                    >
-                      All Refs ↑
-                    </button>
                   </div>
                 ) : null}
               </>
@@ -628,41 +561,7 @@ export function ReferenceGridSections({
                     <span className="reference-grid-horizontal-divider-title" aria-hidden="true">
                       Styles
                     </span>
-                    <button
-                      type="button"
-                      className="reference-grid-horizontal-divider-pill"
-                      onPointerDown={(event) => {
-                        event.stopPropagation();
-                      }}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        stylesSplit.snapToInventoryExpanded();
-                      }}
-                    >
-                      {stylesInventoryDividerUpperSectionLabel} ↓
-                    </button>
                     <div className="reference-grid-horizontal-divider" />
-                    <button
-                      type="button"
-                      className="reference-grid-horizontal-divider-pill"
-                      onPointerDown={(event) => {
-                        event.stopPropagation();
-                      }}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        const headerNode = showStylesReferenceDivider
-                          ? allRefsHeaderRef.current
-                          : curatedHeaderRef.current;
-                        const targetTopHeightPx = showStylesReferenceDivider
-                          ? STYLES_REFERENCE_GRID_COLLAPSE_TOP_HEIGHT_PX
-                          : headerNode instanceof HTMLElement
-                            ? headerNode.offsetHeight
-                            : undefined;
-                        stylesSplit.snapToAllRefsExpanded(targetTopHeightPx);
-                      }}
-                    >
-                      Styles ↑
-                    </button>
                   </div>
                 ) : null}
                 <ReferenceStylesChooser
@@ -687,41 +586,7 @@ export function ReferenceGridSections({
                     <span className="reference-grid-horizontal-divider-title" aria-hidden="true">
                       Styles
                     </span>
-                    <button
-                      type="button"
-                      className="reference-grid-horizontal-divider-pill"
-                      onPointerDown={(event) => {
-                        event.stopPropagation();
-                      }}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        stylesSplit.snapToInventoryExpanded();
-                      }}
-                    >
-                      {stylesInventoryDividerUpperSectionLabel} ↓
-                    </button>
                     <div className="reference-grid-horizontal-divider" />
-                    <button
-                      type="button"
-                      className="reference-grid-horizontal-divider-pill"
-                      onPointerDown={(event) => {
-                        event.stopPropagation();
-                      }}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        const headerNode = showStylesReferenceDivider
-                          ? allRefsHeaderRef.current
-                          : curatedHeaderRef.current;
-                        const targetTopHeightPx = showStylesReferenceDivider
-                          ? STYLES_REFERENCE_GRID_COLLAPSE_TOP_HEIGHT_PX
-                          : headerNode instanceof HTMLElement
-                            ? headerNode.offsetHeight
-                            : undefined;
-                        stylesSplit.snapToAllRefsExpanded(targetTopHeightPx);
-                      }}
-                    >
-                      Styles ↑
-                    </button>
                   </div>
                 ) : null}
                 <ReferenceStylesChooser

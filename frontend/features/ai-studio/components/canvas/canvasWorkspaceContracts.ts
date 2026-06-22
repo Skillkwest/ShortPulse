@@ -88,6 +88,7 @@ export type CanvasPropertiesPanelProps = {
   viewportRef: RefObject<HTMLDivElement>;
   isDropActive: boolean;
   isDropResolving: boolean;
+  dropFeedback?: { id: string; message: string } | null;
   draftTextEntry: { x: number; y: number; value: string } | null;
   isDraftTextEditable?: boolean;
   editingTextItemId: string | null;

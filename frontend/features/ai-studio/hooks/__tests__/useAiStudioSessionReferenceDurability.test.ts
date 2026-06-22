@@ -82,6 +82,74 @@ describe("useAiStudioSessionReferenceDurability", () => {
     expect(uploadImageAssetToStorageMock).toHaveBeenCalledTimes(1);
   });
 
+  it("settles pending local image upload lifecycle after durability succeeds", async () => {
+    uploadImageAssetToStorageMock.mockResolvedValueOnce({
+      url: "https://signed/user-1/images/frame-shot.png",
+      path: "user-1/images/frame-shot.png",
+      size: 123,
+    });
+    const { result } = renderHook(() =>
+      useHarness([
+        createOutput({
+          id: "frame-shot-1",
+          previewUrl: "blob:frame-shot-preview",
+          localObjectUrl: "blob:frame-shot-preview",
+          taskState: "pending",
+          taskId: "local-upload-task",
+          queueState: "queued",
+          queueEnqueuedAtMs: 123,
+          saveState: "saving",
+          saveError: "still uploading",
+        }),
+      ])
+    );
+
+    await waitFor(() => {
+      const output = result.current.outputs[0];
+      expect(output?.previewUrl).toBe("https://signed/user-1/images/frame-shot.png");
+      expect(output?.previewStoragePath).toBe("user-1/images/frame-shot.png");
+      expect(output?.fullStoragePath).toBe("user-1/images/frame-shot.png");
+      expect(output?.localObjectUrl).toBeNull();
+      expect(output?.taskState).toBeUndefined();
+      expect(output?.taskId).toBeUndefined();
+      expect(output?.queueState).toBeUndefined();
+      expect(output?.queueEnqueuedAtMs).toBeUndefined();
+      expect(output?.saveState).toBe("idle");
+      expect(output?.saveError).toBeNull();
+    });
+    expect(uploadImageAssetToStorageMock).toHaveBeenCalledWith("blob:frame-shot-preview");
+  });
+
+  it("does not settle generated provider-task rows with transient local previews", async () => {
+    const { result } = renderHook(() =>
+      useHarness([
+        createOutput({
+          id: "generated-task-1",
+          mediaSource: "generated",
+          generationId: "generation-1",
+          submissionMode: "provider-task",
+          previewUrl: "blob:generated-preview",
+          localObjectUrl: "blob:generated-preview",
+          taskState: "running",
+          saveState: "idle",
+        }),
+      ])
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(uploadImageAssetToStorageMock).not.toHaveBeenCalled();
+    expect(result.current.outputs[0]).toEqual(
+      expect.objectContaining({
+        previewUrl: "blob:generated-preview",
+        localObjectUrl: "blob:generated-preview",
+        taskState: "running",
+      })
+    );
+  });
+
   it("prefers local object urls over data-url previews when durabilizing image references", async () => {
     uploadImageAssetToStorageMock.mockResolvedValueOnce({
       url: "https://signed/user-1/images/ref-data.png",

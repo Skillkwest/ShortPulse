@@ -51,16 +51,14 @@ describe("vercel env contract public origin validation", () => {
     );
   });
 
-  it("rejects production public signup being explicitly enabled", () => {
+  it("allows the production public signup flag for the paid signup launch gate", () => {
     expect(
       validateGuardedVercelFlag({
         environment: "production",
         key: "NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED",
         value: "true",
       })
-    ).toContain(
-      "NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED must not resolve to true in production because public signup must remain closed during the pre-launch production window."
-    );
+    ).toEqual([]);
   });
 
   it("allows non-production public signup smoke-test flags", () => {

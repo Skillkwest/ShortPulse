@@ -135,9 +135,7 @@ export const MUST_RESOLVE_FALSE_VERCEL_KEYS = Object.freeze([
   "NEXT_PUBLIC_MEDIA_SIGNED_TRANSFORMS_ENABLED",
 ]);
 
-export const PRODUCTION_MUST_NOT_RESOLVE_TRUE_VERCEL_KEYS = Object.freeze([
-  "NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED",
-]);
+export const PRODUCTION_MUST_NOT_RESOLVE_TRUE_VERCEL_KEYS = Object.freeze([]);
 
 const MUST_RESOLVE_FALSE_REASONS = Object.freeze({
   SHORTPULSE_MEDIA_SIGNED_TRANSFORMS_ENABLED:
@@ -146,10 +144,7 @@ const MUST_RESOLVE_FALSE_REASONS = Object.freeze({
     "Supabase image transformations are prohibited",
 });
 
-const PRODUCTION_MUST_NOT_RESOLVE_TRUE_REASONS = Object.freeze({
-  NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED:
-    "public signup must remain closed during the pre-launch production window",
-});
+const PRODUCTION_MUST_NOT_RESOLVE_TRUE_REASONS = Object.freeze({});
 
 export const SENSITIVE_PRESENCE_ONLY_KEYS = new Set([
   "FAL_KEY",

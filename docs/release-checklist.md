@@ -23,7 +23,7 @@ Use this checklist before promoting code toward `production` (and before any dep
 ## Manual product smoke
 
 - Auth: sign in/out works; protected routes redirect to `/auth` when unauthenticated
-- Auth public signup gate: during the pre-launch closed-signup window, `NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED` is not `true` in production and `npm -C frontend run auth:signup-config -- --project-ref <production-project-ref>` passes.
+- Auth public signup gate: for the paid signup launch, `sql/migrations/164_add_paid_signup_intent_gate.sql` is applied, Supabase Auth's Before User Created hook calls `public.hook_shortpulse_paid_signup_intent(event jsonb)`, Supabase Auth public signup is enabled only after hook proof, and `NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED=true` is set in production.
 - Suspicious accounts: any unknown non-Stripe Auth users found before launch have a redacted `auth:audit-non-stripe-accounts` footprint classification before deletion or retention.
 - Auth non-production dry run: if one is used, `/api/auth/callback-url?flow=recovery&next=%2Fdashboard` resolves to the one exact allowlisted dry-run host, and fresh signup/reset/email-change emails use that same host under [`docs/sops/sop_auth_recovery_trust_smoke.md`](./sops/sop_auth_recovery_trust_smoke.md)
 - Auth email callbacks: `/api/auth/callback-url?flow=recovery&next=%2Fdashboard` resolves to `https://www.shortpulse.ai/auth/callback?...` in production, reset/email-change emails use the `https://www.shortpulse.ai` host, and signup-confirmation email smoke runs only when public signup is intentionally opened for paid-checkout-first launch verification under [`docs/sops/sop_auth_recovery_trust_smoke.md`](./sops/sop_auth_recovery_trust_smoke.md)

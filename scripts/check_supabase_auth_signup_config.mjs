@@ -3,8 +3,8 @@
 /**
  * Verifies and optionally disables public Supabase Auth signups via the
  * Supabase Management API without printing secrets or raw config values.
- * Default posture remains pre-launch closed signup. Use --expect-enabled only
- * after the paid signup intent hook is configured and verified separately.
+ * Use --expect-enabled only after the paid signup intent hook is configured
+ * and verified separately.
  */
 
 import process from "node:process";

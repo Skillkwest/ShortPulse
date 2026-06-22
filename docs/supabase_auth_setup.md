@@ -25,24 +25,24 @@ APP_BASE_URL=http://localhost:3000
 
 Client-initiated signup and password-reset flows now resolve their absolute callback URL through the server-owned `/api/auth/callback-url` route before calling Supabase, so `APP_BASE_URL` should always reflect the real public origin users should open from email for the environment you are configuring.
 
-Pre-launch production signup posture:
+Paid signup launch posture:
 
-- Keep `NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED` unset or set to anything other than `true` unless a paid-checkout-first signup launch has been explicitly approved.
-- In the Supabase production project, keep Auth public signup disabled (`disable_signup=true`) so direct calls to Supabase Auth or enabled OAuth providers cannot create non-Stripe accounts.
-- While signup is closed, public pricing must not advertise account creation. Logged-out pricing plan actions may send existing users to `/auth` in sign-in mode and preserve the selected pricing return path, but `mode=signup` links and "Sign up" CTAs belong only to the explicit paid-signup launch state.
+- Public pricing is the paid account acquisition surface. Logged-out paid plan actions should route to `/auth` with `mode=signup` and preserve the selected `/pricing?...&plan=<starter|media|studio|business>` return path.
+- Keep `NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED` unset or set to anything other than `true` until the Supabase Before User Created hook below is configured and verified. The pricing UI may point users toward signup, but the app signup route and `/api/auth/signup-intent` must fail closed until this launch flag is true.
+- In the Supabase production project, keep Auth public signup disabled (`disable_signup=true`) until `public.hook_shortpulse_paid_signup_intent(event jsonb)` is enabled and verified, so direct calls to Supabase Auth or enabled OAuth providers cannot create non-Stripe accounts.
 - Verify the provider-level state with:
   ```bash
   cd frontend
   npm run auth:signup-config -- --project-ref <production-project-ref>
   ```
 - If an approved operator needs to close the provider-level gate through the Management API, use:
+
   ```bash
   cd frontend
   npm run auth:signup-config -- --project-ref <production-project-ref> --apply-disable-signup --confirm-disable-signup <production-project-ref>
   ```
-  This requires `SUPABASE_ACCESS_TOKEN` or `SUPABASE_MANAGEMENT_API_TOKEN` with auth config write permission and must not print or store the token.
 
-Paid signup launch posture:
+  This requires `SUPABASE_ACCESS_TOKEN` or `SUPABASE_MANAGEMENT_API_TOKEN` with auth config write permission and must not print or store the token.
 
 - Apply `sql/migrations/164_add_paid_signup_intent_gate.sql` before enabling public signup. This creates `signup_intents` and `hook_shortpulse_paid_signup_intent(event jsonb)`.
 - In Supabase Auth Hooks, configure the **Before User Created** hook to call `public.hook_shortpulse_paid_signup_intent`. The hook must be enabled before `disable_signup=false` is allowed in production.
@@ -55,10 +55,10 @@ Paid signup launch posture:
   npm run auth:signup-config -- --project-ref <production-project-ref> --expect-enabled
   ```
 
-Google sign-in posture:
+Google auth posture:
 
-- ShortPulse may expose Google on `/auth` as an existing-user sign-in method only while the pre-launch closed-signup window is active.
-- Do not enable Google as a generic public signup path. Paid Google acquisition requires the Supabase-side Before User Created hook above so OAuth-created users without a valid paid-plan intent are rejected before an `auth.users` row is inserted.
+- ShortPulse may expose Google on `/auth` for sign-in and paid signup. Paid Google acquisition requires the Supabase-side Before User Created hook above so OAuth-created users without a valid paid-plan intent are rejected before an `auth.users` row is inserted.
+- Do not enable Google as an ungated generic public signup path. Unknown Google accounts may create users only through the paid pricing signup path after `/api/auth/signup-intent` creates a matching fresh intent.
 - Configure Google Cloud OAuth with `https://www.shortpulse.ai` as the production JavaScript origin and the Supabase project callback URL (`https://<project-ref>.supabase.co/auth/v1/callback`) as the authorized redirect URI.
 - Configure Google Auth Platform branding before launch so the consent screen is ShortPulse-owned: app name `ShortPulse`, a monitored support email, homepage `https://www.shortpulse.ai`, privacy policy `https://www.shortpulse.ai/privacy`, terms `https://www.shortpulse.ai/terms`, and authorized domain `shortpulse.ai`. Add the ShortPulse logo only when ready for Google brand verification, because app-name/logo changes may wait on Google's review before they appear to users.
 - Configure a Supabase custom auth domain such as `auth.shortpulse.ai` before public Google launch if the Google consent screen still exposes the raw Supabase project host. Follow Supabase's custom-domain DNS/SSL verification flow, then add `https://auth.shortpulse.ai/auth/v1/callback` to the Google OAuth client authorized redirect URIs while keeping `https://<project-ref>.supabase.co/auth/v1/callback` during the transition. Remove the project-ref redirect URI only after hosted production Google OAuth proof is clean.

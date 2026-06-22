@@ -51,11 +51,12 @@ Notes:
 5. Confirm Stripe webhook secret and admin operator-role assignments are prepared for production.
 6. Confirm deployment/release notes still distinguish current environment protection state from planned production-readiness protection state.
 7. If production storage payloads are being migrated from staging, complete `docs/sops/sop_nuclo_supabase_storage_migration.md` before any production Vercel rewiring.
-8. Confirm auth callback origin readiness:
-   - `NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED` is unset or not `true` in Vercel `Production` unless paid-checkout-first public signup has been explicitly launched
-   - Supabase production Auth config has `disable_signup=true` during the pre-launch closed-signup window
-   - `npm -C frontend run auth:signup-config -- --project-ref <production-project-ref>` passes before claiming production public signup is closed
-   - if Google sign-in is enabled, the Supabase Google provider is configured only for existing-user sign-in while `disable_signup=true`
+8. Confirm auth callback origin and paid signup readiness:
+   - `sql/migrations/164_add_paid_signup_intent_gate.sql` is applied before public signup is opened
+   - Supabase Auth's Before User Created hook calls `public.hook_shortpulse_paid_signup_intent(event jsonb)` before `disable_signup=false`
+   - `NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED=true` is set in Vercel `Production` only after the Supabase hook is enabled and verified
+   - `npm -C frontend run auth:signup-config -- --project-ref <production-project-ref> --expect-enabled` passes before claiming production public signup is open
+   - if Google signup is enabled, the Supabase Google provider is protected by the same paid signup intent hook before unknown Google accounts can create users
    - Google Cloud OAuth allows `https://www.shortpulse.ai` as the production JavaScript origin and the Supabase project callback URL as the production redirect URI
    - `APP_BASE_URL` is the canonical public-origin authority for the target environment
    - If `SHORTPULSE_PUBLIC_API_BASE_URL` is set, it exactly matches `APP_BASE_URL`

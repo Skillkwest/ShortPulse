@@ -154,6 +154,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
 - Image-to-video models require at least one reference image; Create → Video may be text-only unless a specific model demands an image.
 - Drag/drop ignores non-image payloads and prefers real URLs over blobs when available.
 - Image-input video submit prep shares the same reference-preflight runtime as image/edit flows (dynamic budget + abortable local fetch/upload/signed-refresh stages). On timeout, submit fails fast with: `"Preparation timed out before generation started. Please retry."`
+- Before Kling Standard provider submit, first-frame and optional last-frame inputs are staged through `/api/kie/upload-url`. Character-scoped ShortPulse media may be used as frame source input when storage/display authority can be resolved and staged to Kie temporary-file URLs before dispatch; raw `/characters/` paths must not survive into the final provider payload.
 - Seedance direct image slots selected from local files, canvas tear-outs, or external drops stage through the canonical reference-image upload contract before entering slot state. The staged URL is registered with its storage ref so generated Video workflow reload can restore the same direct image slot after project restore.
 - Before Seedance 2 / Seedance 2 Fast provider submit, all Seedance image inputs (`first_frame_url`, `last_frame_url`, direct image slots, and linked Character/Element image references) are staged through `/api/kie/upload-url` with `admissionProfile="kie_seedance_reference_image"`. This provider-facing admission preserves the original ShortPulse media asset while resizing/encoding Kie-bound bytes so still images meet Kie's `300..6000` px width/height, `0.4..2.5` aspect-ratio, and under-`30 MB` image constraints without using Supabase image transformations.
 - Generated Video outputs store manual workflow reload metadata in `workflow_reload`. The Video payload includes a `videoReferences` sidecar for first frame, last frame, Seedance multimodal image/video/audio references, and Kling/Seedance linked or direct element media. Reference Grid workflow reload must hydrate those slots from the sidecar when present, with legacy flat `referenceInputs`/Seedance/Kling arrays used only for older outputs that do not have the sidecar.
@@ -196,9 +197,10 @@ For Create properties panel, model-selector, and submission wiring details, see 
   - deterministic alias-collision rejection when both alias and canonical keys are present with different values.
 - Queue payloads for video submissions are stored with the versioned `video_submit_payload` v2 envelope.
 - Queue dispatch requires that canonical envelope and rejects raw video payloads deterministically.
-- Direct character-scoped media is blocked for video submissions:
-  - top-level payloads containing character metadata/path fields or direct media URLs with `/characters/` are rejected pre-submit and pre-dispatch.
-  - The explicit exception is linked Character/Element media that is prepared through the `kling_elements` adapter (`element_input_urls` / `element_input_video_urls`), where the client stages the media through the Kie temporary-file path before provider submit.
+- Raw character-scoped media is blocked in final video submit payloads:
+  - payloads containing character metadata/path fields or direct media URLs with `/characters/` are rejected before provider dispatch if they survive adapter staging.
+  - Kling Standard first/last-frame source inputs may originate from character-scoped ShortPulse media when the client resolves and stages them through the Kie temporary-file path before submit.
+  - Linked Character/Element media is prepared through the `kling_elements` adapter (`element_input_urls` / `element_input_video_urls`), where the client also stages the media through the Kie temporary-file path before provider submit.
 - There are no runtime rollout knobs for video submit canonicalization. Canonical mode is the only supported mode.
 
 ## Model usage

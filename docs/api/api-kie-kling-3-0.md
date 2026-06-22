@@ -42,6 +42,10 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
   - remote media probe rejects content-type mismatches (`image/*` for images, `video/*` for videos; `application/octet-stream` remains compatibility-accepted)
   - deterministic route error on violation: `code=KIE_MEDIA_INPUT_INVALID`
   - runtime probe override (optional): `SHORTPULSE_KIE_MEDIA_PROBE_ENABLED=true|false` (`unset` defaults to enabled outside test runtime)
+- Kie temporary-file staging:
+  - Standard first/last-frame inputs are prepared through `/api/kie/upload-url` before the final Kie submit payload.
+  - Character-scoped ShortPulse storage/display URLs may be used as first/last-frame source inputs only when the adapter can resolve and stage them into Kie temporary-file URLs before dispatch.
+  - Final provider payloads must not contain raw ShortPulse `/characters/` storage paths or signed URLs outside the explicitly staged `kling_elements` payload.
 - Kie Motion Control provider admission before temp upload:
   - character images use `/api/kie/upload-url` with `admissionProfile="kie_motion_control_character_image"`
   - provider-facing character images are JPEG/JPG/PNG only, under 10 MB, at least 341 px on both sides, and aspect ratio 2:5 to 5:2
@@ -112,7 +116,7 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
 
 1. Kling 3.0 is always on; this model no longer depends on a rollout enable flag or model allowlist.
 2. Public `/api/fal/*` routes remain unchanged.
-3. Character-scoped media isolation is fail-closed for video submit payloads (`/characters/` paths and character metadata fields are rejected before provider dispatch).
+3. Character-scoped media isolation is fail-closed for final video submit payloads (`/characters/` paths and character metadata fields are rejected before provider dispatch). Panel/source inputs may still be character-scoped when the model adapter resolves and stages them into provider-safe Kie temporary-file URLs first.
 4. Kie submit upstream errors include redacted media diagnostics in telemetry metadata (`media_diagnostics`) for faster `422 file format` triage without logging raw signed URLs.
 
 ## Ongoing Maintenance

@@ -4,7 +4,6 @@
 import { type FalSubmitResponse, submitQueuedGenerationByModelId } from "../../../../lib/falClient";
 import { fetchWithAuth } from "../../../../lib/authenticatedFetch";
 import { resolveInternalMediaRefStoragePath } from "../../../../lib/media/internalMediaRefs";
-import { isCharacterScopedMediaUrl } from "../../../../lib/mediaStoragePath";
 import { FAL_UPLOAD_COMPATIBILITY_TARGET_OMNIHUMAN_V15_IMAGE } from "../../../../lib/model-runtime/falUploadCompatibilityTargets";
 import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../../../../lib/model-runtime/falModelIds";
 import {
@@ -1903,24 +1902,6 @@ export const handleVideoModelSubmission = async ({
     ...(styleContext ? { style_context: styleContext } : {}),
     ...(shortpulseContext ? { shortpulse_context: shortpulseContext } : {}),
   };
-  const directMediaUrls = [
-    ...preparedImageInputs,
-    videoReferenceImageUrl ?? "",
-    motionReferenceVideoUrl ?? "",
-    lipSyncAudio.url ?? "",
-    ...seedance2ReferenceImageUrls,
-    ...seedance2ReferenceVideoUrls,
-    ...seedance2ReferenceAudioUrls,
-  ]
-    .map((value) => value.trim())
-    .filter(Boolean);
-  if (directMediaUrls.some((value) => isCharacterScopedMediaUrl(value))) {
-    notifyGenerationFailure(
-      id,
-      "Character media references are blocked for video models. Use non-character media assets."
-    );
-    return true;
-  }
   const adapter = videoSubmissionAdapters.find(({ matches }) => matches(finalModel));
   if (!adapter) return false;
   const result = await adapter.submit({

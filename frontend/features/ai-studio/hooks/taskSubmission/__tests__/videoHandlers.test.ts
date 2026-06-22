@@ -1247,27 +1247,6 @@ describe("handleVideoModelSubmission (Kie Veo keyframes)", () => {
       "Temporary upload failed (502): Upload route returned an HTML error response."
     );
   });
-
-  it("blocks character-scoped media URLs before submit", async () => {
-    const args = makeArgs({
-      finalModel: KIE_VEO_31_FAST_I2V_MODEL_ID,
-      modelConfig: getModelConfig(KIE_VEO_31_FAST_I2V_MODEL_ID),
-      videoReferenceMode: "keyframes",
-      preparedImageInputs: [
-        "https://example.supabase.co/storage/v1/object/sign/media_library/user/characters/char-a/first.png?token=abc",
-        "https://example.com/last.png",
-      ],
-    });
-
-    const handled = await handleVideoModelSubmission(args);
-
-    expect(handled).toBe(true);
-    expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
-      "out-1",
-      "Character media references are blocked for video models. Use non-character media assets."
-    );
-    expect(submitKieVeoImageToVideo).not.toHaveBeenCalled();
-  });
 });
 
 describe("handleVideoModelSubmission (Kie Seedance 2)", () => {
@@ -1778,6 +1757,66 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
       "kie-kling",
       undefined,
       { request_id: "kie-kling-std-1" }
+    );
+  });
+
+  it("allows a character-scoped first frame when Kling standard also has a linked element", async () => {
+    const characterFirstFrameUrl =
+      "https://example.supabase.co/storage/v1/object/sign/media_library/user/characters/char-a/first.png?token=abc";
+    mockKieUploadRouteForFileUrls({
+      "user/characters/char-a/first.png":
+        "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/first.png",
+      [characterFirstFrameUrl]:
+        "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/first.png",
+      "https://example.com/element-front.png":
+        "https://tempfile.aiquickdraw.com/shortpulse/kling-elements/images/element-front.png",
+      "https://example.com/element-side.png":
+        "https://tempfile.aiquickdraw.com/shortpulse/kling-elements/images/element-side.png",
+    });
+    const args = makeArgs({
+      finalModel: KIE_KLING_30_MODEL_ID,
+      modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
+      videoReferenceMode: "standard",
+      cleanedPrompt: "Use the uploaded first frame and keep @element1 consistent.",
+      preparedImageInputs: [characterFirstFrameUrl],
+      rawImageInputs: [characterFirstFrameUrl],
+      klingElements: [
+        {
+          id: "element-1",
+          slotIndex: 0,
+          sourceKind: "element",
+          sourceElementId: "element-1",
+          sourceCharacterId: null,
+          name: "Scotty",
+          alias: "scotty",
+          description: "",
+          profileImageUrl: "https://example.com/element-front.png",
+          frontalImageUrl: "https://example.com/element-front.png",
+          referenceImageUrls: "https://example.com/element-side.png",
+          videoUrl: "",
+        },
+      ],
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(args.notifyGenerationFailure).not.toHaveBeenCalled();
+    expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        image_url: "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/first.png",
+        image_urls: ["https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/first.png"],
+        kling_elements: [
+          {
+            name: "element1",
+            description: "Reference images for Scotty",
+            element_input_urls: [
+              "https://tempfile.aiquickdraw.com/shortpulse/kling-elements/images/element-front.png",
+              "https://tempfile.aiquickdraw.com/shortpulse/kling-elements/images/element-side.png",
+            ],
+          },
+        ],
+      })
     );
   });
 

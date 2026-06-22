@@ -26,6 +26,7 @@ import {
   normalizePricingPlanId,
 } from "../paths";
 import { loadGrowthTelemetry } from "../../../lib/growthTelemetryLoader";
+import { isPublicSignupEnabled } from "../../../lib/authRedirects";
 
 export type PricingRouteProps = {
   billingCatalog: BillingCatalogSnapshot;
@@ -45,10 +46,14 @@ const sortBillingPlans = (plans: readonly BillingPlanRecord[]) =>
 
 const resolvePlanActionLabel = (params: {
   isAuthenticated: boolean;
+  publicSignupEnabled: boolean;
   monthlyPriceCents: number;
   displayName: string;
 }) => {
   if (!params.isAuthenticated) {
+    if (!params.publicSignupEnabled) {
+      return "Log in to continue";
+    }
     return params.monthlyPriceCents === 0 ? "Create account" : `Sign up for ${params.displayName}`;
   }
   if (params.monthlyPriceCents === 0) {
@@ -78,6 +83,7 @@ export function PricingRouteContent({ billingCatalog, isAuthenticated }: Pricing
   const selectedBillingInterval = normalizePricingBillingInterval(router.query.interval);
   const [planActionLoadingId, setPlanActionLoadingId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const publicSignupEnabled = isPublicSignupEnabled();
 
   useEffect(() => {
     void loadGrowthTelemetry().then(({ trackBillingPricingViewed }) => {
@@ -126,6 +132,12 @@ export function PricingRouteContent({ billingCatalog, isAuthenticated }: Pricing
     });
 
     if (!isAuthenticated) {
+      if (!publicSignupEnabled) {
+        await router.push(
+          buildPricingAuthPath({ intent, planId, billingInterval: selectedBillingInterval })
+        );
+        return;
+      }
       await router.push(
         buildPricingAuthPath({
           intent,
@@ -246,6 +258,14 @@ export function PricingRouteContent({ billingCatalog, isAuthenticated }: Pricing
                   message={notice}
                 />
               ) : null}
+              {!isAuthenticated && !publicSignupEnabled ? (
+                <AppMessage
+                  className="pricing-route-notice"
+                  tone="info"
+                  mode="banner"
+                  message="Account creation is temporarily closed. Existing users can log in to continue with a selected plan."
+                />
+              ) : null}
               <BillingIntervalToggle
                 selectedBillingInterval={selectedBillingInterval}
                 annualSavingsPercent={annualSavingsPercent}
@@ -271,6 +291,7 @@ export function PricingRouteContent({ billingCatalog, isAuthenticated }: Pricing
                   ? "Annual unavailable"
                   : resolvePlanActionLabel({
                       isAuthenticated,
+                      publicSignupEnabled,
                       monthlyPriceCents: planPricing.monthlyEquivalentCents,
                       displayName: planView.displayName,
                     });

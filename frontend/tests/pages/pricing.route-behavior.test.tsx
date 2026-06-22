@@ -83,7 +83,8 @@ describe("Pricing route behavior", () => {
     });
   });
 
-  it("sends guest plan selection into signup while preserving pricing intent", async () => {
+  it("sends guest plan selection into signup while preserving pricing intent when public signup is enabled", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED", "true");
     useSupabaseSessionStateMock.mockReturnValue({
       initialized: true,
       session: null,
@@ -150,6 +151,61 @@ describe("Pricing route behavior", () => {
         })
       );
     });
+  });
+
+  it("sends guest plan selection to login while public signup is closed", async () => {
+    useSupabaseSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: null,
+      user: null,
+    });
+
+    render(
+      <PricingPage
+        billingCatalog={{
+          plans: [
+            {
+              id: "studio",
+              display_name: "Studio",
+              sort_order: 20,
+              monthly_price_cents: 3900,
+              monthly_credits_cents: 3000,
+              storage_limit_bytes: 107374182400,
+              is_active: true,
+              offers: {
+                year: {
+                  id: "studio_year",
+                  billing_interval: "year",
+                  recurring_price_cents: 39000,
+                  monthly_credits_cents: 3000,
+                  storage_limit_bytes: 107374182400,
+                  stripe_price_id: "price_studio_year",
+                  acquisition_enabled: true,
+                  is_active: true,
+                },
+              },
+            },
+          ],
+          packages: [],
+          storageAddons: [],
+        }}
+      />
+    );
+
+    expect(
+      screen.getByText(
+        "Account creation is temporarily closed. Existing users can log in to continue with a selected plan."
+      )
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Log in to continue" }));
+
+    await waitFor(() => {
+      expect(routerPushMock).toHaveBeenCalledTimes(1);
+    });
+    expect(routerPushMock).toHaveBeenCalledWith(
+      "/auth?next=%2Fpricing%3Fintent%3Dcreate-project%26plan%3Dstudio"
+    );
   });
 
   it("shows only login in the top nav for guests so plan cards own signup", () => {
@@ -269,7 +325,8 @@ describe("Pricing route behavior", () => {
     );
 
     expect(screen.queryByRole("button", { name: "Create account" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Sign up for Starter" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sign up for Starter" })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Log in to continue" }).length).toBeGreaterThan(0);
   });
 
   it("starts the authenticated paid-plan flow through the existing subscription endpoint", async () => {

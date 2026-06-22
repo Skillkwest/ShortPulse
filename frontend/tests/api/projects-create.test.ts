@@ -590,6 +590,7 @@ describe("projects routes", () => {
         schemaVersion: 2,
         sessionId: "session-2",
       },
+      includeSnapshotInResponse: true,
     });
     expect(res.status).toHaveBeenCalledWith(200);
   });
@@ -769,6 +770,7 @@ describe("projects routes", () => {
         schemaVersion: 2,
         sessionId: "session-2",
       },
+      includeSnapshotInResponse: true,
     });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
@@ -835,6 +837,19 @@ describe("projects routes", () => {
     await workspaceHandler(req as never, res as never);
 
     expect(res.status).toHaveBeenCalledWith(200);
+    expect(upsertProjectWorkspaceStateForUserMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId: "project-1",
+      schemaVersion: 2,
+      snapshot: {
+        schemaVersion: 2,
+        sessionId: "session-2",
+        workspace: {
+          prompt: "large saved prompt",
+        },
+      },
+      includeSnapshotInResponse: false,
+    });
     expect(res.json).toHaveBeenCalledWith({
       project: {
         id: "project-1",

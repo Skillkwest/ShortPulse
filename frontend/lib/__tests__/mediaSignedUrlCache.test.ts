@@ -3,7 +3,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchWithAuth } from "../authenticatedFetch";
-import { getSignedMediaUrlsBatch } from "../mediaSignedUrlCache";
+import { getSignedMediaUrl, getSignedMediaUrlsBatch } from "../mediaSignedUrlCache";
 import { ensureSupabaseQueryClient } from "../supabaseClient";
 
 vi.mock("../authenticatedFetch", () => ({
@@ -43,6 +43,92 @@ const createSignedResponseForPaths = (paths: string[]) =>
       },
     }
   );
+
+describe("getSignedMediaUrl", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      storage: {
+        from: () => ({
+          createSignedUrl: vi.fn(),
+        }),
+      },
+    } as unknown as ReturnType<typeof ensureSupabaseQueryClient>);
+  });
+
+  it("signs a single path through the canonical sign-batch route", async () => {
+    const path = "user/single-path.png";
+    fetchWithAuthMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          urls: {
+            [path]: "https://signed.test/single-path",
+          },
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      )
+    );
+
+    const signedUrl = await getSignedMediaUrl({
+      bucket: "media_library",
+      storagePath: path,
+      forceRefresh: true,
+    });
+
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/media/sign-batch",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          bucket: "media_library",
+          paths: [path],
+          expiresInSeconds: 3600,
+          previewProfile: "none",
+        }),
+      })
+    );
+    expect(ensureSupabaseQueryClientMock).not.toHaveBeenCalled();
+    expect(signedUrl).toBe("https://signed.test/single-path");
+  });
+
+  it("fails closed instead of direct-signing when single-path server signing fails", async () => {
+    const createSignedUrlMock = vi.fn(async () => ({
+      data: { signedUrl: "https://direct-signed.test/unsafe-single-fallback" },
+      error: null,
+    }));
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      storage: {
+        from: () => ({
+          createSignedUrl: createSignedUrlMock,
+        }),
+      },
+    } as unknown as ReturnType<typeof ensureSupabaseQueryClient>);
+    fetchWithAuthMock.mockResolvedValue(
+      new Response(JSON.stringify({ error: "storage metadata unavailable" }), {
+        status: 500,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+    );
+
+    const signedUrl = await getSignedMediaUrl({
+      bucket: "media_library",
+      storagePath: "user/stale-or-unverified-single-path.png",
+      forceRefresh: true,
+    });
+
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
+    expect(createSignedUrlMock).not.toHaveBeenCalled();
+    expect(ensureSupabaseQueryClientMock).not.toHaveBeenCalled();
+    expect(signedUrl).toBeNull();
+  });
+});
 
 describe("getSignedMediaUrlsBatch", () => {
   beforeEach(() => {

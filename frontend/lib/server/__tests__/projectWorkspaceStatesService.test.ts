@@ -2943,6 +2943,53 @@ describe("projectWorkspaceStatesService", () => {
     }
   });
 
+  it("skips save-response snapshot materialization for minimal project workspace saves", async () => {
+    const { outputDisplaySelect, workspaceUpsert } = createSupabaseMock();
+
+    const result = await upsertProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+      schemaVersion: 2,
+      includeSnapshotInResponse: false,
+      snapshot: {
+        schemaVersion: 2,
+        sessionId: "session-minimal-save-response",
+        updatedAt: "2026-04-23T01:00:00.000Z",
+        meta: {
+          generatedAt: "2026-04-23T01:00:00.000Z",
+          checksum: "fnv1a32:minimal-save-response",
+        },
+        workspace: {
+          selectedTool: "create",
+          standardPrompt: "Project prompt",
+        },
+        outputs: {
+          active: [
+            {
+              id: "library-minimal-save-response",
+              mediaSource: "library",
+              mode: "image",
+              savedMediaIds: [MEDIA_ID_1],
+            },
+          ],
+          archived: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+    });
+
+    expect(result.saveOutcome).toEqual({ status: "saved" });
+    expect(workspaceUpsert).toHaveBeenCalledTimes(1);
+    expect(outputDisplaySelect).toHaveBeenCalledTimes(2);
+  });
+
   it("accepts richer agent attachment fields while still sanitizing project workspace saves", async () => {
     createSupabaseMock();
 

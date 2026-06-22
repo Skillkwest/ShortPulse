@@ -202,6 +202,7 @@ export default async function handler(
     }
 
     failureStage = req.method === "PUT" ? "workspace save" : "workspace read";
+    const includeWorkspaceSnapshot = !prefersMinimalWorkspaceSaveResponse(req);
     const workspace =
       req.method === "PUT"
         ? await upsertProjectWorkspaceStateForUser({
@@ -209,12 +210,12 @@ export default async function handler(
             projectId,
             schemaVersion: toOptionalSchemaVersion(requestBody?.schemaVersion),
             snapshot: requestBody?.snapshot,
+            includeSnapshotInResponse: includeWorkspaceSnapshot,
           })
         : await getProjectWorkspaceStateForUser({
             userId: user.id,
             projectId,
           });
-    const includeWorkspaceSnapshot = !prefersMinimalWorkspaceSaveResponse(req);
 
     return res.status(200).json({
       project: {

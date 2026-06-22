@@ -7,7 +7,6 @@ import {
   resolvePreviewProfileForSurface,
   type MediaPreviewTransformProfile,
 } from "./mediaPreviewTransformProfile";
-import { ensureSupabaseQueryClient } from "./supabaseClient";
 
 type SignedMediaUrlOptions = {
   bucket: string;
@@ -150,13 +149,10 @@ const signStoragePathDirect = async (
   expiresInSeconds: number,
   previewProfile: MediaPreviewTransformProfile
 ): Promise<string | null> => {
-  const supabase = ensureSupabaseQueryClient();
-  void previewProfile;
-  const { data, error } = await supabase.storage
-    .from(bucket)
-    .createSignedUrl(storagePath, expiresInSeconds);
-  if (error) throw error;
-  return data?.signedUrl ?? null;
+  const urls = await signStoragePathsViaApi(bucket, [storagePath], expiresInSeconds, {
+    previewProfile,
+  });
+  return urls?.[storagePath] ?? null;
 };
 
 const signStoragePathsViaApi = async (

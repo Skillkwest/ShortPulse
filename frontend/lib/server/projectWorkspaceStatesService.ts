@@ -35,6 +35,7 @@ const PROJECT_WORKSPACE_SELECT_COLUMNS =
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const PROJECT_WORKSPACE_MAX_SNAPSHOT_BYTES = 900_000;
+const PROJECT_WORKSPACE_BEST_EFFORT_STAGE_TIMEOUT_MS = 12_000;
 
 type ProjectWorkspaceStateRow = {
   project_id: string;
@@ -178,6 +179,31 @@ const wrapProjectWorkspaceSaveStageError = ({
   new Error(
     `Project workspace save failed during ${stage}: ${toErrorMessage(error, "Unknown error")}`
   );
+
+const withProjectWorkspaceBestEffortTimeout = async <T>(
+  promise: Promise<T>,
+  stage: string
+): Promise<T> => {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_resolve, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(
+            new Error(
+              `${stage} exceeded ${PROJECT_WORKSPACE_BEST_EFFORT_STAGE_TIMEOUT_MS}ms budget`
+            )
+          );
+        }, PROJECT_WORKSPACE_BEST_EFFORT_STAGE_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+};
 
 const logProjectWorkspaceBestEffortFailure = ({
   stage,
@@ -950,25 +976,43 @@ const resolveOwnedSnapshotAssociationIdsForWrite = async ({
 }> => {
   const { mediaFileIds, promptIds } = collectSnapshotAssociationIds(snapshot);
   const { generationIds, runtimeRequestIds } = collectSnapshotGenerationAuthorityKeys(snapshot);
-  const [mediaResult, promptResult, generationResult] = await Promise.allSettled([
-    resolveOwnedIds({
-      table: "media_files",
-      idColumn: "id",
-      userId,
-      ids: mediaFileIds,
-    }),
-    resolveOwnedIds({
-      table: "media_prompts",
-      idColumn: "id",
-      userId,
-      ids: promptIds,
-    }),
-    resolveOwnedGenerationIds({
-      userId,
-      generationIds,
-      runtimeRequestIds,
-    }),
-  ]);
+  let settledResults: [
+    PromiseSettledResult<string[]>,
+    PromiseSettledResult<string[]>,
+    PromiseSettledResult<string[]>,
+  ];
+  try {
+    settledResults = await withProjectWorkspaceBestEffortTimeout(
+      Promise.allSettled([
+        resolveOwnedIds({
+          table: "media_files",
+          idColumn: "id",
+          userId,
+          ids: mediaFileIds,
+        }),
+        resolveOwnedIds({
+          table: "media_prompts",
+          idColumn: "id",
+          userId,
+          ids: promptIds,
+        }),
+        resolveOwnedGenerationIds({
+          userId,
+          generationIds,
+          runtimeRequestIds,
+        }),
+      ]),
+      "owned id resolution"
+    );
+  } catch (error) {
+    const failureMessage = toErrorMessage(error, "owned id resolution unavailable");
+    settledResults = [
+      { status: "rejected", reason: new Error(failureMessage) },
+      { status: "rejected", reason: new Error(failureMessage) },
+      { status: "rejected", reason: new Error(failureMessage) },
+    ];
+  }
+  const [mediaResult, promptResult, generationResult] = settledResults;
 
   const failedAuthorities: string[] = [];
   const failureMessages: string[] = [];
@@ -1020,25 +1064,43 @@ const resolveOwnedSnapshotAssociationIdsForRead = async ({
 }> => {
   const { mediaFileIds, promptIds } = collectSnapshotAssociationIds(snapshot);
   const { generationIds, runtimeRequestIds } = collectSnapshotGenerationAuthorityKeys(snapshot);
-  const [mediaResult, promptResult, generationResult] = await Promise.allSettled([
-    resolveOwnedIds({
-      table: "media_files",
-      idColumn: "id",
-      userId,
-      ids: mediaFileIds,
-    }),
-    resolveOwnedIds({
-      table: "media_prompts",
-      idColumn: "id",
-      userId,
-      ids: promptIds,
-    }),
-    resolveOwnedGenerationIds({
-      userId,
-      generationIds,
-      runtimeRequestIds,
-    }),
-  ]);
+  let settledResults: [
+    PromiseSettledResult<string[]>,
+    PromiseSettledResult<string[]>,
+    PromiseSettledResult<string[]>,
+  ];
+  try {
+    settledResults = await withProjectWorkspaceBestEffortTimeout(
+      Promise.allSettled([
+        resolveOwnedIds({
+          table: "media_files",
+          idColumn: "id",
+          userId,
+          ids: mediaFileIds,
+        }),
+        resolveOwnedIds({
+          table: "media_prompts",
+          idColumn: "id",
+          userId,
+          ids: promptIds,
+        }),
+        resolveOwnedGenerationIds({
+          userId,
+          generationIds,
+          runtimeRequestIds,
+        }),
+      ]),
+      "read owned id resolution"
+    );
+  } catch (error) {
+    const failureMessage = toErrorMessage(error, "read owned id resolution unavailable");
+    settledResults = [
+      { status: "rejected", reason: new Error(failureMessage) },
+      { status: "rejected", reason: new Error(failureMessage) },
+      { status: "rejected", reason: new Error(failureMessage) },
+    ];
+  }
+  const [mediaResult, promptResult, generationResult] = settledResults;
 
   const failedAuthorities: string[] = [];
   const failureMessages: string[] = [];
@@ -1526,11 +1588,13 @@ export const upsertProjectWorkspaceStateForUser = async ({
   projectId,
   schemaVersion,
   snapshot,
+  includeSnapshotInResponse = true,
 }: {
   userId: string;
   projectId: string;
   schemaVersion?: number;
   snapshot: unknown;
+  includeSnapshotInResponse?: boolean;
 }): Promise<ProjectWorkspaceStateRecord> => {
   const parsedSnapshot = parseProjectWorkspaceSnapshotPayload(snapshot);
   if (!parsedSnapshot || !parseAiStudioSessionSnapshotShape(parsedSnapshot)) {
@@ -1572,11 +1636,13 @@ export const upsertProjectWorkspaceStateForUser = async ({
   if (existingRow && compareIsoTimestamps(existingRow.snapshot_updated_at, snapshotUpdatedAt) > 0) {
     return toProjectWorkspaceStateRecord({
       row: existingRow,
-      snapshot: await prepareProjectWorkspaceSnapshotForReadResponse({
-        userId,
-        projectId,
-        snapshot: existingRow.snapshot,
-      }),
+      snapshot: includeSnapshotInResponse
+        ? await prepareProjectWorkspaceSnapshotForReadResponse({
+            userId,
+            projectId,
+            snapshot: existingRow.snapshot,
+          })
+        : existingRow.snapshot,
       saveOutcome: {
         status: "saved",
       },
@@ -1666,11 +1732,13 @@ export const upsertProjectWorkspaceStateForUser = async ({
   if (staleWriteIgnored) {
     return toProjectWorkspaceStateRecord({
       row: savedRow,
-      snapshot: await prepareProjectWorkspaceSnapshotForReadResponse({
-        userId,
-        projectId,
-        snapshot: savedRow.snapshot,
-      }),
+      snapshot: includeSnapshotInResponse
+        ? await prepareProjectWorkspaceSnapshotForReadResponse({
+            userId,
+            projectId,
+            snapshot: savedRow.snapshot,
+          })
+        : savedRow.snapshot,
       saveOutcome: {
         status: "saved",
       },
@@ -1681,13 +1749,16 @@ export const upsertProjectWorkspaceStateForUser = async ({
     ReturnType<typeof syncProjectOutputDisplayItemsForSnapshot>
   > | null = null;
   try {
-    displaySyncResult = await syncProjectOutputDisplayItemsForSnapshot({
-      userId,
-      projectId,
-      snapshot: preparedSnapshot.snapshot,
-      snapshotUpdatedAt,
-      deferDeletes: checkpointStructureChanged,
-    });
+    displaySyncResult = await withProjectWorkspaceBestEffortTimeout(
+      syncProjectOutputDisplayItemsForSnapshot({
+        userId,
+        projectId,
+        snapshot: preparedSnapshot.snapshot,
+        snapshotUpdatedAt,
+        deferDeletes: checkpointStructureChanged,
+      }),
+      "project output display sync"
+    );
   } catch (error) {
     const repairMessage = toErrorMessage(
       wrapProjectWorkspaceSaveStageError({
@@ -1709,13 +1780,16 @@ export const upsertProjectWorkspaceStateForUser = async ({
 
   if (checkpointStructureChanged && displaySyncResult?.deletedCount === 0) {
     try {
-      await syncProjectOutputDisplayItemsForSnapshot({
-        userId,
-        projectId,
-        snapshot: preparedSnapshot.snapshot,
-        snapshotUpdatedAt,
-        deferDeletes: false,
-      });
+      await withProjectWorkspaceBestEffortTimeout(
+        syncProjectOutputDisplayItemsForSnapshot({
+          userId,
+          projectId,
+          snapshot: preparedSnapshot.snapshot,
+          snapshotUpdatedAt,
+          deferDeletes: false,
+        }),
+        "project output display cleanup"
+      );
     } catch (error) {
       logProjectWorkspaceBestEffortFailure({
         stage: "project output display cleanup",
@@ -1726,14 +1800,17 @@ export const upsertProjectWorkspaceStateForUser = async ({
   }
 
   try {
-    await backfillProjectAssetAssociationsForSnapshot({
-      userId,
-      projectId,
-      snapshot: preparedSnapshot.snapshot,
-      ownedMediaFileIds: preparedSnapshot.ownedMediaFileIds,
-      ownedPromptIds: preparedSnapshot.ownedPromptIds,
-      ownedGenerationIds: preparedSnapshot.ownedGenerationIds,
-    });
+    await withProjectWorkspaceBestEffortTimeout(
+      backfillProjectAssetAssociationsForSnapshot({
+        userId,
+        projectId,
+        snapshot: preparedSnapshot.snapshot,
+        ownedMediaFileIds: preparedSnapshot.ownedMediaFileIds,
+        ownedPromptIds: preparedSnapshot.ownedPromptIds,
+        ownedGenerationIds: preparedSnapshot.ownedGenerationIds,
+      }),
+      "project association backfill"
+    );
   } catch (error) {
     const repairMessage = toErrorMessage(
       wrapProjectWorkspaceSaveStageError({
@@ -1759,11 +1836,45 @@ export const upsertProjectWorkspaceStateForUser = async ({
     });
   }
 
-  const saveResponseSnapshot = await prepareProjectWorkspaceSnapshotForSaveResponse({
-    userId,
-    projectId,
-    snapshot: savedRow.snapshot,
-  });
+  let saveResponseSnapshot: {
+    snapshot: Record<string, unknown>;
+    repairPending: ProjectWorkspaceRepairPending | null;
+  };
+  try {
+    saveResponseSnapshot = includeSnapshotInResponse
+      ? await withProjectWorkspaceBestEffortTimeout(
+          prepareProjectWorkspaceSnapshotForSaveResponse({
+            userId,
+            projectId,
+            snapshot: savedRow.snapshot,
+          }),
+          "project workspace save response materialization"
+        )
+      : {
+          snapshot: savedRow.snapshot,
+          repairPending: null,
+        };
+  } catch (error) {
+    const repairMessage = toErrorMessage(
+      wrapProjectWorkspaceSaveStageError({
+        stage: "project output display materialization",
+        error,
+      }),
+      "Project workspace save needs output display materialization repair."
+    );
+    logProjectWorkspaceBestEffortFailure({
+      stage: "project output display materialization",
+      projectId,
+      error,
+    });
+    saveResponseSnapshot = {
+      snapshot: savedRow.snapshot,
+      repairPending: {
+        stage: "project_output_display_sync",
+        message: repairMessage,
+      },
+    };
+  }
   if (saveResponseSnapshot.repairPending) {
     addRepairPending(saveResponseSnapshot.repairPending);
   }

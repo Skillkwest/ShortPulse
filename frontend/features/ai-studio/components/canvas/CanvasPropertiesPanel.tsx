@@ -547,6 +547,7 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
     marqueeSelectionBox,
     viewportRef,
     isDropActive,
+    isDropResolving,
     draftTextEntry,
     isDraftTextEditable = true,
     editingTextItemId,
@@ -801,10 +802,11 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
       <div
         ref={viewportRef}
         className={`canvas-workspace-viewport${isDropActive ? " is-drop-active" : ""}${
-          marqueeSelectionBox ? " is-marquee-active" : ""
-        }`}
+          isDropResolving ? " is-drop-resolving" : ""
+        }${marqueeSelectionBox ? " is-marquee-active" : ""}`}
         data-testid="canvas-viewport"
         data-canvas-instance={instanceId}
+        data-canvas-drop-resolving={isDropResolving ? "true" : undefined}
         data-camera-x={camera.x}
         data-camera-y={camera.y}
         data-camera-zoom={camera.zoom}

@@ -1,7 +1,7 @@
 /**
  * Encapsulates drag/drop behavior for a single Canvas viewport instance.
  */
-import { useCallback, useRef, useState, type DragEvent, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type DragEvent, type RefObject } from "react";
 import { addBreadcrumb } from "../../../../lib/clientBreadcrumbs";
 import {
   buildAiStudioDropSnapshotTransfer,
@@ -56,11 +56,14 @@ type UseCanvasViewportDropHandlersParams = {
 
 type CanvasDropHandlers = {
   isDropActive: boolean;
+  isDropResolving: boolean;
   onViewportDragEnter: (event: DragEvent<HTMLDivElement>) => void;
   onViewportDragOver: (event: DragEvent<HTMLDivElement>) => void;
   onViewportDragLeave: (event: DragEvent<HTMLDivElement>) => void;
   onViewportDrop: (event: DragEvent<HTMLDivElement>) => void;
 };
+
+const CANVAS_DROP_RESOLVING_FAILSAFE_MS = 8000;
 
 /**
  * Returns drop-active state and drag/drop handlers for a viewport surface.
@@ -76,7 +79,55 @@ export const useCanvasViewportDropHandlers = ({
   addResolvedItem,
 }: UseCanvasViewportDropHandlersParams): CanvasDropHandlers => {
   const dragDepthRef = useRef(0);
+  const dropResolvingCountRef = useRef(0);
+  const dropResolvingTimeoutRef = useRef<number | null>(null);
   const [isDropActive, setIsDropActive] = useState(false);
+  const [isDropResolving, setIsDropResolving] = useState(false);
+
+  const clearDropResolvingTimeout = useCallback(() => {
+    if (dropResolvingTimeoutRef.current != null) {
+      window.clearTimeout(dropResolvingTimeoutRef.current);
+      dropResolvingTimeoutRef.current = null;
+    }
+  }, []);
+
+  const beginDropResolving = useCallback(() => {
+    dropResolvingCountRef.current += 1;
+    setIsDropResolving(true);
+    clearDropResolvingTimeout();
+    dropResolvingTimeoutRef.current = window.setTimeout(() => {
+      dropResolvingCountRef.current = 0;
+      dropResolvingTimeoutRef.current = null;
+      setIsDropResolving(false);
+    }, CANVAS_DROP_RESOLVING_FAILSAFE_MS);
+  }, [clearDropResolvingTimeout]);
+
+  const endDropResolving = useCallback(() => {
+    dropResolvingCountRef.current = Math.max(0, dropResolvingCountRef.current - 1);
+    if (dropResolvingCountRef.current > 0) return;
+    clearDropResolvingTimeout();
+    setIsDropResolving(false);
+  }, [clearDropResolvingTimeout]);
+
+  const runDropResolvingTask = useCallback(
+    async (task: () => Promise<void>): Promise<void> => {
+      beginDropResolving();
+      try {
+        await task();
+      } finally {
+        endDropResolving();
+      }
+    },
+    [beginDropResolving, endDropResolving]
+  );
+
+  useEffect(
+    () => () => {
+      clearDropResolvingTimeout();
+      dropResolvingCountRef.current = 0;
+    },
+    [clearDropResolvingTimeout]
+  );
 
   const normalizePreparedDrop = useCallback(
     (
@@ -227,7 +278,7 @@ export const useCanvasViewportDropHandlers = ({
           rect,
           camera,
         });
-        void (async () => {
+        void runDropResolvingTask(async () => {
           try {
             const wasHandled = await handleResolvedInternalDrop(internalPayload, point);
             if (!wasHandled) {
@@ -240,7 +291,7 @@ export const useCanvasViewportDropHandlers = ({
               error instanceof Error ? error.message : String(error)
             );
           }
-        })();
+        });
         return;
       }
       const rect = viewportRef.current.getBoundingClientRect();
@@ -259,7 +310,7 @@ export const useCanvasViewportDropHandlers = ({
       if (mediaLibraryPayload) {
         event.preventDefault();
         event.stopPropagation();
-        void (async () => {
+        void runDropResolvingTask(async () => {
           const preparedDrop = prepareCanvasMediaLibraryDrop
             ? await prepareCanvasMediaLibraryDrop(mediaLibraryPayload)
             : mediaLibraryPayload.kind === "libraryPrompt"
@@ -358,27 +409,27 @@ export const useCanvasViewportDropHandlers = ({
             }
           );
           await normalizedPreparedDrop.afterInsert?.(insertResult);
-        })();
+        });
         return;
       }
       const droppedMediaReference = getDroppedMediaReference(transfer);
       if (droppedMediaReference && resolveCanvasDroppedMediaReference) {
         event.preventDefault();
         event.stopPropagation();
-        void (async () => {
+        void runDropResolvingTask(async () => {
           const resolvedItem = await resolveCanvasDroppedMediaReference(droppedMediaReference);
           if (!resolvedItem) return;
           await addResolvedItem(resolvedItem, point.x, point.y, {
             showLoadingPlaceholder: true,
           });
-        })();
+        });
         return;
       }
       const droppedFiles = originalTransfer.files;
       if (droppedFiles && droppedFiles.length > 0 && resolveCanvasDropFiles) {
         event.preventDefault();
         event.stopPropagation();
-        void (async () => {
+        void runDropResolvingTask(async () => {
           const resolvedItems = await resolveCanvasDropFiles(droppedFiles);
           if (!resolvedItems?.length) return;
           const offsetStep = 24;
@@ -389,7 +440,7 @@ export const useCanvasViewportDropHandlers = ({
               showLoadingPlaceholder: true,
             });
           }
-        })();
+        });
         return;
       }
       const droppedText = extractCanvasDroppedText(transfer);
@@ -418,12 +469,14 @@ export const useCanvasViewportDropHandlers = ({
       normalizePreparedDrop,
       resolveCanvasDroppedMediaReference,
       resolveCanvasDropFiles,
+      runDropResolvingTask,
       viewportRef,
     ]
   );
 
   return {
     isDropActive,
+    isDropResolving,
     onViewportDragEnter,
     onViewportDragOver,
     onViewportDragLeave,

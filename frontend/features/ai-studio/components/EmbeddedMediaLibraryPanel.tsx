@@ -153,7 +153,7 @@ export function EmbeddedMediaLibraryPanel({
     [itemType, normalizedSearch]
   );
   const shouldShowMedia = itemType !== "prompts";
-  const shouldShowPrompts = itemType === "prompts" || itemType === "all";
+  const shouldShowPrompts = itemType === "prompts";
 
   const {
     error: dataError,
@@ -861,7 +861,7 @@ export function EmbeddedMediaLibraryPanel({
     [uploadDroppedFilesToFolder]
   );
   const renderRootAllItemsGrid = React.useCallback(
-    () => renderAllItemsGrid(),
+    () => renderAllItemsGrid({ gridPromptRows: [] }),
     [renderAllItemsGrid]
   );
   const renderRootImageGrid = React.useCallback(
@@ -916,8 +916,8 @@ export function EmbeddedMediaLibraryPanel({
             rootFolderDropZoneProps={rootFolderDropZoneProps}
             mediaLoading={mediaLoading}
             mediaRowsLength={mediaRows.length}
-            promptLoading={promptLoading}
-            visiblePromptRowsLength={visiblePromptRows.length}
+            promptLoading={itemType === "prompts" ? promptLoading : false}
+            visiblePromptRowsLength={itemType === "prompts" ? visiblePromptRows.length : 0}
             visibleImageRowsLength={visibleImageRows.length}
             visibleVideoRowsLength={visibleVideoRows.length}
             visibleAudioRowsLength={visibleAudioRows.length}

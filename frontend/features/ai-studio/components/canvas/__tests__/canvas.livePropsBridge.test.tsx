@@ -16,6 +16,7 @@ const createPanelProps = (
   marqueeSelectionBox: null,
   viewportRef: React.createRef<HTMLDivElement>(),
   isDropActive: false,
+  isDropResolving: false,
   draftTextEntry: null,
   editingTextItemId: null,
   editingTextValue: "",

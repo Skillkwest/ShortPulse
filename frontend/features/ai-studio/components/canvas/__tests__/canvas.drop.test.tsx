@@ -904,6 +904,9 @@ describe("Canvas drop behavior", () => {
         clientY: 200,
       });
 
+      await waitFor(() => {
+        expect(viewport).toHaveAttribute("data-canvas-drop-resolving", "true");
+      });
       expect(screen.queryByTestId("canvas-loading-spinner")).toBeNull();
       await waitFor(() => expect(typeof pendingImageOnload).toBe("function"));
       act(() => {
@@ -928,6 +931,9 @@ describe("Canvas drop behavior", () => {
       expect(Number(finalItem.getAttribute("data-height"))).toBe(154.69);
       await waitFor(() => {
         expect(screen.queryByTestId("canvas-loading-spinner")).not.toBeInTheDocument();
+      });
+      await waitFor(() => {
+        expect(viewport).not.toHaveAttribute("data-canvas-drop-resolving");
       });
     } finally {
       (globalThis as { Image: typeof Image }).Image = OriginalImage;

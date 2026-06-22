@@ -4,6 +4,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { MEDIA_LIBRARY_PANEL_DENSITY_CONFIG } from "../../../media-library/logic/mediaLibraryRuntimeConfig";
 import { readMediaLibraryDragPayload } from "../../logic/mediaLibraryDragPayload";
+import { CharacterEmbeddedMediaLibraryPanel } from "../../../character-manager/components/CharacterEmbeddedMediaLibraryPanel";
 import { ElementsEmbeddedMediaLibraryPanel } from "../ElementsEmbeddedMediaLibraryPanel";
 import { MediaLibraryPanel } from "../MediaLibraryPanel";
 import type { SharedMediaDetailSelectionTarget } from "../detail-modal/detailModalPlatformTypes";
@@ -759,6 +760,39 @@ describe("MediaLibraryPanel", () => {
     expect(selectedProps?.selectedIds.has("prompt-1")).toBe(false);
   });
 
+  it("shows root All Media loading while media rows are loading without prompts", async () => {
+    const deferredMediaPage = createDeferred<{
+      rows: never[];
+      nextCursor: null;
+      hasMore: false;
+      signedById: Map<string, string>;
+      libraryTotalCount: number;
+    }>();
+    fetchMediaListPageMock.mockReturnValueOnce(deferredMediaPage.promise);
+
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
+    });
+    expect(fetchMediaPromptListPageMock).not.toHaveBeenCalled();
+    expect(screen.getByText("Loading saved items…")).toBeInTheDocument();
+
+    await act(async () => {
+      deferredMediaPage.resolve({
+        rows: [],
+        nextCursor: null,
+        hasMore: false,
+        signedById: new Map<string, string>(),
+        libraryTotalCount: 0,
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("No saved items found for this folder.")).toBeInTheDocument();
+    });
+  });
+
   it("opens saved prompt details from the Prompts tab and can use the prompt", async () => {
     const onSelectPrompt = vi.fn();
     render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={onSelectPrompt} />);
@@ -1347,6 +1381,43 @@ describe("MediaLibraryPanel", () => {
     expect(latestProps.fixedVisualAspectRatio).toBeNull();
     const latestSigningArgs = useMediaPreviewSigningControllerMock.mock.calls.at(-1)?.[0];
     expect(latestSigningArgs?.surface).toBe("elements-media-panel");
+  });
+
+  it("keeps saved prompts out of embedded root All Media while preserving the Prompts tab", async () => {
+    render(<ElementsEmbeddedMediaLibraryPanel mediaCardInteractionMode="assignment" />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mock-all-items-grid")).toBeInTheDocument();
+    });
+
+    expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
+    expect(fetchMediaPromptListPageMock).not.toHaveBeenCalled();
+    const latestRootProps = allItemsGridPropsSpy.mock.calls.at(-1)?.[0];
+    expect(latestRootProps?.surface).toBe("elements-media-panel");
+    expect(latestRootProps?.promptRows).toHaveLength(0);
+    expect(screen.queryByRole("button", { name: "Select prompt Prompt One" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Prompts" }));
+
+    await waitFor(() => {
+      expect(fetchMediaPromptListPageMock).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole("button", { name: "Open prompt Prompt One" })).toBeInTheDocument();
+    });
+  });
+
+  it("keeps saved prompts out of the embedded Character root All Media view", async () => {
+    render(<CharacterEmbeddedMediaLibraryPanel mediaCardInteractionMode="assignment" />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mock-all-items-grid")).toBeInTheDocument();
+    });
+
+    expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
+    expect(fetchMediaPromptListPageMock).not.toHaveBeenCalled();
+    const latestRootProps = allItemsGridPropsSpy.mock.calls.at(-1)?.[0];
+    expect(latestRootProps?.surface).toBe("character-media-panel");
+    expect(latestRootProps?.promptRows).toHaveLength(0);
+    expect(screen.queryByRole("button", { name: "Select prompt Prompt One" })).toBeNull();
   });
 
   it("includes audio rows in the embedded Elements all-media signing queue", async () => {

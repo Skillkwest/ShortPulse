@@ -928,6 +928,81 @@ describe("dragDrop payload extraction", () => {
     }
   });
 
+  it("skips rendered snapshots for oversized drag images and falls back to rendered image URLs", () => {
+    const { event, dragNode, setData } = makeDragEvent();
+    dragNode.dataset.dragPreviewKind = "image";
+    dragNode.dataset.dragImageSrc = "blob:http://localhost:3000/large-rendered-image";
+    const image = document.createElement("img");
+    image.className = "reference-card-image";
+    image.setAttribute("src", "blob:http://localhost:3000/large-rendered-image");
+    Object.defineProperty(image, "complete", {
+      configurable: true,
+      value: true,
+    });
+    Object.defineProperty(image, "naturalWidth", {
+      configurable: true,
+      value: 6000,
+    });
+    Object.defineProperty(image, "naturalHeight", {
+      configurable: true,
+      value: 4000,
+    });
+    dragNode.appendChild(image);
+
+    const originalGetContext = HTMLCanvasElement.prototype.getContext;
+    const originalToDataUrl = HTMLCanvasElement.prototype.toDataURL;
+    const getContext = vi.fn(() => ({ drawImage: vi.fn() }) as unknown as CanvasRenderingContext2D);
+    const toDataUrl = vi.fn(() => "data:image/jpeg;base64,should-not-be-created");
+    Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+      configurable: true,
+      writable: true,
+      value: getContext,
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", {
+      configurable: true,
+      writable: true,
+      value: toDataUrl,
+    });
+
+    try {
+      prepareReferenceDrag(event, {
+        id: "ref-large-rendered-image",
+        prompt: "Prompt",
+        mode: "image",
+        aspect: "1:1",
+        model: "Model",
+        status: "ready",
+        timestamp: "Now",
+        previewUrl: "https://example.com/large-rendered-image.png",
+      });
+
+      expect(getContext).not.toHaveBeenCalled();
+      expect(toDataUrl).not.toHaveBeenCalled();
+      const dragSessionToken = setData.mock.calls.find(
+        ([type]) => type === INTERNAL_REFERENCE_DRAG_SESSION_TYPE
+      )?.[1];
+      const payload = extractInternalReferenceDragPayload({
+        files: emptyFileList,
+        types: [INTERNAL_REFERENCE_DRAG_SESSION_TYPE],
+        getData: (type: string) =>
+          type === INTERNAL_REFERENCE_DRAG_SESSION_TYPE ? dragSessionToken : "",
+      } as unknown as DataTransfer);
+
+      expect(payload?.referenceRenderUrl).toBe("blob:http://localhost:3000/large-rendered-image");
+    } finally {
+      Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+        configurable: true,
+        writable: true,
+        value: originalGetContext,
+      });
+      Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", {
+        configurable: true,
+        writable: true,
+        value: originalToDataUrl,
+      });
+    }
+  });
+
   it("extracts versioned internal reference payload metadata", () => {
     const transfer = makeTransfer({
       "text/reference-origin": INTERNAL_REFERENCE_DRAG_ORIGIN,

@@ -101,6 +101,7 @@ const DRAG_GHOST_ASPECT_RATIO = 4 / 5;
 const DRAG_GHOST_SNAPSHOT_WIDTH = 768;
 const DRAG_GHOST_SNAPSHOT_HEIGHT = 960;
 const DRAG_GHOST_SNAPSHOT_QUALITY = 0.82;
+const DRAG_GHOST_SOURCE_PIXEL_LIMIT = 4_000_000;
 
 type ReferenceDragPreviewKind = "image" | "video" | "audio" | "text";
 
@@ -326,6 +327,9 @@ const createDragGhostSnapshotSrc = (imageNode: HTMLImageElement | null): string 
   if (!imageNode) return null;
   if (!imageNode.complete || imageNode.naturalWidth <= 0 || imageNode.naturalHeight <= 0)
     return null;
+  if (imageNode.naturalWidth * imageNode.naturalHeight > DRAG_GHOST_SOURCE_PIXEL_LIMIT) {
+    return null;
+  }
   try {
     const canvas = document.createElement("canvas");
     canvas.width = DRAG_GHOST_SNAPSHOT_WIDTH;

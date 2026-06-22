@@ -648,6 +648,7 @@ export const useCanvasViewportInstanceState = ({
   }, [commitTextItemEditState, setTextEditOwnerInstanceId]);
   const {
     isDropActive,
+    isDropResolving,
     onViewportDragEnter,
     onViewportDragOver,
     onViewportDragLeave,
@@ -1529,6 +1530,7 @@ export const useCanvasViewportInstanceState = ({
       marqueeSelectionBox,
       viewportRef,
       isDropActive,
+      isDropResolving,
       draftTextEntry,
       isDraftTextEditable,
       editingTextItemId: textEditSession?.itemId ?? null,
@@ -1585,6 +1587,7 @@ export const useCanvasViewportInstanceState = ({
       instanceId,
       isDraftTextEditable,
       isDropActive,
+      isDropResolving,
       isTextResizeActive,
       isTextEditEditable,
       itemDragPreview,

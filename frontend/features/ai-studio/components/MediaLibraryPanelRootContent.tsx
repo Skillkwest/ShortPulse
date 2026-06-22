@@ -71,6 +71,9 @@ export const MediaLibraryPanelRootContent = React.memo(function MediaLibraryPane
   mediaHasMore,
   loadMediaPage,
 }: MediaLibraryPanelRootContentProps) {
+  const allMediaHasVisibleItems = mediaRowsLength > 0 || visiblePromptRowsLength > 0;
+  const allMediaInitialLoading = !allMediaHasVisibleItems && (mediaLoading || promptLoading);
+
   return (
     <>
       <div
@@ -188,12 +191,7 @@ export const MediaLibraryPanelRootContent = React.memo(function MediaLibraryPane
           data-testid="media-library-panel-root-dropzone"
           {...(rootFolderDropZoneProps ?? {})}
         >
-          {mediaLoading &&
-          mediaRowsLength === 0 &&
-          promptLoading &&
-          visiblePromptRowsLength === 0 ? (
-            <p className="tiny subdued">Loading saved items…</p>
-          ) : null}
+          {allMediaInitialLoading ? <p className="tiny subdued">Loading saved items…</p> : null}
           {!mediaLoading &&
           mediaRowsLength === 0 &&
           !promptLoading &&
@@ -201,7 +199,7 @@ export const MediaLibraryPanelRootContent = React.memo(function MediaLibraryPane
             <p className="tiny subdued">No saved items found for this folder.</p>
           ) : null}
           <div id="media-library-panel-all-media-section">
-            {mediaRowsLength > 0 || visiblePromptRowsLength > 0 ? renderAllItemsGrid() : null}
+            {allMediaHasVisibleItems ? renderAllItemsGrid() : null}
           </div>
         </section>
       ) : null}

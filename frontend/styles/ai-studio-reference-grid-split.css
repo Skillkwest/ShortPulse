@@ -379,7 +379,10 @@
     color 0.18s ease,
     border-color 0.18s ease,
     background 0.18s ease,
+    opacity 0.18s ease,
     box-shadow 0.18s ease;
+  opacity: 0;
+  pointer-events: none;
   transform: translateY(-50%);
 }
 
@@ -391,9 +394,11 @@
   right: 10px;
 }
 
-/* Temporary UI test state: hide divider pills while preserving draggable divider tracks. */
-.reference-grid-horizontal-divider-pill {
-  display: none;
+.reference-grid-horizontal-divider-wrap:hover .reference-grid-horizontal-divider-pill,
+.reference-grid-horizontal-divider-wrap:focus-within .reference-grid-horizontal-divider-pill,
+.reference-grid-horizontal-divider-pill:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .reference-grid-horizontal-divider-pill:hover,

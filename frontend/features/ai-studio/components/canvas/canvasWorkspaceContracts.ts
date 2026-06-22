@@ -87,6 +87,7 @@ export type CanvasPropertiesPanelProps = {
   marqueeSelectionBox?: CanvasMarqueeSelectionBox | null;
   viewportRef: RefObject<HTMLDivElement>;
   isDropActive: boolean;
+  isDropResolving: boolean;
   draftTextEntry: { x: number; y: number; value: string } | null;
   isDraftTextEditable?: boolean;
   editingTextItemId: string | null;

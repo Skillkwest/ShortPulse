@@ -219,9 +219,13 @@ export const useStudioOutputDetailMediaPreview = ({
   }, [detailMediaAuthority.fullMediaUrl, output.fullStoragePath, resolvedCanonicalPreviewUrl]);
   const previewSelection =
     previewSelectionByOutput.outputId === outputId ? previewSelectionByOutput : null;
+  const selectedPreviewUrl = previewSelection?.currentUrl ?? null;
+  const selectedPreviewUrlIsCandidate = Boolean(
+    selectedPreviewUrl && previewCandidates.includes(selectedPreviewUrl)
+  );
   const displayPreviewUrl = useMemo(() => {
-    if (previewSelection?.currentUrl) {
-      return previewSelection.currentUrl;
+    if (selectedPreviewUrl && selectedPreviewUrlIsCandidate) {
+      return selectedPreviewUrl;
     }
     return (
       resolveNextPreviewCandidateUrl({
@@ -230,7 +234,12 @@ export const useStudioOutputDetailMediaPreview = ({
         rejectedUrls: previewSelection?.rejectedUrls ?? [],
       }) ?? null
     );
-  }, [previewCandidates, previewSelection]);
+  }, [
+    previewCandidates,
+    previewSelection?.rejectedUrls,
+    selectedPreviewUrl,
+    selectedPreviewUrlIsCandidate,
+  ]);
   const hasCanonicalStorageAuthority = Boolean(
     asCanonicalStoragePath(output.previewStoragePath) ||
     asCanonicalStoragePath(output.fullStoragePath)
@@ -290,8 +299,13 @@ export const useStudioOutputDetailMediaPreview = ({
     const currentUrlWasRejected = Boolean(
       previewSelectionByOutput.currentUrl && rejectedUrlSet.has(previewSelectionByOutput.currentUrl)
     );
+    const currentUrlIsStillCandidate = Boolean(
+      previewSelectionByOutput.currentUrl &&
+      previewCandidates.includes(previewSelectionByOutput.currentUrl)
+    );
     const shouldPreserveCurrentUrl =
       Boolean(previewSelectionByOutput.currentUrl) &&
+      currentUrlIsStillCandidate &&
       !currentUrlWasRejected &&
       !shouldPromoteToFullQuality;
     if (shouldPreserveCurrentUrl) return;

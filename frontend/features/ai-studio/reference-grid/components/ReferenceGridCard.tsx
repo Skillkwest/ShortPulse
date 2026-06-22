@@ -492,6 +492,13 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   const handleCardDoubleClick = React.useCallback(() => {
     onOpenDetails(item.id, item);
   }, [item, onOpenDetails]);
+  const handleVideoNodeRef = React.useCallback(
+    (node: HTMLVideoElement | null) => {
+      videoNodeRef.current = node;
+      registerVideoNode(videoNodeKey, item.id, node);
+    },
+    [item.id, registerVideoNode, videoNodeKey]
+  );
 
   return (
     <div
@@ -537,10 +544,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
         <video
           className={`reference-card-video ${hasPosterBackedVideoPreview ? "reference-card-video--poster-backed" : ""} ${isHoveringVideo || isHoverVideoVisible || shouldPreferVideoSurfaceByDefault ? "is-visible" : ""}`}
           draggable={false}
-          ref={(node) => {
-            videoNodeRef.current = node;
-            registerVideoNode(videoNodeKey, item.id, node);
-          }}
+          ref={handleVideoNodeRef}
           src={attachedVideoSourceUrl ?? undefined}
           autoPlay={canAutoplayVideo}
           muted

@@ -47,6 +47,7 @@ export function CanvasAudioCard({
           audioUrl={item.audioUrl}
           backgroundImageUrl={item.companionArtUrl ?? null}
           audioSourceMode={item.audioSourceMode ?? null}
+          title={title}
           durationMs={item.durationMs ?? null}
           waveformPeaks={item.waveformPeaks ?? null}
           playLabel={`Play ${title}`}

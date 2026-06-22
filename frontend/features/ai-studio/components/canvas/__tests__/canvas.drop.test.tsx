@@ -317,7 +317,7 @@ describe("Canvas drop behavior", () => {
         "text/shortpulse-media-library-id": "media-audio-1",
         "text/shortpulse-media-library-url": "https://example.com/library-audio.mp3",
         "text/shortpulse-media-library-file-type": "audio",
-        "text/shortpulse-media-library-filename": "Library Audio",
+        "text/shortpulse-media-library-filename": "Library Audio.mp3",
         "text/shortpulse-media-library-companion-art-url":
           "https://example.com/library-audio-cover.webp",
         "text/shortpulse-media-library-companion-art-storage-path":
@@ -331,7 +331,8 @@ describe("Canvas drop behavior", () => {
     expect(item).toHaveAttribute("data-kind", "audio");
     expect(Number(item.getAttribute("data-width"))).toBe(200);
     expect(Number(item.getAttribute("data-height"))).toBe(200);
-    expect(screen.getByRole("button", { name: "Play Library Audio" })).toBeInTheDocument();
+    expect(screen.getByText("Library Audio.mp3")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Play Library Audio.mp3" })).toBeInTheDocument();
     expect(
       item.querySelector(".reference-card-audio-shell")?.getAttribute("style") ?? ""
     ).toContain("library-audio-cover.webp");
@@ -689,6 +690,7 @@ describe("Canvas drop behavior", () => {
     expect(item).toHaveAttribute("data-kind", "audio");
     expect(Number(item.getAttribute("data-width"))).toBe(200);
     expect(Number(item.getAttribute("data-height"))).toBe(200);
+    expect(screen.getByText("Reference audio")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Play Reference audio" })).toBeInTheDocument();
     expect(
       item.querySelector(".reference-card-audio-shell")?.getAttribute("style") ?? ""

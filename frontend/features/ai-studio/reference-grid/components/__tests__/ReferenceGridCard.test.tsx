@@ -613,6 +613,37 @@ describe("ReferenceGridCard", () => {
     expect(videoNode?.classList.contains("is-visible")).toBe(true);
   });
 
+  it("keeps the same video node registered across ordinary card rerenders", () => {
+    const registerVideoNode = vi.fn();
+    const generatedVideo = createOutput({
+      mode: "video",
+      taskState: "success",
+      mediaSource: "generated",
+    });
+    const initialProps = createProps({
+      item: generatedVideo,
+      isVideoPreview: true,
+      cardPreviewUrl: "https://example.com/generated-video.mp4",
+      hoverVideoUrl: "https://example.com/generated-video.mp4",
+      canAutoplayVideo: false,
+      videoPreload: "metadata",
+      registerVideoNode,
+    });
+    const { rerender } = render(<ReferenceGridCard {...initialProps} />);
+
+    expect(registerVideoNode).toHaveBeenCalledTimes(1);
+    expect(registerVideoNode).toHaveBeenCalledWith(
+      "video-node-key",
+      generatedVideo.id,
+      expect.any(HTMLVideoElement)
+    );
+
+    registerVideoNode.mockClear();
+    rerender(<ReferenceGridCard {...initialProps} canAutoplayVideo />);
+
+    expect(registerVideoNode).not.toHaveBeenCalled();
+  });
+
   it("starts video playback from mouse hover fallback", async () => {
     render(
       <ReferenceGridCard

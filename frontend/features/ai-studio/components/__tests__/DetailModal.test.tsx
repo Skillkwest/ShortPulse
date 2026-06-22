@@ -1256,6 +1256,57 @@ describe("DetailModal", () => {
     expect(video?.getAttribute("poster")).toBe(posterUrl);
   });
 
+  it("replaces a stale same-output poster candidate when Lip Sync video delivery arrives", async () => {
+    const outputId = "lip-sync-transition-1";
+    const posterUrl = "https://cdn.test/lip-sync-poster.jpg";
+    const videoUrl = "https://cdn.test/lip-sync-result.mp4";
+    const { baseElement, rerender } = render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          id: outputId,
+          mode: "image",
+          mediaSource: "generated",
+          modelId: "fal-ai/bytedance/omnihuman/v1.5",
+          previewUrl: posterUrl,
+          resultUrls: [posterUrl],
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    expect(baseElement.querySelector("img.art-hero-image")).not.toBeNull();
+
+    rerender(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          id: outputId,
+          mode: "video",
+          mediaSource: "generated",
+          modelId: "fal-ai/bytedance/omnihuman/v1.5",
+          previewUrl: posterUrl,
+          previewPosterUrl: posterUrl,
+          resultUrls: [videoUrl],
+          mimeType: "video/mp4",
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      const video = baseElement.querySelector("video.art-hero-image") as HTMLVideoElement | null;
+      expect(video).not.toBeNull();
+      expect(video?.getAttribute("src")).toBe(videoUrl);
+      expect(video?.getAttribute("poster")).toBe(posterUrl);
+    });
+    expect(screen.queryByText("Loading media...")).not.toBeInTheDocument();
+  });
+
   it("keeps successfully loaded media even when actual dimensions differ from aspect metadata", async () => {
     const { baseElement } = render(
       <DetailModal

@@ -5,6 +5,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import DashboardPage from "../../pages/dashboard";
+import { SHORTPULSE_COMMUNITY_URL } from "../../features/dashboard/communityLinks";
 
 const useRouterMock = vi.hoisted(() => vi.fn());
 const useCreditsMock = vi.hoisted(() => vi.fn());
@@ -210,6 +211,11 @@ describe("Dashboard guest route", () => {
     expect(screen.getByRole("link", { name: "Refund Policy" })).toHaveAttribute(
       "href",
       "/refund-policy"
+    );
+    const footer = screen.getByRole("contentinfo", { name: "ShortPulse footer" });
+    expect(within(footer).getByRole("link", { name: "Join Free" })).toHaveAttribute(
+      "href",
+      SHORTPULSE_COMMUNITY_URL
     );
     const guestActions = screen.getByLabelText("Guest actions");
 

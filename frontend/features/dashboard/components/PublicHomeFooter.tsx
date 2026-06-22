@@ -40,6 +40,7 @@ export function PublicHomeFooter({
               height={64}
               style={{ height: "auto" }}
             />
+            <span className="public-home-footer-logo-name">ShortPulse</span>
           </Link>
           <p>
             The all-in-one creative engine for images, video, voices, products, ads, and ideas that

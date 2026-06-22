@@ -100,13 +100,6 @@
   overflow: hidden;
 }
 
-.video-properties-panel .video-direction-column-shell.is-empty-prompt {
-  border-color: rgba(170, 101, 239, 0.24);
-  box-shadow:
-    0 16px 34px rgba(0, 0, 0, 0.32),
-    0 0 0 1px rgba(170, 101, 239, 0.1);
-}
-
 .video-properties-panel .video-direction-column-shell,
 .video-properties-panel .video-setup-row-shell,
 .video-properties-panel .reference-step-card,

@@ -26,6 +26,7 @@ export type ReferenceAudioPlayerProps = {
   backgroundImageUrl?: string | null;
   audioSourceMode?: StudioAudioSourceMode | null;
   durationMs?: number | null;
+  showDurationBadge?: boolean;
   waveformPeaks?: number[] | null;
   playLabel: string;
   pauseLabel: string;
@@ -50,6 +51,7 @@ export function ReferenceAudioPlayer({
   backgroundImageUrl = null,
   audioSourceMode = null,
   durationMs = null,
+  showDurationBadge = true,
   waveformPeaks = null,
   playLabel,
   pauseLabel,
@@ -630,14 +632,16 @@ export function ReferenceAudioPlayer({
                   </span>
                 ))}
               </div>
-              <div className="reference-card-audio-time-row reference-card-audio-time-row--duration-only">
-                <MediaDurationBadge
-                  className="reference-card-audio-duration-badge"
-                  durationMs={resolvedAudioDurationMs}
-                  mediaKind="audio"
-                  audioSourceMode={audioSourceMode}
-                />
-              </div>
+              {showDurationBadge ? (
+                <div className="reference-card-audio-time-row reference-card-audio-time-row--duration-only">
+                  <MediaDurationBadge
+                    className="reference-card-audio-duration-badge"
+                    durationMs={resolvedAudioDurationMs}
+                    mediaKind="audio"
+                    audioSourceMode={audioSourceMode}
+                  />
+                </div>
+              ) : null}
             </div>
           </div>
         </div>

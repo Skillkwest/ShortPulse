@@ -56,6 +56,34 @@ describe("ReferenceAudioPlayer", () => {
     expect(document.querySelector("audio")?.getAttribute("preload")).toBe("none");
   });
 
+  it("can hide the duration badge without changing duration metadata", () => {
+    const { rerender } = render(
+      <ReferenceAudioPlayer
+        audioId="audio-visible-duration"
+        audioUrl="https://signed.test/visible-duration.mp3"
+        durationMs={12_000}
+        playLabel="Play audio"
+        pauseLabel="Pause audio"
+      />
+    );
+
+    expect(screen.getByText("0:12")).toBeInTheDocument();
+
+    rerender(
+      <ReferenceAudioPlayer
+        audioId="audio-hidden-duration"
+        audioUrl="https://signed.test/hidden-duration.mp3"
+        durationMs={12_000}
+        showDurationBadge={false}
+        playLabel="Play audio"
+        pauseLabel="Pause audio"
+      />
+    );
+
+    expect(screen.queryByText("0:12")).toBeNull();
+    expect(document.querySelector("audio")?.getAttribute("preload")).toBe("none");
+  });
+
   it("does not render a zero duration badge while duration is unknown", () => {
     render(
       <ReferenceAudioPlayer

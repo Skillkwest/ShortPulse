@@ -1556,6 +1556,40 @@ describe("VideoPropertiesPanel", () => {
     expect(onVideoResolutionChange).toHaveBeenCalledWith("720p");
   });
 
+  it("hides the duration pill in the Lip Sync voice audio dropzone", () => {
+    useReferencePropertiesDerivedStateMock.mockReturnValue({
+      ...defaultDerivedState,
+      activeVideoMode: "lip-sync",
+      isKling3Mode: false,
+      isKlingPatternMode: false,
+      isLipSyncMode: true,
+      isStandardMode: false,
+      referenceStepTitle: "Character image",
+      referenceStepSubtitle: "Add a character image",
+      resolutionOptions: [{ value: "720p", label: "720p" }],
+      videoResolutionValue: "720p",
+    });
+
+    const { container } = render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        videoReferenceMode="lip-sync"
+        lipSyncAudio={{
+          url: "https://signed.shortpulse.test/voice-reference.mp3",
+          durationMs: 6_000,
+          status: "ready",
+          sourceKind: "reference",
+        }}
+        onLipSyncAudioChange={vi.fn()}
+      />
+    );
+
+    const audioDropzone = container.querySelector(".video-lip-sync-audio-dropzone");
+    expect(audioDropzone).not.toBeNull();
+    expect(audioDropzone?.querySelector(".reference-card-audio-duration-badge")).toBeNull();
+    expect(audioDropzone).not.toHaveTextContent("0:06");
+  });
+
   it("hides the deferred Lip Sync faster-generation switch", () => {
     const onLipSyncTurboModeChange = vi.fn();
     useReferencePropertiesDerivedStateMock.mockReturnValue({

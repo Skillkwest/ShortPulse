@@ -49,7 +49,7 @@ export type ReferenceGridCardProps = {
   activeOutputId: string | null;
   isLoading: boolean;
   loadingVisual: "none" | "spinner" | "hydrating";
-  loadingStatusLabel?: string;
+  loadingStatusLabel?: string | null;
   cardPreviewUrl: string | null;
   videoPosterUrl?: string | null;
   hoverVideoUrl?: string | null;
@@ -357,7 +357,11 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
       : "Remove loading media from grid");
   const shouldShowMediaUnavailable = hasMediaRenderError && !effectiveIsLoading && !isFailing;
   const resolvedLoadingStatusLabel =
-    loadingStatusLabel ?? (loadingVisual === "hydrating" ? "Loading media" : "Generating");
+    loadingStatusLabel === undefined
+      ? loadingVisual === "hydrating"
+        ? null
+        : "Generating"
+      : loadingStatusLabel;
   const markCardMediaLoaded = React.useCallback(() => {
     markLoaded(item.id, { notifyAutoSave: isSelected });
   }, [isSelected, item.id, markLoaded]);
@@ -673,7 +677,9 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
             </button>
           ) : null}
           <div className="reference-spinner" />
-          <span className="reference-loading-label">{resolvedLoadingStatusLabel}</span>
+          {resolvedLoadingStatusLabel ? (
+            <span className="reference-loading-label">{resolvedLoadingStatusLabel}</span>
+          ) : null}
         </div>
       ) : null}
       {effectiveIsLoading && canRetryStatus && isSelected ? (

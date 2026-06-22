@@ -882,7 +882,8 @@ describe("ReferenceGridCard", () => {
 
     expect(container.querySelector(".reference-card-image")).toBeNull();
     expect(container.querySelector(".reference-loading--hydrating")).not.toBeNull();
-    expect(screen.getByText("Loading media")).toBeInTheDocument();
+    expect(screen.queryByText("Loading media")).toBeNull();
+    expect(container.querySelector(".reference-loading-label")).toBeNull();
     expect(screen.queryByText("Preview unavailable")).toBeNull();
 
     await act(async () => {

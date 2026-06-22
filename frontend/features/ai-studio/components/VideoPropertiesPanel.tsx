@@ -1193,6 +1193,7 @@ export function VideoPropertiesPanel({
                 audioId="lip-sync-audio"
                 audioUrl={lipSyncAudioPlaybackUrl}
                 durationMs={lipSyncAudio.durationMs}
+                showDurationBadge={false}
                 playLabel="Play voice audio"
                 pauseLabel="Pause voice audio"
                 eagerWaveformDecode={false}
@@ -2604,8 +2605,6 @@ export function VideoPropertiesPanel({
               <div
                 className={`video-direction-column-shell ${
                   hasAnyPromptText ? "has-active-prompt-content" : ""
-                } ${
-                  !hasAnyPromptText && !isCustomMultiShotWorkspace ? "is-empty-prompt" : ""
                 } ${isCustomMultiShotWorkspace ? "is-custom-multishot-workspace" : ""}`}
               >
                 {!hasAnyPromptText && !isCustomMultiShotWorkspace ? (

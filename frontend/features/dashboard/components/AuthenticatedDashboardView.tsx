@@ -74,7 +74,7 @@ export function AuthenticatedDashboardView({
           <div className="hero-copy authenticated-home-hero-copy">
             <p className="eyebrow tiny authenticated-home-kicker">ShortPulse dashboard</p>
             <h1>
-              Welcome back, <span>{firstName}</span>.
+              Welcome back, <span data-text={firstName}>{firstName}</span>.
             </h1>
             {dashboardAnnouncement ? (
               <AppMessage
@@ -193,6 +193,7 @@ export function AuthenticatedDashboardView({
         communityHref={SHORTPULSE_COMMUNITY_URL}
         footerLoginHref="/profile?section=account"
         footerPricingHref="/profile?section=subscription"
+        onCreateProjectClick={onCreateProject}
         launchAppLabel="Open AI Studio"
         footerPricingLabel="Subscription"
         footerLoginLabel="Account"

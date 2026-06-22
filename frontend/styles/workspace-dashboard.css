@@ -433,6 +433,13 @@ body.dashboard-body {
 }
 
 .authenticated-dashboard-page {
+  --authenticated-dashboard-gradient-text: linear-gradient(
+    90deg,
+    #ff9b42 0%,
+    #ff5f57 52%,
+    #f2055c 100%
+  );
+  --public-home-gradient-text: var(--authenticated-dashboard-gradient-text);
   position: relative;
   width: 100%;
   max-width: none;
@@ -503,8 +510,8 @@ body.dashboard-body:has(.authenticated-dashboard-page) {
 }
 
 .authenticated-dashboard-page .header-stat-card {
-  width: clamp(218px, 14.2vw, 264px);
-  min-width: 218px;
+  width: clamp(238px, 15.8vw, 312px);
+  min-width: 238px;
   min-height: 0;
   padding: 12px;
   gap: 12px;
@@ -559,11 +566,11 @@ body.dashboard-body:has(.authenticated-dashboard-page) {
   content: "";
   position: absolute;
   right: 50%;
-  bottom: 10px;
+  bottom: 5px;
   width: 42px;
   height: 5px;
   border-radius: 999px;
-  background: linear-gradient(90deg, #da345d 0%, #e35d5e 54%, #e6895f 100%);
+  background: var(--authenticated-dashboard-gradient-text);
   box-shadow: 0 0 10px rgba(218, 52, 93, 0.22);
   transform: translateX(50%);
 }
@@ -1968,22 +1975,15 @@ body.dashboard-body:has(.public-dashboard-page) {
   max-width: 420px;
   height: 1px;
   border-radius: 999px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 178, 76, 0.4) 36%,
-    rgba(255, 45, 102, 0.58) 100%
-  );
+  background: var(--authenticated-dashboard-gradient-text, var(--public-home-gradient-text));
   box-shadow: 0 0 18px rgba(255, 66, 92, 0.16);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 24%, #000 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 24%, #000 100%);
 }
 
 .public-home-gallery-header::after {
-  background: linear-gradient(
-    90deg,
-    rgba(255, 45, 102, 0.58) 0%,
-    rgba(255, 178, 76, 0.4) 64%,
-    transparent 100%
-  );
+  -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 76%, transparent 100%);
+  mask-image: linear-gradient(90deg, #000 0%, #000 76%, transparent 100%);
 }
 
 .public-home-gallery-header h2 {
@@ -3058,11 +3058,28 @@ button.hero-onboarding {
 }
 
 .authenticated-home-hero-copy h1 span {
+  position: relative;
+  z-index: 0;
+  display: inline-block;
   color: #ff3d56;
-  background: linear-gradient(90deg, #ffbd46 0%, #ff6a2f 45%, #ff2c6d 100%);
+  background: var(--authenticated-dashboard-gradient-text);
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 6px 16px rgba(255, 65, 88, 0.26));
+  isolation: isolate;
+  text-shadow: none;
+}
+
+.authenticated-home-hero-copy h1 span::before {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  color: rgba(0, 0, 0, 0.7);
+  background: none;
+  -webkit-text-fill-color: rgba(0, 0, 0, 0.7);
+  filter: blur(7px);
+  transform: translate(5px, 7px);
+  pointer-events: none;
 }
 
 .authenticated-home-hero-copy .hero-subtext,
@@ -3096,10 +3113,12 @@ button.hero-onboarding {
 }
 
 .authenticated-home-quick-row .hero-new-project-card {
-  border-color: rgba(255, 128, 82, 0.34);
+  border-color: rgba(37, 169, 191, 0.48);
+  background:
+    radial-gradient(120% 120% at 0% 0%, rgba(37, 169, 191, 0.18), transparent 58%),
+    linear-gradient(145deg, rgba(37, 169, 191, 0.08), transparent 48%), rgba(8, 12, 18, 0.76);
 }
 
-.authenticated-home-quick-row .hero-new-project-card:hover,
 .authenticated-home-quick-row .hero-open-projects-card:hover {
   border-color: rgba(255, 178, 88, 0.5);
   box-shadow:
@@ -3108,15 +3127,26 @@ button.hero-onboarding {
     0 0 28px rgba(255, 82, 78, 0.16);
 }
 
+.authenticated-home-quick-row .hero-new-project-card:hover {
+  border-color: rgba(37, 169, 191, 0.68);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 28px 62px rgba(0, 0, 0, 0.4),
+    0 0 30px rgba(37, 169, 191, 0.18);
+}
+
 .authenticated-home-quick-row .hero-new-project-label {
   color: #f8fbff;
   font-size: 23px;
   letter-spacing: 0;
 }
 
-.authenticated-home-quick-row .hero-new-project-icon,
 .authenticated-home-quick-row .hero-open-projects-icon {
   color: #ff8756;
+}
+
+.authenticated-home-quick-row .hero-new-project-icon {
+  color: var(--color-teal);
 }
 
 .authenticated-home-quick-row .hero-new-project-helper {

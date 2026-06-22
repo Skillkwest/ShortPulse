@@ -354,9 +354,10 @@ describe("Dashboard actions", () => {
     expect(
       await screen.findByRole("link", { name: "Media Storage: 0.0 MB / 500.0 GB" })
     ).toHaveAttribute("href", "/profile?section=storage");
-    expect(
-      await screen.findByRole("link", { name: "AI credits: 86 credits / 12,000 credits" })
-    ).toHaveAttribute("href", "/profile?section=credits");
+    expect(await screen.findByRole("link", { name: "AI credits: 86 / 12,000" })).toHaveAttribute(
+      "href",
+      "/profile?section=credits"
+    );
     expect(await screen.findByRole("link", { name: /^Plan:/i })).toHaveAttribute(
       "href",
       "/profile?section=subscription"
@@ -387,10 +388,39 @@ describe("Dashboard actions", () => {
       "href",
       SHORTPULSE_COMMUNITY_URL
     );
-    expect(within(footer).getAllByRole("link", { name: "Open AI Studio" })).toSatisfy(
-      (links: HTMLAnchorElement[]) =>
-        links.length === 1 && links.every((link) => link.getAttribute("href") === "/ai-studio")
-    );
+    expect(within(footer).getByRole("button", { name: "Open AI Studio" })).toBeInTheDocument();
+    expect(within(footer).queryByRole("link", { name: "Open AI Studio" })).not.toBeInTheDocument();
+  });
+
+  it("routes the signed-in footer Open AI Studio action through new project creation", async () => {
+    render(<DashboardPage />);
+
+    await screen.findByRole("button", { name: "Profile menu" });
+    const footer = await screen.findByRole("contentinfo", { name: "ShortPulse footer" });
+    fireEvent.click(within(footer).getByRole("button", { name: "Open AI Studio" }));
+
+    expect(await screen.findByRole("dialog", { name: "Name project" })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Project name"), {
+      target: { value: "Footer Campaign" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+
+    await waitFor(() => {
+      expect(fetchWithAuthMock).toHaveBeenCalledWith(
+        "/api/projects/create",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ title: "Footer Campaign" }),
+        })
+      );
+      expect(routerPushMock).toHaveBeenCalledWith({
+        pathname: "/ai-studio",
+        query: {
+          projectId: "project-created",
+        },
+      });
+    });
   });
 
   it("opens the profile menu with account sections, issue reporting, and logout", async () => {

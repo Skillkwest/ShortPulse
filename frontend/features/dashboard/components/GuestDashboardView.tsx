@@ -483,6 +483,7 @@ export function GuestDashboardView({
         communityHref={SHORTPULSE_COMMUNITY_URL}
         footerLoginHref={footerLoginHref}
         footerPricingHref={footerPricingHref}
+        launchAppLabel="Sign Up"
       />
 
       {selectedHeroDemo ? (

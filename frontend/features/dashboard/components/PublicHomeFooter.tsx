@@ -9,6 +9,7 @@ type PublicHomeFooterProps = {
   communityHref: string;
   footerLoginHref: string;
   footerPricingHref: string;
+  onCreateProjectClick?: () => void;
   launchAppLabel?: string;
   footerPricingLabel?: string;
   footerLoginLabel?: string;
@@ -23,6 +24,7 @@ export function PublicHomeFooter({
   communityHref,
   footerLoginHref,
   footerPricingHref,
+  onCreateProjectClick,
   launchAppLabel = "Launch App",
   footerPricingLabel = "Pricing",
   footerLoginLabel = "Login",
@@ -51,9 +53,15 @@ export function PublicHomeFooter({
         <nav className="public-home-footer-nav" aria-label="Footer navigation">
           <div>
             <span>Start</span>
-            <Link href={createProjectHref} prefetch={false}>
-              {launchAppLabel}
-            </Link>
+            {onCreateProjectClick ? (
+              <button type="button" onClick={onCreateProjectClick}>
+                {launchAppLabel}
+              </button>
+            ) : (
+              <Link href={createProjectHref} prefetch={false}>
+                {launchAppLabel}
+              </Link>
+            )}
             <Link href={footerPricingHref} prefetch={false}>
               {footerPricingLabel}
             </Link>

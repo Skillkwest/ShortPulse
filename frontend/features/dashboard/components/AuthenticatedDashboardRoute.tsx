@@ -99,9 +99,9 @@ const formatCreditUsageValue = (
   monthlyCreditsCents: number
 ): string => {
   if (balanceCents == null) return "Credits unavailable";
-  const balanceLabel = `${Math.max(0, balanceCents).toLocaleString()} credits`;
+  const balanceLabel = Math.max(0, balanceCents).toLocaleString();
   if (monthlyCreditsCents <= 0) return balanceLabel;
-  return `${balanceLabel}\n/ ${monthlyCreditsCents.toLocaleString()} credits`;
+  return `${balanceLabel} /\n${monthlyCreditsCents.toLocaleString()}`;
 };
 
 const dashboardToolCards: DashboardToolCard[] = [
@@ -362,7 +362,7 @@ export function AuthenticatedDashboardRoute({
     if (usageLoading || quotaLoading) return "…";
     const usedStorage = formatStorageBytes(quotaSummary?.usedBytes ?? 0);
     const totalStorage = formatStorageBytes(quotaSummary?.totalLimitBytes ?? 0);
-    return `${usedStorage}\n/ ${totalStorage}`;
+    return `${usedStorage} /\n${totalStorage}`;
   }, [quotaLoading, quotaSummary, usageLoading]);
 
   const aiCreditsValue =

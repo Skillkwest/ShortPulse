@@ -74,7 +74,7 @@ export function AuthenticatedDashboardView({
           <div className="hero-copy authenticated-home-hero-copy">
             <p className="eyebrow tiny authenticated-home-kicker">ShortPulse dashboard</p>
             <h1>
-              Welcome back, <span data-text={firstName}>{firstName}</span>.
+              Welcome back, <span>{firstName}</span>.
             </h1>
             {dashboardAnnouncement ? (
               <AppMessage

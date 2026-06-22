@@ -296,6 +296,10 @@ describe("Auth callback route behavior", () => {
         "This confirmation link is invalid or has expired. Sign up again to request a new confirmation email."
       )
     ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Return to signup" })).toHaveAttribute(
+      "href",
+      "/auth?next=%2Fdashboard&mode=signup"
+    );
     expect(replaceMock).not.toHaveBeenCalled();
   });
 
@@ -328,6 +332,30 @@ describe("Auth callback route behavior", () => {
     });
     expect(
       screen.queryByText("This sign-in link is invalid or has expired. Try signing in again.")
+    ).not.toBeInTheDocument();
+  });
+
+  it("returns to signup auth when Google signup is rejected by the provider or auth hook", async () => {
+    setCallbackRoute(
+      "/auth/callback?flow=signup&next=%2Fpricing%3Fintent%3Dcreate-project%26plan%3Dstarter&provider=google&error=server_error&error_description=Choose%20a%20paid%20ShortPulse%20plan",
+      {
+        flow: "signup",
+        next: "/pricing?intent=create-project&plan=starter",
+        provider: "google",
+        error: "server_error",
+      }
+    );
+    readSupabaseSessionMock.mockResolvedValue(null);
+
+    render(<AuthCallbackPage />);
+
+    await waitFor(() => {
+      expect(replaceMock).toHaveBeenCalledWith(
+        "/auth?next=%2Fpricing%3Fintent%3Dcreate-project%26plan%3Dstarter&mode=signup&oauth=signup_failed"
+      );
+    });
+    expect(
+      screen.queryByRole("heading", { name: "Authentication link issue" })
     ).not.toBeInTheDocument();
   });
 

@@ -246,6 +246,9 @@ describe("Auth route behavior", () => {
     render(<AuthPage />);
 
     expect(screen.getByRole("heading", { name: "Welcome back" })).toBeInTheDocument();
+    expect(
+      screen.getByText("Account creation is not open yet. Sign in if you already have an account.")
+    ).toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "Sign up" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Sign up" })).not.toBeInTheDocument();
     expect(signUpMock).not.toHaveBeenCalled();
@@ -322,9 +325,31 @@ describe("Auth route behavior", () => {
     });
 
     expect(
-      screen.getByText("Check your email to confirm your account, then sign in to continue.")
+      screen.getByText(
+        "Check your email to confirm your account, then sign in to continue to your selected plan."
+      )
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Forgot password?" })).toBeInTheDocument();
+  });
+
+  it("explains a Google signup provider failure on the signup surface", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED", "true");
+    routerState.query = {
+      mode: "signup",
+      next: "/pricing?intent=create-project&plan=starter",
+      oauth: "signup_failed",
+    };
+    routerState.asPath =
+      "/auth?next=%2Fpricing%3Fintent%3Dcreate-project%26plan%3Dstarter&mode=signup&oauth=signup_failed";
+
+    render(<AuthPage />);
+
+    expect(screen.getByRole("heading", { name: "Create your account" })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Google signup could not be completed. Use the same Google account email you entered, or choose your plan again."
+      )
+    ).toBeInTheDocument();
   });
 
   it("redirects signup sessions to the selected paid pricing plan", async () => {

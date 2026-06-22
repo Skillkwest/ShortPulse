@@ -106,6 +106,33 @@ const resolveOauthStatus = (value: string | string[] | undefined): string | null
   return typeof rawValue === "string" && rawValue.trim() ? rawValue.trim() : null;
 };
 
+const resolveOauthMessage = (
+  oauthStatus: string | null,
+  requestedMode: Mode
+): { tone: "info" | "error"; message: string } | null => {
+  if (oauthStatus === "cancelled") {
+    return {
+      tone: "info",
+      message:
+        requestedMode === "signup" ? "Google signup was canceled." : "Google sign-in was canceled.",
+    };
+  }
+  if (oauthStatus === "signup_failed") {
+    return {
+      tone: "error",
+      message:
+        "Google signup could not be completed. Use the same Google account email you entered, or choose your plan again.",
+    };
+  }
+  if (oauthStatus === "signin_failed") {
+    return {
+      tone: "error",
+      message: "Google sign-in could not be completed. Try signing in again.",
+    };
+  }
+  return null;
+};
+
 function resolveOauthStatusFromAsPath(asPath: string): string | null {
   const beforeHash = asPath.split("#", 1)[0] ?? asPath;
   const queryString = beforeHash.includes("?") ? beforeHash.slice(beforeHash.indexOf("?") + 1) : "";
@@ -152,10 +179,26 @@ export default function AuthPage() {
   }, [requestedMode, signupAllowed]);
 
   useEffect(() => {
-    if (oauthStatus !== "cancelled") return;
+    if (requestedMode !== "signup" || signupAllowed || oauthStatus) return;
     setError(null);
-    setInfo("Google sign-in was canceled.");
-  }, [oauthStatus]);
+    setInfo(
+      signupNextPath
+        ? "Account creation is not open yet. Sign in if you already have an account."
+        : "Choose a paid plan on pricing before creating an account."
+    );
+  }, [oauthStatus, requestedMode, signupAllowed, signupNextPath]);
+
+  useEffect(() => {
+    const oauthMessage = resolveOauthMessage(oauthStatus, requestedMode);
+    if (!oauthMessage) return;
+    if (oauthMessage.tone === "error") {
+      setInfo(null);
+      setError(oauthMessage.message);
+      return;
+    }
+    setError(null);
+    setInfo(oauthMessage.message);
+  }, [oauthStatus, requestedMode]);
 
   useEffect(() => {
     void readSupabaseSession()
@@ -220,7 +263,9 @@ export default function AuthPage() {
           email_confirmation_required: !data.session,
         });
         if (!data.session) {
-          setInfo("Check your email to confirm your account, then sign in to continue.");
+          setInfo(
+            "Check your email to confirm your account, then sign in to continue to your selected plan."
+          );
           setMode("signin");
           return;
         }

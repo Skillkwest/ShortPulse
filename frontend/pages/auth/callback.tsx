@@ -81,7 +81,7 @@ const isCallbackCompletionEvent = (event: string): event is CompletionAuthEvent 
 const buildAuthReturnPath = (options: {
   nextPath: string;
   callbackFlow: "signin" | "signup" | "recovery" | "email-change";
-  oauthStatus?: "cancelled";
+  oauthStatus?: "cancelled" | "signup_failed" | "signin_failed";
 }): string => {
   const params = new URLSearchParams();
   params.set("next", options.nextPath);
@@ -140,6 +140,22 @@ export default function AuthCallbackPage() {
   );
   const isGoogleOAuthCallback = oauthProvider === "google";
   const isGoogleOAuthAccessDenied = isGoogleOAuthCallback && callbackErrorCode === "access_denied";
+  const shouldReturnToAuthForGoogleOAuthError =
+    isGoogleOAuthCallback &&
+    callbackError !== null &&
+    !isGoogleOAuthAccessDenied &&
+    (callbackFlow === "signin" || callbackFlow === "signup");
+  const googleOAuthErrorHref = useMemo(
+    () =>
+      shouldReturnToAuthForGoogleOAuthError
+        ? buildAuthReturnPath({
+            nextPath,
+            callbackFlow,
+            oauthStatus: callbackFlow === "signup" ? "signup_failed" : "signin_failed",
+          })
+        : null,
+    [callbackFlow, nextPath, shouldReturnToAuthForGoogleOAuthError]
+  );
   const recoveryFlowHint = useMemo(
     () =>
       hasPasswordRecoveryHint(
@@ -172,7 +188,9 @@ export default function AuthCallbackPage() {
   const [retryingEmailSync, setRetryingEmailSync] = useState(false);
   const [emailSyncRetryAvailable, setEmailSyncRetryAvailable] = useState(false);
   const [error, setError] = useState<string | null>(
-    callbackError && !isGoogleOAuthAccessDenied ? callbackError : null
+    callbackError && !isGoogleOAuthAccessDenied && !shouldReturnToAuthForGoogleOAuthError
+      ? callbackError
+      : null
   );
   const [info, setInfo] = useState<string | null>(null);
   const completionStartedRef = useRef(false);
@@ -182,6 +200,7 @@ export default function AuthCallbackPage() {
   const signInHref = useMemo(() => {
     return buildAuthReturnPath({ nextPath, callbackFlow });
   }, [callbackFlow, nextPath]);
+  const authReturnLabel = callbackFlow === "signup" ? "Return to signup" : "Return to sign in";
   const oauthCancelledHref = useMemo(
     () => buildAuthReturnPath({ nextPath, callbackFlow, oauthStatus: "cancelled" }),
     [callbackFlow, nextPath]
@@ -193,12 +212,18 @@ export default function AuthCallbackPage() {
   }, [isGoogleOAuthAccessDenied, oauthCancelledHref, replace]);
 
   useEffect(() => {
-    if (!callbackError || isGoogleOAuthAccessDenied) return;
+    if (!googleOAuthErrorHref) return;
+    void replace(googleOAuthErrorHref);
+  }, [googleOAuthErrorHref, replace]);
+
+  useEffect(() => {
+    if (!callbackError || isGoogleOAuthAccessDenied || shouldReturnToAuthForGoogleOAuthError)
+      return;
     setStatus("error");
     setError(callbackError);
     setInfo(null);
     setEmailSyncRetryAvailable(false);
-  }, [callbackError, isGoogleOAuthAccessDenied]);
+  }, [callbackError, isGoogleOAuthAccessDenied, shouldReturnToAuthForGoogleOAuthError]);
 
   useEffect(() => {
     let cancelled = false;
@@ -302,13 +327,25 @@ export default function AuthCallbackPage() {
 
     void readSupabaseSession()
       .then((session) => {
-        if (cancelled || callbackError || isGoogleOAuthAccessDenied) return;
+        if (
+          cancelled ||
+          callbackError ||
+          isGoogleOAuthAccessDenied ||
+          shouldReturnToAuthForGoogleOAuthError
+        )
+          return;
         if (session && isTrustedInitialSession(session)) {
           void handleResolvedSession(session);
           return;
         }
         window.setTimeout(() => {
-          if (cancelled || callbackError || isGoogleOAuthAccessDenied) return;
+          if (
+            cancelled ||
+            callbackError ||
+            isGoogleOAuthAccessDenied ||
+            shouldReturnToAuthForGoogleOAuthError
+          )
+            return;
           if (callbackFlow === "recovery") {
             if (recoveryEventSeenRef.current) {
               return;
@@ -335,7 +372,14 @@ export default function AuthCallbackPage() {
         }, CALLBACK_SESSION_SETTLE_MS);
       })
       .catch((sessionError) => {
-        if (cancelled || isSupabaseAbortError(sessionError)) return;
+        if (
+          cancelled ||
+          callbackError ||
+          isGoogleOAuthAccessDenied ||
+          shouldReturnToAuthForGoogleOAuthError ||
+          isSupabaseAbortError(sessionError)
+        )
+          return;
         setStatus("error");
         setInfo(null);
         setEmailSyncRetryAvailable(false);
@@ -357,6 +401,7 @@ export default function AuthCallbackPage() {
     oauthCancelledHref,
     recoveryFlowHint,
     replace,
+    shouldReturnToAuthForGoogleOAuthError,
   ]);
 
   const onRetryEmailSync = async () => {
@@ -565,7 +610,7 @@ export default function AuthCallbackPage() {
             ) : status === "error" ? (
               <Link className={authClass("auth-submit", "primary-btn")} href={signInHref}>
                 <SignIn size={18} weight="bold" />
-                Return to sign in
+                {authReturnLabel}
               </Link>
             ) : null}
             {status === "error" && emailSyncRetryAvailable ? (

@@ -152,7 +152,7 @@ describe("Pricing route behavior", () => {
     });
   });
 
-  it("shows login and signup actions for guests", () => {
+  it("shows only login in the top nav for guests so plan cards own signup", () => {
     useSupabaseSessionStateMock.mockReturnValue({
       initialized: true,
       session: null,
@@ -196,11 +196,7 @@ describe("Pricing route behavior", () => {
 
     expect(loginAction).toHaveTextContent("Log in");
     expect(loginAction).toHaveAttribute("href", "/auth?next=%2Fdashboard");
-    expect(signupAction).toHaveTextContent("Sign up");
-    expect(signupAction).toHaveAttribute(
-      "href",
-      "/auth?next=%2Fpricing%3Fintent%3Dcreate-project%26plan%3Dstudio&mode=signup"
-    );
+    expect(signupAction).toBeNull();
   });
 
   it("hides the hidden baseline tier when a real starter plan exists", () => {
@@ -471,10 +467,7 @@ describe("Pricing route behavior", () => {
     const signupAction = actionRegion?.querySelector('a[href*="mode=signup"]');
 
     expect(loginAction).toHaveAttribute("href", "/auth?next=%2Fdashboard");
-    expect(signupAction).toHaveAttribute(
-      "href",
-      "/auth?next=%2Fpricing%3Fintent%3Dcreate-project%26plan%3Dstudio&mode=signup"
-    );
+    expect(signupAction).toBeNull();
     expect(screen.getByRole("button", { name: "Annual" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText("with annual billing paid upfront")).toBeInTheDocument();
     expect(

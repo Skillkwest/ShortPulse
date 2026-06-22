@@ -125,9 +125,10 @@ describe("Auth route behavior", () => {
 
     expect(container.querySelector("main.auth-shell")).toBeInTheDocument();
     expect(container.querySelector("form.auth-card")).toBeInTheDocument();
-    expect(container.querySelector(".auth-mode-toggle")).toBeInTheDocument();
+    expect(container.querySelector(".auth-mode-toggle")).not.toBeInTheDocument();
     expect(container.querySelectorAll(".auth-input")).toHaveLength(2);
-    expect(screen.getByRole("tab", { name: "Sign in" })).toHaveClass("active");
+    expect(screen.queryByRole("tab", { name: "Sign in" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Sign up" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sign in" })).toHaveClass(
       "auth-submit",
       "primary-btn"
@@ -231,7 +232,8 @@ describe("Auth route behavior", () => {
     render(<AuthPage />);
 
     expect(screen.getByRole("heading", { name: "Welcome back" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Sign up" })).toBeDisabled();
+    expect(screen.queryByRole("tab", { name: "Sign up" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sign up" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
   });
 
@@ -244,7 +246,8 @@ describe("Auth route behavior", () => {
     render(<AuthPage />);
 
     expect(screen.getByRole("heading", { name: "Welcome back" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Sign up" })).toBeDisabled();
+    expect(screen.queryByRole("tab", { name: "Sign up" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sign up" })).not.toBeInTheDocument();
     expect(signUpMock).not.toHaveBeenCalled();
   });
 
@@ -267,7 +270,7 @@ describe("Auth route behavior", () => {
   it("blocks signup submission without a selected paid pricing plan", async () => {
     render(<AuthPage />);
 
-    expect(screen.getByRole("tab", { name: "Sign up" })).toBeDisabled();
+    expect(screen.queryByRole("tab", { name: "Sign up" })).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: " new@example.com " } });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "strongpass" } });
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));

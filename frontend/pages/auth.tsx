@@ -362,43 +362,40 @@ export default function AuthPage() {
               </p>
             </div>
 
-            <div
-              className={authClass("auth-mode-toggle")}
-              role="tablist"
-              aria-label="Authentication mode"
-            >
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeMode === "signin"}
-                className={authClass(activeMode === "signin" && "active")}
-                onClick={() => {
-                  setMode("signin");
-                  setError(null);
-                  setInfo(null);
-                }}
+            {signupAllowed ? (
+              <div
+                className={authClass("auth-mode-toggle")}
+                role="tablist"
+                aria-label="Authentication mode"
               >
-                Sign in
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeMode === "signup"}
-                className={authClass(activeMode === "signup" && "active")}
-                disabled={!signupAllowed}
-                onClick={() => {
-                  if (!signupAllowed) {
-                    setError("Choose a paid plan from pricing before creating an account.");
-                    return;
-                  }
-                  setMode("signup");
-                  setError(null);
-                  setInfo(null);
-                }}
-              >
-                Sign up
-              </button>
-            </div>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeMode === "signin"}
+                  className={authClass(activeMode === "signin" && "active")}
+                  onClick={() => {
+                    setMode("signin");
+                    setError(null);
+                    setInfo(null);
+                  }}
+                >
+                  Sign in
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeMode === "signup"}
+                  className={authClass(activeMode === "signup" && "active")}
+                  onClick={() => {
+                    setMode("signup");
+                    setError(null);
+                    setInfo(null);
+                  }}
+                >
+                  Sign up
+                </button>
+              </div>
+            ) : null}
 
             {activeMode === "signin" ? (
               <>
@@ -525,25 +522,24 @@ export default function AuthPage() {
               {loading ? "Please wait..." : activeMode === "signin" ? "Sign in" : "Create account"}
             </button>
 
-            <div className={authClass("auth-divider")} />
-            <p className={authClass("auth-switch")}>
-              {activeMode === "signin" ? "Don't have an account?" : "Already have an account?"}{" "}
-              <button
-                type="button"
-                onClick={() => {
-                  if (activeMode === "signin" && !signupAllowed) {
-                    setError("Choose a paid plan from pricing before creating an account.");
-                    return;
-                  }
-                  setMode(activeMode === "signin" ? "signup" : "signin");
-                  setError(null);
-                  setInfo(null);
-                }}
-                disabled={activeMode === "signin" && !signupAllowed}
-              >
-                {activeMode === "signin" ? "Sign up" : "Sign in"}
-              </button>
-            </p>
+            {signupAllowed ? (
+              <>
+                <div className={authClass("auth-divider")} />
+                <p className={authClass("auth-switch")}>
+                  {activeMode === "signin" ? "Don't have an account?" : "Already have an account?"}{" "}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode(activeMode === "signin" ? "signup" : "signin");
+                      setError(null);
+                      setInfo(null);
+                    }}
+                  >
+                    {activeMode === "signin" ? "Sign up" : "Sign in"}
+                  </button>
+                </p>
+              </>
+            ) : null}
             <p className={authClass("auth-footnote")}>
               By continuing, you agree to use ShortPulse under your workspace account.
             </p>

@@ -1,4 +1,12 @@
-import { act, createEvent, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  createEvent,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -126,6 +134,9 @@ describe("Canvas interaction behavior", () => {
     );
     expect(canvasWorkspaceCss).toMatch(
       /\.canvas-scene-item__media-action-row--bottom\s*{[^}]*transform-origin:\s*bottom right;/s
+    );
+    expect(canvasWorkspaceCss).toMatch(
+      /\.canvas-scene-item--audio\.canvas-scene-item--ghost\s*{[^}]*opacity:\s*1;/s
     );
   });
 
@@ -720,6 +731,103 @@ describe("Canvas interaction behavior", () => {
 
     expect(Number(item.getAttribute("data-x"))).toBeGreaterThan(startX);
     expect(Number(item.getAttribute("data-y"))).toBeGreaterThan(startY);
+  });
+
+  it("renders dragged audio ghosts with the same audio reference card UI", async () => {
+    render(<CanvasHarness />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/reference-origin": "ai-studio-reference-grid",
+        "text/reference-version": "1",
+        "text/reference-id": "aud-1",
+        "text/reference-output-id": "aud-1",
+        "text/reference-source-surface": "all-refs",
+      }),
+      clientX: 300,
+      clientY: 200,
+    });
+
+    const item = await screen.findByTestId(/canvas-item-/);
+    const itemId = item.getAttribute("data-testid")?.replace("canvas-item-", "") ?? "";
+
+    fireEvent.pointerDown(item, {
+      button: 0,
+      pointerId: 222,
+      clientX: 300,
+      clientY: 200,
+    });
+    fireEvent.pointerMove(item, {
+      pointerId: 222,
+      clientX: 340,
+      clientY: 235,
+    });
+
+    const ghost = await screen.findByTestId(`canvas-item-ghost-${itemId}`);
+    expect(ghost).toHaveAttribute("data-kind", "audio");
+    expect(ghost).toHaveClass("canvas-scene-item--audio");
+    expect(ghost.querySelector(".canvas-scene-item__audio-frame")).toBeInTheDocument();
+    expect(within(ghost).getByText("Reference audio")).toBeInTheDocument();
+    expect(
+      within(ghost).getByRole("button", { name: "Play Reference audio", hidden: true })
+    ).toBeInTheDocument();
+
+    fireEvent.pointerCancel(item, {
+      pointerId: 222,
+      clientX: 340,
+      clientY: 235,
+    });
+  });
+
+  it("renders audio tear-out ghosts with the same audio reference card UI", async () => {
+    const registry = createCanvasTearOutComposerTargetRegistry();
+    render(<CanvasHarness canvasTearOutTargetRegistry={registry} />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/reference-origin": "ai-studio-reference-grid",
+        "text/reference-version": "1",
+        "text/reference-id": "aud-1",
+        "text/reference-output-id": "aud-1",
+        "text/reference-source-surface": "all-refs",
+      }),
+      clientX: 300,
+      clientY: 200,
+    });
+
+    const item = await screen.findByTestId(/canvas-item-/);
+    const itemId = item.getAttribute("data-testid")?.replace("canvas-item-", "") ?? "";
+
+    fireEvent.pointerDown(item, {
+      button: 0,
+      pointerId: 223,
+      clientX: 300,
+      clientY: 200,
+    });
+    fireEvent.pointerMove(viewport, {
+      pointerId: 223,
+      clientX: 700,
+      clientY: 170,
+    });
+
+    const tearOutGhost = await screen.findByTestId(`canvas-item-tear-out-ghost-${itemId}`);
+    expect(tearOutGhost).toHaveAttribute("data-kind", "audio");
+    expect(tearOutGhost).toHaveClass("canvas-scene-item--audio");
+    expect(tearOutGhost.querySelector(".canvas-scene-item__audio-frame")).toBeInTheDocument();
+    expect(within(tearOutGhost).getByText("Reference audio")).toBeInTheDocument();
+    expect(
+      within(tearOutGhost).getByRole("button", { name: "Play Reference audio", hidden: true })
+    ).toBeInTheDocument();
+
+    fireEvent.pointerCancel(viewport, {
+      pointerId: 223,
+      clientX: 700,
+      clientY: 170,
+    });
   });
 
   it("opens shared media detail for non-text canvas items on double click", async () => {

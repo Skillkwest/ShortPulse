@@ -18,6 +18,7 @@ import {
   inferWorkflowReloadMediaKindForOutput,
 } from "../../logic/workflowReload";
 import { resolveOutputAudioSourceMode } from "../../logic/audioSourceMode";
+import { resolveReferenceAudioDisplayTitle } from "../../logic/referenceAudioTitle";
 import { canDragReferenceOutput } from "../../logic/referenceOutputAuthority";
 import {
   canDownloadReferenceOutput,
@@ -309,6 +310,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     ? playableMediaUrl?.trim() || cardPreviewUrl?.trim() || ""
     : "";
   const audioSourceMode = resolveOutputAudioSourceMode(item);
+  const audioTitle = resolveReferenceAudioDisplayTitle(item);
   const primaryImageSrc = hasVideoPosterPreview ? (resolvedVideoPosterUrl ?? undefined) : imageSrc;
   const normalizedPrimaryImageSrc = primaryImageSrc?.trim() || "";
   const primaryImageDataSrc = hasVideoPosterPreview ? resolvedVideoPosterUrl : cardPreviewUrl;
@@ -594,7 +596,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           audioId={item.id}
           audioUrl={audioPreviewUrl}
           audioInstanceKey={audioInstanceKey}
-          title={item.title ?? null}
+          title={audioTitle}
           backgroundImageUrl={audioBackgroundImageUrl}
           audioSourceMode={audioSourceMode}
           durationMs={item.durationMs ?? null}

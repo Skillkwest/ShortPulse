@@ -54,6 +54,7 @@ import {
   type SessionSignedMediaRestoreAuthority,
 } from "../logic/sessionRestoreMediaSigning";
 import { resolveOutputAudioSourceMode } from "../logic/audioSourceMode";
+import { resolveReferenceAudioDisplayTitle } from "../logic/referenceAudioTitle";
 import {
   resolveCanvasLibraryMediaDisplayAuthority,
   resolveCanvasStudioOutputMediaDisplayAuthority,
@@ -399,7 +400,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
           mediaId,
           audioUrl,
           ...(audioStoragePath ? { audioStoragePath } : {}),
-          title: (output.prompt || output.previewText || "Canvas audio").trim() || null,
+          title: resolveReferenceAudioDisplayTitle(output) ?? "Canvas audio",
           companionArtUrl: output.companionArtUrl ?? null,
           companionArtStoragePath: output.companionArtStoragePath ?? null,
           audioSourceMode: resolveOutputAudioSourceMode(output),

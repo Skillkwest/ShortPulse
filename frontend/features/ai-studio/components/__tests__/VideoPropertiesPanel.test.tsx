@@ -34,6 +34,8 @@ import {
 import type { AgentComposerDirectDropPayload } from "../../logic/agentComposerDirectDropPayload";
 import { createEmptyLipSyncAudioState } from "../../logic/lipSyncAudioState";
 
+const getSignedMediaUrlMock = vi.hoisted(() => vi.fn());
+
 type ReferencePromptStepMockProps = {
   referenceText?: string | null;
   onPromptTextChange?: (value: string) => void;
@@ -122,6 +124,10 @@ const defaultDerivedState = {
 };
 
 const useReferencePropertiesDerivedStateMock = vi.fn(() => defaultDerivedState);
+
+vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
+  getSignedMediaUrl: (...args: unknown[]) => getSignedMediaUrlMock(...args),
+}));
 
 vi.mock("../../../character-manager/logic/characterManagerPersistence", () => ({
   listCharacterManagerCharacters: vi.fn(async () => [
@@ -684,6 +690,7 @@ function KlingInitialElementHarness() {
 
 describe("VideoPropertiesPanel", () => {
   beforeEach(() => {
+    getSignedMediaUrlMock.mockReset();
     referencePromptStepMock.mockClear();
     referenceVideoSettingsStepMock.mockClear();
     useReferencePropertiesDerivedStateMock.mockReset();
@@ -1055,6 +1062,7 @@ describe("VideoPropertiesPanel", () => {
     const audioPayload: AgentComposerDirectDropPayload = {
       kind: "audio",
       audioUrl: "blob:https://www.shortpulse.ai/local-audio-preview",
+      audioStoragePath: "user-1/audio/audio-reference.mp3",
       internalPayload: {
         version: 1,
         origin: "ai-studio-reference-grid",
@@ -1126,6 +1134,7 @@ describe("VideoPropertiesPanel", () => {
     const audioPayload: AgentComposerDirectDropPayload = {
       kind: "audio",
       audioUrl: "blob:https://www.shortpulse.ai/local-audio-preview",
+      audioStoragePath: "user-1/audio/audio-reference.mp3",
       internalPayload: {
         version: 1,
         origin: "ai-studio-reference-grid",
@@ -1136,7 +1145,6 @@ describe("VideoPropertiesPanel", () => {
         mediaKind: "audio",
         referenceUrl: "blob:https://www.shortpulse.ai/local-audio-preview",
         referenceRenderUrl: "blob:https://www.shortpulse.ai/local-audio-preview",
-        fullStoragePath: "user-1/audio/audio-reference.mp3",
         sourceSurface: "all-refs",
         sessionBacked: true,
       },
@@ -1204,6 +1212,7 @@ describe("VideoPropertiesPanel", () => {
           url: "https://signed.shortpulse.test/voice-preview.mp3",
           fullUrl: "https://signed.shortpulse.test/voice-full.mp3",
           fileType: "audio",
+          filename: "tree there 2.mp3",
           fullStoragePath: "user-1/audio/reference-grid/voice-full.mp3",
           previewStoragePath: "user-1/audio/reference-grid/voice-preview.mp3",
           durationMs: 12400,
@@ -1222,6 +1231,7 @@ describe("VideoPropertiesPanel", () => {
     await waitFor(() =>
       expect(onLipSyncAudioChange).toHaveBeenCalledWith({
         url: "https://signed.shortpulse.test/voice-full.mp3",
+        title: "tree there 2.mp3",
         durationMs: 12400,
         status: "ready",
         sourceKind: "library",
@@ -1231,6 +1241,7 @@ describe("VideoPropertiesPanel", () => {
         size: null,
       })
     );
+    expect(getSignedMediaUrlMock).not.toHaveBeenCalled();
   });
 
   it("accepts Reference Grid audio drops for Lip Sync voice audio", async () => {
@@ -1253,6 +1264,7 @@ describe("VideoPropertiesPanel", () => {
     transfer.setData("text/reference-media-id", "media-audio-1");
     transfer.setData("text/reference-media-kind", "audio");
     transfer.setData("text/reference-url", "https://signed.shortpulse.test/reference-voice.mp3");
+    transfer.setData("text/prompt", "tree there 2.mp3");
     transfer.setData(
       "text/reference-full-storage-path",
       "user-1/audio/reference-grid/reference-voice.mp3"
@@ -1269,6 +1281,7 @@ describe("VideoPropertiesPanel", () => {
     await waitFor(() =>
       expect(onLipSyncAudioChange).toHaveBeenCalledWith({
         url: "https://signed.shortpulse.test/reference-voice.mp3",
+        title: "tree there 2.mp3",
         durationMs: null,
         status: "ready",
         sourceKind: "reference",
@@ -1278,6 +1291,7 @@ describe("VideoPropertiesPanel", () => {
         size: null,
       })
     );
+    expect(getSignedMediaUrlMock).not.toHaveBeenCalled();
   });
 
   it("keeps Reference Grid audio authority ahead of synthetic browser files", async () => {
@@ -1588,6 +1602,42 @@ describe("VideoPropertiesPanel", () => {
     expect(audioDropzone).not.toBeNull();
     expect(audioDropzone?.querySelector(".reference-card-audio-duration-badge")).toBeNull();
     expect(audioDropzone).not.toHaveTextContent("0:06");
+  });
+
+  it("shows the selected Lip Sync voice audio title in the dropzone", () => {
+    useReferencePropertiesDerivedStateMock.mockReturnValue({
+      ...defaultDerivedState,
+      activeVideoMode: "lip-sync",
+      isKling3Mode: false,
+      isKlingPatternMode: false,
+      isLipSyncMode: true,
+      isStandardMode: false,
+      referenceStepTitle: "Character image",
+      referenceStepSubtitle: "Add a character image",
+      resolutionOptions: [{ value: "720p", label: "720p" }],
+      videoResolutionValue: "720p",
+    });
+
+    const { container } = render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        videoReferenceMode="lip-sync"
+        lipSyncAudio={{
+          url: "https://signed.shortpulse.test/voice-reference.mp3",
+          title: "tree there 2.mp3",
+          durationMs: 6_000,
+          status: "ready",
+          sourceKind: "reference",
+        }}
+        onLipSyncAudioChange={vi.fn()}
+      />
+    );
+
+    const audioDropzone = container.querySelector(".video-lip-sync-audio-dropzone");
+    expect(audioDropzone).not.toBeNull();
+    expect(audioDropzone?.querySelector(".reference-card-audio-title")).toHaveTextContent(
+      "tree there 2.mp3"
+    );
   });
 
   it("hides the deferred Lip Sync faster-generation switch", () => {

@@ -195,6 +195,10 @@
   filter: saturate(1.08);
 }
 
+.canvas-scene-item--audio.canvas-scene-item--ghost {
+  opacity: 1;
+}
+
 .canvas-scene-item--tear-out-ghost {
   position: fixed;
   z-index: 2147483000;

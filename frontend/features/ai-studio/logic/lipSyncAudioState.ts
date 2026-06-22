@@ -7,6 +7,12 @@ const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "::1", "0.0.0.0"]);
 
 const stripAudioUrlFragment = (value: string): string => value.replace(/#.*$/, "").trim();
 
+const normalizeLipSyncAudioTitle = (value: string | null | undefined): string | null => {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : null;
+};
+
 const isPrivateIpv4Address = (hostname: string): boolean => {
   const match = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
   if (!match) return false;
@@ -84,15 +90,18 @@ export const createEmptyLipSyncAudioState = (): LipSyncAudioState => ({
 export const createUploadingLipSyncAudioState = ({
   durationMs,
   previewUrl,
+  title,
   mimeType,
   size,
 }: {
   durationMs: number | null;
   previewUrl: string;
+  title?: string | null;
   mimeType?: string | null;
   size?: number | null;
 }): LipSyncAudioState => ({
   url: null,
+  ...(normalizeLipSyncAudioTitle(title) ? { title: normalizeLipSyncAudioTitle(title) } : {}),
   durationMs,
   status: "uploading",
   sourceKind: "local",
@@ -104,17 +113,20 @@ export const createUploadingLipSyncAudioState = ({
 export const createFailedLipSyncAudioState = ({
   durationMs,
   previewUrl,
+  title,
   error,
   mimeType,
   size,
 }: {
   durationMs: number | null;
   previewUrl?: string | null;
+  title?: string | null;
   error: string;
   mimeType?: string | null;
   size?: number | null;
 }): LipSyncAudioState => ({
   url: null,
+  ...(normalizeLipSyncAudioTitle(title) ? { title: normalizeLipSyncAudioTitle(title) } : {}),
   durationMs,
   status: "failed",
   sourceKind: "local",
@@ -126,6 +138,7 @@ export const createFailedLipSyncAudioState = ({
 
 export const createReadyLipSyncAudioState = ({
   url,
+  title,
   durationMs,
   sourceKind,
   storagePath = null,
@@ -134,6 +147,7 @@ export const createReadyLipSyncAudioState = ({
   size = null,
 }: {
   url: string | null;
+  title?: string | null;
   durationMs: number | null;
   sourceKind: NonNullable<LipSyncAudioSourceKind>;
   storagePath?: string | null;
@@ -142,6 +156,7 @@ export const createReadyLipSyncAudioState = ({
   size?: number | null;
 }): LipSyncAudioState => ({
   url: normalizeLipSyncAudioUrl(url),
+  ...(normalizeLipSyncAudioTitle(title) ? { title: normalizeLipSyncAudioTitle(title) } : {}),
   durationMs,
   status: "ready",
   sourceKind,
@@ -153,11 +168,13 @@ export const createReadyLipSyncAudioState = ({
 
 export const createLipSyncAudioStateFromDurableUrl = ({
   url,
+  title,
   durationMs,
   sourceKind,
   storagePath,
 }: {
   url: string | null | undefined;
+  title?: string | null;
   durationMs: number | null;
   sourceKind: NonNullable<LipSyncAudioSourceKind>;
   storagePath?: string | null;
@@ -169,6 +186,7 @@ export const createLipSyncAudioStateFromDurableUrl = ({
   }
   return createReadyLipSyncAudioState({
     url: normalized,
+    title,
     durationMs,
     sourceKind,
     storagePath: normalizedStoragePath,

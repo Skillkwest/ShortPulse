@@ -15,6 +15,7 @@ import {
   type MediaLibraryDragPayload,
 } from "./mediaLibraryDragPayload";
 import { resolveLipSyncAudioDurableSource } from "./lipSyncAudioState";
+import { resolveReferenceAudioDisplayTitle } from "./referenceAudioTitle";
 import {
   extractInternalReferenceDragPayload,
   looksLikeAudioUrl,
@@ -27,6 +28,7 @@ export type LipSyncAudioDropSource =
       kind: "durable";
       url: string | null;
       storagePath: string | null;
+      title?: string | null;
       durationMs: number | null;
       sourceKind: "library" | "reference";
     }
@@ -64,6 +66,23 @@ const resolveTypedAudioUrlCandidate = (value: string | null | undefined): string
   return normalized && looksLikeAudioUrl(normalized) ? normalized : null;
 };
 
+const resolveTransferAudioTitle = (
+  transfer: Pick<DataTransfer, "getData">,
+  excludedUrl?: string | null
+): string | null => {
+  const excluded = excludedUrl?.trim() ?? "";
+  const mediaLibraryTitle =
+    trimOptionalString(transfer.getData("text/shortpulse-media-library-title")) ?? undefined;
+  const prompt = trimOptionalString(transfer.getData("text/prompt")) ?? "";
+  const title = resolveReferenceAudioDisplayTitle({
+    mode: "audio",
+    title: mediaLibraryTitle,
+    prompt,
+    mediaSource: "generated",
+  });
+  return title && title !== excluded ? title : null;
+};
+
 const signAudioStoragePath = async (storagePath: string | null): Promise<string | null> => {
   if (!storagePath) return null;
   return await getSignedMediaUrl({
@@ -77,24 +96,27 @@ const resolveDurableSource = async ({
   urlCandidates,
   storagePathCandidates,
   durationMs = null,
+  title = null,
   sourceKind,
 }: {
   urlCandidates: (string | null | undefined)[];
   storagePathCandidates: (string | null | undefined)[];
   durationMs?: number | null;
+  title?: string | null;
   sourceKind: "library" | "reference";
 }): Promise<LipSyncAudioDropSource> => {
   const durable = resolveLipSyncAudioDurableSource({
     urlCandidates,
     storagePathCandidates,
   });
-  const signedStorageUrl = await signAudioStoragePath(durable.storagePath);
-  const url = signedStorageUrl ?? durable.url;
+  const signedStorageUrl = durable.url ? null : await signAudioStoragePath(durable.storagePath);
+  const url = durable.url ?? signedStorageUrl;
   if (!url && !durable.storagePath) return null;
   return {
     kind: "durable",
     url,
     storagePath: durable.storagePath,
+    ...(title ? { title } : {}),
     durationMs,
     sourceKind,
   };
@@ -103,9 +125,11 @@ const resolveDurableSource = async ({
 const resolveFromInternalPayload = async ({
   internalPayload,
   fallbackAudioUrl,
+  title,
 }: {
   internalPayload: InternalReferenceDragPayload | null;
   fallbackAudioUrl?: string | null;
+  title?: string | null;
 }): Promise<LipSyncAudioDropSource> => {
   if (!internalPayload) return null;
   if (isKnownNonAudioMediaKind(internalPayload.mediaKind)) return null;
@@ -116,6 +140,7 @@ const resolveFromInternalPayload = async ({
       fallbackAudioUrl,
     ],
     storagePathCandidates: [internalPayload.fullStoragePath, internalPayload.previewStoragePath],
+    title,
     sourceKind: "reference",
   });
 };
@@ -137,6 +162,7 @@ const resolveFromMediaLibraryPayload = async (
       mediaLibraryPayload.payload.previewStoragePath,
     ],
     durationMs: mediaLibraryPayload.payload.durationMs ?? null,
+    title: mediaLibraryPayload.payload.filename ?? null,
     sourceKind: "library",
   });
 };
@@ -163,10 +189,12 @@ const resolveDirectAudioUrl = (transfer: DataTransfer): string | null => {
 
 const resolveByReferenceId = ({
   referenceId,
+  title,
   resolveAudioUrlById,
   resolvePreviewUrlById,
 }: {
   referenceId: string | null | undefined;
+  title?: string | null;
   resolveAudioUrlById?: ResolveAudioUrlById;
   resolvePreviewUrlById?: ResolveAudioUrlById;
 }): LipSyncAudioDropSource => {
@@ -182,6 +210,7 @@ const resolveByReferenceId = ({
     kind: "durable",
     url: audioUrl,
     storagePath: null,
+    ...(title ? { title } : {}),
     durationMs: null,
     sourceKind: "reference",
   };
@@ -207,6 +236,7 @@ export const resolveLipSyncAudioDropSource = async ({
   const internalSource = await resolveFromInternalPayload({
     internalPayload,
     fallbackAudioUrl: directAudioUrl,
+    title: resolveTransferAudioTitle(transfer, directAudioUrl),
   });
   if (internalSource) return internalSource;
   if (internalPayload && isKnownNonAudioMediaKind(internalPayload.mediaKind)) return null;
@@ -221,10 +251,12 @@ export const resolveLipSyncAudioDropSource = async ({
   }
 
   if (directAudioUrl) {
+    const title = resolveTransferAudioTitle(transfer, directAudioUrl);
     return {
       kind: "durable",
       url: directAudioUrl,
       storagePath: null,
+      ...(title ? { title } : {}),
       durationMs: null,
       sourceKind: "reference",
     };
@@ -240,6 +272,7 @@ export const resolveLipSyncAudioDropSource = async ({
     ]);
   const referencedSource = resolveByReferenceId({
     referenceId,
+    title: resolveTransferAudioTitle(transfer),
     resolveAudioUrlById,
     resolvePreviewUrlById,
   });

@@ -115,7 +115,7 @@ const createLocalPreviewUrls = (
     }
     if (file.type.startsWith("audio/")) {
       return {
-        previewUrl: `${objectUrl}#audio=1`,
+        previewUrl: objectUrl,
         localObjectUrl: objectUrl,
       };
     }

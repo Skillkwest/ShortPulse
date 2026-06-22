@@ -199,7 +199,11 @@ const resolveDurableLipSyncDropAudioUrl = (
       internalPayload?.referenceRenderUrl,
       payload.audioUrl,
     ],
-    storagePathCandidates: [internalPayload?.fullStoragePath, internalPayload?.previewStoragePath],
+    storagePathCandidates: [
+      internalPayload?.fullStoragePath,
+      payload.audioStoragePath,
+      internalPayload?.previewStoragePath,
+    ],
   });
 };
 
@@ -617,6 +621,7 @@ export function VideoPropertiesPanel({
         createUploadingLipSyncAudioState({
           durationMs,
           previewUrl,
+          title: file.name,
           mimeType: file.type || null,
           size: file.size,
         })
@@ -630,6 +635,7 @@ export function VideoPropertiesPanel({
         applyLipSyncAudio(
           createReadyLipSyncAudioState({
             url: uploaded.url,
+            title: file.name,
             durationMs,
             sourceKind: "local",
             storagePath: uploaded.path,
@@ -644,6 +650,7 @@ export function VideoPropertiesPanel({
           createFailedLipSyncAudioState({
             durationMs,
             previewUrl,
+            title: file.name,
             error:
               error instanceof Error
                 ? error.message
@@ -676,6 +683,7 @@ export function VideoPropertiesPanel({
         applyLipSyncAudio(
           createLipSyncAudioStateFromDurableUrl({
             url: resolvedSource.url,
+            title: resolvedSource.title,
             durationMs: resolvedSource.durationMs,
             sourceKind: resolvedSource.sourceKind,
             storagePath: resolvedSource.storagePath,
@@ -1192,6 +1200,7 @@ export function VideoPropertiesPanel({
               <ReferenceAudioPlayer
                 audioId="lip-sync-audio"
                 audioUrl={lipSyncAudioPlaybackUrl}
+                title={lipSyncAudio.title ?? null}
                 durationMs={lipSyncAudio.durationMs}
                 showDurationBadge={false}
                 playLabel="Play voice audio"
@@ -1228,6 +1237,7 @@ export function VideoPropertiesPanel({
       isLipSyncMode,
       lipSyncAudio.durationMs,
       lipSyncAudio.status,
+      lipSyncAudio.title,
       lipSyncAudioCanvasTearOutActive,
       lipSyncAudioDragActive,
       lipSyncAudioPlaybackUrl,

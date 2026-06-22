@@ -22,6 +22,7 @@ export type AgentComposerDirectDropPayload =
   | {
       kind: "audio";
       audioUrl: string;
+      audioStoragePath?: string | null;
       internalPayload: InternalReferenceDragPayload | null;
       outputId?: string | null;
       mediaId?: string | null;

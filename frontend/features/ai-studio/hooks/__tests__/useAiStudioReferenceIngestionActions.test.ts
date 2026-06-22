@@ -714,39 +714,132 @@ describe("useAiStudioReferenceIngestionActions", () => {
         signedUrl: "https://signed.test/reference.mp3",
       })
     );
+    const originalCreateObjectURL = URL.createObjectURL;
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: vi.fn(() => "blob:https://shortpulse.test/local-audio"),
+    });
 
-    const { result } = renderHook(() =>
-      useAiStudioReferenceIngestionActions(
-        createParams({
-          projectId: "project-1",
-          setOutputs,
+    try {
+      const { result } = renderHook(() =>
+        useAiStudioReferenceIngestionActions(
+          createParams({
+            projectId: "project-1",
+            setOutputs,
+          })
+        )
+      );
+
+      await act(async () => {
+        await result.current.addOutputsFromFiles(files, "drop");
+      });
+
+      expect(uploadMediaFileMock).toHaveBeenCalledWith({
+        file,
+        destinationTab: "uploaded_images",
+      });
+      expect(nextOutputs[0]).toEqual(
+        expect.objectContaining({
+          mode: "audio",
+          prompt: "reference.mp3",
+          title: "reference.mp3",
+          previewUrl: "https://signed.test/reference.mp3",
+          resultUrls: ["https://signed.test/reference.mp3"],
+          previewStoragePath: "user-1/uploads/audio/reference.mp3",
+          fullStoragePath: "user-1/uploads/audio/reference.mp3",
+          mediaSource: "library",
+          savedMediaIds: ["media-reference-audio"],
+          saveState: "saved",
         })
-      )
+      );
+      expect(uploadAudioAssetToStorageMock).not.toHaveBeenCalled();
+    } finally {
+      forgetObjectUrlBlob("blob:https://shortpulse.test/local-audio");
+      Object.defineProperty(URL, "createObjectURL", {
+        configurable: true,
+        value: originalCreateObjectURL,
+      });
+    }
+  });
+
+  it("uses raw object URLs for pending direct audio previews", async () => {
+    let nextOutputs: StudioOutput[] = [];
+    const setOutputs = vi.fn(
+      (updater: StudioOutput[] | ((prev: StudioOutput[]) => StudioOutput[])) => {
+        nextOutputs = typeof updater === "function" ? updater(nextOutputs) : updater;
+      }
     );
-
-    await act(async () => {
-      await result.current.addOutputsFromFiles(files, "drop");
-    });
-
-    expect(uploadMediaFileMock).toHaveBeenCalledWith({
-      file,
-      destinationTab: "uploaded_images",
-    });
-    expect(nextOutputs[0]).toEqual(
-      expect.objectContaining({
-        mode: "audio",
-        prompt: "reference.mp3",
-        title: "reference.mp3",
-        previewUrl: "https://signed.test/reference.mp3",
-        resultUrls: ["https://signed.test/reference.mp3"],
-        previewStoragePath: "user-1/uploads/audio/reference.mp3",
-        fullStoragePath: "user-1/uploads/audio/reference.mp3",
-        mediaSource: "library",
-        savedMediaIds: ["media-reference-audio"],
-        saveState: "saved",
+    const file = new File(["audio"], "reference.mp3", { type: "audio/mpeg" });
+    const files = {
+      0: file,
+      length: 1,
+      item: (index: number) => (index === 0 ? file : null),
+      [Symbol.iterator]: function* () {
+        yield file;
+      },
+    } as unknown as FileList;
+    let resolveUpload: ((row: ReturnType<typeof makeUploadRow>) => void) | null = null;
+    uploadMediaFileMock.mockReturnValueOnce(
+      new Promise<ReturnType<typeof makeUploadRow>>((resolve) => {
+        resolveUpload = resolve;
       })
     );
-    expect(uploadAudioAssetToStorageMock).not.toHaveBeenCalled();
+    const originalCreateObjectURL = URL.createObjectURL;
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: vi.fn(() => "blob:https://shortpulse.test/local-audio"),
+    });
+
+    try {
+      const { result } = renderHook(() =>
+        useAiStudioReferenceIngestionActions(
+          createParams({
+            projectId: "project-1",
+            setOutputs,
+          })
+        )
+      );
+
+      let addPromise: Promise<void> | null = null;
+      act(() => {
+        addPromise = result.current.addOutputsFromFiles(files, "drop");
+      });
+
+      expect(nextOutputs[0]).toEqual(
+        expect.objectContaining({
+          mode: "audio",
+          prompt: "reference.mp3",
+          title: "reference.mp3",
+          previewUrl: "blob:https://shortpulse.test/local-audio",
+          localObjectUrl: "blob:https://shortpulse.test/local-audio",
+          mediaSource: "upload",
+          taskState: "pending",
+          saveState: "saving",
+        })
+      );
+      expect(nextOutputs[0]?.previewUrl).not.toContain("#audio=1");
+      expect(readRememberedObjectUrlBlob("blob:https://shortpulse.test/local-audio")).toBe(file);
+
+      await act(async () => {
+        resolveUpload?.(
+          makeUploadRow({
+            id: "media-reference-audio",
+            filename: "reference.mp3",
+            storage_path: "user-1/uploads/audio/reference.mp3",
+            preview_storage_path: "user-1/uploads/audio/reference.mp3",
+            file_type: "audio",
+            signedUrl: "https://signed.test/reference.mp3",
+          })
+        );
+        await addPromise;
+      });
+    } finally {
+      forgetObjectUrlBlob("blob:https://shortpulse.test/local-audio");
+      Object.defineProperty(URL, "createObjectURL", {
+        configurable: true,
+        value: originalCreateObjectURL,
+      });
+    }
   });
 
   it("does not upload file refs when the visible Reference Grid is full", async () => {

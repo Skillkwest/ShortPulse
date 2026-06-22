@@ -449,9 +449,7 @@ const CanvasSceneItemGhostView = React.memo(function CanvasSceneItemGhostView({
           </div>
         )
       ) : item.kind === "audio" ? (
-        <div className="canvas-scene-item__ghost-label">
-          <span>Audio</span>
-        </div>
+        <CanvasAudioCard item={item} />
       ) : (
         <p className="canvas-scene-item__text">{item.text}</p>
       )}
@@ -523,9 +521,7 @@ const CanvasTearOutDragGhostView = React.memo(function CanvasTearOutDragGhostVie
           </div>
         )
       ) : item.kind === "audio" ? (
-        <div className="canvas-scene-item__ghost-label">
-          <span>Audio</span>
-        </div>
+        <CanvasAudioCard item={item} />
       ) : (
         <p className="canvas-scene-item__text">{item.text}</p>
       )}

@@ -1017,6 +1017,10 @@ describe("useReferencePropertiesInteractions", () => {
 
   it("signs storage-backed Media Library image drags for primary image drops", async () => {
     const onPrimaryImageChange = vi.fn();
+    const syntheticFile = new File(["synthetic quick-slot image"], "quick-slot-image.png", {
+      type: "image/png",
+    });
+    URL.createObjectURL = vi.fn(() => "blob:synthetic-quickslot-file");
     getSignedMediaUrlMock.mockResolvedValue(
       "https://signed.shortpulse.test/storage/v1/object/sign/media_library/user-1/library/images/character-original?token=fresh"
     );
@@ -1036,8 +1040,9 @@ describe("useReferencePropertiesInteractions", () => {
     const event = {
       preventDefault: vi.fn(),
       dataTransfer: {
-        files: { length: 0, item: () => null } as unknown as FileList,
+        files: [syntheticFile] as unknown as FileList,
         types: [
+          "Files",
           "text/shortpulse-media-library-marker",
           "text/shortpulse-media-library-kind",
           "text/shortpulse-media-library-id",
@@ -1074,6 +1079,68 @@ describe("useReferencePropertiesInteractions", () => {
     expect(onPrimaryImageChange).toHaveBeenCalledWith(
       "https://signed.shortpulse.test/storage/v1/object/sign/media_library/user-1/library/images/character-original?token=fresh"
     );
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+  });
+
+  it("resolves primary internal reference drops before synthetic browser files", async () => {
+    const onPrimaryImageChange = vi.fn();
+    const syntheticFile = new File(["synthetic reference-grid image"], "reference-grid.png", {
+      type: "image/png",
+    });
+    URL.createObjectURL = vi.fn(() => "blob:synthetic-reference-grid-file");
+    const resolveInternalReferenceImageDropSource = vi.fn(async () => ({
+      kind: "internal" as const,
+      sourceKind: "generated_output" as const,
+      sourceId: "out-1",
+      provenance: {
+        origin: "ai-studio-reference-grid",
+        outputId: "out-1",
+        mediaId: "media-reference-grid-1",
+        imageIndex: 0,
+        sourceSurface: "all-refs",
+        resolutionReason: "output_storage_path" as const,
+      },
+      outputId: "out-1",
+      mediaId: "media-reference-grid-1",
+      mediaSource: "generated" as const,
+      preview: { url: "https://cdn.shortpulse.test/reference-grid-preview.png" },
+      previewStoragePath: "user-1/generations/images/reference-grid-preview.png",
+      fullStoragePath: "user-1/generations/images/reference-grid-full.png",
+      promptText: null,
+      preparedImageUrl: "https://cdn.shortpulse.test/reference-grid-durable.png",
+      loadBlob: async () => new Blob(["durable"], { type: "image/png" }),
+    }));
+
+    const { result } = renderHook(() =>
+      useReferencePropertiesInteractions({
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        onPrimaryImageChange,
+        onExtraImageChange: vi.fn(),
+        onPromptTextChange: vi.fn(),
+        resolvePreviewUrlById: vi.fn(() => "https://example.com/weak-preview.png"),
+        resolveInternalReferenceImageDropSource,
+        klingMultiPrompts: [],
+        klingElements: [],
+      })
+    );
+
+    const event = makeInternalReferenceDragEvent({
+      mediaKind: "image",
+      referenceUrl: "blob:temporary-reference-grid-render",
+      imageUrl: "blob:temporary-reference-grid-render",
+      files: [syntheticFile],
+    });
+
+    await act(async () => {
+      await result.current.handlePrimaryDrop(event);
+    });
+
+    expect(resolveInternalReferenceImageDropSource).toHaveBeenCalledTimes(1);
+    expect(onPrimaryImageChange).toHaveBeenCalledWith(
+      "https://cdn.shortpulse.test/reference-grid-durable.png"
+    );
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
   });
 
   it("stages Motion Control primary image file selections through reference-image upload", async () => {

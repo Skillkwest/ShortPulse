@@ -30,4 +30,13 @@ describe("referenceGridMediaHelpers", () => {
       false
     );
   });
+
+  it("uses explicit audio output mode for local object URLs without marker fragments", () => {
+    expect(
+      isOutputAudioPreview({ mode: "audio" }, "blob:https://shortpulse.test/local-audio")
+    ).toBe(true);
+    expect(
+      isOutputVideoPreview({ mode: "audio" }, "blob:https://shortpulse.test/local-audio")
+    ).toBe(false);
+  });
 });

@@ -21,6 +21,7 @@ export type LipSyncAudioSourceKind = "local" | "library" | "reference" | "canvas
 
 export type LipSyncAudioState = {
   url: string | null;
+  title?: string | null;
   durationMs: number | null;
   status: LipSyncAudioStatus;
   sourceKind: LipSyncAudioSourceKind;

@@ -1320,6 +1320,26 @@ describe("ReferenceGridCard", () => {
     expect(pauseMock).toHaveBeenCalled();
   });
 
+  it("renders imported audio filenames when title is missing", () => {
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({
+            mode: "audio",
+            taskState: "success",
+            prompt: "tree there 2.mp3",
+            title: null,
+            mediaSource: "upload",
+          }),
+          isAudioPreview: true,
+          cardPreviewUrl: "https://example.com/tree-there-2.mp3",
+        })}
+      />
+    );
+
+    expect(screen.getByText("tree there 2.mp3")).toBeInTheDocument();
+  });
+
   it("uses playable media URL for audio playback when card preview URL is missing", () => {
     render(
       <ReferenceGridCard

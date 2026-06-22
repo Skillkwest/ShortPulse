@@ -61,5 +61,6 @@ export const isOutputAudioPreview = (
 ): boolean => {
   if (!url) return false;
   if (output?.mode === "video") return false;
+  if (output?.mode === "audio") return true;
   return isAudioUrl(url);
 };

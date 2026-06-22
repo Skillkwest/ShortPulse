@@ -164,6 +164,7 @@ describe("buildCanvasTearOutPayload", () => {
       outputId: "output-audio-1",
       mediaId: "media-audio-1",
       audioUrl: "https://cdn.shortpulse.test/audio.mp3",
+      audioStoragePath: "user-1/audio/canvas/audio.mp3",
       title: "Audio",
       width: 160,
       height: 220,
@@ -190,6 +191,7 @@ describe("buildCanvasTearOutPayload", () => {
     expect(audioPayload).toMatchObject({
       kind: "audio",
       audioUrl: "https://cdn.shortpulse.test/audio.mp3",
+      audioStoragePath: "user-1/audio/canvas/audio.mp3",
       outputId: "output-audio-1",
       mediaId: "media-audio-1",
       durationMs: 9000,
@@ -201,6 +203,7 @@ describe("buildCanvasTearOutPayload", () => {
         mediaKind: "audio",
         referenceUrl: "https://cdn.shortpulse.test/audio.mp3",
         referenceRenderUrl: "https://cdn.shortpulse.test/audio.mp3",
+        fullStoragePath: "user-1/audio/canvas/audio.mp3",
         sourceSurface: "all-refs",
         sessionBacked: true,
       },

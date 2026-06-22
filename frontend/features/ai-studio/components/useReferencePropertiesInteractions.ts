@@ -6,7 +6,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, DragEvent, RefObject } from "react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import type { AgentComposerDirectDropPayload } from "../logic/agentComposerDirectDropPayload";
-import { captureAiStudioDropSnapshot } from "../logic/aiStudioDropSnapshot";
+import {
+  buildAiStudioDropSnapshotTransfer,
+  captureAiStudioDropSnapshot,
+} from "../logic/aiStudioDropSnapshot";
 import {
   resolveMotionReferenceVideoDropSource,
   resolveMotionReferenceVideoDropSourceFromPayload,
@@ -970,12 +973,13 @@ export const useReferencePropertiesInteractions = ({
     ) =>
     async (event: DragEvent<HTMLDivElement>) => {
       event.preventDefault();
-      const internalPayload = extractInternalReferenceDragPayload(event.dataTransfer);
-      const composerImagePayload = extractComposerImageDropPayload(event.dataTransfer);
-      const mediaLibraryPayload = readMediaLibraryDragPayload(event.dataTransfer);
-      const { imageUrl, imageFile, fromFile, referenceId, mediaKind } = extractDragDropPayload(
-        event.dataTransfer
-      );
+      const dropSnapshot = captureAiStudioDropSnapshot(event.dataTransfer);
+      const snapshotTransfer = buildAiStudioDropSnapshotTransfer(dropSnapshot);
+      const internalPayload = extractInternalReferenceDragPayload(snapshotTransfer);
+      const composerImagePayload = extractComposerImageDropPayload(snapshotTransfer);
+      const mediaLibraryPayload = readMediaLibraryDragPayload(snapshotTransfer);
+      const { imageUrl, imageFile, fromFile, referenceId, mediaKind } =
+        extractDragDropPayload(snapshotTransfer);
       const composerDisplayArtifactUrl = composerImagePayload?.displayArtifactUrl?.trim() || null;
       const libraryImagePayload =
         mediaLibraryPayload?.kind === "libraryMedia" &&

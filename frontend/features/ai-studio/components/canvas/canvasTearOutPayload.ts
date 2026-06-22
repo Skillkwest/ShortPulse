@@ -41,6 +41,7 @@ export type CanvasTearOutPayload =
   | {
       kind: "audio";
       audioUrl: string;
+      audioStoragePath?: string | null;
       internalPayload: InternalReferenceDragPayload;
       outputId: string | null;
       mediaId: string | null;
@@ -205,6 +206,7 @@ export const buildCanvasTearOutPayload = (
     const identity = resolveMediaReferenceIdentity(item, output);
     const width = item.width > 0 ? item.width : undefined;
     const height = item.height > 0 ? item.height : undefined;
+    const audioStoragePath = normalizeOptionalText(item.audioStoragePath);
     const internalPayload = buildCanvasMediaInternalPayload({
       mediaKind: "audio",
       referenceId: identity.referenceId,
@@ -214,13 +216,14 @@ export const buildCanvasTearOutPayload = (
       renderUrl: normalizeOptionalText(item.companionArtUrl) ?? audioUrl,
       sourceSurface,
       previewStoragePath: normalizeOptionalText(output?.previewStoragePath),
-      fullStoragePath: normalizeOptionalText(output?.fullStoragePath),
+      fullStoragePath: audioStoragePath ?? normalizeOptionalText(output?.fullStoragePath),
       width,
       height,
     });
     return {
       kind: "audio",
       audioUrl,
+      audioStoragePath,
       internalPayload,
       outputId: identity.outputId,
       mediaId: identity.mediaId,

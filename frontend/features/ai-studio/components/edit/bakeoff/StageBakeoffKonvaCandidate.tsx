@@ -2,6 +2,7 @@
  * Konva candidate for the master-stage bakeoff lab.
  * Uses react-konva primitives to evaluate built-in node transforms against the target stage model.
  */
+/* eslint-disable @next/next/no-img-element */
 import React from "react";
 import { Layer, Group, Rect, Image as KonvaImage, Transformer, Stage } from "react-konva";
 import type Konva from "konva";

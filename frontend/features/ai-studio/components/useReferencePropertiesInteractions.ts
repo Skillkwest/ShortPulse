@@ -96,6 +96,7 @@ type ServerCopiedImageResponse = {
 };
 
 type UseReferencePropertiesInteractionsParams = {
+  interactionScope?: "full" | "image";
   referenceImageUrl: string | null;
   extraImageUrls: readonly (string | null)[];
   onPrimaryImageChange: (url: string | null) => void;
@@ -371,6 +372,7 @@ const resolveCanvasTearOutReferenceImageSnapshot = (
  * Returns UI interaction state and handlers for reference properties editing.
  */
 export const useReferencePropertiesInteractions = ({
+  interactionScope = "full",
   referenceImageUrl,
   extraImageUrls,
   onPrimaryImageChange,
@@ -390,6 +392,18 @@ export const useReferencePropertiesInteractions = ({
   seedanceElementSlotCount = 0,
   onSeedanceElementImageSlotChange,
 }: UseReferencePropertiesInteractionsParams) => {
+  const enableFullReferenceInteractions = interactionScope === "full";
+  const effectiveSeedanceElementSlotCount = enableFullReferenceInteractions
+    ? seedanceElementSlotCount
+    : 0;
+  const effectiveKlingMultiPrompts = useMemo(
+    () => (enableFullReferenceInteractions ? klingMultiPrompts : []),
+    [enableFullReferenceInteractions, klingMultiPrompts]
+  );
+  const effectiveKlingElements = useMemo(
+    () => (enableFullReferenceInteractions ? klingElements : []),
+    [enableFullReferenceInteractions, klingElements]
+  );
   const primaryInputRef = useRef<HTMLInputElement | null>(null);
   const extraInputRefsRef = useRef<RefObject<HTMLInputElement | null>[]>([]);
   while (extraInputRefsRef.current.length < Math.max(3, extraImageUrls.length)) {
@@ -401,12 +415,12 @@ export const useReferencePropertiesInteractions = ({
   const extraThreeInputRef = inputRefs[2] ?? { current: null };
   const motionVideoInputRef = useRef<HTMLInputElement | null>(null);
   const seedanceElementImageInputRefsRef = useRef<Array<{ current: HTMLInputElement | null }>>([]);
-  while (seedanceElementImageInputRefsRef.current.length < seedanceElementSlotCount) {
+  while (seedanceElementImageInputRefsRef.current.length < effectiveSeedanceElementSlotCount) {
     seedanceElementImageInputRefsRef.current.push({ current: null });
   }
   const seedanceElementImageInputRefs = seedanceElementImageInputRefsRef.current.slice(
     0,
-    seedanceElementSlotCount
+    effectiveSeedanceElementSlotCount
   );
   const ownedImageObjectUrlsRef = useRef<Set<string>>(new Set());
   const pendingCommittedImageObjectUrlsRef = useRef<Set<string>>(new Set());
@@ -513,12 +527,12 @@ export const useReferencePropertiesInteractions = ({
 
   useEffect(() => {
     setSeedanceElementImageDragActive((prev) =>
-      reconcileBooleanListLength(prev, seedanceElementSlotCount)
+      reconcileBooleanListLength(prev, effectiveSeedanceElementSlotCount)
     );
     setSeedanceElementImageLoading((prev) =>
-      reconcileBooleanListLength(prev, seedanceElementSlotCount)
+      reconcileBooleanListLength(prev, effectiveSeedanceElementSlotCount)
     );
-  }, [seedanceElementSlotCount]);
+  }, [effectiveSeedanceElementSlotCount]);
 
   const handleSwapFrames = () => {
     if (!canSwapFrames) return;
@@ -531,18 +545,24 @@ export const useReferencePropertiesInteractions = ({
     key: "prompt" | "duration",
     value: string | number
   ) => {
-    const next = klingMultiPrompts.map((item) =>
+    if (!enableFullReferenceInteractions) return;
+    const next = effectiveKlingMultiPrompts.map((item) =>
       item.id === id ? { ...item, [key]: value } : item
     );
     onKlingMultiPromptsChange?.(next);
   };
 
   const addKlingShot = () => {
-    onKlingMultiPromptsChange?.([...klingMultiPrompts, { id: makeId(), prompt: "", duration: 5 }]);
+    if (!enableFullReferenceInteractions) return;
+    onKlingMultiPromptsChange?.([
+      ...effectiveKlingMultiPrompts,
+      { id: makeId(), prompt: "", duration: 5 },
+    ]);
   };
 
   const removeKlingShot = (id: string) => {
-    onKlingMultiPromptsChange?.(klingMultiPrompts.filter((item) => item.id !== id));
+    if (!enableFullReferenceInteractions) return;
+    onKlingMultiPromptsChange?.(effectiveKlingMultiPrompts.filter((item) => item.id !== id));
   };
 
   const updateKlingElement = (
@@ -550,17 +570,22 @@ export const useReferencePropertiesInteractions = ({
     key: "frontalImageUrl" | "referenceImageUrls" | "videoUrl",
     value: string
   ) => {
-    const next = klingElements.map((item) => (item.id === id ? { ...item, [key]: value } : item));
+    if (!enableFullReferenceInteractions) return;
+    const next = effectiveKlingElements.map((item) =>
+      item.id === id ? { ...item, [key]: value } : item
+    );
     onKlingElementsChange?.(next);
   };
 
   const addKlingElement = () => {
-    if (klingElements.length >= 3) return;
-    onKlingElementsChange?.([...klingElements, createEmptyAiStudioKlingElement()]);
+    if (!enableFullReferenceInteractions) return;
+    if (effectiveKlingElements.length >= 3) return;
+    onKlingElementsChange?.([...effectiveKlingElements, createEmptyAiStudioKlingElement()]);
   };
 
   const removeKlingElement = (id: string) => {
-    onKlingElementsChange?.(klingElements.filter((item) => item.id !== id));
+    if (!enableFullReferenceInteractions) return;
+    onKlingElementsChange?.(effectiveKlingElements.filter((item) => item.id !== id));
   };
 
   const releaseOwnedImageObjectUrl = useCallback((url: string) => {
@@ -629,7 +654,7 @@ export const useReferencePropertiesInteractions = ({
   };
 
   useEffect(() => {
-    const klingElementBlobUrls = klingElements.flatMap((element) => [
+    const klingElementBlobUrls = effectiveKlingElements.flatMap((element) => [
       element.profileImageUrl ?? "",
       ...getAiStudioKlingElementReferenceUrls(element),
     ]);
@@ -650,7 +675,7 @@ export const useReferencePropertiesInteractions = ({
         releaseOwnedImageObjectUrl(url);
       }
     });
-  }, [extraImageUrls, klingElements, referenceImageUrl, releaseOwnedImageObjectUrl]);
+  }, [effectiveKlingElements, extraImageUrls, referenceImageUrl, releaseOwnedImageObjectUrl]);
 
   // Committed image URLs live in parent workflow state, which survives panel unmounts
   // during tool navigation. Revoking them here would leave restored slots pointing at
@@ -995,7 +1020,7 @@ export const useReferencePropertiesInteractions = ({
 
   const setSeedanceElementImageDragActiveAt = (index: number, value: boolean) => {
     setSeedanceElementImageDragActive((prev) =>
-      reconcileBooleanListLength(prev, seedanceElementSlotCount).map((item, idx) =>
+      reconcileBooleanListLength(prev, effectiveSeedanceElementSlotCount).map((item, idx) =>
         idx === index ? value : item
       )
     );
@@ -1003,7 +1028,7 @@ export const useReferencePropertiesInteractions = ({
 
   const setSeedanceElementImageLoadingAt = (index: number, value: boolean) => {
     setSeedanceElementImageLoading((prev) =>
-      reconcileBooleanListLength(prev, seedanceElementSlotCount).map((item, idx) =>
+      reconcileBooleanListLength(prev, effectiveSeedanceElementSlotCount).map((item, idx) =>
         idx === index ? value : item
       )
     );
@@ -1038,6 +1063,7 @@ export const useReferencePropertiesInteractions = ({
     index: number,
     payload: AgentComposerDirectDropPayload
   ) => {
+    if (!enableFullReferenceInteractions) return;
     const snapshot = resolveCanvasTearOutReferenceImageSnapshot(payload);
     if (!snapshot || !onSeedanceElementImageSlotChange) return;
     setSeedanceElementImageDragActiveAt(index, false);
@@ -1050,6 +1076,7 @@ export const useReferencePropertiesInteractions = ({
   };
 
   const acceptMotionVideoCanvasTearOutPayload = async (payload: AgentComposerDirectDropPayload) => {
+    if (!enableFullReferenceInteractions) return;
     if (payload.kind !== "video") return;
     setMotionVideoDragActive(false);
     const resolvedSource = await resolveMotionReferenceVideoDropSourceFromPayload({
@@ -1117,6 +1144,7 @@ export const useReferencePropertiesInteractions = ({
 
   const handleSeedanceElementImageFileSelection =
     (index: number) => (event: ChangeEvent<HTMLInputElement>) => {
+      if (!enableFullReferenceInteractions) return;
       const file = event.target.files?.[0];
       if (!file) return;
       if (!isImageFile(file)) {
@@ -1143,6 +1171,7 @@ export const useReferencePropertiesInteractions = ({
     };
 
   const handleSeedanceElementImageDrop = (index: number) => (event: DragEvent<HTMLDivElement>) => {
+    if (!enableFullReferenceInteractions) return;
     setSeedanceElementImageDragActiveAt(index, false);
     if (!onSeedanceElementImageSlotChange) return;
     return handleImageDrop(
@@ -1186,6 +1215,7 @@ export const useReferencePropertiesInteractions = ({
 
   const handleSeedanceElementImageDragEnter =
     (index: number) => (event: DragEvent<HTMLDivElement>) => {
+      if (!enableFullReferenceInteractions) return;
       if (allowImageDrag(event)) {
         setSeedanceElementImageDragActiveAt(index, true);
       }
@@ -1193,16 +1223,19 @@ export const useReferencePropertiesInteractions = ({
 
   const handleSeedanceElementImageDragOver =
     (index: number) => (event: DragEvent<HTMLDivElement>) => {
+      if (!enableFullReferenceInteractions) return;
       if (allowImageDrag(event)) {
         setSeedanceElementImageDragActiveAt(index, true);
       }
     };
 
   const handleSeedanceElementImageDragLeave = (index: number) => () => {
+    if (!enableFullReferenceInteractions) return;
     setSeedanceElementImageDragActiveAt(index, false);
   };
 
   const allowVideoDrag = (event: DragEvent<HTMLDivElement>) => {
+    if (!enableFullReferenceInteractions) return false;
     if (isVideoDragTransfer(event.dataTransfer)) {
       event.preventDefault();
       return true;
@@ -1211,6 +1244,7 @@ export const useReferencePropertiesInteractions = ({
   };
 
   const handleMotionVideoDrop = async (event: DragEvent<HTMLDivElement>) => {
+    if (!enableFullReferenceInteractions) return;
     event.preventDefault();
     event.stopPropagation();
     setMotionVideoDragActive(false);
@@ -1238,6 +1272,7 @@ export const useReferencePropertiesInteractions = ({
   };
 
   const handleMotionVideoSelection = async (event: ChangeEvent<HTMLInputElement>) => {
+    if (!enableFullReferenceInteractions) return;
     const file = event.target.files?.[0];
     if (isVideoFile(file)) {
       await onStageMotionVideoSelection?.({ videoFile: file });

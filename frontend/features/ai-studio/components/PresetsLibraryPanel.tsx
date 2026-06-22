@@ -23,6 +23,8 @@ import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiSt
 export type PresetsLibraryPanelProps = {
   presets: readonly ExpertEditResolvedPreset[];
   selectedPresetId: ExpertEditPresetId | null;
+  openPresetEditRequest?: { presetId: ExpertEditPresetId; requestId: number } | null;
+  onOpenPresetEditRequestConsumed?: () => void;
   onSelectPreset?: (presetId: ExpertEditPresetId | null) => void;
   onSavePresetOverride?: (
     presetId: ExpertEditPresetId,
@@ -48,6 +50,8 @@ type PendingPresetDeleteState = {
 export function PresetsLibraryPanel({
   presets,
   selectedPresetId,
+  openPresetEditRequest = null,
+  onOpenPresetEditRequestConsumed,
   onSelectPreset,
   onSavePresetOverride,
   saveError = null,
@@ -78,6 +82,7 @@ export function PresetsLibraryPanel({
   const [editSubmitting, setEditSubmitting] = React.useState(false);
   const [deleteSubmitting, setDeleteSubmitting] = React.useState(false);
   const [localSaveError, setLocalSaveError] = React.useState<string | null>(null);
+  const consumedEditRequestIdRef = React.useRef<number | null>(null);
 
   const closeEditModal = React.useCallback(() => {
     if (editSubmitting) return;
@@ -89,6 +94,28 @@ export function PresetsLibraryPanel({
     setPendingPresetDelete(null);
     setLocalSaveError(null);
   }, [deleteSubmitting]);
+
+  React.useEffect(() => {
+    if (!openPresetEditRequest) return;
+    if (consumedEditRequestIdRef.current === openPresetEditRequest.requestId) return;
+    consumedEditRequestIdRef.current = openPresetEditRequest.requestId;
+    const requestedPreset = presets.find(
+      (preset) => preset.presetId === openPresetEditRequest.presetId
+    );
+    onOpenPresetEditRequestConsumed?.();
+    if (!requestedPreset) return;
+    onSelectPreset?.(requestedPreset.presetId);
+    setLocalSaveError(null);
+    setPendingPresetDelete(null);
+    if (!requestedPreset.isCustom) return;
+    setPendingPresetEdit({
+      presetId: requestedPreset.presetId,
+      presetLabel: requestedPreset.label,
+      label: requestedPreset.label,
+      prompt: requestedPreset.prompt,
+      mode: "edit",
+    });
+  }, [onOpenPresetEditRequestConsumed, onSelectPreset, openPresetEditRequest, presets]);
 
   const handleSavePreset = React.useCallback(async () => {
     if (!pendingPresetEdit || editSubmitting) return;

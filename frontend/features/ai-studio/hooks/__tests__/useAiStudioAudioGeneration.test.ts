@@ -1074,6 +1074,42 @@ describe("useAiStudioAudioGeneration", () => {
     expect(uiError).toBe("You do not have enough credits for this run.");
   });
 
+  it("blocks sound effects generation when the Reference Grid is full", async () => {
+    let uiError: string | null = null;
+    const existingOutputs = Array.from({ length: REFERENCE_GRID_MAX_VISIBLE_ITEMS }, (_, index) =>
+      createPlaceholderOutput(`existing-${index + 1}`, `Existing ${index + 1}`)
+    );
+    const setUiError = asDispatch<string | null>((value) => {
+      uiError = typeof value === "function" ? value(uiError) : value;
+    });
+    const insertOptimisticGenerationPlaceholder = vi.fn(() => "out-sfx");
+
+    const { result } = renderHook(() =>
+      useAiStudioAudioGeneration({
+        outputs: existingOutputs,
+        setUiError,
+        insertOptimisticGenerationPlaceholder,
+        notifyGenerationFailure: vi.fn(),
+        updateOutputById: vi.fn(),
+        setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleSoundEffectsGenerate({
+        text: "bright transition sparkle",
+        durationSeconds: null,
+        loop: false,
+        outputFormat: "mp3_44100_128",
+        modelId: hardcodedSoundEffectsModelId,
+      });
+    });
+
+    expect(insertOptimisticGenerationPlaceholder).not.toHaveBeenCalled();
+    expect(fetchWithAuthMock).not.toHaveBeenCalled();
+    expect(uiError).toBe(REFERENCE_GRID_CAP_REACHED_MESSAGE);
+  });
+
   it("blocks sound effects generation when the known balance is short", async () => {
     let uiError: string | null = null;
     const setUiError = asDispatch<string | null>((value) => {

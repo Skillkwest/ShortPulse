@@ -11,7 +11,7 @@ export type ExpertEditPresetsSurfaceProps = {
   isOpen: boolean;
   presets: readonly ExpertEditResolvedPreset[];
   onClose: () => void;
-  onOpenPresetsLibrary?: () => void;
+  onOpenPresetsLibrary?: (presetId?: ExpertEditPresetId | null) => void;
   onPresetSelect?: (presetId: ExpertEditPresetId) => void;
   onPresetDragStart?: (
     event: React.DragEvent<HTMLButtonElement>,
@@ -53,10 +53,13 @@ export const ExpertEditPresetsSurface = ({
     return /^custom\s+\d+$/i.test(preset.label.trim());
   }, []);
 
-  const handleOpenPresetsLibrary = React.useCallback(() => {
-    onClose();
-    onOpenPresetsLibrary?.();
-  }, [onClose, onOpenPresetsLibrary]);
+  const handleOpenPresetsLibrary = React.useCallback(
+    (presetId?: ExpertEditPresetId | null) => {
+      onClose();
+      onOpenPresetsLibrary?.(presetId ?? null);
+    },
+    [onClose, onOpenPresetsLibrary]
+  );
 
   React.useEffect(() => {
     if (!isOpen) return;
@@ -112,7 +115,7 @@ export const ExpertEditPresetsSurface = ({
           <button
             type="button"
             className="ghost-btn edit-expert-presets-surface-library-btn"
-            onClick={handleOpenPresetsLibrary}
+            onClick={() => handleOpenPresetsLibrary()}
           >
             <span className="edit-expert-preset-btn-icon" aria-hidden="true">
               <Sliders size={12} weight="regular" />
@@ -159,7 +162,7 @@ export const ExpertEditPresetsSurface = ({
                   onClick={(event) => {
                     event.preventDefault();
                     event.stopPropagation();
-                    handleOpenPresetsLibrary();
+                    handleOpenPresetsLibrary(preset.presetId);
                   }}
                 >
                   <PencilSimpleLine size={14} weight="regular" />

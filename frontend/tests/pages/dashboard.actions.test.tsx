@@ -360,6 +360,11 @@ describe("Dashboard actions", () => {
       "href",
       "/profile?section=subscription"
     );
+
+    expect(document.querySelector('[data-next-image="/Community.svg"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-next-image="/Media.svg"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-next-image="/Credits.svg"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-next-image="/Plan.svg"]')).toBeInTheDocument();
   });
 
   it("uses signed-in labels for shared footer links", async () => {

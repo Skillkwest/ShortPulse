@@ -2,6 +2,7 @@
  * Fabric.js candidate for the master-stage bakeoff lab.
  * Evaluates Fabric's built-in object controls, viewport zoom, and panning behavior.
  */
+/* eslint-disable @next/next/no-img-element */
 import React from "react";
 
 import {

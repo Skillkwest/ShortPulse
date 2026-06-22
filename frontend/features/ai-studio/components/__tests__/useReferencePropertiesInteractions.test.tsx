@@ -310,6 +310,47 @@ describe("useReferencePropertiesInteractions", () => {
     expect(result.current.motionVideoDragActive).toBe(false);
   });
 
+  it("keeps image-only scope from activating video, Seedance, or Kling branches", async () => {
+    const onMotionVideoChange = vi.fn();
+    const onKlingMultiPromptsChange = vi.fn();
+    const onKlingElementsChange = vi.fn();
+
+    const { result } = renderHook(() =>
+      useReferencePropertiesInteractions({
+        interactionScope: "image",
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        onPrimaryImageChange: vi.fn(),
+        onExtraImageChange: vi.fn(),
+        onPromptTextChange: vi.fn(),
+        onMotionVideoChange,
+        onKlingMultiPromptsChange,
+        onKlingElementsChange,
+        klingMultiPrompts: [{ id: "shot-1", prompt: "Hold", duration: 5 }],
+        klingElements: [],
+        seedanceElementSlotCount: 2,
+      })
+    );
+
+    expect(result.current.seedanceElementImageInputRefs).toHaveLength(0);
+
+    await act(async () => {
+      await result.current.handleMotionVideoDrop(createVideoReferenceDropEvent("out-1"));
+      await result.current.acceptMotionVideoCanvasTearOutPayload(makeCanvasTearOutVideoPayload());
+    });
+    act(() => {
+      result.current.addKlingShot();
+      result.current.updateKlingMultiPrompt("shot-1", "prompt", "Move");
+      result.current.addKlingElement();
+      result.current.handleSeedanceElementImageDragEnter(0)(makeInternalReferenceDragEvent());
+    });
+
+    expect(onMotionVideoChange).not.toHaveBeenCalled();
+    expect(onKlingMultiPromptsChange).not.toHaveBeenCalled();
+    expect(onKlingElementsChange).not.toHaveBeenCalled();
+    expect(result.current.seedanceElementImageDragActive).toEqual([]);
+  });
+
   it("accepts internal reference-grid drags for image drop targets", () => {
     const { result } = renderHook(() =>
       useReferencePropertiesInteractions({

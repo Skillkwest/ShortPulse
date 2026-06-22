@@ -163,7 +163,7 @@ describe("Auth route behavior", () => {
 
     render(<AuthPage />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sign in with Google" }));
 
     await waitFor(() => {
       expect(signInWithOAuthMock).toHaveBeenCalledWith({
@@ -183,7 +183,7 @@ describe("Auth route behavior", () => {
 
     render(<AuthPage />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sign in with Google" }));
 
     await waitFor(() => {
       expect(signInWithOAuthMock).toHaveBeenCalledWith({
@@ -203,7 +203,7 @@ describe("Auth route behavior", () => {
     render(<AuthPage />);
 
     expect(await screen.findByText("Google sign-in was canceled.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Continue with Google" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeInTheDocument();
     expect(replaceMock).not.toHaveBeenCalled();
   });
 
@@ -264,7 +264,10 @@ describe("Auth route behavior", () => {
     expect(screen.getByRole("tab", { name: "Sign up" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("button", { name: "Create account" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sign up with Google" })).toBeDisabled();
-    expect(screen.queryByRole("button", { name: "Continue with Google" })).not.toBeInTheDocument();
+    expect(
+      screen.getByText("For Google signup, choose the Google account with this email.")
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sign in with Google" })).not.toBeInTheDocument();
   });
 
   it("blocks signup submission without a selected paid pricing plan", async () => {
@@ -290,7 +293,9 @@ describe("Auth route behavior", () => {
 
     render(<AuthPage />);
 
-    fireEvent.change(screen.getByLabelText("Email"), { target: { value: " new@example.com " } });
+    fireEvent.change(screen.getByLabelText("Account email"), {
+      target: { value: " new@example.com " },
+    });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "strongpass" } });
     fireEvent.click(screen.getByRole("button", { name: "Create account" }));
 
@@ -335,7 +340,9 @@ describe("Auth route behavior", () => {
 
     render(<AuthPage />);
 
-    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "buyer@example.com" } });
+    fireEvent.change(screen.getByLabelText("Account email"), {
+      target: { value: "buyer@example.com" },
+    });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "strongpass" } });
     fireEvent.click(screen.getByRole("button", { name: "Create account" }));
 
@@ -363,7 +370,9 @@ describe("Auth route behavior", () => {
 
     render(<AuthPage />);
 
-    fireEvent.change(screen.getByLabelText("Email"), { target: { value: " buyer@example.com " } });
+    fireEvent.change(screen.getByLabelText("Account email"), {
+      target: { value: " buyer@example.com " },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Sign up with Google" }));
 
     await waitFor(() => {
@@ -402,7 +411,9 @@ describe("Auth route behavior", () => {
 
     render(<AuthPage />);
 
-    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "new@example.com" } });
+    fireEvent.change(screen.getByLabelText("Account email"), {
+      target: { value: "new@example.com" },
+    });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "strongpass" } });
     fireEvent.click(screen.getByRole("button", { name: "Create account" }));
 

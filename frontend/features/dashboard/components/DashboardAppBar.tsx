@@ -10,7 +10,8 @@ type DashboardAppBarCard = {
   key: string;
   label: string;
   value: string;
-  icon: ElementType;
+  icon?: ElementType;
+  iconSrc?: string;
   className?: string;
   href?: string;
 };
@@ -60,7 +61,19 @@ export function DashboardAppBar({ cards, actionSlot, brandHref = "/" }: Dashboar
             const cardBody = (
               <>
                 <div className="status-icon compact">
-                  <item.icon size={16} weight="bold" />
+                  {item.iconSrc ? (
+                    <Image
+                      src={item.iconSrc}
+                      alt=""
+                      aria-hidden="true"
+                      className="header-stat-card-icon-image"
+                      width={96}
+                      height={96}
+                      unoptimized
+                    />
+                  ) : item.icon ? (
+                    <item.icon size={16} weight="bold" />
+                  ) : null}
                 </div>
                 <div className="header-card-body">
                   <p className="metric-label tiny">{item.label}</p>

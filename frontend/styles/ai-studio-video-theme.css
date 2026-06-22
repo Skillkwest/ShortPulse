@@ -100,6 +100,13 @@
   overflow: hidden;
 }
 
+.video-properties-panel .video-direction-column-shell.is-empty-prompt {
+  border-color: rgba(170, 101, 239, 0.24);
+  box-shadow:
+    0 16px 34px rgba(0, 0, 0, 0.32),
+    0 0 0 1px rgba(170, 101, 239, 0.1);
+}
+
 .video-properties-panel .video-direction-column-shell,
 .video-properties-panel .video-setup-row-shell,
 .video-properties-panel .reference-step-card,
@@ -877,6 +884,12 @@
   overflow-wrap: anywhere;
   text-align: center;
   box-shadow: none;
+}
+
+.video-properties-panel .video-inline-warning-bubble--requirement {
+  border-color: rgba(245, 185, 66, 0.52);
+  background: rgba(245, 185, 66, 0.12);
+  color: rgba(255, 239, 202, 0.96);
 }
 
 .video-properties-panel .video-inline-warning-bubble .app-message__body {

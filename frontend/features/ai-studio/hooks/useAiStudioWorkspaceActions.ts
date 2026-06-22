@@ -45,7 +45,6 @@ export const useAiStudioWorkspaceActions = ({
   openModelModal,
   closeModelModal,
   setModel,
-  addCharacterReferences: _addCharacterReferences,
   addOutputsFromFiles,
   setActiveOutputId,
 }: UseAiStudioWorkspaceActionsParams) => {

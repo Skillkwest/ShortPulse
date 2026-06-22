@@ -54,7 +54,6 @@ type UseAiStudioEditExpertPanelPropsParams = {
   currentCostCredits: number | null;
   removeBackgroundCostCredits: number | null;
   isGenerateDisabled: boolean;
-  generationGuardrail: string | null;
   isPrimaryStageGenerating: boolean;
   referenceImageWarning: string | null;
   resolveOutputPreviewUrl: (id: string | null | undefined) => string | null;
@@ -116,7 +115,6 @@ export const useAiStudioEditExpertPanelProps = ({
   currentCostCredits,
   removeBackgroundCostCredits,
   isGenerateDisabled,
-  generationGuardrail,
   isPrimaryStageGenerating,
   referenceImageWarning,
   resolveOutputPreviewUrl,
@@ -198,7 +196,6 @@ export const useAiStudioEditExpertPanelProps = ({
       costCredits: currentCostCredits,
       removeBackgroundCostCredits,
       isGenerateDisabled,
-      guardrailReason: generationGuardrail,
       isPrimaryStageGenerating,
       referenceImageWarning,
       resolvePreviewUrlById: resolveOutputPreviewUrl,
@@ -232,7 +229,6 @@ export const useAiStudioEditExpertPanelProps = ({
     currentModelLabel,
     editReferenceText,
     extraImageUrls,
-    generationGuardrail,
     addPastedMediaReference,
     handleEditPromptTextChange,
     handleImageRegenerateWithDebit,

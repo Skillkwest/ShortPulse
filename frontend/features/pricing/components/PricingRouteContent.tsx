@@ -26,6 +26,7 @@ import {
   normalizePaidPricingPlanId,
   normalizePricingPlanId,
 } from "../paths";
+import { isPublicSignupEnabled } from "../../../lib/authRedirects";
 import { loadGrowthTelemetry } from "../../../lib/growthTelemetryLoader";
 
 export type PricingRouteProps = {
@@ -46,10 +47,16 @@ const sortBillingPlans = (plans: readonly BillingPlanRecord[]) =>
 
 const resolvePlanActionLabel = (params: {
   isAuthenticated: boolean;
+  publicSignupEnabled: boolean;
   monthlyPriceCents: number;
   displayName: string;
 }) => {
   if (!params.isAuthenticated) {
+    if (!params.publicSignupEnabled) {
+      return params.monthlyPriceCents === 0
+        ? "Log in to continue"
+        : `Log in to choose ${params.displayName}`;
+    }
     return params.monthlyPriceCents === 0 ? "Create account" : `Sign up for ${params.displayName}`;
   }
   if (params.monthlyPriceCents === 0) {
@@ -80,6 +87,7 @@ export function PricingRouteContent({ billingCatalog, isAuthenticated }: Pricing
   const selectedBillingInterval = normalizePricingBillingInterval(router.query.interval);
   const [planActionLoadingId, setPlanActionLoadingId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const publicSignupEnabled = isPublicSignupEnabled();
 
   useEffect(() => {
     void loadGrowthTelemetry().then(({ trackBillingPricingViewed }) => {
@@ -140,7 +148,7 @@ export function PricingRouteContent({ billingCatalog, isAuthenticated }: Pricing
           intent,
           planId,
           billingInterval: selectedBillingInterval,
-          mode: "signup",
+          mode: publicSignupEnabled ? "signup" : "signin",
         })
       );
       return;
@@ -213,7 +221,7 @@ export function PricingRouteContent({ billingCatalog, isAuthenticated }: Pricing
               <Link href="/dashboard" className="primary-btn">
                 Back to dashboard
               </Link>
-            ) : (
+            ) : publicSignupEnabled ? (
               <>
                 <Link href={buildDashboardAuthPath()} className="ghost-btn">
                   Log in
@@ -230,6 +238,10 @@ export function PricingRouteContent({ billingCatalog, isAuthenticated }: Pricing
                   Sign up
                 </Link>
               </>
+            ) : (
+              <Link href={buildDashboardAuthPath()} className="primary-btn">
+                Log in
+              </Link>
             )}
           </div>
         </header>
@@ -293,6 +305,7 @@ export function PricingRouteContent({ billingCatalog, isAuthenticated }: Pricing
                   ? "Annual unavailable"
                   : resolvePlanActionLabel({
                       isAuthenticated,
+                      publicSignupEnabled,
                       monthlyPriceCents: planPricing.monthlyEquivalentCents,
                       displayName: planView.displayName,
                     });

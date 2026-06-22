@@ -1118,6 +1118,61 @@ describe("Canvas interaction behavior", () => {
     });
   });
 
+  it("lets scrollable canvas text consume wheel without zooming the camera", () => {
+    render(
+      <SeededCanvasHarness
+        initialSessionState={{
+          items: [
+            {
+              id: "scrollable-text",
+              kind: "text",
+              x: 120,
+              y: 80,
+              z: 1,
+              selected: false,
+              outputId: null,
+              sourceSurface: null,
+              text: "Scrollable canvas text reference\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6",
+              width: 260,
+              height: 120,
+            },
+          ],
+          draftTextEntry: null,
+          textEditSession: null,
+          draftOwnerInstanceId: null,
+          textEditOwnerInstanceId: null,
+          mainCamera: { x: 0, y: 0, zoom: 1 },
+          railCamera: { x: 0, y: 0, zoom: 1 },
+        }}
+      />
+    );
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+    const textNode = screen.getByText(/Scrollable canvas text reference/);
+    Object.defineProperty(textNode, "clientHeight", {
+      configurable: true,
+      value: 80,
+    });
+    Object.defineProperty(textNode, "scrollHeight", {
+      configurable: true,
+      value: 240,
+    });
+
+    const wheelEvent = new WheelEvent("wheel", {
+      deltaY: 100,
+      clientX: 260,
+      clientY: 170,
+      bubbles: true,
+      cancelable: true,
+    });
+    act(() => {
+      textNode.dispatchEvent(wheelEvent);
+    });
+
+    expect(wheelEvent.defaultPrevented).toBe(false);
+    expect(Number(viewport.getAttribute("data-camera-zoom"))).toBe(1);
+  });
+
   it("does not create a draft from double-tap fallback when tap travel exceeds threshold", () => {
     render(<CanvasHarness />);
     const viewport = screen.getByTestId("canvas-viewport");

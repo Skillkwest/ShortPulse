@@ -473,36 +473,6 @@ describe("ExpertEditPanelView", () => {
     selectedStyleId: null,
   };
 
-  it("suppresses the missing-reference guardrail next to the disabled inline generate button", () => {
-    const message = "Add a reference image before generating.";
-
-    render(
-      <ExpertEditPanelView
-        {...baseProps}
-        isGenerateDisabled
-        guardrailReason={message}
-        referenceText="Adjust the coat color."
-      />
-    );
-
-    expect(screen.queryByText(message)).not.toBeInTheDocument();
-  });
-
-  it("shows other guardrail reasons next to the disabled inline generate button", () => {
-    const message = "Select a model before generating.";
-
-    render(
-      <ExpertEditPanelView
-        {...baseProps}
-        isGenerateDisabled
-        guardrailReason={message}
-        referenceText="Adjust the coat color."
-      />
-    );
-
-    expect(screen.queryByText(message)).not.toBeInTheDocument();
-  });
-
   it("keeps the inline generate button enabled while edit generation is busy", async () => {
     const { container } = renderControlledPromptPanel({
       initialPrompt: "Put her in a bikini",
@@ -1984,6 +1954,7 @@ describe("ExpertEditPanelView", () => {
     );
 
     expect(onOpenPresetsLibrary).toHaveBeenCalledTimes(1);
+    expect(onOpenPresetsLibrary).toHaveBeenCalledWith("custom_2");
     expect(screen.queryByRole("dialog", { name: /edit custom preset/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: /more presets/i })).not.toBeInTheDocument();
   });
@@ -2275,6 +2246,7 @@ describe("ExpertEditPanelView", () => {
     fireEvent.click(within(surface).getByRole("button", { name: /^presets library$/i }));
 
     expect(onOpenPresetsLibrary).toHaveBeenCalledTimes(1);
+    expect(onOpenPresetsLibrary).toHaveBeenCalledWith(null);
     expect(screen.queryByRole("region", { name: /more presets/i })).not.toBeInTheDocument();
   });
 

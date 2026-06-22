@@ -54,6 +54,7 @@ const createResolvedCardMedia = (
   previewUrl,
   fullUrl: previewUrl,
   posterPreviewUrl: null,
+  companionArtUrl: null,
   playableMediaUrl: null,
   fallbackUrl: "https://cdn.example.com/full.jpg",
   authorityTier: "reusable",

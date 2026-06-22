@@ -17,7 +17,7 @@ const baseProps: React.ComponentProps<typeof ReferenceKlingAdvancedSteps> = {
   collapsedKlingAssets: false,
   collapsedKlingGuidance: true,
   klingShotSummary: "No shots",
-  klingAssetsSummary: "1 element · Prompt tokens ready",
+  klingAssetsSummary: "1 element · Prompt links ready",
   klingGuidanceSummary: "CFG 0.50 · Neg prompt empty",
   klingShotType: "customize",
   klingMultiPrompts: [],

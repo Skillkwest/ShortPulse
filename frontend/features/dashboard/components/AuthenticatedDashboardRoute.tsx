@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
-import { ChartBar, CloudArrowUp, Globe, ShieldCheck, Sparkle } from "phosphor-react";
+import { ChartBar, Sparkle } from "phosphor-react";
 import { useCredits } from "../../ai-studio/hooks/useCredits";
 import {
   buildPlanView,
@@ -360,14 +360,14 @@ export function AuthenticatedDashboardRoute({
       label: "Creator hub",
       value: "Community",
       href: SHORTPULSE_COMMUNITY_URL,
-      icon: Globe,
+      iconSrc: "/Community.svg",
     },
     {
       key: "auth-storage",
       label: "Media Storage",
       value: storageUsageValue,
       href: "/profile?section=storage",
-      icon: CloudArrowUp,
+      iconSrc: "/Media.svg",
     },
     ...(DASHBOARD_HIDE_LEGACY_SECTIONS
       ? []
@@ -384,7 +384,7 @@ export function AuthenticatedDashboardRoute({
       label: "AI credits",
       value: aiCreditsValue,
       href: "/profile?section=credits",
-      icon: Sparkle,
+      iconSrc: "/Credits.svg",
     },
     {
       key: "auth-plan",
@@ -392,7 +392,7 @@ export function AuthenticatedDashboardRoute({
       value: planMeta.label,
       className: planMeta.className,
       href: "/profile?section=subscription",
-      icon: ShieldCheck,
+      iconSrc: "/Plan.svg",
     },
   ];
 

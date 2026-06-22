@@ -2,6 +2,7 @@
  * DOM/CSS candidate for the master-stage bakeoff lab.
  * Uses the shared Expert Edit geometry helpers with a plain DOM rendering stack.
  */
+/* eslint-disable @next/next/no-img-element */
 import React from "react";
 
 import { createIdleTransformPointerSession } from "../expertEditInteractionUtils";

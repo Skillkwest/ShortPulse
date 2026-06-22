@@ -135,7 +135,6 @@ describe("ExpertEditPanelView interaction flow", () => {
         resolvePreviewUrlById={() => null}
         costCredits={2}
         isGenerateDisabled={false}
-        guardrailReason={null}
         isPrimaryStageGenerating={false}
         referenceImageWarning={null}
         onImageResolutionChange={vi.fn()}
@@ -196,7 +195,6 @@ describe("ExpertEditPanelView interaction flow", () => {
         resolvePreviewUrlById={() => null}
         costCredits={2}
         isGenerateDisabled={false}
-        guardrailReason={null}
         isPrimaryStageGenerating={false}
         referenceImageWarning={null}
         onImageResolutionChange={vi.fn()}
@@ -246,7 +244,6 @@ describe("ExpertEditPanelView interaction flow", () => {
         resolvePreviewUrlById={() => null}
         costCredits={2}
         isGenerateDisabled={false}
-        guardrailReason={null}
         isPrimaryStageGenerating={false}
         referenceImageWarning={null}
         onImageResolutionChange={vi.fn()}
@@ -308,7 +305,6 @@ describe("ExpertEditPanelView interaction flow", () => {
         resolvePreviewUrlById={() => null}
         costCredits={2}
         isGenerateDisabled={false}
-        guardrailReason={null}
         isPrimaryStageGenerating={false}
         referenceImageWarning={null}
         onImageResolutionChange={vi.fn()}
@@ -355,7 +351,6 @@ describe("ExpertEditPanelView interaction flow", () => {
         resolvePreviewUrlById={() => null}
         costCredits={2}
         isGenerateDisabled={false}
-        guardrailReason={null}
         isPrimaryStageGenerating={false}
         referenceImageWarning={null}
         onImageResolutionChange={vi.fn()}
@@ -410,7 +405,6 @@ describe("ExpertEditPanelView interaction flow", () => {
         resolvePreviewUrlById={() => null}
         costCredits={2}
         isGenerateDisabled={false}
-        guardrailReason={null}
         isPrimaryStageGenerating={false}
         referenceImageWarning={null}
         onImageResolutionChange={vi.fn()}
@@ -479,7 +473,6 @@ describe("ExpertEditPanelView interaction flow", () => {
         resolvePreviewUrlById={() => null}
         costCredits={2}
         isGenerateDisabled={false}
-        guardrailReason={null}
         isPrimaryStageGenerating={false}
         referenceImageWarning={null}
         onImageResolutionChange={vi.fn()}
@@ -568,7 +561,6 @@ describe("ExpertEditPanelView interaction flow", () => {
         resolvePreviewUrlById={() => null}
         costCredits={2}
         isGenerateDisabled={false}
-        guardrailReason={null}
         isPrimaryStageGenerating={false}
         referenceImageWarning={null}
         onImageResolutionChange={vi.fn()}
@@ -627,7 +619,6 @@ describe("ExpertEditPanelView interaction flow", () => {
         resolvePreviewUrlById={() => null}
         costCredits={2}
         isGenerateDisabled={false}
-        guardrailReason={null}
         isPrimaryStageGenerating={false}
         referenceImageWarning={null}
         onImageResolutionChange={vi.fn()}
@@ -671,7 +662,6 @@ describe("ExpertEditPanelView interaction flow", () => {
         resolvePreviewUrlById={() => null}
         costCredits={2}
         isGenerateDisabled={false}
-        guardrailReason={null}
         isPrimaryStageGenerating={false}
         referenceImageWarning={null}
         onImageResolutionChange={vi.fn()}

@@ -90,6 +90,27 @@ describe("PresetsLibraryPanel", () => {
     expect(screen.getByDisplayValue("Use the custom prompt.")).toBeInTheDocument();
   });
 
+  it("opens the requested custom preset editor and consumes the request", () => {
+    const onSelectPreset = vi.fn();
+    const onOpenPresetEditRequestConsumed = vi.fn();
+
+    render(
+      <PresetsLibraryPanel
+        presets={PRESETS}
+        selectedPresetId={null}
+        openPresetEditRequest={{ presetId: "custom_2", requestId: 1 }}
+        onOpenPresetEditRequestConsumed={onOpenPresetEditRequestConsumed}
+        onSelectPreset={onSelectPreset}
+        onSavePresetOverride={vi.fn().mockResolvedValue(true)}
+      />
+    );
+
+    expect(onOpenPresetEditRequestConsumed).toHaveBeenCalledTimes(1);
+    expect(onSelectPreset).toHaveBeenCalledWith("custom_2");
+    expect(screen.getByRole("dialog", { name: "Edit Custom 2 preset" })).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Custom 2")).toBeInTheDocument();
+  });
+
   it("opens and closes delete confirmation modal from the tile delete action", () => {
     render(<PresetsLibraryPanel presets={PRESETS} selectedPresetId={null} />);
 

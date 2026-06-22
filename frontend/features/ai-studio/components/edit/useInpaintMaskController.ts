@@ -140,6 +140,12 @@ export const useInpaintMaskController = ({
   const maskMetaRef = React.useRef<Map<string, MaskLayerMeta>>(new Map());
   const pointerSessionRef = React.useRef<InpaintPointerSession>(createIdleInpaintPointerSession());
   const [surfaceSize, setSurfaceSize] = React.useState({ width: 0, height: 0 });
+  const effectiveSelectedLayerId = enabled ? selectedLayerId : null;
+  const effectiveSelectedLayerImageUrl = enabled ? selectedLayerImageUrl : null;
+  const effectiveLayerSources = React.useMemo(
+    () => (enabled ? layerSources : []),
+    [enabled, layerSources]
+  );
   const resolveViewportOffsets = React.useCallback(
     (interactionRect: DOMRect, currentTarget: HTMLDivElement) => {
       const resolvedViewportOffset = resolveViewportOffsetPixels?.(interactionRect, currentTarget);
@@ -171,7 +177,7 @@ export const useInpaintMaskController = ({
     animateOverlay,
     stopOverlayAnimation,
   } = useInpaintMaskOverlayRuntime({
-    selectedLayerId,
+    selectedLayerId: effectiveSelectedLayerId,
     paintMode,
     maskCanvasesRef,
     maskMetaRef,
@@ -194,9 +200,9 @@ export const useInpaintMaskController = ({
   } = useInpaintMaskDocumentRuntime({
     maskCanvasesRef,
     maskMetaRef,
-    selectedLayerId,
-    selectedLayerImageUrl,
-    layerSources,
+    selectedLayerId: effectiveSelectedLayerId,
+    selectedLayerImageUrl: effectiveSelectedLayerImageUrl,
+    layerSources: effectiveLayerSources,
     surfaceSize,
     renderOverlayNow,
     animateOverlay,
@@ -208,7 +214,7 @@ export const useInpaintMaskController = ({
   const { onPointerUp, onPointerCancel, onPointerLeave } = useInpaintMaskPointerSessionRuntime({
     pointerSessionRef,
     shouldApplyLassoSelection: paintMode === "lasso",
-    selectedLayerId,
+    selectedLayerId: effectiveSelectedLayerId,
     selectionMode,
     ensureMaskCanvasForLayer,
     queueLayerAnalysis,
@@ -223,8 +229,8 @@ export const useInpaintMaskController = ({
     pointerSessionRef,
     setPointerSession,
     enabled,
-    selectedLayerId,
-    selectedLayerImageUrl,
+    selectedLayerId: effectiveSelectedLayerId,
+    selectedLayerImageUrl: effectiveSelectedLayerImageUrl,
     paintMode,
     selectionMode,
     strokeSize,
@@ -263,19 +269,53 @@ export const useInpaintMaskController = ({
     return () => observer.disconnect();
   }, [surfaceRef]);
 
+  const captureEffectiveMaskSnapshot = React.useCallback(
+    (): InpaintMaskSnapshot => (enabled ? captureMaskSnapshot() : { layers: [] }),
+    [captureMaskSnapshot, enabled]
+  );
+
+  const restoreEffectiveMaskSnapshot = React.useCallback(
+    (snapshot: InpaintMaskSnapshot) => {
+      if (!enabled) return;
+      restoreMaskSnapshot(snapshot);
+    },
+    [enabled, restoreMaskSnapshot]
+  );
+
+  const clearEffectiveAllMasks = React.useCallback(() => {
+    if (!enabled) return;
+    clearAllMasks();
+  }, [clearAllMasks, enabled]);
+
+  const clearEffectiveSelectedLayerMask = React.useCallback(() => {
+    if (!enabled) return;
+    clearSelectedLayerMask();
+  }, [clearSelectedLayerMask, enabled]);
+
+  const invertEffectiveSelectedLayerMask = React.useCallback(() => {
+    if (!enabled) return;
+    invertSelectedLayerMask();
+  }, [enabled, invertSelectedLayerMask]);
+
+  const exportEffectiveSelectedLayerMaskBlob = React.useCallback(
+    (params: ExportMaskBlobParams) =>
+      enabled ? exportSelectedLayerMaskBlob(params) : Promise.resolve(null),
+    [enabled, exportSelectedLayerMaskBlob]
+  );
+
   return {
     overlayCanvasRef,
     modalOverlayCanvasRef,
     previewCanvasRef,
     modalPreviewCanvasRef,
-    hasSelectedLayerMask,
-    imageHasInteractiveMask,
-    captureMaskSnapshot,
-    restoreMaskSnapshot,
-    clearAllMasks,
-    clearSelectedLayerMask,
-    invertSelectedLayerMask,
-    exportSelectedLayerMaskBlob,
+    hasSelectedLayerMask: enabled && hasSelectedLayerMask,
+    imageHasInteractiveMask: enabled && imageHasInteractiveMask,
+    captureMaskSnapshot: captureEffectiveMaskSnapshot,
+    restoreMaskSnapshot: restoreEffectiveMaskSnapshot,
+    clearAllMasks: clearEffectiveAllMasks,
+    clearSelectedLayerMask: clearEffectiveSelectedLayerMask,
+    invertSelectedLayerMask: invertEffectiveSelectedLayerMask,
+    exportSelectedLayerMaskBlob: exportEffectiveSelectedLayerMaskBlob,
     onPointerDown,
     onPointerMove,
     onPointerUp,

@@ -358,6 +358,14 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
         source_mode: "voiceover",
       },
     });
+    expect(markAudioCompanionArtPendingBestEffortMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "elevenlabs-text-to-speech",
+        generationId: "gen-tts-1",
+        userId: "user-1",
+      })
+    );
+    expect(generateAudioCompanionArtNowBestEffortMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       output: {

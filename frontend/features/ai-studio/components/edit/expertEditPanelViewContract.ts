@@ -75,7 +75,6 @@ export type ExpertEditPanelViewProps = {
   costCredits?: number | null;
   removeBackgroundCostCredits?: number | null;
   isGenerateDisabled?: boolean;
-  guardrailReason?: string | null;
   isPrimaryStageGenerating?: boolean;
   referenceImageWarning?: string | null;
   onImageResolutionChange?: (value: string) => void;
@@ -107,7 +106,7 @@ export type ExpertEditPanelViewProps = {
   stylesCatalog?: readonly ExpertEditStyleTile[];
   sessionState?: ExpertEditSessionState | null;
   onSessionStateChange?: (state: ExpertEditSessionState) => void;
-  onOpenPresetsLibrary?: () => void;
+  onOpenPresetsLibrary?: (presetId?: ExpertEditPresetId | null) => void;
 };
 
 export {

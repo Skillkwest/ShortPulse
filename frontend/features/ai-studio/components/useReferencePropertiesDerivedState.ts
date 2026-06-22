@@ -104,23 +104,23 @@ export const useReferencePropertiesDerivedState = ({
     ? isMotionMode
       ? "Add Motion Inputs"
       : isSeedance2FamilyModel
-        ? "Add Seedance 2 Frames"
+        ? "Add Frames"
         : isKlingPatternMode
-          ? "Add Kling 3.0 References"
+          ? "Add Kling Frames"
           : isKeyframesMode
             ? "Add Reference Frames"
-            : "Add Reference Image"
+            : "Add Video Frame"
     : "Add Reference Images";
   const referenceStepSubtitle = isVideoVariant
     ? isMotionMode
       ? "Upload one character image and one motion video."
       : isSeedance2FamilyModel
-        ? "Upload optional start/end frames, then use linked assets or multimodal references for Seedance 2."
+        ? "Use Assets for linked characters, elements, or images; use Frames for start/end images."
         : isKlingPatternMode
-          ? "Upload start/end frames plus Kling controls."
+          ? "Upload start/end frames, then add assets when needed."
           : isKeyframesMode
             ? "Upload or drag and drop images from the reference grid."
-            : "Upload or drag and drop a single image for standard image-to-video."
+            : "Upload or drag and drop the first frame for standard image-to-video."
     : "Upload or drag and drop images from the reference grid.";
 
   const promptOrder = 3;
@@ -177,14 +177,14 @@ export const useReferencePropertiesDerivedState = ({
       elementCount ? `${elementCount} element${elementCount > 1 ? "s" : ""}` : "No elements"
     );
     if (modelId === KIE_KLING_30_MODEL_ID || isSeedance2FamilyModel) {
-      parts.push("Prompt tokens ready");
+      parts.push("Prompt links ready");
     } else {
       parts.push(voices ? `${voices} voice${voices > 1 ? "s" : ""}` : "No voices");
     }
     return parts.join(" · ");
   }, [isSeedance2FamilyModel, klingElements, klingVoiceIds, modelId]);
   const klingGuidanceSummary = isSeedance2FamilyModel
-    ? "Storyboard + linked refs"
+    ? "Storyboard + assets"
     : `CFG ${klingCfgScale.toFixed(2)} · ${klingNegativePrompt ? "Neg prompt set" : "Neg prompt empty"}`;
 
   const videoDurationValue = videoDurationSeconds ?? 6;

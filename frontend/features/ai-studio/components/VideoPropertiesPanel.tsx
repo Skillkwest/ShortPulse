@@ -2055,7 +2055,7 @@ export function VideoPropertiesPanel({
           <div className="video-properties-main-columns">
             <div className="video-properties-main-column video-properties-main-column--left">
               <div className="video-setup-row-shell">
-                <div className="video-panel-title">Select Video Mode</div>
+                <div className="video-panel-title">Video Setup</div>
                 <div className="video-setup-columns">
                   <div className="video-setup-column video-setup-column--single">
                     <div
@@ -2234,7 +2234,7 @@ export function VideoPropertiesPanel({
                           </div>
                           {shouldShowShotModeSelector ? (
                             <div className="video-shot-mode-section video-elements-shot-mode-section">
-                              <span className="input-label video-shot-mode-label">Shot mode</span>
+                              <span className="input-label video-shot-mode-label">Structure</span>
                               <div
                                 className={`video-shot-mode-tabs ${
                                   isSeedance2FamilyModelSelected
@@ -2242,7 +2242,7 @@ export function VideoPropertiesPanel({
                                     : ""
                                 }`.trim()}
                                 role="tablist"
-                                aria-label="Shot structure mode"
+                                aria-label="Video structure"
                                 onKeyDown={(event) =>
                                   handleSegmentedTabListKeyDown(
                                     event,
@@ -2287,13 +2287,11 @@ export function VideoPropertiesPanel({
                           ) : null}
                           {isSeedance2FamilyModelSelected ? (
                             <div className="video-shot-mode-section video-elements-shot-mode-section">
-                              <span className="input-label video-shot-mode-label">
-                                Reference mode
-                              </span>
+                              <span className="input-label video-shot-mode-label">Input type</span>
                               <div
                                 className="video-shot-mode-tabs video-shot-mode-tabs--compact"
                                 role="tablist"
-                                aria-label="Seedance reference mode"
+                                aria-label="Seedance input type"
                                 onKeyDown={(event) =>
                                   handleSegmentedTabListKeyDown(
                                     event,
@@ -2319,26 +2317,26 @@ export function VideoPropertiesPanel({
                                   role="tab"
                                   aria-selected={seedanceReferenceMode === "elements"}
                                   tabIndex={seedanceReferenceMode === "elements" ? 0 : -1}
-                                  aria-label="References"
+                                  aria-label="Assets"
                                   className={`video-shot-mode-tab ${
                                     seedanceReferenceMode === "elements" ? "is-active" : ""
                                   }`}
                                   onClick={() => handleSetSeedanceReferenceMode("elements")}
                                 >
-                                  References
+                                  Assets
                                 </button>
                                 <button
                                   type="button"
                                   role="tab"
                                   aria-selected={seedanceReferenceMode === "keyframes"}
                                   tabIndex={seedanceReferenceMode === "keyframes" ? 0 : -1}
-                                  aria-label="Keyframes"
+                                  aria-label="Frames"
                                   className={`video-shot-mode-tab ${
                                     seedanceReferenceMode === "keyframes" ? "is-active" : ""
                                   }`}
                                   onClick={() => handleSetSeedanceReferenceMode("keyframes")}
                                 >
-                                  Keyframes
+                                  Frames
                                 </button>
                               </div>
                             </div>
@@ -2354,9 +2352,7 @@ export function VideoPropertiesPanel({
                             <div className="video-kling-elements-picker-anchor">
                               {renderPromptTokenPicker(activePromptTargetRef.current)}
                               <div className="video-elements-card-title video-elements-card-title--sub">
-                                {isSeedance2FamilyModelSelected
-                                  ? "Add Characters/Elements/Images"
-                                  : "Add Characters/Elements"}
+                                Add Assets
                               </div>
                               <div
                                 className="video-elements-placeholder-grid"
@@ -2606,7 +2602,11 @@ export function VideoPropertiesPanel({
             </div>
             <div className="video-properties-main-column video-properties-main-column--right">
               <div
-                className={`video-direction-column-shell ${hasAnyPromptText ? "has-active-prompt-content" : ""} ${isCustomMultiShotWorkspace ? "is-custom-multishot-workspace" : ""}`}
+                className={`video-direction-column-shell ${
+                  hasAnyPromptText ? "has-active-prompt-content" : ""
+                } ${
+                  !hasAnyPromptText && !isCustomMultiShotWorkspace ? "is-empty-prompt" : ""
+                } ${isCustomMultiShotWorkspace ? "is-custom-multishot-workspace" : ""}`}
               >
                 {!hasAnyPromptText && !isCustomMultiShotWorkspace ? (
                   <p className="video-panel-hero-text">How will you direct this scene?</p>
@@ -2788,10 +2788,10 @@ export function VideoPropertiesPanel({
                   </div>
                   {shouldShowKlingReferenceImageWarning ? (
                     <AppMessage
-                      className="video-inline-warning-bubble"
+                      className="video-inline-warning-bubble video-inline-warning-bubble--requirement"
                       tone="warning"
                       mode="inline"
-                      message="Reference image required for generation"
+                      message="Add a start frame to generate with Kling"
                       role="status"
                       ariaLive="polite"
                     />

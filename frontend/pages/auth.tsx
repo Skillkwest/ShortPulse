@@ -290,7 +290,7 @@ export default function AuthPage() {
           return;
         }
         if (!normalizedEmail) {
-          setError("Enter the email you want to use, then continue with Google.");
+          setError("Enter the Google account email you chose on pricing first.");
           setOauthLoading(false);
           return;
         }
@@ -357,8 +357,8 @@ export default function AuthPage() {
               </h1>
               <p className={authClass("auth-subtitle")}>
                 {activeMode === "signin"
-                  ? "Use your email and password to continue."
-                  : "Create an account to get started."}
+                  ? "Use your email, password, or Google account to continue."
+                  : "Use the same email you chose on pricing to create your account."}
               </p>
             </div>
 
@@ -408,7 +408,7 @@ export default function AuthPage() {
                   disabled={loading || oauthLoading}
                 >
                   <GoogleIcon />
-                  {oauthLoading ? "Opening Google..." : "Continue with Google"}
+                  {oauthLoading ? "Opening Google..." : "Sign in with Google"}
                 </button>
                 <div className={authClass("auth-choice-divider")}>
                   <span>or sign in with email</span>
@@ -418,8 +418,13 @@ export default function AuthPage() {
 
             <div className={authClass("auth-field-stack")}>
               <label className={authClass("auth-label")} htmlFor="email">
-                Email
+                {activeMode === "signup" ? "Account email" : "Email"}
               </label>
+              {activeMode === "signup" ? (
+                <p className={authClass("auth-field-hint")}>
+                  For Google signup, choose the Google account with this email.
+                </p>
+              ) : null}
               <div className={authClass("auth-input")}>
                 <EnvelopeSimple size={18} weight="bold" />
                 <input
@@ -448,7 +453,7 @@ export default function AuthPage() {
                   {oauthLoading ? "Opening Google..." : "Sign up with Google"}
                 </button>
                 <div className={authClass("auth-choice-divider")}>
-                  <span>or create a password</span>
+                  <span>or create a password for this email</span>
                 </div>
               </>
             ) : null}

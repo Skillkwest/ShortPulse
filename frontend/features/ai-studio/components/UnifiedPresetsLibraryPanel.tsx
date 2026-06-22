@@ -24,6 +24,8 @@ type PresetsLibraryViewFilter = "all" | "pulses" | "prompt-presets";
 export type UnifiedPresetsLibraryPanelProps = {
   promptPresets: readonly ExpertEditResolvedPreset[];
   selectedPromptPresetId: ExpertEditPresetId | null;
+  openPromptPresetEditRequest?: { presetId: ExpertEditPresetId; requestId: number } | null;
+  onOpenPromptPresetEditRequestConsumed?: () => void;
   onOpenCreateWorkflow?: () => void;
   onOpenEditWorkflow?: () => void;
   onSelectPromptPreset?: (presetId: ExpertEditPresetId | null) => void;
@@ -50,6 +52,8 @@ const FILTER_OPTIONS: ReadonlyArray<{
 export function UnifiedPresetsLibraryPanel({
   promptPresets,
   selectedPromptPresetId,
+  openPromptPresetEditRequest,
+  onOpenPromptPresetEditRequestConsumed,
   onOpenCreateWorkflow,
   onOpenEditWorkflow,
   onSelectPromptPreset,
@@ -62,6 +66,8 @@ export function UnifiedPresetsLibraryPanel({
       <UnifiedPresetsLibraryPanelContent
         promptPresets={promptPresets}
         selectedPromptPresetId={selectedPromptPresetId}
+        openPromptPresetEditRequest={openPromptPresetEditRequest}
+        onOpenPromptPresetEditRequestConsumed={onOpenPromptPresetEditRequestConsumed}
         onOpenCreateWorkflow={onOpenCreateWorkflow}
         onOpenEditWorkflow={onOpenEditWorkflow}
         onSelectPromptPreset={onSelectPromptPreset}
@@ -76,6 +82,8 @@ export function UnifiedPresetsLibraryPanel({
 const UnifiedPresetsLibraryPanelContent = ({
   promptPresets,
   selectedPromptPresetId,
+  openPromptPresetEditRequest,
+  onOpenPromptPresetEditRequestConsumed,
   onOpenCreateWorkflow,
   onOpenEditWorkflow,
   onSelectPromptPreset,
@@ -97,6 +105,11 @@ const UnifiedPresetsLibraryPanelContent = ({
   const showPulses = viewFilter === "all" || viewFilter === "pulses";
   const showPromptPresets = viewFilter === "all" || viewFilter === "prompt-presets";
   const restoreDisabled = restoreSubmitting;
+
+  React.useEffect(() => {
+    if (!openPromptPresetEditRequest) return;
+    setViewFilter("prompt-presets");
+  }, [openPromptPresetEditRequest]);
 
   const handleRestoreBuiltIns = React.useCallback(async () => {
     if (restoreSubmitting) return;
@@ -238,6 +251,8 @@ const UnifiedPresetsLibraryPanelContent = ({
               <PromptPresetsLibraryPanel
                 presets={promptPresets}
                 selectedPresetId={selectedPromptPresetId}
+                openPresetEditRequest={openPromptPresetEditRequest}
+                onOpenPresetEditRequestConsumed={onOpenPromptPresetEditRequestConsumed}
                 onSelectPreset={onSelectPromptPreset}
                 onSavePresetOverride={onSavePromptPresetOverride}
                 saveError={promptSaveError}

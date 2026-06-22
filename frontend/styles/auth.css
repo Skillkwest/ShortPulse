@@ -71,6 +71,7 @@
 .auth-oauth-button,
 .auth-choice-divider,
 .auth-field-stack,
+.auth-field-hint,
 .auth-label-row,
 .auth-input,
 .auth-error,
@@ -250,6 +251,13 @@
   color: #e6edf5;
   font-size: 13px;
   font-weight: 650;
+}
+
+.auth-field-hint {
+  margin: -2px 0 0;
+  color: rgba(201, 205, 214, 0.62);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .auth-input {

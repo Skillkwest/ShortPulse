@@ -47,10 +47,6 @@ export const resolveInpaintPromptReferencePolicy = ({
   promptText: string;
   extraImageUrls: readonly (string | null)[];
 }): ResolvedInpaintPromptReferencePolicy => {
-  const analysis = analyzeExpertEditPromptTokens(promptText, extraImageUrls, {
-    allowSecondaryTokens: true,
-    maxSecondaryReferences: MAX_INPAINT_SECONDARY_REFERENCE_IMAGES,
-  });
   if (!isInpaintGenerationEnabled()) {
     return {
       modelId: INPAINT_FLUX_FILL_MODEL_ID,
@@ -60,6 +56,10 @@ export const resolveInpaintPromptReferencePolicy = ({
       maxSecondaryReferenceTokens: 0,
     };
   }
+  const analysis = analyzeExpertEditPromptTokens(promptText, extraImageUrls, {
+    allowSecondaryTokens: true,
+    maxSecondaryReferences: MAX_INPAINT_SECONDARY_REFERENCE_IMAGES,
+  });
   const usesReferenceModel =
     !analysis.hasInvalidTokens &&
     analysis.referencedSlotIndexes.length === MAX_INPAINT_SECONDARY_REFERENCE_IMAGES;

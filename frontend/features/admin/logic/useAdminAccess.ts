@@ -27,6 +27,13 @@ type CachedAdminAccessState = {
   accessVia: AdminAccessVia | null;
 };
 
+type AdminAccessViewState = Pick<
+  UseAdminAccessResult,
+  "status" | "isAdmin" | "accessVia" | "error"
+> & {
+  key: string;
+};
+
 let cachedAdminAccessStateByUserId = new Map<string, CachedAdminAccessState>();
 
 export const resetCachedAdminAccessStateForTests = (): void => {
@@ -64,6 +71,17 @@ const getInitialAdminAccessState = (
   };
 };
 
+const getAdminAccessStateKey = (enabled: boolean, userId: string | null | undefined) =>
+  enabled && userId ? userId : "disabled";
+
+const createAdminAccessViewState = (
+  enabled: boolean,
+  userId: string | null | undefined
+): AdminAccessViewState => ({
+  key: getAdminAccessStateKey(enabled, userId),
+  ...getInitialAdminAccessState(enabled, userId),
+});
+
 /**
  * Resolves admin access via a dedicated endpoint so pages do not gate on /api/admin/users.
  */
@@ -71,24 +89,19 @@ export const useAdminAccess = ({
   enabled,
   userId,
 }: UseAdminAccessOptions): UseAdminAccessResult => {
-  const initialState = getInitialAdminAccessState(enabled, userId);
-  const [status, setStatus] = useState<AdminAccessStatus>(initialState.status);
-  const [isAdmin, setIsAdmin] = useState(initialState.isAdmin);
-  const [accessVia, setAccessVia] = useState<AdminAccessVia | null>(initialState.accessVia);
-  const [error, setError] = useState<string | null>(initialState.error);
+  const stateKey = getAdminAccessStateKey(enabled, userId);
+  const [adminAccessState, setAdminAccessState] = useState<AdminAccessViewState>(() =>
+    createAdminAccessViewState(enabled, userId)
+  );
   const [refreshTick, setRefreshTick] = useState(0);
+  const visibleAdminAccessState =
+    adminAccessState.key === stateKey
+      ? adminAccessState
+      : createAdminAccessViewState(enabled, userId);
 
   const refresh = useCallback(() => {
     setRefreshTick((current) => current + 1);
   }, []);
-
-  useEffect(() => {
-    const nextState = getInitialAdminAccessState(enabled, userId);
-    setStatus(nextState.status);
-    setIsAdmin(nextState.isAdmin);
-    setAccessVia(nextState.accessVia);
-    setError(nextState.error);
-  }, [enabled, userId]);
 
   useEffect(() => {
     if (!enabled || !userId) {
@@ -101,9 +114,19 @@ export const useAdminAccess = ({
 
     const run = async () => {
       if (!cachedAdminAccessState) {
-        setStatus("checking");
+        setAdminAccessState((current) => ({
+          ...current,
+          key: stateKey,
+          status: "checking",
+          isAdmin: false,
+          accessVia: null,
+        }));
       }
-      setError(null);
+      setAdminAccessState((current) => ({
+        ...current,
+        key: stateKey,
+        error: null,
+      }));
 
       try {
         const response = await fetchWithAuth("/api/admin/access", {
@@ -122,33 +145,40 @@ export const useAdminAccess = ({
             isAdmin: false,
             accessVia: "none",
           });
-          setStatus("denied");
-          setIsAdmin(false);
-          setAccessVia("none");
-          setError(null);
+          setAdminAccessState({
+            key: stateKey,
+            status: "denied",
+            isAdmin: false,
+            accessVia: "none",
+            error: null,
+          });
           return;
         }
 
         if (!response.ok) {
           if (hadGrantedCache) {
-            setStatus("granted");
-            setIsAdmin(true);
-            setAccessVia(cachedAdminAccessState?.accessVia ?? "role");
-            setError(
-              payload && "error" in payload
-                ? (payload.error ?? "Failed to verify access.")
-                : "Failed to verify access."
-            );
+            setAdminAccessState({
+              key: stateKey,
+              status: "granted",
+              isAdmin: true,
+              accessVia: cachedAdminAccessState?.accessVia ?? "role",
+              error:
+                payload && "error" in payload
+                  ? (payload.error ?? "Failed to verify access.")
+                  : "Failed to verify access.",
+            });
             return;
           }
-          setStatus("error");
-          setIsAdmin(false);
-          setAccessVia(null);
-          setError(
-            payload && "error" in payload
-              ? (payload.error ?? "Failed to verify access.")
-              : "Failed to verify access."
-          );
+          setAdminAccessState({
+            key: stateKey,
+            status: "error",
+            isAdmin: false,
+            accessVia: null,
+            error:
+              payload && "error" in payload
+                ? (payload.error ?? "Failed to verify access.")
+                : "Failed to verify access.",
+          });
           return;
         }
 
@@ -158,23 +188,32 @@ export const useAdminAccess = ({
           isAdmin: adminAccess.isAdmin,
           accessVia: adminAccess.accessVia,
         });
-        setStatus(adminAccess.isAdmin ? "granted" : "denied");
-        setIsAdmin(adminAccess.isAdmin);
-        setAccessVia(adminAccess.accessVia);
-        setError(null);
+        setAdminAccessState({
+          key: stateKey,
+          status: adminAccess.isAdmin ? "granted" : "denied",
+          isAdmin: adminAccess.isAdmin,
+          accessVia: adminAccess.accessVia,
+          error: null,
+        });
       } catch (accessError) {
         if (cancelled) return;
         if (hadGrantedCache) {
-          setStatus("granted");
-          setIsAdmin(true);
-          setAccessVia(cachedAdminAccessState?.accessVia ?? "role");
-          setError(accessError instanceof Error ? accessError.message : "Failed to verify access.");
+          setAdminAccessState({
+            key: stateKey,
+            status: "granted",
+            isAdmin: true,
+            accessVia: cachedAdminAccessState?.accessVia ?? "role",
+            error: accessError instanceof Error ? accessError.message : "Failed to verify access.",
+          });
           return;
         }
-        setStatus("error");
-        setIsAdmin(false);
-        setAccessVia(null);
-        setError(accessError instanceof Error ? accessError.message : "Failed to verify access.");
+        setAdminAccessState({
+          key: stateKey,
+          status: "error",
+          isAdmin: false,
+          accessVia: null,
+          error: accessError instanceof Error ? accessError.message : "Failed to verify access.",
+        });
       }
     };
 
@@ -183,14 +222,14 @@ export const useAdminAccess = ({
     return () => {
       cancelled = true;
     };
-  }, [enabled, refreshTick, userId]);
+  }, [enabled, refreshTick, stateKey, userId]);
 
   return {
-    status: enabled && userId ? status : "idle",
-    isLoading: enabled && userId ? status === "checking" : false,
-    isAdmin: enabled && userId ? isAdmin : false,
-    accessVia: enabled && userId ? accessVia : null,
-    error: enabled && userId ? error : null,
+    status: enabled && userId ? visibleAdminAccessState.status : "idle",
+    isLoading: enabled && userId ? visibleAdminAccessState.status === "checking" : false,
+    isAdmin: enabled && userId ? visibleAdminAccessState.isAdmin : false,
+    accessVia: enabled && userId ? visibleAdminAccessState.accessVia : null,
+    error: enabled && userId ? visibleAdminAccessState.error : null,
     refresh,
   };
 };

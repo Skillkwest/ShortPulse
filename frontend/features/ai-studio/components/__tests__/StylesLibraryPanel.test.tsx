@@ -1620,6 +1620,48 @@ describe("StylesLibraryPanel", () => {
     expect(onReorderStyle).toHaveBeenCalledWith("cinematic", "anime", "after");
   });
 
+  it("renders parent-provided order when shared reorder ownership is provided", () => {
+    const onReorderStyle = vi.fn();
+    const { rerender } = render(
+      <StylesLibraryPanel styles={createStyles()} onReorderStyle={onReorderStyle} />
+    );
+
+    rerender(
+      <StylesLibraryPanel styles={[...createStyles()].reverse()} onReorderStyle={onReorderStyle} />
+    );
+
+    const titles = screen
+      .getAllByRole("button", { name: /Style tile:/i })
+      .map((button) => button.textContent?.trim());
+    expect(titles[0]).toContain("None");
+    expect(titles[1]).toContain("Anime");
+    expect(titles[2]).toContain("Cinematic");
+  });
+
+  it("delegates reorder when dropping onto the visible tile button", () => {
+    const onReorderStyle = vi.fn();
+    render(<StylesLibraryPanel styles={createStyles()} onReorderStyle={onReorderStyle} />);
+
+    const sourceTile = screen
+      .getByRole("button", { name: "Style tile: Cinematic" })
+      .closest("article");
+    const targetButton = screen.getByRole("button", { name: "Style tile: Anime" });
+    expect(sourceTile).toBeTruthy();
+
+    const transfer = {
+      setData: vi.fn(),
+      getData: vi.fn(() => "cinematic"),
+      effectAllowed: "move",
+      dropEffect: "move",
+    } as unknown as DataTransfer;
+
+    fireEvent.dragStart(sourceTile as HTMLElement, { dataTransfer: transfer });
+    fireEvent.dragOver(targetButton, { dataTransfer: transfer });
+    fireEvent.drop(targetButton, { dataTransfer: transfer });
+
+    expect(onReorderStyle).toHaveBeenCalledWith("cinematic", "anime", "after");
+  });
+
   it("drops a dragged style into empty grid space as a move to the end", () => {
     render(<StylesLibraryPanel styles={createStyles()} />);
 

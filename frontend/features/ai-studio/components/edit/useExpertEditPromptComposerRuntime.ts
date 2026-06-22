@@ -1,6 +1,8 @@
 import React from "react";
 import type { AspectOption } from "../../types";
 import {
+  INPAINT_FLUX_FILL_MODEL_ID,
+  INPAINT_FLUX_FILL_MODEL_LABEL,
   MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID,
   MARKUP_NANO_BANANA_PRO_EDIT_MODEL_LABEL,
   resolveInpaintPromptReferencePolicy,
@@ -22,6 +24,14 @@ import type {
   ExpertEditPresetId,
   ExpertEditSystemPresetDefinition,
 } from "./expertEditPresets";
+
+const DISABLED_INPAINT_PROMPT_REFERENCE_POLICY = {
+  modelId: INPAINT_FLUX_FILL_MODEL_ID,
+  modelLabel: INPAINT_FLUX_FILL_MODEL_LABEL,
+  usesReferenceModel: false,
+  allowSecondaryReferenceTokens: false,
+  maxSecondaryReferenceTokens: 0,
+};
 
 type UseExpertEditPromptComposerRuntimeParams = {
   promptTextValue: string;
@@ -48,7 +58,6 @@ type UseExpertEditPromptComposerRuntimeParams = {
   populatedLayerCount: number;
   effectiveEditSubmitIntent: "standard" | "inpaint" | "markup";
   onEditSubmitIntentChange?: (intent: "standard" | "inpaint" | "markup") => void;
-  guardrailReason: string | null;
   layers: Array<{ id: string; imageUrl: string | null }>;
   customPresetOverrides: ExpertEditCustomPresetOverrides;
   systemPresetDefinitions?: readonly ExpertEditSystemPresetDefinition[] | null;
@@ -83,7 +92,6 @@ export const useExpertEditPromptComposerRuntime = ({
   populatedLayerCount,
   effectiveEditSubmitIntent,
   onEditSubmitIntentChange,
-  guardrailReason,
   layers,
   customPresetOverrides,
   systemPresetDefinitions,
@@ -92,11 +100,13 @@ export const useExpertEditPromptComposerRuntime = ({
 }: UseExpertEditPromptComposerRuntimeParams) => {
   const inpaintPromptReferencePolicy = React.useMemo(
     () =>
-      resolveInpaintPromptReferencePolicy({
-        promptText: promptTextValue,
-        extraImageUrls,
-      }),
-    [extraImageUrls, promptTextValue]
+      effectiveEditSubmitIntent === "inpaint"
+        ? resolveInpaintPromptReferencePolicy({
+            promptText: promptTextValue,
+            extraImageUrls,
+          })
+        : DISABLED_INPAINT_PROMPT_REFERENCE_POLICY,
+    [effectiveEditSubmitIntent, extraImageUrls, promptTextValue]
   );
 
   const effectiveSelectorModelId = isInpaintSubmitMode
@@ -125,6 +135,7 @@ export const useExpertEditPromptComposerRuntime = ({
     handleExtraDragLeave,
     acceptExtraCanvasTearOutPayload,
   } = useReferencePropertiesInteractions({
+    interactionScope: "image",
     referenceImageUrl: selectedLayerImageUrl,
     extraImageUrls,
     onPrimaryImageChange: () => {},

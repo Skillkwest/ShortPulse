@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import type React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UnifiedPresetsLibraryPanel } from "../UnifiedPresetsLibraryPanel";
+import type { ExpertEditResolvedPreset } from "../edit/expertEditPresets";
 
 const restoreDeletedBuiltInPresetIdsMock = vi.hoisted(() => vi.fn(async () => true));
 
@@ -71,5 +72,34 @@ describe("UnifiedPresetsLibraryPanel", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("routes a prompt preset edit request into the prompt presets editor", () => {
+    const promptPresets: ExpertEditResolvedPreset[] = [
+      {
+        presetId: "custom_1",
+        label: "Custom 1",
+        prompt: "Use the first custom prompt.",
+        isCustom: true,
+        hasOverride: false,
+      },
+    ];
+    const onSelectPromptPreset = vi.fn();
+    const onOpenPromptPresetEditRequestConsumed = vi.fn();
+
+    render(
+      <UnifiedPresetsLibraryPanel
+        promptPresets={promptPresets}
+        selectedPromptPresetId={null}
+        openPromptPresetEditRequest={{ presetId: "custom_1", requestId: 1 }}
+        onOpenPromptPresetEditRequestConsumed={onOpenPromptPresetEditRequestConsumed}
+        onSelectPromptPreset={onSelectPromptPreset}
+        onSavePromptPresetOverride={vi.fn().mockResolvedValue(true)}
+      />
+    );
+
+    expect(onOpenPromptPresetEditRequestConsumed).toHaveBeenCalledTimes(1);
+    expect(onSelectPromptPreset).toHaveBeenCalledWith("custom_1");
+    expect(screen.getByRole("dialog", { name: "Edit Custom 1 preset" })).toBeInTheDocument();
   });
 });

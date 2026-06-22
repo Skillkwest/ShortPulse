@@ -29,7 +29,6 @@ const createParams = (
   currentCostCredits: null,
   removeBackgroundCostCredits: null,
   isGenerateDisabled: false,
-  generationGuardrail: null,
   isPrimaryStageGenerating: false,
   referenceImageWarning: null,
   resolveOutputPreviewUrl: vi.fn(() => null),

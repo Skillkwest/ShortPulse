@@ -715,7 +715,7 @@ describe("VideoPropertiesPanel", () => {
   it("supports keyboard navigation on the Kling shot mode tabs", () => {
     render(<KlingModeStateHarness />);
 
-    const shotTabs = screen.getByRole("tablist", { name: "Shot structure mode" });
+    const shotTabs = screen.getByRole("tablist", { name: "Video structure" });
     expect(screen.getByTestId("kling-mode-state")).toHaveTextContent("custom");
 
     fireEvent.keyDown(shotTabs, { key: "ArrowLeft" });
@@ -723,10 +723,10 @@ describe("VideoPropertiesPanel", () => {
     expect(screen.getByTestId("kling-mode-state")).toHaveTextContent("single");
   });
 
-  it("supports keyboard navigation on Seedance reference mode tabs", () => {
+  it("supports keyboard navigation on Seedance input type tabs", () => {
     render(<SeedanceReferenceModeHarness />);
 
-    const referenceTabs = screen.getByRole("tablist", { name: "Seedance reference mode" });
+    const referenceTabs = screen.getByRole("tablist", { name: "Seedance input type" });
 
     fireEvent.keyDown(referenceTabs, { key: "End" });
     expect(screen.getByTestId("seedance-input-mode")).toHaveTextContent("text");
@@ -738,7 +738,7 @@ describe("VideoPropertiesPanel", () => {
   it("shows the Kling reference image warning when both standard frame slots are empty", () => {
     render(<VideoPropertiesPanel {...baseProps} />);
 
-    expect(screen.getByText("Reference image required for generation")).toBeInTheDocument();
+    expect(screen.getByText("Add a start frame to generate with Kling")).toBeInTheDocument();
   });
 
   it("toggles the shared Styles panel from the video generate actions", () => {
@@ -1595,7 +1595,7 @@ describe("VideoPropertiesPanel", () => {
       />
     );
 
-    expect(screen.getByText("Reference image required for generation")).toBeInTheDocument();
+    expect(screen.getByText("Add a start frame to generate with Kling")).toBeInTheDocument();
   });
 
   it("hides the Kling reference image warning once the first frame is populated", () => {
@@ -1608,7 +1608,7 @@ describe("VideoPropertiesPanel", () => {
       />
     );
 
-    expect(screen.queryByText("Reference image required for generation")).toBeNull();
+    expect(screen.queryByText("Add a start frame to generate with Kling")).toBeNull();
   });
 
   it("keeps the model picker in reference-video context when Standard mode has both frames populated", () => {
@@ -2042,7 +2042,7 @@ describe("VideoPropertiesPanel", () => {
     expect(screen.queryByText("Shot 2")).toBeNull();
   });
 
-  it("renders the compact Seedance reference toggle with References first", () => {
+  it("renders the compact Seedance input toggle with Assets first", () => {
     render(
       <VideoPropertiesPanel
         {...baseProps}
@@ -2052,17 +2052,11 @@ describe("VideoPropertiesPanel", () => {
     );
 
     const referenceModeTabs = within(
-      screen.getByRole("tablist", { name: "Seedance reference mode" })
+      screen.getByRole("tablist", { name: "Seedance input type" })
     ).getAllByRole("tab");
-    expect(referenceModeTabs.map((tab) => tab.textContent)).toEqual(["References", "Keyframes"]);
-    expect(screen.getByRole("tab", { name: "References" })).toHaveAttribute(
-      "aria-selected",
-      "true"
-    );
-    expect(screen.getByRole("tab", { name: "Keyframes" })).toHaveAttribute(
-      "aria-selected",
-      "false"
-    );
+    expect(referenceModeTabs.map((tab) => tab.textContent)).toEqual(["Assets", "Frames"]);
+    expect(screen.getByRole("tab", { name: "Assets" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Frames" })).toHaveAttribute("aria-selected", "false");
     expect(screen.queryByTestId("reference-media-step")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Element reference slots")).toBeInTheDocument();
   });
@@ -2323,22 +2317,19 @@ describe("VideoPropertiesPanel", () => {
     ).toBeInTheDocument();
   });
 
-  it("switches Seedance reference mode between keyframes and elements", () => {
+  it("switches Seedance input type between frames and assets", () => {
     render(<SeedanceReferenceModeHarness />);
 
-    fireEvent.click(screen.getByRole("tab", { name: "Keyframes" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Frames" }));
 
     expect(screen.getByTestId("seedance-input-mode")).toHaveTextContent("text");
     expect(screen.getByTestId("reference-media-step")).toBeInTheDocument();
     expect(screen.queryByLabelText("Element reference slots")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("tab", { name: "References" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Assets" }));
 
     expect(screen.getByTestId("seedance-input-mode")).toHaveTextContent("multimodal");
-    expect(screen.getByRole("tab", { name: "References" })).toHaveAttribute(
-      "aria-selected",
-      "true"
-    );
+    expect(screen.getByRole("tab", { name: "Assets" })).toHaveAttribute("aria-selected", "true");
     expect(screen.queryByTestId("reference-media-step")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Element reference slots")).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: /Add element to slot/i })).toHaveLength(6);
@@ -2353,7 +2344,7 @@ describe("VideoPropertiesPanel", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("tab", { name: "Keyframes" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Frames" }));
 
     expect(screen.getByTestId("seedance-input-mode")).toHaveTextContent("first-last");
   });

@@ -86,7 +86,6 @@ export const useAiStudioEditVideoPanelRuntimes = ({
     currentCostCredits,
     removeBackgroundCostCredits,
     isGenerateDisabled: effectiveIsGenerateDisabled,
-    generationGuardrail: effectiveGenerationGuardrail,
     isPrimaryStageGenerating: base.isPrimaryEditStageGenerating,
     referenceImageWarning,
     resolveOutputPreviewUrl: base.resolvePanelOutputPreviewUrl,

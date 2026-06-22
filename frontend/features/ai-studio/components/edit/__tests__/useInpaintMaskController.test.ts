@@ -100,8 +100,9 @@ const createMockCanvasContext = (canvas: HTMLCanvasElement): MockCanvasContext =
     (canvas as HTMLCanvasElement & { __buffer?: Uint8ClampedArray }).__buffer =
       new Uint8ClampedArray(imageData.data);
   },
-  getImageData: (_x, _y, width, height) =>
-    createMockImageData(width, height, getCanvasBuffer(canvas).slice(0, width * height * 4)),
+  getImageData: vi.fn((_x, _y, width, height) =>
+    createMockImageData(width, height, getCanvasBuffer(canvas).slice(0, width * height * 4))
+  ),
   clearRect: () => {
     getCanvasBuffer(canvas).fill(0);
   },
@@ -698,6 +699,40 @@ describe("useInpaintMaskController helpers", () => {
 });
 
 describe("useInpaintMaskController hook", () => {
+  it("keeps disabled inpaint runtime inert and avoids pixel reads", async () => {
+    const surfaceRef = createDropzoneRef();
+    const { result } = renderHook(() =>
+      useInpaintMaskController({
+        surfaceRef,
+        selectedLayerId: "layer-a",
+        selectedLayerImageUrl: "https://cdn.test/layer-a.png",
+        layerSources: [{ id: "layer-a", imageUrl: "https://cdn.test/layer-a.png" }],
+        enabled: false,
+        sceneScale: 1,
+        shouldApplyViewportTransform: false,
+        viewportOffsetXRatio: 0,
+        viewportOffsetYRatio: 0,
+        paintMode: "brush",
+        selectionMode: "select",
+        strokeSize: 24,
+      })
+    );
+
+    await act(async () => {
+      result.current.restoreMaskSnapshot(makeSnapshot());
+    });
+
+    expect(result.current.hasSelectedLayerMask).toBe(false);
+    expect(result.current.imageHasInteractiveMask).toBe(false);
+    expect(result.current.captureMaskSnapshot()).toEqual({ layers: [] });
+    expect(
+      await result.current.exportSelectedLayerMaskBlob({ targetWidth: 16, targetHeight: 16 })
+    ).toBeNull();
+    expect(
+      createdCanvasContexts.some((context) => vi.mocked(context.getImageData).mock.calls.length > 0)
+    ).toBe(false);
+  });
+
   it("restores a selected-layer snapshot and round-trips it through capture", async () => {
     const surfaceRef = createDropzoneRef();
     const { result } = renderHook(() =>

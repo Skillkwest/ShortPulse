@@ -29,6 +29,7 @@ Pre-launch production signup posture:
 
 - Keep `NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED` unset or set to anything other than `true` unless a paid-checkout-first signup launch has been explicitly approved.
 - In the Supabase production project, keep Auth public signup disabled (`disable_signup=true`) so direct calls to Supabase Auth or enabled OAuth providers cannot create non-Stripe accounts.
+- While signup is closed, public pricing must not advertise account creation. Logged-out pricing plan actions may send existing users to `/auth` in sign-in mode and preserve the selected pricing return path, but `mode=signup` links and "Sign up" CTAs belong only to the explicit paid-signup launch state.
 - Verify the provider-level state with:
   ```bash
   cd frontend

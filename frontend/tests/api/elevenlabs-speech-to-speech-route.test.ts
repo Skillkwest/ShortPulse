@@ -515,6 +515,14 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
         source_duration_seconds: 12,
       },
     });
+    expect(markAudioCompanionArtPendingBestEffortMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "elevenlabs-speech-to-speech",
+        generationId: "gen-audio-1",
+        userId: "user-1",
+      })
+    );
+    expect(generateAudioCompanionArtNowBestEffortMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       output: {

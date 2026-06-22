@@ -5,6 +5,7 @@
 const DEFAULT_OPENAI_API_BASE = "https://api.openai.com/v1";
 const DEFAULT_OPENAI_TRANSCRIPTION_MODEL = "gpt-4o-mini-transcribe";
 const MAX_TRANSCRIPTION_BYTES = 25 * 1024 * 1024;
+export const OPENAI_AUDIO_TRANSCRIPTION_TIMEOUT_MS = 8_000;
 
 type TranscribeAudioBufferInput = {
   audioBuffer: Buffer;
@@ -103,15 +104,30 @@ export const transcribeAudioBuffer = async ({
   );
   formData.append("response_format", "text");
 
-  const response = await fetch(`${resolveOpenAiApiBase()}/audio/transcriptions`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: formData,
-  });
-
-  const responseText = await response.text();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), OPENAI_AUDIO_TRANSCRIPTION_TIMEOUT_MS);
+  let response: Response;
+  let responseText: string;
+  try {
+    response = await fetch(`${resolveOpenAiApiBase()}/audio/transcriptions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: formData,
+      signal: controller.signal,
+    });
+    responseText = await response.text();
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error(
+        `OpenAI transcription timed out after ${OPENAI_AUDIO_TRANSCRIPTION_TIMEOUT_MS}ms.`
+      );
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
   if (!response.ok) {
     throw new Error(readOpenAiTranscriptionErrorMessage(responseText));
   }

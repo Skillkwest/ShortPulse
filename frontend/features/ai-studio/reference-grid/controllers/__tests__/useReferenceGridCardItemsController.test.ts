@@ -23,6 +23,7 @@ const resolvedMedia = (
   previewUrl: "https://provider.example.com/generated-preview.png",
   fullUrl: null,
   posterPreviewUrl: null,
+  companionArtUrl: null,
   playableMediaUrl: null,
   fallbackUrl: "https://provider.example.com/generated-preview.png",
   authorityTier: "preview-only",

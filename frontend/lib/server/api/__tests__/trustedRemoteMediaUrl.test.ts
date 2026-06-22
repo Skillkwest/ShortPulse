@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { assertTrustedRemoteMediaUrl, TrustedRemoteMediaUrlError } from "../trustedRemoteMediaUrl";
+import { assertTrustedRemoteMediaUrl } from "../trustedRemoteMediaUrl";
 
 const dnsLookupMock = vi.fn();
 

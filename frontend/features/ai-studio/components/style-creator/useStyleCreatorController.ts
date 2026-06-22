@@ -363,6 +363,7 @@ export const useStyleCreatorController = ({
   );
 
   const renderedStyles = React.useMemo(() => {
+    if (onReorderStyle) return styles;
     if (styles.length === 0) return styles;
     if (orderedStyleIds.length === 0) return styles;
     const byId = new Map(styles.map((style) => [style.id, style] as const));
@@ -370,7 +371,7 @@ export const useStyleCreatorController = ({
       .map((styleId) => byId.get(styleId))
       .filter((style): style is ExpertEditStyleTile => Boolean(style));
     return ordered.length === styles.length ? ordered : styles;
-  }, [styles, orderedStyleIds]);
+  }, [onReorderStyle, styles, orderedStyleIds]);
 
   const pendingEditPreviewImageUrl = pendingStyleEdit?.details.previewImageUrl?.trim() ?? "";
 
@@ -1168,6 +1169,10 @@ export const useStyleCreatorController = ({
   }, [closeDeleteModal, closeEditModal, pendingDeleteStyle, pendingStyleEdit]);
 
   React.useEffect(() => {
+    if (onReorderStyle) {
+      setOrderedStyleIds([]);
+      return;
+    }
     const styleIds = styles.map((style) => style.id);
     if (styleIds.length === 0) {
       setOrderedStyleIds([]);
@@ -1186,7 +1191,7 @@ export const useStyleCreatorController = ({
       }
       return next;
     });
-  }, [styles]);
+  }, [onReorderStyle, styles]);
 
   React.useEffect(() => {
     const clearStylesLibraryDropState = () => {

@@ -852,6 +852,10 @@ export const useAiStudioAudioGeneration = ({
       const promptText = request.text.trim();
       if (!promptText) return;
       const { displayedBilledCredits, pricingPolicyReady = true, ...providerRequest } = request;
+      if (getReferenceGridAvailableSlots(outputs) < 1) {
+        setUiError(REFERENCE_GRID_CAP_REACHED_MESSAGE);
+        return;
+      }
       if (!canSubmitKnownAudioCreditCost(resolveRequiredAudioCredits(displayedBilledCredits))) {
         return;
       }
@@ -942,6 +946,7 @@ export const useAiStudioAudioGeneration = ({
       insertOptimisticGenerationPlaceholder,
       canSubmitKnownAudioCreditCost,
       notifyGenerationFailure,
+      outputs,
       projectId,
       setUiError,
       updateOutputById,

@@ -967,6 +967,10 @@ export function AiStudioPageContent({
     [externalActiveVoiceChangerSourceVideoChange]
   );
   const [selectedPresetId, setSelectedPresetId] = React.useState<ExpertEditPresetId | null>(null);
+  const [promptPresetEditRequest, setPromptPresetEditRequest] = React.useState<{
+    presetId: ExpertEditPresetId;
+    requestId: number;
+  } | null>(null);
   const [uncontrolledExpertCreateMode, setUncontrolledExpertCreateMode] = React.useState<
     "standard" | "pulse"
   >("standard");
@@ -1310,17 +1314,34 @@ export function AiStudioPageContent({
     },
     [onSelectTool]
   );
+  const handleOpenPromptPresetsLibrary = React.useCallback(
+    (presetId?: ExpertEditPresetId | null) => {
+      const requestedPresetId = presetId ?? null;
+      if (requestedPresetId) {
+        setSelectedPresetId(requestedPresetId);
+        setPromptPresetEditRequest((previous) => ({
+          presetId: requestedPresetId,
+          requestId: (previous?.requestId ?? 0) + 1,
+        }));
+      }
+      handleToolSelection("presets");
+    },
+    [handleToolSelection]
+  );
+  const handlePromptPresetEditRequestConsumed = React.useCallback(() => {
+    setPromptPresetEditRequest(null);
+  }, []);
   const resolvedExpertEditProperties = React.useMemo(
     () => ({
       ...propertiesEditExpert,
       isStylesPanelOpen,
       onStylesPanelToggle: handleStylesPanelToggle,
-      onOpenPresetsLibrary: () => handleToolSelection("presets"),
+      onOpenPresetsLibrary: handleOpenPromptPresetsLibrary,
       selectedStyleId,
       stylesCatalog: visibleStylesCatalog,
     }),
     [
-      handleToolSelection,
+      handleOpenPromptPresetsLibrary,
       handleStylesPanelToggle,
       isStylesPanelOpen,
       propertiesEditExpert,
@@ -1339,7 +1360,7 @@ export function AiStudioPageContent({
             ...resolvedStandardCreateProperties,
             isStylesPanelOpen,
             onStylesPanelToggle: handleStylesPanelToggle,
-            onOpenPresetsLibrary: () => handleToolSelection("presets"),
+            onOpenPresetsLibrary: handleOpenPromptPresetsLibrary,
             selectedStyleId,
             stylesCatalog: visibleStylesCatalog,
             createModeToggle,
@@ -1347,7 +1368,7 @@ export function AiStudioPageContent({
         : null,
     [
       createModeToggle,
-      handleToolSelection,
+      handleOpenPromptPresetsLibrary,
       handleStylesPanelToggle,
       isStylesPanelOpen,
       resolvedStandardCreateProperties,
@@ -1376,11 +1397,11 @@ export function AiStudioPageContent({
       resolvedPulseCreateProperties
         ? {
             ...resolvedPulseCreateProperties,
-            onOpenPresetsLibrary: () => handleToolSelection("presets"),
+            onOpenPresetsLibrary: handleOpenPromptPresetsLibrary,
             createModeToggle,
           }
         : null,
-    [createModeToggle, handleToolSelection, resolvedPulseCreateProperties]
+    [createModeToggle, handleOpenPromptPresetsLibrary, resolvedPulseCreateProperties]
   );
   const resolvedReferenceGridPropsWithStylesPanel = React.useMemo(
     () => ({
@@ -1601,6 +1622,8 @@ export function AiStudioPageContent({
       <PresetsPanelLoader
         promptPresets={presetsLibraryCatalog}
         selectedPromptPresetId={selectedPresetId}
+        openPromptPresetEditRequest={promptPresetEditRequest}
+        onOpenPromptPresetEditRequestConsumed={handlePromptPresetEditRequestConsumed}
         onOpenCreateWorkflow={() => handleToolSelection("create")}
         onOpenEditWorkflow={() => handleToolSelection("edit")}
         onSelectPromptPreset={handleSelectedPresetIdChange}
@@ -1611,8 +1634,10 @@ export function AiStudioPageContent({
     [
       handleToolSelection,
       handlePresetOverrideSave,
+      handlePromptPresetEditRequestConsumed,
       handleSelectedPresetIdChange,
       handleRestorePromptBuiltIns,
+      promptPresetEditRequest,
       presetsLibraryCatalog,
       selectedPresetId,
     ]

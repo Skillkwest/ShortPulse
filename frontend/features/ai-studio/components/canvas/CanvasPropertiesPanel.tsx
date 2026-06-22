@@ -15,6 +15,8 @@ import { CanvasMediaActionOverlay } from "./CanvasMediaActionOverlay";
 const CANVAS_TEAR_OUT_GHOST_CURSOR_INSET_PX = 14;
 const CANVAS_VIEWPORT_CULL_OVERSCAN_PX = 480;
 const CANVAS_MEDIA_ACTION_MIN_VISIBLE_ZOOM = 0.5;
+const CANVAS_TEXT_SCROLL_TARGET_SELECTOR =
+  ".canvas-scene-item__text, .canvas-scene-item__text-editor, .canvas-scene-item__draft-input";
 
 type CanvasViewportSize = {
   width: number;
@@ -69,6 +71,21 @@ const isCanvasItemInsideViewport = ({
     itemBottom >= viewportTop &&
     itemTop <= viewportBottom
   );
+};
+
+const resolveCanvasTextScrollTarget = (target: EventTarget | null): HTMLElement | null => {
+  if (!(target instanceof Element)) return null;
+  const directTarget = target.closest(CANVAS_TEXT_SCROLL_TARGET_SELECTOR);
+  if (directTarget instanceof HTMLElement) return directTarget;
+  const textItem = target.closest(".canvas-scene-item--text");
+  const textScrollTarget = textItem?.querySelector(CANVAS_TEXT_SCROLL_TARGET_SELECTOR) ?? null;
+  return textScrollTarget instanceof HTMLElement ? textScrollTarget : null;
+};
+
+const shouldLetCanvasTextHandleWheel = (event: globalThis.WheelEvent): boolean => {
+  const textScrollTarget = resolveCanvasTextScrollTarget(event.target);
+  if (!textScrollTarget) return false;
+  return textScrollTarget.scrollHeight > textScrollTarget.clientHeight + 1;
 };
 
 const useResolvedCanvasPropertiesPanelProps = (
@@ -740,6 +757,7 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
     const viewportNode = viewportRef.current;
     if (!viewportNode) return;
     const handleNativeWheel = (event: globalThis.WheelEvent) => {
+      if (shouldLetCanvasTextHandleWheel(event)) return;
       setCanvasInteractionActive(true);
       onViewportWheelRef.current(event);
       releaseWheelInteractionAfterIdle();

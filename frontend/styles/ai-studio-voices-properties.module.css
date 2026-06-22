@@ -2056,15 +2056,13 @@
 
 .bootstrapStyleScope:global(.voices-properties-enhance-review-preview),
 .bootstrapStyleScope :global(.voices-properties-enhance-review-preview) {
-  display: -webkit-box;
-  max-height: 40px;
-  overflow: hidden;
+  max-height: 120px;
+  overflow-y: auto;
   color: rgba(201, 205, 214, 0.72);
   font-size: 12px;
   font-weight: 600;
   line-height: 1.45;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  white-space: pre-wrap;
 }
 
 .bootstrapStyleScope:global(.voices-properties-enhance-review-actions),

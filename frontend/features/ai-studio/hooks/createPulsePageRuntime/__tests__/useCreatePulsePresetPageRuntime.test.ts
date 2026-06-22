@@ -544,6 +544,90 @@ describe("useCreatePulsePresetPageRuntime", () => {
     );
   });
 
+  it("keeps a live built-in Pulse session through tool switches while the catalog reloads", async () => {
+    const clearPulseRuntime = vi.fn();
+    const clearPulsePrompt = vi.fn();
+    const liveBuiltInPreset = resolveCreatePulsePresetById(
+      "image",
+      [],
+      resolveCreatePulseBuiltInPresetDefinitions()
+    );
+    if (!liveBuiltInPreset) {
+      throw new Error("Expected built-in Pulse preset to resolve for test.");
+    }
+    useCreatePulseBuiltInCatalogMock.mockReturnValue({
+      builtInDefinitions: resolveCreatePulseBuiltInPresetDefinitions(),
+      loading: false,
+      error: "catalog temporarily unavailable",
+      source: "seed",
+      degraded: true,
+      isAuthoritative: false,
+      refresh: vi.fn(),
+    });
+    const { result, rerender } = renderHook(
+      (params: Parameters<typeof useCreatePulsePresetPageRuntime>[0]) =>
+        useCreatePulsePresetPageRuntime(params),
+      {
+        initialProps: createParams({
+          activeCreatePulsePresetId: null,
+          pulseSessionInstanceId: null,
+          clearPulseRuntime,
+          clearPulsePrompt,
+        }),
+      }
+    );
+
+    act(() => {
+      result.current.beginPulseActivation(liveBuiltInPreset);
+    });
+    rerender(
+      createParams({
+        activeCreatePulsePresetId: "image",
+        pulseSessionInstanceId: "pulse-session-image",
+        clearPulseRuntime,
+        clearPulsePrompt,
+      })
+    );
+    act(() => {
+      result.current.handleActiveCreatePulsePresetIdChangeForPage("image", {
+        forceNewSession: true,
+        sessionInstanceIdOverride: "pulse-session-image",
+        preserveWorkflowSession: true,
+      });
+    });
+    rerender(
+      createParams({
+        selectedTool: "presets",
+        activeCreatePulsePresetId: "image",
+        pulseSessionInstanceId: "pulse-session-image",
+        clearPulseRuntime,
+        clearPulsePrompt,
+      })
+    );
+    rerender(
+      createParams({
+        selectedTool: "create",
+        activeCreatePulsePresetId: "image",
+        pulseSessionInstanceId: "pulse-session-image",
+        clearPulseRuntime,
+        clearPulsePrompt,
+      })
+    );
+    await Promise.resolve();
+
+    expect(result.current.hasActivePulseSession).toBe(true);
+    expect(result.current.activeCreatePulsePresetSnapshot?.presetId).toBe("image");
+    expect(
+      result.current.pulseCreateAgentContextResolver({ lastAssistantMessage: null }).pulse
+    ).toMatchObject({
+      presetId: "image",
+      runtimeMode: "workflow_gpt",
+      source: "builtin",
+    });
+    expect(clearPulseRuntime).not.toHaveBeenCalled();
+    expect(clearPulsePrompt).not.toHaveBeenCalled();
+  });
+
   it("preserves Pulse prompt state when reselecting the current active Pulse", () => {
     const clearPulsePrompt = vi.fn();
     const handleActiveCreatePulsePresetIdChange = vi.fn();

@@ -37,7 +37,7 @@ export const resolveGenerateCreditConfidence = ({
         : `balance ${pluralizeCredits(formatCredits(normalizedBalance))}`;
     const copy = `${actionLabel}, cost unavailable, ${balanceCopy}`;
     return {
-      summary: "Cost unavailable",
+      summary: "Cost estimate pending",
       title: copy,
       status: "unknown",
     };

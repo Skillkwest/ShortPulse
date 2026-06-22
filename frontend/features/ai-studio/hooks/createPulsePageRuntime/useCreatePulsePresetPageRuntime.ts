@@ -202,13 +202,14 @@ export const useCreatePulsePresetPageRuntime = ({
       resolvedSavedPresets,
     ]
   );
-  const activeCreatePulsePresetSnapshot =
+  const hasLiveActiveCreatePulsePresetSnapshot =
     hasActivePulseSession &&
-    activeCreatePulsePresetSnapshotState?.presetId === activeCreatePulsePresetId
-      ? activeCreatePulsePresetSnapshotState
-      : restoredCreatePulsePresetSnapshot?.presetId === activeCreatePulsePresetId
-        ? restoredCreatePulsePresetSnapshot
-        : null;
+    activeCreatePulsePresetSnapshotState?.presetId === activeCreatePulsePresetId;
+  const activeCreatePulsePresetSnapshot = hasLiveActiveCreatePulsePresetSnapshot
+    ? activeCreatePulsePresetSnapshotState
+    : restoredCreatePulsePresetSnapshot?.presetId === activeCreatePulsePresetId
+      ? restoredCreatePulsePresetSnapshot
+      : null;
   const displayCreatePulsePresetSnapshot =
     activeCreatePulsePresetSnapshot ?? pendingCreatePulsePresetSnapshot;
   const displayCreatePulsePresetId =
@@ -250,12 +251,14 @@ export const useCreatePulsePresetPageRuntime = ({
   useEffect(() => {
     if (selectedTool !== "create" || expertCreateMode !== "pulse") return;
     if (!hasActivePulseSession || activeCreatePulsePresetSnapshot?.isBuiltIn !== true) return;
+    if (hasLiveActiveCreatePulsePresetSnapshot) return;
     if (!resolvedSavedPresetCatalogReady || resolvedBuiltInDefinitionsAreAuthoritative) return;
     requestFailedClosedPulseRuntimeClear();
   }, [
     activeCreatePulsePresetSnapshot,
     expertCreateMode,
     hasActivePulseSession,
+    hasLiveActiveCreatePulsePresetSnapshot,
     requestFailedClosedPulseRuntimeClear,
     resolvedBuiltInDefinitionsAreAuthoritative,
     resolvedSavedPresetCatalogReady,

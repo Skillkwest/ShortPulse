@@ -45,7 +45,7 @@ describe("resolveGenerateCreditConfidence", () => {
         formatCredits,
       })
     ).toEqual({
-      summary: "Cost unavailable",
+      summary: "Cost estimate pending",
       title: "Generate voiceover, cost unavailable, balance unavailable",
       status: "unknown",
     });

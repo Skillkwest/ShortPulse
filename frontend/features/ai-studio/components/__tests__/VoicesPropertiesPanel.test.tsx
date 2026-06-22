@@ -222,7 +222,7 @@ describe("VoicesPropertiesPanel", () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Save voice" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate" })).toBeInTheDocument();
-    expect(screen.getByText("Cost unavailable")).toBeInTheDocument();
+    expect(screen.getByText("Cost estimate pending")).toBeInTheDocument();
     expect(screen.getByText("Voice Mode")).toBeInTheDocument();
     expect(screen.getByRole("tablist", { name: "Voice mode" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Voice Clone" })).not.toBeInTheDocument();

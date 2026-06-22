@@ -408,11 +408,13 @@ async function runPanelAudit(browser, creds) {
 
     const folderNameButtons = page.locator(".media-library-panel-folder-chip-name");
     const folderButtonCount = await folderNameButtons.count();
-    if (folderButtonCount > 1) {
+    if (folderButtonCount > 0) {
       result.folderTransition.attempted = true;
-      await folderNameButtons.nth(1).click();
+      await folderNameButtons.first().click();
       await page.waitForTimeout(900);
-      await folderNameButtons.nth(0).click();
+      const allMediaButton = panel.getByRole("button", { name: /^all media/i }).first();
+      await allMediaButton.click({ timeout: 10_000 });
+      await panel.getByRole("tab", { name: /^Videos$/i }).waitFor({ timeout: 10_000 });
       await page.waitForTimeout(700);
       result.folderTransition.succeeded = true;
     }

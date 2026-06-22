@@ -23,6 +23,7 @@ Purpose: define the modular Style Creator workflow used by AI Studio Styles Libr
 | `frontend/features/ai-studio/hooks/useBuiltInStyleCatalog.ts`                       | Authenticated runtime loader for the global built-in Styles catalog from `/api/ai/built-in-styles`.                                       |
 | `frontend/pages/api/admin/agent-instructions/built-in-styles.ts`                    | Admin-only route that publishes the global built-in Styles catalog.                                                                       |
 | `frontend/pages/api/ai/built-in-styles.ts`                                          | Authenticated runtime route that returns the global built-in Styles catalog.                                                              |
+| `frontend/pages/api/ai/style-order.ts`                                              | Authenticated runtime route that reads/writes the caller's per-user Styles panel order.                                                   |
 | `frontend/pages/api/ai/extract-style.ts`                                            | Authenticated style extraction endpoint (`imageDataUrl` -> `stylePrompt`, `styleTitle`, optional `usage`).                                |
 | `frontend/pages/api/ai/generate-style-preview.ts`                                   | Authenticated FLUX 2 Klein style-preview endpoint (`stylePrompt` -> compact 512x512 JPEG data URL) for prompt-only manual style creation. |
 
@@ -41,7 +42,7 @@ Rules:
 1. Reads must normalize legacy rows down to the core fields only.
 2. Writes persist only the core style fields listed above.
 3. JSONB storage remains in `user_preferences.ai_studio_style_details_overrides` for user-created custom Styles only.
-4. Shared style order persists separately in `user_preferences.ai_studio_style_panel_ids`.
+4. Shared style order persists separately in `user_preferences.ai_studio_style_panel_ids` through `/api/ai/style-order`; the browser must not write this preference row directly.
 5. Global built-in Styles are sourced from `ai_studio_builtin_style_runtime`, edited only from `/admin/agent-instructions`, and ignored when a matching id appears in `ai_studio_style_details_overrides`.
 6. Admin drag reorder of built-in Styles persists the ordered global catalog array and becomes the default built-in Style sort order for all users.
 7. Custom-style delete must remove the source row from the details override map; built-in Style delete uses the per-user delete denylist for hide semantics without mutating the global built-in definition. Restoring built-in Styles clears that per-user denylist and clears the per-user style-order override so the current admin built-in order is restored while custom Styles remain intact.

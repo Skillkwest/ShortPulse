@@ -756,7 +756,7 @@ describe("ExpertEditPanelView", () => {
     const { container } = render(<ExpertEditPanelView {...baseProps} />);
 
     expect(screen.getByLabelText("Primary edit stage")).toBeInTheDocument();
-    expect(screen.getByText("Drag & drop an image from the Reference Grid")).toBeInTheDocument();
+    expect(screen.getByText("Add an image to start editing.")).toBeInTheDocument();
     expect(
       container.querySelector('[data-testid="edit-expert-primary-canvas-frame-stack"]')
     ).not.toBeNull();
@@ -1966,51 +1966,26 @@ describe("ExpertEditPanelView", () => {
     render(<ExpertEditPanelView {...baseProps} />);
 
     fireEvent.click(screen.getByRole("button", { name: /apply more presets preset/i }));
-    expect(screen.getByRole("button", { name: /edit custom 1 preset/i })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /edit selfie preset/i })).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /edit custom 1 preset in presets library/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /edit selfie preset in presets library/i })
+    ).not.toBeInTheDocument();
   });
 
-  it("saves custom preset edits and applies edited prompt text from panel click", () => {
-    const onPromptTextChange = vi.fn();
-    render(<ExpertEditPanelView {...baseProps} onPromptTextChange={onPromptTextChange} />);
+  it("opens the presets library from custom chip edit buttons", () => {
+    const onOpenPresetsLibrary = vi.fn();
+    render(<ExpertEditPanelView {...baseProps} onOpenPresetsLibrary={onOpenPresetsLibrary} />);
 
     fireEvent.click(screen.getByRole("button", { name: /apply more presets preset/i }));
-    fireEvent.click(screen.getByRole("button", { name: /edit custom 2 preset/i }));
-
-    expect(screen.getByRole("dialog", { name: /edit custom preset/i })).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText(/preset name/i), {
-      target: { value: "Pose Study" },
-    });
-    fireEvent.change(screen.getByLabelText(/preset prompt/i), {
-      target: { value: "Use the edited prompt from custom preset two." },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
-    expect(screen.queryByRole("dialog", { name: /edit custom preset/i })).not.toBeInTheDocument();
-
-    const panelList = screen.getByLabelText("Preset panel list");
-    const transfer = createPresetDragTransfer({ presetId: "custom_2", source: "surface" });
-    fireEvent.dragOver(panelList, { dataTransfer: transfer });
-    fireEvent.drop(panelList, { dataTransfer: transfer });
-
-    const panelPreset = screen.getByRole("button", { name: /apply pose study preset/i });
-    fireEvent.click(panelPreset);
-    expect(onPromptTextChange).toHaveBeenCalledWith(
-      "Use the edited prompt from custom preset two."
+    fireEvent.click(
+      screen.getByRole("button", { name: /edit custom 2 preset in presets library/i })
     );
-  });
 
-  it("closes custom editor on Escape without closing presets surface", () => {
-    render(<ExpertEditPanelView {...baseProps} />);
-
-    fireEvent.click(screen.getByRole("button", { name: /apply more presets preset/i }));
-    fireEvent.click(screen.getByRole("button", { name: /edit custom 1 preset/i }));
-    const surface = screen.getByRole("region", { name: /more presets/i });
-    expect(screen.getByRole("dialog", { name: /edit custom preset/i })).toBeInTheDocument();
-
-    fireEvent.keyDown(surface, { key: "Escape" });
-
+    expect(onOpenPresetsLibrary).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("dialog", { name: /edit custom preset/i })).not.toBeInTheDocument();
-    expect(screen.getByRole("region", { name: /more presets/i })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: /more presets/i })).not.toBeInTheDocument();
   });
 
   it("renders More Presets chips in a deterministic locked order", () => {
@@ -2296,7 +2271,8 @@ describe("ExpertEditPanelView", () => {
     render(<ExpertEditPanelView {...baseProps} onOpenPresetsLibrary={onOpenPresetsLibrary} />);
 
     fireEvent.click(screen.getByRole("button", { name: /apply more presets preset/i }));
-    fireEvent.click(screen.getByRole("button", { name: /presets library/i }));
+    const surface = screen.getByRole("region", { name: /more presets/i });
+    fireEvent.click(within(surface).getByRole("button", { name: /^presets library$/i }));
 
     expect(onOpenPresetsLibrary).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("region", { name: /more presets/i })).not.toBeInTheDocument();

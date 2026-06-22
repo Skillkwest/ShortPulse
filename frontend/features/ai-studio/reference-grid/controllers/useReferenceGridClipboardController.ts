@@ -125,7 +125,6 @@ export const useReferenceGridClipboardController = ({
       if (event.defaultPrevented) return;
       const panelNode = panelRef.current;
       if (!panelNode) return;
-      const pasteSurfaces = getReferencePasteSurfaces(panelNode);
 
       const targetElement = event.target instanceof HTMLElement ? event.target : null;
       const activeElement =
@@ -135,18 +134,9 @@ export const useReferenceGridClipboardController = ({
         Boolean(targetElement && curatedSectionNode?.contains(targetElement)) ||
         Boolean(activeElement && curatedSectionNode?.contains(activeElement));
       if (insideCuratedSection) return;
-      const targetInsideSurface = isNodeInsideAnySurface(targetElement, pasteSurfaces);
-      const activeInsideSurface = isNodeInsideAnySurface(activeElement, pasteSurfaces);
       const targetIsEditable = isEditableElement(targetElement);
       const activeIsEditable = isEditableElement(activeElement);
-      const pastePrimed = isPastePrimedRef.current;
-      const preserveEditablePaste =
-        (targetIsEditable || activeIsEditable) &&
-        !targetInsideSurface &&
-        !activeInsideSurface &&
-        !isPointerOverPanelRef.current &&
-        !pastePrimed;
-      if (preserveEditablePaste) return;
+      if (targetIsEditable || activeIsEditable) return;
 
       if (consumeClipboardData(event.clipboardData)) {
         event.preventDefault();
@@ -156,7 +146,7 @@ export const useReferenceGridClipboardController = ({
     return () => {
       document.removeEventListener("paste", handleDocumentPaste);
     };
-  }, [consumeClipboardData, curatedSectionRef, isPastePrimedRef, isPointerOverPanelRef, panelRef]);
+  }, [consumeClipboardData, curatedSectionRef, panelRef]);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -165,6 +155,11 @@ export const useReferenceGridClipboardController = ({
       if (!panelNode) return;
       const pasteSurfaces = getReferencePasteSurfaces(panelNode);
       const targetNode = event.target instanceof Node ? event.target : null;
+      const targetElement = event.target instanceof HTMLElement ? event.target : null;
+      if (isEditableElement(targetElement)) {
+        isPastePrimedRef.current = false;
+        return;
+      }
       const insidePasteSurface = isNodeInsideAnySurface(targetNode, pasteSurfaces);
       isPastePrimedRef.current = insidePasteSurface;
       if (

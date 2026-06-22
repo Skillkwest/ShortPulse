@@ -6,8 +6,6 @@ import {
   resolveExpertEditPresetLabelById,
   resolveExpertEditPresetPromptById,
   sortPresetIdsByCanonicalOrder,
-  type ExpertEditCustomPresetId,
-  type ExpertEditCustomPresetOverride,
   type ExpertEditCustomPresetOverrides,
   type ExpertEditPresetId,
   type ExpertEditSystemPresetDefinition,
@@ -25,9 +23,6 @@ type UseExpertEditPresetRuntimeParams = {
   updateSelectedPresetIds: (
     updater: (previous: ExpertEditPresetId[]) => ExpertEditPresetId[]
   ) => void;
-  updateCustomPresetOverrides: (
-    updater: (previous: ExpertEditCustomPresetOverrides) => ExpertEditCustomPresetOverrides
-  ) => void;
   handlePromptTextChange: (nextValue: string) => void;
   showStatusToast: (message: string, tone?: "info" | "warning") => void;
 };
@@ -36,7 +31,6 @@ export const useExpertEditPresetRuntime = ({
   customPresetOverrides,
   systemPresetDefinitions,
   updateSelectedPresetIds,
-  updateCustomPresetOverrides,
   handlePromptTextChange,
   showStatusToast,
 }: UseExpertEditPresetRuntimeParams) => {
@@ -80,19 +74,6 @@ export const useExpertEditPresetRuntime = ({
     [customPresetOverrides, handlePromptTextChange, systemPresetDefinitions]
   );
 
-  const handleCustomPresetSave = React.useCallback(
-    (presetId: ExpertEditCustomPresetId, override: ExpertEditCustomPresetOverride) => {
-      updateCustomPresetOverrides((previous) => ({
-        ...previous,
-        [presetId]: {
-          label: override.label,
-          prompt: override.prompt,
-        },
-      }));
-    },
-    [updateCustomPresetOverrides]
-  );
-
   const {
     isPresetPanelDropActive,
     isPresetsSurfaceDropActive,
@@ -123,7 +104,6 @@ export const useExpertEditPresetRuntime = ({
     isPresetsSurfaceDropActive,
     resetPresetDropState,
     handlePanelPresetApply,
-    handleCustomPresetSave,
     handleSurfacePresetDragStart,
     handlePanelPresetDragStart,
     handlePresetDragEnd,

@@ -3,10 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useStylesLibraryPanelIdsPreference } from "../useStylesLibraryPanelIdsPreference";
 
 const useResolvedProtectedSessionStateMock = vi.hoisted(() => vi.fn());
-const supabaseQueryClientMock = vi.hoisted(() => ({ from: vi.fn() }));
+const fetchWithAuthMock = vi.hoisted(() => vi.fn());
 
-vi.mock("../../../../lib/supabaseClient", () => ({
-  supabaseQueryClient: supabaseQueryClientMock,
+vi.mock("../../../../lib/authenticatedFetch", () => ({
+  fetchWithAuth: fetchWithAuthMock,
 }));
 
 vi.mock("../../../../lib/protectedRouteSessionContext", () => ({
@@ -14,10 +14,17 @@ vi.mock("../../../../lib/protectedRouteSessionContext", () => ({
     useResolvedProtectedSessionStateMock(...args),
 }));
 
+const jsonResponse = (body: unknown, init?: ResponseInit): Response =>
+  new Response(JSON.stringify(body), {
+    status: init?.status ?? 200,
+    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+    ...init,
+  });
+
 describe("useStylesLibraryPanelIdsPreference", () => {
   beforeEach(() => {
     useResolvedProtectedSessionStateMock.mockReset();
-    supabaseQueryClientMock.from = vi.fn();
+    fetchWithAuthMock.mockReset();
     window.localStorage.clear();
   });
 
@@ -31,17 +38,9 @@ describe("useStylesLibraryPanelIdsPreference", () => {
       session: { user: { id: "user-123" } } as never,
       user: { id: "user-123" } as never,
     });
-    supabaseQueryClientMock.from = vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          maybeSingle: vi.fn().mockResolvedValue({
-            data: { ai_studio_style_panel_ids: ["anime", "photorealistic", "anime", 42] },
-            error: null,
-          }),
-        })),
-      })),
-      upsert: vi.fn().mockResolvedValue({ error: null }),
-    }));
+    fetchWithAuthMock.mockResolvedValueOnce(
+      jsonResponse({ stylePanelIds: ["anime", "photorealistic", "anime", 42] })
+    );
 
     const { result } = renderHook(() => useStylesLibraryPanelIdsPreference());
 
@@ -49,26 +48,29 @@ describe("useStylesLibraryPanelIdsPreference", () => {
       expect(result.current.loading).toBe(false);
     });
 
+    expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/ai/style-order", {
+      method: "GET",
+      cache: "no-store",
+      headers: { Accept: "application/json" },
+    });
     expect(result.current.stylePanelIds).toEqual(["anime", "photorealistic"]);
     expect(result.current.syncState).toBe("ready");
     expect(result.current.error).toBeNull();
   });
 
-  it("persists reordered ids, removes deleted custom styles, and resets through Supabase", async () => {
-    const upsert = vi.fn().mockResolvedValue({ error: null });
+  it("persists reordered ids, removes deleted custom styles, and resets through the API route", async () => {
     useResolvedProtectedSessionStateMock.mockReturnValue({
       initialized: true,
       session: { user: { id: "user-123" } } as never,
       user: { id: "user-123" } as never,
     });
-    supabaseQueryClientMock.from = vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-        })),
-      })),
-      upsert,
-    }));
+    fetchWithAuthMock
+      .mockResolvedValueOnce(jsonResponse({ stylePanelIds: [] }))
+      .mockResolvedValueOnce(
+        jsonResponse({ stylePanelIds: ["cinematic", "anime", "style-library-custom-1"] })
+      )
+      .mockResolvedValueOnce(jsonResponse({ stylePanelIds: ["cinematic", "anime"] }))
+      .mockResolvedValueOnce(jsonResponse({ stylePanelIds: [] }));
 
     const { result } = renderHook(() => useStylesLibraryPanelIdsPreference());
 
@@ -82,46 +84,47 @@ describe("useStylesLibraryPanelIdsPreference", () => {
       await result.current.resetStylePanelIds();
     });
 
-    expect(upsert).toHaveBeenNthCalledWith(
-      1,
-      {
-        user_id: "user-123",
-        ai_studio_style_panel_ids: ["cinematic", "anime", "style-library-custom-1"],
-      },
-      { onConflict: "user_id" }
-    );
-    expect(upsert).toHaveBeenNthCalledWith(
+    expect(fetchWithAuthMock).toHaveBeenNthCalledWith(
       2,
-      { user_id: "user-123", ai_studio_style_panel_ids: ["cinematic", "anime"] },
-      { onConflict: "user_id" }
+      "/api/ai/style-order",
+      expect.objectContaining({
+        method: "PUT",
+        body: JSON.stringify({
+          stylePanelIds: ["cinematic", "anime", "style-library-custom-1"],
+        }),
+      })
     );
-    expect(upsert).toHaveBeenNthCalledWith(
+    expect(fetchWithAuthMock).toHaveBeenNthCalledWith(
       3,
-      { user_id: "user-123", ai_studio_style_panel_ids: [] },
-      { onConflict: "user_id" }
+      "/api/ai/style-order",
+      expect.objectContaining({
+        method: "PUT",
+        body: JSON.stringify({ stylePanelIds: ["cinematic", "anime"] }),
+      })
+    );
+    expect(fetchWithAuthMock).toHaveBeenNthCalledWith(
+      4,
+      "/api/ai/style-order",
+      expect.objectContaining({
+        method: "PUT",
+        body: JSON.stringify({ stylePanelIds: [] }),
+      })
     );
     expect(result.current.stylePanelIds).toEqual([]);
     expect(window.localStorage.getItem("shortpulse.ai_studio.style_panel_ids:user-123")).toBeNull();
   });
 
   it("rolls back optimistic order when canonical persistence fails", async () => {
-    const upsert = vi.fn().mockResolvedValue({ error: new Error("RLS rejected write") });
     useResolvedProtectedSessionStateMock.mockReturnValue({
       initialized: true,
       session: { user: { id: "user-123" } } as never,
       user: { id: "user-123" } as never,
     });
-    supabaseQueryClientMock.from = vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          maybeSingle: vi.fn().mockResolvedValue({
-            data: { ai_studio_style_panel_ids: ["cinematic", "anime"] },
-            error: null,
-          }),
-        })),
-      })),
-      upsert,
-    }));
+    fetchWithAuthMock
+      .mockResolvedValueOnce(jsonResponse({ stylePanelIds: ["cinematic", "anime"] }))
+      .mockResolvedValueOnce(
+        jsonResponse({ error: "Failed to save style order." }, { status: 500 })
+      );
 
     const { result } = renderHook(() => useStylesLibraryPanelIdsPreference());
 
@@ -135,14 +138,18 @@ describe("useStylesLibraryPanelIdsPreference", () => {
     });
 
     expect(saved).toBe(false);
-    expect(upsert).toHaveBeenCalledWith(
-      { user_id: "user-123", ai_studio_style_panel_ids: ["anime", "cinematic"] },
-      { onConflict: "user_id" }
+    expect(fetchWithAuthMock).toHaveBeenNthCalledWith(
+      2,
+      "/api/ai/style-order",
+      expect.objectContaining({
+        method: "PUT",
+        body: JSON.stringify({ stylePanelIds: ["anime", "cinematic"] }),
+      })
     );
     expect(result.current.stylePanelIds).toEqual(["cinematic", "anime"]);
     expect(window.localStorage.getItem("shortpulse.ai_studio.style_panel_ids:user-123")).toBeNull();
     expect(result.current.syncState).toBe("error");
-    expect(result.current.error).toBe("RLS rejected write");
+    expect(result.current.error).toBe("Failed to save style order.");
   });
 
   it("surfaces schema/load errors instead of falling back to legacy storage", async () => {
@@ -151,17 +158,9 @@ describe("useStylesLibraryPanelIdsPreference", () => {
       session: { user: { id: "user-123" } } as never,
       user: { id: "user-123" } as never,
     });
-    supabaseQueryClientMock.from = vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          maybeSingle: vi.fn().mockResolvedValue({
-            data: null,
-            error: { code: "PGRST204", message: "Column ai_studio_style_panel_ids missing" },
-          }),
-        })),
-      })),
-      upsert: vi.fn().mockResolvedValue({ error: null }),
-    }));
+    fetchWithAuthMock.mockResolvedValueOnce(
+      jsonResponse({ error: "Column ai_studio_style_panel_ids missing" }, { status: 500 })
+    );
 
     const { result } = renderHook(() => useStylesLibraryPanelIdsPreference());
 

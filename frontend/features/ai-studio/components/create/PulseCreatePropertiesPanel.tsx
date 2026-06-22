@@ -218,7 +218,7 @@ export function PulseCreatePropertiesPanel({
       onActivePulsePresetIdChange={onActivePulsePresetIdChange}
       onPulsePresetStart={onPulsePresetStart}
       onPulsePresetRestart={onPulsePresetRestart}
-      isPulseActivationBusy={agentIsSending}
+      isPulseActivationBusy={agentUiBusy || agentTransportSending || agentIsSending}
       onOpenPresetsLibrary={onOpenPresetsLibrary}
       pulsePreferenceRuntime={pulsePreferenceRuntime}
       pulseChatHistory={pulseChatHistory}

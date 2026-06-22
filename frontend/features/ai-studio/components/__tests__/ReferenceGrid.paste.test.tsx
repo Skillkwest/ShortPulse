@@ -598,6 +598,44 @@ describe("ReferenceGrid paste handling", () => {
     expect(onPasteMediaReference).not.toHaveBeenCalled();
   });
 
+  it("does not hijack paste when a right-rail editable element is focused", () => {
+    const onDropFiles = vi.fn();
+    const onPasteTextReference = vi.fn();
+    const onPasteMediaReference = vi.fn();
+    const clipboardData = {
+      files: makeFileList([]),
+      items: [],
+      getData: vi.fn((type: string) => (type === "text/plain" ? "canvas edit paste" : "")),
+    } as unknown as DataTransfer;
+
+    const { container } = render(
+      <div className="ai-shell-right">
+        <div className="reference-column">
+          <ReferenceGrid
+            {...baseProps}
+            onDropFiles={onDropFiles}
+            onPasteTextReference={onPasteTextReference}
+            onPasteMediaReference={onPasteMediaReference}
+          />
+        </div>
+        <textarea data-testid="canvas-text-editor" />
+      </div>
+    );
+
+    const panel = container.querySelector(".reference-canvas-panel");
+    expect(panel).toBeTruthy();
+    fireEvent.pointerDown(panel as HTMLElement, { button: 0 });
+
+    const canvasTextEditor = screen.getByTestId("canvas-text-editor");
+    fireEvent.pointerDown(canvasTextEditor, { button: 0 });
+    canvasTextEditor.focus();
+    fireEvent.paste(canvasTextEditor, { clipboardData });
+
+    expect(onPasteTextReference).not.toHaveBeenCalled();
+    expect(onDropFiles).not.toHaveBeenCalled();
+    expect(onPasteMediaReference).not.toHaveBeenCalled();
+  });
+
   it("primes paste after clicking anywhere in the reference panel", () => {
     const onDropFiles = vi.fn();
     const onPasteTextReference = vi.fn();

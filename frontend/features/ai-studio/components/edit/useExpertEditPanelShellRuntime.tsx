@@ -6,12 +6,7 @@ import React from "react";
 
 import type { EditSubmitIntent } from "../../logic/editSubmitIntent";
 import { ExpertEditLayersPanel } from "./ExpertEditLayersPanel";
-import type {
-  ExpertEditCustomPresetId,
-  ExpertEditCustomPresetOverride,
-  ExpertEditPresetId,
-  ExpertEditResolvedPreset,
-} from "./expertEditPresets";
+import type { ExpertEditPresetId, ExpertEditResolvedPreset } from "./expertEditPresets";
 import type { RailTool } from "./expertEditPanelViewContract";
 import { ExpertEditStageSidebar } from "./ExpertEditStageSidebar";
 import type { ExpertEditLayer } from "./expertEditLayerSessionUtils";
@@ -79,10 +74,6 @@ type UseExpertEditPanelShellRuntimeArgs = {
   handlePresetsSurfaceDragOver: (event: React.DragEvent<HTMLElement>) => void;
   handlePresetsSurfaceDragLeave: (event: React.DragEvent<HTMLElement>) => void;
   handlePresetsSurfaceDrop: (event: React.DragEvent<HTMLElement>) => void;
-  handleCustomPresetSave: (
-    presetId: ExpertEditCustomPresetId,
-    override: ExpertEditCustomPresetOverride
-  ) => void;
   isPresetsSurfaceDropActive: boolean;
   onOpenPresetsLibrary?: () => void;
   stageContextMenuState: {
@@ -159,7 +150,6 @@ export function useExpertEditPanelShellRuntime({
   handlePresetsSurfaceDragOver,
   handlePresetsSurfaceDragLeave,
   handlePresetsSurfaceDrop,
-  handleCustomPresetSave,
   isPresetsSurfaceDropActive,
   onOpenPresetsLibrary,
   stageContextMenuState,
@@ -242,7 +232,6 @@ export function useExpertEditPanelShellRuntime({
       handlePresetsSurfaceDragOver={handlePresetsSurfaceDragOver}
       handlePresetsSurfaceDragLeave={handlePresetsSurfaceDragLeave}
       handlePresetsSurfaceDrop={handlePresetsSurfaceDrop}
-      handleCustomPresetSave={handleCustomPresetSave}
       isPresetsSurfaceDropActive={isPresetsSurfaceDropActive}
       onOpenPresetsLibrary={onOpenPresetsLibrary}
     />

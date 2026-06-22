@@ -359,7 +359,7 @@
   flex: 1 1 auto;
   min-height: 0;
   margin: 0;
-  color: #f3ead8;
+  color: var(--color-ash);
   font-size: 14px;
   line-height: 1.55;
   white-space: pre-wrap;
@@ -376,7 +376,7 @@
   border-radius: 50%;
   border: 1px solid rgba(255, 255, 255, 0.35);
   background: rgba(255, 255, 255, 0.08);
-  color: #f3ead8;
+  color: var(--color-ash);
   display: grid;
   place-items: center;
   opacity: 0;
@@ -451,7 +451,7 @@
   padding: 0;
   border: none;
   background: transparent;
-  color: #f3ead8;
+  color: var(--color-ash);
   font: inherit;
   line-height: 1.55;
   resize: none;
@@ -465,7 +465,7 @@
 
 .canvas-scene-item__text-editor::placeholder,
 .canvas-scene-item__draft-input::placeholder {
-  color: rgba(243, 234, 216, 0.42);
+  color: var(--color-ash-50);
 }
 
 .canvas-scene-item__text-editor:focus-visible,

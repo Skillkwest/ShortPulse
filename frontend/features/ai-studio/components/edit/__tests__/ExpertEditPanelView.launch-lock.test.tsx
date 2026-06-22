@@ -56,8 +56,8 @@ describe("ExpertEditPanelView launch lock", () => {
     render(<ExpertEditPanelView {...baseProps} onExtraImageChange={onExtraImageChange} />);
 
     expect(
-      screen.getByText("Add references for specific faces, products, or style details.")
-    ).toBeInTheDocument();
+      screen.queryByText("Add references for specific faces, products, or style details.")
+    ).not.toBeInTheDocument();
     expect(screen.getByLabelText("Secondary edit image 1")).toBeInTheDocument();
     expect(screen.getByLabelText("Secondary edit image 2")).toBeInTheDocument();
     expect(screen.queryByLabelText("Secondary edit image 3")).not.toBeInTheDocument();

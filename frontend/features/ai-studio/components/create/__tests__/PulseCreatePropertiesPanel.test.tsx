@@ -6,6 +6,7 @@ import { PulseCreatePropertiesPanel } from "../PulseCreatePropertiesPanel";
 vi.mock("../PulseCreatePanelView", () => ({
   PulseCreatePanelView: ({
     promptStepProps,
+    isPulseActivationBusy,
   }: {
     promptStepProps: {
       pulseLoadingState?: { message?: string | null } | null;
@@ -15,11 +16,13 @@ vi.mock("../PulseCreatePanelView", () => ({
       composerLeadingContent?: React.ReactNode;
       composerMiddleContent?: React.ReactNode;
     };
+    isPulseActivationBusy?: boolean;
   }) => (
     <div data-testid="pulse-panel-view">
       <span data-testid="pulse-loading-message">
         {promptStepProps.pulseLoadingState?.message ?? ""}
       </span>
+      <span data-testid="pulse-activation-busy">{String(Boolean(isPulseActivationBusy))}</span>
       <span data-testid="pulse-hide-header">{String(Boolean(promptStepProps.hideHeader))}</span>
       <span data-testid="pulse-agent-input-collapse-on-blur">
         {String(Boolean(promptStepProps.agentInputCollapseOnBlur))}
@@ -141,6 +144,19 @@ describe("PulseCreatePropertiesPanel", () => {
     );
 
     expect(screen.getByTestId("pulse-loading-message")).toBeEmptyDOMElement();
+  });
+
+  it("locks Pulse activation while UI-side startup work is busy", () => {
+    render(
+      <PulseCreatePropertiesPanel
+        {...baseProps}
+        agentUiBusy
+        agentTransportSending={false}
+        agentIsSending={false}
+      />
+    );
+
+    expect(screen.getByTestId("pulse-activation-busy")).toHaveTextContent("true");
   });
 
   it("does not inject footer generate chrome into the Pulse composer", () => {

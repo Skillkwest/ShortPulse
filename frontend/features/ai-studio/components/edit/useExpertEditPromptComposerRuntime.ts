@@ -55,9 +55,6 @@ type UseExpertEditPromptComposerRuntimeParams = {
   updateSelectedPresetIds: (
     updater: (previous: ExpertEditPresetId[]) => ExpertEditPresetId[]
   ) => void;
-  updateCustomPresetOverrides: (
-    updater: (previous: ExpertEditCustomPresetOverrides) => ExpertEditCustomPresetOverrides
-  ) => void;
   showStatusToast: (message: string, tone?: "info" | "warning") => void;
 };
 
@@ -91,7 +88,6 @@ export const useExpertEditPromptComposerRuntime = ({
   customPresetOverrides,
   systemPresetDefinitions,
   updateSelectedPresetIds,
-  updateCustomPresetOverrides,
   showStatusToast,
 }: UseExpertEditPromptComposerRuntimeParams) => {
   const inpaintPromptReferencePolicy = React.useMemo(
@@ -244,7 +240,6 @@ export const useExpertEditPromptComposerRuntime = ({
     isPresetsSurfaceDropActive,
     resetPresetDropState,
     handlePanelPresetApply,
-    handleCustomPresetSave,
     handleSurfacePresetDragStart,
     handlePanelPresetDragStart,
     handlePresetDragEnd,
@@ -258,7 +253,6 @@ export const useExpertEditPromptComposerRuntime = ({
     customPresetOverrides,
     systemPresetDefinitions,
     updateSelectedPresetIds,
-    updateCustomPresetOverrides,
     handlePromptTextChange,
     showStatusToast,
   });
@@ -273,7 +267,6 @@ export const useExpertEditPromptComposerRuntime = ({
     extraDragActive,
     extraImageDisplayUrls,
     handleCompositeRegeneratePromptInsert,
-    handleCustomPresetSave,
     handleExtraDragEnter,
     handleExtraDragLeave,
     handleExtraDragOver,

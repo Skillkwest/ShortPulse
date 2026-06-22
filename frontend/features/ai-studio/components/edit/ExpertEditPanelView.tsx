@@ -221,7 +221,6 @@ export function ExpertEditPanelView({
     selectedPanelPresets,
     setIsMorePresetsSurfaceOpen,
     toggleMorePresetsSurface,
-    updateCustomPresetOverrides,
     updateSelectedPresetIds,
   } = useExpertEditGenerationPresetRuntime({
     isGenerationModeToggleEnabled,
@@ -439,7 +438,6 @@ export function ExpertEditPanelView({
     extraDragActive,
     extraImageDisplayUrls,
     handleCompositeRegeneratePromptInsert,
-    handleCustomPresetSave,
     handleExtraDragEnter,
     handleExtraDragLeave,
     handleExtraDragOver,
@@ -515,7 +513,6 @@ export function ExpertEditPanelView({
     customPresetOverrides,
     systemPresetDefinitions,
     updateSelectedPresetIds,
-    updateCustomPresetOverrides,
     showStatusToast,
   });
 
@@ -1467,7 +1464,6 @@ export function ExpertEditPanelView({
     handlePresetsSurfaceDragOver,
     handlePresetsSurfaceDragLeave,
     handlePresetsSurfaceDrop,
-    handleCustomPresetSave,
     isPresetsSurfaceDropActive,
     onOpenPresetsLibrary,
     stageContextMenuState,

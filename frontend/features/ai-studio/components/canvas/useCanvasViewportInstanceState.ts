@@ -698,7 +698,7 @@ export const useCanvasViewportInstanceState = ({
       if (item.kind !== "text") {
         event.stopPropagation();
         clearDraftTextEntry();
-        clearTextEditSession();
+        commitTextItemEdit();
         setItems((currentItems) => selectCanvasSceneItem(currentItems, id));
         onOpenMediaDetail?.(item, instanceId);
         return;
@@ -710,7 +710,7 @@ export const useCanvasViewportInstanceState = ({
     },
     [
       clearDraftTextEntry,
-      clearTextEditSession,
+      commitTextItemEdit,
       instanceId,
       items,
       onItemDoubleClickBase,
@@ -758,7 +758,7 @@ export const useCanvasViewportInstanceState = ({
         camera: cameraRef.current,
       });
       clearSelection();
-      clearTextEditSession();
+      commitTextItemEdit();
       setDraftOwnerInstanceId(instanceId);
       setTextEditOwnerInstanceId(null);
       setDraftTextEntry({
@@ -769,7 +769,7 @@ export const useCanvasViewportInstanceState = ({
     },
     [
       clearSelection,
-      clearTextEditSession,
+      commitTextItemEdit,
       instanceId,
       setDraftOwnerInstanceId,
       setDraftTextEntry,
@@ -815,7 +815,7 @@ export const useCanvasViewportInstanceState = ({
       if (shouldPan) {
         clearSelection();
         clearDraftTextEntry();
-        clearTextEditSession();
+        commitTextItemEdit();
         setMarqueeSelectionBox(null);
         event.currentTarget.focus();
         event.preventDefault();
@@ -852,7 +852,7 @@ export const useCanvasViewportInstanceState = ({
         camera: cameraRef.current,
       });
       clearDraftTextEntry();
-      clearTextEditSession();
+      commitTextItemEdit();
       setMarqueeSelectionBox(null);
       if (!event.shiftKey) {
         clearSelection();
@@ -880,7 +880,7 @@ export const useCanvasViewportInstanceState = ({
     [
       clearDraftTextEntry,
       clearSelection,
-      clearTextEditSession,
+      commitTextItemEdit,
       createDraftTextAtClientPoint,
       isSpacePanActiveRef,
       logCanvasGesture,
@@ -1346,7 +1346,7 @@ export const useCanvasViewportInstanceState = ({
       clearItemDragPreview();
       clearTearOutDragPreview();
       setMarqueeSelectionBox(null);
-      clearTextEditSession();
+      commitTextItemEdit();
       viewportRef.current?.focus();
       setPointerCaptureIfAvailable({
         target: event.currentTarget,
@@ -1395,10 +1395,10 @@ export const useCanvasViewportInstanceState = ({
       }
     },
     [
-      clearTextEditSession,
       clearItemDragPreview,
       clearTearOutDragPreview,
       canvasTearOutTargetRegistry,
+      commitTextItemEdit,
       isSpacePanActiveRef,
       getCanvasTearOutOutputById,
       setMarqueeSelectionBox,

@@ -7,12 +7,7 @@ import { ExpertEditLayerUtilityActions } from "./ExpertEditLayersPanel";
 import { ExpertEditModeRailPanel } from "./ExpertEditModeRailPanel";
 import { ExpertEditPresetToolbarCard } from "./ExpertEditStageControls";
 import { ExpertEditPresetsSurface } from "./ExpertEditPresetsSurface";
-import type {
-  ExpertEditResolvedPreset,
-  ExpertEditPresetId,
-  ExpertEditCustomPresetId,
-  ExpertEditCustomPresetOverride,
-} from "./expertEditPresets";
+import type { ExpertEditResolvedPreset, ExpertEditPresetId } from "./expertEditPresets";
 import { REMOVE_BACKGROUND_ACTION_ID, type RailTool } from "./expertEditPanelViewContract";
 import type { EditSubmitIntent } from "../../logic/editSubmitIntent";
 
@@ -62,10 +57,6 @@ type ExpertEditStageSidebarProps = {
   handlePresetsSurfaceDragOver: (event: React.DragEvent<HTMLElement>) => void;
   handlePresetsSurfaceDragLeave: (event: React.DragEvent<HTMLElement>) => void;
   handlePresetsSurfaceDrop: (event: React.DragEvent<HTMLElement>) => void;
-  handleCustomPresetSave: (
-    presetId: ExpertEditCustomPresetId,
-    override: ExpertEditCustomPresetOverride
-  ) => void;
   isPresetsSurfaceDropActive: boolean;
   onOpenPresetsLibrary?: () => void;
 };
@@ -110,7 +101,6 @@ export function ExpertEditStageSidebar({
   handlePresetsSurfaceDragOver,
   handlePresetsSurfaceDragLeave,
   handlePresetsSurfaceDrop,
-  handleCustomPresetSave,
   isPresetsSurfaceDropActive,
   onOpenPresetsLibrary,
 }: ExpertEditStageSidebarProps) {
@@ -208,7 +198,6 @@ export function ExpertEditStageSidebar({
         onSurfaceDragOver={handlePresetsSurfaceDragOver}
         onSurfaceDragLeave={handlePresetsSurfaceDragLeave}
         onSurfaceDrop={handlePresetsSurfaceDrop}
-        onCustomPresetSave={handleCustomPresetSave}
         isDropActive={isPresetsSurfaceDropActive}
         onOpenPresetsLibrary={onOpenPresetsLibrary}
       />

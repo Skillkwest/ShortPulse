@@ -3,7 +3,7 @@
  * Uses `user_preferences.ai_studio_style_panel_ids` as the canonical order authority.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { supabaseQueryClient } from "../../../lib/supabaseClient";
+import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { useResolvedProtectedSessionState } from "../../../lib/protectedRouteSessionContext";
 import {
   normalizeStylesLibraryOrderedIds,
@@ -22,6 +22,8 @@ type UseStylesLibraryPanelIdsPreferenceResult = {
   resetStylePanelIds: () => Promise<boolean>;
 };
 
+const STYLE_ORDER_ENDPOINT = "/api/ai/style-order";
+
 const resolveStyleOrderErrorMessage = (error: unknown, fallbackMessage: string): string => {
   if (error instanceof Error && error.message.trim()) return error.message;
   if (error && typeof error === "object") {
@@ -29,6 +31,26 @@ const resolveStyleOrderErrorMessage = (error: unknown, fallbackMessage: string):
     if (typeof message === "string" && message.trim()) return message;
   }
   return fallbackMessage;
+};
+
+const readStyleOrderResponseError = async (
+  response: Response,
+  fallbackMessage: string
+): Promise<string> => {
+  try {
+    const payload = (await response.json()) as { error?: unknown };
+    if (typeof payload.error === "string" && payload.error.trim()) {
+      return payload.error;
+    }
+  } catch {
+    // Keep the caller-facing fallback when the server response is not JSON.
+  }
+  return fallbackMessage;
+};
+
+const readStyleOrderPayload = async (response: Response): Promise<string[]> => {
+  const payload = (await response.json()) as { stylePanelIds?: unknown };
+  return normalizeStylesLibraryOrderedIds(payload.stylePanelIds);
 };
 
 /**
@@ -63,10 +85,6 @@ export const useStylesLibraryPanelIdsPreference = (): UseStylesLibraryPanelIdsPr
 
     (async () => {
       try {
-        if (!supabaseQueryClient) {
-          throw new Error("Style order persistence is unavailable.");
-        }
-
         if (!sessionUserId) {
           if (!active) return;
           updateValue([]);
@@ -78,18 +96,19 @@ export const useStylesLibraryPanelIdsPreference = (): UseStylesLibraryPanelIdsPr
         if (!active) return;
         setUserId(sessionUserId);
 
-        const { data: storedPreference, error: preferenceError } = await supabaseQueryClient
-          .from("user_preferences")
-          .select("ai_studio_style_panel_ids")
-          .eq("user_id", sessionUserId)
-          .maybeSingle();
-        if (preferenceError) throw preferenceError;
+        const response = await fetchWithAuth(STYLE_ORDER_ENDPOINT, {
+          method: "GET",
+          cache: "no-store",
+          headers: { Accept: "application/json" },
+        });
+        if (!response.ok) {
+          throw new Error(
+            await readStyleOrderResponseError(response, "Unable to load style order.")
+          );
+        }
         if (!active) return;
 
-        const remoteValue = normalizeStylesLibraryOrderedIds(
-          storedPreference?.ai_studio_style_panel_ids
-        );
-        updateValue(remoteValue);
+        updateValue(await readStyleOrderPayload(response));
 
         if (!active) return;
         setError(null);
@@ -125,7 +144,7 @@ export const useStylesLibraryPanelIdsPreference = (): UseStylesLibraryPanelIdsPr
       setSyncState("saving");
       setError(null);
 
-      if (!userId || !supabaseQueryClient) {
+      if (!userId) {
         if (requestVersion === writeVersionRef.current) {
           updateValue(previousValue);
           setError("Style order persistence is unavailable.");
@@ -135,14 +154,19 @@ export const useStylesLibraryPanelIdsPreference = (): UseStylesLibraryPanelIdsPr
       }
 
       try {
-        const { error: upsertError } = await supabaseQueryClient
-          .from("user_preferences")
-          .upsert(
-            { user_id: userId, ai_studio_style_panel_ids: normalizedNextValue },
-            { onConflict: "user_id" }
+        const response = await fetchWithAuth(STYLE_ORDER_ENDPOINT, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({ stylePanelIds: normalizedNextValue }),
+        });
+        if (!response.ok) {
+          throw new Error(
+            await readStyleOrderResponseError(response, "Unable to save style order.")
           );
-        if (upsertError) throw upsertError;
+        }
+        const savedValue = await readStyleOrderPayload(response);
         if (requestVersion !== writeVersionRef.current) return true;
+        updateValue(savedValue);
         setError(null);
         setSyncState("ready");
         return true;

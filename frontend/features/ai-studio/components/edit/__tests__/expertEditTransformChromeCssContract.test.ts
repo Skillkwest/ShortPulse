@@ -39,7 +39,36 @@ const expectRuleNotToClip = (css: string, selector: string) => {
   expect(body).not.toMatch(/mask(?:-image)?\s*:/);
 };
 
+const expectRuleNotToMove = (css: string, selector: string) => {
+  const body = readRuleBody(css, selector);
+  expect(body).not.toMatch(/(^|\n)\s*transform\s*:/);
+  expect(body).not.toMatch(/(^|\n)\s*transition\s*:[^;]*\btransform\b/);
+};
+
 describe("Expert Edit transform chrome CSS contract", () => {
+  it("keeps preset modal edit-button hover states motionless", () => {
+    const css = readCss();
+
+    expect(readRuleBody(css, ".edit-expert-presets-chip-item")).not.toContain("transition");
+    expectRuleNotToMove(css, ".edit-expert-presets-chip");
+    expectRuleNotToMove(
+      css,
+      ".edit-expert-presets-chip-item:hover,\n.edit-expert-presets-chip-item:focus-within"
+    );
+    expectRuleNotToMove(css, ".edit-expert-presets-chip-edit:hover");
+  });
+
+  it("orders the presets popup above stage overlay controls", () => {
+    const css = readCss();
+
+    expectRuleToContain(
+      css,
+      ".edit-expert-presets-surface",
+      "z-index: var(--ai-studio-z-modal-context-surface)"
+    );
+    expectRuleToContain(css, ".edit-expert-stage-overlay-ui", "z-index: 1005");
+  });
+
   it("clips render pixels and chrome to the stage shell without clipping chrome hosts", () => {
     const css = readCss();
 

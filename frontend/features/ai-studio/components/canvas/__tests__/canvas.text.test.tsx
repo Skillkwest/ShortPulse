@@ -218,6 +218,68 @@ describe("Canvas text behavior", () => {
     expect(screen.queryByTestId("canvas-text-edit-input")).not.toBeInTheDocument();
   });
 
+  it("saves an edited text reference on Shift-Enter", async () => {
+    render(<CanvasHarness />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/plain": "Original note",
+      }),
+      clientX: 260,
+      clientY: 170,
+    });
+
+    const item = await screen.findByTestId(/canvas-item-/);
+    fireEvent.doubleClick(item);
+
+    const input = screen.getByTestId("canvas-text-edit-input");
+    fireEvent.change(input, {
+      target: { value: "Shift saved note" },
+    });
+    fireEvent.keyDown(input, {
+      key: "Enter",
+      shiftKey: true,
+    });
+
+    expect(screen.getByText("Shift saved note")).toBeInTheDocument();
+    expect(screen.queryByText("Original note")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("canvas-text-edit-input")).not.toBeInTheDocument();
+  });
+
+  it("saves an edited text reference when clicking outside the text item", async () => {
+    render(<CanvasHarness />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/plain": "Original note",
+      }),
+      clientX: 260,
+      clientY: 170,
+    });
+
+    const item = await screen.findByTestId(/canvas-item-/);
+    fireEvent.doubleClick(item);
+
+    const input = screen.getByTestId("canvas-text-edit-input");
+    fireEvent.change(input, {
+      target: { value: "Outside click saved note" },
+    });
+    fireEvent.pointerDown(viewport, {
+      button: 0,
+      pointerId: 501,
+      clientX: 500,
+      clientY: 300,
+    });
+
+    expect(screen.getByText("Outside click saved note")).toBeInTheDocument();
+    expect(screen.queryByText("Original note")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("canvas-text-edit-input")).not.toBeInTheDocument();
+  });
+
   it("keeps Enter as a newline while editing a canvas text reference", async () => {
     render(<CanvasHarness />);
     const viewport = screen.getByTestId("canvas-viewport");

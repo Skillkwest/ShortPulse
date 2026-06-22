@@ -159,12 +159,17 @@ export const useCanvasViewportTextHandlers = ({
 
   const onTextItemEditKeyDown = useCallback(
     (event: KeyboardEvent<HTMLTextAreaElement>) => {
+      if (event.key === "Enter" && event.shiftKey) {
+        event.preventDefault();
+        commitTextItemEdit();
+        return;
+      }
       if (event.key === "Escape") {
         event.preventDefault();
         clearTextEditSession();
       }
     },
-    [clearTextEditSession]
+    [clearTextEditSession, commitTextItemEdit]
   );
 
   const onTextItemEditBlur = useCallback(() => {

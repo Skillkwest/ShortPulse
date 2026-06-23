@@ -5,16 +5,7 @@
 
 import { isCharacterScopedMediaUrl } from "../../mediaStoragePath";
 
-const ALLOWED_IMAGE_EXTENSIONS = new Set([
-  "jpg",
-  "jpeg",
-  "png",
-  "webp",
-  "gif",
-  "heic",
-  "heif",
-  "avif",
-]);
+const ALLOWED_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png"]);
 const ALLOWED_VIDEO_EXTENSIONS = new Set(["mp4", "mov"]);
 const MIN_SIGNED_URL_TTL_SECONDS = 120;
 const MEDIA_PROBE_TIMEOUT_MS = 5000;

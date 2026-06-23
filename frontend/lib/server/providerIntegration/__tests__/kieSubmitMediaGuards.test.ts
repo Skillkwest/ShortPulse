@@ -146,6 +146,23 @@ describe("kieSubmitMediaGuards", () => {
     expect(result.detail.reason).toBe("unsupported_extension");
   });
 
+  it("rejects raw WebP image URLs before Kling provider submit", async () => {
+    const result = await validateKieKlingSubmitMediaInputs({
+      payload: {
+        model: "kling-3.0/video",
+        input: {
+          image_urls: ["https://cdn.example.com/renders/shot-1.webp"],
+        },
+      },
+      signal: new AbortController().signal,
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.code).toBe("KIE_MEDIA_INPUT_INVALID");
+    expect(result.detail.reason).toBe("unsupported_extension");
+    expect(result.detail.expected_kind).toBe("image");
+  });
+
   it("rejects WebM motion-control videos before provider submit", async () => {
     const result = await validateKieKlingSubmitMediaInputs({
       payload: {

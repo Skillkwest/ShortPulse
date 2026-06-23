@@ -8,6 +8,10 @@ import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { enforceApiRateLimit } from "../../../lib/server/api/rateLimit";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
 import {
+  admitKieKlingReferenceImage,
+  KieKlingImageAdmissionError,
+} from "../../../lib/server/kieKlingImageAdmission";
+import {
   admitKieMotionControlCharacterImage,
   KieMotionControlMediaAdmissionError,
 } from "../../../lib/server/kieMotionControlMediaAdmission";
@@ -52,6 +56,7 @@ type UploadTransport = "url_upload" | "remote_stream_upload" | "binary_stream_up
 type KieUploadMediaKind = "image" | "video" | "audio";
 type KieUploadAdmissionProfile =
   | "kie_motion_control_character_image"
+  | "kie_kling_reference_image"
   | "kie_seedance_reference_image";
 
 type UploadDiagnostics = {
@@ -224,6 +229,7 @@ const resolveMediaKind = (value: unknown): KieUploadMediaKind | null => {
 const resolveAdmissionProfile = (value: unknown): KieUploadAdmissionProfile | null => {
   const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
   if (normalized === "kie_motion_control_character_image") return normalized;
+  if (normalized === "kie_kling_reference_image") return normalized;
   if (normalized === "kie_seedance_reference_image") return normalized;
   if (!normalized) return null;
   throw new KieUploadRequestError("admissionProfile is not supported.");
@@ -241,6 +247,7 @@ const assertAdmissionProfileAllowed = ({
   if (!admissionProfile) return;
   if (
     (admissionProfile === "kie_motion_control_character_image" ||
+      admissionProfile === "kie_kling_reference_image" ||
       admissionProfile === "kie_seedance_reference_image") &&
     mediaKind === "image" &&
     uploadPath === KIE_IMAGE_UPLOAD_PATH
@@ -308,6 +315,21 @@ const admitUploadBufferForProvider = async ({
     const admitted = await admitKieMotionControlCharacterImage({
       buffer: fileBuffer,
       filename: fileName ?? "motion-control-character",
+      mimeType: mimeType ?? "application/octet-stream",
+    });
+    return {
+      fileBuffer: admitted.buffer,
+      fileName:
+        admitted.filename ||
+        replaceFileExtension(fileName, admitted.mimeType === "image/png" ? "png" : "jpg"),
+      mimeType: admitted.mimeType,
+    };
+  }
+
+  if (admissionProfile === "kie_kling_reference_image") {
+    const admitted = await admitKieKlingReferenceImage({
+      buffer: fileBuffer,
+      filename: fileName ?? "kling-reference-image",
       mimeType: mimeType ?? "application/octet-stream",
     });
     return {
@@ -1137,6 +1159,7 @@ export default async function handler(
   } catch (error) {
     if (
       error instanceof KieMotionControlMediaAdmissionError ||
+      error instanceof KieKlingImageAdmissionError ||
       error instanceof KieSeedanceImageAdmissionError
     ) {
       return res.status(error.statusCode).json({

@@ -373,14 +373,7 @@ async function findMediaCardButton(page, filename, timeoutMs = 30_000, mediaKind
   }
 
   if (mediaKind === "video") {
-    const videoButton = page
-      .locator("button.media-library-panel-media-card-button", {
-        has: page.locator("video.media-thumb"),
-      })
-      .first();
-    if (await videoButton.isVisible({ timeout: Math.min(timeoutMs, 5_000) }).catch(() => false)) {
-      return videoButton;
-    }
+    throw new Error(`Video media card for ${filename} did not expose a target-specific label.`);
   }
 
   const fallbackButton = page.locator("button.media-library-panel-media-card-button").first();
@@ -481,15 +474,26 @@ async function verifyBrowseReady(page, filename, mediaKind = "image", timeoutMs 
   };
 }
 
-async function deleteFixture(page, filename, mediaKind = "image") {
-  await runBrowseReadyCheck(page, filename, mediaKind);
-  const mediaButton = await findMediaCardButton(page, filename, 20_000, mediaKind);
+async function deleteFixture(
+  page,
+  filename,
+  mediaKind = "image",
+  browseReadyTimeoutMs = 60_000,
+  deleteVerifyTimeoutMs = 30_000
+) {
+  await runBrowseReadyCheck(page, filename, mediaKind, browseReadyTimeoutMs);
+  const mediaButton = await findMediaCardButton(
+    page,
+    filename,
+    Math.min(20_000, browseReadyTimeoutMs),
+    mediaKind
+  );
   await mediaButton.hover().catch(() => {});
   const actionDeleted = await deleteFixtureFromVisibleAction(page, filename);
   if (!actionDeleted) {
     return { attempted: false, succeeded: false };
   }
-  await waitForMediaRowDeleted(page, filename);
+  await waitForMediaRowDeleted(page, filename, deleteVerifyTimeoutMs);
   return { attempted: true, succeeded: true };
 }
 
@@ -506,7 +510,10 @@ async function deleteFixtureFromVisibleAction(page, filename) {
     const mediaButtons = page.locator("button.media-library-panel-media-card-button");
     const mediaButtonCount = await mediaButtons.count().catch(() => 0);
     for (let index = 0; index < mediaButtonCount; index += 1) {
-      await mediaButtons.nth(index).hover().catch(() => {});
+      await mediaButtons
+        .nth(index)
+        .hover()
+        .catch(() => {});
       deleteButtonVisible = await deleteButton.isVisible().catch(() => false);
       if (deleteButtonVisible) break;
     }
@@ -526,7 +533,9 @@ async function deleteFixtureFromVisibleAction(page, filename) {
 async function waitForMediaRowDeleted(page, filename, timeoutMs = 30_000) {
   const token = await readAccessToken(page);
   if (!token) {
-    if (filename.endsWith(".mp4")) return;
+    if (filename.endsWith(".mp4")) {
+      throw new Error(`Could not verify deleted video media without an access token: ${filename}`);
+    }
     await page.waitForFunction(
       (targetName) => !document.querySelector(`img[alt="${targetName}"]`),
       filename,
@@ -536,9 +545,15 @@ async function waitForMediaRowDeleted(page, filename, timeoutMs = 30_000) {
   }
 
   const startedAt = Date.now();
+  let absentReadCount = 0;
   while (Date.now() - startedAt < timeoutMs) {
     const rows = await listAuditMediaRows({ token, filename });
-    if (!rows.some((row) => row?.filename === filename)) return;
+    if (!rows.some((row) => row?.filename === filename)) {
+      absentReadCount += 1;
+      if (absentReadCount >= 3) return;
+    } else {
+      absentReadCount = 0;
+    }
     await page.waitForTimeout(750);
   }
   throw new Error(`Deleted audit media still appeared in media list: ${filename}`);
@@ -550,6 +565,68 @@ async function cleanupAuditOwnedImageFixtures(page) {
     deleted: [],
     failed: [],
   };
+  const token = await readAccessToken(page);
+  if (token) {
+    const rows = await listAuditMediaRows({
+      token,
+      filename: AUDIT_IMAGE_FILENAME_PREFIX,
+      mediaKind: "images",
+    }).catch(() => []);
+    const filenames = Array.from(
+      new Set(
+        rows
+          .map((row) => row?.filename)
+          .filter(
+            (filename) =>
+              typeof filename === "string" && filename.startsWith(`${AUDIT_IMAGE_FILENAME_PREFIX}-`)
+          )
+      )
+    );
+    if (!filenames.length) return result;
+    console.error(
+      `[media-panel-persistence.audit] cleanup-only: image row fixtures=${filenames.length}`
+    );
+
+    const panel = await openTargetPanel(page);
+    await openMediaKindTab(page, panel, "image");
+    for (const filename of filenames) {
+      try {
+        console.error(`[media-panel-persistence.audit] cleanup-only: image delete ${filename}`);
+        const cleanup = await deleteFixture(page, filename, "image", 10_000, 10_000);
+        if (cleanup.succeeded) {
+          result.deleted.push(filename);
+        } else {
+          result.failed.push(filename);
+        }
+      } catch {
+        result.failed.push(filename);
+      }
+    }
+
+    const remainingRows = await listAuditMediaRows({
+      token,
+      filename: AUDIT_IMAGE_FILENAME_PREFIX,
+      mediaKind: "images",
+    }).catch(() => []);
+    const remainingFilenames = Array.from(
+      new Set(
+        remainingRows
+          .map((row) => row?.filename)
+          .filter(
+            (filename) =>
+              typeof filename === "string" && filename.startsWith(`${AUDIT_IMAGE_FILENAME_PREFIX}-`)
+          )
+      )
+    );
+    for (const filename of remainingFilenames) {
+      if (!result.failed.includes(filename)) {
+        result.failed.push(filename);
+      }
+    }
+
+    return result;
+  }
+
   const panel = await openTargetPanel(page);
   await openMediaKindTab(page, panel, "image");
 
@@ -607,12 +684,16 @@ async function cleanupAuditOwnedVideoFixtures(page) {
     )
   );
   if (!filenames.length) return result;
+  console.error(
+    `[media-panel-persistence.audit] cleanup-only: video row fixtures=${filenames.length}`
+  );
 
   const panel = await openTargetPanel(page);
   await openMediaKindTab(page, panel, "video");
   for (const filename of filenames) {
     try {
-      await deleteFixture(page, filename, "video");
+      console.error(`[media-panel-persistence.audit] cleanup-only: video delete ${filename}`);
+      await deleteFixture(page, filename, "video", 10_000, 10_000);
       result.deleted.push(filename);
     } catch {
       try {
@@ -684,6 +765,25 @@ async function listAuditMediaRows({ token, filename, folderId = "all_items", med
   return Array.isArray(result.payload?.rows) ? result.payload.rows : [];
 }
 
+async function waitForAuditMediaRow({
+  page,
+  token,
+  filename,
+  folderId = "all_items",
+  mediaKind = null,
+  timeoutMs = 30_000,
+}) {
+  const startedAt = Date.now();
+  let latestRows = [];
+  while (Date.now() - startedAt < timeoutMs) {
+    latestRows = await listAuditMediaRows({ token, filename, folderId, mediaKind });
+    const mediaRow = latestRows.find((row) => row?.filename === filename);
+    if (mediaRow) return mediaRow;
+    await page.waitForTimeout(750);
+  }
+  throw new Error(`Uploaded audit media row was not found for ${filename}.`);
+}
+
 async function verifyFolderMembershipRoundtrip({ page, filename }) {
   const token = await readAccessToken(page);
   if (!token) {
@@ -701,8 +801,7 @@ async function verifyFolderMembershipRoundtrip({ page, filename }) {
   };
 
   try {
-    const rootRows = await listAuditMediaRows({ token, filename });
-    const mediaRow = rootRows.find((row) => row?.filename === filename);
+    const mediaRow = await waitForAuditMediaRow({ page, token, filename });
     const mediaId = typeof mediaRow?.id === "string" ? mediaRow.id : "";
     if (!mediaId) {
       throw new Error(`Uploaded audit media row was not found for ${filename}.`);
@@ -805,7 +904,9 @@ async function cleanupInsertedQuickSlotReference(page, expectedMinimumCount) {
   }
   await firstQuickSlotCard.hover().catch(() => {});
   const removeButton = firstQuickSlotCard
-    .locator('button[aria-label="Remove from curated"], .reference-card-actions button.reference-card-action-btn--danger')
+    .locator(
+      'button[aria-label="Remove from curated"], .reference-card-actions button.reference-card-action-btn--danger'
+    )
     .first();
   if ((await removeButton.count().catch(() => 0)) === 0) {
     return { attempted: false, succeeded: false };
@@ -827,7 +928,7 @@ async function verifyQuickSlotReuseRoundtrip({ page, filename, mediaKind = "imag
   const quickSlotSurface = await ensureQuickSlotInventoryVisible(page);
   await runBrowseReadyCheck(page, filename, mediaKind);
 
-  const sourceCard = await findMediaCardButton(page, filename);
+  const sourceCard = await findMediaCardButton(page, filename, 30_000, mediaKind);
   await sourceCard.waitFor({ timeout: 20_000 });
   const cardCountBefore = await resolveQuickSlotCardCount(page);
 
@@ -888,7 +989,7 @@ async function verifyReferenceGridReuseRoundtrip({ page, filename, mediaKind = "
   await referenceGridSurface.scrollIntoViewIfNeeded();
   await runBrowseReadyCheck(page, filename, mediaKind);
 
-  const sourceCard = await findMediaCardButton(page, filename);
+  const sourceCard = await findMediaCardButton(page, filename, 30_000, mediaKind);
   await sourceCard.waitFor({ timeout: 20_000 });
   const cardCountBefore = await resolveReferenceGridCardCount(page);
 
@@ -950,7 +1051,7 @@ async function verifyCanvasReuseRoundtrip({ page, filename, mediaKind = "image" 
   const canvasViewport = await ensureCanvasVisible(page);
   await runBrowseReadyCheck(page, filename, mediaKind);
 
-  const sourceCard = await findMediaCardButton(page, filename);
+  const sourceCard = await findMediaCardButton(page, filename, 30_000, mediaKind);
   await sourceCard.waitFor({ timeout: 20_000 });
   const itemCountBefore = await resolveCanvasItemCount(page);
 
@@ -1357,10 +1458,15 @@ async function runCleanupOnly(browser, creds) {
   const context = await browser.newContext({ viewport: { width: 1720, height: 980 } });
   const page = await context.newPage();
   try {
+    console.error("[media-panel-persistence.audit] cleanup-only: sign-in");
     await ensureSignedIn(page, DEFAULT_BASE_URL, "/ai-studio", creds.email, creds.password);
+    console.error("[media-panel-persistence.audit] cleanup-only: open panel");
     await openTargetPanel(page);
+    console.error("[media-panel-persistence.audit] cleanup-only: image fixtures");
     const imageCleanup = await cleanupAuditOwnedImageFixtures(page);
+    console.error("[media-panel-persistence.audit] cleanup-only: video fixtures");
     const videoCleanup = await cleanupAuditOwnedVideoFixtures(page);
+    console.error("[media-panel-persistence.audit] cleanup-only: complete");
     return {
       ok: imageCleanup.failed.length === 0 && videoCleanup.failed.length === 0,
       generatedAt: new Date().toISOString(),
@@ -1393,7 +1499,9 @@ async function main() {
 
   const browser = await chromium.launch({ headless: HEADLESS });
   try {
-    const result = CLEANUP_ONLY ? await runCleanupOnly(browser, creds) : await runAudit(browser, creds);
+    const result = CLEANUP_ONLY
+      ? await runCleanupOnly(browser, creds)
+      : await runAudit(browser, creds);
     console.log(JSON.stringify(result, null, 2));
     if (!result.ok) process.exitCode = 1;
   } catch (error) {

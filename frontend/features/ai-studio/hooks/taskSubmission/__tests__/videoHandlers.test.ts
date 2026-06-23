@@ -1740,6 +1740,17 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     const handled = await handleVideoModelSubmission(args);
 
     expect(handled).toBe(true);
+    expect(fetchWithAuth).toHaveBeenCalledWith(
+      "/api/kie/upload-url",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          fileUrl: "https://example.com/character.png",
+          uploadPath: "shortpulse/kie-video/images",
+          admissionProfile: "kie_kling_reference_image",
+        }),
+      })
+    );
     expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
       expect.objectContaining({
         aspect_ratio: "16:9",
@@ -2523,6 +2534,7 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
           storagePath: "user-1/elements/taylor/front.png",
           mediaKind: "image",
           uploadPath: "shortpulse/kie-video/images",
+          admissionProfile: "kie_kling_reference_image",
         }),
       })
     );
@@ -2846,6 +2858,42 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
 
     expect(handled).toBe(true);
     expect(fetchWithAuth).toHaveBeenCalledTimes(3);
+    expect(fetchWithAuth).toHaveBeenNthCalledWith(
+      1,
+      "/api/kie/upload-url",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          fileUrl: "https://example.com/taylor-front.png",
+          uploadPath: "shortpulse/kie-video/images",
+          admissionProfile: "kie_kling_reference_image",
+        }),
+      })
+    );
+    expect(fetchWithAuth).toHaveBeenNthCalledWith(
+      2,
+      "/api/kie/upload-url",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          fileUrl: "https://example.com/taylor-side.png",
+          uploadPath: "shortpulse/kie-video/images",
+          admissionProfile: "kie_kling_reference_image",
+        }),
+      })
+    );
+    expect(fetchWithAuth).toHaveBeenNthCalledWith(
+      3,
+      "/api/kie/upload-url",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          fileUrl: "https://example.com/start.png",
+          uploadPath: "shortpulse/kie-video/images",
+          admissionProfile: "kie_kling_reference_image",
+        }),
+      })
+    );
     expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
       expect.objectContaining({
         image_url: "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/start.png",

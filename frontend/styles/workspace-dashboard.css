@@ -527,9 +527,11 @@ body.dashboard-body:has(.authenticated-dashboard-page) {
 }
 
 .authenticated-dashboard-page .status-icon.compact {
-  flex: 0 0 48px;
-  width: 48px;
-  height: 56px;
+  box-sizing: border-box;
+  flex: 0 0 54px;
+  width: 54px;
+  height: 58px;
+  padding-left: 4px;
   border-radius: 0;
   color: #ff7a50;
   background: transparent;
@@ -538,9 +540,9 @@ body.dashboard-body:has(.authenticated-dashboard-page) {
 .authenticated-dashboard-page .header-stat-card-icon-image {
   display: block;
   width: auto;
-  height: 46px;
-  max-width: 48px;
-  max-height: 46px;
+  height: 49px;
+  max-width: 50px;
+  max-height: 49px;
   object-fit: contain;
   filter: drop-shadow(0 6px 14px rgba(219, 52, 93, 0.16));
 }

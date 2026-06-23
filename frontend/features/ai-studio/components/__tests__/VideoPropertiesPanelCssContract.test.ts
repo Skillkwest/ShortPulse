@@ -94,4 +94,12 @@ describe("VideoPropertiesPanel generate footer CSS contract", () => {
     expectRuleToContain(css, selector, "line-height: inherit");
     expectRuleToContain(css, selector, "text-align: inherit");
   });
+
+  it("keeps Lip Sync empty image and audio drop-zone titles the same size", () => {
+    const css = readCss();
+    const selector =
+      ".video-properties-panel .video-lip-sync-drop-row .reference-drop-content .reference-drop-title";
+
+    expectRuleToContain(css, selector, "font-size: 12px");
+  });
 });

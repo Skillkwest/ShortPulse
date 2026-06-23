@@ -2470,6 +2470,10 @@
   border-color: rgba(244, 112, 144, 0.54);
 }
 
+.video-properties-panel .video-lip-sync-drop-row .reference-drop-content .reference-drop-title {
+  font-size: 12px;
+}
+
 .video-properties-panel .video-lip-sync-audio-preview {
   position: absolute;
   inset: 0;

@@ -35,6 +35,10 @@ type UseStylesLibraryStyleDetailsPreferenceResult = {
   deleteStyleDetails: (styleId: string) => Promise<boolean>;
 };
 
+type UseStylesLibraryStyleDetailsPreferenceOptions = {
+  enabled?: boolean;
+};
+
 type StyleDetailsRemoteSyncTimeoutError = Error & {
   code: typeof STYLE_DETAILS_REMOTE_SYNC_TIMEOUT_CODE;
   timeoutMs: number;
@@ -114,234 +118,243 @@ const isMissingStyleDetailsStorageError = (error: unknown): boolean => {
 /**
  * Reads and writes style-details overrides with Supabase persistence when available.
  */
-export const useStylesLibraryStyleDetailsPreference =
-  (): UseStylesLibraryStyleDetailsPreferenceResult => {
-    const sessionSnapshot = useResolvedProtectedSessionState();
-    const sessionUserId = sessionSnapshot.user?.id ?? null;
-    const [styleDetailsById, setStyleDetailsById] = useState<StylesLibraryStyleDetailsMap>({});
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [syncState, setSyncState] = useState<StylesLibraryStyleDetailsSyncState>("loading");
-    const [userId, setUserId] = useState<string | null>(null);
-    const latestValueRef = useRef<StylesLibraryStyleDetailsMap>({});
-    const writeVersionRef = useRef(0);
-    const remoteSyncEnabledRef = useRef(true);
-    const hasLocalOverrideRef = useRef(false);
+export const useStylesLibraryStyleDetailsPreference = ({
+  enabled = true,
+}: UseStylesLibraryStyleDetailsPreferenceOptions = {}): UseStylesLibraryStyleDetailsPreferenceResult => {
+  const sessionSnapshot = useResolvedProtectedSessionState();
+  const sessionUserId = sessionSnapshot.user?.id ?? null;
+  const [styleDetailsById, setStyleDetailsById] = useState<StylesLibraryStyleDetailsMap>({});
+  const [loading, setLoading] = useState(enabled);
+  const [error, setError] = useState<string | null>(null);
+  const [syncState, setSyncState] = useState<StylesLibraryStyleDetailsSyncState>(
+    enabled ? "loading" : "ready"
+  );
+  const [userId, setUserId] = useState<string | null>(null);
+  const latestValueRef = useRef<StylesLibraryStyleDetailsMap>({});
+  const writeVersionRef = useRef(0);
+  const remoteSyncEnabledRef = useRef(true);
+  const hasLocalOverrideRef = useRef(false);
 
-    const updateLocalValue = useCallback(
-      (value: StylesLibraryStyleDetailsMap, storageUserId?: string | null) => {
-        const normalizedValue = normalizeStyleDetailsMap(value);
-        latestValueRef.current = normalizedValue;
-        setStyleDetailsById(normalizedValue);
-        writeLocalStyleDetails(normalizedValue, storageUserId ?? userId);
-      },
-      [userId]
-    );
+  const updateLocalValue = useCallback(
+    (value: StylesLibraryStyleDetailsMap, storageUserId?: string | null) => {
+      const normalizedValue = normalizeStyleDetailsMap(value);
+      latestValueRef.current = normalizedValue;
+      setStyleDetailsById(normalizedValue);
+      writeLocalStyleDetails(normalizedValue, storageUserId ?? userId);
+    },
+    [userId]
+  );
 
-    useEffect(() => {
-      if (!sessionSnapshot.initialized) {
-        setLoading(true);
-        setSyncState("loading");
-        return;
-      }
-      let active = true;
+  useEffect(() => {
+    if (!enabled) {
+      setLoading(false);
+      setError(null);
+      setSyncState("ready");
+      return;
+    }
+    if (!sessionSnapshot.initialized) {
       setLoading(true);
       setSyncState("loading");
+      return;
+    }
+    let active = true;
+    setLoading(true);
+    setSyncState("loading");
 
-      (async () => {
-        try {
-          if (!supabaseQueryClient) {
-            if (!active) return;
-            updateLocalValue(readLocalStyleDetails(), null);
-            remoteSyncEnabledRef.current = false;
-            setUserId(null);
-            setError(null);
-            setSyncState("ready");
-            return;
-          }
-
-          if (!sessionUserId) {
-            if (!active) return;
-            updateLocalValue(readLocalStyleDetails(), null);
-            setUserId(null);
-            setError(null);
-            setSyncState("ready");
-            return;
-          }
+    (async () => {
+      try {
+        if (!supabaseQueryClient) {
           if (!active) return;
-          setUserId(sessionUserId);
-          const localValue = readLocalStyleDetails(sessionUserId);
-          updateLocalValue(localValue, sessionUserId);
-
-          const { data: storedPreference, error: preferenceError } = await supabaseQueryClient
-            .from("user_preferences")
-            .select("ai_studio_style_details_overrides")
-            .eq("user_id", sessionUserId)
-            .maybeSingle();
-          if (preferenceError) throw preferenceError;
-          if (!active) return;
-
-          const remoteValue = normalizeStyleDetailsMap(
-            storedPreference?.ai_studio_style_details_overrides
-          );
-          const mergedValue = mergeStyleDetailsMaps(remoteValue, localValue);
-          if (!hasLocalOverrideRef.current) {
-            updateLocalValue(mergedValue, sessionUserId);
-          }
-
-          if (!active) return;
+          updateLocalValue(readLocalStyleDetails(), null);
+          remoteSyncEnabledRef.current = false;
+          setUserId(null);
           setError(null);
           setSyncState("ready");
-        } catch (err) {
-          if (!active) return;
-          if (isMissingStyleDetailsStorageError(err)) {
-            remoteSyncEnabledRef.current = false;
-            setError(null);
-            setSyncState("ready");
-            return;
-          }
-          setError(err instanceof Error ? err.message : "Unable to load style details.");
-          setSyncState("error");
-        } finally {
-          if (active) setLoading(false);
+          return;
         }
-      })();
 
-      return () => {
-        active = false;
-      };
-    }, [sessionSnapshot.initialized, sessionUserId, updateLocalValue]);
+        if (!sessionUserId) {
+          if (!active) return;
+          updateLocalValue(readLocalStyleDetails(), null);
+          setUserId(null);
+          setError(null);
+          setSyncState("ready");
+          return;
+        }
+        if (!active) return;
+        setUserId(sessionUserId);
+        const localValue = readLocalStyleDetails(sessionUserId);
+        updateLocalValue(localValue, sessionUserId);
 
-    const upsertStyleDetails = useCallback(
-      async (styleId: string, details: StylesLibraryStyleDetails): Promise<boolean> => {
-        const normalizedStyleId = styleId.trim();
-        if (!normalizedStyleId) return false;
-        const requestVersion = writeVersionRef.current + 1;
-        writeVersionRef.current = requestVersion;
-        hasLocalOverrideRef.current = true;
+        const { data: storedPreference, error: preferenceError } = await supabaseQueryClient
+          .from("user_preferences")
+          .select("ai_studio_style_details_overrides")
+          .eq("user_id", sessionUserId)
+          .maybeSingle();
+        if (preferenceError) throw preferenceError;
+        if (!active) return;
 
-        const normalizedDetails = normalizeStyleDetails(details);
-        const previousValue = latestValueRef.current;
-        const nextValue: StylesLibraryStyleDetailsMap = {
-          ...previousValue,
-          [normalizedStyleId]: normalizedDetails,
-        };
+        const remoteValue = normalizeStyleDetailsMap(
+          storedPreference?.ai_studio_style_details_overrides
+        );
+        const mergedValue = mergeStyleDetailsMaps(remoteValue, localValue);
+        if (!hasLocalOverrideRef.current) {
+          updateLocalValue(mergedValue, sessionUserId);
+        }
 
-        if (areStyleDetailMapsEqual(previousValue, nextValue)) return true;
-
-        updateLocalValue(nextValue);
-        setSyncState("saving");
+        if (!active) return;
         setError(null);
-
-        if (!userId || !remoteSyncEnabledRef.current || !supabaseQueryClient) {
-          if (requestVersion === writeVersionRef.current) {
-            setSyncState("ready");
-          }
-          return true;
-        }
-
-        try {
-          const upsertResult = await withRemoteSyncTimeout<{ error: unknown }>(
-            supabaseQueryClient
-              .from("user_preferences")
-              .upsert(
-                { user_id: userId, ai_studio_style_details_overrides: nextValue },
-                { onConflict: "user_id" }
-              ),
-            STYLE_DETAILS_REMOTE_SYNC_TIMEOUT_MS
-          );
-          const upsertError = upsertResult.error;
-          if (upsertError) throw upsertError;
-          if (requestVersion !== writeVersionRef.current) return true;
+        setSyncState("ready");
+      } catch (err) {
+        if (!active) return;
+        if (isMissingStyleDetailsStorageError(err)) {
+          remoteSyncEnabledRef.current = false;
           setError(null);
           setSyncState("ready");
-          return true;
-        } catch (err) {
-          if (requestVersion !== writeVersionRef.current) return true;
-          if (isMissingStyleDetailsStorageError(err)) {
-            remoteSyncEnabledRef.current = false;
-            setError(null);
-            setSyncState("ready");
-            return true;
-          }
-          setError(
-            isStyleDetailsRemoteSyncTimeoutError(err)
-              ? STYLE_DETAILS_REMOTE_SYNC_TIMEOUT_MESSAGE
-              : STYLE_DETAILS_REMOTE_SYNC_FAILED_MESSAGE
-          );
-          setSyncState("error");
-          return true;
+          return;
         }
-      },
-      [updateLocalValue, userId]
-    );
+        setError(err instanceof Error ? err.message : "Unable to load style details.");
+        setSyncState("error");
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
 
-    const deleteStyleDetails = useCallback(
-      async (styleId: string): Promise<boolean> => {
-        const normalizedStyleId = styleId.trim();
-        if (!normalizedStyleId) return false;
-        const requestVersion = writeVersionRef.current + 1;
-        writeVersionRef.current = requestVersion;
-        hasLocalOverrideRef.current = true;
-
-        const previousValue = latestValueRef.current;
-        if (!(normalizedStyleId in previousValue)) return true;
-        const nextValue = { ...previousValue };
-        delete nextValue[normalizedStyleId];
-
-        updateLocalValue(nextValue);
-        setSyncState("saving");
-        setError(null);
-
-        if (!userId || !remoteSyncEnabledRef.current || !supabaseQueryClient) {
-          if (requestVersion === writeVersionRef.current) {
-            setSyncState("ready");
-          }
-          return true;
-        }
-
-        try {
-          const upsertResult = await withRemoteSyncTimeout<{ error: unknown }>(
-            supabaseQueryClient
-              .from("user_preferences")
-              .upsert(
-                { user_id: userId, ai_studio_style_details_overrides: nextValue },
-                { onConflict: "user_id" }
-              ),
-            STYLE_DETAILS_REMOTE_SYNC_TIMEOUT_MS
-          );
-          const upsertError = upsertResult.error;
-          if (upsertError) throw upsertError;
-          if (requestVersion !== writeVersionRef.current) return true;
-          setError(null);
-          setSyncState("ready");
-          return true;
-        } catch (err) {
-          if (requestVersion !== writeVersionRef.current) return true;
-          if (isMissingStyleDetailsStorageError(err)) {
-            remoteSyncEnabledRef.current = false;
-            setError(null);
-            setSyncState("ready");
-            return true;
-          }
-          setError(
-            isStyleDetailsRemoteSyncTimeoutError(err)
-              ? STYLE_DETAILS_REMOTE_SYNC_TIMEOUT_MESSAGE
-              : STYLE_DETAILS_REMOTE_SYNC_FAILED_MESSAGE
-          );
-          setSyncState("error");
-          return true;
-        }
-      },
-      [updateLocalValue, userId]
-    );
-
-    return {
-      styleDetailsById,
-      loading,
-      error,
-      syncState,
-      upsertStyleDetails,
-      deleteStyleDetails,
+    return () => {
+      active = false;
     };
+  }, [enabled, sessionSnapshot.initialized, sessionUserId, updateLocalValue]);
+
+  const upsertStyleDetails = useCallback(
+    async (styleId: string, details: StylesLibraryStyleDetails): Promise<boolean> => {
+      const normalizedStyleId = styleId.trim();
+      if (!normalizedStyleId) return false;
+      const requestVersion = writeVersionRef.current + 1;
+      writeVersionRef.current = requestVersion;
+      hasLocalOverrideRef.current = true;
+
+      const normalizedDetails = normalizeStyleDetails(details);
+      const previousValue = latestValueRef.current;
+      const nextValue: StylesLibraryStyleDetailsMap = {
+        ...previousValue,
+        [normalizedStyleId]: normalizedDetails,
+      };
+
+      if (areStyleDetailMapsEqual(previousValue, nextValue)) return true;
+
+      updateLocalValue(nextValue);
+      setSyncState("saving");
+      setError(null);
+
+      if (!userId || !remoteSyncEnabledRef.current || !supabaseQueryClient) {
+        if (requestVersion === writeVersionRef.current) {
+          setSyncState("ready");
+        }
+        return true;
+      }
+
+      try {
+        const upsertResult = await withRemoteSyncTimeout<{ error: unknown }>(
+          supabaseQueryClient
+            .from("user_preferences")
+            .upsert(
+              { user_id: userId, ai_studio_style_details_overrides: nextValue },
+              { onConflict: "user_id" }
+            ),
+          STYLE_DETAILS_REMOTE_SYNC_TIMEOUT_MS
+        );
+        const upsertError = upsertResult.error;
+        if (upsertError) throw upsertError;
+        if (requestVersion !== writeVersionRef.current) return true;
+        setError(null);
+        setSyncState("ready");
+        return true;
+      } catch (err) {
+        if (requestVersion !== writeVersionRef.current) return true;
+        if (isMissingStyleDetailsStorageError(err)) {
+          remoteSyncEnabledRef.current = false;
+          setError(null);
+          setSyncState("ready");
+          return true;
+        }
+        setError(
+          isStyleDetailsRemoteSyncTimeoutError(err)
+            ? STYLE_DETAILS_REMOTE_SYNC_TIMEOUT_MESSAGE
+            : STYLE_DETAILS_REMOTE_SYNC_FAILED_MESSAGE
+        );
+        setSyncState("error");
+        return true;
+      }
+    },
+    [updateLocalValue, userId]
+  );
+
+  const deleteStyleDetails = useCallback(
+    async (styleId: string): Promise<boolean> => {
+      const normalizedStyleId = styleId.trim();
+      if (!normalizedStyleId) return false;
+      const requestVersion = writeVersionRef.current + 1;
+      writeVersionRef.current = requestVersion;
+      hasLocalOverrideRef.current = true;
+
+      const previousValue = latestValueRef.current;
+      if (!(normalizedStyleId in previousValue)) return true;
+      const nextValue = { ...previousValue };
+      delete nextValue[normalizedStyleId];
+
+      updateLocalValue(nextValue);
+      setSyncState("saving");
+      setError(null);
+
+      if (!userId || !remoteSyncEnabledRef.current || !supabaseQueryClient) {
+        if (requestVersion === writeVersionRef.current) {
+          setSyncState("ready");
+        }
+        return true;
+      }
+
+      try {
+        const upsertResult = await withRemoteSyncTimeout<{ error: unknown }>(
+          supabaseQueryClient
+            .from("user_preferences")
+            .upsert(
+              { user_id: userId, ai_studio_style_details_overrides: nextValue },
+              { onConflict: "user_id" }
+            ),
+          STYLE_DETAILS_REMOTE_SYNC_TIMEOUT_MS
+        );
+        const upsertError = upsertResult.error;
+        if (upsertError) throw upsertError;
+        if (requestVersion !== writeVersionRef.current) return true;
+        setError(null);
+        setSyncState("ready");
+        return true;
+      } catch (err) {
+        if (requestVersion !== writeVersionRef.current) return true;
+        if (isMissingStyleDetailsStorageError(err)) {
+          remoteSyncEnabledRef.current = false;
+          setError(null);
+          setSyncState("ready");
+          return true;
+        }
+        setError(
+          isStyleDetailsRemoteSyncTimeoutError(err)
+            ? STYLE_DETAILS_REMOTE_SYNC_TIMEOUT_MESSAGE
+            : STYLE_DETAILS_REMOTE_SYNC_FAILED_MESSAGE
+        );
+        setSyncState("error");
+        return true;
+      }
+    },
+    [updateLocalValue, userId]
+  );
+
+  return {
+    styleDetailsById,
+    loading,
+    error,
+    syncState,
+    upsertStyleDetails,
+    deleteStyleDetails,
   };
+};

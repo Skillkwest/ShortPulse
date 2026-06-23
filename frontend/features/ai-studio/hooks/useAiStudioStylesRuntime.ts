@@ -80,18 +80,20 @@ export const useAiStudioStylesRuntime = ({
 }: UseAiStudioStylesRuntimeParams) => {
   const {
     styleDetailsById,
+    loading: styleDetailsLoading,
     error: styleDetailsSaveError,
     upsertStyleDetails,
     deleteStyleDetails,
-  } = useStylesLibraryStyleDetailsPreference();
+  } = useStylesLibraryStyleDetailsPreference({ enabled });
   const {
     deletedStyleIds,
+    loading: deletedStyleIdsLoading,
     error: stylesDeleteError,
     deleteStyleId,
     restoreDeletedStyleIds,
-  } = useStylesLibraryDeletedStyleIdsPreference();
+  } = useStylesLibraryDeletedStyleIdsPreference({ enabled });
   const { setStylePanelIds, removeStylePanelId, resetStylePanelIds, stylePanelIds } =
-    useStylesLibraryPanelIdsPreference();
+    useStylesLibraryPanelIdsPreference({ enabled });
   const builtInStyleCatalog = useBuiltInStyleCatalog({ enabled });
 
   const builtInStyles = React.useMemo(
@@ -154,24 +156,30 @@ export const useAiStudioStylesRuntime = ({
     return deletedIdsRestored && orderReset;
   }, [resetStylePanelIds, restoreDeletedStyleIds]);
 
-  React.useEffect(() => {
-    if (!selectedStyleId) return;
-    const styleStillVisible = visibleStylesCatalog.some((style) => style.id === selectedStyleId);
-    if (!styleStillVisible) {
-      setSelectedStyleId(null);
-    }
-  }, [selectedStyleId, setSelectedStyleId, visibleStylesCatalog]);
-
-  const selectedStylePrompt = React.useMemo(() => {
+  const selectedStyle = React.useMemo(() => {
     if (!selectedStyleId) return null;
-    const selectedStyle = visibleStylesCatalog.find((style) => style.id === selectedStyleId);
-    const normalizedPrompt = selectedStyle?.stylePrompt?.trim() ?? "";
-    return normalizedPrompt.length ? normalizedPrompt : null;
+    return visibleStylesCatalog.find((style) => style.id === selectedStyleId) ?? null;
   }, [selectedStyleId, visibleStylesCatalog]);
 
+  const selectedStyleVisibilityPending =
+    Boolean(selectedStyleId) &&
+    selectedStyle == null &&
+    enabled &&
+    (builtInStyleCatalog.loading || styleDetailsLoading || deletedStyleIdsLoading);
+
+  React.useEffect(() => {
+    if (!selectedStyleId || selectedStyleVisibilityPending) return;
+    if (!selectedStyle) {
+      setSelectedStyleId(null);
+    }
+  }, [selectedStyle, selectedStyleId, selectedStyleVisibilityPending, setSelectedStyleId]);
+
+  const selectedStylePrompt = React.useMemo(() => {
+    const normalizedPrompt = selectedStyle?.stylePrompt?.trim() ?? "";
+    return normalizedPrompt.length ? normalizedPrompt : null;
+  }, [selectedStyle]);
+
   const selectedStyleContext = React.useMemo<StudioOutput["styleContext"] | null>(() => {
-    if (!selectedStyleId) return null;
-    const selectedStyle = visibleStylesCatalog.find((style) => style.id === selectedStyleId);
     if (!selectedStyle || selectedStyle.placeholder) return null;
     const styleName =
       selectedStyle.style?.trim() ||
@@ -188,15 +196,17 @@ export const useAiStudioStylesRuntime = ({
       stylePrompt,
       ...(stylePreviewImageUrl ? { stylePreviewImageUrl } : {}),
     };
-  }, [selectedStyleId, visibleStylesCatalog]);
+  }, [selectedStyle]);
 
   React.useEffect(() => {
+    if (selectedStyleVisibilityPending) return;
     onSelectedStylePromptChange?.(selectedStylePrompt);
-  }, [onSelectedStylePromptChange, selectedStylePrompt]);
+  }, [onSelectedStylePromptChange, selectedStylePrompt, selectedStyleVisibilityPending]);
 
   React.useEffect(() => {
+    if (selectedStyleVisibilityPending) return;
     onSelectedStyleContextChange?.(selectedStyleContext);
-  }, [onSelectedStyleContextChange, selectedStyleContext]);
+  }, [onSelectedStyleContextChange, selectedStyleContext, selectedStyleVisibilityPending]);
 
   return {
     handleDeleteStyle,

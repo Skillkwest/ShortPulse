@@ -574,6 +574,15 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     restoreVisibilitySignature: string;
     autosaveUnlockSignature: string;
   } | null>(null);
+  const [settledAutosaveBaseline, setSettledAutosaveBaseline] = useState<{
+    projectId: string;
+    revision: number;
+    autosaveUnlockSignature: string;
+  } | null>(null);
+  const [postBootstrapAutosaveUnlocked, setPostBootstrapAutosaveUnlocked] = useState<{
+    projectId: string;
+    revision: number;
+  } | null>(null);
   const projectRuntimeAuthority = projectRouteRequested
     ? projectId
       ? `project:${projectId}`
@@ -873,14 +882,9 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
   const repairPendingNoticeKeyRef = useRef<string | null>(null);
   const activeAutosaveNoticeRef = useRef<ProjectWorkspaceAutosaveNoticeDetails | null>(null);
   const quickSlotSaveResultTelemetryRef = useRef<{ key: string; emittedAt: number } | null>(null);
-  const autosaveSnapshotSelectionComputation = useMemo(
-    () => resolveProjectAutosaveSnapshotSelectionComputation(deferredSessionSnapshot),
-    [deferredSessionSnapshot]
-  );
-  const autosaveSnapshotSelection = autosaveSnapshotSelectionComputation.selection;
   const autosaveUnlockSignature = useMemo(
-    () => resolveProjectAutosaveUnlockSignature(autosaveSnapshotSelection.snapshot),
-    [autosaveSnapshotSelection.snapshot]
+    () => resolveProjectAutosaveUnlockSignature(sessionSnapshot),
+    [sessionSnapshot]
   );
   const projectAutosaveReadyAfterUserEdit =
     Boolean(projectId) &&
@@ -893,7 +897,33 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     pendingVisibilityAutosaveBaseline.restoreVisibilitySignature ===
       expectedProjectRestoreVisibilitySignature &&
     pendingVisibilityAutosaveBaseline.autosaveUnlockSignature !== autosaveUnlockSignature;
-  const projectAutosaveReady = projectBootstrapReady || projectAutosaveReadyAfterUserEdit;
+  const projectAutosaveDiffersFromBootstrap =
+    Boolean(projectId) &&
+    projectBootstrapReady &&
+    Boolean(autosaveUnlockSignature) &&
+    settledAutosaveBaseline?.projectId === projectId &&
+    settledAutosaveBaseline.revision === projectRuntimeRevision &&
+    settledAutosaveBaseline.autosaveUnlockSignature !== autosaveUnlockSignature;
+  const projectAutosaveUnlockedForBootstrap =
+    postBootstrapAutosaveUnlocked?.projectId === projectId &&
+    postBootstrapAutosaveUnlocked.revision === projectRuntimeRevision;
+  const projectAutosaveReadyAfterBootstrap =
+    Boolean(projectId) &&
+    projectBootstrapReady &&
+    Boolean(autosaveUnlockSignature) &&
+    settledAutosaveBaseline?.projectId === projectId &&
+    settledAutosaveBaseline.revision === projectRuntimeRevision &&
+    (projectAutosaveDiffersFromBootstrap || projectAutosaveUnlockedForBootstrap);
+  const projectAutosaveReady =
+    projectAutosaveReadyAfterBootstrap || projectAutosaveReadyAfterUserEdit;
+  const autosaveSnapshotSelectionComputation = useMemo(
+    () =>
+      resolveProjectAutosaveSnapshotSelectionComputation(
+        projectAutosaveReady ? deferredSessionSnapshot : null
+      ),
+    [deferredSessionSnapshot, projectAutosaveReady]
+  );
+  const autosaveSnapshotSelection = autosaveSnapshotSelectionComputation.selection;
 
   const emitProjectAutosaveWarning = useCallback(
     ({
@@ -997,6 +1027,72 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     autosaveUnlockSignature,
     expectedProjectRestoreVisibilitySignature,
     projectBootstrapSettled,
+    projectId,
+    projectRuntimeRevision,
+  ]);
+
+  useLayoutEffect(() => {
+    let cancelled = false;
+    if (!projectId || !projectBootstrapReady || !autosaveUnlockSignature) {
+      queueMicrotask(() => {
+        if (cancelled) return;
+        setSettledAutosaveBaseline((current) => (current === null ? current : null));
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setSettledAutosaveBaseline((current) => {
+        if (current?.projectId === projectId && current.revision === projectRuntimeRevision) {
+          return current;
+        }
+        return {
+          projectId,
+          revision: projectRuntimeRevision,
+          autosaveUnlockSignature,
+        };
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [autosaveUnlockSignature, projectBootstrapReady, projectId, projectRuntimeRevision]);
+
+  useLayoutEffect(() => {
+    let cancelled = false;
+    if (!projectId || !projectBootstrapReady || !projectAutosaveDiffersFromBootstrap) {
+      queueMicrotask(() => {
+        if (cancelled) return;
+        setPostBootstrapAutosaveUnlocked((current) =>
+          current?.projectId === projectId && current.revision === projectRuntimeRevision
+            ? current
+            : null
+        );
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setPostBootstrapAutosaveUnlocked((current) => {
+        if (current?.projectId === projectId && current.revision === projectRuntimeRevision) {
+          return current;
+        }
+        return {
+          projectId,
+          revision: projectRuntimeRevision,
+        };
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    projectAutosaveDiffersFromBootstrap,
+    projectBootstrapReady,
     projectId,
     projectRuntimeRevision,
   ]);

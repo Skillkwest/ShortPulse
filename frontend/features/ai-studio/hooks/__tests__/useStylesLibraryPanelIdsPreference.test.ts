@@ -28,6 +28,21 @@ describe("useStylesLibraryPanelIdsPreference", () => {
     window.localStorage.clear();
   });
 
+  it("stays idle without loading remote order while disabled", () => {
+    useResolvedProtectedSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: { user: { id: "user-123" } } as never,
+      user: { id: "user-123" } as never,
+    });
+
+    const { result } = renderHook(() => useStylesLibraryPanelIdsPreference({ enabled: false }));
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.syncState).toBe("ready");
+    expect(result.current.stylePanelIds).toEqual([]);
+    expect(fetchWithAuthMock).not.toHaveBeenCalled();
+  });
+
   it("loads canonical remote style order and ignores legacy localStorage values", async () => {
     window.localStorage.setItem(
       "shortpulse.ai_studio.style_panel_ids:user-123",

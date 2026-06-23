@@ -38,6 +38,7 @@ type MockStyleDetailsPreference = {
       previewImageUrl: string;
     }
   >;
+  loading: boolean;
   error: string | null;
   upsertStyleDetails: ReturnType<typeof vi.fn>;
   deleteStyleDetails: ReturnType<typeof vi.fn>;
@@ -45,6 +46,7 @@ type MockStyleDetailsPreference = {
 
 type MockDeletedStyleIdsPreference = {
   deletedStyleIds: string[];
+  loading: boolean;
   error: string | null;
   deleteStyleId: ReturnType<typeof vi.fn>;
   restoreDeletedStyleIds: ReturnType<typeof vi.fn>;
@@ -59,6 +61,7 @@ type MockStylePanelIdsPreference = {
 
 const createDetailsPreference = (): MockStyleDetailsPreference => ({
   styleDetailsById: {},
+  loading: false,
   error: null,
   upsertStyleDetails: vi.fn(),
   deleteStyleDetails: vi.fn(),
@@ -66,6 +69,7 @@ const createDetailsPreference = (): MockStyleDetailsPreference => ({
 
 const createDeletedPreference = (): MockDeletedStyleIdsPreference => ({
   deletedStyleIds: [],
+  loading: false,
   error: null,
   deleteStyleId: vi.fn(),
   restoreDeletedStyleIds: vi.fn(),
@@ -145,6 +149,9 @@ describe("useAiStudioStylesRuntime", () => {
     );
 
     expect(mockUseBuiltInStyleCatalog).toHaveBeenCalledWith({ enabled: false });
+    expect(mockUseStylesLibraryStyleDetailsPreference).toHaveBeenCalledWith({ enabled: false });
+    expect(mockUseStylesLibraryDeletedStyleIdsPreference).toHaveBeenCalledWith({ enabled: false });
+    expect(mockUseStylesLibraryPanelIdsPreference).toHaveBeenCalledWith({ enabled: false });
   });
 
   it("builds the visible catalog from built-ins, custom details, deleted ids, and ordering", async () => {
@@ -419,5 +426,70 @@ describe("useAiStudioStylesRuntime", () => {
     });
     expect(onSelectedStylePromptChange).toHaveBeenLastCalledWith(null);
     expect(onSelectedStyleContextChange).toHaveBeenLastCalledWith(null);
+  });
+
+  it("does not clear a selected built-in style while the built-in catalog is still loading", () => {
+    const setSelectedStyleId = vi.fn();
+    const onSelectedStylePromptChange = vi.fn();
+    const onSelectedStyleContextChange = vi.fn();
+    mockUseBuiltInStyleCatalog.mockReturnValue({
+      styleDefinitions: [],
+      loading: true,
+      error: null,
+      source: "seed",
+      degraded: false,
+      isAuthoritative: false,
+      refresh: vi.fn(),
+    });
+
+    renderHook(() =>
+      useAiStudioStylesRuntime({
+        selectedStyleId: "cinematic",
+        setSelectedStyleId,
+        onSelectedStylePromptChange,
+        onSelectedStyleContextChange,
+      })
+    );
+
+    expect(setSelectedStyleId).not.toHaveBeenCalled();
+    expect(onSelectedStylePromptChange).not.toHaveBeenCalled();
+    expect(onSelectedStyleContextChange).not.toHaveBeenCalled();
+  });
+
+  it("waits for lazy custom style details before validating a restored selected style", async () => {
+    const setSelectedStyleId = vi.fn();
+    const onSelectedStylePromptChange = vi.fn();
+    const onSelectedStyleContextChange = vi.fn();
+    detailsPreference.loading = true;
+
+    const { rerender } = renderHook(() =>
+      useAiStudioStylesRuntime({
+        selectedStyleId: "style-library-custom-1",
+        setSelectedStyleId,
+        onSelectedStylePromptChange,
+        onSelectedStyleContextChange,
+      })
+    );
+
+    expect(setSelectedStyleId).not.toHaveBeenCalled();
+    expect(onSelectedStylePromptChange).not.toHaveBeenCalled();
+    expect(onSelectedStyleContextChange).not.toHaveBeenCalled();
+
+    detailsPreference.loading = false;
+    detailsPreference.styleDetailsById = {
+      "style-library-custom-1": {
+        style: "Soft Bloom",
+        title: "Soft Bloom",
+        referenceImageName: "Soft Bloom",
+        stylePrompt: "soft bloom finish",
+        previewImageUrl: "data:image/png;base64,custom",
+      },
+    };
+    rerender();
+
+    await waitFor(() => {
+      expect(onSelectedStylePromptChange).toHaveBeenLastCalledWith("soft bloom finish");
+    });
+    expect(setSelectedStyleId).not.toHaveBeenCalled();
   });
 });

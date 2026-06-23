@@ -21,6 +21,27 @@ describe("useStylesLibraryDeletedStyleIdsPreference", () => {
     window.localStorage.clear();
   });
 
+  it("stays idle without loading local or remote deleted style ids while disabled", () => {
+    window.localStorage.setItem(
+      "shortpulse.ai_studio.deleted_style_ids:user-123",
+      JSON.stringify(["cinematic"])
+    );
+    useResolvedProtectedSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: { user: { id: "user-123" } } as never,
+      user: { id: "user-123" } as never,
+    });
+
+    const { result } = renderHook(() =>
+      useStylesLibraryDeletedStyleIdsPreference({ enabled: false })
+    );
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.syncState).toBe("ready");
+    expect(result.current.deletedStyleIds).toEqual([]);
+    expect(supabaseQueryClientMock.from).not.toHaveBeenCalled();
+  });
+
   it("does not hydrate signed-in deleted style ids from global localStorage fallback", async () => {
     window.localStorage.setItem(
       "shortpulse.ai_studio.deleted_style_ids",

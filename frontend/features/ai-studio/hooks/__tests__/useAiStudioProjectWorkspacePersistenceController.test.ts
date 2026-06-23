@@ -209,6 +209,7 @@ const mockReadyRestoreCandidate = (snapshot: AiStudioSessionSnapshot | null) => 
 const flushBootstrapVisibilityLatch = async () => {
   await act(async () => {
     await Promise.resolve();
+    await Promise.resolve();
   });
 };
 
@@ -292,15 +293,18 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
       restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
     });
 
-    rerender();
+    rerender({
+      buildSnapshot: buildSessionSnapshot as (sessionId: string) => AiStudioSessionSnapshot,
+    });
     await flushBootstrapVisibilityLatch();
 
     expect(result.current.projectBootstrapApplied).toBe(true);
     expect(mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0]).toEqual(
       expect.objectContaining({
         sessionId: "project-1",
-        enabled: true,
-        snapshot: liveEmptyProjectSnapshot,
+        enabled: false,
+        snapshot: null,
+        preparedSnapshot: null,
       })
     );
   });
@@ -696,8 +700,9 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     expect(mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0]).toEqual(
       expect.objectContaining({
         sessionId: "project-1",
-        snapshot: refreshedPreviewSnapshot,
+        snapshot: null,
         enabled: false,
+        preparedSnapshot: null,
       })
     );
   });
@@ -814,8 +819,9 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     expect(mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0]).toEqual(
       expect.objectContaining({
         sessionId: "project-1",
-        snapshot: refreshedCanvasSnapshot,
-        enabled: true,
+        snapshot: null,
+        enabled: false,
+        preparedSnapshot: null,
       })
     );
   });
@@ -913,7 +919,10 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
       await Promise.resolve();
     });
 
-    rerender({ buildSnapshot: buildEditedSessionSnapshot });
+    await act(async () => {
+      rerender({ buildSnapshot: buildEditedSessionSnapshot });
+      await Promise.resolve();
+    });
 
     expect(mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0]).toEqual(
       expect.objectContaining({
@@ -924,7 +933,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     );
   });
 
-  it("enables project autosave after bootstrap settles for the active project", async () => {
+  it("keeps project autosave idle after bootstrap settles without durable changes", async () => {
     const snapshot = createAiStudioProjectWorkspaceSnapshot(createSnapshot());
     const buildSessionSnapshot = vi.fn(() => snapshot);
     const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
@@ -968,20 +977,11 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     expect(lastWriteShadowArgs).toEqual(
       expect.objectContaining({
         sessionId: "project-1",
-        enabled: true,
+        enabled: false,
+        snapshot: null,
+        preparedSnapshot: null,
       })
     );
-    expect(lastWriteShadowArgs?.snapshot).toEqual(snapshot);
-    expect(lastWriteShadowArgs?.preparedSnapshot).toEqual(
-      expect.objectContaining({
-        title: null,
-        bytes: expect.any(Number),
-        hash: expect.any(String),
-        serializedJson: JSON.stringify(snapshot),
-      })
-    );
-    expect(lastWriteShadowArgs?.snapshot?.workspace.editReferenceText).toBe("");
-    expect(lastWriteShadowArgs?.snapshot?.workspace.videoReferenceText).toBe("");
     expect(buildSessionSnapshot).toHaveBeenCalledWith("session-1");
     expect(mockedAddBreadcrumb).toHaveBeenCalledWith({
       type: "ui",
@@ -1034,11 +1034,12 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
 
     rerender({ projectId: "project-1" });
 
-    expect(prepareSpy.mock.calls.length).toBeGreaterThanOrEqual(1);
+    expect(prepareSpy.mock.calls.length).toBe(0);
     expect(prepareSpy.mock.calls.length).toBe(prepareCallsAfterBootstrap);
     expect(mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0]?.preparedSnapshot).toEqual(
       preparedSnapshotAfterBootstrap
     );
+    prepareSpy.mockRestore();
   });
 
   it("defers project autosave snapshot rebuilds while canvas interaction is active", async () => {
@@ -1211,7 +1212,8 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
       expect.objectContaining({
         sessionId: "project-1",
         enabled: false,
-        snapshot: pendingShellSnapshot,
+        snapshot: null,
+        preparedSnapshot: null,
       })
     );
 
@@ -1225,8 +1227,9 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     expect(mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0]).toEqual(
       expect.objectContaining({
         sessionId: "project-1",
-        enabled: true,
-        snapshot: restoredSnapshot,
+        enabled: false,
+        snapshot: null,
+        preparedSnapshot: null,
       })
     );
     expect(pendingBuildSessionSnapshot).toHaveBeenCalledTimes(1);
@@ -1356,17 +1359,20 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     expect(mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0]).toEqual(
       expect.objectContaining({
         sessionId: "project-1",
-        enabled: true,
-        snapshot: restoredSnapshot,
+        enabled: false,
+        snapshot: null,
+        preparedSnapshot: null,
       })
     );
 
-    rerender({
-      buildBaseSessionSnapshot: editedBuildSessionSnapshot as (
-        sessionId: string
-      ) => AiStudioSessionSnapshot,
+    await act(async () => {
+      rerender({
+        buildBaseSessionSnapshot: editedBuildSessionSnapshot as (
+          sessionId: string
+        ) => AiStudioSessionSnapshot,
+      });
+      await Promise.resolve();
     });
-    await flushBootstrapVisibilityLatch();
     expect(result.current.projectBootstrapApplied).toBe(true);
     expect(mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0]).toEqual(
       expect.objectContaining({
@@ -1441,15 +1447,18 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
       restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
     });
 
-    rerender();
+    rerender({
+      buildSnapshot: buildSessionSnapshot as (sessionId: string) => AiStudioSessionSnapshot,
+    });
     await flushBootstrapVisibilityLatch();
 
     expect(result.current.projectBootstrapApplied).toBe(true);
     expect(mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0]).toEqual(
       expect.objectContaining({
         sessionId: "project-1",
-        enabled: true,
-        snapshot: runtimeNormalizedSnapshot,
+        enabled: false,
+        snapshot: null,
+        preparedSnapshot: null,
       })
     );
   });
@@ -1533,15 +1542,18 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
       restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
     });
 
-    rerender();
+    rerender({
+      buildSnapshot: buildSessionSnapshot as (sessionId: string) => AiStudioSessionSnapshot,
+    });
     await flushBootstrapVisibilityLatch();
 
     expect(result.current.projectBootstrapApplied).toBe(true);
     expect(mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0]).toEqual(
       expect.objectContaining({
         sessionId: "project-1",
-        enabled: true,
-        snapshot: runtimeNormalizedSnapshot,
+        enabled: false,
+        snapshot: null,
+        preparedSnapshot: null,
       })
     );
   });
@@ -1626,15 +1638,18 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
       restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
     });
 
-    rerender();
+    rerender({
+      buildSnapshot: buildSessionSnapshot as (sessionId: string) => AiStudioSessionSnapshot,
+    });
     await flushBootstrapVisibilityLatch();
 
     expect(result.current.projectBootstrapApplied).toBe(true);
     expect(mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0]).toEqual(
       expect.objectContaining({
         sessionId: "project-1",
-        enabled: true,
-        snapshot: runtimeVisibilitySnapshot,
+        enabled: false,
+        snapshot: null,
+        preparedSnapshot: null,
       })
     );
   });
@@ -1780,7 +1795,9 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     expect(mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0]).toEqual(
       expect.objectContaining({
         sessionId: "project-1",
-        enabled: true,
+        enabled: false,
+        snapshot: null,
+        preparedSnapshot: null,
       })
     );
     expect(nextBuildSessionSnapshot).toHaveBeenCalledWith("session-1");
@@ -1832,10 +1849,9 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     expect(secondPatchSessionSnapshot).toHaveBeenCalledTimes(1);
     expect(mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0]).toEqual(
       expect.objectContaining({
-        enabled: true,
-        snapshot: expect.objectContaining({
-          updatedAt: "2026-04-24T19:00:00.000Z",
-        }),
+        enabled: false,
+        snapshot: null,
+        preparedSnapshot: null,
       })
     );
   });
@@ -1911,19 +1927,18 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     expect(initialAutosaveArgs).toEqual(
       expect.objectContaining({
         sessionId: "project-1",
-        enabled: true,
-        snapshot: expect.objectContaining({
-          workspace: expect.objectContaining({
-            rightRailLayout: initialLayout,
-          }),
-        }),
+        enabled: false,
+        snapshot: null,
+        preparedSnapshot: null,
       })
     );
     const initialPreparedHash = initialAutosaveArgs?.preparedSnapshot?.hash;
-    expect(initialPreparedHash).toMatch(/^fnv1a32:/);
+    expect(initialPreparedHash).toBeUndefined();
 
-    rerender({ patchSessionSnapshot: editedPatchSessionSnapshot });
-    await flushBootstrapVisibilityLatch();
+    await act(async () => {
+      rerender({ patchSessionSnapshot: editedPatchSessionSnapshot });
+      await Promise.resolve();
+    });
 
     const editedAutosaveArgs = mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0];
     expect(editedAutosaveArgs).toEqual(
@@ -1939,7 +1954,26 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
       })
     );
     expect(editedAutosaveArgs?.preparedSnapshot?.hash).toMatch(/^fnv1a32:/);
-    expect(editedAutosaveArgs?.preparedSnapshot?.hash).not.toBe(initialPreparedHash);
+
+    await act(async () => {
+      rerender({ patchSessionSnapshot: initialPatchSessionSnapshot });
+      await Promise.resolve();
+    });
+
+    const revertedAutosaveArgs = mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0];
+    expect(revertedAutosaveArgs).toEqual(
+      expect.objectContaining({
+        sessionId: "project-1",
+        enabled: true,
+        snapshot: expect.objectContaining({
+          updatedAt: baseSnapshot.updatedAt,
+          workspace: expect.objectContaining({
+            rightRailLayout: initialLayout,
+          }),
+        }),
+      })
+    );
+    expect(revertedAutosaveArgs?.preparedSnapshot?.hash).toMatch(/^fnv1a32:/);
   });
 
   it("ignores stale bootstrap state after leaving and re-entering the same project", async () => {
@@ -2101,7 +2135,9 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     act(() => {
       firstFailureHandler?.("project-1", new Error("hydrate failed"));
     });
-    rerender();
+    rerender({
+      buildSnapshot: buildSessionSnapshot as (sessionId: string) => AiStudioSessionSnapshot,
+    });
 
     const latestHydrationArgs =
       mockedUseAiStudioProjectWorkspaceRestoreHydration.mock.calls.at(-1)?.[0];
@@ -2147,18 +2183,32 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     } as unknown as AiStudioSessionSnapshot;
     mockReadyRestoreCandidate(oversizedSnapshot);
     const runtimeNormalizedSnapshot = createProjectRestoreSnapshot(oversizedSnapshot);
+    const editedRuntimeSnapshot = {
+      ...runtimeNormalizedSnapshot,
+      outputs: {
+        ...runtimeNormalizedSnapshot.outputs,
+        curatedReferenceIds: ["post-bootstrap-edit"],
+      },
+    } as AiStudioSessionSnapshot;
     const buildSessionSnapshot = vi.fn(() => runtimeNormalizedSnapshot);
+    const buildEditedSessionSnapshot = vi.fn(() => editedRuntimeSnapshot);
     const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
 
-    const { rerender } = renderHook(() =>
-      useAiStudioProjectWorkspacePersistenceController({
-        projectId: "project-1",
-        projectRouteRequested: true,
-        sessionId: "session-1",
-        buildBaseSessionSnapshot: buildSessionSnapshot,
-        hydrateFromSessionSnapshot,
-        onPersistenceWarning: vi.fn(),
-      })
+    const { rerender } = renderHook(
+      ({ buildSnapshot }) =>
+        useAiStudioProjectWorkspacePersistenceController({
+          projectId: "project-1",
+          projectRouteRequested: true,
+          sessionId: "session-1",
+          buildBaseSessionSnapshot: buildSnapshot,
+          hydrateFromSessionSnapshot,
+          onPersistenceWarning: vi.fn(),
+        }),
+      {
+        initialProps: {
+          buildSnapshot: buildSessionSnapshot as (sessionId: string) => AiStudioSessionSnapshot,
+        },
+      }
     );
 
     const restoreHydrationArgs =
@@ -2166,8 +2216,16 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     act(() => {
       restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
     });
-    rerender();
+    rerender({
+      buildSnapshot: buildSessionSnapshot as (sessionId: string) => AiStudioSessionSnapshot,
+    });
     await flushBootstrapVisibilityLatch();
+    await act(async () => {
+      rerender({
+        buildSnapshot: buildEditedSessionSnapshot as (sessionId: string) => AiStudioSessionSnapshot,
+      });
+      await Promise.resolve();
+    });
 
     const autosaveArgs = mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0];
     expect(autosaveArgs?.enabled).toBe(true);
@@ -2199,19 +2257,33 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     } as unknown as AiStudioSessionSnapshot;
     const projectWorkspaceSnapshot = createAiStudioProjectWorkspaceSnapshot(snapshot);
     mockReadyRestoreCandidate(projectWorkspaceSnapshot);
+    const editedProjectWorkspaceSnapshot = {
+      ...projectWorkspaceSnapshot,
+      outputs: {
+        ...projectWorkspaceSnapshot.outputs,
+        curatedReferenceIds: ["generated:generation-1", "post-bootstrap-edit"],
+      },
+    } as AiStudioSessionSnapshot;
     const buildSessionSnapshot = vi.fn(() => projectWorkspaceSnapshot);
+    const buildEditedSessionSnapshot = vi.fn(() => editedProjectWorkspaceSnapshot);
     const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
     const onPersistenceWarning = vi.fn();
 
-    const { rerender } = renderHook(() =>
-      useAiStudioProjectWorkspacePersistenceController({
-        projectId: "project-1",
-        projectRouteRequested: true,
-        sessionId: "session-1",
-        buildBaseSessionSnapshot: buildSessionSnapshot,
-        hydrateFromSessionSnapshot,
-        onPersistenceWarning,
-      })
+    const { rerender } = renderHook(
+      ({ buildSnapshot }) =>
+        useAiStudioProjectWorkspacePersistenceController({
+          projectId: "project-1",
+          projectRouteRequested: true,
+          sessionId: "session-1",
+          buildBaseSessionSnapshot: buildSnapshot,
+          hydrateFromSessionSnapshot,
+          onPersistenceWarning,
+        }),
+      {
+        initialProps: {
+          buildSnapshot: buildSessionSnapshot as (sessionId: string) => AiStudioSessionSnapshot,
+        },
+      }
     );
 
     const restoreHydrationArgs =
@@ -2219,8 +2291,16 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     act(() => {
       restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
     });
-    rerender();
+    rerender({
+      buildSnapshot: buildSessionSnapshot as (sessionId: string) => AiStudioSessionSnapshot,
+    });
     await flushBootstrapVisibilityLatch();
+    await act(async () => {
+      rerender({
+        buildSnapshot: buildEditedSessionSnapshot as (sessionId: string) => AiStudioSessionSnapshot,
+      });
+      await Promise.resolve();
+    });
 
     const autosaveArgs = mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0];
     expect(autosaveArgs?.enabled).toBe(true);
@@ -2230,7 +2310,10 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
       taskId: "task-1",
       taskState: "success",
     });
-    expect(autosaveArgs?.snapshot?.outputs.curatedReferenceIds).toEqual(["generated:generation-1"]);
+    expect(autosaveArgs?.snapshot?.outputs.curatedReferenceIds).toEqual([
+      "generated:generation-1",
+      "post-bootstrap-edit",
+    ]);
     expect(autosaveArgs?.snapshot?.outputs.active?.[0]).not.toHaveProperty("prompt");
     expect(autosaveArgs?.snapshot?.outputs.active?.[0]).toHaveProperty(
       "previewUrl",
@@ -2259,19 +2342,45 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
         },
       },
     } as AiStudioSessionSnapshot;
-    const buildSessionSnapshot = vi.fn(() => createAiStudioProjectWorkspaceSnapshot(snapshot));
+    const baselineSnapshot = createAiStudioProjectWorkspaceSnapshot(snapshot);
+    const editedSnapshot = {
+      ...baselineSnapshot,
+      workspace: {
+        ...baselineSnapshot.workspace,
+        rightRailLayout: {
+          schemaVersion: 1,
+          panels: {
+            canvas: true,
+            quickSlot: false,
+            referenceGrid: true,
+          },
+          splits: {
+            canvasInventoryTopRatio: 0.4,
+            quickSlotReferenceTopRatio: 0.6,
+          },
+        },
+      },
+    } as AiStudioSessionSnapshot;
+    const buildSessionSnapshot = vi.fn(() => baselineSnapshot);
+    const buildEditedSessionSnapshot = vi.fn(() => editedSnapshot);
     const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
     const onPersistenceWarning = vi.fn();
 
-    const { rerender } = renderHook(() =>
-      useAiStudioProjectWorkspacePersistenceController({
-        projectId: "project-1",
-        projectRouteRequested: true,
-        sessionId: "session-1",
-        buildBaseSessionSnapshot: buildSessionSnapshot,
-        hydrateFromSessionSnapshot,
-        onPersistenceWarning,
-      })
+    const { rerender } = renderHook(
+      ({ buildSnapshot }) =>
+        useAiStudioProjectWorkspacePersistenceController({
+          projectId: "project-1",
+          projectRouteRequested: true,
+          sessionId: "session-1",
+          buildBaseSessionSnapshot: buildSnapshot,
+          hydrateFromSessionSnapshot,
+          onPersistenceWarning,
+        }),
+      {
+        initialProps: {
+          buildSnapshot: buildSessionSnapshot as (sessionId: string) => AiStudioSessionSnapshot,
+        },
+      }
     );
 
     const restoreHydrationArgs =
@@ -2279,8 +2388,16 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     act(() => {
       restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
     });
-    rerender();
+    rerender({
+      buildSnapshot: buildSessionSnapshot as (sessionId: string) => AiStudioSessionSnapshot,
+    });
     await flushBootstrapVisibilityLatch();
+    await act(async () => {
+      rerender({
+        buildSnapshot: buildEditedSessionSnapshot as (sessionId: string) => AiStudioSessionSnapshot,
+      });
+      await Promise.resolve();
+    });
 
     const autosaveArgs = mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0];
     const autosaveSnapshot = autosaveArgs?.snapshot as AiStudioSessionSnapshotV2 | null | undefined;
@@ -2314,7 +2431,9 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     act(() => {
       restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
     });
-    rerender();
+    rerender({
+      buildSnapshot: buildSessionSnapshot as (sessionId: string) => AiStudioSessionSnapshot,
+    });
 
     const autosaveArgs = mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0];
     expect(autosaveArgs).toBeTruthy();
@@ -2392,7 +2511,9 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     act(() => {
       restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
     });
-    rerender();
+    rerender({
+      buildSnapshot: buildSessionSnapshot as (sessionId: string) => AiStudioSessionSnapshot,
+    });
     await flushBootstrapVisibilityLatch();
 
     const autosaveArgs = mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0];
@@ -2483,7 +2604,9 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     act(() => {
       restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
     });
-    rerender();
+    rerender({
+      buildSnapshot: buildSessionSnapshot as (sessionId: string) => AiStudioSessionSnapshot,
+    });
     await flushBootstrapVisibilityLatch();
     mockedReportAppError.mockClear();
 
@@ -2537,7 +2660,9 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     act(() => {
       restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
     });
-    rerender();
+    rerender({
+      buildSnapshot: buildSessionSnapshot as (sessionId: string) => AiStudioSessionSnapshot,
+    });
     await flushBootstrapVisibilityLatch();
 
     const autosaveArgs = mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0];
@@ -2597,17 +2722,31 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
       },
     } as unknown as AiStudioSessionSnapshot;
     mockReadyRestoreCandidate(snapshot);
+    const editedSnapshot = {
+      ...snapshot,
+      outputs: {
+        ...snapshot.outputs,
+        curatedReferenceIds: ["near-route-limit-1", "post-bootstrap-edit"],
+      },
+    } as AiStudioSessionSnapshot;
     const buildSessionSnapshot = vi.fn(() => snapshot);
+    const buildEditedSessionSnapshot = vi.fn(() => editedSnapshot);
     const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
 
-    const { rerender } = renderHook(() =>
-      useAiStudioProjectWorkspacePersistenceController({
-        projectId: "project-1",
-        projectRouteRequested: true,
-        sessionId: "session-1",
-        buildBaseSessionSnapshot: buildSessionSnapshot,
-        hydrateFromSessionSnapshot,
-      })
+    const { rerender } = renderHook(
+      ({ buildSnapshot }) =>
+        useAiStudioProjectWorkspacePersistenceController({
+          projectId: "project-1",
+          projectRouteRequested: true,
+          sessionId: "session-1",
+          buildBaseSessionSnapshot: buildSnapshot,
+          hydrateFromSessionSnapshot,
+        }),
+      {
+        initialProps: {
+          buildSnapshot: buildSessionSnapshot as (sessionId: string) => AiStudioSessionSnapshot,
+        },
+      }
     );
 
     const restoreHydrationArgs =
@@ -2616,7 +2755,16 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
       restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
       await Promise.resolve();
     });
-    rerender();
+    rerender({
+      buildSnapshot: buildSessionSnapshot as (sessionId: string) => AiStudioSessionSnapshot,
+    });
+    await flushBootstrapVisibilityLatch();
+    await act(async () => {
+      rerender({
+        buildSnapshot: buildEditedSessionSnapshot as (sessionId: string) => AiStudioSessionSnapshot,
+      });
+      await Promise.resolve();
+    });
 
     const autosaveArgs = mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0];
     expect(autosaveArgs?.preparedSnapshot?.bytes).toBeGreaterThan(
@@ -2627,7 +2775,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     );
     expect(autosaveArgs).toEqual(
       expect.objectContaining({
-        snapshot,
+        snapshot: editedSnapshot,
         maxSnapshotBytes: PROJECT_WORKSPACE_AUTOSAVE_MAX_SNAPSHOT_BYTES,
         maxKeepaliveSnapshotBytes: PROJECT_WORKSPACE_KEEPALIVE_MAX_SNAPSHOT_BYTES,
       })
@@ -2656,19 +2804,33 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
       },
     } as unknown as AiStudioSessionSnapshot;
     mockReadyRestoreCandidate(snapshot);
+    const editedSnapshot = {
+      ...snapshot,
+      outputs: {
+        ...snapshot.outputs,
+        curatedReferenceIds: ["oversized-1", "post-bootstrap-edit"],
+      },
+    } as AiStudioSessionSnapshot;
     const buildSessionSnapshot = vi.fn(() => snapshot);
+    const buildEditedSessionSnapshot = vi.fn(() => editedSnapshot);
     const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
     const onPersistenceWarning = vi.fn();
 
-    const { rerender } = renderHook(() =>
-      useAiStudioProjectWorkspacePersistenceController({
-        projectId: "project-1",
-        projectRouteRequested: true,
-        sessionId: "session-1",
-        buildBaseSessionSnapshot: buildSessionSnapshot,
-        hydrateFromSessionSnapshot,
-        onPersistenceWarning,
-      })
+    const { rerender } = renderHook(
+      ({ buildSnapshot }) =>
+        useAiStudioProjectWorkspacePersistenceController({
+          projectId: "project-1",
+          projectRouteRequested: true,
+          sessionId: "session-1",
+          buildBaseSessionSnapshot: buildSnapshot,
+          hydrateFromSessionSnapshot,
+          onPersistenceWarning,
+        }),
+      {
+        initialProps: {
+          buildSnapshot: buildSessionSnapshot as (sessionId: string) => AiStudioSessionSnapshot,
+        },
+      }
     );
 
     const restoreHydrationArgs =
@@ -2676,8 +2838,16 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     act(() => {
       restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
     });
-    rerender();
+    rerender({
+      buildSnapshot: buildSessionSnapshot as (sessionId: string) => AiStudioSessionSnapshot,
+    });
     await flushBootstrapVisibilityLatch();
+    await act(async () => {
+      rerender({
+        buildSnapshot: buildEditedSessionSnapshot as (sessionId: string) => AiStudioSessionSnapshot,
+      });
+      await Promise.resolve();
+    });
 
     const autosaveArgs = mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0];
     act(() => {

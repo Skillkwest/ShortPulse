@@ -22,6 +22,33 @@ describe("useStylesLibraryStyleDetailsPreference", () => {
     window.localStorage.clear();
   });
 
+  it("stays idle without loading local or remote style details while disabled", () => {
+    window.localStorage.setItem(
+      "shortpulse.ai_studio.style_details_overrides:user-123",
+      JSON.stringify({
+        cinematic: {
+          style: "Cinematic",
+          title: "Cinematic",
+          referenceImageName: "Cinematic",
+          stylePrompt: "cinematic prompt",
+          previewImageUrl: "data:image/png;base64,cinematic",
+        },
+      })
+    );
+    useResolvedProtectedSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: { user: { id: "user-123" } } as never,
+      user: { id: "user-123" } as never,
+    });
+
+    const { result } = renderHook(() => useStylesLibraryStyleDetailsPreference({ enabled: false }));
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.syncState).toBe("ready");
+    expect(result.current.styleDetailsById).toEqual({});
+    expect(supabaseQueryClientMock.from).not.toHaveBeenCalled();
+  });
+
   it("removes a deleted custom style from the persisted details map", async () => {
     window.localStorage.setItem(
       "shortpulse.ai_studio.style_details_overrides",

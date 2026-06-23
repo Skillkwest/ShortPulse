@@ -22,6 +22,10 @@ type UseStylesLibraryPanelIdsPreferenceResult = {
   resetStylePanelIds: () => Promise<boolean>;
 };
 
+type UseStylesLibraryPanelIdsPreferenceOptions = {
+  enabled?: boolean;
+};
+
 const STYLE_ORDER_ENDPOINT = "/api/ai/style-order";
 
 const resolveStyleOrderErrorMessage = (error: unknown, fallbackMessage: string): string => {
@@ -56,13 +60,17 @@ const readStyleOrderPayload = async (response: Response): Promise<string[]> => {
 /**
  * Reads and writes shared style ordering through the canonical user preference row.
  */
-export const useStylesLibraryPanelIdsPreference = (): UseStylesLibraryPanelIdsPreferenceResult => {
+export const useStylesLibraryPanelIdsPreference = ({
+  enabled = true,
+}: UseStylesLibraryPanelIdsPreferenceOptions = {}): UseStylesLibraryPanelIdsPreferenceResult => {
   const sessionSnapshot = useResolvedProtectedSessionState();
   const sessionUserId = sessionSnapshot.user?.id ?? null;
   const [stylePanelIds, setStylePanelIdsState] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
-  const [syncState, setSyncState] = useState<StylesLibraryPanelIdsSyncState>("loading");
+  const [syncState, setSyncState] = useState<StylesLibraryPanelIdsSyncState>(
+    enabled ? "loading" : "ready"
+  );
   const [userId, setUserId] = useState<string | null>(null);
   const latestValueRef = useRef<string[]>([]);
   const writeVersionRef = useRef(0);
@@ -74,6 +82,12 @@ export const useStylesLibraryPanelIdsPreference = (): UseStylesLibraryPanelIdsPr
   }, []);
 
   useEffect(() => {
+    if (!enabled) {
+      setLoading(false);
+      setError(null);
+      setSyncState("ready");
+      return;
+    }
     if (!sessionSnapshot.initialized) {
       setLoading(true);
       setSyncState("loading");
@@ -126,7 +140,7 @@ export const useStylesLibraryPanelIdsPreference = (): UseStylesLibraryPanelIdsPr
     return () => {
       active = false;
     };
-  }, [sessionSnapshot.initialized, sessionUserId, updateValue]);
+  }, [enabled, sessionSnapshot.initialized, sessionUserId, updateValue]);
 
   const persistNextValue = useCallback(
     async (nextValue: string[]): Promise<boolean> => {

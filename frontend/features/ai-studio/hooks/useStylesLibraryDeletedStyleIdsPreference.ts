@@ -23,6 +23,10 @@ type UseStylesLibraryDeletedStyleIdsPreferenceResult = {
   restoreDeletedStyleIds: () => Promise<boolean>;
 };
 
+type UseStylesLibraryDeletedStyleIdsPreferenceOptions = {
+  enabled?: boolean;
+};
+
 const normalizeDeletedStyleIds = (value: unknown): string[] => {
   if (!Array.isArray(value)) return [];
   const seen = new Set<string>();
@@ -73,181 +77,187 @@ const isMissingDeletedStyleStorageError = (error: unknown): boolean => {
 /**
  * Reads and writes deleted style IDs with Supabase persistence when available.
  */
-export const useStylesLibraryDeletedStyleIdsPreference =
-  (): UseStylesLibraryDeletedStyleIdsPreferenceResult => {
-    const sessionSnapshot = useResolvedProtectedSessionState();
-    const sessionUserId = sessionSnapshot.user?.id ?? null;
-    const [deletedStyleIds, setDeletedStyleIds] = useState<string[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [syncState, setSyncState] = useState<StylesLibraryDeleteSyncState>("loading");
-    const [userId, setUserId] = useState<string | null>(null);
-    const latestValueRef = useRef<string[]>([]);
-    const writeVersionRef = useRef(0);
-    const remoteSyncEnabledRef = useRef(true);
-    const hasLocalOverrideRef = useRef(false);
+export const useStylesLibraryDeletedStyleIdsPreference = ({
+  enabled = true,
+}: UseStylesLibraryDeletedStyleIdsPreferenceOptions = {}): UseStylesLibraryDeletedStyleIdsPreferenceResult => {
+  const sessionSnapshot = useResolvedProtectedSessionState();
+  const sessionUserId = sessionSnapshot.user?.id ?? null;
+  const [deletedStyleIds, setDeletedStyleIds] = useState<string[]>([]);
+  const [loading, setLoading] = useState(enabled);
+  const [error, setError] = useState<string | null>(null);
+  const [syncState, setSyncState] = useState<StylesLibraryDeleteSyncState>(
+    enabled ? "loading" : "ready"
+  );
+  const [userId, setUserId] = useState<string | null>(null);
+  const latestValueRef = useRef<string[]>([]);
+  const writeVersionRef = useRef(0);
+  const remoteSyncEnabledRef = useRef(true);
+  const hasLocalOverrideRef = useRef(false);
 
-    const updateLocalValue = useCallback(
-      (value: string[], storageUserId?: string | null) => {
-        const normalizedValue = normalizeDeletedStyleIds(value);
-        latestValueRef.current = normalizedValue;
-        setDeletedStyleIds(normalizedValue);
-        writeLocalDeletedStyleIds(normalizedValue, storageUserId ?? userId);
-      },
-      [userId]
-    );
+  const updateLocalValue = useCallback(
+    (value: string[], storageUserId?: string | null) => {
+      const normalizedValue = normalizeDeletedStyleIds(value);
+      latestValueRef.current = normalizedValue;
+      setDeletedStyleIds(normalizedValue);
+      writeLocalDeletedStyleIds(normalizedValue, storageUserId ?? userId);
+    },
+    [userId]
+  );
 
-    useEffect(() => {
-      if (!sessionSnapshot.initialized) {
-        setLoading(true);
-        setSyncState("loading");
-        return;
-      }
-      let active = true;
+  useEffect(() => {
+    if (!enabled) {
+      setLoading(false);
+      setError(null);
+      setSyncState("ready");
+      return;
+    }
+    if (!sessionSnapshot.initialized) {
       setLoading(true);
       setSyncState("loading");
+      return;
+    }
+    let active = true;
+    setLoading(true);
+    setSyncState("loading");
 
-      (async () => {
-        try {
-          if (!supabaseQueryClient) {
-            if (!active) return;
-            updateLocalValue(readLocalDeletedStyleIds(), null);
-            remoteSyncEnabledRef.current = false;
-            setUserId(null);
-            setError(null);
-            setSyncState("ready");
-            return;
-          }
-
-          if (!sessionUserId) {
-            if (!active) return;
-            updateLocalValue(readLocalDeletedStyleIds(), null);
-            setUserId(null);
-            setError(null);
-            setSyncState("ready");
-            return;
-          }
+    (async () => {
+      try {
+        if (!supabaseQueryClient) {
           if (!active) return;
-          setUserId(sessionUserId);
-          const localValue = readLocalDeletedStyleIds(sessionUserId);
-          updateLocalValue(localValue, sessionUserId);
-
-          const { data: storedPreference, error: preferenceError } = await supabaseQueryClient
-            .from("user_preferences")
-            .select("ai_studio_deleted_style_ids")
-            .eq("user_id", sessionUserId)
-            .maybeSingle();
-          if (preferenceError) throw preferenceError;
-          if (!active) return;
-
-          const remoteValue = normalizeDeletedStyleIds(
-            storedPreference?.ai_studio_deleted_style_ids
-          );
-          const mergedValue = normalizeDeletedStyleIds([...remoteValue, ...localValue]);
-          if (!hasLocalOverrideRef.current) {
-            updateLocalValue(mergedValue, sessionUserId);
-          }
-
-          if (!active) return;
+          updateLocalValue(readLocalDeletedStyleIds(), null);
+          remoteSyncEnabledRef.current = false;
+          setUserId(null);
           setError(null);
           setSyncState("ready");
-        } catch (err) {
-          if (!active) return;
-          if (isMissingDeletedStyleStorageError(err)) {
-            remoteSyncEnabledRef.current = false;
-            setError(null);
-            setSyncState("ready");
-            return;
-          }
-          setError(err instanceof Error ? err.message : "Unable to load styles library.");
-          setSyncState("error");
-        } finally {
-          if (active) setLoading(false);
+          return;
         }
-      })();
 
-      return () => {
-        active = false;
-      };
-    }, [sessionSnapshot.initialized, sessionUserId, updateLocalValue]);
+        if (!sessionUserId) {
+          if (!active) return;
+          updateLocalValue(readLocalDeletedStyleIds(), null);
+          setUserId(null);
+          setError(null);
+          setSyncState("ready");
+          return;
+        }
+        if (!active) return;
+        setUserId(sessionUserId);
+        const localValue = readLocalDeletedStyleIds(sessionUserId);
+        updateLocalValue(localValue, sessionUserId);
 
-    const persistDeletedStyleIds = useCallback(
-      async (nextStyleIds: string[], fallbackErrorMessage: string): Promise<boolean> => {
-        const requestVersion = writeVersionRef.current + 1;
-        writeVersionRef.current = requestVersion;
-        hasLocalOverrideRef.current = true;
+        const { data: storedPreference, error: preferenceError } = await supabaseQueryClient
+          .from("user_preferences")
+          .select("ai_studio_deleted_style_ids")
+          .eq("user_id", sessionUserId)
+          .maybeSingle();
+        if (preferenceError) throw preferenceError;
+        if (!active) return;
 
-        const previousValue = latestValueRef.current;
-        const nextValue = normalizeDeletedStyleIds(nextStyleIds);
-        const valuesMatch =
-          nextValue.length === previousValue.length &&
-          nextValue.every((value, index) => previousValue[index] === value);
-        if (valuesMatch) return true;
+        const remoteValue = normalizeDeletedStyleIds(storedPreference?.ai_studio_deleted_style_ids);
+        const mergedValue = normalizeDeletedStyleIds([...remoteValue, ...localValue]);
+        if (!hasLocalOverrideRef.current) {
+          updateLocalValue(mergedValue, sessionUserId);
+        }
 
-        updateLocalValue(nextValue, userId);
-        setSyncState("saving");
+        if (!active) return;
         setError(null);
-
-        if (!userId || !remoteSyncEnabledRef.current || !supabaseQueryClient) {
-          if (requestVersion === writeVersionRef.current) {
-            setSyncState("ready");
-          }
-          return true;
+        setSyncState("ready");
+      } catch (err) {
+        if (!active) return;
+        if (isMissingDeletedStyleStorageError(err)) {
+          remoteSyncEnabledRef.current = false;
+          setError(null);
+          setSyncState("ready");
+          return;
         }
+        setError(err instanceof Error ? err.message : "Unable to load styles library.");
+        setSyncState("error");
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
 
-        try {
-          const { error: upsertError } = await supabaseQueryClient
-            .from("user_preferences")
-            .upsert(
-              { user_id: userId, ai_studio_deleted_style_ids: nextValue },
-              { onConflict: "user_id" }
-            );
-          if (upsertError) throw upsertError;
-          if (requestVersion !== writeVersionRef.current) return true;
+    return () => {
+      active = false;
+    };
+  }, [enabled, sessionSnapshot.initialized, sessionUserId, updateLocalValue]);
+
+  const persistDeletedStyleIds = useCallback(
+    async (nextStyleIds: string[], fallbackErrorMessage: string): Promise<boolean> => {
+      const requestVersion = writeVersionRef.current + 1;
+      writeVersionRef.current = requestVersion;
+      hasLocalOverrideRef.current = true;
+
+      const previousValue = latestValueRef.current;
+      const nextValue = normalizeDeletedStyleIds(nextStyleIds);
+      const valuesMatch =
+        nextValue.length === previousValue.length &&
+        nextValue.every((value, index) => previousValue[index] === value);
+      if (valuesMatch) return true;
+
+      updateLocalValue(nextValue, userId);
+      setSyncState("saving");
+      setError(null);
+
+      if (!userId || !remoteSyncEnabledRef.current || !supabaseQueryClient) {
+        if (requestVersion === writeVersionRef.current) {
+          setSyncState("ready");
+        }
+        return true;
+      }
+
+      try {
+        const { error: upsertError } = await supabaseQueryClient
+          .from("user_preferences")
+          .upsert(
+            { user_id: userId, ai_studio_deleted_style_ids: nextValue },
+            { onConflict: "user_id" }
+          );
+        if (upsertError) throw upsertError;
+        if (requestVersion !== writeVersionRef.current) return true;
+        setError(null);
+        setSyncState("ready");
+        return true;
+      } catch (err) {
+        if (requestVersion !== writeVersionRef.current) return true;
+        if (isMissingDeletedStyleStorageError(err)) {
+          remoteSyncEnabledRef.current = false;
           setError(null);
           setSyncState("ready");
           return true;
-        } catch (err) {
-          if (requestVersion !== writeVersionRef.current) return true;
-          if (isMissingDeletedStyleStorageError(err)) {
-            remoteSyncEnabledRef.current = false;
-            setError(null);
-            setSyncState("ready");
-            return true;
-          }
-          updateLocalValue(previousValue, userId);
-          setError(err instanceof Error ? err.message : fallbackErrorMessage);
-          setSyncState("error");
-          return false;
         }
-      },
-      [updateLocalValue, userId]
-    );
+        updateLocalValue(previousValue, userId);
+        setError(err instanceof Error ? err.message : fallbackErrorMessage);
+        setSyncState("error");
+        return false;
+      }
+    },
+    [updateLocalValue, userId]
+  );
 
-    const deleteStyleId = useCallback(
-      async (styleId: string): Promise<boolean> => {
-        const normalizedStyleId = styleId.trim();
-        if (!normalizedStyleId) return false;
-        return persistDeletedStyleIds(
-          [...latestValueRef.current, normalizedStyleId],
-          "Unable to delete style."
-        );
-      },
-      [persistDeletedStyleIds]
-    );
+  const deleteStyleId = useCallback(
+    async (styleId: string): Promise<boolean> => {
+      const normalizedStyleId = styleId.trim();
+      if (!normalizedStyleId) return false;
+      return persistDeletedStyleIds(
+        [...latestValueRef.current, normalizedStyleId],
+        "Unable to delete style."
+      );
+    },
+    [persistDeletedStyleIds]
+  );
 
-    const restoreDeletedStyleIds = useCallback(
-      async (): Promise<boolean> =>
-        persistDeletedStyleIds([], "Unable to restore built-in styles."),
-      [persistDeletedStyleIds]
-    );
+  const restoreDeletedStyleIds = useCallback(
+    async (): Promise<boolean> => persistDeletedStyleIds([], "Unable to restore built-in styles."),
+    [persistDeletedStyleIds]
+  );
 
-    return {
-      deletedStyleIds,
-      loading,
-      error,
-      syncState,
-      deleteStyleId,
-      restoreDeletedStyleIds,
-    };
+  return {
+    deletedStyleIds,
+    loading,
+    error,
+    syncState,
+    deleteStyleId,
+    restoreDeletedStyleIds,
   };
+};

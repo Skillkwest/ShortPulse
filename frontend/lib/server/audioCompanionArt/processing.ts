@@ -20,6 +20,9 @@ const AUDIO_COMPANION_ART_DELIVERY_MIME_TYPE = "image/webp";
 const AUDIO_COMPANION_ART_DELIVERY_WIDTH_PX = 480;
 const AUDIO_COMPANION_ART_DELIVERY_QUALITY = 68;
 const AUDIO_COMPANION_ART_POLL_INTERVAL_MS = 500;
+const AUDIO_COMPANION_ART_BLANK_LUMA_THRESHOLD = 246;
+const AUDIO_COMPANION_ART_LOW_VARIATION_THRESHOLD = 4;
+const AUDIO_COMPANION_ART_LOW_RANGE_THRESHOLD = 18;
 
 type JsonObject = Record<string, unknown>;
 
@@ -163,6 +166,25 @@ const encodeAudioCompanionArtDeliveryBuffer = async (sourceBuffer: Buffer): Prom
     .toBuffer();
 };
 
+const assertAudioCompanionArtHasRenderableContent = async (sourceBuffer: Buffer): Promise<void> => {
+  const stats = await sharp(sourceBuffer, { failOn: "error" }).stats();
+  const channels = stats.channels.slice(0, 3);
+  if (channels.length < 3) return;
+
+  const [red, green, blue] = channels;
+  const meanLuma = red.mean * 0.2126 + green.mean * 0.7152 + blue.mean * 0.0722;
+  const averageDeviation = (red.stdev + green.stdev + blue.stdev) / 3;
+  const maxChannelRange = Math.max(red.max - red.min, green.max - green.min, blue.max - blue.min);
+  const isNearWhiteBlank =
+    meanLuma >= AUDIO_COMPANION_ART_BLANK_LUMA_THRESHOLD &&
+    averageDeviation <= AUDIO_COMPANION_ART_LOW_VARIATION_THRESHOLD &&
+    maxChannelRange <= AUDIO_COMPANION_ART_LOW_RANGE_THRESHOLD;
+
+  if (isNearWhiteBlank) {
+    throw new Error("Audio companion art image was blank or near-white.");
+  }
+};
+
 export const markAudioCompanionArtPending = async ({
   generationId,
   userId,
@@ -294,6 +316,7 @@ const generateAndPersistAudioCompanionArt = async ({
     pollIntervalMs: AUDIO_COMPANION_ART_POLL_INTERVAL_MS,
     initialPollDelayMs: 0,
   });
+  await assertAudioCompanionArtHasRenderableContent(generated.buffer);
   const deliveryBuffer = await encodeAudioCompanionArtDeliveryBuffer(generated.buffer);
   if (!(await loadAudioCompanionArtEligibility({ generationId, userId }))) {
     await cleanupAudioCompanionArt({

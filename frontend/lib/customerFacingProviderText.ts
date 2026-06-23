@@ -16,6 +16,15 @@ const REQUEST_ID_TEXT_PATTERN = /\b(?:and\s+)?include\s+the\s+request\s+ID\s+[a-
 const REQUEST_ID_INLINE_PATTERN = /\brequest\s+ID\s*[:#]?\s*[a-z0-9_:-]+\.?/gi;
 const PROVIDER_REQUEST_TOKEN_PATTERN = /\breq_[a-z0-9]+\b/gi;
 const SUPPORT_URL_PATTERN = /\b(?:https?:\/\/)?help\.openai\.com\S*/gi;
+const MISSING_API_KEY_MESSAGE = "Missing API key.";
+const PROVIDER_API_KEY_FAILURE_PATTERNS: RegExp[] = [
+  /\b(?:invalid|incorrect|missing)\s+(?:provider\s+)?api\s+key\b/i,
+  /\bapi\s+key\s+(?:is\s+)?(?:invalid|incorrect|missing|not\s+set|not\s+configured)\b/i,
+  /\b(?:KIE_API_KEY|SHORTPULSE_KIE_API_KEY|FAL_KEY|OPENAI_API_KEY|ELEVENLABS_API_KEY)\b.*\b(?:missing|not\s+set|not\s+configured)\b/i,
+  /\bUnauthorized\b[\s:-]+Authentication\s+failed\b/i,
+  /\bAuthentication\s+failed\b.*\bapi\s+key\b/i,
+  /\bverify\s+your\s+api\s+key\b/i,
+];
 const OPAQUE_UPSTREAM_FAILURE_PATTERN =
   /\b(?:internal error|try again later|temporarily unavailable|service unavailable|provider reported failed state)\b/i;
 
@@ -71,6 +80,9 @@ const resolveSafetyRejectionMessage = (value: string): string | null => {
     : "Your request was blocked by the safety system.";
 };
 
+const isProviderApiKeyFailureText = (value: string): boolean =>
+  PROVIDER_API_KEY_FAILURE_PATTERNS.some((pattern) => pattern.test(value));
+
 const stripProviderOperationalDetails = (value: string): string =>
   value
     .replace(PROVIDER_SUPPORT_TEXT_PATTERN, "")
@@ -93,6 +105,8 @@ export const sanitizeCustomerFacingProviderText = (
 
   const safetyMessage = resolveSafetyRejectionMessage(trimmed);
   if (safetyMessage) return safetyMessage;
+
+  if (isProviderApiKeyFailureText(trimmed)) return MISSING_API_KEY_MESSAGE;
 
   const protectedTrimmed = trimmed.replace(/\baudio provider\b/gi, AUDIO_PROVIDER_PLACEHOLDER);
   const sanitized = providerTextReplacements

@@ -70,4 +70,22 @@ describe("resolveAiStudioErrorPresentation", () => {
     expect(presentation.compactMessage).toBe("Content not allowed");
     expect(presentation.bannerMessage).toContain("explicit or unsafe content");
   });
+
+  it("uses short neutral card copy for provider API key failures", () => {
+    const presentation = resolveAiStudioErrorPresentation(
+      createFailedOutput({
+        model: "GPT Image 2 (Kie)",
+        modelId: "kie-ai/gpt-image-2-text-to-image",
+        errorMessage: "Generation failed",
+        errorMessageShort: "Unauthorized - Authentication failed. Please verify your API key.",
+        errorDetail: "Unauthorized - Authentication failed. Please verify your API key.",
+      })
+    );
+
+    expect(presentation.compactMessage).toBe("Missing API key.");
+    expect(presentation.bannerMessage).toBe("Missing API key.");
+    expect(presentation.compactMessage).not.toMatch(
+      /Kie|Authentication failed|verify your API key/i
+    );
+  });
 });

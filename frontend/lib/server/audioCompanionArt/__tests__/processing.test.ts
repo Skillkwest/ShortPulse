@@ -13,6 +13,7 @@ const writeAppErrorLogMock = vi.fn();
 const resolveRuntimeAgentPromptMock = vi.fn();
 const cleanupAudioCompanionArtMock = vi.fn();
 const sharpMock = vi.fn();
+const sharpStatsMock = vi.fn();
 const sharpRotateMock = vi.fn();
 const sharpResizeMock = vi.fn();
 const sharpWebpMock = vi.fn();
@@ -77,6 +78,13 @@ describe("audioCompanionArt processing", () => {
       deletedStoragePath: null,
       storageDeleted: false,
     });
+    sharpStatsMock.mockResolvedValue({
+      channels: [
+        { mean: 80, stdev: 28, min: 10, max: 180 },
+        { mean: 110, stdev: 34, min: 12, max: 220 },
+        { mean: 150, stdev: 41, min: 20, max: 245 },
+      ],
+    });
     buildFalFluxKleinAudioCompanionArtPayloadMock.mockImplementation((prompt: string) => ({
       prompt,
       image_size: { width: 512, height: 512 },
@@ -96,6 +104,7 @@ describe("audioCompanionArt processing", () => {
       resize: sharpResizeMock,
     });
     sharpMock.mockReturnValue({
+      stats: sharpStatsMock,
       rotate: sharpRotateMock,
     });
   });
@@ -332,6 +341,125 @@ describe("audioCompanionArt processing", () => {
     expect(writeAppErrorLogMock).toHaveBeenCalledWith(
       expect.objectContaining({
         source: "telemetry.audio_companion_art.generation_failed",
+      })
+    );
+  });
+
+  it("rejects near-white provider images before storing companion art", async () => {
+    const projectionSelectBuilder: Record<string, unknown> = {};
+    projectionSelectBuilder.eq = vi.fn(() => projectionSelectBuilder);
+    projectionSelectBuilder.lt = vi.fn(() => projectionSelectBuilder);
+    projectionSelectBuilder.not = vi.fn(() => projectionSelectBuilder);
+    projectionSelectBuilder.or = vi.fn(() => projectionSelectBuilder);
+    projectionSelectBuilder.order = vi.fn(() => projectionSelectBuilder);
+    projectionSelectBuilder.limit = vi.fn(async () => ({
+      data: [
+        {
+          generation_id: "gen-white",
+          user_id: "user-white",
+          companion_art_attempt_count: 0,
+          publication_state: "published",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+        },
+      ],
+      error: null,
+    }));
+
+    const projectionEligibilityBuilder = createSelectBuilder({
+      data: {
+        publication_state: "published",
+        hidden_in_reference_grid: false,
+        reference_grid_visible: true,
+      },
+      error: null,
+    });
+    const claimBuilder: Record<string, unknown> = {};
+    claimBuilder.eq = vi.fn(() => claimBuilder);
+    claimBuilder.lt = vi.fn(() => claimBuilder);
+    claimBuilder.not = vi.fn(() => claimBuilder);
+    claimBuilder.or = vi.fn(() => claimBuilder);
+    claimBuilder.select = vi.fn(() => ({
+      maybeSingle: vi.fn(async () => ({
+        data: { generation_id: "gen-white" },
+        error: null,
+      })),
+    }));
+    const generationProjectionTable = {
+      select: vi.fn((columns: string) =>
+        columns.includes("companion_art_attempt_count")
+          ? projectionSelectBuilder
+          : projectionEligibilityBuilder
+      ),
+      update: vi.fn(() => claimBuilder),
+    };
+    const uploadMock = vi.fn(async () => ({ error: null }));
+
+    getSupabaseAdminMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "generation_projection") return generationProjectionTable;
+        if (table === "ai_generations") {
+          return {
+            select: vi.fn(() =>
+              createSelectBuilder({
+                data: {
+                  id: "gen-white",
+                  user_id: "user-white",
+                  prompt_text: "Soft tone for a reference audio card",
+                  metadata: {
+                    source_mode: "voiceover",
+                  },
+                },
+                error: null,
+              })
+            ),
+          };
+        }
+        throw new Error(`Unexpected table ${table}`);
+      }),
+      storage: {
+        from: vi.fn(() => ({
+          upload: uploadMock,
+        })),
+      },
+    });
+    generateFalFluxKleinImageMock.mockResolvedValue({
+      buffer: Buffer.from("near-white-cover"),
+      contentType: "image/png",
+    });
+    sharpStatsMock.mockResolvedValueOnce({
+      channels: [
+        { mean: 252, stdev: 1, min: 250, max: 255 },
+        { mean: 252, stdev: 1, min: 250, max: 255 },
+        { mean: 252, stdev: 1, min: 250, max: 255 },
+      ],
+    });
+
+    const result = await processPendingAudioCompanionArtBatch({ limit: 5 });
+
+    expect(result).toEqual({
+      claimed: 1,
+      processed: 1,
+      ready: 0,
+      failed: 1,
+      skipped: 0,
+      errors: 0,
+    });
+    expect(uploadMock).not.toHaveBeenCalled();
+    expect(sharpToBufferMock).not.toHaveBeenCalled();
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-white",
+        userId: "user-white",
+        companionArtStatus: "failed",
+      })
+    );
+    expect(writeAppErrorLogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.audio_companion_art.generation_failed",
+        metadata: expect.objectContaining({
+          error: "Audio companion art image was blank or near-white.",
+        }),
       })
     );
   });

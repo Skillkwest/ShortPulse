@@ -152,6 +152,24 @@ describe("customerFacingProviderText", () => {
     );
   });
 
+  it("shortens provider API key failures for customer-facing surfaces", () => {
+    expect(
+      sanitizeCustomerFacingProviderText(
+        "Unauthorized - Authentication failed. Please verify your API key.",
+        "Generation failed."
+      )
+    ).toBe("Missing API key.");
+
+    expect(
+      normalizeCustomerFacingProviderError(
+        {
+          error: "KIE_API_KEY is not set on the server.",
+        },
+        "Generation failed."
+      )
+    ).toBe("Missing API key.");
+  });
+
   it("preserves normalized audio provider retry guidance", () => {
     expect(
       sanitizeCustomerFacingProviderText(

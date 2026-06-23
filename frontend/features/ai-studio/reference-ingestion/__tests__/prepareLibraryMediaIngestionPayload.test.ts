@@ -306,6 +306,47 @@ describe("prepareLibraryMediaIngestionPayload", () => {
     expect(result.height).toBe(720);
   });
 
+  it("hydrates audio display title and companion art from media-id fallback metadata", async () => {
+    mediaFilesMaybeSingleMock.mockResolvedValueOnce({
+      data: {
+        filename: "reference-audio-1782190088726-ezl75p.wav",
+        source: "ai_studio",
+        source_ref: "generation-audio-1",
+        metadata: {
+          display_title: "Quiet Signal",
+          companion_art_storage_path:
+            "user-1/generations/audio/generation-audio-1/companion-art/cover.webp",
+        },
+        storage_path: "user-1/generations/audio/reference-audio-1782190088726-ezl75p.wav",
+      },
+      error: null,
+    });
+    getSignedMediaUrlMock.mockImplementation(async ({ storagePath }: { storagePath: string }) => {
+      if (storagePath === "user-1/generations/audio/reference-audio-1782190088726-ezl75p.wav") {
+        return "https://signed.example.com/audio/quiet-signal.wav";
+      }
+      if (storagePath === "user-1/generations/audio/generation-audio-1/companion-art/cover.webp") {
+        return "https://signed.example.com/audio/quiet-signal-cover.webp";
+      }
+      return null;
+    });
+
+    const result = await prepareLibraryMediaIngestionPayload({
+      id: "media-audio-1",
+      url: "https://expired.example.com/reference-audio-1782190088726-ezl75p.wav",
+      fileType: "audio",
+      previewStoragePath: null,
+      fullStoragePath: null,
+    });
+
+    expect(result.displayTitle).toBe("Quiet Signal");
+    expect(result.companionArtStoragePath).toBe(
+      "user-1/generations/audio/generation-audio-1/companion-art/cover.webp"
+    );
+    expect(result.companionArtUrl).toBe("https://signed.example.com/audio/quiet-signal-cover.webp");
+    expect(result.url).toBe("https://signed.example.com/audio/quiet-signal.wav");
+  });
+
   it("normalizes poster-backed video preview storage to the playable full storage path", async () => {
     getSignedMediaUrlMock.mockImplementation(async ({ storagePath }: { storagePath: string }) => {
       if (storagePath === "user-1/generations/videos/media-video-1.mp4") {

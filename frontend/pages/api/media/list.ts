@@ -65,6 +65,7 @@ type MediaListRow = {
 type GenerationProjectionCompanionArtRow = {
   generation_id?: unknown;
   user_id?: unknown;
+  display_title?: unknown;
   companion_art_status?: unknown;
   companion_art_storage_path?: unknown;
   workflow_reload?: unknown;
@@ -73,6 +74,7 @@ type GenerationProjectionCompanionArtRow = {
 type ProjectOutputCompanionArtRow = {
   generation_id?: unknown;
   user_id?: unknown;
+  display_title?: unknown;
   companion_art_storage_path?: unknown;
   companion_art_url_fallback?: unknown;
 };
@@ -370,6 +372,12 @@ const normalizeTrustedCompanionArtUrlFallback = (value: unknown): string | null 
   return trimmed;
 };
 
+const normalizeAudioDisplayTitle = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim().replace(/\s+/g, " ");
+  return trimmed.length > 0 ? trimmed : null;
+};
+
 const splitStoragePath = (path: string): { folder: string; name: string } | null => {
   const normalized = path.trim();
   const slashIndex = normalized.lastIndexOf("/");
@@ -426,7 +434,7 @@ const enrichRowsWithGenerationProjectionMetadata = async ({
   const { data, error } = await supabaseAdmin
     .from("generation_projection")
     .select(
-      "generation_id, user_id, companion_art_status, companion_art_storage_path, workflow_reload"
+      "generation_id, user_id, display_title, companion_art_status, companion_art_storage_path, workflow_reload"
     )
     .eq("user_id", userId)
     .in("generation_id", generationIds);
@@ -435,6 +443,7 @@ const enrichRowsWithGenerationProjectionMetadata = async ({
     string,
     {
       status: string | null;
+      displayTitle: string | null;
       storagePath: string | null;
       workflowReload: unknown;
     }
@@ -444,6 +453,7 @@ const enrichRowsWithGenerationProjectionMetadata = async ({
     {
       storagePath: string | null;
       urlFallback: string | null;
+      displayTitle: string | null;
     }
   >();
   const signablePaths = new Set<string>();
@@ -465,6 +475,7 @@ const enrichRowsWithGenerationProjectionMetadata = async ({
       if (!generationId || ownerUserId !== userId) continue;
       projectionByGenerationId.set(generationId, {
         status,
+        displayTitle: normalizeAudioDisplayTitle(rawRow.display_title),
         storagePath,
         workflowReload: rawRow.workflow_reload,
       });
@@ -476,7 +487,9 @@ const enrichRowsWithGenerationProjectionMetadata = async ({
 
   const { data: displayData, error: displayError } = await supabaseAdmin
     .from("project_output_display_items")
-    .select("generation_id, user_id, companion_art_storage_path, companion_art_url_fallback")
+    .select(
+      "generation_id, user_id, display_title, companion_art_storage_path, companion_art_url_fallback"
+    )
     .eq("user_id", userId)
     .in("generation_id", generationIds);
 
@@ -495,12 +508,14 @@ const enrichRowsWithGenerationProjectionMetadata = async ({
       const urlFallback = normalizeTrustedCompanionArtUrlFallback(
         rawRow.companion_art_url_fallback
       );
-      if (!storagePath && !urlFallback) continue;
+      const displayTitle = normalizeAudioDisplayTitle(rawRow.display_title);
+      if (!storagePath && !urlFallback && !displayTitle) continue;
       const existing = displayCompanionArtByGenerationId.get(generationId);
-      if (existing?.storagePath) continue;
+      if (existing?.storagePath && existing.displayTitle) continue;
       displayCompanionArtByGenerationId.set(generationId, {
-        storagePath,
-        urlFallback,
+        storagePath: existing?.storagePath ?? storagePath,
+        urlFallback: existing?.urlFallback ?? urlFallback,
+        displayTitle: existing?.displayTitle ?? displayTitle,
       });
       if (storagePath) {
         signablePaths.add(storagePath);
@@ -541,11 +556,18 @@ const enrichRowsWithGenerationProjectionMetadata = async ({
     const projection = projectionByGenerationId.get(generationId);
     const displayCompanionArt = displayCompanionArtByGenerationId.get(generationId);
     if (!projection && !displayCompanionArt) return row;
+    const projectionDisplayTitle = isAudioFileType(row.file_type)
+      ? (projection?.displayTitle ?? displayCompanionArt?.displayTitle ?? null)
+      : null;
     const nextMetadata =
-      projection?.workflowReload && typeof projection.workflowReload === "object"
+      (projection?.workflowReload && typeof projection.workflowReload === "object") ||
+      projectionDisplayTitle
         ? {
             ...(row.metadata ?? {}),
-            workflow_reload: projection.workflowReload,
+            ...(projectionDisplayTitle ? { display_title: projectionDisplayTitle } : {}),
+            ...(projection?.workflowReload && typeof projection.workflowReload === "object"
+              ? { workflow_reload: projection.workflowReload }
+              : {}),
           }
         : row.metadata;
     const companionArtStoragePath =

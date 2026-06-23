@@ -1204,6 +1204,7 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
     const insertedOutput = makeOutput({
       id: "output-audio-1",
       mode: "audio",
+      title: "Dropped Signal",
       prompt: "Dropped audio",
       previewUrl: "https://cdn.shortpulse.test/dropped-audio.mp3",
       resultUrls: ["https://cdn.shortpulse.test/dropped-audio.mp3"],
@@ -1237,7 +1238,7 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
       outputId: "output-audio-1",
       mediaId: "saved-audio-1",
       audioUrl: "https://cdn.shortpulse.test/dropped-audio.mp3",
-      title: "Canvas audio",
+      title: "Dropped Signal",
       companionArtUrl: "https://cdn.shortpulse.test/dropped-audio.webp",
       companionArtStoragePath: "user-1/audio/dropped-audio.webp",
       audioSourceMode: null,

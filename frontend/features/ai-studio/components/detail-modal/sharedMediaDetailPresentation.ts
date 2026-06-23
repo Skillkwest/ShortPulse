@@ -24,17 +24,23 @@ const normalizeSource = (value?: string | null): string | null => {
 };
 
 const collectUniqueDetailBlocks = (...values: Array<string | null | undefined>): string[] => {
-  const seen = new Set<string>();
-  const blocks: string[] = [];
+  const blocks: Array<{ text: string; comparable: string }> = [];
   values.forEach((value) => {
     const trimmed = value?.trim();
     if (!trimmed) return;
     const comparable = trimmed.toLowerCase().replace(/\s+/g, " ");
-    if (seen.has(comparable)) return;
-    seen.add(comparable);
-    blocks.push(trimmed);
+    const overlappingIndex = blocks.findIndex(
+      (block) => comparable.includes(block.comparable) || block.comparable.includes(comparable)
+    );
+    if (overlappingIndex >= 0) {
+      if (comparable.length > blocks[overlappingIndex].comparable.length) {
+        blocks[overlappingIndex] = { text: trimmed, comparable };
+      }
+      return;
+    }
+    blocks.push({ text: trimmed, comparable });
   });
-  return blocks;
+  return blocks.map((block) => block.text);
 };
 
 export const normalizeSharedMediaDetailKindLabel = (

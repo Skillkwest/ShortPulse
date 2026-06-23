@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   resolveMediaAudioBackgroundImageUrl,
+  resolveMediaAudioPresentation,
   resolveMediaMetadataDisplayTitle,
   resolveMediaMetadataDurationMs,
   type MediaFileRow,
@@ -72,5 +73,29 @@ describe("mediaLibraryModalModel audio metadata", () => {
         voice_changer_title: "Warm City Take",
       })
     ).toBe("Warm City Take");
+  });
+
+  it("keeps internal generated audio filenames out of display titles", () => {
+    expect(
+      resolveMediaAudioPresentation(
+        createAudioRow({
+          filename: "reference-audio-1782190088726-ezl75p.wav",
+        })
+      )
+    ).toMatchObject({
+      displayTitle: null,
+      displayTitleSource: "fallback",
+    });
+
+    expect(
+      resolveMediaAudioPresentation(
+        createAudioRow({
+          filename: "voice-note.wav",
+        })
+      )
+    ).toMatchObject({
+      displayTitle: "voice-note.wav",
+      displayTitleSource: "filename",
+    });
   });
 });

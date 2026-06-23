@@ -782,8 +782,12 @@ export const useAiStudioPageMediaReferenceRuntime = ({
             audioUrl: previewSrc,
             ...(primaryStoragePath ? { audioStoragePath: primaryStoragePath } : {}),
             title:
-              (payload.payload.filename || payload.payload.promptText || "Canvas audio").trim() ||
-              null,
+              (
+                payload.payload.displayTitle ||
+                payload.payload.filename ||
+                payload.payload.promptText ||
+                "Canvas audio"
+              ).trim() || null,
             companionArtUrl: payload.payload.companionArtUrl ?? null,
             companionArtStoragePath: payload.payload.companionArtStoragePath ?? null,
             audioSourceMode: payload.payload.audioSourceMode ?? null,

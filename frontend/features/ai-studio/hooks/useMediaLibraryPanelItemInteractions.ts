@@ -7,7 +7,7 @@ import { resolveMediaRowKind } from "../../../lib/mediaRowKind";
 import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import {
   BUCKET,
-  resolveMediaAudioBackgroundImageUrl,
+  resolveMediaAudioPresentation,
   resolveMediaMetadataAudioSourceMode,
   resolveMediaMetadataDurationMs,
   resolveMediaMetadataModelId,
@@ -88,7 +88,8 @@ export const useMediaLibraryPanelItemInteractions = ({
       const transcriptText = resolveMediaMetadataTranscriptText(file.metadata);
       const workflowReload = resolveMediaLibraryWorkflowReloadConfig(file.metadata);
       const sourceRef = file.source_ref?.trim() || null;
-      const companionArtUrl = resolveMediaAudioBackgroundImageUrl(file);
+      const audioPresentation = resolveMediaAudioPresentation(file);
+      const companionArtUrl = audioPresentation.backgroundImageUrl;
       writeMediaLibraryDragPayload(event.dataTransfer, {
         kind: "libraryMedia",
         source: "mediaLibrary",
@@ -99,6 +100,7 @@ export const useMediaLibraryPanelItemInteractions = ({
           createdAt: file.created_at ?? null,
           originFolderId: activeFolderId,
           filename: file.filename,
+          displayTitle: isAudio ? audioPresentation.displayTitle : null,
           promptText,
           transcriptText,
           source: file.source ?? null,
@@ -113,7 +115,7 @@ export const useMediaLibraryPanelItemInteractions = ({
           previewPosterStoragePath: isVideo ? (file.poster_variant_path ?? null) : null,
           fullUrl: signedUrl || null,
           companionArtUrl,
-          companionArtStoragePath: isAudio ? (file.companion_art_storage_path ?? null) : null,
+          companionArtStoragePath: isAudio ? audioPresentation.backgroundImageStoragePath : null,
           audioSourceMode: isAudio ? resolveMediaMetadataAudioSourceMode(file.metadata) : null,
           durationMs: resolveMediaMetadataDurationMs(file.metadata, { fileType: file.file_type }),
           waveformPeaks: isAudio ? resolveMediaMetadataWaveformPeaks(file.metadata) : null,
@@ -132,7 +134,9 @@ export const useMediaLibraryPanelItemInteractions = ({
       }
       event.currentTarget.classList.add("is-dragging");
       attachMediaLibraryDragGhost(event, {
-        label: file.filename || "Media",
+        label: isAudio
+          ? audioPresentation.displayTitle || file.filename || "Media"
+          : file.filename || "Media",
         detail: promptText,
         previewUrl: isAudio ? companionArtUrl : previewUrl,
         previewKind: isVideo ? "video" : isAudio ? "audio" : "image",

@@ -324,6 +324,38 @@ describe("generatedOutputHydration", () => {
     );
   });
 
+  it("replaces internal audio filename titles with hydrated display titles", () => {
+    const existing = [
+      createOutput({
+        id: "local-audio",
+        mode: "audio",
+        title: "reference-audio-1782190088726-ezl75p.wav",
+        generationId: "gen-audio",
+        taskId: "req-audio",
+        taskState: "running",
+        mediaSource: "generated",
+      }),
+    ];
+    const hydrated = [
+      createOutput({
+        id: "generated:gen-audio",
+        mode: "audio",
+        title: "Quiet Signal",
+        generationId: "gen-audio",
+        taskId: "req-audio",
+        taskState: "success",
+        mediaSource: "generated",
+      }),
+    ];
+
+    expect(mergeCanonicalGeneratedOutputs(existing, hydrated)[0]).toEqual(
+      expect.objectContaining({
+        id: "local-audio",
+        title: "Quiet Signal",
+      })
+    );
+  });
+
   it("prepends unseen canonical generated outputs", () => {
     const existing = [createOutput({ id: "local-existing" })];
     const hydrated = [

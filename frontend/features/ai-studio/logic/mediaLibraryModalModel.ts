@@ -395,6 +395,56 @@ export const resolveMediaMetadataDisplayTitle = (
   return null;
 };
 
+const INTERNAL_AUDIO_FILENAME_PATTERNS = [
+  /^reference-audio-\d{8,}-[a-z0-9]+(?:\.[a-z0-9]+)?$/i,
+  /^audio-exclusivity-(?:ref-grid|library-[a-z]+)-\d{8,}(?:\.[a-z0-9]+)*(?:-\d+)?(?:\.[a-z0-9]+)?$/i,
+  /^audio-[0-9a-f]{8,}(?:-[0-9a-f]{4,})*(?:\.[a-z0-9]+)?$/i,
+] as const;
+
+const GENERIC_AUDIO_TITLES = new Set(["audio", "audio reference", "canvas audio", "media"]);
+
+const normalizeAudioDisplayTitleCandidate = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim().replace(/\s+/g, " ");
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+export const isInternalAudioFilename = (value?: string | null): boolean => {
+  const normalized = normalizeAudioDisplayTitleCandidate(value);
+  if (!normalized) return false;
+  return INTERNAL_AUDIO_FILENAME_PATTERNS.some((pattern) => pattern.test(normalized));
+};
+
+export const isReplaceableAudioDisplayTitle = (value?: string | null): boolean => {
+  const normalized = normalizeAudioDisplayTitleCandidate(value);
+  if (!normalized) return true;
+  if (GENERIC_AUDIO_TITLES.has(normalized.toLowerCase())) return true;
+  return isInternalAudioFilename(normalized);
+};
+
+export type MediaAudioPresentation = {
+  displayTitle: string | null;
+  displayTitleSource: "metadata" | "filename" | "fallback";
+  backgroundImageUrl: string | null;
+  backgroundImageStoragePath: string | null;
+};
+
+export const resolveMediaAudioPresentation = (file: MediaFileRow): MediaAudioPresentation => {
+  const metadataTitle = resolveMediaMetadataDisplayTitle(file.metadata);
+  const filenameTitle = normalizeAudioDisplayTitleCandidate(file.filename);
+  const displayTitle =
+    metadataTitle ??
+    (filenameTitle && !isInternalAudioFilename(filenameTitle) ? filenameTitle : null);
+  return {
+    displayTitle,
+    displayTitleSource: metadataTitle ? "metadata" : displayTitle ? "filename" : "fallback",
+    backgroundImageUrl: resolveMediaAudioBackgroundImageUrl(file),
+    backgroundImageStoragePath: isMediaRowAudio(file)
+      ? file.companion_art_storage_path?.trim() || null
+      : null,
+  };
+};
+
 export const resolveMediaMetadataTranscriptText = (
   metadata?: Record<string, unknown> | null
 ): string | null => {

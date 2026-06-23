@@ -16,7 +16,9 @@ import { parseBooleanHeader } from "./providerHeaderUtils";
 
 const falCompletedStatuses = new Set(["completed", "succeeded", "success", "done"]);
 const falFailedStatuses = new Set(["failed", "error", "cancelled", "canceled"]);
-const falRetryableUpstreamStatuses = new Set([408, 409, 425, 429, 500, 502, 503, 504]);
+const falRetryableUpstreamStatuses = new Set([
+  408, 409, 425, 429, 500, 502, 503, 504, 520, 521, 522, 523, 524,
+]);
 const normalizeStatus = (value: unknown): string | null => {
   const text = asString(value);
   return text ? text.toLowerCase() : null;

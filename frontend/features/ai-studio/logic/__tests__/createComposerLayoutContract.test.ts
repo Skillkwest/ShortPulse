@@ -19,6 +19,10 @@ const createComposerControlsCssPath = path.resolve(
   process.cwd(),
   "styles/ai-studio-create-composer-controls.css"
 );
+const createComposerPresetsCssPath = path.resolve(
+  process.cwd(),
+  "styles/ai-studio-create-composer-presets.css"
+);
 const prefabsAgentCssPath = path.resolve(process.cwd(), "styles/prefabs-agent.css");
 const createComposerTokensCssPath = path.resolve(
   process.cwd(),
@@ -266,6 +270,16 @@ describe("create composer layout contract", () => {
 
     expect(latestAssistantOnly).toContain("color: #25a9bf !important;");
     expect(latestAssistantOnly).toContain("font-weight: 400;");
+  });
+
+  it("uses brand blue for the inactive Pulse rail title and icon only before activation", () => {
+    const css = fs.readFileSync(createComposerPresetsCssPath, "utf8");
+    const inactivePulseRailTitle = extractRuleBlock(
+      css,
+      ".create-composer-presets-card.is-awaiting-pulse-selection .create-composer-presets-title, .create-composer-presets-card.is-awaiting-pulse-selection .create-composer-presets-title-icon"
+    );
+
+    expect(inactivePulseRailTitle).toContain("color: var(--color-teal);");
   });
 
   it("keeps user bubble body copy at the same font size as Standard assistant replies", () => {

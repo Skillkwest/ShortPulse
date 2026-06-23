@@ -27,10 +27,7 @@ import {
 import { formatPerfAuditDebugLine, isPerfAuditRuntimeEnabled } from "../../logic/perfAuditDebug";
 import type { ReferenceGridMediaAuthorityTier } from "../../logic/referenceGridMedia";
 import type { ReferenceComposerImageDragArtifact } from "../../utils/dragDrop";
-import {
-  EXPLICIT_CONTENT_FAILURE_DETAIL,
-  EXPLICIT_CONTENT_FAILURE_TITLE,
-} from "../../../../lib/explicitContentFailure";
+import { EXPLICIT_CONTENT_FAILURE_TITLE } from "../../../../lib/explicitContentFailure";
 import { isProviderSafetyBlockedOutput } from "../../hooks/taskPolling/providerStatusPolicy";
 import { resolveCompactErrorMessage } from "../../logic/errorPresentation";
 import type { ReferenceDragSourceSurface } from "../../utils/dragDrop";
@@ -643,9 +640,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           <div className="fail-title">
             {shouldShowNsfwPill ? EXPLICIT_CONTENT_FAILURE_TITLE : "Generation failed"}
           </div>
-          {shouldShowNsfwPill ? (
-            <div className="fail-subtitle">{EXPLICIT_CONTENT_FAILURE_DETAIL}</div>
-          ) : resolvedFailureSubtitle ? (
+          {!shouldShowNsfwPill && resolvedFailureSubtitle ? (
             <div className="fail-subtitle">{resolvedFailureSubtitle}</div>
           ) : null}
           {canRetryStatus && isSelected ? (

@@ -54,6 +54,7 @@ type MediaRow = {
 type GenerationProjectionRow = {
   generation_id: string;
   user_id: string;
+  display_title?: string | null;
   companion_art_status: string | null;
   companion_art_storage_path: string | null;
   workflow_reload?: unknown;
@@ -62,6 +63,7 @@ type GenerationProjectionRow = {
 type ProjectOutputDisplayRow = {
   generation_id: string;
   user_id: string;
+  display_title?: string | null;
   companion_art_storage_path: string | null;
   companion_art_url_fallback?: string | null;
 };
@@ -1097,6 +1099,7 @@ describe("POST /api/media/list", () => {
           {
             generation_id: "gen-audio-1",
             user_id: "user-1",
+            display_title: "Quiet Signal",
             companion_art_status: "ready",
             companion_art_storage_path:
               "user-1/generations/audio/gen-audio-1/companion-art/cover.webp",
@@ -1130,6 +1133,9 @@ describe("POST /api/media/list", () => {
               "user-1/generations/audio/gen-audio-1/companion-art/cover.webp",
             companion_art_url:
               "https://signed.test/user-1%2Fgenerations%2Faudio%2Fgen-audio-1%2Fcompanion-art%2Fcover.webp",
+            metadata: {
+              display_title: "Quiet Signal",
+            },
           }),
         ],
       })
@@ -1372,6 +1378,7 @@ describe("POST /api/media/list", () => {
           {
             generation_id: "gen-display-audio-1",
             user_id: "user-1",
+            display_title: "Display Theme",
             companion_art_storage_path:
               "user-1/generations/audio/gen-display-audio-1/companion-art/cover.webp",
             companion_art_url_fallback: "https://expired.example.com/cover.webp",
@@ -1405,6 +1412,9 @@ describe("POST /api/media/list", () => {
               "user-1/generations/audio/gen-display-audio-1/companion-art/cover.webp",
             companion_art_url:
               "https://signed.test/user-1%2Fgenerations%2Faudio%2Fgen-display-audio-1%2Fcompanion-art%2Fcover.webp",
+            metadata: {
+              display_title: "Display Theme",
+            },
           }),
         ],
       })

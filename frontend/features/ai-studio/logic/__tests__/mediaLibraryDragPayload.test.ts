@@ -103,6 +103,7 @@ describe("mediaLibraryDragPayload", () => {
         fullUrl: null,
         companionArtUrl: null,
         companionArtStoragePath: null,
+        displayTitle: null,
         durationMs: null,
         waveformPeaks: null,
         audioSourceMode: null,
@@ -148,6 +149,7 @@ describe("mediaLibraryDragPayload", () => {
         fullUrl: null,
         companionArtUrl: null,
         companionArtStoragePath: null,
+        displayTitle: null,
         durationMs: null,
         waveformPeaks: null,
         audioSourceMode: null,
@@ -379,11 +381,16 @@ describe("mediaLibraryDragPayload", () => {
         id: "media-audio-1",
         url: "https://cdn.test/audio.mp3",
         fileType: "audio",
+        displayTitle: "Neon Rain",
         companionArtUrl: "https://cdn.test/audio-cover.webp",
         companionArtStoragePath: "user-1/generations/audio/media-audio-1/companion-art/cover.webp",
       },
     });
 
+    expect(transfer.setData).toHaveBeenCalledWith(
+      "text/shortpulse-media-library-display-title",
+      "Neon Rain"
+    );
     expect(transfer.setData).toHaveBeenCalledWith(
       "text/shortpulse-media-library-companion-art-url",
       "https://cdn.test/audio-cover.webp"
@@ -394,6 +401,7 @@ describe("mediaLibraryDragPayload", () => {
       payload: expect.objectContaining({
         id: "media-audio-1",
         fileType: "audio",
+        displayTitle: "Neon Rain",
         companionArtUrl: "https://cdn.test/audio-cover.webp",
         companionArtStoragePath: "user-1/generations/audio/media-audio-1/companion-art/cover.webp",
       }),

@@ -42,6 +42,9 @@ export type CanvasTearOutPayload =
       kind: "audio";
       audioUrl: string;
       audioStoragePath?: string | null;
+      title?: string | null;
+      companionArtUrl?: string | null;
+      companionArtStoragePath?: string | null;
       internalPayload: InternalReferenceDragPayload;
       outputId: string | null;
       mediaId: string | null;
@@ -224,6 +227,13 @@ export const buildCanvasTearOutPayload = (
       kind: "audio",
       audioUrl,
       audioStoragePath,
+      title: normalizeOptionalText(item.title) ?? normalizeOptionalText(output?.title),
+      companionArtUrl:
+        normalizeOptionalText(item.companionArtUrl) ??
+        normalizeOptionalText(output?.companionArtUrl),
+      companionArtStoragePath:
+        normalizeOptionalText(item.companionArtStoragePath) ??
+        normalizeOptionalText(output?.companionArtStoragePath),
       internalPayload,
       outputId: identity.outputId,
       mediaId: identity.mediaId,

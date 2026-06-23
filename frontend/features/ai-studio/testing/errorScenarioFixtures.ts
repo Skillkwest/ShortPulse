@@ -52,10 +52,10 @@ export const AI_STUDIO_ERROR_SCENARIOS: AiStudioErrorScenario[] = [
     }),
     expectedCategory: "content_policy",
     expectedCompactText: "Content not allowed",
-    expectedCardText: "explicit or unsafe content",
+    expectedCardText: "Explicit content blocked",
     expectedBannerText: "explicit or unsafe content",
     expectedDetailText: "explicit or unsafe content",
-    hiddenCardProbes: ["Reason: explicit"],
+    hiddenCardProbes: ["Reason: explicit", "explicit or unsafe content"],
   },
   {
     id: "provider_upstream",

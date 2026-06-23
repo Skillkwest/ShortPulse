@@ -11,7 +11,9 @@ import { parseBooleanHeader } from "./providerHeaderUtils";
 
 const kieCompletedStatuses = new Set(["completed", "succeeded", "success", "done", "finished"]);
 const kieFailedStatuses = new Set(["failed", "fail", "error", "cancelled", "canceled", "rejected"]);
-const kieRetryableUpstreamStatuses = new Set([408, 409, 425, 429, 500, 502, 503, 504]);
+const kieRetryableUpstreamStatuses = new Set([
+  408, 409, 425, 429, 500, 502, 503, 504, 520, 521, 522, 523, 524,
+]);
 const kieRetryablePayloadCodes = new Set([
   "rate_limit",
   "rate_limited",

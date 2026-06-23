@@ -20,6 +20,7 @@ export type MediaLibraryDetailSelectionPayload = {
   fileType: "image" | "video" | "audio";
   createdAt?: string | null;
   filename?: string | null;
+  displayTitle?: string | null;
   promptText?: string | null;
   transcriptText?: string | null;
   lyricsText?: string | null;
@@ -61,6 +62,7 @@ type MediaLibraryDetailFields = {
   fileType: "image" | "video" | "audio";
   createdAt?: string | null;
   filename?: string | null;
+  displayTitle?: string | null;
   promptText?: string | null;
   transcriptText?: string | null;
   lyricsText?: string | null;
@@ -97,7 +99,8 @@ export const createMediaLibraryDetailModalItem = ({
   fields: MediaLibraryDetailFields;
 }): MediaLibraryDetailModalItem => {
   const resolvedFilename = fields.filename?.trim() || file.filename || file.id;
-  const resolvedDisplayTitle = resolveMediaMetadataDisplayTitle(file.metadata);
+  const resolvedDisplayTitle =
+    fields.displayTitle?.trim() || resolveMediaMetadataDisplayTitle(file.metadata);
   const resolvedPresentationTitle = resolvedDisplayTitle ?? resolvedFilename;
   const kindLabel = normalizeSharedMediaDetailKindLabel(fields.fileType);
   const isExternalUpload =

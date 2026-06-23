@@ -232,20 +232,6 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   overflow-wrap: anywhere;
 }
 
-.ai-error-row-dismiss {
-  align-self: flex-start;
-  border-color: rgba(255, 183, 183, 0.65);
-  color: #fff0f0;
-  font-size: 11px;
-  padding: 5px 8px;
-  border-radius: 5px;
-}
-
-.ai-error-row-dismiss:hover,
-.ai-error-row-dismiss:focus-visible {
-  background: rgba(255, 255, 255, 0.16);
-}
-
 @media (max-width: 1320px) {
   .ai-studio-page .ai-alerts-stack {
     --app-message-stack-viewport-right: max(16px, env(safe-area-inset-right));

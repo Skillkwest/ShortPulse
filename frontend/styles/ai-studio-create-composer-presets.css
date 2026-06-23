@@ -72,6 +72,11 @@
   line-height: 0;
 }
 
+.create-composer-presets-card.is-awaiting-pulse-selection .create-composer-presets-title,
+.create-composer-presets-card.is-awaiting-pulse-selection .create-composer-presets-title-icon {
+  color: var(--color-teal);
+}
+
 .create-composer-presets-list {
   position: relative;
   display: flex;

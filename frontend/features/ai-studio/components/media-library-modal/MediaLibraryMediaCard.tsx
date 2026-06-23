@@ -10,7 +10,8 @@ import { isVideoUrl } from "../../logic/stateParsers";
 import { MediaDurationBadge } from "../shared/MediaDurationBadge";
 import { ReferenceAudioPlayer } from "../shared/ReferenceAudioPlayer";
 import {
-  resolveMediaAudioBackgroundImageUrl,
+  isAudioFile,
+  resolveMediaAudioPresentation,
   resolveMediaMetadataAudioSourceMode,
   resolveMediaMetadataDisplayTitle,
   resolveMediaMetadataDurationMs,
@@ -101,7 +102,11 @@ type MediaLibraryVisualMediaCardProps = SharedMediaCardProps & {
 };
 
 export const resolveMediaLibraryCardDisplayLabel = (file: MediaFileRow): string =>
-  (resolveMediaMetadataDisplayTitle(file.metadata) ?? file.filename) || "media";
+  ((isAudioFile(file.file_type)
+    ? resolveMediaAudioPresentation(file).displayTitle
+    : resolveMediaMetadataDisplayTitle(file.metadata)) ??
+    file.filename) ||
+  "media";
 
 export const buildMediaLibraryCardActionLabels = (
   file: MediaFileRow,
@@ -339,8 +344,9 @@ export function MediaLibraryAudioCard({
   const audioUrl = cardPreviewUrl ?? file.signedUrl ?? null;
   const signedUrlLoadedRef = React.useRef(false);
   const audioSourceMode = resolveMediaMetadataAudioSourceMode(file.metadata);
-  const audioLabel = resolveMediaLibraryCardDisplayLabel(file);
-  const displayTitle = audioLabel === "media" ? null : audioLabel;
+  const audioPresentation = resolveMediaAudioPresentation(file);
+  const audioLabel = audioPresentation.displayTitle ?? file.filename ?? "media";
+  const displayTitle = audioPresentation.displayTitle;
   const durationMs = resolveMediaMetadataDurationMs(file.metadata, { fileType: file.file_type });
   const shouldSetAriaPressed =
     Boolean(onToggleMediaSelection) || setAriaPressedWithoutSelectionMode;
@@ -391,7 +397,7 @@ export function MediaLibraryAudioCard({
         <ReferenceAudioPlayer
           audioId={file.id}
           audioUrl={audioUrl}
-          backgroundImageUrl={resolveMediaAudioBackgroundImageUrl(file)}
+          backgroundImageUrl={audioPresentation.backgroundImageUrl}
           audioSourceMode={audioSourceMode}
           title={displayTitle}
           durationMs={durationMs}

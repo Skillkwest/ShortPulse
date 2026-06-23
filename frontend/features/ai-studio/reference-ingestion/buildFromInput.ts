@@ -6,6 +6,7 @@
 import type { StudioMode, StudioOutput, WorkflowReloadConfigV1 } from "../types";
 import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
 import { isWorkflowReloadConfigV1 } from "../logic/workflowReload";
+import { isReplaceableAudioDisplayTitle } from "../logic/mediaLibraryModalModel";
 import { isAudioUrl, isVideoUrl, mapUploadsFromFiles } from "../logic/stateParsers";
 import type {
   ReferenceIngestionContext,
@@ -118,6 +119,7 @@ const buildLibraryMediaOutput = ({
 }): StudioOutput | null => {
   const id = `library-${context.randomId()}`;
   const filenameLabel = payload.filename?.trim() || "";
+  const displayTitle = payload.displayTitle?.trim() || "";
   const fallbackModelLabel = context.model
     ? context.resolveModelLabel(context.model)
     : "Library media";
@@ -161,7 +163,14 @@ const buildLibraryMediaOutput = ({
   return {
     id,
     prompt: isGeneratedLibraryMedia ? workflowReload.prompt.display : resolvedPromptText,
-    ...(payload.fileType === "audio" ? { title: filenameLabel || null } : {}),
+    ...(payload.fileType === "audio"
+      ? {
+          title:
+            displayTitle ||
+            (isReplaceableAudioDisplayTitle(filenameLabel) ? null : filenameLabel) ||
+            null,
+        }
+      : {}),
     transcriptText: payload.transcriptText?.trim() || null,
     mode: payloadMode,
     aspect: isGeneratedLibraryMedia ? generatedAspect : context.aspect,

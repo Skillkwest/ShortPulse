@@ -76,4 +76,23 @@ describe("createStudioOutputDetailModalItem", () => {
     expect(bladeContent.label).toBe("ERROR");
     expect(bladeContent.value).toBe("Not enough credits.");
   });
+
+  it("shows explicit-content detail once when the detail already includes the summary", () => {
+    const item = createStudioOutputDetailModalItem({
+      output: createOutput({
+        errorMessage: "This request was blocked for explicit or unsafe content.",
+        errorMessageShort: "Content not allowed",
+        errorDetail:
+          "This request was blocked for explicit or unsafe content. Try revising the prompt or references.",
+      }),
+      canSavePrompt: true,
+    });
+
+    const bladeContent = resolveSharedMediaDetailBladeContent({ item });
+
+    expect(bladeContent.label).toBe("ERROR");
+    expect(bladeContent.value).toBe(
+      "This request was blocked for explicit or unsafe content. Try revising the prompt or references."
+    );
+  });
 });

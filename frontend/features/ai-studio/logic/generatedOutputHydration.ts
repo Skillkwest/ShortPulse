@@ -1,5 +1,6 @@
 import type { StudioOutput } from "../types";
 import { sortStudioOutputsByCreatedAtDesc } from "./outputOrdering";
+import { isReplaceableAudioDisplayTitle } from "./mediaLibraryModalModel";
 
 const asTrimmedString = (value: string | null | undefined): string | null => {
   if (typeof value !== "string") return null;
@@ -153,7 +154,16 @@ const mergeHydratedGeneratedOutput = (
   existing: StudioOutput,
   hydrated: StudioOutput
 ): StudioOutput => {
-  const nextTitle = existing.title?.trim() ? existing.title : hydrated.title;
+  const existingTitle = existing.title?.trim() || null;
+  const hydratedTitle = hydrated.title?.trim() || null;
+  const nextTitle =
+    existing.mode === "audio" && existingTitle && hydratedTitle
+      ? isReplaceableAudioDisplayTitle(existingTitle)
+        ? hydrated.title
+        : existing.title
+      : existingTitle
+        ? existing.title
+        : hydrated.title;
   const nextLyricsText = existing.lyricsText?.trim() ? existing.lyricsText : hydrated.lyricsText;
   const nextAudioSourceMode = hydrated.audioSourceMode ?? existing.audioSourceMode;
   const nextMusicMode = hydrated.musicMode ?? existing.musicMode;

@@ -700,15 +700,6 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
                     <p className="ai-error-row-title">{title}</p>
                     <p className="ai-error-row-message">{group.failureMessage}</p>
                   </div>
-                  <button
-                    type="button"
-                    className="app-message__action ai-error-row-dismiss"
-                    onClick={() => {
-                      group.ids.forEach((id) => onDismissFailure(id));
-                    }}
-                  >
-                    Dismiss
-                  </button>
                 </li>
               );
             })}

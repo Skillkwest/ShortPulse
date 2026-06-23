@@ -457,6 +457,7 @@ describe("AiStudioPageContent header project name", () => {
     );
 
     expect(screen.getByRole("alert")).toHaveTextContent("File type not supported");
+    expect(screen.queryByRole("button", { name: "Dismiss" })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Dismiss message" }));
 

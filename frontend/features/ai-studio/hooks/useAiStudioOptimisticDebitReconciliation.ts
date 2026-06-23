@@ -47,6 +47,16 @@ type ReconciliationOutputLite = Pick<StudioOutput, "id" | "taskId" | "taskState"
 const EMPTY_FAILURES: FailureCard[] = [];
 const EMPTY_OUTPUT_LITE: ReconciliationOutputLite[] = [];
 
+const hasFailurePresentationCopy = (
+  item: Pick<StudioOutput, "errorMessage" | "errorMessageShort" | "errorDetail" | "errorPayload">
+) =>
+  Boolean(
+    item.errorMessage?.trim() ||
+    item.errorMessageShort?.trim() ||
+    item.errorDetail?.trim() ||
+    item.errorPayload
+  );
+
 const areOutputLiteListsEqual = (
   left: ReconciliationOutputLite[],
   right: ReconciliationOutputLite[]
@@ -117,7 +127,7 @@ export const useAiStudioOptimisticDebitReconciliation = ({
       .filter(
         (item) =>
           item.taskState === "fail" &&
-          Boolean(item.errorMessage) &&
+          hasFailurePresentationCopy(item) &&
           item.hiddenInReferenceGrid !== true &&
           !suppressedFailureIdSet.has(item.id)
       )
@@ -148,7 +158,7 @@ export const useAiStudioOptimisticDebitReconciliation = ({
         .filter(
           (item) =>
             item.taskState === "fail" &&
-            Boolean(item.errorMessage) &&
+            hasFailurePresentationCopy(item) &&
             item.hiddenInReferenceGrid !== true &&
             !suppressedFailureIdSet.has(item.id)
         )

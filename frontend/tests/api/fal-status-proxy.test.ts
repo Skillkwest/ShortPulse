@@ -2397,6 +2397,62 @@ describe("createFalStatusHandler", () => {
     );
   });
 
+  it("treats retryable Kie non-JSON status responses as transient without the broad transient flag", async () => {
+    process.env.SHORTPULSE_KIE_API_KEY = "test-kie-key";
+    process.env.SHORTPULSE_KIE_TRUSTED_HOSTS = "kie.ai";
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(
+        "<!DOCTYPE html><html><head><title>kie.ai | 520: Web server is returning an unknown error</title></head></html>",
+        {
+          status: 520,
+          headers: { "Content-Type": "text/html" },
+        }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      provider: "kie",
+      modelId: "kie-ai/seedance-2",
+      queueBaseUrl: "https://api.kie.ai/api/v1/jobs/recordInfo?taskId={requestId}",
+      routeLabel: "Kie Seedance 2",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-kie-seedance-cloudflare-520" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.kie.ai/api/v1/jobs/recordInfo?taskId=req-kie-seedance-cloudflare-520",
+      expect.objectContaining({
+        method: "GET",
+        headers: expect.objectContaining({
+          Authorization: "Bearer test-kie-key",
+        }),
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "IN_PROGRESS",
+        state: "running",
+        request_id: "req-kie-seedance-cloudflare-520",
+      })
+    );
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.fal.status.transient.non_json_status",
+        statusCode: 520,
+      })
+    );
+  });
+
   it("treats non-JSON result responses as transient when status transient failures are enabled", async () => {
     process.env.SHORTPULSE_FAL_STATUS_TRANSIENT_FAILURES_ENABLED = "true";
     const fetchMock = vi

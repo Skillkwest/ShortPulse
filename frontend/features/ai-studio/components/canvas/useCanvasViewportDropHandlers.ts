@@ -369,6 +369,7 @@ export const useCanvasViewportDropHandlers = ({
                       audioUrl: previewSrc,
                       title:
                         (
+                          mediaLibraryPayload.payload.displayTitle ||
                           mediaLibraryPayload.payload.filename ||
                           mediaLibraryPayload.payload.promptText ||
                           "Canvas audio"

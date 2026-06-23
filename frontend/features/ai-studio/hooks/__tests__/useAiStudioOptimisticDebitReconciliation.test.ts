@@ -168,6 +168,30 @@ describe("useAiStudioOptimisticDebitReconciliation", () => {
     expect(setDetailOutputId).toHaveBeenCalledWith(scenario.output.id);
   });
 
+  it("shows failed outputs that only have short or detail error copy", () => {
+    const { result } = renderHook(() =>
+      useAiStudioOptimisticDebitReconciliation({
+        outputs: [
+          makeOutput("out-short-copy-failure", "fail", {
+            errorMessage: null,
+            errorMessageShort: "Explicit content blocked",
+            errorDetail:
+              "This request was blocked for explicit or unsafe content. Try revising the prompt or references.",
+          }),
+        ],
+        optimisticDebitEntries: [],
+        setOptimisticDebitEntries: asDispatch<OptimisticDebitEntry[]>(vi.fn()),
+        refreshBalance: vi.fn(async () => 10),
+        setDetailOutputId: asDispatch<string | null>(vi.fn()),
+      })
+    );
+
+    expect(result.current.visibleFailures.map((item) => item.id)).toEqual([
+      "out-short-copy-failure",
+    ]);
+    expect(result.current.visibleFailures[0]?.errorMessageShort).toBe("Explicit content blocked");
+  });
+
   it("excludes hidden failed outputs from visible failures", () => {
     const { result } = renderHook(() =>
       useAiStudioOptimisticDebitReconciliation({

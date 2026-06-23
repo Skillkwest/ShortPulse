@@ -40,6 +40,7 @@ export type ReferenceIngestionInput =
         createdAt?: string | null;
         originFolderId?: string | null;
         filename?: string | null;
+        displayTitle?: string | null;
         promptText?: string | null;
         transcriptText?: string | null;
         source?: string | null;

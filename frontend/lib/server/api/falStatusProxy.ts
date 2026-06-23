@@ -967,7 +967,12 @@ export const createFalStatusHandler = ({
       );
 
       if (!statusData.isJson) {
-        if (statusTransientFailuresEnabled) {
+        const retryableNonJsonStatus = isProviderRetryableUpstreamResponse({
+          provider: providerKey,
+          response: statusResp,
+          payload: statusData.json,
+        });
+        if (statusTransientFailuresEnabled || retryableNonJsonStatus) {
           return respondTransientWithTelemetry({
             source: "telemetry.fal.status.transient.non_json_status",
             stage: "status",

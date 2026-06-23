@@ -30,6 +30,8 @@ type MediaStoragePathRow = {
 
 type MediaIdFallback = {
   filename: string | null;
+  displayTitle: string | null;
+  companionArtStoragePath: string | null;
   source: string | null;
   sourceRef: string | null;
   modelId: string | null;
@@ -47,8 +49,51 @@ const normalizeText = (value: string | null | undefined): string | null => {
   return trimmed.length ? trimmed : null;
 };
 
+const resolveMetadataDisplayTitle = (metadata: Record<string, unknown> | null): string | null => {
+  if (!metadata) return null;
+  const candidates = [
+    metadata.display_title,
+    metadata.displayTitle,
+    metadata.song_title,
+    metadata.songTitle,
+    metadata.sound_effect_title,
+    metadata.soundEffectTitle,
+    metadata.voiceover_title,
+    metadata.voiceoverTitle,
+    metadata.voice_changer_title,
+    metadata.voiceChangerTitle,
+  ];
+  for (const candidate of candidates) {
+    if (typeof candidate !== "string") continue;
+    const normalized = normalizeText(candidate.replace(/\s+/g, " "));
+    if (normalized) return normalized;
+  }
+  return null;
+};
+
+const resolveMetadataCompanionArtStoragePath = (
+  metadata: Record<string, unknown> | null
+): string | null => {
+  if (!metadata) return null;
+  const candidates = [
+    metadata.companion_art_storage_path,
+    metadata.companionArtStoragePath,
+    metadata.audio_companion_art_storage_path,
+    metadata.audioCompanionArtStoragePath,
+    metadata.cover_art_storage_path,
+    metadata.coverArtStoragePath,
+  ];
+  for (const candidate of candidates) {
+    const normalized = asCanonicalStoragePath(typeof candidate === "string" ? candidate : null);
+    if (normalized) return normalized;
+  }
+  return null;
+};
+
 const createEmptyMediaIdFallback = (): MediaIdFallback => ({
   filename: null,
+  displayTitle: null,
+  companionArtStoragePath: null,
   source: null,
   sourceRef: null,
   modelId: null,
@@ -170,6 +215,9 @@ const resolveStoragePathsFromMediaId = async (
       typeof data?.height === "number" && Number.isFinite(data.height) ? data.height : undefined;
     return {
       filename: normalizeText(typeof data?.filename === "string" ? data.filename : null),
+      displayTitle: resolveMetadataDisplayTitle(metadata),
+      companionArtStoragePath:
+        fileType === "audio" ? resolveMetadataCompanionArtStoragePath(metadata) : null,
       source: normalizeText(typeof data?.source === "string" ? data.source : null),
       sourceRef: normalizeText(typeof data?.source_ref === "string" ? data.source_ref : null),
       modelId: normalizeText(
@@ -256,7 +304,9 @@ export const prepareLibraryMediaIngestionPayload = async (
       signStoragePath(normalizedPreviewStoragePath),
       signStoragePath(normalizedPreviewPosterStoragePath),
       signStoragePath(normalizedFullStoragePath),
-      signStoragePath(initialCompanionArtStoragePath),
+      signStoragePath(
+        initialCompanionArtStoragePath ?? mediaIdFallbackPaths.companionArtStoragePath
+      ),
     ]);
 
   const urlRefreshCache = new Map<string, string>();
@@ -297,8 +347,10 @@ export const prepareLibraryMediaIngestionPayload = async (
     previewPosterUrl: resolvedPreviewPosterUrl ?? null,
     fullUrl: resolvedFullUrl ?? null,
     companionArtUrl: resolvedCompanionArtUrl,
-    companionArtStoragePath: initialCompanionArtStoragePath,
+    companionArtStoragePath:
+      initialCompanionArtStoragePath ?? mediaIdFallbackPaths.companionArtStoragePath,
     filename: normalizeText(payload.filename) ?? mediaIdFallbackPaths.filename,
+    displayTitle: normalizeText(payload.displayTitle) ?? mediaIdFallbackPaths.displayTitle,
     source: normalizedSource ?? mediaIdFallbackPaths.source,
     sourceRef:
       normalizeText(payload.sourceRef) ??

@@ -772,7 +772,7 @@ export type AiStudioPageContentProps = {
     output: StudioOutput,
     options?: { mediaKindHint?: WorkflowReloadMediaKindHint | null }
   ) => void;
-  onDetailSavePrompt?: (promptText: string) => void;
+  onDetailSavePrompt?: (promptText: string) => void | boolean | Promise<boolean>;
   onAddLibraryMediaReference?: (payload: LibraryMediaReferencePayload) => void;
   onAddLibraryPromptReference?: (payload: LibraryPromptReferencePayload) => void;
   onDeleteMediaRowsFromWorkspace?: (rows: MediaFileRow[]) => void;

@@ -9,6 +9,7 @@ const associateMediaFilesWithProjectMock = vi.hoisted(() => vi.fn());
 const associatePromptWithProjectMock = vi.hoisted(() => vi.fn());
 const reportAppErrorMock = vi.hoisted(() => vi.fn());
 const saveMediaUrlToLibraryMock = vi.hoisted(() => vi.fn());
+const savePromptRecordMock = vi.hoisted(() => vi.fn());
 const useResolvedProtectedSessionStateMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../logic/mediaLibraryPersistence", async () => {
@@ -20,6 +21,7 @@ vi.mock("../../logic/mediaLibraryPersistence", async () => {
     associatePromptWithProject: associatePromptWithProjectMock,
     resolveGenerationIdForRequestId: resolveGenerationIdForRequestIdMock,
     saveMediaUrlToLibrary: saveMediaUrlToLibraryMock,
+    savePromptRecord: savePromptRecordMock,
   };
 });
 
@@ -66,6 +68,7 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
       storagePath: "user-1/generations/images/out-1.png",
       delivery: null,
     });
+    savePromptRecordMock.mockResolvedValue("prompt-new");
   });
 
   it("recovers generation id from request-backed lookup when output lacks one", async () => {
@@ -610,6 +613,74 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
       userId: CURRENT_USER_ID,
     });
     expect(outputs.get("out-1")?.saveState).toBe("saved");
+  });
+
+  it("returns prompt library save success only after a prompt row is persisted", async () => {
+    const outputs = new Map<string, StudioOutput>([["out-1", makeOutput()]]);
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      const current = outputs.get(id);
+      if (!current) return;
+      outputs.set(id, updater(current));
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioPersistenceActions({
+        projectId: "project-1",
+        findOutputById: (id) => outputs.get(id) ?? null,
+        updateOutputById,
+        setUiError: vi.fn(),
+        setOutputs: vi.fn(),
+        setSaved: vi.fn(),
+        activeOutputId: "out-1",
+        model: "model-id",
+        aspect: "1:1",
+        prompt: "fallback prompt",
+      })
+    );
+
+    let saved = false;
+    await act(async () => {
+      saved = await result.current.savePromptToLibrary("Prompt to persist");
+    });
+
+    expect(saved).toBe(true);
+    expect(savePromptRecordMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        promptText: "Prompt to persist",
+        modelId: "model-id",
+        source: "ai_studio",
+        projectId: "project-1",
+        userId: CURRENT_USER_ID,
+      })
+    );
+  });
+
+  it("returns false when prompt library persistence fails", async () => {
+    const outputs = new Map<string, StudioOutput>([["out-1", makeOutput()]]);
+    const setUiError = vi.fn();
+    savePromptRecordMock.mockRejectedValueOnce(new Error("Prompt save failed."));
+
+    const { result } = renderHook(() =>
+      useAiStudioPersistenceActions({
+        findOutputById: (id) => outputs.get(id) ?? null,
+        updateOutputById: vi.fn(),
+        setUiError,
+        setOutputs: vi.fn(),
+        setSaved: vi.fn(),
+        activeOutputId: "out-1",
+        model: "model-id",
+        aspect: "1:1",
+        prompt: "fallback prompt",
+      })
+    );
+
+    let saved = true;
+    await act(async () => {
+      saved = await result.current.savePromptToLibrary("Prompt to persist");
+    });
+
+    expect(saved).toBe(false);
+    expect(setUiError).toHaveBeenCalledWith("Prompt save failed.");
   });
 
   it("keeps raw library-save failures in save state while sanitizing the banner", async () => {

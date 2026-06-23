@@ -88,7 +88,7 @@ describe("executeStudioAgentFastPathTurn", () => {
     expect(result).toEqual({
       ok: false,
       status: 504,
-      detail: "OpenAI request timed out",
+      detail: "Agent request timed out",
     });
     expect(markStage).toHaveBeenCalledWith("fast_path_turn", expect.any(Number));
   });

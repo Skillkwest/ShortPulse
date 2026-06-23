@@ -322,9 +322,9 @@ describe("DetailModal", () => {
     expect(screen.getByText("SG")).toBeInTheDocument();
   });
 
-  it("renders text references in the shared detail modal with regular actions", () => {
+  it("renders text references in the shared detail modal with regular actions", async () => {
     const onUpdatePrompt = vi.fn();
-    const onSavePrompt = vi.fn();
+    const onSavePrompt = vi.fn().mockResolvedValue(true);
     const { baseElement } = render(
       <DetailModal
         output={{
@@ -346,9 +346,9 @@ describe("DetailModal", () => {
     const modal = baseElement.querySelector(".reference-modal-new");
     expect(modal?.classList.contains("is-text-only")).toBe(true);
     expect(modal?.classList.contains("is-prompt-only")).toBe(false);
-    expect(screen.getByText("Text detail")).toBeInTheDocument();
+    expect(screen.queryByText("Text detail")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Text reference" })).toBeInTheDocument();
-    expect(baseElement.querySelector(".art-modal-meta-pill")?.textContent?.trim()).toBe("Text");
+    expect(baseElement.querySelector(".art-modal-meta-pill")).toBeNull();
     expect(screen.queryByText("16:9")).not.toBeInTheDocument();
     expect(screen.queryByText("Kling 3.0")).not.toBeInTheDocument();
     expect(baseElement.querySelector(".art-prompt-only-header")).toBeNull();
@@ -362,7 +362,34 @@ describe("DetailModal", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(onUpdatePrompt).toHaveBeenCalledWith("out-1", "Updated prompt for library");
     expect(onSavePrompt).toHaveBeenCalledWith("Updated prompt for library");
-    expect(screen.getByRole("button", { name: "Saved" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Saved" })).toBeInTheDocument();
+  });
+
+  it("does not show saved feedback when prompt library persistence fails", async () => {
+    const onSavePrompt = vi.fn().mockResolvedValue(false);
+    render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          mode: "text",
+          previewUrl: undefined,
+          prompt: "Original prompt",
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+        onSavePrompt={onSavePrompt}
+      />
+    );
+
+    fireEvent.change(screen.getByPlaceholderText("Describe your adjustments..."), {
+      target: { value: "Prompt save should fail" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(onSavePrompt).toHaveBeenCalledWith("Prompt save should fail"));
+    expect(screen.queryByRole("button", { name: "Saved" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
   });
 
   it("edits text references immediately and applies changes on Save", () => {

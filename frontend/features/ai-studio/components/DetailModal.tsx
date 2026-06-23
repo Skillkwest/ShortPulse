@@ -66,7 +66,7 @@ type DetailModalProps = {
     options?: { mediaKindHint?: WorkflowReloadMediaKindHint | null }
   ) => void;
   isMediaStorageFull?: boolean;
-  onSavePrompt?: (promptText: string) => void;
+  onSavePrompt?: (promptText: string) => void | boolean | Promise<boolean>;
   refreshCharacterOptions?: () => Promise<
     Array<{ id: string; name: string; profileImageUrl: string | null }>
   >;
@@ -874,16 +874,18 @@ function DetailModalContent({
     bladeContent
   );
 
-  const handleSaveTextDetail = useCallback(() => {
+  const handleSaveTextDetail = useCallback(async () => {
     if (!trimmedPrompt) return;
-    const committedEdit = commitTextReferenceEdit({ showFeedback: true });
     if (!onSavePrompt) {
+      const committedEdit = commitTextReferenceEdit({ showFeedback: true });
       if (!committedEdit && outputId) {
         setPromptOnlySavedOutputId(outputId);
       }
       return;
     }
-    onSavePrompt(draftPrompt);
+    commitTextReferenceEdit({ showFeedback: false });
+    const saved = await onSavePrompt(draftPrompt);
+    if (saved === false) return;
     if (!outputId) return;
     setPromptLibrarySavedOutputId(outputId);
     if (typeof window === "undefined") return;
@@ -1105,7 +1107,8 @@ function DetailModalContent({
     handleCloseModal();
   };
   const shouldShowWorkflowReloadAction = Boolean(
-    onReloadWorkflowReference && canReloadWorkflowOutput(output)
+    onReloadWorkflowReference &&
+    canReloadWorkflowOutput(output, { mediaKindHint: workflowReloadMediaKindHint })
   );
 
   const sharedMediaActionItems = useMemo<SharedMediaDetailActionItem[]>(
@@ -1385,9 +1388,9 @@ function DetailModalContent({
           <SharedMediaDetailContentLayout
             topBar={
               <SharedMediaDetailTopBar
-                eyebrow={isErrorDetail ? "Error detail" : "Text detail"}
+                eyebrow={isErrorDetail ? "Error detail" : null}
                 title={detailModalItem.presentation?.title ?? null}
-                items={resolveSharedMediaDetailTopBarItems(detailModalItem)}
+                items={isErrorDetail ? resolveSharedMediaDetailTopBarItems(detailModalItem) : []}
                 actions={
                   <SharedMediaDetailActionBar
                     items={sharedPromptActionItems}

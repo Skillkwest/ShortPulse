@@ -253,6 +253,7 @@ export type WorkflowReloadMusicSongBatchCount = 1 | 2 | 3 | 4;
 export type WorkflowReloadMusicPayload = {
   kind: "music";
   text: string;
+  prompt?: string;
   lyrics?: string;
   durationSeconds: number | null;
   bpm?: number | null;

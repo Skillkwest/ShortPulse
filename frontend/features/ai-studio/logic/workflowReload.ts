@@ -638,6 +638,7 @@ const normalizeMusicPayload = (value: unknown): WorkflowReloadMusicPayload | nul
   return {
     kind: "music",
     text,
+    prompt: typeof value.prompt === "string" ? value.prompt : text,
     lyrics: typeof value.lyrics === "string" ? value.lyrics : "",
     durationSeconds: asFiniteNumberOrNull(value.durationSeconds),
     bpm: asFiniteNumberOrNull(value.bpm),

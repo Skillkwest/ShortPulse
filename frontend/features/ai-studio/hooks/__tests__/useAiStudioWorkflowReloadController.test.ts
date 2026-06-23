@@ -4,6 +4,7 @@ import { addBreadcrumb } from "../../../../lib/clientBreadcrumbs";
 import type { AiStudioKlingElement } from "../../logic/klingElements";
 import { resolveInternalMediaRefForUrl } from "../../logic/referenceInputInternalMediaRegistry";
 import type {
+  LipSyncAudioState,
   StudioOutput,
   ToolId,
   VideoReferenceMode,
@@ -47,6 +48,8 @@ const makeParams = (output: StudioOutput | null) => ({
   setKlingShotType: makeSetter<"customize" | "intelligent">(),
   setKlingVoiceIds: makeSetter<[string, string]>(),
   setKlingWorkflowMode: makeSetter<"single" | "multi" | "custom">(),
+  setLipSyncAudio: makeSetter<LipSyncAudioState>(),
+  setLipSyncTurboMode: makeSetter<boolean>(),
   setModel: vi.fn(),
   setMotionReferenceVideoUrl: makeSetter<string | null>(),
   setMusicComposerMode: makeSetter<"simple" | "custom">(),
@@ -812,7 +815,8 @@ describe("useAiStudioWorkflowReloadController", () => {
       prompt: { display: "Warm analog synth" },
       payload: {
         kind: "music",
-        text: "Warm analog synth",
+        text: "Warm analog synth\n\nLyrics:\ngolden morning",
+        prompt: "Warm analog synth",
         lyrics: "golden morning",
         durationSeconds: 30,
         composerMode: "custom",
@@ -879,28 +883,72 @@ describe("useAiStudioWorkflowReloadController", () => {
     expect(setSelectedVoiceMock).toHaveBeenCalledWith("voice-1");
   });
 
-  it("blocks local-only references and unavailable voices without mutating state", () => {
+  it("hydrates Lip Sync audio reference and turbo mode", () => {
+    const workflowReload: WorkflowReloadConfigV1 = {
+      ...makeImageReload(),
+      originTool: "video",
+      panelKind: "video",
+      outputMode: "video",
+      prompt: { display: "Sing into the microphone" },
+      model: { id: "fal-ai/bytedance/omnihuman/v1.5" },
+      payload: {
+        kind: "video",
+        aspect: "9:16",
+        videoReferenceMode: "lip-sync",
+        durationSeconds: 6,
+        resolution: "720p",
+        generateAudio: false,
+        cameraFixed: false,
+        autoFix: false,
+        referenceInputs: ["https://example.com/singer.png"],
+        internalMediaRefs: [],
+        lipSyncAudioUrl: "https://example.com/voice.mp3",
+        lipSyncAudioStoragePath: "user/audio/voice.mp3",
+        lipSyncAudioDurationMs: 12_400,
+        lipSyncTurboMode: true,
+      },
+    };
+    const params = makeParams(makeOutput(workflowReload));
+    const { result } = renderHook(() => useAiStudioWorkflowReloadController(params));
+
+    act(() => {
+      result.current.reloadWorkflowFromOutput("out-1");
+    });
+
+    expect(params.setSelectedTool).toHaveBeenCalledWith("video");
+    expect(params.setVideoReferenceMode).toHaveBeenCalledWith("lip-sync");
+    expect(params.setLipSyncAudio).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "https://example.com/voice.mp3",
+        storagePath: "user/audio/voice.mp3",
+        durationMs: 12_400,
+        status: "ready",
+        sourceKind: "reference",
+      })
+    );
+    expect(params.setLipSyncTurboMode).toHaveBeenCalledWith(true);
+  });
+
+  it("blocks local-only references without mutating state", () => {
     const localReload = makeImageReload();
     const localReloadPayload = localReload.payload as WorkflowReloadImagePayload;
     localReloadPayload.referenceInputs = ["blob:http://local"];
     localReloadPayload.internalMediaRefs = [];
-    let currentOutput = makeOutput(localReload);
     const params = makeParams(makeOutput(localReload));
-    params.findOutputById.mockImplementation(() => currentOutput);
-    const { result, rerender } = renderHook(
-      ({ revision }) => {
-        void revision;
-        return useAiStudioWorkflowReloadController(params);
-      },
-      { initialProps: { revision: 0 } }
-    );
+    const { result } = renderHook(() => useAiStudioWorkflowReloadController(params));
 
     let blocked;
     act(() => {
       blocked = result.current.reloadWorkflowFromOutput("out-1");
     });
     expect(blocked).toEqual({ status: "source_unavailable", outputId: "out-1" });
+    expect(params.beginManualWorkflowReload).not.toHaveBeenCalled();
+    expect(params.prepareCreateCharacterWorkflowReload).not.toHaveBeenCalled();
+    expect(params.prepareImageStyleWorkflowReload).not.toHaveBeenCalled();
+    expect(params.prepareStandardCreateWorkflowReload).not.toHaveBeenCalled();
+  });
 
+  it("falls back to the default voice when the original saved voice is unavailable", () => {
     const missingVoiceReload: WorkflowReloadConfigV1 = {
       ...makeImageReload(),
       originTool: "text-to-speech",
@@ -914,16 +962,21 @@ describe("useAiStudioWorkflowReloadController", () => {
         outputFormat: "mp3_44100_128",
       },
     };
-    currentOutput = makeOutput(missingVoiceReload);
-    rerender({ revision: 1 });
+    const params = makeParams(makeOutput(missingVoiceReload));
+    const { result } = renderHook(() => useAiStudioWorkflowReloadController(params));
+
+    let reloaded;
     act(() => {
-      blocked = result.current.reloadWorkflowFromOutput("out-1");
+      reloaded = result.current.reloadWorkflowFromOutput("out-1");
     });
 
-    expect(blocked).toEqual({ status: "voice_unavailable", outputId: "out-1" });
-    expect(params.beginManualWorkflowReload).not.toHaveBeenCalled();
-    expect(params.prepareCreateCharacterWorkflowReload).not.toHaveBeenCalled();
-    expect(params.prepareImageStyleWorkflowReload).not.toHaveBeenCalled();
-    expect(params.prepareStandardCreateWorkflowReload).not.toHaveBeenCalled();
+    expect(reloaded).toEqual({
+      status: "success",
+      outputId: "out-1",
+      targetTool: "text-to-speech",
+    });
+    expect(params.setVoiceScriptDraft).toHaveBeenCalledWith("Hello");
+    expect(params.setVoiceSelectedVoiceId).toHaveBeenCalledWith("voice-1");
+    expect(setSelectedVoiceMock).toHaveBeenCalledWith("voice-1");
   });
 });

@@ -549,6 +549,8 @@ export const useAiStudioState = ({
       setKlingShotType,
       setKlingVoiceIds,
       setKlingWorkflowMode,
+      setLipSyncAudio,
+      setLipSyncTurboMode,
       setModel: setModelState,
       setMotionReferenceVideoUrl,
       setMusicComposerMode: setMusicComposerModeState,

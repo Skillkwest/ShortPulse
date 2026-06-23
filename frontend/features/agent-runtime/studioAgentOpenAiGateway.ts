@@ -187,7 +187,7 @@ export const fetchStudioAgentChatCompletion = async ({
 
 export const formatStudioAgentErrorMessage = (error: unknown): string => {
   if (error instanceof DOMException && error.name === "AbortError") {
-    return "OpenAI request timed out";
+    return "Agent request timed out";
   }
   return error instanceof Error ? error.message : String(error);
 };

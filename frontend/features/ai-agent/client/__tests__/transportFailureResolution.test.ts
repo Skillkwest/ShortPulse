@@ -7,20 +7,44 @@ describe("resolveStudioAgentTransportFailure", () => {
       resolveStudioAgentTransportFailure({
         ok: false,
         status: 502,
-        detail: "OpenAI request timed out",
+        detail: "Agent request timed out",
         rawBody: JSON.stringify({
-          detail: "OpenAI request timed out",
+          detail: "Agent request timed out",
           traceId: "agent-trace-123",
         }),
         parsedError: {
-          detail: "OpenAI request timed out",
+          detail: "Agent request timed out",
           traceId: "agent-trace-123",
         },
       })
     ).toEqual({
       assistantMessage: null,
       response: null,
-      errorText: "OpenAI request timed out (Trace ID: agent-trace-123)",
+      errorText: "Agent request timed out (Trace ID: agent-trace-123)",
+    });
+  });
+
+  it("normalizes raw provider credential errors", () => {
+    expect(
+      resolveStudioAgentTransportFailure({
+        ok: false,
+        status: 401,
+        detail: "invalid api key",
+        rawBody: JSON.stringify({
+          detail:
+            "Incorrect API key provided: sk-proj-********************************. You can find your API key at https://platform.openai.com/account/api-keys.",
+          traceId: "agent-trace-789",
+        }),
+        parsedError: {
+          detail:
+            "Incorrect API key provided: sk-proj-********************************. You can find your API key at https://platform.openai.com/account/api-keys.",
+          traceId: "agent-trace-789",
+        },
+      })
+    ).toEqual({
+      assistantMessage: null,
+      response: null,
+      errorText: "Missing API key. (Trace ID: agent-trace-789)",
     });
   });
 

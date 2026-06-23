@@ -49,6 +49,6 @@ export type AiStudioPreviewDetailContracts = {
   onDeleteOutput: (id: string) => void;
   onDetailDownload: (id: string) => void;
   onDetailSaveReference: (id: string) => void;
-  onDetailSavePrompt: (promptText: string) => void;
+  onDetailSavePrompt: (promptText: string) => void | boolean | Promise<boolean>;
   onOpenMediaLibrary: () => void;
 };

@@ -7,10 +7,7 @@ import { SharedMediaDetailModalShell } from "../detail-modal/SharedMediaDetailMo
 import { SharedMediaDetailTopBar } from "../detail-modal/SharedMediaDetailTopBar";
 import type { SharedMediaDetailActionItem } from "../detail-modal/detailModalPlatformTypes";
 import { resolveSharedMediaDetailMediaActionItems } from "../detail-modal/sharedMediaDetailActions";
-import {
-  resolveSharedMediaDetailBladePlaceholder,
-  resolveSharedMediaDetailTopBarItems,
-} from "../detail-modal/sharedMediaDetailPresentation";
+import { resolveSharedMediaDetailBladePlaceholder } from "../detail-modal/sharedMediaDetailPresentation";
 
 type MediaLibraryPromptDetailModalProps = {
   item: MediaLibraryPromptDetailModalItem | null;
@@ -63,9 +60,8 @@ export function MediaLibraryPromptDetailModal({
       <SharedMediaDetailContentLayout
         topBar={
           <SharedMediaDetailTopBar
-            eyebrow="Text detail"
             title={item.presentation?.title ?? null}
-            items={resolveSharedMediaDetailTopBarItems(item)}
+            items={[]}
             actions={<SharedMediaDetailActionBar items={actionItems} />}
             onClose={onClose}
             closeLabel="Close text detail"

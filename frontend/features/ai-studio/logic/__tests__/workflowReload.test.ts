@@ -180,7 +180,8 @@ describe("workflowReload", () => {
       model: { id: "elevenlabs/music" },
       payload: {
         kind: "music",
-        text: "Warm indie folk cue",
+        text: "Warm indie folk cue\n\nLyrics:\nGolden morning",
+        prompt: "Warm indie folk cue",
         lyrics: "",
         durationSeconds: 30,
         bpm: 112,
@@ -321,6 +322,13 @@ describe("workflowReload", () => {
       })
     );
     expect(isWorkflowReloadConfigV1(musicReload)).toBe(true);
+    expect(musicReload?.payload).toEqual(
+      expect.objectContaining({
+        kind: "music",
+        text: "Warm indie folk cue\n\nLyrics:\nGolden morning",
+        prompt: "Warm indie folk cue",
+      })
+    );
     expect(isWorkflowReloadConfigV1(sfxReload)).toBe(true);
   });
 

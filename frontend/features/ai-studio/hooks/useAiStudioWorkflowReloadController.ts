@@ -16,8 +16,10 @@ import {
   createEmptyExpertEditSecondaryImageUrls,
   MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT,
 } from "../logic/expertEditReferenceSlots";
+import { createLipSyncAudioStateFromDurableUrl } from "../logic/lipSyncAudioState";
 import { registerInternalMediaRefsForUrls } from "../logic/referenceInputInternalMediaRegistry";
 import type {
+  LipSyncAudioState,
   StudioOutput,
   ToolId,
   WorkflowReloadConfigV1,
@@ -84,6 +86,8 @@ type UseAiStudioWorkflowReloadControllerParams = {
   setKlingShotType: Dispatch<SetStateAction<"customize" | "intelligent">>;
   setKlingVoiceIds: Dispatch<SetStateAction<[string, string]>>;
   setKlingWorkflowMode: Dispatch<SetStateAction<"single" | "multi" | "custom">>;
+  setLipSyncAudio: Dispatch<SetStateAction<LipSyncAudioState>>;
+  setLipSyncTurboMode: Dispatch<SetStateAction<boolean>>;
   setModel: (value: string | null) => void;
   setMotionReferenceVideoUrl: Dispatch<SetStateAction<string | null>>;
   setMusicComposerMode: Dispatch<SetStateAction<WorkflowReloadMusicComposerMode>>;
@@ -228,6 +232,18 @@ const resolveTargetTool = (config: WorkflowReloadConfigV1): ToolId => {
 
 const resolveCreateMode = (createMode: WorkflowReloadCreateMode | null | undefined) =>
   createMode === "pulse" ? "pulse" : "standard";
+
+const resolveVoiceIdForReload = (
+  requestedVoiceId: string,
+  voices: ReturnType<typeof useSharedVoicesGrid>["voices"]
+): string | null => {
+  if (voices.some((voice) => voice.id === requestedVoiceId)) return requestedVoiceId;
+  return (
+    voices.find((voice) => voice.isFallback || voice.librarySection === "default")?.id ??
+    voices[0]?.id ??
+    null
+  );
+};
 
 const resolveCreateImageCharacterContextForReload = (
   output: StudioOutput,
@@ -421,6 +437,8 @@ export const useAiStudioWorkflowReloadController = ({
   setKlingShotType,
   setKlingVoiceIds,
   setKlingWorkflowMode,
+  setLipSyncAudio,
+  setLipSyncTurboMode,
   setModel,
   setMotionReferenceVideoUrl,
   setMusicComposerMode,
@@ -503,10 +521,11 @@ export const useAiStudioWorkflowReloadController = ({
       ) {
         return fail("source_unavailable", normalizedOutputId, RELOAD_SOURCE_NOTICE);
       }
-      if (
-        (payload.kind === "voiceover" || payload.kind === "voice-changer") &&
-        !voices.some((voice) => voice.id === payload.voiceId)
-      ) {
+      const voiceReloadId =
+        payload.kind === "voiceover" || payload.kind === "voice-changer"
+          ? resolveVoiceIdForReload(payload.voiceId, voices)
+          : null;
+      if ((payload.kind === "voiceover" || payload.kind === "voice-changer") && !voiceReloadId) {
         return fail("voice_unavailable", normalizedOutputId, RELOAD_VOICE_NOTICE);
       }
       if (payload.kind === "voice-changer" && !buildVoiceChangerSource(payload)) {
@@ -605,11 +624,25 @@ export const useAiStudioWorkflowReloadController = ({
             ? mapKlingElements(videoReferences.klingElementSlots.map((slot) => slot.element))
             : mapKlingElements(videoPayload.klingElements)
         );
+        if (videoPayload.videoReferenceMode === "lip-sync") {
+          setLipSyncAudio(
+            createLipSyncAudioStateFromDurableUrl({
+              url: videoPayload.lipSyncAudioUrl ?? null,
+              title: "Reloaded lip sync audio",
+              durationMs: videoPayload.lipSyncAudioDurationMs ?? null,
+              sourceKind: "reference",
+              storagePath: videoPayload.lipSyncAudioStoragePath ?? null,
+            })
+          );
+          if (videoPayload.lipSyncTurboMode != null) {
+            setLipSyncTurboMode(videoPayload.lipSyncTurboMode);
+          }
+        }
       }
 
       if (payload.kind === "music") {
         setModel(config.model.id);
-        setMusicPromptDraft(payload.text);
+        setMusicPromptDraft(payload.prompt ?? payload.text);
         setMusicLyricsDraft(payload.lyrics ?? "");
         if (payload.durationSeconds != null) setMusicDurationSeconds(payload.durationSeconds);
         if (payload.composerMode) setMusicComposerMode(payload.composerMode);
@@ -633,8 +666,9 @@ export const useAiStudioWorkflowReloadController = ({
       if (payload.kind === "voiceover") {
         setModel(config.model.id);
         const voicePayload: WorkflowReloadVoiceoverPayload = payload;
-        setSelectedVoice(voicePayload.voiceId);
-        setVoiceSelectedVoiceId(voicePayload.voiceId);
+        const nextVoiceId = voiceReloadId ?? voicePayload.voiceId;
+        setSelectedVoice(nextVoiceId);
+        setVoiceSelectedVoiceId(nextVoiceId);
         setVoiceScriptDraft(voicePayload.script);
         setVoiceChangerSource(null);
       }
@@ -644,8 +678,9 @@ export const useAiStudioWorkflowReloadController = ({
         const voiceChangerPayload: WorkflowReloadVoiceChangerPayload = payload;
         const source = buildVoiceChangerSource(voiceChangerPayload);
         if (!source) return fail("source_unavailable", normalizedOutputId, RELOAD_SOURCE_NOTICE);
-        setSelectedVoice(voiceChangerPayload.voiceId);
-        setVoiceSelectedVoiceId(voiceChangerPayload.voiceId);
+        const nextVoiceId = voiceReloadId ?? voiceChangerPayload.voiceId;
+        setSelectedVoice(nextVoiceId);
+        setVoiceSelectedVoiceId(nextVoiceId);
         setVoiceChangerSource(source);
       }
 
@@ -678,6 +713,8 @@ export const useAiStudioWorkflowReloadController = ({
       setKlingShotType,
       setKlingVoiceIds,
       setKlingWorkflowMode,
+      setLipSyncAudio,
+      setLipSyncTurboMode,
       setModel,
       setMotionReferenceVideoUrl,
       setMusicComposerMode,

@@ -99,7 +99,7 @@ export type SharedMediaDetailActionIntent = "default" | "save" | "danger";
 export type SharedMediaDetailActionItem = {
   id: string;
   label: string;
-  onClick: () => void;
+  onClick: () => void | Promise<void>;
   ariaLabel?: string;
   disabled?: boolean;
   title?: string;

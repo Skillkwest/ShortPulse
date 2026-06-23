@@ -42,6 +42,18 @@ export const markExclusiveSoundPlaying = (player: ExclusiveSoundPlayer): void =>
 };
 
 /**
+ * Claims playback after a native play event without letting stale late starters steal focus.
+ */
+export const claimExclusiveSoundPlayback = (player: ExclusiveSoundPlayer): void => {
+  if (pendingPlayer && pendingPlayer.instanceKey !== player.instanceKey) {
+    player.pause();
+    return;
+  }
+  requestExclusiveSoundPlayback(player);
+  markExclusiveSoundPlaying(player);
+};
+
+/**
  * Clears the active/pending owner for the given player instance key.
  */
 export const clearExclusiveSoundPlayback = (instanceKey: string): void => {
@@ -83,8 +95,7 @@ export const useExclusiveSoundMediaElement = (
       return;
     }
     const player = getPlayer();
-    requestExclusiveSoundPlayback(player);
-    markExclusiveSoundPlaying(player);
+    claimExclusiveSoundPlayback(player);
   }, [clearPlayback, getPlayer, mediaRef]);
 
   const handleVolumeChange = React.useCallback(() => {
@@ -94,8 +105,7 @@ export const useExclusiveSoundMediaElement = (
       return;
     }
     const player = getPlayer();
-    requestExclusiveSoundPlayback(player);
-    markExclusiveSoundPlaying(player);
+    claimExclusiveSoundPlayback(player);
   }, [clearPlayback, getPlayer, mediaRef]);
 
   React.useEffect(

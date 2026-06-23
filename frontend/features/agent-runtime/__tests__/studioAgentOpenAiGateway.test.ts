@@ -141,7 +141,7 @@ describe("studioAgentOpenAiGateway", () => {
 
   it("formats timeout errors deterministically", () => {
     expect(formatStudioAgentErrorMessage(new DOMException("aborted", "AbortError"))).toBe(
-      "OpenAI request timed out"
+      "Agent request timed out"
     );
     expect(formatStudioAgentErrorMessage(new Error("boom"))).toBe("boom");
     expect(formatStudioAgentErrorMessage("string error")).toBe("string error");

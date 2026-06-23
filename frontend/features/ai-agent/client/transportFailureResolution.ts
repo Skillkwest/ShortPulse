@@ -1,5 +1,6 @@
 import type { AgentResponse } from "../../../prefabs/agent";
 import { normalizeErrorText } from "../../../lib/errorText";
+import { resolveProviderErrorHandling } from "../../agent-runtime/safetyPolicy/providerErrorPolicy";
 import { SAFETY_REFUSAL_MESSAGE, resolveSafetyRefusalText } from "../agentClientSafety";
 import type { StudioAgentTransportResult } from "./studioAgentTransport";
 
@@ -58,14 +59,20 @@ export const resolveStudioAgentTransportFailure = (
     transportResult.parsedError?.message ??
     transportResult.parsedError?.detail ??
     transportResult.parsedError?.error;
+  const normalizedRawErrorText = normalizeErrorText(structuredErrorText ?? transportResult.detail, {
+    fallback: `Agent request failed (${transportResult.status})`,
+    maxLength: 320,
+  });
+  const providerErrorHandling = resolveProviderErrorHandling({
+    status: transportResult.status,
+    detail: normalizedRawErrorText,
+    normalizationMode: "production_normalized",
+  });
   return {
     assistantMessage: null,
     response: null,
     errorText: appendTraceId({
-      errorText: normalizeErrorText(structuredErrorText ?? transportResult.detail, {
-        fallback: `Agent request failed (${transportResult.status})`,
-        maxLength: 320,
-      }),
+      errorText: providerErrorHandling.detailForClient ?? normalizedRawErrorText,
       traceId: transportResult.parsedError?.traceId,
     }),
   };

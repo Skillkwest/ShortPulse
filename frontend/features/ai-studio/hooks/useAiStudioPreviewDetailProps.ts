@@ -26,7 +26,7 @@ type UseAiStudioPreviewDetailPropsParams = {
   handleSaveReference: (id: string) => void;
   handleDownloadReference: (id: string) => void;
   isMediaStorageFull?: boolean;
-  savePromptToLibrary: (customPrompt?: string) => void;
+  savePromptToLibrary: (customPrompt?: string) => void | boolean | Promise<boolean>;
   handleOpenMediaLibrary: () => void;
 };
 

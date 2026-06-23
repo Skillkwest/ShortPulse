@@ -10,6 +10,14 @@ type MediaVariantPathRow = {
   storage_path: string | null;
 };
 
+type DeletedMediaFileRow = {
+  id: string;
+};
+
+type DeletedMediaPromptRow = {
+  id: string;
+};
+
 export type MediaDeleteTarget = {
   id: string;
   storage_path: string;
@@ -119,8 +127,16 @@ export const removeStoragePaths = async (paths: string[]): Promise<void> => {
 export const deleteMediaFileWithStorage = async (target: MediaDeleteTarget): Promise<void> => {
   const supabase = ensureSupabaseQueryClient();
   const deletePaths = await collectMediaStoragePathsForDelete([target]);
-  const { error: deleteError } = await supabase.from("media_files").delete().eq("id", target.id);
+  const { data: deletedRow, error: deleteError } = await supabase
+    .from("media_files")
+    .delete()
+    .eq("id", target.id)
+    .select("id")
+    .maybeSingle<DeletedMediaFileRow>();
   if (deleteError) throw deleteError;
+  if (!deletedRow?.id) {
+    throw new Error("Unable to delete media.");
+  }
   try {
     await removeStoragePaths(deletePaths);
   } catch (storageError) {
@@ -138,9 +154,14 @@ export const deleteMediaPromptById = async (promptId: string): Promise<void> => 
   const normalizedPromptId = promptId.trim();
   if (!normalizedPromptId) return;
   const supabase = ensureSupabaseQueryClient();
-  const { error: deleteError } = await supabase
+  const { data: deletedRow, error: deleteError } = await supabase
     .from("media_prompts")
     .delete()
-    .eq("id", normalizedPromptId);
+    .eq("id", normalizedPromptId)
+    .select("id")
+    .maybeSingle<DeletedMediaPromptRow>();
   if (deleteError) throw deleteError;
+  if (!deletedRow?.id) {
+    throw new Error("Unable to delete prompt.");
+  }
 };

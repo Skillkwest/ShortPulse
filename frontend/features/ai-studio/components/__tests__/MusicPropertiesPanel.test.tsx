@@ -283,6 +283,8 @@ describe("MusicPropertiesPanel", () => {
       1,
       expect.objectContaining({
         text: "Warm melodic house cue with a soft vocal texture, subtle lift into the hook, and a clean branded ending.",
+        rawPrompt:
+          "Warm melodic house cue with a soft vocal texture, subtle lift into the hook, and a clean branded ending.",
         durationSeconds: null,
         bpm: 112,
         mode: "vocal",
@@ -453,6 +455,7 @@ describe("MusicPropertiesPanel", () => {
       1,
       expect.objectContaining({
         mode: "vocal",
+        rawPrompt: "Melancholic synth-pop duet with a slow-burn chorus.",
         text: "Melancholic synth-pop duet with a slow-burn chorus.\n\nLyrics:\nStay with me through the neon afterglow.",
       })
     );

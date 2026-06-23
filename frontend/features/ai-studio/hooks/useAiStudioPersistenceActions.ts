@@ -384,14 +384,15 @@ export const useAiStudioPersistenceActions = ({
   );
 
   const savePromptToLibrary = useCallback(
-    (customPrompt?: string) => {
+    async (customPrompt?: string): Promise<boolean> => {
       const cleanedPrompt = (typeof customPrompt === "string" ? customPrompt : prompt).trim();
-      if (!cleanedPrompt) return;
-      void persistPromptSave({
+      if (!cleanedPrompt) return false;
+      const promptId = await persistPromptSave({
         promptText: cleanedPrompt,
         modelId: model ?? null,
         source: "ai_studio",
       });
+      return Boolean(promptId);
     },
     [model, persistPromptSave, prompt]
   );

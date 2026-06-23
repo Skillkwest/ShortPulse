@@ -10,10 +10,18 @@ import {
 
 export type ProviderErrorNormalizationMode = "production_normalized" | "development_verbatim";
 
+export const MISSING_PROVIDER_API_KEY_MESSAGE = "Missing API key.";
 export const REMOTE_MEDIA_FETCH_FAILURE_MESSAGE =
   "One attached image could not be fetched by the provider. Try re-adding the preview or using a smaller image.";
 
 const SIGNED_MEDIA_URL_PATTERN = /https?:\/\/[^\s)]+\/storage\/v1\/object\/sign\/[^\s)\]}>"']+/gi;
+const PROVIDER_API_KEY_DETAIL_PATTERNS: RegExp[] = [
+  /\b(?:invalid|incorrect|missing)\s+api\s+key\b/i,
+  /\bapi\s+key\s+(?:is\s+)?(?:invalid|incorrect|missing|not\s+set|not\s+configured)\b/i,
+  /\bOPENAI_API_KEY\b/i,
+  /\bsk-proj-[a-z0-9_*.-]+/i,
+  /\bplatform\.openai\.com\/account\/api-keys\b/i,
+];
 
 const REMOTE_MEDIA_FETCH_DETAIL_PATTERNS: RegExp[] = [
   /\berror\s+while\s+downloading\b/i,
@@ -27,6 +35,9 @@ const redactSignedMediaUrls = (detail: string): string =>
 
 const isRemoteMediaFetchFailure = (detail: string): boolean =>
   REMOTE_MEDIA_FETCH_DETAIL_PATTERNS.some((pattern) => pattern.test(detail));
+
+const isProviderApiKeyFailure = (detail: string): boolean =>
+  PROVIDER_API_KEY_DETAIL_PATTERNS.some((pattern) => pattern.test(detail));
 
 export const resolveProviderErrorNormalizationMode = (
   rawMode?: string | null
@@ -73,6 +84,14 @@ export const resolveProviderErrorHandling = ({
 
   if (normalizationMode === "development_verbatim") {
     return { failureClass, failureResolution, detailForClient: detailText };
+  }
+
+  if (isProviderApiKeyFailure(detailText)) {
+    return {
+      failureClass,
+      failureResolution,
+      detailForClient: MISSING_PROVIDER_API_KEY_MESSAGE,
+    };
   }
 
   if (detailText.length) {

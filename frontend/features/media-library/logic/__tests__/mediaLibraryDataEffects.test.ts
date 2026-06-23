@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   collectMediaStoragePathsForDelete,
+  deleteMediaFileWithStorage,
+  deleteMediaPromptById,
   logMediaEvent,
   removeStoragePaths,
 } from "../mediaLibraryDataEffects";
@@ -21,6 +23,14 @@ const readSupabaseUserIdMock = vi.mocked(readSupabaseUserId);
 const invalidateSignedMediaUrlMock = vi.mocked(invalidateSignedMediaUrl);
 const mediaEventsInsertMock = vi.fn();
 const mediaVariantsInMock = vi.fn();
+const mediaFilesDeleteMock = vi.fn();
+const mediaFilesEqMock = vi.fn();
+const mediaFilesSelectMock = vi.fn();
+const mediaFilesMaybeSingleMock = vi.fn();
+const mediaPromptsDeleteMock = vi.fn();
+const mediaPromptsEqMock = vi.fn();
+const mediaPromptsSelectMock = vi.fn();
+const mediaPromptsMaybeSingleMock = vi.fn();
 const storageRemoveMock = vi.fn();
 
 describe("mediaLibraryDataEffects", () => {
@@ -29,6 +39,14 @@ describe("mediaLibraryDataEffects", () => {
     readSupabaseUserIdMock.mockResolvedValue("user-1");
     mediaEventsInsertMock.mockResolvedValue({ error: null });
     mediaVariantsInMock.mockResolvedValue({ data: [], error: null });
+    mediaFilesDeleteMock.mockReturnValue({ eq: mediaFilesEqMock });
+    mediaFilesEqMock.mockReturnValue({ select: mediaFilesSelectMock });
+    mediaFilesSelectMock.mockReturnValue({ maybeSingle: mediaFilesMaybeSingleMock });
+    mediaFilesMaybeSingleMock.mockResolvedValue({ data: { id: "file-1" }, error: null });
+    mediaPromptsDeleteMock.mockReturnValue({ eq: mediaPromptsEqMock });
+    mediaPromptsEqMock.mockReturnValue({ select: mediaPromptsSelectMock });
+    mediaPromptsSelectMock.mockReturnValue({ maybeSingle: mediaPromptsMaybeSingleMock });
+    mediaPromptsMaybeSingleMock.mockResolvedValue({ data: { id: "prompt-1" }, error: null });
     storageRemoveMock.mockResolvedValue({ error: null });
 
     ensureSupabaseQueryClientMock.mockReturnValue({
@@ -43,6 +61,16 @@ describe("mediaLibraryDataEffects", () => {
             select: () => ({
               in: mediaVariantsInMock,
             }),
+          };
+        }
+        if (table === "media_files") {
+          return {
+            delete: mediaFilesDeleteMock,
+          };
+        }
+        if (table === "media_prompts") {
+          return {
+            delete: mediaPromptsDeleteMock,
           };
         }
         throw new Error(`Unexpected table: ${table}`);
@@ -120,5 +148,59 @@ describe("mediaLibraryDataEffects", () => {
     expect(storageRemoveMock).toHaveBeenNthCalledWith(2, paths.slice(100, 200));
     expect(storageRemoveMock).toHaveBeenNthCalledWith(3, paths.slice(200));
     expect(invalidateSignedMediaUrlMock).toHaveBeenCalledTimes(205);
+  });
+
+  it("deletes a media row only when Supabase returns the deleted id", async () => {
+    mediaVariantsInMock.mockResolvedValueOnce({
+      data: [{ storage_path: "u/private/file-1-thumb.webp" }],
+      error: null,
+    });
+
+    await deleteMediaFileWithStorage({
+      id: "file-1",
+      storage_path: "u/private/file-1.png",
+      preview_storage_path: "u/private/file-1-preview.png",
+    });
+
+    expect(mediaFilesDeleteMock).toHaveBeenCalledTimes(1);
+    expect(mediaFilesEqMock).toHaveBeenCalledWith("id", "file-1");
+    expect(mediaFilesSelectMock).toHaveBeenCalledWith("id");
+    expect(storageRemoveMock).toHaveBeenCalledWith([
+      "u/private/file-1.png",
+      "u/private/file-1-preview.png",
+      "u/private/file-1-thumb.webp",
+    ]);
+  });
+
+  it("throws instead of removing storage when the media delete affects no rows", async () => {
+    mediaFilesMaybeSingleMock.mockResolvedValueOnce({ data: null, error: null });
+
+    await expect(
+      deleteMediaFileWithStorage({
+        id: "missing-file",
+        storage_path: "u/private/missing-file.png",
+      })
+    ).rejects.toThrow("Unable to delete media.");
+
+    expect(mediaFilesEqMock).toHaveBeenCalledWith("id", "missing-file");
+    expect(storageRemoveMock).not.toHaveBeenCalled();
+  });
+
+  it("deletes a prompt row only when Supabase returns the deleted id", async () => {
+    await deleteMediaPromptById(" prompt-1 ");
+
+    expect(mediaPromptsDeleteMock).toHaveBeenCalledTimes(1);
+    expect(mediaPromptsEqMock).toHaveBeenCalledWith("id", "prompt-1");
+    expect(mediaPromptsSelectMock).toHaveBeenCalledWith("id");
+  });
+
+  it("throws when prompt deletion affects no rows", async () => {
+    mediaPromptsMaybeSingleMock.mockResolvedValueOnce({ data: null, error: null });
+
+    await expect(deleteMediaPromptById("missing-prompt")).rejects.toThrow(
+      "Unable to delete prompt."
+    );
+
+    expect(mediaPromptsEqMock).toHaveBeenCalledWith("id", "missing-prompt");
   });
 });

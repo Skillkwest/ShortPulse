@@ -15,7 +15,10 @@ import {
 } from "../studioAgentSafetyInputPrecheck";
 import { resolveSafetyEnvironment, resolveSafetyModality } from "../safetyPolicy/decisionEngine";
 import { resolveSafetyPolicyDocument } from "../safetyPolicy/policyDocument";
-import { resolveProviderErrorNormalizationMode } from "../safetyPolicy/providerErrorPolicy";
+import {
+  MISSING_PROVIDER_API_KEY_MESSAGE,
+  resolveProviderErrorNormalizationMode,
+} from "../safetyPolicy/providerErrorPolicy";
 import {
   buildStudioAgentRouteFailurePayload,
   buildStudioAgentSafetyRefusalPayload,
@@ -158,10 +161,10 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
     return res.status(500).json({
       ...buildStudioAgentRouteFailurePayload({
         traceId,
-        detail: "OPENAI_API_KEY is not set",
+        detail: MISSING_PROVIDER_API_KEY_MESSAGE,
         reasonCode: "CONFIG_MISSING",
       }),
-      error: "OPENAI_API_KEY is not set",
+      error: MISSING_PROVIDER_API_KEY_MESSAGE,
     });
   }
 

@@ -39,6 +39,11 @@ import {
   shouldRetryStudioAgentFailure,
   waitForStudioAgentRetry,
 } from "../studioAgentFailurePolicy";
+import {
+  MISSING_PROVIDER_API_KEY_MESSAGE,
+  resolveProviderErrorHandling,
+  resolveProviderErrorNormalizationMode,
+} from "../safetyPolicy/providerErrorPolicy";
 import { sanitizeGenerationPromptText } from "../../agent-core/promptText";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../lib/server/api/auth";
@@ -964,10 +969,10 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
     return res.status(500).json({
       ...buildStudioAgentRouteFailurePayload({
         traceId,
-        detail: "OPENAI_API_KEY is not set",
+        detail: MISSING_PROVIDER_API_KEY_MESSAGE,
         reasonCode: "CONFIG_MISSING",
       }),
-      error: "OPENAI_API_KEY is not set",
+      error: MISSING_PROVIDER_API_KEY_MESSAGE,
     });
   }
 
@@ -1018,6 +1023,9 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
   }
 
   const openAiConfig = resolveStudioAgentOpenAiConfig(process.env);
+  const providerErrorNormalizationMode = resolveProviderErrorNormalizationMode(
+    process.env.STUDIO_AGENT_SAFETY_PROVIDER_ERROR_MODE
+  );
   const textPayloadChars = measureStandardTextPayloadChars({ messages, context });
   const textPayloadSummary = summarizeStandardTextPayload({ messages, context });
   const executionProfile = resolveStandardOpenAiExecutionProfile({
@@ -1067,6 +1075,11 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
     markStage("standard_openai_roundtrip", openAiRoundTripStartedAt);
 
     if (!directResponseResult.ok) {
+      const providerErrorHandling = resolveProviderErrorHandling({
+        status: directResponseResult.status,
+        detail: directResponseResult.detail,
+        normalizationMode: providerErrorNormalizationMode,
+      });
       if (directResponseResult.error) {
         throw Object.assign(
           directResponseResult.error instanceof Error
@@ -1095,7 +1108,7 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
       return res.status(directResponseResult.status ?? 502).json(
         buildStudioAgentUpstreamErrorPayload({
           traceId,
-          detail: directResponseResult.detail,
+          detail: providerErrorHandling.detailForClient ?? directResponseResult.detail,
         })
       );
     }
@@ -1218,6 +1231,10 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
       },
     });
     const detail = formatStudioAgentErrorMessage(error);
+    const providerErrorHandling = resolveProviderErrorHandling({
+      detail,
+      normalizationMode: providerErrorNormalizationMode,
+    });
     emitStudioAgentTurnTelemetry({
       flow,
       path: STANDARD_TELEMETRY_PATH,
@@ -1242,7 +1259,7 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
     return res.status(502).json(
       buildStudioAgentUpstreamErrorPayload({
         traceId,
-        detail,
+        detail: providerErrorHandling.detailForClient ?? detail,
         stage: "standard_openai",
       })
     );

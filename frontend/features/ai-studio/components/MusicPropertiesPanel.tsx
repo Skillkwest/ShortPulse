@@ -21,6 +21,7 @@ export type MusicSongBatchCount = 1 | 2 | 3 | 4;
 
 export type MusicGenerateRequest = {
   text: string;
+  rawPrompt?: string;
   lyrics?: string;
   durationSeconds: number | null;
   bpm: number;
@@ -407,6 +408,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
     if (!onGenerate || !submissionText || !isWithinPromptLimit) return;
     const request = {
       text: submissionText,
+      rawPrompt: prompt,
       lyrics,
       durationSeconds: selectedDurationSeconds,
       bpm: defaultMusicBpm,
@@ -429,6 +431,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
     estimatedCreditsPerSong,
     instrumentalEnabled,
     lyrics,
+    prompt,
     requestedMusicMode,
     isWithinPromptLimit,
     onGenerate,

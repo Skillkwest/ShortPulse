@@ -321,14 +321,15 @@ const buildMusicWorkflowReload = ({
 }: {
   projectId?: string | null;
   request: MusicGenerateRequest;
-}): WorkflowReloadConfig | null =>
-  buildWorkflowReloadConfigV1({
+}): WorkflowReloadConfig | null => {
+  const displayPrompt = request.rawPrompt ?? request.text;
+  return buildWorkflowReloadConfigV1({
     originTool: "music",
     panelKind: "music",
     outputMode: "audio",
     projectId,
     prompt: {
-      display: request.text,
+      display: displayPrompt,
       submission: request.text,
     },
     model: {
@@ -337,6 +338,7 @@ const buildMusicWorkflowReload = ({
     payload: {
       kind: "music",
       text: request.text,
+      prompt: displayPrompt,
       lyrics: request.lyrics ?? "",
       durationSeconds: request.durationSeconds,
       bpm: request.bpm,
@@ -350,6 +352,7 @@ const buildMusicWorkflowReload = ({
       songBatchCount: request.songBatchCount ?? null,
     },
   });
+};
 
 const buildSoundEffectsWorkflowReload = ({
   projectId,

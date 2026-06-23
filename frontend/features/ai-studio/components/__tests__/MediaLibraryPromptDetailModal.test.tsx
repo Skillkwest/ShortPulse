@@ -26,6 +26,8 @@ describe("MediaLibraryPromptDetailModal", () => {
 
     expect(screen.getByRole("dialog", { name: "Saved prompt detail" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Prompt One" })).toBeInTheDocument();
+    expect(screen.queryByText("Text detail")).not.toBeInTheDocument();
+    expect(document.querySelector(".art-modal-meta-pill")).toBeNull();
     expect(
       (screen.getByDisplayValue("A cinematic portrait with soft rim light") as HTMLTextAreaElement)
         .readOnly

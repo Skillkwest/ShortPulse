@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   __resetExclusiveSoundPlaybackForTests,
+  claimExclusiveSoundPlayback,
   clearExclusiveSoundPlayback,
   markExclusiveSoundPlaying,
   requestExclusiveSoundPlayback,
@@ -30,6 +31,18 @@ describe("exclusiveSoundPlayback", () => {
     requestExclusiveSoundPlayback({ instanceKey: "a", pause: pauseA });
     requestExclusiveSoundPlayback({ instanceKey: "b", pause: pauseB });
     markExclusiveSoundPlaying({ instanceKey: "a", pause: pauseA });
+
+    expect(pauseA).toHaveBeenCalledTimes(2);
+    expect(pauseB).not.toHaveBeenCalled();
+  });
+
+  it("does not let a stale late starter pause the current requested player", () => {
+    const pauseA = vi.fn();
+    const pauseB = vi.fn();
+
+    requestExclusiveSoundPlayback({ instanceKey: "a", pause: pauseA });
+    requestExclusiveSoundPlayback({ instanceKey: "b", pause: pauseB });
+    claimExclusiveSoundPlayback({ instanceKey: "a", pause: pauseA });
 
     expect(pauseA).toHaveBeenCalledTimes(2);
     expect(pauseB).not.toHaveBeenCalled();

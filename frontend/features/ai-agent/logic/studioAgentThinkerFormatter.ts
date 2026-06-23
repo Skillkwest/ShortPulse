@@ -135,7 +135,7 @@ const isRetryableError = (error: unknown): boolean => {
 
 const toErrorDetail = (error: unknown): string => {
   if (error instanceof DOMException && error.name === "AbortError") {
-    return "OpenAI request timed out";
+    return "Agent request timed out";
   }
   return error instanceof Error ? error.message : String(error);
 };
@@ -323,7 +323,7 @@ export const runThinkerFormatterTurn = async ({
       ok: false,
       stage,
       status: 504,
-      detail: "OpenAI request failed after retries",
+      detail: "Agent request failed after retries",
     };
   };
 

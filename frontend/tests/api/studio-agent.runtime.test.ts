@@ -1172,7 +1172,7 @@ describe("AI Studio Create agent runtime boundaries", () => {
     const payload = res.json.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(typeof payload.traceId).toBe("string");
     expect(String(payload.traceId).length).toBeGreaterThan(0);
-    expect(payload.detail).toBe("OpenAI request timed out");
+    expect(payload.detail).toBe("Agent request timed out");
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 

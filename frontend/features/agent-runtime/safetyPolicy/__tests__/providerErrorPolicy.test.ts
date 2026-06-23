@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  MISSING_PROVIDER_API_KEY_MESSAGE,
   REMOTE_MEDIA_FETCH_FAILURE_MESSAGE,
   resolveProviderErrorHandling,
   resolveProviderErrorNormalizationMode,
@@ -18,7 +19,7 @@ describe("providerErrorPolicy", () => {
     expect(result.detailForClient).toBeUndefined();
   });
 
-  it("keeps auth hard errors explicit in production-normalized mode", () => {
+  it("normalizes auth hard errors in production-normalized mode", () => {
     const result = resolveProviderErrorHandling({
       status: 401,
       detail: "invalid api key",
@@ -27,7 +28,18 @@ describe("providerErrorPolicy", () => {
 
     expect(result.failureClass).toBe("auth_config");
     expect(result.failureResolution).toBe("hard_error");
-    expect(result.detailForClient).toBe("invalid api key");
+    expect(result.detailForClient).toBe(MISSING_PROVIDER_API_KEY_MESSAGE);
+  });
+
+  it("removes provider-specific API key details from customer copy", () => {
+    const result = resolveProviderErrorHandling({
+      status: 401,
+      detail:
+        "Incorrect API key provided: sk-proj-********************************. You can find your API key at https://platform.openai.com/account/api-keys.",
+      normalizationMode: "production_normalized",
+    });
+
+    expect(result.detailForClient).toBe(MISSING_PROVIDER_API_KEY_MESSAGE);
   });
 
   it("replaces remote media fetch timeout details with safe client copy", () => {

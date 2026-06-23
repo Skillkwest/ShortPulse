@@ -79,7 +79,9 @@ export const resolveStandardCreatePrimaryActionDecision = ({
     return { kind: "noop", reason: "disabled" };
   }
 
-  void isGenerateDisabled;
+  if (isGenerateDisabled) {
+    return { kind: "noop", reason: "disabled" };
+  }
 
   const imageAttachmentBlockReason = resolveImageAttachmentBlockReason(agentAttachments);
   if (imageAttachmentBlockReason) {

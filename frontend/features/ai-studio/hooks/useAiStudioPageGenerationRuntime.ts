@@ -232,8 +232,6 @@ export const useAiStudioPageGenerationRuntime = ({
   videoReferenceText,
   videoResolution,
 }: UseAiStudioPageGenerationRuntimeParams) => {
-  void createSelectedCharacterId;
-  void isCreateCharacterBundleLoading;
   const selectedToolReferenceInputs = resolveReferenceInputsForTool(selectedTool);
   const effectiveReferenceImageUrl = selectedToolReferenceInputs.referenceImageUrl;
   const effectiveExtraImageUrls = selectedToolReferenceInputs.extraImageUrls;
@@ -274,6 +272,7 @@ export const useAiStudioPageGenerationRuntime = ({
     hasSufficientCreditsForPromptReferenceGenerate,
     isCreditGuardrail,
     generationGuardrail,
+    isGenerateDisabled,
     referenceImageWarning,
   } = useAiStudioViewModel({
     mode,
@@ -303,6 +302,8 @@ export const useAiStudioPageGenerationRuntime = ({
     seedance2ReferenceVideoUrls,
     seedance2ReferenceAudioUrls,
     isCreateCharacterModeEnabled,
+    createSelectedCharacterId,
+    isCreateCharacterBundleLoading,
     createCharacterModeInjectionBundle,
     balanceCredits,
     balanceError,
@@ -316,7 +317,7 @@ export const useAiStudioPageGenerationRuntime = ({
   });
 
   const effectiveGenerationGuardrail = generationGuardrail;
-  const effectiveIsGenerateDisabled = Boolean(effectiveGenerationGuardrail);
+  const effectiveIsGenerateDisabled = isGenerateDisabled;
 
   const {
     handleOpenModelModal,

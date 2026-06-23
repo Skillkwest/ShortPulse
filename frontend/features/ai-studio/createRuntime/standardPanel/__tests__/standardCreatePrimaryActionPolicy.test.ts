@@ -99,7 +99,7 @@ describe("standardCreatePrimaryActionPolicy", () => {
     });
   });
 
-  it("keeps populated Standard composer submits clickable when an upstream guardrail is active", () => {
+  it("returns a no-op when an upstream generate guardrail disables submission", () => {
     expect(
       resolveStandardCreatePrimaryActionDecision({
         selectedTool: "create",
@@ -110,14 +110,8 @@ describe("standardCreatePrimaryActionPolicy", () => {
         isGenerateDisabled: true,
       })
     ).toEqual({
-      kind: "generate",
-      prompt: "authored prompt",
-      mirrorPromptToVisibleComposer: false,
-      options: {
-        modeOverride: "image",
-        toolOverride: "create",
-        costOverrideCredits: 3,
-      },
+      kind: "noop",
+      reason: "disabled",
     });
   });
 });

@@ -216,6 +216,66 @@ describe("useReferenceGridCardRenderController", () => {
     expect(onReloadWorkflowOutput).not.toHaveBeenCalled();
   });
 
+  it("labels local upload save spinners as saving instead of generating", () => {
+    const output = createOutput({
+      id: "upload-image-saving-1",
+      mode: "image",
+      mediaSource: "upload",
+      taskState: "pending",
+      saveState: "saving",
+      previewUrl: "blob:local-upload-image",
+      localObjectUrl: "blob:local-upload-image",
+      previewStoragePath: null,
+      fullStoragePath: null,
+    });
+    const visibleCard = {
+      item: projectReferenceGridMediaOutput(output),
+      authorityTier: "preview-only" as const,
+      cardPreviewUrl: "blob:local-upload-image",
+      isVideoPreview: false,
+      isImagePreview: true,
+      isAudioPreview: false,
+      isPriorityHydration: true,
+      imageSrc: "blob:local-upload-image",
+    };
+
+    const { result } = renderHook(() =>
+      useReferenceGridCardRenderController({
+        activeOutputId: output.id,
+        visibleOutputById: { [output.id]: output },
+        autoplayEnabledIdSet: new Set<string>(),
+        linkedPromptReferenceIdSet: new Set<string>(),
+        loadingCardIdSet: new Set<string>([output.id]),
+        generationLoadingCardIdSet: new Set<string>([output.id]),
+        hydrationLoadingCardIdSet: new Set<string>(),
+        perfDegradeLevel: 0,
+        visibleCardItems: [visibleCard],
+        curatedVisibleCardItems: [],
+        visibleQuickSlotIdSet: new Set<string>(),
+        onSelectOutput: vi.fn(),
+        onOpenDetails: vi.fn(),
+        onCardDragStart: vi.fn(),
+        onCardDragEnd: vi.fn(),
+        onCuratedSectionDragOver: vi.fn(),
+        onCuratedCardDrop: vi.fn(),
+        onCuratedSectionDragEnter: vi.fn(),
+        onCuratedSectionDragLeave: vi.fn(),
+        onCuratedCardKeyboardReorder: vi.fn(),
+        registerVideoNode: vi.fn(),
+        markLoaded: vi.fn(),
+        onAutoplayStarted: vi.fn(),
+        onAutoplayStopped: vi.fn(),
+        audioPlaybackController: createAudioControllerStub(),
+      })
+    );
+
+    const { container, queryByText } = render(<>{result.current.allRefsCardNodes}</>);
+    const loadingLabel = container.querySelector(".reference-loading-label");
+
+    expect(loadingLabel?.textContent).toBe("Saving");
+    expect(queryByText("Generating")).toBeNull();
+  });
+
   it("keeps duplicate quick-slot and all-refs audio players mutually exclusive", () => {
     playMock.mockClear();
     pauseMock.mockClear();

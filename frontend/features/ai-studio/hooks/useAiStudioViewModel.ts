@@ -50,6 +50,7 @@ import {
   type EditSubmitIntent,
 } from "../logic/editSubmitIntent";
 import { resolveCreatePricingTarget } from "../logic/createPricingTarget";
+import { resolveCharacterModeReferenceReadiness } from "../logic/characterModeReferenceReadiness";
 import { isCreateWorkflow, isEditWorkflow, isVideoWorkflow } from "../logic/workflowIdentity";
 import { analyzeExpertEditPromptTokens } from "../logic/expertEditPromptReferences";
 import { resolveLipSyncAudioDurationGuardrail } from "../logic/lipSyncDuration";
@@ -113,6 +114,8 @@ type ViewModelInput = {
   seedance2ReferenceVideoUrls?: string[];
   seedance2ReferenceAudioUrls?: string[];
   isCreateCharacterModeEnabled?: boolean;
+  createSelectedCharacterId?: string | null;
+  isCreateCharacterBundleLoading?: boolean;
   createCharacterModeInjectionBundle?: CharacterModeInjectionBundle | null;
   balanceCredits: number | null;
   balanceLoading?: boolean;
@@ -156,6 +159,8 @@ export const useAiStudioViewModel = ({
   seedance2ReferenceVideoUrls = [],
   seedance2ReferenceAudioUrls = [],
   isCreateCharacterModeEnabled = false,
+  createSelectedCharacterId = null,
+  isCreateCharacterBundleLoading = false,
   createCharacterModeInjectionBundle = null,
   balanceCredits,
   balanceLoading = false,
@@ -306,6 +311,22 @@ export const useAiStudioViewModel = ({
   const createReferenceImageUrls = useMemo(
     () => [referenceImageUrl, ...extraImageUrls],
     [extraImageUrls, referenceImageUrl]
+  );
+  const characterModeReferenceReadiness = useMemo(
+    () =>
+      resolveCharacterModeReferenceReadiness({
+        isCharacterModeEnabled: isCreateWorkflowSelected && isCreateCharacterModeEnabled,
+        selectedCharacterId: createSelectedCharacterId,
+        isBundleLoading: isCreateCharacterBundleLoading,
+        bundle: createCharacterModeInjectionBundle,
+      }),
+    [
+      createCharacterModeInjectionBundle,
+      createSelectedCharacterId,
+      isCreateCharacterBundleLoading,
+      isCreateCharacterModeEnabled,
+      isCreateWorkflowSelected,
+    ]
   );
   const currentEditReferenceImageCount = useMemo(() => {
     const populatedSecondaryCount = extraImageUrls.filter(
@@ -492,9 +513,12 @@ export const useAiStudioViewModel = ({
     isPricingPolicyUnavailable,
   ]);
 
-  const currentCostCredits = currentCost?.credits ?? null;
+  const currentCostCredits = characterModeReferenceReadiness.shouldBlockGenerate
+    ? null
+    : (currentCost?.credits ?? null);
   // Cost shown in the model picker (also used by agent-output generation affordances).
   const modelPickerCostCredits = useMemo(() => {
+    if (characterModeReferenceReadiness.shouldBlockGenerate) return null;
     if (!effectiveEditSubmitModelId) return null;
     if (canUseStandardCreatePricingGrid && isCreateWorkflowSelected) {
       const pricingTarget = resolveCreatePricingTarget({
@@ -564,10 +588,12 @@ export const useAiStudioViewModel = ({
     pricingPolicy,
     pricingImageResolution,
     videoPricingParams,
+    characterModeReferenceReadiness.shouldBlockGenerate,
   ]);
 
   const resolveModelPickerCredits = useCallback(
     (modelIdForChip: string): number | null => {
+      if (characterModeReferenceReadiness.shouldBlockGenerate) return null;
       const candidatePricingImageResolution = normalizeImageResolutionForCanonicalBilledPricing(
         modelIdForChip,
         imageResolution
@@ -642,10 +668,12 @@ export const useAiStudioViewModel = ({
       imageResolution,
       isCreateCharacterModeEnabled,
       videoPricingParams,
+      characterModeReferenceReadiness.shouldBlockGenerate,
     ]
   );
 
   const promptGenerateCostCredits = useMemo(() => {
+    if (characterModeReferenceReadiness.shouldBlockGenerate) return null;
     if (!effectiveEditSubmitModelId || !isImageTool) return null;
     if (canUseStandardCreatePricingGrid && isCreateWorkflowSelected) {
       const pricingTarget = resolveCreatePricingTarget({
@@ -696,8 +724,10 @@ export const useAiStudioViewModel = ({
     isPricingPolicyUnavailable,
     pricingImageResolution,
     pricingPolicy,
+    characterModeReferenceReadiness.shouldBlockGenerate,
   ]);
   const createTextImageGenerateCostCredits = useMemo(() => {
+    if (characterModeReferenceReadiness.shouldBlockGenerate) return null;
     if (!isCreateWorkflowSelected || mode !== "text" || !effectiveEditSubmitModelId) return null;
     if (canUseStandardCreatePricingGrid) {
       const pricingTarget = resolveCreatePricingTarget({
@@ -738,6 +768,7 @@ export const useAiStudioViewModel = ({
     mode,
     pricingImageResolution,
     pricingPolicy,
+    characterModeReferenceReadiness.shouldBlockGenerate,
   ]);
   const usesCanonicalCreatePromptPricing =
     canUseStandardCreatePricingGrid && isCreateWorkflowSelected && (isImageTool || mode === "text");
@@ -825,6 +856,9 @@ export const useAiStudioViewModel = ({
   const generationGuardrail = useMemo(() => {
     if (requiresModelSelection && !isModelSelected)
       return "Select a model before running a generation.";
+    if (characterModeReferenceReadiness.guardrailMessage) {
+      return characterModeReferenceReadiness.guardrailMessage;
+    }
     if (isEditWorkflowSelected) {
       if (!referenceImageUrl) return "Add a reference image before generating.";
     }
@@ -954,6 +988,7 @@ export const useAiStudioViewModel = ({
     return null;
   }, [
     extraImageUrls,
+    characterModeReferenceReadiness.guardrailMessage,
     hasDescribeImage,
     hasSeedance2LinkedAssetReferences,
     hasSeedance2MultimodalReferences,

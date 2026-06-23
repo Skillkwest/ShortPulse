@@ -29,6 +29,7 @@ import {
 } from "../../../../lib/model-runtime/pricingPolicy";
 import { materializeImageBilledCreditPolicy } from "../../../../lib/model-runtime/materializeImageBilledCreditPolicy";
 import type { CharacterModeInjectionBundle } from "../useAiStudioCharacterModeController";
+import { CHARACTER_MODE_EMPTY_LOOK_GUARDRAIL } from "../../logic/characterModeReferenceReadiness";
 import {
   createEmptyLipSyncAudioState,
   createReadyLipSyncAudioState,
@@ -509,6 +510,74 @@ describe("useAiStudioViewModel motion guardrails", () => {
     );
 
     expect(result.current.promptReferenceGenerateCostCredits).toBe(expectedCost);
+    expect(result.current.generationGuardrail).toBeNull();
+    expect(result.current.isGenerateDisabled).toBe(false);
+  });
+
+  it("blocks Create Character Mode when the selected character look has no references", () => {
+    const modelId = "fal-ai/nano-banana-2";
+    const createCharacterModeInjectionBundle: CharacterModeInjectionBundle = {
+      characterId: "char-1",
+      characterDescription: "Silver-haired warrior",
+      characterLookId: "look-3",
+      characterLookName: "Look 3",
+      sheetReferenceStoragePaths: [],
+      sheetReferenceUrls: [],
+      loadedAtMs: Date.now(),
+    };
+
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        mode: "text",
+        selectedTool: "create",
+        model: modelId,
+        aspect: "16:9",
+        prompt: "Turn this into a cinematic portrait",
+        referenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoReferenceMode: "standard",
+        imageResolution: "4K",
+        isCreateCharacterModeEnabled: true,
+        createSelectedCharacterId: "char-1",
+        isCreateCharacterBundleLoading: false,
+        createCharacterModeInjectionBundle,
+        costParamsForModel: makeCostParamsForModel(modelId),
+        pricingPolicy: pricingGridPolicy,
+      })
+    );
+
+    expect(result.current.generationGuardrail).toBe(CHARACTER_MODE_EMPTY_LOOK_GUARDRAIL);
+    expect(result.current.isGenerateDisabled).toBe(true);
+    expect(result.current.promptReferenceGenerateCostCredits).toBeNull();
+    expect(result.current.currentCostCredits).toBeNull();
+  });
+
+  it("does not apply the Create empty-look guardrail outside the Create workflow", () => {
+    const emptyCreateCharacterBundle: CharacterModeInjectionBundle = {
+      characterId: "char-1",
+      characterDescription: "Silver-haired warrior",
+      characterLookId: "look-3",
+      characterLookName: "Look 3",
+      sheetReferenceStoragePaths: [],
+      sheetReferenceUrls: [],
+      loadedAtMs: Date.now(),
+    };
+
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...editInput,
+        model: "fal-ai/nano-banana-2/edit",
+        prompt: "Relight the portrait",
+        referenceImageUrl: "https://example.com/edit-reference.png",
+        isCreateCharacterModeEnabled: true,
+        createSelectedCharacterId: "char-1",
+        createCharacterModeInjectionBundle: emptyCreateCharacterBundle,
+        costParamsForModel: makeCostParamsForModel("fal-ai/nano-banana-2/edit"),
+        pricingPolicy: pricingGridPolicy,
+      })
+    );
+
     expect(result.current.generationGuardrail).toBeNull();
     expect(result.current.isGenerateDisabled).toBe(false);
   });

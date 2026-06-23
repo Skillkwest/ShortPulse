@@ -92,9 +92,7 @@ export function resolveCharacterModeBlockDecision<TFallbackCode extends string>(
     }
   }
 
-  const hasCharacterModeReferences =
-    (overrides.referenceInputsOverride?.length ?? 0) > 0 ||
-    (overrides.internalMediaRefsOverride?.some((ref) => Boolean(ref)) ?? false);
+  const hasCharacterModeReferences = overrides.characterReferenceCount > 0;
   const characterModeDecision = resolveGenerationStartDecision({
     tool,
     mode,

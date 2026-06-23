@@ -99,6 +99,22 @@ const NOOP_AUDIO_PLAYBACK_CONTROLLER: ReferenceGridSingleAudioPlaybackController
   clearActivePlayer: () => undefined,
 };
 
+const resolveLoadingStatusLabel = ({
+  item,
+  loadingVisual,
+  isLocalVideoPersistenceLoading,
+}: {
+  item: StudioOutput;
+  loadingVisual: "none" | "spinner" | "hydrating";
+  isLocalVideoPersistenceLoading: boolean;
+}): string | null => {
+  if (loadingVisual === "hydrating" || isLocalVideoPersistenceLoading) return null;
+  if (item.mediaSource === "upload") {
+    return item.saveState === "saving" ? "Saving" : "Uploading";
+  }
+  return "Generating";
+};
+
 /**
  * Returns curated/all-refs card node arrays with unchanged card behavior wiring.
  */
@@ -192,8 +208,11 @@ export const useReferenceGridCardRenderController = ({
             : isHydrationLoading
               ? "hydrating"
               : "none";
-      const loadingStatusLabel =
-        loadingVisual === "hydrating" || isLocalVideoPersistenceLoading ? null : "Generating";
+      const loadingStatusLabel = resolveLoadingStatusLabel({
+        item: currentOutput,
+        loadingVisual,
+        isLocalVideoPersistenceLoading,
+      });
       const canAutoplayVideo =
         card.isVideoPreview &&
         !shouldPreferCuratedSurface &&

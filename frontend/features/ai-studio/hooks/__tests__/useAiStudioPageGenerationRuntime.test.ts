@@ -17,6 +17,7 @@ const createViewModelMockResult = () => ({
   hasSufficientCreditsForPromptReferenceGenerate: true,
   isCreditGuardrail: false,
   generationGuardrail: null,
+  isGenerateDisabled: false,
   referenceImageWarning: null,
 });
 
@@ -179,6 +180,19 @@ describe("useAiStudioPageGenerationRuntime", () => {
         extraImageUrls: ["https://cdn.test/video-last.png", null, null],
       })
     );
+  });
+
+  it("preserves view-model disabled state even when no helper guardrail copy is present", () => {
+    useAiStudioViewModelMock.mockImplementation(() => ({
+      ...createViewModelMockResult(),
+      generationGuardrail: null,
+      isGenerateDisabled: true,
+    }));
+
+    const { result } = renderHook(() => useAiStudioPageGenerationRuntime(createParams()));
+
+    expect(result.current.effectiveGenerationGuardrail).toBeNull();
+    expect(result.current.effectiveIsGenerateDisabled).toBe(true);
   });
 
   it("hands refreshed Create Character Mode context to generation submit", async () => {

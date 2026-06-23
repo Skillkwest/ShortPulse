@@ -165,6 +165,10 @@
   pointer-events: none;
 }
 
+.reference-modal-new.is-uploaded .art-modal-title.is-centered {
+  font-size: 12px;
+}
+
 .art-modal-meta-pill {
   display: flex;
   align-items: center;

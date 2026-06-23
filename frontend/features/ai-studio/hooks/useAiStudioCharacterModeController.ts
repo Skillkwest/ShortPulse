@@ -399,6 +399,7 @@ export const useAiStudioCharacterModeController = ({
       const effectiveBundle = bundleOverride === undefined ? bundle : bundleOverride;
       const characterDescription = effectiveBundle?.characterDescription ?? "";
       const characterInternalMediaRefs = resolveCharacterModeInternalMediaRefs(effectiveBundle);
+      const characterInternalMediaRefCount = characterInternalMediaRefs.filter(Boolean).length;
       const characterReferences = hasUsableInternalMediaRefs(characterInternalMediaRefs)
         ? []
         : (effectiveBundle?.sheetReferenceUrls ?? []);
@@ -465,8 +466,7 @@ export const useAiStudioCharacterModeController = ({
         characterContextOverride,
         notice,
         fallbackCode,
-        characterReferenceCount:
-          referenceInputs.length + characterInternalMediaRefs.filter(Boolean).length,
+        characterReferenceCount: characterInternalMediaRefCount || characterReferences.length,
         hasCharacterDescription,
       };
     },

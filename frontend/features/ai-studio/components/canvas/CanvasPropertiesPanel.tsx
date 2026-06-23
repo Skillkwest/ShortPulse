@@ -73,19 +73,28 @@ const isCanvasItemInsideViewport = ({
   );
 };
 
-const resolveCanvasTextScrollTarget = (target: EventTarget | null): HTMLElement | null => {
+const resolveCanvasTextWheelSurface = (
+  target: EventTarget | null
+): { scrollTarget: HTMLElement; textItem: HTMLElement } | null => {
   if (!(target instanceof Element)) return null;
-  const directTarget = target.closest(CANVAS_TEXT_SCROLL_TARGET_SELECTOR);
-  if (directTarget instanceof HTMLElement) return directTarget;
   const textItem = target.closest(".canvas-scene-item--text");
-  const textScrollTarget = textItem?.querySelector(CANVAS_TEXT_SCROLL_TARGET_SELECTOR) ?? null;
-  return textScrollTarget instanceof HTMLElement ? textScrollTarget : null;
+  if (!(textItem instanceof HTMLElement)) return null;
+  const directTarget = target.closest(CANVAS_TEXT_SCROLL_TARGET_SELECTOR);
+  const textScrollTarget =
+    directTarget instanceof HTMLElement
+      ? directTarget
+      : (textItem.querySelector(CANVAS_TEXT_SCROLL_TARGET_SELECTOR) ?? null);
+  if (!(textScrollTarget instanceof HTMLElement)) return null;
+  return { scrollTarget: textScrollTarget, textItem };
 };
 
 const shouldLetCanvasTextHandleWheel = (event: globalThis.WheelEvent): boolean => {
-  const textScrollTarget = resolveCanvasTextScrollTarget(event.target);
-  if (!textScrollTarget) return false;
-  return textScrollTarget.scrollHeight > textScrollTarget.clientHeight + 1;
+  const textWheelSurface = resolveCanvasTextWheelSurface(event.target);
+  if (!textWheelSurface) return false;
+  if (!textWheelSurface.textItem.classList.contains("is-selected")) return false;
+  return (
+    textWheelSurface.scrollTarget.scrollHeight > textWheelSurface.scrollTarget.clientHeight + 1
+  );
 };
 
 const useResolvedCanvasPropertiesPanelProps = (

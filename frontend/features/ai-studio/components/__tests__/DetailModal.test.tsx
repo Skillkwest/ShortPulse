@@ -1716,7 +1716,9 @@ describe("DetailModal", () => {
       />
     );
 
-    expect(screen.getByRole("heading", { name: "create-page-current.png" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "create-page-current.png" })).toHaveClass(
+      "is-centered"
+    );
     expect(screen.getByText("Image")).toBeInTheDocument();
     expect(screen.queryByText("PROMPT")).not.toBeInTheDocument();
     expect(screen.queryByDisplayValue("create-page-current.png")).not.toBeInTheDocument();

@@ -7,6 +7,34 @@ For Fal/OpenAI/Stripe incident triage, use `docs/sops/sop_provider_incident_resp
 For AI Studio Fal polling, client status timeouts are intentionally higher than server status-route budgets.
 If regressions reappear, check `app_error_logs` for `source='client.api_network'` with abort-like messages on `/api/fal/*-status` endpoints.
 
+## AI Studio freezes or browser extension CSP noise
+
+Symptoms:
+
+- AI Studio freezes, the browser tab becomes unresponsive, or the browser process locks up.
+- Console shows a CSP block for a third-party stylesheet or script that ShortPulse does not load, such as `fonts.googleapis.com`.
+- The live page DOM contains unexpected extension-owned roots, tooltips, overlays, or injected styles.
+
+Interpretation:
+
+- Browser extensions with all-sites access can inject DOM, styles, scripts, MutationObservers, or heavy UI bundles into ShortPulse pages.
+- ShortPulse cannot reliably identify or disable a user's extensions from app code, and should not weaken CSP to allow extension assets.
+- A CSP block for extension-injected Google Fonts or similar third-party assets is expected protection, not a ShortPulse asset-loading requirement.
+- Known observed example: `Senja - Testimonial Extension` injected `#senja-extension-root`, added tooltip styles using `DM Sans`, and attempted to load Google Fonts on `/ai-studio`.
+
+Checklist:
+
+- Reproduce in a clean browser profile or Incognito/private window with extensions disabled.
+- If the clean profile works, disable all-sites extensions or remove site access for `shortpulse.ai`, then reload AI Studio.
+- Compare the clean profile against the affected profile before blaming deployment, project data, or provider latency.
+- Inspect the live DOM for extension-owned roots or styles only as local diagnostic evidence; do not add extension-specific product code paths.
+- Keep `Content-Security-Policy` strict. Do not add third-party font/style hosts just to silence extension-triggered console noise.
+
+Mitigation:
+
+- Ask the affected user to disable the conflicting extension on `shortpulse.ai` or retry from an extension-free browser context.
+- If the freeze also reproduces in a clean profile, return to the normal AI Studio performance triage path and capture `window.__shortpulseMediaPerf` / `window.__shortpulseAiStudioPerf` evidence where available.
+
 ## Stuck on `Confirm media rights`
 
 Symptoms:

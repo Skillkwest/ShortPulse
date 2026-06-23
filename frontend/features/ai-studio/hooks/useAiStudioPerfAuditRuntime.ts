@@ -45,6 +45,37 @@ export const createPerfAuditReferenceImageFile = (): File =>
     type: "image/png",
   });
 
+export const AI_STUDIO_PERF_AUDIT_ROOT_SELECTOR = ".ai-studio-page";
+
+/**
+ * Returns the ShortPulse-owned AI Studio DOM root used by manual perf audit queries.
+ */
+export const resolveAiStudioPerfAuditRoot = (
+  documentRef: Document | null | undefined = typeof document !== "undefined" ? document : null
+): HTMLElement | null => {
+  return documentRef?.querySelector<HTMLElement>(AI_STUDIO_PERF_AUDIT_ROOT_SELECTOR) ?? null;
+};
+
+/**
+ * Queries AI Studio-owned DOM only so extension-injected page nodes cannot skew audit samples.
+ */
+export const queryAiStudioPerfAudit = <ElementType extends Element>(
+  selector: string,
+  root: ParentNode | null | undefined = resolveAiStudioPerfAuditRoot()
+): ElementType | null => {
+  return root?.querySelector<ElementType>(selector) ?? null;
+};
+
+/**
+ * Queries all matching AI Studio-owned DOM nodes for manual perf audit interactions.
+ */
+export const queryAiStudioPerfAuditAll = <ElementType extends Element>(
+  selector: string,
+  root: ParentNode | null | undefined = resolveAiStudioPerfAuditRoot()
+): ElementType[] => {
+  return root ? Array.from(root.querySelectorAll<ElementType>(selector)) : [];
+};
+
 type AiStudioPerfWindow = Window & {
   __shortpulseAiStudioPerf?: {
     seedReferenceGrid: (count: number) => { requestedCount: number; activeCount: number };
@@ -562,10 +593,8 @@ export function useAiStudioPerfAuditRuntime({
         previousTick = now;
       };
 
-      const toolbarTargets = Array.from(
-        document.querySelectorAll<HTMLElement>(
-          ".toolbar-item[data-tool-id='create'], .toolbar-item[data-tool-id='edit'], .toolbar-item[data-tool-id='video']"
-        )
+      const toolbarTargets = queryAiStudioPerfAuditAll<HTMLElement>(
+        ".toolbar-item[data-tool-id='create'], .toolbar-item[data-tool-id='edit'], .toolbar-item[data-tool-id='video']"
       );
       for (let index = 0; index < toolbarSamples; index += 1) {
         const target = toolbarTargets[index % toolbarTargets.length];
@@ -580,7 +609,7 @@ export function useAiStudioPerfAuditRuntime({
       }
 
       // Keep panel interactions and status-tick rerender sampling on a stable properties surface.
-      const createToolTarget = document.querySelector<HTMLElement>(
+      const createToolTarget = queryAiStudioPerfAudit<HTMLElement>(
         ".toolbar-item[data-tool-id='create']"
       );
       if (createToolTarget) {
@@ -590,10 +619,8 @@ export function useAiStudioPerfAuditRuntime({
         await afterTwoFrames();
       }
 
-      const panelTargets = Array.from(
-        document.querySelectorAll<HTMLElement>(
-          ".ai-properties textarea, .ai-properties input, .ai-properties button, .ai-properties select"
-        )
+      const panelTargets = queryAiStudioPerfAuditAll<HTMLElement>(
+        ".ai-properties textarea, .ai-properties input, .ai-properties button, .ai-properties select"
       );
       for (let index = 0; index < panelSamples; index += 1) {
         const target = panelTargets[index % panelTargets.length];
@@ -611,8 +638,8 @@ export function useAiStudioPerfAuditRuntime({
       }
 
       const dropTarget =
-        document.querySelector<HTMLElement>(".ai-shell-right") ??
-        document.querySelector<HTMLElement>(".reference-canvas-panel");
+        queryAiStudioPerfAudit<HTMLElement>(".ai-shell-right") ??
+        queryAiStudioPerfAudit<HTMLElement>(".reference-canvas-panel");
       for (let index = 0; index < dropSamples; index += 1) {
         if (!dropTarget) break;
         const transfer = resolveDropTransfer();
@@ -626,8 +653,8 @@ export function useAiStudioPerfAuditRuntime({
         await sampleInputStall();
       }
 
-      const referenceTargets = Array.from(
-        document.querySelectorAll<HTMLElement>(".reference-column .reference-card")
+      const referenceTargets = queryAiStudioPerfAuditAll<HTMLElement>(
+        ".reference-column .reference-card"
       );
       for (let index = 0; index < Math.max(4, Math.floor(dropSamples / 2)); index += 1) {
         const target = referenceTargets[index % referenceTargets.length];
@@ -639,10 +666,8 @@ export function useAiStudioPerfAuditRuntime({
         await sampleInputStall();
       }
 
-      const previewTargets = Array.from(
-        document.querySelectorAll<HTMLElement>(
-          ".studio-column .studio-preview-square, .studio-column .prompt-preview-input, .studio-column .preview-card-actions .ghost-btn"
-        )
+      const previewTargets = queryAiStudioPerfAuditAll<HTMLElement>(
+        ".studio-column .studio-preview-square, .studio-column .prompt-preview-input, .studio-column .preview-card-actions .ghost-btn"
       );
       for (let index = 0; index < Math.max(4, Math.floor(dropSamples / 2)); index += 1) {
         const target = previewTargets[index % previewTargets.length];
@@ -750,7 +775,7 @@ export function useAiStudioPerfAuditRuntime({
       const previewRepaintSpikeSamples: number[] = [];
       const previewSwapBurstSamples: number[] = [];
       const sampleGridRuntimeMetrics = () => {
-        const panel = document.querySelector<HTMLElement>(
+        const panel = queryAiStudioPerfAudit<HTMLElement>(
           ".reference-canvas-panel[data-grid-surface='reference-grid']"
         );
         if (!panel) return;
@@ -771,9 +796,9 @@ export function useAiStudioPerfAuditRuntime({
         if (Number.isFinite(previewSwapBurstCount))
           previewSwapBurstSamples.push(previewSwapBurstCount);
       };
-      const scroller = document.querySelector(".reference-canvas-scroll");
+      const scroller = queryAiStudioPerfAudit<HTMLElement>(".reference-canvas-scroll");
       for (let index = 0; index < clickSamples; index += 1) {
-        const cards = Array.from(document.querySelectorAll(".reference-card"));
+        const cards = queryAiStudioPerfAuditAll<HTMLElement>(".reference-card");
         if (!cards.length) break;
         const targetCard = cards[index % cards.length];
         if (!targetCard) break;
@@ -907,7 +932,7 @@ export function useAiStudioPerfAuditRuntime({
     };
 
     const findFirstMeasurableElement = (selector: string): HTMLElement | null => {
-      const candidates = Array.from(document.querySelectorAll<HTMLElement>(selector));
+      const candidates = queryAiStudioPerfAuditAll<HTMLElement>(selector);
       return (
         candidates.find((candidate) => {
           const rect = candidate.getBoundingClientRect();

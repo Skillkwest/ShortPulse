@@ -66,6 +66,14 @@ This checkpoint protects the cursor append, panel runtime ordering, indexed virt
 
 ## Operational Workflow
 
+### 0) Isolate Browser Environment
+
+Before treating an AI Studio freeze or console CSP violation as app-owned performance work, compare the affected browser profile with a clean browser profile or Incognito/private window with extensions disabled.
+
+- If the issue disappears in the clean profile, treat the active browser extensions or profile state as the likely source and follow `docs/troubleshooting.md#ai-studio-freezes-or-browser-extension-csp-noise`.
+- If the issue reproduces in the clean profile, continue with the Media Performance and Reference Grid telemetry workflow below.
+- Do not relax CSP, add extension-specific product code, or use extension-triggered Google Fonts/style blocks as proof that ShortPulse owns those assets.
+
 ### 1) Validate Baseline Path
 
 1. Open the AI Studio Media Library panel and modal.
@@ -175,6 +183,7 @@ Key indicators:
   - `sectionRenderCounters`
   - `sectionCommit`
   - `nonGridRerendersPerOutputStatusTick`
+- When extension interference is suspected, run the same local telemetry flow once in the affected profile and once in a clean extension-disabled profile. Treat the clean profile as the app-owned baseline and the affected profile as environment evidence.
 
 ## Tuning Knobs
 

@@ -168,8 +168,7 @@ describe("POST /api/elevenlabs/sound-effects", () => {
   it("stops before provider submission when billing already returned a fail-closed response", async () => {
     chargeGenerationRequestMock.mockImplementationOnce(async ({ res }: { res: MockResponse }) => {
       res.status(402).json({
-        error:
-          "You don't have enough ShortPulse credits for this run. Add credits or choose a lower-cost model before retrying.",
+        error: "Not enough credits.",
         code: "INSUFFICIENT_CREDITS",
         chargeState: "not_reserved",
       });
@@ -196,8 +195,7 @@ describe("POST /api/elevenlabs/sound-effects", () => {
     expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledTimes(1);
     expect(res.json).toHaveBeenCalledWith({
-      error:
-        "You don't have enough ShortPulse credits for this run. Add credits or choose a lower-cost model before retrying.",
+      error: "Not enough credits.",
       code: "INSUFFICIENT_CREDITS",
       chargeState: "not_reserved",
     });

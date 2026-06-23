@@ -191,10 +191,7 @@ const readApiErrorMessage = (payload: unknown): string => {
     );
   }
   if (data.code === "INSUFFICIENT_CREDITS") {
-    return (
-      extractErrorTextCandidate(data.error) ??
-      "You don't have enough ShortPulse credits for this run. Add credits or choose a lower-cost model before retrying."
-    );
+    return extractErrorTextCandidate(data.error) ?? "Not enough credits.";
   }
   const explicitContentFailure = normalizeExplicitContentFailure({
     message:

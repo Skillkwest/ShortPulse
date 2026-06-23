@@ -564,8 +564,7 @@ export const chargeGenerationRequest = async ({
     if (reserveResult.message === "insufficient_credits") {
       return respondChargeFailure({
         statusCode: 402,
-        message:
-          "You don't have enough ShortPulse credits for this run. Add credits or choose a lower-cost model before retrying.",
+        message: "Not enough credits.",
         metadata: {
           reservation_mode: true,
           reservation_status: reserveResult.status,

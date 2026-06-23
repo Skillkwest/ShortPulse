@@ -165,9 +165,7 @@ describe("falClient generation admission error handling", () => {
 
     await expect(
       submitQueuedGenerationByModelId("fal-ai/nano-banana-2", { prompt: "portrait" })
-    ).rejects.toThrow(
-      "You don't have enough ShortPulse credits for this run. Add credits or choose a lower-cost model before retrying."
-    );
+    ).rejects.toThrow("Not enough credits.");
   });
 
   it("maps generic validation envelopes with unsafe-content detail to explicit-content copy", async () => {

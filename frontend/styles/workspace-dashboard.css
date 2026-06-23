@@ -475,10 +475,10 @@ body.dashboard-body:has(.authenticated-dashboard-page) {
 }
 
 .authenticated-dashboard-page .app-bar {
-  --header-card-height: 104px;
+  --header-card-height: 92px;
   align-items: center;
   margin: 0 auto 20px;
-  padding: 14px;
+  padding: 10px 12px;
   border: 1px solid #242a33;
   border-radius: 8px;
   background: #12181f;
@@ -499,19 +499,20 @@ body.dashboard-body:has(.authenticated-dashboard-page) {
 
 .authenticated-dashboard-page .app-bar-right {
   align-items: center;
-  gap: 14px;
+  gap: 12px;
 }
 
 .authenticated-dashboard-page .header-cards {
-  gap: 10px;
+  gap: 9px;
 }
 
 .authenticated-dashboard-page .header-stat-card {
-  width: clamp(210px, 13.6vw, 252px);
-  min-width: 210px;
+  width: clamp(194px, 12.7vw, 232px);
+  min-width: 194px;
+  height: var(--header-card-height);
   min-height: 0;
-  padding: 12px;
-  gap: 10px;
+  padding: 10px;
+  gap: 9px;
   border-radius: 8px;
   border-color: #2a313b;
   background: #181c22;
@@ -526,9 +527,9 @@ body.dashboard-body:has(.authenticated-dashboard-page) {
 }
 
 .authenticated-dashboard-page .status-icon.compact {
-  flex: 0 0 54px;
-  width: 54px;
-  height: 64px;
+  flex: 0 0 48px;
+  width: 48px;
+  height: 56px;
   border-radius: 0;
   color: #ff7a50;
   background: transparent;
@@ -537,9 +538,9 @@ body.dashboard-body:has(.authenticated-dashboard-page) {
 .authenticated-dashboard-page .header-stat-card-icon-image {
   display: block;
   width: auto;
-  height: 52px;
-  max-width: 54px;
-  max-height: 52px;
+  height: 46px;
+  max-width: 48px;
+  max-height: 46px;
   object-fit: contain;
   filter: drop-shadow(0 6px 14px rgba(219, 52, 93, 0.16));
 }
@@ -549,10 +550,10 @@ body.dashboard-body:has(.authenticated-dashboard-page) {
   display: grid;
   flex: 1 1 auto;
   min-width: 0;
-  height: 72px;
+  height: 62px;
   align-content: center;
   justify-items: center;
-  padding: 8px 12px 15px;
+  padding: 7px 10px 13px;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -564,8 +565,8 @@ body.dashboard-body:has(.authenticated-dashboard-page) {
   position: absolute;
   right: 50%;
   bottom: 0;
-  width: 38px;
-  height: 4px;
+  width: 34px;
+  height: 3px;
   border-radius: 999px;
   background: var(--authenticated-dashboard-gradient-text);
   box-shadow: 0 0 10px rgba(218, 52, 93, 0.22);
@@ -582,7 +583,7 @@ body.dashboard-body:has(.authenticated-dashboard-page) {
 .authenticated-dashboard-page .status-value.small {
   margin: 2px 0 0;
   color: #f8fbff;
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1.08;
   white-space: pre-line;
 }

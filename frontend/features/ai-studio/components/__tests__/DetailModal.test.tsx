@@ -978,6 +978,40 @@ describe("DetailModal", () => {
     expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("Image");
   });
 
+  it("strips the edit suffix from GPT Image 2 detail metadata", () => {
+    const { baseElement } = render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          aspect: "16:9",
+          mediaSource: "generated",
+          generationId: "gpt-image-2-edit-generation",
+          model: "GPT Image 2 Edit",
+          modelId: "kie-ai/gpt-image-2-image-to-image",
+          generationReplay: {
+            version: 1,
+            mode: "image",
+            submitTool: "edit",
+            modelId: "kie-ai/gpt-image-2-image-to-image",
+            displayPrompt: "Remove the unicorn from this image.",
+            submissionPrompt: "Remove the unicorn from this image.",
+            aspect: "16:9",
+            imageResolution: "2K",
+            referenceInputs: ["https://cdn.test/reference.png"],
+            capturedAt: "2026-06-23T18:27:00.000Z",
+          },
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    const headerPill = baseElement.querySelector(".art-modal-meta-pill");
+    expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("Image/16:9/2K/GPT Image 2");
+    expect(headerPill?.textContent).not.toContain("Edit");
+  });
+
   it("labels generated Lip Sync video metadata with resolution and product workflow", () => {
     const { baseElement } = render(
       <DetailModal

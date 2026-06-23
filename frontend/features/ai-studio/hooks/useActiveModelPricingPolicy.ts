@@ -1,8 +1,9 @@
 /**
  * Loads the active runtime model-pricing policy for authenticated AI Studio surfaces.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
+import { materializeImageBilledCreditPolicy } from "../../../lib/model-runtime/materializeImageBilledCreditPolicy";
 import type {
   ModelPricingPolicyDocument,
   ModelPricingPolicySnapshot,
@@ -70,6 +71,13 @@ export const useActiveModelPricingPolicy = ({
     useState<ModelPricingPolicySnapshot | null>(null);
   const [modelPricingPolicyLoading, setModelPricingPolicyLoading] = useState(enabled);
   const [modelPricingPolicyError, setModelPricingPolicyError] = useState<string | null>(null);
+  const materializedModelPricingPolicy = useMemo(
+    () =>
+      modelPricingPolicySnapshot?.document
+        ? materializeImageBilledCreditPolicy(modelPricingPolicySnapshot.document)
+        : null,
+    [modelPricingPolicySnapshot]
+  );
 
   const fetchModelPricingPolicy = useCallback(async () => {
     if (!enabled) return;
@@ -95,7 +103,7 @@ export const useActiveModelPricingPolicy = ({
   }, [enabled, fetchModelPricingPolicy]);
 
   return {
-    modelPricingPolicy: modelPricingPolicySnapshot?.document ?? null,
+    modelPricingPolicy: materializedModelPricingPolicy,
     modelPricingPolicySnapshot,
     modelPricingPolicyLoading,
     modelPricingPolicyError,

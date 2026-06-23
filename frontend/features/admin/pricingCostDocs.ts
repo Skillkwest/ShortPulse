@@ -11,6 +11,7 @@ import {
 } from "../../lib/model-runtime/modelPricingVariants";
 import { convertUsdToCredits } from "../../lib/model-runtime/pricingCredits";
 import {
+  resolvePricingGridAspectOptions,
   shouldExpandAspectPricingVariants,
   shouldExpandResolutionPricingVariants,
   shouldExpandVideoInputPricingVariants,
@@ -227,7 +228,11 @@ const buildAspectOptions = (
   if (!shouldExpandAspectPricingVariants(model.pricingStrategy)) return [model.defaultAspect];
   if (options.aspect) return [options.aspect];
   return orderWithDefaultFirst(
-    allowedAspects.length ? allowedAspects : [model.defaultAspect],
+    resolvePricingGridAspectOptions({
+      pricingStrategy: model.pricingStrategy,
+      allowedAspects,
+      defaultAspect: model.defaultAspect,
+    }),
     model.defaultAspect
   );
 };

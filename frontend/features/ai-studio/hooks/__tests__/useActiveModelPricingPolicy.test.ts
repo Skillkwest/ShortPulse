@@ -69,6 +69,14 @@ describe("useActiveModelPricingPolicy", () => {
     expect(result.current.modelPricingPolicyReady).toBe(true);
     expect(result.current.modelPricingPolicyError).toBeNull();
     expect(result.current.modelPricingPolicy?.perModel["gpt-image-2"]?.roundingIncrement).toBe(1);
+    expect(
+      result.current.modelPricingPolicy?.perModel["gpt-image-2"]?.runtimeAuthorities?.edit_image
+    ).toEqual({
+      mode: "runtime_quantity_derived",
+      workflow: "edit_image",
+      unitBasis: "per_image",
+      quantityDrivers: ["generation_count", "input_image_count"],
+    });
     expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/pricing/model-policy", {
       cache: "no-store",
       method: "GET",

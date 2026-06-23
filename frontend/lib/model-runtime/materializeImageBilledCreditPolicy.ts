@@ -12,6 +12,7 @@ import {
 } from "./pricingPolicy";
 import { resolvePricingGridCostBreakdown } from "./pricingGridBilledCredits";
 import {
+  resolvePricingGridAspectOptions,
   shouldExpandAspectPricingVariants,
   shouldExpandResolutionPricingVariants,
 } from "./pricingGridVariantRules";
@@ -91,9 +92,11 @@ const buildAspectOptions = (model: ModelConfig): string[] => {
     return model.defaultAspect ? [model.defaultAspect] : [];
   }
   return orderWithDefaultFirst(
-    model.allowedAspects?.length
-      ? model.allowedAspects
-      : [model.defaultAspect ?? null].filter(Boolean),
+    resolvePricingGridAspectOptions({
+      pricingStrategy: model.pricingStrategy,
+      allowedAspects: model.allowedAspects,
+      defaultAspect: model.defaultAspect,
+    }),
     model.defaultAspect ?? null
   ).filter((value): value is string => Boolean(value));
 };

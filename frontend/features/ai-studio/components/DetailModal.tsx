@@ -17,6 +17,7 @@ import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { MEDIA_STORAGE_FULL_USER_MESSAGE } from "../../../lib/mediaStorageQuota";
 import { resolveCustomerFacingModelLabel } from "../../../lib/customerFacingProviderText";
 import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../../../lib/model-runtime/falModelIds";
+import { stripEditLabel } from "../utils/modelLabels";
 import { useAvatarResilience } from "../hooks/useAvatarResilience";
 import {
   parseAspectToken,
@@ -78,6 +79,16 @@ const resolveDetailWorkflowReloadMediaKindHint = (
 ): WorkflowReloadMediaKindHint => inferWorkflowReloadMediaKindForOutput(output);
 
 const LIP_SYNC_DETAIL_MODEL_LABEL = "Lip Sync";
+
+const shouldStripDetailModelEditLabel = (output: StudioOutput, label: string): boolean => {
+  const modelId = output.modelId?.trim().toLowerCase() ?? "";
+  const model = output.model?.trim().toLowerCase() ?? "";
+  return (
+    label.trim().toLowerCase().includes("gpt image 2") ||
+    modelId.includes("gpt-image-2") ||
+    model.includes("gpt image 2")
+  );
+};
 
 const isLipSyncDetailOutput = (output: StudioOutput): boolean => {
   const payload = output.workflowReload?.payload;
@@ -741,12 +752,15 @@ function DetailModalContent({
   const displayModelLabel = useMemo(() => {
     if (isUploadedReference) return null;
     if (isLipSyncDetailOutput(output)) return LIP_SYNC_DETAIL_MODEL_LABEL;
-    return resolveCustomerFacingModelLabel({
+    const resolvedLabel = resolveCustomerFacingModelLabel({
       model: output?.model,
       modelId: output?.modelId,
       resolveModelLabel,
       fallback: "",
     });
+    return shouldStripDetailModelEditLabel(output, resolvedLabel)
+      ? stripEditLabel(resolvedLabel)
+      : resolvedLabel;
   }, [isUploadedReference, output]);
   const displayImageResolutionLabel = useMemo(() => {
     if (isUploadedReference || output?.mode !== "image") return null;

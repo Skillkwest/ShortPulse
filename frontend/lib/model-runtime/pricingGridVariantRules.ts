@@ -2,6 +2,7 @@
  * Shared admin-pricing-grid variant expansion rules.
  * Keeps runtime billed-credit lookups aligned with how the admin pricing grid authors rows.
  */
+import { OPENAI_GPT_IMAGE_2_UI_ALLOWED_ASPECTS } from "./openAiImage2";
 
 const ASPECT_EXPANDED_PRICING_STRATEGIES = new Set<string>([
   "fal-per-mp",
@@ -39,3 +40,30 @@ export const shouldExpandResolutionPricingVariants = (pricingStrategy?: string |
 
 export const shouldExpandVideoInputPricingVariants = (pricingStrategy?: string | null): boolean =>
   Boolean(pricingStrategy && VIDEO_INPUT_EXPANDED_PRICING_STRATEGIES.has(pricingStrategy));
+
+export const resolvePricingGridAspectOptions = ({
+  pricingStrategy,
+  allowedAspects,
+  defaultAspect,
+}: {
+  pricingStrategy?: string | null;
+  allowedAspects?: readonly string[] | null;
+  defaultAspect?: string | null;
+}): string[] => {
+  const baseAspects = allowedAspects?.length
+    ? [...allowedAspects]
+    : [defaultAspect].filter((value): value is string => Boolean(value));
+
+  if (pricingStrategy === "gpt-image-2-per-image") {
+    return [...OPENAI_GPT_IMAGE_2_UI_ALLOWED_ASPECTS].filter((aspect) =>
+      baseAspects.includes(aspect)
+    );
+  }
+
+  if (pricingStrategy === "kie-gpt-image-2-per-image") {
+    const appAspects = ["auto", ...OPENAI_GPT_IMAGE_2_UI_ALLOWED_ASPECTS];
+    return appAspects.filter((aspect) => baseAspects.includes(aspect));
+  }
+
+  return baseAspects;
+};

@@ -1861,7 +1861,17 @@ describe("useAiStudioViewModel edit guardrails", () => {
     expect(result.current.isGenerateDisabled).toBe(false);
   });
 
-  it("keeps GPT Image 2 Edit blocked when the effective edit variant lacks a billed-credit row", () => {
+  it("prices GPT Image 2 multi-ref Edit from runtime quantity authority", () => {
+    const expectedCost = resolveEditImageBilledCredits({
+      modelId: OPENAI_GPT_IMAGE_2_MODEL_ID,
+      params: {
+        aspect: "16:9",
+        resolution: "medium",
+        inputImageCount: 2,
+      },
+      pricingPolicy: pricingGridPolicy,
+    });
+
     const { result } = renderHook(() =>
       useAiStudioViewModel({
         ...editInput,
@@ -1876,11 +1886,10 @@ describe("useAiStudioViewModel edit guardrails", () => {
       })
     );
 
-    expect(result.current.currentCostCredits).toBeNull();
-    expect(result.current.generationGuardrail).toBe(
-      "Pricing is unavailable for this configuration. Retry in a moment."
-    );
-    expect(result.current.isGenerateDisabled).toBe(true);
+    expect(result.current.currentCostCredits).toBe(expectedCost);
+    expect(result.current.modelPickerCostCredits).toBe(expectedCost);
+    expect(result.current.generationGuardrail).toBeNull();
+    expect(result.current.isGenerateDisabled).toBe(false);
   });
 
   it("prices Nano Banana 2 Edit from the canonical billed row even with extra refs", () => {

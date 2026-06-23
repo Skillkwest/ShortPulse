@@ -62,6 +62,17 @@ const CREATE_IMAGE_RUNTIME_AUTHORITY_BY_STRATEGY: Partial<
   },
 };
 
+const EDIT_IMAGE_RUNTIME_AUTHORITY_BY_STRATEGY: Partial<
+  Record<NonNullable<ModelConfig["pricingStrategy"]>, ModelPricingRuntimeAuthorities["edit_image"]>
+> = {
+  "gpt-image-2-per-image": {
+    mode: "runtime_quantity_derived",
+    workflow: "edit_image",
+    unitBasis: "per_image",
+    quantityDrivers: ["generation_count", "input_image_count"],
+  },
+};
+
 const orderWithDefaultFirst = <T extends string | null>(values: T[], defaultValue: T): T[] => {
   const ordered: T[] = [];
   if (values.some((value) => value === defaultValue)) {
@@ -165,9 +176,14 @@ export const materializeImageBilledCreditPolicy = (
       model.supportsTextToImage && model.pricingStrategy
         ? CREATE_IMAGE_RUNTIME_AUTHORITY_BY_STRATEGY[model.pricingStrategy]
         : null;
-    if (createImageRuntimeAuthority) {
+    const editImageRuntimeAuthority =
+      model.supportsImageToImage && model.pricingStrategy
+        ? EDIT_IMAGE_RUNTIME_AUTHORITY_BY_STRATEGY[model.pricingStrategy]
+        : null;
+    if (createImageRuntimeAuthority || editImageRuntimeAuthority) {
       nextPolicy.perModel[model.id] = mergeRuntimeAuthorities(nextPolicy.perModel[model.id], {
-        create_image: createImageRuntimeAuthority,
+        ...(createImageRuntimeAuthority ? { create_image: createImageRuntimeAuthority } : {}),
+        ...(editImageRuntimeAuthority ? { edit_image: editImageRuntimeAuthority } : {}),
       });
     }
     const aspects = buildAspectOptions(model);

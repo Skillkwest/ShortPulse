@@ -45,20 +45,32 @@ describe("editImageBilledCredits", () => {
     );
     expect(clientLookup.breakdown?.credits).toBe(serverLookup.breakdown?.credits);
     expect(clientLookup.breakdown?.credits).not.toBeNull();
+    expect(clientLookup.authorityMode).toBe("explicit_row");
+    expect(serverLookup.authorityMode).toBe("explicit_row");
   });
 
-  it("keeps GPT Image 2 multi-ref Edit gaps fail-closed after canonical normalization", () => {
+  it("derives GPT Image 2 multi-ref Edit pricing from explicit runtime edit authority", () => {
+    const lookup = resolveEditImageBilledCreditLookup({
+      modelId: OPENAI_GPT_IMAGE_2_MODEL_ID,
+      params: {
+        aspect: "16:9",
+        resolution: "medium",
+        inputImageCount: 2,
+      },
+      pricingPolicy,
+    });
+
+    expect(lookup.authorityMode).toBe("runtime_quantity_derived");
+    expect(lookup.breakdown?.variantId).toBe(
+      "edit|res:medium|aspect:16:9|input_images:2|input_fidelity:high|mask:no"
+    );
     expect(
       resolveEditImageBilledCredits({
         modelId: OPENAI_GPT_IMAGE_2_MODEL_ID,
-        params: {
-          aspect: "16:9",
-          resolution: "medium",
-          inputImageCount: 2,
-        },
+        params: lookup.params,
         pricingPolicy,
       })
-    ).toBeNull();
+    ).toBe(8);
   });
 
   it("collapses Nano Banana 2 Edit multi-ref pricing onto the canonical edit row", () => {

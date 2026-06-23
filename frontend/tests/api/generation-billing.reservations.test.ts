@@ -490,12 +490,15 @@ describe("generationBilling reservation RPC handling", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
-  it("fails closed when a canonical GPT edit row is missing", async () => {
-    const rpcMock = vi.fn();
+  it("reserves gpt-image-2 multi-ref edit requests from runtime quantity authority", async () => {
+    const rpcMock = vi.fn().mockResolvedValueOnce({
+      data: [{ status: "reserved", source_ref: "req-openai-image-edit-multi-ref", message: null }],
+      error: null,
+    });
     getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
     const req = {
       headers: {
-        "x-shortpulse-request-id": "req-openai-image-edit-missing-row",
+        "x-shortpulse-request-id": "req-openai-image-edit-multi-ref",
       },
       url: "/api/openai/image-edit",
     };
@@ -522,24 +525,46 @@ describe("generationBilling reservation RPC handling", () => {
       res: res as never,
       modelId: "gpt-image-2",
       payload,
-      reason: "GPT Image 2 edit missing canonical row",
+      reason: "GPT Image 2 multi-ref edit",
       shortpulseContext: {
         selected_tool: "edit",
         mode: "image",
       },
     });
 
-    expect(charge).toBeNull();
-    expect(rpcMock).not.toHaveBeenCalled();
-    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({
-      error: "Pricing is unavailable for this configuration.",
+    const expectedPricingParams = buildPricingParams("gpt-image-2", payload);
+    const expectedLookup = resolveEditImageBilledCreditLookup({
+      modelId: "gpt-image-2",
+      params: expectedPricingParams,
+      pricingPolicy: materializeImageBilledCreditPolicy(getDefaultModelPricingPolicyDocument()),
     });
-    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+    const expectedCredits = expectedLookup.breakdown?.credits ?? null;
+
+    expect(charge).not.toBeNull();
+    expect(expectedLookup.authorityMode).toBe("runtime_quantity_derived");
+    expect(expectedLookup.breakdown?.variantId).toBe(
+      "edit|res:medium|aspect:16:9|input_images:2|input_fidelity:high|mask:no"
+    );
+    expect(rpcMock).toHaveBeenCalledWith(
+      "admit_and_reserve_generation_credits",
+      expect.objectContaining({
+        p_amount_cents: Math.abs(expectedCredits ?? 0),
+        p_metadata: expect.objectContaining({
+          model_id: "gpt-image-2",
+          route: "/api/openai/image-edit",
+          debited_credits: expectedCredits,
+          pricing_params: expect.objectContaining(expectedPricingParams),
+          pricing_breakdown: expect.objectContaining({
+            billed_credits: expectedCredits,
+          }),
+        }),
+      })
+    );
+    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
+    expect(res.status).not.toHaveBeenCalled();
+    expect(logGenerationFailureMock).not.toHaveBeenCalledWith(
       expect.objectContaining({
         source: "api.generation_billing_missing_canonical_edit_price",
-        statusCode: 500,
       })
     );
   });

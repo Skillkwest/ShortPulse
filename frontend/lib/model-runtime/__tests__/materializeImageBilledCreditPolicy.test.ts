@@ -60,6 +60,13 @@ describe("materializeImageBilledCreditPolicy", () => {
       unitBasis: "per_image",
       quantityDrivers: ["generation_count", "input_image_count"],
     });
+
+    expect(materialized.perModel["gpt-image-2"]?.runtimeAuthorities?.edit_image).toEqual({
+      mode: "runtime_quantity_derived",
+      workflow: "edit_image",
+      unitBasis: "per_image",
+      quantityDrivers: ["generation_count", "input_image_count"],
+    });
   });
 
   it("materializes built-in Flux2 Klein semantic rows for runtime billing", () => {

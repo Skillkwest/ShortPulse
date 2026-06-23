@@ -507,8 +507,8 @@ body.dashboard-body:has(.authenticated-dashboard-page) {
 }
 
 .authenticated-dashboard-page .header-stat-card {
-  width: clamp(194px, 12.7vw, 232px);
-  min-width: 194px;
+  width: clamp(182px, 11.9vw, 218px);
+  min-width: 182px;
   height: var(--header-card-height);
   min-height: 0;
   padding: 10px;
@@ -528,10 +528,10 @@ body.dashboard-body:has(.authenticated-dashboard-page) {
 
 .authenticated-dashboard-page .status-icon.compact {
   box-sizing: border-box;
-  flex: 0 0 54px;
-  width: 54px;
+  flex: 0 0 52px;
+  width: 52px;
   height: 58px;
-  padding-left: 4px;
+  padding-left: 8px;
   border-radius: 0;
   color: #ff7a50;
   background: transparent;

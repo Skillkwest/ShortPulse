@@ -141,6 +141,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/gutan/memory.md`
 - `docs/agents/gutan/ownership-manifest.md`
 - `docs/agents/Money Stuff/README.md`
+- `docs/agents/nogo/README.md`
 - `docs/agents/lever/README.md`
 - `docs/agents/nuclo/README.md`
 - `docs/agents/nuclo/environment-ledger-template.md`

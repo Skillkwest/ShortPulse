@@ -41,6 +41,7 @@ Not every agent needs every file.
 - `docs/records/artifacts/agent/holomony/`
 - `docs/records/artifacts/agent/lever/`
 - `docs/records/artifacts/agent/Money Stuff/`
+- `docs/records/artifacts/agent/nogo/`
 - `docs/records/artifacts/agent/nuclo/`
 - `docs/records/artifacts/agent/ophestivus/`
 - `docs/records/artifacts/agent/Pulse/`

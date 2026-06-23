@@ -108,6 +108,7 @@ Use this path when setting up a new agent for a new recurring task:
   - `docs/agents/bactuo/workspace/README.md`: Bactuo-owned temporary workspace for generation investigations, scratch architecture notes, and active intake material.
   - retained artifacts live under `docs/records/artifacts/agent/bactuo/`.
 - `docs/agents/Money Stuff/README.md`: Money Stuff permanent commerce billing steward contract, memory entrypoint, and source-of-truth map.
+- `docs/agents/nogo/README.md`: Nogo provider spending analytics steward contract, memory entrypoint, SOP, tools/workspace home, and spend-limit baseline owner.
 - `docs/agents/lever/README.md`: Lever model maintenance manager contract and memory entrypoint.
 - `docs/agents/holomony/README.md`: Holomony media optimization and performance specialist contract and memory entrypoint.
   - `docs/agents/holomony/AGENTS.md`: Holomony-scoped execution overlay for media optimization, KPI, audit, and training loops.

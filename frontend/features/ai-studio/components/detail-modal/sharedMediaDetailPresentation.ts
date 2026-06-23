@@ -23,6 +23,20 @@ const normalizeSource = (value?: string | null): string | null => {
   return normalized || null;
 };
 
+const collectUniqueDetailBlocks = (...values: Array<string | null | undefined>): string[] => {
+  const seen = new Set<string>();
+  const blocks: string[] = [];
+  values.forEach((value) => {
+    const trimmed = value?.trim();
+    if (!trimmed) return;
+    const comparable = trimmed.toLowerCase().replace(/\s+/g, " ");
+    if (seen.has(comparable)) return;
+    seen.add(comparable);
+    blocks.push(trimmed);
+  });
+  return blocks;
+};
+
 export const normalizeSharedMediaDetailKindLabel = (
   value?: SharedMediaDetailContentKind | string | null
 ): string => {
@@ -58,7 +72,7 @@ export const resolveSharedMediaDetailBladeContent = ({
     const rawPayload = errorContent?.rawPayload?.trim();
     return {
       label: "ERROR",
-      value: [summary, errorDetail, rawPayload].filter(Boolean).join("\n\n"),
+      value: collectUniqueDetailBlocks(summary, errorDetail, rawPayload).join("\n\n"),
     };
   }
 

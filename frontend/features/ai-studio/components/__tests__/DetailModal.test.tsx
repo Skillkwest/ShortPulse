@@ -135,7 +135,7 @@ describe("DetailModal", () => {
       );
     }
 
-    render(<ErrorReferenceHarness />);
+    const { baseElement } = render(<ErrorReferenceHarness />);
 
     expect(
       screen.getByText((content) => content.includes(scenario.expectedCardText))
@@ -144,9 +144,43 @@ describe("DetailModal", () => {
 
     fireEvent.doubleClick(screen.getByRole("button"));
 
-    expect(screen.getByText("ERROR")).toBeInTheDocument();
+    expect(
+      baseElement.querySelector(".reference-modal-new")?.classList.contains("is-text-only")
+    ).toBe(true);
+    expect(screen.getByText("Error detail")).toBeInTheDocument();
     expect(screen.getByDisplayValue(/Internal Error, Please try again later./)).toBeInTheDocument();
     expect(screen.getByDisplayValue(/req_provider_upstream/)).toBeInTheDocument();
+    expect(screen.queryByText("Media unavailable.")).not.toBeInTheDocument();
+  });
+
+  it("shows failed generation copy in the text detail body without duplicating matching summary and detail", () => {
+    render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          id: "failed-credits",
+          mode: "video",
+          previewUrl: undefined,
+          resultUrls: [],
+          model: "OmniHuman",
+          modelId: "fal-ai/bytedance/omnihuman/v1.5",
+          mediaSource: "generated",
+          taskState: "fail",
+          timestamp: "Failed",
+          errorMessage: "Not enough credits.",
+          errorMessageShort: "Not enough credits.",
+          errorDetail: "Not enough credits.",
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("Error detail")).toBeInTheDocument();
+    const errorTextareas = screen.getAllByDisplayValue("Not enough credits.");
+    expect(errorTextareas).toHaveLength(1);
+    expect(screen.queryByText("Media unavailable.")).not.toBeInTheDocument();
   });
 
   it("shows character and style attribution with the actual model used", () => {
@@ -913,6 +947,58 @@ describe("DetailModal", () => {
 
     const headerPill = baseElement.querySelector(".art-modal-meta-pill");
     expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("Image");
+  });
+
+  it("labels generated Lip Sync video metadata with resolution and product workflow", () => {
+    const { baseElement } = render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          id: "lip-sync-generated-video",
+          mode: "video",
+          aspect: "16:9",
+          mediaSource: "generated",
+          model: "Custom (the_generation_service-ai/bytedance/omnihuman/v1.5)",
+          previewUrl: "https://cdn.test/lip-sync-result.mp4",
+          resultUrls: ["https://cdn.test/lip-sync-result.mp4"],
+          mimeType: "video/mp4",
+          workflowReload: {
+            version: 1,
+            source: "ai_studio_generation",
+            capturedAt: "2026-06-22T12:00:00.000Z",
+            originTool: "video",
+            panelKind: "video",
+            outputMode: "video",
+            restoreBehavior: "navigate_and_hydrate",
+            pulse: null,
+            prompt: { display: "Sing into the microphone." },
+            model: { id: "fal-ai/bytedance/omnihuman/v1.5" },
+            payload: {
+              kind: "video",
+              aspect: "16:9",
+              videoReferenceMode: "lip-sync",
+              durationSeconds: 6,
+              resolution: "1080p",
+              generateAudio: null,
+              cameraFixed: null,
+              autoFix: null,
+              referenceInputs: ["https://cdn.test/lip-sync-frame.png"],
+              lipSyncAudioUrl: "https://cdn.test/lip-sync-audio.mp3",
+            },
+          },
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    const headerPill = baseElement.querySelector(".art-modal-meta-pill");
+    const headerText = headerPill?.textContent?.replace(/\s+/g, " ").trim() ?? "";
+    expect(headerText).toBe("Video/16:9/1080p/Lip Sync");
+    expect(headerText).not.toContain("Custom");
+    expect(headerText).not.toContain("omnihuman");
+    expect(headerText).not.toContain("the_generation_service");
   });
 
   it("renders generated voiceover audio with the normalized header label only", () => {

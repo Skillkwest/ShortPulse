@@ -16,6 +16,7 @@ import { AppMessage } from "../../../components/AppMessage";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { MEDIA_STORAGE_FULL_USER_MESSAGE } from "../../../lib/mediaStorageQuota";
 import { resolveCustomerFacingModelLabel } from "../../../lib/customerFacingProviderText";
+import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../../../lib/model-runtime/falModelIds";
 import { useAvatarResilience } from "../hooks/useAvatarResilience";
 import {
   parseAspectToken,
@@ -75,6 +76,27 @@ type DetailModalProps = {
 const resolveDetailWorkflowReloadMediaKindHint = (
   output: StudioOutput
 ): WorkflowReloadMediaKindHint => inferWorkflowReloadMediaKindForOutput(output);
+
+const LIP_SYNC_DETAIL_MODEL_LABEL = "Lip Sync";
+
+const isLipSyncDetailOutput = (output: StudioOutput): boolean => {
+  const payload = output.workflowReload?.payload;
+  return (
+    (payload?.kind === "video" && payload.videoReferenceMode === "lip-sync") ||
+    output.modelId === FAL_OMNIHUMAN_V15_MODEL_ID ||
+    output.workflowReload?.model.id === FAL_OMNIHUMAN_V15_MODEL_ID
+  );
+};
+
+const formatVideoResolutionLabel = (value: string | null | undefined): string | null => {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  const progressiveMatch = trimmed.match(/^(\d{3,4})p$/i);
+  if (progressiveMatch) return `${progressiveMatch[1]}p`;
+  const kiloMatch = trimmed.match(/^(\d+)k$/i);
+  if (kiloMatch) return `${kiloMatch[1]}K`;
+  return trimmed;
+};
 
 /**
  * Renders the detail modal for a selected reference.
@@ -430,13 +452,15 @@ function DetailModalContent({
   const isPromptEditable = baseDetailModalItem.capabilities.canEditPrompt;
   const trimmedPrompt = draftPrompt.trim();
   const hasPromptEdits = trimmedPrompt !== displayPromptText.trim();
+  const isErrorDetail = output.taskState === "fail";
+  const shouldUseTextDetailLayout = isPromptOnly || isErrorDetail;
   const detailModalStyle = useMemo(() => {
-    if (isPromptOnly) return undefined;
+    if (shouldUseTextDetailLayout) return undefined;
     if (!previewAspectRatio || !Number.isFinite(previewAspectRatio)) return undefined;
     return {
       "--detail-preview-aspect": String(previewAspectRatio),
     } as React.CSSProperties;
-  }, [isPromptOnly, previewAspectRatio]);
+  }, [previewAspectRatio, shouldUseTextDetailLayout]);
   const isImageZoomed = imageZoomScale > 1.001;
 
   const handleDetailImageError = useCallback(() => {
@@ -716,20 +740,30 @@ function DetailModalContent({
   );
   const displayModelLabel = useMemo(() => {
     if (isUploadedReference) return null;
+    if (isLipSyncDetailOutput(output)) return LIP_SYNC_DETAIL_MODEL_LABEL;
     return resolveCustomerFacingModelLabel({
       model: output?.model,
       modelId: output?.modelId,
       resolveModelLabel,
       fallback: "",
     });
-  }, [isUploadedReference, output?.model, output?.modelId]);
+  }, [isUploadedReference, output]);
   const displayImageResolutionLabel = useMemo(() => {
     if (isUploadedReference || output?.mode !== "image") return null;
     const resolutionValue = output?.generationReplay?.imageResolution?.trim() ?? "";
     if (!resolutionValue) return null;
     return formatImageResolutionLabel(resolutionValue);
   }, [isUploadedReference, output?.generationReplay?.imageResolution, output?.mode]);
+  const displayVideoResolutionLabel = useMemo(() => {
+    if (isUploadedReference || output?.mode !== "video") return null;
+    const payload = output.workflowReload?.payload;
+    if (payload?.kind !== "video") return null;
+    return formatVideoResolutionLabel(payload.resolution);
+  }, [isUploadedReference, output]);
   const metaPillItems = useMemo(() => {
+    if (isErrorDetail) {
+      return displayModelLabel ? ["Error", displayModelLabel] : ["Error"];
+    }
     if (shouldUseExternalFileLayout) {
       return [mediaType];
     }
@@ -757,6 +791,9 @@ function DetailModalContent({
     if (!isNonGeneratedLoadedMedia && displayImageResolutionLabel) {
       items.push(displayImageResolutionLabel);
     }
+    if (!isNonGeneratedLoadedMedia && displayVideoResolutionLabel) {
+      items.push(displayVideoResolutionLabel);
+    }
     if (!isNonGeneratedLoadedMedia && uploadedHeaderFilename) {
       items.push(uploadedHeaderFilename);
     }
@@ -767,7 +804,9 @@ function DetailModalContent({
   }, [
     displayModelLabel,
     displayImageResolutionLabel,
+    displayVideoResolutionLabel,
     displayAspect,
+    isErrorDetail,
     isActiveVoiceChangerSourceVideo,
     isGeneratedPureAudioOutput,
     isGeneratedVoiceChangerVideoOutput,
@@ -811,16 +850,19 @@ function DetailModalContent({
         canSavePrompt: Boolean(onSavePrompt),
         presentation: {
           title: detailReferenceName,
-          kindLabel: mediaType,
+          kindLabel: isErrorDetail ? "Error" : mediaType,
           topBarItems: sharedTopBarItems,
-          bladePlaceholder: generatedVoiceChangerTranscript
-            ? "No transcript metadata available."
-            : "No prompt metadata available.",
+          bladePlaceholder: isErrorDetail
+            ? "No error details were captured."
+            : generatedVoiceChangerTranscript
+              ? "No transcript metadata available."
+              : "No prompt metadata available.",
         },
       }),
     [
       detailReferenceName,
       generatedVoiceChangerTranscript,
+      isErrorDetail,
       mediaType,
       onSavePrompt,
       output,
@@ -1162,10 +1204,10 @@ function DetailModalContent({
         ariaModal={!isDeleteConfirmOpen}
         dialogAriaHidden={isDeleteConfirmOpen}
         backdropClassName="reference-modal-backdrop"
-        dialogClassName={`reference-modal-new ${isPromptOnly ? "is-text-only" : ""} ${isUploadedReference ? "is-uploaded" : ""} ${shouldUseExternalFileLayout ? "is-stage-only" : ""} ${isAudioOutput ? "is-audio-modal" : ""}`}
+        dialogClassName={`reference-modal-new ${shouldUseTextDetailLayout ? "is-text-only" : ""} ${isUploadedReference ? "is-uploaded" : ""} ${shouldUseExternalFileLayout ? "is-stage-only" : ""} ${isAudioOutput ? "is-audio-modal" : ""}`}
         dialogStyle={detailModalStyle}
         backdropDecoration={
-          displayPreviewUrl ? (
+          displayPreviewUrl && !isErrorDetail ? (
             <div
               className="reference-modal-bg-reflect"
               style={{ backgroundImage: `url(${displayPreviewUrl})` }}
@@ -1174,7 +1216,7 @@ function DetailModalContent({
         }
       >
         {/* Floating Top Bar (Controls) */}
-        {!isPromptOnly ? (
+        {!shouldUseTextDetailLayout ? (
           <SharedMediaDetailContentLayout
             topBar={
               <SharedMediaDetailTopBar
@@ -1338,11 +1380,11 @@ function DetailModalContent({
           />
         ) : null}
 
-        {isPromptOnly ? (
+        {shouldUseTextDetailLayout ? (
           <SharedMediaDetailContentLayout
             topBar={
               <SharedMediaDetailTopBar
-                eyebrow="Text detail"
+                eyebrow={isErrorDetail ? "Error detail" : "Text detail"}
                 title={detailModalItem.presentation?.title ?? null}
                 items={resolveSharedMediaDetailTopBarItems(detailModalItem)}
                 actions={
@@ -1361,7 +1403,7 @@ function DetailModalContent({
                   />
                 }
                 onClose={handleCloseModal}
-                closeLabel="Close text detail"
+                closeLabel={isErrorDetail ? "Close error detail" : "Close text detail"}
               />
             }
             mainContentClassName="art-text-detail-main"
@@ -1370,11 +1412,15 @@ function DetailModalContent({
               <textarea
                 className={`art-text-detail-textarea ${isPromptEditable ? "is-editing" : ""}`.trim()}
                 ref={promptOnlyTextareaRef}
-                value={draftPrompt}
+                value={isErrorDetail ? bladeContent.value : draftPrompt}
                 onChange={handlePromptChange}
                 readOnly={!isPromptEditable}
                 rows={12}
-                placeholder="Describe your adjustments..."
+                placeholder={
+                  isErrorDetail
+                    ? resolveSharedMediaDetailBladePlaceholder(detailModalItem)
+                    : "Describe your adjustments..."
+                }
               />
             }
           />

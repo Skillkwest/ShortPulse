@@ -60,4 +60,20 @@ describe("createStudioOutputDetailModalItem", () => {
     expect(item.presentation?.errorContent?.detail).toBe("Provider rejected image_urls[0].");
     expect(item.presentation?.errorContent?.rawPayload).toContain("req-provider");
   });
+
+  it("deduplicates matching error summary and detail text", () => {
+    const item = createStudioOutputDetailModalItem({
+      output: createOutput({
+        errorMessage: "Not enough credits.",
+        errorMessageShort: "Not enough credits.",
+        errorDetail: "Not enough credits.",
+      }),
+      canSavePrompt: true,
+    });
+
+    const bladeContent = resolveSharedMediaDetailBladeContent({ item });
+
+    expect(bladeContent.label).toBe("ERROR");
+    expect(bladeContent.value).toBe("Not enough credits.");
+  });
 });

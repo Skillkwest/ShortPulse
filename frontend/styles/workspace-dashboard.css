@@ -510,8 +510,8 @@ body.dashboard-body:has(.authenticated-dashboard-page) {
 }
 
 .authenticated-dashboard-page .header-stat-card {
-  width: clamp(218px, 14.2vw, 264px);
-  min-width: 218px;
+  width: clamp(198px, 13vw, 242px);
+  min-width: 198px;
   min-height: 0;
   padding: 12px;
   gap: 12px;
@@ -529,9 +529,9 @@ body.dashboard-body:has(.authenticated-dashboard-page) {
 }
 
 .authenticated-dashboard-page .status-icon.compact {
-  flex: 0 0 70px;
-  width: 70px;
-  height: 76px;
+  flex: 0 0 60px;
+  width: 60px;
+  height: 68px;
   border-radius: 0;
   color: #ff7a50;
   background: transparent;
@@ -540,9 +540,9 @@ body.dashboard-body:has(.authenticated-dashboard-page) {
 .authenticated-dashboard-page .header-stat-card-icon-image {
   display: block;
   width: auto;
-  height: 68px;
-  max-width: 70px;
-  max-height: 68px;
+  height: 58px;
+  max-width: 60px;
+  max-height: 58px;
   object-fit: contain;
   filter: drop-shadow(0 6px 14px rgba(219, 52, 93, 0.16));
 }
@@ -3097,6 +3097,13 @@ button.hero-onboarding {
 }
 
 .authenticated-home-quick-row .hero-new-project-card {
+  border-color: rgba(37, 169, 191, 0.48);
+  background:
+    radial-gradient(120% 120% at 0% 0%, rgba(37, 169, 191, 0.18), transparent 58%),
+    linear-gradient(145deg, rgba(37, 169, 191, 0.08), transparent 48%), rgba(8, 12, 18, 0.76);
+}
+
+.authenticated-home-quick-row .hero-open-projects-card {
   border-color: rgba(37, 169, 191, 0.48);
   background:
     radial-gradient(120% 120% at 0% 0%, rgba(37, 169, 191, 0.18), transparent 58%),

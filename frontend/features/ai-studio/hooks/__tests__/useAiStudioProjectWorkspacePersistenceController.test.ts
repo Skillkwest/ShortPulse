@@ -2699,7 +2699,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     );
   });
 
-  it("keeps near-route-limit project snapshots eligible for autosave", async () => {
+  it("keeps server-rejected near-route-limit project snapshots in the guarded autosave path", async () => {
     const snapshot = {
       ...createSnapshot(),
       outputs: {
@@ -2770,7 +2770,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     expect(autosaveArgs?.preparedSnapshot?.bytes).toBeGreaterThan(
       AI_STUDIO_SESSION_MAX_SNAPSHOT_BYTES
     );
-    expect(autosaveArgs?.preparedSnapshot?.bytes).toBeLessThanOrEqual(
+    expect(autosaveArgs?.preparedSnapshot?.bytes).toBeGreaterThan(
       PROJECT_WORKSPACE_AUTOSAVE_MAX_SNAPSHOT_BYTES
     );
     expect(autosaveArgs).toEqual(
@@ -2860,7 +2860,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     });
 
     expect(onPersistenceWarning).toHaveBeenCalledWith(
-      "Project autosave skipped because workspace size (987KB) exceeded the 977KB limit.",
+      "Project autosave skipped because workspace size (987KB) exceeded the 879KB limit.",
       expect.objectContaining({
         scope: "project_autosave",
         reason: "snapshot_too_large",

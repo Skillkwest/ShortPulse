@@ -27,6 +27,7 @@ import { useAiStudioRuntimeAuthorityState } from "./useAiStudioRuntimeAuthorityS
 import { useAiStudioStateRuntimeControllers } from "./useAiStudioStateRuntimeControllers";
 import { useAiStudioStateSupportControllers } from "./useAiStudioStateSupportControllers";
 import { useAiStudioWorkflowReloadController } from "./useAiStudioWorkflowReloadController";
+import { useAiStudioProjectWorkspaceCriticalSaveSignal } from "./useAiStudioProjectWorkspaceCriticalSaveSignal";
 import type { VoiceChangerSource } from "../components/VoiceChangerSourceDropzone";
 
 export const useAiStudioState = ({
@@ -224,6 +225,12 @@ export const useAiStudioState = ({
     activeOutputId,
     outputs,
     archivedOutputs,
+  });
+  const projectWorkspaceCriticalSaveSignal = useAiStudioProjectWorkspaceCriticalSaveSignal({
+    projectId,
+    projectRouteRequested,
+    outputs,
+    curatedReferenceIds,
   });
   const singleImageContextOutput = (() => {
     if (activeOutput) return activeOutput;
@@ -914,6 +921,7 @@ export const useAiStudioState = ({
     addOutputsFromFiles,
     buildProjectWorkspaceSnapshot,
     buildSessionSnapshot,
+    projectWorkspaceCriticalSaveSignal,
     hydrateFromSessionSnapshot,
     toggleReferenceIndicator,
     clearReferenceImages,

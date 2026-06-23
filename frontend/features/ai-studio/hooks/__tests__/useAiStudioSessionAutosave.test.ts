@@ -116,6 +116,42 @@ describe("useAiStudioSessionAutosave", () => {
     );
   });
 
+  it("flushes a pending snapshot when the immediate save signal changes", async () => {
+    const persistSnapshot = vi.fn().mockResolvedValue(undefined);
+    const snapshot = createSnapshot();
+    const { rerender } = renderHook(
+      ({ immediateSaveSignal }: { immediateSaveSignal: number }) =>
+        useAiStudioSessionAutosave({
+          sessionId: snapshot.sessionId,
+          snapshot,
+          enabled: true,
+          persistSnapshot,
+          immediateSaveSignal,
+        }),
+      {
+        initialProps: {
+          immediateSaveSignal: 0,
+        },
+      }
+    );
+
+    expect(persistSnapshot).not.toHaveBeenCalled();
+    await act(async () => {
+      rerender({ immediateSaveSignal: 1 });
+      await Promise.resolve();
+    });
+
+    expect(persistSnapshot).toHaveBeenCalledTimes(1);
+    expect(persistSnapshot).toHaveBeenCalledWith(
+      snapshot.sessionId,
+      snapshot,
+      expect.objectContaining({
+        keepalive: false,
+        snapshotHash: expect.stringMatching(/^fnv1a32:/),
+      })
+    );
+  });
+
   it("flushes immediately when visibility becomes hidden", async () => {
     const persistSnapshot = vi.fn().mockResolvedValue(undefined);
     const snapshot = createSnapshot();

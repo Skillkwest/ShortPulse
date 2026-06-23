@@ -1,4 +1,4 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createEmptyAiStudioSessionSnapshot,
@@ -18,6 +18,14 @@ import { useAiStudioPageProjectSessionRuntime } from "../useAiStudioPageProjectS
 
 const useAiStudioPageSessionPersistenceMock = vi.fn();
 const createNoopDraftSetter = () => vi.fn();
+const createPersistedAgentRuntime = () => ({
+  messages: [],
+  input: "",
+  latestAgentPrompt: null,
+  promptOrigin: "manual" as const,
+  chatModeEnabled: true,
+  pulseWorkflowSession: null,
+});
 
 vi.mock("../useAiStudioPageSessionPersistence", () => ({
   useAiStudioPageSessionPersistence: (...args: unknown[]) =>
@@ -596,6 +604,102 @@ describe("useAiStudioPageProjectSessionRuntime", () => {
     const savedCanvas = parseAiStudioSessionCanvasState(snapshot.canvas ?? null);
 
     expect(savedCanvas).toEqual(canvasSessionState);
+  });
+
+  it("requests a critical project save when durable canvas state changes after deferred work settles", async () => {
+    const canvasSessionState: AiStudioSessionCanvasState = {
+      items: [
+        {
+          id: "canvas-image-1",
+          kind: "image",
+          x: 260,
+          y: 144,
+          z: 2,
+          selected: true,
+          outputId: "out-1",
+          sourceSurface: "curated",
+          mediaId: "media-1",
+          src: "https://cdn.example.com/out-1.png",
+          alt: "Launch image",
+          width: 512,
+          height: 512,
+        },
+      ],
+      draftTextEntry: null,
+      textEditSession: null,
+      draftOwnerInstanceId: null,
+      textEditOwnerInstanceId: null,
+      mainCamera: { x: 0, y: 0, zoom: 1 },
+      railCamera: { x: 0, y: 0, zoom: 1 },
+    };
+    const latestImmediateSaveSignal = () =>
+      useAiStudioPageSessionPersistenceMock.mock.calls.at(-1)?.[0].immediateSaveSignal;
+
+    const { rerender } = renderHook(
+      ({ currentCanvasSessionState, isAutosaveWorkDeferred }) =>
+        useAiStudioPageProjectSessionRuntime({
+          activeCreateAgentKind: "standard",
+          activeCreatePulsePresetId: null,
+          activeSessionPersistenceSessionId: "session-1",
+          buildProjectWorkspaceSnapshot: vi.fn(() => createEmptyAiStudioSessionSnapshot()),
+          buildSessionSnapshot: vi.fn(() => createEmptyAiStudioSessionSnapshot()),
+          canvasSessionState: currentCanvasSessionState,
+          createSelectedCharacterId: "",
+          createSelectedCharacterLookId: "",
+          expertCreateMode: "standard",
+          expertEditSessionRevision: 0,
+          getExpertEditSessionState: vi.fn(() => null),
+          hasActivePulseSession: false,
+          hydrateActiveFromSessionAgentSnapshot: vi.fn(),
+          hydrateCanvasSessionState: vi.fn(),
+          hydrateFromSessionSnapshot: vi.fn((snapshot: AiStudioSessionSnapshot) =>
+            createHydrationPayload(snapshot)
+          ),
+          immediateSaveSignal: "outputs-0",
+          isAutosaveWorkDeferred,
+          persistedAgentRuntime: createPersistedAgentRuntime(),
+          projectId: "project-1",
+          projectRouteRequested: true,
+          pulseWorkflowSession: null,
+          resetActiveProjectAgentConversation: vi.fn(),
+          sessionPersistenceTitleOverride: null,
+          setCreateSelectedCharacterId: vi.fn(),
+          setCreateSelectedCharacterLookId: vi.fn(),
+          setIsCreateCharacterModeEnabled: vi.fn(),
+          setExpertEditSessionState: vi.fn(),
+          setMusicPromptDraft: createNoopDraftSetter(),
+          setMusicLyricsDraft: createNoopDraftSetter(),
+          setSoundEffectsPromptDraft: createNoopDraftSetter(),
+          setUiNotice: vi.fn(),
+          setVoiceDesignPromptDraft: createNoopDraftSetter(),
+          setVoiceScriptDraft: createNoopDraftSetter(),
+        }),
+      {
+        initialProps: {
+          currentCanvasSessionState: null as AiStudioSessionCanvasState | null,
+          isAutosaveWorkDeferred: false,
+        },
+      }
+    );
+
+    const baselineSignal = latestImmediateSaveSignal();
+
+    rerender({
+      currentCanvasSessionState: canvasSessionState,
+      isAutosaveWorkDeferred: true,
+    });
+
+    expect(latestImmediateSaveSignal()).toBe(baselineSignal);
+
+    rerender({
+      currentCanvasSessionState: canvasSessionState,
+      isAutosaveWorkDeferred: false,
+    });
+
+    await waitFor(() => {
+      expect(latestImmediateSaveSignal()).not.toBe(baselineSignal);
+    });
+    expect(latestImmediateSaveSignal()).toBe("outputs-0:1");
   });
 
   it("does not wire project persistence through Expert Edit hydration anymore", () => {

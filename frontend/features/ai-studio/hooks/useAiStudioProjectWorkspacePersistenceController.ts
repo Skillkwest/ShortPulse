@@ -70,6 +70,7 @@ type UseAiStudioProjectWorkspacePersistenceControllerParams = {
   ) => void;
   hydrateFromSessionCanvasSnapshot?: (canvas: AiStudioSessionCanvasState | null) => void;
   isAutosaveWorkDeferred?: boolean;
+  immediateSaveSignal?: string | number | null;
   applyEmptyProjectState?: () => void;
   resetProjectAgentConversation?: () => void;
   onPersistenceWarning?: (
@@ -550,6 +551,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
   hydrateFromSessionAgentSnapshot,
   hydrateFromSessionCanvasSnapshot,
   isAutosaveWorkDeferred = false,
+  immediateSaveSignal = null,
   applyEmptyProjectState,
   resetProjectAgentConversation,
   onPersistenceWarning,
@@ -1468,6 +1470,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     snapshot: autosaveSnapshotSelection.snapshot,
     enabled: projectAutosaveReady && !activeBootstrapError,
     persistSnapshot: writeProjectWorkspaceSnapshot,
+    immediateSaveSignal,
     resolveSnapshotTitle: resolveProjectSnapshotTitle,
     preparedSnapshot: autosaveSnapshotSelection.preparedSnapshot,
     maxSnapshotBytes: PROJECT_WORKSPACE_AUTOSAVE_MAX_SNAPSHOT_BYTES,

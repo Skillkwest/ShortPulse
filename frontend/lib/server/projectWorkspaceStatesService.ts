@@ -29,12 +29,12 @@ import {
   syncProjectOutputDisplayItemsForSnapshot,
 } from "./projectOutputDisplayItemsService";
 import { chunkValues } from "./queryBatching";
+import { PROJECT_WORKSPACE_MAX_SNAPSHOT_BYTES } from "../ai-studio-session/projectWorkspaceLimits";
 
 const PROJECT_WORKSPACE_SELECT_COLUMNS =
   "project_id, user_id, schema_version, snapshot, snapshot_updated_at, checkpoint_revision, created_at, updated_at" as const;
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const PROJECT_WORKSPACE_MAX_SNAPSHOT_BYTES = 900_000;
 const PROJECT_WORKSPACE_BEST_EFFORT_STAGE_TIMEOUT_MS = 12_000;
 
 type ProjectWorkspaceStateRow = {

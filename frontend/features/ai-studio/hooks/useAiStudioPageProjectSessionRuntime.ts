@@ -2,7 +2,15 @@
  * AI Studio page project/session runtime.
  * Owns project-aware session snapshot patching, agent hydration bridging, and project bootstrap restore wiring.
  */
-import { useCallback, useMemo, type Dispatch, type SetStateAction } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import {
   createEmptyAiStudioSessionAgentState,
   createEmptyAiStudioSessionSnapshot,
@@ -56,6 +64,7 @@ type UseAiStudioPageProjectSessionRuntimeParams = {
   ) => AiStudioSessionHydrationPayload;
   hydrateRightRailLayout?: (layout: AiStudioRightRailLayoutV1) => void;
   isAutosaveWorkDeferred?: boolean;
+  immediateSaveSignal?: string | number | null;
   patchProjectWorkspaceSnapshot?: (snapshot: AiStudioSessionSnapshot) => AiStudioSessionSnapshot;
   persistedAgentRuntime: CreatePageAgentRuntime["persistedAgentRuntime"];
   persistedPulseAgentRuntime?: CreatePageAgentRuntime["persistedAgentRuntime"];
@@ -112,6 +121,7 @@ export const useAiStudioPageProjectSessionRuntime = ({
   hydrateFromSessionSnapshot,
   hydrateRightRailLayout,
   isAutosaveWorkDeferred = false,
+  immediateSaveSignal = null,
   patchProjectWorkspaceSnapshot,
   persistedAgentRuntime,
   persistedPulseAgentRuntime,
@@ -178,6 +188,45 @@ export const useAiStudioPageProjectSessionRuntime = ({
 
     return parseAiStudioSessionCanvasState(JSON.parse(projectDurableCanvasPayload.signature));
   }, [projectDurableCanvasPayload.signature]);
+  const [canvasImmediateSaveRevision, setCanvasImmediateSaveRevision] = useState(0);
+  const canvasImmediateSaveProjectRef = useRef<string | null>(null);
+  const canvasImmediateSaveSignatureRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!projectId || !projectRouteRequested) {
+      canvasImmediateSaveProjectRef.current = null;
+      canvasImmediateSaveSignatureRef.current = null;
+      return;
+    }
+    if (isAutosaveWorkDeferred) return;
+
+    const signature = projectDurableCanvasPayload.signature ?? "empty";
+    if (canvasImmediateSaveProjectRef.current !== projectId) {
+      canvasImmediateSaveProjectRef.current = projectId;
+      canvasImmediateSaveSignatureRef.current = signature;
+      return;
+    }
+    if (canvasImmediateSaveSignatureRef.current === signature) return;
+
+    canvasImmediateSaveSignatureRef.current = signature;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setCanvasImmediateSaveRevision((current) => current + 1);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isAutosaveWorkDeferred,
+    projectDurableCanvasPayload.signature,
+    projectId,
+    projectRouteRequested,
+  ]);
+  const projectImmediateSaveSignal = useMemo(
+    () => `${immediateSaveSignal ?? "none"}:${canvasImmediateSaveRevision}`,
+    [canvasImmediateSaveRevision, immediateSaveSignal]
+  );
 
   const persistedAgentRuntimes = useMemo<AiStudioSessionAgentRuntimesV2>(
     () => ({
@@ -330,6 +379,7 @@ export const useAiStudioPageProjectSessionRuntime = ({
     hydrateFromSessionAgentSnapshot,
     hydrateFromSessionCanvasSnapshot: hydrateCanvasSessionState,
     isAutosaveWorkDeferred,
+    immediateSaveSignal: projectImmediateSaveSignal,
     applyEmptyProjectState,
     resetProjectAgentConversation,
     setUiNotice,

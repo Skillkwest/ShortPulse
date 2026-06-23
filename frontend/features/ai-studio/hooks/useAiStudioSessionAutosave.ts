@@ -41,6 +41,7 @@ type UseAiStudioSessionAutosaveArgs = {
   snapshot: AiStudioSessionSnapshot | null;
   enabled: boolean;
   persistSnapshot: PersistSnapshotFn;
+  immediateSaveSignal?: string | number | null;
   debounceMs?: number;
   maxDirtyMs?: number;
   maxSnapshotBytes?: number;
@@ -85,6 +86,7 @@ export const useAiStudioSessionAutosave = ({
   snapshot,
   enabled,
   persistSnapshot,
+  immediateSaveSignal = null,
   debounceMs = DEFAULT_DEBOUNCE_MS,
   maxDirtyMs = DEFAULT_MAX_DIRTY_MS,
   maxSnapshotBytes = AI_STUDIO_SESSION_MAX_SNAPSHOT_BYTES,
@@ -99,6 +101,7 @@ export const useAiStudioSessionAutosave = ({
   const lastSavedRef = useRef<SnapshotPersistIdentity | null>(null);
   const lastPersistFailureRef = useRef<(SnapshotPersistIdentity & { count: number }) | null>(null);
   const lastSizeErrorRef = useRef<Pick<SnapshotPersistIdentity, "sessionId" | "hash"> | null>(null);
+  const lastImmediateSaveSignalRef = useRef<string | number | null>(immediateSaveSignal);
   const debounceTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
   const maxTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
   const keepaliveSnapshotBytesLimit = Number.isFinite(maxKeepaliveSnapshotBytes)
@@ -346,6 +349,17 @@ export const useAiStudioSessionAutosave = ({
     sessionId,
     snapshot,
   ]);
+
+  useEffect(() => {
+    if (!enabled) {
+      lastImmediateSaveSignalRef.current = immediateSaveSignal;
+      return;
+    }
+    if (lastImmediateSaveSignalRef.current === immediateSaveSignal) return;
+    lastImmediateSaveSignalRef.current = immediateSaveSignal;
+    if (immediateSaveSignal == null) return;
+    void flushPending();
+  }, [enabled, flushPending, immediateSaveSignal]);
 
   useEffect(() => {
     if (!enabled) return;

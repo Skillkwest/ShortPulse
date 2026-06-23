@@ -18,6 +18,7 @@ const RESOLUTION_EXPANDED_PRICING_STRATEGIES = new Set<string>([
   "kling-3-per-second",
   "nano-banana-2-per-image",
   "nano-banana-per-image",
+  "omnihuman-v15-per-second",
   "seedream-per-image",
   "seedream-5-lite-per-image",
   "veo-3-per-second",

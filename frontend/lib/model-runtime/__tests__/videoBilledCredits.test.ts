@@ -181,6 +181,7 @@ describe("videoBilledCredits", () => {
     });
 
     expect(clientLookup.breakdown?.variantId).toBe(serverLookup.breakdown?.variantId);
+    expect(clientLookup.breakdown?.variantId).toBe("default|res:720p|aspect:video");
     expect(clientLookup.breakdown?.credits).toBe(serverLookup.breakdown?.credits);
     expect(clientLookup.breakdown?.credits).toBe(45);
   });

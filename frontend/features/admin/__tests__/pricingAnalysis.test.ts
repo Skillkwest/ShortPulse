@@ -821,6 +821,57 @@ describe("pricingAnalysis", () => {
     expect(rows[3]?.providerCostUsd).toBeCloseTo(0.3875, 6);
   });
 
+  it("expands Lip Sync into both 1080p and 720p price variants", () => {
+    const pricingPolicy = getDefaultModelPricingPolicyDocument();
+    const model = buildModelRow({
+      id: "fal-ai/bytedance/omnihuman/v1.5",
+      label: "Lip Sync",
+      provider: "fal",
+      sourceUrl: "https://fal.ai/models/fal-ai/bytedance/omnihuman/v1.5/api",
+      workflowType: "Image to video",
+      pricingStrategy: "omnihuman-v15-per-second",
+      pricingStrategyLabel: "Per output second",
+      defaultAspect: "video",
+      allowedAspects: [],
+      defaultResolution: "1080p",
+      allowedResolutions: ["720p", "1080p"],
+      defaultDurationSeconds: 10,
+      minDurationSeconds: 1,
+      maxDurationSeconds: 60,
+      defaultAudio: null,
+      pricingPreview: {
+        usdRaw: 1.6,
+        rawCredits: 160,
+        billedCredits: 160,
+        billedUsd: 1.6,
+      },
+      pricingPreviewVariants: [
+        {
+          id: "default",
+          label: "Default",
+          breakdown: {
+            usdRaw: 1.6,
+            rawCredits: 160,
+            billedCredits: 160,
+            billedUsd: 1.6,
+          },
+        },
+      ],
+    });
+
+    const rows = buildModelEconomicsRows({
+      models: [model],
+      pricingPolicy,
+    });
+
+    expect(rows).toHaveLength(2);
+    expect(rows.map((row) => row.specLabel)).toEqual(["1080p / video", "720p / video"]);
+    expect(rows[0]?.variantId).toBe("default|res:1080p|aspect:video");
+    expect(rows[1]?.variantId).toBe("default|res:720p|aspect:video");
+    expect(rows[0]?.providerCostUsd).toBeCloseTo(1.6, 6);
+    expect(rows[1]?.providerCostUsd).toBeCloseTo(1.6, 6);
+  });
+
   it("recomputes shared-policy credits at cost from provider usd instead of marked runtime raw credits", () => {
     const model = buildModelRow({
       id: "kie-ai/veo-3.1-fast-i2v",

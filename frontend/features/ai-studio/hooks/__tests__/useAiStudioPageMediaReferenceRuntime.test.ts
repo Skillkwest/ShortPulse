@@ -1237,7 +1237,7 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
       outputId: "output-audio-1",
       mediaId: "saved-audio-1",
       audioUrl: "https://cdn.shortpulse.test/dropped-audio.mp3",
-      title: "Dropped audio",
+      title: "Canvas audio",
       companionArtUrl: "https://cdn.shortpulse.test/dropped-audio.webp",
       companionArtStoragePath: "user-1/audio/dropped-audio.webp",
       audioSourceMode: null,

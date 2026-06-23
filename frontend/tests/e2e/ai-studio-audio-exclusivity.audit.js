@@ -79,7 +79,7 @@ function hasSevereSignal(text) {
   return SEVERE_SIGNAL_PATTERNS.some((pattern) => pattern.test(text));
 }
 
-function summarizeSignals(consoleEntries, pageErrors) {
+function summarizeSignals(consoleEntries, pageErrors, requestFailures) {
   const severeConsole = consoleEntries.filter(
     (entry) =>
       (entry.type === "error" &&
@@ -91,6 +91,7 @@ function summarizeSignals(consoleEntries, pageErrors) {
   return {
     severeConsole,
     severePageErrors,
+    requestFailures,
     ok: severeConsole.length === 0 && severePageErrors.length === 0,
   };
 }
@@ -98,12 +99,14 @@ function summarizeSignals(consoleEntries, pageErrors) {
 async function attachSurfaceObservers(page) {
   const consoleEntries = [];
   const pageErrors = [];
+  const requestFailures = [];
   page.on("console", (message) => {
     const text = message.text();
     if (shouldIgnoreConsole(text)) return;
     consoleEntries.push({
       type: message.type(),
       text,
+      location: message.location(),
     });
   });
   page.on("pageerror", (error) => {
@@ -111,7 +114,16 @@ async function attachSurfaceObservers(page) {
       text: String(error?.message || error),
     });
   });
-  return { consoleEntries, pageErrors };
+  page.on("requestfailed", (request) => {
+    const failure = request.failure();
+    requestFailures.push({
+      url: request.url(),
+      method: request.method(),
+      resourceType: request.resourceType(),
+      errorText: failure?.errorText || null,
+    });
+  });
+  return { consoleEntries, pageErrors, requestFailures };
 }
 
 function createToneWavBuffer({ durationMs, frequencyHz, sampleRate = 16000 }) {
@@ -458,32 +470,87 @@ async function dispatchReferenceGridCardDoubleClick(page) {
 
 async function playMediaPreviewModalAudio(page) {
   await page.waitForFunction(
-    () => document.querySelectorAll(".media-library-panel-preview-modal audio").length > 0,
+    () =>
+      document.querySelectorAll(
+        ".media-library-panel-preview-backdrop audio.media-library-panel-preview-media"
+      ).length > 0,
     { timeout: 20_000 }
   );
-  await page.evaluate(async () => {
-    const audio = document.querySelector(".media-library-panel-preview-modal audio");
-    if (!(audio instanceof HTMLAudioElement)) {
-      throw new Error("Media preview modal audio element is missing.");
-    }
-    if (!audio.paused) return;
-    await audio.play();
+  const playButton = page
+    .locator(".media-library-panel-preview-backdrop")
+    .getByRole("button", { name: /^play audio preview$/i })
+    .first();
+  await playButton.click({ timeout: 10_000 });
+  await page.waitForFunction(
+    () => {
+      const audio = document.querySelector(
+        ".media-library-panel-preview-backdrop audio.media-library-panel-preview-media"
+      );
+      return audio instanceof HTMLAudioElement && !audio.paused;
+    },
+    { timeout: 20_000 }
+  );
+}
+
+async function readDetailModalAudioDiagnostics(page) {
+  return page.evaluate(() => {
+    const root = document.querySelector("#ai-studio-modal-layer-root");
+    const playButtons = Array.from(
+      document.querySelectorAll("#ai-studio-modal-layer-root .detail-modal-audio-play")
+    );
+    const audioNodes = Array.from(
+      document.querySelectorAll("#ai-studio-modal-layer-root audio.art-hero-audio")
+    );
+    return {
+      modalLayerPresent: Boolean(root),
+      title:
+        document.querySelector("#ai-studio-modal-layer-root .art-modal-title")?.textContent?.trim() ??
+        null,
+      playButtons: playButtons.map((button) => ({
+        ariaLabel: button.getAttribute("aria-label"),
+        ariaPressed: button.getAttribute("aria-pressed"),
+        className: button.getAttribute("class"),
+        disabled: button instanceof HTMLButtonElement ? button.disabled : null,
+      })),
+      audioNodes: audioNodes.map((audio) => {
+        const htmlAudio = audio instanceof HTMLAudioElement ? audio : null;
+        return {
+          className: audio.getAttribute("class"),
+          src: htmlAudio?.src ?? null,
+          currentSrc: htmlAudio?.currentSrc ?? null,
+          paused: htmlAudio?.paused ?? null,
+          readyState: htmlAudio?.readyState ?? null,
+          networkState: htmlAudio?.networkState ?? null,
+          currentTime: htmlAudio?.currentTime ?? null,
+          duration: htmlAudio?.duration ?? null,
+          errorCode: htmlAudio?.error?.code ?? null,
+          errorMessage: htmlAudio?.error?.message ?? null,
+        };
+      }),
+    };
   });
 }
 
 async function playDetailModalAudio(page) {
   await page.waitForFunction(
-    () => document.querySelectorAll("audio.art-hero-audio").length > 0,
+    () => document.querySelectorAll("#ai-studio-modal-layer-root audio.art-hero-audio").length > 0,
     { timeout: 20_000 }
   );
-  await page.evaluate(async () => {
-    const audio = document.querySelector("audio.art-hero-audio");
-    if (!(audio instanceof HTMLAudioElement)) {
-      throw new Error("Detail modal audio element is missing.");
-    }
-    if (!audio.paused) return;
-    await audio.play();
-  });
+  const playButton = page.locator("#ai-studio-modal-layer-root .detail-modal-audio-play").first();
+  await playButton.click({ timeout: 10_000 });
+  const started = await page
+    .waitForFunction(
+      () => {
+        const audio = document.querySelector("#ai-studio-modal-layer-root audio.art-hero-audio");
+        return audio instanceof HTMLAudioElement && !audio.paused;
+      },
+      { timeout: 20_000 }
+    )
+    .then(() => true)
+    .catch(() => false);
+  if (started) return;
+  const diagnostics = await readDetailModalAudioDiagnostics(page);
+  throw new Error(`Detail modal audio did not start: ${JSON.stringify(diagnostics)}`);
 }
 
 async function closeMediaPreviewModal(page) {
@@ -498,10 +565,132 @@ async function closeDetailModal(page) {
   await closeButton.waitFor({ state: "detached", timeout: 20_000 });
 }
 
+async function closeOpenMediaSurfacesForCleanup(page) {
+  const previewClose = page.getByRole("button", { name: /^close media preview$/i }).first();
+  if (await previewClose.isVisible().catch(() => false)) {
+    await previewClose.click({ timeout: 10_000 }).catch(() => {});
+    await previewClose.waitFor({ state: "detached", timeout: 10_000 }).catch(() => {});
+  }
+
+  const detailClose = page.locator(".art-close-btn").first();
+  if (await detailClose.isVisible().catch(() => false)) {
+    await detailClose.click({ timeout: 10_000 }).catch(() => {});
+    await detailClose.waitFor({ state: "detached", timeout: 10_000 }).catch(() => {});
+  }
+}
+
+async function deleteMediaLibraryAudioFixture(page, filename) {
+  const audioButton = page.getByRole("button", { name: exactAudioButtonName(filename) }).first();
+  if (!(await audioButton.isVisible().catch(() => false))) {
+    return { filename, attempted: false, succeeded: false, reason: "audio card not visible" };
+  }
+
+  await audioButton
+    .locator("xpath=ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' media-library-panel-audio-card-shell ')]")
+    .first()
+    .hover({ timeout: 10_000 })
+    .catch(() => {});
+
+  const deleteButton = page.getByRole("button", { name: `Delete media ${filename}` }).first();
+  if (!(await deleteButton.isVisible().catch(() => false))) {
+    return { filename, attempted: false, succeeded: false, reason: "delete action not visible" };
+  }
+
+  await deleteButton.click({ timeout: 10_000, force: true });
+  const dialog = page.getByRole("dialog", { name: "Delete this media?" }).first();
+  await dialog.waitFor({ timeout: 20_000 });
+  await dialog.getByRole("button", { name: /^delete$/i }).click({ timeout: 10_000 });
+  const removed = await page
+    .waitForFunction(
+      (targetFilename) => {
+        const buttons = Array.from(document.querySelectorAll(".reference-card-audio-play"));
+        return !buttons.some(
+          (button) =>
+            (button.getAttribute("aria-label") || "").includes(`audio ${targetFilename}`) &&
+            button.closest(".media-library-panel-audio-reference-card")
+        );
+      },
+      filename,
+      { timeout: 60_000 }
+    )
+    .then(() => true)
+    .catch(() => false);
+
+  if (!removed) {
+    return {
+      filename,
+      attempted: true,
+      succeeded: false,
+      reason: "audio card remained visible after delete confirmation",
+    };
+  }
+
+  await dialog.waitFor({ state: "hidden", timeout: 10_000 }).catch(async () => {
+    const cancelButton = dialog.getByRole("button", { name: /^cancel$/i }).first();
+    if (await cancelButton.isVisible().catch(() => false)) {
+      await cancelButton.click({ timeout: 10_000 }).catch(() => {});
+    }
+    await page.keyboard.press("Escape").catch(() => {});
+    await dialog.waitFor({ state: "hidden", timeout: 10_000 }).catch(() => {});
+  });
+  await page.waitForTimeout(1000);
+  const stillPresent = await page
+    .waitForFunction(
+      (targetFilename) => {
+        const buttons = Array.from(document.querySelectorAll(".reference-card-audio-play"));
+        return buttons.some(
+          (button) =>
+            (button.getAttribute("aria-label") || "").includes(`audio ${targetFilename}`) &&
+            button.closest(".media-library-panel-audio-reference-card")
+        );
+      },
+      filename,
+      { timeout: 500 }
+    )
+    .then(() => true)
+    .catch(() => false);
+  if (stillPresent) {
+    return {
+      filename,
+      attempted: true,
+      succeeded: false,
+      reason: "audio card reappeared after delete confirmation",
+    };
+  }
+  return { filename, attempted: true, succeeded: true };
+}
+
+async function cleanupMediaLibraryAudioFixtures(page, filenames, shouldAttempt) {
+  const cleanup = {
+    attempted: false,
+    succeeded: false,
+    items: filenames.map((filename) => ({
+      filename,
+      attempted: false,
+      succeeded: false,
+      reason: "cleanup not attempted",
+    })),
+  };
+  if (!shouldAttempt) return cleanup;
+
+  cleanup.attempted = true;
+  await closeOpenMediaSurfacesForCleanup(page);
+  await openTool(page, /^media$/i);
+
+  cleanup.items = [];
+  for (const filename of filenames) {
+    await openMediaAudioTab(page);
+    cleanup.items.push(await deleteMediaLibraryAudioFixture(page, filename));
+  }
+  cleanup.succeeded = cleanup.items.every((item) => item.succeeded);
+  return cleanup;
+}
+
 async function runAudit(browser, creds, fixtureBundle) {
   const context = await browser.newContext({ viewport: { width: 1720, height: 1080 } });
   const page = await context.newPage();
   const observers = await attachSurfaceObservers(page);
+  let mediaLibraryFixturesUploaded = false;
   const result = {
     ok: false,
     baseUrl: BASE_URL,
@@ -514,6 +703,12 @@ async function runAudit(browser, creds, fixtureBundle) {
     mediaPanelInlineHandoff: null,
     referenceGridToMediaPreview: null,
     referenceGridToDetailModal: null,
+    cleanup: {
+      attempted: false,
+      succeeded: false,
+      items: [],
+    },
+    fatalError: null,
     severeSignals: null,
     finalUrl: null,
   };
@@ -525,13 +720,18 @@ async function runAudit(browser, creds, fixtureBundle) {
 
     await openTool(page, /^sound$/i);
     const firstVoiceButton = page.locator(".voices-properties-voice-chip-play").nth(0);
-    await firstVoiceButton.waitFor({ timeout: 20_000 });
+    const voicePreviewAvailable = await firstVoiceButton
+      .waitFor({ timeout: HEADLESS ? 5_000 : 20_000 })
+      .then(() => true)
+      .catch(() => false);
 
-    await uploadReferenceGridFixture(page, fixtureBundle.fixtures.referenceGrid.path);
-    const referenceGridAudioButton = getReferenceGridAudioButton(page);
-    await waitForReferenceGridAudioCard(page);
+    if (!HEADLESS && !voicePreviewAvailable) {
+      throw new Error("Voice preview controls were not visible for non-headless audio audit.");
+    }
 
-    const initialVoiceLabel = await firstVoiceButton.getAttribute("aria-label");
+    const initialVoiceLabel = voicePreviewAvailable
+      ? await firstVoiceButton.getAttribute("aria-label")
+      : null;
     if (!HEADLESS) {
       await firstVoiceButton.click({ timeout: 10_000 });
       const voiceStarted = await page
@@ -591,10 +791,16 @@ async function runAudit(browser, creds, fixtureBundle) {
         reason:
           "Voice preview exclusivity is skipped in default headless mode because provider-backed sample playback is not deterministic in this local browser runtime.",
         initialVoiceLabel,
-        finalVoiceLabel: await firstVoiceButton.getAttribute("aria-label"),
+        finalVoiceLabel: voicePreviewAvailable
+          ? await firstVoiceButton.getAttribute("aria-label")
+          : null,
         trackedVoiceStates: await readVoicePreviewStates(page),
       };
     }
+
+    await uploadReferenceGridFixture(page, fixtureBundle.fixtures.referenceGrid.path);
+    const referenceGridAudioButton = getReferenceGridAudioButton(page);
+    await waitForReferenceGridAudioCard(page);
 
     await openTool(page, /^media$/i);
     await page
@@ -605,6 +811,7 @@ async function runAudit(browser, creds, fixtureBundle) {
       fixtureBundle.fixtures.libraryA.path,
       fixtureBundle.fixtures.libraryB.path,
     ]);
+    mediaLibraryFixturesUploaded = true;
     await openMediaAudioTab(page);
     await waitForAudioButtons(page, [
       fixtureBundle.fixtures.libraryA.filename,
@@ -679,7 +886,9 @@ async function runAudit(browser, creds, fixtureBundle) {
     await playMediaPreviewModalAudio(page);
     await page.waitForFunction(
       () => {
-        const modalAudio = document.querySelector(".media-library-panel-preview-modal audio");
+        const modalAudio = document.querySelector(
+          ".media-library-panel-preview-backdrop audio.media-library-panel-preview-media"
+        );
         if (!(modalAudio instanceof HTMLAudioElement) || modalAudio.paused) return false;
         const referenceAudio = document.querySelector(
           ".reference-canvas-grid .reference-card.has-audio audio.reference-card-audio"
@@ -692,12 +901,14 @@ async function runAudit(browser, creds, fixtureBundle) {
     result.referenceGridToMediaPreview = {
       referenceGridState: await readReferenceGridAudioState(page),
       modalTitle: await page
-        .locator(".media-library-panel-preview-title")
+        .locator(".media-library-panel-preview-backdrop .art-modal-title")
         .first()
         .textContent()
         .then((value) => value?.trim() ?? null),
       modalAudioPaused: await page.evaluate(() => {
-        const audio = document.querySelector(".media-library-panel-preview-modal audio");
+        const audio = document.querySelector(
+          ".media-library-panel-preview-backdrop audio.media-library-panel-preview-media"
+        );
         return audio instanceof HTMLAudioElement ? audio.paused : null;
       }),
     };
@@ -708,7 +919,9 @@ async function runAudit(browser, creds, fixtureBundle) {
     await playDetailModalAudio(page);
     await page.waitForFunction(
       () => {
-        const detailAudio = document.querySelector("audio.art-hero-audio");
+        const detailAudio = document.querySelector(
+          "#ai-studio-modal-layer-root audio.art-hero-audio"
+        );
         if (!(detailAudio instanceof HTMLAudioElement) || detailAudio.paused) return false;
         const referenceAudio = document.querySelector(
           ".reference-canvas-grid .reference-card.has-audio audio.reference-card-audio"
@@ -721,23 +934,60 @@ async function runAudit(browser, creds, fixtureBundle) {
     result.referenceGridToDetailModal = {
       referenceGridState: await readReferenceGridAudioState(page),
       detailAudioPaused: await page.evaluate(() => {
-        const audio = document.querySelector("audio.art-hero-audio");
+        const audio = document.querySelector("#ai-studio-modal-layer-root audio.art-hero-audio");
         return audio instanceof HTMLAudioElement ? audio.paused : null;
       }),
       detailAudioCurrentTime: await page.evaluate(() => {
-        const audio = document.querySelector("audio.art-hero-audio");
+        const audio = document.querySelector("#ai-studio-modal-layer-root audio.art-hero-audio");
         return audio instanceof HTMLAudioElement ? audio.currentTime : null;
       }),
     };
     await closeDetailModal(page);
 
-    result.severeSignals = summarizeSignals(observers.consoleEntries, observers.pageErrors);
+    result.severeSignals = summarizeSignals(
+      observers.consoleEntries,
+      observers.pageErrors,
+      observers.requestFailures
+    );
     result.finalUrl = page.url();
-    result.ok = result.severeSignals.ok;
-    return result;
+  } catch (error) {
+    result.fatalError = String(error?.stack || error?.message || error);
   } finally {
+    if (!result.severeSignals) {
+      result.severeSignals = summarizeSignals(
+        observers.consoleEntries,
+        observers.pageErrors,
+        observers.requestFailures
+      );
+    }
+    result.finalUrl = result.finalUrl || page.url();
+    result.cleanup = await cleanupMediaLibraryAudioFixtures(
+      page,
+      [fixtureBundle.fixtures.libraryA.filename, fixtureBundle.fixtures.libraryB.filename],
+      mediaLibraryFixturesUploaded
+    ).catch((error) => ({
+      attempted: mediaLibraryFixturesUploaded,
+      succeeded: false,
+      items: [
+        {
+          filename: fixtureBundle.fixtures.libraryA.filename,
+          attempted: false,
+          succeeded: false,
+          reason: String(error?.message || error),
+        },
+        {
+          filename: fixtureBundle.fixtures.libraryB.filename,
+          attempted: false,
+          succeeded: false,
+          reason: String(error?.message || error),
+        },
+      ],
+    }));
     await context.close();
   }
+
+  result.ok = Boolean(!result.fatalError && result.severeSignals?.ok && result.cleanup.succeeded);
+  return result;
 }
 
 async function main() {

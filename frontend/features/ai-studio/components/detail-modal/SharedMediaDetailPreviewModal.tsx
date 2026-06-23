@@ -295,6 +295,7 @@ export function SharedMediaDetailPreviewModal({
               onVideoError={handleVideoPreviewError}
               onVideoVolumeChange={videoPlayback.handleVolumeChange}
               onAudioPlay={audioPlayback.handlePlay}
+              onAudioRequestPlayback={audioPlayback.requestPlayback}
               onAudioPause={audioPlayback.handlePause}
               onAudioEnded={audioPlayback.handleEnded}
               onAudioError={handleAudioPreviewError}

@@ -5,6 +5,7 @@ import {
   normalizeStoredWaveformPeaks,
   resampleWaveformPeaks,
 } from "../referenceGridAudioWaveform";
+import { forgetObjectUrlBlob, rememberObjectUrlBlob } from "../../../utils/objectUrlBlobRegistry";
 
 describe("referenceGridAudioWaveform", () => {
   afterEach(() => {
@@ -79,5 +80,60 @@ describe("referenceGridAudioWaveform", () => {
     expect(decodeAudioData).toHaveBeenCalledTimes(1);
     expect(cardDensityPeaks).toHaveLength(56);
     expect(compactPeaks).toHaveLength(20);
+  });
+
+  it("decodes remembered blob URLs without fragile blob fetches", async () => {
+    const channelData = new Float32Array(256).fill(0).map((_, index) => (index % 8) / 10);
+    const audioBuffer = {
+      duration: 3,
+      length: channelData.length,
+      numberOfChannels: 1,
+      getChannelData: vi.fn(() => channelData),
+    } as unknown as AudioBuffer;
+    const decodeAudioData = vi.fn(async () => audioBuffer);
+    const close = vi.fn(async () => undefined);
+
+    class MockAudioContext {
+      decodeAudioData = decodeAudioData;
+      close = close;
+    }
+
+    const fetchMock = vi.fn();
+    const audioUrl = "blob:https://shortpulse.test/remembered-audio";
+    const arrayBuffer = vi.fn(async () => new ArrayBuffer(16));
+
+    vi.stubGlobal("AudioContext", MockAudioContext);
+    vi.stubGlobal("fetch", fetchMock);
+    rememberObjectUrlBlob(audioUrl, { arrayBuffer } as unknown as Blob);
+
+    const peaks = await extractAudioWaveformPeaksFromUrl(audioUrl, 20);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(arrayBuffer).toHaveBeenCalledTimes(1);
+    expect(decodeAudioData).toHaveBeenCalledTimes(1);
+    expect(peaks).toHaveLength(20);
+    forgetObjectUrlBlob(audioUrl);
+  });
+
+  it("falls back for stale blob URLs without logging fetch failures", async () => {
+    const decodeAudioData = vi.fn();
+    const fetchMock = vi.fn();
+
+    class MockAudioContext {
+      decodeAudioData = decodeAudioData;
+      close = vi.fn(async () => undefined);
+    }
+
+    vi.stubGlobal("AudioContext", MockAudioContext);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const peaks = await extractAudioWaveformPeaksFromUrl(
+      "blob:https://shortpulse.test/stale-audio",
+      20
+    );
+
+    expect(peaks).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(decodeAudioData).not.toHaveBeenCalled();
   });
 });

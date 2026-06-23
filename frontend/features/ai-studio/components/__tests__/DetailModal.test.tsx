@@ -7,6 +7,8 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest";
 import { DetailModal } from "../DetailModal";
 import { ReferenceGridCard } from "../../reference-grid/components/ReferenceGridCard";
+import { ReferenceAudioPlayer } from "../shared/ReferenceAudioPlayer";
+import { __resetExclusiveSoundPlaybackForTests } from "../shared/exclusiveSoundPlayback";
 import type { StudioOutput } from "../../types";
 import { getAiStudioErrorScenario } from "../../testing/errorScenarioFixtures";
 
@@ -1872,6 +1874,53 @@ describe("DetailModal", () => {
       expect(recoveredAudio?.getAttribute("src")).toBe("https://cdn.test/recovered-audio.mp3");
       expect(screen.queryByText("Media unavailable.")).not.toBeInTheDocument();
     });
+  });
+
+  it("reserves generated detail audio playback before native playback resolves", () => {
+    __resetExclusiveSoundPlaybackForTests();
+    Object.defineProperty(HTMLMediaElement.prototype, "play", {
+      configurable: true,
+      value: vi.fn().mockResolvedValue(undefined),
+    });
+    Object.defineProperty(HTMLMediaElement.prototype, "pause", {
+      configurable: true,
+      value: vi.fn(),
+    });
+    const pauseSpy = HTMLMediaElement.prototype.pause as ReturnType<typeof vi.fn>;
+
+    render(
+      <>
+        <div className="reference-card has-audio">
+          <ReferenceAudioPlayer
+            audioId="ref-audio-1"
+            audioUrl="https://cdn.test/ref-audio-1.mp3"
+            playLabel="Play reference audio"
+            pauseLabel="Pause reference audio"
+          />
+        </div>
+        <DetailModal
+          output={buildGeneratedAudioOutput({
+            id: "audio-out-2",
+            previewUrl: "https://cdn.test/generated-audio.mp3",
+          })}
+          onClose={vi.fn()}
+          onUpdatePrompt={vi.fn()}
+          onDeleteOutput={vi.fn()}
+        />
+      </>
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Play reference audio" }));
+    const referenceAudioNode = document.querySelector(
+      ".reference-card-audio"
+    ) as HTMLAudioElement | null;
+    expect(referenceAudioNode).not.toBeNull();
+    fireEvent.play(referenceAudioNode as HTMLAudioElement);
+
+    pauseSpy.mockClear();
+    fireEvent.click(screen.getByRole("button", { name: "Play audio preview" }));
+
+    expect(pauseSpy).toHaveBeenCalledTimes(1);
   });
 
   it("does not settle detail modal images on Supabase render-image urls when full media is available", () => {

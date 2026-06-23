@@ -344,6 +344,9 @@ export function MediaLibraryAudioCard({
   const durationMs = resolveMediaMetadataDurationMs(file.metadata, { fileType: file.file_type });
   const shouldSetAriaPressed =
     Boolean(onToggleMediaSelection) || setAriaPressedWithoutSelectionMode;
+  const audioCardLabel = `${
+    onToggleMediaSelection && isSelected ? "Deselect" : "Select"
+  } audio ${audioLabel}`;
 
   const markSignedUrlLoaded = React.useCallback(() => {
     if (signedUrlLoadedRef.current) return;
@@ -364,6 +367,7 @@ export function MediaLibraryAudioCard({
         tabIndex={0}
         className="reference-card has-audio media-library-panel-audio-reference-card"
         ref={getMediaCardRef(file.id)}
+        aria-label={audioCardLabel}
         aria-pressed={shouldSetAriaPressed ? isSelected : undefined}
         draggable={Boolean(onMediaDragStart)}
         onClick={() =>
@@ -480,6 +484,9 @@ export function MediaLibraryVisualMediaCard({
   const durationMediaUrl = hoverVideoUrl ?? cardPreviewUrl ?? file.signedUrl ?? null;
   const shouldSetAriaPressed =
     Boolean(onToggleMediaSelection) || setAriaPressedWithoutSelectionMode;
+  const mediaCardLabel = `${
+    onToggleMediaSelection && isSelected ? "Deselect" : "Select"
+  } media ${resolveMediaLibraryCardDisplayLabel(file)}`;
 
   const markSignedUrlLoaded = React.useCallback(() => {
     if (signedUrlLoadedRef.current) return;
@@ -753,6 +760,7 @@ export function MediaLibraryVisualMediaCard({
         type="button"
         className="media-card media-library-panel-media-card-button"
         ref={getMediaCardRef(file.id)}
+        aria-label={mediaCardLabel}
         aria-pressed={shouldSetAriaPressed ? isSelected : undefined}
         draggable={Boolean(onMediaDragStart)}
         onClick={() =>

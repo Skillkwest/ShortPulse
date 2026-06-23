@@ -209,6 +209,49 @@ describe("MediaLibraryPanelPreviewModal", () => {
     expect(pauseSpy).toHaveBeenCalledTimes(1);
   });
 
+  it("reserves modal audio playback before native playback resolves", () => {
+    const pauseSpy = HTMLMediaElement.prototype.pause as ReturnType<typeof vi.fn>;
+    const audioFile: MediaFileRow = {
+      id: "audio-1",
+      filename: "voice-note-1.mp3",
+      storage_path: "user-1/uploads/voice-note-1.mp3",
+      preview_storage_path: "user-1/uploads/voice-note-1.mp3",
+      file_type: "audio/mpeg",
+      signedUrl: "https://cdn.example.com/voice-note-1.mp3",
+    };
+
+    render(
+      <>
+        <div className="reference-card has-audio">
+          <ReferenceAudioPlayer
+            audioId="ref-audio-1"
+            audioUrl="https://example.com/ref-audio-1.mp3"
+            playLabel="Play reference audio"
+            pauseLabel="Pause reference audio"
+          />
+        </div>
+        <MediaLibraryPanelPreviewModal
+          item={createPreviewItem(audioFile, "https://cdn.example.com/voice-note-1.mp3")}
+          isLoading={false}
+          error={null}
+          onClose={vi.fn()}
+        />
+      </>
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Play reference audio" }));
+    const referenceAudioNode = document.querySelector(
+      ".reference-card-audio"
+    ) as HTMLAudioElement | null;
+    expect(referenceAudioNode).not.toBeNull();
+    fireEvent.play(referenceAudioNode as HTMLAudioElement);
+
+    pauseSpy.mockClear();
+    fireEvent.click(screen.getByRole("button", { name: "Play audio preview" }));
+
+    expect(pauseSpy).toHaveBeenCalledTimes(1);
+  });
+
   it("renders an available image preview while the focused asset is still loading", () => {
     const imageFile: MediaFileRow = {
       id: "image-1",

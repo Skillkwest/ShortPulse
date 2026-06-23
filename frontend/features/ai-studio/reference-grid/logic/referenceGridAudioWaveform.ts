@@ -2,6 +2,7 @@
  * Audio waveform helpers for reference-grid audio cards.
  * Produces compact normalized peak arrays for mirrored peak-envelope rendering.
  */
+import { readRememberedObjectUrlBlob } from "../../utils/objectUrlBlobRegistry";
 
 const DEFAULT_AUDIO_WAVEFORM_DURATION_SECONDS = 6;
 const DEFAULT_AUDIO_WAVEFORM_BAR_COUNT = 56;
@@ -180,15 +181,25 @@ const rememberAudioWaveformPeaks = (audioUrl: string, peaks: number[]) => {
   audioWaveformCache.set(audioUrl, peaks);
 };
 
+const resolveAudioBytesFromUrl = async (audioUrl: string): Promise<ArrayBuffer | null> => {
+  if (/^blob:/i.test(audioUrl)) {
+    const rememberedBlob = readRememberedObjectUrlBlob(audioUrl);
+    return rememberedBlob ? await rememberedBlob.arrayBuffer() : null;
+  }
+
+  const response = await fetch(audioUrl);
+  if (!response.ok) return null;
+  return await response.arrayBuffer();
+};
+
 const decodeAudioWaveformPeaksFromUrl = async (audioUrl: string): Promise<number[] | null> => {
   const AudioContextConstructor = resolveAudioContextConstructor();
   if (!AudioContextConstructor) return null;
 
   let audioContext: AudioContext | null = null;
   try {
-    const response = await fetch(audioUrl);
-    if (!response.ok) return null;
-    const audioBytes = await response.arrayBuffer();
+    const audioBytes = await resolveAudioBytesFromUrl(audioUrl);
+    if (!audioBytes) return null;
     audioContext = new AudioContextConstructor();
     const decodedBuffer = await audioContext.decodeAudioData(audioBytes.slice(0));
     const peaks = buildDecodedWaveformPeaks(decodedBuffer);

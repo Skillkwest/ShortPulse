@@ -373,6 +373,7 @@ describe("useAiStudioState output store bridge", () => {
       expect(listVisibleGeneratedOutputsMock).toHaveBeenCalledWith({
         projectId: null,
         workspaceRuntimeKey: null,
+        includeWorkflowContext: false,
         limit: 1,
         runtimeIdentities: [
           {

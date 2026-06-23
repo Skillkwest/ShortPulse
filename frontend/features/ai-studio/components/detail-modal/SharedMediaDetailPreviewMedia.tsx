@@ -36,6 +36,7 @@ type SharedMediaDetailAudioPreviewProps = {
   playLabel?: string;
   pauseLabel?: string;
   onAudioPlay?: React.ReactEventHandler<HTMLAudioElement>;
+  onAudioRequestPlayback?: () => void;
   onAudioPause?: React.ReactEventHandler<HTMLAudioElement>;
   onAudioEnded?: React.ReactEventHandler<HTMLAudioElement>;
   onAudioError?: React.ReactEventHandler<HTMLAudioElement>;
@@ -88,6 +89,7 @@ type SharedMediaDetailPreviewMediaProps = {
   onVideoError?: React.ReactEventHandler<HTMLVideoElement>;
   onVideoVolumeChange?: React.ReactEventHandler<HTMLVideoElement>;
   onAudioPlay?: React.ReactEventHandler<HTMLAudioElement>;
+  onAudioRequestPlayback?: () => void;
   onAudioPause?: React.ReactEventHandler<HTMLAudioElement>;
   onAudioEnded?: React.ReactEventHandler<HTMLAudioElement>;
   onAudioError?: React.ReactEventHandler<HTMLAudioElement>;
@@ -108,6 +110,7 @@ function SharedMediaDetailAudioPreview({
   playLabel = "Play audio preview",
   pauseLabel = "Pause audio preview",
   onAudioPlay,
+  onAudioRequestPlayback,
   onAudioPause,
   onAudioEnded,
   onAudioError,
@@ -230,13 +233,14 @@ function SharedMediaDetailAudioPreview({
         node.currentTime = 0;
         setProgressRatio(0);
       }
+      onAudioRequestPlayback?.();
       try {
         await node.play();
       } catch {
         setIsPlaying(false);
       }
     },
-    [isPlaying]
+    [isPlaying, onAudioRequestPlayback]
   );
 
   const seekAudioToRatio = React.useCallback(
@@ -480,6 +484,7 @@ export function SharedMediaDetailPreviewMedia({
   onVideoError,
   onVideoVolumeChange,
   onAudioPlay,
+  onAudioRequestPlayback,
   onAudioPause,
   onAudioEnded,
   onAudioError,
@@ -609,6 +614,7 @@ export function SharedMediaDetailPreviewMedia({
           playLabel={audioPlayLabel}
           pauseLabel={audioPauseLabel}
           onAudioPlay={onAudioPlay}
+          onAudioRequestPlayback={onAudioRequestPlayback}
           onAudioPause={onAudioPause}
           onAudioEnded={onAudioEnded}
           onAudioError={onAudioError}
@@ -631,6 +637,7 @@ export function SharedMediaDetailPreviewMedia({
         playLabel={audioPlayLabel}
         pauseLabel={audioPauseLabel}
         onAudioPlay={onAudioPlay}
+        onAudioRequestPlayback={onAudioRequestPlayback}
         onAudioPause={onAudioPause}
         onAudioEnded={onAudioEnded}
         onAudioError={onAudioError}

@@ -92,6 +92,7 @@ describe("MediaLibraryMediaGrid", () => {
     render(<MediaLibraryMediaGrid {...baseProps()} />);
 
     expect(screen.getByAltText("clip-1.mp4")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Select media clip-1.mp4" })).toBeInTheDocument();
     expect(document.querySelector("video.media-thumb")).toBeNull();
   });
 
@@ -179,6 +180,9 @@ describe("MediaLibraryMediaGrid", () => {
     const video = document.querySelector("video.media-thumb");
     expect(video).not.toBeNull();
     expect(video).toHaveAttribute("src", "https://cdn.example.com/clip-1-preview.mp4");
+    expect(screen.getByRole("button", { name: "Select media clip-1.mp4" })).toContainElement(
+      video as HTMLElement
+    );
   });
 
   it("uses a fixed visual aspect ratio when the assignment layout contract is enabled", () => {
@@ -231,6 +235,7 @@ describe("MediaLibraryMediaGrid", () => {
 
     const audioCard = container.querySelector(".media-library-panel-audio-reference-card");
     expect(audioCard).toHaveStyle({ aspectRatio: "1" });
+    expect(screen.getByRole("button", { name: "Select audio voice-note.mp3" })).toBe(audioCard);
     expect(screen.getByText("voice-note.mp3")).toBeInTheDocument();
   });
 

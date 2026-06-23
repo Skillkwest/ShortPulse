@@ -50,12 +50,15 @@ export function MediaLibraryPromptReferenceCard({
   ]
     .filter(Boolean)
     .join(" ");
+  const promptLabel = prompt.title?.trim() || "Saved prompt";
+  const promptCardLabel = `${isSelected ? "Deselect" : "Select"} prompt ${promptLabel}`;
 
   return (
     <div className={shellClasses} style={shellStyle}>
       <button
         type="button"
         className={cardClasses}
+        aria-label={promptCardLabel}
         aria-pressed={isSelected}
         draggable={Boolean(onPromptDragStart)}
         onClick={() => onSelectPromptCard(prompt)}

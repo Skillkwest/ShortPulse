@@ -1285,6 +1285,7 @@ function DetailModalContent({
                   onVideoError={handleDetailVideoError}
                   onVideoVolumeChange={videoPreviewPlayback.handleVolumeChange}
                   onAudioPlay={audioPreviewPlayback.handlePlay}
+                  onAudioRequestPlayback={audioPreviewPlayback.requestPlayback}
                   onAudioPause={audioPreviewPlayback.handlePause}
                   onAudioEnded={audioPreviewPlayback.handleEnded}
                   onAudioError={handleDetailAudioError}

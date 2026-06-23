@@ -68,6 +68,8 @@ export function MediaLibraryPromptGrid({
       ) : (
         sortedPrompts.map((prompt) => {
           const isSelected = selectedIds.has(prompt.id);
+          const promptLabel = prompt.title?.trim() || "Saved prompt";
+          const promptCardLabel = `${isSelected ? "Deselect" : "Select"} prompt ${promptLabel}`;
           return (
             <div
               key={prompt.id}
@@ -76,6 +78,7 @@ export function MediaLibraryPromptGrid({
               <button
                 type="button"
                 className={`prompt-card media-library-prompt-card${isSelected ? " is-selected" : ""}`}
+                aria-label={promptCardLabel}
                 aria-pressed={isSelected}
                 draggable={Boolean(onPromptDragStart)}
                 onClick={() => onSelectPromptCard(prompt)}

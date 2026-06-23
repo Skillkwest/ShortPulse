@@ -376,9 +376,11 @@ describe("MediaLibraryAllItemsGrid", () => {
 
     render(<MediaLibraryAllItemsGrid {...props} />);
 
+    const promptButton = screen.getByRole("button", { name: "Select prompt Prompt One" });
     const promptText = screen.getByText("Cinematic portrait prompt");
     const promptShell = promptText.closest(".media-library-panel-prompt-reference-shell");
 
+    expect(promptButton).toHaveClass("media-library-panel-prompt-reference-card");
     expect(promptShell).not.toBeNull();
     expect(promptShell).toHaveStyle({
       position: "absolute",
@@ -403,7 +405,7 @@ describe("MediaLibraryAllItemsGrid", () => {
 
     render(<MediaLibraryAllItemsGrid {...props} />);
 
-    fireEvent.doubleClick(screen.getByText("Cinematic portrait prompt"));
+    fireEvent.doubleClick(screen.getByRole("button", { name: "Select prompt Prompt One" }));
 
     expect(props.onPromptDoubleClick).toHaveBeenCalledWith(
       expect.objectContaining({ id: "prompt-1" })

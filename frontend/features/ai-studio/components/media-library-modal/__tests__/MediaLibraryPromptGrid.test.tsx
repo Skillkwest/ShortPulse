@@ -23,7 +23,7 @@ describe("MediaLibraryPromptGrid", () => {
       />
     );
 
-    const button = screen.getByRole("button");
+    const button = screen.getByRole("button", { name: "Select prompt Prompt One" });
     expect(button).toHaveClass("prompt-card");
     expect(button).not.toHaveClass("reference-card");
   });
@@ -40,7 +40,7 @@ describe("MediaLibraryPromptGrid", () => {
       />
     );
 
-    const button = screen.getByRole("button");
+    const button = screen.getByRole("button", { name: "Deselect prompt Prompt One" });
     expect(button).toHaveClass("reference-card");
     expect(button).toHaveClass("has-text");
     expect(button).toHaveClass("is-active");

@@ -13,7 +13,7 @@ Rules:
 - This repo prompt and current repo instructions beat stale active-goal text, memory, reports, handoffs, and old scores.
 - July 7 is the active launch decision date, not permission for false confidence.
 - Preserve current UI/UX/design/behavior. No redesign or major behavior change unless fresh evidence proves smaller source fixes cannot protect launch.
-- Dirty worktree files are hard boundaries unless assigned to Copperknot this turn; failures there are lane evidence, not patch targets.
+- Dirty-worktree gate: classify files as Copperknot/parallel/unknown; patch only clean/assigned files. Elsewhere failures are evidence.
 - Never use Supabase image transformations: no transform params, `/storage/v1/render/image/`, adaptive rewrites, fallbacks, experiments, or exceptions.
 - Do not commit, push, deploy, spend credits, change billing/policy, expose secrets, perform destructive data work, or make public promises without approval.
 - Decide and act inside the guardrails. Do not push obvious next steps or routine launch-priority calls back to the user.

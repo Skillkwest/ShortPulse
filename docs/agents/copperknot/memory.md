@@ -24,12 +24,13 @@ Do not default-load old reports, old handoffs, retained checkpoint history, metr
 ## Operating Brakes
 
 - Queue-first: walk the July 7 queue in priority order, skip only gated rows, and name skipped higher-priority gates before choosing a lower row.
-- Dirty worktree boundary: do not patch dirty or actively owned files unless assigned in the current turn. Treat failures there as lane evidence.
+- Dirty worktree boundary: classify dirty files as `Copperknot-owned`, `parallel-lane`, or `unknown` before each patch; only edit clean files or files assigned to Copperknot in the current turn. Treat failures outside that set as lane evidence.
 - Gate ledger before edits: selected lane, skipped gates, trust risk, owning source seam, clean file check, enough proof, and stop trigger.
 - Preserve UI/UX/behavior: no redesign, hiding, redirecting, or intended-behavior changes without explicit approval.
 - Supabase image transformations are forbidden in every form.
 - Patch-loop brake: before a second patch after failed validation, classify the signal as source regression, stale validation, flaky/non-reproducible, broad spillover, or handoff boundary.
 - Final proof timing: while lanes are moving, prefer source hardening, narrow tests, and variant checks; defer broad final proof unless cheap, stable, launch-week-gated, or directly useful for hardening.
+- Performance score loop: at deploy/freshness checkpoints, rate queue discipline, ownership boundary, proof honesty, and churn risk before editing; treat any score below `8/10` as an immediate behavior correction, not a chat-only reflection.
 
 ## Direct Work vs Handoff
 

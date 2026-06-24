@@ -80,6 +80,7 @@ export const useMediaLibraryPanelDataController = ({
     mediaScopeCache,
     promptRows,
     promptScopeCache,
+    appendMediaRows,
     setMediaRows,
     setMediaScopeCache,
     setPromptRows,
@@ -261,7 +262,11 @@ export const useMediaLibraryPanelDataController = ({
         const derivedLibraryTotalCount = result.hasMore ? null : nextRows.length;
         const returnedLibraryTotalCount =
           typeof result.libraryTotalCount === "number" ? result.libraryTotalCount : null;
-        setMediaRows(nextRows);
+        if (reset) {
+          setMediaRows(nextRows);
+        } else {
+          appendMediaRows(result.rows);
+        }
         setSignedUrls(result.signedById);
         const previousLibraryTotalCount = mediaScopeCacheRef.current.libraryTotalCount;
         setMediaScopeCache((prev) => ({
@@ -304,6 +309,7 @@ export const useMediaLibraryPanelDataController = ({
       normalizedSearch,
       requestFolderId,
       scheduleLibraryTotalCountRefresh,
+      appendMediaRows,
       setMediaRows,
       setMediaScopeCache,
       setSignedUrls,
@@ -466,6 +472,42 @@ export const useMediaLibraryPanelDataController = ({
     nextContainer.scrollTop = Math.min(Math.max(previousScrollTop, 0), nextMaxTop);
   }, [loadMediaPage, loadPromptPage, panelBodyRef, shouldShowMedia, shouldShowPrompts]);
 
+  const refreshAudioCompanionArtRows = React.useCallback(async () => {
+    const scopeKey = activeRowsScopeKey;
+    const refreshableIds = new Set(
+      mediaRowsRef.current.filter(isRefreshableAudioCompanionArtRow).map((row) => row.id)
+    );
+    if (!refreshableIds.size) return;
+
+    try {
+      const result = await fetchMediaListPage<MediaFileRow>({
+        tab: null,
+        mediaKind: "audio",
+        query: normalizedSearch,
+        cursor: null,
+        limit: MEDIA_PAGE_SIZE,
+        surface: listSurface,
+        profile: resolveMediaLibraryPanelListProfile("audio"),
+        folderId: requestFolderId,
+        includeLibraryTotalCount: false,
+      });
+      if (!result || mediaScopeCacheRef.current.resolvedScopeKey !== scopeKey) return;
+      const refreshedRows = result.rows.filter((row) => refreshableIds.has(row.id));
+      if (!refreshedRows.length) return;
+      appendMediaRows(refreshedRows);
+      setSignedUrls(result.signedById);
+    } catch {
+      // Companion art is decorative; keep the loaded media list stable if polling fails.
+    }
+  }, [
+    activeRowsScopeKey,
+    appendMediaRows,
+    listSurface,
+    normalizedSearch,
+    requestFolderId,
+    setSignedUrls,
+  ]);
+
   React.useEffect(() => {
     if (!refreshableAudioCompanionArtRefreshKey) return;
 
@@ -473,7 +515,7 @@ export const useMediaLibraryPanelDataController = ({
     const refreshPendingAudioCompanionArt = () => {
       if (cancelled || audioCompanionArtRefreshInFlightRef.current) return;
       audioCompanionArtRefreshInFlightRef.current = true;
-      void refreshActiveRows().finally(() => {
+      void refreshAudioCompanionArtRows().finally(() => {
         audioCompanionArtRefreshInFlightRef.current = false;
       });
     };
@@ -488,7 +530,7 @@ export const useMediaLibraryPanelDataController = ({
       cancelled = true;
       globalThis.clearInterval(intervalId);
     };
-  }, [refreshableAudioCompanionArtRefreshKey, refreshActiveRows]);
+  }, [refreshableAudioCompanionArtRefreshKey, refreshAudioCompanionArtRows]);
 
   const maybeAutoLoadMore = React.useCallback(() => {
     const container = panelBodyRef.current;

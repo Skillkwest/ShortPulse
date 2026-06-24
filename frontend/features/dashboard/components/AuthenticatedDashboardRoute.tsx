@@ -94,6 +94,16 @@ const getUserDisplayName = (user: User) => {
   return displayName || fullName || email || "Guest";
 };
 
+const getDashboardGreetingName = (displayName: string) => {
+  const firstToken = displayName
+    .split(/\s+/)
+    .find((part) => part.trim().length > 0)
+    ?.trim();
+  if (!firstToken) return "creator";
+  if (!firstToken.includes("@")) return firstToken;
+  return firstToken.split("@")[0]?.trim() || "creator";
+};
+
 const formatCreditUsageValue = (
   balanceCents: number | null,
   monthlyCreditsCents: number
@@ -195,7 +205,7 @@ export function AuthenticatedDashboardRoute({
     fallbackPlanId: planMeta.id,
   });
   const displayName = getUserDisplayName(user);
-  const firstName = displayName.split(/\s+/)[0] || "creator";
+  const firstName = getDashboardGreetingName(displayName);
   const initials =
     displayName
       .split(/\s+/)

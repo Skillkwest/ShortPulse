@@ -54,6 +54,7 @@ type UseAiStudioPageSessionPersistenceParams = {
   hydrateFromSessionCanvasSnapshot?: (canvas: AiStudioSessionCanvasState | null) => void;
   isAutosaveWorkDeferred?: boolean;
   immediateSaveSignal?: string | number | null;
+  prepareCurrentSnapshot?: () => void;
   applyEmptyProjectState?: () => void;
   resetProjectAgentConversation?: () => void;
   setUiNotice: Dispatch<SetStateAction<string | null>>;
@@ -77,6 +78,7 @@ export const useAiStudioPageSessionPersistence = ({
   hydrateFromSessionCanvasSnapshot,
   isAutosaveWorkDeferred = false,
   immediateSaveSignal = null,
+  prepareCurrentSnapshot,
   applyEmptyProjectState,
   resetProjectAgentConversation,
   setUiNotice,
@@ -126,6 +128,7 @@ export const useAiStudioPageSessionPersistence = ({
     hydrateFromSessionCanvasSnapshot,
     isAutosaveWorkDeferred,
     immediateSaveSignal,
+    prepareCurrentSnapshot,
     applyEmptyProjectState,
     resetProjectAgentConversation,
     onPersistenceWarning: handleSessionPersistenceWarning,
@@ -147,6 +150,13 @@ export const useAiStudioPageSessionPersistence = ({
     projectBootstrapApplied: true,
     projectBootstrapError: null,
     retryProjectBootstrap: () => undefined,
+    flushProjectWorkspaceSnapshot: async () => ({
+      status: "skipped",
+      reason: "not_project",
+      projectId: null,
+      snapshotHash: null,
+      keepalive: false,
+    }),
     resetProjectWorkspace: async () => undefined,
   };
 

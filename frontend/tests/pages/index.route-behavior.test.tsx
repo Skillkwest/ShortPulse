@@ -124,7 +124,7 @@ describe("Index route behavior", () => {
     expect(screen.getAllByRole("link", { name: "Login" })).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          href: expect.stringContaining("/auth?next=%2Fdashboard"),
+          href: expect.stringContaining("/log-in?next=%2Fdashboard"),
         }),
       ])
     );

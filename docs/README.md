@@ -49,7 +49,8 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/dev-ground-rules.md`
 - `docs/conventions.md`
 - `docs/agent-playbook.md`
-- `docs/adr/0094-paid-signup-intent-gate.md`
+- `docs/adr/0094-paid-signup-intent-gate.md` (historical; superseded by `docs/adr/0095-account-first-signup-intent-gate.md`)
+- `docs/adr/0095-account-first-signup-intent-gate.md`
 - `docs/AGENTS.md`
 - `docs/developer-analytics-stat-sheet.md`
 - `docs/ux-decision-framework.md`
@@ -142,6 +143,12 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/gutan/ownership-manifest.md`
 - `docs/agents/Money Stuff/README.md`
 - `docs/agents/nogo/README.md`
+- `docs/agents/nogo/AGENTS.md`
+- `docs/agents/nogo/memory.md`
+- `docs/agents/nogo/standard-operating-procedure.md`
+- `docs/agents/nogo/ownership-manifest.md`
+- `docs/agents/nogo/tools/README.md`
+- `docs/agents/nogo/workspace/README.md`
 - `docs/agents/lever/README.md`
 - `docs/agents/nuclo/README.md`
 - `docs/agents/nuclo/environment-ledger-template.md`

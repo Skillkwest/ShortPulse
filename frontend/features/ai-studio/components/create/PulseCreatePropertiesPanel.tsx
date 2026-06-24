@@ -162,6 +162,7 @@ export function PulseCreatePropertiesPanel({
     onPromptChange: onPulsePromptChange,
     agentEnabled,
     agentBootstrapPending,
+    agentInputDisabled: !hasActivePulseSession,
     agentMessages,
     agentInput,
     agentIsSending,
@@ -202,6 +203,7 @@ export function PulseCreatePropertiesPanel({
     stackTrailingComposerControls: true,
     agentInputMaxHeightPx: EXPERT_CREATE_PULSE_AGENT_INPUT_MAX_HEIGHT_PX,
     agentInputCollapseOnBlur: false,
+    agentInputVerticalExpansionAnchor: hasActivePulseSession ? "bottom" : "top",
     hideHeader: true,
   };
 

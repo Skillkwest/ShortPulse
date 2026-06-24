@@ -8,12 +8,14 @@ export const CHARACTER_MODE_EMPTY_LOOK_GUARDRAIL =
   "This look has no character reference images. Add a reference image or choose another look before generating.";
 
 type CharacterModeReferenceBundle = {
+  directLookReferenceCount?: number | null;
   sheetReferenceStoragePaths?: readonly (string | null | undefined)[] | null;
   sheetReferenceUrls?: readonly (string | null | undefined)[] | null;
 };
 
 export type CharacterModeReferenceReadiness = {
   characterReferenceCount: number;
+  effectiveReferenceCount: number;
   hasCharacterReferences: boolean;
   shouldBlockGenerate: boolean;
   guardrailMessage: string | null;
@@ -43,10 +45,16 @@ export const resolveCharacterModeReferenceReadiness = ({
   isBundleLoading?: boolean;
   bundle?: CharacterModeReferenceBundle | null;
 }): CharacterModeReferenceReadiness => {
-  const characterReferenceCount = Math.max(
+  const effectiveReferenceCount = Math.max(
     countNormalizedReferences(bundle?.sheetReferenceStoragePaths),
     countNormalizedReferences(bundle?.sheetReferenceUrls)
   );
+  const directLookReferenceCount =
+    typeof bundle?.directLookReferenceCount === "number" &&
+    Number.isFinite(bundle.directLookReferenceCount)
+      ? Math.max(0, Math.floor(bundle.directLookReferenceCount))
+      : null;
+  const characterReferenceCount = directLookReferenceCount ?? effectiveReferenceCount;
   const hasCharacterReferences = characterReferenceCount > 0;
   const hasSelectedCharacter =
     typeof selectedCharacterId === "string" && selectedCharacterId.trim().length > 0;
@@ -59,6 +67,7 @@ export const resolveCharacterModeReferenceReadiness = ({
 
   return {
     characterReferenceCount,
+    effectiveReferenceCount,
     hasCharacterReferences,
     shouldBlockGenerate,
     guardrailMessage: shouldBlockGenerate ? CHARACTER_MODE_EMPTY_LOOK_GUARDRAIL : null,

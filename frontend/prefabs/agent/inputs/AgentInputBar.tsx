@@ -13,6 +13,7 @@ type AgentInputBarProps = {
   onKeyDown?: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   maxHeightPx?: number;
   collapseToMinHeightWhenBlurred?: boolean;
+  verticalExpansionAnchor?: "top" | "bottom";
   onFocusChange?: (isFocused: boolean) => void;
   onVisualRowCountChange?: (rowCount: number) => void;
 };
@@ -28,6 +29,7 @@ export const AgentInputBar = React.forwardRef<HTMLTextAreaElement, AgentInputBar
       onKeyDown,
       maxHeightPx = 240,
       collapseToMinHeightWhenBlurred = false,
+      verticalExpansionAnchor = "top",
       onFocusChange,
       onVisualRowCountChange,
     }: AgentInputBarProps,
@@ -82,12 +84,22 @@ export const AgentInputBar = React.forwardRef<HTMLTextAreaElement, AgentInputBar
         return;
       }
 
+      const createComposerBoundaryRect = createComposerBoundary?.getBoundingClientRect();
+      const textareaRect = textarea.getBoundingClientRect();
+      const topAnchoredAvailableHeightPx =
+        (createComposerBoundaryRect?.bottom ?? window.innerHeight) -
+        textareaRect.top -
+        CREATE_COMPOSER_PANEL_BOUNDARY_INSET_PX;
+      const bottomAnchoredAvailableHeightPx =
+        textareaRect.bottom -
+        (createComposerBoundaryRect?.top ?? 0) -
+        CREATE_COMPOSER_PANEL_BOUNDARY_INSET_PX;
       const createComposerAvailableHeightPx = isInsideCreateComposer
         ? Math.max(
             computedMinHeightPx,
-            (createComposerBoundary?.getBoundingClientRect().bottom ?? window.innerHeight) -
-              textarea.getBoundingClientRect().top -
-              CREATE_COMPOSER_PANEL_BOUNDARY_INSET_PX
+            verticalExpansionAnchor === "bottom"
+              ? bottomAnchoredAvailableHeightPx
+              : topAnchoredAvailableHeightPx
           )
         : maxHeightPx;
       const resolvedMaxHeightPx = Math.max(
@@ -97,7 +109,14 @@ export const AgentInputBar = React.forwardRef<HTMLTextAreaElement, AgentInputBar
       const nextHeightPx = Math.min(measuredScrollHeightPx, resolvedMaxHeightPx);
       applyHeight(nextHeightPx);
       textarea.style.overflowY = measuredScrollHeightPx > resolvedMaxHeightPx ? "auto" : "hidden";
-    }, [collapseToMinHeightWhenBlurred, isFocused, maxHeightPx, onVisualRowCountChange, value]);
+    }, [
+      collapseToMinHeightWhenBlurred,
+      isFocused,
+      maxHeightPx,
+      onVisualRowCountChange,
+      value,
+      verticalExpansionAnchor,
+    ]);
 
     const scheduleResizeToFit = useCallback(() => {
       if (resizeRafRef.current != null) {

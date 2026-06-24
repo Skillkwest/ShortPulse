@@ -1093,6 +1093,134 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     expect(buildSessionSnapshot).toHaveBeenCalledTimes(2);
   });
 
+  it("flushes the current project workspace snapshot while autosave work is deferred", async () => {
+    const restoredSnapshot = {
+      ...createAiStudioProjectWorkspaceSnapshot(createSnapshot()),
+      outputs: {
+        active: [
+          {
+            id: "out-1",
+            prompt: "Restored image",
+            mode: "image",
+            aspect: "1:1",
+            model: "model-1",
+            status: "ready",
+            timestamp: "Just now",
+            previewUrl: "https://cdn.example.com/out-1.png",
+            resultUrls: ["https://cdn.example.com/out-1.png"],
+          },
+        ],
+        archived: [],
+        activeOutputId: null,
+        curatedReferenceIds: [],
+        removedFromAllRefsIds: [],
+      },
+    } as unknown as AiStudioSessionSnapshot;
+    const editedSnapshot = {
+      ...restoredSnapshot,
+      outputs: {
+        ...restoredSnapshot.outputs,
+        curatedReferenceIds: ["out-1"],
+      },
+      canvas: serializeAiStudioSessionCanvasState({
+        items: [
+          {
+            id: "canvas-text-1",
+            kind: "text",
+            text: "current rail edit",
+            x: 20,
+            y: 30,
+            z: 1,
+            selected: false,
+            outputId: null,
+            sourceSurface: null,
+            width: 180,
+            height: 48,
+          },
+        ],
+        draftTextEntry: null,
+        textEditSession: null,
+        draftOwnerInstanceId: null,
+        textEditOwnerInstanceId: null,
+        mainCamera: { x: 0, y: 0, zoom: 1 },
+        railCamera: { x: 48, y: -24, zoom: 1.6 },
+      }),
+    } as unknown as AiStudioSessionSnapshot;
+    mockReadyRestoreCandidate(restoredSnapshot);
+    const buildRestoredSnapshot = vi.fn(() => restoredSnapshot);
+    const buildEditedSnapshot = vi.fn(() => editedSnapshot);
+    const prepareCurrentSnapshot = vi.fn();
+    const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
+    mockedSaveProjectWorkspaceViaApi.mockResolvedValue({
+      projectId: "project-1",
+      schemaVersion: 2,
+      snapshot: editedSnapshot,
+      createdAt: "2026-04-24T18:00:00.000Z",
+      updatedAt: "2026-04-24T18:01:00.000Z",
+      saveOutcome: { status: "saved" },
+    });
+
+    const { result, rerender } = renderHook(
+      ({ buildSnapshot, isAutosaveWorkDeferred }) =>
+        useAiStudioProjectWorkspacePersistenceController({
+          projectId: "project-1",
+          projectRouteRequested: true,
+          sessionId: "session-1",
+          buildBaseSessionSnapshot: buildSnapshot,
+          hydrateFromSessionSnapshot,
+          isAutosaveWorkDeferred,
+          prepareCurrentSnapshot,
+        }),
+      {
+        initialProps: {
+          buildSnapshot: buildRestoredSnapshot,
+          isAutosaveWorkDeferred: false,
+        },
+      }
+    );
+
+    const restoreHydrationArgs =
+      mockedUseAiStudioProjectWorkspaceRestoreHydration.mock.calls[0]?.[0];
+    act(() => {
+      restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
+    });
+    rerender({
+      buildSnapshot: buildRestoredSnapshot,
+      isAutosaveWorkDeferred: false,
+    });
+    await flushBootstrapVisibilityLatch();
+    expect(result.current.projectBootstrapApplied).toBe(true);
+
+    rerender({
+      buildSnapshot: buildEditedSnapshot,
+      isAutosaveWorkDeferred: true,
+    });
+
+    let flushResult: Awaited<ReturnType<typeof result.current.flushProjectWorkspaceSnapshot>>;
+    await act(async () => {
+      flushResult = await result.current.flushProjectWorkspaceSnapshot({
+        reason: "pagehide",
+        keepalive: true,
+      });
+    });
+
+    expect(flushResult!).toEqual(
+      expect.objectContaining({
+        status: "saved",
+        projectId: "project-1",
+        keepalive: true,
+      })
+    );
+    expect(prepareCurrentSnapshot).toHaveBeenCalledTimes(1);
+    expect(mockedSaveProjectWorkspaceViaApi).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "project-1",
+        snapshot: editedSnapshot,
+        keepalive: true,
+      })
+    );
+  });
+
   it("keeps autosave disabled until the built project snapshot reflects restored quick slots and full durable canvas state", async () => {
     const restoredSnapshot = {
       ...createAiStudioProjectWorkspaceSnapshot(createSnapshot()),

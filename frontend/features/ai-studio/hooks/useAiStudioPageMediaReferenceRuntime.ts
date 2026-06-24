@@ -913,6 +913,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
   const {
     railCanvasProps: baseRailCanvasProps,
     sessionState: canvasSessionState,
+    flushSessionState,
     hydrateSessionState: hydrateCanvasSessionState,
   } = useAiStudioDualCanvasWorkspaceState({
     resolveCanvasDropReference,
@@ -935,6 +936,12 @@ export const useAiStudioPageMediaReferenceRuntime = ({
   useEffect(() => {
     canvasSessionStateRef.current = canvasSessionState;
   }, [canvasSessionState]);
+
+  const flushCanvasSessionState = useCallback(() => {
+    const nextState = flushSessionState();
+    canvasSessionStateRef.current = nextState;
+    return nextState;
+  }, [flushSessionState]);
 
   const applyCanvasSessionItemUpdate = useCallback(
     (itemId: string, resolveNextItem: (item: CanvasSceneItem) => CanvasSceneItem): boolean => {
@@ -1912,6 +1919,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
     handleQuickSlotDroppedMediaReference,
     handleQuickSlotLibraryMediaDrop,
     handleQuickSlotLibraryPromptDrop,
+    flushCanvasSessionState,
     hydrateCanvasSessionState,
     removeCanvasItemsForOutput,
     railCanvasProps: stableRailCanvasProps,

@@ -40,20 +40,12 @@ const REROLL_VOICE_NOTICE =
 
 const resolveVoiceForReroll = (
   requestedVoiceId: string,
-  requestedVoiceName: string,
   voices: readonly SharedVoiceOption[]
 ): SharedVoiceOption | null =>
   voices.find((voice) => voice.id === requestedVoiceId) ??
   voices.find((voice) => voice.isFallback || voice.librarySection === "default") ??
   voices[0] ??
-  (requestedVoiceId
-    ? {
-        id: requestedVoiceId,
-        name: requestedVoiceName || "Voice",
-        librarySection: "default",
-        provider: "elevenlabs",
-      }
-    : null);
+  null;
 
 const normalizeVoiceChangerSourceOrigin = (
   source: WorkflowReloadVoiceChangerSource
@@ -192,7 +184,7 @@ export const useAiStudioAudioRerollController = ({
       }
 
       if (payload.kind === "voiceover") {
-        const voice = resolveVoiceForReroll(payload.voiceId, payload.voiceName, voices);
+        const voice = resolveVoiceForReroll(payload.voiceId, voices);
         if (!voice) {
           setUiNotice(REROLL_VOICE_NOTICE);
           return true;
@@ -208,7 +200,7 @@ export const useAiStudioAudioRerollController = ({
       }
 
       if (payload.kind === "voice-changer") {
-        const voice = resolveVoiceForReroll(payload.voiceId, payload.voiceName, voices);
+        const voice = resolveVoiceForReroll(payload.voiceId, voices);
         const source = buildVoiceChangerSource(payload);
         if (!voice) {
           setUiNotice(REROLL_VOICE_NOTICE);

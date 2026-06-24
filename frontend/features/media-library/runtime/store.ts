@@ -2,7 +2,11 @@
  * Shared Media Library runtime store.
  * Normalizes media/prompt entities once so modal and panel adapters can stop cloning full row arrays.
  */
-import { MEDIA_DATA_TABS, createEmptyMediaTabCache } from "../logic/mediaLibraryPageHelpers";
+import {
+  MEDIA_DATA_TABS,
+  createEmptyMediaTabCache,
+  getMediaDataTabForRow,
+} from "../logic/mediaLibraryPageHelpers";
 import type {
   MediaLibraryAggregateScopeCacheState,
   MediaLibraryAggregateScopeKind,
@@ -300,6 +304,113 @@ export const replaceSurfaceMediaRowsByTabs = <
     mediaIdsByTab: nextMediaIdsByTab,
   };
   surfaceState.cacheByTab = mergedCacheByTab;
+  return next;
+};
+
+export const appendSurfaceMediaRows = <
+  TMedia extends MediaLibraryMediaRow,
+  TPrompt extends MediaLibraryPromptRow,
+>(
+  state: MediaLibraryRuntimeState<TMedia, TPrompt>,
+  {
+    surface,
+    rows,
+  }: {
+    surface: MediaLibrarySurfaceKind;
+    rows: TMedia[];
+  }
+): MediaLibraryRuntimeState<TMedia, TPrompt> => {
+  if (rows.length === 0) return state;
+
+  const currentSurfaceState = state.surfaceStateByKind[surface];
+  const aggregateIds = new Set(currentSurfaceState.orderedViews.mediaIds);
+  const tabById = new Map<string, MediaDataTab>();
+  const tabIdSets = {} as Record<MediaDataTab, Set<string>>;
+
+  for (const tab of MEDIA_DATA_TABS) {
+    const ids = currentSurfaceState.orderedViews.mediaIdsByTab[tab];
+    tabIdSets[tab] = new Set(ids);
+    for (const id of ids) {
+      tabById.set(id, tab);
+    }
+  }
+
+  let nextMediaById = state.mediaById;
+  let nextMediaIds = currentSurfaceState.orderedViews.mediaIds;
+  let nextMediaIdsByTab = currentSurfaceState.orderedViews.mediaIdsByTab;
+  let mediaChanged = false;
+  let aggregateChanged = false;
+  let tabOrderChanged = false;
+
+  const ensureMediaById = () => {
+    if (!mediaChanged) {
+      nextMediaById = { ...state.mediaById };
+      mediaChanged = true;
+    }
+  };
+
+  const ensureMediaIds = () => {
+    if (!aggregateChanged) {
+      nextMediaIds = currentSurfaceState.orderedViews.mediaIds.slice();
+      aggregateChanged = true;
+    }
+  };
+
+  const ensureMediaIdsByTab = () => {
+    if (!tabOrderChanged) {
+      nextMediaIdsByTab = { ...currentSurfaceState.orderedViews.mediaIdsByTab };
+      tabOrderChanged = true;
+    }
+  };
+
+  for (const row of rows) {
+    const currentRow = state.mediaById[row.id];
+    if (
+      !currentRow ||
+      !areShallowObjectsEqual(
+        currentRow as unknown as Record<string, unknown>,
+        row as unknown as Record<string, unknown>
+      )
+    ) {
+      ensureMediaById();
+      nextMediaById[row.id] = row;
+    }
+
+    if (!aggregateIds.has(row.id)) {
+      ensureMediaIds();
+      nextMediaIds.push(row.id);
+      aggregateIds.add(row.id);
+    }
+
+    const currentTab = tabById.get(row.id);
+    const nextTab = getMediaDataTabForRow(row);
+    if (currentTab === nextTab && tabIdSets[nextTab].has(row.id)) {
+      continue;
+    }
+
+    ensureMediaIdsByTab();
+    if (currentTab) {
+      nextMediaIdsByTab[currentTab] = nextMediaIdsByTab[currentTab].filter((id) => id !== row.id);
+      tabIdSets[currentTab].delete(row.id);
+    }
+    if (!tabIdSets[nextTab].has(row.id)) {
+      nextMediaIdsByTab[nextTab] = [...nextMediaIdsByTab[nextTab], row.id];
+      tabIdSets[nextTab].add(row.id);
+    }
+    tabById.set(row.id, nextTab);
+  }
+
+  if (!mediaChanged && !aggregateChanged && !tabOrderChanged) {
+    return state;
+  }
+
+  const { next, surfaceState } = cloneRuntimeSurface(state, surface);
+  next.mediaById = nextMediaById;
+  surfaceState.orderedViews = {
+    ...surfaceState.orderedViews,
+    mediaIds: nextMediaIds,
+    mediaIdsByTab: nextMediaIdsByTab,
+  };
   return next;
 };
 

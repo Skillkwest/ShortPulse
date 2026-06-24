@@ -11,7 +11,9 @@ vi.mock("../PulseCreatePanelView", () => ({
     promptStepProps: {
       pulseLoadingState?: { message?: string | null } | null;
       hideHeader?: boolean;
+      agentInputDisabled?: boolean;
       agentInputCollapseOnBlur?: boolean;
+      agentInputVerticalExpansionAnchor?: "top" | "bottom";
       chatHistoryHeaderContent?: React.ReactNode;
       composerLeadingContent?: React.ReactNode;
       composerMiddleContent?: React.ReactNode;
@@ -24,8 +26,14 @@ vi.mock("../PulseCreatePanelView", () => ({
       </span>
       <span data-testid="pulse-activation-busy">{String(Boolean(isPulseActivationBusy))}</span>
       <span data-testid="pulse-hide-header">{String(Boolean(promptStepProps.hideHeader))}</span>
+      <span data-testid="pulse-agent-input-disabled">
+        {String(Boolean(promptStepProps.agentInputDisabled))}
+      </span>
       <span data-testid="pulse-agent-input-collapse-on-blur">
         {String(Boolean(promptStepProps.agentInputCollapseOnBlur))}
+      </span>
+      <span data-testid="pulse-agent-input-expansion-anchor">
+        {promptStepProps.agentInputVerticalExpansionAnchor ?? ""}
       </span>
       <div data-testid="pulse-history-header">{promptStepProps.chatHistoryHeaderContent}</div>
       <div data-testid="pulse-leading-content">{promptStepProps.composerLeadingContent}</div>
@@ -170,6 +178,27 @@ describe("PulseCreatePropertiesPanel", () => {
     render(<PulseCreatePropertiesPanel {...baseProps} />);
 
     expect(screen.getByTestId("pulse-agent-input-collapse-on-blur")).toHaveTextContent("false");
+  });
+
+  it("uses bottom-anchored expansion after a Pulse session starts", () => {
+    render(<PulseCreatePropertiesPanel {...baseProps} hasActivePulseSession />);
+
+    expect(screen.getByTestId("pulse-agent-input-disabled")).toHaveTextContent("false");
+    expect(screen.getByTestId("pulse-agent-input-expansion-anchor")).toHaveTextContent("bottom");
+  });
+
+  it("disables composer input before a Pulse session is active", () => {
+    render(
+      <PulseCreatePropertiesPanel
+        {...baseProps}
+        activePulsePresetId={null}
+        hasActivePulseSession={false}
+        agentUiBusy={false}
+      />
+    );
+
+    expect(screen.getByTestId("pulse-agent-input-disabled")).toHaveTextContent("true");
+    expect(screen.getByTestId("pulse-agent-input-expansion-anchor")).toHaveTextContent("top");
   });
 
   it("keeps the Pulse history header empty after workflow completion", () => {

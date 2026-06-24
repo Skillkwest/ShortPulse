@@ -332,7 +332,7 @@ describe("AiStudioProtectedRouteEntry", () => {
       screen.getByText("Refreshing your session before project restore continues.")
     ).toBeInTheDocument();
     expect(screen.queryByTestId("media-compliance-gate")).not.toBeInTheDocument();
-    expect(replaceMock).toHaveBeenCalledWith("/auth?next=%2Fai-studio%3FprojectId%3Dproject-1");
+    expect(replaceMock).toHaveBeenCalledWith("/log-in?next=%2Fai-studio%3FprojectId%3Dproject-1");
   });
 
   it("renders the heavy AI Studio runtime only after the gates clear", () => {

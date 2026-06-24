@@ -74,6 +74,15 @@ const createBaseRuntime = (): AiStudioPageBaseRuntime =>
     resolveSelectedCharacterIdForTool: vi.fn(() => null),
   }) as unknown as AiStudioPageBaseRuntime;
 
+const createFlushProjectWorkspaceSnapshot = () =>
+  vi.fn(async () => ({
+    status: "skipped" as const,
+    reason: "unchanged" as const,
+    projectId: "project-1",
+    snapshotHash: "hash-1",
+    keepalive: false,
+  }));
+
 describe("useAiStudioShellRuntime", () => {
   it("opens the studio once project bootstrap settles even before autosave-readiness proof matches", () => {
     const { result } = renderHook(() =>
@@ -89,6 +98,7 @@ describe("useAiStudioShellRuntime", () => {
         },
         projectBootstrapSettled: true,
         projectBootstrapApplied: false,
+        flushProjectWorkspaceSnapshot: createFlushProjectWorkspaceSnapshot(),
         filteredModelOptions: [],
         resolveModelPickerCredits: vi.fn(() => null),
         handleSelectModelFromModal: vi.fn(),
@@ -112,6 +122,7 @@ describe("useAiStudioShellRuntime", () => {
         },
         projectBootstrapSettled: false,
         projectBootstrapApplied: false,
+        flushProjectWorkspaceSnapshot: createFlushProjectWorkspaceSnapshot(),
         filteredModelOptions: [],
         resolveModelPickerCredits: vi.fn(() => null),
         handleSelectModelFromModal: vi.fn(),
@@ -140,6 +151,7 @@ describe("useAiStudioShellRuntime", () => {
         },
         projectBootstrapSettled: true,
         projectBootstrapApplied: true,
+        flushProjectWorkspaceSnapshot: createFlushProjectWorkspaceSnapshot(),
         filteredModelOptions: [],
         resolveModelPickerCredits: vi.fn(() => null),
         handleSelectModelFromModal: vi.fn(),
@@ -155,10 +167,52 @@ describe("useAiStudioShellRuntime", () => {
     });
   });
 
-  it("resolves project modal navigation once the target route starts", async () => {
+  it("resolves project modal navigation once the target route completes", async () => {
     const base = createBaseRuntime();
     const routerEvents = createRouterEvents();
     const push = vi.fn(() => new Promise<boolean>(() => undefined));
+    base.router.events = routerEvents.events;
+    base.router.push = push;
+    const flushProjectWorkspaceSnapshot = createFlushProjectWorkspaceSnapshot();
+
+    const { result } = renderHook(() =>
+      useAiStudioShellRuntime({
+        base,
+        sessionRestoreCandidate: {
+          status: "ready",
+          result: "found_snapshot",
+          snapshot: null,
+          source: "project",
+          error: null,
+          retry: vi.fn(),
+        },
+        projectBootstrapSettled: true,
+        projectBootstrapApplied: true,
+        flushProjectWorkspaceSnapshot,
+        filteredModelOptions: [],
+        resolveModelPickerCredits: vi.fn(() => null),
+        handleSelectModelFromModal: vi.fn(),
+      })
+    );
+
+    const openProject = result.current.handleSelectProjectFromModal("project-2");
+    await Promise.resolve();
+    expect(flushProjectWorkspaceSnapshot).toHaveBeenCalledWith({ reason: "project_switch" });
+    routerEvents.emit("routeChangeStart", "/ai-studio?projectId=project-2");
+    await expect(Promise.race([openProject, Promise.resolve("pending")])).resolves.toBe("pending");
+    routerEvents.emit("routeChangeComplete", "/ai-studio?projectId=project-2");
+
+    await expect(openProject).resolves.toBeUndefined();
+    expect(push).toHaveBeenCalledWith({
+      pathname: "/ai-studio",
+      query: { projectId: "project-2" },
+    });
+  });
+
+  it("keeps project modal navigation pending until route complete even when router push resolves", async () => {
+    const base = createBaseRuntime();
+    const routerEvents = createRouterEvents();
+    const push = vi.fn(async () => true);
     base.router.events = routerEvents.events;
     base.router.push = push;
 
@@ -175,6 +229,7 @@ describe("useAiStudioShellRuntime", () => {
         },
         projectBootstrapSettled: true,
         projectBootstrapApplied: true,
+        flushProjectWorkspaceSnapshot: createFlushProjectWorkspaceSnapshot(),
         filteredModelOptions: [],
         resolveModelPickerCredits: vi.fn(() => null),
         handleSelectModelFromModal: vi.fn(),
@@ -182,7 +237,12 @@ describe("useAiStudioShellRuntime", () => {
     );
 
     const openProject = result.current.handleSelectProjectFromModal("project-2");
-    routerEvents.emit("routeChangeStart", "/ai-studio?projectId=project-2");
+    await Promise.resolve();
+    await Promise.resolve();
+
+    await expect(Promise.race([openProject, Promise.resolve("pending")])).resolves.toBe("pending");
+
+    routerEvents.emit("routeChangeComplete", "/ai-studio?projectId=project-2");
 
     await expect(openProject).resolves.toBeUndefined();
     expect(push).toHaveBeenCalledWith({
@@ -213,6 +273,7 @@ describe("useAiStudioShellRuntime", () => {
           },
           projectBootstrapSettled: true,
           projectBootstrapApplied: true,
+          flushProjectWorkspaceSnapshot: createFlushProjectWorkspaceSnapshot(),
           filteredModelOptions: [],
           resolveModelPickerCredits: vi.fn(() => null),
           handleSelectModelFromModal: vi.fn(),

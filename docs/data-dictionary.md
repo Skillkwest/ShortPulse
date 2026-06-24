@@ -891,19 +891,20 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 
 ### signup_intents
 
-- `id` (uuid, pk): Short-lived paid signup intent id.
+- `id` (uuid, pk): Short-lived signup intent id.
 - `email_hash` (text): SHA-256 hash of the normalized signup email; raw email is not stored.
-- `plan_id` (text): Paid plan requested from pricing (`starter | media | studio | business`).
-- `billing_interval` (text): Requested recurring interval (`month | year`).
-- `pricing_intent` (text): Pricing return intent (`create-project | open-projects | dashboard | tutorial`).
-- `next_path` (text): Safe paid `/pricing` return path used after signup.
-- `offer_id` (text, nullable): Active `billing_plan_offers.id` verified by `/api/auth/signup-intent`.
+- `signup_context` (text): Intent class (`account | pricing`).
+- `plan_id` (text, nullable): Paid plan requested from pricing (`starter | media | studio | business`) for `pricing` intents; null for account-first intents.
+- `billing_interval` (text, nullable): Requested recurring interval (`month | year`) for `pricing` intents; null for account-first intents.
+- `pricing_intent` (text, nullable): Pricing return intent (`create-project | open-projects | dashboard | tutorial`) for `pricing` intents; null for account-first intents.
+- `next_path` (text): Safe account-first `/ai-studio` or paid `/pricing` return path used after signup.
+- `offer_id` (text, nullable): Active `billing_plan_offers.id` verified by `/api/auth/signup-intent` for `pricing` intents.
 - `status` (text): Intent lifecycle (`pending | auth_allowed | expired | cancelled`).
 - `provider` (text, nullable): Supabase provider consumed by the hook (`email` or `google`).
 - `auth_user_id` (uuid, nullable): Supabase Auth user id from the Before User Created hook payload.
 - `expires_at` / `auth_allowed_at` / `created_at` / `updated_at` (timestamptz): Intent TTL and lifecycle timestamps.
 - `created_ip_hash` / `user_agent_hash` (text, nullable): Hashes for abuse diagnostics without storing raw request identifiers.
-- Runtime role: canonical signup creation gate for email/password and Google signup. `/api/auth/signup-intent` inserts pending rows, and Supabase Auth's Before User Created hook `hook_shortpulse_paid_signup_intent(event jsonb)` consumes one matching pending row before `auth.users` insertion.
+- Runtime role: canonical signup creation gate for email/password and Google signup. `/api/auth/signup-intent` inserts pending rows, and Supabase Auth's Before User Created hook `hook_shortpulse_signup_intent(event jsonb)` consumes one matching pending row before `auth.users` insertion. The legacy `hook_shortpulse_paid_signup_intent(event jsonb)` name is a compatibility wrapper after migration `165`.
 - Access model: RLS enabled with no browser policies; table access is service-role-only, and the hook function is executable by `supabase_auth_admin` only.
 
 ### billing_plans

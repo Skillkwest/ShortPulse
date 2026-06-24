@@ -1,5 +1,5 @@
 /**
- * Creates a short-lived, paid-plan signup intent for Supabase Auth creation gates.
+ * Creates a short-lived signup intent for Supabase Auth creation gates.
  * The intent is not an entitlement; Stripe checkout remains the paid-plan authority.
  */
 import { createHash } from "crypto";
@@ -27,6 +27,8 @@ type ActiveOfferRow = {
   recurring_price_cents: number;
   stripe_price_id: string | null;
 };
+
+type SignupIntentContext = "account" | "pricing";
 
 const SIGNUP_INTENT_TTL_MINUTES = 30;
 const MAX_EMAIL_LENGTH = 320;
@@ -103,34 +105,38 @@ export default async function handler(
     return res.status(400).json({ error: "Enter a valid email before creating an account." });
   }
   if (!rawNextPath || rawNextPath.length > MAX_NEXT_PATH_LENGTH) {
-    return res.status(400).json({ error: "Choose a paid plan before creating an account." });
+    return res.status(400).json({ error: "Choose where to continue after creating an account." });
   }
 
   const signupNextPath = resolveSignupNextPath(rawNextPath);
-  const selection = signupNextPath ? resolvePaidSignupPricingSelection(signupNextPath) : null;
-  if (!signupNextPath || !selection) {
-    return res.status(400).json({ error: "Choose a paid plan before creating an account." });
+  if (!signupNextPath) {
+    return res.status(400).json({ error: "Choose where to continue after creating an account." });
   }
+  const selection = resolvePaidSignupPricingSelection(signupNextPath);
+  const signupContext: SignupIntentContext = selection ? "pricing" : "account";
 
   try {
     const supabaseAdmin = getSupabaseAdmin();
-    const offer = await loadActivePaidAcquisitionOffer(
-      supabaseAdmin,
-      selection.planId,
-      selection.billingInterval
-    );
-    if (!offer) {
+    const offer = selection
+      ? await loadActivePaidAcquisitionOffer(
+          supabaseAdmin,
+          selection.planId,
+          selection.billingInterval
+        )
+      : null;
+    if (selection && !offer) {
       return res.status(409).json({ error: "The selected plan is not currently available." });
     }
 
     const expiresAt = new Date(Date.now() + SIGNUP_INTENT_TTL_MINUTES * 60 * 1000).toISOString();
     const insertResult = await supabaseAdmin.from("signup_intents").insert({
       email_hash: hashValue(email),
-      plan_id: selection.planId,
-      billing_interval: selection.billingInterval,
-      pricing_intent: selection.pricingIntent,
+      signup_context: signupContext,
+      plan_id: selection?.planId ?? null,
+      billing_interval: selection?.billingInterval ?? null,
+      pricing_intent: selection?.pricingIntent ?? null,
       next_path: signupNextPath,
-      offer_id: offer.id,
+      offer_id: offer?.id ?? null,
       expires_at: expiresAt,
       created_ip_hash: hashValue(resolveApiClientIp(req)),
       user_agent_hash: hashValue(String(req.headers["user-agent"] ?? "")),

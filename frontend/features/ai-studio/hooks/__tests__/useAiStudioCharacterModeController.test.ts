@@ -286,6 +286,40 @@ describe("useAiStudioCharacterModeController", () => {
     expect(overrides?.submissionPromptOverride).toContain("Look 2 description");
   });
 
+  it("reports zero Create character references when an empty selected look only has legacy fallback refs", () => {
+    const currentBundle: CharacterModeInjectionBundle = {
+      characterId: "char-1",
+      characterDescription: "Hero description",
+      characterLookId: "3",
+      characterLookName: "Empty Look",
+      directLookReferenceCount: 0,
+      usedLegacyReferenceFallback: true,
+      sheetReferenceStoragePaths: ["user/chars/legacy-portrait.png"],
+      sheetReferenceUrls: ["https://example.com/legacy-portrait.png"],
+      loadedAtMs: Date.now(),
+    };
+    const params = createParams({
+      selectedCharacterId: "char-1",
+      selectedCharacterLookId: "3",
+      characterModeInjectionBundle: currentBundle,
+      characterOptions: [{ id: "char-1", name: "Hero", profileImageUrl: null }],
+    });
+    const { result } = renderHook(() => useAiStudioCharacterModeController(params));
+
+    const overrides = result.current.resolveCharacterModeSubmissionOverrides(
+      "Draw a portrait",
+      "create"
+    );
+
+    expect(overrides).toEqual(
+      expect.objectContaining({
+        fallbackCode: "no_references",
+        characterReferenceCount: 0,
+        hasCharacterDescription: true,
+      })
+    );
+  });
+
   it("refreshes a stale bundle and updates injection state", async () => {
     const setCharacterModeInjectionBundle = vi.fn();
     const setIsCharacterBundleLoading = vi.fn();

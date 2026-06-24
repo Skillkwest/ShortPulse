@@ -46,14 +46,10 @@ const sortBillingPlans = (plans: readonly BillingPlanRecord[]) =>
 
 const resolvePlanActionLabel = (params: {
   isAuthenticated: boolean;
-  publicSignupEnabled: boolean;
   monthlyPriceCents: number;
   displayName: string;
 }) => {
   if (!params.isAuthenticated) {
-    if (!params.publicSignupEnabled) {
-      return "Log in to continue";
-    }
     return params.monthlyPriceCents === 0 ? "Create account" : `Sign up for ${params.displayName}`;
   }
   if (params.monthlyPriceCents === 0) {
@@ -132,18 +128,11 @@ export function PricingRouteContent({ billingCatalog, isAuthenticated }: Pricing
     });
 
     if (!isAuthenticated) {
-      if (!publicSignupEnabled) {
-        await router.push(
-          buildPricingAuthPath({ intent, planId, billingInterval: selectedBillingInterval })
-        );
-        return;
-      }
       await router.push(
         buildPricingAuthPath({
           intent,
           planId,
           billingInterval: selectedBillingInterval,
-          mode: "signup",
         })
       );
       return;
@@ -291,7 +280,6 @@ export function PricingRouteContent({ billingCatalog, isAuthenticated }: Pricing
                   ? "Annual unavailable"
                   : resolvePlanActionLabel({
                       isAuthenticated,
-                      publicSignupEnabled,
                       monthlyPriceCents: planPricing.monthlyEquivalentCents,
                       displayName: planView.displayName,
                     });

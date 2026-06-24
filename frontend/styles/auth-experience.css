@@ -1,0 +1,275 @@
+/**
+ * Split auth experience for canonical login and signup pages.
+ * Scope all rules under auth-experience-shell so callback/recovery auth screens keep legacy styling.
+ */
+.auth-experience-shell {
+  min-height: var(--app-fixed-height);
+  display: grid;
+  grid-template-columns: minmax(520px, 1fr) minmax(420px, 560px);
+  align-items: stretch;
+  justify-content: stretch;
+  padding: 10px;
+  background: #f7f4ee;
+  color: #181612;
+}
+
+.auth-experience-shell .auth-showcase {
+  position: relative;
+  min-height: calc(var(--app-fixed-height) - 20px);
+  overflow: hidden;
+  border-radius: 8px;
+  background: #100e0d;
+}
+
+.auth-experience-shell .auth-showcase-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: saturate(0.86) contrast(1.04);
+}
+
+.auth-experience-shell .auth-showcase-scrim {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(9, 8, 7, 0.06), rgba(9, 8, 7, 0.72)),
+    linear-gradient(90deg, rgba(9, 8, 7, 0.12), transparent 42%);
+}
+
+.auth-experience-shell .auth-showcase-copy {
+  position: absolute;
+  left: 36px;
+  right: 36px;
+  bottom: 88px;
+  z-index: 1;
+  display: grid;
+  gap: 10px;
+  color: #fffaf2;
+}
+
+.auth-experience-shell .auth-showcase-kicker {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  color: rgba(255, 250, 242, 0.72);
+}
+
+.auth-experience-shell .auth-showcase-copy h2 {
+  max-width: 12ch;
+  font-size: 42px;
+  line-height: 0.98;
+  font-weight: 780;
+}
+
+.auth-experience-shell .auth-showcase-copy p:last-child {
+  max-width: 54ch;
+  color: rgba(255, 250, 242, 0.78);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.auth-experience-shell .auth-showcase-tabs {
+  position: absolute;
+  left: 36px;
+  right: 36px;
+  bottom: 34px;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 22px;
+}
+
+.auth-experience-shell .auth-showcase-tabs span {
+  position: relative;
+  padding-top: 12px;
+  color: rgba(255, 250, 242, 0.62);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.auth-experience-shell .auth-showcase-tabs span::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 250, 242, 0.22);
+}
+
+.auth-experience-shell .auth-showcase-tabs span.active {
+  color: #fffaf2;
+}
+
+.auth-experience-shell .auth-showcase-tabs span.active::before {
+  background: #fffaf2;
+}
+
+.auth-experience-shell .auth-layout {
+  width: 100%;
+  min-height: calc(var(--app-fixed-height) - 20px);
+  display: grid;
+  place-items: center;
+  padding: 48px;
+}
+
+.auth-experience-shell .auth-card {
+  width: min(100%, 440px);
+  gap: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #181612;
+  backdrop-filter: none;
+}
+
+.auth-experience-shell .auth-card-header {
+  align-items: center;
+  gap: 12px;
+}
+
+.auth-experience-shell .auth-brand-logo {
+  width: 174px;
+  filter: invert(1) saturate(0) brightness(0.1);
+}
+
+.auth-experience-shell .auth-title {
+  color: #181612;
+  font-size: 34px;
+  line-height: 1.04;
+  font-weight: 780;
+}
+
+.auth-experience-shell .auth-subtitle {
+  color: rgba(24, 22, 18, 0.62);
+  font-size: 14px;
+}
+
+.auth-experience-shell .auth-mode-toggle {
+  border-radius: 8px;
+  border-color: rgba(24, 22, 18, 0.12);
+  background: rgba(24, 22, 18, 0.04);
+}
+
+.auth-experience-shell .auth-mode-toggle button {
+  border-radius: 6px;
+  color: rgba(24, 22, 18, 0.58);
+}
+
+.auth-experience-shell .auth-mode-toggle button.active {
+  border-color: rgba(24, 22, 18, 0.14);
+  background: #181612;
+  color: #fffaf2;
+}
+
+.auth-experience-shell .auth-oauth-button,
+.auth-experience-shell .auth-input {
+  min-height: 48px;
+  border-radius: 8px;
+  border-color: rgba(24, 22, 18, 0.14);
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.auth-experience-shell .auth-oauth-button {
+  color: #181612;
+}
+
+.auth-experience-shell .auth-oauth-button:hover:not(:disabled) {
+  transform: none;
+  border-color: rgba(24, 22, 18, 0.28);
+  box-shadow: none;
+}
+
+.auth-experience-shell .auth-choice-divider {
+  color: rgba(24, 22, 18, 0.44);
+}
+
+.auth-experience-shell .auth-choice-divider::before,
+.auth-experience-shell .auth-choice-divider::after,
+.auth-experience-shell .auth-divider {
+  border-top-color: rgba(24, 22, 18, 0.12);
+}
+
+.auth-experience-shell .auth-label {
+  color: rgba(24, 22, 18, 0.78);
+}
+
+.auth-experience-shell .auth-field-hint,
+.auth-experience-shell .auth-switch,
+.auth-experience-shell .auth-footnote {
+  color: rgba(24, 22, 18, 0.56);
+}
+
+.auth-experience-shell .auth-input:focus-within {
+  border-color: rgba(245, 96, 135, 0.62);
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(245, 96, 135, 0.12);
+}
+
+.auth-experience-shell .auth-input input {
+  color: #181612;
+  caret-color: #f56087;
+}
+
+.auth-experience-shell .auth-input input::placeholder {
+  color: rgba(24, 22, 18, 0.36);
+}
+
+.auth-experience-shell .auth-input svg,
+.auth-experience-shell .auth-eye {
+  color: rgba(24, 22, 18, 0.48);
+}
+
+.auth-experience-shell .auth-forgot,
+.auth-experience-shell .auth-switch button {
+  color: #a13f57;
+}
+
+.auth-experience-shell .auth-submit {
+  min-height: 50px;
+  border-radius: 8px;
+  background: #181612;
+  color: #fffaf2;
+  box-shadow: none;
+}
+
+.auth-experience-shell .auth-submit:hover:not(:disabled) {
+  transform: none;
+  background: #2a251f;
+  box-shadow: none;
+}
+
+.auth-experience-shell .auth-info {
+  border-color: rgba(37, 169, 191, 0.26);
+  background: rgba(37, 169, 191, 0.08);
+  color: #174c57;
+}
+
+.auth-experience-shell .auth-error {
+  border-color: rgba(161, 63, 87, 0.32);
+  background: rgba(161, 63, 87, 0.08);
+  color: #7d2038;
+}
+
+@media (max-width: 900px) {
+  .auth-experience-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-experience-shell .auth-showcase {
+    display: none;
+  }
+
+  .auth-experience-shell .auth-layout {
+    padding: 32px 20px;
+  }
+}

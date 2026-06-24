@@ -34,6 +34,7 @@ type UseAiStudioShellRuntimeParams = {
   sessionRestoreCandidate: AiStudioPersistenceController["sessionRestoreCandidate"];
   projectBootstrapSettled: boolean;
   projectBootstrapApplied: boolean;
+  flushProjectWorkspaceSnapshot: AiStudioPersistenceController["flushProjectWorkspaceSnapshot"];
   filteredModelOptions: AiStudioPageContentProps["modelModalState"]["options"];
   resolveModelPickerCredits: AiStudioPageContentProps["modelModalState"]["resolveCreditsForModel"];
   handleSelectModelFromModal: AiStudioPageContentProps["modelModalState"]["onSelect"];
@@ -46,6 +47,7 @@ export const useAiStudioShellRuntime = ({
   base,
   sessionRestoreCandidate,
   projectBootstrapSettled,
+  flushProjectWorkspaceSnapshot,
   filteredModelOptions,
   resolveModelPickerCredits,
   handleSelectModelFromModal,
@@ -116,7 +118,7 @@ export const useAiStudioShellRuntime = ({
       const targetHref = buildProjectRouteHref(nextProjectId);
       let cleanupRouteHandoffListeners = () => undefined;
 
-      const routeHandoffStarted = new Promise<void>((resolve, reject) => {
+      const routeHandoffCompleted = new Promise<void>((resolve, reject) => {
         let settled = false;
         const timeoutId = window.setTimeout(() => {
           if (settled) return;
@@ -137,7 +139,7 @@ export const useAiStudioShellRuntime = ({
         }, PROJECT_OPEN_HANDOFF_TIMEOUT_MS);
 
         cleanupRouteHandoffListeners = () => {
-          router.events.off("routeChangeStart", handleRouteChangeStart);
+          router.events.off("routeChangeComplete", handleRouteChangeComplete);
           router.events.off("routeChangeError", handleRouteChangeError);
           window.clearTimeout(timeoutId);
         };
@@ -156,7 +158,7 @@ export const useAiStudioShellRuntime = ({
           reject(new Error(PROJECT_OPEN_INTERRUPTED_MESSAGE));
         };
 
-        function handleRouteChangeStart(url: string) {
+        function handleRouteChangeComplete(url: string) {
           if (isProjectRouteTarget(url, nextProjectId)) {
             settleWithResolve();
           }
@@ -168,7 +170,7 @@ export const useAiStudioShellRuntime = ({
           }
         }
 
-        router.events.on("routeChangeStart", handleRouteChangeStart);
+        router.events.on("routeChangeComplete", handleRouteChangeComplete);
         router.events.on("routeChangeError", handleRouteChangeError);
       });
 
@@ -183,10 +185,12 @@ export const useAiStudioShellRuntime = ({
         }
       });
 
+      const routePushAfterCompletion = routePush.then(() => routeHandoffCompleted);
       void routePush.catch(() => undefined);
+      void routeHandoffCompleted.catch(() => undefined);
 
       try {
-        await Promise.race([routeHandoffStarted, routePush]);
+        await Promise.race([routeHandoffCompleted, routePushAfterCompletion]);
       } finally {
         cleanupRouteHandoffListeners();
       }
@@ -197,9 +201,10 @@ export const useAiStudioShellRuntime = ({
   const handleSelectProjectFromModal = useCallback(
     async (nextProjectId: string) => {
       if (nextProjectId === projectId) return;
+      await flushProjectWorkspaceSnapshot({ reason: "project_switch" });
       await navigateToProjectRoute(nextProjectId);
     },
-    [navigateToProjectRoute, projectId]
+    [flushProjectWorkspaceSnapshot, navigateToProjectRoute, projectId]
   );
 
   const handleOpenMediaLibraryPanelOnly = useCallback(() => {

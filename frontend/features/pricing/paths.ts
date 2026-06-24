@@ -3,9 +3,9 @@
  * Keeps dashboard, pricing, and auth transitions on one consistent URL contract.
  */
 import { normalizePlanId } from "../billing/catalog";
+import { buildLoginPath, buildSignupPath } from "../../lib/authRedirects";
 
 export type PricingIntent = "create-project" | "open-projects" | "dashboard" | "tutorial";
-export type PricingAuthMode = "signin" | "signup";
 export type PricingBillingInterval = "month" | "year";
 
 const DEFAULT_PRICING_INTENT: PricingIntent = "dashboard";
@@ -80,31 +80,26 @@ export const buildPricingAuthPath = (params?: {
   intent?: PricingIntent;
   planId?: string | null;
   billingInterval?: PricingBillingInterval;
-  mode?: PricingAuthMode;
 }): string => {
-  const query = new URLSearchParams();
   const planId = normalizePaidPricingPlanId(params?.planId ?? undefined);
-  query.set(
-    "next",
-    buildPricingPath({
+  return buildSignupPath({
+    nextPath: buildPricingPath({
       ...params,
       planId,
-    })
-  );
-  if (params?.mode === "signup") {
-    query.set("mode", "signup");
-  }
-  return `/auth?${query.toString()}`;
+    }),
+  });
 };
 
 /**
  * Builds an auth route that returns the visitor to the dashboard after authentication.
  */
-export const buildDashboardAuthPath = (params?: { mode?: PricingAuthMode }): string => {
-  const query = new URLSearchParams();
-  query.set("next", "/dashboard");
-  if (params?.mode === "signup") {
-    query.set("mode", "signup");
-  }
-  return `/auth?${query.toString()}`;
+export const buildDashboardAuthPath = (): string => {
+  return buildLoginPath({ nextPath: "/dashboard" });
+};
+
+/**
+ * Builds the canonical public signup route for entering AI Studio.
+ */
+export const buildDashboardSignupPath = (): string => {
+  return buildSignupPath({ nextPath: "/ai-studio" });
 };

@@ -58,6 +58,19 @@ vi.mock("../../../media-library/runtime", async () => {
         resolvedScopeKey: null,
       });
       const setSignedUrls = ReactModule.useRef(setSignedUrlsMock).current;
+      const appendMediaRows = ReactModule.useCallback(
+        (rows: Array<{ id: string }>) =>
+          setMediaRows((currentRows) => {
+            const byId = new Map(
+              (currentRows as Array<{ id: string }>).map((row) => [row.id, row])
+            );
+            rows.forEach((row) => {
+              byId.set(row.id, row);
+            });
+            return Array.from(byId.values());
+          }),
+        []
+      );
 
       return {
         error,
@@ -65,6 +78,7 @@ vi.mock("../../../media-library/runtime", async () => {
         mediaScopeCache,
         promptRows,
         promptScopeCache,
+        appendMediaRows,
         setError,
         setMediaRows,
         setMediaScopeCache,
@@ -869,6 +883,12 @@ describe("useMediaLibraryPanelDataController", () => {
     await waitFor(() => {
       expect(fetchMediaListPageMock).toHaveBeenCalledTimes(2);
     });
+    expect(fetchMediaListPageMock.mock.calls[1]?.[0]).toEqual(
+      expect.objectContaining({
+        mediaKind: "audio",
+        cursor: null,
+      })
+    );
 
     await waitFor(() => {
       expect(result.current.mediaRows[0]?.companion_art_status).toBe("ready");
@@ -942,6 +962,79 @@ describe("useMediaLibraryPanelDataController", () => {
       expect(result.current.mediaRows[0]?.companion_art_url).toBe(
         "https://signed.test/gen-audio-1-cover.webp"
       );
+    });
+  });
+
+  it("keeps loaded media rows stable while refreshing audio companion art", async () => {
+    fetchMediaListPageMock
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "audio-1",
+            filename: "tiny-glitch.mp3",
+            storage_path: "user-1/generations/audio/audio-1.mp3",
+            file_type: "audio/mpeg",
+            source: "ai_studio",
+            source_ref: "gen-audio-1",
+            companion_art_status: "pending",
+            companion_art_storage_path: null,
+            companion_art_url: null,
+            created_at: "2026-06-17T12:00:00.000Z",
+          },
+          {
+            id: "image-older",
+            filename: "older.png",
+            storage_path: "user-1/uploads/images/older.png",
+            file_type: "image/png",
+            source: "upload",
+            created_at: "2026-06-16T12:00:00.000Z",
+          },
+        ],
+        nextCursor: { createdAt: "2026-06-16T12:00:00.000Z", id: "image-older" },
+        hasMore: true,
+        signedById: new Map(),
+        libraryTotalCount: 2,
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "audio-1",
+            filename: "tiny-glitch.mp3",
+            storage_path: "user-1/generations/audio/audio-1.mp3",
+            file_type: "audio/mpeg",
+            source: "ai_studio",
+            source_ref: "gen-audio-1",
+            companion_art_status: "ready",
+            companion_art_storage_path:
+              "user-1/generations/audio/gen-audio-1/companion-art/cover.webp",
+            companion_art_url: "https://signed.test/gen-audio-1-cover.webp",
+            created_at: "2026-06-17T12:00:00.000Z",
+          },
+        ],
+        nextCursor: null,
+        hasMore: false,
+        signedById: new Map(),
+        libraryTotalCount: 1,
+      });
+
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelDataController({
+        activeFolderId: "all_items",
+        itemType: "all",
+        normalizedSearch: "",
+        shouldShowMedia: true,
+        shouldShowPrompts: false,
+        panelBodyRef: { current: null },
+      })
+    );
+
+    await waitFor(() => {
+      expect(fetchMediaListPageMock).toHaveBeenCalledTimes(2);
+    });
+
+    await waitFor(() => {
+      expect(result.current.mediaRows.map((row) => row.id)).toEqual(["audio-1", "image-older"]);
+      expect(result.current.mediaRows[0]?.companion_art_status).toBe("ready");
     });
   });
 });

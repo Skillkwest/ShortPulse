@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applyMediaSignedUrls,
+  appendSurfaceMediaRows,
   createMediaLibraryRuntimeState,
   replaceSurfaceMediaRowsByTabs,
   replaceSurfaceMediaTabRows,
@@ -253,6 +254,84 @@ describe("media runtime store", () => {
       "image-1",
       "ai-1",
     ]);
+  });
+
+  it("appends panel media rows without rebuilding unrelated tab order", () => {
+    let state = createMediaLibraryRuntimeState();
+    state = replaceSurfaceMediaRowsByTabs(state, {
+      surface: "panel",
+      mediaIds: ["image-1"],
+      rowsByTab: {
+        uploaded_images: [makeMediaRow("image-1")],
+        uploaded_videos: [],
+        private: [],
+        ai_generations: [],
+      },
+    });
+
+    const previousImageIds =
+      state.surfaceStateByKind.panel.orderedViews.mediaIdsByTab.uploaded_images;
+    state = appendSurfaceMediaRows(state, {
+      surface: "panel",
+      rows: [makeMediaRow("video-1", { file_type: "video/mp4" })],
+    });
+
+    expect(state.surfaceStateByKind.panel.orderedViews.mediaIds).toEqual(["image-1", "video-1"]);
+    expect(state.surfaceStateByKind.panel.orderedViews.mediaIdsByTab.uploaded_images).toBe(
+      previousImageIds
+    );
+    expect(state.surfaceStateByKind.panel.orderedViews.mediaIdsByTab.uploaded_videos).toEqual([
+      "video-1",
+    ]);
+    expect(selectSurfaceAggregateMediaRows(state, "panel").map((row) => row.id)).toEqual([
+      "image-1",
+      "video-1",
+    ]);
+  });
+
+  it("updates appended duplicate rows in place without duplicating aggregate order", () => {
+    let state = createMediaLibraryRuntimeState();
+    state = appendSurfaceMediaRows(state, {
+      surface: "panel",
+      rows: [makeMediaRow("audio-1", { file_type: "audio/mpeg", companion_art_status: "pending" })],
+    });
+
+    state = appendSurfaceMediaRows(state, {
+      surface: "panel",
+      rows: [
+        makeMediaRow("audio-1", {
+          file_type: "audio/mpeg",
+          companion_art_status: "ready",
+          companion_art_storage_path: "user/uploads/audio-1.png",
+        }),
+      ],
+    });
+
+    expect(state.surfaceStateByKind.panel.orderedViews.mediaIds).toEqual(["audio-1"]);
+    expect(state.surfaceStateByKind.panel.orderedViews.mediaIdsByTab.uploaded_images).toEqual([
+      "audio-1",
+    ]);
+    expect(selectSurfaceAggregateMediaRows(state, "panel")[0]).toMatchObject({
+      id: "audio-1",
+      companion_art_status: "ready",
+      companion_art_storage_path: "user/uploads/audio-1.png",
+    });
+  });
+
+  it("treats identical appended rows as a no-op", () => {
+    const row = makeMediaRow("image-1");
+    let state = createMediaLibraryRuntimeState();
+    state = appendSurfaceMediaRows(state, {
+      surface: "panel",
+      rows: [row],
+    });
+
+    const nextState = appendSurfaceMediaRows(state, {
+      surface: "panel",
+      rows: [{ ...row }],
+    });
+
+    expect(nextState).toBe(state);
   });
 
   it("treats semantically identical prompt rows and promptsLoaded state as a no-op", () => {

@@ -183,6 +183,15 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     [setOptimisticDebitEntries]
   );
 
+  const handleInsufficientCredits = useCallback(() => {
+    setUiError(
+      "You do not have enough credits for this run. Choose a plan on pricing to continue."
+    );
+    if (process.env.NODE_ENV !== "test" && typeof window !== "undefined") {
+      window.location.assign("/pricing?intent=create-project");
+    }
+  }, [setUiError]);
+
   const resolveEffectiveSubmitModelId = useCallback(
     (tool: ToolId | null): string | null => {
       if (isVideoSubmitTool(tool) && videoReferenceMode === "lip-sync") {
@@ -257,9 +266,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         alwaysCheckCreditGuardrailWhenEnabled: false,
         ensureFreshCreditsForRun,
         resolveGuardrailBlockMessage,
-        handleInsufficientCredits: () => {
-          setUiError("You do not have enough credits for this run.");
-        },
+        handleInsufficientCredits,
         handleGuardrailBlock: (message) => {
           setUiError(message);
         },
@@ -361,6 +368,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       enqueueOptimisticDebit,
       ensureFreshCreditsForRun,
       generateOutput,
+      handleInsufficientCredits,
       isCreditGuardrail,
       isCharacterModeEnabled,
       isGenerateDisabled,
@@ -437,7 +445,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         resolveGuardrailBlockMessage,
         handleInsufficientCredits: () => {
           removeExternalOptimisticPlaceholder();
-          setUiError("You do not have enough credits for this run.");
+          handleInsufficientCredits();
         },
         handleGuardrailBlock: (message) => {
           removeExternalOptimisticPlaceholder();
@@ -544,6 +552,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       balanceCredits,
       enqueueOptimisticDebit,
       ensureFreshCreditsForRun,
+      handleInsufficientCredits,
       isCreditGuardrail,
       isGenerateDisabled,
       mode,

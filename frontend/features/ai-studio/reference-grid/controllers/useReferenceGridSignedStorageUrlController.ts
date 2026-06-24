@@ -26,9 +26,9 @@ const collectOutputStoragePaths = (
     return path;
   };
 
-  pushPath(output.previewStoragePath);
-  pushPath(output.previewPosterStoragePath);
-  pushPath(output.companionArtStoragePath);
+  const previewPath = pushPath(output.previewStoragePath);
+  const posterPath = pushPath(output.previewPosterStoragePath);
+  const companionArtPath = pushPath(output.companionArtStoragePath);
 
   if (signingMode === "full-authority") {
     pushPath(output.fullStoragePath);
@@ -36,8 +36,14 @@ const collectOutputStoragePaths = (
     return paths;
   }
 
-  pushPath(output.fullStoragePath);
-  output.resultUrls?.forEach(pushPath);
+  const needsFullFallback =
+    !previewPath &&
+    (!posterPath || output.mode === "video") &&
+    (!companionArtPath || output.mode === "audio");
+  if (needsFullFallback) {
+    pushPath(output.fullStoragePath);
+    output.resultUrls?.forEach(pushPath);
+  }
 
   return paths;
 };

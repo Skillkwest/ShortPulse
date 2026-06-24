@@ -71,6 +71,8 @@ const KIE_HOSTED_MEDIA_HOST_SUFFIXES = [
   "tempfile.aiquickdraw.com",
   "tempfileb.aiquickdraw.com",
 ] as const;
+const KIE_KLING_REUSABLE_TEMP_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png"]);
+const KIE_SEEDANCE_REUSABLE_TEMP_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp", "gif"]);
 
 const VALIDATION_FAILURE_CONTEXT = {
   telemetryMode: "validation",
@@ -113,6 +115,36 @@ const isKieHostedTemporaryMediaUrl = (value: string): boolean => {
   } catch {
     return false;
   }
+};
+
+const readUrlPathExtension = (value: string): string | null => {
+  try {
+    const lastSegment = new URL(value).pathname.split("/").filter(Boolean).pop() ?? "";
+    if (!lastSegment.includes(".")) return null;
+    const extension = lastSegment.split(".").pop()?.trim().toLowerCase() ?? "";
+    return extension.length ? extension : null;
+  } catch {
+    return null;
+  }
+};
+
+const canReuseKieHostedTemporaryMediaUrl = ({
+  url,
+  mediaKind,
+  admissionProfile,
+}: {
+  url: string;
+  mediaKind: "image" | "video" | "audio";
+  admissionProfile: KieUploadAdmissionProfile | null;
+}): boolean => {
+  if (!admissionProfile) return true;
+  if (mediaKind !== "image") return false;
+  const extension = readUrlPathExtension(url);
+  if (!extension) return false;
+  if (admissionProfile === "kie_seedance_reference_image") {
+    return KIE_SEEDANCE_REUSABLE_TEMP_IMAGE_EXTENSIONS.has(extension);
+  }
+  return KIE_KLING_REUSABLE_TEMP_IMAGE_EXTENSIONS.has(extension);
 };
 
 const isPrivateIpv4Address = (hostname: string): boolean => {
@@ -275,7 +307,12 @@ const uploadUrlToKieTemporaryFile = async ({
 }): Promise<string> => {
   const normalizedUrl = url.trim();
   if (!normalizedUrl) return "";
-  if (isKieHostedTemporaryMediaUrl(normalizedUrl)) return normalizedUrl;
+  if (
+    isKieHostedTemporaryMediaUrl(normalizedUrl) &&
+    canReuseKieHostedTemporaryMediaUrl({ url: normalizedUrl, mediaKind, admissionProfile })
+  ) {
+    return normalizedUrl;
+  }
 
   const internalRef = resolveInternalMediaRefForUrl(normalizedUrl);
   if (internalRef?.bucket === "media_library") {

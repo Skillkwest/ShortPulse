@@ -8,7 +8,11 @@ import { useEffect, useRef, useState } from "react";
 import { DashboardAppBar } from "../components/DashboardAppBar";
 import { GuestDashboardView } from "../components/GuestDashboardView";
 import type { DashboardTutorial } from "../components/DashboardTutorialGrid";
-import { buildDashboardAuthPath, buildPricingPath } from "../../pricing/paths";
+import {
+  buildDashboardAuthPath,
+  buildDashboardSignupPath,
+  buildPricingPath,
+} from "../../pricing/paths";
 import { loadGrowthTelemetry } from "../../../lib/growthTelemetryLoader";
 import type { PublicDashboardStaticProps } from "./publicDashboardData";
 import { readDashboardTutorialsFromPublicEndpoint } from "../logic/dashboardTutorialEndpointClient";
@@ -107,9 +111,9 @@ export function PublicDashboardRoute({
   }, [liveDashboardTutorials.length]);
 
   const loginHref = buildDashboardAuthPath();
-  const signupHref = buildPricingPath();
+  const signupHref = buildDashboardSignupPath();
   const pricingHref = buildPricingPath();
-  const guestCreateProjectHref = buildPricingPath({ intent: "create-project" });
+  const guestCreateProjectHref = buildDashboardSignupPath();
 
   return (
     <>

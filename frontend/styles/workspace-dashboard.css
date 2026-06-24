@@ -3045,20 +3045,21 @@ button.hero-onboarding {
 .authenticated-home-hero-copy h1 {
   max-width: 620px;
   color: #f4f5f7;
-  font-size: clamp(44px, 5.1vw, 84px);
-  line-height: 0.92;
-  letter-spacing: -0.045em;
+  font-size: clamp(38px, 4.35vw, 68px);
+  line-height: 1.04;
+  letter-spacing: 0;
   text-shadow: 0 12px 34px rgba(0, 0, 0, 0.58);
   text-wrap: balance;
+  overflow-wrap: anywhere;
 }
 
 .authenticated-home-hero-copy h1 span {
-  display: inline-block;
   color: #ff3d56;
   background: var(--authenticated-dashboard-gradient-text);
   background-clip: text;
   -webkit-text-fill-color: transparent;
   text-shadow: none;
+  overflow-wrap: anywhere;
 }
 
 .authenticated-home-hero-copy .hero-subtext,

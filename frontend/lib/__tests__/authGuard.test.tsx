@@ -71,7 +71,7 @@ describe("useProtectedRoute", () => {
     expect(refreshSupabaseSessionMock).not.toHaveBeenCalled();
   });
 
-  it("redirects logged-out browsers to auth without attempting session recovery", async () => {
+  it("redirects logged-out browsers to login without attempting session recovery", async () => {
     const replaceMock = vi.fn();
     useRouterMock.mockReturnValue({
       asPath: "/admin",
@@ -86,13 +86,13 @@ describe("useProtectedRoute", () => {
       loading: false,
     });
     await waitFor(() => {
-      expect(replaceMock).toHaveBeenCalledWith("/auth?next=%2Fadmin");
+      expect(replaceMock).toHaveBeenCalledWith("/log-in?next=%2Fadmin");
     });
     expect(readPersistedSupabaseSessionHintMock).toHaveBeenCalled();
     expect(refreshSupabaseSessionMock).not.toHaveBeenCalled();
   });
 
-  it("attempts one persisted-session recovery before redirecting to auth", async () => {
+  it("attempts one persisted-session recovery before redirecting to login", async () => {
     const replaceMock = vi.fn();
     readPersistedSupabaseSessionHintMock.mockReturnValue(true);
     useRouterMock.mockReturnValue({
@@ -108,7 +108,7 @@ describe("useProtectedRoute", () => {
       });
     });
     await waitFor(() => {
-      expect(replaceMock).toHaveBeenCalledWith("/auth?next=%2Fadmin%2Fpricing");
+      expect(replaceMock).toHaveBeenCalledWith("/log-in?next=%2Fadmin%2Fpricing");
     });
   });
 });

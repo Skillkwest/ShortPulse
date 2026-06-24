@@ -49,6 +49,7 @@ type UseAiStudioPageProjectSessionRuntimeParams = {
     expertEditSessionState?: ExpertEditSessionState | null;
   }) => AiStudioSessionSnapshotV2;
   canvasSessionState: AiStudioSessionCanvasState | null;
+  flushCanvasSessionState?: () => AiStudioSessionCanvasState | null;
   createSelectedCharacterId: string;
   createSelectedCharacterLookId: string;
   expertCreateMode: "standard" | "pulse";
@@ -110,6 +111,7 @@ export const useAiStudioPageProjectSessionRuntime = ({
   activeSessionPersistenceSessionId,
   buildProjectWorkspaceSnapshot,
   canvasSessionState,
+  flushCanvasSessionState,
   expertCreateMode,
   expertEditSessionRevision,
   getExpertEditSessionState,
@@ -188,6 +190,13 @@ export const useAiStudioPageProjectSessionRuntime = ({
 
     return parseAiStudioSessionCanvasState(JSON.parse(projectDurableCanvasPayload.signature));
   }, [projectDurableCanvasPayload.signature]);
+  const preparedProjectDurableCanvasStateRef = useRef<AiStudioSessionCanvasState | null>(null);
+  const prepareProjectWorkspaceSnapshot = useCallback(() => {
+    if (!flushCanvasSessionState) return;
+    const durableCanvasState =
+      createProjectDurableAiStudioSessionCanvasState(flushCanvasSessionState());
+    preparedProjectDurableCanvasStateRef.current = durableCanvasState;
+  }, [flushCanvasSessionState]);
   const [canvasImmediateSaveRevision, setCanvasImmediateSaveRevision] = useState(0);
   const canvasImmediateSaveProjectRef = useRef<string | null>(null);
   const canvasImmediateSaveSignatureRef = useRef<string | null>(null);
@@ -260,13 +269,16 @@ export const useAiStudioPageProjectSessionRuntime = ({
   );
 
   const buildProjectAwareBaseSessionSnapshot = useCallback(
-    (args: BuildSessionSnapshotArgs) =>
-      patchAiStudioSessionSnapshotCanvas(
+    (args: BuildSessionSnapshotArgs) => {
+      const durableCanvasState = preparedProjectDurableCanvasStateRef.current;
+      preparedProjectDurableCanvasStateRef.current = null;
+      return patchAiStudioSessionSnapshotCanvas(
         buildProjectWorkspaceSnapshot({
           sessionId: args.sessionId,
         }),
-        projectDurableCanvasState
-      ),
+        durableCanvasState ?? projectDurableCanvasState
+      );
+    },
     [buildProjectWorkspaceSnapshot, projectDurableCanvasState]
   );
 
@@ -380,6 +392,7 @@ export const useAiStudioPageProjectSessionRuntime = ({
     hydrateFromSessionCanvasSnapshot: hydrateCanvasSessionState,
     isAutosaveWorkDeferred,
     immediateSaveSignal: projectImmediateSaveSignal,
+    prepareCurrentSnapshot: prepareProjectWorkspaceSnapshot,
     applyEmptyProjectState,
     resetProjectAgentConversation,
     setUiNotice,

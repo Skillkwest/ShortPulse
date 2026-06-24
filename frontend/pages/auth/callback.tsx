@@ -8,6 +8,8 @@ import type { FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { AppMessage } from "../../components/AppMessage";
 import {
+  buildLoginPath,
+  buildSignupPath,
   hasPasswordRecoveryHint,
   readHashParams,
   resolveAuthCallbackError,
@@ -36,6 +38,7 @@ const authClass = (...names: Array<string | false | null | undefined>) =>
 
 type CallbackStatus = "loading" | "recovery" | "error";
 type CompletionAuthEvent = "SIGNED_IN" | "USER_UPDATED";
+type AccountSyncRetryKind = "email-change" | "signup";
 
 const getErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error ? error.message : fallback;
@@ -83,15 +86,14 @@ const buildAuthReturnPath = (options: {
   callbackFlow: "signin" | "signup" | "recovery" | "email-change";
   oauthStatus?: "cancelled" | "signup_failed" | "signin_failed";
 }): string => {
-  const params = new URLSearchParams();
-  params.set("next", options.nextPath);
   if (options.callbackFlow === "signup") {
-    params.set("mode", "signup");
+    const signupPath = buildSignupPath({ nextPath: options.nextPath });
+    if (!options.oauthStatus) return signupPath;
+    return `${signupPath}&oauth=${encodeURIComponent(options.oauthStatus)}`;
   }
-  if (options.oauthStatus) {
-    params.set("oauth", options.oauthStatus);
-  }
-  return `/auth?${params.toString()}`;
+  const loginPath = buildLoginPath({ nextPath: options.nextPath });
+  if (!options.oauthStatus) return loginPath;
+  return `${loginPath}&oauth=${encodeURIComponent(options.oauthStatus)}`;
 };
 
 export default function AuthCallbackPage() {
@@ -185,8 +187,10 @@ export default function AuthCallbackPage() {
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [retryingEmailSync, setRetryingEmailSync] = useState(false);
-  const [emailSyncRetryAvailable, setEmailSyncRetryAvailable] = useState(false);
+  const [retryingAccountSync, setRetryingAccountSync] = useState(false);
+  const [accountSyncRetryKind, setAccountSyncRetryKind] = useState<AccountSyncRetryKind | null>(
+    null
+  );
   const [error, setError] = useState<string | null>(
     callbackError && !isGoogleOAuthAccessDenied && !shouldReturnToAuthForGoogleOAuthError
       ? callbackError
@@ -222,7 +226,7 @@ export default function AuthCallbackPage() {
     setStatus("error");
     setError(callbackError);
     setInfo(null);
-    setEmailSyncRetryAvailable(false);
+    setAccountSyncRetryKind(null);
   }, [callbackError, isGoogleOAuthAccessDenied, shouldReturnToAuthForGoogleOAuthError]);
 
   useEffect(() => {
@@ -239,10 +243,21 @@ export default function AuthCallbackPage() {
       }
     };
 
+    const runSignupBootstrap = async () => {
+      await refreshSupabaseSession({ preserveSnapshotOnError: true });
+      const response = await fetchWithAuth("/api/account/bootstrap", {
+        method: "POST",
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error || "Unable to finish setting up your account.");
+      }
+    };
+
     const handleResolvedSession = async (session: Session | null) => {
       if (cancelled || !session) return;
       primeSupabaseSession(session);
-      setEmailSyncRetryAvailable(false);
+      setAccountSyncRetryKind(null);
 
       const isRecoverySession = callbackFlow === "recovery" || recoveryEventSeenRef.current;
       if (isRecoverySession) {
@@ -268,6 +283,9 @@ export default function AuthCallbackPage() {
         if (callbackFlow === "email-change") {
           await runConfirmedEmailSync();
         }
+        if (callbackFlow === "signup") {
+          await runSignupBootstrap();
+        }
         if (!cancelled) {
           await replace(nextPath);
         }
@@ -278,9 +296,13 @@ export default function AuthCallbackPage() {
         setInfo(
           callbackFlow === "email-change"
             ? "Your email was confirmed, but ShortPulse still needs to finish syncing your account."
-            : null
+            : callbackFlow === "signup"
+              ? "Your account was confirmed, but ShortPulse still needs to finish setting it up."
+              : null
         );
-        setEmailSyncRetryAvailable(callbackFlow === "email-change");
+        setAccountSyncRetryKind(
+          callbackFlow === "email-change" || callbackFlow === "signup" ? callbackFlow : null
+        );
         setError(getErrorMessage(authError, "Unable to complete this authentication callback."));
       }
     };
@@ -352,7 +374,7 @@ export default function AuthCallbackPage() {
             }
             setStatus("error");
             setInfo(null);
-            setEmailSyncRetryAvailable(false);
+            setAccountSyncRetryKind(null);
             setError(resolveCallbackErrorMessage(callbackFlow));
             return;
           }
@@ -367,7 +389,7 @@ export default function AuthCallbackPage() {
           }
           setStatus("error");
           setInfo(null);
-          setEmailSyncRetryAvailable(false);
+          setAccountSyncRetryKind(null);
           setError(resolveCallbackErrorMessage(callbackFlow));
         }, CALLBACK_SESSION_SETTLE_MS);
       })
@@ -382,7 +404,7 @@ export default function AuthCallbackPage() {
           return;
         setStatus("error");
         setInfo(null);
-        setEmailSyncRetryAvailable(false);
+        setAccountSyncRetryKind(null);
         setError(getErrorMessage(sessionError, "Unable to complete this authentication callback."));
       });
 
@@ -404,30 +426,47 @@ export default function AuthCallbackPage() {
     shouldReturnToAuthForGoogleOAuthError,
   ]);
 
-  const onRetryEmailSync = async () => {
-    setRetryingEmailSync(true);
+  const onRetryAccountSync = async () => {
+    const retryKind = accountSyncRetryKind;
+    if (!retryKind) return;
+
+    setRetryingAccountSync(true);
     setError(null);
     setInfo("Retrying account sync...");
     try {
       await refreshSupabaseSession({ preserveSnapshotOnError: true });
-      const response = await fetchWithAuth("/api/account/email/confirm", {
-        method: "POST",
-      });
+      const response = await fetchWithAuth(
+        retryKind === "email-change" ? "/api/account/email/confirm" : "/api/account/bootstrap",
+        {
+          method: "POST",
+        }
+      );
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(data?.error || "Unable to finish syncing your confirmed email.");
+        throw new Error(
+          data?.error ||
+            (retryKind === "email-change"
+              ? "Unable to finish syncing your confirmed email."
+              : "Unable to finish setting up your account.")
+        );
       }
-      setEmailSyncRetryAvailable(false);
-      setInfo("Email confirmed. Redirecting...");
+      setAccountSyncRetryKind(null);
+      setInfo(
+        retryKind === "email-change"
+          ? "Email confirmed. Redirecting..."
+          : "Account ready. Redirecting..."
+      );
       await replace(nextPath);
     } catch (retryError) {
-      setEmailSyncRetryAvailable(true);
+      setAccountSyncRetryKind(retryKind);
       setInfo(
-        "Your email was confirmed, but ShortPulse still needs to finish syncing your account."
+        retryKind === "email-change"
+          ? "Your email was confirmed, but ShortPulse still needs to finish syncing your account."
+          : "Your account was confirmed, but ShortPulse still needs to finish setting it up."
       );
       setError(getErrorMessage(retryError, "Unable to complete this authentication callback."));
     } finally {
-      setRetryingEmailSync(false);
+      setRetryingAccountSync(false);
     }
   };
 
@@ -595,17 +634,17 @@ export default function AuthCallbackPage() {
                 <SignIn size={18} weight="bold" />
                 {loading ? "Please wait..." : "Update password"}
               </button>
-            ) : status === "error" && emailSyncRetryAvailable ? (
+            ) : status === "error" && accountSyncRetryKind ? (
               <button
                 className={authClass("auth-submit", "primary-btn")}
                 type="button"
                 onClick={() => {
-                  void onRetryEmailSync();
+                  void onRetryAccountSync();
                 }}
-                disabled={retryingEmailSync}
+                disabled={retryingAccountSync}
               >
                 <SignIn size={18} weight="bold" />
-                {retryingEmailSync ? "Retrying..." : "Retry account sync"}
+                {retryingAccountSync ? "Retrying..." : "Retry account sync"}
               </button>
             ) : status === "error" ? (
               <Link className={authClass("auth-submit", "primary-btn")} href={signInHref}>
@@ -613,7 +652,7 @@ export default function AuthCallbackPage() {
                 {authReturnLabel}
               </Link>
             ) : null}
-            {status === "error" && emailSyncRetryAvailable ? (
+            {status === "error" && accountSyncRetryKind ? (
               <Link className={authClass("auth-switch")} href={signInHref}>
                 Return to sign in
               </Link>

@@ -11,6 +11,7 @@ import {
   type PromptRow,
 } from "../../ai-studio/logic/mediaLibraryModalModel";
 import {
+  appendSurfaceMediaRows,
   createMediaLibraryRuntimeState,
   replaceSurfaceMediaRowsByTabs,
   replaceSurfacePromptRows,
@@ -33,6 +34,7 @@ type UseMediaLibraryPanelRuntimeResult = {
   error: string | null;
   mediaRows: MediaFileRow[];
   mediaScopeCache: MediaLibraryAggregateScopeCacheState;
+  appendMediaRows: (rows: MediaFileRow[]) => void;
   setMediaRows: Dispatch<SetStateAction<MediaFileRow[]>>;
   setMediaScopeCache: Dispatch<SetStateAction<MediaLibraryAggregateScopeCacheState>>;
   setError: Dispatch<SetStateAction<string | null>>;
@@ -124,6 +126,15 @@ export const useMediaLibraryPanelRuntime = ({
     });
   }, []);
 
+  const appendMediaRows = useCallback((rows: MediaFileRow[]) => {
+    setRuntimeState((prev) =>
+      appendSurfaceMediaRows(prev, {
+        surface: "panel",
+        rows,
+      })
+    );
+  }, []);
+
   const setPromptRows = useCallback<Dispatch<SetStateAction<PromptRow[]>>>((updater) => {
     setRuntimeState((prev) => {
       const currentRows = prev.surfaceStateByKind.panel.orderedViews.promptIds
@@ -196,6 +207,7 @@ export const useMediaLibraryPanelRuntime = ({
     error,
     mediaRows,
     mediaScopeCache,
+    appendMediaRows,
     setMediaRows,
     setMediaScopeCache,
     setError,

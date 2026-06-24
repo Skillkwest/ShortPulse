@@ -10,6 +10,7 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
 - Runtime status: always on for `kie-ai/kling-3.0`; no rollout allowlist or enable flag is required for this model lane
 - Primary-source snapshot: captured from Kie docs on `2026-03-01`
 - Motion Control file/duration refresh: verified from Kie docs on `2026-06-10`
+- Kling image-format/duration refresh: verified from Kie docs on `2026-06-24`
 
 ## Current Runtime Contract
 
@@ -31,11 +32,11 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
     - optional linked elements use the same `kling_elements` contract as Standard Kling and are referenced from the Motion prompt with `@elementN` tokens
 - Allowed aspects: `16:9`, `9:16`, `1:1` for Standard image-to-video only
 - Allowed resolutions: `720p`, `1080p`
-- Allowed durations: `5`, `10` (seconds) for Standard image-to-video only
+- Allowed durations: integer seconds from `3` through `15` for Standard image-to-video only
 - Kie media preflight guard (before provider submit):
   - media URLs must be valid `http(s)` URLs
   - image/video file extensions are fail-closed allowlisted
-    - images: `jpg|jpeg|png|webp|gif|heic|heif|avif`
+    - images: `jpg|jpeg|png`
     - videos (motion control): `mp4|mov`
   - signed media URLs with embedded JWT `token` are rejected when TTL is too short (`<=120s`)
   - remote media probe rejects non-success fetch status before provider dispatch (`HTTP 2xx` required)
@@ -43,9 +44,12 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
   - deterministic route error on violation: `code=KIE_MEDIA_INPUT_INVALID`
   - runtime probe override (optional): `SHORTPULSE_KIE_MEDIA_PROBE_ENABLED=true|false` (`unset` defaults to enabled outside test runtime)
 - Kie temporary-file staging:
-  - Standard first/last-frame inputs are prepared through `/api/kie/upload-url` before the final Kie submit payload.
+  - Standard first/last-frame inputs and linked element image references are prepared through `/api/kie/upload-url` before the final Kie submit payload.
+  - Kling image staging uses `admissionProfile="kie_kling_reference_image"` so product-valid WebP/AVIF/GIF/HEIC/HEIF inputs are converted to provider-facing JPEG/PNG bytes before Kie submit.
+  - Kie-hosted temp image URLs are reused only when already compatible with the requested admission profile; incompatible temp-hosted images are re-admitted instead of bypassing conversion.
   - Character-scoped ShortPulse storage/display URLs may be used as first/last-frame source inputs only when the adapter can resolve and stage them into Kie temporary-file URLs before dispatch.
   - Final provider payloads must not contain raw ShortPulse `/characters/` storage paths or signed URLs outside the explicitly staged `kling_elements` payload.
+  - Provider-facing Kling reference images must be JPEG/JPG/PNG, under 10 MB, and at least 300 px on both sides.
 - Kie Motion Control provider admission before temp upload:
   - character images use `/api/kie/upload-url` with `admissionProfile="kie_motion_control_character_image"`
   - provider-facing character images are JPEG/JPG/PNG only, under 10 MB, at least 341 px on both sides, and aspect ratio 2:5 to 5:2

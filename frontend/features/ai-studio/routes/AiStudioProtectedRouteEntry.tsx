@@ -16,6 +16,7 @@ import {
   type ComponentType,
 } from "react";
 import { AppErrorBoundary } from "../../../components/AppErrorBoundary";
+import { buildLoginPath } from "../../../lib/authRedirects";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { useProtectedRoute } from "../../../lib/authGuard";
 import { ProtectedRouteSessionProvider } from "../../../lib/protectedRouteSessionContext";
@@ -217,7 +218,7 @@ export default function AiStudioProtectedRouteEntry({
   const checkoutProjectLaunchKeyRef = useRef<string | null>(null);
   const checkoutProjectLaunchStatusRef = useRef<CheckoutProjectLaunchState["status"]>("idle");
   const authRedirectPath = useMemo(
-    () => `/auth?next=${encodeURIComponent(router.asPath || "/dashboard")}`,
+    () => buildLoginPath({ nextPath: router.asPath || "/dashboard" }),
     [router.asPath]
   );
   const { loading, session, user } = useProtectedRoute(true);

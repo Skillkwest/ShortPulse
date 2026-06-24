@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import bootstrapHandler from "../../pages/api/account/bootstrap";
 import confirmEmailHandler from "../../pages/api/account/email/confirm";
 import emailHandler from "../../pages/api/account/email/update";
 import profileHandler from "../../pages/api/account/profile/update";
@@ -495,6 +496,49 @@ describe("account identity routes", () => {
     });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ email: "user@example.com" });
+  });
+
+  it("bootstraps signup account identity without granting plan value", async () => {
+    const req = {
+      method: "POST",
+      headers: { authorization: "Bearer token" },
+    };
+    const res = createMockResponse();
+
+    await bootstrapHandler(req as never, res as never);
+
+    expect(syncStripeCustomerForUserMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      email: "user@example.com",
+      displayName: "Original Name",
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      ok: true,
+      stripeCustomerId: "cus_123",
+    });
+  });
+
+  it("returns a safe bootstrap failure when Stripe customer sync fails", async () => {
+    syncStripeCustomerForUserMock.mockRejectedValueOnce(new Error("Stripe unavailable"));
+    const req = {
+      method: "POST",
+      headers: { authorization: "Bearer token" },
+    };
+    const res = createMockResponse();
+
+    await bootstrapHandler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: expect.any(Error),
+      routeLabel: "account/bootstrap.stripe-sync",
+      user: expect.objectContaining({ id: "user-1" }),
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to finish setting up your account.",
+    });
   });
 
   it("keeps confirmed email completion when downstream Stripe sync fails", async () => {

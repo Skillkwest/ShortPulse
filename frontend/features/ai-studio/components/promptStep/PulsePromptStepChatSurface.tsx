@@ -55,6 +55,7 @@ type PulsePromptStepChatSurfaceProps = {
   onClearAgentAttachments?: () => void;
   onAgentInputChange?: (value: string) => void;
   agentBootstrapPending: boolean;
+  agentInputDisabled: boolean;
   onAgentSend?: () => void;
   highlightLatestAssistantOnly: boolean;
   CreateChatPanel?: React.ComponentType<AgentChatPanelProps>;
@@ -69,6 +70,7 @@ type PulsePromptStepChatSurfaceProps = {
   handleAgentInputKeyDown: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   agentInputMaxHeightPx?: number;
   agentInputCollapseOnBlur: boolean;
+  agentInputVerticalExpansionAnchor: "top" | "bottom";
   onAgentInputVisualRowCountChange?: (rowCount: number) => void;
   pulseLoadingState?: PromptStepPulseLoadingState | null;
   agentError?: string;
@@ -110,6 +112,7 @@ export const PulsePromptStepChatSurface: React.FC<PulsePromptStepChatSurfaceProp
   onClearAgentAttachments,
   onAgentInputChange,
   agentBootstrapPending,
+  agentInputDisabled,
   onAgentSend,
   highlightLatestAssistantOnly,
   CreateChatPanel = AgentChatPanel,
@@ -124,6 +127,7 @@ export const PulsePromptStepChatSurface: React.FC<PulsePromptStepChatSurfaceProp
   handleAgentInputKeyDown,
   agentInputMaxHeightPx,
   agentInputCollapseOnBlur,
+  agentInputVerticalExpansionAnchor,
   onAgentInputVisualRowCountChange,
   pulseLoadingState = null,
   agentError,
@@ -136,6 +140,8 @@ export const PulsePromptStepChatSurface: React.FC<PulsePromptStepChatSurfaceProp
   const [isAgentInputExpanded, setIsAgentInputExpanded] = React.useState(false);
   const [agentInputVisualRowCount, setAgentInputVisualRowCount] = React.useState(1);
   const isPulseLoading = pulseLoadingState != null;
+  const isAgentInputDisabled =
+    agentBootstrapPending || agentInputDisabled || agentIsSending || isPulseLoading;
   const hasHistoryAttachments = !dropToInputComposer && stagedAttachments.length > 0;
   const hasBlockingImageAttachments =
     imageAttachmentCounts.preparing > 0 || imageAttachmentCounts.failed > 0;
@@ -286,22 +292,25 @@ export const PulsePromptStepChatSurface: React.FC<PulsePromptStepChatSurfaceProp
         onFocusChange={setIsAgentInputExpanded}
         onVisualRowCountChange={handleAgentInputVisualRowCountChange}
         placeholder={
-          isPulseLoading
-            ? pulseLoadingState.phase === "starting_pulse"
-              ? "Pulse is starting..."
-              : "Pulse is generating the next response..."
-            : "Message the agent..."
+          agentInputDisabled
+            ? "Choose a Pulse to start"
+            : isPulseLoading
+              ? pulseLoadingState.phase === "starting_pulse"
+                ? "Pulse is starting..."
+                : "Pulse is generating the next response..."
+              : "Message the agent..."
         }
         onKeyDown={handleAgentInputKeyDown}
         className={`agent-input-prefab-inline ${showComposerAttachments ? "has-leading-attachments" : ""}`}
         maxHeightPx={agentInputMaxHeightPx}
         collapseToMinHeightWhenBlurred={agentInputCollapseOnBlur}
-        disabled={agentBootstrapPending || agentIsSending || isPulseLoading}
+        verticalExpansionAnchor={agentInputVerticalExpansionAnchor}
+        disabled={isAgentInputDisabled}
       />
       {hasInsideInputSendButton ? (
         <AgentSendButton
           onClick={handleAgentSendClick}
-          disabled={agentBootstrapPending || !canSendAgentInput || agentIsSending || isPulseLoading}
+          disabled={isAgentInputDisabled || !canSendAgentInput}
           loading={agentIsSending}
           ariaLabel="Send to agent"
           icon="arrow-up"
@@ -314,7 +323,7 @@ export const PulsePromptStepChatSurface: React.FC<PulsePromptStepChatSurfaceProp
   const chatSendButtonContent = !embedSendButtonInInput ? (
     <AgentSendButton
       onClick={handleAgentSendClick}
-      disabled={agentBootstrapPending || !canSendAgentInput || agentIsSending || isPulseLoading}
+      disabled={isAgentInputDisabled || !canSendAgentInput}
       loading={agentIsSending}
       ariaLabel="Send to agent"
       label="Send"

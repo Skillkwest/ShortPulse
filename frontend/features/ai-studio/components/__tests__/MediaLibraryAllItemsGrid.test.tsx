@@ -132,7 +132,9 @@ describe("MediaLibraryAllItemsGrid", () => {
     props.mediaRows = [
       {
         ...props.mediaRows[0],
-        signedUrl: "https://cdn.example.com/clip-1-poster.jpg",
+        signedUrl: "https://cdn.example.com/signed/preview-loop-3s.mp4",
+        preview_storage_path: "user-1/variants/videos/video-1/preview_loop_360p.mp4",
+        preview_variant_path: "user-1/variants/videos/video-1/preview_loop_360p.mp4",
         metadata: null,
       },
     ];

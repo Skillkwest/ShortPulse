@@ -54,7 +54,11 @@ import {
 } from "../logic/projectWorkspaceQuickSlotDiagnostics";
 import { resolvePulseChatProjectStateSignature } from "../pulseChats/pulseChatThread";
 import { createRightRailLayoutSignature } from "../logic/rightRailLayout";
-import type { AiStudioPersistenceController } from "./aiStudioPersistenceControllerContract";
+import type {
+  AiStudioPersistenceController,
+  AiStudioProjectWorkspaceFlushOptions,
+  AiStudioProjectWorkspaceFlushResult,
+} from "./aiStudioPersistenceControllerContract";
 
 type UseAiStudioProjectWorkspacePersistenceControllerParams = {
   projectId: string | null;
@@ -71,6 +75,7 @@ type UseAiStudioProjectWorkspacePersistenceControllerParams = {
   hydrateFromSessionCanvasSnapshot?: (canvas: AiStudioSessionCanvasState | null) => void;
   isAutosaveWorkDeferred?: boolean;
   immediateSaveSignal?: string | number | null;
+  prepareCurrentSnapshot?: () => void;
   applyEmptyProjectState?: () => void;
   resetProjectAgentConversation?: () => void;
   onPersistenceWarning?: (
@@ -552,6 +557,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
   hydrateFromSessionCanvasSnapshot,
   isAutosaveWorkDeferred = false,
   immediateSaveSignal = null,
+  prepareCurrentSnapshot,
   applyEmptyProjectState,
   resetProjectAgentConversation,
   onPersistenceWarning,
@@ -883,6 +889,10 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
   const reducedSnapshotNoticeKeyRef = useRef<string | null>(null);
   const repairPendingNoticeKeyRef = useRef<string | null>(null);
   const activeAutosaveNoticeRef = useRef<ProjectWorkspaceAutosaveNoticeDetails | null>(null);
+  const lastImperativeFlushRef = useRef<{
+    projectId: string;
+    snapshotHash: string | null;
+  } | null>(null);
   const quickSlotSaveResultTelemetryRef = useRef<{ key: string; emittedAt: number } | null>(null);
   const autosaveUnlockSignature = useMemo(
     () => resolveProjectAutosaveUnlockSignature(sessionSnapshot),
@@ -918,6 +928,53 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     (projectAutosaveDiffersFromBootstrap || projectAutosaveUnlockedForBootstrap);
   const projectAutosaveReady =
     projectAutosaveReadyAfterBootstrap || projectAutosaveReadyAfterUserEdit;
+  const resolveProjectAutosaveReadyForSnapshot = useCallback(
+    (snapshot: AiStudioSessionSnapshot | null): boolean => {
+      const currentAutosaveUnlockSignature = resolveProjectAutosaveUnlockSignature(snapshot);
+      const currentAutosaveReadyAfterUserEdit =
+        Boolean(projectId) &&
+        projectBootstrapSettled &&
+        !activeBootstrapVisibilityApplied &&
+        Boolean(expectedProjectRestoreVisibilitySignature) &&
+        Boolean(currentAutosaveUnlockSignature) &&
+        pendingVisibilityAutosaveBaseline?.projectId === projectId &&
+        pendingVisibilityAutosaveBaseline.revision === projectRuntimeRevision &&
+        pendingVisibilityAutosaveBaseline.restoreVisibilitySignature ===
+          expectedProjectRestoreVisibilitySignature &&
+        pendingVisibilityAutosaveBaseline.autosaveUnlockSignature !==
+          currentAutosaveUnlockSignature;
+      const currentAutosaveDiffersFromBootstrap =
+        Boolean(projectId) &&
+        projectBootstrapReady &&
+        Boolean(currentAutosaveUnlockSignature) &&
+        settledAutosaveBaseline?.projectId === projectId &&
+        settledAutosaveBaseline.revision === projectRuntimeRevision &&
+        settledAutosaveBaseline.autosaveUnlockSignature !== currentAutosaveUnlockSignature;
+      const currentAutosaveUnlockedForBootstrap =
+        postBootstrapAutosaveUnlocked?.projectId === projectId &&
+        postBootstrapAutosaveUnlocked.revision === projectRuntimeRevision;
+      const currentAutosaveReadyAfterBootstrap =
+        Boolean(projectId) &&
+        projectBootstrapReady &&
+        Boolean(currentAutosaveUnlockSignature) &&
+        settledAutosaveBaseline?.projectId === projectId &&
+        settledAutosaveBaseline.revision === projectRuntimeRevision &&
+        (currentAutosaveDiffersFromBootstrap || currentAutosaveUnlockedForBootstrap);
+
+      return currentAutosaveReadyAfterBootstrap || currentAutosaveReadyAfterUserEdit;
+    },
+    [
+      activeBootstrapVisibilityApplied,
+      expectedProjectRestoreVisibilitySignature,
+      pendingVisibilityAutosaveBaseline,
+      postBootstrapAutosaveUnlocked,
+      projectBootstrapReady,
+      projectBootstrapSettled,
+      projectId,
+      projectRuntimeRevision,
+      settledAutosaveBaseline,
+    ]
+  );
   const autosaveSnapshotSelectionComputation = useMemo(
     () =>
       resolveProjectAutosaveSnapshotSelectionComputation(
@@ -977,6 +1034,9 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
   );
 
   useEffect(() => {
+    if (lastImperativeFlushRef.current?.projectId !== projectId) {
+      lastImperativeFlushRef.current = null;
+    }
     const activeNotice = activeAutosaveNoticeRef.current;
     if (!activeNotice || activeNotice.projectId === projectId) return;
     activeAutosaveNoticeRef.current = null;
@@ -1416,6 +1476,199 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
       ? bootstrapError
       : null;
 
+  const composeCurrentProjectWorkspaceSnapshot = useCallback(() => {
+    prepareCurrentSnapshot?.();
+    if (!sessionId || !projectBootstrapSettled) {
+      return null;
+    }
+    const baseSnapshot = buildBaseSessionSnapshot(sessionId);
+    return patchSessionSnapshot ? patchSessionSnapshot(baseSnapshot) : baseSnapshot;
+  }, [
+    buildBaseSessionSnapshot,
+    patchSessionSnapshot,
+    prepareCurrentSnapshot,
+    projectBootstrapSettled,
+    sessionId,
+  ]);
+
+  const flushProjectWorkspaceSnapshot = useCallback(
+    async (
+      options: AiStudioProjectWorkspaceFlushOptions = {}
+    ): Promise<AiStudioProjectWorkspaceFlushResult> => {
+      const keepalive = options.keepalive === true;
+      if (!projectId) {
+        return {
+          status: "skipped",
+          reason: "not_project",
+          projectId: null,
+          snapshotHash: null,
+          keepalive,
+        };
+      }
+      if (!sessionId || !projectBootstrapSettled || activeBootstrapError) {
+        return {
+          status: "skipped",
+          reason: "not_ready",
+          projectId,
+          snapshotHash: null,
+          keepalive,
+        };
+      }
+
+      const currentSnapshot = composeCurrentProjectWorkspaceSnapshot();
+      if (!currentSnapshot || !resolveProjectAutosaveReadyForSnapshot(currentSnapshot)) {
+        return {
+          status: "skipped",
+          reason: currentSnapshot ? "not_ready" : "no_snapshot",
+          projectId,
+          snapshotHash: null,
+          keepalive,
+        };
+      }
+
+      const currentSelectionComputation =
+        resolveProjectAutosaveSnapshotSelectionComputation(currentSnapshot);
+      const currentSelection = currentSelectionComputation.selection;
+      const preparedSnapshot = currentSelection.preparedSnapshot;
+      const snapshotHash = preparedSnapshot?.hash ?? null;
+      const maxSnapshotBytes = keepalive
+        ? PROJECT_WORKSPACE_KEEPALIVE_MAX_SNAPSHOT_BYTES
+        : PROJECT_WORKSPACE_AUTOSAVE_MAX_SNAPSHOT_BYTES;
+
+      if (!currentSelection.snapshot || !preparedSnapshot) {
+        return {
+          status: "skipped",
+          reason: "no_snapshot",
+          projectId,
+          snapshotHash,
+          keepalive,
+        };
+      }
+
+      if (!snapshotHash) {
+        handleProjectPersistError(new Error("Workspace serialization failed."), {
+          sessionId: projectId,
+          reason: "snapshot_serialize_failed",
+          snapshotHash,
+          snapshotBytes: preparedSnapshot.bytes,
+          maxSnapshotBytes,
+          keepalive,
+          willRetry: options.reason !== "project_switch",
+        });
+        return {
+          status: "skipped",
+          reason: "serialization_failed",
+          projectId,
+          snapshotHash,
+          keepalive,
+        };
+      }
+
+      if (preparedSnapshot.bytes > maxSnapshotBytes) {
+        handleProjectPersistError(new Error("Workspace snapshot is too large."), {
+          sessionId: projectId,
+          reason: "snapshot_too_large",
+          snapshotHash,
+          snapshotBytes: preparedSnapshot.bytes,
+          maxSnapshotBytes,
+          keepalive,
+          willRetry: options.reason !== "project_switch",
+        });
+        return {
+          status: "skipped",
+          reason: "snapshot_too_large",
+          projectId,
+          snapshotHash,
+          keepalive,
+        };
+      }
+
+      const lastFlush = lastImperativeFlushRef.current;
+      if (lastFlush?.projectId === projectId && lastFlush.snapshotHash === snapshotHash) {
+        return {
+          status: "skipped",
+          reason: "unchanged",
+          projectId,
+          snapshotHash,
+          keepalive,
+        };
+      }
+
+      try {
+        await persistProjectWorkspaceSnapshot(projectId, currentSelection.snapshot, {
+          keepalive,
+          snapshotHash,
+          preparedSnapshot,
+        });
+      } catch (error) {
+        const persistError =
+          error instanceof Error ? error : new Error("Failed to save workspace.");
+        handleProjectPersistError(persistError, {
+          sessionId: projectId,
+          reason: "persist_failed",
+          snapshotHash,
+          snapshotBytes: preparedSnapshot.bytes,
+          maxSnapshotBytes,
+          keepalive,
+          willRetry: options.reason !== "project_switch",
+        });
+        throw persistError;
+      }
+      lastImperativeFlushRef.current = {
+        projectId,
+        snapshotHash,
+      };
+      return {
+        status: "saved",
+        projectId,
+        snapshotHash,
+        keepalive,
+      };
+    },
+    [
+      activeBootstrapError,
+      composeCurrentProjectWorkspaceSnapshot,
+      handleProjectPersistError,
+      persistProjectWorkspaceSnapshot,
+      projectBootstrapSettled,
+      projectId,
+      resolveProjectAutosaveReadyForSnapshot,
+      sessionId,
+    ]
+  );
+
+  const previousImmediateSaveSignalRef = useRef<string | number | null>(immediateSaveSignal);
+  useEffect(() => {
+    if (previousImmediateSaveSignalRef.current === immediateSaveSignal) return;
+    previousImmediateSaveSignalRef.current = immediateSaveSignal;
+    if (immediateSaveSignal == null) return;
+    void flushProjectWorkspaceSnapshot({ reason: "critical_save" });
+  }, [flushProjectWorkspaceSnapshot, immediateSaveSignal]);
+
+  useEffect(() => {
+    if (!projectId) return;
+    const flushCurrentForPageLifecycle = (reason: "visibility_hidden" | "pagehide") => {
+      void flushProjectWorkspaceSnapshot({
+        reason,
+        keepalive: true,
+      });
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        flushCurrentForPageLifecycle("visibility_hidden");
+      }
+    };
+    const handlePageHide = () => {
+      flushCurrentForPageLifecycle("pagehide");
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("pagehide", handlePageHide);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pagehide", handlePageHide);
+    };
+  }, [flushProjectWorkspaceSnapshot, projectId]);
+
   useEffect(() => {
     if (!projectId) {
       quickSlotAutosaveCandidateTelemetryKeyRef.current = null;
@@ -1470,7 +1723,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     snapshot: autosaveSnapshotSelection.snapshot,
     enabled: projectAutosaveReady && !activeBootstrapError,
     persistSnapshot: writeProjectWorkspaceSnapshot,
-    immediateSaveSignal,
+    immediateSaveSignal: null,
     resolveSnapshotTitle: resolveProjectSnapshotTitle,
     preparedSnapshot: autosaveSnapshotSelection.preparedSnapshot,
     maxSnapshotBytes: PROJECT_WORKSPACE_AUTOSAVE_MAX_SNAPSHOT_BYTES,
@@ -1511,6 +1764,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
       activeBootstrapError?.message ??
       (sessionRestoreCandidate.status === "error" ? sessionRestoreCandidate.error : null),
     retryProjectBootstrap,
+    flushProjectWorkspaceSnapshot,
     resetProjectWorkspace,
   };
 };

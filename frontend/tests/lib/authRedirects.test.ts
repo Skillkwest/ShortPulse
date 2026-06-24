@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildAuthCallbackPath,
+  buildLoginPath,
+  buildSignupPath,
   fetchCanonicalAuthCallbackUrl,
+  isAccountFirstSignupNextPath,
   isPaidPricingSignupNextPath,
   isPublicSignupEnabled,
   resolveAuthCallbackFlow,
@@ -72,18 +75,30 @@ describe("auth redirect helpers", () => {
     expect(resolveNextPath("/\\evil.example.com/character")).toBe("/dashboard");
     expect(resolveNextPath("/\\/evil.example.com/character")).toBe("/dashboard");
     expect(resolveNextPath("/auth?next=%2Fcharacter")).toBe("/dashboard");
+    expect(resolveNextPath("/sign-up?next=%2Fai-studio")).toBe("/dashboard");
+    expect(resolveNextPath("/log-in?next=%2Fdashboard")).toBe("/dashboard");
   });
 
-  it("allows signup only for selected paid pricing plans", () => {
-    expect(resolveSignupNextPath("/dashboard")).toBeNull();
-    expect(resolveSignupNextPath("/ai-studio")).toBeNull();
+  it("allows signup for account-first studio entry and selected paid pricing plans", () => {
+    expect(resolveSignupNextPath("/dashboard")).toBe("/dashboard");
+    expect(resolveSignupNextPath("/ai-studio")).toBe("/ai-studio");
+    expect(resolveSignupNextPath("/ai-studio?projectId=project-1")).toBe(
+      "/ai-studio?projectId=project-1"
+    );
+    expect(resolveSignupNextPath("/ai-studioevil")).toBeNull();
     expect(resolveSignupNextPath("/pricing")).toBeNull();
     expect(resolveSignupNextPath("/pricing?plan=free")).toBeNull();
     expect(resolveSignupNextPath("/pricing?intent=create-project&plan=starter")).toBe(
       "/pricing?intent=create-project&plan=starter"
     );
+    expect(isAccountFirstSignupNextPath("/ai-studio")).toBe(true);
+    expect(isAccountFirstSignupNextPath("/pricing?intent=create-project&plan=studio")).toBe(false);
     expect(isPaidPricingSignupNextPath("/pricing?intent=create-project&plan=studio")).toBe(true);
     expect(isPaidPricingSignupNextPath("/pricing?intent=create-project")).toBe(false);
+    expect(buildLoginPath({ nextPath: "/ai-studio?projectId=project-1" })).toBe(
+      "/log-in?next=%2Fai-studio%3FprojectId%3Dproject-1"
+    );
+    expect(buildSignupPath({ nextPath: "/ai-studio" })).toBe("/sign-up?next=%2Fai-studio");
   });
 
   it("keeps public signup disabled unless explicitly enabled", () => {

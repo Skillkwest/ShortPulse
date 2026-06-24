@@ -130,4 +130,42 @@ describe("characterModeLookSelection", () => {
       })
     );
   });
+
+  it("preserves direct empty-look metadata when legacy sheet refs are used as effective fallback", () => {
+    const snapshot = createSnapshot({
+      characterSheetPresets: {
+        ...createDefaultCharacterSheetPresetState().presets,
+        "2": {
+          portrait: null,
+          close_up: null,
+          front_shot: null,
+        },
+      },
+      characterSheetAssignments: {
+        portrait: "portrait_close",
+        close_up: null,
+        front_shot: null,
+      },
+      slots: {
+        ...createSnapshot().slots,
+        portrait_close: {
+          characterMediaId: "legacy-media-1",
+          storagePath: "user/chars/legacy-portrait.png",
+          previewUrl: "https://example.com/legacy-portrait.png",
+        },
+      },
+    });
+
+    const bundle = buildCharacterModeInjectionBundleFromSnapshot(snapshot, "2");
+
+    expect(bundle).toEqual(
+      expect.objectContaining({
+        characterLookId: "2",
+        directLookReferenceCount: 0,
+        usedLegacyReferenceFallback: true,
+        sheetReferenceStoragePaths: ["user/chars/legacy-portrait.png"],
+        sheetReferenceUrls: ["https://example.com/legacy-portrait.png"],
+      })
+    );
+  });
 });

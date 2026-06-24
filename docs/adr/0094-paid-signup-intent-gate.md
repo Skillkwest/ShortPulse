@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by `docs/adr/0095-account-first-signup-intent-gate.md`
 
 ## Context
 

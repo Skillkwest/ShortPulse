@@ -4,6 +4,7 @@ import type { Session, User } from "@supabase/supabase-js";
 import { useProtectedRouteSessionContext } from "./protectedRouteSessionContext";
 import { refreshSupabaseSession, useSupabaseSessionState } from "./supabaseClient";
 import { readPersistedSupabaseSessionHint } from "./supabaseSessionHints";
+import { buildLoginPath } from "./authRedirects";
 export { PROTECTED_ROUTES } from "./protectedRoutes";
 
 type UseProtectedRouteResult = {
@@ -18,7 +19,7 @@ export function useProtectedRoute(enabled: boolean): UseProtectedRouteResult {
   const { initialized, session, user } = useSupabaseSessionState({
     enabled: !(enabled && protectedRouteSession),
   });
-  const authRedirectPath = `/auth?next=${encodeURIComponent(router.asPath || "/dashboard")}`;
+  const authRedirectPath = buildLoginPath({ nextPath: router.asPath || "/dashboard" });
   const [recoveryVersion, bumpRecoveryVersion] = useState(0);
   const recoveryAttemptedRef = useRef(false);
   const recoveryInFlightRef = useRef(false);

@@ -9,7 +9,7 @@ Purpose: define the minimum repeatable smoke test for ShortPulse signup confirma
 - email-change confirmation callback host
 - production and exact-host non-production dry runs
 
-For the paid signup launch, production signup-confirmation smoke tests require the paid signup intent gate first: `sql/migrations/164_add_paid_signup_intent_gate.sql` applied, Supabase Auth's Before User Created hook enabled for `public.hook_shortpulse_paid_signup_intent(event jsonb)`, Supabase Auth public signup enabled, and `NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED=true` in the app runtime. If any of those gates are not ready, skip the live fresh-signup email step and verify the current Supabase Auth signup state with `npm -C frontend run auth:signup-config -- --project-ref <production-project-ref>` instead.
+For the account-first signup launch, production signup-confirmation smoke tests require the signup intent gate first: `sql/migrations/164_add_paid_signup_intent_gate.sql` and `sql/migrations/165_account_first_signup_intent_gate.sql` applied, Supabase Auth's Before User Created hook enabled for `public.hook_shortpulse_signup_intent(event jsonb)`, Supabase Auth public signup enabled, and `NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED=true` in the app runtime. If any of those gates are not ready, skip the live fresh-signup email step and verify the current Supabase Auth signup state with `npm -C frontend run auth:signup-config -- --project-ref <production-project-ref>` instead.
 
 This SOP is for trust verification of auth email flows. It does not replace the broader SMTP configuration and provider posture documented in [docs/sops/sop_supabase_auth_email_operations.md](./sop_supabase_auth_email_operations.md).
 

@@ -106,6 +106,38 @@ describe("useMediaLibraryPanelRuntime", () => {
     ]);
   });
 
+  it("appends panel media rows through the runtime without duplicating existing rows", () => {
+    const { result } = renderHook(() => useMediaLibraryPanelRuntime({ itemType: "all" }));
+
+    act(() => {
+      result.current.setMediaRows([makeMediaRow("image-1")]);
+    });
+
+    act(() => {
+      result.current.appendMediaRows([
+        makeMediaRow("video-1", {
+          filename: "video-1.mp4",
+          storage_path: "user-1/uploads/video-1.mp4",
+          file_type: "video/mp4",
+        }),
+        makeMediaRow("image-1", {
+          filename: "image-1-updated.png",
+        }),
+      ]);
+    });
+
+    expect(result.current.mediaRows.map((row) => row.id)).toEqual(["image-1", "video-1"]);
+    expect(result.current.mediaRows[0]?.filename).toBe("image-1-updated.png");
+    expect(result.current.runtimeState.surfaceStateByKind.panel.orderedViews.mediaIds).toEqual([
+      "image-1",
+      "video-1",
+    ]);
+    expect(
+      result.current.runtimeState.surfaceStateByKind.panel.orderedViews.mediaIdsByTab
+        .uploaded_videos
+    ).toEqual(["video-1"]);
+  });
+
   it("stores panel prompt rows in the shared runtime surface", () => {
     const { result } = renderHook(() => useMediaLibraryPanelRuntime({ itemType: "prompts" }));
 

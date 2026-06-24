@@ -80,6 +80,7 @@ export type CanvasPropertiesPanelProps = {
   livePropsStore?: CanvasPropertiesPanelLivePropsStore;
   instanceId?: CanvasWorkspaceInstanceId;
   camera: CanvasCamera;
+  flushPendingCameraFrame?: () => CanvasCamera;
   items: CanvasSceneItem[];
   pendingItems: CanvasPendingSceneItem[];
   itemDragPreview?: CanvasItemDragPreview | null;
@@ -140,5 +141,6 @@ export type AiStudioDualCanvasWorkspaceState = {
   mainCanvasProps: CanvasPropertiesPanelProps;
   railCanvasProps: CanvasPropertiesPanelProps;
   sessionState: CanvasWorkspaceSessionState;
+  flushSessionState: () => CanvasWorkspaceSessionState;
   hydrateSessionState: (state: CanvasWorkspaceSessionState | null) => void;
 };

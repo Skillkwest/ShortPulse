@@ -27,6 +27,8 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/migrate_ai_credit_ledger_legacy_to_v2.sql`: ledger compatibility upgrade for legacy billing schemas.
 - `sql/migrate_new_user_plan_default_to_free.sql`: targeted plan-default migration.
 - `sql/update_billing_pricing_catalog_20260210.sql`: catalog price update script.
+- `sql/migrations/164_add_paid_signup_intent_gate.sql`: base signup intent table and paid-signup Auth hook foundation.
+- `sql/migrations/165_account_first_signup_intent_gate.sql`: account-first signup intent gate and canonical `hook_shortpulse_signup_intent(event jsonb)` Auth hook.
 - `sql/configure_generation_recovery_scheduler_supabase.sql`: configure Supabase Cron + Vault-backed scheduler invocation for `/api/internal/generation-recovery/run`.
 - `sql/configure_generation_recovery_cron_secret_supabase.sql`: set/update recovery scheduler bearer secret (`shortpulse_reconciler_cron_secret`) in Supabase Vault.
 - `sql/configure_media_derivative_scheduler_supabase.sql`: configure Supabase Cron + Vault-backed scheduler invocation for `/api/internal/media-derivatives/run`.

@@ -11,6 +11,39 @@ export type AiStudioPersistenceRestoreCandidateState = {
   retry?: () => void;
 };
 
+export type AiStudioProjectWorkspaceFlushReason =
+  | "critical_save"
+  | "visibility_hidden"
+  | "pagehide"
+  | "project_switch"
+  | "manual";
+
+export type AiStudioProjectWorkspaceFlushResult =
+  | {
+      status: "saved";
+      projectId: string;
+      snapshotHash: string | null;
+      keepalive: boolean;
+    }
+  | {
+      status: "skipped";
+      reason:
+        | "not_project"
+        | "not_ready"
+        | "no_snapshot"
+        | "serialization_failed"
+        | "snapshot_too_large"
+        | "unchanged";
+      projectId: string | null;
+      snapshotHash: string | null;
+      keepalive: boolean;
+    };
+
+export type AiStudioProjectWorkspaceFlushOptions = {
+  reason?: AiStudioProjectWorkspaceFlushReason;
+  keepalive?: boolean;
+};
+
 export type AiStudioPersistenceController = {
   sessionId: string | null;
   sessionSnapshot: AiStudioSessionSnapshot | null;
@@ -22,5 +55,8 @@ export type AiStudioPersistenceController = {
   projectBootstrapApplied: boolean;
   projectBootstrapError: string | null;
   retryProjectBootstrap: () => void;
+  flushProjectWorkspaceSnapshot: (
+    options?: AiStudioProjectWorkspaceFlushOptions
+  ) => Promise<AiStudioProjectWorkspaceFlushResult>;
   resetProjectWorkspace: () => Promise<void>;
 };

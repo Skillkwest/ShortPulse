@@ -89,6 +89,10 @@ export const buildCharacterModeInjectionBundleFromSnapshot = (
     resolvedLook.lookDescription.trim().length > 0
       ? resolvedLook.lookDescription
       : snapshot.legacyCharacterDescription;
+  const directLookReferenceCount = Math.max(
+    lookReferenceStoragePaths.length,
+    lookReferenceUrls.length
+  );
 
   return {
     characterId: snapshot.characterId,
@@ -96,6 +100,10 @@ export const buildCharacterModeInjectionBundleFromSnapshot = (
     characterLookId: resolvedLook.lookId,
     characterLookName: resolvedLook.lookLabel,
     characterProfileImageUrl: snapshot.profileImageUrl ?? null,
+    directLookReferenceCount,
+    usedLegacyReferenceFallback:
+      directLookReferenceCount === 0 &&
+      (fallbackStoragePaths.length > 0 || fallbackUrls.length > 0),
     sheetReferenceStoragePaths:
       lookReferenceStoragePaths.length > 0 ? lookReferenceStoragePaths : fallbackStoragePaths,
     sheetReferenceUrls: lookReferenceUrls.length > 0 ? lookReferenceUrls : fallbackUrls,

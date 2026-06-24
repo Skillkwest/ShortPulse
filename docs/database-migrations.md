@@ -82,7 +82,7 @@ Safety posture:
 
 ## Auth signup gate
 
-Paid Google/email signup requires `sql/migrations/164_add_paid_signup_intent_gate.sql` plus the hosted Supabase Auth Before User Created hook pointed at `public.hook_shortpulse_paid_signup_intent(event jsonb)`. The paired rollback is `sql/migrations/rollback/164_add_paid_signup_intent_gate_rollback.sql`, but disable the hosted hook before dropping the function.
+Account-first Google/email signup requires `sql/migrations/164_add_paid_signup_intent_gate.sql` followed by `sql/migrations/165_account_first_signup_intent_gate.sql`, plus the hosted Supabase Auth Before User Created hook pointed at `public.hook_shortpulse_signup_intent(event jsonb)`. Migration `165` keeps the prior paid-hook name as a compatibility wrapper, but the canonical hook is `hook_shortpulse_signup_intent`. The paired rollback is `sql/migrations/rollback/165_account_first_signup_intent_gate_rollback.sql`; disable the hosted hook before rolling back or dropping the canonical function.
 
 ## Current required migration set (billing + generation)
 

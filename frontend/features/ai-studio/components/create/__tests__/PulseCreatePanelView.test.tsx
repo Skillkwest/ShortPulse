@@ -501,4 +501,92 @@ describe("PulseCreatePanelView", () => {
       }
     }
   });
+
+  it("expands the active bottom Pulse composer upward for long drafts", async () => {
+    vi.stubGlobal("ResizeObserver", MockResizeObserver);
+    const scrollHeightDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      "scrollHeight"
+    );
+    const rectSpy = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect");
+    Object.defineProperty(HTMLTextAreaElement.prototype, "scrollHeight", {
+      configurable: true,
+      get: () => 900,
+    });
+    rectSpy.mockImplementation(function (this: HTMLElement) {
+      if (this instanceof HTMLTextAreaElement) {
+        return {
+          x: 0,
+          y: 650,
+          top: 650,
+          bottom: 686,
+          left: 0,
+          right: 400,
+          width: 400,
+          height: 36,
+          toJSON: () => ({}),
+        } as DOMRect;
+      }
+      if ((this as HTMLElement).classList?.contains("create-composer-right-panel-inner")) {
+        return {
+          x: 0,
+          y: 0,
+          top: 0,
+          bottom: 720,
+          left: 0,
+          right: 420,
+          width: 420,
+          height: 720,
+          toJSON: () => ({}),
+        } as DOMRect;
+      }
+      return {
+        x: 0,
+        y: 0,
+        top: 0,
+        bottom: 800,
+        left: 0,
+        right: 1280,
+        width: 1280,
+        height: 800,
+        toJSON: () => ({}),
+      } as DOMRect;
+    });
+
+    try {
+      render(
+        <PulseCreatePanelView
+          {...baseProps}
+          activePulsePresetId="single_shot"
+          hasActivePulseSession
+          promptStepProps={{
+            ...basePromptStepProps,
+            agentInput: "Existing draft",
+            agentInputMaxHeightPx: 280,
+            agentInputVerticalExpansionAnchor: "bottom",
+            agentMessages: [
+              { id: "assistant-1", role: "assistant", content: "Upload your image." },
+            ],
+          }}
+        />
+      );
+
+      const textbox = screen.getByRole("textbox");
+
+      await waitFor(() => {
+        expect(textbox).toHaveStyle({ height: "280px", overflowY: "auto" });
+      });
+    } finally {
+      rectSpy.mockRestore();
+      if (scrollHeightDescriptor) {
+        Object.defineProperty(
+          HTMLTextAreaElement.prototype,
+          "scrollHeight",
+          scrollHeightDescriptor
+        );
+      } else {
+        Reflect.deleteProperty(HTMLTextAreaElement.prototype, "scrollHeight");
+      }
+    }
+  });
 });

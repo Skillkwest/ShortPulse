@@ -15,6 +15,7 @@ const routerState = vi.hoisted(() => ({
   query: {} as Record<string, string>,
   isReady: true,
   asPath: "/auth",
+  pathname: "/auth",
 }));
 const getSessionMock = vi.hoisted(() => vi.fn());
 const signInWithPasswordMock = vi.hoisted(() => vi.fn());
@@ -32,6 +33,7 @@ vi.mock("next/router", () => ({
     query: routerState.query,
     isReady: routerState.isReady,
     asPath: routerState.asPath,
+    pathname: routerState.pathname,
     push: pushMock,
     replace: replaceMock,
   }),
@@ -55,6 +57,7 @@ describe("Auth route behavior", () => {
     routerState.query = {};
     routerState.isReady = true;
     routerState.asPath = "/auth";
+    routerState.pathname = "/auth";
     window.history.replaceState({}, "", "/auth");
 
     readSupabaseSessionMock.mockResolvedValue(null);
@@ -226,15 +229,18 @@ describe("Auth route behavior", () => {
     });
   });
 
-  it("does not open signup mode without a selected paid pricing plan", async () => {
-    routerState.query = { mode: "signup" };
+  it("opens account-first signup when public signup is explicitly enabled", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED", "true");
+    routerState.asPath = "/sign-up?next=%2Fai-studio";
+    routerState.pathname = "/sign-up";
+    routerState.query = { next: "/ai-studio" };
 
     render(<AuthPage />);
 
-    expect(screen.getByRole("heading", { name: "Welcome back" })).toBeInTheDocument();
-    expect(screen.queryByRole("tab", { name: "Sign up" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Sign up" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Create your account" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Sign up" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("button", { name: "Create account" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign up with Google" })).toBeDisabled();
   });
 
   it("keeps signup closed by default even with a selected paid pricing plan", async () => {
@@ -273,18 +279,43 @@ describe("Auth route behavior", () => {
     expect(screen.queryByRole("button", { name: "Sign in with Google" })).not.toBeInTheDocument();
   });
 
-  it("blocks signup submission without a selected paid pricing plan", async () => {
+  it("submits account-first signup and preserves the AI Studio next path", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED", "true");
+    routerState.asPath = "/sign-up?next=%2Fai-studio";
+    routerState.pathname = "/sign-up";
+    routerState.query = { next: "/ai-studio" };
+
     render(<AuthPage />);
 
-    expect(screen.queryByRole("tab", { name: "Sign up" })).not.toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Email"), { target: { value: " new@example.com " } });
+    fireEvent.change(screen.getByLabelText("Account email"), {
+      target: { value: " new@example.com " },
+    });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "strongpass" } });
-    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
 
     await waitFor(() => {
-      expect(signInWithPasswordMock).toHaveBeenCalled();
+      expect(signUpMock).toHaveBeenCalled();
     });
-    expect(signUpMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/auth/signup-intent",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          email: "new@example.com",
+          nextPath: "/ai-studio",
+        }),
+      })
+    );
+    expect(signUpMock).toHaveBeenCalledWith({
+      email: "new@example.com",
+      password: "strongpass",
+      options: {
+        emailRedirectTo: "https://www.shortpulse.ai/auth/callback?flow=signup&next=%2Fai-studio",
+      },
+    });
+    expect(
+      screen.getByText("Check your email to confirm your account, then sign in to continue.")
+    ).toBeInTheDocument();
   });
 
   it("submits signup with a selected paid plan and preserves the pricing intent", async () => {
@@ -325,9 +356,7 @@ describe("Auth route behavior", () => {
     });
 
     expect(
-      screen.getByText(
-        "Check your email to confirm your account, then sign in to continue to your selected plan."
-      )
+      screen.getByText("Check your email to confirm your account, then sign in to continue.")
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Forgot password?" })).toBeInTheDocument();
   });
@@ -347,7 +376,7 @@ describe("Auth route behavior", () => {
     expect(screen.getByRole("heading", { name: "Create your account" })).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Google signup could not be completed. Use the same Google account email you entered, or choose your plan again."
+        "Google signup could not be completed. Use the same Google account email you entered, then try again."
       )
     ).toBeInTheDocument();
   });

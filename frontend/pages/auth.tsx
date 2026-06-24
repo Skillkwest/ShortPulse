@@ -11,6 +11,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { AppMessage } from "../components/AppMessage";
 import {
+  DEFAULT_SIGNUP_NEXT_PATH,
   fetchCanonicalAuthCallbackUrl,
   isPaidPricingSignupNextPath,
   isPublicSignupEnabled,
@@ -45,7 +46,7 @@ const authClass = (...names: Array<string | false | null | undefined>) =>
 const getErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error ? error.message : fallback;
 
-const createPaidSignupIntent = async (options: { email: string; nextPath: string }) => {
+const createSignupIntent = async (options: { email: string; nextPath: string }) => {
   const response = await fetch("/api/auth/signup-intent", {
     method: "POST",
     headers: {
@@ -101,6 +102,13 @@ function resolveModeFromAsPath(asPath: string): Mode {
   return resolveMode(new URLSearchParams(queryString).get("mode") ?? undefined);
 }
 
+const resolveModeFromRoutePath = (pathname: string | undefined, asPath: string): Mode | null => {
+  const candidate = pathname || asPath.split(/[?#]/, 1)[0] || "";
+  if (candidate === "/sign-up") return "signup";
+  if (candidate === "/log-in") return "signin";
+  return null;
+};
+
 const resolveOauthStatus = (value: string | string[] | undefined): string | null => {
   const rawValue = Array.isArray(value) ? value[0] : value;
   return typeof rawValue === "string" && rawValue.trim() ? rawValue.trim() : null;
@@ -121,7 +129,7 @@ const resolveOauthMessage = (
     return {
       tone: "error",
       message:
-        "Google signup could not be completed. Use the same Google account email you entered, or choose your plan again.",
+        "Google signup could not be completed. Use the same Google account email you entered, then try again.",
     };
   }
   if (oauthStatus === "signin_failed") {
@@ -143,11 +151,13 @@ function resolveOauthStatusFromAsPath(asPath: string): string | null {
 export default function AuthPage() {
   const router = useRouter();
   const requestedMode = useMemo(() => {
+    const routeMode = resolveModeFromRoutePath(router.pathname, router.asPath || "");
+    if (routeMode) return routeMode;
     if (router.isReady) {
       return resolveMode(router.query.mode);
     }
     return resolveModeFromAsPath(router.asPath || "");
-  }, [router.asPath, router.isReady, router.query.mode]);
+  }, [router.asPath, router.isReady, router.pathname, router.query.mode]);
   const [mode, setMode] = useState<Mode>(requestedMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -169,9 +179,13 @@ export default function AuthPage() {
     }
     return resolveNextPathFromAsPath(router.asPath || "");
   }, [router.asPath, router.isReady, router.query.next]);
-  const signupNextPath = useMemo(() => resolveSignupNextPath(nextPath), [nextPath]);
+  const signupNextPath = useMemo(
+    () => resolveSignupNextPath(nextPath) ?? DEFAULT_SIGNUP_NEXT_PATH,
+    [nextPath]
+  );
   const signupAllowed = isPublicSignupEnabled() && signupNextPath !== null;
   const activeMode: Mode = mode === "signup" && signupAllowed ? "signup" : "signin";
+  const isPricingSignup = activeMode === "signup" && isPaidPricingSignupNextPath(signupNextPath);
   const postAuthPath = activeMode === "signup" && signupNextPath ? signupNextPath : nextPath;
 
   useEffect(() => {
@@ -181,12 +195,8 @@ export default function AuthPage() {
   useEffect(() => {
     if (requestedMode !== "signup" || signupAllowed || oauthStatus) return;
     setError(null);
-    setInfo(
-      signupNextPath
-        ? "Account creation is not open yet. Sign in if you already have an account."
-        : "Choose a paid plan on pricing before creating an account."
-    );
-  }, [oauthStatus, requestedMode, signupAllowed, signupNextPath]);
+    setInfo("Account creation is not open yet. Sign in if you already have an account.");
+  }, [oauthStatus, requestedMode, signupAllowed]);
 
   useEffect(() => {
     const oauthMessage = resolveOauthMessage(oauthStatus, requestedMode);
@@ -223,12 +233,12 @@ export default function AuthPage() {
     try {
       const supabase = ensureSupabaseClient();
       if (activeMode === "signup") {
-        if (!signupAllowed || !signupNextPath || !isPaidPricingSignupNextPath(signupNextPath)) {
+        if (!signupAllowed || !signupNextPath) {
           setError("Account creation is temporarily closed.");
           setMode("signin");
           return;
         }
-        await createPaidSignupIntent({
+        await createSignupIntent({
           email: normalizedEmail,
           nextPath: signupNextPath,
         });
@@ -263,9 +273,7 @@ export default function AuthPage() {
           email_confirmation_required: !data.session,
         });
         if (!data.session) {
-          setInfo(
-            "Check your email to confirm your account, then sign in to continue to your selected plan."
-          );
+          setInfo("Check your email to confirm your account, then sign in to continue.");
           setMode("signin");
           return;
         }
@@ -328,18 +336,18 @@ export default function AuthPage() {
       const supabase = ensureSupabaseClient();
       const normalizedEmail = email.trim();
       if (activeMode === "signup") {
-        if (!signupAllowed || !signupNextPath || !isPaidPricingSignupNextPath(signupNextPath)) {
+        if (!signupAllowed || !signupNextPath) {
           setError("Account creation is temporarily closed.");
           setMode("signin");
           setOauthLoading(false);
           return;
         }
         if (!normalizedEmail) {
-          setError("Enter the Google account email you chose on pricing first.");
+          setError("Enter the Google account email you want to use first.");
           setOauthLoading(false);
           return;
         }
-        await createPaidSignupIntent({
+        await createSignupIntent({
           email: normalizedEmail,
           nextPath: signupNextPath,
         });
@@ -376,10 +384,37 @@ export default function AuthPage() {
       <Head>
         <title>{`ShortPulse · ${activeMode === "signin" ? "Sign in" : "Sign up"}`}</title>
       </Head>
-      <main className={authClass("auth-shell")}>
+      <main className={authClass("auth-shell", "auth-experience-shell")}>
         <div className={authClass("auth-overlay")} />
         <div className={authClass("auth-glow", "auth-glow-left")} />
         <div className={authClass("auth-glow", "auth-glow-right")} />
+        <section className={authClass("auth-showcase")} aria-label="ShortPulse examples">
+          <video
+            className={authClass("auth-showcase-video")}
+            src="/dashboard/gallery/luxury-purse-ugc-demo.mp4"
+            poster="/dashboard/gallery/gallery-10.webp"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+          />
+          <div className={authClass("auth-showcase-scrim")} />
+          <div className={authClass("auth-showcase-copy")}>
+            <p className={authClass("auth-showcase-kicker")}>ShortPulse Studio</p>
+            <h2>Enter the workspace.</h2>
+            <p>
+              Explore the studio with zero starting credits. Upgrade only when you are ready to
+              create.
+            </p>
+          </div>
+          <div className={authClass("auth-showcase-tabs")} aria-hidden="true">
+            <span className={authClass("active")}>Image</span>
+            <span>Video</span>
+            <span>Audio</span>
+            <span>Workflow</span>
+          </div>
+        </section>
         <div className={authClass("auth-layout")}>
           <form className={authClass("auth-card")} onSubmit={onSubmit}>
             <div className={authClass("auth-card-header")}>
@@ -403,7 +438,9 @@ export default function AuthPage() {
               <p className={authClass("auth-subtitle")}>
                 {activeMode === "signin"
                   ? "Use your email, password, or Google account to continue."
-                  : "Use the same email you chose on pricing to create your account."}
+                  : isPricingSignup
+                    ? "Create your account, then continue to your selected plan."
+                    : "Create a free account with full studio access and zero starting credits."}
               </p>
             </div>
 
@@ -591,7 +628,7 @@ export default function AuthPage() {
               </>
             ) : null}
             <p className={authClass("auth-footnote")}>
-              By continuing, you agree to use ShortPulse under your workspace account.
+              By continuing, you agree to the ShortPulse Terms and Privacy Policy.
             </p>
           </form>
         </div>

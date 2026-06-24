@@ -19,6 +19,7 @@ import {
   mergeCharacterAndUserReferences,
 } from "../logic/characterModePayload";
 import { buildCharacterModeInjectionBundleFromSnapshot } from "../logic/characterModeLookSelection";
+import { resolveCharacterModeReferenceReadiness } from "../logic/characterModeReferenceReadiness";
 import type {
   CharacterModeFallbackSummary as SharedCharacterModeFallbackSummary,
   CharacterModeSubmissionOverrides as SharedCharacterModeSubmissionOverrides,
@@ -98,6 +99,8 @@ export type CharacterModeInjectionBundle = {
   characterLookId?: string | null;
   characterLookName?: string | null;
   characterProfileImageUrl?: string | null;
+  directLookReferenceCount?: number | null;
+  usedLegacyReferenceFallback?: boolean;
   sheetReferenceStoragePaths: string[];
   sheetReferenceUrls: string[];
   loadedAtMs: number;
@@ -400,6 +403,12 @@ export const useAiStudioCharacterModeController = ({
       const characterDescription = effectiveBundle?.characterDescription ?? "";
       const characterInternalMediaRefs = resolveCharacterModeInternalMediaRefs(effectiveBundle);
       const characterInternalMediaRefCount = characterInternalMediaRefs.filter(Boolean).length;
+      const characterReferenceReadiness = resolveCharacterModeReferenceReadiness({
+        isCharacterModeEnabled: true,
+        selectedCharacterId: selectedId,
+        isBundleLoading,
+        bundle: effectiveBundle,
+      });
       const characterReferences = hasUsableInternalMediaRefs(characterInternalMediaRefs)
         ? []
         : (effectiveBundle?.sheetReferenceUrls ?? []);
@@ -412,8 +421,13 @@ export const useAiStudioCharacterModeController = ({
         characterReferences
       );
       const hasCharacterDescription = Boolean(characterDescription.trim());
-      const hasCharacterReferences =
-        referenceInputs.length > 0 || hasUsableInternalMediaRefs(characterInternalMediaRefs);
+      const effectiveReferenceCount =
+        characterInternalMediaRefCount || characterReferenceReadiness.effectiveReferenceCount;
+      const characterReferenceCount =
+        effectiveBundle?.directLookReferenceCount == null
+          ? effectiveReferenceCount
+          : characterReferenceReadiness.characterReferenceCount;
+      const hasCharacterReferences = characterReferenceCount > 0;
       const selectedCharacterOption =
         characterOptions.find((option) => option.id === selectedId) ?? null;
       const hasCharacterInjection = hasCharacterDescription || hasCharacterReferences;
@@ -466,7 +480,7 @@ export const useAiStudioCharacterModeController = ({
         characterContextOverride,
         notice,
         fallbackCode,
-        characterReferenceCount: characterInternalMediaRefCount || characterReferences.length,
+        characterReferenceCount,
         hasCharacterDescription,
       };
     },

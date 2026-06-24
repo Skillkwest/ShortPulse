@@ -191,6 +191,29 @@ export const useAiStudioDualCanvasWorkspaceState = ({
     ]
   );
 
+  const flushSessionState = useCallback(
+    (): CanvasWorkspaceSessionState => ({
+      items,
+      draftTextEntry,
+      textEditSession,
+      draftOwnerInstanceId,
+      textEditOwnerInstanceId,
+      mainCamera: mainCanvasProps.flushPendingCameraFrame?.() ?? mainCamera,
+      railCamera: railCanvasProps.flushPendingCameraFrame?.() ?? railCamera,
+    }),
+    [
+      draftOwnerInstanceId,
+      draftTextEntry,
+      items,
+      mainCamera,
+      mainCanvasProps,
+      railCamera,
+      railCanvasProps,
+      textEditOwnerInstanceId,
+      textEditSession,
+    ]
+  );
+
   const hydrateSessionState = useCallback(
     (state: CanvasWorkspaceSessionState | null) => {
       if (!state) {
@@ -225,8 +248,9 @@ export const useAiStudioDualCanvasWorkspaceState = ({
       mainCanvasProps,
       railCanvasProps,
       sessionState,
+      flushSessionState,
       hydrateSessionState,
     }),
-    [hydrateSessionState, mainCanvasProps, railCanvasProps, sessionState]
+    [flushSessionState, hydrateSessionState, mainCanvasProps, railCanvasProps, sessionState]
   );
 };

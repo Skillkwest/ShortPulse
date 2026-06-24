@@ -138,7 +138,7 @@ describe("Pricing route behavior", () => {
       expect(routerPushMock).toHaveBeenCalledTimes(1);
     });
     expect(routerPushMock).toHaveBeenCalledWith(
-      "/auth?next=%2Fpricing%3Fintent%3Dcreate-project%26plan%3Dstudio&mode=signup"
+      "/sign-up?next=%2Fpricing%3Fintent%3Dcreate-project%26plan%3Dstudio"
     );
     await waitFor(() => {
       expect(trackBillingUpgradeClickedMock).toHaveBeenCalledWith(
@@ -153,7 +153,7 @@ describe("Pricing route behavior", () => {
     });
   });
 
-  it("sends guest plan selection to login while public signup is closed", async () => {
+  it("sends guest plan selection to signup while public signup is closed", async () => {
     useSupabaseSessionStateMock.mockReturnValue({
       initialized: true,
       session: null,
@@ -198,13 +198,13 @@ describe("Pricing route behavior", () => {
       )
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Log in to continue" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sign up for Studio" }));
 
     await waitFor(() => {
       expect(routerPushMock).toHaveBeenCalledTimes(1);
     });
     expect(routerPushMock).toHaveBeenCalledWith(
-      "/auth?next=%2Fpricing%3Fintent%3Dcreate-project%26plan%3Dstudio"
+      "/sign-up?next=%2Fpricing%3Fintent%3Dcreate-project%26plan%3Dstudio"
     );
   });
 
@@ -247,11 +247,11 @@ describe("Pricing route behavior", () => {
     const actionRegion = document.querySelector(".lp-actions");
     expect(actionRegion).not.toBeNull();
 
-    const loginAction = actionRegion?.querySelector('a[href*="/auth?"]');
+    const loginAction = actionRegion?.querySelector('a[href*="/log-in?"]');
     const signupAction = actionRegion?.querySelector('a[href*="mode=signup"]');
 
     expect(loginAction).toHaveTextContent("Log in");
-    expect(loginAction).toHaveAttribute("href", "/auth?next=%2Fdashboard");
+    expect(loginAction).toHaveAttribute("href", "/log-in?next=%2Fdashboard");
     expect(signupAction).toBeNull();
   });
 
@@ -325,8 +325,8 @@ describe("Pricing route behavior", () => {
     );
 
     expect(screen.queryByRole("button", { name: "Create account" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Sign up for Starter" })).not.toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: "Log in to continue" }).length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Sign up for Starter" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Log in to continue" })).not.toBeInTheDocument();
   });
 
   it("starts the authenticated paid-plan flow through the existing subscription endpoint", async () => {
@@ -520,10 +520,10 @@ describe("Pricing route behavior", () => {
     );
 
     const actionRegion = document.querySelector(".lp-actions");
-    const loginAction = actionRegion?.querySelector('a[href*="/auth?"]');
+    const loginAction = actionRegion?.querySelector('a[href*="/log-in?"]');
     const signupAction = actionRegion?.querySelector('a[href*="mode=signup"]');
 
-    expect(loginAction).toHaveAttribute("href", "/auth?next=%2Fdashboard");
+    expect(loginAction).toHaveAttribute("href", "/log-in?next=%2Fdashboard");
     expect(signupAction).toBeNull();
     expect(screen.getByRole("button", { name: "Annual" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText("with annual billing paid upfront")).toBeInTheDocument();

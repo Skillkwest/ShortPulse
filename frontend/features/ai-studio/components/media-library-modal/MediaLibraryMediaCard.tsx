@@ -4,6 +4,7 @@
  */
 import React from "react";
 import { Check, DownloadSimple, FlowArrow, TrashSimple, X } from "phosphor-react";
+import { resolveDurablePreviewStoragePath } from "../../../../lib/mediaPreviewPath";
 import { resolveMediaRowKind } from "../../../../lib/mediaRowKind";
 import { canReloadMediaLibraryWorkflow } from "../../logic/mediaLibraryWorkflowReload";
 import { isVideoUrl } from "../../logic/stateParsers";
@@ -128,6 +129,24 @@ export const buildMediaLibraryCardActionLabels = (
   removeLabel,
   deleteLabel,
 });
+
+const resolveMediaLibraryVideoDurationProbeUrl = (file: MediaFileRow): string | null => {
+  if (resolveMediaRowKind(file) !== "video") return null;
+  const signedUrl = file.signedUrl?.trim() ?? "";
+  if (!signedUrl || !isVideoUrl(signedUrl)) return null;
+
+  const storagePath = file.storage_path?.trim() ?? "";
+  const previewStoragePath = file.preview_storage_path?.trim() ?? "";
+  const durablePreviewPath = resolveDurablePreviewStoragePath(file)?.trim() ?? "";
+  const hasSeparatePreviewStoragePath = Boolean(
+    storagePath && previewStoragePath && previewStoragePath !== storagePath
+  );
+  const hasSeparateDurablePreviewPath = Boolean(
+    storagePath && durablePreviewPath && durablePreviewPath !== storagePath
+  );
+
+  return hasSeparatePreviewStoragePath || hasSeparateDurablePreviewPath ? null : signedUrl;
+};
 
 /**
  * Renders the hover action row used by Media Library media cards.
@@ -487,9 +506,7 @@ export function MediaLibraryVisualMediaCard({
   const shouldRenderHoverVideo = Boolean(hasPosterBackedVideoPreview && hoverVideoUrl);
   const fallbackVideoPreload = adaptivePressureLevel > 0 ? "metadata" : "auto";
   const durationMs = resolveMediaMetadataDurationMs(file.metadata, { fileType: file.file_type });
-  const signedVideoDurationUrl =
-    isVideo && file.signedUrl && isVideoUrl(file.signedUrl) ? file.signedUrl : null;
-  const durationMediaUrl = signedVideoDurationUrl;
+  const durationMediaUrl = resolveMediaLibraryVideoDurationProbeUrl(file);
   const shouldSetAriaPressed =
     Boolean(onToggleMediaSelection) || setAriaPressedWithoutSelectionMode;
   const mediaCardLabel = `${

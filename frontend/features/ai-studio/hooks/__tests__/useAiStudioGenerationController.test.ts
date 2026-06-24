@@ -482,7 +482,7 @@ describe("useAiStudioGenerationController", () => {
     }
   });
 
-  it("does not block generate when override cost cannot be covered after refresh", async () => {
+  it("blocks generate when override cost cannot be covered after refresh", async () => {
     const setUiError = vi.fn();
     const refreshBalance = vi.fn(async () => 1);
     const generateOutput = vi.fn();
@@ -494,13 +494,17 @@ describe("useAiStudioGenerationController", () => {
     });
     const { result } = renderHook(() => useAiStudioGenerationController(params));
 
+    let generateResult: Awaited<ReturnType<typeof result.current.handleGenerate>> | null = null;
     await act(async () => {
-      await result.current.handleGenerate("prompt", { costOverrideCredits: 5 });
+      generateResult = await result.current.handleGenerate("prompt", { costOverrideCredits: 5 });
     });
 
-    expect(refreshBalance).not.toHaveBeenCalled();
-    expect(setUiError).not.toHaveBeenCalledWith("You do not have enough credits for this run.");
-    expect(generateOutput).toHaveBeenCalledTimes(1);
+    expect(refreshBalance).toHaveBeenCalledTimes(1);
+    expect(setUiError).toHaveBeenCalledWith(
+      "You do not have enough credits for this run. Choose a plan on pricing to continue."
+    );
+    expect(generateOutput).not.toHaveBeenCalled();
+    expect(generateResult).toEqual({ accepted: false, optimisticOutputId: null });
   });
 
   it("blocks generate when disabled without a visible guardrail message", async () => {
@@ -546,7 +550,7 @@ describe("useAiStudioGenerationController", () => {
     expect(generateOutput).toHaveBeenCalledTimes(1);
   });
 
-  it("does not refresh balance for generate guardrail checks once credit locking is removed", async () => {
+  it("refreshes balance for generate guardrail checks when local balance is insufficient", async () => {
     const setUiError = vi.fn();
     const generateOutput = vi.fn();
     const refreshBalance = vi.fn(async () => 6);
@@ -562,7 +566,7 @@ describe("useAiStudioGenerationController", () => {
       await result.current.handleGenerate("prompt", { costOverrideCredits: 5 });
     });
 
-    expect(refreshBalance).not.toHaveBeenCalled();
+    expect(refreshBalance).toHaveBeenCalledTimes(1);
     expect(setUiError).not.toHaveBeenCalledWith("You do not have enough credits for this run.");
     expect(generateOutput).toHaveBeenCalledTimes(1);
   });

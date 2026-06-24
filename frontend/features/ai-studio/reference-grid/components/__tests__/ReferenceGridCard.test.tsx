@@ -495,6 +495,49 @@ describe("ReferenceGridCard", () => {
     expect(reloadButton.previousElementSibling).toBe(rerollButton);
   });
 
+  it("shows reroll for generated audio workflow outputs", () => {
+    const onRerollOutput = vi.fn();
+    const output = createOutput({
+      mode: "audio",
+      taskState: "success",
+      mediaSource: "generated",
+      previewUrl: "https://example.com/music.mp3",
+      workflowReload: {
+        version: 1,
+        source: "ai_studio_generation",
+        capturedAt: "2026-06-06T12:00:00.000Z",
+        originTool: "music",
+        panelKind: "music",
+        outputMode: "audio",
+        restoreBehavior: "navigate_and_hydrate",
+        pulse: null,
+        prompt: { display: "Music prompt" },
+        model: { id: "elevenlabs/music" },
+        payload: {
+          kind: "music",
+          text: "Music prompt",
+          durationSeconds: 30,
+          mode: "instrumental",
+        },
+      },
+    });
+
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: output,
+          isAudioPreview: true,
+          playableMediaUrl: "https://example.com/music.mp3",
+          onRerollOutput,
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText("Re-roll"));
+
+    expect(onRerollOutput).toHaveBeenCalledWith(output);
+  });
+
   it("hides workflow reload when generated metadata is not restorable", () => {
     render(
       <ReferenceGridCard

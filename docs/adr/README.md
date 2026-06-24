@@ -108,4 +108,5 @@ ADRs capture **important, durable decisions** so the repo stays coherent as it g
 - `docs/adr/0089-large-project-persistence-hybrid-checkpoint-and-output-display-records.md`
 - `docs/adr/0092-lip-sync-storage-authority-fal-staging.md`
 - `docs/adr/0093-legal-policy-control-plane.md`
-- `docs/adr/0094-paid-signup-intent-gate.md`
+- `docs/adr/0094-paid-signup-intent-gate.md` (historical; superseded by `docs/adr/0095-account-first-signup-intent-gate.md`)
+- `docs/adr/0095-account-first-signup-intent-gate.md`

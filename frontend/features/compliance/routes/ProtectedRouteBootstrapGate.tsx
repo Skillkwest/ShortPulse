@@ -8,6 +8,7 @@ import { useRouter } from "next/router";
 import { useEffect, useMemo, type ReactNode } from "react";
 import { MediaComplianceGate } from "../components/MediaComplianceGate";
 import { useMediaComplianceGate } from "../hooks/useMediaComplianceGate";
+import { buildLoginPath } from "../../../lib/authRedirects";
 import { useProtectedRoute } from "../../../lib/authGuard";
 import { ProtectedRouteSessionProvider } from "../../../lib/protectedRouteSessionContext";
 
@@ -34,7 +35,7 @@ const GenericProtectedLoader = ({ message }: { message: string }) => (
 export function ProtectedRouteBootstrapGate({ children }: ProtectedRouteBootstrapGateProps) {
   const router = useRouter();
   const authRedirectPath = useMemo(
-    () => `/auth?next=${encodeURIComponent(router.asPath || "/dashboard")}`,
+    () => buildLoginPath({ nextPath: router.asPath || "/dashboard" }),
     [router.asPath]
   );
   const { loading, session, user } = useProtectedRoute(true);

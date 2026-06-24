@@ -51,7 +51,7 @@ describe("vercel env contract public origin validation", () => {
     );
   });
 
-  it("allows the production public signup flag for the paid signup launch gate", () => {
+  it("allows the production public signup flag for the account-first signup launch gate", () => {
     expect(
       validateGuardedVercelFlag({
         environment: "production",

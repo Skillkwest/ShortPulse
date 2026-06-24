@@ -560,6 +560,7 @@ export const useCanvasViewportInstanceState = ({
       applyCanvasCameraVisualState(nextCamera);
     }
     commitCameraState(cameraRef.current);
+    return cameraRef.current;
   }, [applyCanvasCameraVisualState, commitCameraState]);
 
   const scheduleCameraFrame = useCallback(
@@ -1524,6 +1525,7 @@ export const useCanvasViewportInstanceState = ({
     () => ({
       instanceId,
       camera,
+      flushPendingCameraFrame,
       items,
       pendingItems,
       itemDragPreview,
@@ -1586,6 +1588,7 @@ export const useCanvasViewportInstanceState = ({
       handleViewportPointerMove,
       handleViewportPointerUp,
       handleViewportWheel,
+      flushPendingCameraFrame,
       instanceId,
       isDraftTextEditable,
       isDropActive,

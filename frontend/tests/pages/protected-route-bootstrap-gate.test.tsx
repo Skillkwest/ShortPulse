@@ -125,7 +125,7 @@ describe("ProtectedRouteBootstrapGate", () => {
     );
   });
 
-  it("redirects to auth when recovery is required and keeps the recovery loader visible", () => {
+  it("redirects to login when recovery is required and keeps the recovery loader visible", () => {
     useMediaComplianceGateMock.mockReturnValue({
       ...baseComplianceState,
       accepted: false,
@@ -138,7 +138,7 @@ describe("ProtectedRouteBootstrapGate", () => {
 
     expect(screen.getByText("Refreshing your session…")).toBeInTheDocument();
     expect(screen.queryByTestId("media-compliance-gate")).not.toBeInTheDocument();
-    expect(replaceMock).toHaveBeenCalledWith("/auth?next=%2Fprofile");
+    expect(replaceMock).toHaveBeenCalledWith("/log-in?next=%2Fprofile");
   });
 
   it("renders protected page content once the gate clears", () => {

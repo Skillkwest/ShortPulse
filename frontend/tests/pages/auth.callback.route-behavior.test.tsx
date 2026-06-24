@@ -87,7 +87,7 @@ describe("Auth callback route behavior", () => {
     });
   });
 
-  it("redirects to the sanitized next path after a confirmed signup session is available", async () => {
+  it("bootstraps account identity and redirects after a confirmed signup session is available", async () => {
     setCallbackRoute(
       "/auth/callback?flow=signup&next=%2Fprofile%3Fsection%3Daccount#type=signup&access_token=test-token",
       { flow: "signup", next: "/profile?section=account" }
@@ -103,6 +103,9 @@ describe("Auth callback route behavior", () => {
       expect(primeSupabaseSessionMock).toHaveBeenCalledWith({
         user: { id: "user-1" },
         access_token: "test-token",
+      });
+      expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/account/bootstrap", {
+        method: "POST",
       });
       expect(replaceMock).toHaveBeenCalledWith("/profile?section=account");
     });
@@ -298,7 +301,7 @@ describe("Auth callback route behavior", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Return to signup" })).toHaveAttribute(
       "href",
-      "/auth?next=%2Fdashboard&mode=signup"
+      "/sign-up?next=%2Fdashboard"
     );
     expect(replaceMock).not.toHaveBeenCalled();
   });
@@ -318,7 +321,7 @@ describe("Auth callback route behavior", () => {
     expect(replaceMock).not.toHaveBeenCalled();
   });
 
-  it("returns to auth when Google sign-in is cancelled by the provider", async () => {
+  it("returns to login when Google sign-in is cancelled by the provider", async () => {
     setCallbackRoute(
       "/auth/callback?flow=signin&next=%2Fdashboard&provider=google&error=access_denied",
       { flow: "signin", next: "/dashboard", provider: "google", error: "access_denied" }
@@ -328,7 +331,7 @@ describe("Auth callback route behavior", () => {
     render(<AuthCallbackPage />);
 
     await waitFor(() => {
-      expect(replaceMock).toHaveBeenCalledWith("/auth?next=%2Fdashboard&oauth=cancelled");
+      expect(replaceMock).toHaveBeenCalledWith("/log-in?next=%2Fdashboard&oauth=cancelled");
     });
     expect(
       screen.queryByText("This sign-in link is invalid or has expired. Try signing in again.")
@@ -351,7 +354,7 @@ describe("Auth callback route behavior", () => {
 
     await waitFor(() => {
       expect(replaceMock).toHaveBeenCalledWith(
-        "/auth?next=%2Fpricing%3Fintent%3Dcreate-project%26plan%3Dstarter&mode=signup&oauth=signup_failed"
+        "/sign-up?next=%2Fpricing%3Fintent%3Dcreate-project%26plan%3Dstarter&oauth=signup_failed"
       );
     });
     expect(
@@ -374,7 +377,7 @@ describe("Auth callback route behavior", () => {
 
     await waitFor(() => {
       expect(replaceMock).toHaveBeenCalledWith(
-        "/auth?next=%2Fpricing%3Fintent%3Dcreate-project%26plan%3Dstarter&mode=signup&oauth=cancelled"
+        "/sign-up?next=%2Fpricing%3Fintent%3Dcreate-project%26plan%3Dstarter&oauth=cancelled"
       );
     });
     expect(

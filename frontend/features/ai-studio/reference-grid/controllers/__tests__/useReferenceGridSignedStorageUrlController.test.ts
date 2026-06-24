@@ -63,7 +63,7 @@ describe("useReferenceGridSignedStorageUrlController", () => {
     vi.mocked(resolveSessionRestoreSignedMediaAuthorityByMediaId).mockResolvedValue(new Map());
   });
 
-  it("collects a bounded preview-first fallback ladder for card rendering", () => {
+  it("collects preview storage without full originals for card rendering when preview exists", () => {
     const paths = collectReferenceGridStoragePaths([
       createStorageBackedImage({
         previewStoragePath: "/user-1/variants/images/image-1/preview.webp",
@@ -71,11 +71,7 @@ describe("useReferenceGridSignedStorageUrlController", () => {
       }),
     ]);
 
-    expect(paths).toEqual([
-      "user-1/variants/images/image-1/preview.webp",
-      "user-1/generations/images/image-1.png",
-      "user-1/results/image-1.png",
-    ]);
+    expect(paths).toEqual(["user-1/variants/images/image-1/preview.webp"]);
   });
 
   it("collects full-authority storage paths when explicitly requested", () => {
@@ -116,6 +112,25 @@ describe("useReferenceGridSignedStorageUrlController", () => {
         }),
       ])
     ).toEqual(["user-1/generations/images/image-1.png"]);
+  });
+
+  it("keeps video full fallback signing when a poster exists without a playable preview", () => {
+    expect(
+      collectReferenceGridStoragePaths([
+        createStorageBackedImage({
+          id: "video-1",
+          mode: "video",
+          previewStoragePath: undefined,
+          previewPosterStoragePath: "user-1/variants/videos/video-1/poster.webp",
+          fullStoragePath: "user-1/generations/videos/video-1/full.mp4",
+          resultUrls: ["user-1/results/videos/video-1/full.mp4"],
+        }),
+      ])
+    ).toEqual([
+      "user-1/variants/videos/video-1/poster.webp",
+      "user-1/generations/videos/video-1/full.mp4",
+      "user-1/results/videos/video-1/full.mp4",
+    ]);
   });
 
   it("collects audio companion-art storage paths for generated reference backgrounds", () => {
@@ -176,10 +191,7 @@ describe("useReferenceGridSignedStorageUrlController", () => {
 
     expect(getSignedMediaUrlsBatch).toHaveBeenCalledWith({
       bucket: "media_library",
-      storagePaths: [
-        "user-1/variants/images/image-1/preview.webp",
-        "user-1/generations/images/image-1.png",
-      ],
+      storagePaths: ["user-1/variants/images/image-1/preview.webp"],
       surface: "reference-grid",
       queryMode: "default",
     });

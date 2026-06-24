@@ -30,6 +30,7 @@ export type PulsePromptStepProps = {
   agentBootstrapPending?: boolean;
   agentMessages?: AgentMessage[];
   agentInput?: string;
+  agentInputDisabled?: boolean;
   agentIsSending?: boolean;
   agentError?: string;
   stagedPrompt?: string | null;
@@ -75,6 +76,7 @@ export type PulsePromptStepProps = {
   stackTrailingComposerControls?: boolean;
   agentInputMaxHeightPx?: number;
   agentInputCollapseOnBlur?: boolean;
+  agentInputVerticalExpansionAnchor?: "top" | "bottom";
   onAgentInputVisualRowCountChange?: (rowCount: number) => void;
   pulseLoadingState?: PromptStepPulseLoadingState | null;
   chatHeaderExtraContent?: React.ReactNode;
@@ -100,6 +102,7 @@ export function PulsePromptStep({
   agentBootstrapPending = false,
   agentMessages = [],
   agentInput = "",
+  agentInputDisabled = false,
   agentIsSending = false,
   agentError,
   stagedPrompt = null,
@@ -145,6 +148,7 @@ export function PulsePromptStep({
   stackTrailingComposerControls = false,
   agentInputMaxHeightPx,
   agentInputCollapseOnBlur = false,
+  agentInputVerticalExpansionAnchor = "top",
   onAgentInputVisualRowCountChange,
   pulseLoadingState = null,
   chatHeaderExtraContent = null,
@@ -451,6 +455,7 @@ export function PulsePromptStep({
                 onClearAgentAttachments={onClearAgentAttachments}
                 onAgentInputChange={effectiveAgentInputChange}
                 agentBootstrapPending={agentBootstrapPending}
+                agentInputDisabled={agentInputDisabled}
                 onAgentSend={onAgentSend}
                 highlightLatestAssistantOnly={highlightLatestAssistantOnly}
                 CreateChatPanel={CreateChatPanel}
@@ -465,6 +470,7 @@ export function PulsePromptStep({
                 handleAgentInputKeyDown={handleAgentInputKeyDown}
                 agentInputMaxHeightPx={agentInputMaxHeightPx}
                 agentInputCollapseOnBlur={agentInputCollapseOnBlur}
+                agentInputVerticalExpansionAnchor={agentInputVerticalExpansionAnchor}
                 onAgentInputVisualRowCountChange={onAgentInputVisualRowCountChange}
                 embedSendButtonInInput={embedSendButtonInInput}
                 agentError={

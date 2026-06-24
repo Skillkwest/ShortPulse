@@ -51,12 +51,12 @@ Notes:
 5. Confirm Stripe webhook secret and admin operator-role assignments are prepared for production.
 6. Confirm deployment/release notes still distinguish current environment protection state from planned production-readiness protection state.
 7. If production storage payloads are being migrated from staging, complete `docs/sops/sop_nuclo_supabase_storage_migration.md` before any production Vercel rewiring.
-8. Confirm auth callback origin and paid signup readiness:
-   - `sql/migrations/164_add_paid_signup_intent_gate.sql` is applied before public signup is opened
-   - Supabase Auth's Before User Created hook calls `public.hook_shortpulse_paid_signup_intent(event jsonb)` before `disable_signup=false`
+8. Confirm auth callback origin and account-first signup readiness:
+   - `sql/migrations/164_add_paid_signup_intent_gate.sql` and `sql/migrations/165_account_first_signup_intent_gate.sql` are applied before public signup is opened
+   - Supabase Auth's Before User Created hook calls `public.hook_shortpulse_signup_intent(event jsonb)` before `disable_signup=false`
    - `NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED=true` is set in Vercel `Production` only after the Supabase hook is enabled and verified
    - `npm -C frontend run auth:signup-config -- --project-ref <production-project-ref> --expect-enabled` passes before claiming production public signup is open
-   - if Google signup is enabled, the Supabase Google provider is protected by the same paid signup intent hook before unknown Google accounts can create users
+   - if Google signup is enabled, the Supabase Google provider is protected by the same signup intent hook before unknown Google accounts can create users
    - Google Cloud OAuth allows `https://www.shortpulse.ai` as the production JavaScript origin and the Supabase project callback URL as the production redirect URI
    - `APP_BASE_URL` is the canonical public-origin authority for the target environment
    - If `SHORTPULSE_PUBLIC_API_BASE_URL` is set, it exactly matches `APP_BASE_URL`
@@ -108,7 +108,7 @@ as applicable):
   - `SHORTPULSE_VERCEL_API_TOKEN` (optional for `scripts/verify_deployment_route_parity.mjs`; when absent, the script now falls back to the authenticated `vercel` CLI session, and still accepts `VERCEL_API_TOKEN` as an alternate token source)
 - Optional agent/runtime toggles:
   - `NEXT_PUBLIC_ENABLE_STUDIO_AGENT`
-  - `NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED` (defaults closed; set to `true` only after a paid-checkout-first public signup launch decision and matching Supabase provider posture are approved)
+  - `NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED` (defaults closed; set to `true` only after an account-first public signup launch decision and matching Supabase provider posture are approved)
   - AI Studio legacy `sid` session persistence is retired; do not configure the old `NEXT_PUBLIC_AI_STUDIO_SESSION_*` or `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED` flags.
   - `SHORTPULSE_RELEASE` (optional explicit release/build tag for incident logs)
   - `NEXT_PUBLIC_SHORTPULSE_RELEASE` (optional client bundle release tag for incident logs)

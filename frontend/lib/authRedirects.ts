@@ -3,8 +3,12 @@ export type AuthCallbackOAuthProvider = "google";
 
 export const AUTH_ENTRY_PATH = "/auth";
 export const AUTH_CALLBACK_PATH = "/auth/callback";
+export const SIGNUP_ENTRY_PATH = "/sign-up";
+export const LOGIN_ENTRY_PATH = "/log-in";
+const AUTH_ENTRY_PATHS = [AUTH_ENTRY_PATH, AUTH_CALLBACK_PATH, SIGNUP_ENTRY_PATH, LOGIN_ENTRY_PATH];
 export const DEFAULT_POST_AUTH_PATH = "/dashboard";
-export const DEFAULT_SIGNUP_NEXT_PATH = "/pricing";
+export const DEFAULT_SIGNUP_NEXT_PATH = "/ai-studio";
+export const PRICING_SIGNUP_NEXT_PATH = "/pricing";
 export type PaidSignupPlanId = "starter" | "media" | "studio" | "business";
 export type PaidSignupBillingInterval = "month" | "year";
 export type PaidSignupPricingIntent = "create-project" | "open-projects" | "dashboard" | "tutorial";
@@ -46,8 +50,14 @@ export const resolveNextPath = (nextQueryValue: string | string[] | undefined): 
   const candidate = rawValue.trim();
   if (candidate.includes("\\")) return DEFAULT_POST_AUTH_PATH;
   if (!candidate.startsWith("/") || candidate.startsWith("//")) return DEFAULT_POST_AUTH_PATH;
-  if (candidate.startsWith(AUTH_ENTRY_PATH)) return DEFAULT_POST_AUTH_PATH;
   const candidatePathname = (candidate.split(/[?#]/, 1)[0] ?? candidate).replace(/\/+$/, "") || "/";
+  if (
+    AUTH_ENTRY_PATHS.some(
+      (path) => candidatePathname === path || candidatePathname.startsWith(`${path}/`)
+    )
+  ) {
+    return DEFAULT_POST_AUTH_PATH;
+  }
   return LEGACY_CHARACTER_AUTH_NEXT_PATHS.get(candidatePathname) ?? candidate;
 };
 
@@ -80,7 +90,7 @@ export const resolvePaidSignupPricingSelection = (
     return null;
   }
   const candidatePathname = parsed.pathname.replace(/\/+$/, "") || "/";
-  if (candidatePathname !== DEFAULT_SIGNUP_NEXT_PATH) return null;
+  if (candidatePathname !== PRICING_SIGNUP_NEXT_PATH) return null;
   const planId = parsed.searchParams.get("plan")?.trim().toLowerCase() ?? "";
   if (!PAID_SIGNUP_PLAN_IDS.has(planId as PaidSignupPlanId)) return null;
 
@@ -96,8 +106,41 @@ export const isPaidPricingSignupNextPath = (nextPath: string): boolean => {
 };
 
 export const resolveSignupNextPath = (nextPath: string): string | null => {
-  if (!isPaidPricingSignupNextPath(nextPath)) return null;
-  return nextPath;
+  if (!nextPath.startsWith("/") || nextPath.startsWith("//") || nextPath.includes("\\")) {
+    return null;
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(nextPath, "https://shortpulse.local");
+  } catch {
+    return null;
+  }
+  const candidatePathname = parsed.pathname.replace(/\/+$/, "") || "/";
+  if (candidatePathname === DEFAULT_SIGNUP_NEXT_PATH || candidatePathname === "/dashboard") {
+    return nextPath;
+  }
+  if (isPaidPricingSignupNextPath(nextPath)) return nextPath;
+  return null;
+};
+
+export const isAccountFirstSignupNextPath = (nextPath: string): boolean => {
+  const resolved = resolveSignupNextPath(nextPath);
+  return resolved !== null && !isPaidPricingSignupNextPath(resolved);
+};
+
+export const buildLoginPath = (params?: { nextPath?: string }): string => {
+  const query = new URLSearchParams();
+  query.set("next", resolveNextPath(params?.nextPath));
+  return `${LOGIN_ENTRY_PATH}?${query.toString()}`;
+};
+
+export const buildSignupPath = (params?: { nextPath?: string }): string => {
+  const query = new URLSearchParams();
+  query.set(
+    "next",
+    resolveSignupNextPath(resolveNextPath(params?.nextPath)) ?? DEFAULT_SIGNUP_NEXT_PATH
+  );
+  return `${SIGNUP_ENTRY_PATH}?${query.toString()}`;
 };
 
 export const isPublicSignupEnabled = (): boolean =>

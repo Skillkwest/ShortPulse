@@ -11,7 +11,11 @@ import { PublicHomeCommunitySection } from "./PublicHomeCommunitySection";
 import { PublicHomeFooter } from "./PublicHomeFooter";
 import { PublicHomeTutorialShowcase } from "./PublicHomeTutorialShowcase";
 import { PublicHomeVideoGallery } from "./PublicHomeVideoGallery";
-import { buildDashboardAuthPath, buildPricingPath } from "../../pricing/paths";
+import {
+  buildDashboardAuthPath,
+  buildDashboardSignupPath,
+  buildPricingPath,
+} from "../../pricing/paths";
 import { SHORTPULSE_COMMUNITY_URL } from "../communityLinks";
 
 type GuestDashboardViewProps = {
@@ -254,9 +258,9 @@ export function GuestDashboardView({
   createProjectHref,
   dashboardTutorials,
 }: GuestDashboardViewProps) {
-  const tutorialLaunchHref = buildPricingPath({ intent: "tutorial" });
+  const tutorialLaunchHref = buildDashboardSignupPath();
   const footerLoginHref = buildDashboardAuthPath();
-  const signupHref = buildPricingPath();
+  const signupHref = buildDashboardSignupPath();
   const footerPricingHref = buildPricingPath();
   const heroVideoRef = useRef<HTMLVideoElement | null>(null);
   const motionLayoutProfile = useHomepageMotionLayoutProfile();

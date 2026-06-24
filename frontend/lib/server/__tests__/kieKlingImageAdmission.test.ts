@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 import { admitKieKlingReferenceImage } from "../kieKlingImageAdmission";
@@ -25,6 +26,16 @@ const buildWebp = async (width = 512, height = 512): Promise<Buffer> =>
   })
     .webp({ quality: 90 })
     .toBuffer();
+
+const buildNoisyWebp = async (width = 900, height = 900): Promise<Buffer> => {
+  const raw = Buffer.alloc(width * height * 3);
+  crypto.randomFillSync(raw);
+  return await sharp(raw, {
+    raw: { width, height, channels: 3 },
+  })
+    .webp({ quality: 100, lossless: true })
+    .toBuffer();
+};
 
 describe("admitKieKlingReferenceImage", () => {
   it("passes Kling-compatible PNG references through without replacing source bytes", async () => {
@@ -75,6 +86,41 @@ describe("admitKieKlingReferenceImage", () => {
         supabaseTransformUsed: false,
       })
     );
+  });
+
+  it("normalizes oversized Kie-allowed references under the provider cap", async () => {
+    const image = await buildNoisyWebp(1200, 1200);
+    const png = await sharp(image).png().toBuffer();
+
+    const admitted = await admitKieKlingReferenceImage({
+      buffer: png,
+      filename: "large-reference.png",
+      mimeType: "image/png",
+      constraints: {
+        maxBytes: 320 * 1024,
+        targetBytes: 260 * 1024,
+      },
+    });
+
+    expect(png.length).toBeGreaterThan(320 * 1024);
+    expect(admitted.size).toBeLessThanOrEqual(320 * 1024);
+    expect(admitted.mimeType).toMatch(/^image\/(jpeg|png)$/);
+    expect(admitted.admission.status).toBe("admitted");
+  }, 30000);
+
+  it("rejects images below Kie's Kling dimension floor", async () => {
+    const image = await buildPng(299, 512);
+
+    await expect(
+      admitKieKlingReferenceImage({
+        buffer: image,
+        filename: "too-small.png",
+        mimeType: "image/png",
+      })
+    ).rejects.toMatchObject({
+      details: "Kling reference image must be at least 300 px wide and 300 px tall.",
+      statusCode: 400,
+    });
   });
 
   it("rejects unreadable image bytes", async () => {

@@ -84,13 +84,13 @@ describe("POST /api/auth/signup-intent", () => {
     expect(getSupabaseAdminMock).not.toHaveBeenCalled();
   });
 
-  it("rejects invalid paid-signup paths before touching Supabase", async () => {
+  it("rejects unsafe signup paths before touching Supabase", async () => {
     vi.stubEnv("NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED", "true");
     const req = {
       method: "POST",
       body: {
         email: "buyer@example.com",
-        nextPath: "/dashboard",
+        nextPath: "https://evil.example/dashboard",
       },
       headers: {},
     };
@@ -100,9 +100,53 @@ describe("POST /api/auth/signup-intent", () => {
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({
-      error: "Choose a paid plan before creating an account.",
+      error: "Choose where to continue after creating an account.",
     });
     expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+  });
+
+  it("stores an account-first signup intent without requiring a paid offer", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED", "true");
+    const insertMock = vi.fn().mockResolvedValue({ error: null });
+    const fromMock = vi.fn((table: string) => {
+      if (table === "signup_intents") return { insert: insertMock };
+      throw new Error(`Unexpected table ${table}`);
+    });
+    getSupabaseAdminMock.mockReturnValue({ from: fromMock });
+    const req = {
+      method: "POST",
+      body: {
+        email: " Explorer@Example.com ",
+        nextPath: "/ai-studio",
+      },
+      headers: {
+        "user-agent": "Signup Test Browser",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fromMock).not.toHaveBeenCalledWith("billing_plan_offers");
+    expect(insertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+        signup_context: "account",
+        plan_id: null,
+        billing_interval: null,
+        pricing_intent: null,
+        next_path: "/ai-studio",
+        offer_id: null,
+        created_ip_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+        user_agent_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      })
+    );
+    expect(insertMock.mock.calls[0]?.[0]).not.toHaveProperty("email");
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      ok: true,
+      expiresAt: expect.any(String),
+    });
   });
 
   it("rejects signup intents when the selected paid offer is not active", async () => {
@@ -171,6 +215,7 @@ describe("POST /api/auth/signup-intent", () => {
     expect(insertMock).toHaveBeenCalledWith(
       expect.objectContaining({
         email_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+        signup_context: "pricing",
         plan_id: "media",
         billing_interval: "month",
         pricing_intent: "open-projects",

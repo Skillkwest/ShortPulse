@@ -23,19 +23,31 @@ export async function runGenerationCreditGuardrail({
   handleInsufficientCredits,
   handleGuardrailBlock,
 }: RunGenerationCreditGuardrailParams): Promise<boolean> {
-  void requiredCredits;
-  void upfrontRunCredits;
-  void availableBalanceCredits;
-  void alwaysCheckCreditGuardrailWhenEnabled;
-  void ensureFreshCreditsForRun;
-  void handleInsufficientCredits;
+  const effectiveRequiredCredits = upfrontRunCredits ?? requiredCredits ?? null;
 
   if (isGenerateDisabled) {
-    if (isCreditGuardrail) {
-      return true;
+    if (!isCreditGuardrail) {
+      handleGuardrailBlock(resolveGuardrailBlockMessage());
+      return false;
     }
+  }
 
-    handleGuardrailBlock(resolveGuardrailBlockMessage());
+  if (effectiveRequiredCredits == null || effectiveRequiredCredits <= 0) {
+    return true;
+  }
+
+  const shouldCheckCredits =
+    isCreditGuardrail ||
+    alwaysCheckCreditGuardrailWhenEnabled ||
+    (availableBalanceCredits !== null && availableBalanceCredits < effectiveRequiredCredits);
+
+  if (!shouldCheckCredits) {
+    return true;
+  }
+
+  const hasCredits = await ensureFreshCreditsForRun(effectiveRequiredCredits);
+  if (!hasCredits) {
+    handleInsufficientCredits();
     return false;
   }
 

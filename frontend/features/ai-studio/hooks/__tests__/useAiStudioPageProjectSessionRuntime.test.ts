@@ -534,6 +534,11 @@ describe("useAiStudioPageProjectSessionRuntime", () => {
       mainCamera: { x: 32, y: -16, zoom: 1.2 },
       railCamera: { x: -12, y: 10, zoom: 0.9 },
     };
+    const flushedCanvasSessionState = {
+      ...canvasSessionState,
+      railCamera: { x: -88, y: 24, zoom: 1.8 },
+    };
+    const flushCanvasSessionState = vi.fn(() => flushedCanvasSessionState);
 
     renderHook(() =>
       useAiStudioPageProjectSessionRuntime({
@@ -547,6 +552,7 @@ describe("useAiStudioPageProjectSessionRuntime", () => {
         ),
         buildSessionSnapshot: vi.fn(() => createEmptyAiStudioSessionSnapshot()),
         canvasSessionState,
+        flushCanvasSessionState,
         createSelectedCharacterId: "",
         createSelectedCharacterLookId: "",
         expertCreateMode: "standard",
@@ -585,11 +591,13 @@ describe("useAiStudioPageProjectSessionRuntime", () => {
     );
 
     const capturedArgs = useAiStudioPageSessionPersistenceMock.mock.calls[0]?.[0] as {
+      prepareCurrentSnapshot: () => void;
       buildBaseSessionSnapshot: (args: {
         sessionId: string;
         agentRuntime: unknown;
       }) => AiStudioSessionSnapshot;
     };
+    capturedArgs.prepareCurrentSnapshot();
     const snapshot = capturedArgs.buildBaseSessionSnapshot({
       sessionId: "project-1",
       agentRuntime: {
@@ -603,7 +611,106 @@ describe("useAiStudioPageProjectSessionRuntime", () => {
     }) as AiStudioSessionSnapshotV2;
     const savedCanvas = parseAiStudioSessionCanvasState(snapshot.canvas ?? null);
 
-    expect(savedCanvas).toEqual(canvasSessionState);
+    expect(flushCanvasSessionState).toHaveBeenCalledTimes(1);
+    expect(savedCanvas).toEqual(flushedCanvasSessionState);
+  });
+
+  it("uses rerendered canvas state for project snapshots before effects settle", () => {
+    const initialCanvasSessionState: AiStudioSessionCanvasState = {
+      items: [],
+      draftTextEntry: null,
+      textEditSession: null,
+      draftOwnerInstanceId: null,
+      textEditOwnerInstanceId: null,
+      mainCamera: { x: 0, y: 0, zoom: 1 },
+      railCamera: { x: 0, y: 0, zoom: 1 },
+    };
+    const updatedCanvasSessionState: AiStudioSessionCanvasState = {
+      ...initialCanvasSessionState,
+      items: [
+        {
+          id: "canvas-text-1",
+          kind: "text",
+          x: 12,
+          y: 24,
+          z: 1,
+          selected: false,
+          outputId: null,
+          sourceSurface: null,
+          text: "Fresh canvas state",
+          width: 220,
+          height: 96,
+        },
+      ],
+      railCamera: { x: -44, y: 18, zoom: 1.45 },
+    };
+    const resolveSavedCanvas = () => {
+      const capturedArgs = useAiStudioPageSessionPersistenceMock.mock.calls.at(-1)?.[0] as {
+        buildBaseSessionSnapshot: (args: {
+          sessionId: string;
+          agentRuntime: unknown;
+        }) => AiStudioSessionSnapshot;
+      };
+      const snapshot = capturedArgs.buildBaseSessionSnapshot({
+        sessionId: "project-1",
+        agentRuntime: createPersistedAgentRuntime(),
+      });
+      return parseAiStudioSessionCanvasState(
+        (snapshot as AiStudioSessionSnapshotV2).canvas ?? null
+      );
+    };
+
+    const { rerender } = renderHook(
+      ({ currentCanvasSessionState }) =>
+        useAiStudioPageProjectSessionRuntime({
+          activeCreateAgentKind: "standard",
+          activeCreatePulsePresetId: null,
+          activeSessionPersistenceSessionId: "session-1",
+          buildProjectWorkspaceSnapshot: vi.fn(() => createProjectSnapshot()),
+          buildSessionSnapshot: vi.fn(() => createEmptyAiStudioSessionSnapshot()),
+          canvasSessionState: currentCanvasSessionState,
+          createSelectedCharacterId: "",
+          createSelectedCharacterLookId: "",
+          expertCreateMode: "standard",
+          expertEditSessionRevision: 0,
+          getExpertEditSessionState: vi.fn(() => null),
+          hasActivePulseSession: false,
+          hydrateActiveFromSessionAgentSnapshot: vi.fn(),
+          hydrateCanvasSessionState: vi.fn(),
+          hydrateFromSessionSnapshot: vi.fn((snapshot: AiStudioSessionSnapshot) =>
+            createHydrationPayload(snapshot)
+          ),
+          persistedAgentRuntime: createPersistedAgentRuntime(),
+          projectId: "project-1",
+          projectRouteRequested: true,
+          pulseWorkflowSession: null,
+          resetActiveProjectAgentConversation: vi.fn(),
+          sessionPersistenceTitleOverride: null,
+          setCreateSelectedCharacterId: vi.fn(),
+          setCreateSelectedCharacterLookId: vi.fn(),
+          setIsCreateCharacterModeEnabled: vi.fn(),
+          setExpertEditSessionState: vi.fn(),
+          setMusicPromptDraft: createNoopDraftSetter(),
+          setMusicLyricsDraft: createNoopDraftSetter(),
+          setSoundEffectsPromptDraft: createNoopDraftSetter(),
+          setUiNotice: vi.fn(),
+          setVoiceDesignPromptDraft: createNoopDraftSetter(),
+          setVoiceScriptDraft: createNoopDraftSetter(),
+        }),
+      {
+        initialProps: {
+          currentCanvasSessionState: initialCanvasSessionState,
+        },
+      }
+    );
+
+    expect(resolveSavedCanvas()).toEqual(initialCanvasSessionState);
+
+    rerender({
+      currentCanvasSessionState: updatedCanvasSessionState,
+    });
+
+    expect(resolveSavedCanvas()).toEqual(updatedCanvasSessionState);
   });
 
   it("requests a critical project save when durable canvas state changes after deferred work settles", async () => {

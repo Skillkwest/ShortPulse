@@ -1391,6 +1391,33 @@ describe("handleVideoModelSubmission (Kie Seedance 2)", () => {
     );
   });
 
+  it("reuses compatible Kie RedPanda temp-hosted Seedance WebP frame URLs", async () => {
+    const args = makeArgs({
+      finalModel: KIE_SEEDANCE_2_MODEL_ID,
+      modelConfig: getModelConfig(KIE_SEEDANCE_2_MODEL_ID),
+      preparedImageInputs: [
+        "https://tempfile.redpandaai.co/shortpulse/kie-video/images/seedance-frame.webp",
+      ],
+      requestedDurationSeconds: 10,
+      requestedResolution: "720p",
+      aspect: "9:16",
+      requestedAudio: false,
+      videoReferenceMode: "standard",
+      seedance2InputMode: "first-frame",
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(fetchWithAuth).not.toHaveBeenCalled();
+    expect(submitKieSeedance2Video).toHaveBeenCalledWith(
+      expect.objectContaining({
+        first_frame_url:
+          "https://tempfile.redpandaai.co/shortpulse/kie-video/images/seedance-frame.webp",
+      })
+    );
+  });
+
   it("preserves selected 480p resolution for Seedance 2 submits", async () => {
     const args = makeArgs({
       finalModel: KIE_SEEDANCE_2_MODEL_ID,
@@ -1768,6 +1795,45 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
       "kie-kling",
       undefined,
       { request_id: "kie-kling-std-1" }
+    );
+  });
+
+  it("re-admits incompatible temp-hosted Kling WebP references before submit", async () => {
+    const incompatibleTempUrl =
+      "https://tempfile.redpandaai.co/shortpulse/kie-video/images/legacy-reference.webp";
+    const admittedTempUrl =
+      "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/legacy-reference.jpg";
+    mockKieUploadRouteForFileUrls({
+      [incompatibleTempUrl]: admittedTempUrl,
+    });
+    const args = makeArgs({
+      finalModel: KIE_KLING_30_MODEL_ID,
+      modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
+      videoReferenceMode: "standard",
+      preparedImageInputs: [incompatibleTempUrl],
+      rawImageInputs: [incompatibleTempUrl],
+      requestedAudio: false,
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(fetchWithAuth).toHaveBeenCalledWith(
+      "/api/kie/upload-url",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          fileUrl: incompatibleTempUrl,
+          uploadPath: "shortpulse/kie-video/images",
+          admissionProfile: "kie_kling_reference_image",
+        }),
+      })
+    );
+    expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        image_url: admittedTempUrl,
+        image_urls: [admittedTempUrl],
+      })
     );
   });
 

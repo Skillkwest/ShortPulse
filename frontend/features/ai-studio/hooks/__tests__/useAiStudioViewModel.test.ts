@@ -553,6 +553,47 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.currentCostCredits).toBeNull();
   });
 
+  it("blocks an empty selected look even when legacy fallback references are present", () => {
+    const modelId = "fal-ai/nano-banana-2";
+    const createCharacterModeInjectionBundle: CharacterModeInjectionBundle = {
+      characterId: "char-1",
+      characterDescription: "Silver-haired warrior",
+      characterLookId: "look-3",
+      characterLookName: "Look 3",
+      directLookReferenceCount: 0,
+      usedLegacyReferenceFallback: true,
+      sheetReferenceStoragePaths: ["user/chars/legacy-portrait.png"],
+      sheetReferenceUrls: ["https://cdn.shortpulse.test/legacy-portrait.png"],
+      loadedAtMs: Date.now(),
+    };
+
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        mode: "text",
+        selectedTool: "create",
+        model: modelId,
+        aspect: "16:9",
+        prompt: "Turn this into a cinematic portrait",
+        referenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoReferenceMode: "standard",
+        imageResolution: "4K",
+        isCreateCharacterModeEnabled: true,
+        createSelectedCharacterId: "char-1",
+        isCreateCharacterBundleLoading: false,
+        createCharacterModeInjectionBundle,
+        costParamsForModel: makeCostParamsForModel(modelId),
+        pricingPolicy: pricingGridPolicy,
+      })
+    );
+
+    expect(result.current.generationGuardrail).toBe(CHARACTER_MODE_EMPTY_LOOK_GUARDRAIL);
+    expect(result.current.isGenerateDisabled).toBe(true);
+    expect(result.current.promptReferenceGenerateCostCredits).toBeNull();
+    expect(result.current.currentCostCredits).toBeNull();
+  });
+
   it("does not apply the Create empty-look guardrail outside the Create workflow", () => {
     const emptyCreateCharacterBundle: CharacterModeInjectionBundle = {
       characterId: "char-1",

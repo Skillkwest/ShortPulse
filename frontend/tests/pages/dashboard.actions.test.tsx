@@ -269,9 +269,9 @@ describe("Dashboard actions", () => {
   it("adds and removes dashboard body classes", async () => {
     const { unmount } = render(<DashboardPage />);
 
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Profile menu" })).toBeInTheDocument();
-    });
+    expect(
+      await screen.findByRole("button", { name: "Profile menu" }, { timeout: 5000 })
+    ).toBeInTheDocument();
 
     expect(document.body.classList.contains("dashboard-body")).toBe(true);
     expect(document.documentElement.classList.contains("dashboard-body")).toBe(true);
@@ -285,9 +285,9 @@ describe("Dashboard actions", () => {
   it("renders the signed-in dashboard logo without home navigation", async () => {
     render(<DashboardPage />);
 
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Profile menu" })).toBeInTheDocument();
-    });
+    expect(
+      await screen.findByRole("button", { name: "Profile menu" }, { timeout: 5000 })
+    ).toBeInTheDocument();
 
     expect(screen.getByLabelText("ShortPulse logo")).toBeInTheDocument();
     expect(document.querySelector(".app-bar .brand-mark-logo")).not.toHaveAttribute("href");
@@ -339,9 +339,38 @@ describe("Dashboard actions", () => {
 
     render(<DashboardPage />);
 
+    expect(await screen.findByRole("heading", { name: /welcome back, ada/i })).toBeInTheDocument();
+  });
+
+  it("uses the email handle instead of the full email address for the dashboard hero greeting", async () => {
+    useSupabaseSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: {
+        user: {
+          ...appUser,
+          email: "skillkwest@gmail.com",
+          user_metadata: {
+            display_name: "   ",
+            full_name: "   ",
+          },
+        },
+      },
+      user: {
+        ...appUser,
+        email: "skillkwest@gmail.com",
+        user_metadata: {
+          display_name: "   ",
+          full_name: "   ",
+        },
+      },
+    });
+
+    render(<DashboardPage />);
+
     expect(
-      await screen.findByRole("heading", { name: /welcome back, ada\./i })
+      await screen.findByRole("heading", { name: /welcome back, skillkwest/i })
     ).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /gmail\.com/i })).not.toBeInTheDocument();
   });
 
   it("links signed-in dashboard account summary cards to profile account sections", async () => {

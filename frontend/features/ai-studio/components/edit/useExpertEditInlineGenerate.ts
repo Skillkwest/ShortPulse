@@ -207,6 +207,7 @@ export const useExpertEditInlineGenerate = ({
           const preparedSubmission = prepareExpertEditSubmission({
             promptText,
             extraImageUrls,
+            primaryCanvasImageUrls: layers.map((layer) => layer.imageUrl),
             flattenedPrimaryUrl: primaryReferenceUrl,
             flattenedMarkupReferenceUrl: objectUrls.flattenedMarkupReferenceUrl,
             editSubmitIntent: normalizedEditSubmitIntent,

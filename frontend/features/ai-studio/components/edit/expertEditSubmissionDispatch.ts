@@ -12,6 +12,13 @@ import type { WorkflowReloadExpertEditReferences } from "../../types";
 
 const MAX_EXPERT_EDIT_SUBMISSION_REFERENCE_INPUTS = 11;
 
+const collectExpertEditRestoreImageInputs = (
+  expertEditReferences?: WorkflowReloadExpertEditReferences | null
+): string[] => [
+  ...(expertEditReferences?.restorePrimaryCanvasSlots ?? []).map((slot) => slot.sourceUrl),
+  ...(expertEditReferences?.restoreSecondarySlots ?? []).map((slot) => slot.sourceUrl),
+];
+
 export type ResolveExpertEditSubmissionDispatchResult =
   | {
       status: "fallback_regenerate";
@@ -56,6 +63,7 @@ export const resolveExpertEditSubmissionDispatch = ({
   const isMarkupSubmitSelected = normalizedEditSubmitIntent === "markup";
 
   if (isInpaintSubmitSelected) {
+    const restoreImageInputs = collectExpertEditRestoreImageInputs(expertEditReferences);
     if (!hasSubmissionHandler) {
       return {
         status: "error",
@@ -90,12 +98,8 @@ export const resolveExpertEditSubmissionDispatch = ({
         referenceInputsMode: "replace",
         referenceInputsLimit: MAX_EXPERT_EDIT_SUBMISSION_REFERENCE_INPUTS,
         ...(expertEditReferences ? { expertEditReferences } : {}),
-        ...(expertEditReferences?.restoreSecondarySlots
-          ? {
-              expertEditRestoreImageInputs: expertEditReferences.restoreSecondarySlots.map(
-                (slot) => slot.sourceUrl
-              ),
-            }
+        ...(restoreImageInputs.length > 0
+          ? { expertEditRestoreImageInputs: restoreImageInputs }
           : {}),
         ...promptOverrideOptions,
       },
@@ -108,6 +112,7 @@ export const resolveExpertEditSubmissionDispatch = ({
     };
   }
 
+  const restoreImageInputs = collectExpertEditRestoreImageInputs(expertEditReferences);
   return {
     status: "ready",
     referenceInputs,
@@ -120,12 +125,8 @@ export const resolveExpertEditSubmissionDispatch = ({
       referenceInputsMode: "replace",
       referenceInputsLimit: MAX_EXPERT_EDIT_SUBMISSION_REFERENCE_INPUTS,
       ...(expertEditReferences ? { expertEditReferences } : {}),
-      ...(expertEditReferences?.restoreSecondarySlots
-        ? {
-            expertEditRestoreImageInputs: expertEditReferences.restoreSecondarySlots.map(
-              (slot) => slot.sourceUrl
-            ),
-          }
+      ...(restoreImageInputs.length > 0
+        ? { expertEditRestoreImageInputs: restoreImageInputs }
         : {}),
     },
   };

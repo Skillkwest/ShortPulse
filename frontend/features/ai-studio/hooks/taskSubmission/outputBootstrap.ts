@@ -171,6 +171,28 @@ export const reconcileExpertEditWorkflowReloadReferences = ({
       };
     })
     .sort((left, right) => left.slotIndex - right.slotIndex);
+  const restorePrimaryCanvasSlots = (expertEditReferences.restorePrimaryCanvasSlots ?? [])
+    .map((slot): WorkflowReloadExpertEditRestoreSlot | null => {
+      const sourceUrl = asTrimmedString(slot.sourceUrl);
+      if (!sourceUrl) return null;
+      const preparedInput =
+        findPreparedReferenceInput(sourceUrl, referenceInputs) ??
+        findPreparedReferenceInput(sourceUrl, restoreInputs);
+      const preparedUrl = asTrimmedString(preparedInput?.preparedUrl) ?? sourceUrl;
+      const internalMediaRef = resolvePreparedReferenceInternalMediaRef(
+        preparedInput,
+        preparedUrl,
+        slot.internalMediaRef
+      );
+      if (!shouldKeepReloadMediaUrl(preparedUrl, internalMediaRef)) return null;
+      return {
+        slotIndex: slot.slotIndex,
+        sourceUrl: preparedUrl,
+        ...(internalMediaRef ? { internalMediaRef } : {}),
+      };
+    })
+    .filter((slot): slot is WorkflowReloadExpertEditRestoreSlot => Boolean(slot))
+    .sort((left, right) => left.slotIndex - right.slotIndex);
   const restoreSecondarySlots = (expertEditReferences.restoreSecondarySlots ?? [])
     .map((slot): WorkflowReloadExpertEditRestoreSlot | null => {
       const sourceUrl = asTrimmedString(slot.sourceUrl);
@@ -193,11 +215,18 @@ export const reconcileExpertEditWorkflowReloadReferences = ({
     })
     .filter((slot): slot is WorkflowReloadExpertEditRestoreSlot => Boolean(slot))
     .sort((left, right) => left.slotIndex - right.slotIndex);
-  if (secondarySlots.length === 0 && restoreSecondarySlots.length === 0) return null;
+  if (
+    secondarySlots.length === 0 &&
+    restorePrimaryCanvasSlots.length === 0 &&
+    restoreSecondarySlots.length === 0
+  ) {
+    return null;
+  }
   return {
     version: 1,
     maxSecondarySlotCount: expertEditReferences.maxSecondarySlotCount,
     primaryReferenceInputIndex: expertEditReferences.primaryReferenceInputIndex,
+    ...(restorePrimaryCanvasSlots.length > 0 ? { restorePrimaryCanvasSlots } : {}),
     secondarySlots,
     ...(restoreSecondarySlots.length > 0 ? { restoreSecondarySlots } : {}),
   };

@@ -254,6 +254,10 @@ const normalizeExpertEditReferences = (
       : null;
   const seenSlots = new Set<number>();
   const secondarySlots: WorkflowReloadExpertEditReferences["secondarySlots"] = [];
+  const seenPrimaryCanvasRestoreSlots = new Set<number>();
+  const restorePrimaryCanvasSlots: NonNullable<
+    WorkflowReloadExpertEditReferences["restorePrimaryCanvasSlots"]
+  > = [];
   const seenRestoreSlots = new Set<number>();
   const restoreSecondarySlots: NonNullable<
     WorkflowReloadExpertEditReferences["restoreSecondarySlots"]
@@ -283,6 +287,30 @@ const normalizeExpertEditReferences = (
       });
     });
   }
+  if (Array.isArray(value.restorePrimaryCanvasSlots)) {
+    value.restorePrimaryCanvasSlots.forEach((item) => {
+      if (!isObject(item)) return;
+      const slotIndex = asIntegerOrNull(item.slotIndex);
+      const sourceUrl = asTrimmedString(item.sourceUrl);
+      if (
+        slotIndex == null ||
+        slotIndex < 0 ||
+        slotIndex >= MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT ||
+        !sourceUrl ||
+        seenPrimaryCanvasRestoreSlots.has(slotIndex)
+      ) {
+        return;
+      }
+      const internalMediaRef = normalizeInternalRefs([item.internalMediaRef], 1)[0] ?? null;
+      if (/^blob:|^data:/i.test(sourceUrl) && !internalMediaRef) return;
+      seenPrimaryCanvasRestoreSlots.add(slotIndex);
+      restorePrimaryCanvasSlots.push({
+        slotIndex,
+        sourceUrl,
+        ...(internalMediaRef ? { internalMediaRef } : {}),
+      });
+    });
+  }
   if (Array.isArray(value.restoreSecondarySlots)) {
     value.restoreSecondarySlots.forEach((item) => {
       if (!isObject(item)) return;
@@ -308,13 +336,21 @@ const normalizeExpertEditReferences = (
     });
   }
   secondarySlots.sort((left, right) => left.slotIndex - right.slotIndex);
+  restorePrimaryCanvasSlots.sort((left, right) => left.slotIndex - right.slotIndex);
   restoreSecondarySlots.sort((left, right) => left.slotIndex - right.slotIndex);
-  if (secondarySlots.length === 0 && restoreSecondarySlots.length === 0) return null;
+  if (
+    secondarySlots.length === 0 &&
+    restorePrimaryCanvasSlots.length === 0 &&
+    restoreSecondarySlots.length === 0
+  ) {
+    return null;
+  }
   return {
     version: 1,
     maxSecondarySlotCount: MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT,
     primaryReferenceInputIndex: normalizedPrimaryReferenceInputIndex,
     secondarySlots,
+    ...(restorePrimaryCanvasSlots.length > 0 ? { restorePrimaryCanvasSlots } : {}),
     ...(restoreSecondarySlots.length > 0 ? { restoreSecondarySlots } : {}),
   };
 };

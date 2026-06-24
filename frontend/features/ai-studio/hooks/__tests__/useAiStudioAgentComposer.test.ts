@@ -1317,6 +1317,7 @@ describe("useAiStudioAgentComposer", () => {
     );
 
     act(() => {
+      result.current.handleAgentInputChange("Existing draft ");
       result.current.acceptAgentComposerDropPayload({
         kind: "text",
         text: "  Canvas text  ",

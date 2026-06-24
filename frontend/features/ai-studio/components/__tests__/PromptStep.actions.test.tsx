@@ -53,7 +53,7 @@ describe("PromptStep agent actions", () => {
     const onAgentSend = vi.fn();
     render(<PromptStep {...baseProps} chatModeEnabled={false} onAgentSend={onAgentSend} />);
 
-    const composer = screen.getByPlaceholderText("Write your prompt...");
+    const composer = screen.getByRole("textbox");
     fireEvent.keyDown(composer, { key: "Enter" });
     expect(onAgentSend).not.toHaveBeenCalled();
 
@@ -61,6 +61,62 @@ describe("PromptStep agent actions", () => {
     expect(
       screen.queryByText("Chat Mode is off. Generate uses your text exactly; agent rewrite is off.")
     ).toBeNull();
+  });
+
+  it("replaces prompt textarea text when prompt text is dropped without Shift", () => {
+    const onPromptChange = vi.fn();
+    render(
+      <PromptStep
+        {...baseProps}
+        chatOnly={false}
+        chatModeEnabled={false}
+        prompt="Existing prompt"
+        onPromptChange={onPromptChange}
+      />
+    );
+
+    const composer = screen.getByRole("textbox");
+    const dataTransfer = {
+      types: ["text/plain"],
+      getData: (key: string) => (key === "text/plain" ? "Dropped prompt text" : ""),
+    };
+    const dropEvent = new MouseEvent("drop", { bubbles: true, cancelable: true });
+    Object.defineProperty(dropEvent, "dataTransfer", { value: dataTransfer });
+    fireEvent(composer, dropEvent);
+
+    expect(onPromptChange).toHaveBeenCalledWith("Dropped prompt text");
+  });
+
+  it("inserts prompt textarea text at the caret when Shift is held", () => {
+    const onPromptChange = vi.fn();
+    render(
+      <PromptStep
+        {...baseProps}
+        chatOnly={false}
+        chatModeEnabled={false}
+        prompt="Existing prompt"
+        onPromptChange={onPromptChange}
+      />
+    );
+
+    const composer = screen.getByRole("textbox") as HTMLTextAreaElement;
+    act(() => {
+      composer.focus();
+      composer.setSelectionRange("Existing ".length, "Existing ".length);
+    });
+    const dataTransfer = {
+      types: ["text/plain"],
+      getData: (key: string) => (key === "text/plain" ? "Dropped prompt text" : ""),
+    };
+    const dropEvent = new MouseEvent("drop", {
+      bubbles: true,
+      cancelable: true,
+      shiftKey: true,
+    });
+    Object.defineProperty(dropEvent, "dataTransfer", { value: dataTransfer });
+    fireEvent(composer, dropEvent);
+
+    expect(onPromptChange).toHaveBeenCalledWith("Existing Dropped prompt textprompt");
   });
 
   it("disables send affordances while agent bootstrap is pending", () => {
@@ -589,7 +645,7 @@ describe("PromptStep agent actions", () => {
     ).toBeVisible();
   });
 
-  it("inserts dropped prompt text at the Standard composer caret and restores focus", () => {
+  it("replaces Standard composer text when prompt text is dropped without Shift", () => {
     const onAgentAttachmentDrop = vi.fn();
     const onAgentAttachmentDragLeave = vi.fn();
     const onAgentInputChange = vi.fn();
@@ -631,7 +687,7 @@ describe("PromptStep agent actions", () => {
 
       expect(onAgentAttachmentDrop).not.toHaveBeenCalled();
       expect(onAgentAttachmentDragLeave).toHaveBeenCalledTimes(1);
-      expect(onAgentInputChange).toHaveBeenCalledWith("Existing draft Dropped prompt text");
+      expect(onAgentInputChange).toHaveBeenCalledWith("Dropped prompt text");
       expect(composerInput).toHaveFocus();
     } finally {
       requestAnimationFrameSpy.mockRestore();

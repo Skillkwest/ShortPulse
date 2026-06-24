@@ -112,6 +112,7 @@ const resolveExpertEditSubmissionPromptState = ({
 
 const buildWorkflowReloadExpertEditReferences = (
   referencePlan: ExpertEditSubmissionReferencePlan,
+  primaryCanvasSlotsInput: readonly (string | null)[],
   secondarySlotsInput: readonly (string | null)[]
 ): WorkflowReloadExpertEditReferences | undefined => {
   const secondarySlots = Object.entries(referencePlan.secondaryReferenceInputIndexesBySlotIndex)
@@ -132,6 +133,18 @@ const buildWorkflowReloadExpertEditReferences = (
     })
     .filter((item): item is { slotIndex: number; referenceInputIndex: number } => Boolean(item))
     .sort((left, right) => left.slotIndex - right.slotIndex);
+  const restorePrimaryCanvasSlots: WorkflowReloadExpertEditRestoreSlot[] = [];
+  primaryCanvasSlotsInput.forEach((value, slotIndex) => {
+    if (typeof value !== "string") return;
+    const sourceUrl = value.trim();
+    if (!sourceUrl || slotIndex >= MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT) return;
+    const internalMediaRef = resolveInternalMediaRefForUrl(sourceUrl);
+    restorePrimaryCanvasSlots.push({
+      slotIndex,
+      sourceUrl,
+      ...(internalMediaRef ? { internalMediaRef } : {}),
+    });
+  });
   const restoreSecondarySlots: WorkflowReloadExpertEditRestoreSlot[] = [];
   secondarySlotsInput.forEach((value, slotIndex) => {
     if (typeof value !== "string") return;
@@ -145,11 +158,18 @@ const buildWorkflowReloadExpertEditReferences = (
     });
   });
 
-  if (secondarySlots.length === 0 && restoreSecondarySlots.length === 0) return undefined;
+  if (
+    secondarySlots.length === 0 &&
+    restorePrimaryCanvasSlots.length === 0 &&
+    restoreSecondarySlots.length === 0
+  ) {
+    return undefined;
+  }
   return {
     version: 1,
     maxSecondarySlotCount: MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT,
     primaryReferenceInputIndex: referencePlan.primaryReferenceInputIndex,
+    ...(restorePrimaryCanvasSlots.length > 0 ? { restorePrimaryCanvasSlots } : {}),
     secondarySlots,
     ...(restoreSecondarySlots.length > 0 ? { restoreSecondarySlots } : {}),
   };
@@ -178,6 +198,7 @@ export const validateExpertEditSubmissionPrompt = ({
 export const prepareExpertEditSubmission = ({
   promptText,
   extraImageUrls,
+  primaryCanvasImageUrls = [],
   flattenedPrimaryUrl,
   flattenedMarkupReferenceUrl,
   editSubmitIntent = "standard",
@@ -186,6 +207,7 @@ export const prepareExpertEditSubmission = ({
 }: {
   promptText: string;
   extraImageUrls: readonly (string | null)[];
+  primaryCanvasImageUrls?: readonly (string | null)[];
   flattenedPrimaryUrl: string | null;
   flattenedMarkupReferenceUrl?: string | null;
   editSubmitIntent?: EditSubmitIntent;
@@ -219,6 +241,7 @@ export const prepareExpertEditSubmission = ({
   });
   const workflowReloadExpertEditReferences = buildWorkflowReloadExpertEditReferences(
     referencePlan,
+    primaryCanvasImageUrls,
     extraImageUrls
   );
 

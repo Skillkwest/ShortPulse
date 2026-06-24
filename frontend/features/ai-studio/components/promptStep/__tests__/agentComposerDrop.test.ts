@@ -156,6 +156,17 @@ describe("agentComposerDrop", () => {
         composerText: "Existing draft",
         selectionStart: 8,
         selectionEnd: 8,
+      })
+    ).toEqual({
+      prompt: "Dropped composer prompt",
+      caret: "Dropped composer prompt".length,
+    });
+    expect(
+      resolveAgentComposerTextDropInsertion({
+        transfer,
+        composerText: "Existing draft",
+        selectionStart: 8,
+        selectionEnd: 8,
         editMode: "replace",
       })
     ).toEqual({

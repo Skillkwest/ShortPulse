@@ -6,6 +6,11 @@ import React from "react";
 import { AgentEnhanceButton } from "../../../../prefabs/agent";
 import type { PromptTokenHighlightSegment } from "../../logic/promptTokenHighlight";
 import { syncTextareaMirrorScroll } from "../edit/expertEditInteractionUtils";
+import {
+  resolveAgentComposerTextDrop,
+  resolveDroppedPromptTextEdit,
+  resolveDroppedPromptTextEditMode,
+} from "./agentComposerDrop";
 
 type PromptStepEnhancedSurfaceProps = {
   prompt: string;
@@ -148,10 +153,32 @@ export const PromptStepEnhancedSurface: React.FC<PromptStepEnhancedSurfaceProps>
 
   const handleTextareaDrop = React.useCallback(
     (event: React.DragEvent<HTMLTextAreaElement>) => {
-      onPromptDrop?.(event);
+      if (onPromptDrop) {
+        onPromptDrop(event);
+        event.stopPropagation();
+        return;
+      }
+
+      const droppedPromptText = resolveAgentComposerTextDrop(event.dataTransfer);
+      if (droppedPromptText) {
+        event.preventDefault();
+        const textarea = event.currentTarget;
+        const nextPrompt = resolveDroppedPromptTextEdit({
+          composerText: prompt,
+          droppedPromptText,
+          selectionStart: textarea.selectionStart ?? prompt.length,
+          selectionEnd: textarea.selectionEnd ?? textarea.selectionStart ?? prompt.length,
+          editMode: resolveDroppedPromptTextEditMode(event),
+        });
+        onPromptChange(nextPrompt.prompt);
+        requestAnimationFrame(() => {
+          textarea.focus();
+          textarea.setSelectionRange(nextPrompt.caret, nextPrompt.caret);
+        });
+      }
       event.stopPropagation();
     },
-    [onPromptDrop]
+    [onPromptChange, onPromptDrop, prompt]
   );
 
   const handleTextareaDragOver = React.useCallback(

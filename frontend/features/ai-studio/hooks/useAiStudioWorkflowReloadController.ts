@@ -152,12 +152,22 @@ const buildMappedExpertEditReferenceSelectionInput = ({
   expertEditReferences: NonNullable<WorkflowReloadImagePayload["expertEditReferences"]>;
 }): ReloadReferenceSelectionInput => {
   const primaryReferenceInputIndex = expertEditReferences.primaryReferenceInputIndex ?? 0;
+  const restoredPrimaryCanvasSlots = expertEditReferences.restorePrimaryCanvasSlots ?? [];
+  const restoredPrimaryCanvasPrimarySlot = restoredPrimaryCanvasSlots[0] ?? null;
+  const primaryReferenceImageUrl =
+    restoredPrimaryCanvasPrimarySlot?.sourceUrl ??
+    referenceInputs[primaryReferenceInputIndex] ??
+    referenceInputs[0] ??
+    null;
   const extraImageUrls = createEmptyExpertEditSecondaryImageUrls();
   const referenceImageInternalMediaRefs: Array<InternalMediaRef | null> = Array.from(
     { length: MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT + 1 },
     () => null
   );
-  referenceImageInternalMediaRefs[0] = internalMediaRefs[primaryReferenceInputIndex] ?? null;
+  referenceImageInternalMediaRefs[0] =
+    restoredPrimaryCanvasPrimarySlot?.internalMediaRef ??
+    internalMediaRefs[primaryReferenceInputIndex] ??
+    null;
   expertEditReferences.restoreSecondarySlots?.forEach((slot) => {
     const url = slot.sourceUrl.trim();
     if (!url) return;
@@ -171,12 +181,20 @@ const buildMappedExpertEditReferenceSelectionInput = ({
     referenceImageInternalMediaRefs[slot.slotIndex + 1] =
       slot.internalMediaRef ?? internalMediaRefs[slot.referenceInputIndex] ?? null;
   });
+  restoredPrimaryCanvasSlots.slice(1).forEach((slot) => {
+    const url = slot.sourceUrl.trim();
+    if (!url) return;
+    const targetIndex = extraImageUrls.findIndex((value) => value == null);
+    if (targetIndex < 0) return;
+    extraImageUrls[targetIndex] = url;
+    referenceImageInternalMediaRefs[targetIndex + 1] = slot.internalMediaRef ?? null;
+  });
   registerInternalMediaRefsForUrls(
-    [referenceInputs[primaryReferenceInputIndex] ?? referenceInputs[0] ?? null, ...extraImageUrls],
+    [primaryReferenceImageUrl, ...extraImageUrls],
     referenceImageInternalMediaRefs
   );
   return {
-    referenceImageUrl: referenceInputs[primaryReferenceInputIndex] ?? referenceInputs[0] ?? null,
+    referenceImageUrl: primaryReferenceImageUrl,
     extraImageUrls,
     referenceImageInternalMediaRefs,
   };

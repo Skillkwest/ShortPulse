@@ -139,6 +139,7 @@ export type WorkflowReloadExpertEditReferences = {
   version: 1;
   maxSecondarySlotCount: number;
   primaryReferenceInputIndex: number | null;
+  restorePrimaryCanvasSlots?: WorkflowReloadExpertEditRestoreSlot[];
   secondarySlots: WorkflowReloadExpertEditReferenceSlot[];
   restoreSecondarySlots?: WorkflowReloadExpertEditRestoreSlot[];
 };

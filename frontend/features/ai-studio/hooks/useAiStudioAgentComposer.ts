@@ -1321,7 +1321,7 @@ export const useAiStudioAgentComposer = ({
         const text = payload.text.trim();
         if (!text) return;
         if (!agentSessionEnabled) ensureAgentSession();
-        setAgentInput((current) => `${current}${text}`);
+        setAgentInput(text);
         setAgentAttachmentError(null);
         return;
       }

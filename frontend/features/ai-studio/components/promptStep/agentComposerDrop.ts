@@ -137,7 +137,7 @@ export const resolveAgentComposerTextDropInsertion = ({
   composerText,
   selectionStart,
   selectionEnd,
-  editMode = "insert",
+  editMode = "replace",
 }: {
   transfer: DataTransfer | null | undefined;
   composerText: string;

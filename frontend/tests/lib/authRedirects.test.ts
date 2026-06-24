@@ -101,13 +101,16 @@ describe("auth redirect helpers", () => {
     expect(buildSignupPath({ nextPath: "/ai-studio" })).toBe("/sign-up?next=%2Fai-studio");
   });
 
-  it("keeps public signup disabled unless explicitly enabled", () => {
-    expect(isPublicSignupEnabled()).toBe(false);
+  it("keeps public signup open unless explicitly disabled", () => {
+    expect(isPublicSignupEnabled()).toBe(true);
 
     vi.stubEnv("NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED", "false");
     expect(isPublicSignupEnabled()).toBe(false);
 
     vi.stubEnv("NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED", "true");
+    expect(isPublicSignupEnabled()).toBe(true);
+
+    vi.stubEnv("NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED", "unexpected");
     expect(isPublicSignupEnabled()).toBe(true);
   });
 });

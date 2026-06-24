@@ -83,8 +83,7 @@ describe("Pricing route behavior", () => {
     });
   });
 
-  it("sends guest plan selection into signup while preserving pricing intent when public signup is enabled", async () => {
-    vi.stubEnv("NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED", "true");
+  it("sends guest plan selection into signup while preserving pricing intent", async () => {
     useSupabaseSessionStateMock.mockReturnValue({
       initialized: true,
       session: null,
@@ -153,7 +152,8 @@ describe("Pricing route behavior", () => {
     });
   });
 
-  it("sends guest plan selection to signup while public signup is closed", async () => {
+  it("sends guest plan selection to signup while public signup is explicitly closed", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED", "false");
     useSupabaseSessionStateMock.mockReturnValue({
       initialized: true,
       session: null,

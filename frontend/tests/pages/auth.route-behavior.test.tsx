@@ -135,10 +135,10 @@ describe("Auth route behavior", () => {
         '.auth-showcase-gallery-media[src="/dashboard/gallery/monster-wall-break-demo.mp4"]'
       )
     ).toBeInTheDocument();
-    expect(container.querySelector(".auth-mode-toggle")).not.toBeInTheDocument();
+    expect(container.querySelector(".auth-mode-toggle")).toBeInTheDocument();
     expect(container.querySelectorAll(".auth-input")).toHaveLength(2);
-    expect(screen.queryByRole("tab", { name: "Sign in" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("tab", { name: "Sign up" })).not.toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Sign in" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Sign up" })).toHaveAttribute("aria-selected", "false");
     expect(screen.getByRole("button", { name: "Sign in" })).toHaveClass(
       "auth-submit",
       "primary-btn"
@@ -236,8 +236,7 @@ describe("Auth route behavior", () => {
     });
   });
 
-  it("opens account-first signup when public signup is explicitly enabled", async () => {
-    vi.stubEnv("NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED", "true");
+  it("opens account-first signup by default", async () => {
     routerState.asPath = "/sign-up?next=%2Fai-studio";
     routerState.pathname = "/sign-up";
     routerState.query = { next: "/ai-studio" };
@@ -250,7 +249,8 @@ describe("Auth route behavior", () => {
     expect(screen.getByRole("button", { name: "Sign up with Google" })).toBeDisabled();
   });
 
-  it("keeps signup closed by default even with a selected paid pricing plan", async () => {
+  it("keeps signup closed when explicitly disabled even with a selected paid pricing plan", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED", "false");
     routerState.query = {
       mode: "signup",
       next: "/pricing?intent=create-project&plan=starter",
@@ -267,8 +267,7 @@ describe("Auth route behavior", () => {
     expect(signUpMock).not.toHaveBeenCalled();
   });
 
-  it("opens in signup mode when public signup is explicitly enabled with a paid pricing plan", async () => {
-    vi.stubEnv("NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED", "true");
+  it("opens in signup mode by default with a paid pricing plan", async () => {
     routerState.query = {
       mode: "signup",
       next: "/pricing?intent=create-project&plan=starter",

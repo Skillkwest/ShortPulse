@@ -26,7 +26,7 @@ Use a paid signup intent gate:
 - Positive: Google signup works without changing the existing Stripe Checkout route, subscription contract projection, or webhook behavior.
 - Positive: Email addresses are not stored in `signup_intents`; only hashes and route/plan metadata are kept.
 - Negative: A user can create a zero-value account shell before payment after choosing a paid plan. This is accepted because it carries no credits or paid entitlement and is required by the current authenticated Checkout route.
-- Follow-ups: Hosted launch must apply the migration, configure the Supabase hook, enable Supabase signup only after hook proof, enable `NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED=true`, and manually verify matching/mismatched Google email behavior.
+- Follow-ups: Hosted launch must apply the migration, configure the Supabase hook, enable Supabase signup only after hook proof, leave `NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED` unset or set to `true`, and manually verify matching/mismatched Google email behavior.
 
 ## Alternatives considered
 

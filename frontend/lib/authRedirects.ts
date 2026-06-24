@@ -26,7 +26,7 @@ const PAID_SIGNUP_PRICING_INTENTS = new Set<PaidSignupPricingIntent>([
   "dashboard",
   "tutorial",
 ]);
-const PUBLIC_SIGNUP_ENABLED_VALUE = "true";
+const PUBLIC_SIGNUP_DISABLED_VALUE = "false";
 const LEGACY_CHARACTER_AUTH_NEXT_PATHS = new Map<string, string>([
   ["/character", "/ai-studio"],
   ["/character-soon", "/ai-studio"],
@@ -144,8 +144,8 @@ export const buildSignupPath = (params?: { nextPath?: string }): string => {
 };
 
 export const isPublicSignupEnabled = (): boolean =>
-  process.env.NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED?.trim().toLowerCase() ===
-  PUBLIC_SIGNUP_ENABLED_VALUE;
+  process.env.NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED?.trim().toLowerCase() !==
+  PUBLIC_SIGNUP_DISABLED_VALUE;
 
 export const resolveAuthCallbackFlow = (
   value: string | string[] | undefined

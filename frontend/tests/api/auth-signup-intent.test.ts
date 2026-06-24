@@ -63,7 +63,8 @@ describe("POST /api/auth/signup-intent", () => {
     expect(getSupabaseAdminMock).not.toHaveBeenCalled();
   });
 
-  it("keeps signup intent creation closed by default", async () => {
+  it("keeps signup intent creation closed when explicitly disabled", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED", "false");
     const req = {
       method: "POST",
       body: {

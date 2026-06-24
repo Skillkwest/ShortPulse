@@ -28,8 +28,8 @@ Client-initiated signup and password-reset flows now resolve their absolute call
 Account-first signup launch posture:
 
 - `/sign-up` and `/log-in` are the canonical public auth entry pages. Public dashboard signup, launch, and create-project actions should route to `/sign-up?next=/ai-studio`; logged-out paid plan actions should route to `/sign-up` and preserve the selected `/pricing?...&plan=<starter|media|studio|business>` return path.
-- Keep `NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED` unset or set to anything other than `true` until the Supabase Before User Created hook below is configured and verified. The pricing UI may point users toward signup, but the app signup route and `/api/auth/signup-intent` must fail closed until this launch flag is true.
-- In the Supabase production project, keep Auth public signup disabled (`disable_signup=true`) until `public.hook_shortpulse_signup_intent(event jsonb)` is enabled and verified, so direct calls to Supabase Auth or enabled OAuth providers cannot create non-intended accounts.
+- ShortPulse public signup is open by default at the app layer. Set `NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED=false` only as an emergency app-level close switch; when false, the signup page and `/api/auth/signup-intent` refuse account creation.
+- In the Supabase production project, Auth public signup may be enabled (`disable_signup=false`) only when `public.hook_shortpulse_signup_intent(event jsonb)` is enabled and verified, so direct calls to Supabase Auth or enabled OAuth providers cannot create non-intended accounts.
 - Verify the provider-level state with:
   ```bash
   cd frontend
@@ -46,7 +46,7 @@ Account-first signup launch posture:
 
 - Apply `sql/migrations/164_add_paid_signup_intent_gate.sql` and then `sql/migrations/165_account_first_signup_intent_gate.sql` before enabling public signup. Migration `165` generalizes the signup intent contract and creates the canonical `hook_shortpulse_signup_intent(event jsonb)` hook, while retaining a compatibility wrapper for the prior hook name.
 - In Supabase Auth Hooks, configure the **Before User Created** hook to call `public.hook_shortpulse_signup_intent`. The hook must be enabled before `disable_signup=false` is allowed in production.
-- Keep app signup gated by `NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED=true` plus either an account-first `/ai-studio` return path or a paid `/pricing?...&plan=<starter|media|studio|business>` return path. `/api/auth/signup-intent` also refuses requests unless this launch flag is true, then creates a 30-minute hashed-email intent. Paid pricing intents require the selected plan to have an active acquisition offer with a Stripe price; account-first intents do not create a paid entitlement.
+- Keep app signup gated to either an account-first `/ai-studio` return path or a paid `/pricing?...&plan=<starter|media|studio|business>` return path. `/api/auth/signup-intent` creates a 30-minute hashed-email intent unless the emergency app-level close switch is `NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED=false`. Paid pricing intents require the selected plan to have an active acquisition offer with a Stripe price; account-first intents do not create a paid entitlement.
 - Email/password signup and Google signup both create the signup intent before calling Supabase Auth. The hook accepts only `email` and `google` providers and rejects direct Auth/OAuth creation attempts without a matching fresh intent.
 - Signup intent approval is not billing entitlement. New Auth users still receive only the zero-value hidden baseline profile from `handle_new_user_billing_setup`; `/api/billing/subscription/change` and Stripe webhooks remain the paid-plan authority.
 - After the hook is enabled and verified, confirm the hosted signup switch with:
@@ -124,8 +124,8 @@ Role-based admin access for `/admin` APIs:
 
 ## Validation checklist
 
-1. With public signup still disabled, verify an unknown email/password and unknown Google account cannot create a new Supabase Auth user.
-2. In a staging or approved production launch window, enable the Before User Created hook, set `disable_signup=false`, set `NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED=true`, and verify email/password signup from `/sign-up?next=/ai-studio` creates a zero-value account, bootstraps a Stripe customer through `/api/account/bootstrap`, and returns through `/auth/callback`.
+1. With `NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED=false` or Supabase `disable_signup=true`, verify an unknown email/password and unknown Google account cannot create a new Supabase Auth user.
+2. In a staging or approved production launch window, enable the Before User Created hook, set `disable_signup=false`, leave `NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED` unset or set to `true`, and verify email/password signup from `/sign-up?next=/ai-studio` creates a zero-value account, bootstraps a Stripe customer through `/api/account/bootstrap`, and returns through `/auth/callback`.
 3. Verify Google signup from `/sign-up` requires the entered email, rejects a different Google account email, creates a zero-value account for the matching Google email, and returns through `/auth/callback?flow=signup&provider=google`.
 4. Verify paid plan signup continues to `/pricing` and `/api/billing/subscription/change` opens Stripe Checkout before any paid entitlement is granted.
 5. Verify password reset emails return to `/auth/callback` and allow `updateUser({ password })` completion.

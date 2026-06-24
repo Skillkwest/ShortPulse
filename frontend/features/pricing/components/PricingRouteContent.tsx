@@ -18,7 +18,6 @@ import {
 import { BillingIntervalToggle } from "../../billing/components/BillingIntervalToggle";
 import { SubscriptionPlanCard } from "../../billing/components/SubscriptionPlanCard";
 import {
-  buildDashboardAuthPath,
   buildPricingAuthPath,
   buildPricingPath,
   normalizePricingBillingInterval,
@@ -191,26 +190,12 @@ export function PricingRouteContent({ billingCatalog, isAuthenticated }: Pricing
       </Head>
 
       <div className="lp-shell pricing-route-shell">
-        <header className="lp-nav sticky">
-          <div className="lp-brand">
-            <Link href="/" className="lp-brand-link">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/small good d.png" alt="ShortPulse logo" className="lp-brand-logo" />
-              <span className="lp-brand-text">ShortPulse</span>
-            </Link>
-          </div>
-
-          <div className="lp-actions">
-            {isAuthenticated ? (
-              <Link href="/dashboard" className="primary-btn">
-                Back to dashboard
-              </Link>
-            ) : (
-              <Link href={buildDashboardAuthPath()} className="ghost-btn">
-                Log in
-              </Link>
-            )}
-          </div>
+        <header className="pricing-route-brand-bar">
+          <Link href="/dashboard" className="pricing-route-brand-link">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/small good d.png" alt="" className="pricing-route-brand-logo" />
+            <span className="pricing-route-brand-text">ShortPulse</span>
+          </Link>
         </header>
 
         <main className="lp-main">

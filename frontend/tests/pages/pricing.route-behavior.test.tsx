@@ -208,7 +208,7 @@ describe("Pricing route behavior", () => {
     );
   });
 
-  it("shows only login in the top nav for guests so plan cards own signup", () => {
+  it("links the pricing brand mark back to the dashboard home", () => {
     useSupabaseSessionStateMock.mockReturnValue({
       initialized: true,
       session: null,
@@ -244,15 +244,7 @@ describe("Pricing route behavior", () => {
       />
     );
 
-    const actionRegion = document.querySelector(".lp-actions");
-    expect(actionRegion).not.toBeNull();
-
-    const loginAction = actionRegion?.querySelector('a[href*="/log-in?"]');
-    const signupAction = actionRegion?.querySelector('a[href*="mode=signup"]');
-
-    expect(loginAction).toHaveTextContent("Log in");
-    expect(loginAction).toHaveAttribute("href", "/log-in?next=%2Fdashboard");
-    expect(signupAction).toBeNull();
+    expect(screen.getByRole("link", { name: "ShortPulse" })).toHaveAttribute("href", "/dashboard");
   });
 
   it("hides the hidden baseline tier when a real starter plan exists", () => {
@@ -519,12 +511,7 @@ describe("Pricing route behavior", () => {
       />
     );
 
-    const actionRegion = document.querySelector(".lp-actions");
-    const loginAction = actionRegion?.querySelector('a[href*="/log-in?"]');
-    const signupAction = actionRegion?.querySelector('a[href*="mode=signup"]');
-
-    expect(loginAction).toHaveAttribute("href", "/log-in?next=%2Fdashboard");
-    expect(signupAction).toBeNull();
+    expect(screen.getByRole("link", { name: "ShortPulse" })).toHaveAttribute("href", "/dashboard");
     expect(screen.getByRole("button", { name: "Annual" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText("with annual billing paid upfront")).toBeInTheDocument();
     expect(

@@ -128,6 +128,13 @@ describe("Auth route behavior", () => {
 
     expect(container.querySelector("main.auth-shell")).toBeInTheDocument();
     expect(container.querySelector("form.auth-card")).toBeInTheDocument();
+    expect(container.querySelector(".auth-showcase-gallery")).toBeInTheDocument();
+    expect(container.querySelectorAll(".auth-showcase-gallery-media")).toHaveLength(6);
+    expect(
+      container.querySelector(
+        '.auth-showcase-gallery-media[src="/dashboard/gallery/monster-wall-break-demo.mp4"]'
+      )
+    ).toBeInTheDocument();
     expect(container.querySelector(".auth-mode-toggle")).not.toBeInTheDocument();
     expect(container.querySelectorAll(".auth-input")).toHaveLength(2);
     expect(screen.queryByRole("tab", { name: "Sign in" })).not.toBeInTheDocument();

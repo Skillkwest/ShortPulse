@@ -10,6 +10,7 @@ import { Eye, EyeSlash, EnvelopeSimple, LockSimple, SignIn } from "phosphor-reac
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { AppMessage } from "../components/AppMessage";
+import { publicHomeGalleryVideoRows } from "../features/dashboard/logic/publicHomeGalleryMedia";
 import {
   DEFAULT_SIGNUP_NEXT_PATH,
   fetchCanonicalAuthCallbackUrl,
@@ -34,6 +35,7 @@ import { trackSignupCompleted, trackSignupSubmitted } from "../lib/growthTelemet
 type Mode = "signin" | "signup";
 
 const MIN_PASSWORD_LENGTH = 8;
+const AUTH_SHOWCASE_GALLERY_ITEMS = publicHomeGalleryVideoRows.slice(0, 2).flat();
 
 type SignupIntentResponse = {
   ok?: unknown;
@@ -389,30 +391,32 @@ export default function AuthPage() {
         <div className={authClass("auth-glow", "auth-glow-left")} />
         <div className={authClass("auth-glow", "auth-glow-right")} />
         <section className={authClass("auth-showcase")} aria-label="ShortPulse examples">
-          <video
-            className={authClass("auth-showcase-video")}
-            src="/dashboard/gallery/luxury-purse-ugc-demo.mp4"
-            poster="/dashboard/gallery/gallery-10.webp"
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="metadata"
-          />
+          <div className={authClass("auth-showcase-gallery")} aria-hidden="true">
+            {AUTH_SHOWCASE_GALLERY_ITEMS.map((item, index) => (
+              <div
+                key={item.src}
+                className={authClass(
+                  "auth-showcase-gallery-tile",
+                  index === 2 && "auth-showcase-gallery-tile-wide"
+                )}
+              >
+                <video
+                  className={authClass("auth-showcase-gallery-media")}
+                  src={item.src}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  preload="metadata"
+                />
+              </div>
+            ))}
+          </div>
           <div className={authClass("auth-showcase-scrim")} />
           <div className={authClass("auth-showcase-copy")}>
-            <p className={authClass("auth-showcase-kicker")}>ShortPulse Studio</p>
-            <h2>Enter the workspace.</h2>
-            <p>
-              Explore the studio with zero starting credits. Upgrade only when you are ready to
-              create.
-            </p>
-          </div>
-          <div className={authClass("auth-showcase-tabs")} aria-hidden="true">
-            <span className={authClass("active")}>Image</span>
-            <span>Video</span>
-            <span>Audio</span>
-            <span>Workflow</span>
+            <p className={authClass("auth-showcase-kicker")}>Video Gallery</p>
+            <h2>See what ShortPulse makes.</h2>
+            <p>Gallery media from the dashboard, framed for the account experience.</p>
           </div>
         </section>
         <div className={authClass("auth-layout")}>

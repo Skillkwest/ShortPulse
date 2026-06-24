@@ -35,6 +35,7 @@ type Mode = "signin" | "signup";
 
 const MIN_PASSWORD_LENGTH = 8;
 const AUTH_SHOWCASE_BOTTOM_RIGHT_SRC = "/dashboard/gallery/forest-bear-encounter-demo.mp4";
+const AUTH_SHOWCASE_PORTRAIT_SRC = "/dashboard/gallery/anime-cat-dance-demo.mp4";
 const AUTH_SHOWCASE_GALLERY_ITEMS = (() => {
   const items = publicHomeGalleryVideoRows.flat();
   const bottomRightItem = items.find((item) => item.src === AUTH_SHOWCASE_BOTTOM_RIGHT_SRC);
@@ -401,6 +402,7 @@ export default function AuthPage() {
                 key={item.src}
                 className={authClass(
                   "auth-showcase-gallery-tile",
+                  item.src === AUTH_SHOWCASE_PORTRAIT_SRC && "auth-showcase-gallery-tile-portrait",
                   index === 2 && "auth-showcase-gallery-tile-wide"
                 )}
               >

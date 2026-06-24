@@ -158,6 +158,11 @@ describe("Auth route behavior", () => {
       )
     ).toBeInTheDocument();
     expect(
+      container.querySelector(
+        '.auth-showcase-gallery-media[src="/dashboard/gallery/anime-cat-dance-demo.mp4"]'
+      )?.parentElement
+    ).toHaveClass("auth-showcase-gallery-tile-portrait");
+    expect(
       Array.from(container.querySelectorAll(".auth-showcase-gallery-media")).at(-1)
     ).toHaveAttribute("src", "/dashboard/gallery/forest-bear-encounter-demo.mp4");
     expect(container.querySelector(".auth-mode-toggle")).toBeInTheDocument();

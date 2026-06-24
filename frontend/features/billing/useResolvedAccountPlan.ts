@@ -1,16 +1,8 @@
 import { useEffect, useState } from "react";
-import { buildPlanView, normalizePlanId, type BillingPlanRecord } from "./catalog";
-import { ensureSupabaseQueryClient } from "../../lib/supabaseClient";
+import { buildPlanView, normalizePlanId } from "./catalog";
+import { primeSupabaseSession } from "../../lib/supabaseClient";
 import { useResolvedProtectedSessionState } from "../../lib/protectedRouteSessionContext";
-
-type CurrentSubscriptionContractRow = {
-  plan_id: string | null;
-  monthly_credits_cents: number | null;
-};
-
-type BillingProfilePlanRow = {
-  plan_id: string | null;
-};
+import { fetchBillingAccountSummary } from "./accountSummary";
 
 type ResolvedPlanMeta = {
   id: string;
@@ -24,27 +16,11 @@ type UseResolvedAccountPlanParams = {
   enabled?: boolean;
 };
 
-const isSchemaCompatibilityError = (message: string) => {
-  const text = message.toLowerCase();
-  return (
-    text.includes("does not exist") ||
-    text.includes("could not find the table") ||
-    text.includes("schema cache") ||
-    text.includes("failed to parse select parameter") ||
-    text.includes("column")
-  );
-};
-
-const normalizeCreditCents = (value: number | null | undefined): number | null => {
-  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return null;
-  return Math.floor(value);
-};
-
 export const useResolvedAccountPlan = ({
   defaultPlanTier = "free",
   enabled = true,
 }: UseResolvedAccountPlanParams = {}) => {
-  const { user } = useResolvedProtectedSessionState({
+  const { session, user } = useResolvedProtectedSessionState({
     enabled,
   });
   const [resolvedPlan, setResolvedPlan] = useState<ResolvedPlanMeta | null>(null);
@@ -61,69 +37,15 @@ export const useResolvedAccountPlan = ({
       }
 
       try {
-        const supabase = ensureSupabaseQueryClient();
-        const [billingContractResponse, billingProfileResponse, billingPlansResponse] =
-          await Promise.all([
-            supabase
-              .from("billing_subscription_contracts")
-              .select("plan_id, monthly_credits_cents")
-              .eq("user_id", user.id)
-              .is("ended_at", null)
-              .maybeSingle(),
-            supabase
-              .from("billing_profiles")
-              .select("plan_id")
-              .eq("user_id", user.id)
-              .maybeSingle(),
-            supabase
-              .from("billing_plans")
-              .select(
-                "id, display_name, monthly_price_cents, monthly_credits_cents, storage_limit_bytes, is_active"
-              )
-              .eq("is_active", true),
-          ]);
-
-        if (
-          billingContractResponse.error &&
-          !isSchemaCompatibilityError(billingContractResponse.error.message)
-        ) {
-          throw billingContractResponse.error;
+        if (session) {
+          primeSupabaseSession(session);
         }
-
-        const contractPlanId =
-          !billingContractResponse.error && billingContractResponse.data
-            ? ((billingContractResponse.data as CurrentSubscriptionContractRow).plan_id ?? null)
-            : null;
-        const contractMonthlyCreditsCents =
-          !billingContractResponse.error && billingContractResponse.data
-            ? normalizeCreditCents(
-                (billingContractResponse.data as CurrentSubscriptionContractRow)
-                  .monthly_credits_cents
-              )
-            : null;
-        const billingPlanId =
-          !billingProfileResponse.error && billingProfileResponse.data
-            ? ((billingProfileResponse.data as BillingProfilePlanRow).plan_id ?? null)
-            : null;
-        const effectivePlanId = contractPlanId ?? billingPlanId ?? defaultPlanTier;
-        const normalizedPlanId = normalizePlanId(effectivePlanId);
-        const plans =
-          !billingPlansResponse.error && Array.isArray(billingPlansResponse.data)
-            ? (billingPlansResponse.data as BillingPlanRecord[])
-            : [];
-        const planView = buildPlanView({
-          planId: normalizedPlanId,
-          plans,
-        });
-        const nextPlanLabel = plans.length > 0 ? planView.displayName : normalizedPlanId;
-
+        const summary = await fetchBillingAccountSummary();
+        if (!summary?.resolvedPlan || summary.userId !== user.id) {
+          throw new Error("Unable to load billing account summary.");
+        }
         if (!active) return;
-        setResolvedPlan({
-          id: normalizedPlanId,
-          label: nextPlanLabel,
-          className: planView.className,
-          monthlyCreditsCents: contractMonthlyCreditsCents ?? planView.monthlyCreditsCents,
-        });
+        setResolvedPlan(summary.resolvedPlan);
       } catch {
         if (!active) return;
         const fallbackPlanId = normalizePlanId(defaultPlanTier);
@@ -144,7 +66,7 @@ export const useResolvedAccountPlan = ({
     return () => {
       active = false;
     };
-  }, [defaultPlanTier, enabled, user]);
+  }, [defaultPlanTier, enabled, session, user]);
 
   return {
     user,

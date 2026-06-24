@@ -1,12 +1,9 @@
 import type { User } from "@supabase/supabase-js";
 import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ensureSupabaseQueryClient, useSupabaseSessionState } from "../../../lib/supabaseClient";
+import { useSupabaseSessionState } from "../../../lib/supabaseClient";
+import { fetchBillingAccountSummary } from "../accountSummary";
 import { useResolvedAccountPlan } from "../useResolvedAccountPlan";
-
-const contractMaybeSingleMock = vi.fn();
-const profileMaybeSingleMock = vi.fn();
-const billingPlansEqMock = vi.fn();
 
 vi.mock("../../../lib/supabaseClient", async () => {
   const { createSupabaseClientModuleMock } =
@@ -14,15 +11,15 @@ vi.mock("../../../lib/supabaseClient", async () => {
   return createSupabaseClientModuleMock();
 });
 
-const ensureSupabaseQueryClientMock = vi.mocked(ensureSupabaseQueryClient);
+vi.mock("../accountSummary", () => ({
+  fetchBillingAccountSummary: vi.fn(),
+}));
+
+const fetchBillingAccountSummaryMock = vi.mocked(fetchBillingAccountSummary);
 const useSupabaseSessionStateMock = vi.mocked(useSupabaseSessionState);
 
 describe("useResolvedAccountPlan", () => {
   beforeEach(() => {
-    contractMaybeSingleMock.mockReset();
-    profileMaybeSingleMock.mockReset();
-    billingPlansEqMock.mockReset();
-
     useSupabaseSessionStateMock.mockReturnValue({
       initialized: true,
       session: null,
@@ -33,63 +30,19 @@ describe("useResolvedAccountPlan", () => {
       } as unknown as User,
     });
 
-    ensureSupabaseQueryClientMock.mockReturnValue({
-      from: (table: string) => {
-        if (table === "billing_subscription_contracts") {
-          return {
-            select: () => ({
-              eq: () => ({
-                is: () => ({
-                  maybeSingle: contractMaybeSingleMock,
-                }),
-              }),
-            }),
-          };
-        }
-        if (table === "billing_profiles") {
-          return {
-            select: () => ({
-              eq: () => ({
-                maybeSingle: profileMaybeSingleMock,
-              }),
-            }),
-          };
-        }
-        if (table === "billing_plans") {
-          return {
-            select: () => ({
-              eq: billingPlansEqMock,
-            }),
-          };
-        }
-        throw new Error(`Unexpected table: ${table}`);
+    fetchBillingAccountSummaryMock.mockResolvedValue({
+      userId: "user-1",
+      resolvedPlan: {
+        id: "free",
+        label: "Baseline access",
+        className: "plan-starter",
+        monthlyCreditsCents: 500,
       },
-    } as unknown as ReturnType<typeof ensureSupabaseQueryClient>);
-
-    contractMaybeSingleMock.mockResolvedValue({
-      data: { plan_id: "free", monthly_credits_cents: null },
-      error: null,
-    });
-    profileMaybeSingleMock.mockResolvedValue({
-      data: { plan_id: "free" },
-      error: null,
-    });
-    billingPlansEqMock.mockResolvedValue({
-      data: [
-        {
-          id: "free",
-          display_name: "Starter",
-          monthly_price_cents: 0,
-          monthly_credits_cents: 500,
-          storage_limit_bytes: 1073741824,
-          is_active: true,
-        },
-      ],
-      error: null,
+      quotaSummary: null,
     });
   });
 
-  it("resolves the active plan from the current subscription contract", async () => {
+  it("resolves the active plan from the authenticated account summary route", async () => {
     const { result } = renderHook(() => useResolvedAccountPlan());
 
     await waitFor(() => {
@@ -100,12 +53,19 @@ describe("useResolvedAccountPlan", () => {
         monthlyCreditsCents: 500,
       });
     });
+    expect(fetchBillingAccountSummaryMock).toHaveBeenCalledTimes(1);
   });
 
-  it("uses the current contract monthly credits for existing subscribers", async () => {
-    contractMaybeSingleMock.mockResolvedValue({
-      data: { plan_id: "free", monthly_credits_cents: 1200 },
-      error: null,
+  it("uses the account summary monthly credits for existing subscribers", async () => {
+    fetchBillingAccountSummaryMock.mockResolvedValue({
+      userId: "user-1",
+      resolvedPlan: {
+        id: "free",
+        label: "Baseline access",
+        className: "plan-starter",
+        monthlyCreditsCents: 1200,
+      },
+      quotaSummary: null,
     });
 
     const { result } = renderHook(() => useResolvedAccountPlan());
@@ -120,8 +80,8 @@ describe("useResolvedAccountPlan", () => {
     });
   });
 
-  it("falls back to the explicit default tier when billing queries fail", async () => {
-    contractMaybeSingleMock.mockRejectedValue(new Error("network down"));
+  it("falls back to the explicit default tier when account summary loading fails", async () => {
+    fetchBillingAccountSummaryMock.mockRejectedValue(new Error("network down"));
 
     const { result } = renderHook(() => useResolvedAccountPlan({ defaultPlanTier: "business" }));
 
@@ -135,14 +95,16 @@ describe("useResolvedAccountPlan", () => {
     });
   });
 
-  it("uses the billing profile plan when the current contract is missing", async () => {
-    contractMaybeSingleMock.mockResolvedValue({
-      data: null,
-      error: null,
-    });
-    profileMaybeSingleMock.mockResolvedValue({
-      data: { plan_id: "business" },
-      error: null,
+  it("uses the plan returned by the account summary route", async () => {
+    fetchBillingAccountSummaryMock.mockResolvedValue({
+      userId: "user-1",
+      resolvedPlan: {
+        id: "business",
+        label: "Business",
+        className: "plan-business",
+        monthlyCreditsCents: 0,
+      },
+      quotaSummary: null,
     });
 
     const { result } = renderHook(() => useResolvedAccountPlan());

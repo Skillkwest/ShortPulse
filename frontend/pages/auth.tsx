@@ -35,7 +35,20 @@ type Mode = "signin" | "signup";
 
 const MIN_PASSWORD_LENGTH = 8;
 const AUTH_SHOWCASE_BOTTOM_RIGHT_SRC = "/dashboard/gallery/forest-bear-encounter-demo.mp4";
+const AUTH_SHOWCASE_FEATURE_SRC = "/dashboard/gallery/panda-villa-tour-demo.mp4";
 const AUTH_SHOWCASE_PORTRAIT_SRC = "/dashboard/gallery/anime-cat-dance-demo.mp4";
+const AUTH_SHOWCASE_TILE_CLASS_BY_SRC = new Map<string, string>([
+  ["/dashboard/gallery/monster-wall-break-demo.mp4", "auth-showcase-gallery-tile-monster"],
+  [AUTH_SHOWCASE_PORTRAIT_SRC, "auth-showcase-gallery-tile-portrait-9x16"],
+  [AUTH_SHOWCASE_FEATURE_SRC, "auth-showcase-gallery-tile-feature"],
+  ["/dashboard/gallery/fufkin-butterfly-meadow-demo.mp4", "auth-showcase-gallery-tile-fufkin"],
+  ["/dashboard/gallery/moonbound-crossing-demo.mp4", "auth-showcase-gallery-tile-moonbound"],
+  ["/dashboard/gallery/alpine-ski-pov-demo.mp4", "auth-showcase-gallery-tile-alpine"],
+  ["/dashboard/gallery/seedance-podcast-demo.mp4", "auth-showcase-gallery-tile-seedance"],
+  ["/dashboard/gallery/luxury-purse-ugc-demo.mp4", "auth-showcase-gallery-tile-luxury"],
+  ["/dashboard/gallery/viking-longship-storm-demo.mp4", "auth-showcase-gallery-tile-viking"],
+  [AUTH_SHOWCASE_BOTTOM_RIGHT_SRC, "auth-showcase-gallery-tile-bottom-right"],
+]);
 const AUTH_SHOWCASE_GALLERY_ITEMS = (() => {
   const items = publicHomeGalleryVideoRows.flat();
   const bottomRightItem = items.find((item) => item.src === AUTH_SHOWCASE_BOTTOM_RIGHT_SRC);
@@ -50,6 +63,8 @@ type SignupIntentResponse = {
 
 const authClass = (...names: Array<string | false | null | undefined>) =>
   names.filter((name): name is string => Boolean(name)).join(" ");
+
+const isValidEmailAddress = (value: string): boolean => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
 const getErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error ? error.message : fallback;
@@ -229,14 +244,16 @@ export default function AuthPage() {
       });
   }, [router, postAuthPath]);
 
-  const isSubmitDisabled = !email.trim() || !password || loading || oauthLoading;
+  const normalizedEmailForSubmit = email.trim();
+  const isSubmitDisabled =
+    !isValidEmailAddress(normalizedEmailForSubmit) || !password.trim() || loading || oauthLoading;
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
     setInfo(null);
     setLoading(true);
-    const normalizedEmail = email.trim();
+    const normalizedEmail = normalizedEmailForSubmit;
     try {
       const supabase = ensureSupabaseClient();
       if (activeMode === "signup") {
@@ -397,13 +414,12 @@ export default function AuthPage() {
         <div className={authClass("auth-glow", "auth-glow-right")} />
         <section className={authClass("auth-showcase")} aria-label="ShortPulse examples">
           <div className={authClass("auth-showcase-gallery")} aria-hidden="true">
-            {AUTH_SHOWCASE_GALLERY_ITEMS.map((item, index) => (
+            {AUTH_SHOWCASE_GALLERY_ITEMS.map((item) => (
               <div
                 key={item.src}
                 className={authClass(
                   "auth-showcase-gallery-tile",
-                  item.src === AUTH_SHOWCASE_PORTRAIT_SRC && "auth-showcase-gallery-tile-portrait",
-                  index === 2 && "auth-showcase-gallery-tile-wide"
+                  AUTH_SHOWCASE_TILE_CLASS_BY_SRC.get(item.src)
                 )}
               >
                 <video

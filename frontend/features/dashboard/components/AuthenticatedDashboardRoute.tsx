@@ -8,11 +8,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { ChartBar, Sparkle } from "phosphor-react";
 import { useCredits } from "../../ai-studio/hooks/useCredits";
-import {
-  buildPlanView,
-  type BillingCatalogSnapshot,
-  type BillingPlanRecord,
-} from "../../billing/catalog";
+import { buildPlanView, type BillingCatalogSnapshot } from "../../billing/catalog";
+import { fetchBillingAccountSummary } from "../../billing/accountSummary";
 import { formatStorageBytes } from "../../billing/storage";
 import { useMediaStorageQuotaSummary } from "../../billing/useMediaStorageQuotaSummary";
 import { ACCOUNT_MENU_LINKS } from "../../profile/accountMenuLinks";
@@ -25,7 +22,7 @@ import type { DashboardTutorial } from "./DashboardTutorialGrid";
 import { DashboardAppBar } from "./DashboardAppBar";
 import { useProjectCreationDialog } from "../../projects/hooks/useProjectCreationDialog";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
-import { ensureSupabaseQueryClient, signOutSupabaseSession } from "../../../lib/supabaseClient";
+import { signOutSupabaseSession } from "../../../lib/supabaseClient";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { readDashboardTutorialsFromPublicEndpoint } from "../logic/dashboardTutorialEndpointClient";
 import { SHORTPULSE_COMMUNITY_URL } from "../communityLinks";
@@ -36,15 +33,6 @@ const DASHBOARD_HIDE_LEGACY_SECTIONS =
 const DASHBOARD_FALLBACK_HELPER_COPY =
   "Your next great idea is waiting! Start a project and let's make it happen.";
 
-type CurrentSubscriptionContractRow = {
-  plan_id: string | null;
-  monthly_credits_cents: number | null;
-};
-
-type BillingProfilePlanRow = {
-  plan_id: string | null;
-};
-
 type ProjectsModalComponent =
   (typeof import("../../ai-studio/components/ProjectsModal"))["ProjectsModal"];
 type ProjectNameModalComponent =
@@ -54,17 +42,6 @@ type AuthenticatedDashboardRouteProps = {
   billingCatalog: BillingCatalogSnapshot;
   dashboardTutorials?: DashboardTutorial[];
   user: User;
-};
-
-const isSchemaCompatibilityError = (message: string) => {
-  const text = message.toLowerCase();
-  return (
-    text.includes("does not exist") ||
-    text.includes("could not find the table") ||
-    text.includes("schema cache") ||
-    text.includes("failed to parse select parameter") ||
-    text.includes("column")
-  );
 };
 
 const asDashboardAnnouncement = (value: unknown): DashboardAnnouncement | null => {
@@ -244,68 +221,25 @@ export function AuthenticatedDashboardRoute({
     const loadUsage = async () => {
       setUsageLoading(true);
       try {
-        const supabase = ensureSupabaseQueryClient();
-        const [billingContractResponse, billingProfileResponse, billingPlansResponse] =
-          await Promise.all([
-            supabase
-              .from("billing_subscription_contracts")
-              .select("plan_id, monthly_credits_cents")
-              .eq("user_id", user.id)
-              .is("ended_at", null)
-              .maybeSingle(),
-            supabase
-              .from("billing_profiles")
-              .select("plan_id")
-              .eq("user_id", user.id)
-              .maybeSingle(),
-            supabase
-              .from("billing_plans")
-              .select(
-                "id, display_name, monthly_price_cents, monthly_credits_cents, storage_limit_bytes, is_active"
-              )
-              .eq("is_active", true),
-          ]);
-
-        if (
-          billingContractResponse.error &&
-          !isSchemaCompatibilityError(billingContractResponse.error.message)
-        ) {
-          throw billingContractResponse.error;
+        const summary = await fetchBillingAccountSummary();
+        if (!summary?.resolvedPlan || summary.userId !== user.id) {
+          throw new Error("Unable to load billing account summary.");
         }
 
-        const contractPlanId =
-          !billingContractResponse.error && billingContractResponse.data
-            ? ((billingContractResponse.data as CurrentSubscriptionContractRow).plan_id ?? null)
-            : null;
-        const contractMonthlyCreditsCents =
-          !billingContractResponse.error && billingContractResponse.data
-            ? ((billingContractResponse.data as CurrentSubscriptionContractRow)
-                .monthly_credits_cents ?? null)
-            : null;
-        const billingPlanId =
-          !billingProfileResponse.error && billingProfileResponse.data
-            ? ((billingProfileResponse.data as BillingProfilePlanRow).plan_id ?? null)
-            : null;
-        const effectivePlanId = contractPlanId ?? billingPlanId ?? DEFAULT_PLAN_TIER;
-        const plans =
-          !billingPlansResponse.error && Array.isArray(billingPlansResponse.data)
-            ? (billingPlansResponse.data as BillingPlanRecord[])
-            : [];
-        const planView = buildPlanView({
-          planId: effectivePlanId,
-          plans,
-        });
-
         if (!active) return;
-        setResolvedPlan({
-          id: planView.id,
-          label: planView.displayName,
-          className: planView.className,
-          monthlyCreditsCents: contractMonthlyCreditsCents ?? planView.monthlyCreditsCents,
-        });
+        setResolvedPlan(summary.resolvedPlan);
       } catch {
         if (!active) return;
-        setResolvedPlan(null);
+        const fallbackPlanView = buildPlanView({
+          planId: DEFAULT_PLAN_TIER,
+          plans: billingCatalog.plans,
+        });
+        setResolvedPlan({
+          id: fallbackPlanView.id,
+          label: fallbackPlanView.displayName,
+          className: fallbackPlanView.className,
+          monthlyCreditsCents: fallbackPlanView.monthlyCreditsCents,
+        });
       } finally {
         if (active) {
           setUsageLoading(false);
@@ -317,7 +251,7 @@ export function AuthenticatedDashboardRoute({
     return () => {
       active = false;
     };
-  }, [user.id]);
+  }, [billingCatalog.plans, user.id]);
 
   useEffect(() => {
     let active = true;

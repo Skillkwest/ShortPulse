@@ -3,21 +3,23 @@ import type { Session, User } from "@supabase/supabase-js";
 import { createElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProtectedRouteSessionProvider } from "../../../lib/protectedRouteSessionContext";
+import { fetchBillingAccountSummary } from "../accountSummary";
 import {
   requestMediaStorageQuotaSummaryRefresh,
   useMediaStorageQuotaSummary,
 } from "../useMediaStorageQuotaSummary";
 
-const rpcMock = vi.fn();
+const fetchBillingAccountSummaryMock = vi.mocked(fetchBillingAccountSummary);
 const primeSupabaseSessionMock = vi.fn();
 const useSupabaseSessionStateMock = vi.fn();
 
 vi.mock("../../../lib/supabaseClient", () => ({
-  ensureSupabaseQueryClient: () => ({
-    rpc: (...args: unknown[]) => rpcMock(...args),
-  }),
   primeSupabaseSession: (...args: unknown[]) => primeSupabaseSessionMock(...args),
   useSupabaseSessionState: () => useSupabaseSessionStateMock(),
+}));
+
+vi.mock("../accountSummary", () => ({
+  fetchBillingAccountSummary: vi.fn(),
 }));
 
 describe("useMediaStorageQuotaSummary", () => {
@@ -29,18 +31,22 @@ describe("useMediaStorageQuotaSummary", () => {
       session: null,
       loading: false,
     });
-    rpcMock.mockResolvedValue({
-      data: [
-        {
-          used_bytes: 10,
-          base_limit_bytes: 100,
-          addon_limit_bytes: 0,
-          total_limit_bytes: 100,
-          remaining_bytes: 90,
-          is_over_limit: false,
-        },
-      ],
-      error: null,
+    fetchBillingAccountSummaryMock.mockResolvedValue({
+      userId: "user-1",
+      resolvedPlan: {
+        id: "free",
+        label: "Baseline access",
+        className: "plan-starter",
+        monthlyCreditsCents: 0,
+      },
+      quotaSummary: {
+        usedBytes: 10,
+        baseLimitBytes: 100,
+        addonLimitBytes: 0,
+        totalLimitBytes: 100,
+        remainingBytes: 90,
+        isOverLimit: false,
+      },
     });
   });
 
@@ -48,16 +54,16 @@ describe("useMediaStorageQuotaSummary", () => {
     renderHook(() => useMediaStorageQuotaSummary({ enabled: true }));
     renderHook(() => useMediaStorageQuotaSummary({ enabled: true }));
 
-    await waitFor(() => expect(rpcMock).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(fetchBillingAccountSummaryMock).toHaveBeenCalledTimes(2));
 
     act(() => {
       requestMediaStorageQuotaSummaryRefresh();
     });
 
-    await waitFor(() => expect(rpcMock).toHaveBeenCalledTimes(4));
+    await waitFor(() => expect(fetchBillingAccountSummaryMock).toHaveBeenCalledTimes(4));
   });
 
-  it("primes the resolved protected-route session before loading the quota summary", async () => {
+  it("primes the resolved protected-route session before loading the account summary", async () => {
     const session = { access_token: "protected-token", user: { id: "user-1" } } as Session;
     const user = { id: "user-1", email: "user@example.com" } as User;
     const wrapper = ({ children }: { children: ReactNode }) =>
@@ -65,10 +71,12 @@ describe("useMediaStorageQuotaSummary", () => {
 
     renderHook(() => useMediaStorageQuotaSummary({ enabled: true }), { wrapper });
 
-    await waitFor(() => expect(rpcMock).toHaveBeenCalledWith("get_media_storage_quota_summary"));
+    await waitFor(() =>
+      expect(fetchBillingAccountSummaryMock).toHaveBeenCalledWith({ force: false })
+    );
     expect(primeSupabaseSessionMock).toHaveBeenCalledWith(session);
     expect(primeSupabaseSessionMock.mock.invocationCallOrder[0]).toBeLessThan(
-      rpcMock.mock.invocationCallOrder[0]
+      fetchBillingAccountSummaryMock.mock.invocationCallOrder[0]
     );
   });
 });

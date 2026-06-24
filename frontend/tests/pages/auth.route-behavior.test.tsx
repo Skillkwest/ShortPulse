@@ -161,7 +161,12 @@ describe("Auth route behavior", () => {
       container.querySelector(
         '.auth-showcase-gallery-media[src="/dashboard/gallery/anime-cat-dance-demo.mp4"]'
       )?.parentElement
-    ).toHaveClass("auth-showcase-gallery-tile-portrait");
+    ).toHaveClass("auth-showcase-gallery-tile-portrait-9x16");
+    expect(
+      container.querySelector(
+        '.auth-showcase-gallery-media[src="/dashboard/gallery/panda-villa-tour-demo.mp4"]'
+      )?.parentElement
+    ).toHaveClass("auth-showcase-gallery-tile-feature");
     expect(
       Array.from(container.querySelectorAll(".auth-showcase-gallery-media")).at(-1)
     ).toHaveAttribute("src", "/dashboard/gallery/forest-bear-encounter-demo.mp4");
@@ -178,6 +183,12 @@ describe("Auth route behavior", () => {
       "auth-submit",
       "primary-btn"
     );
+    expect(screen.getByRole("button", { name: "Sign in" })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "not-an-email" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "password123" } });
+    expect(screen.getByRole("button", { name: "Sign in" })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "user@example.com" } });
+    expect(screen.getByRole("button", { name: "Sign in" })).not.toBeDisabled();
   });
 
   it("falls back to /dashboard when sign-in receives an unsafe redirect target", async () => {
@@ -329,6 +340,14 @@ describe("Auth route behavior", () => {
     expect(container.querySelector("form.auth-card")).toHaveClass("auth-card-signup");
     expect(screen.getByRole("tab", { name: "Sign up" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("button", { name: "Create account" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create account" })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Account email"), { target: { value: "not-an-email" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "strongpass" } });
+    expect(screen.getByRole("button", { name: "Create account" })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Account email"), {
+      target: { value: "new@example.com" },
+    });
+    expect(screen.getByRole("button", { name: "Create account" })).not.toBeDisabled();
     expect(screen.getByRole("button", { name: "Sign up with Google" })).not.toBeDisabled();
     expect(
       screen.queryByText("Create your account, then continue to your selected plan.")

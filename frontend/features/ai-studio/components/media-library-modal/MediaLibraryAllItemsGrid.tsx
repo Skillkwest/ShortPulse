@@ -147,6 +147,10 @@ export function MediaLibraryAllItemsGrid({
   const targetColumnWidth = densityConfig?.targetColumnWidth ?? 188;
   const cardPreviewLongEdgePx = densityConfig?.previewLongEdgePx ?? 320;
   const shouldUsePackedMasonryLayout = Boolean(densityConfig);
+  const layoutMode: "chronological-grid" | "masonry" =
+    surface === "media-library-panel" || !shouldUsePackedMasonryLayout
+      ? "chronological-grid"
+      : "masonry";
   const {
     signedPosterUrlById: signedPosterUrlByIdFromHook,
     signedVideoUrlById: signedVideoUrlByIdFromHook,
@@ -242,7 +246,7 @@ export function MediaLibraryAllItemsGrid({
     gap: 1,
     overscanPx: 920,
     minItemsToVirtualize: shouldUsePackedMasonryLayout ? 1 : 24,
-    layoutMode: shouldUsePackedMasonryLayout ? "masonry" : "chronological-grid",
+    layoutMode,
   });
 
   const gridStyle = React.useMemo<React.CSSProperties | undefined>(() => {

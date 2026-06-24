@@ -1708,6 +1708,87 @@ describe("handleVideoModelSubmission (Kie Seedance 2)", () => {
     expect(payload).not.toHaveProperty("first_frame_url");
     expect(payload).not.toHaveProperty("last_frame_url");
   });
+
+  it("submits direct Seedance video reference slots as multimodal video references", async () => {
+    const args = makeArgs({
+      finalModel: KIE_SEEDANCE_2_MODEL_ID,
+      modelConfig: getModelConfig(KIE_SEEDANCE_2_MODEL_ID),
+      cleanedPrompt: "Use the direct motion reference",
+      preparedImageInputs: [],
+      requestedDurationSeconds: 6,
+      requestedResolution: "1080p",
+      requestedAudio: false,
+      videoReferenceMode: "standard",
+      seedance2InputMode: "multimodal",
+      klingElements: [
+        {
+          id: "direct-video-1",
+          slotIndex: 0,
+          sourceKind: "reference-video",
+          sourceElementId: null,
+          sourceCharacterId: null,
+          name: "Video reference",
+          alias: "",
+          description: "",
+          profileImageUrl: null,
+          profileImageTransform: null,
+          frontalImageUrl: "",
+          referenceImageUrls: "",
+          videoUrl: "https://example.com/direct-motion.mp4",
+        },
+      ],
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(args.notifyGenerationFailure).not.toHaveBeenCalled();
+    expect(submitKieSeedance2Video).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reference_video_urls: [
+          "https://tempfile.aiquickdraw.com/shortpulse/kie-video/videos/direct-motion.mp4",
+        ],
+      })
+    );
+  });
+
+  it("blocks Seedance submissions with more than three video references", async () => {
+    const args = makeArgs({
+      finalModel: KIE_SEEDANCE_2_MODEL_ID,
+      modelConfig: getModelConfig(KIE_SEEDANCE_2_MODEL_ID),
+      cleanedPrompt: "Use too many direct motion references",
+      preparedImageInputs: [],
+      requestedDurationSeconds: 6,
+      requestedResolution: "1080p",
+      requestedAudio: false,
+      videoReferenceMode: "standard",
+      seedance2InputMode: "multimodal",
+      klingElements: Array.from({ length: 4 }, (_, index) => ({
+        id: `direct-video-${index + 1}`,
+        slotIndex: index,
+        sourceKind: "reference-video" as const,
+        sourceElementId: null,
+        sourceCharacterId: null,
+        name: `Video reference ${index + 1}`,
+        alias: "",
+        description: "",
+        profileImageUrl: null,
+        profileImageTransform: null,
+        frontalImageUrl: "",
+        referenceImageUrls: "",
+        videoUrl: `https://example.com/direct-motion-${index + 1}.mp4`,
+      })),
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-1",
+      "Seedance 2 supports up to 3 video references."
+    );
+    expect(submitKieSeedance2Video).not.toHaveBeenCalled();
+  });
 });
 
 describe("handleVideoModelSubmission (Kie Kling standard)", () => {

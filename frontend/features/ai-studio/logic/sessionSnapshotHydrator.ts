@@ -345,7 +345,7 @@ const asKlingProfileImageTransform = (
 type HydratedKlingElementRow = {
   id: string;
   slotIndex?: number;
-  sourceKind?: "element" | "character" | "reference-image" | null;
+  sourceKind?: "element" | "character" | "reference-image" | "reference-video" | null;
   sourceElementId?: string | null;
   sourceCharacterId?: string | null;
   sourceCharacterLookId?: string | null;
@@ -381,7 +381,8 @@ const asKlingElements = (value: unknown): HydratedKlingElementRow[] => {
       sourceKind:
         row.sourceKind === "character" ||
         row.sourceKind === "element" ||
-        row.sourceKind === "reference-image"
+        row.sourceKind === "reference-image" ||
+        row.sourceKind === "reference-video"
           ? row.sourceKind
           : null,
       sourceElementId: asNullableString(row.sourceElementId),

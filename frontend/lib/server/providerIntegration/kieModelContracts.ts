@@ -966,6 +966,8 @@ const normalizeKieSeedance2Payload = ({
   const hasMultimodalReferences = Boolean(
     referenceImageUrls.length || referenceVideoUrls.length || referenceAudioUrls.length
   );
+  const totalReferenceCount =
+    referenceImageUrls.length + referenceVideoUrls.length + referenceAudioUrls.length;
   if (lastFrameUrl && !firstFrameUrl) {
     throw new Error(`${providerModelLabel} last-frame mode requires a first_frame_url.`);
   }
@@ -973,6 +975,18 @@ const normalizeKieSeedance2Payload = ({
     throw new Error(
       `${providerModelLabel} submit cannot mix frame URLs with multimodal reference URLs.`
     );
+  }
+  if (referenceImageUrls.length > 9) {
+    throw new Error(`${providerModelLabel} submit supports up to 9 image references.`);
+  }
+  if (referenceVideoUrls.length > 3) {
+    throw new Error(`${providerModelLabel} submit supports up to 3 video references.`);
+  }
+  if (referenceAudioUrls.length > 3) {
+    throw new Error(`${providerModelLabel} submit supports up to 3 audio references.`);
+  }
+  if (totalReferenceCount > 12) {
+    throw new Error(`${providerModelLabel} submit supports up to 12 total references.`);
   }
   const resolution =
     normalizeOptionalResolution({

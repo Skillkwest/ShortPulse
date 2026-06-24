@@ -25,7 +25,7 @@ type KlingMultiPrompt = {
 
 type KlingElement = {
   id: string;
-  sourceKind?: "element" | "character" | "reference-image" | null;
+  sourceKind?: "element" | "character" | "reference-image" | "reference-video" | null;
   frontalImageUrl: string;
   referenceImageUrls: string;
   videoUrl: string;

@@ -360,6 +360,11 @@
   border-color: rgba(139, 245, 238, 0.58);
 }
 
+.video-properties-panel
+  .video-elements-placeholder-tile--filled.video-elements-placeholder-tile--reference-video {
+  border-color: rgba(188, 151, 255, 0.62);
+}
+
 .video-properties-panel .video-elements-placeholder-tile:hover {
   border-color: rgba(201, 205, 214, 0.28);
   background: #16181b;
@@ -428,6 +433,22 @@
 .video-properties-panel
   .video-elements-placeholder-tile--filled.video-elements-placeholder-tile--reference-image::after {
   box-shadow: inset 0 0 0 1px rgba(139, 245, 238, 0.18);
+}
+
+.video-properties-panel
+  .video-elements-placeholder-tile--filled.video-elements-placeholder-tile--reference-video::after {
+  box-shadow: inset 0 0 0 1px rgba(188, 151, 255, 0.2);
+}
+
+.video-properties-panel .video-elements-slot-video-preview {
+  display: inline-flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  border-radius: inherit;
+  background: linear-gradient(145deg, rgba(188, 151, 255, 0.2), rgba(37, 204, 255, 0.08)), #101215;
+  color: rgba(236, 229, 255, 0.88);
 }
 
 .video-properties-panel .video-elements-slot-actions {

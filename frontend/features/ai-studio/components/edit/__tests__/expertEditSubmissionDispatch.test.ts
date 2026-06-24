@@ -135,4 +135,42 @@ describe("resolveExpertEditSubmissionDispatch", () => {
       },
     });
   });
+
+  it("passes Expert Edit primary canvas refs into restore-only regenerate options", () => {
+    expect(
+      resolveExpertEditSubmissionDispatch({
+        editSubmitIntent: "standard",
+        hasSubmissionHandler: true,
+        hasSelectedLayerMask: false,
+        flattenedUrl: "blob:flatten-1",
+        inpaintMaskUrl: null,
+        referenceInputs: ["blob:flatten-1"],
+        expertEditReferences: {
+          version: 1,
+          maxSecondarySlotCount: 10,
+          primaryReferenceInputIndex: 0,
+          restorePrimaryCanvasSlots: [{ slotIndex: 0, sourceUrl: "blob:primary-canvas-local" }],
+          secondarySlots: [],
+          restoreSecondarySlots: [{ slotIndex: 1, sourceUrl: "blob:secondary-local" }],
+        },
+      })
+    ).toEqual({
+      status: "ready",
+      referenceInputs: ["blob:flatten-1"],
+      options: {
+        modelIdOverride: undefined,
+        referenceInputsMode: "replace",
+        referenceInputsLimit: 11,
+        expertEditReferences: {
+          version: 1,
+          maxSecondarySlotCount: 10,
+          primaryReferenceInputIndex: 0,
+          restorePrimaryCanvasSlots: [{ slotIndex: 0, sourceUrl: "blob:primary-canvas-local" }],
+          secondarySlots: [],
+          restoreSecondarySlots: [{ slotIndex: 1, sourceUrl: "blob:secondary-local" }],
+        },
+        expertEditRestoreImageInputs: ["blob:primary-canvas-local", "blob:secondary-local"],
+      },
+    });
+  });
 });

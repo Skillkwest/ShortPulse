@@ -158,6 +158,38 @@ const areOrderedIdsEqual = (left: string[], right: string[]): boolean => {
   return true;
 };
 
+const dedupeOrderedIds = (ids: string[]): string[] => {
+  const seen = new Set<string>();
+  let changed = false;
+  const nextIds: string[] = [];
+  for (const id of ids) {
+    if (seen.has(id)) {
+      changed = true;
+      continue;
+    }
+    seen.add(id);
+    nextIds.push(id);
+  }
+  return changed ? nextIds : ids;
+};
+
+const dedupeRowsById = <TRow extends { id: string }>(rows: TRow[]): TRow[] => {
+  const indexById = new Map<string, number>();
+  let changed = false;
+  const nextRows: TRow[] = [];
+  for (const row of rows) {
+    const existingIndex = indexById.get(row.id);
+    if (existingIndex !== undefined) {
+      nextRows[existingIndex] = row;
+      changed = true;
+      continue;
+    }
+    indexById.set(row.id, nextRows.length);
+    nextRows.push(row);
+  }
+  return changed ? nextRows : rows;
+};
+
 const areTabCacheStatesEqual = (
   left: MediaLibraryTabCacheState,
   right: MediaLibraryTabCacheState
@@ -202,25 +234,29 @@ export const replaceSurfaceMediaTabRows = <
     cache?: Partial<MediaLibraryTabCacheState>;
   }
 ): MediaLibraryRuntimeState<TMedia, TPrompt> => {
+  const nextRows = dedupeRowsById(rows);
   const currentRows = selectSurfaceMediaRows(state, { surface, tab });
   const currentCache = state.surfaceStateByKind[surface].cacheByTab[tab];
   const nextCache = {
     ...currentCache,
     ...cache,
   };
-  if (areOrderedRowsEqual(currentRows, rows) && areTabCacheStatesEqual(currentCache, nextCache)) {
+  if (
+    areOrderedRowsEqual(currentRows, nextRows) &&
+    areTabCacheStatesEqual(currentCache, nextCache)
+  ) {
     return state;
   }
   const { next, surfaceState } = cloneRuntimeSurface(state, surface);
   next.mediaById = { ...state.mediaById };
-  for (const row of rows) {
+  for (const row of nextRows) {
     next.mediaById[row.id] = row;
   }
   surfaceState.orderedViews = {
     ...surfaceState.orderedViews,
     mediaIdsByTab: {
       ...surfaceState.orderedViews.mediaIdsByTab,
-      [tab]: rows.map((row) => row.id),
+      [tab]: nextRows.map((row) => row.id),
     },
   };
   surfaceState.cacheByTab = {
@@ -248,15 +284,25 @@ export const replaceSurfaceMediaRowsByTabs = <
   }
 ): MediaLibraryRuntimeState<TMedia, TPrompt> => {
   const currentSurfaceState = state.surfaceStateByKind[surface];
+  const dedupedRowsByTab = {
+    uploaded_images: dedupeRowsById(rowsByTab.uploaded_images),
+    uploaded_videos: dedupeRowsById(rowsByTab.uploaded_videos),
+    private: dedupeRowsById(rowsByTab.private),
+    ai_generations: dedupeRowsById(rowsByTab.ai_generations),
+  };
   const nextMediaIds =
-    mediaIds ?? MEDIA_DATA_TABS.flatMap((tab) => rowsByTab[tab].map((row) => row.id));
+    mediaIds !== undefined
+      ? dedupeOrderedIds(mediaIds)
+      : dedupeOrderedIds(
+          MEDIA_DATA_TABS.flatMap((tab) => dedupedRowsByTab[tab].map((row) => row.id))
+        );
   const nextCacheByTab = {} as Record<MediaDataTab, MediaLibraryTabCacheState>;
   const changedTabs = new Set<MediaDataTab>();
 
   for (const tab of MEDIA_DATA_TABS) {
     const currentRows = selectSurfaceMediaRows(state, { surface, tab });
     const currentCache = currentSurfaceState.cacheByTab[tab];
-    const nextRows = rowsByTab[tab];
+    const nextRows = dedupedRowsByTab[tab];
     const nextCache = {
       ...currentCache,
       ...(cacheByTab?.[tab] ?? {}),
@@ -290,7 +336,7 @@ export const replaceSurfaceMediaRowsByTabs = <
   };
 
   for (const tab of changedTabs) {
-    const rows = rowsByTab[tab];
+    const rows = dedupedRowsByTab[tab];
     for (const row of rows) {
       next.mediaById[row.id] = row;
     }

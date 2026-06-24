@@ -503,6 +503,32 @@ export const uploadVideoFileToStorage = async (file: File): Promise<VideoUploadR
 };
 
 /**
+ * Uploads a local generic reference video File to storage and returns signed delivery metadata.
+ */
+export const uploadReferenceVideoFileToStorage = async (file: File): Promise<VideoUploadResult> => {
+  const timestamp = Date.now();
+  const randomString = Math.random().toString(36).substring(7);
+  const sourceMimeType = inferVideoFileMimeType(file);
+  const fallbackExtension = sourceMimeType.split("/")[1] || "mp4";
+  const filenameBase = file.name.trim().replace(/\.[^/.]+$/, "") || "reference-video";
+  const extension = readVideoFileExtension(file.name) ?? fallbackExtension;
+  const filename = `${filenameBase}-${timestamp}-${randomString}.${extension}`;
+
+  try {
+    return await uploadReferenceVideoBlob({
+      blob: file,
+      mimeType: sourceMimeType,
+      filename,
+    });
+  } catch (error) {
+    console.error("Reference video file upload error:", error);
+    throw new Error(
+      error instanceof Error ? error.message : "Failed to upload video. Please try again."
+    );
+  }
+};
+
+/**
  * Uploads a local video URL to storage and returns signed delivery metadata.
  */
 export const uploadVideoAssetToStorage = async (

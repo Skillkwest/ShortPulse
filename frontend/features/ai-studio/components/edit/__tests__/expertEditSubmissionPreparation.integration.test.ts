@@ -49,6 +49,45 @@ describe("prepareExpertEditSubmission integration", () => {
     );
   });
 
+  it("persists primary canvas layer references separately from provider inputs", () => {
+    const result = prepareExpertEditSubmission({
+      promptText: "Blend the primary canvas with @img1.",
+      extraImageUrls: ["https://example.com/secondary-ref.png", null, null],
+      primaryCanvasImageUrls: [
+        "https://example.com/canvas-layer-1.png",
+        "https://example.com/canvas-layer-2.png",
+      ],
+      flattenedPrimaryUrl: "blob:flatten-primary",
+      flattenedMarkupReferenceUrl: null,
+      editSubmitIntent: "standard",
+    });
+
+    expect(result).toEqual({
+      status: "ready",
+      referenceInputs: ["blob:flatten-primary", "https://example.com/secondary-ref.png"],
+      linkedSecondaryReferenceInputs: ["https://example.com/secondary-ref.png"],
+      workflowReloadExpertEditReferences: {
+        version: 1,
+        maxSecondarySlotCount: 10,
+        primaryReferenceInputIndex: 0,
+        restorePrimaryCanvasSlots: [
+          { slotIndex: 0, sourceUrl: "https://example.com/canvas-layer-1.png" },
+          { slotIndex: 1, sourceUrl: "https://example.com/canvas-layer-2.png" },
+        ],
+        secondarySlots: [{ slotIndex: 0, referenceInputIndex: 1 }],
+        restoreSecondarySlots: [
+          { slotIndex: 0, sourceUrl: "https://example.com/secondary-ref.png" },
+        ],
+      },
+      promptOverrideOptions: {
+        displayPromptOverride: "Blend the primary canvas with @img1.",
+        submissionPromptOverride: expect.stringContaining(
+          "Blend the primary canvas with Figure 2."
+        ),
+      },
+    });
+  });
+
   it("keeps linked tenth secondary reference in slot order for tokenized standard submits", () => {
     const extraImageUrls = Array.from({ length: 10 }, (_, index) =>
       index === 9 ? "https://example.com/ref-10.png" : null

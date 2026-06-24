@@ -9,6 +9,7 @@ import {
   insertDroppedPromptTextAtSelection,
   resolveAgentComposerPanelDropKind,
   resolveAgentComposerTextDropInsertion,
+  resolveDroppedPromptTextEditMode,
 } from "../promptStep/agentComposerDrop";
 import type { CanvasTearOutComposerTargetRegistry } from "../../hooks/useAiStudioCanvasTearOutTargets";
 import type { AgentComposerDirectDropPayload } from "../../logic/agentComposerDirectDropPayload";
@@ -254,6 +255,7 @@ export function StandardCreatePanelView({
           composerText,
           selectionStart: textarea?.selectionStart ?? composerText.length,
           selectionEnd: textarea?.selectionEnd ?? textarea?.selectionStart ?? composerText.length,
+          editMode: resolveDroppedPromptTextEditMode(event),
         });
         if (!insertedPrompt) return;
         applyComposerTextChange?.(insertedPrompt.prompt);

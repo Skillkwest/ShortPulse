@@ -2,7 +2,7 @@
  * Dedicated properties panel for the Video workflow.
  */
 import React from "react";
-import { Trash, UploadSimple } from "phosphor-react";
+import { Trash, UploadSimple, VideoCamera } from "phosphor-react";
 import { AppMessage } from "../../../components/AppMessage";
 import type { AspectOption, LipSyncAudioState, VideoReferenceMode } from "../types";
 import { modelLogos } from "../constants";
@@ -51,10 +51,12 @@ import { resolveVideoGenerationLaneFromFrameInputs } from "../logic/referenceInp
 import { isSeedance2UiEnabled } from "../logic/seedance2Availability";
 import {
   createSeedanceImageReferenceSlot,
+  createSeedanceVideoReferenceSlot,
   getAiStudioKlingElementReferenceUrls,
   isElementSlotVisibleForVideoModel,
   isPromptTokenEligibleKlingElement,
   isSeedanceImageReferenceSlot,
+  isSeedanceVideoReferenceSlot,
   resolveAiStudioKlingElementDisplayLabel,
   resolveAiStudioKlingElementLegacyTokens,
   type AiStudioKlingElement,
@@ -83,7 +85,7 @@ import type { CanvasTearOutComposerTargetRegistry } from "../hooks/useAiStudioCa
 import type { AgentComposerDirectDropPayload } from "../logic/agentComposerDirectDropPayload";
 
 const VIDEO_KLING_ELEMENT_SLOT_COUNT = 3;
-const VIDEO_SEEDANCE_ELEMENT_SLOT_COUNT = 6;
+const VIDEO_SEEDANCE_ELEMENT_SLOT_COUNT = 9;
 const VIDEO_KLING_ELEMENT_SLOT_SIZE = 68;
 // Deferred past the July 7 launch while the turbo path remains internally wired.
 const SHOW_LIP_SYNC_TURBO_CONTROL = false;
@@ -494,18 +496,30 @@ export function VideoPropertiesPanel({
       ),
     [isSeedance2FamilyModelSelectedForSlots, selectedKlingElements]
   );
-  const handleSeedanceElementImageSlotChange = React.useCallback(
-    (slotIndex: number, url: string | null) => {
+  const handleSeedanceElementMediaSlotChange = React.useCallback(
+    (
+      slotIndex: number,
+      value: { kind: "image" | "video"; url: string; name?: string | null } | null
+    ) => {
       const next = Array.from(
         { length: klingElementSlotCount },
         (_, index) => selectedKlingElements[index] ?? null
       );
-      next[slotIndex] = url
-        ? createSeedanceImageReferenceSlot({
-            slotIndex,
-            imageUrl: url,
-          })
-        : null;
+      if (!value) {
+        next[slotIndex] = null;
+      } else if (value.kind === "video") {
+        next[slotIndex] = createSeedanceVideoReferenceSlot({
+          slotIndex,
+          videoUrl: value.url,
+          name: value.name,
+        });
+      } else {
+        next[slotIndex] = createSeedanceImageReferenceSlot({
+          slotIndex,
+          imageUrl: value.url,
+          name: value.name,
+        });
+      }
       commitSelectedKlingElements(next);
     },
     [commitSelectedKlingElements, klingElementSlotCount, selectedKlingElements]
@@ -545,14 +559,14 @@ export function VideoPropertiesPanel({
     handleExtraDragEnter,
     handleExtraDragOver,
     handleExtraDragLeave,
-    handleSeedanceElementImageFileSelection,
-    handleSeedanceElementImageDrop,
-    handleSeedanceElementImageDragEnter,
-    handleSeedanceElementImageDragOver,
-    handleSeedanceElementImageDragLeave,
+    handleSeedanceElementMediaFileSelection,
+    handleSeedanceElementMediaDrop,
+    handleSeedanceElementMediaDragEnter,
+    handleSeedanceElementMediaDragOver,
+    handleSeedanceElementMediaDragLeave,
     acceptPrimaryCanvasTearOutPayload,
     acceptExtraCanvasTearOutPayload,
-    acceptSeedanceElementImageCanvasTearOutPayload,
+    acceptSeedanceElementMediaCanvasTearOutPayload,
     acceptMotionVideoCanvasTearOutPayload,
     allowVideoDrag,
     handleMotionVideoDrop,
@@ -575,7 +589,7 @@ export function VideoPropertiesPanel({
     klingElements,
     onKlingElementsChange,
     seedanceElementSlotCount: klingElementSlotCount,
-    onSeedanceElementImageSlotChange: handleSeedanceElementImageSlotChange,
+    onSeedanceElementMediaSlotChange: handleSeedanceElementMediaSlotChange,
   });
   const applyLipSyncAudio = React.useCallback(
     (value: LipSyncAudioState) => {
@@ -1039,10 +1053,10 @@ export function VideoPropertiesPanel({
       if (!element) return [];
       return [
         canvasTearOutTargetRegistry.registerTarget({
-          id: `video-seedance-element-image-${index}`,
+          id: `video-seedance-element-media-${index}`,
           element,
-          canAccept: (payload) => payload.kind === "image",
-          accept: (payload) => acceptSeedanceElementImageCanvasTearOutPayload(index, payload),
+          canAccept: (payload) => payload.kind === "image" || payload.kind === "video",
+          accept: (payload) => acceptSeedanceElementMediaCanvasTearOutPayload(index, payload),
           setActive: (active) => setSeedanceElementImageDragActiveAt(index, active),
         }),
       ];
@@ -1052,7 +1066,7 @@ export function VideoPropertiesPanel({
       unregisterTargets.forEach((unregister) => unregister());
     };
   }, [
-    acceptSeedanceElementImageCanvasTearOutPayload,
+    acceptSeedanceElementMediaCanvasTearOutPayload,
     canvasTearOutTargetRegistry,
     isSeedance2FamilyModelSelected,
     klingElementSlotCount,
@@ -2389,6 +2403,8 @@ export function VideoPropertiesPanel({
                                     seedanceReferenceMode === "elements";
                                   const isReferenceImageSlot =
                                     isSeedanceImageReferenceSlot(selectedElement);
+                                  const isReferenceVideoSlot =
+                                    isSeedanceVideoReferenceSlot(selectedElement);
                                   const isImageDropActive = Boolean(
                                     seedanceElementImageDragActive[index]
                                   );
@@ -2418,7 +2434,7 @@ export function VideoPropertiesPanel({
                                     isPromptTokenEligibleKlingElement(selectedElement)
                                       ? (klingElementCanonicalPromptTokens[index] ?? "")
                                       : "";
-                                  const openImageFilePicker = () => {
+                                  const openMediaFilePicker = () => {
                                     seedanceImageInputRef?.current?.click();
                                   };
 
@@ -2434,22 +2450,22 @@ export function VideoPropertiesPanel({
                                         } ${isImageLoading ? "is-loading" : ""}`.trim()}
                                         onDragEnter={
                                           canUseSeedanceImageIngress
-                                            ? handleSeedanceElementImageDragEnter(index)
+                                            ? handleSeedanceElementMediaDragEnter(index)
                                             : undefined
                                         }
                                         onDragOver={
                                           canUseSeedanceImageIngress
-                                            ? handleSeedanceElementImageDragOver(index)
+                                            ? handleSeedanceElementMediaDragOver(index)
                                             : undefined
                                         }
                                         onDragLeave={
                                           canUseSeedanceImageIngress
-                                            ? handleSeedanceElementImageDragLeave(index)
+                                            ? handleSeedanceElementMediaDragLeave(index)
                                             : undefined
                                         }
                                         onDrop={
                                           canUseSeedanceImageIngress
-                                            ? handleSeedanceElementImageDrop(index)
+                                            ? handleSeedanceElementMediaDrop(index)
                                             : undefined
                                         }
                                         aria-label={`Add element to slot ${index + 1}`}
@@ -2476,20 +2492,20 @@ export function VideoPropertiesPanel({
                                                 }
                                               }}
                                               type="file"
-                                              accept="image/*"
+                                              accept="image/*,video/*"
                                               className="sr-only"
                                               tabIndex={-1}
-                                              onChange={handleSeedanceElementImageFileSelection(
+                                              onChange={handleSeedanceElementMediaFileSelection(
                                                 index
                                               )}
                                             />
                                             <button
                                               type="button"
                                               className="video-elements-slot-upload"
-                                              aria-label={`Upload image reference to slot ${index + 1}`}
+                                              aria-label={`Upload media reference to slot ${index + 1}`}
                                               onClick={(event) => {
                                                 event.stopPropagation();
-                                                openImageFilePicker();
+                                                openMediaFilePicker();
                                               }}
                                             >
                                               <UploadSimple size={12} />
@@ -2511,29 +2527,31 @@ export function VideoPropertiesPanel({
                                           ? "video-elements-placeholder-tile--character"
                                           : isReferenceImageSlot
                                             ? "video-elements-placeholder-tile--reference-image"
-                                            : "video-elements-placeholder-tile--element"
+                                            : isReferenceVideoSlot
+                                              ? "video-elements-placeholder-tile--reference-video"
+                                              : "video-elements-placeholder-tile--element"
                                       } ${isImageDropActive ? "is-dragging" : ""} ${
                                         isImageLoading ? "is-loading" : ""
                                       }`.trim()}
                                       draggable={Boolean(dragToken)}
                                       onDragEnter={
                                         canUseSeedanceImageIngress
-                                          ? handleSeedanceElementImageDragEnter(index)
+                                          ? handleSeedanceElementMediaDragEnter(index)
                                           : undefined
                                       }
                                       onDragOver={
                                         canUseSeedanceImageIngress
-                                          ? handleSeedanceElementImageDragOver(index)
+                                          ? handleSeedanceElementMediaDragOver(index)
                                           : undefined
                                       }
                                       onDragLeave={
                                         canUseSeedanceImageIngress
-                                          ? handleSeedanceElementImageDragLeave(index)
+                                          ? handleSeedanceElementMediaDragLeave(index)
                                           : undefined
                                       }
                                       onDrop={
                                         canUseSeedanceImageIngress
-                                          ? handleSeedanceElementImageDrop(index)
+                                          ? handleSeedanceElementMediaDrop(index)
                                           : undefined
                                       }
                                       onDragStart={(event) => {
@@ -2561,6 +2579,13 @@ export function VideoPropertiesPanel({
                                             style={previewAvatarStyle}
                                             aria-hidden="true"
                                           />
+                                        ) : isReferenceVideoSlot ? (
+                                          <span
+                                            className="video-elements-slot-video-preview"
+                                            aria-hidden="true"
+                                          >
+                                            <VideoCamera size={22} />
+                                          </span>
                                         ) : null}
                                       </button>
                                       {canUseSeedanceImageIngress ? (
@@ -2571,10 +2596,10 @@ export function VideoPropertiesPanel({
                                             }
                                           }}
                                           type="file"
-                                          accept="image/*"
+                                          accept="image/*,video/*"
                                           className="sr-only"
                                           tabIndex={-1}
-                                          onChange={handleSeedanceElementImageFileSelection(index)}
+                                          onChange={handleSeedanceElementMediaFileSelection(index)}
                                         />
                                       ) : null}
                                       <span className="video-elements-slot-actions">
@@ -2582,10 +2607,10 @@ export function VideoPropertiesPanel({
                                           <button
                                             type="button"
                                             className="video-elements-slot-upload"
-                                            aria-label={`Upload image reference to slot ${index + 1}`}
+                                            aria-label={`Upload media reference to slot ${index + 1}`}
                                             onClick={(event) => {
                                               event.stopPropagation();
-                                              openImageFilePicker();
+                                              openMediaFilePicker();
                                             }}
                                           >
                                             <UploadSimple size={12} />

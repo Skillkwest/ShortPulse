@@ -11,7 +11,10 @@ import type {
   AgentMessage,
 } from "../../../prefabs/agent";
 import type { PromptTokenHighlightSegment } from "../logic/promptTokenHighlight";
-import { resolveAgentComposerTextDropInsertion } from "./promptStep/agentComposerDrop";
+import {
+  resolveAgentComposerTextDropInsertion,
+  resolveDroppedPromptTextEditMode,
+} from "./promptStep/agentComposerDrop";
 import { PromptStepEnhancedSurface } from "./promptStep/PromptStepEnhancedSurface";
 import { PromptStepHeader } from "./promptStep/PromptStepHeader";
 import { PulsePromptStepChatSurface } from "./promptStep/PulsePromptStepChatSurface";
@@ -299,6 +302,7 @@ export function PulsePromptStep({
       selectionStart: textarea?.selectionStart ?? effectiveComposerInput.length,
       selectionEnd:
         textarea?.selectionEnd ?? textarea?.selectionStart ?? effectiveComposerInput.length,
+      editMode: resolveDroppedPromptTextEditMode(event),
     });
     if (insertedPrompt) {
       event.preventDefault();

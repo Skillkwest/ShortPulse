@@ -172,7 +172,7 @@ describe("PulseCreatePanelView", () => {
     ).toBeVisible();
   });
 
-  it("routes plain prompt-text drops from the wider create panel body into the composer", () => {
+  it("replaces composer text when plain prompt text is dropped on the wider create panel body without Shift", () => {
     const onAgentAttachmentDrop = vi.fn();
     const onAgentAttachmentDragEnter = vi.fn();
     const onAgentAttachmentDragOver = vi.fn();
@@ -217,6 +217,53 @@ describe("PulseCreatePanelView", () => {
     expect(onAgentAttachmentDragEnter).toHaveBeenCalledTimes(1);
     expect(onAgentAttachmentDragOver).toHaveBeenCalledTimes(1);
     expect(onAgentAttachmentDragLeave).toHaveBeenCalledTimes(1);
+    expect(onAgentAttachmentDrop).not.toHaveBeenCalled();
+    expect(onAgentInputChange).toHaveBeenCalledWith("Dropped prompt text");
+  });
+
+  it("inserts prompt text when Shift-dropping on the wider create panel body", () => {
+    const onAgentAttachmentDrop = vi.fn();
+    const onAgentAttachmentDragEnter = vi.fn();
+    const onAgentAttachmentDragOver = vi.fn();
+    const onAgentAttachmentDragLeave = vi.fn();
+    const onAgentInputChange = vi.fn();
+
+    const { container } = render(
+      <PulseCreatePanelView
+        {...baseProps}
+        promptStepProps={{
+          ...basePromptStepProps,
+          agentInput: "Existing draft ",
+          onAgentAttachmentDrop,
+          onAgentAttachmentDragEnter,
+          onAgentAttachmentDragOver,
+          onAgentAttachmentDragLeave,
+          onAgentInputChange,
+        }}
+      />
+    );
+
+    const panelBody = container.querySelector(".create-composer-right-panel-inner");
+    const composerInput = screen.getByRole("textbox") as HTMLTextAreaElement;
+    expect(panelBody).toBeTruthy();
+    act(() => {
+      composerInput.focus();
+      composerInput.setSelectionRange("Existing draft ".length, "Existing draft ".length);
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Shift", shiftKey: true }));
+    });
+
+    const textTransfer = {
+      types: ["text/plain"],
+      getData: (key: string) => (key === "text/plain" ? "Dropped prompt text" : ""),
+    };
+
+    act(() => {
+      fireEvent.dragEnter(panelBody as Element, { dataTransfer: textTransfer });
+      fireEvent.dragOver(panelBody as Element, { dataTransfer: textTransfer });
+      fireEvent.drop(panelBody as Element, { dataTransfer: textTransfer });
+      window.dispatchEvent(new KeyboardEvent("keyup", { key: "Shift" }));
+    });
+
     expect(onAgentAttachmentDrop).not.toHaveBeenCalled();
     expect(onAgentInputChange).toHaveBeenCalledWith("Existing draft Dropped prompt text");
   });

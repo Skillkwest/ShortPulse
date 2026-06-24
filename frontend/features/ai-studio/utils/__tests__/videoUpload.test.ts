@@ -31,6 +31,7 @@ import {
   prepareMotionReferenceVideoUrl,
   retireCommittedMotionVideoByUrl,
   uploadReferenceVideoAssetToStorage,
+  uploadReferenceVideoFileToStorage,
   uploadVideoAssetToStorage,
   uploadVideoFileToStorage,
 } from "../videoUpload";
@@ -259,6 +260,78 @@ describe("videoUpload", () => {
       sourceMimeType: "video/mp4",
       sourceName: "reference-video.mp4",
       sourceStoragePath: "user-1/upload-staging/videos/reference/ref.mp4",
+    });
+  });
+
+  it("stages generic reference video files through reference-video upload", async () => {
+    const file = new File(["seedance-video-reference"], "seedance-slot.mov", {
+      type: "video/quicktime",
+    });
+    fetchWithAuthMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          target: {
+            storagePath: "user-1/upload-staging/videos/reference/seedance-slot.mov",
+            uploadToken: "upload-token",
+            mimeType: "video/quicktime",
+            name: "seedance-slot.mov",
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          url: "https://signed.example/seedance-slot.mp4",
+          path: "user-1/videos/reference/seedance-slot.mp4",
+          size: 2048,
+          mimeType: "video/mp4",
+          name: "seedance-slot.mp4",
+        })
+      );
+
+    const uploaded = await uploadReferenceVideoFileToStorage(file);
+
+    expect(uploaded).toEqual({
+      url: "https://signed.example/seedance-slot.mp4",
+      path: "user-1/videos/reference/seedance-slot.mp4",
+      size: 2048,
+      mimeType: "video/mp4",
+      name: "seedance-slot.mp4",
+    });
+    expect(fetchWithAuthMock).toHaveBeenNthCalledWith(
+      1,
+      "/api/media/prepare-reference-video-upload",
+      expect.objectContaining({
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        shortpulseRetryNetworkOnce: true,
+      })
+    );
+    expect(JSON.parse(String(fetchWithAuthMock.mock.calls[0]?.[1]?.body))).toMatchObject({
+      sourceMimeType: "video/quicktime",
+      sourceName: expect.stringMatching(/^seedance-slot-\d+-[a-z0-9]+\.mov$/),
+    });
+    expect(uploadToSignedUrlMock).toHaveBeenCalledWith(
+      "user-1/upload-staging/videos/reference/seedance-slot.mov",
+      "upload-token",
+      file,
+      expect.objectContaining({
+        contentType: "video/quicktime",
+        upsert: false,
+      })
+    );
+    expect(fetchWithAuthMock).toHaveBeenNthCalledWith(
+      2,
+      "/api/media/stage-reference-video",
+      expect.objectContaining({
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        shortpulseRetryNetworkOnce: true,
+      })
+    );
+    expect(JSON.parse(String(fetchWithAuthMock.mock.calls[1]?.[1]?.body))).toMatchObject({
+      sourceMimeType: "video/quicktime",
+      sourceName: "seedance-slot.mov",
+      sourceStoragePath: "user-1/upload-staging/videos/reference/seedance-slot.mov",
     });
   });
 

@@ -648,6 +648,21 @@ describe("kieModelContracts", () => {
         },
       })
     ).toThrow("cannot mix frame URLs with multimodal reference URLs");
+
+    expect(() =>
+      normalizeKieSubmitPayloadForModel({
+        modelId: KIE_SEEDANCE_2_MODEL_ID,
+        payload: {
+          prompt: "too many videos",
+          reference_video_urls: [
+            "https://example.com/ref-video-1.mp4",
+            "https://example.com/ref-video-2.mp4",
+            "https://example.com/ref-video-3.mp4",
+            "https://example.com/ref-video-4.mp4",
+          ],
+        },
+      })
+    ).toThrow("supports up to 3 video references");
   });
 
   it("normalizes primary-source fixture payloads for Veo and Kling docs shapes", () => {

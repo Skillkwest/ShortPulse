@@ -119,6 +119,36 @@ describe("PromptStep agent actions", () => {
     expect(onPromptChange).toHaveBeenCalledWith("Existing Dropped prompt textprompt");
   });
 
+  it("inserts prompt textarea text when Shift is held even if the drop event loses shiftKey", () => {
+    const onPromptChange = vi.fn();
+    render(
+      <PromptStep
+        {...baseProps}
+        chatOnly={false}
+        chatModeEnabled={false}
+        prompt="Existing prompt"
+        onPromptChange={onPromptChange}
+      />
+    );
+
+    const composer = screen.getByRole("textbox") as HTMLTextAreaElement;
+    act(() => {
+      composer.focus();
+      composer.setSelectionRange("Existing ".length, "Existing ".length);
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Shift", shiftKey: true }));
+    });
+    const dataTransfer = {
+      types: ["text/plain"],
+      getData: (key: string) => (key === "text/plain" ? "Dropped prompt text" : ""),
+    };
+    const dropEvent = new MouseEvent("drop", { bubbles: true, cancelable: true });
+    Object.defineProperty(dropEvent, "dataTransfer", { value: dataTransfer });
+    fireEvent(composer, dropEvent);
+    window.dispatchEvent(new KeyboardEvent("keyup", { key: "Shift" }));
+
+    expect(onPromptChange).toHaveBeenCalledWith("Existing Dropped prompt textprompt");
+  });
+
   it("disables send affordances while agent bootstrap is pending", () => {
     render(<PromptStep {...baseProps} agentBootstrapPending />);
 
@@ -690,6 +720,58 @@ describe("PromptStep agent actions", () => {
       expect(onAgentInputChange).toHaveBeenCalledWith("Dropped prompt text");
       expect(composerInput).toHaveFocus();
     } finally {
+      requestAnimationFrameSpy.mockRestore();
+    }
+  });
+
+  it("inserts Standard composer text when prompt text is Shift-dropped on the input shell", () => {
+    const onAgentAttachmentDrop = vi.fn();
+    const onAgentAttachmentDragLeave = vi.fn();
+    const onAgentInputChange = vi.fn();
+    const requestAnimationFrameSpy = vi
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation((callback: FrameRequestCallback) => {
+        callback(0);
+        return 1;
+      });
+
+    try {
+      const { container } = render(
+        <PromptStep
+          {...baseProps}
+          agentInput="Existing draft "
+          agentAttachmentDropTarget="input"
+          onAgentAttachmentDrop={onAgentAttachmentDrop}
+          onAgentAttachmentDragLeave={onAgentAttachmentDragLeave}
+          onAgentInputChange={onAgentInputChange}
+        />
+      );
+
+      const inputShell = container.querySelector(".agent-composer-input-shell");
+      const composerInput = screen.getByRole("textbox") as HTMLTextAreaElement;
+      expect(inputShell).toBeTruthy();
+      act(() => {
+        composerInput.focus();
+        composerInput.setSelectionRange("Existing draft ".length, "Existing draft ".length);
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "Shift", shiftKey: true }));
+      });
+
+      act(() => {
+        fireEvent.drop(inputShell as Element, {
+          dataTransfer: {
+            types: ["text/plain"],
+            getData: (key: string) => (key === "text/plain" ? "Dropped prompt text" : ""),
+          },
+        });
+        window.dispatchEvent(new KeyboardEvent("keyup", { key: "Shift" }));
+      });
+
+      expect(onAgentAttachmentDrop).not.toHaveBeenCalled();
+      expect(onAgentAttachmentDragLeave).toHaveBeenCalledTimes(1);
+      expect(onAgentInputChange).toHaveBeenCalledWith("Existing draft Dropped prompt text");
+      expect(composerInput).toHaveFocus();
+    } finally {
+      window.dispatchEvent(new KeyboardEvent("keyup", { key: "Shift" }));
       requestAnimationFrameSpy.mockRestore();
     }
   });

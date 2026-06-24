@@ -256,6 +256,46 @@ describe("media runtime store", () => {
     ]);
   });
 
+  it("dedupes aggregate media ids during panel row replacement", () => {
+    let state = createMediaLibraryRuntimeState();
+    state = replaceSurfaceMediaRowsByTabs(state, {
+      surface: "panel",
+      mediaIds: ["image-1", "image-1", "video-1", "video-1"],
+      rowsByTab: {
+        uploaded_images: [
+          makeMediaRow("image-1", { filename: "image-1-stale.png" }),
+          makeMediaRow("image-1", { filename: "image-1-fresh.png" }),
+        ],
+        uploaded_videos: [
+          makeMediaRow("video-1", {
+            file_type: "video/mp4",
+            filename: "video-1-stale.mp4",
+          }),
+          makeMediaRow("video-1", {
+            file_type: "video/mp4",
+            filename: "video-1-fresh.mp4",
+          }),
+        ],
+        private: [],
+        ai_generations: [],
+      },
+    });
+
+    expect(state.surfaceStateByKind.panel.orderedViews.mediaIds).toEqual(["image-1", "video-1"]);
+    expect(state.surfaceStateByKind.panel.orderedViews.mediaIdsByTab.uploaded_images).toEqual([
+      "image-1",
+    ]);
+    expect(state.surfaceStateByKind.panel.orderedViews.mediaIdsByTab.uploaded_videos).toEqual([
+      "video-1",
+    ]);
+    expect(selectSurfaceAggregateMediaRows(state, "panel").map((row) => row.id)).toEqual([
+      "image-1",
+      "video-1",
+    ]);
+    expect(selectSurfaceAggregateMediaRows(state, "panel")[0]?.filename).toBe("image-1-fresh.png");
+    expect(selectSurfaceAggregateMediaRows(state, "panel")[1]?.filename).toBe("video-1-fresh.mp4");
+  });
+
   it("appends panel media rows without rebuilding unrelated tab order", () => {
     let state = createMediaLibraryRuntimeState();
     state = replaceSurfaceMediaRowsByTabs(state, {

@@ -1221,6 +1221,102 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     );
   });
 
+  it("falls back to normal transport for lifecycle flushes above the keepalive budget", async () => {
+    const restoredSnapshot = createAiStudioProjectWorkspaceSnapshot(createSnapshot());
+    const editedSnapshot = {
+      ...restoredSnapshot,
+      outputs: {
+        active: [
+          {
+            id: "large-output-1",
+            prompt: "large lifecycle save ".repeat(4_000),
+            mode: "video",
+            mediaSource: "generated",
+            status: "ready",
+            previewText: "Large lifecycle save output",
+            createdAt: "2026-04-24T18:00:00.000Z",
+          },
+        ],
+        archived: [],
+        activeOutputId: "large-output-1",
+        curatedReferenceIds: ["large-output-1"],
+        removedFromAllRefsIds: [],
+      },
+    } as unknown as AiStudioSessionSnapshot;
+    mockReadyRestoreCandidate(restoredSnapshot);
+    const buildRestoredSnapshot = vi.fn(() => restoredSnapshot);
+    const buildEditedSnapshot = vi.fn(() => editedSnapshot);
+    const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
+    const onPersistenceWarning = vi.fn();
+    mockedSaveProjectWorkspaceViaApi.mockResolvedValue({
+      projectId: "project-1",
+      schemaVersion: 2,
+      snapshot: editedSnapshot,
+      createdAt: "2026-04-24T18:00:00.000Z",
+      updatedAt: "2026-04-24T18:01:00.000Z",
+      saveOutcome: { status: "saved" },
+    });
+
+    const { result, rerender } = renderHook(
+      ({ buildSnapshot }) =>
+        useAiStudioProjectWorkspacePersistenceController({
+          projectId: "project-1",
+          projectRouteRequested: true,
+          sessionId: "session-1",
+          buildBaseSessionSnapshot: buildSnapshot,
+          hydrateFromSessionSnapshot,
+          onPersistenceWarning,
+        }),
+      {
+        initialProps: {
+          buildSnapshot: buildRestoredSnapshot,
+        },
+      }
+    );
+
+    const restoreHydrationArgs =
+      mockedUseAiStudioProjectWorkspaceRestoreHydration.mock.calls[0]?.[0];
+    act(() => {
+      restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
+    });
+    rerender({
+      buildSnapshot: buildRestoredSnapshot,
+    });
+    await flushBootstrapVisibilityLatch();
+    expect(result.current.projectBootstrapApplied).toBe(true);
+
+    rerender({
+      buildSnapshot: buildEditedSnapshot,
+    });
+
+    let flushResult: Awaited<ReturnType<typeof result.current.flushProjectWorkspaceSnapshot>>;
+    await act(async () => {
+      flushResult = await result.current.flushProjectWorkspaceSnapshot({
+        reason: "pagehide",
+        keepalive: true,
+      });
+    });
+
+    expect(flushResult!).toEqual(
+      expect.objectContaining({
+        status: "saved",
+        projectId: "project-1",
+        keepalive: false,
+      })
+    );
+    expect(mockedSaveProjectWorkspaceViaApi).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "project-1",
+        snapshot: editedSnapshot,
+        keepalive: false,
+      })
+    );
+    expect(onPersistenceWarning).not.toHaveBeenCalledWith(
+      expect.stringContaining("exceeded the 59KB limit"),
+      expect.anything()
+    );
+  });
+
   it("keeps autosave disabled until the built project snapshot reflects restored quick slots and full durable canvas state", async () => {
     const restoredSnapshot = {
       ...createAiStudioProjectWorkspaceSnapshot(createSnapshot()),

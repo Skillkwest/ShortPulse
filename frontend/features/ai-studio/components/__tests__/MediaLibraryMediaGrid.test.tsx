@@ -135,7 +135,7 @@ describe("MediaLibraryMediaGrid", () => {
     );
   });
 
-  it("uses packed masonry layout mode for panel density surfaces", () => {
+  it("uses stable chronological layout mode for panel density surfaces", () => {
     const props = baseProps();
     render(
       <MediaLibraryMediaGrid
@@ -147,7 +147,7 @@ describe("MediaLibraryMediaGrid", () => {
 
     expect(useMediaMasonryVirtualizationMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        layoutMode: "masonry",
+        layoutMode: "chronological-grid",
         minItemsToVirtualize: 1,
       })
     );

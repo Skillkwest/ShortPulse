@@ -1495,14 +1495,14 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     async (
       options: AiStudioProjectWorkspaceFlushOptions = {}
     ): Promise<AiStudioProjectWorkspaceFlushResult> => {
-      const keepalive = options.keepalive === true;
+      const requestedKeepalive = options.keepalive === true;
       if (!projectId) {
         return {
           status: "skipped",
           reason: "not_project",
           projectId: null,
           snapshotHash: null,
-          keepalive,
+          keepalive: requestedKeepalive,
         };
       }
       if (!sessionId || !projectBootstrapSettled || activeBootstrapError) {
@@ -1511,7 +1511,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
           reason: "not_ready",
           projectId,
           snapshotHash: null,
-          keepalive,
+          keepalive: requestedKeepalive,
         };
       }
 
@@ -1522,7 +1522,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
           reason: currentSnapshot ? "not_ready" : "no_snapshot",
           projectId,
           snapshotHash: null,
-          keepalive,
+          keepalive: requestedKeepalive,
         };
       }
 
@@ -1531,9 +1531,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
       const currentSelection = currentSelectionComputation.selection;
       const preparedSnapshot = currentSelection.preparedSnapshot;
       const snapshotHash = preparedSnapshot?.hash ?? null;
-      const maxSnapshotBytes = keepalive
-        ? PROJECT_WORKSPACE_KEEPALIVE_MAX_SNAPSHOT_BYTES
-        : PROJECT_WORKSPACE_AUTOSAVE_MAX_SNAPSHOT_BYTES;
+      const maxSnapshotBytes = PROJECT_WORKSPACE_AUTOSAVE_MAX_SNAPSHOT_BYTES;
 
       if (!currentSelection.snapshot || !preparedSnapshot) {
         return {
@@ -1541,7 +1539,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
           reason: "no_snapshot",
           projectId,
           snapshotHash,
-          keepalive,
+          keepalive: requestedKeepalive,
         };
       }
 
@@ -1552,7 +1550,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
           snapshotHash,
           snapshotBytes: preparedSnapshot.bytes,
           maxSnapshotBytes,
-          keepalive,
+          keepalive: requestedKeepalive,
           willRetry: options.reason !== "project_switch",
         });
         return {
@@ -1560,7 +1558,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
           reason: "serialization_failed",
           projectId,
           snapshotHash,
-          keepalive,
+          keepalive: requestedKeepalive,
         };
       }
 
@@ -1571,7 +1569,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
           snapshotHash,
           snapshotBytes: preparedSnapshot.bytes,
           maxSnapshotBytes,
-          keepalive,
+          keepalive: requestedKeepalive,
           willRetry: options.reason !== "project_switch",
         });
         return {
@@ -1579,9 +1577,13 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
           reason: "snapshot_too_large",
           projectId,
           snapshotHash,
-          keepalive,
+          keepalive: requestedKeepalive,
         };
       }
+
+      const transportKeepalive =
+        requestedKeepalive &&
+        preparedSnapshot.bytes <= PROJECT_WORKSPACE_KEEPALIVE_MAX_SNAPSHOT_BYTES;
 
       const lastFlush = lastImperativeFlushRef.current;
       if (lastFlush?.projectId === projectId && lastFlush.snapshotHash === snapshotHash) {
@@ -1590,13 +1592,13 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
           reason: "unchanged",
           projectId,
           snapshotHash,
-          keepalive,
+          keepalive: transportKeepalive,
         };
       }
 
       try {
         await persistProjectWorkspaceSnapshot(projectId, currentSelection.snapshot, {
-          keepalive,
+          keepalive: transportKeepalive,
           snapshotHash,
           preparedSnapshot,
         });
@@ -1609,7 +1611,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
           snapshotHash,
           snapshotBytes: preparedSnapshot.bytes,
           maxSnapshotBytes,
-          keepalive,
+          keepalive: transportKeepalive,
           willRetry: options.reason !== "project_switch",
         });
         throw persistError;
@@ -1622,7 +1624,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
         status: "saved",
         projectId,
         snapshotHash,
-        keepalive,
+        keepalive: transportKeepalive,
       };
     },
     [

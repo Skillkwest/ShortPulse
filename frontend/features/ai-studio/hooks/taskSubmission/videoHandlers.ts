@@ -1136,6 +1136,45 @@ const collectSeedanceLinkedEntityReferences = (klingElements: AiStudioKlingEleme
     { imageUrls: [], videoUrls: [] }
   );
 
+const SEEDANCE_REFERENCE_IMAGE_LIMIT = 9;
+const SEEDANCE_REFERENCE_VIDEO_LIMIT = 3;
+const SEEDANCE_REFERENCE_AUDIO_LIMIT = 3;
+const SEEDANCE_REFERENCE_TOTAL_LIMIT = 12;
+
+const resolveSeedanceReferenceLimitError = ({
+  imageUrls,
+  videoUrls,
+  audioUrls,
+}: {
+  imageUrls: string[];
+  videoUrls: string[];
+  audioUrls: string[];
+}): string | null => {
+  const imageCount = Array.from(
+    new Set(imageUrls.map((value) => value.trim()).filter(Boolean))
+  ).length;
+  const videoCount = Array.from(
+    new Set(videoUrls.map((value) => value.trim()).filter(Boolean))
+  ).length;
+  const audioCount = Array.from(
+    new Set(audioUrls.map((value) => value.trim()).filter(Boolean))
+  ).length;
+  const totalCount = imageCount + videoCount + audioCount;
+  if (imageCount > SEEDANCE_REFERENCE_IMAGE_LIMIT) {
+    return `Seedance 2 supports up to ${SEEDANCE_REFERENCE_IMAGE_LIMIT} image references.`;
+  }
+  if (videoCount > SEEDANCE_REFERENCE_VIDEO_LIMIT) {
+    return `Seedance 2 supports up to ${SEEDANCE_REFERENCE_VIDEO_LIMIT} video references.`;
+  }
+  if (audioCount > SEEDANCE_REFERENCE_AUDIO_LIMIT) {
+    return `Seedance 2 supports up to ${SEEDANCE_REFERENCE_AUDIO_LIMIT} audio references.`;
+  }
+  if (totalCount > SEEDANCE_REFERENCE_TOTAL_LIMIT) {
+    return `Seedance 2 supports up to ${SEEDANCE_REFERENCE_TOTAL_LIMIT} total references.`;
+  }
+  return null;
+};
+
 type ResolvedKieKlingShotModePayload = {
   prompt: string;
   imageUrls: string[];
@@ -1529,6 +1568,15 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
       const hasLinkedEntityReferences = Boolean(
         linkedEntityReferences.imageUrls.length || linkedEntityReferences.videoUrls.length
       );
+      const referenceLimitError = resolveSeedanceReferenceLimitError({
+        imageUrls: [...seedance2ReferenceImageUrls, ...linkedEntityReferences.imageUrls],
+        videoUrls: [...seedance2ReferenceVideoUrls, ...linkedEntityReferences.videoUrls],
+        audioUrls: seedance2ReferenceAudioUrls,
+      });
+      if (referenceLimitError) {
+        notifyGenerationFailure(id, referenceLimitError);
+        return { handled: true };
+      }
       const hasMultimodalReferences = Boolean(
         seedance2ReferenceImageUrls.length ||
         seedance2ReferenceVideoUrls.length ||

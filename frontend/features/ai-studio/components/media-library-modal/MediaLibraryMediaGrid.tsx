@@ -113,6 +113,10 @@ export function MediaLibraryMediaGrid({
   const targetColumnWidth = densityConfig?.targetColumnWidth ?? 220;
   const cardPreviewLongEdgePx = densityConfig?.previewLongEdgePx ?? 320;
   const shouldUsePackedMasonryLayout = Boolean(densityConfig);
+  const layoutMode: "chronological-grid" | "masonry" =
+    surface === "media-library-panel" || !shouldUsePackedMasonryLayout
+      ? "chronological-grid"
+      : "masonry";
 
   const {
     containerRef: virtualContainerRef,
@@ -148,7 +152,7 @@ export function MediaLibraryMediaGrid({
     gap: 1,
     overscanPx: 920,
     minItemsToVirtualize: shouldUsePackedMasonryLayout ? 1 : 24,
-    layoutMode: shouldUsePackedMasonryLayout ? "masonry" : "chronological-grid",
+    layoutMode,
   });
 
   const videoBudgetItems = React.useMemo(

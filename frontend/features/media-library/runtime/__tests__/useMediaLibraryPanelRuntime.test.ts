@@ -106,6 +106,27 @@ describe("useMediaLibraryPanelRuntime", () => {
     ]);
   });
 
+  it("dedupes panel media rows during full replacement", () => {
+    const { result } = renderHook(() => useMediaLibraryPanelRuntime({ itemType: "all" }));
+
+    act(() => {
+      result.current.setMediaRows([
+        makeMediaRow("image-1", {
+          filename: "image-1-stale.png",
+        }),
+        makeMediaRow("image-1", {
+          filename: "image-1-fresh.png",
+        }),
+      ]);
+    });
+
+    expect(result.current.mediaRows.map((row) => row.id)).toEqual(["image-1"]);
+    expect(result.current.mediaRows[0]?.filename).toBe("image-1-fresh.png");
+    expect(result.current.runtimeState.surfaceStateByKind.panel.orderedViews.mediaIds).toEqual([
+      "image-1",
+    ]);
+  });
+
   it("appends panel media rows through the runtime without duplicating existing rows", () => {
     const { result } = renderHook(() => useMediaLibraryPanelRuntime({ itemType: "all" }));
 

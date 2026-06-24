@@ -336,6 +336,88 @@ describe("useAiStudioWorkflowReloadController", () => {
     ]);
   });
 
+  it("hydrates Expert Edit primary canvas references without losing secondary slot identity", () => {
+    const workflowReload = makeImageReload();
+    workflowReload.originTool = "edit";
+    workflowReload.panelKind = "edit";
+    workflowReload.prompt = {
+      display: "Blend the primary canvas with @img3.",
+      submission: "Blend the primary canvas with Figure 2.",
+    };
+    workflowReload.payload = {
+      kind: "image",
+      submitTool: "edit",
+      aspect: "16:9",
+      imageResolution: "1K",
+      referenceInputs: [
+        "https://example.com/flattened-primary.png",
+        "https://example.com/secondary-3.png",
+      ],
+      internalMediaRefs: [
+        {
+          version: 1,
+          kind: "storage_object",
+          bucket: "media_library",
+          storagePath: "user/flattened-primary.png",
+        },
+        {
+          version: 1,
+          kind: "storage_object",
+          bucket: "media_library",
+          storagePath: "user/secondary-3.png",
+        },
+      ],
+      expertEditReferences: {
+        version: 1,
+        maxSecondarySlotCount: 10,
+        primaryReferenceInputIndex: 0,
+        restorePrimaryCanvasSlots: [
+          {
+            slotIndex: 0,
+            sourceUrl: "https://example.com/canvas-layer-1.png",
+            internalMediaRef: {
+              version: 1,
+              kind: "storage_object",
+              bucket: "media_library",
+              storagePath: "user/canvas-layer-1.png",
+            },
+          },
+          {
+            slotIndex: 1,
+            sourceUrl: "https://example.com/canvas-layer-2.png",
+          },
+        ],
+        secondarySlots: [{ slotIndex: 2, referenceInputIndex: 1 }],
+        restoreSecondarySlots: [{ slotIndex: 2, sourceUrl: "https://example.com/secondary-3.png" }],
+      },
+    };
+    const params = makeParams(makeOutput(workflowReload));
+    const { result } = renderHook(() => useAiStudioWorkflowReloadController(params));
+
+    act(() => {
+      result.current.reloadWorkflowFromOutput("out-1");
+    });
+
+    const selectionState = params.setReferenceSelectionStateForCreateMode.mock.calls[0]?.[1];
+    expect(selectionState).toEqual(
+      expect.objectContaining({
+        selectedTool: "edit",
+        referenceImageUrl: "https://example.com/canvas-layer-1.png",
+      })
+    );
+    expect(selectionState?.extraImageUrls.slice(0, 4)).toEqual([
+      "https://example.com/canvas-layer-2.png",
+      null,
+      "https://example.com/secondary-3.png",
+      null,
+    ]);
+    expect(selectionState?.referenceImageInternalMediaRefs?.[0]).toEqual(
+      expect.objectContaining({
+        storagePath: "user/canvas-layer-1.png",
+      })
+    );
+  });
+
   it("falls back to output character context for restored generated rows", () => {
     const workflowReload = makeImageReload();
     delete (workflowReload.payload as WorkflowReloadImagePayload).characterContext;

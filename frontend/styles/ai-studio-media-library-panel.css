@@ -24,6 +24,7 @@
 .media-library-panel-project-name-field {
   flex: 0 1 auto;
   min-width: 0;
+  max-width: 100%;
   margin-left: auto;
   display: flex;
   align-items: baseline;
@@ -37,6 +38,8 @@
 }
 
 .media-library-panel-project-name-input {
+  flex: 0 1 auto;
+  min-width: 0;
   max-width: min(100%, 360px);
   border: 0;
   background: transparent;
@@ -1299,20 +1302,10 @@
 }
 
 @container ai-properties (max-width: 760px) {
-  .media-library-panel-header,
   .media-library-panel-root-tabs-row,
   .media-library-panel-bulk-actions {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .media-library-panel-project-name-field {
-    margin-left: 0;
-    width: 100%;
-  }
-
-  .media-library-panel-project-name-input {
-    text-align: left;
   }
 
   .media-library-panel-root-count-group {
@@ -1324,5 +1317,21 @@
   .media-library-panel-section
     .media-library-prompt-grid.media-library-prompt-grid--reference-cards {
     grid-template-columns: repeat(auto-fill, minmax(156px, 1fr));
+  }
+}
+
+@container ai-properties (max-width: 560px) {
+  .media-library-panel-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .media-library-panel-project-name-field {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .media-library-panel-project-name-input {
+    text-align: left;
   }
 }

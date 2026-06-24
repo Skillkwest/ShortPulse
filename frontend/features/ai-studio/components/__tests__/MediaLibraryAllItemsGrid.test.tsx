@@ -224,7 +224,7 @@ describe("MediaLibraryAllItemsGrid", () => {
       expect.objectContaining({
         targetColumnWidth: 188,
         maxColumnCount: 5,
-        layoutMode: "masonry",
+        layoutMode: "chronological-grid",
         minItemsToVirtualize: 1,
       })
     );
@@ -236,6 +236,24 @@ describe("MediaLibraryAllItemsGrid", () => {
     expect(props.resolveCardPreviewUrl).toHaveBeenCalledWith(
       expect.objectContaining({
         cardLongEdgePx: 188,
+      })
+    );
+  });
+
+  it("keeps embedded density grids on masonry layout mode", () => {
+    const props = baseProps();
+    render(
+      <MediaLibraryAllItemsGrid
+        {...props}
+        surface="elements-media-panel"
+        densityConfig={MEDIA_LIBRARY_PANEL_DENSITY_CONFIG}
+      />
+    );
+
+    expect(useMediaMasonryVirtualizationMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        layoutMode: "masonry",
+        minItemsToVirtualize: 1,
       })
     );
   });

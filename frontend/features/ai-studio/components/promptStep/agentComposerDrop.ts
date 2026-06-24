@@ -16,6 +16,65 @@ type AgentComposerDropResolution = {
 export type AgentComposerPanelDropKind = "none" | "text" | "media";
 export type DroppedPromptTextEditMode = "replace" | "insert";
 
+let isShiftPromptDropModifierPressed = false;
+let isShiftPromptDropModifierActiveForDrag = false;
+
+const resetPromptDropDragModifierSoon = () => {
+  if (typeof window === "undefined") {
+    isShiftPromptDropModifierActiveForDrag = false;
+    return;
+  }
+  window.setTimeout(() => {
+    isShiftPromptDropModifierActiveForDrag = false;
+  }, 0);
+};
+
+const updatePromptDropDragModifier = (event: DragEvent | KeyboardEvent) => {
+  isShiftPromptDropModifierActiveForDrag =
+    Boolean(event.shiftKey) || isShiftPromptDropModifierPressed;
+};
+
+if (typeof window !== "undefined") {
+  window.addEventListener(
+    "keydown",
+    (event) => {
+      if (!event.shiftKey && event.key !== "Shift") return;
+      isShiftPromptDropModifierPressed = true;
+      isShiftPromptDropModifierActiveForDrag = true;
+    },
+    true
+  );
+  window.addEventListener(
+    "keyup",
+    (event) => {
+      if (event.key !== "Shift" || event.shiftKey) return;
+      isShiftPromptDropModifierPressed = false;
+      isShiftPromptDropModifierActiveForDrag = false;
+    },
+    true
+  );
+  window.addEventListener("blur", () => {
+    isShiftPromptDropModifierPressed = false;
+    isShiftPromptDropModifierActiveForDrag = false;
+  });
+  window.addEventListener("dragenter", updatePromptDropDragModifier, true);
+  window.addEventListener("dragover", updatePromptDropDragModifier, true);
+  window.addEventListener(
+    "drop",
+    (event) => {
+      updatePromptDropDragModifier(event);
+      resetPromptDropDragModifierSoon();
+    },
+    true
+  );
+  window.addEventListener("dragend", resetPromptDropDragModifierSoon, true);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) return;
+    isShiftPromptDropModifierPressed = false;
+    isShiftPromptDropModifierActiveForDrag = false;
+  });
+}
+
 const MEDIA_HINT_TRANSFER_TYPES = new Set([
   "files",
   "image/url",
@@ -90,8 +149,15 @@ export const resolveDroppedPromptTextEdit = ({
 };
 
 export const resolveDroppedPromptTextEditMode = (event: {
+  getModifierState?: (key: "Shift") => boolean;
   shiftKey?: boolean;
-}): DroppedPromptTextEditMode => (event.shiftKey ? "insert" : "replace");
+}): DroppedPromptTextEditMode =>
+  event.shiftKey ||
+  event.getModifierState?.("Shift") ||
+  isShiftPromptDropModifierPressed ||
+  isShiftPromptDropModifierActiveForDrag
+    ? "insert"
+    : "replace";
 
 export const resolveAgentComposerDrop = (
   transfer: DataTransfer | null | undefined

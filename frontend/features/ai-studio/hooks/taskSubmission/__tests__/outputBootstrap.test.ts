@@ -56,6 +56,12 @@ describe("taskSubmission outputBootstrap", () => {
       bucket: "media_library",
       storagePath: "user-1/reference/primary.png",
     };
+    const canvasRef = {
+      version: 1 as const,
+      kind: "storage_object" as const,
+      bucket: "media_library",
+      storagePath: "user-1/reference/canvas-layer.png",
+    };
     const restoreRef = {
       version: 1 as const,
       kind: "storage_object" as const,
@@ -67,6 +73,7 @@ describe("taskSubmission outputBootstrap", () => {
         version: 1,
         maxSecondarySlotCount: 10,
         primaryReferenceInputIndex: 0,
+        restorePrimaryCanvasSlots: [{ slotIndex: 0, sourceUrl: "blob:primary-canvas-layer" }],
         secondarySlots: [],
         restoreSecondarySlots: [{ slotIndex: 2, sourceUrl: "blob:secondary-local" }],
       },
@@ -78,6 +85,11 @@ describe("taskSubmission outputBootstrap", () => {
         },
       ],
       preparedRestoreOnlyReferenceInputs: [
+        {
+          originalUrl: "blob:primary-canvas-layer",
+          preparedUrl: "https://signed.example.com/canvas-layer.png",
+          internalMediaRef: canvasRef,
+        },
         {
           originalUrl: "blob:secondary-local",
           preparedUrl: "https://signed.example.com/secondary.png",
@@ -111,6 +123,13 @@ describe("taskSubmission outputBootstrap", () => {
           version: 1,
           maxSecondarySlotCount: 10,
           primaryReferenceInputIndex: 0,
+          restorePrimaryCanvasSlots: [
+            {
+              slotIndex: 0,
+              sourceUrl: "https://signed.example.com/canvas-layer.png",
+              internalMediaRef: canvasRef,
+            },
+          ],
           secondarySlots: [],
           restoreSecondarySlots: [
             {

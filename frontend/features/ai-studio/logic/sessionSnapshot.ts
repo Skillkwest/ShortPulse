@@ -506,7 +506,8 @@ const sanitizeWorkspaceKlingElements = (elements: AiStudioKlingElement[]) =>
       sourceKind:
         element.sourceKind === "character" ||
         element.sourceKind === "element" ||
-        element.sourceKind === "reference-image"
+        element.sourceKind === "reference-image" ||
+        element.sourceKind === "reference-video"
           ? element.sourceKind
           : null,
       sourceElementId:

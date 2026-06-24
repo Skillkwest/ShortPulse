@@ -7,10 +7,14 @@ import type { CharacterProfileImageTransform } from "../../character-manager/typ
 import { deriveElementAliasFromName } from "../../elements-manager/logic/elementAlias";
 import type { ElementProfileImageTransform } from "../../elements-manager/types";
 
-export type AiStudioKlingEntitySourceKind = "element" | "character" | "reference-image";
+export type AiStudioKlingEntitySourceKind =
+  | "element"
+  | "character"
+  | "reference-image"
+  | "reference-video";
 export type AiStudioKlingSavedEntitySourceKind = Exclude<
   AiStudioKlingEntitySourceKind,
-  "reference-image"
+  "reference-image" | "reference-video"
 >;
 export type AiStudioKlingProfileImageTransform =
   | ElementProfileImageTransform
@@ -84,20 +88,44 @@ export const createSeedanceImageReferenceSlot = ({
   frontalImageUrl: imageUrl,
 });
 
+export const createSeedanceVideoReferenceSlot = ({
+  slotIndex,
+  videoUrl,
+  name,
+}: {
+  slotIndex: number;
+  videoUrl: string;
+  name?: string | null;
+}): AiStudioKlingElement => ({
+  ...createEmptyAiStudioKlingElement(),
+  slotIndex,
+  sourceKind: "reference-video",
+  name: name?.trim() || "Video reference",
+  videoUrl,
+});
+
 export const isSeedanceImageReferenceSlot = (
   element: Pick<AiStudioKlingElement, "sourceKind"> | null | undefined
 ): boolean => element?.sourceKind === "reference-image";
 
+export const isSeedanceVideoReferenceSlot = (
+  element: Pick<AiStudioKlingElement, "sourceKind"> | null | undefined
+): boolean => element?.sourceKind === "reference-video";
+
+export const isSeedanceDirectReferenceSlot = (
+  element: Pick<AiStudioKlingElement, "sourceKind"> | null | undefined
+): boolean => isSeedanceImageReferenceSlot(element) || isSeedanceVideoReferenceSlot(element);
+
 export const isPromptTokenEligibleKlingElement = (
   element: Pick<AiStudioKlingElement, "sourceKind"> | null | undefined
-): boolean => Boolean(element && element.sourceKind !== "reference-image");
+): boolean => Boolean(element && !isSeedanceDirectReferenceSlot(element));
 
 export const isElementSlotVisibleForVideoModel = (
   element: Pick<AiStudioKlingElement, "sourceKind"> | null | undefined,
   options: { allowSeedanceImageReferences: boolean }
 ): boolean =>
   Boolean(
-    element && (options.allowSeedanceImageReferences || !isSeedanceImageReferenceSlot(element))
+    element && (options.allowSeedanceImageReferences || !isSeedanceDirectReferenceSlot(element))
   );
 
 export const getAiStudioKlingElementReferenceUrls = (

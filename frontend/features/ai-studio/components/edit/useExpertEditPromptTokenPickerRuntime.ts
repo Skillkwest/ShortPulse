@@ -2,6 +2,10 @@ import React from "react";
 
 import { extractPromptDropText } from "../../utils/dragDrop";
 import {
+  resolveDroppedPromptTextEdit,
+  resolveDroppedPromptTextEditMode,
+} from "../promptStep/agentComposerDrop";
+import {
   buildExpertEditPrimarySlotToken,
   buildExpertEditSecondarySlotToken,
   extractExpertEditPromptTokenFromTransfer,
@@ -122,10 +126,21 @@ export function useExpertEditPromptTokenPickerRuntime({
       event.preventDefault();
       const promptText = extractPromptDropText(event.dataTransfer);
       if (promptText) {
-        onPromptTextChange(promptText);
+        const textarea = promptTextareaRef.current;
+        const selectionStart = textarea?.selectionStart ?? promptTextValue.length;
+        const selectionEnd = textarea?.selectionEnd ?? selectionStart;
+        const nextPrompt = resolveDroppedPromptTextEdit({
+          composerText: promptTextValue,
+          droppedPromptText: promptText,
+          selectionStart,
+          selectionEnd,
+          editMode: resolveDroppedPromptTextEditMode(event),
+        });
+        pendingPromptCaretRef.current = nextPrompt.caret;
+        onPromptTextChange(nextPrompt.prompt);
       }
     },
-    [onPromptTextChange]
+    [onPromptTextChange, promptTextValue]
   );
 
   const handlePromptDropWithTokenInsert = React.useCallback(

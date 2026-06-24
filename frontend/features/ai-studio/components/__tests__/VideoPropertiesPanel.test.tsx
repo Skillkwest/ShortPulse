@@ -3120,4 +3120,26 @@ describe("VideoPropertiesPanel", () => {
       expect(promptInput.value).toBe("Dropped primary video prompt");
     });
   });
+
+  it("inserts a dropped prompt card at the video prompt caret when Shift is held", async () => {
+    render(<KlingPromptDropHarness />);
+
+    const promptInput = screen.getByLabelText("Video prompt") as HTMLTextAreaElement;
+    promptInput.focus();
+    promptInput.setSelectionRange(6, 6);
+    const transfer = createTransferStore();
+    transfer.setData("text/prompt", "Dropped primary video prompt");
+    transfer.setData("text/plain", "Dropped primary video prompt");
+
+    await act(async () => {
+      const dropEvent = new Event("drop", { bubbles: true, cancelable: true });
+      Object.defineProperty(dropEvent, "dataTransfer", { value: transfer });
+      Object.defineProperty(dropEvent, "shiftKey", { value: true });
+      fireEvent(promptInput, dropEvent);
+    });
+
+    await waitFor(() => {
+      expect(promptInput.value).toBe("TaylorDropped primary video prompt walks forward");
+    });
+  });
 });

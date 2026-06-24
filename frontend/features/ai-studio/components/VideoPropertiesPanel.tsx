@@ -8,7 +8,11 @@ import type { AspectOption, LipSyncAudioState, VideoReferenceMode } from "../typ
 import { modelLogos } from "../constants";
 import { AgentGenerateButton } from "../../../prefabs/agent";
 import { extractPromptDropText } from "../utils/dragDrop";
-import { insertDroppedPromptTextAtSelection } from "./promptStep/agentComposerDrop";
+import {
+  insertDroppedPromptTextAtSelection,
+  resolveDroppedPromptTextEdit,
+  resolveDroppedPromptTextEditMode,
+} from "./promptStep/agentComposerDrop";
 import { ElementPickerModal } from "./ElementPickerModal";
 import type { ModelModalContext } from "./ModelModal";
 import { ReferenceKlingAdvancedSteps } from "./ReferenceKlingAdvancedSteps";
@@ -1693,15 +1697,6 @@ export function VideoPropertiesPanel({
       const target: KlingPromptTarget = options?.shotId ?? "primary";
       setActivePromptTarget(target);
       const droppedToken = extractKlingElementPromptTokenFromTransfer(event.dataTransfer);
-      if (!droppedToken) {
-        event.preventDefault();
-        const promptText = extractPromptDropText(event.dataTransfer);
-        if (!promptText) return;
-        closePromptTokenPicker();
-        applyPromptUpdateForTarget(target, promptText);
-        return;
-      }
-      event.preventDefault();
       const promptValue = options?.promptValue ?? primaryPromptValue;
       const targetTextarea =
         event.target instanceof HTMLTextAreaElement
@@ -1709,6 +1704,24 @@ export function VideoPropertiesPanel({
           : options?.shotId
             ? customPromptTextareaRefs.current[options.shotId]
             : primaryPromptTextareaRef.current;
+      if (!droppedToken) {
+        event.preventDefault();
+        const promptText = extractPromptDropText(event.dataTransfer);
+        if (!promptText) return;
+        closePromptTokenPicker();
+        const selectionStart = targetTextarea?.selectionStart ?? promptValue.length;
+        const selectionEnd = targetTextarea?.selectionEnd ?? selectionStart;
+        const nextPrompt = resolveDroppedPromptTextEdit({
+          composerText: promptValue,
+          droppedPromptText: promptText,
+          selectionStart,
+          selectionEnd,
+          editMode: resolveDroppedPromptTextEditMode(event),
+        });
+        applyPromptUpdateForTarget(target, nextPrompt.prompt, nextPrompt.caret);
+        return;
+      }
+      event.preventDefault();
       const selectionStart = targetTextarea?.selectionStart ?? promptValue.length;
       const selectionEnd = targetTextarea?.selectionEnd ?? selectionStart;
       const insertedPrompt = insertPromptTokenAtSelection({

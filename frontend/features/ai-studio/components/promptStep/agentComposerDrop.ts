@@ -14,6 +14,7 @@ type AgentComposerDropResolution = {
 };
 
 export type AgentComposerPanelDropKind = "none" | "text" | "media";
+export type DroppedPromptTextEditMode = "replace" | "insert";
 
 const MEDIA_HINT_TRANSFER_TYPES = new Set([
   "files",
@@ -59,6 +60,39 @@ export const insertDroppedPromptTextAtSelection = ({
   };
 };
 
+export const resolveDroppedPromptTextEdit = ({
+  composerText,
+  droppedPromptText,
+  selectionStart,
+  selectionEnd,
+  editMode,
+}: {
+  composerText: string;
+  droppedPromptText: string;
+  selectionStart: number;
+  selectionEnd: number;
+  editMode: DroppedPromptTextEditMode;
+}): { prompt: string; caret: number } => {
+  if (editMode === "insert") {
+    return insertDroppedPromptTextAtSelection({
+      composerText,
+      droppedPromptText,
+      selectionStart,
+      selectionEnd,
+    });
+  }
+
+  const prompt = droppedPromptText.trim();
+  return {
+    prompt,
+    caret: prompt.length,
+  };
+};
+
+export const resolveDroppedPromptTextEditMode = (event: {
+  shiftKey?: boolean;
+}): DroppedPromptTextEditMode => (event.shiftKey ? "insert" : "replace");
+
 export const resolveAgentComposerDrop = (
   transfer: DataTransfer | null | undefined
 ): AgentComposerDropResolution => {
@@ -103,19 +137,22 @@ export const resolveAgentComposerTextDropInsertion = ({
   composerText,
   selectionStart,
   selectionEnd,
+  editMode = "insert",
 }: {
   transfer: DataTransfer | null | undefined;
   composerText: string;
   selectionStart: number;
   selectionEnd: number;
+  editMode?: DroppedPromptTextEditMode;
 }): { prompt: string; caret: number } | null => {
   const droppedPromptText = resolveAgentComposerTextDrop(transfer);
   if (!droppedPromptText) return null;
-  return insertDroppedPromptTextAtSelection({
+  return resolveDroppedPromptTextEdit({
     composerText,
     droppedPromptText,
     selectionStart,
     selectionEnd,
+    editMode,
   });
 };
 

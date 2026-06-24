@@ -25,6 +25,10 @@ import {
   isVideoDragTransfer,
   looksLikeImageUrl,
 } from "../utils/dragDrop";
+import {
+  resolveDroppedPromptTextEdit,
+  resolveDroppedPromptTextEditMode,
+} from "./promptStep/agentComposerDrop";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import {
   createInternalMediaRef,
@@ -759,7 +763,26 @@ export const useReferencePropertiesInteractions = ({
     event.preventDefault();
     const promptText = extractPromptDropText(event.dataTransfer);
     if (promptText) {
-      onPromptTextChange(promptText);
+      const textarea =
+        event.currentTarget instanceof HTMLTextAreaElement ? event.currentTarget : null;
+      if (!textarea) {
+        onPromptTextChange(promptText);
+        return;
+      }
+      const selectionStart = textarea.selectionStart ?? textarea.value.length;
+      const selectionEnd = textarea.selectionEnd ?? selectionStart;
+      const nextPrompt = resolveDroppedPromptTextEdit({
+        composerText: textarea.value,
+        droppedPromptText: promptText,
+        selectionStart,
+        selectionEnd,
+        editMode: resolveDroppedPromptTextEditMode(event),
+      });
+      onPromptTextChange(nextPrompt.prompt);
+      requestAnimationFrame(() => {
+        textarea.focus();
+        textarea.setSelectionRange(nextPrompt.caret, nextPrompt.caret);
+      });
     }
   };
 

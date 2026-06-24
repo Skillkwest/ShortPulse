@@ -1,7 +1,12 @@
 import type React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { prepareReferenceDrag } from "../../../utils/dragDrop";
-import { resolveAgentComposerDrop, resolveAgentComposerPanelDropKind } from "../agentComposerDrop";
+import {
+  resolveAgentComposerDrop,
+  resolveAgentComposerPanelDropKind,
+  resolveAgentComposerTextDropInsertion,
+  resolveDroppedPromptTextEdit,
+} from "../agentComposerDrop";
 
 const emptyFileList = { length: 0, item: () => null } as unknown as FileList;
 
@@ -107,6 +112,67 @@ describe("agentComposerDrop", () => {
       droppedPromptText: "Prompt-only reference text",
       droppedImageUrl: null,
       isVideoReference: false,
+    });
+  });
+
+  it("replaces composer text by default for dropped prompt text", () => {
+    expect(
+      resolveDroppedPromptTextEdit({
+        composerText: "Existing draft",
+        droppedPromptText: " Dropped prompt ",
+        selectionStart: 4,
+        selectionEnd: 4,
+        editMode: "replace",
+      })
+    ).toEqual({
+      prompt: "Dropped prompt",
+      caret: "Dropped prompt".length,
+    });
+  });
+
+  it("inserts dropped prompt text at the current selection in insert mode", () => {
+    expect(
+      resolveDroppedPromptTextEdit({
+        composerText: "Existing draft",
+        droppedPromptText: " dropped ",
+        selectionStart: 8,
+        selectionEnd: 8,
+        editMode: "insert",
+      })
+    ).toEqual({
+      prompt: "Existingdropped draft",
+      caret: "Existingdropped".length,
+    });
+  });
+
+  it("uses replacement mode for composer text drops unless insert mode is requested", () => {
+    const transfer = createMutableTransfer();
+    transfer.setData("text/prompt", "Dropped composer prompt");
+    transfer.setData("text/plain", "Dropped composer prompt");
+
+    expect(
+      resolveAgentComposerTextDropInsertion({
+        transfer,
+        composerText: "Existing draft",
+        selectionStart: 8,
+        selectionEnd: 8,
+        editMode: "replace",
+      })
+    ).toEqual({
+      prompt: "Dropped composer prompt",
+      caret: "Dropped composer prompt".length,
+    });
+    expect(
+      resolveAgentComposerTextDropInsertion({
+        transfer,
+        composerText: "Existing draft",
+        selectionStart: 8,
+        selectionEnd: 8,
+        editMode: "insert",
+      })
+    ).toEqual({
+      prompt: "ExistingDropped composer prompt draft",
+      caret: "ExistingDropped composer prompt".length,
     });
   });
 });

@@ -11,6 +11,10 @@ import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { sanitizeCustomerFacingProviderText } from "../../../lib/customerFacingProviderText";
 import { AgentEnhanceButton } from "../../../prefabs/agent";
 import {
+  resolveDroppedPromptTextEdit,
+  resolveDroppedPromptTextEditMode,
+} from "./promptStep/agentComposerDrop";
+import {
   buildVoiceChangerRequestSettings,
   buildVoiceoverRequestConfig,
   hardcodedVoiceChangerInputFormat,
@@ -850,7 +854,20 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
 
     event.preventDefault();
     event.stopPropagation();
-    setVoicePrompt(droppedPromptText);
+    const textarea = event.currentTarget;
+    const nextPrompt = resolveDroppedPromptTextEdit({
+      composerText: voicePrompt,
+      droppedPromptText,
+      selectionStart: textarea.selectionStart ?? voicePrompt.length,
+      selectionEnd: textarea.selectionEnd ?? textarea.selectionStart ?? voicePrompt.length,
+      editMode: resolveDroppedPromptTextEditMode(event),
+    });
+    setVoicePrompt(nextPrompt.prompt.slice(0, maxVoiceScriptCharacters));
+    requestAnimationFrame(() => {
+      const caret = Math.min(nextPrompt.caret, maxVoiceScriptCharacters);
+      voicePromptRef.current?.focus();
+      voicePromptRef.current?.setSelectionRange(caret, caret);
+    });
   };
 
   const handleVoiceScriptDrop = (event: React.DragEvent<HTMLTextAreaElement>) => {
@@ -861,7 +878,20 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
 
     event.preventDefault();
     event.stopPropagation();
-    setVoiceScript(droppedPromptText);
+    const textarea = event.currentTarget;
+    const nextScript = resolveDroppedPromptTextEdit({
+      composerText: voiceScript,
+      droppedPromptText,
+      selectionStart: textarea.selectionStart ?? voiceScript.length,
+      selectionEnd: textarea.selectionEnd ?? textarea.selectionStart ?? voiceScript.length,
+      editMode: resolveDroppedPromptTextEditMode(event),
+    });
+    setVoiceScript(nextScript.prompt.slice(0, maxVoiceScriptCharacters));
+    requestAnimationFrame(() => {
+      const caret = Math.min(nextScript.caret, maxVoiceScriptCharacters);
+      voiceScriptRef.current?.focus();
+      voiceScriptRef.current?.setSelectionRange(caret, caret);
+    });
   };
 
   const handleVoicePromptDragOver = (event: React.DragEvent<HTMLTextAreaElement>) => {

@@ -128,20 +128,41 @@ describe("Auth route behavior", () => {
 
     expect(container.querySelector("main.auth-shell")).toBeInTheDocument();
     expect(container.querySelector("form.auth-card")).toBeInTheDocument();
+    expect(container.querySelector("form.auth-card")).toHaveClass("auth-card-signin");
     expect(container.querySelector(".auth-showcase-gallery")).toBeInTheDocument();
     expect(container.querySelector(".auth-showcase-copy")).not.toBeInTheDocument();
     expect(screen.queryByText("Video Gallery")).not.toBeInTheDocument();
     expect(screen.queryByText("See what ShortPulse makes.")).not.toBeInTheDocument();
-    expect(container.querySelectorAll(".auth-showcase-gallery-media")).toHaveLength(6);
+    expect(container.querySelectorAll(".auth-showcase-gallery-media")).toHaveLength(10);
     expect(
       container.querySelector(
         '.auth-showcase-gallery-media[src="/dashboard/gallery/monster-wall-break-demo.mp4"]'
+      )
+    ).toBeInTheDocument();
+    expect(
+      container.querySelector(
+        '.auth-showcase-gallery-media[src="/dashboard/gallery/seedance-podcast-demo.mp4"]'
+      )
+    ).toBeInTheDocument();
+    expect(
+      container.querySelector(
+        '.auth-showcase-gallery-media[src="/dashboard/gallery/luxury-purse-ugc-demo.mp4"]'
+      )
+    ).toBeInTheDocument();
+    expect(
+      container.querySelector(
+        '.auth-showcase-gallery-media[src="/dashboard/gallery/viking-longship-storm-demo.mp4"]'
       )
     ).toBeInTheDocument();
     expect(container.querySelector(".auth-mode-toggle")).toBeInTheDocument();
     expect(container.querySelectorAll(".auth-input")).toHaveLength(2);
     expect(screen.getByRole("tab", { name: "Sign in" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("tab", { name: "Sign up" })).toHaveAttribute("aria-selected", "false");
+    expect(screen.getByRole("link", { name: "Terms" })).toHaveAttribute("href", "/terms");
+    expect(screen.getByRole("link", { name: "Privacy Policy" })).toHaveAttribute(
+      "href",
+      "/privacy"
+    );
     expect(screen.getByRole("button", { name: "Sign in" })).toHaveClass(
       "auth-submit",
       "primary-btn"
@@ -244,12 +265,27 @@ describe("Auth route behavior", () => {
     routerState.pathname = "/sign-up";
     routerState.query = { next: "/ai-studio" };
 
-    render(<AuthPage />);
+    const { container } = render(<AuthPage />);
 
     expect(screen.getByRole("heading", { name: "Create your account" })).toBeInTheDocument();
+    expect(container.querySelector("form.auth-card")).toHaveClass("auth-card-signup");
     expect(screen.getByRole("tab", { name: "Sign up" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("button", { name: "Create account" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Sign up with Google" })).toBeDisabled();
+    const googleSignupButton = screen.getByRole("button", { name: "Sign up with Google" });
+    const accountEmailInput = screen.getByLabelText("Account email");
+    expect(googleSignupButton).not.toBeDisabled();
+    expect(
+      googleSignupButton.compareDocumentPosition(accountEmailInput) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    fireEvent.click(googleSignupButton);
+    expect(
+      await screen.findByText("Enter the Google account email you want to use first.")
+    ).toBeInTheDocument();
+    expect(signInWithOAuthMock).not.toHaveBeenCalled();
+    expect(
+      screen.queryByText("Create a free account with full studio access and zero starting credits.")
+    ).not.toBeInTheDocument();
   });
 
   it("keeps signup closed when explicitly disabled even with a selected paid pricing plan", async () => {
@@ -276,12 +312,16 @@ describe("Auth route behavior", () => {
       next: "/pricing?intent=create-project&plan=starter",
     };
 
-    render(<AuthPage />);
+    const { container } = render(<AuthPage />);
 
     expect(screen.getByRole("heading", { name: "Create your account" })).toBeInTheDocument();
+    expect(container.querySelector("form.auth-card")).toHaveClass("auth-card-signup");
     expect(screen.getByRole("tab", { name: "Sign up" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("button", { name: "Create account" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Sign up with Google" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Sign up with Google" })).not.toBeDisabled();
+    expect(
+      screen.queryByText("Create your account, then continue to your selected plan.")
+    ).not.toBeInTheDocument();
     expect(
       screen.getByText("For Google signup, choose the Google account with this email.")
     ).toBeInTheDocument();

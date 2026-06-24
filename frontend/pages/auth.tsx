@@ -14,7 +14,6 @@ import { publicHomeGalleryVideoRows } from "../features/dashboard/logic/publicHo
 import {
   DEFAULT_SIGNUP_NEXT_PATH,
   fetchCanonicalAuthCallbackUrl,
-  isPaidPricingSignupNextPath,
   isPublicSignupEnabled,
   resolveNextPath,
   resolveNextPathFromAsPath,
@@ -35,7 +34,7 @@ import { trackSignupCompleted, trackSignupSubmitted } from "../lib/growthTelemet
 type Mode = "signin" | "signup";
 
 const MIN_PASSWORD_LENGTH = 8;
-const AUTH_SHOWCASE_GALLERY_ITEMS = publicHomeGalleryVideoRows.slice(0, 2).flat();
+const AUTH_SHOWCASE_GALLERY_ITEMS = publicHomeGalleryVideoRows.flat();
 
 type SignupIntentResponse = {
   ok?: unknown;
@@ -187,7 +186,6 @@ export default function AuthPage() {
   );
   const signupAllowed = isPublicSignupEnabled() && signupNextPath !== null;
   const activeMode: Mode = mode === "signup" && signupAllowed ? "signup" : "signin";
-  const isPricingSignup = activeMode === "signup" && isPaidPricingSignupNextPath(signupNextPath);
   const postAuthPath = activeMode === "signup" && signupNextPath ? signupNextPath : nextPath;
 
   useEffect(() => {
@@ -414,7 +412,13 @@ export default function AuthPage() {
           </div>
         </section>
         <div className={authClass("auth-layout")}>
-          <form className={authClass("auth-card")} onSubmit={onSubmit}>
+          <form
+            className={authClass(
+              "auth-card",
+              activeMode === "signin" ? "auth-card-signin" : "auth-card-signup"
+            )}
+            onSubmit={onSubmit}
+          >
             <div className={authClass("auth-card-header")}>
               <Link
                 href="/"
@@ -433,13 +437,11 @@ export default function AuthPage() {
               <h1 className={authClass("auth-title")}>
                 {activeMode === "signin" ? "Welcome back" : "Create your account"}
               </h1>
-              <p className={authClass("auth-subtitle")}>
-                {activeMode === "signin"
-                  ? "Use your email, password, or Google account to continue."
-                  : isPricingSignup
-                    ? "Create your account, then continue to your selected plan."
-                    : "Create a free account with full studio access and zero starting credits."}
-              </p>
+              {activeMode === "signin" ? (
+                <p className={authClass("auth-subtitle")}>
+                  Use your email, password, or Google account to continue.
+                </p>
+              ) : null}
             </div>
 
             {signupAllowed ? (
@@ -496,6 +498,25 @@ export default function AuthPage() {
               </>
             ) : null}
 
+            {activeMode === "signup" ? (
+              <>
+                <button
+                  className={authClass("auth-oauth-button")}
+                  type="button"
+                  onClick={() => {
+                    void onGoogleSignIn();
+                  }}
+                  disabled={loading || oauthLoading}
+                >
+                  <GoogleIcon />
+                  {oauthLoading ? "Opening Google..." : "Sign up with Google"}
+                </button>
+                <div className={authClass("auth-choice-divider")}>
+                  <span>or create a password with email</span>
+                </div>
+              </>
+            ) : null}
+
             <div className={authClass("auth-field-stack")}>
               <label className={authClass("auth-label")} htmlFor="email">
                 {activeMode === "signup" ? "Account email" : "Email"}
@@ -518,25 +539,6 @@ export default function AuthPage() {
                 />
               </div>
             </div>
-
-            {activeMode === "signup" ? (
-              <>
-                <button
-                  className={authClass("auth-oauth-button")}
-                  type="button"
-                  onClick={() => {
-                    void onGoogleSignIn();
-                  }}
-                  disabled={!email.trim() || loading || oauthLoading}
-                >
-                  <GoogleIcon />
-                  {oauthLoading ? "Opening Google..." : "Sign up with Google"}
-                </button>
-                <div className={authClass("auth-choice-divider")}>
-                  <span>or create a password for this email</span>
-                </div>
-              </>
-            ) : null}
 
             <div className={authClass("auth-field-stack")}>
               <div className={authClass("auth-label-row")}>
@@ -626,7 +628,15 @@ export default function AuthPage() {
               </>
             ) : null}
             <p className={authClass("auth-footnote")}>
-              By continuing, you agree to the ShortPulse Terms and Privacy Policy.
+              By continuing, you agree to the ShortPulse{" "}
+              <Link href="/terms" prefetch={false}>
+                Terms
+              </Link>{" "}
+              and{" "}
+              <Link href="/privacy" prefetch={false}>
+                Privacy Policy
+              </Link>
+              .
             </p>
           </form>
         </div>

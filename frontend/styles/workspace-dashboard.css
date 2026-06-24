@@ -784,7 +784,12 @@ body.dashboard-body:has(.public-dashboard-page) {
 .public-dashboard-page .public-dashboard-signup {
   color: #fff;
   background:
-    radial-gradient(circle at 35% 15%, rgba(255, 255, 255, 0.62), transparent 24%),
+    radial-gradient(
+      ellipse 76% 130% at 32% 10%,
+      rgba(255, 255, 255, 0.32),
+      rgba(255, 255, 255, 0.14) 36%,
+      transparent 70%
+    ),
     linear-gradient(135deg, #ff9a4a 0%, #ff5357 48%, #ff2f7a 100%);
   border: 1px solid rgba(255, 162, 92, 0.72);
   border-radius: 10px;
@@ -798,7 +803,12 @@ body.dashboard-body:has(.public-dashboard-page) {
 .public-dashboard-page .public-dashboard-signup:hover {
   border-color: rgba(255, 205, 130, 0.92);
   background:
-    radial-gradient(circle at 35% 15%, rgba(255, 255, 255, 0.68), transparent 24%),
+    radial-gradient(
+      ellipse 80% 136% at 32% 10%,
+      rgba(255, 255, 255, 0.36),
+      rgba(255, 255, 255, 0.16) 38%,
+      transparent 72%
+    ),
     linear-gradient(135deg, #ffad55 0%, #ff5d5a 44%, #ff347d 100%);
   box-shadow:
     0 0 28px rgba(255, 78, 99, 0.62),
@@ -989,7 +999,12 @@ body.dashboard-body:has(.public-dashboard-page) {
   border: 1px solid rgba(255, 162, 92, 0.72);
   border-radius: 999px;
   background:
-    radial-gradient(circle at 35% 15%, rgba(255, 255, 255, 0.62), transparent 24%),
+    radial-gradient(
+      ellipse 76% 130% at 32% 10%,
+      rgba(255, 255, 255, 0.32),
+      rgba(255, 255, 255, 0.14) 36%,
+      transparent 70%
+    ),
     linear-gradient(135deg, #ff9a4a 0%, #ff5357 48%, #ff2f7a 100%);
   color: #fff;
   font-size: 13px;
@@ -1020,7 +1035,12 @@ body.dashboard-body:has(.public-dashboard-page) {
   transform: translateY(-1px);
   border-color: rgba(255, 205, 130, 0.92);
   background:
-    radial-gradient(circle at 35% 15%, rgba(255, 255, 255, 0.68), transparent 24%),
+    radial-gradient(
+      ellipse 80% 136% at 32% 10%,
+      rgba(255, 255, 255, 0.36),
+      rgba(255, 255, 255, 0.16) 38%,
+      transparent 72%
+    ),
     linear-gradient(135deg, #ffad55 0%, #ff5d5a 44%, #ff347d 100%);
   box-shadow:
     0 0 28px rgba(255, 78, 99, 0.62),
@@ -1042,9 +1062,8 @@ body.dashboard-body:has(.public-dashboard-page) {
   border: 1px solid rgba(37, 169, 191, 0.78);
   border-radius: 999px;
   background:
-    radial-gradient(120% 120% at 0% 0%, rgba(64, 220, 239, 0.32), transparent 58%),
-    linear-gradient(145deg, rgba(37, 169, 191, 0.34), rgba(20, 82, 112, 0.24) 58%),
-    rgba(6, 22, 32, 0.92);
+    radial-gradient(120% 120% at 0% 0%, rgba(244, 245, 247, 0.08), transparent 58%),
+    linear-gradient(145deg, rgba(28, 32, 39, 0.96), rgba(13, 17, 22, 0.96)), #131518;
   color: rgba(248, 251, 255, 0.94);
   cursor: pointer;
   font-family: inherit;
@@ -1060,6 +1079,7 @@ body.dashboard-body:has(.public-dashboard-page) {
   transition:
     transform 180ms ease,
     border-color 180ms ease,
+    background 180ms ease,
     box-shadow 180ms ease,
     color 180ms ease;
 }
@@ -1078,9 +1098,8 @@ body.dashboard-body:has(.public-dashboard-page) {
   border-color: rgba(91, 231, 249, 0.92);
   color: rgba(255, 255, 255, 0.98);
   background:
-    radial-gradient(120% 120% at 0% 0%, rgba(91, 231, 249, 0.42), transparent 58%),
-    linear-gradient(145deg, rgba(37, 169, 191, 0.42), rgba(27, 104, 144, 0.34) 58%),
-    rgba(7, 28, 41, 0.96);
+    radial-gradient(120% 120% at 0% 0%, rgba(91, 231, 249, 0.16), transparent 58%),
+    linear-gradient(145deg, rgba(34, 39, 47, 0.98), rgba(17, 21, 27, 0.98)), #171b20;
   box-shadow:
     0 0 32px rgba(37, 169, 191, 0.42),
     0 14px 32px rgba(0, 0, 0, 0.3),
@@ -2494,7 +2513,12 @@ body.dashboard-body:has(.public-dashboard-page) {
   border: 1px solid rgba(255, 162, 92, 0.62);
   border-radius: 999px;
   background:
-    radial-gradient(circle at 35% 15%, rgba(255, 255, 255, 0.32), transparent 24%),
+    radial-gradient(
+      ellipse 76% 130% at 32% 10%,
+      rgba(255, 255, 255, 0.22),
+      rgba(255, 255, 255, 0.1) 36%,
+      transparent 70%
+    ),
     linear-gradient(135deg, #ff9a4a 0%, #ff5357 48%, #ff2f7a 100%);
   color: #fff;
   font-size: 12px;
@@ -4245,7 +4269,12 @@ body.dashboard-modal-open {
     border-radius: 9px;
     border-color: rgba(255, 162, 92, 0.72);
     background:
-      radial-gradient(circle at 35% 15%, rgba(255, 255, 255, 0.58), transparent 24%),
+      radial-gradient(
+        ellipse 76% 130% at 32% 10%,
+        rgba(255, 255, 255, 0.3),
+        rgba(255, 255, 255, 0.13) 36%,
+        transparent 70%
+      ),
       linear-gradient(135deg, #ff9a4a 0%, #ff5357 48%, #ff2f7a 100%);
     box-shadow:
       0 0 20px rgba(255, 74, 96, 0.42),

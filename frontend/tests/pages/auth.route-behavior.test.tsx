@@ -133,6 +133,9 @@ describe("Auth route behavior", () => {
     expect(container.querySelector(".auth-showcase-copy")).not.toBeInTheDocument();
     expect(screen.queryByText("Video Gallery")).not.toBeInTheDocument();
     expect(screen.queryByText("See what ShortPulse makes.")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Use your email, password, or Google account to continue.")
+    ).not.toBeInTheDocument();
     expect(container.querySelectorAll(".auth-showcase-gallery-media")).toHaveLength(10);
     expect(
       container.querySelector(
@@ -154,6 +157,9 @@ describe("Auth route behavior", () => {
         '.auth-showcase-gallery-media[src="/dashboard/gallery/viking-longship-storm-demo.mp4"]'
       )
     ).toBeInTheDocument();
+    expect(
+      Array.from(container.querySelectorAll(".auth-showcase-gallery-media")).at(-1)
+    ).toHaveAttribute("src", "/dashboard/gallery/forest-bear-encounter-demo.mp4");
     expect(container.querySelector(".auth-mode-toggle")).toBeInTheDocument();
     expect(container.querySelectorAll(".auth-input")).toHaveLength(2);
     expect(screen.getByRole("tab", { name: "Sign in" })).toHaveAttribute("aria-selected", "true");
@@ -323,8 +329,8 @@ describe("Auth route behavior", () => {
       screen.queryByText("Create your account, then continue to your selected plan.")
     ).not.toBeInTheDocument();
     expect(
-      screen.getByText("For Google signup, choose the Google account with this email.")
-    ).toBeInTheDocument();
+      screen.queryByText("For Google signup, choose the Google account with this email.")
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Sign in with Google" })).not.toBeInTheDocument();
   });
 

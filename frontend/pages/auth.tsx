@@ -34,7 +34,13 @@ import { trackSignupCompleted, trackSignupSubmitted } from "../lib/growthTelemet
 type Mode = "signin" | "signup";
 
 const MIN_PASSWORD_LENGTH = 8;
-const AUTH_SHOWCASE_GALLERY_ITEMS = publicHomeGalleryVideoRows.flat();
+const AUTH_SHOWCASE_BOTTOM_RIGHT_SRC = "/dashboard/gallery/forest-bear-encounter-demo.mp4";
+const AUTH_SHOWCASE_GALLERY_ITEMS = (() => {
+  const items = publicHomeGalleryVideoRows.flat();
+  const bottomRightItem = items.find((item) => item.src === AUTH_SHOWCASE_BOTTOM_RIGHT_SRC);
+  if (!bottomRightItem) return items;
+  return [...items.filter((item) => item.src !== AUTH_SHOWCASE_BOTTOM_RIGHT_SRC), bottomRightItem];
+})();
 
 type SignupIntentResponse = {
   ok?: unknown;
@@ -437,11 +443,6 @@ export default function AuthPage() {
               <h1 className={authClass("auth-title")}>
                 {activeMode === "signin" ? "Welcome back" : "Create your account"}
               </h1>
-              {activeMode === "signin" ? (
-                <p className={authClass("auth-subtitle")}>
-                  Use your email, password, or Google account to continue.
-                </p>
-              ) : null}
             </div>
 
             {signupAllowed ? (
@@ -521,11 +522,6 @@ export default function AuthPage() {
               <label className={authClass("auth-label")} htmlFor="email">
                 {activeMode === "signup" ? "Account email" : "Email"}
               </label>
-              {activeMode === "signup" ? (
-                <p className={authClass("auth-field-hint")}>
-                  For Google signup, choose the Google account with this email.
-                </p>
-              ) : null}
               <div className={authClass("auth-input")}>
                 <EnvelopeSimple size={18} weight="bold" />
                 <input

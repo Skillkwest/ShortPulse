@@ -21,6 +21,7 @@ import {
 } from "../lib/authRedirects";
 import {
   resolvePasswordResetErrorMessage,
+  resolveSignInErrorMessage,
   resolveSignupEmailErrorMessage,
 } from "../lib/authErrorMessages";
 import {
@@ -56,6 +57,8 @@ const AUTH_SHOWCASE_GALLERY_ITEMS = (() => {
   return [...items.filter((item) => item.src !== AUTH_SHOWCASE_BOTTOM_RIGHT_SRC), bottomRightItem];
 })();
 
+type SignupIntentProvider = "email" | "google";
+
 type SignupIntentResponse = {
   ok?: unknown;
   error?: unknown;
@@ -69,14 +72,22 @@ const isValidEmailAddress = (value: string): boolean => /^[^\s@]+@[^\s@]+\.[^\s@
 const getErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error ? error.message : fallback;
 
-const createSignupIntent = async (options: { email: string; nextPath: string }) => {
+const createSignupIntent = async (options: {
+  email?: string;
+  nextPath: string;
+  provider?: SignupIntentProvider;
+}) => {
   const response = await fetch("/api/auth/signup-intent", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json",
     },
-    body: JSON.stringify(options),
+    body: JSON.stringify({
+      ...(options.email ? { email: options.email } : {}),
+      nextPath: options.nextPath,
+      provider: options.provider,
+    }),
   });
   const payload = (await response.json().catch(() => null)) as SignupIntentResponse | null;
   if (!response.ok || payload?.ok !== true) {
@@ -152,7 +163,7 @@ const resolveOauthMessage = (
     return {
       tone: "error",
       message:
-        "Google signup could not be completed. Use the same Google account email you entered, then try again.",
+        "Google signup could not be completed. Try again from this signup page, then choose the Google account you want to use.",
     };
   }
   if (oauthStatus === "signin_failed") {
@@ -307,7 +318,9 @@ export default function AuthPage() {
           email: normalizedEmail,
           password,
         });
-        if (signInError) throw signInError;
+        if (signInError) {
+          throw new Error(resolveSignInErrorMessage(signInError, "Unable to sign in."));
+        }
         primeSupabaseSession(data.session ?? null);
       }
       router.push(postAuthPath);
@@ -366,14 +379,10 @@ export default function AuthPage() {
           setOauthLoading(false);
           return;
         }
-        if (!normalizedEmail) {
-          setError("Enter the Google account email you want to use first.");
-          setOauthLoading(false);
-          return;
-        }
         await createSignupIntent({
-          email: normalizedEmail,
+          email: isValidEmailAddress(normalizedEmail) ? normalizedEmail : undefined,
           nextPath: signupNextPath,
+          provider: "google",
         });
         trackSignupSubmitted({
           auth_surface: "auth_page",
@@ -394,6 +403,13 @@ export default function AuthPage() {
         provider: "google",
         options: {
           redirectTo,
+          ...(isValidEmailAddress(normalizedEmail)
+            ? {
+                queryParams: {
+                  login_hint: normalizedEmail,
+                },
+              }
+            : {}),
         },
       });
       if (oauthError) throw oauthError;

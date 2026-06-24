@@ -19,7 +19,7 @@ The hidden `free` bootstrap plan remains zero-value. Signup must not grant paid 
 Use one canonical signup intent gate for account-first signup and pricing-return signup:
 
 - Public account creation starts from ShortPulse-owned routes such as `/sign-up`, public dashboard CTAs, gallery CTAs, and logged-out pricing plan actions.
-- The app creates a short-lived hashed-email `signup_intents` row before email/password signup or Google signup calls Supabase Auth.
+- The app creates a short-lived `signup_intents` row before email/password signup or Google signup calls Supabase Auth. Email/password and typed-email Google signup use hashed-email matching; ADR 0096 extends this with a Google-only IP-bound fallback for blank-email OAuth starts.
 - The Supabase Before User Created hook consumes that pending intent before `auth.users` insertion.
 - The intent supports account signup without a paid plan and pricing signup with a selected paid plan. Paid-plan metadata remains required only for pricing-return intents.
 - A successful signup creates only the zero-value baseline account shell from the existing new-user billing bootstrap: hidden `free` plan, zero credits, and no paid entitlement.
@@ -36,7 +36,7 @@ Use one canonical signup intent gate for account-first signup and pricing-return
 - Positive: Stripe customer identity exists before first plan purchase, reducing checkout/account reconciliation ambiguity.
 - Positive: Pricing, checkout, and webhook projection keep their existing billing authority instead of moving to a guest-checkout model.
 - Negative: The signup intent schema and hook must be migrated from paid-only constraints to account-first constraints.
-- Negative: Google signup remains email-first unless a later OAuth state/nonce design replaces the hashed-email hook match.
+- Historical note: the first Google signup implementation remained email-first because it used the hashed-email hook match. ADR 0096 adds the Google-only short-lived IP-bound fallback that lets the button open OAuth before the app knows the selected Google account email.
 - Negative: Production rollout now requires coordinated app deploy, SQL migration, Supabase hook update, env review, and live signup proof.
 - Follow-ups: Update auth/pricing/dashboard tests, route docs, Supabase auth setup docs, security checklist, and billing docs to reflect account-first signup. Production hook/env/deploy work remains an owner-approved release step.
 

@@ -44,10 +44,10 @@ Account-first signup launch posture:
 
   This requires `SUPABASE_ACCESS_TOKEN` or `SUPABASE_MANAGEMENT_API_TOKEN` with auth config write permission and must not print or store the token.
 
-- Apply `sql/migrations/164_add_paid_signup_intent_gate.sql` and then `sql/migrations/165_account_first_signup_intent_gate.sql` before enabling public signup. Migration `165` generalizes the signup intent contract and creates the canonical `hook_shortpulse_signup_intent(event jsonb)` hook, while retaining a compatibility wrapper for the prior hook name.
+- Apply `sql/migrations/164_add_paid_signup_intent_gate.sql`, `sql/migrations/165_account_first_signup_intent_gate.sql`, `sql/migrations/166_grant_signup_hook_schema_usage.sql`, and `sql/migrations/167_add_google_ip_signup_intent.sql` before enabling public signup. Migration `165` generalizes the signup intent contract and creates the canonical `hook_shortpulse_signup_intent(event jsonb)` hook, while retaining a compatibility wrapper for the prior hook name. Migration `167` lets Google signup start before the app knows the Google account email by adding a short-lived Google/IP-bound intent fallback.
 - In Supabase Auth Hooks, configure the **Before User Created** hook to call `public.hook_shortpulse_signup_intent`. The hook must be enabled before `disable_signup=false` is allowed in production.
-- Keep app signup gated to either an account-first `/ai-studio` return path or a paid `/pricing?...&plan=<starter|media|studio|business>` return path. `/api/auth/signup-intent` creates a 30-minute hashed-email intent unless the emergency app-level close switch is `NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED=false`. Paid pricing intents require the selected plan to have an active acquisition offer with a Stripe price; account-first intents do not create a paid entitlement.
-- Email/password signup and Google signup both create the signup intent before calling Supabase Auth. The hook accepts only `email` and `google` providers and rejects direct Auth/OAuth creation attempts without a matching fresh intent.
+- Keep app signup gated to either an account-first `/ai-studio` return path or a paid `/pricing?...&plan=<starter|media|studio|business>` return path. `/api/auth/signup-intent` creates a 30-minute hashed-email intent for email/password and typed-email Google signup, or a shorter Google/IP-bound intent when Google signup starts before the app knows the selected Google email, unless the emergency app-level close switch is `NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED=false`. Paid pricing intents require the selected plan to have an active acquisition offer with a Stripe price; account-first intents do not create a paid entitlement.
+- Email/password signup and Google signup both create the signup intent before calling Supabase Auth. The hook accepts only `email` and `google` providers and rejects direct Auth/OAuth creation attempts without a matching fresh intent. Email/password signup and typed-email Google signup use the email-hash match; blank-email Google signup uses the short-lived Google/IP-bound fallback from ADR 0096.
 - Signup intent approval is not billing entitlement. New Auth users still receive only the zero-value hidden baseline profile from `handle_new_user_billing_setup`; `/api/billing/subscription/change` and Stripe webhooks remain the paid-plan authority.
 - After the hook is enabled and verified, confirm the hosted signup switch with:
   ```bash
@@ -58,7 +58,7 @@ Account-first signup launch posture:
 Google auth posture:
 
 - ShortPulse may expose Google on `/log-in` for sign-in and `/sign-up` for account-first or paid signup. Google acquisition requires the Supabase-side Before User Created hook above so OAuth-created users without a valid signup intent are rejected before an `auth.users` row is inserted.
-- Do not enable Google as an ungated generic public signup path. Unknown Google accounts may create users only through `/sign-up` after `/api/auth/signup-intent` creates a matching fresh intent.
+- Do not enable Google as an ungated generic public signup path. Unknown Google accounts may create users only through `/sign-up` after `/api/auth/signup-intent` creates a matching fresh intent. The button may open Google immediately; the database hook still blocks Auth insertion unless it can consume either an email-hash intent or the short-lived Google/IP-bound intent.
 - Configure Google Cloud OAuth with `https://www.shortpulse.ai` as the production JavaScript origin and the Supabase project callback URL (`https://<project-ref>.supabase.co/auth/v1/callback`) as the authorized redirect URI.
 - Configure Google Auth Platform branding before launch so the consent screen is ShortPulse-owned: app name `ShortPulse`, a monitored support email, homepage `https://www.shortpulse.ai`, privacy policy `https://www.shortpulse.ai/privacy`, terms `https://www.shortpulse.ai/terms`, and authorized domain `shortpulse.ai`. Add the ShortPulse logo only when ready for Google brand verification, because app-name/logo changes may wait on Google's review before they appear to users.
 - Configure a Supabase custom auth domain such as `auth.shortpulse.ai` before public Google launch if the Google consent screen still exposes the raw Supabase project host. Follow Supabase's custom-domain DNS/SSL verification flow, then add `https://auth.shortpulse.ai/auth/v1/callback` to the Google OAuth client authorized redirect URIs while keeping `https://<project-ref>.supabase.co/auth/v1/callback` during the transition. Remove the project-ref redirect URI only after hosted production Google OAuth proof is clean.
@@ -126,13 +126,14 @@ Role-based admin access for `/admin` APIs:
 
 1. With `NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED=false` or Supabase `disable_signup=true`, verify an unknown email/password and unknown Google account cannot create a new Supabase Auth user.
 2. In a staging or approved production launch window, enable the Before User Created hook, set `disable_signup=false`, leave `NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED` unset or set to `true`, and verify email/password signup from `/sign-up?next=/ai-studio` creates a zero-value account, bootstraps a Stripe customer through `/api/account/bootstrap`, and returns through `/auth/callback`.
-3. Verify Google signup from `/sign-up` requires the entered email, rejects a different Google account email, creates a zero-value account for the matching Google email, and returns through `/auth/callback?flow=signup&provider=google`.
-4. Verify paid plan signup continues to `/pricing` and `/api/billing/subscription/change` opens Stripe Checkout before any paid entitlement is granted.
-5. Verify password reset emails return to `/auth/callback` and allow `updateUser({ password })` completion.
-6. Verify protected routes redirect to `/log-in` when signed out and preserve a safe `next` return path.
-7. Verify email-change confirmation returns through `/auth/callback` and only then syncs downstream billing identity.
-8. Verify an existing approved Google account can sign in through `/log-in` and return through `/auth/callback?flow=signin&provider=google`.
-9. Verify canceling/backing out of Google OAuth returns to `/log-in` or `/sign-up` with `Google sign-in was canceled.` and does not render the invalid-link callback page.
-10. Verify user-scoped data is isolated across two test users.
-11. Verify billing/credit tables (`billing_profiles`, `ai_credit_balance`, `ai_credit_ledger`) obey RLS.
-12. Verify admin access works for one operator account with the expected `raw_app_meta_data` role.
+3. Verify Google signup from `/sign-up` opens Google when the email field is blank, creates a zero-value account through the short-lived Google/IP-bound intent, and returns through `/auth/callback?flow=signup&provider=google`.
+4. Verify typed-email Google signup passes `login_hint`, consumes an email-hash intent for the matching Google email, rejects a different Google account email, and returns through `/auth/callback?flow=signup&provider=google`.
+5. Verify paid plan signup continues to `/pricing` and `/api/billing/subscription/change` opens Stripe Checkout before any paid entitlement is granted.
+6. Verify password reset emails return to `/auth/callback` and allow `updateUser({ password })` completion.
+7. Verify protected routes redirect to `/log-in` when signed out and preserve a safe `next` return path.
+8. Verify email-change confirmation returns through `/auth/callback` and only then syncs downstream billing identity.
+9. Verify an existing approved Google account can sign in through `/log-in` and return through `/auth/callback?flow=signin&provider=google`.
+10. Verify canceling/backing out of Google OAuth returns to `/log-in` or `/sign-up` with `Google sign-in was canceled.` and does not render the invalid-link callback page.
+11. Verify user-scoped data is isolated across two test users.
+12. Verify billing/credit tables (`billing_profiles`, `ai_credit_balance`, `ai_credit_ledger`) obey RLS.
+13. Verify admin access works for one operator account with the expected `raw_app_meta_data` role.

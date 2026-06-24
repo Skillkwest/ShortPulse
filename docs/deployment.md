@@ -54,6 +54,7 @@ Notes:
 8. Confirm auth callback origin and account-first signup readiness:
    - `sql/migrations/164_add_paid_signup_intent_gate.sql` and `sql/migrations/165_account_first_signup_intent_gate.sql` are applied before public signup is opened
    - Supabase Auth's Before User Created hook calls `public.hook_shortpulse_signup_intent(event jsonb)` before `disable_signup=false`
+   - migration `167_add_google_ip_signup_intent.sql` is applied before deploying the signup button path that can open Google OAuth without an entered email
    - `NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED` is unset/true in Vercel `Production` only after the Supabase hook is enabled and verified; set it to `false` only for an emergency app-level signup close
    - `npm -C frontend run auth:signup-config -- --project-ref <production-project-ref> --expect-enabled` passes before claiming production public signup is open
    - if Google signup is enabled, the Supabase Google provider is protected by the same signup intent hook before unknown Google accounts can create users

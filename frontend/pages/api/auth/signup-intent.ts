@@ -29,8 +29,11 @@ type ActiveOfferRow = {
 };
 
 type SignupIntentContext = "account" | "pricing";
+type SignupIntentProvider = "email" | "google";
+type SignupIntentMatchStrategy = "email_hash" | "google_ip";
 
 const SIGNUP_INTENT_TTL_MINUTES = 30;
+const GOOGLE_IP_SIGNUP_INTENT_TTL_MINUTES = 5;
 const MAX_EMAIL_LENGTH = 320;
 const MAX_NEXT_PATH_LENGTH = 600;
 
@@ -47,6 +50,11 @@ const normalizeSignupEmail = (value: string | null): string | null => {
   if (!normalized || normalized.length > MAX_EMAIL_LENGTH) return null;
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) return null;
   return normalized;
+};
+
+const normalizeSignupProvider = (value: string | null): SignupIntentProvider => {
+  const normalized = value?.trim().toLowerCase() ?? "";
+  return normalized === "google" ? "google" : "email";
 };
 
 const loadActivePaidAcquisitionOffer = async (
@@ -99,9 +107,12 @@ export default async function handler(
     return;
   }
 
-  const email = normalizeSignupEmail(readStringBodyField(req.body, "email"));
+  const provider = normalizeSignupProvider(readStringBodyField(req.body, "provider"));
+  const rawEmail = readStringBodyField(req.body, "email");
+  const email = normalizeSignupEmail(rawEmail);
   const rawNextPath = readStringBodyField(req.body, "nextPath")?.trim() ?? "";
-  if (!email) {
+  const hasSubmittedEmail = Boolean(rawEmail?.trim());
+  if (!email && (provider !== "google" || hasSubmittedEmail)) {
     return res.status(400).json({ error: "Enter a valid email before creating an account." });
   }
   if (!rawNextPath || rawNextPath.length > MAX_NEXT_PATH_LENGTH) {
@@ -128,9 +139,18 @@ export default async function handler(
       return res.status(409).json({ error: "The selected plan is not currently available." });
     }
 
-    const expiresAt = new Date(Date.now() + SIGNUP_INTENT_TTL_MINUTES * 60 * 1000).toISOString();
+    const matchStrategy: SignupIntentMatchStrategy = email ? "email_hash" : "google_ip";
+    const expiresAt = new Date(
+      Date.now() +
+        (matchStrategy === "google_ip"
+          ? GOOGLE_IP_SIGNUP_INTENT_TTL_MINUTES
+          : SIGNUP_INTENT_TTL_MINUTES) *
+          60 *
+          1000
+    ).toISOString();
     const insertResult = await supabaseAdmin.from("signup_intents").insert({
-      email_hash: hashValue(email),
+      email_hash: email ? hashValue(email) : null,
+      match_strategy: matchStrategy,
       signup_context: signupContext,
       plan_id: selection?.planId ?? null,
       billing_interval: selection?.billingInterval ?? null,

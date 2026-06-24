@@ -132,6 +132,7 @@ describe("POST /api/auth/signup-intent", () => {
     expect(insertMock).toHaveBeenCalledWith(
       expect.objectContaining({
         email_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+        match_strategy: "email_hash",
         signup_context: "account",
         plan_id: null,
         billing_interval: null,
@@ -148,6 +149,72 @@ describe("POST /api/auth/signup-intent", () => {
       ok: true,
       expiresAt: expect.any(String),
     });
+  });
+
+  it("stores a short Google IP-bound signup intent when no email is available yet", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED", "true");
+    const insertMock = vi.fn().mockResolvedValue({ error: null });
+    const fromMock = vi.fn((table: string) => {
+      if (table === "signup_intents") return { insert: insertMock };
+      throw new Error(`Unexpected table ${table}`);
+    });
+    getSupabaseAdminMock.mockReturnValue({ from: fromMock });
+    const req = {
+      method: "POST",
+      body: {
+        provider: "google",
+        nextPath: "/ai-studio",
+      },
+      headers: {
+        "user-agent": "Google Signup Test Browser",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fromMock).not.toHaveBeenCalledWith("billing_plan_offers");
+    expect(insertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email_hash: null,
+        match_strategy: "google_ip",
+        signup_context: "account",
+        plan_id: null,
+        billing_interval: null,
+        pricing_intent: null,
+        next_path: "/ai-studio",
+        offer_id: null,
+        created_ip_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+        user_agent_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      ok: true,
+      expiresAt: expect.any(String),
+    });
+  });
+
+  it("rejects a malformed submitted Google signup email instead of falling back to IP matching", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED", "true");
+    const req = {
+      method: "POST",
+      body: {
+        provider: "google",
+        email: "not-an-email",
+        nextPath: "/ai-studio",
+      },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Enter a valid email before creating an account.",
+    });
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
   });
 
   it("rejects signup intents when the selected paid offer is not active", async () => {
@@ -216,6 +283,7 @@ describe("POST /api/auth/signup-intent", () => {
     expect(insertMock).toHaveBeenCalledWith(
       expect.objectContaining({
         email_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+        match_strategy: "email_hash",
         signup_context: "pricing",
         plan_id: "media",
         billing_interval: "month",

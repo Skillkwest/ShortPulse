@@ -74,18 +74,13 @@
 }
 
 .auth-experience-shell .auth-showcase-gallery-tile-monster {
-  grid-column: 3;
+  grid-column: 3 / span 3;
   grid-row: 4 / span 2;
 }
 
-.auth-experience-shell .auth-showcase-gallery-tile-fufkin {
-  grid-column: 4;
-  grid-row: 4 / span 2;
-}
-
+.auth-experience-shell .auth-showcase-gallery-tile-fufkin,
 .auth-experience-shell .auth-showcase-gallery-tile-moonbound {
-  grid-column: 5;
-  grid-row: 4 / span 2;
+  display: none;
 }
 
 .auth-experience-shell .auth-showcase-gallery-tile-alpine {
@@ -172,8 +167,8 @@
 
 .auth-experience-shell .auth-mode-toggle {
   border-radius: 8px;
-  border-color: var(--auth-dashboard-line);
-  background: rgba(244, 245, 247, 0.035);
+  border-color: #303844;
+  background: #20262e;
 }
 
 .auth-experience-shell .auth-mode-toggle button {
@@ -182,16 +177,14 @@
 }
 
 .auth-experience-shell .auth-mode-toggle button.active {
-  border-color: rgba(255, 61, 123, 0.38);
-  background:
-    linear-gradient(135deg, rgba(255, 155, 66, 0.18), rgba(255, 61, 123, 0.2)),
-    rgba(244, 245, 247, 0.08);
+  border-color: #c65f79;
+  background: linear-gradient(135deg, #6f5249, #744258);
   color: var(--auth-dashboard-text);
 }
 
 .auth-experience-shell .auth-card-signin .auth-mode-toggle button.active {
-  border-color: rgba(52, 200, 255, 0.45);
-  background: linear-gradient(135deg, rgba(52, 200, 255, 0.28), rgba(37, 169, 191, 0.34));
+  border-color: #2eb4d2;
+  background: linear-gradient(135deg, #315e68, #276e83);
   color: #e8fbff;
 }
 
@@ -266,7 +259,7 @@
 }
 
 .auth-experience-shell .auth-switch button {
-  color: var(--auth-dashboard-warm);
+  color: #ff2f7a;
 }
 
 .auth-experience-shell .auth-card-signup .auth-switch button {
@@ -277,9 +270,7 @@
   min-height: 50px;
   border-radius: 8px;
   border: 1px solid rgba(255, 162, 92, 0.72);
-  background:
-    radial-gradient(circle at 35% 15%, rgba(255, 255, 255, 0.55), transparent 24%),
-    linear-gradient(135deg, #ff9a4a 0%, #ff5357 48%, #ff2f7a 100%);
+  background: linear-gradient(135deg, #ff9a4a 0%, #ff5357 48%, #ff2f7a 100%);
   color: #ffffff;
   box-shadow:
     0 0 22px rgba(255, 74, 96, 0.42),
@@ -290,9 +281,7 @@
 .auth-experience-shell .auth-submit:hover:not(:disabled) {
   transform: none;
   border-color: rgba(255, 205, 130, 0.92);
-  background:
-    radial-gradient(circle at 35% 15%, rgba(255, 255, 255, 0.62), transparent 24%),
-    linear-gradient(135deg, #ffad55 0%, #ff5d5a 44%, #ff347d 100%);
+  background: linear-gradient(135deg, #ffad55 0%, #ff5d5a 44%, #ff347d 100%);
   box-shadow:
     0 0 28px rgba(255, 78, 99, 0.42),
     0 14px 32px rgba(0, 0, 0, 0.3),

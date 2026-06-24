@@ -140,8 +140,8 @@ describe("Auth route behavior", () => {
     expect(
       container.querySelector(
         '.auth-showcase-gallery-media[src="/dashboard/gallery/monster-wall-break-demo.mp4"]'
-      )
-    ).toBeInTheDocument();
+      )?.parentElement
+    ).toHaveClass("auth-showcase-gallery-tile-monster");
     expect(
       container.querySelector(
         '.auth-showcase-gallery-media[src="/dashboard/gallery/seedance-podcast-demo.mp4"]'
@@ -282,7 +282,7 @@ describe("Auth route behavior", () => {
     });
   });
 
-  it("opens account-first signup by default", async () => {
+  it("opens account-first signup by default and starts Google OAuth without requiring email first", async () => {
     routerState.asPath = "/sign-up?next=%2Fai-studio";
     routerState.pathname = "/sign-up";
     routerState.query = { next: "/ai-studio" };
@@ -301,10 +301,25 @@ describe("Auth route behavior", () => {
         Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
     fireEvent.click(googleSignupButton);
-    expect(
-      await screen.findByText("Enter the Google account email you want to use first.")
-    ).toBeInTheDocument();
-    expect(signInWithOAuthMock).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(signInWithOAuthMock).toHaveBeenCalledWith({
+        provider: "google",
+        options: {
+          redirectTo:
+            "https://www.shortpulse.ai/auth/callback?flow=signup&next=%2Fai-studio&provider=google",
+        },
+      });
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/auth/signup-intent",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          nextPath: "/ai-studio",
+          provider: "google",
+        }),
+      })
+    );
     expect(
       screen.queryByText("Create a free account with full studio access and zero starting credits.")
     ).not.toBeInTheDocument();
@@ -455,7 +470,7 @@ describe("Auth route behavior", () => {
     expect(screen.getByRole("heading", { name: "Create your account" })).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Google signup could not be completed. Use the same Google account email you entered, then try again."
+        "Google signup could not be completed. Try again from this signup page, then choose the Google account you want to use."
       )
     ).toBeInTheDocument();
   });
@@ -494,7 +509,7 @@ describe("Auth route behavior", () => {
     );
   });
 
-  it("starts Google signup only after creating a paid signup intent for the entered email", async () => {
+  it("starts Google signup after creating a paid signup intent for the entered email", async () => {
     vi.stubEnv("NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED", "true");
     routerState.query = {
       mode: "signup",
@@ -514,6 +529,9 @@ describe("Auth route behavior", () => {
         options: {
           redirectTo:
             "https://www.shortpulse.ai/auth/callback?flow=signup&next=%2Fpricing%3Fintent%3Dopen-projects%26plan%3Dmedia%26interval%3Dmonth&provider=google",
+          queryParams: {
+            login_hint: "buyer@example.com",
+          },
         },
       });
     });
@@ -524,6 +542,7 @@ describe("Auth route behavior", () => {
         body: JSON.stringify({
           email: "buyer@example.com",
           nextPath: "/pricing?intent=open-projects&plan=media&interval=month",
+          provider: "google",
         }),
       })
     );
@@ -572,6 +591,27 @@ describe("Auth route behavior", () => {
     await waitFor(() => {
       expect(primeSupabaseSessionMock).toHaveBeenCalledWith({ user: { id: "user-2" } });
     });
+  });
+
+  it("shows a clear message when Supabase rejects password sign-in credentials", async () => {
+    signInWithPasswordMock.mockResolvedValue({
+      error: new Error("Invalid login credentials"),
+      data: { session: null },
+    });
+
+    render(<AuthPage />);
+
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "owner@example.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "wrongpass" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(
+      await screen.findByText(
+        "Email or password is incorrect. Check your login details or reset your password."
+      )
+    ).toBeInTheDocument();
+    expect(primeSupabaseSessionMock).not.toHaveBeenCalled();
+    expect(pushMock).not.toHaveBeenCalled();
   });
 
   it("validates empty email before requesting a reset link and sends the reset with callback redirect", async () => {

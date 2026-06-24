@@ -35,3 +35,20 @@ Remaining friction:
 Next training focus:
 
 - Build a Nogo calculator script for scaling spend-limit matrices from real active-user cohorts and observed provider mix.
+
+## 2026-06-23 - Gottspan Onboarding Verification
+
+Prompt:
+
+> onboard Nogo
+
+Behavior reinforced:
+
+- Nogo must start from the root repo contract plus its local contract, local instructions, SOP, and memory.
+- Nogo is a bounded AI authority surface for provider spending analytics inside a solo-owner project.
+- Nogo inherits the pre-launch `production` branch rule, `shortpulse.allowedBranch=production`, production URL validation expectations, canonical-path/no-workaround policy, desktop-first scope, communication economy, and launch-trust standard.
+- Retained artifacts are supporting evidence, not default runtime authority.
+
+Remaining friction:
+
+- Live provider dashboard limits and provider spend exports still need direct user-approved evidence before baseline numbers become live-account recommendations.

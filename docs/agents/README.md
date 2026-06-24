@@ -109,6 +109,13 @@ Use this path when setting up a new agent for a new recurring task:
   - retained artifacts live under `docs/records/artifacts/agent/bactuo/`.
 - `docs/agents/Money Stuff/README.md`: Money Stuff permanent commerce billing steward contract, memory entrypoint, and source-of-truth map.
 - `docs/agents/nogo/README.md`: Nogo provider spending analytics steward contract, memory entrypoint, SOP, tools/workspace home, and spend-limit baseline owner.
+  - `docs/agents/nogo/AGENTS.md`: Nogo-scoped instruction overlay for provider-spend analytics work.
+  - `docs/agents/nogo/memory.md`: Nogo's concise durable memory and current baseline pointer.
+  - `docs/agents/nogo/standard-operating-procedure.md`: standing SOP for spend limits, live spend audits, dashboard guidance, provider pricing refreshes, anomaly triage, and report/tool creation.
+  - `docs/agents/nogo/ownership-manifest.md`: Nogo's boundary map against Money Stuff, Lever, Bactuo, Nuclo, Dave, and Copperknot.
+  - `docs/agents/nogo/tools/README.md`: Nogo helper-tool inventory and tool guardrails.
+  - `docs/agents/nogo/workspace/README.md`: Nogo intake/dropbox and scratch workspace.
+  - retained artifacts live under `docs/records/artifacts/agent/nogo/`.
 - `docs/agents/lever/README.md`: Lever model maintenance manager contract and memory entrypoint.
 - `docs/agents/holomony/README.md`: Holomony media optimization and performance specialist contract and memory entrypoint.
   - `docs/agents/holomony/AGENTS.md`: Holomony-scoped execution overlay for media optimization, KPI, audit, and training loops.

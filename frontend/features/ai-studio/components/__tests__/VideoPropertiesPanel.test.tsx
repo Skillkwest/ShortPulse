@@ -331,7 +331,7 @@ vi.mock("../useReferencePropertiesInteractions", () => ({
     seedanceElementSlotCount?: number;
     onSeedanceElementMediaSlotChange?: (
       slotIndex: number,
-      value: { kind: "image" | "video"; url: string; name?: string | null } | null
+      value: { kind: "image" | "video" | "audio"; url: string; name?: string | null } | null
     ) => void;
   }) => ({
     primaryInputRef: { current: null },
@@ -381,11 +381,12 @@ vi.mock("../useReferencePropertiesInteractions", () => ({
       (slotIndex: number) => (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         const isVideo = file?.type.startsWith("video/");
+        const isAudio = file?.type.startsWith("audio/");
         params.onSeedanceElementMediaSlotChange?.(
           slotIndex,
           file
             ? {
-                kind: isVideo ? "video" : "image",
+                kind: isVideo ? "video" : isAudio ? "audio" : "image",
                 url: `blob:seedance-slot-${slotIndex}`,
                 name: file.name,
               }
@@ -399,7 +400,7 @@ vi.mock("../useReferencePropertiesInteractions", () => ({
           event.dataTransfer.getData("text/plain") ||
           `https://example.com/seedance-slot-${slotIndex}.png`;
         params.onSeedanceElementMediaSlotChange?.(slotIndex, {
-          kind: url.endsWith(".mp4") ? "video" : "image",
+          kind: url.endsWith(".mp4") ? "video" : url.endsWith(".mp3") ? "audio" : "image",
           url,
         });
       },
@@ -418,13 +419,17 @@ vi.mock("../useReferencePropertiesInteractions", () => ({
               null)
             : null;
         const videoUrl = payload.kind === "video" ? payload.videoUrl : null;
+        const audioPayload = payload.kind === "audio" ? payload : null;
+        const audioUrl = audioPayload?.audioUrl ?? null;
         params.onSeedanceElementMediaSlotChange?.(
           slotIndex,
           imageUrl
             ? { kind: "image", url: imageUrl }
             : videoUrl
               ? { kind: "video", url: videoUrl }
-              : null
+              : audioUrl
+                ? { kind: "audio", url: audioUrl, name: audioPayload?.title }
+                : null
         );
       }
     ),
@@ -2167,6 +2172,20 @@ describe("VideoPropertiesPanel", () => {
     expect(screen.getAllByRole("button", { name: /Add element to slot/ })).toHaveLength(9);
   });
 
+  it("marks the Seedance settings card for the elevated video panel shadow", () => {
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        modelId={KIE_SEEDANCE_2_MODEL_ID}
+        modelLabel="Seedance 2"
+      />
+    );
+
+    const settingsCard = screen.getByText("Seedance 2 Settings").closest(".step-card");
+    expect(settingsCard).not.toBeNull();
+    expect(settingsCard).toHaveClass("video-elements-card--seedance");
+  });
+
   it("uploads a direct image reference into a Seedance Elements slot", () => {
     const onKlingElementsChange = vi.fn();
     render(
@@ -2178,7 +2197,9 @@ describe("VideoPropertiesPanel", () => {
       />
     );
 
-    const fileInput = document.querySelector('input[type="file"][accept="image/*,video/*"]');
+    const fileInput = document.querySelector(
+      'input[type="file"][accept="image/*,video/*,audio/*"]'
+    );
     expect(fileInput).toBeTruthy();
 
     fireEvent.change(fileInput as HTMLInputElement, {
@@ -2208,7 +2229,9 @@ describe("VideoPropertiesPanel", () => {
       />
     );
 
-    const fileInput = document.querySelector('input[type="file"][accept="image/*,video/*"]');
+    const fileInput = document.querySelector(
+      'input[type="file"][accept="image/*,video/*,audio/*"]'
+    );
     expect(fileInput).toBeTruthy();
 
     fireEvent.change(fileInput as HTMLInputElement, {
@@ -2225,6 +2248,173 @@ describe("VideoPropertiesPanel", () => {
         videoUrl: "blob:seedance-slot-0",
       }),
     ]);
+  });
+
+  it("uploads a direct audio reference into a Seedance Elements slot", () => {
+    const onKlingElementsChange = vi.fn();
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        modelId={KIE_SEEDANCE_2_MODEL_ID}
+        modelLabel="Seedance 2"
+        onKlingElementsChange={onKlingElementsChange}
+      />
+    );
+
+    const fileInput = document.querySelector(
+      'input[type="file"][accept="image/*,video/*,audio/*"]'
+    );
+    expect(fileInput).toBeTruthy();
+
+    fireEvent.change(fileInput as HTMLInputElement, {
+      target: {
+        files: [new File(["seedance"], "seedance.mp3", { type: "audio/mpeg" })],
+      },
+    });
+
+    expect(onKlingElementsChange).toHaveBeenCalledWith([
+      expect.objectContaining({
+        slotIndex: 0,
+        sourceKind: "reference-audio",
+        name: "seedance.mp3",
+        audioUrl: "blob:seedance-slot-0",
+      }),
+    ]);
+  });
+
+  it("warns instead of adding a fourth Seedance audio reference", () => {
+    const onKlingElementsChange = vi.fn();
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        modelId={KIE_SEEDANCE_2_MODEL_ID}
+        modelLabel="Seedance 2"
+        onKlingElementsChange={onKlingElementsChange}
+        klingElements={Array.from({ length: 3 }, (_, index) => ({
+          id: `audio-${index + 1}`,
+          slotIndex: index,
+          sourceKind: "reference-audio" as const,
+          sourceElementId: null,
+          sourceCharacterId: null,
+          name: `Audio reference ${index + 1}`,
+          alias: "",
+          description: "",
+          profileImageUrl: null,
+          profileImageTransform: null,
+          frontalImageUrl: "",
+          referenceImageUrls: "",
+          videoUrl: "",
+          audioUrl: `https://example.com/audio-${index + 1}.mp3`,
+        }))}
+      />
+    );
+
+    const fileInputs = document.querySelectorAll<HTMLInputElement>(
+      'input[type="file"][accept="image/*,video/*,audio/*"]'
+    );
+    fireEvent.change(fileInputs[3], {
+      target: {
+        files: [new File(["seedance"], "seedance-four.mp3", { type: "audio/mpeg" })],
+      },
+    });
+
+    expect(screen.getByText("Seedance 2 supports up to 3 audio references.")).toBeInTheDocument();
+    expect(onKlingElementsChange).not.toHaveBeenCalled();
+  });
+
+  it("warns instead of adding a fourth Seedance video reference", () => {
+    const onKlingElementsChange = vi.fn();
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        modelId={KIE_SEEDANCE_2_MODEL_ID}
+        modelLabel="Seedance 2"
+        onKlingElementsChange={onKlingElementsChange}
+        klingElements={Array.from({ length: 3 }, (_, index) => ({
+          id: `video-${index + 1}`,
+          slotIndex: index,
+          sourceKind: "reference-video" as const,
+          sourceElementId: null,
+          sourceCharacterId: null,
+          name: `Video reference ${index + 1}`,
+          alias: "",
+          description: "",
+          profileImageUrl: null,
+          profileImageTransform: null,
+          frontalImageUrl: "",
+          referenceImageUrls: "",
+          videoUrl: `https://example.com/video-${index + 1}.mp4`,
+        }))}
+      />
+    );
+
+    const fileInputs = document.querySelectorAll<HTMLInputElement>(
+      'input[type="file"][accept="image/*,video/*,audio/*"]'
+    );
+    fireEvent.change(fileInputs[3], {
+      target: {
+        files: [new File(["seedance"], "seedance-four.mp4", { type: "video/mp4" })],
+      },
+    });
+
+    expect(screen.getByText("Seedance 2 supports up to 3 video references.")).toBeInTheDocument();
+    expect(onKlingElementsChange).not.toHaveBeenCalled();
+  });
+
+  it("warns when rich asset slots already exceed the Seedance image reference budget", () => {
+    const onKlingElementsChange = vi.fn();
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        modelId={KIE_SEEDANCE_2_MODEL_ID}
+        modelLabel="Seedance 2"
+        onKlingElementsChange={onKlingElementsChange}
+        klingElements={[
+          ...Array.from({ length: 8 }, (_, index) => ({
+            id: `image-${index + 1}`,
+            slotIndex: index,
+            sourceKind: "reference-image" as const,
+            sourceElementId: null,
+            sourceCharacterId: null,
+            name: `Image reference ${index + 1}`,
+            alias: "",
+            description: "",
+            profileImageUrl: `https://example.com/image-${index + 1}.png`,
+            profileImageTransform: null,
+            frontalImageUrl: `https://example.com/image-${index + 1}.png`,
+            referenceImageUrls: "",
+            videoUrl: "",
+          })),
+          {
+            id: "rich-element",
+            slotIndex: 8,
+            sourceKind: "element" as const,
+            sourceElementId: null,
+            sourceCharacterId: null,
+            name: "Rich Element",
+            alias: "richelement",
+            description: "",
+            profileImageUrl: "https://example.com/rich-profile.png",
+            profileImageTransform: null,
+            frontalImageUrl: "https://example.com/rich-front.png",
+            referenceImageUrls: "https://example.com/rich-side.png",
+            videoUrl: "",
+          },
+        ]}
+      />
+    );
+
+    const fileInputs = document.querySelectorAll<HTMLInputElement>(
+      'input[type="file"][accept="image/*,video/*,audio/*"]'
+    );
+    fireEvent.change(fileInputs[0], {
+      target: {
+        files: [new File(["seedance"], "seedance-replace.png", { type: "image/png" })],
+      },
+    });
+
+    expect(screen.getByText("Seedance 2 supports up to 9 image references.")).toBeInTheDocument();
+    expect(onKlingElementsChange).not.toHaveBeenCalled();
   });
 
   it("drops a direct image reference into a Seedance Elements slot", () => {
@@ -2303,6 +2493,45 @@ describe("VideoPropertiesPanel", () => {
     ]);
   });
 
+  it("accepts a canvas tear-out audio payload into a Seedance Elements slot", () => {
+    const onKlingElementsChange = vi.fn();
+    const registry = createCanvasTearOutComposerTargetRegistry();
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        modelId={KIE_SEEDANCE_2_MODEL_ID}
+        modelLabel="Seedance 2"
+        canvasTearOutTargetRegistry={registry}
+        onKlingElementsChange={onKlingElementsChange}
+      />
+    );
+
+    const firstSlot = screen
+      .getByRole("button", { name: "Add element to slot 1" })
+      .closest(".video-elements-placeholder-tile");
+    expect(firstSlot).toBeTruthy();
+    setElementRect(firstSlot as HTMLElement, { left: 0, top: 0, width: 80, height: 80 });
+
+    const payload: AgentComposerDirectDropPayload = {
+      kind: "audio",
+      audioUrl: "https://example.com/canvas-voice.mp3",
+      title: "Canvas voice",
+      internalPayload: null,
+    };
+    const target = registry.resolveTargetAtPoint({ clientX: 20, clientY: 20 }, payload);
+    expect(target?.id).toBe("video-seedance-element-media-0");
+    target?.target.accept(payload);
+
+    expect(onKlingElementsChange).toHaveBeenCalledWith([
+      expect.objectContaining({
+        slotIndex: 0,
+        sourceKind: "reference-audio",
+        name: "Canvas voice",
+        audioUrl: "https://example.com/canvas-voice.mp3",
+      }),
+    ]);
+  });
+
   it("does not expose direct Seedance image references as prompt-token draggable slots", () => {
     render(
       <VideoPropertiesPanel
@@ -2368,6 +2597,41 @@ describe("VideoPropertiesPanel", () => {
       .closest(".video-elements-placeholder-tile--filled");
     expect(directVideoTile).toHaveClass("video-elements-placeholder-tile--reference-video");
     expect(directVideoTile).not.toHaveAttribute("draggable", "true");
+    expect(screen.queryByRole("button", { name: /Insert @element1/i })).toBeNull();
+  });
+
+  it("does not expose direct Seedance audio references as prompt-token draggable slots", () => {
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        modelId={KIE_SEEDANCE_2_MODEL_ID}
+        modelLabel="Seedance 2"
+        klingElements={[
+          {
+            id: "direct-audio",
+            slotIndex: 0,
+            sourceKind: "reference-audio",
+            sourceElementId: null,
+            sourceCharacterId: null,
+            name: "Audio reference",
+            alias: "",
+            description: "",
+            profileImageUrl: null,
+            profileImageTransform: null,
+            frontalImageUrl: "",
+            referenceImageUrls: "",
+            videoUrl: "",
+            audioUrl: "https://example.com/direct-audio.mp3",
+          },
+        ]}
+      />
+    );
+
+    const directAudioTile = screen
+      .getByRole("button", { name: /Replace attached element Audio reference/ })
+      .closest(".video-elements-placeholder-tile--filled");
+    expect(directAudioTile).toHaveClass("video-elements-placeholder-tile--reference-audio");
+    expect(directAudioTile).not.toHaveAttribute("draggable", "true");
     expect(screen.queryByRole("button", { name: /Insert @element1/i })).toBeNull();
   });
 

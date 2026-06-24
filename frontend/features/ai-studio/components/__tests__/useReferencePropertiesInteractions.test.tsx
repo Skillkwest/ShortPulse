@@ -16,6 +16,7 @@ const uploadImageAssetToStorageMock = vi.hoisted(() => vi.fn());
 const uploadImageBlobAssetToStorageMock = vi.hoisted(() => vi.fn());
 const uploadReferenceVideoAssetToStorageMock = vi.hoisted(() => vi.fn());
 const uploadReferenceVideoFileToStorageMock = vi.hoisted(() => vi.fn());
+const uploadAudioBlobToStorageMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
   getSignedMediaUrl: getSignedMediaUrlMock,
@@ -32,6 +33,9 @@ vi.mock("../../utils/videoUpload", () => ({
     uploadReferenceVideoAssetToStorageMock(...args),
   uploadReferenceVideoFileToStorage: (...args: unknown[]) =>
     uploadReferenceVideoFileToStorageMock(...args),
+}));
+vi.mock("../../utils/audioUpload", () => ({
+  uploadAudioBlobToStorage: (...args: unknown[]) => uploadAudioBlobToStorageMock(...args),
 }));
 
 const makeInternalReferenceDragEvent = (overrides?: {
@@ -247,6 +251,9 @@ describe("useReferencePropertiesInteractions", () => {
     fetchWithAuthMock.mockReset();
     uploadImageAssetToStorageMock.mockReset();
     uploadImageBlobAssetToStorageMock.mockReset();
+    uploadReferenceVideoAssetToStorageMock.mockReset();
+    uploadReferenceVideoFileToStorageMock.mockReset();
+    uploadAudioBlobToStorageMock.mockReset();
   });
 
   afterEach(() => {
@@ -1479,6 +1486,60 @@ describe("useReferencePropertiesInteractions", () => {
     );
   });
 
+  it("accepts file-selected audio for Seedance element slots", async () => {
+    const onSeedanceElementMediaSlotChange = vi.fn();
+    uploadAudioBlobToStorageMock.mockResolvedValueOnce({
+      url: "https://cdn.test/staged-seedance-slot.mp3",
+      path: "user-1/reference-audio/staged-seedance-slot.mp3",
+      size: 72,
+      mimeType: "audio/mpeg",
+    });
+
+    const { result } = renderHook(() =>
+      useReferencePropertiesInteractions({
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        onPrimaryImageChange: vi.fn(),
+        onExtraImageChange: vi.fn(),
+        onPromptTextChange: vi.fn(),
+        klingMultiPrompts: [],
+        klingElements: [],
+        seedanceElementSlotCount: 6,
+        onSeedanceElementMediaSlotChange,
+      })
+    );
+
+    const file = new File(["seedance-audio"], "seedance-slot.mp3", { type: "audio/mpeg" });
+    const event = {
+      target: {
+        files: [file],
+        value: "seedance-slot.mp3",
+      },
+    };
+
+    await act(async () => {
+      result.current.handleSeedanceElementMediaFileSelection(2)(event as never);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(uploadAudioBlobToStorageMock).toHaveBeenCalledWith(file, {
+      sourceName: "seedance-slot.mp3",
+      mimeType: "audio/mpeg",
+    });
+    expect(onSeedanceElementMediaSlotChange).toHaveBeenCalledWith(2, {
+      kind: "audio",
+      url: "https://cdn.test/staged-seedance-slot.mp3",
+      name: "seedance-slot.mp3",
+    });
+    expect(resolveInternalMediaRefForUrl("https://cdn.test/staged-seedance-slot.mp3")).toEqual(
+      expect.objectContaining({
+        bucket: "media_library",
+        storagePath: "user-1/reference-audio/staged-seedance-slot.mp3",
+      })
+    );
+  });
+
   it("does not create transient object URLs for Seedance slot file selections", async () => {
     const onSeedanceElementMediaSlotChange = vi.fn();
     const revokeObjectUrl = vi.fn();
@@ -1586,6 +1647,82 @@ describe("useReferencePropertiesInteractions", () => {
     expect(resolveInternalReferenceImageDropSource).toHaveBeenCalledTimes(1);
   });
 
+  it("accepts video drags for Seedance element slots", async () => {
+    const onSeedanceElementMediaSlotChange = vi.fn();
+
+    const { result } = renderHook(() =>
+      useReferencePropertiesInteractions({
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        onPrimaryImageChange: vi.fn(),
+        onExtraImageChange: vi.fn(),
+        onPromptTextChange: vi.fn(),
+        klingMultiPrompts: [],
+        klingElements: [],
+        seedanceElementSlotCount: 6,
+        onSeedanceElementMediaSlotChange,
+      })
+    );
+
+    const dropEvent = makeInternalReferenceDragEvent({
+      mediaKind: "video",
+      referenceUrl: "https://cdn.shortpulse.test/seedance-slot.mp4",
+    });
+
+    await act(async () => {
+      result.current.handleSeedanceElementMediaDrop(3)(dropEvent);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(dropEvent.preventDefault).toHaveBeenCalled();
+    expect(dropEvent.stopPropagation).toHaveBeenCalled();
+    expect(onSeedanceElementMediaSlotChange).toHaveBeenCalledWith(3, {
+      kind: "video",
+      url: "https://cdn.shortpulse.test/seedance-slot.mp4",
+      name: undefined,
+    });
+    expect(uploadReferenceVideoAssetToStorageMock).not.toHaveBeenCalled();
+  });
+
+  it("accepts audio drags for Seedance element slots", async () => {
+    const onSeedanceElementMediaSlotChange = vi.fn();
+
+    const { result } = renderHook(() =>
+      useReferencePropertiesInteractions({
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        onPrimaryImageChange: vi.fn(),
+        onExtraImageChange: vi.fn(),
+        onPromptTextChange: vi.fn(),
+        klingMultiPrompts: [],
+        klingElements: [],
+        seedanceElementSlotCount: 6,
+        onSeedanceElementMediaSlotChange,
+      })
+    );
+
+    const dropEvent = makeInternalReferenceDragEvent({
+      mediaKind: "audio",
+      referenceUrl: "https://cdn.shortpulse.test/seedance-slot.mp3",
+    });
+
+    await act(async () => {
+      result.current.handleSeedanceElementMediaDrop(3)(dropEvent);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(dropEvent.preventDefault).toHaveBeenCalled();
+    expect(dropEvent.stopPropagation).toHaveBeenCalled();
+    expect(onSeedanceElementMediaSlotChange).toHaveBeenCalledWith(3, {
+      kind: "audio",
+      url: "https://cdn.shortpulse.test/seedance-slot.mp3",
+      name: undefined,
+    });
+    expect(uploadAudioBlobToStorageMock).not.toHaveBeenCalled();
+  });
+
   it("accepts canvas tear-out image payloads for Seedance element slots", async () => {
     const onSeedanceElementMediaSlotChange = vi.fn();
     fetchWithAuthMock.mockResolvedValueOnce({
@@ -1655,6 +1792,100 @@ describe("useReferencePropertiesInteractions", () => {
         storagePath: "user-1/reference-images/canvas-seedance-slot.png",
       })
     );
+  });
+
+  it("accepts canvas tear-out video payloads for Seedance element slots", async () => {
+    const onSeedanceElementMediaSlotChange = vi.fn();
+    const resolveInternalReferenceVideoDropSource = vi.fn(async () => ({
+      kind: "internal" as const,
+      sourceKind: "generated_output" as const,
+      sourceId: "media-video-1",
+      provenance: {
+        origin: "ai-studio-reference-grid",
+        outputId: "out-video-1",
+        mediaId: "media-video-1",
+        imageIndex: 0,
+        sourceSurface: "all-refs",
+        resolutionReason: "output_storage_path" as const,
+      },
+      outputId: "out-video-1",
+      mediaId: "media-video-1",
+      mediaSource: "generated" as const,
+      preview: { url: "https://cdn.shortpulse.test/canvas-motion-poster.jpg" },
+      previewStoragePath: null,
+      fullStoragePath: null,
+      promptText: null,
+      preparedImageUrl: "https://signed.shortpulse.test/canvas-motion.mp4?token=fresh",
+      loadBlob: async () => new Blob(["video"], { type: "video/mp4" }),
+    }));
+
+    const { result } = renderHook(() =>
+      useReferencePropertiesInteractions({
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        onPrimaryImageChange: vi.fn(),
+        onExtraImageChange: vi.fn(),
+        onPromptTextChange: vi.fn(),
+        klingMultiPrompts: [],
+        klingElements: [],
+        seedanceElementSlotCount: 6,
+        onSeedanceElementMediaSlotChange,
+        resolveInternalReferenceVideoDropSource,
+      })
+    );
+
+    await act(async () => {
+      result.current.acceptSeedanceElementMediaCanvasTearOutPayload(
+        4,
+        makeCanvasTearOutVideoPayload()
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(resolveInternalReferenceVideoDropSource).toHaveBeenCalledTimes(1);
+    expect(onSeedanceElementMediaSlotChange).toHaveBeenCalledWith(4, {
+      kind: "video",
+      url: "https://signed.shortpulse.test/canvas-motion.mp4?token=fresh",
+      name: undefined,
+    });
+    expect(uploadReferenceVideoAssetToStorageMock).not.toHaveBeenCalled();
+  });
+
+  it("accepts canvas tear-out audio payloads for Seedance element slots", async () => {
+    const onSeedanceElementMediaSlotChange = vi.fn();
+
+    const { result } = renderHook(() =>
+      useReferencePropertiesInteractions({
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        onPrimaryImageChange: vi.fn(),
+        onExtraImageChange: vi.fn(),
+        onPromptTextChange: vi.fn(),
+        klingMultiPrompts: [],
+        klingElements: [],
+        seedanceElementSlotCount: 6,
+        onSeedanceElementMediaSlotChange,
+      })
+    );
+
+    await act(async () => {
+      result.current.acceptSeedanceElementMediaCanvasTearOutPayload(4, {
+        kind: "audio",
+        audioUrl: "https://cdn.shortpulse.test/canvas-voice.mp3",
+        title: "Canvas voice",
+        internalPayload: null,
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(onSeedanceElementMediaSlotChange).toHaveBeenCalledWith(4, {
+      kind: "audio",
+      url: "https://cdn.shortpulse.test/canvas-voice.mp3",
+      name: "Canvas voice",
+    });
+    expect(uploadAudioBlobToStorageMock).not.toHaveBeenCalled();
   });
 
   it("accepts computer-dropped image files in the Motion Control character slot when MIME type is missing", async () => {

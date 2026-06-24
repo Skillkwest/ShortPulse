@@ -25,10 +25,17 @@ type KlingMultiPrompt = {
 
 type KlingElement = {
   id: string;
-  sourceKind?: "element" | "character" | "reference-image" | "reference-video" | null;
+  sourceKind?:
+    | "element"
+    | "character"
+    | "reference-image"
+    | "reference-video"
+    | "reference-audio"
+    | null;
   frontalImageUrl: string;
   referenceImageUrls: string;
   videoUrl: string;
+  audioUrl?: string;
 };
 
 const VIDEO_DURATION_OPTIONS = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];

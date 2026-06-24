@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  collectSeedanceElementProviderReferences,
   createSeedanceImageReferenceSlot,
+  createSeedanceAudioReferenceSlot,
   getKieKlingSubmittableSlotElements,
   resolveKieKlingElementProviderEligibility,
   resolveKieKlingElementsValidationMessage,
@@ -12,6 +14,8 @@ import {
   resolveKieKlingElementTokens,
   resolveLegacyKieKlingElementToken,
   resolveSeedanceElementProviderEligibility,
+  resolveSeedanceReferenceLimitError,
+  resolveSeedanceReferenceRequirementError,
   type AiStudioKlingElement,
 } from "../klingElements";
 
@@ -125,6 +129,23 @@ describe("klingElements provider eligibility", () => {
     });
   });
 
+  it("keeps direct Seedance audio slots out of Kling while allowing them for Seedance", () => {
+    const directAudio = createSeedanceAudioReferenceSlot({
+      slotIndex: 0,
+      audioUrl: "https://example.com/direct.mp3",
+    });
+
+    expect(resolveKieKlingElementProviderEligibility(directAudio)).toMatchObject({
+      isSubmittable: false,
+      reason: null,
+      audioUrls: ["https://example.com/direct.mp3"],
+    });
+    expect(resolveSeedanceElementProviderEligibility(directAudio)).toMatchObject({
+      isSubmittable: true,
+      audioUrls: ["https://example.com/direct.mp3"],
+    });
+  });
+
   it("rejects one-image saved elements for Kling but keeps them usable for Seedance", () => {
     const oneImage = makeKlingElement({
       frontalImageUrl: "https://example.com/one.png",
@@ -207,5 +228,69 @@ describe("klingElements provider eligibility", () => {
     expect(resolveKieKlingElementsValidationMessage([directImage, slotTwo, seedanceOnlySlot])).toBe(
       null
     );
+  });
+
+  it("counts expanded Seedance references from saved elements and direct slots", () => {
+    const directAudio = createSeedanceAudioReferenceSlot({
+      slotIndex: 0,
+      audioUrl: "https://example.com/direct.mp3",
+    });
+    const savedElement = makeKlingElement({
+      slotIndex: 1,
+      frontalImageUrl: "https://example.com/front.png",
+      referenceImageUrls: "https://example.com/side.png",
+      videoUrl: "https://example.com/reference.mp4",
+    });
+
+    expect(collectSeedanceElementProviderReferences([directAudio, savedElement])).toEqual({
+      imageUrls: ["https://example.com/front.png", "https://example.com/side.png"],
+      videoUrls: ["https://example.com/reference.mp4"],
+      audioUrls: ["https://example.com/direct.mp3"],
+    });
+  });
+
+  it("returns Seedance reference limit messages from the shared provider budget", () => {
+    expect(
+      resolveSeedanceReferenceLimitError({
+        imageUrls: Array.from({ length: 10 }, (_, index) => `https://example.com/${index}.png`),
+        videoUrls: [],
+        audioUrls: [],
+      })
+    ).toBe("Seedance 2 supports up to 9 image references.");
+    expect(
+      resolveSeedanceReferenceLimitError({
+        imageUrls: Array.from({ length: 9 }, (_, index) => `https://example.com/${index}.png`),
+        videoUrls: ["https://example.com/reference.mp4"],
+        audioUrls: [
+          "https://example.com/reference.mp3",
+          "https://example.com/reference-2.mp3",
+          "https://example.com/reference-3.mp3",
+        ],
+      })
+    ).toBe("Seedance 2 supports up to 12 total references.");
+  });
+
+  it("requires Seedance audio references to be paired with image or video references", () => {
+    expect(
+      resolveSeedanceReferenceRequirementError({
+        imageUrls: [],
+        videoUrls: [],
+        audioUrls: ["https://example.com/reference.mp3"],
+      })
+    ).toBe("Seedance 2 audio references require at least one image or video reference.");
+    expect(
+      resolveSeedanceReferenceRequirementError({
+        imageUrls: ["https://example.com/reference.png"],
+        videoUrls: [],
+        audioUrls: ["https://example.com/reference.mp3"],
+      })
+    ).toBeNull();
+    expect(
+      resolveSeedanceReferenceRequirementError({
+        imageUrls: [],
+        videoUrls: ["https://example.com/reference.mp4"],
+        audioUrls: ["https://example.com/reference.mp3"],
+      })
+    ).toBeNull();
   });
 });

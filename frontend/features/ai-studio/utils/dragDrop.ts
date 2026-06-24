@@ -53,6 +53,7 @@ const RELATIVE_MEDIA_PATH_HINT_PATTERN =
 const VIDEO_STORAGE_PATH_PATTERN = /\.(?:m4v|mov|mp4|ogg|ogv|webm)(?:$|[?#])/i;
 const IMAGE_FILE_NAME_PATTERN = /\.(?:avif|bmp|gif|heic|heif|jpe?g|png|tiff?|webp)$/i;
 const VIDEO_FILE_NAME_PATTERN = /\.(?:m4v|mov|mp4|ogg|ogv|webm)$/i;
+const AUDIO_FILE_NAME_PATTERN = /\.(?:aac|flac|m4a|mp3|oga|ogg|wav|webm)$/i;
 
 const dedupeText = (value?: string) => (value ? value.trim() : "");
 
@@ -93,6 +94,17 @@ const findVideoFile = (files?: FileList) => {
   return Array.from(files).find(isVideoFile) ?? null;
 };
 
+export const isAudioFile = (file: File | null | undefined): file is File => {
+  if (!file) return false;
+  if (file.type.trim().toLowerCase().startsWith("audio/")) return true;
+  return AUDIO_FILE_NAME_PATTERN.test(file.name.trim());
+};
+
+const findAudioFile = (files?: FileList) => {
+  if (!files) return null;
+  return Array.from(files).find(isAudioFile) ?? null;
+};
+
 const dragGhostMap = new WeakMap<HTMLElement, HTMLElement>();
 const DRAG_GHOST_SCALE = 0.68;
 const DRAG_GHOST_MIN_SIZE_PX = 108;
@@ -127,6 +139,14 @@ export type DragDropPayload = {
 export type VideoDragDropPayload = {
   videoUrl: string | null;
   videoFile?: File | null;
+  promptText: string | null;
+  referenceId?: string | null;
+  fromFile?: boolean;
+};
+
+export type AudioDragDropPayload = {
+  audioUrl: string | null;
+  audioFile?: File | null;
   promptText: string | null;
   referenceId?: string | null;
   fromFile?: boolean;
@@ -1027,6 +1047,144 @@ export const extractVideoDragDropPayload = (transfer: DataTransfer): VideoDragDr
   };
 };
 
+export const extractAudioDragDropPayload = (transfer: DataTransfer): AudioDragDropPayload => {
+  const audioFile = findAudioFile(transfer.files);
+  const hasStructuredHints = hasStructuredReferenceTransferHints(transfer);
+  const internalPayload = extractInternalReferenceDragPayload(transfer);
+  const mediaLibraryPayload = readMediaLibraryDragPayload(transfer);
+  const mediaKind = resolveReferenceTransferMediaKind(transfer);
+  const internalReferenceUrl = normalizeReferenceTransferUrlCandidate(
+    internalPayload?.referenceUrl,
+    { unwrapNextImage: false }
+  );
+  const referenceUrl = normalizeReferenceTransferUrlCandidate(
+    transfer.getData("text/reference-url")
+  );
+  const referenceId =
+    internalPayload?.referenceId ??
+    mediaLibraryPayload?.payload.id ??
+    (transfer.getData("text/reference-id") || null);
+  const normalizedReferenceUrl =
+    referenceUrl && looksLikeAudioUrl(referenceUrl) ? referenceUrl : null;
+  const normalizedInternalAudioUrl =
+    internalReferenceUrl && looksLikeAudioUrl(internalReferenceUrl) ? internalReferenceUrl : null;
+  const normalizedLibraryAudioUrl =
+    mediaLibraryPayload?.kind === "libraryMedia" && mediaLibraryPayload.payload.fileType === "audio"
+      ? ([
+          mediaLibraryPayload.payload.fullUrl,
+          mediaLibraryPayload.payload.url,
+          mediaLibraryPayload.payload.previewUrl,
+        ]
+          .map((candidate) =>
+            normalizeReferenceTransferUrlCandidate(candidate, { unwrapNextImage: false })
+          )
+          .find((candidate): candidate is string =>
+            Boolean(candidate && looksLikeAudioUrl(candidate))
+          ) ?? null)
+      : null;
+
+  if (mediaKind && mediaKind !== "audio") {
+    return {
+      audioUrl: null,
+      promptText: extractPromptText(transfer),
+      referenceId,
+      fromFile: false,
+    };
+  }
+
+  if (normalizedInternalAudioUrl) {
+    return {
+      audioUrl: normalizedInternalAudioUrl,
+      promptText: extractPromptText(transfer),
+      referenceId,
+      fromFile: false,
+    };
+  }
+
+  if (normalizedLibraryAudioUrl) {
+    return {
+      audioUrl: normalizedLibraryAudioUrl,
+      promptText: extractPromptText(transfer),
+      referenceId,
+      fromFile: false,
+    };
+  }
+
+  if (normalizedReferenceUrl) {
+    return {
+      audioUrl: normalizedReferenceUrl,
+      promptText: extractPromptText(transfer),
+      referenceId,
+      fromFile: false,
+    };
+  }
+
+  const uriListValue = transfer.getData("text/uri-list");
+  if (uriListValue) {
+    const cleanUriValue = getFirstUriListValue(uriListValue);
+    const cleanUri = normalizeReferenceTransferUrlCandidate(cleanUriValue) ?? cleanUriValue;
+    if (cleanUri && looksLikeAudioUrl(cleanUri)) {
+      const resolvedUri = resolveDraggedUrl(cleanUri, normalizedReferenceUrl, looksLikeAudioUrl);
+      if (resolvedUri) {
+        return {
+          audioUrl: resolvedUri,
+          promptText: extractPromptText(transfer),
+          referenceId,
+          fromFile: false,
+        };
+      }
+    }
+  }
+
+  const imageUrl = normalizeReferenceTransferUrlCandidate(transfer.getData("image/url"));
+  if (imageUrl && looksLikeAudioUrl(imageUrl)) {
+    const resolvedImageUrl = resolveDraggedUrl(imageUrl, normalizedReferenceUrl, looksLikeAudioUrl);
+    if (resolvedImageUrl) {
+      return {
+        audioUrl: resolvedImageUrl,
+        promptText: extractPromptText(transfer),
+        referenceId,
+        fromFile: false,
+      };
+    }
+  }
+
+  const rawText = transfer.getData("text/plain");
+  const normalizedRawText = normalizeReferenceTransferUrlCandidate(rawText);
+  if (normalizedRawText && looksLikeAudioUrl(normalizedRawText)) {
+    const resolvedTextUrl = resolveDraggedUrl(
+      normalizedRawText,
+      normalizedReferenceUrl,
+      looksLikeAudioUrl
+    );
+    if (resolvedTextUrl) {
+      return {
+        audioUrl: resolvedTextUrl,
+        promptText: extractPromptText(transfer),
+        referenceId,
+        fromFile: false,
+      };
+    }
+  }
+
+  if (audioFile && !hasStructuredHints) {
+    return {
+      audioUrl: null,
+      audioFile,
+      promptText: null,
+      referenceId,
+      fromFile: true,
+    };
+  }
+
+  return {
+    audioUrl: null,
+    promptText: extractPromptText(transfer),
+    referenceId,
+    fromFile: false,
+  };
+};
+
 export const extractPromptText = (transfer: DataTransfer) => {
   const promptText = transfer.getData("text/prompt") || transfer.getData("text/plain");
   if (!promptText) return null;
@@ -1137,6 +1295,22 @@ export const isVideoDragTransfer = (transfer: DataTransfer) => {
   if (transferTypes.includes("text/uri-list") || transferTypes.includes("image/url")) return true;
   const plainText = normalizeReferenceTransferUrlCandidate(transfer.getData("text/plain"));
   return Boolean(plainText && looksLikeVideoUrl(plainText));
+};
+
+export const isAudioDragTransfer = (transfer: DataTransfer) => {
+  const mediaKind = resolveReferenceTransferMediaKind(transfer);
+  if (mediaKind) return mediaKind === "audio";
+  const audioFile = findAudioFile(transfer.files);
+  if (audioFile) return true;
+  if (transfer.files?.length) return false;
+  const transferTypes = getNormalizedTransferTypes(transfer);
+  if (transferTypes.includes("files")) return true;
+  if (hasInternalReferenceDragTypeHints(transfer)) {
+    return true;
+  }
+  if (transferTypes.includes("text/uri-list") || transferTypes.includes("image/url")) return true;
+  const plainText = normalizeReferenceTransferUrlCandidate(transfer.getData("text/plain"));
+  return Boolean(plainText && looksLikeAudioUrl(plainText));
 };
 
 export const prepareReferenceDrag = (

@@ -29,6 +29,9 @@ import {
   resolveAiStudioKlingElementDisplayLabel,
   resolveAiStudioKlingElementLegacyTokens,
   resolveKieKlingElementToken,
+  collectSeedanceElementProviderReferences,
+  resolveSeedanceReferenceLimitError,
+  resolveSeedanceReferenceRequirementError,
   type AiStudioKlingElement,
 } from "../../logic/klingElements";
 import { needsImageUpload, prepareImageUrlForSubmission } from "../../utils/imageUpload";
@@ -104,7 +107,11 @@ const readDataUrlBlob = (value: string, mediaKind: "image" | "video" | "audio"):
 };
 
 const hasKlingElementMedia = (element: AiStudioKlingElement): boolean =>
-  Boolean(element.videoUrl.trim() || getAiStudioKlingElementReferenceUrls(element).length);
+  Boolean(
+    element.videoUrl.trim() ||
+    element.audioUrl?.trim() ||
+    getAiStudioKlingElementReferenceUrls(element).length
+  );
 
 const isKieHostedTemporaryMediaUrl = (value: string): boolean => {
   try {
@@ -937,7 +944,7 @@ const prepareKieHostedKlingElementForSubmission = async ({
     .filter(Boolean)
     .slice(0, KIE_KLING_MAX_IMAGE_ELEMENT_URLS);
 
-  const [klingHostedImageUrls, klingHostedVideoUrl] = await Promise.all([
+  const [klingHostedImageUrls, klingHostedVideoUrl, klingHostedAudioUrl] = await Promise.all([
     Promise.all(
       rawImageUrls.map(async (url) => {
         if (needsImageUpload(url)) {
@@ -976,6 +983,14 @@ const prepareKieHostedKlingElementForSubmission = async ({
               : ""
           )
       : Promise.resolve(""),
+    element.audioUrl?.trim()
+      ? prepareKieInputUrl({
+          rawUrl: element.audioUrl,
+          preparedUrl: element.audioUrl,
+          mediaKind: "audio",
+          cache,
+        })
+      : Promise.resolve(""),
   ]);
 
   return {
@@ -983,6 +998,7 @@ const prepareKieHostedKlingElementForSubmission = async ({
     frontalImageUrl: klingHostedImageUrls[0] ?? "",
     referenceImageUrls: klingHostedImageUrls.slice(1).join(", "),
     videoUrl: klingHostedVideoUrl,
+    audioUrl: klingHostedAudioUrl,
   };
 };
 
@@ -1123,56 +1139,6 @@ const buildSeedancePromptPayload = ({
       mode: klingWorkflowMode === "multi" || klingWorkflowMode === "custom" ? "multi" : "single",
     }),
   };
-};
-
-const collectSeedanceLinkedEntityReferences = (klingElements: AiStudioKlingElement[]) =>
-  klingElements.reduce<{ imageUrls: string[]; videoUrls: string[] }>(
-    (accumulator, element) => {
-      accumulator.imageUrls.push(...getAiStudioKlingElementReferenceUrls(element));
-      const videoUrl = element.videoUrl.trim();
-      if (videoUrl) accumulator.videoUrls.push(videoUrl);
-      return accumulator;
-    },
-    { imageUrls: [], videoUrls: [] }
-  );
-
-const SEEDANCE_REFERENCE_IMAGE_LIMIT = 9;
-const SEEDANCE_REFERENCE_VIDEO_LIMIT = 3;
-const SEEDANCE_REFERENCE_AUDIO_LIMIT = 3;
-const SEEDANCE_REFERENCE_TOTAL_LIMIT = 12;
-
-const resolveSeedanceReferenceLimitError = ({
-  imageUrls,
-  videoUrls,
-  audioUrls,
-}: {
-  imageUrls: string[];
-  videoUrls: string[];
-  audioUrls: string[];
-}): string | null => {
-  const imageCount = Array.from(
-    new Set(imageUrls.map((value) => value.trim()).filter(Boolean))
-  ).length;
-  const videoCount = Array.from(
-    new Set(videoUrls.map((value) => value.trim()).filter(Boolean))
-  ).length;
-  const audioCount = Array.from(
-    new Set(audioUrls.map((value) => value.trim()).filter(Boolean))
-  ).length;
-  const totalCount = imageCount + videoCount + audioCount;
-  if (imageCount > SEEDANCE_REFERENCE_IMAGE_LIMIT) {
-    return `Seedance 2 supports up to ${SEEDANCE_REFERENCE_IMAGE_LIMIT} image references.`;
-  }
-  if (videoCount > SEEDANCE_REFERENCE_VIDEO_LIMIT) {
-    return `Seedance 2 supports up to ${SEEDANCE_REFERENCE_VIDEO_LIMIT} video references.`;
-  }
-  if (audioCount > SEEDANCE_REFERENCE_AUDIO_LIMIT) {
-    return `Seedance 2 supports up to ${SEEDANCE_REFERENCE_AUDIO_LIMIT} audio references.`;
-  }
-  if (totalCount > SEEDANCE_REFERENCE_TOTAL_LIMIT) {
-    return `Seedance 2 supports up to ${SEEDANCE_REFERENCE_TOTAL_LIMIT} total references.`;
-  }
-  return null;
 };
 
 type ResolvedKieKlingShotModePayload = {
@@ -1538,11 +1504,12 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
     }) => {
       const hasPreparedFirstFrame = preparedImageInputs.length >= 1;
       const hasPreparedLastFrame = preparedImageInputs.length >= 2;
+      const shouldUseSeedanceMultimodalReferences = seedance2InputMode === "multimodal";
       let preparedSeedanceLinkedElements: AiStudioKlingElement[] = [];
       try {
-        const seedanceElementsWithMedia = klingElements.filter((element) =>
-          hasKlingElementMedia(element)
-        );
+        const seedanceElementsWithMedia = shouldUseSeedanceMultimodalReferences
+          ? klingElements.filter((element) => hasKlingElementMedia(element))
+          : [];
         if (seedanceElementsWithMedia.length) {
           const seedanceUploadCache = new Map<string, Promise<string>>();
           preparedSeedanceLinkedElements = await Promise.all(
@@ -1562,19 +1529,29 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
         notifyGenerationFailure(id, `Seedance linked asset preparation failed: ${message}`);
         return { handled: true };
       }
-      const linkedEntityReferences = collectSeedanceLinkedEntityReferences(
+      const linkedEntityReferences = collectSeedanceElementProviderReferences(
         preparedSeedanceLinkedElements
       );
-      const hasLinkedEntityReferences = Boolean(
-        linkedEntityReferences.imageUrls.length || linkedEntityReferences.videoUrls.length
-      );
-      const referenceLimitError = resolveSeedanceReferenceLimitError({
-        imageUrls: [...seedance2ReferenceImageUrls, ...linkedEntityReferences.imageUrls],
-        videoUrls: [...seedance2ReferenceVideoUrls, ...linkedEntityReferences.videoUrls],
-        audioUrls: seedance2ReferenceAudioUrls,
-      });
+      const referenceLimitError = shouldUseSeedanceMultimodalReferences
+        ? resolveSeedanceReferenceLimitError({
+            imageUrls: [...seedance2ReferenceImageUrls, ...linkedEntityReferences.imageUrls],
+            videoUrls: [...seedance2ReferenceVideoUrls, ...linkedEntityReferences.videoUrls],
+            audioUrls: [...seedance2ReferenceAudioUrls, ...linkedEntityReferences.audioUrls],
+          })
+        : null;
       if (referenceLimitError) {
         notifyGenerationFailure(id, referenceLimitError);
+        return { handled: true };
+      }
+      const referenceRequirementError = shouldUseSeedanceMultimodalReferences
+        ? resolveSeedanceReferenceRequirementError({
+            imageUrls: [...seedance2ReferenceImageUrls, ...linkedEntityReferences.imageUrls],
+            videoUrls: [...seedance2ReferenceVideoUrls, ...linkedEntityReferences.videoUrls],
+            audioUrls: [...seedance2ReferenceAudioUrls, ...linkedEntityReferences.audioUrls],
+          })
+        : null;
+      if (referenceRequirementError) {
+        notifyGenerationFailure(id, referenceRequirementError);
         return { handled: true };
       }
       const hasMultimodalReferences = Boolean(
@@ -1582,11 +1559,11 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
         seedance2ReferenceVideoUrls.length ||
         seedance2ReferenceAudioUrls.length ||
         linkedEntityReferences.imageUrls.length ||
-        linkedEntityReferences.videoUrls.length
+        linkedEntityReferences.videoUrls.length ||
+        linkedEntityReferences.audioUrls.length
       );
       const effectiveInputMode =
-        (seedance2InputMode === "multimodal" || hasLinkedEntityReferences) &&
-        hasMultimodalReferences
+        shouldUseSeedanceMultimodalReferences && hasMultimodalReferences
           ? "multimodal"
           : hasPreparedLastFrame
             ? "first-last"
@@ -1651,7 +1628,9 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
           : Promise.resolve([]),
         effectiveInputMode === "multimodal"
           ? uploadUrlsToKieTemporaryFiles({
-              urls: seedance2ReferenceAudioUrls,
+              urls: Array.from(
+                new Set([...seedance2ReferenceAudioUrls, ...linkedEntityReferences.audioUrls])
+              ),
               mediaKind: "audio",
               cache: kieUploadCache,
             })

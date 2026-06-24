@@ -200,6 +200,7 @@ export type WorkflowReloadVideoKlingElementSlot = {
   frontalImageInternalMediaRef?: InternalMediaRef | null;
   referenceImageInternalMediaRefs?: Array<InternalMediaRef | null>;
   videoInternalMediaRef?: InternalMediaRef | null;
+  audioInternalMediaRef?: InternalMediaRef | null;
 };
 
 export type WorkflowReloadVideoReferences = {

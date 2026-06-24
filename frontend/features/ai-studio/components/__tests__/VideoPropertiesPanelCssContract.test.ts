@@ -102,4 +102,12 @@ describe("VideoPropertiesPanel generate footer CSS contract", () => {
 
     expectRuleToContain(css, selector, "font-size: 12px");
   });
+
+  it("keeps the Seedance settings card elevated inside the dense AI Studio shell", () => {
+    const css = readCss();
+    const selector =
+      ".ai-shell.ai-shell-performance-dense .video-properties-panel .video-elements-card--seedance";
+
+    expectRuleToContain(css, selector, "box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28) !important");
+  });
 });

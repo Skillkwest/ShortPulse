@@ -11,10 +11,11 @@ export type AiStudioKlingEntitySourceKind =
   | "element"
   | "character"
   | "reference-image"
-  | "reference-video";
+  | "reference-video"
+  | "reference-audio";
 export type AiStudioKlingSavedEntitySourceKind = Exclude<
   AiStudioKlingEntitySourceKind,
-  "reference-image" | "reference-video"
+  "reference-image" | "reference-video" | "reference-audio"
 >;
 export type AiStudioKlingProfileImageTransform =
   | ElementProfileImageTransform
@@ -37,21 +38,27 @@ export type AiStudioKlingElement = {
   frontalImageUrl: string;
   referenceImageUrls: string;
   videoUrl: string;
+  audioUrl?: string;
 };
 
-export type AiStudioKlingElementMediaKind = "none" | "image" | "video" | "mixed";
+export type AiStudioKlingElementMediaKind = "none" | "image" | "video" | "audio" | "mixed";
 
 export type AiStudioKlingElementProviderEligibility = {
   isSubmittable: boolean;
   mediaKind: AiStudioKlingElementMediaKind;
   imageUrls: string[];
   videoUrls: string[];
+  audioUrls: string[];
   reason: string | null;
 };
 
 export const KIE_KLING_ELEMENT_SLOT_LIMIT = 3;
 export const KIE_KLING_MIN_IMAGE_ELEMENT_URLS = 2;
 export const KIE_KLING_MAX_IMAGE_ELEMENT_URLS = 4;
+export const SEEDANCE_REFERENCE_IMAGE_LIMIT = 9;
+export const SEEDANCE_REFERENCE_VIDEO_LIMIT = 3;
+export const SEEDANCE_REFERENCE_AUDIO_LIMIT = 3;
+export const SEEDANCE_REFERENCE_TOTAL_LIMIT = 12;
 
 export const createEmptyAiStudioKlingElement = (): AiStudioKlingElement => ({
   id: randomId(),
@@ -69,6 +76,7 @@ export const createEmptyAiStudioKlingElement = (): AiStudioKlingElement => ({
   frontalImageUrl: "",
   referenceImageUrls: "",
   videoUrl: "",
+  audioUrl: "",
 });
 
 export const createSeedanceImageReferenceSlot = ({
@@ -104,6 +112,22 @@ export const createSeedanceVideoReferenceSlot = ({
   videoUrl,
 });
 
+export const createSeedanceAudioReferenceSlot = ({
+  slotIndex,
+  audioUrl,
+  name,
+}: {
+  slotIndex: number;
+  audioUrl: string;
+  name?: string | null;
+}): AiStudioKlingElement => ({
+  ...createEmptyAiStudioKlingElement(),
+  slotIndex,
+  sourceKind: "reference-audio",
+  name: name?.trim() || "Audio reference",
+  audioUrl,
+});
+
 export const isSeedanceImageReferenceSlot = (
   element: Pick<AiStudioKlingElement, "sourceKind"> | null | undefined
 ): boolean => element?.sourceKind === "reference-image";
@@ -112,9 +136,16 @@ export const isSeedanceVideoReferenceSlot = (
   element: Pick<AiStudioKlingElement, "sourceKind"> | null | undefined
 ): boolean => element?.sourceKind === "reference-video";
 
+export const isSeedanceAudioReferenceSlot = (
+  element: Pick<AiStudioKlingElement, "sourceKind"> | null | undefined
+): boolean => element?.sourceKind === "reference-audio";
+
 export const isSeedanceDirectReferenceSlot = (
   element: Pick<AiStudioKlingElement, "sourceKind"> | null | undefined
-): boolean => isSeedanceImageReferenceSlot(element) || isSeedanceVideoReferenceSlot(element);
+): boolean =>
+  isSeedanceImageReferenceSlot(element) ||
+  isSeedanceVideoReferenceSlot(element) ||
+  isSeedanceAudioReferenceSlot(element);
 
 export const isPromptTokenEligibleKlingElement = (
   element: Pick<AiStudioKlingElement, "sourceKind"> | null | undefined
@@ -155,13 +186,39 @@ const resolveKlingElementDisplayName = (
 const dedupeTrimmedUrls = (urls: string[]): string[] =>
   Array.from(new Set(urls.map((url) => url.trim()).filter(Boolean)));
 
+const countSeedanceProviderReferences = ({
+  imageUrls,
+  videoUrls,
+  audioUrls,
+}: {
+  imageUrls: string[];
+  videoUrls: string[];
+  audioUrls: string[];
+}): { imageCount: number; videoCount: number; audioCount: number; totalCount: number } => {
+  const imageCount = dedupeTrimmedUrls(imageUrls).length;
+  const videoCount = dedupeTrimmedUrls(videoUrls).length;
+  const audioCount = dedupeTrimmedUrls(audioUrls).length;
+  return {
+    imageCount,
+    videoCount,
+    audioCount,
+    totalCount: imageCount + videoCount + audioCount,
+  };
+};
+
 export const resolveAiStudioKlingElementMediaKind = (
-  element: Pick<AiStudioKlingElement, "frontalImageUrl" | "referenceImageUrls" | "videoUrl">
+  element: Pick<
+    AiStudioKlingElement,
+    "frontalImageUrl" | "referenceImageUrls" | "videoUrl" | "audioUrl"
+  >
 ): AiStudioKlingElementMediaKind => {
   const hasImages = getAiStudioKlingElementReferenceUrls(element).length > 0;
   const hasVideo = element.videoUrl.trim().length > 0;
-  if (hasImages && hasVideo) return "mixed";
+  const hasAudio = (element.audioUrl ?? "").trim().length > 0;
+  const mediaKindCount = [hasImages, hasVideo, hasAudio].filter(Boolean).length;
+  if (mediaKindCount > 1) return "mixed";
   if (hasVideo) return "video";
+  if (hasAudio) return "audio";
   if (hasImages) return "image";
   return "none";
 };
@@ -175,17 +232,31 @@ export const resolveKieKlingElementProviderEligibility = (
 ): AiStudioKlingElementProviderEligibility => {
   const imageUrls = dedupeTrimmedUrls(getAiStudioKlingElementReferenceUrls(element));
   const videoUrls = dedupeTrimmedUrls([element.videoUrl]);
+  const audioUrls = dedupeTrimmedUrls([element.audioUrl ?? ""]);
   const hasImages = imageUrls.length > 0;
   const hasVideo = videoUrls.length > 0;
+  const hasAudio = audioUrls.length > 0;
   const displayName = resolveKlingElementDisplayName(element, options.displayName);
 
-  if (isSeedanceImageReferenceSlot(element)) {
+  if (isSeedanceDirectReferenceSlot(element)) {
     return {
       isSubmittable: false,
-      mediaKind: hasImages ? "image" : "none",
+      mediaKind: resolveAiStudioKlingElementMediaKind(element),
       imageUrls,
-      videoUrls: [],
+      videoUrls,
+      audioUrls,
       reason: null,
+    };
+  }
+
+  if (hasAudio) {
+    return {
+      isSubmittable: false,
+      mediaKind: resolveAiStudioKlingElementMediaKind(element),
+      imageUrls,
+      videoUrls,
+      audioUrls,
+      reason: `Kling element ${displayName} does not support audio references.`,
     };
   }
 
@@ -195,6 +266,7 @@ export const resolveKieKlingElementProviderEligibility = (
       mediaKind: "mixed",
       imageUrls,
       videoUrls,
+      audioUrls: [],
       reason: `Kling element ${displayName} must use either one video reference or 2-4 image references, not both.`,
     };
   }
@@ -205,6 +277,7 @@ export const resolveKieKlingElementProviderEligibility = (
       mediaKind: "video",
       imageUrls: [],
       videoUrls,
+      audioUrls: [],
       reason: null,
     };
   }
@@ -216,6 +289,7 @@ export const resolveKieKlingElementProviderEligibility = (
         mediaKind: "image",
         imageUrls,
         videoUrls: [],
+        audioUrls: [],
         reason: `Kling element ${displayName} needs at least 2 image references before generating.`,
       };
     }
@@ -224,6 +298,7 @@ export const resolveKieKlingElementProviderEligibility = (
       mediaKind: "image",
       imageUrls: imageUrls.slice(0, KIE_KLING_MAX_IMAGE_ELEMENT_URLS),
       videoUrls: [],
+      audioUrls: [],
       reason: null,
     };
   }
@@ -233,6 +308,7 @@ export const resolveKieKlingElementProviderEligibility = (
     mediaKind: "none",
     imageUrls: [],
     videoUrls: [],
+    audioUrls: [],
     reason: null,
   };
 };
@@ -242,14 +318,77 @@ export const resolveSeedanceElementProviderEligibility = (
 ): AiStudioKlingElementProviderEligibility => {
   const imageUrls = dedupeTrimmedUrls(getAiStudioKlingElementReferenceUrls(element));
   const videoUrls = dedupeTrimmedUrls([element.videoUrl]);
+  const audioUrls = dedupeTrimmedUrls([element.audioUrl ?? ""]);
   const mediaKind = resolveAiStudioKlingElementMediaKind(element);
   return {
-    isSubmittable: Boolean(imageUrls.length || videoUrls.length),
+    isSubmittable: Boolean(imageUrls.length || videoUrls.length || audioUrls.length),
     mediaKind,
     imageUrls,
     videoUrls,
+    audioUrls,
     reason: null,
   };
+};
+
+export const collectSeedanceElementProviderReferences = (elements: AiStudioKlingElement[]) =>
+  elements.reduce<{ imageUrls: string[]; videoUrls: string[]; audioUrls: string[] }>(
+    (accumulator, element) => {
+      const eligibility = resolveSeedanceElementProviderEligibility(element);
+      accumulator.imageUrls.push(...eligibility.imageUrls);
+      accumulator.videoUrls.push(...eligibility.videoUrls);
+      accumulator.audioUrls.push(...eligibility.audioUrls);
+      return accumulator;
+    },
+    { imageUrls: [], videoUrls: [], audioUrls: [] }
+  );
+
+export const resolveSeedanceReferenceLimitError = ({
+  imageUrls,
+  videoUrls,
+  audioUrls,
+}: {
+  imageUrls: string[];
+  videoUrls: string[];
+  audioUrls: string[];
+}): string | null => {
+  const { imageCount, videoCount, audioCount, totalCount } = countSeedanceProviderReferences({
+    imageUrls,
+    videoUrls,
+    audioUrls,
+  });
+  if (imageCount > SEEDANCE_REFERENCE_IMAGE_LIMIT) {
+    return `Seedance 2 supports up to ${SEEDANCE_REFERENCE_IMAGE_LIMIT} image references.`;
+  }
+  if (videoCount > SEEDANCE_REFERENCE_VIDEO_LIMIT) {
+    return `Seedance 2 supports up to ${SEEDANCE_REFERENCE_VIDEO_LIMIT} video references.`;
+  }
+  if (audioCount > SEEDANCE_REFERENCE_AUDIO_LIMIT) {
+    return `Seedance 2 supports up to ${SEEDANCE_REFERENCE_AUDIO_LIMIT} audio references.`;
+  }
+  if (totalCount > SEEDANCE_REFERENCE_TOTAL_LIMIT) {
+    return `Seedance 2 supports up to ${SEEDANCE_REFERENCE_TOTAL_LIMIT} total references.`;
+  }
+  return null;
+};
+
+export const resolveSeedanceReferenceRequirementError = ({
+  imageUrls,
+  videoUrls,
+  audioUrls,
+}: {
+  imageUrls: string[];
+  videoUrls: string[];
+  audioUrls: string[];
+}): string | null => {
+  const { imageCount, videoCount, audioCount } = countSeedanceProviderReferences({
+    imageUrls,
+    videoUrls,
+    audioUrls,
+  });
+  if (audioCount > 0 && imageCount + videoCount === 0) {
+    return "Seedance 2 audio references require at least one image or video reference.";
+  }
+  return null;
 };
 
 const resolveElementSlotIndex = (element: AiStudioKlingElement, fallbackIndex: number): number =>

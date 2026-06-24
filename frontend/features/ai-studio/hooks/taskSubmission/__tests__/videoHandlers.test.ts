@@ -1558,6 +1558,7 @@ describe("handleVideoModelSubmission (Kie Seedance 2)", () => {
       requestedResolution: "1080p",
       requestedAudio: true,
       videoReferenceMode: "standard",
+      seedance2InputMode: "multimodal",
       klingWorkflowMode: "custom",
       klingMultiPrompts: [
         { id: "shot-1", prompt: "Follow @redlantern past the crowd", duration: 5 },
@@ -1709,6 +1710,52 @@ describe("handleVideoModelSubmission (Kie Seedance 2)", () => {
     expect(payload).not.toHaveProperty("last_frame_url");
   });
 
+  it("uses explicit Seedance first-last mode instead of hidden linked assets", async () => {
+    const args = makeArgs({
+      finalModel: KIE_SEEDANCE_2_MODEL_ID,
+      modelConfig: getModelConfig(KIE_SEEDANCE_2_MODEL_ID),
+      cleanedPrompt: "Animate @steamtrain from the supplied frames",
+      preparedImageInputs: [
+        "https://example.com/first-frame.png",
+        "https://example.com/last-frame.png",
+      ],
+      rawImageInputs: ["https://example.com/first-frame.png", "https://example.com/last-frame.png"],
+      videoReferenceMode: "standard",
+      seedance2InputMode: "first-last",
+      klingElements: [
+        {
+          id: "element-1",
+          slotIndex: 0,
+          name: "Steam Train",
+          alias: "steamtrain",
+          description: "Vintage black locomotive.",
+          frontalImageUrl: "",
+          referenceImageUrls: "",
+          videoUrl: "https://example.com/steamtrain-motion.mp4",
+        },
+      ],
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(args.notifyGenerationFailure).not.toHaveBeenCalled();
+    expect(submitKieSeedance2Video).toHaveBeenCalledWith(
+      expect.objectContaining({
+        first_frame_url:
+          "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/first-frame.png",
+        last_frame_url:
+          "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/last-frame.png",
+      })
+    );
+    const payload = vi.mocked(submitKieSeedance2Video).mock.calls[0]?.[0] as Record<
+      string,
+      unknown
+    >;
+    expect(payload).not.toHaveProperty("reference_video_urls");
+    expect(payload.prompt).not.toContain("Linked reference subjects");
+  });
+
   it("submits direct Seedance video reference slots as multimodal video references", async () => {
     const args = makeArgs({
       finalModel: KIE_SEEDANCE_2_MODEL_ID,
@@ -1752,6 +1799,109 @@ describe("handleVideoModelSubmission (Kie Seedance 2)", () => {
     );
   });
 
+  it("submits direct Seedance audio reference slots as multimodal audio references", async () => {
+    const args = makeArgs({
+      finalModel: KIE_SEEDANCE_2_MODEL_ID,
+      modelConfig: getModelConfig(KIE_SEEDANCE_2_MODEL_ID),
+      cleanedPrompt: "Use the direct audio reference",
+      preparedImageInputs: [],
+      requestedDurationSeconds: 6,
+      requestedResolution: "1080p",
+      requestedAudio: false,
+      videoReferenceMode: "standard",
+      seedance2InputMode: "multimodal",
+      klingElements: [
+        {
+          id: "direct-image-1",
+          slotIndex: 0,
+          sourceKind: "reference-image",
+          sourceElementId: null,
+          sourceCharacterId: null,
+          name: "Image reference",
+          alias: "",
+          description: "",
+          profileImageUrl: "https://example.com/direct-image.png",
+          profileImageTransform: null,
+          frontalImageUrl: "https://example.com/direct-image.png",
+          referenceImageUrls: "",
+          videoUrl: "",
+        },
+        {
+          id: "direct-audio-1",
+          slotIndex: 1,
+          sourceKind: "reference-audio",
+          sourceElementId: null,
+          sourceCharacterId: null,
+          name: "Audio reference",
+          alias: "",
+          description: "",
+          profileImageUrl: null,
+          profileImageTransform: null,
+          frontalImageUrl: "",
+          referenceImageUrls: "",
+          videoUrl: "",
+          audioUrl: "https://example.com/direct-voice.mp3",
+        },
+      ],
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(args.notifyGenerationFailure).not.toHaveBeenCalled();
+    expect(submitKieSeedance2Video).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reference_image_urls: [
+          "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/direct-image.png",
+        ],
+        reference_audio_urls: [
+          "https://tempfile.aiquickdraw.com/shortpulse/kie-video/audio/direct-voice.mp3",
+        ],
+      })
+    );
+  });
+
+  it("blocks Seedance submissions when audio references have no image or video reference", async () => {
+    const args = makeArgs({
+      finalModel: KIE_SEEDANCE_2_MODEL_ID,
+      modelConfig: getModelConfig(KIE_SEEDANCE_2_MODEL_ID),
+      cleanedPrompt: "Use the direct audio reference",
+      preparedImageInputs: [],
+      requestedDurationSeconds: 6,
+      requestedResolution: "1080p",
+      requestedAudio: false,
+      videoReferenceMode: "standard",
+      seedance2InputMode: "multimodal",
+      klingElements: [
+        {
+          id: "direct-audio-1",
+          slotIndex: 0,
+          sourceKind: "reference-audio",
+          sourceElementId: null,
+          sourceCharacterId: null,
+          name: "Audio reference",
+          alias: "",
+          description: "",
+          profileImageUrl: null,
+          profileImageTransform: null,
+          frontalImageUrl: "",
+          referenceImageUrls: "",
+          videoUrl: "",
+          audioUrl: "https://example.com/direct-voice.mp3",
+        },
+      ],
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-1",
+      "Seedance 2 audio references require at least one image or video reference."
+    );
+    expect(submitKieSeedance2Video).not.toHaveBeenCalled();
+  });
+
   it("blocks Seedance submissions with more than three video references", async () => {
     const args = makeArgs({
       finalModel: KIE_SEEDANCE_2_MODEL_ID,
@@ -1786,6 +1936,45 @@ describe("handleVideoModelSubmission (Kie Seedance 2)", () => {
     expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
       "out-1",
       "Seedance 2 supports up to 3 video references."
+    );
+    expect(submitKieSeedance2Video).not.toHaveBeenCalled();
+  });
+
+  it("blocks Seedance submissions with more than three audio references", async () => {
+    const args = makeArgs({
+      finalModel: KIE_SEEDANCE_2_MODEL_ID,
+      modelConfig: getModelConfig(KIE_SEEDANCE_2_MODEL_ID),
+      cleanedPrompt: "Use too many direct audio references",
+      preparedImageInputs: [],
+      requestedDurationSeconds: 6,
+      requestedResolution: "1080p",
+      requestedAudio: false,
+      videoReferenceMode: "standard",
+      seedance2InputMode: "multimodal",
+      klingElements: Array.from({ length: 4 }, (_, index) => ({
+        id: `direct-audio-${index + 1}`,
+        slotIndex: index,
+        sourceKind: "reference-audio" as const,
+        sourceElementId: null,
+        sourceCharacterId: null,
+        name: `Audio reference ${index + 1}`,
+        alias: "",
+        description: "",
+        profileImageUrl: null,
+        profileImageTransform: null,
+        frontalImageUrl: "",
+        referenceImageUrls: "",
+        videoUrl: "",
+        audioUrl: `https://example.com/direct-audio-${index + 1}.mp3`,
+      })),
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-1",
+      "Seedance 2 supports up to 3 audio references."
     );
     expect(submitKieSeedance2Video).not.toHaveBeenCalled();
   });

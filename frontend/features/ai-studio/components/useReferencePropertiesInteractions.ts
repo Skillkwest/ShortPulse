@@ -16,9 +16,12 @@ import {
 } from "../logic/motionReferenceVideoDropSource";
 import {
   extractDragDropPayload,
+  extractAudioDragDropPayload,
   extractComposerImageDropPayload,
   extractPromptDropText,
   extractInternalReferenceDragPayload,
+  isAudioDragTransfer,
+  isAudioFile,
   isImageDragTransfer,
   isImageFile,
   isVideoFile,
@@ -61,6 +64,7 @@ import {
   uploadReferenceVideoFileToStorage,
   type VideoUploadResult,
 } from "../utils/videoUpload";
+import { uploadAudioBlobToStorage, type AudioUploadResult } from "../utils/audioUpload";
 
 export type ReferenceStepKey =
   | "reference"
@@ -131,7 +135,7 @@ type UseReferencePropertiesInteractionsParams = {
   seedanceElementSlotCount?: number;
   onSeedanceElementMediaSlotChange?: (
     slotIndex: number,
-    value: { kind: "image" | "video"; url: string; name?: string | null } | null
+    value: { kind: "image" | "video" | "audio"; url: string; name?: string | null } | null
   ) => void;
 };
 
@@ -209,6 +213,12 @@ const createUploadedImageInternalMediaRef = (uploaded: ImageUploadResponse) =>
   });
 
 const createUploadedVideoInternalMediaRef = (uploaded: VideoUploadResult) =>
+  createInternalMediaRef({
+    bucket: INTERNAL_MEDIA_REF_BUCKET,
+    storagePath: uploaded.path,
+  });
+
+const createUploadedAudioInternalMediaRef = (uploaded: AudioUploadResult) =>
   createInternalMediaRef({
     bucket: INTERNAL_MEDIA_REF_BUCKET,
     storagePath: uploaded.path,
@@ -766,6 +776,42 @@ export const useReferencePropertiesInteractions = ({
     return { url: normalizedUrl };
   };
 
+  const stageSeedanceAudioSelection = async ({
+    audioFile,
+    audioUrl,
+    name,
+  }: {
+    audioFile?: File | null;
+    audioUrl?: string | null;
+    name?: string | null;
+  }): Promise<{ url: string; name?: string | null } | null> => {
+    if (audioFile) {
+      const uploaded = await uploadAudioBlobToStorage(audioFile, {
+        sourceName: audioFile.name,
+        mimeType: audioFile.type,
+      });
+      registerInternalMediaRefForUrl(uploaded.url, createUploadedAudioInternalMediaRef(uploaded));
+      return { url: uploaded.url, name: audioFile.name };
+    }
+    const normalizedUrl = audioUrl?.trim() ?? "";
+    if (!normalizedUrl) return null;
+    if (normalizedUrl.startsWith("blob:") || /^data:audio\//i.test(normalizedUrl)) {
+      const rememberedBlob = normalizedUrl.startsWith("blob:")
+        ? readRememberedObjectUrlBlob(normalizedUrl)
+        : null;
+      const sourceBlob =
+        rememberedBlob ?? (await fetch(normalizedUrl).then((response) => response.blob()));
+      if (!sourceBlob) return null;
+      const uploaded = await uploadAudioBlobToStorage(sourceBlob, {
+        sourceName: name,
+        mimeType: sourceBlob.type,
+      });
+      registerInternalMediaRefForUrl(uploaded.url, createUploadedAudioInternalMediaRef(uploaded));
+      return { url: uploaded.url, name };
+    }
+    return { url: normalizedUrl, name };
+  };
+
   const handlePrimaryFileSelection = async (event: ChangeEvent<HTMLInputElement>) => {
     if (!stagePrimaryImageForProviderAccess) {
       handleFileSelection(onPrimaryImageChange)(event);
@@ -1140,6 +1186,28 @@ export const useReferencePropertiesInteractions = ({
       );
       return;
     }
+    if (payload.kind === "audio") {
+      setSeedanceElementImageLoadingAt(index, true);
+      void (async () => {
+        try {
+          const stagedAudio = await stageSeedanceAudioSelection({
+            audioUrl: payload.audioUrl,
+            name: payload.title,
+          });
+          if (!stagedAudio) return;
+          onSeedanceElementMediaSlotChange(index, {
+            kind: "audio",
+            url: stagedAudio.url,
+            name: stagedAudio.name,
+          });
+        } catch (error) {
+          console.error("AI Studio Seedance audio reference staging failed:", error);
+        } finally {
+          setSeedanceElementImageLoadingAt(index, false);
+        }
+      })();
+      return;
+    }
     if (payload.kind !== "video") return;
     setSeedanceElementImageLoadingAt(index, true);
     void (async () => {
@@ -1243,8 +1311,9 @@ export const useReferencePropertiesInteractions = ({
       if (!file) return;
       const isImage = isImageFile(file);
       const isVideo = isVideoFile(file);
+      const isAudio = isAudioFile(file);
       const fileName = file.name;
-      if (!isImage && !isVideo) {
+      if (!isImage && !isVideo && !isAudio) {
         event.target.value = "";
         return;
       }
@@ -1262,6 +1331,16 @@ export const useReferencePropertiesInteractions = ({
               kind: "image",
               url: stagedImage.url,
               name: fileName,
+            });
+            return;
+          }
+          if (isAudio) {
+            const stagedAudio = await stageSeedanceAudioSelection({ audioFile: file });
+            if (!stagedAudio) return;
+            onSeedanceElementMediaSlotChange?.(index, {
+              kind: "audio",
+              url: stagedAudio.url,
+              name: stagedAudio.name ?? fileName,
             });
             return;
           }
@@ -1292,7 +1371,8 @@ export const useReferencePropertiesInteractions = ({
         { stageForProviderAccess: true }
       )(event);
     }
-    if (!isVideoDragTransfer(event.dataTransfer)) return;
+    if (!isVideoDragTransfer(event.dataTransfer) && !isAudioDragTransfer(event.dataTransfer))
+      return;
     event.preventDefault();
     event.stopPropagation();
     const snapshot = captureAiStudioDropSnapshot(event.dataTransfer);
@@ -1305,19 +1385,35 @@ export const useReferencePropertiesInteractions = ({
           resolveMotionVideoUrlById,
           resolvePreviewUrlById,
         });
-        if (!resolvedSource) return;
-        const stagedVideo =
-          resolvedSource.kind === "file"
-            ? await stageSeedanceVideoSelection({ videoFile: resolvedSource.videoFile })
-            : await stageSeedanceVideoSelection({ videoUrl: resolvedSource.videoUrl });
-        if (!stagedVideo) return;
+        if (resolvedSource) {
+          const stagedVideo =
+            resolvedSource.kind === "file"
+              ? await stageSeedanceVideoSelection({ videoFile: resolvedSource.videoFile })
+              : await stageSeedanceVideoSelection({ videoUrl: resolvedSource.videoUrl });
+          if (stagedVideo) {
+            onSeedanceElementMediaSlotChange(index, {
+              kind: "video",
+              url: stagedVideo.url,
+              name: stagedVideo.name,
+            });
+            return;
+          }
+        }
+        const audioPayload = extractAudioDragDropPayload(
+          buildAiStudioDropSnapshotTransfer(snapshot)
+        );
+        const stagedAudio = await stageSeedanceAudioSelection({
+          audioFile: audioPayload.audioFile ?? null,
+          audioUrl: audioPayload.audioUrl,
+        });
+        if (!stagedAudio) return;
         onSeedanceElementMediaSlotChange(index, {
-          kind: "video",
-          url: stagedVideo.url,
-          name: stagedVideo.name,
+          kind: "audio",
+          url: stagedAudio.url,
+          name: stagedAudio.name,
         });
       } catch (error) {
-        console.error("AI Studio Seedance video reference drop failed:", error);
+        console.error("AI Studio Seedance media reference drop failed:", error);
       } finally {
         setSeedanceElementImageLoadingAt(index, false);
       }
@@ -1357,7 +1453,11 @@ export const useReferencePropertiesInteractions = ({
   };
 
   const allowMediaDrag = (event: DragEvent<HTMLDivElement>) => {
-    if (isImageDragTransfer(event.dataTransfer) || isVideoDragTransfer(event.dataTransfer)) {
+    if (
+      isImageDragTransfer(event.dataTransfer) ||
+      isVideoDragTransfer(event.dataTransfer) ||
+      isAudioDragTransfer(event.dataTransfer)
+    ) {
       event.preventDefault();
       return true;
     }

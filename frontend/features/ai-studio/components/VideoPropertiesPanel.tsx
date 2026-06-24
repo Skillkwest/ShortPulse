@@ -2,7 +2,7 @@
  * Dedicated properties panel for the Video workflow.
  */
 import React from "react";
-import { Trash, UploadSimple, VideoCamera } from "phosphor-react";
+import { SpeakerHigh, Trash, UploadSimple, VideoCamera } from "phosphor-react";
 import { AppMessage } from "../../../components/AppMessage";
 import type { AspectOption, LipSyncAudioState, VideoReferenceMode } from "../types";
 import { modelLogos } from "../constants";
@@ -50,13 +50,17 @@ import {
 import { resolveVideoGenerationLaneFromFrameInputs } from "../logic/referenceInputs";
 import { isSeedance2UiEnabled } from "../logic/seedance2Availability";
 import {
+  collectSeedanceElementProviderReferences,
   createSeedanceImageReferenceSlot,
+  createSeedanceAudioReferenceSlot,
   createSeedanceVideoReferenceSlot,
   getAiStudioKlingElementReferenceUrls,
   isElementSlotVisibleForVideoModel,
   isPromptTokenEligibleKlingElement,
   isSeedanceImageReferenceSlot,
+  isSeedanceAudioReferenceSlot,
   isSeedanceVideoReferenceSlot,
+  resolveSeedanceReferenceLimitError,
   resolveAiStudioKlingElementDisplayLabel,
   resolveAiStudioKlingElementLegacyTokens,
   type AiStudioKlingElement,
@@ -139,6 +143,7 @@ const buildSavedKlingElementRefreshKey = (
 const hasKlingElementVisibleMedia = (element: AiStudioKlingElement): boolean =>
   Boolean(
     element.videoUrl.trim() ||
+    element.audioUrl?.trim() ||
     getAiStudioKlingElementReferenceUrls(element).length ||
     element.profileImageUrl?.trim()
   );
@@ -407,6 +412,9 @@ export function VideoPropertiesPanel({
   const lipSyncAudioUploadRevisionRef = React.useRef(0);
   const lipSyncAudioObjectUrlsRef = React.useRef<Set<string>>(new Set());
   const [elementPickerError, setElementPickerError] = React.useState<string | null>(null);
+  const [seedanceSlotLimitWarning, setSeedanceSlotLimitWarning] = React.useState<string | null>(
+    null
+  );
   const shouldStagePrimaryImageForProviderAccess = videoReferenceMode === "motion";
   const [promptTokenPickerState, setPromptTokenPickerState] = React.useState<{
     isOpen: boolean;
@@ -485,6 +493,16 @@ export function VideoPropertiesPanel({
 
     return slots;
   }, [klingElementSlotCount, klingElements]);
+  const resolveSeedanceElementSlotLimitError = React.useCallback(
+    (elements: Array<AiStudioKlingElement | null>) => {
+      if (!isSeedance2FamilyModelSelectedForSlots) return null;
+      const references = collectSeedanceElementProviderReferences(
+        elements.filter((element): element is AiStudioKlingElement => Boolean(element))
+      );
+      return resolveSeedanceReferenceLimitError(references);
+    },
+    [isSeedance2FamilyModelSelectedForSlots]
+  );
   const modelVisibleKlingElements = React.useMemo(
     () =>
       selectedKlingElements.map((element) =>
@@ -499,7 +517,7 @@ export function VideoPropertiesPanel({
   const handleSeedanceElementMediaSlotChange = React.useCallback(
     (
       slotIndex: number,
-      value: { kind: "image" | "video"; url: string; name?: string | null } | null
+      value: { kind: "image" | "video" | "audio"; url: string; name?: string | null } | null
     ) => {
       const next = Array.from(
         { length: klingElementSlotCount },
@@ -513,6 +531,12 @@ export function VideoPropertiesPanel({
           videoUrl: value.url,
           name: value.name,
         });
+      } else if (value.kind === "audio") {
+        next[slotIndex] = createSeedanceAudioReferenceSlot({
+          slotIndex,
+          audioUrl: value.url,
+          name: value.name,
+        });
       } else {
         next[slotIndex] = createSeedanceImageReferenceSlot({
           slotIndex,
@@ -520,9 +544,20 @@ export function VideoPropertiesPanel({
           name: value.name,
         });
       }
+      const limitError = resolveSeedanceElementSlotLimitError(next);
+      if (limitError) {
+        setSeedanceSlotLimitWarning(limitError);
+        return;
+      }
+      setSeedanceSlotLimitWarning(null);
       commitSelectedKlingElements(next);
     },
-    [commitSelectedKlingElements, klingElementSlotCount, selectedKlingElements]
+    [
+      commitSelectedKlingElements,
+      klingElementSlotCount,
+      resolveSeedanceElementSlotLimitError,
+      selectedKlingElements,
+    ]
   );
   const {
     primaryInputRef,
@@ -912,8 +947,14 @@ export function VideoPropertiesPanel({
           (_, index) => selectedKlingElements[index] ?? null
         );
         next[elementPickerSlotIndex] = { ...selectedElement, slotIndex: elementPickerSlotIndex };
+        const limitError = resolveSeedanceElementSlotLimitError(next);
+        if (limitError) {
+          setSeedanceSlotLimitWarning(limitError);
+          return;
+        }
         commitSelectedKlingElements(next);
         setElementPickerError(null);
+        setSeedanceSlotLimitWarning(null);
       } catch {
         setElementPickerError("Unable to attach that saved element.");
       } finally {
@@ -925,6 +966,7 @@ export function VideoPropertiesPanel({
       closeElementPicker,
       elementPickerSlotIndex,
       klingElementSlotCount,
+      resolveSeedanceElementSlotLimitError,
       selectedKlingElements,
     ]
   );
@@ -1055,7 +1097,8 @@ export function VideoPropertiesPanel({
         canvasTearOutTargetRegistry.registerTarget({
           id: `video-seedance-element-media-${index}`,
           element,
-          canAccept: (payload) => payload.kind === "image" || payload.kind === "video",
+          canAccept: (payload) =>
+            payload.kind === "image" || payload.kind === "video" || payload.kind === "audio",
           accept: (payload) => acceptSeedanceElementMediaCanvasTearOutPayload(index, payload),
           setActive: (active) => setSeedanceElementImageDragActiveAt(index, active),
         }),
@@ -2266,7 +2309,11 @@ export function VideoPropertiesPanel({
                     />
                     {shouldShowVideoElementSettings ? (
                       <div className="video-setup-elements-slot">
-                        <div className="step-card video-elements-card">
+                        <div
+                          className={`step-card video-elements-card ${
+                            isSeedance2FamilyModelSelected ? "video-elements-card--seedance" : ""
+                          }`.trim()}
+                        >
                           <div className="video-elements-card-title video-elements-card-title--large">
                             {isSeedance2FamilyModelSelected ? "Seedance 2 Settings" : "Elements"}
                           </div>
@@ -2392,6 +2439,14 @@ export function VideoPropertiesPanel({
                               <div className="video-elements-card-title video-elements-card-title--sub">
                                 Add Assets
                               </div>
+                              {seedanceSlotLimitWarning ? (
+                                <AppMessage
+                                  tone="warning"
+                                  className="video-inline-warning-bubble video-seedance-slot-limit-warning"
+                                >
+                                  {seedanceSlotLimitWarning}
+                                </AppMessage>
+                              ) : null}
                               <div
                                 className="video-elements-placeholder-grid"
                                 aria-label="Element reference slots"
@@ -2405,6 +2460,8 @@ export function VideoPropertiesPanel({
                                     isSeedanceImageReferenceSlot(selectedElement);
                                   const isReferenceVideoSlot =
                                     isSeedanceVideoReferenceSlot(selectedElement);
+                                  const isReferenceAudioSlot =
+                                    isSeedanceAudioReferenceSlot(selectedElement);
                                   const isImageDropActive = Boolean(
                                     seedanceElementImageDragActive[index]
                                   );
@@ -2492,7 +2549,7 @@ export function VideoPropertiesPanel({
                                                 }
                                               }}
                                               type="file"
-                                              accept="image/*,video/*"
+                                              accept="image/*,video/*,audio/*"
                                               className="sr-only"
                                               tabIndex={-1}
                                               onChange={handleSeedanceElementMediaFileSelection(
@@ -2529,7 +2586,9 @@ export function VideoPropertiesPanel({
                                             ? "video-elements-placeholder-tile--reference-image"
                                             : isReferenceVideoSlot
                                               ? "video-elements-placeholder-tile--reference-video"
-                                              : "video-elements-placeholder-tile--element"
+                                              : isReferenceAudioSlot
+                                                ? "video-elements-placeholder-tile--reference-audio"
+                                                : "video-elements-placeholder-tile--element"
                                       } ${isImageDropActive ? "is-dragging" : ""} ${
                                         isImageLoading ? "is-loading" : ""
                                       }`.trim()}
@@ -2586,6 +2645,13 @@ export function VideoPropertiesPanel({
                                           >
                                             <VideoCamera size={22} />
                                           </span>
+                                        ) : isReferenceAudioSlot ? (
+                                          <span
+                                            className="video-elements-slot-audio-preview"
+                                            aria-hidden="true"
+                                          >
+                                            <SpeakerHigh size={22} />
+                                          </span>
                                         ) : null}
                                       </button>
                                       {canUseSeedanceImageIngress ? (
@@ -2596,7 +2662,7 @@ export function VideoPropertiesPanel({
                                             }
                                           }}
                                           type="file"
-                                          accept="image/*,video/*"
+                                          accept="image/*,video/*,audio/*"
                                           className="sr-only"
                                           tabIndex={-1}
                                           onChange={handleSeedanceElementMediaFileSelection(index)}

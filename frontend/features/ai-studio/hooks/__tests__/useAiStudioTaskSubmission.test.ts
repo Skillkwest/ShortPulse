@@ -1550,6 +1550,16 @@ describe("useAiStudioTaskSubmission", () => {
             referenceImageUrls: "",
             videoUrl: "",
           },
+          {
+            id: "direct-video-slot",
+            slotIndex: 1,
+            sourceKind: "reference-video",
+            name: "Video reference",
+            profileImageUrl: null,
+            frontalImageUrl: "",
+            referenceImageUrls: "",
+            videoUrl: "https://example.com/element-motion.mp4",
+          },
         ],
         beginPanelGeneration: vi.fn(),
         endPanelGeneration: vi.fn(),
@@ -1608,6 +1618,14 @@ describe("useAiStudioTaskSubmission", () => {
                 frontalImageUrl: "https://example.com/element-profile.png",
               }),
             }),
+            expect.objectContaining({
+              slotIndex: 1,
+              element: expect.objectContaining({
+                id: "direct-video-slot",
+                sourceKind: "reference-video",
+                videoUrl: "https://example.com/element-motion.mp4",
+              }),
+            }),
           ],
         }),
       })
@@ -1616,6 +1634,15 @@ describe("useAiStudioTaskSubmission", () => {
       expect.objectContaining({
         workflowReload,
       })
+    );
+    expect(vi.mocked(handleVideoModelSubmission).mock.calls[0]?.[0]?.klingElements).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "direct-video-slot",
+          sourceKind: "reference-video",
+          videoUrl: "https://example.com/element-motion.mp4",
+        }),
+      ])
     );
   });
 

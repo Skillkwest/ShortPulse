@@ -556,6 +556,43 @@ describe("useAiStudioInternalDropResolvers", () => {
     expect(resolveInternalReferenceSourceMock).not.toHaveBeenCalled();
   });
 
+  it("fails closed for prompt-only media-library drops when persistence returns no prompt id", async () => {
+    const output = makeOutput({
+      mode: "text",
+      previewUrl: undefined,
+      resultUrls: [],
+      savedMediaIds: [],
+      previewText: "Prompt only",
+      promptId: undefined,
+    });
+    const ensureOutputPersisted = vi.fn(async () => ({
+      ok: true,
+      mediaFileIds: [],
+      promptId: null,
+      delivery: null,
+      error: null,
+    }));
+
+    const { result } = renderHook(() =>
+      useAiStudioInternalDropResolvers({
+        getOutputById: () => output,
+        getOutputSnapshot: () => ({
+          outputOrder: ["out-1"],
+          archivedOutputOrder: [],
+          outputById: { "out-1": output },
+          archivedOutputById: {},
+        }),
+        ensureOutputPersisted,
+      })
+    );
+
+    await expect(result.current.resolveMediaLibraryInternalDropItem(makePayload())).resolves.toBe(
+      null
+    );
+    expect(ensureOutputPersisted).toHaveBeenCalledWith("out-1");
+    expect(resolveInternalReferenceSourceMock).not.toHaveBeenCalled();
+  });
+
   it("falls back to page output preview authority only for non-generated element profile drops", async () => {
     const output = makeOutput({
       savedMediaIds: [],

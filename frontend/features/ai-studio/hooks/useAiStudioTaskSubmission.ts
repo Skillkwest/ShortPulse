@@ -248,6 +248,33 @@ export const useAiStudioTaskSubmission = ({
       const submitTool: ToolId | null = isVideoSubmission ? "video" : effectiveTool;
       const cleanedSubmissionPrompt = (promptArg ?? prompt).trim();
       const cleanedDisplayPrompt = (options?.displayPromptOverride ?? promptArg ?? prompt).trim();
+      const effectiveVideoReferenceMode = options?.videoReferenceModeOverride ?? videoReferenceMode;
+      const effectiveVideoReferenceImageUrl =
+        options?.videoReferenceImageUrlOverride ?? videoReferenceImageUrl;
+      const effectiveMotionReferenceVideoUrl =
+        options?.motionReferenceVideoUrlOverride ?? motionReferenceVideoUrl;
+      const effectiveLipSyncAudio = options?.lipSyncAudioOverride ?? lipSyncAudio;
+      const effectiveLipSyncTurboMode = options?.lipSyncTurboModeOverride ?? lipSyncTurboMode;
+      const effectiveVideoCameraFixed = options?.videoCameraFixedOverride ?? videoCameraFixed;
+      const effectiveVideoAutoFix = options?.videoAutoFixOverride ?? videoAutoFix;
+      const effectiveSeedance2InputMode = options?.seedance2InputModeOverride ?? seedance2InputMode;
+      const effectiveSeedance2ReferenceImageUrls =
+        options?.seedance2ReferenceImageUrlsOverride ?? seedance2ReferenceImageUrls;
+      const effectiveSeedance2ReferenceVideoUrls =
+        options?.seedance2ReferenceVideoUrlsOverride ?? seedance2ReferenceVideoUrls;
+      const effectiveSeedance2ReferenceAudioUrls =
+        options?.seedance2ReferenceAudioUrlsOverride ?? seedance2ReferenceAudioUrls;
+      const effectiveSeedance2ReturnLastFrame =
+        options?.seedance2ReturnLastFrameOverride ?? seedance2ReturnLastFrame;
+      const effectiveSeedance2WebSearch = options?.seedance2WebSearchOverride ?? seedance2WebSearch;
+      const effectiveKlingNegativePrompt =
+        options?.klingNegativePromptOverride ?? klingNegativePrompt;
+      const effectiveKlingCfgScale = options?.klingCfgScaleOverride ?? klingCfgScale;
+      const effectiveKlingWorkflowMode = options?.klingWorkflowModeOverride ?? klingWorkflowMode;
+      const effectiveKlingShotType = options?.klingShotTypeOverride ?? klingShotType;
+      const effectiveKlingVoiceIds = options?.klingVoiceIdsOverride ?? klingVoiceIds;
+      const effectiveKlingMultiPrompts = options?.klingMultiPromptsOverride ?? klingMultiPrompts;
+      const effectiveKlingElements = options?.klingElementsOverride ?? klingElements;
 
       if (shouldSkipTextCreateSubmission(effectiveTool, effectiveMode)) {
         removeOptimisticPlaceholder();
@@ -256,7 +283,7 @@ export const useAiStudioTaskSubmission = ({
       }
       const resolvedVideoLane = resolveVideoGenerationLaneFromInputs({
         imageInputs,
-        referenceMode: videoReferenceMode,
+        referenceMode: effectiveVideoReferenceMode,
       });
       const requestedModel = options?.modelIdOverride ?? model;
       const finalModel = isVideoSubmission
@@ -281,14 +308,15 @@ export const useAiStudioTaskSubmission = ({
         : Boolean(finalModelConfig?.supportsImageToImage && !finalModelConfig?.supportsTextToImage);
       const isLipSyncSubmission =
         isVideoSubmission &&
-        videoReferenceMode === "lip-sync" &&
+        effectiveVideoReferenceMode === "lip-sync" &&
         finalModel === FAL_OMNIHUMAN_V15_MODEL_ID;
-      const isMotionControlSubmission = isVideoSubmission && videoReferenceMode === "motion";
+      const isMotionControlSubmission =
+        isVideoSubmission && effectiveVideoReferenceMode === "motion";
       const activeMotionReferenceVideoUrl = isMotionControlSubmission
-        ? motionReferenceVideoUrl
+        ? effectiveMotionReferenceVideoUrl
         : null;
       const activeLipSyncAudio = isLipSyncSubmission
-        ? lipSyncAudio
+        ? effectiveLipSyncAudio
         : createEmptyLipSyncAudioState();
       const requiresPrompt = isEditWorkflow
         ? shouldRequirePromptForEditModel(finalModel)
@@ -341,7 +369,7 @@ export const useAiStudioTaskSubmission = ({
         const modelConfig = finalModelConfig;
         const isImageToVideoModel = modelConfig?.mediaType === "image-to-video";
         const requiresMotionReferenceImage =
-          finalModel === KIE_KLING_30_MODEL_ID && videoReferenceMode === "motion";
+          finalModel === KIE_KLING_30_MODEL_ID && effectiveVideoReferenceMode === "motion";
         const requestedAspect = options?.aspectOverride ?? aspect;
         const effectiveAspect = resolveEffectiveAspectForModel(
           finalModel,
@@ -352,7 +380,7 @@ export const useAiStudioTaskSubmission = ({
         const isImageGeneration =
           effectiveMode === "image" || effectiveTool === "image" || effectiveTool === "edit";
         const requestedDurationSeconds = isVideoGeneration
-          ? videoDurationSeconds
+          ? (options?.videoDurationSecondsOverride ?? videoDurationSeconds)
           : getDefaultDurationSeconds(finalModel);
         const requestedImageResolution = isImageGeneration
           ? clampImageResolutionForModel(
@@ -361,12 +389,12 @@ export const useAiStudioTaskSubmission = ({
             )
           : modelConfig?.defaultResolution;
         const requestedResolution = isVideoGeneration
-          ? videoResolution
+          ? (options?.videoResolutionOverride ?? videoResolution)
           : isModelDefaultImageResolution(requestedImageResolution)
             ? undefined
             : requestedImageResolution;
         const requestedAudio = isVideoGeneration
-          ? videoGenerateAudio
+          ? (options?.videoGenerateAudioOverride ?? videoGenerateAudio)
           : (modelConfig?.defaultAudio ?? true);
 
         const outputMode: StudioMode = isVideoSubmission
@@ -534,44 +562,48 @@ export const useAiStudioTaskSubmission = ({
               expertEditReferences: expertEditWorkflowReloadReferences,
               characterContext: options?.characterContextOverride,
               styleContext: options?.styleContextOverride,
-              videoReferenceMode,
+              videoReferenceMode: effectiveVideoReferenceMode,
               durationSeconds: isVideoGeneration ? requestedDurationSeconds : null,
               resolution: isVideoGeneration ? (requestedResolution ?? null) : null,
               generateAudio: isVideoGeneration ? requestedAudio : null,
-              cameraFixed: isVideoGeneration ? videoCameraFixed : null,
-              autoFix: isVideoGeneration ? videoAutoFix : null,
+              cameraFixed: isVideoGeneration ? effectiveVideoCameraFixed : null,
+              autoFix: isVideoGeneration ? effectiveVideoAutoFix : null,
               motionReferenceVideoUrl:
-                isVideoGeneration && isMotionControlSubmission ? motionReferenceVideoUrl : null,
+                isVideoGeneration && isMotionControlSubmission
+                  ? effectiveMotionReferenceVideoUrl
+                  : null,
               lipSyncAudioUrl:
-                isVideoGeneration && videoReferenceMode === "lip-sync"
-                  ? getDurableLipSyncAudioUrl(lipSyncAudio)
+                isVideoGeneration && effectiveVideoReferenceMode === "lip-sync"
+                  ? getDurableLipSyncAudioUrl(effectiveLipSyncAudio)
                   : null,
               lipSyncAudioStoragePath:
-                isVideoGeneration && videoReferenceMode === "lip-sync"
-                  ? getLipSyncAudioStoragePath(lipSyncAudio)
+                isVideoGeneration && effectiveVideoReferenceMode === "lip-sync"
+                  ? getLipSyncAudioStoragePath(effectiveLipSyncAudio)
                   : null,
               lipSyncAudioDurationMs:
                 isVideoGeneration &&
-                videoReferenceMode === "lip-sync" &&
-                (getDurableLipSyncAudioUrl(lipSyncAudio) ||
-                  getLipSyncAudioStoragePath(lipSyncAudio))
-                  ? lipSyncAudio.durationMs
+                effectiveVideoReferenceMode === "lip-sync" &&
+                (getDurableLipSyncAudioUrl(effectiveLipSyncAudio) ||
+                  getLipSyncAudioStoragePath(effectiveLipSyncAudio))
+                  ? effectiveLipSyncAudio.durationMs
                   : null,
               lipSyncTurboMode:
-                isVideoGeneration && videoReferenceMode === "lip-sync" ? lipSyncTurboMode : null,
-              seedance2InputMode,
-              seedance2ReferenceImageUrls,
-              seedance2ReferenceVideoUrls,
-              seedance2ReferenceAudioUrls,
-              seedance2ReturnLastFrame,
-              seedance2WebSearch,
-              klingNegativePrompt,
-              klingCfgScale,
-              klingWorkflowMode,
-              klingShotType,
-              klingVoiceIds,
-              klingMultiPrompts,
-              klingElements,
+                isVideoGeneration && effectiveVideoReferenceMode === "lip-sync"
+                  ? effectiveLipSyncTurboMode
+                  : null,
+              seedance2InputMode: effectiveSeedance2InputMode,
+              seedance2ReferenceImageUrls: effectiveSeedance2ReferenceImageUrls,
+              seedance2ReferenceVideoUrls: effectiveSeedance2ReferenceVideoUrls,
+              seedance2ReferenceAudioUrls: effectiveSeedance2ReferenceAudioUrls,
+              seedance2ReturnLastFrame: effectiveSeedance2ReturnLastFrame,
+              seedance2WebSearch: effectiveSeedance2WebSearch,
+              klingNegativePrompt: effectiveKlingNegativePrompt,
+              klingCfgScale: effectiveKlingCfgScale,
+              klingWorkflowMode: effectiveKlingWorkflowMode,
+              klingShotType: effectiveKlingShotType,
+              klingVoiceIds: effectiveKlingVoiceIds,
+              klingMultiPrompts: effectiveKlingMultiPrompts,
+              klingElements: effectiveKlingElements,
             });
         if (workflowReload) {
           attachWorkflowReloadToOutput({
@@ -589,8 +621,9 @@ export const useAiStudioTaskSubmission = ({
           motionReferenceVideoUrl: activeMotionReferenceVideoUrl,
         });
         const lipSyncAudioDurationSeconds =
-          typeof lipSyncAudio.durationMs === "number" && Number.isFinite(lipSyncAudio.durationMs)
-            ? Math.max(0, lipSyncAudio.durationMs / 1000)
+          typeof effectiveLipSyncAudio.durationMs === "number" &&
+          Number.isFinite(effectiveLipSyncAudio.durationMs)
+            ? Math.max(0, effectiveLipSyncAudio.durationMs / 1000)
             : null;
         const usesPricingGridDisplay =
           (outputMode === "image" && (effectiveTool === "create" || effectiveTool === "edit")) ||
@@ -616,9 +649,9 @@ export const useAiStudioTaskSubmission = ({
           displayed_billed_credits: displayedBilledCredits,
           ...(isLipSyncSubmission
             ? {
-                lip_sync_audio_duration_ms: lipSyncAudio.durationMs ?? null,
+                lip_sync_audio_duration_ms: effectiveLipSyncAudio.durationMs ?? null,
                 lip_sync_audio_duration_seconds: lipSyncAudioDurationSeconds,
-                audio_duration_ms: lipSyncAudio.durationMs ?? null,
+                audio_duration_ms: effectiveLipSyncAudio.durationMs ?? null,
                 audio_duration_seconds: lipSyncAudioDurationSeconds,
               }
             : {}),
@@ -762,22 +795,22 @@ export const useAiStudioTaskSubmission = ({
             shortpulseContext,
             falReferencePayload,
             inpaintOverride: preparedInpaintOverride,
-            videoReferenceMode,
-            videoReferenceImageUrl,
+            videoReferenceMode: effectiveVideoReferenceMode,
+            videoReferenceImageUrl: effectiveVideoReferenceImageUrl,
             motionReferenceVideoUrl: activeMotionReferenceVideoUrl,
             lipSyncAudio: activeLipSyncAudio,
-            lipSyncTurboMode: isLipSyncSubmission ? lipSyncTurboMode : false,
+            lipSyncTurboMode: isLipSyncSubmission ? effectiveLipSyncTurboMode : false,
             rawImageInputs: imageInputs,
-            seedance2InputMode,
-            seedance2ReferenceImageUrls,
-            seedance2ReferenceVideoUrls,
-            seedance2ReferenceAudioUrls,
-            seedance2ReturnLastFrame,
-            seedance2WebSearch,
-            klingCfgScale,
-            klingWorkflowMode,
-            klingMultiPrompts,
-            klingElements,
+            seedance2InputMode: effectiveSeedance2InputMode,
+            seedance2ReferenceImageUrls: effectiveSeedance2ReferenceImageUrls,
+            seedance2ReferenceVideoUrls: effectiveSeedance2ReferenceVideoUrls,
+            seedance2ReferenceAudioUrls: effectiveSeedance2ReferenceAudioUrls,
+            seedance2ReturnLastFrame: effectiveSeedance2ReturnLastFrame,
+            seedance2WebSearch: effectiveSeedance2WebSearch,
+            klingCfgScale: effectiveKlingCfgScale,
+            klingWorkflowMode: effectiveKlingWorkflowMode,
+            klingMultiPrompts: effectiveKlingMultiPrompts,
+            klingElements: effectiveKlingElements,
             notifyGenerationFailure: notifyGenerationFailureForSubmit,
             updateOutputById,
             startPollingWithGeneration: startPollingWithGenerationGuarded,

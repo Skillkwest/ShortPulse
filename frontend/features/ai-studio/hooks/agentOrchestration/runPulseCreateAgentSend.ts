@@ -171,6 +171,8 @@ export const runPulseCreateAgentSend = async ({
   const optimisticUserMessageId = appendUserMessage(userMessageText, optimisticMessageAttachments);
   const originalAgentInput = agentInput;
   const originalAgentAttachments = cloneMessageAttachments(agentAttachments);
+  const originalPulseWorkflowSession = baseContext.pulse.workflowSession ?? null;
+  const outboundAttachmentIds = new Set(outboundAttachments.map((attachment) => attachment.id));
   let composerCleared = false;
   const patchOptimisticMessageAttachments = (
     updater: (
@@ -216,7 +218,9 @@ export const runPulseCreateAgentSend = async ({
       setAgentInput("");
     }
     if (outboundAttachments.length > 0) {
-      setAgentAttachments([]);
+      setAgentAttachments((currentAttachments) =>
+        currentAttachments.filter((attachment) => !outboundAttachmentIds.has(attachment.id))
+      );
     }
   };
   const restoreComposerDraft = () => {
@@ -226,8 +230,19 @@ export const runPulseCreateAgentSend = async ({
       setAgentInput(originalAgentInput);
     }
     if (outboundAttachments.length > 0) {
-      setAgentAttachments(originalAgentAttachments);
+      setAgentAttachments((currentAttachments) => {
+        const currentAttachmentIds = new Set(currentAttachments.map((attachment) => attachment.id));
+        return [
+          ...originalAgentAttachments.filter(
+            (attachment) => !currentAttachmentIds.has(attachment.id)
+          ),
+          ...currentAttachments,
+        ];
+      });
     }
+  };
+  const rollbackOptimisticPulseWorkflowSession = () => {
+    setPulseWorkflowSession(originalPulseWorkflowSession);
   };
   const discardOptimisticUserMessage = () => {
     if (!optimisticUserMessageId) return;
@@ -348,6 +363,7 @@ export const runPulseCreateAgentSend = async ({
     });
     if (discarded) {
       restoreComposerDraft();
+      rollbackOptimisticPulseWorkflowSession();
       discardOptimisticUserMessage();
       setUiNotice("This Pulse turn was interrupted. Your draft was restored.");
       return;
@@ -358,6 +374,7 @@ export const runPulseCreateAgentSend = async ({
         mode_hint: options?.modeHint ?? "chat",
       });
       restoreComposerDraft();
+      rollbackOptimisticPulseWorkflowSession();
       discardOptimisticUserMessage();
       setUiNotice("This Pulse turn did not complete. Your draft was restored.");
       if (options?.captureResult) return;

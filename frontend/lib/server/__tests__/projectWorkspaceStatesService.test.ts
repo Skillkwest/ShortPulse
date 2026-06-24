@@ -968,6 +968,94 @@ describe("projectWorkspaceStatesService", () => {
     });
   });
 
+  it("preserves and associates prompt-only library references during workspace save", async () => {
+    const { promptAssociationUpsert, outputDisplayUpsert } = createSupabaseMock({
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      projectionRows: [],
+    });
+
+    const result = await upsertProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+      schemaVersion: 2,
+      snapshot: {
+        schemaVersion: 2,
+        sessionId: "session-prompt-only-library-reference",
+        updatedAt: "2026-04-23T01:00:00.000Z",
+        meta: {
+          generatedAt: "2026-04-23T01:00:00.000Z",
+          checksum: "fnv1a32:prompt-only-library-reference",
+        },
+        workspace: {
+          selectedTool: "create",
+          standardPrompt: "Prompt-only library reference",
+        },
+        outputs: {
+          active: [
+            {
+              id: "prompt-library-output-1",
+              mode: "text",
+              mediaSource: "library",
+              promptId: PROMPT_ID_1,
+              prompt: "Reusable saved prompt text",
+              previewText: "Reusable saved prompt text",
+            },
+          ],
+          archived: [],
+          activeOutputId: "prompt-library-output-1",
+          curatedReferenceIds: ["prompt-library-output-1"],
+          removedFromAllRefsIds: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+    });
+
+    expect(result.snapshot.outputs).toMatchObject({
+      active: [
+        expect.objectContaining({
+          id: "prompt-library-output-1",
+          promptId: PROMPT_ID_1,
+          prompt: "Reusable saved prompt text",
+          previewText: "Reusable saved prompt text",
+        }),
+      ],
+      activeOutputId: null,
+      curatedReferenceIds: ["prompt-library-output-1"],
+    });
+    expect(promptAssociationUpsert).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          project_id: "project-1",
+          prompt_id: PROMPT_ID_1,
+          user_id: "user-1",
+        }),
+      ],
+      expect.objectContaining({
+        onConflict: "project_id,prompt_id",
+      })
+    );
+    expect(outputDisplayUpsert).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          output_id: "prompt-library-output-1",
+          generation_id: null,
+          prompt_id: PROMPT_ID_1,
+        }),
+      ],
+      expect.objectContaining({
+        onConflict: "project_id,output_id",
+      })
+    );
+  });
+
   it("returns the newer stored workspace unchanged when an older snapshot arrives late", async () => {
     const existingSnapshot = {
       schemaVersion: 2,

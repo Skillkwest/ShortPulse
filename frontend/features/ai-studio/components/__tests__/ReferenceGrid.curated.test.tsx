@@ -2069,7 +2069,7 @@ describe("ReferenceGrid curated split", () => {
       />
     );
 
-    fireEvent.click(getByLabelText("Re-roll image"));
+    fireEvent.click(getByLabelText("Re-roll"));
     expect(onRerollOutput).toHaveBeenCalledWith(expect.objectContaining({ id: generatedImage.id }));
   });
 
@@ -2096,7 +2096,7 @@ describe("ReferenceGrid curated split", () => {
       />
     );
 
-    expect(queryByLabelText("Re-roll image")).toBeNull();
+    expect(queryByLabelText("Re-roll")).toBeNull();
   });
 
   it("hides reroll action for curated-only references", () => {
@@ -2139,7 +2139,7 @@ describe("ReferenceGrid curated split", () => {
     const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
     expect(curatedSection).toBeTruthy();
     const curatedQueries = within(curatedSection);
-    expect(curatedQueries.queryByLabelText("Re-roll image")).toBeNull();
+    expect(curatedQueries.queryByLabelText("Re-roll")).toBeNull();
   });
 
   it("keeps save action for unsaved prompt references", () => {

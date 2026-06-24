@@ -487,7 +487,9 @@ export function MediaLibraryVisualMediaCard({
   const shouldRenderHoverVideo = Boolean(hasPosterBackedVideoPreview && hoverVideoUrl);
   const fallbackVideoPreload = adaptivePressureLevel > 0 ? "metadata" : "auto";
   const durationMs = resolveMediaMetadataDurationMs(file.metadata, { fileType: file.file_type });
-  const durationMediaUrl = hoverVideoUrl ?? cardPreviewUrl ?? file.signedUrl ?? null;
+  const signedVideoDurationUrl =
+    isVideo && file.signedUrl && isVideoUrl(file.signedUrl) ? file.signedUrl : null;
+  const durationMediaUrl = signedVideoDurationUrl;
   const shouldSetAriaPressed =
     Boolean(onToggleMediaSelection) || setAriaPressedWithoutSelectionMode;
   const mediaCardLabel = `${

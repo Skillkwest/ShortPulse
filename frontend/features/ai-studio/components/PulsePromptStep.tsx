@@ -17,6 +17,9 @@ import { PromptStepHeader } from "./promptStep/PromptStepHeader";
 import { PulsePromptStepChatSurface } from "./promptStep/PulsePromptStepChatSurface";
 import type { PromptStepPulseLoadingState } from "./promptStep/types";
 
+export const PULSE_BUSY_ATTACHMENT_DROP_NOTICE =
+  "Wait for the current image or Pulse reply before adding another image.";
+
 export type PulsePromptStepProps = {
   stepNumber: string | number;
   title?: string;
@@ -193,6 +196,8 @@ export function PulsePromptStep({
   );
   const visibleSubtitle = subtitle;
   const isPulseLoading = pulseLoadingState != null;
+  const [busyAttachmentDropNoticeVisible, setBusyAttachmentDropNoticeVisible] =
+    React.useState(false);
   const markAgentInputFocusForRestore = React.useCallback(() => {
     shouldRestoreAgentInputFocusRef.current = true;
   }, []);
@@ -232,6 +237,13 @@ export function PulsePromptStep({
       failed,
     };
   }, [stagedAttachments]);
+  const isPulseAttachmentIntakeBusy =
+    agentIsSending || isPulseLoading || imageAttachmentCounts.preparing > 0;
+  React.useEffect(() => {
+    if (!isPulseAttachmentIntakeBusy) {
+      setBusyAttachmentDropNoticeVisible(false);
+    }
+  }, [isPulseAttachmentIntakeBusy]);
   const hasBlockingImageAttachments =
     imageAttachmentCounts.preparing > 0 || imageAttachmentCounts.failed > 0;
   const canSendAgentInput =
@@ -243,11 +255,26 @@ export function PulsePromptStep({
     onAgentSend?.();
     requestAnimationFrame(() => agentInputRef.current?.focus());
   };
+  const blockBusyAttachmentDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = "none";
+    setBusyAttachmentDropNoticeVisible(true);
+    onAgentAttachmentDragLeave?.(event);
+  };
   const handleComposerAttachmentDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    if (isPulseAttachmentIntakeBusy) {
+      blockBusyAttachmentDrop(event);
+      return;
+    }
     event.stopPropagation();
     onAgentAttachmentDragOver?.(event);
   };
   const handleComposerAttachmentDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
+    if (isPulseAttachmentIntakeBusy) {
+      blockBusyAttachmentDrop(event);
+      return;
+    }
     event.stopPropagation();
     onAgentAttachmentDragEnter?.(event);
   };
@@ -256,6 +283,10 @@ export function PulsePromptStep({
     onAgentAttachmentDragLeave?.(event);
   };
   const handleComposerAttachmentDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    if (isPulseAttachmentIntakeBusy) {
+      blockBusyAttachmentDrop(event);
+      return;
+    }
     event.stopPropagation();
     const textarea = agentInputRef.current;
     const insertedPrompt = resolveAgentComposerTextDropInsertion({
@@ -436,7 +467,9 @@ export function PulsePromptStep({
                 agentInputCollapseOnBlur={agentInputCollapseOnBlur}
                 onAgentInputVisualRowCountChange={onAgentInputVisualRowCountChange}
                 embedSendButtonInInput={embedSendButtonInInput}
-                agentError={agentError}
+                agentError={
+                  busyAttachmentDropNoticeVisible ? PULSE_BUSY_ATTACHMENT_DROP_NOTICE : agentError
+                }
                 handleAgentSendClick={handleAgentSendClick}
                 agentIsSending={agentIsSending}
                 imageAttachmentCounts={imageAttachmentCounts}

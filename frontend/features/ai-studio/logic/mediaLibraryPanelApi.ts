@@ -167,6 +167,24 @@ const resolveUploadTooLargeMessage = (file: File): string => {
   return "Selected file is too large for upload.";
 };
 
+const isSignedStorageObjectSizeError = (message: string): boolean => {
+  const normalizedMessage = message.trim().toLowerCase();
+  return (
+    normalizedMessage.includes("object exceeded the maximum allowed size") ||
+    normalizedMessage.includes("exceeded the maximum allowed size") ||
+    normalizedMessage.includes("payload too large") ||
+    normalizedMessage.includes("file too large")
+  );
+};
+
+const resolveSignedStorageUploadErrorMessage = (file: File, message: string | null): string => {
+  const normalizedMessage = message?.trim() ?? "";
+  if (normalizedMessage && isSignedStorageObjectSizeError(normalizedMessage)) {
+    return resolveUploadTooLargeMessage(file);
+  }
+  return normalizedMessage || "Unable to upload media.";
+};
+
 const readUploadErrorResponse = async (
   response: Response
 ): Promise<{
@@ -659,7 +677,9 @@ export const uploadMediaFile = async ({
       upsert: false,
     });
   if (uploadResult.error) {
-    throw new Error(uploadResult.error.message || "Unable to upload media.");
+    throw new Error(
+      resolveSignedStorageUploadErrorMessage(normalizedFile, uploadResult.error.message)
+    );
   }
 
   const finalizeResponse = await fetchWithAuth("/api/media/finalize-upload", {

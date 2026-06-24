@@ -2,7 +2,7 @@ import React from "react";
 import { Power, Trash } from "phosphor-react";
 import type { AgentPulseWorkflowSession } from "../../../../prefabs/agent";
 import type { AiStudioPulsePresetChangeOptions } from "../../hooks/useAiStudioCreateModeRuntime";
-import { PulsePromptStep } from "../PulsePromptStep";
+import { PULSE_BUSY_ATTACHMENT_DROP_NOTICE, PulsePromptStep } from "../PulsePromptStep";
 import {
   insertDroppedPromptTextAtSelection,
   resolveAgentComposerPanelDropKind,
@@ -79,6 +79,8 @@ const PulseCreatePanelViewContent = ({
   } = pulsePreferenceRuntime;
   const [agentInputVisualRowCount, setAgentInputVisualRowCount] = React.useState(1);
   const [canvasTearOutActive, setCanvasTearOutActive] = React.useState(false);
+  const [busyAttachmentDropNoticeVisible, setBusyAttachmentDropNoticeVisible] =
+    React.useState(false);
   const panelRootRef = React.useRef<HTMLDivElement>(null);
   const panelBodyRef = React.useRef<HTMLDivElement>(null);
   const isActivePulseSession = hasActivePulseSession;
@@ -93,6 +95,16 @@ const PulseCreatePanelViewContent = ({
   const shouldShowPersistentEmptyShell = isNoHistoryShell && !hasPulseLoadingSurface;
   const handleClearAgentChat = promptStepProps.onClearAgentChat;
   const isPulseSessionLocked = isPulseActivationBusy || isPromptGenerating;
+  const hasPreparingPulseImageAttachment = Boolean(
+    promptStepProps.stagedAttachments?.some(
+      (attachment) =>
+        attachment.kind === "image" && (attachment.deliveryStatus ?? "pending") === "preparing"
+    )
+  );
+  const isPulseAttachmentIntakeBusy =
+    Boolean(promptStepProps.agentIsSending) ||
+    Boolean(promptStepProps.pulseLoadingState) ||
+    hasPreparingPulseImageAttachment;
   const shouldRestartActivePreset = React.useCallback(
     (presetId: CreatePulsePresetId) =>
       presetId === activePulsePresetId &&
@@ -103,6 +115,9 @@ const PulseCreatePanelViewContent = ({
   );
   const promptStepLayoutProps: React.ComponentProps<typeof PulsePromptStep> = {
     ...promptStepProps,
+    agentError: busyAttachmentDropNoticeVisible
+      ? PULSE_BUSY_ATTACHMENT_DROP_NOTICE
+      : promptStepProps.agentError,
     hideEmptyAgentChatState: true,
     forceRenderAgentChatPanel: !isNoHistoryShell && !shouldShowPulseStartupShell,
     emptyAgentChatSpacerClassName: shouldShowPersistentEmptyShell
@@ -112,6 +127,11 @@ const PulseCreatePanelViewContent = ({
     onClearAgentChat: undefined,
   };
   const shouldHideReadyTitle = agentInputVisualRowCount >= 8;
+  React.useEffect(() => {
+    if (!isPulseAttachmentIntakeBusy) {
+      setBusyAttachmentDropNoticeVisible(false);
+    }
+  }, [isPulseAttachmentIntakeBusy]);
   const handleCanvasTearOutTextDrop = React.useCallback(
     (text: string) => {
       const composerText = promptStepProps.agentInput ?? "";
@@ -179,21 +199,49 @@ const PulseCreatePanelViewContent = ({
       Boolean(event.target.closest(".agent-composer-input-shell")),
     []
   );
+  const blockBusyPanelMediaDrop = React.useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      event.dataTransfer.dropEffect = "none";
+      setBusyAttachmentDropNoticeVisible(true);
+      promptStepProps.onAgentAttachmentDragLeave?.(event);
+    },
+    [promptStepProps]
+  );
   const handlePanelMediaDragEnter = React.useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
       if (isTargetInsideComposerInputShell(event)) return;
       if (resolveAgentComposerPanelDropKind(event.dataTransfer) === "none") return;
+      if (isPulseAttachmentIntakeBusy) {
+        blockBusyPanelMediaDrop(event);
+        return;
+      }
       promptStepProps.onAgentAttachmentDragEnter?.(event);
     },
-    [isTargetInsideComposerInputShell, promptStepProps]
+    [
+      blockBusyPanelMediaDrop,
+      isPulseAttachmentIntakeBusy,
+      isTargetInsideComposerInputShell,
+      promptStepProps,
+    ]
   );
   const handlePanelMediaDragOver = React.useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
       if (isTargetInsideComposerInputShell(event)) return;
       if (resolveAgentComposerPanelDropKind(event.dataTransfer) === "none") return;
+      if (isPulseAttachmentIntakeBusy) {
+        blockBusyPanelMediaDrop(event);
+        return;
+      }
       promptStepProps.onAgentAttachmentDragOver?.(event);
     },
-    [isTargetInsideComposerInputShell, promptStepProps]
+    [
+      blockBusyPanelMediaDrop,
+      isPulseAttachmentIntakeBusy,
+      isTargetInsideComposerInputShell,
+      promptStepProps,
+    ]
   );
   const handlePanelMediaDragLeave = React.useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
@@ -208,6 +256,10 @@ const PulseCreatePanelViewContent = ({
       if (isTargetInsideComposerInputShell(event)) return;
       const panelDropKind = resolveAgentComposerPanelDropKind(event.dataTransfer);
       if (panelDropKind === "none") return;
+      if (isPulseAttachmentIntakeBusy) {
+        blockBusyPanelMediaDrop(event);
+        return;
+      }
       if (panelDropKind === "text") {
         event.preventDefault();
         event.stopPropagation();
@@ -237,7 +289,12 @@ const PulseCreatePanelViewContent = ({
       }
       promptStepProps.onAgentAttachmentDrop?.(event);
     },
-    [isTargetInsideComposerInputShell, promptStepProps]
+    [
+      blockBusyPanelMediaDrop,
+      isPulseAttachmentIntakeBusy,
+      isTargetInsideComposerInputShell,
+      promptStepProps,
+    ]
   );
 
   const promptAndControls = (

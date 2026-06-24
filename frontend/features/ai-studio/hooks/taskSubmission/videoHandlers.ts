@@ -1673,6 +1673,7 @@ const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
           const result = await prepareKieKlingElementsForSubmission({
             klingElements,
             cache: kieUploadCache,
+            imageAdmissionProfile: KIE_KLING_REFERENCE_IMAGE_ADMISSION_PROFILE,
           });
           if ("error" in result) {
             notifyGenerationFailure(id, result.error, undefined, VALIDATION_FAILURE_CONTEXT);

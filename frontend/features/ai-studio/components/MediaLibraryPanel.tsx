@@ -66,7 +66,6 @@ import {
   createMediaLibraryPromptDetailModalItem,
   type MediaLibraryPromptDetailModalItem,
 } from "../logic/mediaLibraryPromptDetailModal";
-
 type MediaLibraryPanelItemType = "all" | "images" | "videos" | "audio" | "prompts";
 
 type FolderContextMenuState = {
@@ -120,7 +119,6 @@ const resolveSigningTab = (itemType: MediaLibraryPanelItemType): MediaDataTab =>
   if (itemType === "videos") return "uploaded_videos";
   return "uploaded_images";
 };
-
 export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   onSelectMedia,
   onSelectPrompt,

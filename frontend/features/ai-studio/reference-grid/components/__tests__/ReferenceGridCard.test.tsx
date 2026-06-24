@@ -438,7 +438,7 @@ describe("ReferenceGridCard", () => {
     expect(onReloadWorkflowOutput).toHaveBeenCalledWith(output, { mediaKindHint: "image" });
   });
 
-  it("places workflow reload immediately to the right of image re-roll", () => {
+  it("places workflow reload immediately to the right of re-roll", () => {
     const output = createOutput({
       taskState: "success",
       mediaSource: "generated",
@@ -488,7 +488,7 @@ describe("ReferenceGridCard", () => {
       />
     );
 
-    const rerollButton = screen.getByLabelText("Re-roll image");
+    const rerollButton = screen.getByLabelText("Re-roll");
     const reloadButton = screen.getByLabelText("Reload workflow");
 
     expect(reloadButton.parentElement).toHaveClass("reference-card-bottom-actions");

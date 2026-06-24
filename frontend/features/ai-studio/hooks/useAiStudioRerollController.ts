@@ -1,21 +1,24 @@
 /**
  * AI Studio reroll controller.
- * Validates stored generation replay payloads before routing them back through the normal submit path.
+ * Validates stored workflow payloads before routing them back through the normal submit path.
  */
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
+import { createLipSyncAudioStateFromDurableUrl } from "../logic/lipSyncAudioState";
+import type { AiStudioKlingElement } from "../logic/klingElements";
 import {
   canRerollOutput,
-  isGenerationReplayConfigV1,
-  isGenerationReplayConfigV2,
-} from "../logic/generationReplay";
-import type { AiStudioImageRerollSubmitOptions } from "./contracts/taskSubmissionContracts";
-import type { StudioOutput } from "../types";
+  hasUnavailableWorkflowRerollReference,
+  registerWorkflowRerollInternalMediaRefs,
+  resolveWorkflowRerollConfigForOutput,
+} from "../logic/workflowReroll";
+import type { AiStudioTaskSubmitOptions } from "./contracts/taskSubmissionContracts";
+import type { StudioOutput, WorkflowReloadConfigV1, WorkflowReloadVideoMediaSlot } from "../types";
 
 type SubmitTask = (
   prompt: string,
   referenceInputs: string[],
-  options: AiStudioImageRerollSubmitOptions
+  options: AiStudioTaskSubmitOptions
 ) => Promise<unknown>;
 
 type UseAiStudioRerollControllerParams = {
@@ -24,8 +27,102 @@ type UseAiStudioRerollControllerParams = {
   submitTask: SubmitTask;
 };
 
+const mediaSlotsToUrls = (slots?: readonly WorkflowReloadVideoMediaSlot[]): string[] =>
+  slots?.map((slot) => slot.sourceUrl) ?? [];
+
+const mapKlingElements = (
+  elements: readonly Record<string, unknown>[] = []
+): AiStudioKlingElement[] => elements.map((element) => ({ ...element }) as AiStudioKlingElement);
+
+const buildImageRerollOptions = (config: WorkflowReloadConfigV1): AiStudioTaskSubmitOptions => {
+  const payload = config.payload;
+  if (payload.kind !== "image") return {};
+  return {
+    modeOverride: "image",
+    selectedToolOverride: payload.submitTool,
+    displayPromptOverride: config.prompt.display,
+    characterContextOverride: payload.characterContext,
+    styleContextOverride: payload.styleContext,
+    modelIdOverride: config.model.id,
+    aspectOverride: payload.aspect,
+    imageResolutionOverride: payload.imageResolution ?? "model_default",
+    internalMediaRefsOverride: payload.internalMediaRefs ?? [],
+    expertEditReferences: payload.expertEditReferences ?? null,
+  };
+};
+
+const buildVideoRerollOptions = (config: WorkflowReloadConfigV1): AiStudioTaskSubmitOptions => {
+  const payload = config.payload;
+  if (payload.kind !== "video") return {};
+  const videoReferences = payload.videoReferences;
+  const seedance2ReferenceImageUrls = videoReferences?.seedance2ReferenceImages
+    ? mediaSlotsToUrls(videoReferences.seedance2ReferenceImages)
+    : (payload.seedance2ReferenceImageUrls ?? []);
+  const seedance2ReferenceVideoUrls = videoReferences?.seedance2ReferenceVideos
+    ? mediaSlotsToUrls(videoReferences.seedance2ReferenceVideos)
+    : (payload.seedance2ReferenceVideoUrls ?? []);
+  const seedance2ReferenceAudioUrls = videoReferences?.seedance2ReferenceAudio
+    ? mediaSlotsToUrls(videoReferences.seedance2ReferenceAudio)
+    : (payload.seedance2ReferenceAudioUrls ?? []);
+  const klingElements = videoReferences?.klingElementSlots?.length
+    ? mapKlingElements(videoReferences.klingElementSlots.map((slot) => slot.element))
+    : mapKlingElements(payload.klingElements);
+
+  return {
+    modeOverride: "video",
+    selectedToolOverride: "video",
+    displayPromptOverride: config.prompt.display,
+    modelIdOverride: config.model.id,
+    aspectOverride: payload.aspect,
+    styleContextOverride: payload.styleContext,
+    internalMediaRefsOverride: payload.internalMediaRefs ?? [],
+    videoReferenceModeOverride: payload.videoReferenceMode,
+    videoReferenceImageUrlOverride:
+      videoReferences?.firstFrame?.sourceUrl ?? payload.referenceInputs[0] ?? null,
+    ...(payload.durationSeconds != null
+      ? { videoDurationSecondsOverride: payload.durationSeconds }
+      : {}),
+    ...(payload.resolution ? { videoResolutionOverride: payload.resolution } : {}),
+    ...(payload.generateAudio != null ? { videoGenerateAudioOverride: payload.generateAudio } : {}),
+    ...(payload.cameraFixed != null ? { videoCameraFixedOverride: payload.cameraFixed } : {}),
+    ...(payload.autoFix != null ? { videoAutoFixOverride: payload.autoFix } : {}),
+    motionReferenceVideoUrlOverride: payload.motionReferenceVideoUrl ?? null,
+    lipSyncAudioOverride: createLipSyncAudioStateFromDurableUrl({
+      url: payload.lipSyncAudioUrl ?? null,
+      title: "Re-rolled lip sync audio",
+      durationMs: payload.lipSyncAudioDurationMs ?? null,
+      sourceKind: "reference",
+      storagePath: payload.lipSyncAudioStoragePath ?? null,
+    }),
+    ...(payload.lipSyncTurboMode != null
+      ? { lipSyncTurboModeOverride: payload.lipSyncTurboMode }
+      : {}),
+    ...(payload.seedance2InputMode
+      ? { seedance2InputModeOverride: payload.seedance2InputMode }
+      : {}),
+    seedance2ReferenceImageUrlsOverride: seedance2ReferenceImageUrls,
+    seedance2ReferenceVideoUrlsOverride: seedance2ReferenceVideoUrls,
+    seedance2ReferenceAudioUrlsOverride: seedance2ReferenceAudioUrls,
+    ...(payload.seedance2ReturnLastFrame != null
+      ? { seedance2ReturnLastFrameOverride: payload.seedance2ReturnLastFrame }
+      : {}),
+    ...(payload.seedance2WebSearch != null
+      ? { seedance2WebSearchOverride: payload.seedance2WebSearch }
+      : {}),
+    ...(payload.klingNegativePrompt != null
+      ? { klingNegativePromptOverride: payload.klingNegativePrompt }
+      : {}),
+    ...(payload.klingCfgScale != null ? { klingCfgScaleOverride: payload.klingCfgScale } : {}),
+    ...(payload.klingWorkflowMode ? { klingWorkflowModeOverride: payload.klingWorkflowMode } : {}),
+    ...(payload.klingShotType ? { klingShotTypeOverride: payload.klingShotType } : {}),
+    ...(payload.klingVoiceIds ? { klingVoiceIdsOverride: payload.klingVoiceIds } : {}),
+    klingMultiPromptsOverride: payload.klingMultiPrompts ?? [],
+    klingElementsOverride: klingElements,
+  };
+};
+
 /**
- * Returns the reroll action for generation replay backed image outputs.
+ * Returns the reroll action for workflow metadata backed outputs.
  */
 export const useAiStudioRerollController = ({
   findOutputById,
@@ -51,8 +148,8 @@ export const useAiStudioRerollController = ({
         return;
       }
 
-      const replay = output.generationReplay;
-      if (!isGenerationReplayConfigV1(replay) && !isGenerationReplayConfigV2(replay)) {
+      const config = resolveWorkflowRerollConfigForOutput(output);
+      if (!config) {
         addBreadcrumb({
           type: "ui",
           level: "warn",
@@ -66,10 +163,7 @@ export const useAiStudioRerollController = ({
         return;
       }
 
-      const hasLocalOnlyReplayReference = replay.referenceInputs.some(
-        (input) => /^blob:/i.test(input) || /^data:/i.test(input)
-      );
-      if (hasLocalOnlyReplayReference) {
+      if (hasUnavailableWorkflowRerollReference(config)) {
         addBreadcrumb({
           type: "ui",
           level: "warn",
@@ -85,30 +179,44 @@ export const useAiStudioRerollController = ({
         return;
       }
 
+      const payload = config.payload;
+      if (payload.kind !== "image" && payload.kind !== "video") {
+        addBreadcrumb({
+          type: "ui",
+          level: "warn",
+          message: "reroll_blocked_missing_or_invalid_replay",
+          data: {
+            output_id: normalizedOutputId,
+            reason: "unsupported_payload_kind",
+            payload_kind: payload.kind,
+          },
+        });
+        setUiNotice("Re-roll is unavailable because original generation settings are missing.");
+        return;
+      }
+
+      registerWorkflowRerollInternalMediaRefs(config);
       addBreadcrumb({
         type: "ui",
         level: "info",
         message: "reroll_started",
         data: {
           output_id: normalizedOutputId,
-          model_id: replay.modelId,
-          tool: replay.submitTool,
-          reference_count: replay.referenceInputs.length,
+          model_id: config.model.id,
+          tool: config.originTool,
+          payload_kind: payload.kind,
+          reference_count: payload.referenceInputs.length,
         },
       });
-      void submitTask(replay.submissionPrompt, replay.referenceInputs, {
-        modeOverride: "image",
-        selectedToolOverride: replay.submitTool,
-        displayPromptOverride: replay.displayPrompt,
-        characterContextOverride: replay.characterContext,
-        modelIdOverride: replay.modelId,
-        aspectOverride: replay.aspect,
-        imageResolutionOverride: replay.imageResolution ?? "model_default",
-        ...(isGenerationReplayConfigV2(replay)
-          ? { internalMediaRefsOverride: replay.internalMediaRefs }
-          : {}),
-        ...(replay.styleContext ? { styleContextOverride: replay.styleContext } : {}),
-      });
+      const options =
+        payload.kind === "image"
+          ? buildImageRerollOptions(config)
+          : buildVideoRerollOptions(config);
+      void submitTask(
+        config.prompt.submission ?? config.prompt.display,
+        payload.referenceInputs,
+        options
+      );
     },
     [findOutputById, setUiNotice, submitTask]
   );

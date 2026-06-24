@@ -9,11 +9,25 @@ vi.mock("../api/supabaseAdmin", () => ({
   getSupabaseAdmin: vi.fn(),
 }));
 
+const videoVariantMocks = vi.hoisted(() => ({
+  upsertVideoPosterVariantFromBuffer: vi.fn(),
+  upsertVideoPreviewVariantFromBuffer: vi.fn(),
+}));
+
+vi.mock("../videoPosterVariant", () => ({
+  upsertVideoPosterVariantFromBuffer: videoVariantMocks.upsertVideoPosterVariantFromBuffer,
+  upsertVideoPreviewVariantFromBuffer: videoVariantMocks.upsertVideoPreviewVariantFromBuffer,
+}));
+
 const getSupabaseAdminMock = vi.mocked(getSupabaseAdmin);
 const ONE_BY_ONE_PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
   "base64"
 );
+const MINIMAL_MP4_BYTES = Buffer.concat([
+  Buffer.from([0x00, 0x00, 0x00, 0x18]),
+  Buffer.from("ftypmp42", "ascii"),
+]);
 
 describe("prepareMediaUploadForUser", () => {
   const createSignedUploadUrlMock = vi.fn();
@@ -25,6 +39,8 @@ describe("prepareMediaUploadForUser", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    videoVariantMocks.upsertVideoPosterVariantFromBuffer.mockResolvedValue(null);
+    videoVariantMocks.upsertVideoPreviewVariantFromBuffer.mockResolvedValue(null);
     let insertedMediaPayload: {
       filename: string;
       storage_path: string;
@@ -200,6 +216,97 @@ describe("prepareMediaUploadForUser", () => {
       source: "upload",
       created_at: "2026-06-21T00:00:00.000Z",
       signedUrl: expect.stringMatching(/^https:\/\/signed\.example\//),
+    });
+  });
+
+  it("finalizes a staged video upload with durable preview and poster variant authority", async () => {
+    videoVariantMocks.upsertVideoPreviewVariantFromBuffer.mockResolvedValueOnce(
+      "user-1/variants/videos/media-1/preview_loop_360p.mp4"
+    );
+    videoVariantMocks.upsertVideoPosterVariantFromBuffer.mockResolvedValueOnce(
+      "user-1/variants/videos/media-1/poster_720.jpg"
+    );
+    downloadMock.mockResolvedValueOnce({
+      data: {
+        size: MINIMAL_MP4_BYTES.length,
+        type: "video/mp4",
+        arrayBuffer: async () =>
+          MINIMAL_MP4_BYTES.buffer.slice(
+            MINIMAL_MP4_BYTES.byteOffset,
+            MINIMAL_MP4_BYTES.byteOffset + MINIMAL_MP4_BYTES.byteLength
+          ),
+      },
+      error: null,
+    });
+
+    const file = await finalizePreparedMediaUploadForUser({
+      userId: "user-1",
+      destinationTab: "uploaded_videos",
+      storagePath: "user-1/upload-staging/uploaded_videos/clip.mp4",
+      filename: "clip.mp4",
+      declaredMimeType: "video/mp4",
+    });
+
+    expect(uploadMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^user-1\/videos\/.*clip\.mp4$/),
+      MINIMAL_MP4_BYTES,
+      {
+        contentType: "video/mp4",
+        upsert: false,
+      }
+    );
+    expect(insertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: "user-1",
+        filename: "clip.mp4",
+        storage_path: expect.stringMatching(/^user-1\/videos\/.*clip\.mp4$/),
+        file_type: "video",
+        file_size: MINIMAL_MP4_BYTES.length,
+        source: "upload",
+      })
+    );
+    expect(videoVariantMocks.upsertVideoPreviewVariantFromBuffer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        mediaFileId: "media-1",
+        videoBuffer: MINIMAL_MP4_BYTES,
+        videoMimeType: "video/mp4",
+        filename: "clip.mp4",
+        metadata: {
+          generated_by: "media_upload_service",
+          upload_source: "upload",
+        },
+      })
+    );
+    expect(videoVariantMocks.upsertVideoPosterVariantFromBuffer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        mediaFileId: "media-1",
+        videoBuffer: MINIMAL_MP4_BYTES,
+        videoMimeType: "video/mp4",
+        filename: "clip.mp4",
+        metadata: {
+          generated_by: "media_upload_service",
+          upload_source: "upload",
+        },
+      })
+    );
+    expect(createSignedUrlMock).toHaveBeenLastCalledWith(
+      "user-1/variants/videos/media-1/preview_loop_360p.mp4",
+      3600
+    );
+    expect(removeMock).toHaveBeenCalledWith(["user-1/upload-staging/uploaded_videos/clip.mp4"]);
+    expect(file).toEqual({
+      id: "media-1",
+      filename: "clip.mp4",
+      storage_path: expect.stringMatching(/^user-1\/videos\/.*clip\.mp4$/),
+      preview_storage_path: "user-1/variants/videos/media-1/preview_loop_360p.mp4",
+      file_type: "video",
+      file_size: MINIMAL_MP4_BYTES.length,
+      source: "upload",
+      created_at: "2026-06-21T00:00:00.000Z",
+      signedUrl:
+        "https://signed.example/user-1%2Fvariants%2Fvideos%2Fmedia-1%2Fpreview_loop_360p.mp4",
     });
   });
 });

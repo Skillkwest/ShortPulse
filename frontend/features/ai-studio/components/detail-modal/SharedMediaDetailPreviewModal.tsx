@@ -30,6 +30,16 @@ const normalizePreviewCandidate = (value: string | null | undefined): string | n
 const isForbiddenImagePreviewUrl = (value: string): boolean =>
   value.startsWith("/_next/image") || isSupabaseRenderImageUrl(value);
 
+const resolveSharedMediaDetailAspectStyle = (
+  item: SharedMediaDetailItemBase | null
+): React.CSSProperties | undefined => {
+  const width = item?.media.width;
+  const height = item?.media.height;
+  if (typeof width !== "number" || typeof height !== "number") return undefined;
+  if (width <= 0 || height <= 0) return undefined;
+  return { aspectRatio: String(width / height) };
+};
+
 const resolveSharedPreviewCandidates = (item: SharedMediaDetailItemBase | null): string[] => {
   if (!item) return [];
   const media = item.media;
@@ -221,6 +231,7 @@ export function SharedMediaDetailPreviewModal({
     : null;
 
   const mediaUnavailableMessage = error || unavailableMessage;
+  const mediaAspectStyle = resolveSharedMediaDetailAspectStyle(item);
 
   React.useEffect(() => {
     if (isLoading) return;
@@ -278,6 +289,8 @@ export function SharedMediaDetailPreviewModal({
               imageClassName={imageClassName}
               videoClassName={videoClassName}
               audioClassName={audioClassName}
+              imageStyle={mediaAspectStyle}
+              videoStyle={mediaAspectStyle}
               audioId={item.media.id}
               audioSourceMode={item.media.audioSourceMode ?? null}
               audioMusicMode={item.media.musicMode ?? null}

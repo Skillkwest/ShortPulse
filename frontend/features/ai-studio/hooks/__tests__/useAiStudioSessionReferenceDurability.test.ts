@@ -6,7 +6,7 @@ import { useAiStudioSessionReferenceDurability } from "../useAiStudioSessionRefe
 
 const uploadAudioAssetToStorageMock = vi.fn();
 const uploadImageAssetToStorageMock = vi.fn();
-const uploadVideoAssetToStorageMock = vi.fn();
+const uploadReferenceVideoAssetToStorageMock = vi.fn();
 
 vi.mock("../../utils/audioUpload", () => ({
   uploadAudioAssetToStorage: (...args: unknown[]) => uploadAudioAssetToStorageMock(...args),
@@ -17,7 +17,8 @@ vi.mock("../../utils/imageUpload", () => ({
 }));
 
 vi.mock("../../utils/videoUpload", () => ({
-  uploadVideoAssetToStorage: (...args: unknown[]) => uploadVideoAssetToStorageMock(...args),
+  uploadReferenceVideoAssetToStorage: (...args: unknown[]) =>
+    uploadReferenceVideoAssetToStorageMock(...args),
 }));
 
 const createOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput => ({
@@ -177,7 +178,7 @@ describe("useAiStudioSessionReferenceDurability", () => {
   });
 
   it("uploads local video references and patches storage-backed delivery", async () => {
-    uploadVideoAssetToStorageMock.mockResolvedValueOnce({
+    uploadReferenceVideoAssetToStorageMock.mockResolvedValueOnce({
       url: "https://signed/user-1/videos/ref.mp4",
       path: "user-1/videos/ref.mp4",
       size: 456,
@@ -197,11 +198,11 @@ describe("useAiStudioSessionReferenceDurability", () => {
       expect(result.current.outputs[0]?.previewStoragePath).toBe("user-1/videos/ref.mp4");
       expect(result.current.outputs[0]?.fullStoragePath).toBe("user-1/videos/ref.mp4");
     });
-    expect(uploadVideoAssetToStorageMock).toHaveBeenCalledTimes(1);
+    expect(uploadReferenceVideoAssetToStorageMock).toHaveBeenCalledTimes(1);
   });
 
   it("uploads local video poster images and patches poster-backed preview delivery", async () => {
-    uploadVideoAssetToStorageMock.mockResolvedValueOnce({
+    uploadReferenceVideoAssetToStorageMock.mockResolvedValueOnce({
       url: "https://signed/user-1/videos/ref.mp4",
       path: "user-1/videos/ref.mp4",
       size: 456,
@@ -235,7 +236,9 @@ describe("useAiStudioSessionReferenceDurability", () => {
       );
       expect(result.current.outputs[0]?.fullStoragePath).toBe("user-1/videos/ref.mp4");
     });
-    expect(uploadVideoAssetToStorageMock).toHaveBeenCalledWith("blob:local-video-1#video=1");
+    expect(uploadReferenceVideoAssetToStorageMock).toHaveBeenCalledWith(
+      "blob:local-video-1#video=1"
+    );
     expect(uploadImageAssetToStorageMock).toHaveBeenCalledWith("data:image/jpeg;base64,poster");
   });
 
@@ -282,7 +285,7 @@ describe("useAiStudioSessionReferenceDurability", () => {
     await waitFor(() => {
       expect(uploadAudioAssetToStorageMock).not.toHaveBeenCalled();
       expect(uploadImageAssetToStorageMock).not.toHaveBeenCalled();
-      expect(uploadVideoAssetToStorageMock).not.toHaveBeenCalled();
+      expect(uploadReferenceVideoAssetToStorageMock).not.toHaveBeenCalled();
     });
   });
 
@@ -298,7 +301,7 @@ describe("useAiStudioSessionReferenceDurability", () => {
     await waitFor(() => {
       expect(uploadAudioAssetToStorageMock).not.toHaveBeenCalled();
       expect(uploadImageAssetToStorageMock).not.toHaveBeenCalled();
-      expect(uploadVideoAssetToStorageMock).not.toHaveBeenCalled();
+      expect(uploadReferenceVideoAssetToStorageMock).not.toHaveBeenCalled();
     });
   });
 
@@ -350,7 +353,7 @@ describe("useAiStudioSessionReferenceDurability", () => {
       path: string;
       size: number;
     }>();
-    uploadVideoAssetToStorageMock
+    uploadReferenceVideoAssetToStorageMock
       .mockImplementationOnce(() => first.promise)
       .mockImplementationOnce(() => second.promise);
 
@@ -370,13 +373,15 @@ describe("useAiStudioSessionReferenceDurability", () => {
     );
 
     await waitFor(() => {
-      expect(uploadVideoAssetToStorageMock).toHaveBeenCalledTimes(1);
-      expect(uploadVideoAssetToStorageMock).toHaveBeenNthCalledWith(
+      expect(uploadReferenceVideoAssetToStorageMock).toHaveBeenCalledTimes(1);
+      expect(uploadReferenceVideoAssetToStorageMock).toHaveBeenNthCalledWith(
         1,
         "blob:local-video-1#video=1"
       );
     });
-    expect(uploadVideoAssetToStorageMock).not.toHaveBeenCalledWith("blob:local-video-2#video=1");
+    expect(uploadReferenceVideoAssetToStorageMock).not.toHaveBeenCalledWith(
+      "blob:local-video-2#video=1"
+    );
 
     first.resolve({
       url: "https://signed/user-1/videos/ref-1.mp4",
@@ -385,8 +390,8 @@ describe("useAiStudioSessionReferenceDurability", () => {
     });
 
     await waitFor(() => {
-      expect(uploadVideoAssetToStorageMock).toHaveBeenCalledTimes(2);
-      expect(uploadVideoAssetToStorageMock).toHaveBeenNthCalledWith(
+      expect(uploadReferenceVideoAssetToStorageMock).toHaveBeenCalledTimes(2);
+      expect(uploadReferenceVideoAssetToStorageMock).toHaveBeenNthCalledWith(
         2,
         "blob:local-video-2#video=1"
       );
@@ -405,7 +410,7 @@ describe("useAiStudioSessionReferenceDurability", () => {
   });
 
   it("continues processing later queued videos after an earlier video upload fails", async () => {
-    uploadVideoAssetToStorageMock
+    uploadReferenceVideoAssetToStorageMock
       .mockRejectedValueOnce(new Error("multipart parser exploded"))
       .mockResolvedValueOnce({
         url: "https://signed/user-1/videos/ref-2.mp4",
@@ -432,8 +437,12 @@ describe("useAiStudioSessionReferenceDurability", () => {
     await waitFor(() => {
       expect(result.current.outputs[1]?.previewStoragePath).toBe("user-1/videos/ref-2.mp4");
     });
-    expect(uploadVideoAssetToStorageMock).toHaveBeenCalledWith("blob:local-video-fail#video=1");
-    expect(uploadVideoAssetToStorageMock).toHaveBeenCalledWith("blob:local-video-ok#video=1");
+    expect(uploadReferenceVideoAssetToStorageMock).toHaveBeenCalledWith(
+      "blob:local-video-fail#video=1"
+    );
+    expect(uploadReferenceVideoAssetToStorageMock).toHaveBeenCalledWith(
+      "blob:local-video-ok#video=1"
+    );
 
     expect(result.current.outputs[0]?.previewUrl).toBe("blob:local-video-fail#video=1");
     expect(result.current.outputs[0]?.previewStoragePath).toBeUndefined();
@@ -441,7 +450,7 @@ describe("useAiStudioSessionReferenceDurability", () => {
 
   it("retries a failed local video signature once and then stops after the retry budget is exhausted", async () => {
     vi.useFakeTimers();
-    uploadVideoAssetToStorageMock
+    uploadReferenceVideoAssetToStorageMock
       .mockRejectedValueOnce(new Error("multipart parser exploded"))
       .mockRejectedValueOnce(new Error("multipart parser exploded again"));
 
@@ -458,18 +467,20 @@ describe("useAiStudioSessionReferenceDurability", () => {
     await act(async () => {
       await Promise.resolve();
     });
-    expect(uploadVideoAssetToStorageMock).toHaveBeenCalledTimes(1);
+    expect(uploadReferenceVideoAssetToStorageMock).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(2_000);
     });
-    expect(uploadVideoAssetToStorageMock).toHaveBeenCalledTimes(2);
+    expect(uploadReferenceVideoAssetToStorageMock).toHaveBeenCalledTimes(2);
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(2_000);
     });
-    expect(uploadVideoAssetToStorageMock).toHaveBeenCalledTimes(2);
+    expect(uploadReferenceVideoAssetToStorageMock).toHaveBeenCalledTimes(2);
     expect(result.current.outputs[0]?.previewUrl).toBe("blob:local-video-fail-once#video=1");
     expect(result.current.outputs[0]?.previewStoragePath).toBeUndefined();
+    expect(result.current.outputs[0]?.saveState).toBe("failed");
+    expect(result.current.outputs[0]?.saveError).toBe("multipart parser exploded again");
   });
 });

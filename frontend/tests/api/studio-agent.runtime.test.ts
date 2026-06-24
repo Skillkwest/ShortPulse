@@ -345,6 +345,20 @@ describe("AI Studio Create agent runtime boundaries", () => {
     expect(runThinkerFormatterTurnMock).not.toHaveBeenCalled();
   });
 
+  it("rejects non-Standard session namespaces on the Standard route", async () => {
+    const req = {
+      method: "POST",
+      body: createBaseRequestBody("ai-studio:session-runtime-test::unknown"),
+    };
+    const res = createMockResponse();
+
+    await standardStudioAgentHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(runThinkerFormatterTurnMock).not.toHaveBeenCalled();
+  });
+
   it("returns a Standard reusable-prompt response without workflowSession", async () => {
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,

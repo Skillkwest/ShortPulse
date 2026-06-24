@@ -30,6 +30,7 @@ import {
   needsMotionReferenceVideoProviderNormalization,
   prepareMotionReferenceVideoUrl,
   retireCommittedMotionVideoByUrl,
+  uploadReferenceVideoAssetToStorage,
   uploadVideoAssetToStorage,
   uploadVideoFileToStorage,
 } from "../videoUpload";
@@ -118,6 +119,7 @@ describe("videoUpload", () => {
     vi.unstubAllGlobals();
     forgetObjectUrlBlob("blob:missing-motion-reference");
     forgetObjectUrlBlob("blob:remembered-motion-reference");
+    forgetObjectUrlBlob("blob:remembered-reference-video");
   });
 
   it("stages recorded WebM files through browser-direct motion-reference upload", async () => {
@@ -189,6 +191,74 @@ describe("videoUpload", () => {
       sourceMimeType: "video/webm",
       sourceName: "motion-reference.webm",
       sourceStoragePath: "user-1/upload-staging/videos/motion-control/ref.webm",
+    });
+  });
+
+  it("stages generic local reference videos through reference-video upload", async () => {
+    const sourceBlob = new Blob(["reference-video"], { type: "video/mp4" });
+    const objectUrl = "blob:remembered-reference-video";
+    rememberObjectUrlBlob(objectUrl, sourceBlob);
+    fetchWithAuthMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          target: {
+            storagePath: "user-1/upload-staging/videos/reference/ref.mp4",
+            uploadToken: "upload-token",
+            mimeType: "video/mp4",
+            name: "reference-video.mp4",
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          url: "https://signed.example/reference-video.mp4",
+          path: "user-1/videos/reference/ref.mp4",
+          size: 1024,
+          mimeType: "video/mp4",
+          name: "reference-video.mp4",
+        })
+      );
+
+    const uploaded = await uploadReferenceVideoAssetToStorage(`${objectUrl}#video=1`);
+
+    expect(uploaded).toEqual({
+      url: "https://signed.example/reference-video.mp4",
+      path: "user-1/videos/reference/ref.mp4",
+      size: 1024,
+      mimeType: "video/mp4",
+      name: "reference-video.mp4",
+    });
+    expect(fetchWithAuthMock).toHaveBeenNthCalledWith(
+      1,
+      "/api/media/prepare-reference-video-upload",
+      expect.objectContaining({
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        shortpulseRetryNetworkOnce: true,
+      })
+    );
+    expect(uploadToSignedUrlMock).toHaveBeenCalledWith(
+      "user-1/upload-staging/videos/reference/ref.mp4",
+      "upload-token",
+      sourceBlob,
+      expect.objectContaining({
+        contentType: "video/mp4",
+        upsert: false,
+      })
+    );
+    expect(fetchWithAuthMock).toHaveBeenNthCalledWith(
+      2,
+      "/api/media/stage-reference-video",
+      expect.objectContaining({
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        shortpulseRetryNetworkOnce: true,
+      })
+    );
+    expect(JSON.parse(String(fetchWithAuthMock.mock.calls[1]?.[1]?.body))).toMatchObject({
+      sourceMimeType: "video/mp4",
+      sourceName: "reference-video.mp4",
+      sourceStoragePath: "user-1/upload-staging/videos/reference/ref.mp4",
     });
   });
 

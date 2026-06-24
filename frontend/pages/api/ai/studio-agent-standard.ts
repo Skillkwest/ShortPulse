@@ -8,6 +8,7 @@ import {
   hasInboundStudioAgentCanonicalPrompt,
   hasStudioAgentPulseContext,
   isPulseCreateAgentSessionNamespace,
+  isStandardCreateAgentSessionNamespace,
   readStudioAgentClientSessionNamespace,
 } from "../../../features/agent-runtime/studioAgentRouteModeBoundary";
 
@@ -21,14 +22,18 @@ export default async function standardStudioAgentHandler(
   if (req.method === "POST") {
     const clientSessionNamespace = readStudioAgentClientSessionNamespace(req.body);
     const hasCrossModeContinuity = isPulseCreateAgentSessionNamespace(clientSessionNamespace);
+    const hasInvalidStandardNamespace =
+      clientSessionNamespace !== null &&
+      !isStandardCreateAgentSessionNamespace(clientSessionNamespace);
     if (
       req.body?.runtimeMode === "pulse" ||
       hasStudioAgentPulseContext(req.body?.context) ||
-      hasCrossModeContinuity
+      hasCrossModeContinuity ||
+      hasInvalidStandardNamespace
     ) {
       return res.status(400).json({
         code: "INVALID_REQUEST",
-        message: "Standard agent route does not accept Pulse runtime payloads.",
+        message: "Standard agent route requires a Standard runtime payload.",
       });
     }
     if (hasInboundStudioAgentCanonicalPrompt(req.body)) {

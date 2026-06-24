@@ -129,6 +129,49 @@ describe("PulseCreatePanelView", () => {
     expect(onAgentAttachmentDrop).toHaveBeenCalledTimes(1);
   });
 
+  it("blocks media drops from the wider Pulse composer body while the agent is sending", () => {
+    const onAgentAttachmentDrop = vi.fn();
+    const onAgentAttachmentDragEnter = vi.fn();
+    const onAgentAttachmentDragOver = vi.fn();
+    const onAgentAttachmentDragLeave = vi.fn();
+
+    const { container } = render(
+      <PulseCreatePanelView
+        {...baseProps}
+        promptStepProps={{
+          ...basePromptStepProps,
+          agentIsSending: true,
+          onAgentAttachmentDrop,
+          onAgentAttachmentDragEnter,
+          onAgentAttachmentDragOver,
+          onAgentAttachmentDragLeave,
+        }}
+      />
+    );
+
+    const panelBody = container.querySelector(".create-composer-right-panel-inner");
+    expect(panelBody).toBeTruthy();
+
+    const mediaTransfer = {
+      files: [new File(["image"], "late.png", { type: "image/png" })],
+      types: ["Files"],
+      getData: () => "",
+      dropEffect: "copy",
+    };
+
+    fireEvent.dragEnter(panelBody as Element, { dataTransfer: mediaTransfer });
+    fireEvent.dragOver(panelBody as Element, { dataTransfer: mediaTransfer });
+    fireEvent.drop(panelBody as Element, { dataTransfer: mediaTransfer });
+
+    expect(mediaTransfer.dropEffect).toBe("none");
+    expect(onAgentAttachmentDragEnter).not.toHaveBeenCalled();
+    expect(onAgentAttachmentDragOver).not.toHaveBeenCalled();
+    expect(onAgentAttachmentDrop).not.toHaveBeenCalled();
+    expect(
+      screen.getByText("Wait for the current image or Pulse reply before adding another image.")
+    ).toBeVisible();
+  });
+
   it("routes plain prompt-text drops from the wider create panel body into the composer", () => {
     const onAgentAttachmentDrop = vi.fn();
     const onAgentAttachmentDragEnter = vi.fn();

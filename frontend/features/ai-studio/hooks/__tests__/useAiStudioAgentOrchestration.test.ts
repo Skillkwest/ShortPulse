@@ -1441,4 +1441,109 @@ describe("useAiStudioAgentOrchestration", () => {
       })
     );
   });
+
+  it("preserves attachments added after a Pulse send starts and rolls back optimistic workflow state on empty response", async () => {
+    const setAgentAttachments = vi.fn();
+    const setPulseWorkflowSession = vi.fn();
+    const setUiNotice = vi.fn();
+    const sentAttachment: AgentAttachment = {
+      id: "img-sent",
+      kind: "image",
+      source: "ephemeral_local",
+      referenceId: null,
+      mediaId: null,
+      imageUrl: "data:image/jpeg;base64,cHJldmlldw==",
+      modelDataUrl: "data:image/jpeg;base64,bW9kZWw=",
+      submissionImageUrl: null,
+      imageFallbackUrls: [],
+      text: null,
+      aspect: null,
+      deliveryStatus: "ready",
+      deliveryError: null,
+    };
+    const lateAttachment: AgentAttachment = {
+      id: "img-late",
+      kind: "image",
+      source: "ephemeral_local",
+      referenceId: null,
+      mediaId: null,
+      imageUrl: "data:image/jpeg;base64,bGF0ZQ==",
+      modelDataUrl: "data:image/jpeg;base64,bGF0ZS1tb2RlbA==",
+      submissionImageUrl: null,
+      imageFallbackUrls: [],
+      text: null,
+      aspect: null,
+      deliveryStatus: "ready",
+      deliveryError: null,
+    };
+    const originalWorkflowSession: AgentPulseWorkflowSession = {
+      presetId: "image",
+      status: "awaiting_input",
+      currentStepIndex: 1,
+      currentStepLabel: "Image Gate",
+      currentStepPrompt: "Upload your image.",
+      collectedInputs: [],
+      lastArtifact: null,
+      finalArtifactSource: null,
+    };
+    const sendToAgent = vi.fn(async () => ({
+      response: null,
+      actions: undefined,
+      workflowSession: null,
+    }));
+    const params = createParams({
+      agentInput: "Use this image.",
+      agentAttachments: [sentAttachment],
+      setAgentAttachments: asDispatch<AgentAttachment[]>(setAgentAttachments),
+      setPulseWorkflowSession: asDispatch(setPulseWorkflowSession),
+      setUiNotice: asDispatch<string | null>(setUiNotice),
+      sendToAgent,
+      runtimePolicy: pulseRuntimePolicy("image"),
+      getAgentContext: vi.fn(() => ({
+        pulse: {
+          presetId: "image",
+          label: "Video Prompt Magic",
+          instructions: "workflow instructions",
+          runtimeMode: "workflow_gpt" as const,
+          activationMode: "activate_and_start" as const,
+          starterAssistantMessage: "Upload your image.",
+          workflowStageHints: ["Image Gate", "Camera Motion", "Action Selection"],
+          outputMode: "chat_reply" as const,
+          artifactTarget: "video_prompt" as const,
+          memoryPolicy: "session" as const,
+          source: "builtin" as const,
+          workflowSession: originalWorkflowSession,
+        },
+      })),
+    });
+    const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
+
+    await act(async () => {
+      await result.current.handleAgentSend();
+    });
+
+    expect(sendToAgent).toHaveBeenCalledOnce();
+    expect(setAgentAttachments).toHaveBeenCalledTimes(2);
+    const clearSentAttachments = setAgentAttachments.mock.calls[0]?.[0] as (
+      attachments: AgentAttachment[]
+    ) => AgentAttachment[];
+    const restoreSentAttachments = setAgentAttachments.mock.calls[1]?.[0] as (
+      attachments: AgentAttachment[]
+    ) => AgentAttachment[];
+
+    expect(clearSentAttachments([sentAttachment, lateAttachment])).toEqual([lateAttachment]);
+    expect(restoreSentAttachments([lateAttachment])).toEqual([sentAttachment, lateAttachment]);
+    expect(setPulseWorkflowSession).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        presetId: "image",
+        status: "running",
+        collectedInputs: ["Use this image."],
+      })
+    );
+    expect(setPulseWorkflowSession).toHaveBeenLastCalledWith(originalWorkflowSession);
+    expect(setUiNotice).toHaveBeenCalledWith(
+      "This Pulse turn did not complete. Your draft was restored."
+    );
+  });
 });

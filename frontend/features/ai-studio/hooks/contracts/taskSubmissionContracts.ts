@@ -1,10 +1,13 @@
 import type { InpaintSubmissionOverride } from "../../logic/inpaintSubmission";
 import type { InternalMediaRef } from "../../../../lib/media/internalMediaRefs";
+import type { AiStudioKlingElement } from "../../logic/klingElements";
 import type { Provider } from "../../logic/stateParsers";
 import type {
+  LipSyncAudioState,
   StudioMode,
   StudioOutput,
   ToolId,
+  VideoReferenceMode,
   WorkflowReloadExpertEditReferences,
 } from "../../types";
 
@@ -20,6 +23,29 @@ export type AiStudioTaskSubmitOptions = {
   modelIdOverride?: string | null;
   aspectOverride?: string;
   imageResolutionOverride?: string;
+  videoReferenceModeOverride?: VideoReferenceMode;
+  videoReferenceImageUrlOverride?: string | null;
+  videoDurationSecondsOverride?: number;
+  videoResolutionOverride?: string;
+  videoGenerateAudioOverride?: boolean;
+  videoCameraFixedOverride?: boolean;
+  videoAutoFixOverride?: boolean;
+  motionReferenceVideoUrlOverride?: string | null;
+  lipSyncAudioOverride?: LipSyncAudioState;
+  lipSyncTurboModeOverride?: boolean;
+  seedance2InputModeOverride?: "text" | "first-frame" | "first-last" | "multimodal";
+  seedance2ReferenceImageUrlsOverride?: string[];
+  seedance2ReferenceVideoUrlsOverride?: string[];
+  seedance2ReferenceAudioUrlsOverride?: string[];
+  seedance2ReturnLastFrameOverride?: boolean;
+  seedance2WebSearchOverride?: boolean;
+  klingNegativePromptOverride?: string;
+  klingCfgScaleOverride?: number;
+  klingWorkflowModeOverride?: "single" | "multi" | "custom";
+  klingShotTypeOverride?: "customize" | "intelligent";
+  klingVoiceIdsOverride?: [string, string];
+  klingMultiPromptsOverride?: { id: string; prompt: string; duration: number }[];
+  klingElementsOverride?: AiStudioKlingElement[];
   inpaintOverride?: InpaintSubmissionOverride | null;
   hideOutputFromReferenceGrid?: boolean;
   expertEditReferences?: WorkflowReloadExpertEditReferences | null;

@@ -4,6 +4,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../types";
+import { buildWorkflowReloadConfigV1 } from "../../logic/workflowReload";
 import { useAiStudioState } from "../useAiStudioState";
 import { addBreadcrumb } from "../../../../lib/clientBreadcrumbs";
 
@@ -143,7 +144,7 @@ describe("useAiStudioState rerollOutputFromReplay", () => {
     expect(submitTaskMock).toHaveBeenCalledWith(
       "Submission prompt with hidden context",
       ["https://cdn.test/prepared-ref.png"],
-      {
+      expect.objectContaining({
         modeOverride: "image",
         selectedToolOverride: "edit",
         displayPromptOverride: "Visible prompt",
@@ -151,7 +152,7 @@ describe("useAiStudioState rerollOutputFromReplay", () => {
         modelIdOverride: "fal-ai/bytedance/seedream/v4.5/edit",
         aspectOverride: "9:16",
         imageResolutionOverride: "auto_4K",
-      }
+      })
     );
     expect(vi.mocked(addBreadcrumb)).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -266,6 +267,75 @@ describe("useAiStudioState rerollOutputFromReplay", () => {
             storagePath: "user-1/library/ref-a.png",
           },
         ],
+      })
+    );
+  });
+
+  it("submits video reroll using workflow reload metadata", () => {
+    const workflowReload = buildWorkflowReloadConfigV1({
+      capturedAt: "2026-06-23T00:00:00.000Z",
+      originTool: "video",
+      panelKind: "video",
+      outputMode: "video",
+      prompt: {
+        display: "Visible video prompt",
+        submission: "Submission video prompt with style",
+      },
+      model: { id: "kie-ai/kling-3.0" },
+      payload: {
+        kind: "video",
+        aspect: "9:16",
+        videoReferenceMode: "standard",
+        durationSeconds: 8,
+        resolution: "1080p",
+        generateAudio: true,
+        cameraFixed: false,
+        autoFix: true,
+        referenceInputs: ["https://cdn.test/first-frame.png"],
+        internalMediaRefs: [],
+        videoReferences: {
+          version: 1,
+          firstFrame: { sourceUrl: "https://cdn.test/first-frame.png" },
+        },
+        seedance2ReferenceImageUrls: [],
+        seedance2ReferenceVideoUrls: [],
+        seedance2ReferenceAudioUrls: [],
+        seedance2ReturnLastFrame: false,
+        seedance2WebSearch: false,
+        klingElements: [],
+      },
+    });
+
+    findOutputByIdMock.mockReturnValue(
+      makeGeneratedImageOutput("out-reroll-video", {
+        mode: "video",
+        modelId: "kie-ai/kling-3.0",
+        previewUrl: "https://cdn.test/generated-video.mp4",
+        workflowReload: workflowReload ?? undefined,
+      })
+    );
+
+    const { result } = renderHook(() => useAiStudioState());
+
+    act(() => {
+      result.current.rerollOutputFromReplay("out-reroll-video");
+    });
+
+    expect(submitTaskMock).toHaveBeenCalledWith(
+      "Submission video prompt with style",
+      ["https://cdn.test/first-frame.png"],
+      expect.objectContaining({
+        modeOverride: "video",
+        selectedToolOverride: "video",
+        modelIdOverride: "kie-ai/kling-3.0",
+        aspectOverride: "9:16",
+        videoReferenceModeOverride: "standard",
+        videoReferenceImageUrlOverride: "https://cdn.test/first-frame.png",
+        videoDurationSecondsOverride: 8,
+        videoResolutionOverride: "1080p",
+        videoGenerateAudioOverride: true,
+        videoCameraFixedOverride: false,
+        videoAutoFixOverride: true,
       })
     );
   });

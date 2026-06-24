@@ -465,6 +465,52 @@ describe("PromptStep agent actions", () => {
     expect(screen.getByRole("button", { name: "Send to agent" })).toBeDisabled();
   });
 
+  it("blocks Pulse composer drops while an attached image is still preparing", () => {
+    const onAgentAttachmentDrop = vi.fn();
+    const { container } = render(
+      <PulsePromptStep
+        stepNumber="1"
+        prompt=""
+        onPromptChange={vi.fn()}
+        isCollapsed={false}
+        onToggleCollapse={vi.fn()}
+        chatOnly
+        agentEnabled
+        agentAttachmentDropTarget="input"
+        onAgentAttachmentDrop={onAgentAttachmentDrop}
+        onAgentInputChange={vi.fn()}
+        stagedAttachments={[
+          {
+            id: "img-1",
+            kind: "image",
+            imageUrl: "data:image/png;base64,preview",
+            submissionImageUrl: null,
+            text: null,
+            deliveryStatus: "preparing",
+            deliveryError: null,
+          },
+        ]}
+      />
+    );
+
+    const inputShell = container.querySelector(".agent-composer-input-shell");
+    expect(inputShell).toBeTruthy();
+    const dataTransfer = {
+      files: [new File(["image"], "late.png", { type: "image/png" })],
+      types: ["Files"],
+      getData: () => "",
+      dropEffect: "copy",
+    };
+
+    fireEvent.drop(inputShell as Element, { dataTransfer });
+
+    expect(dataTransfer.dropEffect).toBe("none");
+    expect(onAgentAttachmentDrop).not.toHaveBeenCalled();
+    expect(
+      screen.getByText("Wait for the current image or Pulse reply before adding another image.")
+    ).toBeVisible();
+  });
+
   it("disables Pulse send affordances while Pulse-owned loading is active", () => {
     const onAgentSend = vi.fn();
     render(
@@ -495,6 +541,52 @@ describe("PromptStep agent actions", () => {
 
     fireEvent.click(sendButton);
     expect(onAgentSend).not.toHaveBeenCalled();
+  });
+
+  it("blocks Pulse composer drops while the agent is sending", () => {
+    const onAgentAttachmentDrop = vi.fn();
+    const onAgentAttachmentDragOver = vi.fn();
+    const onAgentAttachmentDragEnter = vi.fn();
+    const onAgentAttachmentDragLeave = vi.fn();
+    const { container } = render(
+      <PulsePromptStep
+        stepNumber="1"
+        prompt=""
+        onPromptChange={vi.fn()}
+        isCollapsed={false}
+        onToggleCollapse={vi.fn()}
+        chatOnly
+        agentEnabled
+        agentAttachmentDropTarget="input"
+        agentIsSending
+        onAgentAttachmentDrop={onAgentAttachmentDrop}
+        onAgentAttachmentDragOver={onAgentAttachmentDragOver}
+        onAgentAttachmentDragEnter={onAgentAttachmentDragEnter}
+        onAgentAttachmentDragLeave={onAgentAttachmentDragLeave}
+        onAgentInputChange={vi.fn()}
+      />
+    );
+
+    const inputShell = container.querySelector(".agent-composer-input-shell");
+    expect(inputShell).toBeTruthy();
+    const dataTransfer = {
+      files: [new File(["image"], "late.png", { type: "image/png" })],
+      types: ["Files"],
+      getData: () => "",
+      dropEffect: "copy",
+    };
+
+    fireEvent.dragEnter(inputShell as Element, { dataTransfer });
+    fireEvent.dragOver(inputShell as Element, { dataTransfer });
+    fireEvent.drop(inputShell as Element, { dataTransfer });
+
+    expect(dataTransfer.dropEffect).toBe("none");
+    expect(onAgentAttachmentDragEnter).not.toHaveBeenCalled();
+    expect(onAgentAttachmentDragOver).not.toHaveBeenCalled();
+    expect(onAgentAttachmentDrop).not.toHaveBeenCalled();
+    expect(
+      screen.getByText("Wait for the current image or Pulse reply before adding another image.")
+    ).toBeVisible();
   });
 
   it("inserts dropped prompt text at the Standard composer caret and restores focus", () => {

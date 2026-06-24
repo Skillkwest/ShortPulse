@@ -127,6 +127,25 @@ describe("MediaLibraryAllItemsGrid", () => {
     expect(screen.getByText("0:09")).toBeInTheDocument();
   });
 
+  it("does not probe hover preview loops as the card duration authority", () => {
+    const props = baseProps();
+    props.mediaRows = [
+      {
+        ...props.mediaRows[0],
+        signedUrl: "https://cdn.example.com/clip-1-poster.jpg",
+        metadata: null,
+      },
+    ];
+    props.signedVideoUrlById = {
+      "video-1": "https://cdn.example.com/signed/preview-loop-3s.mp4",
+    };
+
+    render(<MediaLibraryAllItemsGrid {...props} />);
+
+    expect(screen.queryByText("0:03")).not.toBeInTheDocument();
+    expect(screen.queryByText(/0:\d{2}/)).not.toBeInTheDocument();
+  });
+
   it("attaches and plays the provided hover video preview on pointer enter", async () => {
     const props = baseProps();
     props.mediaRows = [

@@ -12,11 +12,11 @@ import {
   TrashSimple,
   X,
 } from "phosphor-react";
-import { canRerollOutput } from "../../logic/generationReplay";
 import {
   canReloadWorkflowOutput,
   inferWorkflowReloadMediaKindForOutput,
 } from "../../logic/workflowReload";
+import { canRerollOutput } from "../../logic/workflowReroll";
 import { resolveOutputAudioSourceMode } from "../../logic/audioSourceMode";
 import { resolveReferenceAudioDisplayTitle } from "../../logic/referenceAudioTitle";
 import { canDragReferenceOutput } from "../../logic/referenceOutputAuthority";
@@ -220,11 +220,13 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     item.saveState !== "saved" &&
     (isPromptOnly || isImagePreview || isVideoPreview || isAudioPreview)
   );
-  const shouldShowRerollAction = Boolean(onRerollOutput && isImagePreview && canRerollOutput(item));
   const workflowReloadMediaKindHint: WorkflowReloadMediaKindHint =
     inferWorkflowReloadMediaKindForOutput(item, {
       mediaKindHint: isVideoPreview ? "video" : isAudioPreview ? "audio" : null,
     });
+  const shouldShowRerollAction = Boolean(
+    onRerollOutput && canRerollOutput(item, { mediaKindHint: workflowReloadMediaKindHint })
+  );
   const shouldShowWorkflowReloadAction = Boolean(
     onReloadWorkflowOutput &&
     canReloadWorkflowOutput(item, { mediaKindHint: workflowReloadMediaKindHint })
@@ -775,7 +777,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
             <button
               type="button"
               className="reference-card-action-btn reference-card-reroll-btn"
-              aria-label="Re-roll image"
+              aria-label="Re-roll"
               onClick={(event) => {
                 event.stopPropagation();
                 onSelectOutput(item.id);

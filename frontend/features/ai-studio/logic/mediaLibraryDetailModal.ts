@@ -25,6 +25,8 @@ export type MediaLibraryDetailSelectionPayload = {
   transcriptText?: string | null;
   lyricsText?: string | null;
   source?: string | null;
+  width?: number | null;
+  height?: number | null;
   previewStoragePath?: string | null;
   fullStoragePath?: string | null;
   previewUrl?: string | null;
@@ -67,6 +69,8 @@ type MediaLibraryDetailFields = {
   transcriptText?: string | null;
   lyricsText?: string | null;
   source?: string | null;
+  width?: number | null;
+  height?: number | null;
   previewStoragePath?: string | null;
   fullStoragePath?: string | null;
   previewUrl?: string | null;
@@ -102,12 +106,19 @@ export const createMediaLibraryDetailModalItem = ({
   const resolvedDisplayTitle =
     fields.displayTitle?.trim() || resolveMediaMetadataDisplayTitle(file.metadata);
   const resolvedPresentationTitle = resolvedDisplayTitle ?? resolvedFilename;
+  const width = fields.width ?? file.width ?? null;
+  const height = fields.height ?? file.height ?? null;
+  const normalizedFields = {
+    ...fields,
+    width,
+    height,
+  };
   const kindLabel = normalizeSharedMediaDetailKindLabel(fields.fileType);
   const isExternalUpload =
     fields.source?.trim()?.toLowerCase() === "upload" && Boolean(resolvedFilename);
 
   return {
-    ...createMediaLibraryDetailSelectionPayload(file.id, fields),
+    ...createMediaLibraryDetailSelectionPayload(file.id, normalizedFields),
     file,
     surface,
     selectionTarget: {
@@ -119,7 +130,7 @@ export const createMediaLibraryDetailModalItem = ({
     media: {
       id: file.id,
       kind: fields.fileType === "audio" ? "audio" : fields.fileType === "video" ? "video" : "image",
-      ...fields,
+      ...normalizedFields,
     },
     presentation: {
       title: resolvedPresentationTitle,

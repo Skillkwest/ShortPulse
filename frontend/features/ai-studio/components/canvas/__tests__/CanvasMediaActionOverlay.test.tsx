@@ -142,7 +142,7 @@ describe("CanvasMediaActionOverlay", () => {
     expect(screen.getByLabelText("Save to media library")).toBeInTheDocument();
     expect(downloadButton).toBeInTheDocument();
     expect(screen.getByLabelText("Remove reference from grid")).toBeInTheDocument();
-    expect(screen.getByLabelText("Re-roll image")).toBeInTheDocument();
+    expect(screen.getByLabelText("Re-roll")).toBeInTheDocument();
     expect(screen.getByLabelText("Reload workflow")).toBeInTheDocument();
 
     fireEvent.pointerDown(downloadButton);
@@ -153,7 +153,7 @@ describe("CanvasMediaActionOverlay", () => {
     expect(actions.onSelectOutput).toHaveBeenCalledWith("out-image-1");
     expect(actions.onDownload).toHaveBeenCalledWith(output);
 
-    fireEvent.click(screen.getByLabelText("Re-roll image"));
+    fireEvent.click(screen.getByLabelText("Re-roll"));
     expect(actions.onRerollOutput).toHaveBeenCalledWith(output);
 
     fireEvent.click(screen.getByLabelText("Reload workflow"));
@@ -174,13 +174,15 @@ describe("CanvasMediaActionOverlay", () => {
     expect(screen.queryByLabelText("Save to media library")).not.toBeInTheDocument();
   });
 
-  it("uses video workflow reload hints without showing image reroll", () => {
+  it("uses video workflow hints for reload and reroll", () => {
     const output = createVideoOutput();
     const actions = createActions(output);
 
     render(<CanvasMediaActionOverlay item={videoItem} actions={actions} />);
 
-    expect(screen.queryByLabelText("Re-roll image")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("Re-roll"));
+    expect(actions.onRerollOutput).toHaveBeenCalledWith(output);
+
     fireEvent.click(screen.getByLabelText("Reload workflow"));
 
     expect(actions.onReloadWorkflowOutput).toHaveBeenCalledWith(output, {

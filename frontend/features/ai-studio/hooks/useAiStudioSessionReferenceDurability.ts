@@ -12,7 +12,7 @@ import {
 import type { StudioOutput } from "../types";
 import { uploadAudioAssetToStorage } from "../utils/audioUpload";
 import { uploadImageAssetToStorage } from "../utils/imageUpload";
-import { uploadVideoAssetToStorage } from "../utils/videoUpload";
+import { uploadReferenceVideoAssetToStorage } from "../utils/videoUpload";
 
 type UseAiStudioSessionReferenceDurabilityParams = {
   outputs: StudioOutput[];
@@ -125,6 +125,13 @@ const toLocalReferenceCandidate = (output: StudioOutput): LocalReferenceCandidat
   if (!output?.id) return null;
   if (output.mode !== "image" && output.mode !== "video" && output.mode !== "audio") return null;
   if (
+    (output.mode === "video" && output.saveState === "saving") ||
+    output.saveState === "failed" ||
+    output.saveState === "blocked_storage"
+  ) {
+    return null;
+  }
+  if (
     output.mediaSource === "generated" ||
     output.mediaSource === "library" ||
     output.mediaSource === "prompt"
@@ -230,6 +237,34 @@ const patchOutputIfUnchanged = ({
   return { rows: patched, changed };
 };
 
+const patchOutputFailureIfUnchanged = ({
+  rows,
+  outputId,
+  expectedSignature,
+  message,
+}: {
+  rows: StudioOutput[];
+  outputId: string;
+  expectedSignature: string;
+  message: string;
+}): StudioOutput[] =>
+  rows.map((row) => {
+    if (row.id !== outputId) return row;
+    if (resolveCandidateSignature(row) !== expectedSignature) return row;
+    const next: StudioOutput = {
+      ...row,
+      saveState: "failed",
+      saveError: message,
+    };
+    if (next.taskState === "pending" || next.taskState === "running") {
+      delete next.taskState;
+      delete next.taskId;
+      delete next.queueState;
+      delete next.queueEnqueuedAtMs;
+    }
+    return next;
+  });
+
 /**
  * Ensures local-only reference rows are durably upload-backed for future session restoration.
  */
@@ -267,7 +302,7 @@ export const useAiStudioSessionReferenceDurability = ({
         let uploaded: { url: string; path: string } | null = null;
         let uploadedPoster: { url: string; path: string } | null = null;
         if (candidate.mode === "video") {
-          uploaded = await uploadVideoAssetToStorage(candidate.uploadUrl);
+          uploaded = await uploadReferenceVideoAssetToStorage(candidate.uploadUrl);
           if (candidate.previewPosterUrl) {
             try {
               uploadedPoster = await uploadImageAssetToStorage(candidate.previewPosterUrl);
@@ -330,9 +365,11 @@ export const useAiStudioSessionReferenceDurability = ({
           retryTimeoutByAttemptKeyRef.current.delete(attemptKey);
         }
       } catch (error) {
+        const nextAttemptCount = attemptCountBySignatureRef.current.get(attemptKey) ?? 0;
+        const errorMessage =
+          error instanceof Error ? error.message : "Unable to save local reference.";
         if (
-          (attemptCountBySignatureRef.current.get(attemptKey) ?? 0) <
-            AI_STUDIO_DURABILITY_MAX_ATTEMPTS_PER_SIGNATURE &&
+          nextAttemptCount < AI_STUDIO_DURABILITY_MAX_ATTEMPTS_PER_SIGNATURE &&
           !retryTimeoutByAttemptKeyRef.current.has(attemptKey)
         ) {
           const retryTimeout = setTimeout(() => {
@@ -352,6 +389,23 @@ export const useAiStudioSessionReferenceDurability = ({
             void drainPendingQueueRef.current();
           }, AI_STUDIO_DURABILITY_RETRY_DELAY_MS);
           retryTimeoutByAttemptKeyRef.current.set(attemptKey, retryTimeout);
+        } else {
+          setOutputsState((rows) =>
+            patchOutputFailureIfUnchanged({
+              rows,
+              outputId: candidate.id,
+              expectedSignature: candidate.signature,
+              message: errorMessage,
+            })
+          );
+          setArchivedOutputs((rows) =>
+            patchOutputFailureIfUnchanged({
+              rows,
+              outputId: candidate.id,
+              expectedSignature: candidate.signature,
+              message: errorMessage,
+            })
+          );
         }
         addBreadcrumb({
           type: "ui",
@@ -360,7 +414,7 @@ export const useAiStudioSessionReferenceDurability = ({
           data: {
             output_id: candidate.id,
             mode: candidate.mode,
-            error: error instanceof Error ? error.message : "unknown_error",
+            error: errorMessage,
           },
         });
       } finally {

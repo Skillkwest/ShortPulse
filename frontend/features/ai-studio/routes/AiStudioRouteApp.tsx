@@ -23,6 +23,7 @@ import { useAiStudioPageGenerationRuntime } from "../hooks/useAiStudioPageGenera
 import { useAiStudioMediaAutosaveOrchestrator } from "../hooks/useAiStudioMediaAutosaveOrchestrator";
 import { useAiStudioPageProjectSessionRuntime } from "../hooks/useAiStudioPageProjectSessionRuntime";
 import { useAiStudioShellRuntime } from "../hooks/useAiStudioShellRuntime";
+import { useAiStudioAudioRerollController } from "../hooks/useAiStudioAudioRerollController";
 import { useAiStudioCreatePanelRuntime } from "../hooks/useAiStudioCreatePanelRuntime";
 import { useAiStudioEditVideoPanelRuntimes } from "../hooks/useAiStudioEditVideoPanelRuntimes";
 import { useAiStudioReferenceExperienceRuntime } from "../hooks/useAiStudioReferenceExperienceRuntime";
@@ -665,6 +666,21 @@ const AiStudioPageRuntimeBody = ({
     videoReferenceText,
     videoResolution,
   });
+  const { rerollAudioOutputFromWorkflow } = useAiStudioAudioRerollController({
+    findOutputById: base.findOutputById,
+    handleVoicesGenerate,
+    handleMusicGenerate,
+    handleSoundEffectsGenerate,
+    setUiNotice,
+  });
+  const rerollOutputFromReplay = base.rerollOutputFromReplay;
+  const handleRerollOutputFromWorkflow = useCallback(
+    (outputId: string) => {
+      if (rerollAudioOutputFromWorkflow(outputId)) return;
+      rerollOutputFromReplay(outputId);
+    },
+    [rerollAudioOutputFromWorkflow, rerollOutputFromReplay]
+  );
   const resolveExpertEditVariantCostCredits = useCallback(
     ({
       modelId,
@@ -753,6 +769,7 @@ const AiStudioPageRuntimeBody = ({
     handleManualPromptChange,
     handleRegenerateWithDebit,
     handleOpenMediaLibrary,
+    handleRerollOutput: handleRerollOutputFromWorkflow,
   });
   const {
     effectiveProjectName,

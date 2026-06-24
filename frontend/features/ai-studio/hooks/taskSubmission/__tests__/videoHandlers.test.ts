@@ -1951,6 +1951,28 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     const handled = await handleVideoModelSubmission(args);
 
     expect(handled).toBe(true);
+    expect(fetchWithAuth).toHaveBeenCalledWith(
+      "/api/kie/upload-url",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          fileUrl: "https://example.com/element-a.png",
+          uploadPath: "shortpulse/kie-video/images",
+          admissionProfile: "kie_kling_reference_image",
+        }),
+      })
+    );
+    expect(fetchWithAuth).toHaveBeenCalledWith(
+      "/api/kie/upload-url",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          fileUrl: "https://example.com/element-b.png",
+          uploadPath: "shortpulse/kie-video/images",
+          admissionProfile: "kie_kling_reference_image",
+        }),
+      })
+    );
     expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
       expect.objectContaining({
         prompt: expect.stringContaining(
@@ -2375,6 +2397,28 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     const handled = await handleVideoModelSubmission(args);
 
     expect(handled).toBe(true);
+    expect(fetchWithAuth).toHaveBeenCalledWith(
+      "/api/kie/upload-url",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          fileUrl: "https://example.com/element-a.png",
+          uploadPath: "shortpulse/kie-video/images",
+          admissionProfile: "kie_kling_reference_image",
+        }),
+      })
+    );
+    expect(fetchWithAuth).toHaveBeenCalledWith(
+      "/api/kie/upload-url",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          fileUrl: "https://example.com/element-b.png",
+          uploadPath: "shortpulse/kie-video/images",
+          admissionProfile: "kie_kling_reference_image",
+        }),
+      })
+    );
     expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
       expect.objectContaining({
         prompt: "Transfer this movement to the lantern and train @element1 @element2",

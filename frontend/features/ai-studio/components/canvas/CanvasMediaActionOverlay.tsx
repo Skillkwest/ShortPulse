@@ -11,11 +11,11 @@ import {
   FlowArrow,
   TrashSimple,
 } from "phosphor-react";
-import { canRerollOutput } from "../../logic/generationReplay";
 import {
   canReloadWorkflowOutput,
   inferWorkflowReloadMediaKindForOutput,
 } from "../../logic/workflowReload";
+import { canRerollOutput } from "../../logic/workflowReroll";
 import {
   canDownloadReferenceOutput,
   canSaveReferenceOutput,
@@ -93,12 +93,12 @@ export function CanvasMediaActionOverlay({
     actions.onDownload && canDownloadReferenceOutput(output)
   );
   const shouldShowDeleteAction = Boolean(actions.onDeleteOutput);
-  const shouldShowRerollAction = Boolean(
-    actions.onRerollOutput && item.kind === "image" && canRerollOutput(output)
-  );
   const mediaKindHint = inferWorkflowReloadMediaKindForOutput(output, {
     mediaKindHint: resolveCanvasMediaKindHint(item),
   });
+  const shouldShowRerollAction = Boolean(
+    actions.onRerollOutput && canRerollOutput(output, { mediaKindHint })
+  );
   const shouldShowWorkflowReloadAction = Boolean(
     actions.onReloadWorkflowOutput && canReloadWorkflowOutput(output, { mediaKindHint })
   );
@@ -180,7 +180,7 @@ export function CanvasMediaActionOverlay({
             <button
               type="button"
               className="reference-card-action-btn reference-card-reroll-btn"
-              aria-label="Re-roll image"
+              aria-label="Re-roll"
               onClick={(event) => {
                 stopCanvasActionEvent(event);
                 actions.onSelectOutput?.(output.id);

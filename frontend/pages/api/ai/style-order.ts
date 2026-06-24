@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { normalizeStylesLibraryOrderedIds } from "../../../features/ai-studio/logic/stylesLibraryCatalog";
+import { normalizeStylesLibraryOrderedIds } from "../../../lib/model-runtime/stylesLibraryOrder";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";

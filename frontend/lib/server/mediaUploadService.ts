@@ -65,6 +65,8 @@ const MAX_VOICE_CHANGER_AUDIO_STAGE_BYTES = 100 * 1024 * 1024;
 const MEDIA_DIRECT_UPLOAD_STAGING_ROOT = "upload-staging";
 const MOTION_REFERENCE_VIDEO_STAGING_FOLDER = `${MEDIA_DIRECT_UPLOAD_STAGING_ROOT}/videos/motion-control`;
 const MOTION_REFERENCE_VIDEO_STORAGE_FOLDER = "videos/motion-control";
+const REFERENCE_VIDEO_STAGING_FOLDER = `${MEDIA_DIRECT_UPLOAD_STAGING_ROOT}/videos/reference`;
+const REFERENCE_VIDEO_STORAGE_FOLDER = "videos/reference";
 
 const VIDEO_DESTINATIONS = new Set<MediaUploadDestinationTab>(["uploaded_videos"]);
 
@@ -1084,6 +1086,52 @@ export const prepareReferenceImageUploadForUser = async ({
   }
 };
 
+export const prepareReferenceVideoUploadForUser = async ({
+  userId,
+  filename,
+  declaredMimeType,
+}: {
+  userId: string;
+  filename: string;
+  declaredMimeType: string;
+}): Promise<{
+  path: string;
+  token: string;
+  mimeType: string;
+  name: string;
+}> => {
+  const normalizedFilename = filename.trim() || "reference-video";
+  const normalizedMimeType = resolvePreparedMediaUploadMimeType({
+    destinationTab: "uploaded_videos",
+    declaredMimeType,
+  });
+  const storagePath = buildScopedMediaStoragePath({
+    userId,
+    storageFolder: REFERENCE_VIDEO_STAGING_FOLDER,
+    storedFileName: resolvePreparedMediaUploadStoredFileName({
+      filename: normalizedFilename,
+      mimeType: normalizedMimeType,
+    }),
+    label: "Prepared reference video storage path",
+  });
+
+  try {
+    const target = await createSignedUploadTarget({ storagePath });
+    return {
+      path: target.path,
+      token: target.token,
+      mimeType: normalizedMimeType,
+      name: normalizedFilename,
+    };
+  } catch (error) {
+    throw new MediaUploadServiceError(
+      500,
+      "Unable to prepare reference video upload",
+      error instanceof Error ? error.message : "Unable to prepare reference video upload."
+    );
+  }
+};
+
 export const prepareMotionReferenceVideoUploadForUser = async ({
   userId,
   filename,
@@ -1516,6 +1564,73 @@ export const finalizeReferenceImageUploadForUser = async ({
       parsedUpload,
       userId,
       storageFolderOverride: REFERENCE_IMAGE_STORAGE_FOLDER,
+    });
+    return {
+      url: uploaded.signedUrl,
+      path: uploaded.storagePath,
+      size: uploaded.size,
+      mimeType: uploaded.parsedUpload.declaredMimeType,
+      name: uploaded.parsedUpload.filename,
+    };
+  } finally {
+    await removeScopedMediaStorageObject(safeStoragePath);
+  }
+};
+
+export const finalizeReferenceVideoUploadForUser = async ({
+  userId,
+  storagePath,
+  filename,
+  declaredMimeType,
+}: {
+  userId: string;
+  storagePath: string;
+  filename: string;
+  declaredMimeType: string;
+}): Promise<SignedStorageUploadResponse> => {
+  const safeStoragePath = assertUserScopedMediaStoragePath({
+    path: storagePath,
+    userId,
+    label: "Prepared reference video storage path",
+  });
+  const expectedFolderPrefix = `${userId}/${REFERENCE_VIDEO_STAGING_FOLDER}/`;
+  if (!safeStoragePath.startsWith(expectedFolderPrefix)) {
+    throw new MediaUploadServiceError(
+      400,
+      "Invalid request",
+      "Prepared reference video storage path is outside the expected namespace."
+    );
+  }
+
+  let uploaded: UploadedStorageAsset | null = null;
+  try {
+    let stored;
+    try {
+      stored = await readStoredMediaBuffer({
+        storagePath: safeStoragePath,
+        maxBytes: MAX_UPLOAD_BYTES,
+      });
+    } catch (error) {
+      if (error instanceof MediaAudioExtractionInputError && error.statusCode === 413) {
+        throw new MediaUploadServiceError(413, "Upload failed: file too large");
+      }
+      throw error;
+    }
+    const parsedUpload: ParsedUpload = {
+      buffer: stored.buffer,
+      declaredMimeType:
+        resolvePreparedMediaUploadMimeType({
+          destinationTab: "uploaded_videos",
+          declaredMimeType: declaredMimeType || stored.contentType || "",
+        }) || normalizeContentType(stored.contentType ?? undefined),
+      size: stored.size,
+      filename: filename.trim() || safeStoragePath.split("/").filter(Boolean).pop() || "upload",
+      destinationTab: "uploaded_videos",
+    };
+    uploaded = await uploadStorageAssetFromParsedUpload({
+      parsedUpload,
+      userId,
+      storageFolderOverride: REFERENCE_VIDEO_STORAGE_FOLDER,
     });
     return {
       url: uploaded.signedUrl,

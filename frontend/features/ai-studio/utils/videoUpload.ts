@@ -100,6 +100,9 @@ type StageMotionReferenceVideoPayload = {
   details?: unknown;
 } | null;
 
+type PrepareReferenceVideoUploadPayload = PrepareMotionReferenceVideoUploadPayload;
+type StageReferenceVideoPayload = StageMotionReferenceVideoPayload;
+
 const normalizeVideoUploadMimeType = (mimeType: string): string =>
   (mimeType.split(";")[0] ?? "").trim().toLowerCase() || "video/mp4";
 
@@ -374,6 +377,105 @@ const uploadVideoBlob = async ({
   };
 };
 
+const uploadReferenceVideoBlob = async ({
+  blob,
+  mimeType,
+  filename,
+}: {
+  blob: Blob;
+  mimeType: string;
+  filename: string;
+}): Promise<VideoUploadResult> => {
+  const normalizedMimeType = normalizeVideoUploadMimeType(mimeType || blob.type);
+  const prepareResponse = await fetchWithAuth("/api/media/prepare-reference-video-upload", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      sourceMimeType: normalizedMimeType,
+      sourceName: filename,
+    }),
+    shortpulseLogScope: "generation",
+    shortpulseAuthTimeoutMs: MOTION_REFERENCE_UPLOAD_AUTH_TIMEOUT_MS,
+    shortpulseRetryNetworkOnce: true,
+  });
+  const preparePayload = (await prepareResponse
+    .json()
+    .catch(() => null)) as PrepareReferenceVideoUploadPayload;
+  const storagePath =
+    typeof preparePayload?.target?.storagePath === "string"
+      ? preparePayload.target.storagePath.trim()
+      : "";
+  const uploadToken =
+    typeof preparePayload?.target?.uploadToken === "string"
+      ? preparePayload.target.uploadToken.trim()
+      : "";
+  const preparedMimeType =
+    typeof preparePayload?.target?.mimeType === "string"
+      ? preparePayload.target.mimeType.trim()
+      : normalizedMimeType;
+  const preparedName =
+    typeof preparePayload?.target?.name === "string" ? preparePayload.target.name.trim() : filename;
+
+  if (!prepareResponse.ok || !storagePath || !uploadToken) {
+    throw new Error(
+      resolveVideoUploadPipelineError(preparePayload, "Unable to prepare reference video upload.")
+    );
+  }
+
+  const supabase = ensureSupabaseQueryClient();
+  const uploadToSignedUrlResult = await supabase.storage
+    .from(BUCKET)
+    .uploadToSignedUrl(storagePath, uploadToken, blob, {
+      contentType: preparedMimeType,
+      upsert: false,
+    });
+  if (uploadToSignedUrlResult.error) {
+    throw new Error(
+      uploadToSignedUrlResult.error.message || "Unable to upload the reference video."
+    );
+  }
+
+  const finalizeResponse = await fetchWithAuth("/api/media/stage-reference-video", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      sourceMimeType: preparedMimeType,
+      sourceName: preparedName,
+      sourceStoragePath: storagePath,
+    }),
+    shortpulseLogScope: "generation",
+    shortpulseAuthTimeoutMs: MOTION_REFERENCE_UPLOAD_AUTH_TIMEOUT_MS,
+    shortpulseRetryNetworkOnce: true,
+  });
+  const result = (await finalizeResponse.json().catch(() => null)) as StageReferenceVideoPayload;
+
+  if (!finalizeResponse.ok) {
+    throw new Error(
+      resolveVideoUploadPipelineError(result, `Video upload failed (${finalizeResponse.status})`)
+    );
+  }
+
+  const url = typeof result?.url === "string" ? result.url.trim() : "";
+  const path = typeof result?.path === "string" ? result.path.trim() : "";
+  const size = typeof result?.size === "number" ? result.size : blob.size;
+  const resultMimeType = typeof result?.mimeType === "string" ? result.mimeType.trim() : "";
+  const resultName = typeof result?.name === "string" ? result.name.trim() : "";
+  if (!url || !path) {
+    throw new Error("Video upload failed: missing signed delivery metadata.");
+  }
+  return {
+    url,
+    path,
+    size,
+    ...(resultMimeType ? { mimeType: resultMimeType } : {}),
+    ...(resultName ? { name: resultName } : {}),
+  };
+};
+
 /**
  * Uploads a local video File to storage and returns signed delivery metadata.
  */
@@ -456,6 +558,70 @@ export const uploadVideoAssetToStorage = async (
     ) {
       throw new Error(
         "Local motion reference video is no longer available. Re-add the motion video and try again."
+      );
+    }
+    throw new Error(
+      error instanceof Error ? error.message : "Failed to upload video. Please try again."
+    );
+  }
+};
+
+/**
+ * Uploads a local generic reference video URL to storage for restore durability.
+ */
+export const uploadReferenceVideoAssetToStorage = async (
+  localVideoUrl: string
+): Promise<VideoUploadResult> => {
+  const normalizedLocalVideoUrl = localVideoUrl.replace(/#video=1$/i, "");
+  const isLocalMemoryUrl = shouldUploadForProviderAccess(normalizedLocalVideoUrl);
+  try {
+    const rememberedBlob = normalizedLocalVideoUrl.startsWith("blob:")
+      ? readRememberedObjectUrlBlob(normalizedLocalVideoUrl)
+      : null;
+    const dataUrlBlob = /^data:video\//i.test(normalizedLocalVideoUrl)
+      ? readDataVideoUrlBlob(normalizedLocalVideoUrl)
+      : null;
+    if (normalizedLocalVideoUrl.startsWith("blob:") && !rememberedBlob) {
+      throw new Error(
+        "Local reference video is no longer available. Re-add the video and try again."
+      );
+    }
+    const blob =
+      rememberedBlob ??
+      dataUrlBlob ??
+      (await (async () => {
+        const response = await fetch(normalizedLocalVideoUrl);
+        if (!response.ok) {
+          throw new Error(`Unable to read local video input (${response.status}).`);
+        }
+        return response.blob();
+      })());
+
+    const timestamp = Date.now();
+    const randomString = Math.random().toString(36).substring(7);
+    const urlExtension = readVideoUrlExtension(normalizedLocalVideoUrl);
+    const supportedUrlExtension =
+      urlExtension && VIDEO_MIME_TYPE_BY_EXTENSION.has(urlExtension) ? urlExtension : null;
+    const sourceMimeType = inferVideoBlobMimeType(
+      blob,
+      `reference-video.${supportedUrlExtension ?? inferVideoFileExtensionFromMimeType(blob.type)}`
+    );
+    const extension = supportedUrlExtension ?? inferVideoFileExtensionFromMimeType(sourceMimeType);
+    const filename = `reference-video-${timestamp}-${randomString}.${extension}`;
+    return await uploadReferenceVideoBlob({
+      blob,
+      mimeType: sourceMimeType,
+      filename,
+    });
+  } catch (error) {
+    console.error("Reference video upload error:", error);
+    if (
+      isLocalMemoryUrl &&
+      error instanceof TypeError &&
+      error.message.toLowerCase().includes("failed to fetch")
+    ) {
+      throw new Error(
+        "Local reference video is no longer available. Re-add the video and try again."
       );
     }
     throw new Error(

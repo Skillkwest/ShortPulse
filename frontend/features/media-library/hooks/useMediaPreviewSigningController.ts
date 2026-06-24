@@ -1,20 +1,8 @@
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  type Dispatch,
-  type MutableRefObject,
-  type SetStateAction,
-} from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { createMediaPerfTimer } from "../../../lib/mediaPerfTelemetry";
 import { resolvePreviewProfileForSurface } from "../../../lib/mediaPreviewTransformProfile";
 import { getSignedMediaUrlsBatch } from "../../../lib/mediaSignedUrlCache";
-import {
-  BUCKET,
-  type MediaDataTab,
-  type MediaSignBudget,
-  type MediaTabBooleanState,
-} from "../logic/mediaLibraryPageHelpers";
+import { BUCKET } from "../logic/mediaLibraryPageHelpers";
 import {
   prepareMediaSigningState,
   type PreparedSignState,
@@ -31,50 +19,11 @@ import {
 import {
   resolveBackgroundHydrateFallbackLimit,
   VISIBLE_SCOPED_SIGN_SURFACES,
-  type MediaPreviewSigningSurface,
 } from "./mediaPreviewSigningControllerConfig";
-
-type PreviewSigningRowBase = {
-  id: string;
-  storage_path: string;
-  source?: string | null;
-  file_type?: string | null;
-  status?: "uploading" | "ready";
-  signedUrl?: string | null;
-};
-
-type UseMediaPreviewSigningControllerArgs<
-  TRow extends PreviewSigningRowBase,
-  TTab extends string,
-> = {
-  activeMediaTab: MediaDataTab | null;
-  activeMediaCacheLoading: boolean;
-  activeMediaCachePagesLoaded: number;
-  activeMediaQuery: string;
-  activeMediaQueryRef: MutableRefObject<string>;
-  activeTabRef: MutableRefObject<TTab>;
-  applySignedUrlsToTab: (tab: MediaDataTab, signedById: Map<string, string>) => void;
-  currentUserIdRef: MutableRefObject<string | null>;
-  filteredMedia: TRow[];
-  hydrateViaStorageDownload: (row: TRow) => Promise<string | null>;
-  isMountedRef: MutableRefObject<boolean>;
-  mediaSignInFlightRef: MutableRefObject<MediaTabBooleanState>;
-  resolveSignedUrlsByMediaIds: (tab: MediaDataTab, rows: TRow[]) => Promise<Set<string>>;
-  setSignPassNonce: Dispatch<SetStateAction<number>>;
-  signAttemptRef: MutableRefObject<Record<string, number>>;
-  signBudget: MediaSignBudget;
-  signPassNonce: number;
-  visibleMediaIdsRef: MutableRefObject<Set<string>>;
-  visibleMediaVersion: number;
-  isSigningPassEnabled?: boolean;
-  isSignPrefetchEnabled?: boolean;
-  surface?: MediaPreviewSigningSurface;
-  unresolvedWarningPrefix?: string;
-  isResultStillRelevant?: (params: { tab: MediaDataTab; query: string }) => boolean;
-  maxSignAttemptsPerItem?: number;
-  maxSignCandidatesPerRow?: number;
-  backgroundHydrateFallbackEnabled?: boolean;
-};
+import type {
+  PreviewSigningRowBase,
+  UseMediaPreviewSigningControllerArgs,
+} from "./mediaPreviewSigningControllerTypes";
 
 export const useMediaPreviewSigningController = <
   TRow extends PreviewSigningRowBase,

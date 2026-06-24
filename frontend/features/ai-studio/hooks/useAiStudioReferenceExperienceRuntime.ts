@@ -35,6 +35,7 @@ type UseAiStudioReferenceExperienceRuntimeParams = {
     typeof useAiStudioGenerationController
   >["handleRegenerateWithDebit"];
   handleOpenMediaLibrary: ReturnType<typeof useAiStudioWorkspaceActions>["handleOpenMediaLibrary"];
+  handleRerollOutput?: (outputId: string) => void;
 };
 
 /**
@@ -51,6 +52,7 @@ export const useAiStudioReferenceExperienceRuntime = ({
   handleManualPromptChange,
   handleRegenerateWithDebit,
   handleOpenMediaLibrary,
+  handleRerollOutput,
 }: UseAiStudioReferenceExperienceRuntimeParams): PageContentRuntimeProps => {
   const {
     activeOutput,
@@ -93,6 +95,7 @@ export const useAiStudioReferenceExperienceRuntime = ({
     updateOutputPrompt,
     videoReferenceText,
   } = base;
+  const resolvedRerollOutput = handleRerollOutput ?? rerollOutputFromReplay;
   const { handleDownloadReference, handleSaveReference } = useAiStudioReferenceAssetActions({
     projectId,
     findOutputById,
@@ -109,7 +112,7 @@ export const useAiStudioReferenceExperienceRuntime = ({
       onSelectOutput: handleSelectOutput,
       onSaveToLibrary: (output: StudioOutput) => handleSaveReference(output.id),
       onDownload: (output: StudioOutput) => handleDownloadReference(output.id),
-      onRerollOutput: (output: StudioOutput) => rerollOutputFromReplay(output.id),
+      onRerollOutput: (output: StudioOutput) => resolvedRerollOutput(output.id),
       onReloadWorkflowOutput: reloadWorkflowFromStudioOutput,
       onDeleteOutput: deleteOutput,
       isMediaStorageFull,
@@ -122,7 +125,7 @@ export const useAiStudioReferenceExperienceRuntime = ({
       handleSelectOutput,
       isMediaStorageFull,
       reloadWorkflowFromStudioOutput,
-      rerollOutputFromReplay,
+      resolvedRerollOutput,
     ]
   );
   const railCanvasPropsWithMediaActions = useMemo(
@@ -154,7 +157,7 @@ export const useAiStudioReferenceExperienceRuntime = ({
     handleAddLibraryMediaReference: addLibraryMediaReference,
     handleAddLibraryPromptReference: addLibraryPromptReference,
     retryOutputStatus,
-    handleRerollOutput: rerollOutputFromReplay,
+    handleRerollOutput: resolvedRerollOutput,
     handleReloadWorkflowOutput: reloadWorkflowFromStudioOutput,
     deleteOutput,
     clearGenerationOutput,

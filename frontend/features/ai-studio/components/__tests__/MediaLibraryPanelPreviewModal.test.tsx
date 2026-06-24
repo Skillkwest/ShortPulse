@@ -626,6 +626,34 @@ describe("MediaLibraryPanelPreviewModal", () => {
     expect(video?.getAttribute("poster")).toBe("https://cdn.example.com/poster.jpg");
   });
 
+  it("uses stored video dimensions for the initial shared preview aspect", () => {
+    const videoFile: MediaFileRow = {
+      id: "video-1",
+      filename: "clip.mp4",
+      storage_path: "user-1/uploads/clip.mp4",
+      preview_storage_path: "user-1/uploads/clip.mp4",
+      file_type: "video/mp4",
+      width: 1920,
+      height: 1080,
+      signedUrl: "https://cdn.example.com/clip.mp4",
+    };
+
+    render(
+      <MediaLibraryPanelPreviewModal
+        item={createPreviewItem(videoFile, "https://cdn.example.com/clip.mp4")}
+        isLoading={false}
+        error={null}
+        onClose={vi.fn()}
+      />
+    );
+
+    const video = document.querySelector(
+      "video.media-library-panel-preview-media"
+    ) as HTMLVideoElement | null;
+    expect(video).not.toBeNull();
+    expect(video).toHaveStyle({ aspectRatio: "1.7777777777777777" });
+  });
+
   it("shows Snapshot only for video library details and passes the preview video element", async () => {
     const onSnapshotVideoFrame = vi.fn();
     const videoFile: MediaFileRow = {

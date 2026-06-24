@@ -26,6 +26,7 @@ import {
   hasInboundStudioAgentCanonicalPrompt,
   hasStudioAgentPulseContext,
   isPulseCreateAgentSessionNamespace,
+  isStandardCreateAgentSessionNamespace,
   readStudioAgentClientSessionNamespace,
 } from "../studioAgentRouteModeBoundary";
 import {
@@ -903,14 +904,18 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
   if (req.method === "POST") {
     const clientSessionNamespace = readStudioAgentClientSessionNamespace(req.body);
     const hasCrossModeContinuity = isPulseCreateAgentSessionNamespace(clientSessionNamespace);
+    const hasInvalidStandardNamespace =
+      clientSessionNamespace !== null &&
+      !isStandardCreateAgentSessionNamespace(clientSessionNamespace);
     if (
       req.body?.runtimeMode === "pulse" ||
       hasStudioAgentPulseContext(req.body?.context) ||
-      hasCrossModeContinuity
+      hasCrossModeContinuity ||
+      hasInvalidStandardNamespace
     ) {
       return sendStudioAgentError(res, 400, {
         code: "INVALID_REQUEST",
-        message: "Standard agent runtime does not accept Pulse runtime payloads.",
+        message: "Standard agent runtime requires a Standard runtime payload.",
         traceId,
       });
     }

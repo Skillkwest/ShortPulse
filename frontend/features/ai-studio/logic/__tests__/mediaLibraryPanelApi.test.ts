@@ -444,6 +444,33 @@ describe("mediaLibraryPanelApi.uploadMediaFile", () => {
     ).rejects.toThrow("Image file is too large. ShortPulse accepts images up to 25 MB.");
   });
 
+  it("maps signed storage object-size failures to the canonical video size-limit message", async () => {
+    const sourceFile = new File(["raw-video"], "oversized-reference.mp4", {
+      type: "video/mp4",
+    });
+    fetchWithAuthMock.mockResolvedValueOnce(
+      jsonResponse({
+        target: {
+          storagePath: "user-1/upload-staging/uploaded_videos/oversized-reference.mp4",
+          uploadToken: "token-1",
+          mimeType: "video/mp4",
+          name: "oversized-reference.mp4",
+        },
+      })
+    );
+    uploadToSignedUrlMock.mockResolvedValueOnce({
+      data: null,
+      error: { message: "The object exceeded the maximum allowed size" },
+    });
+
+    await expect(
+      uploadMediaFile({
+        file: sourceFile,
+        destinationTab: "uploaded_videos",
+      })
+    ).rejects.toThrow("Video file is too large. ShortPulse accepts videos up to 100 MB.");
+  });
+
   it("surfaces finalize route details when the staged media remains too large", async () => {
     const sourceFile = new File(["raw-image"], "oversized-reference.gif", {
       type: "image/gif",

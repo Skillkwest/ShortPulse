@@ -34,9 +34,13 @@ export type ReferenceGridCardVisualState = {
 const LOCAL_VIDEO_URL_PATTERN = /^(?:blob:|data:video\/)/i;
 
 export const isLocalVideoReferencePendingPersistence = (
-  item: Pick<StudioOutput, "mode" | "previewUrl" | "previewStoragePath" | "fullStoragePath">
+  item: Pick<
+    StudioOutput,
+    "mode" | "previewUrl" | "previewStoragePath" | "fullStoragePath" | "saveState"
+  >
 ): boolean => {
   if (item.mode !== "video") return false;
+  if (item.saveState === "failed" || item.saveState === "blocked_storage") return false;
   const previewUrl = item.previewUrl?.trim() ?? "";
   if (!LOCAL_VIDEO_URL_PATTERN.test(previewUrl)) return false;
   const previewStoragePath = item.previewStoragePath?.trim() ?? "";

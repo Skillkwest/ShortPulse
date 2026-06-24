@@ -14,7 +14,7 @@
   --auth-dashboard-cool: #25a9bf;
   min-height: var(--app-fixed-height);
   display: grid;
-  grid-template-columns: minmax(520px, 1fr) minmax(420px, 560px);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: stretch;
   justify-content: stretch;
   padding: 10px;
@@ -45,7 +45,7 @@
 
 .auth-experience-shell .auth-showcase-gallery {
   position: absolute;
-  inset: 18px;
+  inset: 0;
   display: grid;
   grid-template-columns: minmax(0, 0.72fr) minmax(0, 0.72fr) minmax(0, 1.34fr);
   grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
@@ -77,50 +77,6 @@
   display: block;
   object-fit: cover;
   filter: saturate(0.92) contrast(1.08) brightness(0.82);
-}
-
-.auth-experience-shell .auth-showcase-scrim {
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(180deg, rgba(5, 7, 12, 0.08), rgba(5, 7, 12, 0.24) 45%, rgba(5, 7, 12, 0.88)),
-    linear-gradient(90deg, rgba(5, 7, 12, 0.26), rgba(5, 7, 12, 0.04) 42%),
-    linear-gradient(135deg, rgba(255, 61, 123, 0.12), transparent 34%),
-    linear-gradient(315deg, rgba(37, 169, 191, 0.13), transparent 42%);
-  pointer-events: none;
-}
-
-.auth-experience-shell .auth-showcase-copy {
-  position: absolute;
-  left: 36px;
-  right: 36px;
-  bottom: 34px;
-  z-index: 1;
-  display: grid;
-  gap: 10px;
-  color: var(--auth-dashboard-text);
-}
-
-.auth-experience-shell .auth-showcase-kicker {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0;
-  text-transform: uppercase;
-  color: rgba(255, 155, 66, 0.88);
-}
-
-.auth-experience-shell .auth-showcase-copy h2 {
-  max-width: 15ch;
-  font-size: 38px;
-  line-height: 1;
-  font-weight: 780;
-}
-
-.auth-experience-shell .auth-showcase-copy p:last-child {
-  max-width: 54ch;
-  color: rgba(244, 245, 247, 0.78);
-  font-size: 15px;
-  line-height: 1.55;
 }
 
 .auth-experience-shell .auth-layout {
@@ -254,7 +210,10 @@
   color: rgba(244, 245, 247, 0.48);
 }
 
-.auth-experience-shell .auth-forgot,
+.auth-experience-shell .auth-forgot {
+  color: var(--auth-dashboard-cool);
+}
+
 .auth-experience-shell .auth-switch button {
   color: #ff6b95;
 }

@@ -412,12 +412,6 @@ export default function AuthPage() {
               </div>
             ))}
           </div>
-          <div className={authClass("auth-showcase-scrim")} />
-          <div className={authClass("auth-showcase-copy")}>
-            <p className={authClass("auth-showcase-kicker")}>Video Gallery</p>
-            <h2>See what ShortPulse makes.</h2>
-            <p>Gallery media from the dashboard, framed for the account experience.</p>
-          </div>
         </section>
         <div className={authClass("auth-layout")}>
           <form className={authClass("auth-card")} onSubmit={onSubmit}>

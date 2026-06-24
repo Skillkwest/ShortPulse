@@ -129,6 +129,9 @@ describe("Auth route behavior", () => {
     expect(container.querySelector("main.auth-shell")).toBeInTheDocument();
     expect(container.querySelector("form.auth-card")).toBeInTheDocument();
     expect(container.querySelector(".auth-showcase-gallery")).toBeInTheDocument();
+    expect(container.querySelector(".auth-showcase-copy")).not.toBeInTheDocument();
+    expect(screen.queryByText("Video Gallery")).not.toBeInTheDocument();
+    expect(screen.queryByText("See what ShortPulse makes.")).not.toBeInTheDocument();
     expect(container.querySelectorAll(".auth-showcase-gallery-media")).toHaveLength(6);
     expect(
       container.querySelector(

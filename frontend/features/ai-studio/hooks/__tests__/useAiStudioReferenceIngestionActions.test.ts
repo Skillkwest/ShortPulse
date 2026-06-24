@@ -16,6 +16,7 @@ const uploadMediaFileMock = vi.hoisted(() => vi.fn());
 const uploadImageAssetToStorageMock = vi.hoisted(() => vi.fn());
 const uploadVideoAssetToStorageMock = vi.hoisted(() => vi.fn());
 const uploadAudioAssetToStorageMock = vi.hoisted(() => vi.fn());
+const publishMediaLibraryChangedMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../logic/mediaLibraryPanelApi", () => ({
   uploadMediaFile: (...args: unknown[]) => uploadMediaFileMock(...args),
@@ -28,6 +29,10 @@ vi.mock("../../logic/mediaLibraryPersistence", () => ({
 vi.mock("../../../../lib/protectedRouteSessionContext", () => ({
   useResolvedProtectedSessionState: (...args: unknown[]) =>
     useResolvedProtectedSessionStateMock(...args),
+}));
+
+vi.mock("../../../media-library/logic/mediaLibrarySyncEvents", () => ({
+  publishMediaLibraryChanged: (...args: unknown[]) => publishMediaLibraryChangedMock(...args),
 }));
 
 vi.mock("../../reference-ingestion/prepareLibraryMediaIngestionPayload", () => ({
@@ -597,6 +602,11 @@ describe("useAiStudioReferenceIngestionActions", () => {
       );
       expect(nextOutputs[0]?.taskState).toBeUndefined();
       expect(nextOutputs[0]?.localObjectUrl).toBeUndefined();
+      expect(publishMediaLibraryChangedMock).toHaveBeenCalledWith({
+        userId: CURRENT_USER_ID,
+        reason: "reference_grid_upload",
+        mediaFileIds: ["media-reference"],
+      });
     } finally {
       forgetObjectUrlBlob("blob:local-reference");
       Object.defineProperty(URL, "createObjectURL", {

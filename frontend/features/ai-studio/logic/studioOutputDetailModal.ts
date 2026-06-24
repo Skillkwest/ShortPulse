@@ -39,16 +39,6 @@ const resolveStudioOutputMusicMode = (output: StudioOutput): StudioOutput["music
   return payload.mode === "instrumental" || payload.mode === "vocal" ? payload.mode : null;
 };
 
-const stringifyErrorPayload = (value: unknown): string | null => {
-  if (value == null) return null;
-  if (typeof value === "string") return value.trim() || null;
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return String(value);
-  }
-};
-
 const resolveStudioOutputDetailSource = (
   output: StudioOutput
 ): StudioOutput["mediaSource"] | null => {
@@ -76,17 +66,15 @@ export const createStudioOutputDetailModalItem = ({
 }): StudioOutputDetailModalItem => {
   const errorPresentation =
     output.taskState === "fail" ? resolveAiStudioErrorPresentation(output) : null;
-  const rawPayload = stringifyErrorPayload(output.errorPayload);
   const resolvedPresentation: SharedMediaDetailPresentation | null = errorPresentation
     ? {
         ...presentation,
         kindLabel: presentation?.kindLabel ?? "failed generation",
-        bladePlaceholder:
-          presentation?.bladePlaceholder ?? "No provider error details were captured.",
+        bladePlaceholder: presentation?.bladePlaceholder ?? "No error details were captured.",
         errorContent: {
-          summary: errorPresentation.summary,
+          summary: "",
           detail: errorPresentation.technicalDetail,
-          rawPayload,
+          rawPayload: null,
         },
       }
     : presentation;

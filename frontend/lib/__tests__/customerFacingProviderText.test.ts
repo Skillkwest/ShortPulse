@@ -129,14 +129,14 @@ describe("customerFacingProviderText", () => {
         "Kie Kling 3.0 submit requires at least one image URL.",
         "Generation failed."
       )
-    ).toBe("Kling 3.0 submit requires at least one image URL.");
+    ).toBe("Kling 3.0 needs an image reference. Add an image and try again.");
 
     expect(
       normalizeCustomerFacingProviderError(
         "Kie VEO 3.1 Fast I2V submit requires an image URL.",
         "Generation failed."
       )
-    ).toBe("Veo 3.1 Fast submit requires an image URL.");
+    ).toBe("Veo 3.1 Fast needs an image reference. Add an image and try again.");
   });
 
   it("removes provider support links, request ids, and provider names from customer copy", () => {
@@ -179,7 +179,7 @@ describe("customerFacingProviderText", () => {
     ).toBe("The audio provider is at its concurrency limit right now. Please retry in 12 seconds.");
   });
 
-  it("rewrites opaque upstream failures with provider-side credit guidance", () => {
+  it("rewrites opaque service failures with customer-facing credit guidance", () => {
     expect(
       normalizeProviderSideGenerationFailure({
         rawFailure: "Internal Error, Please try again later.",
@@ -187,7 +187,7 @@ describe("customerFacingProviderText", () => {
         modelLabel: "Kling 3.0",
       })
     ).toBe(
-      "Kling 3.0 generation failed at the upstream provider. No ShortPulse credits are charged for provider-side failures; any temporary hold is released automatically. Please try again later."
+      "Kling 3.0 generation had a temporary service issue. No ShortPulse credits are charged for service failures; any temporary hold is released automatically. Please try again later."
     );
   });
 

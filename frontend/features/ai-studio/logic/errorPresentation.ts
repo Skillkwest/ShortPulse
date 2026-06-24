@@ -1,6 +1,6 @@
 /**
  * Shared AI Studio error presentation helpers.
- * Keeps compact card/banner copy separate from full technical detail shown in detail surfaces.
+ * Keeps compact card copy separate from plain customer-facing detail surfaces.
  */
 import {
   EXPLICIT_CONTENT_FAILURE_DETAIL,
@@ -43,6 +43,8 @@ const GENERIC_FAILURE_MESSAGES = new Set([
   "invalid request",
   "request failed",
 ]);
+const COMPACT_STATUS_CHECK_FAILURE_MESSAGE = "Status check failed.";
+const MAX_COMPACT_CARD_MESSAGE_LENGTH = 35;
 
 const normalizeComparableText = (value: string | null | undefined): string =>
   (value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
@@ -58,6 +60,112 @@ const firstPresent = (...values: Array<unknown>): unknown | null => {
 const isGenericFailureMessage = (value: string | null | undefined): boolean => {
   const normalized = normalizeComparableText(value);
   return !normalized || GENERIC_FAILURE_MESSAGES.has(normalized);
+};
+
+const isNonJsonStatusResponseMessage = (value: string): boolean => {
+  const normalized = value.toLowerCase();
+  return (
+    normalized.includes("non-json") &&
+    normalized.includes("status") &&
+    normalized.includes("response")
+  );
+};
+
+const resolveCompactProviderMessage = ({
+  rawFailure,
+  normalizedFailure,
+  modelLabel,
+}: {
+  rawFailure: unknown;
+  normalizedFailure: string;
+  modelLabel?: string | null;
+}): string => {
+  if (typeof rawFailure === "string" && isNonJsonStatusResponseMessage(rawFailure)) {
+    return COMPACT_STATUS_CHECK_FAILURE_MESSAGE;
+  }
+  return normalizeProviderSideGenerationFailure({
+    rawFailure,
+    normalizedFailure,
+    modelLabel,
+  });
+};
+
+const isFieldRequiredMessage = (value: string): boolean =>
+  /^[A-Z][A-Za-z0-9 /_-]{0,24} is required\.$/.test(value.trim());
+
+const resolveCategoryCompactMessage = (
+  category: AiStudioErrorCategory,
+  candidateMessage: string
+): string => {
+  const shortMessage = createShortErrorMessage(candidateMessage);
+  switch (category) {
+    case "provider_error":
+      return "Service issue.";
+    case "preflight_timeout":
+      return "Request timed out.";
+    case "reference_upload":
+      return "Upload failed.";
+    case "missing_input":
+      return isFieldRequiredMessage(shortMessage) ? shortMessage : "Input required.";
+    case "no_media":
+      return "No media returned.";
+    case "save_error":
+      return "Save failed.";
+    default:
+      return shortMessage.length <= MAX_COMPACT_CARD_MESSAGE_LENGTH
+        ? shortMessage
+        : createShortErrorMessage(shortMessage);
+  }
+};
+
+const resolveCustomerDetailMessage = ({
+  category,
+  rawMessage,
+  normalizedMessage,
+  summary,
+  modelLabel,
+}: {
+  category: AiStudioErrorCategory;
+  rawMessage: unknown;
+  normalizedMessage: string;
+  summary: string;
+  modelLabel?: string | null;
+}): string => {
+  if (typeof rawMessage === "string" && isNonJsonStatusResponseMessage(rawMessage)) {
+    return "The generation status check failed. Please try again.";
+  }
+  if (/\bsigned\s+url\s+expired\b/i.test(normalizedMessage)) {
+    return "The reference file expired. Re-add the reference and try again.";
+  }
+  if (/\bimage_urls?\b/i.test(normalizedMessage)) {
+    return "A reference image could not be used. Re-add the reference and try again.";
+  }
+  switch (category) {
+    case "provider_error":
+      return summary;
+    case "preflight_timeout":
+      return "Preparing the generation took too long. Please try again.";
+    case "reference_upload":
+      return "The reference file could not be uploaded. Try a smaller or different file.";
+    case "missing_input":
+      if (
+        /\brequires?\s+(?:at\s+least\s+one\s+)?(?:an?\s+)?image\s+url\b/i.test(normalizedMessage)
+      ) {
+        const subject = modelLabel?.trim() || "This generation";
+        return `${subject} needs an image reference. Add an image and try again.`;
+      }
+      return normalizedMessage;
+    case "no_media":
+      return "The generation finished but no media was returned. Please try again.";
+    case "save_error":
+      return "ShortPulse could not save this item. Please try again.";
+    case "unknown":
+      return normalizedMessage === "Generation failed"
+        ? `${modelLabel?.trim() || "This generation"} failed. Please try again.`
+        : normalizedMessage;
+    default:
+      return normalizedMessage;
+  }
 };
 
 const stringifyTechnicalPayload = (value: unknown): string | null => {
@@ -89,7 +197,12 @@ const resolveCategory = (...values: Array<unknown>): AiStudioErrorCategory => {
   if (text.includes("requires") || text.includes("required")) return "missing_input";
   if (text.includes("no media") || text.includes("without media")) return "no_media";
   if (text.includes("save failed") || text.includes("autosave")) return "save_error";
-  if (text.includes("provider") || text.includes("upstream") || text.includes("failed")) {
+  if (
+    text.includes("provider") ||
+    text.includes("upstream") ||
+    text.includes("internal error") ||
+    text.includes("downstream service")
+  ) {
     return "provider_error";
   }
   return "unknown";
@@ -148,27 +261,27 @@ export const resolveAiStudioErrorPresentation = (
     });
   const compactMessage =
     explicitContentFailure?.errorMessageShort ??
-    (rawCompact
-      ? normalizeProviderSideGenerationFailure({
-          rawFailure: rawCompact,
-          normalizedFailure: normalizeCustomerFacingProviderError(rawCompact, rawCompact),
-          modelLabel,
-        })
-      : createShortErrorMessage(summary));
-  const bannerMessage =
+    resolveCategoryCompactMessage(
+      category,
+      rawCompact
+        ? resolveCompactProviderMessage({
+            rawFailure: rawCompact,
+            normalizedFailure: normalizeCustomerFacingProviderError(rawCompact, rawCompact),
+            modelLabel,
+          })
+        : summary
+    );
+  const customerDetail =
     explicitContentFailure?.errorDetail ??
-    normalizeProviderSideGenerationFailure({
-      rawFailure: rawMessage,
-      normalizedFailure: normalizedMessage,
+    resolveCustomerDetailMessage({
+      category,
+      rawMessage,
+      normalizedMessage,
+      summary,
       modelLabel,
     });
-  const technicalPayload = stringifyTechnicalPayload(rawPayload);
-  const technicalDetail =
-    explicitContentFailure?.errorDetail ??
-    stringifyTechnicalPayload(output.errorDetail) ??
-    technicalPayload ??
-    stringifyTechnicalPayload(output.errorMessage) ??
-    summary;
+  const bannerMessage = explicitContentFailure?.errorDetail ?? customerDetail;
+  const technicalDetail = explicitContentFailure?.errorDetail ?? customerDetail;
 
   return {
     category,

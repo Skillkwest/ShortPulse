@@ -11,6 +11,7 @@ const reportAppErrorMock = vi.hoisted(() => vi.fn());
 const saveMediaUrlToLibraryMock = vi.hoisted(() => vi.fn());
 const savePromptRecordMock = vi.hoisted(() => vi.fn());
 const useResolvedProtectedSessionStateMock = vi.hoisted(() => vi.fn());
+const publishMediaLibraryChangedMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../logic/mediaLibraryPersistence", async () => {
   const actual = await vi.importActual("../../logic/mediaLibraryPersistence");
@@ -32,6 +33,10 @@ vi.mock("../../../../lib/appErrorReporter", () => ({
 vi.mock("../../../../lib/protectedRouteSessionContext", () => ({
   useResolvedProtectedSessionState: (...args: unknown[]) =>
     useResolvedProtectedSessionStateMock(...args),
+}));
+
+vi.mock("../../../media-library/logic/mediaLibrarySyncEvents", () => ({
+  publishMediaLibraryChanged: (...args: unknown[]) => publishMediaLibraryChangedMock(...args),
 }));
 
 import { useAiStudioPersistenceActions } from "../useAiStudioPersistenceActions";
@@ -297,6 +302,11 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
         userId: CURRENT_USER_ID,
       })
     );
+    expect(publishMediaLibraryChangedMock).toHaveBeenCalledWith({
+      userId: CURRENT_USER_ID,
+      reason: "ai_studio_output_save",
+      mediaFileIds: ["media-new"],
+    });
     expect(outputs.get("out-1")?.generationId).toBe(PROJECT_GENERATION_ID);
   });
 

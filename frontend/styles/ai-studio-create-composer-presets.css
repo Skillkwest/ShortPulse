@@ -239,6 +239,12 @@
   cursor: default;
 }
 
+.create-composer-presets-surface.is-layered {
+  position: fixed;
+  right: auto;
+  bottom: auto;
+}
+
 .create-composer-presets-surface:focus,
 .create-composer-presets-surface:focus-visible {
   outline: none;

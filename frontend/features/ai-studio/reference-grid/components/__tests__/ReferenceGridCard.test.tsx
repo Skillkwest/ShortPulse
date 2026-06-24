@@ -838,8 +838,9 @@ describe("ReferenceGridCard", () => {
       />
     );
 
-    expect(screen.getByText("Kling 3.0 generation failed at t…")).toBeInTheDocument();
+    expect(screen.getByText("Service issue.")).toBeInTheDocument();
     expect(screen.queryByText("No ShortPulse credits are charged", { exact: false })).toBeNull();
+    expect(screen.queryByText("upstream provider", { exact: false })).toBeNull();
   });
 
   it("renders a loading spinner overlay when the card is loading", () => {

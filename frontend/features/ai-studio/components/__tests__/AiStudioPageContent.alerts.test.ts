@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   groupVisibleFailuresForAlertStack,
+  resolveCustomerFacingAiStudioUiError,
   resolveAiStudioAlertAutoDismissMs,
 } from "../AiStudioPageContent";
 import { AI_STUDIO_ERROR_SCENARIOS } from "../../testing/errorScenarioFixtures";
@@ -9,6 +10,25 @@ describe("resolveAiStudioAlertAutoDismissMs", () => {
   it("keeps short alerts readable while capping long alerts", () => {
     expect(resolveAiStudioAlertAutoDismissMs("Short failure.")).toBe(9000);
     expect(resolveAiStudioAlertAutoDismissMs("x".repeat(500))).toBe(16000);
+  });
+});
+
+describe("resolveCustomerFacingAiStudioUiError", () => {
+  it("normalizes standalone opaque service errors for customer-facing banners", () => {
+    const message = resolveCustomerFacingAiStudioUiError("Internal Error, Please try again later.");
+
+    expect(message).toBe(
+      "This generation had a temporary service issue. No ShortPulse credits are charged for service failures; any temporary hold is released automatically. Please try again later."
+    );
+    expect(message).not.toMatch(/provider|upstream|internal error/i);
+  });
+
+  it("shortens standalone API key failures", () => {
+    expect(
+      resolveCustomerFacingAiStudioUiError(
+        "Unauthorized - Authentication failed. Please verify your API key."
+      )
+    ).toBe("Missing API key.");
   });
 });
 
@@ -107,7 +127,7 @@ describe("groupVisibleFailuresForAlertStack", () => {
     ]);
   });
 
-  it("labels opaque upstream failures as provider-side with credit-release guidance", () => {
+  it("labels opaque service failures with customer-facing credit-release guidance", () => {
     const grouped = groupVisibleFailuresForAlertStack([
       {
         id: "out-1",
@@ -125,7 +145,7 @@ describe("groupVisibleFailuresForAlertStack", () => {
         ids: ["out-1"],
         modelLabel: "Kling 3.0",
         failureMessage:
-          "Kling 3.0 generation failed at the upstream provider. No ShortPulse credits are charged for provider-side failures; any temporary hold is released automatically. Please try again later.",
+          "Kling 3.0 generation had a temporary service issue. No ShortPulse credits are charged for service failures; any temporary hold is released automatically. Please try again later.",
         count: 1,
       },
     ]);
@@ -148,7 +168,7 @@ describe("groupVisibleFailuresForAlertStack", () => {
       {
         ids: ["out-1"],
         modelLabel: "Kling 3.0",
-        failureMessage: "Kling 3.0 submit requires at least one image URL.",
+        failureMessage: "Kling 3.0 needs an image reference. Add an image and try again.",
         count: 1,
       },
     ]);
@@ -171,7 +191,7 @@ describe("groupVisibleFailuresForAlertStack", () => {
       {
         ids: ["out-1"],
         modelLabel: "Veo 3.1 Fast",
-        failureMessage: "Veo 3.1 Fast submit requires an image URL.",
+        failureMessage: "Veo 3.1 Fast needs an image reference. Add an image and try again.",
         count: 1,
       },
     ]);

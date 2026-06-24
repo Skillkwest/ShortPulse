@@ -114,7 +114,7 @@ const installDeferredImagePreloadMock = () => {
 };
 
 describe("DetailModal", () => {
-  it("opens a failed reference from the grid and shows full provider detail in the modal", () => {
+  it("opens a failed reference from the grid and shows customer-facing error detail in the modal", () => {
     const scenario = getAiStudioErrorScenario("provider_upstream");
 
     function ErrorReferenceHarness() {
@@ -150,8 +150,9 @@ describe("DetailModal", () => {
       baseElement.querySelector(".reference-modal-new")?.classList.contains("is-text-only")
     ).toBe(true);
     expect(screen.getByText("Error detail")).toBeInTheDocument();
-    expect(screen.getByDisplayValue(/Internal Error, Please try again later./)).toBeInTheDocument();
-    expect(screen.getByDisplayValue(/req_provider_upstream/)).toBeInTheDocument();
+    expect(screen.getByDisplayValue(/temporary service issue/i)).toBeInTheDocument();
+    expect(screen.queryByDisplayValue(/Internal Error, Please try again later./)).toBeNull();
+    expect(screen.queryByDisplayValue(/req_provider_upstream/)).toBeNull();
     expect(screen.queryByText("Media unavailable.")).not.toBeInTheDocument();
   });
 
@@ -572,12 +573,13 @@ describe("DetailModal", () => {
     expect(onSaveReference).toHaveBeenCalledWith("out-1");
   });
 
-  it("promotes delete confirmation above the detail dialog and restores modal ownership on Escape", async () => {
+  it("deletes the reference directly from the detail action without confirmation", () => {
+    const onClose = vi.fn();
     const onDeleteOutput = vi.fn();
     render(
       <DetailModal
         output={baseOutput}
-        onClose={vi.fn()}
+        onClose={onClose}
         onUpdatePrompt={vi.fn()}
         onDeleteOutput={onDeleteOutput}
       />
@@ -585,25 +587,9 @@ describe("DetailModal", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
-    const detailDialog = document.querySelector(".reference-modal-new");
-    const confirmDialog = screen.getByRole("dialog", { name: "Delete this reference?" });
-
-    expect(detailDialog).not.toBeNull();
-    expect(detailDialog).not.toHaveAttribute("aria-modal");
-    expect(detailDialog).toHaveAttribute("aria-hidden", "true");
-    expect(confirmDialog).toHaveAttribute("aria-modal", "true");
-    expect(confirmDialog.closest(".reference-modal-new")).toBeNull();
-
-    fireEvent.keyDown(document, { key: "Escape" });
-
-    await waitFor(() => {
-      expect(screen.queryByRole("dialog", { name: "Delete this reference?" })).toBeNull();
-    });
-    expect(onDeleteOutput).not.toHaveBeenCalled();
-    expect(screen.getByRole("dialog", { name: "Reference details" })).toHaveAttribute(
-      "aria-modal",
-      "true"
-    );
+    expect(onDeleteOutput).toHaveBeenCalledWith(baseOutput.id);
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("dialog", { name: "Delete this reference?" })).toBeNull();
   });
 
   it("closes the base detail modal on Escape when no confirmation dialog is open", () => {

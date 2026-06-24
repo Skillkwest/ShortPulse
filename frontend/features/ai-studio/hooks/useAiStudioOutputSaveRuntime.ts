@@ -1,6 +1,7 @@
 import { useCallback, useRef, type Dispatch, type SetStateAction } from "react";
 
 import { reportAppError } from "../../../lib/appErrorReporter";
+import { publishMediaLibraryChanged } from "../../media-library/logic/mediaLibrarySyncEvents";
 import { GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR } from "../logic/mediaLibraryPersistence";
 import { normalizeMediaStorageQuotaUiCopy } from "../../../lib/mediaStorageQuota";
 import type { Provider } from "../logic/stateParsers";
@@ -286,6 +287,11 @@ export const useAiStudioOutputSaveRuntime = ({
                   }
             );
             clearResolvedLibrarySaveUiError();
+            publishMediaLibraryChanged({
+              userId: currentUserId,
+              reason: "ai_studio_output_save",
+              mediaFileIds,
+            });
             return {
               ok: true,
               mediaFileIds,

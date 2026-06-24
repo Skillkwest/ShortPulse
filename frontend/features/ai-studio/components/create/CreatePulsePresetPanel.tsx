@@ -23,6 +23,10 @@ import { useCreatePulsePresetRuntime } from "./useCreatePulsePresetRuntime";
 
 const STATUS_TOAST_VISIBLE_MS = 1_000;
 const STATUS_TOAST_FADE_MS = 220;
+const MORE_PULSES_SURFACE_GAP_PX = 26;
+const MORE_PULSES_SURFACE_VIEWPORT_MARGIN_PX = 16;
+const MORE_PULSES_SURFACE_MAX_WIDTH_PX = 540;
+const MORE_PULSES_SURFACE_MIN_WIDTH_PX = 320;
 
 type CreatePulsePresetPanelProps = {
   activePresetId?: CreatePulsePresetId | null;
@@ -69,6 +73,10 @@ export function CreatePulsePresetPanel({
   shouldRestartActivePreset,
 }: CreatePulsePresetPanelProps) {
   const morePresetsSurfaceId = React.useId();
+  const presetsCardRef = React.useRef<HTMLDivElement | null>(null);
+  const morePresetsButtonRef = React.useRef<HTMLButtonElement | null>(null);
+  const [morePresetsSurfaceStyle, setMorePresetsSurfaceStyle] =
+    React.useState<React.CSSProperties | null>(null);
   const statusToast = useTransientAppMessage({
     visibleMs: STATUS_TOAST_VISIBLE_MS,
     fadeMs: STATUS_TOAST_FADE_MS,
@@ -173,6 +181,45 @@ export function CreatePulsePresetPanel({
     setIsMorePresetsSurfaceOpen(false);
   }, [setIsMorePresetsSurfaceOpen]);
 
+  const updateMorePresetsSurfacePosition = React.useCallback(() => {
+    if (typeof window === "undefined") return;
+    const anchor = presetsCardRef.current ?? morePresetsButtonRef.current;
+    if (!anchor) return;
+    const anchorRect = anchor.getBoundingClientRect();
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+    const surfaceWidth = Math.max(
+      MORE_PULSES_SURFACE_MIN_WIDTH_PX,
+      Math.min(
+        MORE_PULSES_SURFACE_MAX_WIDTH_PX,
+        viewportWidth - MORE_PULSES_SURFACE_VIEWPORT_MARGIN_PX * 2
+      )
+    );
+    const preferredLeft = anchorRect.right + MORE_PULSES_SURFACE_GAP_PX;
+    const maxLeft = viewportWidth - surfaceWidth - MORE_PULSES_SURFACE_VIEWPORT_MARGIN_PX;
+    const left = Math.max(MORE_PULSES_SURFACE_VIEWPORT_MARGIN_PX, Math.min(preferredLeft, maxLeft));
+    const top = Math.max(MORE_PULSES_SURFACE_VIEWPORT_MARGIN_PX, anchorRect.top);
+    setMorePresetsSurfaceStyle({
+      left,
+      top,
+      width: surfaceWidth,
+      maxWidth: surfaceWidth,
+    });
+  }, []);
+
+  React.useLayoutEffect(() => {
+    if (!isMorePresetsSurfaceOpen) {
+      setMorePresetsSurfaceStyle(null);
+      return undefined;
+    }
+    updateMorePresetsSurfacePosition();
+    window.addEventListener("resize", updateMorePresetsSurfacePosition);
+    window.addEventListener("scroll", updateMorePresetsSurfacePosition, true);
+    return () => {
+      window.removeEventListener("resize", updateMorePresetsSurfacePosition);
+      window.removeEventListener("scroll", updateMorePresetsSurfacePosition, true);
+    };
+  }, [isMorePresetsSurfaceOpen, updateMorePresetsSurfacePosition]);
+
   const handleSurfacePresetSelectAndClose = React.useCallback(
     async (presetId: CreatePulsePresetId) => {
       const addResult = await handleSurfacePresetSelect(presetId);
@@ -205,6 +252,7 @@ export function CreatePulsePresetPanel({
   return (
     <section className="create-composer-presets-panel" aria-label="Create pulse presets">
       <div
+        ref={presetsCardRef}
         className={`create-composer-presets-card ${
           shouldEmphasizePulseRail ? "is-awaiting-pulse-selection" : ""
         }`.trim()}
@@ -257,6 +305,7 @@ export function CreatePulsePresetPanel({
           </div>
           <div className="create-composer-presets-divider" aria-hidden="true" />
           <button
+            ref={morePresetsButtonRef}
             type="button"
             className="create-composer-presets-btn create-composer-presets-btn--more"
             aria-label={CREATE_PULSE_MORE_LABEL}
@@ -270,24 +319,30 @@ export function CreatePulsePresetPanel({
             {CREATE_PULSE_MORE_LABEL}
           </button>
         </div>
-        <CreatePulsePresetsSurface
-          id={morePresetsSurfaceId}
-          isOpen={isMorePresetsSurfaceOpen}
-          presets={catalogPresets}
-          activePresetId={activePresetId ?? null}
-          selectedPresetIds={resolvedSelectedPresetIds}
-          onClose={closeMorePresetsSurface}
-          onOpenPresetsLibrary={openPulseLibrary}
-          onPresetSelect={handleSurfacePresetSelectAndClose}
-          onPresetDragStart={handleSurfacePresetDragStart}
-          onPresetDragEnd={handlePresetDragEnd}
-          onSurfaceDragOver={handlePresetsSurfaceDragOver}
-          onSurfaceDragLeave={handlePresetsSurfaceDragLeave}
-          onSurfaceDrop={handlePresetsSurfaceDrop}
-          onCustomPresetSave={handleCustomPresetSave}
-          isDropActive={isPresetsSurfaceDropActive}
-          isActivationBusy={isActivationBusy}
-        />
+        {isMorePresetsSurfaceOpen ? (
+          <AiStudioModalLayer>
+            <CreatePulsePresetsSurface
+              id={morePresetsSurfaceId}
+              isOpen={isMorePresetsSurfaceOpen}
+              presets={catalogPresets}
+              activePresetId={activePresetId ?? null}
+              selectedPresetIds={resolvedSelectedPresetIds}
+              onClose={closeMorePresetsSurface}
+              onOpenPresetsLibrary={openPulseLibrary}
+              onPresetSelect={handleSurfacePresetSelectAndClose}
+              onPresetDragStart={handleSurfacePresetDragStart}
+              onPresetDragEnd={handlePresetDragEnd}
+              onSurfaceDragOver={handlePresetsSurfaceDragOver}
+              onSurfaceDragLeave={handlePresetsSurfaceDragLeave}
+              onSurfaceDrop={handlePresetsSurfaceDrop}
+              onCustomPresetSave={handleCustomPresetSave}
+              isDropActive={isPresetsSurfaceDropActive}
+              isActivationBusy={isActivationBusy}
+              isLayered
+              surfaceStyle={morePresetsSurfaceStyle ?? undefined}
+            />
+          </AiStudioModalLayer>
+        ) : null}
         {isPulseLibraryOpen ? (
           <AiStudioModalLayer>
             <div className="create-pulse-library-modal-backdrop" {...pulseLibraryBackdropDismiss}>

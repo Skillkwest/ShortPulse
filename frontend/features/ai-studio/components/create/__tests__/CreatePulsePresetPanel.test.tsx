@@ -60,6 +60,20 @@ describe("CreatePulsePresetPanel", () => {
     );
   });
 
+  it("renders More Pulses in the AI Studio overlay layer instead of inside the rail", () => {
+    const { container } = render(<CreatePulsePresetPanel />);
+
+    fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
+
+    const pulsesSurface = screen.getByRole("region", { name: "Pulses" });
+    expect(pulsesSurface).toHaveClass("is-layered");
+    expect(pulsesSurface.closest("#ai-studio-modal-layer-root")).not.toBeNull();
+    expect(container.querySelector(".create-composer-presets-surface")).toBeNull();
+    expect(pulsesSurface).toHaveStyle({
+      top: "16px",
+    });
+  });
+
   it("activates the selected pulse preset without mutating the visible composer", async () => {
     const onActivePresetIdChange = vi.fn();
     render(<CreatePulsePresetPanel onActivePresetIdChange={onActivePresetIdChange} />);

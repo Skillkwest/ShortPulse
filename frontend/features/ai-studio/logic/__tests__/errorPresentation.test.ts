@@ -3,6 +3,9 @@ import { resolveAiStudioErrorPresentation } from "../errorPresentation";
 import type { StudioOutput } from "../../types";
 import { AI_STUDIO_ERROR_SCENARIOS } from "../../testing/errorScenarioFixtures";
 
+const TECHNICAL_DETAIL_LEAK_PATTERN =
+  /\{|"loc"|request[_ ]?id|req_|image_urls|non-json|provider status route|upstream provider|provider-side/i;
+
 const createFailedOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput => ({
   id: "out-error",
   prompt: "Make a cinematic product shot",
@@ -22,11 +25,13 @@ describe("resolveAiStudioErrorPresentation", () => {
       const presentation = resolveAiStudioErrorPresentation(scenario.output);
 
       expect(presentation.category).toBe(scenario.expectedCategory);
+      expect(presentation.compactMessage.length).toBeLessThanOrEqual(35);
       expect(presentation.compactMessage).toContain(
         scenario.expectedCompactText ?? scenario.expectedCardText
       );
       expect(presentation.bannerMessage).toContain(scenario.expectedBannerText);
       expect(presentation.technicalDetail).toContain(scenario.expectedDetailText);
+      expect(presentation.technicalDetail).not.toMatch(TECHNICAL_DETAIL_LEAK_PATTERN);
       expect(presentation.rawPayload).toEqual(scenario.output.errorPayload ?? null);
       for (const hiddenProbe of scenario.hiddenCardProbes) {
         expect(presentation.compactMessage).not.toContain(hiddenProbe);
@@ -34,7 +39,7 @@ describe("resolveAiStudioErrorPresentation", () => {
     }
   );
 
-  it("uses compact copy for grid surfaces while preserving full technical detail", () => {
+  it("uses compact copy for grid surfaces while preserving customer-facing detail", () => {
     const providerPayload = {
       error: {
         message:
@@ -54,7 +59,10 @@ describe("resolveAiStudioErrorPresentation", () => {
     );
 
     expect(presentation.compactMessage).not.toContain("request_id");
-    expect(presentation.technicalDetail).toContain("signed URL expired");
+    expect(presentation.technicalDetail).toBe(
+      "The reference file expired. Re-add the reference and try again."
+    );
+    expect(presentation.technicalDetail).not.toMatch(TECHNICAL_DETAIL_LEAK_PATTERN);
     expect(presentation.rawPayload).toEqual(providerPayload);
   });
 
@@ -87,5 +95,45 @@ describe("resolveAiStudioErrorPresentation", () => {
     expect(presentation.compactMessage).not.toMatch(
       /Kie|Authentication failed|verify your API key/i
     );
+  });
+
+  it("uses concise card copy for non-JSON status responses while preserving plain detail", () => {
+    const presentation = resolveAiStudioErrorPresentation(
+      createFailedOutput({
+        model: "Seedance 2",
+        modelId: "kie-ai/seedance-2",
+        errorMessage: "Seedance 2 returned non-JSON status response",
+        errorMessageShort: "Seedance 2 returned non-JSON status response",
+        errorDetail: "Seedance 2 returned non-JSON status response",
+      })
+    );
+
+    expect(presentation.compactMessage).toBe("Status check failed.");
+    expect(presentation.bannerMessage).toBe(
+      "The generation status check failed. Please try again."
+    );
+    expect(presentation.technicalDetail).toBe(
+      "The generation status check failed. Please try again."
+    );
+    expect(presentation.technicalDetail).not.toMatch(TECHNICAL_DETAIL_LEAK_PATTERN);
+  });
+
+  it("condenses specific short-message failures for card space while preserving plain detail", () => {
+    const presentation = resolveAiStudioErrorPresentation(
+      createFailedOutput({
+        model: "Seedance 2",
+        modelId: "kie-ai/seedance-2",
+        errorMessage: "Generation failed",
+        errorMessageShort:
+          "Seedance 2 returned an upstream service error while checking generation status.",
+        errorDetail:
+          "Seedance 2 returned an upstream service error while checking generation status. The provider status route returned 502 after the request was accepted.",
+      })
+    );
+
+    expect(presentation.compactMessage).toBe("Service issue.");
+    expect(presentation.compactMessage.length).toBeLessThanOrEqual(35);
+    expect(presentation.technicalDetail).toContain("temporary service issue");
+    expect(presentation.technicalDetail).not.toMatch(TECHNICAL_DETAIL_LEAK_PATTERN);
   });
 });

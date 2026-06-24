@@ -14,7 +14,10 @@ import {
 } from "phosphor-react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import { AppMessage, AppMessageStack } from "../../../components/AppMessage";
-import { normalizeCustomerFacingProviderError } from "../../../lib/customerFacingProviderText";
+import {
+  normalizeCustomerFacingProviderError,
+  normalizeProviderSideGenerationFailure,
+} from "../../../lib/customerFacingProviderText";
 import { AiStudioToolbar } from "./AiStudioToolbar";
 import { AiStudioToolbarRail } from "./AiStudioToolbarRail";
 import { PresetsPanelLoader } from "./PresetsPanelLoader";
@@ -550,6 +553,18 @@ const AiStudioAlertBanner = ({
 const normalizeAlertText = (value: string | null | undefined): string =>
   (value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
 
+export const resolveCustomerFacingAiStudioUiError = (
+  uiError: string | null | undefined
+): string | null => {
+  const normalizedFailure = normalizeCustomerFacingProviderError(uiError, "").trim();
+  if (!normalizedFailure) return null;
+  return normalizeProviderSideGenerationFailure({
+    rawFailure: uiError,
+    normalizedFailure,
+    modelLabel: null,
+  });
+};
+
 export const groupVisibleFailuresForAlertStack = (
   visibleFailures: FailureCard[]
 ): GroupedFailureCard[] => {
@@ -598,7 +613,7 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
     });
   const effectiveUiError = suppressUiErrorForFailureStack
     ? null
-    : normalizeCustomerFacingProviderError(uiError, "");
+    : resolveCustomerFacingAiStudioUiError(uiError);
   const groupedFailures = React.useMemo(
     () => groupVisibleFailuresForAlertStack(visibleFailures),
     [visibleFailures]

@@ -6,7 +6,7 @@ const AUDIO_SERVICE_LABEL = "the audio service";
 const GENERATION_SERVICE_LABEL = "the generation service";
 const AUDIO_PROVIDER_PLACEHOLDER = "__SHORTPULSE_AUDIO_PROVIDER__";
 const PROVIDER_CREDIT_RELEASE_NOTICE =
-  "No ShortPulse credits are charged for provider-side failures; any temporary hold is released automatically.";
+  "No ShortPulse credits are charged for service failures; any temporary hold is released automatically.";
 
 const SAFETY_VIOLATIONS_PATTERN = /\bsafety_violations\s*=\s*\[([^\]]*)\]/i;
 const PROVIDER_SUPPORT_TEXT_PATTERN =
@@ -26,7 +26,7 @@ const PROVIDER_API_KEY_FAILURE_PATTERNS: RegExp[] = [
   /\bverify\s+your\s+api\s+key\b/i,
 ];
 const OPAQUE_UPSTREAM_FAILURE_PATTERN =
-  /\b(?:internal error|try again later|temporarily unavailable|service unavailable|provider reported failed state)\b/i;
+  /\b(?:internal error|try again later|temporarily unavailable|service unavailable|provider reported failed state|upstream service error|status route returned|returned\s+5\d\d)\b/i;
 
 const providerTextReplacements: Array<[RegExp, string]> = [
   [
@@ -96,6 +96,23 @@ const stripProviderOperationalDetails = (value: string): string =>
     .replace(/\s+/g, " ")
     .trim();
 
+const normalizeReferenceRequirementText = (value: string): string => {
+  const trimmed = value.replace(/\s+/g, " ").trim();
+  const submitRequirement = trimmed.match(
+    /^(.+?)\s+submit\s+requires\s+(?:at\s+least\s+one\s+)?(?:an?\s+)?image\s+URL\.?$/i
+  );
+  if (submitRequirement?.[1]?.trim()) {
+    return `${submitRequirement[1].trim()} needs an image reference. Add an image and try again.`;
+  }
+  if (/^video generation requires\s+(?:an?\s+)?image\s+URL\.?$/i.test(trimmed)) {
+    return "This video needs an image reference. Add an image and try again.";
+  }
+  if (/^generation requires\s+(?:an?\s+)?image\s+URL\.?$/i.test(trimmed)) {
+    return "This generation needs an image reference. Add an image and try again.";
+  }
+  return trimmed;
+};
+
 export const sanitizeCustomerFacingProviderText = (
   value: string | null | undefined,
   fallback = "Audio generation failed."
@@ -116,7 +133,10 @@ export const sanitizeCustomerFacingProviderText = (
     )
     .replaceAll(AUDIO_PROVIDER_PLACEHOLDER, "audio provider");
 
-  return stripProviderOperationalDetails(sanitized) || fallback;
+  const customerText = normalizeReferenceRequirementText(
+    stripProviderOperationalDetails(sanitized)
+  );
+  return customerText || fallback;
 };
 
 const collapseWhitespace = (value: string): string => value.replace(/\s+/g, " ").trim();
@@ -313,7 +333,7 @@ export const normalizeProviderSideGenerationFailure = ({
     typeof modelLabel === "string" && modelLabel.trim() && modelLabel.trim() !== "Generation"
       ? `${modelLabel.trim()} generation`
       : "This generation";
-  return `${subject} failed at the upstream provider. ${PROVIDER_CREDIT_RELEASE_NOTICE} Please try again later.`;
+  return `${subject} had a temporary service issue. ${PROVIDER_CREDIT_RELEASE_NOTICE} Please try again later.`;
 };
 
 export const resolveCustomerFacingModelLabel = ({

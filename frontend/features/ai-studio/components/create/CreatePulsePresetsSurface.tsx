@@ -34,6 +34,8 @@ export type CreatePulsePresetsSurfaceProps = {
   ) => Promise<boolean> | boolean | void;
   isDropActive?: boolean;
   isActivationBusy?: boolean;
+  isLayered?: boolean;
+  surfaceStyle?: React.CSSProperties;
 };
 
 type EditorDraft = {
@@ -66,6 +68,8 @@ export const CreatePulsePresetsSurface = ({
   onCustomPresetSave,
   isDropActive = false,
   isActivationBusy = false,
+  isLayered = false,
+  surfaceStyle,
 }: CreatePulsePresetsSurfaceProps) => {
   const surfaceRef = React.useRef<HTMLElement | null>(null);
   const editorDialogRef = React.useRef<HTMLDivElement | null>(null);
@@ -177,7 +181,10 @@ export const CreatePulsePresetsSurface = ({
     <section
       id={id}
       ref={surfaceRef}
-      className={`create-composer-presets-surface ${isDropActive ? "is-drop-active" : ""}`.trim()}
+      className={`create-composer-presets-surface ${isLayered ? "is-layered" : ""} ${
+        isDropActive ? "is-drop-active" : ""
+      }`.trim()}
+      style={surfaceStyle}
       role="region"
       aria-label="Pulses"
       tabIndex={-1}

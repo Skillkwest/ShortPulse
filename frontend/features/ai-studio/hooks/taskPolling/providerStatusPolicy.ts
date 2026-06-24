@@ -129,6 +129,10 @@ export const createShortErrorMessage = (message: string) => {
     return "Request timed out";
   }
 
+  if (lower.includes("non-json") && lower.includes("status") && lower.includes("response")) {
+    return "Status check failed.";
+  }
+
   if (lower.includes("rate limit") || lower.includes("too many")) {
     return "Rate limit exceeded";
   }

@@ -4,6 +4,10 @@ import {
   type MediaListCursor,
   type MediaListSurface,
 } from "../../media-library/logic/mediaListApi";
+import {
+  subscribeMediaLibraryChanged,
+  type MediaLibraryChangedPayload,
+} from "../../media-library/logic/mediaLibrarySyncEvents";
 import { shouldAutoLoadNearBottom } from "../../media-library/logic/mediaLoadMoreGating";
 import { appendCursorPageRows } from "../../media-library/logic/mediaLibraryPageHelpers";
 import {
@@ -18,7 +22,11 @@ import {
   waitForMediaLibraryPanelAnimationFrame,
   type MediaLibraryPanelItemType,
 } from "../logic/mediaLibraryPanelDataControllerLogic";
-import { fetchMediaPromptListPage, type PromptListCursor } from "../logic/mediaLibraryPanelApi";
+import {
+  fetchMediaPromptListPage,
+  MEDIA_LIBRARY_ROOT_FOLDER_ID,
+  type PromptListCursor,
+} from "../logic/mediaLibraryPanelApi";
 import { toMediaLibraryErrorText } from "../logic/mediaLibraryErrorText";
 import type { MediaFileRow, PromptRow } from "../logic/mediaLibraryModalModel";
 
@@ -30,6 +38,7 @@ type UseMediaLibraryPanelDataControllerParams = {
   shouldShowPrompts: boolean;
   panelBodyRef: React.RefObject<HTMLDivElement | null>;
   listSurface?: MediaListSurface;
+  currentUserId?: string | null;
 };
 
 type UseMediaLibraryPanelDataControllerResult = {
@@ -55,6 +64,8 @@ const MEDIA_PAGE_SIZE = getMediaLibrarySurfaceConfig("panel").pageSize;
 const PROMPT_PAGE_SIZE = MEDIA_PAGE_SIZE;
 const INFINITE_LOAD_BOTTOM_THRESHOLD_PX = 220;
 const AUDIO_COMPANION_ART_REFRESH_INTERVAL_MS = 3_500;
+const EXTERNAL_LIBRARY_REFRESH_DEBOUNCE_MS = 400;
+const EXTERNAL_LIBRARY_REFRESH_MAX_WAIT_MS = 2_000;
 
 const isRefreshableAudioCompanionArtRow = (row: MediaFileRow): boolean => {
   if (!row.file_type.toLowerCase().startsWith("audio")) return false;
@@ -73,6 +84,7 @@ export const useMediaLibraryPanelDataController = ({
   shouldShowPrompts,
   panelBodyRef,
   listSurface = "media-library-panel",
+  currentUserId = null,
 }: UseMediaLibraryPanelDataControllerParams): UseMediaLibraryPanelDataControllerResult => {
   const {
     error: runtimeError,
@@ -107,6 +119,17 @@ export const useMediaLibraryPanelDataController = ({
   const promptCursorRef = React.useRef<PromptListCursor | null>(null);
   const mediaScopeCacheRef = React.useRef(mediaScopeCache);
   const promptScopeCacheRef = React.useRef(promptScopeCache);
+  const externalLibraryRefreshStateRef = React.useRef<{
+    debounceTimer: ReturnType<typeof globalThis.setTimeout> | null;
+    maxWaitTimer: ReturnType<typeof globalThis.setTimeout> | null;
+    refreshInFlight: boolean;
+    dirty: boolean;
+  }>({
+    debounceTimer: null,
+    maxWaitTimer: null,
+    refreshInFlight: false,
+    dirty: false,
+  });
 
   const requestFolderId = React.useMemo(
     () => normalizeMediaLibraryPanelRequestFolderId(activeFolderId),
@@ -471,6 +494,102 @@ export const useMediaLibraryPanelDataController = ({
     }
     nextContainer.scrollTop = Math.min(Math.max(previousScrollTop, 0), nextMaxTop);
   }, [loadMediaPage, loadPromptPage, panelBodyRef, shouldShowMedia, shouldShowPrompts]);
+
+  const refreshActiveRowsRef = React.useRef(refreshActiveRows);
+
+  React.useEffect(() => {
+    refreshActiveRowsRef.current = refreshActiveRows;
+  }, [refreshActiveRows]);
+
+  const shouldRefreshForExternalLibraryChange = React.useCallback(
+    (payload: MediaLibraryChangedPayload): boolean => {
+      const mediaChanged = payload.mediaFileIds.length > 0;
+      const promptsChanged = payload.promptIds.length > 0;
+      const unknownKindChanged = !mediaChanged && !promptsChanged;
+      const affectsVisibleRows =
+        unknownKindChanged ||
+        (mediaChanged && shouldShowMedia) ||
+        (promptsChanged && shouldShowPrompts);
+      if (!affectsVisibleRows) return false;
+      if (requestFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID) return true;
+      return payload.folderIds.includes(requestFolderId);
+    },
+    [requestFolderId, shouldShowMedia, shouldShowPrompts]
+  );
+
+  const shouldRefreshForExternalLibraryChangeRef = React.useRef(
+    shouldRefreshForExternalLibraryChange
+  );
+
+  React.useEffect(() => {
+    shouldRefreshForExternalLibraryChangeRef.current = shouldRefreshForExternalLibraryChange;
+  }, [shouldRefreshForExternalLibraryChange]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    const clearTimers = () => {
+      const state = externalLibraryRefreshStateRef.current;
+      if (state.debounceTimer !== null) {
+        globalThis.clearTimeout(state.debounceTimer);
+        state.debounceTimer = null;
+      }
+      if (state.maxWaitTimer !== null) {
+        globalThis.clearTimeout(state.maxWaitTimer);
+        state.maxWaitTimer = null;
+      }
+    };
+
+    const scheduleRefresh = () => {
+      if (cancelled) return;
+      const state = externalLibraryRefreshStateRef.current;
+      state.dirty = true;
+      if (state.debounceTimer !== null) {
+        globalThis.clearTimeout(state.debounceTimer);
+      }
+      state.debounceTimer = globalThis.setTimeout(runRefresh, EXTERNAL_LIBRARY_REFRESH_DEBOUNCE_MS);
+      if (state.maxWaitTimer === null) {
+        state.maxWaitTimer = globalThis.setTimeout(
+          runRefresh,
+          EXTERNAL_LIBRARY_REFRESH_MAX_WAIT_MS
+        );
+      }
+    };
+
+    const finishRefresh = () => {
+      const state = externalLibraryRefreshStateRef.current;
+      state.refreshInFlight = false;
+      if (!state.dirty || cancelled) return;
+      scheduleRefresh();
+    };
+
+    function runRefresh() {
+      const state = externalLibraryRefreshStateRef.current;
+      clearTimers();
+      if (cancelled) return;
+      if (state.refreshInFlight) {
+        state.dirty = true;
+        return;
+      }
+      state.dirty = false;
+      state.refreshInFlight = true;
+      void refreshActiveRowsRef.current().finally(finishRefresh);
+    }
+
+    const unsubscribe = subscribeMediaLibraryChanged(
+      (payload) => {
+        if (!shouldRefreshForExternalLibraryChangeRef.current(payload)) return;
+        scheduleRefresh();
+      },
+      currentUserId ? { userId: currentUserId } : undefined
+    );
+
+    return () => {
+      cancelled = true;
+      clearTimers();
+      unsubscribe();
+    };
+  }, [currentUserId]);
 
   const refreshAudioCompanionArtRows = React.useCallback(async () => {
     const scopeKey = activeRowsScopeKey;

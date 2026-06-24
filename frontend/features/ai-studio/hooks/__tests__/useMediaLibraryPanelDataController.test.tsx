@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useMediaLibraryPanelDataController } from "../useMediaLibraryPanelDataController";
+import { publishMediaLibraryChanged } from "../../../media-library/logic/mediaLibrarySyncEvents";
 
 const fetchMediaListPageMock = vi.hoisted(() => vi.fn());
 const fetchMediaPromptListPageMock = vi.hoisted(() => vi.fn());
@@ -18,6 +19,7 @@ vi.mock("../../../media-library/logic/mediaListApi", async () => {
 });
 
 vi.mock("../../logic/mediaLibraryPanelApi", () => ({
+  MEDIA_LIBRARY_ROOT_FOLDER_ID: "all_items",
   fetchMediaPromptListPage: (...args: unknown[]) => fetchMediaPromptListPageMock(...args),
 }));
 
@@ -644,6 +646,229 @@ describe("useMediaLibraryPanelDataController", () => {
     });
 
     expect(result.current.error).toBe("media refresh failed");
+  });
+
+  it("coalesces rapid external media library change events into one refresh", async () => {
+    fetchMediaListPageMock.mockResolvedValue({
+      rows: [],
+      nextCursor: null,
+      hasMore: false,
+      signedById: new Map(),
+      libraryTotalCount: 0,
+    });
+
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelDataController({
+        activeFolderId: "all_items",
+        itemType: "all",
+        normalizedSearch: "",
+        shouldShowMedia: true,
+        shouldShowPrompts: false,
+        panelBodyRef: { current: null },
+        currentUserId: "user-1",
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.mediaScopeResolved).toBe(true);
+    });
+
+    fetchMediaListPageMock.mockClear();
+    vi.useFakeTimers();
+
+    act(() => {
+      publishMediaLibraryChanged({
+        userId: "user-1",
+        reason: "reference_grid_upload",
+        mediaFileIds: ["media-1"],
+      });
+      publishMediaLibraryChanged({
+        userId: "user-1",
+        reason: "reference_grid_upload",
+        mediaFileIds: ["media-2"],
+      });
+      publishMediaLibraryChanged({
+        userId: "user-1",
+        reason: "ai_studio_output_save",
+        mediaFileIds: ["media-3"],
+      });
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(399);
+    });
+    expect(fetchMediaListPageMock).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+      await Promise.resolve();
+    });
+
+    expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("runs one follow-up refresh when external changes arrive during an active refresh", async () => {
+    const firstRefreshDeferred = createDeferred<{
+      rows: never[];
+      nextCursor: null;
+      hasMore: false;
+      signedById: Map<string, string>;
+      libraryTotalCount: number;
+    }>();
+    const secondRefreshDeferred = createDeferred<{
+      rows: never[];
+      nextCursor: null;
+      hasMore: false;
+      signedById: Map<string, string>;
+      libraryTotalCount: number;
+    }>();
+
+    fetchMediaListPageMock
+      .mockResolvedValueOnce({
+        rows: [],
+        nextCursor: null,
+        hasMore: false,
+        signedById: new Map(),
+        libraryTotalCount: 0,
+      })
+      .mockReturnValueOnce(firstRefreshDeferred.promise)
+      .mockReturnValueOnce(secondRefreshDeferred.promise);
+
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelDataController({
+        activeFolderId: "all_items",
+        itemType: "all",
+        normalizedSearch: "",
+        shouldShowMedia: true,
+        shouldShowPrompts: false,
+        panelBodyRef: { current: null },
+        currentUserId: "user-1",
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.mediaScopeResolved).toBe(true);
+    });
+
+    fetchMediaListPageMock.mockClear();
+    vi.useFakeTimers();
+
+    act(() => {
+      publishMediaLibraryChanged({
+        userId: "user-1",
+        reason: "reference_grid_upload",
+        mediaFileIds: ["media-1"],
+      });
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(400);
+      await Promise.resolve();
+    });
+
+    expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      publishMediaLibraryChanged({
+        userId: "user-1",
+        reason: "reference_grid_upload",
+        mediaFileIds: ["media-2"],
+      });
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(400);
+    });
+    expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
+
+    firstRefreshDeferred.resolve({
+      rows: [],
+      nextCursor: null,
+      hasMore: false,
+      signedById: new Map(),
+      libraryTotalCount: 0,
+    });
+
+    await act(async () => {
+      await firstRefreshDeferred.promise;
+      await vi.advanceTimersByTimeAsync(400);
+      await Promise.resolve();
+    });
+
+    expect(fetchMediaListPageMock).toHaveBeenCalledTimes(2);
+
+    secondRefreshDeferred.resolve({
+      rows: [],
+      nextCursor: null,
+      hasMore: false,
+      signedById: new Map(),
+      libraryTotalCount: 0,
+    });
+    await act(async () => {
+      await secondRefreshDeferred.promise;
+    });
+  });
+
+  it("ignores root media changes while viewing a custom folder until folder membership changes", async () => {
+    const customFolderId = "11111111-1111-4111-8111-111111111111";
+
+    fetchMediaListPageMock.mockResolvedValue({
+      rows: [],
+      nextCursor: null,
+      hasMore: false,
+      signedById: new Map(),
+      libraryTotalCount: 0,
+    });
+
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelDataController({
+        activeFolderId: customFolderId,
+        itemType: "all",
+        normalizedSearch: "",
+        shouldShowMedia: true,
+        shouldShowPrompts: true,
+        panelBodyRef: { current: null },
+        currentUserId: "user-1",
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.mediaScopeResolved).toBe(true);
+      expect(result.current.promptScopeResolved).toBe(true);
+    });
+
+    fetchMediaListPageMock.mockClear();
+    fetchMediaPromptListPageMock.mockClear();
+    vi.useFakeTimers();
+
+    act(() => {
+      publishMediaLibraryChanged({
+        userId: "user-1",
+        reason: "reference_grid_upload",
+        mediaFileIds: ["media-1"],
+      });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(400);
+    });
+    expect(fetchMediaListPageMock).not.toHaveBeenCalled();
+    expect(fetchMediaPromptListPageMock).not.toHaveBeenCalled();
+
+    act(() => {
+      publishMediaLibraryChanged({
+        userId: "user-1",
+        reason: "folder_membership",
+        mediaFileIds: ["media-1"],
+        folderIds: [customFolderId],
+      });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(400);
+      await Promise.resolve();
+    });
+
+    expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
+    expect(fetchMediaPromptListPageMock).toHaveBeenCalledTimes(1);
   });
 
   it("dedupes overlapping media append requests", async () => {

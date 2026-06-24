@@ -13,7 +13,6 @@ import {
   inferWorkflowReloadMediaKindForOutput,
 } from "../logic/workflowReload";
 import { AppMessage } from "../../../components/AppMessage";
-import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { MEDIA_STORAGE_FULL_USER_MESSAGE } from "../../../lib/mediaStorageQuota";
 import { resolveCustomerFacingModelLabel } from "../../../lib/customerFacingProviderText";
 import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../../../lib/model-runtime/falModelIds";
@@ -35,7 +34,6 @@ import { SharedMediaDetailModalShell } from "./detail-modal/SharedMediaDetailMod
 import { resolveSharedMediaDetailMediaActionItems } from "./detail-modal/sharedMediaDetailActions";
 import { SharedMediaDetailTopBar } from "./detail-modal/SharedMediaDetailTopBar";
 import { SharedMediaDetailVideoSnapshotControl } from "./detail-modal/SharedMediaDetailVideoSnapshotControl";
-import { AiStudioModalLayer } from "./modal-layer/AiStudioModalLayer";
 import type {
   SharedMediaDetailActionItem,
   SharedMediaDetailVideoSnapshotErrorHandler,
@@ -194,7 +192,6 @@ function DetailModalContent({
     `detail-modal-video:${output.id}`,
     videoPreviewRef
   );
-  const [deleteConfirmOutputId, setDeleteConfirmOutputId] = useState<string | null>(null);
   const [draftPromptsById, setDraftPromptsById] = useState<Record<string, string>>({});
   const [promptOnlySavedOutputId, setPromptOnlySavedOutputId] = useState<string | null>(null);
   const [promptLibrarySavedOutputId, setPromptLibrarySavedOutputId] = useState<string | null>(null);
@@ -448,7 +445,6 @@ function DetailModalContent({
     "";
   const draftPrompt =
     outputId && output ? (draftPromptsById[outputId] ?? displayPromptText) : displayPromptText;
-  const isDeleteConfirmOpen = Boolean(outputId && deleteConfirmOutputId === outputId);
   const isPromptOnlySaved = Boolean(outputId && promptOnlySavedOutputId === outputId);
   const isPromptLibrarySaved = Boolean(outputId && promptLibrarySavedOutputId === outputId);
   const mediaSaveState = output?.saveState ?? "idle";
@@ -671,7 +667,6 @@ function DetailModalContent({
     clearPromptLibrarySavedTimer();
     setPromptOnlySavedOutputId(null);
     setPromptLibrarySavedOutputId(null);
-    setDeleteConfirmOutputId(null);
     setImageZoomScaleByOutput(null);
     setImagePanByOutput(null);
     setImagePanningByOutput(null);
@@ -1108,18 +1103,9 @@ function DetailModalContent({
     : undefined;
 
   const handleRequestDelete = useCallback(() => {
-    setDeleteConfirmOutputId(outputId);
-  }, [outputId]);
-
-  const handleCancelDelete = () => {
-    setDeleteConfirmOutputId(null);
-  };
-
-  const handleConfirmDelete = () => {
     onDeleteOutput(output.id);
-    setDeleteConfirmOutputId(null);
-    handleCloseModal();
-  };
+    onClose();
+  }, [onClose, onDeleteOutput, output.id]);
   const shouldShowWorkflowReloadAction = Boolean(
     onReloadWorkflowReference &&
     canReloadWorkflowOutput(output, { mediaKindHint: workflowReloadMediaKindHint })
@@ -1217,9 +1203,7 @@ function DetailModalContent({
         modalActivityId="detail-modal"
         onClose={handleCloseModal}
         ariaLabel="Reference details"
-        closeOnEscape={!isDeleteConfirmOpen}
-        ariaModal={!isDeleteConfirmOpen}
-        dialogAriaHidden={isDeleteConfirmOpen}
+        closeOnEscape={true}
         backdropClassName="reference-modal-backdrop"
         dialogClassName={`reference-modal-new ${shouldUseTextDetailLayout ? "is-text-only" : ""} ${isUploadedReference ? "is-uploaded" : ""} ${shouldUseExternalFileLayout ? "is-stage-only" : ""} ${isAudioOutput ? "is-audio-modal" : ""}`}
         dialogStyle={detailModalStyle}
@@ -1444,17 +1428,6 @@ function DetailModalContent({
           />
         ) : null}
       </SharedMediaDetailModalShell>
-      {isDeleteConfirmOpen ? (
-        <AiStudioModalLayer>
-          <ConfirmationModal
-            title="Delete this reference?"
-            body={<p>This reference will be removed permanently.</p>}
-            confirmLabel="Delete"
-            onCancel={handleCancelDelete}
-            onConfirm={handleConfirmDelete}
-          />
-        </AiStudioModalLayer>
-      ) : null}
     </>
   );
 }

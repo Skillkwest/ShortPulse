@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 import { useResolvedProtectedSessionState } from "../../../lib/protectedRouteSessionContext";
 import type { AgentContext } from "../../ai-agent/types";
+import { publishMediaLibraryChanged } from "../../media-library/logic/mediaLibrarySyncEvents";
 import { randomId } from "../logic/ids";
 import {
   uploadMediaFile,
@@ -660,6 +661,11 @@ export const useAiStudioReferenceIngestionActions = ({
             file: candidate.file,
             destinationTab: candidate.destinationTab,
           });
+          publishMediaLibraryChanged({
+            userId: currentUserId,
+            reason: "reference_grid_upload",
+            mediaFileIds: [uploaded.id],
+          });
           if (!isReferenceOutputStillVisible(candidate.outputId)) {
             continue;
           }
@@ -742,6 +748,7 @@ export const useAiStudioReferenceIngestionActions = ({
       aspect,
       associateMediaWithProject,
       buildLibraryMediaOutputWithId,
+      currentUserId,
       isReferenceOutputStillVisible,
       model,
       outputs,

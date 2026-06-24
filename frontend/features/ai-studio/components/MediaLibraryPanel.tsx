@@ -252,6 +252,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     shouldShowPrompts,
     panelBodyRef,
     listSurface: panelListSurface,
+    currentUserId: sessionUserId,
   });
   const {
     isStorageQuotaBlocked,

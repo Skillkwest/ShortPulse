@@ -178,6 +178,7 @@ export function EmbeddedMediaLibraryPanel({
     shouldShowPrompts,
     panelBodyRef,
     listSurface: surface,
+    currentUserId: sessionUserId,
   });
 
   const refreshFolders = React.useCallback(async () => undefined, []);

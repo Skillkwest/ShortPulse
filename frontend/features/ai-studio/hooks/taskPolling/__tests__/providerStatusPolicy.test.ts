@@ -36,6 +36,12 @@ describe("providerStatusPolicy safety classification", () => {
     ).toBe("Content not allowed");
   });
 
+  it("condenses non-JSON status responses for compact cards", () => {
+    expect(createShortErrorMessage("Seedance 2 returned non-JSON status response")).toBe(
+      "Status check failed."
+    );
+  });
+
   it("does not label generic provider failures as NSFW", () => {
     expect(
       isProviderSafetyBlockedOutput({

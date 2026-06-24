@@ -4,6 +4,9 @@ import { resolveSharedMediaDetailBladeContent } from "../../components/detail-mo
 import type { StudioOutput } from "../../types";
 import { AI_STUDIO_ERROR_SCENARIOS } from "../../testing/errorScenarioFixtures";
 
+const CUSTOMER_DETAIL_LEAK_PATTERN =
+  /\{|"loc"|request[_ ]?id|req_|image_urls|non-json|provider status route|upstream provider|provider-side/i;
+
 const createOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput => ({
   id: "out-detail",
   prompt: "Prompt",
@@ -17,26 +20,31 @@ const createOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput => ({
 });
 
 describe("createStudioOutputDetailModalItem", () => {
-  it.each(AI_STUDIO_ERROR_SCENARIOS)("expands full error details for $label", (scenario) => {
-    const item = createStudioOutputDetailModalItem({
-      output: scenario.output,
-      canSavePrompt: true,
-    });
-    const bladeContent = resolveSharedMediaDetailBladeContent({ item });
+  it.each(AI_STUDIO_ERROR_SCENARIOS)(
+    "shows customer-facing error details for $label",
+    (scenario) => {
+      const item = createStudioOutputDetailModalItem({
+        output: scenario.output,
+        canSavePrompt: true,
+      });
+      const bladeContent = resolveSharedMediaDetailBladeContent({ item });
 
-    expect(item.capabilities.canEditPrompt).toBe(false);
-    expect(item.capabilities.canSavePrompt).toBe(false);
-    expect(item.presentation?.kindLabel).toBe("failed generation");
-    expect(item.presentation?.errorContent?.detail).toContain(scenario.expectedDetailText);
-    expect(bladeContent.label).toBe("ERROR");
-    expect(bladeContent.value).toContain(scenario.expectedDetailText);
-    if (scenario.rawPayloadProbe) {
-      expect(item.presentation?.errorContent?.rawPayload).toContain(scenario.rawPayloadProbe);
-      expect(bladeContent.value).toContain(scenario.rawPayloadProbe);
+      expect(item.capabilities.canEditPrompt).toBe(false);
+      expect(item.capabilities.canSavePrompt).toBe(false);
+      expect(item.presentation?.kindLabel).toBe("failed generation");
+      expect(item.presentation?.errorContent?.detail).toContain(scenario.expectedDetailText);
+      expect(item.presentation?.errorContent?.detail).not.toMatch(CUSTOMER_DETAIL_LEAK_PATTERN);
+      expect(item.presentation?.errorContent?.rawPayload).toBeNull();
+      expect(bladeContent.label).toBe("ERROR");
+      expect(bladeContent.value).toContain(scenario.expectedDetailText);
+      expect(bladeContent.value).not.toMatch(CUSTOMER_DETAIL_LEAK_PATTERN);
+      if (scenario.rawPayloadProbe) {
+        expect(bladeContent.value).not.toContain(scenario.rawPayloadProbe);
+      }
     }
-  });
+  );
 
-  it("adds read-only full error content for failed outputs", () => {
+  it("adds read-only customer-facing error content for failed outputs", () => {
     const errorPayload = {
       error: {
         message: "Provider rejected image_urls[0].",
@@ -57,8 +65,11 @@ describe("createStudioOutputDetailModalItem", () => {
     expect(item.capabilities.canEditPrompt).toBe(false);
     expect(item.capabilities.canSavePrompt).toBe(false);
     expect(item.presentation?.kindLabel).toBe("failed generation");
-    expect(item.presentation?.errorContent?.detail).toBe("Provider rejected image_urls[0].");
-    expect(item.presentation?.errorContent?.rawPayload).toContain("req-provider");
+    expect(item.presentation?.errorContent?.detail).toBe(
+      "A reference image could not be used. Re-add the reference and try again."
+    );
+    expect(item.presentation?.errorContent?.detail).not.toMatch(CUSTOMER_DETAIL_LEAK_PATTERN);
+    expect(item.presentation?.errorContent?.rawPayload).toBeNull();
   });
 
   it("deduplicates matching error summary and detail text", () => {

@@ -6,6 +6,10 @@ import {
 } from "../../features/ai-studio/logic/sessionSnapshotCanvas";
 import { createEmptyExpertEditSecondaryImageUrls } from "../../features/ai-studio/logic/expertEditReferenceSlots";
 import { sanitizeRightRailLayoutSnapshot } from "../../features/ai-studio/logic/rightRailLayout";
+import {
+  isReferenceGridVisibleOutput,
+  REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+} from "../../features/ai-studio/reference-grid/logic/referenceGridLimits";
 
 type MinimalAiStudioSessionSnapshot = {
   schemaVersion: number;
@@ -229,6 +233,29 @@ const shouldPersistOutputInProjectWorkspaceSnapshot = (
   );
 };
 
+const limitProjectWorkspaceVisibleOutputs = (
+  rows: Record<string, unknown>[]
+): Record<string, unknown>[] => {
+  const nextRows: Record<string, unknown>[] = [];
+  let visibleCount = 0;
+
+  rows.forEach((row) => {
+    if (
+      !isReferenceGridVisibleOutput({
+        hiddenInReferenceGrid: row.hiddenInReferenceGrid === true,
+      })
+    ) {
+      nextRows.push(row);
+      return;
+    }
+    if (visibleCount >= REFERENCE_GRID_MAX_VISIBLE_ITEMS) return;
+    visibleCount += 1;
+    nextRows.push(row);
+  });
+
+  return nextRows;
+};
+
 const filterProjectWorkspaceOutputIds = ({
   value,
   persistedOutputIds,
@@ -280,11 +307,12 @@ const stripFailedOutputsFromProjectWorkspaceOutputs = (
     });
     return trimPromptOnlyProjectWorkspaceOutput(generatedNormalizedOutput);
   });
+  const visibleLimitedActiveOutputs = limitProjectWorkspaceVisibleOutputs(normalizedActiveOutputs);
   const outputIdAliases = new Map<string, string>();
   const persistedOutputIds = new Set<string>();
   const canonicalActiveOutputs: Record<string, unknown>[] = [];
 
-  normalizedActiveOutputs.forEach((output) => {
+  visibleLimitedActiveOutputs.forEach((output) => {
     const generationId = asTrimmedString(output.generationId);
     const currentId = asTrimmedString(output.id);
     const canonicalGeneratedId = buildCanonicalGeneratedProjectOutputId(generationId);

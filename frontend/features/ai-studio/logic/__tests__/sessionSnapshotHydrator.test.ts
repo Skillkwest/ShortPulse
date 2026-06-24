@@ -1590,6 +1590,44 @@ describe("sessionSnapshotHydrator", () => {
     });
   });
 
+  it("preserves Seedance direct audio reference slots during hydration", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        workspace: {
+          ...createSnapshot().workspace,
+          klingElements: [
+            {
+              id: "audio-ref-1",
+              slotIndex: 2,
+              sourceKind: "reference-audio",
+              sourceElementId: null,
+              sourceCharacterId: null,
+              name: "Audio reference",
+              alias: "",
+              description: "",
+              profileImageUrl: null,
+              profileImageTransform: null,
+              frontalImageUrl: "",
+              referenceImageUrls: "",
+              videoUrl: "",
+              audioUrl: "https://example.com/direct-audio.mp3",
+            },
+          ],
+        },
+      })
+    );
+
+    expect(payload.workspace.klingElements[0]).toEqual(
+      expect.objectContaining({
+        id: "audio-ref-1",
+        slotIndex: 2,
+        sourceKind: "reference-audio",
+        name: "Audio reference",
+        audioUrl: "https://example.com/direct-audio.mp3",
+      })
+    );
+  });
+
   it("preserves selected character look metadata during hydration", () => {
     const payload = buildAiStudioSessionHydrationPayload(
       createSnapshot({

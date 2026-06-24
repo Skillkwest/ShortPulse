@@ -765,6 +765,12 @@ describe("useAiStudioWorkflowReloadController", () => {
       bucket: "media_library",
       storagePath: "user/video/element-reference.png",
     };
+    const elementAudioRef = {
+      version: 1 as const,
+      kind: "storage_object" as const,
+      bucket: "media_library",
+      storagePath: "user/video/element-audio.mp3",
+    };
     const workflowReload: WorkflowReloadConfigV1 = {
       ...makeImageReload(),
       originTool: "video",
@@ -818,9 +824,11 @@ describe("useAiStudioWorkflowReloadController", () => {
                 id: "element-1",
                 profileImageUrl: "https://example.com/element-profile.png",
                 referenceImageUrls: "https://example.com/element-reference.png",
+                audioUrl: "https://example.com/element-audio.mp3",
               },
               profileImageInternalMediaRef: elementProfileRef,
               referenceImageInternalMediaRefs: [elementReferenceRef],
+              audioInternalMediaRef: elementAudioRef,
             },
           ],
         },
@@ -872,6 +880,7 @@ describe("useAiStudioWorkflowReloadController", () => {
         id: "element-1",
         profileImageUrl: "https://example.com/element-profile.png",
         referenceImageUrls: "https://example.com/element-reference.png",
+        audioUrl: "https://example.com/element-audio.mp3",
       },
     ]);
     expect(resolveInternalMediaRefForUrl("https://example.com/video-first.png")).toEqual(
@@ -885,6 +894,9 @@ describe("useAiStudioWorkflowReloadController", () => {
     );
     expect(resolveInternalMediaRefForUrl("https://example.com/element-reference.png")).toEqual(
       elementReferenceRef
+    );
+    expect(resolveInternalMediaRefForUrl("https://example.com/element-audio.mp3")).toEqual(
+      elementAudioRef
     );
   });
 

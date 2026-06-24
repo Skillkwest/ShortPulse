@@ -345,6 +345,12 @@ describe("workflowReload", () => {
       bucket: "media_library",
       storagePath: "user/video/reference.png",
     };
+    const elementAudioRef = {
+      version: 1 as const,
+      kind: "storage_object" as const,
+      bucket: "media_library",
+      storagePath: "user/video/element-audio.mp3",
+    };
     const reload = buildWorkflowReloadConfigV1({
       capturedAt: "2026-06-06T12:00:00.000Z",
       originTool: "video",
@@ -382,10 +388,12 @@ describe("workflowReload", () => {
               element: {
                 id: "element-1",
                 profileImageUrl: "data:image/png;base64,missing-profile",
+                audioUrl: "blob:http://localhost/element-audio",
                 referenceImageUrls:
                   "https://example.com/reference.png, blob:http://localhost/missing-reference",
               },
               referenceImageInternalMediaRefs: [referenceImageRef],
+              audioInternalMediaRef: elementAudioRef,
             },
           ],
         },
@@ -410,10 +418,12 @@ describe("workflowReload", () => {
               element: {
                 id: "element-1",
                 profileImageUrl: null,
+                audioUrl: "blob:http://localhost/element-audio",
                 referenceImageUrls: "https://example.com/reference.png",
                 slotIndex: 0,
               },
               referenceImageInternalMediaRefs: [referenceImageRef],
+              audioInternalMediaRef: elementAudioRef,
             },
           ],
         },

@@ -1505,19 +1505,19 @@ describe("projectWorkspaceStatesService", () => {
     });
 
     expect(result.saveOutcome).toEqual({ status: "saved" });
-    expect(promptIdInMock).toHaveBeenCalledTimes(3);
-    expect(promptIdInMock.mock.calls.map(([, ids]) => ids.length)).toEqual([100, 100, 5]);
-    expect(generationIdInMock).toHaveBeenCalledTimes(3);
-    expect(generationIdInMock.mock.calls.map(([, ids]) => ids.length)).toEqual([100, 100, 5]);
+    expect(promptIdInMock).toHaveBeenCalledTimes(2);
+    expect(promptIdInMock.mock.calls.map(([, ids]) => ids.length)).toEqual([100, 28]);
+    expect(generationIdInMock).toHaveBeenCalledTimes(2);
+    expect(generationIdInMock.mock.calls.map(([, ids]) => ids.length)).toEqual([100, 28]);
     const firstWorkspaceUpsertArg = (
       workspaceUpsert.mock.calls as Array<[{ snapshot?: Record<string, unknown> }?, unknown?]>
     ).at(0)?.[0];
     expect(
       (firstWorkspaceUpsertArg?.snapshot?.outputs as { active?: unknown[] })?.active
-    ).toHaveLength(205);
+    ).toHaveLength(128);
   });
 
-  it("stores pathological output-heavy projects as lightweight checkpoints", async () => {
+  it("stores pathological output-heavy projects as capped lightweight checkpoints", async () => {
     const { workspaceUpsert, outputDisplayUpsert } = createSupabaseMock({
       associatedSnapshotGenerationIds: [],
       recentGenerationIds: [],
@@ -1550,8 +1550,12 @@ describe("projectWorkspaceStatesService", () => {
         active: activeOutputs,
         archived: [],
         activeOutputId: "pathological-output-1",
-        curatedReferenceIds: ["pathological-output-1", "pathological-output-2"],
-        removedFromAllRefsIds: ["pathological-output-3"],
+        curatedReferenceIds: [
+          "pathological-output-1",
+          "pathological-output-2",
+          "pathological-output-129",
+        ],
+        removedFromAllRefsIds: ["pathological-output-3", "pathological-output-130"],
       },
       agent: {
         messages: [],
@@ -1582,20 +1586,123 @@ describe("projectWorkspaceStatesService", () => {
       }
     )?.active ?? []) as Array<Record<string, unknown>>;
 
-    expect(storedActiveOutputs).toHaveLength(600);
+    expect(storedActiveOutputs).toHaveLength(128);
     expect(storedBytes).toBeLessThan(originalBytes * 0.3);
     expect(storedActiveOutputs[0]).toEqual({
       id: "pathological-output-1",
       mode: "image",
       mediaSource: "library",
     });
+    expect(storedActiveOutputs.at(-1)).toEqual({
+      id: "pathological-output-128",
+      mode: "image",
+      mediaSource: "library",
+    });
+    expect(
+      (storedCheckpoint.outputs as { curatedReferenceIds?: string[] }).curatedReferenceIds
+    ).toEqual(["pathological-output-1", "pathological-output-2"]);
+    expect(
+      (storedCheckpoint.outputs as { removedFromAllRefsIds?: string[] }).removedFromAllRefsIds
+    ).toEqual(["pathological-output-3"]);
     expect(outputDisplayUpsert).toHaveBeenCalled();
+    expect(
+      outputDisplayUpsert.mock.calls.reduce(
+        (count, call) => count + ((call[0] as unknown[])?.length ?? 0),
+        0
+      )
+    ).toBe(128);
     expect(outputDisplayUpsert.mock.calls[0]?.[0]?.[0]).toMatchObject({
       output_id: "pathological-output-1",
       width: 1024,
       height: 768,
       duration_ms: 333,
     });
+    expect(writeAppErrorLogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.ai_studio.project_workspace.reference_grid_cap_normalized",
+        userId: "user-1",
+        metadata: expect.objectContaining({
+          project_id: "project-1",
+          incoming_visible_active_outputs: 600,
+          persisted_visible_active_outputs: 128,
+          reference_grid_visible_limit: 128,
+          trimmed_visible_active_outputs: 472,
+        }),
+      })
+    );
+  });
+
+  it("preserves hidden Reference Grid rows while capping visible project workspace rows", async () => {
+    const { workspaceUpsert } = createSupabaseMock({
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      projectionRows: [],
+    });
+    const visibleOutputs = Array.from({ length: 130 }, (_, index) => ({
+      id: `visible-output-${index + 1}`,
+      mode: "image",
+      mediaSource: "library",
+      previewUrl: `https://cdn.example.com/visible-${index + 1}.png`,
+      resultUrls: [`https://cdn.example.com/visible-${index + 1}.png`],
+    }));
+    const hiddenOutput = {
+      id: "hidden-output-1",
+      mode: "image",
+      mediaSource: "library",
+      hiddenInReferenceGrid: true,
+      previewUrl: "https://cdn.example.com/hidden.png",
+      resultUrls: ["https://cdn.example.com/hidden.png"],
+    };
+
+    await upsertProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+      schemaVersion: 2,
+      snapshot: {
+        schemaVersion: 2,
+        sessionId: "session-hidden-cap",
+        updatedAt: "2026-06-03T14:10:00.000Z",
+        workspace: {
+          selectedTool: "create",
+        },
+        outputs: {
+          active: [...visibleOutputs.slice(0, 64), hiddenOutput, ...visibleOutputs.slice(64)],
+          archived: [],
+          activeOutputId: "visible-output-1",
+          curatedReferenceIds: ["hidden-output-1", "visible-output-130"],
+          removedFromAllRefsIds: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+    });
+
+    const firstWorkspaceUpsertArg = (
+      workspaceUpsert.mock.calls as Array<[{ snapshot?: Record<string, unknown> }?, unknown?]>
+    ).at(0)?.[0];
+    const storedCheckpoint = firstWorkspaceUpsertArg?.snapshot ?? {};
+    const storedActiveOutputs = ((
+      storedCheckpoint.outputs as {
+        active?: Array<Record<string, unknown>>;
+      }
+    )?.active ?? []) as Array<Record<string, unknown>>;
+
+    expect(storedActiveOutputs).toHaveLength(129);
+    expect(storedActiveOutputs.filter((row) => row.hiddenInReferenceGrid !== true)).toHaveLength(
+      128
+    );
+    expect(storedActiveOutputs.some((row) => row.id === "hidden-output-1")).toBe(true);
+    expect(storedActiveOutputs.some((row) => row.id === "visible-output-129")).toBe(false);
+    expect(storedActiveOutputs.some((row) => row.id === "visible-output-130")).toBe(false);
+    expect(
+      (storedCheckpoint.outputs as { curatedReferenceIds?: string[] }).curatedReferenceIds
+    ).toEqual(["hidden-output-1"]);
   });
 
   it("retains quick-slot generated outputs when ownership is projection-backed during workspace save", async () => {

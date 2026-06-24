@@ -70,6 +70,7 @@ const collectVideoReferenceInternalMedia = (
         .forEach((url, index) => push(url, slot.referenceImageInternalMediaRefs?.[index] ?? null));
     }
     push(element.videoUrl as string | null | undefined, slot.videoInternalMediaRef);
+    push(element.audioUrl as string | null | undefined, slot.audioInternalMediaRef);
   });
 
   return { urls, refs };

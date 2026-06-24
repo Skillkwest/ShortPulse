@@ -497,6 +497,7 @@ const sanitizeWorkspaceKlingElements = (elements: AiStudioKlingElement[]) =>
       .map((value) => sanitizeMediaUrl(value))
       .filter((value): value is string => Boolean(value))
       .join(", ");
+    const audioUrl = sanitizeMediaUrl(element.audioUrl) ?? "";
     return {
       ...element,
       slotIndex:
@@ -507,7 +508,8 @@ const sanitizeWorkspaceKlingElements = (elements: AiStudioKlingElement[]) =>
         element.sourceKind === "character" ||
         element.sourceKind === "element" ||
         element.sourceKind === "reference-image" ||
-        element.sourceKind === "reference-video"
+        element.sourceKind === "reference-video" ||
+        element.sourceKind === "reference-audio"
           ? element.sourceKind
           : null,
       sourceElementId:
@@ -537,6 +539,7 @@ const sanitizeWorkspaceKlingElements = (elements: AiStudioKlingElement[]) =>
       frontalImageUrl: sanitizeMediaUrl(element.frontalImageUrl) ?? "",
       referenceImageUrls: sanitizedReferenceImageUrls,
       videoUrl: sanitizeMediaUrl(element.videoUrl) ?? "",
+      ...(audioUrl ? { audioUrl } : {}),
     };
   });
 

@@ -168,8 +168,15 @@ describe("taskSubmission outputBootstrap", () => {
       bucket: "media_library",
       storagePath: "user/video/element-profile.png",
     };
+    const elementAudioRef = {
+      version: 1 as const,
+      kind: "storage_object" as const,
+      bucket: "media_library",
+      storagePath: "user/video/element-audio.mp3",
+    };
     registerInternalMediaRefForUrl("https://example.com/video-seed-image.png", seedImageRef);
     registerInternalMediaRefForUrl("https://example.com/element-profile.png", elementRef);
+    registerInternalMediaRefForUrl("https://example.com/element-audio.mp3", elementAudioRef);
 
     const workflowReload = buildSubmissionWorkflowReloadSnapshot({
       outputMode: "video",
@@ -206,6 +213,7 @@ describe("taskSubmission outputBootstrap", () => {
         {
           id: "element-1",
           profileImageUrl: "https://example.com/element-profile.png",
+          audioUrl: "https://example.com/element-audio.mp3",
         },
       ],
     });
@@ -252,9 +260,11 @@ describe("taskSubmission outputBootstrap", () => {
               element: {
                 id: "element-1",
                 profileImageUrl: "https://example.com/element-profile.png",
+                audioUrl: "https://example.com/element-audio.mp3",
                 slotIndex: 0,
               },
               profileImageInternalMediaRef: elementRef,
+              audioInternalMediaRef: elementAudioRef,
             },
           ],
         },

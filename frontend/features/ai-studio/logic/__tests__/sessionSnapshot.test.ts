@@ -3322,6 +3322,45 @@ describe("sessionSnapshot", () => {
     });
   });
 
+  it("preserves Seedance direct audio reference slots in persisted session workspace", () => {
+    const snapshot = buildAiStudioSessionSnapshot(
+      createSnapshotInput({
+        mode: "video",
+        selectedTool: "video",
+        prompt: "seedance direct audio",
+        model: "kie-ai/seedance-2",
+        klingElements: [
+          {
+            id: "audio-ref-1",
+            sourceKind: "reference-audio",
+            sourceElementId: null,
+            sourceCharacterId: null,
+            slotIndex: 2,
+            name: "Audio reference",
+            alias: "",
+            description: "",
+            profileImageUrl: null,
+            profileImageTransform: null,
+            frontalImageUrl: "",
+            referenceImageUrls: "",
+            videoUrl: "",
+            audioUrl: "https://cdn.shortpulse.dev/direct-audio.mp3",
+          },
+        ],
+      })
+    );
+
+    expect(snapshot.workspace.klingElements[0]).toEqual(
+      expect.objectContaining({
+        id: "audio-ref-1",
+        sourceKind: "reference-audio",
+        slotIndex: 2,
+        name: "Audio reference",
+        audioUrl: "https://cdn.shortpulse.dev/direct-audio.mp3",
+      })
+    );
+  });
+
   it("preserves selected character look metadata in persisted Kling elements", () => {
     const snapshot = buildAiStudioSessionSnapshot(
       createSnapshotInput({

@@ -345,7 +345,13 @@ const asKlingProfileImageTransform = (
 type HydratedKlingElementRow = {
   id: string;
   slotIndex?: number;
-  sourceKind?: "element" | "character" | "reference-image" | "reference-video" | null;
+  sourceKind?:
+    | "element"
+    | "character"
+    | "reference-image"
+    | "reference-video"
+    | "reference-audio"
+    | null;
   sourceElementId?: string | null;
   sourceCharacterId?: string | null;
   sourceCharacterLookId?: string | null;
@@ -358,6 +364,7 @@ type HydratedKlingElementRow = {
   frontalImageUrl: string;
   referenceImageUrls: string;
   videoUrl: string;
+  audioUrl?: string;
 };
 
 const asKlingElements = (value: unknown): HydratedKlingElementRow[] => {
@@ -372,6 +379,7 @@ const asKlingElements = (value: unknown): HydratedKlingElementRow[] => {
       .filter((url): url is string => Boolean(url))
       .join(", ");
     const videoUrl = sanitizeHydratedMediaUrl(asNullableString(row.videoUrl)) ?? "";
+    const audioUrl = sanitizeHydratedMediaUrl(asNullableString(row.audioUrl)) ?? "";
     return {
       id: asString(row.id, `kling-element-${index}`),
       slotIndex:
@@ -382,7 +390,8 @@ const asKlingElements = (value: unknown): HydratedKlingElementRow[] => {
         row.sourceKind === "character" ||
         row.sourceKind === "element" ||
         row.sourceKind === "reference-image" ||
-        row.sourceKind === "reference-video"
+        row.sourceKind === "reference-video" ||
+        row.sourceKind === "reference-audio"
           ? row.sourceKind
           : null,
       sourceElementId: asNullableString(row.sourceElementId),
@@ -397,6 +406,7 @@ const asKlingElements = (value: unknown): HydratedKlingElementRow[] => {
       frontalImageUrl,
       referenceImageUrls,
       videoUrl,
+      ...(audioUrl ? { audioUrl } : {}),
     };
   });
   return rows.filter((item): item is HydratedKlingElementRow => Boolean(item));
@@ -758,6 +768,7 @@ export type AiStudioSessionHydrationPayload = {
       frontalImageUrl: string;
       referenceImageUrls: string;
       videoUrl: string;
+      audioUrl?: string;
     }[];
     motionReferenceVideoUrl: string | null;
     rightRailLayout: AiStudioRightRailLayoutV1;

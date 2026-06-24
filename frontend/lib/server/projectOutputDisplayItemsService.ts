@@ -55,6 +55,7 @@ const CHECKPOINT_OUTPUT_STUB_FIELDS = [
   "mediaSource",
   "createdAt",
   "generationId",
+  "hiddenInReferenceGrid",
 ] as const;
 
 const RICH_OUTPUT_CHECKPOINT_EXCLUDED_FIELDS = [

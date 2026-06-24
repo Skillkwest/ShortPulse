@@ -38,6 +38,7 @@ import { needsVideoUpload } from "../utils/videoUpload";
 import {
   resolveKieKlingElementsValidationMessage,
   resolveSeedanceElementProviderEligibility,
+  resolveSeedanceReferenceRequirementError,
   type AiStudioKlingElement,
 } from "../logic/klingElements";
 import {
@@ -242,18 +243,47 @@ export const useAiStudioViewModel = ({
     () => klingElements.map((element) => resolveSeedanceElementProviderEligibility(element)),
     [klingElements]
   );
-  const seedance2VideoInputCount = useMemo(
-    () =>
+  const seedance2UsesMultimodalReferences = seedance2InputMode === "multimodal";
+  const seedance2VideoInputCount = useMemo(() => {
+    if (!seedance2UsesMultimodalReferences) return 0;
+    return (
       seedance2ReferenceVideoUrls.filter((value) => value.trim().length > 0).length +
       seedanceLinkedElementEligibilities.reduce(
         (count, eligibility) => count + eligibility.videoUrls.length,
         0
-      ),
-    [seedance2ReferenceVideoUrls, seedanceLinkedElementEligibilities]
-  );
+      )
+    );
+  }, [
+    seedance2ReferenceVideoUrls,
+    seedance2UsesMultimodalReferences,
+    seedanceLinkedElementEligibilities,
+  ]);
   const hasSeedance2LinkedAssetReferences = seedanceLinkedElementEligibilities.some(
     (eligibility) => eligibility.isSubmittable
   );
+  const seedance2ReferenceRequirementGuardrail = useMemo(() => {
+    if (!seedance2UsesMultimodalReferences) return null;
+    return resolveSeedanceReferenceRequirementError({
+      imageUrls: [
+        ...seedance2ReferenceImageUrls,
+        ...seedanceLinkedElementEligibilities.flatMap((eligibility) => eligibility.imageUrls),
+      ],
+      videoUrls: [
+        ...seedance2ReferenceVideoUrls,
+        ...seedanceLinkedElementEligibilities.flatMap((eligibility) => eligibility.videoUrls),
+      ],
+      audioUrls: [
+        ...seedance2ReferenceAudioUrls,
+        ...seedanceLinkedElementEligibilities.flatMap((eligibility) => eligibility.audioUrls),
+      ],
+    });
+  }, [
+    seedance2ReferenceAudioUrls,
+    seedance2ReferenceImageUrls,
+    seedance2ReferenceVideoUrls,
+    seedance2UsesMultimodalReferences,
+    seedanceLinkedElementEligibilities,
+  ]);
   const videoPricingResolution = useMemo(() => {
     if (!effectiveVideoPricingModelId) return videoResolution;
     const config = getModelConfig(effectiveVideoPricingModelId);
@@ -272,8 +302,6 @@ export const useAiStudioViewModel = ({
         : null,
     [isVideoTool, klingElements, model, videoReferenceMode]
   );
-  const seedance2UsesMultimodalReferences =
-    seedance2InputMode === "multimodal" || hasSeedance2LinkedAssetReferences;
   const videoPricingParams = useMemo(
     () => ({
       durationSeconds:
@@ -951,6 +979,9 @@ export const useAiStudioViewModel = ({
         if (!hasSeedance2MultimodalReferences && !hasSeedance2LinkedAssetReferences) {
           return "Add at least one image, video, or audio reference before generating with Seedance 2.";
         }
+        if (seedance2ReferenceRequirementGuardrail) {
+          return seedance2ReferenceRequirementGuardrail;
+        }
       }
       if (
         !seedance2UsesMultimodalReferences &&
@@ -993,6 +1024,7 @@ export const useAiStudioViewModel = ({
     hasSeedance2LinkedAssetReferences,
     hasSeedance2MultimodalReferences,
     klingElementProviderGuardrail,
+    seedance2ReferenceRequirementGuardrail,
     seedance2UsesMultimodalReferences,
     isVideoTool,
     isDescribeMode,
@@ -1061,6 +1093,9 @@ export const useAiStudioViewModel = ({
           if (!hasSeedance2MultimodalReferences && !hasSeedance2LinkedAssetReferences) {
             return "Seedance 2 multimodal mode requires at least one image, video, or audio reference.";
           }
+          if (seedance2ReferenceRequirementGuardrail) {
+            return seedance2ReferenceRequirementGuardrail;
+          }
         }
         if (
           !seedance2UsesMultimodalReferences &&
@@ -1085,6 +1120,7 @@ export const useAiStudioViewModel = ({
     modelConfig,
     hasSeedance2LinkedAssetReferences,
     hasSeedance2MultimodalReferences,
+    seedance2ReferenceRequirementGuardrail,
     seedance2UsesMultimodalReferences,
     isEditWorkflowSelected,
     isSeedance2Model,

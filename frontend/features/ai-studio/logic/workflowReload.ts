@@ -496,6 +496,7 @@ const normalizeVideoKlingElementSlot = (
   const frontalImageInternalMediaRef =
     normalizeInternalRefs([value.frontalImageInternalMediaRef], 1)[0] ?? null;
   const videoInternalMediaRef = normalizeInternalRefs([value.videoInternalMediaRef], 1)[0] ?? null;
+  const audioInternalMediaRef = normalizeInternalRefs([value.audioInternalMediaRef], 1)[0] ?? null;
   const referenceImageInternalMediaRefs = normalizeInternalRefs(
     value.referenceImageInternalMediaRefs,
     MAX_WORKFLOW_RELOAD_REFERENCE_INPUTS
@@ -531,11 +532,16 @@ const normalizeVideoKlingElementSlot = (
   if (videoUrl && isLocalOnlyUrl(videoUrl) && !videoInternalMediaRef) {
     element.videoUrl = "";
   }
+  const audioUrl = asOptionalString(element.audioUrl);
+  if (audioUrl && isLocalOnlyUrl(audioUrl) && !audioInternalMediaRef) {
+    delete element.audioUrl;
+  }
   const hasMedia =
     Boolean(asOptionalString(element.profileImageUrl)) ||
     Boolean(asOptionalString(element.frontalImageUrl)) ||
     splitReferenceImageUrls(element.referenceImageUrls).length > 0 ||
-    Boolean(asOptionalString(element.videoUrl));
+    Boolean(asOptionalString(element.videoUrl)) ||
+    Boolean(asOptionalString(element.audioUrl));
   const hasSavedSource =
     Boolean(asOptionalString(element.sourceElementId)) ||
     Boolean(asOptionalString(element.sourceCharacterId));
@@ -547,6 +553,7 @@ const normalizeVideoKlingElementSlot = (
     ...(frontalImageInternalMediaRef ? { frontalImageInternalMediaRef } : {}),
     ...(referenceImageInternalMediaRefs.length > 0 ? { referenceImageInternalMediaRefs } : {}),
     ...(videoInternalMediaRef ? { videoInternalMediaRef } : {}),
+    ...(audioInternalMediaRef ? { audioInternalMediaRef } : {}),
   };
 };
 

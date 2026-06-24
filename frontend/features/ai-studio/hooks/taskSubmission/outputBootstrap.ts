@@ -289,12 +289,14 @@ const buildKlingElementSlots = (
     const frontalImageUrl = asTrimmedString(element.frontalImageUrl);
     const referenceImageUrls = splitReferenceImageUrls(element.referenceImageUrls);
     const videoUrl = asTrimmedString(element.videoUrl);
+    const audioUrl = asTrimmedString(element.audioUrl);
     const profileImageInternalMediaRef = resolveReloadInternalMediaRef(profileImageUrl);
     const frontalImageInternalMediaRef = resolveReloadInternalMediaRef(frontalImageUrl);
     const referenceImageInternalMediaRefs = referenceImageUrls.map((url) =>
       resolveReloadInternalMediaRef(url)
     );
     const videoInternalMediaRef = resolveReloadInternalMediaRef(videoUrl);
+    const audioInternalMediaRef = resolveReloadInternalMediaRef(audioUrl);
 
     return {
       slotIndex,
@@ -303,6 +305,7 @@ const buildKlingElementSlots = (
       ...(frontalImageInternalMediaRef ? { frontalImageInternalMediaRef } : {}),
       ...(referenceImageInternalMediaRefs.length > 0 ? { referenceImageInternalMediaRefs } : {}),
       ...(videoInternalMediaRef ? { videoInternalMediaRef } : {}),
+      ...(audioInternalMediaRef ? { audioInternalMediaRef } : {}),
     };
   });
 

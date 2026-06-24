@@ -1397,6 +1397,39 @@ describe("useAiStudioViewModel motion guardrails", () => {
     );
   });
 
+  it("blocks Seedance 2 multimodal mode when only audio references are present", () => {
+    const videoPricingPolicy = withVideoBilledCreditsOverride({
+      modelId: KIE_SEEDANCE_2_MODEL_ID,
+      params: makeCostParamsForModel(KIE_SEEDANCE_2_MODEL_ID)({
+        durationSeconds: 6,
+        resolution: "1080p",
+        audio: false,
+        inputVideoCount: 0,
+      }),
+      credits: 43,
+    });
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        model: KIE_SEEDANCE_2_MODEL_ID,
+        videoReferenceMode: "standard",
+        referenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        seedance2InputMode: "multimodal",
+        seedance2ReferenceAudioUrls: ["https://example.com/reference.mp3"],
+        costParamsForModel: makeCostParamsForModel(KIE_SEEDANCE_2_MODEL_ID),
+        pricingPolicy: videoPricingPolicy,
+      })
+    );
+
+    expect(result.current.generationGuardrail).toBe(
+      "Seedance 2 audio references require at least one image or video reference."
+    );
+    expect(result.current.referenceImageWarning).toBe(
+      "Seedance 2 audio references require at least one image or video reference."
+    );
+  });
+
   it("does not require custom shot prompts for stale Seedance 2 custom mode", () => {
     const videoPricingPolicy = withVideoBilledCreditsOverride({
       modelId: KIE_SEEDANCE_2_MODEL_ID,
@@ -1466,6 +1499,36 @@ describe("useAiStudioViewModel motion guardrails", () => {
         referenceImageUrl: "https://example.com/first.png",
         motionReferenceVideoUrl: null,
         seedance2InputMode: "first-last",
+      })
+    );
+
+    expect(result.current.generationGuardrail).toBe(
+      "Add both first and last frame images before generating with Seedance 2."
+    );
+    expect(result.current.referenceImageWarning).toBe(
+      "Seedance 2 requires both first and last frame images in first/last-frame mode."
+    );
+  });
+
+  it("does not let hidden Seedance assets bypass explicit first-last frame requirements", () => {
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        model: KIE_SEEDANCE_2_MODEL_ID,
+        videoReferenceMode: "standard",
+        referenceImageUrl: "https://example.com/first.png",
+        motionReferenceVideoUrl: null,
+        seedance2InputMode: "first-last",
+        klingElements: [
+          {
+            id: "element-1",
+            name: "Steam Train",
+            alias: "steamtrain",
+            frontalImageUrl: "",
+            referenceImageUrls: "",
+            videoUrl: "https://example.com/steamtrain.mp4",
+          },
+        ],
       })
     );
 

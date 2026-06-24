@@ -30,6 +30,10 @@ import {
 } from "./projectOutputDisplayItemsService";
 import { chunkValues } from "./queryBatching";
 import { PROJECT_WORKSPACE_MAX_SNAPSHOT_BYTES } from "../ai-studio-session/projectWorkspaceLimits";
+import {
+  countReferenceGridVisibleOutputs,
+  REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+} from "../../features/ai-studio/reference-grid/logic/referenceGridLimits";
 
 const PROJECT_WORKSPACE_SELECT_COLUMNS =
   "project_id, user_id, schema_version, snapshot, snapshot_updated_at, checkpoint_revision, created_at, updated_at" as const;
@@ -242,6 +246,46 @@ const logProjectWorkspaceRepairPending = async ({
       repair_stage: repairStage,
       save_outcome: "saved_with_repair_pending",
       repair_message: repairMessage,
+    },
+  }).catch(() => undefined);
+};
+
+const countProjectWorkspaceVisibleActiveOutputs = (snapshot: Record<string, unknown>): number => {
+  const outputsRecord = asRecord(snapshot.outputs);
+  const activeOutputs = Array.isArray(outputsRecord.active) ? outputsRecord.active : [];
+  return countReferenceGridVisibleOutputs(
+    activeOutputs.map((row) => ({
+      hiddenInReferenceGrid: asRecord(row).hiddenInReferenceGrid === true,
+    }))
+  );
+};
+
+const maybeLogProjectWorkspaceReferenceGridCapNormalization = ({
+  userId,
+  projectId,
+  incomingSnapshot,
+  sanitizedSnapshot,
+}: {
+  userId: string;
+  projectId: string;
+  incomingSnapshot: Record<string, unknown>;
+  sanitizedSnapshot: Record<string, unknown>;
+}) => {
+  const incomingVisibleCount = countProjectWorkspaceVisibleActiveOutputs(incomingSnapshot);
+  if (incomingVisibleCount <= REFERENCE_GRID_MAX_VISIBLE_ITEMS) return;
+
+  const sanitizedVisibleCount = countProjectWorkspaceVisibleActiveOutputs(sanitizedSnapshot);
+  void writeAppErrorLog({
+    source: "telemetry.ai_studio.project_workspace.reference_grid_cap_normalized",
+    message: "Project workspace save normalized an over-cap Reference Grid before persistence.",
+    userId,
+    statusCode: 200,
+    metadata: {
+      project_id: projectId,
+      incoming_visible_active_outputs: incomingVisibleCount,
+      persisted_visible_active_outputs: sanitizedVisibleCount,
+      reference_grid_visible_limit: REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+      trimmed_visible_active_outputs: Math.max(0, incomingVisibleCount - sanitizedVisibleCount),
     },
   }).catch(() => undefined);
 };
@@ -1605,6 +1649,12 @@ export const upsertProjectWorkspaceStateForUser = async ({
     snapshot: parsedSnapshot,
   });
   const sanitizedSnapshot = sanitizeProjectWorkspaceSnapshot(canvasStorageAuthoritySnapshot);
+  maybeLogProjectWorkspaceReferenceGridCapNormalization({
+    userId,
+    projectId,
+    incomingSnapshot: canvasStorageAuthoritySnapshot,
+    sanitizedSnapshot,
+  });
   const preparedSnapshot = await prepareProjectWorkspaceSnapshotForWrite({
     userId,
     snapshot: sanitizedSnapshot,

@@ -27,6 +27,7 @@ July 7 launch-control note: these retained reports are historical evidence aids 
 - `2026-05-31-project-workspace-production-verification-packet.md`: proof packet used to verify the accepted persistence root fix on live production.
 - `2026-05-31-approved-panel-post-deploy-verification.md`: retained production packet explaining why `Elements workflow` moved out of the exact-next slot before the persistence lane resumed control.
 - `2026-06-01-elements-workflow-measurement-refresh.md`: retained production packet explaining why `Elements workflow` moved from below floor to at-floor maintenance and why `Create workflow` became exact next.
+- `2026-06-23-video-motion-control-provider-admission-acceptance.md`: retained local source-hardening acceptance packet for Kie Motion Control provider-admission, with production/provider proof still approval-gated when credits are involved.
 
 ## Current Intake Surfaces
 

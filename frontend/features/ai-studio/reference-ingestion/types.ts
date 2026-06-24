@@ -59,8 +59,8 @@ export type ReferenceIngestionInput =
         audioSourceMode?: StudioAudioSourceMode | null;
         durationMs?: number | null;
         waveformPeaks?: number[] | null;
-        width?: number;
-        height?: number;
+        width?: number | null;
+        height?: number | null;
       };
     }
   | {

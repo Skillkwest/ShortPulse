@@ -6,7 +6,7 @@ Purpose: retain Datserok's small helper inventory for project persistence work w
 
 - `docs/agents/datserok/project-persistence-source-map.md` owns the current doc stack, code-owner map, validation anchors, and drift flags.
 - `docs/records/artifacts/agent/datserok/reports/README.md` routes retained reports so future audits can open one proof packet instead of the whole archive.
-- Targeted repo inspection uses the source map first, then only the specific project API route, server helper, AI Studio hook, test, or retained report needed for the lane.
+- Targeted repo inspection for substantive persistence lanes uses the source map first, then only the specific project API route, server helper, AI Studio hook, test, or retained report needed for the lane.
 - Retained artifact surfaces are support tools only. They are not default startup context.
 
 ## Future Tooling Needs

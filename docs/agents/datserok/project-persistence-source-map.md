@@ -1,6 +1,6 @@
 # Datserok Project Persistence Source Map
 
-Purpose: give Datserok a compact first-load map for how project creation, saving, restore, and project-owned workspace behavior currently work in ShortPulse.
+Purpose: give Datserok a compact conditional proof map for how project creation, saving, restore, and project-owned workspace behavior currently work in ShortPulse.
 
 ## First Truths
 
@@ -175,4 +175,4 @@ Reject these stale assumptions unless a newer source of truth replaces the curre
 
 Runtime startup/load routing lives in `docs/agents/datserok/runtime-load-policy.md`.
 
-Use this source map as the compact first-load owner map after the runtime-load policy brings Datserok into scope. Do not let this file become a second copy of the startup-routing rules.
+Use this source map as the first conditional owner map when the active lane needs persistence source-of-truth proof, code ownership, validation anchors, or drift checks. Do not let this file become a second copy of the startup-routing rules.

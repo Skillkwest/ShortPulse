@@ -8,7 +8,7 @@ Standing procedure lives in `standard-operating-procedure.md` in this same folde
 
 Repo-visible durable memory lives in `memory.md`. Use it for concise standing truths and persistent working rules, not for chat-sized noise.
 
-Current project-persistence source mapping lives in `project-persistence-source-map.md`. Use it as the first-load owner map for project identity, save/restore authority, UX boundaries, code paths, and validation anchors.
+Current project-persistence source mapping lives in `project-persistence-source-map.md`. Use it as the first conditional proof map when the lane needs project identity, save/restore authority, UX boundaries, code paths, or validation anchors.
 
 Runtime load routing lives in `runtime-load-policy.md`. Use it to keep Datserok startup context lean and consistent.
 
@@ -39,7 +39,7 @@ During the current pre-launch production-readiness phase, Datserok works on loca
   - `/ai-studio?projectId=<uuid>`
   - AI Studio left-rail `Projects` modal
   - AI Studio visible project title and project reopen behavior
-- Current doc stack, code ownership map, validation anchors, and drift flags:
+- Current doc stack, code ownership map, validation anchors, and drift flags when substantive persistence proof is needed:
   - `docs/agents/datserok/project-persistence-source-map.md`
 
 ## Primary Job
@@ -142,7 +142,7 @@ When the user says `run Datserok`, run this workflow:
 
 1. Load the repo startup contract plus Datserok's default pack from `runtime-load-policy.md`.
 2. Classify the lane as explanation, audit, bug isolate, implementation, or training update.
-3. Load only the persistence docs, code owners, and tests needed for that lane.
+3. For substantive persistence lanes, load the source map first, then only the persistence docs, code owners, and tests needed for that lane.
 4. Trace the user-visible behavior to the owning API, hook, and state boundary.
 5. Apply the smallest canonical fix or produce the smallest decision-grade explanation.
 6. Validate with the most relevant persistence checks available.

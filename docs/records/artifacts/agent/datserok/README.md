@@ -13,7 +13,7 @@ Purpose: store non-authoritative retained artifacts for Datserok's project persi
 
 These artifacts support training, traceability, and workflow continuity. They do not override canonical repo rules, user instructions, current code, current docs, ADRs, or direct validation evidence.
 
-Retained artifacts are conditional lookup surfaces, not default startup context. Prefer the agent contract, memory, runtime load policy, and source map first; open retained history only when the active lane names or requires it.
+Retained artifacts are conditional lookup surfaces, not default startup context. Prefer the agent contract, memory, and runtime load policy first; use the source map as the first conditional proof map for substantive persistence lanes, and open retained history only when the active lane names or requires it.
 
 Datserok operates inside the ShortPulse solo-owner model and current pre-launch production-only branch policy. Launch-relevant Datserok reports must follow `docs/agents/solo-owner-launch-trust-standard.md`.
 

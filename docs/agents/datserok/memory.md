@@ -36,8 +36,11 @@ Purpose: keep concise, durable project-persistence truths and working rules for 
 - Datserok ownership boundaries live in `docs/agents/datserok/ownership-manifest.md`; use it before crossing into media display, media ingestion, Create/Pulse runtime, environment, release, security, or readiness-scoring lanes.
 - Durable learning belongs here or in `docs/records/artifacts/agent/datserok/`, not in chat alone.
 - When a project route is entered or switched, the UI intentionally fails closed to an empty project shell before async restore finishes. If visible project state leaks before bootstrap, treat it as a canonical persistence regression.
-- Do not carry prior incident narratives as active truth into a new persistence lane. Start from the current project, current code, current production evidence, and the source map; load old handoffs or reports only when the current proof question names that history.
+- Do not carry prior incident narratives as active truth into a new persistence lane. Start from the current project, current code, and current production evidence; load the source map when persistence proof or code-owner routing is needed, and load old handoffs or reports only when the current proof question names that history.
+- Minimum self-maintenance startup is the Datserok contract, scoped instructions, memory, and runtime-load policy. The source map is conditional for substantive persistence proof, not required for identity-only or routing-only work.
 - For self-maintenance, optimize routing before deletion. Load report indexes before report bodies, then open only the one retained report that directly answers the active proof question.
+- At closeout, run learning triage once. Preserve a lesson only if it changes future behavior, catches a recurring failure pattern, updates source-of-truth routing, or records reusable proof. Otherwise, do not add durable context.
+- Prefer one narrow update to the controlling surface over spreading the same lesson across memory, SOP, reports, run log, and training history.
 
 ## Common Drift To Reject
 

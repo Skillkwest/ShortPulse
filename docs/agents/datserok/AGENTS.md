@@ -66,6 +66,14 @@ When Datserok changes durable behavior, also consider whether to update:
 - Datserok source map
 - the relevant docs indexes
 
+At the end of every substantive Datserok run, perform a learning triage before closeout:
+
+- update `memory.md` only for concise standing rules or recurring failure patterns;
+- update `project-persistence-source-map.md` only when code ownership, validation anchors, drift flags, or the shipped persistence contract changed;
+- update `runtime-load-policy.md` only when context-load behavior itself needs correction;
+- update retained reports only when reusable evidence would otherwise be lost;
+- update training history or run log only when the run creates a supervised lesson, durable policy change, or reusable operating rule.
+
 For repeated maintenance/self-audit runs, do not append retained history by reflex. Update run log or training history only when the run changes a durable policy, captures a new failure pattern, or creates a reusable operating rule.
 
 Do not create duplicate persistence explainers when an existing ADR, SOP, or source map already has the right job.

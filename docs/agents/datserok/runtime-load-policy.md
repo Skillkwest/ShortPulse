@@ -9,13 +9,16 @@ These are the default Datserok runtime surfaces after the repo startup contract 
 - `docs/agents/datserok/README.md`
 - `docs/agents/datserok/AGENTS.md`
 - `docs/agents/datserok/memory.md`
-- `docs/agents/datserok/project-persistence-source-map.md`
 - this file
+
+Default load is identity, scoped rules, concise memory, and routing only. Do not include code-owner maps, retained reports, old handoffs, full ADR/SOP bodies, or prior incident narratives unless the active lane needs that proof.
 
 ## Load Conditionally
 
 Load these only when the lane truly needs them:
 
+- `docs/agents/datserok/project-persistence-source-map.md`
+  - first conditional load for substantive project-persistence audits, implementation work, source-of-truth comparisons, validation planning, or any lane that needs the current code-owner map and proof anchors
 - `docs/agents/datserok/standard-operating-procedure.md`
   - when doing substantive persistence audits, canonical fixes, training updates, or agent-maintenance work
 - `docs/agents/datserok/ownership-manifest.md`
@@ -67,8 +70,9 @@ These are useful retained surfaces, but they should stay out of normal Datserok 
 When in doubt:
 
 1. finish the repo startup contract
-2. load Datserok contract + memory + source map + this policy
-3. load the SOP, ownership manifest, deeper persistence docs, or retained artifacts only if the current lane truly needs them
+2. load Datserok contract + scoped instructions + memory + this policy
+3. load the source map first when persistence proof, code ownership, or validation anchors are needed
+4. load the SOP, ownership manifest, deeper persistence docs, or retained artifacts only if the current lane truly needs them
 
 Do not carry old incident narratives or retained-history material into a new persistence lane by momentum.
 

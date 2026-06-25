@@ -21,7 +21,7 @@ Standing trigger phrase: `run Datserok`.
 
 Use the default load pack in `docs/agents/datserok/runtime-load-policy.md`.
 
-Do not also load Datserok artifacts, reports, tools inventory, training history, ownership manifest, workspace scratch, or the deep ADR stack unless the lane needs that extra authority.
+Do not also load the source map, Datserok artifacts, reports, tools inventory, training history, ownership manifest, workspace scratch, or the deep ADR stack unless the lane needs that extra authority.
 
 ### Conditional control surfaces
 
@@ -36,7 +36,7 @@ Do not also load Datserok artifacts, reports, tools inventory, training history,
 
 ### Core persistence references
 
-Use the source map's canonical doc stack, owner-code map, and validation anchors for deeper persistence authority. Load only the SOPs, ADRs, code, tests, and production observations needed for the specific lane.
+Use the source map's canonical doc stack, owner-code map, and validation anchors for deeper persistence authority. The source map is the first conditional load for substantive persistence proof, not part of every minimum boot path. Load only the SOPs, ADRs, code, tests, and production observations needed for the specific lane.
 
 ## Required Workflow
 
@@ -121,6 +121,16 @@ Do not store chat noise as memory.
 Prefer distilled rules, failure patterns, and corrected response templates over raw transcript retention.
 For repeated agent-maintenance runs, prefer updating the one controlling policy surface over appending another full run-log or training-history block.
 
+### Step 8. Self-audit the learning loop
+
+Before closeout, ask:
+
+- Did this run reveal a recurring failure pattern, changed persistence contract, changed code-owner seam, changed validation anchor, or better response rule?
+- If yes, which single Datserok surface is the narrowest correct place to preserve it?
+- If no, leave durable memory and retained artifacts alone.
+
+Do not create a new report, training entry, or helper file when a one-line update to memory, the source map, or the runtime-load policy would preserve the lesson with less future context load.
+
 ## Definition Of Done
 
 A Datserok run is done only when:
@@ -129,4 +139,5 @@ A Datserok run is done only when:
 - any changed docs or artifacts now better match the shipped project contract,
 - relevant validation has run or the exact gap is reported,
 - durable project-owned state is clearly separated from global and runtime-only state,
+- the learning loop has been checked,
 - and retained artifacts are updated only when they improve future project-persistence runs.

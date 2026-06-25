@@ -538,6 +538,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/design/ai-studio-inline-color-inventory.tsv`
 - `docs/design/ai-studio-typography-inventory.tsv`
 - `docs/brainstorming/README.md`
+- `docs/brainstorming/pricing-credit-confidence-bridge-for-scott-2026-06-25.md`
 
 ## Automation
 

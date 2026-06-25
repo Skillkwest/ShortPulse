@@ -94,6 +94,9 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/abismia/AGENTS.md`
 - `docs/agents/abismia/memory.md`
 - `docs/agents/abismia/standard-operating-procedure.md`
+- `docs/agents/abismia/sop-runtime-ui-code-hardening.md`
+- `docs/agents/abismia/sop-human-experience-psychological-feel.md`
+- `docs/records/artifacts/agent/abismia/reports/2026-06-25-pricing-credit-confidence-bridge-for-scott.md`
 - `docs/agents/enate-ende/README.md`
 - `docs/agents/enate-ende/AGENTS.md`
 - `docs/agents/enate-ende/memory.md`
@@ -538,7 +541,6 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/design/ai-studio-inline-color-inventory.tsv`
 - `docs/design/ai-studio-typography-inventory.tsv`
 - `docs/brainstorming/README.md`
-- `docs/brainstorming/pricing-credit-confidence-bridge-for-scott-2026-06-25.md`
 
 ## Automation
 

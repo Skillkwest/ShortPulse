@@ -1,24 +1,25 @@
-# Launch Fitness Scorecard - 2026-06-16
+# Historical Launch Fitness Scorecard - 2026-06-16
 
-Purpose: provide a current, easy-to-read launch-fitness view for the July 7, 2026 launch decision without making the older architecture catalog table carry work it is not good at.
+Purpose: preserve the `2026-06-16` launch-fitness snapshot for context without presenting it as the current July 7, 2026 launch authority.
 
 ## Scope
 
 - Baseline date: `2026-06-16`
 - Freshness refresh: `2026-06-19`
+- Current authority status: historical snapshot, superseded for active launch-state decisions by Copperknot's July 7 launch-control docs.
 - Branch: `production`
 - Commit anchor: `f782d699e` before this `2026-06-19` Copperknot launch-control freshness update.
 - Worktree: Copperknot launch-control and scorecard freshness updates are pending locally; authenticated launch proof is still pending.
 - Production URL checked: `https://www.shortpulse.ai`
 - Evidence mode: mixed production-safe checks, current worktree inspection, focused local validation, and existing July 7 launch-control docs.
 
-This scorecard is the active fast-read launch scoring surface. `docs/systems/catalog.md` remains the architecture inventory and historical maturity baseline. Copperknot's July 7 board and queue still control exact execution order.
+This scorecard is not the active launch scoring surface. `docs/systems/catalog.md` remains the architecture inventory and historical maturity baseline. Copperknot's July 7 board and queue control active launch state, evidence level, next proof, readiness movement, and exact execution order.
 
 ## Method
 
 The old `/10` catalog score is still useful for architecture maturity, but it is not enough for July 7. It hides whether a system is production-proven, whether a human can trust it, and whether the current worktree is actually green.
 
-The active launch-fitness score is a `0..10` judgment using five equal launch questions:
+The historical launch-fitness score was a `0..10` judgment using five equal launch questions:
 
 1. Can a normal user complete the job without owner rescue?
 2. Are money, account, media, project, and ownership boundaries trustworthy?
@@ -75,4 +76,4 @@ The scoring method should change from a single maturity score to a two-layer mod
 - Architecture catalog score: useful for long-term maturity and ownership.
 - Launch-fitness score: useful for July 7 readiness and next-work decisions.
 
-For launch work, use the launch-fitness score first. Use the architecture catalog score only to understand long-term health, not to decide whether a system is ready for July 7.
+For launch work, use Copperknot's July 7 launch-control docs first. Use this historical launch-fitness scorecard and the architecture catalog score only to understand prior context and long-term health, not to decide whether a system is ready for July 7.

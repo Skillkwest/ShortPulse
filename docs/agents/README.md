@@ -43,6 +43,8 @@ Use this path when setting up a new agent for a new recurring task:
   - `docs/agents/abismia/AGENTS.md`: Abismia-scoped execution overlay for UI/UX and visible runtime-behavior work.
   - `docs/agents/abismia/memory.md`: Abismia's repo-visible durable memory entrypoint.
   - `docs/agents/abismia/standard-operating-procedure.md`: Abismia's standing SOP for UI/UX reviews, canonical interaction fixes, and runtime-state validation.
+  - `docs/agents/abismia/sop-runtime-ui-code-hardening.md`: Abismia lane SOP for CSS, TSX, layout, component, and visible runtime hardening without unintended visual or behavior drift.
+  - `docs/agents/abismia/sop-human-experience-psychological-feel.md`: Abismia lane SOP for signed-in human-experience audits, perceived speed, trust, hesitation, agency, and cognitive load.
   - `docs/agents/abismia/workspace/README.md`: Abismia's temporary workspace and intake surface.
 - `docs/agents/enate-ende/README.md`: Enate Ende right-rail Canvas stewardship contract and memory entrypoint.
   - `docs/agents/enate-ende/AGENTS.md`: Enate Ende-scoped execution overlay for Canvas-only work.

@@ -20,3 +20,5 @@ Purpose: hold sanitized training data that helps Abismia improve future UI/UX an
 ## Notes
 
 Use this folder for durable learning material, not scratch work. Temporary inputs belong in `docs/agents/abismia/workspace/`.
+
+This folder is non-default load and should stay empty unless a run produces truly reusable sanitized training material.

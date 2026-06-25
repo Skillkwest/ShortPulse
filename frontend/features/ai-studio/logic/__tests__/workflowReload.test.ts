@@ -395,6 +395,24 @@ describe("workflowReload", () => {
               referenceImageInternalMediaRefs: [referenceImageRef],
               audioInternalMediaRef: elementAudioRef,
             },
+            {
+              slotIndex: 8,
+              element: {
+                id: "seedance-slot-8",
+                sourceKind: "reference-image",
+                profileImageUrl: "https://example.com/seedance-slot-8.png",
+                frontalImageUrl: "https://example.com/seedance-slot-8.png",
+              },
+            },
+            {
+              slotIndex: 9,
+              element: {
+                id: "out-of-range-seedance-slot",
+                sourceKind: "reference-image",
+                profileImageUrl: "https://example.com/seedance-slot-9.png",
+                frontalImageUrl: "https://example.com/seedance-slot-9.png",
+              },
+            },
           ],
         },
       },
@@ -424,6 +442,16 @@ describe("workflowReload", () => {
               },
               referenceImageInternalMediaRefs: [referenceImageRef],
               audioInternalMediaRef: elementAudioRef,
+            },
+            {
+              slotIndex: 8,
+              element: {
+                id: "seedance-slot-8",
+                sourceKind: "reference-image",
+                profileImageUrl: "https://example.com/seedance-slot-8.png",
+                frontalImageUrl: "https://example.com/seedance-slot-8.png",
+                slotIndex: 8,
+              },
             },
           ],
         },

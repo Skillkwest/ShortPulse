@@ -1381,8 +1381,6 @@ export const useAiStudioPageMediaReferenceRuntime = ({
           promptText,
           sourceSurface: null,
         });
-        event.dataTransfer.setData("text/plain", promptText);
-        event.dataTransfer.setData("text/prompt", promptText);
         event.currentTarget.classList.add("is-dragging");
         attachMediaLibraryDragGhost(event, {
           label: "Prompt",

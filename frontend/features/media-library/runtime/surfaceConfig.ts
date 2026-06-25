@@ -82,7 +82,7 @@ export const MEDIA_LIBRARY_SURFACE_CONFIG: Record<
     adaptiveSurface: "media-library-panel-grid",
     imageCardPreviewProfile: "media-library-panel-image-card",
     pageSize: 18,
-    cacheTtlMs: null,
+    cacheTtlMs: 30_000,
     loadMoreRootMargin: "600px 0px",
     visibilityRootMargin: "460px 0px",
     signBudgetResolver: resolvePanelSignBudget,

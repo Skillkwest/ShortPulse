@@ -4,7 +4,6 @@
  */
 import React from "react";
 import { Trash } from "phosphor-react";
-import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { clampCustomVoiceNameInput } from "../../../lib/customVoiceName";
 import { useResolvedProtectedSessionState } from "../../../lib/protectedRouteSessionContext";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
@@ -26,6 +25,13 @@ import {
 } from "../utils/voiceAudioModelConfig";
 import { resolvePricingGridBilledCredits } from "../../../lib/model-runtime/pricingGridBilledCredits";
 import type { ModelPricingPolicyDocument } from "../../../lib/model-runtime/pricingPolicy";
+import {
+  cloneProviderVoice,
+  createDesignedVoice,
+  deleteProviderVoice,
+  enhanceVoiceoverScript,
+  requestVoiceDesignPreviews,
+} from "../logic/voiceActionsApiClient";
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
 import { useVoiceChangerSourceController } from "../hooks/useVoiceChangerSourceController";
 import { useVoiceCloneSourceController } from "../hooks/useVoiceCloneSourceController";
@@ -169,43 +175,6 @@ const getVoiceChipDisplayName = (voiceName: string): string => {
   const trimmedName = voiceName.trim();
   if (!trimmedName) return "";
   return trimmedName.split(/\s*(?::|[—–-])\s*/u, 1)[0] ?? trimmedName;
-};
-
-type VoiceDesignPreview = {
-  generatedVoiceId: string;
-  previewToken: string;
-  audioBase64: string;
-  mediaType: string | null;
-  durationSecs: number | null;
-  language: string | null;
-};
-
-type VoiceDesignResponse = {
-  previews?: VoiceDesignPreview[];
-  previewText?: string | null;
-  modelId?: string;
-  error?: string;
-  details?: string;
-};
-
-type CreatedVoiceResponse = {
-  voice?: {
-    voiceId?: string;
-    name?: string;
-    previewUrl?: string | null;
-    description?: string | null;
-    isFallback?: boolean;
-  };
-  error?: string;
-  details?: string;
-};
-
-type DeleteVoiceResponse = {
-  status?: "ok";
-  voiceId?: string;
-  action?: "remove" | "delete";
-  error?: string;
-  details?: string;
 };
 
 export type VoicesGenerateRequest =
@@ -798,26 +767,10 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     setSelectedVoiceDesignPreviewId(null);
     setPlayedVoiceDesignPreviewIds([]);
     try {
-      const response = await fetchWithAuth("/api/elevenlabs/text-to-voice/design", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          voiceName: nextVoiceName,
-          voiceDescription: nextVoiceDescription,
-        }),
-        shortpulseLogScope: "generation",
+      const payload = await requestVoiceDesignPreviews({
+        voiceName: nextVoiceName,
+        voiceDescription: nextVoiceDescription,
       });
-      const payload = (await response.json().catch(() => null)) as VoiceDesignResponse | null;
-      if (!response.ok) {
-        throw new Error(
-          sanitizeCustomerFacingProviderText(
-            payload?.details || payload?.error,
-            "Unable to generate voice previews."
-          )
-        );
-      }
 
       const nextPreviews = (payload?.previews ?? []).map((preview) => ({
         ...preview,
@@ -1097,37 +1050,21 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
           (preview): preview is CreateVoiceModalPreview =>
             Boolean(preview?.generatedVoiceId) && Boolean(preview?.previewToken)
         );
-      const response = await fetchWithAuth("/api/elevenlabs/text-to-voice/create", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          voiceName: nextVoiceName,
-          voiceDescription: nextVoiceDescription,
-          generatedVoiceId: selectedVoiceDesignPreviewId,
-          generatedVoiceToken:
-            voiceDesignPreviews.find(
-              (preview) => preview.generatedVoiceId === selectedVoiceDesignPreviewId
-            )?.previewToken ?? null,
-          playedNotSelectedVoiceIds: playedNotSelectedPreviews.map(
-            (preview) => preview.generatedVoiceId
-          ),
-          playedNotSelectedVoiceTokens: playedNotSelectedPreviews.map(
-            (preview) => preview.previewToken
-          ),
-        }),
-        shortpulseLogScope: "generation",
+      const payload = await createDesignedVoice({
+        voiceName: nextVoiceName,
+        voiceDescription: nextVoiceDescription,
+        generatedVoiceId: selectedVoiceDesignPreviewId,
+        generatedVoiceToken:
+          voiceDesignPreviews.find(
+            (preview) => preview.generatedVoiceId === selectedVoiceDesignPreviewId
+          )?.previewToken ?? null,
+        playedNotSelectedVoiceIds: playedNotSelectedPreviews.map(
+          (preview) => preview.generatedVoiceId
+        ),
+        playedNotSelectedVoiceTokens: playedNotSelectedPreviews.map(
+          (preview) => preview.previewToken
+        ),
       });
-      const payload = (await response.json().catch(() => null)) as CreatedVoiceResponse | null;
-      if (!response.ok) {
-        throw new Error(
-          sanitizeCustomerFacingProviderText(
-            payload?.details || payload?.error,
-            "Unable to create voice."
-          )
-        );
-      }
 
       const createdVoiceId = payload?.voice?.voiceId?.trim() ?? "";
       const createdVoiceName = payload?.voice?.name?.trim() ?? "";
@@ -1183,28 +1120,11 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     setCloneVoiceError(null);
     setIsCloningVoice(true);
     try {
-      const response = await fetchWithAuth("/api/elevenlabs/voices/clone", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          voiceName: nextVoiceName,
-          sourceStoragePath,
-          sourceName: cloneVoiceSource.name,
-          removeBackgroundNoise: true,
-        }),
-        shortpulseLogScope: "generation",
+      const payload = await cloneProviderVoice({
+        voiceName: nextVoiceName,
+        sourceStoragePath,
+        sourceName: cloneVoiceSource.name,
       });
-      const payload = (await response.json().catch(() => null)) as CreatedVoiceResponse | null;
-      if (!response.ok) {
-        throw new Error(
-          sanitizeCustomerFacingProviderText(
-            payload?.details || payload?.error,
-            "Unable to clone voice."
-          )
-        );
-      }
 
       const clonedVoiceId = payload?.voice?.voiceId?.trim() ?? "";
       const clonedVoiceName = payload?.voice?.name?.trim() ?? "";
@@ -1274,22 +1194,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     setVoicesLoadNotice(null);
     setIsDeletingSelectedVoice(true);
     try {
-      const response = await fetchWithAuth(
-        `/api/elevenlabs/voices/${encodeURIComponent(pendingDeleteVoice.id)}`,
-        {
-          method: "DELETE",
-          shortpulseLogScope: "generation",
-        }
-      );
-      const payload = (await response.json().catch(() => null)) as DeleteVoiceResponse | null;
-      if (!response.ok) {
-        throw new Error(
-          sanitizeCustomerFacingProviderText(
-            payload?.details || payload?.error,
-            "Unable to delete voice."
-          )
-        );
-      }
+      await deleteProviderVoice(pendingDeleteVoice.id);
 
       if (activePreviewVoiceId === pendingDeleteVoice.id) {
         stopActiveVoicePreview();
@@ -1369,36 +1274,8 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     setVoiceoverEnhanceDraft(null);
     setIsEnhancingVoiceover(true);
     try {
-      const response = await fetchWithAuth("/api/ai/voiceover-enhance", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ script }),
-        shortpulseLogScope: "generation",
-        shortpulseSkipErrorLogging: true,
-      });
-      const payload = (await response.json().catch(() => null)) as {
-        enhancedScript?: unknown;
-        error?: unknown;
-        details?: unknown;
-      } | null;
-      if (!response.ok) {
-        throw new Error(
-          sanitizeCustomerFacingProviderText(
-            typeof payload?.details === "string"
-              ? payload.details
-              : typeof payload?.error === "string"
-                ? payload.error
-                : null,
-            "Unable to enhance voiceover."
-          )
-        );
-      }
-      if (typeof payload?.enhancedScript !== "string" || !payload.enhancedScript.trim()) {
-        throw new Error("Unable to enhance voiceover.");
-      }
-      setVoiceoverEnhanceDraft(payload.enhancedScript.slice(0, maxVoiceScriptCharacters));
+      const enhancedScript = await enhanceVoiceoverScript(script);
+      setVoiceoverEnhanceDraft(enhancedScript.slice(0, maxVoiceScriptCharacters));
       const restoreFocus = () => {
         voiceScriptRef.current?.focus();
       };

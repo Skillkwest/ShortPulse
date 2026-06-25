@@ -1318,6 +1318,8 @@ export const preparePromptReferenceDrag = (
   if (options.sourceSurface) {
     setTransferDataSafe(transfer, REFERENCE_TRANSFER_SOURCE_SURFACE_TYPE, options.sourceSurface);
   }
+  setTransferDataSafe(transfer, "text/prompt", promptText);
+  setTransferDataSafe(transfer, "text/plain", promptText);
 
   return dragSessionToken;
 };

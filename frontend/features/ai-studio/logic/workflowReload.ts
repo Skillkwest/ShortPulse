@@ -39,6 +39,7 @@ import type {
 } from "../types";
 import { MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT } from "./expertEditReferenceSlots";
 import { isGenerationReplayConfigV1, isGenerationReplayConfigV2 } from "./generationReplay";
+import { SEEDANCE_REFERENCE_IMAGE_LIMIT } from "./klingElements";
 import { isNonDurableLipSyncAudioUrl, normalizeLipSyncAudioStoragePath } from "./lipSyncAudioState";
 import { isAudioUrl, isVideoUrl } from "./stateParsers";
 
@@ -83,7 +84,7 @@ const VALID_PANEL_KINDS = new Set<WorkflowReloadPanelKind>([
 
 const VALID_OUTPUT_MODES = new Set<StudioMode>(["image", "video", "audio", "text"]);
 const MAX_WORKFLOW_RELOAD_REFERENCE_INPUTS = 16;
-const MAX_VIDEO_RELOAD_ELEMENT_SLOTS = 6;
+const MAX_VIDEO_RELOAD_ELEMENT_SLOTS = SEEDANCE_REFERENCE_IMAGE_LIMIT;
 const MAX_VIDEO_RELOAD_MEDIA_SLOTS = 16;
 
 const isObject = (value: unknown): value is Record<string, unknown> =>

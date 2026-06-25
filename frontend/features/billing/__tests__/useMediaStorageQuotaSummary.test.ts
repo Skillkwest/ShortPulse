@@ -72,7 +72,10 @@ describe("useMediaStorageQuotaSummary", () => {
     renderHook(() => useMediaStorageQuotaSummary({ enabled: true }), { wrapper });
 
     await waitFor(() =>
-      expect(fetchBillingAccountSummaryMock).toHaveBeenCalledWith({ force: false })
+      expect(fetchBillingAccountSummaryMock).toHaveBeenCalledWith({
+        force: false,
+        expectedUserId: "user-1",
+      })
     );
     expect(primeSupabaseSessionMock).toHaveBeenCalledWith(session);
     expect(primeSupabaseSessionMock.mock.invocationCallOrder[0]).toBeLessThan(

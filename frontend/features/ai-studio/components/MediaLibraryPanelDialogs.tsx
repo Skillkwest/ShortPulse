@@ -17,6 +17,11 @@ type DeleteTarget =
       prompt: unknown;
     };
 
+type FolderDeleteTarget = {
+  folderId: string;
+  folderName: string;
+};
+
 type MediaLibraryPanelDialogsProps = {
   pendingBulkDeleteIds: string[] | null;
   onCloseBulkDeleteConfirm: () => void;
@@ -29,6 +34,9 @@ type MediaLibraryPanelDialogsProps = {
   pendingLibraryDelete: DeleteTarget | null;
   onCloseDeleteConfirm: () => void;
   onConfirmDeleteFromLibrary: () => void;
+  pendingFolderDelete: FolderDeleteTarget | null;
+  onCloseFolderDeleteConfirm: () => void;
+  onConfirmFolderDelete: () => void;
   moveFolderPicker: { folderId: string; folderName: string } | null;
   moveFolderCurrentParentLabel: string;
   moveFolderDestinationOptions: Array<{ id: string | null; label: string }>;
@@ -51,14 +59,16 @@ export const MediaLibraryPanelDialogs = React.memo(function MediaLibraryPanelDia
   pendingLibraryDelete,
   onCloseDeleteConfirm,
   onConfirmDeleteFromLibrary,
+  pendingFolderDelete,
+  onCloseFolderDeleteConfirm,
+  onConfirmFolderDelete,
   moveFolderPicker,
   moveFolderCurrentParentLabel,
   moveFolderDestinationOptions,
   onCloseMoveFolderPicker,
   onMoveFolderToDestination,
 }: MediaLibraryPanelDialogsProps) {
-  const bulkMoveBackdropDismiss =
-    useGuardedBackdropDismiss<HTMLDivElement>(onCloseBulkMoveDialog);
+  const bulkMoveBackdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(onCloseBulkMoveDialog);
   const moveFolderBackdropDismiss =
     useGuardedBackdropDismiss<HTMLDivElement>(onCloseMoveFolderPicker);
 
@@ -136,6 +146,23 @@ export const MediaLibraryPanelDialogs = React.memo(function MediaLibraryPanelDia
             confirmLabel="Delete"
             onCancel={onCloseDeleteConfirm}
             onConfirm={onConfirmDeleteFromLibrary}
+          />
+        </AiStudioModalLayer>
+      ) : null}
+
+      {pendingFolderDelete ? (
+        <AiStudioModalLayer>
+          <ConfirmationModal
+            title="Delete this folder?"
+            body={
+              <p>
+                &quot;{pendingFolderDelete.folderName}&quot;, any subfolders, and folder memberships
+                will be removed. Media and prompts stay saved in All Media.
+              </p>
+            }
+            confirmLabel="Delete folder"
+            onCancel={onCloseFolderDeleteConfirm}
+            onConfirm={onConfirmFolderDelete}
           />
         </AiStudioModalLayer>
       ) : null}

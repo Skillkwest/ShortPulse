@@ -335,6 +335,10 @@ export const DashboardTutorialGrid = memo(function DashboardTutorialGrid({
       ),
     [tutorials]
   );
+  const hasVideoTutorialThumbnails = useMemo(
+    () => tutorialGridSlots.some((tutorial) => tutorial?.thumbnailMediaType === "video"),
+    [tutorialGridSlots]
+  );
   const sortedVideoIndexCandidates = useMemo(
     () =>
       Array.from(nearViewportVideoStateByIndex.entries())
@@ -454,6 +458,7 @@ export const DashboardTutorialGrid = memo(function DashboardTutorialGrid({
   useEffect(() => {
     if (
       !enablePlaybackRotation ||
+      !isDocumentVisible ||
       shouldPauseVideoPlayback ||
       !hasInitialAutoPlayDelayElapsed ||
       playableVideoIndexCandidates.length <= maxSimultaneousVideos
@@ -481,6 +486,7 @@ export const DashboardTutorialGrid = memo(function DashboardTutorialGrid({
   }, [
     enablePlaybackRotation,
     hasInitialAutoPlayDelayElapsed,
+    isDocumentVisible,
     maxSimultaneousVideos,
     playableVideoIndexCandidateKey,
     playableVideoIndexCandidates.length,
@@ -634,7 +640,13 @@ export const DashboardTutorialGrid = memo(function DashboardTutorialGrid({
   }, [applyVideoViewportStates, tutorialGridSlots]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (
+      typeof window === "undefined" ||
+      !hasVideoTutorialThumbnails ||
+      !canPlayDashboardTutorialMotion()
+    ) {
+      return;
+    }
 
     const handleScroll = () => {
       if (!isPageScrollingRef.current) {
@@ -664,7 +676,7 @@ export const DashboardTutorialGrid = memo(function DashboardTutorialGrid({
         globalThis.cancelAnimationFrame(viewportMeasureFrameRef.current);
       }
     };
-  }, [refreshVideoViewportStates, scheduleVideoViewportRefresh]);
+  }, [hasVideoTutorialThumbnails, refreshVideoViewportStates, scheduleVideoViewportRefresh]);
 
   return (
     <>

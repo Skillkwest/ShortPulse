@@ -3649,7 +3649,7 @@ describe("MediaLibraryPanel", () => {
     }
   });
 
-  it("deletes a custom folder from the right-click folder menu", async () => {
+  it("requires confirmation before deleting a custom folder from the right-click folder menu", async () => {
     const { container } = render(
       <MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />
     );
@@ -3670,7 +3670,30 @@ describe("MediaLibraryPanel", () => {
     await act(async () => {
       fireEvent.click(screen.getByRole("menuitem", { name: "Delete folder" }));
     });
+    expect(deleteMediaFolderMock).not.toHaveBeenCalled();
+    const dialog = screen.getByRole("dialog", { name: "Delete this folder?" });
+    expect(dialog).toHaveTextContent(
+      '"Campaign", any subfolders, and folder memberships will be removed.'
+    );
+    expect(dialog).toHaveTextContent("Media and prompts stay saved in All Media.");
 
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: "Delete this folder?" })).toBeNull();
+    });
+    expect(deleteMediaFolderMock).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Campaign folder" })).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.contextMenu(screen.getByRole("button", { name: "Campaign folder" }), {
+        clientX: 120,
+        clientY: 220,
+      });
+    });
+    fireEvent.click(screen.getByRole("menuitem", { name: "Delete folder" }));
+    const confirmDialog = screen.getByRole("dialog", { name: "Delete this folder?" });
+    fireEvent.click(within(confirmDialog).getByRole("button", { name: "Delete folder" }));
     await waitFor(() => {
       expect(deleteMediaFolderMock).toHaveBeenCalledWith("folder-1");
     });

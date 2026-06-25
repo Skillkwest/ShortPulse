@@ -35,7 +35,7 @@ vi.mock("../../../media-library/runtime", async () => {
   const ReactModule = await vi.importActual<typeof import("react")>("react");
 
   return {
-    getMediaLibrarySurfaceConfig: () => ({ pageSize: 18 }),
+    getMediaLibrarySurfaceConfig: () => ({ pageSize: 18, cacheTtlMs: 30_000 }),
     useMediaLibraryPanelRuntime: () => {
       const [error, setError] = ReactModule.useState<string | null>(null);
       const [mediaRows, setMediaRows] = ReactModule.useState<unknown[]>([]);
@@ -361,7 +361,7 @@ describe("useMediaLibraryPanelDataController", () => {
         });
 
       await act(async () => {
-        await result.current.loadMediaPage({ reset: true });
+        await result.current.loadMediaPage({ reset: true, force: true });
       });
 
       await waitFor(() => {
@@ -476,7 +476,7 @@ describe("useMediaLibraryPanelDataController", () => {
     });
 
     act(() => {
-      void result.current.loadMediaPage({ reset: true });
+      void result.current.loadMediaPage({ reset: true, force: true });
     });
 
     await waitFor(() => {
@@ -1261,5 +1261,55 @@ describe("useMediaLibraryPanelDataController", () => {
       expect(result.current.mediaRows.map((row) => row.id)).toEqual(["audio-1", "image-older"]);
       expect(result.current.mediaRows[0]?.companion_art_status).toBe("ready");
     });
+  });
+
+  it("uses the panel freshness window for passive reset loads but not forced refreshes", async () => {
+    fetchMediaListPageMock.mockResolvedValue({
+      rows: [],
+      nextCursor: null,
+      hasMore: false,
+      signedById: new Map(),
+      libraryTotalCount: 0,
+    });
+    fetchMediaPromptListPageMock.mockResolvedValue({
+      rows: [],
+      nextCursor: null,
+      hasMore: false,
+    });
+
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelDataController({
+        activeFolderId: "all_items",
+        itemType: "all",
+        normalizedSearch: "",
+        shouldShowMedia: true,
+        shouldShowPrompts: true,
+        panelBodyRef: { current: null },
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.mediaScopeResolved).toBe(true);
+      expect(result.current.promptScopeResolved).toBe(true);
+    });
+
+    fetchMediaListPageMock.mockClear();
+    fetchMediaPromptListPageMock.mockClear();
+
+    await act(async () => {
+      await result.current.loadMediaPage({ reset: true });
+      await result.current.loadPromptPage({ reset: true });
+    });
+
+    expect(fetchMediaListPageMock).not.toHaveBeenCalled();
+    expect(fetchMediaPromptListPageMock).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await result.current.loadMediaPage({ reset: true, force: true });
+      await result.current.loadPromptPage({ reset: true, force: true });
+    });
+
+    expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
+    expect(fetchMediaPromptListPageMock).toHaveBeenCalledTimes(1);
   });
 });

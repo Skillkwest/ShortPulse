@@ -170,8 +170,6 @@ export const useMediaLibraryPanelItemInteractions = ({
         promptText,
         sourceSurface: null,
       });
-      setTransferDataSafe(event.dataTransfer, "text/prompt", promptText);
-      setTransferDataSafe(event.dataTransfer, "text/plain", promptText);
       event.currentTarget.classList.add("is-dragging");
       attachMediaLibraryDragGhost(event, {
         label: prompt.title || "Prompt",

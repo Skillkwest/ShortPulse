@@ -112,11 +112,13 @@ export const useAiStudioOutputLifecycle = ({
     const directRequestTimeoutSet = new Set(cleanup.directRequestTimeoutIds);
     const taskBackedTimeoutSet = new Set(cleanup.taskBackedTimeoutIds);
     const queueWaitTimeoutSet = new Set(cleanup.queueWaitTimeoutIds);
+    const uploadPersistenceTimeoutSet = new Set(cleanup.uploadPersistenceTimeoutIds);
     const removableSet = new Set(cleanup.removableIds);
     const locallyFailedSet = new Set([
       ...submitStartTimeoutSet,
       ...directRequestTimeoutSet,
       ...taskBackedTimeoutSet,
+      ...uploadPersistenceTimeoutSet,
     ]);
 
     locallyFailedSet.forEach((id) => {
@@ -137,23 +139,28 @@ export const useAiStudioOutputLifecycle = ({
       const isSubmitStartTimeout = submitStartTimeoutSet.has(staleOutput.id);
       const isDirectRequestTimeout = directRequestTimeoutSet.has(staleOutput.id);
       const isTaskBackedTimeout = taskBackedTimeoutSet.has(staleOutput.id);
+      const isUploadPersistenceTimeout = uploadPersistenceTimeoutSet.has(staleOutput.id);
       void reportAppError({
         source: isSubmitStartTimeout
           ? "fal_submit_not_started"
-          : isDirectRequestTimeout
-            ? "generation.direct_request_timeout"
-            : isTaskBackedTimeout
-              ? "generation.task_backed_stale_timeout"
-              : "generation.queue_wait_timeout",
-        scope: "generation",
+          : isUploadPersistenceTimeout
+            ? "media.upload_persistence_timeout"
+            : isDirectRequestTimeout
+              ? "generation.direct_request_timeout"
+              : isTaskBackedTimeout
+                ? "generation.task_backed_stale_timeout"
+                : "generation.queue_wait_timeout",
+        scope: isUploadPersistenceTimeout ? "app" : "generation",
         severity: "high",
         message: isSubmitStartTimeout
           ? "Generation failed to start before task initialization."
-          : isDirectRequestTimeout
-            ? "Generation timed out before a direct result was returned."
-            : isTaskBackedTimeout
-              ? "Generation stopped making progress after provider handoff."
-              : "Generation timed out while waiting in queue.",
+          : isUploadPersistenceTimeout
+            ? "Media upload did not finish before the persistence timeout."
+            : isDirectRequestTimeout
+              ? "Generation timed out before a direct result was returned."
+              : isTaskBackedTimeout
+                ? "Generation stopped making progress after provider handoff."
+                : "Generation timed out while waiting in queue.",
         route: currentRoute(),
         metadata: {
           output_id: staleOutput.id,
@@ -164,11 +171,13 @@ export const useAiStudioOutputLifecycle = ({
           queue_state: staleOutput.queueState ?? null,
           failure_reason_code: isSubmitStartTimeout
             ? "SUBMIT_START_TIMEOUT"
-            : isDirectRequestTimeout
-              ? "DIRECT_REQUEST_TIMEOUT"
-              : isTaskBackedTimeout
-                ? "TASK_BACKED_TIMEOUT"
-                : "QUEUE_WAIT_TIMEOUT",
+            : isUploadPersistenceTimeout
+              ? "UPLOAD_PERSISTENCE_TIMEOUT"
+              : isDirectRequestTimeout
+                ? "DIRECT_REQUEST_TIMEOUT"
+                : isTaskBackedTimeout
+                  ? "TASK_BACKED_TIMEOUT"
+                  : "QUEUE_WAIT_TIMEOUT",
         },
       });
     }
@@ -187,6 +196,7 @@ export const useAiStudioOutputLifecycle = ({
           return;
         }
         const isQueueWaitTimeout = queueWaitTimeoutSet.has(item.id);
+        const isUploadPersistenceTimeout = uploadPersistenceTimeoutSet.has(item.id);
         changed = true;
         if (isQueueWaitTimeout) {
           next.push({
@@ -207,16 +217,30 @@ export const useAiStudioOutputLifecycle = ({
           ...item,
           status: "ready",
           taskState: "fail",
-          timestamp: taskBackedTimeoutSet.has(item.id) ? "Generation timed out" : "Failed to start",
-          errorMessage: taskBackedTimeoutSet.has(item.id)
-            ? "Generation timed out. Please retry."
-            : "Generation failed to start. Please retry.",
-          errorMessageShort: taskBackedTimeoutSet.has(item.id)
-            ? "Generation timed out."
-            : "Generation failed to start.",
-          errorDetail: taskBackedTimeoutSet.has(item.id)
-            ? "The generation stopped making progress after provider handoff. Please retry."
-            : "The generation did not receive a provider task id. Please retry.",
+          saveState: isUploadPersistenceTimeout ? "failed" : item.saveState,
+          saveError: isUploadPersistenceTimeout
+            ? "Upload timed out. Please try again."
+            : item.saveError,
+          timestamp: isUploadPersistenceTimeout
+            ? "Upload timed out"
+            : taskBackedTimeoutSet.has(item.id)
+              ? "Generation timed out"
+              : "Failed to start",
+          errorMessage: isUploadPersistenceTimeout
+            ? "Upload timed out. Please try again."
+            : taskBackedTimeoutSet.has(item.id)
+              ? "Generation timed out. Please retry."
+              : "Generation failed to start. Please retry.",
+          errorMessageShort: isUploadPersistenceTimeout
+            ? "Upload timed out."
+            : taskBackedTimeoutSet.has(item.id)
+              ? "Generation timed out."
+              : "Generation failed to start.",
+          errorDetail: isUploadPersistenceTimeout
+            ? "The media upload did not finish. Please remove it and add the file again."
+            : taskBackedTimeoutSet.has(item.id)
+              ? "The generation stopped making progress after provider handoff. Please retry."
+              : "The generation did not receive a provider task id. Please retry.",
         });
       });
 

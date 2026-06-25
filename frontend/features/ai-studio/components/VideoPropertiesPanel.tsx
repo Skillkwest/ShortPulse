@@ -2,11 +2,9 @@
  * Dedicated properties panel for the Video workflow.
  */
 import React from "react";
-import { SpeakerHigh, Trash, UploadSimple, VideoCamera } from "phosphor-react";
-import { AppMessage } from "../../../components/AppMessage";
+import { Trash } from "phosphor-react";
 import type { AspectOption, LipSyncAudioState, VideoReferenceMode } from "../types";
 import { modelLogos } from "../constants";
-import { AgentGenerateButton } from "../../../prefabs/agent";
 import { extractPromptDropText } from "../utils/dragDrop";
 import {
   insertDroppedPromptTextAtSelection,
@@ -17,17 +15,17 @@ import { ElementPickerModal } from "./ElementPickerModal";
 import type { ModelModalContext } from "./ModelModal";
 import { ReferenceKlingAdvancedSteps } from "./ReferenceKlingAdvancedSteps";
 import { ReferenceMediaStep } from "./ReferenceMediaStep";
-import { AiStudioRecordPanelPrefab } from "./AiStudioRecordPanelPrefab";
 import { MotionRecorderModal } from "./MotionRecorderModal";
 import { ReferencePromptStep } from "./ReferencePromptStep";
-import { StylesControl } from "./StylesControl";
 import { ComposerPinButton } from "./shared/ComposerPinButton";
 import { useReferencePropertiesConstraintEffects } from "./useReferencePropertiesConstraintEffects";
 import { useReferencePropertiesDerivedState } from "./useReferencePropertiesDerivedState";
 import { ReferenceVideoSettingsStep } from "./ReferenceVideoSettingsStep";
-import { VideoSettingsCardPrefab } from "./VideoSettingsCardPrefab";
 import { useReferencePropertiesInteractions } from "./useReferencePropertiesInteractions";
-import { ReferenceAudioPlayer } from "./shared/ReferenceAudioPlayer";
+import { VideoGenerateFooter } from "./video/VideoGenerateFooter";
+import { VideoLipSyncAudioDropzone } from "./video/VideoLipSyncAudioDropzone";
+import { VideoLipSyncSetup } from "./video/VideoLipSyncSetup";
+import { VideoModeTabs } from "./video/VideoModeTabs";
 import type { VideoUploadResult } from "../utils/videoUpload";
 import { createEmptyLipSyncAudioState } from "../logic/lipSyncAudioState";
 import {
@@ -42,14 +40,9 @@ import {
   createSeedanceImageReferenceSlot,
   createSeedanceAudioReferenceSlot,
   createSeedanceVideoReferenceSlot,
-  getAiStudioKlingElementReferenceUrls,
   isElementSlotVisibleForVideoModel,
   isPromptTokenEligibleKlingElement,
-  isSeedanceImageReferenceSlot,
-  isSeedanceAudioReferenceSlot,
-  isSeedanceVideoReferenceSlot,
   resolveSeedanceReferenceLimitError,
-  resolveAiStudioKlingElementDisplayLabel,
   resolveAiStudioKlingElementLegacyTokens,
   type AiStudioKlingElement,
   type AiStudioKlingSavedEntitySourceKind,
@@ -66,10 +59,8 @@ import {
   buildKlingElementPromptToken,
   buildKlingPromptHighlightSegments,
   extractKlingElementPromptTokenFromTransfer,
-  setKlingElementPromptTokenDragData,
 } from "../logic/klingPromptReferences";
 import { insertPromptTokenAtSelection } from "../logic/promptTokenInsertion";
-import { buildElementProfileImageBackgroundStyle } from "../../elements-manager/logic/elementProfileImageTransform";
 import { syncTextareaMirrorScroll } from "./edit/expertEditInteractionUtils";
 import type { ExpertEditStyleTile } from "./edit/expertEditStyles";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
@@ -77,39 +68,14 @@ import type { CanvasTearOutComposerTargetRegistry } from "../hooks/useAiStudioCa
 import type { AgentComposerDirectDropPayload } from "../logic/agentComposerDirectDropPayload";
 import { useVideoLipSyncAudioController } from "./useVideoLipSyncAudioController";
 import { useVideoSavedKlingElementRefresh } from "./useVideoSavedKlingElementRefresh";
+import { VideoAssetSlotsCard } from "./video/VideoAssetSlotsCard";
+import { VideoMotionRecorderLaunch } from "./video/VideoMotionRecorderLaunch";
+import { VideoPromptTokenPicker } from "./video/VideoPromptTokenPicker";
 
 const VIDEO_KLING_ELEMENT_SLOT_COUNT = 3;
 const VIDEO_SEEDANCE_ELEMENT_SLOT_COUNT = 9;
-const VIDEO_KLING_ELEMENT_SLOT_SIZE = 68;
 // Deferred past the July 7 launch while the turbo path remains internally wired.
 const SHOW_LIP_SYNC_TURBO_CONTROL = false;
-const VIDEO_REFERENCE_MODE_TAB_VALUES: VideoReferenceMode[] = ["standard", "motion", "lip-sync"];
-const SHOT_MODE_TAB_VALUES = ["single", "multi"] as const;
-const SEEDANCE_REFERENCE_MODE_TAB_VALUES = ["elements", "keyframes"] as const;
-
-const handleSegmentedTabListKeyDown = (
-  event: React.KeyboardEvent<HTMLElement>,
-  activeIndex: number,
-  tabCount: number,
-  selectIndex: (index: number) => void
-) => {
-  if (tabCount <= 0) return;
-  let nextIndex: number | null = null;
-  if (event.key === "ArrowRight" || event.key === "ArrowDown") {
-    nextIndex = (activeIndex + 1) % tabCount;
-  } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
-    nextIndex = (activeIndex - 1 + tabCount) % tabCount;
-  } else if (event.key === "Home") {
-    nextIndex = 0;
-  } else if (event.key === "End") {
-    nextIndex = tabCount - 1;
-  }
-  if (nextIndex == null) return;
-  event.preventDefault();
-  selectIndex(nextIndex);
-  const tabs = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
-  tabs[nextIndex]?.focus({ preventScroll: true });
-};
 
 const resolveKlingElementPanelSlotIndex = (
   element: AiStudioKlingElement,
@@ -904,78 +870,23 @@ export function VideoPropertiesPanel({
   const lipSyncAudioSlot = React.useMemo(
     () =>
       isLipSyncMode ? (
-        <div
-          ref={lipSyncAudioDropzoneRef}
-          className={`reference-dropzone video-lip-sync-audio-dropzone ${lipSyncAudioPlaybackUrl ? "has-preview" : ""} ${lipSyncAudio.status === "failed" ? "is-failed" : ""} ${
-            lipSyncAudioDragActive || lipSyncAudioCanvasTearOutActive ? "is-dragging" : ""
-          }`.trim()}
-          role="button"
-          tabIndex={0}
-          onClick={() => lipSyncAudioInputRef.current?.click()}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              lipSyncAudioInputRef.current?.click();
-            }
-          }}
-          onDragEnter={(event) => {
-            event.preventDefault();
-            setLipSyncAudioDragActive(true);
-          }}
-          onDragOver={(event) => {
-            event.preventDefault();
-            setLipSyncAudioDragActive(true);
-          }}
-          onDragLeave={() => setLipSyncAudioDragActive(false)}
-          onDrop={handleLipSyncAudioDrop}
-        >
-          <span className="dropzone-tag">Voice audio</span>
-          {lipSyncAudioPlaybackUrl ? (
-            <div
-              className="video-lip-sync-audio-preview"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <ReferenceAudioPlayer
-                audioId="lip-sync-audio"
-                audioUrl={lipSyncAudioPlaybackUrl}
-                title={lipSyncAudio.title ?? null}
-                durationMs={lipSyncAudio.durationMs}
-                showDurationBadge={false}
-                playLabel="Play voice audio"
-                pauseLabel="Pause voice audio"
-                eagerWaveformDecode={false}
-              />
-              {lipSyncAudio.status === "uploading" ? (
-                <div className="video-lip-sync-audio-state">Uploading</div>
-              ) : null}
-            </div>
-          ) : (
-            <div className="reference-drop-content video-drop-content">
-              <UploadSimple size={24} weight="regular" />
-              <p className="reference-drop-title helper-text">Upload voice audio</p>
-            </div>
-          )}
-          {lipSyncAudioPlaybackUrl || lipSyncAudio.status === "failed" ? (
-            <button
-              type="button"
-              className="dropzone-clear"
-              onClick={(event) => {
-                event.stopPropagation();
-                clearLipSyncAudio();
-              }}
-            >
-              ×
-            </button>
-          ) : null}
-        </div>
+        <VideoLipSyncAudioDropzone
+          lipSyncAudio={lipSyncAudio}
+          lipSyncAudioPlaybackUrl={lipSyncAudioPlaybackUrl}
+          lipSyncAudioDragActive={lipSyncAudioDragActive}
+          lipSyncAudioCanvasTearOutActive={lipSyncAudioCanvasTearOutActive}
+          lipSyncAudioInputRef={lipSyncAudioInputRef}
+          lipSyncAudioDropzoneRef={lipSyncAudioDropzoneRef}
+          setLipSyncAudioDragActive={setLipSyncAudioDragActive}
+          handleLipSyncAudioDrop={handleLipSyncAudioDrop}
+          clearLipSyncAudio={clearLipSyncAudio}
+        />
       ) : null,
     [
       clearLipSyncAudio,
       handleLipSyncAudioDrop,
       isLipSyncMode,
-      lipSyncAudio.durationMs,
-      lipSyncAudio.status,
-      lipSyncAudio.title,
+      lipSyncAudio,
       lipSyncAudioCanvasTearOutActive,
       lipSyncAudioDragActive,
       lipSyncAudioPlaybackUrl,
@@ -1748,53 +1659,13 @@ export function VideoPropertiesPanel({
       }
 
       return (
-        <div
-          className="video-kling-prompt-token-picker"
-          role="group"
-          aria-label="Kling element picker"
-        >
-          <div className="video-kling-prompt-token-picker-header">
-            <p className="video-kling-prompt-token-picker-title">Kling Elements</p>
-            <p className="video-kling-prompt-token-picker-hint">Type or click to insert.</p>
-          </div>
-          <div className="video-kling-prompt-token-picker-grid">
-            {populatedKlingPromptTokenSlotIndexes.map((slotIndex) => {
-              const element = selectedKlingElements[slotIndex];
-              if (!element) return null;
-              const displayToken = resolvePromptTokenPickerDisplayToken(slotIndex);
-              const previewUrl =
-                element.profileImageUrl?.trim() ||
-                element.frontalImageUrl.trim() ||
-                getAiStudioKlingElementReferenceUrls(element)[0] ||
-                "";
-              return (
-                <button
-                  key={`video-kling-token-picker-slot-${slotIndex}`}
-                  type="button"
-                  className={`video-kling-prompt-token-picker-option ${
-                    promptTokenPickerState.selectedSlotIndex === slotIndex ? "is-selected" : ""
-                  }`.trim()}
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => insertPromptTokenFromPicker(slotIndex)}
-                >
-                  <span
-                    className="video-kling-prompt-token-picker-option-thumb"
-                    aria-hidden="true"
-                    style={previewUrl ? { backgroundImage: `url(${previewUrl})` } : undefined}
-                  />
-                  <span className="video-kling-prompt-token-picker-option-copy">
-                    <span className="video-kling-prompt-token-picker-option-label">
-                      {element.name?.trim() || `Element ${slotIndex + 1}`}
-                    </span>
-                    <span className="video-kling-prompt-token-picker-option-token">
-                      {displayToken}
-                    </span>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <VideoPromptTokenPicker
+          slotIndexes={populatedKlingPromptTokenSlotIndexes}
+          selectedSlotIndex={promptTokenPickerState.selectedSlotIndex}
+          elements={selectedKlingElements}
+          resolveDisplayToken={resolvePromptTokenPickerDisplayToken}
+          onInsertToken={insertPromptTokenFromPicker}
+        />
       );
     },
     [
@@ -1818,53 +1689,12 @@ export function VideoPropertiesPanel({
                 <div className="video-panel-title">Video Setup</div>
                 <div className="video-setup-columns">
                   <div className="video-setup-column video-setup-column--single">
-                    <div
-                      className="video-reference-mode-tabs"
-                      role="tablist"
-                      aria-label="Video reference mode"
+                    <VideoModeTabs
+                      visibleVideoMode={visibleVideoMode}
+                      videoModeIndex={videoModeIndex}
                       style={videoModeTabsStyle}
-                      onKeyDown={(event) =>
-                        handleSegmentedTabListKeyDown(
-                          event,
-                          videoModeIndex,
-                          VIDEO_REFERENCE_MODE_TAB_VALUES.length,
-                          (index) =>
-                            onVideoReferenceModeChange?.(VIDEO_REFERENCE_MODE_TAB_VALUES[index])
-                        )
-                      }
-                    >
-                      <span className="video-reference-mode-indicator" aria-hidden="true" />
-                      <button
-                        type="button"
-                        role="tab"
-                        aria-selected={visibleVideoMode === "standard"}
-                        tabIndex={visibleVideoMode === "standard" ? 0 : -1}
-                        className={`video-reference-mode-tab ${visibleVideoMode === "standard" ? "is-active" : ""}`}
-                        onClick={() => onVideoReferenceModeChange?.("standard")}
-                      >
-                        Standard
-                      </button>
-                      <button
-                        type="button"
-                        role="tab"
-                        aria-selected={visibleVideoMode === "motion"}
-                        tabIndex={visibleVideoMode === "motion" ? 0 : -1}
-                        className={`video-reference-mode-tab ${visibleVideoMode === "motion" ? "is-active" : ""}`}
-                        onClick={() => onVideoReferenceModeChange?.("motion")}
-                      >
-                        Motion Control
-                      </button>
-                      <button
-                        type="button"
-                        role="tab"
-                        aria-selected={visibleVideoMode === "lip-sync"}
-                        tabIndex={visibleVideoMode === "lip-sync" ? 0 : -1}
-                        className={`video-reference-mode-tab ${visibleVideoMode === "lip-sync" ? "is-active" : ""}`}
-                        onClick={() => onVideoReferenceModeChange?.("lip-sync")}
-                      >
-                        Lip Sync
-                      </button>
-                    </div>
+                      onVideoReferenceModeChange={onVideoReferenceModeChange}
+                    />
                     {!isLipSyncMode ? (
                       <div className="video-setup-settings-slot">
                         <ReferenceVideoSettingsStep
@@ -1898,88 +1728,50 @@ export function VideoPropertiesPanel({
                       </div>
                     ) : null}
                     {isMotionMode && !motionVideoUrl ? (
-                      <div className="video-setup-recorder-slot">
-                        <div className="reference-dropzone-block motion-recorder-launch-block">
-                          <AiStudioRecordPanelPrefab
-                            panelAriaLabel="Record optional motion source"
-                            title="Need a clip?"
-                            helper="If you do not already have a motion video, you can record one here."
-                            buttonIdleAriaLabel="Open motion recorder to add a motion clip"
-                            buttonRecordingAriaLabel="Open motion recorder to add a motion clip"
-                            idleCue="Click to record"
-                            isRecording={false}
-                            onClick={handleOpenMotionRecorder}
-                          />
-                        </div>
-                      </div>
+                      <VideoMotionRecorderLaunch onOpenMotionRecorder={handleOpenMotionRecorder} />
                     ) : null}
                     {!isLipSyncMode && (!isSeedance2FamilyModelSelected || isMotionMode) ? (
                       <div className="video-setup-reference-slot">{renderReferenceMediaStep()}</div>
                     ) : null}
                     {isLipSyncMode ? (
-                      <>
-                        <div className="video-lip-sync-settings-slot">
-                          <VideoSettingsCardPrefab
-                            title="Lip Sync Settings"
-                            showModelRow={false}
-                            showAspectControl={false}
-                            showDurationControl={false}
-                            showGenerateAudioControl={false}
-                            resolutionAriaLabel="Lip Sync resolution"
-                            modelId={modelId}
-                            modelLabel={modelLabel}
-                            modelLogoSrc={modelLogoSrc}
-                            isModelModalOpen={isModelModalOpen}
-                            modelModalAnchor={modelModalAnchor}
-                            modelModalContext={modelPickerContext}
-                            aspect={aspect}
-                            aspectOptionsForModel={aspectOptionsForModel}
-                            videoDurationValue={videoDurationValue}
-                            videoResolutionValue={videoResolutionValue}
-                            durationOptions={durationOptions}
-                            resolutionOptions={resolutionOptions}
-                            videoGenerateAudioValue={videoGenerateAudioValue}
-                            isMotionMode={false}
-                            isVeoModel={isVeoModel}
-                            videoAutoFix={videoAutoFix}
-                            onAspectChange={onAspectChange}
-                            onModelPickerOpen={onModelPickerOpen}
-                            onVideoDurationChange={onVideoDurationChange}
-                            onVideoResolutionChange={onVideoResolutionChange}
-                            onVideoGenerateAudioChange={onVideoGenerateAudioChange}
-                            onVideoAutoFixChange={onVideoAutoFixChange}
-                          />
-                        </div>
-                        <div className="video-lip-sync-setup-card">
-                          <input
-                            ref={lipSyncAudioInputRef}
-                            className="sr-only"
-                            type="file"
-                            accept="audio/*"
-                            onChange={handleLipSyncAudioSelection}
-                          />
-                          {SHOW_LIP_SYNC_TURBO_CONTROL ? (
-                            <label className="video-lip-sync-toggle-row">
-                              <span>Faster generation</span>
-                              <button
-                                type="button"
-                                className={`video-lip-sync-switch audio-toggle ${lipSyncTurboMode ? "is-active" : ""}`}
-                                role="switch"
-                                aria-checked={lipSyncTurboMode}
-                                aria-label="Faster generation"
-                                onClick={() => onLipSyncTurboModeChange?.(!lipSyncTurboMode)}
-                              >
-                                <span className="audio-toggle-track" aria-hidden="true">
-                                  <span className="audio-toggle-dot" />
-                                </span>
-                              </button>
-                            </label>
-                          ) : null}
-                          <div className="video-lip-sync-reference-slot video-setup-reference-slot">
-                            {renderReferenceMediaStep()}
-                          </div>
-                        </div>
-                      </>
+                      <VideoLipSyncSetup
+                        settingsProps={{
+                          title: "Lip Sync Settings",
+                          showModelRow: false,
+                          showAspectControl: false,
+                          showDurationControl: false,
+                          showGenerateAudioControl: false,
+                          resolutionAriaLabel: "Lip Sync resolution",
+                          modelId,
+                          modelLabel,
+                          modelLogoSrc,
+                          isModelModalOpen,
+                          modelModalAnchor,
+                          modelModalContext: modelPickerContext,
+                          aspect,
+                          aspectOptionsForModel,
+                          videoDurationValue,
+                          videoResolutionValue,
+                          durationOptions,
+                          resolutionOptions,
+                          videoGenerateAudioValue,
+                          isMotionMode: false,
+                          isVeoModel,
+                          videoAutoFix,
+                          onAspectChange,
+                          onModelPickerOpen,
+                          onVideoDurationChange,
+                          onVideoResolutionChange,
+                          onVideoGenerateAudioChange,
+                          onVideoAutoFixChange,
+                        }}
+                        lipSyncAudioInputRef={lipSyncAudioInputRef}
+                        handleLipSyncAudioSelection={handleLipSyncAudioSelection}
+                        lipSyncTurboMode={lipSyncTurboMode}
+                        onLipSyncTurboModeChange={onLipSyncTurboModeChange}
+                        showTurboControl={SHOW_LIP_SYNC_TURBO_CONTROL}
+                        referenceMediaStep={renderReferenceMediaStep()}
+                      />
                     ) : null}
                     <MotionRecorderModal
                       isOpen={isMotionMode && isMotionRecorderOpen}
@@ -1987,403 +1779,36 @@ export function VideoPropertiesPanel({
                       onApplyVideo={handleApplyRecordedMotionVideo}
                     />
                     {shouldShowVideoElementSettings ? (
-                      <div className="video-setup-elements-slot">
-                        <div
-                          className={`step-card video-elements-card ${
-                            isSeedance2FamilyModelSelected ? "video-elements-card--seedance" : ""
-                          }`.trim()}
-                        >
-                          <div className="video-elements-card-title video-elements-card-title--large">
-                            {isSeedance2FamilyModelSelected ? "Seedance 2 Settings" : "Elements"}
-                          </div>
-                          {shouldShowShotModeSelector ? (
-                            <div className="video-shot-mode-section video-elements-shot-mode-section">
-                              <span className="input-label video-shot-mode-label">Structure</span>
-                              <div
-                                className={`video-shot-mode-tabs ${
-                                  isSeedance2FamilyModelSelected
-                                    ? "video-shot-mode-tabs--compact"
-                                    : ""
-                                }`.trim()}
-                                role="tablist"
-                                aria-label="Video structure"
-                                onKeyDown={(event) =>
-                                  handleSegmentedTabListKeyDown(
-                                    event,
-                                    visibleShotMode === "multi" ? 1 : 0,
-                                    SHOT_MODE_TAB_VALUES.length,
-                                    (index) =>
-                                      handleSetKlingWorkflowMode(SHOT_MODE_TAB_VALUES[index])
-                                  )
-                                }
-                                style={
-                                  {
-                                    "--video-shot-mode-slots": shotModeTabCount,
-                                    "--video-shot-mode-index": visibleShotMode === "multi" ? 1 : 0,
-                                  } as React.CSSProperties
-                                }
-                              >
-                                <span className="video-shot-mode-indicator" aria-hidden="true" />
-                                <button
-                                  type="button"
-                                  role="tab"
-                                  aria-selected={visibleShotMode === "single"}
-                                  tabIndex={visibleShotMode === "single" ? 0 : -1}
-                                  aria-label="Single shot"
-                                  className={`video-shot-mode-tab ${visibleShotMode === "single" ? "is-active" : ""}`}
-                                  onClick={() => handleSetKlingWorkflowMode("single")}
-                                >
-                                  Single
-                                </button>
-                                <button
-                                  type="button"
-                                  role="tab"
-                                  aria-selected={visibleShotMode === "multi"}
-                                  tabIndex={visibleShotMode === "multi" ? 0 : -1}
-                                  aria-label="Multi-shot"
-                                  className={`video-shot-mode-tab ${visibleShotMode === "multi" ? "is-active" : ""}`}
-                                  onClick={() => handleSetKlingWorkflowMode("multi")}
-                                >
-                                  Multi
-                                </button>
-                              </div>
-                            </div>
-                          ) : null}
-                          {isSeedance2FamilyModelSelected ? (
-                            <div className="video-shot-mode-section video-elements-shot-mode-section">
-                              <span className="input-label video-shot-mode-label">Input type</span>
-                              <div
-                                className="video-shot-mode-tabs video-shot-mode-tabs--compact"
-                                role="tablist"
-                                aria-label="Seedance input type"
-                                onKeyDown={(event) =>
-                                  handleSegmentedTabListKeyDown(
-                                    event,
-                                    seedanceReferenceMode === "elements" ? 0 : 1,
-                                    SEEDANCE_REFERENCE_MODE_TAB_VALUES.length,
-                                    (index) =>
-                                      handleSetSeedanceReferenceMode(
-                                        SEEDANCE_REFERENCE_MODE_TAB_VALUES[index]
-                                      )
-                                  )
-                                }
-                                style={
-                                  {
-                                    "--video-shot-mode-slots": 2,
-                                    "--video-shot-mode-index":
-                                      seedanceReferenceMode === "elements" ? 0 : 1,
-                                  } as React.CSSProperties
-                                }
-                              >
-                                <span className="video-shot-mode-indicator" aria-hidden="true" />
-                                <button
-                                  type="button"
-                                  role="tab"
-                                  aria-selected={seedanceReferenceMode === "elements"}
-                                  tabIndex={seedanceReferenceMode === "elements" ? 0 : -1}
-                                  aria-label="Assets"
-                                  className={`video-shot-mode-tab ${
-                                    seedanceReferenceMode === "elements" ? "is-active" : ""
-                                  }`}
-                                  onClick={() => handleSetSeedanceReferenceMode("elements")}
-                                >
-                                  Assets
-                                </button>
-                                <button
-                                  type="button"
-                                  role="tab"
-                                  aria-selected={seedanceReferenceMode === "keyframes"}
-                                  tabIndex={seedanceReferenceMode === "keyframes" ? 0 : -1}
-                                  aria-label="Frames"
-                                  className={`video-shot-mode-tab ${
-                                    seedanceReferenceMode === "keyframes" ? "is-active" : ""
-                                  }`}
-                                  onClick={() => handleSetSeedanceReferenceMode("keyframes")}
-                                >
-                                  Frames
-                                </button>
-                              </div>
-                            </div>
-                          ) : null}
-                          {isSeedance2FamilyModelSelected &&
-                          seedanceReferenceMode === "keyframes" ? (
-                            <div className="video-setup-reference-slot video-setup-reference-slot--seedance">
-                              {renderReferenceMediaStep()}
-                            </div>
-                          ) : null}
-                          {!isSeedance2FamilyModelSelected ||
-                          seedanceReferenceMode === "elements" ? (
-                            <div className="video-kling-elements-picker-anchor">
-                              {renderPromptTokenPicker(activePromptTargetRef.current)}
-                              <div className="video-elements-card-title video-elements-card-title--sub">
-                                Add Assets
-                              </div>
-                              {seedanceSlotLimitWarning ? (
-                                <AppMessage
-                                  tone="warning"
-                                  className="video-inline-warning-bubble video-seedance-slot-limit-warning"
-                                >
-                                  {seedanceSlotLimitWarning}
-                                </AppMessage>
-                              ) : null}
-                              <div
-                                className="video-elements-placeholder-grid"
-                                aria-label="Element reference slots"
-                              >
-                                {Array.from({ length: klingElementSlotCount }).map((_, index) => {
-                                  const selectedElement = modelVisibleKlingElements[index] ?? null;
-                                  const canUseSeedanceImageIngress =
-                                    isSeedance2FamilyModelSelected &&
-                                    seedanceReferenceMode === "elements";
-                                  const isReferenceImageSlot =
-                                    isSeedanceImageReferenceSlot(selectedElement);
-                                  const isReferenceVideoSlot =
-                                    isSeedanceVideoReferenceSlot(selectedElement);
-                                  const isReferenceAudioSlot =
-                                    isSeedanceAudioReferenceSlot(selectedElement);
-                                  const isImageDropActive = Boolean(
-                                    seedanceElementImageDragActive[index]
-                                  );
-                                  const isImageLoading = Boolean(
-                                    seedanceElementImageLoading[index]
-                                  );
-                                  const seedanceImageInputRef =
-                                    seedanceElementImageInputRefs[index] ?? null;
-                                  const previewUrl =
-                                    selectedElement?.profileImageUrl ??
-                                    getAiStudioKlingElementReferenceUrls(
-                                      selectedElement ?? {
-                                        frontalImageUrl: "",
-                                        referenceImageUrls: "",
-                                      }
-                                    )[0] ??
-                                    null;
-                                  const previewAvatarStyle = previewUrl
-                                    ? buildElementProfileImageBackgroundStyle(
-                                        previewUrl,
-                                        selectedElement?.profileImageTransform ?? null,
-                                        VIDEO_KLING_ELEMENT_SLOT_SIZE
-                                      )
-                                    : undefined;
-                                  const dragToken =
-                                    selectedElement &&
-                                    isPromptTokenEligibleKlingElement(selectedElement)
-                                      ? (klingElementCanonicalPromptTokens[index] ?? "")
-                                      : "";
-                                  const openMediaFilePicker = () => {
-                                    seedanceImageInputRef?.current?.click();
-                                  };
-
-                                  if (!selectedElement) {
-                                    return (
-                                      <div
-                                        key={`video-element-slot-${index}`}
-                                        ref={(element) => {
-                                          seedanceElementSlotRefs.current[index] = element;
-                                        }}
-                                        className={`video-elements-placeholder-tile ${
-                                          isImageDropActive ? "is-dragging" : ""
-                                        } ${isImageLoading ? "is-loading" : ""}`.trim()}
-                                        onDragEnter={
-                                          canUseSeedanceImageIngress
-                                            ? handleSeedanceElementMediaDragEnter(index)
-                                            : undefined
-                                        }
-                                        onDragOver={
-                                          canUseSeedanceImageIngress
-                                            ? handleSeedanceElementMediaDragOver(index)
-                                            : undefined
-                                        }
-                                        onDragLeave={
-                                          canUseSeedanceImageIngress
-                                            ? handleSeedanceElementMediaDragLeave(index)
-                                            : undefined
-                                        }
-                                        onDrop={
-                                          canUseSeedanceImageIngress
-                                            ? handleSeedanceElementMediaDrop(index)
-                                            : undefined
-                                        }
-                                        aria-label={`Add element to slot ${index + 1}`}
-                                      >
-                                        <button
-                                          type="button"
-                                          className="video-elements-placeholder-select video-elements-placeholder-select--empty"
-                                          onClick={() => openElementPicker(index)}
-                                          aria-label={`Add element to slot ${index + 1}`}
-                                        >
-                                          <span
-                                            className="video-elements-placeholder-plus"
-                                            aria-hidden="true"
-                                          >
-                                            +
-                                          </span>
-                                        </button>
-                                        {canUseSeedanceImageIngress ? (
-                                          <>
-                                            <input
-                                              ref={(element) => {
-                                                if (seedanceImageInputRef) {
-                                                  seedanceImageInputRef.current = element;
-                                                }
-                                              }}
-                                              type="file"
-                                              accept="image/*,video/*,audio/*"
-                                              className="sr-only"
-                                              tabIndex={-1}
-                                              onChange={handleSeedanceElementMediaFileSelection(
-                                                index
-                                              )}
-                                            />
-                                            <button
-                                              type="button"
-                                              className="video-elements-slot-upload"
-                                              aria-label={`Upload media reference to slot ${index + 1}`}
-                                              onClick={(event) => {
-                                                event.stopPropagation();
-                                                openMediaFilePicker();
-                                              }}
-                                            >
-                                              <UploadSimple size={12} />
-                                            </button>
-                                          </>
-                                        ) : null}
-                                      </div>
-                                    );
-                                  }
-
-                                  return (
-                                    <div
-                                      key={`video-element-slot-${index}`}
-                                      ref={(element) => {
-                                        seedanceElementSlotRefs.current[index] = element;
-                                      }}
-                                      className={`video-elements-placeholder-tile video-elements-placeholder-tile--filled ${
-                                        selectedElement.sourceKind === "character"
-                                          ? "video-elements-placeholder-tile--character"
-                                          : isReferenceImageSlot
-                                            ? "video-elements-placeholder-tile--reference-image"
-                                            : isReferenceVideoSlot
-                                              ? "video-elements-placeholder-tile--reference-video"
-                                              : isReferenceAudioSlot
-                                                ? "video-elements-placeholder-tile--reference-audio"
-                                                : "video-elements-placeholder-tile--element"
-                                      } ${isImageDropActive ? "is-dragging" : ""} ${
-                                        isImageLoading ? "is-loading" : ""
-                                      }`.trim()}
-                                      draggable={Boolean(dragToken)}
-                                      onDragEnter={
-                                        canUseSeedanceImageIngress
-                                          ? handleSeedanceElementMediaDragEnter(index)
-                                          : undefined
-                                      }
-                                      onDragOver={
-                                        canUseSeedanceImageIngress
-                                          ? handleSeedanceElementMediaDragOver(index)
-                                          : undefined
-                                      }
-                                      onDragLeave={
-                                        canUseSeedanceImageIngress
-                                          ? handleSeedanceElementMediaDragLeave(index)
-                                          : undefined
-                                      }
-                                      onDrop={
-                                        canUseSeedanceImageIngress
-                                          ? handleSeedanceElementMediaDrop(index)
-                                          : undefined
-                                      }
-                                      onDragStart={(event) => {
-                                        if (!dragToken) return;
-                                        event.dataTransfer.effectAllowed = "copy";
-                                        setKlingElementPromptTokenDragData(
-                                          event.dataTransfer,
-                                          dragToken
-                                        );
-                                      }}
-                                    >
-                                      <button
-                                        type="button"
-                                        className="video-elements-placeholder-select"
-                                        onClick={() => openElementPicker(index)}
-                                        aria-label={`Replace attached element ${resolveAiStudioKlingElementDisplayLabel(
-                                          selectedElement,
-                                          index,
-                                          modelVisibleKlingElements
-                                        )}`}
-                                      >
-                                        {previewUrl ? (
-                                          <span
-                                            className="video-elements-slot-avatar-image"
-                                            style={previewAvatarStyle}
-                                            aria-hidden="true"
-                                          />
-                                        ) : isReferenceVideoSlot ? (
-                                          <span
-                                            className="video-elements-slot-video-preview"
-                                            aria-hidden="true"
-                                          >
-                                            <VideoCamera size={22} />
-                                          </span>
-                                        ) : isReferenceAudioSlot ? (
-                                          <span
-                                            className="video-elements-slot-audio-preview"
-                                            aria-hidden="true"
-                                          >
-                                            <SpeakerHigh size={22} />
-                                          </span>
-                                        ) : null}
-                                      </button>
-                                      {canUseSeedanceImageIngress ? (
-                                        <input
-                                          ref={(element) => {
-                                            if (seedanceImageInputRef) {
-                                              seedanceImageInputRef.current = element;
-                                            }
-                                          }}
-                                          type="file"
-                                          accept="image/*,video/*,audio/*"
-                                          className="sr-only"
-                                          tabIndex={-1}
-                                          onChange={handleSeedanceElementMediaFileSelection(index)}
-                                        />
-                                      ) : null}
-                                      <span className="video-elements-slot-actions">
-                                        {canUseSeedanceImageIngress ? (
-                                          <button
-                                            type="button"
-                                            className="video-elements-slot-upload"
-                                            aria-label={`Upload media reference to slot ${index + 1}`}
-                                            onClick={(event) => {
-                                              event.stopPropagation();
-                                              openMediaFilePicker();
-                                            }}
-                                          >
-                                            <UploadSimple size={12} />
-                                          </button>
-                                        ) : null}
-                                        <button
-                                          type="button"
-                                          className="ghost-btn mini"
-                                          aria-label={`Remove attached element ${selectedElement.name || index + 1}`}
-                                          onClick={(event) => {
-                                            event.stopPropagation();
-                                            removeSelectedElement(index);
-                                          }}
-                                        >
-                                          <Trash size={12} />
-                                        </button>
-                                      </span>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          ) : null}
-                          {elementPickerError ? (
-                            <p className="tiny helper-text">{elementPickerError}</p>
-                          ) : null}
-                        </div>
-                      </div>
+                      <VideoAssetSlotsCard
+                        isSeedance2FamilyModelSelected={isSeedance2FamilyModelSelected}
+                        shouldShowShotModeSelector={shouldShowShotModeSelector}
+                        visibleShotMode={visibleShotMode}
+                        shotModeTabCount={shotModeTabCount}
+                        handleSetKlingWorkflowMode={handleSetKlingWorkflowMode}
+                        seedanceReferenceMode={seedanceReferenceMode}
+                        handleSetSeedanceReferenceMode={handleSetSeedanceReferenceMode}
+                        referenceMediaStep={renderReferenceMediaStep()}
+                        renderPromptTokenPicker={renderPromptTokenPicker}
+                        activePromptTarget={activePromptTargetRef.current}
+                        seedanceSlotLimitWarning={seedanceSlotLimitWarning}
+                        klingElementSlotCount={klingElementSlotCount}
+                        modelVisibleKlingElements={modelVisibleKlingElements}
+                        klingElementCanonicalPromptTokens={klingElementCanonicalPromptTokens}
+                        seedanceElementImageDragActive={seedanceElementImageDragActive}
+                        seedanceElementImageLoading={seedanceElementImageLoading}
+                        seedanceElementImageInputRefs={seedanceElementImageInputRefs}
+                        seedanceElementSlotRefs={seedanceElementSlotRefs}
+                        handleSeedanceElementMediaDragEnter={handleSeedanceElementMediaDragEnter}
+                        handleSeedanceElementMediaDragOver={handleSeedanceElementMediaDragOver}
+                        handleSeedanceElementMediaDragLeave={handleSeedanceElementMediaDragLeave}
+                        handleSeedanceElementMediaDrop={handleSeedanceElementMediaDrop}
+                        handleSeedanceElementMediaFileSelection={
+                          handleSeedanceElementMediaFileSelection
+                        }
+                        openElementPicker={openElementPicker}
+                        removeSelectedElement={removeSelectedElement}
+                        elementPickerError={elementPickerError}
+                      />
                     ) : null}
                     {!isLipSyncMode && !isKieKlingModelSelected && !isAnySeedanceModelSelected ? (
                       <p className="video-kling-tip">
@@ -2559,93 +1984,23 @@ export function VideoPropertiesPanel({
                     </div>
                   </div>
                 </div>
-                <div className="video-right-generate-slot">
-                  <div className="video-generate-summary-panel" aria-label="Current video settings">
-                    <div className="video-generate-summary-row">
-                      <div className="video-generate-summary-item">
-                        <span className="video-generate-summary-label">Mode</span>
-                        <span className="video-generate-summary-value">
-                          {videoModeSummaryLabel}
-                        </span>
-                      </div>
-                      {visibleVideoMode === "standard" ? (
-                        <div className="video-generate-summary-item">
-                          <span className="video-generate-summary-label">Shot</span>
-                          <span className="video-generate-summary-value">
-                            {shotModeSummaryLabel}
-                          </span>
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
-                  {shouldShowKlingReferenceImageWarning ? (
-                    <AppMessage
-                      className="video-inline-warning-bubble video-inline-warning-bubble--requirement"
-                      tone="warning"
-                      mode="inline"
-                      message="Add a start frame to generate with Kling"
-                      role="status"
-                      ariaLive="polite"
-                    />
-                  ) : null}
-                  {!shouldShowKlingReferenceImageWarning && referenceImageWarning ? (
-                    <AppMessage
-                      className="video-inline-warning-bubble"
-                      tone="warning"
-                      mode="inline"
-                      message={referenceImageWarning}
-                      role="status"
-                      ariaLive="polite"
-                    />
-                  ) : null}
-                  {!shouldShowKlingReferenceImageWarning &&
-                  !referenceImageWarning &&
-                  klingPromptGuardrailReason ? (
-                    <AppMessage
-                      className="video-inline-warning-bubble"
-                      tone="warning"
-                      mode="inline"
-                      message={klingPromptGuardrailReason}
-                      role="status"
-                      ariaLive="polite"
-                    />
-                  ) : null}
-                  {!shouldShowKlingReferenceImageWarning &&
-                  !referenceImageWarning &&
-                  !klingPromptGuardrailReason &&
-                  isGenerateDisabled &&
-                  guardrailReason ? (
-                    <AppMessage
-                      className="video-inline-warning-bubble"
-                      tone="warning"
-                      mode="inline"
-                      message={guardrailReason}
-                      role="status"
-                      ariaLive="polite"
-                    />
-                  ) : null}
-                  <div className="video-right-generate-actions">
-                    <StylesControl
-                      isOpen={isStylesPanelOpen}
-                      selectedStyleId={selectedStyleId}
-                      styles={stylesCatalog}
-                      onToggle={onStylesPanelToggle}
-                      className="video-generate-styles-control"
-                    />
-                    <div className="video-right-generate-button">
-                      <AgentGenerateButton
-                        onClick={onRegenerate}
-                        disabled={
-                          Boolean(klingPromptGuardrailReason) ||
-                          isGenerateDisabled ||
-                          !hasRequiredPromptForGenerate ||
-                          shouldShowKlingReferenceImageWarning
-                        }
-                        cost={costCredits != null ? costCredits : "—"}
-                      />
-                    </div>
-                  </div>
-                </div>
+                <VideoGenerateFooter
+                  visibleVideoMode={visibleVideoMode}
+                  videoModeSummaryLabel={videoModeSummaryLabel}
+                  shotModeSummaryLabel={shotModeSummaryLabel}
+                  shouldShowKlingReferenceImageWarning={shouldShowKlingReferenceImageWarning}
+                  referenceImageWarning={referenceImageWarning}
+                  klingPromptGuardrailReason={klingPromptGuardrailReason}
+                  isGenerateDisabled={isGenerateDisabled}
+                  guardrailReason={guardrailReason}
+                  hasRequiredPromptForGenerate={hasRequiredPromptForGenerate}
+                  isStylesPanelOpen={isStylesPanelOpen}
+                  selectedStyleId={selectedStyleId}
+                  stylesCatalog={stylesCatalog}
+                  onStylesPanelToggle={onStylesPanelToggle}
+                  onRegenerate={onRegenerate}
+                  costCredits={costCredits}
+                />
               </div>
             </div>
           </div>

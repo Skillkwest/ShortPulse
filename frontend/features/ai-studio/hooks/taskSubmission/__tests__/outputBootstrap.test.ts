@@ -271,4 +271,49 @@ describe("taskSubmission outputBootstrap", () => {
       })
     );
   });
+
+  it("preserves all visible Seedance element slots in video workflow reload payloads", () => {
+    const klingElements = Array.from({ length: 9 }, (_, slotIndex) => ({
+      id: `seedance-slot-${slotIndex}`,
+      slotIndex,
+      sourceKind: "reference-image",
+      profileImageUrl: `https://example.com/seedance-slot-${slotIndex}.png`,
+      frontalImageUrl: `https://example.com/seedance-slot-${slotIndex}.png`,
+      referenceImageUrls: "",
+      videoUrl: "",
+      audioUrl: "",
+    }));
+
+    const workflowReload = buildSubmissionWorkflowReloadSnapshot({
+      outputMode: "video",
+      originTool: "video",
+      panelKind: "video",
+      projectId: "project-1",
+      modelId: "kie-ai/seedance-2",
+      displayPrompt: "Nine Seedance references.",
+      submissionPrompt: "Nine Seedance references.",
+      aspect: "16:9",
+      imageResolution: null,
+      referenceInputs: [],
+      internalMediaRefs: [],
+      videoReferenceMode: "standard",
+      durationSeconds: 5,
+      seedance2InputMode: "multimodal",
+      klingElements,
+    });
+
+    const videoReferences =
+      workflowReload?.payload.kind === "video" ? workflowReload.payload.videoReferences : null;
+
+    expect(videoReferences?.klingElementSlots).toHaveLength(9);
+    expect(videoReferences?.klingElementSlots?.[8]).toEqual(
+      expect.objectContaining({
+        slotIndex: 8,
+        element: expect.objectContaining({
+          id: "seedance-slot-8",
+          slotIndex: 8,
+        }),
+      })
+    );
+  });
 });

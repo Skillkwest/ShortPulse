@@ -40,7 +40,7 @@ export const useResolvedAccountPlan = ({
         if (session) {
           primeSupabaseSession(session);
         }
-        const summary = await fetchBillingAccountSummary();
+        const summary = await fetchBillingAccountSummary({ expectedUserId: user.id });
         if (!summary?.resolvedPlan || summary.userId !== user.id) {
           throw new Error("Unable to load billing account summary.");
         }

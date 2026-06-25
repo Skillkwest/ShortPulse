@@ -500,6 +500,53 @@ describe("useAiStudioOutputLifecycle", () => {
     }
   });
 
+  it("fails unresolved upload persistence after the direct-request budget", async () => {
+    vi.useFakeTimers();
+    try {
+      const { result } = renderHook(() =>
+        useHarness(
+          [
+            makeOutput("upload-timeout", {
+              taskState: "pending",
+              previewText: undefined,
+              previewUrl: "blob:local-upload",
+              mediaSource: "upload",
+              saveState: "saving",
+              localObjectUrl: "blob:local-upload",
+              previewStoragePath: null,
+              fullStoragePath: null,
+              savedMediaIds: [],
+              timestamp: "Uploaded",
+            }),
+          ],
+          null
+        )
+      );
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5 * 60 * 1000 + 16_000);
+      });
+
+      expect(result.current.outputs[0]?.taskState).toBe("fail");
+      expect(result.current.outputs[0]?.saveState).toBe("failed");
+      expect(result.current.outputs[0]?.timestamp).toBe("Upload timed out");
+      expect(result.current.outputs[0]?.errorMessage).toBe("Upload timed out. Please try again.");
+      expect(result.current.outputs[0]?.saveError).toBe("Upload timed out. Please try again.");
+      expect(reportAppErrorMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          source: "media.upload_persistence_timeout",
+          scope: "app",
+          metadata: expect.objectContaining({
+            output_id: "upload-timeout",
+            failure_reason_code: "UPLOAD_PERSISTENCE_TIMEOUT",
+          }),
+        })
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("does not re-report submit-start failure for outputs that already failed", async () => {
     vi.useFakeTimers();
     try {

@@ -12,6 +12,7 @@ import {
   FAL_OMNIHUMAN_V15_MODEL_ID,
 } from "../falModelIds";
 import {
+  KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
   KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
@@ -35,9 +36,25 @@ describe("materializeImageBilledCreditPolicy", () => {
     const materialized = materializeImageBilledCreditPolicy(basePolicy);
 
     expect(
+      resolveModelPricingForModel(
+        materialized,
+        KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
+        "default|res:1K|aspect:16:9"
+      ).billedCreditsOverride
+    ).toBe(2);
+
+    expect(
+      resolveModelPricingForModel(
+        materialized,
+        KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
+        "default|res:1K|aspect:4:5"
+      ).billedCreditsOverride
+    ).toBe(2);
+
+    expect(
       resolveModelPricingForModel(materialized, "gpt-image-2", "create|res:medium|aspect:16:9")
         .billedCreditsOverride
-    ).toBe(4);
+    ).toBeNull();
 
     expect(
       resolveModelPricingForModel(
@@ -45,7 +62,7 @@ describe("materializeImageBilledCreditPolicy", () => {
         "gpt-image-2",
         "edit|res:high|aspect:16:9|input_images:1|input_fidelity:high|mask:no"
       ).billedCreditsOverride
-    ).toBe(12);
+    ).toBeNull();
 
     expect(
       resolveModelPricingForModel(
@@ -63,6 +80,8 @@ describe("materializeImageBilledCreditPolicy", () => {
       ).billedCreditsOverride
     ).toBe(2);
 
+    expect(materialized.perModel["gpt-image-2"]).toBeUndefined();
+
     expect(
       resolveModelPricingForModel(
         materialized,
@@ -70,20 +89,6 @@ describe("materializeImageBilledCreditPolicy", () => {
         "default|res:auto_4K|aspect:1:1"
       ).billedCreditsOverride
     ).toBe(4);
-
-    expect(materialized.perModel["gpt-image-2"]?.runtimeAuthorities?.create_image).toEqual({
-      mode: "runtime_quantity_derived",
-      workflow: "create_image",
-      unitBasis: "per_image",
-      quantityDrivers: ["generation_count", "input_image_count"],
-    });
-
-    expect(materialized.perModel["gpt-image-2"]?.runtimeAuthorities?.edit_image).toEqual({
-      mode: "runtime_quantity_derived",
-      workflow: "edit_image",
-      unitBasis: "per_image",
-      quantityDrivers: ["generation_count", "input_image_count"],
-    });
   });
 
   it("materializes built-in Flux2 Klein semantic rows for runtime billing", () => {

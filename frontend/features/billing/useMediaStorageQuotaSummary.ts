@@ -47,7 +47,10 @@ export const useMediaStorageQuotaSummary = ({
         if (session) {
           primeSupabaseSession(session);
         }
-        const summary = await fetchBillingAccountSummary({ force: options?.force === true });
+        const summary = await fetchBillingAccountSummary({
+          force: options?.force === true,
+          expectedUserId: user.id,
+        });
         if (!summary?.quotaSummary || summary.userId !== user.id) {
           setQuotaSummary(createFallbackSummary(fallbackPlanId, 0));
           return;

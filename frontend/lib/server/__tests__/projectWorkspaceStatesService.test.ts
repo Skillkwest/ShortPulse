@@ -1044,7 +1044,7 @@ describe("projectWorkspaceStatesService", () => {
     });
   });
 
-  it("backfills project associations when durable authority changes without checkpoint structure changes", async () => {
+  it("backfills project associations and refreshes the checkpoint when durable media authority changes", async () => {
     const existingSnapshot = createCanonicalCheckpointSnapshot(
       {
         schemaVersion: 2,
@@ -1154,7 +1154,17 @@ describe("projectWorkspaceStatesService", () => {
     );
     expect(workspaceUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
-        checkpoint_revision: 1,
+        checkpoint_revision: 2,
+        snapshot: expect.objectContaining({
+          outputs: expect.objectContaining({
+            active: [
+              expect.objectContaining({
+                id: "library-display-only-association",
+                savedMediaIds: [MEDIA_ID_1],
+              }),
+            ],
+          }),
+        }),
       }),
       expect.anything()
     );
@@ -2519,6 +2529,7 @@ describe("projectWorkspaceStatesService", () => {
       expect(savedRow).toMatchObject({
         id: "out-foreign-library-save",
         mediaSource: "library",
+        savedMediaIds: [MEDIA_ID_1],
       });
       expect(savedRow).not.toHaveProperty("previewUrl");
       expect(savedRow).not.toHaveProperty("previewPosterUrl");
@@ -3325,6 +3336,7 @@ describe("projectWorkspaceStatesService", () => {
     expect(savedRow).toMatchObject({
       id: "out-1",
       mediaSource: "library",
+      savedMediaIds: [MEDIA_ID_1],
     });
     expect(savedRow).not.toHaveProperty("previewStoragePath");
     expect(savedRow).not.toHaveProperty("fullStoragePath");
@@ -4780,6 +4792,69 @@ describe("projectWorkspaceStatesService", () => {
     } finally {
       warnSpy.mockRestore();
     }
+  });
+
+  it("keeps saved media authority in lightweight checkpoint reads when display rows lag", async () => {
+    createSupabaseMock({
+      workspaceSnapshot: {
+        schemaVersion: 2,
+        sessionId: "session-lightweight-saved-media-read",
+        updatedAt: "2026-06-03T12:00:00.000Z",
+        meta: {
+          generatedAt: "2026-06-03T12:00:00.000Z",
+          checkpointRevision: 4,
+        },
+        workspace: {
+          selectedTool: "create",
+        },
+        outputs: {
+          active: [
+            {
+              id: "display-lag-1",
+              mode: "image",
+              mediaSource: "library",
+              savedMediaIds: [MEDIA_ID_1],
+            },
+          ],
+          archived: [],
+          activeOutputId: "display-lag-1",
+          curatedReferenceIds: ["display-lag-1"],
+          removedFromAllRefsIds: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+      outputDisplayRows: [],
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      projectionRows: [],
+    });
+
+    const result = await getProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+    });
+
+    const restoredRow = (
+      ((result?.snapshot.outputs as { active?: Array<Record<string, unknown>> })?.active ??
+        []) as Array<Record<string, unknown>>
+    )[0];
+
+    expect(restoredRow).toMatchObject({
+      id: "display-lag-1",
+      mode: "image",
+      mediaSource: "library",
+      savedMediaIds: [MEDIA_ID_1],
+    });
+    expect(restoredRow).not.toHaveProperty("previewUrl");
+    expect(restoredRow).not.toHaveProperty("previewStoragePath");
+    expect(restoredRow).not.toHaveProperty("fullStoragePath");
   });
 
   it("materializes lightweight checkpoint outputs from display records on workspace read", async () => {

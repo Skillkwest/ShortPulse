@@ -8,6 +8,7 @@ import {
   buildGenerationReplayConfigV1,
   buildGenerationReplayConfigV2,
 } from "../../logic/generationReplay";
+import { SEEDANCE_REFERENCE_IMAGE_LIMIT } from "../../logic/klingElements";
 import { resolveInternalMediaRefForUrl } from "../../logic/referenceInputInternalMediaRegistry";
 import { buildWorkflowReloadConfigV1 } from "../../logic/workflowReload";
 import type {
@@ -101,6 +102,7 @@ export type PreparedWorkflowReloadReferenceInput = {
 };
 
 const MAX_VIDEO_RESTORE_MEDIA_SLOTS = 16;
+const MAX_VIDEO_RESTORE_ELEMENT_SLOTS = SEEDANCE_REFERENCE_IMAGE_LIMIT;
 
 const asTrimmedString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
@@ -278,7 +280,7 @@ const splitReferenceImageUrls = (value: unknown): string[] =>
 const buildKlingElementSlots = (
   elements: readonly Record<string, unknown>[]
 ): NonNullable<WorkflowReloadVideoReferences["klingElementSlots"]> =>
-  elements.slice(0, 6).map((element, fallbackIndex) => {
+  elements.slice(0, MAX_VIDEO_RESTORE_ELEMENT_SLOTS).map((element, fallbackIndex) => {
     const slotIndex =
       typeof element.slotIndex === "number" &&
       Number.isInteger(element.slotIndex) &&

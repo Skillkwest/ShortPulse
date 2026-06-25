@@ -73,3 +73,11 @@ export const resolveMediaLibraryAdaptiveCardPreviewUrl = ({
 
   return adaptiveResult.previewUrl ?? signedUrl;
 };
+
+export const resolveMediaLibraryPanelGridAdaptiveCardPreviewUrl = (
+  args: Omit<ResolveMediaLibraryAdaptiveCardPreviewArgs, "surface">
+): string | null =>
+  resolveMediaLibraryAdaptiveCardPreviewUrl({
+    ...args,
+    surface: "media-library-panel-grid",
+  });

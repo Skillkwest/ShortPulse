@@ -55,6 +55,7 @@ const CHECKPOINT_OUTPUT_STUB_FIELDS = [
   "mediaSource",
   "createdAt",
   "generationId",
+  "savedMediaIds",
   "hiddenInReferenceGrid",
 ] as const;
 
@@ -70,7 +71,6 @@ const RICH_OUTPUT_CHECKPOINT_EXCLUDED_FIELDS = [
   "fullStoragePath",
   "previewPosterStoragePath",
   "companionArtStoragePath",
-  "savedMediaIds",
   "saveState",
   "saveError",
   "status",

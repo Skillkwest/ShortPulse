@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { resolveMediaLibraryAdaptiveCardPreviewUrl } from "../mediaLibraryAdaptivePreview";
+import {
+  resolveMediaLibraryAdaptiveCardPreviewUrl,
+  resolveMediaLibraryPanelGridAdaptiveCardPreviewUrl,
+} from "../mediaLibraryAdaptivePreview";
 
 const signedImageUrl =
   "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/upload/cat.jpg?token=abc";
@@ -51,6 +54,17 @@ describe("resolveMediaLibraryAdaptiveCardPreviewUrl", () => {
   it("keeps panel signed storage URLs unchanged", () => {
     const resolved = resolveMediaLibraryAdaptiveCardPreviewUrl({
       surface: "media-library-panel-grid",
+      signedUrl: signedImageUrl,
+      fileType: "image/jpeg",
+      pressureLevel: 1,
+      adaptivePreviewQualityEnabled: true,
+    });
+
+    expect(resolved).toBe(signedImageUrl);
+  });
+
+  it("resolves panel-grid card previews through the canonical panel helper", () => {
+    const resolved = resolveMediaLibraryPanelGridAdaptiveCardPreviewUrl({
       signedUrl: signedImageUrl,
       fileType: "image/jpeg",
       pressureLevel: 1,

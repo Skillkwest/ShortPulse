@@ -14,6 +14,7 @@ import {
   getMediaLibrarySurfaceConfig,
   useMediaLibraryPanelRuntime,
 } from "../../media-library/runtime";
+import type { MediaLibraryAggregateScopeCacheState } from "../../media-library/runtime";
 import {
   normalizeMediaLibraryPanelRequestFolderId,
   resolveMediaLibraryPanelListProfile,
@@ -55,12 +56,16 @@ type UseMediaLibraryPanelDataControllerResult = {
   promptLoading: boolean;
   mediaScopeResolved: boolean;
   promptScopeResolved: boolean;
-  loadMediaPage: ({ reset }: { reset: boolean }) => Promise<void>;
-  loadPromptPage: ({ reset }: { reset: boolean }) => Promise<void>;
+  loadMediaPage: (options: LoadPanelPageOptions) => Promise<void>;
+  loadPromptPage: (options: LoadPanelPageOptions) => Promise<void>;
   refreshActiveRows: () => Promise<void>;
 };
 
-const MEDIA_PAGE_SIZE = getMediaLibrarySurfaceConfig("panel").pageSize;
+type LoadPanelPageOptions = { reset: boolean; force?: boolean };
+
+const PANEL_SURFACE_CONFIG = getMediaLibrarySurfaceConfig("panel");
+const MEDIA_PAGE_SIZE = PANEL_SURFACE_CONFIG.pageSize;
+const PANEL_CACHE_TTL_MS = PANEL_SURFACE_CONFIG.cacheTtlMs;
 const PROMPT_PAGE_SIZE = MEDIA_PAGE_SIZE;
 const INFINITE_LOAD_BOTTOM_THRESHOLD_PX = 220;
 const AUDIO_COMPANION_ART_REFRESH_INTERVAL_MS = 3_500;
@@ -74,6 +79,21 @@ const isRefreshableAudioCompanionArtRow = (row: MediaFileRow): boolean => {
   }
   if (row.companion_art_status === "failed") return false;
   return Boolean(row.companion_art_storage_path?.trim() && !row.companion_art_url?.trim());
+};
+
+const isPanelScopeCacheFresh = ({
+  cache,
+  scopeKey,
+  nowMs,
+}: {
+  cache: MediaLibraryAggregateScopeCacheState;
+  scopeKey: string;
+  nowMs: number;
+}): boolean => {
+  if (typeof PANEL_CACHE_TTL_MS !== "number" || PANEL_CACHE_TTL_MS <= 0) return false;
+  if (!cache.loaded || cache.loading || cache.error !== null) return false;
+  if (cache.resolvedScopeKey !== scopeKey || cache.loadedAtMs === null) return false;
+  return nowMs - cache.loadedAtMs <= PANEL_CACHE_TTL_MS;
 };
 
 export const useMediaLibraryPanelDataController = ({
@@ -178,6 +198,28 @@ export const useMediaLibraryPanelDataController = ({
     promptScopeCacheRef.current = promptScopeCache;
   }, [promptScopeCache]);
 
+  const commitMediaScopeCache = React.useCallback(
+    (updater: React.SetStateAction<MediaLibraryAggregateScopeCacheState>) => {
+      setMediaScopeCache((prev) => {
+        const next = typeof updater === "function" ? updater(prev) : updater;
+        mediaScopeCacheRef.current = next;
+        return next;
+      });
+    },
+    [setMediaScopeCache]
+  );
+
+  const commitPromptScopeCache = React.useCallback(
+    (updater: React.SetStateAction<MediaLibraryAggregateScopeCacheState>) => {
+      setPromptScopeCache((prev) => {
+        const next = typeof updater === "function" ? updater(prev) : updater;
+        promptScopeCacheRef.current = next;
+        return next;
+      });
+    },
+    [setPromptScopeCache]
+  );
+
   const shouldRefreshLibraryTotalCount =
     requestFolderId === "all_items" && normalizedSearch.length === 0;
 
@@ -206,7 +248,7 @@ export const useMediaLibraryPanelDataController = ({
       const returnedLibraryTotalCount =
         typeof result?.libraryTotalCount === "number" ? result.libraryTotalCount : null;
       if (returnedLibraryTotalCount === null) return;
-      setMediaScopeCache((prev) =>
+      commitMediaScopeCache((prev) =>
         prev.resolvedScopeKey === scopeKey
           ? {
               ...prev,
@@ -215,7 +257,7 @@ export const useMediaLibraryPanelDataController = ({
           : prev
       );
     },
-    [itemType, listSurface, normalizedSearch, requestFolderId, setMediaScopeCache]
+    [commitMediaScopeCache, itemType, listSurface, normalizedSearch, requestFolderId]
   );
 
   const scheduleLibraryTotalCountRefresh = React.useCallback(
@@ -237,8 +279,19 @@ export const useMediaLibraryPanelDataController = ({
   React.useEffect(() => cancelLibraryTotalCountRefresh, [cancelLibraryTotalCountRefresh]);
 
   const loadMediaPage = React.useCallback(
-    async ({ reset }: { reset: boolean }) => {
+    async ({ reset, force = false }: LoadPanelPageOptions) => {
       const scopeKey = activeRowsScopeKey;
+      if (
+        reset &&
+        !force &&
+        isPanelScopeCacheFresh({
+          cache: mediaScopeCacheRef.current,
+          scopeKey,
+          nowMs: Date.now(),
+        })
+      ) {
+        return;
+      }
       if (reset) {
         cancelLibraryTotalCountRefresh();
       }
@@ -252,7 +305,7 @@ export const useMediaLibraryPanelDataController = ({
       mediaRequestTokenRef.current = requestToken;
       const shouldPreserveRowsDuringRefresh =
         reset && mediaScopeCacheRef.current.resolvedScopeKey === scopeKey;
-      setMediaScopeCache((prev) => ({
+      commitMediaScopeCache((prev) => ({
         ...prev,
         nextCursor: reset ? null : prev.nextCursor,
         hasMore: prev.hasMore,
@@ -292,7 +345,7 @@ export const useMediaLibraryPanelDataController = ({
         }
         setSignedUrls(result.signedById);
         const previousLibraryTotalCount = mediaScopeCacheRef.current.libraryTotalCount;
-        setMediaScopeCache((prev) => ({
+        commitMediaScopeCache((prev) => ({
           ...prev,
           nextCursor: result.nextCursor,
           hasMore: result.hasMore,
@@ -313,7 +366,7 @@ export const useMediaLibraryPanelDataController = ({
       } catch (loadError) {
         if (mediaRequestTokenRef.current !== requestToken) return;
         const nextError = toMediaLibraryErrorText(loadError, "Unable to load media.");
-        setMediaScopeCache((prev) => ({
+        commitMediaScopeCache((prev) => ({
           ...prev,
           loading: false,
           error: nextError,
@@ -327,6 +380,7 @@ export const useMediaLibraryPanelDataController = ({
     [
       activeRowsScopeKey,
       cancelLibraryTotalCountRefresh,
+      commitMediaScopeCache,
       itemType,
       listSurface,
       normalizedSearch,
@@ -334,14 +388,24 @@ export const useMediaLibraryPanelDataController = ({
       scheduleLibraryTotalCountRefresh,
       appendMediaRows,
       setMediaRows,
-      setMediaScopeCache,
       setSignedUrls,
     ]
   );
 
   const loadPromptPage = React.useCallback(
-    async ({ reset }: { reset: boolean }) => {
+    async ({ reset, force = false }: LoadPanelPageOptions) => {
       const scopeKey = activeRowsScopeKey;
+      if (
+        reset &&
+        !force &&
+        isPanelScopeCacheFresh({
+          cache: promptScopeCacheRef.current,
+          scopeKey,
+          nowMs: Date.now(),
+        })
+      ) {
+        return;
+      }
       if (!reset && appendRequestInFlightRef.current.prompts) {
         return;
       }
@@ -352,7 +416,7 @@ export const useMediaLibraryPanelDataController = ({
       promptRequestTokenRef.current = requestToken;
       const shouldPreserveRowsDuringRefresh =
         reset && promptScopeCacheRef.current.resolvedScopeKey === scopeKey;
-      setPromptScopeCache((prev) => ({
+      commitPromptScopeCache((prev) => ({
         ...prev,
         nextCursor: reset ? null : prev.nextCursor,
         hasMore: prev.hasMore,
@@ -383,7 +447,7 @@ export const useMediaLibraryPanelDataController = ({
           ? normalizedRows
           : appendCursorPageRows(promptRowsRef.current, normalizedRows);
         setPromptRows(nextRows);
-        setPromptScopeCache((prev) => ({
+        commitPromptScopeCache((prev) => ({
           ...prev,
           nextCursor: result.nextCursor,
           hasMore: result.hasMore,
@@ -396,7 +460,7 @@ export const useMediaLibraryPanelDataController = ({
       } catch (loadError) {
         if (promptRequestTokenRef.current !== requestToken) return;
         const nextError = toMediaLibraryErrorText(loadError, "Unable to load prompts.");
-        setPromptScopeCache((prev) => ({
+        commitPromptScopeCache((prev) => ({
           ...prev,
           loading: false,
           error: nextError,
@@ -407,7 +471,7 @@ export const useMediaLibraryPanelDataController = ({
         }
       }
     },
-    [activeRowsScopeKey, normalizedSearch, requestFolderId, setPromptRows, setPromptScopeCache]
+    [activeRowsScopeKey, commitPromptScopeCache, normalizedSearch, requestFolderId, setPromptRows]
   );
 
   React.useEffect(() => {
@@ -416,7 +480,7 @@ export const useMediaLibraryPanelDataController = ({
     } else {
       cancelLibraryTotalCountRefresh();
       setMediaRows([]);
-      setMediaScopeCache((prev) => ({
+      commitMediaScopeCache((prev) => ({
         ...prev,
         nextCursor: null,
         hasMore: false,
@@ -431,7 +495,7 @@ export const useMediaLibraryPanelDataController = ({
       void loadPromptPage({ reset: true });
     } else {
       setPromptRows([]);
-      setPromptScopeCache((prev) => ({
+      commitPromptScopeCache((prev) => ({
         ...prev,
         nextCursor: null,
         hasMore: false,
@@ -445,14 +509,14 @@ export const useMediaLibraryPanelDataController = ({
   }, [
     itemType,
     cancelLibraryTotalCountRefresh,
+    commitMediaScopeCache,
+    commitPromptScopeCache,
     loadMediaPage,
     loadPromptPage,
     normalizedSearch,
     requestFolderId,
     setMediaRows,
-    setMediaScopeCache,
     setPromptRows,
-    setPromptScopeCache,
     shouldShowMedia,
     shouldShowPrompts,
   ]);
@@ -469,10 +533,10 @@ export const useMediaLibraryPanelDataController = ({
 
     const refreshTasks: Promise<void>[] = [];
     if (shouldShowMedia) {
-      refreshTasks.push(loadMediaPage({ reset: true }));
+      refreshTasks.push(loadMediaPage({ reset: true, force: true }));
     }
     if (shouldShowPrompts) {
-      refreshTasks.push(loadPromptPage({ reset: true }));
+      refreshTasks.push(loadPromptPage({ reset: true, force: true }));
     }
     if (refreshTasks.length > 0) {
       await Promise.all(refreshTasks);

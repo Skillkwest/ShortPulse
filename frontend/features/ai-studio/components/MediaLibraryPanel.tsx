@@ -12,7 +12,7 @@ import {
   MEDIA_LIBRARY_PANEL_DENSITY_CONFIG,
   MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED,
 } from "../../media-library/logic/mediaLibraryRuntimeConfig";
-import { resolveMediaLibraryAdaptiveCardPreviewUrl } from "../../media-library/logic/mediaLibraryAdaptivePreview";
+import { resolveMediaLibraryPanelGridAdaptiveCardPreviewUrl } from "../../media-library/logic/mediaLibraryAdaptivePreview";
 import {
   getMediaDataTabForRow,
   isNextImageOptimizerUrl,
@@ -178,6 +178,10 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const [pendingBulkDeleteIds, setPendingBulkDeleteIds] = useState<string[] | null>(null);
   const [bulkMoveDialogOpen, setBulkMoveDialogOpen] = useState(false);
   const [folderContextMenu, setFolderContextMenu] = useState<FolderContextMenuState | null>(null);
+  const [pendingFolderDelete, setPendingFolderDelete] = useState<{
+    folderId: string;
+    folderName: string;
+  } | null>(null);
   const [moveFolderPicker, setMoveFolderPicker] = useState<MoveFolderPickerState | null>(null);
   const [projectNameDraft, setProjectNameDraft] = useState(projectName ?? "");
   const [promptDetailModalItem, setPromptDetailModalItem] =
@@ -283,7 +287,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   });
   useAiStudioModalActivity(
     "media-library-panel-delete-confirm",
-    Boolean(pendingLibraryDelete || pendingBulkDeleteIds)
+    Boolean(pendingLibraryDelete || pendingBulkDeleteIds || pendingFolderDelete)
   );
   useAiStudioModalActivity("media-library-panel-move-folder", Boolean(moveFolderPicker));
   useAiStudioModalActivity("media-library-panel-bulk-move", bulkMoveDialogOpen);
@@ -739,10 +743,21 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
 
   const handleContextDelete = useCallback(async () => {
     if (!folderContextMenu) return;
-    const folderId = folderContextMenu.folderId;
+    const { folderId, folderName } = folderContextMenu;
     setFolderContextMenu(null);
-    await deleteFolder(folderId);
-  }, [deleteFolder, folderContextMenu]);
+    setPendingFolderDelete({ folderId, folderName });
+  }, [folderContextMenu]);
+
+  const closeFolderDeleteConfirm = useCallback(() => {
+    setPendingFolderDelete(null);
+  }, []);
+
+  const confirmFolderDelete = useCallback(async () => {
+    const target = pendingFolderDelete;
+    if (!target) return;
+    setPendingFolderDelete(null);
+    await deleteFolder(target.folderId);
+  }, [deleteFolder, pendingFolderDelete]);
   const resolveMoveFolderDestinationOptions = useCallback(
     (folderId: string) => {
       const movingFolder = foldersById.get(folderId);
@@ -844,8 +859,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       cardLongEdgePx?: number;
       devicePixelRatio?: number;
     }) =>
-      resolveMediaLibraryAdaptiveCardPreviewUrl({
-        surface: "media-library-panel-grid",
+      resolveMediaLibraryPanelGridAdaptiveCardPreviewUrl({
         signedUrl,
         fileType,
         pressureLevel,
@@ -1486,6 +1500,11 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         onCloseDeleteConfirm={closeDeleteConfirm}
         onConfirmDeleteFromLibrary={() => {
           void confirmDeleteFromLibrary();
+        }}
+        pendingFolderDelete={pendingFolderDelete}
+        onCloseFolderDeleteConfirm={closeFolderDeleteConfirm}
+        onConfirmFolderDelete={() => {
+          void confirmFolderDelete();
         }}
         moveFolderPicker={moveFolderPicker}
         moveFolderCurrentParentLabel={moveFolderCurrentParentLabel}

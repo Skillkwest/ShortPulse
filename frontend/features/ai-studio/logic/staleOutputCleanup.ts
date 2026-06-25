@@ -3,6 +3,7 @@
  * Identifies stale loading outputs and auto-failed outputs eligible for removal.
  */
 import { hasGeneratedOutputRuntimeIdentity } from "./generatedOutputRuntimeIdentity";
+import { hasStorageAuthority } from "./referenceOutputAuthority";
 import type { StudioOutput } from "../types";
 
 export type OutputLifecycleState = {
@@ -27,6 +28,7 @@ export type StaleOutputCleanupResult = {
   directRequestTimeoutIds: string[];
   taskBackedTimeoutIds: string[];
   queueWaitTimeoutIds: string[];
+  uploadPersistenceTimeoutIds: string[];
   removableIds: string[];
 };
 
@@ -69,6 +71,13 @@ const isQueuedOutput = (output: StudioOutput): boolean => {
   return hasGenerationId && !hasTaskId;
 };
 
+const isUploadPendingPersistence = (output: StudioOutput): boolean => {
+  if (output.mediaSource !== "upload") return false;
+  if (output.saveState !== "saving") return false;
+  if (hasStorageAuthority(output)) return false;
+  return output.taskState === "pending" || output.taskState === "running";
+};
+
 const isFailedWithoutPreview = (output: StudioOutput): boolean =>
   output.taskState === "fail" && !output.previewUrl && !output.previewText && !output.taskId;
 
@@ -76,6 +85,7 @@ export const hasStaleOutputCleanupCandidate = (output: StudioOutput): boolean =>
   isLoadingWithoutPreview(output) ||
   isDirectRequestLoadingWithoutPreview(output) ||
   isServerRecoverableLoadingWithoutPreview(output) ||
+  isUploadPendingPersistence(output) ||
   isFailedWithoutPreview(output);
 
 /**
@@ -93,6 +103,7 @@ export const evaluateStaleOutputCleanup = (
   const directRequestTimeoutIds: string[] = [];
   const taskBackedTimeoutIds: string[] = [];
   const queueWaitTimeoutIds: string[] = [];
+  const uploadPersistenceTimeoutIds: string[] = [];
   const removableIds: string[] = [];
 
   outputs.forEach((output) => {
@@ -102,8 +113,14 @@ export const evaluateStaleOutputCleanup = (
     const isPlaceholderLoading = isLoadingWithoutPreview(output);
     const isDirectRequestLoading = isDirectRequestLoadingWithoutPreview(output);
     const isTaskBackedLoading = isServerRecoverableLoadingWithoutPreview(output);
+    const isUploadPersistenceLoading = isUploadPendingPersistence(output);
 
-    if (isPlaceholderLoading || isDirectRequestLoading || isTaskBackedLoading) {
+    if (
+      isPlaceholderLoading ||
+      isDirectRequestLoading ||
+      isTaskBackedLoading ||
+      isUploadPersistenceLoading
+    ) {
       if (nextState.pendingSinceMs == null) {
         const queuedSinceMs =
           isQueuedOutput(output) && typeof output.queueEnqueuedAtMs === "number"
@@ -119,6 +136,11 @@ export const evaluateStaleOutputCleanup = (
         if (elapsedMs >= config.queueWaitTimeoutMs) {
           staleLoadingIds.push(output.id);
           queueWaitTimeoutIds.push(output.id);
+        }
+      } else if (isUploadPersistenceLoading) {
+        if (elapsedMs >= config.directRequestTimeoutMs) {
+          staleLoadingIds.push(output.id);
+          uploadPersistenceTimeoutIds.push(output.id);
         }
       } else if (isDirectRequestLoading) {
         if (elapsedMs >= config.directRequestTimeoutMs) {
@@ -164,6 +186,7 @@ export const evaluateStaleOutputCleanup = (
     directRequestTimeoutIds,
     taskBackedTimeoutIds,
     queueWaitTimeoutIds,
+    uploadPersistenceTimeoutIds,
     removableIds,
   };
 };

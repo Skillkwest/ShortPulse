@@ -12,7 +12,7 @@ import {
   MEDIA_LIBRARY_PANEL_DENSITY_CONFIG,
   MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED,
 } from "../../media-library/logic/mediaLibraryRuntimeConfig";
-import { resolveMediaLibraryAdaptiveCardPreviewUrl } from "../../media-library/logic/mediaLibraryAdaptivePreview";
+import { resolveMediaLibraryPanelGridAdaptiveCardPreviewUrl } from "../../media-library/logic/mediaLibraryAdaptivePreview";
 import {
   getMediaDataTabForRow,
   isNextImageOptimizerUrl,
@@ -498,8 +498,7 @@ export function EmbeddedMediaLibraryPanel({
       cardLongEdgePx?: number;
       devicePixelRatio?: number;
     }) =>
-      resolveMediaLibraryAdaptiveCardPreviewUrl({
-        surface: "media-library-panel-grid",
+      resolveMediaLibraryPanelGridAdaptiveCardPreviewUrl({
         signedUrl,
         fileType,
         pressureLevel,
@@ -982,6 +981,9 @@ export function EmbeddedMediaLibraryPanel({
         onConfirmDeleteFromLibrary={() => {
           void confirmDeleteFromLibrary();
         }}
+        pendingFolderDelete={null}
+        onCloseFolderDeleteConfirm={() => undefined}
+        onConfirmFolderDelete={() => undefined}
         moveFolderPicker={null}
         moveFolderCurrentParentLabel="All Media"
         moveFolderDestinationOptions={[]}

@@ -10,6 +10,8 @@ import { resolvePricingGridCostBreakdown } from "../../lib/model-runtime/pricing
 import { resolveVideoBilledCreditLookup } from "../../lib/model-runtime/videoBilledCredits";
 import { materializeImageBilledCreditPolicy } from "../../lib/model-runtime/materializeImageBilledCreditPolicy";
 import {
+  KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+  KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
@@ -279,40 +281,43 @@ describe("generationBilling reservation RPC handling", () => {
     });
   });
 
-  it("reserves gpt-image-2 requests through the canonical reservation RPC", async () => {
+  it("reserves Kie GPT Image 2 text requests through the canonical reservation RPC", async () => {
     const rpcMock = vi.fn().mockResolvedValueOnce({
-      data: [{ status: "reserved", source_ref: "req-openai-image", message: null }],
+      data: [{ status: "reserved", source_ref: "req-kie-gpt-image", message: null }],
       error: null,
     });
     getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
 
     const req = {
       headers: {
-        "x-shortpulse-request-id": "req-openai-image",
+        "x-shortpulse-request-id": "req-kie-gpt-image",
       },
-      url: "/api/openai/image-generate",
+      url: "/api/fal/kie-gpt-image-2-submit",
     };
     const res = createMockResponse();
+    const payload = {
+      prompt: "cinematic portrait",
+      aspect_ratio: "16:9",
+      resolution: "1K",
+      generation_count: 1,
+    };
 
     const charge = await chargeGenerationRequest({
       req: req as never,
       res: res as never,
-      modelId: "gpt-image-2",
-      payload: {
-        prompt: "cinematic portrait",
-        size: "1024x1024",
-        quality: "medium",
-        n: 1,
-      },
-      reason: "GPT Image 2 generation",
+      modelId: KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
+      payload,
+      reason: "Kie GPT Image 2 generation",
     });
 
-    const expectedPricingParams = buildPricingParams("gpt-image-2", {
-      size: "1024x1024",
-      quality: "medium",
-      n: 1,
-    });
-    const expectedEstimate = computeCostForModel("gpt-image-2", expectedPricingParams);
+    const expectedPricingParams = buildPricingParams(
+      KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
+      payload
+    );
+    const expectedEstimate = computeCostForModel(
+      KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
+      expectedPricingParams
+    );
 
     expect(charge).not.toBeNull();
     expect(charge?.billingMode).toBe("reservation");
@@ -322,11 +327,11 @@ describe("generationBilling reservation RPC handling", () => {
       "admit_and_reserve_generation_credits",
       expect.objectContaining({
         p_user_id: "user-1",
-        p_source_ref: "req-openai-image",
+        p_source_ref: "req-kie-gpt-image",
         p_amount_cents: Math.abs(expectedEstimate?.credits ?? 0),
         p_metadata: expect.objectContaining({
-          model_id: "gpt-image-2",
-          route: "/api/openai/image-generate",
+          model_id: KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
+          route: "/api/fal/kie-gpt-image-2-submit",
           debited_credits: expectedEstimate?.credits,
           pricing_breakdown: {
             usd_raw: expectedEstimate?.usdRaw,
@@ -343,30 +348,28 @@ describe("generationBilling reservation RPC handling", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
-  it("reserves gpt-image-2 multi-ref Create requests from runtime quantity authority when no explicit row exists", async () => {
+  it("reserves Kie GPT Image 2 multi-ref Create requests from the active edit row", async () => {
     const rpcMock = vi.fn().mockResolvedValueOnce({
-      data: [{ status: "reserved", source_ref: "req-openai-image-multi-ref", message: null }],
+      data: [{ status: "reserved", source_ref: "req-kie-image-multi-ref", message: null }],
       error: null,
     });
     getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
 
     const req = {
       headers: {
-        "x-shortpulse-request-id": "req-openai-image-multi-ref",
+        "x-shortpulse-request-id": "req-kie-image-multi-ref",
       },
-      url: "/api/openai/image-generate",
+      url: "/api/fal/kie-gpt-image-2-edit-submit",
     };
     const res = createMockResponse();
     const payload = {
       prompt: "cinematic portrait",
-      size: "1536x1024",
-      quality: "medium",
-      n: 1,
-      input_fidelity: "high",
-      images: [
-        { image_url: "https://example.com/look-1.png" },
-        { image_url: "https://example.com/look-2.png" },
-        { image_url: "https://example.com/look-3.png" },
+      aspect_ratio: "16:9",
+      resolution: "1K",
+      image_urls: [
+        "https://example.com/look-1.png",
+        "https://example.com/look-2.png",
+        "https://example.com/look-3.png",
       ],
       shortpulse_context: {
         selected_tool: "create",
@@ -377,34 +380,36 @@ describe("generationBilling reservation RPC handling", () => {
     const charge = await chargeGenerationRequest({
       req: req as never,
       res: res as never,
-      modelId: "gpt-image-2",
+      modelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
       payload,
-      reason: "GPT Image 2 multi-ref create",
+      reason: "Kie GPT Image 2 multi-ref create",
       shortpulseContext: {
         selected_tool: "create",
         mode: "image",
       },
     });
 
-    const expectedPricingParams = buildPricingParams("gpt-image-2", payload);
+    const expectedPricingParams = buildPricingParams(
+      KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+      payload
+    );
     const expectedLookup = resolveCreateImageBilledCreditLookup({
-      modelId: "gpt-image-2",
+      modelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
       params: expectedPricingParams,
       pricingPolicy: materializeImageBilledCreditPolicy(getDefaultModelPricingPolicyDocument()),
     });
     const expectedCredits = expectedLookup.breakdown?.credits ?? null;
 
     expect(charge).not.toBeNull();
-    expect(expectedLookup.authorityMode).toBe("runtime_quantity_derived");
-    expect(expectedLookup.breakdown?.variantId).toBe(
-      "edit|res:medium|aspect:16:9|input_images:3|input_fidelity:high|mask:no"
-    );
+    expect(expectedLookup.authorityMode).toBe("explicit_row");
+    expect(expectedLookup.breakdown?.variantId).toBe("edit|res:1K|aspect:16:9");
+    expect(expectedCredits).toBe(5);
     expect(rpcMock).toHaveBeenCalledWith(
       "admit_and_reserve_generation_credits",
       expect.objectContaining({
         p_amount_cents: Math.abs(expectedCredits ?? 0),
         p_metadata: expect.objectContaining({
-          model_id: "gpt-image-2",
+          model_id: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
           debited_credits: expectedCredits,
           pricing_params: expect.objectContaining(expectedPricingParams),
           pricing_breakdown: expect.objectContaining({
@@ -416,28 +421,26 @@ describe("generationBilling reservation RPC handling", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
-  it("reserves gpt-image-2 edit requests with edit pricing params", async () => {
+  it("reserves Kie GPT Image 2 edit requests with edit pricing params", async () => {
     const rpcMock = vi.fn().mockResolvedValueOnce({
-      data: [{ status: "reserved", source_ref: "req-openai-image-edit", message: null }],
+      data: [{ status: "reserved", source_ref: "req-kie-image-edit", message: null }],
       error: null,
     });
     getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
 
     const req = {
       headers: {
-        "x-shortpulse-request-id": "req-openai-image-edit",
+        "x-shortpulse-request-id": "req-kie-image-edit",
       },
-      url: "/api/openai/image-edit",
+      url: "/api/fal/kie-gpt-image-2-edit-submit",
     };
     const res = createMockResponse();
 
     const payload = {
       prompt: "restyle the portrait",
-      size: "1536x1024",
-      quality: "medium",
-      n: 1,
-      input_fidelity: "high",
-      images: [{ image_url: "https://example.com/base.png" }],
+      aspect_ratio: "16:9",
+      resolution: "1K",
+      image_urls: ["https://example.com/base.png"],
       shortpulse_context: {
         selected_tool: "edit",
         mode: "image",
@@ -447,28 +450,30 @@ describe("generationBilling reservation RPC handling", () => {
     const charge = await chargeGenerationRequest({
       req: req as never,
       res: res as never,
-      modelId: "gpt-image-2",
+      modelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
       payload,
-      reason: "GPT Image 2 edit",
+      reason: "Kie GPT Image 2 edit",
       shortpulseContext: {
         selected_tool: "edit",
         mode: "image",
       },
     });
 
-    const expectedPricingParams = buildPricingParams("gpt-image-2", payload);
+    const expectedPricingParams = buildPricingParams(
+      KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+      payload
+    );
     const expectedLookup = resolveEditImageBilledCreditLookup({
-      modelId: "gpt-image-2",
+      modelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
       params: expectedPricingParams,
       pricingPolicy: materializeImageBilledCreditPolicy(getDefaultModelPricingPolicyDocument()),
     });
     const expectedCredits = expectedLookup.breakdown?.credits ?? null;
 
     expect(charge).not.toBeNull();
-    expect(expectedLookup.breakdown?.variantId).toBe(
-      "edit|res:medium|aspect:16:9|input_images:1|input_fidelity:high|mask:no"
-    );
-    expect(expectedCredits).toBe(16);
+    expect(expectedLookup.authorityMode).toBe("explicit_row");
+    expect(expectedLookup.breakdown?.variantId).toBe("edit|res:1K|aspect:16:9");
+    expect(expectedCredits).toBe(5);
     expect(charge?.billingMode).toBe("reservation");
     expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
     expect(rpcMock).toHaveBeenCalledTimes(1);
@@ -476,11 +481,11 @@ describe("generationBilling reservation RPC handling", () => {
       "admit_and_reserve_generation_credits",
       expect.objectContaining({
         p_user_id: "user-1",
-        p_source_ref: "req-openai-image-edit",
+        p_source_ref: "req-kie-image-edit",
         p_amount_cents: Math.abs(expectedCredits ?? 0),
         p_metadata: expect.objectContaining({
-          model_id: "gpt-image-2",
-          route: "/api/openai/image-edit",
+          model_id: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+          route: "/api/fal/kie-gpt-image-2-edit-submit",
           debited_credits: expectedCredits,
           pricing_params: expect.objectContaining(expectedPricingParams),
         }),
@@ -490,30 +495,25 @@ describe("generationBilling reservation RPC handling", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
-  it("reserves gpt-image-2 multi-ref edit requests from runtime quantity authority", async () => {
+  it("reserves Kie GPT Image 2 multi-ref edit requests from the active edit row", async () => {
     const rpcMock = vi.fn().mockResolvedValueOnce({
-      data: [{ status: "reserved", source_ref: "req-openai-image-edit-multi-ref", message: null }],
+      data: [{ status: "reserved", source_ref: "req-kie-image-edit-multi-ref", message: null }],
       error: null,
     });
     getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
     const req = {
       headers: {
-        "x-shortpulse-request-id": "req-openai-image-edit-multi-ref",
+        "x-shortpulse-request-id": "req-kie-image-edit-multi-ref",
       },
-      url: "/api/openai/image-edit",
+      url: "/api/fal/kie-gpt-image-2-edit-submit",
     };
     const res = createMockResponse();
 
     const payload = {
       prompt: "restyle the portrait",
-      size: "1536x1024",
-      quality: "medium",
-      n: 1,
-      input_fidelity: "high",
-      images: [
-        { image_url: "https://example.com/base.png" },
-        { image_url: "https://example.com/look.png" },
-      ],
+      aspect_ratio: "16:9",
+      resolution: "1K",
+      image_urls: ["https://example.com/base.png", "https://example.com/look.png"],
       shortpulse_context: {
         selected_tool: "edit",
         mode: "image",
@@ -523,35 +523,37 @@ describe("generationBilling reservation RPC handling", () => {
     const charge = await chargeGenerationRequest({
       req: req as never,
       res: res as never,
-      modelId: "gpt-image-2",
+      modelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
       payload,
-      reason: "GPT Image 2 multi-ref edit",
+      reason: "Kie GPT Image 2 multi-ref edit",
       shortpulseContext: {
         selected_tool: "edit",
         mode: "image",
       },
     });
 
-    const expectedPricingParams = buildPricingParams("gpt-image-2", payload);
+    const expectedPricingParams = buildPricingParams(
+      KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+      payload
+    );
     const expectedLookup = resolveEditImageBilledCreditLookup({
-      modelId: "gpt-image-2",
+      modelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
       params: expectedPricingParams,
       pricingPolicy: materializeImageBilledCreditPolicy(getDefaultModelPricingPolicyDocument()),
     });
     const expectedCredits = expectedLookup.breakdown?.credits ?? null;
 
     expect(charge).not.toBeNull();
-    expect(expectedLookup.authorityMode).toBe("runtime_quantity_derived");
-    expect(expectedLookup.breakdown?.variantId).toBe(
-      "edit|res:medium|aspect:16:9|input_images:2|input_fidelity:high|mask:no"
-    );
+    expect(expectedLookup.authorityMode).toBe("explicit_row");
+    expect(expectedLookup.breakdown?.variantId).toBe("edit|res:1K|aspect:16:9");
+    expect(expectedCredits).toBe(5);
     expect(rpcMock).toHaveBeenCalledWith(
       "admit_and_reserve_generation_credits",
       expect.objectContaining({
         p_amount_cents: Math.abs(expectedCredits ?? 0),
         p_metadata: expect.objectContaining({
-          model_id: "gpt-image-2",
-          route: "/api/openai/image-edit",
+          model_id: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+          route: "/api/fal/kie-gpt-image-2-edit-submit",
           debited_credits: expectedCredits,
           pricing_params: expect.objectContaining(expectedPricingParams),
           pricing_breakdown: expect.objectContaining({
@@ -571,16 +573,16 @@ describe("generationBilling reservation RPC handling", () => {
 
   it("records pricing observability when the client sends displayed billed credits", async () => {
     const rpcMock = vi.fn().mockResolvedValueOnce({
-      data: [{ status: "reserved", source_ref: "req-observable-image", message: null }],
+      data: [{ status: "reserved", source_ref: "req-observable-kie-image", message: null }],
       error: null,
     });
     getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
 
     const req = {
       headers: {
-        "x-shortpulse-request-id": "req-observable-image",
+        "x-shortpulse-request-id": "req-observable-kie-image",
       },
-      url: "/api/openai/image-generate",
+      url: "/api/fal/kie-gpt-image-2-submit",
       body: {
         shortpulse_context: {
           displayed_billed_credits: 8,
@@ -594,23 +596,26 @@ describe("generationBilling reservation RPC handling", () => {
     const charge = await chargeGenerationRequest({
       req: req as never,
       res: res as never,
-      modelId: "gpt-image-2",
+      modelId: KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
       payload: {
         prompt: "cinematic portrait",
-        size: "1024x1024",
-        quality: "medium",
-        n: 1,
+        aspect_ratio: "16:9",
+        resolution: "1K",
+        generation_count: 1,
       },
-      reason: "GPT Image 2 generation",
+      reason: "Kie GPT Image 2 generation",
     });
 
-    const expectedPricingParams = buildPricingParams("gpt-image-2", {
+    const expectedPricingParams = buildPricingParams(KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID, {
       prompt: "cinematic portrait",
-      size: "1024x1024",
-      quality: "medium",
-      n: 1,
+      aspect_ratio: "16:9",
+      resolution: "1K",
+      generation_count: 1,
     });
-    const expectedEstimate = computeCostForModel("gpt-image-2", expectedPricingParams);
+    const expectedEstimate = computeCostForModel(
+      KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
+      expectedPricingParams
+    );
 
     expect(charge).not.toBeNull();
     expect(rpcMock).toHaveBeenCalledWith(
@@ -1478,19 +1483,20 @@ describe("generationBilling reservation RPC handling", () => {
 
     const req = {
       headers: { "x-shortpulse-request-id": "req-zero-slots" },
-      url: "/api/openai/image-generate",
+      url: "/api/fal/kie-gpt-image-2-submit",
     };
     const res = createMockResponse();
 
     const charge = await chargeGenerationRequest({
       req: req as never,
       res: res as never,
-      modelId: "gpt-image-2",
+      modelId: KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
       payload: {
         prompt: "test prompt",
-        size: "1024x1024",
+        aspect_ratio: "16:9",
+        resolution: "1K",
       },
-      reason: "OpenAI image generation",
+      reason: "Kie GPT Image 2 generation",
     });
 
     expect(charge).toBeNull();
@@ -1519,7 +1525,7 @@ describe("generationBilling reservation RPC handling", () => {
       data: [
         {
           status: "admission_limited",
-          source_ref: "req-openai-limit",
+          source_ref: "req-elevenlabs-limit",
           message: "admission_limited",
           admission_reason: "tier_limit",
           admission_global_active: 4,
@@ -1535,22 +1541,30 @@ describe("generationBilling reservation RPC handling", () => {
     getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
 
     const req = {
-      headers: { "x-shortpulse-request-id": "req-openai-limit" },
-      url: "/api/openai/image-generate",
+      headers: { "x-shortpulse-request-id": "req-elevenlabs-limit" },
+      url: "/api/elevenlabs/music",
+      body: {
+        shortpulse_context: {
+          selected_tool: "music",
+          mode: "audio",
+        },
+      },
     };
     const res = createMockResponse();
 
     const charge = await chargeGenerationRequest({
       req: req as never,
       res: res as never,
-      modelId: "gpt-image-2",
+      modelId: "music_v1",
       payload: {
-        prompt: "portrait",
-        size: "1024x1024",
-        quality: "medium",
-        n: 1,
+        text: "Night-drive synth anthem",
+        duration_seconds: 30,
       },
-      reason: "OpenAI image generation",
+      reason: "ElevenLabs music generation",
+      shortpulseContext: {
+        selected_tool: "music",
+        mode: "audio",
+      },
     });
 
     expect(charge).toBeNull();

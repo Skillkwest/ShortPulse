@@ -145,4 +145,29 @@ describe("useMediaAdaptivePressure", () => {
 
     expect(setIntervalSpy).toHaveBeenCalled();
   });
+
+  it("shares one pressure sampler across multiple enabled media surfaces", () => {
+    vi.useFakeTimers();
+    mockDocumentVisibility("visible");
+    const setIntervalSpy = vi.spyOn(window, "setInterval");
+
+    const first = renderHook(() =>
+      useMediaAdaptivePressure({
+        surface: "media-library-panel",
+        enabled: true,
+      })
+    );
+    expect(setIntervalSpy).toHaveBeenCalledTimes(2);
+
+    const second = renderHook(() =>
+      useMediaAdaptivePressure({
+        surface: "elements-media-panel",
+        enabled: true,
+      })
+    );
+    expect(setIntervalSpy).toHaveBeenCalledTimes(2);
+
+    first.unmount();
+    second.unmount();
+  });
 });

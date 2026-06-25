@@ -19,8 +19,13 @@ export type BillingAccountSummary = {
 };
 
 const BILLING_ACCOUNT_SUMMARY_RETRY_BACKOFF_MS = 10_000;
+const BILLING_ACCOUNT_SUMMARY_CACHE_TTL_MS = 30_000;
 
-let billingAccountSummaryInFlightPromise: Promise<BillingAccountSummary | null> | null = null;
+let billingAccountSummaryInFlightByKey = new Map<string, Promise<BillingAccountSummary | null>>();
+let billingAccountSummaryCacheByUserId = new Map<
+  string,
+  { summary: BillingAccountSummary; loadedAtMs: number }
+>();
 let billingAccountSummaryRetryAfterMs = 0;
 
 const asNumber = (value: unknown): number | null => {
@@ -89,13 +94,25 @@ const parseBillingAccountSummary = (payload: unknown): BillingAccountSummary | n
 
 export const fetchBillingAccountSummary = async (options?: {
   force?: boolean;
+  expectedUserId?: string | null;
 }): Promise<BillingAccountSummary | null> => {
   const force = options?.force === true;
-  if (!force && billingAccountSummaryRetryAfterMs > Date.now()) {
+  const expectedUserId = options?.expectedUserId?.trim() || null;
+  const now = Date.now();
+  if (!force && billingAccountSummaryRetryAfterMs > now) {
     return null;
   }
-  if (billingAccountSummaryInFlightPromise) {
-    return await billingAccountSummaryInFlightPromise;
+  if (!force && expectedUserId) {
+    const cached = billingAccountSummaryCacheByUserId.get(expectedUserId);
+    if (cached && now - cached.loadedAtMs <= BILLING_ACCOUNT_SUMMARY_CACHE_TTL_MS) {
+      return cached.summary;
+    }
+  }
+
+  const inFlightKey = `${expectedUserId ?? "unknown"}:${force ? "force" : "normal"}`;
+  const inFlightRequest = billingAccountSummaryInFlightByKey.get(inFlightKey);
+  if (inFlightRequest) {
+    return await inFlightRequest;
   }
 
   const request = (async () => {
@@ -120,6 +137,10 @@ export const fetchBillingAccountSummary = async (options?: {
         return null;
       }
       billingAccountSummaryRetryAfterMs = 0;
+      billingAccountSummaryCacheByUserId.set(summary.userId, {
+        summary,
+        loadedAtMs: Date.now(),
+      });
       return summary;
     } catch {
       billingAccountSummaryRetryAfterMs = Date.now() + BILLING_ACCOUNT_SUMMARY_RETRY_BACKOFF_MS;
@@ -127,17 +148,18 @@ export const fetchBillingAccountSummary = async (options?: {
     }
   })();
 
-  billingAccountSummaryInFlightPromise = request;
+  billingAccountSummaryInFlightByKey.set(inFlightKey, request);
   try {
     return await request;
   } finally {
-    if (billingAccountSummaryInFlightPromise === request) {
-      billingAccountSummaryInFlightPromise = null;
+    if (billingAccountSummaryInFlightByKey.get(inFlightKey) === request) {
+      billingAccountSummaryInFlightByKey.delete(inFlightKey);
     }
   }
 };
 
 export const resetBillingAccountSummaryClientStateForTests = (): void => {
-  billingAccountSummaryInFlightPromise = null;
+  billingAccountSummaryInFlightByKey = new Map();
+  billingAccountSummaryCacheByUserId = new Map();
   billingAccountSummaryRetryAfterMs = 0;
 };

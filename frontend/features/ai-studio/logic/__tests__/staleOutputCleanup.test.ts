@@ -216,7 +216,7 @@ describe("evaluateStaleOutputCleanup", () => {
     expect(result.nextLifecycle["out-success-no-preview"]).toBeUndefined();
   });
 
-  it("does not track non-generated pending outputs", () => {
+  it("does not track non-generated pending outputs unless they are unresolved uploads", () => {
     const outputs = [makeOutput({ id: "library-1" })];
     const result = evaluateStaleOutputCleanup(outputs, {}, BASE_TIME_MS, config);
 
@@ -224,6 +224,66 @@ describe("evaluateStaleOutputCleanup", () => {
     expect(result.submitStartTimeoutIds).toHaveLength(0);
     expect(result.queueWaitTimeoutIds).toHaveLength(0);
     expect(result.nextLifecycle).toEqual({});
+  });
+
+  it("flags unresolved upload persistence after the direct-request budget", () => {
+    const outputs = [
+      makeOutput({
+        id: "upload-stale",
+        mediaSource: "upload",
+        saveState: "saving",
+        taskState: "pending",
+        previewUrl: "blob:local-upload",
+        localObjectUrl: "blob:local-upload",
+        previewStoragePath: null,
+        fullStoragePath: null,
+        savedMediaIds: [],
+      }),
+    ];
+    const lifecycle: OutputLifecycleMap = {
+      "upload-stale": {
+        pendingSinceMs: BASE_TIME_MS - config.directRequestTimeoutMs,
+      },
+    };
+
+    const result = evaluateStaleOutputCleanup(outputs, lifecycle, BASE_TIME_MS, config);
+
+    expect(result.staleLoadingIds).toEqual(["upload-stale"]);
+    expect(result.uploadPersistenceTimeoutIds).toEqual(["upload-stale"]);
+    expect(result.submitStartTimeoutIds).toHaveLength(0);
+    expect(result.directRequestTimeoutIds).toHaveLength(0);
+  });
+
+  it("clears upload persistence lifecycle once durable authority exists", () => {
+    const loadingOutput = makeOutput({
+      id: "upload-progress",
+      mediaSource: "upload",
+      saveState: "saving",
+      taskState: "pending",
+      previewUrl: "blob:local-upload",
+      localObjectUrl: "blob:local-upload",
+    });
+    const durableOutput = makeOutput({
+      id: "upload-progress",
+      mediaSource: "upload",
+      saveState: "saved",
+      taskState: undefined,
+      previewUrl: "https://signed.example/upload.png",
+      previewStoragePath: "user-1/uploaded/image.png",
+      fullStoragePath: "user-1/uploaded/image.png",
+      savedMediaIds: ["media-1"],
+    });
+
+    const firstPass = evaluateStaleOutputCleanup([loadingOutput], {}, BASE_TIME_MS, config);
+    const secondPass = evaluateStaleOutputCleanup(
+      [durableOutput],
+      firstPass.nextLifecycle,
+      BASE_TIME_MS + 60_000,
+      config
+    );
+
+    expect(firstPass.nextLifecycle["upload-progress"]?.pendingSinceMs).toBe(BASE_TIME_MS);
+    expect(secondPass.nextLifecycle["upload-progress"]).toBeUndefined();
   });
 
   it("tracks generated placeholders by mediaSource even when id does not use out-* prefix", () => {

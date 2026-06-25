@@ -27,6 +27,7 @@ import {
   isImageDragTransfer,
   isVideoDragTransfer,
   looksLikeImageUrl,
+  preparePromptReferenceDrag,
   prepareReferenceDrag,
   resolveReferenceTransferUrl,
 } from "../dragDrop";
@@ -381,6 +382,27 @@ describe("dragDrop payload extraction", () => {
     expect(extractPromptDropText(transfer)).toBe(fullPrompt);
 
     clearInternalReferenceDragSession(token);
+  });
+
+  it("writes session authority and browser text together for first-party prompt drags", () => {
+    const { event, transferData } = makeDragEvent();
+    const fullPrompt = `Helper prompt opening. ${"Detailed reusable prompt text. ".repeat(80)}Helper ending.`;
+    const token = preparePromptReferenceDrag(event, {
+      referenceId: "prompt-helper-1",
+      outputId: "prompt-helper-1",
+      promptText: fullPrompt,
+      sourceSurface: null,
+    });
+
+    expect(token).toMatch(/^ref-drag-/);
+    expect(transferData[INTERNAL_REFERENCE_DRAG_SESSION_TYPE]).toBe(token);
+    expect(transferData[INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE]).toBe(token);
+    expect(transferData["text/reference-media-kind"]).toBe("text");
+    expect(transferData["text/prompt"]).toBe(fullPrompt);
+    expect(transferData["text/plain"]).toBe(fullPrompt);
+    transferData["text/prompt"] = fullPrompt.slice(0, 1000);
+    transferData["text/plain"] = fullPrompt.slice(0, 1000);
+    expect(extractPromptDropText(event.dataTransfer)).toBe(fullPrompt);
   });
 
   it("does not use browser text fields for first-party text references without session authority", () => {

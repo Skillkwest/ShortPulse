@@ -16,13 +16,15 @@ const BILLING_PORTAL_RATE_LIMIT = {
   maxRequests: 8,
   windowMs: 10 * 60 * 1000,
 } as const;
+const BILLING_PORTAL_UNAVAILABLE_MESSAGE =
+  "Billing portal is temporarily unavailable. Try again later.";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
   if (!process.env.STRIPE_SECRET_KEY) {
-    return res.status(501).json({ error: "Stripe is not configured on the server yet." });
+    return res.status(501).json({ error: BILLING_PORTAL_UNAVAILABLE_MESSAGE });
   }
 
   let user;

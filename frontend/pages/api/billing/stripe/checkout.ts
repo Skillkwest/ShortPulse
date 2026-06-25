@@ -21,13 +21,16 @@ const BILLING_CHECKOUT_RATE_LIMIT = {
   maxRequests: 5,
   windowMs: 10 * 60 * 1000,
 } as const;
+const CHECKOUT_UNAVAILABLE_MESSAGE = "Checkout is temporarily unavailable. Try again later.";
+const CREDIT_PACKAGE_UNAVAILABLE_MESSAGE =
+  "This credit package is temporarily unavailable. Try again later.";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
   if (!process.env.STRIPE_SECRET_KEY) {
-    return res.status(501).json({ error: "Stripe is not configured on the server yet." });
+    return res.status(501).json({ error: CHECKOUT_UNAVAILABLE_MESSAGE });
   }
 
   let user;
@@ -73,9 +76,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(404).json({ error: "Credit package not found." });
     }
     if (!pkg.stripe_price_id) {
-      return res
-        .status(409)
-        .json({ error: `Credit package '${pkg.id}' is missing a Stripe price id.` });
+      return res.status(409).json({ error: CREDIT_PACKAGE_UNAVAILABLE_MESSAGE });
     }
 
     const stripeCustomerId = await ensureStripeCustomerForUser({

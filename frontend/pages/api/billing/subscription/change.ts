@@ -80,6 +80,9 @@ const BILLING_SUBSCRIPTION_CHANGE_RATE_LIMIT = {
   maxRequests: 8,
   windowMs: 10 * 60 * 1000,
 } as const;
+const PLAN_UNAVAILABLE_MESSAGE = "This plan is temporarily unavailable. Try again later.";
+const PLAN_CHANGE_UNAVAILABLE_MESSAGE =
+  "This plan change is temporarily unavailable. Try again later.";
 
 const normalizePlanId = (value: unknown): string =>
   typeof value === "string" ? value.trim().toLowerCase() : "";
@@ -447,7 +450,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       if (!process.env.STRIPE_SECRET_KEY) {
-        return res.status(501).json({ error: "Stripe is not configured on the server yet." });
+        return res.status(501).json({ error: PLAN_CHANGE_UNAVAILABLE_MESSAGE });
       }
       if (!stripeSubscriptionId) {
         return res.status(409).json({ error: "No active paid subscription was found." });
@@ -489,13 +492,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
     if (targetOffer.recurring_price_cents > 0 && !targetOffer.stripe_price_id) {
-      return res
-        .status(409)
-        .json({ error: `Plan '${targetPlan.display_name}' is missing a Stripe price id.` });
+      return res.status(409).json({ error: PLAN_UNAVAILABLE_MESSAGE });
     }
 
     if (!process.env.STRIPE_SECRET_KEY) {
-      return res.status(501).json({ error: "Stripe is not configured on the server yet." });
+      return res.status(501).json({ error: PLAN_CHANGE_UNAVAILABLE_MESSAGE });
     }
 
     if (useStripePortalForExistingSubscription && hasStripeSubscriptionId(stripeSubscriptionId)) {
@@ -522,8 +523,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       } catch (error) {
         if (error instanceof CatalogStripePriceValidationError) {
           return res.status(409).json({
-            error:
-              "Selected plan update is temporarily unavailable because its Stripe price does not match the billing catalog.",
+            error: PLAN_CHANGE_UNAVAILABLE_MESSAGE,
           });
         }
         throw error;
@@ -564,7 +564,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (!targetOffer.stripe_price_id) {
-      return res.status(409).json({ error: "Selected plan is not purchasable yet." });
+      return res.status(409).json({ error: PLAN_UNAVAILABLE_MESSAGE });
     }
 
     const stripeCustomerId = await ensureStripeCustomerForUser({
@@ -582,8 +582,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch (error) {
       if (error instanceof CatalogStripePriceValidationError) {
         return res.status(409).json({
-          error:
-            "Selected plan checkout is temporarily unavailable because its Stripe price does not match the billing catalog.",
+          error: PLAN_CHANGE_UNAVAILABLE_MESSAGE,
         });
       }
       throw error;

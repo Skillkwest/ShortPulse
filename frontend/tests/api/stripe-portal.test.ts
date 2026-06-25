@@ -68,6 +68,21 @@ describe("POST /api/billing/stripe/portal", () => {
     });
   });
 
+  it("returns customer-safe copy when the billing portal is unavailable", async () => {
+    delete process.env.STRIPE_SECRET_KEY;
+    const req = { method: "POST", body: {} };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(ensureStripeCustomerForUserMock).not.toHaveBeenCalled();
+    expect(stripePostFormMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(501);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Billing portal is temporarily unavailable. Try again later.",
+    });
+  });
+
   it("creates a portal session through bootstrap-safe customer resolution", async () => {
     const req = { method: "POST", body: {}, socket: { remoteAddress: "127.0.0.1" } };
     const res = createMockResponse();

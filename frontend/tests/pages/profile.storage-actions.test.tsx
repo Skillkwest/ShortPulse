@@ -234,7 +234,7 @@ describe("Profile storage actions", () => {
         return {
           ok: true,
           json: async () => ({
-            message: "Storage add-on update submitted. Stripe is syncing your workspace now.",
+            message: "Storage add-on update submitted. Your workspace storage is syncing now.",
           }),
         };
       }
@@ -427,7 +427,7 @@ describe("Profile storage actions", () => {
     });
 
     expect(
-      screen.getByText("Storage add-on update submitted. Stripe is syncing your workspace now.")
+      screen.getByText("Storage add-on update submitted. Your workspace storage is syncing now.")
     ).toBeInTheDocument();
 
     await act(async () => {
@@ -435,7 +435,7 @@ describe("Profile storage actions", () => {
     });
 
     expect(
-      screen.queryByText("Storage add-on update submitted. Stripe is syncing your workspace now.")
+      screen.queryByText("Storage add-on update submitted. Your workspace storage is syncing now.")
     ).not.toBeInTheDocument();
   });
 });

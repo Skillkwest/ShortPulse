@@ -61,6 +61,8 @@ const BILLING_STORAGE_ADDON_CHANGE_RATE_LIMIT = {
   maxRequests: 10,
   windowMs: 10 * 60 * 1000,
 } as const;
+const STORAGE_ADDON_CHANGE_UNAVAILABLE_MESSAGE =
+  "Recurring storage changes are temporarily unavailable. Try again later.";
 
 const normalizeStorageAddonId = (value: unknown): string =>
   typeof value === "string" ? value.trim().toLowerCase() : "";
@@ -248,8 +250,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (billingContract?.contract_source === BILLING_CONTRACT_SOURCE_INTERNAL_COMP) {
       return res.status(400).json({
-        error:
-          "This account is managed internally. Move billing into Stripe before changing recurring storage add-ons.",
+        error: "Recurring storage add-ons are not available for this account.",
       });
     }
 
@@ -262,7 +263,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         error:
           currentPlanId === "free"
             ? "Choose a paid subscription plan before adding recurring storage capacity."
-            : "Your Stripe subscription is still syncing. Try again in a moment.",
+            : "Your subscription is still syncing. Try again in a moment.",
       });
     }
 
@@ -285,7 +286,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (!process.env.STRIPE_SECRET_KEY) {
-      return res.status(501).json({ error: "Stripe is not configured on the server yet." });
+      return res.status(501).json({ error: STORAGE_ADDON_CHANGE_UNAVAILABLE_MESSAGE });
     }
 
     const stripeSubscription = await readVerifiedStripeSubscriptionForUser({
@@ -298,7 +299,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (!liveItems.length) {
       return res.status(409).json({
-        error: "Your Stripe subscription has no active billing items to update.",
+        error: STORAGE_ADDON_CHANGE_UNAVAILABLE_MESSAGE,
       });
     }
 
@@ -324,7 +325,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       return res.status(200).json({
         ok: true,
-        message: `${addon.display_name} added. Stripe is syncing your workspace storage now.`,
+        message: `${addon.display_name} added. Your workspace storage is syncing now.`,
       });
     }
 
@@ -355,7 +356,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (!removableItemIds.length) {
       return res.status(409).json({
-        error: "Could not find a live Stripe storage add-on to remove for this workspace.",
+        error:
+          "This storage add-on could not be found on your subscription. Refresh and try again.",
       });
     }
 

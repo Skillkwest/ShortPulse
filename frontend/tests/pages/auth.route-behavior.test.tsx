@@ -141,7 +141,7 @@ describe("Auth route behavior", () => {
       container.querySelector(
         '.auth-showcase-gallery-media[src="/dashboard/gallery/monster-wall-break-demo.mp4"]'
       )?.parentElement
-    ).toHaveClass("auth-showcase-gallery-tile-monster");
+    ).toHaveClass("auth-showcase-gallery-tile-bottom-right");
     expect(
       container.querySelector(
         '.auth-showcase-gallery-media[src="/dashboard/gallery/seedance-podcast-demo.mp4"]'
@@ -170,6 +170,11 @@ describe("Auth route behavior", () => {
     expect(
       Array.from(container.querySelectorAll(".auth-showcase-gallery-media")).at(-1)
     ).toHaveAttribute("src", "/dashboard/gallery/forest-bear-encounter-demo.mp4");
+    expect(
+      container.querySelector(
+        '.auth-showcase-gallery-media[src="/dashboard/gallery/forest-bear-encounter-demo.mp4"]'
+      )?.parentElement
+    ).toHaveClass("auth-showcase-gallery-tile-wide-band");
     expect(container.querySelector(".auth-mode-toggle")).toBeInTheDocument();
     expect(container.querySelectorAll(".auth-input")).toHaveLength(2);
     expect(screen.getByRole("tab", { name: "Sign in" })).toHaveAttribute("aria-selected", "true");
@@ -572,6 +577,29 @@ describe("Auth route behavior", () => {
     expect(
       await screen.findByText(
         "Too many confirmation emails were requested. Wait a few minutes, then try again. Check your inbox and spam for the latest email before requesting another."
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("shows a direct fallback when signup confirmation email delivery fails", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED", "true");
+    routerState.query = { mode: "signup" };
+    signUpMock.mockResolvedValue({
+      error: new Error("Error sending confirmation mail"),
+      data: { session: null },
+    });
+
+    render(<AuthPage />);
+
+    fireEvent.change(screen.getByLabelText("Account email"), {
+      target: { value: "new@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "strongpass" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+
+    expect(
+      await screen.findByText(
+        "Confirmation email could not be sent right now. Try again in a few minutes."
       )
     ).toBeInTheDocument();
   });

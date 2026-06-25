@@ -552,8 +552,7 @@ describe("POST /api/billing/subscription/change", () => {
 
     expect(res.status).toHaveBeenCalledWith(409);
     expect(res.json).toHaveBeenCalledWith({
-      error:
-        "Selected plan checkout is temporarily unavailable because its Stripe price does not match the billing catalog.",
+      error: "This plan change is temporarily unavailable. Try again later.",
     });
     expect(stripePostFormMock).not.toHaveBeenCalled();
   });
@@ -618,8 +617,7 @@ describe("POST /api/billing/subscription/change", () => {
 
     expect(res.status).toHaveBeenCalledWith(409);
     expect(res.json).toHaveBeenCalledWith({
-      error:
-        "Selected plan update is temporarily unavailable because its Stripe price does not match the billing catalog.",
+      error: "This plan change is temporarily unavailable. Try again later.",
     });
     expect(stripePostFormMock).not.toHaveBeenCalled();
   });

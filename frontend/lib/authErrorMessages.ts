@@ -8,7 +8,7 @@ const SIGNUP_EMAIL_RATE_LIMIT_MESSAGE =
 const EMAIL_CHANGE_RATE_LIMIT_MESSAGE =
   "Too many email confirmation requests were made. Wait a few minutes, then try again. Check your inbox and spam for the latest email before requesting another.";
 const GENERIC_CONFIRMATION_EMAIL_FAILURE_MESSAGE =
-  "We couldn't send the confirmation email right now. Please try again in a few minutes.";
+  "Confirmation email could not be sent right now. Try again in a few minutes.";
 const INVALID_SIGNIN_CREDENTIALS_MESSAGE =
   "Email or password is incorrect. Check your login details or reset your password.";
 const EMAIL_NOT_CONFIRMED_SIGNIN_MESSAGE =

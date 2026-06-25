@@ -149,6 +149,44 @@ describe("POST /api/billing/stripe/checkout", () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
+  it("fails closed with customer-safe copy when the credit package is unavailable", async () => {
+    getSupabaseAdminMock.mockReturnValue({
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            maybeSingle: async () => ({
+              data: {
+                id: "pkg_studio_10000",
+                display_name: "Studio 10,000",
+                is_active: true,
+                stripe_price_id: null,
+                credit_amount_cents: 10000,
+                price_cents: 12900,
+              },
+              error: null,
+            }),
+          }),
+        }),
+      }),
+    });
+
+    const req = {
+      method: "POST",
+      body: { packageId: "pkg_studio_10000" },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "This credit package is temporarily unavailable. Try again later.",
+    });
+    expect(ensureStripeCustomerForUserMock).not.toHaveBeenCalled();
+    expect(stripePostFormMock).not.toHaveBeenCalled();
+  });
+
   it("returns 500 when stripe customer bootstrap fails", async () => {
     ensureStripeCustomerForUserMock.mockRejectedValueOnce(new Error("bootstrap failed"));
     getSupabaseAdminMock.mockReturnValue({

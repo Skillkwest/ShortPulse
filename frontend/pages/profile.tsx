@@ -937,7 +937,7 @@ export default function ProfilePage() {
         message:
           typeof data?.message === "string" && data.message.trim()
             ? data.message
-            : "Storage add-on update submitted. Stripe is syncing your workspace now.",
+            : "Storage add-on update submitted. Your workspace storage is syncing now.",
       });
 
       await Promise.allSettled([

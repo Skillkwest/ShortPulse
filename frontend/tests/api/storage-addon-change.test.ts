@@ -243,7 +243,7 @@ describe("POST /api/billing/storage-addon/change", () => {
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       ok: true,
-      message: "Extra 100 GB added. Stripe is syncing your workspace storage now.",
+      message: "Extra 100 GB added. Your workspace storage is syncing now.",
     });
   });
 
@@ -473,7 +473,7 @@ describe("POST /api/billing/storage-addon/change", () => {
     expect(stripePostFormMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(501);
     expect(res.json).toHaveBeenCalledWith({
-      error: "Stripe is not configured on the server yet.",
+      error: "Recurring storage changes are temporarily unavailable. Try again later.",
     });
   });
 

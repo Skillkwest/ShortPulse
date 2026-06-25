@@ -17,11 +17,21 @@
 - Current local repo has active dirty AI Studio/Create-adjacent work from other lanes. Refresh `git status --short` as the first step, identify owner overlap, then work clean/assigned files only.
 - Remaining proof boundary: production-safe authenticated Standard/Pulse workflow behavior, with any credit-consuming generation proof explicitly approved. Preserve current UI/UX/design/behavior and do not alter Generate CTA semantics.
 
+## Current Freshness Addendum - 2026-06-25
+
+- Current queue state: P4 `Create and Pulse workflow` remains `Below Floor - Task Completion Unproven` with the custom-Pulse persistence sub-boundary at `Production Checked` for failure and `Locally Tested` for source hardening.
+- Fresh production target: `https://www.shortpulse.ai` resolves to deployment `shortpulse-muzhv0x34-kirk-artmans-projects.vercel.app`, created `2026-06-25T19:41:57.522Z`; strict route parity passed over `188` route entries, secret exposure passed, and the Supabase transform guard passed locally.
+- Fresh production custom Pulse audit still fails after the latest deployed source: `PLAYWRIGHT_BASE_URL=https://www.shortpulse.ai npm run test:e2e:pulse-custom-contract` returned `ok=false` with `persistsOnLeaveCreateVerified=false`.
+- Important split: the audit proves auth, real custom Pulse creation, activation and follow-up `/api/ai/studio-agent-pulse` submissions, `runtimeMode="pulse"`, `pulseKind="custom_gpt"`, `source="custom"`, instructions preservation, guided metadata absence, and visible activation/follow-up messages. The remaining failure is the visible UI state after leaving Create for Presets and returning: the panel shows `Choose a Pulse to start`.
+- Current source already includes Copperknot's two focused local hardening passes: unresolved custom Pulse sessions are not cleared while the user is outside Create, and active Pulse session identity is forwarded through the Pulse runtime result into rendered panel props. Focused page-runtime, runtime/prop-boundary, touched-file typecheck, and broader Pulse bundle validation are green locally.
+- Why Copperknot is stopping now: this is repeated fix/regression churn on the same customer-visible seam. Do not stack another speculative guard. The next owner must instrument/trace the real UI state owner across the tool switch and determine whether the clearing comes from Create mode runtime, Pulse preference/catalog reload, session snapshot hydration, Pulse chat/history restoration, or shell/tool switching.
+- Current dirty-worktree warning: `frontend/lib/ai-studio-session/projectWorkspaceSnapshot.ts` and `frontend/lib/server/projectOutputDisplayItemsService.ts` are dirty from another lane at handoff time. Do not touch them unless the current owner explicitly adopts that lane.
+
 ## Why This Task
 
 - Launch system: `Create and Pulse workflow`
-- Launch state: `Below Floor - Handoff Ready`
-- Evidence level: `Locally Tested`
+- Launch state: `Below Floor - Task Completion Unproven`
+- Evidence level: `Production Checked` for the custom-Pulse failure; `Locally Tested` for the latest source hardening
 - Human risk: `Critical`
 - Operational risk: `High`
 - Technical risk: `High`
@@ -87,6 +97,8 @@ Inspect first:
 ## Scoped Task
 
 Prove or disprove that Create/Pulse workflow behavior is launch-reliable enough for July 7 without changing the current UI, UX, or intended behavior.
+
+Immediate 2026-06-25 focus: diagnose why the production custom Pulse session is still visually inactive after leaving Create for Presets and returning even though the Pulse route/runtime context remains correct. Start from the failing screenshot `/tmp/shortpulse-pulse-custom-contract-failure.png` if available in the active environment, then reproduce with the production audit harness and add targeted local instrumentation/tests around the actual state owner before patching.
 
 Answer:
 

@@ -16,6 +16,7 @@ Purpose: store reusable prompts that improve Gottspan's repo-steward, audit, and
 - `agent-startup-spot-check-prompt.md`: lightweight diagnostic prompt for verifying an agent's startup freshness, loaded instructions, lane authority, and drift guard before relying on its work.
 - `copperknot-goal-prompt.md`: launch-readiness steward prompt for Copperknot, focused on evidence-backed launch posture, source-level risk, and honest proof boundaries.
 - `create-generic-goal-prompt.md`: compact meta-prompt for creating a bounded goal prompt with checkpoint audits, no UI/UX/behavior changes, no drift, and a clear stop condition.
+- `full-general-audit-suite-prompt.md`: broad launch-readiness audit sweep prompt for finding repo weak spots, hotspots, owner handoffs, validation gaps, and July 7 risk priorities without drifting into implementation.
 - `new-perspective-audit-prompt.md`: bounded experimental audit prompt for checking non-obvious repo surfaces without violating current instructions, scope, or safety rules.
 - `product-understanding-audit-prompt.md`: deep product-understanding audit prompt covering technical, product, human, and business understanding.
 - `pursue-goal-to-complete-plan-buildout-prompt.md`: autonomous plan-buildout prompt with validated batches, plan-completeness checks, no drift, and firm stop conditions.

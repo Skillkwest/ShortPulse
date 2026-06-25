@@ -34,6 +34,7 @@ import {
 import {
   resolveDroppedPromptTextEdit,
   resolveDroppedPromptTextEditMode,
+  useAgentComposerPromptDropModifierTracking,
 } from "./promptStep/agentComposerDrop";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import {
@@ -474,6 +475,8 @@ export const useReferencePropertiesInteractions = ({
   seedanceElementSlotCount = 0,
   onSeedanceElementMediaSlotChange,
 }: UseReferencePropertiesInteractionsParams) => {
+  useAgentComposerPromptDropModifierTracking();
+
   const enableFullReferenceInteractions = interactionScope === "full";
   const effectiveSeedanceElementSlotCount = enableFullReferenceInteractions
     ? seedanceElementSlotCount

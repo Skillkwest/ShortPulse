@@ -23,10 +23,18 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
+    files: ["tests/scripts/**/*.mjs"],
+    languageOptions: {
+      globals: {
+        process: "readonly",
+      },
+    },
+  },
+  {
     files: ["**/*.{js,jsx,ts,tsx}"],
     plugins: {
       "@next/next": nextPlugin,
-      "react": reactPlugin,
+      react: reactPlugin,
       "react-hooks": reactHooksPlugin,
     },
     rules: {
@@ -50,5 +58,5 @@ export default tseslint.config(
       },
     },
   },
-  prettierConfig,
+  prettierConfig
 );

@@ -12,6 +12,7 @@ import { AgentEnhanceButton } from "../../../prefabs/agent";
 import {
   resolveDroppedPromptTextEdit,
   resolveDroppedPromptTextEditMode,
+  useAgentComposerPromptDropModifierTracking,
 } from "./promptStep/agentComposerDrop";
 import {
   buildVoiceChangerRequestSettings,
@@ -276,6 +277,8 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   voicePrompt: controlledVoicePrompt,
   voiceScript: controlledVoiceScript,
 }: VoicesPropertiesPanelProps) {
+  useAgentComposerPromptDropModifierTracking();
+
   const sessionSnapshot = useResolvedProtectedSessionState();
   const sessionUserId = sessionSnapshot.user?.id ?? null;
   const {

@@ -2,12 +2,14 @@
  * Curated split-grid interaction tests for ReferenceGrid.
  * Validates add/dedupe/reorder/remove behavior and curated drop rejection rules.
  */
+import type React from "react";
 import { act, fireEvent, render, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ReferenceGrid, type ReferenceGridProps } from "../ReferenceGrid";
 import type { StudioOutput } from "../../types";
 import { EXPERT_EDIT_STYLE_CATALOG } from "../edit/expertEditStyles";
 import { resolveReferenceSelectionTheme } from "../../reference-grid/referenceGridConfig";
+import { preparePromptReferenceDrag } from "../../utils/dragDrop";
 
 class MockResizeObserver {
   observe() {
@@ -62,6 +64,22 @@ const makeTransfer = (data: Record<string, string>): DataTransfer =>
     types: Object.keys(data),
     getData: (type: string) => data[type] ?? "",
   }) as unknown as DataTransfer;
+
+const makeMutableTransfer = (): DataTransfer => {
+  const data = new Map<string, string>();
+  return {
+    files: { length: 0, item: () => null } as unknown as FileList,
+    get types() {
+      return Array.from(data.keys());
+    },
+    getData: (type: string) => data.get(type) ?? "",
+    setData: (type: string, value: string) => {
+      data.set(type, value);
+    },
+    setDragImage: vi.fn(),
+    effectAllowed: "all",
+  } as unknown as DataTransfer;
+};
 
 const makeFileList = (files: File[]): FileList =>
   ({
@@ -125,6 +143,29 @@ const makeLibraryPromptTransfer = (overrides: Record<string, string> = {}): Data
     "text/plain": "Library prompt text",
     ...overrides,
   });
+
+const makeSessionBackedLibraryPromptTransfer = (): DataTransfer => {
+  const transfer = makeMutableTransfer();
+  const promptText = `Library prompt opening. ${"Detailed direction. ".repeat(80)}Library ending.`;
+  transfer.setData("text/shortpulse-media-library-marker", "shortpulse-media-library-v1");
+  transfer.setData("text/shortpulse-media-library-kind", "libraryPrompt");
+  transfer.setData("text/shortpulse-media-library-id", "prompt-drop-session-1");
+  transfer.setData("text/shortpulse-media-library-title", "Library prompt title");
+  transfer.setData("text/shortpulse-media-library-prompt", promptText);
+  preparePromptReferenceDrag(
+    {
+      currentTarget: document.createElement("button"),
+      dataTransfer: transfer,
+    } as unknown as React.DragEvent<HTMLElement>,
+    {
+      referenceId: "prompt-drop-session-1",
+      outputId: "prompt-drop-session-1",
+      promptText,
+      sourceSurface: null,
+    }
+  );
+  return transfer;
+};
 
 const installRafQueue = () => {
   let nextFrameId = 1;
@@ -1853,6 +1894,55 @@ describe("ReferenceGrid curated split", () => {
       }
     );
     expect(onSelectOutput).toHaveBeenCalledWith("prompt-out-1");
+  });
+
+  it("routes session-backed media-library prompt drops onto quick-slot cards", () => {
+    const onAddLibraryPromptReferenceToQuickSlot = vi.fn(() => "prompt-out-session-1");
+    const onSelectOutput = vi.fn();
+    const { container } = render(
+      <ReferenceGrid
+        {...createProps({
+          curatedReferenceIds: ["out-1"],
+          onSelectOutput,
+          onAddLibraryPromptReferenceToQuickSlot,
+        })}
+      />
+    );
+    const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
+    expect(curatedSection).toBeTruthy();
+    const targetCard = curatedSection.querySelector(".reference-card") as HTMLElement;
+    expect(targetCard).toBeTruthy();
+    Object.defineProperty(targetCard, "getBoundingClientRect", {
+      value: () => ({
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        width: 100,
+        height: 100,
+        right: 100,
+        bottom: 100,
+        toJSON: () => ({}),
+      }),
+    });
+
+    fireEvent.drop(targetCard, {
+      clientY: 90,
+      dataTransfer: makeSessionBackedLibraryPromptTransfer(),
+    });
+
+    expect(onAddLibraryPromptReferenceToQuickSlot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "prompt-drop-session-1",
+        promptText: expect.stringContaining("Library prompt opening."),
+        title: "Library prompt title",
+      }),
+      {
+        targetId: "out-1",
+        placement: "after",
+      }
+    );
+    expect(onSelectOutput).toHaveBeenCalledWith("prompt-out-session-1");
   });
 
   it("rejects non-internal drops in curated section", () => {

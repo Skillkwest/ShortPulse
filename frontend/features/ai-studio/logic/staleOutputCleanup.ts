@@ -61,6 +61,14 @@ const isServerRecoverableLoadingWithoutPreview = (output: StudioOutput): boolean
   return output.taskState === "pending" || output.taskState === "running";
 };
 
+const isProviderTaskLoadingWithoutDurableAuthority = (output: StudioOutput): boolean => {
+  if (!isGeneratedOutput(output)) return false;
+  if (output.submissionMode !== "provider-task") return false;
+  if (hasStorageAuthority(output)) return false;
+  if (!hasGeneratedOutputRuntimeIdentity(output)) return false;
+  return output.taskState === "pending" || output.taskState === "running";
+};
+
 const isQueuedOutput = (output: StudioOutput): boolean => {
   if (output.queueState === "queued") return true;
   const hasGenerationId =
@@ -85,6 +93,7 @@ export const hasStaleOutputCleanupCandidate = (output: StudioOutput): boolean =>
   isLoadingWithoutPreview(output) ||
   isDirectRequestLoadingWithoutPreview(output) ||
   isServerRecoverableLoadingWithoutPreview(output) ||
+  isProviderTaskLoadingWithoutDurableAuthority(output) ||
   isUploadPendingPersistence(output) ||
   isFailedWithoutPreview(output);
 
@@ -112,7 +121,9 @@ export const evaluateStaleOutputCleanup = (
 
     const isPlaceholderLoading = isLoadingWithoutPreview(output);
     const isDirectRequestLoading = isDirectRequestLoadingWithoutPreview(output);
-    const isTaskBackedLoading = isServerRecoverableLoadingWithoutPreview(output);
+    const isTaskBackedLoading =
+      isServerRecoverableLoadingWithoutPreview(output) ||
+      isProviderTaskLoadingWithoutDurableAuthority(output);
     const isUploadPersistenceLoading = isUploadPendingPersistence(output);
 
     if (

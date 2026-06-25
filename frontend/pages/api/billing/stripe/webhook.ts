@@ -1105,7 +1105,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
       return res.status(500).json({ error: "Webhook processing failed." });
     }
-    const duplicateEvent = eventClaim.kind === "duplicate";
+    if (eventClaim.kind === "duplicate") {
+      return res.status(200).json({ received: true, duplicate: true });
+    }
 
     const object = event.data?.object ?? {};
     if (
@@ -1125,9 +1127,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       await processInvoicePaymentSucceeded(object, event.id);
     }
 
-    if (duplicateEvent) {
-      return res.status(200).json({ received: true, duplicate: true });
-    }
     return res.status(200).json({ received: true });
   } catch (error) {
     if (error instanceof RequestBodyTooLargeError) {

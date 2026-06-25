@@ -2,7 +2,9 @@
  * Characterization tests for AI Studio right-column drop payload resolution.
  * Guards shell DnD behavior while the parser lives outside the page component.
  */
+import type React from "react";
 import { describe, expect, it } from "vitest";
+import { preparePromptReferenceDrag } from "../../utils/dragDrop";
 import {
   resolveRightColumnDropMode,
   resolveRightColumnDropPayload,
@@ -27,6 +29,22 @@ const makeFileList = (files: File[]): FileList => {
     value: (index: number) => files[index] ?? null,
   });
   return fileList;
+};
+
+const makeMutableTransfer = (): DataTransfer => {
+  const data = new Map<string, string>();
+  return {
+    files: emptyFileList,
+    get types() {
+      return Array.from(data.keys());
+    },
+    getData: (type: string) => data.get(type) ?? "",
+    setData: (type: string, value: string) => {
+      data.set(type, value);
+    },
+    effectAllowed: "all",
+    setDragImage: () => undefined,
+  } as unknown as DataTransfer;
 };
 
 describe("rightColumnDropPayload", () => {
@@ -69,5 +87,37 @@ describe("rightColumnDropPayload", () => {
       expect(payload.files.length).toBe(1);
       expect((payload.files as unknown as File[])[0]?.name).toBe("avatar.png");
     }
+  });
+
+  it("resolves session-backed media-library prompt drags as library prompt payloads", () => {
+    const transfer = makeMutableTransfer();
+    const promptText = `Saved prompt opening. ${"Detailed direction. ".repeat(80)}Saved ending.`;
+    transfer.setData("text/shortpulse-media-library-marker", "shortpulse-media-library-v1");
+    transfer.setData("text/shortpulse-media-library-kind", "libraryPrompt");
+    transfer.setData("text/shortpulse-media-library-id", "prompt-drop-1");
+    transfer.setData("text/shortpulse-media-library-title", "Library prompt title");
+    transfer.setData("text/shortpulse-media-library-prompt", promptText);
+    preparePromptReferenceDrag(
+      {
+        currentTarget: document.createElement("button"),
+        dataTransfer: transfer,
+      } as unknown as React.DragEvent<HTMLElement>,
+      {
+        referenceId: "prompt-drop-1",
+        outputId: "prompt-drop-1",
+        promptText,
+        sourceSurface: null,
+      }
+    );
+
+    expect(resolveRightColumnDropMode(transfer)).toBe("media");
+    expect(resolveRightColumnDropPayload(transfer)).toEqual({
+      kind: "libraryPrompt",
+      payload: expect.objectContaining({
+        id: "prompt-drop-1",
+        promptText,
+        title: "Library prompt title",
+      }),
+    });
   });
 });

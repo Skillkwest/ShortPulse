@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { readMediaLibraryDragPayload } from "../../logic/mediaLibraryDragPayload";
 import {
   extractDragDropPayload,
@@ -18,10 +19,17 @@ export type DroppedPromptTextEditMode = "replace" | "insert";
 
 let isShiftPromptDropModifierPressed = false;
 let isShiftPromptDropModifierActiveForDrag = false;
+let promptDropModifierSubscriptionCount = 0;
+let cleanupPromptDropModifierListeners: (() => void) | null = null;
+
+const resetPromptDropModifierState = () => {
+  isShiftPromptDropModifierPressed = false;
+  isShiftPromptDropModifierActiveForDrag = false;
+};
 
 const resetPromptDropDragModifierSoon = () => {
   if (typeof window === "undefined") {
-    isShiftPromptDropModifierActiveForDrag = false;
+    resetPromptDropModifierState();
     return;
   }
   window.setTimeout(() => {
@@ -34,46 +42,66 @@ const updatePromptDropDragModifier = (event: DragEvent | KeyboardEvent) => {
     Boolean(event.shiftKey) || isShiftPromptDropModifierPressed;
 };
 
-if (typeof window !== "undefined") {
-  window.addEventListener(
-    "keydown",
-    (event) => {
-      if (!event.shiftKey && event.key !== "Shift") return;
-      isShiftPromptDropModifierPressed = true;
-      isShiftPromptDropModifierActiveForDrag = true;
-    },
-    true
-  );
-  window.addEventListener(
-    "keyup",
-    (event) => {
-      if (event.key !== "Shift" || event.shiftKey) return;
-      isShiftPromptDropModifierPressed = false;
-      isShiftPromptDropModifierActiveForDrag = false;
-    },
-    true
-  );
-  window.addEventListener("blur", () => {
-    isShiftPromptDropModifierPressed = false;
-    isShiftPromptDropModifierActiveForDrag = false;
-  });
+const handlePromptDropModifierKeyDown = (event: KeyboardEvent) => {
+  if (!event.shiftKey && event.key !== "Shift") return;
+  isShiftPromptDropModifierPressed = true;
+  isShiftPromptDropModifierActiveForDrag = true;
+};
+
+const handlePromptDropModifierKeyUp = (event: KeyboardEvent) => {
+  if (event.key !== "Shift" || event.shiftKey) return;
+  resetPromptDropModifierState();
+};
+
+const handlePromptDropModifierDrop = (event: DragEvent) => {
+  updatePromptDropDragModifier(event);
+  resetPromptDropDragModifierSoon();
+};
+
+const handlePromptDropModifierVisibilityChange = () => {
+  if (typeof document === "undefined" || !document.hidden) return;
+  resetPromptDropModifierState();
+};
+
+const installPromptDropModifierListeners = (): (() => void) => {
+  if (typeof window === "undefined") return () => undefined;
+  window.addEventListener("keydown", handlePromptDropModifierKeyDown, true);
+  window.addEventListener("keyup", handlePromptDropModifierKeyUp, true);
+  window.addEventListener("blur", resetPromptDropModifierState);
   window.addEventListener("dragenter", updatePromptDropDragModifier, true);
   window.addEventListener("dragover", updatePromptDropDragModifier, true);
-  window.addEventListener(
-    "drop",
-    (event) => {
-      updatePromptDropDragModifier(event);
-      resetPromptDropDragModifierSoon();
-    },
-    true
-  );
+  window.addEventListener("drop", handlePromptDropModifierDrop, true);
   window.addEventListener("dragend", resetPromptDropDragModifierSoon, true);
-  document.addEventListener("visibilitychange", () => {
-    if (!document.hidden) return;
-    isShiftPromptDropModifierPressed = false;
-    isShiftPromptDropModifierActiveForDrag = false;
-  });
-}
+  document.addEventListener("visibilitychange", handlePromptDropModifierVisibilityChange);
+
+  return () => {
+    window.removeEventListener("keydown", handlePromptDropModifierKeyDown, true);
+    window.removeEventListener("keyup", handlePromptDropModifierKeyUp, true);
+    window.removeEventListener("blur", resetPromptDropModifierState);
+    window.removeEventListener("dragenter", updatePromptDropDragModifier, true);
+    window.removeEventListener("dragover", updatePromptDropDragModifier, true);
+    window.removeEventListener("drop", handlePromptDropModifierDrop, true);
+    window.removeEventListener("dragend", resetPromptDropDragModifierSoon, true);
+    document.removeEventListener("visibilitychange", handlePromptDropModifierVisibilityChange);
+    resetPromptDropModifierState();
+  };
+};
+
+export const useAgentComposerPromptDropModifierTracking = (): void => {
+  useEffect(() => {
+    promptDropModifierSubscriptionCount += 1;
+    if (!cleanupPromptDropModifierListeners) {
+      cleanupPromptDropModifierListeners = installPromptDropModifierListeners();
+    }
+
+    return () => {
+      promptDropModifierSubscriptionCount = Math.max(0, promptDropModifierSubscriptionCount - 1);
+      if (promptDropModifierSubscriptionCount > 0) return;
+      cleanupPromptDropModifierListeners?.();
+      cleanupPromptDropModifierListeners = null;
+    };
+  }, []);
+};
 
 const MEDIA_HINT_TRANSFER_TYPES = new Set([
   "files",

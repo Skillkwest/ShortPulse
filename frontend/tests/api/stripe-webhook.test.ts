@@ -251,7 +251,7 @@ describe("POST /api/billing/stripe/webhook", () => {
     expect(verifyStripeWebhookSignatureMock).not.toHaveBeenCalled();
   });
 
-  it("returns duplicate=true when event claim conflicts and safely reprocesses", async () => {
+  it("returns duplicate=true when event claim conflicts and skips side effects", async () => {
     verifyStripeWebhookSignatureMock.mockReturnValue(true);
     getSupabaseAdminMock.mockReturnValue(
       createSupabaseAdminForEventClaim({
@@ -282,7 +282,8 @@ describe("POST /api/billing/stripe/webhook", () => {
     await promise;
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ received: true, duplicate: true });
-    expect(insertCreditLedgerEntryMock).toHaveBeenCalledTimes(1);
+    expect(readVerifiedStripeCustomerForUserMock).not.toHaveBeenCalled();
+    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
   });
 
   it("returns 500 and skips side effects when event claim fails", async () => {

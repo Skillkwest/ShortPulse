@@ -8,6 +8,7 @@ import type { AgentMessage } from "../../../prefabs/agent";
 import {
   resolveAgentComposerTextDropInsertion,
   resolveDroppedPromptTextEditMode,
+  useAgentComposerPromptDropModifierTracking,
 } from "./promptStep/agentComposerDrop";
 import { PromptStepEnhancedSurface } from "./promptStep/PromptStepEnhancedSurface";
 import { PromptStepHeader } from "./promptStep/PromptStepHeader";
@@ -96,6 +97,8 @@ export function PromptStep({
   onPromptSelect,
   onPromptKeyDown,
 }: PromptStepProps) {
+  useAgentComposerPromptDropModifierTracking();
+
   void stepNumber;
   const [promptMode, setPromptMode] = React.useState<"enhanced" | "chat">(
     chatOnly ? "chat" : "enhanced"

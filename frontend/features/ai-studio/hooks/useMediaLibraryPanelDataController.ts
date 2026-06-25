@@ -24,6 +24,11 @@ import {
   type MediaLibraryPanelItemType,
 } from "../logic/mediaLibraryPanelDataControllerLogic";
 import {
+  AUDIO_COMPANION_ART_STATUS_REFRESH_MAX_ATTEMPTS,
+  buildAudioCompanionArtRefreshKey,
+  shouldRefreshAudioCompanionArt,
+} from "../logic/audioCompanionArtRefreshPolicy";
+import {
   fetchMediaPromptListPage,
   MEDIA_LIBRARY_ROOT_FOLDER_ID,
   type PromptListCursor,
@@ -72,14 +77,28 @@ const AUDIO_COMPANION_ART_REFRESH_INTERVAL_MS = 3_500;
 const EXTERNAL_LIBRARY_REFRESH_DEBOUNCE_MS = 400;
 const EXTERNAL_LIBRARY_REFRESH_MAX_WAIT_MS = 2_000;
 
-const isRefreshableAudioCompanionArtRow = (row: MediaFileRow): boolean => {
+const isRefreshableAudioCompanionArtRow = (
+  row: MediaFileRow,
+  statusRefreshAttempts = 0
+): boolean => {
   if (!row.file_type.toLowerCase().startsWith("audio")) return false;
-  if (row.companion_art_status === "pending" || row.companion_art_status === "processing") {
-    return true;
-  }
-  if (row.companion_art_status === "failed") return false;
-  return Boolean(row.companion_art_storage_path?.trim() && !row.companion_art_url?.trim());
+  return shouldRefreshAudioCompanionArt({
+    candidate: {
+      companionArtStatus: row.companion_art_status,
+      companionArtStoragePath: row.companion_art_storage_path,
+      companionArtUrl: row.companion_art_url,
+    },
+    statusRefreshAttempts,
+  });
 };
+
+const buildPanelAudioCompanionArtRefreshKey = (row: MediaFileRow): string =>
+  buildAudioCompanionArtRefreshKey({
+    id: row.id,
+    status: row.companion_art_status,
+    storagePath: row.companion_art_storage_path,
+    url: row.companion_art_url,
+  });
 
 const isPanelScopeCacheFresh = ({
   cache,
@@ -133,6 +152,7 @@ export const useMediaLibraryPanelDataController = ({
     prompts: false,
   });
   const audioCompanionArtRefreshInFlightRef = React.useRef(false);
+  const audioCompanionArtRefreshAttemptByKeyRef = React.useRef<Map<string, number>>(new Map());
   const mediaRowsRef = React.useRef<MediaFileRow[]>([]);
   const promptRowsRef = React.useRef<PromptRow[]>([]);
   const mediaCursorRef = React.useRef<MediaListCursor | null>(null);
@@ -150,6 +170,8 @@ export const useMediaLibraryPanelDataController = ({
     refreshInFlight: false,
     dirty: false,
   });
+  const [audioCompanionArtRefreshAttemptVersion, setAudioCompanionArtRefreshAttemptVersion] =
+    React.useState(0);
 
   const requestFolderId = React.useMemo(
     () => normalizeMediaLibraryPanelRequestFolderId(activeFolderId),
@@ -167,12 +189,20 @@ export const useMediaLibraryPanelDataController = ({
     !shouldShowPrompts || promptScopeCache.resolvedScopeKey === activeRowsScopeKey;
   const error = mediaScopeCache.error ?? promptScopeCache.error ?? runtimeError;
   const refreshableAudioCompanionArtRefreshKey = React.useMemo(() => {
+    void audioCompanionArtRefreshAttemptVersion;
     if (!shouldShowMedia) return "";
     return mediaRows
-      .filter(isRefreshableAudioCompanionArtRow)
-      .map((row) => `${row.id}:${row.companion_art_status ?? ""}`)
+      .filter((row) =>
+        isRefreshableAudioCompanionArtRow(
+          row,
+          audioCompanionArtRefreshAttemptByKeyRef.current.get(
+            buildPanelAudioCompanionArtRefreshKey(row)
+          ) ?? 0
+        )
+      )
+      .map(buildPanelAudioCompanionArtRefreshKey)
       .join("|");
-  }, [mediaRows, shouldShowMedia]);
+  }, [audioCompanionArtRefreshAttemptVersion, mediaRows, shouldShowMedia]);
 
   React.useEffect(() => {
     mediaRowsRef.current = mediaRows;
@@ -657,9 +687,15 @@ export const useMediaLibraryPanelDataController = ({
 
   const refreshAudioCompanionArtRows = React.useCallback(async () => {
     const scopeKey = activeRowsScopeKey;
-    const refreshableIds = new Set(
-      mediaRowsRef.current.filter(isRefreshableAudioCompanionArtRow).map((row) => row.id)
+    const refreshableRows = mediaRowsRef.current.filter((row) =>
+      isRefreshableAudioCompanionArtRow(
+        row,
+        audioCompanionArtRefreshAttemptByKeyRef.current.get(
+          buildPanelAudioCompanionArtRefreshKey(row)
+        ) ?? 0
+      )
     );
+    const refreshableIds = new Set(refreshableRows.map((row) => row.id));
     if (!refreshableIds.size) return;
 
     try {
@@ -676,6 +712,32 @@ export const useMediaLibraryPanelDataController = ({
       });
       if (!result || mediaScopeCacheRef.current.resolvedScopeKey !== scopeKey) return;
       const refreshedRows = result.rows.filter((row) => refreshableIds.has(row.id));
+      const refreshedById = new Map(refreshedRows.map((row) => [row.id, row]));
+      let exhaustedStatusOnlyRefresh = false;
+      refreshableRows.forEach((row) => {
+        const refreshKey = buildPanelAudioCompanionArtRefreshKey(row);
+        const requiresSignedUrl = Boolean(
+          row.companion_art_storage_path?.trim() && !row.companion_art_url?.trim()
+        );
+        const refreshedRow = refreshedById.get(row.id);
+        const refreshedStillNeedsStatusPolling =
+          refreshedRow &&
+          isRefreshableAudioCompanionArtRow(refreshedRow) &&
+          !refreshedRow.companion_art_storage_path?.trim();
+        if (requiresSignedUrl || (refreshedRow && !refreshedStillNeedsStatusPolling)) {
+          audioCompanionArtRefreshAttemptByKeyRef.current.delete(refreshKey);
+          return;
+        }
+        const nextAttempt =
+          (audioCompanionArtRefreshAttemptByKeyRef.current.get(refreshKey) ?? 0) + 1;
+        audioCompanionArtRefreshAttemptByKeyRef.current.set(refreshKey, nextAttempt);
+        if (nextAttempt >= AUDIO_COMPANION_ART_STATUS_REFRESH_MAX_ATTEMPTS) {
+          exhaustedStatusOnlyRefresh = true;
+        }
+      });
+      if (exhaustedStatusOnlyRefresh) {
+        setAudioCompanionArtRefreshAttemptVersion((version) => version + 1);
+      }
       if (!refreshedRows.length) return;
       appendMediaRows(refreshedRows);
       setSignedUrls(result.signedById);

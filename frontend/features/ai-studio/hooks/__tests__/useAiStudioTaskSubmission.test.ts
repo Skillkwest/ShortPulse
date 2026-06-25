@@ -16,6 +16,7 @@ import {
 import { REFERENCE_GRID_MAX_VISIBLE_ITEMS } from "../../reference-grid/logic/referenceGridLimits";
 import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../../../../lib/model-runtime/falModelIds";
 import { createReadyLipSyncAudioState } from "../../logic/lipSyncAudioState";
+import { addBreadcrumb } from "../../../../lib/clientBreadcrumbs";
 import {
   handleDefaultModelSubmission,
   handleImageModelSubmission,
@@ -27,6 +28,10 @@ const reportAppErrorMock = vi.fn();
 
 vi.mock("../../../../lib/appErrorReporter", () => ({
   reportAppError: (...args: unknown[]) => reportAppErrorMock(...args),
+}));
+
+vi.mock("../../../../lib/clientBreadcrumbs", () => ({
+  addBreadcrumb: vi.fn(),
 }));
 
 vi.mock("../taskSubmissionHandlers", () => ({
@@ -341,6 +346,93 @@ describe("useAiStudioTaskSubmission", () => {
 
     expect(outputs[0]?.taskId).toBe("image-req-2");
     expect(outputs[0]?.generationId).toBe("gen-from-record-1");
+  });
+
+  it("records a breadcrumb when background generation record sync fails", async () => {
+    let outputs: StudioOutput[] = [];
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
+    });
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const startPollingTask = vi.fn();
+    const ensureGenerationRecord = vi.fn(async () => {
+      throw new Error("record insert failed");
+    });
+
+    vi.mocked(resolveSubmissionHandlerRoute).mockReturnValue("image");
+    vi.mocked(handleImageModelSubmission).mockImplementationOnce(
+      async ({ startPollingWithGeneration }) => {
+        startPollingWithGeneration("image-req-record-fail", "fal-seedream");
+        return true;
+      }
+    );
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "9:16",
+        mode: "image",
+        model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+        prompt: "",
+        selectedTool: "create",
+        imageResolution: "model_default",
+        videoDurationSeconds: 6,
+        videoResolution: "1080p",
+        videoGenerateAudio: false,
+        videoReferenceMode: "standard",
+        videoReferenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        beginPanelGeneration: vi.fn(),
+        endPanelGeneration: vi.fn(),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 6,
+        notifyGenerationFailure,
+        updateOutputById,
+        startPollingTask,
+        ensureGenerationRecord,
+      })
+    );
+
+    await act(async () => {
+      await result.current("A polished studio portrait", [], {
+        modeOverride: "image",
+        selectedToolOverride: "create",
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(outputs[0]?.taskId).toBe("image-req-record-fail");
+    expect(vi.mocked(addBreadcrumb)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "ui",
+        level: "warn",
+        message: "generation_record_sync_failed",
+        data: expect.objectContaining({
+          output_id: outputs[0]?.id,
+          provider: "fal-seedream",
+          task_id: "image-req-record-fail",
+          completion_mode: "queued",
+          error: "record insert failed",
+        }),
+      })
+    );
   });
 
   it("submits promptless motion control when both motion references are present", async () => {

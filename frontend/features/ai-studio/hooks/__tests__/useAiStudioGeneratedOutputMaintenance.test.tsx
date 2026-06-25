@@ -11,6 +11,7 @@ import {
   listVisibleGeneratedOutputs,
   resolveVisibleGenerationReconcile,
 } from "../../logic/generatedMediaAuthority";
+import { AUDIO_COMPANION_ART_STATUS_REFRESH_MAX_ATTEMPTS } from "../../logic/audioCompanionArtRefreshPolicy";
 import { resolveVideoPosterRepairsForOutputs } from "../../logic/videoPosterRepair";
 import { useAiStudioGeneratedOutputMaintenance } from "../useAiStudioGeneratedOutputMaintenance";
 
@@ -108,6 +109,7 @@ describe("useAiStudioGeneratedOutputMaintenance", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -649,6 +651,63 @@ describe("useAiStudioGeneratedOutputMaintenance", () => {
         "user-1/generations/audio/audio-generation-2/companion-art/cover.webp"
       );
     });
+  });
+
+  it("stops status-only generated audio companion-art reconciliation after the retry budget", async () => {
+    vi.useFakeTimers();
+    resolveVisibleGenerationReconcileMock.mockResolvedValue(null);
+
+    const { unmount } = renderMaintenanceHook({
+      projectId: null,
+      initialOutputs: [
+        {
+          ...hydratedOutput,
+          id: "audio-generation-stale",
+          mode: "audio",
+          generationId: "audio-generation-stale",
+          taskId: "audio-task-stale",
+          taskState: "success",
+          previewUrl: "https://cdn.example.com/audio-stale.mp3",
+          resultUrls: ["https://cdn.example.com/audio-stale.mp3"],
+          companionArtStatus: "pending",
+          companionArtUrl: null,
+          companionArtStoragePath: null,
+        },
+      ],
+    });
+
+    try {
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(resolveVisibleGenerationReconcileMock).toHaveBeenCalledTimes(1);
+
+      for (
+        let attempt = 1;
+        attempt < AUDIO_COMPANION_ART_STATUS_REFRESH_MAX_ATTEMPTS;
+        attempt += 1
+      ) {
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(5_000);
+        });
+      }
+
+      expect(resolveVisibleGenerationReconcileMock).toHaveBeenCalledTimes(
+        AUDIO_COMPANION_ART_STATUS_REFRESH_MAX_ATTEMPTS
+      );
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5_000);
+      });
+
+      expect(resolveVisibleGenerationReconcileMock).toHaveBeenCalledTimes(
+        AUDIO_COMPANION_ART_STATUS_REFRESH_MAX_ATTEMPTS
+      );
+    } finally {
+      unmount();
+    }
   });
 
   it("pauses generated-video poster repair while the document is hidden", async () => {

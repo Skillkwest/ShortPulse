@@ -236,6 +236,27 @@ describe("referenceGridCardVisualState", () => {
     expect(state.loadingVisual).toBe("spinner");
   });
 
+  it("does not use spinner visual for local video references with saved media authority", () => {
+    const state = classifyReferenceGridCardVisualState({
+      item: createOutput({
+        mode: "video",
+        taskState: "success",
+        previewUrl: "blob:local-video-1",
+        previewStoragePath: null,
+        fullStoragePath: null,
+        savedMediaIds: ["media-local-video-1"],
+      }),
+      cardPreviewUrl: "blob:local-video-1",
+      isLoaded: true,
+      decodeBudgetEnabled: true,
+      isImagePreview: false,
+      isPriorityHydration: false,
+    });
+
+    expect(state.isLocalVideoPersistenceLoading).toBe(false);
+    expect(state.loadingVisual).toBe("none");
+  });
+
   it("does not use spinner visual for failed local video reference persistence", () => {
     const state = classifyReferenceGridCardVisualState({
       item: createOutput({

@@ -1,7 +1,9 @@
+import type React from "react";
 import { act, createEvent, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { clearBreadcrumbs, getBreadcrumbsSnapshot } from "../../../../../lib/clientBreadcrumbs";
 import { AI_STUDIO_CANVAS_ITEM_HARD_CAP } from "../../../logic/sessionSnapshotCanvas";
+import { preparePromptReferenceDrag } from "../../../utils/dragDrop";
 import type {
   PrepareCanvasMediaLibraryDrop,
   ResolveCanvasDroppedMediaReference,
@@ -39,6 +41,39 @@ const dispatchDropAtPoint = ({
     value: clientY,
   });
   fireEvent(viewport, event);
+};
+
+const createSessionBackedLibraryPromptTransfer = (promptText: string): DataTransfer => {
+  const data = new Map<string, string>();
+  const transfer = {
+    get types() {
+      return Array.from(data.keys());
+    },
+    files: { length: 0, item: () => null } as unknown as FileList,
+    getData: (type: string) => data.get(type) ?? "",
+    setData: (type: string, value: string) => {
+      data.set(type, value);
+    },
+    setDragImage: vi.fn(),
+    effectAllowed: "all",
+  } as unknown as DataTransfer;
+  transfer.setData("text/shortpulse-media-library-marker", "shortpulse-media-library-v1");
+  transfer.setData("text/shortpulse-media-library-kind", "libraryPrompt");
+  transfer.setData("text/shortpulse-media-library-id", "prompt-lib-session-1");
+  transfer.setData("text/shortpulse-media-library-prompt", promptText);
+  preparePromptReferenceDrag(
+    {
+      currentTarget: document.createElement("button"),
+      dataTransfer: transfer,
+    } as unknown as React.DragEvent<HTMLElement>,
+    {
+      referenceId: "prompt-lib-session-1",
+      outputId: "prompt-lib-session-1",
+      promptText,
+      sourceSurface: null,
+    }
+  );
+  return transfer;
 };
 
 describe("Canvas drop behavior", () => {
@@ -473,12 +508,7 @@ describe("Canvas drop behavior", () => {
     mockViewportRect(viewport);
 
     fireEvent.drop(viewport, {
-      dataTransfer: createTransfer({
-        "text/shortpulse-media-library-marker": "shortpulse-media-library-v1",
-        "text/shortpulse-media-library-kind": "libraryPrompt",
-        "text/shortpulse-media-library-id": "prompt-lib-1",
-        "text/shortpulse-media-library-prompt": "Prompt from media library",
-      }),
+      dataTransfer: createSessionBackedLibraryPromptTransfer("Prompt from media library"),
       clientX: 300,
       clientY: 200,
     });

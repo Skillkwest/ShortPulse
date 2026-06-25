@@ -15,6 +15,8 @@ const INTERNAL_REFERENCE_TRANSFER_TYPES = [
   "text/reference-drag-token",
   "application/x-shortpulse-composer-image-drop-token",
   "text/reference-composer-image-drop-token",
+  "application/x-shortpulse-prompt-reference-drag-token",
+  "text/shortpulse-prompt-reference-drag-token",
   "application/x-shortpulse-composer-image-drop",
   "text/reference-composer-image-payload",
   "text/reference-origin",

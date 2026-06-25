@@ -8,6 +8,7 @@ import {
   resolveAgentComposerPanelDropKind,
   resolveAgentComposerTextDropInsertion,
   resolveDroppedPromptTextEditMode,
+  useAgentComposerPromptDropModifierTracking,
 } from "../promptStep/agentComposerDrop";
 import type { CanvasTearOutComposerTargetRegistry } from "../../hooks/useAiStudioCanvasTearOutTargets";
 import type { AgentComposerDirectDropPayload } from "../../logic/agentComposerDirectDropPayload";
@@ -70,6 +71,8 @@ const PulseCreatePanelViewContent = ({
 }: PulseCreatePanelViewProps & {
   pulsePreferenceRuntime: CreatePulsePreferenceRuntimeValue;
 }) => {
+  useAgentComposerPromptDropModifierTracking();
+
   const {
     presetPanelIds: selectedPulsePresetIds,
     setPresetPanelIds: onSelectedPulsePresetIdsChange,

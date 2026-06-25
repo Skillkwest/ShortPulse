@@ -1,5 +1,6 @@
 import type React from "react";
-import { describe, expect, it, vi } from "vitest";
+import { renderHook } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { prepareReferenceDrag } from "../../../utils/dragDrop";
 import {
   resolveAgentComposerDrop,
@@ -27,6 +28,46 @@ const createMutableTransfer = () => {
 };
 
 describe("agentComposerDrop", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("does not install global modifier listeners when the helper module is imported", async () => {
+    const addWindowListenerSpy = vi.spyOn(window, "addEventListener");
+    const addDocumentListenerSpy = vi.spyOn(document, "addEventListener");
+
+    vi.resetModules();
+    await import("../agentComposerDrop");
+
+    expect(addWindowListenerSpy).not.toHaveBeenCalled();
+    expect(addDocumentListenerSpy).not.toHaveBeenCalled();
+  });
+
+  it("installs global modifier listeners only while the tracker hook is mounted", async () => {
+    const addWindowListenerSpy = vi.spyOn(window, "addEventListener");
+    const removeWindowListenerSpy = vi.spyOn(window, "removeEventListener");
+    const addDocumentListenerSpy = vi.spyOn(document, "addEventListener");
+    const removeDocumentListenerSpy = vi.spyOn(document, "removeEventListener");
+
+    vi.resetModules();
+    const { useAgentComposerPromptDropModifierTracking } = await import("../agentComposerDrop");
+
+    const { unmount } = renderHook(() => useAgentComposerPromptDropModifierTracking());
+
+    expect(addWindowListenerSpy).toHaveBeenCalledWith("keydown", expect.any(Function), true);
+    expect(addWindowListenerSpy).toHaveBeenCalledWith("dragover", expect.any(Function), true);
+    expect(addDocumentListenerSpy).toHaveBeenCalledWith("visibilitychange", expect.any(Function));
+
+    unmount();
+
+    expect(removeWindowListenerSpy).toHaveBeenCalledWith("keydown", expect.any(Function), true);
+    expect(removeWindowListenerSpy).toHaveBeenCalledWith("dragover", expect.any(Function), true);
+    expect(removeDocumentListenerSpy).toHaveBeenCalledWith(
+      "visibilitychange",
+      expect.any(Function)
+    );
+  });
+
   it("classifies canvas-exported prompt drags as text drops", () => {
     const transfer = createMutableTransfer();
     transfer.setData("text/prompt", "Dragged canvas prompt");

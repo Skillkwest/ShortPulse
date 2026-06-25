@@ -2,9 +2,11 @@
  * Clipboard paste behavior tests for ReferenceGrid.
  * Verifies pasted media files and plain text are converted into reference-grid actions.
  */
+import type React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ReferenceGrid, type ReferenceGridProps } from "../ReferenceGrid";
+import { preparePromptReferenceDrag } from "../../utils/dragDrop";
 
 class MockResizeObserver {
   observe() {
@@ -47,6 +49,22 @@ const makeTransfer = (data: Record<string, string>, files: File[] = []): DataTra
     types: [...Object.keys(data), ...(files.length > 0 ? ["Files"] : [])],
     getData: vi.fn((type: string) => data[type] ?? ""),
   }) as unknown as DataTransfer;
+
+const makeMutableTransfer = (): DataTransfer => {
+  const data = new Map<string, string>();
+  return {
+    files: makeFileList([]),
+    get types() {
+      return Array.from(data.keys());
+    },
+    getData: vi.fn((type: string) => data.get(type) ?? ""),
+    setData: vi.fn((type: string, value: string) => {
+      data.set(type, value);
+    }),
+    effectAllowed: "all",
+    setDragImage: vi.fn(),
+  } as unknown as DataTransfer;
+};
 
 const baseProps: ReferenceGridProps = {
   outputs: [],
@@ -334,6 +352,52 @@ describe("ReferenceGrid paste handling", () => {
       expect.objectContaining({
         id: "prompt-drop-1",
         promptText: "Library prompt text",
+        originFolderId: null,
+        title: "Library prompt title",
+      })
+    );
+    expect(onDropFiles).not.toHaveBeenCalled();
+  });
+
+  it("routes session-backed media-library prompt drops through onAddLibraryPromptReference", () => {
+    const onDropFiles = vi.fn();
+    const onAddLibraryPromptReference = vi.fn();
+    const dataTransfer = makeMutableTransfer();
+    const promptText = `Library prompt opening. ${"Detailed direction. ".repeat(80)}Library ending.`;
+    dataTransfer.setData("text/shortpulse-media-library-marker", "shortpulse-media-library-v1");
+    dataTransfer.setData("text/shortpulse-media-library-kind", "libraryPrompt");
+    dataTransfer.setData("text/shortpulse-media-library-id", "prompt-drop-session-1");
+    dataTransfer.setData("text/shortpulse-media-library-title", "Library prompt title");
+    dataTransfer.setData("text/shortpulse-media-library-prompt", promptText);
+    preparePromptReferenceDrag(
+      {
+        currentTarget: document.createElement("button"),
+        dataTransfer,
+      } as unknown as React.DragEvent<HTMLElement>,
+      {
+        referenceId: "prompt-drop-session-1",
+        outputId: "prompt-drop-session-1",
+        promptText,
+        sourceSurface: null,
+      }
+    );
+
+    const { container } = render(
+      <ReferenceGrid
+        {...baseProps}
+        onDropFiles={onDropFiles}
+        onAddLibraryPromptReference={onAddLibraryPromptReference}
+      />
+    );
+    const panel = container.querySelector(".reference-canvas-panel");
+    expect(panel).toBeTruthy();
+
+    fireEvent.drop(panel as HTMLElement, { dataTransfer });
+
+    expect(onAddLibraryPromptReference).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "prompt-drop-session-1",
+        promptText,
         originFolderId: null,
         title: "Library prompt title",
       })

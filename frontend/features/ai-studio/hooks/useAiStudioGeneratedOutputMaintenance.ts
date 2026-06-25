@@ -10,6 +10,11 @@ import {
   resolveVisibleGenerationReconcile,
   type VisibleGeneratedOutputRuntimeIdentity,
 } from "../logic/generatedMediaAuthority";
+import {
+  AUDIO_COMPANION_ART_STATUS_REFRESH_MAX_ATTEMPTS,
+  buildAudioCompanionArtRefreshKey,
+  shouldRefreshAudioCompanionArt,
+} from "../logic/audioCompanionArtRefreshPolicy";
 import { mergeCanonicalGeneratedOutputs } from "../logic/generatedOutputHydration";
 import { resolveVideoPosterRepairsForOutputs } from "../logic/videoPosterRepair";
 
@@ -94,14 +99,9 @@ const isCanonicalGeneratedOutputSyncCandidate = (output: StudioOutput): boolean 
   return hasGenerationIdentity || Boolean(output.sourceRef);
 };
 
-const isRefreshableAudioCompanionArtCandidate = (output: StudioOutput): boolean => {
+const isRecentGeneratedAudioCompanionArtCandidate = (output: StudioOutput): boolean => {
   if (output.mode !== "audio") return false;
   if (output.mediaSource !== "generated" && !output.generationId && !output.taskId) return false;
-  if (output.companionArtStatus === "pending" || output.companionArtStatus === "processing") {
-    return true;
-  }
-  if (output.companionArtStatus === "failed") return false;
-  if (output.companionArtStoragePath?.trim() && !output.companionArtUrl?.trim()) return true;
 
   const createdAtMs = output.createdAt ? Date.parse(output.createdAt) : Number.NaN;
   const isRecentAudioOutput =
@@ -115,6 +115,40 @@ const isRefreshableAudioCompanionArtCandidate = (output: StudioOutput): boolean 
     !output.companionArtStoragePath?.trim()
   );
 };
+
+const shouldRefreshGeneratedAudioCompanionArt = (
+  output: StudioOutput,
+  statusRefreshAttempts = 0
+): boolean => {
+  if (output.mode !== "audio") return false;
+  if (output.mediaSource !== "generated" && !output.generationId && !output.taskId) return false;
+
+  if (
+    shouldRefreshAudioCompanionArt({
+      candidate: {
+        companionArtStatus: output.companionArtStatus,
+        companionArtStoragePath: output.companionArtStoragePath,
+        companionArtUrl: output.companionArtUrl,
+      },
+      statusRefreshAttempts,
+    })
+  ) {
+    return true;
+  }
+
+  return (
+    isRecentGeneratedAudioCompanionArtCandidate(output) &&
+    statusRefreshAttempts < AUDIO_COMPANION_ART_STATUS_REFRESH_MAX_ATTEMPTS
+  );
+};
+
+const buildGeneratedAudioCompanionArtRefreshKey = (output: StudioOutput): string =>
+  buildAudioCompanionArtRefreshKey({
+    id: output.id,
+    status: output.companionArtStatus,
+    storagePath: output.companionArtStoragePath,
+    url: output.companionArtUrl,
+  });
 
 const isGeneratedVideoPosterRepairCandidate = (output: StudioOutput): boolean => {
   if (output.mode !== "video") return false;
@@ -265,6 +299,9 @@ export const useAiStudioGeneratedOutputMaintenance = ({
     !hasPendingWorkflowRestore;
   const shouldRunCanonicalGeneratedOutputSync =
     !hasPendingWorkflowRestore && (!projectRouteRequested || Boolean(projectId));
+  const audioCompanionArtRefreshAttemptByKeyRef = useRef<Map<string, number>>(new Map());
+  const [audioCompanionArtRefreshAttemptVersion, setAudioCompanionArtRefreshAttemptVersion] =
+    useState(0);
   const canonicalGeneratedOutputSyncRuntimeIdentities = useMemo(
     () =>
       shouldRunCanonicalGeneratedOutputSync
@@ -272,15 +309,21 @@ export const useAiStudioGeneratedOutputMaintenance = ({
         : [],
     [outputs, shouldRunCanonicalGeneratedOutputSync]
   );
-  const refreshableAudioCompanionArtCandidates = useMemo(
-    () =>
-      hasPendingWorkflowRestore
-        ? []
-        : outputs
-            .filter(isRefreshableAudioCompanionArtCandidate)
-            .slice(0, AUDIO_COMPANION_ART_SYNC_BATCH_SIZE),
-    [hasPendingWorkflowRestore, outputs]
-  );
+  const refreshableAudioCompanionArtCandidates = useMemo(() => {
+    void audioCompanionArtRefreshAttemptVersion;
+    return hasPendingWorkflowRestore
+      ? []
+      : outputs
+          .filter((output) =>
+            shouldRefreshGeneratedAudioCompanionArt(
+              output,
+              audioCompanionArtRefreshAttemptByKeyRef.current.get(
+                buildGeneratedAudioCompanionArtRefreshKey(output)
+              ) ?? 0
+            )
+          )
+          .slice(0, AUDIO_COMPANION_ART_SYNC_BATCH_SIZE);
+  }, [audioCompanionArtRefreshAttemptVersion, hasPendingWorkflowRestore, outputs]);
   const canonicalGeneratedOutputSyncSignature = useMemo(
     () => buildCanonicalGeneratedOutputSyncSignature(canonicalGeneratedOutputSyncRuntimeIdentities),
     [canonicalGeneratedOutputSyncRuntimeIdentities]
@@ -314,6 +357,7 @@ export const useAiStudioGeneratedOutputMaintenance = ({
     canonicalGeneratedOutputServerReconcileLastAttemptAtRef.current.clear();
     generatedVideoPosterRepairKeySetRef.current.clear();
     storageVideoPosterRepairKeySetRef.current.clear();
+    audioCompanionArtRefreshAttemptByKeyRef.current.clear();
   }, [baseRuntimeAuthorityKey]);
 
   const canonicalGeneratedHydrationRunKey = useMemo(() => {
@@ -502,26 +546,48 @@ export const useAiStudioGeneratedOutputMaintenance = ({
 
       audioCompanionArtSyncInFlightRef.current = true;
       try {
+        const activeRefreshKeys = new Set(
+          refreshableAudioCompanionArtCandidates.map(buildGeneratedAudioCompanionArtRefreshKey)
+        );
         const reconciles = await Promise.all(
-          refreshableAudioCompanionArtCandidates.map(async (output) => ({
-            outputId: output.id,
-            reconcile: await resolveVisibleGenerationReconcile({
-              generationId: output.generationId ?? null,
-              requestId: output.taskId ?? null,
-              ...(output.sourceRef ? { sourceRef: output.sourceRef } : {}),
-              projectId: projectId ?? null,
-            }),
-          }))
+          refreshableAudioCompanionArtCandidates
+            .filter((output) =>
+              shouldRefreshGeneratedAudioCompanionArt(
+                output,
+                audioCompanionArtRefreshAttemptByKeyRef.current.get(
+                  buildGeneratedAudioCompanionArtRefreshKey(output)
+                ) ?? 0
+              )
+            )
+            .map(async (output) => ({
+              output,
+              outputId: output.id,
+              refreshKey: buildGeneratedAudioCompanionArtRefreshKey(output),
+              reconcile: await resolveVisibleGenerationReconcile({
+                generationId: output.generationId ?? null,
+                requestId: output.taskId ?? null,
+                ...(output.sourceRef ? { sourceRef: output.sourceRef } : {}),
+                projectId: projectId ?? null,
+              }),
+            }))
         );
         if (cancelled) return;
+
+        if (reconciles.length === 0) return;
+
+        for (const key of Array.from(audioCompanionArtRefreshAttemptByKeyRef.current.keys())) {
+          if (!activeRefreshKeys.has(key)) {
+            audioCompanionArtRefreshAttemptByKeyRef.current.delete(key);
+          }
+        }
 
         const reconcileByOutputId = new Map(
           reconciles
             .filter(({ reconcile }) => Boolean(reconcile))
             .map(({ outputId, reconcile }) => [outputId, reconcile])
         );
-        if (reconcileByOutputId.size === 0) return;
 
+        let exhaustedStatusOnlyRefresh = false;
         setOutputsState((currentOutputs) => {
           let changed = false;
           const nextOutputs = currentOutputs.map((output) => {
@@ -540,6 +606,9 @@ export const useAiStudioGeneratedOutputMaintenance = ({
               return output;
             }
             changed = true;
+            audioCompanionArtRefreshAttemptByKeyRef.current.delete(
+              buildGeneratedAudioCompanionArtRefreshKey(output)
+            );
             return {
               ...output,
               companionArtUrl: nextCompanionArtUrl,
@@ -547,8 +616,26 @@ export const useAiStudioGeneratedOutputMaintenance = ({
               companionArtStatus: nextCompanionArtStatus,
             };
           });
-          return changed ? nextOutputs : currentOutputs;
+          if (!changed) {
+            reconciles.forEach(({ output, refreshKey }) => {
+              const requiresSignedUrl = Boolean(
+                output.companionArtStoragePath?.trim() && !output.companionArtUrl?.trim()
+              );
+              if (requiresSignedUrl) return;
+              const nextAttempt =
+                (audioCompanionArtRefreshAttemptByKeyRef.current.get(refreshKey) ?? 0) + 1;
+              audioCompanionArtRefreshAttemptByKeyRef.current.set(refreshKey, nextAttempt);
+              if (nextAttempt >= AUDIO_COMPANION_ART_STATUS_REFRESH_MAX_ATTEMPTS) {
+                exhaustedStatusOnlyRefresh = true;
+              }
+            });
+            return currentOutputs;
+          }
+          return nextOutputs;
         });
+        if (exhaustedStatusOnlyRefresh) {
+          setAudioCompanionArtRefreshAttemptVersion((version) => version + 1);
+        }
       } finally {
         audioCompanionArtSyncInFlightRef.current = false;
       }

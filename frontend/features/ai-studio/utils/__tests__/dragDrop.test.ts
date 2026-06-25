@@ -8,6 +8,7 @@ import {
   COMPOSER_IMAGE_DROP_SESSION_TEXT_TYPE,
   COMPOSER_IMAGE_DROP_SESSION_TYPE,
   clearInternalReferenceDragSession,
+  clearPromptReferenceDragSession,
   INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE,
   INTERNAL_REFERENCE_DRAG_SESSION_TYPE,
   registerComposerImageDropSession,
@@ -29,6 +30,8 @@ import {
   looksLikeImageUrl,
   preparePromptReferenceDrag,
   prepareReferenceDrag,
+  PROMPT_REFERENCE_DRAG_SESSION_TEXT_TYPE,
+  PROMPT_REFERENCE_DRAG_SESSION_TYPE,
   resolveReferenceTransferUrl,
 } from "../dragDrop";
 import {
@@ -384,7 +387,7 @@ describe("dragDrop payload extraction", () => {
     clearInternalReferenceDragSession(token);
   });
 
-  it("writes session authority and browser text together for first-party prompt drags", () => {
+  it("writes prompt-session authority and browser text together for first-party prompt drags", () => {
     const { event, transferData } = makeDragEvent();
     const fullPrompt = `Helper prompt opening. ${"Detailed reusable prompt text. ".repeat(80)}Helper ending.`;
     const token = preparePromptReferenceDrag(event, {
@@ -395,14 +398,19 @@ describe("dragDrop payload extraction", () => {
     });
 
     expect(token).toMatch(/^ref-drag-/);
-    expect(transferData[INTERNAL_REFERENCE_DRAG_SESSION_TYPE]).toBe(token);
-    expect(transferData[INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE]).toBe(token);
-    expect(transferData["text/reference-media-kind"]).toBe("text");
+    expect(transferData[PROMPT_REFERENCE_DRAG_SESSION_TYPE]).toBe(token);
+    expect(transferData[PROMPT_REFERENCE_DRAG_SESSION_TEXT_TYPE]).toBe(token);
+    expect(transferData[INTERNAL_REFERENCE_DRAG_SESSION_TYPE]).toBeUndefined();
+    expect(transferData[INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE]).toBeUndefined();
+    expect(transferData["text/reference-media-kind"]).toBeUndefined();
+    expect(hasInternalReferenceDragTypeHints(event.dataTransfer)).toBe(false);
     expect(transferData["text/prompt"]).toBe(fullPrompt);
     expect(transferData["text/plain"]).toBe(fullPrompt);
     transferData["text/prompt"] = fullPrompt.slice(0, 1000);
     transferData["text/plain"] = fullPrompt.slice(0, 1000);
     expect(extractPromptDropText(event.dataTransfer)).toBe(fullPrompt);
+
+    clearPromptReferenceDragSession(token);
   });
 
   it("does not use browser text fields for first-party text references without session authority", () => {
@@ -411,6 +419,19 @@ describe("dragDrop payload extraction", () => {
       "text/reference-id": "ref-text-no-session",
       "text/reference-output-id": "ref-text-no-session",
       "text/reference-media-kind": "text",
+      "text/prompt": "Short browser prompt",
+      "text/plain": "Short browser prompt",
+    });
+
+    expect(extractPromptDropText(transfer)).toBeNull();
+  });
+
+  it("does not use browser text fields for media-library prompt refs without session authority", () => {
+    const transfer = makeTransfer({
+      "text/shortpulse-media-library-marker": "shortpulse-media-library-v1",
+      "text/shortpulse-media-library-kind": "libraryPrompt",
+      "text/shortpulse-media-library-id": "prompt-no-session",
+      "text/shortpulse-media-library-title": "Prompt without session",
       "text/prompt": "Short browser prompt",
       "text/plain": "Short browser prompt",
     });

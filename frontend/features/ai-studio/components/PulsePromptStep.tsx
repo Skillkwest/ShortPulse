@@ -14,6 +14,7 @@ import type { PromptTokenHighlightSegment } from "../logic/promptTokenHighlight"
 import {
   resolveAgentComposerTextDropInsertion,
   resolveDroppedPromptTextEditMode,
+  useAgentComposerPromptDropModifierTracking,
 } from "./promptStep/agentComposerDrop";
 import { PromptStepEnhancedSurface } from "./promptStep/PromptStepEnhancedSurface";
 import { PromptStepHeader } from "./promptStep/PromptStepHeader";
@@ -166,6 +167,8 @@ export function PulsePromptStep({
   onPromptSelect,
   onPromptKeyDown,
 }: PulsePromptStepProps) {
+  useAgentComposerPromptDropModifierTracking();
+
   void stepNumber;
   const [promptMode, setPromptMode] = React.useState<"enhanced" | "chat">(
     chatOnly ? "chat" : "enhanced"

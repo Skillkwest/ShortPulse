@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { readMediaLibraryDragPayload } from "../../logic/mediaLibraryDragPayload";
 import type { MediaFileRow } from "../../logic/mediaLibraryModalModel";
 import { useMediaLibraryPanelItemInteractions } from "../useMediaLibraryPanelItemInteractions";
-import { extractPromptDropText } from "../../utils/dragDrop";
+import { extractPromptDropText, hasInternalReferenceDragTypeHints } from "../../utils/dragDrop";
 
 const createMutableTransfer = () => {
   const store = new Map<string, string>();
@@ -187,6 +187,7 @@ describe("useMediaLibraryPanelItemInteractions", () => {
         promptText: fullPrompt,
       },
     });
+    expect(hasInternalReferenceDragTypeHints(dataTransfer)).toBe(false);
     expect(extractPromptDropText(dataTransfer)).toBe(fullPrompt);
   });
 });

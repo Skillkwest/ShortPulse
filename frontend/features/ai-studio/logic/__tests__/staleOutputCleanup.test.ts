@@ -153,6 +153,72 @@ describe("evaluateStaleOutputCleanup", () => {
     expect(result.queueWaitTimeoutIds).toHaveLength(0);
   });
 
+  it("tracks provider-task previews without durable authority on the task-backed budget", () => {
+    const outputs = [
+      makeOutput({
+        id: "out-provider-preview-stale",
+        mediaSource: "generated",
+        submissionMode: "provider-task",
+        taskId: "provider-task-123",
+        generationId: "generation-123",
+        taskState: "running",
+        previewUrl: "https://provider.test/input-echo.png",
+        previewStoragePath: null,
+        fullStoragePath: null,
+        savedMediaIds: [],
+      }),
+    ];
+    const lifecycle: OutputLifecycleMap = {
+      "out-provider-preview-stale": {
+        pendingSinceMs: BASE_TIME_MS - config.taskBackedLoadingTimeoutMs,
+      },
+    };
+
+    const result = evaluateStaleOutputCleanup(outputs, lifecycle, BASE_TIME_MS, config);
+
+    expect(result.staleLoadingIds).toEqual(["out-provider-preview-stale"]);
+    expect(result.taskBackedTimeoutIds).toEqual(["out-provider-preview-stale"]);
+    expect(result.submitStartTimeoutIds).toHaveLength(0);
+  });
+
+  it("clears provider-task preview lifecycle once durable media authority exists", () => {
+    const loadingOutput = makeOutput({
+      id: "out-provider-preview-progress",
+      mediaSource: "generated",
+      submissionMode: "provider-task",
+      taskId: "provider-task-123",
+      generationId: "generation-123",
+      taskState: "running",
+      previewUrl: "https://provider.test/input-echo.png",
+      savedMediaIds: [],
+    });
+    const durableOutput = makeOutput({
+      id: "out-provider-preview-progress",
+      mediaSource: "generated",
+      submissionMode: "provider-task",
+      taskId: "provider-task-123",
+      generationId: "generation-123",
+      taskState: "running",
+      previewUrl: "https://signed.example/generated.png",
+      previewStoragePath: "user-1/generated/preview.png",
+      fullStoragePath: "user-1/generated/full.png",
+      savedMediaIds: ["media-1"],
+    });
+
+    const firstPass = evaluateStaleOutputCleanup([loadingOutput], {}, BASE_TIME_MS, config);
+    const secondPass = evaluateStaleOutputCleanup(
+      [durableOutput],
+      firstPass.nextLifecycle,
+      BASE_TIME_MS + 60_000,
+      config
+    );
+
+    expect(firstPass.nextLifecycle["out-provider-preview-progress"]?.pendingSinceMs).toBe(
+      BASE_TIME_MS
+    );
+    expect(secondPass.nextLifecycle["out-provider-preview-progress"]).toBeUndefined();
+  });
+
   it("does not submit-start timeout sourceRef-backed recovery outputs", () => {
     const outputs = [
       makeOutput({

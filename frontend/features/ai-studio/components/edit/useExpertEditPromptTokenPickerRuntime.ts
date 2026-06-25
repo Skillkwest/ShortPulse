@@ -4,6 +4,7 @@ import { extractPromptDropText } from "../../utils/dragDrop";
 import {
   resolveDroppedPromptTextEdit,
   resolveDroppedPromptTextEditMode,
+  useAgentComposerPromptDropModifierTracking,
 } from "../promptStep/agentComposerDrop";
 import {
   buildExpertEditPrimarySlotToken,
@@ -37,6 +38,8 @@ export function useExpertEditPromptTokenPickerRuntime({
   onPromptTextChange,
   showStatusToast,
 }: UseExpertEditPromptTokenPickerRuntimeArgs) {
+  useAgentComposerPromptDropModifierTracking();
+
   const promptTextareaRef = React.useRef<HTMLTextAreaElement | null>(null);
   const pendingPromptCaretRef = React.useRef<number | null>(null);
   const pendingPromptTokenPickerTriggerRef = React.useRef<{

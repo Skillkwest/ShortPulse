@@ -72,6 +72,39 @@ const syncResolvedGenerationId = ({
   });
 };
 
+const describeGenerationRecordSyncError = (error: unknown): string => {
+  if (error instanceof Error && error.message.trim()) return error.message;
+  if (typeof error === "string" && error.trim()) return error;
+  return "Generation record sync failed.";
+};
+
+const recordGenerationRecordSyncFailure = ({
+  outputId,
+  provider,
+  taskId,
+  completionMode,
+  error,
+}: {
+  outputId: string;
+  provider: Provider;
+  taskId: string;
+  completionMode: "queued" | "direct";
+  error: unknown;
+}) => {
+  addBreadcrumb({
+    type: "ui",
+    level: "warn",
+    message: "generation_record_sync_failed",
+    data: {
+      output_id: outputId,
+      provider,
+      task_id: taskId,
+      completion_mode: completionMode,
+      error: describeGenerationRecordSyncError(error),
+    },
+  });
+};
+
 export const createSubmissionLifecycleCallbacks = ({
   outputId,
   modelId,
@@ -156,13 +189,23 @@ export const createSubmissionLifecycleCallbacks = ({
         submission_trace_id: submissionTraceId,
         generation_trace_id: normalizedTaskId,
       },
-    }).then((resolvedGenerationId) => {
-      syncResolvedGenerationId({
-        outputId,
-        resolvedGenerationId,
-        updateOutputById,
+    })
+      .then((resolvedGenerationId) => {
+        syncResolvedGenerationId({
+          outputId,
+          resolvedGenerationId,
+          updateOutputById,
+        });
+      })
+      .catch((error) => {
+        recordGenerationRecordSyncFailure({
+          outputId,
+          provider,
+          taskId: normalizedTaskId,
+          completionMode: "queued",
+          error,
+        });
       });
-    });
     addBreadcrumb({
       type: "ui",
       level: "info",
@@ -227,13 +270,23 @@ export const createSubmissionLifecycleCallbacks = ({
         generation_trace_id: requestId,
         completion_mode: "direct",
       },
-    }).then((resolvedGenerationId) => {
-      syncResolvedGenerationId({
-        outputId,
-        resolvedGenerationId,
-        updateOutputById,
+    })
+      .then((resolvedGenerationId) => {
+        syncResolvedGenerationId({
+          outputId,
+          resolvedGenerationId,
+          updateOutputById,
+        });
+      })
+      .catch((error) => {
+        recordGenerationRecordSyncFailure({
+          outputId,
+          provider,
+          taskId: requestId,
+          completionMode: "direct",
+          error,
+        });
       });
-    });
   };
 
   return {

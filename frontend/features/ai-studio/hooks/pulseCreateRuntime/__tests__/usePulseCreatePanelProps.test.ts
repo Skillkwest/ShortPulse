@@ -30,9 +30,26 @@ describe("buildPulseCreatePanelProps", () => {
     handlePulsePromptChange: vi.fn(),
     createIsGenerating: false,
     handleClearAgentChat: vi.fn(),
+    activePulsePresetId: "pulse_custom_video",
+    activePulsePresetLabel: "Custom Video Pulse",
+    hasActivePulseSession: true,
+    pulseWorkflowSession: null,
+    handleActivePulsePresetIdChange: vi.fn(),
+    handlePulsePresetStart: vi.fn(async () => ({ status: "started" as const })),
     handlePulsePresetRestart: vi.fn(async () => undefined),
     pulsePreferenceRuntime: undefined,
   };
+
+  it("forwards active Pulse session identity into the rendered panel props", () => {
+    const props = buildPulseCreatePanelProps(baseParams);
+
+    expect(props.activePulsePresetId).toBe("pulse_custom_video");
+    expect(props.activePulsePresetLabel).toBe("Custom Video Pulse");
+    expect(props.activePulsePresetKind).toBe("custom_gpt");
+    expect(props.hasActivePulseSession).toBe(true);
+    expect(props.onActivePulsePresetIdChange).toBe(baseParams.handleActivePulsePresetIdChange);
+    expect(props.onPulsePresetStart).toBe(baseParams.handlePulsePresetStart);
+  });
 
   it("preserves image attachments for the Pulse composer input", () => {
     const props = buildPulseCreatePanelProps({

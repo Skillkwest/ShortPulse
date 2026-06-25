@@ -5,6 +5,7 @@
 import type {
   ComposerImageDropPayload,
   InternalReferenceDragPayload,
+  PromptReferenceDragPayload,
 } from "./internalReferenceDragPayload";
 
 export const INTERNAL_REFERENCE_DRAG_SESSION_TYPE = "application/x-shortpulse-reference-drag-token";
@@ -20,14 +21,28 @@ export const COMPOSER_IMAGE_DROP_SESSION_TYPES = [
   COMPOSER_IMAGE_DROP_SESSION_TYPE,
   COMPOSER_IMAGE_DROP_SESSION_TEXT_TYPE,
 ] as const;
+export const PROMPT_REFERENCE_DRAG_SESSION_TYPE =
+  "application/x-shortpulse-prompt-reference-drag-token";
+export const PROMPT_REFERENCE_DRAG_SESSION_TEXT_TYPE =
+  "text/shortpulse-prompt-reference-drag-token";
+export const PROMPT_REFERENCE_DRAG_SESSION_TYPES = [
+  PROMPT_REFERENCE_DRAG_SESSION_TYPE,
+  PROMPT_REFERENCE_DRAG_SESSION_TEXT_TYPE,
+] as const;
 
 type InternalReferenceDragSessionPayload = InternalReferenceDragPayload;
 type ComposerImageDropSessionPayload = ComposerImageDropPayload;
+type PromptReferenceDragSessionPayload = PromptReferenceDragPayload;
 
 const dragSessionRegistry = new Map<string, InternalReferenceDragSessionPayload>();
 const composerImageDropSessionRegistry = new Map<string, ComposerImageDropSessionPayload>();
+const promptReferenceDragSessionRegistry = new Map<string, PromptReferenceDragSessionPayload>();
 const dragSessionCleanupTimers = new Map<string, ReturnType<typeof globalThis.setTimeout>>();
 const composerImageDropSessionCleanupTimers = new Map<
+  string,
+  ReturnType<typeof globalThis.setTimeout>
+>();
+const promptReferenceDragSessionCleanupTimers = new Map<
   string,
   ReturnType<typeof globalThis.setTimeout>
 >();
@@ -151,6 +166,50 @@ export const scheduleClearComposerImageDropSession = (token: string | null | und
 };
 
 /**
+ * Registers a prompt-reference payload in memory and returns the token to place on DataTransfer.
+ */
+export const registerPromptReferenceDragSession = (
+  payload: PromptReferenceDragSessionPayload
+): string => {
+  const token = buildNextDragSessionToken();
+  clearScheduledTimer(promptReferenceDragSessionCleanupTimers, token);
+  promptReferenceDragSessionRegistry.set(token, payload);
+  return token;
+};
+
+/**
+ * Resolves a prompt-reference payload from a session token.
+ */
+export const resolvePromptReferenceDragSession = (
+  token: string | null | undefined
+): PromptReferenceDragSessionPayload | null => {
+  const normalizedToken = token?.trim() ?? "";
+  if (!normalizedToken) return null;
+  return promptReferenceDragSessionRegistry.get(normalizedToken) ?? null;
+};
+
+/**
+ * Clears a previously-registered prompt-reference session token.
+ */
+export const clearPromptReferenceDragSession = (token: string | null | undefined): void => {
+  const normalizedToken = token?.trim() ?? "";
+  if (!normalizedToken) return;
+  clearScheduledTimer(promptReferenceDragSessionCleanupTimers, normalizedToken);
+  promptReferenceDragSessionRegistry.delete(normalizedToken);
+};
+
+/**
+ * Schedules a previously-registered prompt-reference session token for deferred cleanup.
+ */
+export const scheduleClearPromptReferenceDragSession = (token: string | null | undefined): void => {
+  scheduleSessionClear(
+    token,
+    promptReferenceDragSessionRegistry,
+    promptReferenceDragSessionCleanupTimers
+  );
+};
+
+/**
  * Reads an internal drag session token from any supported transfer type.
  */
 export const getInternalReferenceDragSessionToken = (
@@ -172,6 +231,20 @@ export const getComposerImageDropSessionToken = (
 ): string | null => {
   if (!transfer) return null;
   for (const type of COMPOSER_IMAGE_DROP_SESSION_TYPES) {
+    const token = transfer.getData(type)?.trim();
+    if (token) return token;
+  }
+  return null;
+};
+
+/**
+ * Reads a prompt-reference session token from any supported transfer type.
+ */
+export const getPromptReferenceDragSessionToken = (
+  transfer: Pick<DataTransfer, "getData"> | null | undefined
+): string | null => {
+  if (!transfer) return null;
+  for (const type of PROMPT_REFERENCE_DRAG_SESSION_TYPES) {
     const token = transfer.getData(type)?.trim();
     if (token) return token;
   }

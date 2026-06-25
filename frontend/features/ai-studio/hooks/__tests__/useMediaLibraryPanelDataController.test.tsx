@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useMediaLibraryPanelDataController } from "../useMediaLibraryPanelDataController";
 import { publishMediaLibraryChanged } from "../../../media-library/logic/mediaLibrarySyncEvents";
+import { AUDIO_COMPANION_ART_STATUS_REFRESH_MAX_ATTEMPTS } from "../../logic/audioCompanionArtRefreshPolicy";
 
 const fetchMediaListPageMock = vi.hoisted(() => vi.fn());
 const fetchMediaPromptListPageMock = vi.hoisted(() => vi.fn());
@@ -1121,6 +1122,75 @@ describe("useMediaLibraryPanelDataController", () => {
         "https://signed.test/gen-audio-1-cover.webp"
       );
     });
+  });
+
+  it("stops status-only audio companion-art panel refreshes after the retry budget", async () => {
+    vi.useFakeTimers();
+    fetchMediaListPageMock.mockResolvedValue({
+      rows: [
+        {
+          id: "audio-stale",
+          filename: "tiny-glitch.mp3",
+          storage_path: "user-1/generations/audio/audio-stale.mp3",
+          file_type: "audio/mpeg",
+          source: "ai_studio",
+          source_ref: "gen-audio-stale",
+          companion_art_status: "pending",
+          companion_art_storage_path: null,
+          companion_art_url: null,
+          created_at: "2026-06-17T12:00:00.000Z",
+        },
+      ],
+      nextCursor: null,
+      hasMore: false,
+      signedById: new Map(),
+      libraryTotalCount: 1,
+    });
+
+    const { unmount } = renderHook(() =>
+      useMediaLibraryPanelDataController({
+        activeFolderId: "all_items",
+        itemType: "all",
+        normalizedSearch: "",
+        shouldShowMedia: true,
+        shouldShowPrompts: false,
+        panelBodyRef: { current: null },
+      })
+    );
+
+    try {
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(fetchMediaListPageMock).toHaveBeenCalledTimes(2);
+
+      for (
+        let attempt = 1;
+        attempt < AUDIO_COMPANION_ART_STATUS_REFRESH_MAX_ATTEMPTS;
+        attempt += 1
+      ) {
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(3_500);
+        });
+      }
+
+      expect(fetchMediaListPageMock).toHaveBeenCalledTimes(
+        1 + AUDIO_COMPANION_ART_STATUS_REFRESH_MAX_ATTEMPTS
+      );
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3_500);
+      });
+
+      expect(fetchMediaListPageMock).toHaveBeenCalledTimes(
+        1 + AUDIO_COMPANION_ART_STATUS_REFRESH_MAX_ATTEMPTS
+      );
+    } finally {
+      unmount();
+    }
   });
 
   it("refreshes ready audio companion art rows that have storage authority but no signed url", async () => {

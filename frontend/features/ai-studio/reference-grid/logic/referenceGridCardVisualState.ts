@@ -36,16 +36,14 @@ const LOCAL_VIDEO_URL_PATTERN = /^(?:blob:|data:video\/)/i;
 export const isLocalVideoReferencePendingPersistence = (
   item: Pick<
     StudioOutput,
-    "mode" | "previewUrl" | "previewStoragePath" | "fullStoragePath" | "saveState"
+    "mode" | "previewUrl" | "previewStoragePath" | "fullStoragePath" | "saveState" | "savedMediaIds"
   >
 ): boolean => {
   if (item.mode !== "video") return false;
   if (item.saveState === "failed" || item.saveState === "blocked_storage") return false;
   const previewUrl = item.previewUrl?.trim() ?? "";
   if (!LOCAL_VIDEO_URL_PATTERN.test(previewUrl)) return false;
-  const previewStoragePath = item.previewStoragePath?.trim() ?? "";
-  const fullStoragePath = item.fullStoragePath?.trim() ?? "";
-  return previewStoragePath.length === 0 && fullStoragePath.length === 0;
+  return !hasStorageAuthority(item);
 };
 
 /**

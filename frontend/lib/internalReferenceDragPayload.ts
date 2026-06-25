@@ -5,10 +5,12 @@
 import {
   COMPOSER_IMAGE_DROP_SESSION_TEXT_TYPE,
   COMPOSER_IMAGE_DROP_SESSION_TYPE,
+  getPromptReferenceDragSessionToken,
   getComposerImageDropSessionToken,
   INTERNAL_REFERENCE_DRAG_SESSION_TYPE,
   INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE,
   getInternalReferenceDragSessionToken,
+  resolvePromptReferenceDragSession,
   resolveComposerImageDropSession,
   resolveInternalReferenceDragSession,
 } from "./internalReferenceDragSession";
@@ -84,6 +86,15 @@ export type ComposerImageDropPayload = {
   width?: number;
   height?: number;
   mimeType?: string | null;
+};
+
+export type PromptReferenceDragPayload = {
+  version: number;
+  referenceId: string | null;
+  outputId: string | null;
+  promptText: string;
+  sourceSurface: ReferenceDragSourceSurface | null;
+  sessionBacked?: boolean;
 };
 
 /**
@@ -407,4 +418,24 @@ export const extractComposerImageDropPayload = (
   } catch {
     return null;
   }
+};
+
+/**
+ * Parses a session-backed prompt reference payload from a `DataTransfer`.
+ */
+export const extractPromptReferenceDragPayload = (
+  transfer: DataTransfer | null | undefined
+): PromptReferenceDragPayload | null => {
+  if (!transfer) return null;
+  const sessionPayload = resolvePromptReferenceDragSession(
+    getPromptReferenceDragSessionToken(transfer)
+  );
+  if (!sessionPayload) return null;
+  const promptText = normalizePromptText(sessionPayload.promptText);
+  if (!promptText) return null;
+  return {
+    ...sessionPayload,
+    promptText,
+    sessionBacked: true,
+  };
 };

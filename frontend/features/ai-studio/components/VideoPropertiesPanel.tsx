@@ -10,6 +10,7 @@ import {
   insertDroppedPromptTextAtSelection,
   resolveDroppedPromptTextEdit,
   resolveDroppedPromptTextEditMode,
+  useAgentComposerPromptDropModifierTracking,
 } from "./promptStep/agentComposerDrop";
 import { ElementPickerModal } from "./ElementPickerModal";
 import type { ModelModalContext } from "./ModelModal";
@@ -295,6 +296,8 @@ export function VideoPropertiesPanel({
   onCreateCharacter,
   onCreateElement,
 }: VideoPropertiesPanelProps) {
+  useAgentComposerPromptDropModifierTracking();
+
   type KlingPromptTarget = "primary" | string;
   const shotWorkspaceScrollRef = React.useRef<HTMLDivElement | null>(null);
   const shotWorkspaceStackRef = React.useRef<HTMLDivElement | null>(null);

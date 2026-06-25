@@ -10,6 +10,7 @@ import {
   resolveAgentComposerTextDrop,
   resolveDroppedPromptTextEdit,
   resolveDroppedPromptTextEditMode,
+  useAgentComposerPromptDropModifierTracking,
 } from "./agentComposerDrop";
 
 type PromptStepEnhancedSurfaceProps = {
@@ -61,6 +62,8 @@ export const PromptStepEnhancedSurface: React.FC<PromptStepEnhancedSurfaceProps>
   onPromptBlur,
   onPromptSelect,
 }) => {
+  useAgentComposerPromptDropModifierTracking();
+
   const localTextareaRef = React.useRef<HTMLTextAreaElement | null>(null);
   const textareaRef = promptTextareaRef ?? localTextareaRef;
   const assignTextareaRef = React.useCallback(

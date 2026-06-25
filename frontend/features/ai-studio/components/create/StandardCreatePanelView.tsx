@@ -10,6 +10,7 @@ import {
   resolveAgentComposerPanelDropKind,
   resolveAgentComposerTextDropInsertion,
   resolveDroppedPromptTextEditMode,
+  useAgentComposerPromptDropModifierTracking,
 } from "../promptStep/agentComposerDrop";
 import type { CanvasTearOutComposerTargetRegistry } from "../../hooks/useAiStudioCanvasTearOutTargets";
 import type { AgentComposerDirectDropPayload } from "../../logic/agentComposerDirectDropPayload";
@@ -86,6 +87,8 @@ export function StandardCreatePanelView({
   guardrailReason = null,
   createModeToggle = null,
 }: StandardCreatePanelViewProps) {
+  useAgentComposerPromptDropModifierTracking();
+
   const resolvedSelectedCharacterDisplayName =
     selectedCharacterDisplayName ?? selectedCharacterName;
   const [agentInputVisualRowCount, setAgentInputVisualRowCount] = React.useState(1);

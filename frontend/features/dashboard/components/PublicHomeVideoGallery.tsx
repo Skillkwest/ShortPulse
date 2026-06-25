@@ -16,49 +16,18 @@ import {
 } from "../logic/publicHomeGalleryMedia";
 import { DashboardModalPortal } from "./DashboardModalPortal";
 
-const GALLERY_VIDEO_SOURCE_ROOT_MARGIN = "360px 0px";
-
-function usePublicHomeGalleryCardViewport(enabled: boolean) {
-  const [cardElement, setCardElement] = useState<HTMLElement | null>(null);
-  const [isNearViewport, setIsNearViewport] = useState(!enabled);
-
-  useEffect(() => {
-    if (!enabled || !cardElement || typeof window === "undefined") return;
-
-    if (!("IntersectionObserver" in window)) {
-      const frameId = globalThis.requestAnimationFrame(() => {
-        setIsNearViewport(true);
-      });
-      return () => {
-        globalThis.cancelAnimationFrame(frameId);
-      };
-    }
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        setIsNearViewport(Boolean(entry?.isIntersecting));
-      },
-      {
-        rootMargin: GALLERY_VIDEO_SOURCE_ROOT_MARGIN,
-        threshold: 0,
-      }
-    );
-
-    observer.observe(cardElement);
-    return () => {
-      observer.disconnect();
-    };
-  }, [cardElement, enabled]);
-
-  return { isNearViewport, setCardElement };
-}
-
 function getGalleryAspectValue(item: PublicHomeGalleryItem) {
   const [width, height] = (item.aspectRatio ?? "1 / 1")
     .split("/")
     .map((part) => Number(part.trim()));
   if (!width || !height) return 1;
   return width / height;
+}
+
+function getGalleryVideoPosterSrc(item: PublicHomeGalleryItem) {
+  if (item.posterSrc) return item.posterSrc;
+  if (item.mediaType !== "video" || !item.src.endsWith(".mp4")) return undefined;
+  return item.src.replace(/\.mp4$/, "-poster.webp");
 }
 
 function PublicHomeGalleryCard({
@@ -74,10 +43,10 @@ function PublicHomeGalleryCard({
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const isVideo = item.mediaType === "video";
-  const { isNearViewport, setCardElement } = usePublicHomeGalleryCardViewport(isVideo);
+  const posterSrc = getGalleryVideoPosterSrc(item);
   const [hasUserIntent, setHasUserIntent] = useState(false);
   const [wantsPreviewPlayback, setWantsPreviewPlayback] = useState(false);
-  const shouldAttachVideoSource = isVideo && (isNearViewport || hasUserIntent);
+  const shouldAttachVideoSource = isVideo && hasUserIntent;
   const shouldPlayPreview =
     shouldAttachVideoSource && wantsPreviewPlayback && !pausePreviewPlayback;
 
@@ -127,14 +96,14 @@ function PublicHomeGalleryCard({
   const primePreviewFrame = useCallback(() => {
     const videoElement = videoRef.current;
     if (!videoElement) return;
-    if (item.posterSrc || videoElement.currentTime > 0) return;
+    if (posterSrc || videoElement.currentTime > 0) return;
 
     try {
       videoElement.currentTime = 0.01;
     } catch {
       // Some browsers block seeking before enough media data is available; hover playback still works.
     }
-  }, [item.posterSrc]);
+  }, [posterSrc]);
 
   const handleBlur = useCallback(
     (event: FocusEvent<HTMLElement>) => {
@@ -146,7 +115,6 @@ function PublicHomeGalleryCard({
 
   return (
     <figure
-      ref={setCardElement}
       className={`public-home-gallery-card public-home-gallery-card-${item.size}${
         isVideo ? " public-home-gallery-card-video" : ""
       }`}
@@ -169,11 +137,11 @@ function PublicHomeGalleryCard({
           ref={videoRef}
           className="public-home-gallery-media"
           src={shouldAttachVideoSource ? item.src : undefined}
-          poster={item.posterSrc}
+          poster={posterSrc}
           muted
           loop
           playsInline
-          preload={shouldPlayPreview ? "auto" : shouldAttachVideoSource ? "metadata" : "none"}
+          preload={shouldPlayPreview ? "auto" : "none"}
           aria-label={item.alt}
           onLoadedMetadata={primePreviewFrame}
         />

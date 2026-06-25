@@ -11,6 +11,7 @@ import {
   COMPOSER_IMAGE_DROP_PAYLOAD_TYPE,
   extractComposerImageDropPayload,
   extractInternalReferenceDragPayload,
+  extractPromptReferenceDragPayload,
   getNormalizedTransferTypes,
   hasInternalReferenceDragTypeHints,
   INTERNAL_REFERENCE_DRAG_ORIGIN,
@@ -20,12 +21,17 @@ import {
   COMPOSER_IMAGE_DROP_SESSION_TEXT_TYPE,
   COMPOSER_IMAGE_DROP_SESSION_TYPE,
   clearInternalReferenceDragSession,
+  clearPromptReferenceDragSession,
   INTERNAL_REFERENCE_DRAG_SESSION_TYPE,
   INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE,
+  PROMPT_REFERENCE_DRAG_SESSION_TEXT_TYPE,
+  PROMPT_REFERENCE_DRAG_SESSION_TYPE,
   registerComposerImageDropSession,
   registerInternalReferenceDragSession,
+  registerPromptReferenceDragSession,
   scheduleClearComposerImageDropSession,
   scheduleClearInternalReferenceDragSession,
+  scheduleClearPromptReferenceDragSession,
 } from "../../../lib/internalReferenceDragSession";
 import {
   buildCanvasPromptDragGhost,
@@ -38,6 +44,7 @@ export {
   COMPOSER_IMAGE_DROP_PAYLOAD_TYPE,
   extractComposerImageDropPayload,
   extractInternalReferenceDragPayload,
+  extractPromptReferenceDragPayload,
   getNormalizedTransferTypes,
   hasInternalReferenceDragTypeHints,
   INTERNAL_REFERENCE_DRAG_ORIGIN,
@@ -45,6 +52,10 @@ export {
   type InternalReferenceDragPayload,
   type ReferenceDragSourceSurface,
 } from "../../../lib/internalReferenceDragPayload";
+export {
+  PROMPT_REFERENCE_DRAG_SESSION_TEXT_TYPE,
+  PROMPT_REFERENCE_DRAG_SESSION_TYPE,
+} from "../../../lib/internalReferenceDragSession";
 
 const imageUrlPattern = /^(data:image\/|blob:|https?:\/\/)/i;
 const NEXT_IMAGE_OPTIMIZER_PATH = "/_next/image";
@@ -180,6 +191,7 @@ const REFERENCE_TRANSFER_FULL_STORAGE_PATH_TYPE = "text/reference-full-storage-p
 export const REFERENCE_TRANSFER_RENDER_URL_TYPE = "text/reference-render-url";
 const INTERNAL_REFERENCE_DRAG_TOKEN_DATASET_KEY = "internalReferenceDragToken";
 const COMPOSER_IMAGE_DROP_TOKEN_DATASET_KEY = "composerImageDropToken";
+const PROMPT_REFERENCE_DRAG_TOKEN_DATASET_KEY = "promptReferenceDragToken";
 
 const isBlobUrl = (value?: string | null) => Boolean(value && value.startsWith("blob:"));
 const isInlineTransferHeavyUrl = (value?: string | null) =>
@@ -1214,16 +1226,22 @@ export const extractPromptDropText = (transfer: DataTransfer): string | null => 
   const mediaLibraryPayload = readMediaLibraryDragPayload(transfer);
   if (mediaLibraryPayload?.kind === "libraryMedia") return null;
 
+  const promptReferencePayload = extractPromptReferenceDragPayload(transfer);
   const internalPayload = extractInternalReferenceDragPayload(transfer);
   const mediaKind =
     internalPayload?.mediaKind ??
     parseReferenceMediaKind(transfer.getData(REFERENCE_TRANSFER_MEDIA_KIND_TYPE));
   if (mediaKind && mediaKind !== "text") return null;
 
-  const sessionPromptText =
+  const promptReferenceText =
+    promptReferencePayload?.sessionBacked && promptReferencePayload.promptText
+      ? dedupeText(promptReferencePayload.promptText)
+      : "";
+  const internalSessionPromptText =
     internalPayload?.sessionBacked && mediaKind === "text"
       ? dedupeText(internalPayload.promptText ?? undefined)
       : "";
+  const sessionPromptText = promptReferenceText || internalSessionPromptText;
 
   const referenceCandidates = [
     transfer.getData("text/reference-url"),
@@ -1275,49 +1293,28 @@ export const preparePromptReferenceDrag = (
   const transfer = event.dataTransfer;
   const dragNode = event.currentTarget as HTMLElement;
   const dragNodeDataset = dragNode?.dataset ?? null;
-  const previousDragSessionToken =
-    dragNodeDataset?.[INTERNAL_REFERENCE_DRAG_TOKEN_DATASET_KEY]?.trim() ?? "";
-  if (previousDragSessionToken) {
-    clearInternalReferenceDragSession(previousDragSessionToken);
+  const previousPromptSessionToken =
+    dragNodeDataset?.[PROMPT_REFERENCE_DRAG_TOKEN_DATASET_KEY]?.trim() ?? "";
+  if (previousPromptSessionToken) {
+    clearPromptReferenceDragSession(previousPromptSessionToken);
   }
 
   const referenceId = options.referenceId?.trim() || null;
   const outputId = options.outputId?.trim() || referenceId;
-  const dragSessionToken = registerInternalReferenceDragSession({
+  const dragSessionToken = registerPromptReferenceDragSession({
     version: INTERNAL_REFERENCE_DRAG_VERSION,
-    origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
     referenceId,
     outputId,
-    imageIndex: 0,
-    mediaId: null,
-    mediaKind: "text",
-    referenceUrl: null,
     promptText,
     sourceSurface: options.sourceSurface ?? null,
   });
 
   if (dragNodeDataset) {
-    dragNodeDataset[INTERNAL_REFERENCE_DRAG_TOKEN_DATASET_KEY] = dragSessionToken;
+    dragNodeDataset[PROMPT_REFERENCE_DRAG_TOKEN_DATASET_KEY] = dragSessionToken;
   }
   transfer.effectAllowed = "copy";
-  setTransferDataSafe(transfer, INTERNAL_REFERENCE_DRAG_SESSION_TYPE, dragSessionToken);
-  setTransferDataSafe(transfer, INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE, dragSessionToken);
-  setTransferDataSafe(transfer, REFERENCE_TRANSFER_ORIGIN_TYPE, INTERNAL_REFERENCE_DRAG_ORIGIN);
-  setTransferDataSafe(
-    transfer,
-    REFERENCE_TRANSFER_VERSION_TYPE,
-    String(INTERNAL_REFERENCE_DRAG_VERSION)
-  );
-  setTransferDataSafe(transfer, REFERENCE_TRANSFER_MEDIA_KIND_TYPE, "text");
-  if (referenceId) {
-    setTransferDataSafe(transfer, "text/reference-id", referenceId);
-  }
-  if (outputId) {
-    setTransferDataSafe(transfer, REFERENCE_TRANSFER_OUTPUT_ID_TYPE, outputId);
-  }
-  if (options.sourceSurface) {
-    setTransferDataSafe(transfer, REFERENCE_TRANSFER_SOURCE_SURFACE_TYPE, options.sourceSurface);
-  }
+  setTransferDataSafe(transfer, PROMPT_REFERENCE_DRAG_SESSION_TYPE, dragSessionToken);
+  setTransferDataSafe(transfer, PROMPT_REFERENCE_DRAG_SESSION_TEXT_TYPE, dragSessionToken);
   setTransferDataSafe(transfer, "text/prompt", promptText);
   setTransferDataSafe(transfer, "text/plain", promptText);
 
@@ -1650,6 +1647,11 @@ export const clearDragState = (event: React.DragEvent<HTMLElement>) => {
   if (composerDropSessionToken) {
     scheduleClearComposerImageDropSession(composerDropSessionToken);
     delete node.dataset[COMPOSER_IMAGE_DROP_TOKEN_DATASET_KEY];
+  }
+  const promptReferenceSessionToken = node.dataset[PROMPT_REFERENCE_DRAG_TOKEN_DATASET_KEY];
+  if (promptReferenceSessionToken) {
+    scheduleClearPromptReferenceDragSession(promptReferenceSessionToken);
+    delete node.dataset[PROMPT_REFERENCE_DRAG_TOKEN_DATASET_KEY];
   }
   const ghost = dragGhostMap.get(node);
   if (ghost && ghost.parentNode) {

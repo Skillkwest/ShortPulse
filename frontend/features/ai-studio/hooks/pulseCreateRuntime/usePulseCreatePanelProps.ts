@@ -15,7 +15,11 @@ import type { PulseCreatePropertiesPanelProps } from "../../components/create/Pu
 
 type UsePulseCreatePanelPropsParams = {
   pulsePrompt: string;
+  activePulsePresetId: string | null;
+  activePulsePresetLabel: string | null;
   activePulsePresetKind: CreatePulsePresetKind | null;
+  hasActivePulseSession: boolean;
+  pulseWorkflowSession: PulseCreatePropertiesPanelProps["pulseWorkflowSession"];
   agentEnabled: boolean;
   agentBootstrapReady: boolean;
   agentMessages: AgentMessage[];
@@ -41,6 +45,8 @@ type UsePulseCreatePanelPropsParams = {
   handlePulsePromptChange: (value: string) => void;
   createIsGenerating: boolean;
   handleClearAgentChat: () => void;
+  handleActivePulsePresetIdChange: PulseCreatePropertiesPanelProps["onActivePulsePresetIdChange"];
+  handlePulsePresetStart: PulseCreatePropertiesPanelProps["onPulsePresetStart"];
   handlePulsePresetRestart: (preset: CreatePulseResolvedPreset) => Promise<void>;
   pulsePreferenceRuntime?: CreatePulsePreferenceRuntimeValue;
   pulseChatHistory?: PulseChatHistoryPanelProps;
@@ -52,7 +58,11 @@ type UsePulseCreatePanelPropsParams = {
  */
 export const buildPulseCreatePanelProps = ({
   pulsePrompt,
+  activePulsePresetId,
+  activePulsePresetLabel,
   activePulsePresetKind,
+  hasActivePulseSession,
+  pulseWorkflowSession,
   agentEnabled,
   agentBootstrapReady,
   agentMessages,
@@ -78,13 +88,19 @@ export const buildPulseCreatePanelProps = ({
   handlePulsePromptChange,
   createIsGenerating,
   handleClearAgentChat,
+  handleActivePulsePresetIdChange,
+  handlePulsePresetStart,
   handlePulsePresetRestart,
   pulsePreferenceRuntime,
   pulseChatHistory,
 }: UsePulseCreatePanelPropsParams): PulseCreatePropertiesPanelProps => {
   return {
     pulsePrompt,
+    activePulsePresetId,
+    activePulsePresetLabel,
     activePulsePresetKind,
+    hasActivePulseSession,
+    pulseWorkflowSession,
     agentEnabled,
     agentBootstrapPending: !agentBootstrapReady,
     agentMessages,
@@ -109,6 +125,8 @@ export const buildPulseCreatePanelProps = ({
     onPulsePromptChange: handlePulsePromptChange,
     isPromptGenerating: createIsGenerating,
     onClearAgentChat: handleClearAgentChat,
+    onActivePulsePresetIdChange: handleActivePulsePresetIdChange,
+    onPulsePresetStart: handlePulsePresetStart,
     onPulsePresetRestart: handlePulsePresetRestart,
     pulsePreferenceRuntime,
     pulseChatHistory,

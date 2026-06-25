@@ -11,6 +11,7 @@ import { useMediaComplianceGate } from "../hooks/useMediaComplianceGate";
 import { buildLoginPath } from "../../../lib/authRedirects";
 import { useProtectedRoute } from "../../../lib/authGuard";
 import { ProtectedRouteSessionProvider } from "../../../lib/protectedRouteSessionContext";
+import { useProtectedRouteRestoreGuard } from "../../../lib/useProtectedRouteRestoreGuard";
 
 type ProtectedRouteBootstrapGateProps = {
   children: ReactNode;
@@ -38,6 +39,10 @@ export function ProtectedRouteBootstrapGate({ children }: ProtectedRouteBootstra
     () => buildLoginPath({ nextPath: router.asPath || "/dashboard" }),
     [router.asPath]
   );
+  const restoreGuard = useProtectedRouteRestoreGuard({
+    enabled: true,
+    nextPath: router.asPath || "/dashboard",
+  });
   const { loading, session, user } = useProtectedRoute(true);
   const mediaCompliance = useMediaComplianceGate({
     enabled: Boolean(session),
@@ -49,7 +54,7 @@ export function ProtectedRouteBootstrapGate({ children }: ProtectedRouteBootstra
     void router.replace(authRedirectPath);
   }, [authRedirectPath, mediaCompliance.status, router]);
 
-  if (loading || !session) {
+  if (restoreGuard.checking || loading || !session) {
     return <GenericProtectedLoader message="Checking your session…" />;
   }
 

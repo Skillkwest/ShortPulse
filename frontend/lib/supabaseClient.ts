@@ -15,6 +15,10 @@ import {
   subscribeToSupabaseSessionSnapshot,
   type SupabaseSessionSnapshot,
 } from "./supabaseSessionSnapshotStore";
+import {
+  clearLogoutEpochWhenSessionIsFresh,
+  markAuthSessionLoggedOut,
+} from "./authSessionInvalidation";
 
 export {
   readPersistedSupabaseSessionHint,
@@ -84,6 +88,11 @@ const setSessionSnapshotFromError = () => {
   }
 };
 
+const setSessionSnapshotFromSession = (session: Session | null) => {
+  setSupabaseSessionSnapshot(session, true);
+  clearLogoutEpochWhenSessionIsFresh(session);
+};
+
 const startAuthStateSubscription = () => {
   if (authStateSubscriptionStarted || typeof window === "undefined") return;
   authStateSubscriptionStarted = true;
@@ -91,7 +100,7 @@ const startAuthStateSubscription = () => {
   try {
     const supabase = ensureSupabaseClient();
     supabase.auth.onAuthStateChange((_event, session) => {
-      setSupabaseSessionSnapshot(session ?? null, true);
+      setSessionSnapshotFromSession(session ?? null);
     });
   } catch {
     setSessionSnapshotFromError();
@@ -104,7 +113,7 @@ const readSessionFromClient = async (): Promise<Session | null> => {
     const { data, error } = await supabase.auth.getSession();
     if (error) throw error;
     const session = data.session ?? null;
-    setSupabaseSessionSnapshot(session, true);
+    setSessionSnapshotFromSession(session);
     return session;
   } catch (error) {
     setSessionSnapshotFromError();
@@ -118,7 +127,7 @@ const refreshSessionFromClient = async (): Promise<Session | null> => {
     const { data, error } = await supabase.auth.refreshSession();
     if (error) throw error;
     const session = data.session ?? null;
-    setSupabaseSessionSnapshot(session, true);
+    setSessionSnapshotFromSession(session);
     return session;
   } catch (error) {
     setSessionSnapshotFromError();
@@ -133,7 +142,7 @@ const refreshSessionFromClientPreservingSnapshot = async (): Promise<Session | n
     const { data, error } = await supabase.auth.refreshSession();
     if (error) throw error;
     const session = data.session ?? null;
-    setSupabaseSessionSnapshot(session, true);
+    setSessionSnapshotFromSession(session);
     return session;
   } catch (error) {
     replaceSupabaseSessionSnapshot(previousSnapshot);
@@ -201,6 +210,15 @@ export const readSupabaseSession = async (options?: {
  */
 export const primeSupabaseSession = (session: Session | null) => {
   setSupabaseSessionSnapshot(session ?? null, true);
+  clearLogoutEpochWhenSessionIsFresh(session ?? null);
+};
+
+/**
+ * Clears local browser session authority without calling the Supabase network sign-out path.
+ */
+export const clearSupabaseSessionSnapshot = () => {
+  currentSessionReadPromise = null;
+  setSupabaseSessionSnapshot(null, true);
 };
 
 export const refreshSupabaseSession = async (options?: {
@@ -217,8 +235,10 @@ export const refreshSupabaseSession = async (options?: {
  */
 export const signOutSupabaseSession = async (): Promise<void> => {
   const supabase = ensureSupabaseClient();
+  markAuthSessionLoggedOut();
+  clearSupabaseSessionSnapshot();
   await supabase.auth.signOut();
-  primeSupabaseSession(null);
+  clearSupabaseSessionSnapshot();
 };
 
 /**

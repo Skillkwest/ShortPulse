@@ -53,6 +53,7 @@ import type { ResolveCharacterDropReference } from "../../character-manager/hook
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
 import type {
   AiStudioCreatePanelContract,
+  AiStudioDetailNavigationContract,
   AiStudioReferenceGridContract,
 } from "../hooks/contracts/pageContentContracts";
 import type { StudioOutput, ToolId, WorkflowReloadMediaKindHint } from "../types";
@@ -585,6 +586,7 @@ export type AiStudioPageContentProps = {
   referenceGridProps: AiStudioReferenceGridContract;
   studioPreviewProps: React.ComponentProps<typeof StudioPreview>;
   detailModalOutput: StudioOutput | null;
+  detailNavigation?: AiStudioDetailNavigationContract | null;
   sharedDetailModalItem?: SharedMediaDetailItemBase | null;
   isMediaStorageFull?: boolean;
   onDetailClose: () => void;
@@ -686,6 +688,7 @@ export function AiStudioPageContent({
   referenceGridProps,
   studioPreviewProps,
   detailModalOutput,
+  detailNavigation = null,
   sharedDetailModalItem = null,
   isMediaStorageFull = false,
   onDetailClose,
@@ -1403,6 +1406,7 @@ export function AiStudioPageContent({
           onExternalUploadRequestHandled={onCharacterUploadRequestHandled}
           projectId={projectId}
           projectRouteRequested={projectRouteRequested}
+          isStorageQuotaBlocked={isMediaStorageFull}
           selectedCharacterId={createSelectedCharacterId}
           onSelectedCharacterIdChange={onCreateSelectedCharacterIdChange}
           resolveCharacterDropReference={resolveCharacterDropReference}
@@ -1426,6 +1430,7 @@ export function AiStudioPageContent({
       onMediaLibraryDetailSelectionTargetChange,
       onSnapshotVideoFrame,
       onSnapshotVideoFrameError,
+      isMediaStorageFull,
       projectId,
       projectRouteRequested,
       resolveCharacterDropReference,
@@ -1478,6 +1483,7 @@ export function AiStudioPageContent({
         <LazyElementsPanel
           createRequestKey={elementCreateRequestKey}
           projectId={projectId}
+          isStorageQuotaBlocked={isMediaStorageFull}
           resolveMediaLibraryInternalDropItem={resolveMediaLibraryInternalDropItem}
           resolveProfileImageDropSource={resolveElementProfileImageDropSource}
           canvasTearOutTargetRegistry={canvasTearOutTargetRegistry}
@@ -1495,6 +1501,7 @@ export function AiStudioPageContent({
       onMediaLibraryDetailSelectionTargetChange,
       onSnapshotVideoFrame,
       onSnapshotVideoFrameError,
+      isMediaStorageFull,
       projectId,
       resolveElementProfileImageDropSource,
       resolveMediaLibraryInternalDropItem,
@@ -1888,6 +1895,7 @@ export function AiStudioPageContent({
       />
       <DetailModal
         output={detailModalOutput}
+        detailNavigation={detailNavigation}
         isMediaStorageFull={isMediaStorageFull}
         context={detailModalContext}
         projectId={projectId}

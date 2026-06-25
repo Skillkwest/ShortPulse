@@ -26,6 +26,7 @@ type CharacterPanelProps = {
   externalUploadRequest?: CharacterPanelUploadRequest | null;
   onExternalUploadRequestHandled?: (requestId: number) => void;
   projectId?: string | null;
+  isStorageQuotaBlocked?: boolean;
   projectRouteRequested?: boolean;
   selectedCharacterId?: string | null;
   onSelectedCharacterIdChange?: (characterId: string | null) => void;
@@ -51,6 +52,7 @@ export function CharacterPanel({
   externalUploadRequest = null,
   onExternalUploadRequestHandled,
   projectId = null,
+  isStorageQuotaBlocked = false,
   projectRouteRequested = false,
   selectedCharacterId = null,
   onSelectedCharacterIdChange,
@@ -79,6 +81,7 @@ export function CharacterPanel({
         preferredCharacterId={selectedCharacterId}
         suppressSelectedCharacterPersistence={projectRouteRequested || Boolean(projectId)}
         onSelectedCharacterIdChange={onSelectedCharacterIdChange}
+        isStorageQuotaBlocked={isStorageQuotaBlocked}
         resolveCharacterDropReference={resolveCharacterDropReference}
         canvasTearOutTargetRegistry={canvasTearOutTargetRegistry}
         resolveMediaLibraryInternalDropItem={resolveMediaLibraryInternalDropItem}

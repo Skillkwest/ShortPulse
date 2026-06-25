@@ -4,17 +4,6 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 
 ## Supabase tables
 
-### saved_creators
-
-- `id` (uuid, pk)
-- `handle` (text): Creator handle stored in normalized form.
-- `platform` (text): instagram | tiktok | youtube.
-- `followers` (int, default 0)
-- `avg_views` (int, default 0)
-- `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
-- `created_at` (timestamptz, default now)
-- RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
-
 ### media_files
 
 - `id` (uuid, pk, default `gen_random_uuid()`)

@@ -299,7 +299,6 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/sops/sop_supabase_auth_email_operations.md`
 - `docs/sops/sop_auth_recovery_trust_smoke.md`
 - `docs/sops/sop_new_feature_modularization.md`
-- `docs/sops/sop_saved_creators.md`
 - `docs/sops/sop_ai_studio_media_library_operations.md`
 - `docs/sops/sop_sql_migration_operations.md`
 - `docs/sops/sop_media_performance_operations.md`

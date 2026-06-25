@@ -22,6 +22,7 @@ export type AiStudioPageContentAdapterOutput = Pick<
   | "referenceGridProps"
   | "studioPreviewProps"
   | "detailModalOutput"
+  | "detailNavigation"
   | "isMediaStorageFull"
   | "onDetailClose"
   | "onUpdateOutputPrompt"
@@ -46,6 +47,7 @@ export const mapHookContractsToPageContentProps = ({
   referenceGridProps,
   studioPreviewProps: previewDetailProps.studioPreviewProps,
   detailModalOutput: previewDetailProps.detailModalOutput,
+  detailNavigation: previewDetailProps.detailNavigation,
   isMediaStorageFull: previewDetailProps.isMediaStorageFull,
   onDetailClose: previewDetailProps.onDetailClose,
   onUpdateOutputPrompt: previewDetailProps.onUpdateOutputPrompt,

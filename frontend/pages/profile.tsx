@@ -479,7 +479,7 @@ export default function ProfilePage() {
     planId: resolveProfileActivePlanId({ billingContract, billingProfile }),
     plans: billingPlans,
   });
-  const { quotaSummary, refreshQuotaSummary } = useMediaStorageQuotaSummary({
+  const { quotaStatus, quotaSummary, refreshQuotaSummary } = useMediaStorageQuotaSummary({
     fallbackPlanId: activePlan.id,
   });
 
@@ -655,7 +655,10 @@ export default function ProfilePage() {
     : balanceCents == null
       ? "Unavailable"
       : balanceCents.toLocaleString();
-  const accountStorageLabel = formatStorageUsageValue(usedStorageBytes, totalStorageLimitBytes);
+  const accountStorageLabel =
+    quotaStatus === "unavailable" || !quotaSummary
+      ? "Unavailable"
+      : formatStorageUsageValue(usedStorageBytes, totalStorageLimitBytes);
   const portalManagementAvailable = !isInternalCompContract;
   const stripeManagedSubscriptionId =
     billingContract?.stripe_subscription_id ?? billingProfile?.stripe_subscription_id ?? null;

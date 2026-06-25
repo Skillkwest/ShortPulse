@@ -120,6 +120,7 @@
 
 .bootstrapStyleScope :global(.ai-projects-modal-card-shell) {
   position: relative;
+  border-radius: 8px;
   transition: transform 180ms ease;
 }
 
@@ -134,18 +135,24 @@
 }
 
 .bootstrapStyleScope :global(.ai-projects-modal-card) {
+  appearance: none;
   width: 100%;
-  min-height: 148px;
-  padding: 10px 12px 8px;
-  border-radius: 20px;
-  border: 1px solid rgba(37, 169, 191, 0.18);
+  min-height: 122px;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(37, 169, 191, 0.48);
   background:
-    linear-gradient(180deg, rgba(17, 24, 31, 0.96), rgba(10, 14, 20, 0.96)), rgba(12, 16, 23, 0.96);
+    radial-gradient(120% 120% at 0% 0%, rgba(37, 169, 191, 0.18), transparent 58%),
+    linear-gradient(145deg, rgba(37, 169, 191, 0.08), transparent 48%), rgba(8, 12, 18, 0.76);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   text-align: left;
   color: inherit;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 22px 50px rgba(0, 0, 0, 0.32);
   transition:
     border-color 180ms ease,
     background 180ms ease,
@@ -156,10 +163,14 @@
 .bootstrapStyleScope
   :global(.ai-projects-modal-card-shell):focus-within
   :global(.ai-projects-modal-card) {
-  border-color: rgba(83, 215, 236, 0.42);
+  border-color: rgba(37, 169, 191, 0.68);
   background:
-    linear-gradient(180deg, rgba(20, 29, 36, 0.98), rgba(12, 18, 25, 0.98)), rgba(12, 16, 23, 0.98);
-  box-shadow: 0 22px 40px rgba(0, 0, 0, 0.28);
+    radial-gradient(120% 120% at 0% 0%, rgba(37, 169, 191, 0.22), transparent 58%),
+    linear-gradient(145deg, rgba(37, 169, 191, 0.1), transparent 48%), rgba(8, 12, 18, 0.82);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 28px 62px rgba(0, 0, 0, 0.4),
+    0 0 30px rgba(37, 169, 191, 0.18);
 }
 
 .bootstrapStyleScope :global(.ai-projects-modal-card):disabled {
@@ -168,18 +179,23 @@
 }
 
 .bootstrapStyleScope :global(.ai-projects-modal-card):global(.is-current) {
-  border-color: rgba(124, 213, 228, 0.4);
+  border-color: rgba(83, 215, 236, 0.72);
   background:
-    linear-gradient(180deg, rgba(18, 33, 40, 0.98), rgba(11, 18, 24, 0.98)), rgba(12, 16, 23, 0.98);
+    radial-gradient(120% 120% at 0% 0%, rgba(37, 169, 191, 0.24), transparent 58%),
+    linear-gradient(145deg, rgba(37, 169, 191, 0.12), transparent 48%), rgba(8, 12, 18, 0.84);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 28px 62px rgba(0, 0, 0, 0.38),
+    0 0 32px rgba(37, 169, 191, 0.2);
 }
 
 .bootstrapStyleScope :global(.ai-projects-modal-card-delete) {
   position: absolute;
-  top: 14px;
-  right: 14px;
+  top: 12px;
+  right: 12px;
   width: 34px;
   height: 34px;
-  border-radius: 12px;
+  border-radius: 8px;
   border: 1px solid rgba(248, 113, 113, 0.22);
   background: rgba(54, 18, 24, 0.86);
   display: inline-flex;
@@ -216,10 +232,10 @@
 
 .bootstrapStyleScope :global(.ai-projects-modal-card-topline) {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  min-height: 28px;
-  gap: 10px;
+  min-height: 30px;
+  gap: 12px;
 }
 
 .bootstrapStyleScope :global(.ai-projects-modal-status-pill) {
@@ -254,22 +270,22 @@
   display: flex;
   align-items: flex-end;
   width: fit-content;
-  min-height: 78px;
+  min-height: 58px;
   gap: 6px;
   padding: 0;
 }
 
 .bootstrapStyleScope :global(.ai-projects-modal-card-preview-tile) {
   position: relative;
-  flex: 0 0 clamp(46px, 18%, 60px);
+  flex: 0 0 clamp(46px, 18%, 56px);
   aspect-ratio: 4 / 5;
   overflow: hidden;
   border-radius: 8px;
   background:
-    linear-gradient(180deg, rgba(25, 35, 44, 0.92), rgba(11, 17, 24, 0.96)), rgba(15, 20, 28, 0.96);
+    linear-gradient(180deg, rgba(25, 35, 44, 0.74), rgba(11, 17, 24, 0.9)), rgba(15, 20, 28, 0.9);
   box-shadow:
     0 16px 34px rgba(0, 0, 0, 0.26),
-    0 0 0 1px rgba(9, 13, 19, 0.36);
+    0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 
 .bootstrapStyleScope :global(.ai-projects-modal-card-preview-tile) img {
@@ -280,7 +296,7 @@
 }
 
 .bootstrapStyleScope :global(.ai-projects-modal-card-preview-grid)[data-count="1"] {
-  min-height: 76px;
+  min-height: 58px;
   padding-right: 0;
 }
 
@@ -293,7 +309,7 @@
 .bootstrapStyleScope
   :global(.ai-projects-modal-card-preview-grid)[data-count="1"]
   :global(.ai-projects-modal-card-preview-tile) {
-  flex-basis: clamp(52px, 20%, 66px);
+  flex-basis: clamp(52px, 20%, 62px);
 }
 
 .bootstrapStyleScope :global(.ai-projects-modal-card-title) {
@@ -304,10 +320,11 @@
   overflow: hidden;
   -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
-  font-size: 17px;
-  line-height: 1.15;
+  font-size: 20px;
+  line-height: 1.14;
   font-weight: 700;
-  color: #f5f9ff;
+  color: #f8fbff;
+  letter-spacing: 0;
 }
 
 .bootstrapStyleScope :global(.ai-projects-modal-card-meta) {

@@ -230,4 +230,47 @@ describe("supabaseClient session reads", () => {
     expect(readSupabaseSessionBootstrapHint()).toBe(true);
     expect(readCachedSupabaseAccessToken()).toBe("token-1");
   });
+
+  it("marks logout and clears local session authority before network signout settles", async () => {
+    let resolveSignOut = () => {};
+    const signOutMock = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSignOut = resolve;
+        })
+    );
+
+    vi.doMock("@supabase/supabase-js", () => ({
+      createClient: vi.fn(() => ({
+        auth: {
+          getSession: vi.fn(),
+          onAuthStateChange: vi.fn(),
+          refreshSession: vi.fn(),
+          signOut: signOutMock,
+        },
+      })),
+    }));
+
+    const { primeSupabaseSession, readSupabaseAccessToken, signOutSupabaseSession } =
+      await import("../supabaseClient");
+    const { readAuthSessionLogoutEpoch } = await import("../authSessionInvalidation");
+
+    primeSupabaseSession({
+      access_token: "token-1",
+      user: { id: "user-1" },
+    } as never);
+
+    const signOutPromise = signOutSupabaseSession();
+
+    await waitFor(() => {
+      expect(readAuthSessionLogoutEpoch()).not.toBeNull();
+    });
+    await expect(readSupabaseAccessToken()).resolves.toBeNull();
+    expect(signOutMock).toHaveBeenCalledTimes(1);
+
+    resolveSignOut();
+    await signOutPromise;
+
+    await expect(readSupabaseAccessToken()).resolves.toBeNull();
+  });
 });

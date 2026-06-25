@@ -57,6 +57,8 @@ const CHECKPOINT_OUTPUT_STUB_FIELDS = [
   "generationId",
   "savedMediaIds",
   "hiddenInReferenceGrid",
+  "archivedAt",
+  "archiveReason",
 ] as const;
 
 const RICH_OUTPUT_CHECKPOINT_EXCLUDED_FIELDS = [
@@ -88,8 +90,6 @@ const RICH_OUTPUT_CHECKPOINT_EXCLUDED_FIELDS = [
   "width",
   "height",
   "pinned",
-  "archivedAt",
-  "archiveReason",
   "characterContext",
   "styleContext",
   "generationReplay",
@@ -240,6 +240,18 @@ const getSnapshotActiveOutputs = (snapshot: Record<string, unknown>): Record<str
   return Array.isArray(outputs.active) ? outputs.active.map((row) => asRecord(row)) : [];
 };
 
+const getSnapshotArchivedOutputs = (
+  snapshot: Record<string, unknown>
+): Record<string, unknown>[] => {
+  const outputs = asRecord(snapshot.outputs);
+  return Array.isArray(outputs.archived) ? outputs.archived.map((row) => asRecord(row)) : [];
+};
+
+const getSnapshotOutputRows = (snapshot: Record<string, unknown>): Record<string, unknown>[] => [
+  ...getSnapshotActiveOutputs(snapshot),
+  ...getSnapshotArchivedOutputs(snapshot),
+];
+
 const buildCheckpointOutputStub = (
   row: Record<string, unknown>
 ): Record<string, unknown> | null => {
@@ -278,19 +290,28 @@ export const createLightweightProjectWorkspaceCheckpointSnapshot = ({
   const active = getSnapshotActiveOutputs(snapshot)
     .map((row) => buildCheckpointOutputStub(row))
     .filter((row): row is Record<string, unknown> => Boolean(row));
+  const archived = getSnapshotArchivedOutputs(snapshot)
+    .map((row) => buildCheckpointOutputStub(row))
+    .filter((row): row is Record<string, unknown> => Boolean(row));
   const activeOutputIds = new Set(
     active.map((row) => normalizeString(row.id)).filter((value): value is string => Boolean(value))
   );
+  const persistedOutputIds = new Set([
+    ...activeOutputIds,
+    ...archived
+      .map((row) => normalizeString(row.id))
+      .filter((value): value is string => Boolean(value)),
+  ]);
   const activeOutputId = normalizeString(outputs.activeOutputId);
   const nextSnapshot = {
     ...snapshot,
     outputs: {
       ...outputs,
       active,
-      archived: [],
+      archived,
       activeOutputId: activeOutputId && activeOutputIds.has(activeOutputId) ? activeOutputId : null,
       curatedReferenceIds: filterOutputIds(outputs.curatedReferenceIds, activeOutputIds),
-      removedFromAllRefsIds: filterOutputIds(outputs.removedFromAllRefsIds, activeOutputIds),
+      removedFromAllRefsIds: filterOutputIds(outputs.removedFromAllRefsIds, persistedOutputIds),
     },
   };
   const meta = {
@@ -316,7 +337,7 @@ export const createLightweightProjectWorkspaceCheckpointSnapshot = ({
 export const projectWorkspaceCheckpointNeedsCompaction = (
   snapshot: Record<string, unknown>
 ): boolean =>
-  getSnapshotActiveOutputs(snapshot).some((row) =>
+  getSnapshotOutputRows(snapshot).some((row) =>
     RICH_OUTPUT_CHECKPOINT_EXCLUDED_FIELDS.some((field) => field in row)
   );
 
@@ -447,7 +468,7 @@ type ProjectOutputDisplayChecksumEntry = {
 export function computeProjectOutputDisplayChecksumForSnapshot(
   snapshot: Record<string, unknown>
 ): string {
-  const displayValues = getSnapshotActiveOutputs(snapshot)
+  const displayValues = getSnapshotOutputRows(snapshot)
     .map((output) => {
       const outputId = normalizeString(output.id);
       if (!outputId) return null;
@@ -505,7 +526,7 @@ export const syncProjectOutputDisplayItemsForSnapshot = async ({
   const existingRows = await loadProjectOutputDisplayItemsForProject({ userId, projectId });
   const existingByOutputId = new Map(existingRows.map((row) => [row.output_id, row]));
   const nowIso = new Date().toISOString();
-  const candidates = getSnapshotActiveOutputs(snapshot)
+  const candidates = getSnapshotOutputRows(snapshot)
     .map((output) => {
       const outputId = normalizeString(output.id);
       const existing = outputId ? existingByOutputId.get(outputId) : null;
@@ -622,22 +643,25 @@ export const materializeProjectWorkspaceSnapshotWithDisplayItems = ({
   if (displayItems.length === 0) return snapshot;
   const displayByOutputId = new Map(displayItems.map((row) => [row.output_id, row]));
   const outputs = asRecord(snapshot.outputs);
-  const active = getSnapshotActiveOutputs(snapshot).map((output) => {
-    const outputId = normalizeString(output.id);
-    const displayItem = outputId ? displayByOutputId.get(outputId) : null;
-    if (!displayItem) return output;
-    return {
-      ...output,
-      ...toCompatibilityOutputPatch(displayItem),
-      id: outputId,
-    };
-  });
+  const patchOutputRows = (rows: Record<string, unknown>[]) =>
+    rows.map((output) => {
+      const outputId = normalizeString(output.id);
+      const displayItem = outputId ? displayByOutputId.get(outputId) : null;
+      if (!displayItem) return output;
+      return {
+        ...output,
+        ...toCompatibilityOutputPatch(displayItem),
+        id: outputId,
+      };
+    });
+  const active = patchOutputRows(getSnapshotActiveOutputs(snapshot));
+  const archived = patchOutputRows(getSnapshotArchivedOutputs(snapshot));
   return {
     ...snapshot,
     outputs: {
       ...outputs,
       active,
-      archived: [],
+      archived,
     },
   };
 };

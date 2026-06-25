@@ -25,7 +25,7 @@ type GuestDashboardViewProps = {
 
 const modelLogos = [
   { label: "Kling 3.0", markClassName: "model-mark-logo model-mark-kling-logo" },
-  { label: "Seedance 2.0", markClassName: "model-mark-logo model-mark-bytedance-logo" },
+  { label: "Seedance 2", markClassName: "model-mark-logo model-mark-bytedance-logo" },
   { label: "Nano Banana Pro", markClassName: "model-mark-logo model-mark-google-logo" },
   { label: "Nano Banana 2", markClassName: "model-mark-logo model-mark-google-logo" },
   { label: "Seedream 4.5", markClassName: "model-mark-logo model-mark-seedream-logo" },

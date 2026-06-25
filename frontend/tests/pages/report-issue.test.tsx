@@ -70,7 +70,7 @@ describe("ReportIssuePage", () => {
     });
 
     expect(
-      await screen.findByText("Report sent. It is now in the admin Reports queue.")
+      await screen.findByText("Report sent. We saved your note and context for review.")
     ).toBeInTheDocument();
   });
 });

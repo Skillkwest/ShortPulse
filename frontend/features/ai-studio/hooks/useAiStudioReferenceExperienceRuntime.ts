@@ -66,6 +66,7 @@ export const useAiStudioReferenceExperienceRuntime = ({
     curatedReferenceIds,
     deleteOutput,
     detailOutput,
+    detailSelectionTarget,
     setDetailSelectionTarget,
     editReferenceText,
     findOutputById,
@@ -147,6 +148,7 @@ export const useAiStudioReferenceExperienceRuntime = ({
     onReferenceOutputMediaLoaded,
     linkedPromptReferenceIds,
     handleSelectOutput,
+    detailSelectionTarget,
     openDetailSelectionTarget: setDetailSelectionTarget,
     setDetailOutputId,
     handleSaveReference,
@@ -165,24 +167,27 @@ export const useAiStudioReferenceExperienceRuntime = ({
     restoreArchivedOutput,
     restoreAllArchivedOutputs,
   });
-  const referenceGridPageProps = useMemo(
-    () => ({
-      ...referenceGridHookProps,
+  const detailNavigation = referenceGridHookProps.detailNavigation;
+  const referenceGridPageProps = useMemo(() => {
+    const { detailNavigation: _detailNavigation, ...referenceGridComponentProps } =
+      referenceGridHookProps;
+    void _detailNavigation;
+    return {
+      ...referenceGridComponentProps,
       railCanvasProps: railCanvasPropsWithMediaActions,
       onAddDroppedFilesToQuickSlot: handleQuickSlotDroppedFiles,
       onAddPastedMediaReferenceToQuickSlot: handleQuickSlotDroppedMediaReference,
       onAddLibraryMediaReferenceToQuickSlot: handleQuickSlotLibraryMediaDrop,
       onAddLibraryPromptReferenceToQuickSlot: handleQuickSlotLibraryPromptDrop,
-    }),
-    [
-      handleQuickSlotDroppedFiles,
-      handleQuickSlotDroppedMediaReference,
-      handleQuickSlotLibraryMediaDrop,
-      handleQuickSlotLibraryPromptDrop,
-      railCanvasPropsWithMediaActions,
-      referenceGridHookProps,
-    ]
-  );
+    };
+  }, [
+    handleQuickSlotDroppedFiles,
+    handleQuickSlotDroppedMediaReference,
+    handleQuickSlotLibraryMediaDrop,
+    handleQuickSlotLibraryPromptDrop,
+    railCanvasPropsWithMediaActions,
+    referenceGridHookProps,
+  ]);
   const previewDetailProps = useAiStudioPreviewDetailProps({
     activeOutput,
     referenceGridReadyOutputIds,
@@ -194,6 +199,7 @@ export const useAiStudioReferenceExperienceRuntime = ({
     handleManualPromptChange,
     handleRegenerateWithDebit,
     detailOutput,
+    detailNavigation,
     setDetailSelectionTarget,
     setDetailOutputId,
     updateOutputPrompt,

@@ -105,7 +105,7 @@ describe("AiStudioPageShell", () => {
     expect(screen.getByText("Create project enabled")).toBeInTheDocument();
   });
 
-  it("offers workspace reset when the saved project snapshot is invalid", () => {
+  it("keeps retry primary and requires confirmation before resetting invalid saved workspace", () => {
     const handleResetProjectWorkspace = vi.fn(async () => undefined);
     const handleRetryBootstrap = vi.fn();
 
@@ -130,10 +130,15 @@ describe("AiStudioPageShell", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Reset saved workspace" }));
     fireEvent.click(screen.getByRole("button", { name: "Retry workspace load" }));
+    fireEvent.click(screen.getByRole("button", { name: "Reset saved workspace" }));
+
+    expect(handleRetryBootstrap).toHaveBeenCalledTimes(1);
+    expect(handleResetProjectWorkspace).not.toHaveBeenCalled();
+    expect(screen.getByText(/only if retry does not restore this project/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirm reset workspace" }));
 
     expect(handleResetProjectWorkspace).toHaveBeenCalledTimes(1);
-    expect(handleRetryBootstrap).toHaveBeenCalledTimes(1);
   });
 });

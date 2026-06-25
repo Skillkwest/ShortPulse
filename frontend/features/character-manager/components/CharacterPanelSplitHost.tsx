@@ -22,6 +22,7 @@ type CharacterPanelSplitHostProps = {
   externalUploadRequest?: CharacterPanelUploadRequest | null;
   onExternalUploadRequestHandled?: (requestId: number) => void;
   projectId?: string | null;
+  isStorageQuotaBlocked?: boolean;
   preferredCharacterId?: string | null;
   suppressSelectedCharacterPersistence?: boolean;
   onSelectedCharacterIdChange?: (characterId: string | null) => void;
@@ -46,6 +47,7 @@ export function CharacterPanelSplitHost({
   externalUploadRequest = null,
   onExternalUploadRequestHandled,
   projectId = null,
+  isStorageQuotaBlocked = false,
   preferredCharacterId = null,
   suppressSelectedCharacterPersistence = false,
   onSelectedCharacterIdChange,
@@ -86,6 +88,7 @@ export function CharacterPanelSplitHost({
           mediaCardInteractionMode="assignment"
           fixedVisualAspectRatio={null}
           projectId={projectId}
+          isStorageQuotaBlocked={isStorageQuotaBlocked}
           resolveInternalDropItem={resolveMediaLibraryInternalDropItem}
           detailSelectionTarget={detailSelectionTarget}
           onDetailSelectionTargetChange={onDetailSelectionTargetChange}

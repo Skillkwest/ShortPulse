@@ -18,6 +18,7 @@ import { toMediaLibraryErrorText } from "../logic/mediaLibraryErrorText";
 import type { MediaFileRow, PromptRow } from "../logic/mediaLibraryModalModel";
 import {
   MEDIA_STORAGE_FULL_USER_MESSAGE,
+  MEDIA_STORAGE_QUOTA_UNAVAILABLE_USER_MESSAGE,
   resolveMediaStorageQuotaUserMessage,
 } from "../../../lib/mediaStorageQuota";
 
@@ -109,11 +110,19 @@ export const useMediaLibraryPanelMutationController = ({
   const [pendingLibraryDelete, setPendingLibraryDelete] =
     React.useState<PendingLibraryDeleteState | null>(null);
   const [deleteConfirmSubmitting, setDeleteConfirmSubmitting] = React.useState(false);
-  const { quotaSummary } = useMediaStorageQuotaSummary({
+  const { quotaStatus, quotaSummary } = useMediaStorageQuotaSummary({
     enabled: isStorageQuotaBlockedOverride == null,
   });
-  const isStorageQuotaBlocked = isStorageQuotaBlockedOverride ?? quotaSummary?.isOverLimit === true;
-  const storageQuotaMessage = isStorageQuotaBlocked ? MEDIA_STORAGE_FULL_USER_MESSAGE : null;
+  const isStorageQuotaUnavailable =
+    isStorageQuotaBlockedOverride == null && quotaStatus === "unavailable";
+  const isStorageQuotaBlocked =
+    isStorageQuotaBlockedOverride ??
+    (isStorageQuotaUnavailable || quotaSummary?.isOverLimit === true);
+  const storageQuotaMessage = isStorageQuotaUnavailable
+    ? MEDIA_STORAGE_QUOTA_UNAVAILABLE_USER_MESSAGE
+    : isStorageQuotaBlocked
+      ? MEDIA_STORAGE_FULL_USER_MESSAGE
+      : null;
 
   const refreshFolderState = React.useCallback(async () => {
     await refreshFolders().catch(() => undefined);
@@ -332,7 +341,7 @@ export const useMediaLibraryPanelMutationController = ({
         setMembershipMessage(null);
 
         if (isStorageQuotaBlocked) {
-          throw new Error(MEDIA_STORAGE_FULL_USER_MESSAGE);
+          throw new Error(storageQuotaMessage ?? MEDIA_STORAGE_FULL_USER_MESSAGE);
         }
 
         const uploadCandidates = droppedFiles
@@ -436,6 +445,7 @@ export const useMediaLibraryPanelMutationController = ({
       setFolderError,
       setMediaRows,
       setMembershipMessage,
+      storageQuotaMessage,
     ]
   );
 

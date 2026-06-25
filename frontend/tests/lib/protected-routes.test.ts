@@ -10,13 +10,7 @@ import {
 
 describe("protectedRoutes", () => {
   it("keeps signed-in customer and operator routes behind the protected shell", () => {
-    expect(PROTECTED_ROUTES).toEqual([
-      "/saved-creators",
-      "/profile",
-      "/report-issue",
-      "/ai-studio",
-      "/admin",
-    ]);
+    expect(PROTECTED_ROUTES).toEqual(["/profile", "/report-issue", "/ai-studio", "/admin"]);
     expect(isProtectedRoutePath("/report-issue")).toBe(true);
     expect(isProtectedRoutePath("/report-issue?from=%2Fdashboard")).toBe(true);
     expect(isProtectedRoutePath("/ai-studio/projects")).toBe(true);

@@ -219,72 +219,41 @@ describe("modelPricingControlPlane", () => {
         },
         perModel: {},
       },
-      activeCustomRows: {
-        schemaVersion: 1,
-        rowsByModel: {},
-      },
+      activeCustomRows: getDefaultAdminPricingCustomRowsDocument(),
       activePolicyUpdatedAt: "2026-04-24T13:00:00.000Z",
       activePolicyUpdatedByEmail: "admin@example.com",
       message: null,
     });
   });
 
-  it("falls back to the legacy apply RPC signature when the custom-row signature is unavailable", async () => {
-    const rpc = vi
-      .fn()
-      .mockResolvedValueOnce({
-        data: null,
-        error: {
-          code: "PGRST202",
-          message:
-            "Could not find the function public.apply_model_pricing_policy(p_policy, p_custom_rows, p_note, p_reason, p_actor_user_id, p_actor_email, p_source) in the schema cache",
-        },
-      })
-      .mockResolvedValueOnce({
-        data: {
-          status: "activated",
-          active_policy_version: 9,
-          active_policy_version_id: 9,
-          message: null,
-        },
-        error: null,
-      })
-      .mockResolvedValueOnce({
-        data: {
-          active_policy_version: 9,
-          active_policy_version_id: 9,
-          active_policy: {
-            schemaVersion: 4,
-            global: {
-              creditUsdScale: 100,
-              defaultRoundingMode: "ceil",
-              defaultRoundingIncrement: 1,
-            },
-            perModel: {},
-          },
-          last_known_safe_policy_version: 8,
-          last_known_safe_policy_version_id: 8,
-          updated_at: "2026-04-24T14:00:00.000Z",
-          updated_by_user_id: "admin-1",
-          updated_by_email: "admin@example.com",
-        },
-        error: null,
-      });
-
-    const result = await applyModelPricingPolicy({
-      supabaseAdmin: { rpc } as never,
-      actorUserId: "admin-1",
-      actorEmail: "admin@example.com",
-      policy: {
-        schemaVersion: 4,
-        global: {
-          creditUsdScale: 100,
-          defaultRoundingMode: "ceil",
-          defaultRoundingIncrement: 1,
-        },
-        perModel: {},
+  it("fails closed when default built-in custom rows require the latest apply RPC signature", async () => {
+    const rpc = vi.fn().mockResolvedValueOnce({
+      data: null,
+      error: {
+        code: "PGRST202",
+        message:
+          "Could not find the function public.apply_model_pricing_policy(p_policy, p_custom_rows, p_note, p_reason, p_actor_user_id, p_actor_email, p_source) in the schema cache",
       },
     });
+
+    await expect(
+      applyModelPricingPolicy({
+        supabaseAdmin: { rpc } as never,
+        actorUserId: "admin-1",
+        actorEmail: "admin@example.com",
+        policy: {
+          schemaVersion: 4,
+          global: {
+            creditUsdScale: 100,
+            defaultRoundingMode: "ceil",
+            defaultRoundingIncrement: 1,
+          },
+          perModel: {},
+        },
+      })
+    ).rejects.toThrow(
+      "Model pricing custom rows require the latest control-plane SQL migration before they can be saved."
+    );
 
     expect(rpc).toHaveBeenNthCalledWith(1, "apply_model_pricing_policy", {
       p_policy: {
@@ -303,23 +272,7 @@ describe("modelPricingControlPlane", () => {
       p_actor_email: "admin@example.com",
       p_source: "admin_api",
     });
-    expect(rpc).toHaveBeenNthCalledWith(2, "apply_model_pricing_policy", {
-      p_policy: {
-        schemaVersion: 4,
-        global: {
-          creditUsdScale: 100,
-          defaultRoundingMode: "ceil",
-          defaultRoundingIncrement: 1,
-        },
-        perModel: {},
-      },
-      p_note: null,
-      p_reason: null,
-      p_actor_user_id: "admin-1",
-      p_actor_email: "admin@example.com",
-      p_source: "admin_api",
-    });
-    expect(result.activeCustomRows).toEqual(getDefaultAdminPricingCustomRowsDocument());
+    expect(rpc).toHaveBeenCalledTimes(1);
   });
 
   it("fails closed when custom rows exist but the database only supports the legacy apply RPC", async () => {

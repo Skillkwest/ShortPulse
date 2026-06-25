@@ -8,6 +8,7 @@ const routerState = vi.hoisted(() => ({
 }));
 const replaceMock = vi.hoisted(() => vi.fn());
 const useProtectedRouteMock = vi.hoisted(() => vi.fn());
+const useProtectedRouteRestoreGuardMock = vi.hoisted(() => vi.fn());
 const useMediaComplianceGateMock = vi.hoisted(() => vi.fn());
 const mediaComplianceGatePropsSpy = vi.hoisted(() => vi.fn());
 
@@ -24,6 +25,10 @@ vi.mock("next/head", () => ({
 
 vi.mock("../../lib/authGuard", () => ({
   useProtectedRoute: (...args: unknown[]) => useProtectedRouteMock(...args),
+}));
+
+vi.mock("../../lib/useProtectedRouteRestoreGuard", () => ({
+  useProtectedRouteRestoreGuard: (...args: unknown[]) => useProtectedRouteRestoreGuardMock(...args),
 }));
 
 vi.mock("../../features/compliance/hooks/useMediaComplianceGate", () => ({
@@ -73,6 +78,9 @@ describe("ProtectedRouteBootstrapGate", () => {
       session: { access_token: "token", user: { id: "user-1" } },
       user: { id: "user-1" },
     });
+    useProtectedRouteRestoreGuardMock.mockReturnValue({
+      checking: false,
+    });
     useMediaComplianceGateMock.mockReturnValue({
       ...baseComplianceState,
     });
@@ -89,6 +97,17 @@ describe("ProtectedRouteBootstrapGate", () => {
 
     expect(screen.getByText("Checking your session…")).toBeInTheDocument();
     expect(screen.getByText("ShortPulse · Loading")).toBeInTheDocument();
+    expect(screen.queryByTestId("protected-page")).not.toBeInTheDocument();
+  });
+
+  it("keeps protected content hidden while browser restore auth is revalidating", () => {
+    useProtectedRouteRestoreGuardMock.mockReturnValue({
+      checking: true,
+    });
+
+    renderGate();
+
+    expect(screen.getByText("Checking your session…")).toBeInTheDocument();
     expect(screen.queryByTestId("protected-page")).not.toBeInTheDocument();
   });
 

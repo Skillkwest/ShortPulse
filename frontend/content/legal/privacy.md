@@ -28,7 +28,7 @@ Payment-card and bank-account details are processed by Stripe or another payment
 
 ### Creative Workspace And User Content
 
-We collect and process the content you submit, upload, generate, save, organize, or otherwise use in ShortPulse, including prompts, text, images, videos, audio, voice samples, likeness materials, product references, style references, project data, saved creators, workspace preferences, media-library items, generated outputs, draft assets, issue-report messages, and related metadata.
+We collect and process the content you submit, upload, generate, save, organize, or otherwise use in ShortPulse, including prompts, text, images, videos, audio, voice samples, likeness materials, product references, style references, project data, workspace preferences, media-library items, generated outputs, draft assets, issue-report messages, and related metadata.
 
 This content may include personal information about you or other people if you upload or generate content containing names, faces, voices, likenesses, locations, identifiers, or other identifiable details.
 

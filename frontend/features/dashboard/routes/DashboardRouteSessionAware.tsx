@@ -18,6 +18,7 @@ import { ProtectedRouteSessionProvider } from "../../../lib/protectedRouteSessio
 import { readPersistedSupabaseSessionHint } from "../../../lib/supabaseSessionHints";
 
 const DASHBOARD_BOOTSTRAP_ROUTE = "/dashboard";
+const ROOT_BOOTSTRAP_ROUTE = "/";
 const DASHBOARD_AUTHENTICATED_TITLE = "ShortPulse · Dashboard";
 const DASHBOARD_BOOTSTRAP_TITLE = "Loading dashboard";
 const DASHBOARD_BOOTSTRAP_MESSAGE = "Checking your session before your dashboard workspace loads.";
@@ -61,7 +62,9 @@ export function DashboardRouteSessionAware({
   const isAuthenticated = Boolean(user);
 
   useIsomorphicLayoutEffect(() => {
-    if (router.pathname !== DASHBOARD_BOOTSTRAP_ROUTE) {
+    const isBootstrapRoute =
+      router.pathname === DASHBOARD_BOOTSTRAP_ROUTE || router.pathname === ROOT_BOOTSTRAP_ROUTE;
+    if (!isBootstrapRoute) {
       setShouldHoldForPersistedSession(false);
       return;
     }

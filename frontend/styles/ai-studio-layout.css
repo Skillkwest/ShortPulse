@@ -1597,6 +1597,12 @@ body.ai-shell-resizing * {
 .ai-studio-page[data-selected-tool="character"]:not([data-selected-tool="canvas"])
   .panel.ai-panel.ai-properties,
 .ai-studio-page[data-selected-tool="elements"]:not([data-selected-tool="canvas"])
+  .panel.ai-panel.ai-properties,
+.ai-studio-page[data-selected-tool="media-library"]:not([data-selected-tool="canvas"])
+  .panel.ai-panel.ai-properties,
+.ai-studio-page[data-selected-tool="presets"]:not([data-selected-tool="canvas"])
+  .panel.ai-panel.ai-properties,
+.ai-studio-page[data-selected-tool="styles"]:not([data-selected-tool="canvas"])
   .panel.ai-panel.ai-properties {
   background: transparent;
   padding: 0;

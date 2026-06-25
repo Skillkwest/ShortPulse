@@ -13,6 +13,7 @@ const createProjectMock = vi.hoisted(() => vi.fn());
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
 
 const useProtectedRouteMock = vi.hoisted(() => vi.fn());
+const useProtectedRouteRestoreGuardMock = vi.hoisted(() => vi.fn());
 const useMediaComplianceGateMock = vi.hoisted(() => vi.fn());
 const mediaComplianceGatePropsSpy = vi.hoisted(() => vi.fn());
 
@@ -59,6 +60,10 @@ vi.mock("../../features/compliance/hooks/useMediaComplianceGate", () => ({
 
 vi.mock("../../lib/authGuard", () => ({
   useProtectedRoute: (...args: unknown[]) => useProtectedRouteMock(...args),
+}));
+
+vi.mock("../../lib/useProtectedRouteRestoreGuard", () => ({
+  useProtectedRouteRestoreGuard: (...args: unknown[]) => useProtectedRouteRestoreGuardMock(...args),
 }));
 
 vi.mock("../../features/projects/logic/projectCreateClient", () => ({
@@ -125,6 +130,9 @@ describe("AiStudioProtectedRouteEntry", () => {
       session: { access_token: "token", user: { id: "user-1" } },
       user: { id: "user-1" },
     });
+    useProtectedRouteRestoreGuardMock.mockReturnValue({
+      checking: false,
+    });
 
     useMediaComplianceGateMock.mockReturnValue({
       ...baseComplianceState,
@@ -146,6 +154,20 @@ describe("AiStudioProtectedRouteEntry", () => {
       screen.getByText("Checking your session before project restore continues.")
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Project loading progress")).toBeInTheDocument();
+    expect(screen.queryByTestId("ai-studio-runtime")).not.toBeInTheDocument();
+  });
+
+  it("keeps the AI Studio runtime hidden while browser restore auth is revalidating", () => {
+    useProtectedRouteRestoreGuardMock.mockReturnValue({
+      checking: true,
+    });
+
+    renderRouteEntry();
+
+    expect(screen.getByRole("status")).toHaveTextContent("Loading project");
+    expect(
+      screen.getByText("Checking your session before project restore continues.")
+    ).toBeInTheDocument();
     expect(screen.queryByTestId("ai-studio-runtime")).not.toBeInTheDocument();
   });
 

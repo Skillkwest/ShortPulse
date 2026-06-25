@@ -1,7 +1,8 @@
 import { renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../types";
 import { useAiStudioReferenceGridProps } from "../useAiStudioReferenceGridProps";
+import { resetAiStudioOutputStore, setAiStudioOutputStoreSnapshot } from "../aiStudioOutputStore";
 
 const output: StudioOutput = {
   id: "out-1",
@@ -14,6 +15,13 @@ const output: StudioOutput = {
   timestamp: "2026-02-14T00:00:00.000Z",
   previewUrl: "https://example.com/out-1.png",
 };
+
+const createOutput = (id: string, prompt = id): StudioOutput => ({
+  ...output,
+  id,
+  prompt,
+  previewUrl: `https://example.com/${id}.png`,
+});
 
 const createParams = (
   overrides: Partial<Parameters<typeof useAiStudioReferenceGridProps>[0]> = {}
@@ -40,6 +48,10 @@ const createParams = (
 });
 
 describe("useAiStudioReferenceGridProps", () => {
+  beforeEach(() => {
+    resetAiStudioOutputStore();
+  });
+
   it("routes output action callbacks while preserving reload workflow snapshots", () => {
     const handleSaveReference = vi.fn();
     const handleDownloadReference = vi.fn();
@@ -125,6 +137,142 @@ describe("useAiStudioReferenceGridProps", () => {
       outputSnapshot: output,
     });
     expect(setDetailOutputId).toHaveBeenCalledWith("out-1");
+  });
+
+  it("stores the opener surface when opening details from quick slot", () => {
+    const openDetailSelectionTarget = vi.fn();
+    const setDetailOutputId = vi.fn();
+    const { result } = renderHook(() =>
+      useAiStudioReferenceGridProps(
+        createParams({
+          openDetailSelectionTarget,
+          setDetailOutputId,
+        })
+      )
+    );
+
+    result.current.onOpenDetails("out-1", output, { surface: "quick-slot" });
+
+    expect(openDetailSelectionTarget).toHaveBeenCalledWith({
+      kind: "studio-output",
+      outputId: "out-1",
+      surface: "quick-slot",
+      outputSnapshot: output,
+    });
+    expect(setDetailOutputId).toHaveBeenCalledWith("out-1");
+  });
+
+  it("navigates reference-grid details through the current selector-store all refs order", () => {
+    const firstOutput = createOutput("out-1", "First");
+    const secondOutput = createOutput("out-2", "Second");
+    const thirdOutput = createOutput("out-3", "Third");
+    const handleSelectOutput = vi.fn();
+    const openDetailSelectionTarget = vi.fn();
+    const setDetailOutputId = vi.fn();
+    setAiStudioOutputStoreSnapshot({
+      outputOrder: [firstOutput.id, secondOutput.id, thirdOutput.id],
+      outputById: {
+        [firstOutput.id]: firstOutput,
+        [secondOutput.id]: secondOutput,
+        [thirdOutput.id]: thirdOutput,
+      },
+      archivedOutputOrder: [],
+      archivedOutputById: {},
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioReferenceGridProps(
+        createParams({
+          readOutputsFromStore: true,
+          detailSelectionTarget: {
+            kind: "studio-output",
+            outputId: secondOutput.id,
+            surface: "reference-grid",
+          },
+          handleSelectOutput,
+          openDetailSelectionTarget,
+          setDetailOutputId,
+          removedFromAllRefsIds: [],
+        })
+      )
+    );
+
+    expect(result.current.detailNavigation).toMatchObject({
+      sourceSurface: "reference-grid",
+      canNavigatePrevious: true,
+      canNavigateNext: true,
+    });
+
+    result.current.detailNavigation?.onNavigatePrevious();
+    expect(handleSelectOutput).toHaveBeenLastCalledWith(firstOutput.id);
+    expect(openDetailSelectionTarget).toHaveBeenLastCalledWith({
+      kind: "studio-output",
+      outputId: firstOutput.id,
+      surface: "reference-grid",
+      outputSnapshot: firstOutput,
+    });
+    expect(setDetailOutputId).toHaveBeenLastCalledWith(firstOutput.id);
+
+    result.current.detailNavigation?.onNavigateNext();
+    expect(handleSelectOutput).toHaveBeenLastCalledWith(thirdOutput.id);
+    expect(openDetailSelectionTarget).toHaveBeenLastCalledWith({
+      kind: "studio-output",
+      outputId: thirdOutput.id,
+      surface: "reference-grid",
+      outputSnapshot: thirdOutput,
+    });
+    expect(setDetailOutputId).toHaveBeenLastCalledWith(thirdOutput.id);
+  });
+
+  it("omits detail navigation outside reference-grid detail targets", () => {
+    const { result } = renderHook(() =>
+      useAiStudioReferenceGridProps(
+        createParams({
+          detailSelectionTarget: {
+            kind: "studio-output",
+            outputId: output.id,
+            surface: "quick-slot",
+          },
+        })
+      )
+    );
+
+    expect(result.current.detailNavigation).toBeNull();
+  });
+
+  it("does not navigate past all refs boundaries", () => {
+    const handleSelectOutput = vi.fn();
+    const openDetailSelectionTarget = vi.fn();
+    const setDetailOutputId = vi.fn();
+    const firstOutput = createOutput("out-1", "First");
+    const secondOutput = createOutput("out-2", "Second");
+    const { result } = renderHook(() =>
+      useAiStudioReferenceGridProps(
+        createParams({
+          outputs: [firstOutput, secondOutput],
+          detailSelectionTarget: {
+            kind: "studio-output",
+            outputId: firstOutput.id,
+            surface: "reference-grid",
+          },
+          handleSelectOutput,
+          openDetailSelectionTarget,
+          setDetailOutputId,
+          removedFromAllRefsIds: [],
+        })
+      )
+    );
+
+    expect(result.current.detailNavigation).toMatchObject({
+      canNavigatePrevious: false,
+      canNavigateNext: true,
+    });
+
+    result.current.detailNavigation?.onNavigatePrevious();
+
+    expect(handleSelectOutput).not.toHaveBeenCalled();
+    expect(openDetailSelectionTarget).not.toHaveBeenCalled();
+    expect(setDetailOutputId).not.toHaveBeenCalled();
   });
 
   it("preserves non-action props for canvas rendering state", () => {

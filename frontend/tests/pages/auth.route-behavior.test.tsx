@@ -114,6 +114,30 @@ describe("Auth route behavior", () => {
     });
   });
 
+  it("does not silently open AI Studio from signup mode when a prior session exists", async () => {
+    routerState.pathname = "/auth";
+    routerState.asPath = "/auth?mode=signup&next=%2Fai-studio";
+    routerState.query = { mode: "signup", next: "/ai-studio" };
+    readSupabaseSessionMock.mockImplementation(async () => ({
+      access_token: "token",
+      user: { id: "user-1" },
+    }));
+
+    render(<AuthPage />);
+
+    await waitFor(() => {
+      expect(readSupabaseSessionMock).toHaveBeenCalled();
+    });
+    await expect(readSupabaseSessionMock.mock.results[0]?.value).resolves.toEqual({
+      access_token: "token",
+      user: { id: "user-1" },
+    });
+    await waitFor(() => {
+      expect(replaceMock).toHaveBeenCalledWith("/dashboard");
+    });
+    expect(replaceMock).not.toHaveBeenCalledWith("/ai-studio");
+  });
+
   it("ignores aborted session reads during auth bootstrap", async () => {
     readSupabaseSessionMock.mockRejectedValue(new Error("signal is aborted without reason"));
 
@@ -136,50 +160,36 @@ describe("Auth route behavior", () => {
     expect(
       screen.queryByText("Use your email, password, or Google account to continue.")
     ).not.toBeInTheDocument();
-    expect(container.querySelectorAll(".auth-showcase-gallery-media")).toHaveLength(10);
-    expect(
-      container.querySelector(
-        '.auth-showcase-gallery-media[src="/dashboard/gallery/monster-wall-break-demo.mp4"]'
-      )?.parentElement
-    ).toHaveClass("auth-showcase-gallery-tile-alpine");
-    expect(
-      container.querySelector(
-        '.auth-showcase-gallery-media[src="/dashboard/gallery/alpine-ski-pov-demo.mp4"]'
-      )?.parentElement
-    ).toHaveClass("auth-showcase-gallery-tile-bottom-right");
-    expect(
-      container.querySelector(
-        '.auth-showcase-gallery-media[src="/dashboard/gallery/seedance-podcast-demo.mp4"]'
-      )?.parentElement
-    ).toHaveClass("auth-showcase-gallery-tile-portrait-9x16");
-    expect(
-      container.querySelector(
-        '.auth-showcase-gallery-media[src="/dashboard/gallery/luxury-purse-ugc-demo.mp4"]'
-      )
-    ).toBeInTheDocument();
-    expect(
-      container.querySelector(
-        '.auth-showcase-gallery-media[src="/dashboard/gallery/viking-longship-storm-demo.mp4"]'
-      )
-    ).toBeInTheDocument();
-    expect(
-      container.querySelector(
-        '.auth-showcase-gallery-media[src="/dashboard/gallery/anime-cat-dance-demo.mp4"]'
-      )?.parentElement
-    ).toHaveClass("auth-showcase-gallery-tile-seedance");
-    expect(
-      container.querySelector(
-        '.auth-showcase-gallery-media[src="/dashboard/gallery/panda-villa-tour-demo.mp4"]'
-      )?.parentElement
-    ).toHaveClass("auth-showcase-gallery-tile-feature");
-    expect(
-      Array.from(container.querySelectorAll(".auth-showcase-gallery-media")).at(-1)
-    ).toHaveAttribute("src", "/dashboard/gallery/forest-bear-encounter-demo.mp4");
-    expect(
-      container.querySelector(
-        '.auth-showcase-gallery-media[src="/dashboard/gallery/forest-bear-encounter-demo.mp4"]'
-      )?.parentElement
-    ).toHaveClass("auth-showcase-gallery-tile-wide-band");
+    const showcaseMedia = Array.from(
+      container.querySelectorAll<HTMLVideoElement>(".auth-showcase-gallery-media")
+    );
+    expect(showcaseMedia).toHaveLength(10);
+    showcaseMedia.forEach((media) => {
+      expect(media).not.toHaveAttribute("src");
+      expect(media).toHaveAttribute("preload", "none");
+    });
+    expect(showcaseMedia[0]).toHaveAttribute(
+      "poster",
+      "/dashboard/gallery/monster-wall-break-demo-poster.webp"
+    );
+    expect(showcaseMedia[0]?.parentElement).toHaveClass("auth-showcase-gallery-tile-alpine");
+    expect(showcaseMedia[1]?.parentElement).toHaveClass("auth-showcase-gallery-tile-seedance");
+    expect(showcaseMedia[2]?.parentElement).toHaveClass("auth-showcase-gallery-tile-feature");
+    expect(showcaseMedia[5]?.parentElement).toHaveClass("auth-showcase-gallery-tile-bottom-right");
+    expect(showcaseMedia[6]?.parentElement).toHaveClass("auth-showcase-gallery-tile-portrait-9x16");
+    expect(showcaseMedia[7]).toHaveAttribute(
+      "poster",
+      "/dashboard/gallery/luxury-purse-ugc-demo-poster.webp"
+    );
+    expect(showcaseMedia[8]).toHaveAttribute(
+      "poster",
+      "/dashboard/gallery/viking-longship-storm-demo-poster.webp"
+    );
+    expect(showcaseMedia.at(-1)).toHaveAttribute(
+      "poster",
+      "/dashboard/gallery/forest-bear-encounter-demo-poster.webp"
+    );
+    expect(showcaseMedia.at(-1)?.parentElement).toHaveClass("auth-showcase-gallery-tile-wide-band");
     expect(container.querySelector(".auth-mode-toggle")).toBeInTheDocument();
     expect(container.querySelectorAll(".auth-input")).toHaveLength(2);
     expect(screen.getByRole("tab", { name: "Sign in" })).toHaveAttribute("aria-selected", "true");

@@ -1,4 +1,8 @@
-import type { AgentPulseWorkflowSession } from "../../../../prefabs/agent";
+import type {
+  AgentAttachment,
+  AgentMessage,
+  AgentPulseWorkflowSession,
+} from "../../../../prefabs/agent";
 import type {
   CreatePulsePresetStartResult,
   CreatePulseResolvedPreset,
@@ -22,6 +26,17 @@ export type RestartCreatePulsePresetParams = {
   setPromptOrigin: (value: PromptOrigin) => void;
   setPulseWorkflowSession: (value: AgentPulseWorkflowSession | null) => void;
   setUiNotice: (value: string | null) => void;
+  restoreAgentMessages?: (messages: AgentMessage[]) => void;
+  setAgentInput?: (value: string) => void;
+  setAgentAttachments?: (value: AgentAttachment[]) => void;
+  setAgentAttachmentError?: (value: string | null) => void;
+  currentAgentMessages?: AgentMessage[];
+  currentAgentInput?: string;
+  currentAgentAttachments?: AgentAttachment[];
+  currentAgentAttachmentError?: string | null;
+  currentLatestAgentPrompt?: string | null;
+  currentPromptOrigin?: PromptOrigin;
+  currentPulseWorkflowSession?: AgentPulseWorkflowSession | null;
   trackAgentUiEvent: (message: string, data?: Record<string, unknown>) => void;
   startPulsePreset: (
     preset: CreatePulseResolvedPreset,
@@ -43,10 +58,39 @@ export const restartCreatePulsePreset = async ({
   setPromptOrigin,
   setPulseWorkflowSession,
   setUiNotice,
+  restoreAgentMessages,
+  setAgentInput,
+  setAgentAttachments,
+  setAgentAttachmentError,
+  currentAgentMessages,
+  currentAgentInput,
+  currentAgentAttachments,
+  currentAgentAttachmentError,
+  currentLatestAgentPrompt,
+  currentPromptOrigin,
+  currentPulseWorkflowSession,
   trackAgentUiEvent,
   startPulsePreset,
   activationIsCurrent,
 }: RestartCreatePulsePresetParams): Promise<void> => {
+  const restorePreviousPulseState = () => {
+    if (currentAgentMessages && restoreAgentMessages) {
+      restoreAgentMessages(currentAgentMessages);
+    }
+    if (typeof currentAgentInput === "string" && setAgentInput) {
+      setAgentInput(currentAgentInput);
+    }
+    if (currentAgentAttachments && setAgentAttachments) {
+      setAgentAttachments(currentAgentAttachments);
+    }
+    if (setAgentAttachmentError) {
+      setAgentAttachmentError(currentAgentAttachmentError ?? null);
+    }
+    setLatestAgentPrompt(currentLatestAgentPrompt ?? null);
+    setPromptOrigin(currentPromptOrigin ?? "manual");
+    setPulseWorkflowSession(currentPulseWorkflowSession ?? null);
+  };
+
   if (activationIsCurrent?.() === false) return;
   trackAgentUiEvent("studio_agent_pulse_restart_requested", {
     preset_id: preset.presetId,
@@ -63,14 +107,19 @@ export const restartCreatePulsePreset = async ({
     restartedPulse?.presetId === preset.presetId ? restartedPulse.sessionInstanceId : null;
   if (!pulseSessionInstanceId) {
     if (activationIsCurrent?.() === false) return;
+    restorePreviousPulseState();
     setUiNotice("Pulse restart could not create a fresh session. Start the Pulse again.");
     trackAgentUiEvent("studio_agent_pulse_restart_blocked_missing_session", {
       preset_id: preset.presetId,
     });
     return;
   }
-  await startPulsePreset(preset, {
+  const result = await startPulsePreset(preset, {
     pulseSessionInstanceId,
     activationIsCurrent,
   });
+  if (result.status !== "started" && activationIsCurrent?.() !== false) {
+    restorePreviousPulseState();
+    setUiNotice(result.message || "Pulse restart could not start a fresh session. Try again.");
+  }
 };

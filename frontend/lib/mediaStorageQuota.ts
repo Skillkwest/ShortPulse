@@ -6,6 +6,8 @@ export const MEDIA_STORAGE_LIMIT_EXCEEDED_MESSAGE = "Media storage limit exceede
 export const MEDIA_STORAGE_FULL_REMEDIATION_MESSAGE =
   "Delete media, upgrade your plan, or add recurring storage before saving more files.";
 export const MEDIA_STORAGE_FULL_USER_MESSAGE = `Your media storage is full. ${MEDIA_STORAGE_FULL_REMEDIATION_MESSAGE}`;
+export const MEDIA_STORAGE_QUOTA_UNAVAILABLE_USER_MESSAGE =
+  "We could not verify your media storage right now. Try again before saving more files.";
 export const MEDIA_STORAGE_MANAGE_STORAGE_CTA_LABEL = "Manage storage";
 export const MEDIA_STORAGE_MANAGE_STORAGE_CTA_HREF = "/profile?section=storage";
 

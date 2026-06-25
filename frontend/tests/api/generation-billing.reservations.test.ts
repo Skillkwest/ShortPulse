@@ -421,6 +421,64 @@ describe("generationBilling reservation RPC handling", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
+  it("fails closed when Create image canonical billed-credit rows are missing", async () => {
+    const rpcMock = vi.fn();
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
+
+    const req = {
+      headers: {
+        "x-shortpulse-request-id": "req-kie-image-missing-create-price",
+      },
+      url: "/api/fal/kie-gpt-image-2-edit-submit",
+    };
+    const res = createMockResponse();
+    const payload = {
+      prompt: "cinematic portrait",
+      aspect_ratio: "3:2",
+      resolution: "1K",
+      image_urls: ["https://example.com/look-1.png"],
+      shortpulse_context: {
+        selected_tool: "create",
+        mode: "image",
+      },
+    };
+
+    const charge = await chargeGenerationRequest({
+      req: req as never,
+      res: res as never,
+      modelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+      payload,
+      reason: "Kie GPT Image 2 missing canonical create price",
+      shortpulseContext: {
+        selected_tool: "create",
+        mode: "image",
+      },
+    });
+
+    expect(charge).toBeNull();
+    expect(rpcMock).not.toHaveBeenCalled();
+    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Pricing is unavailable for this configuration.",
+    });
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "api.generation_billing_missing_canonical_create_price",
+        message: "Pricing is unavailable for this configuration.",
+        statusCode: 500,
+        metadata: expect.objectContaining({
+          model_id: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+          source_ref: "req-kie-image-missing-create-price",
+          pricing_params: expect.objectContaining({
+            aspect: "3:2",
+            resolution: "1K",
+          }),
+        }),
+      })
+    );
+  });
+
   it("reserves Kie GPT Image 2 edit requests with edit pricing params", async () => {
     const rpcMock = vi.fn().mockResolvedValueOnce({
       data: [{ status: "reserved", source_ref: "req-kie-image-edit", message: null }],

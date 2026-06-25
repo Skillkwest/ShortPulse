@@ -492,7 +492,9 @@ describe("ReferenceGrid curated split", () => {
     expect(card?.querySelector(".reference-loading")).toBeNull();
 
     fireEvent.doubleClick(card as HTMLDivElement);
-    expect(onOpenDetails).toHaveBeenCalledWith(generatedImage.id, generatedImage);
+    expect(onOpenDetails).toHaveBeenCalledWith(generatedImage.id, generatedImage, {
+      surface: "reference-grid",
+    });
   });
 
   it("renders posterless generated videos with a visible playable surface", () => {
@@ -532,7 +534,29 @@ describe("ReferenceGrid curated split", () => {
     expect(videoNode?.classList.contains("is-visible")).toBe(false);
 
     fireEvent.doubleClick(card as HTMLDivElement);
-    expect(onOpenDetails).toHaveBeenCalledWith(generatedVideo.id, generatedVideo);
+    expect(onOpenDetails).toHaveBeenCalledWith(generatedVideo.id, generatedVideo, {
+      surface: "reference-grid",
+    });
+  });
+
+  it("marks quick slot detail openers with the quick-slot surface", () => {
+    const onOpenDetails = vi.fn();
+    const { container } = render(
+      <ReferenceGrid
+        {...createProps({
+          curatedReferenceIds: ["out-1"],
+          onOpenDetails,
+        })}
+      />
+    );
+
+    const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
+    const curatedCard = curatedSection.querySelector(".reference-card") as HTMLDivElement;
+    fireEvent.doubleClick(curatedCard);
+
+    expect(onOpenDetails).toHaveBeenCalledWith("out-1", outputs[0], {
+      surface: "quick-slot",
+    });
   });
 
   it("renders generated video poster thumbnails even without a playable hover URL", () => {
@@ -1365,6 +1389,32 @@ describe("ReferenceGrid curated split", () => {
     expect(curatedQueries.getByLabelText("Download reference")).toBeInTheDocument();
     expect(curatedQueries.queryByLabelText("Save to media library")).toBeNull();
     expect(curatedQueries.queryByLabelText("Remove reference from grid")).toBeNull();
+  });
+
+  it("removes the selected quick-slot card with Delete without deleting the reference output", () => {
+    const onRemoveCuratedReference = vi.fn();
+    const onDeleteOutput = vi.fn();
+    const { container } = render(
+      <ReferenceGrid
+        {...createProps({
+          activeOutputId: "out-1",
+          curatedReferenceIds: ["out-1"],
+          onRemoveCuratedReference,
+          onDeleteOutput,
+        })}
+      />
+    );
+    const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
+    expect(curatedSection).toBeTruthy();
+    const selectedQuickSlotCard = curatedSection.querySelector(
+      ".reference-card.is-active"
+    ) as HTMLElement;
+    expect(selectedQuickSlotCard).toBeTruthy();
+
+    fireEvent.keyDown(selectedQuickSlotCard, { key: "Delete" });
+
+    expect(onRemoveCuratedReference).toHaveBeenCalledWith("out-1");
+    expect(onDeleteOutput).not.toHaveBeenCalled();
   });
 
   it("shows curated download action for quick slot video media", () => {

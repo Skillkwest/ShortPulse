@@ -7,6 +7,7 @@ import {
 import { createEmptyExpertEditSecondaryImageUrls } from "../../features/ai-studio/logic/expertEditReferenceSlots";
 import { sanitizeRightRailLayoutSnapshot } from "../../features/ai-studio/logic/rightRailLayout";
 import {
+  buildReferenceGridOverflowArchiveRows,
   isReferenceGridVisibleOutput,
   REFERENCE_GRID_MAX_VISIBLE_ITEMS,
 } from "../model-runtime/referenceGridLimits";
@@ -284,8 +285,9 @@ const shouldPersistOutputInProjectWorkspaceSnapshot = (
 
 const limitProjectWorkspaceVisibleOutputs = (
   rows: Record<string, unknown>[]
-): Record<string, unknown>[] => {
+): { rows: Record<string, unknown>[]; overflowRows: Record<string, unknown>[] } => {
   const nextRows: Record<string, unknown>[] = [];
+  const overflowRows: Record<string, unknown>[] = [];
   let visibleCount = 0;
 
   rows.forEach((row) => {
@@ -297,12 +299,18 @@ const limitProjectWorkspaceVisibleOutputs = (
       nextRows.push(row);
       return;
     }
-    if (visibleCount >= REFERENCE_GRID_MAX_VISIBLE_ITEMS) return;
+    if (visibleCount >= REFERENCE_GRID_MAX_VISIBLE_ITEMS) {
+      overflowRows.push(row);
+      return;
+    }
     visibleCount += 1;
     nextRows.push(row);
   });
 
-  return nextRows;
+  return {
+    rows: nextRows,
+    overflowRows,
+  };
 };
 
 const filterProjectWorkspaceOutputIds = ({
@@ -339,31 +347,38 @@ type ProjectWorkspaceSnapshotOptions = {
   trimGeneratedOutputMetadata?: boolean;
 };
 
-const stripFailedOutputsFromProjectWorkspaceOutputs = (
-  outputs: unknown,
-  options: ProjectWorkspaceSnapshotOptions = {}
-): CanonicalizedProjectWorkspaceOutputs => {
-  const outputsRecord = asRecord(outputs);
+const normalizeProjectWorkspaceOutputRows = (
+  value: unknown,
+  options: ProjectWorkspaceSnapshotOptions
+): Record<string, unknown>[] => {
   const trimGeneratedOutputDeliveryUrls = options.trimGeneratedOutputDeliveryUrls !== false;
   const trimGeneratedOutputMetadata = options.trimGeneratedOutputMetadata !== false;
-  const persistedActiveOutputs = (Array.isArray(outputsRecord.active) ? outputsRecord.active : [])
+  return (Array.isArray(value) ? value : [])
     .map((output) => asRecord(output))
-    .filter(shouldPersistOutputInProjectWorkspaceSnapshot);
-  const normalizedActiveOutputs = persistedActiveOutputs.map((output) => {
-    const generatedNormalizedOutput = trimGeneratedProjectWorkspaceOutput(output, {
-      trimDeliveryUrls: trimGeneratedOutputDeliveryUrls,
-      trimMetadata: trimGeneratedOutputMetadata,
+    .filter(shouldPersistOutputInProjectWorkspaceSnapshot)
+    .map((output) => {
+      const generatedNormalizedOutput = trimGeneratedProjectWorkspaceOutput(output, {
+        trimDeliveryUrls: trimGeneratedOutputDeliveryUrls,
+        trimMetadata: trimGeneratedOutputMetadata,
+      });
+      return trimProjectWorkspaceOutputTextSummaries(
+        trimPromptOnlyProjectWorkspaceOutput(generatedNormalizedOutput)
+      );
     });
-    return trimProjectWorkspaceOutputTextSummaries(
-      trimPromptOnlyProjectWorkspaceOutput(generatedNormalizedOutput)
-    );
-  });
-  const visibleLimitedActiveOutputs = limitProjectWorkspaceVisibleOutputs(normalizedActiveOutputs);
-  const outputIdAliases = new Map<string, string>();
-  const persistedOutputIds = new Set<string>();
-  const canonicalActiveOutputs: Record<string, unknown>[] = [];
+};
 
-  visibleLimitedActiveOutputs.forEach((output) => {
+const canonicalizeProjectWorkspaceOutputRows = ({
+  rows,
+  outputIdAliases,
+  persistedOutputIds,
+}: {
+  rows: Record<string, unknown>[];
+  outputIdAliases: Map<string, string>;
+  persistedOutputIds: Set<string>;
+}): Record<string, unknown>[] => {
+  const canonicalRows: Record<string, unknown>[] = [];
+
+  rows.forEach((output) => {
     const generationId = asTrimmedString(output.generationId);
     const currentId = asTrimmedString(output.id);
     const canonicalGeneratedId = buildCanonicalGeneratedProjectOutputId(generationId);
@@ -389,17 +404,53 @@ const stripFailedOutputsFromProjectWorkspaceOutputs = (
       persistedOutputIds.add(canonicalId);
     }
 
-    canonicalActiveOutputs.push(canonicalOutput);
+    canonicalRows.push(canonicalOutput);
+  });
+
+  return canonicalRows;
+};
+
+const stripFailedOutputsFromProjectWorkspaceOutputs = (
+  outputs: unknown,
+  options: ProjectWorkspaceSnapshotOptions = {},
+  archivedAt?: string | null
+): CanonicalizedProjectWorkspaceOutputs => {
+  const outputsRecord = asRecord(outputs);
+  const normalizedActiveOutputs = normalizeProjectWorkspaceOutputRows(
+    outputsRecord.active,
+    options
+  );
+  const normalizedArchivedOutputs = normalizeProjectWorkspaceOutputRows(
+    outputsRecord.archived,
+    options
+  );
+  const visibleLimitedActiveOutputs = limitProjectWorkspaceVisibleOutputs(normalizedActiveOutputs);
+  const overflowArchivedOutputs = buildReferenceGridOverflowArchiveRows(
+    visibleLimitedActiveOutputs.overflowRows,
+    archivedAt ?? undefined
+  );
+  const outputIdAliases = new Map<string, string>();
+  const persistedOutputIds = new Set<string>();
+  const canonicalActiveOutputs = canonicalizeProjectWorkspaceOutputRows({
+    rows: visibleLimitedActiveOutputs.rows,
+    outputIdAliases,
+    persistedOutputIds,
+  });
+  const activeOutputIds = new Set(persistedOutputIds);
+  const canonicalArchivedOutputs = canonicalizeProjectWorkspaceOutputRows({
+    rows: [...overflowArchivedOutputs, ...normalizedArchivedOutputs],
+    outputIdAliases,
+    persistedOutputIds,
   });
 
   const normalizedOutputs = {
     ...outputsRecord,
     active: canonicalActiveOutputs,
-    archived: [],
+    archived: canonicalArchivedOutputs,
     activeOutputId: null,
     curatedReferenceIds: filterProjectWorkspaceOutputIds({
       value: outputsRecord.curatedReferenceIds,
-      persistedOutputIds,
+      persistedOutputIds: activeOutputIds,
       outputIdAliases,
     }),
     removedFromAllRefsIds: filterProjectWorkspaceOutputIds({
@@ -545,7 +596,8 @@ export const createAiStudioProjectWorkspaceSnapshot = <
     const normalizedWorkspace = resetProjectWorkspaceFields(baseWorkspace);
     const canonicalizedOutputs = stripFailedOutputsFromProjectWorkspaceOutputs(
       baseSnapshot.outputs,
-      options
+      options,
+      asTrimmedString(baseSnapshot.updatedAt)
     );
     const normalizedCanvas = normalizeProjectWorkspaceCanvas(
       canvas,
@@ -574,7 +626,11 @@ export const createAiStudioProjectWorkspaceSnapshot = <
   return {
     ...snapshot,
     workspace: resetProjectWorkspaceFields(asRecord(snapshot.workspace)),
-    outputs: stripFailedOutputsFromProjectWorkspaceOutputs(snapshot.outputs, options).outputs,
+    outputs: stripFailedOutputsFromProjectWorkspaceOutputs(
+      snapshot.outputs,
+      options,
+      asTrimmedString(snapshot.updatedAt)
+    ).outputs,
     agent: emptyAgentRuntime,
   } as unknown as TSnapshot;
 };

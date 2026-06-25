@@ -244,4 +244,64 @@ describe("pulsePresetRestart", () => {
     expect(setUiNotice).not.toHaveBeenCalled();
     expect(startPulsePresetMock).not.toHaveBeenCalled();
   });
+
+  it("restores the previous Pulse state when restarted kickoff fails", async () => {
+    const previousMessages = [
+      {
+        id: "assistant-previous",
+        role: "assistant" as const,
+        content: "Previous Pulse question",
+      },
+    ];
+    const previousWorkflowSession = buildWorkflowSession();
+    const restoreAgentMessages = vi.fn();
+    const setAgentInput = vi.fn();
+    const setAgentAttachments = vi.fn();
+    const setAgentAttachmentError = vi.fn();
+    const setLatestAgentPrompt = vi.fn();
+    const setPromptOrigin = vi.fn();
+    const setPulseWorkflowSession = vi.fn();
+    const setUiNotice = vi.fn();
+
+    await restartCreatePulsePreset({
+      preset: resolvedPreset,
+      restartPulse: () => ({
+        presetId: resolvedPreset.presetId,
+        sessionInstanceId: "pulse-session-restarted",
+      }),
+      resetAgentChat: vi.fn(),
+      resetAgentComposer: vi.fn(),
+      setLatestAgentPrompt,
+      setPromptOrigin,
+      setPulseWorkflowSession,
+      setUiNotice,
+      restoreAgentMessages,
+      setAgentInput,
+      setAgentAttachments,
+      setAgentAttachmentError,
+      currentAgentMessages: previousMessages,
+      currentAgentInput: "previous draft",
+      currentAgentAttachments: [],
+      currentAgentAttachmentError: "previous attachment warning",
+      currentLatestAgentPrompt: "previous prompt",
+      currentPromptOrigin: "agent",
+      currentPulseWorkflowSession: previousWorkflowSession,
+      trackAgentUiEvent: vi.fn(),
+      startPulsePreset: vi.fn(async () => ({
+        status: "failed" as const,
+        reason: "transport_error" as const,
+        message: "Unable to restart Pulse.",
+      })),
+      activationIsCurrent: () => true,
+    });
+
+    expect(restoreAgentMessages).toHaveBeenCalledWith(previousMessages);
+    expect(setAgentInput).toHaveBeenCalledWith("previous draft");
+    expect(setAgentAttachments).toHaveBeenCalledWith([]);
+    expect(setAgentAttachmentError).toHaveBeenCalledWith("previous attachment warning");
+    expect(setLatestAgentPrompt).toHaveBeenLastCalledWith("previous prompt");
+    expect(setPromptOrigin).toHaveBeenLastCalledWith("agent");
+    expect(setPulseWorkflowSession).toHaveBeenLastCalledWith(previousWorkflowSession);
+    expect(setUiNotice).toHaveBeenCalledWith("Unable to restart Pulse.");
+  });
 });

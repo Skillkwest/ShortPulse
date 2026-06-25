@@ -63,7 +63,6 @@ Use this checklist before promoting code toward `production` (and before any dep
 
 ## Post‑MVP checks (run when these surfaces are enabled)
 
-- Saved Creators: add/edit/remove a handle; data is user-scoped
 - Performance: demo refresh/filter workflow works; charts/cards render; no console errors
 
 ## Rollout safety (cleanup/refactor PRs)

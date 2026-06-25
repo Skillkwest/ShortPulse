@@ -3,6 +3,7 @@
  */
 import { useEffect, useRef } from "react";
 import type { StudioOutput } from "../types";
+import { revokeRememberedObjectUrl } from "../utils/objectUrlBlobRegistry";
 
 const isBlobObjectUrl = (value?: string | null) =>
   typeof value === "string" && value.startsWith("blob:");
@@ -42,9 +43,7 @@ export const useAiStudioOutputObjectUrlLifecycle = ({
     Object.entries(previousUrlMap).forEach(([outputId, objectUrl]) => {
       const stillTracked = currentUrlMap[outputId];
       if (stillTracked === objectUrl) return;
-      if (typeof URL.revokeObjectURL === "function") {
-        URL.revokeObjectURL(objectUrl);
-      }
+      revokeRememberedObjectUrl(objectUrl);
       delete outputObjectUrlByIdRef.current[outputId];
     });
     Object.entries(currentUrlMap).forEach(([outputId, objectUrl]) => {
@@ -56,9 +55,7 @@ export const useAiStudioOutputObjectUrlLifecycle = ({
   useEffect(
     () => () => {
       Object.values(lastOutputUrlsByIdRef.current).forEach((objectUrl) => {
-        if (typeof URL.revokeObjectURL === "function") {
-          URL.revokeObjectURL(objectUrl);
-        }
+        revokeRememberedObjectUrl(objectUrl);
       });
       lastOutputUrlsByIdRef.current = {};
       outputObjectUrlByIdRef.current = {};

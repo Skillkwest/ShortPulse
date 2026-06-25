@@ -250,50 +250,60 @@ export function PricingRouteContent({ billingCatalog, isAuthenticated }: Pricing
               <p className="pricing-billing-helper">
                 Upgrade anytime. Downgrades apply at the next billing cycle.
               </p>
+              {sortedPlans.length === 0 ? (
+                <AppMessage
+                  className="pricing-route-notice"
+                  tone="error"
+                  mode="banner"
+                  message="Pricing is temporarily unavailable. Please refresh this page before choosing a plan."
+                />
+              ) : null}
             </div>
 
-            <div className="lp-plan-grid pricing-plan-grid-screenshot">
-              {sortedPlans.map((plan) => {
-                const planView = buildPlanView({ planId: plan.id, plans: billingCatalog.plans });
-                const planPricing = resolvePlanPricingForInterval(plan, selectedBillingInterval);
-                const intervalUnavailable =
-                  selectedBillingInterval === "year" &&
-                  plan.id !== "free" &&
-                  !planPricing.hasLiveOffer;
-                const isSelected = selectedPlanId === plan.id;
-                const actionLabel = intervalUnavailable
-                  ? "Annual unavailable"
-                  : resolvePlanActionLabel({
-                      isAuthenticated,
-                      monthlyPriceCents: planPricing.monthlyEquivalentCents,
-                      displayName: planView.displayName,
-                    });
-                const isLoading = planActionLoadingId === plan.id;
+            {sortedPlans.length > 0 ? (
+              <div className="lp-plan-grid pricing-plan-grid-screenshot">
+                {sortedPlans.map((plan) => {
+                  const planView = buildPlanView({ planId: plan.id, plans: billingCatalog.plans });
+                  const planPricing = resolvePlanPricingForInterval(plan, selectedBillingInterval);
+                  const intervalUnavailable =
+                    selectedBillingInterval === "year" &&
+                    plan.id !== "free" &&
+                    !planPricing.hasLiveOffer;
+                  const isSelected = selectedPlanId === plan.id;
+                  const actionLabel = intervalUnavailable
+                    ? "Annual unavailable"
+                    : resolvePlanActionLabel({
+                        isAuthenticated,
+                        monthlyPriceCents: planPricing.monthlyEquivalentCents,
+                        displayName: planView.displayName,
+                      });
+                  const isLoading = planActionLoadingId === plan.id;
 
-                return (
-                  <SubscriptionPlanCard
-                    key={plan.id}
-                    plan={plan}
-                    plans={billingCatalog.plans}
-                    billingInterval={selectedBillingInterval}
-                    isSelected={isSelected}
-                    className="pricing-surface-card"
-                    actionSlot={
-                      <button
-                        type="button"
-                        className={`pricing-btn ${plan.monthly_price_cents === 0 ? "neutral" : "primary"}`}
-                        onClick={() => {
-                          void handlePlanAction(plan.id);
-                        }}
-                        disabled={isLoading || intervalUnavailable}
-                      >
-                        {isLoading ? "Starting…" : actionLabel}
-                      </button>
-                    }
-                  />
-                );
-              })}
-            </div>
+                  return (
+                    <SubscriptionPlanCard
+                      key={plan.id}
+                      plan={plan}
+                      plans={billingCatalog.plans}
+                      billingInterval={selectedBillingInterval}
+                      isSelected={isSelected}
+                      className="pricing-surface-card"
+                      actionSlot={
+                        <button
+                          type="button"
+                          className={`pricing-btn ${plan.monthly_price_cents === 0 ? "neutral" : "primary"}`}
+                          onClick={() => {
+                            void handlePlanAction(plan.id);
+                          }}
+                          disabled={isLoading || intervalUnavailable}
+                        >
+                          {isLoading ? "Starting…" : actionLabel}
+                        </button>
+                      }
+                    />
+                  );
+                })}
+              </div>
+            ) : null}
           </section>
         </main>
       </div>

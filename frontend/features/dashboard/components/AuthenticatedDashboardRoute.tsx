@@ -177,7 +177,11 @@ export function AuthenticatedDashboardRoute({
     className: fallbackPlanView.className,
     monthlyCreditsCents: fallbackPlanView.monthlyCreditsCents,
   };
-  const { quotaSummary, loading: quotaLoading } = useMediaStorageQuotaSummary({
+  const {
+    quotaStatus,
+    quotaSummary,
+    loading: quotaLoading,
+  } = useMediaStorageQuotaSummary({
     enabled: true,
     fallbackPlanId: planMeta.id,
   });
@@ -304,10 +308,11 @@ export function AuthenticatedDashboardRoute({
 
   const storageUsageValue = useMemo(() => {
     if (usageLoading || quotaLoading) return "…";
+    if (quotaStatus === "unavailable" || !quotaSummary) return "Unavailable";
     const usedStorage = formatStorageBytes(quotaSummary?.usedBytes ?? 0);
     const totalStorage = formatStorageBytes(quotaSummary?.totalLimitBytes ?? 0);
     return `${usedStorage} /\n${totalStorage}`;
-  }, [quotaLoading, quotaSummary, usageLoading]);
+  }, [quotaLoading, quotaStatus, quotaSummary, usageLoading]);
 
   const aiCreditsValue =
     balanceLoading && balanceCents == null

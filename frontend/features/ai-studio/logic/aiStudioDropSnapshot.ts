@@ -3,39 +3,22 @@
  * transfer-like adapter for downstream parsers after the browser event ends.
  */
 import { getMediaLibraryDragTypes } from "./mediaLibraryDragPayload";
+import {
+  AI_STUDIO_REFERENCE_DROP_TRANSFER_TYPES,
+  REFERENCE_TRANSFER_ID_TYPE,
+  REFERENCE_TRANSFER_MEDIA_ID_TYPE,
+  REFERENCE_TRANSFER_ORIGIN_TYPE,
+  REFERENCE_TRANSFER_OUTPUT_ID_TYPE,
+  REFERENCE_TRANSFER_RENDER_URL_TYPE,
+  REFERENCE_TRANSFER_SOURCE_SURFACE_TYPE,
+  REFERENCE_TRANSFER_URL_TYPE,
+} from "../../../lib/internalReferenceDragPayload";
 
 export type AiStudioDropSnapshot = {
   transferTypes: string[];
   files: File[];
   data: Record<string, string>;
 };
-
-const INTERNAL_REFERENCE_TRANSFER_TYPES = [
-  "application/x-shortpulse-reference-drag-token",
-  "text/reference-drag-token",
-  "application/x-shortpulse-composer-image-drop-token",
-  "text/reference-composer-image-drop-token",
-  "application/x-shortpulse-prompt-reference-drag-token",
-  "text/shortpulse-prompt-reference-drag-token",
-  "application/x-shortpulse-composer-image-drop",
-  "text/reference-composer-image-payload",
-  "text/reference-origin",
-  "text/reference-version",
-  "text/reference-id",
-  "text/reference-output-id",
-  "text/reference-media-id",
-  "text/reference-media-kind",
-  "text/reference-preview-storage-path",
-  "text/reference-preview-poster-storage-path",
-  "text/reference-full-storage-path",
-  "text/reference-image-index",
-  "text/reference-width",
-  "text/reference-height",
-  "text/reference-source-surface",
-  "text/reference-url",
-  "text/reference-render-url",
-  "image/url",
-] as const;
 
 const MEDIA_LIBRARY_FALLBACK_TRANSFER_TYPES = [
   "text/shortpulse-media-library-marker",
@@ -78,7 +61,7 @@ const URLISH_PATTERN = /^(?:data:(?:image|video|audio)\/|blob:|https?:\/\/)/i;
 const KNOWN_AI_STUDIO_DROP_TRANSFER_TYPES = [
   ...getMediaLibraryDragTypes(),
   ...MEDIA_LIBRARY_FALLBACK_TRANSFER_TYPES,
-  ...INTERNAL_REFERENCE_TRANSFER_TYPES,
+  ...AI_STUDIO_REFERENCE_DROP_TRANSFER_TYPES,
   ...GENERIC_TEXT_TRANSFER_TYPES,
 ] as const;
 
@@ -140,13 +123,13 @@ export const hasAiStudioStructuredDropHints = (snapshot: AiStudioDropSnapshot): 
   }
 
   const structuredValues = [
-    snapshot.data["text/reference-origin"],
-    snapshot.data["text/reference-id"],
-    snapshot.data["text/reference-output-id"],
-    snapshot.data["text/reference-media-id"],
-    snapshot.data["text/reference-source-surface"],
-    snapshot.data["text/reference-url"],
-    snapshot.data["text/reference-render-url"],
+    snapshot.data[REFERENCE_TRANSFER_ORIGIN_TYPE],
+    snapshot.data[REFERENCE_TRANSFER_ID_TYPE],
+    snapshot.data[REFERENCE_TRANSFER_OUTPUT_ID_TYPE],
+    snapshot.data[REFERENCE_TRANSFER_MEDIA_ID_TYPE],
+    snapshot.data[REFERENCE_TRANSFER_SOURCE_SURFACE_TYPE],
+    snapshot.data[REFERENCE_TRANSFER_URL_TYPE],
+    snapshot.data[REFERENCE_TRANSFER_RENDER_URL_TYPE],
     snapshot.data["image/url"],
     snapshot.data["text/shortpulse-media-library-marker"],
     snapshot.data["text/shortpulse-media-library-kind"],

@@ -138,7 +138,7 @@ npm run dev
 
 ## Bootstrap Supabase (optional)
 
-- Minimal scripts: `sql/create_saved_creators_table.sql` and `sql/storage_policies.sql`
+- Minimal scripts: `sql/storage_policies.sql`
 - Combined schema: `docs/supabase_full_schema.sql`
 - If you bootstrap development from a staging schema-only copy, run
   `bash scripts/ops/supabase_public_acl_sync.sh --source-label staging --target-label development`

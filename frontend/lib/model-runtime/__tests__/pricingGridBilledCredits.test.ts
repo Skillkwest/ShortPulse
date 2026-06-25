@@ -76,7 +76,7 @@ describe("pricingGridBilledCredits", () => {
       })
     ).toMatchObject({
       credits: 4,
-      variantId: "create|res:medium|aspect:16:9",
+      variantId: "default|res:medium|aspect:16:9",
     });
   });
 

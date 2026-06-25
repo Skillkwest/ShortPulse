@@ -2,14 +2,20 @@
  * AI Studio reference-grid prop composition hook.
  * Keeps reference grid action wiring out of the page orchestrator.
  */
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import type { SharedMediaDetailSelectionTarget } from "../components/detail-modal/detailModalPlatformTypes";
 import type { StudioOutput, WorkflowReloadMediaKindHint } from "../types";
-import type { AiStudioReferenceGridContract } from "./contracts/pageContentContracts";
+import type { AiStudioReferenceGridRuntimeContract } from "./contracts/pageContentContracts";
+import { selectVisibleAllRefsProjection } from "../reference-projections";
 import type {
   LibraryMediaReferencePayload,
   LibraryPromptReferencePayload,
 } from "../reference-grid/referenceGridTypes";
+import {
+  getAiStudioOutputSnapshot,
+  selectVisibleAllRefsOutputIdsFromStoreSnapshot,
+  useOutputSelector,
+} from "./aiStudioOutputStore";
 
 const EMPTY_ARCHIVED_OUTPUTS: StudioOutput[] = [];
 
@@ -24,6 +30,7 @@ export type UseAiStudioReferenceGridPropsParams = {
   onReferenceOutputMediaLoaded: (id: string) => void;
   linkedPromptReferenceIds: string[];
   handleSelectOutput: (id: string) => void;
+  detailSelectionTarget?: SharedMediaDetailSelectionTarget | null;
   openDetailSelectionTarget: (target: SharedMediaDetailSelectionTarget | null) => void;
   setDetailOutputId: (id: string | null) => void;
   handleSaveReference: (id: string) => void;
@@ -51,6 +58,9 @@ export type UseAiStudioReferenceGridPropsParams = {
   restoreAllArchivedOutputs?: () => void;
 };
 
+const areIdListsEqual = (left: string[], right: string[]): boolean =>
+  left.length === right.length && left.every((item, index) => item === right[index]);
+
 /**
  * Returns the reference-grid props consumed by `AiStudioPageContent`.
  */
@@ -65,6 +75,7 @@ export const useAiStudioReferenceGridProps = ({
   onReferenceOutputMediaLoaded,
   linkedPromptReferenceIds,
   handleSelectOutput,
+  detailSelectionTarget = null,
   openDetailSelectionTarget,
   setDetailOutputId,
   handleSaveReference,
@@ -83,18 +94,111 @@ export const useAiStudioReferenceGridProps = ({
   reorderCuratedReference,
   restoreArchivedOutput,
   restoreAllArchivedOutputs,
-}: UseAiStudioReferenceGridPropsParams): AiStudioReferenceGridContract => {
+}: UseAiStudioReferenceGridPropsParams): AiStudioReferenceGridRuntimeContract => {
   const directOutputs = readOutputsFromStore ? undefined : outputs;
   const directArchivedOutputs = readOutputsFromStore
     ? undefined
     : outputs === undefined && archivedOutputs === undefined
       ? undefined
       : (archivedOutputs ?? EMPTY_ARCHIVED_OUTPUTS);
+  const directVisibleAllRefsOutputIds = useMemo(
+    () =>
+      directOutputs
+        ? selectVisibleAllRefsProjection(directOutputs, {
+            quickSlotIds: [],
+            removedFromAllRefsIds: [...removedFromAllRefsIds],
+          }).map((item) => item.id)
+        : [],
+    [directOutputs, removedFromAllRefsIds]
+  );
+  const directOutputById = useMemo(() => {
+    const map: Record<string, StudioOutput> = {};
+    directOutputs?.forEach((item) => {
+      map[item.id] = item;
+    });
+    return map;
+  }, [directOutputs]);
+  const selectorVisibleAllRefsOutputIds = useOutputSelector(
+    useCallback(
+      (snapshot) => {
+        if (!readOutputsFromStore) return [];
+        return selectVisibleAllRefsOutputIdsFromStoreSnapshot(snapshot, {
+          removedFromAllRefsIds,
+        });
+      },
+      [readOutputsFromStore, removedFromAllRefsIds]
+    ),
+    areIdListsEqual
+  );
+  const visibleAllRefsOutputIds = readOutputsFromStore
+    ? selectorVisibleAllRefsOutputIds
+    : directVisibleAllRefsOutputIds;
+  const referenceGridDetailOutputId =
+    detailSelectionTarget?.kind === "studio-output" &&
+    detailSelectionTarget.surface === "reference-grid"
+      ? detailSelectionTarget.outputId
+      : null;
+  const detailNavigationIndex = referenceGridDetailOutputId
+    ? visibleAllRefsOutputIds.indexOf(referenceGridDetailOutputId)
+    : -1;
+  const navigateReferenceGridDetail = useCallback(
+    (direction: "previous" | "next") => {
+      if (!referenceGridDetailOutputId) return;
+      const snapshot = readOutputsFromStore ? getAiStudioOutputSnapshot() : null;
+      const currentVisibleIds = snapshot
+        ? selectVisibleAllRefsOutputIdsFromStoreSnapshot(snapshot, {
+            removedFromAllRefsIds,
+          })
+        : directVisibleAllRefsOutputIds;
+      const currentIndex = currentVisibleIds.indexOf(referenceGridDetailOutputId);
+      if (currentIndex < 0) return;
+      const targetIndex = direction === "previous" ? currentIndex - 1 : currentIndex + 1;
+      if (targetIndex < 0 || targetIndex >= currentVisibleIds.length) return;
+      const targetId = currentVisibleIds[targetIndex];
+      if (!targetId) return;
+      const targetOutput = snapshot ? snapshot.outputById[targetId] : directOutputById[targetId];
+
+      handleSelectOutput(targetId);
+      openDetailSelectionTarget({
+        kind: "studio-output",
+        outputId: targetId,
+        surface: "reference-grid",
+        ...(targetOutput ? { outputSnapshot: targetOutput } : {}),
+      });
+      setDetailOutputId(targetId);
+    },
+    [
+      directOutputById,
+      directVisibleAllRefsOutputIds,
+      handleSelectOutput,
+      openDetailSelectionTarget,
+      readOutputsFromStore,
+      referenceGridDetailOutputId,
+      removedFromAllRefsIds,
+      setDetailOutputId,
+    ]
+  );
+  const detailNavigation = useMemo(() => {
+    if (!referenceGridDetailOutputId || detailNavigationIndex < 0) return null;
+    return {
+      sourceSurface: "reference-grid" as const,
+      canNavigatePrevious: detailNavigationIndex > 0,
+      canNavigateNext: detailNavigationIndex < visibleAllRefsOutputIds.length - 1,
+      onNavigatePrevious: () => navigateReferenceGridDetail("previous"),
+      onNavigateNext: () => navigateReferenceGridDetail("next"),
+    };
+  }, [
+    detailNavigationIndex,
+    navigateReferenceGridDetail,
+    referenceGridDetailOutputId,
+    visibleAllRefsOutputIds.length,
+  ]);
 
   return useMemo(
     () => ({
       outputs: directOutputs,
       archivedOutputs: directArchivedOutputs,
+      detailNavigation,
       activeOutputId,
       topNotice,
       curatedReferenceIds,
@@ -104,11 +208,12 @@ export const useAiStudioReferenceGridProps = ({
       onOutputMediaLoaded: onReferenceOutputMediaLoaded,
       linkedPromptReferenceIds,
       onSelectOutput: handleSelectOutput,
-      onOpenDetails: (id, output) => {
+      onOpenDetails: (id, output, options) => {
+        const surface = options?.surface ?? "reference-grid";
         openDetailSelectionTarget({
           kind: "studio-output",
           outputId: id,
-          surface: "reference-grid",
+          surface,
           ...(output ? { outputSnapshot: output } : {}),
         });
         setDetailOutputId(id);
@@ -142,6 +247,7 @@ export const useAiStudioReferenceGridProps = ({
       addCuratedReference,
       directArchivedOutputs,
       directOutputs,
+      detailNavigation,
       curatedReferenceIds,
       removedFromAllRefsIds,
       topNotice,

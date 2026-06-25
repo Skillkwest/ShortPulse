@@ -15,6 +15,13 @@ describe("mapHookContractsToPageContentProps", () => {
     const onDetailSaveReference = vi.fn();
     const onDetailSavePrompt = vi.fn();
     const onOpenMediaLibrary = vi.fn();
+    const detailNavigation = {
+      sourceSurface: "reference-grid" as const,
+      canNavigatePrevious: true,
+      canNavigateNext: false,
+      onNavigatePrevious: vi.fn(),
+      onNavigateNext: vi.fn(),
+    };
 
     const result = mapHookContractsToPageContentProps({
       panelProps: {
@@ -26,6 +33,7 @@ describe("mapHookContractsToPageContentProps", () => {
       previewDetailProps: {
         studioPreviewProps: studioPreviewProps as never,
         detailModalOutput: null,
+        detailNavigation,
         isMediaStorageFull: true,
         onDetailClose,
         onUpdateOutputPrompt,
@@ -43,6 +51,7 @@ describe("mapHookContractsToPageContentProps", () => {
     expect(result.referenceGridProps).toBe(referenceGridProps);
     expect(result.studioPreviewProps).toBe(studioPreviewProps);
     expect(result.detailModalOutput).toBeNull();
+    expect(result.detailNavigation).toBe(detailNavigation);
     expect(result.isMediaStorageFull).toBe(true);
     expect(result.onDetailClose).toBe(onDetailClose);
     expect(result.onUpdateOutputPrompt).toBe(onUpdateOutputPrompt);

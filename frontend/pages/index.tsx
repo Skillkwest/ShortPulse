@@ -1,13 +1,13 @@
 /**
- * Root public dashboard/home route.
- * Serves the logged-out dashboard surface without the session-aware dashboard bundle.
+ * Root dashboard/home route.
+ * Reuses the session-aware dashboard shell so public CTAs do not render over stored auth.
  */
 import type { GetStaticProps, InferGetStaticPropsType } from "next";
-import { PublicDashboardRoute } from "../features/dashboard/routes/PublicDashboardRoute";
 import {
   loadPublicDashboardStaticProps,
   type PublicDashboardStaticProps,
 } from "../features/dashboard/routes/publicDashboardData";
+import DashboardPage from "./dashboard";
 
 /**
  * Loads the public dashboard/home static props for the root route.
@@ -20,18 +20,8 @@ export const getStaticProps: GetStaticProps<PublicDashboardStaticProps> = async 
 };
 
 /**
- * Renders the public dashboard/home surface at the root route.
+ * Renders the root dashboard/home surface with the canonical dashboard session bootstrap.
  */
-export default function IndexPage({
-  billingCatalog,
-  dashboardOffers,
-  dashboardTutorials,
-}: InferGetStaticPropsType<typeof getStaticProps>) {
-  return (
-    <PublicDashboardRoute
-      billingCatalog={billingCatalog}
-      dashboardOffers={dashboardOffers}
-      dashboardTutorials={dashboardTutorials}
-    />
-  );
+export default function IndexPage(props: InferGetStaticPropsType<typeof getStaticProps>) {
+  return <DashboardPage {...props} />;
 }

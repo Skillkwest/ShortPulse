@@ -39,6 +39,7 @@ describe("useMediaStorageQuotaSummary", () => {
         className: "plan-starter",
         monthlyCreditsCents: 0,
       },
+      quotaStatus: "available",
       quotaSummary: {
         usedBytes: 10,
         baseLimitBytes: 100,
@@ -81,5 +82,26 @@ describe("useMediaStorageQuotaSummary", () => {
     expect(primeSupabaseSessionMock.mock.invocationCallOrder[0]).toBeLessThan(
       fetchBillingAccountSummaryMock.mock.invocationCallOrder[0]
     );
+  });
+
+  it("keeps quota unavailable instead of creating a false zero-usage fallback", async () => {
+    fetchBillingAccountSummaryMock.mockResolvedValueOnce({
+      userId: "user-1",
+      resolvedPlan: {
+        id: "free",
+        label: "Baseline access",
+        className: "plan-starter",
+        monthlyCreditsCents: 0,
+      },
+      quotaStatus: "unavailable",
+      quotaSummary: null,
+    });
+
+    const { result } = renderHook(() =>
+      useMediaStorageQuotaSummary({ enabled: true, fallbackPlanId: "free" })
+    );
+
+    await waitFor(() => expect(result.current.quotaStatus).toBe("unavailable"));
+    expect(result.current.quotaSummary).toBeNull();
   });
 });

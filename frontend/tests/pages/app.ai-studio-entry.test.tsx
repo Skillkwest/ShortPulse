@@ -40,7 +40,7 @@ vi.mock("../../lib/protectedRoutes", () => ({
     pathname.startsWith("/ai-studio?") ||
     pathname.startsWith("/ai-studio#"),
   isProtectedRoutePath: (pathname: string) =>
-    ["/saved-creators", "/profile", "/report-issue", "/ai-studio", "/admin"].some(
+    ["/profile", "/report-issue", "/ai-studio", "/admin"].some(
       (route) =>
         pathname === route ||
         pathname.startsWith(`${route}/`) ||

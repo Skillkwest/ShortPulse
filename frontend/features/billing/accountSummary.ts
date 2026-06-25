@@ -15,6 +15,7 @@ export type ResolvedAccountPlanSummary = {
 export type BillingAccountSummary = {
   userId: string;
   resolvedPlan: ResolvedAccountPlanSummary;
+  quotaStatus: "available" | "unavailable";
   quotaSummary: MediaStorageQuotaSummary | null;
 };
 
@@ -88,6 +89,7 @@ const parseBillingAccountSummary = (payload: unknown): BillingAccountSummary | n
   return {
     userId: row.userId,
     resolvedPlan,
+    quotaStatus: row.quotaStatus === "available" ? "available" : "unavailable",
     quotaSummary: parseQuotaSummary(row.quotaSummary),
   };
 };

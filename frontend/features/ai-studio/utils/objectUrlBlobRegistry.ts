@@ -30,3 +30,19 @@ export const forgetObjectUrlBlob = (url: string): void => {
   if (!normalizedUrl) return;
   objectUrlBlobRegistry.delete(normalizedUrl);
 };
+
+/**
+ * Revokes an object URL and clears any remembered blob retained for that URL.
+ */
+export const revokeRememberedObjectUrl = (url: string): void => {
+  const normalizedUrl = url.trim();
+  if (!normalizedUrl) return;
+  forgetObjectUrlBlob(normalizedUrl);
+  if (
+    normalizedUrl.startsWith("blob:") &&
+    typeof URL !== "undefined" &&
+    typeof URL.revokeObjectURL === "function"
+  ) {
+    URL.revokeObjectURL(normalizedUrl);
+  }
+};

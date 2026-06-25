@@ -6,7 +6,10 @@ import { useMemo } from "react";
 import type { SharedMediaDetailSelectionTarget } from "../components/detail-modal/detailModalPlatformTypes";
 import type { StudioOutput, ToolId } from "../types";
 import { resolveActiveOutputPreviewUrl } from "../logic/activeOutputPreviewAuthority";
-import type { AiStudioPreviewDetailContracts } from "./contracts/pageContentContracts";
+import type {
+  AiStudioDetailNavigationContract,
+  AiStudioPreviewDetailContracts,
+} from "./contracts/pageContentContracts";
 
 type UseAiStudioPreviewDetailPropsParams = {
   activeOutput: StudioOutput | null;
@@ -19,6 +22,7 @@ type UseAiStudioPreviewDetailPropsParams = {
   handleManualPromptChange: (value: string) => void;
   handleRegenerateWithDebit: () => void;
   detailOutput: StudioOutput | null;
+  detailNavigation?: AiStudioDetailNavigationContract | null;
   setDetailSelectionTarget?: (target: SharedMediaDetailSelectionTarget | null) => void;
   setDetailOutputId: (id: string | null) => void;
   updateOutputPrompt: (id: string, prompt: string) => void;
@@ -44,6 +48,7 @@ export const useAiStudioPreviewDetailProps = ({
   handleManualPromptChange,
   handleRegenerateWithDebit,
   detailOutput,
+  detailNavigation = null,
   setDetailSelectionTarget,
   setDetailOutputId,
   updateOutputPrompt,
@@ -74,6 +79,7 @@ export const useAiStudioPreviewDetailProps = ({
         onRegenerate: handleRegenerateWithDebit,
       },
       detailModalOutput: detailOutput,
+      detailNavigation,
       onDetailClose: () => {
         setDetailSelectionTarget?.(null);
         setDetailOutputId(null);
@@ -90,6 +96,7 @@ export const useAiStudioPreviewDetailProps = ({
     activeOutput,
     deleteOutput,
     detailOutput,
+    detailNavigation,
     editReferenceText,
     handleDownloadReference,
     handleManualPromptChange,

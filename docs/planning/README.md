@@ -70,7 +70,6 @@ Purpose: provide the active execution entrypoint for planning work without forci
 - `docs/planning/message-feedback-normalization-plan-2026-06-08.md`
 - `docs/product/shortpulse_ai_studio.md`
 - `docs/sops/sop_character_manager_operations.md`
-- `docs/sops/sop_saved_creators.md`
 - `docs/routes.md`
 
 ### Program 5: Release Confidence And Research

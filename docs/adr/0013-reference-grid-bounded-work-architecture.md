@@ -34,6 +34,7 @@ Adopt a bounded-work runtime for AI Studio Reference Grid:
 - For the July 7 launch window, cap the visible active Reference Grid workset at 128 items.
 - Start high-density pressure at 96 items so the grid reduces browser work before it reaches the hard cap.
 - Move older over-cap cards into an archived bucket with restore actions instead of dropping them.
+- Project persistence must preserve project-restorable archived/cold rows separately from the hot active workset so reopening a project does not silently discard over-cap media.
 
 4. Update backpressure
 

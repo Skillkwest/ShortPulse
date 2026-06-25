@@ -606,6 +606,85 @@ describe("DetailModal", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it("navigates reference-grid detail modal with left and right arrow keys", () => {
+    const onNavigatePrevious = vi.fn();
+    const onNavigateNext = vi.fn();
+    render(
+      <DetailModal
+        output={baseOutput}
+        detailNavigation={{
+          sourceSurface: "reference-grid",
+          canNavigatePrevious: true,
+          canNavigateNext: true,
+          onNavigatePrevious,
+          onNavigateNext,
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    fireEvent.keyDown(document, { key: "ArrowRight" });
+    fireEvent.keyDown(document, { key: "ArrowLeft" });
+
+    expect(onNavigateNext).toHaveBeenCalledTimes(1);
+    expect(onNavigatePrevious).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not navigate reference-grid detail modal past boundaries", () => {
+    const onNavigatePrevious = vi.fn();
+    render(
+      <DetailModal
+        output={baseOutput}
+        detailNavigation={{
+          sourceSurface: "reference-grid",
+          canNavigatePrevious: false,
+          canNavigateNext: false,
+          onNavigatePrevious,
+          onNavigateNext: vi.fn(),
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    fireEvent.keyDown(document, { key: "ArrowLeft" });
+
+    expect(onNavigatePrevious).not.toHaveBeenCalled();
+  });
+
+  it("keeps arrow keys local inside text fields", () => {
+    const onNavigateNext = vi.fn();
+    render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          mode: "text",
+          previewUrl: undefined,
+          prompt: "Original prompt",
+        }}
+        detailNavigation={{
+          sourceSurface: "reference-grid",
+          canNavigatePrevious: true,
+          canNavigateNext: true,
+          onNavigatePrevious: vi.fn(),
+          onNavigateNext,
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    fireEvent.keyDown(screen.getByPlaceholderText("Describe your adjustments..."), {
+      key: "ArrowRight",
+    });
+
+    expect(onNavigateNext).not.toHaveBeenCalled();
+  });
+
   it("shows Snapshot only for video details and passes the current video element", async () => {
     const onSnapshotVideoFrame = vi.fn();
     const { rerender, baseElement } = render(

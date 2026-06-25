@@ -17,6 +17,7 @@ import {
   type ReferenceGridPreviewQualityBand,
 } from "../../logic/referenceGridMediaAdaptivePreview";
 import type { ReferenceGridSingleAudioPlaybackController } from "./useReferenceGridSingleAudioPlaybackController";
+import type { ReferenceGridOpenDetailsOptions } from "../referenceGridTypes";
 import {
   incrementFreezeInvestigationCounter,
   setFreezeInvestigationGauge,
@@ -56,7 +57,11 @@ type UseReferenceGridCardRenderControllerArgs = {
   curatedVisibleCardItems: ReferenceGridVisibleCard[];
   visibleQuickSlotIdSet: Set<string>;
   onSelectOutput: (id: string) => void;
-  onOpenDetails: (id: string, output?: StudioOutput) => void;
+  onOpenDetails: (
+    id: string,
+    output?: StudioOutput,
+    options?: ReferenceGridOpenDetailsOptions
+  ) => void;
   onCardDragStart: (
     event: React.DragEvent<HTMLElement>,
     item: StudioOutput,
@@ -295,6 +300,7 @@ export const useReferenceGridCardRenderController = ({
           key={options.isCuratedSurface ? `curated-${currentOutput.id}` : currentOutput.id}
           item={currentOutput}
           dragSourceSurface={options.surface}
+          detailSurface={options.isCuratedSurface ? "quick-slot" : "reference-grid"}
           videoNodeKey={videoNodeKey}
           audioInstanceKey={audioInstanceKey}
           activeOutputId={activeOutputId}

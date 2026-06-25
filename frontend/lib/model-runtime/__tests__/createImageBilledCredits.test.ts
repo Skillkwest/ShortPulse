@@ -6,7 +6,7 @@ import { resolveCreateImageBilledCreditLookup } from "../createImageBilledCredit
 import { getDefaultModelPricingPolicyDocument } from "../pricingPolicy";
 import { materializeImageBilledCreditPolicy } from "../materializeImageBilledCreditPolicy";
 import { OPENAI_GPT_IMAGE_2_MODEL_ID } from "../openAiImage2";
-import { KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID } from "../providerModelIds";
+import { FAL_SEEDREAM_45_EDIT_MODEL_ID } from "../falModelIds";
 
 const pricingPolicy = materializeImageBilledCreditPolicy({
   ...getDefaultModelPricingPolicyDocument(),
@@ -35,7 +35,7 @@ const makeCostParamsForModel =
   };
 
 describe("createImageBilledCredits", () => {
-  it("maps stale direct GPT Image 2 Character Mode pricing to the Kie edit row", () => {
+  it("maps stale direct GPT Image 2 Character Mode pricing to the paired Seedream edit row", () => {
     const clientTarget = resolveCreatePricingTarget({
       modelId: OPENAI_GPT_IMAGE_2_MODEL_ID,
       aspect: "16:9",
@@ -50,8 +50,8 @@ describe("createImageBilledCredits", () => {
     });
 
     expect(clientTarget).not.toBeNull();
-    expect(clientTarget?.modelId).toBe(KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID);
-    expect(clientTarget?.params.resolution).toBe("1K");
+    expect(clientTarget?.modelId).toBe(FAL_SEEDREAM_45_EDIT_MODEL_ID);
+    expect(clientTarget?.params.resolution).toBe("auto_2K");
 
     const clientLookup = resolveCreateImageBilledCreditLookup({
       modelId: clientTarget?.modelId ?? OPENAI_GPT_IMAGE_2_MODEL_ID,
@@ -60,11 +60,11 @@ describe("createImageBilledCredits", () => {
     });
 
     expect(clientLookup.authorityMode).toBe("explicit_row");
-    expect(clientLookup.breakdown?.variantId).toBe("edit|res:1K|aspect:16:9");
-    expect(clientLookup.breakdown?.credits).toBe(2);
+    expect(clientLookup.breakdown?.variantId).toBe("edit|res:auto_2K|aspect:1:1");
+    expect(clientLookup.breakdown?.credits).toBe(4);
   });
 
-  it("keeps multi-ref stale direct GPT Image 2 Character Mode pricing on the Kie edit row", () => {
+  it("keeps multi-ref stale direct GPT Image 2 Character Mode pricing on the paired Seedream edit row", () => {
     const clientTarget = resolveCreatePricingTarget({
       modelId: OPENAI_GPT_IMAGE_2_MODEL_ID,
       aspect: "16:9",
@@ -82,8 +82,8 @@ describe("createImageBilledCredits", () => {
     });
 
     expect(clientTarget).not.toBeNull();
-    expect(clientTarget?.modelId).toBe(KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID);
-    expect(clientTarget?.params.resolution).toBe("1K");
+    expect(clientTarget?.modelId).toBe(FAL_SEEDREAM_45_EDIT_MODEL_ID);
+    expect(clientTarget?.params.resolution).toBe("auto_2K");
     const lookup = resolveCreateImageBilledCreditLookup({
       modelId: clientTarget?.modelId ?? OPENAI_GPT_IMAGE_2_MODEL_ID,
       params: clientTarget?.params,
@@ -91,8 +91,8 @@ describe("createImageBilledCredits", () => {
     });
 
     expect(lookup.authorityMode).toBe("explicit_row");
-    expect(lookup.breakdown?.variantId).toBe("edit|res:1K|aspect:16:9");
-    expect(lookup.breakdown?.credits).toBe(2);
+    expect(lookup.breakdown?.variantId).toBe("edit|res:auto_2K|aspect:1:1");
+    expect(lookup.breakdown?.credits).toBe(4);
   });
 
   it("collapses Nano Banana 2 Character Mode multi-ref pricing onto the canonical edit row", () => {

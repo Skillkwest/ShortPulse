@@ -31,6 +31,14 @@ export type AiStudioCreatePanelContract =
 export type AiStudioEditExpertPanelContract = ExpertEditPanelViewProps;
 export type AiStudioVideoPanelContract = VideoPropertiesPanelProps;
 
+export type AiStudioDetailNavigationContract = {
+  sourceSurface: "reference-grid";
+  canNavigatePrevious: boolean;
+  canNavigateNext: boolean;
+  onNavigatePrevious: () => void;
+  onNavigateNext: () => void;
+};
+
 export type AiStudioPanelContracts = {
   propertiesCreate: AiStudioCreatePanelContract;
   propertiesEditExpert: AiStudioEditExpertPanelContract;
@@ -38,11 +46,15 @@ export type AiStudioPanelContracts = {
 };
 
 export type AiStudioReferenceGridContract = Omit<ReferenceGridProps, "selectedTool">;
+export type AiStudioReferenceGridRuntimeContract = AiStudioReferenceGridContract & {
+  detailNavigation: AiStudioDetailNavigationContract | null;
+};
 type StudioPreviewContractProps = ComponentProps<typeof StudioPreview>;
 
 export type AiStudioPreviewDetailContracts = {
   studioPreviewProps: StudioPreviewContractProps;
   detailModalOutput: StudioOutput | null;
+  detailNavigation: AiStudioDetailNavigationContract | null;
   isMediaStorageFull: boolean;
   onDetailClose: () => void;
   onUpdateOutputPrompt: (id: string, prompt: string) => void;

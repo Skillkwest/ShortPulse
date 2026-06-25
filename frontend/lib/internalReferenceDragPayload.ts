@@ -3,12 +3,11 @@
  * Provides a neutral parsing seam for AI Studio-originated reference drags consumed across features.
  */
 import {
-  COMPOSER_IMAGE_DROP_SESSION_TEXT_TYPE,
-  COMPOSER_IMAGE_DROP_SESSION_TYPE,
+  COMPOSER_IMAGE_DROP_SESSION_TYPES,
   getPromptReferenceDragSessionToken,
   getComposerImageDropSessionToken,
-  INTERNAL_REFERENCE_DRAG_SESSION_TYPE,
-  INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE,
+  INTERNAL_REFERENCE_DRAG_SESSION_TYPES,
+  PROMPT_REFERENCE_DRAG_SESSION_TYPES,
   getInternalReferenceDragSessionToken,
   resolvePromptReferenceDragSession,
   resolveComposerImageDropSession,
@@ -19,33 +18,52 @@ const NEXT_IMAGE_OPTIMIZER_PATH = "/_next/image";
 const RELATIVE_MEDIA_PATH_HINT_PATTERN =
   /^\/(?:_next\/image|storage\/|.*\.(?:aac|avif|bmp|flac|gif|heic|heif|jpe?g|m4a|mp3|oga|ogg|png|wav|webp|m4v|mov|mp4|ogv|webm)(?:$|[?#]))/i;
 
-const INTERNAL_REFERENCE_DRAG_VERSION = 1;
-const REFERENCE_TRANSFER_ORIGIN_TYPE = "text/reference-origin";
-const REFERENCE_TRANSFER_VERSION_TYPE = "text/reference-version";
-const REFERENCE_TRANSFER_OUTPUT_ID_TYPE = "text/reference-output-id";
-const REFERENCE_TRANSFER_IMAGE_INDEX_TYPE = "text/reference-image-index";
-const REFERENCE_TRANSFER_SOURCE_SURFACE_TYPE = "text/reference-source-surface";
-const REFERENCE_TRANSFER_MEDIA_ID_TYPE = "text/reference-media-id";
-const REFERENCE_TRANSFER_MEDIA_KIND_TYPE = "text/reference-media-kind";
-const REFERENCE_TRANSFER_WIDTH_TYPE = "text/reference-width";
-const REFERENCE_TRANSFER_HEIGHT_TYPE = "text/reference-height";
-const REFERENCE_TRANSFER_PREVIEW_STORAGE_PATH_TYPE = "text/reference-preview-storage-path";
-const REFERENCE_TRANSFER_FULL_STORAGE_PATH_TYPE = "text/reference-full-storage-path";
+export const INTERNAL_REFERENCE_DRAG_VERSION = 1;
+export const REFERENCE_TRANSFER_ORIGIN_TYPE = "text/reference-origin";
+export const REFERENCE_TRANSFER_VERSION_TYPE = "text/reference-version";
+export const REFERENCE_TRANSFER_ID_TYPE = "text/reference-id";
+export const REFERENCE_TRANSFER_OUTPUT_ID_TYPE = "text/reference-output-id";
+export const REFERENCE_TRANSFER_IMAGE_INDEX_TYPE = "text/reference-image-index";
+export const REFERENCE_TRANSFER_SOURCE_SURFACE_TYPE = "text/reference-source-surface";
+export const REFERENCE_TRANSFER_MEDIA_ID_TYPE = "text/reference-media-id";
+export const REFERENCE_TRANSFER_MEDIA_KIND_TYPE = "text/reference-media-kind";
+export const REFERENCE_TRANSFER_WIDTH_TYPE = "text/reference-width";
+export const REFERENCE_TRANSFER_HEIGHT_TYPE = "text/reference-height";
+export const REFERENCE_TRANSFER_URL_TYPE = "text/reference-url";
+export const REFERENCE_TRANSFER_RENDER_URL_TYPE = "text/reference-render-url";
+export const REFERENCE_TRANSFER_PREVIEW_STORAGE_PATH_TYPE = "text/reference-preview-storage-path";
+export const REFERENCE_TRANSFER_PREVIEW_POSTER_STORAGE_PATH_TYPE =
+  "text/reference-preview-poster-storage-path";
+export const REFERENCE_TRANSFER_FULL_STORAGE_PATH_TYPE = "text/reference-full-storage-path";
 export const COMPOSER_IMAGE_DROP_PAYLOAD_TYPE = "application/x-shortpulse-composer-image-drop";
 export const COMPOSER_IMAGE_DROP_PAYLOAD_TEXT_TYPE = "text/reference-composer-image-payload";
-const INTERNAL_REFERENCE_TRANSFER_TYPE_HINTS = new Set([
-  INTERNAL_REFERENCE_DRAG_SESSION_TYPE,
-  INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE,
-  COMPOSER_IMAGE_DROP_SESSION_TYPE,
-  COMPOSER_IMAGE_DROP_SESSION_TEXT_TYPE,
+export const INTERNAL_REFERENCE_TRANSFER_TYPES = [
+  ...INTERNAL_REFERENCE_DRAG_SESSION_TYPES,
+  ...COMPOSER_IMAGE_DROP_SESSION_TYPES,
   COMPOSER_IMAGE_DROP_PAYLOAD_TYPE,
   COMPOSER_IMAGE_DROP_PAYLOAD_TEXT_TYPE,
-  "text/reference-id",
-  "text/reference-output-id",
-  "text/reference-media-id",
-  "text/reference-origin",
-  "text/reference-source-surface",
-]);
+  REFERENCE_TRANSFER_ORIGIN_TYPE,
+  REFERENCE_TRANSFER_VERSION_TYPE,
+  REFERENCE_TRANSFER_ID_TYPE,
+  REFERENCE_TRANSFER_OUTPUT_ID_TYPE,
+  REFERENCE_TRANSFER_MEDIA_ID_TYPE,
+  REFERENCE_TRANSFER_MEDIA_KIND_TYPE,
+  REFERENCE_TRANSFER_PREVIEW_STORAGE_PATH_TYPE,
+  REFERENCE_TRANSFER_PREVIEW_POSTER_STORAGE_PATH_TYPE,
+  REFERENCE_TRANSFER_FULL_STORAGE_PATH_TYPE,
+  REFERENCE_TRANSFER_IMAGE_INDEX_TYPE,
+  REFERENCE_TRANSFER_WIDTH_TYPE,
+  REFERENCE_TRANSFER_HEIGHT_TYPE,
+  REFERENCE_TRANSFER_SOURCE_SURFACE_TYPE,
+  REFERENCE_TRANSFER_URL_TYPE,
+  REFERENCE_TRANSFER_RENDER_URL_TYPE,
+  "image/url",
+] as const;
+export const AI_STUDIO_REFERENCE_DROP_TRANSFER_TYPES = [
+  ...INTERNAL_REFERENCE_TRANSFER_TYPES,
+  ...PROMPT_REFERENCE_DRAG_SESSION_TYPES,
+] as const;
+const INTERNAL_REFERENCE_TRANSFER_TYPE_HINTS = new Set<string>(INTERNAL_REFERENCE_TRANSFER_TYPES);
 
 export type ReferenceDragSourceSurface = "all-refs" | "curated";
 export const INTERNAL_REFERENCE_DRAG_ORIGIN = "ai-studio-reference-grid" as const;
@@ -267,7 +285,7 @@ export const extractInternalReferenceDragPayload = (
   const sourceSurface = parseReferenceDragSourceSurface(
     transfer.getData(REFERENCE_TRANSFER_SOURCE_SURFACE_TYPE)
   );
-  const referenceId = normalizeReferenceTransferId(transfer.getData("text/reference-id"));
+  const referenceId = normalizeReferenceTransferId(transfer.getData(REFERENCE_TRANSFER_ID_TYPE));
   const outputId =
     normalizeReferenceTransferId(transfer.getData(REFERENCE_TRANSFER_OUTPUT_ID_TYPE)) ??
     referenceId;
@@ -284,11 +302,11 @@ export const extractInternalReferenceDragPayload = (
     { unwrapNextImage: false }
   );
   const referenceUrl = normalizeReferenceTransferUrlCandidate(
-    transfer.getData("text/reference-url"),
+    transfer.getData(REFERENCE_TRANSFER_URL_TYPE),
     { unwrapNextImage: false }
   );
   const referenceRenderUrl = normalizeReferenceTransferUrlCandidate(
-    transfer.getData("text/reference-render-url"),
+    transfer.getData(REFERENCE_TRANSFER_RENDER_URL_TYPE),
     { unwrapNextImage: false }
   );
   const hasLegacyInternalHints = Boolean(referenceId && sourceSurface);

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   MEDIA_STORAGE_FULL_USER_MESSAGE,
   MEDIA_STORAGE_LIMIT_EXCEEDED_MESSAGE,
+  MEDIA_STORAGE_QUOTA_UNAVAILABLE_USER_MESSAGE,
 } from "../../../../lib/mediaStorageQuota";
 import { useMediaLibraryPanelMutationController } from "../useMediaLibraryPanelMutationController";
 
@@ -44,6 +45,7 @@ describe("useMediaLibraryPanelMutationController", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     quotaMocks.useMediaStorageQuotaSummary.mockReturnValue({
+      quotaStatus: "available",
       quotaSummary: { isOverLimit: false },
     });
     applyMediaFolderMembershipBatchMock.mockResolvedValue(undefined);
@@ -83,6 +85,7 @@ describe("useMediaLibraryPanelMutationController", () => {
 
   it("throws the canonical friendly quota message when proactive block is already known", async () => {
     quotaMocks.useMediaStorageQuotaSummary.mockReturnValue({
+      quotaStatus: "available",
       quotaSummary: { isOverLimit: true },
     });
 
@@ -108,6 +111,39 @@ describe("useMediaLibraryPanelMutationController", () => {
         });
       })
     ).rejects.toThrow(MEDIA_STORAGE_FULL_USER_MESSAGE);
+
+    expect(quotaMocks.requestMediaStorageQuotaSummaryRefresh).toHaveBeenCalledTimes(1);
+    expect(uploadMediaFileMock).not.toHaveBeenCalled();
+  });
+
+  it("blocks uploads when quota status is unavailable instead of treating storage as empty", async () => {
+    quotaMocks.useMediaStorageQuotaSummary.mockReturnValue({
+      quotaStatus: "unavailable",
+      quotaSummary: null,
+    });
+
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelMutationController({
+        projectId: "project-1",
+        activeFolderId: "all_items",
+        folders: [],
+        refreshActiveRows: vi.fn().mockResolvedValue(undefined),
+        refreshFolders: vi.fn().mockResolvedValue(undefined),
+        setFolderError: vi.fn(),
+        setMembershipMessage: vi.fn(),
+        setMediaRows: vi.fn(),
+        setPromptRows: vi.fn(),
+      })
+    );
+
+    await expect(
+      act(async () => {
+        await result.current.uploadDroppedFilesToFolder({
+          targetFolderId: "all_items",
+          files: [new File(["img"], "image.png", { type: "image/png" })],
+        });
+      })
+    ).rejects.toThrow(MEDIA_STORAGE_QUOTA_UNAVAILABLE_USER_MESSAGE);
 
     expect(quotaMocks.requestMediaStorageQuotaSummaryRefresh).toHaveBeenCalledTimes(1);
     expect(uploadMediaFileMock).not.toHaveBeenCalled();

@@ -27,14 +27,23 @@ export const createProjectRestoreSnapshot = (
     updatedAt: snapshot.updatedAt,
   });
   const activeOutputs = Array.isArray(snapshot.outputs?.active) ? snapshot.outputs.active : [];
+  const archivedOutputs = Array.isArray(snapshot.outputs?.archived)
+    ? snapshot.outputs.archived
+    : [];
   const activeOutputIds = new Set(
     activeOutputs
       .map((output) => (typeof output?.id === "string" ? output.id.trim() : ""))
       .filter((id) => id.length > 0)
   );
+  const persistedOutputIds = new Set([
+    ...activeOutputIds,
+    ...archivedOutputs
+      .map((output) => (typeof output?.id === "string" ? output.id.trim() : ""))
+      .filter((id) => id.length > 0),
+  ]);
   const outputRestoredSnapshot = patchAiStudioSessionSnapshotOutputs(emptySnapshot, {
     active: activeOutputs,
-    archived: [],
+    archived: archivedOutputs,
     activeOutputId: null,
     curatedReferenceIds: normalizeProjectRestoreOutputIds(
       snapshot.outputs?.curatedReferenceIds,
@@ -42,7 +51,7 @@ export const createProjectRestoreSnapshot = (
     ),
     removedFromAllRefsIds: normalizeProjectRestoreOutputIds(
       snapshot.outputs?.removedFromAllRefsIds,
-      activeOutputIds
+      persistedOutputIds
     ),
   });
   if (snapshot.schemaVersion < 2) return outputRestoredSnapshot;

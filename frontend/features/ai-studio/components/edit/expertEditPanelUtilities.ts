@@ -8,7 +8,10 @@ import {
   serializeExpertEditPresetDragPayload,
   type ExpertEditPresetDragPayload,
 } from "./expertEditPresets";
-import { forgetObjectUrlBlob, rememberObjectUrlBlob } from "../../utils/objectUrlBlobRegistry";
+import {
+  rememberObjectUrlBlob,
+  revokeRememberedObjectUrl,
+} from "../../utils/objectUrlBlobRegistry";
 
 export const writePresetDragTransfer = (
   transfer: DataTransfer,
@@ -59,8 +62,7 @@ export const setOpaquePresetDragImage = (
 
 export const revokeObjectUrlSafe = (url: string) => {
   try {
-    forgetObjectUrlBlob(url);
-    URL.revokeObjectURL(url);
+    revokeRememberedObjectUrl(url);
   } catch {
     // Preserve UI flow even when revocation fails.
   }

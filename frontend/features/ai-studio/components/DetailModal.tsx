@@ -40,6 +40,7 @@ import type {
   SharedMediaDetailVideoSnapshotHandler,
   SharedMediaDetailTopBarItem,
 } from "./detail-modal/detailModalPlatformTypes";
+import type { AiStudioDetailNavigationContract } from "../hooks/contracts/pageContentContracts";
 import {
   resolveSharedMediaDetailGeneratedFallbackName,
   resolveSharedMediaDetailBladeContent,
@@ -51,6 +52,7 @@ import { useStudioOutputDetailMediaPreview } from "./detail-modal/useStudioOutpu
 
 type DetailModalProps = {
   output: StudioOutput | null;
+  detailNavigation?: AiStudioDetailNavigationContract | null;
   context?: DetailModalContext | null;
   projectId?: string | null;
   onClose: () => void;
@@ -77,6 +79,22 @@ const resolveDetailWorkflowReloadMediaKindHint = (
 ): WorkflowReloadMediaKindHint => inferWorkflowReloadMediaKindForOutput(output);
 
 const LIP_SYNC_DETAIL_MODEL_LABEL = "Lip Sync";
+
+const shouldIgnoreDetailNavigationKeyEvent = (event: KeyboardEvent): boolean => {
+  if (event.defaultPrevented) return true;
+  const target = event.target;
+  if (!(target instanceof Element)) return false;
+  if (target instanceof HTMLElement && target.isContentEditable) return true;
+  const tagName = target.tagName.toLowerCase();
+  if (["input", "textarea", "select", "button", "a", "audio", "video"].includes(tagName)) {
+    return true;
+  }
+  return Boolean(
+    target.closest(
+      "input, textarea, select, button, a, audio, video, [contenteditable='true'], [role='textbox']"
+    )
+  );
+};
 
 const shouldStripDetailModelEditLabel = (output: StudioOutput, label: string): boolean => {
   const modelId = output.modelId?.trim().toLowerCase() ?? "";
@@ -112,6 +130,7 @@ const formatVideoResolutionLabel = (value: string | null | undefined): string | 
  */
 export function DetailModal({
   output,
+  detailNavigation = null,
   context = null,
   projectId = null,
   onClose,
@@ -131,6 +150,7 @@ export function DetailModal({
   return (
     <DetailModalContent
       output={output}
+      detailNavigation={detailNavigation}
       context={context}
       projectId={projectId}
       onClose={onClose}
@@ -155,6 +175,7 @@ type DetailModalContentProps = Omit<DetailModalProps, "output"> & {
 
 function DetailModalContent({
   output,
+  detailNavigation = null,
   context = null,
   projectId = null,
   onClose,
@@ -681,6 +702,29 @@ function DetailModalContent({
     onClose,
     resetDetailMediaPreviewState,
   ]);
+
+  useEffect(() => {
+    if (!detailNavigation || typeof document === "undefined") return;
+    const handleDetailNavigationKeyDown = (event: KeyboardEvent) => {
+      if (shouldIgnoreDetailNavigationKeyEvent(event)) return;
+      if (event.key === "ArrowLeft") {
+        if (!detailNavigation.canNavigatePrevious) return;
+        event.preventDefault();
+        detailNavigation.onNavigatePrevious();
+        return;
+      }
+      if (event.key === "ArrowRight") {
+        if (!detailNavigation.canNavigateNext) return;
+        event.preventDefault();
+        detailNavigation.onNavigateNext();
+      }
+    };
+    document.addEventListener("keydown", handleDetailNavigationKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleDetailNavigationKeyDown);
+    };
+  }, [detailNavigation]);
+
   const looksLikeFilename = (value?: string | null) => {
     const candidate = value?.trim();
     if (!candidate) return false;

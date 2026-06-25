@@ -3,13 +3,7 @@
  * Kept separate from auth hooks so route classification can stay lightweight in
  * public entry points like the shared app shell.
  */
-export const PROTECTED_ROUTES = [
-  "/saved-creators",
-  "/profile",
-  "/report-issue",
-  "/ai-studio",
-  "/admin",
-] as const;
+export const PROTECTED_ROUTES = ["/profile", "/report-issue", "/ai-studio", "/admin"] as const;
 
 const isRouteFamilyPath = (pathname: string, route: string): boolean =>
   pathname === route ||

@@ -10,8 +10,12 @@ import { Eye, EyeSlash, EnvelopeSimple, LockSimple, SignIn } from "phosphor-reac
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { AppMessage } from "../components/AppMessage";
-import { publicHomeGalleryVideoRows } from "../features/dashboard/logic/publicHomeGalleryMedia";
 import {
+  publicHomeGalleryVideoRows,
+  type PublicHomeGalleryItem,
+} from "../features/dashboard/logic/publicHomeGalleryMedia";
+import {
+  DEFAULT_POST_AUTH_PATH,
   DEFAULT_SIGNUP_NEXT_PATH,
   fetchCanonicalAuthCallbackUrl,
   isPublicSignupEnabled,
@@ -41,6 +45,8 @@ const AUTH_SHOWCASE_PORTRAIT_SRC = "/dashboard/gallery/anime-cat-dance-demo.mp4"
 const AUTH_SHOWCASE_PODCAST_SRC = "/dashboard/gallery/seedance-podcast-demo.mp4";
 const AUTH_SHOWCASE_MONSTER_SRC = "/dashboard/gallery/monster-wall-break-demo.mp4";
 const AUTH_SHOWCASE_SKI_SRC = "/dashboard/gallery/alpine-ski-pov-demo.mp4";
+const AUTH_SHOWCASE_INITIAL_VIDEO_ATTACH_COUNT = 2;
+const AUTH_SHOWCASE_VIDEO_ATTACH_STAGGER_MS = 420;
 const AUTH_SHOWCASE_TILE_CLASS_BY_SRC = new Map<string, string>([
   [AUTH_SHOWCASE_MONSTER_SRC, "auth-showcase-gallery-tile-alpine"],
   [AUTH_SHOWCASE_PORTRAIT_SRC, "auth-showcase-gallery-tile-seedance"],
@@ -74,6 +80,25 @@ const isValidEmailAddress = (value: string): boolean => /^[^\s@]+@[^\s@]+\.[^\s@
 
 const getErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error ? error.message : fallback;
+
+const getAuthShowcaseVideoPosterSrc = (
+  item: Pick<PublicHomeGalleryItem, "mediaType" | "posterSrc" | "src">
+) => {
+  if (item.posterSrc) return item.posterSrc;
+  if (item.mediaType !== "video" || !item.src.endsWith(".mp4")) return undefined;
+  return item.src.replace(/\.mp4$/, "-poster.webp");
+};
+
+const shouldLoadAuthShowcaseMotion = (): boolean => {
+  if (typeof window === "undefined") return false;
+  if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return false;
+  const connection = (
+    navigator as Navigator & {
+      connection?: { saveData?: boolean };
+    }
+  ).connection;
+  return connection?.saveData !== true;
+};
 
 const createSignupIntent = async (options: {
   email?: string;
@@ -204,6 +229,7 @@ export default function AuthPage() {
   const [resettingPassword, setResettingPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [attachedShowcaseVideoCount, setAttachedShowcaseVideoCount] = useState(0);
   const oauthStatus = useMemo(() => {
     if (router.isReady) {
       return resolveOauthStatus(router.query.oauth);
@@ -250,13 +276,46 @@ export default function AuthPage() {
     void readSupabaseSession()
       .then((session) => {
         if (session) {
-          router.replace(postAuthPath);
+          router.replace(requestedMode === "signup" ? DEFAULT_POST_AUTH_PATH : postAuthPath);
         }
       })
       .catch((error) => {
         if (isSupabaseAbortError(error)) return;
       });
-  }, [router, postAuthPath]);
+  }, [postAuthPath, requestedMode, router]);
+
+  useEffect(() => {
+    if (!shouldLoadAuthShowcaseMotion()) {
+      setAttachedShowcaseVideoCount(0);
+      return;
+    }
+
+    let cancelled = false;
+    let timeoutId: number | null = null;
+    let nextCount = 0;
+    const maxCount = AUTH_SHOWCASE_GALLERY_ITEMS.length;
+
+    const attachNextBatch = () => {
+      if (cancelled) return;
+      nextCount =
+        nextCount === 0
+          ? Math.min(AUTH_SHOWCASE_INITIAL_VIDEO_ATTACH_COUNT, maxCount)
+          : Math.min(nextCount + 1, maxCount);
+      setAttachedShowcaseVideoCount(nextCount);
+      if (nextCount < maxCount) {
+        timeoutId = window.setTimeout(attachNextBatch, AUTH_SHOWCASE_VIDEO_ATTACH_STAGGER_MS);
+      }
+    };
+
+    timeoutId = window.setTimeout(attachNextBatch, 0);
+
+    return () => {
+      cancelled = true;
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, []);
 
   const normalizedEmailForSubmit = email.trim();
   const isSubmitDisabled =
@@ -433,25 +492,29 @@ export default function AuthPage() {
         <div className={authClass("auth-glow", "auth-glow-right")} />
         <section className={authClass("auth-showcase")} aria-label="ShortPulse examples">
           <div className={authClass("auth-showcase-gallery")} aria-hidden="true">
-            {AUTH_SHOWCASE_GALLERY_ITEMS.map((item) => (
-              <div
-                key={item.src}
-                className={authClass(
-                  "auth-showcase-gallery-tile",
-                  AUTH_SHOWCASE_TILE_CLASS_BY_SRC.get(item.src)
-                )}
-              >
-                <video
-                  className={authClass("auth-showcase-gallery-media")}
-                  src={item.src}
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
-                  preload="metadata"
-                />
-              </div>
-            ))}
+            {AUTH_SHOWCASE_GALLERY_ITEMS.map((item, index) => {
+              const shouldAttachVideoSource = index < attachedShowcaseVideoCount;
+              return (
+                <div
+                  key={item.src}
+                  className={authClass(
+                    "auth-showcase-gallery-tile",
+                    AUTH_SHOWCASE_TILE_CLASS_BY_SRC.get(item.src)
+                  )}
+                >
+                  <video
+                    className={authClass("auth-showcase-gallery-media")}
+                    src={shouldAttachVideoSource ? item.src : undefined}
+                    poster={getAuthShowcaseVideoPosterSrc(item)}
+                    autoPlay={shouldAttachVideoSource}
+                    muted
+                    loop
+                    playsInline
+                    preload={shouldAttachVideoSource ? "metadata" : "none"}
+                  />
+                </div>
+              );
+            })}
           </div>
         </section>
         <div className={authClass("auth-layout")}>

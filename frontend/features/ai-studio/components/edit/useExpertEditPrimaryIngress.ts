@@ -8,6 +8,7 @@ import {
 import {
   readRememberedObjectUrlBlob,
   rememberObjectUrlBlob,
+  revokeRememberedObjectUrl,
 } from "../../utils/objectUrlBlobRegistry";
 import {
   extractDragDropPayload,
@@ -396,7 +397,7 @@ export function useExpertEditPrimaryIngress({
           if (isBlobUrl && fromFile && imageFile instanceof File) {
             const prepared = await prepareLocalImageFileForEditIngress(imageFile);
             if (prepared.url !== nextUrl) {
-              URL.revokeObjectURL(nextUrl);
+              revokeRememberedObjectUrl(nextUrl);
             }
             nextUrl = prepared.url;
             rememberObjectUrlBlob(nextUrl, prepared.blob);

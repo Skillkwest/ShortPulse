@@ -1713,16 +1713,19 @@ describe("projectWorkspaceStatesService", () => {
     });
 
     expect(result.saveOutcome).toEqual({ status: "saved" });
-    expect(promptIdInMock).toHaveBeenCalledTimes(2);
-    expect(promptIdInMock.mock.calls.map(([, ids]) => ids.length)).toEqual([100, 28]);
-    expect(generationIdInMock).toHaveBeenCalledTimes(2);
-    expect(generationIdInMock.mock.calls.map(([, ids]) => ids.length)).toEqual([100, 28]);
+    expect(promptIdInMock).toHaveBeenCalledTimes(3);
+    expect(promptIdInMock.mock.calls.map(([, ids]) => ids.length)).toEqual([100, 100, 5]);
+    expect(generationIdInMock).toHaveBeenCalledTimes(3);
+    expect(generationIdInMock.mock.calls.map(([, ids]) => ids.length)).toEqual([100, 100, 5]);
     const firstWorkspaceUpsertArg = (
       workspaceUpsert.mock.calls as Array<[{ snapshot?: Record<string, unknown> }?, unknown?]>
     ).at(0)?.[0];
     expect(
       (firstWorkspaceUpsertArg?.snapshot?.outputs as { active?: unknown[] })?.active
     ).toHaveLength(128);
+    expect(
+      (firstWorkspaceUpsertArg?.snapshot?.outputs as { archived?: unknown[] })?.archived
+    ).toHaveLength(77);
   });
 
   it("stores pathological output-heavy projects as capped lightweight checkpoints", async () => {
@@ -1796,8 +1799,14 @@ describe("projectWorkspaceStatesService", () => {
         active?: Array<Record<string, unknown>>;
       }
     )?.active ?? []) as Array<Record<string, unknown>>;
+    const storedArchivedOutputs = ((
+      storedCheckpoint.outputs as {
+        archived?: Array<Record<string, unknown>>;
+      }
+    )?.archived ?? []) as Array<Record<string, unknown>>;
 
     expect(storedActiveOutputs).toHaveLength(128);
+    expect(storedArchivedOutputs).toHaveLength(472);
     expect(storedBytes).toBeLessThan(originalBytes * 0.3);
     expect(storedActiveOutputs[0]).toEqual({
       id: "pathological-output-1",
@@ -1809,24 +1818,40 @@ describe("projectWorkspaceStatesService", () => {
       mode: "image",
       mediaSource: "library",
     });
+    expect(storedArchivedOutputs[0]).toEqual({
+      id: "pathological-output-129",
+      mode: "image",
+      mediaSource: "library",
+      savedMediaIds: [MEDIA_ID_1],
+      archivedAt: "2026-06-03T14:00:00.000Z",
+      archiveReason: "cleanup",
+    });
+    expect(storedArchivedOutputs.at(-1)).toEqual({
+      id: "pathological-output-600",
+      mode: "image",
+      mediaSource: "library",
+      archivedAt: "2026-06-03T14:00:00.000Z",
+      archiveReason: "cleanup",
+    });
     expect(
       (storedCheckpoint.outputs as { curatedReferenceIds?: string[] }).curatedReferenceIds
     ).toEqual(["pathological-output-1", "pathological-output-2"]);
     expect(
       (storedCheckpoint.outputs as { removedFromAllRefsIds?: string[] }).removedFromAllRefsIds
-    ).toEqual(["pathological-output-3"]);
+    ).toEqual(["pathological-output-3", "pathological-output-130"]);
     expect(outputDisplayUpsert).toHaveBeenCalled();
-    expect(
-      outputDisplayUpsert.mock.calls.reduce(
-        (count, call) => count + ((call[0] as unknown[])?.length ?? 0),
-        0
-      )
-    ).toBe(128);
+    const outputDisplayUpsertRows = outputDisplayUpsert.mock.calls.flatMap(
+      (call) => call[0] as Array<Record<string, unknown>>
+    );
+    expect(outputDisplayUpsertRows).toHaveLength(600);
     expect(outputDisplayUpsert.mock.calls[0]?.[0]?.[0]).toMatchObject({
       output_id: "pathological-output-1",
       width: 1024,
       height: 768,
       duration_ms: 333,
+    });
+    expect(outputDisplayUpsertRows.at(-1)).toMatchObject({
+      output_id: "pathological-output-600",
     });
     expect(writeAppErrorLogMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -2071,8 +2096,17 @@ describe("projectWorkspaceStatesService", () => {
         active?: Array<Record<string, unknown>>;
       }
     )?.active ?? []) as Array<Record<string, unknown>>;
+    const storedArchivedOutputs = ((
+      storedCheckpoint.outputs as {
+        archived?: Array<Record<string, unknown>>;
+      }
+    )?.archived ?? []) as Array<Record<string, unknown>>;
 
     expect(storedActiveOutputs).toHaveLength(128);
+    expect(storedArchivedOutputs.map((row) => row.id)).toEqual([
+      "visible-output-129",
+      "visible-output-130",
+    ]);
     expect(storedActiveOutputs.filter((row) => row.hiddenInReferenceGrid !== true)).toHaveLength(
       128
     );
@@ -4878,10 +4912,18 @@ describe("projectWorkspaceStatesService", () => {
               mediaSource: "library",
             },
           ],
-          archived: [],
+          archived: [
+            {
+              id: "display-archived-1",
+              mode: "image",
+              mediaSource: "library",
+              archivedAt: "2026-06-03T11:59:00.000Z",
+              archiveReason: "cleanup",
+            },
+          ],
           activeOutputId: "display-1",
           curatedReferenceIds: ["display-1"],
-          removedFromAllRefsIds: [],
+          removedFromAllRefsIds: ["display-archived-1"],
         },
         agent: {
           messages: [],
@@ -4931,6 +4973,44 @@ describe("projectWorkspaceStatesService", () => {
           hidden_in_reference_grid: false,
           updated_at: "2026-06-03T12:00:01.000Z",
         },
+        {
+          project_id: "project-1",
+          user_id: "user-1",
+          output_id: "display-archived-1",
+          version: 2,
+          source_snapshot_updated_at: "2026-06-03T12:00:00.000Z",
+          mode: "image",
+          media_source: "library",
+          created_at: "2026-06-03T11:54:00.000Z",
+          generation_id: null,
+          prompt_id: null,
+          task_id: null,
+          source_ref: null,
+          generation_trace_id: null,
+          preview_text: "A materialized archived display row",
+          display_title: "Archived Display",
+          display_prompt_summary: "Archived display prompt",
+          mime_type: "image/png",
+          width: 512,
+          height: 512,
+          duration_ms: null,
+          preview_storage_path: "user-1/generated/archived-preview.png",
+          full_storage_path: "user-1/generated/archived-full.png",
+          preview_poster_storage_path: null,
+          companion_art_storage_path: null,
+          preview_url_fallback: "https://cdn.example.com/archived-preview.png",
+          preview_poster_url_fallback: null,
+          companion_art_url_fallback: null,
+          result_urls_fallback: ["https://cdn.example.com/archived-preview.png"],
+          saved_media_ids: [MEDIA_ID_2],
+          task_state: "success",
+          queue_state: null,
+          save_state: "saved",
+          status: "ready",
+          error_message_short: null,
+          hidden_in_reference_grid: false,
+          updated_at: "2026-06-03T12:00:01.000Z",
+        },
       ],
       associatedSnapshotGenerationIds: [],
       recentGenerationIds: [],
@@ -4958,7 +5038,21 @@ describe("projectWorkspaceStatesService", () => {
               prompt: "Display prompt",
             }),
           ],
+          archived: [
+            expect.objectContaining({
+              id: "display-archived-1",
+              mediaSource: "library",
+              previewStoragePath: "user-1/generated/archived-preview.png",
+              fullStoragePath: "user-1/generated/archived-full.png",
+              savedMediaIds: [MEDIA_ID_2],
+              title: "Archived Display",
+              prompt: "Archived display prompt",
+              archivedAt: "2026-06-03T11:59:00.000Z",
+              archiveReason: "cleanup",
+            }),
+          ],
           curatedReferenceIds: ["display-1"],
+          removedFromAllRefsIds: ["display-archived-1"],
         },
       },
     });

@@ -20,6 +20,7 @@ import { buildLoginPath } from "../../../lib/authRedirects";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { useProtectedRoute } from "../../../lib/authGuard";
 import { ProtectedRouteSessionProvider } from "../../../lib/protectedRouteSessionContext";
+import { useProtectedRouteRestoreGuard } from "../../../lib/useProtectedRouteRestoreGuard";
 import { MediaComplianceGate } from "../../compliance/components/MediaComplianceGate";
 import { useMediaComplianceGate } from "../../compliance/hooks/useMediaComplianceGate";
 import { createProject } from "../../projects/logic/projectCreateClient";
@@ -221,6 +222,10 @@ export default function AiStudioProtectedRouteEntry({
     () => buildLoginPath({ nextPath: router.asPath || "/dashboard" }),
     [router.asPath]
   );
+  const restoreGuard = useProtectedRouteRestoreGuard({
+    enabled: true,
+    nextPath: router.asPath || "/ai-studio",
+  });
   const { loading, session, user } = useProtectedRoute(true);
   const resolvedUser = user ?? session?.user ?? null;
   const resolvedUserId = resolvedUser?.id ?? null;
@@ -235,14 +240,20 @@ export default function AiStudioProtectedRouteEntry({
   }, [authRedirectPath, mediaCompliance.status, router]);
 
   useEffect(() => {
-    if (loading || !session) return;
+    if (restoreGuard.checking || loading || !session) return;
     if (mediaCompliance.status !== "accepted") return;
     if (checkoutProjectLaunchIntent) return;
     void loadAiStudioRouteApp();
-  }, [checkoutProjectLaunchIntent, loading, mediaCompliance.status, session]);
+  }, [
+    checkoutProjectLaunchIntent,
+    loading,
+    mediaCompliance.status,
+    restoreGuard.checking,
+    session,
+  ]);
 
   useEffect(() => {
-    if (loading || !session) return;
+    if (restoreGuard.checking || loading || !session) return;
     if (mediaCompliance.status !== "accepted") return;
     if (!checkoutProjectLaunchIntent) return;
     if (checkoutProjectLaunchStatusRef.current !== "idle") return;
@@ -312,6 +323,7 @@ export default function AiStudioProtectedRouteEntry({
     checkoutProjectLaunchIntent,
     loading,
     mediaCompliance.status,
+    restoreGuard.checking,
     router,
     session,
     resolvedUserId,
@@ -323,7 +335,7 @@ export default function AiStudioProtectedRouteEntry({
     setCheckoutProjectLaunchState({ status: "idle" });
   };
 
-  if (loading || !session) {
+  if (restoreGuard.checking || loading || !session) {
     return (
       <AiStudioEntryStateFrame
         variant="loading"

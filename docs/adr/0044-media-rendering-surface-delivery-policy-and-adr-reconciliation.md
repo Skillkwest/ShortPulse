@@ -111,7 +111,7 @@ Policy:
 
 Surfaces:
 
-- dashboard/landing/performance/saved-creators/agent/prompt/canvas long-tail
+- dashboard/landing/performance/agent/prompt/canvas long-tail
 - static logos and picker chrome
 
 Policy:

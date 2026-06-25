@@ -11,7 +11,7 @@ export type PublicHomeGalleryItem = {
 export const publicHomeGalleryItems: PublicHomeGalleryItem[] = [
   {
     src: "/dashboard/gallery/seedance-podcast-demo.mp4",
-    alt: "Seedance 2.0 podcast creator demo video",
+    alt: "Seedance 2 podcast creator demo video",
     size: "square",
     mediaType: "video",
     aspectRatio: "1 / 1",

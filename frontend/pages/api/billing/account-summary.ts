@@ -60,15 +60,6 @@ const createQuotaSummaryFromRow = (
   };
 };
 
-const createFallbackQuotaSummary = (totalLimitBytes: number): MediaStorageQuotaSummary => ({
-  usedBytes: 0,
-  baseLimitBytes: Math.max(0, totalLimitBytes),
-  addonLimitBytes: 0,
-  totalLimitBytes: Math.max(0, totalLimitBytes),
-  remainingBytes: Math.max(0, totalLimitBytes),
-  isOverLimit: false,
-});
-
 const loadQuotaSummary = async ({
   bearerToken,
   fallbackTotalLimitBytes,
@@ -98,9 +89,7 @@ const loadQuotaSummary = async ({
   }
 
   const row = Array.isArray(data) ? ((data[0] ?? null) as QuotaRpcRow | null) : null;
-  if (!row) {
-    return createFallbackQuotaSummary(fallbackTotalLimitBytes);
-  }
+  if (!row) return null;
   return createQuotaSummaryFromRow(row, fallbackTotalLimitBytes);
 };
 
@@ -188,7 +177,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         className: planView.className,
         monthlyCreditsCents: contractMonthlyCreditsCents ?? planView.monthlyCreditsCents,
       },
-      quotaSummary: quotaSummary ?? createFallbackQuotaSummary(planView.storageLimitBytes),
+      quotaStatus: quotaSummary ? "available" : "unavailable",
+      quotaSummary,
     });
   } catch (error) {
     await logApiRouteException({

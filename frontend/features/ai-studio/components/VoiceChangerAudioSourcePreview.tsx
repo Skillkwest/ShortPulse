@@ -39,6 +39,7 @@ export const VoiceChangerAudioSourcePreview = React.memo(function VoiceChangerAu
   const [currentTimeMs, setCurrentTimeMs] = React.useState(0);
   const [resolvedDurationMs, setResolvedDurationMs] = React.useState<number | null>(null);
   const [hasDecodedWaveform, setHasDecodedWaveform] = React.useState(false);
+  const [shouldDecodeWaveform, setShouldDecodeWaveform] = React.useState(false);
   const fallbackWaveformBars = React.useMemo(
     () => buildFallbackWaveformPeaks(resolvedDurationMs ? resolvedDurationMs / 1000 : null),
     [resolvedDurationMs]
@@ -68,11 +69,17 @@ export const VoiceChangerAudioSourcePreview = React.memo(function VoiceChangerAu
   );
 
   React.useEffect(() => {
+    setHasDecodedWaveform(false);
+    setShouldDecodeWaveform(false);
+  }, [audioUrl]);
+
+  React.useEffect(() => {
     if (hasDecodedWaveform) return;
     setAudioWaveformBars(fallbackWaveformBars);
   }, [fallbackWaveformBars, hasDecodedWaveform]);
 
   React.useEffect(() => {
+    if (!shouldDecodeWaveform) return;
     let cancelled = false;
     setHasDecodedWaveform(false);
 
@@ -89,7 +96,7 @@ export const VoiceChangerAudioSourcePreview = React.memo(function VoiceChangerAu
     return () => {
       cancelled = true;
     };
-  }, [audioUrl]);
+  }, [audioUrl, shouldDecodeWaveform]);
 
   React.useEffect(
     () => () => {
@@ -114,6 +121,7 @@ export const VoiceChangerAudioSourcePreview = React.memo(function VoiceChangerAu
       setCurrentTimeMs(0);
       setAudioProgressRatio(0);
     }
+    setShouldDecodeWaveform(true);
     try {
       exclusiveSound.requestPlayback();
       await node.play();
@@ -187,6 +195,7 @@ export const VoiceChangerAudioSourcePreview = React.memo(function VoiceChangerAu
         }}
         onPlay={() => {
           exclusiveSound.handlePlay();
+          setShouldDecodeWaveform(true);
           setIsPlaying(true);
         }}
         onPause={() => {

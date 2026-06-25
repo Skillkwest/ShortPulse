@@ -48,9 +48,9 @@ import {
   type AiStudioKlingElement,
 } from "../logic/klingElements";
 import {
-  forgetObjectUrlBlob,
   readRememberedObjectUrlBlob,
   rememberObjectUrlBlob,
+  revokeRememberedObjectUrl,
 } from "../utils/objectUrlBlobRegistry";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
 import {
@@ -676,8 +676,7 @@ export const useReferencePropertiesInteractions = ({
   const releaseOwnedImageObjectUrl = useCallback((url: string) => {
     if (!ownedImageObjectUrlsRef.current.has(url)) return;
     ownedImageObjectUrlsRef.current.delete(url);
-    forgetObjectUrlBlob(url);
-    URL.revokeObjectURL(url);
+    revokeRememberedObjectUrl(url);
   }, []);
 
   const trackOwnedImageObjectUrl = (url: string, blob?: Blob) => {
@@ -716,7 +715,7 @@ export const useReferencePropertiesInteractions = ({
     if (fromFile) {
       if (sourceBlob instanceof File) {
         const prepared = await prepareLocalImageFileForEditIngress(sourceBlob);
-        URL.revokeObjectURL(imageUrl);
+        revokeRememberedObjectUrl(imageUrl);
         return trackOwnedImageObjectUrl(prepared.url, prepared.blob);
       }
       trackOwnedImageObjectUrl(imageUrl, sourceBlob ?? undefined);

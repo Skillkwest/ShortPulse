@@ -19,6 +19,7 @@ const createAccountSummaryPayload = (userId: string) => ({
     className: "plan-starter",
     monthlyCreditsCents: 0,
   },
+  quotaStatus: "available",
   quotaSummary: {
     usedBytes: 10,
     baseLimitBytes: 100,
@@ -72,5 +73,28 @@ describe("fetchBillingAccountSummary", () => {
     expect(first?.userId).toBe("user-1");
     expect(second?.userId).toBe("user-2");
     expect(fetchWithAuthMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps unavailable quota distinct from an available zero-usage quota", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          ...createAccountSummaryPayload("user-1"),
+          quotaStatus: "unavailable",
+          quotaSummary: null,
+        }),
+        {
+          status: 200,
+          headers: {
+            "content-type": "application/json",
+          },
+        }
+      )
+    );
+
+    const summary = await fetchBillingAccountSummary({ expectedUserId: "user-1" });
+
+    expect(summary?.quotaStatus).toBe("unavailable");
+    expect(summary?.quotaSummary).toBeNull();
   });
 });

@@ -19,6 +19,7 @@ type ElementsPanelSplitHostProps = {
   resolveProfileImageDropSource?: ResolveInternalReferenceDrop;
   canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
   externalCreateRequestKey?: number;
+  isStorageQuotaBlocked?: boolean;
   detailSelectionTarget?: SharedMediaDetailSelectionTarget | null;
   onDetailSelectionTargetChange?: (target: SharedMediaDetailSelectionTarget | null) => void;
   onSnapshotVideoFrame?: SharedMediaDetailVideoSnapshotHandler;
@@ -38,6 +39,7 @@ export function ElementsPanelSplitHost({
   resolveProfileImageDropSource,
   canvasTearOutTargetRegistry,
   externalCreateRequestKey = 0,
+  isStorageQuotaBlocked = false,
   detailSelectionTarget = null,
   onDetailSelectionTargetChange,
   onSnapshotVideoFrame,
@@ -71,6 +73,7 @@ export function ElementsPanelSplitHost({
           mediaCardInteractionMode="assignment"
           fixedVisualAspectRatio={null}
           projectId={projectId}
+          isStorageQuotaBlocked={isStorageQuotaBlocked}
           resolveInternalDropItem={resolveMediaLibraryInternalDropItem}
           detailSelectionTarget={detailSelectionTarget}
           onDetailSelectionTargetChange={onDetailSelectionTargetChange}

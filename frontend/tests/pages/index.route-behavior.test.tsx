@@ -13,6 +13,8 @@ const ensureSupabaseClientMock = vi.hoisted(() => vi.fn());
 const ensureSupabaseQueryClientMock = vi.hoisted(() => vi.fn());
 const useSupabaseSessionStateMock = vi.hoisted(() => vi.fn());
 const primeSupabaseSessionMock = vi.hoisted(() => vi.fn());
+const readSupabaseSessionBootstrapHintMock = vi.hoisted(() => vi.fn());
+const readPersistedSupabaseSessionHintMock = vi.hoisted(() => vi.fn());
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
 const publicFetchMock = vi.hoisted(() => vi.fn());
 
@@ -65,6 +67,13 @@ vi.mock("../../lib/supabaseClient", () => ({
   primeSupabaseSession: (...args: unknown[]) => primeSupabaseSessionMock(...args),
 }));
 
+vi.mock("../../lib/supabaseSessionHints", () => ({
+  readSupabaseSessionBootstrapHint: (...args: unknown[]) =>
+    readSupabaseSessionBootstrapHintMock(...args),
+  readPersistedSupabaseSessionHint: (...args: unknown[]) =>
+    readPersistedSupabaseSessionHintMock(...args),
+}));
+
 vi.mock("../../lib/authenticatedFetch", () => ({
   fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
 }));
@@ -75,6 +84,8 @@ describe("Index route behavior", () => {
     vi.stubGlobal("fetch", publicFetchMock);
     publicFetchMock.mockReturnValue(new Promise(() => {}));
     useRouterMock.mockReturnValue({ push: vi.fn(), replace: vi.fn(), query: {} });
+    readSupabaseSessionBootstrapHintMock.mockReturnValue(false);
+    readPersistedSupabaseSessionHintMock.mockReturnValue(false);
     useCreditsMock.mockReturnValue({
       balanceCents: null,
       balanceLoading: false,
@@ -128,5 +139,32 @@ describe("Index route behavior", () => {
         }),
       ])
     );
+  });
+
+  it("holds public signup actions while a stored root session is unresolved", async () => {
+    readSupabaseSessionBootstrapHintMock.mockReturnValue(true);
+    readPersistedSupabaseSessionHintMock.mockReturnValue(true);
+    useRouterMock.mockReturnValue({
+      pathname: "/",
+      push: vi.fn(),
+      replace: vi.fn(),
+      query: {},
+    });
+    useSupabaseSessionStateMock.mockReturnValue({
+      initialized: false,
+      session: null,
+      user: null,
+    });
+
+    render(
+      <IndexPage
+        billingCatalog={{ plans: [], packages: [], storageAddons: [] }}
+        dashboardOffers={[]}
+        dashboardTutorials={[]}
+      />
+    );
+
+    await screen.findByText("Checking your session before your dashboard workspace loads.");
+    expect(screen.queryByRole("link", { name: "Sign up" })).not.toBeInTheDocument();
   });
 });

@@ -38,6 +38,7 @@ describe("useResolvedAccountPlan", () => {
         className: "plan-starter",
         monthlyCreditsCents: 500,
       },
+      quotaStatus: "unavailable",
       quotaSummary: null,
     });
   });
@@ -65,6 +66,7 @@ describe("useResolvedAccountPlan", () => {
         className: "plan-starter",
         monthlyCreditsCents: 1200,
       },
+      quotaStatus: "unavailable",
       quotaSummary: null,
     });
 
@@ -104,6 +106,7 @@ describe("useResolvedAccountPlan", () => {
         className: "plan-business",
         monthlyCreditsCents: 0,
       },
+      quotaStatus: "unavailable",
       quotaSummary: null,
     });
 

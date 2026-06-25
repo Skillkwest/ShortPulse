@@ -23,6 +23,7 @@ type ElementsPanelProps = {
   } | null>;
   createRequestKey?: number;
   projectId?: string | null;
+  isStorageQuotaBlocked?: boolean;
   detailSelectionTarget?: SharedMediaDetailSelectionTarget | null;
   onDetailSelectionTargetChange?: (target: SharedMediaDetailSelectionTarget | null) => void;
   onSnapshotVideoFrame?: SharedMediaDetailVideoSnapshotHandler;
@@ -43,6 +44,7 @@ export function ElementsPanel({
   resolveMediaLibraryInternalDropItem,
   createRequestKey = 0,
   projectId = null,
+  isStorageQuotaBlocked = false,
   detailSelectionTarget = null,
   onDetailSelectionTargetChange,
   onSnapshotVideoFrame,
@@ -63,6 +65,7 @@ export function ElementsPanel({
       <ElementsPanelSplitHost
         externalCreateRequestKey={createRequestKey}
         projectId={projectId}
+        isStorageQuotaBlocked={isStorageQuotaBlocked}
         resolveMediaLibraryInternalDropItem={resolveMediaLibraryInternalDropItem}
         resolveProfileImageDropSource={resolveProfileImageDropSource}
         canvasTearOutTargetRegistry={canvasTearOutTargetRegistry}

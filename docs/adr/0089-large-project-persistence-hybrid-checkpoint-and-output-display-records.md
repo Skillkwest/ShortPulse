@@ -55,7 +55,8 @@ The checkpoint should own:
 - workspace shell state needed to reopen the authored board,
 - quick-slot and reference-grid membership/order/selection state,
 - durable canvas state,
-- and minimal output stubs only where first paint requires them.
+- minimal active output stubs only where first paint requires them,
+- and minimal archived/cold output stubs for over-cap Reference Grid rows that remain project-restorable without reentering the hot active workset on load.
 
 The checkpoint must not remain the hot persistence unit for rich output display payloads.
 
@@ -69,6 +70,7 @@ This layer becomes the primary persistence surface for:
 - preview/full asset pointers,
 - output lifecycle and visibility state,
 - generated-output recovery identity,
+- archived/cold output display detail for over-cap Reference Grid rows,
 - and other right-rail/read-model fields that currently bloat `outputs.active`.
 
 The checkpoint points at these records by identity and ordering instead of embedding full output rows.

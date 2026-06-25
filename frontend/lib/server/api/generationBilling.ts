@@ -334,12 +334,35 @@ export const chargeGenerationRequest = async ({
       pricingParams,
     }) &&
     supportsCanonicalEditImageBilledPricing(modelId);
+  const requiresCanonicalCreateImagePricing = isCreateImageBillingPath({
+    shortpulseContext,
+  });
   const requiresCanonicalVideoPricing = isVideoBillingPath({
     shortpulseContext,
   });
   const requiresCanonicalAudioPricing = isAudioBillingPath({
     shortpulseContext,
   });
+  if (requiresCanonicalCreateImagePricing && !createImagePricingLookup?.breakdown) {
+    await logGenerationFailure({
+      req,
+      routeLabel,
+      source: "api.generation_billing_missing_canonical_create_price",
+      message: "Pricing is unavailable for this configuration.",
+      statusCode: 500,
+      userId: user.id,
+      userEmail: user.email ?? null,
+      metadata: {
+        model_id: modelId,
+        source_ref: sourceRef,
+        pricing_params: pricingParams,
+        pricing_policy_version: runtimePricingPolicy.activePolicyVersion,
+        pricing_policy_source: runtimePricingPolicy.source,
+      },
+    });
+    res.status(500).json({ error: "Pricing is unavailable for this configuration." });
+    return null;
+  }
   if (requiresCanonicalEditImagePricing && !editImagePricingLookup?.breakdown) {
     await logGenerationFailure({
       req,

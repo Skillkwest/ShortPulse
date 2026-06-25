@@ -71,7 +71,7 @@ export default function ReportIssuePage() {
       setMessage("");
       setSubmitState({
         kind: "success",
-        message: "Report sent. It is now in the admin Reports queue.",
+        message: "Report sent. We saved your note and context for review.",
       });
     } catch (error) {
       setSubmitState({

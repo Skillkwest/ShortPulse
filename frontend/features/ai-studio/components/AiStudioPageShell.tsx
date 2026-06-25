@@ -54,12 +54,32 @@ export const AiStudioPageShell = ({
   onSelectProjectFromModal,
   onCreateProjectFromModal,
 }: AiStudioPageShellProps) => {
+  const [resetConfirmationArmed, setResetConfirmationArmed] = React.useState(false);
   const resettableWorkspaceError = Boolean(
     projectBootstrapError &&
     /invalid project workspace snapshot|project workspace snapshot is invalid/i.test(
       projectBootstrapError
     )
   );
+  React.useEffect(() => {
+    if (!resettableWorkspaceError || !shouldGateProjectBootstrap || !projectBootstrapError) {
+      setResetConfirmationArmed(false);
+    }
+  }, [projectBootstrapError, resettableWorkspaceError, shouldGateProjectBootstrap]);
+
+  const handleWorkspaceResetRequest = React.useCallback(() => {
+    if (!resetConfirmationArmed) {
+      setResetConfirmationArmed(true);
+      return;
+    }
+    setResetConfirmationArmed(false);
+    void resetProjectWorkspace();
+  }, [resetConfirmationArmed, resetProjectWorkspace]);
+
+  const resettableErrorMessage =
+    resetConfirmationArmed && projectBootstrapError
+      ? `${projectBootstrapError} Select "Confirm reset workspace" only if retry does not restore this project.`
+      : projectBootstrapError;
   const projectsModal = projectsModalOpen ? (
     <React.Suspense fallback={<p className="tiny subdued">Loading projects...</p>}>
       <LazyProjectsModal
@@ -90,30 +110,24 @@ export const AiStudioPageShell = ({
             errorMessage={
               projectStatus === "error"
                 ? (projectError ?? "Failed to load project.")
-                : (projectBootstrapError ?? "Failed to load project workspace.")
+                : (resettableErrorMessage ?? "Failed to load project workspace.")
             }
             primaryActionLabel={
-              projectStatus === "error"
-                ? "Open projects"
-                : resettableWorkspaceError
-                  ? "Reset saved workspace"
-                  : "Retry workspace load"
+              projectStatus === "error" ? "Open projects" : "Retry workspace load"
             }
             onPrimaryAction={
-              projectStatus === "error"
-                ? onOpenProjectsModal
-                : resettableWorkspaceError
-                  ? () => {
-                      void resetProjectWorkspace();
-                    }
-                  : retryProjectBootstrap
+              projectStatus === "error" ? onOpenProjectsModal : retryProjectBootstrap
             }
             secondaryActionLabel={
-              resettableWorkspaceError ? "Retry workspace load" : "Back to dashboard"
+              resettableWorkspaceError
+                ? resetConfirmationArmed
+                  ? "Confirm reset workspace"
+                  : "Reset saved workspace"
+                : "Back to dashboard"
             }
             onSecondaryAction={
               resettableWorkspaceError
-                ? retryProjectBootstrap
+                ? handleWorkspaceResetRequest
                 : () => {
                     window.location.assign("/dashboard");
                   }

@@ -73,6 +73,7 @@ type EmbeddedMediaLibraryPanelProps = {
   panelClassName?: string;
   contentClassName?: string;
   projectId?: string | null;
+  isStorageQuotaBlocked?: boolean;
   resolveInternalDropItem?: (payload: InternalReferenceDragPayload) => Promise<{
     kind: "media" | "prompt";
     id: string;
@@ -107,6 +108,7 @@ export function EmbeddedMediaLibraryPanel({
   panelClassName,
   contentClassName,
   projectId = null,
+  isStorageQuotaBlocked: routeStorageQuotaBlocked,
   resolveInternalDropItem,
   mediaCardInteractionMode = "selection",
   fixedVisualAspectRatio = null,
@@ -200,6 +202,7 @@ export function EmbeddedMediaLibraryPanel({
     folders: [],
     refreshActiveRows,
     refreshFolders,
+    isStorageQuotaBlockedOverride: routeStorageQuotaBlocked,
     setFolderError,
     setMembershipMessage,
     setMediaRows,

@@ -20,7 +20,6 @@ Use these for foundational setup or targeted one-off operations.
 
 - `sql/storage_policies.sql`: creates private `media_library` bucket + user-scoped storage policies.
 - `sql/create_media_library_tables.sql`: creates Media Library tables, RLS policies, and constraints.
-- `sql/create_saved_creators_table.sql`: saved creators table + isolation controls.
 - `sql/create_user_preferences_table.sql`: user preference table bootstrap.
 - `sql/create_billing_credit_tables.sql`: billing/credits schema and policies.
 - `sql/create_app_error_logs_table.sql`: app incident log tables baseline.

@@ -28,6 +28,7 @@ export const createSupabaseClientModuleMock = () => ({
   ensureSupabaseQueryClient: vi.fn(),
   readSupabaseSession: vi.fn(async () => null),
   primeSupabaseSession: vi.fn(),
+  clearSupabaseSessionSnapshot: vi.fn(),
   refreshSupabaseSession: vi.fn(async () => null),
   signOutSupabaseSession: vi.fn(async () => undefined),
   readSupabaseUser: vi.fn(async () => null),

@@ -83,6 +83,31 @@ describe("Pricing route behavior", () => {
     });
   });
 
+  it("shows a degraded state when the public pricing catalog is unavailable", () => {
+    useSupabaseSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: null,
+      user: null,
+    });
+
+    render(
+      <PricingPage
+        billingCatalog={{
+          plans: [],
+          packages: [],
+          storageAddons: [],
+        }}
+      />
+    );
+
+    expect(
+      screen.getByText(
+        "Pricing is temporarily unavailable. Please refresh this page before choosing a plan."
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /sign up for/i })).not.toBeInTheDocument();
+  });
+
   it("sends guest plan selection into signup while preserving pricing intent", async () => {
     useSupabaseSessionStateMock.mockReturnValue({
       initialized: true,

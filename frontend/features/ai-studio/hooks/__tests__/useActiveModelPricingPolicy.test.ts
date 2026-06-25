@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchWithAuth } from "../../../../lib/authenticatedFetch";
+import { KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID } from "../../../../lib/model-runtime/providerModelIds";
 import { useActiveModelPricingPolicy } from "../useActiveModelPricingPolicy";
 
 vi.mock("../../../../lib/authenticatedFetch", () => ({
@@ -70,12 +71,13 @@ describe("useActiveModelPricingPolicy", () => {
     expect(result.current.modelPricingPolicyError).toBeNull();
     expect(result.current.modelPricingPolicy?.perModel["gpt-image-2"]?.roundingIncrement).toBe(1);
     expect(
-      result.current.modelPricingPolicy?.perModel["gpt-image-2"]?.runtimeAuthorities?.edit_image
+      result.current.modelPricingPolicy?.perModel[KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID]
+        ?.runtimeAuthorities?.create_image
     ).toEqual({
       mode: "runtime_quantity_derived",
-      workflow: "edit_image",
+      workflow: "create_image",
       unitBasis: "per_image",
-      quantityDrivers: ["generation_count", "input_image_count"],
+      quantityDrivers: ["generation_count"],
     });
     expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/pricing/model-policy", {
       cache: "no-store",

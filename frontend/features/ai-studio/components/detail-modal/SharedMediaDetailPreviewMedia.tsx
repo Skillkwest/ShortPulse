@@ -137,6 +137,7 @@ function SharedMediaDetailAudioPreview({
   const [hasDecodedWaveform, setHasDecodedWaveform] = React.useState(
     storedWaveformPeaks.length > 0
   );
+  const [shouldDecodeWaveform, setShouldDecodeWaveform] = React.useState(false);
   const [waveformPeaks, setWaveformPeaks] = React.useState<number[]>(
     storedWaveformPeaks.length > 0 ? storedWaveformPeaks : fallbackWaveformPeaks
   );
@@ -172,6 +173,7 @@ function SharedMediaDetailAudioPreview({
     setProgressRatio(0);
     setResolvedDurationMs(audioDurationMs ?? null);
     setHasDecodedWaveform(storedWaveformPeaks.length > 0);
+    setShouldDecodeWaveform(false);
     setWaveformPeaks(storedWaveformPeaks.length > 0 ? storedWaveformPeaks : fallbackWaveformPeaks);
   }, [audioDurationMs, fallbackWaveformPeaks, mediaUrl, storedWaveformPeaks]);
 
@@ -186,7 +188,7 @@ function SharedMediaDetailAudioPreview({
   }, [fallbackWaveformPeaks, hasDecodedWaveform, storedWaveformPeaks]);
 
   React.useEffect(() => {
-    if (!mediaUrl || storedWaveformPeaks.length > 0) return;
+    if (!shouldDecodeWaveform || !mediaUrl || storedWaveformPeaks.length > 0) return;
     let cancelled = false;
     setHasDecodedWaveform(false);
 
@@ -206,7 +208,7 @@ function SharedMediaDetailAudioPreview({
     return () => {
       cancelled = true;
     };
-  }, [mediaUrl, storedWaveformPeaks]);
+  }, [mediaUrl, shouldDecodeWaveform, storedWaveformPeaks]);
 
   const setAudioNode = React.useCallback(
     (node: HTMLAudioElement | null) => {
@@ -233,6 +235,7 @@ function SharedMediaDetailAudioPreview({
         node.currentTime = 0;
         setProgressRatio(0);
       }
+      setShouldDecodeWaveform(true);
       onAudioRequestPlayback?.();
       try {
         await node.play();
@@ -256,6 +259,7 @@ function SharedMediaDetailAudioPreview({
       const clampedRatio = Math.max(0, Math.min(1, nextRatio));
       node.currentTime = clampedRatio * durationSeconds;
       setProgressRatio(clampedRatio);
+      setShouldDecodeWaveform(true);
     },
     [resolvedDurationMs]
   );
@@ -372,6 +376,7 @@ function SharedMediaDetailAudioPreview({
           setProgressRatio(Math.max(0, Math.min(1, currentTimeSeconds / durationSeconds)));
         }}
         onPlay={(event) => {
+          setShouldDecodeWaveform(true);
           setIsPlaying(true);
           onAudioPlay?.(event);
         }}

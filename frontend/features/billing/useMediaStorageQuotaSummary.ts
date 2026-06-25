@@ -1,29 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { primeSupabaseSession } from "../../lib/supabaseClient";
 import { useResolvedProtectedSessionState } from "../../lib/protectedRouteSessionContext";
-import { getDefaultPlanStorageLimitBytes, type MediaStorageQuotaSummary } from "./storage";
+import type { MediaStorageQuotaSummary } from "./storage";
 import { fetchBillingAccountSummary } from "./accountSummary";
 
 const MEDIA_STORAGE_QUOTA_REFRESH_EVENT = "shortpulse:media-storage-quota-refresh";
 
-const createFallbackSummary = (
-  fallbackPlanId: string | undefined | null,
-  usedBytes: number
-): MediaStorageQuotaSummary => {
-  const totalLimitBytes = getDefaultPlanStorageLimitBytes(fallbackPlanId);
-  return {
-    usedBytes: Math.max(0, usedBytes),
-    baseLimitBytes: totalLimitBytes,
-    addonLimitBytes: 0,
-    totalLimitBytes,
-    remainingBytes: Math.max(totalLimitBytes - usedBytes, 0),
-    isOverLimit: usedBytes > totalLimitBytes,
-  };
-};
-
 export const useMediaStorageQuotaSummary = ({
   enabled = true,
-  fallbackPlanId,
 }: {
   enabled?: boolean;
   fallbackPlanId?: string | null;
@@ -32,12 +16,14 @@ export const useMediaStorageQuotaSummary = ({
     enabled,
   });
   const [quotaSummary, setQuotaSummary] = useState<MediaStorageQuotaSummary | null>(null);
+  const [quotaStatus, setQuotaStatus] = useState<"idle" | "available" | "unavailable">("idle");
   const [loading, setLoading] = useState(false);
 
   const refreshQuotaSummary = useCallback(
     async (options?: { force?: boolean }) => {
       if (!enabled || !user) {
         setQuotaSummary(null);
+        setQuotaStatus("idle");
         setLoading(false);
         return;
       }
@@ -51,18 +37,21 @@ export const useMediaStorageQuotaSummary = ({
           force: options?.force === true,
           expectedUserId: user.id,
         });
-        if (!summary?.quotaSummary || summary.userId !== user.id) {
-          setQuotaSummary(createFallbackSummary(fallbackPlanId, 0));
+        if (!summary || summary.userId !== user.id || summary.quotaStatus !== "available") {
+          setQuotaSummary(null);
+          setQuotaStatus("unavailable");
           return;
         }
         setQuotaSummary(summary.quotaSummary);
+        setQuotaStatus(summary.quotaSummary ? "available" : "unavailable");
       } catch {
-        setQuotaSummary(createFallbackSummary(fallbackPlanId, 0));
+        setQuotaSummary(null);
+        setQuotaStatus("unavailable");
       } finally {
         setLoading(false);
       }
     },
-    [enabled, fallbackPlanId, session, user]
+    [enabled, session, user]
   );
 
   useEffect(() => {
@@ -103,6 +92,7 @@ export const useMediaStorageQuotaSummary = ({
 
   return {
     quotaSummary,
+    quotaStatus,
     loading,
     refreshQuotaSummary,
   };

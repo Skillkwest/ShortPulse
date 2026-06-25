@@ -6,6 +6,7 @@ import type { Dispatch, SetStateAction } from "react";
 import type { ExpertEditStyleTile } from "../components/edit/expertEditStyles";
 import type { CanvasPropertiesPanelProps } from "../components/canvas/useAiStudioCanvasWorkspaceState";
 import type { AiStudioRightRailLayoutV1 } from "../logic/rightRailLayout";
+import type { SharedMediaDetailSurface } from "../components/detail-modal/detailModalPlatformTypes";
 import type { PastedMediaReference } from "./controllers/referenceGridClipboard";
 import type { ReferenceGridPanelVisibility } from "./referenceGridConfig";
 import type { ReferenceIngestionInput } from "../reference-ingestion/types";
@@ -21,6 +22,15 @@ export type LibraryPromptReferencePayload = Extract<
   { kind: "libraryPrompt" }
 >["payload"];
 
+export type ReferenceGridDetailSurface = Extract<
+  SharedMediaDetailSurface,
+  "reference-grid" | "quick-slot"
+>;
+
+export type ReferenceGridOpenDetailsOptions = {
+  surface: ReferenceGridDetailSurface;
+};
+
 export type ReferenceGridProps = {
   outputs?: StudioOutput[];
   archivedOutputs?: StudioOutput[];
@@ -33,7 +43,11 @@ export type ReferenceGridProps = {
   onOutputMediaLoaded?: (id: string) => void;
   linkedPromptReferenceIds?: string[];
   onSelectOutput: (id: string) => void;
-  onOpenDetails: (id: string, output?: StudioOutput) => void;
+  onOpenDetails: (
+    id: string,
+    output?: StudioOutput,
+    options?: ReferenceGridOpenDetailsOptions
+  ) => void;
   selectedTool: ToolId | null;
   onDropFiles?: (files: FileList) => void;
   onPasteTextReference?: (text: string) => void;

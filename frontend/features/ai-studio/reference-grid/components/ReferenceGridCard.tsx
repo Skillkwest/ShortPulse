@@ -29,6 +29,10 @@ import type { ReferenceGridMediaAuthorityTier } from "../../logic/referenceGridM
 import type { ReferenceComposerImageDragArtifact } from "../../utils/dragDrop";
 import type { ReferenceDragSourceSurface } from "../../utils/dragDrop";
 import type { StudioOutput, WorkflowReloadMediaKindHint } from "../../types";
+import type {
+  ReferenceGridDetailSurface,
+  ReferenceGridOpenDetailsOptions,
+} from "../referenceGridTypes";
 import { MediaDurationBadge } from "../../components/shared/MediaDurationBadge";
 import { ReferenceAudioPlayer } from "../../components/shared/ReferenceAudioPlayer";
 import {
@@ -43,6 +47,7 @@ export type ReferenceGridCardProps = {
   item: StudioOutput;
   authorityTier: ReferenceGridMediaAuthorityTier;
   dragSourceSurface: ReferenceDragSourceSurface;
+  detailSurface?: ReferenceGridDetailSurface;
   videoNodeKey: string;
   audioInstanceKey?: string;
   activeOutputId: string | null;
@@ -67,7 +72,11 @@ export type ReferenceGridCardProps = {
   renderContainPreview?: boolean;
   audioBackgroundImageUrl?: string | null;
   onSelectOutput: (id: string) => void;
-  onOpenDetails: (id: string, output?: StudioOutput) => void;
+  onOpenDetails: (
+    id: string,
+    output?: StudioOutput,
+    options?: ReferenceGridOpenDetailsOptions
+  ) => void;
   onCardDragStart: (
     event: React.DragEvent<HTMLElement>,
     item: StudioOutput,
@@ -138,6 +147,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   item,
   authorityTier,
   dragSourceSurface,
+  detailSurface,
   videoNodeKey,
   audioInstanceKey,
   activeOutputId,
@@ -488,8 +498,12 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     onSelectOutput(item.id);
   }, [item.id, onSelectOutput]);
   const handleCardDoubleClick = React.useCallback(() => {
+    if (detailSurface) {
+      onOpenDetails(item.id, item, { surface: detailSurface });
+      return;
+    }
     onOpenDetails(item.id, item);
-  }, [item, onOpenDetails]);
+  }, [detailSurface, item, onOpenDetails]);
   const handleVideoNodeRef = React.useCallback(
     (node: HTMLVideoElement | null) => {
       videoNodeRef.current = node;
@@ -515,6 +529,17 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
           handleCardKeyboardActivate();
+          return;
+        }
+        if (
+          event.key === "Delete" &&
+          showCuratedRemoveAction &&
+          onRemoveCuratedReference &&
+          isSelected
+        ) {
+          event.preventDefault();
+          event.stopPropagation();
+          onRemoveCuratedReference(item.id);
           return;
         }
         if (!onKeyboardReorderCurated) return;

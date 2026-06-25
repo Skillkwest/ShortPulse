@@ -260,6 +260,37 @@ const countProjectWorkspaceVisibleActiveOutputs = (snapshot: Record<string, unkn
   );
 };
 
+const collectProjectWorkspaceVisibleActiveOutputRows = (
+  snapshot: Record<string, unknown>
+): Record<string, unknown>[] => {
+  const outputsRecord = asRecord(snapshot.outputs);
+  const activeOutputs = Array.isArray(outputsRecord.active) ? outputsRecord.active : [];
+  return activeOutputs
+    .map((row) => asRecord(row))
+    .filter((row) => row.hiddenInReferenceGrid !== true);
+};
+
+const summarizeProjectWorkspaceOverflowRows = (rows: Record<string, unknown>[]) => {
+  const sampleRows = rows.slice(0, 20);
+  return {
+    trimmed_sample_output_ids: sampleRows
+      .map((row) => normalizeOptionalString(row.id))
+      .filter((id): id is string => Boolean(id)),
+    trimmed_with_durable_authority_count: rows.filter((row) =>
+      hasProjectDurableOutputAuthority(row)
+    ).length,
+    trimmed_with_runtime_identity_count: rows.filter((row) =>
+      hasProjectRecoverableRuntimeIdentity(row)
+    ).length,
+    trimmed_with_saved_media_ids_count: rows.filter(
+      (row) => normalizeUuidList(row.savedMediaIds).length > 0
+    ).length,
+    trimmed_with_prompt_id_count: rows.filter((row) => Boolean(normalizeUuid(row.promptId))).length,
+    trimmed_with_generation_id_count: rows.filter((row) => Boolean(normalizeUuid(row.generationId)))
+      .length,
+  };
+};
+
 const maybeLogProjectWorkspaceReferenceGridCapNormalization = ({
   userId,
   projectId,
@@ -275,6 +306,8 @@ const maybeLogProjectWorkspaceReferenceGridCapNormalization = ({
   if (incomingVisibleCount <= REFERENCE_GRID_MAX_VISIBLE_ITEMS) return;
 
   const sanitizedVisibleCount = countProjectWorkspaceVisibleActiveOutputs(sanitizedSnapshot);
+  const incomingVisibleRows = collectProjectWorkspaceVisibleActiveOutputRows(incomingSnapshot);
+  const overflowRows = incomingVisibleRows.slice(REFERENCE_GRID_MAX_VISIBLE_ITEMS);
   void writeAppErrorLog({
     source: "telemetry.ai_studio.project_workspace.reference_grid_cap_normalized",
     message: "Project workspace save normalized an over-cap Reference Grid before persistence.",
@@ -286,6 +319,7 @@ const maybeLogProjectWorkspaceReferenceGridCapNormalization = ({
       persisted_visible_active_outputs: sanitizedVisibleCount,
       reference_grid_visible_limit: REFERENCE_GRID_MAX_VISIBLE_ITEMS,
       trimmed_visible_active_outputs: Math.max(0, incomingVisibleCount - sanitizedVisibleCount),
+      ...summarizeProjectWorkspaceOverflowRows(overflowRows),
     },
   }).catch(() => undefined);
 };

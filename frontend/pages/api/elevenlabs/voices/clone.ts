@@ -216,7 +216,7 @@ export default async function handler(
       }
       return res.status(500).json({
         error: "Unable to clone voice",
-        details: "We couldn't securely save this voice. Please try again.",
+        details: "This voice could not be saved securely. Try again.",
       });
     }
 

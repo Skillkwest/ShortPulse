@@ -65,7 +65,7 @@ export class AppErrorBoundary extends React.Component<
         <div className="panel">
           <p className="eyebrow">Something went wrong</p>
           <h1 className="title" style={{ fontSize: 22 }}>
-            We hit a rendering error
+            A rendering error occurred
           </h1>
           <p className="subdued" style={{ marginTop: 10 }}>
             {this.state.message}

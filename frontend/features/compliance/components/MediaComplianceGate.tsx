@@ -41,7 +41,7 @@ export function MediaComplianceGate({
   const resolvedTitle = isConsentMode ? agreement.title : "Media agreement unavailable";
   const resolvedIntro = isConsentMode
     ? agreement.intro
-    : "We could not verify your media agreement right now. Try again in a moment.";
+    : "Media agreement status could not be verified right now. Try again in a moment.";
 
   return (
     <main className="page page-wide compliance-gate-page">

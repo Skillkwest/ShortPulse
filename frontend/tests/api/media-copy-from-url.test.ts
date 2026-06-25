@@ -10,6 +10,7 @@ const resolveMediaPreviewTrustedHostsMock = vi.fn();
 const extractImageDimensionsFromBufferMock = vi.fn();
 const detectImageMimeTypeMock = vi.fn();
 const detectVideoMimeTypeMock = vi.fn();
+const detectAudioMimeTypeMock = vi.fn();
 const admitImageBufferForProductUseMock = vi.fn();
 const upsertVideoPosterVariantFromBufferMock = vi.fn();
 const upsertVideoPreviewVariantFromBufferMock = vi.fn();
@@ -54,6 +55,7 @@ vi.mock("../../lib/server/imageAdmission", () => ({
 }));
 
 vi.mock("../../lib/server/uploadSignature", () => ({
+  detectAudioMimeType: (...args: unknown[]) => detectAudioMimeTypeMock(...args),
   detectImageMimeType: (...args: unknown[]) => detectImageMimeTypeMock(...args),
   detectVideoMimeType: (...args: unknown[]) => detectVideoMimeTypeMock(...args),
 }));
@@ -384,6 +386,7 @@ describe("POST /api/media/copy-from-url", () => {
     extractImageDimensionsFromBufferMock.mockReturnValue({ width: 1280, height: 720 });
     detectImageMimeTypeMock.mockReturnValue("image/png");
     detectVideoMimeTypeMock.mockReturnValue(null);
+    detectAudioMimeTypeMock.mockReturnValue(null);
     admitImageBufferForProductUseMock.mockImplementation(
       async ({ buffer, mimeType }: { buffer: Buffer; mimeType: string }) => ({
         status: "not_required",
@@ -642,6 +645,63 @@ describe("POST /api/media/copy-from-url", () => {
         delivery: expect.objectContaining({
           previewUrl: "https://signed.test/provider-media.png",
           fullUrl: "https://signed.test/provider-media.png",
+        }),
+      })
+    );
+  });
+
+  it("copies remote audio URLs as durable audio media", async () => {
+    const supabase = createSupabaseAdmin({
+      insertRow: {
+        id: "media-audio-copy-1",
+        storage_path: "user-1/uploads/audio/media-audio-copy-1.mp3",
+        file_type: "audio",
+      },
+      signedUrls: {
+        "user-1/uploads/audio/media-audio-copy-1.mp3": "https://signed.test/audio-copy.mp3",
+      },
+    });
+    getSupabaseAdminMock.mockReturnValue(supabase.admin);
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(Buffer.from("audio-buffer"), {
+        status: 200,
+        headers: { "Content-Type": "audio/mpeg", "Content-Length": "12" },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = {
+      method: "POST",
+      headers: { host: "app.shortpulse.test", "x-forwarded-proto": "https" },
+      body: {
+        url: "https://trusted.example.com/reference-voice.mp3",
+        mode: "audio",
+        fileTypeHint: "audio",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://trusted.example.com/reference-voice.mp3",
+      expect.any(Object)
+    );
+    expect(supabase.uploadMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^user-1\/uploads\/audio\//),
+      expect.any(Buffer),
+      expect.objectContaining({
+        contentType: "audio/mpeg",
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mediaFileId: "media-audio-copy-1",
+        storagePath: expect.stringMatching(/^user-1\/uploads\/audio\/.+\.mp3$/),
+        fileType: "audio",
+        delivery: expect.objectContaining({
+          fullUrl: "https://signed.test/audio-copy.mp3",
         }),
       })
     );

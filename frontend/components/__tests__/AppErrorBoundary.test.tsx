@@ -21,7 +21,7 @@ describe("AppErrorBoundary", () => {
       </AppErrorBoundary>
     );
 
-    expect(screen.getByText("We hit a rendering error")).toBeInTheDocument();
+    expect(screen.getByText("A rendering error occurred")).toBeInTheDocument();
     expect(
       screen.getByText("Please reload the page or try again in a moment.")
     ).toBeInTheDocument();

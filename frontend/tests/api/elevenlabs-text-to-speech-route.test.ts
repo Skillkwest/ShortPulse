@@ -563,4 +563,32 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
     expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
     expect(generateElevenLabsVoiceoverMock).not.toHaveBeenCalled();
   });
+
+  it("returns direct copy when provider voice verification is unavailable", async () => {
+    listElevenLabsVoicesMock.mockRejectedValueOnce(new Error("provider unavailable"));
+
+    const req = {
+      method: "POST",
+      body: {
+        voiceId: "provider-voice-1",
+        voiceName: "Provider Voice",
+        text: "Nope.",
+        outputFormat: "mp3_44100_128",
+        config: {
+          model_id: "eleven_v3",
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Voice is unavailable",
+      details: "The selected voice could not be verified right now. Try again shortly.",
+    });
+    expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
+    expect(generateElevenLabsVoiceoverMock).not.toHaveBeenCalled();
+  });
 });

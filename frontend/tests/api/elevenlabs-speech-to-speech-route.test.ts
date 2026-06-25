@@ -802,6 +802,28 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
     expect(generateElevenLabsVoiceChangerMock).not.toHaveBeenCalled();
   });
 
+  it("returns direct copy when provider voice verification is unavailable", async () => {
+    mockFields = {
+      ...mockFields,
+      voiceId: "provider-voice-1",
+      voiceName: "Provider Voice",
+    };
+    listElevenLabsVoicesMock.mockRejectedValueOnce(new Error("provider unavailable"));
+
+    const req = { method: "POST" };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Voice is unavailable",
+      details: "The selected voice could not be verified right now. Try again shortly.",
+    });
+    expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
+    expect(generateElevenLabsVoiceChangerMock).not.toHaveBeenCalled();
+  });
+
   it("returns the remux source size error as a client-visible 413", async () => {
     mockFields = {
       ...mockFields,

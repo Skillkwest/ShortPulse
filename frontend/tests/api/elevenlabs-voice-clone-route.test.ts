@@ -267,7 +267,7 @@ describe("POST /api/elevenlabs/voices/clone", () => {
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({
       error: "Unable to clone voice",
-      details: "We couldn't securely save this voice. Please try again.",
+      details: "This voice could not be saved securely. Try again.",
     });
   });
 

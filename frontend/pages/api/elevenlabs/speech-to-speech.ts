@@ -261,7 +261,7 @@ export default async function handler(
       if (providerLookupFailed && !savedVoiceMatch) {
         return res.status(503).json({
           error: "Voice is unavailable",
-          details: "We couldn't verify the selected voice right now. Please try again shortly.",
+          details: "The selected voice could not be verified right now. Try again shortly.",
         });
       }
       return res.status(403).json({

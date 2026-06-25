@@ -227,7 +227,7 @@ describe("POST /api/elevenlabs/text-to-voice/create", () => {
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({
       error: "Unable to create voice",
-      details: "We couldn't securely save this voice. Please try again.",
+      details: "This voice could not be saved securely. Try again.",
     });
   });
 

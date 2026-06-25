@@ -9,7 +9,7 @@ import { sanitizeRightRailLayoutSnapshot } from "../../features/ai-studio/logic/
 import {
   isReferenceGridVisibleOutput,
   REFERENCE_GRID_MAX_VISIBLE_ITEMS,
-} from "../../features/ai-studio/reference-grid/logic/referenceGridLimits";
+} from "../model-runtime/referenceGridLimits";
 
 type MinimalAiStudioSessionSnapshot = {
   schemaVersion: number;
@@ -184,6 +184,7 @@ const trimProjectWorkspaceOutputTextSummaries = (
   output: Record<string, unknown>
 ): Record<string, unknown> => {
   if (!hasProjectWorkspaceTextSummaryAuthority(output)) return output;
+  if (isPromptOnlyProjectReference(output)) return output;
   const trimmedOutput = {
     ...output,
   };

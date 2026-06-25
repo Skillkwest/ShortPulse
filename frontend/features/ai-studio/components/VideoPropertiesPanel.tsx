@@ -29,19 +29,7 @@ import { VideoSettingsCardPrefab } from "./VideoSettingsCardPrefab";
 import { useReferencePropertiesInteractions } from "./useReferencePropertiesInteractions";
 import { ReferenceAudioPlayer } from "./shared/ReferenceAudioPlayer";
 import type { VideoUploadResult } from "../utils/videoUpload";
-import { captureAiStudioDropSnapshot } from "../logic/aiStudioDropSnapshot";
-import { resolveLipSyncAudioDropSource } from "../logic/lipSyncAudioDropSource";
-import {
-  createEmptyLipSyncAudioState,
-  createFailedLipSyncAudioState,
-  createFailedNonDurableLipSyncAudioState,
-  createLipSyncAudioStateFromDurableUrl,
-  createReadyLipSyncAudioState,
-  createUploadingLipSyncAudioState,
-  getLipSyncAudioPlaybackUrl,
-  resolveLipSyncAudioDurableSource,
-} from "../logic/lipSyncAudioState";
-import { uploadAudioBlobToStorage } from "../utils/audioUpload";
+import { createEmptyLipSyncAudioState } from "../logic/lipSyncAudioState";
 import {
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
@@ -87,6 +75,8 @@ import type { ExpertEditStyleTile } from "./edit/expertEditStyles";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
 import type { CanvasTearOutComposerTargetRegistry } from "../hooks/useAiStudioCanvasTearOutTargets";
 import type { AgentComposerDirectDropPayload } from "../logic/agentComposerDirectDropPayload";
+import { useVideoLipSyncAudioController } from "./useVideoLipSyncAudioController";
+import { useVideoSavedKlingElementRefresh } from "./useVideoSavedKlingElementRefresh";
 
 const VIDEO_KLING_ELEMENT_SLOT_COUNT = 3;
 const VIDEO_SEEDANCE_ELEMENT_SLOT_COUNT = 9;
@@ -120,33 +110,6 @@ const handleSegmentedTabListKeyDown = (
   const tabs = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
   tabs[nextIndex]?.focus({ preventScroll: true });
 };
-
-const buildSavedKlingElementRefreshKey = (
-  element: AiStudioKlingElement,
-  fallbackSlotIndex: number
-): string | null => {
-  const sourceKind: AiStudioKlingSavedEntitySourceKind | null = element.sourceCharacterId
-    ? "character"
-    : element.sourceElementId
-      ? "element"
-      : null;
-  const sourceId = element.sourceCharacterId ?? element.sourceElementId ?? null;
-  if (!sourceKind || !sourceId) return null;
-  return [
-    element.slotIndex ?? fallbackSlotIndex,
-    sourceKind,
-    sourceId,
-    element.sourceCharacterLookId ?? "",
-  ].join(":");
-};
-
-const hasKlingElementVisibleMedia = (element: AiStudioKlingElement): boolean =>
-  Boolean(
-    element.videoUrl.trim() ||
-    element.audioUrl?.trim() ||
-    getAiStudioKlingElementReferenceUrls(element).length ||
-    element.profileImageUrl?.trim()
-  );
 
 const resolveKlingElementPanelSlotIndex = (
   element: AiStudioKlingElement,
@@ -199,24 +162,6 @@ function isSeedance2FamilyModelId(modelId: string | null): boolean {
     (modelId === KIE_SEEDANCE_2_MODEL_ID || modelId === KIE_SEEDANCE_2_FAST_MODEL_ID)
   );
 }
-
-const resolveDurableLipSyncDropAudioUrl = (
-  payload: Extract<AgentComposerDirectDropPayload, { kind: "audio" }>
-): { url: string | null; storagePath: string | null } => {
-  const internalPayload = payload.internalPayload;
-  return resolveLipSyncAudioDurableSource({
-    urlCandidates: [
-      internalPayload?.referenceUrl,
-      internalPayload?.referenceRenderUrl,
-      payload.audioUrl,
-    ],
-    storagePathCandidates: [
-      internalPayload?.fullStoragePath,
-      payload.audioStoragePath,
-      internalPayload?.previewStoragePath,
-    ],
-  });
-};
 
 export type VideoPropertiesPanelProps = {
   aspect: string;
@@ -404,13 +349,6 @@ export function VideoPropertiesPanel({
   const [elementPickerSlotIndex, setElementPickerSlotIndex] = React.useState<number | null>(null);
   const [isElementPickerOpen, setIsElementPickerOpen] = React.useState(false);
   const [isMotionRecorderOpen, setIsMotionRecorderOpen] = React.useState(false);
-  const lipSyncAudioInputRef = React.useRef<HTMLInputElement | null>(null);
-  const lipSyncAudioDropzoneRef = React.useRef<HTMLDivElement | null>(null);
-  const [lipSyncAudioDragActive, setLipSyncAudioDragActive] = React.useState(false);
-  const [lipSyncAudioCanvasTearOutActive, setLipSyncAudioCanvasTearOutActive] =
-    React.useState(false);
-  const lipSyncAudioUploadRevisionRef = React.useRef(0);
-  const lipSyncAudioObjectUrlsRef = React.useRef<Set<string>>(new Set());
   const [elementPickerError, setElementPickerError] = React.useState<string | null>(null);
   const [seedanceSlotLimitWarning, setSeedanceSlotLimitWarning] = React.useState<string | null>(
     null
@@ -429,7 +367,6 @@ export function VideoPropertiesPanel({
     replaceEnd: 0,
     target: "primary",
   });
-  const normalizedSavedKlingElementKeysRef = React.useRef<Set<string>>(new Set());
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
   const isSeedance2FamilyModelSelectedForSlots = isSeedance2FamilyModelId(modelId);
   const klingElementSlotCount = isSeedance2FamilyModelSelectedForSlots
@@ -626,286 +563,29 @@ export function VideoPropertiesPanel({
     seedanceElementSlotCount: klingElementSlotCount,
     onSeedanceElementMediaSlotChange: handleSeedanceElementMediaSlotChange,
   });
-  const applyLipSyncAudio = React.useCallback(
-    (value: LipSyncAudioState) => {
-      onLipSyncAudioChange?.(value);
-    },
-    [onLipSyncAudioChange]
-  );
-  React.useEffect(
-    () => () => {
-      lipSyncAudioObjectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
-      lipSyncAudioObjectUrlsRef.current.clear();
-    },
-    []
-  );
-  const readLipSyncAudioDuration = React.useCallback((audioUrl: string): Promise<number | null> => {
-    if (typeof Audio === "undefined") return Promise.resolve(null);
-    return new Promise((resolve) => {
-      const audio = new Audio();
-      const cleanup = () => {
-        audio.onloadedmetadata = null;
-        audio.onerror = null;
-      };
-      audio.onloadedmetadata = () => {
-        const durationMs = Number.isFinite(audio.duration)
-          ? Math.max(0, Math.round(audio.duration * 1000))
-          : null;
-        cleanup();
-        resolve(durationMs);
-      };
-      audio.onerror = () => {
-        cleanup();
-        resolve(null);
-      };
-      audio.src = audioUrl.replace(/#.*$/, "");
-    });
-  }, []);
-  const handleLipSyncAudioFile = React.useCallback(
-    async (file: File | null | undefined) => {
-      if (!file) return;
-      const uploadRevision = lipSyncAudioUploadRevisionRef.current + 1;
-      lipSyncAudioUploadRevisionRef.current = uploadRevision;
-      const objectUrl = URL.createObjectURL(file);
-      lipSyncAudioObjectUrlsRef.current.add(objectUrl);
-      const previewUrl = `${objectUrl}#audio=1`;
-      const durationMs = await readLipSyncAudioDuration(previewUrl);
-      applyLipSyncAudio(
-        createUploadingLipSyncAudioState({
-          durationMs,
-          previewUrl,
-          title: file.name,
-          mimeType: file.type || null,
-          size: file.size,
-        })
-      );
-      try {
-        const uploaded = await uploadAudioBlobToStorage(file, {
-          sourceName: file.name,
-          mimeType: file.type,
-        });
-        if (lipSyncAudioUploadRevisionRef.current !== uploadRevision) return;
-        applyLipSyncAudio(
-          createReadyLipSyncAudioState({
-            url: uploaded.url,
-            title: file.name,
-            durationMs,
-            sourceKind: "local",
-            storagePath: uploaded.path,
-            previewUrl,
-            mimeType: uploaded.mimeType ?? file.type ?? null,
-            size: uploaded.size,
-          })
-        );
-      } catch (error) {
-        if (lipSyncAudioUploadRevisionRef.current !== uploadRevision) return;
-        applyLipSyncAudio(
-          createFailedLipSyncAudioState({
-            durationMs,
-            previewUrl,
-            title: file.name,
-            error:
-              error instanceof Error
-                ? error.message
-                : "Voice audio upload failed. Re-add the audio file and try again.",
-            mimeType: file.type || null,
-            size: file.size,
-          })
-        );
-      }
-    },
-    [applyLipSyncAudio, readLipSyncAudioDuration]
-  );
-  const handleLipSyncAudioSelection = React.useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      void handleLipSyncAudioFile(event.target.files?.[0]);
-      event.target.value = "";
-    },
-    [handleLipSyncAudioFile]
-  );
-  const handleLipSyncAudioDrop = React.useCallback(
-    async (event: React.DragEvent<HTMLDivElement>) => {
-      event.preventDefault();
-      setLipSyncAudioDragActive(false);
-      const snapshot = captureAiStudioDropSnapshot(event.dataTransfer);
-      const resolvedSource = await resolveLipSyncAudioDropSource({
-        snapshot,
-        resolvePreviewUrlById,
-      });
-      if (resolvedSource?.kind === "durable") {
-        applyLipSyncAudio(
-          createLipSyncAudioStateFromDurableUrl({
-            url: resolvedSource.url,
-            title: resolvedSource.title,
-            durationMs: resolvedSource.durationMs,
-            sourceKind: resolvedSource.sourceKind,
-            storagePath: resolvedSource.storagePath,
-          })
-        );
-        return;
-      }
-      if (resolvedSource?.kind === "file") {
-        void handleLipSyncAudioFile(resolvedSource.audioFile);
-        return;
-      }
-    },
-    [applyLipSyncAudio, handleLipSyncAudioFile, resolvePreviewUrlById]
-  );
-  const canAcceptLipSyncAudioCanvasTearOutPayload = React.useCallback(
-    (payload: AgentComposerDirectDropPayload) => payload.kind === "audio",
-    []
-  );
-  const acceptLipSyncAudioCanvasTearOutPayload = React.useCallback(
-    (payload: AgentComposerDirectDropPayload) => {
-      if (payload.kind !== "audio") return;
-      setLipSyncAudioDragActive(false);
-      const resolvedAudio = resolveDurableLipSyncDropAudioUrl(payload);
-      applyLipSyncAudio(
-        resolvedAudio.url || resolvedAudio.storagePath
-          ? createLipSyncAudioStateFromDurableUrl({
-              url: resolvedAudio.url,
-              durationMs: payload.durationMs ?? null,
-              sourceKind: "canvas",
-              storagePath: resolvedAudio.storagePath,
-            })
-          : createFailedNonDurableLipSyncAudioState(payload.audioUrl)
-      );
-    },
-    [applyLipSyncAudio]
-  );
-  const clearLipSyncAudio = React.useCallback(() => {
-    lipSyncAudioUploadRevisionRef.current += 1;
-    applyLipSyncAudio(createEmptyLipSyncAudioState());
-  }, [applyLipSyncAudio]);
-  const lipSyncAudioPlaybackUrl = getLipSyncAudioPlaybackUrl(lipSyncAudio);
-  React.useEffect(() => {
-    if (!onKlingElementsChange) return;
-    if (
-      !selectedKlingElements.some(
-        (element) => element?.sourceElementId || element?.sourceCharacterId
-      )
-    ) {
-      return;
-    }
-
-    let cancelled = false;
-
-    const normalizeAttachedElements = async () => {
-      const normalizedRefreshKeys: string[] = [];
-      const normalizedSlots = await Promise.all(
-        selectedKlingElements.map(async (element, index) => {
-          if (!element) return null;
-          const slotIndex = element.slotIndex ?? index;
-
-          if (!element.sourceElementId && !element.sourceCharacterId) {
-            return hasKlingElementVisibleMedia(element) ? { ...element, slotIndex } : null;
-          }
-
-          const refreshKey = buildSavedKlingElementRefreshKey(element, index);
-          if (
-            refreshKey &&
-            normalizedSavedKlingElementKeysRef.current.has(refreshKey) &&
-            hasKlingElementVisibleMedia(element)
-          ) {
-            return { ...element, slotIndex };
-          }
-
-          try {
-            const sourceKind: AiStudioKlingSavedEntitySourceKind = element.sourceCharacterId
-              ? "character"
-              : "element";
-            const sourceId = element.sourceCharacterId ?? element.sourceElementId;
-            if (!sourceId) return null;
-            const refreshedElement = await loadSavedKlingEntityBySource({
-              sourceKind,
-              sourceId,
-              sourceCharacterLookId: element.sourceCharacterLookId ?? null,
-            });
-            const hasUsableMedia = Boolean(
-              refreshedElement.videoUrl.trim() ||
-              getAiStudioKlingElementReferenceUrls(refreshedElement).length
-            );
-            if (!hasUsableMedia) {
-              const hasSessionPresence = Boolean(
-                element.videoUrl.trim() ||
-                getAiStudioKlingElementReferenceUrls(element).length ||
-                element.profileImageUrl?.trim() ||
-                element.name?.trim() ||
-                element.alias?.trim()
-              );
-              return hasSessionPresence ? { ...element, slotIndex } : null;
-            }
-            if (refreshKey) {
-              normalizedRefreshKeys.push(refreshKey);
-            }
-            return { ...refreshedElement, slotIndex };
-          } catch {
-            return null;
-          }
-        })
-      );
-
-      if (cancelled) return;
-
-      const currentSignature = JSON.stringify(
-        selectedKlingElements.map((element, index) =>
-          element
-            ? {
-                slotIndex: element.slotIndex ?? index,
-                sourceKind: element.sourceKind ?? null,
-                sourceElementId: element.sourceElementId ?? null,
-                sourceCharacterId: element.sourceCharacterId ?? null,
-                sourceCharacterLookId: element.sourceCharacterLookId ?? null,
-                sourceCharacterLookLabel: element.sourceCharacterLookLabel ?? null,
-                name: element.name ?? "",
-                alias: element.alias ?? "",
-                description: element.description ?? "",
-                profileImageUrl: element.profileImageUrl ?? null,
-                profileImageTransform: element.profileImageTransform ?? null,
-                frontalImageUrl: element.frontalImageUrl,
-                referenceImageUrls: element.referenceImageUrls,
-                videoUrl: element.videoUrl,
-              }
-            : null
-        )
-      );
-      const nextSignature = JSON.stringify(
-        normalizedSlots.map((element) =>
-          element
-            ? {
-                slotIndex: element.slotIndex,
-                sourceKind: element.sourceKind ?? null,
-                sourceElementId: element.sourceElementId ?? null,
-                sourceCharacterId: element.sourceCharacterId ?? null,
-                sourceCharacterLookId: element.sourceCharacterLookId ?? null,
-                sourceCharacterLookLabel: element.sourceCharacterLookLabel ?? null,
-                name: element.name ?? "",
-                alias: element.alias ?? "",
-                description: element.description ?? "",
-                profileImageUrl: element.profileImageUrl ?? null,
-                profileImageTransform: element.profileImageTransform ?? null,
-                frontalImageUrl: element.frontalImageUrl,
-                referenceImageUrls: element.referenceImageUrls,
-                videoUrl: element.videoUrl,
-              }
-            : null
-        )
-      );
-
-      if (currentSignature !== nextSignature) {
-        commitSelectedKlingElements(normalizedSlots);
-      }
-      normalizedRefreshKeys.forEach((key) => {
-        normalizedSavedKlingElementKeysRef.current.add(key);
-      });
-    };
-
-    void normalizeAttachedElements();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [commitSelectedKlingElements, onKlingElementsChange, selectedKlingElements]);
+  const {
+    lipSyncAudioInputRef,
+    lipSyncAudioDropzoneRef,
+    lipSyncAudioDragActive,
+    setLipSyncAudioDragActive,
+    lipSyncAudioCanvasTearOutActive,
+    setLipSyncAudioCanvasTearOutActive,
+    handleLipSyncAudioSelection,
+    handleLipSyncAudioDrop,
+    canAcceptLipSyncAudioCanvasTearOutPayload,
+    acceptLipSyncAudioCanvasTearOutPayload,
+    clearLipSyncAudio,
+    lipSyncAudioPlaybackUrl,
+  } = useVideoLipSyncAudioController({
+    lipSyncAudio,
+    onLipSyncAudioChange,
+    resolvePreviewUrlById,
+  });
+  const { rememberSavedKlingElementRefreshKey } = useVideoSavedKlingElementRefresh({
+    selectedKlingElements,
+    onKlingElementsChange,
+    commitSelectedKlingElements,
+  });
 
   const openElementPicker = React.useCallback((slotIndex: number) => {
     setElementPickerError(null);
@@ -935,13 +615,7 @@ export function VideoPropertiesPanel({
           sourceId,
           sourceCharacterLookId,
         });
-        const selectedRefreshKey = buildSavedKlingElementRefreshKey(
-          selectedElement,
-          elementPickerSlotIndex
-        );
-        if (selectedRefreshKey) {
-          normalizedSavedKlingElementKeysRef.current.add(selectedRefreshKey);
-        }
+        rememberSavedKlingElementRefreshKey(selectedElement, elementPickerSlotIndex);
         const next = Array.from(
           { length: klingElementSlotCount },
           (_, index) => selectedKlingElements[index] ?? null
@@ -966,6 +640,7 @@ export function VideoPropertiesPanel({
       closeElementPicker,
       elementPickerSlotIndex,
       klingElementSlotCount,
+      rememberSavedKlingElementRefreshKey,
       resolveSeedanceElementSlotLimitError,
       selectedKlingElements,
     ]
@@ -1079,6 +754,8 @@ export function VideoPropertiesPanel({
     canAcceptLipSyncAudioCanvasTearOutPayload,
     canvasTearOutTargetRegistry,
     isLipSyncMode,
+    lipSyncAudioDropzoneRef,
+    setLipSyncAudioCanvasTearOutActive,
   ]);
 
   React.useEffect(() => {
@@ -1303,6 +980,8 @@ export function VideoPropertiesPanel({
       lipSyncAudioDragActive,
       lipSyncAudioPlaybackUrl,
       lipSyncAudioInputRef,
+      lipSyncAudioDropzoneRef,
+      setLipSyncAudioDragActive,
     ]
   );
   const renderReferenceMediaStep = React.useCallback(

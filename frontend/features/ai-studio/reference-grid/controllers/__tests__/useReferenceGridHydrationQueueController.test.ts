@@ -72,6 +72,9 @@ describe("useReferenceGridHydrationQueueController", () => {
     const enqueueImageHydration = vi.fn();
     const pruneHydrationQueueToCandidateIds = vi.fn();
     const output = imageOutput("out-1");
+    const resolveCardMedia = vi.fn(({ item }: { item: ReferenceGridMediaOutput }) =>
+      createResolvedCardMedia(item, "https://cdn.example.com/preview.jpg")
+    );
 
     const { rerender } = renderHook(
       ({ suspendHydrationQueue }: { suspendHydrationQueue: boolean }) =>
@@ -87,8 +90,7 @@ describe("useReferenceGridHydrationQueueController", () => {
           virtualRowHeight: 280,
           curatedVirtualRowHeight: 240,
           quickSlotAdaptiveSurfaceEnabled: false,
-          resolveCardMedia: ({ item }) =>
-            createResolvedCardMedia(item, "https://cdn.example.com/preview.jpg"),
+          resolveCardMedia,
           enqueueImageHydration,
           pruneHydrationQueueToCandidateIds,
         }),
@@ -100,6 +102,7 @@ describe("useReferenceGridHydrationQueueController", () => {
     );
 
     expect(enqueueImageHydration).not.toHaveBeenCalled();
+    expect(resolveCardMedia).not.toHaveBeenCalled();
     expect(pruneHydrationQueueToCandidateIds).toHaveBeenCalledTimes(1);
     const suspendedCandidateIdSet = pruneHydrationQueueToCandidateIds.mock
       .calls[0]?.[0] as Set<string>;
@@ -108,9 +111,52 @@ describe("useReferenceGridHydrationQueueController", () => {
     rerender({ suspendHydrationQueue: false });
 
     expect(enqueueImageHydration).toHaveBeenCalled();
+    expect(resolveCardMedia).not.toHaveBeenCalled();
     expect(pruneHydrationQueueToCandidateIds).toHaveBeenCalledTimes(2);
     const candidateIdSet = pruneHydrationQueueToCandidateIds.mock.calls[1]?.[0] as Set<string>;
     expect(candidateIdSet.has("out-1")).toBe(true);
+  });
+
+  it("does not resolve near-viewport media while hydration queue work is suspended", () => {
+    const enqueueImageHydration = vi.fn();
+    const pruneHydrationQueueToCandidateIds = vi.fn();
+    const resolveCardMedia = vi.fn(({ item }: { item: ReferenceGridMediaOutput }) =>
+      createResolvedCardMedia(item, "https://cdn.example.com/preview.jpg")
+    );
+    const activeOutput = imageOutput("active-1");
+    const visibleOutput = imageOutput("visible-1");
+    const curatedOutput = imageOutput("curated-1");
+    const nearViewportOutput = imageOutput("near-1");
+    const nearViewportCuratedOutput = imageOutput("near-curated-1");
+
+    renderHook(() =>
+      useReferenceGridHydrationQueueController({
+        decodeBudgetEnabled: true,
+        suspendHydrationQueue: true,
+        activeOutput: projectReferenceGridMediaOutput(activeOutput),
+        visibleCardItems: [visibleImageCard(visibleOutput)],
+        curatedVisibleCardItems: [visibleImageCard(curatedOutput, "curated")],
+        hydrationQuickSlotPreferredIdSet: new Set<string>(),
+        nearViewportOutputs: [projectReferenceGridMediaOutput(nearViewportOutput)],
+        nearViewportCuratedOutputs: [projectReferenceGridMediaOutput(nearViewportCuratedOutput)],
+        virtualRowHeight: 280,
+        curatedVirtualRowHeight: 240,
+        quickSlotAdaptiveSurfaceEnabled: false,
+        resolveCardMedia,
+        enqueueImageHydration,
+        pruneHydrationQueueToCandidateIds,
+      })
+    );
+
+    expect(resolveCardMedia).not.toHaveBeenCalled();
+    expect(enqueueImageHydration).not.toHaveBeenCalled();
+    expect(pruneHydrationQueueToCandidateIds).toHaveBeenCalledTimes(1);
+    const candidateIdSet = pruneHydrationQueueToCandidateIds.mock.calls[0]?.[0] as Set<string>;
+    expect(candidateIdSet.has("active-1")).toBe(true);
+    expect(candidateIdSet.has("visible-1")).toBe(true);
+    expect(candidateIdSet.has("curated-1")).toBe(true);
+    expect(candidateIdSet.has("near-1")).toBe(false);
+    expect(candidateIdSet.has("near-curated-1")).toBe(false);
   });
 
   it("prunes queue candidates even when decode budget is disabled", () => {

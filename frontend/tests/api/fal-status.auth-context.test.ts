@@ -1,5 +1,5 @@
 /**
- * Verifies Fal status polling ownership checks with proxy-first protected-route auth.
+ * Verifies Fal status polling ownership checks with bearer-verified route auth.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/fal/seedream-status";
@@ -56,7 +56,7 @@ describe("POST /api/fal/seedream-status middleware auth-context ownership", () =
     process.env.SHORTPULSE_TRUST_PROXY_AUTH_HEADERS = "false";
   });
 
-  it("keeps ownership enforcement with middleware-authenticated user context", async () => {
+  it("keeps ownership enforcement with bearer-verified user context", async () => {
     resolveProviderRequestOwnershipMock.mockResolvedValue("forbidden");
     const fetchMock = vi.fn();
     fetchMock.mockResolvedValueOnce(mockAuthFetchResponse());
@@ -86,7 +86,7 @@ describe("POST /api/fal/seedream-status middleware auth-context ownership", () =
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("still proxies status when middleware-authenticated ownership is confirmed", async () => {
+  it("still proxies status when bearer-verified ownership is confirmed", async () => {
     resolveProviderRequestOwnershipMock.mockResolvedValue("owned");
     const fetchMock = vi.fn();
     fetchMock.mockResolvedValueOnce(mockAuthFetchResponse());

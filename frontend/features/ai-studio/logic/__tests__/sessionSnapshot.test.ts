@@ -2809,7 +2809,7 @@ describe("sessionSnapshot", () => {
     });
   });
 
-  it("drops duplicated prompt text from prompt-only project references", () => {
+  it("preserves full reusable prompt text in prompt-only project references", () => {
     const promptReferenceText =
       "Art direction note with dense lighting guidance and composition constraints. "
         .repeat(80)
@@ -2872,7 +2872,7 @@ describe("sessionSnapshot", () => {
 
     expect(outputRow).toMatchObject({
       id: "out-prompt-reference-heavy",
-      previewText: promptReferenceText.slice(0, 1000),
+      previewText: promptReferenceText,
       promptId: "prompt-1",
     });
     expect(outputRow).not.toHaveProperty("prompt");

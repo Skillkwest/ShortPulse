@@ -1,5 +1,5 @@
 /**
- * Auth helper coverage for proxy-first protected-route verification and token fallback behavior.
+ * Auth helper coverage for bearer-verified protected-route authentication.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -29,7 +29,7 @@ describe("auth helper protected-route auth behavior", () => {
     process.env.SHORTPULSE_TRUST_PROXY_AUTH_HEADERS = "false";
   });
 
-  it("verifies bearer identity before reusing matching proxy-authenticated context", async () => {
+  it("uses bearer-verified identity even when matching legacy proxy headers are present", async () => {
     const fetchMock = vi.fn(async () => ({
       ok: true,
       json: async () => ({
@@ -59,7 +59,7 @@ describe("auth helper protected-route auth behavior", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("ignores spoofed proxy-authenticated identity when bearer verification resolves a different user", async () => {
+  it("ignores spoofed legacy proxy headers when bearer verification resolves a different user", async () => {
     const fetchMock = vi.fn(async () => ({
       ok: true,
       json: async () => ({
@@ -93,7 +93,7 @@ describe("auth helper protected-route auth behavior", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
-  it("falls back to bearer verification when proxy context is unavailable", async () => {
+  it("verifies the bearer token when legacy proxy headers are absent", async () => {
     const fetchMock = vi.fn(async () => ({
       ok: true,
       json: async () => ({
@@ -213,7 +213,7 @@ describe("auth helper protected-route auth behavior", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("authorizes admin users only after bearer verification confirms the proxy-authenticated identity", async () => {
+  it("authorizes admin users from bearer-verified metadata even when legacy proxy headers match", async () => {
     const fetchMock = vi.fn(async () => ({
       ok: true,
       json: async () => ({

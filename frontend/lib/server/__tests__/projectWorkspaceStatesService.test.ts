@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createAiStudioProjectWorkspaceSnapshot } from "../../ai-studio-session/projectWorkspaceSnapshot";
+import {
+  computeAiStudioSessionChecksum,
+  createAiStudioProjectWorkspaceSnapshot,
+} from "../../ai-studio-session/projectWorkspaceSnapshot";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
 import { writeAppErrorLog } from "../api/appErrorLogs";
 import { createLightweightProjectWorkspaceCheckpointSnapshot } from "../projectOutputDisplayItemsService";
@@ -44,6 +47,44 @@ const createCanonicalCheckpointSnapshot = (
     ) as unknown as Record<string, unknown>,
     checkpointRevision,
   });
+
+const createProjectAssetAssociationChecksum = ({
+  mediaFileIds = [],
+  promptIds = [],
+  generationIds = [],
+}: {
+  mediaFileIds?: string[];
+  promptIds?: string[];
+  generationIds?: string[];
+}): string =>
+  computeAiStudioSessionChecksum({
+    generationIds: Array.from(new Set(generationIds)).sort(),
+    mediaFileIds: Array.from(new Set(mediaFileIds)).sort(),
+    promptIds: Array.from(new Set(promptIds)).sort(),
+  });
+
+const withProjectAssetAssociationChecksum = (
+  snapshot: Record<string, unknown>,
+  projectAssetAssociationChecksum: string
+): Record<string, unknown> => {
+  const metaWithAssociationChecksum: Record<string, unknown> = {
+    ...(snapshot.meta as Record<string, unknown>),
+    projectAssetAssociationChecksum,
+  };
+  const { checksum: _existingChecksum, ...metaWithoutChecksum } = metaWithAssociationChecksum;
+  void _existingChecksum;
+  const snapshotWithoutChecksum = {
+    ...snapshot,
+    meta: metaWithoutChecksum,
+  };
+  return {
+    ...snapshotWithoutChecksum,
+    meta: {
+      ...metaWithoutChecksum,
+      checksum: computeAiStudioSessionChecksum(snapshotWithoutChecksum),
+    },
+  };
+};
 
 type SupabaseMockOptions = {
   workspaceSnapshot?: Record<string, unknown>;
@@ -1003,6 +1044,122 @@ describe("projectWorkspaceStatesService", () => {
     });
   });
 
+  it("backfills project associations when durable authority changes without checkpoint structure changes", async () => {
+    const existingSnapshot = createCanonicalCheckpointSnapshot(
+      {
+        schemaVersion: 2,
+        sessionId: "session-display-only-association-existing",
+        updatedAt: "2026-04-23T01:00:00.000Z",
+        workspace: {
+          selectedTool: "create",
+          standardPrompt: "",
+        },
+        outputs: {
+          active: [
+            {
+              id: "library-display-only-association",
+              mediaSource: "library",
+              mode: "image",
+              previewUrl: "https://cdn.example.com/display-only-association.png",
+            },
+          ],
+          archived: [],
+          activeOutputId: null,
+          curatedReferenceIds: ["library-display-only-association"],
+          removedFromAllRefsIds: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+      4
+    );
+    const { mediaAssociationUpsert, promptAssociationUpsert, workspaceUpsert } = createSupabaseMock(
+      {
+        workspaceSnapshot: existingSnapshot,
+        workspaceSnapshotUpdatedAt: "2026-04-23T01:00:00.000Z",
+        associatedSnapshotGenerationIds: [],
+        recentGenerationIds: [],
+        projectionRows: [],
+      }
+    );
+
+    await upsertProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+      schemaVersion: 2,
+      snapshot: {
+        schemaVersion: 2,
+        sessionId: "session-display-only-association-existing",
+        updatedAt: "2026-04-23T01:00:00.000Z",
+        workspace: {
+          selectedTool: "create",
+          standardPrompt: "",
+        },
+        outputs: {
+          active: [
+            {
+              id: "library-display-only-association",
+              mediaSource: "library",
+              mode: "image",
+              savedMediaIds: [MEDIA_ID_1],
+              promptId: PROMPT_ID_1,
+              previewUrl: "https://cdn.example.com/display-only-association.png",
+            },
+          ],
+          archived: [],
+          activeOutputId: null,
+          curatedReferenceIds: ["library-display-only-association"],
+          removedFromAllRefsIds: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+    });
+
+    expect(mediaAssociationUpsert).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          project_id: "project-1",
+          media_file_id: MEDIA_ID_1,
+          user_id: "user-1",
+        }),
+      ],
+      expect.objectContaining({
+        onConflict: "project_id,media_file_id",
+      })
+    );
+    expect(promptAssociationUpsert).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          project_id: "project-1",
+          prompt_id: PROMPT_ID_1,
+          user_id: "user-1",
+        }),
+      ],
+      expect.objectContaining({
+        onConflict: "project_id,prompt_id",
+      })
+    );
+    expect(workspaceUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        checkpoint_revision: 1,
+      }),
+      expect.anything()
+    );
+  });
+
   it("preserves and associates prompt-only library references during workspace save", async () => {
     const { promptAssociationUpsert, outputDisplayUpsert } = createSupabaseMock({
       associatedSnapshotGenerationIds: [],
@@ -1127,6 +1284,9 @@ describe("projectWorkspaceStatesService", () => {
       mediaAssociationUpsert,
       promptAssociationUpsert,
       generationAssociationUpsert,
+      mediaIdInMock,
+      promptIdInMock,
+      generationIdInMock,
       workspaceUpsert,
     } = createSupabaseMock({
       workspaceSnapshot: existingSnapshot,
@@ -1192,6 +1352,9 @@ describe("projectWorkspaceStatesService", () => {
     });
 
     expect(workspaceUpsert).not.toHaveBeenCalled();
+    expect(mediaIdInMock).not.toHaveBeenCalledWith("id", expect.arrayContaining([MEDIA_ID_2]));
+    expect(promptIdInMock).not.toHaveBeenCalled();
+    expect(generationIdInMock).not.toHaveBeenCalled();
     expect(mediaAssociationUpsert).not.toHaveBeenCalled();
     expect(promptAssociationUpsert).not.toHaveBeenCalled();
     expect(generationAssociationUpsert).not.toHaveBeenCalled();
@@ -2094,13 +2257,17 @@ describe("projectWorkspaceStatesService", () => {
   });
 
   it("preserves durable generated rows during workspace save even when generation ownership resolves unowned", async () => {
-    const { generationAssociationUpsert, workspaceUpsert, outputDisplayUpsert } =
-      createSupabaseMock({
-        associatedSnapshotGenerationIds: [],
-        recentGenerationIds: [],
-        generationRows: [],
-        projectionRows: [],
-      });
+    const {
+      generationAssociationUpsert,
+      generationIdInMock,
+      workspaceUpsert,
+      outputDisplayUpsert,
+    } = createSupabaseMock({
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      generationRows: [],
+      projectionRows: [],
+    });
 
     await upsertProjectWorkspaceStateForUser({
       userId: "user-1",
@@ -2216,6 +2383,8 @@ describe("projectWorkspaceStatesService", () => {
       },
     });
     expect(generationAssociationUpsert).not.toHaveBeenCalled();
+    expect(generationIdInMock).toHaveBeenCalledTimes(1);
+    expect(generationIdInMock).toHaveBeenCalledWith("id", [GENERATION_ID_2]);
   });
 
   it("strips foreign trusted direct preview URLs from generated rows before workspace save", async () => {
@@ -3364,7 +3533,7 @@ describe("projectWorkspaceStatesService", () => {
     }
   });
 
-  it("returns repair-pending save outcomes when project association backfill fails after the workspace write", async () => {
+  it("does not mark project associations complete when project association backfill fails", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const { workspaceUpsert } = createSupabaseMock({
       mediaAssociationError: "duplicate key value violates unique constraint",
@@ -3448,6 +3617,12 @@ describe("projectWorkspaceStatesService", () => {
         },
       });
       expect(workspaceUpsert).toHaveBeenCalledTimes(1);
+      const workspacePayload = workspaceUpsert.mock.calls[0]?.[0] as
+        | { snapshot?: Record<string, unknown> }
+        | undefined;
+      expect(
+        workspacePayload?.snapshot?.meta as Record<string, unknown> | undefined
+      ).not.toHaveProperty("projectAssetAssociationChecksum");
     } finally {
       warnSpy.mockRestore();
     }
@@ -3637,6 +3812,114 @@ describe("projectWorkspaceStatesService", () => {
     } finally {
       warnSpy.mockRestore();
     }
+  });
+
+  it("preserves media and prompt authority when generation authority resolution degrades", async () => {
+    const {
+      mediaAssociationUpsert,
+      promptAssociationUpsert,
+      generationAssociationUpsert,
+      outputDisplayUpsert,
+    } = createSupabaseMock({
+      generationReadError: "upstream request timeout",
+    });
+
+    await expect(
+      upsertProjectWorkspaceStateForUser({
+        userId: "user-1",
+        projectId: "project-1",
+        schemaVersion: 2,
+        snapshot: {
+          schemaVersion: 2,
+          sessionId: "session-partial-authority-degraded",
+          updatedAt: "2026-04-23T01:00:00.000Z",
+          meta: {
+            generatedAt: "2026-04-23T01:00:00.000Z",
+            checksum: "fnv1a32:partial-authority-degraded",
+          },
+          workspace: {
+            selectedTool: "create",
+            standardPrompt: "Project prompt",
+          },
+          outputs: {
+            active: [
+              {
+                id: "library-with-prompt-1",
+                mediaSource: "library",
+                mode: "image",
+                savedMediaIds: [MEDIA_ID_1],
+                promptId: PROMPT_ID_1,
+                previewUrl: "https://cdn.example.com/library-with-prompt.png",
+              },
+              {
+                id: `generated:${GENERATION_ID_1}`,
+                generationId: GENERATION_ID_1,
+                taskId: "task-1",
+                sourceRef: "source-1",
+                mode: "image",
+              },
+            ],
+            archived: [],
+            activeOutputId: "library-with-prompt-1",
+            curatedReferenceIds: ["library-with-prompt-1"],
+            removedFromAllRefsIds: [],
+          },
+          agent: {
+            messages: [],
+            input: "",
+            latestAgentPrompt: null,
+            promptOrigin: "manual",
+            chatModeEnabled: false,
+            pulseWorkflowSession: null,
+          },
+        },
+      })
+    ).resolves.toMatchObject({
+      saveOutcome: {
+        status: "saved_with_repair_pending",
+        repairStage: "owned_id_resolution",
+        repairMessage:
+          "Project workspace save failed during owned id resolution: upstream request timeout",
+      },
+    });
+
+    expect(mediaAssociationUpsert).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          project_id: "project-1",
+          media_file_id: MEDIA_ID_1,
+          user_id: "user-1",
+        }),
+      ],
+      expect.objectContaining({
+        onConflict: "project_id,media_file_id",
+      })
+    );
+    expect(promptAssociationUpsert).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          project_id: "project-1",
+          prompt_id: PROMPT_ID_1,
+          user_id: "user-1",
+        }),
+      ],
+      expect.objectContaining({
+        onConflict: "project_id,prompt_id",
+      })
+    );
+    expect(generationAssociationUpsert).not.toHaveBeenCalled();
+    expect(outputDisplayUpsert).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          output_id: "library-with-prompt-1",
+          prompt_id: PROMPT_ID_1,
+          saved_media_ids: [MEDIA_ID_1],
+        }),
+      ]),
+      expect.objectContaining({
+        onConflict: "project_id,output_id",
+      })
+    );
   });
 
   it("returns repair-pending save outcomes when output display sync fails after the checkpoint write", async () => {
@@ -5351,39 +5634,45 @@ describe("projectWorkspaceStatesService", () => {
   });
 
   it("touches workspace freshness without rewriting unchanged display rows", async () => {
-    const existingCheckpointSnapshot = createCanonicalCheckpointSnapshot({
-      schemaVersion: 2,
-      sessionId: "session-display-touch",
-      updatedAt: "2026-06-03T12:00:00.000Z",
-      workspace: {
-        selectedTool: "create",
-      },
-      outputs: {
-        active: [
-          {
-            id: "display-touch-1",
-            mode: "image",
-            mediaSource: "library",
-            prompt: "Stable prompt",
-            previewUrl: "https://cdn.example.com/stable.png",
-            resultUrls: ["https://cdn.example.com/stable.png"],
-            savedMediaIds: [MEDIA_ID_1],
-          },
-        ],
-        archived: [],
-        activeOutputId: "display-touch-1",
-        curatedReferenceIds: ["display-touch-1"],
-        removedFromAllRefsIds: [],
-      },
-      agent: {
-        messages: [],
-        input: "",
-        latestAgentPrompt: null,
-        promptOrigin: "manual",
-        chatModeEnabled: false,
-        pulseWorkflowSession: null,
-      },
+    const existingProjectAssetAssociationChecksum = createProjectAssetAssociationChecksum({
+      mediaFileIds: [MEDIA_ID_1],
     });
+    const existingCheckpointSnapshot = withProjectAssetAssociationChecksum(
+      createCanonicalCheckpointSnapshot({
+        schemaVersion: 2,
+        sessionId: "session-display-touch",
+        updatedAt: "2026-06-03T12:00:00.000Z",
+        workspace: {
+          selectedTool: "create",
+        },
+        outputs: {
+          active: [
+            {
+              id: "display-touch-1",
+              mode: "image",
+              mediaSource: "library",
+              prompt: "Stable prompt",
+              previewUrl: "https://cdn.example.com/stable.png",
+              resultUrls: ["https://cdn.example.com/stable.png"],
+              savedMediaIds: [MEDIA_ID_1],
+            },
+          ],
+          archived: [],
+          activeOutputId: "display-touch-1",
+          curatedReferenceIds: ["display-touch-1"],
+          removedFromAllRefsIds: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      }),
+      existingProjectAssetAssociationChecksum
+    );
     const {
       generationAssociationUpsert,
       mediaAssociationUpsert,
@@ -5511,86 +5800,215 @@ describe("projectWorkspaceStatesService", () => {
     });
   });
 
-  it("updates display rows without bumping structural checkpoint revision when only rich display data changes", async () => {
-    const existingCheckpointSnapshot = createCanonicalCheckpointSnapshot({
-      schemaVersion: 2,
-      sessionId: "session-display-rich-touch",
-      updatedAt: "2026-06-03T12:00:00.000Z",
-      workspace: {
-        selectedTool: "create",
-      },
-      outputs: {
-        active: [
-          {
-            id: "display-rich-touch-1",
-            mode: "image",
-            mediaSource: "library",
-            prompt: "Older prompt",
-            previewUrl: "https://cdn.example.com/older.png",
-            resultUrls: ["https://cdn.example.com/older.png"],
-            savedMediaIds: [MEDIA_ID_1],
+  it("skips ownership and repair work for exact same-timestamp minimal autosave retries", async () => {
+    const existingProjectAssetAssociationChecksum = createProjectAssetAssociationChecksum({
+      mediaFileIds: [MEDIA_ID_1],
+    });
+    const existingCheckpointSnapshot = withProjectAssetAssociationChecksum(
+      createCanonicalCheckpointSnapshot({
+        schemaVersion: 2,
+        sessionId: "session-display-retry",
+        updatedAt: "2026-06-03T12:00:00.000Z",
+        workspace: {
+          selectedTool: "create",
+        },
+        outputs: {
+          active: [
+            {
+              id: "display-retry-1",
+              mode: "image",
+              mediaSource: "library",
+              prompt: "Stable prompt",
+              previewUrl: "https://cdn.example.com/stable.png",
+              resultUrls: ["https://cdn.example.com/stable.png"],
+              savedMediaIds: [MEDIA_ID_1],
+            },
+          ],
+          archived: [],
+          activeOutputId: "display-retry-1",
+          curatedReferenceIds: ["display-retry-1"],
+          removedFromAllRefsIds: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      }),
+      existingProjectAssetAssociationChecksum
+    );
+    const {
+      generationAssociationUpsert,
+      generationIdInMock,
+      mediaAssociationUpsert,
+      mediaIdInMock,
+      outputDisplaySelect,
+      outputDisplayUpsert,
+      promptAssociationUpsert,
+      promptIdInMock,
+      workspaceUpsert,
+    } = createSupabaseMock({
+      workspaceSnapshot: existingCheckpointSnapshot,
+      workspaceSnapshotUpdatedAt: "2026-06-03T12:00:00.000Z",
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      projectionRows: [],
+    });
+
+    await expect(
+      upsertProjectWorkspaceStateForUser({
+        userId: "user-1",
+        projectId: "project-1",
+        schemaVersion: 2,
+        includeSnapshotInResponse: false,
+        snapshot: {
+          schemaVersion: 2,
+          sessionId: "session-display-retry",
+          updatedAt: "2026-06-03T12:00:00.000Z",
+          workspace: {
+            selectedTool: "create",
           },
-        ],
-        archived: [],
-        activeOutputId: "display-rich-touch-1",
-        curatedReferenceIds: ["display-rich-touch-1"],
-        removedFromAllRefsIds: [],
-      },
-      agent: {
-        messages: [],
-        input: "",
-        latestAgentPrompt: null,
-        promptOrigin: "manual",
-        chatModeEnabled: false,
-        pulseWorkflowSession: null,
+          outputs: {
+            active: [
+              {
+                id: "display-retry-1",
+                mode: "image",
+                mediaSource: "library",
+                prompt: "Stable prompt",
+                previewUrl: "https://cdn.example.com/stable.png",
+                resultUrls: ["https://cdn.example.com/stable.png"],
+                savedMediaIds: [MEDIA_ID_1],
+              },
+            ],
+            archived: [],
+            activeOutputId: "display-retry-1",
+            curatedReferenceIds: ["display-retry-1"],
+            removedFromAllRefsIds: [],
+          },
+          agent: {
+            messages: [],
+            input: "",
+            latestAgentPrompt: null,
+            promptOrigin: "manual",
+            chatModeEnabled: false,
+            pulseWorkflowSession: null,
+          },
+        },
+      })
+    ).resolves.toMatchObject({
+      checkpointRevision: 1,
+      saveOutcome: {
+        status: "saved",
       },
     });
-    const { outputDisplaySelect, outputDisplayUpsert, workspaceUpsert, getWorkspaceRow } =
-      createSupabaseMock({
-        workspaceSnapshot: existingCheckpointSnapshot,
-        outputDisplayRows: [
-          {
-            project_id: "project-1",
-            user_id: "user-1",
-            output_id: "display-rich-touch-1",
-            version: 4,
-            source_snapshot_updated_at: "2026-06-03T12:00:00.000Z",
-            mode: "image",
-            media_source: "library",
-            created_at: null,
-            generation_id: null,
-            prompt_id: null,
-            task_id: null,
-            source_ref: null,
-            generation_trace_id: null,
-            preview_text: null,
-            display_prompt_summary: "Older prompt",
-            mime_type: null,
-            width: null,
-            height: null,
-            duration_ms: null,
-            preview_storage_path: null,
-            full_storage_path: null,
-            preview_poster_storage_path: null,
-            companion_art_storage_path: null,
-            preview_url_fallback: "https://cdn.example.com/older.png",
-            preview_poster_url_fallback: null,
-            companion_art_url_fallback: null,
-            result_urls_fallback: ["https://cdn.example.com/older.png"],
-            saved_media_ids: [MEDIA_ID_1],
-            task_state: null,
-            queue_state: null,
-            save_state: null,
-            status: null,
-            error_message_short: null,
-            hidden_in_reference_grid: false,
-            updated_at: "2026-06-03T12:00:01.000Z",
-          },
-        ],
-        associatedSnapshotGenerationIds: [],
-        recentGenerationIds: [],
-        projectionRows: [],
-      });
+
+    expect(mediaIdInMock).not.toHaveBeenCalled();
+    expect(promptIdInMock).not.toHaveBeenCalled();
+    expect(generationIdInMock).not.toHaveBeenCalled();
+    expect(outputDisplaySelect).not.toHaveBeenCalled();
+    expect(outputDisplayUpsert).not.toHaveBeenCalled();
+    expect(mediaAssociationUpsert).not.toHaveBeenCalled();
+    expect(promptAssociationUpsert).not.toHaveBeenCalled();
+    expect(generationAssociationUpsert).not.toHaveBeenCalled();
+    expect(workspaceUpsert).not.toHaveBeenCalled();
+  });
+
+  it("updates display rows without bumping structural checkpoint revision when only rich display data changes", async () => {
+    const existingProjectAssetAssociationChecksum = createProjectAssetAssociationChecksum({
+      mediaFileIds: [MEDIA_ID_1],
+    });
+    const existingCheckpointSnapshot = withProjectAssetAssociationChecksum(
+      createCanonicalCheckpointSnapshot({
+        schemaVersion: 2,
+        sessionId: "session-display-rich-touch",
+        updatedAt: "2026-06-03T12:00:00.000Z",
+        workspace: {
+          selectedTool: "create",
+        },
+        outputs: {
+          active: [
+            {
+              id: "display-rich-touch-1",
+              mode: "image",
+              mediaSource: "library",
+              prompt: "Older prompt",
+              previewUrl: "https://cdn.example.com/older.png",
+              resultUrls: ["https://cdn.example.com/older.png"],
+              savedMediaIds: [MEDIA_ID_1],
+            },
+          ],
+          archived: [],
+          activeOutputId: "display-rich-touch-1",
+          curatedReferenceIds: ["display-rich-touch-1"],
+          removedFromAllRefsIds: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      }),
+      existingProjectAssetAssociationChecksum
+    );
+    const {
+      outputDisplaySelect,
+      outputDisplayUpsert,
+      mediaAssociationUpsert,
+      promptAssociationUpsert,
+      generationAssociationUpsert,
+      workspaceUpsert,
+      getWorkspaceRow,
+    } = createSupabaseMock({
+      workspaceSnapshot: existingCheckpointSnapshot,
+      outputDisplayRows: [
+        {
+          project_id: "project-1",
+          user_id: "user-1",
+          output_id: "display-rich-touch-1",
+          version: 4,
+          source_snapshot_updated_at: "2026-06-03T12:00:00.000Z",
+          mode: "image",
+          media_source: "library",
+          created_at: null,
+          generation_id: null,
+          prompt_id: null,
+          task_id: null,
+          source_ref: null,
+          generation_trace_id: null,
+          preview_text: null,
+          display_prompt_summary: "Older prompt",
+          mime_type: null,
+          width: null,
+          height: null,
+          duration_ms: null,
+          preview_storage_path: null,
+          full_storage_path: null,
+          preview_poster_storage_path: null,
+          companion_art_storage_path: null,
+          preview_url_fallback: "https://cdn.example.com/older.png",
+          preview_poster_url_fallback: null,
+          companion_art_url_fallback: null,
+          result_urls_fallback: ["https://cdn.example.com/older.png"],
+          saved_media_ids: [MEDIA_ID_1],
+          task_state: null,
+          queue_state: null,
+          save_state: null,
+          status: null,
+          error_message_short: null,
+          hidden_in_reference_grid: false,
+          updated_at: "2026-06-03T12:00:01.000Z",
+        },
+      ],
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      projectionRows: [],
+    });
 
     await upsertProjectWorkspaceStateForUser({
       userId: "user-1",
@@ -5600,7 +6018,7 @@ describe("projectWorkspaceStatesService", () => {
       snapshot: {
         schemaVersion: 2,
         sessionId: "session-display-rich-touch",
-        updatedAt: "2026-06-03T12:05:00.000Z",
+        updatedAt: "2026-06-03T12:00:00.000Z",
         workspace: {
           selectedTool: "create",
         },
@@ -5647,16 +6065,19 @@ describe("projectWorkspaceStatesService", () => {
         onConflict: "project_id,output_id",
       }
     );
+    expect(mediaAssociationUpsert).not.toHaveBeenCalled();
+    expect(promptAssociationUpsert).not.toHaveBeenCalled();
+    expect(generationAssociationUpsert).not.toHaveBeenCalled();
     expect(workspaceUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
         checkpoint_revision: 1,
-        snapshot_updated_at: "2026-06-03T12:05:00.000Z",
+        snapshot_updated_at: "2026-06-03T12:00:00.000Z",
       }),
       expect.anything()
     );
     expect(getWorkspaceRow()).toMatchObject({
       checkpoint_revision: 1,
-      snapshot_updated_at: "2026-06-03T12:05:00.000Z",
+      snapshot_updated_at: "2026-06-03T12:00:00.000Z",
     });
   });
 

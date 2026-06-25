@@ -1,7 +1,7 @@
 /**
  * Server-side route-auth orchestration.
- * Protected API routes must verify bearer identity server-side and may use
- * matching proxy headers only as advisory metadata after verification.
+ * Protected API routes must verify bearer identity server-side. Legacy
+ * proxy-auth headers are not trusted as identity or authorization authority.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import {

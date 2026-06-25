@@ -138,7 +138,9 @@ export const useCreatePulsePresetPageRuntime = ({
       setPendingCreatePulsePresetSnapshot(null);
       if (!nextPresetId || nextPresetId !== activeCreatePulsePresetId) {
         invalidatePulseActivation();
-        if (!options?.preserveWorkflowSession) {
+        const hasMatchingActiveSnapshot =
+          nextPresetId != null && activeCreatePulsePresetSnapshotState?.presetId === nextPresetId;
+        if (!options?.preserveWorkflowSession && !hasMatchingActiveSnapshot) {
           setActiveCreatePulsePresetSnapshot(null);
         }
         clearPulsePrompt();
@@ -147,6 +149,7 @@ export const useCreatePulsePresetPageRuntime = ({
     },
     [
       activeCreatePulsePresetId,
+      activeCreatePulsePresetSnapshotState,
       clearPulsePrompt,
       handleActiveCreatePulsePresetIdChange,
       invalidatePulseActivation,

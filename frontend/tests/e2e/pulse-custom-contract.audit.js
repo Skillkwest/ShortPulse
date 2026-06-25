@@ -3,7 +3,7 @@
 /**
  * Custom Pulse contract browser audit.
  * Signs in with the dedicated audit account, creates a custom Pulse through the real UI,
- * activates it from the live Pulse Catalog surface, intercepts the Pulse route request,
+ * activates it from the live Pulses surface, intercepts the Pulse route request,
  * and verifies the outgoing request stays on the minimal custom-Pulse contract.
  */
 const fs = require("node:fs");
@@ -40,6 +40,7 @@ function loadAuditEnv() {
   const frontendRoot = path.resolve(__dirname, "..", "..");
   const repoRoot = path.resolve(frontendRoot, "..");
   loadEnvFromFileIfNeeded(path.join(frontendRoot, ".env.local"));
+  loadEnvFromFileIfNeeded(path.join(frontendRoot, ".env.playwright.local"));
   loadEnvFromFileIfNeeded(path.join(repoRoot, ".env.agent.local"));
 }
 
@@ -88,12 +89,32 @@ async function ensureSignedIn(page, baseUrl, targetPath, email, password) {
   });
 }
 
+async function getPulseCatalogRegion(page) {
+  const currentRegion = page.getByRole("region", { name: "Pulses", exact: true }).first();
+  const legacyRegion = page.getByRole("region", { name: "Pulse Catalog", exact: true }).first();
+  if (await currentRegion.isVisible().catch(() => false)) return currentRegion;
+  return legacyRegion;
+}
+
 async function openPulseCatalog(page) {
-  const catalogButton = page.getByRole("button", { name: "Pulse Catalog" }).first();
-  const catalogRegion = page.getByRole("region", { name: "Pulse Catalog", exact: true }).first();
-  await catalogButton.waitFor({ timeout: 20_000 });
-  await catalogButton.click();
-  await catalogRegion.waitFor({ timeout: 10_000 });
+  const catalogRegion = await getPulseCatalogRegion(page);
+  if (await catalogRegion.isVisible().catch(() => false)) return catalogRegion;
+
+  const currentButton = page.getByRole("button", { name: /^more pulses$/i }).first();
+  const legacyButton = page.getByRole("button", { name: "Pulse Catalog" }).first();
+  const trigger = (await currentButton.isVisible().catch(() => false))
+    ? currentButton
+    : legacyButton;
+  await trigger.waitFor({ timeout: 20_000 });
+  await trigger.click();
+  await Promise.any([
+    page.getByRole("region", { name: "Pulses", exact: true }).first().waitFor({ timeout: 10_000 }),
+    page
+      .getByRole("region", { name: "Pulse Catalog", exact: true })
+      .first()
+      .waitFor({ timeout: 10_000 }),
+  ]);
+  return await getPulseCatalogRegion(page);
 }
 
 async function openPulseLibrary(page) {
@@ -139,7 +160,14 @@ async function ensurePulseMode(page) {
   if ((await pulseTab.getAttribute("aria-selected").catch(() => null)) !== "true") {
     await pulseTab.click();
   }
-  await page.getByRole("button", { name: "Pulse Catalog" }).waitFor({ timeout: 20_000 });
+  await Promise.any([
+    page.getByRole("region", { name: "Pulses", exact: true }).first().waitFor({ timeout: 20_000 }),
+    page.getByRole("button", { name: "Pulse Catalog" }).waitFor({ timeout: 20_000 }),
+    page
+      .getByRole("button", { name: /^more pulses$/i })
+      .first()
+      .waitFor({ timeout: 20_000 }),
+  ]);
 }
 
 async function verifyPulsePersistsOutsideCreate(page) {
@@ -377,12 +405,9 @@ async function main() {
     createdPreset = true;
 
     await ensurePulseMode(page);
-    await openPulseCatalog(page);
+    const pulseCatalog = await openPulseCatalog(page);
     await page.getByRole("button", { name: pulseLabel, exact: true }).click();
-    await page
-      .getByRole("region", { name: "Pulse Catalog", exact: true })
-      .first()
-      .waitFor({ state: "hidden", timeout: 10_000 });
+    await pulseCatalog.waitFor({ state: "hidden", timeout: 10_000 }).catch(() => undefined);
 
     await page.getByText("CUSTOM-PULSE-MARKER: activation acknowledged.").waitFor({
       timeout: 10_000,

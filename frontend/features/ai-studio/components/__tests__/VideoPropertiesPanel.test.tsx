@@ -33,6 +33,13 @@ import {
 } from "../../hooks/useAiStudioCanvasTearOutTargets";
 import type { AgentComposerDirectDropPayload } from "../../logic/agentComposerDirectDropPayload";
 import { createEmptyLipSyncAudioState } from "../../logic/lipSyncAudioState";
+import {
+  clearInternalReferenceDragSession,
+  INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE,
+  INTERNAL_REFERENCE_DRAG_SESSION_TYPE,
+  registerInternalReferenceDragSession,
+} from "../../../../lib/internalReferenceDragSession";
+import { INTERNAL_REFERENCE_DRAG_ORIGIN } from "../../../../lib/internalReferenceDragPayload";
 
 const getSignedMediaUrlMock = vi.hoisted(() => vi.fn());
 
@@ -3477,6 +3484,42 @@ describe("VideoPropertiesPanel", () => {
     await waitFor(() => {
       expect(promptInput.value).toBe("Dropped primary video prompt");
     });
+  });
+
+  it("replaces the primary video prompt with full session-backed prompt reference text", async () => {
+    render(<KlingPromptDropHarness />);
+
+    const promptInput = screen.getByLabelText("Video prompt") as HTMLTextAreaElement;
+    const fullPrompt = `Opening action. ${"Precise camera and motion direction. ".repeat(80)}Final frame.`;
+    const shortenedPrompt = fullPrompt.slice(0, 1000);
+    const token = registerInternalReferenceDragSession({
+      version: 1,
+      origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
+      referenceId: "ref-video-long-prompt",
+      outputId: "ref-video-long-prompt",
+      imageIndex: 0,
+      mediaId: null,
+      mediaKind: "text",
+      promptText: fullPrompt,
+      referenceUrl: null,
+      sourceSurface: "all-refs",
+    });
+    const transfer = createTransferStore();
+    transfer.setData(INTERNAL_REFERENCE_DRAG_SESSION_TYPE, token);
+    transfer.setData(INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE, token);
+    transfer.setData("text/reference-media-kind", "text");
+    transfer.setData("text/prompt", shortenedPrompt);
+    transfer.setData("text/plain", shortenedPrompt);
+
+    await act(async () => {
+      fireEvent.drop(promptInput, { dataTransfer: transfer });
+    });
+
+    await waitFor(() => {
+      expect(promptInput.value).toBe(fullPrompt);
+    });
+
+    clearInternalReferenceDragSession(token);
   });
 
   it("inserts a dropped prompt card at the video prompt caret when Shift is held", async () => {

@@ -1,7 +1,7 @@
 /**
  * Synthetic auth-boundary behavior benchmark.
- * Verifies protected-route auth reuses middleware context when available and
- * falls back to bearer verification only when proxy context is absent.
+ * Verifies protected-route auth dedupes bearer verification and never treats
+ * legacy proxy headers as the identity authority.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { requireApiUser } from "../../lib/server/api/auth";
@@ -32,7 +32,7 @@ describe("auth boundary latency benchmark", () => {
     process.env.SHORTPULSE_TRUST_PROXY_AUTH_HEADERS = "false";
   });
 
-  it("reuses proxy-authenticated context before falling back to bearer verification", async () => {
+  it("dedupes repeated bearer verification regardless of legacy proxy headers", async () => {
     const fetchMock = vi.fn(async () => {
       return {
         ok: true,

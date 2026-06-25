@@ -121,7 +121,8 @@ export const useReferenceGridCardItemsController = ({
         mediaSurface: "reference-grid" | "quick-slot";
         visualSurface: "all-refs" | "curated";
         cardLongEdgePx: number;
-      }
+      },
+      resolvedMediaByQuickSlotId?: Map<string, ReferenceGridResolvedCardMedia>
     ) =>
       rows.map((item, visibleIndex) => {
         const shouldPreferCuratedSurface =
@@ -148,11 +149,19 @@ export const useReferenceGridCardItemsController = ({
             isPlaceholderOnly: true,
           };
         }
-        const resolvedMedia = resolveCardMedia({
-          item,
-          mediaSurface: options.mediaSurface,
-          cardLongEdgePx: options.cardLongEdgePx,
-        });
+        const cachedResolvedMedia = shouldPreferCuratedSurface
+          ? resolvedMediaByQuickSlotId?.get(item.id)
+          : undefined;
+        const resolvedMedia =
+          cachedResolvedMedia ??
+          resolveCardMedia({
+            item,
+            mediaSurface: options.mediaSurface,
+            cardLongEdgePx: options.cardLongEdgePx,
+          });
+        if (options.visualSurface === "curated") {
+          resolvedMediaByQuickSlotId?.set(item.id, resolvedMedia);
+        }
         const isPriorityHydration =
           !shouldPreferCuratedSurface &&
           (visibleIndex < priorityCount || activeOutputId === item.id);
@@ -226,31 +235,43 @@ export const useReferenceGridCardItemsController = ({
     [activeOutputId, decodeBudgetEnabled, hydratedById, resolveCardMedia, visibleQuickSlotIdSet]
   );
 
-  const visibleCardItems = useMemo(
-    () =>
-      buildVisibleCardItems(visibleOutputs, hydrationPriorityCount, {
-        mediaSurface: "reference-grid",
-        visualSurface: "all-refs",
-        cardLongEdgePx: Math.max(240, Math.round(Math.max(1, virtualRowHeight - 3))),
-      }),
-    [buildVisibleCardItems, hydrationPriorityCount, virtualRowHeight, visibleOutputs]
-  );
-
-  const curatedVisibleCardItems = useMemo(
-    () =>
-      buildVisibleCardItems(visibleCuratedOutputs, curatedHydrationPriorityCount, {
+  const cardItems = useMemo(() => {
+    const resolvedMediaByQuickSlotId = new Map<string, ReferenceGridResolvedCardMedia>();
+    const curatedVisibleCardItems = buildVisibleCardItems(
+      visibleCuratedOutputs,
+      curatedHydrationPriorityCount,
+      {
         mediaSurface: quickSlotAdaptiveSurfaceEnabled ? "quick-slot" : "reference-grid",
         visualSurface: "curated",
         cardLongEdgePx: Math.max(200, Math.round(Math.max(1, curatedVirtualRowHeight - 3))),
-      }),
-    [
-      buildVisibleCardItems,
-      curatedHydrationPriorityCount,
-      curatedVirtualRowHeight,
-      quickSlotAdaptiveSurfaceEnabled,
-      visibleCuratedOutputs,
-    ]
-  );
+      },
+      resolvedMediaByQuickSlotId
+    );
+    const visibleCardItems = buildVisibleCardItems(
+      visibleOutputs,
+      hydrationPriorityCount,
+      {
+        mediaSurface: "reference-grid",
+        visualSurface: "all-refs",
+        cardLongEdgePx: Math.max(240, Math.round(Math.max(1, virtualRowHeight - 3))),
+      },
+      resolvedMediaByQuickSlotId
+    );
+    return {
+      curatedVisibleCardItems,
+      visibleCardItems,
+    };
+  }, [
+    buildVisibleCardItems,
+    curatedHydrationPriorityCount,
+    curatedVirtualRowHeight,
+    hydrationPriorityCount,
+    quickSlotAdaptiveSurfaceEnabled,
+    virtualRowHeight,
+    visibleCuratedOutputs,
+    visibleOutputs,
+  ]);
+  const { visibleCardItems, curatedVisibleCardItems } = cardItems;
 
   const allVisibleCardItems = useMemo(
     () => [...curatedVisibleCardItems, ...visibleCardItems],

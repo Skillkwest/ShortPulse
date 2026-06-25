@@ -205,6 +205,96 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
     });
   });
 
+  it("does not repeat successful generation project associations in one studio session", async () => {
+    const outputs = new Map<string, StudioOutput>([
+      ["out-1", makeOutput({ generationId: EXISTING_GENERATION_ID })],
+    ]);
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      const current = outputs.get(id);
+      if (!current) return;
+      outputs.set(id, updater(current));
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioPersistenceActions({
+        projectId: "project-1",
+        findOutputById: (id) => outputs.get(id) ?? null,
+        updateOutputById,
+        setUiError: vi.fn(),
+        setOutputs: vi.fn(),
+        setSaved: vi.fn(),
+        activeOutputId: "out-1",
+        model: "model-id",
+        aspect: "1:1",
+        prompt: "prompt",
+      })
+    );
+
+    await act(async () => {
+      await result.current.ensureGenerationRecord({
+        outputId: "out-1",
+        provider: "fal",
+        taskId: "req-1",
+      });
+      await result.current.ensureGenerationRecord({
+        outputId: "out-1",
+        provider: "fal",
+        taskId: "req-1",
+      });
+    });
+
+    expect(associateGenerationWithProjectMock).toHaveBeenCalledTimes(1);
+    expect(associateGenerationWithProjectMock).toHaveBeenCalledWith({
+      projectId: "project-1",
+      generationId: EXISTING_GENERATION_ID,
+      userId: CURRENT_USER_ID,
+    });
+  });
+
+  it("retries generation project association after a failed attempt", async () => {
+    const outputs = new Map<string, StudioOutput>([
+      ["out-1", makeOutput({ generationId: EXISTING_GENERATION_ID })],
+    ]);
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      const current = outputs.get(id);
+      if (!current) return;
+      outputs.set(id, updater(current));
+    });
+    associateGenerationWithProjectMock
+      .mockRejectedValueOnce(new Error("association failed"))
+      .mockResolvedValueOnce(undefined);
+
+    const { result } = renderHook(() =>
+      useAiStudioPersistenceActions({
+        projectId: "project-1",
+        findOutputById: (id) => outputs.get(id) ?? null,
+        updateOutputById,
+        setUiError: vi.fn(),
+        setOutputs: vi.fn(),
+        setSaved: vi.fn(),
+        activeOutputId: "out-1",
+        model: "model-id",
+        aspect: "1:1",
+        prompt: "prompt",
+      })
+    );
+
+    await act(async () => {
+      await result.current.ensureGenerationRecord({
+        outputId: "out-1",
+        provider: "fal",
+        taskId: "req-1",
+      });
+      await result.current.ensureGenerationRecord({
+        outputId: "out-1",
+        provider: "fal",
+        taskId: "req-1",
+      });
+    });
+
+    expect(associateGenerationWithProjectMock).toHaveBeenCalledTimes(2);
+  });
+
   it("re-resolves stale non-canonical generation ids before associating them to the active project", async () => {
     const outputs = new Map<string, StudioOutput>([
       ["out-1", makeOutput({ generationId: "gen-stale-project" })],

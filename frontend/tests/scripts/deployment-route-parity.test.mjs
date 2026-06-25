@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_FORBIDDEN_ROUTES,
@@ -5,6 +7,18 @@ import {
   parseArgs,
   pathMatchesRequired,
 } from "../../../scripts/verify_deployment_route_parity.mjs";
+
+const PAGE_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx"];
+
+const toPageRouteCandidates = (route) => {
+  const normalized = normalizePathLike(route);
+  const relativeRoute = normalized.replace(/^\/+/, "");
+  const pagesRoot = path.join(process.cwd(), "pages");
+  return PAGE_EXTENSIONS.flatMap((extension) => [
+    path.join(pagesRoot, `${relativeRoute}${extension}`),
+    path.join(pagesRoot, relativeRoute, `index${extension}`),
+  ]);
+};
 
 describe("deployment route parity launch gate", () => {
   it("enforces retired route defaults unless explicitly bypassed", () => {
@@ -58,5 +72,15 @@ describe("deployment route parity launch gate", () => {
     expect(pathMatchesRequired("/api/upload-video", "/api/upload-video.func")).toBe(true);
     expect(pathMatchesRequired("/api/upload-video", "/api/upload-video/index.func")).toBe(true);
     expect(pathMatchesRequired("/api/upload-video", "/api/upload-audio.func")).toBe(false);
+  });
+
+  it("keeps default forbidden routes absent from local page/API source", () => {
+    const presentRetiredRouteFiles = DEFAULT_FORBIDDEN_ROUTES.flatMap((route) =>
+      toPageRouteCandidates(route)
+        .filter((candidate) => fs.existsSync(candidate))
+        .map((candidate) => path.relative(process.cwd(), candidate))
+    );
+
+    expect(presentRetiredRouteFiles).toEqual([]);
   });
 });

@@ -4,6 +4,7 @@ import {
   associateGenerationWithProjectForUserBestEffort,
   associateGenerationWithProjectForUser,
   associateMediaFilesWithProjectForUser,
+  backfillProjectGenerationAssociationsForSnapshot,
   hydrateProjectSnapshotGeneratedOutputs,
 } from "../projectGenerationAssociationsService";
 
@@ -425,6 +426,29 @@ describe("associateGenerationWithProjectForUser", () => {
       projectId: "project-1",
       error: expect.any(Error),
     });
+  });
+
+  it("does not re-resolve generation ownership when pre-resolved ids are explicitly empty", async () => {
+    await backfillProjectGenerationAssociationsForSnapshot({
+      userId: "user-1",
+      projectId: "project-1",
+      snapshot: {
+        outputs: {
+          active: [
+            {
+              id: "generated-output-1",
+              generationId: "generation-1",
+            },
+          ],
+          archived: [],
+        },
+      },
+      ownedGenerationIds: [],
+    });
+
+    expect(generationOwnershipSelectMock).not.toHaveBeenCalled();
+    expect(generationProjectionSelectMock).not.toHaveBeenCalled();
+    expect(associationUpsertMock).not.toHaveBeenCalled();
   });
 
   it("hydrates snapshot outputs from project-scoped projections when association rows are missing", async () => {

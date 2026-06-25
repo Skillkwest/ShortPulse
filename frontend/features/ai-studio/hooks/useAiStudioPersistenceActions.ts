@@ -1,7 +1,7 @@
 /**
  * Persistence and save-action callbacks for AI Studio outputs and prompts.
  */
-import { useCallback, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useRef, type Dispatch, type SetStateAction } from "react";
 import { useResolvedProtectedSessionState } from "../../../lib/protectedRouteSessionContext";
 import { isVideoUrl, type Provider } from "../logic/stateParsers";
 import type { StudioOutput, StudioOutputSaveState } from "../types";
@@ -59,6 +59,16 @@ const normalizeUuid = (value: string | null | undefined): string | null => {
   return normalized && UUID_PATTERN.test(normalized) ? normalized : null;
 };
 
+const buildGenerationProjectAssociationKey = ({
+  projectId,
+  generationId,
+  userId,
+}: {
+  projectId: string;
+  generationId: string;
+  userId: string | null;
+}) => `${userId ?? "anonymous"}:${projectId}:${generationId}`;
+
 const resolveFileTypeHintForPersistedUrl = (
   output: StudioOutput,
   url: string
@@ -84,6 +94,7 @@ export const useAiStudioPersistenceActions = ({
 }: UseAiStudioPersistenceActionsArgs) => {
   const sessionSnapshot = useResolvedProtectedSessionState();
   const currentUserId = sessionSnapshot.user?.id ?? null;
+  const associatedGenerationProjectKeysRef = useRef<Set<string>>(new Set());
   void setOutputs;
   void aspect;
   const markOutputSaved = useCallback(
@@ -122,6 +133,29 @@ export const useAiStudioPersistenceActions = ({
     [updateOutputById]
   );
 
+  const associateGenerationWithActiveProject = useCallback(
+    async (generationId: string) => {
+      const normalizedProjectId = normalizeOptionalString(projectId);
+      const normalizedGenerationId = normalizeUuid(generationId);
+      if (!normalizedProjectId || !normalizedGenerationId) return;
+
+      const associationKey = buildGenerationProjectAssociationKey({
+        projectId: normalizedProjectId,
+        generationId: normalizedGenerationId,
+        userId: currentUserId,
+      });
+      if (associatedGenerationProjectKeysRef.current.has(associationKey)) return;
+
+      await associateGenerationWithProject({
+        projectId: normalizedProjectId,
+        generationId: normalizedGenerationId,
+        userId: currentUserId,
+      });
+      associatedGenerationProjectKeysRef.current.add(associationKey);
+    },
+    [currentUserId, projectId]
+  );
+
   const ensureGenerationRecord = useCallback(
     async ({
       outputId,
@@ -143,16 +177,10 @@ export const useAiStudioPersistenceActions = ({
         updateOutputById(outputId, (item) => ({ ...item, taskId }));
       }
       if (existingGenerationId) {
-        if (projectId) {
-          try {
-            await associateGenerationWithProject({
-              projectId,
-              generationId: existingGenerationId,
-              userId: currentUserId,
-            });
-          } catch {
-            // Project association is best-effort here; direct polling remains authoritative.
-          }
+        try {
+          await associateGenerationWithActiveProject(existingGenerationId);
+        } catch {
+          // Project association is best-effort here; direct polling remains authoritative.
         }
         if (existingGenerationId !== output.generationId) {
           updateOutputById(outputId, (item) => ({
@@ -167,16 +195,10 @@ export const useAiStudioPersistenceActions = ({
         ? await resolveGenerationIdForRequestId(resolvedTaskId, projectId, currentUserId)
         : null;
       if (resolvedGenerationId) {
-        if (projectId) {
-          try {
-            await associateGenerationWithProject({
-              projectId,
-              generationId: resolvedGenerationId,
-              userId: currentUserId,
-            });
-          } catch {
-            // Project association is best-effort here; direct polling remains authoritative.
-          }
+        try {
+          await associateGenerationWithActiveProject(resolvedGenerationId);
+        } catch {
+          // Project association is best-effort here; direct polling remains authoritative.
         }
         updateOutputById(outputId, (item) => ({
           ...item,
@@ -187,7 +209,13 @@ export const useAiStudioPersistenceActions = ({
       }
       return null;
     },
-    [currentUserId, findOutputById, projectId, updateOutputById]
+    [
+      associateGenerationWithActiveProject,
+      currentUserId,
+      findOutputById,
+      projectId,
+      updateOutputById,
+    ]
   );
 
   const persistPromptSave = useCallback(

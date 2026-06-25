@@ -61,6 +61,7 @@ export type InternalReferenceDragPayload = {
   fullStoragePath?: string | null;
   referenceUrl: string | null;
   referenceRenderUrl?: string | null;
+  promptText?: string | null;
   sourceSurface: ReferenceDragSourceSurface | null;
   width?: number;
   height?: number;
@@ -108,6 +109,9 @@ export const buildInternalPayloadFromComposerDropPayload = (
     referenceUrl: composerPayload.referenceUrl ?? null,
     ...(composerPayload.displayArtifactUrl
       ? { referenceRenderUrl: composerPayload.displayArtifactUrl }
+      : {}),
+    ...(normalizePromptText(composerPayload.promptText)
+      ? { promptText: normalizePromptText(composerPayload.promptText) }
       : {}),
     sourceSurface: composerPayload.sourceSurface,
     ...(typeof composerPayload.width === "number" ? { width: composerPayload.width } : {}),

@@ -2,13 +2,14 @@
  * Project workspace persistence helpers.
  * Owns server-authoritative read/write access for user-owned project workspace snapshots.
  */
-import { parseAiStudioSessionSnapshotShape } from "../ai-studio-session/sessionSnapshotShape";
 import {
+  computeAiStudioSessionChecksum,
   createAiStudioProjectWorkspaceSnapshot,
   hasProjectDurableOutputAuthority,
   hasProjectRecoverableRuntimeIdentity,
   isProjectGeneratedWorkspaceOutput,
 } from "../ai-studio-session/projectWorkspaceSnapshot";
+import { parseAiStudioSessionSnapshotShape } from "../ai-studio-session/sessionSnapshotShape";
 import {
   extractTrustedSupabaseSignedMediaStoragePath,
   filterTrustedMediaDirectPreviewUrls,
@@ -36,7 +37,7 @@ import { PROJECT_WORKSPACE_MAX_SNAPSHOT_BYTES } from "../ai-studio-session/proje
 import {
   countReferenceGridVisibleOutputs,
   REFERENCE_GRID_MAX_VISIBLE_ITEMS,
-} from "../../features/ai-studio/reference-grid/logic/referenceGridLimits";
+} from "../model-runtime/referenceGridLimits";
 
 const PROJECT_WORKSPACE_SELECT_COLUMNS =
   "project_id, user_id, schema_version, snapshot, snapshot_updated_at, checkpoint_revision, created_at, updated_at" as const;
@@ -92,6 +93,11 @@ type ProjectWorkspaceRepairPending = {
 
 type ProjectWorkspaceMaterializationStage = "workspace read" | "workspace save";
 type ProjectWorkspaceSnapshotInput = Parameters<typeof createAiStudioProjectWorkspaceSnapshot>[0];
+type ProjectWorkspaceOwnedAssociationResults = [
+  PromiseSettledResult<string[]>,
+  PromiseSettledResult<string[]>,
+  PromiseSettledResult<string[]>,
+];
 
 export class InvalidProjectWorkspaceSnapshotError extends Error {
   constructor(message = "Invalid project workspace snapshot") {
@@ -348,6 +354,67 @@ const maybeLogProjectWorkspaceReferenceGridCapNormalization = ({
 
 const readProjectOutputDisplayChecksum = (snapshot: Record<string, unknown>): string | null =>
   normalizeOptionalString(asRecord(snapshot.meta).outputDisplayChecksum);
+
+const readProjectAssetAssociationChecksum = (snapshot: Record<string, unknown>): string | null =>
+  normalizeOptionalString(asRecord(snapshot.meta).projectAssetAssociationChecksum);
+
+const uniqueSortedStrings = (values: string[]): string[] =>
+  Array.from(new Set(values.map((value) => value.trim()).filter(Boolean))).sort();
+
+const computeProjectAssetAssociationChecksum = ({
+  mediaFileIds,
+  promptIds,
+  generationIds,
+}: {
+  mediaFileIds: string[];
+  promptIds: string[];
+  generationIds: string[];
+}): string =>
+  computeAiStudioSessionChecksum({
+    generationIds: uniqueSortedStrings(generationIds),
+    mediaFileIds: uniqueSortedStrings(mediaFileIds),
+    promptIds: uniqueSortedStrings(promptIds),
+  });
+
+const computeComparableProjectAssetAssociationChecksum = (
+  snapshot: Record<string, unknown>
+): string | null => {
+  const { mediaFileIds, promptIds } = collectSnapshotAssociationIds(snapshot);
+  const { generationIds, runtimeRequestIds } = collectSnapshotGenerationAuthorityKeys(snapshot);
+  if (runtimeRequestIds.length > 0) return null;
+  return computeProjectAssetAssociationChecksum({
+    mediaFileIds: normalizeUuidList(mediaFileIds),
+    promptIds: normalizeUuidList(promptIds),
+    generationIds: normalizeUuidList(generationIds),
+  });
+};
+
+const patchProjectAssetAssociationChecksum = (
+  snapshot: Record<string, unknown>,
+  projectAssetAssociationChecksum: string | null
+): Record<string, unknown> => {
+  const metaWithAssociationChecksum: Record<string, unknown> = {
+    ...asRecord(snapshot.meta),
+  };
+  if (projectAssetAssociationChecksum) {
+    metaWithAssociationChecksum.projectAssetAssociationChecksum = projectAssetAssociationChecksum;
+  } else {
+    delete metaWithAssociationChecksum.projectAssetAssociationChecksum;
+  }
+  const { checksum: _existingChecksum, ...metaWithoutChecksum } = metaWithAssociationChecksum;
+  void _existingChecksum;
+  const snapshotWithoutChecksum = {
+    ...snapshot,
+    meta: metaWithoutChecksum,
+  };
+  return {
+    ...snapshotWithoutChecksum,
+    meta: {
+      ...metaWithoutChecksum,
+      checksum: computeAiStudioSessionChecksum(snapshotWithoutChecksum),
+    },
+  };
+};
 
 const sanitizeProjectWorkspaceSnapshot = (
   snapshot: Record<string, unknown>,
@@ -1081,13 +1148,17 @@ const resolveOwnedGenerationIds = async ({
         ownedGenerationIds.add(idValue.trim());
       }
     });
-    [projectionRequestData, projectionSourceRefData].forEach((data) => {
-      (Array.isArray(data) ? data : []).forEach((row) => {
-        const idValue = asRecord(row).generation_id;
-        if (typeof idValue === "string" && idValue.trim().length > 0) {
-          ownedGenerationIds.add(idValue.trim());
-        }
-      });
+    (Array.isArray(projectionRequestData) ? projectionRequestData : []).forEach((row) => {
+      const idValue = asRecord(row).generation_id;
+      if (typeof idValue === "string" && idValue.trim().length > 0) {
+        ownedGenerationIds.add(idValue.trim());
+      }
+    });
+    (Array.isArray(projectionSourceRefData) ? projectionSourceRefData : []).forEach((row) => {
+      const idValue = asRecord(row).generation_id;
+      if (typeof idValue === "string" && idValue.trim().length > 0) {
+        ownedGenerationIds.add(idValue.trim());
+      }
     });
   }
 
@@ -1130,6 +1201,56 @@ const resolveOwnedSnapshotAssociationIds = async ({
   };
 };
 
+const resolveOwnedSnapshotAssociationResults = async ({
+  userId,
+  mediaFileIds,
+  promptIds,
+  generationIds,
+  runtimeRequestIds,
+  stage,
+}: {
+  userId: string;
+  mediaFileIds: string[];
+  promptIds: string[];
+  generationIds: string[];
+  runtimeRequestIds: string[];
+  stage: string;
+}): Promise<ProjectWorkspaceOwnedAssociationResults> => {
+  const [mediaResult, promptResult, generationResult] = await Promise.allSettled([
+    withProjectWorkspaceBestEffortTimeout(
+      resolveOwnedIds({
+        table: "media_files",
+        idColumn: "id",
+        userId,
+        ids: mediaFileIds,
+      }),
+      `${stage} media`,
+      PROJECT_WORKSPACE_OWNED_ID_RESOLUTION_TIMEOUT_MS
+    ),
+    withProjectWorkspaceBestEffortTimeout(
+      resolveOwnedIds({
+        table: "media_prompts",
+        idColumn: "id",
+        userId,
+        ids: promptIds,
+      }),
+      `${stage} prompt`,
+      PROJECT_WORKSPACE_OWNED_ID_RESOLUTION_TIMEOUT_MS
+    ),
+    withProjectWorkspaceBestEffortTimeout(
+      resolveOwnedGenerationIds({
+        userId,
+        generationIds,
+        runtimeRequestIds,
+      }),
+      `${stage} generation`,
+      PROJECT_WORKSPACE_OWNED_ID_RESOLUTION_TIMEOUT_MS
+    ),
+  ]);
+
+  return [mediaResult, promptResult, generationResult];
+};
+
 const resolveOwnedSnapshotAssociationIdsForWrite = async ({
   userId,
   snapshot,
@@ -1145,43 +1266,14 @@ const resolveOwnedSnapshotAssociationIdsForWrite = async ({
 }> => {
   const { mediaFileIds, promptIds } = collectSnapshotAssociationIds(snapshot);
   const { generationIds, runtimeRequestIds } = collectSnapshotGenerationAuthorityKeys(snapshot);
-  let settledResults: [
-    PromiseSettledResult<string[]>,
-    PromiseSettledResult<string[]>,
-    PromiseSettledResult<string[]>,
-  ];
-  try {
-    settledResults = await withProjectWorkspaceBestEffortTimeout(
-      Promise.allSettled([
-        resolveOwnedIds({
-          table: "media_files",
-          idColumn: "id",
-          userId,
-          ids: mediaFileIds,
-        }),
-        resolveOwnedIds({
-          table: "media_prompts",
-          idColumn: "id",
-          userId,
-          ids: promptIds,
-        }),
-        resolveOwnedGenerationIds({
-          userId,
-          generationIds,
-          runtimeRequestIds,
-        }),
-      ]),
-      "owned id resolution",
-      PROJECT_WORKSPACE_OWNED_ID_RESOLUTION_TIMEOUT_MS
-    );
-  } catch (error) {
-    const failureMessage = toErrorMessage(error, "owned id resolution unavailable");
-    settledResults = [
-      { status: "rejected", reason: new Error(failureMessage) },
-      { status: "rejected", reason: new Error(failureMessage) },
-      { status: "rejected", reason: new Error(failureMessage) },
-    ];
-  }
+  const settledResults = await resolveOwnedSnapshotAssociationResults({
+    userId,
+    mediaFileIds,
+    promptIds,
+    generationIds,
+    runtimeRequestIds,
+    stage: "owned id resolution",
+  });
   const [mediaResult, promptResult, generationResult] = settledResults;
 
   const failedAuthorities: string[] = [];
@@ -1234,43 +1326,14 @@ const resolveOwnedSnapshotAssociationIdsForRead = async ({
 }> => {
   const { mediaFileIds, promptIds } = collectSnapshotAssociationIds(snapshot);
   const { generationIds, runtimeRequestIds } = collectSnapshotGenerationAuthorityKeys(snapshot);
-  let settledResults: [
-    PromiseSettledResult<string[]>,
-    PromiseSettledResult<string[]>,
-    PromiseSettledResult<string[]>,
-  ];
-  try {
-    settledResults = await withProjectWorkspaceBestEffortTimeout(
-      Promise.allSettled([
-        resolveOwnedIds({
-          table: "media_files",
-          idColumn: "id",
-          userId,
-          ids: mediaFileIds,
-        }),
-        resolveOwnedIds({
-          table: "media_prompts",
-          idColumn: "id",
-          userId,
-          ids: promptIds,
-        }),
-        resolveOwnedGenerationIds({
-          userId,
-          generationIds,
-          runtimeRequestIds,
-        }),
-      ]),
-      "read owned id resolution",
-      PROJECT_WORKSPACE_OWNED_ID_RESOLUTION_TIMEOUT_MS
-    );
-  } catch (error) {
-    const failureMessage = toErrorMessage(error, "read owned id resolution unavailable");
-    settledResults = [
-      { status: "rejected", reason: new Error(failureMessage) },
-      { status: "rejected", reason: new Error(failureMessage) },
-      { status: "rejected", reason: new Error(failureMessage) },
-    ];
-  }
+  const settledResults = await resolveOwnedSnapshotAssociationResults({
+    userId,
+    mediaFileIds,
+    promptIds,
+    generationIds,
+    runtimeRequestIds,
+    stage: "read owned id resolution",
+  });
   const [mediaResult, promptResult, generationResult] = settledResults;
 
   const failedAuthorities: string[] = [];
@@ -1814,17 +1877,12 @@ export const upsertProjectWorkspaceStateForUser = async ({
     incomingSnapshot: canvasStorageAuthoritySnapshot,
     sanitizedSnapshot,
   });
-  const preparedSnapshot = await prepareProjectWorkspaceSnapshotForWrite({
-    userId,
-    snapshot: sanitizedSnapshot,
-  });
-
   const normalizedSchemaVersion =
     typeof schemaVersion === "number" && Number.isFinite(schemaVersion)
       ? Math.max(1, Math.min(100, Math.trunc(schemaVersion)))
       : 2;
   const snapshotUpdatedAt =
-    normalizeIsoTimestamp(preparedSnapshot.snapshot.updatedAt) ?? new Date().toISOString();
+    normalizeIsoTimestamp(sanitizedSnapshot.updatedAt) ?? new Date().toISOString();
 
   const supabaseAdmin = getSupabaseAdmin();
   const { data: existingData, error: existingError } = await supabaseAdmin
@@ -1857,6 +1915,53 @@ export const upsertProjectWorkspaceStateForUser = async ({
       },
     });
   }
+  if (
+    existingRow &&
+    !includeSnapshotInResponse &&
+    compareIsoTimestamps(existingRow.snapshot_updated_at, snapshotUpdatedAt) === 0 &&
+    !projectWorkspaceCheckpointNeedsCompaction(existingRow.snapshot)
+  ) {
+    const comparableProjectAssetAssociationChecksum =
+      computeComparableProjectAssetAssociationChecksum(sanitizedSnapshot);
+    const existingProjectAssetAssociationChecksum = readProjectAssetAssociationChecksum(
+      existingRow.snapshot
+    );
+    const sameProjectAssetAssociations =
+      comparableProjectAssetAssociationChecksum !== null &&
+      existingProjectAssetAssociationChecksum === comparableProjectAssetAssociationChecksum;
+
+    if (sameProjectAssetAssociations) {
+      const lightweightRetrySnapshot = createLightweightProjectWorkspaceCheckpointSnapshot({
+        snapshot: sanitizedSnapshot,
+        checkpointRevision: existingRow.checkpoint_revision,
+      });
+      const retryOutputDisplayChecksum =
+        readProjectOutputDisplayChecksum(lightweightRetrySnapshot) ??
+        computeProjectOutputDisplayChecksumForSnapshot(sanitizedSnapshot);
+      const existingOutputDisplayChecksum = readProjectOutputDisplayChecksum(existingRow.snapshot);
+      const sameDisplay =
+        existingOutputDisplayChecksum !== null &&
+        existingOutputDisplayChecksum === retryOutputDisplayChecksum;
+      const sameCheckpointStructure = areProjectWorkspaceCheckpointsStructurallyEqual(
+        existingRow.snapshot,
+        lightweightRetrySnapshot
+      );
+
+      if (sameDisplay && sameCheckpointStructure) {
+        return toProjectWorkspaceStateRecord({
+          row: existingRow,
+          snapshot: existingRow.snapshot,
+          saveOutcome: {
+            status: "saved",
+          },
+        });
+      }
+    }
+  }
+  const preparedSnapshot = await prepareProjectWorkspaceSnapshotForWrite({
+    userId,
+    snapshot: sanitizedSnapshot,
+  });
 
   const existingCheckpointRevision = existingRow?.checkpoint_revision ?? 0;
   const nextCheckpointRevision = existingCheckpointRevision + 1;
@@ -1870,6 +1975,14 @@ export const upsertProjectWorkspaceStateForUser = async ({
   const existingOutputDisplayChecksum = existingRow
     ? readProjectOutputDisplayChecksum(existingRow.snapshot)
     : null;
+  const incomingProjectAssetAssociationChecksum = computeProjectAssetAssociationChecksum({
+    mediaFileIds: preparedSnapshot.ownedMediaFileIds,
+    promptIds: preparedSnapshot.ownedPromptIds,
+    generationIds: preparedSnapshot.ownedGenerationIds,
+  });
+  const existingProjectAssetAssociationChecksum = existingRow
+    ? readProjectAssetAssociationChecksum(existingRow.snapshot)
+    : null;
   const checkpointStructureChanged =
     !existingRow ||
     projectWorkspaceCheckpointNeedsCompaction(existingRow.snapshot) ||
@@ -1879,23 +1992,26 @@ export const upsertProjectWorkspaceStateForUser = async ({
     );
   const outputDisplayChanged =
     !existingRow || existingOutputDisplayChecksum !== incomingOutputDisplayChecksum;
+  const hasOwnedProjectAssetAssociationAuthority =
+    preparedSnapshot.ownedMediaFileIds.length > 0 ||
+    preparedSnapshot.ownedPromptIds.length > 0 ||
+    preparedSnapshot.ownedGenerationIds.length > 0;
+  const projectAssetAssociationChanged =
+    !existingRow ||
+    existingProjectAssetAssociationChecksum !== incomingProjectAssetAssociationChecksum;
+  const shouldBackfillProjectAssetAssociations =
+    hasOwnedProjectAssetAssociationAuthority && projectAssetAssociationChanged;
   // Advance workspace freshness on newer display-only saves without bumping structural revision.
   const shouldPersistWorkspaceRow =
     !existingRow ||
     checkpointStructureChanged ||
     outputDisplayChanged ||
+    projectAssetAssociationChanged ||
     compareIsoTimestamps(existingRow.snapshot_updated_at, snapshotUpdatedAt) < 0;
   const workspaceCheckpointRevisionForWrite =
     checkpointStructureChanged || !existingRow
       ? nextCheckpointRevision
       : existingCheckpointRevision;
-  const workspaceSnapshotForWrite =
-    checkpointStructureChanged || outputDisplayChanged || !existingRow
-      ? createLightweightProjectWorkspaceCheckpointSnapshot({
-          snapshot: preparedSnapshot.snapshot,
-          checkpointRevision: workspaceCheckpointRevisionForWrite,
-        })
-      : existingRow.snapshot;
 
   const repairPending: ProjectWorkspaceRepairPending[] = [];
   const addRepairPending = (repair: ProjectWorkspaceRepairPending) => {
@@ -1909,6 +2025,67 @@ export const upsertProjectWorkspaceStateForUser = async ({
       error: new Error(preparedSnapshot.repairPending.message),
     });
   }
+
+  let projectAssetAssociationChecksumForWrite: string | null =
+    preparedSnapshot.repairPending || shouldBackfillProjectAssetAssociations
+      ? null
+      : incomingProjectAssetAssociationChecksum;
+
+  if (shouldBackfillProjectAssetAssociations) {
+    try {
+      await withProjectWorkspaceBestEffortTimeout(
+        backfillProjectAssetAssociationsForSnapshot({
+          userId,
+          projectId,
+          snapshot: preparedSnapshot.snapshot,
+          ownedMediaFileIds: preparedSnapshot.ownedMediaFileIds,
+          ownedPromptIds: preparedSnapshot.ownedPromptIds,
+          ownedGenerationIds: preparedSnapshot.ownedGenerationIds,
+        }),
+        "project association backfill",
+        PROJECT_WORKSPACE_POST_WRITE_REPAIR_TIMEOUT_MS
+      );
+      if (!preparedSnapshot.repairPending) {
+        projectAssetAssociationChecksumForWrite = incomingProjectAssetAssociationChecksum;
+      }
+    } catch (error) {
+      const repairMessage = toErrorMessage(
+        wrapProjectWorkspaceSaveStageError({
+          stage: "project association backfill",
+          error,
+        }),
+        "Project workspace save needs project association repair."
+      );
+      logProjectWorkspaceBestEffortFailure({
+        stage: "project association backfill",
+        projectId,
+        error,
+      });
+      await logProjectWorkspaceRepairPending({
+        userId,
+        projectId,
+        repairStage: "project_association_backfill",
+        repairMessage,
+      });
+      addRepairPending({
+        stage: "project_association_backfill",
+        message: repairMessage,
+      });
+    }
+  }
+
+  const workspaceSnapshotForWrite = patchProjectAssetAssociationChecksum(
+    checkpointStructureChanged ||
+      outputDisplayChanged ||
+      projectAssetAssociationChanged ||
+      !existingRow
+      ? createLightweightProjectWorkspaceCheckpointSnapshot({
+          snapshot: preparedSnapshot.snapshot,
+          checkpointRevision: workspaceCheckpointRevisionForWrite,
+        })
+      : existingRow.snapshot,
+    projectAssetAssociationChecksumForWrite
+  );
 
   let savedRow: ProjectWorkspaceStateRow;
   if (!shouldPersistWorkspaceRow && existingRow) {
@@ -2048,46 +2225,6 @@ export const upsertProjectWorkspaceStateForUser = async ({
         stage: "project output display cleanup",
         projectId,
         error,
-      });
-    }
-  }
-
-  if (checkpointStructureChanged) {
-    try {
-      await withProjectWorkspaceBestEffortTimeout(
-        backfillProjectAssetAssociationsForSnapshot({
-          userId,
-          projectId,
-          snapshot: preparedSnapshot.snapshot,
-          ownedMediaFileIds: preparedSnapshot.ownedMediaFileIds,
-          ownedPromptIds: preparedSnapshot.ownedPromptIds,
-          ownedGenerationIds: preparedSnapshot.ownedGenerationIds,
-        }),
-        "project association backfill",
-        PROJECT_WORKSPACE_POST_WRITE_REPAIR_TIMEOUT_MS
-      );
-    } catch (error) {
-      const repairMessage = toErrorMessage(
-        wrapProjectWorkspaceSaveStageError({
-          stage: "project association backfill",
-          error,
-        }),
-        "Project workspace save needs project association repair."
-      );
-      logProjectWorkspaceBestEffortFailure({
-        stage: "project association backfill",
-        projectId,
-        error,
-      });
-      await logProjectWorkspaceRepairPending({
-        userId,
-        projectId,
-        repairStage: "project_association_backfill",
-        repairMessage,
-      });
-      addRepairPending({
-        stage: "project_association_backfill",
-        message: repairMessage,
       });
     }
   }

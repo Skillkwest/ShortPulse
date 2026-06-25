@@ -3,7 +3,6 @@
  * Orchestrates submission lifecycle while delegating provider-specific calls to handlers.
  */
 import { useCallback } from "react";
-import type { Dispatch, SetStateAction } from "react";
 import { reportAppError } from "../../../lib/appErrorReporter";
 import { isAuthSessionTimeoutError } from "../../../lib/authenticatedFetch";
 import { dedupeInternalMediaRefs } from "../../../lib/media/internalMediaRefs";
@@ -77,95 +76,22 @@ import {
 } from "./taskSubmission/preflightPreparation";
 import { createSubmissionLifecycleCallbacks } from "./taskSubmission/submissionLifecycle";
 import { DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS } from "./useAiStudioTasks";
-import type {
-  LipSyncAudioState,
-  StudioMode,
-  StudioOutput,
-  ToolId,
-  VideoReferenceMode,
-} from "../types";
+import type { StudioMode, ToolId } from "../types";
 import {
   createEmptyLipSyncAudioState,
   getDurableLipSyncAudioUrl,
   getLipSyncAudioStoragePath,
 } from "../logic/lipSyncAudioState";
-import type { AiStudioKlingElement } from "../logic/klingElements";
-import type { AiStudioSubmitPanelKey } from "./useAiStudioCreationState";
+import type { GenerationFailureContext } from "./generationFailureReporting";
 import type {
-  AiStudioTaskSubmitOptions,
-  EnsureGenerationRecordInput,
-} from "./contracts/taskSubmissionContracts";
-import type {
-  GenerationFailureContext,
-  NotifyGenerationFailure,
-} from "./generationFailureReporting";
+  AiStudioTaskSubmissionOptions,
+  UseAiStudioTaskSubmissionParams,
+} from "./contracts/taskSubmissionHookContracts";
 
 const PREPARE_REFERENCE_TIMEOUT_ERROR =
   "Preparation timed out before generation started. Please retry.";
 const SUBMIT_NOT_STARTED_USER_ERROR = "Generation failed to start. Please retry.";
 const AUTH_SESSION_TIMEOUT_DETAIL = "Session check timed out before provider submit.";
-type AiStudioTaskSubmissionOptions = AiStudioTaskSubmitOptions & {
-  submissionOwner?: AiStudioSubmitPanelKey;
-};
-
-type UseAiStudioTaskSubmissionParams = {
-  aspect: string;
-  mode: StudioMode;
-  projectId?: string | null;
-  workspaceRuntimeKey?: string | null;
-  model: string | null;
-  prompt: string;
-  currentCostCredits?: number | null;
-  promptReferenceGenerateCostCredits?: number | null;
-  selectedTool: ToolId | null;
-  imageResolution: string;
-  videoDurationSeconds: number;
-  videoResolution: string;
-  videoGenerateAudio: boolean;
-  videoReferenceMode: VideoReferenceMode;
-  videoReferenceImageUrl: string | null;
-  motionReferenceVideoUrl: string | null;
-  lipSyncAudio?: LipSyncAudioState;
-  lipSyncTurboMode?: boolean;
-  videoCameraFixed: boolean;
-  videoAutoFix: boolean;
-  seedance2InputMode?: "text" | "first-frame" | "first-last" | "multimodal";
-  seedance2ReferenceImageUrls?: string[];
-  seedance2ReferenceVideoUrls?: string[];
-  seedance2ReferenceAudioUrls?: string[];
-  seedance2ReturnLastFrame?: boolean;
-  seedance2WebSearch?: boolean;
-  klingNegativePrompt: string;
-  klingCfgScale: number;
-  klingWorkflowMode?: "single" | "multi" | "custom";
-  klingShotType: "customize" | "intelligent";
-  klingVoiceIds: [string, string];
-  klingMultiPrompts: { id: string; prompt: string; duration: number }[];
-  klingElements: AiStudioKlingElement[];
-  beginPanelGeneration: (panel: AiStudioSubmitPanelKey) => void;
-  endPanelGeneration: (panel: AiStudioSubmitPanelKey) => void;
-  setUiError: Dispatch<SetStateAction<string | null>>;
-  setUiNotice: Dispatch<SetStateAction<string | null>>;
-  setOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
-  outputs?: StudioOutput[];
-  setSaved: Dispatch<SetStateAction<boolean>>;
-  getDefaultDurationSeconds: (modelId: string | null) => number;
-  notifyGenerationFailure: NotifyGenerationFailure;
-  updateOutputById: (id: string, updater: (item: StudioOutput) => StudioOutput) => void;
-  startPollingTask: (
-    taskId: string,
-    outputId: string,
-    attempt?: number,
-    provider?: Provider,
-    startedAt?: number,
-    noMediaAttempt?: number,
-    pollSessionId?: number,
-    options?: { initialDelayMs?: number }
-  ) => void;
-  ensureGenerationRecord: (input: EnsureGenerationRecordInput) => Promise<string | null>;
-  isOutputAbandoned?: (outputId: string) => boolean;
-  markOutputSubmissionActive?: (outputId: string) => void;
-};
 
 /**
  * Returns a memoized submission handler that starts generation tasks and polling.

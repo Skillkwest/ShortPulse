@@ -308,11 +308,11 @@ Provider-specific runbook: `docs/sops/sop_provider_incident_response.md`.
 
 ## Auth Boundary Latency Benchmark (2026-02-14)
 
-- Scope: synthetic benchmark of `requireApiUser` on protected API paths comparing middleware-authenticated context reuse vs token-only fallback verification.
-- Method: `frontend/tests/api/auth-latency-benchmark.test.ts` runs `40` samples per path with a controlled `12ms` mocked Supabase `/auth/v1/user` delay for fallback.
+- Scope: synthetic benchmark of `requireApiUser` on protected API paths verifying bearer-token dedupe while legacy proxy headers remain non-authoritative.
+- Method: `frontend/tests/api/auth-latency-benchmark.test.ts` runs repeated protected-route auth resolution with a mocked Supabase `/auth/v1/user` lookup and confirms repeated bearer checks are deduped even when legacy proxy headers are present.
 - Result snapshot (recent sampled range across repeated runs):
-  - Middleware context path: `p50=0.07–0.08ms`, `p95=0.25–0.72ms`
-  - Fallback verification path: `p50=13.16–13.28ms`, `p95=13.30–14.61ms`
+  - Current invariant: one Supabase auth lookup is shared across repeated matching bearer-token checks.
+  - Legacy proxy headers are test inputs only; they must not become identity or authorization authority.
 - Command: `cd frontend && npm run test -- auth-latency-benchmark`
 
 ## Protected-Route Staging Latency Capture (2026-02-14)

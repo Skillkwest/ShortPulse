@@ -68,7 +68,11 @@ import {
   attachMediaLibraryDragGhost,
   clearMediaLibraryDragGhost,
 } from "../logic/mediaLibraryDragGhost";
-import { clearDragState, prepareReferenceDrag } from "../utils/dragDrop";
+import {
+  clearDragState,
+  preparePromptReferenceDrag,
+  prepareReferenceDrag,
+} from "../utils/dragDrop";
 import type { CanvasTearOutComposerTargetRegistry } from "./useAiStudioCanvasTearOutTargets";
 
 const SURFACE_DIRECT_DROP_PARTIAL_MESSAGE = "Some files could not be added. The rest were added.";
@@ -1371,7 +1375,12 @@ export const useAiStudioPageMediaReferenceRuntime = ({
           event.preventDefault();
           return;
         }
-        event.dataTransfer.effectAllowed = "copy";
+        preparePromptReferenceDrag(event, {
+          referenceId: id,
+          outputId: id,
+          promptText,
+          sourceSurface: null,
+        });
         event.dataTransfer.setData("text/plain", promptText);
         event.dataTransfer.setData("text/prompt", promptText);
         event.currentTarget.classList.add("is-dragging");

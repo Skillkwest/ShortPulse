@@ -345,4 +345,69 @@ describe("useReferenceGridCardItemsController", () => {
     );
     expect(result.current.visibleCardItems[0]?.dragDisplayArtifactKind).toBe("url");
   });
+
+  it("reuses quick-slot media resolution for duplicated all-refs card items", () => {
+    const item = output({
+      id: "quick-slot-1",
+      mediaSource: "library",
+      previewUrl: "https://provider.example.com/reference-preview.png",
+    });
+    const resolveCardMedia = vi.fn(({ mediaSurface }) =>
+      resolvedMedia({
+        previewUrl:
+          mediaSurface === "quick-slot"
+            ? "https://provider.example.com/quick-slot-preview.png"
+            : "https://provider.example.com/all-refs-preview.png",
+        fallbackUrl:
+          mediaSurface === "quick-slot"
+            ? "https://provider.example.com/quick-slot-full.png"
+            : "https://provider.example.com/all-refs-full.png",
+        normalizedPreviewUrl:
+          mediaSurface === "quick-slot"
+            ? "https://provider.example.com/quick-slot-preview.png"
+            : "https://provider.example.com/all-refs-preview.png",
+        normalizedFallbackUrl:
+          mediaSurface === "quick-slot"
+            ? "https://provider.example.com/quick-slot-full.png"
+            : "https://provider.example.com/all-refs-full.png",
+      })
+    );
+
+    const { result } = renderHook(() =>
+      useReferenceGridCardItemsController({
+        activeOutputId: null,
+        decodeBudgetEnabled: true,
+        visibleOutputs: [projectReferenceGridMediaOutput(item)],
+        visibleCuratedOutputs: [projectReferenceGridMediaOutput(item)],
+        visibleQuickSlotIdSet: new Set<string>([item.id]),
+        hydrationPriorityCount: 1,
+        curatedHydrationPriorityCount: 1,
+        virtualRowHeight: 280,
+        curatedVirtualRowHeight: 240,
+        quickSlotAdaptiveSurfaceEnabled: true,
+        resolveCardMedia,
+        visibleOutputById: { [item.id]: item },
+        loadedMap: {},
+        hydratedById: {},
+      })
+    );
+
+    expect(resolveCardMedia).toHaveBeenCalledTimes(1);
+    expect(resolveCardMedia).toHaveBeenCalledWith({
+      item: projectReferenceGridMediaOutput(item),
+      mediaSurface: "quick-slot",
+      cardLongEdgePx: 237,
+    });
+    expect(result.current.curatedVisibleCardItems).toHaveLength(1);
+    expect(result.current.visibleCardItems).toHaveLength(1);
+    expect(result.current.visibleCardItems[0]).toMatchObject({
+      item: projectReferenceGridMediaOutput(item),
+      surface: "all-refs",
+      mediaSurface: "reference-grid",
+      cardPreviewUrl: "https://provider.example.com/quick-slot-preview.png",
+      fallbackUrl: "https://provider.example.com/quick-slot-full.png",
+      imageSrc: undefined,
+      isPriorityHydration: false,
+    });
+  });
 });

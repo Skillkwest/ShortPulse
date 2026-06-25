@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { readMediaLibraryDragPayload } from "../../logic/mediaLibraryDragPayload";
 import type { MediaFileRow } from "../../logic/mediaLibraryModalModel";
 import { useMediaLibraryPanelItemInteractions } from "../useMediaLibraryPanelItemInteractions";
+import { extractPromptDropText } from "../../utils/dragDrop";
 
 const createMutableTransfer = () => {
   const store = new Map<string, string>();
@@ -149,5 +150,43 @@ describe("useMediaLibraryPanelItemInteractions", () => {
         previewPosterStoragePath: "user-1/media/restored-video-poster.jpg",
       },
     });
+  });
+
+  it("uses session-backed full prompt text for saved prompt card drags", () => {
+    const currentTarget = document.createElement("button");
+    const dataTransfer = createMutableTransfer();
+    const fullPrompt = `Saved prompt opening. ${"Detailed shot direction. ".repeat(80)}Saved prompt ending.`;
+    const shortenedPrompt = fullPrompt.slice(0, 1000);
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelItemInteractions({
+        activeFolderId: "prompt-folder",
+      })
+    );
+
+    result.current.handlePromptCardDragStart(
+      {
+        currentTarget,
+        dataTransfer,
+        preventDefault: vi.fn(),
+      } as unknown as React.DragEvent<HTMLButtonElement>,
+      {
+        id: "prompt-long-1",
+        title: "Long prompt",
+        prompt_text: fullPrompt,
+        created_at: "2026-06-25T00:00:00.000Z",
+      }
+    );
+    dataTransfer.setData("text/prompt", shortenedPrompt);
+    dataTransfer.setData("text/plain", shortenedPrompt);
+
+    const payload = readMediaLibraryDragPayload(dataTransfer);
+    expect(payload).toMatchObject({
+      kind: "libraryPrompt",
+      payload: {
+        id: "prompt-long-1",
+        promptText: fullPrompt,
+      },
+    });
+    expect(extractPromptDropText(dataTransfer)).toBe(fullPrompt);
   });
 });

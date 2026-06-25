@@ -185,6 +185,14 @@ const isBlobUrl = (value?: string | null) => Boolean(value && value.startsWith("
 const isInlineTransferHeavyUrl = (value?: string | null) =>
   Boolean(value && (value.startsWith("blob:") || value.startsWith("data:")));
 
+const setTransferDataSafe = (transfer: DataTransfer, type: string, value: string): void => {
+  try {
+    transfer.setData(type, value);
+  } catch {
+    // Some browser engines reject custom MIME types; keep the drag active.
+  }
+};
+
 const parseReferenceMediaKind = (
   value: string | null | undefined
 ): ReferenceDragPreviewKind | null => {
@@ -1201,9 +1209,6 @@ export const extractPromptText = (transfer: DataTransfer) => {
 };
 
 export const extractPromptDropText = (transfer: DataTransfer): string | null => {
-  const promptText = extractPromptText(transfer);
-  if (!promptText) return null;
-
   if (extractComposerImageDropPayload(transfer)) return null;
 
   const mediaLibraryPayload = readMediaLibraryDragPayload(transfer);
@@ -1214,6 +1219,11 @@ export const extractPromptDropText = (transfer: DataTransfer): string | null => 
     internalPayload?.mediaKind ??
     parseReferenceMediaKind(transfer.getData(REFERENCE_TRANSFER_MEDIA_KIND_TYPE));
   if (mediaKind && mediaKind !== "text") return null;
+
+  const sessionPromptText =
+    internalPayload?.sessionBacked && mediaKind === "text"
+      ? dedupeText(internalPayload.promptText ?? undefined)
+      : "";
 
   const referenceCandidates = [
     transfer.getData("text/reference-url"),
@@ -1238,9 +1248,78 @@ export const extractPromptDropText = (transfer: DataTransfer): string | null => 
     (type) => type.trim().toLowerCase() === "text/prompt"
   );
   const hasDroppedFiles = (transfer.files?.length ?? 0) > 0;
-  if (hasDroppedFiles && !hasExplicitPromptType) return null;
+  const requiresSessionPromptAuthority =
+    (internalPayload?.origin === INTERNAL_REFERENCE_DRAG_ORIGIN && mediaKind === "text") ||
+    mediaLibraryPayload?.kind === "libraryPrompt";
+  if (requiresSessionPromptAuthority && !sessionPromptText) return null;
+  if (hasDroppedFiles && !hasExplicitPromptType && !sessionPromptText) return null;
+
+  const promptText = sessionPromptText || extractPromptText(transfer);
+  if (!promptText) return null;
 
   return promptText;
+};
+
+export const preparePromptReferenceDrag = (
+  event: React.DragEvent<HTMLElement>,
+  options: {
+    promptText: string;
+    referenceId?: string | null;
+    outputId?: string | null;
+    sourceSurface?: ReferenceDragSourceSurface | null;
+  }
+): string | null => {
+  const promptText = dedupeText(options.promptText);
+  if (!promptText) return null;
+
+  const transfer = event.dataTransfer;
+  const dragNode = event.currentTarget as HTMLElement;
+  const dragNodeDataset = dragNode?.dataset ?? null;
+  const previousDragSessionToken =
+    dragNodeDataset?.[INTERNAL_REFERENCE_DRAG_TOKEN_DATASET_KEY]?.trim() ?? "";
+  if (previousDragSessionToken) {
+    clearInternalReferenceDragSession(previousDragSessionToken);
+  }
+
+  const referenceId = options.referenceId?.trim() || null;
+  const outputId = options.outputId?.trim() || referenceId;
+  const dragSessionToken = registerInternalReferenceDragSession({
+    version: INTERNAL_REFERENCE_DRAG_VERSION,
+    origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
+    referenceId,
+    outputId,
+    imageIndex: 0,
+    mediaId: null,
+    mediaKind: "text",
+    referenceUrl: null,
+    promptText,
+    sourceSurface: options.sourceSurface ?? null,
+  });
+
+  if (dragNodeDataset) {
+    dragNodeDataset[INTERNAL_REFERENCE_DRAG_TOKEN_DATASET_KEY] = dragSessionToken;
+  }
+  transfer.effectAllowed = "copy";
+  setTransferDataSafe(transfer, INTERNAL_REFERENCE_DRAG_SESSION_TYPE, dragSessionToken);
+  setTransferDataSafe(transfer, INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE, dragSessionToken);
+  setTransferDataSafe(transfer, REFERENCE_TRANSFER_ORIGIN_TYPE, INTERNAL_REFERENCE_DRAG_ORIGIN);
+  setTransferDataSafe(
+    transfer,
+    REFERENCE_TRANSFER_VERSION_TYPE,
+    String(INTERNAL_REFERENCE_DRAG_VERSION)
+  );
+  setTransferDataSafe(transfer, REFERENCE_TRANSFER_MEDIA_KIND_TYPE, "text");
+  if (referenceId) {
+    setTransferDataSafe(transfer, "text/reference-id", referenceId);
+  }
+  if (outputId) {
+    setTransferDataSafe(transfer, REFERENCE_TRANSFER_OUTPUT_ID_TYPE, outputId);
+  }
+  if (options.sourceSurface) {
+    setTransferDataSafe(transfer, REFERENCE_TRANSFER_SOURCE_SURFACE_TYPE, options.sourceSurface);
+  }
+
+  return dragSessionToken;
 };
 
 export const isImageDragTransfer = (transfer: DataTransfer) => {
@@ -1430,6 +1509,7 @@ export const prepareReferenceDrag = (
       composerImageArtifact?.referenceUrl ??
       (allowDirectReferenceUrls ? (resolvedReferenceTransferUrl ?? null) : null),
     referenceRenderUrl: resolvedComposerDisplayArtifactUrl ?? exposedRenderedTransferUrl ?? null,
+    promptText: promptText || null,
     sourceSurface,
     ...(naturalWidth > 0 ? { width: naturalWidth } : {}),
     ...(naturalHeight > 0 ? { height: naturalHeight } : {}),

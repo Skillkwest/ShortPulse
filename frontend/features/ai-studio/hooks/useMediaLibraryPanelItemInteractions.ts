@@ -26,6 +26,7 @@ import { writeMediaLibraryDragPayload } from "../logic/mediaLibraryDragPayload";
 import { resolveMediaLibraryWorkflowReloadConfig } from "../logic/mediaLibraryWorkflowReload";
 import { downloadBlobToFile } from "../logic/referenceDownload";
 import type { MediaLibraryMediaDragPreview } from "../components/media-library-modal/MediaLibraryAllItemsGrid";
+import { clearDragState, preparePromptReferenceDrag } from "../utils/dragDrop";
 
 const setTransferDataSafe = (transfer: DataTransfer, type: string, value: string): void => {
   try {
@@ -163,7 +164,12 @@ export const useMediaLibraryPanelItemInteractions = ({
           title: prompt.title,
         },
       });
-      event.dataTransfer.effectAllowed = "copy";
+      preparePromptReferenceDrag(event, {
+        referenceId: prompt.id,
+        outputId: prompt.id,
+        promptText,
+        sourceSurface: null,
+      });
       setTransferDataSafe(event.dataTransfer, "text/prompt", promptText);
       setTransferDataSafe(event.dataTransfer, "text/plain", promptText);
       event.currentTarget.classList.add("is-dragging");
@@ -178,6 +184,7 @@ export const useMediaLibraryPanelItemInteractions = ({
 
   const handleCardDragEnd = useCallback((event: React.DragEvent<HTMLElement>) => {
     event.currentTarget.classList.remove("is-dragging");
+    clearDragState(event);
     clearMediaLibraryDragGhost(event);
   }, []);
 

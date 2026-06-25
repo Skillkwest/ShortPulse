@@ -11,13 +11,20 @@ export const PROTECTED_ROUTES = [
   "/admin",
 ] as const;
 
+const isRouteFamilyPath = (pathname: string, route: string): boolean =>
+  pathname === route ||
+  pathname.startsWith(`${route}/`) ||
+  pathname.startsWith(`${route}?`) ||
+  pathname.startsWith(`${route}#`);
+
 /**
  * Determines whether a pathname belongs to a protected route surface.
  */
 export const isProtectedRoutePath = (pathname: string): boolean =>
-  PROTECTED_ROUTES.some((route) => pathname.startsWith(route));
+  PROTECTED_ROUTES.some((route) => isRouteFamilyPath(pathname, route));
 
 /**
  * Determines whether a pathname belongs to the AI Studio route family.
  */
-export const isAiStudioRoutePath = (pathname: string): boolean => pathname.startsWith("/ai-studio");
+export const isAiStudioRoutePath = (pathname: string): boolean =>
+  isRouteFamilyPath(pathname, "/ai-studio");

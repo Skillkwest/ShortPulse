@@ -7,9 +7,11 @@ import {
   clearComposerImageDropSession,
   COMPOSER_IMAGE_DROP_SESSION_TEXT_TYPE,
   COMPOSER_IMAGE_DROP_SESSION_TYPE,
+  clearInternalReferenceDragSession,
   INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE,
   INTERNAL_REFERENCE_DRAG_SESSION_TYPE,
   registerComposerImageDropSession,
+  registerInternalReferenceDragSession,
   resolveComposerImageDropSession,
 } from "../../../../lib/internalReferenceDragSession";
 import {
@@ -352,6 +354,48 @@ describe("dragDrop payload extraction", () => {
     expect(extractPromptDropText(transfer)).toBe("Dragged prompt text");
   });
 
+  it("uses session-backed full prompt text when browser text fields are shortened", () => {
+    const fullPrompt = `Full prompt opening. ${"Detailed video direction. ".repeat(80)}Final beat.`;
+    const shortenedPrompt = fullPrompt.slice(0, 1000);
+    const token = registerInternalReferenceDragSession({
+      version: 1,
+      origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
+      referenceId: "ref-long-prompt",
+      outputId: "ref-long-prompt",
+      imageIndex: 0,
+      mediaId: null,
+      mediaKind: "text",
+      promptText: fullPrompt,
+      referenceUrl: null,
+      sourceSurface: "all-refs",
+    });
+
+    const transfer = makeTransfer({
+      [INTERNAL_REFERENCE_DRAG_SESSION_TYPE]: token,
+      [INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE]: token,
+      "text/reference-media-kind": "text",
+      "text/prompt": shortenedPrompt,
+      "text/plain": shortenedPrompt,
+    });
+
+    expect(extractPromptDropText(transfer)).toBe(fullPrompt);
+
+    clearInternalReferenceDragSession(token);
+  });
+
+  it("does not use browser text fields for first-party text references without session authority", () => {
+    const transfer = makeTransfer({
+      "text/reference-origin": INTERNAL_REFERENCE_DRAG_ORIGIN,
+      "text/reference-id": "ref-text-no-session",
+      "text/reference-output-id": "ref-text-no-session",
+      "text/reference-media-kind": "text",
+      "text/prompt": "Short browser prompt",
+      "text/plain": "Short browser prompt",
+    });
+
+    expect(extractPromptDropText(transfer)).toBeNull();
+  });
+
   it("keeps plain-text file drags out of prompt-only extraction without an explicit prompt type", () => {
     const transfer = makeTransferWithFiles(
       {
@@ -648,6 +692,8 @@ describe("dragDrop payload extraction", () => {
 
     expect(transferData["text/prompt"]).toBe(fullPrompt);
     expect(transferData["text/plain"]).toBe(fullPrompt);
+    transferData["text/prompt"] = restoredSummary;
+    transferData["text/plain"] = restoredSummary;
     expect(extractPromptDropText(event.dataTransfer)).toBe(fullPrompt);
   });
 
@@ -1075,6 +1121,7 @@ describe("dragDrop payload extraction", () => {
       fullStoragePath: null,
       referenceUrl: "https://example.com/out-token.png",
       referenceRenderUrl: "https://example.com/out-token.png",
+      promptText: "Prompt",
       sourceSurface: "all-refs",
       sessionBacked: true,
     });
@@ -1125,6 +1172,7 @@ describe("dragDrop payload extraction", () => {
       fullStoragePath: null,
       referenceUrl: "https://example.com/out-text-token.png",
       referenceRenderUrl: "https://example.com/out-text-token.png",
+      promptText: "Prompt",
       sourceSurface: "all-refs",
       sessionBacked: true,
     });

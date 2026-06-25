@@ -36,6 +36,23 @@ const collectApiRouteFiles = (): string[] => {
 };
 
 describe("protected API manifest parity", () => {
+  it("classifies exact protected routes, route families, public webhooks, and lookalikes", () => {
+    expect(isProtectedApiPath("/api/media/sign-batch")).toBe(true);
+    expect(isProtectedApiPath("/api/admin/reports")).toBe(true);
+    expect(isProtectedApiPath("/api/projects")).toBe(true);
+    expect(isProtectedApiPath("/api/projects/project-1")).toBe(true);
+    expect(isProtectedApiPath("/api/report-issue")).toBe(true);
+
+    expect(isWebhookPath("/api/billing/stripe/webhook")).toBe(true);
+    expect(isWebhookPath("/api/fal/webhook")).toBe(true);
+    expect(isProtectedApiPath("/api/billing/stripe/webhook")).toBe(false);
+    expect(isProtectedApiPath("/api/fal/webhook")).toBe(true);
+
+    expect(isProtectedApiPath("/api/mediaevil/sign-batch")).toBe(false);
+    expect(isProtectedApiPath("/api/administer")).toBe(false);
+    expect(isProtectedApiPath("/api/projectsed")).toBe(false);
+  });
+
   it("covers every API route that requires bearer or admin auth in the handler", () => {
     const uncoveredAuthRoutes = collectApiRouteFiles()
       .map((filePath) => ({

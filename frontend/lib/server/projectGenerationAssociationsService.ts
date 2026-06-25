@@ -1362,7 +1362,7 @@ export const backfillProjectGenerationAssociationsForSnapshot = async ({
     )
   );
   const generationIdsToAssociate =
-    resolvedOwnedGenerationIds.length > 0
+    ownedGenerationIds !== undefined
       ? resolvedOwnedGenerationIds
       : await resolveOwnedGenerationIds({
           userId,

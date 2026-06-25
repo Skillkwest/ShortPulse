@@ -197,7 +197,6 @@
       "features/dashboard/components/ProjectNameModal.tsx",
       "lib/model-runtime/falImageModelSupport.ts",
       "lib/mediaSignedTransformPolicy.ts",
-      "lib/server/api/authProxyContext.ts",
       "lib/server/api/falSubmitTargeting.ts",
       "lib/server/providerIntegration/__tests__/fixtures/kieContractFixtures.ts",
       "lib/server/generationControlPlane/workerOps.ts",

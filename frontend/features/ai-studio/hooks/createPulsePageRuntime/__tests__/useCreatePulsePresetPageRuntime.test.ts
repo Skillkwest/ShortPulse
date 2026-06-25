@@ -696,4 +696,72 @@ describe("useCreatePulsePresetPageRuntime", () => {
     expect(result.current.activeCreatePulsePresetSnapshot?.presetId).toBe("pulse_custom_video");
     expect(clearPulsePrompt).toHaveBeenCalledTimes(1);
   });
+
+  it("keeps a started custom Pulse session active through tool switches after ownership commits", () => {
+    const clearPulseRuntime = vi.fn();
+    const clearPulsePrompt = vi.fn();
+    const customPreset = createCreatePulseCustomSavedPreset({
+      presetId: "pulse_custom_video",
+      label: "Custom Video Pulse",
+      description: "Guided custom video prompt.",
+      systemInstructions: "Guide the user through a custom video prompt workflow.",
+      createdAt: "2026-05-01T00:00:00.000Z",
+    });
+    const resolvedCustomPreset = resolveCreatePulsePresetById("pulse_custom_video", [customPreset]);
+    if (!resolvedCustomPreset) {
+      throw new Error("Expected custom Pulse preset to resolve for test.");
+    }
+    const { result, rerender } = renderHook(
+      (params: Parameters<typeof useCreatePulsePresetPageRuntime>[0]) =>
+        useCreatePulsePresetPageRuntime(params),
+      {
+        initialProps: createParams({
+          activeCreatePulsePresetId: null,
+          pulseSessionInstanceId: null,
+          savedPresets: [customPreset],
+          clearPulseRuntime,
+          clearPulsePrompt,
+        }),
+      }
+    );
+
+    act(() => {
+      result.current.beginPulseActivation(resolvedCustomPreset);
+      result.current.handleActiveCreatePulsePresetIdChangeForPage("pulse_custom_video", {
+        forceNewSession: true,
+        sessionInstanceIdOverride: "pulse-session-custom",
+      });
+    });
+    rerender(
+      createParams({
+        selectedTool: "presets",
+        activeCreatePulsePresetId: "pulse_custom_video",
+        pulseSessionInstanceId: "pulse-session-custom",
+        savedPresets: [customPreset],
+        clearPulseRuntime,
+        clearPulsePrompt,
+      })
+    );
+    rerender(
+      createParams({
+        selectedTool: "create",
+        activeCreatePulsePresetId: "pulse_custom_video",
+        pulseSessionInstanceId: "pulse-session-custom",
+        savedPresets: [customPreset],
+        clearPulseRuntime,
+        clearPulsePrompt,
+      })
+    );
+
+    expect(result.current.hasActivePulseSession).toBe(true);
+    expect(result.current.activeCreatePulsePresetSnapshot?.presetId).toBe("pulse_custom_video");
+    expect(
+      result.current.pulseCreateAgentContextResolver({ lastAssistantMessage: null }).pulse
+    ).toMatchObject({
+      presetId: "pulse_custom_video",
+      source: "custom",
+      instructions: "Guide the user through a custom video prompt workflow.",
+    });
+    expect(clearPulseRuntime).not.toHaveBeenCalled();
+  });
 });

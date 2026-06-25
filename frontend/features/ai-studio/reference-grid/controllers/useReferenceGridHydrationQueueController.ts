@@ -78,6 +78,20 @@ export const useReferenceGridHydrationQueueController = ({
         : referenceGridCardLongEdgePx;
     const shouldEnqueueHydration = decodeBudgetEnabled && !suspendHydrationQueue;
     const candidateIdSet = new Set<string>();
+    const addVisibleCardCandidate = (card: ReferenceGridVisibleCardItem) => {
+      if (!card.isImagePreview || !card.cardPreviewUrl) return;
+      candidateIdSet.add(card.item.id);
+    };
+    if (suspendHydrationQueue) {
+      if (activeOutput && !isReferenceGridPlaceholderOnlyMediaOutput(activeOutput)) {
+        candidateIdSet.add(activeOutput.id);
+      }
+      curatedVisibleCardItems.forEach(addVisibleCardCandidate);
+      visibleCardItems.forEach(addVisibleCardCandidate);
+      pruneHydrationQueueToCandidateIds(candidateIdSet);
+      return;
+    }
+
     if (activeOutput) {
       if (!isReferenceGridPlaceholderOnlyMediaOutput(activeOutput)) {
         const resolvedMedia = resolveCardMedia({

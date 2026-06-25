@@ -28,7 +28,7 @@ vi.mock("../../features/compliance/components/MediaComplianceGate", () => ({
 }));
 
 vi.mock("../../lib/authGuard", () => ({
-  PROTECTED_ROUTES: ["/saved-creators", "/profile", "/ai-studio", "/admin"],
+  PROTECTED_ROUTES: ["/saved-creators", "/profile", "/report-issue", "/ai-studio", "/admin"],
   useProtectedRoute: (...args: unknown[]) => useProtectedRouteMock(...args),
 }));
 

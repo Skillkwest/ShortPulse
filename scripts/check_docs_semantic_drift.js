@@ -92,6 +92,19 @@ function listApiRoutes() {
   return routes;
 }
 
+function parseDisabledApiExactPaths() {
+  const content = readText(API_AUTH_GUARD_PATH);
+  const disabledSetMatch = content.match(
+    /DISABLED_API_EXACT_PATHS\s*=\s*new Set\(\[([\s\S]*?)\]\)/
+  );
+  if (!disabledSetMatch) return new Set();
+  return new Set(
+    Array.from(disabledSetMatch[1].matchAll(/"([^"]+)"/g), (match) => match[1]).filter(
+      (route) => route.startsWith("/api/")
+    )
+  );
+}
+
 function parseRoutesDoc() {
   const text = readText(ROUTES_DOC);
   const entries = [];
@@ -292,6 +305,7 @@ function run() {
 
   const pageRoutes = listPageRoutes();
   const apiRoutes = listApiRoutes();
+  const disabledApiExactPaths = parseDisabledApiExactPaths();
   const routeDocEntries = parseRoutesDoc();
   const pageDocEntries = routeDocEntries.filter((entry) => !entry.route.startsWith("/api/"));
   const apiDocEntries = routeDocEntries.filter((entry) => entry.route.startsWith("/api/"));
@@ -357,6 +371,7 @@ function run() {
   }
   const apiDocPatterns = parseApiDocPatterns();
   for (const route of apiRoutes) {
+    if (disabledApiExactPaths.has(route)) continue;
     const covered = apiDocPatterns.some((pattern) => routeMatchesPattern(route, pattern));
     if (!covered) {
       errors.push(`API route missing from docs/api/api-internal-routes.md: ${route}`);

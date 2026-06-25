@@ -24,19 +24,6 @@ const DEFAULT_BASE_URL =
   "http://localhost:3000";
 
 const CASES = {
-  "openai-gpt-image-2-text-image": {
-    provider: "openai",
-    modelId: "gpt-image-2",
-    submitPath: "/api/openai/image-generate",
-    submitMode: "sync-json",
-    timeoutMs: 180_000,
-    payload: ({ prompt, projectId }) => ({
-      prompt,
-      size: "1024x1024",
-      quality: "low",
-      ...(projectId ? { project_id: projectId } : {}),
-    }),
-  },
   "elevenlabs-text-to-speech": {
     provider: "elevenlabs",
     modelId: "eleven_v3",

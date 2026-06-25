@@ -78,7 +78,7 @@ describe("buildStandardCreatePanelProps", () => {
     expect(props.isGenerateDisabled).toBe(true);
   });
 
-  it("keeps primary generate clickable when an upstream guardrail is active", () => {
+  it("disables primary generate when an upstream hard guardrail is active", () => {
     const props = buildStandardCreatePanelProps({
       ...baseParams,
       chatModeEnabled: false,
@@ -86,7 +86,7 @@ describe("buildStandardCreatePanelProps", () => {
       isGenerateDisabled: true,
     });
 
-    expect(props.isGenerateDisabled).toBe(false);
+    expect(props.isGenerateDisabled).toBe(true);
   });
 
   it("forwards visible Standard guardrail state and still omits removed output-generate bridge state", () => {

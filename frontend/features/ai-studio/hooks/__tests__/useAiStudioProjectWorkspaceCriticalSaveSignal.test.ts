@@ -67,6 +67,76 @@ describe("useAiStudioProjectWorkspaceCriticalSaveSignal", () => {
     });
   });
 
+  it("does not emit immediate saves for durable output display churn", async () => {
+    const durableOutput = createOutput({
+      savedMediaIds: ["media-1"],
+      previewStoragePath: "user-1/project/reference.png",
+      title: "Original title",
+      taskState: "pending",
+    });
+
+    const { result, rerender } = renderHook(
+      ({ output }: { output: StudioOutput }) =>
+        useAiStudioProjectWorkspaceCriticalSaveSignal({
+          projectId: "project-1",
+          projectRouteRequested: true,
+          outputs: [output],
+          curatedReferenceIds: ["output-1"],
+        }),
+      {
+        initialProps: {
+          output: durableOutput,
+        },
+      }
+    );
+
+    rerender({
+      output: {
+        ...durableOutput,
+        prompt: "Updated prompt summary",
+        title: "Updated title",
+        previewText: "Updated preview text",
+        status: "ready",
+        taskState: "success",
+      },
+    });
+    await Promise.resolve();
+
+    expect(result.current).toBe(0);
+  });
+
+  it("emits when durable Reference Grid visibility changes", async () => {
+    const durableOutput = createOutput({
+      savedMediaIds: ["media-1"],
+      previewStoragePath: "user-1/project/reference.png",
+    });
+
+    const { result, rerender } = renderHook(
+      ({ output }: { output: StudioOutput }) =>
+        useAiStudioProjectWorkspaceCriticalSaveSignal({
+          projectId: "project-1",
+          projectRouteRequested: true,
+          outputs: [output],
+          curatedReferenceIds: ["output-1"],
+        }),
+      {
+        initialProps: {
+          output: durableOutput,
+        },
+      }
+    );
+
+    rerender({
+      output: {
+        ...durableOutput,
+        hiddenInReferenceGrid: true,
+      },
+    });
+    await waitFor(() => {
+      expect(result.current).toBe(1);
+    });
+  });
+
   it("does not emit when a local-only output enters the right rail", () => {
     const localOnlyOutput = createOutput({
       previewUrl: "blob:http://localhost/local-reference",

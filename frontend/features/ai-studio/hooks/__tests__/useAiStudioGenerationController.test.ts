@@ -12,6 +12,7 @@ import {
 } from "../../logic/generationStartPolicy";
 import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../../logic/editPromptPolicy";
 import { INPAINT_FLUX_FILL_MODEL_ID } from "../../logic/inpaintSubmission";
+import { CREATE_CHARACTER_MODE_DEFAULT_MODEL_ID } from "../../logic/createCharacterModeModelMapping";
 import { useAiStudioGenerationController } from "../useAiStudioGenerationController";
 
 const asDispatch = <T>(fn: (...args: unknown[]) => unknown): Dispatch<SetStateAction<T>> =>
@@ -361,7 +362,7 @@ describe("useAiStudioGenerationController", () => {
     expect(generateResult).toEqual({ accepted: true, optimisticOutputId: "out-optimistic" });
   });
 
-  it("marks gpt-image-2 optimistic placeholders as direct-request submissions", async () => {
+  it("marks retired gpt-image-2 optimistic placeholders as provider-task submissions", async () => {
     const insertOptimisticGenerationPlaceholder = vi.fn(() => "out-openai");
     const generateOutput = vi.fn();
     const params = createParams({
@@ -379,7 +380,7 @@ describe("useAiStudioGenerationController", () => {
       prompt: "prompt",
       modeOverride: "image",
       selectedToolOverride: "create",
-      submissionModeOverride: "direct-request",
+      submissionModeOverride: "provider-task",
     });
   });
 
@@ -568,6 +569,54 @@ describe("useAiStudioGenerationController", () => {
 
     expect(refreshBalance).toHaveBeenCalledTimes(1);
     expect(setUiError).not.toHaveBeenCalledWith("You do not have enough credits for this run.");
+    expect(generateOutput).toHaveBeenCalledTimes(1);
+  });
+
+  it("requires fresh credit verification when the spendable snapshot is unresolved", async () => {
+    const setUiError = vi.fn();
+    const generateOutput = vi.fn();
+    const refreshBalance = vi.fn(async () => null);
+    const params = createParams({
+      balanceCredits: 100,
+      shouldVerifyCreditsOnGenerate: true,
+      refreshBalance,
+      setUiError: asDispatch<string | null>(setUiError),
+      generateOutput,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    let generateResult: Awaited<ReturnType<typeof result.current.handleGenerate>> | null = null;
+    await act(async () => {
+      generateResult = await result.current.handleGenerate("prompt", { costOverrideCredits: 5 });
+    });
+
+    expect(refreshBalance).toHaveBeenCalledTimes(1);
+    expect(setUiError).toHaveBeenCalledWith(
+      "You do not have enough credits for this run. Choose a plan on pricing to continue."
+    );
+    expect(generateOutput).not.toHaveBeenCalled();
+    expect(generateResult).toEqual({ accepted: false, optimisticOutputId: null });
+  });
+
+  it("allows generate after required fresh credit verification succeeds", async () => {
+    const setUiError = vi.fn();
+    const generateOutput = vi.fn();
+    const refreshBalance = vi.fn(async () => 6);
+    const params = createParams({
+      balanceCredits: 100,
+      shouldVerifyCreditsOnGenerate: true,
+      refreshBalance,
+      setUiError: asDispatch<string | null>(setUiError),
+      generateOutput,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleGenerate("prompt", { costOverrideCredits: 5 });
+    });
+
+    expect(refreshBalance).toHaveBeenCalledTimes(1);
+    expect(setUiError).not.toHaveBeenCalled();
     expect(generateOutput).toHaveBeenCalledTimes(1);
   });
 
@@ -1328,6 +1377,47 @@ describe("useAiStudioGenerationController", () => {
     expect(generateOutput).toHaveBeenCalledWith(
       "user prompt",
       expect.objectContaining({ modelIdOverride: "fal-ai/nano-banana-pro/edit" })
+    );
+  });
+
+  it("routes stale direct GPT Image 2 create character-mode submits through the active default", async () => {
+    const setModel = vi.fn();
+    const generateOutput = vi.fn();
+    const trackCharacterModeEvent = vi.fn();
+    const params = createParams({
+      model: OPENAI_GPT_IMAGE_2_MODEL_ID,
+      setModel,
+      isCharacterModeEnabled: true,
+      generateOutput,
+      trackCharacterModeEvent,
+      resolveCharacterModeSubmissionOverrides: vi.fn(() => ({
+        submissionPromptOverride: "character + prompt",
+        displayPromptOverride: "user prompt",
+        referenceInputsOverride: ["https://example.com/char-ref.png"],
+        notice: null,
+        fallbackCode: null,
+        characterReferenceCount: 1,
+        hasCharacterDescription: true,
+      })),
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleGenerate("user prompt");
+    });
+
+    expect(setModel).toHaveBeenCalledWith(CREATE_CHARACTER_MODE_DEFAULT_MODEL_ID);
+    expect(trackCharacterModeEvent).toHaveBeenCalledWith(
+      "character_mode_submit_invariant_coerced",
+      expect.objectContaining({
+        trigger: "generate",
+        from_model_id: OPENAI_GPT_IMAGE_2_MODEL_ID,
+        to_model_id: CREATE_CHARACTER_MODE_DEFAULT_MODEL_ID,
+      })
+    );
+    expect(generateOutput).toHaveBeenCalledWith(
+      "user prompt",
+      expect.objectContaining({ modelIdOverride: CREATE_CHARACTER_MODE_DEFAULT_MODEL_ID })
     );
   });
 

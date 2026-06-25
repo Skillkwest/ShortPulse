@@ -2,7 +2,7 @@
  * Pending output bootstrap helpers for generation submission.
  * Keeps placeholder creation and replay snapshot attachment out of the main submit hook.
  */
-import { OPENAI_GPT_IMAGE_2_MODEL_ID } from "../../../../lib/model-runtime/openAiImage2";
+import { getModelCatalogEntry } from "../../../../lib/model-runtime/modelCatalog";
 import type { InternalMediaRef } from "../../../../lib/media/internalMediaRefs";
 import {
   buildGenerationReplayConfigV1,
@@ -395,7 +395,9 @@ export const buildPendingSubmissionOutput = ({
 export const resolveSubmissionModeForModelId = (
   modelId: string | null | undefined
 ): StudioOutputSubmissionMode =>
-  modelId === OPENAI_GPT_IMAGE_2_MODEL_ID ? "direct-request" : "provider-task";
+  modelId && getModelCatalogEntry(modelId)?.executionMode === "direct"
+    ? "direct-request"
+    : "provider-task";
 
 export const reconcilePendingSubmissionOutput = (
   prev: StudioOutput[],

@@ -63,7 +63,7 @@ describe("useAiStudioPageDerivations", () => {
     expect(params.durationSeconds).toBe(8);
   });
 
-  it("adds GPT Image 2 edit pricing inputs when reference images are present", () => {
+  it("does not add retired direct GPT Image 2 edit pricing inputs", () => {
     const { result } = renderHook(() =>
       useAiStudioPageDerivations(
         createParams({
@@ -75,8 +75,8 @@ describe("useAiStudioPageDerivations", () => {
     );
 
     const params = result.current.costParamsForModel("gpt-image-2");
-    expect(params.inputImageCount).toBe(2);
-    expect(params.inputFidelity).toBe("high");
+    expect(params.inputImageCount).toBeUndefined();
+    expect(params.inputFidelity).toBeUndefined();
   });
 
   it("uses shared create/image model policy and keeps only image-capable create models", () => {
@@ -126,7 +126,6 @@ describe("useAiStudioPageDerivations", () => {
     const values = new Set(result.current.filteredModelOptions.map((option) => option.value));
     expect(values).toEqual(
       new Set([
-        "gpt-image-2",
         "kie-ai/gpt-image-2-image-to-image",
         "fal-ai/bytedance/seedream/v4.5/edit",
         "fal-ai/bytedance/seedream/v5/lite/edit",

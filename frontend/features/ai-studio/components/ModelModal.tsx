@@ -38,7 +38,6 @@ import {
   resolveRequiredCreateCharacterModeStartupModelId,
   resolveRequiredCreateStartupModelId,
 } from "../../../lib/model-runtime/modelCatalog";
-import { OPENAI_GPT_IMAGE_2_MODEL_ID } from "../../../lib/model-runtime/openAiImage2";
 import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 
 export type ModelModalContext =
@@ -142,12 +141,6 @@ const modelPriorityByContext: Partial<Record<ModelModalContext, string[]>> = {
     KIE_SEEDANCE_2_MODEL_ID,
     KIE_SEEDANCE_2_FAST_MODEL_ID,
   ],
-};
-
-const hiddenModelIdsByContext: Partial<Record<ModelModalContext, string[]>> = {
-  "character-image": [OPENAI_GPT_IMAGE_2_MODEL_ID],
-  "text-image": [OPENAI_GPT_IMAGE_2_MODEL_ID],
-  "reference-image": [OPENAI_GPT_IMAGE_2_MODEL_ID],
 };
 
 const videoModalContexts = new Set<ModelModalContext>([
@@ -257,19 +250,14 @@ function ModelModalContent({
     return () => window.cancelAnimationFrame(frame);
   }, [isOpen]);
 
-  const contextHiddenModelIds = useMemo(
-    () => new Set(context ? (hiddenModelIdsByContext[context] ?? []) : []),
-    [context]
-  );
   const visibleOptions = useMemo(
     () =>
       options.filter(
         (option) =>
-          !contextHiddenModelIds.has(option.value) &&
           modelMatchesModalContext(option, context) &&
           (isSeedance2UiEnabled() || !isSeedance2ModelId(option.value))
       ),
-    [context, contextHiddenModelIds, options]
+    [context, options]
   );
 
   useEffect(() => {

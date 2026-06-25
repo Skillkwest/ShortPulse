@@ -2275,6 +2275,93 @@ describe("sessionSnapshot", () => {
     expect(projectSnapshot.outputs.removedFromAllRefsIds).toEqual([]);
   });
 
+  it("prunes terminal hidden outputs from project workspace snapshots while preserving hidden in-flight runtime rows", () => {
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "project-hidden-output-filter-session",
+      updatedAt: "2026-03-02T12:00:00.000Z",
+      mode: "image",
+      selectedTool: "create",
+      prompt: "A cinematic portrait",
+      model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+      aspect: "9:16",
+      expertCreateMode: "standard",
+      activePulsePresetId: null,
+      pulseSessionInstanceId: null,
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 6,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingWorkflowMode: "single",
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [
+        createOutput({
+          id: "visible-output",
+          taskState: "success",
+          previewUrl: "https://cdn.example.com/visible.png",
+        }),
+        createOutput({
+          id: "hidden-terminal-output",
+          hiddenInReferenceGrid: true,
+          taskState: "success",
+          previewUrl: "https://cdn.example.com/hidden-terminal.png",
+          savedMediaIds: ["11111111-1111-4111-8111-111111111111"],
+        }),
+        createOutput({
+          id: "hidden-running-output",
+          hiddenInReferenceGrid: true,
+          mediaSource: "generated",
+          taskState: "running",
+          taskId: "task-hidden-running",
+          previewText: "Still processing",
+        }),
+      ],
+      archivedOutputs: [],
+      activeOutputId: "hidden-terminal-output",
+      curatedReferenceIds: ["visible-output", "hidden-terminal-output", "hidden-running-output"],
+      removedFromAllRefsIds: ["hidden-terminal-output", "hidden-running-output"],
+      agentMessages: [],
+      agentInput: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: false,
+      canvasState: createCanvasState(),
+    });
+
+    const projectSnapshot = createAiStudioProjectWorkspaceSnapshot(snapshot);
+
+    expect(projectSnapshot.outputs.active.map((output) => output.id)).toEqual([
+      "visible-output",
+      "hidden-running-output",
+    ]);
+    expect(projectSnapshot.outputs.active[1]).toEqual(
+      expect.objectContaining({
+        id: "hidden-running-output",
+        hiddenInReferenceGrid: true,
+        taskState: "running",
+        taskId: "task-hidden-running",
+      })
+    );
+    expect(projectSnapshot.outputs.activeOutputId).toBeNull();
+    expect(projectSnapshot.outputs.curatedReferenceIds).toEqual([
+      "visible-output",
+      "hidden-running-output",
+    ]);
+    expect(projectSnapshot.outputs.removedFromAllRefsIds).toEqual(["hidden-running-output"]);
+  });
+
   it("removes local-only upload refs from project workspace snapshots while keeping durable and recoverable outputs", () => {
     const snapshot = buildAiStudioSessionSnapshot({
       sessionId: "project-local-upload-filter-session",
@@ -2533,7 +2620,7 @@ describe("sessionSnapshot", () => {
       generationId: "gen-generated-pending-heavy",
       taskId: "task-generated-pending-heavy",
       taskState: "pending",
-      prompt: heavyPrompt,
+      prompt: heavyPrompt.slice(0, 1000),
       previewUrl: "https://cdn.example.com/generated-pending-heavy.png",
     });
     expect(projectSnapshot.outputs.curatedReferenceIds).toEqual([
@@ -2785,10 +2872,81 @@ describe("sessionSnapshot", () => {
 
     expect(outputRow).toMatchObject({
       id: "out-prompt-reference-heavy",
-      previewText: promptReferenceText,
+      previewText: promptReferenceText.slice(0, 1000),
       promptId: "prompt-1",
     });
     expect(outputRow).not.toHaveProperty("prompt");
+  });
+
+  it("trims durable-backed project output text summaries before autosave byte checks", () => {
+    const oversizedPrompt = "x".repeat(950_000);
+    const oversizedPreviewText = "y".repeat(20_000);
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "project-durable-text-summary-trim-session",
+      updatedAt: "2026-03-02T12:00:00.000Z",
+      mode: "image",
+      selectedTool: "create",
+      prompt: "A cinematic portrait",
+      model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+      aspect: "9:16",
+      expertCreateMode: "standard",
+      activePulsePresetId: null,
+      pulseSessionInstanceId: null,
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 6,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingWorkflowMode: "single",
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [
+        createOutput({
+          id: "out-library-large-prompt",
+          mediaSource: "library",
+          savedMediaIds: ["media-1"],
+          prompt: oversizedPrompt,
+          previewText: oversizedPreviewText,
+          transcriptText: oversizedPrompt,
+          lyricsText: oversizedPreviewText,
+          previewUrl: "https://cdn.example.com/library-large-prompt.png",
+        }),
+      ],
+      archivedOutputs: [],
+      activeOutputId: "out-library-large-prompt",
+      curatedReferenceIds: ["out-library-large-prompt"],
+      removedFromAllRefsIds: [],
+      agentMessages: [],
+      agentInput: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: false,
+    });
+
+    const projectSnapshot = createAiStudioProjectWorkspaceSnapshot(snapshot);
+    const outputRow = projectSnapshot.outputs.active[0] as Record<string, unknown>;
+    const preparedSnapshot = prepareAiStudioSessionAutosaveSnapshot(projectSnapshot);
+
+    expect(outputRow).toMatchObject({
+      id: "out-library-large-prompt",
+      prompt: oversizedPrompt.slice(0, 1000),
+      previewText: oversizedPreviewText.slice(0, 1000),
+      transcriptText: oversizedPrompt.slice(0, 1000),
+      lyricsText: oversizedPreviewText.slice(0, 1000),
+      savedMediaIds: ["media-1"],
+    });
+    expect(preparedSnapshot.bytes).toBeLessThanOrEqual(AI_STUDIO_SESSION_MAX_SNAPSHOT_BYTES);
   });
 
   it("keeps project autosave snapshots under the byte cap for accumulated pending generations and prompt refs", () => {
@@ -3027,6 +3185,8 @@ describe("sessionSnapshot", () => {
   });
 
   it("strips local blob/data preview URLs from persisted output payloads", () => {
+    const renderImageUrl =
+      "https://project.supabase.co/storage/v1/render/image/sign/media_library/user-1/render.png?token=test-token&width=320";
     const snapshot = buildAiStudioSessionSnapshot({
       sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
       mode: "image",
@@ -3055,7 +3215,12 @@ describe("sessionSnapshot", () => {
       outputs: [
         createOutput({
           previewUrl: "blob:http://localhost/preview-1",
-          resultUrls: ["https://cdn.shortpulse.dev/output.png", "data:image/png;base64,abc"],
+          previewPosterUrl: renderImageUrl,
+          resultUrls: [
+            "https://cdn.shortpulse.dev/output.png",
+            "data:image/png;base64,abc",
+            renderImageUrl,
+          ],
         }),
       ],
       archivedOutputs: [],
@@ -3071,6 +3236,7 @@ describe("sessionSnapshot", () => {
     });
 
     expect(snapshot.outputs.active[0]?.previewUrl).toBeUndefined();
+    expect(snapshot.outputs.active[0]?.previewPosterUrl).toBeUndefined();
     expect(snapshot.outputs.active[0]?.resultUrls).toEqual([
       "https://cdn.shortpulse.dev/output.png",
     ]);
@@ -3119,6 +3285,8 @@ describe("sessionSnapshot", () => {
   });
 
   it("strips local blob/data workspace references from persisted session workspace", () => {
+    const renderImageUrl =
+      "https://project.supabase.co/storage/v1/render/image/sign/media_library/user-1/render.png?token=test-token&width=320";
     const snapshot = buildAiStudioSessionSnapshot({
       sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
       mode: "video",
@@ -3126,8 +3294,12 @@ describe("sessionSnapshot", () => {
       prompt: "motion test",
       model: "kie-ai/kling-3.0",
       aspect: "16:9",
-      referenceImageUrl: "blob:http://localhost/character-ref",
-      extraImageUrls: ["data:image/png;base64,abc", "https://cdn.shortpulse.dev/extra.png", null],
+      referenceImageUrl: renderImageUrl,
+      extraImageUrls: [
+        "data:image/png;base64,abc",
+        "https://cdn.shortpulse.dev/extra.png",
+        renderImageUrl,
+      ],
       editReferenceText: "",
       videoReferenceText: "",
       videoReferenceMode: "motion",
@@ -3148,10 +3320,23 @@ describe("sessionSnapshot", () => {
         {
           id: "element-1",
           profileImageTransform: { zoom: 1.25, offsetX: 4, offsetY: -3 },
-          frontalImageUrl: "data:image/png;base64,abc",
-          referenceImageUrls: "blob:http://localhost/1, https://cdn.shortpulse.dev/ref-1.png",
-          videoUrl: "blob:http://localhost/motion-element",
+          frontalImageUrl: renderImageUrl,
+          referenceImageUrls: `blob:http://localhost/1, https://cdn.shortpulse.dev/ref-1.png, ${renderImageUrl}`,
+          videoUrl: renderImageUrl,
         },
+      ],
+      seedance2ReferenceImageUrls: [
+        "blob:http://localhost/seedance-image",
+        "https://cdn.shortpulse.dev/seedance-image.png",
+        renderImageUrl,
+      ],
+      seedance2ReferenceVideoUrls: [
+        "data:video/mp4;base64,abc",
+        "https://cdn.shortpulse.dev/seedance-video.mp4",
+      ],
+      seedance2ReferenceAudioUrls: [
+        "blob:http://localhost/seedance-audio",
+        "https://cdn.shortpulse.dev/seedance-audio.mp3",
       ],
       motionReferenceVideoUrl: "blob:http://localhost/motion-video",
       outputs: [],
@@ -3183,6 +3368,15 @@ describe("sessionSnapshot", () => {
     expect(snapshot.workspace.motionReferenceVideoUrl).toBeNull();
     expect(snapshot.workspace.lipSyncAudioUrl).toBeNull();
     expect(snapshot.workspace.lipSyncAudioDurationMs).toBeNull();
+    expect(snapshot.workspace.seedance2ReferenceImageUrls).toEqual([
+      "https://cdn.shortpulse.dev/seedance-image.png",
+    ]);
+    expect(snapshot.workspace.seedance2ReferenceVideoUrls).toEqual([
+      "https://cdn.shortpulse.dev/seedance-video.mp4",
+    ]);
+    expect(snapshot.workspace.seedance2ReferenceAudioUrls).toEqual([
+      "https://cdn.shortpulse.dev/seedance-audio.mp3",
+    ]);
     expect(snapshot.workspace.klingElements[0]).toEqual({
       id: "element-1",
       sourceKind: null,

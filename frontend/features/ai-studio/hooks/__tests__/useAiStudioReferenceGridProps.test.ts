@@ -32,7 +32,6 @@ const createParams = (
   handlePasteTextReference: vi.fn(),
   handlePasteMediaReference: vi.fn(),
   openDetailSelectionTarget: vi.fn(),
-  retryOutputStatus: vi.fn(),
   deleteOutput: vi.fn(),
   addCuratedReference: vi.fn(),
   removeCuratedReference: vi.fn(),
@@ -48,7 +47,6 @@ describe("useAiStudioReferenceGridProps", () => {
     const handlePasteMediaReference = vi.fn();
     const handleAddLibraryMediaReference = vi.fn();
     const handleAddLibraryPromptReference = vi.fn();
-    const retryOutputStatus = vi.fn();
     const handleRerollOutput = vi.fn();
     const handleReloadWorkflowOutput = vi.fn();
 
@@ -61,7 +59,6 @@ describe("useAiStudioReferenceGridProps", () => {
           handlePasteMediaReference,
           handleAddLibraryMediaReference,
           handleAddLibraryPromptReference,
-          retryOutputStatus,
           handleRerollOutput,
           handleReloadWorkflowOutput,
         })
@@ -84,7 +81,6 @@ describe("useAiStudioReferenceGridProps", () => {
       id: "prompt-1",
       promptText: "library prompt",
     });
-    result.current.onRetryStatus?.(output);
     result.current.onRerollOutput?.(output);
     result.current.onReloadWorkflowOutput?.(output);
 
@@ -104,7 +100,6 @@ describe("useAiStudioReferenceGridProps", () => {
       id: "prompt-1",
       promptText: "library prompt",
     });
-    expect(retryOutputStatus).toHaveBeenCalledWith("out-1");
     expect(handleRerollOutput).toHaveBeenCalledWith("out-1");
     expect(handleReloadWorkflowOutput).toHaveBeenCalledWith(output, undefined);
   });

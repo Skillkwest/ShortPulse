@@ -240,8 +240,12 @@ describe("model catalog route coverage", () => {
     }
   });
 
-  it("covers the GPT Image 2 OpenAI route family in the shared catalog", () => {
-    expect(getModelCatalogEntry(OPENAI_IMAGE_MODEL_ID)).toBeTruthy();
+  it("keeps the retired GPT Image 2 OpenAI route family disabled", () => {
+    const entry = getModelCatalogEntry(OPENAI_IMAGE_MODEL_ID);
+    expect(entry?.lifecycle).not.toBe("active");
+    expect(entry?.surfaces ?? []).not.toContain("runtime");
+    expect(entry?.submitHandler).toBeUndefined();
+    expect(entry?.executionMode).toBeUndefined();
 
     const missingContracts: string[] = [];
 
@@ -249,14 +253,17 @@ describe("model catalog route coverage", () => {
       const filePath = path.join(OPENAI_ROUTES_DIR, fileName);
       const contents = fs.readFileSync(filePath, "utf8");
 
-      if (!contents.includes("OPENAI_GPT_IMAGE_2_MODEL_ID")) {
-        missingContracts.push(`${fileName}: missing model id constant`);
+      if (contents.includes("OPENAI_GPT_IMAGE_2_MODEL_ID")) {
+        missingContracts.push(`${fileName}: still imports model id constant`);
       }
-      if (!contents.includes("requireApiUser")) {
-        missingContracts.push(`${fileName}: missing route auth`);
+      if (contents.includes("requireApiUser")) {
+        missingContracts.push(`${fileName}: still enforces active route auth`);
       }
-      if (!contents.includes("chargeGenerationRequest")) {
-        missingContracts.push(`${fileName}: missing shared billing`);
+      if (contents.includes("chargeGenerationRequest")) {
+        missingContracts.push(`${fileName}: still references shared billing`);
+      }
+      if (!contents.includes('return res.status(404).json({ error: "Not found" })')) {
+        missingContracts.push(`${fileName}: missing retired 404 response`);
       }
     }
 

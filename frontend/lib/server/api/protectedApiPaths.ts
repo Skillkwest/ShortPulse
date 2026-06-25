@@ -34,6 +34,10 @@ export const PROTECTED_API_PREFIXES = [
 ];
 
 export const WEBHOOK_PATHS = new Set(["/api/billing/stripe/webhook", "/api/fal/webhook"]);
+export const DISABLED_API_EXACT_PATHS = new Set([
+  "/api/openai/image-generate",
+  "/api/openai/image-edit",
+]);
 const INTERNAL_API_PREFIXES = ["/api/_utils", "/api/_utils/"];
 
 /**
@@ -41,6 +45,12 @@ const INTERNAL_API_PREFIXES = ["/api/_utils", "/api/_utils/"];
  */
 export const isInternalApiPath = (pathname: string): boolean =>
   INTERNAL_API_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix));
+
+/**
+ * Returns true when a retired route should be indistinguishable from a missing route.
+ */
+export const isDisabledApiPath = (pathname: string): boolean =>
+  DISABLED_API_EXACT_PATHS.has(pathname);
 
 /**
  * Returns true when middleware/route auth must enforce an authenticated user.

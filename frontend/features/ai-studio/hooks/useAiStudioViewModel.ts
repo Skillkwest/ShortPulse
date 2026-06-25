@@ -194,6 +194,9 @@ export const useAiStudioViewModel = ({
     () => (effectiveEditSubmitModelId ? getModelConfig(effectiveEditSubmitModelId) : null),
     [effectiveEditSubmitModelId]
   );
+  const effectiveEditModelIsActiveRuntime =
+    effectiveEditModelConfig?.lifecycle === "active" &&
+    effectiveEditModelConfig.surfaces?.includes("runtime");
   const normalizedEditSubmitIntent = useMemo(
     () => normalizeEditSubmitIntent(editSubmitIntent),
     [editSubmitIntent]
@@ -334,6 +337,7 @@ export const useAiStudioViewModel = ({
   const canResolveVideoPricingGrid = isVideoTool && !isPricingPolicyUnavailable;
   const canUseCurrentEditPricingGrid =
     canResolveStandardEditPricingGrid &&
+    effectiveEditModelIsActiveRuntime &&
     normalizedEditSubmitIntent === "standard" &&
     supportsCanonicalEditImageBilledPricing(effectiveEditSubmitModelId);
   const createReferenceImageUrls = useMemo(
@@ -497,6 +501,7 @@ export const useAiStudioViewModel = ({
 
     if (isEditWorkflowSelected) {
       if (!effectiveEditSubmitModelId) return null;
+      if (!effectiveEditModelIsActiveRuntime) return null;
       if (canUseCurrentEditPricingGrid) {
         return currentEditPricingLookup?.breakdown ?? null;
       }
@@ -528,6 +533,7 @@ export const useAiStudioViewModel = ({
     mode,
     model,
     effectiveVideoPricingModelId,
+    effectiveEditModelIsActiveRuntime,
     effectiveEditSubmitModelId,
     canUseCurrentEditPricingGrid,
     isCreateWorkflowSelected,
@@ -581,6 +587,7 @@ export const useAiStudioViewModel = ({
         pricingPolicy,
       });
     }
+    if (isEditWorkflowSelected && !effectiveEditModelIsActiveRuntime) return null;
     return resolveClientBilledCredits({
       modelId: isVideoTool
         ? (effectiveVideoPricingModelId ?? effectiveEditSubmitModelId)
@@ -606,10 +613,12 @@ export const useAiStudioViewModel = ({
     createCharacterModeInjectionBundle,
     costParamsForModel,
     createReferenceImageUrls,
+    effectiveEditModelIsActiveRuntime,
     effectiveEditSubmitModelId,
     effectiveVideoPricingModelId,
     isCreateCharacterModeEnabled,
     isCreateWorkflowSelected,
+    isEditWorkflowSelected,
     isVideoTool,
     isImageTool,
     isPricingPolicyUnavailable,
@@ -646,6 +655,8 @@ export const useAiStudioViewModel = ({
       if (
         canResolveStandardEditPricingGrid &&
         isEditWorkflowSelected &&
+        getModelConfig(modelIdForChip)?.lifecycle === "active" &&
+        getModelConfig(modelIdForChip)?.surfaces?.includes("runtime") &&
         supportsCanonicalEditImageBilledPricing(modelIdForChip)
       ) {
         return resolveEditImageBilledCredits({
@@ -727,6 +738,7 @@ export const useAiStudioViewModel = ({
         pricingPolicy,
       });
     }
+    if (isEditWorkflowSelected && !effectiveEditModelIsActiveRuntime) return null;
     return resolveClientBilledCredits({
       modelId: effectiveEditSubmitModelId,
       params: costParamsForModel(effectiveEditSubmitModelId, {
@@ -744,6 +756,7 @@ export const useAiStudioViewModel = ({
     costParamsForModel,
     canUseStandardCreatePricingGrid,
     createReferenceImageUrls,
+    effectiveEditModelIsActiveRuntime,
     effectiveEditSubmitModelId,
     isCreateCharacterModeEnabled,
     isCreateWorkflowSelected,
@@ -871,7 +884,7 @@ export const useAiStudioViewModel = ({
       (mode === "image" || mode === "video" || (mode === "text" && !isDescribeMode))) ||
     isVideoTool ||
     isEditWorkflowSelected;
-  const creditStateBlocksGenerate = useMemo(() => {
+  const shouldVerifyCreditsOnGenerate = useMemo(() => {
     if (!billableSubmitFlow) return false;
     return balanceLoading || balanceError != null || balanceCredits == null;
   }, [balanceCredits, balanceError, balanceLoading, billableSubmitFlow]);
@@ -1052,7 +1065,7 @@ export const useAiStudioViewModel = ({
     missingCanonicalVideoBilledCreditsGuardrail,
   ]);
 
-  const isGenerateDisabled = Boolean(generationGuardrail) || creditStateBlocksGenerate;
+  const isGenerateDisabled = Boolean(generationGuardrail);
   const modelConfig = effectiveEditModelConfig ?? selectedModelConfig;
 
   // Warning when user hasn't provided reference image for image-to-image or image-to-video models
@@ -1142,6 +1155,7 @@ export const useAiStudioViewModel = ({
     promptReferenceGenerateCostCredits,
     hasSufficientCreditsForCost,
     hasSufficientCreditsForPromptReferenceGenerate,
+    shouldVerifyCreditsOnGenerate,
     isCreditGuardrail,
     generationGuardrail,
     isGenerateDisabled,

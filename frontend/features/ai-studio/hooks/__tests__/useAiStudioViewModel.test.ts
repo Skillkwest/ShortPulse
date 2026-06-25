@@ -3,7 +3,6 @@ import { renderHook } from "@testing-library/react";
 import { computeCostForModel } from "../../logic/pricing";
 import type { PricingParams } from "../../logic/pricingTypes";
 import {
-  KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
@@ -16,7 +15,6 @@ import {
   INPAINT_REFERENCE_MODEL_ID,
   MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID,
 } from "../../logic/inpaintSubmission";
-import { resolveCreateImageBilledCredits } from "../../../../lib/model-runtime/createImageBilledCredits";
 import { resolveEditImageBilledCredits } from "../../../../lib/model-runtime/editImageBilledCredits";
 import { resolveVideoBilledCredits } from "../../../../lib/model-runtime/videoBilledCredits";
 import { useAiStudioViewModel } from "../useAiStudioViewModel";
@@ -421,7 +419,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.promptReferenceGenerateCostCredits).toBe(expectedCost);
   });
 
-  it("prices stale direct GPT Image 2 Character Mode as Kie GPT Image 2 Edit", () => {
+  it("prices stale direct GPT Image 2 Character Mode as the active default edit model", () => {
     const modelId = OPENAI_GPT_IMAGE_2_MODEL_ID;
     const createCharacterModeInjectionBundle: CharacterModeInjectionBundle = {
       characterId: "char-1",
@@ -433,16 +431,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
       ],
       loadedAtMs: Date.now(),
     };
-    const expectedCost = resolveCreateImageBilledCredits({
-      modelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
-      params: {
-        aspect: "16:9",
-        resolution: "1K",
-        inputImageCount: 3,
-        maskPresent: false,
-      },
-      pricingPolicy: pricingGridPolicy,
-    });
+    const expectedCost = 4;
 
     const { result } = renderHook(() =>
       useAiStudioViewModel({
@@ -468,7 +457,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.isGenerateDisabled).toBe(false);
   });
 
-  it("keeps single-ref stale direct GPT Image 2 Character Mode on the Kie edit row", () => {
+  it("keeps single-ref stale direct GPT Image 2 Character Mode on the active default edit row", () => {
     const modelId = OPENAI_GPT_IMAGE_2_MODEL_ID;
     const createCharacterModeInjectionBundle: CharacterModeInjectionBundle = {
       characterId: "char-1",
@@ -477,17 +466,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
       sheetReferenceUrls: ["https://cdn.shortpulse.test/look-1.png"],
       loadedAtMs: Date.now(),
     };
-    const expectedCost = resolvePricingGridBilledCredits({
-      modelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
-      params: {
-        aspect: "16:9",
-        resolution: "1K",
-        inputImageCount: 1,
-        maskPresent: false,
-      },
-      pricingPolicy: pricingGridPolicy,
-      requireExplicitBilledCreditsOverride: true,
-    });
+    const expectedCost = 4;
 
     const { result } = renderHook(() =>
       useAiStudioViewModel({
@@ -690,17 +669,8 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.isGenerateDisabled).toBe(false);
   });
 
-  it("maps GPT Image 2 Create UI resolution labels onto canonical quality rows", () => {
+  it("does not price retired direct GPT Image 2 Create", () => {
     const modelId = OPENAI_GPT_IMAGE_2_MODEL_ID;
-    const expectedCost = resolvePricingGridBilledCredits({
-      modelId,
-      params: {
-        aspect: "16:9",
-        resolution: "medium",
-      },
-      pricingPolicy: pricingGridPolicy,
-    });
-
     const { result } = renderHook(() =>
       useAiStudioViewModel({
         ...baseInput,
@@ -718,7 +688,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
       })
     );
 
-    expect(result.current.promptReferenceGenerateCostCredits).toBe(expectedCost);
+    expect(result.current.promptReferenceGenerateCostCredits).toBeNull();
   });
 
   it("keeps create text generation enabled when output-generate cost exceeds balance", () => {
@@ -754,7 +724,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.isGenerateDisabled).toBe(false);
   });
 
-  it("blocks billed create-text generate while spendable credits are still loading without helper text", () => {
+  it("keeps billed create-text generate clickable while spendable credits require verification", () => {
     const modelId = "fal-ai/nano-banana-2";
 
     const { result } = renderHook(() =>
@@ -776,11 +746,12 @@ describe("useAiStudioViewModel motion guardrails", () => {
     );
 
     expect(result.current.generationGuardrail).toBeNull();
-    expect(result.current.isGenerateDisabled).toBe(true);
+    expect(result.current.isGenerateDisabled).toBe(false);
+    expect(result.current.shouldVerifyCreditsOnGenerate).toBe(true);
     expect(result.current.isCreditGuardrail).toBe(false);
   });
 
-  it("blocks billed edit generate when spendable credit refresh failed without helper text", () => {
+  it("keeps billed edit generate clickable after spendable credit refresh failed", () => {
     const modelId = "fal-ai/nano-banana-pro/edit";
 
     const { result } = renderHook(() =>
@@ -798,7 +769,8 @@ describe("useAiStudioViewModel motion guardrails", () => {
     );
 
     expect(result.current.generationGuardrail).toBeNull();
-    expect(result.current.isGenerateDisabled).toBe(true);
+    expect(result.current.isGenerateDisabled).toBe(false);
+    expect(result.current.shouldVerifyCreditsOnGenerate).toBe(true);
     expect(result.current.isCreditGuardrail).toBe(false);
   });
 
@@ -880,7 +852,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
       })
     );
 
-    const candidateModelId = OPENAI_GPT_IMAGE_2_MODEL_ID;
+    const candidateModelId = "fal-ai/nano-banana-2";
     const expectedCredits = resolvePricingGridBilledCredits({
       modelId: candidateModelId,
       params: costParamsForModel(candidateModelId, {
@@ -892,7 +864,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.resolveModelPickerCredits(candidateModelId)).toBe(expectedCredits);
   });
 
-  it("uses the selected gpt-image-2 quality tier for create image costs", () => {
+  it("does not price retired selected gpt-image-2 create image costs", () => {
     const modelId = OPENAI_GPT_IMAGE_2_MODEL_ID;
     const costParamsForModel = (
       targetModelId: string,
@@ -905,17 +877,6 @@ describe("useAiStudioViewModel motion guardrails", () => {
       audio: false,
       ...overrides,
     });
-    const expectedCurrentCost = resolvePricingGridBilledCredits({
-      modelId,
-      params: costParamsForModel(modelId, { aspect: "9:16", resolution: "4K" }),
-      pricingPolicy: pricingGridPolicy,
-    });
-    const expectedPromptCost = resolvePricingGridBilledCredits({
-      modelId,
-      params: costParamsForModel(modelId, { aspect: "9:16", resolution: "4K" }),
-      pricingPolicy: pricingGridPolicy,
-    });
-
     const { result } = renderHook(() =>
       useAiStudioViewModel({
         ...baseInput,
@@ -932,11 +893,8 @@ describe("useAiStudioViewModel motion guardrails", () => {
       })
     );
 
-    expect(result.current.currentCostCredits).toBe(expectedCurrentCost);
-    expect(result.current.promptReferenceGenerateCostCredits).toBe(expectedPromptCost);
-    expect(result.current.promptReferenceGenerateCostCredits).toBe(
-      result.current.currentCostCredits
-    );
+    expect(result.current.currentCostCredits).toBeNull();
+    expect(result.current.promptReferenceGenerateCostCredits).toBeNull();
   });
 
   it("blocks generation when both motion inputs are missing", () => {
@@ -1934,17 +1892,7 @@ describe("useAiStudioViewModel edit guardrails", () => {
     expect(result.current.isGenerateDisabled).toBe(false);
   });
 
-  it("prices GPT Image 2 Edit from the canonical billed row", () => {
-    const expectedCost = resolveEditImageBilledCredits({
-      modelId: OPENAI_GPT_IMAGE_2_MODEL_ID,
-      params: {
-        aspect: "16:9",
-        resolution: "medium",
-        inputImageCount: 1,
-      },
-      pricingPolicy: pricingGridPolicy,
-    });
-
+  it("does not price retired direct GPT Image 2 Edit", () => {
     const { result } = renderHook(() =>
       useAiStudioViewModel({
         ...editInput,
@@ -1958,23 +1906,11 @@ describe("useAiStudioViewModel edit guardrails", () => {
       })
     );
 
-    expect(result.current.currentCostCredits).toBe(expectedCost);
-    expect(result.current.modelPickerCostCredits).toBe(expectedCost);
-    expect(result.current.generationGuardrail).toBeNull();
-    expect(result.current.isGenerateDisabled).toBe(false);
+    expect(result.current.currentCostCredits).toBeNull();
+    expect(result.current.modelPickerCostCredits).toBeNull();
   });
 
-  it("prices GPT Image 2 multi-ref Edit from runtime quantity authority", () => {
-    const expectedCost = resolveEditImageBilledCredits({
-      modelId: OPENAI_GPT_IMAGE_2_MODEL_ID,
-      params: {
-        aspect: "16:9",
-        resolution: "medium",
-        inputImageCount: 2,
-      },
-      pricingPolicy: pricingGridPolicy,
-    });
-
+  it("does not price retired direct GPT Image 2 multi-ref Edit", () => {
     const { result } = renderHook(() =>
       useAiStudioViewModel({
         ...editInput,
@@ -1989,10 +1925,8 @@ describe("useAiStudioViewModel edit guardrails", () => {
       })
     );
 
-    expect(result.current.currentCostCredits).toBe(expectedCost);
-    expect(result.current.modelPickerCostCredits).toBe(expectedCost);
-    expect(result.current.generationGuardrail).toBeNull();
-    expect(result.current.isGenerateDisabled).toBe(false);
+    expect(result.current.currentCostCredits).toBeNull();
+    expect(result.current.modelPickerCostCredits).toBeNull();
   });
 
   it("prices Nano Banana 2 Edit from the canonical billed row even with extra refs", () => {

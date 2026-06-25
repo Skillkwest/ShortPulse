@@ -85,4 +85,4 @@ Provider payload after server normalization:
 ## Notes
 
 - This is intentionally separate from the Kie `kie-ai/gpt-image-2-text-to-image` lane.
-- This is also separate from OpenAI `gpt-image-2`, which remains a direct synchronous OpenAI route.
+- This is also separate from retired direct OpenAI `gpt-image-2` routes, which are disabled and should not be used for new GPT Image 2 work.

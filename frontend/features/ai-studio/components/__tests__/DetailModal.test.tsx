@@ -55,7 +55,6 @@ const createReferenceGridCardProps = (
   videoPreload: "none",
   isPromptOnly: false,
   isLinkedPromptReference: false,
-  canRetryStatus: false,
   imageSrc: undefined,
   imageLoading: "lazy",
   imageFetchPriority: "low",
@@ -139,9 +138,8 @@ describe("DetailModal", () => {
 
     const { baseElement } = render(<ErrorReferenceHarness />);
 
-    expect(
-      screen.getByText((content) => content.includes(scenario.expectedCardText))
-    ).toBeVisible();
+    expect(screen.getByText("Generation failed")).toBeVisible();
+    expect(screen.queryByText((content) => content.includes(scenario.expectedCardText))).toBeNull();
     expect(screen.queryByText("req_provider_upstream", { exact: false })).toBeNull();
 
     fireEvent.doubleClick(screen.getByRole("button"));

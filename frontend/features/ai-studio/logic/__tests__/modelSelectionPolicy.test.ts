@@ -100,7 +100,6 @@ const lipSyncLanes: GenerationWorkflowLane[] = ["lip-sync"];
 
 const getModelConfig = (id: string) => {
   if (
-    id === OPENAI_GPT_IMAGE_2_MODEL_ID ||
     id === FAL_FLUX_2_KLEIN_9B_MODEL_ID ||
     id === FAL_NANO_BANANA_2_MODEL_ID ||
     id === FAL_NANO_BANANA_PRO_MODEL_ID ||
@@ -108,9 +107,9 @@ const getModelConfig = (id: string) => {
     id === CREATE_DEFAULT_MODEL_ID
   ) {
     return {
-      provider: id === OPENAI_GPT_IMAGE_2_MODEL_ID ? "openai" : "fal",
+      provider: "fal",
       supportsTextToImage: true,
-      supportsImageToImage: id === OPENAI_GPT_IMAGE_2_MODEL_ID,
+      supportsImageToImage: false,
     };
   }
   if (
@@ -196,7 +195,7 @@ describe("modelSelectionPolicy", () => {
     expect(values.has(KIE_VEO_31_FAST_I2V_MODEL_ID)).toBe(false);
   });
 
-  it("keeps direct GPT Image 2 in standard Edit while Character Mode uses Kie GPT Image 2 Edit", () => {
+  it("keeps retired direct GPT Image 2 out of Standard Edit while preserving Kie GPT Image 2 Edit", () => {
     const standardEditValues = new Set(
       resolveAiStudioAllowedModelOptions({
         selectedTool: "edit",
@@ -217,7 +216,7 @@ describe("modelSelectionPolicy", () => {
       }).map((option) => option.value)
     );
 
-    expect(standardEditValues.has(OPENAI_GPT_IMAGE_2_MODEL_ID)).toBe(true);
+    expect(standardEditValues.has(OPENAI_GPT_IMAGE_2_MODEL_ID)).toBe(false);
     expect(standardEditValues.has(KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID)).toBe(true);
     expect(characterModeValues.has(OPENAI_GPT_IMAGE_2_MODEL_ID)).toBe(false);
     expect(characterModeValues.has(KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID)).toBe(true);

@@ -3,7 +3,6 @@
  * Keeps handler-family keys centralized without pulling feature runtime code into governance scripts.
  */
 export const defaultSubmissionAdapterKeys = [
-  "openai-gpt-image-2",
   "kie-gpt-image-2-text",
   "seedream-text",
   "seedream-v5-lite-text",

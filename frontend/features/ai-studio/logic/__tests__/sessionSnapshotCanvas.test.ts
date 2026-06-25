@@ -53,6 +53,8 @@ describe("sessionSnapshotCanvas", () => {
 
   it("serializes durable canvas state and drops non-durable image URLs", () => {
     const state = createCanvasState(AI_STUDIO_CANVAS_ITEM_HARD_CAP + 1);
+    const renderImageUrl =
+      "https://project.supabase.co/storage/v1/render/image/sign/media_library/user-1/render.png?token=test-token&width=320";
     state.items.unshift({
       id: "blob-image",
       kind: "image",
@@ -68,12 +70,27 @@ describe("sessionSnapshotCanvas", () => {
       width: 220,
       height: 123,
     });
+    state.items.unshift({
+      id: "render-image",
+      kind: "image",
+      x: 1,
+      y: 2,
+      z: 100,
+      selected: false,
+      outputId: null,
+      sourceSurface: "all-refs",
+      mediaId: null,
+      src: renderImageUrl,
+      alt: "render",
+      width: 220,
+      height: 123,
+    });
 
     const snapshot = serializeAiStudioSessionCanvasState(state);
 
     expect(snapshot.scene.items).toHaveLength(AI_STUDIO_CANVAS_ITEM_HARD_CAP);
     expect(snapshot.meta.truncatedItemCount).toBe(1);
-    expect(snapshot.meta.skippedNonDurableImageCount).toBe(1);
+    expect(snapshot.meta.skippedNonDurableImageCount).toBe(2);
     expect(snapshot.transient.draftOwnerInstanceId).toBe("main");
     expect(snapshot.viewports.rail.zoom).toBe(1.2);
   });

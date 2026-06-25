@@ -284,7 +284,6 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/api/api-fal-nano-banana-2-edit.md`
 - `docs/api/api-fal-nano-banana-pro.md`
 - `docs/api/api-fal-nano-banana-pro-edit.md`
-- `docs/api/api-openai-gpt-image-2.md`
 - `docs/api/api-fal-seedream-4-5.md`
 - `docs/api/api-fal-seedream-4-5-edit.md`
 - `docs/api/api-fal-seedream-5-lite.md`

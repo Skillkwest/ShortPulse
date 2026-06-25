@@ -1,29 +1,5 @@
 const DIRECT_PROVIDER_ROUTE_INVENTORY = [
   {
-    routePath: "frontend/pages/api/openai/image-generate.ts",
-    modelId: "gpt-image-2",
-    provider: "openai",
-    directRouteKind: "create",
-    authority: "server-constant",
-    requiredSymbols: [
-      "OPENAI_GPT_IMAGE_2_MODEL_ID",
-      "requireApiUser",
-      "chargeGenerationRequest",
-    ],
-  },
-  {
-    routePath: "frontend/pages/api/openai/image-edit.ts",
-    modelId: "gpt-image-2",
-    provider: "openai",
-    directRouteKind: "edit",
-    authority: "server-constant",
-    requiredSymbols: [
-      "OPENAI_GPT_IMAGE_2_MODEL_ID",
-      "requireApiUser",
-      "chargeGenerationRequest",
-    ],
-  },
-  {
     routePath: "frontend/pages/api/elevenlabs/music.ts",
     modelId: "music_v1",
     provider: "elevenlabs",

@@ -33,7 +33,6 @@ export type UseAiStudioReferenceGridPropsParams = {
   handlePasteMediaReference: (reference: { url: string; mimeType?: string | null }) => void;
   handleAddLibraryMediaReference?: (payload: LibraryMediaReferencePayload) => void;
   handleAddLibraryPromptReference?: (payload: LibraryPromptReferencePayload) => void;
-  retryOutputStatus: (id: string) => void;
   handleRerollOutput?: (id: string) => void;
   handleReloadWorkflowOutput?: (
     output: StudioOutput,
@@ -75,7 +74,6 @@ export const useAiStudioReferenceGridProps = ({
   handlePasteMediaReference,
   handleAddLibraryMediaReference,
   handleAddLibraryPromptReference,
-  retryOutputStatus,
   handleRerollOutput,
   handleReloadWorkflowOutput,
   deleteOutput,
@@ -121,7 +119,6 @@ export const useAiStudioReferenceGridProps = ({
       onPasteMediaReference: handlePasteMediaReference,
       onAddLibraryMediaReference: handleAddLibraryMediaReference,
       onAddLibraryPromptReference: handleAddLibraryPromptReference,
-      onRetryStatus: (output) => retryOutputStatus(output.id),
       onRerollOutput: handleRerollOutput
         ? (output) => {
             handleRerollOutput(output.id);
@@ -167,7 +164,6 @@ export const useAiStudioReferenceGridProps = ({
       reorderCuratedReference,
       restoreAllArchivedOutputs,
       restoreArchivedOutput,
-      retryOutputStatus,
       setDetailOutputId,
     ]
   );

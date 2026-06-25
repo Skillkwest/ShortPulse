@@ -25,10 +25,6 @@ import { getModelConfig } from "../../logic/modelRegistry";
 import { stripEditLabel } from "../../utils/modelLabels";
 import { StandardCreatePanelView } from "./StandardCreatePanelView";
 import {
-  OPENAI_GPT_IMAGE_2_MODEL_ID,
-  OPENAI_GPT_IMAGE_2_UI_ALLOWED_ASPECTS,
-} from "../../../../lib/model-runtime/openAiImage2";
-import {
   type CreateCharacterOption,
   type CreateCharacterLookOption,
   useCreateCharacterModeController,
@@ -186,18 +182,11 @@ export function StandardCreatePropertiesPanel({
   const useUnoptimizedModelLogo = false;
   const modelConfig = useMemo(() => (modelId ? getModelConfig(modelId) : null), [modelId]);
   const aspectOptionsForModel: AspectOption[] = useMemo(() => {
-    if (modelId === OPENAI_GPT_IMAGE_2_MODEL_ID) {
-      return aspectOptions.filter((opt) =>
-        OPENAI_GPT_IMAGE_2_UI_ALLOWED_ASPECTS.includes(
-          opt.value as (typeof OPENAI_GPT_IMAGE_2_UI_ALLOWED_ASPECTS)[number]
-        )
-      );
-    }
     if (modelConfig?.allowedAspects?.length) {
       return aspectOptions.filter((opt) => modelConfig.allowedAspects.includes(opt.value));
     }
     return aspectOptions;
-  }, [modelConfig, modelId]);
+  }, [modelConfig]);
   const { resolveAvatarUrl, clearAvatarFailure, handleAvatarError } = useAvatarResilience({
     surfaceId: "create-character-picker-trigger",
   });

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  isDisabledApiPath,
   isInternalApiPath,
   isProtectedApiPath,
   isWebhookPath,
@@ -52,6 +53,9 @@ export async function proxy(request: NextRequest) {
 
     if (!pathname.startsWith("/api/")) {
       return NextResponse.next();
+    }
+    if (isDisabledApiPath(pathname)) {
+      return notFound();
     }
     if (isInternalApiPath(pathname)) {
       return notFound();

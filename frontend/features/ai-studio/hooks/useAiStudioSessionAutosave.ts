@@ -47,6 +47,7 @@ type UseAiStudioSessionAutosaveArgs = {
   maxSnapshotBytes?: number;
   maxKeepaliveSnapshotBytes?: number;
   maxPersistRetries?: number;
+  enableLifecycleFlush?: boolean;
   resolveSnapshotTitle?: (snapshot: AiStudioSessionSnapshot) => string | null;
   preparedSnapshot?: PreparedAiStudioSessionAutosaveSnapshot | null;
   onPersistError?: (error: Error, details: AiStudioSessionAutosaveError) => void;
@@ -92,6 +93,7 @@ export const useAiStudioSessionAutosave = ({
   maxSnapshotBytes = AI_STUDIO_SESSION_MAX_SNAPSHOT_BYTES,
   maxKeepaliveSnapshotBytes = Number.POSITIVE_INFINITY,
   maxPersistRetries = DEFAULT_MAX_PERSIST_RETRIES,
+  enableLifecycleFlush = true,
   resolveSnapshotTitle = () => null,
   preparedSnapshot = null,
   onPersistError,
@@ -232,7 +234,11 @@ export const useAiStudioSessionAutosave = ({
   }, [preparedSnapshot, resolveSnapshotTitle, snapshot]);
 
   useEffect(() => {
-    if (!enabled || !sessionId || !snapshot || !serializedSnapshot) return;
+    if (!enabled || !sessionId || !snapshot || !serializedSnapshot) {
+      pendingRef.current = null;
+      clearTimers();
+      return;
+    }
 
     if (
       lastPersistFailureRef.current &&
@@ -340,6 +346,7 @@ export const useAiStudioSessionAutosave = ({
   }, [
     debounceMs,
     enabled,
+    clearTimers,
     flushPending,
     maxDirtyMs,
     maxPersistRetries,
@@ -362,7 +369,7 @@ export const useAiStudioSessionAutosave = ({
   }, [enabled, flushPending, immediateSaveSignal]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !enableLifecycleFlush) return;
     const handleVisibilityChange = () => {
       if (document.visibilityState === "hidden") {
         void flushPending({ keepalive: true });
@@ -378,7 +385,7 @@ export const useAiStudioSessionAutosave = ({
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("pagehide", handlePageHide);
     };
-  }, [enabled, flushPending]);
+  }, [enableLifecycleFlush, enabled, flushPending]);
 
   useEffect(
     () => () => {

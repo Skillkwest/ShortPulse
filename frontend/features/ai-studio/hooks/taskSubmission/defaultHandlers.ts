@@ -1,10 +1,6 @@
 /**
- * Default image submission handlers (GPT Image 2, Seedream, and Nano Banana) for AI Studio.
+ * Default queued image submission handlers for AI Studio.
  */
-import {
-  submitOpenAiGptImage2,
-  submitOpenAiGptImage2Edit,
-} from "../../../../lib/openAiImageClient";
 import {
   FAL_NANO_BANANA_2_MODEL_ID,
   FAL_NANO_BANANA_PRO_MODEL_ID,
@@ -16,11 +12,6 @@ import {
   normalizeKieGptImage2AspectRatio,
   normalizeKieGptImage2ResolutionForAspect,
 } from "../../../../lib/model-runtime/kieGptImage2";
-import {
-  normalizeOpenAiGptImage2Quality,
-  OPENAI_GPT_IMAGE_2_MODEL_ID,
-  resolveOpenAiGptImage2OutputSize,
-} from "../../../../lib/model-runtime/openAiImage2";
 import type { DefaultSubmissionAdapterKey } from "../../../../lib/model-runtime/submissionAdapterMetadata";
 import { type FalSubmitResponse, submitQueuedGenerationByModelId } from "../../../../lib/falClient";
 import {
@@ -33,7 +24,6 @@ import {
 } from "../../logic/stateParsers";
 import { resolveSeedreamImageSize } from "../../logic/seedreamSizing";
 import { resolveImageSubmissionSafetyPayload } from "./safetyPolicy";
-import { resolveImageReferenceInputLimitForModel } from "./imageReferenceLimits";
 import type { ImageSubmissionArgs } from "./types";
 
 type DefaultPollingProvider =
@@ -44,26 +34,19 @@ type DefaultPollingProvider =
   | "fal-nano-banana-pro";
 
 type DefaultHandlerContext = {
-  projectId?: string | null;
   finalModel: string;
   cleanedPrompt: string;
   aspect: string;
   requestedResolution?: string;
-  preparedImageInputs: string[];
-  internalMediaRefs?: ImageSubmissionArgs["internalMediaRefs"];
   falReferencePayload: ImageSubmissionArgs["falReferencePayload"];
-  inpaintOverride?: ImageSubmissionArgs["inpaintOverride"];
-  completeGenerationImmediately?: ImageSubmissionArgs["completeGenerationImmediately"];
   shortpulseSubmitPayload: Record<string, unknown>;
 };
 
-type DefaultSubmissionAdapterResult =
-  | { terminal: "immediate" }
-  | {
-      terminal: "queued";
-      response: FalSubmitResponse;
-      pollingProvider: DefaultPollingProvider;
-    };
+type DefaultSubmissionAdapterResult = {
+  terminal: "queued";
+  response: FalSubmitResponse;
+  pollingProvider: DefaultPollingProvider;
+};
 
 type DefaultSubmissionAdapter = {
   key: DefaultSubmissionAdapterKey;
@@ -88,9 +71,7 @@ const hasInternalMediaRefs = (
   refs: ImageSubmissionArgs["internalMediaRefs"] | undefined
 ): boolean => Boolean(refs?.some((ref) => Boolean(ref)));
 
-const hasInternalEditMediaRefs = (
-  inpaintOverride: ImageSubmissionArgs["inpaintOverride"] | undefined
-): boolean =>
+const hasInternalEditMediaRefs = (inpaintOverride: ImageSubmissionArgs["inpaintOverride"]) =>
   Boolean(
     inpaintOverride?.baseImageInternalMediaRef ||
     inpaintOverride?.maskInternalMediaRef ||
@@ -98,77 +79,6 @@ const hasInternalEditMediaRefs = (
   );
 
 const defaultSubmissionAdapters: DefaultSubmissionAdapter[] = [
-  {
-    key: "openai-gpt-image-2",
-    matches: (modelId) => modelId === OPENAI_GPT_IMAGE_2_MODEL_ID,
-    submit: async ({
-      projectId,
-      cleanedPrompt,
-      aspect,
-      requestedResolution,
-      preparedImageInputs,
-      internalMediaRefs,
-      inpaintOverride,
-      shortpulseSubmitPayload,
-      completeGenerationImmediately,
-    }) => {
-      const inputLimit = resolveImageReferenceInputLimitForModel(OPENAI_GPT_IMAGE_2_MODEL_ID);
-      const size = resolveOpenAiGptImage2OutputSize({
-        aspect,
-        resolution: requestedResolution,
-      });
-      const quality = normalizeOpenAiGptImage2Quality(requestedResolution);
-      const openAiReferenceImages = inpaintOverride?.baseImageInput?.trim()
-        ? [
-            inpaintOverride.baseImageInput.trim(),
-            ...(inpaintOverride.referenceImageInput?.trim()
-              ? [inpaintOverride.referenceImageInput.trim()]
-              : []),
-          ]
-        : preparedImageInputs.slice(0, inputLimit);
-      const maskImageUrl = inpaintOverride?.maskInput?.trim();
-      const response =
-        openAiReferenceImages.length > 0 ||
-        maskImageUrl ||
-        hasInternalMediaRefs(internalMediaRefs) ||
-        hasInternalEditMediaRefs(inpaintOverride)
-          ? await submitOpenAiGptImage2Edit({
-              prompt: cleanedPrompt,
-              size,
-              quality,
-              images: openAiReferenceImages.map((imageUrl) => ({ image_url: imageUrl })),
-              ...(maskImageUrl ? { mask: { image_url: maskImageUrl } } : {}),
-              ...(projectId ? { project_id: projectId } : {}),
-              ...shortpulseSubmitPayload,
-            })
-          : await submitOpenAiGptImage2({
-              prompt: cleanedPrompt,
-              size,
-              quality,
-              ...(projectId ? { project_id: projectId } : {}),
-              ...shortpulseSubmitPayload,
-            });
-      if (!completeGenerationImmediately) {
-        throw new Error("OpenAI image submission requires an immediate completion callback.");
-      }
-      completeGenerationImmediately({
-        provider: "openai-image",
-        generationId: response.output.generationId,
-        requestId: response.output.requestId,
-        previewUrl: response.output.previewUrl,
-        resultUrls: response.output.resultUrls,
-        previewStoragePath: response.output.previewStoragePath,
-        fullStoragePath: response.output.fullStoragePath,
-        mimeType: response.output.mimeType,
-        savedMediaIds: response.output.savedMediaIds,
-        saveState: response.output.saveState,
-        saveError: response.output.saveError,
-      });
-      return {
-        terminal: "immediate",
-      };
-    },
-  },
   {
     key: "kie-gpt-image-2-text",
     matches: (modelId) => modelId === KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
@@ -313,12 +223,10 @@ export const resolveDefaultSubmissionAdapterKey = (
  * Handles default image submissions (Seedream + Nano Banana variants).
  */
 export const handleDefaultModelSubmission = async ({
-  projectId,
   finalModel,
   cleanedPrompt,
   aspect,
   requestedResolution,
-  preparedImageInputs,
   falReferencePayload,
   generationReplay,
   workflowReload,
@@ -326,7 +234,6 @@ export const handleDefaultModelSubmission = async ({
   characterContext,
   styleContext,
   shortpulseContext,
-  completeGenerationImmediately,
   startPollingWithGeneration,
   inpaintOverride,
 }: ImageSubmissionArgs): Promise<void> => {
@@ -355,16 +262,11 @@ export const handleDefaultModelSubmission = async ({
     throw new Error(`Unsupported model '${finalModel}' for default Fal submission handler.`);
   }
   const result = await adapter.submit({
-    projectId,
     finalModel,
     cleanedPrompt,
     aspect,
     requestedResolution,
-    preparedImageInputs,
-    internalMediaRefs,
     falReferencePayload,
-    inpaintOverride,
-    completeGenerationImmediately,
     shortpulseSubmitPayload,
   });
   if (result.terminal === "queued") {

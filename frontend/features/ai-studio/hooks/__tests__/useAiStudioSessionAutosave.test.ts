@@ -183,6 +183,107 @@ describe("useAiStudioSessionAutosave", () => {
     );
   });
 
+  it("can leave lifecycle flushing to a parent coordinator", async () => {
+    const persistSnapshot = vi.fn().mockResolvedValue(undefined);
+    const snapshot = createSnapshot();
+    renderHook(() =>
+      useAiStudioSessionAutosave({
+        sessionId: snapshot.sessionId,
+        snapshot,
+        enabled: true,
+        persistSnapshot,
+        enableLifecycleFlush: false,
+      })
+    );
+
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "hidden",
+    });
+    await act(async () => {
+      document.dispatchEvent(new Event("visibilitychange"));
+      window.dispatchEvent(new Event("pagehide"));
+      await vi.advanceTimersByTimeAsync(2499);
+    });
+
+    expect(persistSnapshot).not.toHaveBeenCalled();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    expect(persistSnapshot).toHaveBeenCalledTimes(1);
+    expect(persistSnapshot).toHaveBeenCalledWith(
+      snapshot.sessionId,
+      snapshot,
+      expect.objectContaining({
+        keepalive: false,
+      })
+    );
+  });
+
+  it("cancels pending debounce and max timers when autosave becomes disabled", async () => {
+    const persistSnapshot = vi.fn().mockResolvedValue(undefined);
+    const snapshot = createSnapshot();
+    const { rerender } = renderHook(
+      ({ enabled }: { enabled: boolean }) =>
+        useAiStudioSessionAutosave({
+          sessionId: snapshot.sessionId,
+          snapshot,
+          enabled,
+          persistSnapshot,
+        }),
+      {
+        initialProps: {
+          enabled: true,
+        },
+      }
+    );
+
+    rerender({ enabled: false });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15000);
+    });
+
+    expect(persistSnapshot).not.toHaveBeenCalled();
+  });
+
+  it("queues a fresh save when autosave is re-enabled with the same snapshot", async () => {
+    const persistSnapshot = vi.fn().mockResolvedValue(undefined);
+    const snapshot = createSnapshot();
+    const { rerender } = renderHook(
+      ({ enabled }: { enabled: boolean }) =>
+        useAiStudioSessionAutosave({
+          sessionId: snapshot.sessionId,
+          snapshot,
+          enabled,
+          persistSnapshot,
+        }),
+      {
+        initialProps: {
+          enabled: true,
+        },
+      }
+    );
+
+    rerender({ enabled: false });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15000);
+    });
+    expect(persistSnapshot).not.toHaveBeenCalled();
+
+    rerender({ enabled: true });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2500);
+    });
+
+    expect(persistSnapshot).toHaveBeenCalledTimes(1);
+    expect(persistSnapshot).toHaveBeenCalledWith(
+      snapshot.sessionId,
+      snapshot,
+      expect.objectContaining({ keepalive: false })
+    );
+  });
+
   it("does not use keepalive when the pending snapshot exceeds the keepalive budget", async () => {
     const persistSnapshot = vi.fn().mockResolvedValue(undefined);
     const snapshot = createSnapshot();

@@ -12,7 +12,9 @@ import {
 import {
   extractTrustedSupabaseSignedMediaStoragePath,
   filterTrustedMediaDirectPreviewUrls,
+  isSupabaseObjectSignedStorageUrl,
   isSupabaseRenderImageUrl,
+  isTrustedMediaDirectPreviewUrl,
 } from "../mediaPreviewTrustPolicy";
 import { isUserScopedMediaStoragePath } from "../mediaStoragePath";
 import { writeAppErrorLog } from "./api/appErrorLogs";
@@ -23,6 +25,7 @@ import {
 } from "./projectGenerationAssociationsService";
 import {
   areProjectWorkspaceCheckpointsStructurallyEqual,
+  computeProjectOutputDisplayChecksumForSnapshot,
   createLightweightProjectWorkspaceCheckpointSnapshot,
   materializeProjectWorkspaceSnapshotForUser,
   projectWorkspaceCheckpointNeedsCompaction,
@@ -37,9 +40,13 @@ import {
 
 const PROJECT_WORKSPACE_SELECT_COLUMNS =
   "project_id, user_id, schema_version, snapshot, snapshot_updated_at, checkpoint_revision, created_at, updated_at" as const;
+const PROJECT_WORKSPACE_WRITE_RETURN_COLUMNS =
+  "project_id, user_id, schema_version, snapshot_updated_at, checkpoint_revision, created_at, updated_at" as const;
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const PROJECT_WORKSPACE_BEST_EFFORT_STAGE_TIMEOUT_MS = 12_000;
+const PROJECT_WORKSPACE_OWNED_ID_RESOLUTION_TIMEOUT_MS = 8_000;
+const PROJECT_WORKSPACE_POST_WRITE_REPAIR_TIMEOUT_MS = 2_500;
+const PROJECT_WORKSPACE_RESPONSE_MATERIALIZATION_TIMEOUT_MS = 2_500;
 
 type ProjectWorkspaceStateRow = {
   project_id: string;
@@ -51,6 +58,8 @@ type ProjectWorkspaceStateRow = {
   created_at: string;
   updated_at: string;
 };
+
+type ProjectWorkspaceStateWriteReturnRow = Omit<ProjectWorkspaceStateRow, "snapshot">;
 
 export type ProjectWorkspaceStateRecord = {
   projectId: string;
@@ -82,6 +91,7 @@ type ProjectWorkspaceRepairPending = {
 };
 
 type ProjectWorkspaceMaterializationStage = "workspace read" | "workspace save";
+type ProjectWorkspaceSnapshotInput = Parameters<typeof createAiStudioProjectWorkspaceSnapshot>[0];
 
 export class InvalidProjectWorkspaceSnapshotError extends Error {
   constructor(message = "Invalid project workspace snapshot") {
@@ -95,15 +105,30 @@ const asRecord = (value: unknown): Record<string, unknown> =>
     ? (value as Record<string, unknown>)
     : {};
 
-const parseProjectWorkspaceSnapshotPayload = (value: unknown): Record<string, unknown> | null => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+const measureProjectWorkspaceSnapshotBytes = (value: unknown): number | null => {
   try {
-    const snapshotBytes = Buffer.byteLength(JSON.stringify(value), "utf8");
-    if (snapshotBytes > PROJECT_WORKSPACE_MAX_SNAPSHOT_BYTES) return null;
-    return value as Record<string, unknown>;
+    return Buffer.byteLength(JSON.stringify(value), "utf8");
   } catch {
     return null;
   }
+};
+
+const parseProjectWorkspaceSnapshotPayload = (value: unknown): Record<string, unknown> | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const snapshotBytes = measureProjectWorkspaceSnapshotBytes(value);
+  if (snapshotBytes == null) return null;
+  if (snapshotBytes <= PROJECT_WORKSPACE_MAX_SNAPSHOT_BYTES) {
+    return value as Record<string, unknown>;
+  }
+
+  const normalizedProjectSnapshot = createAiStudioProjectWorkspaceSnapshot(
+    value as ProjectWorkspaceSnapshotInput
+  );
+  const normalizedBytes = measureProjectWorkspaceSnapshotBytes(normalizedProjectSnapshot);
+  if (normalizedBytes == null || normalizedBytes > PROJECT_WORKSPACE_MAX_SNAPSHOT_BYTES) {
+    return null;
+  }
+  return normalizedProjectSnapshot;
 };
 
 const normalizeOptionalString = (value: unknown): string | null => {
@@ -186,7 +211,8 @@ const wrapProjectWorkspaceSaveStageError = ({
 
 const withProjectWorkspaceBestEffortTimeout = async <T>(
   promise: Promise<T>,
-  stage: string
+  stage: string,
+  timeoutMs: number
 ): Promise<T> => {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
   try {
@@ -194,12 +220,8 @@ const withProjectWorkspaceBestEffortTimeout = async <T>(
       promise,
       new Promise<T>((_resolve, reject) => {
         timeoutId = setTimeout(() => {
-          reject(
-            new Error(
-              `${stage} exceeded ${PROJECT_WORKSPACE_BEST_EFFORT_STAGE_TIMEOUT_MS}ms budget`
-            )
-          );
-        }, PROJECT_WORKSPACE_BEST_EFFORT_STAGE_TIMEOUT_MS);
+          reject(new Error(`${stage} exceeded ${timeoutMs}ms budget`));
+        }, timeoutMs);
       }),
     ]);
   } finally {
@@ -324,6 +346,9 @@ const maybeLogProjectWorkspaceReferenceGridCapNormalization = ({
   }).catch(() => undefined);
 };
 
+const readProjectOutputDisplayChecksum = (snapshot: Record<string, unknown>): string | null =>
+  normalizeOptionalString(asRecord(snapshot.meta).outputDisplayChecksum);
+
 const sanitizeProjectWorkspaceSnapshot = (
   snapshot: Record<string, unknown>,
   options: {
@@ -358,6 +383,27 @@ const normalizeOwnedCanvasStoragePath = ({
   );
 };
 
+const isUnsafeProjectWorkspaceMediaUrl = ({
+  value,
+  userId,
+}: {
+  value: unknown;
+  userId: string;
+}): boolean => {
+  if (typeof value !== "string") return false;
+  const normalized = value.trim();
+  if (!normalized) return false;
+  if (normalized.startsWith("blob:") || normalized.startsWith("data:")) return true;
+  if (isSupabaseRenderImageUrl(normalized)) return true;
+  return (
+    isSupabaseObjectSignedStorageUrl(normalized) &&
+    !isTrustedMediaDirectPreviewUrl(normalized, {
+      userId,
+      requireUserScope: true,
+    })
+  );
+};
+
 const preserveProjectWorkspaceCanvasStorageAuthority = ({
   userId,
   snapshot,
@@ -371,74 +417,98 @@ const preserveProjectWorkspaceCanvasStorageAuthority = ({
   if (!items) return snapshot;
 
   let changed = false;
-  const nextItems = items.map((item) => {
-    const record = asRecord(item);
-    if (record.kind === "image") {
-      const srcStoragePath = normalizeOwnedCanvasStoragePath({
-        value: record.srcStoragePath,
-        fallbackUrl: record.src,
-        userId,
-      });
-      if (!srcStoragePath || record.srcStoragePath === srcStoragePath) return item;
-      changed = true;
-      return {
-        ...record,
-        srcStoragePath,
-      };
-    }
+  const nextItems = items
+    .map((item) => {
+      const record = asRecord(item);
+      if (record.kind === "image") {
+        if (isUnsafeProjectWorkspaceMediaUrl({ value: record.src, userId })) {
+          changed = true;
+          return null;
+        }
+        const srcStoragePath = normalizeOwnedCanvasStoragePath({
+          value: record.srcStoragePath,
+          fallbackUrl: record.src,
+          userId,
+        });
+        if (!srcStoragePath || record.srcStoragePath === srcStoragePath) return item;
+        changed = true;
+        return {
+          ...record,
+          srcStoragePath,
+        };
+      }
 
-    if (record.kind === "video") {
-      const videoStoragePath = normalizeOwnedCanvasStoragePath({
-        value: record.videoStoragePath,
-        fallbackUrl: record.videoUrl,
-        userId,
-      });
-      const posterStoragePath = normalizeOwnedCanvasStoragePath({
-        value: record.posterStoragePath,
-        fallbackUrl: record.posterUrl,
-        userId,
-      });
-      const nextRecord = {
-        ...record,
-      };
-      if (videoStoragePath && record.videoStoragePath !== videoStoragePath) {
-        nextRecord.videoStoragePath = videoStoragePath;
-        changed = true;
+      if (record.kind === "video") {
+        if (isUnsafeProjectWorkspaceMediaUrl({ value: record.videoUrl, userId })) {
+          changed = true;
+          return null;
+        }
+        const videoStoragePath = normalizeOwnedCanvasStoragePath({
+          value: record.videoStoragePath,
+          fallbackUrl: record.videoUrl,
+          userId,
+        });
+        const posterStoragePath = normalizeOwnedCanvasStoragePath({
+          value: record.posterStoragePath,
+          fallbackUrl: record.posterUrl,
+          userId,
+        });
+        const nextRecord = {
+          ...record,
+        };
+        if (videoStoragePath && record.videoStoragePath !== videoStoragePath) {
+          nextRecord.videoStoragePath = videoStoragePath;
+          changed = true;
+        }
+        if (posterStoragePath && record.posterStoragePath !== posterStoragePath) {
+          nextRecord.posterStoragePath = posterStoragePath;
+          changed = true;
+        }
+        if (isUnsafeProjectWorkspaceMediaUrl({ value: record.posterUrl, userId })) {
+          delete nextRecord.posterUrl;
+          delete nextRecord.posterStoragePath;
+          changed = true;
+        }
+        return nextRecord;
       }
-      if (posterStoragePath && record.posterStoragePath !== posterStoragePath) {
-        nextRecord.posterStoragePath = posterStoragePath;
-        changed = true;
-      }
-      return nextRecord;
-    }
 
-    if (record.kind === "audio") {
-      const audioStoragePath = normalizeOwnedCanvasStoragePath({
-        value: record.audioStoragePath,
-        fallbackUrl: record.audioUrl,
-        userId,
-      });
-      const companionArtStoragePath = normalizeOwnedCanvasStoragePath({
-        value: record.companionArtStoragePath,
-        fallbackUrl: record.companionArtUrl,
-        userId,
-      });
-      const nextRecord = {
-        ...record,
-      };
-      if (audioStoragePath && record.audioStoragePath !== audioStoragePath) {
-        nextRecord.audioStoragePath = audioStoragePath;
-        changed = true;
+      if (record.kind === "audio") {
+        if (isUnsafeProjectWorkspaceMediaUrl({ value: record.audioUrl, userId })) {
+          changed = true;
+          return null;
+        }
+        const audioStoragePath = normalizeOwnedCanvasStoragePath({
+          value: record.audioStoragePath,
+          fallbackUrl: record.audioUrl,
+          userId,
+        });
+        const companionArtStoragePath = normalizeOwnedCanvasStoragePath({
+          value: record.companionArtStoragePath,
+          fallbackUrl: record.companionArtUrl,
+          userId,
+        });
+        const nextRecord = {
+          ...record,
+        };
+        if (audioStoragePath && record.audioStoragePath !== audioStoragePath) {
+          nextRecord.audioStoragePath = audioStoragePath;
+          changed = true;
+        }
+        if (companionArtStoragePath && record.companionArtStoragePath !== companionArtStoragePath) {
+          nextRecord.companionArtStoragePath = companionArtStoragePath;
+          changed = true;
+        }
+        if (isUnsafeProjectWorkspaceMediaUrl({ value: record.companionArtUrl, userId })) {
+          delete nextRecord.companionArtUrl;
+          delete nextRecord.companionArtStoragePath;
+          changed = true;
+        }
+        return nextRecord;
       }
-      if (companionArtStoragePath && record.companionArtStoragePath !== companionArtStoragePath) {
-        nextRecord.companionArtStoragePath = companionArtStoragePath;
-        changed = true;
-      }
-      return nextRecord;
-    }
 
-    return item;
-  });
+      return item;
+    })
+    .filter((item): item is NonNullable<typeof item> => Boolean(item));
 
   if (!changed) return snapshot;
   return {
@@ -550,10 +620,20 @@ const sanitizeProjectWorkspaceOutputsByShape = ({
   const sanitizePreviewUrlFields = (row: Record<string, unknown>) => {
     for (const field of ["previewUrl", "fullUrl", "previewPosterUrl", "companionArtUrl"] as const) {
       const value = row[field];
-      if (typeof value === "string" && isSupabaseRenderImageUrl(value)) {
+      if (isUnsafeProjectWorkspaceMediaUrl({ value, userId })) {
         delete row[field];
+        continue;
       }
     }
+    if (!("resultUrls" in row)) return;
+    const resultUrls = normalizeStringList(row.resultUrls).filter(
+      (url) => !isUnsafeProjectWorkspaceMediaUrl({ value: url, userId })
+    );
+    if (resultUrls.length === 0) {
+      delete row.resultUrls;
+      return;
+    }
+    row.resultUrls = resultUrls;
   };
   const keepTrustedMediaPreviewUrlForUser = (url: string): boolean => {
     const trustedIgnoringScope = filterTrustedMediaDirectPreviewUrls([url], {
@@ -732,6 +812,16 @@ const sanitizeProjectWorkspaceOutputs = ({
       row[field] = normalized;
     }
   };
+  const hasProjectRestorableOutputPayload = (row: Record<string, unknown>): boolean =>
+    Boolean(
+      normalizeOptionalString(row.previewText) ??
+      normalizeOptionalString(row.previewUrl) ??
+      normalizeOptionalString(row.previewPosterUrl) ??
+      normalizeOptionalString(row.fullUrl) ??
+      (normalizeStringList(row.resultUrls).length > 0 ? "resultUrls" : null)
+    );
+  const shouldPreserveNonGeneratedWorkspaceOutput = (row: Record<string, unknown>): boolean =>
+    hasProjectDurableOutputAuthority(row) || hasProjectRestorableOutputPayload(row);
   const sanitizeOutputIdCollections = ({
     active,
     archived,
@@ -815,9 +905,10 @@ const sanitizeProjectWorkspaceOutputs = ({
           if (!hasRecoverableRuntimeIdentity) {
             return null;
           }
+          return nextRow;
         }
 
-        return nextRow;
+        return shouldPreserveNonGeneratedWorkspaceOutput(nextRow) ? nextRow : null;
       })
       .filter((row): row is Record<string, unknown> => Boolean(row));
   };
@@ -1080,7 +1171,8 @@ const resolveOwnedSnapshotAssociationIdsForWrite = async ({
           runtimeRequestIds,
         }),
       ]),
-      "owned id resolution"
+      "owned id resolution",
+      PROJECT_WORKSPACE_OWNED_ID_RESOLUTION_TIMEOUT_MS
     );
   } catch (error) {
     const failureMessage = toErrorMessage(error, "owned id resolution unavailable");
@@ -1168,7 +1260,8 @@ const resolveOwnedSnapshotAssociationIdsForRead = async ({
           runtimeRequestIds,
         }),
       ]),
-      "read owned id resolution"
+      "read owned id resolution",
+      PROJECT_WORKSPACE_OWNED_ID_RESOLUTION_TIMEOUT_MS
     );
   } catch (error) {
     const failureMessage = toErrorMessage(error, "read owned id resolution unavailable");
@@ -1343,10 +1436,12 @@ const canonicalizeProjectWorkspaceSnapshotForRead = async ({
   userId,
   projectId,
   snapshot,
+  trimGeneratedOutputMetadata = true,
 }: {
   userId: string;
   projectId: string;
   snapshot: Record<string, unknown>;
+  trimGeneratedOutputMetadata?: boolean;
 }): Promise<Record<string, unknown>> => {
   const baseSanitizedSnapshot = sanitizeProjectWorkspaceOutputsByShape({
     userId,
@@ -1371,7 +1466,9 @@ const canonicalizeProjectWorkspaceSnapshotForRead = async ({
       ownedGenerationIds,
       generationAuthorityResolved: !failedAuthorities.includes("generation"),
     });
-    const reSanitizedSnapshot = sanitizeProjectWorkspaceSnapshot(sanitizedOutputsSnapshot);
+    const reSanitizedSnapshot = sanitizeProjectWorkspaceSnapshot(sanitizedOutputsSnapshot, {
+      trimGeneratedOutputMetadata,
+    });
 
     if (failedAuthorities.length === 0) {
       return reSanitizedSnapshot;
@@ -1571,10 +1668,12 @@ const prepareProjectWorkspaceSnapshotForSaveResponse = async ({
   userId,
   projectId,
   snapshot,
+  canonicalizeMaterializedResponse = false,
 }: {
   userId: string;
   projectId: string;
   snapshot: Record<string, unknown>;
+  canonicalizeMaterializedResponse?: boolean;
 }): Promise<{
   snapshot: Record<string, unknown>;
   repairPending: ProjectWorkspaceRepairPending | null;
@@ -1583,12 +1682,27 @@ const prepareProjectWorkspaceSnapshotForSaveResponse = async ({
     userId,
     snapshot,
   });
-  return materializeProjectWorkspaceSnapshotForUserSafely({
+  const materialized = await materializeProjectWorkspaceSnapshotForUserSafely({
     userId,
     projectId,
     snapshot: canvasStorageAuthoritySnapshot,
     stage: "workspace save",
   });
+  return {
+    ...materialized,
+    snapshot:
+      canonicalizeMaterializedResponse && !materialized.repairPending
+        ? await canonicalizeProjectWorkspaceSnapshotForRead({
+            userId,
+            projectId,
+            snapshot: materialized.snapshot,
+            trimGeneratedOutputMetadata: false,
+          })
+        : sanitizeProjectWorkspaceOutputsByShape({
+            userId,
+            snapshot: materialized.snapshot,
+          }),
+  };
 };
 
 const toProjectWorkspaceStateRecord = ({
@@ -1608,6 +1722,17 @@ const toProjectWorkspaceStateRecord = ({
   createdAt: row.created_at,
   updatedAt: row.updated_at,
   ...(saveOutcome ? { saveOutcome } : {}),
+});
+
+const toProjectWorkspaceStateRowFromWriteReturn = ({
+  row,
+  snapshot,
+}: {
+  row: ProjectWorkspaceStateWriteReturnRow;
+  snapshot: Record<string, unknown>;
+}): ProjectWorkspaceStateRow => ({
+  ...row,
+  snapshot,
 });
 
 export const getProjectWorkspaceStateForUser = async ({
@@ -1739,6 +1864,12 @@ export const upsertProjectWorkspaceStateForUser = async ({
     snapshot: preparedSnapshot.snapshot,
     checkpointRevision: nextCheckpointRevision,
   });
+  const incomingOutputDisplayChecksum =
+    readProjectOutputDisplayChecksum(lightweightCheckpointSnapshot) ??
+    computeProjectOutputDisplayChecksumForSnapshot(preparedSnapshot.snapshot);
+  const existingOutputDisplayChecksum = existingRow
+    ? readProjectOutputDisplayChecksum(existingRow.snapshot)
+    : null;
   const checkpointStructureChanged =
     !existingRow ||
     projectWorkspaceCheckpointNeedsCompaction(existingRow.snapshot) ||
@@ -1746,19 +1877,25 @@ export const upsertProjectWorkspaceStateForUser = async ({
       existingRow.snapshot,
       lightweightCheckpointSnapshot
     );
+  const outputDisplayChanged =
+    !existingRow || existingOutputDisplayChecksum !== incomingOutputDisplayChecksum;
   // Advance workspace freshness on newer display-only saves without bumping structural revision.
   const shouldPersistWorkspaceRow =
     !existingRow ||
     checkpointStructureChanged ||
+    outputDisplayChanged ||
     compareIsoTimestamps(existingRow.snapshot_updated_at, snapshotUpdatedAt) < 0;
-  const workspaceSnapshotForWrite =
-    checkpointStructureChanged || !existingRow
-      ? lightweightCheckpointSnapshot
-      : existingRow.snapshot;
   const workspaceCheckpointRevisionForWrite =
     checkpointStructureChanged || !existingRow
       ? nextCheckpointRevision
       : existingCheckpointRevision;
+  const workspaceSnapshotForWrite =
+    checkpointStructureChanged || outputDisplayChanged || !existingRow
+      ? createLightweightProjectWorkspaceCheckpointSnapshot({
+          snapshot: preparedSnapshot.snapshot,
+          checkpointRevision: workspaceCheckpointRevisionForWrite,
+        })
+      : existingRow.snapshot;
 
   const repairPending: ProjectWorkspaceRepairPending[] = [];
   const addRepairPending = (repair: ProjectWorkspaceRepairPending) => {
@@ -1793,7 +1930,7 @@ export const upsertProjectWorkspaceStateForUser = async ({
           onConflict: "project_id",
         }
       )
-      .select(PROJECT_WORKSPACE_SELECT_COLUMNS)
+      .select(PROJECT_WORKSPACE_WRITE_RETURN_COLUMNS)
       .maybeSingle();
 
     if (error) {
@@ -1808,21 +1945,41 @@ export const upsertProjectWorkspaceStateForUser = async ({
         error: new Error("No workspace row returned"),
       });
     }
-    savedRow = data as ProjectWorkspaceStateRow;
+    savedRow = toProjectWorkspaceStateRowFromWriteReturn({
+      row: data as ProjectWorkspaceStateWriteReturnRow,
+      snapshot: workspaceSnapshotForWrite,
+    });
   }
   const staleWriteIgnored =
     compareIsoTimestamps(savedRow.snapshot_updated_at, snapshotUpdatedAt) > 0;
 
   if (staleWriteIgnored) {
+    let staleResponseRow = savedRow;
+    if (includeSnapshotInResponse) {
+      const { data: refreshedData, error: refreshedError } = await supabaseAdmin
+        .from("project_workspace_states")
+        .select(PROJECT_WORKSPACE_SELECT_COLUMNS)
+        .eq("project_id", projectId)
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (refreshedError) {
+        throw wrapProjectWorkspaceSaveStageError({
+          stage: "workspace stale refresh",
+          error: refreshedError,
+        });
+      }
+      staleResponseRow = (refreshedData as ProjectWorkspaceStateRow | null) ?? savedRow;
+    }
     return toProjectWorkspaceStateRecord({
-      row: savedRow,
+      row: staleResponseRow,
       snapshot: includeSnapshotInResponse
         ? await prepareProjectWorkspaceSnapshotForReadResponse({
             userId,
             projectId,
-            snapshot: savedRow.snapshot,
+            snapshot: staleResponseRow.snapshot,
           })
-        : savedRow.snapshot,
+        : staleResponseRow.snapshot,
       saveOutcome: {
         status: "saved",
       },
@@ -1833,16 +1990,27 @@ export const upsertProjectWorkspaceStateForUser = async ({
     ReturnType<typeof syncProjectOutputDisplayItemsForSnapshot>
   > | null = null;
   try {
-    displaySyncResult = await withProjectWorkspaceBestEffortTimeout(
-      syncProjectOutputDisplayItemsForSnapshot({
-        userId,
-        projectId,
-        snapshot: preparedSnapshot.snapshot,
-        snapshotUpdatedAt,
-        deferDeletes: checkpointStructureChanged,
-      }),
-      "project output display sync"
-    );
+    if (!checkpointStructureChanged && !outputDisplayChanged) {
+      displaySyncResult = {
+        outputCount: 0,
+        upsertedCount: 0,
+        deletedCount: 0,
+        deferredDeleteCount: 0,
+        skippedStaleCount: 0,
+      };
+    } else {
+      displaySyncResult = await withProjectWorkspaceBestEffortTimeout(
+        syncProjectOutputDisplayItemsForSnapshot({
+          userId,
+          projectId,
+          snapshot: preparedSnapshot.snapshot,
+          snapshotUpdatedAt,
+          deferDeletes: checkpointStructureChanged,
+        }),
+        "project output display sync",
+        PROJECT_WORKSPACE_POST_WRITE_REPAIR_TIMEOUT_MS
+      );
+    }
   } catch (error) {
     const repairMessage = toErrorMessage(
       wrapProjectWorkspaceSaveStageError({
@@ -1862,7 +2030,7 @@ export const upsertProjectWorkspaceStateForUser = async ({
     });
   }
 
-  if (checkpointStructureChanged && displaySyncResult?.deletedCount === 0) {
+  if (checkpointStructureChanged && (displaySyncResult?.deferredDeleteCount ?? 0) > 0) {
     try {
       await withProjectWorkspaceBestEffortTimeout(
         syncProjectOutputDisplayItemsForSnapshot({
@@ -1872,7 +2040,8 @@ export const upsertProjectWorkspaceStateForUser = async ({
           snapshotUpdatedAt,
           deferDeletes: false,
         }),
-        "project output display cleanup"
+        "project output display cleanup",
+        PROJECT_WORKSPACE_POST_WRITE_REPAIR_TIMEOUT_MS
       );
     } catch (error) {
       logProjectWorkspaceBestEffortFailure({
@@ -1883,41 +2052,44 @@ export const upsertProjectWorkspaceStateForUser = async ({
     }
   }
 
-  try {
-    await withProjectWorkspaceBestEffortTimeout(
-      backfillProjectAssetAssociationsForSnapshot({
+  if (checkpointStructureChanged) {
+    try {
+      await withProjectWorkspaceBestEffortTimeout(
+        backfillProjectAssetAssociationsForSnapshot({
+          userId,
+          projectId,
+          snapshot: preparedSnapshot.snapshot,
+          ownedMediaFileIds: preparedSnapshot.ownedMediaFileIds,
+          ownedPromptIds: preparedSnapshot.ownedPromptIds,
+          ownedGenerationIds: preparedSnapshot.ownedGenerationIds,
+        }),
+        "project association backfill",
+        PROJECT_WORKSPACE_POST_WRITE_REPAIR_TIMEOUT_MS
+      );
+    } catch (error) {
+      const repairMessage = toErrorMessage(
+        wrapProjectWorkspaceSaveStageError({
+          stage: "project association backfill",
+          error,
+        }),
+        "Project workspace save needs project association repair."
+      );
+      logProjectWorkspaceBestEffortFailure({
+        stage: "project association backfill",
+        projectId,
+        error,
+      });
+      await logProjectWorkspaceRepairPending({
         userId,
         projectId,
-        snapshot: preparedSnapshot.snapshot,
-        ownedMediaFileIds: preparedSnapshot.ownedMediaFileIds,
-        ownedPromptIds: preparedSnapshot.ownedPromptIds,
-        ownedGenerationIds: preparedSnapshot.ownedGenerationIds,
-      }),
-      "project association backfill"
-    );
-  } catch (error) {
-    const repairMessage = toErrorMessage(
-      wrapProjectWorkspaceSaveStageError({
-        stage: "project association backfill",
-        error,
-      }),
-      "Project workspace save needs project association repair."
-    );
-    logProjectWorkspaceBestEffortFailure({
-      stage: "project association backfill",
-      projectId,
-      error,
-    });
-    await logProjectWorkspaceRepairPending({
-      userId,
-      projectId,
-      repairStage: "project_association_backfill",
-      repairMessage,
-    });
-    addRepairPending({
-      stage: "project_association_backfill",
-      message: repairMessage,
-    });
+        repairStage: "project_association_backfill",
+        repairMessage,
+      });
+      addRepairPending({
+        stage: "project_association_backfill",
+        message: repairMessage,
+      });
+    }
   }
 
   let saveResponseSnapshot: {
@@ -1931,8 +2103,12 @@ export const upsertProjectWorkspaceStateForUser = async ({
             userId,
             projectId,
             snapshot: savedRow.snapshot,
+            canonicalizeMaterializedResponse: repairPending.some(
+              (repair) => repair.stage === "project_output_display_sync"
+            ),
           }),
-          "project workspace save response materialization"
+          "project workspace save response materialization",
+          PROJECT_WORKSPACE_RESPONSE_MATERIALIZATION_TIMEOUT_MS
         )
       : {
           snapshot: savedRow.snapshot,

@@ -43,7 +43,6 @@ export type ReferenceGridProps = {
   onTriggerFileSelect?: () => void;
   onSaveToLibrary?: (output: StudioOutput) => void;
   onDownload?: (output: StudioOutput) => void;
-  onRetryStatus?: (output: StudioOutput) => void;
   onRerollOutput?: (output: StudioOutput) => void;
   onReloadWorkflowOutput?: (
     output: StudioOutput,

@@ -70,6 +70,7 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
   isCreditGuardrail: boolean;
   generationGuardrail: string | null;
   balanceCredits: number | null;
+  shouldVerifyCreditsOnGenerate?: boolean;
   setUiError: Dispatch<SetStateAction<string | null>>;
   setUiNotice: Dispatch<SetStateAction<string | null>>;
   setOptimisticDebitEntries: Dispatch<
@@ -136,6 +137,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   isCreditGuardrail,
   generationGuardrail,
   balanceCredits,
+  shouldVerifyCreditsOnGenerate = false,
   setUiError,
   setUiNotice,
   setOptimisticDebitEntries,
@@ -161,11 +163,12 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     async (requiredCredits: number | null | undefined): Promise<boolean> => {
       if (requiredCredits == null) return true;
       const latestBalance = await refreshBalance({ silent: true });
+      if (latestBalance == null && shouldVerifyCreditsOnGenerate) return false;
       const resolvedBalance = latestBalance ?? balanceCredits;
       if (resolvedBalance == null) return true;
       return Math.max(0, resolvedBalance) >= requiredCredits;
     },
-    [balanceCredits, refreshBalance]
+    [balanceCredits, refreshBalance, shouldVerifyCreditsOnGenerate]
   );
 
   const enqueueOptimisticDebit = useCallback(
@@ -263,7 +266,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         availableBalanceCredits: balanceCredits,
         isGenerateDisabled: options?.ignoreGenerationGuardrail ? false : isGenerateDisabled,
         isCreditGuardrail,
-        alwaysCheckCreditGuardrailWhenEnabled: false,
+        alwaysCheckCreditGuardrailWhenEnabled: shouldVerifyCreditsOnGenerate,
         ensureFreshCreditsForRun,
         resolveGuardrailBlockMessage,
         handleInsufficientCredits,
@@ -390,6 +393,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       setModel,
       setUiError,
       setUiNotice,
+      shouldVerifyCreditsOnGenerate,
       trackCharacterModeFallback,
       trackCharacterModeEvent,
       videoReferenceMode,

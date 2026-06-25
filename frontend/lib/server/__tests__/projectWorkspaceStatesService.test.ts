@@ -26,6 +26,8 @@ const PROMPT_ID_1 = "33333333-3333-4333-8333-333333333333";
 const GENERATION_ID_1 = "44444444-4444-4444-8444-444444444444";
 const GENERATION_ID_2 = "55555555-5555-4555-8555-555555555555";
 const MEDIA_VIDEO_ID_1 = "66666666-6666-4666-8666-666666666666";
+const FOREIGN_MEDIA_ID = "77777777-7777-4777-8777-777777777777";
+const FOREIGN_PROMPT_ID = "88888888-8888-4888-8888-888888888888";
 const createTrustedSignedMediaUrl = (path: string) =>
   `https://project.supabase.co/${["storage", "v1", "object", "sign"].join("/")}/media_library/${path}?token=expired`;
 
@@ -57,6 +59,7 @@ type SupabaseMockOptions = {
   outputDisplayRows?: Array<Record<string, unknown>>;
   outputDisplayReadError?: string;
   outputDisplayUpsertError?: string;
+  outputDisplayUpsertDelayMs?: number;
   outputDisplayDeleteError?: string;
   projectionLimitError?: string;
   mediaAssociationError?: string;
@@ -104,6 +107,7 @@ const createSupabaseMock = ({
   outputDisplayRows = [],
   outputDisplayReadError,
   outputDisplayUpsertError,
+  outputDisplayUpsertDelayMs,
   outputDisplayDeleteError,
   projectionLimitError,
   mediaAssociationError,
@@ -346,45 +350,72 @@ const createSupabaseMock = ({
       })),
     })),
   }));
-  const workspaceUpsert = vi.fn((payload: Record<string, unknown>) => ({
-    select: vi.fn(() => ({
-      maybeSingle: vi.fn(async () => ({
-        data:
-          workspaceUpsertError == null
-            ? (() => {
+  const selectWorkspaceColumns = (
+    row: typeof mutableWorkspaceRow,
+    columns?: string
+  ): Record<string, unknown> => {
+    if (!columns || columns.includes("*")) return row;
+    return columns
+      .split(",")
+      .map((column) => column.trim())
+      .filter(Boolean)
+      .reduce<Record<string, unknown>>((selected, column) => {
+        if (column in row) {
+          selected[column] = row[column as keyof typeof mutableWorkspaceRow];
+        }
+        return selected;
+      }, {});
+  };
+  const workspaceUpsertSelect = vi.fn((columns?: string) => ({
+    maybeSingle: vi.fn(async () => ({
+      data:
+        workspaceUpsertError == null
+          ? selectWorkspaceColumns(
+              (() => {
                 mutableWorkspaceRow = {
                   ...mutableWorkspaceRow,
                   schema_version:
-                    typeof payload.schema_version === "number" ? payload.schema_version : 2,
+                    typeof pendingWorkspaceUpsertPayload?.schema_version === "number"
+                      ? pendingWorkspaceUpsertPayload.schema_version
+                      : 2,
                   snapshot:
-                    payload.snapshot && typeof payload.snapshot === "object"
-                      ? (payload.snapshot as Record<string, unknown>)
+                    pendingWorkspaceUpsertPayload?.snapshot &&
+                    typeof pendingWorkspaceUpsertPayload.snapshot === "object"
+                      ? (pendingWorkspaceUpsertPayload.snapshot as Record<string, unknown>)
                       : resolvedWorkspaceUpsertSnapshot,
                   snapshot_updated_at:
-                    typeof payload.snapshot_updated_at === "string"
-                      ? payload.snapshot_updated_at
+                    typeof pendingWorkspaceUpsertPayload?.snapshot_updated_at === "string"
+                      ? pendingWorkspaceUpsertPayload.snapshot_updated_at
                       : resolvedWorkspaceUpsertSnapshotUpdatedAt,
                   checkpoint_revision:
-                    typeof payload.checkpoint_revision === "number"
-                      ? payload.checkpoint_revision
+                    typeof pendingWorkspaceUpsertPayload?.checkpoint_revision === "number"
+                      ? pendingWorkspaceUpsertPayload.checkpoint_revision
                       : 2,
                   updated_at:
-                    typeof payload.updated_at === "string"
-                      ? payload.updated_at
+                    typeof pendingWorkspaceUpsertPayload?.updated_at === "string"
+                      ? pendingWorkspaceUpsertPayload.updated_at
                       : mutableWorkspaceRow.updated_at,
                 };
                 return mutableWorkspaceRow;
-              })()
-            : null,
-        error:
-          workspaceUpsertError == null
-            ? null
-            : typeof workspaceUpsertError === "string"
-              ? { message: workspaceUpsertError }
-              : workspaceUpsertError,
-      })),
+              })(),
+              columns
+            )
+          : null,
+      error:
+        workspaceUpsertError == null
+          ? null
+          : typeof workspaceUpsertError === "string"
+            ? { message: workspaceUpsertError }
+            : workspaceUpsertError,
     })),
   }));
+  let pendingWorkspaceUpsertPayload: Record<string, unknown> | null = null;
+  const workspaceUpsert = vi.fn((payload: Record<string, unknown>) => {
+    pendingWorkspaceUpsertPayload = payload;
+    return {
+      select: workspaceUpsertSelect,
+    };
+  });
   const outputDisplaySelect = vi.fn(() => ({
     eq: vi.fn(() => ({
       eq: vi.fn(async () => ({
@@ -394,6 +425,9 @@ const createSupabaseMock = ({
     })),
   }));
   const outputDisplayUpsert = vi.fn(async (rows: Record<string, unknown>[]) => {
+    if (outputDisplayUpsertDelayMs != null) {
+      await new Promise((resolve) => setTimeout(resolve, outputDisplayUpsertDelayMs));
+    }
     if (outputDisplayUpsertError) {
       return { error: { message: outputDisplayUpsertError } };
     }
@@ -495,6 +529,7 @@ const createSupabaseMock = ({
     promptAssociationUpsert,
     generationAssociationUpsert,
     workspaceUpsert,
+    workspaceUpsertSelect,
     outputDisplayUpsert,
     outputDisplaySelect,
     outputDisplayDeleteIn,
@@ -1662,7 +1697,148 @@ describe("projectWorkspaceStatesService", () => {
     );
   });
 
-  it("preserves hidden Reference Grid rows while capping visible project workspace rows", async () => {
+  it("compacts oversized raw project snapshots before the server admission byte check", async () => {
+    const { workspaceUpsert, outputDisplayUpsert } = createSupabaseMock();
+    const oversizedPrompt = "Oversized project prompt ".repeat(40_000);
+    const expectedSummary = oversizedPrompt.slice(0, 1000).trim();
+    const rawSnapshot = {
+      schemaVersion: 2,
+      sessionId: "session-server-admission-compaction",
+      updatedAt: "2026-06-03T14:03:00.000Z",
+      workspace: {
+        selectedTool: "create",
+      },
+      outputs: {
+        active: [
+          {
+            id: "server-admission-large-output",
+            mode: "image",
+            mediaSource: "library",
+            savedMediaIds: [MEDIA_ID_1],
+            prompt: oversizedPrompt,
+            previewText: oversizedPrompt,
+            previewUrl: "https://cdn.example.com/server-admission-large-output.png",
+          },
+        ],
+        archived: [],
+        activeOutputId: "server-admission-large-output",
+        curatedReferenceIds: ["server-admission-large-output"],
+        removedFromAllRefsIds: [],
+      },
+      agent: {
+        messages: [],
+        input: "",
+        latestAgentPrompt: null,
+        promptOrigin: "manual",
+        chatModeEnabled: false,
+        pulseWorkflowSession: null,
+      },
+    };
+
+    expect(Buffer.byteLength(JSON.stringify(rawSnapshot), "utf8")).toBeGreaterThan(900_000);
+
+    await upsertProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+      schemaVersion: 2,
+      snapshot: rawSnapshot,
+    });
+
+    const firstWorkspaceUpsertArg = (
+      workspaceUpsert.mock.calls as Array<[{ snapshot?: Record<string, unknown> }?, unknown?]>
+    ).at(0)?.[0];
+    const storedActiveOutputs = ((
+      firstWorkspaceUpsertArg?.snapshot?.outputs as { active?: Array<Record<string, unknown>> }
+    )?.active ?? []) as Array<Record<string, unknown>>;
+
+    expect(storedActiveOutputs).toEqual([
+      expect.objectContaining({
+        id: "server-admission-large-output",
+        mode: "image",
+        mediaSource: "library",
+      }),
+    ]);
+    expect(storedActiveOutputs[0]).not.toHaveProperty("prompt");
+    expect(outputDisplayUpsert).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          output_id: "server-admission-large-output",
+          preview_text: expectedSummary,
+          display_prompt_summary: expectedSummary,
+          saved_media_ids: [MEDIA_ID_1],
+        }),
+      ],
+      expect.objectContaining({
+        onConflict: "project_id,output_id",
+      })
+    );
+  });
+
+  it("bounds rich display text before syncing project output display rows", async () => {
+    const { outputDisplayUpsert } = createSupabaseMock();
+    const longPrompt = "P".repeat(5000);
+    const longPreviewText = "V".repeat(5000);
+    const longTitle = "T".repeat(120);
+    const longError = "E".repeat(5000);
+
+    await upsertProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+      schemaVersion: 2,
+      snapshot: {
+        schemaVersion: 2,
+        sessionId: "session-display-text-bounds",
+        updatedAt: "2026-06-03T14:05:00.000Z",
+        workspace: {
+          selectedTool: "create",
+        },
+        outputs: {
+          active: [
+            {
+              id: "display-text-bounds-output",
+              mode: "image",
+              mediaSource: "library",
+              savedMediaIds: [MEDIA_ID_1],
+              prompt: longPrompt,
+              previewText: longPreviewText,
+              title: longTitle,
+              errorMessageShort: longError,
+              previewUrl: "https://cdn.example.com/display-text-bounds.png",
+            },
+          ],
+          archived: [],
+          activeOutputId: "display-text-bounds-output",
+          curatedReferenceIds: ["display-text-bounds-output"],
+          removedFromAllRefsIds: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+    });
+
+    expect(outputDisplayUpsert).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          output_id: "display-text-bounds-output",
+          preview_text: longPreviewText.slice(0, 1000),
+          display_prompt_summary: longPrompt.slice(0, 1000),
+          display_title: longTitle.slice(0, 40),
+          error_message_short: longError.slice(0, 1000),
+        }),
+      ],
+      expect.objectContaining({
+        onConflict: "project_id,output_id",
+      })
+    );
+  });
+
+  it("prunes terminal hidden Reference Grid rows while capping visible project workspace rows", async () => {
     const { workspaceUpsert } = createSupabaseMock({
       associatedSnapshotGenerationIds: [],
       recentGenerationIds: [],
@@ -1723,16 +1899,16 @@ describe("projectWorkspaceStatesService", () => {
       }
     )?.active ?? []) as Array<Record<string, unknown>>;
 
-    expect(storedActiveOutputs).toHaveLength(129);
+    expect(storedActiveOutputs).toHaveLength(128);
     expect(storedActiveOutputs.filter((row) => row.hiddenInReferenceGrid !== true)).toHaveLength(
       128
     );
-    expect(storedActiveOutputs.some((row) => row.id === "hidden-output-1")).toBe(true);
+    expect(storedActiveOutputs.some((row) => row.id === "hidden-output-1")).toBe(false);
     expect(storedActiveOutputs.some((row) => row.id === "visible-output-129")).toBe(false);
     expect(storedActiveOutputs.some((row) => row.id === "visible-output-130")).toBe(false);
     expect(
       (storedCheckpoint.outputs as { curatedReferenceIds?: string[] }).curatedReferenceIds
-    ).toEqual(["hidden-output-1"]);
+    ).toEqual([]);
   });
 
   it("retains quick-slot generated outputs when ownership is projection-backed during workspace save", async () => {
@@ -2111,6 +2287,287 @@ describe("projectWorkspaceStatesService", () => {
     }
   });
 
+  it("strips unsafe Supabase direct preview URLs from non-generated rows before workspace save", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co");
+    const { outputDisplayUpsert, workspaceUpsert } = createSupabaseMock();
+    const foreignSignedUrl =
+      "https://project.supabase.co/storage/v1/object/sign/media_library/user-2/library/foreign.png?token=test-token";
+    const renderImageUrl =
+      "https://project.supabase.co/storage/v1/render/image/sign/media_library/user-1/library/render.png?token=test-token&width=320";
+
+    try {
+      await upsertProjectWorkspaceStateForUser({
+        userId: "user-1",
+        projectId: "project-1",
+        schemaVersion: 2,
+        snapshot: {
+          schemaVersion: 2,
+          sessionId: "session-foreign-library-save",
+          updatedAt: "2026-06-01T00:00:00.000Z",
+          meta: {
+            generatedAt: "2026-06-01T00:00:00.000Z",
+            checksum: "fnv1a32:foreign-library-save",
+          },
+          workspace: {
+            selectedTool: "create",
+            standardPrompt: "Foreign library preview",
+          },
+          outputs: {
+            active: [
+              {
+                id: "out-foreign-library-save",
+                mediaSource: "library",
+                savedMediaIds: [MEDIA_ID_1],
+                previewUrl: foreignSignedUrl,
+                previewPosterUrl: renderImageUrl,
+                resultUrls: [foreignSignedUrl, "https://cdn.example.com/library-safe.png"],
+              },
+            ],
+            archived: [],
+            activeOutputId: "out-foreign-library-save",
+            curatedReferenceIds: ["out-foreign-library-save"],
+            removedFromAllRefsIds: [],
+          },
+          agent: {
+            messages: [],
+            input: "",
+            latestAgentPrompt: null,
+            promptOrigin: "manual",
+            chatModeEnabled: false,
+            pulseWorkflowSession: null,
+          },
+        },
+      });
+
+      const firstWorkspaceUpsertArg = (
+        workspaceUpsert.mock.calls as Array<[{ snapshot?: Record<string, unknown> }?, unknown?]>
+      ).at(0)?.[0];
+      const savedRow = (
+        ((firstWorkspaceUpsertArg?.snapshot?.outputs as { active?: Array<Record<string, unknown>> })
+          ?.active ?? []) as Array<Record<string, unknown>>
+      )[0];
+
+      expect(savedRow).toMatchObject({
+        id: "out-foreign-library-save",
+        mediaSource: "library",
+      });
+      expect(savedRow).not.toHaveProperty("previewUrl");
+      expect(savedRow).not.toHaveProperty("previewPosterUrl");
+      expect(savedRow).not.toHaveProperty("resultUrls");
+      expect(outputDisplayUpsert).toHaveBeenCalledWith(
+        [
+          expect.objectContaining({
+            output_id: "out-foreign-library-save",
+            media_source: "library",
+            preview_url_fallback: null,
+            preview_poster_url_fallback: null,
+            result_urls_fallback: ["https://cdn.example.com/library-safe.png"],
+            saved_media_ids: [MEDIA_ID_1],
+          }),
+        ],
+        expect.objectContaining({
+          onConflict: "project_id,output_id",
+        })
+      );
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("drops non-generated local-only media rows before workspace save", async () => {
+    const { outputDisplayUpsert, workspaceUpsert } = createSupabaseMock({
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      projectionRows: [],
+    });
+
+    await upsertProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+      schemaVersion: 2,
+      snapshot: {
+        schemaVersion: 2,
+        sessionId: "session-local-only-upload-save",
+        updatedAt: "2026-06-01T00:00:00.000Z",
+        meta: {
+          generatedAt: "2026-06-01T00:00:00.000Z",
+          checksum: "fnv1a32:local-only-upload-save",
+        },
+        workspace: {
+          selectedTool: "create",
+          standardPrompt: "Local-only upload preview",
+        },
+        outputs: {
+          active: [
+            {
+              id: "upload-local-only-save",
+              mediaSource: "upload",
+              mode: "image",
+              previewUrl: "blob:http://localhost/local-only-upload",
+              resultUrls: ["data:image/png;base64,abc"],
+            },
+            {
+              id: "library-durable-save",
+              mediaSource: "library",
+              mode: "image",
+              savedMediaIds: [MEDIA_ID_1],
+              previewUrl: "https://cdn.example.com/library-durable.png",
+            },
+          ],
+          archived: [],
+          activeOutputId: "upload-local-only-save",
+          curatedReferenceIds: ["upload-local-only-save", "library-durable-save"],
+          removedFromAllRefsIds: ["upload-local-only-save"],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+    });
+
+    const firstWorkspaceUpsertArg = (
+      workspaceUpsert.mock.calls as Array<[{ snapshot?: Record<string, unknown> }?, unknown?]>
+    ).at(0)?.[0];
+
+    expect(firstWorkspaceUpsertArg?.snapshot?.outputs).toMatchObject({
+      active: [
+        expect.objectContaining({
+          id: "library-durable-save",
+          mediaSource: "library",
+        }),
+      ],
+      activeOutputId: null,
+      curatedReferenceIds: ["library-durable-save"],
+      removedFromAllRefsIds: [],
+    });
+    expect(
+      ((firstWorkspaceUpsertArg?.snapshot?.outputs as { active?: Array<Record<string, unknown>> })
+        ?.active ?? []) as Array<Record<string, unknown>>
+    ).not.toContainEqual(expect.objectContaining({ id: "upload-local-only-save" }));
+    expect(outputDisplayUpsert).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          output_id: "library-durable-save",
+        }),
+      ],
+      expect.objectContaining({
+        onConflict: "project_id,output_id",
+      })
+    );
+  });
+
+  it("drops terminal hidden rows before workspace save while preserving hidden in-flight runtime rows", async () => {
+    const { outputDisplayUpsert, workspaceUpsert } = createSupabaseMock({
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      projectionRows: [],
+    });
+
+    await upsertProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+      schemaVersion: 2,
+      snapshot: {
+        schemaVersion: 2,
+        sessionId: "session-hidden-terminal-output-save",
+        updatedAt: "2026-06-01T00:00:00.000Z",
+        meta: {
+          generatedAt: "2026-06-01T00:00:00.000Z",
+          checksum: "fnv1a32:hidden-terminal-output-save",
+        },
+        workspace: {
+          selectedTool: "create",
+          standardPrompt: "Hidden output save",
+        },
+        outputs: {
+          active: [
+            {
+              id: "visible-save",
+              mediaSource: "library",
+              mode: "image",
+              savedMediaIds: [MEDIA_ID_1],
+              previewUrl: "https://cdn.example.com/visible-save.png",
+            },
+            {
+              id: "hidden-terminal-save",
+              mediaSource: "library",
+              mode: "image",
+              hiddenInReferenceGrid: true,
+              taskState: "success",
+              savedMediaIds: [MEDIA_ID_1],
+              previewUrl: "https://cdn.example.com/hidden-terminal-save.png",
+            },
+            {
+              id: "hidden-running-save",
+              mediaSource: "generated",
+              mode: "image",
+              hiddenInReferenceGrid: true,
+              taskState: "running",
+              taskId: "task-hidden-running-save",
+              previewText: "Still processing",
+            },
+          ],
+          archived: [],
+          activeOutputId: "hidden-terminal-save",
+          curatedReferenceIds: ["visible-save", "hidden-terminal-save", "hidden-running-save"],
+          removedFromAllRefsIds: ["hidden-terminal-save", "hidden-running-save"],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+    });
+
+    const firstWorkspaceUpsertArg = (
+      workspaceUpsert.mock.calls as Array<[{ snapshot?: Record<string, unknown> }?, unknown?]>
+    ).at(0)?.[0];
+
+    expect(firstWorkspaceUpsertArg?.snapshot?.outputs).toMatchObject({
+      active: [
+        expect.objectContaining({
+          id: "visible-save",
+          mediaSource: "library",
+        }),
+        expect.objectContaining({
+          id: "hidden-running-save",
+          mediaSource: "generated",
+          hiddenInReferenceGrid: true,
+        }),
+      ],
+      activeOutputId: null,
+      curatedReferenceIds: ["visible-save", "hidden-running-save"],
+      removedFromAllRefsIds: ["hidden-running-save"],
+    });
+    expect(
+      ((firstWorkspaceUpsertArg?.snapshot?.outputs as { active?: Array<Record<string, unknown>> })
+        ?.active ?? []) as Array<Record<string, unknown>>
+    ).not.toContainEqual(expect.objectContaining({ id: "hidden-terminal-save" }));
+    expect(outputDisplayUpsert).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          output_id: "visible-save",
+        }),
+        expect.objectContaining({
+          output_id: "hidden-running-save",
+          hidden_in_reference_grid: true,
+        }),
+      ],
+      expect.objectContaining({
+        onConflict: "project_id,output_id",
+      })
+    );
+  });
+
   it("preserves companion-art-backed generated rows during workspace save", async () => {
     const { workspaceUpsert, outputDisplayUpsert } = createSupabaseMock({
       associatedSnapshotGenerationIds: [],
@@ -2417,7 +2874,7 @@ describe("projectWorkspaceStatesService", () => {
     });
   });
 
-  it("does not recover canvas storage paths from foreign or render-image media URLs", async () => {
+  it("drops canvas media items backed by foreign or render-image media URLs", async () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co");
     const { workspaceUpsert } = createSupabaseMock({
       associatedSnapshotGenerationIds: [],
@@ -2516,9 +2973,130 @@ describe("projectWorkspaceStatesService", () => {
       firstWorkspaceUpsertArg?.snapshot?.canvas as { scene?: { items?: unknown[] } }
     )?.scene?.items ?? []) as Array<Record<string, unknown>>;
 
+    expect(savedCanvasItems).toHaveLength(0);
+  });
+
+  it("strips unsafe canvas poster and companion art URLs while preserving valid media items", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co");
+    const { workspaceUpsert } = createSupabaseMock({
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      projectionRows: [],
+    });
+
+    try {
+      await upsertProjectWorkspaceStateForUser({
+        userId: "user-1",
+        projectId: "project-1",
+        schemaVersion: 2,
+        snapshot: {
+          schemaVersion: 2,
+          sessionId: "session-canvas-unsafe-secondary-media-save",
+          updatedAt: "2026-05-31T19:22:00.000Z",
+          meta: {
+            generatedAt: "2026-05-31T19:22:00.000Z",
+            checksum: "fnv1a32:canvas-unsafe-secondary-media-save",
+          },
+          workspace: {},
+          outputs: {
+            active: [],
+            archived: [],
+          },
+          canvas: {
+            scene: {
+              items: [
+                {
+                  id: "canvas-video-valid",
+                  kind: "video",
+                  x: 0,
+                  y: 0,
+                  z: 1,
+                  selected: false,
+                  outputId: null,
+                  sourceSurface: null,
+                  mediaId: null,
+                  videoUrl: createTrustedSignedMediaUrl("user-1/generations/videos/valid.mp4"),
+                  posterUrl:
+                    "https://project.supabase.co/storage/v1/render/image/sign/media_library/user-1/variants/videos/valid/poster.jpg?token=expired&width=320",
+                  title: "Valid video",
+                  durationMs: 1000,
+                  width: 320,
+                  height: 180,
+                },
+                {
+                  id: "canvas-audio-valid",
+                  kind: "audio",
+                  x: 10,
+                  y: 12,
+                  z: 2,
+                  selected: false,
+                  outputId: null,
+                  sourceSurface: null,
+                  mediaId: null,
+                  audioUrl: createTrustedSignedMediaUrl("user-1/generations/audio/valid.mp3"),
+                  companionArtUrl: createTrustedSignedMediaUrl(
+                    "user-2/generations/audio/foreign-cover.webp"
+                  ),
+                  title: "Valid audio",
+                  audioSourceMode: "music",
+                  durationMs: 1000,
+                  waveformPeaks: null,
+                  width: 280,
+                  height: 120,
+                },
+              ],
+            },
+            viewports: {
+              main: { x: 0, y: 0, zoom: 1 },
+              rail: { x: 0, y: 0, zoom: 1 },
+            },
+            transient: {
+              draftTextEntry: null,
+              textEditSession: null,
+              draftOwnerInstanceId: null,
+              textEditOwnerInstanceId: null,
+            },
+            meta: {
+              schemaVersion: 1,
+              itemCount: 2,
+              truncatedItemCount: 0,
+              skippedNonDurableImageCount: 0,
+            },
+          },
+          agent: {
+            messages: [],
+            input: "",
+            latestAgentPrompt: null,
+            promptOrigin: "manual",
+            chatModeEnabled: false,
+            pulseWorkflowSession: null,
+          },
+        },
+      });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+
+    const firstWorkspaceUpsertArg = (
+      workspaceUpsert.mock.calls as Array<[{ snapshot?: Record<string, unknown> }?, unknown?]>
+    ).at(0)?.[0];
+    const savedCanvasItems = ((
+      firstWorkspaceUpsertArg?.snapshot?.canvas as { scene?: { items?: unknown[] } }
+    )?.scene?.items ?? []) as Array<Record<string, unknown>>;
+
     expect(savedCanvasItems).toHaveLength(2);
-    expect(savedCanvasItems[0]?.srcStoragePath).toBeNull();
-    expect(savedCanvasItems[1]?.srcStoragePath).toBeNull();
+    expect(savedCanvasItems[0]).toMatchObject({
+      id: "canvas-video-valid",
+      videoStoragePath: "user-1/generations/videos/valid.mp4",
+    });
+    expect(savedCanvasItems[0]?.posterUrl).toBeNull();
+    expect(savedCanvasItems[0]?.posterStoragePath).toBeNull();
+    expect(savedCanvasItems[1]).toMatchObject({
+      id: "canvas-audio-valid",
+      audioStoragePath: "user-1/generations/audio/valid.mp3",
+    });
+    expect(savedCanvasItems[1]?.companionArtUrl).toBeNull();
+    expect(savedCanvasItems[1]?.companionArtStoragePath).toBeNull();
   });
 
   it("strips out-of-scope preview storage paths before saving project workspace snapshots", async () => {
@@ -2920,6 +3498,64 @@ describe("projectWorkspaceStatesService", () => {
     );
   });
 
+  it("does not request the heavy snapshot column from the workspace write response", async () => {
+    const { workspaceUpsert, workspaceUpsertSelect } = createSupabaseMock({
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      projectionRows: [],
+    });
+
+    await upsertProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+      schemaVersion: 2,
+      includeSnapshotInResponse: false,
+      snapshot: {
+        schemaVersion: 2,
+        sessionId: "session-light-write-return",
+        updatedAt: "2026-04-23T01:05:00.000Z",
+        meta: {
+          generatedAt: "2026-04-23T01:05:00.000Z",
+          checksum: "fnv1a32:light-write-return",
+        },
+        workspace: {
+          selectedTool: "create",
+          standardPrompt: "Project prompt",
+        },
+        outputs: {
+          active: [
+            {
+              id: "library-light-write-return",
+              mediaSource: "library",
+              mode: "image",
+              savedMediaIds: [MEDIA_ID_1],
+              prompt: "Light write return",
+            },
+          ],
+          archived: [],
+          activeOutputId: "library-light-write-return",
+          curatedReferenceIds: ["library-light-write-return"],
+          removedFromAllRefsIds: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+    });
+
+    expect(workspaceUpsert).toHaveBeenCalledTimes(1);
+    const selectedColumns = String(workspaceUpsertSelect.mock.calls[0]?.[0] ?? "")
+      .split(",")
+      .map((column) => column.trim());
+    expect(selectedColumns).toContain("snapshot_updated_at");
+    expect(selectedColumns).not.toContain("snapshot");
+  });
+
   it("returns repair-pending save outcomes when save-side generation authority resolution degrades", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const { workspaceUpsert } = createSupabaseMock({
@@ -3087,6 +3723,191 @@ describe("projectWorkspaceStatesService", () => {
     }
   });
 
+  it("sanitizes stale display fallback URLs from repair-pending save responses", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co");
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const foreignSignedUrl =
+      "https://project.supabase.co/storage/v1/object/sign/media_library/user-2/library/foreign.png?token=test-token";
+    const renderImageUrl =
+      "https://project.supabase.co/storage/v1/render/image/sign/media_library/user-1/library/render.png?token=test-token&width=320";
+    createSupabaseMock({
+      outputDisplayUpsertError: "invalid input syntax for type integer",
+      outputDisplayRows: [
+        {
+          project_id: "project-1",
+          user_id: "user-1",
+          output_id: "library-1",
+          version: 3,
+          source_snapshot_updated_at: "2026-04-23T00:59:00.000Z",
+          mode: "image",
+          media_source: "library",
+          created_at: "2026-04-23T00:55:00.000Z",
+          generation_id: null,
+          prompt_id: FOREIGN_PROMPT_ID,
+          task_id: null,
+          source_ref: null,
+          generation_trace_id: null,
+          preview_text: null,
+          display_title: null,
+          display_prompt_summary: "Stale display prompt",
+          mime_type: "image/png",
+          width: 1024,
+          height: 768,
+          duration_ms: null,
+          preview_storage_path: null,
+          full_storage_path: null,
+          preview_poster_storage_path: null,
+          companion_art_storage_path: null,
+          preview_url_fallback: foreignSignedUrl,
+          preview_poster_url_fallback: renderImageUrl,
+          companion_art_url_fallback: null,
+          result_urls_fallback: [foreignSignedUrl, "https://cdn.example.com/library-safe.png"],
+          saved_media_ids: [MEDIA_ID_1, FOREIGN_MEDIA_ID],
+          task_state: "success",
+          queue_state: null,
+          save_state: "saved",
+          status: "ready",
+          error_message_short: null,
+          hidden_in_reference_grid: false,
+          updated_at: "2026-04-23T00:59:05.000Z",
+        },
+      ],
+    });
+
+    try {
+      const result = await upsertProjectWorkspaceStateForUser({
+        userId: "user-1",
+        projectId: "project-1",
+        schemaVersion: 2,
+        snapshot: {
+          schemaVersion: 2,
+          sessionId: "session-1",
+          updatedAt: "2026-04-23T01:00:00.000Z",
+          meta: {
+            generatedAt: "2026-04-23T01:00:00.000Z",
+            checksum: "fnv1a32:display-sync-failure-sanitize-response",
+          },
+          workspace: {
+            selectedTool: "create",
+            standardPrompt: "Project prompt",
+          },
+          outputs: {
+            active: [
+              {
+                id: "library-1",
+                savedMediaIds: [MEDIA_ID_1],
+                prompt: "Display prompt",
+              },
+            ],
+            archived: [],
+          },
+          agent: {
+            messages: [],
+            input: "",
+            latestAgentPrompt: null,
+            promptOrigin: "manual",
+            chatModeEnabled: false,
+            pulseWorkflowSession: null,
+          },
+        },
+      });
+
+      expect(result.saveOutcome).toMatchObject({
+        status: "saved_with_repair_pending",
+        repairStage: "project_output_display_sync",
+      });
+      const restoredRow = (
+        ((result.snapshot.outputs as { active?: Array<Record<string, unknown>> })?.active ??
+          []) as Array<Record<string, unknown>>
+      )[0];
+      expect(restoredRow).toMatchObject({
+        id: "library-1",
+        mediaSource: "library",
+        savedMediaIds: [MEDIA_ID_1],
+        resultUrls: ["https://cdn.example.com/library-safe.png"],
+      });
+      expect(restoredRow).not.toHaveProperty("previewUrl");
+      expect(restoredRow).not.toHaveProperty("previewPosterUrl");
+      expect(restoredRow).not.toHaveProperty("promptId");
+    } finally {
+      warnSpy.mockRestore();
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("returns repair-pending save outcomes when output display sync exceeds the autosave-safe budget", async () => {
+    vi.useFakeTimers();
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { workspaceUpsert, outputDisplayUpsert } = createSupabaseMock({
+      outputDisplayUpsertDelayMs: 60_000,
+    });
+
+    try {
+      const savePromise = upsertProjectWorkspaceStateForUser({
+        userId: "user-1",
+        projectId: "project-1",
+        schemaVersion: 2,
+        snapshot: {
+          schemaVersion: 2,
+          sessionId: "session-1",
+          updatedAt: "2026-04-23T01:00:00.000Z",
+          meta: {
+            generatedAt: "2026-04-23T01:00:00.000Z",
+            checksum: "fnv1a32:display-sync-timeout",
+          },
+          workspace: {
+            selectedTool: "create",
+            standardPrompt: "Project prompt",
+          },
+          outputs: {
+            active: [
+              {
+                id: "library-1",
+                savedMediaIds: [MEDIA_ID_1],
+                prompt: "Display prompt",
+              },
+            ],
+            archived: [],
+          },
+          agent: {
+            messages: [],
+            input: "",
+            latestAgentPrompt: null,
+            promptOrigin: "manual",
+            chatModeEnabled: false,
+            pulseWorkflowSession: null,
+          },
+        },
+      });
+
+      await vi.advanceTimersByTimeAsync(2_600);
+
+      await expect(savePromise).resolves.toMatchObject({
+        saveOutcome: {
+          status: "saved_with_repair_pending",
+          repairStage: "project_output_display_sync",
+          repairMessage:
+            "Project workspace save failed during project output display sync: project output display sync exceeded 2500ms budget",
+        },
+      });
+
+      expect(workspaceUpsert).toHaveBeenCalledTimes(1);
+      expect(outputDisplayUpsert).toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[project-workspace] best-effort save stage failed; persisting sanitized snapshot",
+        expect.objectContaining({
+          projectId: "project-1",
+          stage: "project output display sync",
+          error: "project output display sync exceeded 2500ms budget",
+        })
+      );
+      await vi.runOnlyPendingTimersAsync();
+    } finally {
+      warnSpy.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
   it("does not fail the workspace save response when output display materialization is unavailable", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const { workspaceUpsert } = createSupabaseMock({
@@ -3212,7 +4033,278 @@ describe("projectWorkspaceStatesService", () => {
 
     expect(result.saveOutcome).toEqual({ status: "saved" });
     expect(workspaceUpsert).toHaveBeenCalledTimes(1);
+    expect(outputDisplaySelect).toHaveBeenCalledTimes(1);
+  });
+
+  it("runs display cleanup only when a structural save has stale display rows", async () => {
+    const { outputDisplayDeleteIn, outputDisplaySelect } = createSupabaseMock({
+      outputDisplayRows: [
+        {
+          project_id: "project-1",
+          user_id: "user-1",
+          output_id: "stale-display-extra",
+          version: 1,
+          source_snapshot_updated_at: "2026-04-23T00:59:00.000Z",
+          mode: "image",
+          media_source: "library",
+          created_at: null,
+          generation_id: null,
+          prompt_id: null,
+          task_id: null,
+          source_ref: null,
+          generation_trace_id: null,
+          preview_text: null,
+          display_prompt_summary: "Stale display row",
+          mime_type: null,
+          width: null,
+          height: null,
+          duration_ms: null,
+          preview_storage_path: null,
+          full_storage_path: null,
+          preview_poster_storage_path: null,
+          companion_art_storage_path: null,
+          preview_url_fallback: "https://cdn.example.com/stale-display-extra.png",
+          preview_poster_url_fallback: null,
+          companion_art_url_fallback: null,
+          result_urls_fallback: ["https://cdn.example.com/stale-display-extra.png"],
+          saved_media_ids: [],
+          task_state: null,
+          queue_state: null,
+          save_state: null,
+          status: null,
+          error_message_short: null,
+          hidden_in_reference_grid: false,
+          updated_at: "2026-04-23T00:59:00.000Z",
+        },
+      ],
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      projectionRows: [],
+    });
+
+    await upsertProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+      schemaVersion: 2,
+      includeSnapshotInResponse: false,
+      snapshot: {
+        schemaVersion: 2,
+        sessionId: "session-display-cleanup",
+        updatedAt: "2026-04-23T01:05:00.000Z",
+        workspace: {
+          selectedTool: "create",
+        },
+        outputs: {
+          active: [
+            {
+              id: "library-display-cleanup",
+              mediaSource: "library",
+              mode: "image",
+              savedMediaIds: [MEDIA_ID_1],
+            },
+          ],
+          archived: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+    });
+
     expect(outputDisplaySelect).toHaveBeenCalledTimes(2);
+    expect(outputDisplayDeleteIn).toHaveBeenCalledWith("output_id", ["stale-display-extra"]);
+  });
+
+  it("cleans display rows for terminal hidden outputs pruned from an older checkpoint", async () => {
+    const existingCheckpointSnapshot = createLightweightProjectWorkspaceCheckpointSnapshot({
+      checkpointRevision: 1,
+      snapshot: {
+        schemaVersion: 2,
+        sessionId: "session-hidden-terminal-cleanup-old",
+        updatedAt: "2026-04-23T00:59:00.000Z",
+        workspace: {
+          selectedTool: "create",
+        },
+        outputs: {
+          active: [
+            {
+              id: "visible-hidden-cleanup",
+              mediaSource: "library",
+              mode: "image",
+              savedMediaIds: [MEDIA_ID_1],
+            },
+            {
+              id: "hidden-terminal-cleanup",
+              mediaSource: "library",
+              mode: "image",
+              hiddenInReferenceGrid: true,
+              taskState: "success",
+              savedMediaIds: [MEDIA_ID_1],
+            },
+          ],
+          archived: [],
+          activeOutputId: "hidden-terminal-cleanup",
+          curatedReferenceIds: ["visible-hidden-cleanup", "hidden-terminal-cleanup"],
+          removedFromAllRefsIds: ["hidden-terminal-cleanup"],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+    });
+    const { outputDisplayDeleteIn, outputDisplaySelect, workspaceUpsert } = createSupabaseMock({
+      workspaceSnapshot: existingCheckpointSnapshot,
+      workspaceSnapshotUpdatedAt: "2026-04-23T00:59:00.000Z",
+      outputDisplayRows: [
+        {
+          project_id: "project-1",
+          user_id: "user-1",
+          output_id: "visible-hidden-cleanup",
+          version: 1,
+          source_snapshot_updated_at: "2026-04-23T00:59:00.000Z",
+          mode: "image",
+          media_source: "library",
+          created_at: null,
+          generation_id: null,
+          prompt_id: null,
+          task_id: null,
+          source_ref: null,
+          generation_trace_id: null,
+          preview_text: null,
+          display_prompt_summary: null,
+          mime_type: null,
+          width: null,
+          height: null,
+          duration_ms: null,
+          preview_storage_path: null,
+          full_storage_path: null,
+          preview_poster_storage_path: null,
+          companion_art_storage_path: null,
+          preview_url_fallback: null,
+          preview_poster_url_fallback: null,
+          companion_art_url_fallback: null,
+          result_urls_fallback: [],
+          saved_media_ids: [MEDIA_ID_1],
+          task_state: null,
+          queue_state: null,
+          save_state: null,
+          status: null,
+          error_message_short: null,
+          hidden_in_reference_grid: false,
+          updated_at: "2026-04-23T00:59:00.000Z",
+        },
+        {
+          project_id: "project-1",
+          user_id: "user-1",
+          output_id: "hidden-terminal-cleanup",
+          version: 1,
+          source_snapshot_updated_at: "2026-04-23T00:59:00.000Z",
+          mode: "image",
+          media_source: "library",
+          created_at: null,
+          generation_id: null,
+          prompt_id: null,
+          task_id: null,
+          source_ref: null,
+          generation_trace_id: null,
+          preview_text: null,
+          display_prompt_summary: null,
+          mime_type: null,
+          width: null,
+          height: null,
+          duration_ms: null,
+          preview_storage_path: null,
+          full_storage_path: null,
+          preview_poster_storage_path: null,
+          companion_art_storage_path: null,
+          preview_url_fallback: "https://cdn.example.com/hidden-terminal-cleanup.png",
+          preview_poster_url_fallback: null,
+          companion_art_url_fallback: null,
+          result_urls_fallback: ["https://cdn.example.com/hidden-terminal-cleanup.png"],
+          saved_media_ids: [MEDIA_ID_1],
+          task_state: "success",
+          queue_state: null,
+          save_state: null,
+          status: "ready",
+          error_message_short: null,
+          hidden_in_reference_grid: true,
+          updated_at: "2026-04-23T00:59:00.000Z",
+        },
+      ],
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      projectionRows: [],
+    });
+
+    await upsertProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+      schemaVersion: 2,
+      includeSnapshotInResponse: false,
+      snapshot: {
+        schemaVersion: 2,
+        sessionId: "session-hidden-terminal-cleanup-new",
+        updatedAt: "2026-04-23T01:05:00.000Z",
+        workspace: {
+          selectedTool: "create",
+        },
+        outputs: {
+          active: [
+            {
+              id: "visible-hidden-cleanup",
+              mediaSource: "library",
+              mode: "image",
+              savedMediaIds: [MEDIA_ID_1],
+            },
+            {
+              id: "hidden-terminal-cleanup",
+              mediaSource: "library",
+              mode: "image",
+              hiddenInReferenceGrid: true,
+              taskState: "success",
+              savedMediaIds: [MEDIA_ID_1],
+            },
+          ],
+          archived: [],
+          activeOutputId: "hidden-terminal-cleanup",
+          curatedReferenceIds: ["visible-hidden-cleanup", "hidden-terminal-cleanup"],
+          removedFromAllRefsIds: ["hidden-terminal-cleanup"],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+    });
+
+    const firstWorkspaceUpsertArg = (
+      workspaceUpsert.mock.calls as Array<[{ snapshot?: Record<string, unknown> }?, unknown?]>
+    ).at(0)?.[0];
+    const savedActiveOutputs = ((
+      firstWorkspaceUpsertArg?.snapshot?.outputs as { active?: Array<Record<string, unknown>> }
+    )?.active ?? []) as Array<Record<string, unknown>>;
+
+    expect(savedActiveOutputs).toEqual([
+      expect.objectContaining({
+        id: "visible-hidden-cleanup",
+      }),
+    ]);
+    expect(outputDisplaySelect).toHaveBeenCalledTimes(2);
+    expect(outputDisplayDeleteIn).toHaveBeenCalledWith("output_id", ["hidden-terminal-cleanup"]);
   });
 
   it("accepts richer agent attachment fields while still sanitizing project workspace saves", async () => {
@@ -3512,6 +4604,116 @@ describe("projectWorkspaceStatesService", () => {
         },
       },
     });
+  });
+
+  it("strips unsafe Supabase display fallback URLs from non-generated rows on workspace read", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co");
+    const foreignSignedUrl =
+      "https://project.supabase.co/storage/v1/object/sign/media_library/user-2/library/foreign.png?token=test-token";
+    const renderImageUrl =
+      "https://project.supabase.co/storage/v1/render/image/sign/media_library/user-1/library/render.png?token=test-token&width=320";
+
+    try {
+      createSupabaseMock({
+        workspaceSnapshot: {
+          schemaVersion: 2,
+          sessionId: "session-display-unsafe-url-read",
+          updatedAt: "2026-06-03T12:00:00.000Z",
+          meta: {
+            generatedAt: "2026-06-03T12:00:00.000Z",
+            checkpointRevision: 4,
+          },
+          workspace: {
+            selectedTool: "create",
+          },
+          outputs: {
+            active: [
+              {
+                id: "display-unsafe-url-1",
+                mode: "image",
+                mediaSource: "library",
+              },
+            ],
+            archived: [],
+            activeOutputId: "display-unsafe-url-1",
+            curatedReferenceIds: ["display-unsafe-url-1"],
+            removedFromAllRefsIds: [],
+          },
+          agent: {
+            messages: [],
+            input: "",
+            latestAgentPrompt: null,
+            promptOrigin: "manual",
+            chatModeEnabled: false,
+            pulseWorkflowSession: null,
+          },
+        },
+        outputDisplayRows: [
+          {
+            project_id: "project-1",
+            user_id: "user-1",
+            output_id: "display-unsafe-url-1",
+            version: 3,
+            source_snapshot_updated_at: "2026-06-03T12:00:00.000Z",
+            mode: "image",
+            media_source: "library",
+            created_at: "2026-06-03T11:55:00.000Z",
+            generation_id: null,
+            prompt_id: null,
+            task_id: null,
+            source_ref: null,
+            generation_trace_id: null,
+            preview_text: "A materialized display row with unsafe URLs",
+            display_title: "Display Title",
+            display_prompt_summary: "Display prompt",
+            mime_type: "image/png",
+            width: 1024,
+            height: 768,
+            duration_ms: null,
+            preview_storage_path: null,
+            full_storage_path: null,
+            preview_poster_storage_path: null,
+            companion_art_storage_path: null,
+            preview_url_fallback: foreignSignedUrl,
+            preview_poster_url_fallback: renderImageUrl,
+            companion_art_url_fallback: null,
+            result_urls_fallback: [foreignSignedUrl, "https://cdn.example.com/display-safe.png"],
+            saved_media_ids: [MEDIA_ID_1],
+            task_state: "success",
+            queue_state: null,
+            save_state: "saved",
+            status: "ready",
+            error_message_short: null,
+            hidden_in_reference_grid: false,
+            updated_at: "2026-06-03T12:00:01.000Z",
+          },
+        ],
+        associatedSnapshotGenerationIds: [],
+        recentGenerationIds: [],
+        projectionRows: [],
+      });
+
+      const result = await getProjectWorkspaceStateForUser({
+        userId: "user-1",
+        projectId: "project-1",
+      });
+
+      const restoredRow = (
+        ((result?.snapshot.outputs as { active?: Array<Record<string, unknown>> })?.active ??
+          []) as Array<Record<string, unknown>>
+      )[0];
+
+      expect(restoredRow).toMatchObject({
+        id: "display-unsafe-url-1",
+        mediaSource: "library",
+        savedMediaIds: [MEDIA_ID_1],
+        resultUrls: ["https://cdn.example.com/display-safe.png"],
+      });
+      expect(restoredRow).not.toHaveProperty("previewUrl");
+      expect(restoredRow).not.toHaveProperty("previewPosterUrl");
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("repairs materialized generated display rows from durable projection authority on workspace read", async () => {
@@ -4182,7 +5384,15 @@ describe("projectWorkspaceStatesService", () => {
         pulseWorkflowSession: null,
       },
     });
-    const { outputDisplayUpsert, workspaceUpsert, getWorkspaceRow } = createSupabaseMock({
+    const {
+      generationAssociationUpsert,
+      mediaAssociationUpsert,
+      outputDisplaySelect,
+      outputDisplayUpsert,
+      promptAssociationUpsert,
+      workspaceUpsert,
+      getWorkspaceRow,
+    } = createSupabaseMock({
       workspaceSnapshot: existingCheckpointSnapshot,
       outputDisplayRows: [
         {
@@ -4266,6 +5476,7 @@ describe("projectWorkspaceStatesService", () => {
             pulseWorkflowSession: null,
           },
         },
+        includeSnapshotInResponse: false,
       })
     ).resolves.toMatchObject({
       checkpointRevision: 1,
@@ -4274,7 +5485,6 @@ describe("projectWorkspaceStatesService", () => {
           active: [
             expect.objectContaining({
               id: "display-touch-1",
-              prompt: "Stable prompt",
             }),
           ],
         },
@@ -4282,11 +5492,164 @@ describe("projectWorkspaceStatesService", () => {
     });
 
     expect(outputDisplayUpsert).not.toHaveBeenCalled();
+    expect(outputDisplaySelect).not.toHaveBeenCalled();
+    expect(mediaAssociationUpsert).not.toHaveBeenCalled();
+    expect(promptAssociationUpsert).not.toHaveBeenCalled();
+    expect(generationAssociationUpsert).not.toHaveBeenCalled();
     expect(workspaceUpsert).toHaveBeenCalledTimes(1);
     expect(workspaceUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
         checkpoint_revision: 1,
         snapshot: existingCheckpointSnapshot,
+        snapshot_updated_at: "2026-06-03T12:05:00.000Z",
+      }),
+      expect.anything()
+    );
+    expect(getWorkspaceRow()).toMatchObject({
+      checkpoint_revision: 1,
+      snapshot_updated_at: "2026-06-03T12:05:00.000Z",
+    });
+  });
+
+  it("updates display rows without bumping structural checkpoint revision when only rich display data changes", async () => {
+    const existingCheckpointSnapshot = createCanonicalCheckpointSnapshot({
+      schemaVersion: 2,
+      sessionId: "session-display-rich-touch",
+      updatedAt: "2026-06-03T12:00:00.000Z",
+      workspace: {
+        selectedTool: "create",
+      },
+      outputs: {
+        active: [
+          {
+            id: "display-rich-touch-1",
+            mode: "image",
+            mediaSource: "library",
+            prompt: "Older prompt",
+            previewUrl: "https://cdn.example.com/older.png",
+            resultUrls: ["https://cdn.example.com/older.png"],
+            savedMediaIds: [MEDIA_ID_1],
+          },
+        ],
+        archived: [],
+        activeOutputId: "display-rich-touch-1",
+        curatedReferenceIds: ["display-rich-touch-1"],
+        removedFromAllRefsIds: [],
+      },
+      agent: {
+        messages: [],
+        input: "",
+        latestAgentPrompt: null,
+        promptOrigin: "manual",
+        chatModeEnabled: false,
+        pulseWorkflowSession: null,
+      },
+    });
+    const { outputDisplaySelect, outputDisplayUpsert, workspaceUpsert, getWorkspaceRow } =
+      createSupabaseMock({
+        workspaceSnapshot: existingCheckpointSnapshot,
+        outputDisplayRows: [
+          {
+            project_id: "project-1",
+            user_id: "user-1",
+            output_id: "display-rich-touch-1",
+            version: 4,
+            source_snapshot_updated_at: "2026-06-03T12:00:00.000Z",
+            mode: "image",
+            media_source: "library",
+            created_at: null,
+            generation_id: null,
+            prompt_id: null,
+            task_id: null,
+            source_ref: null,
+            generation_trace_id: null,
+            preview_text: null,
+            display_prompt_summary: "Older prompt",
+            mime_type: null,
+            width: null,
+            height: null,
+            duration_ms: null,
+            preview_storage_path: null,
+            full_storage_path: null,
+            preview_poster_storage_path: null,
+            companion_art_storage_path: null,
+            preview_url_fallback: "https://cdn.example.com/older.png",
+            preview_poster_url_fallback: null,
+            companion_art_url_fallback: null,
+            result_urls_fallback: ["https://cdn.example.com/older.png"],
+            saved_media_ids: [MEDIA_ID_1],
+            task_state: null,
+            queue_state: null,
+            save_state: null,
+            status: null,
+            error_message_short: null,
+            hidden_in_reference_grid: false,
+            updated_at: "2026-06-03T12:00:01.000Z",
+          },
+        ],
+        associatedSnapshotGenerationIds: [],
+        recentGenerationIds: [],
+        projectionRows: [],
+      });
+
+    await upsertProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+      schemaVersion: 2,
+      includeSnapshotInResponse: false,
+      snapshot: {
+        schemaVersion: 2,
+        sessionId: "session-display-rich-touch",
+        updatedAt: "2026-06-03T12:05:00.000Z",
+        workspace: {
+          selectedTool: "create",
+        },
+        outputs: {
+          active: [
+            {
+              id: "display-rich-touch-1",
+              mode: "image",
+              mediaSource: "library",
+              prompt: "Newer prompt",
+              previewUrl: "https://cdn.example.com/newer.png",
+              resultUrls: ["https://cdn.example.com/newer.png"],
+              savedMediaIds: [MEDIA_ID_1],
+            },
+          ],
+          archived: [],
+          activeOutputId: "display-rich-touch-1",
+          curatedReferenceIds: ["display-rich-touch-1"],
+          removedFromAllRefsIds: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+    });
+
+    expect(outputDisplaySelect).toHaveBeenCalledTimes(1);
+    expect(outputDisplayUpsert).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          output_id: "display-rich-touch-1",
+          display_prompt_summary: "Newer prompt",
+          preview_url_fallback: "https://cdn.example.com/newer.png",
+          result_urls_fallback: ["https://cdn.example.com/newer.png"],
+          version: 5,
+        }),
+      ],
+      {
+        onConflict: "project_id,output_id",
+      }
+    );
+    expect(workspaceUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        checkpoint_revision: 1,
         snapshot_updated_at: "2026-06-03T12:05:00.000Z",
       }),
       expect.anything()

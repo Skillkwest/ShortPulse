@@ -89,6 +89,8 @@ const hasText = (value: unknown): boolean => typeof value === "string" && value.
 const hasStringEntries = (value: unknown): boolean =>
   Array.isArray(value) && value.some((entry) => hasText(entry));
 
+const PROJECT_WORKSPACE_TEXT_SUMMARY_MAX_CHARS = 1000;
+
 const asTrimmedString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const normalized = value.trim();
@@ -142,6 +144,12 @@ const isInFlightProjectOutput = (output: Record<string, unknown>): boolean => {
   return taskState === "pending" || taskState === "running";
 };
 
+export const shouldPersistHiddenProjectWorkspaceOutput = (
+  output: Record<string, unknown>
+): boolean =>
+  output.hiddenInReferenceGrid !== true ||
+  (isInFlightProjectOutput(output) && hasProjectRecoverableRuntimeIdentity(output));
+
 const isFailedProjectOutput = (output: Record<string, unknown>): boolean =>
   ["fail", "failed"].includes(normalizeProjectOutputTaskState(output));
 
@@ -157,6 +165,45 @@ const isPromptOnlyProjectReference = (output: Record<string, unknown>): boolean 
 
 const shouldTrimGeneratedOutputPayload = (output: Record<string, unknown>): boolean =>
   hasText(output.generationId) && !isInFlightProjectOutput(output);
+
+const hasProjectWorkspaceTextSummaryAuthority = (output: Record<string, unknown>): boolean =>
+  hasText(output.generationId) ||
+  hasText(output.promptId) ||
+  hasText(output.taskId) ||
+  hasText(output.sourceRef) ||
+  hasProjectDurableOutputAuthority(output);
+
+const trimTextSummaryField = (value: unknown): unknown => {
+  if (typeof value !== "string") return value;
+  return value.length > PROJECT_WORKSPACE_TEXT_SUMMARY_MAX_CHARS
+    ? value.slice(0, PROJECT_WORKSPACE_TEXT_SUMMARY_MAX_CHARS)
+    : value;
+};
+
+const trimProjectWorkspaceOutputTextSummaries = (
+  output: Record<string, unknown>
+): Record<string, unknown> => {
+  if (!hasProjectWorkspaceTextSummaryAuthority(output)) return output;
+  const trimmedOutput = {
+    ...output,
+  };
+  (
+    [
+      "prompt",
+      "previewText",
+      "transcriptText",
+      "lyricsText",
+      "title",
+      "errorMessage",
+      "errorMessageShort",
+      "errorDetail",
+    ] as const
+  ).forEach((field) => {
+    if (!(field in trimmedOutput)) return;
+    trimmedOutput[field] = trimTextSummaryField(trimmedOutput[field]);
+  });
+  return trimmedOutput;
+};
 
 type GeneratedOutputTrimOptions = {
   trimDeliveryUrls?: boolean;
@@ -226,6 +273,7 @@ const shouldPersistOutputInProjectWorkspaceSnapshot = (
   output: Record<string, unknown>
 ): boolean => {
   if (isFailedProjectOutput(output)) return false;
+  if (!shouldPersistHiddenProjectWorkspaceOutput(output)) return false;
   return (
     hasProjectRestorableOutputPayload(output) ||
     hasProjectDurableOutputAuthority(output) ||
@@ -305,7 +353,9 @@ const stripFailedOutputsFromProjectWorkspaceOutputs = (
       trimDeliveryUrls: trimGeneratedOutputDeliveryUrls,
       trimMetadata: trimGeneratedOutputMetadata,
     });
-    return trimPromptOnlyProjectWorkspaceOutput(generatedNormalizedOutput);
+    return trimProjectWorkspaceOutputTextSummaries(
+      trimPromptOnlyProjectWorkspaceOutput(generatedNormalizedOutput)
+    );
   });
   const visibleLimitedActiveOutputs = limitProjectWorkspaceVisibleOutputs(normalizedActiveOutputs);
   const outputIdAliases = new Map<string, string>();

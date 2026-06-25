@@ -74,7 +74,6 @@ type UseReferenceGridCardRenderControllerArgs = {
   onAutoplayStarted: (id: string) => void;
   onAutoplayStopped: (id: string) => void;
   audioPlaybackController: ReferenceGridSingleAudioPlaybackController;
-  onRetryStatus?: (output: StudioOutput) => void;
   onRerollOutput?: (output: StudioOutput) => void;
   onReloadWorkflowOutput?: (
     output: StudioOutput,
@@ -145,7 +144,6 @@ export const useReferenceGridCardRenderController = ({
   onAutoplayStarted,
   onAutoplayStopped,
   audioPlaybackController,
-  onRetryStatus,
   onRerollOutput,
   onReloadWorkflowOutput,
   onDeleteOutput,
@@ -221,8 +219,6 @@ export const useReferenceGridCardRenderController = ({
       const isPromptOnly = !card.cardPreviewUrl && !!currentOutput.previewText;
       const isLinkedPromptReference =
         isPromptOnly && linkedPromptReferenceIdSet.has(currentOutput.id);
-      const canRetryStatus =
-        Boolean(onRetryStatus && currentOutput.taskId) && (isFailing || isGenerationLoading);
       const videoPosterUrl =
         currentOutput.mode === "video"
           ? card.videoPosterUrl?.trim() ||
@@ -318,7 +314,6 @@ export const useReferenceGridCardRenderController = ({
           allowDurationProbe={!suspendBackgroundVisualWork}
           isPromptOnly={isPromptOnly}
           isLinkedPromptReference={isLinkedPromptReference}
-          canRetryStatus={canRetryStatus}
           imageSrc={card.imageSrc}
           imageLoading={card.isPriorityHydration ? "eager" : "lazy"}
           imageFetchPriority={card.isPriorityHydration ? "high" : "low"}
@@ -361,7 +356,6 @@ export const useReferenceGridCardRenderController = ({
           onRequestAudioPlay={resolvedAudioPlaybackController.requestPlay}
           onAudioPlaybackStarted={resolvedAudioPlaybackController.markPlaying}
           onAudioPlaybackStopped={resolvedAudioPlaybackController.clearActivePlayer}
-          onRetryStatus={onRetryStatus}
           onRerollOutput={options.isCuratedSurface ? undefined : onRerollOutput}
           onReloadWorkflowOutput={
             onReloadWorkflowOutput
@@ -408,7 +402,6 @@ export const useReferenceGridCardRenderController = ({
       onRemoveCuratedReference,
       onReloadWorkflowOutput,
       onRerollOutput,
-      onRetryStatus,
       isMediaStorageFull,
       onSaveToLibrary,
       onSelectOutput,

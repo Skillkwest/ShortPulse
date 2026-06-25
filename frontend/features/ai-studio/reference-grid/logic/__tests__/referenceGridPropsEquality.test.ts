@@ -34,7 +34,6 @@ const createProps = (overrides: Partial<ReferenceGridProps> = {}): ReferenceGrid
   onTriggerFileSelect: vi.fn(),
   onSaveToLibrary: vi.fn(),
   onDownload: vi.fn(),
-  onRetryStatus: vi.fn(),
   onRerollOutput: vi.fn(),
   onReloadWorkflowOutput: vi.fn(),
   onDeleteOutput: vi.fn(),

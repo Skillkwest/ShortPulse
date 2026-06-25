@@ -54,6 +54,7 @@ import {
 } from "./sessionOutputAuthority";
 import type { AiStudioRightRailLayoutV1 } from "./rightRailLayout";
 import { sanitizeRightRailLayoutSnapshot } from "./rightRailLayout";
+import { isSupabaseRenderImageUrl } from "../../../lib/mediaPreviewTrustPolicy";
 
 export const LATEST_AI_STUDIO_SESSION_SCHEMA_VERSION = 2;
 
@@ -379,6 +380,7 @@ const sanitizeMediaUrl = (value: string | null | undefined): string | undefined 
   const normalized = value.trim();
   if (!normalized) return undefined;
   if (normalized.startsWith("blob:") || normalized.startsWith("data:")) return undefined;
+  if (isSupabaseRenderImageUrl(normalized)) return undefined;
   return normalized;
 };
 
@@ -419,6 +421,15 @@ const sanitizeSelectedCharacterId = (value: string | null | undefined): string |
 
 const sanitizeWorkspaceExtraImageUrls = (values: readonly (string | null)[]): (string | null)[] =>
   normalizeExpertEditSecondaryImageUrls(values).map((value) => sanitizeWorkspaceMediaUrl(value));
+
+const sanitizeWorkspaceMediaUrlList = (values: readonly string[] | undefined): string[] =>
+  Array.from(
+    new Set(
+      (values ?? [])
+        .map((value) => sanitizeMediaUrl(value))
+        .filter((value): value is string => Boolean(value))
+    )
+  );
 
 const sanitizeWorkspaceInternalMediaRefs = (
   primary: string | null,
@@ -955,9 +966,9 @@ export const buildAiStudioSessionSnapshot = (
       klingWorkflowMode:
         input.klingWorkflowMode ?? (input.klingMultiPrompts.length > 0 ? "custom" : "single"),
       seedance2InputMode: input.seedance2InputMode ?? "multimodal",
-      seedance2ReferenceImageUrls: input.seedance2ReferenceImageUrls ?? [],
-      seedance2ReferenceVideoUrls: input.seedance2ReferenceVideoUrls ?? [],
-      seedance2ReferenceAudioUrls: input.seedance2ReferenceAudioUrls ?? [],
+      seedance2ReferenceImageUrls: sanitizeWorkspaceMediaUrlList(input.seedance2ReferenceImageUrls),
+      seedance2ReferenceVideoUrls: sanitizeWorkspaceMediaUrlList(input.seedance2ReferenceVideoUrls),
+      seedance2ReferenceAudioUrls: sanitizeWorkspaceMediaUrlList(input.seedance2ReferenceAudioUrls),
       seedance2ReturnLastFrame: input.seedance2ReturnLastFrame ?? false,
       seedance2WebSearch: input.seedance2WebSearch ?? false,
       klingShotType: input.klingShotType,

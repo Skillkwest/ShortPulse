@@ -19,10 +19,6 @@ import {
   FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID,
 } from "../../../../../lib/model-runtime/falModelIds";
 import { OPENAI_GPT_IMAGE_2_MODEL_ID } from "../../../../../lib/model-runtime/openAiImage2";
-import {
-  submitOpenAiGptImage2,
-  submitOpenAiGptImage2Edit,
-} from "../../../../../lib/openAiImageClient";
 
 const falClientMocks = vi.hoisted(() => ({
   submitFalSeedream: vi.fn(),
@@ -71,11 +67,6 @@ vi.mock("../../../../../lib/falClient", () => {
     submitQueuedGenerationByModelId,
   };
 });
-
-vi.mock("../../../../../lib/openAiImageClient", () => ({
-  submitOpenAiGptImage2: vi.fn(),
-  submitOpenAiGptImage2Edit: vi.fn(),
-}));
 
 const {
   submitFalSeedream,
@@ -148,42 +139,6 @@ describe("Seedream submission payloads", () => {
     vi.mocked(submitKieGptImage2Text).mockResolvedValue({ request_id: "kie-gpt-image-2-req" });
     vi.mocked(submitKieGptImage2Edit).mockResolvedValue({
       request_id: "kie-gpt-image-2-edit-req",
-    });
-    vi.mocked(submitOpenAiGptImage2).mockResolvedValue({
-      output: {
-        provider: "openai-image",
-        mode: "image",
-        generationId: "openai-gen-1",
-        mediaFileId: "media-openai-1",
-        requestId: "openai-request-1",
-        previewUrl: "https://cdn.test/openai-preview.png",
-        resultUrls: ["https://cdn.test/openai-preview.png"],
-        previewStoragePath: "user-1/generations/images/openai-preview.png",
-        fullStoragePath: "user-1/generations/images/openai-full.png",
-        mimeType: "image/png",
-        modelId: OPENAI_GPT_IMAGE_2_MODEL_ID,
-        savedMediaIds: ["media-openai-1"],
-        saveState: "saved",
-        saveError: null,
-      },
-    });
-    vi.mocked(submitOpenAiGptImage2Edit).mockResolvedValue({
-      output: {
-        provider: "openai-image",
-        mode: "image",
-        generationId: "openai-gen-1",
-        mediaFileId: "media-openai-1",
-        requestId: "openai-request-1",
-        previewUrl: "https://cdn.test/openai-preview.png",
-        resultUrls: ["https://cdn.test/openai-preview.png"],
-        previewStoragePath: "user-1/generations/images/openai-preview.png",
-        fullStoragePath: "user-1/generations/images/openai-full.png",
-        mimeType: "image/png",
-        modelId: OPENAI_GPT_IMAGE_2_MODEL_ID,
-        savedMediaIds: ["media-openai-1"],
-        saveState: "saved",
-        saveError: null,
-      },
     });
   });
 
@@ -404,134 +359,19 @@ describe("Seedream submission payloads", () => {
     expectAspectLockedAutoSize(portraitPayload?.image_size, "9:16");
   });
 
-  it("completes gpt-image-2 submissions immediately without starting polling", async () => {
-    const completeGenerationImmediately = vi.fn();
-    const args = makeArgs({
-      finalModel: OPENAI_GPT_IMAGE_2_MODEL_ID,
-      modelConfig: getModelConfig(OPENAI_GPT_IMAGE_2_MODEL_ID),
-      aspect: "9:16",
-      requestedResolution: "4K",
-      preparedImageInputs: [],
-      falReferencePayload: {},
-      generationReplay: { source: "reference-grid-reroll" },
-      workflowReload: { source: "workflow-reload-test" },
-      shortpulseContext: { surface: "ai-studio-create" },
-      completeGenerationImmediately,
-    });
-
-    await handleDefaultModelSubmission(args);
-
-    expect(submitOpenAiGptImage2).toHaveBeenCalledWith({
-      prompt: "A polished portrait",
-      size: "2160x3840",
-      quality: "high",
-      generation_replay: { source: "reference-grid-reroll" },
-      workflow_reload: { source: "workflow-reload-test" },
-      shortpulse_context: { surface: "ai-studio-create" },
-    });
-    expect(completeGenerationImmediately).toHaveBeenCalledWith({
-      provider: "openai-image",
-      generationId: "openai-gen-1",
-      requestId: "openai-request-1",
-      previewUrl: "https://cdn.test/openai-preview.png",
-      resultUrls: ["https://cdn.test/openai-preview.png"],
-      previewStoragePath: "user-1/generations/images/openai-preview.png",
-      fullStoragePath: "user-1/generations/images/openai-full.png",
-      mimeType: "image/png",
-      savedMediaIds: ["media-openai-1"],
-      saveState: "saved",
-      saveError: null,
-    });
-    expect(args.startPollingWithGeneration).not.toHaveBeenCalled();
-  });
-
-  it("routes gpt-image-2 reference-image edits through the OpenAI edit lane", async () => {
-    const completeGenerationImmediately = vi.fn();
-    const args = makeArgs({
-      finalModel: OPENAI_GPT_IMAGE_2_MODEL_ID,
-      modelConfig: getModelConfig(OPENAI_GPT_IMAGE_2_MODEL_ID),
-      aspect: "16:9",
-      requestedResolution: "2K",
-      preparedImageInputs: ["https://cdn.test/ref-1.png", "https://cdn.test/ref-2.png"],
-      falReferencePayload: {},
-      shortpulseContext: { surface: "ai-studio-edit" },
-      completeGenerationImmediately,
-    });
-
-    await handleDefaultModelSubmission(args);
-
-    expect(submitOpenAiGptImage2Edit).toHaveBeenCalledWith({
-      prompt: "A polished portrait",
-      size: "2048x1152",
-      quality: "medium",
-      images: [
-        { image_url: "https://cdn.test/ref-1.png" },
-        { image_url: "https://cdn.test/ref-2.png" },
-      ],
-      shortpulse_context: { surface: "ai-studio-edit" },
-    });
-    expect(submitOpenAiGptImage2).not.toHaveBeenCalled();
-    expect(completeGenerationImmediately).toHaveBeenCalledOnce();
-    expect(args.startPollingWithGeneration).not.toHaveBeenCalled();
-  });
-
-  it("routes gpt-image-2 internal-only inpaint refs through the OpenAI edit lane", async () => {
-    const completeGenerationImmediately = vi.fn();
+  it("does not submit retired direct OpenAI GPT Image 2 through the default handler", async () => {
     const args = makeArgs({
       finalModel: OPENAI_GPT_IMAGE_2_MODEL_ID,
       modelConfig: getModelConfig(OPENAI_GPT_IMAGE_2_MODEL_ID),
       aspect: "1:1",
-      requestedResolution: "2K",
       preparedImageInputs: [],
       falReferencePayload: {},
-      inpaintOverride: {
-        baseImageInput: "",
-        maskInput: "",
-        referenceImageInput: "",
-        baseImageInternalMediaRef: {
-          version: 1,
-          kind: "storage_object",
-          bucket: "media_library",
-          storagePath: "user-1/base.png",
-        },
-        maskInternalMediaRef: {
-          version: 1,
-          kind: "storage_object",
-          bucket: "media_library",
-          storagePath: "user-1/mask.png",
-        },
-        referenceImageInternalMediaRef: null,
-      },
-      completeGenerationImmediately,
     });
 
-    await handleDefaultModelSubmission(args);
-
-    expect(submitOpenAiGptImage2Edit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        prompt: "A polished portrait",
-        size: "2048x2048",
-        quality: "medium",
-        images: [],
-        shortpulse_internal_edit_media_refs: {
-          base_image: {
-            version: 1,
-            kind: "storage_object",
-            bucket: "media_library",
-            storagePath: "user-1/base.png",
-          },
-          mask_image: {
-            version: 1,
-            kind: "storage_object",
-            bucket: "media_library",
-            storagePath: "user-1/mask.png",
-          },
-          reference_image: null,
-        },
-      })
+    await expect(handleDefaultModelSubmission(args)).rejects.toThrow(
+      "Unsupported model 'gpt-image-2' for default Fal submission handler."
     );
-    expect(submitOpenAiGptImage2).not.toHaveBeenCalled();
-    expect(completeGenerationImmediately).toHaveBeenCalledOnce();
+    expect(args.startPollingWithGeneration).not.toHaveBeenCalled();
   });
 
   it("preserves reference payloads for Nano Banana 2 text submissions", async () => {

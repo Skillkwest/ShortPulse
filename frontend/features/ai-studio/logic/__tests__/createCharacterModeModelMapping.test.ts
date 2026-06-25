@@ -5,6 +5,7 @@ import {
 } from "../../../../lib/model-runtime/providerModelIds";
 import {
   CREATE_CHARACTER_MODE_ALLOWED_MODEL_IDS,
+  CREATE_CHARACTER_MODE_DEFAULT_MODEL_ID,
   CREATE_DEFAULT_MODEL_ID,
   getCreateCharacterModeAllowedModels,
   isCreateCharacterModeModel,
@@ -57,7 +58,7 @@ describe("createCharacterModeModelMapping", () => {
         currentModelId: "gpt-image-2",
         isCharacterModeEnabled: true,
       })
-    ).toBe(KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID);
+    ).toBe(CREATE_CHARACTER_MODE_DEFAULT_MODEL_ID);
     expect(
       mapCreateModelOnCharacterModeToggle({
         currentModelId: "legacy/removed-model",
@@ -96,7 +97,7 @@ describe("createCharacterModeModelMapping", () => {
         currentModelId: "gpt-image-2",
         isCharacterModeEnabled: false,
       })
-    ).toBe("gpt-image-2");
+    ).toBe(CREATE_DEFAULT_MODEL_ID);
     expect(
       mapCreateModelOnCharacterModeToggle({
         currentModelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
@@ -141,7 +142,7 @@ describe("createCharacterModeModelMapping", () => {
         currentModelId: "gpt-image-2",
         isCharacterModeEnabled: true,
       })
-    ).toBe(KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID);
+    ).toBe(CREATE_CHARACTER_MODE_DEFAULT_MODEL_ID);
     expect(
       resolveCreateCharacterModeSubmitModel({
         currentModelId: "legacy/removed-model",

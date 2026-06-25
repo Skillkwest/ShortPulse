@@ -10,7 +10,6 @@ import {
   KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../lib/model-runtime/providerModelIds";
-import { OPENAI_GPT_IMAGE_2_MODEL_ID } from "../../../../lib/model-runtime/openAiImage2";
 import {
   MODEL_MODAL_FAMILY_META,
   MODEL_MODAL_PRESENTATION_META,
@@ -23,7 +22,7 @@ import {
 
 describe("modelModalPresentation", () => {
   it("maps the active model families to the expected modal family keys", () => {
-    expect(resolveModelModalFamilyKey(OPENAI_GPT_IMAGE_2_MODEL_ID)).toBe("gpt-image");
+    expect(resolveModelModalFamilyKey("gpt-image-2")).toBe("other");
     expect(resolveModelModalFamilyKey(KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID)).toBe("gpt-image");
     expect(resolveModelModalFamilyKey(FAL_SEEDREAM_45_TEXT_MODEL_ID)).toBe("seedream");
     expect(resolveModelModalFamilyKey(FAL_NANO_BANANA_2_MODEL_ID)).toBe("nano-banana");

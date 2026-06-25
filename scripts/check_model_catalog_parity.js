@@ -291,10 +291,19 @@ function run() {
     }
     seenIds.add(modelId);
 
+    const lifecycle = String(entry.lifecycle || "").trim();
+    const surfaces = Array.isArray(entry.surfaces) ? entry.surfaces : [];
+    const surfaceSet = new Set(surfaces.map((surface) => String(surface)));
+    const apiDocRequired =
+      lifecycle === "active" ||
+      entry.billable === true ||
+      surfaceSet.has("picker") ||
+      surfaceSet.has("pricing") ||
+      surfaceSet.has("runtime");
     const apiDocFile = String(entry.apiDocFile || "").trim();
-    if (!apiDocFile) {
+    if (!apiDocFile && apiDocRequired) {
       errors.push(`Missing apiDocFile for ${modelId}`);
-    } else {
+    } else if (apiDocFile) {
       modelDocMap.set(modelId, apiDocFile);
     }
 
@@ -344,8 +353,6 @@ function run() {
         );
       } else {
         const ageDays = daysBetween(parsed, today);
-        const lifecycle = String(entry.lifecycle || "").trim();
-        const surfaces = Array.isArray(entry.surfaces) ? entry.surfaces : [];
         const isActiveRuntimeModel =
           lifecycle === "active" && surfaces.includes("runtime");
         if (isActiveRuntimeModel && ageDays > MAX_STALE_DAYS) {
@@ -363,9 +370,6 @@ function run() {
     const allowedAspects = Array.isArray(entry.allowedAspects)
       ? entry.allowedAspects
       : [];
-    const lifecycle = String(entry.lifecycle || "").trim();
-    const surfaces = Array.isArray(entry.surfaces) ? entry.surfaces : [];
-    const surfaceSet = new Set(surfaces.map((surface) => String(surface)));
     if (!VALID_MODEL_LIFECYCLES.has(lifecycle)) {
       errors.push(`lifecycle missing/invalid for ${modelId}`);
     }
@@ -469,7 +473,9 @@ function run() {
 
     const mappedDoc = modelDocMap.get(modelId);
     if (!mappedDoc) {
-      errors.push(`Missing apiDocFile mapping for ${modelId}`);
+      if (apiDocRequired) {
+        errors.push(`Missing apiDocFile mapping for ${modelId}`);
+      }
       continue;
     }
 

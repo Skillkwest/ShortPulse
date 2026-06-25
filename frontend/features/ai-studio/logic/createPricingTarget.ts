@@ -1,7 +1,3 @@
-import {
-  OPENAI_GPT_IMAGE_2_DEFAULT_INPUT_FIDELITY,
-  OPENAI_GPT_IMAGE_2_MODEL_ID,
-} from "../../../lib/model-runtime/openAiImage2";
 import { normalizeCreateImageBilledPricingParams } from "../../../lib/model-runtime/createImageBilledCredits";
 import type { PricingParams } from "../../../lib/model-runtime/pricingTypes";
 import { mergeCharacterAndUserReferences } from "./characterModePayload";
@@ -100,9 +96,6 @@ export const resolveCreatePricingTarget = ({
         ? { resolution: clampImageResolutionForModel(effectiveModelId, resolution) }
         : {}),
       ...(inputImageCount > 0 ? { inputImageCount } : {}),
-      ...(effectiveModelId === OPENAI_GPT_IMAGE_2_MODEL_ID && inputImageCount > 0
-        ? { inputFidelity: OPENAI_GPT_IMAGE_2_DEFAULT_INPUT_FIDELITY }
-        : {}),
     })
   );
 

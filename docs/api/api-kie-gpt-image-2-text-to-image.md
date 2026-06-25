@@ -80,5 +80,5 @@ Provider payload after server normalization:
 
 ## Notes
 
-- This is intentionally separate from OpenAI `gpt-image-2`, which remains a direct synchronous OpenAI route and also supports image-to-image/edit.
+- This is intentionally separate from retired direct OpenAI `gpt-image-2` routes, which are disabled and should not be used for new GPT Image 2 work.
 - Kie image-to-image support lives in the separate `kie-ai/gpt-image-2-image-to-image` lane.

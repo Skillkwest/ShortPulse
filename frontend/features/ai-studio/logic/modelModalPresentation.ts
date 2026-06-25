@@ -5,7 +5,6 @@ import {
   modelLogos,
   SEEDREAM_LOGO_SRC,
 } from "../constants";
-import { OPENAI_GPT_IMAGE_2_MODEL_ID } from "../../../lib/model-runtime/openAiImage2";
 import {
   FAL_FLUX_2_KLEIN_9B_MODEL_ID,
   FAL_NANO_BANANA_2_EDIT_MODEL_ID,
@@ -89,7 +88,6 @@ export function resolveModelModalFallbackLogo(logoOrProvider?: string | null): s
 
 export function resolveModelModalFamilyKey(modelId: string): ModelModalFamilyKey {
   if (
-    modelId === OPENAI_GPT_IMAGE_2_MODEL_ID ||
     modelId === KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID ||
     modelId === KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID
   ) {
@@ -108,12 +106,6 @@ const MODEL_MODAL_TEXT_IMAGE_STARTUP_MODEL_ID = resolveRequiredCreateStartupMode
 const MODEL_MODAL_EDIT_IMAGE_STARTUP_MODEL_ID = resolveRequiredCreateCharacterModeStartupModelId();
 
 export const MODEL_MODAL_PRESENTATION_META: Record<string, ModelModalPresentationMeta> = {
-  [OPENAI_GPT_IMAGE_2_MODEL_ID]: {
-    provider: "OpenAI",
-    description: "GPT Image 2 supports high-quality image generation and standard edits.",
-    tags: ["Image", "Text-to-Image", "Image-to-Image"],
-    verified: true,
-  },
   [KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID]: {
     provider: "Kie AI",
     description: "GPT Image 2 supports queued text-to-image generation at 1K, 2K, or 4K.",

@@ -70,7 +70,6 @@ const createProps = (
   videoPreload: "none",
   isPromptOnly: false,
   isLinkedPromptReference: false,
-  canRetryStatus: false,
   imageSrc: undefined,
   imageLoading: "lazy",
   imageFetchPriority: "low",
@@ -86,6 +85,24 @@ const createProps = (
 });
 
 describe("ReferenceGridCard", () => {
+  it("does not render retry status controls on selected failed cards", () => {
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          activeOutputId: "out-1",
+          item: createOutput({
+            id: "out-1",
+            taskState: "fail",
+            taskId: "task-1",
+          }),
+        })}
+      />
+    );
+
+    expect(screen.getByText("Generation failed")).toBeInTheDocument();
+    expect(screen.queryByText("Retry status")).not.toBeInTheDocument();
+  });
+
   it("keeps prompt-only text references select-only on single click", () => {
     const onSelectOutput = vi.fn();
     const onOpenDetails = vi.fn();

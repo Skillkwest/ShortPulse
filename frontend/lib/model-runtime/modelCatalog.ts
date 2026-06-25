@@ -343,7 +343,6 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     provider: "openai",
     sourceUrl: "https://developers.openai.com/api/docs/models/gpt-image-2",
     verifiedAt: GPT_IMAGE_2_VERIFIED_AT,
-    apiDocFile: "api-openai-gpt-image-2.md",
     submitAspectField: "none",
     defaultAspect: "1:1",
     allowedAspects: ["auto", "9:16", "4:5", "1:1", "5:4", "16:9"],
@@ -1254,7 +1253,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     gridEligible: false,
     apiRouteSlug: "bria-background-remove",
   }),
-  "gpt-image-2": activePickerPricingRuntime({
+  "gpt-image-2": disabledHiddenCatalogRuntime({
     label: "GPT Image 2",
     mediaType: "image",
     pricingStrategy: "gpt-image-2-per-image",
@@ -1262,14 +1261,8 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     displayOrder: 110,
     pricingFamily: "Image",
     logoKey: "openai",
-    pairedModelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
-    supportsTextToImage: true,
-    supportsImageToImage: true,
-    generationLanes: ["text-to-image", "image-to-image"],
-    executionMode: "direct",
-    submitHandler: "default",
-    submissionAdapterKey: "openai-gpt-image-2",
-    gridEligible: true,
+    replacementModelId: KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
+    surfaceNote: "Retired direct OpenAI GPT Image 2 route; use active Kie GPT Image 2 lanes.",
   }),
   [KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID]: activePickerPricingRuntime({
     label: "GPT Image 2 (Kie)",

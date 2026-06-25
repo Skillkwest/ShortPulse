@@ -4,6 +4,7 @@
  */
 import type { CanvasCamera, CanvasSceneItem } from "../components/canvas/canvasTypes";
 import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
+import { isSupabaseRenderImageUrl } from "../../../lib/mediaPreviewTrustPolicy";
 import {
   CANVAS_AUDIO_ITEM_HEIGHT,
   CANVAS_AUDIO_ITEM_WIDTH,
@@ -203,6 +204,7 @@ const isDurableCanvasMediaSource = (value: string): boolean => {
   const trimmed = value.trim();
   if (!trimmed) return false;
   if (trimmed.startsWith("blob:") || trimmed.startsWith("data:")) return false;
+  if (isSupabaseRenderImageUrl(trimmed)) return false;
   return true;
 };
 

@@ -613,7 +613,7 @@ describe("useAiStudioTaskSubmission", () => {
     );
   });
 
-  it("runs ensureGenerationRecord after direct-complete submissions", async () => {
+  it("fails closed before dispatching retired direct OpenAI GPT Image 2", async () => {
     let outputs: StudioOutput[] = [];
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
@@ -626,24 +626,9 @@ describe("useAiStudioTaskSubmission", () => {
     const setSaved = vi.fn();
     const notifyGenerationFailure = vi.fn();
     const startPollingTask = vi.fn();
-    const ensureGenerationRecord = vi.fn(async () => "gen-direct-complete-1");
+    const ensureGenerationRecord = vi.fn(async () => null);
 
-    vi.mocked(resolveSubmissionHandlerRoute).mockReturnValue("default");
-    vi.mocked(handleDefaultModelSubmission).mockImplementationOnce(
-      async ({ completeGenerationImmediately }) => {
-        completeGenerationImmediately?.({
-          provider: "openai-image",
-          generationId: "gen-direct-complete-1",
-          requestId: "openai-req-1",
-          previewUrl: "https://cdn.test/openai-preview.png",
-          resultUrls: ["https://cdn.test/openai-preview.png"],
-          previewStoragePath: "user-1/generations/images/openai-preview.png",
-          fullStoragePath: "user-1/generations/images/openai-preview.png",
-          mimeType: "image/png",
-          savedMediaIds: ["media-openai-1"],
-        });
-      }
-    );
+    vi.mocked(resolveSubmissionHandlerRoute).mockReturnValue("unsupported");
 
     const { result } = renderHook(() =>
       useAiStudioTaskSubmission({
@@ -686,120 +671,22 @@ describe("useAiStudioTaskSubmission", () => {
         modeOverride: "image",
         selectedToolOverride: "create",
       });
-      await Promise.resolve();
-      await Promise.resolve();
     });
 
+    expect(handleDefaultModelSubmission).not.toHaveBeenCalled();
+    expect(handleImageModelSubmission).not.toHaveBeenCalled();
+    expect(handleVideoModelSubmission).not.toHaveBeenCalled();
     expect(startPollingTask).not.toHaveBeenCalled();
-    expect(ensureGenerationRecord).toHaveBeenCalledWith(
+    expect(ensureGenerationRecord).not.toHaveBeenCalled();
+    expect(notifyGenerationFailure).toHaveBeenCalledWith(
+      outputs[0]?.id,
+      "Generation failed to start. Please retry.",
+      "Model 'gpt-image-2' is not registered for AI Studio generation submission.",
       expect.objectContaining({
-        outputId: outputs[0]?.id,
-        provider: "openai-image",
-        taskId: "openai-req-1",
-        metadata: expect.objectContaining({
-          completion_mode: "direct",
-          generation_trace_id: "openai-req-1",
-        }),
+        reasonCode: "SUBMIT_NOT_STARTED",
+        telemetryMode: "state_only",
       })
     );
-    expect(outputs[0]?.generationId).toBe("gen-direct-complete-1");
-    expect(outputs[0]?.taskId).toBe("openai-req-1");
-    expect(outputs[0]?.submissionMode).toBe("direct-request");
-  });
-
-  it("preserves direct-complete output state when a handler also attempts queued polling", async () => {
-    let outputs: StudioOutput[] = [];
-    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
-      outputs = typeof value === "function" ? value(outputs) : value;
-    });
-    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
-      outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
-    });
-    const setUiError = vi.fn();
-    const setUiNotice = vi.fn();
-    const setSaved = vi.fn();
-    const notifyGenerationFailure = vi.fn();
-    const startPollingTask = vi.fn();
-    const ensureGenerationRecord = vi.fn(async () => "gen-direct-complete-drift");
-
-    vi.mocked(resolveSubmissionHandlerRoute).mockReturnValue("default");
-    vi.mocked(handleDefaultModelSubmission).mockImplementationOnce(
-      async ({ completeGenerationImmediately, startPollingWithGeneration }) => {
-        completeGenerationImmediately?.({
-          provider: "openai-image",
-          generationId: "gen-direct-complete-drift",
-          requestId: "openai-req-drift",
-          previewUrl: "https://cdn.test/openai-drift.png",
-          resultUrls: ["https://cdn.test/openai-drift.png"],
-          previewStoragePath: "user-1/generations/images/openai-drift.png",
-          fullStoragePath: "user-1/generations/images/openai-drift.png",
-          mimeType: "image/png",
-          savedMediaIds: ["media-openai-drift"],
-        });
-        startPollingWithGeneration("queued-should-not-start", "fal-seedream");
-      }
-    );
-
-    const { result } = renderHook(() =>
-      useAiStudioTaskSubmission({
-        aspect: "9:16",
-        mode: "image",
-        model: "gpt-image-2",
-        prompt: "",
-        selectedTool: "create",
-        imageResolution: "2K",
-        videoDurationSeconds: 6,
-        videoResolution: "1080p",
-        videoGenerateAudio: false,
-        videoReferenceMode: "standard",
-        videoReferenceImageUrl: null,
-        motionReferenceVideoUrl: null,
-        videoCameraFixed: false,
-        videoAutoFix: false,
-        klingNegativePrompt: "",
-        klingCfgScale: 0.5,
-        klingShotType: "customize",
-        klingVoiceIds: ["", ""],
-        klingMultiPrompts: [],
-        klingElements: [],
-        beginPanelGeneration: vi.fn(),
-        endPanelGeneration: vi.fn(),
-        setUiError: asDispatch(setUiError),
-        setUiNotice: asDispatch(setUiNotice),
-        setOutputs: asDispatch(setOutputs),
-        setSaved: asDispatch(setSaved),
-        getDefaultDurationSeconds: () => 6,
-        notifyGenerationFailure,
-        updateOutputById,
-        startPollingTask,
-        ensureGenerationRecord,
-      })
-    );
-
-    await act(async () => {
-      await result.current("A polished studio portrait", [], {
-        modeOverride: "image",
-        selectedToolOverride: "create",
-      });
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(startPollingTask).not.toHaveBeenCalled();
-    expect(notifyGenerationFailure).not.toHaveBeenCalled();
-    expect(reportAppErrorMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        source: "generation_submit_lifecycle_contract",
-        metadata: expect.objectContaining({
-          output_id: outputs[0]?.id,
-          started_task_id: "openai-req-drift",
-          started_provider: "openai-image",
-        }),
-      })
-    );
-    expect(outputs[0]?.taskState).toBe("success");
-    expect(outputs[0]?.generationId).toBe("gen-direct-complete-drift");
-    expect(outputs[0]?.taskId).toBe("openai-req-drift");
   });
 
   it("recovers queued polling after a post-handoff client exception without failing the output", async () => {

@@ -29,15 +29,6 @@ const hasProjectRestorableOutputAuthority = (output: StudioOutput): boolean =>
 const createProjectRestorableOutputSignature = (output: StudioOutput) => ({
   id: output.id,
   mode: output.mode,
-  aspect: output.aspect,
-  model: output.model,
-  modelId: output.modelId ?? null,
-  provider: output.provider ?? null,
-  prompt: output.prompt,
-  title: output.title ?? null,
-  previewText: output.previewText ?? null,
-  status: output.status,
-  taskState: output.taskState ?? null,
   generationId: output.generationId ?? null,
   taskId: output.taskId ?? null,
   sourceRef: output.sourceRef ?? null,
@@ -47,9 +38,6 @@ const createProjectRestorableOutputSignature = (output: StudioOutput) => ({
   previewStoragePath: output.previewStoragePath ?? null,
   fullStoragePath: output.fullStoragePath ?? null,
   companionArtStoragePath: output.companionArtStoragePath ?? null,
-  durationMs: output.durationMs ?? null,
-  audioSourceMode: output.audioSourceMode ?? null,
-  musicMode: output.musicMode ?? null,
   hiddenInReferenceGrid: output.hiddenInReferenceGrid === true,
 });
 

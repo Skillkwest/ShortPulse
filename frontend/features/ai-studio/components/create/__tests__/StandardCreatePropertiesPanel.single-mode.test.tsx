@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { StandardCreatePropertiesPanel } from "../StandardCreatePropertiesPanel";
 import { resolveCreateComposerInlineGuardrailReason } from "../createComposerEmptyState";
-import { OPENAI_GPT_IMAGE_2_MODEL_ID } from "../../../../../lib/model-runtime/openAiImage2";
+import { KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID } from "../../../../../lib/model-runtime/providerModelIds";
 
 const { createCharacterModeControllerState } = vi.hoisted(() => ({
   createCharacterModeControllerState: {
@@ -107,7 +107,7 @@ vi.mock("../../../logic/createSelectorState", () => ({
 
 vi.mock("../../../logic/modelRegistry", () => ({
   getModelConfig: (modelId: string | null) => {
-    if (modelId === OPENAI_GPT_IMAGE_2_MODEL_ID) {
+    if (modelId === KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID) {
       return {
         allowedAspects: ["auto", "9:16", "4:5", "1:1", "5:4", "16:9"],
       };
@@ -154,12 +154,12 @@ describe("StandardCreatePropertiesPanel single mode", () => {
     createCharacterModeControllerState.selectedCharacterInitials = null;
   });
 
-  it("filters GPT Image 2 create aspect options down to the non-auto UI set", () => {
+  it("filters Kie GPT Image 2 create aspect options through catalog config", () => {
     render(
       <StandardCreatePropertiesPanel
         {...baseProps}
-        modelId={OPENAI_GPT_IMAGE_2_MODEL_ID}
-        modelLabel="GPT Image 2"
+        modelId={KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID}
+        modelLabel="GPT Image 2 Edit (Kie)"
       />
     );
 
@@ -169,7 +169,7 @@ describe("StandardCreatePropertiesPanel single mode", () => {
       (latestProps?.aspectOptionsForModel as Array<{ value: string }> | undefined) ?? []
     ).map((option) => option.value);
 
-    expect(aspectValues).toEqual(["9:16", "4:5", "1:1", "5:4", "16:9"]);
+    expect(aspectValues).toEqual(["auto", "9:16", "4:5", "1:1", "5:4", "16:9"]);
   });
 
   it("passes a compact model label into the selected Create model dropdown", () => {

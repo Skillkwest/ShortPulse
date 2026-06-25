@@ -59,7 +59,7 @@ describe("resolveSubmissionHandlerRoute", () => {
       "unsupported"
     );
     expect(resolveSubmissionHandlerRoute(FAL_NANO_BANANA_2_MODEL_ID)).toBe("default");
-    expect(resolveSubmissionHandlerRoute(OPENAI_GPT_IMAGE_2_MODEL_ID)).toBe("default");
+    expect(resolveSubmissionHandlerRoute(OPENAI_GPT_IMAGE_2_MODEL_ID)).toBe("unsupported");
     expect(resolveSubmissionHandlerRoute("legacy/provider-image")).toBe("unsupported");
     expect(resolveSubmissionHandlerRoute("custom/unknown-model")).toBe("unsupported");
   });

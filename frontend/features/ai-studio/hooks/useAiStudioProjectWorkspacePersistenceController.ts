@@ -100,6 +100,37 @@ export type ProjectWorkspaceAutosaveNoticeDetails = {
   recovered: boolean;
 };
 
+type ProjectWorkspaceImperativeFlushRequest = {
+  projectId: string;
+  snapshot: AiStudioSessionSnapshot;
+  snapshotHash: string;
+  preparedSnapshot: PreparedAiStudioSessionAutosaveSnapshot;
+  keepalive: boolean;
+  reason?: AiStudioProjectWorkspaceFlushOptions["reason"];
+  reportPersistError: boolean;
+};
+
+type ProjectWorkspaceImperativeFlushInFlight = {
+  projectId: string;
+  snapshotHash: string;
+  promise: Promise<AiStudioProjectWorkspaceFlushResult>;
+};
+
+type ProjectWorkspacePendingImperativeFlush = {
+  request: ProjectWorkspaceImperativeFlushRequest;
+  promise: Promise<AiStudioProjectWorkspaceFlushResult>;
+  resolve: (result: AiStudioProjectWorkspaceFlushResult) => void;
+  reject: (error: unknown) => void;
+};
+
+type ProjectWorkspaceReportedPersistError = Error & {
+  __shortpulseProjectWorkspacePersistReported?: true;
+};
+
+type RunProjectWorkspaceImperativeFlush = (
+  request: ProjectWorkspaceImperativeFlushRequest
+) => Promise<AiStudioProjectWorkspaceFlushResult>;
+
 const resolveProjectPersistenceWarningMessage = ({
   reason,
   snapshotBytes,
@@ -140,6 +171,18 @@ const measureSerializedBytes = (value: unknown): number | null => {
     return null;
   }
 };
+
+const markProjectWorkspacePersistErrorReported = (
+  error: Error
+): ProjectWorkspaceReportedPersistError => {
+  (error as ProjectWorkspaceReportedPersistError).__shortpulseProjectWorkspacePersistReported =
+    true;
+  return error as ProjectWorkspaceReportedPersistError;
+};
+
+const wasProjectWorkspacePersistErrorReported = (error: Error): boolean =>
+  (error as ProjectWorkspaceReportedPersistError).__shortpulseProjectWorkspacePersistReported ===
+  true;
 
 type ProjectSnapshotByteBreakdown = {
   totalBytes: number | null;
@@ -893,6 +936,15 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     projectId: string;
     snapshotHash: string | null;
   } | null>(null);
+  const imperativeFlushInFlightRef = useRef(
+    new Map<string, ProjectWorkspaceImperativeFlushInFlight>()
+  );
+  const pendingImperativeFlushRef = useRef(
+    new Map<string, ProjectWorkspacePendingImperativeFlush>()
+  );
+  const runImperativeProjectWorkspaceFlushRef = useRef<RunProjectWorkspaceImperativeFlush | null>(
+    null
+  );
   const quickSlotSaveResultTelemetryRef = useRef<{ key: string; emittedAt: number } | null>(null);
   const autosaveUnlockSignature = useMemo(
     () => resolveProjectAutosaveUnlockSignature(sessionSnapshot),
@@ -1402,28 +1454,13 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     ]
   );
 
-  const writeProjectWorkspaceSnapshot = useCallback(
-    (
-      activeProjectId: string,
-      snapshot: AiStudioSessionSnapshot,
-      options?: {
-        keepalive?: boolean;
-        snapshotHash?: string | null;
-        preparedSnapshot?: PreparedAiStudioSessionAutosaveSnapshot;
-      }
-    ) =>
-      persistProjectWorkspaceSnapshot(activeProjectId, snapshot, {
-        keepalive: options?.keepalive,
-        snapshotHash: options?.snapshotHash,
-        preparedSnapshot: options?.preparedSnapshot,
-      }),
-    [persistProjectWorkspaceSnapshot]
-  );
-
   const resolveProjectSnapshotTitle = useCallback(() => null, []);
 
   const handleProjectPersistError = useCallback(
     (error: Error, details: AiStudioSessionAutosaveError) => {
+      if (wasProjectWorkspacePersistErrorReported(error)) {
+        return;
+      }
       if (
         projectId &&
         (details.reason === "snapshot_too_large" || details.reason === "persist_failed")
@@ -1490,6 +1527,157 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     projectBootstrapSettled,
     sessionId,
   ]);
+
+  const runImperativeProjectWorkspaceFlush = useCallback(
+    (
+      request: ProjectWorkspaceImperativeFlushRequest
+    ): Promise<AiStudioProjectWorkspaceFlushResult> => {
+      const activeFlush = imperativeFlushInFlightRef.current.get(request.projectId);
+      if (activeFlush) {
+        if (activeFlush.snapshotHash === request.snapshotHash) {
+          return activeFlush.promise;
+        }
+
+        const currentPending = pendingImperativeFlushRef.current.get(request.projectId);
+        if (currentPending) {
+          const existingRequest = currentPending.request;
+          currentPending.request = {
+            ...request,
+            keepalive: request.keepalive,
+            reportPersistError: existingRequest.reportPersistError || request.reportPersistError,
+            reason:
+              existingRequest.reason === "project_switch" || request.reason === "project_switch"
+                ? "project_switch"
+                : request.reason,
+          };
+          return currentPending.promise;
+        }
+
+        let resolvePending!: (result: AiStudioProjectWorkspaceFlushResult) => void;
+        let rejectPending!: (error: unknown) => void;
+        const pendingPromise = new Promise<AiStudioProjectWorkspaceFlushResult>(
+          (resolve, reject) => {
+            resolvePending = resolve;
+            rejectPending = reject;
+          }
+        );
+        pendingImperativeFlushRef.current.set(request.projectId, {
+          request,
+          promise: pendingPromise,
+          resolve: resolvePending,
+          reject: rejectPending,
+        });
+        return pendingPromise;
+      }
+
+      const flushPromise = (async (): Promise<AiStudioProjectWorkspaceFlushResult> => {
+        const maxSnapshotBytes = PROJECT_WORKSPACE_AUTOSAVE_MAX_SNAPSHOT_BYTES;
+        try {
+          await persistProjectWorkspaceSnapshot(request.projectId, request.snapshot, {
+            keepalive: request.keepalive,
+            snapshotHash: request.snapshotHash,
+            preparedSnapshot: request.preparedSnapshot,
+          });
+        } catch (error) {
+          const persistError =
+            error instanceof Error ? error : new Error("Failed to save workspace.");
+          if (request.reportPersistError) {
+            handleProjectPersistError(persistError, {
+              sessionId: request.projectId,
+              reason: "persist_failed",
+              snapshotHash: request.snapshotHash,
+              snapshotBytes: request.preparedSnapshot.bytes,
+              maxSnapshotBytes,
+              keepalive: request.keepalive,
+              willRetry: request.reason !== "project_switch",
+            });
+            throw markProjectWorkspacePersistErrorReported(persistError);
+          }
+          throw persistError;
+        }
+
+        lastImperativeFlushRef.current = {
+          projectId: request.projectId,
+          snapshotHash: request.snapshotHash,
+        };
+        return {
+          status: "saved",
+          projectId: request.projectId,
+          snapshotHash: request.snapshotHash,
+          keepalive: request.keepalive,
+        };
+      })();
+
+      imperativeFlushInFlightRef.current.set(request.projectId, {
+        projectId: request.projectId,
+        snapshotHash: request.snapshotHash,
+        promise: flushPromise,
+      });
+
+      const drainPendingFlush = () => {
+        if (imperativeFlushInFlightRef.current.get(request.projectId)?.promise !== flushPromise) {
+          return;
+        }
+        imperativeFlushInFlightRef.current.delete(request.projectId);
+        const pendingFlush = pendingImperativeFlushRef.current.get(request.projectId);
+        if (!pendingFlush) return;
+        pendingImperativeFlushRef.current.delete(request.projectId);
+        const runNextFlush = runImperativeProjectWorkspaceFlushRef.current;
+        if (!runNextFlush) {
+          pendingFlush.reject(new Error("Project workspace flush queue is unavailable."));
+          return;
+        }
+        runNextFlush(pendingFlush.request).then(pendingFlush.resolve, pendingFlush.reject);
+      };
+
+      void flushPromise.then(drainPendingFlush, drainPendingFlush);
+      return flushPromise;
+    },
+    [handleProjectPersistError, persistProjectWorkspaceSnapshot]
+  );
+
+  useEffect(() => {
+    runImperativeProjectWorkspaceFlushRef.current = runImperativeProjectWorkspaceFlush;
+    return () => {
+      if (runImperativeProjectWorkspaceFlushRef.current === runImperativeProjectWorkspaceFlush) {
+        runImperativeProjectWorkspaceFlushRef.current = null;
+      }
+    };
+  }, [runImperativeProjectWorkspaceFlush]);
+
+  const writeProjectWorkspaceSnapshot = useCallback(
+    async (
+      activeProjectId: string,
+      snapshot: AiStudioSessionSnapshot,
+      options?: {
+        keepalive?: boolean;
+        snapshotHash?: string | null;
+        preparedSnapshot?: PreparedAiStudioSessionAutosaveSnapshot;
+      }
+    ): Promise<void> => {
+      const preparedSnapshot =
+        options?.preparedSnapshot ??
+        prepareAiStudioSessionAutosaveSnapshot(snapshot, {
+          title: null,
+        });
+      const snapshotHash = options?.snapshotHash?.trim() || preparedSnapshot.hash;
+      if (!snapshotHash) {
+        throw new Error("Workspace serialization failed.");
+      }
+      const transportKeepalive =
+        options?.keepalive === true &&
+        preparedSnapshot.bytes <= PROJECT_WORKSPACE_KEEPALIVE_MAX_SNAPSHOT_BYTES;
+      await runImperativeProjectWorkspaceFlush({
+        projectId: activeProjectId,
+        snapshot,
+        snapshotHash,
+        keepalive: transportKeepalive,
+        preparedSnapshot,
+        reportPersistError: false,
+      });
+    },
+    [runImperativeProjectWorkspaceFlush]
+  );
 
   const flushProjectWorkspaceSnapshot = useCallback(
     async (
@@ -1596,47 +1784,33 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
         };
       }
 
-      try {
-        await persistProjectWorkspaceSnapshot(projectId, currentSelection.snapshot, {
-          keepalive: transportKeepalive,
-          snapshotHash,
-          preparedSnapshot,
-        });
-      } catch (error) {
-        const persistError =
-          error instanceof Error ? error : new Error("Failed to save workspace.");
-        handleProjectPersistError(persistError, {
-          sessionId: projectId,
-          reason: "persist_failed",
-          snapshotHash,
-          snapshotBytes: preparedSnapshot.bytes,
-          maxSnapshotBytes,
-          keepalive: transportKeepalive,
-          willRetry: options.reason !== "project_switch",
-        });
-        throw persistError;
-      }
-      lastImperativeFlushRef.current = {
+      return runImperativeProjectWorkspaceFlush({
         projectId,
-        snapshotHash,
-      };
-      return {
-        status: "saved",
-        projectId,
+        snapshot: currentSelection.snapshot,
         snapshotHash,
         keepalive: transportKeepalive,
-      };
+        preparedSnapshot,
+        reason: options.reason,
+        reportPersistError: true,
+      });
     },
     [
       activeBootstrapError,
       composeCurrentProjectWorkspaceSnapshot,
       handleProjectPersistError,
-      persistProjectWorkspaceSnapshot,
       projectBootstrapSettled,
       projectId,
       resolveProjectAutosaveReadyForSnapshot,
+      runImperativeProjectWorkspaceFlush,
       sessionId,
     ]
+  );
+
+  const flushProjectWorkspaceSnapshotInBackground = useCallback(
+    (options: AiStudioProjectWorkspaceFlushOptions) => {
+      void flushProjectWorkspaceSnapshot(options).catch(() => undefined);
+    },
+    [flushProjectWorkspaceSnapshot]
   );
 
   const previousImmediateSaveSignalRef = useRef<string | number | null>(immediateSaveSignal);
@@ -1644,13 +1818,13 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     if (previousImmediateSaveSignalRef.current === immediateSaveSignal) return;
     previousImmediateSaveSignalRef.current = immediateSaveSignal;
     if (immediateSaveSignal == null) return;
-    void flushProjectWorkspaceSnapshot({ reason: "critical_save" });
-  }, [flushProjectWorkspaceSnapshot, immediateSaveSignal]);
+    flushProjectWorkspaceSnapshotInBackground({ reason: "critical_save" });
+  }, [flushProjectWorkspaceSnapshotInBackground, immediateSaveSignal]);
 
   useEffect(() => {
     if (!projectId) return;
     const flushCurrentForPageLifecycle = (reason: "visibility_hidden" | "pagehide") => {
-      void flushProjectWorkspaceSnapshot({
+      flushProjectWorkspaceSnapshotInBackground({
         reason,
         keepalive: true,
       });
@@ -1669,7 +1843,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("pagehide", handlePageHide);
     };
-  }, [flushProjectWorkspaceSnapshot, projectId]);
+  }, [flushProjectWorkspaceSnapshotInBackground, projectId]);
 
   useEffect(() => {
     if (!projectId) {
@@ -1730,6 +1904,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     preparedSnapshot: autosaveSnapshotSelection.preparedSnapshot,
     maxSnapshotBytes: PROJECT_WORKSPACE_AUTOSAVE_MAX_SNAPSHOT_BYTES,
     maxKeepaliveSnapshotBytes: PROJECT_WORKSPACE_KEEPALIVE_MAX_SNAPSHOT_BYTES,
+    enableLifecycleFlush: false,
     onPersistError: handleProjectPersistError,
   });
 

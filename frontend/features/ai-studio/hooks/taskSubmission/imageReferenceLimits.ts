@@ -11,7 +11,6 @@ import {
   FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID,
 } from "../../../../lib/model-runtime/falModelIds";
 import { KIE_GPT_IMAGE_2_MAX_INPUT_IMAGES } from "../../../../lib/model-runtime/kieGptImage2";
-import { OPENAI_GPT_IMAGE_2_MODEL_ID } from "../../../../lib/model-runtime/openAiImage2";
 import { KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID } from "../../../../lib/model-runtime/providerModelIds";
 import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../../logic/editPromptPolicy";
 
@@ -22,8 +21,6 @@ export const resolveImageReferenceInputLimitForModel = (
   modelId: string | null | undefined
 ): number => {
   switch (modelId) {
-    case OPENAI_GPT_IMAGE_2_MODEL_ID:
-      return MAX_IMAGE_REFERENCE_INPUT_LIMIT;
     case KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID:
       return KIE_GPT_IMAGE_2_MAX_INPUT_IMAGES;
     case BRIA_BACKGROUND_REMOVE_MODEL_ID:

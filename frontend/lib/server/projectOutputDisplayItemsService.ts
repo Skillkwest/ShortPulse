@@ -142,6 +142,7 @@ export type ProjectOutputDisplaySyncResult = {
   outputCount: number;
   upsertedCount: number;
   deletedCount: number;
+  deferredDeleteCount: number;
   skippedStaleCount: number;
 };
 
@@ -219,11 +220,20 @@ const compactRecord = (record: Record<string, unknown>): Record<string, unknown>
   return compacted;
 };
 
-const truncateSummary = (value: unknown): string | null => {
+const PROJECT_OUTPUT_DISPLAY_SUMMARY_MAX_CHARS = 1000;
+const PROJECT_OUTPUT_DISPLAY_TITLE_MAX_CHARS = 40;
+
+const truncateTextField = (value: unknown, maxChars: number): string | null => {
   const normalized = normalizeString(value);
   if (!normalized) return null;
-  return normalized.length > 1000 ? normalized.slice(0, 1000) : normalized;
+  return normalized.length > maxChars ? normalized.slice(0, maxChars) : normalized;
 };
+
+const truncateSummary = (value: unknown): string | null =>
+  truncateTextField(value, PROJECT_OUTPUT_DISPLAY_SUMMARY_MAX_CHARS);
+
+const truncateDisplayTitle = (value: unknown): string | null =>
+  truncateTextField(value, PROJECT_OUTPUT_DISPLAY_TITLE_MAX_CHARS);
 
 const getSnapshotActiveOutputs = (snapshot: Record<string, unknown>): Record<string, unknown>[] => {
   const outputs = asRecord(snapshot.outputs);
@@ -288,6 +298,7 @@ export const createLightweightProjectWorkspaceCheckpointSnapshot = ({
     generatedAt:
       normalizeString(snapshot.updatedAt) ?? normalizeString(asRecord(snapshot.meta).generatedAt),
     checkpointRevision,
+    outputDisplayChecksum: computeProjectOutputDisplayChecksumForSnapshot(snapshot),
   };
   const snapshotWithoutChecksum = {
     ...nextSnapshot,
@@ -360,8 +371,8 @@ const toDisplayItemCandidate = ({
     task_id: normalizeString(output.taskId),
     source_ref: normalizeString(output.sourceRef),
     generation_trace_id: normalizeString(output.generationTraceId),
-    preview_text: normalizeString(output.previewText),
-    display_title: normalizeString(output.title),
+    preview_text: truncateSummary(output.previewText),
+    display_title: truncateDisplayTitle(output.title),
     display_prompt_summary: truncateSummary(output.prompt) ?? truncateSummary(output.previewText),
     mime_type: normalizeString(output.mimeType),
     width: normalizePositiveInteger(output.width),
@@ -380,7 +391,7 @@ const toDisplayItemCandidate = ({
     queue_state: normalizeString(output.queueState),
     save_state: normalizeString(output.saveState),
     status: normalizeString(output.status),
-    error_message_short: normalizeString(output.errorMessageShort),
+    error_message_short: truncateSummary(output.errorMessageShort),
     hidden_in_reference_grid: normalizeBoolean(output.hiddenInReferenceGrid),
     updated_at: nowIso,
   };
@@ -427,6 +438,36 @@ const areDisplayValuesEqual = (
 ): boolean =>
   JSON.stringify(displayValuesForComparison(left)) ===
   JSON.stringify(displayValuesForComparison(right));
+
+type ProjectOutputDisplayChecksumEntry = {
+  outputId: string;
+  values: ReturnType<typeof displayValuesForComparison>;
+};
+
+export function computeProjectOutputDisplayChecksumForSnapshot(
+  snapshot: Record<string, unknown>
+): string {
+  const displayValues = getSnapshotActiveOutputs(snapshot)
+    .map((output) => {
+      const outputId = normalizeString(output.id);
+      if (!outputId) return null;
+      const candidate = toDisplayItemCandidate({
+        userId: "",
+        projectId: "",
+        snapshotUpdatedAt: "",
+        nowIso: "",
+        output,
+        existingVersion: 0,
+      });
+      if (!candidate) return null;
+      return {
+        outputId,
+        values: displayValuesForComparison(candidate),
+      };
+    })
+    .filter((value): value is ProjectOutputDisplayChecksumEntry => Boolean(value));
+  return computeAiStudioSessionChecksum(displayValues);
+}
 
 export const loadProjectOutputDisplayItemsForProject = async ({
   userId,
@@ -512,11 +553,10 @@ export const syncProjectOutputDisplayItemsForSnapshot = async ({
     }
   }
 
-  const idsToDelete = deferDeletes
-    ? []
-    : existingRows
-        .map((row) => row.output_id)
-        .filter((outputId) => !incomingOutputIds.has(outputId));
+  const staleOutputIds = existingRows
+    .map((row) => row.output_id)
+    .filter((outputId) => !incomingOutputIds.has(outputId));
+  const idsToDelete = deferDeletes ? [] : staleOutputIds;
   for (const idChunk of chunkValues(idsToDelete)) {
     const { error } = await supabaseAdmin
       .from("project_output_display_items")
@@ -533,6 +573,7 @@ export const syncProjectOutputDisplayItemsForSnapshot = async ({
     outputCount: candidates.length,
     upsertedCount: rowsToUpsert.length,
     deletedCount: idsToDelete.length,
+    deferredDeleteCount: deferDeletes ? staleOutputIds.length : 0,
     skippedStaleCount,
   };
 };

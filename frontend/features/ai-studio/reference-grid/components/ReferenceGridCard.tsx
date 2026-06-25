@@ -27,12 +27,14 @@ import {
 import { formatPerfAuditDebugLine, isPerfAuditRuntimeEnabled } from "../../logic/perfAuditDebug";
 import type { ReferenceGridMediaAuthorityTier } from "../../logic/referenceGridMedia";
 import type { ReferenceComposerImageDragArtifact } from "../../utils/dragDrop";
-import { EXPLICIT_CONTENT_FAILURE_TITLE } from "../../../../lib/explicitContentFailure";
-import { isProviderSafetyBlockedOutput } from "../../hooks/taskPolling/providerStatusPolicy";
 import type { ReferenceDragSourceSurface } from "../../utils/dragDrop";
 import type { StudioOutput, WorkflowReloadMediaKindHint } from "../../types";
 import { MediaDurationBadge } from "../../components/shared/MediaDurationBadge";
 import { ReferenceAudioPlayer } from "../../components/shared/ReferenceAudioPlayer";
+import {
+  REFERENCE_GRID_GENERIC_ERROR_TITLE,
+  resolveReferenceGridErrorTitle,
+} from "../logic/referenceGridErrorCopy";
 
 const HYDRATION_FALLBACK_LOADED_MS = 1500;
 const HYDRATION_MISSING_SOURCE_FALLBACK_MS = 6000;
@@ -59,7 +61,6 @@ export type ReferenceGridCardProps = {
   allowDurationProbe?: boolean;
   isPromptOnly: boolean;
   isLinkedPromptReference: boolean;
-  canRetryStatus: boolean;
   imageSrc: string | undefined;
   imageLoading: "eager" | "lazy";
   imageFetchPriority: "high" | "low";
@@ -87,7 +88,6 @@ export type ReferenceGridCardProps = {
   onRequestAudioPlay?: (player: { instanceKey: string; pause: () => void }) => void;
   onAudioPlaybackStarted?: (player: { instanceKey: string; pause: () => void }) => void;
   onAudioPlaybackStopped?: (instanceKey: string) => void;
-  onRetryStatus?: (output: StudioOutput) => void;
   onRerollOutput?: (output: StudioOutput) => void;
   onReloadWorkflowOutput?: (
     output: StudioOutput,
@@ -156,7 +156,6 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   allowDurationProbe = true,
   isPromptOnly,
   isLinkedPromptReference,
-  canRetryStatus,
   imageSrc,
   imageLoading,
   imageFetchPriority,
@@ -179,7 +178,6 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   onRequestAudioPlay,
   onAudioPlaybackStarted,
   onAudioPlaybackStopped,
-  onRetryStatus,
   onRerollOutput,
   onReloadWorkflowOutput,
   onClearLoadingOutput,
@@ -262,7 +260,8 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
         (isImagePreview || isVideoPreview || isAudioPreview)) ||
       onDeleteOutput)
   );
-  const shouldShowNsfwPill = isProviderSafetyBlockedOutput(item);
+  const errorTitle = resolveReferenceGridErrorTitle(item);
+  const shouldShowNsfwPill = errorTitle !== REFERENCE_GRID_GENERIC_ERROR_TITLE;
   const canDragReference = Boolean(item.previewText) || canDragReferenceOutput(item);
   const dragPreviewKind = isImagePreview
     ? "image"
@@ -637,22 +636,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
               NSFW
             </span>
           ) : null}
-          <div className="fail-title">
-            {shouldShowNsfwPill ? EXPLICIT_CONTENT_FAILURE_TITLE : "Generation failed"}
-          </div>
-          {canRetryStatus && isSelected ? (
-            <button
-              type="button"
-              className="reference-status-retry-btn"
-              onClick={(event) => {
-                event.stopPropagation();
-                onSelectOutput(item.id);
-                onRetryStatus?.(item);
-              }}
-            >
-              Retry status
-            </button>
-          ) : null}
+          <div className="fail-title">{errorTitle}</div>
         </div>
       ) : null}
       {shouldShowLoadingOverlay ? (
@@ -679,19 +663,6 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
             <span className="reference-loading-label">{resolvedLoadingStatusLabel}</span>
           ) : null}
         </div>
-      ) : null}
-      {effectiveIsLoading && canRetryStatus && isSelected ? (
-        <button
-          type="button"
-          className="reference-status-retry-btn reference-status-retry-btn--loading"
-          onClick={(event) => {
-            event.stopPropagation();
-            onSelectOutput(item.id);
-            onRetryStatus?.(item);
-          }}
-        >
-          Retry status
-        </button>
       ) : null}
       {isLinkedPromptReference ? (
         <span className="reference-card-link-dot" aria-hidden="true" />

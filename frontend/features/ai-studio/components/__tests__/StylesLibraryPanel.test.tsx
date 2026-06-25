@@ -7,7 +7,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { StylesLibraryPanel } from "../StylesLibraryPanel";
 import type { ExpertEditStyleTile } from "../edit/expertEditStyles";
-import type { ResolvedInternalStyleSource } from "../style-creator/intake";
+import type { ResolvedInternalStyleSource } from "../../logic/styleCreatorIntake";
 import { postExtractStyle, type StyleExtractionResult } from "../../logic/styleExtraction";
 import { postGenerateStylePreview } from "../../logic/stylePreviewGeneration";
 import { reportAppError } from "../../../../lib/appErrorReporter";

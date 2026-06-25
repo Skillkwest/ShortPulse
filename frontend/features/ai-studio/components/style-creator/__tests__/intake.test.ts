@@ -29,7 +29,7 @@ import {
   resolveDroppedStylePreview,
   resolveStyleSource,
   resizeImageDataUrlForExtraction,
-} from "../intake";
+} from "../../../logic/styleCreatorIntake";
 import type { ResolveInternalStyleDrop, ResolvedInternalStyleSource } from "../styleSourceResolver";
 
 const originalImage = globalThis.Image;

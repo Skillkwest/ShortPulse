@@ -89,6 +89,30 @@ describe("rightColumnDropPayload", () => {
     }
   });
 
+  it("resolves media-library media before generic internal reference hints", () => {
+    const transfer = makeTransfer({
+      "text/shortpulse-media-library-marker": "shortpulse-media-library-v1",
+      "text/shortpulse-media-library-kind": "libraryMedia",
+      "text/shortpulse-media-library-id": "media-drop-1",
+      "text/shortpulse-media-library-file-type": "image",
+      "text/reference-url": "https://cdn.example.com/library-drop-1.png",
+      "text/shortpulse-media-library-filename": "library-drop-1.png",
+      "text/prompt": "Library media prompt",
+    });
+
+    expect(resolveRightColumnDropMode(transfer)).toBe("media");
+    expect(resolveRightColumnDropPayload(transfer)).toEqual({
+      kind: "libraryMedia",
+      payload: expect.objectContaining({
+        id: "media-drop-1",
+        url: "https://cdn.example.com/library-drop-1.png",
+        fileType: "image",
+        filename: "library-drop-1.png",
+        promptText: "Library media prompt",
+      }),
+    });
+  });
+
   it("resolves session-backed media-library prompt drags as library prompt payloads", () => {
     const transfer = makeMutableTransfer();
     const promptText = `Saved prompt opening. ${"Detailed direction. ".repeat(80)}Saved ending.`;

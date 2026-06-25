@@ -112,7 +112,7 @@ import {
   doesReferenceGridOwnFileDrop,
   shouldBypassRightRailShellCapture,
 } from "../logic/referenceGridDropOwnership";
-import type { ResolveInternalStyleDrop } from "./style-creator/intake";
+import type { ResolveInternalStyleDrop } from "../logic/styleCreatorIntake";
 import {
   resolveRightColumnDropMode,
   resolveRightColumnDropPayload,

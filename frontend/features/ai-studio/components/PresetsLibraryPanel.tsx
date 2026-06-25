@@ -23,6 +23,7 @@ import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiSt
 
 export type PresetsLibraryPanelProps = {
   presets: readonly ExpertEditResolvedPreset[];
+  searchQuery?: string;
   selectedPresetId: ExpertEditPresetId | null;
   openPresetEditRequest?: { presetId: ExpertEditPresetId; requestId: number } | null;
   onOpenPresetEditRequestConsumed?: () => void;
@@ -50,6 +51,7 @@ type PendingPresetDeleteState = {
 
 export function PresetsLibraryPanel({
   presets,
+  searchQuery = "",
   selectedPresetId,
   openPresetEditRequest = null,
   onOpenPresetEditRequestConsumed,
@@ -75,6 +77,15 @@ export function PresetsLibraryPanel({
       EDIT_PRESET_CUSTOM_PRESET_IDS.find((presetId) => !visiblePresetIdSet.has(presetId)) ?? null
     );
   }, [presets]);
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const visiblePresets = React.useMemo(() => {
+    if (!normalizedSearchQuery) return presets;
+    return presets.filter((preset) =>
+      [preset.label, preset.prompt].some((value) =>
+        value.toLowerCase().includes(normalizedSearchQuery)
+      )
+    );
+  }, [normalizedSearchQuery, presets]);
   const [pendingPresetEdit, setPendingPresetEdit] = React.useState<PendingPresetEditState | null>(
     null
   );
@@ -216,7 +227,7 @@ export function PresetsLibraryPanel({
       </header>
       <div className="presets-library-scroll">
         <div className="presets-library-grid" role="list" aria-label="Presets library tiles">
-          {presets.map((preset) => {
+          {visiblePresets.map((preset) => {
             const isSelected = selectedPresetId === preset.presetId;
             return (
               <article
@@ -288,7 +299,10 @@ export function PresetsLibraryPanel({
               </article>
             );
           })}
-          {nextCreatableCustomPresetId ? (
+          {visiblePresets.length === 0 && normalizedSearchQuery ? (
+            <p className="presets-library-empty-state">No prompt presets match this search.</p>
+          ) : null}
+          {nextCreatableCustomPresetId && !normalizedSearchQuery ? (
             <button
               type="button"
               className="presets-library-tile presets-library-create-tile"

@@ -24,7 +24,9 @@ Use one canonical signup intent gate for account-first signup and pricing-return
 - The intent supports account signup without a paid plan and pricing signup with a selected paid plan. Paid-plan metadata remains required only for pricing-return intents.
 - A successful signup creates only the zero-value baseline account shell from the existing new-user billing bootstrap: hidden `free` plan, zero credits, and no paid entitlement.
 - Signup completion must idempotently bootstrap a Stripe customer record for the authenticated user, using the existing server-side Stripe customer sync authority. Stripe customer bootstrap is identity setup, not entitlement.
+- The expected signed-up state is a real active Supabase user, a real active Stripe customer identity, and access to navigate AI Studio with a credit balance of exactly zero. This is not a bypass, trial, or free plan entitlement.
 - `/api/billing/subscription/change` remains the only customer-facing recurring plan checkout authority, and Stripe webhooks remain the subscription/credit projection authority.
+- Credits may enter a customer account only from paid subscription/webhook projection or a credit top-up flow available to an established paying account. Signup, account bootstrap, Stripe customer creation, and AI Studio access must never mint credits by themselves.
 - `/sign-up` and `/log-in` are the canonical customer-facing auth pages. `/auth` may remain a compatibility route during migration, but it should not remain the primary public signup experience.
 - AI Studio should allow zero-credit users to navigate the workspace. A billable generation attempt with insufficient credits should be blocked at submit time and hand the user to pricing without disabling Generate as a static low-balance state.
 

@@ -65,6 +65,15 @@
 
 .merged-presets-library-filter-row {
   display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.merged-presets-library-filter-tabs {
+  display: inline-flex;
+  align-items: center;
   flex-wrap: wrap;
   gap: 8px;
 }
@@ -95,6 +104,40 @@
   border-color: rgba(105, 198, 255, 0.68);
   background: rgba(68, 138, 181, 0.16);
   color: rgba(238, 246, 255, 0.96);
+}
+
+.merged-presets-library-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 220px;
+  min-height: 32px;
+  border: 1px solid rgba(201, 205, 214, 0.16);
+  border-radius: 999px;
+  background: rgba(201, 205, 214, 0.05);
+  color: rgba(201, 211, 224, 0.72);
+  padding: 0 11px;
+}
+
+.merged-presets-library-search:focus-within {
+  border-color: rgba(105, 198, 255, 0.58);
+  background: rgba(68, 138, 181, 0.12);
+  color: rgba(238, 246, 255, 0.92);
+}
+
+.merged-presets-library-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: rgba(238, 246, 255, 0.94);
+  font: inherit;
+  font-size: 12px;
+}
+
+.merged-presets-library-search input::placeholder {
+  color: rgba(184, 194, 208, 0.62);
 }
 
 .merged-presets-library-body {
@@ -506,6 +549,15 @@
 
 .presets-library-create-tile .presets-library-tile-prompt {
   color: rgba(168, 189, 208, 0.86);
+}
+
+.presets-library-empty-state {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 18px 12px;
+  color: rgba(190, 201, 215, 0.76);
+  font-size: 13px;
+  text-align: center;
 }
 
 .presets-library-tile-head {

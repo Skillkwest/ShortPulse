@@ -9,7 +9,7 @@ import { agentPrompts } from "../../../lib/agentPromptsConfig";
 import {
   isImageFileCandidate,
   resolveProcessedStyleSource,
-} from "../../ai-studio/components/style-creator/intake";
+} from "../../ai-studio/logic/styleCreatorIntake";
 import {
   BUILT_IN_STYLE_SCHEMA_VERSION,
   normalizeBuiltInStyleDefinitions,

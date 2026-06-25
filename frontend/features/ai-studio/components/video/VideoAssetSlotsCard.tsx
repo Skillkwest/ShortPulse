@@ -419,19 +419,6 @@ export function VideoAssetSlotsCard({
                       />
                     ) : null}
                     <span className="video-elements-slot-actions">
-                      {canUseSeedanceImageIngress ? (
-                        <button
-                          type="button"
-                          className="video-elements-slot-upload"
-                          aria-label={`Upload media reference to slot ${index + 1}`}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            openMediaFilePicker();
-                          }}
-                        >
-                          <UploadSimple size={12} />
-                        </button>
-                      ) : null}
                       <button
                         type="button"
                         className="ghost-btn mini"

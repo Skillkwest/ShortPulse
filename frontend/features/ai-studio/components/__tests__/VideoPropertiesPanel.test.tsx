@@ -2650,10 +2650,7 @@ describe("VideoPropertiesPanel", () => {
     expect(screen.queryByRole("button", { name: /Insert @element1/i })).toBeNull();
   });
 
-  it("exposes a file-replace control for filled Seedance image reference slots", () => {
-    const inputClick = vi
-      .spyOn(HTMLInputElement.prototype, "click")
-      .mockImplementation(() => undefined);
+  it("hides the upload control for filled Seedance image reference slots", () => {
     render(
       <VideoPropertiesPanel
         {...baseProps}
@@ -2679,10 +2676,13 @@ describe("VideoPropertiesPanel", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Upload media reference to slot 1" }));
-
-    expect(inputClick).toHaveBeenCalledTimes(1);
-    inputClick.mockRestore();
+    expect(screen.queryByRole("button", { name: "Upload media reference to slot 1" })).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Remove attached element Image reference" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Upload media reference to slot 2" })
+    ).toBeInTheDocument();
   });
 
   it("hides direct Seedance image references after switching to Kling while preserving them for Seedance", () => {

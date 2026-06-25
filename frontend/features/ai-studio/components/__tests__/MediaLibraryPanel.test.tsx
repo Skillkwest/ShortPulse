@@ -2757,7 +2757,7 @@ describe("MediaLibraryPanel", () => {
     });
   });
 
-  it.skip("switches All Media root tabs between mixed media, image-only, video-only, and prompts", async () => {
+  it("switches root tabs between mixed media, visual media, audio, and prompts", async () => {
     fetchMediaListPageMock.mockResolvedValue({
       rows: [
         {
@@ -2808,11 +2808,12 @@ describe("MediaLibraryPanel", () => {
       expect(screen.getByRole("tab", { name: "Prompts" })).toBeInTheDocument();
       expect(screen.getByRole("tab", { name: "Images" })).toBeInTheDocument();
       expect(screen.getByRole("tab", { name: "Videos" })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: "Audio" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Select media ref-1.png" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Select media clip-1.mp4" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Select media voice-1.mp3" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Select prompt Prompt One" })).toBeInTheDocument();
     });
+    expect(screen.queryByRole("button", { name: "Select prompt Prompt One" })).toBeNull();
 
     expect(fetchMediaListPageMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -2822,9 +2823,9 @@ describe("MediaLibraryPanel", () => {
     );
     const latestAllMediaProps = allItemsGridPropsSpy.mock.calls.at(-1)?.[0];
     expect(latestAllMediaProps?.mediaRows.map((row: { id: string }) => row.id)).toEqual([
-      "media-3",
       "media-1",
       "media-2",
+      "media-3",
     ]);
 
     fireEvent.click(screen.getByRole("tab", { name: "Images" }));
@@ -2863,6 +2864,24 @@ describe("MediaLibraryPanel", () => {
       })
     );
 
+    fireEvent.click(screen.getByRole("tab", { name: "Audio" }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Select media voice-1.mp3" })).toBeInTheDocument();
+    });
+    expect(
+      screen.queryByRole("button", { name: "Select media ref-1.png" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Select media clip-1.mp4" })
+    ).not.toBeInTheDocument();
+
+    expect(fetchMediaListPageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mediaKind: "audio",
+        folderId: "all_items",
+      })
+    );
+
     fireEvent.click(screen.getByRole("tab", { name: "Prompts" }));
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Select prompt Prompt One" })).toBeInTheDocument();
@@ -2887,8 +2906,9 @@ describe("MediaLibraryPanel", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Select media ref-1.png" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Select media clip-1.mp4" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Select prompt Prompt One" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Select media voice-1.mp3" })).toBeInTheDocument();
     });
+    expect(screen.queryByRole("button", { name: "Select prompt Prompt One" })).toBeNull();
   });
 
   it.skip("normalizes transient network failures when loading prompts", async () => {

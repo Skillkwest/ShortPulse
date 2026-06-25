@@ -147,10 +147,9 @@ export function MediaLibraryAllItemsGrid({
   const targetColumnWidth = densityConfig?.targetColumnWidth ?? 188;
   const cardPreviewLongEdgePx = densityConfig?.previewLongEdgePx ?? 320;
   const shouldUsePackedMasonryLayout = Boolean(densityConfig);
-  const layoutMode: "chronological-grid" | "masonry" =
-    surface === "media-library-panel" || !shouldUsePackedMasonryLayout
-      ? "chronological-grid"
-      : "masonry";
+  const layoutMode: "chronological-grid" | "masonry" = shouldUsePackedMasonryLayout
+    ? "masonry"
+    : "chronological-grid";
   const {
     signedPosterUrlById: signedPosterUrlByIdFromHook,
     signedVideoUrlById: signedVideoUrlByIdFromHook,

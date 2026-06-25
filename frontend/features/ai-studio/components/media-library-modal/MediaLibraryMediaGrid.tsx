@@ -113,10 +113,9 @@ export function MediaLibraryMediaGrid({
   const targetColumnWidth = densityConfig?.targetColumnWidth ?? 220;
   const cardPreviewLongEdgePx = densityConfig?.previewLongEdgePx ?? 320;
   const shouldUsePackedMasonryLayout = Boolean(densityConfig);
-  const layoutMode: "chronological-grid" | "masonry" =
-    surface === "media-library-panel" || !shouldUsePackedMasonryLayout
-      ? "chronological-grid"
-      : "masonry";
+  const layoutMode: "chronological-grid" | "masonry" = shouldUsePackedMasonryLayout
+    ? "masonry"
+    : "chronological-grid";
 
   const {
     containerRef: virtualContainerRef,

@@ -2,30 +2,33 @@
  * Styles-library intake and create-source preparation helpers.
  * Exposes the stable style-creator utilities used by the controller and tests.
  */
-import type { StylesLibraryStyleDetails } from "../../types";
-import { CUSTOM_STYLE_NAME_PREFIX, STYLE_PROMPT_MAX_CHARACTERS } from "./constants";
+import type { StylesLibraryStyleDetails } from "../types";
+import {
+  CUSTOM_STYLE_NAME_PREFIX,
+  STYLE_PROMPT_MAX_CHARACTERS,
+} from "../components/style-creator/constants";
 import type {
   PendingStyleEditState,
   ResolvedDroppedStylePreview,
   StyleExtractionRuntimeResult,
-} from "./types";
-import type { ExpertEditStyleTile } from "../edit/expertEditStyles";
+} from "../components/style-creator/types";
+import type { ExpertEditStyleTile } from "../components/edit/expertEditStyles";
 import {
   reorderStylesLibraryOrderedIds,
   type StylesLibraryReorderPlacement,
-} from "../../logic/stylesLibraryCatalog";
+} from "./stylesLibraryCatalog";
 import {
   buildStyleDropSnapshotTransfer,
   canAcceptStyleLibraryImageDropHint,
   captureStyleDropSnapshot,
   type StyleDropSnapshot,
-} from "./styleSourceCapture";
+} from "../components/style-creator/styleSourceCapture";
 import {
   cropImageDataUrlToSquareDataUrl,
   preprocessStyleImageDataUrl,
   readFileAsDataUrl,
   resizeImageDataUrlForExtraction,
-} from "./styleImageDerivation";
+} from "../components/style-creator/styleImageDerivation";
 import {
   getStyleDropPreviewCandidateCount,
   getStyleDropPreviewClassifierReason,
@@ -35,8 +38,11 @@ import {
   normalizeStyleDropPreviewError,
   normalizeStylePromptFallbackText,
   resolveStyleSource,
-} from "./styleSourceNormalization";
-import type { ResolveInternalStyleDrop, ResolvedInternalStyleSource } from "./styleSourceResolver";
+} from "../components/style-creator/styleSourceNormalization";
+import type {
+  ResolveInternalStyleDrop,
+  ResolvedInternalStyleSource,
+} from "../components/style-creator/styleSourceResolver";
 
 export type { StyleDropSnapshot, ResolveInternalStyleDrop, ResolvedInternalStyleSource };
 export {

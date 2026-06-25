@@ -23,6 +23,7 @@ import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiSt
 type PulsePresetsLibraryPanelProps = {
   builtInDefinitions?: readonly CreatePulseBuiltInPresetDefinition[];
   savedPresets?: readonly CreatePulseSavedPreset[];
+  searchQuery?: string;
   onSavedPresetsChange?: (presets: CreatePulseSavedPreset[]) => Promise<boolean> | boolean | void;
 };
 
@@ -46,6 +47,7 @@ type PendingPulsePresetDeleteState = {
 export function PulsePresetsLibraryPanel({
   builtInDefinitions,
   savedPresets = [],
+  searchQuery = "",
   onSavedPresetsChange,
 }: PulsePresetsLibraryPanelProps) {
   const [selectedPresetId, setSelectedPresetId] = React.useState<string | null>(null);
@@ -61,6 +63,15 @@ export function PulsePresetsLibraryPanel({
     () => resolveCreatePulsePresetCatalog(savedPresets, builtInDefinitions),
     [builtInDefinitions, savedPresets]
   );
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const visibleResolvedPresets = React.useMemo(() => {
+    if (!normalizedSearchQuery) return resolvedPresets;
+    return resolvedPresets.filter((preset) =>
+      [preset.label, preset.description ?? "", preset.systemInstructions].some((value) =>
+        value.toLowerCase().includes(normalizedSearchQuery)
+      )
+    );
+  }, [normalizedSearchQuery, resolvedPresets]);
   const nextPresetNumber = React.useMemo(
     () =>
       savedPresets.filter(
@@ -217,7 +228,7 @@ export function PulsePresetsLibraryPanel({
             role="list"
             aria-label="Pulse presets library tiles"
           >
-            {resolvedPresets.map((preset) => {
+            {visibleResolvedPresets.map((preset) => {
               const isSelected = selectedPresetId === preset.presetId;
               return (
                 <article
@@ -293,35 +304,40 @@ export function PulsePresetsLibraryPanel({
                 </article>
               );
             })}
-            <button
-              type="button"
-              className="pulse-presets-library-tile pulse-presets-library-create-tile"
-              aria-label="Create new pulse"
-              onClick={() => {
-                const nextPresetId = createCreatePulseCustomPresetId();
-                const defaultLabel = `Pulse ${nextPresetNumber}`;
-                setSelectedPresetId(nextPresetId);
-                setLocalSaveError(null);
-                setPendingPresetEdit({
-                  presetId: nextPresetId,
-                  presetLabel: defaultLabel,
-                  label: defaultLabel,
-                  systemInstructions: "",
-                  mode: "create",
-                });
-              }}
-            >
-              <span className="pulse-presets-library-create-plus" aria-hidden="true">
-                +
-              </span>
-              <span className="pulse-presets-library-tile-head">
-                <span className="pulse-presets-library-tile-title">Create New Pulse</span>
-              </span>
-              <span className="pulse-presets-library-tile-prompt">
-                Add a saved-instructions Pulse that will be available from the Create Pulse rail and
-                Pulse Catalog.
-              </span>
-            </button>
+            {visibleResolvedPresets.length === 0 && normalizedSearchQuery ? (
+              <p className="pulse-presets-library-empty-state">No Pulses match this search.</p>
+            ) : null}
+            {!normalizedSearchQuery ? (
+              <button
+                type="button"
+                className="pulse-presets-library-tile pulse-presets-library-create-tile"
+                aria-label="Create new pulse"
+                onClick={() => {
+                  const nextPresetId = createCreatePulseCustomPresetId();
+                  const defaultLabel = `Pulse ${nextPresetNumber}`;
+                  setSelectedPresetId(nextPresetId);
+                  setLocalSaveError(null);
+                  setPendingPresetEdit({
+                    presetId: nextPresetId,
+                    presetLabel: defaultLabel,
+                    label: defaultLabel,
+                    systemInstructions: "",
+                    mode: "create",
+                  });
+                }}
+              >
+                <span className="pulse-presets-library-create-plus" aria-hidden="true">
+                  +
+                </span>
+                <span className="pulse-presets-library-tile-head">
+                  <span className="pulse-presets-library-tile-title">Create New Pulse</span>
+                </span>
+                <span className="pulse-presets-library-tile-prompt">
+                  Add a saved-instructions Pulse that will be available from the Create Pulse rail
+                  and Pulse Catalog.
+                </span>
+              </button>
+            ) : null}
           </div>
         </section>
       </div>

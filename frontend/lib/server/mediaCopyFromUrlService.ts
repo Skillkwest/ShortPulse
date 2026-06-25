@@ -3,7 +3,6 @@
  * Used by the API route as the CORS-proof fallback when browser fetch is blocked.
  */
 import { randomUUID } from "crypto";
-import { lookup as dnsLookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { asCanonicalStoragePath } from "../adaptive-media";
@@ -36,6 +35,12 @@ import {
   uploadMediaBufferToStoragePath,
 } from "./mediaIngest";
 import { enforceApiRateLimit } from "./api/rateLimit";
+import {
+  isBlockedPrivateNetworkAddress,
+  isLocalhostName,
+  normalizePublicNetworkHostname,
+  resolvePublicNetworkHostAddresses,
+} from "./api/publicNetworkUrlGuard";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
 import { isTrustedFalProviderUrl } from "./falIntegration/providerTrustPolicy";
 import { extractImageDimensionsFromBuffer } from "./imageDimensions";
@@ -46,7 +51,6 @@ import {
   upsertVideoPreviewVariantFromBuffer,
 } from "./videoPosterVariant";
 const FETCH_TIMEOUT_MS = 60000;
-const DNS_TIMEOUT_MS = 2500;
 const MAX_REDIRECTS = 4;
 const MEDIA_LIBRARY_BUCKET = "media_library";
 const MAX_IMAGE_BYTES = MAX_IMAGE_MEDIA_BYTES;
@@ -257,12 +261,9 @@ const parseIndex = (value: unknown): number => {
   return parsed;
 };
 
-const normalizeHostname = (value: string): string => value.trim().toLowerCase().replace(/\.$/, "");
+const normalizeHostname = normalizePublicNetworkHostname;
 
-const isLocalHostname = (hostname: string): boolean => {
-  const normalized = normalizeHostname(hostname);
-  return normalized === "localhost" || normalized === "127.0.0.1" || normalized === "::1";
-};
+const isLocalHostname = isLocalhostName;
 
 const isAllowedProtocol = (url: URL): boolean =>
   url.protocol === "https:" || (url.protocol === "http:" && isLocalHostname(url.hostname));
@@ -273,62 +274,8 @@ const matchesHost = (hostname: string, allowedHost: string): boolean => {
   return normalizedHost === normalizedAllowed || normalizedHost.endsWith(`.${normalizedAllowed}`);
 };
 
-const isPrivateIpv4 = (hostname: string): boolean => {
-  const parts = hostname.split(".").map((segment) => Number(segment));
-  if (
-    parts.length !== 4 ||
-    parts.some((value) => !Number.isInteger(value) || value < 0 || value > 255)
-  ) {
-    return false;
-  }
-  const [a, b] = parts;
-  if (a === 10) return true;
-  if (a === 127) return true;
-  if (a === 0) return true;
-  if (a === 169 && b === 254) return true;
-  if (a === 172 && b >= 16 && b <= 31) return true;
-  if (a === 192 && b === 168) return true;
-  if (a === 100 && b >= 64 && b <= 127) return true;
-  if (a === 198 && (b === 18 || b === 19)) return true;
-  return false;
-};
-
-const isPrivateIpv6 = (hostname: string): boolean => {
-  const normalized = hostname.toLowerCase();
-  if (normalized === "::1" || normalized === "::") return true;
-  if (normalized.startsWith("fc") || normalized.startsWith("fd")) return true;
-  if (normalized.startsWith("fe8") || normalized.startsWith("fe9")) return true;
-  if (normalized.startsWith("fea") || normalized.startsWith("feb")) return true;
-  return false;
-};
-
-const isBlockedPrivateAddress = (hostname: string): boolean => {
-  const normalized = normalizeHostname(hostname);
-  const ipVersion = isIP(normalized);
-  if (ipVersion === 4) return isPrivateIpv4(normalized);
-  if (ipVersion === 6) return isPrivateIpv6(normalized);
-  return false;
-};
-
-const resolveHostAddresses = async (hostname: string): Promise<string[] | null> => {
-  try {
-    const records = await Promise.race([
-      dnsLookup(hostname, { all: true }),
-      new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error("dns_lookup_timeout")), DNS_TIMEOUT_MS);
-      }),
-    ]);
-    if (!Array.isArray(records)) {
-      const singleAddress = (records as { address?: string }).address;
-      return singleAddress ? [singleAddress] : [];
-    }
-    return records
-      .map((record) => (typeof record.address === "string" ? record.address : ""))
-      .filter((address) => address.length > 0);
-  } catch {
-    return null;
-  }
-};
+const isBlockedPrivateAddress = isBlockedPrivateNetworkAddress;
+const resolveHostAddresses = resolvePublicNetworkHostAddresses;
 
 const resolveRequestOrigin = (req: NextApiRequest): string | null => {
   const host = asOptionalString(req.headers.host);

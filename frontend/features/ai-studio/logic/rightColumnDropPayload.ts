@@ -150,8 +150,8 @@ export const resolveRightColumnDropMode = (
       type.includes("prompt") ||
       type.includes("utf8")
   );
-  if (hasInternalReferenceDragTypeHints(transfer)) return "none";
   if (hasLibraryDragType) return "media";
+  if (hasInternalReferenceDragTypeHints(transfer)) return "none";
   if (fileCount > 0) return "media";
   if (hasMediaUrlHints) return "media";
   if (hasTextLikeType) return "text";
@@ -169,7 +169,6 @@ export const resolveRightColumnDropPayload = (transfer: DataTransfer): RightColu
   const snapshot = captureAiStudioDropSnapshot(transfer);
   const resolvedTransfer = buildAiStudioDropSnapshotTransfer(snapshot);
 
-  if (hasInternalReferenceDragTypeHints(resolvedTransfer)) return { kind: "internal" };
   const mediaLibraryDragPayload = readMediaLibraryDragPayload(resolvedTransfer);
   if (mediaLibraryDragPayload?.kind === "libraryMedia") {
     return { kind: "libraryMedia", payload: mediaLibraryDragPayload.payload };
@@ -177,6 +176,7 @@ export const resolveRightColumnDropPayload = (transfer: DataTransfer): RightColu
   if (mediaLibraryDragPayload?.kind === "libraryPrompt") {
     return { kind: "libraryPrompt", payload: mediaLibraryDragPayload.payload };
   }
+  if (hasInternalReferenceDragTypeHints(resolvedTransfer)) return { kind: "internal" };
   const droppedMedia = getDroppedMediaReference(resolvedTransfer);
   if (droppedMedia) {
     return { kind: "media", reference: droppedMedia };

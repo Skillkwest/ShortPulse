@@ -16,7 +16,10 @@ import {
   STYLE_PROMPT_MAX_CHARACTERS,
   STYLE_PROMPT_NEAR_LIMIT_CHARACTERS,
 } from "./style-creator/constants";
-import { captureStyleDropSnapshot, type ResolveInternalStyleDrop } from "./style-creator/intake";
+import {
+  captureStyleDropSnapshot,
+  type ResolveInternalStyleDrop,
+} from "../logic/styleCreatorIntake";
 import { useStyleCreatorController } from "./style-creator/useStyleCreatorController";
 import { AppMessage, useTransientAppMessage } from "../../../components/AppMessage";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";

@@ -3,7 +3,10 @@
  * Locks the passing local upload lane and the failing internal-media lanes before further cleanup.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { normalizeStyleDropPreviewError, resolveDroppedStylePreview } from "../intake";
+import {
+  normalizeStyleDropPreviewError,
+  resolveDroppedStylePreview,
+} from "../../../logic/styleCreatorIntake";
 import type { ResolveInternalStyleDrop } from "../styleSourceResolver";
 import {
   failingGeneratedInternalStyleDropTransfer,

@@ -53,7 +53,7 @@ vi.mock("../../lib/authenticatedFetch", () => ({
   fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
 }));
 
-vi.mock("../../features/ai-studio/components/style-creator/intake", () => ({
+vi.mock("../../features/ai-studio/logic/styleCreatorIntake", () => ({
   isImageFileCandidate: (...args: unknown[]) => isImageFileCandidateMock(...args),
   resolveProcessedStyleSource: (...args: unknown[]) => resolveProcessedStyleSourceMock(...args),
 }));

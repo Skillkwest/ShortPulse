@@ -9,23 +9,23 @@ Purpose: define the modular Style Creator workflow used by AI Studio Styles Libr
 
 ## Key components
 
-| Component                                                                           | Role                                                                                                                                      |
-| ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `frontend/features/ai-studio/components/StylesLibraryPanel.tsx`                     | Presentational Styles Library panel; renders tiles/modals and delegates behavior to controller.                                           |
-| `frontend/features/ai-studio/components/style-creator/useStyleCreatorController.ts` | Domain controller for create/edit/delete modal state machine, extraction orchestration, and persistence command execution.                |
-| `frontend/features/ai-studio/components/style-creator/intake.ts`                    | Style intake helpers (drop/file normalization, preview crop, reorder utilities).                                                          |
-| `frontend/features/ai-studio/components/style-creator/extraction.ts`                | Deterministic extraction outcome classification (`success`, `fallback`, `blocked_source`).                                                |
-| `frontend/features/ai-studio/components/style-creator/telemetry.ts`                 | Normalized extraction telemetry emitter (`telemetry.ai_studio.style_extraction`).                                                         |
-| `frontend/features/ai-studio/logic/styleDetailsNormalization.ts`                    | Backward-compatible style-details normalization/equality helpers used by persistence hooks.                                               |
-| `frontend/features/ai-studio/logic/stylePreviewGeneration.ts`                       | Authenticated client helper for prompt-only style-card preview generation.                                                                |
-| `frontend/features/ai-studio/hooks/useStylesLibraryPanelIdsPreference.ts`           | Per-user shared style-order persistence through `user_preferences.ai_studio_style_panel_ids`.                                             |
-| `frontend/features/ai-studio/hooks/useStylesLibraryStyleDetailsPreference.ts`       | Per-user style-details persistence (`user_preferences.ai_studio_style_details_overrides`) with local fallback.                            |
-| `frontend/features/ai-studio/hooks/useBuiltInStyleCatalog.ts`                       | Authenticated runtime loader for the global built-in Styles catalog from `/api/ai/built-in-styles`.                                       |
-| `frontend/pages/api/admin/agent-instructions/built-in-styles.ts`                    | Admin-only route that publishes the global built-in Styles catalog.                                                                       |
-| `frontend/pages/api/ai/built-in-styles.ts`                                          | Authenticated runtime route that returns the global built-in Styles catalog.                                                              |
-| `frontend/pages/api/ai/style-order.ts`                                              | Authenticated runtime route that reads/writes the caller's per-user Styles panel order.                                                   |
-| `frontend/pages/api/ai/extract-style.ts`                                            | Authenticated style extraction endpoint (`imageDataUrl` -> `stylePrompt`, `styleTitle`, optional `usage`).                                |
-| `frontend/pages/api/ai/generate-style-preview.ts`                                   | Authenticated FLUX 2 Klein style-preview endpoint (`stylePrompt` -> compact 512x512 JPEG data URL) for prompt-only manual style creation. |
+| Component                                                                           | Role                                                                                                                                        |
+| ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `frontend/features/ai-studio/components/StylesLibraryPanel.tsx`                     | Presentational Styles Library panel; renders tiles/modals and delegates behavior to controller.                                             |
+| `frontend/features/ai-studio/components/style-creator/useStyleCreatorController.ts` | Domain controller for create/edit/delete modal state machine, extraction orchestration, and persistence command execution.                  |
+| `frontend/features/ai-studio/logic/styleCreatorIntake.ts`                           | Shared Style intake helpers (drop/file normalization, preview crop, reorder utilities) used by AI Studio and Admin built-in Style previews. |
+| `frontend/features/ai-studio/components/style-creator/extraction.ts`                | Deterministic extraction outcome classification (`success`, `fallback`, `blocked_source`).                                                  |
+| `frontend/features/ai-studio/components/style-creator/telemetry.ts`                 | Normalized extraction telemetry emitter (`telemetry.ai_studio.style_extraction`).                                                           |
+| `frontend/features/ai-studio/logic/styleDetailsNormalization.ts`                    | Backward-compatible style-details normalization/equality helpers used by persistence hooks.                                                 |
+| `frontend/features/ai-studio/logic/stylePreviewGeneration.ts`                       | Authenticated client helper for prompt-only style-card preview generation.                                                                  |
+| `frontend/features/ai-studio/hooks/useStylesLibraryPanelIdsPreference.ts`           | Per-user shared style-order persistence through `user_preferences.ai_studio_style_panel_ids`.                                               |
+| `frontend/features/ai-studio/hooks/useStylesLibraryStyleDetailsPreference.ts`       | Per-user style-details persistence (`user_preferences.ai_studio_style_details_overrides`) with local fallback.                              |
+| `frontend/features/ai-studio/hooks/useBuiltInStyleCatalog.ts`                       | Authenticated runtime loader for the global built-in Styles catalog from `/api/ai/built-in-styles`.                                         |
+| `frontend/pages/api/admin/agent-instructions/built-in-styles.ts`                    | Admin-only route that publishes the global built-in Styles catalog.                                                                         |
+| `frontend/pages/api/ai/built-in-styles.ts`                                          | Authenticated runtime route that returns the global built-in Styles catalog.                                                                |
+| `frontend/pages/api/ai/style-order.ts`                                              | Authenticated runtime route that reads/writes the caller's per-user Styles panel order.                                                     |
+| `frontend/pages/api/ai/extract-style.ts`                                            | Authenticated style extraction endpoint (`imageDataUrl` -> `stylePrompt`, `styleTitle`, optional `usage`).                                  |
+| `frontend/pages/api/ai/generate-style-preview.ts`                                   | Authenticated FLUX 2 Klein style-preview endpoint (`stylePrompt` -> compact 512x512 JPEG data URL) for prompt-only manual style creation.   |
 
 ## Persistence contract
 

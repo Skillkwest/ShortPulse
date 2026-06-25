@@ -3,7 +3,7 @@
  * Combines the Pulse catalog and Prompt Preset libraries behind one left-rail surface while keeping their editors separate.
  */
 import React from "react";
-import { ArrowCounterClockwise, Selection, Sparkle } from "phosphor-react";
+import { ArrowCounterClockwise, MagnifyingGlass, Selection, Sparkle } from "phosphor-react";
 import { AppMessage, useTransientAppMessage } from "../../../components/AppMessage";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { PresetsLibraryPanel as PromptPresetsLibraryPanel } from "./PresetsLibraryPanel";
@@ -92,6 +92,7 @@ const UnifiedPresetsLibraryPanelContent = ({
   promptSaveError = null,
 }: UnifiedPresetsLibraryPanelProps) => {
   const [viewFilter, setViewFilter] = React.useState<PresetsLibraryViewFilter>("all");
+  const [searchQuery, setSearchQuery] = React.useState("");
   const [restoreConfirmOpen, setRestoreConfirmOpen] = React.useState(false);
   const [restoreSubmitting, setRestoreSubmitting] = React.useState(false);
   const [restoreError, setRestoreError] = React.useState<string | null>(null);
@@ -104,6 +105,7 @@ const UnifiedPresetsLibraryPanelContent = ({
     useCreatePulsePreferenceRuntime();
   const showPulses = viewFilter === "all" || viewFilter === "pulses";
   const showPromptPresets = viewFilter === "all" || viewFilter === "prompt-presets";
+  const normalizedSearchQuery = searchQuery.trim();
   const restoreDisabled = restoreSubmitting;
 
   React.useEffect(() => {
@@ -176,21 +178,35 @@ const UnifiedPresetsLibraryPanelContent = ({
           />
         ) : null}
       </header>
-      <div className="merged-presets-library-filter-row" role="group" aria-label="Presets views">
-        {FILTER_OPTIONS.map((option) => {
-          const isActive = viewFilter === option.id;
-          return (
-            <button
-              key={option.id}
-              type="button"
-              aria-pressed={isActive}
-              className={`merged-presets-library-filter-chip ${isActive ? "is-active" : ""}`.trim()}
-              onClick={() => setViewFilter(option.id)}
-            >
-              {option.label}
-            </button>
-          );
-        })}
+      <div className="merged-presets-library-filter-row">
+        <div className="merged-presets-library-filter-tabs" role="group" aria-label="Presets views">
+          {FILTER_OPTIONS.map((option) => {
+            const isActive = viewFilter === option.id;
+            return (
+              <button
+                key={option.id}
+                type="button"
+                aria-pressed={isActive}
+                className={`merged-presets-library-filter-chip ${
+                  isActive ? "is-active" : ""
+                }`.trim()}
+                onClick={() => setViewFilter(option.id)}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+        <label className="merged-presets-library-search">
+          <MagnifyingGlass size={14} weight="bold" aria-hidden="true" />
+          <input
+            type="search"
+            aria-label="Search presets"
+            placeholder="Search presets"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+          />
+        </label>
       </div>
       <div className="merged-presets-library-body">
         {showPulses ? (
@@ -217,7 +233,7 @@ const UnifiedPresetsLibraryPanelContent = ({
               </div>
             </div>
             <div className="merged-presets-library-section-body">
-              <UnifiedPulsePresetsLibraryPanel />
+              <UnifiedPulsePresetsLibraryPanel searchQuery={normalizedSearchQuery} />
             </div>
           </section>
         ) : null}
@@ -250,6 +266,7 @@ const UnifiedPresetsLibraryPanelContent = ({
             <div className="merged-presets-library-section-body">
               <PromptPresetsLibraryPanel
                 presets={promptPresets}
+                searchQuery={normalizedSearchQuery}
                 selectedPresetId={selectedPromptPresetId}
                 openPresetEditRequest={openPromptPresetEditRequest}
                 onOpenPresetEditRequestConsumed={onOpenPromptPresetEditRequestConsumed}
@@ -302,12 +319,13 @@ const UnifiedPresetsLibraryPanelContent = ({
   );
 };
 
-const UnifiedPulsePresetsLibraryPanel = () => {
+const UnifiedPulsePresetsLibraryPanel = ({ searchQuery }: { searchQuery: string }) => {
   const { builtInDefinitions, savedPresets, setSavedPresets } = useCreatePulsePreferenceRuntime();
   return (
     <PulsePresetsLibraryPanel
       builtInDefinitions={builtInDefinitions}
       savedPresets={savedPresets}
+      searchQuery={searchQuery}
       onSavedPresetsChange={setSavedPresets}
     />
   );

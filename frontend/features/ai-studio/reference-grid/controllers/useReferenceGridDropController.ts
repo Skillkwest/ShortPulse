@@ -87,16 +87,6 @@ export const useReferenceGridDropController = ({
     const dropSnapshot = captureAiStudioDropSnapshot(event.dataTransfer);
     const transfer = buildAiStudioDropSnapshotTransfer(dropSnapshot);
 
-    // Ignore drops that originate from existing reference cards to avoid creating duplicates/empties.
-    if (
-      hasInternalReferenceDragTypeHints(transfer) ||
-      extractInternalReferenceDragPayload(transfer)?.outputId
-    ) {
-      event.preventDefault();
-      event.stopPropagation();
-      return;
-    }
-
     const mediaLibraryPayload = readMediaLibraryDragPayload(transfer);
     if (mediaLibraryPayload?.kind === "libraryMedia" && onAddLibraryMediaReference) {
       event.preventDefault();
@@ -108,6 +98,16 @@ export const useReferenceGridDropController = ({
       event.preventDefault();
       event.stopPropagation();
       onAddLibraryPromptReference(mediaLibraryPayload.payload);
+      return;
+    }
+
+    // Ignore drops that originate from existing reference cards to avoid creating duplicates/empties.
+    if (
+      hasInternalReferenceDragTypeHints(transfer) ||
+      extractInternalReferenceDragPayload(transfer)?.outputId
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
       return;
     }
 

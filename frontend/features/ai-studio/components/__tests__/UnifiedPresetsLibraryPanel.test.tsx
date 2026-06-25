@@ -23,7 +23,9 @@ vi.mock("../create/CreatePulsePreferenceProvider", () => ({
 }));
 
 vi.mock("../PulsePresetsLibraryPanel", () => ({
-  PulsePresetsLibraryPanel: () => <div data-testid="pulse-presets-library-panel" />,
+  PulsePresetsLibraryPanel: ({ searchQuery }: { searchQuery?: string }) => (
+    <div data-testid="pulse-presets-library-panel" data-search-query={searchQuery ?? ""} />
+  ),
 }));
 
 describe("UnifiedPresetsLibraryPanel", () => {
@@ -101,5 +103,39 @@ describe("UnifiedPresetsLibraryPanel", () => {
     expect(onOpenPromptPresetEditRequestConsumed).toHaveBeenCalledTimes(1);
     expect(onSelectPromptPreset).toHaveBeenCalledWith("custom_1");
     expect(screen.getByRole("dialog", { name: "Edit Custom 1 preset" })).toBeInTheDocument();
+  });
+
+  it("filters prompt presets from the tab-row search input", () => {
+    const promptPresets: ExpertEditResolvedPreset[] = [
+      {
+        presetId: "selfie",
+        label: "Selfie",
+        prompt: "Use a selfie perspective.",
+        isCustom: false,
+        hasOverride: false,
+      },
+      {
+        presetId: "drone_view",
+        label: "Drone View",
+        prompt: "Use a high aerial perspective.",
+        isCustom: false,
+        hasOverride: false,
+      },
+    ];
+
+    render(
+      <UnifiedPresetsLibraryPanel promptPresets={promptPresets} selectedPromptPresetId={null} />
+    );
+
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search presets" }), {
+      target: { value: "drone" },
+    });
+
+    expect(screen.getByText("Drone View")).toBeInTheDocument();
+    expect(screen.queryByText("Selfie")).not.toBeInTheDocument();
+    expect(screen.getByTestId("pulse-presets-library-panel")).toHaveAttribute(
+      "data-search-query",
+      "drone"
+    );
   });
 });

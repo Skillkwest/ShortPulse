@@ -9,7 +9,9 @@
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
+const { URL } = require("node:url");
 const { chromium } = require("playwright");
+const { createClient } = require("@supabase/supabase-js");
 
 const PNG_BYTES = new Uint8Array([
   137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 4, 0, 0,
@@ -24,6 +26,8 @@ const HEADLESS = process.env.PLAYWRIGHT_HEADLESS !== "false";
 const CLEANUP_ONLY = process.env.PLAYWRIGHT_MEDIA_PANEL_CLEANUP_ONLY === "true";
 const AUDIT_IMAGE_FILENAME_PREFIX = "holomony-save-browse-audit";
 const AUDIT_VIDEO_FILENAME_PREFIX = "holomony-video-variant-audit";
+const AUDIT_PROMPT_TITLE_PREFIX = "copperknot-prompt-continuity-audit";
+const MEDIA_BUCKET = "media_library";
 const VIDEO_FIXTURE_SOURCE_PATH = path.resolve(
   __dirname,
   "..",
@@ -134,6 +138,21 @@ async function waitForNonAuthRoute(page, timeoutMs) {
   }
 }
 
+async function readAuthFailureSummary(page, email) {
+  const currentUrl = new URL(page.url());
+  const visibleText = await page
+    .locator("body")
+    .innerText({ timeout: 2000 })
+    .catch(() => "");
+  const redactedText = visibleText.replaceAll(email, "[audit-email]").replace(/\s+/g, " ").trim();
+  return {
+    path: currentUrl.pathname,
+    searchKeys: Array.from(currentUrl.searchParams.keys()).sort(),
+    title: await page.title().catch(() => ""),
+    text: redactedText.slice(0, 500),
+  };
+}
+
 async function satisfyMediaComplianceIfPresent(page) {
   const gateHeading = page.getByRole("heading", { name: /^confirm media rights$/i }).first();
   const gateVisible = await gateHeading.isVisible().catch(() => false);
@@ -160,7 +179,12 @@ async function ensureSignedIn(page, baseUrl, targetPath, email, password) {
     await signIn(page, email, password);
     const reached = await waitForNonAuthRoute(page, 20_000);
     if (!reached) {
-      throw new Error(`Auth did not reach protected route for ${targetPath} on ${baseUrl}`);
+      const summary = await readAuthFailureSummary(page, email);
+      throw new Error(
+        `Auth did not reach protected route for ${targetPath} on ${baseUrl}: ${JSON.stringify(
+          summary
+        )}`
+      );
     }
   }
 
@@ -223,6 +247,117 @@ async function apiRequest({ token, method, requestPath, body }) {
 function summarizeApiResult(result) {
   const body = result.payload ? JSON.stringify(result.payload) : result.text.slice(0, 180);
   return `${result.status} ${result.contentType}: ${body}`;
+}
+
+function readSupabaseRestConfig() {
+  const url = (
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.SHORTPULSE_PRODUCTION_SUPABASE_URL ||
+    ""
+  )
+    .trim()
+    .replace(/\/+$/, "");
+  const anonKey = (
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    process.env.SHORTPULSE_PRODUCTION_SUPABASE_ANON_KEY ||
+    ""
+  ).trim();
+  if (!url || !anonKey) {
+    throw new Error("Supabase REST config is unavailable for prompt continuity audit.");
+  }
+  return { url, anonKey };
+}
+
+async function supabaseRestRequest({ token, method, path: requestPath, body, prefer }) {
+  const { url, anonKey } = readSupabaseRestConfig();
+  const response = await fetch(`${url}/rest/v1/${requestPath}`, {
+    method,
+    headers: {
+      apikey: anonKey,
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+      ...(body ? { "Content-Type": "application/json" } : {}),
+      ...(prefer ? { Prefer: prefer } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const text = await response.text();
+  let payload = null;
+  try {
+    payload = text ? JSON.parse(text) : null;
+  } catch {
+    payload = null;
+  }
+  if (!response.ok) {
+    throw new Error(
+      `Supabase REST ${method} ${requestPath} failed with status ${response.status}.`
+    );
+  }
+  return payload;
+}
+
+function createSupabaseAuditClient(token) {
+  const { url, anonKey } = readSupabaseRestConfig();
+  return createClient(url, anonKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+    global: {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  });
+}
+
+const isNonEmptyStoragePath = (value) => typeof value === "string" && value.trim().length > 0;
+
+async function deleteAuditMediaRowByIdWithStorage({ token, row, filenamePrefix }) {
+  if (!token || !row?.id) return false;
+  if (typeof row.filename !== "string" || !row.filename.startsWith(`${filenamePrefix}-`)) {
+    throw new Error("Refusing to direct-delete a non-audit media row.");
+  }
+
+  const supabase = createSupabaseAuditClient(token);
+  const basePaths = [
+    row.storage_path,
+    row.preview_storage_path,
+    row.thumb_variant_path,
+    row.poster_variant_path,
+    row.preview_variant_path,
+  ].filter(isNonEmptyStoragePath);
+
+  const variantRows = await supabaseRestRequest({
+    token,
+    method: "GET",
+    path: `media_asset_variants?media_file_id=eq.${encodeURIComponent(row.id)}&select=storage_path`,
+  }).catch(() => []);
+  const variantPaths = Array.isArray(variantRows)
+    ? variantRows.map((variantRow) => variantRow?.storage_path)
+    : [];
+
+  const storagePaths = Array.from(
+    new Set([...basePaths, ...variantPaths].filter(isNonEmptyStoragePath))
+  );
+  const deletedRows = await supabaseRestRequest({
+    token,
+    method: "DELETE",
+    path: `media_files?id=eq.${encodeURIComponent(row.id)}&select=id`,
+    prefer: "return=representation",
+  });
+  const deleted =
+    Array.isArray(deletedRows) && deletedRows.some((deletedRow) => deletedRow?.id === row.id);
+  if (!deleted) return false;
+
+  if (storagePaths.length) {
+    await supabase.storage
+      .from(MEDIA_BUCKET)
+      .remove(storagePaths)
+      .catch(() => undefined);
+  }
+  return true;
 }
 
 function assertJsonApiResult(label, result, expectedStatus) {
@@ -572,33 +707,42 @@ async function cleanupAuditOwnedImageFixtures(page) {
       filename: AUDIT_IMAGE_FILENAME_PREFIX,
       mediaKind: "images",
     }).catch(() => []);
-    const filenames = Array.from(
-      new Set(
-        rows
-          .map((row) => row?.filename)
-          .filter(
-            (filename) =>
-              typeof filename === "string" && filename.startsWith(`${AUDIT_IMAGE_FILENAME_PREFIX}-`)
-          )
-      )
+    const auditRows = rows.filter(
+      (row) =>
+        typeof row?.filename === "string" &&
+        row.filename.startsWith(`${AUDIT_IMAGE_FILENAME_PREFIX}-`)
     );
-    if (!filenames.length) return result;
+    if (!auditRows.length) return result;
     console.error(
-      `[media-panel-persistence.audit] cleanup-only: image row fixtures=${filenames.length}`
+      `[media-panel-persistence.audit] cleanup-only: image row fixtures=${auditRows.length}`
     );
 
     const panel = await openTargetPanel(page);
     await openMediaKindTab(page, panel, "image");
-    for (const filename of filenames) {
+    for (const row of auditRows) {
+      const filename = row.filename;
+      let deleted = false;
       try {
         console.error(`[media-panel-persistence.audit] cleanup-only: image delete ${filename}`);
         const cleanup = await deleteFixture(page, filename, "image", 10_000, 10_000);
-        if (cleanup.succeeded) {
-          result.deleted.push(filename);
-        } else {
-          result.failed.push(filename);
-        }
+        deleted = cleanup.succeeded;
       } catch {
+        deleted = false;
+      }
+      if (!deleted) {
+        try {
+          deleted = await deleteAuditMediaRowByIdWithStorage({
+            token,
+            row,
+            filenamePrefix: AUDIT_IMAGE_FILENAME_PREFIX,
+          });
+        } catch {
+          deleted = false;
+        }
+      }
+      if (deleted) {
+        result.deleted.push(filename);
+      } else {
         result.failed.push(filename);
       }
     }
@@ -618,6 +762,7 @@ async function cleanupAuditOwnedImageFixtures(page) {
           )
       )
     );
+    result.failed = result.failed.filter((filename) => remainingFilenames.includes(filename));
     for (const filename of remainingFilenames) {
       if (!result.failed.includes(filename)) {
         result.failed.push(filename);
@@ -782,6 +927,175 @@ async function waitForAuditMediaRow({
     await page.waitForTimeout(750);
   }
   throw new Error(`Uploaded audit media row was not found for ${filename}.`);
+}
+
+async function listAuditPromptRows({ token, query = AUDIT_PROMPT_TITLE_PREFIX }) {
+  const result = await apiRequest({
+    token,
+    method: "POST",
+    requestPath: "/api/media/prompts/list",
+    body: {
+      folderId: "all_items",
+      query,
+      cursor: null,
+      limit: 50,
+    },
+  });
+  assertJsonApiResult("Media prompt list", result, 200);
+  return Array.isArray(result.payload?.rows) ? result.payload.rows : [];
+}
+
+async function waitForAuditPromptRow({ page, token, promptId, title, timeoutMs = 30_000 }) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    const rows = await listAuditPromptRows({ token, query: title });
+    const promptRow = rows.find((row) => row?.id === promptId || row?.title === title);
+    if (promptRow) return promptRow;
+    await page.waitForTimeout(750);
+  }
+  throw new Error(`Audit prompt row was not found for ${title}.`);
+}
+
+async function createAuditPromptFixture(page) {
+  const token = await readAccessToken(page);
+  if (!token) {
+    throw new Error("Could not resolve audit access token before prompt fixture creation.");
+  }
+  const title = `${AUDIT_PROMPT_TITLE_PREFIX}-${Date.now()}`;
+  const promptText = `Prompt continuity audit text ${Date.now()}`;
+  const payload = await supabaseRestRequest({
+    token,
+    method: "POST",
+    path: "media_prompts?select=id,title,prompt_text",
+    body: {
+      title,
+      prompt_text: promptText,
+      mode: "text",
+      source: "manual",
+    },
+    prefer: "return=representation",
+  });
+  const row = Array.isArray(payload) ? payload[0] : null;
+  if (!row?.id) {
+    throw new Error("Prompt fixture insert did not return an id.");
+  }
+  await waitForAuditPromptRow({ page, token, promptId: row.id, title });
+  return {
+    id: row.id,
+    title,
+    promptText,
+  };
+}
+
+async function deleteAuditPromptById({ token, promptId }) {
+  if (!promptId) return false;
+  const payload = await supabaseRestRequest({
+    token,
+    method: "DELETE",
+    path: `media_prompts?id=eq.${encodeURIComponent(promptId)}&select=id`,
+    prefer: "return=representation",
+  });
+  return Array.isArray(payload) && payload.some((row) => row?.id === promptId);
+}
+
+async function cleanupAuditOwnedPromptFixtures(page) {
+  const result = {
+    attempted: true,
+    deleted: [],
+    failed: [],
+  };
+  const token = await readAccessToken(page);
+  if (!token) {
+    result.failed.push("missing-access-token");
+    return result;
+  }
+
+  const rows = await listAuditPromptRows({ token }).catch(() => []);
+  const promptRows = rows.filter(
+    (row) => typeof row?.title === "string" && row.title.startsWith(`${AUDIT_PROMPT_TITLE_PREFIX}-`)
+  );
+  for (const row of promptRows) {
+    try {
+      const deleted = await deleteAuditPromptById({ token, promptId: row.id });
+      if (deleted) {
+        result.deleted.push(row.title);
+      } else {
+        result.failed.push(row.title || row.id || "unknown-prompt");
+      }
+    } catch {
+      result.failed.push(row.title || row.id || "unknown-prompt");
+    }
+  }
+  return result;
+}
+
+async function openPromptsTab(page) {
+  const panel = await openTargetPanel(page);
+  const promptsTab = panel.getByRole("tab", { name: /^prompts$/i }).first();
+  await promptsTab.waitFor({ timeout: 20_000 });
+  await promptsTab.click({ timeout: 10_000 });
+  await page.waitForTimeout(800);
+  return panel;
+}
+
+async function findPromptCardButton(page, title, timeoutMs = 30_000) {
+  const button = page
+    .getByRole("button", {
+      name: new RegExp(`^(Select|Deselect) prompt ${escapeForRegex(title)}$`),
+    })
+    .first();
+  await button.waitFor({ timeout: timeoutMs });
+  return button;
+}
+
+async function verifyPromptBrowseReady(page, title, promptText, timeoutMs = 30_000) {
+  await openPromptsTab(page);
+  const button = await findPromptCardButton(page, title, timeoutMs);
+  const text = await button.textContent();
+  if (!text || !text.includes(promptText)) {
+    throw new Error(`Prompt card for ${title} did not expose the saved prompt text.`);
+  }
+  return {
+    visible: true,
+    browseReady: true,
+    promptTextVisible: true,
+  };
+}
+
+async function waitForPromptRowDeleted(page, title, promptId, timeoutMs = 30_000) {
+  const token = await readAccessToken(page);
+  if (!token) {
+    throw new Error(`Could not verify deleted prompt without an access token: ${title}`);
+  }
+  const startedAt = Date.now();
+  let absentReadCount = 0;
+  while (Date.now() - startedAt < timeoutMs) {
+    const rows = await listAuditPromptRows({ token, query: title });
+    if (!rows.some((row) => row?.id === promptId || row?.title === title)) {
+      absentReadCount += 1;
+      if (absentReadCount >= 3) return;
+    } else {
+      absentReadCount = 0;
+    }
+    await page.waitForTimeout(750);
+  }
+  throw new Error(`Deleted audit prompt still appeared in prompt list: ${title}`);
+}
+
+async function deletePromptFixture(page, fixture) {
+  await verifyPromptBrowseReady(page, fixture.title, fixture.promptText);
+  const deleteButton = page
+    .getByRole("button", {
+      name: new RegExp(`^Delete ${escapeForRegex(fixture.title)} from library$`),
+    })
+    .first();
+  await deleteButton.click({ timeout: 10_000, force: true });
+  const dialog = page.getByRole("dialog", { name: "Delete this prompt?" }).first();
+  await dialog.waitFor({ timeout: 20_000 });
+  await dialog.getByRole("button", { name: /^delete$/i }).click({ timeout: 10_000 });
+  await dialog.waitFor({ state: "hidden", timeout: 20_000 });
+  await waitForPromptRowDeleted(page, fixture.title, fixture.id);
+  return { attempted: true, succeeded: true };
 }
 
 async function verifyFolderMembershipRoundtrip({ page, filename }) {
@@ -1013,6 +1327,40 @@ async function verifyReferenceGridReuseRoundtrip({ page, filename, mediaKind = "
       });
     },
     { beforeCount: cardCountBefore, targetName: filename },
+    { timeout: 30_000 }
+  );
+
+  const cardCountAfter = await resolveReferenceGridCardCount(page);
+  return {
+    attempted: true,
+    targetVisible: true,
+    cardCountBefore,
+    cardCountAfter,
+    insertedVisible: cardCountAfter > cardCountBefore,
+  };
+}
+
+async function verifyPromptReuseRoundtrip({ page, title, promptText }) {
+  const referenceGridSurface = await ensureReferenceGridVisible(page);
+  await referenceGridSurface.scrollIntoViewIfNeeded();
+  const cardCountBefore = await resolveReferenceGridCardCount(page);
+  await openPromptsTab(page);
+  const promptButton = await findPromptCardButton(page, title);
+  await promptButton.dblclick({ timeout: 10_000 });
+  const dialog = page.getByRole("dialog", { name: "Saved prompt detail" }).first();
+  await dialog.waitFor({ timeout: 20_000 });
+  await dialog.getByRole("button", { name: /^use prompt$/i }).click({ timeout: 10_000 });
+  await dialog.waitFor({ state: "hidden", timeout: 20_000 });
+
+  await page.waitForFunction(
+    ({ beforeCount, targetText }) => {
+      const section = document.querySelector('[data-right-rail-drop-surface="all-refs"]');
+      if (!section) return false;
+      const cards = Array.from(section.querySelectorAll(".reference-card"));
+      if (cards.length <= beforeCount) return false;
+      return cards.some((card) => (card.textContent || "").includes(targetText));
+    },
+    { beforeCount: cardCountBefore, targetText: promptText },
     { timeout: 30_000 }
   );
 
@@ -1266,12 +1614,47 @@ async function runAudit(browser, creds) {
       attempted: false,
       succeeded: false,
     },
+    promptFixture: {
+      id: null,
+      title: null,
+    },
+    promptSteps: {
+      created: false,
+      browse: {
+        visible: false,
+        browseReady: false,
+        promptTextVisible: false,
+      },
+      reloadReopen: {
+        visible: false,
+        browseReady: false,
+        promptTextVisible: false,
+      },
+      freshContextReopen: {
+        visible: false,
+        browseReady: false,
+        promptTextVisible: false,
+      },
+      referenceGridReuse: {
+        attempted: false,
+        targetVisible: false,
+        cardCountBefore: 0,
+        cardCountAfter: 0,
+        insertedVisible: false,
+      },
+    },
+    promptCleanup: {
+      attempted: false,
+      succeeded: false,
+    },
     preflightCleanup: {
       attempted: false,
       deleted: [],
       failed: [],
       videoDeleted: [],
       videoFailed: [],
+      promptDeleted: [],
+      promptFailed: [],
     },
   };
 
@@ -1283,11 +1666,25 @@ async function runAudit(browser, creds) {
     await openTargetPanel(primaryPage);
     const imagePreflightCleanup = await cleanupAuditOwnedImageFixtures(primaryPage);
     const videoPreflightCleanup = await cleanupAuditOwnedVideoFixtures(primaryPage);
+    const promptPreflightCleanup = await cleanupAuditOwnedPromptFixtures(primaryPage);
     result.preflightCleanup = {
       ...imagePreflightCleanup,
       videoDeleted: videoPreflightCleanup.deleted,
       videoFailed: videoPreflightCleanup.failed,
+      promptDeleted: promptPreflightCleanup.deleted,
+      promptFailed: promptPreflightCleanup.failed,
     };
+    const promptFixture = await createAuditPromptFixture(primaryPage);
+    result.promptFixture = {
+      id: promptFixture.id,
+      title: promptFixture.title,
+    };
+    result.promptSteps.created = true;
+    result.promptSteps.browse = await verifyPromptBrowseReady(
+      primaryPage,
+      promptFixture.title,
+      promptFixture.promptText
+    );
     await uploadPanelFixture(primaryPage, fixture.fixturePath);
     result.steps.upload = await runBrowseReadyCheck(primaryPage, fixture.filename);
     result.steps.folderMembership = await verifyFolderMembershipRoundtrip({
@@ -1338,6 +1735,11 @@ async function runAudit(browser, creds) {
 
     await primaryPage.reload({ waitUntil: "domcontentloaded", timeout: 45_000 });
     await satisfyMediaComplianceIfPresent(primaryPage);
+    result.promptSteps.reloadReopen = await verifyPromptBrowseReady(
+      primaryPage,
+      promptFixture.title,
+      promptFixture.promptText
+    );
     result.steps.reloadReopen = await runBrowseReadyCheck(primaryPage, fixture.filename);
     if (videoFixture) {
       result.videoSteps.reloadReopen = await runBrowseReadyCheck(
@@ -1351,6 +1753,11 @@ async function runAudit(browser, creds) {
     try {
       const freshPage = await freshContext.newPage();
       await ensureSignedIn(freshPage, DEFAULT_BASE_URL, "/ai-studio", creds.email, creds.password);
+      result.promptSteps.freshContextReopen = await verifyPromptBrowseReady(
+        freshPage,
+        promptFixture.title,
+        promptFixture.promptText
+      );
       result.steps.freshContextReopen = await runBrowseReadyCheck(freshPage, fixture.filename);
       if (videoFixture) {
         result.videoSteps.freshContextReopen = await runBrowseReadyCheck(
@@ -1362,6 +1769,13 @@ async function runAudit(browser, creds) {
     } finally {
       await freshContext.close();
     }
+
+    result.promptSteps.referenceGridReuse = await verifyPromptReuseRoundtrip({
+      page: primaryPage,
+      title: promptFixture.title,
+      promptText: promptFixture.promptText,
+    });
+    result.promptCleanup = await deletePromptFixture(primaryPage, promptFixture);
 
     await runBrowseReadyCheck(primaryPage, fixture.filename);
     result.cleanup = await deleteFixture(primaryPage, fixture.filename);
@@ -1406,6 +1820,13 @@ async function runAudit(browser, creds) {
         result.videoCleanup.succeeded);
     result.ok =
       successfulSteps === allSteps.length &&
+      result.promptSteps.created &&
+      result.promptSteps.browse.browseReady &&
+      result.promptSteps.reloadReopen.browseReady &&
+      result.promptSteps.freshContextReopen.browseReady &&
+      result.promptSteps.referenceGridReuse.insertedVisible &&
+      result.promptCleanup.attempted &&
+      result.promptCleanup.succeeded &&
       result.steps.folderMembership.folderDeleted &&
       result.steps.folderMembership.assignedVisibleInFolder &&
       result.steps.folderMembership.unassignedRemovedFromFolder &&
@@ -1434,6 +1855,28 @@ async function runAudit(browser, creds) {
         );
       } catch {
         // best-effort cleanup; the failing assertion remains the primary audit signal
+      }
+    }
+    if (result.promptFixture.id && !result.promptCleanup.succeeded) {
+      try {
+        result.promptCleanup = await deletePromptFixture(primaryPage, {
+          id: result.promptFixture.id,
+          title: result.promptFixture.title,
+          promptText: "",
+        });
+      } catch {
+        try {
+          const token = await readAccessToken(primaryPage);
+          const deleted = token
+            ? await deleteAuditPromptById({ token, promptId: result.promptFixture.id })
+            : false;
+          result.promptCleanup = {
+            attempted: true,
+            succeeded: Boolean(deleted),
+          };
+        } catch {
+          // best-effort cleanup; the failing assertion remains the primary audit signal
+        }
       }
     }
     await primaryContext.close();
@@ -1466,15 +1909,21 @@ async function runCleanupOnly(browser, creds) {
     const imageCleanup = await cleanupAuditOwnedImageFixtures(page);
     console.error("[media-panel-persistence.audit] cleanup-only: video fixtures");
     const videoCleanup = await cleanupAuditOwnedVideoFixtures(page);
+    console.error("[media-panel-persistence.audit] cleanup-only: prompt fixtures");
+    const promptCleanup = await cleanupAuditOwnedPromptFixtures(page);
     console.error("[media-panel-persistence.audit] cleanup-only: complete");
     return {
-      ok: imageCleanup.failed.length === 0 && videoCleanup.failed.length === 0,
+      ok:
+        imageCleanup.failed.length === 0 &&
+        videoCleanup.failed.length === 0 &&
+        promptCleanup.failed.length === 0,
       generatedAt: new Date().toISOString(),
       surface: targetSurface,
       baseUrl: DEFAULT_BASE_URL,
       cleanupOnly: true,
       imageCleanup,
       videoCleanup,
+      promptCleanup,
     };
   } finally {
     await context.close();

@@ -141,6 +141,15 @@
   color: rgba(168, 189, 208, 0.86);
 }
 
+.pulse-presets-library-empty-state {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 18px 12px;
+  color: rgba(190, 201, 215, 0.76);
+  font-size: 13px;
+  text-align: center;
+}
+
 .pulse-presets-library-tile-head {
   width: 100%;
   display: inline-flex;

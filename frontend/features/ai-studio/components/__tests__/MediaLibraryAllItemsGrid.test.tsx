@@ -224,7 +224,7 @@ describe("MediaLibraryAllItemsGrid", () => {
       expect.objectContaining({
         targetColumnWidth: 188,
         maxColumnCount: 5,
-        layoutMode: "chronological-grid",
+        layoutMode: "masonry",
         minItemsToVirtualize: 1,
       })
     );
@@ -240,7 +240,7 @@ describe("MediaLibraryAllItemsGrid", () => {
     );
   });
 
-  it("keeps embedded density grids on masonry layout mode", () => {
+  it("keeps density grids on masonry layout mode", () => {
     const props = baseProps();
     render(
       <MediaLibraryAllItemsGrid

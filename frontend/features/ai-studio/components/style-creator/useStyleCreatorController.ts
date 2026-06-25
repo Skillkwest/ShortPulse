@@ -43,14 +43,14 @@ import {
   type StyleDropSnapshot,
   type ResolveInternalStyleDrop,
   reorderById,
-} from "./intake";
+} from "../../logic/styleCreatorIntake";
 import { trackStyleExtractionOutcome, trackStyleSourceResolutionDiagnostic } from "./telemetry";
 import {
   buildCreatedStyleDetails,
   prepareStyleCreationSource,
   resolveProcessedStyleSource,
   type ProcessedResolvedStyleSource,
-} from "./intake";
+} from "../../logic/styleCreatorIntake";
 import type {
   PendingStyleEditState,
   StyleExtractionFailureClass,

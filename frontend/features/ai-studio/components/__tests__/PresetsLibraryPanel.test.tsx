@@ -54,6 +54,22 @@ describe("PresetsLibraryPanel", () => {
     ).toHaveAttribute("src", expect.stringContaining("Fav.png"));
   });
 
+  it("filters preset tiles by search query", () => {
+    render(<PresetsLibraryPanel presets={PRESETS} searchQuery="selfie" selectedPresetId={null} />);
+
+    expect(screen.getByText("Selfie")).toBeInTheDocument();
+    expect(screen.queryByText("Custom 1")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Create new preset" })).not.toBeInTheDocument();
+  });
+
+  it("shows an empty search state when no prompt presets match", () => {
+    render(
+      <PresetsLibraryPanel presets={PRESETS} searchQuery="not here" selectedPresetId={null} />
+    );
+
+    expect(screen.getByText("No prompt presets match this search.")).toBeInTheDocument();
+  });
+
   it("does not show a custom pill when a custom preset has a saved override", () => {
     render(
       <PresetsLibraryPanel

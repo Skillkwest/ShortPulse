@@ -43,6 +43,40 @@ describe("PulsePresetsLibraryPanel", () => {
     ).toHaveAttribute("src", expect.stringContaining("Fav.png"));
   });
 
+  it("filters Pulse tiles by search query", () => {
+    render(
+      <PulsePresetsLibraryPanel
+        searchQuery="storyboard"
+        savedPresets={[
+          {
+            presetId: "custom_storyboard",
+            label: "Storyboard",
+            description: null,
+            systemInstructions: "Build a storyboard-ready pulse sequence.",
+            createdAt: null,
+            schemaVersion: 2,
+          },
+        ]}
+        onSavedPresetsChange={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("Storyboard")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Create new pulse" })).not.toBeInTheDocument();
+  });
+
+  it("shows an empty search state when no Pulses match", () => {
+    render(
+      <PulsePresetsLibraryPanel
+        searchQuery="no matching pulse"
+        savedPresets={[]}
+        onSavedPresetsChange={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("No Pulses match this search.")).toBeInTheDocument();
+  });
+
   it("creates a new shared custom pulse preset", async () => {
     const onSavedPresetsChange = vi.fn();
 

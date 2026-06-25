@@ -38,14 +38,17 @@ const MIN_PASSWORD_LENGTH = 8;
 const AUTH_SHOWCASE_FOREST_BEAR_SRC = "/dashboard/gallery/forest-bear-encounter-demo.mp4";
 const AUTH_SHOWCASE_FEATURE_SRC = "/dashboard/gallery/panda-villa-tour-demo.mp4";
 const AUTH_SHOWCASE_PORTRAIT_SRC = "/dashboard/gallery/anime-cat-dance-demo.mp4";
+const AUTH_SHOWCASE_PODCAST_SRC = "/dashboard/gallery/seedance-podcast-demo.mp4";
+const AUTH_SHOWCASE_MONSTER_SRC = "/dashboard/gallery/monster-wall-break-demo.mp4";
+const AUTH_SHOWCASE_SKI_SRC = "/dashboard/gallery/alpine-ski-pov-demo.mp4";
 const AUTH_SHOWCASE_TILE_CLASS_BY_SRC = new Map<string, string>([
-  ["/dashboard/gallery/monster-wall-break-demo.mp4", "auth-showcase-gallery-tile-bottom-right"],
-  [AUTH_SHOWCASE_PORTRAIT_SRC, "auth-showcase-gallery-tile-portrait-9x16"],
+  [AUTH_SHOWCASE_MONSTER_SRC, "auth-showcase-gallery-tile-alpine"],
+  [AUTH_SHOWCASE_PORTRAIT_SRC, "auth-showcase-gallery-tile-seedance"],
   [AUTH_SHOWCASE_FEATURE_SRC, "auth-showcase-gallery-tile-feature"],
   ["/dashboard/gallery/fufkin-butterfly-meadow-demo.mp4", "auth-showcase-gallery-tile-fufkin"],
   ["/dashboard/gallery/moonbound-crossing-demo.mp4", "auth-showcase-gallery-tile-moonbound"],
-  ["/dashboard/gallery/alpine-ski-pov-demo.mp4", "auth-showcase-gallery-tile-alpine"],
-  ["/dashboard/gallery/seedance-podcast-demo.mp4", "auth-showcase-gallery-tile-seedance"],
+  [AUTH_SHOWCASE_SKI_SRC, "auth-showcase-gallery-tile-bottom-right"],
+  [AUTH_SHOWCASE_PODCAST_SRC, "auth-showcase-gallery-tile-portrait-9x16"],
   ["/dashboard/gallery/luxury-purse-ugc-demo.mp4", "auth-showcase-gallery-tile-luxury"],
   ["/dashboard/gallery/viking-longship-storm-demo.mp4", "auth-showcase-gallery-tile-viking"],
   [AUTH_SHOWCASE_FOREST_BEAR_SRC, "auth-showcase-gallery-tile-wide-band"],

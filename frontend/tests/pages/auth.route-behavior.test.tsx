@@ -141,12 +141,17 @@ describe("Auth route behavior", () => {
       container.querySelector(
         '.auth-showcase-gallery-media[src="/dashboard/gallery/monster-wall-break-demo.mp4"]'
       )?.parentElement
+    ).toHaveClass("auth-showcase-gallery-tile-alpine");
+    expect(
+      container.querySelector(
+        '.auth-showcase-gallery-media[src="/dashboard/gallery/alpine-ski-pov-demo.mp4"]'
+      )?.parentElement
     ).toHaveClass("auth-showcase-gallery-tile-bottom-right");
     expect(
       container.querySelector(
         '.auth-showcase-gallery-media[src="/dashboard/gallery/seedance-podcast-demo.mp4"]'
-      )
-    ).toBeInTheDocument();
+      )?.parentElement
+    ).toHaveClass("auth-showcase-gallery-tile-portrait-9x16");
     expect(
       container.querySelector(
         '.auth-showcase-gallery-media[src="/dashboard/gallery/luxury-purse-ugc-demo.mp4"]'
@@ -161,7 +166,7 @@ describe("Auth route behavior", () => {
       container.querySelector(
         '.auth-showcase-gallery-media[src="/dashboard/gallery/anime-cat-dance-demo.mp4"]'
       )?.parentElement
-    ).toHaveClass("auth-showcase-gallery-tile-portrait-9x16");
+    ).toHaveClass("auth-showcase-gallery-tile-seedance");
     expect(
       container.querySelector(
         '.auth-showcase-gallery-media[src="/dashboard/gallery/panda-villa-tour-demo.mp4"]'

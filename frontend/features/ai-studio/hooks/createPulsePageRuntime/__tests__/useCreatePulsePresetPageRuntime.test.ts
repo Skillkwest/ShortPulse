@@ -372,6 +372,46 @@ describe("useCreatePulsePresetPageRuntime", () => {
     });
   });
 
+  it("does not clear unresolved custom Pulse sessions while the user is outside Create", async () => {
+    const clearPulseRuntime = vi.fn();
+    const clearPulsePrompt = vi.fn();
+    const { rerender } = renderHook(
+      (params: Parameters<typeof useCreatePulsePresetPageRuntime>[0]) =>
+        useCreatePulsePresetPageRuntime(params),
+      {
+        initialProps: createParams({
+          selectedTool: "presets",
+          activeCreatePulsePresetId: "pulse_custom_pending",
+          pulseSessionInstanceId: "pulse-session-custom",
+          clearPulseRuntime,
+          clearPulsePrompt,
+          loadSavedPresetPreferences: true,
+        }),
+      }
+    );
+
+    await Promise.resolve();
+
+    expect(clearPulseRuntime).not.toHaveBeenCalled();
+    expect(clearPulsePrompt).not.toHaveBeenCalled();
+
+    rerender(
+      createParams({
+        selectedTool: "create",
+        activeCreatePulsePresetId: "pulse_custom_pending",
+        pulseSessionInstanceId: "pulse-session-custom",
+        clearPulseRuntime,
+        clearPulsePrompt,
+        loadSavedPresetPreferences: true,
+      })
+    );
+
+    await waitFor(() => {
+      expect(clearPulseRuntime).toHaveBeenCalledTimes(1);
+      expect(clearPulsePrompt).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it("fails closed on an unresolved built-in Pulse runtime while the catalog is non-authoritative", async () => {
     const clearPulseRuntime = vi.fn();
     const clearPulsePrompt = vi.fn();

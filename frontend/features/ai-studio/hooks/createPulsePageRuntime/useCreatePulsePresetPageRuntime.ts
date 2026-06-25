@@ -225,6 +225,7 @@ export const useCreatePulsePresetPageRuntime = ({
     hasActivePulseSession && activeCreatePulsePresetId && pulseSessionInstanceId
       ? `${activeCreatePulsePresetId}:${pulseSessionInstanceId}`
       : null;
+  const shouldResolveActivePulseSession = selectedTool === "create" && expertCreateMode === "pulse";
 
   useEffect(() => {
     if (activePulseRuntimeKey != null) return;
@@ -242,6 +243,7 @@ export const useCreatePulsePresetPageRuntime = ({
 
   useEffect(() => {
     if (!hasActivePulseSession || activeCreatePulsePresetSnapshot) return;
+    if (!shouldResolveActivePulseSession) return;
     if (!resolvedSavedPresetCatalogReady) return;
     requestFailedClosedPulseRuntimeClear();
   }, [
@@ -249,6 +251,7 @@ export const useCreatePulsePresetPageRuntime = ({
     hasActivePulseSession,
     requestFailedClosedPulseRuntimeClear,
     resolvedSavedPresetCatalogReady,
+    shouldResolveActivePulseSession,
   ]);
 
   useEffect(() => {

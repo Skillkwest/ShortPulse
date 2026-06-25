@@ -86,12 +86,12 @@ const shouldIgnoreDetailNavigationKeyEvent = (event: KeyboardEvent): boolean => 
   if (!(target instanceof Element)) return false;
   if (target instanceof HTMLElement && target.isContentEditable) return true;
   const tagName = target.tagName.toLowerCase();
-  if (["input", "textarea", "select", "button", "a", "audio", "video"].includes(tagName)) {
+  if (["input", "textarea", "select", "audio", "video"].includes(tagName)) {
     return true;
   }
   return Boolean(
     target.closest(
-      "input, textarea, select, button, a, audio, video, [contenteditable='true'], [role='textbox']"
+      "input, textarea, select, audio, video, [contenteditable='true'], [role='textbox'], [role='slider']"
     )
   );
 };

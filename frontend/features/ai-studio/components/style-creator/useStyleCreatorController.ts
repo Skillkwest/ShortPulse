@@ -20,6 +20,8 @@ import {
   BLOCKED_STYLE_IMAGE_SOURCE_MESSAGE,
   EXPIRED_STYLE_IMAGE_SOURCE_ERROR,
   EXPIRED_STYLE_IMAGE_SOURCE_MESSAGE,
+  STYLE_IMAGE_SOURCE_TOO_LARGE_ERROR,
+  STYLE_IMAGE_SOURCE_TOO_LARGE_MESSAGE,
 } from "./constants";
 import { buildExtractionFailureResult } from "./extraction";
 import {
@@ -520,6 +522,7 @@ export const useStyleCreatorController = ({
       flow,
       onMissingDroppedImage,
       onExpiredSource,
+      onImageTooLarge,
       onBlockedSource,
     }: {
       error: unknown;
@@ -527,6 +530,7 @@ export const useStyleCreatorController = ({
       flow: "create_modal" | "library_drop";
       onMissingDroppedImage: () => void;
       onExpiredSource: () => void;
+      onImageTooLarge: () => void;
       onBlockedSource: () => void;
     }) => {
       const normalizedError = normalizeStyleDropPreviewError(error);
@@ -569,6 +573,11 @@ export const useStyleCreatorController = ({
 
       if (normalizedError.code === EXPIRED_STYLE_IMAGE_SOURCE_ERROR) {
         onExpiredSource();
+        return;
+      }
+
+      if (normalizedError.code === STYLE_IMAGE_SOURCE_TOO_LARGE_ERROR) {
+        onImageTooLarge();
         return;
       }
 
@@ -636,6 +645,7 @@ export const useStyleCreatorController = ({
           flow: "create_modal",
           onMissingDroppedImage: () => setLocalSaveError("Please drop an image reference."),
           onExpiredSource: () => setLocalSaveError(EXPIRED_STYLE_IMAGE_SOURCE_MESSAGE),
+          onImageTooLarge: () => setLocalSaveError(STYLE_IMAGE_SOURCE_TOO_LARGE_MESSAGE),
           onBlockedSource: () => setLocalSaveError(BLOCKED_STYLE_IMAGE_SOURCE_MESSAGE),
         });
       }
@@ -653,6 +663,10 @@ export const useStyleCreatorController = ({
         const normalizedError = normalizeStyleDropPreviewError(error);
         if (normalizedError.code === "missing-dropped-style-image" && !isImageFileCandidate(file)) {
           setLocalSaveError("Please drop an image file.");
+          return;
+        }
+        if (normalizedError.code === STYLE_IMAGE_SOURCE_TOO_LARGE_ERROR) {
+          setLocalSaveError(STYLE_IMAGE_SOURCE_TOO_LARGE_MESSAGE);
           return;
         }
         setLocalSaveError("Unable to process that image.");
@@ -725,6 +739,7 @@ export const useStyleCreatorController = ({
               "Drop an image from your computer, Reference Grid, or Quick Slot Inventory."
             ),
           onExpiredSource: () => setStylesLibraryDropError(EXPIRED_STYLE_IMAGE_SOURCE_MESSAGE),
+          onImageTooLarge: () => setStylesLibraryDropError(STYLE_IMAGE_SOURCE_TOO_LARGE_MESSAGE),
           onBlockedSource: () => setStylesLibraryDropError(BLOCKED_STYLE_IMAGE_SOURCE_MESSAGE),
         });
       } finally {

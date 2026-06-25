@@ -3,6 +3,7 @@
  * Renders the full preset catalog and supports inline modal editing for preset name + prompt.
  */
 import React from "react";
+import Image from "next/image";
 import { TrashSimple } from "phosphor-react";
 import {
   EDIT_PRESET_CUSTOM_PRESET_IDS,
@@ -253,8 +254,17 @@ export function PresetsLibraryPanel({
                       <span
                         className="presets-library-custom-pill is-built-in"
                         title="Built-in preset. It can't be edited, but you can still delete it from your library."
+                        role="img"
+                        aria-label="Built-in preset"
                       >
-                        Built-in
+                        <Image
+                          className="presets-library-built-in-favicon"
+                          src="/Fav.png"
+                          alt=""
+                          width={16}
+                          height={16}
+                          aria-hidden="true"
+                        />
                       </span>
                     ) : null}
                   </span>

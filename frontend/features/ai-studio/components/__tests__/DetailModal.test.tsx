@@ -632,6 +632,31 @@ describe("DetailModal", () => {
     expect(onNavigatePrevious).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps reference-grid arrow navigation active when a modal button has focus", () => {
+    const onNavigateNext = vi.fn();
+    render(
+      <DetailModal
+        output={baseOutput}
+        detailNavigation={{
+          sourceSurface: "reference-grid",
+          canNavigatePrevious: true,
+          canNavigateNext: true,
+          onNavigatePrevious: vi.fn(),
+          onNavigateNext,
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    fireEvent.keyDown(screen.getByRole("button", { name: "Close media detail" }), {
+      key: "ArrowRight",
+    });
+
+    expect(onNavigateNext).toHaveBeenCalledTimes(1);
+  });
+
   it("does not navigate reference-grid detail modal past boundaries", () => {
     const onNavigatePrevious = vi.fn();
     render(

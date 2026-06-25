@@ -45,10 +45,13 @@ describe("PresetsLibraryPanel", () => {
     expect(screen.queryByText(/^Custom$/)).not.toBeInTheDocument();
   });
 
-  it("shows the built-in pill for system presets", () => {
+  it("shows the ShortPulse favicon marker for system presets", () => {
     render(<PresetsLibraryPanel presets={PRESETS} selectedPresetId={null} />);
 
-    expect(screen.getByText("Built-in")).toBeInTheDocument();
+    expect(screen.getByLabelText("Built-in preset")).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", { name: "Built-in preset" }).querySelector("img")
+    ).toHaveAttribute("src", expect.stringContaining("Fav.png"));
   });
 
   it("does not show a custom pill when a custom preset has a saved override", () => {

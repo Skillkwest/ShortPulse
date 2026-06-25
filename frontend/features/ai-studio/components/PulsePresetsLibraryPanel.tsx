@@ -3,6 +3,7 @@
  * Renders the per-user merged Pulse catalog, including custom presets and user-hidden built-ins.
  */
 import React from "react";
+import Image from "next/image";
 import { TrashSimple } from "phosphor-react";
 import {
   createCreatePulseCustomPresetId,
@@ -251,8 +252,17 @@ export function PulsePresetsLibraryPanel({
                         <span
                           className="pulse-presets-library-custom-pill is-built-in"
                           title="Built-in Pulse. It can't be edited, but you can still delete it from your library."
+                          role="img"
+                          aria-label="Built-in Pulse"
                         >
-                          Built-in
+                          <Image
+                            className="pulse-presets-library-built-in-favicon"
+                            src="/Fav.png"
+                            alt=""
+                            width={16}
+                            height={16}
+                            aria-hidden="true"
+                          />
                         </span>
                       ) : preset.isCustom ? (
                         <span className="pulse-presets-library-custom-pill is-custom">Custom</span>

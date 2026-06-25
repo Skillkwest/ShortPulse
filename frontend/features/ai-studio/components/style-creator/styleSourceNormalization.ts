@@ -18,6 +18,8 @@ import {
   BLOCKED_STYLE_IMAGE_SOURCE_ERROR,
   EXPIRED_STYLE_IMAGE_SOURCE_ERROR,
   IMAGE_FILE_EXTENSION_PATTERN,
+  STYLE_IMAGE_SOURCE_TOO_LARGE_ERROR,
+  STYLE_SOURCE_IMAGE_MAX_BYTES,
   STYLE_PROMPT_MAX_CHARACTERS,
 } from "./constants";
 import {
@@ -47,7 +49,8 @@ const URLISH_TEXT_PATTERN = /^(?:data:image\/|blob:|https?:\/\/|\/)/i;
 export type StyleDropPreviewErrorCode =
   | "missing-dropped-style-image"
   | typeof BLOCKED_STYLE_IMAGE_SOURCE_ERROR
-  | typeof EXPIRED_STYLE_IMAGE_SOURCE_ERROR;
+  | typeof EXPIRED_STYLE_IMAGE_SOURCE_ERROR
+  | typeof STYLE_IMAGE_SOURCE_TOO_LARGE_ERROR;
 
 export type StyleDropPreviewClassifierReason =
   | "missing_drop_payload"
@@ -60,6 +63,7 @@ export type StyleDropPreviewClassifierReason =
   | "network_request_failed"
   | "request_aborted"
   | "reference_url_expired"
+  | "source_image_too_large"
   | "unknown";
 
 type StyleDropPreviewError = Error & {
@@ -133,6 +137,12 @@ export const normalizeStyleDropPreviewError = (
   const explicitClassifierReason = getStyleDropPreviewClassifierReason(error);
   if (error instanceof Error) {
     const message = error.message.trim();
+    if (message === STYLE_IMAGE_SOURCE_TOO_LARGE_ERROR) {
+      return {
+        code: STYLE_IMAGE_SOURCE_TOO_LARGE_ERROR,
+        classifierReason: "source_image_too_large",
+      };
+    }
     if (message === EXPIRED_STYLE_IMAGE_SOURCE_ERROR) {
       return { code: EXPIRED_STYLE_IMAGE_SOURCE_ERROR, classifierReason: "reference_url_expired" };
     }
@@ -156,6 +166,72 @@ export const normalizeStyleDropPreviewError = (
     code: BLOCKED_STYLE_IMAGE_SOURCE_ERROR,
     classifierReason: explicitClassifierReason ?? "unknown",
   };
+};
+
+const STYLE_SOURCE_IMAGE_DATA_URL_MAX_CHARS =
+  Math.ceil((STYLE_SOURCE_IMAGE_MAX_BYTES * 4) / 3) + 256;
+
+const createStyleImageTooLargeError = (): StyleDropPreviewError =>
+  createStyleDropPreviewError(STYLE_IMAGE_SOURCE_TOO_LARGE_ERROR, "source_image_too_large");
+
+const assertStyleImageBlobWithinReadBudget = (blob: Blob): void => {
+  if (blob.size > STYLE_SOURCE_IMAGE_MAX_BYTES) {
+    throw createStyleImageTooLargeError();
+  }
+};
+
+const assertStyleImageDataUrlWithinReadBudget = (sourceDataUrl: string): void => {
+  if (sourceDataUrl.length > STYLE_SOURCE_IMAGE_DATA_URL_MAX_CHARS) {
+    throw createStyleImageTooLargeError();
+  }
+};
+
+const readStyleImageBlobAsDataUrl = async (blob: Blob): Promise<string> => {
+  assertStyleImageBlobWithinReadBudget(blob);
+  return readFileAsDataUrl(blob);
+};
+
+const resolveResponseContentLengthBytes = (response: Response): number | null => {
+  const rawHeader = response.headers?.get("content-length") ?? null;
+  if (!rawHeader) return null;
+  const parsed = Number(rawHeader);
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  return Math.trunc(parsed);
+};
+
+const readResponseBlobWithinReadBudget = async (response: Response): Promise<Blob> => {
+  const contentLengthBytes = resolveResponseContentLengthBytes(response);
+  if (contentLengthBytes != null && contentLengthBytes > STYLE_SOURCE_IMAGE_MAX_BYTES) {
+    throw createStyleImageTooLargeError();
+  }
+  if (!response.body) {
+    const blob = await response.blob();
+    assertStyleImageBlobWithinReadBudget(blob);
+    return blob;
+  }
+
+  const reader = response.body.getReader();
+  const chunks: BlobPart[] = [];
+  let totalBytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      totalBytes += value.byteLength;
+      if (totalBytes > STYLE_SOURCE_IMAGE_MAX_BYTES) {
+        await reader.cancel().catch(() => undefined);
+        throw createStyleImageTooLargeError();
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  return new Blob(chunks, {
+    type: response.headers?.get("content-type") ?? undefined,
+  });
 };
 
 /**
@@ -232,6 +308,7 @@ const fetchDroppedImageResponse = async (sourceUrl: string): Promise<Response> =
 
 const readImageDataUrlFromUrl = async (sourceUrl: string): Promise<string> => {
   if (/^data:image\//i.test(sourceUrl)) {
+    assertStyleImageDataUrlWithinReadBudget(sourceUrl);
     return sourceUrl;
   }
   const response = await fetchDroppedImageResponse(sourceUrl);
@@ -247,11 +324,11 @@ const readImageDataUrlFromUrl = async (sourceUrl: string): Promise<string> => {
     }
     throw new Error(BLOCKED_STYLE_IMAGE_SOURCE_ERROR);
   }
-  const blob = await response.blob();
+  const blob = await readResponseBlobWithinReadBudget(response);
   if (!(blob instanceof Blob) || blob.size <= 0) {
     throw new Error("image_read_failed");
   }
-  return await readFileAsDataUrl(blob);
+  return await readStyleImageBlobAsDataUrl(blob);
 };
 
 const hasSnapshotReferenceImageHints = (snapshot: StyleDropSnapshot): boolean => {
@@ -445,7 +522,7 @@ const resolveInternalSourceDataUrl = async (
   if (!(blob instanceof Blob) || blob.size <= 0) {
     throw new Error(BLOCKED_STYLE_IMAGE_SOURCE_ERROR);
   }
-  return await readFileAsDataUrl(blob);
+  return await readStyleImageBlobAsDataUrl(blob);
 };
 
 /**
@@ -469,7 +546,7 @@ export const resolveStyleSource = async ({
     }
     return {
       kind: "file",
-      sourceImageDataUrl: await readFileAsDataUrl(file),
+      sourceImageDataUrl: await readStyleImageBlobAsDataUrl(file),
       promptText: "",
       internalPayloadPresent: false,
       resolutionReason: null,
@@ -497,7 +574,7 @@ export const resolveStyleSource = async ({
   if (droppedImageFile) {
     return {
       kind: "file",
-      sourceImageDataUrl: await readFileAsDataUrl(droppedImageFile),
+      sourceImageDataUrl: await readStyleImageBlobAsDataUrl(droppedImageFile),
       promptText: "",
       internalPayloadPresent: false,
       resolutionReason: null,

@@ -8,6 +8,7 @@ export {
 
 export const STYLE_PREVIEW_OUTPUT_SIZE_PX = 512;
 export const STYLE_EXTRACTION_MAX_DIMENSION_PX = 1024;
+export const STYLE_SOURCE_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 export const CUSTOM_STYLE_NAME_PREFIX = "Custom Style";
 export const IMAGE_FILE_EXTENSION_PATTERN = /\.(avif|bmp|gif|heic|heif|jpe?g|png|webp)$/i;
 
@@ -36,6 +37,9 @@ export const STYLE_DROP_HINT_TRANSFER_TYPES = new Set([
 export const BLOCKED_STYLE_IMAGE_SOURCE_ERROR = "blocked-style-image-source";
 export const BLOCKED_STYLE_IMAGE_SOURCE_MESSAGE =
   "This image source blocks browser access. Download the image and drop the file directly.";
+export const STYLE_IMAGE_SOURCE_TOO_LARGE_ERROR = "style-image-source-too-large";
+export const STYLE_IMAGE_SOURCE_TOO_LARGE_MESSAGE =
+  "That style image is too large. Use an image under 10 MB.";
 export const EXPIRED_STYLE_IMAGE_SOURCE_ERROR = "expired-style-image-source";
 export const EXPIRED_STYLE_IMAGE_SOURCE_MESSAGE =
   "That reference image URL expired. Re-open or re-add the image, then drag it again.";

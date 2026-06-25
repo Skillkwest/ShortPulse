@@ -54,6 +54,7 @@ For default closeout selection by planning program, see:
   - Expert Edit launch-surface browser audit:
     - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:expert-edit-parity`
     - Verifies the authenticated production/browser Standard-only Edit launch surface across DPR profiles (`1`, `2`, `3`): AI Studio route reachability, visible Edit stage shell, hidden Inpaint/Markup launch-locked controls, and non-generative Edit controls.
+    - Boundary: Inpaint and Markup are deferred until after the July 7 launch window. This audit verifies that their launch-locked controls stay hidden; it does not validate or harden their workflow internals, mask/history behavior, or browser-load profile.
     - Safety: this audit does not click Generate or submit provider work.
     - Safety: this audit refuses `@example.com` addresses and requires a dedicated real test account.
   - AI Studio production perf release check:

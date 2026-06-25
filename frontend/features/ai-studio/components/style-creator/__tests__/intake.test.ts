@@ -18,6 +18,7 @@ import {
   registerComposerImageDropSession,
 } from "../../../../../lib/internalReferenceDragSession";
 import { COMPOSER_IMAGE_DROP_PAYLOAD_TYPE } from "../../../../../lib/internalReferenceDragPayload";
+import { STYLE_IMAGE_SOURCE_TOO_LARGE_ERROR, STYLE_SOURCE_IMAGE_MAX_BYTES } from "../constants";
 import {
   captureStyleDropSnapshot,
   canAcceptStyleLibraryImageDropHint,
@@ -85,12 +86,14 @@ const installImageAndCanvasMocks = ({
 };
 
 const installFileReaderMock = (result: string) => {
+  const readAsDataURL = vi.fn();
   class MockFileReader {
     onload: null | (() => void) = null;
     onerror: null | (() => void) = null;
     result: string | null = null;
 
     readAsDataURL() {
+      readAsDataURL();
       this.result = result;
       this.onload?.();
     }
@@ -101,6 +104,7 @@ const installFileReaderMock = (result: string) => {
     writable: true,
     value: MockFileReader,
   });
+  return { readAsDataURL };
 };
 
 afterEach(() => {
@@ -174,6 +178,23 @@ describe("style-creator source normalization", () => {
     });
   });
 
+  it("rejects oversized local style files before FileReader runs", async () => {
+    const { readAsDataURL } = installFileReaderMock("data:image/png;base64,too-late");
+    const oversizedFile = new File(
+      [new Uint8Array(STYLE_SOURCE_IMAGE_MAX_BYTES + 1)],
+      "style.png",
+      {
+        type: "image/png",
+      }
+    );
+
+    await expect(resolveStyleSource({ file: oversizedFile })).rejects.toThrow(
+      STYLE_IMAGE_SOURCE_TOO_LARGE_ERROR
+    );
+
+    expect(readAsDataURL).not.toHaveBeenCalled();
+  });
+
   it("resolves dropped data-url transfers without network fetch", async () => {
     const transfer = {
       files: [],
@@ -198,6 +219,60 @@ describe("style-creator source normalization", () => {
       resolutionStage: "primary",
       candidateCount: 1,
     });
+  });
+
+  it("rejects oversized fetched style sources from content-length before reading the blob", async () => {
+    const { readAsDataURL } = installFileReaderMock("data:image/png;base64,too-late");
+    const blob = vi.fn(async () => new Blob(["too-late"], { type: "image/png" }));
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ "content-length": String(STYLE_SOURCE_IMAGE_MAX_BYTES + 1) }),
+      blob,
+    } as unknown as Response);
+    const transfer = {
+      files: [],
+      types: ["text/reference-url"],
+      getData: (type: string) =>
+        type === "text/reference-url" ? "https://cdn.example.com/oversized-reference.png" : "",
+    } as unknown as DataTransfer;
+
+    await expect(resolveStyleSource({ transfer })).rejects.toThrow(
+      STYLE_IMAGE_SOURCE_TOO_LARGE_ERROR
+    );
+
+    expect(blob).not.toHaveBeenCalled();
+    expect(readAsDataURL).not.toHaveBeenCalled();
+  });
+
+  it("rejects oversized chunked style sources before materializing the response blob", async () => {
+    const { readAsDataURL } = installFileReaderMock("data:image/png;base64,too-late");
+    const blob = vi.fn(async () => new Blob(["too-late"], { type: "image/png" }));
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ "content-type": "image/png" }),
+      body: new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new Uint8Array(STYLE_SOURCE_IMAGE_MAX_BYTES + 1));
+          controller.close();
+        },
+      }),
+      blob,
+    } as unknown as Response);
+    const transfer = {
+      files: [],
+      types: ["text/reference-url"],
+      getData: (type: string) =>
+        type === "text/reference-url" ? "https://cdn.example.com/chunked-reference.png" : "",
+    } as unknown as DataTransfer;
+
+    await expect(resolveStyleSource({ transfer })).rejects.toThrow(
+      STYLE_IMAGE_SOURCE_TOO_LARGE_ERROR
+    );
+
+    expect(blob).not.toHaveBeenCalled();
+    expect(readAsDataURL).not.toHaveBeenCalled();
   });
 
   it("resolves internal drops via one authoritative source descriptor", async () => {
@@ -253,6 +328,54 @@ describe("style-creator source normalization", () => {
       resolutionStage: "primary",
       candidateCount: 1,
     });
+  });
+
+  it("rejects oversized internal style sources before FileReader runs", async () => {
+    const { readAsDataURL } = installFileReaderMock("data:image/png;base64,too-late");
+    const transfer = {
+      files: [],
+      types: ["text/reference-output-id", "text/reference-origin"],
+      getData: (type: string) => {
+        if (type === "text/reference-origin") return "ai-studio-reference-grid";
+        if (type === "text/reference-output-id") return "out-large-1";
+        return "";
+      },
+    } as unknown as DataTransfer;
+    const resolvedInternal: ResolvedInternalStyleSource = {
+      kind: "internal",
+      sourceKind: "generated_output",
+      sourceId: "media-large-1",
+      provenance: {
+        origin: "ai-studio-reference-grid",
+        outputId: "out-large-1",
+        mediaId: "media-large-1",
+        imageIndex: 0,
+        sourceSurface: "all-refs",
+        resolutionReason: "saved_media_lookup",
+      },
+      outputId: "out-large-1",
+      mediaId: "media-large-1",
+      mediaSource: "generated",
+      preview: {
+        url: "https://cdn.example.com/large-reference.png",
+      },
+      previewStoragePath: "user-1/generations/images/out-large-1.png",
+      fullStoragePath: "user-1/generations/images/out-large-1.png",
+      promptText: "large style source",
+      loadBlob: async () =>
+        new Blob([new Uint8Array(STYLE_SOURCE_IMAGE_MAX_BYTES + 1)], { type: "image/png" }),
+    };
+    const resolver: ResolveInternalStyleDrop = vi.fn(async () => resolvedInternal);
+
+    await expect(
+      resolveStyleSource({
+        transfer,
+        resolveInternalStyleDrop: resolver,
+      })
+    ).rejects.toThrow(STYLE_IMAGE_SOURCE_TOO_LARGE_ERROR);
+
+    expect(resolver).toHaveBeenCalledTimes(1);
+    expect(readAsDataURL).not.toHaveBeenCalled();
   });
 
   it("prefers structured internal reference drops over synthetic browser image files", async () => {

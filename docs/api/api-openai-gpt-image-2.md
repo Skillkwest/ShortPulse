@@ -25,8 +25,9 @@ Purpose: document the ShortPulse `gpt-image-2` integration that powers AI Studio
 
 - Workflows:
   - AI Studio Create -> Image
-  - AI Studio Create -> Character Mode when character look refs are present
   - AI Studio standard Edit
+- Character Mode note:
+  - Direct OpenAI `gpt-image-2` is not a Create Character Mode model. Character Mode GPT Image 2 state resolves through the queued Kie `kie-ai/gpt-image-2-image-to-image` lane.
 - Model id: `gpt-image-2`
 - Outputs per request: `n = 1`
 - Supported sizes:

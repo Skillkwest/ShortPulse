@@ -29,7 +29,6 @@ import type { ReferenceGridMediaAuthorityTier } from "../../logic/referenceGridM
 import type { ReferenceComposerImageDragArtifact } from "../../utils/dragDrop";
 import { EXPLICIT_CONTENT_FAILURE_TITLE } from "../../../../lib/explicitContentFailure";
 import { isProviderSafetyBlockedOutput } from "../../hooks/taskPolling/providerStatusPolicy";
-import { resolveCompactErrorMessage } from "../../logic/errorPresentation";
 import type { ReferenceDragSourceSurface } from "../../utils/dragDrop";
 import type { StudioOutput, WorkflowReloadMediaKindHint } from "../../types";
 import { MediaDurationBadge } from "../../components/shared/MediaDurationBadge";
@@ -264,7 +263,6 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
       onDeleteOutput)
   );
   const shouldShowNsfwPill = isProviderSafetyBlockedOutput(item);
-  const resolvedFailureSubtitle = isFailing ? resolveCompactErrorMessage(item) : null;
   const canDragReference = Boolean(item.previewText) || canDragReferenceOutput(item);
   const dragPreviewKind = isImagePreview
     ? "image"
@@ -642,9 +640,6 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           <div className="fail-title">
             {shouldShowNsfwPill ? EXPLICIT_CONTENT_FAILURE_TITLE : "Generation failed"}
           </div>
-          {!shouldShowNsfwPill && resolvedFailureSubtitle ? (
-            <div className="fail-subtitle">{resolvedFailureSubtitle}</div>
-          ) : null}
           {canRetryStatus && isSelected ? (
             <button
               type="button"

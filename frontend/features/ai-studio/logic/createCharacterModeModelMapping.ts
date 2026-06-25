@@ -77,11 +77,11 @@ export const mapCreateModelOnCharacterModeToggle = ({
     const normalizedModelId = currentModelId.trim();
     const pairedModelId = getPairedModelId(normalizedModelId);
     const entry = getModelCatalogEntry(normalizedModelId);
-    if (entry?.supportsImageToImage && pairedModelId) {
-      return pairedModelId;
-    }
     if (entry?.supportsImageToImage && entry?.supportsTextToImage) {
       return normalizedModelId;
+    }
+    if (entry?.supportsImageToImage && pairedModelId) {
+      return pairedModelId;
     }
   }
   if (currentModelId && TEXT_TO_EDIT_MODEL_MAP.has(currentModelId)) {

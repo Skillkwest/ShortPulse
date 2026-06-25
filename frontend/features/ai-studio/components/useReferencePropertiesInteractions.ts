@@ -15,8 +15,11 @@ import {
   resolveMotionReferenceVideoDropSourceFromPayload,
 } from "../logic/motionReferenceVideoDropSource";
 import {
+  resolveLipSyncAudioDropSource,
+  resolveLipSyncAudioDropSourceFromPayload,
+} from "../logic/lipSyncAudioDropSource";
+import {
   extractDragDropPayload,
-  extractAudioDragDropPayload,
   extractComposerImageDropPayload,
   extractPromptDropText,
   extractInternalReferenceDragPayload,
@@ -49,7 +52,10 @@ import {
   rememberObjectUrlBlob,
 } from "../utils/objectUrlBlobRegistry";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
-import { registerInternalMediaRefForUrl } from "../logic/referenceInputInternalMediaRegistry";
+import {
+  registerInternalMediaRefForUrl,
+  resolveInternalMediaRefForUrl,
+} from "../logic/referenceInputInternalMediaRegistry";
 import {
   prepareLocalImageBlobForEditIngress,
   prepareLocalImageFileForEditIngress,
@@ -102,7 +108,7 @@ type ImageDisplayPreviewEntry = {
   ownsObjectUrl: boolean;
 };
 
-type ServerCopiedImageResponse = {
+type ServerCopiedMediaResponse = {
   storagePath?: unknown;
   fileSize?: unknown;
   delivery?: {
@@ -225,6 +231,7 @@ const createUploadedAudioInternalMediaRef = (uploaded: AudioUploadResult) =>
   });
 
 const isHttpImageSourceUrl = (value: string): boolean => /^https?:\/\//i.test(value.trim());
+const isHttpMediaSourceUrl = (value: string): boolean => /^https?:\/\//i.test(value.trim());
 
 const EDIT_SECONDARY_DISPLAY_PREVIEW_LONG_EDGE_PX = 224;
 const EDIT_SECONDARY_DISPLAY_PREVIEW_QUALITY = 0.82;
@@ -346,7 +353,7 @@ const copyRemoteImageToStorage = async (sourceUrl: string): Promise<ImageUploadR
     }),
     shortpulseLogScope: "generation",
   });
-  const payload = (await response.json().catch(() => null)) as ServerCopiedImageResponse | null;
+  const payload = (await response.json().catch(() => null)) as ServerCopiedMediaResponse | null;
   if (!response.ok) {
     throw new Error(
       typeof (payload as { error?: unknown } | null)?.error === "string"
@@ -364,6 +371,50 @@ const copyRemoteImageToStorage = async (sourceUrl: string): Promise<ImageUploadR
         : "";
   if (!path || !url) {
     throw new Error("Remote reference image copy did not return durable media.");
+  }
+  return {
+    url,
+    path,
+    size: typeof payload?.fileSize === "number" ? payload.fileSize : 0,
+  };
+};
+
+const copyRemoteSeedanceMediaToStorage = async (
+  sourceUrl: string,
+  mediaKind: "video" | "audio"
+): Promise<VideoUploadResult | AudioUploadResult> => {
+  const response = await fetchWithAuth("/api/media/copy-from-url", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      url: sourceUrl,
+      mode: mediaKind,
+      source: "upload",
+      fileTypeHint: mediaKind,
+      metadata: {
+        ai_studio_reference_provider_staging: true,
+      },
+    }),
+    shortpulseLogScope: "generation",
+  });
+  const payload = (await response.json().catch(() => null)) as ServerCopiedMediaResponse | null;
+  if (!response.ok) {
+    throw new Error(
+      typeof (payload as { error?: unknown } | null)?.error === "string"
+        ? (payload as { error: string }).error
+        : `Unable to copy remote reference ${mediaKind}.`
+    );
+  }
+  const path = typeof payload?.storagePath === "string" ? payload.storagePath.trim() : "";
+  const delivery = payload?.delivery ?? null;
+  const url =
+    typeof delivery?.fullUrl === "string" && delivery.fullUrl.trim()
+      ? delivery.fullUrl.trim()
+      : typeof delivery?.previewUrl === "string" && delivery.previewUrl.trim()
+        ? delivery.previewUrl.trim()
+        : "";
+  if (!path || !url) {
+    throw new Error(`Remote reference ${mediaKind} copy did not return durable media.`);
   }
   return {
     url,
@@ -757,9 +808,11 @@ export const useReferencePropertiesInteractions = ({
   const stageSeedanceVideoSelection = async ({
     videoFile,
     videoUrl,
+    storagePath,
   }: {
     videoFile?: File | null;
     videoUrl?: string | null;
+    storagePath?: string | null;
   }): Promise<{ url: string; name?: string | null } | null> => {
     if (videoFile) {
       const uploaded = await uploadReferenceVideoFileToStorage(videoFile);
@@ -768,10 +821,30 @@ export const useReferencePropertiesInteractions = ({
     }
     const normalizedUrl = videoUrl?.trim() ?? "";
     if (!normalizedUrl) return null;
+    const normalizedStoragePath = storagePath?.trim() ?? "";
+    const existingInternalRef = resolveInternalMediaRefForUrl(normalizedUrl);
+    if (normalizedStoragePath) {
+      registerInternalMediaRefForUrl(
+        normalizedUrl,
+        createInternalMediaRef({
+          bucket: INTERNAL_MEDIA_REF_BUCKET,
+          storagePath: normalizedStoragePath,
+        })
+      );
+      return { url: normalizedUrl };
+    }
+    if (existingInternalRef?.storagePath) {
+      return { url: normalizedUrl };
+    }
     if (normalizedUrl.startsWith("blob:") || /^data:video\//i.test(normalizedUrl)) {
       const uploaded = await uploadReferenceVideoAssetToStorage(normalizedUrl);
       registerInternalMediaRefForUrl(uploaded.url, createUploadedVideoInternalMediaRef(uploaded));
       return { url: uploaded.url, name: uploaded.name ?? null };
+    }
+    if (isHttpMediaSourceUrl(normalizedUrl)) {
+      const uploaded = await copyRemoteSeedanceMediaToStorage(normalizedUrl, "video");
+      registerInternalMediaRefForUrl(uploaded.url, createUploadedVideoInternalMediaRef(uploaded));
+      return { url: uploaded.url, name: "name" in uploaded ? (uploaded.name ?? null) : null };
     }
     return { url: normalizedUrl };
   };
@@ -779,10 +852,12 @@ export const useReferencePropertiesInteractions = ({
   const stageSeedanceAudioSelection = async ({
     audioFile,
     audioUrl,
+    storagePath,
     name,
   }: {
     audioFile?: File | null;
     audioUrl?: string | null;
+    storagePath?: string | null;
     name?: string | null;
   }): Promise<{ url: string; name?: string | null } | null> => {
     if (audioFile) {
@@ -795,6 +870,21 @@ export const useReferencePropertiesInteractions = ({
     }
     const normalizedUrl = audioUrl?.trim() ?? "";
     if (!normalizedUrl) return null;
+    const normalizedStoragePath = storagePath?.trim() ?? "";
+    const existingInternalRef = resolveInternalMediaRefForUrl(normalizedUrl);
+    if (normalizedStoragePath) {
+      registerInternalMediaRefForUrl(
+        normalizedUrl,
+        createInternalMediaRef({
+          bucket: INTERNAL_MEDIA_REF_BUCKET,
+          storagePath: normalizedStoragePath,
+        })
+      );
+      return { url: normalizedUrl, name };
+    }
+    if (existingInternalRef?.storagePath) {
+      return { url: normalizedUrl, name };
+    }
     if (normalizedUrl.startsWith("blob:") || /^data:audio\//i.test(normalizedUrl)) {
       const rememberedBlob = normalizedUrl.startsWith("blob:")
         ? readRememberedObjectUrlBlob(normalizedUrl)
@@ -806,6 +896,11 @@ export const useReferencePropertiesInteractions = ({
         sourceName: name,
         mimeType: sourceBlob.type,
       });
+      registerInternalMediaRefForUrl(uploaded.url, createUploadedAudioInternalMediaRef(uploaded));
+      return { url: uploaded.url, name };
+    }
+    if (isHttpMediaSourceUrl(normalizedUrl)) {
+      const uploaded = await copyRemoteSeedanceMediaToStorage(normalizedUrl, "audio");
       registerInternalMediaRefForUrl(uploaded.url, createUploadedAudioInternalMediaRef(uploaded));
       return { url: uploaded.url, name };
     }
@@ -1190,10 +1285,18 @@ export const useReferencePropertiesInteractions = ({
       setSeedanceElementImageLoadingAt(index, true);
       void (async () => {
         try {
-          const stagedAudio = await stageSeedanceAudioSelection({
-            audioUrl: payload.audioUrl,
-            name: payload.title,
+          const resolvedAudioSource = await resolveLipSyncAudioDropSourceFromPayload({
+            payload,
+            resolvePreviewUrlById,
           });
+          const stagedAudio =
+            resolvedAudioSource?.kind === "durable"
+              ? await stageSeedanceAudioSelection({
+                  audioUrl: resolvedAudioSource.url,
+                  storagePath: resolvedAudioSource.storagePath,
+                  name: resolvedAudioSource.title,
+                })
+              : null;
           if (!stagedAudio) return;
           onSeedanceElementMediaSlotChange(index, {
             kind: "audio",
@@ -1222,7 +1325,10 @@ export const useReferencePropertiesInteractions = ({
         const stagedVideo =
           resolvedSource.kind === "file"
             ? await stageSeedanceVideoSelection({ videoFile: resolvedSource.videoFile })
-            : await stageSeedanceVideoSelection({ videoUrl: resolvedSource.videoUrl });
+            : await stageSeedanceVideoSelection({
+                videoUrl: resolvedSource.videoUrl,
+                storagePath: resolvedSource.storagePath,
+              });
         if (!stagedVideo) return;
         onSeedanceElementMediaSlotChange(index, {
           kind: "video",
@@ -1389,7 +1495,10 @@ export const useReferencePropertiesInteractions = ({
           const stagedVideo =
             resolvedSource.kind === "file"
               ? await stageSeedanceVideoSelection({ videoFile: resolvedSource.videoFile })
-              : await stageSeedanceVideoSelection({ videoUrl: resolvedSource.videoUrl });
+              : await stageSeedanceVideoSelection({
+                  videoUrl: resolvedSource.videoUrl,
+                  storagePath: resolvedSource.storagePath,
+                });
           if (stagedVideo) {
             onSeedanceElementMediaSlotChange(index, {
               kind: "video",
@@ -1399,13 +1508,20 @@ export const useReferencePropertiesInteractions = ({
             return;
           }
         }
-        const audioPayload = extractAudioDragDropPayload(
-          buildAiStudioDropSnapshotTransfer(snapshot)
-        );
-        const stagedAudio = await stageSeedanceAudioSelection({
-          audioFile: audioPayload.audioFile ?? null,
-          audioUrl: audioPayload.audioUrl,
+        const resolvedAudioSource = await resolveLipSyncAudioDropSource({
+          snapshot,
+          resolvePreviewUrlById,
         });
+        const stagedAudio =
+          resolvedAudioSource?.kind === "file"
+            ? await stageSeedanceAudioSelection({ audioFile: resolvedAudioSource.audioFile })
+            : resolvedAudioSource?.kind === "durable"
+              ? await stageSeedanceAudioSelection({
+                  audioUrl: resolvedAudioSource.url,
+                  storagePath: resolvedAudioSource.storagePath,
+                  name: resolvedAudioSource.title,
+                })
+              : null;
         if (!stagedAudio) return;
         onSeedanceElementMediaSlotChange(index, {
           kind: "audio",

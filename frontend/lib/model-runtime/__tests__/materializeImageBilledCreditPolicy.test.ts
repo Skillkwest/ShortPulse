@@ -12,6 +12,7 @@ import {
   FAL_OMNIHUMAN_V15_MODEL_ID,
 } from "../falModelIds";
 import {
+  KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
@@ -45,6 +46,22 @@ describe("materializeImageBilledCreditPolicy", () => {
         "edit|res:high|aspect:16:9|input_images:1|input_fidelity:high|mask:no"
       ).billedCreditsOverride
     ).toBe(12);
+
+    expect(
+      resolveModelPricingForModel(
+        materialized,
+        KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+        "edit|res:1K|aspect:4:5"
+      ).billedCreditsOverride
+    ).toBe(2);
+
+    expect(
+      resolveModelPricingForModel(
+        materialized,
+        KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+        "edit|res:1K|aspect:5:4"
+      ).billedCreditsOverride
+    ).toBe(2);
 
     expect(
       resolveModelPricingForModel(

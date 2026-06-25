@@ -22,19 +22,20 @@ Purpose: define the currently shipped Projects contract so dashboard handoff, AP
 11. Project workspace saves also backfill project asset associations from restore-relevant `savedMediaIds` and `promptId` values already present in the snapshot.
 12. Project workspace saves now also backfill project-owned generation associations from restore-relevant `generationId` values already present in the snapshot.
 13. Project workspace saves now normalize the compatibility snapshot into a lightweight project checkpoint plus `project_output_display_items`, then run project asset/generation association repair as a follow-up stage.
-14. If that follow-up repair fails, the save returns `saved_with_repair_pending` instead of failing the durable workspace write, and the UI surfaces a warning that recent outputs may not fully restore until a later successful save.
-15. Project workspace reads return a sanitized compatibility snapshot materialized from the lightweight checkpoint plus output display records, then narrowly converge existing generated rows from durable project-scoped projection/media authority without appending missing outputs or reordering the right rail; AI Studio may still refresh remaining project-associated generated-output delivery after workspace bootstrap.
-16. On project routes, the Media Library custom-folder area remains user-global and does not reset when the active project changes.
-17. `All Media` remains the user-global inventory even on project routes.
-18. Global folder membership continues to support saved media and saved prompts on project routes.
-19. Folder canvas persistence now uses the same global folder authority on project and non-project routes.
-20. Broader live generated-output authority cleanup is still follow-up work.
-21. The AI Studio left-rail `Projects` action opens a saved-project modal, lists the full caller-owned project catalog through `GET /api/projects?limit=all`, supports in-modal project creation through `POST /api/projects/create`, and routes project selection to `/ai-studio?projectId=<uuid>` from inside AI Studio.
-22. The dashboard `Open Projects` surface is a pure modal-launch action; it does not render project previews or inline saved-project state.
-23. The shared Projects modal now supports permanent delete for non-current projects through `DELETE /api/projects/:projectId`; deleting a project removes its project-owned workspace and project-only association rows through database cascade, but it does not delete global Media Library folders or global folder canvas state.
-24. Project cards in the shared Projects modal now render up to four checkpoint/display-record-derived thumbnails, with legacy snapshot fallback during migration. Thumbnail priority is: first four Quick Slot Inventory images, otherwise the first four visible Reference Grid images, otherwise no preview strip.
-25. Storage-backed project-card thumbnails are signed as tiny dedicated project-card preview variants so the modal can render the stacked thumbnails without fetching larger preview assets than the surface needs.
-26. Fresh AI Studio startup no longer auto-hydrates user-global generated outputs on plain `/ai-studio?sid=...` routes unless explicitly re-enabled by env flag, so new project and fresh-session startup can fail closed to empty workspace state while `All Media` remains global.
+14. Project workspace normalization enforces the Reference Grid visible-active cap server-side before the checkpoint/display-record sync runs. Hidden rows may remain in the checkpoint, but overflow visible rows are kept out of the hot project workspace state, and over-cap saves emit repair-oriented telemetry with trimmed-row samples and authority counts.
+15. If that follow-up repair fails, the save returns `saved_with_repair_pending` instead of failing the durable workspace write, and the UI surfaces a warning that recent outputs may not fully restore until a later successful save.
+16. Project workspace reads return a sanitized compatibility snapshot materialized from the lightweight checkpoint plus output display records, then narrowly converge existing generated rows from durable project-scoped projection/media authority without appending missing outputs or reordering the right rail; AI Studio may still refresh remaining project-associated generated-output delivery after workspace bootstrap.
+17. On project routes, the Media Library custom-folder area remains user-global and does not reset when the active project changes.
+18. `All Media` remains the user-global inventory even on project routes.
+19. Global folder membership continues to support saved media and saved prompts on project routes.
+20. Folder canvas persistence now uses the same global folder authority on project and non-project routes.
+21. Broader live generated-output authority cleanup is still follow-up work.
+22. The AI Studio left-rail `Projects` action opens a saved-project modal, lists the full caller-owned project catalog through `GET /api/projects?limit=all`, supports in-modal project creation through `POST /api/projects/create`, and routes project selection to `/ai-studio?projectId=<uuid>` from inside AI Studio.
+23. The dashboard `Open Projects` surface is a pure modal-launch action; it does not render project previews or inline saved-project state.
+24. The shared Projects modal now supports permanent delete for non-current projects through `DELETE /api/projects/:projectId`; deleting a project removes its project-owned workspace and project-only association rows through database cascade, but it does not delete global Media Library folders or global folder canvas state.
+25. Project cards in the shared Projects modal now render up to four checkpoint/display-record-derived thumbnails, with legacy snapshot fallback during migration. Thumbnail priority is: first four Quick Slot Inventory images, otherwise the first four visible Reference Grid images, otherwise no preview strip.
+26. Storage-backed project-card thumbnails are signed as tiny dedicated project-card preview variants so the modal can render the stacked thumbnails without fetching larger preview assets than the surface needs.
+27. Fresh AI Studio startup no longer auto-hydrates user-global generated outputs on plain `/ai-studio?sid=...` routes unless explicitly re-enabled by env flag, so new project and fresh-session startup can fail closed to empty workspace state while `All Media` remains global.
 
 ## Primary repo surfaces
 
@@ -144,11 +145,12 @@ Behavior:
 5. `PUT` validates the posted compatibility snapshot through the shared AI Studio snapshot parser before storage normalization.
 6. Current route contract intentionally reuses the AI Studio session snapshot envelope as a parser and transport boundary, but storage now splits durable state into a lightweight checkpoint plus `project_output_display_items`.
 7. The same sanitized project snapshot now also carries the project-owned Pulse `Chats` library so saved Pulse threads stay scoped to that project.
-8. `PUT` writes display records and the lightweight checkpoint before association repair runs, so a later backfill failure does not discard the workspace save.
-9. `PUT` may return `saveOutcome.status = "saved_with_repair_pending"` when the durable write succeeds but project association repair still needs follow-up.
-10. Out-of-order autosave completions must not overwrite a newer durable workspace row; stale saves degrade to a successful no-op that returns the current canonical workspace state.
-11. `GET` performs only narrow generated-output convergence for existing snapshot rows after ownership-safe read sanitization. It does not append missing project outputs or reorder active outputs; broader project-associated generated-output refresh remains an after-bootstrap client maintenance concern.
-12. Returns:
+8. `PUT` enforces the Reference Grid visible-active cap before durable checkpoint/display work. Overflow visible rows are not retained in the hot project workspace snapshot; operators should use the emitted over-cap telemetry and global media/generation authority when repairing already-over-cap projects.
+9. `PUT` writes display records and the lightweight checkpoint before association repair runs, so a later backfill failure does not discard the workspace save.
+10. `PUT` may return `saveOutcome.status = "saved_with_repair_pending"` when the durable write succeeds but project association repair still needs follow-up.
+11. Out-of-order autosave completions must not overwrite a newer durable workspace row; stale saves degrade to a successful no-op that returns the current canonical workspace state.
+12. `GET` performs only narrow generated-output convergence for existing snapshot rows after ownership-safe read sanitization. It does not append missing project outputs or reorder active outputs; broader project-associated generated-output refresh remains an after-bootstrap client maintenance concern.
+13. Returns:
 
 - `400` for invalid project id
 - `404` for missing or non-owned project

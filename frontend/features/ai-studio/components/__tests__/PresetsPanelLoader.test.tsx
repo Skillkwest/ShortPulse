@@ -66,7 +66,7 @@ describe("PresetsPanelLoader", () => {
       <PresetsPanelLoader promptPresets={[]} selectedPromptPresetId={null} loadPanel={loadPanel} />
     );
 
-    expect(await screen.findByText("We couldn't open Presets right now.")).toBeInTheDocument();
+    expect(await screen.findByText("Presets could not be opened right now.")).toBeInTheDocument();
     expect(reportAppError).toHaveBeenCalledWith(
       expect.objectContaining({
         source: "client.ai_studio.presets_panel_load_failure",

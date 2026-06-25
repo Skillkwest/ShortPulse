@@ -85,8 +85,8 @@ For Create properties panel, model-selector, and submission wiring details, see 
     - `fal-ai/bytedance/seedream/v5/lite/edit`
     - `fal-ai/nano-banana-2/edit`
     - `fal-ai/nano-banana-pro/edit`
-    - `gpt-image-2`
     - `kie-ai/gpt-image-2-image-to-image`
+  - Direct OpenAI `gpt-image-2` remains available to the direct Create/Edit routes, but it is not a Character Mode model. If stale Character Mode state still references direct `gpt-image-2`, Create model mapping resolves the submit/pricing target to `kie-ai/gpt-image-2-image-to-image`.
   - Create model picker lane switches with the same authority:
     - Character Mode OFF -> `text-image`
     - Character Mode ON -> `character-image`

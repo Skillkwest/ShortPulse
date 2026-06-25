@@ -1,11 +1,42 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultCharacterSheetPresetState } from "../../../character-manager/constants";
 import type { CharacterManagerDraftSnapshot } from "../../../character-manager/logic/characterManagerPersistence";
+import type { CharacterSlotFile } from "../../../character-manager/types";
 import {
   buildCharacterModeInjectionBundleFromSnapshot,
   buildCharacterModeLookOptions,
   resolveCharacterModeLookSelection,
 } from "../characterModeLookSelection";
+
+const createSlotFile = ({
+  characterMediaId,
+  storagePath,
+  previewUrl,
+}: {
+  characterMediaId: string;
+  storagePath: string;
+  previewUrl: string;
+}): CharacterSlotFile => ({
+  characterMediaId,
+  storagePath,
+  validationStatus: "pass",
+  validationNotes: {
+    validatorVersion: 1,
+    mimeType: "image/png",
+    width: 1024,
+    height: 1024,
+    aspectRatio: 1,
+    sha256: "hash",
+    hardErrors: [],
+    warnings: [],
+    evaluatedAt: "2026-01-01T00:00:00.000Z",
+  },
+  name: "reference.png",
+  size: 1024,
+  type: "image/png",
+  previewUrl,
+  updatedAt: "2026-01-01T00:00:00.000Z",
+});
 
 const createSnapshot = (
   overrides: Partial<CharacterManagerDraftSnapshot> = {}
@@ -148,11 +179,11 @@ describe("characterModeLookSelection", () => {
       },
       slots: {
         ...createSnapshot().slots,
-        portrait_close: {
+        portrait_close: createSlotFile({
           characterMediaId: "legacy-media-1",
           storagePath: "user/chars/legacy-portrait.png",
           previewUrl: "https://example.com/legacy-portrait.png",
-        },
+        }),
       },
     });
 

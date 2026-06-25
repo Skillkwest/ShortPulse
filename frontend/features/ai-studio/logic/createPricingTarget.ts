@@ -6,6 +6,7 @@ import { normalizeCreateImageBilledPricingParams } from "../../../lib/model-runt
 import type { PricingParams } from "../../../lib/model-runtime/pricingTypes";
 import { mergeCharacterAndUserReferences } from "./characterModePayload";
 import { resolveCreateCharacterModeSubmitModel } from "./createCharacterModeModelMapping";
+import { clampImageResolutionForModel } from "./imageResolution";
 
 type CreatePricingCharacterBundle = {
   sheetReferenceStoragePaths?: string[] | null;
@@ -95,7 +96,9 @@ export const resolveCreatePricingTarget = ({
     effectiveModelId,
     costParamsForModel(effectiveModelId, {
       aspect,
-      ...(resolution ? { resolution } : {}),
+      ...(resolution
+        ? { resolution: clampImageResolutionForModel(effectiveModelId, resolution) }
+        : {}),
       ...(inputImageCount > 0 ? { inputImageCount } : {}),
       ...(effectiveModelId === OPENAI_GPT_IMAGE_2_MODEL_ID && inputImageCount > 0
         ? { inputFidelity: OPENAI_GPT_IMAGE_2_DEFAULT_INPUT_FIDELITY }

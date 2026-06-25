@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+  KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
+} from "../../../../lib/model-runtime/providerModelIds";
+import {
   CREATE_CHARACTER_MODE_ALLOWED_MODEL_IDS,
   CREATE_DEFAULT_MODEL_ID,
   getCreateCharacterModeAllowedModels,
@@ -14,7 +18,8 @@ describe("createCharacterModeModelMapping", () => {
   });
 
   it("detects create character-mode models", () => {
-    expect(isCreateCharacterModeModel("gpt-image-2")).toBe(true);
+    expect(isCreateCharacterModeModel("gpt-image-2")).toBe(false);
+    expect(isCreateCharacterModeModel(KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID)).toBe(true);
     expect(isCreateCharacterModeModel("fal-ai/bytedance/seedream/v4.5/edit")).toBe(true);
     expect(isCreateCharacterModeModel("fal-ai/bytedance/seedream/v5/lite/edit")).toBe(true);
     expect(isCreateCharacterModeModel("fal-ai/nano-banana-2/edit")).toBe(true);
@@ -52,7 +57,7 @@ describe("createCharacterModeModelMapping", () => {
         currentModelId: "gpt-image-2",
         isCharacterModeEnabled: true,
       })
-    ).toBe("gpt-image-2");
+    ).toBe(KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID);
     expect(
       mapCreateModelOnCharacterModeToggle({
         currentModelId: "legacy/removed-model",
@@ -94,6 +99,12 @@ describe("createCharacterModeModelMapping", () => {
     ).toBe("gpt-image-2");
     expect(
       mapCreateModelOnCharacterModeToggle({
+        currentModelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+        isCharacterModeEnabled: false,
+      })
+    ).toBe(KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID);
+    expect(
+      mapCreateModelOnCharacterModeToggle({
         currentModelId: "legacy/removed-model/edit",
         isCharacterModeEnabled: false,
       })
@@ -130,7 +141,7 @@ describe("createCharacterModeModelMapping", () => {
         currentModelId: "gpt-image-2",
         isCharacterModeEnabled: true,
       })
-    ).toBe("gpt-image-2");
+    ).toBe(KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID);
     expect(
       resolveCreateCharacterModeSubmitModel({
         currentModelId: "legacy/removed-model",

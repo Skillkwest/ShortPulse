@@ -1267,7 +1267,11 @@ describe("VideoPropertiesPanel", () => {
         size: null,
       })
     );
-    expect(getSignedMediaUrlMock).not.toHaveBeenCalled();
+    expect(getSignedMediaUrlMock).toHaveBeenCalledWith({
+      bucket: "media_library",
+      storagePath: "user-1/audio/reference-grid/voice-full.mp3",
+      previewProfile: "none",
+    });
   });
 
   it("accepts Reference Grid audio drops for Lip Sync voice audio", async () => {
@@ -1317,7 +1321,11 @@ describe("VideoPropertiesPanel", () => {
         size: null,
       })
     );
-    expect(getSignedMediaUrlMock).not.toHaveBeenCalled();
+    expect(getSignedMediaUrlMock).toHaveBeenCalledWith({
+      bucket: "media_library",
+      storagePath: "user-1/audio/reference-grid/reference-voice.mp3",
+      previewProfile: "none",
+    });
   });
 
   it("keeps Reference Grid audio authority ahead of synthetic browser files", async () => {

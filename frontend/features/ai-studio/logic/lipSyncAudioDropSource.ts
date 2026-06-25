@@ -5,6 +5,7 @@
  */
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import { INTERNAL_MEDIA_REF_BUCKET } from "../../../lib/media/internalMediaRefs";
+import type { AgentComposerDirectDropPayload } from "./agentComposerDirectDropPayload";
 import {
   buildAiStudioDropSnapshotTransfer,
   hasAiStudioStructuredDropHints,
@@ -39,6 +40,12 @@ type ResolveAudioUrlById = (id: string | null) => string | null;
 
 type LipSyncAudioDropSourceParams = {
   snapshot: AiStudioDropSnapshot;
+  resolveAudioUrlById?: ResolveAudioUrlById;
+  resolvePreviewUrlById?: ResolveAudioUrlById;
+};
+
+type LipSyncAudioPayloadSourceParams = {
+  payload: AgentComposerDirectDropPayload;
   resolveAudioUrlById?: ResolveAudioUrlById;
   resolvePreviewUrlById?: ResolveAudioUrlById;
 };
@@ -85,11 +92,19 @@ const resolveTransferAudioTitle = (
 
 const signAudioStoragePath = async (storagePath: string | null): Promise<string | null> => {
   if (!storagePath) return null;
-  return await getSignedMediaUrl({
-    bucket: INTERNAL_MEDIA_REF_BUCKET,
-    storagePath,
-    previewProfile: "none",
-  }).catch(() => null);
+  try {
+    const signedUrl = await Promise.resolve(
+      getSignedMediaUrl({
+        bucket: INTERNAL_MEDIA_REF_BUCKET,
+        storagePath,
+        previewProfile: "none",
+      })
+    );
+    const normalizedSignedUrl = signedUrl?.trim() ?? "";
+    return normalizedSignedUrl.length ? normalizedSignedUrl : null;
+  } catch {
+    return null;
+  }
 };
 
 const resolveDurableSource = async ({
@@ -109,8 +124,8 @@ const resolveDurableSource = async ({
     urlCandidates,
     storagePathCandidates,
   });
-  const signedStorageUrl = durable.url ? null : await signAudioStoragePath(durable.storagePath);
-  const url = durable.url ?? signedStorageUrl;
+  const signedStorageUrl = await signAudioStoragePath(durable.storagePath);
+  const url = signedStorageUrl ?? durable.url;
   if (!url && !durable.storagePath) return null;
   return {
     kind: "durable",
@@ -219,6 +234,69 @@ const resolveByReferenceId = ({
 const firstTrimmedString = (values: (string | null | undefined)[]): string | null =>
   values.map(trimOptionalString).find((candidate): candidate is string => Boolean(candidate)) ??
   null;
+
+/**
+ * Resolves direct canvas audio tear-outs using structured storage authority before payload URLs.
+ */
+export const resolveLipSyncAudioDropSourceFromPayload = async ({
+  payload,
+  resolveAudioUrlById,
+  resolvePreviewUrlById,
+}: LipSyncAudioPayloadSourceParams): Promise<LipSyncAudioDropSource> => {
+  if (payload.kind !== "audio") return null;
+  const directAudioUrl = resolveTypedAudioUrlCandidate(payload.audioUrl);
+  const title = trimOptionalString(payload.title);
+  const internalPayload = payload.internalPayload ?? null;
+
+  if (internalPayload && !isKnownNonAudioMediaKind(internalPayload.mediaKind)) {
+    const internalSource = await resolveDurableSource({
+      urlCandidates: [
+        internalPayload.referenceUrl,
+        internalPayload.referenceRenderUrl,
+        directAudioUrl,
+      ],
+      storagePathCandidates: [
+        payload.audioStoragePath,
+        internalPayload.fullStoragePath,
+        internalPayload.previewStoragePath,
+      ],
+      title,
+      durationMs: payload.durationMs ?? null,
+      sourceKind: "reference",
+    });
+    if (internalSource) return internalSource;
+  }
+
+  const payloadStoragePath = trimOptionalString(payload.audioStoragePath);
+  if (payloadStoragePath) {
+    const payloadStorageSource = await resolveDurableSource({
+      urlCandidates: [directAudioUrl],
+      storagePathCandidates: [payloadStoragePath],
+      title,
+      durationMs: payload.durationMs ?? null,
+      sourceKind: "reference",
+    });
+    if (payloadStorageSource) return payloadStorageSource;
+  }
+
+  if (directAudioUrl) {
+    return {
+      kind: "durable",
+      url: directAudioUrl,
+      storagePath: null,
+      ...(title ? { title } : {}),
+      durationMs: payload.durationMs ?? null,
+      sourceKind: "reference",
+    };
+  }
+
+  return resolveByReferenceId({
+    referenceId: payload.outputId ?? payload.mediaId ?? null,
+    title,
+    resolveAudioUrlById,
+    resolvePreviewUrlById,
+  });
+};
 
 /**
  * Resolves Lip Sync audio drops using app-owned structured hints before files.

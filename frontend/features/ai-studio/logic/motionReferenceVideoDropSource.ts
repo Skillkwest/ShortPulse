@@ -25,7 +25,7 @@ import {
 
 export type MotionReferenceVideoDropSource =
   | { kind: "file"; videoFile: File }
-  | { kind: "url"; videoUrl: string }
+  | { kind: "url"; videoUrl: string; storagePath?: string | null }
   | null;
 
 type ResolveVideoUrlById = (id: string | null) => string | null;
@@ -109,7 +109,9 @@ const resolveFromInternalPayload = async ({
     previewStoragePath: resolvedSource?.previewStoragePath ?? internalPayload.previewStoragePath,
   });
   const signedStorageUrl = await signVideoStoragePath(resolvedStoragePath);
-  if (signedStorageUrl) return { kind: "url", videoUrl: signedStorageUrl };
+  if (signedStorageUrl) {
+    return { kind: "url", videoUrl: signedStorageUrl, storagePath: resolvedStoragePath };
+  }
 
   const resolvedPreparedUrl = resolveTypedVideoUrlCandidate(resolvedSource?.preparedImageUrl);
   if (resolvedPreparedUrl) return { kind: "url", videoUrl: resolvedPreparedUrl };
@@ -140,7 +142,7 @@ const resolveFromMediaLibraryPayload = async (
     previewStoragePath: mediaLibraryPayload.payload.previewStoragePath,
   });
   const signedStorageUrl = await signVideoStoragePath(storagePath);
-  if (signedStorageUrl) return { kind: "url", videoUrl: signedStorageUrl };
+  if (signedStorageUrl) return { kind: "url", videoUrl: signedStorageUrl, storagePath };
 
   const directUrl =
     resolveTypedVideoUrlCandidate(mediaLibraryPayload.payload.fullUrl) ??

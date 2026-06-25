@@ -102,7 +102,7 @@ export function PresetsPanelLoader({
         });
         setLoadState({
           status: "error",
-          message: "We couldn't open Presets right now.",
+          message: "Presets could not be opened right now.",
         });
       });
 

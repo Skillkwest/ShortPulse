@@ -1262,7 +1262,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     displayOrder: 110,
     pricingFamily: "Image",
     logoKey: "openai",
-    createCharacterModeOrder: 50,
+    pairedModelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
     supportsTextToImage: true,
     supportsImageToImage: true,
     generationLanes: ["text-to-image", "image-to-image"],

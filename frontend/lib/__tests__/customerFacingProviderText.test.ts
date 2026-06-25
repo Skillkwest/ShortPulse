@@ -152,6 +152,26 @@ describe("customerFacingProviderText", () => {
     );
   });
 
+  it("normalizes apologetic unavailable-generation copy into direct customer copy", () => {
+    expect(
+      sanitizeCustomerFacingProviderText(
+        "Sorrry, generation for 4:5 and 5:4 aspect ratios is temporarily unavailable.",
+        "Generation failed."
+      )
+    ).toBe(
+      "Generation is temporarily unavailable for 4:5 and 5:4 aspect ratios. Choose a different aspect ratio and try again."
+    );
+
+    expect(
+      sanitizeCustomerFacingProviderText(
+        "Oops, GPT Image 2 Edit currently supports 9:16, 1:1, and 16:9. 4:5 and 5:4 are temporarily unavailable.",
+        "Generation failed."
+      )
+    ).toBe(
+      "GPT Image 2 Edit currently supports 9:16, 1:1, and 16:9. 4:5 and 5:4 are temporarily unavailable. Choose a supported aspect ratio and try again."
+    );
+  });
+
   it("shortens provider API key failures for customer-facing surfaces", () => {
     expect(
       sanitizeCustomerFacingProviderText(

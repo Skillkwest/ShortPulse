@@ -27,6 +27,8 @@ const PROVIDER_API_KEY_FAILURE_PATTERNS: RegExp[] = [
 ];
 const OPAQUE_UPSTREAM_FAILURE_PATTERN =
   /\b(?:internal error|try again later|temporarily unavailable|service unavailable|provider reported failed state|upstream service error|status route returned|returned\s+5\d\d)\b/i;
+const APOLOGETIC_OR_CASUAL_PREFIX_PATTERN =
+  /^(?:(?:sor+y|sorry|apologies|oops|whoops)\b[\s,.:;!-]*)+/i;
 
 const providerTextReplacements: Array<[RegExp, string]> = [
   [
@@ -60,6 +62,8 @@ const providerTextReplacements: Array<[RegExp, string]> = [
   ],
   [/xi-api-key/gi, "audio service credentials"],
 ];
+
+const collapseWhitespace = (value: string): string => value.replace(/\s+/g, " ").trim();
 
 const normalizeSafetyViolationReason = (value: string): string =>
   value.replace(/["'`]/g, "").replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
@@ -113,6 +117,25 @@ const normalizeReferenceRequirementText = (value: string): string => {
   return trimmed;
 };
 
+const normalizeDirectCustomerFacingProviderVoice = (value: string): string => {
+  const directText = collapseWhitespace(value.replace(APOLOGETIC_OR_CASUAL_PREFIX_PATTERN, ""));
+  const unavailableAspectRatios = directText.match(
+    /^generation\s+for\s+(.+?)\s+aspect\s+ratios?\s+is\s+temporarily\s+unavailable\.?$/i
+  );
+  if (unavailableAspectRatios?.[1]?.trim()) {
+    return `Generation is temporarily unavailable for ${unavailableAspectRatios[1].trim()} aspect ratios. Choose a different aspect ratio and try again.`;
+  }
+
+  const gptImageEditSupportedRatios = directText.match(
+    /^(GPT Image 2 Edit currently supports .+?)\.\s*(.+?\s+are\s+temporarily\s+unavailable)\.?$/i
+  );
+  if (gptImageEditSupportedRatios?.[1]?.trim() && gptImageEditSupportedRatios?.[2]?.trim()) {
+    return `${gptImageEditSupportedRatios[1].trim()}. ${gptImageEditSupportedRatios[2].trim()}. Choose a supported aspect ratio and try again.`;
+  }
+
+  return directText;
+};
+
 export const sanitizeCustomerFacingProviderText = (
   value: string | null | undefined,
   fallback = "Audio generation failed."
@@ -136,10 +159,8 @@ export const sanitizeCustomerFacingProviderText = (
   const customerText = normalizeReferenceRequirementText(
     stripProviderOperationalDetails(sanitized)
   );
-  return customerText || fallback;
+  return normalizeDirectCustomerFacingProviderVoice(customerText) || fallback;
 };
-
-const collapseWhitespace = (value: string): string => value.replace(/\s+/g, " ").trim();
 
 const stripHiddenVideoProviderBranding = (value: string): string =>
   collapseWhitespace(

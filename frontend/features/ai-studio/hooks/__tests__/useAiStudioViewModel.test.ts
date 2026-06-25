@@ -3,6 +3,7 @@ import { renderHook } from "@testing-library/react";
 import { computeCostForModel } from "../../logic/pricing";
 import type { PricingParams } from "../../logic/pricingTypes";
 import {
+  KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
@@ -420,7 +421,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.promptReferenceGenerateCostCredits).toBe(expectedCost);
   });
 
-  it("prices GPT Image 2 Create Character Mode from runtime quantity authority when the explicit row is missing", () => {
+  it("prices stale direct GPT Image 2 Character Mode as Kie GPT Image 2 Edit", () => {
     const modelId = OPENAI_GPT_IMAGE_2_MODEL_ID;
     const createCharacterModeInjectionBundle: CharacterModeInjectionBundle = {
       characterId: "char-1",
@@ -433,12 +434,11 @@ describe("useAiStudioViewModel motion guardrails", () => {
       loadedAtMs: Date.now(),
     };
     const expectedCost = resolveCreateImageBilledCredits({
-      modelId,
+      modelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
       params: {
         aspect: "16:9",
-        resolution: "medium",
+        resolution: "1K",
         inputImageCount: 3,
-        inputFidelity: "high",
         maskPresent: false,
       },
       pricingPolicy: pricingGridPolicy,
@@ -468,7 +468,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.isGenerateDisabled).toBe(false);
   });
 
-  it("prices GPT Image 2 Create Character Mode when the effective submit variant has a canonical row", () => {
+  it("keeps single-ref stale direct GPT Image 2 Character Mode on the Kie edit row", () => {
     const modelId = OPENAI_GPT_IMAGE_2_MODEL_ID;
     const createCharacterModeInjectionBundle: CharacterModeInjectionBundle = {
       characterId: "char-1",
@@ -478,12 +478,11 @@ describe("useAiStudioViewModel motion guardrails", () => {
       loadedAtMs: Date.now(),
     };
     const expectedCost = resolvePricingGridBilledCredits({
-      modelId,
+      modelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
       params: {
         aspect: "16:9",
-        resolution: "medium",
+        resolution: "1K",
         inputImageCount: 1,
-        inputFidelity: "high",
         maskPresent: false,
       },
       pricingPolicy: pricingGridPolicy,

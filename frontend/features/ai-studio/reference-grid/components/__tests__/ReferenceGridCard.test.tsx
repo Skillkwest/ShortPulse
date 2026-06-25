@@ -775,7 +775,7 @@ describe("ReferenceGridCard", () => {
     expect(screen.queryByText("NSFW")).toBeNull();
   });
 
-  it("condenses provider validation detail in compact failure subtitles", () => {
+  it("hides provider validation detail on failed generation cards", () => {
     render(
       <ReferenceGridCard
         {...createProps({
@@ -788,11 +788,12 @@ describe("ReferenceGridCard", () => {
       />
     );
 
-    expect(screen.getByText("text must be 2000 characters or …")).toBeInTheDocument();
+    expect(screen.getByText("Generation failed")).toBeInTheDocument();
+    expect(screen.queryByText("text must be 2000 characters or …")).toBeNull();
     expect(screen.queryByText("text must be 2000 characters or fewer.")).toBeNull();
   });
 
-  it("normalizes raw JSON validation detail in compact failure subtitles", () => {
+  it("hides normalized provider validation copy on failed generation cards", () => {
     render(
       <ReferenceGridCard
         {...createProps({
@@ -805,25 +806,33 @@ describe("ReferenceGridCard", () => {
       />
     );
 
-    expect(screen.getByText("Prompt is required.")).toBeInTheDocument();
+    expect(screen.getByText("Generation failed")).toBeInTheDocument();
+    expect(screen.queryByText("Prompt is required.")).toBeNull();
     expect(screen.queryByText('{"detail"', { exact: false })).toBeNull();
   });
 
   it.each(AI_STUDIO_ERROR_SCENARIOS)(
-    "shows compact card copy for $label without leaking full detail",
+    "keeps failed card copy terse for $label without leaking detail",
     (scenario) => {
-      render(<ReferenceGridCard {...createProps({ item: scenario.output })} />);
+      const { container } = render(
+        <ReferenceGridCard {...createProps({ item: scenario.output })} />
+      );
 
-      expect(
-        screen.getAllByText((content) => content.includes(scenario.expectedCardText)).length
-      ).toBeGreaterThan(0);
+      if (scenario.id === "content_policy") {
+        expect(
+          screen.getAllByText((content) => content.includes(scenario.expectedCardText)).length
+        ).toBeGreaterThan(0);
+      } else {
+        expect(screen.getByText("Generation failed")).toBeInTheDocument();
+        expect(container.querySelector(".reference-fail-overlay .fail-subtitle")).toBeNull();
+      }
       for (const hiddenProbe of scenario.hiddenCardProbes) {
         expect(screen.queryByText(hiddenProbe, { exact: false })).toBeNull();
       }
     }
   );
 
-  it("condenses opaque upstream failures for compact failure subtitles", () => {
+  it("hides opaque upstream failure copy on failed generation cards", () => {
     render(
       <ReferenceGridCard
         {...createProps({
@@ -838,7 +847,8 @@ describe("ReferenceGridCard", () => {
       />
     );
 
-    expect(screen.getByText("Service issue.")).toBeInTheDocument();
+    expect(screen.getByText("Generation failed")).toBeInTheDocument();
+    expect(screen.queryByText("Service issue.")).toBeNull();
     expect(screen.queryByText("No ShortPulse credits are charged", { exact: false })).toBeNull();
     expect(screen.queryByText("upstream provider", { exact: false })).toBeNull();
   });

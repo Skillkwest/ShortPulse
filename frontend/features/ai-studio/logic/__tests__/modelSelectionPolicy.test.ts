@@ -196,7 +196,7 @@ describe("modelSelectionPolicy", () => {
     expect(values.has(KIE_VEO_31_FAST_I2V_MODEL_ID)).toBe(false);
   });
 
-  it("includes GPT Image 2 models in both standard Edit and create Character Mode", () => {
+  it("keeps direct GPT Image 2 in standard Edit while Character Mode uses Kie GPT Image 2 Edit", () => {
     const standardEditValues = new Set(
       resolveAiStudioAllowedModelOptions({
         selectedTool: "edit",
@@ -219,7 +219,7 @@ describe("modelSelectionPolicy", () => {
 
     expect(standardEditValues.has(OPENAI_GPT_IMAGE_2_MODEL_ID)).toBe(true);
     expect(standardEditValues.has(KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID)).toBe(true);
-    expect(characterModeValues.has(OPENAI_GPT_IMAGE_2_MODEL_ID)).toBe(true);
+    expect(characterModeValues.has(OPENAI_GPT_IMAGE_2_MODEL_ID)).toBe(false);
     expect(characterModeValues.has(KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID)).toBe(true);
   });
 
@@ -234,7 +234,6 @@ describe("modelSelectionPolicy", () => {
     }).map((option) => option.value);
 
     expect(values).toEqual([
-      OPENAI_GPT_IMAGE_2_MODEL_ID,
       FAL_NANO_BANANA_2_EDIT_MODEL_ID,
       FAL_NANO_BANANA_PRO_EDIT_MODEL_ID,
       FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID,

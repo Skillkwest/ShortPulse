@@ -101,6 +101,63 @@ describe("useMediaLibraryFolderDropController", () => {
     expect(refreshFolders).toHaveBeenCalledTimes(1);
   });
 
+  it("reports already-saved internal media drops on root All Media without refreshing as a save", async () => {
+    const setFolderError = vi.fn();
+    const setMembershipMessage = vi.fn();
+    const setMembershipPendingMessage = vi.fn();
+    const refreshActiveRows = vi.fn().mockResolvedValue(undefined);
+    const refreshFolders = vi.fn().mockResolvedValue(undefined);
+    const resolveInternalDropItem = vi.fn().mockResolvedValue({
+      kind: "media",
+      id: "media-1",
+      alreadyInLibrary: true,
+    });
+    readMediaLibraryDragPayloadMock.mockReturnValue(null);
+    extractInternalReferenceDragPayloadMock.mockReturnValue({
+      origin: "ai-studio-reference-grid",
+      outputId: "output-1",
+      mediaId: "media-1",
+    });
+
+    const { result } = renderHook(() =>
+      useMediaLibraryFolderDropController({
+        folders: [],
+        setFolderError,
+        setMembershipMessage,
+        setMembershipPendingMessage,
+        refreshActiveRows,
+        refreshFolders,
+        resolveInternalDropItem,
+      })
+    );
+
+    const event = {
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn(),
+      dataTransfer: {
+        types: ["text/reference-origin", "text/reference-output-id", "text/reference-media-id"],
+        files: [],
+      },
+    } as unknown as React.DragEvent<HTMLElement>;
+
+    await act(async () => {
+      await result.current.handleFolderDrop("all_items", event);
+    });
+
+    expect(resolveInternalDropItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        origin: "ai-studio-reference-grid",
+        mediaId: "media-1",
+      })
+    );
+    expect(setMembershipMessage).toHaveBeenCalledWith("Media already exists in the media library.");
+    expect(applyMediaFolderMembershipBatchMock).not.toHaveBeenCalled();
+    expect(refreshActiveRows).not.toHaveBeenCalled();
+    expect(refreshFolders).not.toHaveBeenCalled();
+    expect(setFolderError).toHaveBeenCalledWith(null);
+    expect(setFolderError).not.toHaveBeenCalledWith(expect.any(String));
+  });
+
   it("proactively ignores desktop file drops while storage is full", async () => {
     const setFolderError = vi.fn();
     const setMembershipMessage = vi.fn();

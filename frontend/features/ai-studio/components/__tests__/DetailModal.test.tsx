@@ -358,10 +358,16 @@ describe("DetailModal", () => {
     const promptTextarea = screen.getByPlaceholderText("Describe your adjustments...");
     fireEvent.change(promptTextarea, { target: { value: "Updated prompt for library" } });
 
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    const saveButton = screen.getByRole("button", { name: "Save" });
+    expect(saveButton).toHaveClass("is-icon-only");
+    expect(saveButton).toHaveTextContent("");
+
+    fireEvent.click(saveButton);
     expect(onUpdatePrompt).toHaveBeenCalledWith("out-1", "Updated prompt for library");
     expect(onSavePrompt).toHaveBeenCalledWith("Updated prompt for library");
-    expect(await screen.findByRole("button", { name: "Saved" })).toBeInTheDocument();
+    const savedButton = await screen.findByRole("button", { name: "Saved" });
+    expect(savedButton).toHaveClass("is-icon-only");
+    expect(savedButton).toHaveTextContent("");
   });
 
   it("preserves long text references in the shared detail modal textarea", () => {
@@ -417,7 +423,9 @@ describe("DetailModal", () => {
 
     await waitFor(() => expect(onSavePrompt).toHaveBeenCalledWith("Prompt save should fail"));
     expect(screen.queryByRole("button", { name: "Saved" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+    const saveButton = screen.getByRole("button", { name: "Save" });
+    expect(saveButton).toHaveClass("is-icon-only");
+    expect(saveButton).toHaveTextContent("");
   });
 
   it("edits text references immediately and applies changes on Save", () => {
@@ -1873,6 +1881,34 @@ describe("DetailModal", () => {
     expect(screen.getByText("Image")).toBeInTheDocument();
     expect(screen.queryByText("PROMPT")).not.toBeInTheDocument();
     expect(screen.queryByDisplayValue("create-page-current.png")).not.toBeInTheDocument();
+  });
+
+  it("centers library-loaded image filenames in the reference detail header", () => {
+    const filename = "sleepyseamonster_space_retro.png";
+    const { baseElement } = render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          id: "library-image-1",
+          mediaSource: "library",
+          title: filename,
+          previewUrl: `https://cdn.test/media-library/${filename}`,
+          timestamp: "Library",
+          savedMediaIds: ["media-image-1"],
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    expect(baseElement.querySelector(".reference-modal-new")).toHaveClass(
+      "is-uploaded",
+      "is-stage-only"
+    );
+    expect(screen.getByRole("heading", { name: filename })).toHaveClass("is-centered");
+    expect(screen.getByText("Image")).toBeInTheDocument();
+    expect(screen.queryByText("PROMPT")).not.toBeInTheDocument();
   });
 
   it("hides the prompt blade for uploaded files with very long filenames", () => {

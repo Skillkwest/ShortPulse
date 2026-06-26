@@ -94,6 +94,7 @@ type MediaLibraryPanelProps = {
   resolveInternalDropItem?: (payload: InternalReferenceDragPayload) => Promise<{
     kind: "media" | "prompt";
     id: string;
+    alreadyInLibrary?: boolean;
   } | null>;
   onDeleteMediaRowsFromWorkspace?: (rows: MediaFileRow[]) => void;
   onReloadWorkflowFromMedia?: (

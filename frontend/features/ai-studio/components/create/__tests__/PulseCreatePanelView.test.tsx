@@ -3,9 +3,15 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PulsePromptStep } from "../../PulsePromptStep";
 import { PulseCreatePanelView } from "../PulseCreatePanelView";
-import { prepareReferenceDrag } from "../../../utils/dragDrop";
+import { INTERNAL_REFERENCE_DRAG_ORIGIN, prepareReferenceDrag } from "../../../utils/dragDrop";
 import { createCanvasTearOutComposerTargetRegistry } from "../../../hooks/useAiStudioCanvasTearOutTargets";
 import type { AgentComposerDirectDropPayload } from "../../../logic/agentComposerDirectDropPayload";
+import {
+  clearInternalReferenceDragSession,
+  INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE,
+  INTERNAL_REFERENCE_DRAG_SESSION_TYPE,
+  registerInternalReferenceDragSession,
+} from "../../../../../lib/internalReferenceDragSession";
 
 vi.mock("../CreatePulsePresetPanel", () => ({
   CreatePulsePresetPanel: () => <div data-testid="pulse-presets-panel" />,
@@ -219,6 +225,63 @@ describe("PulseCreatePanelView", () => {
     expect(onAgentAttachmentDragLeave).toHaveBeenCalledTimes(1);
     expect(onAgentAttachmentDrop).not.toHaveBeenCalled();
     expect(onAgentInputChange).toHaveBeenCalledWith("Dropped prompt text");
+  });
+
+  it("replaces composer text with full session-backed prompt text when browser fields are shortened", () => {
+    const onAgentAttachmentDrop = vi.fn();
+    const onAgentInputChange = vi.fn();
+
+    const { container } = render(
+      <PulseCreatePanelView
+        {...baseProps}
+        promptStepProps={{
+          ...basePromptStepProps,
+          agentInput: "Existing draft ",
+          onAgentAttachmentDrop,
+          onAgentInputChange,
+        }}
+      />
+    );
+
+    const panelBody = container.querySelector(".create-composer-right-panel-inner");
+    const composerInput = screen.getByRole("textbox") as HTMLTextAreaElement;
+    expect(panelBody).toBeTruthy();
+    act(() => {
+      composerInput.focus();
+      composerInput.setSelectionRange("Existing draft ".length, "Existing draft ".length);
+    });
+
+    const fullPrompt = `Full Pulse prompt. ${"Detailed reference direction. ".repeat(80)}Final note.`;
+    const shortenedPrompt = fullPrompt.slice(0, 1000);
+    const token = registerInternalReferenceDragSession({
+      version: 1,
+      origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
+      referenceId: "pulse-long-prompt-ref",
+      outputId: "pulse-long-prompt-ref",
+      imageIndex: 0,
+      mediaId: null,
+      mediaKind: "text",
+      promptText: fullPrompt,
+      referenceUrl: null,
+      sourceSurface: "all-refs",
+    });
+    const textTransfer = createMutableTransfer();
+    textTransfer.setData(INTERNAL_REFERENCE_DRAG_SESSION_TYPE, token);
+    textTransfer.setData(INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE, token);
+    textTransfer.setData("text/reference-media-kind", "text");
+    textTransfer.setData("text/prompt", shortenedPrompt);
+    textTransfer.setData("text/plain", shortenedPrompt);
+
+    try {
+      act(() => {
+        fireEvent.drop(panelBody as Element, { dataTransfer: textTransfer });
+      });
+
+      expect(onAgentAttachmentDrop).not.toHaveBeenCalled();
+      expect(onAgentInputChange).toHaveBeenCalledWith(fullPrompt);
+    } finally {
+      clearInternalReferenceDragSession(token);
+    }
   });
 
   it("inserts prompt text when Shift-dropping on the wider create panel body", () => {

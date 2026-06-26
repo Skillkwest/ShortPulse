@@ -8,6 +8,7 @@ export type FolderDropItemKind = "media" | "prompt";
 
 export type FolderDropIntent =
   | { kind: "noop" }
+  | { kind: "already_exists" }
   | {
       kind: "save";
       targetFolderId: string;
@@ -56,10 +57,12 @@ export const resolveFolderDropIntent = ({
   sourceFolderId,
   targetFolderId,
   allowRootSave = false,
+  alreadyInLibrary = false,
 }: {
   sourceFolderId?: string | null;
   targetFolderId: string;
   allowRootSave?: boolean;
+  alreadyInLibrary?: boolean;
 }): FolderDropIntent => {
   const source = normalizeFolderId(sourceFolderId);
   const target = normalizeFolderId(targetFolderId);
@@ -67,6 +70,9 @@ export const resolveFolderDropIntent = ({
   if (source && source === target) return { kind: "noop" };
 
   if (isRootFolder(target)) {
+    if (allowRootSave && alreadyInLibrary) {
+      return { kind: "already_exists" };
+    }
     if (allowRootSave && (!source || isRootFolder(source))) {
       return {
         kind: "save",
@@ -105,6 +111,11 @@ export const resolveFolderDropFeedbackMessage = ({
   targetFolderName,
 }: FolderDropFeedbackArgs): string | null => {
   if (intent.kind === "noop") return null;
+  if (intent.kind === "already_exists") {
+    return itemKind === "prompt"
+      ? "Prompt already exists in the media library."
+      : "Media already exists in the media library.";
+  }
   const duplicateCount =
     itemKind === "media" ? (result?.mediaDuplicates ?? 0) : (result?.promptDuplicates ?? 0);
   const assignedCount =

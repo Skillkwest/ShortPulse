@@ -3,7 +3,7 @@
  * Supports prompt-only view and media preview with metadata.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FlowArrow, TrashSimple } from "phosphor-react";
+import { FlowArrow, FloppyDisk, TrashSimple } from "phosphor-react";
 import type { StudioOutput, WorkflowReloadMediaKindHint } from "../types";
 import { resolveModelLabel } from "../logic/stateParsers";
 import { downloadUrlToFile } from "../logic/referenceDownload";
@@ -357,6 +357,13 @@ function DetailModalContent({
     if (output.id.startsWith("media-paste-")) return true;
     if (output.timestamp === "Dropped" || output.timestamp === "Library") return true;
     if (output.timestamp === "Clipboard") return true;
+    return false;
+  }, [displayPreviewUrl, output]);
+  const isLibraryLoadedReference = useMemo(() => {
+    if (!displayPreviewUrl || !output) return false;
+    if (output.mediaSource === "library") return true;
+    if (output.id.startsWith("library-")) return true;
+    if (output.timestamp === "Library") return true;
     return false;
   }, [displayPreviewUrl, output]);
   const normalizedAudioWorkflowLabel = useMemo(() => {
@@ -777,7 +784,9 @@ function DetailModalContent({
     loadedMediaReferenceName ??
     generatedReferenceName ??
     textReferenceName;
-  const shouldUseExternalFileLayout = Boolean(isUploadedReference);
+  const shouldUseExternalFileLayout = Boolean(
+    isUploadedReference || (isLibraryLoadedReference && !isActiveVoiceChangerSourceVideo)
+  );
   const downloadFilename = uploadedHeaderFilename ?? filenameFromUrl ?? output?.id ?? "media";
   const bladeContent = useMemo(
     () =>
@@ -1211,8 +1220,10 @@ function DetailModalContent({
         ? [
             {
               id: "save-prompt",
-              label: isPromptOnlySaved || isPromptLibrarySaved ? "Saved" : "Save",
+              label: "",
               onClick: handleSaveTextDetail,
+              ariaLabel: isPromptOnlySaved || isPromptLibrarySaved ? "Saved" : "Save",
+              title: isPromptOnlySaved || isPromptLibrarySaved ? "Saved" : "Save",
               disabled:
                 !trimmedPrompt ||
                 isPromptOnlySaved ||
@@ -1223,6 +1234,8 @@ function DetailModalContent({
                 isPromptOnlySaved || isPromptLibrarySaved
                   ? ("saved" as const)
                   : ("default" as const),
+              icon: <FloppyDisk size={16} weight="bold" aria-hidden />,
+              className: "is-icon-only",
             },
           ]
         : []),
@@ -1249,7 +1262,7 @@ function DetailModalContent({
         ariaLabel="Reference details"
         closeOnEscape={true}
         backdropClassName="reference-modal-backdrop"
-        dialogClassName={`reference-modal-new ${shouldUseTextDetailLayout ? "is-text-only" : ""} ${isUploadedReference ? "is-uploaded" : ""} ${shouldUseExternalFileLayout ? "is-stage-only" : ""} ${isAudioOutput ? "is-audio-modal" : ""}`}
+        dialogClassName={`reference-modal-new ${shouldUseTextDetailLayout ? "is-text-only" : ""} ${shouldUseExternalFileLayout ? "is-uploaded" : ""} ${shouldUseExternalFileLayout ? "is-stage-only" : ""} ${isAudioOutput ? "is-audio-modal" : ""}`}
         dialogStyle={detailModalStyle}
         backdropDecoration={
           displayPreviewUrl && !isErrorDetail ? (

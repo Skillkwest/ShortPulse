@@ -469,6 +469,61 @@
 .video-properties-panel .video-elements-slot-audio-preview {
   background: linear-gradient(145deg, rgba(179, 43, 169, 0.24), rgba(61, 47, 168, 0.2)), #101215;
   color: rgba(236, 229, 255, 0.92);
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
+}
+
+.video-properties-panel
+  .video-elements-placeholder-tile--reference-audio:hover
+  .video-elements-slot-audio-preview,
+.video-properties-panel
+  .video-elements-placeholder-tile--reference-audio:focus-within
+  .video-elements-slot-audio-preview {
+  opacity: 0;
+  transform: scale(0.88);
+}
+
+.video-properties-panel .video-elements-slot-audio-play {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 50% 46%, rgba(255, 255, 255, 0.2), transparent 46%),
+    linear-gradient(145deg, rgba(179, 43, 169, 0.34), rgba(61, 47, 168, 0.3)), #101215;
+  color: rgba(255, 255, 255, 0.96);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.82);
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.video-properties-panel
+  .video-elements-placeholder-tile--reference-audio:hover
+  .video-elements-slot-audio-play,
+.video-properties-panel
+  .video-elements-placeholder-tile--reference-audio:focus-within
+  .video-elements-slot-audio-play,
+.video-properties-panel .video-elements-slot-audio-play[aria-pressed="true"] {
+  opacity: 1;
+  pointer-events: auto;
+  transform: scale(1);
+}
+
+.video-properties-panel .video-elements-slot-audio-play:hover,
+.video-properties-panel .video-elements-slot-audio-play:focus-visible {
+  box-shadow:
+    0 0 0 2px rgba(236, 229, 255, 0.2),
+    0 0 22px rgba(170, 101, 239, 0.28);
 }
 
 .video-properties-panel .video-elements-slot-actions {

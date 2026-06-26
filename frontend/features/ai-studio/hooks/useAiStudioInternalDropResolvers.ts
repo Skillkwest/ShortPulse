@@ -156,7 +156,7 @@ export const useAiStudioInternalDropResolvers = ({
   resolveCharacterDropReference: ResolveCharacterDropReference;
   resolveMediaLibraryInternalDropItem: (
     payload: InternalReferenceDragPayload
-  ) => Promise<{ kind: "media" | "prompt"; id: string } | null>;
+  ) => Promise<{ kind: "media" | "prompt"; id: string; alreadyInLibrary?: boolean } | null>;
   resolveStyleLibraryInternalDrop: (
     payload: InternalReferenceDragPayload
   ) => ReturnType<typeof resolveInternalReferenceSource>;
@@ -204,16 +204,18 @@ export const useAiStudioInternalDropResolvers = ({
     async (payload: InternalReferenceDragPayload) => {
       const payloadMediaId = payload.mediaId?.trim() ?? "";
       if (payloadMediaId) {
-        return { kind: "media" as const, id: payloadMediaId };
+        return { kind: "media" as const, id: payloadMediaId, alreadyInLibrary: true };
       }
 
       const resolvedOutputId = (payload.outputId ?? payload.referenceId ?? "").trim();
       const initialOutput = resolvedOutputId ? getOutputById(resolvedOutputId) : null;
+      const imageIndex = Math.max(0, Math.floor(payload.imageIndex ?? 0));
+      const initialSavedMediaId = resolveSavedMediaIdFromOutput(initialOutput, imageIndex);
 
       if (initialOutput?.mode === "text") {
         const initialPromptId = initialOutput.promptId?.trim() ?? "";
         if (initialPromptId) {
-          return { kind: "prompt" as const, id: initialPromptId };
+          return { kind: "prompt" as const, id: initialPromptId, alreadyInLibrary: true };
         }
         if (!resolvedOutputId) return null;
         let persistedPromptId = "";
@@ -229,7 +231,7 @@ export const useAiStudioInternalDropResolvers = ({
             persistedOutput?.mode === "text" ? (persistedOutput.promptId?.trim() ?? "") : "";
         }
         if (!persistedPromptId) return null;
-        return { kind: "prompt" as const, id: persistedPromptId };
+        return { kind: "prompt" as const, id: persistedPromptId, alreadyInLibrary: false };
       }
 
       const resolvedSource = await resolveInternalReferenceSource({
@@ -241,7 +243,14 @@ export const useAiStudioInternalDropResolvers = ({
       });
       const resolvedMediaId = resolvedSource?.mediaId?.trim() ?? "";
       if (!resolvedMediaId) return null;
-      return { kind: "media" as const, id: resolvedMediaId };
+      return {
+        kind: "media" as const,
+        id: resolvedMediaId,
+        alreadyInLibrary:
+          Boolean(initialSavedMediaId) ||
+          initialOutput?.mediaSource === "library" ||
+          resolvedSource?.sourceKind === "media_library",
+      };
     },
     [ensureOutputPersisted, getOutputById, getOutputSnapshot]
   );

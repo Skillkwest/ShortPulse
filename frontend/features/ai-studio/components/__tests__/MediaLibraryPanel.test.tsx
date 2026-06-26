@@ -4005,6 +4005,67 @@ describe("MediaLibraryPanel", () => {
     );
   });
 
+  it("shows already-exists feedback when a saved Reference Grid media card is dropped into root All Media", async () => {
+    const resolveInternalDropItem = vi.fn().mockResolvedValue({
+      kind: "media",
+      id: "media-88",
+      alreadyInLibrary: true,
+    });
+
+    render(
+      <MediaLibraryPanel
+        onSelectMedia={vi.fn()}
+        onSelectPrompt={vi.fn()}
+        resolveInternalDropItem={resolveInternalDropItem}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("media-library-panel-root-dropzone")).toBeInTheDocument();
+    });
+
+    const callsBeforeDrop = fetchMediaListPageMock.mock.calls.length;
+    const transfer = {
+      types: [
+        "text/reference-origin",
+        "text/reference-output-id",
+        "text/reference-media-id",
+        "text/reference-source-surface",
+      ],
+      getData: (type: string) => {
+        switch (type) {
+          case "text/reference-origin":
+            return "ai-studio-reference-grid";
+          case "text/reference-output-id":
+            return "output-library-1";
+          case "text/reference-media-id":
+            return "media-88";
+          case "text/reference-source-surface":
+            return "all-refs";
+          default:
+            return "";
+        }
+      },
+      dropEffect: "none",
+      effectAllowed: "copy",
+    } as unknown as DataTransfer;
+
+    fireEvent.drop(screen.getByTestId("media-library-panel-root-dropzone"), {
+      dataTransfer: transfer,
+    });
+
+    expect(
+      await screen.findByText("Media already exists in the media library.")
+    ).toBeInTheDocument();
+    expect(fetchMediaListPageMock.mock.calls.length).toBe(callsBeforeDrop);
+    expect(applyMediaFolderMembershipBatchMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "assign",
+      }),
+      null
+    );
+  });
+
   it("assigns dropped internal prompt references from the reference grid to a folder tile", async () => {
     const resolveInternalDropItem = vi.fn().mockResolvedValue({
       kind: "prompt",

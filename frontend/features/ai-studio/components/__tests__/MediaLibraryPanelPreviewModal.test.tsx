@@ -589,7 +589,7 @@ describe("MediaLibraryPanelPreviewModal", () => {
       />
     );
 
-    expect(screen.getByRole("button", { name: "Saved" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Saved" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Download" }));
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));

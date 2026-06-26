@@ -3,7 +3,7 @@
  * Keeps the creative-surface interruption local while delegating payment collection to Stripe Checkout.
  */
 import React from "react";
-import { CreditCard, X } from "phosphor-react";
+import { X } from "phosphor-react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import {
   buildInsufficientCreditsModalCopy,
@@ -71,6 +71,7 @@ export function AiStudioInsufficientCreditsModal({
   onCheckoutStarted,
 }: AiStudioInsufficientCreditsModalProps) {
   const [packages, setPackages] = React.useState<CreditPackage[]>([]);
+  const [selectedPackageId, setSelectedPackageId] = React.useState<string | null>(null);
   const [loadingPackages, setLoadingPackages] = React.useState(false);
   const [loadingCheckout, setLoadingCheckout] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -107,9 +108,35 @@ export function AiStudioInsufficientCreditsModal({
     };
   }, [isOpen]);
 
+  const sortedPackages = React.useMemo(
+    () => [...packages].sort((left, right) => left.sort_order - right.sort_order),
+    [packages]
+  );
+  const recommendedPackage = React.useMemo(
+    () => choosePackage(sortedPackages, requiredCredits, availableCredits),
+    [availableCredits, requiredCredits, sortedPackages]
+  );
+
+  React.useEffect(() => {
+    if (!isOpen) {
+      setSelectedPackageId(null);
+      return;
+    }
+    if (!sortedPackages.length) return;
+    setSelectedPackageId((currentId) =>
+      currentId && sortedPackages.some((pkg) => pkg.id === currentId)
+        ? currentId
+        : (recommendedPackage?.id ?? sortedPackages[0]?.id ?? null)
+    );
+  }, [isOpen, recommendedPackage, sortedPackages]);
+
   const selectedPackage = React.useMemo(
-    () => choosePackage(packages, requiredCredits, availableCredits),
-    [availableCredits, packages, requiredCredits]
+    () =>
+      sortedPackages.find((pkg) => pkg.id === selectedPackageId) ??
+      recommendedPackage ??
+      sortedPackages[0] ??
+      null,
+    [recommendedPackage, selectedPackageId, sortedPackages]
   );
 
   const handleCheckout = React.useCallback(async () => {
@@ -146,6 +173,10 @@ export function AiStudioInsufficientCreditsModal({
     }
   }, [onCheckoutStarted, selectedPackage]);
 
+  const handleOpenAccountCredits = React.useCallback(() => {
+    window.location.assign("/profile?section=credits");
+  }, []);
+
   React.useEffect(() => {
     if (!isOpen) return undefined;
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -160,9 +191,6 @@ export function AiStudioInsufficientCreditsModal({
   if (!isOpen) return null;
 
   const bodyCopy = buildInsufficientCreditsModalCopy({ requiredCredits, availableCredits });
-  const packageLabel = selectedPackage
-    ? `${selectedPackage.display_name} - ${selectedPackage.credit_amount_cents.toLocaleString()} credits`
-    : null;
 
   return (
     <AiStudioModalLayer>
@@ -176,24 +204,46 @@ export function AiStudioInsufficientCreditsModal({
           >
             <X size={16} />
           </button>
-          <div className="ai-credit-modal-icon" aria-hidden="true">
-            <CreditCard size={24} />
-          </div>
           <div className="ai-credit-modal-copy">
             <p className="ai-credit-modal-eyebrow">Credits</p>
             <h2>{INSUFFICIENT_CREDITS_TITLE}</h2>
             <p>{bodyCopy}</p>
           </div>
-          {selectedPackage ? (
-            <div className="ai-credit-modal-package" aria-label="Recommended credit package">
-              <span>{packageLabel}</span>
-              <strong>{formatCurrencyFromCents(selectedPackage.price_cents)}</strong>
+          {loadingPackages ? (
+            <div className="ai-credit-modal-package-empty">Loading credit packs...</div>
+          ) : sortedPackages.length > 0 ? (
+            <div className="ai-credit-modal-package-grid" aria-label="Credit top-up packages">
+              {sortedPackages.map((pkg) => {
+                const selected = selectedPackage?.id === pkg.id;
+                return (
+                  <button
+                    key={pkg.id}
+                    type="button"
+                    className={`ai-credit-modal-package-button${selected ? " is-selected" : ""}`}
+                    aria-pressed={selected}
+                    onClick={() => setSelectedPackageId(pkg.id)}
+                  >
+                    <span className="ai-credit-modal-package-name">{pkg.display_name}</span>
+                    <strong>{pkg.credit_amount_cents.toLocaleString()}</strong>
+                    <span>{formatCurrencyFromCents(pkg.price_cents)}</span>
+                  </button>
+                );
+              })}
             </div>
-          ) : null}
+          ) : (
+            <div className="ai-credit-modal-package-empty">No credit packs are available.</div>
+          )}
           {error ? <p className="ai-credit-modal-error">{error}</p> : null}
           <div className="ai-credit-modal-actions">
             <button type="button" className="ai-credit-modal-secondary" onClick={onClose}>
               Not now
+            </button>
+            <button
+              type="button"
+              className="ai-credit-modal-account"
+              onClick={handleOpenAccountCredits}
+            >
+              Manage credits
             </button>
             <button
               type="button"

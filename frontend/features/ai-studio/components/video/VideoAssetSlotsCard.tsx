@@ -2,7 +2,7 @@
  * Video workflow asset-slot card for Kling Elements and Seedance 2 media inputs.
  */
 import React from "react";
-import { SpeakerHigh, Trash, UploadSimple, VideoCamera } from "phosphor-react";
+import { Pause, Play, SpeakerHigh, Trash, UploadSimple, VideoCamera } from "phosphor-react";
 import { AppMessage } from "../../../../components/AppMessage";
 import {
   getAiStudioKlingElementReferenceUrls,
@@ -112,6 +112,8 @@ export function VideoAssetSlotsCard({
   removeSelectedElement,
   elementPickerError,
 }: VideoAssetSlotsCardProps) {
+  const audioPreviewElementRef = React.useRef<HTMLAudioElement | null>(null);
+  const [playingAudioPreviewUrl, setPlayingAudioPreviewUrl] = React.useState<string | null>(null);
   const [signedSeedanceSlotPreviewUrls, setSignedSeedanceSlotPreviewUrls] = React.useState<
     Record<string, string>
   >({});
@@ -174,8 +176,52 @@ export function VideoAssetSlotsCard({
     };
   }, [seedanceSlotPreviewSigningRequests]);
 
+  React.useEffect(
+    () => () => {
+      if (audioPreviewElementRef.current?.paused === false) {
+        audioPreviewElementRef.current.pause();
+      }
+    },
+    []
+  );
+
+  React.useEffect(() => {
+    if (!playingAudioPreviewUrl) return;
+    const audioPreviewElement = audioPreviewElementRef.current;
+    if (!audioPreviewElement) return;
+    const playResult = audioPreviewElement.play();
+    void playResult.catch(() => {
+      setPlayingAudioPreviewUrl(null);
+    });
+  }, [playingAudioPreviewUrl]);
+
+  const toggleAudioPreview = React.useCallback(
+    (audioUrl: string) => {
+      const normalizedAudioUrl = audioUrl.trim();
+      if (!normalizedAudioUrl) return;
+      const audioPreviewElement = audioPreviewElementRef.current;
+
+      if (playingAudioPreviewUrl === normalizedAudioUrl && audioPreviewElement?.paused === false) {
+        audioPreviewElement.pause();
+        setPlayingAudioPreviewUrl(null);
+        return;
+      }
+
+      setPlayingAudioPreviewUrl(normalizedAudioUrl);
+    },
+    [playingAudioPreviewUrl]
+  );
+
   return (
     <div className="video-setup-elements-slot">
+      <audio
+        ref={audioPreviewElementRef}
+        src={playingAudioPreviewUrl ?? undefined}
+        preload="none"
+        className="sr-only"
+        onEnded={() => setPlayingAudioPreviewUrl(null)}
+        onError={() => setPlayingAudioPreviewUrl(null)}
+      />
       <div
         className={`step-card video-elements-card ${
           isSeedance2FamilyModelSelected ? "video-elements-card--seedance" : ""
@@ -314,6 +360,12 @@ export function VideoAssetSlotsCard({
                 const isReferenceImageSlot = isSeedanceImageReferenceSlot(selectedElement);
                 const isReferenceVideoSlot = isSeedanceVideoReferenceSlot(selectedElement);
                 const isReferenceAudioSlot = isSeedanceAudioReferenceSlot(selectedElement);
+                const audioPreviewUrl =
+                  isReferenceAudioSlot && selectedElement?.audioUrl
+                    ? selectedElement.audioUrl.trim()
+                    : "";
+                const isAudioPreviewPlaying =
+                  Boolean(audioPreviewUrl) && playingAudioPreviewUrl === audioPreviewUrl;
                 const isImageDropActive = Boolean(seedanceElementImageDragActive[index]);
                 const isImageLoading = Boolean(seedanceElementImageLoading[index]);
                 const seedanceImageInputRef = seedanceElementImageInputRefs[index] ?? null;
@@ -479,6 +531,26 @@ export function VideoAssetSlotsCard({
                         </span>
                       ) : null}
                     </button>
+                    {audioPreviewUrl ? (
+                      <button
+                        type="button"
+                        className="video-elements-slot-audio-play"
+                        aria-label={`${isAudioPreviewPlaying ? "Pause" : "Play"} audio reference ${
+                          selectedElement.name || index + 1
+                        }`}
+                        aria-pressed={isAudioPreviewPlaying}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          toggleAudioPreview(audioPreviewUrl);
+                        }}
+                      >
+                        {isAudioPreviewPlaying ? (
+                          <Pause size={20} />
+                        ) : (
+                          <Play size={20} weight="fill" />
+                        )}
+                      </button>
+                    ) : null}
                     {canUseSeedanceImageIngress ? (
                       <input
                         ref={(element) => {

@@ -263,6 +263,7 @@ describe("useAiStudioInternalDropResolvers", () => {
     ).resolves.toEqual({
       kind: "media",
       id: "media-0",
+      alreadyInLibrary: true,
     });
     await expect(result.current.resolveStyleLibraryInternalDrop(makePayload())).resolves.toEqual(
       expect.objectContaining({
@@ -511,6 +512,7 @@ describe("useAiStudioInternalDropResolvers", () => {
     ).resolves.toEqual({
       kind: "prompt",
       id: "prompt-1",
+      alreadyInLibrary: false,
     });
     expect(ensureOutputPersisted).toHaveBeenCalledWith("out-1");
     expect(resolveInternalReferenceSourceMock).not.toHaveBeenCalled();
@@ -551,6 +553,7 @@ describe("useAiStudioInternalDropResolvers", () => {
     ).resolves.toEqual({
       kind: "prompt",
       id: "prompt-77",
+      alreadyInLibrary: false,
     });
     expect(ensureOutputPersisted).toHaveBeenCalledWith("out-1");
     expect(resolveInternalReferenceSourceMock).not.toHaveBeenCalled();

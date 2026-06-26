@@ -40,6 +40,17 @@ describe("mediaLibraryFolderDropModel", () => {
     });
   });
 
+  it("resolves already-saved internal root drops as already exists", () => {
+    expect(
+      resolveFolderDropIntent({
+        sourceFolderId: null,
+        targetFolderId: MEDIA_LIBRARY_ROOT_FOLDER_ID,
+        allowRootSave: true,
+        alreadyInLibrary: true,
+      })
+    ).toEqual({ kind: "already_exists" });
+  });
+
   it("resolves same-folder drops as noop", () => {
     expect(
       resolveFolderDropIntent({
@@ -65,6 +76,16 @@ describe("mediaLibraryFolderDropModel", () => {
         },
       })
     ).toBe("Already exists in Campaign.");
+  });
+
+  it("maps already-saved root media drops to explicit library feedback", () => {
+    expect(
+      resolveFolderDropFeedbackMessage({
+        intent: { kind: "already_exists" },
+        itemKind: "media",
+        result: null,
+      })
+    ).toBe("Media already exists in the media library.");
   });
 
   it("maps duplicate-target move with source removal feedback", () => {

@@ -1,5 +1,5 @@
-import { render, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createInternalMediaRef } from "../../../../../lib/media/internalMediaRefs";
 import { getSignedMediaUrlsBatch } from "../../../../../lib/mediaSignedUrlCache";
 import { registerInternalMediaRefForUrl } from "../../../logic/referenceInputInternalMediaRegistry";
@@ -39,6 +39,16 @@ const baseProps: React.ComponentProps<typeof VideoAssetSlotsCard> = {
 };
 
 describe("VideoAssetSlotsCard", () => {
+  beforeEach(() => {
+    vi.mocked(getSignedMediaUrlsBatch).mockReset();
+    vi.unstubAllGlobals();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
   it("refreshes restored Seedance image slot previews from durable storage refs", async () => {
     const staleSignedUrl = "https://storage.example.com/stale-seedance-slot.png";
     const freshSignedUrl = "https://storage.example.com/fresh-seedance-slot.png";
@@ -86,5 +96,41 @@ describe("VideoAssetSlotsCard", () => {
           .backgroundImage
       ).toContain(freshSignedUrl);
     });
+  });
+
+  it("plays audio reference slots from the hover play control without opening the picker", () => {
+    const openElementPicker = vi.fn();
+    const playMock = vi
+      .spyOn(window.HTMLMediaElement.prototype, "play")
+      .mockImplementation(() => Promise.resolve());
+    vi.spyOn(window.HTMLMediaElement.prototype, "pause").mockImplementation(() => undefined);
+
+    render(
+      <VideoAssetSlotsCard
+        {...baseProps}
+        openElementPicker={openElementPicker}
+        modelVisibleKlingElements={[
+          {
+            id: "slot-audio",
+            slotIndex: 0,
+            sourceKind: "reference-audio",
+            name: "Audio reference",
+            profileImageUrl: null,
+            profileImageTransform: null,
+            frontalImageUrl: "",
+            referenceImageUrls: "",
+            videoUrl: "",
+            audioUrl: "https://example.com/direct-audio.mp3",
+          },
+          null,
+          null,
+        ]}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Play audio reference Audio reference" }));
+
+    expect(playMock).toHaveBeenCalledTimes(1);
+    expect(openElementPicker).not.toHaveBeenCalled();
   });
 });

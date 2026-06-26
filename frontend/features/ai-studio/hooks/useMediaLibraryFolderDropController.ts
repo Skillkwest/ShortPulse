@@ -23,13 +23,26 @@ import {
 import { getMediaLibraryDragTypes } from "../logic/mediaLibraryDragPayload";
 
 type ResolvedFolderDropItem =
-  | { kind: "media"; id: string; sourceFolderId?: string | null; origin: "library" | "internal" }
-  | { kind: "prompt"; id: string; sourceFolderId?: string | null; origin: "library" | "internal" }
+  | {
+      kind: "media";
+      id: string;
+      sourceFolderId?: string | null;
+      origin: "library" | "internal";
+      alreadyInLibrary?: boolean;
+    }
+  | {
+      kind: "prompt";
+      id: string;
+      sourceFolderId?: string | null;
+      origin: "library" | "internal";
+      alreadyInLibrary?: boolean;
+    }
   | null;
 
 type ResolveInternalDropItem = (payload: InternalReferenceDragPayload) => Promise<{
   kind: FolderDropItemKind;
   id: string;
+  alreadyInLibrary?: boolean;
 } | null>;
 
 type UseMediaLibraryFolderDropControllerArgs = {
@@ -205,6 +218,7 @@ export const useMediaLibraryFolderDropController = ({
         id: resolved.id,
         sourceFolderId: null,
         origin: "internal",
+        alreadyInLibrary: resolved.alreadyInLibrary === true,
       };
     },
     [resolveInternalDropItem]
@@ -314,6 +328,7 @@ export const useMediaLibraryFolderDropController = ({
           sourceFolderId: resolvedItem.sourceFolderId ?? null,
           targetFolderId: folderId,
           allowRootSave: resolvedItem.origin === "internal",
+          alreadyInLibrary: resolvedItem.alreadyInLibrary === true,
         });
         if (intent.kind === "noop") {
           setMembershipPendingMessage(null);
@@ -330,6 +345,21 @@ export const useMediaLibraryFolderDropController = ({
               ? "All Media"
               : (folders.find((folder) => folder.id === intent.targetFolderId)?.name ?? null)
             : null;
+
+        if (intent.kind === "already_exists") {
+          const message = resolveFolderDropFeedbackMessage({
+            intent,
+            result: null,
+            itemKind: resolvedItem.kind,
+            sourceFolderName,
+            targetFolderName: resolvedTargetFolderName,
+          });
+          setMembershipPendingMessage(null);
+          if (message) {
+            setMembershipMessage(message);
+          }
+          return;
+        }
 
         if (intent.kind === "save") {
           try {

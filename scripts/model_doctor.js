@@ -1232,7 +1232,6 @@ function run() {
     {
       filePath: MODEL_MODAL_PATH,
       forbidden: [
-        '"gpt-image-2": {',
         '"kie-ai/veo-3.1-fast-i2v": {',
         '"kie-ai/kling-3.0": {',
         '"kie-ai/seedance-2": {',

@@ -18,7 +18,8 @@ import {
   FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID,
   FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID,
 } from "../../../../../lib/model-runtime/falModelIds";
-import { OPENAI_GPT_IMAGE_2_MODEL_ID } from "../../../../../lib/model-runtime/openAiImage2";
+
+const REMOVED_OPENAI_IMAGE_MODEL_ID = "removed-openai-image-model";
 
 const falClientMocks = vi.hoisted(() => ({
   submitFalSeedream: vi.fn(),
@@ -359,17 +360,17 @@ describe("Seedream submission payloads", () => {
     expectAspectLockedAutoSize(portraitPayload?.image_size, "9:16");
   });
 
-  it("does not submit retired direct OpenAI GPT Image 2 through the default handler", async () => {
+  it("does not submit a removed image model through the default handler", async () => {
     const args = makeArgs({
-      finalModel: OPENAI_GPT_IMAGE_2_MODEL_ID,
-      modelConfig: getModelConfig(OPENAI_GPT_IMAGE_2_MODEL_ID),
+      finalModel: REMOVED_OPENAI_IMAGE_MODEL_ID,
+      modelConfig: getModelConfig(REMOVED_OPENAI_IMAGE_MODEL_ID),
       aspect: "1:1",
       preparedImageInputs: [],
       falReferencePayload: {},
     });
 
     await expect(handleDefaultModelSubmission(args)).rejects.toThrow(
-      "Unsupported model 'gpt-image-2' for default Fal submission handler."
+      "Unsupported model 'removed-openai-image-model' for default Fal submission handler."
     );
     expect(args.startPollingWithGeneration).not.toHaveBeenCalled();
   });

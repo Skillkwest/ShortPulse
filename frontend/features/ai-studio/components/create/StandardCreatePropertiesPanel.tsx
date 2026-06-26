@@ -21,6 +21,7 @@ import { ComposerPinButton } from "../shared/ComposerPinButton";
 import { StylesControl } from "../StylesControl";
 import { resolveCreateModelModalContext } from "../../logic/createModelModalContext";
 import { deriveCreateSelectorViewState } from "../../logic/createSelectorState";
+import { filterAspectOptionsForModel } from "../../logic/modelAspectOptions";
 import { getModelConfig } from "../../logic/modelRegistry";
 import { stripEditLabel } from "../../utils/modelLabels";
 import { StandardCreatePanelView } from "./StandardCreatePanelView";
@@ -182,11 +183,12 @@ export function StandardCreatePropertiesPanel({
   const useUnoptimizedModelLogo = false;
   const modelConfig = useMemo(() => (modelId ? getModelConfig(modelId) : null), [modelId]);
   const aspectOptionsForModel: AspectOption[] = useMemo(() => {
-    if (modelConfig?.allowedAspects?.length) {
-      return aspectOptions.filter((opt) => modelConfig.allowedAspects.includes(opt.value));
-    }
-    return aspectOptions;
-  }, [modelConfig]);
+    return filterAspectOptionsForModel({
+      modelId,
+      allowedAspects: modelConfig?.allowedAspects,
+      options: aspectOptions,
+    });
+  }, [modelConfig?.allowedAspects, modelId]);
   const { resolveAvatarUrl, clearAvatarFailure, handleAvatarError } = useAvatarResilience({
     surfaceId: "create-character-picker-trigger",
   });

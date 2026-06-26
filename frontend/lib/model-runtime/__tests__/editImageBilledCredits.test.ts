@@ -7,7 +7,6 @@ import {
 } from "../editImageBilledCredits";
 import { getDefaultModelPricingPolicyDocument } from "../pricingPolicy";
 import { materializeImageBilledCreditPolicy } from "../materializeImageBilledCreditPolicy";
-import { OPENAI_GPT_IMAGE_2_MODEL_ID } from "../openAiImage2";
 import { KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID } from "../providerModelIds";
 
 const pricingPolicy = materializeImageBilledCreditPolicy({
@@ -67,28 +66,6 @@ describe("editImageBilledCredits", () => {
         pricingPolicy,
       })
     ).toBe(2);
-  });
-
-  it("does not price retired direct GPT Image 2 Edit rows", () => {
-    const lookup = resolveEditImageBilledCreditLookup({
-      modelId: OPENAI_GPT_IMAGE_2_MODEL_ID,
-      params: {
-        aspect: "16:9",
-        resolution: "medium",
-        inputImageCount: 1,
-      },
-      pricingPolicy,
-    });
-
-    expect(lookup.authorityMode).toBeNull();
-    expect(lookup.breakdown).toBeNull();
-    expect(
-      resolveEditImageBilledCredits({
-        modelId: OPENAI_GPT_IMAGE_2_MODEL_ID,
-        params: lookup.params,
-        pricingPolicy,
-      })
-    ).toBeNull();
   });
 
   it("collapses Nano Banana 2 Edit multi-ref pricing onto the canonical edit row", () => {

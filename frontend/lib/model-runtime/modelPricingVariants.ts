@@ -12,7 +12,7 @@ export type ModelPricingVariantParts = {
   maskPresent?: boolean | null;
 };
 
-const INPUT_SENSITIVE_EDIT_PRICING_STRATEGIES = new Set(["gpt-image-2-per-image"]);
+const INPUT_SENSITIVE_EDIT_PRICING_STRATEGIES = new Set<string>();
 
 export const buildModelPricingVariantId = ({
   baseVariantId,

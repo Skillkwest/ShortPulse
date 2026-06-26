@@ -52,19 +52,6 @@ describe("materializeImageBilledCreditPolicy", () => {
     ).toBe(2);
 
     expect(
-      resolveModelPricingForModel(materialized, "gpt-image-2", "create|res:medium|aspect:16:9")
-        .billedCreditsOverride
-    ).toBeNull();
-
-    expect(
-      resolveModelPricingForModel(
-        materialized,
-        "gpt-image-2",
-        "edit|res:high|aspect:16:9|input_images:1|input_fidelity:high|mask:no"
-      ).billedCreditsOverride
-    ).toBeNull();
-
-    expect(
       resolveModelPricingForModel(
         materialized,
         KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
@@ -79,8 +66,6 @@ describe("materializeImageBilledCreditPolicy", () => {
         "edit|res:1K|aspect:5:4"
       ).billedCreditsOverride
     ).toBe(2);
-
-    expect(materialized.perModel["gpt-image-2"]).toBeUndefined();
 
     expect(
       resolveModelPricingForModel(

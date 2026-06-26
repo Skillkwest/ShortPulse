@@ -5,11 +5,6 @@
 import { describe, expect, it } from "vitest";
 import { computeCostForModel } from "../pricing";
 import { listPricingModelConfigs } from "../modelRegistry";
-import {
-  OPENAI_GPT_IMAGE_2_CREATE_COSTS_USD,
-  OPENAI_GPT_IMAGE_2_SIZE_TO_DIMENSIONS,
-  resolveOpenAiGptImage2InputImageUsd,
-} from "../../../../lib/model-runtime/openAiImage2";
 
 const AUDIO_STRATEGIES = new Set([
   "kling-3-per-second",
@@ -148,40 +143,6 @@ describe("model pricing coverage", () => {
     });
   });
 
-  it("maps gpt-image-2 1K/2K/4K presets onto the workbook-backed pricing matrix", () => {
-    const squareLow = computeCostForModel("gpt-image-2", {
-      aspect: "1:1",
-      resolution: "1K",
-    });
-    const portraitHigh = computeCostForModel("gpt-image-2", {
-      aspect: "9:16",
-      resolution: "4K",
-      generationCount: 2,
-    });
-    const landscapeFallback = computeCostForModel("gpt-image-2", {
-      aspect: "16:9",
-      resolution: "not-a-tier",
-    });
-
-    expect(squareLow?.usdRaw).toBeCloseTo(OPENAI_GPT_IMAGE_2_CREATE_COSTS_USD["1024x1024"].low);
-    expect(squareLow?.width).toBe(OPENAI_GPT_IMAGE_2_SIZE_TO_DIMENSIONS["1024x1024"].width);
-    expect(squareLow?.height).toBe(OPENAI_GPT_IMAGE_2_SIZE_TO_DIMENSIONS["1024x1024"].height);
-
-    expect(portraitHigh?.usdRaw).toBeCloseTo(
-      OPENAI_GPT_IMAGE_2_CREATE_COSTS_USD["1024x1536"].high * 2
-    );
-    expect(portraitHigh?.width).toBe(OPENAI_GPT_IMAGE_2_SIZE_TO_DIMENSIONS["1024x1536"].width);
-    expect(portraitHigh?.height).toBe(OPENAI_GPT_IMAGE_2_SIZE_TO_DIMENSIONS["1024x1536"].height);
-
-    expect(landscapeFallback?.usdRaw).toBeCloseTo(
-      OPENAI_GPT_IMAGE_2_CREATE_COSTS_USD["1536x1024"].medium
-    );
-    expect(landscapeFallback?.width).toBe(OPENAI_GPT_IMAGE_2_SIZE_TO_DIMENSIONS["1536x1024"].width);
-    expect(landscapeFallback?.height).toBe(
-      OPENAI_GPT_IMAGE_2_SIZE_TO_DIMENSIONS["1536x1024"].height
-    );
-  });
-
   it("uses Kie GPT Image 2 per-resolution pricing and provider-safe normalization", () => {
     expect(
       computeCostForModel("kie-ai/gpt-image-2-text-to-image", {
@@ -233,28 +194,5 @@ describe("model pricing coverage", () => {
         resolution: "4K",
       })?.usdRaw
     ).toBeCloseTo(0.05);
-  });
-
-  it("adds deterministic GPT Image 2 edit input-image surcharges", () => {
-    const editEstimate = computeCostForModel("gpt-image-2", {
-      aspect: "1:1",
-      resolution: "2K",
-      inputImageCount: 2,
-      inputFidelity: "high",
-      maskPresent: true,
-    });
-
-    expect(editEstimate?.usdRaw).toBeCloseTo(
-      OPENAI_GPT_IMAGE_2_CREATE_COSTS_USD["1024x1024"].medium +
-        resolveOpenAiGptImage2InputImageUsd({
-          size: "1024x1024",
-          inputFidelity: "high",
-        }) *
-          2 +
-        resolveOpenAiGptImage2InputImageUsd({
-          size: "1024x1024",
-          inputFidelity: "low",
-        })
-    );
   });
 });

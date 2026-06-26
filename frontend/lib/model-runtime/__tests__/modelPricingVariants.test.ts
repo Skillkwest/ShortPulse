@@ -16,19 +16,6 @@ describe("modelPricingVariants", () => {
     ).toBe("edit|res:medium|aspect:16:9|input_images:3|input_fidelity:high|mask:yes");
   });
 
-  it("resolves GPT Image 2 edit params into a distinct variant id", () => {
-    expect(
-      resolveModelPricingVariantId({
-        modelId: "gpt-image-2",
-        aspect: "16:9",
-        resolution: "medium",
-        inputImageCount: 3,
-        inputFidelity: "high",
-        maskPresent: false,
-      })
-    ).toBe("edit|res:medium|aspect:16:9|input_images:3|input_fidelity:high|mask:no");
-  });
-
   it("collapses non-input-priced edit models onto one canonical edit row", () => {
     expect(
       resolveModelPricingVariantId({

@@ -5,6 +5,7 @@ import { useCallback, useEffect, type MutableRefObject } from "react";
 import { aspectOptions } from "../constants";
 import { getModelConfig } from "../logic/pricing";
 import { clampImageResolutionForModel } from "../logic/imageResolution";
+import { resolveUiAllowedAspectsForModel } from "../logic/modelAspectOptions";
 import { CREATE_DEFAULT_MODEL_ID, EDIT_DEFAULT_MODEL_ID } from "../logic/modelSelectionPolicy";
 import { mapCreateModelOnCharacterModeToggle } from "../logic/createCharacterModeModelMapping";
 import {
@@ -163,7 +164,10 @@ export const useAiStudioStateEffects = ({
     if (hasPendingWorkflowRestore) return;
     if (!model) return;
     const config = getModelConfig(model);
-    const allowedAspects = config?.allowedAspects ?? [];
+    const allowedAspects = resolveUiAllowedAspectsForModel({
+      modelId: model,
+      allowedAspects: config?.allowedAspects,
+    });
     if (!allowedAspects.length) return;
     if (allowedAspects.includes(aspect)) return;
     const fallbackAspect = allowedAspects.includes(config?.defaultAspect ?? "")

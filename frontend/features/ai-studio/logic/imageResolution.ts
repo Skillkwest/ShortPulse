@@ -3,12 +3,6 @@
  * Keeps per-model option labeling, clamping, and normalization in one place.
  */
 import { getModelConfig } from "./modelRegistry";
-import {
-  normalizeOpenAiGptImage2Quality,
-  normalizeOpenAiGptImage2ResolutionPreset,
-  OPENAI_GPT_IMAGE_2_MODEL_ID,
-  OPENAI_GPT_IMAGE_2_UI_ALLOWED_RESOLUTIONS,
-} from "../../../lib/model-runtime/openAiImage2";
 export { normalizeKieGptImage2ResolutionForAspect } from "../../../lib/model-runtime/kieGptImage2";
 
 export const MODEL_DEFAULT_IMAGE_RESOLUTION = "model_default";
@@ -37,12 +31,6 @@ export const formatImageResolutionLabel = (value: string): string => {
 };
 
 export const getImageResolutionOptions = (modelId: string | null): ImageResolutionOption[] => {
-  if (modelId === OPENAI_GPT_IMAGE_2_MODEL_ID) {
-    return OPENAI_GPT_IMAGE_2_UI_ALLOWED_RESOLUTIONS.map((value) => ({
-      value,
-      label: formatImageResolutionLabel(value),
-    }));
-  }
   const config = modelId ? getModelConfig(modelId) : null;
   const values = config?.allowedResolutions?.length
     ? config.allowedResolutions
@@ -93,9 +81,6 @@ export const clampImageResolutionForModel = (
   modelId: string | null,
   value: string | null | undefined
 ): string => {
-  if (modelId === OPENAI_GPT_IMAGE_2_MODEL_ID) {
-    return normalizeOpenAiGptImage2ResolutionPreset(value);
-  }
   const config = modelId ? getModelConfig(modelId) : null;
   const allowed = config?.allowedResolutions;
   if (!allowed?.length) {
@@ -149,9 +134,6 @@ export const normalizeImageResolutionForCanonicalBilledPricing = (
 ): string | undefined => {
   const clampedValue = clampImageResolutionForModel(modelId, value);
   if (!clampedValue || isModelDefaultImageResolution(clampedValue)) return undefined;
-  if (modelId === OPENAI_GPT_IMAGE_2_MODEL_ID) {
-    return normalizeOpenAiGptImage2Quality(clampedValue);
-  }
 
   const config = modelId ? getModelConfig(modelId) : null;
   const allowed = config?.allowedResolutions ?? [];

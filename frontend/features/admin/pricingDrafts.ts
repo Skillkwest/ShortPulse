@@ -189,7 +189,6 @@ const IMAGE_AMOUNT_PRICING_STRATEGIES = new Set([
   "fal-economy-image-per-mp",
   "fal-fill-per-mp",
   "fal-flux-kontext-inpaint-per-mp",
-  "gpt-image-2-per-image",
   "google-nano-banana-per-image",
   "nano-banana-2-per-image",
   "nano-banana-per-image",

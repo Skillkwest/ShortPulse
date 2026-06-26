@@ -30,7 +30,7 @@ const createPolicyPayload = () => ({
         defaultRoundingIncrement: 1,
       },
       perModel: {
-        "gpt-image-2": {
+        [KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID]: {
           roundingIncrement: 1,
         },
       },
@@ -69,7 +69,10 @@ describe("useActiveModelPricingPolicy", () => {
 
     expect(result.current.modelPricingPolicyReady).toBe(true);
     expect(result.current.modelPricingPolicyError).toBeNull();
-    expect(result.current.modelPricingPolicy?.perModel["gpt-image-2"]?.roundingIncrement).toBe(1);
+    expect(
+      result.current.modelPricingPolicy?.perModel[KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID]
+        ?.roundingIncrement
+    ).toBe(1);
     expect(
       result.current.modelPricingPolicy?.perModel[KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID]
         ?.runtimeAuthorities?.create_image

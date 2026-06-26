@@ -22,7 +22,7 @@ import {
 
 describe("modelModalPresentation", () => {
   it("maps the active model families to the expected modal family keys", () => {
-    expect(resolveModelModalFamilyKey("gpt-image-2")).toBe("other");
+    expect(resolveModelModalFamilyKey("example/unknown-image-model")).toBe("other");
     expect(resolveModelModalFamilyKey(KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID)).toBe("gpt-image");
     expect(resolveModelModalFamilyKey(FAL_SEEDREAM_45_TEXT_MODEL_ID)).toBe("seedream");
     expect(resolveModelModalFamilyKey(FAL_NANO_BANANA_2_MODEL_ID)).toBe("nano-banana");

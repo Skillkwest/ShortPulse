@@ -22,16 +22,6 @@ const GPT_IMAGE_2_PROVIDER_ASPECTS = [
 ];
 
 describe("pricing grid variant rules", () => {
-  it("limits direct GPT Image 2 aspect rows to app-supported customer choices", () => {
-    expect(
-      resolvePricingGridAspectOptions({
-        pricingStrategy: "gpt-image-2-per-image",
-        allowedAspects: GPT_IMAGE_2_PROVIDER_ASPECTS,
-        defaultAspect: "auto",
-      })
-    ).toEqual(["9:16", "4:5", "1:1", "5:4", "16:9"]);
-  });
-
   it("keeps Kie GPT Image 2 auto plus app-supported aspect rows only", () => {
     expect(
       resolvePricingGridAspectOptions({

@@ -12,15 +12,12 @@ import {
 } from "../../../scripts/lib/direct_provider_route_inventory";
 
 const FAL_ROUTES_DIR = path.join(process.cwd(), "pages", "api", "fal");
-const OPENAI_ROUTES_DIR = path.join(process.cwd(), "pages", "api", "openai");
 const PROVIDER_MODEL_IDS_PATH = path.join(
   process.cwd(),
   "lib",
   "model-runtime",
   "providerModelIds.ts"
 );
-const OPENAI_IMAGE_MODEL_ID = "gpt-image-2";
-const OPENAI_IMAGE_ROUTE_FILES = ["image-generate.ts", "image-edit.ts"] as const;
 const ALLOWED_DIRECT_ROUTE_KINDS: ReadonlySet<string> = new Set([
   "create",
   "edit",
@@ -240,33 +237,13 @@ describe("model catalog route coverage", () => {
     }
   });
 
-  it("keeps the retired GPT Image 2 OpenAI route family disabled", () => {
-    const entry = getModelCatalogEntry(OPENAI_IMAGE_MODEL_ID);
-    expect(entry?.lifecycle).not.toBe("active");
-    expect(entry?.surfaces ?? []).not.toContain("runtime");
-    expect(entry?.submitHandler).toBeUndefined();
-    expect(entry?.executionMode).toBeUndefined();
-
-    const missingContracts: string[] = [];
-
-    for (const fileName of OPENAI_IMAGE_ROUTE_FILES) {
-      const filePath = path.join(OPENAI_ROUTES_DIR, fileName);
-      const contents = fs.readFileSync(filePath, "utf8");
-
-      if (contents.includes("OPENAI_GPT_IMAGE_2_MODEL_ID")) {
-        missingContracts.push(`${fileName}: still imports model id constant`);
-      }
-      if (contents.includes("requireApiUser")) {
-        missingContracts.push(`${fileName}: still enforces active route auth`);
-      }
-      if (contents.includes("chargeGenerationRequest")) {
-        missingContracts.push(`${fileName}: still references shared billing`);
-      }
-      if (!contents.includes('return res.status(404).json({ error: "Not found" })')) {
-        missingContracts.push(`${fileName}: missing retired 404 response`);
-      }
-    }
-
-    expect(missingContracts).toEqual([]);
+  it("keeps removed direct OpenAI image routes out of the executable model surface", () => {
+    expect(getModelCatalogEntry("gpt-image-2")).toBeNull();
+    expect(
+      fs.existsSync(path.join(process.cwd(), "pages", "api", "openai", "image-generate.ts"))
+    ).toBe(false);
+    expect(fs.existsSync(path.join(process.cwd(), "pages", "api", "openai", "image-edit.ts"))).toBe(
+      false
+    );
   });
 });

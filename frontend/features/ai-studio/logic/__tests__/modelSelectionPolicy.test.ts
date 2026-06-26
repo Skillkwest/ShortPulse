@@ -20,7 +20,6 @@ import {
   KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../lib/model-runtime/providerModelIds";
-import { OPENAI_GPT_IMAGE_2_MODEL_ID } from "../../../../lib/model-runtime/openAiImage2";
 import type { GenerationWorkflowLane } from "../../../../lib/model-runtime/modelCatalog";
 import type { ModelOption } from "../../constants";
 import {
@@ -33,7 +32,6 @@ import {
 
 const createImageOptions: ModelOption[] = [
   { value: FAL_FLUX_2_KLEIN_9B_MODEL_ID, label: "FLUX.2 Lite", mediaType: "image" },
-  { value: OPENAI_GPT_IMAGE_2_MODEL_ID, label: "GPT Image 2", mediaType: "image" },
   { value: FAL_NANO_BANANA_2_MODEL_ID, label: "Nano Banana 2", mediaType: "image" },
   { value: FAL_NANO_BANANA_2_EDIT_MODEL_ID, label: "Nano Banana 2 Edit", mediaType: "image" },
   { value: FAL_NANO_BANANA_PRO_MODEL_ID, label: "Nano Banana Pro", mediaType: "image" },
@@ -216,9 +214,7 @@ describe("modelSelectionPolicy", () => {
       }).map((option) => option.value)
     );
 
-    expect(standardEditValues.has(OPENAI_GPT_IMAGE_2_MODEL_ID)).toBe(false);
     expect(standardEditValues.has(KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID)).toBe(true);
-    expect(characterModeValues.has(OPENAI_GPT_IMAGE_2_MODEL_ID)).toBe(false);
     expect(characterModeValues.has(KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID)).toBe(true);
   });
 

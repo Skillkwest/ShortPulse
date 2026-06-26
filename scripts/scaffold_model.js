@@ -162,11 +162,7 @@ function resolveDirectRouteRequiredSymbols({
   }
 
   if (directRouteAuthority === "server-constant") {
-    if (provider === "openai") {
-      requiredSymbols.push("OPENAI_GPT_IMAGE_2_MODEL_ID");
-    } else {
-      requiredSymbols.push("DEFAULT_MODEL_ID_CONSTANT");
-    }
+    requiredSymbols.push("DEFAULT_MODEL_ID_CONSTANT");
   } else if (directRouteAuthority === "catalog-default-role-allowlist") {
     requiredSymbols.push(
       "resolveRequiredCatalogRoleModelId",
@@ -194,22 +190,26 @@ function resolveDirectRouteChecklistLines({
 
   if (directRouteAuthority === "server-constant") {
     lines.push(
-      "- Keep model authority server-owned through a route-local constant import instead of reading model ids from the request."
+      "- Keep model authority server-owned through a route-local constant import instead of reading model ids from the request.",
     );
   } else if (directRouteAuthority === "catalog-default-role-allowlist") {
     lines.push(
-      "- Resolve the approved model id from the catalog, enforce a route-local allowlist, and reject unsupported client model ids before billing/provider execution."
+      "- Resolve the approved model id from the catalog, enforce a route-local allowlist, and reject unsupported client model ids before billing/provider execution.",
     );
   } else if (directRouteAuthority === "catalog-default-role-server-default") {
     lines.push(
-      "- Resolve the default model id from the catalog server-side and do not expose arbitrary model-id selection on the request contract."
+      "- Resolve the default model id from the catalog server-side and do not expose arbitrary model-id selection on the request contract.",
     );
   }
 
   if (directRouteRequiresBilling) {
-    lines.push("- Wire `chargeGenerationRequest` because the route is user-billable.");
+    lines.push(
+      "- Wire `chargeGenerationRequest` because the route is user-billable.",
+    );
   } else {
-    lines.push("- Do not wire `chargeGenerationRequest` unless the route becomes user-billable.");
+    lines.push(
+      "- Do not wire `chargeGenerationRequest` unless the route becomes user-billable.",
+    );
   }
 
   return lines;
@@ -238,7 +238,9 @@ function run() {
 
   const pricingStrategy = String(args["pricing-strategy"] || "").trim();
   const apiRouteSlug = String(args["api-route-slug"] || "").trim();
-  const sourceUrl = String(args["source-url"] || "").trim() || "https://example.com/provider-docs";
+  const sourceUrl =
+    String(args["source-url"] || "").trim() ||
+    "https://example.com/provider-docs";
   const verifiedAt = String(args["verified-at"] || "").trim() || "YYYY-MM-DD";
   const surfaces = parseList(args.surfaces || "picker,pricing,runtime");
   const defaultAspect = String(args["default-aspect"] || "").trim() || "1:1";
@@ -261,7 +263,9 @@ function run() {
   const reExportValidator = parseBooleanFlag(args, "re-export-validator");
   const directRoutePath = String(args["direct-route-path"] || "").trim();
   const directRouteKind = String(args["direct-route-kind"] || "").trim();
-  const directRouteAuthority = String(args["direct-route-authority"] || "").trim();
+  const directRouteAuthority = String(
+    args["direct-route-authority"] || "",
+  ).trim();
   const directRouteRequiresBilling = parseBooleanFlag(
     args,
     "direct-route-requires-billing",
@@ -280,7 +284,11 @@ function run() {
     ensureAllowed(routeValidator, ALLOWED_ROUTE_VALIDATORS, "routeValidator");
   }
   if (directRouteKind) {
-    ensureAllowed(directRouteKind, ALLOWED_DIRECT_ROUTE_KINDS, "directRouteKind");
+    ensureAllowed(
+      directRouteKind,
+      ALLOWED_DIRECT_ROUTE_KINDS,
+      "directRouteKind",
+    );
   }
   if (directRouteAuthority) {
     ensureAllowed(
@@ -387,7 +395,10 @@ function run() {
   console.log(`- ${rootDocPath}\n`);
 
   if (isQueuedProviderModel) {
-    const derivedRouteFileBase = suggestRouteFileBase(modelId, routeFileBase || apiRouteSlug);
+    const derivedRouteFileBase = suggestRouteFileBase(
+      modelId,
+      routeFileBase || apiRouteSlug,
+    );
     const resolvedRouteValidator = routeValidator || "generic";
 
     console.log("Fal/Kie route inventory snippet:\n");
@@ -433,10 +444,16 @@ function run() {
   console.log("Checklist:");
   console.log("- Verify provider docs and replace TODO values.");
   console.log("- Add catalog base entry and runtime metadata entry.");
-  console.log("- Reuse an existing adapter family if possible; only add new handler code for a new family.");
+  console.log(
+    "- Reuse an existing adapter family if possible; only add new handler code for a new family.",
+  );
   if (isQueuedProviderModel) {
-    console.log("- Add the route inventory entry in `scripts/lib/fal_route_inventory.js`.");
-    console.log("- Run `npm -C frontend run fal:routes:sync` and review the generated wrappers.");
+    console.log(
+      "- Add the route inventory entry in `scripts/lib/fal_route_inventory.js`.",
+    );
+    console.log(
+      "- Run `npm -C frontend run fal:routes:sync` and review the generated wrappers.",
+    );
     console.log("- Run `npm -C frontend run fal:routes:check`.");
   } else if (isDirectProviderRuntimeModel) {
     for (const line of resolveDirectRouteChecklistLines({
@@ -446,7 +463,9 @@ function run() {
       console.log(line);
     }
   } else {
-    console.log("- Add or confirm route coverage if this is a queued provider model.");
+    console.log(
+      "- Add or confirm route coverage if this is a queued provider model.",
+    );
   }
   console.log("- Add the API doc and update parity expectations if needed.");
   console.log("- Run `npm -C frontend run model:doctor`.");

@@ -3,10 +3,16 @@ import { describe, expect, it } from "vitest";
 import { normalizeImageResolutionForCanonicalBilledPricing } from "../imageResolution";
 
 describe("normalizeImageResolutionForCanonicalBilledPricing", () => {
-  it("maps GPT Image 2 UI resolution labels back to canonical quality rows", () => {
-    expect(normalizeImageResolutionForCanonicalBilledPricing("gpt-image-2", "1K")).toBe("low");
-    expect(normalizeImageResolutionForCanonicalBilledPricing("gpt-image-2", "2K")).toBe("medium");
-    expect(normalizeImageResolutionForCanonicalBilledPricing("gpt-image-2", "4K")).toBe("high");
+  it("preserves active Kie GPT Image 2 resolution rows for billed pricing", () => {
+    expect(
+      normalizeImageResolutionForCanonicalBilledPricing("kie-ai/gpt-image-2-text-to-image", "1K")
+    ).toBe("1K");
+    expect(
+      normalizeImageResolutionForCanonicalBilledPricing("kie-ai/gpt-image-2-text-to-image", "2K")
+    ).toBe("2K");
+    expect(
+      normalizeImageResolutionForCanonicalBilledPricing("kie-ai/gpt-image-2-text-to-image", "4K")
+    ).toBe("4K");
   });
 
   it("preserves authored non-GPT resolutions for other create models", () => {

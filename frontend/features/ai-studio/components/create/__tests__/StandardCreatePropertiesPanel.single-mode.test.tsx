@@ -154,7 +154,7 @@ describe("StandardCreatePropertiesPanel single mode", () => {
     createCharacterModeControllerState.selectedCharacterInitials = null;
   });
 
-  it("filters Kie GPT Image 2 create aspect options through catalog config", () => {
+  it("hides confusing Kie GPT Image 2 portrait crop aspect options", () => {
     render(
       <StandardCreatePropertiesPanel
         {...baseProps}
@@ -169,7 +169,7 @@ describe("StandardCreatePropertiesPanel single mode", () => {
       (latestProps?.aspectOptionsForModel as Array<{ value: string }> | undefined) ?? []
     ).map((option) => option.value);
 
-    expect(aspectValues).toEqual(["auto", "9:16", "4:5", "1:1", "5:4", "16:9"]);
+    expect(aspectValues).toEqual(["auto", "9:16", "1:1", "16:9"]);
   });
 
   it("passes a compact model label into the selected Create model dropdown", () => {

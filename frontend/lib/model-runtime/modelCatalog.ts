@@ -37,7 +37,6 @@ import {
   FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID,
   FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID,
 } from "./falModelIds";
-import { OPENAI_GPT_IMAGE_2_PROVIDER_ALLOWED_SIZES } from "./openAiImage2";
 import {
   KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_ALLOWED_ASPECTS,
   KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_ALLOWED_RESOLUTIONS,
@@ -196,7 +195,6 @@ const DEFAULT_ROLE_FALLBACK_MODEL_IDS: Record<ModelDefaultRole, string> = {
 
 const VERIFIED_AT = "2026-06-16";
 const KONTEXT_INPAINT_VERIFIED_AT = "2026-04-14";
-const GPT_IMAGE_2_VERIFIED_AT = "2026-06-14";
 const KIE_GPT_IMAGE_2_VERIFIED_AT = "2026-06-04";
 const OMNIHUMAN_V15_VERIFIED_AT = "2026-06-08";
 const OPENAI_TEXT_VERIFIED_AT = "2026-06-22";
@@ -336,27 +334,6 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     payloadValidation: {
       requiredStringFields: ["image_url"],
       optionalBooleanFields: ["sync_mode"],
-    },
-  },
-  "gpt-image-2": {
-    modelId: "gpt-image-2",
-    provider: "openai",
-    sourceUrl: "https://developers.openai.com/api/docs/models/gpt-image-2",
-    verifiedAt: GPT_IMAGE_2_VERIFIED_AT,
-    submitAspectField: "none",
-    defaultAspect: "1:1",
-    allowedAspects: ["auto", "9:16", "4:5", "1:1", "5:4", "16:9"],
-    defaultResolution: "medium",
-    allowedResolutions: ["low", "medium", "high"],
-    payloadValidation: {
-      requiredStringFields: ["prompt"],
-      enumFields: {
-        size: [...OPENAI_GPT_IMAGE_2_PROVIDER_ALLOWED_SIZES],
-        quality: ["low", "medium", "high"],
-        output_format: ["png", "jpeg", "webp"],
-        moderation: ["auto", "low"],
-      },
-      optionalNumberFields: ["n", "output_compression"],
     },
   },
   [FAL_NANO_BANANA_2_MODEL_ID]: {
@@ -1252,17 +1229,6 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     promptPolicy: "optional",
     gridEligible: false,
     apiRouteSlug: "bria-background-remove",
-  }),
-  "gpt-image-2": disabledHiddenCatalogRuntime({
-    label: "GPT Image 2",
-    mediaType: "image",
-    pricingStrategy: "gpt-image-2-per-image",
-    displayFamily: "Image",
-    displayOrder: 110,
-    pricingFamily: "Image",
-    logoKey: "openai",
-    replacementModelId: KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
-    surfaceNote: "Retired direct OpenAI GPT Image 2 route; use active Kie GPT Image 2 lanes.",
   }),
   [KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID]: activePickerPricingRuntime({
     label: "GPT Image 2 (Kie)",

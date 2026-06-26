@@ -25,12 +25,6 @@ const CREATE_IMAGE_RUNTIME_AUTHORITY_BY_STRATEGY: Partial<
     ModelPricingRuntimeAuthorities["create_image"]
   >
 > = {
-  "gpt-image-2-per-image": {
-    mode: "runtime_quantity_derived",
-    workflow: "create_image",
-    unitBasis: "per_image",
-    quantityDrivers: ["generation_count", "input_image_count"],
-  },
   "kie-gpt-image-2-per-image": {
     mode: "runtime_quantity_derived",
     workflow: "create_image",
@@ -65,14 +59,7 @@ const CREATE_IMAGE_RUNTIME_AUTHORITY_BY_STRATEGY: Partial<
 
 const EDIT_IMAGE_RUNTIME_AUTHORITY_BY_STRATEGY: Partial<
   Record<NonNullable<ModelConfig["pricingStrategy"]>, ModelPricingRuntimeAuthorities["edit_image"]>
-> = {
-  "gpt-image-2-per-image": {
-    mode: "runtime_quantity_derived",
-    workflow: "edit_image",
-    unitBasis: "per_image",
-    quantityDrivers: ["generation_count", "input_image_count"],
-  },
-};
+> = {};
 
 const orderWithDefaultFirst = <T extends string | null>(values: T[], defaultValue: T): T[] => {
   const ordered: T[] = [];

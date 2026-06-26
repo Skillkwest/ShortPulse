@@ -988,7 +988,7 @@ describe("AI Studio Create agent runtime boundaries", () => {
         ...createBaseRequestBody(),
         context: {
           activePrompt: "Golden-hour portrait with premium editorial styling.",
-          modelId: "gpt-image-2",
+          modelId: "removed-openai-image-model",
           modeHint: "reference",
           focusedSource: "prompt",
           lastAssistantMessage: "Would you like this to feel softer or more dramatic?",
@@ -1034,7 +1034,7 @@ describe("AI Studio Create agent runtime boundaries", () => {
     expect(systemMessage).toContain("Selected reference count: 1");
     expect(systemMessage).toContain("Prompt reference count: 1");
     expect(systemMessage).toContain("Image reference count: 1");
-    expect(systemMessage).toContain("Current model id: gpt-image-2");
+    expect(systemMessage).toContain("Current model id: removed-openai-image-model");
   });
 
   it("adds Standard reply-behavior guidance for follow-up and assistant-output-focused turns", async () => {

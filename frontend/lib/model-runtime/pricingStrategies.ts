@@ -3,15 +3,6 @@
  */
 import { getModelConfig } from "./modelRegistry";
 import { resolveAspectSize } from "./modelSizes";
-import {
-  OPENAI_GPT_IMAGE_2_CREATE_COSTS_USD,
-  OPENAI_GPT_IMAGE_2_SIZE_TO_DIMENSIONS,
-  type OpenAiImage2Quality,
-  resolveOpenAiGptImage2InputImageUsd,
-  normalizeOpenAiGptImage2Quality,
-  normalizeOpenAiGptImage2InputFidelity,
-  resolveOpenAiGptImage2SizeForAspect,
-} from "./openAiImage2";
 import { convertUsdToCredits } from "./pricingCredits";
 import { CostBreakdown, PricingParams, PricingStrategyId } from "./pricingTypes";
 import {
@@ -180,20 +171,6 @@ const resolveImageSizeForMp = (params: PricingParams) => {
   return resolveAspectSize(params.aspect, config.sizeMap, config.defaultAspect);
 };
 
-const resolveGptImage2Size = (
-  params: Omit<PricingParams, "modelId">
-): keyof typeof OPENAI_GPT_IMAGE_2_CREATE_COSTS_USD => {
-  const directSize = (params.size ?? "").trim() as keyof typeof OPENAI_GPT_IMAGE_2_CREATE_COSTS_USD;
-  if (directSize in OPENAI_GPT_IMAGE_2_CREATE_COSTS_USD) {
-    return directSize;
-  }
-  return resolveOpenAiGptImage2SizeForAspect(params.aspect);
-};
-
-const resolveGptImage2Quality = (params: Omit<PricingParams, "modelId">): OpenAiImage2Quality => {
-  return normalizeOpenAiGptImage2Quality(params.quality ?? params.resolution);
-};
-
 const computeFalPerMpCost: StrategyFn = ({
   modelId,
   aspect,
@@ -359,57 +336,6 @@ const computeKieGptImage2PerImageCost: StrategyFn = ({
       baseVariantId: "default",
       aspect: aspect ?? getModelConfig(modelId)?.defaultAspect ?? null,
       resolution: normalizedResolution,
-    }),
-  });
-};
-
-const computeGptImage2PerImageCost: StrategyFn = ({
-  modelId,
-  generationCount,
-  pricingPolicy,
-  inputImageCount = 0,
-  inputFidelity,
-  maskPresent = false,
-  ...params
-}) => {
-  const size = resolveGptImage2Size(params);
-  const quality = resolveGptImage2Quality(params);
-  const outputUsdPerImage = OPENAI_GPT_IMAGE_2_CREATE_COSTS_USD[size][quality];
-  const outputCount = resolveOutputCount(generationCount);
-  const dimensions = OPENAI_GPT_IMAGE_2_SIZE_TO_DIMENSIONS[size];
-  const megapixels = (dimensions.width * dimensions.height) / 1_000_000;
-  const normalizedInputImageCount = Math.max(
-    0,
-    Math.round(resolvePositiveFiniteNumber(inputImageCount) ?? 0)
-  );
-  const normalizedInputFidelity = normalizeOpenAiGptImage2InputFidelity(inputFidelity);
-  const perInputImageUsd = resolveOpenAiGptImage2InputImageUsd({
-    size,
-    inputFidelity: normalizedInputFidelity,
-  });
-  const maskUsd = maskPresent
-    ? resolveOpenAiGptImage2InputImageUsd({
-        size,
-        inputFidelity: "low",
-      })
-    : 0;
-  return toCostBreakdown({
-    modelId,
-    usdRaw:
-      outputUsdPerImage * outputCount + perInputImageUsd * normalizedInputImageCount + maskUsd,
-    megapixels,
-    width: dimensions.width,
-    height: dimensions.height,
-    policy: pricingPolicy,
-    variantId: resolveModelPricingVariantId({
-      modelId,
-      inputImageCount,
-      inputFidelity,
-      maskPresent,
-      size,
-      quality,
-      resolution: quality,
-      pricingPolicy,
     }),
   });
 };
@@ -811,7 +737,6 @@ export const pricingStrategies: Record<PricingStrategyId, StrategyFn> = {
   "fal-economy-image-per-mp": computeEconomyFalImageCost,
   "fal-fill-per-mp": computeFalFillPerMpCost,
   "fal-flux-kontext-inpaint-per-mp": computeFluxKontextInpaintPerMpCost,
-  "gpt-image-2-per-image": computeGptImage2PerImageCost,
   "google-nano-banana-per-image": computeGoogleNanoBananaPerImageCost,
   "kie-gpt-image-2-per-image": computeKieGptImage2PerImageCost,
   "nano-banana-2-per-image": computeNanoBanana2PerImageCost,

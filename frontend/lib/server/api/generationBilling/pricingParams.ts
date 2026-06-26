@@ -3,12 +3,6 @@ import type { PricingParams } from "../../../model-runtime/pricingTypes";
 import { getModelCatalogEntry } from "../../../model-runtime/modelCatalog";
 import { normalizeDurationForModel as normalizeSharedDurationForModel } from "../../../model-runtime/modelDurationConstraints";
 import {
-  isOpenAiGptImage2Size,
-  OPENAI_GPT_IMAGE_2_MODEL_ID,
-  resolveOpenAiGptImage2AspectForSize,
-  normalizeOpenAiGptImage2Quality,
-} from "../../../model-runtime/openAiImage2";
-import {
   FAL_FLUX_2_KLEIN_9B_MODEL_ID,
   FAL_FLUX_2_KLEIN_AUDIO_COMPANION_ART_VARIANT_BASE_ID,
   FAL_FLUX_2_KLEIN_STYLE_PREVIEW_VARIANT_BASE_ID,
@@ -68,8 +62,7 @@ const resolveContextDurationSeconds = (context?: JsonObject | null): number | un
 
 const resolveExplicitImageSize = (payload: JsonObject): string | undefined => {
   const directSize = asString(payload.size) ?? asString(payload.image_size);
-  if (!directSize || !isOpenAiGptImage2Size(directSize)) return undefined;
-  return directSize.trim().toLowerCase();
+  return directSize?.trim().toLowerCase() || undefined;
 };
 
 const resolveInputImageCount = (payload: JsonObject): number | undefined => {
@@ -136,10 +129,6 @@ const resolveAspectFromImageSize = (
   if (directAspect) return directAspect;
 
   const explicitSize = resolveExplicitImageSize(payload);
-  if (explicitSize && modelId === OPENAI_GPT_IMAGE_2_MODEL_ID) {
-    const openAiAspect = resolveOpenAiGptImage2AspectForSize(explicitSize);
-    if (openAiAspect) return openAiAspect;
-  }
   if (explicitSize === "1024x1024") return "1:1";
   if (explicitSize === "1024x1536") return "9:16";
   if (explicitSize === "1536x1024") return "16:9";
@@ -224,9 +213,6 @@ const normalizeResolutionForModel = (
   modelId: string
 ): string | undefined => {
   if (!resolution) return undefined;
-  if (modelId === OPENAI_GPT_IMAGE_2_MODEL_ID) {
-    return normalizeOpenAiGptImage2Quality(resolution);
-  }
   const config = getModelConfig(modelId);
   const allowed = config?.allowedResolutions ?? [];
   if (!allowed.length) return resolution;

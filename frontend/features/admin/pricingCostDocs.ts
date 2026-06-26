@@ -48,10 +48,7 @@ export const getCostDocsPosition = (clientX: number, clientY: number): { x: numb
   };
 };
 
-const getProviderPricingDocLines = (
-  model: AdminPricingModelRow,
-  variant: AdminPricingPreviewVariant | null
-): string[] => {
+const getProviderPricingDocLines = (model: AdminPricingModelRow): string[] => {
   switch (model.pricingStrategy) {
     case "fal-per-mp":
       return [
@@ -77,15 +74,6 @@ const getProviderPricingDocLines = (
       return [
         "Provider cost basis used here: $0.035 per output megapixel.",
         "Workbook formula: output width x height / 1,000,000 multiplied by the provider rate.",
-      ];
-    case "gpt-image-2-per-image":
-      return [
-        "Provider cost basis used here: GPT Image 2 output image price by size and quality.",
-        "1024x1024: low $0.006, medium $0.053, high $0.211.",
-        "1024x1536 or 1536x1024: low $0.005, medium $0.041, high $0.165.",
-        variant?.id === "edit"
-          ? "Edit rows add the deterministic input-image surcharge for the selected size and input fidelity."
-          : "Create rows use only the output image price unless extra inputs are supplied.",
       ];
     case "google-nano-banana-per-image":
       return [
@@ -186,7 +174,7 @@ export const getProviderPricingDocs = (
 ): Omit<CostDocsPopover, "x" | "y"> => ({
   title: `${model.label}${variant && variant.id !== "default" ? ` ${variant.label}` : ""}`,
   sourceUrl: model.sourceUrl,
-  lines: getProviderPricingDocLines(model, variant),
+  lines: getProviderPricingDocLines(model),
 });
 
 const mapDraftPricingBreakdown = (

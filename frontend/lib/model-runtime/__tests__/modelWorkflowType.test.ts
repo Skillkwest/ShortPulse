@@ -23,7 +23,7 @@ describe("getAdminModelWorkflowType", () => {
   it("maps dual-capability image models to the combined admin label", () => {
     expect(
       getAdminModelWorkflowType({
-        id: "gpt-image-2",
+        id: "example/dual-image-model",
         mediaType: "image",
         supportsTextToImage: true,
         supportsImageToImage: true,

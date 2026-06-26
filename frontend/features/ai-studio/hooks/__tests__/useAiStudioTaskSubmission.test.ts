@@ -726,7 +726,7 @@ describe("useAiStudioTaskSubmission", () => {
       useAiStudioTaskSubmission({
         aspect: "9:16",
         mode: "image",
-        model: "gpt-image-2",
+        model: "removed-openai-image-model",
         prompt: "",
         selectedTool: "create",
         imageResolution: "2K",
@@ -773,7 +773,7 @@ describe("useAiStudioTaskSubmission", () => {
     expect(notifyGenerationFailure).toHaveBeenCalledWith(
       outputs[0]?.id,
       "Generation failed to start. Please retry.",
-      "Model 'gpt-image-2' is not registered for AI Studio generation submission.",
+      "Model 'removed-openai-image-model' is not registered for AI Studio generation submission.",
       expect.objectContaining({
         reasonCode: "SUBMIT_NOT_STARTED",
         telemetryMode: "state_only",
@@ -984,7 +984,7 @@ describe("useAiStudioTaskSubmission", () => {
       useAiStudioTaskSubmission({
         aspect: "9:16",
         mode: "image",
-        model: "gpt-image-2",
+        model: "removed-openai-image-model",
         prompt: "",
         currentCostCredits: 11,
         promptReferenceGenerateCostCredits: 7,

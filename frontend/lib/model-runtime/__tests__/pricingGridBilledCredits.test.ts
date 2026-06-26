@@ -64,22 +64,6 @@ describe("pricingGridBilledCredits", () => {
     });
   });
 
-  it("returns distinct billed credits for pricing-grid GPT Image 2 quality tiers", () => {
-    expect(
-      resolvePricingGridCostBreakdown({
-        modelId: "gpt-image-2",
-        params: {
-          aspect: "16:9",
-          resolution: "medium",
-        },
-        pricingPolicy: pricingGridPolicy,
-      })
-    ).toMatchObject({
-      credits: 4,
-      variantId: "default|res:medium|aspect:16:9",
-    });
-  });
-
   it("resolves Flux2 Klein semantic admin rows for audio background and style placeholder image variants", () => {
     expect(
       resolvePricingGridCostBreakdown({

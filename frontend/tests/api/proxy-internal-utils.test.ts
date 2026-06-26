@@ -27,14 +27,6 @@ describe("API proxy protections", () => {
     expect(response.status).toBe(401);
   });
 
-  it("hides retired direct OpenAI image routes before auth", async () => {
-    const generateRequest = new NextRequest("http://localhost:3000/api/openai/image-generate");
-    const editRequest = new NextRequest("http://localhost:3000/api/openai/image-edit");
-
-    await expect(proxy(generateRequest)).resolves.toHaveProperty("status", 404);
-    await expect(proxy(editRequest)).resolves.toHaveProperty("status", 404);
-  });
-
   it("enforces auth on the Kie upload helper route", async () => {
     const request = new NextRequest("http://localhost:3000/api/kie/upload-url");
     const response = await proxy(request);

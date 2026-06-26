@@ -63,18 +63,18 @@ describe("useAiStudioPageDerivations", () => {
     expect(params.durationSeconds).toBe(8);
   });
 
-  it("does not add retired direct GPT Image 2 edit pricing inputs", () => {
+  it("does not add removed image-model edit pricing inputs", () => {
     const { result } = renderHook(() =>
       useAiStudioPageDerivations(
         createParams({
-          model: "gpt-image-2",
+          model: "removed-openai-image-model",
           referenceImageUrl: "https://example.com/base.png",
           extraImageUrls: ["https://example.com/ref.png", null, null],
         })
       )
     );
 
-    const params = result.current.costParamsForModel("gpt-image-2");
+    const params = result.current.costParamsForModel("removed-openai-image-model");
     expect(params.inputImageCount).toBeUndefined();
     expect(params.inputFidelity).toBeUndefined();
   });

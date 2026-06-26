@@ -316,7 +316,7 @@ describe("sessionSnapshot", () => {
       mode: "image",
       selectedTool: "create",
       prompt: "Editorial portrait",
-      model: "gpt-image-2",
+      model: "removed-openai-image-model",
       aspect: "16:9",
       expertCreateMode: "standard",
       activePulsePresetId: null,

@@ -2,19 +2,18 @@
  * Shared admin-pricing-grid variant expansion rules.
  * Keeps runtime billed-credit lookups aligned with how the admin pricing grid authors rows.
  */
-import { OPENAI_GPT_IMAGE_2_UI_ALLOWED_ASPECTS } from "./openAiImage2";
+
+const GPT_IMAGE_2_APP_SUPPORTED_ASPECTS = ["9:16", "4:5", "1:1", "5:4", "16:9"] as const;
 
 const ASPECT_EXPANDED_PRICING_STRATEGIES = new Set<string>([
   "fal-per-mp",
   "fal-economy-image-per-mp",
   "fal-fill-per-mp",
   "fal-flux-kontext-inpaint-per-mp",
-  "gpt-image-2-per-image",
   "kie-gpt-image-2-per-image",
 ]);
 
 const RESOLUTION_EXPANDED_PRICING_STRATEGIES = new Set<string>([
-  "gpt-image-2-per-image",
   "kie-gpt-image-2-per-image",
   "kling-3-per-second",
   "nano-banana-2-per-image",
@@ -54,14 +53,8 @@ export const resolvePricingGridAspectOptions = ({
     ? [...allowedAspects]
     : [defaultAspect].filter((value): value is string => Boolean(value));
 
-  if (pricingStrategy === "gpt-image-2-per-image") {
-    return [...OPENAI_GPT_IMAGE_2_UI_ALLOWED_ASPECTS].filter((aspect) =>
-      baseAspects.includes(aspect)
-    );
-  }
-
   if (pricingStrategy === "kie-gpt-image-2-per-image") {
-    const appAspects = ["auto", ...OPENAI_GPT_IMAGE_2_UI_ALLOWED_ASPECTS];
+    const appAspects = ["auto", ...GPT_IMAGE_2_APP_SUPPORTED_ASPECTS];
     return appAspects.filter((aspect) => baseAspects.includes(aspect));
   }
 

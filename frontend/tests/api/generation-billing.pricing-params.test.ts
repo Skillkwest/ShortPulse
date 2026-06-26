@@ -142,45 +142,4 @@ describe("generationBilling pricing params normalization", () => {
     expect(params.imageWidth).toBe(2048);
     expect(params.imageHeight).toBe(1024);
   });
-
-  it("normalizes gpt-image-2 size, quality, and count aliases into pricing params", () => {
-    const params = buildPricingParams("gpt-image-2", {
-      size: "1024x1536",
-      quality: "HIGH",
-      n: 2.4,
-    });
-
-    expect(params.size).toBe("1024x1536");
-    expect(params.aspect).toBe("9:16");
-    expect(params.resolution).toBe("high");
-    expect(params.quality).toBe("high");
-    expect(params.generationCount).toBe(2);
-  });
-
-  it("falls back to gpt-image-2 model defaults when size and quality are omitted", () => {
-    const params = buildPricingParams("gpt-image-2", {});
-
-    expect(params.aspect).toBe("1:1");
-    expect(params.resolution).toBe("medium");
-  });
-
-  it("normalizes gpt-image-2 edit payload inputs into pricing params", () => {
-    const params = buildPricingParams("gpt-image-2", {
-      size: "1536x1024",
-      quality: "MEDIUM",
-      input_fidelity: "high",
-      images: [
-        { image_url: "https://example.com/base.png" },
-        { image_url: "https://example.com/ref.png" },
-      ],
-      mask: { image_url: "https://example.com/mask.png" },
-    });
-
-    expect(params.size).toBe("1536x1024");
-    expect(params.aspect).toBe("16:9");
-    expect(params.quality).toBe("medium");
-    expect(params.inputFidelity).toBe("high");
-    expect(params.inputImageCount).toBe(2);
-    expect(params.maskPresent).toBe(true);
-  });
 });

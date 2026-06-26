@@ -56,16 +56,16 @@ describe("GET /api/admin/pricing/state", () => {
     requireAdminUserMock.mockResolvedValue({ id: "admin-1", email: "admin@example.com" });
     listModelConfigsMock.mockReturnValue([
       {
-        id: "gpt-image-2",
-        label: "GPT Image 2",
-        provider: "openai",
-        sourceUrl: "https://developers.openai.com/api/docs/models/gpt-image-2",
+        id: "kie-ai/gpt-image-2-text-to-image",
+        label: "GPT Image 2 (Kie)",
+        provider: "kie",
+        sourceUrl: "https://docs.kie.ai/",
         mediaType: "image",
         supportsTextToImage: true,
-        supportsImageToImage: true,
-        pricingStrategy: "gpt-image-2-per-image",
+        supportsImageToImage: false,
+        pricingStrategy: "kie-gpt-image-2-per-image",
         defaultAspect: "1:1",
-        defaultResolution: "medium",
+        defaultResolution: "1K",
         defaultDurationSeconds: undefined,
       },
     ]);
@@ -197,16 +197,16 @@ describe("GET /api/admin/pricing/state", () => {
         defaultDurationSeconds: undefined,
       },
       {
-        id: "gpt-image-2",
-        label: "GPT Image 2",
-        provider: "openai",
-        sourceUrl: "https://developers.openai.com/api/docs/models/gpt-image-2",
+        id: "kie-ai/gpt-image-2-text-to-image",
+        label: "GPT Image 2 (Kie)",
+        provider: "kie",
+        sourceUrl: "https://docs.kie.ai/",
         mediaType: "image",
         supportsTextToImage: true,
-        supportsImageToImage: true,
-        pricingStrategy: "gpt-image-2-per-image",
+        supportsImageToImage: false,
+        pricingStrategy: "kie-gpt-image-2-per-image",
         defaultAspect: "1:1",
-        defaultResolution: "medium",
+        defaultResolution: "1K",
         defaultDurationSeconds: undefined,
       },
     ]);
@@ -414,34 +414,6 @@ describe("GET /api/admin/pricing/state", () => {
           creditUsdScale: 100,
           policySource: "control_plane",
         }),
-        models: expect.arrayContaining([
-          expect.objectContaining({
-            id: "gpt-image-2",
-            workflowType: "Text + image edit",
-            pricingStrategyLabel: "Per image",
-            roundingIncrement: 1,
-            pricingPreview: expect.objectContaining({
-              billedCredits: 10,
-              usdRaw: 0.08,
-            }),
-            pricingPreviewVariants: [
-              expect.objectContaining({
-                id: "create",
-                label: "Create",
-                breakdown: expect.objectContaining({
-                  billedCredits: 10,
-                }),
-              }),
-              expect.objectContaining({
-                id: "edit",
-                label: "Edit",
-                breakdown: expect.objectContaining({
-                  billedCredits: 15,
-                }),
-              }),
-            ],
-          }),
-        ]),
         plans: [
           expect.objectContaining({
             planId: "studio",
@@ -486,10 +458,13 @@ describe("GET /api/admin/pricing/state", () => {
       models: Array<{ id: string }>;
       health: { warnings: string[] };
     };
+    expect(payload.models).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: "gpt-image-2" })])
+    );
     expect(payload.models.map((model) => model.id)).toEqual([
       "kie-kling-3",
       "bria-background-remove",
-      "gpt-image-2",
+      "kie-ai/gpt-image-2-text-to-image",
     ]);
     expect(payload.health.warnings).toContain(
       "1 active storage add-on missing a current public offer."

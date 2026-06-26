@@ -9,7 +9,6 @@ import {
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../lib/model-runtime/providerModelIds";
 import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../../../../lib/model-runtime/falModelIds";
-import { OPENAI_GPT_IMAGE_2_MODEL_ID } from "../../../../lib/model-runtime/openAiImage2";
 import {
   INPAINT_FLUX_FILL_MODEL_ID,
   INPAINT_REFERENCE_MODEL_ID,
@@ -28,6 +27,8 @@ import {
 } from "../../../../lib/model-runtime/pricingPolicy";
 import { materializeImageBilledCreditPolicy } from "../../../../lib/model-runtime/materializeImageBilledCreditPolicy";
 import type { CharacterModeInjectionBundle } from "../useAiStudioCharacterModeController";
+
+const REMOVED_OPENAI_IMAGE_MODEL_ID = "removed-openai-image-model";
 import { CHARACTER_MODE_EMPTY_LOOK_GUARDRAIL } from "../../logic/characterModeReferenceReadiness";
 import {
   createEmptyLipSyncAudioState,
@@ -419,8 +420,8 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.promptReferenceGenerateCostCredits).toBe(expectedCost);
   });
 
-  it("prices stale direct GPT Image 2 Character Mode as the active default edit model", () => {
-    const modelId = OPENAI_GPT_IMAGE_2_MODEL_ID;
+  it("does not price stale removed image-model Character Mode bundles", () => {
+    const modelId = REMOVED_OPENAI_IMAGE_MODEL_ID;
     const createCharacterModeInjectionBundle: CharacterModeInjectionBundle = {
       characterId: "char-1",
       characterDescription: "Silver-haired warrior",
@@ -431,8 +432,6 @@ describe("useAiStudioViewModel motion guardrails", () => {
       ],
       loadedAtMs: Date.now(),
     };
-    const expectedCost = 4;
-
     const { result } = renderHook(() =>
       useAiStudioViewModel({
         ...baseInput,
@@ -452,13 +451,15 @@ describe("useAiStudioViewModel motion guardrails", () => {
       })
     );
 
-    expect(result.current.promptReferenceGenerateCostCredits).toBe(expectedCost);
-    expect(result.current.generationGuardrail).toBeNull();
-    expect(result.current.isGenerateDisabled).toBe(false);
+    expect(result.current.promptReferenceGenerateCostCredits).toBeNull();
+    expect(result.current.generationGuardrail).toBe(
+      "Pricing is unavailable for this configuration. Retry in a moment."
+    );
+    expect(result.current.isGenerateDisabled).toBe(true);
   });
 
-  it("keeps single-ref stale direct GPT Image 2 Character Mode on the active default edit row", () => {
-    const modelId = OPENAI_GPT_IMAGE_2_MODEL_ID;
+  it("does not price single-ref stale removed image-model Character Mode bundles", () => {
+    const modelId = REMOVED_OPENAI_IMAGE_MODEL_ID;
     const createCharacterModeInjectionBundle: CharacterModeInjectionBundle = {
       characterId: "char-1",
       characterDescription: "Silver-haired warrior",
@@ -466,8 +467,6 @@ describe("useAiStudioViewModel motion guardrails", () => {
       sheetReferenceUrls: ["https://cdn.shortpulse.test/look-1.png"],
       loadedAtMs: Date.now(),
     };
-    const expectedCost = 4;
-
     const { result } = renderHook(() =>
       useAiStudioViewModel({
         ...baseInput,
@@ -487,9 +486,11 @@ describe("useAiStudioViewModel motion guardrails", () => {
       })
     );
 
-    expect(result.current.promptReferenceGenerateCostCredits).toBe(expectedCost);
-    expect(result.current.generationGuardrail).toBeNull();
-    expect(result.current.isGenerateDisabled).toBe(false);
+    expect(result.current.promptReferenceGenerateCostCredits).toBeNull();
+    expect(result.current.generationGuardrail).toBe(
+      "Pricing is unavailable for this configuration. Retry in a moment."
+    );
+    expect(result.current.isGenerateDisabled).toBe(true);
   });
 
   it("blocks Create Character Mode when the selected character look has no references", () => {
@@ -669,8 +670,8 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.isGenerateDisabled).toBe(false);
   });
 
-  it("does not price retired direct GPT Image 2 Create", () => {
-    const modelId = OPENAI_GPT_IMAGE_2_MODEL_ID;
+  it("does not price removed image-model Create", () => {
+    const modelId = REMOVED_OPENAI_IMAGE_MODEL_ID;
     const { result } = renderHook(() =>
       useAiStudioViewModel({
         ...baseInput,
@@ -799,7 +800,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
   });
 
   it("fails closed when Create text-to-image pricing authority is unavailable", () => {
-    const modelId = OPENAI_GPT_IMAGE_2_MODEL_ID;
+    const modelId = REMOVED_OPENAI_IMAGE_MODEL_ID;
     const { result } = renderHook(() =>
       useAiStudioViewModel({
         ...baseInput,
@@ -864,8 +865,8 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.resolveModelPickerCredits(candidateModelId)).toBe(expectedCredits);
   });
 
-  it("does not price retired selected gpt-image-2 create image costs", () => {
-    const modelId = OPENAI_GPT_IMAGE_2_MODEL_ID;
+  it("does not price removed selected image-model create image costs", () => {
+    const modelId = REMOVED_OPENAI_IMAGE_MODEL_ID;
     const costParamsForModel = (
       targetModelId: string,
       overrides?: Omit<PricingParams, "modelId">
@@ -1892,16 +1893,16 @@ describe("useAiStudioViewModel edit guardrails", () => {
     expect(result.current.isGenerateDisabled).toBe(false);
   });
 
-  it("does not price retired direct GPT Image 2 Edit", () => {
+  it("does not price removed image-model Edit", () => {
     const { result } = renderHook(() =>
       useAiStudioViewModel({
         ...editInput,
-        model: OPENAI_GPT_IMAGE_2_MODEL_ID,
+        model: REMOVED_OPENAI_IMAGE_MODEL_ID,
         aspect: "16:9",
         prompt: "Restyle the portrait subtly.",
         referenceImageUrl: "https://example.com/reference.png",
         imageResolution: "2K",
-        costParamsForModel: makeCostParamsForModel(OPENAI_GPT_IMAGE_2_MODEL_ID),
+        costParamsForModel: makeCostParamsForModel(REMOVED_OPENAI_IMAGE_MODEL_ID),
         pricingPolicy: pricingGridPolicy,
       })
     );
@@ -1910,17 +1911,17 @@ describe("useAiStudioViewModel edit guardrails", () => {
     expect(result.current.modelPickerCostCredits).toBeNull();
   });
 
-  it("does not price retired direct GPT Image 2 multi-ref Edit", () => {
+  it("does not price removed image-model multi-ref Edit", () => {
     const { result } = renderHook(() =>
       useAiStudioViewModel({
         ...editInput,
-        model: OPENAI_GPT_IMAGE_2_MODEL_ID,
+        model: REMOVED_OPENAI_IMAGE_MODEL_ID,
         aspect: "16:9",
         prompt: "Restyle the portrait subtly.",
         referenceImageUrl: "https://example.com/reference.png",
         extraImageUrls: ["https://example.com/look.png", null, null],
         imageResolution: "2K",
-        costParamsForModel: makeCostParamsForModel(OPENAI_GPT_IMAGE_2_MODEL_ID),
+        costParamsForModel: makeCostParamsForModel(REMOVED_OPENAI_IMAGE_MODEL_ID),
         pricingPolicy: pricingGridPolicy,
       })
     );

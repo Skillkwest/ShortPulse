@@ -73,7 +73,7 @@ describe("model pricing policy routes", () => {
         creditUsdScale: 100,
         document: expect.objectContaining({
           perModel: expect.objectContaining({
-            "gpt-image-2": expect.objectContaining({
+            "kie-ai/gpt-image-2-text-to-image": expect.objectContaining({
               runtimeAuthorities: expect.objectContaining({
                 create_image: expect.objectContaining({
                   mode: "runtime_quantity_derived",

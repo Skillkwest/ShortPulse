@@ -11,7 +11,6 @@ import {
   KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
 } from "../../../../../lib/model-runtime/providerModelIds";
-import { OPENAI_GPT_IMAGE_2_MODEL_ID } from "../../../../../lib/model-runtime/openAiImage2";
 import { resolveSubmissionHandlerRoute } from "../routing";
 
 describe("resolveSubmissionHandlerRoute", () => {
@@ -59,7 +58,7 @@ describe("resolveSubmissionHandlerRoute", () => {
       "unsupported"
     );
     expect(resolveSubmissionHandlerRoute(FAL_NANO_BANANA_2_MODEL_ID)).toBe("default");
-    expect(resolveSubmissionHandlerRoute(OPENAI_GPT_IMAGE_2_MODEL_ID)).toBe("unsupported");
+    expect(resolveSubmissionHandlerRoute("removed-openai-image-model")).toBe("unsupported");
     expect(resolveSubmissionHandlerRoute("legacy/provider-image")).toBe("unsupported");
     expect(resolveSubmissionHandlerRoute("custom/unknown-model")).toBe("unsupported");
   });

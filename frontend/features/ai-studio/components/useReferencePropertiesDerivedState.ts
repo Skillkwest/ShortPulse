@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import type { AspectOption, VideoReferenceMode } from "../types";
 import { getModelConfig } from "../logic/modelRegistry";
 import { clampImageResolutionForModel, getImageResolutionOptions } from "../logic/imageResolution";
+import { filterAspectOptionsForModel } from "../logic/modelAspectOptions";
 import {
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
@@ -223,12 +224,12 @@ export const useReferencePropertiesDerivedState = ({
   }, [isVideoVariant, modelConfig]);
 
   const aspectOptionsForModel = useMemo(() => {
-    if (!modelConfig) return aspectOptions;
-    if (modelConfig.allowedAspects?.length) {
-      return aspectOptions.filter((option) => modelConfig.allowedAspects?.includes(option.value));
-    }
-    return aspectOptions;
-  }, [aspectOptions, modelConfig]);
+    return filterAspectOptionsForModel({
+      modelId,
+      allowedAspects: modelConfig?.allowedAspects,
+      options: aspectOptions,
+    });
+  }, [aspectOptions, modelConfig?.allowedAspects, modelId]);
 
   return {
     isVideoVariant,

@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Dispatch, SetStateAction } from "react";
 import { createInternalMediaRef } from "../../../../lib/media/internalMediaRefs";
 import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../../../../lib/model-runtime/falModelIds";
-import { OPENAI_GPT_IMAGE_2_MODEL_ID } from "../../../../lib/model-runtime/openAiImage2";
 import { KIE_KLING_30_MODEL_ID } from "../../../../lib/model-runtime/providerModelIds";
 import type { StudioOutput } from "../../types";
 import {
@@ -14,6 +13,8 @@ import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../../logic/editPromptPolicy";
 import { INPAINT_FLUX_FILL_MODEL_ID } from "../../logic/inpaintSubmission";
 import { CREATE_CHARACTER_MODE_DEFAULT_MODEL_ID } from "../../logic/createCharacterModeModelMapping";
 import { useAiStudioGenerationController } from "../useAiStudioGenerationController";
+
+const REMOVED_OPENAI_IMAGE_MODEL_ID = "removed-openai-image-model";
 
 const asDispatch = <T>(fn: (...args: unknown[]) => unknown): Dispatch<SetStateAction<T>> =>
   fn as unknown as Dispatch<SetStateAction<T>>;
@@ -362,11 +363,11 @@ describe("useAiStudioGenerationController", () => {
     expect(generateResult).toEqual({ accepted: true, optimisticOutputId: "out-optimistic" });
   });
 
-  it("marks retired gpt-image-2 optimistic placeholders as provider-task submissions", async () => {
+  it("marks removed image-model optimistic placeholders as provider-task submissions", async () => {
     const insertOptimisticGenerationPlaceholder = vi.fn(() => "out-openai");
     const generateOutput = vi.fn();
     const params = createParams({
-      model: OPENAI_GPT_IMAGE_2_MODEL_ID,
+      model: REMOVED_OPENAI_IMAGE_MODEL_ID,
       generateOutput,
       insertOptimisticGenerationPlaceholder,
     });
@@ -1376,12 +1377,12 @@ describe("useAiStudioGenerationController", () => {
     );
   });
 
-  it("routes stale direct GPT Image 2 create character-mode submits through the active default", async () => {
+  it("routes stale removed image-model create character-mode submits through the active default", async () => {
     const setModel = vi.fn();
     const generateOutput = vi.fn();
     const trackCharacterModeEvent = vi.fn();
     const params = createParams({
-      model: OPENAI_GPT_IMAGE_2_MODEL_ID,
+      model: REMOVED_OPENAI_IMAGE_MODEL_ID,
       setModel,
       isCharacterModeEnabled: true,
       generateOutput,
@@ -1407,7 +1408,7 @@ describe("useAiStudioGenerationController", () => {
       "character_mode_submit_invariant_coerced",
       expect.objectContaining({
         trigger: "generate",
-        from_model_id: OPENAI_GPT_IMAGE_2_MODEL_ID,
+        from_model_id: REMOVED_OPENAI_IMAGE_MODEL_ID,
         to_model_id: CREATE_CHARACTER_MODE_DEFAULT_MODEL_ID,
       })
     );

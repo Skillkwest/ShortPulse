@@ -52,10 +52,12 @@ const mockProjectListSupabase = ({
   workspaceSnapshot,
   displayRows = [],
   displayError,
+  existingStoragePaths,
 }: {
   workspaceSnapshot: Record<string, unknown>;
   displayRows?: Array<Record<string, unknown>>;
   displayError?: string;
+  existingStoragePaths?: string[];
 }) => {
   const projectRows = [
     {
@@ -84,6 +86,15 @@ const mockProjectListSupabase = ({
   }));
   const createSignedUrls = vi.fn(async (paths: string[]) => ({
     data: paths.map((path) => ({ path, signedUrl: `signed:${path}` })),
+    error: null,
+  }));
+  const storageObjectsIn = vi.fn(async (_column: string, paths: string[]) => ({
+    data:
+      existingStoragePaths == null
+        ? paths.map((path) => ({ name: path }))
+        : existingStoragePaths
+            .filter((path) => paths.includes(path))
+            .map((path) => ({ name: path })),
     error: null,
   }));
   const projectListQuery = createAwaitableQuery({
@@ -121,6 +132,25 @@ const mockProjectListSupabase = ({
       }
       throw new Error(`Unexpected table: ${table}`);
     }),
+    schema: vi.fn((schemaName: string) => {
+      if (schemaName !== "storage") {
+        throw new Error(`Unexpected schema: ${schemaName}`);
+      }
+      return {
+        from: vi.fn((table: string) => {
+          if (table !== "objects") {
+            throw new Error(`Unexpected storage table: ${table}`);
+          }
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                in: storageObjectsIn,
+              })),
+            })),
+          };
+        }),
+      };
+    }),
     storage: {
       from: vi.fn(() => ({
         createSignedUrls,
@@ -134,6 +164,7 @@ const mockProjectListSupabase = ({
     displayProjectIn,
     displayQuery,
     projectListQuery,
+    storageObjectsIn,
     workspaceEq,
     workspaceIn,
   };
@@ -449,6 +480,68 @@ describe("listProjectsForUser preview composition", () => {
         previewImageUrls: ["signed:user-1/generated/snapshot-quick.png"],
       }),
     ]);
+  });
+
+  it("uses the smaller project-card thumb derivative when it exists", async () => {
+    const thumb480 = "user-1/variants/images/media-1/thumb_480";
+    const thumb240 = "user-1/variants/images/media-1/thumb_240";
+    const { createSignedUrls, storageObjectsIn } = mockProjectListSupabase({
+      existingStoragePaths: [thumb240, thumb480],
+      workspaceSnapshot: {
+        outputs: {
+          curatedReferenceIds: ["quick-thumb"],
+          active: [
+            {
+              id: "quick-thumb",
+              mode: "image",
+              previewStoragePath: thumb480,
+              previewUrl: "https://cdn.example.com/full.png",
+            },
+          ],
+          archived: [],
+        },
+      },
+    });
+
+    await expect(listProjectsForUser({ userId: "user-1", limit: "all" })).resolves.toEqual([
+      expect.objectContaining({
+        id: PROJECT_ID_1,
+        previewImageUrls: [`signed:${thumb240}`],
+      }),
+    ]);
+    expect(storageObjectsIn).toHaveBeenCalledWith("name", [thumb240, thumb480]);
+    expect(createSignedUrls).toHaveBeenCalledWith([thumb240, thumb480], 3600);
+  });
+
+  it("falls back to thumb_480 when the smaller project-card derivative is missing", async () => {
+    const thumb480 = "user-1/variants/images/media-1/thumb_480";
+    const thumb240 = "user-1/variants/images/media-1/thumb_240";
+    const { createSignedUrls, storageObjectsIn } = mockProjectListSupabase({
+      existingStoragePaths: [thumb480],
+      workspaceSnapshot: {
+        outputs: {
+          curatedReferenceIds: ["quick-thumb"],
+          active: [
+            {
+              id: "quick-thumb",
+              mode: "image",
+              previewStoragePath: thumb480,
+              previewUrl: "https://cdn.example.com/full.png",
+            },
+          ],
+          archived: [],
+        },
+      },
+    });
+
+    await expect(listProjectsForUser({ userId: "user-1", limit: "all" })).resolves.toEqual([
+      expect.objectContaining({
+        id: PROJECT_ID_1,
+        previewImageUrls: [`signed:${thumb480}`],
+      }),
+    ]);
+    expect(storageObjectsIn).toHaveBeenCalledWith("name", [thumb240, thumb480]);
+    expect(createSignedUrls).toHaveBeenCalledWith([thumb480], 3600);
   });
 });
 

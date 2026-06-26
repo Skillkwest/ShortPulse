@@ -260,6 +260,7 @@ Recommended operator sequence:
   - `spendableCents`: `max(0, availableCents - reservedCents)`.
 - Use this endpoint for customer-facing credit displays when generation reservations are in flight.
 - AI Studio credit displays that act as account navigation should route to `/profile?section=credits`, the canonical customer top-up section.
+- AI Studio insufficient-credit generation attempts should use the in-studio credit top-up modal. The modal posts to `/api/billing/stripe/checkout` with an allowlisted `/ai-studio` return path so success/cancel returns can refresh `/api/credits/snapshot` without making the browser a credit-grant authority.
 
 ## Failure-settlement lifecycle (Fal)
 
@@ -274,6 +275,7 @@ Recommended operator sequence:
 ## Stripe grants behavior
 
 - Checkout top-up credits are ledger grants (`change_cents > 0`) via server routes only after Stripe reports the Checkout Session as paid.
+- AI Studio Checkout returns with `checkout=credits_success` or `checkout=credits_cancel` are UI status markers only. The paid Checkout Session, Stripe webhook, ledger grant, and subsequent `/api/credits/snapshot` refresh remain the source of truth for the purchased credit balance.
 - Delayed-payment Checkout methods must settle on `checkout.session.async_payment_succeeded`; do not grant credits from `checkout.session.completed` when `payment_status != 'paid'`.
 - Subscription monthly credits are granted only for invoice payment events that represent a new billing allocation window (`billing_reason in ('subscription_create', 'subscription_cycle')`).
 - Subscription change/proration invoices (`subscription_update` and other non-allocation invoice reasons) must not mint an extra monthly credit grant.

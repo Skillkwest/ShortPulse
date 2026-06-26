@@ -25,6 +25,7 @@ import { buildWorkflowReloadConfigV1 } from "../logic/workflowReload";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { sanitizeCustomerFacingProviderText } from "../../../lib/customerFacingProviderText";
 import { readGenerationAdmissionErrorMessage } from "../../../lib/generationAdmissionErrors";
+import { INSUFFICIENT_CREDITS_TITLE } from "../logic/insufficientCredits";
 import {
   getReferenceGridAvailableSlots,
   REFERENCE_GRID_CAP_REACHED_MESSAGE,
@@ -164,7 +165,7 @@ const VOICEOVER_MODEL_ID = resolveRequiredAudioVoiceoverModelId();
 const VOICE_CHANGER_MODEL_ID = resolveRequiredAudioVoiceChangerModelId();
 const MUSIC_MODEL_ID = resolveRequiredAudioMusicModelId();
 const SOUND_EFFECTS_MODEL_ID = resolveRequiredAudioSoundEffectsModelId();
-const INSUFFICIENT_AUDIO_CREDITS_MESSAGE = "You do not have enough credits for this run.";
+const INSUFFICIENT_AUDIO_CREDITS_MESSAGE = INSUFFICIENT_CREDITS_TITLE;
 
 const buildVoicesOutputModelLabel = (request: VoicesGenerateRequest): string =>
   request.mode === "voiceover"

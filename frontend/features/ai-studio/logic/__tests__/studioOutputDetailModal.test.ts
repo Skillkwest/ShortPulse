@@ -85,7 +85,7 @@ describe("createStudioOutputDetailModalItem", () => {
     const bladeContent = resolveSharedMediaDetailBladeContent({ item });
 
     expect(bladeContent.label).toBe("ERROR");
-    expect(bladeContent.value).toBe("Not enough credits.");
+    expect(bladeContent.value).toBe("Insufficient credits.");
   });
 
   it("shows explicit-content detail once when the detail already includes the summary", () => {

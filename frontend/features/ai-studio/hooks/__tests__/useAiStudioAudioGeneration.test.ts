@@ -1071,7 +1071,7 @@ describe("useAiStudioAudioGeneration", () => {
     expect(accepted).toBe(false);
     expect(insertOptimisticGenerationPlaceholder).not.toHaveBeenCalled();
     expect(fetchWithAuthMock).not.toHaveBeenCalled();
-    expect(uiError).toBe("You do not have enough credits for this run.");
+    expect(uiError).toBe("Insufficient Credits");
   });
 
   it("blocks sound effects generation when the Reference Grid is full", async () => {
@@ -1141,7 +1141,7 @@ describe("useAiStudioAudioGeneration", () => {
 
     expect(insertOptimisticGenerationPlaceholder).not.toHaveBeenCalled();
     expect(fetchWithAuthMock).not.toHaveBeenCalled();
-    expect(uiError).toBe("You do not have enough credits for this run.");
+    expect(uiError).toBe("Insufficient Credits");
   });
 
   it("blocks voiceover generation when the known balance is short", async () => {
@@ -1180,6 +1180,6 @@ describe("useAiStudioAudioGeneration", () => {
 
     expect(insertOptimisticGenerationPlaceholder).not.toHaveBeenCalled();
     expect(fetchWithAuthMock).not.toHaveBeenCalled();
-    expect(uiError).toBe("You do not have enough credits for this run.");
+    expect(uiError).toBe("Insufficient Credits");
   });
 });

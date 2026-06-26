@@ -35,6 +35,30 @@ describe("MediaLibraryPromptDetailModal", () => {
     expect(screen.getByRole("button", { name: "Saved" })).toBeDisabled();
   });
 
+  it("preserves long saved prompt text in the text-detail textarea", () => {
+    const longPrompt = Array.from(
+      { length: 32 },
+      (_, index) => `Prompt line ${index + 1}: keep every detail visible and available.`
+    ).join("\n");
+    const item = createMediaLibraryPromptDetailModalItem({
+      prompt: {
+        ...prompt,
+        id: "prompt-long",
+        prompt_text: longPrompt,
+      },
+      surface: "media-library-panel",
+    });
+
+    render(<MediaLibraryPromptDetailModal item={item} onClose={vi.fn()} />);
+
+    const textarea = document.querySelector(
+      ".art-text-detail-textarea"
+    ) as HTMLTextAreaElement | null;
+    expect(textarea).not.toBeNull();
+    expect(textarea).toHaveValue(longPrompt);
+    expect(textarea?.readOnly).toBe(true);
+  });
+
   it("routes Use and Delete actions to the selected prompt item", () => {
     const item = createItem();
     const onUsePromptItem = vi.fn();

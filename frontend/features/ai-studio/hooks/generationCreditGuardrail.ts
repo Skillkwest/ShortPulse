@@ -7,7 +7,7 @@ type RunGenerationCreditGuardrailParams = {
   alwaysCheckCreditGuardrailWhenEnabled: boolean;
   ensureFreshCreditsForRun: (requiredCredits: number | null | undefined) => Promise<boolean>;
   resolveGuardrailBlockMessage: () => string;
-  handleInsufficientCredits: () => void;
+  handleInsufficientCredits: (requiredCredits?: number | null) => void;
   handleGuardrailBlock: (message: string) => void;
 };
 
@@ -47,7 +47,7 @@ export async function runGenerationCreditGuardrail({
 
   const hasCredits = await ensureFreshCreditsForRun(effectiveRequiredCredits);
   if (!hasCredits) {
-    handleInsufficientCredits();
+    handleInsufficientCredits(effectiveRequiredCredits);
     return false;
   }
 

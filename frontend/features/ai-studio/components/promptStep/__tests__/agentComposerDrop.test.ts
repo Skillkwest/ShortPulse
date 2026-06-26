@@ -227,4 +227,26 @@ describe("agentComposerDrop", () => {
       caret: "ExistingDropped composer prompt".length,
     });
   });
+
+  it("preserves full long prompt text when resolving composer text drops", () => {
+    const longPrompt = Array.from(
+      { length: 36 },
+      (_, index) => `Reference paragraph ${index + 1}: preserve the full prompt text.`
+    ).join("\n");
+    const transfer = createMutableTransfer();
+    transfer.setData("text/prompt", longPrompt);
+    transfer.setData("text/plain", longPrompt);
+
+    expect(
+      resolveAgentComposerTextDropInsertion({
+        transfer,
+        composerText: "Existing draft",
+        selectionStart: 0,
+        selectionEnd: "Existing draft".length,
+      })
+    ).toEqual({
+      prompt: longPrompt,
+      caret: longPrompt.length,
+    });
+  });
 });

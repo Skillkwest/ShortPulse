@@ -149,6 +149,101 @@ describe("POST /api/billing/stripe/checkout", () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
+  it("allows AI Studio checkout to return to the active studio path", async () => {
+    getSupabaseAdminMock.mockReturnValue({
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            maybeSingle: async () => ({
+              data: {
+                id: "pkg_studio_10000",
+                display_name: "Studio 10,000",
+                is_active: true,
+                stripe_price_id: "price_123",
+                credit_amount_cents: 10000,
+                price_cents: 12900,
+              },
+              error: null,
+            }),
+          }),
+        }),
+      }),
+    });
+    stripePostFormMock.mockResolvedValueOnce({
+      id: "sess_123",
+      url: "https://stripe.test/sess_123",
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        packageId: "pkg_studio_10000",
+        returnPath: "/ai-studio?projectId=project-1&checkout=old",
+      },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(stripePostFormMock).toHaveBeenCalledWith(
+      "/checkout/sessions",
+      expect.objectContaining({
+        success_url:
+          "https://app.shortpulse.test/ai-studio?projectId=project-1&checkout=credits_success",
+        cancel_url:
+          "https://app.shortpulse.test/ai-studio?projectId=project-1&checkout=credits_cancel",
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("falls back to profile credits for unsafe checkout return paths", async () => {
+    getSupabaseAdminMock.mockReturnValue({
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            maybeSingle: async () => ({
+              data: {
+                id: "pkg_studio_10000",
+                display_name: "Studio 10,000",
+                is_active: true,
+                stripe_price_id: "price_123",
+                credit_amount_cents: 10000,
+                price_cents: 12900,
+              },
+              error: null,
+            }),
+          }),
+        }),
+      }),
+    });
+    stripePostFormMock.mockResolvedValueOnce({
+      id: "sess_123",
+      url: "https://stripe.test/sess_123",
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        packageId: "pkg_studio_10000",
+        returnPath: "https://evil.test/ai-studio",
+      },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(stripePostFormMock).toHaveBeenCalledWith(
+      "/checkout/sessions",
+      expect.objectContaining({
+        success_url: "https://app.shortpulse.test/profile?section=credits&checkout=success",
+        cancel_url: "https://app.shortpulse.test/profile?section=credits&checkout=cancel",
+      })
+    );
+  });
+
   it("fails closed with customer-safe copy when the credit package is unavailable", async () => {
     getSupabaseAdminMock.mockReturnValue({
       from: () => ({

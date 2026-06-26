@@ -99,4 +99,71 @@ describe("useProtectedRouteRestoreGuard", () => {
 
     expect(result.current.checking).toBe(true);
   });
+
+  it("revalidates silently when a hidden tab becomes visible again", async () => {
+    const { result } = renderHook(() =>
+      useProtectedRouteRestoreGuard({ enabled: true, nextPath: "/ai-studio" })
+    );
+    await waitFor(() => {
+      expect(result.current.checking).toBe(false);
+    });
+    vi.clearAllMocks();
+    let resolveVisibleCheck: (session: unknown) => void = () => undefined;
+    readSupabaseSessionMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveVisibleCheck = resolve;
+      })
+    );
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "visible",
+    });
+
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    expect(readSupabaseSessionMock).toHaveBeenCalledWith({ forceRefresh: true });
+    expect(result.current.checking).toBe(false);
+    expect(replaceMock).not.toHaveBeenCalled();
+
+    act(() => {
+      resolveVisibleCheck({
+        access_token: "fresh-token",
+        user: { id: "user-1" },
+      });
+    });
+
+    await waitFor(() => {
+      expect(clearLogoutEpochWhenSessionIsFreshMock).toHaveBeenCalledWith(
+        expect.objectContaining({ access_token: "fresh-token" })
+      );
+    });
+    expect(result.current.checking).toBe(false);
+  });
+
+  it("redirects from a silent visible-tab revalidation when the session is missing", async () => {
+    const { result } = renderHook(() =>
+      useProtectedRouteRestoreGuard({ enabled: true, nextPath: "/ai-studio" })
+    );
+    await waitFor(() => {
+      expect(result.current.checking).toBe(false);
+    });
+    vi.clearAllMocks();
+    readSupabaseSessionMock.mockResolvedValue(null);
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "visible",
+    });
+
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    expect(result.current.checking).toBe(false);
+    await waitFor(() => {
+      expect(replaceMock).toHaveBeenCalledWith("/log-in?next=%2Fai-studio");
+    });
+    expect(clearSupabaseSessionSnapshotMock).toHaveBeenCalledTimes(1);
+  });
 });

@@ -179,7 +179,7 @@ describe("DetailModal", () => {
     );
 
     expect(screen.getByText("Error detail")).toBeInTheDocument();
-    const errorTextareas = screen.getAllByDisplayValue("Not enough credits.");
+    const errorTextareas = screen.getAllByDisplayValue("Insufficient credits.");
     expect(errorTextareas).toHaveLength(1);
     expect(screen.queryByText("Media unavailable.")).not.toBeInTheDocument();
   });
@@ -362,6 +362,35 @@ describe("DetailModal", () => {
     expect(onUpdatePrompt).toHaveBeenCalledWith("out-1", "Updated prompt for library");
     expect(onSavePrompt).toHaveBeenCalledWith("Updated prompt for library");
     expect(await screen.findByRole("button", { name: "Saved" })).toBeInTheDocument();
+  });
+
+  it("preserves long text references in the shared detail modal textarea", () => {
+    const longPrompt = Array.from(
+      { length: 36 },
+      (_, index) => `Text reference line ${index + 1}: preserve the complete prompt in detail view.`
+    ).join("\n");
+    const { baseElement } = render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          mode: "text",
+          previewUrl: undefined,
+          prompt: longPrompt,
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    const modal = baseElement.querySelector(".reference-modal-new");
+    const promptTextarea = baseElement.querySelector(
+      ".art-text-detail-textarea"
+    ) as HTMLTextAreaElement | null;
+
+    expect(modal?.classList.contains("is-text-only")).toBe(true);
+    expect(promptTextarea).not.toBeNull();
+    expect(promptTextarea).toHaveValue(longPrompt);
   });
 
   it("does not show saved feedback when prompt library persistence fails", async () => {

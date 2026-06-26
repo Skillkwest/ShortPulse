@@ -1438,7 +1438,7 @@ describe("generationBilling reservation RPC handling", () => {
     expect(res.setHeader).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(402);
     expect(res.json).toHaveBeenCalledWith({
-      error: "Not enough credits.",
+      error: "Insufficient credits.",
       code: "INSUFFICIENT_CREDITS",
       chargeState: "not_reserved",
     });

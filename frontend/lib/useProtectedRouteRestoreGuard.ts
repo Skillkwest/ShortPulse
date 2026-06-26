@@ -20,6 +20,10 @@ type ProtectedRouteRestoreGuardState = {
   checking: boolean;
 };
 
+type RestoreCheckOptions = {
+  blockWhileChecking?: boolean;
+};
+
 /**
  * Forces a protected route to prove current browser auth before rendering private content.
  */
@@ -36,34 +40,40 @@ export const useProtectedRouteRestoreGuard = ({
     routerRef.current = router;
   }, [router]);
 
-  const runRestoreCheck = useCallback(async () => {
-    if (!enabled) {
+  const runRestoreCheck = useCallback(
+    async (options: RestoreCheckOptions = {}) => {
+      const blockWhileChecking = options.blockWhileChecking === true;
+      if (!enabled) {
+        setChecking(false);
+        return;
+      }
+
+      const checkVersion = checkVersionRef.current + 1;
+      checkVersionRef.current = checkVersion;
+      if (blockWhileChecking) {
+        setChecking(true);
+      }
+
+      const session = await readSupabaseSession({ forceRefresh: true }).catch(() => null);
+      if (checkVersionRef.current !== checkVersion) return;
+
+      if (!session || isSessionOlderThanLogoutEpoch(session)) {
+        clearSupabaseSessionSnapshot();
+        void routerRef.current.replace(buildLoginPath({ nextPath }));
+        return;
+      }
+
+      clearLogoutEpochWhenSessionIsFresh(session);
       setChecking(false);
-      return;
-    }
-
-    const checkVersion = checkVersionRef.current + 1;
-    checkVersionRef.current = checkVersion;
-    setChecking(true);
-
-    const session = await readSupabaseSession({ forceRefresh: true }).catch(() => null);
-    if (checkVersionRef.current !== checkVersion) return;
-
-    if (!session || isSessionOlderThanLogoutEpoch(session)) {
-      clearSupabaseSessionSnapshot();
-      void routerRef.current.replace(buildLoginPath({ nextPath }));
-      return;
-    }
-
-    clearLogoutEpochWhenSessionIsFresh(session);
-    setChecking(false);
-  }, [enabled, nextPath]);
+    },
+    [enabled, nextPath]
+  );
 
   useEffect(() => {
     let cancelled = false;
     queueMicrotask(() => {
       if (cancelled) return;
-      void runRestoreCheck();
+      void runRestoreCheck({ blockWhileChecking: true });
     });
     return () => {
       cancelled = true;
@@ -79,11 +89,11 @@ export const useProtectedRouteRestoreGuard = ({
       setChecking(true);
     };
     const handlePageShow = () => {
-      void runRestoreCheck();
+      void runRestoreCheck({ blockWhileChecking: true });
     };
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        void runRestoreCheck();
+        void runRestoreCheck({ blockWhileChecking: false });
       }
     };
 

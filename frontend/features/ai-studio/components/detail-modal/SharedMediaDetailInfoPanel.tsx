@@ -31,15 +31,17 @@ export function SharedMediaDetailInfoPanel({
       <div className="art-blade-header">
         <span className="art-label">{label}</span>
       </div>
-      <textarea
-        className="art-blade-textarea"
-        ref={textareaRef}
-        value={value}
-        onChange={onChange}
-        readOnly={readOnly}
-        rows={rows}
-        placeholder={placeholder}
-      />
+      <div className="art-blade-scroll-frame">
+        <textarea
+          className="art-blade-textarea"
+          ref={textareaRef}
+          value={value}
+          onChange={onChange}
+          readOnly={readOnly}
+          rows={rows}
+          placeholder={placeholder}
+        />
+      </div>
     </div>
   );
 }

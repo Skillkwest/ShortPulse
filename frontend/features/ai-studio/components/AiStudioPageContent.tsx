@@ -20,6 +20,7 @@ import {
 } from "../../../lib/customerFacingProviderText";
 import { AiStudioToolbar } from "./AiStudioToolbar";
 import { AiStudioToolbarRail } from "./AiStudioToolbarRail";
+import { AiStudioInsufficientCreditsModal } from "./AiStudioInsufficientCreditsModal";
 import { PresetsPanelLoader } from "./PresetsPanelLoader";
 import { StandardCreatePropertiesPanel } from "./create/StandardCreatePropertiesPanel";
 import { PulseCreatePropertiesPanel } from "./create/PulseCreatePropertiesPanel";
@@ -66,6 +67,7 @@ import { resolvePropertiesPanelKind } from "../logic/propertiesPanelRouting";
 import { isCharacterShellTool, isPrimaryCharacterTool } from "../logic/primaryCharacterTool";
 import { isSoundWorkflow } from "../logic/workflowIdentity";
 import { resolveAiStudioErrorPresentation } from "../logic/errorPresentation";
+import { isInsufficientCreditsLike } from "../logic/insufficientCredits";
 import { downloadUrlToFile } from "../logic/referenceDownload";
 import {
   PERF_FLAG_SHELL_BOUNDARY_SPLIT,
@@ -436,11 +438,18 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
         normalizedUiError === `${normalizedModelLabel} failed: ${normalizedDetail}`
       );
     });
-  const effectiveUiError = suppressUiErrorForFailureStack
-    ? null
-    : resolveCustomerFacingAiStudioUiError(uiError);
+  const isInsufficientCreditsUiError = isInsufficientCreditsLike(uiError);
+  const effectiveUiError =
+    suppressUiErrorForFailureStack || isInsufficientCreditsUiError
+      ? null
+      : resolveCustomerFacingAiStudioUiError(uiError);
   const groupedFailures = React.useMemo(
-    () => groupVisibleFailuresForAlertStack(visibleFailures),
+    () =>
+      groupVisibleFailuresForAlertStack(
+        visibleFailures.filter(
+          (item) => resolveAiStudioErrorPresentation(item).category !== "insufficient_credits"
+        )
+      ),
     [visibleFailures]
   );
   const groupedFailureIdsKey = React.useMemo(
@@ -1715,8 +1724,30 @@ export function AiStudioPageContent({
           },
         }
       : null;
+  const insufficientCreditFailureIds = React.useMemo(
+    () =>
+      visibleFailures
+        .filter(
+          (item) => resolveAiStudioErrorPresentation(item).category === "insufficient_credits"
+        )
+        .map((item) => item.id),
+    [visibleFailures]
+  );
+  const isInsufficientCreditsModalOpen =
+    isInsufficientCreditsLike(uiError) || insufficientCreditFailureIds.length > 0;
+  const handleCloseInsufficientCreditsModal = React.useCallback(() => {
+    onDismissUiError();
+    insufficientCreditFailureIds.forEach((id) => onDismissFailure(id));
+  }, [insufficientCreditFailureIds, onDismissFailure, onDismissUiError]);
+
   return (
     <>
+      <AiStudioInsufficientCreditsModal
+        isOpen={isInsufficientCreditsModalOpen}
+        availableCredits={balanceCredits}
+        onClose={handleCloseInsufficientCreditsModal}
+        onCheckoutStarted={handleCloseInsufficientCreditsModal}
+      />
       <main
         className="page page-wide ai-studio-page"
         data-shell-boundary-split={FLAG_SHELL_BOUNDARY_SPLIT ? "on" : "off"}

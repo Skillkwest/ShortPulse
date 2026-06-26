@@ -587,7 +587,7 @@ export const chargeGenerationRequest = async ({
     if (reserveResult.message === "insufficient_credits") {
       return respondChargeFailure({
         statusCode: 402,
-        message: "Not enough credits.",
+        message: "Insufficient credits.",
         metadata: {
           reservation_mode: true,
           reservation_status: reserveResult.status,

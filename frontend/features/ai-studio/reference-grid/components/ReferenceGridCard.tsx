@@ -37,6 +37,7 @@ import { MediaDurationBadge } from "../../components/shared/MediaDurationBadge";
 import { ReferenceAudioPlayer } from "../../components/shared/ReferenceAudioPlayer";
 import {
   REFERENCE_GRID_GENERIC_ERROR_TITLE,
+  resolveReferenceGridFailureTone,
   resolveReferenceGridErrorTitle,
 } from "../logic/referenceGridErrorCopy";
 
@@ -271,7 +272,9 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
       onDeleteOutput)
   );
   const errorTitle = resolveReferenceGridErrorTitle(item);
-  const shouldShowNsfwPill = errorTitle !== REFERENCE_GRID_GENERIC_ERROR_TITLE;
+  const failureTone = resolveReferenceGridFailureTone(item);
+  const shouldShowNsfwPill =
+    failureTone !== "credits" && errorTitle !== REFERENCE_GRID_GENERIC_ERROR_TITLE;
   const canDragReference = Boolean(item.previewText) || canDragReferenceOutput(item);
   const dragPreviewKind = isImagePreview
     ? "image"
@@ -658,7 +661,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
         <div className="reference-card-media-unavailable" aria-label="Preview unavailable" />
       ) : null}
       {isFailing ? (
-        <div className="reference-fail-overlay">
+        <div className={`reference-fail-overlay reference-fail-overlay--${failureTone}`}>
           <div className="fail-icon" aria-hidden="true">
             !
           </div>

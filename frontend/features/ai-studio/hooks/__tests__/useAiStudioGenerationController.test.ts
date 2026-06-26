@@ -501,9 +501,7 @@ describe("useAiStudioGenerationController", () => {
     });
 
     expect(refreshBalance).toHaveBeenCalledTimes(1);
-    expect(setUiError).toHaveBeenCalledWith(
-      "You do not have enough credits for this run. Choose a plan on pricing to continue."
-    );
+    expect(setUiError).toHaveBeenCalledWith("Insufficient Credits");
     expect(generateOutput).not.toHaveBeenCalled();
     expect(generateResult).toEqual({ accepted: false, optimisticOutputId: null });
   });
@@ -547,7 +545,7 @@ describe("useAiStudioGenerationController", () => {
     });
 
     expect(refreshBalance).not.toHaveBeenCalled();
-    expect(setUiError).not.toHaveBeenCalledWith("You do not have enough credits for this run.");
+    expect(setUiError).not.toHaveBeenCalledWith("Insufficient Credits");
     expect(generateOutput).toHaveBeenCalledTimes(1);
   });
 
@@ -568,7 +566,7 @@ describe("useAiStudioGenerationController", () => {
     });
 
     expect(refreshBalance).toHaveBeenCalledTimes(1);
-    expect(setUiError).not.toHaveBeenCalledWith("You do not have enough credits for this run.");
+    expect(setUiError).not.toHaveBeenCalledWith("Insufficient Credits");
     expect(generateOutput).toHaveBeenCalledTimes(1);
   });
 
@@ -591,9 +589,7 @@ describe("useAiStudioGenerationController", () => {
     });
 
     expect(refreshBalance).toHaveBeenCalledTimes(1);
-    expect(setUiError).toHaveBeenCalledWith(
-      "You do not have enough credits for this run. Choose a plan on pricing to continue."
-    );
+    expect(setUiError).toHaveBeenCalledWith("Insufficient Credits");
     expect(generateOutput).not.toHaveBeenCalled();
     expect(generateResult).toEqual({ accepted: false, optimisticOutputId: null });
   });
@@ -637,7 +633,7 @@ describe("useAiStudioGenerationController", () => {
     });
 
     expect(refreshBalance).not.toHaveBeenCalled();
-    expect(setUiError).not.toHaveBeenCalledWith("You do not have enough credits for this run.");
+    expect(setUiError).not.toHaveBeenCalledWith("Insufficient Credits");
     expect(generateOutput).toHaveBeenCalledTimes(1);
   });
 
@@ -921,7 +917,7 @@ describe("useAiStudioGenerationController", () => {
       balanceCredits: 2,
       isGenerateDisabled: true,
       isCreditGuardrail: true,
-      generationGuardrail: "You do not have enough credits for this run.",
+      generationGuardrail: "Insufficient Credits",
       refreshBalance: vi.fn(async () => 2),
       regenerateOutput,
       resolveCharacterModeSubmissionOverrides: vi.fn(() => null),
@@ -973,7 +969,7 @@ describe("useAiStudioGenerationController", () => {
       balanceCredits: 2,
       isGenerateDisabled: true,
       isCreditGuardrail: true,
-      generationGuardrail: "You do not have enough credits for this run.",
+      generationGuardrail: "Insufficient Credits",
       refreshBalance: vi.fn(async () => 5),
       regenerateOutput,
       resolveCharacterModeSubmissionOverrides: vi.fn(() => null),
@@ -1028,7 +1024,7 @@ describe("useAiStudioGenerationController", () => {
       balanceCredits: 4,
       isGenerateDisabled: true,
       isCreditGuardrail: true,
-      generationGuardrail: "You do not have enough credits for this run.",
+      generationGuardrail: "Insufficient Credits",
       refreshBalance: vi.fn(async () => 4),
       regenerateOutput,
       resolveCharacterModeSubmissionOverrides: vi.fn(() => null),

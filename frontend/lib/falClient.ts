@@ -191,7 +191,7 @@ const readApiErrorMessage = (payload: unknown): string => {
     );
   }
   if (data.code === "INSUFFICIENT_CREDITS") {
-    return extractErrorTextCandidate(data.error) ?? "Not enough credits.";
+    return extractErrorTextCandidate(data.error) ?? "Insufficient credits.";
   }
   const explicitContentFailure = normalizeExplicitContentFailure({
     message:
@@ -243,6 +243,17 @@ const readApiErrorMessage = (payload: unknown): string => {
   }
   if (typeof data.raw === "string" && data.raw.trim().length > 0) return data.raw.trim();
   return "Unexpected error";
+};
+
+const buildApiError = (message: string, payload: unknown): Error => {
+  const error = new Error(message) as Error & { code?: string };
+  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+    const code = (payload as Record<string, unknown>).code;
+    if (typeof code === "string" && code.trim()) {
+      error.code = code.trim();
+    }
+  }
+  return error;
 };
 
 const readRequestId = (payload: { request_id?: string; requestId?: string }): string | undefined =>
@@ -298,7 +309,7 @@ const handleJson = async <T>(response: Response) => {
     }
     const message = readApiErrorMessage(data);
     if (message && message !== "Unexpected error") {
-      throw new Error(message);
+      throw buildApiError(message, data);
     }
     const status = response.status || 500;
     const statusText = response.statusText?.trim();

@@ -23,10 +23,12 @@ const createImageItem = ({
   url,
   previewUrl,
   fullUrl,
+  promptText,
 }: {
   url: string;
   previewUrl: string | null;
   fullUrl: string | null;
+  promptText?: string | null;
 }): SharedMediaDetailItemBase => ({
   surface: "media-library-panel",
   selectionTarget: {
@@ -49,6 +51,7 @@ const createImageItem = ({
     url,
     previewUrl,
     fullUrl,
+    promptText,
     filename: "city-frame.png",
     source: "ai_studio",
   },
@@ -148,13 +151,55 @@ describe("SharedMediaDetailPreviewModal image stability", () => {
 describe("SharedMediaDetailPreviewModal layout contract", () => {
   it("bounds the prompt blade textarea so long prompts scroll inside the side panel", () => {
     const promptBladeRule = extractCssRule(".art-prompt-blade");
+    const promptScrollFrameRule = extractCssRule(".art-blade-scroll-frame");
     const promptTextareaRule = extractCssRule(".art-blade-textarea");
+    const textDetailTextareaRule = extractCssRule(".art-text-detail-textarea");
 
     expect(promptBladeRule).toContain("overflow: hidden");
+    expect(promptScrollFrameRule).toContain("flex: 1 1 auto");
+    expect(promptScrollFrameRule).toContain("min-height: 0");
+    expect(promptScrollFrameRule).toContain("overflow: hidden");
     expect(promptTextareaRule).toContain("flex: 1 1 auto");
     expect(promptTextareaRule).toContain("min-height: 0");
+    expect(promptTextareaRule).toContain("max-height: 100%");
     expect(promptTextareaRule).toContain("overflow-y: auto");
-    expect(promptTextareaRule).not.toContain("height: 100%");
+    expect(promptTextareaRule).toContain("overscroll-behavior: contain");
+    expect(promptTextareaRule).not.toMatch(/(^|\s)height:\s*100%/);
+    expect(textDetailTextareaRule).toContain("max-height: 100%");
+    expect(textDetailTextareaRule).toContain("overflow-y: auto");
+    expect(textDetailTextareaRule).toContain("overscroll-behavior: contain");
+  });
+
+  it("renders long prompt text inside a dedicated scroll frame", () => {
+    const longPrompt = Array.from(
+      { length: 24 },
+      (_, index) => `Scene beat ${index + 1}: preserve the cinematic character and motion language.`
+    ).join("\n");
+
+    const { baseElement } = render(
+      <SharedMediaDetailPreviewModal
+        item={createImageItem({
+          url: "https://cdn.example.com/preview-city-frame.jpg",
+          previewUrl: "https://cdn.example.com/preview-city-frame.jpg",
+          fullUrl: null,
+          promptText: longPrompt,
+        })}
+        onClose={vi.fn()}
+      />
+    );
+
+    const promptBlade = baseElement.querySelector(".art-prompt-blade") as HTMLDivElement | null;
+    const promptScrollFrame = baseElement.querySelector(
+      ".art-blade-scroll-frame"
+    ) as HTMLDivElement | null;
+    const promptTextarea = baseElement.querySelector(
+      ".art-blade-textarea"
+    ) as HTMLTextAreaElement | null;
+
+    expect(promptBlade).toContainElement(promptScrollFrame);
+    expect(promptScrollFrame).toContainElement(promptTextarea);
+    expect(promptTextarea).not.toBeNull();
+    expect(promptTextarea).toHaveValue(longPrompt);
   });
 });
 

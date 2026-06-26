@@ -60,6 +60,10 @@ type ProjectPreviewCandidate = {
   fallbackUrl: string | null;
 };
 
+type StorageObjectRow = {
+  name?: unknown;
+};
+
 export type ProjectRecord = {
   id: string;
   userId: string;
@@ -184,6 +188,42 @@ export const resolveProjectCardPreviewSigningStoragePaths = (
       )
     )
   );
+};
+
+const resolveExistingProjectPreviewStoragePaths = async ({
+  supabaseAdmin,
+  paths,
+}: {
+  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>;
+  paths: string[];
+}): Promise<Set<string>> => {
+  const uniquePaths = Array.from(new Set(paths.map((path) => path.trim()).filter(Boolean)));
+  if (uniquePaths.length === 0) return new Set();
+  if (typeof supabaseAdmin.schema !== "function") {
+    return new Set(uniquePaths);
+  }
+
+  const existingPaths = new Set<string>();
+  for (const pathChunk of chunkValues(uniquePaths)) {
+    const { data, error } = await supabaseAdmin
+      .schema("storage")
+      .from("objects")
+      .select("name")
+      .eq("bucket_id", MEDIA_BUCKET)
+      .in("name", pathChunk);
+    if (error) {
+      return new Set(uniquePaths);
+    }
+
+    (Array.isArray(data) ? data : []).forEach((row) => {
+      const name = (row as StorageObjectRow).name;
+      if (typeof name === "string" && name.trim().length > 0) {
+        existingPaths.add(name.trim());
+      }
+    });
+  }
+
+  return existingPaths;
 };
 
 const collectUniqueImageCandidates = (
@@ -574,7 +614,11 @@ export const listProjectsForUser = async ({
   });
 
   const signedUrlByPath = new Map<string, string | null>();
-  const pathsToSign = [...storagePathsToSign];
+  const existingStoragePaths = await resolveExistingProjectPreviewStoragePaths({
+    supabaseAdmin,
+    paths: [...storagePathsToSign],
+  });
+  const pathsToSign = [...storagePathsToSign].filter((path) => existingStoragePaths.has(path));
   if (pathsToSign.length > 0) {
     const storage = supabaseAdmin.storage.from(MEDIA_BUCKET);
     pathsToSign.forEach((path) => {

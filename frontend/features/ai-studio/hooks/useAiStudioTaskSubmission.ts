@@ -20,6 +20,12 @@ import {
 } from "../logic/editPromptPolicy";
 import { resolveEffectiveAspectForModel } from "../logic/modelApiContracts";
 import {
+  INSUFFICIENT_CREDITS_CODE,
+  INSUFFICIENT_CREDITS_MESSAGE,
+  INSUFFICIENT_CREDITS_TITLE,
+  isInsufficientCreditsLike,
+} from "../logic/insufficientCredits";
+import {
   resolveAutoVideoModelForLane,
   resolveVideoGenerationLaneFromInputs,
 } from "../logic/referenceInputs";
@@ -834,6 +840,19 @@ export const useAiStudioTaskSubmission = ({
             return;
           }
           const message = error instanceof Error ? error.message : "Failed to start generation";
+          if (isInsufficientCreditsLike(error)) {
+            setUiError(INSUFFICIENT_CREDITS_TITLE);
+            updateOutputById(id, (item) => ({
+              ...item,
+              taskState: "fail",
+              errorMessage: INSUFFICIENT_CREDITS_MESSAGE,
+              errorMessageShort: INSUFFICIENT_CREDITS_TITLE,
+              errorDetail: INSUFFICIENT_CREDITS_MESSAGE,
+              errorPayload: { code: INSUFFICIENT_CREDITS_CODE },
+              timestamp: INSUFFICIENT_CREDITS_TITLE,
+            }));
+            return;
+          }
           if (taskStarted && startedTaskId && startedProvider) {
             const recoveredTaskId = startedTaskId;
             const recoveredProvider = startedProvider;

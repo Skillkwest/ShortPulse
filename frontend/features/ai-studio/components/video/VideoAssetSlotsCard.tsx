@@ -16,6 +16,9 @@ import {
 import { setKlingElementPromptTokenDragData } from "../../logic/klingPromptReferences";
 import { buildElementProfileImageBackgroundStyle } from "../../../elements-manager/logic/elementProfileImageTransform";
 import { handleVideoSegmentedTabListKeyDown } from "./videoSegmentedTabs";
+import { getSignedMediaUrlsBatch } from "../../../../lib/mediaSignedUrlCache";
+import { INTERNAL_MEDIA_REF_BUCKET } from "../../../../lib/media/internalMediaRefs";
+import { resolveInternalMediaRefForUrl } from "../../logic/referenceInputInternalMediaRegistry";
 
 const VIDEO_KLING_ELEMENT_SLOT_SIZE = 68;
 const SHOT_MODE_TAB_VALUES = ["single", "multi"] as const;
@@ -63,6 +66,21 @@ type VideoAssetSlotsCardProps = {
   elementPickerError: string | null;
 };
 
+type SeedanceSlotPreviewSigningRequest = {
+  sourceUrl: string;
+  storagePath: string;
+};
+
+const resolveSeedanceSlotPreviewSourceUrl = (element: AiStudioKlingElement | null): string | null =>
+  element?.profileImageUrl ??
+  getAiStudioKlingElementReferenceUrls(
+    element ?? {
+      frontalImageUrl: "",
+      referenceImageUrls: "",
+    }
+  )[0] ??
+  null;
+
 /**
  * Renders the Video asset-slot controls while the parent keeps selection and upload state.
  */
@@ -94,6 +112,68 @@ export function VideoAssetSlotsCard({
   removeSelectedElement,
   elementPickerError,
 }: VideoAssetSlotsCardProps) {
+  const [signedSeedanceSlotPreviewUrls, setSignedSeedanceSlotPreviewUrls] = React.useState<
+    Record<string, string>
+  >({});
+  const seedanceSlotPreviewSigningRequests = React.useMemo(
+    () =>
+      Array.from(
+        modelVisibleKlingElements
+          .reduce<Map<string, SeedanceSlotPreviewSigningRequest>>((requests, element) => {
+            if (!isSeedanceImageReferenceSlot(element)) return requests;
+            const sourceUrl = resolveSeedanceSlotPreviewSourceUrl(element);
+            const internalMediaRef = resolveInternalMediaRefForUrl(sourceUrl);
+            if (
+              !sourceUrl ||
+              !internalMediaRef?.storagePath ||
+              internalMediaRef.bucket !== INTERNAL_MEDIA_REF_BUCKET
+            ) {
+              return requests;
+            }
+            requests.set(sourceUrl, {
+              sourceUrl,
+              storagePath: internalMediaRef.storagePath,
+            });
+            return requests;
+          }, new Map<string, SeedanceSlotPreviewSigningRequest>())
+          .values()
+      ),
+    [modelVisibleKlingElements]
+  );
+
+  React.useEffect(() => {
+    if (!seedanceSlotPreviewSigningRequests.length) return;
+    let cancelled = false;
+
+    getSignedMediaUrlsBatch({
+      bucket: INTERNAL_MEDIA_REF_BUCKET,
+      storagePaths: seedanceSlotPreviewSigningRequests.map((request) => request.storagePath),
+      previewProfile: "none",
+      surface: "reference-grid",
+    })
+      .then((signedByPath) => {
+        if (cancelled) return;
+        setSignedSeedanceSlotPreviewUrls((current) => {
+          let changed = false;
+          const next = { ...current };
+          seedanceSlotPreviewSigningRequests.forEach((request) => {
+            const signedUrl = signedByPath.get(request.storagePath);
+            if (!signedUrl || next[request.sourceUrl] === signedUrl) return;
+            next[request.sourceUrl] = signedUrl;
+            changed = true;
+          });
+          return changed ? next : current;
+        });
+      })
+      .catch(() => {
+        // Keep the original URL visible if refresh signing is temporarily unavailable.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [seedanceSlotPreviewSigningRequests]);
+
   return (
     <div className="video-setup-elements-slot">
       <div
@@ -237,15 +317,10 @@ export function VideoAssetSlotsCard({
                 const isImageDropActive = Boolean(seedanceElementImageDragActive[index]);
                 const isImageLoading = Boolean(seedanceElementImageLoading[index]);
                 const seedanceImageInputRef = seedanceElementImageInputRefs[index] ?? null;
-                const previewUrl =
-                  selectedElement?.profileImageUrl ??
-                  getAiStudioKlingElementReferenceUrls(
-                    selectedElement ?? {
-                      frontalImageUrl: "",
-                      referenceImageUrls: "",
-                    }
-                  )[0] ??
-                  null;
+                const previewSourceUrl = resolveSeedanceSlotPreviewSourceUrl(selectedElement);
+                const previewUrl = previewSourceUrl
+                  ? (signedSeedanceSlotPreviewUrls[previewSourceUrl] ?? previewSourceUrl)
+                  : null;
                 const previewAvatarStyle = previewUrl
                   ? buildElementProfileImageBackgroundStyle(
                       previewUrl,

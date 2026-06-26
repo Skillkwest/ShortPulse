@@ -103,6 +103,25 @@ describe("ReferenceGridCard", () => {
     expect(screen.queryByText("Retry status")).not.toBeInTheDocument();
   });
 
+  it("uses friendly credit-shortage copy and tone on insufficient-credit failures", () => {
+    const { container } = render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({
+            errorMessage: "Insufficient credits.",
+            errorMessageShort: "Insufficient Credits",
+            errorDetail: "Insufficient credits.",
+            errorPayload: { code: "INSUFFICIENT_CREDITS" },
+          }),
+        })}
+      />
+    );
+
+    expect(screen.getByText("Insufficient Credits")).toBeInTheDocument();
+    expect(container.querySelector(".reference-fail-overlay--credits")).not.toBeNull();
+    expect(screen.queryByText("Generation failed")).toBeNull();
+  });
+
   it("keeps prompt-only text references select-only on single click", () => {
     const onSelectOutput = vi.fn();
     const onOpenDetails = vi.fn();

@@ -62,9 +62,30 @@ export default function AiStudioPage() {
 
 const CreateRuntimeRoot = ({ base }: { base: AiStudioPageBaseRuntime }) => {
   const { setPulseCreatePrompt } = base;
+  const { refreshBalance, setUiNotice } = base;
   const clearPulsePromptForPage = useCallback(() => {
     setPulseCreatePrompt("");
   }, [setPulseCreatePrompt]);
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    const checkoutState = url.searchParams.get("checkout");
+    if (checkoutState !== "credits_success" && checkoutState !== "credits_cancel") return;
+    if (checkoutState === "credits_cancel") {
+      setUiNotice("Credit top-up was canceled.");
+    } else {
+      setUiNotice("Payment received. Refreshing credits...");
+      void refreshBalance({ preferLedger: true }).then((balance) => {
+        setUiNotice(
+          typeof balance === "number"
+            ? "Credits refreshed. You can continue generating."
+            : "Payment is processing. Refresh credits in a moment if the balance has not updated."
+        );
+      });
+    }
+    url.searchParams.delete("checkout");
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  }, [refreshBalance, setUiNotice]);
   const createPulsePageRuntime = useCreatePulsePresetPageRuntime({
     selectedTool: base.selectedTool,
     expertCreateMode: base.expertCreateMode,

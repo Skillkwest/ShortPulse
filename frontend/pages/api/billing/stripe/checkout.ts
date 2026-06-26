@@ -12,6 +12,7 @@ import { ensureStripeCustomerForUser } from "../../../../lib/server/api/stripeCu
 
 type CheckoutRequest = {
   packageId?: string;
+  returnPath?: string;
 };
 
 type StripeCheckoutResponse = { id: string; url?: string | null };
@@ -24,6 +25,34 @@ const BILLING_CHECKOUT_RATE_LIMIT = {
 const CHECKOUT_UNAVAILABLE_MESSAGE = "Checkout is temporarily unavailable. Try again later.";
 const CREDIT_PACKAGE_UNAVAILABLE_MESSAGE =
   "This credit package is temporarily unavailable. Try again later.";
+
+const resolveCheckoutReturnUrls = (baseUrl: string, returnPath?: string) => {
+  const defaultUrls = {
+    successUrl: `${baseUrl}/profile?section=credits&checkout=success`,
+    cancelUrl: `${baseUrl}/profile?section=credits&checkout=cancel`,
+  };
+  const candidate = returnPath?.trim();
+  if (!candidate) return defaultUrls;
+  if (!candidate.startsWith("/") || candidate.startsWith("//") || candidate.includes("\\")) {
+    return defaultUrls;
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(candidate, "https://shortpulse.local");
+  } catch {
+    return defaultUrls;
+  }
+  if (parsed.pathname !== "/ai-studio") return defaultUrls;
+  parsed.searchParams.delete("checkout");
+  parsed.searchParams.set("checkout", "credits_success");
+  const successPath = `${parsed.pathname}${parsed.search}`;
+  parsed.searchParams.set("checkout", "credits_cancel");
+  const cancelPath = `${parsed.pathname}${parsed.search}`;
+  return {
+    successUrl: `${baseUrl}${successPath}`,
+    cancelUrl: `${baseUrl}${cancelPath}`,
+  };
+};
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -58,7 +87,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return;
   }
 
-  const { packageId } = (req.body ?? {}) as CheckoutRequest;
+  const { packageId, returnPath } = (req.body ?? {}) as CheckoutRequest;
   if (!packageId) {
     return res.status(400).json({ error: "packageId is required." });
   }
@@ -86,13 +115,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     const baseUrl = getCanonicalAppBaseUrl();
+    const { successUrl, cancelUrl } = resolveCheckoutReturnUrls(baseUrl, returnPath);
     const session = await stripePostForm<StripeCheckoutResponse>("/checkout/sessions", {
       mode: "payment",
       customer: stripeCustomerId,
       "line_items[0][price]": pkg.stripe_price_id,
       "line_items[0][quantity]": 1,
-      success_url: `${baseUrl}/profile?section=credits&checkout=success`,
-      cancel_url: `${baseUrl}/profile?section=credits&checkout=cancel`,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
       client_reference_id: user.id,
       "metadata[user_id]": user.id,
       "metadata[credit_package_id]": pkg.id,
@@ -117,6 +147,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         credit_amount_cents: pkg.credit_amount_cents,
         stripe_customer_id: stripeCustomerId,
         checkout_session_id: session.id,
+        return_path: returnPath ?? null,
       },
     }).catch(() => {});
 

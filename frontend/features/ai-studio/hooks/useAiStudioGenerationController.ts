@@ -19,6 +19,7 @@ import {
 import { runGenerationCharacterPreparation } from "./generationCharacterPreparation";
 import { runGenerationCreditGuardrail } from "./generationCreditGuardrail";
 import { resolveSubmissionModeForModelId } from "./taskSubmission/outputBootstrap";
+import { INSUFFICIENT_CREDITS_TITLE } from "../logic/insufficientCredits";
 import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../../../lib/model-runtime/falModelIds";
 import type {
   StudioMode,
@@ -187,12 +188,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   );
 
   const handleInsufficientCredits = useCallback(() => {
-    setUiError(
-      "You do not have enough credits for this run. Choose a plan on pricing to continue."
-    );
-    if (process.env.NODE_ENV !== "test" && typeof window !== "undefined") {
-      window.location.assign("/pricing?intent=create-project");
-    }
+    setUiError(INSUFFICIENT_CREDITS_TITLE);
   }, [setUiError]);
 
   const resolveEffectiveSubmitModelId = useCallback(

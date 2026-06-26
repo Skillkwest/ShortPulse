@@ -12,6 +12,7 @@ const upsertGenerationProjectionMock = vi.fn();
 const writeAppErrorLogMock = vi.fn();
 const resolveRuntimeAgentPromptMock = vi.fn();
 const cleanupAudioCompanionArtMock = vi.fn();
+const mirrorGeneratedAudioPresentationToMediaFilesMock = vi.fn();
 const sharpMock = vi.fn();
 const sharpStatsMock = vi.fn();
 const sharpRotateMock = vi.fn();
@@ -45,6 +46,11 @@ vi.mock("../../api/runtimeAgentPromptControlPlane", () => ({
   resolveRuntimeAgentPrompt: (...args: unknown[]) => resolveRuntimeAgentPromptMock(...args),
 }));
 
+vi.mock("../../generatedAudioPresentation", () => ({
+  mirrorGeneratedAudioPresentationToMediaFiles: (...args: unknown[]) =>
+    mirrorGeneratedAudioPresentationToMediaFilesMock(...args),
+}));
+
 vi.mock("../cleanup", () => ({
   cleanupAudioCompanionArt: (...args: unknown[]) => cleanupAudioCompanionArtMock(...args),
 }));
@@ -66,6 +72,7 @@ describe("audioCompanionArt processing", () => {
     vi.clearAllMocks();
     writeAppErrorLogMock.mockResolvedValue({ ok: true });
     upsertGenerationProjectionMock.mockResolvedValue(undefined);
+    mirrorGeneratedAudioPresentationToMediaFilesMock.mockResolvedValue({ updatedCount: 0 });
     resolveRuntimeAgentPromptMock.mockResolvedValue({
       promptId: "AUDIO_COMPANION_ART_STYLE_SYSTEM",
       promptBody: "Control-plane branded style line.",
@@ -638,6 +645,14 @@ describe("audioCompanionArt processing", () => {
         companionArtStoragePath: "user-now/generations/audio/gen-now/companion-art/cover.webp",
       })
     );
+    expect(mirrorGeneratedAudioPresentationToMediaFilesMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-now",
+        userId: "user-now",
+        companionArtStatus: "ready",
+        companionArtStoragePath: "user-now/generations/audio/gen-now/companion-art/cover.webp",
+      })
+    );
   });
 
   it("resets new audio rows to attempt zero on enqueue", async () => {
@@ -653,6 +668,14 @@ describe("audioCompanionArt processing", () => {
         userId: "user-queued",
         companionArtStatus: "pending",
         companionArtAttemptCount: 0,
+      })
+    );
+    expect(mirrorGeneratedAudioPresentationToMediaFilesMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-queued",
+        userId: "user-queued",
+        companionArtStatus: "pending",
+        companionArtStoragePath: null,
       })
     );
   });

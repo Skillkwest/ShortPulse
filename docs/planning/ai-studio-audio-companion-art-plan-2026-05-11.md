@@ -1,6 +1,6 @@
 # AI Studio Audio Companion Art Plan (2026-05-11)
 
-Status: audited and updated on 2026-05-22  
+Status: audited and implementation-updated on 2026-06-25
 Scope: AI Studio generated audio refs and their audio-card surfaces  
 Audience: follow-on implementation agent, product reviewer, docs/runtime reviewers
 
@@ -56,6 +56,10 @@ Recommended posture:
    - `frontend/features/ai-studio/logic/generatedOutputHydration.ts`
 7. Project-scoped output refresh also preserves companion-art projection fields through
    `frontend/lib/server/projectGenerationAssociationsService.ts`.
+8. Generated-audio presentation now mirrors into saved media metadata through
+   `frontend/lib/server/generatedAudioPresentation.ts`. `generation_projection` remains canonical;
+   linked generated-audio `media_files.metadata` rows are a denormalized Media Library read copy for
+   `display_title`, `companion_art_status`, and `companion_art_storage_path`.
 
 ### Trusted current problems
 
@@ -64,16 +68,19 @@ Recommended posture:
 2. Newly generated companion art now writes as a lightweight WebP delivery asset at
    `<uid>/generations/audio/<generationId>/companion-art/cover.webp`, but historical rows may
    still point at older PNG assets until they are naturally removed by forward lifecycle cleanup.
-3. Audio-card surfaces currently consume the signed original companion-art object instead of a
-   dedicated lightweight delivery asset.
+3. Audio-card surfaces consume the persisted companion-art storage path. Newly generated assets use
+   the lightweight WebP delivery path, while older rows can still point at historical assets until
+   lifecycle cleanup removes them.
 4. The rendered audio-card surface is much smaller than the stored asset:
    - audio cards are `4 / 5` tiles in `frontend/styles/ai-studio-canvas.css`
    - waveform/time content is capped to `78px` wide in the same stylesheet
-5. Companion art bypasses the normal `media_files` row path and the existing image-derivative
-   pipeline, so it is not covered by ordinary media-row deletion and does not reuse the repo’s
-   thumbnail conventions.
-6. Media Library delete currently removes the audio media row and its known variants, but companion
-   art is projection-owned and not part of that delete target set.
+5. Companion art remains a projection-owned hidden asset rather than a visible standalone
+   `media_files` image row. Linked generated-audio media rows now receive mirrored presentation
+   metadata for browse/read purposes.
+6. Media Library delete now routes through `frontend/pages/api/media/delete.ts` and
+   `frontend/lib/server/mediaLibraryDeleteService.ts`, which delete caller-owned media rows,
+   remove known storage/variant objects, and invoke generated-audio companion-art cleanup for
+   AI Studio generated audio rows.
 7. Suppressed or abandoned generations are not an explicit exclusion in the current companion-art
    processor claim query, so a hidden/suppressed audio output can still remain eligible for
    companion-art work unless the lane adds a deliberate gate.

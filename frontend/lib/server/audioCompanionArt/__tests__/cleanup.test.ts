@@ -4,6 +4,7 @@ import { cleanupAudioCompanionArt } from "../cleanup";
 const getSupabaseAdminMock = vi.fn();
 const upsertGenerationProjectionMock = vi.fn();
 const writeAppErrorLogMock = vi.fn();
+const mirrorGeneratedAudioPresentationToMediaFilesMock = vi.fn();
 
 vi.mock("../../api/supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
@@ -15,6 +16,11 @@ vi.mock("../../api/generationProjection", () => ({
 
 vi.mock("../../api/appErrorLogs", () => ({
   writeAppErrorLog: (...args: unknown[]) => writeAppErrorLogMock(...args),
+}));
+
+vi.mock("../../generatedAudioPresentation", () => ({
+  mirrorGeneratedAudioPresentationToMediaFiles: (...args: unknown[]) =>
+    mirrorGeneratedAudioPresentationToMediaFilesMock(...args),
 }));
 
 const createProjectionSelectBuilder = (result: { data: unknown; error: unknown }) => {
@@ -30,6 +36,7 @@ describe("cleanupAudioCompanionArt", () => {
     vi.clearAllMocks();
     upsertGenerationProjectionMock.mockResolvedValue(undefined);
     writeAppErrorLogMock.mockResolvedValue({ ok: true });
+    mirrorGeneratedAudioPresentationToMediaFilesMock.mockResolvedValue({ updatedCount: 0 });
   });
 
   it("removes existing companion-art storage and clears projection metadata", async () => {
@@ -67,6 +74,14 @@ describe("cleanupAudioCompanionArt", () => {
       "user-1/generations/audio/gen-1/companion-art/cover.webp",
     ]);
     expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-1",
+        userId: "user-1",
+        companionArtStatus: null,
+        companionArtStoragePath: null,
+      })
+    );
+    expect(mirrorGeneratedAudioPresentationToMediaFilesMock).toHaveBeenCalledWith(
       expect.objectContaining({
         generationId: "gen-1",
         userId: "user-1",

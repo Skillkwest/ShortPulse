@@ -8,6 +8,7 @@ import {
 } from "../mediaLibraryDataEffects";
 import { invalidateSignedMediaUrl } from "../../../../lib/mediaSignedUrlCache";
 import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../../lib/supabaseClient";
+import { fetchWithAuth } from "../../../../lib/authenticatedFetch";
 
 vi.mock("../../../../lib/supabaseClient", () => ({
   ensureSupabaseQueryClient: vi.fn(),
@@ -18,9 +19,14 @@ vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
   invalidateSignedMediaUrl: vi.fn(),
 }));
 
+vi.mock("../../../../lib/authenticatedFetch", () => ({
+  fetchWithAuth: vi.fn(),
+}));
+
 const ensureSupabaseQueryClientMock = vi.mocked(ensureSupabaseQueryClient);
 const readSupabaseUserIdMock = vi.mocked(readSupabaseUserId);
 const invalidateSignedMediaUrlMock = vi.mocked(invalidateSignedMediaUrl);
+const fetchWithAuthMock = vi.mocked(fetchWithAuth);
 const mediaEventsInsertMock = vi.fn();
 const mediaVariantsInMock = vi.fn();
 const mediaFilesDeleteMock = vi.fn();
@@ -48,6 +54,11 @@ describe("mediaLibraryDataEffects", () => {
     mediaPromptsSelectMock.mockReturnValue({ maybeSingle: mediaPromptsMaybeSingleMock });
     mediaPromptsMaybeSingleMock.mockResolvedValue({ data: { id: "prompt-1" }, error: null });
     storageRemoveMock.mockResolvedValue({ error: null });
+    fetchWithAuthMock.mockResolvedValue(
+      new Response(JSON.stringify({ deletedMediaId: "file-1" }), {
+        status: 200,
+      })
+    );
 
     ensureSupabaseQueryClientMock.mockReturnValue({
       from: (table: string) => {
@@ -150,39 +161,37 @@ describe("mediaLibraryDataEffects", () => {
     expect(invalidateSignedMediaUrlMock).toHaveBeenCalledTimes(205);
   });
 
-  it("deletes a media row only when Supabase returns the deleted id", async () => {
-    mediaVariantsInMock.mockResolvedValueOnce({
-      data: [{ storage_path: "u/private/file-1-thumb.webp" }],
-      error: null,
-    });
-
+  it("deletes media through the server-owned media delete route", async () => {
     await deleteMediaFileWithStorage({
       id: "file-1",
       storage_path: "u/private/file-1.png",
       preview_storage_path: "u/private/file-1-preview.png",
     });
 
-    expect(mediaFilesDeleteMock).toHaveBeenCalledTimes(1);
-    expect(mediaFilesEqMock).toHaveBeenCalledWith("id", "file-1");
-    expect(mediaFilesSelectMock).toHaveBeenCalledWith("id");
-    expect(storageRemoveMock).toHaveBeenCalledWith([
-      "u/private/file-1.png",
-      "u/private/file-1-preview.png",
-      "u/private/file-1-thumb.webp",
-    ]);
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/media/delete",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ mediaFileId: "file-1" }),
+      })
+    );
+    expect(mediaFilesDeleteMock).not.toHaveBeenCalled();
   });
 
-  it("throws instead of removing storage when the media delete affects no rows", async () => {
-    mediaFilesMaybeSingleMock.mockResolvedValueOnce({ data: null, error: null });
+  it("throws the server route message when media delete fails", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: "Failed to delete media", details: "No row" }), {
+        status: 500,
+      })
+    );
 
     await expect(
       deleteMediaFileWithStorage({
         id: "missing-file",
         storage_path: "u/private/missing-file.png",
       })
-    ).rejects.toThrow("Unable to delete media.");
+    ).rejects.toThrow("No row");
 
-    expect(mediaFilesEqMock).toHaveBeenCalledWith("id", "missing-file");
     expect(storageRemoveMock).not.toHaveBeenCalled();
   });
 

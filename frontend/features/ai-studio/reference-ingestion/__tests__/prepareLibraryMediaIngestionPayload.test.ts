@@ -347,6 +347,57 @@ describe("prepareLibraryMediaIngestionPayload", () => {
     expect(result.url).toBe("https://signed.example.com/audio/quiet-signal.wav");
   });
 
+  it("prefers generated-audio projection title and companion art over stale media metadata", async () => {
+    mediaFilesMaybeSingleMock
+      .mockResolvedValueOnce({
+        data: {
+          filename: "reference-audio-1782190088726-ezl75p.wav",
+          source: "ai_studio",
+          source_ref: "generation-audio-2",
+          metadata: {
+            display_title: "Stale Metadata Title",
+            companion_art_storage_path:
+              "user-1/generations/audio/generation-audio-2/companion-art/stale.webp",
+          },
+          storage_path: "user-1/generations/audio/reference-audio-1782190088726-ezl75p.wav",
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          display_title: "Projection Title",
+          companion_art_storage_path:
+            "user-1/generations/audio/generation-audio-2/companion-art/cover.webp",
+        },
+        error: null,
+      });
+    getSignedMediaUrlMock.mockImplementation(async ({ storagePath }: { storagePath: string }) => {
+      if (storagePath === "user-1/generations/audio/reference-audio-1782190088726-ezl75p.wav") {
+        return "https://signed.example.com/audio/projection.wav";
+      }
+      if (storagePath === "user-1/generations/audio/generation-audio-2/companion-art/cover.webp") {
+        return "https://signed.example.com/audio/projection-cover.webp";
+      }
+      return null;
+    });
+
+    const result = await prepareLibraryMediaIngestionPayload({
+      id: "media-audio-2",
+      url: "https://expired.example.com/reference-audio-1782190088726-ezl75p.wav",
+      fileType: "audio",
+      previewStoragePath: null,
+      fullStoragePath: null,
+    });
+
+    expect(mediaFilesFromMock).toHaveBeenCalledWith("generation_projection");
+    expect(mediaFilesSelectMock).toHaveBeenCalledWith("display_title, companion_art_storage_path");
+    expect(result.displayTitle).toBe("Projection Title");
+    expect(result.companionArtStoragePath).toBe(
+      "user-1/generations/audio/generation-audio-2/companion-art/cover.webp"
+    );
+    expect(result.companionArtUrl).toBe("https://signed.example.com/audio/projection-cover.webp");
+  });
+
   it("normalizes poster-backed video preview storage to the playable full storage path", async () => {
     getSignedMediaUrlMock.mockImplementation(async ({ storagePath }: { storagePath: string }) => {
       if (storagePath === "user-1/generations/videos/media-video-1.mp4") {

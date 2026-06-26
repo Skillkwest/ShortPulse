@@ -260,24 +260,26 @@ export function PresetsLibraryPanel({
                   }}
                 >
                   <span className="presets-library-tile-head">
-                    <span className="presets-library-tile-title">{preset.label}</span>
-                    {!preset.isCustom ? (
-                      <span
-                        className="presets-library-custom-pill is-built-in"
-                        title="Built-in preset. It can't be edited, but you can still delete it from your library."
-                        role="img"
-                        aria-label="Built-in preset"
-                      >
-                        <Image
-                          className="presets-library-built-in-favicon"
-                          src="/Fav.png"
-                          alt=""
-                          width={16}
-                          height={16}
-                          aria-hidden="true"
-                        />
-                      </span>
-                    ) : null}
+                    <span className="presets-library-tile-title-group">
+                      {!preset.isCustom ? (
+                        <span
+                          className="presets-library-custom-pill is-built-in"
+                          title="Built-in preset. It can't be edited, but you can still delete it from your library."
+                          role="img"
+                          aria-label="Built-in preset"
+                        >
+                          <Image
+                            className="presets-library-built-in-favicon"
+                            src="/Fav.png"
+                            alt=""
+                            width={16}
+                            height={16}
+                            aria-hidden="true"
+                          />
+                        </span>
+                      ) : null}
+                      <span className="presets-library-tile-title">{preset.label}</span>
+                    </span>
                   </span>
                   <span className="presets-library-tile-prompt">{preset.prompt}</span>
                 </button>

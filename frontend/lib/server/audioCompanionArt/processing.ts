@@ -8,6 +8,7 @@ import {
   buildFalFluxKleinAudioCompanionArtPayload,
   generateFalFluxKleinImage,
 } from "../falStylePreviewGeneration";
+import { mirrorGeneratedAudioPresentationToMediaFiles } from "../generatedAudioPresentation";
 import { cleanupAudioCompanionArt } from "./cleanup";
 import { compileAudioCompanionArtPrompt, type AudioCompanionArtSourceMode } from "./promptCompiler";
 
@@ -200,6 +201,12 @@ export const markAudioCompanionArtPending = async ({
       companionArtStoragePath: null,
       companionArtAttemptCount: 0,
     });
+    await mirrorGeneratedAudioPresentationToMediaFiles({
+      generationId,
+      userId,
+      companionArtStatus: "pending",
+      companionArtStoragePath: null,
+    });
   } catch (error) {
     await writeAppErrorLog({
       source: "telemetry.audio_companion_art.enqueue_failed",
@@ -249,6 +256,12 @@ const markAudioCompanionArtFailed = async ({
     generationId,
     userId,
     companionArtStatus: "failed",
+  }).catch(() => undefined);
+  await mirrorGeneratedAudioPresentationToMediaFiles({
+    generationId,
+    userId,
+    companionArtStatus: "failed",
+    companionArtStoragePath: null,
   }).catch(() => undefined);
   await writeAppErrorLog({
     source: "telemetry.audio_companion_art.generation_failed",
@@ -346,6 +359,13 @@ const generateAndPersistAudioCompanionArt = async ({
     userId,
     companionArtStatus: "ready",
     companionArtStoragePath: storagePath,
+  });
+  await mirrorGeneratedAudioPresentationToMediaFiles({
+    generationId,
+    userId,
+    companionArtStatus: "ready",
+    companionArtStoragePath: storagePath,
+    supabaseAdmin,
   });
 
   return {

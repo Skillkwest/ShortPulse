@@ -91,6 +91,7 @@ export type GeneratedMediaLibraryRow = GeneratedMediaFileRecord & {
 };
 
 export type VisibleGenerationDelivery = {
+  title?: string | null;
   previewUrl: string | null;
   previewPosterUrl: string | null;
   previewPosterStoragePath: string | null;
@@ -106,6 +107,7 @@ export type PublishedGenerationDelivery = VisibleGenerationDelivery;
 
 export type VisibleGenerationReconcile = {
   generationId: string;
+  title?: string | null;
   previewUrl: string | null;
   previewPosterUrl?: string | null;
   previewPosterStoragePath?: string | null;
@@ -350,6 +352,7 @@ const toProjectionDelivery = (
   }
 
   return {
+    ...(asTrimmedString(row.display_title) ? { title: asTrimmedString(row.display_title) } : {}),
     previewUrl,
     previewPosterUrl,
     previewPosterStoragePath,
@@ -1874,6 +1877,7 @@ export const resolveVisibleGenerationDeliveryByGenerationId = async ({
         if (publishedDelivery) {
           const mergedDelivery = {
             ...projectionDelivery,
+            title: projectionDelivery.title ?? publishedDelivery.title,
             previewPosterUrl:
               projectionDelivery.previewPosterUrl ?? publishedDelivery.previewPosterUrl,
             previewPosterStoragePath:
@@ -2039,6 +2043,7 @@ export const resolveVisibleGenerationReconcile = async ({
 
   return {
     generationId: resolvedGenerationId,
+    ...(delivery.title ? { title: delivery.title } : {}),
     previewUrl: delivery.previewUrl,
     previewPosterUrl,
     previewPosterStoragePath,

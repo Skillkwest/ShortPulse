@@ -21,6 +21,7 @@ const PROJECT_GENERATION_PROJECTION_SELECT_COLUMNS = [
   "provider",
   "model_id",
   "display_prompt",
+  "display_title",
   "transcript_text",
   "preview_url",
   "companion_art_status",
@@ -65,6 +66,7 @@ type ProjectGenerationProjectionRow = {
   provider?: unknown;
   model_id?: unknown;
   display_prompt?: unknown;
+  display_title?: unknown;
   transcript_text?: unknown;
   preview_url?: unknown;
   companion_art_status?: unknown;
@@ -1048,6 +1050,7 @@ const patchSnapshotOutputRow = ({
   const nextErrorMessageShort = asTrimmedString(projection.error_message_short);
   const nextErrorDetail = asTrimmedString(projection.error_detail);
   const nextPrompt = asTrimmedString(projection.display_prompt);
+  const nextTitle = asTrimmedString(projection.display_title);
   const nextTranscriptText = asTrimmedString(projection.transcript_text);
   const nextProvider = asTrimmedString(projection.provider);
   const nextModelId = asTrimmedString(projection.model_id);
@@ -1069,6 +1072,7 @@ const patchSnapshotOutputRow = ({
       asIsoTimestampString(row.createdAt) ??
       asIsoTimestampString(row.timestamp) ??
       null,
+    title: nextTitle ?? row.title ?? null,
     prompt: nextPrompt ?? row.prompt ?? "",
     transcriptText: nextTranscriptText ?? row.transcriptText ?? null,
     provider: nextProvider ?? row.provider,
@@ -1113,6 +1117,7 @@ const patchSnapshotOutputMetadataRow = ({
   projection: ProjectGenerationProjectionRow;
 }): SnapshotRecord => {
   const nextPrompt = asTrimmedString(projection.display_prompt);
+  const nextTitle = asTrimmedString(projection.display_title);
   const nextTranscriptText = asTrimmedString(projection.transcript_text);
   const nextProvider = asTrimmedString(projection.provider);
   const nextModelId = asTrimmedString(projection.model_id);
@@ -1134,6 +1139,7 @@ const patchSnapshotOutputMetadataRow = ({
   const shouldRepairAudioCompanionArt = nextMode === "audio";
   const nextRow = {
     ...row,
+    title: nextTitle ?? row.title ?? null,
     prompt: nextPrompt ?? row.prompt ?? "",
     transcriptText: nextTranscriptText ?? row.transcriptText ?? null,
     provider: nextProvider ?? row.provider,
@@ -1289,6 +1295,7 @@ const createSnapshotOutputRowFromProjection = ({
       mode,
       model: modelId ?? "Generated media",
       modelId: modelId ?? undefined,
+      title: asTrimmedString(projection.display_title) ?? null,
       prompt: asTrimmedString(projection.display_prompt) ?? "",
       transcriptText: asTrimmedString(projection.transcript_text) ?? null,
       status: restoredStatus,

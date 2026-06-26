@@ -542,6 +542,12 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           onRemoveCuratedReference(item.id);
           return;
         }
+        if (event.key === "Delete" && !hideReferenceActions && onDeleteOutput && isSelected) {
+          event.preventDefault();
+          event.stopPropagation();
+          onDeleteOutput(item.id);
+          return;
+        }
         if (!onKeyboardReorderCurated) return;
         if (event.key === "ArrowUp" || event.key === "ArrowDown") {
           event.preventDefault();

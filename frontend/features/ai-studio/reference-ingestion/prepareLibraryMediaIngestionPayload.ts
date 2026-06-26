@@ -28,6 +28,11 @@ type MediaStoragePathRow = {
   width?: unknown;
 };
 
+type ProjectionPresentationRow = {
+  display_title?: unknown;
+  companion_art_storage_path?: unknown;
+};
+
 type MediaIdFallback = {
   filename: string | null;
   displayTitle: string | null;
@@ -209,17 +214,46 @@ const resolveStoragePathsFromMediaId = async (
     const workflowReload = isWorkflowReloadConfigV1(metadata?.workflow_reload)
       ? metadata.workflow_reload
       : null;
+    const source = normalizeText(typeof data?.source === "string" ? data.source : null);
+    const sourceRef = normalizeText(typeof data?.source_ref === "string" ? data.source_ref : null);
+    let projectionPresentation: {
+      displayTitle: string | null;
+      companionArtStoragePath: string | null;
+    } | null = null;
+    if (fileType === "audio" && source === "ai_studio" && sourceRef) {
+      const { data: projectionData, error: projectionError } = (await supabase
+        .from("generation_projection")
+        .select("display_title, companion_art_storage_path")
+        .eq("generation_id", sourceRef)
+        .limit(1)
+        .maybeSingle()) as unknown as { data: ProjectionPresentationRow | null; error: unknown };
+      if (!projectionError && projectionData) {
+        projectionPresentation = {
+          displayTitle: normalizeText(
+            typeof projectionData.display_title === "string" ? projectionData.display_title : null
+          ),
+          companionArtStoragePath: asCanonicalStoragePath(
+            typeof projectionData.companion_art_storage_path === "string"
+              ? projectionData.companion_art_storage_path
+              : null
+          ),
+        };
+      }
+    }
     const width =
       typeof data?.width === "number" && Number.isFinite(data.width) ? data.width : undefined;
     const height =
       typeof data?.height === "number" && Number.isFinite(data.height) ? data.height : undefined;
     return {
       filename: normalizeText(typeof data?.filename === "string" ? data.filename : null),
-      displayTitle: resolveMetadataDisplayTitle(metadata),
+      displayTitle: projectionPresentation?.displayTitle ?? resolveMetadataDisplayTitle(metadata),
       companionArtStoragePath:
-        fileType === "audio" ? resolveMetadataCompanionArtStoragePath(metadata) : null,
-      source: normalizeText(typeof data?.source === "string" ? data.source : null),
-      sourceRef: normalizeText(typeof data?.source_ref === "string" ? data.source_ref : null),
+        fileType === "audio"
+          ? (projectionPresentation?.companionArtStoragePath ??
+            resolveMetadataCompanionArtStoragePath(metadata))
+          : null,
+      source,
+      sourceRef,
       modelId: normalizeText(
         typeof metadata?.model_id === "string"
           ? metadata.model_id

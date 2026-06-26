@@ -371,7 +371,7 @@
 
 .video-properties-panel
   .video-elements-placeholder-tile--filled.video-elements-placeholder-tile--reference-audio {
-  border-color: rgba(255, 204, 102, 0.62);
+  border-color: rgba(170, 101, 239, 0.72);
 }
 
 .video-properties-panel .video-elements-placeholder-tile:hover {
@@ -451,7 +451,7 @@
 
 .video-properties-panel
   .video-elements-placeholder-tile--filled.video-elements-placeholder-tile--reference-audio::after {
-  box-shadow: inset 0 0 0 1px rgba(255, 204, 102, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(170, 101, 239, 0.24);
 }
 
 .video-properties-panel .video-elements-slot-video-preview,
@@ -467,8 +467,8 @@
 }
 
 .video-properties-panel .video-elements-slot-audio-preview {
-  background: linear-gradient(145deg, rgba(255, 204, 102, 0.2), rgba(255, 123, 167, 0.08)), #101215;
-  color: rgba(255, 239, 205, 0.9);
+  background: linear-gradient(145deg, rgba(179, 43, 169, 0.24), rgba(61, 47, 168, 0.2)), #101215;
+  color: rgba(236, 229, 255, 0.92);
 }
 
 .video-properties-panel .video-elements-slot-actions {

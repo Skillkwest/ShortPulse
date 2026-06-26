@@ -470,8 +470,8 @@ export const upsertGenerationProjection = async ({
   hiddenInReferenceGrid,
   referenceGridVisible,
   publicationState,
-  resultUrls = [],
-  savedMediaIds = [],
+  resultUrls,
+  savedMediaIds,
   generationReplay,
   workflowReload,
   characterContext,
@@ -482,10 +482,10 @@ export const upsertGenerationProjection = async ({
   const payload: Record<string, unknown> = {
     generation_id: generationId,
     user_id: userId,
-    result_urls: resultUrls,
-    saved_media_ids: savedMediaIds,
     updated_at: new Date().toISOString(),
   };
+  if (resultUrls !== undefined) payload.result_urls = resultUrls;
+  if (savedMediaIds !== undefined) payload.saved_media_ids = savedMediaIds;
   if (generationReplay !== undefined) payload.generation_replay = generationReplay;
   if (workflowReload !== undefined) payload.workflow_reload = workflowReload;
   if (characterContext !== undefined) payload.character_context = characterContext;

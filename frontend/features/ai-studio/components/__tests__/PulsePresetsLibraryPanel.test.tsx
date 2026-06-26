@@ -41,6 +41,11 @@ describe("PulsePresetsLibraryPanel", () => {
     expect(
       screen.getAllByRole("img", { name: "Built-in Pulse" })[0]?.querySelector("img")
     ).toHaveAttribute("src", expect.stringContaining("Fav.png"));
+    expect(
+      screen
+        .getAllByRole("img", { name: "Built-in Pulse" })[0]
+        ?.compareDocumentPosition(screen.getByText("Video Prompt Magic"))
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 
   it("filters Pulse tiles by search query", () => {

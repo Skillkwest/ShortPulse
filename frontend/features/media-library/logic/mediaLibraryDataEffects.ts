@@ -2,16 +2,13 @@
  * Media Library side-effect helpers for event logging and storage cleanup.
  * Centralizes Supabase operations used by delete flows so page orchestration stays thin.
  */
+import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { invalidateSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
 import { BUCKET, isMissingRelationError, isNonEmptyString } from "./mediaLibraryPageHelpers";
 
 type MediaVariantPathRow = {
   storage_path: string | null;
-};
-
-type DeletedMediaFileRow = {
-  id: string;
 };
 
 type DeletedMediaPromptRow = {
@@ -125,22 +122,28 @@ export const removeStoragePaths = async (paths: string[]): Promise<void> => {
  * Side effects: removes bucket objects and deletes one `media_files` row.
  */
 export const deleteMediaFileWithStorage = async (target: MediaDeleteTarget): Promise<void> => {
-  const supabase = ensureSupabaseQueryClient();
-  const deletePaths = await collectMediaStoragePathsForDelete([target]);
-  const { data: deletedRow, error: deleteError } = await supabase
-    .from("media_files")
-    .delete()
-    .eq("id", target.id)
-    .select("id")
-    .maybeSingle<DeletedMediaFileRow>();
-  if (deleteError) throw deleteError;
-  if (!deletedRow?.id) {
-    throw new Error("Unable to delete media.");
-  }
-  try {
-    await removeStoragePaths(deletePaths);
-  } catch (storageError) {
-    console.warn("Media storage cleanup failed after DB delete", storageError);
+  const response = await fetchWithAuth("/api/media/delete", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ mediaFileId: target.id }),
+    shortpulseLogScope: "app",
+    shortpulseRetryNetworkOnce: true,
+    shortpulseRetryAuth401: true,
+  });
+  if (!response.ok) {
+    let message = "Unable to delete media.";
+    try {
+      const body = (await response.json()) as { error?: unknown; details?: unknown };
+      message =
+        (typeof body.details === "string" && body.details.trim()) ||
+        (typeof body.error === "string" && body.error.trim()) ||
+        message;
+    } catch {
+      // Preserve the stable user-facing fallback when the route cannot return JSON.
+    }
+    throw new Error(message);
   }
 };
 

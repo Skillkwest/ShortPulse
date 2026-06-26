@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SharedMediaDetailItemBase } from "../detail-modal/detailModalPlatformTypes";
@@ -8,6 +9,14 @@ type MockImageInstance = {
   onload: (() => void) | null;
   onerror: (() => void) | null;
   src: string;
+};
+
+const aiStudioModalStylesheet = readFileSync("styles/ai-studio-modals.css", "utf8");
+
+const extractCssRule = (selector: string): string => {
+  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = aiStudioModalStylesheet.match(new RegExp(`${escapedSelector}\\s*{(?<body>[^}]*)}`));
+  return match?.groups?.body ?? "";
 };
 
 const createImageItem = ({
@@ -133,6 +142,19 @@ describe("SharedMediaDetailPreviewModal image stability", () => {
     });
 
     expect(screen.getByAltText("city-frame.png")).toHaveAttribute("src", fullUrl);
+  });
+});
+
+describe("SharedMediaDetailPreviewModal layout contract", () => {
+  it("bounds the prompt blade textarea so long prompts scroll inside the side panel", () => {
+    const promptBladeRule = extractCssRule(".art-prompt-blade");
+    const promptTextareaRule = extractCssRule(".art-blade-textarea");
+
+    expect(promptBladeRule).toContain("overflow: hidden");
+    expect(promptTextareaRule).toContain("flex: 1 1 auto");
+    expect(promptTextareaRule).toContain("min-height: 0");
+    expect(promptTextareaRule).toContain("overflow-y: auto");
+    expect(promptTextareaRule).not.toContain("height: 100%");
   });
 });
 

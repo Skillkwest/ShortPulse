@@ -607,6 +607,7 @@ describe("generatedMediaAuthority", () => {
       data: {
         preview_url: "https://signed.test/audio-preview.wav",
         result_urls: ["https://signed.test/audio-preview.wav"],
+        display_title: "Midnight Signal",
         preview_storage_path: "user-1/generations/audio/gen-audio-1/audio.wav",
         full_storage_path: "user-1/generations/audio/gen-audio-1/audio.wav",
         companion_art_status: "ready",
@@ -636,6 +637,7 @@ describe("generatedMediaAuthority", () => {
       })
     ).resolves.toEqual({
       generationId: "gen-audio-1",
+      title: "Midnight Signal",
       previewUrl: "https://signed.test/audio-preview.wav",
       previewPosterUrl: null,
       previewPosterStoragePath: null,

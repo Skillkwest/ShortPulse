@@ -2,6 +2,7 @@ import { assertUserScopedMediaStoragePath } from "../../mediaStoragePath";
 import { writeAppErrorLog } from "../api/appErrorLogs";
 import { upsertGenerationProjection } from "../api/generationProjection";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
+import { mirrorGeneratedAudioPresentationToMediaFiles } from "../generatedAudioPresentation";
 
 const MEDIA_BUCKET = "media_library";
 
@@ -106,6 +107,24 @@ export const cleanupAudioCompanionArt = async ({
         storagePath: companionArtStoragePath,
       });
     }
+  }
+
+  try {
+    await mirrorGeneratedAudioPresentationToMediaFiles({
+      generationId,
+      userId,
+      companionArtStatus: null,
+      companionArtStoragePath: null,
+      supabaseAdmin: adminClient,
+    });
+  } catch (error) {
+    await logCleanupFailure({
+      userId,
+      generationId,
+      source: "telemetry.audio_companion_art.cleanup_media_mirror_failed",
+      error,
+      storagePath: companionArtStoragePath,
+    });
   }
 
   let clearedProjection = false;

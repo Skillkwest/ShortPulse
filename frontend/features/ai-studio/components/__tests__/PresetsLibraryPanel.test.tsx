@@ -52,6 +52,11 @@ describe("PresetsLibraryPanel", () => {
     expect(
       screen.getByRole("img", { name: "Built-in preset" }).querySelector("img")
     ).toHaveAttribute("src", expect.stringContaining("Fav.png"));
+    expect(
+      screen
+        .getByRole("img", { name: "Built-in preset" })
+        .compareDocumentPosition(screen.getByText("Selfie"))
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 
   it("filters preset tiles by search query", () => {

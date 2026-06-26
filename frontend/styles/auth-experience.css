@@ -261,11 +261,17 @@
 }
 
 .auth-experience-shell .auth-switch button {
-  color: #ec5865;
+  background: linear-gradient(135deg, #ff9a4a 0%, #ff5357 48%, #ff2f7a 100%);
+  background-clip: text;
+  color: #ff5357;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .auth-experience-shell .auth-card-signup .auth-switch button {
+  background: none;
   color: var(--auth-dashboard-cool);
+  -webkit-text-fill-color: currentColor;
 }
 
 .auth-experience-shell .auth-submit {

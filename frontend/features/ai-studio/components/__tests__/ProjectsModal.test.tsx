@@ -84,6 +84,8 @@ describe("ProjectsModal", () => {
     );
 
     expect(await screen.findByRole("dialog", { name: "Projects" })).toBeInTheDocument();
+    expect(screen.getByText("Open a saved AI Studio project.")).toBeInTheDocument();
+    expect(screen.queryByText(/\d+ saved/)).not.toBeInTheDocument();
     expect(mockedFetchWithAuth).toHaveBeenCalledWith(
       "/api/projects?limit=12&offset=0&previewMode=none",
       {
@@ -271,7 +273,8 @@ describe("ProjectsModal", () => {
     await waitFor(() => {
       expect(screen.queryByText("Campaign Alpha")).not.toBeInTheDocument();
     });
-    expect(screen.getByText("1 saved")).toBeInTheDocument();
+    expect(screen.getByText("Campaign Beta")).toBeInTheDocument();
+    expect(screen.queryByText(/\d+ saved/)).not.toBeInTheDocument();
   });
 
   it("removes a stale project card when delete returns not found", async () => {
@@ -307,7 +310,8 @@ describe("ProjectsModal", () => {
       expect(screen.queryByText("Campaign Alpha")).not.toBeInTheDocument();
     });
     expect(screen.queryByText("Project no longer exists.")).not.toBeInTheDocument();
-    expect(screen.getByText("0 saved")).toBeInTheDocument();
+    expect(screen.getByText("No saved projects yet")).toBeInTheDocument();
+    expect(screen.queryByText(/\d+ saved/)).not.toBeInTheDocument();
   });
 
   it("guards against duplicate delete confirms before React disables the button", async () => {

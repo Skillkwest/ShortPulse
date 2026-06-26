@@ -34,6 +34,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 - Server endpoints:
   - `frontend/pages/api/media/prepare-upload.ts`
   - `frontend/pages/api/media/finalize-upload.ts`
+  - `frontend/pages/api/media/delete.ts`
   - `frontend/pages/api/media/folders/list.ts`
   - `frontend/pages/api/media/folders/create.ts`
   - `frontend/pages/api/media/folders/move.ts`
@@ -189,7 +190,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
    - Current: `All Media` exposes per-card media selection plus a bulk action bar with `Clear`, `Move to folder`, and `Delete from library`. Custom folders expose `Clear`, `Move to folder`, and `Remove from folder`. Panel card click toggles selected state for media and prompt cards without ingesting them into Reference Grid, while root `All Media` right-click still ingests media and root `All Media` double-click still opens the shared media detail modal behavior.
 8. Delete from `All Media` permanent remove:
    - Status: Aligned.
-   - Current: Root-level delete action permanently removes media/prompt rows from library (including best-effort storage cleanup for media after metadata delete succeeds).
+   - Current: Root-level delete action permanently removes media/prompt rows from library. Media deletion uses the server-owned `/api/media/delete` route for row, storage, variant, and generated-audio companion-art cleanup; prompt deletion remains a prompt-row mutation.
 9. Custom-folder browse-first surface:
    - Status: Aligned.
    - Current: Custom folders use the normal folder browse surface only (folder-scoped media/prompt grids with standard remove controls). There is no separate Media Library folder-canvas persistence or interaction surface.

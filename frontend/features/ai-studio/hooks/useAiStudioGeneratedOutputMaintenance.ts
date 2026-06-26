@@ -598,7 +598,9 @@ export const useAiStudioGeneratedOutputMaintenance = ({
               reconcile.companionArtStoragePath ?? output.companionArtStoragePath ?? null;
             const nextCompanionArtStatus =
               reconcile.companionArtStatus ?? output.companionArtStatus ?? null;
+            const nextTitle = reconcile.title ?? output.title ?? null;
             if (
+              nextTitle === (output.title ?? null) &&
               nextCompanionArtUrl === output.companionArtUrl &&
               nextCompanionArtStoragePath === output.companionArtStoragePath &&
               nextCompanionArtStatus === output.companionArtStatus
@@ -611,6 +613,7 @@ export const useAiStudioGeneratedOutputMaintenance = ({
             );
             return {
               ...output,
+              title: nextTitle,
               companionArtUrl: nextCompanionArtUrl,
               companionArtStoragePath: nextCompanionArtStoragePath,
               companionArtStatus: nextCompanionArtStatus,

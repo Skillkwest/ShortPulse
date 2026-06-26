@@ -158,6 +158,13 @@
   gap: 8px;
 }
 
+.pulse-presets-library-tile-title-group {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+}
+
 .pulse-presets-library-tile-title {
   color: rgba(238, 242, 248, 0.94);
   font-size: 14px;

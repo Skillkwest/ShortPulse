@@ -560,6 +560,7 @@ describe("useAiStudioGeneratedOutputMaintenance", () => {
   it("reconciles generated audio when companion art has durable storage but no signed url", async () => {
     resolveVisibleGenerationReconcileMock.mockResolvedValueOnce({
       generationId: "audio-generation-1",
+      title: "Midnight Signal",
       previewUrl: "https://cdn.example.com/audio.mp3",
       previewPosterUrl: null,
       previewPosterStoragePath: null,
@@ -582,6 +583,7 @@ describe("useAiStudioGeneratedOutputMaintenance", () => {
           generationId: "audio-generation-1",
           taskId: "audio-task-1",
           taskState: "success",
+          title: null,
           previewUrl: "https://cdn.example.com/audio.mp3",
           resultUrls: ["https://cdn.example.com/audio.mp3"],
           companionArtStatus: "ready",
@@ -601,6 +603,7 @@ describe("useAiStudioGeneratedOutputMaintenance", () => {
       expect(result.current.outputs[0]?.companionArtUrl).toBe(
         "https://signed.test/audio-cover.webp"
       );
+      expect(result.current.outputs[0]?.title).toBe("Midnight Signal");
     });
   });
 

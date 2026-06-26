@@ -1060,6 +1060,8 @@ describe("upsertGenerationProjection", () => {
     expect(payload).not.toHaveProperty("workflow_reload");
     expect(payload).not.toHaveProperty("character_context");
     expect(payload).not.toHaveProperty("style_context");
+    expect(payload).not.toHaveProperty("result_urls");
+    expect(payload).not.toHaveProperty("saved_media_ids");
   });
 
   it("writes raw error payloads onto failed projection rows", async () => {

@@ -3,7 +3,7 @@
  * Lists saved projects and routes selection back through the page-level project identity boundary.
  */
 import React from "react";
-import { Sparkle, Trash } from "phosphor-react";
+import { Sparkle, Trash, X } from "phosphor-react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { normalizeErrorText } from "../../../lib/errorText";
 import { AppMessage } from "../../../components/AppMessage";
@@ -405,9 +405,7 @@ export function ProjectsModal({
             <p id="ai-projects-modal-title" className="model-modal-title">
               Projects
             </p>
-            <p className="model-modal-subtitle">
-              Open a saved AI Studio project and restore its project-backed workspace.
-            </p>
+            <p className="model-modal-subtitle">Open a saved AI Studio project.</p>
           </div>
           <div className="model-modal-header-actions">
             {onCreateProject ? (
@@ -421,21 +419,14 @@ export function ProjectsModal({
                 New Project
               </button>
             ) : null}
-            <span className="ai-projects-modal-count-pill" aria-live="polite">
-              {loadState.status === "ready"
-                ? `${loadState.projects.length} saved`
-                : loadState.status === "loading"
-                  ? "Loading..."
-                  : "Saved projects"}
-            </span>
             <button
               ref={closeButtonRef}
               type="button"
-              className="ghost-btn mini model-modal-close"
+              className="ghost-btn mini model-modal-close ai-projects-modal-close-button"
               onClick={onClose}
               aria-label="Close projects modal"
             >
-              ×
+              <X size={16} weight="bold" />
             </button>
           </div>
         </div>

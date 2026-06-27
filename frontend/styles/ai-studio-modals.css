@@ -1481,7 +1481,7 @@
   margin-top: 18px;
 }
 
-.ai-credit-modal-package-button {
+.ai-credit-modal-package-card {
   display: grid;
   grid-template-rows: auto auto auto auto 1fr auto;
   gap: 7px;
@@ -1494,35 +1494,25 @@
   color: rgba(237, 248, 255, 0.9);
   font: inherit;
   text-align: left;
-  cursor: pointer;
   transition:
     border-color 0.16s ease,
     background 0.16s ease,
     box-shadow 0.16s ease;
 }
 
-.ai-credit-modal-package-button:hover,
-.ai-credit-modal-package-button:focus-visible {
+.ai-credit-modal-package-card:hover {
   border-color: rgba(71, 196, 255, 0.62);
   background: rgba(24, 35, 48, 0.98);
 }
 
-.ai-credit-modal-package-button.is-selected {
-  border-color: rgba(71, 196, 255, 0.86);
-  background: rgba(26, 45, 60, 0.98);
-  box-shadow:
-    0 0 0 1px rgba(71, 196, 255, 0.32) inset,
-    0 12px 30px rgba(0, 0, 0, 0.22);
-}
-
-.ai-credit-modal-package-button strong {
+.ai-credit-modal-package-card strong {
   color: #ffffff;
   font-size: 22px;
   line-height: 1;
   white-space: nowrap;
 }
 
-.ai-credit-modal-package-button span {
+.ai-credit-modal-package-card span {
   min-width: 0;
 }
 
@@ -1557,12 +1547,26 @@
 .ai-credit-modal-package-buy {
   display: grid;
   place-items: center;
+  width: 100%;
   min-height: 32px;
+  border: 0;
   border-radius: 8px;
   background: linear-gradient(135deg, #2aa8ff, #34c6d7);
   color: #edfaff;
+  font: inherit;
   font-size: 13px;
   font-weight: 900;
+  cursor: pointer;
+}
+
+.ai-credit-modal-package-buy:hover,
+.ai-credit-modal-package-buy:focus-visible {
+  background: linear-gradient(135deg, #37b5ff, #41d7e7);
+}
+
+.ai-credit-modal-package-buy:disabled {
+  cursor: wait;
+  opacity: 0.7;
 }
 
 .ai-credit-modal-package-empty {

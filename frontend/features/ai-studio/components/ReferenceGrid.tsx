@@ -30,6 +30,10 @@ import { useReferenceGridResolvedMediaController } from "../reference-grid/contr
 import { useReferenceGridSignedStorageUrlController } from "../reference-grid/controllers/useReferenceGridSignedStorageUrlController";
 import { useReferenceGridSurfaceOwnershipController } from "../reference-grid/controllers/useReferenceGridSurfaceOwnershipController";
 import { useReferenceGridRuntimeScaffold } from "../reference-grid/controllers/useReferenceGridRuntimeScaffold";
+import {
+  useReferenceGridKeyboardCommandController,
+  type ReferenceGridKeyboardSelectionSurface,
+} from "../reference-grid/controllers/useReferenceGridKeyboardCommandController";
 import { useReferenceGridSingleAudioPlaybackController } from "../reference-grid/controllers/useReferenceGridSingleAudioPlaybackController";
 import { useReferenceGridPreviewRuntimeScheduling } from "../reference-grid/controllers/useReferenceGridPreviewRuntime";
 import { areReferenceGridPropsEqual } from "../reference-grid/logic/referenceGridPropsEquality";
@@ -126,6 +130,7 @@ function ReferenceGridComponent({
     allOutputIds,
     archivedOutputs,
     curatedOutputs,
+    isAnyModalOpen,
     suspendBackgroundVisualWork,
     isStylesPanelOpen,
     showReferenceGridSection,
@@ -209,6 +214,7 @@ function ReferenceGridComponent({
     denseVisualModeEnabled,
     startIndex,
     endIndex,
+    visibleOutputIds,
     visibleCuratedOutputIds,
     nearViewportCuratedOutputIds,
     topSpacerHeight,
@@ -249,6 +255,67 @@ function ReferenceGridComponent({
   setFreezeInvestigationGauge("referenceGrid.archivedOutputsCount", archivedOutputs.length);
   setFreezeInvestigationGauge("referenceGrid.projectedOutputsCount", allOutputIds.length);
   setFreezeInvestigationGauge("referenceGrid.curatedOutputsCount", curatedOutputs.length);
+  const selectedKeyboardSurfaceRef = React.useRef<ReferenceGridKeyboardSelectionSurface | null>(
+    null
+  );
+  const handleSelectOutputFromSurface = React.useCallback(
+    (id: string, surface: ReferenceGridKeyboardSelectionSurface) => {
+      selectedKeyboardSurfaceRef.current = surface;
+      onSelectOutput(id);
+    },
+    [onSelectOutput]
+  );
+  const handleSelectReferenceGridOutput = React.useCallback(
+    (id: string) => {
+      handleSelectOutputFromSurface(id, "reference-grid");
+    },
+    [handleSelectOutputFromSurface]
+  );
+  const handleSelectQuickSlotOutput = React.useCallback(
+    (id: string) => {
+      handleSelectOutputFromSurface(id, "quick-slot");
+    },
+    [handleSelectOutputFromSurface]
+  );
+
+  React.useEffect(() => {
+    const selectedSurface = selectedKeyboardSurfaceRef.current;
+    if (!activeOutputId || !selectedSurface) {
+      selectedKeyboardSurfaceRef.current = null;
+      return;
+    }
+    if (
+      selectedSurface === "quick-slot" &&
+      (!showQuickSlotSection || !visibleCuratedOutputIds.includes(activeOutputId))
+    ) {
+      selectedKeyboardSurfaceRef.current = null;
+      return;
+    }
+    if (
+      selectedSurface === "reference-grid" &&
+      (!showReferenceGridSection || !visibleOutputIds.includes(activeOutputId))
+    ) {
+      selectedKeyboardSurfaceRef.current = null;
+    }
+  }, [
+    activeOutputId,
+    showQuickSlotSection,
+    showReferenceGridSection,
+    visibleCuratedOutputIds,
+    visibleOutputIds,
+  ]);
+  useReferenceGridKeyboardCommandController({
+    panelRef,
+    selectedSurfaceRef: selectedKeyboardSurfaceRef,
+    activeOutputId,
+    visibleOutputIds,
+    visibleCuratedOutputIds,
+    showReferenceGridSection,
+    showQuickSlotSection,
+    isAnyModalOpen,
+    onDeleteOutput,
+    onRemoveCuratedReference,
+  });
   const { recomputeAutoplayBudget } = useReferenceGridAutoplaySelectionController({
     activeOutputId,
     suspendAutoplaySelection: suspendBackgroundVisualWork,
@@ -465,7 +532,7 @@ function ReferenceGridComponent({
     setCuratedDropActiveSafe,
     onAddCuratedReference,
     onReorderCuratedReference,
-    onSelectOutput,
+    onSelectOutput: handleSelectQuickSlotOutput,
     onAddDroppedFilesToQuickSlot,
     onAddLibraryMediaReferenceToQuickSlot,
     onAddLibraryPromptReferenceToQuickSlot,
@@ -498,7 +565,8 @@ function ReferenceGridComponent({
     visibleCardItems,
     curatedVisibleCardItems,
     visibleQuickSlotIdSet,
-    onSelectOutput,
+    onSelectReferenceGridOutput: handleSelectReferenceGridOutput,
+    onSelectQuickSlotOutput: handleSelectQuickSlotOutput,
     onOpenDetails,
     onCardDragStart: handleCardDragStart,
     onCardDragEnd: handleCardDragEnd,

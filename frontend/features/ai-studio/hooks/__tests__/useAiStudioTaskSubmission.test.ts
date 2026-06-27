@@ -103,7 +103,7 @@ describe("useAiStudioTaskSubmission", () => {
     );
   });
 
-  it("blocks new visible submissions when the Reference Grid is full", async () => {
+  it("submits new visible outputs when the active Reference Grid is full", async () => {
     const setOutputs = vi.fn();
     const setUiError = vi.fn();
     const setUiNotice = vi.fn();
@@ -111,6 +111,7 @@ describe("useAiStudioTaskSubmission", () => {
     const notifyGenerationFailure = vi.fn();
     const startPollingTask = vi.fn();
     const ensureGenerationRecord = vi.fn(async () => null);
+    vi.mocked(resolveSubmissionHandlerRoute).mockReturnValue("image");
 
     const { result } = renderHook(() =>
       useAiStudioTaskSubmission({
@@ -157,11 +158,9 @@ describe("useAiStudioTaskSubmission", () => {
       await result.current("A polished studio portrait", []);
     });
 
-    expect(setUiError).toHaveBeenCalledWith(
-      expect.stringContaining(`${REFERENCE_GRID_MAX_VISIBLE_ITEMS} items`)
-    );
-    expect(setOutputs).not.toHaveBeenCalled();
-    expect(handleImageModelSubmission).not.toHaveBeenCalled();
+    expect(setUiError).toHaveBeenCalledWith(null);
+    expect(setOutputs).toHaveBeenCalledTimes(1);
+    expect(handleImageModelSubmission).toHaveBeenCalledTimes(1);
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
   });
 

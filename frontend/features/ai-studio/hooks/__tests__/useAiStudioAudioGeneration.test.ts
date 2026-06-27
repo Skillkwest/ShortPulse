@@ -8,10 +8,7 @@ import {
   buildVoiceoverRequestConfig,
   hardcodedVoiceoverModelId,
 } from "../../utils/voiceAudioModelConfig";
-import {
-  REFERENCE_GRID_CAP_REACHED_MESSAGE,
-  REFERENCE_GRID_MAX_VISIBLE_ITEMS,
-} from "../../reference-grid/logic/referenceGridLimits";
+import { REFERENCE_GRID_MAX_VISIBLE_ITEMS } from "../../reference-grid/logic/referenceGridLimits";
 import { useAiStudioAudioGeneration } from "../useAiStudioAudioGeneration";
 
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
@@ -763,7 +760,7 @@ describe("useAiStudioAudioGeneration", () => {
     });
   });
 
-  it("blocks voice changer remux submissions unless two visible grid slots are available", async () => {
+  it("submits voice changer remux requests when the active Reference Grid lacks two slots", async () => {
     let uiError: string | null = null;
     const existingOutputs = Array.from(
       { length: REFERENCE_GRID_MAX_VISIBLE_ITEMS - 1 },
@@ -773,6 +770,46 @@ describe("useAiStudioAudioGeneration", () => {
       uiError = typeof value === "function" ? value(uiError) : value;
     });
     const insertOptimisticGenerationPlaceholder = vi.fn(() => "out-voice");
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        output: {
+          provider: "elevenlabs",
+          mode: "audio",
+          generationId: "gen-voice",
+          mediaFileId: "media-voice",
+          requestId: "req-voice",
+          previewUrl: "https://example.com/voice.mp3",
+          resultUrls: ["https://example.com/voice.mp3"],
+          previewStoragePath: "preview/voice.mp3",
+          fullStoragePath: "full/voice.mp3",
+          mimeType: "audio/mpeg",
+          durationMs: 12_000,
+          waveformPeaks: [0.2, 0.4, 0.1],
+          title: "Quiet City Take",
+          modelId: "eleven_multilingual_sts_v2",
+          voiceId: "voice-1",
+          voiceName: "Narrator",
+          transcriptText: "I can hear the city waking up below us.",
+        },
+        remuxedVideo: {
+          provider: "elevenlabs",
+          mode: "video",
+          generationId: "gen-voice-video",
+          mediaFileId: "media-voice-video",
+          requestId: "req-voice-video",
+          previewUrl: "https://example.com/voice.mp4",
+          previewPosterUrl: "https://example.com/voice-poster.jpg",
+          resultUrls: ["https://example.com/voice.mp4"],
+          previewPosterStoragePath: "preview/posters/voice.jpg",
+          previewStoragePath: "preview/voice.mp4",
+          fullStoragePath: "full/voice.mp4",
+          mimeType: "video/mp4",
+          modelId: "eleven_multilingual_sts_v2",
+          transcriptText: "I can hear the city waking up below us.",
+        },
+      }),
+    });
 
     const { result } = renderHook(() =>
       useAiStudioAudioGeneration({
@@ -837,9 +874,12 @@ describe("useAiStudioAudioGeneration", () => {
       });
     });
 
-    expect(insertOptimisticGenerationPlaceholder).not.toHaveBeenCalled();
-    expect(fetchWithAuthMock).not.toHaveBeenCalled();
-    expect(uiError).toContain(`${REFERENCE_GRID_MAX_VISIBLE_ITEMS} items`);
+    expect(insertOptimisticGenerationPlaceholder).toHaveBeenCalledTimes(1);
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/elevenlabs/speech-to-speech",
+      expect.objectContaining({ method: "POST" })
+    );
+    expect(uiError).toBeNull();
   });
 
   it("keeps music busy state active until parallel generations settle", async () => {
@@ -991,7 +1031,7 @@ describe("useAiStudioAudioGeneration", () => {
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
   });
 
-  it("blocks multi-song music batches when the Reference Grid lacks enough slots", async () => {
+  it("submits multi-song music batches when the active Reference Grid lacks enough slots", async () => {
     let uiError: string | null = null;
     const existingOutputs = Array.from(
       { length: REFERENCE_GRID_MAX_VISIBLE_ITEMS - 1 },
@@ -1001,6 +1041,26 @@ describe("useAiStudioAudioGeneration", () => {
       uiError = typeof value === "function" ? value(uiError) : value;
     });
     const insertOptimisticGenerationPlaceholder = vi.fn(() => "out-music");
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        output: {
+          provider: "elevenlabs",
+          mode: "audio",
+          generationId: "gen-music",
+          mediaFileId: "media-music",
+          requestId: "req-music",
+          previewUrl: "https://example.com/music.mp3",
+          resultUrls: ["https://example.com/music.mp3"],
+          previewStoragePath: "preview/music.mp3",
+          fullStoragePath: "full/music.mp3",
+          mimeType: "audio/mpeg",
+          durationMs: 30_000,
+          waveformPeaks: [0.1, 0.5, 0.2],
+          modelId: hardcodedMusicModelId,
+        },
+      }),
+    });
 
     const { result } = renderHook(() =>
       useAiStudioAudioGeneration({
@@ -1028,10 +1088,13 @@ describe("useAiStudioAudioGeneration", () => {
       });
     });
 
-    expect(accepted).toBe(false);
-    expect(insertOptimisticGenerationPlaceholder).not.toHaveBeenCalled();
-    expect(fetchWithAuthMock).not.toHaveBeenCalled();
-    expect(uiError).toBe(REFERENCE_GRID_CAP_REACHED_MESSAGE);
+    expect(accepted).toBe(true);
+    expect(insertOptimisticGenerationPlaceholder).toHaveBeenCalledTimes(1);
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/elevenlabs/music",
+      expect.objectContaining({ method: "POST" })
+    );
+    expect(uiError).toBeNull();
   });
 
   it("blocks music generation when the known balance cannot cover the full batch", async () => {
@@ -1074,7 +1137,7 @@ describe("useAiStudioAudioGeneration", () => {
     expect(uiError).toBe("Insufficient Credits");
   });
 
-  it("blocks sound effects generation when the Reference Grid is full", async () => {
+  it("submits sound effects generation when the active Reference Grid is full", async () => {
     let uiError: string | null = null;
     const existingOutputs = Array.from({ length: REFERENCE_GRID_MAX_VISIBLE_ITEMS }, (_, index) =>
       createPlaceholderOutput(`existing-${index + 1}`, `Existing ${index + 1}`)
@@ -1083,6 +1146,26 @@ describe("useAiStudioAudioGeneration", () => {
       uiError = typeof value === "function" ? value(uiError) : value;
     });
     const insertOptimisticGenerationPlaceholder = vi.fn(() => "out-sfx");
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        output: {
+          provider: "elevenlabs",
+          mode: "audio",
+          generationId: "gen-sfx",
+          mediaFileId: "media-sfx",
+          requestId: "req-sfx",
+          previewUrl: "https://example.com/sfx.mp3",
+          resultUrls: ["https://example.com/sfx.mp3"],
+          previewStoragePath: "preview/sfx.mp3",
+          fullStoragePath: "full/sfx.mp3",
+          mimeType: "audio/mpeg",
+          durationMs: 4_000,
+          waveformPeaks: [0.1, 0.2, 0.3],
+          modelId: hardcodedSoundEffectsModelId,
+        },
+      }),
+    });
 
     const { result } = renderHook(() =>
       useAiStudioAudioGeneration({
@@ -1105,9 +1188,12 @@ describe("useAiStudioAudioGeneration", () => {
       });
     });
 
-    expect(insertOptimisticGenerationPlaceholder).not.toHaveBeenCalled();
-    expect(fetchWithAuthMock).not.toHaveBeenCalled();
-    expect(uiError).toBe(REFERENCE_GRID_CAP_REACHED_MESSAGE);
+    expect(insertOptimisticGenerationPlaceholder).toHaveBeenCalledTimes(1);
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/elevenlabs/sound-effects",
+      expect.objectContaining({ method: "POST" })
+    );
+    expect(uiError).toBeNull();
   });
 
   it("blocks sound effects generation when the known balance is short", async () => {

@@ -22,12 +22,6 @@ import {
   normalizeMediaFile,
   type PastedMediaReference,
 } from "../reference-grid/controllers/referenceGridClipboard";
-import {
-  admitReferenceGridIncomingOutputs,
-  buildReferenceGridPartialCapMessage,
-  getReferenceGridAvailableSlots,
-  REFERENCE_GRID_CAP_REACHED_MESSAGE,
-} from "../reference-grid/logic/referenceGridLimits";
 import { buildAiStudioAgentContext } from "./stateAdapters/agentContextAdapter";
 import { rememberObjectUrlBlob } from "../utils/objectUrlBlobRegistry";
 
@@ -39,6 +33,8 @@ type UseAiStudioReferenceIngestionActionsArgs = {
   aspect: string;
   model: string | null;
   setOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
+  archivedOutputs?: StudioOutput[];
+  setArchivedOutputs?: Dispatch<SetStateAction<StudioOutput[]>>;
   setUiError?: Dispatch<SetStateAction<string | null>>;
 };
 
@@ -269,19 +265,48 @@ export const useAiStudioReferenceIngestionActions = ({
   aspect,
   model,
   setOutputs,
+  archivedOutputs = [],
+  setArchivedOutputs,
   setUiError,
 }: UseAiStudioReferenceIngestionActionsArgs): UseAiStudioReferenceIngestionActionsResult => {
   const sessionSnapshot = useResolvedProtectedSessionState();
   const currentUserId = sessionSnapshot.user?.id ?? null;
-  const visibleOutputIdSetRef = useRef(new Set(outputs.map((output) => output.id)));
+  const rightRailOutputIdSetRef = useRef(
+    new Set([...outputs, ...archivedOutputs].map((output) => output.id))
+  );
   const libraryMediaIngestionErrorMessage =
     "Unable to add that media from Media Library right now. Please try again.";
   useEffect(() => {
-    visibleOutputIdSetRef.current = new Set(outputs.map((output) => output.id));
-  }, [outputs]);
-  const isReferenceOutputStillVisible = useCallback(
-    (outputId: string): boolean => visibleOutputIdSetRef.current.has(outputId),
+    rightRailOutputIdSetRef.current = new Set(
+      [...outputs, ...archivedOutputs].map((output) => output.id)
+    );
+  }, [archivedOutputs, outputs]);
+  const rememberReferenceOutputId = useCallback((outputId: string) => {
+    rightRailOutputIdSetRef.current.add(outputId);
+  }, []);
+  const forgetReferenceOutputId = useCallback((outputId: string) => {
+    rightRailOutputIdSetRef.current.delete(outputId);
+  }, []);
+  const isReferenceOutputStillPresent = useCallback(
+    (outputId: string): boolean => rightRailOutputIdSetRef.current.has(outputId),
     []
+  );
+  const updateReferenceOutputById = useCallback(
+    (outputId: string, updater: (output: StudioOutput) => StudioOutput) => {
+      setOutputs((prev) => prev.map((item) => (item.id === outputId ? updater(item) : item)));
+      setArchivedOutputs?.((prev) =>
+        prev.map((item) => (item.id === outputId ? updater(item) : item))
+      );
+    },
+    [setArchivedOutputs, setOutputs]
+  );
+  const removeReferenceOutputById = useCallback(
+    (outputId: string) => {
+      setOutputs((prev) => prev.filter((item) => item.id !== outputId));
+      setArchivedOutputs?.((prev) => prev.filter((item) => item.id !== outputId));
+      forgetReferenceOutputId(outputId);
+    },
+    [forgetReferenceOutputId, setArchivedOutputs, setOutputs]
   );
   const associateMediaWithProject = useCallback(
     (mediaFileId: string | null | undefined) => {
@@ -299,20 +324,6 @@ export const useAiStudioReferenceIngestionActions = ({
       })();
     },
     [currentUserId, projectId]
-  );
-  const admitIncomingOutputs = useCallback(
-    (incoming: StudioOutput[]): StudioOutput[] => {
-      const admission = admitReferenceGridIncomingOutputs(incoming, outputs);
-      if (admission.skipped.length > 0) {
-        setUiError?.(
-          admission.skipped.length === 1
-            ? REFERENCE_GRID_CAP_REACHED_MESSAGE
-            : buildReferenceGridPartialCapMessage(admission.skipped.length)
-        );
-      }
-      return admission.admitted;
-    },
-    [outputs, setUiError]
   );
   const buildLibraryMediaOutputWithId = useCallback(
     (payload: LibraryMediaReferencePayload, outputId: string): StudioOutput | null => {
@@ -398,9 +409,8 @@ export const useAiStudioReferenceIngestionActions = ({
           setUiError?.(libraryMediaIngestionErrorMessage);
           return null;
         }
-        const [admittedOutput] = admitIncomingOutputs([output]);
-        if (!admittedOutput) return null;
         associateMediaWithProject(payload.id);
+        rememberReferenceOutputId(output.id);
         setOutputs((prev) => [output, ...prev]);
         return prepared ?? { outputId, payload, output };
       }
@@ -410,45 +420,33 @@ export const useAiStudioReferenceIngestionActions = ({
         setUiError?.(libraryMediaIngestionErrorMessage);
         return null;
       }
-      const [admittedOutput] = admitIncomingOutputs([optimisticOutput]);
-      if (!admittedOutput) return null;
-
       associateMediaWithProject(payload.id);
+      rememberReferenceOutputId(optimisticOutput.id);
       setOutputs((prev) => [optimisticOutput, ...prev]);
-      visibleOutputIdSetRef.current = new Set([
-        optimisticOutput.id,
-        ...visibleOutputIdSetRef.current,
-      ]);
 
       void (async () => {
         const prepared = await buildPreparedOutput();
         if (!prepared) return;
-        if (!isReferenceOutputStillVisible(outputId)) return;
+        if (!isReferenceOutputStillPresent(outputId)) return;
         try {
-          setOutputs((prev) =>
-            prev.map((item) =>
-              item.id === outputId
-                ? {
-                    ...item,
-                    prompt: prepared.output.prompt,
-                    model: prepared.output.model,
-                    status: prepared.output.status,
-                    timestamp: prepared.output.timestamp,
-                    resultUrls: prepared.output.resultUrls,
-                    previewUrl: prepared.output.previewUrl,
-                    previewPosterUrl: prepared.output.previewPosterUrl,
-                    previewPosterStoragePath: prepared.output.previewPosterStoragePath,
-                    companionArtUrl: prepared.output.companionArtUrl,
-                    companionArtStoragePath: prepared.output.companionArtStoragePath,
-                    previewStoragePath: prepared.output.previewStoragePath,
-                    fullStoragePath: prepared.output.fullStoragePath,
-                    mediaSource: prepared.output.mediaSource,
-                    previewTier: prepared.output.previewTier,
-                    savedMediaIds: prepared.output.savedMediaIds,
-                  }
-                : item
-            )
-          );
+          updateReferenceOutputById(outputId, (item) => ({
+            ...item,
+            prompt: prepared.output.prompt,
+            model: prepared.output.model,
+            status: prepared.output.status,
+            timestamp: prepared.output.timestamp,
+            resultUrls: prepared.output.resultUrls,
+            previewUrl: prepared.output.previewUrl,
+            previewPosterUrl: prepared.output.previewPosterUrl,
+            previewPosterStoragePath: prepared.output.previewPosterStoragePath,
+            companionArtUrl: prepared.output.companionArtUrl,
+            companionArtStoragePath: prepared.output.companionArtStoragePath,
+            previewStoragePath: prepared.output.previewStoragePath,
+            fullStoragePath: prepared.output.fullStoragePath,
+            mediaSource: prepared.output.mediaSource,
+            previewTier: prepared.output.previewTier,
+            savedMediaIds: prepared.output.savedMediaIds,
+          }));
         } catch {
           // Keep the optimistic card visible. The current drag payload already contains
           // a renderable preview candidate for right-rail insertion.
@@ -464,11 +462,12 @@ export const useAiStudioReferenceIngestionActions = ({
     [
       buildLibraryMediaOutputWithId,
       libraryMediaIngestionErrorMessage,
-      admitIncomingOutputs,
       associateMediaWithProject,
-      isReferenceOutputStillVisible,
+      isReferenceOutputStillPresent,
+      rememberReferenceOutputId,
       setOutputs,
       setUiError,
+      updateReferenceOutputById,
     ]
   );
 
@@ -477,12 +476,11 @@ export const useAiStudioReferenceIngestionActions = ({
       const outputId = `prompt-library-${randomId()}`;
       const promptOutput = buildLibraryPromptOutputWithId(payload, outputId);
       if (!promptOutput) return null;
-      const [admittedOutput] = admitIncomingOutputs([promptOutput]);
-      if (!admittedOutput) return null;
+      rememberReferenceOutputId(promptOutput.id);
       setOutputs((prev) => [promptOutput, ...prev]);
       return outputId;
     },
-    [admitIncomingOutputs, buildLibraryPromptOutputWithId, setOutputs]
+    [buildLibraryPromptOutputWithId, rememberReferenceOutputId, setOutputs]
   );
 
   const addAgentPromptReference = useCallback(
@@ -505,11 +503,10 @@ export const useAiStudioReferenceIngestionActions = ({
       );
       const [promptReference] = result.outputs;
       if (!promptReference) return;
-      const admittedOutputs = admitIncomingOutputs([promptReference]);
-      if (!admittedOutputs.length) return;
-      setOutputs((prev) => [...admittedOutputs, ...prev]);
+      rememberReferenceOutputId(promptReference.id);
+      setOutputs((prev) => [promptReference, ...prev]);
     },
-    [admitIncomingOutputs, aspect, mode, model, setOutputs]
+    [aspect, mode, model, rememberReferenceOutputId, setOutputs]
   );
 
   const addPastedPromptReference = useCallback(
@@ -530,11 +527,10 @@ export const useAiStudioReferenceIngestionActions = ({
         }
       );
       if (!result.outputs.length) return;
-      const admittedOutputs = admitIncomingOutputs(result.outputs);
-      if (!admittedOutputs.length) return;
-      setOutputs((prev) => [...admittedOutputs, ...prev]);
+      result.outputs.forEach((output) => rememberReferenceOutputId(output.id));
+      setOutputs((prev) => [...result.outputs, ...prev]);
     },
-    [admitIncomingOutputs, aspect, mode, model, setOutputs]
+    [aspect, mode, model, rememberReferenceOutputId, setOutputs]
   );
 
   const addPastedMediaReference = useCallback(
@@ -556,12 +552,11 @@ export const useAiStudioReferenceIngestionActions = ({
         }
       );
       if (!result.outputs.length) return [];
-      const admittedOutputs = admitIncomingOutputs(result.outputs);
-      if (!admittedOutputs.length) return [];
-      setOutputs((prev) => [...admittedOutputs, ...prev]);
-      return admittedOutputs;
+      result.outputs.forEach((output) => rememberReferenceOutputId(output.id));
+      setOutputs((prev) => [...result.outputs, ...prev]);
+      return result.outputs;
     },
-    [admitIncomingOutputs, aspect, mode, model, setOutputs]
+    [aspect, mode, model, rememberReferenceOutputId, setOutputs]
   );
 
   const insertPastedMediaReference = useCallback(
@@ -623,13 +618,10 @@ export const useAiStudioReferenceIngestionActions = ({
           } => candidate.destinationTab !== null
         );
       const rejectedFileCount = Math.max(0, orderedFiles.length - supportedCandidates.length);
-      const availableSlots = getReferenceGridAvailableSlots(outputs);
-      const uploadCandidates = supportedCandidates.slice(0, availableSlots);
-      const skippedForCapCount = Math.max(0, supportedCandidates.length - uploadCandidates.length);
       let importedCount = 0;
       let firstErrorMessage: string | null = null;
       const insertedResults: IngestedReferenceFileResult[] = [];
-      const pendingUploads: PendingReferenceFileUpload[] = uploadCandidates.map((candidate) => {
+      const pendingUploads: PendingReferenceFileUpload[] = supportedCandidates.map((candidate) => {
         const outputId = `upload-${randomId()}`;
         return {
           ...candidate,
@@ -645,13 +637,10 @@ export const useAiStudioReferenceIngestionActions = ({
       });
 
       if (pendingUploads.length > 0) {
+        pendingUploads.forEach((candidate) => rememberReferenceOutputId(candidate.outputId));
         setOutputs((prev) => [
           ...pendingUploads.map((candidate) => candidate.optimisticOutput),
           ...prev,
-        ]);
-        visibleOutputIdSetRef.current = new Set([
-          ...pendingUploads.map((candidate) => candidate.outputId),
-          ...visibleOutputIdSetRef.current,
         ]);
       }
 
@@ -666,7 +655,7 @@ export const useAiStudioReferenceIngestionActions = ({
             reason: "reference_grid_upload",
             mediaFileIds: [uploaded.id],
           });
-          if (!isReferenceOutputStillVisible(candidate.outputId)) {
+          if (!isReferenceOutputStillPresent(candidate.outputId)) {
             continue;
           }
           const payload = toLibraryMediaReferencePayloadFromUpload(uploaded);
@@ -675,28 +664,20 @@ export const useAiStudioReferenceIngestionActions = ({
             throw new Error("Unable to add those files right now. Please try again.");
           }
           associateMediaWithProject(payload.id);
-          setOutputs((prev) =>
-            prev.map((item) =>
-              item.id === candidate.outputId
-                ? applyLibraryMediaOutputPatch(item, uploadedOutput)
-                : item
-            )
+          updateReferenceOutputById(candidate.outputId, (item) =>
+            applyLibraryMediaOutputPatch(item, uploadedOutput)
           );
           void (async () => {
             try {
               const preparedPayload = await prepareLibraryMediaIngestionPayload(payload);
-              if (!isReferenceOutputStillVisible(candidate.outputId)) return;
+              if (!isReferenceOutputStillPresent(candidate.outputId)) return;
               const preparedOutput = buildLibraryMediaOutputWithId(
                 preparedPayload,
                 candidate.outputId
               );
               if (!preparedOutput) return;
-              setOutputs((prev) =>
-                prev.map((item) =>
-                  item.id === candidate.outputId
-                    ? applyLibraryMediaOutputPatch(item, preparedOutput)
-                    : item
-                )
+              updateReferenceOutputById(candidate.outputId, (item) =>
+                applyLibraryMediaOutputPatch(item, preparedOutput)
               );
             } catch {
               // Keep the already uploaded card visible when optional payload prep fails.
@@ -710,8 +691,7 @@ export const useAiStudioReferenceIngestionActions = ({
           });
           importedCount += 1;
         } catch (error) {
-          setOutputs((prev) => prev.filter((item) => item.id !== candidate.outputId));
-          visibleOutputIdSetRef.current.delete(candidate.outputId);
+          removeReferenceOutputById(candidate.outputId);
           if (!firstErrorMessage) {
             firstErrorMessage =
               error instanceof Error && error.message.trim().length
@@ -722,21 +702,12 @@ export const useAiStudioReferenceIngestionActions = ({
       }
 
       if (importedCount === 0) {
-        if (skippedForCapCount > 0 && !firstErrorMessage && rejectedFileCount === 0) {
-          setUiError?.(buildReferenceGridPartialCapMessage(skippedForCapCount));
-          return [];
-        }
         if (firstErrorMessage || rejectedFileCount > 0) {
           setUiError?.(
             firstErrorMessage ?? "Unable to add those files right now. Please try again."
           );
         }
         return [];
-      }
-
-      if (skippedForCapCount > 0) {
-        setUiError?.(buildReferenceGridPartialCapMessage(skippedForCapCount));
-        return insertedResults;
       }
 
       if (firstErrorMessage || rejectedFileCount > 0) {
@@ -749,11 +720,13 @@ export const useAiStudioReferenceIngestionActions = ({
       associateMediaWithProject,
       buildLibraryMediaOutputWithId,
       currentUserId,
-      isReferenceOutputStillVisible,
+      isReferenceOutputStillPresent,
       model,
-      outputs,
+      rememberReferenceOutputId,
+      removeReferenceOutputById,
       setOutputs,
       setUiError,
+      updateReferenceOutputById,
     ]
   );
 

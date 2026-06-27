@@ -630,6 +630,7 @@ export const useReferenceGridRuntimeScaffold = ({
     curatedOutputIds,
     curatedOutputs,
     outputById,
+    isAnyModalOpen,
     suspendBackgroundVisualWork,
     panelVisibilityResolved,
     isCuratedSplitEnabled,

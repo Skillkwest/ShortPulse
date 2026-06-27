@@ -56,7 +56,8 @@ type UseReferenceGridCardRenderControllerArgs = {
   visibleCardItems: ReferenceGridVisibleCard[];
   curatedVisibleCardItems: ReferenceGridVisibleCard[];
   visibleQuickSlotIdSet: Set<string>;
-  onSelectOutput: (id: string) => void;
+  onSelectReferenceGridOutput: (id: string) => void;
+  onSelectQuickSlotOutput: (id: string) => void;
   onOpenDetails: (
     id: string,
     output?: StudioOutput,
@@ -135,7 +136,8 @@ export const useReferenceGridCardRenderController = ({
   visibleCardItems,
   curatedVisibleCardItems,
   visibleQuickSlotIdSet,
-  onSelectOutput,
+  onSelectReferenceGridOutput,
+  onSelectQuickSlotOutput,
   onOpenDetails,
   onCardDragStart,
   onCardDragEnd,
@@ -295,6 +297,9 @@ export const useReferenceGridCardRenderController = ({
               surface: options.isCuratedSurface ? "quick-slot" : "reference-grid",
             })
           : null;
+      const handleSelectOutput = options.isCuratedSurface
+        ? onSelectQuickSlotOutput
+        : onSelectReferenceGridOutput;
       return (
         <ReferenceGridCard
           key={options.isCuratedSurface ? `curated-${currentOutput.id}` : currentOutput.id}
@@ -325,7 +330,7 @@ export const useReferenceGridCardRenderController = ({
           imageFetchPriority={card.isPriorityHydration ? "high" : "low"}
           renderContainPreview={renderContainPreview}
           audioBackgroundImageUrl={audioBackgroundImageUrl}
-          onSelectOutput={onSelectOutput}
+          onSelectOutput={handleSelectOutput}
           onOpenDetails={onOpenDetails}
           onCardDragStart={onCardDragStart}
           composerImageArtifact={composerImageArtifact}
@@ -410,7 +415,8 @@ export const useReferenceGridCardRenderController = ({
       onRerollOutput,
       isMediaStorageFull,
       onSaveToLibrary,
-      onSelectOutput,
+      onSelectQuickSlotOutput,
+      onSelectReferenceGridOutput,
       loadingCardIdSet,
       perfDegradeLevel,
       registerVideoNode,

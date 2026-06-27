@@ -738,6 +738,7 @@ export const useAiStudioState = ({
     outputs,
     projectId,
     setOutputs,
+    setArchivedOutputs,
     setUiError,
   });
 

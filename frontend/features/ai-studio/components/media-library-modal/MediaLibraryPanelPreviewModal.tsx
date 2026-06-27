@@ -20,6 +20,7 @@ import type {
   SharedMediaDetailVideoSnapshotHandler,
 } from "../detail-modal/detailModalPlatformTypes";
 import { resolveSharedMediaDetailMediaActionItems } from "../detail-modal/sharedMediaDetailActions";
+import { useDetailNavigationKeys } from "../detail-modal/useDetailNavigationKeys";
 
 type MediaLibraryPanelPreviewModalProps = {
   item: MediaLibraryDetailModalItem | null;
@@ -33,20 +34,6 @@ type MediaLibraryPanelPreviewModalProps = {
   onReloadWorkflowItem?: (item: MediaLibraryDetailModalItem) => void;
   onDownloadItem?: (item: MediaLibraryDetailModalItem) => void;
   onDeleteItem?: (item: MediaLibraryDetailModalItem) => void;
-};
-
-const shouldIgnoreMediaLibraryDetailNavigationKeyEvent = (event: KeyboardEvent): boolean => {
-  if (event.defaultPrevented) return true;
-  const target = event.target;
-  if (!(target instanceof Element)) return false;
-  if (target instanceof HTMLElement && target.isContentEditable) return true;
-  const tagName = target.tagName.toLowerCase();
-  if (["input", "textarea", "select", "audio", "video"].includes(tagName)) return true;
-  return Boolean(
-    target.closest(
-      "input, textarea, select, audio, video, [contenteditable='true'], [role='textbox'], [role='slider']"
-    )
-  );
 };
 
 /**
@@ -86,27 +73,10 @@ export function MediaLibraryPanelPreviewModal({
     },
     [onClose, onReloadWorkflowItem]
   );
-  React.useEffect(() => {
-    if (!item || !detailNavigation || typeof document === "undefined") return;
-    const handleDetailNavigationKeyDown = (event: KeyboardEvent) => {
-      if (shouldIgnoreMediaLibraryDetailNavigationKeyEvent(event)) return;
-      if (event.key === "ArrowLeft") {
-        if (!detailNavigation.canNavigatePrevious) return;
-        event.preventDefault();
-        detailNavigation.onNavigatePrevious();
-        return;
-      }
-      if (event.key === "ArrowRight") {
-        if (!detailNavigation.canNavigateNext) return;
-        event.preventDefault();
-        detailNavigation.onNavigateNext();
-      }
-    };
-    document.addEventListener("keydown", handleDetailNavigationKeyDown);
-    return () => {
-      document.removeEventListener("keydown", handleDetailNavigationKeyDown);
-    };
-  }, [detailNavigation, item]);
+  useDetailNavigationKeys({
+    isEnabled: Boolean(item),
+    navigation: detailNavigation,
+  });
   const topBarActionItems = React.useMemo(() => {
     if (!item) return [];
     return [

@@ -1083,15 +1083,30 @@ describe("DetailModal", () => {
     expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("Image");
   });
 
-  it("shows only media type in the header for media loaded from library modal even when source media was generated", () => {
+  it("preserves generated metadata in the header for generated media loaded from the library", () => {
     const { baseElement } = render(
       <DetailModal
         output={{
           ...baseOutput,
           id: "library-123",
+          aspect: "1:1",
           mediaSource: "generated",
-          model: "my-uploaded-file.png",
-          prompt: "my-uploaded-file.png",
+          generationId: "generation-123",
+          model: "Nano Banana 2",
+          modelId: "openai/nano-banana-2",
+          prompt: "Regenerate the image with cinematic macro detail.",
+          generationReplay: {
+            version: 1,
+            mode: "image",
+            submitTool: "edit",
+            modelId: "openai/nano-banana-2",
+            displayPrompt: "Regenerate the image with cinematic macro detail.",
+            submissionPrompt: "Regenerate the image with cinematic macro detail.",
+            aspect: "1:1",
+            imageResolution: "2K",
+            referenceInputs: ["https://cdn.test/reference.png"],
+            capturedAt: "2026-06-27T18:12:00.000Z",
+          },
         }}
         onClose={vi.fn()}
         onUpdatePrompt={vi.fn()}
@@ -1099,8 +1114,11 @@ describe("DetailModal", () => {
       />
     );
 
+    expect(screen.getByRole("heading", { name: "Generated image" })).toBeInTheDocument();
     const headerPill = baseElement.querySelector(".art-modal-meta-pill");
-    expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("Image");
+    expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe(
+      "Image/1:1/2K/Custom (the image service/nano-banana-2)"
+    );
   });
 
   it("strips the edit suffix from GPT Image 2 detail metadata", () => {

@@ -1391,59 +1391,89 @@ describe("ReferenceGrid curated split", () => {
     expect(curatedQueries.queryByLabelText("Remove reference from grid")).toBeNull();
   });
 
-  it("removes the selected quick-slot card with Delete without deleting the reference output", () => {
+  it("removes the selected quick-slot card with document Delete without deleting the reference output", () => {
     const onRemoveCuratedReference = vi.fn();
     const onDeleteOutput = vi.fn();
-    const { container } = render(
-      <ReferenceGrid
-        {...createProps({
-          activeOutputId: "out-1",
-          curatedReferenceIds: ["out-1"],
-          onRemoveCuratedReference,
-          onDeleteOutput,
-        })}
-      />
-    );
+    const StatefulReferenceGrid = () => {
+      const [activeOutputId, setActiveOutputId] = React.useState("out-2");
+      return (
+        <ReferenceGrid
+          {...createProps({
+            activeOutputId,
+            curatedReferenceIds: ["out-1"],
+            onRemoveCuratedReference,
+            onDeleteOutput,
+            onSelectOutput: setActiveOutputId,
+          })}
+        />
+      );
+    };
+    const { container } = render(<StatefulReferenceGrid />);
     const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
     expect(curatedSection).toBeTruthy();
-    const selectedQuickSlotCard = curatedSection.querySelector(
-      ".reference-card.is-active"
-    ) as HTMLElement;
-    expect(selectedQuickSlotCard).toBeTruthy();
+    const quickSlotCard = curatedSection.querySelector(".reference-card") as HTMLElement;
+    expect(quickSlotCard).toBeTruthy();
 
-    fireEvent.keyDown(selectedQuickSlotCard, { key: "Delete" });
+    fireEvent.click(quickSlotCard);
+    fireEvent.keyDown(document, { key: "Delete" });
 
     expect(onRemoveCuratedReference).toHaveBeenCalledWith("out-1");
     expect(onDeleteOutput).not.toHaveBeenCalled();
   });
 
-  it("removes the selected reference-grid card with Delete without touching quick slots", () => {
+  it("removes the selected reference-grid card with document Delete without touching quick slots", () => {
     const onRemoveCuratedReference = vi.fn();
+    const onDeleteOutput = vi.fn();
+    const StatefulReferenceGrid = () => {
+      const [activeOutputId, setActiveOutputId] = React.useState("out-2");
+      return (
+        <ReferenceGrid
+          {...createProps({
+            activeOutputId,
+            curatedReferenceIds: [],
+            onRemoveCuratedReference,
+            onDeleteOutput,
+            onSelectOutput: setActiveOutputId,
+          })}
+        />
+      );
+    };
+    const { container } = render(<StatefulReferenceGrid />);
+    const allRefsSection = container.querySelector(".reference-all-refs-section") as HTMLElement;
+    expect(allRefsSection).toBeTruthy();
+    const referenceGridCard = allRefsSection.querySelector(".reference-card") as HTMLElement;
+    expect(referenceGridCard).toBeTruthy();
+
+    fireEvent.click(referenceGridCard);
+    fireEvent.keyDown(document, { key: "Delete" });
+
+    expect(onDeleteOutput).toHaveBeenCalledWith("out-1");
+    expect(onRemoveCuratedReference).not.toHaveBeenCalled();
+  });
+
+  it("ignores document Delete when an active output was not selected from the reference grid", () => {
     const onDeleteOutput = vi.fn();
     const { container } = render(
       <ReferenceGrid
         {...createProps({
           activeOutputId: "out-1",
           curatedReferenceIds: [],
-          onRemoveCuratedReference,
           onDeleteOutput,
         })}
       />
     );
-    const allRefsSection = container.querySelector(".reference-all-refs-section") as HTMLElement;
-    expect(allRefsSection).toBeTruthy();
-    const selectedReferenceGridCard = allRefsSection.querySelector(
-      ".reference-card.is-active"
+    const referencePanel = container.querySelector(
+      "[data-grid-surface='reference-grid']"
     ) as HTMLElement;
-    expect(selectedReferenceGridCard).toBeTruthy();
+    expect(referencePanel).toBeTruthy();
 
-    fireEvent.keyDown(selectedReferenceGridCard, { key: "Delete" });
+    referencePanel.focus();
+    fireEvent.keyDown(document, { key: "Delete" });
 
-    expect(onDeleteOutput).toHaveBeenCalledWith("out-1");
-    expect(onRemoveCuratedReference).not.toHaveBeenCalled();
+    expect(onDeleteOutput).not.toHaveBeenCalled();
   });
 
-  it("focuses a selected reference-grid card on click so Delete follows the selected card", () => {
+  it("does not remove a selected reference-grid card with Delete from an editable target", () => {
     const onDeleteOutput = vi.fn();
     const StatefulReferenceGrid = () => {
       const [activeOutputId, setActiveOutputId] = React.useState("out-2");
@@ -1461,36 +1491,17 @@ describe("ReferenceGrid curated split", () => {
     const { container } = render(<StatefulReferenceGrid />);
     const allRefsSection = container.querySelector(".reference-all-refs-section") as HTMLElement;
     expect(allRefsSection).toBeTruthy();
-    const firstReferenceGridCard = allRefsSection.querySelector(".reference-card") as HTMLElement;
-    expect(firstReferenceGridCard).toBeTruthy();
+    const referenceGridCard = allRefsSection.querySelector(".reference-card") as HTMLElement;
+    expect(referenceGridCard).toBeTruthy();
 
-    fireEvent.click(firstReferenceGridCard);
-    expect(firstReferenceGridCard).toHaveFocus();
+    fireEvent.click(referenceGridCard);
+    const textInput = document.createElement("input");
+    document.body.appendChild(textInput);
+    textInput.focus();
 
-    fireEvent.keyDown(firstReferenceGridCard, { key: "Delete" });
+    fireEvent.keyDown(textInput, { key: "Delete" });
 
-    expect(onDeleteOutput).toHaveBeenCalledWith("out-1");
-  });
-
-  it("does not remove an unselected reference-grid card with Delete", () => {
-    const onDeleteOutput = vi.fn();
-    const { container } = render(
-      <ReferenceGrid
-        {...createProps({
-          activeOutputId: "out-1",
-          curatedReferenceIds: [],
-          onDeleteOutput,
-        })}
-      />
-    );
-    const allRefsSection = container.querySelector(".reference-all-refs-section") as HTMLElement;
-    expect(allRefsSection).toBeTruthy();
-    const unselectedReferenceGridCard = allRefsSection.querySelector(
-      ".reference-card:not(.is-active)"
-    ) as HTMLElement;
-    expect(unselectedReferenceGridCard).toBeTruthy();
-
-    fireEvent.keyDown(unselectedReferenceGridCard, { key: "Delete" });
+    textInput.remove();
 
     expect(onDeleteOutput).not.toHaveBeenCalled();
   });

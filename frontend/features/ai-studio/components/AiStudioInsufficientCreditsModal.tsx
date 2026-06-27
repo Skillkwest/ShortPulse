@@ -42,22 +42,6 @@ const resolveReturnPath = (): string => {
   return `${pathname}${search}`;
 };
 
-const choosePackage = (
-  packages: CreditPackage[],
-  requiredCredits?: number | null,
-  availableCredits?: number | null
-): CreditPackage | null => {
-  if (!packages.length) return null;
-  const shortfall =
-    typeof requiredCredits === "number" && typeof availableCredits === "number"
-      ? Math.max(0, Math.ceil(requiredCredits) - Math.floor(availableCredits))
-      : null;
-  if (shortfall && shortfall > 0) {
-    return packages.find((pkg) => pkg.credit_amount_cents >= shortfall) ?? packages[0] ?? null;
-  }
-  return packages[0] ?? null;
-};
-
 const resolvePackageDisplayName = (pkg: CreditPackage): string => {
   const creditAmount = pkg.credit_amount_cents.toLocaleString();
   const escapedCreditAmount = creditAmount.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -80,9 +64,8 @@ export function AiStudioInsufficientCreditsModal({
   onCheckoutStarted,
 }: AiStudioInsufficientCreditsModalProps) {
   const [packages, setPackages] = React.useState<CreditPackage[]>([]);
-  const [selectedPackageId, setSelectedPackageId] = React.useState<string | null>(null);
   const [loadingPackages, setLoadingPackages] = React.useState(false);
-  const [loadingCheckout, setLoadingCheckout] = React.useState(false);
+  const [checkoutPackageId, setCheckoutPackageId] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   useAiStudioModalActivity("ai-studio-insufficient-credits", isOpen);
 
@@ -121,66 +104,43 @@ export function AiStudioInsufficientCreditsModal({
     () => [...packages].sort((left, right) => left.sort_order - right.sort_order),
     [packages]
   );
-  const recommendedPackage = React.useMemo(
-    () => choosePackage(sortedPackages, requiredCredits, availableCredits),
-    [availableCredits, requiredCredits, sortedPackages]
-  );
 
   React.useEffect(() => {
-    if (!isOpen) {
-      setSelectedPackageId(null);
-      return;
-    }
-    if (!sortedPackages.length) return;
-    setSelectedPackageId((currentId) =>
-      currentId && sortedPackages.some((pkg) => pkg.id === currentId)
-        ? currentId
-        : (recommendedPackage?.id ?? sortedPackages[0]?.id ?? null)
-    );
-  }, [isOpen, recommendedPackage, sortedPackages]);
+    if (!isOpen) setCheckoutPackageId(null);
+  }, [isOpen]);
 
-  const selectedPackage = React.useMemo(
-    () =>
-      sortedPackages.find((pkg) => pkg.id === selectedPackageId) ??
-      recommendedPackage ??
-      sortedPackages[0] ??
-      null,
-    [recommendedPackage, selectedPackageId, sortedPackages]
+  const handleCheckout = React.useCallback(
+    async (packageToBuy: CreditPackage) => {
+      setCheckoutPackageId(packageToBuy.id);
+      setError(null);
+      try {
+        const response = await fetchWithAuth("/api/billing/stripe/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            packageId: packageToBuy.id,
+            returnPath: resolveReturnPath(),
+          }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(payload?.error || "Unable to start checkout.");
+        }
+        if (typeof payload?.checkoutUrl === "string" && payload.checkoutUrl.trim()) {
+          onCheckoutStarted?.();
+          window.location.assign(payload.checkoutUrl);
+          return;
+        }
+        throw new Error("Checkout session created, but no redirect URL was returned.");
+      } catch (checkoutError) {
+        setError(
+          checkoutError instanceof Error ? checkoutError.message : "Unable to start checkout."
+        );
+        setCheckoutPackageId(null);
+      }
+    },
+    [onCheckoutStarted]
   );
-
-  const handleCheckout = React.useCallback(async () => {
-    if (!selectedPackage) {
-      window.location.assign("/profile?section=credits");
-      return;
-    }
-    setLoadingCheckout(true);
-    setError(null);
-    try {
-      const response = await fetchWithAuth("/api/billing/stripe/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          packageId: selectedPackage.id,
-          returnPath: resolveReturnPath(),
-        }),
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(payload?.error || "Unable to start checkout.");
-      }
-      if (typeof payload?.checkoutUrl === "string" && payload.checkoutUrl.trim()) {
-        onCheckoutStarted?.();
-        window.location.assign(payload.checkoutUrl);
-        return;
-      }
-      throw new Error("Checkout session created, but no redirect URL was returned.");
-    } catch (checkoutError) {
-      setError(
-        checkoutError instanceof Error ? checkoutError.message : "Unable to start checkout."
-      );
-      setLoadingCheckout(false);
-    }
-  }, [onCheckoutStarted, selectedPackage]);
 
   const handleOpenAccountCredits = React.useCallback(() => {
     window.location.assign("/profile?section=credits");
@@ -232,16 +192,13 @@ export function AiStudioInsufficientCreditsModal({
           ) : sortedPackages.length > 0 ? (
             <div className="ai-credit-modal-package-grid" aria-label="Credit top-up packages">
               {sortedPackages.map((pkg) => {
-                const selected = selectedPackage?.id === pkg.id;
                 const packageDisplayName = resolvePackageDisplayName(pkg);
+                const checkoutInProgress = checkoutPackageId !== null;
                 return (
-                  <button
+                  <article
                     key={pkg.id}
-                    type="button"
-                    className={`ai-credit-modal-package-button${selected ? " is-selected" : ""}`}
-                    aria-label={`Select ${packageDisplayName} top-up package`}
-                    aria-pressed={selected}
-                    onClick={() => setSelectedPackageId(pkg.id)}
+                    className="ai-credit-modal-package-card"
+                    aria-label={`${packageDisplayName} credit top-up package`}
                   >
                     <span className="ai-credit-modal-package-kicker">Credit package</span>
                     <span className="ai-credit-modal-package-name">{packageDisplayName}</span>
@@ -252,8 +209,16 @@ export function AiStudioInsufficientCreditsModal({
                     <span className="ai-credit-modal-package-price">
                       {formatCurrencyFromCents(pkg.price_cents)} one-time purchase
                     </span>
-                    <span className="ai-credit-modal-package-buy">Select</span>
-                  </button>
+                    <button
+                      type="button"
+                      className="ai-credit-modal-package-buy"
+                      aria-label={`Buy credits: ${packageDisplayName}`}
+                      onClick={() => handleCheckout(pkg)}
+                      disabled={checkoutInProgress}
+                    >
+                      {checkoutPackageId === pkg.id ? "Starting checkout..." : "Buy credits"}
+                    </button>
+                  </article>
                 );
               })}
             </div>
@@ -261,23 +226,6 @@ export function AiStudioInsufficientCreditsModal({
             <div className="ai-credit-modal-package-empty">No credit packs are available.</div>
           )}
           {error ? <p className="ai-credit-modal-error">{error}</p> : null}
-          <div className="ai-credit-modal-actions">
-            <button type="button" className="ai-credit-modal-secondary" onClick={onClose}>
-              Not now
-            </button>
-            <button
-              type="button"
-              className="ai-credit-modal-primary"
-              onClick={handleCheckout}
-              disabled={loadingPackages || loadingCheckout}
-            >
-              {loadingCheckout
-                ? "Starting checkout..."
-                : selectedPackage
-                  ? "Buy credits"
-                  : "View credit packs"}
-            </button>
-          </div>
         </div>
       </div>
     </AiStudioModalLayer>

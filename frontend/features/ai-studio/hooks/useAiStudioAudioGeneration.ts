@@ -26,10 +26,6 @@ import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { sanitizeCustomerFacingProviderText } from "../../../lib/customerFacingProviderText";
 import { readGenerationAdmissionErrorMessage } from "../../../lib/generationAdmissionErrors";
 import { INSUFFICIENT_CREDITS_TITLE } from "../logic/insufficientCredits";
-import {
-  getReferenceGridAvailableSlots,
-  REFERENCE_GRID_CAP_REACHED_MESSAGE,
-} from "../reference-grid/logic/referenceGridLimits";
 import type { NotifyGenerationFailure } from "./generationFailureReporting";
 
 type VoicesGenerateSuccessResponse = {
@@ -511,7 +507,6 @@ export const useAiStudioAudioGeneration = ({
   projectId = null,
   workspaceRuntimeKey = null,
   balanceCredits = null,
-  outputs = [],
   setUiError,
   insertOptimisticGenerationPlaceholder,
   notifyGenerationFailure,
@@ -539,12 +534,6 @@ export const useAiStudioAudioGeneration = ({
     async (request: VoicesGenerateRequest) => {
       const promptText = buildVoicesOutputPrompt(request).trim();
       if (!promptText) return;
-      const requiredVisibleSlots =
-        request.mode === "voice-changer" && request.source.extractedFrom ? 2 : 1;
-      if (getReferenceGridAvailableSlots(outputs) < requiredVisibleSlots) {
-        setUiError(REFERENCE_GRID_CAP_REACHED_MESSAGE);
-        return;
-      }
       if (
         !canSubmitKnownAudioCreditCost(resolveRequiredAudioCredits(request.displayedBilledCredits))
       ) {
@@ -717,7 +706,6 @@ export const useAiStudioAudioGeneration = ({
       insertOptimisticGenerationPlaceholder,
       canSubmitKnownAudioCreditCost,
       notifyGenerationFailure,
-      outputs,
       projectId,
       setOutputs,
       setUiError,
@@ -731,10 +719,6 @@ export const useAiStudioAudioGeneration = ({
       const promptText = request.text.trim();
       if (!promptText) return false;
       const requiredVisibleSlots = Math.max(1, request.songBatchCount ?? 1);
-      if (getReferenceGridAvailableSlots(outputs) < requiredVisibleSlots) {
-        setUiError(REFERENCE_GRID_CAP_REACHED_MESSAGE);
-        return false;
-      }
       const { displayedBilledCredits, pricingPolicyReady = true } = request;
       if (
         !canSubmitKnownAudioCreditCost(
@@ -843,7 +827,6 @@ export const useAiStudioAudioGeneration = ({
       insertOptimisticGenerationPlaceholder,
       canSubmitKnownAudioCreditCost,
       notifyGenerationFailure,
-      outputs,
       projectId,
       setUiError,
       updateOutputById,
@@ -856,10 +839,6 @@ export const useAiStudioAudioGeneration = ({
       const promptText = request.text.trim();
       if (!promptText) return;
       const { displayedBilledCredits, pricingPolicyReady = true, ...providerRequest } = request;
-      if (getReferenceGridAvailableSlots(outputs) < 1) {
-        setUiError(REFERENCE_GRID_CAP_REACHED_MESSAGE);
-        return;
-      }
       if (!canSubmitKnownAudioCreditCost(resolveRequiredAudioCredits(displayedBilledCredits))) {
         return;
       }
@@ -950,7 +929,6 @@ export const useAiStudioAudioGeneration = ({
       insertOptimisticGenerationPlaceholder,
       canSubmitKnownAudioCreditCost,
       notifyGenerationFailure,
-      outputs,
       projectId,
       setUiError,
       updateOutputById,

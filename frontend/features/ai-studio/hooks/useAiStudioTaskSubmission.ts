@@ -33,11 +33,6 @@ import { resolveInternalMediaRefsForUrls } from "../logic/referenceInputInternal
 import { DeadlineExceededError } from "../logic/withDeadline";
 import { Provider, resolveModelLabel } from "../logic/stateParsers";
 import {
-  getReferenceGridAvailableSlots,
-  isReferenceGridVisibleOutput,
-  REFERENCE_GRID_CAP_REACHED_MESSAGE,
-} from "../reference-grid/logic/referenceGridLimits";
-import {
   KIE_KLING_30_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../lib/model-runtime/providerModelIds";
@@ -141,7 +136,6 @@ export const useAiStudioTaskSubmission = ({
   setUiError,
   setUiNotice,
   setOutputs,
-  outputs = [],
   setSaved,
   getDefaultDurationSeconds,
   notifyGenerationFailure,
@@ -350,16 +344,6 @@ export const useAiStudioTaskSubmission = ({
           hiddenInReferenceGrid:
             finalModel === BRIA_BACKGROUND_REMOVE_MODEL_ID || options?.hideOutputFromReferenceGrid,
         });
-        const isExistingOutput = outputs.some((output) => output.id === nextOutput.id);
-        if (
-          !isExistingOutput &&
-          isReferenceGridVisibleOutput(nextOutput) &&
-          getReferenceGridAvailableSlots(outputs) <= 0
-        ) {
-          setUiError(REFERENCE_GRID_CAP_REACHED_MESSAGE);
-          return;
-        }
-
         // Render or reconcile the spinner placeholder before URL prep/submission work begins.
         setOutputs((prev) => reconcilePendingSubmissionOutput(prev, nextOutput));
         setSaved(false);
@@ -936,7 +920,6 @@ export const useAiStudioTaskSubmission = ({
       projectId,
       workspaceRuntimeKey,
       notifyGenerationFailure,
-      outputs,
       prompt,
       currentCostCredits,
       promptReferenceGenerateCostCredits,

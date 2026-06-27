@@ -2,7 +2,7 @@
  * Credits section for the profile workspace.
  * Separates one-time credit purchasing and billing history from recurring plan and storage management.
  */
-import { ArrowsClockwise, CheckCircle, CreditCard, Receipt } from "phosphor-react";
+import { ArrowsClockwise, CreditCard, Receipt } from "phosphor-react";
 import type { BillingLedgerEvent } from "../profilePageModel";
 import {
   formatCurrencyFromCents,
@@ -185,9 +185,7 @@ export function ProfileCreditsSection({
                     </div>
                     {pkg.badge ? (
                       <span className={profileClass("profile-plan-badge")}>{pkg.badge}</span>
-                    ) : (
-                      <CheckCircle size={18} />
-                    )}
+                    ) : null}
                   </div>
 
                   <p className="meta-value">

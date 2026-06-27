@@ -34,6 +34,7 @@ import { SharedMediaDetailModalShell } from "./detail-modal/SharedMediaDetailMod
 import { resolveSharedMediaDetailMediaActionItems } from "./detail-modal/sharedMediaDetailActions";
 import { SharedMediaDetailTopBar } from "./detail-modal/SharedMediaDetailTopBar";
 import { SharedMediaDetailVideoSnapshotControl } from "./detail-modal/SharedMediaDetailVideoSnapshotControl";
+import { useDetailNavigationKeys } from "./detail-modal/useDetailNavigationKeys";
 import type {
   SharedMediaDetailActionItem,
   SharedMediaDetailVideoSnapshotErrorHandler,
@@ -79,22 +80,6 @@ const resolveDetailWorkflowReloadMediaKindHint = (
 ): WorkflowReloadMediaKindHint => inferWorkflowReloadMediaKindForOutput(output);
 
 const LIP_SYNC_DETAIL_MODEL_LABEL = "Lip Sync";
-
-const shouldIgnoreDetailNavigationKeyEvent = (event: KeyboardEvent): boolean => {
-  if (event.defaultPrevented) return true;
-  const target = event.target;
-  if (!(target instanceof Element)) return false;
-  if (target instanceof HTMLElement && target.isContentEditable) return true;
-  const tagName = target.tagName.toLowerCase();
-  if (["input", "textarea", "select", "audio", "video"].includes(tagName)) {
-    return true;
-  }
-  return Boolean(
-    target.closest(
-      "input, textarea, select, audio, video, [contenteditable='true'], [role='textbox'], [role='slider']"
-    )
-  );
-};
 
 const shouldStripDetailModelEditLabel = (output: StudioOutput, label: string): boolean => {
   const modelId = output.modelId?.trim().toLowerCase() ?? "";
@@ -347,25 +332,36 @@ function DetailModalContent({
     if (output?.timestamp === "Clipboard") return true;
     return false;
   }, [displayPreviewUrl, output?.id, output?.mediaSource, output?.timestamp]);
+  const hasGeneratedReferenceAuthority = useMemo(
+    () =>
+      Boolean(
+        output?.mediaSource === "generated" ||
+        output?.generationId?.trim() ||
+        output?.taskId?.trim()
+      ),
+    [output?.generationId, output?.mediaSource, output?.taskId]
+  );
   const isNonGeneratedLoadedMedia = useMemo(() => {
     if (!displayPreviewUrl || !output) return false;
-    if (output.id.startsWith("library-")) return true;
+    if (hasGeneratedReferenceAuthority) return false;
     if (output.mediaSource) {
       return output.mediaSource !== "generated";
     }
+    if (output.id.startsWith("library-")) return true;
     if (output.id.startsWith("upload-")) return true;
     if (output.id.startsWith("media-paste-")) return true;
     if (output.timestamp === "Dropped" || output.timestamp === "Library") return true;
     if (output.timestamp === "Clipboard") return true;
     return false;
-  }, [displayPreviewUrl, output]);
+  }, [displayPreviewUrl, hasGeneratedReferenceAuthority, output]);
   const isLibraryLoadedReference = useMemo(() => {
     if (!displayPreviewUrl || !output) return false;
+    if (hasGeneratedReferenceAuthority) return false;
     if (output.mediaSource === "library") return true;
     if (output.id.startsWith("library-")) return true;
     if (output.timestamp === "Library") return true;
     return false;
-  }, [displayPreviewUrl, output]);
+  }, [displayPreviewUrl, hasGeneratedReferenceAuthority, output]);
   const normalizedAudioWorkflowLabel = useMemo(() => {
     const modelLabel = output?.model?.trim().toLowerCase() ?? "";
     const modelId = output?.modelId?.trim().toLowerCase() ?? "";
@@ -710,27 +706,10 @@ function DetailModalContent({
     resetDetailMediaPreviewState,
   ]);
 
-  useEffect(() => {
-    if (!detailNavigation || typeof document === "undefined") return;
-    const handleDetailNavigationKeyDown = (event: KeyboardEvent) => {
-      if (shouldIgnoreDetailNavigationKeyEvent(event)) return;
-      if (event.key === "ArrowLeft") {
-        if (!detailNavigation.canNavigatePrevious) return;
-        event.preventDefault();
-        detailNavigation.onNavigatePrevious();
-        return;
-      }
-      if (event.key === "ArrowRight") {
-        if (!detailNavigation.canNavigateNext) return;
-        event.preventDefault();
-        detailNavigation.onNavigateNext();
-      }
-    };
-    document.addEventListener("keydown", handleDetailNavigationKeyDown);
-    return () => {
-      document.removeEventListener("keydown", handleDetailNavigationKeyDown);
-    };
-  }, [detailNavigation]);
+  useDetailNavigationKeys({
+    isEnabled: true,
+    navigation: detailNavigation,
+  });
 
   const looksLikeFilename = (value?: string | null) => {
     const candidate = value?.trim();
@@ -770,9 +749,7 @@ function DetailModalContent({
   const generatedReferenceFallbackKind =
     detailPreviewKind ?? (output.mode === "text" ? "prompt" : output.mode);
   const isGeneratedReference = Boolean(
-    !isNonGeneratedLoadedMedia &&
-    !isUploadedReference &&
-    (output.mediaSource === "generated" || output.generationId?.trim() || output.taskId?.trim())
+    !isNonGeneratedLoadedMedia && !isUploadedReference && hasGeneratedReferenceAuthority
   );
   const generatedReferenceName = isGeneratedReference
     ? (output.title?.trim() ??
@@ -812,10 +789,13 @@ function DetailModalContent({
   }, [isUploadedReference, output]);
   const displayImageResolutionLabel = useMemo(() => {
     if (isUploadedReference || output?.mode !== "image") return null;
-    const resolutionValue = output?.generationReplay?.imageResolution?.trim() ?? "";
+    const workflowPayload = output.workflowReload?.payload;
+    const workflowResolution =
+      workflowPayload?.kind === "image" ? workflowPayload.imageResolution?.trim() : "";
+    const resolutionValue = output?.generationReplay?.imageResolution?.trim() || workflowResolution;
     if (!resolutionValue) return null;
     return formatImageResolutionLabel(resolutionValue);
-  }, [isUploadedReference, output?.generationReplay?.imageResolution, output?.mode]);
+  }, [isUploadedReference, output]);
   const displayVideoResolutionLabel = useMemo(() => {
     if (isUploadedReference || output?.mode !== "video") return null;
     const payload = output.workflowReload?.payload;

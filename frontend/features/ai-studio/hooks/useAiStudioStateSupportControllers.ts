@@ -12,6 +12,7 @@ type UseAiStudioStateSupportControllersParams = {
   outputs: StudioOutput[];
   projectId?: string | null;
   setOutputs: (updater: StudioOutput[] | ((prev: StudioOutput[]) => StudioOutput[])) => void;
+  setArchivedOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
   setUiError: Dispatch<SetStateAction<string | null>>;
 };
 
@@ -24,6 +25,7 @@ export const useAiStudioStateSupportControllers = ({
   outputs,
   projectId = null,
   setOutputs,
+  setArchivedOutputs,
   setUiError,
 }: UseAiStudioStateSupportControllersParams) => {
   const referenceIngestion = useAiStudioReferenceIngestionActions({
@@ -34,6 +36,8 @@ export const useAiStudioStateSupportControllers = ({
     aspect,
     model,
     setOutputs,
+    archivedOutputs,
+    setArchivedOutputs,
     setUiError,
   });
 

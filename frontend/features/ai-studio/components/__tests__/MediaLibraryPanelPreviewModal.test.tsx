@@ -231,6 +231,40 @@ describe("MediaLibraryPanelPreviewModal", () => {
     expect(screen.getByText("1K")).toBeInTheDocument();
   });
 
+  it("shows image resolution from workflow metadata when generation replay is unavailable", () => {
+    const generatedFile: MediaFileRow = {
+      id: "image-1",
+      filename: "generated-portrait.png",
+      storage_path: "user-1/media-library/generated.png",
+      preview_storage_path: "user-1/media-library/thumb-generated.png",
+      file_type: "image/png",
+      source: "ai_studio",
+      source_ref: "generation-1",
+      signedUrl: "https://cdn.example.com/thumb-generated.png",
+      metadata: {
+        workflow_reload: workflowReloadMetadata,
+        style_context: styleContextMetadata,
+      },
+    };
+
+    const { baseElement } = render(
+      <MediaLibraryPanelPreviewModal
+        item={createPreviewItem(generatedFile, "https://cdn.example.com/thumb-generated.png", {
+          source: "ai_studio",
+        })}
+        isLoading={false}
+        error={null}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("heading", { name: "Generated image" })).toBeInTheDocument();
+    const headerPill = baseElement.querySelector(".art-modal-meta-pill");
+    expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe(
+      "Image/16:9/1K/Custom (the generation service-ai/imagen4/preview)"
+    );
+  });
+
   it("keeps generated media on the generated detail view while preview URLs resolve", () => {
     const generatedFilename = "Regenerate_the_image_completely_from_scratch_with-1.png";
     const generatedFile: MediaFileRow = {
@@ -318,6 +352,41 @@ describe("MediaLibraryPanelPreviewModal", () => {
 
     expect(onNavigateNext).toHaveBeenCalledTimes(1);
     expect(onNavigatePrevious).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not navigate library-owned media details past boundaries", () => {
+    const onNavigatePrevious = vi.fn();
+    const onNavigateNext = vi.fn();
+    const imageFile: MediaFileRow = {
+      id: "image-1",
+      filename: "portrait.png",
+      storage_path: "user-1/uploads/portrait.png",
+      preview_storage_path: "user-1/uploads/thumb-portrait.png",
+      file_type: "image/png",
+      signedUrl: "https://cdn.example.com/thumb-portrait.png",
+    };
+
+    render(
+      <MediaLibraryPanelPreviewModal
+        item={createPreviewItem(imageFile, "https://cdn.example.com/thumb-portrait.png")}
+        detailNavigation={{
+          sourceSurface: "media-library-panel",
+          canNavigatePrevious: false,
+          canNavigateNext: false,
+          onNavigatePrevious,
+          onNavigateNext,
+        }}
+        isLoading={false}
+        error={null}
+        onClose={vi.fn()}
+      />
+    );
+
+    fireEvent.keyDown(document, { key: "ArrowRight" });
+    fireEvent.keyDown(document, { key: "ArrowLeft" });
+
+    expect(onNavigateNext).not.toHaveBeenCalled();
+    expect(onNavigatePrevious).not.toHaveBeenCalled();
   });
 
   it("keeps generated media detail navigation active through the generated detail view", () => {

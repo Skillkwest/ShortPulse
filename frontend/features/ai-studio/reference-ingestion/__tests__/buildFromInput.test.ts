@@ -62,6 +62,36 @@ const workflowReload = {
   },
 } as const;
 
+const generationReplay = {
+  version: 1,
+  mode: "image",
+  submitTool: "create",
+  modelId: "fal-ai/imagen4/preview",
+  displayPrompt: "A glass lighthouse",
+  submissionPrompt: "A glass lighthouse",
+  aspect: "16:9",
+  imageResolution: "1K",
+  referenceInputs: [],
+  capturedAt: "2026-06-15T10:00:00.000Z",
+} as const;
+
+const characterContext = {
+  applied: true,
+  characterId: "character-1",
+  characterName: "Rózalin Belaroa",
+  lookId: "main",
+  lookName: "Main",
+  characterProfileImageUrl: "https://cdn.test/character.png",
+} as const;
+
+const styleContext = {
+  applied: true,
+  styleId: "style-1",
+  styleName: "Digicam Photorealism",
+  stylePrompt: "photoreal editorial lighting",
+  stylePreviewImageUrl: "https://cdn.test/style.png",
+} as const;
+
 describe("buildStudioOutputsFromReferenceInput", () => {
   beforeEach(() => {
     mapUploadsFromFilesMock.mockReset();
@@ -280,6 +310,9 @@ describe("buildStudioOutputsFromReferenceInput", () => {
           sourceRef: "generation-1",
           generationId: "generation-1",
           workflowReload,
+          generationReplay,
+          characterContext,
+          styleContext,
           previewStoragePath: "user/preview.jpg",
           fullStoragePath: "user/full.jpg",
         },
@@ -302,6 +335,9 @@ describe("buildStudioOutputsFromReferenceInput", () => {
         mediaSource: "generated",
         createdAt: "2026-05-25T12:34:56.000Z",
         workflowReload,
+        generationReplay,
+        characterContext,
+        styleContext,
         savedMediaIds: ["media-generated-1"],
       })
     );

@@ -25,6 +25,36 @@ const workflowReload = {
   },
 } as const;
 
+const generationReplay = {
+  version: 1,
+  mode: "image",
+  submitTool: "create",
+  modelId: "fal-ai/imagen4/preview",
+  displayPrompt: "A glass lighthouse",
+  submissionPrompt: "A glass lighthouse",
+  aspect: "16:9",
+  imageResolution: "1K",
+  referenceInputs: [],
+  capturedAt: "2026-06-15T10:00:00.000Z",
+} as const;
+
+const characterContext = {
+  applied: true,
+  characterId: "character-1",
+  characterName: "Rózalin Belaroa",
+  lookId: "main",
+  lookName: "Main",
+  characterProfileImageUrl: "https://cdn.test/character.png",
+} as const;
+
+const styleContext = {
+  applied: true,
+  styleId: "style-1",
+  styleName: "Digicam Photorealism",
+  stylePrompt: "photoreal editorial lighting",
+  stylePreviewImageUrl: "https://cdn.test/style.png",
+} as const;
+
 const {
   getSignedMediaUrlMock,
   refreshSupabaseSignedUrlIfNeededMock,
@@ -272,6 +302,9 @@ describe("prepareLibraryMediaIngestionPayload", () => {
         metadata: {
           model_id: "kie-ai/kling-3.0",
           workflow_reload: workflowReload,
+          generation_replay: generationReplay,
+          character_context: characterContext,
+          style_context: styleContext,
         },
         thumb_variant_path: "user-1/previews/generated.jpg",
         storage_path: "user-1/full/generated.jpg",
@@ -301,6 +334,9 @@ describe("prepareLibraryMediaIngestionPayload", () => {
     expect(result.generationId).toBe("generation-1");
     expect(result.modelId).toBe("kie-ai/kling-3.0");
     expect(result.workflowReload).toEqual(workflowReload);
+    expect(result.generationReplay).toEqual(generationReplay);
+    expect(result.characterContext).toEqual(characterContext);
+    expect(result.styleContext).toEqual(styleContext);
     expect(result.filename).toBe("generated.png");
     expect(result.width).toBe(1280);
     expect(result.height).toBe(720);

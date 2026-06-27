@@ -7,6 +7,12 @@ import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import { isWorkflowReloadConfigV1 } from "../logic/workflowReload";
+import {
+  resolveMediaLibraryCharacterContext,
+  resolveMediaLibraryGenerationReplayConfig,
+  resolveMediaLibraryStyleContext,
+} from "../logic/mediaLibraryWorkflowReload";
+import { isGenerationReplayConfigV1, isGenerationReplayConfigV2 } from "../logic/generationReplay";
 import { refreshSupabaseSignedUrlIfNeeded } from "../utils/imageUpload";
 import type { ReferenceIngestionInput } from "./types";
 
@@ -41,6 +47,9 @@ type MediaIdFallback = {
   sourceRef: string | null;
   modelId: string | null;
   workflowReload: LibraryMediaPayload["workflowReload"] | null;
+  generationReplay: LibraryMediaPayload["generationReplay"] | null;
+  characterContext: LibraryMediaPayload["characterContext"] | null;
+  styleContext: LibraryMediaPayload["styleContext"] | null;
   previewStoragePath: string | null;
   previewPosterStoragePath: string | null;
   fullStoragePath: string | null;
@@ -103,6 +112,9 @@ const createEmptyMediaIdFallback = (): MediaIdFallback => ({
   sourceRef: null,
   modelId: null,
   workflowReload: null,
+  generationReplay: null,
+  characterContext: null,
+  styleContext: null,
   previewStoragePath: null,
   previewPosterStoragePath: null,
   fullStoragePath: null,
@@ -214,6 +226,9 @@ const resolveStoragePathsFromMediaId = async (
     const workflowReload = isWorkflowReloadConfigV1(metadata?.workflow_reload)
       ? metadata.workflow_reload
       : null;
+    const generationReplay = resolveMediaLibraryGenerationReplayConfig(metadata);
+    const characterContext = resolveMediaLibraryCharacterContext(metadata, workflowReload);
+    const styleContext = resolveMediaLibraryStyleContext(metadata, workflowReload);
     const source = normalizeText(typeof data?.source === "string" ? data.source : null);
     const sourceRef = normalizeText(typeof data?.source_ref === "string" ? data.source_ref : null);
     let projectionPresentation: {
@@ -262,6 +277,9 @@ const resolveStoragePathsFromMediaId = async (
             : null
       ),
       workflowReload,
+      generationReplay,
+      characterContext,
+      styleContext,
       ...paths,
       width,
       height,
@@ -305,14 +323,45 @@ export const prepareLibraryMediaIngestionPayload = async (
   const normalizedSource = normalizeText(payload.source);
   const normalizedSourceRef = normalizeText(payload.sourceRef ?? payload.generationId ?? null);
   const hasWorkflowReload = isWorkflowReloadConfigV1(payload.workflowReload);
+  const hasGenerationReplay =
+    isGenerationReplayConfigV1(payload.generationReplay) ||
+    isGenerationReplayConfigV2(payload.generationReplay);
+  const hasGenerationReplayField = Object.prototype.hasOwnProperty.call(
+    payload,
+    "generationReplay"
+  );
+  const hasCharacterContext =
+    Boolean(payload.characterContext) &&
+    typeof payload.characterContext === "object" &&
+    !Array.isArray(payload.characterContext);
+  const hasCharacterContextField = Object.prototype.hasOwnProperty.call(
+    payload,
+    "characterContext"
+  );
+  const hasStyleContext =
+    Boolean(payload.styleContext) &&
+    typeof payload.styleContext === "object" &&
+    !Array.isArray(payload.styleContext);
+  const hasStyleContextField = Object.prototype.hasOwnProperty.call(payload, "styleContext");
   const looksLikeGeneratedMedia =
-    normalizedSource === "ai_studio" || Boolean(normalizedSourceRef) || hasWorkflowReload;
+    normalizedSource === "ai_studio" ||
+    Boolean(normalizedSourceRef) ||
+    hasWorkflowReload ||
+    hasGenerationReplay;
   const needsMediaIdFallback =
     !initialPreviewStoragePath ||
     !initialFullStoragePath ||
     (payload.fileType === "video" && !initialPreviewPosterStoragePath) ||
     !normalizedSource ||
-    (looksLikeGeneratedMedia && (!normalizedSourceRef || !hasWorkflowReload));
+    (looksLikeGeneratedMedia &&
+      (!normalizedSourceRef ||
+        !hasWorkflowReload ||
+        !hasGenerationReplayField ||
+        (payload.generationReplay != null && !hasGenerationReplay) ||
+        !hasCharacterContextField ||
+        (payload.characterContext != null && !hasCharacterContext) ||
+        !hasStyleContextField ||
+        (payload.styleContext != null && !hasStyleContext)));
   const mediaIdFallbackPaths = needsMediaIdFallback
     ? await resolveStoragePathsFromMediaId(payload.id, payload.fileType)
     : createEmptyMediaIdFallback();
@@ -398,6 +447,13 @@ export const prepareLibraryMediaIngestionPayload = async (
     workflowReload: hasWorkflowReload
       ? payload.workflowReload
       : mediaIdFallbackPaths.workflowReload,
+    generationReplay: hasGenerationReplay
+      ? payload.generationReplay
+      : mediaIdFallbackPaths.generationReplay,
+    characterContext: hasCharacterContext
+      ? payload.characterContext
+      : mediaIdFallbackPaths.characterContext,
+    styleContext: hasStyleContext ? payload.styleContext : mediaIdFallbackPaths.styleContext,
     width: payload.width ?? mediaIdFallbackPaths.width,
     height: payload.height ?? mediaIdFallbackPaths.height,
   };

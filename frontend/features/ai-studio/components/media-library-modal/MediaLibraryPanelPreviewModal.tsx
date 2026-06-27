@@ -6,7 +6,11 @@
 import React from "react";
 import { FlowArrow, TrashSimple } from "phosphor-react";
 import type { MediaLibraryDetailModalItem } from "../../logic/mediaLibraryDetailModal";
-import { canReloadMediaLibraryWorkflow } from "../../logic/mediaLibraryWorkflowReload";
+import {
+  canReloadMediaLibraryWorkflow,
+  createMediaLibraryWorkflowReloadOutput,
+} from "../../logic/mediaLibraryWorkflowReload";
+import { DetailModal } from "../DetailModal";
 import { SharedMediaDetailPreviewModal } from "../detail-modal/SharedMediaDetailPreviewModal";
 import type {
   SharedMediaDetailVideoSnapshotErrorHandler,
@@ -45,6 +49,10 @@ export function MediaLibraryPanelPreviewModal({
   onDownloadItem,
   onDeleteItem,
 }: MediaLibraryPanelPreviewModalProps) {
+  const generatedDetailOutput = React.useMemo(
+    () => (item ? createMediaLibraryWorkflowReloadOutput(item.file) : null),
+    [item]
+  );
   const handlePreviewError = React.useCallback(
     (sharedItem: MediaLibraryDetailModalItem | null, failedUrl: string) => {
       if (!sharedItem) return;
@@ -84,6 +92,32 @@ export function MediaLibraryPanelPreviewModal({
       }),
     ];
   }, [handleReloadWorkflowItem, item, onDeleteItem, onDownloadItem, onReloadWorkflowItem]);
+
+  if (item && !isLoading && !error && generatedDetailOutput) {
+    return (
+      <DetailModal
+        output={generatedDetailOutput}
+        context={null}
+        onClose={onClose}
+        onUpdatePrompt={() => undefined}
+        onDeleteOutput={() => {
+          onDeleteItem?.(item);
+        }}
+        onDownloadReference={() => {
+          onDownloadItem?.(item);
+        }}
+        onReloadWorkflowReference={
+          onReloadWorkflowItem
+            ? () => {
+                onReloadWorkflowItem(item);
+              }
+            : undefined
+        }
+        onSnapshotVideoFrame={onSnapshotVideoFrame}
+        onSnapshotVideoFrameError={onSnapshotVideoFrameError}
+      />
+    );
+  }
 
   return (
     <SharedMediaDetailPreviewModal

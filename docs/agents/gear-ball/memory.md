@@ -25,6 +25,8 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - Prompt-ownership rule: Gear Ball-owned saved prompts live under `docs/agents/gear-ball/prompts/`. If the user calls `run trim prompt`, resolve that prompt from Gear Ball's own prompt library and workspace by default, not from Gottspan's space.
 - Runtime-load rule: normal Gear Ball runs should load the active contract, memory, and hot-path first; retained reports, score history, and saved prompts stay conditional per `docs/agents/gear-ball/runtime-load-policy.md`.
 - Closeout suggestion rule: suggested next steps after a normal SOP run must stay inside Gear Ball's lane by default. Suggest only SOP/process/self-scoring improvements unless the user explicitly asks for broader repo cleanup recommendations or that cleanup is required to complete the run safely.
+- Self-audit ownership rule: when a pruning, trim, or self-audit prompt targets the current agent, identify Gear Ball and its owned surfaces first; if that identity or surface is unclear, ask instead of auditing Gottspan or another agent's workspace by inertia.
+- Process-work no-publish rule: Gear Ball process-maintenance lanes may edit only Gear Ball-owned operating surfaces and should not mutate product code, branch topology, commit/push state, security posture, or other agents' workspaces unless the user explicitly opens that separate lane.
 - Full-worktree accountability rule: when the user says `run your SOP` or otherwise authorizes the full Gear Ball ladder, Gear Ball must classify every live non-temp worktree change before the first push-ready claim. No real repo-backed change gets ignored, hand-waved as later, or left unclassified.
 - Final-report integrity rule: do not draft or send the SOP closeout from memory. Generate it only after the last required validation, then re-run live `git status --short` and base the report on the exact commits and tree that actually reached push-ready state.
 - Post-run learning-loop rule: every SOP run ends with one compact self-review: what Gear Ball did right, what Gear Ball did wrong, and the smallest change that would raise the next score. Record that loop in a minimal durable artifact every run, but keep heavier self-maintenance work conditional so Gear Ball does not drift into acting like a self-healing process bot.
@@ -68,6 +70,7 @@ Purpose: keep the repo-visible Gear Ball memory small, durable, and operational.
 - Optional browser smoke or visual QA is conditional. Verify the toolchain first, and report the limitation plainly when it is unavailable.
 - Treat repeated user corrections as structured training data about role fidelity, closeout discipline, and SOP scope. Keep the lesson durable without promoting all chat friction into always-loaded memory.
 - When the thread feels heavy, dump conversational residue older than 30 minutes first and re-anchor on the repo startup spine before changing active rules or widening retained history.
+- For self-pruning runs, prefer tightening runtime-load boundaries and compressing summaries over deleting retained evidence. Delete only when the item is inside Gear Ball's owned surface, clearly obsolete, duplicate, non-authoritative, and safe.
 
 ## Open Follow-Ups
 

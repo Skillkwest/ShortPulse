@@ -75,6 +75,36 @@ describe("MediaLibraryPanelPreviewModal", () => {
     },
   };
 
+  const generationReplayMetadata = {
+    version: 1,
+    mode: "image",
+    submitTool: "create",
+    modelId: "fal-ai/imagen4/preview",
+    displayPrompt: "A glass fox in a desert observatory",
+    submissionPrompt: "A glass fox in a desert observatory",
+    aspect: "16:9",
+    imageResolution: "1K",
+    referenceInputs: [],
+    capturedAt: "2026-06-06T14:00:00.000Z",
+  } as const;
+
+  const characterContextMetadata = {
+    applied: true,
+    characterId: "character-1",
+    characterName: "Rózalin Belaroa",
+    lookId: "main",
+    lookName: "Main",
+    characterProfileImageUrl: "https://cdn.example.com/character.png",
+  } as const;
+
+  const styleContextMetadata = {
+    applied: true,
+    styleId: "style-1",
+    styleName: "Digicam Photorealism",
+    stylePrompt: "photoreal editorial lighting",
+    stylePreviewImageUrl: "https://cdn.example.com/style.png",
+  } as const;
+
   it("uses generated audio display titles for preview presentation", () => {
     const audioFile: MediaFileRow = {
       id: "audio-1",
@@ -158,6 +188,47 @@ describe("MediaLibraryPanelPreviewModal", () => {
     );
 
     expect(screen.queryByRole("button", { name: "Reload workflow" })).not.toBeInTheDocument();
+  });
+
+  it("renders saved AI Studio images with generated detail metadata", () => {
+    const generatedFilename = "6e66fb53-2444-42db-98d9-352083a94e19-0.png";
+    const generatedFile: MediaFileRow = {
+      id: "image-1",
+      filename: generatedFilename,
+      storage_path: "user-1/media-library/generated.png",
+      preview_storage_path: "user-1/media-library/thumb-generated.png",
+      file_type: "image/png",
+      source: "ai_studio",
+      source_ref: "generation-1",
+      signedUrl: "https://cdn.example.com/thumb-generated.png",
+      metadata: {
+        workflow_reload: workflowReloadMetadata,
+        generation_replay: generationReplayMetadata,
+        character_context: characterContextMetadata,
+        style_context: styleContextMetadata,
+      },
+    };
+
+    render(
+      <MediaLibraryPanelPreviewModal
+        item={createPreviewItem(generatedFile, "https://cdn.example.com/thumb-generated.png", {
+          source: "ai_studio",
+        })}
+        isLoading={false}
+        error={null}
+        onClose={vi.fn()}
+        onDownloadItem={vi.fn()}
+        onDeleteItem={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("heading", { name: "Generated image" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: generatedFilename })).not.toBeInTheDocument();
+    expect(screen.getByText("Rózalin Belaroa")).toBeInTheDocument();
+    expect(screen.getByText("Digicam Photorealism")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("A glass fox in a desert observatory")).toBeInTheDocument();
+    expect(screen.getByText("16:9")).toBeInTheDocument();
+    expect(screen.getByText("1K")).toBeInTheDocument();
   });
 
   it("pauses an existing inline audio preview when modal audio starts playing", () => {
@@ -761,7 +832,8 @@ describe("MediaLibraryPanelPreviewModal", () => {
       />
     );
 
-    expect(screen.getByRole("heading", { name: "Desert Observatory" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Generated image" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Desert Observatory" })).not.toBeInTheDocument();
     expect(screen.getByText("Image")).toBeInTheDocument();
     expect(screen.getByText("PROMPT")).toBeInTheDocument();
     expect(screen.getByDisplayValue("A glass fox in a desert observatory")).toBeInTheDocument();

@@ -38,6 +38,36 @@ const workflowReload = {
   },
 } as const;
 
+const generationReplay = {
+  version: 1,
+  mode: "image",
+  submitTool: "create",
+  modelId: "fal-ai/imagen4/preview",
+  displayPrompt: "A glass fox in a desert observatory",
+  submissionPrompt: "A glass fox in a desert observatory",
+  aspect: "16:9",
+  imageResolution: "1K",
+  referenceInputs: [],
+  capturedAt: "2026-06-06T14:00:00.000Z",
+} as const;
+
+const characterContext = {
+  applied: true,
+  characterId: "character-1",
+  characterName: "Rózalin Belaroa",
+  lookId: "main",
+  lookName: "Main",
+  characterProfileImageUrl: "https://cdn.test/character.png",
+} as const;
+
+const styleContext = {
+  applied: true,
+  styleId: "style-1",
+  styleName: "Digicam Photorealism",
+  stylePrompt: "photoreal editorial lighting",
+  stylePreviewImageUrl: "https://cdn.test/style.png",
+} as const;
+
 describe("mediaLibraryWorkflowReload", () => {
   const createRow = (overrides: Partial<MediaFileRow> = {}): MediaFileRow => ({
     id: "media-1",
@@ -50,6 +80,9 @@ describe("mediaLibraryWorkflowReload", () => {
     signedUrl: "https://cdn.example.com/glass-fox.png",
     metadata: {
       workflow_reload: workflowReload,
+      generation_replay: generationReplay,
+      character_context: characterContext,
+      style_context: styleContext,
     },
     ...overrides,
   });
@@ -66,6 +99,9 @@ describe("mediaLibraryWorkflowReload", () => {
       mediaSource: "generated",
       generationId: "generation-1",
       workflowReload,
+      generationReplay,
+      characterContext,
+      styleContext,
     });
     expect(canReloadMediaLibraryWorkflow(createRow())).toBe(true);
   });

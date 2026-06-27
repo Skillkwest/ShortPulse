@@ -48,6 +48,9 @@ export type ReferenceIngestionInput =
         generationId?: string | null;
         modelId?: string | null;
         workflowReload?: WorkflowReloadConfig | Record<string, unknown> | null;
+        generationReplay?: StudioOutput["generationReplay"] | Record<string, unknown> | null;
+        characterContext?: StudioOutput["characterContext"] | Record<string, unknown> | null;
+        styleContext?: StudioOutput["styleContext"] | Record<string, unknown> | null;
         previewStoragePath?: string | null;
         fullStoragePath?: string | null;
         previewUrl?: string | null;

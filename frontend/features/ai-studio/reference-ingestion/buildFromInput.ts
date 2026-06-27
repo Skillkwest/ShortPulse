@@ -6,6 +6,7 @@
 import type { StudioMode, StudioOutput, WorkflowReloadConfigV1 } from "../types";
 import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
 import { isWorkflowReloadConfigV1 } from "../logic/workflowReload";
+import { isGenerationReplayConfigV1, isGenerationReplayConfigV2 } from "../logic/generationReplay";
 import { isReplaceableAudioDisplayTitle } from "../logic/mediaLibraryModalModel";
 import { isAudioUrl, isVideoUrl, mapUploadsFromFiles } from "../logic/stateParsers";
 import type {
@@ -16,6 +17,13 @@ import type {
 
 const resolveNowIso = (context: ReferenceIngestionContext): string =>
   typeof context.nowIso === "function" ? context.nowIso() : new Date().toISOString();
+
+const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === "object" && !Array.isArray(value);
+
+const resolveGeneratedContext = <T extends { applied: boolean }>(
+  value: T | Record<string, unknown> | null | undefined
+): T | undefined => (isObjectRecord(value) && value.applied === true ? (value as T) : undefined);
 
 const buildPromptReferenceOutput = ({
   id,
@@ -152,17 +160,32 @@ const buildLibraryMediaOutput = ({
   const workflowReload = isWorkflowReloadConfigV1(payload.workflowReload)
     ? payload.workflowReload
     : null;
+  const generationReplay =
+    isGenerationReplayConfigV1(payload.generationReplay) ||
+    isGenerationReplayConfigV2(payload.generationReplay)
+      ? payload.generationReplay
+      : null;
+  const characterContext = resolveGeneratedContext<NonNullable<StudioOutput["characterContext"]>>(
+    payload.characterContext
+  );
+  const styleContext = resolveGeneratedContext<NonNullable<StudioOutput["styleContext"]>>(
+    payload.styleContext
+  );
   const payloadMode: StudioMode =
     payload.fileType === "audio" ? "audio" : payload.fileType === "video" ? "video" : "image";
   const generationId = payload.generationId?.trim() || payload.sourceRef?.trim() || undefined;
-  const isGeneratedLibraryMedia = payload.source === "ai_studio" && workflowReload != null;
-  const generatedAspect = resolveAspectFromWorkflowReload(workflowReload);
+  const isGeneratedLibraryMedia =
+    payload.source === "ai_studio" && (workflowReload != null || generationReplay != null);
+  const generatedAspect =
+    generationReplay?.aspect ?? resolveAspectFromWorkflowReload(workflowReload);
   const generatedModelId =
-    workflowReload == null ? null : payload.modelId?.trim() || workflowReload.model.id;
+    payload.modelId?.trim() || generationReplay?.modelId || workflowReload?.model.id || null;
+  const generatedPrompt =
+    generationReplay?.displayPrompt?.trim() || workflowReload?.prompt.display || resolvedPromptText;
 
   return {
     id,
-    prompt: isGeneratedLibraryMedia ? workflowReload.prompt.display : resolvedPromptText,
+    prompt: isGeneratedLibraryMedia ? generatedPrompt : resolvedPromptText,
     ...(payload.fileType === "audio"
       ? {
           title:
@@ -174,13 +197,11 @@ const buildLibraryMediaOutput = ({
     transcriptText: payload.transcriptText?.trim() || null,
     mode: payloadMode,
     aspect: isGeneratedLibraryMedia ? generatedAspect : context.aspect,
-    model: isGeneratedLibraryMedia
-      ? (generatedModelId ?? workflowReload.model.id)
-      : displayModelLabel,
+    model: isGeneratedLibraryMedia ? (generatedModelId ?? fallbackModelLabel) : displayModelLabel,
     // Reference Grid ordering is based on when an item enters the grid, not when
     // the backing Media Library row or generation was originally created.
     createdAt: referenceGridCreatedAt,
-    modelId: isGeneratedLibraryMedia ? (generatedModelId ?? workflowReload.model.id) : undefined,
+    modelId: isGeneratedLibraryMedia ? (generatedModelId ?? undefined) : undefined,
     generationId: isGeneratedLibraryMedia ? generationId : undefined,
     status: "ready",
     timestamp: payload.source === "ai_studio" ? "Generation" : "Library",
@@ -207,7 +228,10 @@ const buildLibraryMediaOutput = ({
     saveState: payload.id ? "saved" : "idle",
     saveError: null,
     savedMediaIds: payload.id ? [payload.id] : undefined,
-    workflowReload: isGeneratedLibraryMedia ? workflowReload : undefined,
+    workflowReload: isGeneratedLibraryMedia ? (workflowReload ?? undefined) : undefined,
+    generationReplay: isGeneratedLibraryMedia ? (generationReplay ?? undefined) : undefined,
+    characterContext: isGeneratedLibraryMedia ? characterContext : undefined,
+    styleContext: isGeneratedLibraryMedia ? styleContext : undefined,
   };
 };
 

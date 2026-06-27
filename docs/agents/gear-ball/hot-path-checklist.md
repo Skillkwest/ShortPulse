@@ -9,22 +9,23 @@ Purpose: give Gear Ball the compact execution checklist for its real job: analyz
 3. Verify current branch and `shortpulse.allowedBranch`.
 4. Run the workspace artifact safety check.
 5. Drop old thread residue. Unless the lane explicitly needs historical evidence, treat conversational material older than 30 minutes as cold and re-anchor on repo-local instructions.
-6. Select one run profile:
+6. If the task is Gear Ball process maintenance instead of a publish lane, identify Gear Ball's owned surface first and use `docs/agents/gear-ball/runtime-load-policy.md`; do not enter the normal commit/push ladder unless the user separately authorizes it.
+7. Select one run profile:
    - `docs-only`
    - `product-targeted`
    - `shared-runtime`
    - `production-targeted`
    - `production-broad`
-7. Build a full live-worktree inventory and classify every non-temp repo-backed change into:
+8. Build a full live-worktree inventory and classify every non-temp repo-backed change into:
    - publish now
    - defer intentionally
    - ignore as temp/noise
-8. Collapse the inventory into the fewest honest lanes possible. Default target: 1 to 3 lanes total.
-9. Build the first manifest from full `git status --short`, not from tracked diffs or memory.
-10. Do one explicit sibling-surface sweep around the touched route/runtime/helper area before the first validation pass. Use `node scripts/ops/gear_ball_related_sweep.mjs --files <paths...>` when the lane is broad enough that a quick ranked sweep beats ad hoc rereads.
-11. Bias toward catching same-lane siblings early. Late manifest undercounting is usually a bigger speed loss than a slightly broader first validation pass.
-12. If the run is large or mixed, lock a file-backed manifest before staging.
-13. If optional browser smoke or visual QA might help, verify the browser toolchain is actually available before budgeting time for it.
+9. Collapse the inventory into the fewest honest lanes possible. Default target: 1 to 3 lanes total.
+10. Build the first manifest from full `git status --short`, not from tracked diffs or memory.
+11. Do one explicit sibling-surface sweep around the touched route/runtime/helper area before the first validation pass. Use `node scripts/ops/gear_ball_related_sweep.mjs --files <paths...>` when the lane is broad enough that a quick ranked sweep beats ad hoc rereads.
+12. Bias toward catching same-lane siblings early. Late manifest undercounting is usually a bigger speed loss than a slightly broader first validation pass.
+13. If the run is large or mixed, lock a file-backed manifest before staging.
+14. If optional browser smoke or visual QA might help, verify the browser toolchain is actually available before budgeting time for it.
 
 ## Default Ladders
 
@@ -79,13 +80,13 @@ Purpose: give Gear Ball the compact execution checklist for its real job: analyz
 - related tails were folded into the lane after the earlier proof
 - a post-validation fix changed committed content
 
-If rerun is required, rerun only the affected rung set (`gear-ball:preflight`, owning tests, `build`, or `docs:check`). Do not duplicate the full earlier ladder just because a commit happened.
-14. After the last validation rung and before the final report, rerun `git status --short`. If any non-temp repo-backed file is still live, the run is not finished.
-15. After a CI-recovery push, classify any remaining or newly exposed GitHub failures before editing again:
-   - `same-root`
-   - `adjacent-test-contract`
-   - `environment-only`
-   - `new-product-risk`
+If rerun is required, rerun only the affected rung set (`gear-ball:preflight`, owning tests, `build`, or `docs:check`). Do not duplicate the full earlier ladder just because a commit happened. 14. After the last validation rung and before the final report, rerun `git status --short`. If any non-temp repo-backed file is still live, the run is not finished. 15. After a CI-recovery push, classify any remaining or newly exposed GitHub failures before editing again:
+
+- `same-root`
+- `adjacent-test-contract`
+- `environment-only`
+- `new-product-risk`
+
 16. If local full tests passed but GitHub unit tests still fail, begin with the exact failed files from CI. Do not jump straight to broad reruns or product rewrites.
 17. If the post-push failures are no longer clearly the same lane, would require user-facing behavior changes just to satisfy tests, or widen beyond the bounded failed-file set, stop and report the new lane instead of continuing by momentum.
 18. Push only the approved branch.

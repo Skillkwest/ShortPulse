@@ -4,6 +4,7 @@
 import type { StudioOutput, WorkflowReloadConfigV1, WorkflowReloadMediaKindHint } from "../types";
 import { resolveMediaRowKind } from "../../../lib/mediaRowKind";
 import { resolveMediaMetadataModelId, type MediaFileRow } from "./mediaLibraryModalModel";
+import { isGenerationReplayConfigV1, isGenerationReplayConfigV2 } from "./generationReplay";
 import { canReloadWorkflowOutput, isWorkflowReloadConfigV1 } from "./workflowReload";
 
 const AI_STUDIO_MEDIA_SOURCE = "ai_studio";
@@ -55,6 +56,44 @@ export const resolveMediaLibraryWorkflowReloadConfig = (
   return isWorkflowReloadConfigV1(candidate) ? candidate : null;
 };
 
+const asRecord = (value: unknown): Record<string, unknown> | null =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+
+export const resolveMediaLibraryGenerationReplayConfig = (
+  metadata: Record<string, unknown> | null | undefined
+): StudioOutput["generationReplay"] | null => {
+  const candidate = metadata?.generation_replay ?? metadata?.generationReplay;
+  return isGenerationReplayConfigV1(candidate) || isGenerationReplayConfigV2(candidate)
+    ? candidate
+    : null;
+};
+
+export const resolveMediaLibraryCharacterContext = (
+  metadata: Record<string, unknown> | null | undefined,
+  config: WorkflowReloadConfigV1 | null = resolveMediaLibraryWorkflowReloadConfig(metadata)
+): StudioOutput["characterContext"] | null => {
+  const candidate =
+    asRecord(metadata?.character_context) ??
+    asRecord(metadata?.characterContext) ??
+    (config?.payload.kind === "image" ? asRecord(config.payload.characterContext) : null);
+  return candidate?.applied === true ? (candidate as StudioOutput["characterContext"]) : null;
+};
+
+export const resolveMediaLibraryStyleContext = (
+  metadata: Record<string, unknown> | null | undefined,
+  config: WorkflowReloadConfigV1 | null = resolveMediaLibraryWorkflowReloadConfig(metadata)
+): StudioOutput["styleContext"] | null => {
+  const candidate =
+    asRecord(metadata?.style_context) ??
+    asRecord(metadata?.styleContext) ??
+    (config?.payload.kind === "image" || config?.payload.kind === "video"
+      ? asRecord(config.payload.styleContext)
+      : null);
+  return candidate?.applied === true ? (candidate as StudioOutput["styleContext"]) : null;
+};
+
 export const createMediaLibraryWorkflowReloadOutput = (file: MediaFileRow): StudioOutput | null => {
   if (file.source !== AI_STUDIO_MEDIA_SOURCE) return null;
   const config = resolveMediaLibraryWorkflowReloadConfig(file.metadata);
@@ -66,6 +105,9 @@ export const createMediaLibraryWorkflowReloadOutput = (file: MediaFileRow): Stud
   const generationId = file.source_ref?.trim() || undefined;
   const mode = resolveSavedMediaWorkflowMode(file, config);
   const modelId = resolveSavedMediaWorkflowModelId(file, config);
+  const generationReplay = resolveMediaLibraryGenerationReplayConfig(file.metadata);
+  const characterContext = resolveMediaLibraryCharacterContext(file.metadata, config);
+  const styleContext = resolveMediaLibraryStyleContext(file.metadata, config);
 
   return {
     id: `media-library:${file.id}`,
@@ -89,6 +131,9 @@ export const createMediaLibraryWorkflowReloadOutput = (file: MediaFileRow): Stud
     mediaSource: "generated",
     saveState: "saved",
     workflowReload: config,
+    generationReplay: generationReplay ?? undefined,
+    characterContext: characterContext ?? undefined,
+    styleContext: styleContext ?? undefined,
   };
 };
 

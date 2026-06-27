@@ -23,7 +23,12 @@ import {
   clearMediaLibraryDragGhost,
 } from "../logic/mediaLibraryDragGhost";
 import { writeMediaLibraryDragPayload } from "../logic/mediaLibraryDragPayload";
-import { resolveMediaLibraryWorkflowReloadConfig } from "../logic/mediaLibraryWorkflowReload";
+import {
+  resolveMediaLibraryCharacterContext,
+  resolveMediaLibraryGenerationReplayConfig,
+  resolveMediaLibraryStyleContext,
+  resolveMediaLibraryWorkflowReloadConfig,
+} from "../logic/mediaLibraryWorkflowReload";
 import { downloadBlobToFile } from "../logic/referenceDownload";
 import type { MediaLibraryMediaDragPreview } from "../components/media-library-modal/MediaLibraryAllItemsGrid";
 import { clearDragState, preparePromptReferenceDrag } from "../utils/dragDrop";
@@ -88,6 +93,9 @@ export const useMediaLibraryPanelItemInteractions = ({
       const promptText = resolveMediaMetadataPromptText(file.metadata) ?? file.filename ?? "";
       const transcriptText = resolveMediaMetadataTranscriptText(file.metadata);
       const workflowReload = resolveMediaLibraryWorkflowReloadConfig(file.metadata);
+      const generationReplay = resolveMediaLibraryGenerationReplayConfig(file.metadata);
+      const characterContext = resolveMediaLibraryCharacterContext(file.metadata, workflowReload);
+      const styleContext = resolveMediaLibraryStyleContext(file.metadata, workflowReload);
       const sourceRef = file.source_ref?.trim() || null;
       const audioPresentation = resolveMediaAudioPresentation(file);
       const companionArtUrl = audioPresentation.backgroundImageUrl;
@@ -109,6 +117,9 @@ export const useMediaLibraryPanelItemInteractions = ({
           generationId: sourceRef,
           modelId: resolveMediaMetadataModelId(file.metadata),
           workflowReload,
+          generationReplay,
+          characterContext,
+          styleContext,
           previewStoragePath,
           fullStoragePath: file.storage_path,
           previewUrl,

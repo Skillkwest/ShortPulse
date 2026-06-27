@@ -334,6 +334,7 @@ export function EmbeddedMediaLibraryPanel({
   const handleNoopMediaSelect = React.useCallback(() => undefined, []);
   const {
     detailModalItem,
+    detailNavigation,
     detailModalLoading,
     detailModalError,
     handleSelectMediaFile,
@@ -944,6 +945,7 @@ export function EmbeddedMediaLibraryPanel({
 
       <MediaLibraryPanelPreviewModal
         item={detailModalItem}
+        detailNavigation={detailNavigation}
         isLoading={detailModalLoading}
         error={detailModalError}
         onClose={closeDetailModal}

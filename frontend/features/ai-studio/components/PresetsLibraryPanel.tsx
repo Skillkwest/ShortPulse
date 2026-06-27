@@ -332,9 +332,6 @@ export function PresetsLibraryPanel({
               <span className="presets-library-tile-head">
                 <span className="presets-library-tile-title">Create New Preset</span>
               </span>
-              <span className="presets-library-tile-prompt">
-                Add another custom preset to your library.
-              </span>
             </button>
           ) : null}
         </div>

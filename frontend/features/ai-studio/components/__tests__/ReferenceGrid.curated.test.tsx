@@ -1443,6 +1443,29 @@ describe("ReferenceGrid curated split", () => {
     expect(onRemoveCuratedReference).not.toHaveBeenCalled();
   });
 
+  it("does not remove an unselected reference-grid card with Delete", () => {
+    const onDeleteOutput = vi.fn();
+    const { container } = render(
+      <ReferenceGrid
+        {...createProps({
+          activeOutputId: "out-1",
+          curatedReferenceIds: [],
+          onDeleteOutput,
+        })}
+      />
+    );
+    const allRefsSection = container.querySelector(".reference-all-refs-section") as HTMLElement;
+    expect(allRefsSection).toBeTruthy();
+    const unselectedReferenceGridCard = allRefsSection.querySelector(
+      ".reference-card:not(.is-active)"
+    ) as HTMLElement;
+    expect(unselectedReferenceGridCard).toBeTruthy();
+
+    fireEvent.keyDown(unselectedReferenceGridCard, { key: "Delete" });
+
+    expect(onDeleteOutput).not.toHaveBeenCalled();
+  });
+
   it("shows curated download action for quick slot video media", () => {
     const videoOutput: StudioOutput = {
       id: "out-video",

@@ -5,7 +5,10 @@
  */
 import React from "react";
 import { FlowArrow, TrashSimple } from "phosphor-react";
-import type { MediaLibraryDetailModalItem } from "../../logic/mediaLibraryDetailModal";
+import type {
+  MediaLibraryDetailModalItem,
+  MediaLibraryDetailNavigationContract,
+} from "../../logic/mediaLibraryDetailModal";
 import {
   canReloadMediaLibraryWorkflow,
   createMediaLibraryWorkflowReloadOutput,
@@ -20,6 +23,7 @@ import { resolveSharedMediaDetailMediaActionItems } from "../detail-modal/shared
 
 type MediaLibraryPanelPreviewModalProps = {
   item: MediaLibraryDetailModalItem | null;
+  detailNavigation?: MediaLibraryDetailNavigationContract | null;
   isLoading: boolean;
   error: string | null;
   onClose: () => void;
@@ -31,6 +35,20 @@ type MediaLibraryPanelPreviewModalProps = {
   onDeleteItem?: (item: MediaLibraryDetailModalItem) => void;
 };
 
+const shouldIgnoreMediaLibraryDetailNavigationKeyEvent = (event: KeyboardEvent): boolean => {
+  if (event.defaultPrevented) return true;
+  const target = event.target;
+  if (!(target instanceof Element)) return false;
+  if (target instanceof HTMLElement && target.isContentEditable) return true;
+  const tagName = target.tagName.toLowerCase();
+  if (["input", "textarea", "select", "audio", "video"].includes(tagName)) return true;
+  return Boolean(
+    target.closest(
+      "input, textarea, select, audio, video, [contenteditable='true'], [role='textbox'], [role='slider']"
+    )
+  );
+};
+
 /**
  * Renders a modal preview for a selected media card.
  * Inputs: selected file row, resolved preview URL, loading/error state, and close callback.
@@ -39,6 +57,7 @@ type MediaLibraryPanelPreviewModalProps = {
  */
 export function MediaLibraryPanelPreviewModal({
   item,
+  detailNavigation = null,
   isLoading,
   error,
   onClose,
@@ -67,6 +86,27 @@ export function MediaLibraryPanelPreviewModal({
     },
     [onClose, onReloadWorkflowItem]
   );
+  React.useEffect(() => {
+    if (!item || !detailNavigation || typeof document === "undefined") return;
+    const handleDetailNavigationKeyDown = (event: KeyboardEvent) => {
+      if (shouldIgnoreMediaLibraryDetailNavigationKeyEvent(event)) return;
+      if (event.key === "ArrowLeft") {
+        if (!detailNavigation.canNavigatePrevious) return;
+        event.preventDefault();
+        detailNavigation.onNavigatePrevious();
+        return;
+      }
+      if (event.key === "ArrowRight") {
+        if (!detailNavigation.canNavigateNext) return;
+        event.preventDefault();
+        detailNavigation.onNavigateNext();
+      }
+    };
+    document.addEventListener("keydown", handleDetailNavigationKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleDetailNavigationKeyDown);
+    };
+  }, [detailNavigation, item]);
   const topBarActionItems = React.useMemo(() => {
     if (!item) return [];
     return [
@@ -93,7 +133,7 @@ export function MediaLibraryPanelPreviewModal({
     ];
   }, [handleReloadWorkflowItem, item, onDeleteItem, onDownloadItem, onReloadWorkflowItem]);
 
-  if (item && !isLoading && !error && generatedDetailOutput) {
+  if (item && generatedDetailOutput) {
     return (
       <DetailModal
         output={generatedDetailOutput}

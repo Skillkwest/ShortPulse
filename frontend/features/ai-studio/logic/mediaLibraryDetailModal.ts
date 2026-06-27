@@ -14,6 +14,14 @@ export type MediaLibraryDetailModalSurface = Extract<
   "media-library-panel" | "character-media-panel" | "elements-media-panel"
 >;
 
+export type MediaLibraryDetailNavigationContract = {
+  sourceSurface: MediaLibraryDetailModalSurface;
+  canNavigatePrevious: boolean;
+  canNavigateNext: boolean;
+  onNavigatePrevious: () => void;
+  onNavigateNext: () => void;
+};
+
 export type MediaLibraryDetailSelectionPayload = {
   id: string;
   url: string;

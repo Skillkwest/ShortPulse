@@ -170,7 +170,7 @@
   :global(.ai-projects-modal-card-shell):focus-within
   :global(.ai-projects-modal-card) {
   border-color: rgba(244, 245, 247, 0.12);
-  background: rgba(10, 15, 22, 0.86);
+  background: rgba(31, 33, 37, 0.88);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.045),
     0 14px 28px rgba(0, 0, 0, 0.22);
@@ -183,7 +183,7 @@
 
 .bootstrapStyleScope :global(.ai-projects-modal-card):global(.is-current) {
   border-color: rgba(244, 245, 247, 0.12);
-  background: rgba(10, 15, 22, 0.86);
+  background: rgba(31, 33, 37, 0.88);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.045),
     0 14px 28px rgba(0, 0, 0, 0.22);

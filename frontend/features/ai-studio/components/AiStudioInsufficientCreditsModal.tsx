@@ -196,14 +196,23 @@ export function AiStudioInsufficientCreditsModal({
     <AiStudioModalLayer>
       <div className="ai-credit-modal-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
         <div className="ai-credit-modal" onClick={(event) => event.stopPropagation()}>
-          <button
-            type="button"
-            className="ai-credit-modal-close"
-            aria-label="Close credit top-up"
-            onClick={onClose}
-          >
-            <X size={16} />
-          </button>
+          <div className="ai-credit-modal-top-actions">
+            <button
+              type="button"
+              className="ai-credit-modal-account"
+              onClick={handleOpenAccountCredits}
+            >
+              Manage credits
+            </button>
+            <button
+              type="button"
+              className="ai-credit-modal-close"
+              aria-label="Close credit top-up"
+              onClick={onClose}
+            >
+              <X size={16} />
+            </button>
+          </div>
           <div className="ai-credit-modal-copy">
             <p className="ai-credit-modal-eyebrow">Credits</p>
             <h2>{INSUFFICIENT_CREDITS_TITLE}</h2>
@@ -220,12 +229,20 @@ export function AiStudioInsufficientCreditsModal({
                     key={pkg.id}
                     type="button"
                     className={`ai-credit-modal-package-button${selected ? " is-selected" : ""}`}
+                    aria-label={`Select ${pkg.display_name} top-up package`}
                     aria-pressed={selected}
                     onClick={() => setSelectedPackageId(pkg.id)}
                   >
+                    <span className="ai-credit-modal-package-kicker">Credit package</span>
                     <span className="ai-credit-modal-package-name">{pkg.display_name}</span>
-                    <strong>{pkg.credit_amount_cents.toLocaleString()}</strong>
-                    <span>{formatCurrencyFromCents(pkg.price_cents)}</span>
+                    <strong>
+                      {pkg.credit_amount_cents.toLocaleString()}{" "}
+                      <span className="ai-credit-modal-package-unit">credits</span>
+                    </strong>
+                    <span className="ai-credit-modal-package-price">
+                      {formatCurrencyFromCents(pkg.price_cents)} one-time purchase
+                    </span>
+                    <span className="ai-credit-modal-package-buy">Buy credits</span>
                   </button>
                 );
               })}
@@ -240,13 +257,6 @@ export function AiStudioInsufficientCreditsModal({
             </button>
             <button
               type="button"
-              className="ai-credit-modal-account"
-              onClick={handleOpenAccountCredits}
-            >
-              Manage credits
-            </button>
-            <button
-              type="button"
               className="ai-credit-modal-primary"
               onClick={handleCheckout}
               disabled={loadingPackages || loadingCheckout}
@@ -254,7 +264,7 @@ export function AiStudioInsufficientCreditsModal({
               {loadingCheckout
                 ? "Starting checkout..."
                 : selectedPackage
-                  ? "Top up credits"
+                  ? "Buy credits"
                   : "View credit packs"}
             </button>
           </div>

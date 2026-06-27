@@ -510,6 +510,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
 
   const {
     detailModalItem,
+    detailNavigation,
     detailModalLoading,
     detailModalError,
     handleMediaCardDoubleClick,
@@ -1459,6 +1460,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       </div>
       <MediaLibraryPanelPreviewModal
         item={detailModalItem}
+        detailNavigation={detailNavigation}
         isLoading={detailModalLoading}
         error={detailModalError}
         onClose={closeDetailModal}

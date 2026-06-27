@@ -231,6 +231,137 @@ describe("MediaLibraryPanelPreviewModal", () => {
     expect(screen.getByText("1K")).toBeInTheDocument();
   });
 
+  it("keeps generated media on the generated detail view while preview URLs resolve", () => {
+    const generatedFilename = "Regenerate_the_image_completely_from_scratch_with-1.png";
+    const generatedFile: MediaFileRow = {
+      id: "image-1",
+      filename: generatedFilename,
+      storage_path: "user-1/media-library/generated.png",
+      preview_storage_path: "user-1/media-library/thumb-generated.png",
+      file_type: "image/png",
+      source: "ai_studio",
+      source_ref: "generation-1",
+      signedUrl: "https://cdn.example.com/thumb-generated.png",
+      metadata: {
+        workflow_reload: {
+          ...workflowReloadMetadata,
+          model: {
+            id: "openai/nano-banana-2",
+          },
+          payload: {
+            ...workflowReloadMetadata.payload,
+            aspect: "1:1",
+            imageResolution: "2K",
+          },
+        },
+        generation_replay: {
+          ...generationReplayMetadata,
+          modelId: "openai/nano-banana-2",
+          aspect: "1:1",
+          imageResolution: "2K",
+        },
+        style_context: {
+          ...styleContextMetadata,
+          styleName: "Cinematic Hyperreal Macro",
+        },
+      },
+    };
+
+    render(
+      <MediaLibraryPanelPreviewModal
+        item={createPreviewItem(generatedFile, "https://cdn.example.com/thumb-generated.png", {
+          source: "ai_studio",
+        })}
+        isLoading
+        error={null}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("heading", { name: "Generated image" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: generatedFilename })).not.toBeInTheDocument();
+    expect(screen.getByText("1:1")).toBeInTheDocument();
+    expect(screen.getByText("2K")).toBeInTheDocument();
+    expect(screen.getByText("Cinematic Hyperreal Macro")).toBeInTheDocument();
+  });
+
+  it("navigates library-owned media details with left and right arrow keys", () => {
+    const onNavigatePrevious = vi.fn();
+    const onNavigateNext = vi.fn();
+    const imageFile: MediaFileRow = {
+      id: "image-1",
+      filename: "portrait.png",
+      storage_path: "user-1/uploads/portrait.png",
+      preview_storage_path: "user-1/uploads/thumb-portrait.png",
+      file_type: "image/png",
+      signedUrl: "https://cdn.example.com/thumb-portrait.png",
+    };
+
+    render(
+      <MediaLibraryPanelPreviewModal
+        item={createPreviewItem(imageFile, "https://cdn.example.com/thumb-portrait.png")}
+        detailNavigation={{
+          sourceSurface: "media-library-panel",
+          canNavigatePrevious: true,
+          canNavigateNext: true,
+          onNavigatePrevious,
+          onNavigateNext,
+        }}
+        isLoading={false}
+        error={null}
+        onClose={vi.fn()}
+      />
+    );
+
+    fireEvent.keyDown(document, { key: "ArrowRight" });
+    fireEvent.keyDown(document, { key: "ArrowLeft" });
+
+    expect(onNavigateNext).toHaveBeenCalledTimes(1);
+    expect(onNavigatePrevious).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps generated media detail navigation active through the generated detail view", () => {
+    const onNavigateNext = vi.fn();
+    const generatedFile: MediaFileRow = {
+      id: "image-1",
+      filename: "generated.png",
+      storage_path: "user-1/media-library/generated.png",
+      preview_storage_path: "user-1/media-library/thumb-generated.png",
+      file_type: "image/png",
+      source: "ai_studio",
+      source_ref: "generation-1",
+      signedUrl: "https://cdn.example.com/thumb-generated.png",
+      metadata: {
+        workflow_reload: workflowReloadMetadata,
+        generation_replay: generationReplayMetadata,
+      },
+    };
+
+    render(
+      <MediaLibraryPanelPreviewModal
+        item={createPreviewItem(generatedFile, "https://cdn.example.com/thumb-generated.png", {
+          source: "ai_studio",
+        })}
+        detailNavigation={{
+          sourceSurface: "media-library-panel",
+          canNavigatePrevious: false,
+          canNavigateNext: true,
+          onNavigatePrevious: vi.fn(),
+          onNavigateNext,
+        }}
+        isLoading={false}
+        error={null}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("heading", { name: "Generated image" })).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: "ArrowRight" });
+
+    expect(onNavigateNext).toHaveBeenCalledTimes(1);
+  });
+
   it("pauses an existing inline audio preview when modal audio starts playing", () => {
     const pauseSpy = HTMLMediaElement.prototype.pause as ReturnType<typeof vi.fn>;
     const audioFile: MediaFileRow = {

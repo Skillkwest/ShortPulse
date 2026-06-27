@@ -1413,7 +1413,7 @@
 .ai-credit-modal {
   position: relative;
   z-index: var(--ai-studio-z-modal-content);
-  width: min(430px, calc(100vw - 32px));
+  width: min(820px, calc(100vw - 32px));
   border: 1px solid rgba(71, 196, 255, 0.4);
   border-radius: 10px;
   background: linear-gradient(180deg, rgba(22, 31, 43, 0.98), rgba(13, 18, 27, 0.98)), #10141d;
@@ -1424,10 +1424,16 @@
   color: #edf8ff;
 }
 
-.ai-credit-modal-close {
+.ai-credit-modal-top-actions {
   position: absolute;
   top: 12px;
   right: 12px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.ai-credit-modal-close {
   width: 32px;
   height: 32px;
   border: 1px solid rgba(202, 231, 247, 0.18);
@@ -1442,7 +1448,7 @@
 .ai-credit-modal-copy {
   display: grid;
   gap: 8px;
-  padding-right: 24px;
+  padding-right: 184px;
 }
 
 .ai-credit-modal-copy h2,
@@ -1471,21 +1477,21 @@
 
 .ai-credit-modal-package-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
   margin-top: 18px;
 }
 
 .ai-credit-modal-package-button {
   display: grid;
-  align-content: space-between;
-  gap: 8px;
+  grid-template-rows: auto auto auto auto 1fr auto;
+  gap: 7px;
   min-width: 0;
   aspect-ratio: 1 / 1;
   border: 1px solid rgba(71, 196, 255, 0.22);
   border-radius: 8px;
-  background: rgba(71, 196, 255, 0.08);
-  padding: 12px;
+  background: rgba(21, 28, 39, 0.94);
+  padding: 14px;
   color: rgba(237, 248, 255, 0.9);
   font: inherit;
   text-align: left;
@@ -1499,12 +1505,12 @@
 .ai-credit-modal-package-button:hover,
 .ai-credit-modal-package-button:focus-visible {
   border-color: rgba(71, 196, 255, 0.62);
-  background: rgba(71, 196, 255, 0.13);
+  background: rgba(24, 35, 48, 0.98);
 }
 
 .ai-credit-modal-package-button.is-selected {
   border-color: rgba(71, 196, 255, 0.86);
-  background: rgba(71, 196, 255, 0.16);
+  background: rgba(26, 45, 60, 0.98);
   box-shadow:
     0 0 0 1px rgba(71, 196, 255, 0.32) inset,
     0 12px 30px rgba(0, 0, 0, 0.22);
@@ -1512,7 +1518,7 @@
 
 .ai-credit-modal-package-button strong {
   color: #ffffff;
-  font-size: 20px;
+  font-size: 22px;
   line-height: 1;
   white-space: nowrap;
 }
@@ -1521,14 +1527,43 @@
   min-width: 0;
 }
 
+.ai-credit-modal-package-kicker {
+  color: rgba(223, 236, 245, 0.64);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
 .ai-credit-modal-package-name {
   overflow: hidden;
   color: rgba(237, 248, 255, 0.88);
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 800;
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.ai-credit-modal-package-unit {
+  color: rgba(223, 236, 245, 0.78);
+  font-size: 12px;
+}
+
+.ai-credit-modal-package-price {
+  color: rgba(223, 236, 245, 0.7);
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.ai-credit-modal-package-buy {
+  display: grid;
+  place-items: center;
+  min-height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #2aa8ff, #34c6d7);
+  color: #edfaff;
+  font-size: 13px;
+  font-weight: 900;
 }
 
 .ai-credit-modal-package-empty {
@@ -1580,6 +1615,12 @@
   border: 1px solid rgba(71, 196, 255, 0.32);
   background: rgba(71, 196, 255, 0.08);
   color: rgba(199, 238, 255, 0.92);
+}
+
+.ai-credit-modal-top-actions .ai-credit-modal-account {
+  min-height: 32px;
+  padding: 0 12px;
+  font-size: 12px;
 }
 
 .ai-credit-modal-secondary {

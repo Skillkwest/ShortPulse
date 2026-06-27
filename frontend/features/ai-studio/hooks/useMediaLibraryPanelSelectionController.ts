@@ -19,6 +19,7 @@ import { MEDIA_LIBRARY_ROOT_FOLDER_ID } from "../logic/mediaLibraryPanelApi";
 import {
   createMediaLibraryDetailModalItem,
   createMediaLibraryDetailSelectionPayload,
+  type MediaLibraryDetailNavigationContract,
   type MediaLibraryDetailModalItem,
   type MediaLibraryDetailModalSurface,
   type MediaLibraryDetailSelectionPayload,
@@ -44,6 +45,7 @@ type UseMediaLibraryPanelSelectionControllerParams = {
 
 type UseMediaLibraryPanelSelectionControllerResult = {
   detailModalItem: MediaLibraryDetailModalItem | null;
+  detailNavigation: MediaLibraryDetailNavigationContract | null;
   detailModalLoading: boolean;
   detailModalError: string | null;
   handleSelectMediaFile: (file: MediaFileRow) => void;
@@ -76,6 +78,7 @@ export const useMediaLibraryPanelSelectionController = ({
       ? detailSelectionTarget
       : null;
   const detailModalItemFileId = detailModalItem?.file.id ?? null;
+  const activeDetailFileId = controlledSelectionTarget?.fileId ?? detailModalItemFileId;
 
   const addMediaReferenceFromFile = React.useCallback(
     async (file: MediaFileRow) => {
@@ -339,6 +342,48 @@ export const useMediaLibraryPanelSelectionController = ({
     [detailSurface, isExternallyControlled, openDetailModalForFile, setDetailSelectionTarget]
   );
 
+  const navigateDetailModal = React.useCallback(
+    (direction: "previous" | "next") => {
+      if (!activeDetailFileId) return;
+      const currentIndex = mediaRows.findIndex((row) => row.id === activeDetailFileId);
+      if (currentIndex < 0) return;
+      const targetIndex = direction === "previous" ? currentIndex - 1 : currentIndex + 1;
+      if (targetIndex < 0 || targetIndex >= mediaRows.length) return;
+      const targetFile = mediaRows[targetIndex];
+      if (!targetFile) return;
+      if (isExternallyControlled) {
+        setDetailSelectionTarget?.({
+          kind: "media-file",
+          fileId: targetFile.id,
+          surface: detailSurface,
+        });
+        return;
+      }
+      openDetailModalForFile(targetFile);
+    },
+    [
+      activeDetailFileId,
+      detailSurface,
+      isExternallyControlled,
+      mediaRows,
+      openDetailModalForFile,
+      setDetailSelectionTarget,
+    ]
+  );
+
+  const detailNavigation = React.useMemo(() => {
+    if (!activeDetailFileId) return null;
+    const currentIndex = mediaRows.findIndex((row) => row.id === activeDetailFileId);
+    if (currentIndex < 0) return null;
+    return {
+      sourceSurface: detailSurface,
+      canNavigatePrevious: currentIndex > 0,
+      canNavigateNext: currentIndex < mediaRows.length - 1,
+      onNavigatePrevious: () => navigateDetailModal("previous"),
+      onNavigateNext: () => navigateDetailModal("next"),
+    };
+  }, [activeDetailFileId, detailSurface, mediaRows, navigateDetailModal]);
+
   const handleDetailModalMediaError = React.useCallback(
     (item: MediaLibraryDetailModalItem, failedUrl: string) => {
       const nextToken = previewResolveTokenRef.current + 1;
@@ -401,6 +446,7 @@ export const useMediaLibraryPanelSelectionController = ({
 
   return {
     detailModalItem,
+    detailNavigation,
     detailModalLoading,
     detailModalError,
     handleSelectMediaFile,

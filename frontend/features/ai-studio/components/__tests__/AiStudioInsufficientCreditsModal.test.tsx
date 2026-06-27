@@ -89,14 +89,19 @@ describe("AiStudioInsufficientCreditsModal", () => {
       expect(await screen.findByText("Insufficient Credits")).toBeInTheDocument();
       expect(screen.getByText(/This generation needs 1,200 credits/)).toBeInTheDocument();
       expect(screen.getByText(/You have 100 available/)).toBeInTheDocument();
-      const starterPackageButton = screen.getByRole("button", { name: /Starter Pack/ });
-      const studioPackageButton = screen.getByRole("button", { name: /Studio Pack/ });
+      const starterPackageButton = screen.getByRole("button", {
+        name: /select starter pack top-up package/i,
+      });
+      const studioPackageButton = screen.getByRole("button", {
+        name: /select studio pack top-up package/i,
+      });
       expect(studioPackageButton).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getAllByText("Buy credits").length).toBeGreaterThan(1);
 
       fireEvent.click(starterPackageButton);
       expect(starterPackageButton).toHaveAttribute("aria-pressed", "true");
 
-      fireEvent.click(screen.getByRole("button", { name: /top up credits/i }));
+      fireEvent.click(screen.getByRole("button", { name: /^buy credits$/i }));
 
       await waitFor(() => {
         expect(assignMock).toHaveBeenCalledWith("https://checkout.stripe.test/session-1");

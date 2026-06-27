@@ -335,9 +335,6 @@ export function PulsePresetsLibraryPanel({
                 <span className="pulse-presets-library-tile-head">
                   <span className="pulse-presets-library-tile-title">Create New Pulse</span>
                 </span>
-                <span className="pulse-presets-library-tile-prompt">
-                  Create pulse in your library.
-                </span>
               </button>
             ) : null}
           </div>

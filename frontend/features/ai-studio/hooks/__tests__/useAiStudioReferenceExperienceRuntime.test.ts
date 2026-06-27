@@ -1,10 +1,11 @@
 import { renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../types";
 import type { AiStudioPageBaseRuntime } from "../useAiStudioPageBaseRuntime";
 import { useAiStudioReferenceExperienceRuntime } from "../useAiStudioReferenceExperienceRuntime";
 import type { CanvasImageItem } from "../../components/canvas/canvasTypes";
 import type { CanvasPropertiesPanelProps } from "../../components/canvas/canvasWorkspaceContracts";
+import { resetAiStudioOutputStore, setAiStudioOutputStoreSnapshot } from "../aiStudioOutputStore";
 
 vi.mock("../useAiStudioReferenceAssetActions", () => ({
   useAiStudioReferenceAssetActions: () => ({
@@ -14,9 +15,10 @@ vi.mock("../useAiStudioReferenceAssetActions", () => ({
 }));
 
 vi.mock("../useAiStudioPreviewDetailProps", () => ({
-  useAiStudioPreviewDetailProps: () => ({
+  useAiStudioPreviewDetailProps: (params: { detailNavigation?: unknown }) => ({
     studioPreviewProps: {},
     detailModalOutput: null,
+    detailNavigation: params.detailNavigation ?? null,
     isMediaStorageFull: false,
     onDetailClose: vi.fn(),
     onUpdateOutputPrompt: vi.fn(),
@@ -39,6 +41,13 @@ const output: StudioOutput = {
   timestamp: "2026-06-15T00:00:00.000Z",
   previewUrl: "https://example.com/video.mp4",
 };
+
+const createOutput = (id: string, prompt = id): StudioOutput => ({
+  ...output,
+  id,
+  prompt,
+  previewUrl: `https://example.com/${id}.mp4`,
+});
 
 const createBaseRuntime = (
   overrides: Partial<AiStudioPageBaseRuntime> = {}
@@ -87,6 +96,10 @@ const createBaseRuntime = (
   }) as AiStudioPageBaseRuntime;
 
 describe("useAiStudioReferenceExperienceRuntime", () => {
+  beforeEach(() => {
+    resetAiStudioOutputStore();
+  });
+
   it("routes Reference Grid workflow reload through the clicked output snapshot", () => {
     const reloadWorkflowFromOutput = vi.fn();
     const reloadWorkflowFromStudioOutput = vi.fn();
@@ -169,5 +182,65 @@ describe("useAiStudioReferenceExperienceRuntime", () => {
     expect(reloadWorkflowFromStudioOutput).toHaveBeenCalledWith(output, {
       mediaKindHint: "video",
     });
+  });
+
+  it("preserves Reference Grid detail navigation through the preview-detail contract", () => {
+    const firstOutput = createOutput("out-1", "First");
+    const secondOutput = createOutput("out-2", "Second");
+    const thirdOutput = createOutput("out-3", "Third");
+    const handleSelectOutput = vi.fn();
+    const setDetailSelectionTarget = vi.fn();
+    const setDetailOutputId = vi.fn();
+    setAiStudioOutputStoreSnapshot({
+      outputOrder: [firstOutput.id, secondOutput.id, thirdOutput.id],
+      outputById: {
+        [firstOutput.id]: firstOutput,
+        [secondOutput.id]: secondOutput,
+        [thirdOutput.id]: thirdOutput,
+      },
+      archivedOutputOrder: [],
+      archivedOutputById: {},
+    });
+    const base = createBaseRuntime({
+      detailSelectionTarget: {
+        kind: "studio-output",
+        outputId: secondOutput.id,
+        surface: "reference-grid",
+      },
+      setDetailSelectionTarget,
+      setDetailOutputId,
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioReferenceExperienceRuntime({
+        base,
+        isMediaStorageFull: false,
+        linkedPromptReferenceIds: [],
+        propertiesCreate: {} as never,
+        propertiesEditExpert: {} as never,
+        propertiesVideo: {} as never,
+        handleSelectOutput,
+        handleManualPromptChange: vi.fn(),
+        handleRegenerateWithDebit: vi.fn(),
+        handleOpenMediaLibrary: vi.fn(),
+      })
+    );
+
+    expect(result.current.detailNavigation).toMatchObject({
+      sourceSurface: "reference-grid",
+      canNavigatePrevious: true,
+      canNavigateNext: true,
+    });
+
+    result.current.detailNavigation?.onNavigateNext();
+
+    expect(handleSelectOutput).toHaveBeenCalledWith(thirdOutput.id);
+    expect(setDetailSelectionTarget).toHaveBeenCalledWith({
+      kind: "studio-output",
+      outputId: thirdOutput.id,
+      surface: "reference-grid",
+      outputSnapshot: thirdOutput,
+    });
+    expect(setDetailOutputId).toHaveBeenCalledWith(thirdOutput.id);
   });
 });

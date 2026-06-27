@@ -20,6 +20,15 @@ describe("useMediaLibraryPanelSelectionController", () => {
     source: "upload",
   };
 
+  const createImageFile = (id: string, filename: string = `${id}.png`): typeof imageFile => ({
+    ...imageFile,
+    id,
+    filename,
+    storage_path: `user-1/media/${id}.png`,
+    preview_storage_path: `user-1/media/${id}-thumb.png`,
+    signedUrl: `https://signed.example.com/${id}-thumb.png`,
+  });
+
   it("opens on the current preview url and promotes to the signed original url when available", async () => {
     resolveSignedSelectionUrlMock.mockResolvedValueOnce("https://signed.example.com/fallback.png");
     const signStoragePath = vi.fn(async (storagePath: string) =>
@@ -85,6 +94,44 @@ describe("useMediaLibraryPanelSelectionController", () => {
     await waitFor(() => {
       expect(result.current.detailModalItem?.url).toBe("https://signed.example.com/full.png");
       expect(result.current.detailModalLoading).toBe(false);
+    });
+  });
+
+  it("navigates an open local detail modal through the current media row order", () => {
+    resolveSignedSelectionUrlMock.mockReset();
+    const firstFile = createImageFile("file-1", "first.png");
+    const secondFile = createImageFile("file-2", "second.png");
+    const thirdFile = createImageFile("file-3", "third.png");
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelSelectionController({
+        activeFolderId: "all_items",
+        detailSurface: "media-library-panel",
+        currentUserIdRef: { current: "user-1" },
+        mediaRows: [firstFile, secondFile, thirdFile],
+        onSelectMedia: vi.fn(),
+        refreshSignedUrl: vi.fn(async () => null),
+        signStoragePath: vi.fn(async () => null),
+      })
+    );
+
+    act(() => {
+      result.current.handleMediaCardDoubleClick(secondFile);
+    });
+
+    expect(result.current.detailNavigation).toMatchObject({
+      sourceSurface: "media-library-panel",
+      canNavigatePrevious: true,
+      canNavigateNext: true,
+    });
+
+    act(() => {
+      result.current.detailNavigation?.onNavigateNext();
+    });
+
+    expect(result.current.detailModalItem?.file.id).toBe(thirdFile.id);
+    expect(result.current.detailNavigation).toMatchObject({
+      canNavigatePrevious: true,
+      canNavigateNext: false,
     });
   });
 
@@ -443,5 +490,45 @@ describe("useMediaLibraryPanelSelectionController", () => {
       surface: "media-library-panel",
     });
     expect(result.current.detailModalItem).toBeNull();
+  });
+
+  it("publishes adjacent controlled detail-selection targets with the active embedded surface", () => {
+    const firstFile = createImageFile("file-1", "first.png");
+    const secondFile = createImageFile("file-2", "second.png");
+    const thirdFile = createImageFile("file-3", "third.png");
+    const setDetailSelectionTarget = vi.fn();
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelSelectionController({
+        activeFolderId: "all_items",
+        detailSurface: "character-media-panel",
+        currentUserIdRef: { current: "user-1" },
+        mediaRows: [firstFile, secondFile, thirdFile],
+        detailSelectionTarget: {
+          kind: "media-file",
+          fileId: secondFile.id,
+          surface: "character-media-panel",
+        },
+        setDetailSelectionTarget,
+        onSelectMedia: vi.fn(),
+        refreshSignedUrl: vi.fn(async () => null),
+        signStoragePath: vi.fn(async () => null),
+      })
+    );
+
+    expect(result.current.detailNavigation).toMatchObject({
+      sourceSurface: "character-media-panel",
+      canNavigatePrevious: true,
+      canNavigateNext: true,
+    });
+
+    act(() => {
+      result.current.detailNavigation?.onNavigatePrevious();
+    });
+
+    expect(setDetailSelectionTarget).toHaveBeenCalledWith({
+      kind: "media-file",
+      fileId: firstFile.id,
+      surface: "character-media-panel",
+    });
   });
 });

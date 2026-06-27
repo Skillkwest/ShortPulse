@@ -631,6 +631,129 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     );
   });
 
+  it("enables project autosave for an archived reference add after unresolved restore proof", async () => {
+    const restoredSnapshot = {
+      ...createAiStudioProjectWorkspaceSnapshot(createSnapshot()),
+      outputs: {
+        active: [
+          {
+            id: "out-restored-1",
+            prompt: "Restored image",
+            mode: "image",
+            aspect: "1:1",
+            model: "model-1",
+            status: "ready",
+            timestamp: "Just now",
+            previewUrl: "https://cdn.example.com/restored.png",
+            resultUrls: ["https://cdn.example.com/restored.png"],
+          },
+        ],
+        archived: [],
+        activeOutputId: null,
+        curatedReferenceIds: [],
+        removedFromAllRefsIds: [],
+      },
+    } as unknown as AiStudioSessionSnapshot;
+    const mismatchedLiveSnapshot = {
+      ...restoredSnapshot,
+      canvas: serializeAiStudioSessionCanvasState({
+        items: [
+          {
+            id: "canvas-text-1",
+            kind: "text",
+            text: "draft",
+            x: 16,
+            y: 24,
+            z: 1,
+            selected: false,
+            outputId: null,
+            sourceSurface: null,
+            width: 180,
+            height: 48,
+          },
+        ],
+        draftTextEntry: null,
+        textEditSession: null,
+        draftOwnerInstanceId: null,
+        textEditOwnerInstanceId: null,
+        mainCamera: { x: 0, y: 0, zoom: 1 },
+        railCamera: { x: 0, y: 0, zoom: 1 },
+      }),
+    } as unknown as AiStudioSessionSnapshot;
+    const archivedAddedSnapshot = {
+      ...mismatchedLiveSnapshot,
+      outputs: {
+        ...mismatchedLiveSnapshot.outputs,
+        archived: [
+          {
+            id: "archived-library-1",
+            mediaSource: "library",
+            mode: "image",
+            status: "ready",
+            previewUrl: "https://cdn.example.com/archived-library.png",
+            resultUrls: ["https://cdn.example.com/archived-library.png"],
+            previewStoragePath: "user-1/media/archived-library-preview.webp",
+            fullStoragePath: "user-1/media/archived-library-full.png",
+            savedMediaIds: ["22222222-2222-4222-8222-222222222222"],
+            archivedAt: "2026-06-27T12:00:00.000Z",
+            archiveReason: "cleanup",
+          },
+        ],
+        removedFromAllRefsIds: ["archived-library-1"],
+      },
+    } as unknown as AiStudioSessionSnapshot;
+    mockReadyRestoreCandidate(restoredSnapshot);
+    const buildSessionSnapshot = vi.fn(() => mismatchedLiveSnapshot);
+    const buildArchivedAddedSessionSnapshot = vi.fn(() => archivedAddedSnapshot);
+    const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
+
+    const { result, rerender } = renderHook(
+      ({ buildSnapshot }) =>
+        useAiStudioProjectWorkspacePersistenceController({
+          projectId: "project-1",
+          projectRouteRequested: true,
+          sessionId: "session-1",
+          buildBaseSessionSnapshot: buildSnapshot,
+          hydrateFromSessionSnapshot,
+        }),
+      {
+        initialProps: {
+          buildSnapshot: buildSessionSnapshot,
+        },
+      }
+    );
+
+    const restoreHydrationArgs =
+      mockedUseAiStudioProjectWorkspaceRestoreHydration.mock.calls[0]?.[0];
+    await act(async () => {
+      restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
+      await Promise.resolve();
+    });
+
+    expect(result.current.projectBootstrapSettled).toBe(true);
+    expect(result.current.projectBootstrapApplied).toBe(false);
+    expect(mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({
+        sessionId: "project-1",
+        enabled: false,
+      })
+    );
+
+    await act(async () => {
+      rerender({ buildSnapshot: buildArchivedAddedSessionSnapshot });
+      await Promise.resolve();
+    });
+
+    expect(result.current.projectBootstrapApplied).toBe(false);
+    expect(mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({
+        sessionId: "project-1",
+        snapshot: archivedAddedSnapshot,
+        enabled: true,
+      })
+    );
+  });
+
   it("keeps project autosave blocked for volatile preview-url churn while restore proof is unresolved", async () => {
     const restoredSnapshot = {
       ...createAiStudioProjectWorkspaceSnapshot(createSnapshot()),

@@ -58,6 +58,15 @@ const choosePackage = (
   return packages[0] ?? null;
 };
 
+const resolvePackageDisplayName = (pkg: CreditPackage): string => {
+  const creditAmount = pkg.credit_amount_cents.toLocaleString();
+  const escapedCreditAmount = creditAmount.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const withoutTrailingAmount = pkg.display_name
+    .replace(new RegExp(`\\s+${escapedCreditAmount}$`), "")
+    .trim();
+  return withoutTrailingAmount || pkg.display_name;
+};
+
 /**
  * Renders a blocking-but-dismissable credit top-up prompt.
  * Inputs: open state plus known required/available credit values.
@@ -224,17 +233,18 @@ export function AiStudioInsufficientCreditsModal({
             <div className="ai-credit-modal-package-grid" aria-label="Credit top-up packages">
               {sortedPackages.map((pkg) => {
                 const selected = selectedPackage?.id === pkg.id;
+                const packageDisplayName = resolvePackageDisplayName(pkg);
                 return (
                   <button
                     key={pkg.id}
                     type="button"
                     className={`ai-credit-modal-package-button${selected ? " is-selected" : ""}`}
-                    aria-label={`Select ${pkg.display_name} top-up package`}
+                    aria-label={`Select ${packageDisplayName} top-up package`}
                     aria-pressed={selected}
                     onClick={() => setSelectedPackageId(pkg.id)}
                   >
                     <span className="ai-credit-modal-package-kicker">Credit package</span>
-                    <span className="ai-credit-modal-package-name">{pkg.display_name}</span>
+                    <span className="ai-credit-modal-package-name">{packageDisplayName}</span>
                     <strong>
                       {pkg.credit_amount_cents.toLocaleString()}{" "}
                       <span className="ai-credit-modal-package-unit">credits</span>
@@ -242,7 +252,7 @@ export function AiStudioInsufficientCreditsModal({
                     <span className="ai-credit-modal-package-price">
                       {formatCurrencyFromCents(pkg.price_cents)} one-time purchase
                     </span>
-                    <span className="ai-credit-modal-package-buy">Buy credits</span>
+                    <span className="ai-credit-modal-package-buy">Select</span>
                   </button>
                 );
               })}

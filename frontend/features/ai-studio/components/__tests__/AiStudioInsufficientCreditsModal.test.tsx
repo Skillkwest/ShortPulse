@@ -54,14 +54,14 @@ describe("AiStudioInsufficientCreditsModal", () => {
           packages: [
             {
               id: "starter-pack",
-              display_name: "Starter Pack",
+              display_name: "Starter Pack 500",
               credit_amount_cents: 500,
               price_cents: 700,
               sort_order: 1,
             },
             {
               id: "studio-pack",
-              display_name: "Studio Pack",
+              display_name: "Studio Pack 2,000",
               credit_amount_cents: 2000,
               price_cents: 2600,
               sort_order: 2,
@@ -96,7 +96,9 @@ describe("AiStudioInsufficientCreditsModal", () => {
         name: /select studio pack top-up package/i,
       });
       expect(studioPackageButton).toHaveAttribute("aria-pressed", "true");
-      expect(screen.getAllByText("Buy credits").length).toBeGreaterThan(1);
+      expect(screen.getAllByText("Select")).toHaveLength(2);
+      expect(screen.getByText("Starter Pack")).toBeInTheDocument();
+      expect(screen.queryByText("Starter Pack 500")).not.toBeInTheDocument();
 
       fireEvent.click(starterPackageButton);
       expect(starterPackageButton).toHaveAttribute("aria-pressed", "true");

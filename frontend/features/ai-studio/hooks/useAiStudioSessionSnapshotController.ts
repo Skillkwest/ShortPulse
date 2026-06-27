@@ -846,7 +846,7 @@ export const useAiStudioSessionSnapshotController = ({
         klingElements: [],
         motionReferenceVideoUrl: null,
         outputs,
-        archivedOutputs: [],
+        archivedOutputs,
         activeOutputId: null,
         curatedReferenceIds,
         removedFromAllRefsIds,
@@ -859,7 +859,7 @@ export const useAiStudioSessionSnapshotController = ({
       });
       return createAiStudioProjectWorkspaceSnapshot(baseSnapshot) as AiStudioSessionSnapshotV2;
     },
-    [curatedReferenceIds, outputs, removedFromAllRefsIds]
+    [archivedOutputs, curatedReferenceIds, outputs, removedFromAllRefsIds]
   );
 
   return {

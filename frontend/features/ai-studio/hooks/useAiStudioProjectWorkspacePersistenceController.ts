@@ -365,6 +365,35 @@ const normalizeProjectAutosaveUnlockString = (value: unknown): string | null => 
   return trimmed.length > 0 ? trimmed : null;
 };
 
+const resolveProjectAutosaveUnlockOutputRows = (value: unknown) =>
+  Array.isArray(value)
+    ? value.map((output) => {
+        const row = output as Record<string, unknown>;
+        return {
+          id: normalizeProjectAutosaveUnlockString(row.id),
+          mode: normalizeProjectAutosaveUnlockString(row.mode),
+          mediaSource: normalizeProjectAutosaveUnlockString(row.mediaSource),
+          generationId: normalizeProjectAutosaveUnlockString(row.generationId),
+          promptId: normalizeProjectAutosaveUnlockString(row.promptId),
+          taskId: normalizeProjectAutosaveUnlockString(row.taskId),
+          sourceRef: normalizeProjectAutosaveUnlockString(row.sourceRef),
+          previewStoragePath: normalizeProjectAutosaveUnlockString(row.previewStoragePath),
+          fullStoragePath: normalizeProjectAutosaveUnlockString(row.fullStoragePath),
+          previewPosterStoragePath: normalizeProjectAutosaveUnlockString(
+            row.previewPosterStoragePath
+          ),
+          companionArtStoragePath: normalizeProjectAutosaveUnlockString(
+            row.companionArtStoragePath
+          ),
+          savedMediaIds: normalizeProjectSnapshotStringList(row.savedMediaIds),
+          resultStoragePaths: normalizeProjectSnapshotStringList(row.resultStoragePaths),
+          previewText: normalizeProjectAutosaveUnlockString(row.previewText),
+          archivedAt: normalizeProjectAutosaveUnlockString(row.archivedAt),
+          archiveReason: normalizeProjectAutosaveUnlockString(row.archiveReason),
+        };
+      })
+    : [];
+
 const asSnapshotRecord = (value: unknown): Record<string, unknown> =>
   value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -439,33 +468,9 @@ const resolveProjectAutosaveUnlockSignature = (
   snapshot: AiStudioSessionSnapshot | null
 ): string | null => {
   if (!snapshot) return null;
-  const activeOutputs = Array.isArray(snapshot.outputs?.active)
-    ? snapshot.outputs.active.map((output) => {
-        const row = output as Record<string, unknown>;
-        return {
-          id: normalizeProjectAutosaveUnlockString(row.id),
-          mode: normalizeProjectAutosaveUnlockString(row.mode),
-          mediaSource: normalizeProjectAutosaveUnlockString(row.mediaSource),
-          generationId: normalizeProjectAutosaveUnlockString(row.generationId),
-          promptId: normalizeProjectAutosaveUnlockString(row.promptId),
-          taskId: normalizeProjectAutosaveUnlockString(row.taskId),
-          sourceRef: normalizeProjectAutosaveUnlockString(row.sourceRef),
-          previewStoragePath: normalizeProjectAutosaveUnlockString(row.previewStoragePath),
-          fullStoragePath: normalizeProjectAutosaveUnlockString(row.fullStoragePath),
-          previewPosterStoragePath: normalizeProjectAutosaveUnlockString(
-            row.previewPosterStoragePath
-          ),
-          companionArtStoragePath: normalizeProjectAutosaveUnlockString(
-            row.companionArtStoragePath
-          ),
-          savedMediaIds: normalizeProjectSnapshotStringList(row.savedMediaIds),
-          resultStoragePaths: normalizeProjectSnapshotStringList(row.resultStoragePaths),
-          previewText: normalizeProjectAutosaveUnlockString(row.previewText),
-        };
-      })
-    : [];
   return JSON.stringify({
-    activeOutputs,
+    activeOutputs: resolveProjectAutosaveUnlockOutputRows(snapshot.outputs?.active),
+    archivedOutputs: resolveProjectAutosaveUnlockOutputRows(snapshot.outputs?.archived),
     curatedReferenceIds: normalizeProjectSnapshotStringList(snapshot.outputs?.curatedReferenceIds),
     removedFromAllRefsIds: normalizeProjectSnapshotStringList(
       snapshot.outputs?.removedFromAllRefsIds

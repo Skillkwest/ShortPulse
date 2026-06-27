@@ -216,6 +216,14 @@ describe("audioCompanionArt processing", () => {
     expect(claimBuilder.or).toHaveBeenCalledWith(
       "companion_art_status.is.null,companion_art_status.eq.pending,companion_art_status.eq.failed"
     );
+    expect(mirrorGeneratedAudioPresentationToMediaFilesMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-1",
+        userId: "user-1",
+        companionArtStatus: "processing",
+        companionArtStoragePath: null,
+      })
+    );
     expect(projectionSelectBuilder.not).toHaveBeenCalledWith(
       "publication_state",
       "eq",
@@ -459,6 +467,7 @@ describe("audioCompanionArt processing", () => {
         generationId: "gen-white",
         userId: "user-white",
         companionArtStatus: "failed",
+        companionArtStoragePath: null,
       })
     );
     expect(writeAppErrorLogMock).toHaveBeenCalledWith(

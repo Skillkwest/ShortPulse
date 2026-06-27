@@ -151,6 +151,98 @@ const createHydrationPayload = (active: StudioOutput[]): AiStudioSessionHydratio
   expertEdit: null,
 });
 
+const createControllerParams = (
+  overrides: Partial<Parameters<typeof useAiStudioSessionSnapshotController>[0]> = {}
+): Parameters<typeof useAiStudioSessionSnapshotController>[0] => ({
+  mode: "image",
+  selectedTool: "create",
+  standardCreatePrompt: "",
+  pulseCreatePrompt: "",
+  model: null,
+  aspect: "1:1",
+  pulseWorkspaceState: { expertCreateMode: "standard" } as never,
+  referenceImageUrl: null,
+  extraImageUrls: [null, null, null],
+  editReferenceText: "",
+  videoReferenceText: "",
+  videoReferenceMode: "standard",
+  lipSyncAudio: createEmptyLipSyncAudioState(),
+  lipSyncTurboMode: false,
+  videoDurationSeconds: 6,
+  videoResolution: "1080p",
+  imageResolution: "model_default",
+  videoGenerateAudio: false,
+  videoCameraFixed: false,
+  videoAutoFix: false,
+  klingNegativePrompt: "",
+  klingCfgScale: 0.5,
+  klingWorkflowMode: "single",
+  seedance2InputMode: "text",
+  seedance2ReferenceImageUrls: [],
+  seedance2ReferenceVideoUrls: [],
+  seedance2ReferenceAudioUrls: [],
+  seedance2ReturnLastFrame: false,
+  seedance2WebSearch: false,
+  klingShotType: "customize",
+  klingVoiceIds: ["", ""],
+  klingMultiPrompts: [],
+  klingElements: [],
+  motionReferenceVideoUrl: null,
+  outputs: [],
+  archivedOutputs: [],
+  activeOutputId: null,
+  curatedReferenceIds: [],
+  removedFromAllRefsIds: [],
+  sessionHydrationSigningRevisionRef: { current: 0 },
+  setMode: vi.fn(),
+  setSelectedTool: vi.fn(),
+  setStandardCreatePrompt: vi.fn(),
+  setPulseCreatePrompt: vi.fn(),
+  setModel: vi.fn(),
+  setAspect: vi.fn(),
+  setExpertCreateMode: vi.fn(),
+  setActivePulsePresetId: vi.fn(),
+  setPulseSessionInstanceId: vi.fn(),
+  setReferenceImageUrl: vi.fn(),
+  setReferenceSelectionStateForCreateMode: vi.fn(),
+  getReferenceSelectionStateForCreateMode: vi.fn(() => ({
+    selectedTool: "create" as const,
+    referenceImageUrl: null,
+    extraImageUrls: [null, null, null] as [string | null, string | null, string | null],
+    referenceImageInternalMediaRefs: [],
+    motionReferenceVideoUrl: null,
+  })),
+  setExtraImageUrl: vi.fn(),
+  setEditReferenceText: vi.fn(),
+  setVideoReferenceText: vi.fn(),
+  setVideoReferenceMode: vi.fn(),
+  setVideoDurationSeconds: vi.fn(),
+  setVideoResolution: vi.fn(),
+  setImageResolution: vi.fn(),
+  setVideoGenerateAudio: vi.fn(),
+  setVideoCameraFixed: vi.fn(),
+  setVideoAutoFix: vi.fn(),
+  setKlingNegativePrompt: vi.fn(),
+  setKlingCfgScale: vi.fn(),
+  setKlingWorkflowMode: vi.fn(),
+  setSeedance2InputMode: vi.fn(),
+  setSeedance2ReferenceImageUrls: vi.fn(),
+  setSeedance2ReferenceVideoUrls: vi.fn(),
+  setSeedance2ReferenceAudioUrls: vi.fn(),
+  setSeedance2ReturnLastFrame: vi.fn(),
+  setSeedance2WebSearch: vi.fn(),
+  setKlingShotType: vi.fn(),
+  setKlingVoiceIds: vi.fn(),
+  setKlingMultiPrompts: vi.fn(),
+  setKlingElements: vi.fn(),
+  setMotionReferenceVideoUrl: vi.fn(),
+  setOutputCollectionsForCreateMode: vi.fn(),
+  setOutputsState: vi.fn(),
+  setArchivedOutputs: vi.fn(),
+  setRuntimeUiStateForCreateMode: vi.fn(),
+  ...overrides,
+});
+
 describe("useAiStudioSessionSnapshotController", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -808,5 +900,53 @@ describe("useAiStudioSessionSnapshotController", () => {
     expect(snapshot.workspace.videoReferenceText).toBe(
       "Arc around the subject with a slow push in."
     );
+  });
+
+  it("preserves archived outputs in project workspace snapshots", () => {
+    const activeOutput = createOutput({
+      id: "active-1",
+      previewStoragePath: "user-1/projects/active-1.webp",
+      fullStoragePath: "user-1/projects/active-1.webp",
+      savedMediaIds: ["media-active-1"],
+    });
+    const archivedOutput = createOutput({
+      id: "archived-1",
+      previewStoragePath: "user-1/projects/archived-1.webp",
+      fullStoragePath: "user-1/projects/archived-1.webp",
+      savedMediaIds: ["media-archived-1"],
+      archivedAt: "2026-06-27T12:00:00.000Z",
+      archiveReason: "cleanup",
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioSessionSnapshotController(
+        createControllerParams({
+          standardCreatePrompt: "Do not persist project draft text",
+          outputs: [activeOutput],
+          archivedOutputs: [archivedOutput],
+          curatedReferenceIds: ["active-1"],
+          removedFromAllRefsIds: ["archived-1"],
+        })
+      )
+    );
+
+    const snapshot = result.current.buildProjectWorkspaceSnapshot({
+      sessionId: "project-session-1",
+      updatedAt: "2026-06-27T12:01:00.000Z",
+    });
+
+    expect(snapshot.workspace.standardPrompt).toBe("");
+    expect(snapshot.outputs.active.map((output) => output.id)).toEqual(["active-1"]);
+    expect(snapshot.outputs.archived.map((output) => output.id)).toEqual(["archived-1"]);
+    expect(snapshot.outputs.archived[0]).toEqual(
+      expect.objectContaining({
+        previewStoragePath: "user-1/projects/archived-1.webp",
+        fullStoragePath: "user-1/projects/archived-1.webp",
+        savedMediaIds: ["media-archived-1"],
+        archivedAt: "2026-06-27T12:00:00.000Z",
+        archiveReason: "cleanup",
+      })
+    );
+    expect(snapshot.outputs.removedFromAllRefsIds).toEqual(["archived-1"]);
   });
 });

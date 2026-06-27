@@ -2,7 +2,7 @@
  * Curated split-grid interaction tests for ReferenceGrid.
  * Validates add/dedupe/reorder/remove behavior and curated drop rejection rules.
  */
-import type React from "react";
+import React from "react";
 import { act, fireEvent, render, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ReferenceGrid, type ReferenceGridProps } from "../ReferenceGrid";
@@ -1441,6 +1441,35 @@ describe("ReferenceGrid curated split", () => {
 
     expect(onDeleteOutput).toHaveBeenCalledWith("out-1");
     expect(onRemoveCuratedReference).not.toHaveBeenCalled();
+  });
+
+  it("focuses a selected reference-grid card on click so Delete follows the selected card", () => {
+    const onDeleteOutput = vi.fn();
+    const StatefulReferenceGrid = () => {
+      const [activeOutputId, setActiveOutputId] = React.useState("out-2");
+      return (
+        <ReferenceGrid
+          {...createProps({
+            activeOutputId,
+            curatedReferenceIds: [],
+            onDeleteOutput,
+            onSelectOutput: setActiveOutputId,
+          })}
+        />
+      );
+    };
+    const { container } = render(<StatefulReferenceGrid />);
+    const allRefsSection = container.querySelector(".reference-all-refs-section") as HTMLElement;
+    expect(allRefsSection).toBeTruthy();
+    const firstReferenceGridCard = allRefsSection.querySelector(".reference-card") as HTMLElement;
+    expect(firstReferenceGridCard).toBeTruthy();
+
+    fireEvent.click(firstReferenceGridCard);
+    expect(firstReferenceGridCard).toHaveFocus();
+
+    fireEvent.keyDown(firstReferenceGridCard, { key: "Delete" });
+
+    expect(onDeleteOutput).toHaveBeenCalledWith("out-1");
   });
 
   it("does not remove an unselected reference-grid card with Delete", () => {

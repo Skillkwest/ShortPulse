@@ -256,6 +256,7 @@ const markAudioCompanionArtFailed = async ({
     generationId,
     userId,
     companionArtStatus: "failed",
+    companionArtStoragePath: null,
   }).catch(() => undefined);
   await mirrorGeneratedAudioPresentationToMediaFiles({
     generationId,
@@ -472,6 +473,13 @@ export const processPendingAudioCompanionArtBatch = async ({
     }
 
     metrics.claimed += 1;
+    await mirrorGeneratedAudioPresentationToMediaFiles({
+      generationId,
+      userId,
+      companionArtStatus: "processing",
+      companionArtStoragePath: null,
+      supabaseAdmin,
+    }).catch(() => undefined);
 
     try {
       const generated = await generateAndPersistAudioCompanionArt({

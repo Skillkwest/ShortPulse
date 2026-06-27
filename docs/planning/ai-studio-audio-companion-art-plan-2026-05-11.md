@@ -81,9 +81,9 @@ Recommended posture:
    `frontend/lib/server/mediaLibraryDeleteService.ts`, which delete caller-owned media rows,
    remove known storage/variant objects, and invoke generated-audio companion-art cleanup for
    AI Studio generated audio rows.
-7. Suppressed or abandoned generations are not an explicit exclusion in the current companion-art
-   processor claim query, so a hidden/suppressed audio output can still remain eligible for
-   companion-art work unless the lane adds a deliberate gate.
+7. Suppressed or abandoned generations are now explicit companion-art exclusions: the processor
+   claim query skips suppressed projections, and the generation path re-checks eligibility before
+   and after image generation. Future changes should preserve that gate.
 8. Delete flows already use different database-vs-storage ordering across surfaces, so the
    companion-art cleanup lane needs one explicit failure policy rather than inheriting inconsistent
    behavior accidentally.

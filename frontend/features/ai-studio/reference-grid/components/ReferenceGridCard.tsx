@@ -527,7 +527,10 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
       data-drag-image-src={dragImageSrc}
       data-drag-preview-kind={dragPreviewKind}
       tabIndex={0}
-      onClick={handleCardClick}
+      onClick={(event) => {
+        event.currentTarget.focus();
+        handleCardClick();
+      }}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();

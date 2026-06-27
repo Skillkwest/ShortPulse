@@ -60,6 +60,7 @@ const createSelectBuilder = (result: { data: unknown; error: unknown }) => {
   builder.eq = vi.fn(() => builder);
   builder.lt = vi.fn(() => builder);
   builder.not = vi.fn(() => builder);
+  builder.like = vi.fn(() => builder);
   builder.or = vi.fn(() => builder);
   builder.order = vi.fn(() => builder);
   builder.limit = vi.fn(() => builder);
@@ -121,6 +122,7 @@ describe("audioCompanionArt processing", () => {
     projectionSelectBuilder.eq = vi.fn(() => projectionSelectBuilder);
     projectionSelectBuilder.lt = vi.fn(() => projectionSelectBuilder);
     projectionSelectBuilder.not = vi.fn(() => projectionSelectBuilder);
+    projectionSelectBuilder.like = vi.fn(() => projectionSelectBuilder);
     projectionSelectBuilder.or = vi.fn(() => projectionSelectBuilder);
     projectionSelectBuilder.order = vi.fn(() => projectionSelectBuilder);
     projectionSelectBuilder.limit = vi.fn(async () => ({
@@ -153,6 +155,7 @@ describe("audioCompanionArt processing", () => {
     claimBuilder.eq = vi.fn(() => claimBuilder);
     claimBuilder.lt = vi.fn(() => claimBuilder);
     claimBuilder.not = vi.fn(() => claimBuilder);
+    claimBuilder.like = vi.fn(() => claimBuilder);
     claimBuilder.or = vi.fn(() => claimBuilder);
     claimBuilder.select = vi.fn(() => ({
       maybeSingle: claimMaybeSingle,
@@ -229,6 +232,11 @@ describe("audioCompanionArt processing", () => {
       "eq",
       "suppressed"
     );
+    expect(projectionSelectBuilder.like).toHaveBeenCalledWith(
+      "preview_storage_path",
+      "%/generations/audio/%"
+    );
+    expect(claimBuilder.like).toHaveBeenCalledWith("preview_storage_path", "%/generations/audio/%");
     expect(buildFalFluxKleinAudioCompanionArtPayloadMock).toHaveBeenCalledWith(
       expect.stringContaining("Control-plane branded style line.")
     );
@@ -265,6 +273,7 @@ describe("audioCompanionArt processing", () => {
     projectionSelectBuilder.eq = vi.fn(() => projectionSelectBuilder);
     projectionSelectBuilder.lt = vi.fn(() => projectionSelectBuilder);
     projectionSelectBuilder.not = vi.fn(() => projectionSelectBuilder);
+    projectionSelectBuilder.like = vi.fn(() => projectionSelectBuilder);
     projectionSelectBuilder.or = vi.fn(() => projectionSelectBuilder);
     projectionSelectBuilder.order = vi.fn(() => projectionSelectBuilder);
     projectionSelectBuilder.limit = vi.fn(async () => ({
@@ -293,6 +302,7 @@ describe("audioCompanionArt processing", () => {
     claimBuilder.eq = vi.fn(() => claimBuilder);
     claimBuilder.lt = vi.fn(() => claimBuilder);
     claimBuilder.not = vi.fn(() => claimBuilder);
+    claimBuilder.like = vi.fn(() => claimBuilder);
     claimBuilder.or = vi.fn(() => claimBuilder);
     claimBuilder.select = vi.fn(() => ({
       maybeSingle: vi.fn(async () => ({
@@ -356,15 +366,17 @@ describe("audioCompanionArt processing", () => {
     expect(writeAppErrorLogMock).toHaveBeenCalledWith(
       expect.objectContaining({
         source: "telemetry.audio_companion_art.generation_failed",
+        scope: "generation",
       })
     );
   });
 
-  it("rejects near-white provider images before storing companion art", async () => {
+  it("persists near-white provider images and records telemetry", async () => {
     const projectionSelectBuilder: Record<string, unknown> = {};
     projectionSelectBuilder.eq = vi.fn(() => projectionSelectBuilder);
     projectionSelectBuilder.lt = vi.fn(() => projectionSelectBuilder);
     projectionSelectBuilder.not = vi.fn(() => projectionSelectBuilder);
+    projectionSelectBuilder.like = vi.fn(() => projectionSelectBuilder);
     projectionSelectBuilder.or = vi.fn(() => projectionSelectBuilder);
     projectionSelectBuilder.order = vi.fn(() => projectionSelectBuilder);
     projectionSelectBuilder.limit = vi.fn(async () => ({
@@ -393,6 +405,7 @@ describe("audioCompanionArt processing", () => {
     claimBuilder.eq = vi.fn(() => claimBuilder);
     claimBuilder.lt = vi.fn(() => claimBuilder);
     claimBuilder.not = vi.fn(() => claimBuilder);
+    claimBuilder.like = vi.fn(() => claimBuilder);
     claimBuilder.or = vi.fn(() => claimBuilder);
     claimBuilder.select = vi.fn(() => ({
       maybeSingle: vi.fn(async () => ({
@@ -455,27 +468,32 @@ describe("audioCompanionArt processing", () => {
     expect(result).toEqual({
       claimed: 1,
       processed: 1,
-      ready: 0,
-      failed: 1,
+      ready: 1,
+      failed: 0,
       skipped: 0,
       errors: 0,
     });
-    expect(uploadMock).not.toHaveBeenCalled();
-    expect(sharpToBufferMock).not.toHaveBeenCalled();
+    expect(uploadMock).toHaveBeenCalledWith(
+      "user-white/generations/audio/gen-white/companion-art/cover.webp",
+      Buffer.from("cover-webp"),
+      expect.objectContaining({
+        contentType: "image/webp",
+        upsert: true,
+      })
+    );
+    expect(sharpToBufferMock).toHaveBeenCalled();
     expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
       expect.objectContaining({
         generationId: "gen-white",
         userId: "user-white",
-        companionArtStatus: "failed",
-        companionArtStoragePath: null,
+        companionArtStatus: "ready",
+        companionArtStoragePath: "user-white/generations/audio/gen-white/companion-art/cover.webp",
       })
     );
     expect(writeAppErrorLogMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        source: "telemetry.audio_companion_art.generation_failed",
-        metadata: expect.objectContaining({
-          error: "Audio companion art image was blank or near-white.",
-        }),
+        source: "telemetry.audio_companion_art.near_white_image",
+        scope: "generation",
       })
     );
   });
@@ -485,6 +503,7 @@ describe("audioCompanionArt processing", () => {
     projectionSelectBuilder.eq = vi.fn(() => projectionSelectBuilder);
     projectionSelectBuilder.lt = vi.fn(() => projectionSelectBuilder);
     projectionSelectBuilder.not = vi.fn(() => projectionSelectBuilder);
+    projectionSelectBuilder.like = vi.fn(() => projectionSelectBuilder);
     projectionSelectBuilder.or = vi.fn(() => projectionSelectBuilder);
     projectionSelectBuilder.order = vi.fn(() => projectionSelectBuilder);
     projectionSelectBuilder.limit = vi.fn(async () => ({
@@ -513,6 +532,7 @@ describe("audioCompanionArt processing", () => {
     claimBuilder.eq = vi.fn(() => claimBuilder);
     claimBuilder.lt = vi.fn(() => claimBuilder);
     claimBuilder.not = vi.fn(() => claimBuilder);
+    claimBuilder.like = vi.fn(() => claimBuilder);
     claimBuilder.or = vi.fn(() => claimBuilder);
     claimBuilder.select = vi.fn(() => ({
       maybeSingle: vi.fn(async () => ({
@@ -702,6 +722,7 @@ describe("audioCompanionArt processing", () => {
     expect(writeAppErrorLogMock).toHaveBeenCalledWith(
       expect.objectContaining({
         source: "telemetry.audio_companion_art.enqueue_failed",
+        scope: "generation",
       })
     );
   });

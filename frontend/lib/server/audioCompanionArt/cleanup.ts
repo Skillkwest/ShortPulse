@@ -35,6 +35,7 @@ const logCleanupFailure = async ({
 }) => {
   await writeAppErrorLog({
     source,
+    scope: "generation",
     message: "Audio companion art cleanup failed.",
     userId,
     statusCode: 200,

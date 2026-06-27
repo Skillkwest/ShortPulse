@@ -49,6 +49,11 @@ type AudioCompanionArtProjectionEligibilityRow = {
   reference_grid_visible?: unknown;
 };
 
+type AudioCompanionArtRenderableContentCheckResult = {
+  nearWhiteBlank: boolean;
+  error: string | null;
+};
+
 export type AudioCompanionArtBatchMetrics = {
   claimed: number;
   processed: number;
@@ -167,22 +172,29 @@ const encodeAudioCompanionArtDeliveryBuffer = async (sourceBuffer: Buffer): Prom
     .toBuffer();
 };
 
-const assertAudioCompanionArtHasRenderableContent = async (sourceBuffer: Buffer): Promise<void> => {
-  const stats = await sharp(sourceBuffer, { failOn: "error" }).stats();
-  const channels = stats.channels.slice(0, 3);
-  if (channels.length < 3) return;
+const checkAudioCompanionArtRenderableContent = async (
+  sourceBuffer: Buffer
+): Promise<AudioCompanionArtRenderableContentCheckResult> => {
+  try {
+    const stats = await sharp(sourceBuffer, { failOn: "error" }).stats();
+    const channels = stats.channels.slice(0, 3);
+    if (channels.length < 3) return { nearWhiteBlank: false, error: null };
 
-  const [red, green, blue] = channels;
-  const meanLuma = red.mean * 0.2126 + green.mean * 0.7152 + blue.mean * 0.0722;
-  const averageDeviation = (red.stdev + green.stdev + blue.stdev) / 3;
-  const maxChannelRange = Math.max(red.max - red.min, green.max - green.min, blue.max - blue.min);
-  const isNearWhiteBlank =
-    meanLuma >= AUDIO_COMPANION_ART_BLANK_LUMA_THRESHOLD &&
-    averageDeviation <= AUDIO_COMPANION_ART_LOW_VARIATION_THRESHOLD &&
-    maxChannelRange <= AUDIO_COMPANION_ART_LOW_RANGE_THRESHOLD;
+    const [red, green, blue] = channels;
+    const meanLuma = red.mean * 0.2126 + green.mean * 0.7152 + blue.mean * 0.0722;
+    const averageDeviation = (red.stdev + green.stdev + blue.stdev) / 3;
+    const maxChannelRange = Math.max(red.max - red.min, green.max - green.min, blue.max - blue.min);
+    const nearWhiteBlank =
+      meanLuma >= AUDIO_COMPANION_ART_BLANK_LUMA_THRESHOLD &&
+      averageDeviation <= AUDIO_COMPANION_ART_LOW_VARIATION_THRESHOLD &&
+      maxChannelRange <= AUDIO_COMPANION_ART_LOW_RANGE_THRESHOLD;
 
-  if (isNearWhiteBlank) {
-    throw new Error("Audio companion art image was blank or near-white.");
+    return { nearWhiteBlank, error: null };
+  } catch (error) {
+    return {
+      nearWhiteBlank: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
 };
 
@@ -210,6 +222,7 @@ export const markAudioCompanionArtPending = async ({
   } catch (error) {
     await writeAppErrorLog({
       source: "telemetry.audio_companion_art.enqueue_failed",
+      scope: "generation",
       message: "Audio companion art enqueue failed after audio generation succeeded.",
       userId,
       statusCode: 200,
@@ -266,6 +279,7 @@ const markAudioCompanionArtFailed = async ({
   }).catch(() => undefined);
   await writeAppErrorLog({
     source: "telemetry.audio_companion_art.generation_failed",
+    scope: "generation",
     message: "Audio companion art generation failed.",
     userId,
     statusCode: 200,
@@ -330,7 +344,24 @@ const generateAndPersistAudioCompanionArt = async ({
     pollIntervalMs: AUDIO_COMPANION_ART_POLL_INTERVAL_MS,
     initialPollDelayMs: 0,
   });
-  await assertAudioCompanionArtHasRenderableContent(generated.buffer);
+  const renderabilityCheck = await checkAudioCompanionArtRenderableContent(generated.buffer);
+  if (renderabilityCheck.nearWhiteBlank || renderabilityCheck.error) {
+    await writeAppErrorLog({
+      source: renderabilityCheck.nearWhiteBlank
+        ? "telemetry.audio_companion_art.near_white_image"
+        : "telemetry.audio_companion_art.renderability_check_failed",
+      scope: "generation",
+      message: renderabilityCheck.nearWhiteBlank
+        ? "Audio companion art image looked blank or near-white."
+        : "Audio companion art renderability check failed before persistence.",
+      userId,
+      statusCode: 200,
+      metadata: {
+        generation_id: generationId,
+        ...(renderabilityCheck.error ? { error: renderabilityCheck.error } : {}),
+      },
+    }).catch(() => undefined);
+  }
   const deliveryBuffer = await encodeAudioCompanionArtDeliveryBuffer(generated.buffer);
   if (!(await loadAudioCompanionArtEligibility({ generationId, userId }))) {
     await cleanupAudioCompanionArt({
@@ -424,6 +455,7 @@ export const processPendingAudioCompanionArtBatch = async ({
     .eq("provider", "elevenlabs")
     .eq("task_state", "success")
     .not("publication_state", "eq", "suppressed")
+    .like("preview_storage_path", "%/generations/audio/%")
     .lt("companion_art_attempt_count", MAX_AUDIO_COMPANION_ART_ATTEMPTS)
     .or(GENERATABLE_COMPANION_ART_STATUSES_FILTER)
     .order("updated_at", { ascending: true })
@@ -458,6 +490,7 @@ export const processPendingAudioCompanionArtBatch = async ({
       .eq("generation_id", generationId)
       .eq("user_id", userId)
       .not("publication_state", "eq", "suppressed")
+      .like("preview_storage_path", "%/generations/audio/%")
       .lt("companion_art_attempt_count", MAX_AUDIO_COMPANION_ART_ATTEMPTS)
       .or(GENERATABLE_COMPANION_ART_STATUSES_FILTER)
       .select("generation_id")

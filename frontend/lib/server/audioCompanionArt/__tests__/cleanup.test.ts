@@ -132,6 +132,7 @@ describe("cleanupAudioCompanionArt", () => {
     expect(writeAppErrorLogMock).toHaveBeenCalledWith(
       expect.objectContaining({
         source: "telemetry.audio_companion_art.cleanup_storage_failed",
+        scope: "generation",
       })
     );
     expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(

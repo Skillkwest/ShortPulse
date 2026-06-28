@@ -282,6 +282,20 @@ describe("create composer layout contract", () => {
     expect(inactivePulseRailTitle).toContain("color: var(--color-teal);");
   });
 
+  it("truncates editable More Pulses chip labels before the edit button", () => {
+    const css = fs.readFileSync(createComposerPresetsCssPath, "utf8");
+    const editableChip = extractRuleBlock(
+      css,
+      ".create-composer-presets-chip-item.is-editable .create-composer-presets-chip"
+    );
+    const chipLabel = extractRuleBlock(css, ".create-composer-presets-chip-label");
+
+    expect(editableChip).toContain("padding-right: 36px;");
+    expect(chipLabel).toContain("overflow: hidden;");
+    expect(chipLabel).toContain("text-overflow: ellipsis;");
+    expect(chipLabel).toContain("white-space: nowrap;");
+  });
+
   it("keeps user bubble body copy at the same font size as Standard assistant replies", () => {
     const css = fs.readFileSync(createComposerChatCssPath, "utf8");
     const userBodyCopyPattern =

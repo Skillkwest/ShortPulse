@@ -21,6 +21,7 @@ July 7 launch-control note: these retained reports are historical evidence aids 
 
 ## Current Supporting Lane Audits
 
+- `2026-06-28-full-repo-launch-hardening-audit.md`: active running audit-only ledger for the requested full-repo July 7 launch-hardening sweep. This is a retained report, not launch authority; use it to preserve checkpointed findings and proposed high-ROI changes while the audit is in progress.
 - `2026-05-31-project-workspace-persistence-root-seam-audit.md`: current source-seam audit for the exact-next `Project / workspace persistence` lane.
 - `2026-05-31-project-workspace-production-verification-failure.md`: live production failure packet that narrowed the orphan generated-output restore seam before the accepted local root fix landed.
 - `2026-05-31-project-workspace-persistence-closeout-review.md`: retained closeout review explaining why the local root fix was accepted before production proof.

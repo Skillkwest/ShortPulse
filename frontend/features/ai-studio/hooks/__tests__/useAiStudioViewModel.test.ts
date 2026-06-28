@@ -827,6 +827,32 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.isGenerateDisabled).toBe(true);
   });
 
+  it("keeps deferred Create pricing startup quiet while blocking billable generate", () => {
+    const modelId = REMOVED_OPENAI_IMAGE_MODEL_ID;
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        mode: "text",
+        selectedTool: "create",
+        model: modelId,
+        aspect: "1:1",
+        referenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoReferenceMode: "standard",
+        imageResolution: "4K",
+        costParamsForModel: makeCostParamsForModel(modelId),
+        pricingPolicyReady: false,
+        pricingPolicyLoading: false,
+        pricingPolicyError: null,
+      })
+    );
+
+    expect(result.current.currentCostCredits).toBeNull();
+    expect(result.current.promptReferenceGenerateCostCredits).toBeNull();
+    expect(result.current.generationGuardrail).toBeNull();
+    expect(result.current.isGenerateDisabled).toBe(true);
+  });
+
   it("computes model-picker credits from the candidate model defaults instead of the active model", () => {
     const activeModelId = "fal-ai/nano-banana-pro";
     const costParamsForModel = (

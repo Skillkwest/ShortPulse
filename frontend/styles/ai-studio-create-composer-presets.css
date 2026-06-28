@@ -369,6 +369,7 @@
 
 .create-composer-presets-chip {
   width: 100%;
+  min-width: 0;
   min-height: 0;
   height: 100%;
   border-radius: 6px;
@@ -392,7 +393,7 @@
     transform 0.16s ease;
 }
 
-.create-composer-presets-chip-item.is-custom .create-composer-presets-chip {
+.create-composer-presets-chip-item.is-editable .create-composer-presets-chip {
   padding-right: 36px;
 }
 
@@ -429,9 +430,15 @@
 }
 
 .create-composer-presets-chip-label {
+  display: block;
   width: 100%;
   min-width: 0;
-  overflow-wrap: anywhere;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  line-height: 1.2;
 }
 
 .create-composer-presets-chip-meta {

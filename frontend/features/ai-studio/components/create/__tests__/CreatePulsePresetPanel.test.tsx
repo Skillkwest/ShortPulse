@@ -780,6 +780,42 @@ describe("CreatePulsePresetPanel", () => {
     ).toBeInTheDocument();
   });
 
+  it("marks editable custom Pulses so long names can reserve edit-button space", () => {
+    const longPulseName = "Contract Pulse 292937 With A Very Long Name";
+
+    render(
+      <CreatePulsePresetPanel
+        selectedPresetIds={[]}
+        onSelectedPresetIdsChange={vi.fn()}
+        savedPresets={[
+          {
+            presetId: "custom_long_contract_pulse",
+            label: longPulseName,
+            description: null,
+            systemInstructions: "Build a contract-ready pulse sequence.",
+            pulseKind: "custom_gpt",
+            createdAt: null,
+            schemaVersion: 2,
+          },
+        ]}
+        onSavedPresetsChange={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
+    const pulsesSurface = screen.getByRole("region", { name: "Pulses" });
+    const longPulseButton = within(pulsesSurface).getByRole("button", { name: longPulseName });
+    const longPulseItem = longPulseButton.closest(".create-composer-presets-chip-item");
+
+    expect(longPulseItem).toHaveClass("is-editable");
+    expect(longPulseItem).toHaveClass("is-custom");
+    expect(
+      within(pulsesSurface).getByRole("button", {
+        name: `Edit ${longPulseName} preset`,
+      })
+    ).toBeInTheDocument();
+  });
+
   it("keeps pinned rail Pulses visible inside the Pulses grid", () => {
     render(<CreatePulsePresetPanel />);
 

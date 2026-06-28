@@ -174,8 +174,6 @@ export const useAiStudioViewModel = ({
   pricingPolicyLoading = false,
   pricingPolicyError = null,
 }: ViewModelInput) => {
-  void pricingPolicyLoading;
-  void pricingPolicyError;
   const isCreateWorkflowSelected = isCreateWorkflow(selectedTool);
   const isEditWorkflowSelected = isEditWorkflow(selectedTool);
   const isVideoWorkflowSelected = isVideoWorkflow(selectedTool);
@@ -335,6 +333,8 @@ export const useAiStudioViewModel = ({
   const requiresResolvedPricingPolicy =
     isVideoTool || isEditWorkflowSelected || isCreateWorkflowSelected;
   const isPricingPolicyUnavailable = requiresResolvedPricingPolicy && !pricingPolicyReady;
+  const shouldSurfacePricingPolicyUnavailableGuardrail =
+    isPricingPolicyUnavailable && !pricingPolicyLoading && Boolean(pricingPolicyError);
   const canUseStandardCreatePricingGrid =
     isCreateWorkflowSelected && Boolean(model) && !isPricingPolicyUnavailable;
   const canResolveStandardEditPricingGrid = isEditWorkflowSelected && !isPricingPolicyUnavailable;
@@ -818,10 +818,15 @@ export const useAiStudioViewModel = ({
   const usesCanonicalCreatePromptPricing =
     canUseStandardCreatePricingGrid && isCreateWorkflowSelected && (isImageTool || mode === "text");
   const missingCanonicalCreatePricingAuthorityGuardrail = useMemo(() => {
-    if (!isCreateWorkflowSelected || !isPricingPolicyUnavailable) return null;
+    if (!isCreateWorkflowSelected || !shouldSurfacePricingPolicyUnavailableGuardrail) return null;
     if (mode !== "image" && !(mode === "text" && !isDescribeMode)) return null;
     return "Unable to load pricing. Retry in a moment.";
-  }, [isCreateWorkflowSelected, isDescribeMode, isPricingPolicyUnavailable, mode]);
+  }, [
+    isCreateWorkflowSelected,
+    isDescribeMode,
+    mode,
+    shouldSurfacePricingPolicyUnavailableGuardrail,
+  ]);
   const promptReferenceGenerateCostCredits = usesCanonicalCreatePromptPricing
     ? ((isImageTool ? promptGenerateCostCredits : null) ??
       (mode === "text" ? createTextImageGenerateCostCredits : null) ??
@@ -844,7 +849,7 @@ export const useAiStudioViewModel = ({
     promptReferenceGenerateCostCredits,
   ]);
   const missingCanonicalEditPricingAuthorityGuardrail = useMemo(() => {
-    if (!isEditWorkflowSelected || !isPricingPolicyUnavailable) return null;
+    if (!isEditWorkflowSelected || !shouldSurfacePricingPolicyUnavailableGuardrail) return null;
     if (normalizedEditSubmitIntent !== "standard") return null;
     return supportsCanonicalEditImageBilledPricing(effectiveEditSubmitModelId)
       ? "Unable to load pricing. Retry in a moment."
@@ -852,8 +857,8 @@ export const useAiStudioViewModel = ({
   }, [
     effectiveEditSubmitModelId,
     isEditWorkflowSelected,
-    isPricingPolicyUnavailable,
     normalizedEditSubmitIntent,
+    shouldSurfacePricingPolicyUnavailableGuardrail,
   ]);
   const missingCanonicalEditBilledCreditsGuardrail = useMemo(() => {
     if (!canUseCurrentEditPricingGrid) return null;
@@ -862,11 +867,11 @@ export const useAiStudioViewModel = ({
       : null;
   }, [canUseCurrentEditPricingGrid, currentCostCredits]);
   const missingCanonicalVideoPricingAuthorityGuardrail = useMemo(() => {
-    if (!isVideoTool || !isPricingPolicyUnavailable) return null;
+    if (!isVideoTool || !shouldSurfacePricingPolicyUnavailableGuardrail) return null;
     return supportsCanonicalVideoBilledPricing(effectiveVideoPricingModelId)
       ? "Unable to load pricing. Retry in a moment."
       : null;
-  }, [effectiveVideoPricingModelId, isPricingPolicyUnavailable, isVideoTool]);
+  }, [effectiveVideoPricingModelId, isVideoTool, shouldSurfacePricingPolicyUnavailableGuardrail]);
   const missingCanonicalVideoBilledCreditsGuardrail = useMemo(() => {
     if (!canResolveVideoPricingGrid) return null;
     return supportsCanonicalVideoBilledPricing(effectiveVideoPricingModelId) &&
@@ -1069,7 +1074,8 @@ export const useAiStudioViewModel = ({
     missingCanonicalVideoBilledCreditsGuardrail,
   ]);
 
-  const isGenerateDisabled = Boolean(generationGuardrail);
+  const isPricingPolicySubmitBlocked = billableSubmitFlow && isPricingPolicyUnavailable;
+  const isGenerateDisabled = Boolean(generationGuardrail) || isPricingPolicySubmitBlocked;
   const modelConfig = effectiveEditModelConfig ?? selectedModelConfig;
 
   // Warning when user hasn't provided reference image for image-to-image or image-to-video models

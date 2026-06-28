@@ -24,9 +24,12 @@ type UseReferenceGridKeyboardCommandControllerArgs = {
   onRemoveCuratedReference?: (id: string) => void;
 };
 
-const shouldIgnoreDeleteKey = (event: KeyboardEvent): boolean =>
+const isReferenceRemovalKey = (event: KeyboardEvent): boolean =>
+  event.key === "Delete" || event.key === "Backspace";
+
+const shouldIgnoreReferenceRemovalKey = (event: KeyboardEvent): boolean =>
   event.defaultPrevented ||
-  event.key !== "Delete" ||
+  !isReferenceRemovalKey(event) ||
   event.altKey ||
   event.ctrlKey ||
   event.metaKey ||
@@ -69,7 +72,7 @@ export const useReferenceGridKeyboardCommandController = ({
     if (typeof document === "undefined") return;
 
     const handleDocumentKeyDown = (event: KeyboardEvent) => {
-      if (shouldIgnoreDeleteKey(event)) return;
+      if (shouldIgnoreReferenceRemovalKey(event)) return;
       if (isAnyModalOpen) return;
 
       const panelNode = panelRef.current;

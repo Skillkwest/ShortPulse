@@ -37,6 +37,7 @@ import {
   selectBestProviderResultCandidate,
   selectBestProviderStatusCandidate,
 } from "../providerIntegration/statusProviderSelection";
+import { deriveFalStatusBaseFromProviderUrl } from "../providerIntegration/providerReturnedUrls";
 import {
   isProviderCompletedStatus,
   isProviderFailedStatus,
@@ -140,35 +141,6 @@ const readCustomerFacingFailureMessage = (
   payload: unknown,
   fallback = "Generation failed"
 ): string => normalizeCustomerFacingProviderError(payload, fallback);
-
-const deriveFalStatusBaseFromProviderUrl = ({
-  requestId,
-  url,
-}: {
-  requestId: string;
-  url: string | null;
-}): string | null => {
-  if (!url) return null;
-  try {
-    const parsed = new URL(url);
-    const requestSegment = `/${encodeURIComponent(requestId)}`;
-    if (parsed.pathname.endsWith(`${requestSegment}/status`)) {
-      parsed.pathname = parsed.pathname.slice(0, -`${requestSegment}/status`.length);
-      parsed.search = "";
-      parsed.hash = "";
-      return parsed.toString().replace(/\/+$/, "");
-    }
-    if (parsed.pathname.endsWith(requestSegment)) {
-      parsed.pathname = parsed.pathname.slice(0, -requestSegment.length);
-      parsed.search = "";
-      parsed.hash = "";
-      return parsed.toString().replace(/\/+$/, "");
-    }
-  } catch {
-    return null;
-  }
-  return null;
-};
 
 const PROVIDER_RETURNED_STATUS_BASE_SELECT_COLUMNS = [
   "provider_status_url:metadata->>provider_status_url",

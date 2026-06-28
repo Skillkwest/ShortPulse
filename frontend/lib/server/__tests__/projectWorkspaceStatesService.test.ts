@@ -7,6 +7,10 @@ import { getSupabaseAdmin } from "../api/supabaseAdmin";
 import { writeAppErrorLog } from "../api/appErrorLogs";
 import { createLightweightProjectWorkspaceCheckpointSnapshot } from "../projectOutputDisplayItemsService";
 import {
+  REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+  REFERENCE_GRID_TARGET_TOTAL_ITEMS,
+} from "../../model-runtime/referenceGridLimits";
+import {
   getProjectWorkspaceStateForUser,
   InvalidProjectWorkspaceSnapshotError,
   upsertProjectWorkspaceStateForUser,
@@ -1893,6 +1897,102 @@ describe("projectWorkspaceStatesService", () => {
         }),
       })
     );
+  });
+
+  it("stores the 500-item Reference Grid target as capped checkpoint rows plus display records", async () => {
+    const { workspaceUpsert, outputDisplayUpsert } = createSupabaseMock({
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      projectionRows: [],
+    });
+    const activeOutputs = Array.from({ length: REFERENCE_GRID_TARGET_TOTAL_ITEMS }, (_, index) => ({
+      id: `target-output-${index + 1}`,
+      mode: "image",
+      mediaSource: "library",
+      prompt: `Target display prompt ${index + 1}`,
+      previewUrl: `https://cdn.example.com/target-${index + 1}.png`,
+      resultUrls: [`https://cdn.example.com/target-${index + 1}.png`],
+      status: "ready",
+    }));
+
+    await upsertProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+      schemaVersion: 2,
+      snapshot: {
+        schemaVersion: 2,
+        sessionId: "session-target-reference-grid-lightweight-checkpoint",
+        updatedAt: "2026-06-28T14:00:00.000Z",
+        meta: {
+          generatedAt: "2026-06-28T14:00:00.000Z",
+          checksum: "fnv1a32:target-reference-grid-lightweight-checkpoint",
+        },
+        workspace: {
+          selectedTool: "create",
+        },
+        outputs: {
+          active: activeOutputs,
+          archived: [],
+          activeOutputId: "target-output-1",
+          curatedReferenceIds: [
+            "target-output-1",
+            `target-output-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 1}`,
+          ],
+          removedFromAllRefsIds: [
+            "target-output-2",
+            `target-output-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 2}`,
+          ],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+    });
+
+    const firstWorkspaceUpsertArg = (
+      workspaceUpsert.mock.calls as Array<[{ snapshot?: Record<string, unknown> }?, unknown?]>
+    ).at(0)?.[0];
+    const storedCheckpoint = firstWorkspaceUpsertArg?.snapshot ?? {};
+    const storedOutputs = storedCheckpoint.outputs as {
+      active?: Array<Record<string, unknown>>;
+      archived?: Array<Record<string, unknown>>;
+      curatedReferenceIds?: string[];
+      removedFromAllRefsIds?: string[];
+    };
+    const outputDisplayUpsertRows = outputDisplayUpsert.mock.calls.flatMap(
+      (call) => call[0] as Array<Record<string, unknown>>
+    );
+
+    expect(storedOutputs.active).toHaveLength(REFERENCE_GRID_MAX_VISIBLE_ITEMS);
+    expect(storedOutputs.archived).toHaveLength(
+      REFERENCE_GRID_TARGET_TOTAL_ITEMS - REFERENCE_GRID_MAX_VISIBLE_ITEMS
+    );
+    expect(storedOutputs.active?.[0]).toEqual({
+      id: "target-output-1",
+      mode: "image",
+      mediaSource: "library",
+    });
+    expect(storedOutputs.archived?.[0]).toEqual({
+      id: `target-output-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 1}`,
+      mode: "image",
+      mediaSource: "library",
+      archivedAt: "2026-06-28T14:00:00.000Z",
+      archiveReason: "cleanup",
+    });
+    expect(storedOutputs.curatedReferenceIds).toEqual(["target-output-1"]);
+    expect(storedOutputs.removedFromAllRefsIds).toEqual([
+      "target-output-2",
+      `target-output-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 2}`,
+    ]);
+    expect(outputDisplayUpsertRows).toHaveLength(REFERENCE_GRID_TARGET_TOTAL_ITEMS);
+    expect(outputDisplayUpsertRows.at(-1)).toMatchObject({
+      output_id: `target-output-${REFERENCE_GRID_TARGET_TOTAL_ITEMS}`,
+    });
   });
 
   it("compacts oversized raw project snapshots before the server admission byte check", async () => {

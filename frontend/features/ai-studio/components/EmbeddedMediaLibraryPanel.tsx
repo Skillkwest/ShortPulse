@@ -29,7 +29,7 @@ import {
 } from "../logic/mediaLibraryWorkflowReload";
 import {
   getMediaLibrarySurfaceConfig,
-  resolvePanelMixedAllMediaSignBudget,
+  resolvePanelDenseBrowseSignBudget,
 } from "../../media-library/runtime";
 import { MEDIA_LIBRARY_ROOT_FOLDER_ID } from "../logic/mediaLibraryPanelApi";
 import { useMediaLibraryPanelDataController } from "../hooks/useMediaLibraryPanelDataController";
@@ -279,10 +279,8 @@ export function EmbeddedMediaLibraryPanel({
   } = previewRuntime;
   const signBudgetOverride = React.useMemo(
     () =>
-      itemType === "all"
-        ? resolvePanelMixedAllMediaSignBudget(previewRuntime.signBudget)
-        : undefined,
-    [itemType, previewRuntime.signBudget]
+      shouldShowMedia ? resolvePanelDenseBrowseSignBudget(previewRuntime.signBudget) : undefined,
+    [previewRuntime.signBudget, shouldShowMedia]
   );
 
   useVisibleErrorTelemetry({
@@ -706,6 +704,7 @@ export function EmbeddedMediaLibraryPanel({
                 });
               }}
               variant="reference-card"
+              scrollContainerRef={panelBodyRef as React.MutableRefObject<HTMLElement | null>}
             />
           ) : null}
           {promptHasMore ? (
@@ -736,6 +735,7 @@ export function EmbeddedMediaLibraryPanel({
       selectedPromptIds,
       setPendingLibraryDelete,
       visiblePromptRows,
+      panelBodyRef,
     ]
   );
 

@@ -1420,6 +1420,7 @@
 .adminSupportQueueHead,
 .adminSupportQueueRow {
   --admin-support-user-col: minmax(0, 1.9fr);
+  --admin-support-copy-col: 36px;
   --admin-support-flags-col: minmax(72px, 0.7fr);
   --admin-support-spendable-col: minmax(96px, 0.78fr);
   --admin-support-billing-col: minmax(140px, 0.9fr);
@@ -1427,6 +1428,7 @@
   --admin-support-col-gap: 10px;
   grid-template-columns:
     var(--admin-support-user-col)
+    var(--admin-support-copy-col)
     var(--admin-support-flags-col)
     var(--admin-support-spendable-col)
     var(--admin-support-billing-col)
@@ -1493,7 +1495,7 @@
 }
 
 .adminSupportQueueSelectButton {
-  grid-column: 1 / 5;
+  grid-column: 1 / 6;
   grid-row: 1;
   align-self: stretch;
   width: 100%;
@@ -1516,10 +1518,11 @@
   display: grid;
   grid-template-columns:
     var(--admin-support-user-col)
+    var(--admin-support-copy-col)
     var(--admin-support-flags-col)
     var(--admin-support-spendable-col)
     var(--admin-support-billing-col);
-  grid-column: 1 / 5;
+  grid-column: 1 / 6;
   grid-row: 1;
   align-items: center;
   gap: var(--admin-support-col-gap);
@@ -1547,7 +1550,6 @@
 .adminSupportQueueEmail {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
   min-width: 0;
   max-width: 100%;
 }
@@ -1557,6 +1559,17 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.adminSupportQueueCopyCell {
+  justify-content: center;
+}
+
+.adminSupportQueueCopySlot {
+  display: inline-flex;
+  justify-content: center;
+  width: 100%;
+  pointer-events: none;
 }
 
 .adminSupportQueueCopyButton {

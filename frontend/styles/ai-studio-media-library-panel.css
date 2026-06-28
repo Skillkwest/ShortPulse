@@ -832,6 +832,14 @@
   gap: 8px;
 }
 
+.media-library-panel-section
+  .media-library-prompt-grid.media-library-prompt-grid--reference-cards.media-library-modal-grid-virtualized {
+  display: block;
+  position: relative;
+  contain: layout paint;
+  overflow-anchor: none;
+}
+
 .media-library-panel-prompt-reference-card.reference-card.has-text {
   display: flex;
   flex-direction: column;
@@ -863,6 +871,8 @@
 }
 
 .media-library-panel-media-card-shell.is-active .media-library-panel-media-frame::after,
+.media-library-panel-media-card-shell.is-active.media-library-panel-media-card-shell--media-grid
+  .media-library-panel-media-card-button::after,
 .media-library-panel-media-card-shell.is-active .media-library-panel-audio-reference-card::after,
 .media-library-panel-prompt-reference-shell.is-active .media-library-prompt-card::after,
 .media-library-panel-prompt-reference-shell.is-active

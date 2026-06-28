@@ -29,7 +29,7 @@ import {
 } from "../logic/mediaLibraryWorkflowReload";
 import {
   getMediaLibrarySurfaceConfig,
-  resolvePanelMixedAllMediaSignBudget,
+  resolvePanelDenseBrowseSignBudget,
 } from "../../media-library/runtime";
 import { MEDIA_LIBRARY_ROOT_FOLDER_ID } from "../logic/mediaLibraryPanelApi";
 import { useMediaLibraryPanelDataController } from "../hooks/useMediaLibraryPanelDataController";
@@ -43,13 +43,13 @@ import { useMediaLibraryPanelSelectionController } from "../hooks/useMediaLibrar
 import { collectMediaLibraryFolderDescendantIds } from "../logic/mediaLibraryFolderHierarchy";
 import type { InternalReferenceDragPayload } from "../utils/dragDrop";
 import { MediaLibraryPanelFoldersSection } from "./MediaLibraryPanelFoldersSection";
-import { MediaLibraryPanelBulkActions } from "./MediaLibraryPanelBulkActions";
 import { MediaLibraryPanelDialogs } from "./MediaLibraryPanelDialogs";
 import { MediaLibraryPanelFolderContent } from "./MediaLibraryPanelFolderContent";
 import { MediaLibraryPanelHeader } from "./MediaLibraryPanelHeader";
 import { MediaLibraryPanelPromptsSection } from "./MediaLibraryPanelPromptsSection";
 import { MediaLibraryPanelRootContent } from "./MediaLibraryPanelRootContent";
 import { MediaLibraryPanelStatusArea } from "./MediaLibraryPanelStatusArea";
+import { useMediaLibraryPanelBulkSelection } from "./useMediaLibraryPanelBulkSelection";
 import type {
   SharedMediaDetailSelectionTarget,
   SharedMediaDetailVideoSnapshotErrorHandler,
@@ -176,8 +176,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const [membershipPendingMessage, setMembershipPendingMessage] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [selectedPromptIds, setSelectedPromptIds] = useState<Set<string>>(() => new Set());
-  const [pendingBulkDeleteIds, setPendingBulkDeleteIds] = useState<string[] | null>(null);
-  const [bulkMoveDialogOpen, setBulkMoveDialogOpen] = useState(false);
   const [folderContextMenu, setFolderContextMenu] = useState<FolderContextMenuState | null>(null);
   const [pendingFolderDelete, setPendingFolderDelete] = useState<{
     folderId: string;
@@ -287,12 +285,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     setPromptRows,
     onDeleteMediaRowsFromWorkspace,
   });
-  useAiStudioModalActivity(
-    "media-library-panel-delete-confirm",
-    Boolean(pendingLibraryDelete || pendingBulkDeleteIds || pendingFolderDelete)
-  );
-  useAiStudioModalActivity("media-library-panel-move-folder", Boolean(moveFolderPicker));
-  useAiStudioModalActivity("media-library-panel-bulk-move", bulkMoveDialogOpen);
   const visiblePromptRows = useMemo(() => sortByCreatedAtDesc(promptRows), [promptRows]);
   const foldersById = useMemo(
     () => new Map(folders.map((folder) => [folder.id, folder])),
@@ -377,10 +369,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   } = previewRuntime;
   const signBudgetOverride = useMemo(
     () =>
-      itemType === "all"
-        ? resolvePanelMixedAllMediaSignBudget(previewRuntime.signBudget)
-        : undefined,
-    [itemType, previewRuntime.signBudget]
+      shouldShowMedia ? resolvePanelDenseBrowseSignBudget(previewRuntime.signBudget) : undefined,
+    [previewRuntime.signBudget, shouldShowMedia]
   );
   const foldersSplit = useReferenceGridHorizontalSplit({
     enabled: true,
@@ -424,8 +414,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
 
   useEffect(() => {
     setSelectedIds(new Set());
-    setPendingBulkDeleteIds(null);
-    setBulkMoveDialogOpen(false);
   }, [activeFolderId, itemType]);
 
   useEffect(() => {
@@ -570,37 +558,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     [closePromptDetailModal, setPendingLibraryDelete]
   );
 
-  const handleToggleSelectedPrompt = useCallback((prompt: PromptRow) => {
-    setPendingBulkDeleteIds(null);
-    setBulkMoveDialogOpen(false);
-    setSelectedPromptIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(prompt.id)) {
-        next.delete(prompt.id);
-      } else {
-        next.add(prompt.id);
-      }
-      return next;
-    });
-  }, []);
-
-  const toggleSelectedMediaFile = useCallback((file: MediaFileRow) => {
-    setPendingBulkDeleteIds(null);
-    setBulkMoveDialogOpen(false);
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(file.id)) {
-        next.delete(file.id);
-      } else {
-        next.add(file.id);
-      }
-      return next;
-    });
-  }, []);
-
   const clearSelections = useCallback(() => {
-    setPendingBulkDeleteIds(null);
-    setBulkMoveDialogOpen(false);
     setSelectedIds(new Set());
     setSelectedPromptIds(new Set());
   }, []);
@@ -626,32 +584,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     }
     return next;
   }, [selectedIds, selectedPromptIds]);
-
-  const handleCloseBulkDeleteConfirm = useCallback(() => {
-    setPendingBulkDeleteIds(null);
-  }, []);
-
-  const handleConfirmBulkDelete = useCallback(async () => {
-    const nextPendingBulkDeleteIds = pendingBulkDeleteIds ? [...pendingBulkDeleteIds] : null;
-    if (!nextPendingBulkDeleteIds?.length) return;
-    setPendingBulkDeleteIds(null);
-    const selectedIdSet = new Set(nextPendingBulkDeleteIds);
-    const selectedRows = mediaRows.filter((row) => selectedIdSet.has(row.id));
-    const deleted = await deleteMediaRowsFromLibrary(selectedRows);
-    if (deleted) {
-      setSelectedIds(new Set());
-      return;
-    }
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      for (const id of nextPendingBulkDeleteIds) {
-        if (!mediaRows.some((row) => row.id === id)) {
-          next.delete(id);
-        }
-      }
-      return next;
-    });
-  }, [deleteMediaRowsFromLibrary, mediaRows, pendingBulkDeleteIds]);
 
   useMediaSurfacePreviewSigning<MediaFileRow, MediaTab>({
     runtime: previewRuntime,
@@ -844,6 +776,88 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     [setActiveFolderId]
   );
   const canShowFolderItemRemoveAction = !isRootFolderSelected;
+  const activeFolderGridMediaRows = useMemo(
+    () => (shouldShowMedia ? mediaRows : []),
+    [mediaRows, shouldShowMedia]
+  );
+  const bulkMoveDestinationOptions = useMemo(
+    () =>
+      folders
+        .filter((folder) => folder.id !== activeFolderId)
+        .map((folder) => ({
+          id: folder.id,
+          label: buildFolderPathLabel(folder.id),
+        })),
+    [activeFolderId, buildFolderPathLabel, folders]
+  );
+  const {
+    bulkActions,
+    bulkMoveDialogOpen,
+    bulkVisibleMediaRows,
+    handleCloseBulkDeleteConfirm,
+    handleCloseBulkMoveDialog,
+    handleConfirmBulkDelete,
+    handleMoveSelectedMediaToFolder,
+    pendingBulkDeleteIds,
+    selectedVisibleMediaRows,
+  } = useMediaLibraryPanelBulkSelection({
+    activeFolderGridMediaRows,
+    bulkMoveDestinationOptions,
+    clearSelections,
+    deleteConfirmSubmitting,
+    deleteMediaRowsFromLibrary,
+    handleMoveItemsToFolder,
+    handleRemoveItemsFromActiveFolder,
+    isRootFolderSelected,
+    itemType,
+    mediaRows,
+    selectedIds,
+    setSelectedIds,
+    shouldShowMedia,
+    visibleAudioRows,
+    visibleImageRows,
+    visibleVideoRows,
+  });
+  useAiStudioModalActivity(
+    "media-library-panel-delete-confirm",
+    Boolean(pendingLibraryDelete || pendingBulkDeleteIds || pendingFolderDelete)
+  );
+  useAiStudioModalActivity("media-library-panel-move-folder", Boolean(moveFolderPicker));
+  useAiStudioModalActivity("media-library-panel-bulk-move", bulkMoveDialogOpen);
+
+  const handleToggleSelectedPrompt = useCallback(
+    (prompt: PromptRow) => {
+      handleCloseBulkDeleteConfirm();
+      handleCloseBulkMoveDialog();
+      setSelectedPromptIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(prompt.id)) {
+          next.delete(prompt.id);
+        } else {
+          next.add(prompt.id);
+        }
+        return next;
+      });
+    },
+    [handleCloseBulkDeleteConfirm, handleCloseBulkMoveDialog]
+  );
+
+  const toggleSelectedMediaFile = useCallback(
+    (file: MediaFileRow) => {
+      handleCloseBulkDeleteConfirm();
+      handleCloseBulkMoveDialog();
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(file.id)) {
+          next.delete(file.id);
+        } else {
+          next.add(file.id);
+        }
+        return next;
+      });
+    },
+    [handleCloseBulkDeleteConfirm, handleCloseBulkMoveDialog]
+  );
   const resolvePanelCardPreviewUrl = useCallback(
     ({
       signedUrl,
@@ -1065,6 +1079,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
           setPendingLibraryDelete({ kind: "prompt", prompt });
         }}
         loadPromptPage={loadPromptPage}
+        scrollContainerRef={panelBodyRef as React.MutableRefObject<HTMLElement | null>}
       />
     ),
     [
@@ -1081,6 +1096,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       setPendingLibraryDelete,
       visiblePromptRows,
       loadPromptPage,
+      panelBodyRef,
     ]
   );
 
@@ -1139,10 +1155,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     !mediaLoading &&
     visiblePromptRows.length === 0 &&
     mediaRows.length === 0;
-  const activeFolderGridMediaRows = useMemo(
-    () => (shouldShowMedia ? mediaRows : []),
-    [mediaRows, shouldShowMedia]
-  );
   const activeFolderGridPromptRows = useMemo(
     () => (shouldShowPrompts ? visiblePromptRows : []),
     [shouldShowPrompts, visiblePromptRows]
@@ -1150,100 +1162,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const showActiveFolderUnifiedGrid =
     !showCustomFolderEmptyState &&
     (activeFolderGridMediaRows.length > 0 || activeFolderGridPromptRows.length > 0);
-  const bulkVisibleMediaRows = useMemo(() => {
-    if (!shouldShowMedia) return [] as MediaFileRow[];
-    if (!isRootFolderSelected) {
-      return activeFolderGridMediaRows;
-    }
-    if (itemType === "images") return visibleImageRows;
-    if (itemType === "videos") return visibleVideoRows;
-    if (itemType === "audio") return visibleAudioRows;
-    if (itemType === "all") return mediaRows;
-    return [];
-  }, [
-    activeFolderGridMediaRows,
-    isRootFolderSelected,
-    itemType,
-    mediaRows,
-    shouldShowMedia,
-    visibleAudioRows,
-    visibleImageRows,
-    visibleVideoRows,
-  ]);
-  const selectedVisibleMediaRows = useMemo(() => {
-    if (!selectedIds.size) return [] as MediaFileRow[];
-    return bulkVisibleMediaRows.filter((row) => selectedIds.has(row.id));
-  }, [bulkVisibleMediaRows, selectedIds]);
-  const handleOpenBulkDeleteConfirm = useCallback(() => {
-    if (!selectedVisibleMediaRows.length || !isRootFolderSelected) return;
-    setBulkMoveDialogOpen(false);
-    setPendingBulkDeleteIds(selectedVisibleMediaRows.map((row) => row.id));
-  }, [isRootFolderSelected, selectedVisibleMediaRows]);
-  const bulkMoveDestinationOptions = useMemo(
-    () =>
-      folders
-        .filter((folder) => folder.id !== activeFolderId)
-        .map((folder) => ({
-          id: folder.id,
-          label: buildFolderPathLabel(folder.id),
-        })),
-    [activeFolderId, buildFolderPathLabel, folders]
-  );
-  const canMoveSelectedMediaToFolder = bulkMoveDestinationOptions.length > 0;
-  const handleOpenBulkMoveDialog = useCallback(() => {
-    if (!selectedVisibleMediaRows.length || !canMoveSelectedMediaToFolder) return;
-    setPendingBulkDeleteIds(null);
-    setBulkMoveDialogOpen(true);
-  }, [canMoveSelectedMediaToFolder, selectedVisibleMediaRows.length]);
-  const handleCloseBulkMoveDialog = useCallback(() => setBulkMoveDialogOpen(false), []);
-  const handleMoveSelectedMediaToFolder = useCallback(
-    async (targetFolderId: string) => {
-      if (!selectedVisibleMediaRows.length) return;
-      const moved = await handleMoveItemsToFolder({
-        mediaIds: selectedVisibleMediaRows.map((row) => row.id),
-        targetFolderId,
-      });
-      if (!moved) return;
-      setBulkMoveDialogOpen(false);
-      setSelectedIds(new Set());
-    },
-    [handleMoveItemsToFolder, selectedVisibleMediaRows]
-  );
-  const handleRemoveSelectedMediaFromFolder = useCallback(async () => {
-    if (!selectedVisibleMediaRows.length || isRootFolderSelected) return;
-    const removed = await handleRemoveItemsFromActiveFolder({
-      mediaIds: selectedVisibleMediaRows.map((row) => row.id),
-    });
-    if (!removed) return;
-    setSelectedIds(new Set());
-  }, [handleRemoveItemsFromActiveFolder, isRootFolderSelected, selectedVisibleMediaRows]);
-  const bulkActions = useMemo(
-    () => (
-      <MediaLibraryPanelBulkActions
-        canDeleteFromLibrary={isRootFolderSelected}
-        canMoveToFolder={canMoveSelectedMediaToFolder}
-        canRemoveFromFolder={!isRootFolderSelected}
-        disabled={deleteConfirmSubmitting}
-        onClearSelection={clearSelections}
-        onMoveToFolder={handleOpenBulkMoveDialog}
-        onDeleteFromLibrary={handleOpenBulkDeleteConfirm}
-        onRemoveFromFolder={() => {
-          void handleRemoveSelectedMediaFromFolder();
-        }}
-        selectedCount={selectedVisibleMediaRows.length}
-      />
-    ),
-    [
-      canMoveSelectedMediaToFolder,
-      clearSelections,
-      deleteConfirmSubmitting,
-      handleOpenBulkDeleteConfirm,
-      handleOpenBulkMoveDialog,
-      handleRemoveSelectedMediaFromFolder,
-      isRootFolderSelected,
-      selectedVisibleMediaRows.length,
-    ]
-  );
   const isActiveFolderDropHover =
     !isRootFolderSelected && foldersDropController.hoveredContentFolderId === activeFolderId;
   const isRootFolderDropHover =
@@ -1307,12 +1225,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       return changed ? next : prev;
     });
   }, [selectedPromptIds.size, shouldShowPrompts, visiblePromptRows]);
-
-  useEffect(() => {
-    if (selectedVisibleMediaRows.length > 0) return;
-    setPendingBulkDeleteIds(null);
-    setBulkMoveDialogOpen(false);
-  }, [selectedVisibleMediaRows.length]);
 
   return (
     <section className="media-library-panel" aria-label="Media library panel">

@@ -8,6 +8,12 @@ export type PerfGate = {
 
 export type ReferenceGridScenario = {
   count: number;
+  seeded?: {
+    requestedCount?: number;
+    activeCount: number;
+    archivedCount?: number;
+    totalCount?: number;
+  };
   click: { samples: number; p95Ms: number | null };
   longTask: { samples: number; p95Ms: number | null };
   interaction: { maxInputStallMs: number };

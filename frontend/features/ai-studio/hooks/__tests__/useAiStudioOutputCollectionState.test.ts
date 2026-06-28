@@ -1,7 +1,10 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../types";
-import { REFERENCE_GRID_MAX_VISIBLE_ITEMS } from "../../reference-grid/logic/referenceGridLimits";
+import {
+  REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+  REFERENCE_GRID_TARGET_TOTAL_ITEMS,
+} from "../../reference-grid/logic/referenceGridLimits";
 import { getAiStudioOutputSnapshot, resetAiStudioOutputStore } from "../aiStudioOutputStore";
 import { useAiStudioOutputCollectionState } from "../useAiStudioOutputCollectionState";
 
@@ -134,6 +137,27 @@ describe("useAiStudioOutputCollectionState", () => {
     expect(
       result.current.archivedOutputs.every((output) => output.archiveReason === "cleanup")
     ).toBe(true);
+  });
+
+  it("preserves the 500-item target as capped active rows plus archived overflow", () => {
+    const { result } = renderHook(() => useAiStudioOutputCollectionState());
+    const targetOutputs = Array.from({ length: REFERENCE_GRID_TARGET_TOTAL_ITEMS }, (_, index) =>
+      makeOutput(`target-${index + 1}`, {
+        createdAt: new Date(Date.UTC(2026, 5, 28, 12, 0, index)).toISOString(),
+      })
+    );
+
+    act(() => {
+      result.current.setOutputsState(targetOutputs);
+    });
+
+    expect(result.current.outputs).toHaveLength(REFERENCE_GRID_MAX_VISIBLE_ITEMS);
+    expect(result.current.archivedOutputs).toHaveLength(
+      REFERENCE_GRID_TARGET_TOTAL_ITEMS - REFERENCE_GRID_MAX_VISIBLE_ITEMS
+    );
+    expect(result.current.outputs.length + result.current.archivedOutputs.length).toBe(
+      REFERENCE_GRID_TARGET_TOTAL_ITEMS
+    );
   });
 
   it("archives over-cap active rows during authority restore instead of dropping them", () => {

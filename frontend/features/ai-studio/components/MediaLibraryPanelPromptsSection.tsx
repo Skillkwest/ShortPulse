@@ -17,6 +17,7 @@ type MediaLibraryPanelPromptsSectionProps = {
   onRemovePromptFromFolder: (prompt: PromptRow) => void;
   onDeletePromptFromLibrary: (prompt: PromptRow) => void;
   loadPromptPage: ({ reset }: { reset: boolean }) => Promise<void>;
+  scrollContainerRef?: React.MutableRefObject<HTMLElement | null>;
 };
 
 export const MediaLibraryPanelPromptsSection = React.memo(function MediaLibraryPanelPromptsSection({
@@ -34,6 +35,7 @@ export const MediaLibraryPanelPromptsSection = React.memo(function MediaLibraryP
   onRemovePromptFromFolder,
   onDeletePromptFromLibrary,
   loadPromptPage,
+  scrollContainerRef,
 }: MediaLibraryPanelPromptsSectionProps) {
   return (
     <section className="media-library-panel-section">
@@ -66,6 +68,7 @@ export const MediaLibraryPanelPromptsSection = React.memo(function MediaLibraryP
             onRemovePromptFromFolder={onRemovePromptFromFolder}
             onDeletePromptFromLibrary={onDeletePromptFromLibrary}
             variant="reference-card"
+            scrollContainerRef={scrollContainerRef}
           />
         ) : null}
         {promptHasMore ? (

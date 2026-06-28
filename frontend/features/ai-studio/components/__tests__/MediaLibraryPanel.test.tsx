@@ -804,7 +804,9 @@ describe("MediaLibraryPanel", () => {
 
     fireEvent.doubleClick(screen.getByRole("button", { name: "Open prompt Prompt One" }));
 
-    expect(await screen.findByRole("dialog", { name: "Saved prompt detail" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("dialog", { name: "Text reference detail" })
+    ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Prompt One" })).toBeInTheDocument();
     expect((screen.getByDisplayValue("Prompt text") as HTMLTextAreaElement).readOnly).toBe(true);
 
@@ -1686,7 +1688,7 @@ describe("MediaLibraryPanel", () => {
     expect(latestProps?.densityConfig).toEqual(MEDIA_LIBRARY_PANEL_DENSITY_CONFIG);
   });
 
-  it("covers the first visible column set on the mixed all-media root tab", async () => {
+  it("covers the first visible column set on root media tabs", async () => {
     render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
 
     await waitFor(() => {
@@ -1697,6 +1699,18 @@ describe("MediaLibraryPanel", () => {
     expect(latestArgs).toBeTruthy();
     expect(latestArgs.surface).toBe("media-library-panel");
     expect(latestArgs.signBudget).toEqual({
+      initialSignLimit: 5,
+      prefetchWindow: 6,
+      signBatchSize: 5,
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Images" }));
+
+    await waitFor(() => {
+      expect(mediaGridPropsSpy).toHaveBeenCalled();
+    });
+    const latestImageTabArgs = useMediaPreviewSigningControllerMock.mock.calls.at(-1)?.[0];
+    expect(latestImageTabArgs.signBudget).toEqual({
       initialSignLimit: 5,
       prefetchWindow: 6,
       signBatchSize: 5,

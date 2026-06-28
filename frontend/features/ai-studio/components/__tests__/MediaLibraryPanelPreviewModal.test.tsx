@@ -229,6 +229,7 @@ describe("MediaLibraryPanelPreviewModal", () => {
     expect(screen.getByDisplayValue("A glass fox in a desert observatory")).toBeInTheDocument();
     expect(screen.getByText("16:9")).toBeInTheDocument();
     expect(screen.getByText("1K")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Saved" })).not.toBeInTheDocument();
   });
 
   it("shows image resolution from workflow metadata when generation replay is unavailable", () => {
@@ -263,6 +264,72 @@ describe("MediaLibraryPanelPreviewModal", () => {
     expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe(
       "Image/16:9/1K/Custom (the generation service-ai/imagen4/preview)"
     );
+  });
+
+  it("renders saved AI Studio videos with generated detail metadata", () => {
+    const storageLikeFilename = "6e66fb53-2444-42db-98d9-352083a94e19-0.mp4";
+    const generatedFile: MediaFileRow = {
+      id: "video-1",
+      filename: storageLikeFilename,
+      storage_path: "user-1/media-library/generated-video.mp4",
+      preview_storage_path: "user-1/media-library/generated-video.mp4",
+      file_type: "video/mp4",
+      source: "ai_studio",
+      source_ref: "generation-video-1",
+      signedUrl: "https://cdn.example.com/generated-video.mp4",
+      metadata: {
+        workflow_reload: {
+          version: 1,
+          source: "ai_studio_generation",
+          capturedAt: "2026-06-28T12:00:00.000Z",
+          originTool: "video",
+          panelKind: "video",
+          outputMode: "video",
+          restoreBehavior: "navigate_and_hydrate",
+          projectId: "project-1",
+          createMode: "standard",
+          pulse: null,
+          prompt: {
+            display: "A cinematic tracking shot across the clearing.",
+          },
+          model: {
+            id: "kie-ai/kling-3.0",
+          },
+          payload: {
+            kind: "video",
+            aspect: "16:9",
+            videoReferenceMode: "standard",
+            durationSeconds: 6,
+            resolution: "1080p",
+            generateAudio: true,
+            cameraFixed: false,
+            autoFix: true,
+            referenceInputs: ["https://cdn.example.com/reference-frame.png"],
+          },
+        },
+      },
+    };
+
+    const { baseElement } = render(
+      <MediaLibraryPanelPreviewModal
+        item={createPreviewItem(generatedFile, "https://cdn.example.com/generated-video.mp4", {
+          source: "ai_studio",
+        })}
+        isLoading={false}
+        error={null}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("heading", { name: "Generated video" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: storageLikeFilename })).not.toBeInTheDocument();
+    const headerText =
+      baseElement.querySelector(".art-modal-meta-pill")?.textContent?.replace(/\s+/g, " ").trim() ??
+      "";
+    expect(headerText).toContain("Video");
+    expect(headerText).toContain("16:9");
+    expect(headerText).toContain("1080p");
+    expect(headerText).not.toContain(storageLikeFilename);
   });
 
   it("keeps generated media on the generated detail view while preview URLs resolve", () => {
@@ -793,6 +860,64 @@ describe("MediaLibraryPanelPreviewModal", () => {
     );
 
     expect(screen.getByLabelText("Song lyrics")).toHaveTextContent("Instrumental");
+  });
+
+  it("does not display model metadata for library-owned generated audio details", () => {
+    const audioFile: MediaFileRow = {
+      id: "audio-generated-1",
+      filename: "leaves-rustling.mp3",
+      storage_path: "user-1/media-library/leaves-rustling.mp3",
+      preview_storage_path: "user-1/media-library/leaves-rustling.mp3",
+      file_type: "audio/mpeg",
+      source: "ai_studio",
+      source_ref: "generation-audio-1",
+      signedUrl: "https://cdn.example.com/leaves-rustling.mp3",
+      metadata: {
+        workflow_reload: {
+          version: 1,
+          source: "ai_studio_generation",
+          capturedAt: "2026-06-28T12:00:00.000Z",
+          originTool: "sound",
+          panelKind: "sound",
+          outputMode: "audio",
+          restoreBehavior: "navigate_and_hydrate",
+          projectId: "project-1",
+          createMode: "standard",
+          pulse: null,
+          prompt: {
+            display: "leaves rustling",
+          },
+          model: {
+            id: "custom_audio_model",
+          },
+          payload: {
+            kind: "sound",
+            text: "leaves rustling",
+            durationSeconds: 8,
+            outputFormat: "mp3_44100_128",
+          },
+        },
+      },
+    };
+
+    const { baseElement } = render(
+      <MediaLibraryPanelPreviewModal
+        item={createPreviewItem(audioFile, "https://cdn.example.com/leaves-rustling.mp3", {
+          source: "ai_studio",
+          promptText: "leaves rustling",
+        })}
+        isLoading={false}
+        error={null}
+        onClose={vi.fn()}
+      />
+    );
+
+    const headerText =
+      baseElement.querySelector(".art-modal-meta-pill")?.textContent?.replace(/\s+/g, " ").trim() ??
+      "";
+    expect(headerText).toBe("Audio/leaves-rustling.mp3");
+    expect(headerText).not.toContain("custom_audio_model");
+    expect(headerText).not.toContain("Custom");
   });
 
   it("does not render transform or optimizer image urls as focused preview media", () => {

@@ -24,7 +24,7 @@ describe("MediaLibraryPromptDetailModal", () => {
   it("renders saved prompt text in the shared text-detail layout", () => {
     render(<MediaLibraryPromptDetailModal item={createItem()} onClose={vi.fn()} />);
 
-    expect(screen.getByRole("dialog", { name: "Saved prompt detail" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Text reference detail" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Prompt One" })).toBeInTheDocument();
     expect(screen.queryByText("Text detail")).not.toBeInTheDocument();
     expect(document.querySelector(".art-modal-meta-pill")).toBeNull();
@@ -32,7 +32,23 @@ describe("MediaLibraryPromptDetailModal", () => {
       (screen.getByDisplayValue("A cinematic portrait with soft rim light") as HTMLTextAreaElement)
         .readOnly
     ).toBe(true);
-    expect(screen.getByRole("button", { name: "Saved" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Saved" })).not.toBeInTheDocument();
+  });
+
+  it("labels untitled saved prompts as text references", () => {
+    const item = createMediaLibraryPromptDetailModalItem({
+      prompt: {
+        ...prompt,
+        id: "prompt-untitled",
+        title: null,
+      },
+      surface: "media-library-panel",
+    });
+
+    render(<MediaLibraryPromptDetailModal item={item} onClose={vi.fn()} />);
+
+    expect(screen.getByRole("dialog", { name: "Text reference detail" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Text reference" })).toBeInTheDocument();
   });
 
   it("preserves long saved prompt text in the text-detail textarea", () => {

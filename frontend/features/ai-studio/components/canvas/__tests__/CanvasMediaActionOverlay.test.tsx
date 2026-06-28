@@ -4,7 +4,7 @@ import { CanvasMediaActionOverlay } from "../CanvasMediaActionOverlay";
 import { buildGenerationReplayConfigV1 } from "../../../logic/generationReplay";
 import { buildWorkflowReloadConfigV1 } from "../../../logic/workflowReload";
 import type { StudioOutput } from "../../../types";
-import type { CanvasImageItem, CanvasVideoItem } from "../canvasTypes";
+import type { CanvasAudioItem, CanvasImageItem, CanvasVideoItem } from "../canvasTypes";
 import type { CanvasMediaActions } from "../canvasWorkspaceContracts";
 
 const imageReplay = buildGenerationReplayConfigV1({
@@ -81,6 +81,22 @@ const createVideoOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput 
   ...overrides,
 });
 
+const createAudioOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput => ({
+  id: "out-audio-1",
+  prompt: "A generated soundtrack",
+  mode: "audio",
+  aspect: "1:1",
+  model: "ElevenLabs Music",
+  modelId: "elevenlabs/music",
+  status: "ready",
+  timestamp: "2026-06-16T00:00:00.000Z",
+  mediaSource: "generated",
+  generationId: "generation-audio-1",
+  previewUrl: "https://example.com/audio.mp3",
+  saveState: "idle",
+  ...overrides,
+});
+
 const imageItem: CanvasImageItem = {
   id: "canvas-image-1",
   kind: "image",
@@ -107,6 +123,21 @@ const videoItem: CanvasVideoItem = {
   mediaId: "media-video-1",
   videoUrl: "https://example.com/video.mp4",
   posterUrl: "https://example.com/poster.jpg",
+  width: 320,
+  height: 180,
+};
+
+const audioItem: CanvasAudioItem = {
+  id: "canvas-audio-1",
+  kind: "audio",
+  x: 0,
+  y: 0,
+  z: 1,
+  selected: true,
+  outputId: "out-audio-1",
+  mediaId: "media-audio-1",
+  audioUrl: "https://example.com/audio.mp3",
+  title: "A generated soundtrack",
   width: 320,
   height: 180,
 };
@@ -188,6 +219,18 @@ describe("CanvasMediaActionOverlay", () => {
     expect(actions.onReloadWorkflowOutput).toHaveBeenCalledWith(output, {
       mediaKindHint: "video",
     });
+  });
+
+  it("routes selected audio saves through the shared media library handler", () => {
+    const output = createAudioOutput();
+    const actions = createActions(output);
+
+    render(<CanvasMediaActionOverlay item={audioItem} actions={actions} />);
+
+    fireEvent.click(screen.getByLabelText("Save to media library"));
+
+    expect(actions.onSelectOutput).toHaveBeenCalledWith("out-audio-1");
+    expect(actions.onSaveToLibrary).toHaveBeenCalledWith(output);
   });
 
   it("does not show Reference Grid actions for unselected or outputless Canvas media", () => {

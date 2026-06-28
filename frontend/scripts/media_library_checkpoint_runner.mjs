@@ -63,6 +63,7 @@ const CHECKPOINTS = {
       "npm test -- features/ai-studio/hooks/__tests__/useMediaLibraryPanelDataController.test.tsx",
       "npm test -- features/media-library/runtime/__tests__/store.test.ts",
       "npm test -- features/media-library/runtime/__tests__/useMediaLibraryPanelRuntime.test.ts",
+      "npm test -- features/ai-studio/components/media-library-modal/__tests__/MediaLibraryPromptGrid.test.tsx",
       "npm test -- features/media-library/logic/__tests__/mediaGridVirtualization.test.ts",
       "npm test -- features/media-library/logic/__tests__/mediaPreviewSigningPass.test.ts",
       "npm test -- features/media-library/hooks/__tests__/useMediaPreviewSigningController.test.ts",

@@ -26,7 +26,6 @@ export function MediaLibraryPromptDetailModal({
     if (!item) return [];
     const sharedItems = resolveSharedMediaDetailMediaActionItems({
       saveState: "saved",
-      showSavedState: true,
       canDelete: item.capabilities.canDelete,
       onDelete: onDeletePromptItem ? () => onDeletePromptItem(item) : null,
       deleteIcon: <TrashSimple size={16} weight="bold" aria-hidden />,
@@ -51,7 +50,7 @@ export function MediaLibraryPromptDetailModal({
       isOpen
       modalActivityId="media-library-prompt-detail-modal"
       onClose={onClose}
-      ariaLabel="Saved prompt detail"
+      ariaLabel="Text reference detail"
       backdropClassName="reference-modal-backdrop media-library-panel-preview-backdrop"
       dialogClassName="reference-modal-new is-text-only"
       backdropDataTestId="media-library-prompt-detail-backdrop"

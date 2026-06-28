@@ -35,7 +35,7 @@ export const createMediaLibraryPromptDetailModalItem = ({
   prompt: PromptRow;
   surface: MediaLibraryPromptDetailModalSurface;
 }): MediaLibraryPromptDetailModalItem => {
-  const resolvedTitle = prompt.title?.trim() || "Saved prompt";
+  const resolvedTitle = prompt.title?.trim() || "Text reference";
 
   return {
     prompt,

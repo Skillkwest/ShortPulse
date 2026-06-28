@@ -1034,6 +1034,7 @@ export function AdminSupportQueueSection({
             <div className={styles.adminTable}>
               <div className={`${styles.adminTableHead} ${styles.adminSupportQueueHead}`}>
                 <span>User</span>
+                <span>Copy</span>
                 <span>Flags</span>
                 <span>Spendable</span>
                 <span>Billing</span>
@@ -1046,10 +1047,12 @@ export function AdminSupportQueueSection({
                   <span className="subdued">—</span>
                   <span className="subdued">—</span>
                   <span className="subdued">—</span>
+                  <span className="subdued">—</span>
                 </div>
               ) : usersLoading && users.length === 0 ? (
                 <div className={`${styles.adminTableRow} ${styles.adminSupportQueueRow}`}>
                   <span className="subdued">Loading users…</span>
+                  <span className="subdued">—</span>
                   <span className="subdued">—</span>
                   <span className="subdued">—</span>
                   <span className="subdued">—</span>
@@ -1060,6 +1063,7 @@ export function AdminSupportQueueSection({
                   <span className="subdued">
                     {userSearch.trim() ? "No users match." : "No users loaded yet."}
                   </span>
+                  <span className="subdued">—</span>
                   <span className="subdued">—</span>
                   <span className="subdued">—</span>
                   <span className="subdued">—</span>
@@ -1095,6 +1099,13 @@ export function AdminSupportQueueSection({
                         <span className={styles.adminSupportQueueCell} data-label="User">
                           <span className={styles.adminSupportQueueEmail}>
                             <span className={styles.adminSupportQueueEmailText}>{rowLabel}</span>
+                          </span>
+                        </span>
+                        <span
+                          className={`${styles.adminSupportQueueCell} ${styles.adminSupportQueueCopyCell}`}
+                          data-label="Copy"
+                        >
+                          <span className={styles.adminSupportQueueCopySlot}>
                             {row.email ? (
                               <button
                                 type="button"
@@ -1115,7 +1126,9 @@ export function AdminSupportQueueSection({
                                   <CopySimple size={14} weight="bold" aria-hidden="true" />
                                 )}
                               </button>
-                            ) : null}
+                            ) : (
+                              <span className="subdued">—</span>
+                            )}
                           </span>
                         </span>
                         <span className={styles.adminSupportQueueCell} data-label="Flags">

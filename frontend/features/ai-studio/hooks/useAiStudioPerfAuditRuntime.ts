@@ -26,6 +26,7 @@ import {
   resetFreezeInvestigationSnapshot,
   type FreezeInvestigationSnapshot,
 } from "../logic/freezeInvestigationTelemetry";
+import { limitReferenceGridVisibleOutputs } from "../reference-grid/logic/referenceGridLimits";
 import type { StudioOutput } from "../types";
 
 const PERF_REFERENCE_IMAGE_SVG = `data:image/svg+xml;utf8,${encodeURIComponent(
@@ -78,12 +79,19 @@ export const queryAiStudioPerfAuditAll = <ElementType extends Element>(
 
 type AiStudioPerfWindow = Window & {
   __shortpulseAiStudioPerf?: {
-    seedReferenceGrid: (count: number) => { requestedCount: number; activeCount: number };
+    seedReferenceGrid: (count: number) => {
+      requestedCount: number;
+      activeCount: number;
+      archivedCount: number;
+      totalCount: number;
+    };
     seedReferenceGridItems: (items: PerfSeedOutputInput[]) => {
       activeCount: number;
+      archivedCount: number;
+      totalCount: number;
       outputIds: string[];
     };
-    clearReferenceGrid: () => { activeCount: number };
+    clearReferenceGrid: () => { activeCount: number; archivedCount: number; totalCount: number };
     runReferenceGridAudit: (options?: {
       counts?: number[];
       clickSamples?: number;
@@ -93,6 +101,12 @@ type AiStudioPerfWindow = Window & {
       generatedAt: string;
       scenarios: Array<{
         count: number;
+        seeded?: {
+          requestedCount?: number;
+          activeCount: number;
+          archivedCount?: number;
+          totalCount?: number;
+        };
         click: { samples: number; p95Ms: number | null };
         longTask: { samples: number; p95Ms: number | null };
         interaction: { maxInputStallMs: number };
@@ -1104,27 +1118,33 @@ export function useAiStudioPerfAuditRuntime({
     perfWindow.__shortpulseAiStudioPerf = {
       seedReferenceGrid: (count: number) => {
         const nextOutputs = createPerfOutputs(count);
+        const limited = limitReferenceGridVisibleOutputs(nextOutputs);
         resetReferenceGridState();
         setOutputs(nextOutputs);
         setActiveOutputId(nextOutputs[0]?.id ?? null);
         return {
           requestedCount: count,
-          activeCount: nextOutputs.length,
+          activeCount: limited.rows.length,
+          archivedCount: limited.trimmedCount,
+          totalCount: nextOutputs.length,
         };
       },
       seedReferenceGridItems: (items: PerfSeedOutputInput[]) => {
         const nextOutputs = createPerfOutputsFromInputs(items);
+        const limited = limitReferenceGridVisibleOutputs(nextOutputs);
         resetReferenceGridState();
         setOutputs(nextOutputs);
         setActiveOutputId(nextOutputs[0]?.id ?? null);
         return {
-          activeCount: nextOutputs.length,
+          activeCount: limited.rows.length,
+          archivedCount: limited.trimmedCount,
+          totalCount: nextOutputs.length,
           outputIds: nextOutputs.map((item) => item.id),
         };
       },
       clearReferenceGrid: () => {
         resetReferenceGridState();
-        return { activeCount: 0 };
+        return { activeCount: 0, archivedCount: 0, totalCount: 0 };
       },
       runReferenceGridAudit: async (options) => {
         const counts =
@@ -1149,6 +1169,7 @@ export function useAiStudioPerfAuditRuntime({
           );
           scenarios.push({
             count: scenario.count,
+            seeded: scenario.seeded,
             click: scenario.click,
             longTask: scenario.longTask,
             interaction: scenario.interaction,

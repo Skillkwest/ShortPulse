@@ -130,6 +130,10 @@ describe("ai-studio layout scroll behavior contract", () => {
     const sharedErrorMessageRule = extractRuleBlock(messagesCss, ".app-message--error");
     const alertBannerRule = extractRuleBlock(css, ".ai-studio-page .ai-alert-banner");
     const alertErrorBannerRule = extractRuleBlock(css, ".ai-studio-page .ai-alert-banner--error");
+    const alertWarningBannerRule = extractRuleBlock(
+      css,
+      ".ai-studio-page .ai-alert-banner--warning"
+    );
     const alertActionsRule = extractRuleBlock(
       css,
       ".ai-studio-page .ai-alert-banner .app-message__actions"
@@ -166,12 +170,18 @@ describe("ai-studio layout scroll behavior contract", () => {
     expect(alertBannerRule).toContain("width: 100%;");
     expect(alertBannerRule).toContain("min-width: 0;");
     expect(alertBannerRule).toContain("margin: 0;");
+    expect(alertBannerRule).toContain("border-radius: 999px;");
+    expect(alertBannerRule).toContain("border: 1px solid transparent;");
     expect(alertActionsRule).toContain("flex: 0 0 auto;");
     expect(alertDismissRule).toContain("flex: 0 0 28px;");
     expect(alertDismissRule).toContain("width: 28px;");
     expect(sharedErrorMessageRule).toContain("--app-message-bg: #36191f;");
     expect(alertErrorBannerRule).toContain("background: #461818;");
+    expect(alertErrorBannerRule).not.toContain("border-color:");
+    expect(alertWarningBannerRule).not.toContain("border-color:");
     expect(groupedFailureRule).toContain("background: linear-gradient(180deg, #5f1414, #3e0e0e);");
+    expect(groupedFailureRule).toContain("border-radius: 999px;");
+    expect(groupedFailureRule).toContain("border: 1px solid transparent;");
     expect(viewportMessageRule).toContain("margin: 0;");
     expect(css).toContain("@media (max-width: 1100px)");
     expect(css).toMatch(

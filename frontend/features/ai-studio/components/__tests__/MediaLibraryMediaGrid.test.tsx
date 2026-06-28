@@ -8,6 +8,10 @@ import { MediaLibraryMediaGrid } from "../media-library-modal/MediaLibraryMediaG
 const useMediaMasonryVirtualizationMock = vi.fn();
 const useMediaGridVideoBudgetControllerMock = vi.fn();
 const aiStudioModalsStylesheet = readFileSync("styles/ai-studio-modals.css", "utf8");
+const mediaLibraryPanelStylesheet = readFileSync(
+  "styles/ai-studio-media-library-panel.css",
+  "utf8"
+);
 
 vi.mock("../../../media-library/hooks/useMediaMasonryVirtualization", () => ({
   useMediaMasonryVirtualization: (...args: unknown[]) => useMediaMasonryVirtualizationMock(...args),
@@ -96,6 +100,18 @@ describe("MediaLibraryMediaGrid", () => {
     expect(document.querySelector("video.media-thumb")).toBeNull();
   });
 
+  it("marks selected image and video tab cards for the panel selection border", () => {
+    const props = baseProps();
+    props.selectedIds = new Set<string>(["video-1"]);
+
+    const { container } = render(<MediaLibraryMediaGrid {...props} />);
+
+    const shell = container.querySelector(".media-library-panel-media-card-shell");
+    expect(shell).toHaveClass("is-active");
+    expect(shell).toHaveClass("media-library-panel-media-card-shell--media-grid");
+    expect(screen.getByRole("button", { name: "Deselect media clip-1.mp4" })).toBeInTheDocument();
+  });
+
   it("applies panel density config without changing the default grid path", () => {
     const props = baseProps();
     const { container, rerender } = render(<MediaLibraryMediaGrid {...props} />);
@@ -162,6 +178,15 @@ describe("MediaLibraryMediaGrid", () => {
     );
     expect(aiStudioModalsStylesheet).toMatch(
       /\.media-library-modal-grid\.media-library-modal-grid-packed\.media-library-modal-grid-virtualized\s*{[^}]*display:\s*block;/s
+    );
+  });
+
+  it("keeps the panel selected border wired for media-grid visual cards", () => {
+    expect(mediaLibraryPanelStylesheet).toMatch(
+      /\.media-library-panel-media-card-shell\.is-active\.media-library-panel-media-card-shell--media-grid\s+\.media-library-panel-media-card-button::after/s
+    );
+    expect(mediaLibraryPanelStylesheet).toMatch(
+      /border:\s*2px solid rgba\(171, 233, 194, 0\.92\);/
     );
   });
 

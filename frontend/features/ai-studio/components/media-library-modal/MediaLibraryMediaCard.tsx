@@ -775,7 +775,7 @@ export function MediaLibraryVisualMediaCard({
 
   return (
     <div
-      className={`media-library-modal-card media-library-panel-media-card-shell${
+      className={`media-library-modal-card media-library-panel-media-card-shell media-library-panel-media-card-shell--${variant}${
         isSelected ? " is-active" : ""
       }`}
       style={shellStyle}

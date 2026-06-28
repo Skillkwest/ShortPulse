@@ -1,13 +1,10 @@
 import { describe, expect, it } from "vitest";
-import {
-  MEDIA_LIBRARY_SURFACE_CONFIG,
-  resolvePanelMixedAllMediaSignBudget,
-} from "../surfaceConfig";
+import { MEDIA_LIBRARY_SURFACE_CONFIG, resolvePanelDenseBrowseSignBudget } from "../surfaceConfig";
 
-describe("resolvePanelMixedAllMediaSignBudget", () => {
-  it("limits mixed all-media signing to the first visible panel column set", () => {
+describe("resolvePanelDenseBrowseSignBudget", () => {
+  it("limits dense panel signing to the first visible panel column set", () => {
     expect(
-      resolvePanelMixedAllMediaSignBudget({
+      resolvePanelDenseBrowseSignBudget({
         initialSignLimit: 6,
         prefetchWindow: 8,
         signBatchSize: 4,
@@ -21,7 +18,7 @@ describe("resolvePanelMixedAllMediaSignBudget", () => {
 
   it("keeps first-visible coverage even for constrained devices", () => {
     expect(
-      resolvePanelMixedAllMediaSignBudget({
+      resolvePanelDenseBrowseSignBudget({
         initialSignLimit: 1,
         prefetchWindow: 1,
         signBatchSize: 1,

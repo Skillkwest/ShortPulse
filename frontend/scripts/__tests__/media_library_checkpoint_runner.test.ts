@@ -50,6 +50,9 @@ describe("media_library_checkpoint_runner", () => {
       "features/media-library/logic/__tests__/mediaGridVirtualization.test.ts"
     );
     expect(summary).toContain(
+      "features/ai-studio/components/media-library-modal/__tests__/MediaLibraryPromptGrid.test.tsx"
+    );
+    expect(summary).toContain(
       "features/media-library/logic/__tests__/mediaPreviewSigningPass.test.ts"
     );
     expect(summary).toContain("npm run type-check:touched");

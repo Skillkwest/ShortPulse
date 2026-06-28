@@ -3,6 +3,7 @@
  * Callers own billing and persistence; this module only submits, polls, and
  * fetches trusted provider media.
  */
+import type { StatusProbeCandidate } from "./falIntegration/contracts";
 import { FAL_FLUX_2_KLEIN_9B_MODEL_ID } from "../model-runtime/falModelIds";
 import { falSizeForAspect } from "../model-runtime/pricing";
 import { normalizeCustomerFacingProviderError } from "../customerFacingProviderText";
@@ -23,6 +24,10 @@ import {
   dispatchProviderStatusRequest,
   resolveProviderStatusBaseUrls,
 } from "./providerIntegration/statusProviderDispatcher";
+import {
+  resolveFalStatusBaseUrlsFromProviderUrls,
+  uniqueProviderUrls,
+} from "./providerIntegration/providerReturnedUrls";
 import { readProviderApiKey } from "./providerIntegration/providerRuntimeConfig";
 import {
   providerPayloadHasMedia,
@@ -36,6 +41,7 @@ import {
   isProviderFailedStatus,
   isProviderRetryableUpstreamResponse,
 } from "./providerIntegration/statusProviderPolicy";
+import { selectBestProviderStatusCandidate } from "./providerIntegration/statusProviderSelection";
 
 export type FalFluxKleinImagePayload = {
   prompt: string;
@@ -81,6 +87,12 @@ const FAL_FLUX_2_KLEIN_SUBMIT_TIMEOUT_SECONDS = 30;
 const STYLE_PREVIEW_STATUS_CHECK_FAILED_MESSAGE = "Style preview generation status check failed.";
 const STYLE_PREVIEW_FAILED_MESSAGE = "Style preview generation failed.";
 const STYLE_PREVIEW_SUBMIT_FAILED_MESSAGE = "Style preview generation submit failed.";
+
+type StatusCandidate = {
+  probe: StatusProbeCandidate;
+  response: Response;
+  data: Awaited<ReturnType<typeof readJsonSafe>>;
+};
 
 const sleep = async (ms: number, signal: AbortSignal): Promise<void> => {
   if (ms <= 0) return;
@@ -149,6 +161,64 @@ const validateFalFluxKleinPayload = (payload: FalFluxKleinImagePayload) => {
   return validation.projectedPayload as FalFluxKleinImagePayload;
 };
 
+const buildStatusCandidate = ({
+  baseUrl,
+  index,
+  response,
+  data,
+}: {
+  baseUrl: string;
+  index: number;
+  response: Response;
+  data: Awaited<ReturnType<typeof readJsonSafe>>;
+}): StatusCandidate => {
+  const status = data.isJson
+    ? readProviderLifecycleStatus({
+        provider: FAL_PROVIDER_KEY,
+        modelId: FAL_FLUX_2_KLEIN_MODEL_ID,
+        payload: data.json,
+      })
+    : null;
+  const isCompleted = Boolean(
+    status && isProviderCompletedStatus({ provider: FAL_PROVIDER_KEY, status })
+  );
+  const isFailed = Boolean(
+    status && isProviderFailedStatus({ provider: FAL_PROVIDER_KEY, status })
+  );
+  return {
+    probe: {
+      index,
+      baseUrl,
+      isJson: data.isJson,
+      isRetryableAlias: false,
+      httpStatus: response.status,
+      isHttpOk: response.ok,
+      status,
+      isTerminal: isCompleted || isFailed,
+      isCompleted,
+      isFailed,
+      hasResponseUrl: data.isJson
+        ? Boolean(
+            readProviderResponseUrl({
+              provider: FAL_PROVIDER_KEY,
+              modelId: FAL_FLUX_2_KLEIN_MODEL_ID,
+              payload: data.json,
+            })
+          )
+        : false,
+      hasMedia: data.isJson
+        ? providerPayloadHasMedia({
+            provider: FAL_PROVIDER_KEY,
+            modelId: FAL_FLUX_2_KLEIN_MODEL_ID,
+            payload: data.json,
+          })
+        : false,
+    },
+    response,
+    data,
+  };
+};
+
 const resolvePayloadWithMedia = async ({
   providerRequestId,
   apiKey,
@@ -171,15 +241,21 @@ const resolvePayloadWithMedia = async ({
     const delayMs = pollAttempt === 0 ? initialPollDelayMs : pollIntervalMs;
     pollAttempt += 1;
     await sleep(delayMs, signal);
+    const statusCandidates: StatusCandidate[] = [];
     let nonRetryableStatusFailure: string | null = null;
-    for (const baseUrl of statusBaseUrls) {
-      const response = await dispatchProviderStatusRequest({
-        provider: FAL_PROVIDER_KEY,
-        baseUrl,
-        requestId: providerRequestId,
-        apiKey,
-        signal,
-      });
+    for (const [index, baseUrl] of statusBaseUrls.entries()) {
+      let response: Response;
+      try {
+        response = await dispatchProviderStatusRequest({
+          provider: FAL_PROVIDER_KEY,
+          baseUrl,
+          requestId: providerRequestId,
+          apiKey,
+          signal,
+        });
+      } catch {
+        continue;
+      }
       const statusData = await readJsonSafe(response);
       if (
         !response.ok &&
@@ -191,6 +267,13 @@ const resolvePayloadWithMedia = async ({
       ) {
         continue;
       }
+      const candidate = buildStatusCandidate({
+        baseUrl,
+        index,
+        response,
+        data: statusData,
+      });
+      statusCandidates.push(candidate);
       if (!response.ok) {
         nonRetryableStatusFailure = readProviderFailureMessage(
           statusData.json,
@@ -198,66 +281,80 @@ const resolvePayloadWithMedia = async ({
         );
         continue;
       }
+    }
 
-      if (
-        statusData.isJson &&
-        providerPayloadHasMedia({
+    const bestStatusProbe = selectBestProviderStatusCandidate({
+      provider: FAL_PROVIDER_KEY,
+      candidates: statusCandidates.map((candidate) => candidate.probe),
+    });
+    const bestStatusCandidate =
+      bestStatusProbe &&
+      statusCandidates.find((candidate) => candidate.probe.index === bestStatusProbe.index);
+    if (!bestStatusCandidate) {
+      if (nonRetryableStatusFailure) {
+        throw new Error(nonRetryableStatusFailure);
+      }
+      continue;
+    }
+
+    const statusMediaCandidate = statusCandidates.find(
+      (candidate) => candidate.probe.isHttpOk && candidate.probe.hasMedia && candidate.data.isJson
+    );
+    if (statusMediaCandidate) {
+      return statusMediaCandidate.data.json;
+    }
+
+    const { response, data: statusData, probe } = bestStatusCandidate;
+    if (!response.ok) {
+      throw new Error(
+        readProviderFailureMessage(statusData.json, STYLE_PREVIEW_STATUS_CHECK_FAILED_MESSAGE)
+      );
+    }
+
+    if (statusData.isJson && probe.hasMedia) {
+      return statusData.json;
+    }
+
+    const status = probe.status;
+    if (probe.isFailed) {
+      throw new Error(readProviderFailureMessage(statusData.json, STYLE_PREVIEW_FAILED_MESSAGE));
+    }
+    if (!probe.isCompleted) {
+      continue;
+    }
+
+    const responseUrl = statusData.isJson
+      ? readProviderResponseUrl({
           provider: FAL_PROVIDER_KEY,
           modelId: FAL_FLUX_2_KLEIN_MODEL_ID,
           payload: statusData.json,
         })
-      ) {
-        return statusData.json;
-      }
-
-      const status = statusData.isJson
-        ? readProviderLifecycleStatus({
-            provider: FAL_PROVIDER_KEY,
-            modelId: FAL_FLUX_2_KLEIN_MODEL_ID,
-            payload: statusData.json,
-          })
-        : null;
-      if (isProviderFailedStatus({ provider: FAL_PROVIDER_KEY, status })) {
-        throw new Error(readProviderFailureMessage(statusData.json, STYLE_PREVIEW_FAILED_MESSAGE));
-      }
-      if (!isProviderCompletedStatus({ provider: FAL_PROVIDER_KEY, status })) {
-        continue;
-      }
-
-      const responseUrl = readProviderResponseUrl({
-        provider: FAL_PROVIDER_KEY,
-        modelId: FAL_FLUX_2_KLEIN_MODEL_ID,
-        payload: statusData.json,
-      });
-      const responseProbe = responseUrl
-        ? await probeResponseUrlsForMedia({
-            provider: FAL_PROVIDER_KEY,
-            modelId: FAL_FLUX_2_KLEIN_MODEL_ID,
-            responseUrls: [responseUrl],
-            statusHint: status,
-            apiKey,
-            signal,
-          })
-        : null;
-      if (responseProbe?.payload) {
-        return responseProbe.payload;
-      }
-
-      const resultProbe = await probeResultBasesForMedia({
-        provider: FAL_PROVIDER_KEY,
-        modelId: FAL_FLUX_2_KLEIN_MODEL_ID,
-        resultBaseUrls: statusBaseUrls,
-        requestId: providerRequestId,
-        statusHint: status,
-        apiKey,
-        signal,
-      });
-      if (resultProbe?.payload) {
-        return resultProbe.payload;
-      }
+      : null;
+    const responseProbe = responseUrl
+      ? await probeResponseUrlsForMedia({
+          provider: FAL_PROVIDER_KEY,
+          modelId: FAL_FLUX_2_KLEIN_MODEL_ID,
+          responseUrls: [responseUrl],
+          statusHint: status,
+          apiKey,
+          signal,
+        })
+      : null;
+    if (responseProbe?.payload) {
+      return responseProbe.payload;
     }
-    if (nonRetryableStatusFailure) {
-      throw new Error(nonRetryableStatusFailure);
+
+    const resultProbe = await probeResultBasesForMedia({
+      provider: FAL_PROVIDER_KEY,
+      modelId: FAL_FLUX_2_KLEIN_MODEL_ID,
+      resultBaseUrls: statusBaseUrls,
+      requestId: providerRequestId,
+      statusHint: status,
+      apiKey,
+      signal,
+    });
+    if (resultProbe?.payload) {
+      return resultProbe.payload;
     }
   }
 
@@ -302,11 +399,7 @@ export const generateFalFluxKleinImage = async ({
 }: GenerateFalFluxKleinImageInput): Promise<FalFluxKleinImageResult> => {
   const projectedPayload = validateFalFluxKleinPayload(payload);
   const submitUrl = getFalSubmitUrlRequired(FAL_FLUX_2_KLEIN_MODEL_ID);
-  const statusBaseUrls = resolveProviderStatusBaseUrls({
-    provider: FAL_PROVIDER_KEY,
-    configuredBaseUrls: getFalStatusBaseUrlsRequired(FAL_FLUX_2_KLEIN_MODEL_ID),
-    modelId: FAL_FLUX_2_KLEIN_MODEL_ID,
-  });
+  const configuredStatusBaseUrls = getFalStatusBaseUrlsRequired(FAL_FLUX_2_KLEIN_MODEL_ID);
   const apiKey = readProviderApiKey(FAL_PROVIDER_KEY);
   const controller = new AbortController();
   const timeout = windowlessSetTimeout(() => controller.abort(), timeoutMs);
@@ -331,6 +424,19 @@ export const generateFalFluxKleinImage = async ({
       throw new Error("Style preview generation did not return a request id.");
     }
 
+    const providerReturnedStatusBaseUrls = resolveFalStatusBaseUrlsFromProviderUrls({
+      requestId: submitResult.providerRequestId,
+      providerStatusUrl: submitResult.providerStatusUrl,
+      providerResponseUrl: submitResult.providerResponseUrl,
+    });
+    const statusBaseUrls = resolveProviderStatusBaseUrls({
+      provider: FAL_PROVIDER_KEY,
+      configuredBaseUrls: uniqueProviderUrls([
+        ...providerReturnedStatusBaseUrls,
+        ...configuredStatusBaseUrls,
+      ]),
+      modelId: FAL_FLUX_2_KLEIN_MODEL_ID,
+    });
     const submitMediaUrls = collectMediaUrls(submitResult.data);
     const mediaPayload =
       submitMediaUrls.length > 0

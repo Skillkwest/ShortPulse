@@ -1451,6 +1451,33 @@ describe("ReferenceGrid curated split", () => {
     expect(onRemoveCuratedReference).not.toHaveBeenCalled();
   });
 
+  it("removes the selected reference-grid card with document Backspace for Mac Delete keyboards", () => {
+    const onDeleteOutput = vi.fn();
+    const StatefulReferenceGrid = () => {
+      const [activeOutputId, setActiveOutputId] = React.useState("out-2");
+      return (
+        <ReferenceGrid
+          {...createProps({
+            activeOutputId,
+            curatedReferenceIds: [],
+            onDeleteOutput,
+            onSelectOutput: setActiveOutputId,
+          })}
+        />
+      );
+    };
+    const { container } = render(<StatefulReferenceGrid />);
+    const allRefsSection = container.querySelector(".reference-all-refs-section") as HTMLElement;
+    expect(allRefsSection).toBeTruthy();
+    const referenceGridCard = allRefsSection.querySelector(".reference-card") as HTMLElement;
+    expect(referenceGridCard).toBeTruthy();
+
+    fireEvent.click(referenceGridCard);
+    fireEvent.keyDown(document, { key: "Backspace" });
+
+    expect(onDeleteOutput).toHaveBeenCalledWith("out-1");
+  });
+
   it("ignores document Delete when an active output was not selected from the reference grid", () => {
     const onDeleteOutput = vi.fn();
     const { container } = render(

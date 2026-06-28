@@ -40,9 +40,9 @@ export const resolvePanelSignBudget = () =>
   });
 
 /**
- * Keeps the mixed `All Media` root tab modest so first open does not over-spend signing work.
+ * Keeps dense panel browsing modest so deep-scroll surfaces do not over-spend signing work.
  */
-export const resolvePanelMixedAllMediaSignBudget = (budget: MediaSignBudget): MediaSignBudget => ({
+export const resolvePanelDenseBrowseSignBudget = (budget: MediaSignBudget): MediaSignBudget => ({
   initialSignLimit: Math.max(
     MEDIA_LIBRARY_PANEL_MAX_COLUMNS,
     Math.min(budget.initialSignLimit, MEDIA_LIBRARY_PANEL_MAX_COLUMNS)

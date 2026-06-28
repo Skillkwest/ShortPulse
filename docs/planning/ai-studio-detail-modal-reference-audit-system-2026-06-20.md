@@ -229,6 +229,48 @@ Validation notes:
 - Passed: targeted ESLint for touched detail-modal, media-library, panel, and pricing fixture files.
 - Passed: `npm -C frontend run type-check`
 
+## June 28, 2026 Manual Confirmation Pass
+
+Source of truth: user manual validation in the Codex detail-modal audit thread on June 28, 2026. This section records the checked product behavior so future modal changes can preserve the confirmed contracts. It is manual UI confirmation, not a substitute for focused regression tests.
+
+Confirmed pass scope:
+
+| Area                                    | Confirmed instances                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Reference Grid direct entries           | Text added from computer; generated text; image added from computer; generated image; video added from computer; generated video; audio added from computer; generated audio.                                                                                                                                                                                                                                                                                                                        |
+| Reference Grid from Media Library       | Image saved from Reference Grid into Media Library, then dragged back into Reference Grid; generated image saved into Media Library, then dragged back into Reference Grid; video uploaded directly into Media Library, then dragged into Reference Grid; generated video saved into Media Library, then dragged into Reference Grid; audio uploaded directly into Media Library, then dragged into Reference Grid; generated audio saved into Media Library, then dragged into Reference Grid.      |
+| Media Library direct-open detail modals | Text opened directly in Media Library; image saved from Reference Grid into Media Library, then opened in Media Library; generated image saved into Media Library, then opened in Media Library; video uploaded directly into Media Library, then opened in Media Library; generated video saved into Media Library, then opened in Media Library; audio uploaded directly into Media Library, then opened in Media Library; generated audio saved into Media Library, then opened in Media Library. |
+| Quick Slot Inventory                    | Text added from computer; generated text; image added from computer; generated image; video added from computer; generated video; audio added from computer; generated audio; media dragged from Media Library into Quick Slot Inventory.                                                                                                                                                                                                                                                            |
+| Canvas                                  | Text added from computer; generated text; image added from computer; generated image; video added from computer; generated video; audio added from computer; generated audio; media dragged from Media Library onto Canvas.                                                                                                                                                                                                                                                                          |
+| Character panel media service           | All media types confirmed good for computer-added and generated media.                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| Elements panel media service            | All media types confirmed good for computer-added and generated media.                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| Audio detail metadata                   | All audio detail modals confirmed good with no displayed model information.                                                                                                                                                                                                                                                                                                                                                                                                                          |
+
+Contracts to preserve:
+
+- Audio detail modals must not display raw model information. They may show the media type and an approved workflow label such as `voiceover`, `voice changer`, `music`, or `SFX` where that label is product-facing.
+- Media Library-owned detail modals must not show a redundant disabled `Saved` pill.
+- Generated media saved into Media Library must retain generated detail authority when opened in Media Library or dragged back into Reference Grid. It must not degrade to a storage id, Supabase id, or generic uploaded-file header.
+- Generated image and video headers should preserve product metadata such as media type, aspect ratio, resolution, and product-facing workflow/model labels where defined.
+- Library-to-reference drag paths should preserve the same detail-modal metadata contract as direct generated outputs when the library item has generated authority metadata.
+
+Regression coverage added around this pass:
+
+- `frontend/features/ai-studio/components/__tests__/DetailModal.test.tsx`: generated/library Reference Grid detail metadata and audio header behavior.
+- `frontend/features/ai-studio/components/__tests__/MediaLibraryPanelPreviewModal.test.tsx`: generated Media Library metadata preservation, resolution fallback, loading-state generated detail preservation, no redundant Saved pill, and library-owned generated audio with no model metadata.
+
+## Detail Modal Change Checklist
+
+Use this checklist before merging any future change that touches detail-modal presentation, Media Library generated metadata, Reference Grid hydration, Quick Slot detail behavior, or Canvas detail behavior.
+
+- Confirm which modal profile is being changed: `output-backed-detail`, `library-owned-detail`, `canvas-fallback-detail`, or `unsupported-or-blocked-detail`.
+- Preserve generated authority metadata across Media Library open and Media Library-to-Reference Grid drag paths: `workflowReload`, `generationReplay`, `characterContext`, `styleContext`, aspect, resolution, prompt, and product-facing workflow/model label where defined.
+- Do not let storage paths, UUID-like filenames, Supabase ids, or `library-*` ids become the visible title/header for generated media when generated metadata exists.
+- Do not display raw model metadata in audio detail modals. Only product-facing audio workflow labels such as `voiceover`, `voice changer`, `music`, or `SFX` may appear.
+- Do not add a redundant disabled `Saved` pill to Media Library-owned detail modals.
+- If the change affects generated image/video/audio metadata, run `npm -C frontend run test -- DetailModal MediaLibraryPanelPreviewModal`.
+- If the change affects shared preview media, posters, unavailable states, or Canvas fallback details, also run the focused shared-preview/canvas detail tests named in the validation notes above.
+
 ## Blank Row Template
 
 ```text

@@ -1008,6 +1008,24 @@ describe("DetailModal", () => {
     expect(onSaveReference).toHaveBeenCalledWith("out-1");
   });
 
+  it("routes generated audio saves through the shared detail action", () => {
+    const onSaveReference = vi.fn();
+    const audioOutput = buildGeneratedAudioOutput({ saveState: "idle" });
+
+    render(
+      <DetailModal
+        output={audioOutput}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+        onSaveReference={onSaveReference}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(onSaveReference).toHaveBeenCalledWith("audio-out-1");
+  });
+
   it("disables save proactively when the page knows storage is already full", () => {
     render(
       <DetailModal
@@ -1084,11 +1102,12 @@ describe("DetailModal", () => {
   });
 
   it("preserves generated metadata in the header for generated media loaded from the library", () => {
+    const storageLikeId = "library-6e66fb53-2444-42db-98d9-352083a94e19-0.png";
     const { baseElement } = render(
       <DetailModal
         output={{
           ...baseOutput,
-          id: "library-123",
+          id: storageLikeId,
           aspect: "1:1",
           mediaSource: "generated",
           generationId: "generation-123",
@@ -1119,6 +1138,66 @@ describe("DetailModal", () => {
     expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe(
       "Image/1:1/2K/Custom (the image service/nano-banana-2)"
     );
+    expect(headerPill?.textContent).not.toContain(storageLikeId);
+    expect(screen.queryByRole("heading", { name: storageLikeId })).not.toBeInTheDocument();
+  });
+
+  it("preserves generated video metadata for generated media loaded from the library", () => {
+    const storageLikeId = "library-6e66fb53-2444-42db-98d9-352083a94e19-0.mp4";
+    const { baseElement } = render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          id: storageLikeId,
+          mode: "video",
+          aspect: "16:9",
+          mediaSource: "generated",
+          generationId: "generation-video-123",
+          model: "Kling 3.0",
+          modelId: "kie-ai/kling-3.0",
+          prompt: "A cinematic tracking shot across the clearing.",
+          previewUrl: "https://cdn.test/generated-video.mp4",
+          resultUrls: ["https://cdn.test/generated-video.mp4"],
+          mimeType: "video/mp4",
+          workflowReload: {
+            version: 1,
+            source: "ai_studio_generation",
+            capturedAt: "2026-06-28T12:00:00.000Z",
+            originTool: "video",
+            panelKind: "video",
+            outputMode: "video",
+            restoreBehavior: "navigate_and_hydrate",
+            pulse: null,
+            prompt: { display: "A cinematic tracking shot across the clearing." },
+            model: { id: "kie-ai/kling-3.0" },
+            payload: {
+              kind: "video",
+              aspect: "16:9",
+              videoReferenceMode: "standard",
+              durationSeconds: 6,
+              resolution: "1080p",
+              generateAudio: true,
+              cameraFixed: false,
+              autoFix: true,
+              referenceInputs: ["https://cdn.test/reference-frame.png"],
+            },
+          },
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("heading", { name: "Generated video" })).toBeInTheDocument();
+    const headerText =
+      baseElement.querySelector(".art-modal-meta-pill")?.textContent?.replace(/\s+/g, " ").trim() ??
+      "";
+    expect(headerText).toContain("Video");
+    expect(headerText).toContain("16:9");
+    expect(headerText).toContain("1080p");
+    expect(headerText).not.toContain(storageLikeId);
+    expect(screen.queryByRole("heading", { name: storageLikeId })).not.toBeInTheDocument();
   });
 
   it("strips the edit suffix from GPT Image 2 detail metadata", () => {

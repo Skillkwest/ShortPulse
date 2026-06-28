@@ -3,6 +3,10 @@ import type { Dispatch, SetStateAction } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AiStudioSessionHydrationPayload } from "../../logic/sessionSnapshotHydrator";
 import { createDefaultRightRailLayout } from "../../logic/rightRailLayout";
+import {
+  REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+  REFERENCE_GRID_TARGET_TOTAL_ITEMS,
+} from "../../reference-grid/logic/referenceGridLimits";
 import type { StudioOutput } from "../../types";
 
 const addBreadcrumbMock = vi.hoisted(() => vi.fn());
@@ -948,5 +952,55 @@ describe("useAiStudioSessionSnapshotController", () => {
       })
     );
     expect(snapshot.outputs.removedFromAllRefsIds).toEqual(["archived-1"]);
+  });
+
+  it("moves the 500-item target into project-restorable archived overflow", () => {
+    const targetOutputs = Array.from({ length: REFERENCE_GRID_TARGET_TOTAL_ITEMS }, (_, index) =>
+      createOutput({
+        id: `target-${index + 1}`,
+        previewStoragePath: `user-1/projects/target-${index + 1}.webp`,
+        fullStoragePath: `user-1/projects/target-${index + 1}.webp`,
+        savedMediaIds: [`media-target-${index + 1}`],
+      })
+    );
+
+    const { result } = renderHook(() =>
+      useAiStudioSessionSnapshotController(
+        createControllerParams({
+          outputs: targetOutputs,
+          archivedOutputs: [],
+          curatedReferenceIds: ["target-1", `target-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 1}`],
+          removedFromAllRefsIds: ["target-2", `target-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 2}`],
+        })
+      )
+    );
+
+    const snapshot = result.current.buildProjectWorkspaceSnapshot({
+      sessionId: "project-session-500-target",
+      updatedAt: "2026-06-28T12:01:00.000Z",
+    });
+
+    expect(snapshot.outputs.active).toHaveLength(REFERENCE_GRID_MAX_VISIBLE_ITEMS);
+    expect(snapshot.outputs.archived).toHaveLength(
+      REFERENCE_GRID_TARGET_TOTAL_ITEMS - REFERENCE_GRID_MAX_VISIBLE_ITEMS
+    );
+    expect(snapshot.outputs.active[0]?.id).toBe("target-1");
+    expect(snapshot.outputs.active.at(-1)?.id).toBe(`target-${REFERENCE_GRID_MAX_VISIBLE_ITEMS}`);
+    expect(snapshot.outputs.archived[0]).toEqual(
+      expect.objectContaining({
+        id: `target-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 1}`,
+        savedMediaIds: [`media-target-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 1}`],
+        archivedAt: "2026-06-28T12:01:00.000Z",
+        archiveReason: "cleanup",
+      })
+    );
+    expect(snapshot.outputs.archived.at(-1)?.id).toBe(
+      `target-${REFERENCE_GRID_TARGET_TOTAL_ITEMS}`
+    );
+    expect(snapshot.outputs.curatedReferenceIds).toEqual(["target-1"]);
+    expect(snapshot.outputs.removedFromAllRefsIds).toEqual([
+      "target-2",
+      `target-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 2}`,
+    ]);
   });
 });

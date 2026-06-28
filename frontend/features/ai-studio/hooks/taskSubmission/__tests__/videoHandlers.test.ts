@@ -2107,6 +2107,95 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     );
   });
 
+  it("re-admits compatible temp-hosted Kling image references before submit", async () => {
+    const startTempUrl =
+      "https://tempfile.redpandaai.co/shortpulse/kie-video/images/oversized-start.png";
+    const elementFrontTempUrl =
+      "https://tempfile.redpandaai.co/shortpulse/kie-video/images/oversized-front.png";
+    const elementSideTempUrl =
+      "https://tempfile.redpandaai.co/shortpulse/kie-video/images/oversized-side.jpg";
+    const admittedStartUrl =
+      "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/admitted-start.jpg";
+    const admittedFrontUrl =
+      "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/admitted-front.jpg";
+    const admittedSideUrl =
+      "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/admitted-side.jpg";
+    mockKieUploadRouteForFileUrls({
+      [startTempUrl]: admittedStartUrl,
+      [elementFrontTempUrl]: admittedFrontUrl,
+      [elementSideTempUrl]: admittedSideUrl,
+    });
+    const args = makeArgs({
+      finalModel: KIE_KLING_30_MODEL_ID,
+      modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
+      videoReferenceMode: "standard",
+      preparedImageInputs: [startTempUrl],
+      rawImageInputs: [startTempUrl],
+      klingElements: [
+        {
+          id: "element-1",
+          slotIndex: 0,
+          name: "Oversized element",
+          alias: "oversized",
+          frontalImageUrl: elementFrontTempUrl,
+          referenceImageUrls: elementSideTempUrl,
+          videoUrl: "",
+        },
+      ],
+      requestedAudio: false,
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(fetchWithAuth).toHaveBeenCalledWith(
+      "/api/kie/upload-url",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          fileUrl: elementFrontTempUrl,
+          uploadPath: "shortpulse/kie-video/images",
+          admissionProfile: "kie_kling_reference_image",
+        }),
+      })
+    );
+    expect(fetchWithAuth).toHaveBeenCalledWith(
+      "/api/kie/upload-url",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          fileUrl: elementSideTempUrl,
+          uploadPath: "shortpulse/kie-video/images",
+          admissionProfile: "kie_kling_reference_image",
+        }),
+      })
+    );
+    expect(fetchWithAuth).toHaveBeenCalledWith(
+      "/api/kie/upload-url",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          fileUrl: startTempUrl,
+          uploadPath: "shortpulse/kie-video/images",
+          admissionProfile: "kie_kling_reference_image",
+        }),
+      })
+    );
+    expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        image_url: admittedStartUrl,
+        image_urls: [admittedStartUrl],
+        kling_elements: [
+          {
+            name: "element1",
+            description: "Reference images for Oversized element",
+            element_input_urls: [admittedFrontUrl, admittedSideUrl],
+          },
+        ],
+      })
+    );
+  });
+
   it("allows a character-scoped first frame when Kling standard also has a linked element", async () => {
     const characterFirstFrameUrl =
       "https://example.supabase.co/storage/v1/object/sign/media_library/user/characters/char-a/first.png?token=abc";
@@ -2984,7 +3073,18 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     const handled = await handleVideoModelSubmission(args);
 
     expect(handled).toBe(true);
-    expect(fetchWithAuth).toHaveBeenCalledTimes(4);
+    expect(fetchWithAuth).toHaveBeenCalledTimes(5);
+    expect(fetchWithAuth).toHaveBeenCalledWith(
+      "/api/kie/upload-url",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          fileUrl: "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/start.png",
+          uploadPath: "shortpulse/kie-video/images",
+          admissionProfile: "kie_kling_reference_image",
+        }),
+      })
+    );
     expect(fetchWithAuth).not.toHaveBeenCalledWith(
       "/api/kie/upload-url",
       expect.objectContaining({

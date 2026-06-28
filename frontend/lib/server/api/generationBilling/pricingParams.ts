@@ -1,7 +1,12 @@
 import { getModelConfig } from "../../../model-runtime/pricing";
 import type { PricingParams } from "../../../model-runtime/pricingTypes";
 import { getModelCatalogEntry } from "../../../model-runtime/modelCatalog";
+import {
+  isKieKling30MotionControlProviderModel,
+  KIE_KLING_30_MOTION_CONTROL_VARIANT_ID,
+} from "../../../model-runtime/klingMotionControlPricing";
 import { normalizeDurationForModel as normalizeSharedDurationForModel } from "../../../model-runtime/modelDurationConstraints";
+import { KIE_KLING_30_MODEL_ID } from "../../../model-runtime/providerModelIds";
 import {
   FAL_FLUX_2_KLEIN_9B_MODEL_ID,
   FAL_FLUX_2_KLEIN_AUDIO_COMPANION_ART_VARIANT_BASE_ID,
@@ -287,6 +292,19 @@ const resolveFlux2KleinSourceVariantBaseId = (
   }
 };
 
+const isKlingMotionControlPayload = (modelId: string, payload: JsonObject): boolean => {
+  if (modelId !== KIE_KLING_30_MODEL_ID) return false;
+  if (isKieKling30MotionControlProviderModel(asString(payload.model))) return true;
+
+  const backgroundSource = asString(payload.background_source)?.trim().toLowerCase();
+  const characterOrientation = asString(payload.character_orientation)?.trim().toLowerCase();
+  if (backgroundSource === "input_video" && characterOrientation === "image") return true;
+
+  return Array.isArray(payload.video_urls)
+    ? payload.video_urls.some((entry) => typeof entry === "string" && entry.trim().length > 0)
+    : Boolean(asString(payload.video_url));
+};
+
 export const summarizePayload = (payload: JsonObject): JsonObject => {
   const keys = [
     "aspect",
@@ -335,6 +353,9 @@ export const buildPricingParams = (
   );
   if (sourceVariantBaseId) {
     params.variantBaseId = sourceVariantBaseId;
+  }
+  if (isKlingMotionControlPayload(modelId, payload)) {
+    params.variantBaseId = KIE_KLING_30_MOTION_CONTROL_VARIANT_ID;
   }
 
   const imageDimensions =

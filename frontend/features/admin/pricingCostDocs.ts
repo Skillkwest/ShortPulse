@@ -4,6 +4,10 @@ import type {
   AdminPricingPreviewVariant,
 } from "./types";
 import { buildDefaultPricingParams, computeCostForModel } from "../../lib/model-runtime/pricing";
+import {
+  isKieKling30MotionControlPricingVariant,
+  KIE_KLING_30_MOTION_CONTROL_VARIANT_ID,
+} from "../../lib/model-runtime/klingMotionControlPricing";
 import { buildModelUsagePricingOverrides, shouldShowAudioSpecControl } from "./pricingDrafts";
 import {
   buildModelPricingVariantId,
@@ -48,7 +52,10 @@ export const getCostDocsPosition = (clientX: number, clientY: number): { x: numb
   };
 };
 
-const getProviderPricingDocLines = (model: AdminPricingModelRow): string[] => {
+const getProviderPricingDocLines = (
+  model: AdminPricingModelRow,
+  variant?: AdminPricingPreviewVariant | null
+): string[] => {
   switch (model.pricingStrategy) {
     case "fal-per-mp":
       return [
@@ -103,6 +110,13 @@ const getProviderPricingDocLines = (model: AdminPricingModelRow): string[] => {
         "Workbook formula: one provider charge per completed output image.",
       ];
     case "kling-3-per-second":
+      if (variant?.id.startsWith(`${KIE_KLING_30_MOTION_CONTROL_VARIANT_ID}|`)) {
+        return [
+          "Provider cost basis used here: Kie credits convert at $0.005 per credit.",
+          "Kling 3.0 Motion Control uses the dedicated Kie motion-control mode with 720p or 1080p output.",
+          "Motion Control pricing follows the selected resolution and audio setting; it does not use standard-video aspect rows.",
+        ];
+      }
       return [
         "Provider cost basis used here: Kie credits convert at $0.005 per credit.",
         "Kling 3.0 standard mode: 14 credits/sec without audio, 21 credits/sec with audio.",
@@ -174,7 +188,7 @@ export const getProviderPricingDocs = (
 ): Omit<CostDocsPopover, "x" | "y"> => ({
   title: `${model.label}${variant && variant.id !== "default" ? ` ${variant.label}` : ""}`,
   sourceUrl: model.sourceUrl,
-  lines: getProviderPricingDocLines(model),
+  lines: getProviderPricingDocLines(model, variant),
 });
 
 const mapDraftPricingBreakdown = (
@@ -210,8 +224,10 @@ const orderWithDefaultFirst = <T extends string | boolean | null>(
 
 const buildAspectOptions = (
   model: AdminPricingModelRow,
+  variantBaseId: string | null,
   options: { aspect?: string | null }
-): string[] => {
+): Array<string | null> => {
+  if (isKieKling30MotionControlPricingVariant(variantBaseId)) return [null];
   const allowedAspects = model.allowedAspects ?? [];
   if (!shouldExpandAspectPricingVariants(model.pricingStrategy)) return [model.defaultAspect];
   if (options.aspect) return [options.aspect];
@@ -324,7 +340,6 @@ export const buildDraftPricingPreviewVariants = (
     : serverVariants.length
       ? serverVariants
       : [{ id: "default", label: "Default", breakdown: null }];
-  const aspectOptions = buildAspectOptions(model, { aspect: options.aspect });
   const resolutionOptions = buildResolutionOptions(model, { resolution: options.resolution });
   const audioOptions = buildAudioOptions(model, { audio: options.audio });
   const videoInputOptions = buildVideoInputOptions(model, { videoInput: options.videoInput });
@@ -332,7 +347,7 @@ export const buildDraftPricingPreviewVariants = (
   const draftVariants = variants
     .flatMap((variant) =>
       resolutionOptions.flatMap((resolution) =>
-        aspectOptions.flatMap((aspect) =>
+        buildAspectOptions(model, variant.id, { aspect: options.aspect }).flatMap((aspect) =>
           videoInputOptions.flatMap((videoInput) =>
             audioOptions.map((audio): AdminPricingPreviewVariant | null => {
               const usageOverrides = buildModelUsagePricingOverrides(

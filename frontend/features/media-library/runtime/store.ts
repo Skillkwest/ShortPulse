@@ -54,6 +54,7 @@ const createEmptySelectionState = (): MediaLibrarySelectionState => ({
 
 const createEmptyAggregateScopeCacheState = (): MediaLibraryAggregateScopeCacheState => ({
   nextCursor: null,
+  pagesLoaded: 0,
   hasMore: false,
   loading: false,
   loaded: false,
@@ -209,6 +210,7 @@ const areAggregateScopeCacheStatesEqual = (
 ): boolean =>
   left.nextCursor?.createdAt === right.nextCursor?.createdAt &&
   left.nextCursor?.id === right.nextCursor?.id &&
+  left.pagesLoaded === right.pagesLoaded &&
   left.hasMore === right.hasMore &&
   left.loading === right.loading &&
   left.loaded === right.loaded &&

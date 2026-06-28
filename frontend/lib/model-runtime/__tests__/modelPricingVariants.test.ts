@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { KIE_KLING_30_MOTION_CONTROL_VARIANT_ID } from "../klingMotionControlPricing";
+import { KIE_KLING_30_MODEL_ID } from "../providerModelIds";
 import { buildModelPricingVariantId, resolveModelPricingVariantId } from "../modelPricingVariants";
 
 describe("modelPricingVariants", () => {
@@ -27,5 +29,17 @@ describe("modelPricingVariants", () => {
         maskPresent: false,
       })
     ).toBe("edit|res:2K|aspect:16:9");
+  });
+
+  it("omits standard aspect dimensions for Kling Motion Control pricing rows", () => {
+    expect(
+      resolveModelPricingVariantId({
+        modelId: KIE_KLING_30_MODEL_ID,
+        variantBaseId: KIE_KLING_30_MOTION_CONTROL_VARIANT_ID,
+        aspect: "16:9",
+        resolution: "720p",
+        audio: true,
+      })
+    ).toBe("motion_control|res:720p|audio:on");
   });
 });

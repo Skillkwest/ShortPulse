@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { buildPricingParams } from "../../server/api/generationBilling/pricingParams";
 import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../falModelIds";
+import { KIE_KLING_30_MOTION_CONTROL_VARIANT_ID } from "../klingMotionControlPricing";
 import { KIE_KLING_30_MODEL_ID, KIE_SEEDANCE_2_FAST_MODEL_ID } from "../providerModelIds";
 import { resolvePricingGridCostBreakdown } from "../pricingGridBilledCredits";
 import {
@@ -95,8 +96,9 @@ describe("videoBilledCredits", () => {
     });
   });
 
-  it("keeps Kling Motion Control server mode lookup on the same billed row as client resolution", () => {
+  it("keeps Kling Motion Control client and server lookup on the dedicated billed row", () => {
     const clientParams = {
+      variantBaseId: KIE_KLING_30_MOTION_CONTROL_VARIANT_ID,
       durationSeconds: 10,
       resolution: "720p",
       audio: true,
@@ -123,7 +125,7 @@ describe("videoBilledCredits", () => {
     });
 
     expect(clientLookup.breakdown?.variantId).toBe(serverLookup.breakdown?.variantId);
-    expect(serverLookup.breakdown?.variantId).toBe("default|res:720p|aspect:16:9|audio:on");
+    expect(serverLookup.breakdown?.variantId).toBe("motion_control|res:720p|audio:on");
     expect(clientLookup.breakdown?.credits).toBe(31);
     expect(serverLookup.breakdown?.credits).toBe(31);
   });

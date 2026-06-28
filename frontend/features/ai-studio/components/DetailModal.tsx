@@ -776,6 +776,7 @@ function DetailModalContent({
   );
   const displayModelLabel = useMemo(() => {
     if (isUploadedReference) return null;
+    if (isAudioOutput) return null;
     if (isLipSyncDetailOutput(output)) return LIP_SYNC_DETAIL_MODEL_LABEL;
     const resolvedLabel = resolveCustomerFacingModelLabel({
       model: output?.model,
@@ -786,7 +787,7 @@ function DetailModalContent({
     return shouldStripDetailModelEditLabel(output, resolvedLabel)
       ? stripEditLabel(resolvedLabel)
       : resolvedLabel;
-  }, [isUploadedReference, output]);
+  }, [isAudioOutput, isUploadedReference, output]);
   const displayImageResolutionLabel = useMemo(() => {
     if (isUploadedReference || output?.mode !== "image") return null;
     const workflowPayload = output.workflowReload?.payload;
@@ -817,8 +818,8 @@ function DetailModalContent({
         ? [mediaType, "voice changer", displayAspect]
         : [mediaType, "voice changer"];
     }
-    if (isGeneratedPureAudioOutput && normalizedAudioWorkflowLabel) {
-      return [mediaType, normalizedAudioWorkflowLabel];
+    if (isAudioOutput) {
+      return normalizedAudioWorkflowLabel ? [mediaType, normalizedAudioWorkflowLabel] : [mediaType];
     }
     if (isGeneratedVoiceChangerVideoOutput && normalizedAudioWorkflowLabel) {
       return displayAspect
@@ -850,9 +851,9 @@ function DetailModalContent({
     displayAspect,
     isErrorDetail,
     isActiveVoiceChangerSourceVideo,
-    isGeneratedPureAudioOutput,
     isGeneratedVoiceChangerVideoOutput,
     isNonGeneratedLoadedMedia,
+    isAudioOutput,
     isPromptOnly,
     isUploadedReference,
     mediaType,

@@ -992,6 +992,26 @@ export const useAiStudioPageMediaReferenceRuntime = ({
     [hydrateCanvasSessionState]
   );
 
+  const removeCanvasItemById = useCallback(
+    (itemId: string): boolean => {
+      const normalizedItemId = itemId.trim();
+      if (!normalizedItemId) return false;
+      const currentState = canvasSessionStateRef.current;
+      const nextItems = currentState.items.filter((item) => item.id !== normalizedItemId);
+      if (nextItems.length === currentState.items.length) return false;
+      hydrateCanvasSessionState({
+        ...currentState,
+        items: nextItems,
+        textEditSession:
+          currentState.textEditSession?.itemId === normalizedItemId
+            ? null
+            : currentState.textEditSession,
+      });
+      return true;
+    },
+    [hydrateCanvasSessionState]
+  );
+
   const applyCanvasOutputRetryResolution = useCallback(
     ({
       itemId,
@@ -1928,6 +1948,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
     handleQuickSlotLibraryPromptDrop,
     flushCanvasSessionState,
     hydrateCanvasSessionState,
+    removeCanvasItemById,
     removeCanvasItemsForOutput,
     railCanvasProps: stableRailCanvasProps,
     resolveVoiceChangerInternalReferenceSource,

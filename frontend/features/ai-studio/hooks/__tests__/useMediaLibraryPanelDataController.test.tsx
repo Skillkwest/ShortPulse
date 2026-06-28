@@ -43,6 +43,7 @@ vi.mock("../../../media-library/runtime", async () => {
       const [promptRows, setPromptRows] = ReactModule.useState<unknown[]>([]);
       const [mediaScopeCache, setMediaScopeCache] = ReactModule.useState({
         nextCursor: null,
+        pagesLoaded: 0,
         hasMore: false,
         loading: false,
         loaded: false,
@@ -53,6 +54,7 @@ vi.mock("../../../media-library/runtime", async () => {
       });
       const [promptScopeCache, setPromptScopeCache] = ReactModule.useState({
         nextCursor: null,
+        pagesLoaded: 0,
         hasMore: false,
         loading: false,
         loaded: false,
@@ -160,6 +162,59 @@ describe("useMediaLibraryPanelDataController", () => {
         surface: "media-library-panel",
       })
     );
+  });
+
+  it("tracks loaded media page depth across appended pages", async () => {
+    fetchMediaListPageMock
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "media-1",
+            storage_path: "user-1/uploads/images/media-1.png",
+            file_type: "image/png",
+            filename: "media-1.png",
+          },
+        ],
+        nextCursor: { createdAt: "2026-03-02T00:00:00.000Z", id: "media-1" },
+        hasMore: true,
+        signedById: new Map(),
+        libraryTotalCount: null,
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "media-2",
+            storage_path: "user-1/uploads/images/media-2.png",
+            file_type: "image/png",
+            filename: "media-2.png",
+          },
+        ],
+        nextCursor: null,
+        hasMore: false,
+        signedById: new Map(),
+        libraryTotalCount: 2,
+      });
+
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelDataController({
+        activeFolderId: "all_items",
+        itemType: "all",
+        normalizedSearch: "",
+        shouldShowMedia: true,
+        shouldShowPrompts: false,
+        panelBodyRef: { current: null },
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.mediaPagesLoaded).toBe(1);
+    });
+
+    await act(async () => {
+      await result.current.loadMediaPage({ reset: false });
+    });
+
+    expect(result.current.mediaPagesLoaded).toBe(2);
   });
 
   it("normalizes transient pending folder ids back to the root folder for data loads", async () => {

@@ -4,11 +4,13 @@
  */
 import { type CSSProperties, useState } from "react";
 import Link from "next/link";
+import { Check, CopySimple } from "phosphor-react";
 import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import {
   ADMIN_DASHBOARD_ADJUSTMENT_PRESETS,
   ADMIN_DASHBOARD_CREDIT_LEDGER_LIMIT,
 } from "../logic/useAdminUsersCreditsController";
+import { copyToClipboard } from "../logic/copyToClipboard";
 import { formatStorageBytes } from "../../billing/storage";
 import type {
   AdminBillingDiagnosticsResponse,
@@ -195,6 +197,8 @@ export function AdminSupportQueueSection({
   const [ledgerUserId, setLedgerUserId] = useState<string | null>(null);
   const [pendingDeleteUser, setPendingDeleteUser] = useState<AdminUserRow | null>(null);
   const [deleteConfirmationValue, setDeleteConfirmationValue] = useState("");
+  const [copiedEmailUserId, setCopiedEmailUserId] = useState<string | null>(null);
+  const [copyFailedEmailUserId, setCopyFailedEmailUserId] = useState<string | null>(null);
   const [paymentExemptDraft, setPaymentExemptDraft] = useState<{
     userId: string;
     value: boolean;
@@ -451,6 +455,19 @@ export function AdminSupportQueueSection({
         value: previousValue,
       });
     }
+  };
+
+  const handleCopyUserEmail = async (row: AdminUserRow) => {
+    if (!row.email) return;
+
+    const copied = await copyToClipboard(row.email);
+    setCopiedEmailUserId(copied ? row.id : null);
+    setCopyFailedEmailUserId(copied ? null : row.id);
+
+    window.setTimeout(() => {
+      setCopiedEmailUserId((current) => (current === row.id ? null : current));
+      setCopyFailedEmailUserId((current) => (current === row.id ? null : current));
+    }, 1600);
   };
 
   const openDeleteModal = (user: AdminUserRow) => {
@@ -1069,13 +1086,37 @@ export function AdminSupportQueueSection({
                     >
                       <button
                         type="button"
-                        className={styles.adminSupportQueueRowButton}
+                        className={styles.adminSupportQueueSelectButton}
                         onClick={() => setSelectedUserId(row.id)}
                         aria-label={`Select ${rowLabel}`}
                         aria-pressed={selectedUserId === row.id}
-                      >
+                      />
+                      <div className={styles.adminSupportQueueRowContent}>
                         <span className={styles.adminSupportQueueCell} data-label="User">
-                          <span>{rowLabel}</span>
+                          <span className={styles.adminSupportQueueEmail}>
+                            <span className={styles.adminSupportQueueEmailText}>{rowLabel}</span>
+                            {row.email ? (
+                              <button
+                                type="button"
+                                className={styles.adminSupportQueueCopyButton}
+                                onClick={() => void handleCopyUserEmail(row)}
+                                aria-label={`Copy ${row.email} to clipboard`}
+                                title={
+                                  copiedEmailUserId === row.id
+                                    ? "Copied"
+                                    : copyFailedEmailUserId === row.id
+                                      ? "Copy failed"
+                                      : "Copy email"
+                                }
+                              >
+                                {copiedEmailUserId === row.id ? (
+                                  <Check size={14} weight="bold" aria-hidden="true" />
+                                ) : (
+                                  <CopySimple size={14} weight="bold" aria-hidden="true" />
+                                )}
+                              </button>
+                            ) : null}
+                          </span>
                         </span>
                         <span className={styles.adminSupportQueueCell} data-label="Flags">
                           {queueSignals.length > 0 ? (
@@ -1108,7 +1149,7 @@ export function AdminSupportQueueSection({
                             </span>
                           ) : null}
                         </span>
-                      </button>
+                      </div>
                       <div className={styles.adminSupportQueueActions}>
                         {!isCurrentAdmin ? (
                           <button

@@ -74,6 +74,7 @@ const createBaseRuntime = (
     onReferenceOutputMediaLoaded: vi.fn(),
     projectId: "project-1",
     railCanvasProps: undefined,
+    removeCanvasItemById: vi.fn(),
     referenceGridReadyOutputIds: new Set<string>(),
     referenceImageUrl: null,
     removedFromAllRefsIds: [],
@@ -172,12 +173,13 @@ describe("useAiStudioReferenceExperienceRuntime", () => {
     expect(mediaActions?.getOutputForCanvasItem(item)).toBe(output);
 
     mediaActions?.onSelectOutput?.("video-out-1");
-    mediaActions?.onDeleteOutput?.("video-out-1");
+    mediaActions?.onRemoveCanvasItem?.("canvas-image-1");
     mediaActions?.onRerollOutput?.(output);
     mediaActions?.onReloadWorkflowOutput?.(output, { mediaKindHint: "video" });
 
     expect(handleSelectOutput).toHaveBeenCalledWith("video-out-1");
-    expect(deleteOutput).toHaveBeenCalledWith("video-out-1");
+    expect(base.removeCanvasItemById).toHaveBeenCalledWith("canvas-image-1");
+    expect(deleteOutput).not.toHaveBeenCalled();
     expect(rerollOutputFromReplay).toHaveBeenCalledWith("video-out-1");
     expect(reloadWorkflowFromStudioOutput).toHaveBeenCalledWith(output, {
       mediaKindHint: "video",

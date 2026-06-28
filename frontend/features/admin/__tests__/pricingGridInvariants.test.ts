@@ -9,7 +9,14 @@ import { getModelRateSourceInputMode, getRateSourceCostUsd } from "../pricingWor
 import { getModelUsageRateMultiplier } from "../pricingDrafts";
 import type { AdminPricingModelRow } from "../types";
 import { getDefaultModelPricingPolicyDocument } from "../../../lib/model-runtime/pricingPolicy";
-import { KIE_SEEDANCE_2_MODEL_ID } from "../../../lib/model-runtime/providerModelIds";
+import {
+  KIE_KLING_30_MOTION_CONTROL_LABEL,
+  KIE_KLING_30_MOTION_CONTROL_VARIANT_ID,
+} from "../../../lib/model-runtime/klingMotionControlPricing";
+import {
+  KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
+} from "../../../lib/model-runtime/providerModelIds";
 
 const buildModelRow = (overrides: Partial<AdminPricingModelRow>): AdminPricingModelRow =>
   ({
@@ -54,6 +61,69 @@ const buildModelRow = (overrides: Partial<AdminPricingModelRow>): AdminPricingMo
   }) as AdminPricingModelRow;
 
 describe("pricing grid invariants", () => {
+  it("adds Kling 3.0 Motion Control as a dedicated resolution and audio row family", () => {
+    const pricingPolicy = {
+      ...getDefaultModelPricingPolicyDocument(),
+      global: {
+        ...getDefaultModelPricingPolicyDocument().global,
+        creditUsdScale: 30,
+      },
+    };
+    const model = buildModelRow({
+      id: KIE_KLING_30_MODEL_ID,
+      label: "Kling 3.0",
+      provider: "kie",
+      sourceUrl: "https://docs.kie.ai/market/kling/kling-3-0",
+      workflowType: "Image to video",
+      pricingStrategy: "kling-3-per-second",
+      pricingStrategyLabel: "Per output second",
+      defaultAspect: "16:9",
+      allowedAspects: ["16:9", "9:16", "1:1"],
+      defaultResolution: "1080p",
+      allowedResolutions: ["720p", "1080p"],
+      defaultDurationSeconds: 10,
+      minDurationSeconds: 3,
+      maxDurationSeconds: 15,
+      defaultAudio: true,
+      pricingPreviewVariants: [
+        {
+          id: "default",
+          label: "Standard",
+          breakdown: {
+            usdRaw: 1.35,
+            rawCredits: 41,
+            billedCredits: 41,
+            billedUsd: 1.3666666666666667,
+          },
+        },
+        {
+          id: KIE_KLING_30_MOTION_CONTROL_VARIANT_ID,
+          label: KIE_KLING_30_MOTION_CONTROL_LABEL,
+          breakdown: {
+            usdRaw: 1.35,
+            rawCredits: 41,
+            billedCredits: 41,
+            billedUsd: 1.3666666666666667,
+          },
+        },
+      ],
+    });
+
+    const rows = buildDraftPricingPreviewVariants(model, pricingPolicy);
+    const motionRows = rows.filter((row) =>
+      row.id.startsWith(`${KIE_KLING_30_MOTION_CONTROL_VARIANT_ID}|`)
+    );
+
+    expect(motionRows.map((row) => row.id)).toEqual([
+      "motion_control|res:1080p|audio:on",
+      "motion_control|res:1080p|audio:off",
+      "motion_control|res:720p|audio:on",
+      "motion_control|res:720p|audio:off",
+    ]);
+    expect(motionRows.every((row) => row.label === KIE_KLING_30_MOTION_CONTROL_LABEL)).toBe(true);
+    expect(motionRows.every((row) => row.aspect == null)).toBe(true);
+  });
+
   it("keeps Seedance duration as a usage input instead of expanding duration variants", () => {
     const pricingPolicy = {
       ...getDefaultModelPricingPolicyDocument(),

@@ -2,11 +2,7 @@
  * Encapsulates text editing, selection deletion, and pin actions for a Canvas viewport.
  */
 import { useCallback, type ClipboardEvent, type KeyboardEvent, type MouseEvent } from "react";
-import {
-  deleteCanvasSceneItemById,
-  selectCanvasSceneItem,
-  type CanvasSharedSceneState,
-} from "./canvasSceneState";
+import { selectCanvasSceneItem, type CanvasSharedSceneState } from "./canvasSceneState";
 import type { CanvasSceneItem } from "./canvasTypes";
 
 type UseCanvasViewportTextHandlersParams = {
@@ -131,17 +127,9 @@ export const useCanvasViewportTextHandlers = ({
     [clearDraftTextEntry, items, setItems, setTextEditSession]
   );
 
-  const onItemContextMenu = useCallback(
-    (id: string, event: MouseEvent<HTMLElement>) => {
-      event.preventDefault();
-      event.stopPropagation();
-      setItems((currentItems) => deleteCanvasSceneItemById(currentItems, id));
-      setTextEditSession((currentSession) =>
-        currentSession?.itemId === id ? null : currentSession
-      );
-    },
-    [setItems, setTextEditSession]
-  );
+  const onItemContextMenu = useCallback((_id: string, event: MouseEvent<HTMLElement>) => {
+    event.stopPropagation();
+  }, []);
 
   const onTextItemEditChange = useCallback(
     (value: string) => {

@@ -1434,6 +1434,10 @@
   gap: var(--admin-support-col-gap);
 }
 
+.adminSupportQueueRow {
+  position: relative;
+}
+
 .adminTableRow {
   padding: 10px 8px;
   border-radius: 10px;
@@ -1488,7 +1492,27 @@
   color: var(--admin-text-faint);
 }
 
-.adminSupportQueueRowButton {
+.adminSupportQueueSelectButton {
+  grid-column: 1 / 5;
+  grid-row: 1;
+  align-self: stretch;
+  width: 100%;
+  min-height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  appearance: none;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.adminSupportQueueSelectButton:focus-visible {
+  outline: 2px solid var(--admin-accent);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+.adminSupportQueueRowContent {
   display: grid;
   grid-template-columns:
     var(--admin-support-user-col)
@@ -1496,20 +1520,19 @@
     var(--admin-support-spendable-col)
     var(--admin-support-billing-col);
   grid-column: 1 / 5;
+  grid-row: 1;
   align-items: center;
   gap: var(--admin-support-col-gap);
   width: 100%;
   padding: 0;
-  border: 0;
-  background: transparent;
   text-align: left;
   font: inherit;
   color: inherit;
-  appearance: none;
-  cursor: pointer;
+  pointer-events: none;
+  z-index: 2;
 }
 
-.adminSupportQueueRowButton:hover {
+.adminSupportQueueSelectButton:hover + .adminSupportQueueRowContent {
   transform: translateY(-1px);
 }
 
@@ -1521,6 +1544,51 @@
   min-width: 0;
 }
 
+.adminSupportQueueEmail {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.adminSupportQueueEmailText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adminSupportQueueCopyButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 26px;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--admin-border-soft);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--admin-text-muted);
+  appearance: none;
+  cursor: pointer;
+  pointer-events: auto;
+  transition:
+    transform 0.12s ease,
+    border-color 0.12s ease,
+    color 0.12s ease,
+    background 0.12s ease;
+}
+
+.adminSupportQueueCopyButton:hover,
+.adminSupportQueueCopyButton:focus-visible {
+  transform: translateY(-1px);
+  border-color: var(--admin-border);
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--admin-text);
+}
+
 .adminSupportQueueActions {
   display: flex;
   justify-content: flex-end;
@@ -1528,6 +1596,8 @@
   gap: 8px;
   flex-wrap: wrap;
   min-width: max-content;
+  position: relative;
+  z-index: 2;
 }
 
 .adminSupportQueueSignalList {
@@ -4917,9 +4987,13 @@
     grid-template-columns: 1fr;
   }
 
-  .adminSupportQueueRowButton {
+  .adminSupportQueueSelectButton,
+  .adminSupportQueueRowContent {
+    grid-column: 1;
+  }
+
+  .adminSupportQueueRowContent {
     grid-template-columns: 1fr;
-    grid-column: auto;
     gap: 6px;
   }
 

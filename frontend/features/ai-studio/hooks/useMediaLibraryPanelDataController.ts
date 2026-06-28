@@ -59,6 +59,7 @@ type UseMediaLibraryPanelDataControllerResult = {
   promptHasMore: boolean;
   mediaLoading: boolean;
   promptLoading: boolean;
+  mediaPagesLoaded: number;
   mediaScopeResolved: boolean;
   promptScopeResolved: boolean;
   loadMediaPage: (options: LoadPanelPageOptions) => Promise<void>;
@@ -183,6 +184,7 @@ export const useMediaLibraryPanelDataController = ({
   const promptHasMore = promptScopeCache.hasMore;
   const mediaLoading = mediaScopeCache.loading;
   const promptLoading = promptScopeCache.loading;
+  const mediaPagesLoaded = mediaScopeCache.pagesLoaded;
   const mediaScopeResolved =
     !shouldShowMedia || mediaScopeCache.resolvedScopeKey === activeRowsScopeKey;
   const promptScopeResolved =
@@ -338,6 +340,7 @@ export const useMediaLibraryPanelDataController = ({
       commitMediaScopeCache((prev) => ({
         ...prev,
         nextCursor: reset ? null : prev.nextCursor,
+        pagesLoaded: reset && !shouldPreserveRowsDuringRefresh ? 0 : prev.pagesLoaded,
         hasMore: prev.hasMore,
         loading: true,
         error: null,
@@ -378,6 +381,11 @@ export const useMediaLibraryPanelDataController = ({
         commitMediaScopeCache((prev) => ({
           ...prev,
           nextCursor: result.nextCursor,
+          pagesLoaded: reset
+            ? result.rows.length > 0
+              ? 1
+              : 0
+            : prev.pagesLoaded + (result.rows.length > 0 ? 1 : 0),
           hasMore: result.hasMore,
           loading: false,
           loaded: true,
@@ -449,6 +457,7 @@ export const useMediaLibraryPanelDataController = ({
       commitPromptScopeCache((prev) => ({
         ...prev,
         nextCursor: reset ? null : prev.nextCursor,
+        pagesLoaded: reset && !shouldPreserveRowsDuringRefresh ? 0 : prev.pagesLoaded,
         hasMore: prev.hasMore,
         loading: true,
         error: null,
@@ -480,6 +489,11 @@ export const useMediaLibraryPanelDataController = ({
         commitPromptScopeCache((prev) => ({
           ...prev,
           nextCursor: result.nextCursor,
+          pagesLoaded: reset
+            ? normalizedRows.length > 0
+              ? 1
+              : 0
+            : prev.pagesLoaded + (normalizedRows.length > 0 ? 1 : 0),
           hasMore: result.hasMore,
           loading: false,
           loaded: true,
@@ -513,6 +527,7 @@ export const useMediaLibraryPanelDataController = ({
       commitMediaScopeCache((prev) => ({
         ...prev,
         nextCursor: null,
+        pagesLoaded: 0,
         hasMore: false,
         loading: false,
         loaded: false,
@@ -528,6 +543,7 @@ export const useMediaLibraryPanelDataController = ({
       commitPromptScopeCache((prev) => ({
         ...prev,
         nextCursor: null,
+        pagesLoaded: 0,
         hasMore: false,
         loading: false,
         loaded: false,
@@ -864,6 +880,7 @@ export const useMediaLibraryPanelDataController = ({
     promptHasMore,
     mediaLoading,
     promptLoading,
+    mediaPagesLoaded,
     mediaScopeResolved,
     promptScopeResolved,
     loadMediaPage,

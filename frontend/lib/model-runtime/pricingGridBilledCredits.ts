@@ -1,5 +1,6 @@
 import { getModelConfig } from "./modelRegistry";
 import { computeCostForModel } from "./pricing";
+import { isKieKling30MotionControlPricingVariant } from "./klingMotionControlPricing";
 import { resolveModelPricingForModel, type ModelPricingPolicyDocument } from "./pricingPolicy";
 import { resolveModelPricingVariantId } from "./modelPricingVariants";
 import type { CostBreakdown, PricingParams } from "./pricingTypes";
@@ -60,7 +61,10 @@ const normalizePricingGridParams = (
     }
   } else {
     delete normalizedParams.aspect;
-    if (config.defaultAspect) {
+    if (
+      config.defaultAspect &&
+      !isKieKling30MotionControlPricingVariant(normalizedParams.variantBaseId)
+    ) {
       normalizedParams.aspect = config.defaultAspect;
     }
   }

@@ -1818,6 +1818,88 @@ describe("MediaLibraryPanel", () => {
     });
   });
 
+  it.each([
+    ["Images", "tab-image-1", "still-life.png"],
+    ["Videos", "tab-video-1", "motion-study.mp4"],
+    ["Audio", "tab-audio-1", "voice-note.mp3"],
+  ])(
+    "bulk moves selected media from the root %s tab",
+    async (tabName, selectedMediaId, selectedFilename) => {
+      fetchMediaListPageMock.mockResolvedValue({
+        rows: [
+          {
+            id: "tab-image-1",
+            filename: "still-life.png",
+            storage_path: "user-1/uploads/still-life.png",
+            preview_storage_path: "user-1/uploads/still-life.png",
+            file_type: "image/png",
+            source: "upload",
+            created_at: "2026-03-03T00:00:00.000Z",
+            metadata: null,
+            signedUrl: "https://cdn.example.com/still-life.png",
+          },
+          {
+            id: "tab-video-1",
+            filename: "motion-study.mp4",
+            storage_path: "user-1/uploads/motion-study.mp4",
+            preview_storage_path: "user-1/uploads/motion-study.mp4",
+            file_type: "video/mp4",
+            source: "upload",
+            created_at: "2026-03-02T00:00:00.000Z",
+            metadata: null,
+            signedUrl: "https://cdn.example.com/motion-study.mp4",
+          },
+          {
+            id: "tab-audio-1",
+            filename: "voice-note.mp3",
+            storage_path: "user-1/uploads/voice-note.mp3",
+            preview_storage_path: "user-1/uploads/voice-note.mp3",
+            file_type: "audio/mpeg",
+            source: "upload",
+            created_at: "2026-03-01T00:00:00.000Z",
+            metadata: null,
+            signedUrl: "https://cdn.example.com/voice-note.mp3",
+          },
+        ],
+        nextCursor: null,
+        hasMore: false,
+        signedById: new Map<string, string>(),
+        libraryTotalCount: 3,
+      });
+
+      render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+      fireEvent.click(await screen.findByRole("tab", { name: tabName }));
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: `Select media ${selectedFilename}` })
+        ).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: `Select media ${selectedFilename}` }));
+      await waitFor(() => {
+        expect(
+          screen.getByRole("region", { name: "Bulk media actions for 1 selected item" })
+        ).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: "Move to folder" }));
+      fireEvent.click(await screen.findByRole("button", { name: "All Media > Campaign" }));
+
+      await waitFor(() => {
+        expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            action: "assign",
+            folderId: "folder-1",
+            mediaIds: [selectedMediaId],
+            promptIds: [],
+          }),
+          null
+        );
+      });
+    }
+  );
+
   it("bulk deletes selected media from All Media after confirmation", async () => {
     render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
 
@@ -1844,6 +1926,151 @@ describe("MediaLibraryPanel", () => {
     await waitFor(() => {
       expect(deleteMediaFileWithStorageMock).toHaveBeenCalledWith(
         expect.objectContaining({ id: "media-1" })
+      );
+    });
+  });
+
+  it.each([
+    ["Images", "tab-image-1", "still-life.png"],
+    ["Videos", "tab-video-1", "motion-study.mp4"],
+    ["Audio", "tab-audio-1", "voice-note.mp3"],
+  ])(
+    "bulk deletes selected media from the root %s tab",
+    async (tabName, selectedMediaId, selectedFilename) => {
+      fetchMediaListPageMock.mockResolvedValue({
+        rows: [
+          {
+            id: "tab-image-1",
+            filename: "still-life.png",
+            storage_path: "user-1/uploads/still-life.png",
+            preview_storage_path: "user-1/uploads/still-life.png",
+            file_type: "image/png",
+            source: "upload",
+            created_at: "2026-03-03T00:00:00.000Z",
+            metadata: null,
+            signedUrl: "https://cdn.example.com/still-life.png",
+          },
+          {
+            id: "tab-video-1",
+            filename: "motion-study.mp4",
+            storage_path: "user-1/uploads/motion-study.mp4",
+            preview_storage_path: "user-1/uploads/motion-study.mp4",
+            file_type: "video/mp4",
+            source: "upload",
+            created_at: "2026-03-02T00:00:00.000Z",
+            metadata: null,
+            signedUrl: "https://cdn.example.com/motion-study.mp4",
+          },
+          {
+            id: "tab-audio-1",
+            filename: "voice-note.mp3",
+            storage_path: "user-1/uploads/voice-note.mp3",
+            preview_storage_path: "user-1/uploads/voice-note.mp3",
+            file_type: "audio/mpeg",
+            source: "upload",
+            created_at: "2026-03-01T00:00:00.000Z",
+            metadata: null,
+            signedUrl: "https://cdn.example.com/voice-note.mp3",
+          },
+        ],
+        nextCursor: null,
+        hasMore: false,
+        signedById: new Map<string, string>(),
+        libraryTotalCount: 3,
+      });
+
+      render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+      fireEvent.click(await screen.findByRole("tab", { name: tabName }));
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: `Select media ${selectedFilename}` })
+        ).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: `Select media ${selectedFilename}` }));
+      await waitFor(() => {
+        expect(
+          screen.getByRole("region", { name: "Bulk media actions for 1 selected item" })
+        ).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: "Delete from library" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Delete" }));
+
+      await waitFor(() => {
+        expect(deleteMediaFileWithStorageMock).toHaveBeenCalledWith(
+          expect.objectContaining({ id: selectedMediaId })
+        );
+      });
+    }
+  );
+
+  it("bulk moves selected media between custom folders and removes selected media membership", async () => {
+    listMediaFoldersMock.mockResolvedValueOnce([
+      {
+        id: "folder-1",
+        name: "Campaign",
+        parentFolderId: null,
+        createdAt: "2026-03-01T00:00:00.000Z",
+        updatedAt: "2026-03-01T00:00:00.000Z",
+      },
+      {
+        id: "folder-2",
+        name: "Archive",
+        parentFolderId: null,
+        createdAt: "2026-03-02T00:00:00.000Z",
+        updatedAt: "2026-03-02T00:00:00.000Z",
+      },
+    ]);
+
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    fireEvent.doubleClick(await screen.findByRole("button", { name: "Campaign folder" }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Select media ref-1.png" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Select media ref-1.png" }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Remove from folder" })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("button", { name: "Delete from library" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Move to folder" }));
+    fireEvent.click(await screen.findByRole("button", { name: "All Media > Archive" }));
+
+    await waitFor(() => {
+      expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: "move",
+          sourceFolderId: "folder-1",
+          targetFolderId: "folder-2",
+          mediaIds: ["media-1"],
+          promptIds: [],
+        }),
+        null
+      );
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("region", { name: "Bulk media actions for 1 selected item" })
+      ).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Select media ref-1.png" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Remove from folder" }));
+
+    await waitFor(() => {
+      expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: "unassign",
+          folderId: "folder-1",
+          mediaIds: ["media-1"],
+          promptIds: [],
+        }),
+        null
       );
     });
   });
@@ -1954,7 +2181,19 @@ describe("MediaLibraryPanel", () => {
         signedById: new Map<string, string>(),
       })
       .mockResolvedValueOnce({
-        rows: [],
+        rows: [
+          {
+            id: "media-2",
+            filename: "ref-2.png",
+            storage_path: "user-1/uploads/ref-2.png",
+            preview_storage_path: "user-1/uploads/ref-2.png",
+            file_type: "image/png",
+            source: "upload",
+            created_at: "2026-03-01T00:00:00.000Z",
+            metadata: null,
+            signedUrl: "https://cdn.example.com/ref-2.png",
+          },
+        ],
         nextCursor: null,
         hasMore: false,
         signedById: new Map<string, string>(),
@@ -1971,6 +2210,14 @@ describe("MediaLibraryPanel", () => {
 
     await waitFor(() => {
       expect(fetchMediaListPageMock).toHaveBeenCalledTimes(2);
+    });
+
+    await waitFor(() => {
+      expect(useMediaPreviewSigningControllerMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          activeMediaCachePagesLoaded: 2,
+        })
+      );
     });
   });
 

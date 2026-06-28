@@ -86,6 +86,7 @@ export type MediaLibraryAggregateScopeKind = "media" | "prompts";
 
 export type MediaLibraryAggregateScopeCacheState = {
   nextCursor: MediaListCursor | null;
+  pagesLoaded: number;
   hasMore: boolean;
   loading: boolean;
   loaded: boolean;

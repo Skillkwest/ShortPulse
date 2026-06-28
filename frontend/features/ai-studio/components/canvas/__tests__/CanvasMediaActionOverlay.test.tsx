@@ -121,7 +121,7 @@ const createActions = (
   onDownload: vi.fn(),
   onRerollOutput: vi.fn(),
   onReloadWorkflowOutput: vi.fn(),
-  onDeleteOutput: vi.fn(),
+  onRemoveCanvasItem: vi.fn(),
   ...overrides,
 });
 
@@ -141,7 +141,7 @@ describe("CanvasMediaActionOverlay", () => {
     const downloadButton = screen.getByLabelText("Download reference");
     expect(screen.getByLabelText("Save to media library")).toBeInTheDocument();
     expect(downloadButton).toBeInTheDocument();
-    expect(screen.getByLabelText("Remove reference from grid")).toBeInTheDocument();
+    expect(screen.getByLabelText("Remove from canvas")).toBeInTheDocument();
     expect(screen.getByLabelText("Re-roll")).toBeInTheDocument();
     expect(screen.getByLabelText("Reload workflow")).toBeInTheDocument();
 
@@ -161,8 +161,8 @@ describe("CanvasMediaActionOverlay", () => {
       mediaKindHint: "image",
     });
 
-    fireEvent.click(screen.getByLabelText("Remove reference from grid"));
-    expect(actions.onDeleteOutput).toHaveBeenCalledWith("out-image-1");
+    fireEvent.click(screen.getByLabelText("Remove from canvas"));
+    expect(actions.onRemoveCanvasItem).toHaveBeenCalledWith("canvas-image-1");
   });
 
   it("keeps saved output state as a selected Canvas chip instead of a save button", () => {

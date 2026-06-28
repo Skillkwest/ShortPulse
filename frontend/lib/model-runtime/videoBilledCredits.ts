@@ -42,7 +42,7 @@ export const normalizeVideoBilledPricingParams = (
 ): Omit<PricingParams, "modelId"> => {
   const normalized: Omit<PricingParams, "modelId"> = {
     ...params,
-    variantBaseId: "default",
+    variantBaseId: params.variantBaseId ?? "default",
   };
 
   if (

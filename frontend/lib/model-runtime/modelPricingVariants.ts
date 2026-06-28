@@ -1,4 +1,5 @@
 import { getModelConfig } from "./modelRegistry";
+import { isKieKling30MotionControlPricingVariant } from "./klingMotionControlPricing";
 import type { PricingParams } from "./pricingTypes";
 
 export type ModelPricingVariantParts = {
@@ -57,7 +58,10 @@ const shouldIncludeEditInputPricingDimensions = (modelId: string): boolean => {
 
 export const resolveModelPricingVariantId = (params: PricingParams): string => {
   const config = getModelConfig(params.modelId);
-  const aspect = params.aspect ?? config?.defaultAspect ?? null;
+  const isKlingMotionControl = isKieKling30MotionControlPricingVariant(
+    params.variantBaseId ?? null
+  );
+  const aspect = isKlingMotionControl ? null : (params.aspect ?? config?.defaultAspect ?? null);
   const resolution = params.resolution ?? config?.defaultResolution ?? null;
   const audio =
     typeof params.audio === "boolean"

@@ -557,7 +557,7 @@ describe("Canvas text behavior", () => {
     expect(audioItem.getAttribute("data-y")).toBe(audioStartY);
   });
 
-  it("deletes a reference when right-clicking the canvas item", async () => {
+  it("keeps a reference when right-clicking the canvas item", async () => {
     render(<CanvasHarness />);
     const viewport = screen.getByTestId("canvas-viewport");
     mockViewportRect(viewport);
@@ -571,11 +571,9 @@ describe("Canvas text behavior", () => {
     });
 
     const item = await screen.findByTestId(/canvas-item-/);
-    fireEvent.contextMenu(item);
+    expect(fireEvent.contextMenu(item)).toBe(true);
 
-    await waitFor(() => {
-      expect(screen.queryByTestId(/canvas-item-/)).not.toBeInTheDocument();
-      expect(screen.queryByText("Context menu note")).not.toBeInTheDocument();
-    });
+    expect(item).toBeInTheDocument();
+    expect(screen.getByText("Context menu note")).toBeInTheDocument();
   });
 });

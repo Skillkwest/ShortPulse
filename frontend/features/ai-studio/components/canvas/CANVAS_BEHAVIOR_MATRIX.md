@@ -37,7 +37,7 @@ Baseline matrix for canvas interaction hardening. This document is the contract 
 | Image placeholder sizing fallback  | Drop image with unknown dimensions                               | Placeholder delayed until dimensions resolve, then matches final ratio                                                                           |
 | Audio sizing                       | Drop audio reference or library audio                            | Placeholder + final item use fixed square card dimensions                                                                                        |
 | Selection delete                   | `Delete`/`Backspace` with selection and no active text edit      | Deletes selected scene items                                                                                                                     |
-| Context delete                     | Right click on canvas item                                       | Deletes target item                                                                                                                              |
+| Context menu                       | Right click on canvas item                                       | Does not delete or mutate the target item                                                                                                        |
 
 Visual lock:
 

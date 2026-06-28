@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { KIE_KLING_30_MOTION_CONTROL_VARIANT_ID } from "../../../../model-runtime/klingMotionControlPricing";
 import { KIE_KLING_30_MODEL_ID } from "../../../../model-runtime/providerModelIds";
 import { buildPricingParams } from "../pricingParams";
 
@@ -51,7 +52,7 @@ describe("buildPricingParams", () => {
       })
     ).toEqual(
       expect.objectContaining({
-        aspect: "16:9",
+        variantBaseId: KIE_KLING_30_MOTION_CONTROL_VARIANT_ID,
         durationSeconds: 10,
         resolution: "720p",
         mode: "720p",

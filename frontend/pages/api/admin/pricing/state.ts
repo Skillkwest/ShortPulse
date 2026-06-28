@@ -18,10 +18,15 @@ import {
   computeCostForModel,
 } from "../../../../lib/model-runtime/pricing";
 import {
+  KIE_KLING_30_MOTION_CONTROL_LABEL,
+  KIE_KLING_30_MOTION_CONTROL_VARIANT_ID,
+} from "../../../../lib/model-runtime/klingMotionControlPricing";
+import {
   listModelConfigs,
   listPricingModelConfigs,
   type ModelConfig,
 } from "../../../../lib/model-runtime/modelRegistry";
+import { KIE_KLING_30_MODEL_ID } from "../../../../lib/model-runtime/providerModelIds";
 import { getAdminModelWorkflowType } from "../../../../lib/model-runtime/modelWorkflowType";
 import { getAdminPricingStrategyLabel } from "../../../../lib/model-runtime/modelPricingStrategyLabel";
 import { resolveDefaultPlanConcurrencyLimit } from "../../../../lib/billing/planConcurrency";
@@ -184,6 +189,38 @@ const mapPricingPreviewVariants = (
   model: Pick<ModelConfig, "id" | "mediaType" | "supportsTextToImage" | "supportsImageToImage">,
   pricingPolicy: Parameters<typeof computeCostForModel>[2]
 ): AdminPricingPreviewVariant[] => {
+  if (model.id === KIE_KLING_30_MODEL_ID) {
+    const standardBreakdown = mapPricingPreview(
+      model.id,
+      buildDefaultPricingParams(model.id),
+      pricingPolicy
+    );
+    const motionBreakdown = mapPricingPreview(
+      model.id,
+      buildDefaultPricingParams(model.id, {
+        variantBaseId: KIE_KLING_30_MOTION_CONTROL_VARIANT_ID,
+      }),
+      pricingPolicy
+    );
+
+    return [
+      standardBreakdown
+        ? {
+            id: "default",
+            label: "Standard",
+            breakdown: standardBreakdown,
+          }
+        : null,
+      motionBreakdown
+        ? {
+            id: KIE_KLING_30_MOTION_CONTROL_VARIANT_ID,
+            label: KIE_KLING_30_MOTION_CONTROL_LABEL,
+            breakdown: motionBreakdown,
+          }
+        : null,
+    ].filter((variant): variant is AdminPricingPreviewVariant => variant !== null);
+  }
+
   if (model.mediaType !== "image") {
     const breakdown = mapPricingPreview(
       model.id,

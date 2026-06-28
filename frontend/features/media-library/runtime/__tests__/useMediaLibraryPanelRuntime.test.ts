@@ -233,6 +233,7 @@ describe("useMediaLibraryPanelRuntime", () => {
       result.current.setMediaScopeCache((prev) => ({
         ...prev,
         hasMore: true,
+        pagesLoaded: 2,
         loading: true,
         resolvedScopeKey: "folder-a|all|woman",
         libraryTotalCount: 654,
@@ -243,6 +244,7 @@ describe("useMediaLibraryPanelRuntime", () => {
 
     expect(result.current.mediaScopeCache).toMatchObject({
       hasMore: true,
+      pagesLoaded: 2,
       loading: true,
       resolvedScopeKey: "folder-a|all|woman",
       libraryTotalCount: 654,

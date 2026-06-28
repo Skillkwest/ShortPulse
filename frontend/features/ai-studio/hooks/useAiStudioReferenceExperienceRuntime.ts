@@ -77,6 +77,7 @@ export const useAiStudioReferenceExperienceRuntime = ({
     onReferenceOutputMediaLoaded,
     projectId,
     railCanvasProps,
+    removeCanvasItemById,
     referenceGridReadyOutputIds,
     referenceImageUrl,
     removedFromAllRefsIds,
@@ -114,17 +115,17 @@ export const useAiStudioReferenceExperienceRuntime = ({
       onDownload: (output: StudioOutput) => handleDownloadReference(output.id),
       onRerollOutput: (output: StudioOutput) => resolvedRerollOutput(output.id),
       onReloadWorkflowOutput: reloadWorkflowFromStudioOutput,
-      onDeleteOutput: deleteOutput,
+      onRemoveCanvasItem: removeCanvasItemById,
       isMediaStorageFull,
     }),
     [
-      deleteOutput,
       findOutputById,
       handleDownloadReference,
       handleSaveReference,
       handleSelectOutput,
       isMediaStorageFull,
       reloadWorkflowFromStudioOutput,
+      removeCanvasItemById,
       resolvedRerollOutput,
     ]
   );

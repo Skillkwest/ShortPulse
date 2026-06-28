@@ -35,7 +35,6 @@ const KIE_HOSTED_MEDIA_HOST_SUFFIXES = [
   "tempfile.aiquickdraw.com",
   "tempfileb.aiquickdraw.com",
 ] as const;
-const KIE_KLING_REUSABLE_TEMP_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png"]);
 const KIE_SEEDANCE_REUSABLE_TEMP_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp", "gif"]);
 
 export const VALIDATION_FAILURE_CONTEXT = {
@@ -112,7 +111,8 @@ const canReuseKieHostedTemporaryMediaUrl = ({
   if (admissionProfile === "kie_seedance_reference_image") {
     return KIE_SEEDANCE_REUSABLE_TEMP_IMAGE_EXTENSIONS.has(extension);
   }
-  return KIE_KLING_REUSABLE_TEMP_IMAGE_EXTENSIONS.has(extension);
+  // Kling admission enforces byte-size limits, so extension-only reuse is not proof enough.
+  return false;
 };
 
 const isPrivateIpv4Address = (hostname: string): boolean => {

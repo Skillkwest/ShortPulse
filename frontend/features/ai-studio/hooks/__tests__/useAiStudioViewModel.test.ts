@@ -9,6 +9,7 @@ import {
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../lib/model-runtime/providerModelIds";
 import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../../../../lib/model-runtime/falModelIds";
+import { KIE_KLING_30_MOTION_CONTROL_VARIANT_ID } from "../../../../lib/model-runtime/klingMotionControlPricing";
 import {
   INPAINT_FLUX_FILL_MODEL_ID,
   INPAINT_REFERENCE_MODEL_ID,
@@ -203,6 +204,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
       ...overrides,
     });
     const pricingParams = costParamsForModel(modelId, {
+      variantBaseId: KIE_KLING_30_MOTION_CONTROL_VARIANT_ID,
       durationSeconds: 5,
       resolution: "1080p",
       audio: false,
@@ -1119,6 +1121,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
 
   it("shows the billed cost for Kling motion mode when both motion inputs are present", () => {
     const pricingParams = makeCostParamsForModel(KIE_KLING_30_MODEL_ID)({
+      variantBaseId: KIE_KLING_30_MOTION_CONTROL_VARIANT_ID,
       durationSeconds: 6,
       resolution: "1080p",
       audio: false,
@@ -1146,6 +1149,13 @@ describe("useAiStudioViewModel motion guardrails", () => {
 
     expect(result.current.currentCostCredits).toBe(expectedCost);
     expect(result.current.modelPickerCostCredits).toBe(expectedCost);
+    expect(
+      resolvePricingGridCostBreakdown({
+        modelId: KIE_KLING_30_MODEL_ID,
+        params: pricingParams,
+        pricingPolicy: videoPricingPolicy,
+      })?.variantId
+    ).toBe("motion_control|res:1080p|audio:off");
   });
 
   it("requires a first frame for Kling 3.0 standard generation even when the last-frame slot is populated", () => {

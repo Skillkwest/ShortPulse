@@ -92,7 +92,7 @@ export function CanvasMediaActionOverlay({
   const shouldShowDownloadAction = Boolean(
     actions.onDownload && canDownloadReferenceOutput(output)
   );
-  const shouldShowDeleteAction = Boolean(actions.onDeleteOutput);
+  const shouldShowDeleteAction = Boolean(actions.onRemoveCanvasItem);
   const mediaKindHint = inferWorkflowReloadMediaKindForOutput(output, {
     mediaKindHint: resolveCanvasMediaKindHint(item),
   });
@@ -157,10 +157,10 @@ export function CanvasMediaActionOverlay({
             <button
               type="button"
               className="reference-card-action-btn reference-card-action-btn--danger"
-              aria-label="Remove reference from grid"
+              aria-label="Remove from canvas"
               onClick={(event) => {
                 stopCanvasActionEvent(event);
-                actions.onDeleteOutput?.(output.id);
+                actions.onRemoveCanvasItem?.(item.id);
               }}
             >
               <TrashSimple size={16} weight="bold" aria-hidden />

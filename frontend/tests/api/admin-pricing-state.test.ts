@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/admin/pricing/state";
+import {
+  KIE_KLING_30_MOTION_CONTROL_LABEL,
+  KIE_KLING_30_MOTION_CONTROL_VARIANT_ID,
+} from "../../lib/model-runtime/klingMotionControlPricing";
+import { KIE_KLING_30_MODEL_ID } from "../../lib/model-runtime/providerModelIds";
 
 const requireAdminUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
@@ -171,14 +176,14 @@ describe("GET /api/admin/pricing/state", () => {
   it("returns current model pricing policy and active catalog rows", async () => {
     listModelConfigsMock.mockReturnValue([
       {
-        id: "kie-kling-3",
+        id: KIE_KLING_30_MODEL_ID,
         label: "Kling 3.0",
         provider: "kie",
         sourceUrl: "https://docs.kie.ai/",
         mediaType: "video",
         supportsTextToImage: true,
         supportsImageToImage: false,
-        pricingStrategy: "kie-video-per-second",
+        pricingStrategy: "kling-3-per-second",
         defaultAspect: "16:9",
         defaultResolution: "720",
         defaultDurationSeconds: 5,
@@ -455,17 +460,31 @@ describe("GET /api/admin/pricing/state", () => {
       })
     );
     const payload = res.json.mock.calls[0]?.[0] as {
-      models: Array<{ id: string }>;
+      models: Array<{
+        id: string;
+        pricingPreviewVariants?: Array<{ id: string; label: string }>;
+      }>;
       health: { warnings: string[] };
     };
     expect(payload.models).not.toEqual(
       expect.arrayContaining([expect.objectContaining({ id: "gpt-image-2" })])
     );
     expect(payload.models.map((model) => model.id)).toEqual([
-      "kie-kling-3",
+      KIE_KLING_30_MODEL_ID,
       "bria-background-remove",
       "kie-ai/gpt-image-2-text-to-image",
     ]);
+    expect(
+      payload.models.find((model) => model.id === KIE_KLING_30_MODEL_ID)?.pricingPreviewVariants
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "default", label: "Standard" }),
+        expect.objectContaining({
+          id: KIE_KLING_30_MOTION_CONTROL_VARIANT_ID,
+          label: KIE_KLING_30_MOTION_CONTROL_LABEL,
+        }),
+      ])
+    );
     expect(payload.health.warnings).toContain(
       "1 active storage add-on missing a current public offer."
     );

@@ -17,7 +17,7 @@ const makeOutput = (id: string, overrides: Partial<StudioOutput> = {}): StudioOu
 });
 
 describe("useAiStudioOutputDerivations", () => {
-  it("marks the primary edit stage generating only for hidden nonterminal image runs", () => {
+  it("marks the primary edit stage generating only for hidden nonterminal primary edit image runs", () => {
     const hiddenPendingEdit = makeOutput("hidden-pending", {
       hiddenInReferenceGrid: true,
       taskState: "pending",
@@ -44,6 +44,24 @@ describe("useAiStudioOutputDerivations", () => {
       taskState: "running",
       mode: "video",
     });
+    const hiddenGeneratedRemoval = makeOutput("hidden-generated-removal", {
+      hiddenInReferenceGrid: true,
+      taskState: "pending",
+      mediaSource: "generated",
+      sourceRef: "source-generated-removal",
+    });
+    const hiddenGeneratedTaskRemoval = makeOutput("hidden-generated-task-removal", {
+      hiddenInReferenceGrid: true,
+      taskState: "running",
+      mediaSource: "generated",
+      taskId: "task-generated-removal",
+    });
+    const hiddenGeneratedIdRemoval = makeOutput("hidden-generated-id-removal", {
+      hiddenInReferenceGrid: true,
+      taskState: "pending",
+      mediaSource: "generated",
+      generationId: "generation-generated-removal",
+    });
 
     const { result, rerender } = renderHook(
       ({ outputs }: { outputs: StudioOutput[] }) =>
@@ -69,6 +87,11 @@ describe("useAiStudioOutputDerivations", () => {
 
     rerender({
       outputs: [hiddenSucceededEdit, hiddenFailedEdit, hiddenBriaEdit, hiddenVideoRun],
+    });
+    expect(result.current.isPrimaryEditStageGenerating).toBe(false);
+
+    rerender({
+      outputs: [hiddenGeneratedRemoval, hiddenGeneratedTaskRemoval, hiddenGeneratedIdRemoval],
     });
     expect(result.current.isPrimaryEditStageGenerating).toBe(false);
   });

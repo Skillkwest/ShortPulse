@@ -9,6 +9,7 @@ import { resolveEditImageBilledCreditLookup } from "../../lib/model-runtime/edit
 import { resolvePricingGridCostBreakdown } from "../../lib/model-runtime/pricingGridBilledCredits";
 import { resolveVideoBilledCreditLookup } from "../../lib/model-runtime/videoBilledCredits";
 import { materializeImageBilledCreditPolicy } from "../../lib/model-runtime/materializeImageBilledCreditPolicy";
+import { KIE_KLING_30_MOTION_CONTROL_VARIANT_ID } from "../../lib/model-runtime/klingMotionControlPricing";
 import {
   KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
   KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
@@ -826,6 +827,7 @@ describe("generationBilling reservation RPC handling", () => {
     const explicitVideoPolicy = withVideoBilledCreditsOverride({
       modelId: KIE_KLING_30_MODEL_ID,
       params: {
+        variantBaseId: KIE_KLING_30_MOTION_CONTROL_VARIANT_ID,
         durationSeconds: 10,
         resolution: "720p",
         audio: true,
@@ -862,6 +864,7 @@ describe("generationBilling reservation RPC handling", () => {
     expect(charge).not.toBeNull();
     expect(expectedPricingParams).toEqual(
       expect.objectContaining({
+        variantBaseId: KIE_KLING_30_MOTION_CONTROL_VARIANT_ID,
         resolution: "720p",
         mode: "720p",
         audio: true,
@@ -869,7 +872,7 @@ describe("generationBilling reservation RPC handling", () => {
     );
     expect(expectedBreakdown).toMatchObject({
       credits: 31,
-      variantId: "default|res:720p|aspect:16:9|audio:on",
+      variantId: "motion_control|res:720p|audio:on",
     });
     expect(rpcMock).toHaveBeenCalledWith(
       "admit_and_reserve_generation_credits",
@@ -880,7 +883,7 @@ describe("generationBilling reservation RPC handling", () => {
           debited_credits: 31,
           pricing_breakdown: expect.objectContaining({
             billed_credits: 31,
-            variant_id: "default|res:720p|aspect:16:9|audio:on",
+            variant_id: "motion_control|res:720p|audio:on",
           }),
         }),
       })

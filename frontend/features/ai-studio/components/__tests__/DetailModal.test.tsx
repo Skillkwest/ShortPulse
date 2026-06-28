@@ -1365,6 +1365,28 @@ describe("DetailModal", () => {
     expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("Audio/SFX");
   });
 
+  it("omits model metadata for generated audio without a normalized workflow label", () => {
+    const { baseElement } = render(
+      <DetailModal
+        output={buildGeneratedAudioOutput({
+          aspect: "auto",
+          model: "Custom (the selected audio model)",
+          modelId: "custom_audio_model",
+        })}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    const headerPill = baseElement.querySelector(".art-modal-meta-pill");
+    const headerText = headerPill?.textContent?.replace(/\s+/g, " ").trim() ?? "";
+    expect(headerText).toBe("Audio");
+    expect(headerText).not.toContain("Custom");
+    expect(headerText).not.toContain("selected audio model");
+    expect(headerText).not.toContain("auto");
+  });
+
   it("uses the audio modal sizing hook for pure audio outputs", () => {
     const { baseElement } = render(
       <DetailModal

@@ -72,7 +72,7 @@ export type CanvasMediaActions = {
     output: StudioOutput,
     options?: { mediaKindHint?: WorkflowReloadMediaKindHint | null }
   ) => void;
-  onDeleteOutput?: (id: string) => void;
+  onRemoveCanvasItem?: (id: string) => void;
   isMediaStorageFull?: boolean;
 };
 

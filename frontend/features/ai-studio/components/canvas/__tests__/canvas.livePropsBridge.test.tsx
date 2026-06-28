@@ -189,13 +189,13 @@ describe("CanvasPropertiesPanel live props bridge", () => {
         mediaActions={{
           getOutputForCanvasItem: () => output,
           onDownload: vi.fn(),
-          onDeleteOutput: vi.fn(),
+          onRemoveCanvasItem: vi.fn(),
         }}
       />
     );
 
     expect(screen.getByLabelText("Download reference")).toBeInTheDocument();
-    expect(screen.getByLabelText("Remove reference from grid")).toBeInTheDocument();
+    expect(screen.getByLabelText("Remove from canvas")).toBeInTheDocument();
   });
 
   it("hides selected Canvas media action controls at 50% zoom or below", () => {
@@ -240,13 +240,13 @@ describe("CanvasPropertiesPanel live props bridge", () => {
         mediaActions={{
           getOutputForCanvasItem: () => output,
           onDownload: vi.fn(),
-          onDeleteOutput: vi.fn(),
+          onRemoveCanvasItem: vi.fn(),
         }}
       />
     );
 
     expect(screen.getByLabelText("Download reference")).toBeInTheDocument();
-    expect(screen.getByLabelText("Remove reference from grid")).toBeInTheDocument();
+    expect(screen.getByLabelText("Remove from canvas")).toBeInTheDocument();
 
     act(() => {
       liveProps.publish(
@@ -259,7 +259,7 @@ describe("CanvasPropertiesPanel live props bridge", () => {
     });
 
     expect(screen.queryByLabelText("Download reference")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Remove reference from grid")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Remove from canvas")).not.toBeInTheDocument();
 
     act(() => {
       liveProps.publish(
@@ -272,7 +272,7 @@ describe("CanvasPropertiesPanel live props bridge", () => {
     });
 
     expect(screen.getByLabelText("Download reference")).toBeInTheDocument();
-    expect(screen.getByLabelText("Remove reference from grid")).toBeInTheDocument();
+    expect(screen.getByLabelText("Remove from canvas")).toBeInTheDocument();
   });
 
   it("raises wrapper interaction callbacks for item-origin gestures", () => {

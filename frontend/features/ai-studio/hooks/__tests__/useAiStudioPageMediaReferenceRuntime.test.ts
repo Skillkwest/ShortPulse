@@ -271,6 +271,69 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
     });
   });
 
+  it("removes one canvas item by item id while preserving other items for the same output", () => {
+    mockedCanvasSessionState = {
+      items: [
+        {
+          id: "canvas-output-image-a",
+          kind: "image" as const,
+          x: 10,
+          y: 20,
+          z: 1,
+          selected: true,
+          outputId: "output-1",
+          sourceSurface: "curated" as const,
+          mediaId: "media-1",
+          src: "https://signed.shortpulse.test/output-a.png",
+          alt: "Grid output A",
+          width: 320,
+          height: 180,
+        },
+        {
+          id: "canvas-output-image-b",
+          kind: "image" as const,
+          x: 40,
+          y: 50,
+          z: 2,
+          selected: false,
+          outputId: "output-1",
+          sourceSurface: "curated" as const,
+          mediaId: "media-1",
+          src: "https://signed.shortpulse.test/output-b.png",
+          alt: "Grid output B",
+          width: 320,
+          height: 180,
+        },
+      ],
+      draftTextEntry: null,
+      textEditSession: null,
+      draftOwnerInstanceId: null,
+      textEditOwnerInstanceId: null,
+      mainCamera: { x: 0, y: 0, zoom: 1 },
+      railCamera: { x: 0, y: 0, zoom: 1 },
+    };
+
+    const { result } = renderHook(() =>
+      useAiStudioPageMediaReferenceRuntime({
+        ...defaultParams,
+      })
+    );
+
+    act(() => {
+      expect(result.current.removeCanvasItemById("canvas-output-image-a")).toBe(true);
+    });
+
+    expect(hydrateCanvasSessionStateMock).toHaveBeenCalledWith({
+      ...mockedCanvasSessionState,
+      items: [
+        expect.objectContaining({
+          id: "canvas-output-image-b",
+          outputId: "output-1",
+        }),
+      ],
+    });
+  });
+
   it("resolves a storage-backed reference-grid video for the voice changer pipeline", async () => {
     const output = makeOutput({
       id: "output-video-1",

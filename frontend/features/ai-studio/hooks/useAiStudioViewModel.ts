@@ -18,6 +18,7 @@ import {
   resolveVideoBilledCredits,
   supportsCanonicalVideoBilledPricing,
 } from "../../../lib/model-runtime/videoBilledCredits";
+import { KIE_KLING_30_MOTION_CONTROL_VARIANT_ID } from "../../../lib/model-runtime/klingMotionControlPricing";
 import { getModelConfig } from "../logic/pricing";
 import type { PricingParams } from "../logic/pricingTypes";
 import { estimateDescribeTokens, estimatePromptTokens } from "../logic/tokenEstimates";
@@ -316,6 +317,9 @@ export const useAiStudioViewModel = ({
           : videoDurationSeconds,
       resolution: videoPricingResolution,
       audio: resolvedVideoLane === "lip-sync" ? true : videoGenerateAudio,
+      ...(resolvedVideoLane === "motion"
+        ? { variantBaseId: KIE_KLING_30_MOTION_CONTROL_VARIANT_ID }
+        : {}),
       ...(isSeedance2PricingModel ? { inputVideoCount: seedance2VideoInputCount } : {}),
     }),
     [

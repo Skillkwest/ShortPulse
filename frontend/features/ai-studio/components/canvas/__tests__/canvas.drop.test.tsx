@@ -340,6 +340,87 @@ describe("Canvas drop behavior", () => {
     expect(await screen.findByAltText("Prepared library image")).toBeInTheDocument();
   });
 
+  it("routes bulk media-library media drops through the async library-drop preparer", async () => {
+    const prepareCanvasMediaLibraryDrop = vi.fn(async (payload) => {
+      if (payload.kind !== "libraryMedia") return null;
+      return {
+        kind: "image" as const,
+        outputId: `output-${payload.payload.id}`,
+        mediaId: payload.payload.id,
+        src: payload.payload.url,
+        alt: payload.payload.filename,
+        width: 160,
+        height: 90,
+      };
+    }) satisfies PrepareCanvasMediaLibraryDrop;
+
+    render(<CanvasHarness prepareCanvasMediaLibraryDrop={prepareCanvasMediaLibraryDrop} />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "application/x-shortpulse-media-library-items": JSON.stringify({
+          kind: "bulkLibraryMedia",
+          source: "mediaLibrary",
+          payload: {
+            draggedItemId: "media-bulk-1",
+            originFolderId: null,
+            items: [
+              {
+                id: "media-bulk-1",
+                url: "https://example.com/library-bulk-1.png",
+                fileType: "image",
+                filename: "Bulk library image 1",
+              },
+              {
+                id: "media-bulk-2",
+                url: "https://example.com/library-bulk-2.png",
+                fileType: "image",
+                filename: "Bulk library image 2",
+              },
+            ],
+          },
+        }),
+        "text/shortpulse-media-library-bulk-marker": "shortpulse-media-library-bulk-v1",
+      }),
+      clientX: 300,
+      clientY: 200,
+    });
+
+    await waitFor(() => {
+      expect(prepareCanvasMediaLibraryDrop).toHaveBeenCalledTimes(2);
+    });
+    expect(prepareCanvasMediaLibraryDrop).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        kind: "libraryMedia",
+        payload: expect.objectContaining({ id: "media-bulk-1" }),
+      })
+    );
+    expect(prepareCanvasMediaLibraryDrop).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        kind: "libraryMedia",
+        payload: expect.objectContaining({ id: "media-bulk-2" }),
+      })
+    );
+    expect(await screen.findByAltText("Bulk library image 1")).toBeInTheDocument();
+    expect(await screen.findByAltText("Bulk library image 2")).toBeInTheDocument();
+    const firstItem = screen
+      .getByAltText("Bulk library image 1")
+      .closest(".canvas-scene-item") as HTMLElement | null;
+    const secondItem = screen
+      .getByAltText("Bulk library image 2")
+      .closest(".canvas-scene-item") as HTMLElement | null;
+    const firstX = Number(firstItem?.getAttribute("data-x"));
+    const firstY = Number(firstItem?.getAttribute("data-y"));
+    const secondX = Number(secondItem?.getAttribute("data-x"));
+    const secondY = Number(secondItem?.getAttribute("data-y"));
+    expect(secondX - firstX).toBe(24);
+    expect(secondY - firstY).toBe(24);
+  });
+
   it("creates an audio card from a media-library audio drop", async () => {
     render(<CanvasHarness />);
     const viewport = screen.getByTestId("canvas-viewport");

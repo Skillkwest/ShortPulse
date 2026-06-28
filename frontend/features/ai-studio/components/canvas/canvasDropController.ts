@@ -7,7 +7,10 @@ import {
   getNormalizedTransferTypes,
   hasInternalReferenceDragTypeHints,
 } from "../../utils/dragDrop";
-import { hasMediaLibraryDragTypeHints } from "../../logic/mediaLibraryDragPayload";
+import {
+  hasMediaLibraryBulkMediaDragTypeHints,
+  hasMediaLibraryDragTypeHints,
+} from "../../logic/mediaLibraryDragPayload";
 
 const DRAG_TEXT_HINT_PATTERN =
   /^text\/(?:plain|prompt|x-moz-url|html|uri-list)|application\/json$/i;
@@ -18,7 +21,9 @@ const DRAG_TEXT_HINT_PATTERN =
 export const canAcceptCanvasDropTransfer = (transfer: DataTransfer | null | undefined): boolean => {
   if (!transfer) return false;
   if (hasInternalReferenceDragTypeHints(transfer)) return true;
-  if (hasMediaLibraryDragTypeHints(transfer)) return true;
+  if (hasMediaLibraryDragTypeHints(transfer) || hasMediaLibraryBulkMediaDragTypeHints(transfer)) {
+    return true;
+  }
   if ((transfer.types?.length ?? 0) === 0 && extractInternalReferenceDragPayload(transfer)) {
     return true;
   }

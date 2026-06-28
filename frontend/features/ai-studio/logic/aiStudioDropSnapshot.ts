@@ -2,7 +2,10 @@
  * Captures AI Studio drag/drop payloads synchronously and rebuilds a stable
  * transfer-like adapter for downstream parsers after the browser event ends.
  */
-import { getMediaLibraryDragTypes } from "./mediaLibraryDragPayload";
+import {
+  getMediaLibraryBulkMediaDragTypes,
+  getMediaLibraryDragTypes,
+} from "./mediaLibraryDragPayload";
 import {
   AI_STUDIO_REFERENCE_DROP_TRANSFER_TYPES,
   REFERENCE_TRANSFER_ID_TYPE,
@@ -60,6 +63,7 @@ const URLISH_PATTERN = /^(?:data:(?:image|video|audio)\/|blob:|https?:\/\/)/i;
 
 const KNOWN_AI_STUDIO_DROP_TRANSFER_TYPES = [
   ...getMediaLibraryDragTypes(),
+  ...getMediaLibraryBulkMediaDragTypes(),
   ...MEDIA_LIBRARY_FALLBACK_TRANSFER_TYPES,
   ...AI_STUDIO_REFERENCE_DROP_TRANSFER_TYPES,
   ...GENERIC_TEXT_TRANSFER_TYPES,

@@ -233,6 +233,9 @@ type UseAiStudioPageMediaReferenceRuntimeParams = {
     payload: LibraryMediaReferencePayload,
     options?: QuickSlotDropOptions
   ) => Promise<string | null>;
+  addLibraryMediaReferencesToQuickSlot: (
+    payloads: LibraryMediaReferencePayload[]
+  ) => Promise<string[]>;
   addLibraryPromptReferenceToQuickSlot: (
     payload: LibraryPromptReferencePayload,
     options?: QuickSlotDropOptions
@@ -270,6 +273,7 @@ type UseAiStudioPageMediaReferenceRuntimeParams = {
 export const useAiStudioPageMediaReferenceRuntime = ({
   addCuratedReference,
   addLibraryMediaReferenceToQuickSlot,
+  addLibraryMediaReferencesToQuickSlot,
   addLibraryPromptReferenceToQuickSlot,
   addPastedPromptReference,
   insertPastedMediaReference,
@@ -543,6 +547,22 @@ export const useAiStudioPageMediaReferenceRuntime = ({
       reorderCuratedReference,
       setActiveOutputId,
     ]
+  );
+
+  const handleQuickSlotLibraryMediaBulkDrop = useCallback(
+    async (payloads: LibraryMediaReferencePayload[], options?: QuickSlotDropOptions) => {
+      const insertedIds = await addLibraryMediaReferencesToQuickSlot(payloads);
+      const insertedOutputIds = projectOutputIdsToQuickSlot(insertedIds, {
+        targetId: options?.targetId ?? null,
+        placement: options?.placement ?? "start",
+      });
+      const activeOutputId = insertedOutputIds[insertedOutputIds.length - 1] ?? null;
+      if (activeOutputId) {
+        setActiveOutputId(activeOutputId);
+      }
+      return insertedOutputIds;
+    },
+    [addLibraryMediaReferencesToQuickSlot, projectOutputIdsToQuickSlot, setActiveOutputId]
   );
 
   const handleQuickSlotDroppedFiles = useCallback(
@@ -1945,6 +1965,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
     handleQuickSlotDroppedFiles,
     handleQuickSlotDroppedMediaReference,
     handleQuickSlotLibraryMediaDrop,
+    handleQuickSlotLibraryMediaBulkDrop,
     handleQuickSlotLibraryPromptDrop,
     flushCanvasSessionState,
     hydrateCanvasSessionState,

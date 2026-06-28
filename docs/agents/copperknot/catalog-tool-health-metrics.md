@@ -80,18 +80,34 @@ This surface answers:
 
 ## Current Snapshot
 
-Snapshot date: `2026-05-31`
+Snapshot date: `2026-06-28`
 
-| Metric                       | Current state                                                  | Notes                                                                                                                                                                                                   |
-| ---------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Closeout compliance          | `9/10 completed lanes with dedicated closeouts`                | All reviewed lanes in the current window except the first recovery lane now have dedicated closeouts on file, including both accepted Elements bounded closeouts.                                       |
-| Evidence-anchor coverage     | `strong through the May 31 post-deploy verification`           | The current launch-state packet names report paths, commit anchor, route-parity proof, live production capture commands, retained comparison anchors, and the new exact-next lane.                      |
-| Rerating lead time           | `mixed but operational`                                        | The first completed lane was slow, the May 16 batch rerated quickly, Create rerated same day on May 28, Elements was reviewed same day on May 30, and production was remeasured May 31.                 |
-| Launch-state freshness       | `current through retained packet; secondary overlays optional` | Catalog, queue, and retained evidence now carry the live launch truth. Dispatch logs, scoreboard, operator brief, checklist, and metric logs are secondary maintenance surfaces, not default authority. |
-| Queue usefulness             | `stable with evidence-backed reorder`                          | Copperknot moved `Elements workflow` out of the top slot only after the deployed root fix changed the live production signal, and returned exact-next to `Project / workspace persistence`.             |
-| Score-discipline compliance  | `100% for current-window score changes and score holds`        | The May 31 post-deploy verification recorded real production improvement and a queue reorder without forcing an unsupported score lift.                                                                 |
-| Weekly learning compliance   | `current`                                                      | The retained weekly review cadence is still current through the active week, with the May 30 entry still covering the latest completed review cycle.                                                    |
-| Production backtest coverage | `current for retained May production findings`                 | The Holomony approved-panel runtime check now has a full May 31 follow-up backtest showing the old hotspot materially reduced after the deployed root fix.                                              |
+Status: `maintenance stale`
+
+The standing metric definitions below remain useful, but the retained metric-log
+values are not current launch truth. Most retained logs stop around `2026-05-31`
+or `2026-06-01`, while the active launch board and queue now contain June 28
+post-deploy evidence. Use this file as a calibration checklist, not as proof
+that the current board, queue, or launch-state movement is reliable. The live
+authority remains:
+
+- `docs/agents/copperknot/july-7-launch-authority.md`
+- `docs/agents/copperknot/july-7-launch-board.md`
+- `docs/agents/copperknot/prioritized-launch-queue-2026-07-07.md`
+
+Before using the metrics layer for a readiness decision, refresh the relevant
+retained logs or explicitly classify them as historical maintenance context.
+
+| Metric                       | Current state                                      | Notes                                                                                                                                                     |
+| ---------------------------- | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Closeout compliance          | `stale - refresh required`                         | Existing retained values cover the May window and do not include the June 21-28 launch-board movement.                                                    |
+| Evidence-anchor coverage     | `partially current through live board/queue only`  | June 28 board/queue entries name evidence and proof boundaries, but the retained metric logs have not been refreshed to backtest those decisions.         |
+| Rerating lead time           | `stale - refresh required`                         | The retained cycle-time log does not measure the June launch-readiness review cadence.                                                                    |
+| Launch-state freshness       | `current in board/queue; stale in metrics layer`   | The board and queue carry fresher launch truth than this metric-health layer. Do not use retained metrics as independent confirmation until refreshed.    |
+| Queue usefulness             | `directional, not independently backtested`        | The June 28 queue order is evidence-anchored, but current retained decision-outcome and backtest logs do not yet prove the latest ordering is holding up. |
+| Score-discipline compliance  | `not decision-relevant for July 7 without refresh` | `/10` scores are secondary under the July 7 model; the retained score log is historical unless a current rerating pass refreshes it.                      |
+| Weekly learning compliance   | `stale - refresh required`                         | The latest retained weekly review is from the May window, so it does not certify June 28 decision quality.                                                |
+| Production backtest coverage | `stale - refresh required`                         | Current June production findings have not been fully compared against prior catalog beliefs in this log.                                                  |
 
 Supporting time-series logs:
 

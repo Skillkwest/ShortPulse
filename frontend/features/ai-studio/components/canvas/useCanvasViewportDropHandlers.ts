@@ -7,7 +7,10 @@ import {
   buildAiStudioDropSnapshotTransfer,
   captureAiStudioDropSnapshot,
 } from "../../logic/aiStudioDropSnapshot";
-import { readMediaLibraryDragPayload } from "../../logic/mediaLibraryDragPayload";
+import {
+  readMediaLibraryBulkMediaDragPayload,
+  readMediaLibraryDragPayload,
+} from "../../logic/mediaLibraryDragPayload";
 import { getDroppedMediaReference } from "../../reference-grid/controllers/referenceGridClipboard";
 import {
   extractInternalReferenceDragPayload,
@@ -338,6 +341,47 @@ export const useCanvasViewportDropHandlers = ({
         rect,
         camera,
       });
+      const bulkMediaLibraryPayload = readMediaLibraryBulkMediaDragPayload(transfer);
+      if (bulkMediaLibraryPayload) {
+        event.preventDefault();
+        event.stopPropagation();
+        void runDropResolvingTask(async () => {
+          const preparedDrops: {
+            resolved: CanvasDropResolution;
+            afterInsert?: (result: CanvasInsertResult) => Promise<void> | void;
+          }[] = [];
+          for (const payload of bulkMediaLibraryPayload.payload.items) {
+            const preparedDrop = prepareCanvasMediaLibraryDrop
+              ? await prepareCanvasMediaLibraryDrop({
+                  kind: "libraryMedia",
+                  source: "mediaLibrary",
+                  payload,
+                })
+              : null;
+            if (!preparedDrop) continue;
+            preparedDrops.push(normalizePreparedDrop(preparedDrop));
+          }
+          if (!preparedDrops.length) {
+            showDropFeedback("Unable to add that media to the canvas.");
+            return;
+          }
+          const offsetStep = 24;
+          for (let index = 0; index < preparedDrops.length; index += 1) {
+            const preparedDrop = preparedDrops[index];
+            const offset = index * offsetStep;
+            const insertResult = await addResolvedItem(
+              preparedDrop.resolved,
+              point.x + offset,
+              point.y + offset,
+              {
+                showLoadingPlaceholder: true,
+              }
+            );
+            await preparedDrop.afterInsert?.(insertResult);
+          }
+        });
+        return;
+      }
       const mediaLibraryPayload = readMediaLibraryDragPayload(transfer);
       if (mediaLibraryPayload) {
         event.preventDefault();

@@ -4,8 +4,11 @@
  */
 import { useCallback, type MutableRefObject } from "react";
 import {
+  hasMediaLibraryBulkMediaDragTypeHints,
   hasMediaLibraryDragTypeHints,
+  readMediaLibraryBulkMediaDragPayload,
   readMediaLibraryDragPayload,
+  type MediaLibraryBulkMediaDragPayload,
   type MediaLibraryDragPayload,
 } from "../../logic/mediaLibraryDragPayload";
 import {
@@ -51,6 +54,13 @@ type UseReferenceGridCuratedDndControllerArgs = {
       placement: "start" | "before" | "after" | "end";
     }
   ) => Promise<string | null>;
+  onAddLibraryMediaReferencesToQuickSlot?: (
+    payloads: LibraryMediaReferencePayload[],
+    options?: {
+      targetId: string | null;
+      placement: "start" | "before" | "after" | "end";
+    }
+  ) => Promise<string[]>;
   onAddLibraryPromptReferenceToQuickSlot?: (
     payload: LibraryPromptReferencePayload,
     options?: {
@@ -110,6 +120,10 @@ const resolveReferenceDragSourceSurface = (transfer: DataTransfer): ReferenceDra
 const readQuickSlotLibraryPayload = (transfer: DataTransfer): MediaLibraryDragPayload | null =>
   readMediaLibraryDragPayload(transfer);
 
+const readQuickSlotBulkLibraryPayload = (
+  transfer: DataTransfer
+): MediaLibraryBulkMediaDragPayload | null => readMediaLibraryBulkMediaDragPayload(transfer);
+
 const readDroppedFiles = (transfer: DataTransfer): FileList | null =>
   transfer.files && transfer.files.length > 0 ? transfer.files : null;
 
@@ -122,7 +136,9 @@ const hasDroppedMediaReference = (transfer: DataTransfer): boolean =>
   Boolean(getDroppedMediaReference(transfer));
 
 const hasQuickSlotStructuredDropHints = (transfer: DataTransfer): boolean =>
-  hasInternalReferenceDrag(transfer) || hasMediaLibraryDragTypeHints(transfer);
+  hasInternalReferenceDrag(transfer) ||
+  hasMediaLibraryDragTypeHints(transfer) ||
+  hasMediaLibraryBulkMediaDragTypeHints(transfer);
 
 /**
  * Returns curated-surface drag/drop and keyboard reorder handlers.
@@ -137,6 +153,7 @@ export const useReferenceGridCuratedDndController = ({
   onSelectOutput,
   onAddDroppedFilesToQuickSlot,
   onAddLibraryMediaReferenceToQuickSlot,
+  onAddLibraryMediaReferencesToQuickSlot,
   onAddLibraryPromptReferenceToQuickSlot,
   onAddPastedMediaReferenceToQuickSlot,
 }: UseReferenceGridCuratedDndControllerArgs): UseReferenceGridCuratedDndControllerResult => {
@@ -167,6 +184,26 @@ export const useReferenceGridCuratedDndController = ({
       return false;
     },
     [onAddLibraryMediaReferenceToQuickSlot, onAddLibraryPromptReferenceToQuickSlot, onSelectOutput]
+  );
+
+  const handleBulkLibraryQuickSlotDrop = useCallback(
+    (
+      payload: MediaLibraryBulkMediaDragPayload,
+      options: { targetId: string | null; placement: "start" | "before" | "after" | "end" }
+    ) => {
+      void (async () => {
+        const insertedIds = await onAddLibraryMediaReferencesToQuickSlot?.(
+          payload.payload.items,
+          options
+        );
+        const activeId = insertedIds?.[insertedIds.length - 1] ?? null;
+        if (activeId) {
+          onSelectOutput(activeId);
+        }
+      })();
+      return true;
+    },
+    [onAddLibraryMediaReferencesToQuickSlot, onSelectOutput]
   );
 
   const handleQuickSlotFileDrop = useCallback(
@@ -213,6 +250,16 @@ export const useReferenceGridCuratedDndController = ({
       setCuratedDropActiveSafe(false);
       const dropSnapshot = captureAiStudioDropSnapshot(event.dataTransfer);
       const transfer = buildAiStudioDropSnapshotTransfer(dropSnapshot);
+      const bulkMediaLibraryPayload = readQuickSlotBulkLibraryPayload(transfer);
+      if (
+        bulkMediaLibraryPayload &&
+        handleBulkLibraryQuickSlotDrop(bulkMediaLibraryPayload, {
+          targetId: null,
+          placement: "start",
+        })
+      ) {
+        return;
+      }
       const mediaLibraryPayload = readQuickSlotLibraryPayload(transfer);
       if (
         mediaLibraryPayload &&
@@ -264,6 +311,7 @@ export const useReferenceGridCuratedDndController = ({
       curatedReferenceIds,
       handleQuickSlotFileDrop,
       handleQuickSlotMediaDrop,
+      handleBulkLibraryQuickSlotDrop,
       handleLibraryQuickSlotDrop,
       isCuratedSplitEnabled,
       onAddCuratedReference,
@@ -284,9 +332,11 @@ export const useReferenceGridCuratedDndController = ({
         Boolean(onAddPastedMediaReferenceToQuickSlot) &&
         hasDroppedMediaReference(event.dataTransfer);
       const hasLibraryPayloadHint = hasMediaLibraryDragTypeHints(event.dataTransfer);
+      const hasBulkLibraryPayloadHint = hasMediaLibraryBulkMediaDragTypeHints(event.dataTransfer);
       if (
         !hasInternalReferenceDrag(event.dataTransfer) &&
         !hasLibraryPayloadHint &&
+        !hasBulkLibraryPayloadHint &&
         !hasMediaReferencePayload &&
         !hasFilePayload
       ) {
@@ -294,7 +344,7 @@ export const useReferenceGridCuratedDndController = ({
         setCuratedDropActiveSafe(false);
         return;
       }
-      if (hasLibraryPayloadHint) {
+      if (hasLibraryPayloadHint || hasBulkLibraryPayloadHint) {
         event.dataTransfer.dropEffect = "copy";
         setCuratedDropActiveSafe(true);
         return;
@@ -333,6 +383,7 @@ export const useReferenceGridCuratedDndController = ({
       setCuratedDropActiveSafe(
         hasInternalReferenceDrag(event.dataTransfer) ||
           hasMediaLibraryDragTypeHints(event.dataTransfer) ||
+          hasMediaLibraryBulkMediaDragTypeHints(event.dataTransfer) ||
           (Boolean(onAddPastedMediaReferenceToQuickSlot) &&
             hasDroppedMediaReference(event.dataTransfer)) ||
           (Boolean(onAddDroppedFilesToQuickSlot) && hasDroppedFiles(event.dataTransfer))
@@ -372,6 +423,14 @@ export const useReferenceGridCuratedDndController = ({
         event.clientY < rect.top + rect.height / 2 ? "before" : "after";
       const dropSnapshot = captureAiStudioDropSnapshot(event.dataTransfer);
       const transfer = buildAiStudioDropSnapshotTransfer(dropSnapshot);
+      const bulkMediaLibraryPayload = readQuickSlotBulkLibraryPayload(transfer);
+      if (bulkMediaLibraryPayload) {
+        handleBulkLibraryQuickSlotDrop(bulkMediaLibraryPayload, {
+          targetId: target.id,
+          placement,
+        });
+        return;
+      }
       const mediaLibraryPayload = readQuickSlotLibraryPayload(transfer);
       if (mediaLibraryPayload) {
         handleLibraryQuickSlotDrop(mediaLibraryPayload, {
@@ -422,6 +481,7 @@ export const useReferenceGridCuratedDndController = ({
       curatedReferenceIds,
       handleQuickSlotFileDrop,
       handleQuickSlotMediaDrop,
+      handleBulkLibraryQuickSlotDrop,
       handleLibraryQuickSlotDrop,
       isCuratedSplitEnabled,
       onAddCuratedReference,

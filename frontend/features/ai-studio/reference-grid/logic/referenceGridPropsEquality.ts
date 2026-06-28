@@ -112,6 +112,9 @@ export const areReferenceGridPropsEqual = (
   if (previous.onAddLibraryMediaReference !== next.onAddLibraryMediaReference) {
     return false;
   }
+  if (previous.onAddLibraryMediaReferences !== next.onAddLibraryMediaReferences) {
+    return false;
+  }
   if (previous.onAddLibraryPromptReference !== next.onAddLibraryPromptReference) {
     return false;
   }
@@ -147,6 +150,11 @@ export const areReferenceGridPropsEqual = (
   }
   if (
     previous.onAddLibraryMediaReferenceToQuickSlot !== next.onAddLibraryMediaReferenceToQuickSlot
+  ) {
+    return false;
+  }
+  if (
+    previous.onAddLibraryMediaReferencesToQuickSlot !== next.onAddLibraryMediaReferencesToQuickSlot
   ) {
     return false;
   }

@@ -6,7 +6,12 @@ import {
   buildAiStudioDropSnapshotTransfer,
   captureAiStudioDropSnapshot,
 } from "./aiStudioDropSnapshot";
-import { getMediaLibraryDragTypes, readMediaLibraryDragPayload } from "./mediaLibraryDragPayload";
+import {
+  getMediaLibraryBulkMediaDragTypes,
+  getMediaLibraryDragTypes,
+  readMediaLibraryBulkMediaDragPayload,
+  readMediaLibraryDragPayload,
+} from "./mediaLibraryDragPayload";
 import type {
   LibraryMediaReferencePayload,
   LibraryPromptReferencePayload,
@@ -21,6 +26,7 @@ export type RightColumnDropPayload =
   | { kind: "files"; files: FileList }
   | { kind: "media"; reference: PastedRightColumnMediaReference }
   | { kind: "libraryMedia"; payload: LibraryMediaReferencePayload }
+  | { kind: "bulkLibraryMedia"; payloads: LibraryMediaReferencePayload[] }
   | { kind: "libraryPrompt"; payload: LibraryPromptReferencePayload }
   | { kind: "text"; text: string };
 
@@ -125,6 +131,9 @@ const normalizeDroppedPromptText = (transfer: DataTransfer): string | null => {
 const MEDIA_LIBRARY_DRAG_TYPES_LOWERCASE = getMediaLibraryDragTypes().map((type) =>
   type.toLowerCase()
 );
+const MEDIA_LIBRARY_BULK_DRAG_TYPES_LOWERCASE = getMediaLibraryBulkMediaDragTypes().map((type) =>
+  type.toLowerCase()
+);
 
 /**
  * Resolves the shell drop highlight mode from a browser transfer.
@@ -139,6 +148,9 @@ export const resolveRightColumnDropMode = (
   const hasLibraryDragType = MEDIA_LIBRARY_DRAG_TYPES_LOWERCASE.some((type) =>
     types.includes(type)
   );
+  const hasBulkLibraryDragType = MEDIA_LIBRARY_BULK_DRAG_TYPES_LOWERCASE.some((type) =>
+    types.includes(type)
+  );
   const hasMediaUrlHints =
     types.includes("text/reference-url") ||
     types.includes("text/uri-list") ||
@@ -150,7 +162,7 @@ export const resolveRightColumnDropMode = (
       type.includes("prompt") ||
       type.includes("utf8")
   );
-  if (hasLibraryDragType) return "media";
+  if (hasLibraryDragType || hasBulkLibraryDragType) return "media";
   if (hasInternalReferenceDragTypeHints(transfer)) return "none";
   if (fileCount > 0) return "media";
   if (hasMediaUrlHints) return "media";
@@ -169,6 +181,10 @@ export const resolveRightColumnDropPayload = (transfer: DataTransfer): RightColu
   const snapshot = captureAiStudioDropSnapshot(transfer);
   const resolvedTransfer = buildAiStudioDropSnapshotTransfer(snapshot);
 
+  const bulkMediaLibraryDragPayload = readMediaLibraryBulkMediaDragPayload(resolvedTransfer);
+  if (bulkMediaLibraryDragPayload) {
+    return { kind: "bulkLibraryMedia", payloads: bulkMediaLibraryDragPayload.payload.items };
+  }
   const mediaLibraryDragPayload = readMediaLibraryDragPayload(resolvedTransfer);
   if (mediaLibraryDragPayload?.kind === "libraryMedia") {
     return { kind: "libraryMedia", payload: mediaLibraryDragPayload.payload };

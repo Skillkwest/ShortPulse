@@ -1,7 +1,10 @@
 import type React from "react";
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { readMediaLibraryDragPayload } from "../../logic/mediaLibraryDragPayload";
+import {
+  readMediaLibraryBulkMediaDragPayload,
+  readMediaLibraryDragPayload,
+} from "../../logic/mediaLibraryDragPayload";
 import type { MediaFileRow } from "../../logic/mediaLibraryModalModel";
 import { useMediaLibraryPanelItemInteractions } from "../useMediaLibraryPanelItemInteractions";
 import { extractPromptDropText, hasInternalReferenceDragTypeHints } from "../../utils/dragDrop";
@@ -107,6 +110,129 @@ describe("useMediaLibraryPanelItemInteractions", () => {
         url: "user-1/media/stored-frame.png",
         previewStoragePath: "user-1/media/thumbs/stored-frame.webp",
         fullStoragePath: "user-1/media/stored-frame.png",
+      },
+    });
+  });
+
+  it("starts a bulk media drag when the dragged card is part of the visible selection", () => {
+    const selectedRows: MediaFileRow[] = [
+      {
+        id: "media-1",
+        filename: "first.png",
+        storage_path: "user-1/media/first.png",
+        preview_storage_path: "user-1/media/first-thumb.webp",
+        file_type: "image/png",
+        metadata: { prompt: "First prompt" },
+        signedUrl: "https://signed.example.com/first.png",
+      },
+      {
+        id: "media-2",
+        filename: "second.mp4",
+        storage_path: "user-1/media/second.mp4",
+        preview_storage_path: "user-1/media/second-poster.webp",
+        poster_variant_path: "user-1/media/second-poster.webp",
+        file_type: "video/mp4",
+        metadata: null,
+        signedUrl: "https://signed.example.com/second.mp4",
+      },
+    ];
+    const currentTarget = document.createElement("button");
+    const dataTransfer = createMutableTransfer();
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelItemInteractions({
+        activeFolderId: "all_items",
+        getSelectedVisibleMediaRows: () => selectedRows,
+      })
+    );
+
+    result.current.handleMediaCardDragStart(
+      {
+        currentTarget,
+        dataTransfer,
+        preventDefault: vi.fn(),
+      } as unknown as React.DragEvent<HTMLElement>,
+      selectedRows[1],
+      {
+        aspectRatio: 16 / 9,
+        posterPreviewUrl: "https://signed.example.com/second-poster.webp",
+      }
+    );
+
+    expect(readMediaLibraryDragPayload(dataTransfer)).toBeNull();
+    expect(readMediaLibraryBulkMediaDragPayload(dataTransfer)).toMatchObject({
+      kind: "bulkLibraryMedia",
+      payload: {
+        draggedItemId: "media-2",
+        originFolderId: "all_items",
+        items: [
+          {
+            id: "media-1",
+            fileType: "image",
+            promptText: "First prompt",
+          },
+          {
+            id: "media-2",
+            fileType: "video",
+            previewPosterUrl: "https://signed.example.com/second-poster.webp",
+          },
+        ],
+      },
+    });
+    expect(dataTransfer.effectAllowed).toBe("copy");
+    expect(currentTarget).toHaveClass("is-dragging");
+  });
+
+  it("keeps single-card drags when the dragged media is not part of the selection", () => {
+    const selectedRows: MediaFileRow[] = [
+      {
+        id: "media-selected",
+        filename: "selected.png",
+        storage_path: "user-1/media/selected.png",
+        file_type: "image/png",
+        metadata: null,
+        signedUrl: "https://signed.example.com/selected.png",
+      },
+      {
+        id: "media-selected-2",
+        filename: "selected-2.png",
+        storage_path: "user-1/media/selected-2.png",
+        file_type: "image/png",
+        metadata: null,
+        signedUrl: "https://signed.example.com/selected-2.png",
+      },
+    ];
+    const draggedFile: MediaFileRow = {
+      id: "media-unselected",
+      filename: "unselected.png",
+      storage_path: "user-1/media/unselected.png",
+      file_type: "image/png",
+      metadata: null,
+      signedUrl: "https://signed.example.com/unselected.png",
+    };
+    const currentTarget = document.createElement("button");
+    const dataTransfer = createMutableTransfer();
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelItemInteractions({
+        activeFolderId: "all_items",
+        getSelectedVisibleMediaRows: () => selectedRows,
+      })
+    );
+
+    result.current.handleMediaCardDragStart(
+      {
+        currentTarget,
+        dataTransfer,
+        preventDefault: vi.fn(),
+      } as unknown as React.DragEvent<HTMLElement>,
+      draggedFile
+    );
+
+    expect(readMediaLibraryBulkMediaDragPayload(dataTransfer)).toBeNull();
+    expect(readMediaLibraryDragPayload(dataTransfer)).toMatchObject({
+      kind: "libraryMedia",
+      payload: {
+        id: "media-unselected",
+        fileType: "image",
       },
     });
   });

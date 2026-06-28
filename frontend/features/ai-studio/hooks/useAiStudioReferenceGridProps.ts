@@ -39,6 +39,7 @@ export type UseAiStudioReferenceGridPropsParams = {
   handlePasteTextReference: (text: string) => void;
   handlePasteMediaReference: (reference: { url: string; mimeType?: string | null }) => void;
   handleAddLibraryMediaReference?: (payload: LibraryMediaReferencePayload) => void;
+  handleAddLibraryMediaReferences?: (payloads: LibraryMediaReferencePayload[]) => void;
   handleAddLibraryPromptReference?: (payload: LibraryPromptReferencePayload) => void;
   handleRerollOutput?: (id: string) => void;
   handleReloadWorkflowOutput?: (
@@ -84,6 +85,7 @@ export const useAiStudioReferenceGridProps = ({
   handlePasteTextReference,
   handlePasteMediaReference,
   handleAddLibraryMediaReference,
+  handleAddLibraryMediaReferences,
   handleAddLibraryPromptReference,
   handleRerollOutput,
   handleReloadWorkflowOutput,
@@ -223,6 +225,7 @@ export const useAiStudioReferenceGridProps = ({
       onPasteTextReference: handlePasteTextReference,
       onPasteMediaReference: handlePasteMediaReference,
       onAddLibraryMediaReference: handleAddLibraryMediaReference,
+      onAddLibraryMediaReferences: handleAddLibraryMediaReferences,
       onAddLibraryPromptReference: handleAddLibraryPromptReference,
       onRerollOutput: handleRerollOutput
         ? (output) => {
@@ -255,6 +258,7 @@ export const useAiStudioReferenceGridProps = ({
       deleteOutput,
       handleDownloadReference,
       handleAddLibraryMediaReference,
+      handleAddLibraryMediaReferences,
       handleAddLibraryPromptReference,
       handlePasteMediaReference,
       handlePasteTextReference,

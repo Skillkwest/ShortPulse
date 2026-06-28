@@ -53,6 +53,7 @@ type UseAiStudioPageContentRuntimeParams = {
   onMediaLibraryReloadWorkflow: AiStudioPageContentProps["onMediaLibraryReloadWorkflow"];
   onDetailSavePrompt: AiStudioPageContentProps["onDetailSavePrompt"];
   onAddLibraryMediaReference: AiStudioPageContentProps["onAddLibraryMediaReference"];
+  onAddLibraryMediaReferences?: AiStudioPageContentProps["onAddLibraryMediaReferences"];
   onAddLibraryPromptReference: AiStudioPageContentProps["onAddLibraryPromptReference"];
   onDeleteMediaRowsFromWorkspace: AiStudioPageContentProps["onDeleteMediaRowsFromWorkspace"];
   mediaLibraryDetailSelectionTarget: AiStudioPageContentProps["mediaLibraryDetailSelectionTarget"];
@@ -135,6 +136,7 @@ export const useAiStudioPageContentRuntime = ({
   onMediaLibraryReloadWorkflow,
   onDetailSavePrompt,
   onAddLibraryMediaReference,
+  onAddLibraryMediaReferences,
   onAddLibraryPromptReference,
   onDeleteMediaRowsFromWorkspace,
   mediaLibraryDetailSelectionTarget,
@@ -214,6 +216,7 @@ export const useAiStudioPageContentRuntime = ({
       onMediaLibraryReloadWorkflow,
       onDetailSavePrompt,
       onAddLibraryMediaReference,
+      onAddLibraryMediaReferences,
       onAddLibraryPromptReference,
       onDeleteMediaRowsFromWorkspace,
       mediaLibraryDetailSelectionTarget,
@@ -292,6 +295,7 @@ export const useAiStudioPageContentRuntime = ({
       onMediaLibraryReloadWorkflow,
       onDetailSavePrompt,
       onAddLibraryMediaReference,
+      onAddLibraryMediaReferences,
       onAddLibraryPromptReference,
       onDeleteMediaRowsFromWorkspace,
       mediaLibraryDetailSelectionTarget,

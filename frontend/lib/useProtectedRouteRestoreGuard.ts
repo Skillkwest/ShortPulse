@@ -4,8 +4,14 @@
  */
 import { useRouter } from "next/router";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { buildLoginPath } from "./authRedirects";
-import { clearSupabaseSessionSnapshot, readSupabaseSession } from "./supabaseClient";
+import {
+  clearSupabaseSessionSnapshot,
+  isSupabaseAbortError,
+  readSupabaseSession,
+  refreshSupabaseSession,
+} from "./supabaseClient";
 import {
   clearLogoutEpochWhenSessionIsFresh,
   isSessionOlderThanLogoutEpoch,
@@ -24,6 +30,9 @@ type RestoreCheckOptions = {
   blockWhileChecking?: boolean;
 };
 
+const isTransientVisibleRefreshFailure = (error: unknown): boolean =>
+  isAuthRetryableFetchError(error) || isSupabaseAbortError(error);
+
 /**
  * Forces a protected route to prove current browser auth before rendering private content.
  */
@@ -34,7 +43,13 @@ export const useProtectedRouteRestoreGuard = ({
   const router = useRouter();
   const routerRef = useRef(router);
   const [checking, setChecking] = useState(enabled);
+  const checkingRef = useRef(enabled);
   const checkVersionRef = useRef(0);
+
+  const setCheckingState = useCallback((nextChecking: boolean) => {
+    checkingRef.current = nextChecking;
+    setChecking(nextChecking);
+  }, []);
 
   useEffect(() => {
     routerRef.current = router;
@@ -44,18 +59,31 @@ export const useProtectedRouteRestoreGuard = ({
     async (options: RestoreCheckOptions = {}) => {
       const blockWhileChecking = options.blockWhileChecking === true;
       if (!enabled) {
-        setChecking(false);
+        setCheckingState(false);
         return;
       }
 
       const checkVersion = checkVersionRef.current + 1;
       checkVersionRef.current = checkVersion;
       if (blockWhileChecking) {
-        setChecking(true);
+        setCheckingState(true);
       }
 
-      const session = await readSupabaseSession({ forceRefresh: true }).catch(() => null);
+      let refreshError: unknown = null;
+      const session = await (
+        blockWhileChecking
+          ? readSupabaseSession({ forceRefresh: true })
+          : refreshSupabaseSession({ preserveSnapshotOnError: true })
+      ).catch((error: unknown) => {
+        refreshError = error;
+        return null;
+      });
       if (checkVersionRef.current !== checkVersion) return;
+
+      if (refreshError && !blockWhileChecking && isTransientVisibleRefreshFailure(refreshError)) {
+        setCheckingState(false);
+        return;
+      }
 
       if (!session || isSessionOlderThanLogoutEpoch(session)) {
         clearSupabaseSessionSnapshot();
@@ -64,9 +92,9 @@ export const useProtectedRouteRestoreGuard = ({
       }
 
       clearLogoutEpochWhenSessionIsFresh(session);
-      setChecking(false);
+      setCheckingState(false);
     },
-    [enabled, nextPath]
+    [enabled, nextPath, setCheckingState]
   );
 
   useEffect(() => {
@@ -85,15 +113,17 @@ export const useProtectedRouteRestoreGuard = ({
       return undefined;
     }
 
-    const handlePageHide = () => {
-      setChecking(true);
+    const handlePageHide = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        setCheckingState(true);
+      }
     };
     const handlePageShow = () => {
       void runRestoreCheck({ blockWhileChecking: true });
     };
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        void runRestoreCheck({ blockWhileChecking: false });
+        void runRestoreCheck({ blockWhileChecking: checkingRef.current });
       }
     };
 
@@ -106,7 +136,7 @@ export const useProtectedRouteRestoreGuard = ({
       window.removeEventListener("pageshow", handlePageShow);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [enabled, runRestoreCheck]);
+  }, [enabled, runRestoreCheck, setCheckingState]);
 
   return { checking: enabled ? checking : false };
 };

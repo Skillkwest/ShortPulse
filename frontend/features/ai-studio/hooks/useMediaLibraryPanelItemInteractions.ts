@@ -22,7 +22,11 @@ import {
   attachMediaLibraryDragGhost,
   clearMediaLibraryDragGhost,
 } from "../logic/mediaLibraryDragGhost";
-import { writeMediaLibraryDragPayload } from "../logic/mediaLibraryDragPayload";
+import {
+  writeMediaLibraryBulkMediaDragPayload,
+  writeMediaLibraryDragPayload,
+  type MediaLibraryBulkMediaDragPayload,
+} from "../logic/mediaLibraryDragPayload";
 import {
   resolveMediaLibraryCharacterContext,
   resolveMediaLibraryGenerationReplayConfig,
@@ -50,6 +54,81 @@ const resolveLibraryMediaReferenceFileType = (file: MediaFileRow): "image" | "vi
 
 type UseMediaLibraryPanelItemInteractionsParams = {
   activeFolderId: string | null;
+  getSelectedVisibleMediaRows?: () => MediaFileRow[];
+};
+
+type LibraryMediaReferencePayload = MediaLibraryBulkMediaDragPayload["payload"]["items"][number];
+
+const buildLibraryMediaReferencePayload = ({
+  activeFolderId,
+  file,
+  preview,
+}: {
+  activeFolderId: string | null;
+  file: MediaFileRow;
+  preview?: MediaLibraryMediaDragPreview;
+}): LibraryMediaReferencePayload | null => {
+  const signedUrl = (file.signedUrl ?? "").trim();
+  const durableUrl = (file.storage_path ?? file.preview_storage_path ?? "").trim();
+  const transferUrl = signedUrl || durableUrl;
+  if (!transferUrl) return null;
+  const mediaKind = resolveMediaRowKind(file);
+  const isVideo = mediaKind === "video";
+  const isAudio = mediaKind === "audio";
+  const hoverVideoUrl = preview?.hoverVideoUrl?.trim() || signedUrl;
+  const posterPreviewUrl = isVideo ? preview?.posterPreviewUrl?.trim() || null : null;
+  const resolvedTransferUrl = isVideo ? hoverVideoUrl || transferUrl : transferUrl;
+  const previewUrl = posterPreviewUrl ?? signedUrl;
+  const previewStoragePath = isVideo
+    ? (file.preview_storage_path ?? file.storage_path)
+    : (file.preview_storage_path ?? file.storage_path);
+  const dragDimensions = resolveMediaDragDimensions({
+    fileType: mediaKind,
+    width: file.width ?? null,
+    height: file.height ?? null,
+    metadata: file.metadata,
+    visualAspectRatio: preview?.aspectRatio ?? null,
+  });
+  const promptText = resolveMediaMetadataPromptText(file.metadata) ?? file.filename ?? "";
+  const transcriptText = resolveMediaMetadataTranscriptText(file.metadata);
+  const workflowReload = resolveMediaLibraryWorkflowReloadConfig(file.metadata);
+  const generationReplay = resolveMediaLibraryGenerationReplayConfig(file.metadata);
+  const characterContext = resolveMediaLibraryCharacterContext(file.metadata, workflowReload);
+  const styleContext = resolveMediaLibraryStyleContext(file.metadata, workflowReload);
+  const sourceRef = file.source_ref?.trim() || null;
+  const audioPresentation = resolveMediaAudioPresentation(file);
+  return {
+    id: file.id,
+    url: resolvedTransferUrl,
+    fileType: resolveLibraryMediaReferenceFileType(file),
+    createdAt: file.created_at ?? null,
+    originFolderId: activeFolderId,
+    filename: file.filename,
+    displayTitle: isAudio ? audioPresentation.displayTitle : null,
+    promptText,
+    transcriptText,
+    source: file.source ?? null,
+    sourceRef,
+    generationId: sourceRef,
+    modelId: resolveMediaMetadataModelId(file.metadata),
+    workflowReload,
+    generationReplay,
+    characterContext,
+    styleContext,
+    previewStoragePath,
+    fullStoragePath: file.storage_path,
+    previewUrl,
+    previewPosterUrl: posterPreviewUrl,
+    previewPosterStoragePath: isVideo ? (file.poster_variant_path ?? null) : null,
+    fullUrl: signedUrl || null,
+    companionArtUrl: audioPresentation.backgroundImageUrl,
+    companionArtStoragePath: isAudio ? audioPresentation.backgroundImageStoragePath : null,
+    audioSourceMode: isAudio ? resolveMediaMetadataAudioSourceMode(file.metadata) : null,
+    durationMs: resolveMediaMetadataDurationMs(file.metadata, { fileType: file.file_type }),
+    waveformPeaks: isAudio ? resolveMediaMetadataWaveformPeaks(file.metadata) : null,
+    width: dragDimensions.width,
+    height: dragDimensions.height,
+  };
 };
 
 /**
@@ -57,6 +136,7 @@ type UseMediaLibraryPanelItemInteractionsParams = {
  */
 export const useMediaLibraryPanelItemInteractions = ({
   activeFolderId,
+  getSelectedVisibleMediaRows,
 }: UseMediaLibraryPanelItemInteractionsParams) => {
   const mediaDownloadInFlightRef = useRef<Record<string, boolean>>({});
 
@@ -66,95 +146,81 @@ export const useMediaLibraryPanelItemInteractions = ({
       file: MediaFileRow,
       preview?: MediaLibraryMediaDragPreview
     ) => {
-      const signedUrl = (file.signedUrl ?? "").trim();
-      const durableUrl = (file.storage_path ?? file.preview_storage_path ?? "").trim();
-      const transferUrl = signedUrl || durableUrl;
-      if (!transferUrl) {
+      const payload = buildLibraryMediaReferencePayload({ activeFolderId, file, preview });
+      if (!payload) {
         event.preventDefault();
         return;
+      }
+      const selectedVisibleMediaRows = getSelectedVisibleMediaRows?.() ?? [];
+      const selectedBulkRows =
+        selectedVisibleMediaRows.length > 1 &&
+        selectedVisibleMediaRows.some((row) => row.id === file.id)
+          ? selectedVisibleMediaRows
+          : [];
+      if (selectedBulkRows.length > 1) {
+        const selectedPayloads = selectedBulkRows
+          .map((row) =>
+            buildLibraryMediaReferencePayload({
+              activeFolderId,
+              file: row,
+              preview: row.id === file.id ? preview : undefined,
+            })
+          )
+          .filter((item): item is LibraryMediaReferencePayload => Boolean(item));
+        if (selectedPayloads.length > 1) {
+          writeMediaLibraryBulkMediaDragPayload(event.dataTransfer, {
+            kind: "bulkLibraryMedia",
+            source: "mediaLibrary",
+            payload: {
+              draggedItemId: file.id,
+              originFolderId: activeFolderId,
+              items: selectedPayloads,
+            },
+          });
+          event.dataTransfer.effectAllowed = "copy";
+          event.currentTarget.classList.add("is-dragging");
+          const draggedPayload = selectedPayloads.find((item) => item.id === file.id) ?? payload;
+          attachMediaLibraryDragGhost(event, {
+            label: `${selectedPayloads.length} media items`,
+            detail: draggedPayload.promptText,
+            previewUrl:
+              draggedPayload.fileType === "audio"
+                ? draggedPayload.companionArtUrl
+                : (draggedPayload.previewUrl ?? null),
+            previewKind: draggedPayload.fileType,
+          });
+          return;
+        }
       }
       const mediaKind = resolveMediaRowKind(file);
       const isVideo = mediaKind === "video";
       const isAudio = mediaKind === "audio";
-      const hoverVideoUrl = preview?.hoverVideoUrl?.trim() || signedUrl;
-      const posterPreviewUrl = isVideo ? preview?.posterPreviewUrl?.trim() || null : null;
-      const resolvedTransferUrl = isVideo ? hoverVideoUrl || transferUrl : transferUrl;
-      const previewUrl = posterPreviewUrl ?? signedUrl;
-      const previewStoragePath = isVideo
-        ? (file.preview_storage_path ?? file.storage_path)
-        : (file.preview_storage_path ?? file.storage_path);
-      const dragDimensions = resolveMediaDragDimensions({
-        fileType: mediaKind,
-        width: file.width ?? null,
-        height: file.height ?? null,
-        metadata: file.metadata,
-        visualAspectRatio: preview?.aspectRatio ?? null,
-      });
-      const promptText = resolveMediaMetadataPromptText(file.metadata) ?? file.filename ?? "";
-      const transcriptText = resolveMediaMetadataTranscriptText(file.metadata);
-      const workflowReload = resolveMediaLibraryWorkflowReloadConfig(file.metadata);
-      const generationReplay = resolveMediaLibraryGenerationReplayConfig(file.metadata);
-      const characterContext = resolveMediaLibraryCharacterContext(file.metadata, workflowReload);
-      const styleContext = resolveMediaLibraryStyleContext(file.metadata, workflowReload);
-      const sourceRef = file.source_ref?.trim() || null;
       const audioPresentation = resolveMediaAudioPresentation(file);
-      const companionArtUrl = audioPresentation.backgroundImageUrl;
       writeMediaLibraryDragPayload(event.dataTransfer, {
         kind: "libraryMedia",
         source: "mediaLibrary",
-        payload: {
-          id: file.id,
-          url: resolvedTransferUrl,
-          fileType: resolveLibraryMediaReferenceFileType(file),
-          createdAt: file.created_at ?? null,
-          originFolderId: activeFolderId,
-          filename: file.filename,
-          displayTitle: isAudio ? audioPresentation.displayTitle : null,
-          promptText,
-          transcriptText,
-          source: file.source ?? null,
-          sourceRef,
-          generationId: sourceRef,
-          modelId: resolveMediaMetadataModelId(file.metadata),
-          workflowReload,
-          generationReplay,
-          characterContext,
-          styleContext,
-          previewStoragePath,
-          fullStoragePath: file.storage_path,
-          previewUrl,
-          previewPosterUrl: posterPreviewUrl,
-          previewPosterStoragePath: isVideo ? (file.poster_variant_path ?? null) : null,
-          fullUrl: signedUrl || null,
-          companionArtUrl,
-          companionArtStoragePath: isAudio ? audioPresentation.backgroundImageStoragePath : null,
-          audioSourceMode: isAudio ? resolveMediaMetadataAudioSourceMode(file.metadata) : null,
-          durationMs: resolveMediaMetadataDurationMs(file.metadata, { fileType: file.file_type }),
-          waveformPeaks: isAudio ? resolveMediaMetadataWaveformPeaks(file.metadata) : null,
-          width: dragDimensions.width,
-          height: dragDimensions.height,
-        },
+        payload,
       });
       event.dataTransfer.effectAllowed = "copy";
-      setTransferDataSafe(event.dataTransfer, "text/reference-url", resolvedTransferUrl);
-      setTransferDataSafe(event.dataTransfer, "text/uri-list", resolvedTransferUrl);
-      if (promptText.trim()) {
-        setTransferDataSafe(event.dataTransfer, "text/prompt", promptText);
-        setTransferDataSafe(event.dataTransfer, "text/plain", promptText);
+      setTransferDataSafe(event.dataTransfer, "text/reference-url", payload.url ?? "");
+      setTransferDataSafe(event.dataTransfer, "text/uri-list", payload.url ?? "");
+      if ((payload.promptText ?? "").trim()) {
+        setTransferDataSafe(event.dataTransfer, "text/prompt", payload.promptText ?? "");
+        setTransferDataSafe(event.dataTransfer, "text/plain", payload.promptText ?? "");
       } else {
-        setTransferDataSafe(event.dataTransfer, "text/plain", resolvedTransferUrl);
+        setTransferDataSafe(event.dataTransfer, "text/plain", payload.url ?? "");
       }
       event.currentTarget.classList.add("is-dragging");
       attachMediaLibraryDragGhost(event, {
         label: isAudio
           ? audioPresentation.displayTitle || file.filename || "Media"
           : file.filename || "Media",
-        detail: promptText,
-        previewUrl: isAudio ? companionArtUrl : previewUrl,
+        detail: payload.promptText,
+        previewUrl: isAudio ? payload.companionArtUrl : payload.previewUrl,
         previewKind: isVideo ? "video" : isAudio ? "audio" : "image",
       });
     },
-    [activeFolderId]
+    [activeFolderId, getSelectedVisibleMediaRows]
   );
 
   const handlePromptCardDragStart = useCallback(

@@ -2,7 +2,10 @@
  * Right-rail drop ownership helpers.
  * Resolves which shared right-rail surface owns a drop so shell capture can defer to local targets.
  */
-import { getMediaLibraryDragTypes } from "./mediaLibraryDragPayload";
+import {
+  getMediaLibraryBulkMediaDragTypes,
+  getMediaLibraryDragTypes,
+} from "./mediaLibraryDragPayload";
 import { getDroppedMediaReference } from "../reference-grid/controllers/referenceGridClipboard";
 import { getNormalizedTransferTypes } from "../utils/dragDrop";
 
@@ -14,6 +17,7 @@ type RightRailDropPayloadKind =
   | "files"
   | "media"
   | "libraryMedia"
+  | "bulkLibraryMedia"
   | "libraryPrompt"
   | "text";
 type RightRailShellCaptureContext = {
@@ -33,6 +37,9 @@ const RIGHT_RAIL_DROP_SURFACE_SELECTORS: Record<RightRailDropSurface, string> = 
 export const REFERENCE_GRID_FILE_DROP_SURFACE_SELECTOR =
   RIGHT_RAIL_DROP_SURFACE_SELECTORS["all-refs"];
 const MEDIA_LIBRARY_DRAG_TYPES_LOWERCASE = getMediaLibraryDragTypes().map((type) =>
+  type.toLowerCase()
+);
+const MEDIA_LIBRARY_BULK_DRAG_TYPES_LOWERCASE = getMediaLibraryBulkMediaDragTypes().map((type) =>
   type.toLowerCase()
 );
 
@@ -134,6 +141,9 @@ export const shouldBypassRightRailShellCapture = (
   const hasLibraryPayloadHint = MEDIA_LIBRARY_DRAG_TYPES_LOWERCASE.some((type) =>
     transferTypes.includes(type)
   );
+  const hasBulkLibraryPayloadHint = MEDIA_LIBRARY_BULK_DRAG_TYPES_LOWERCASE.some((type) =>
+    transferTypes.includes(type)
+  );
   const hasRealFilePayload = (transfer?.files?.length ?? 0) > 0;
   const hasDroppedMediaReference =
     !hasRealFilePayload && Boolean(transfer && getDroppedMediaReference(transfer));
@@ -142,14 +152,23 @@ export const shouldBypassRightRailShellCapture = (
   const isMediaDrop =
     payloadKind === "media" ||
     payloadKind === "libraryMedia" ||
+    payloadKind === "bulkLibraryMedia" ||
     payloadKind === "libraryPrompt" ||
     (context.dropMode === "media" && !hasRealFilePayload);
 
   if (dropSurface === "quick-slot") {
-    return hasLibraryPayloadHint || hasDroppedMediaReference || isMediaDrop;
+    return (
+      hasLibraryPayloadHint || hasBulkLibraryPayloadHint || hasDroppedMediaReference || isMediaDrop
+    );
   }
   if (dropSurface === "canvas") {
-    return hasLibraryPayloadHint || hasDroppedMediaReference || isMediaDrop || isTextDrop;
+    return (
+      hasLibraryPayloadHint ||
+      hasBulkLibraryPayloadHint ||
+      hasDroppedMediaReference ||
+      isMediaDrop ||
+      isTextDrop
+    );
   }
   return false;
 };

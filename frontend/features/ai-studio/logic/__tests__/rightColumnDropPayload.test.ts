@@ -113,6 +113,44 @@ describe("rightColumnDropPayload", () => {
     });
   });
 
+  it("resolves bulk media-library media drags as bulk library media payloads", () => {
+    const transfer = makeTransfer({
+      "application/x-shortpulse-media-library-items": JSON.stringify({
+        kind: "bulkLibraryMedia",
+        source: "mediaLibrary",
+        payload: {
+          items: [
+            {
+              id: "media-bulk-1",
+              url: "https://cdn.example.com/bulk-1.png",
+              fileType: "image",
+            },
+            {
+              id: "media-bulk-2",
+              url: "https://cdn.example.com/bulk-2.mp4",
+              fileType: "video",
+            },
+          ],
+        },
+      }),
+    });
+
+    expect(resolveRightColumnDropMode(transfer)).toBe("media");
+    expect(resolveRightColumnDropPayload(transfer)).toEqual({
+      kind: "bulkLibraryMedia",
+      payloads: [
+        expect.objectContaining({
+          id: "media-bulk-1",
+          fileType: "image",
+        }),
+        expect.objectContaining({
+          id: "media-bulk-2",
+          fileType: "video",
+        }),
+      ],
+    });
+  });
+
   it("resolves session-backed media-library prompt drags as library prompt payloads", () => {
     const transfer = makeMutableTransfer();
     const promptText = `Saved prompt opening. ${"Detailed direction. ".repeat(80)}Saved ending.`;

@@ -12,6 +12,7 @@ export type ShellDropPayload =
   | { kind: "files"; files: FileList }
   | { kind: "media"; reference: { url: string; mimeType?: string | null } }
   | { kind: "libraryMedia"; payload: LibraryMediaPayload }
+  | { kind: "bulkLibraryMedia"; payloads: LibraryMediaPayload[] }
   | { kind: "libraryPrompt"; payload: LibraryPromptPayload }
   | { kind: "text"; text: string };
 
@@ -23,6 +24,7 @@ type UseAiStudioShellDndControllerParams = {
   onDropFiles: (files: FileList) => void;
   onDropMediaReference?: (reference: { url: string; mimeType?: string | null }) => void;
   onDropLibraryMediaReference?: (payload: LibraryMediaPayload) => void;
+  onDropLibraryMediaReferences?: (payloads: LibraryMediaPayload[]) => void;
   onDropLibraryPromptReference?: (payload: LibraryPromptPayload) => void;
   onDropTextReference?: (text: string) => void;
   useRafBackpressure?: boolean;
@@ -60,6 +62,7 @@ export const useAiStudioShellDndController = ({
   onDropFiles,
   onDropMediaReference,
   onDropLibraryMediaReference,
+  onDropLibraryMediaReferences,
   onDropLibraryPromptReference,
   onDropTextReference,
   useRafBackpressure = true,
@@ -229,6 +232,13 @@ export const useAiStudioShellDndController = ({
         clearDropState();
         return;
       }
+      if (payload.kind === "bulkLibraryMedia" && onDropLibraryMediaReferences) {
+        event.preventDefault();
+        event.stopPropagation();
+        onDropLibraryMediaReferences(payload.payloads);
+        clearDropState();
+        return;
+      }
       if (payload.kind === "libraryPrompt" && onDropLibraryPromptReference) {
         event.preventDefault();
         event.stopPropagation();
@@ -250,6 +260,7 @@ export const useAiStudioShellDndController = ({
       onDropFiles,
       onDropMediaReference,
       onDropLibraryMediaReference,
+      onDropLibraryMediaReferences,
       onDropLibraryPromptReference,
       onDropTextReference,
       resolveDropPayload,

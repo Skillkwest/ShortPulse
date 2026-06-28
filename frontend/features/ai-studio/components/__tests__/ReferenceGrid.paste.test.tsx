@@ -324,6 +324,58 @@ describe("ReferenceGrid paste handling", () => {
     expect(onDropFiles).not.toHaveBeenCalled();
   });
 
+  it("routes bulk media-library media drops through onAddLibraryMediaReferences", () => {
+    const onDropFiles = vi.fn();
+    const onAddLibraryMediaReference = vi.fn();
+    const onAddLibraryMediaReferences = vi.fn();
+    const dataTransfer = makeTransfer({
+      "application/x-shortpulse-media-library-items": JSON.stringify({
+        kind: "bulkLibraryMedia",
+        source: "mediaLibrary",
+        payload: {
+          items: [
+            {
+              id: "media-bulk-1",
+              url: "https://cdn.example.com/bulk-1.png",
+              fileType: "image",
+            },
+            {
+              id: "media-bulk-2",
+              url: "https://cdn.example.com/bulk-2.mp4",
+              fileType: "video",
+            },
+          ],
+        },
+      }),
+    });
+
+    const { container } = render(
+      <ReferenceGrid
+        {...baseProps}
+        onDropFiles={onDropFiles}
+        onAddLibraryMediaReference={onAddLibraryMediaReference}
+        onAddLibraryMediaReferences={onAddLibraryMediaReferences}
+      />
+    );
+    const panel = container.querySelector(".reference-canvas-panel");
+    expect(panel).toBeTruthy();
+
+    fireEvent.drop(panel as HTMLElement, { dataTransfer });
+
+    expect(onAddLibraryMediaReferences).toHaveBeenCalledWith([
+      expect.objectContaining({
+        id: "media-bulk-1",
+        fileType: "image",
+      }),
+      expect.objectContaining({
+        id: "media-bulk-2",
+        fileType: "video",
+      }),
+    ]);
+    expect(onAddLibraryMediaReference).not.toHaveBeenCalled();
+    expect(onDropFiles).not.toHaveBeenCalled();
+  });
+
   it("routes media-library prompt drops through onAddLibraryPromptReference", () => {
     const onDropFiles = vi.fn();
     const onAddLibraryPromptReference = vi.fn();

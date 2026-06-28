@@ -197,6 +197,7 @@ const AiStudioPageRuntimeBody = ({
     activeSessionPersistenceSessionId,
     addCharacterReferences,
     addLibraryMediaReference,
+    addLibraryMediaReferences,
     addLibraryPromptReference,
     addOutputsFromFiles,
     ingestReferenceFiles,
@@ -936,6 +937,7 @@ const AiStudioPageRuntimeBody = ({
     onMediaLibraryReloadWorkflow: base.reloadWorkflowFromStudioOutput,
     onDetailSavePrompt,
     onAddLibraryMediaReference: addLibraryMediaReference,
+    onAddLibraryMediaReferences: addLibraryMediaReferences,
     onAddLibraryPromptReference: addLibraryPromptReference,
     onDeleteMediaRowsFromWorkspace: handleDeleteMediaRowsFromWorkspace,
     mediaLibraryDetailSelectionTarget:

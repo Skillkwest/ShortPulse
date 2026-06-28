@@ -148,6 +148,7 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
   const defaultParams = {
     addCuratedReference: vi.fn(),
     addLibraryMediaReferenceToQuickSlot: vi.fn(async () => null),
+    addLibraryMediaReferencesToQuickSlot: vi.fn(async () => []),
     addLibraryPromptReferenceToQuickSlot: vi.fn(() => null),
     addPastedPromptReference: vi.fn(),
     insertPastedMediaReference: vi.fn(() => []),
@@ -682,6 +683,59 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
     });
 
     expect(ingestReferenceFiles).toHaveBeenCalledWith([fileA, fileB], "drop");
+    expect(addCuratedReference).toHaveBeenCalledTimes(2);
+    expect(addCuratedReference).toHaveBeenNthCalledWith(1, "output-b");
+    expect(addCuratedReference).toHaveBeenNthCalledWith(2, "output-a");
+    expect(reorderCuratedReference).toHaveBeenNthCalledWith(1, "output-b", "target-1", "before");
+    expect(reorderCuratedReference).toHaveBeenNthCalledWith(2, "output-a", "output-b", "before");
+    expect(setActiveOutputId).toHaveBeenCalledWith("output-b");
+    expect(insertedIds).toEqual(["output-a", "output-b"]);
+  });
+
+  it("projects bulk library media into quick slot in target order", async () => {
+    const addCuratedReference = vi.fn();
+    const reorderCuratedReference = vi.fn();
+    const setActiveOutputId = vi.fn();
+    const addLibraryMediaReferencesToQuickSlot = vi.fn(async () => ["output-a", "output-b"]);
+
+    const { result } = renderHook(() =>
+      useAiStudioPageMediaReferenceRuntime({
+        ...defaultParams,
+        addCuratedReference,
+        addLibraryMediaReferencesToQuickSlot,
+        getOutputById: () => null,
+        reorderCuratedReference,
+        setActiveOutputId,
+      })
+    );
+
+    const insertedIds = await result.current.handleQuickSlotLibraryMediaBulkDrop(
+      [
+        {
+          id: "media-a",
+          url: "https://cdn.shortpulse.test/a.png",
+          fileType: "image",
+          filename: "a.png",
+          promptText: "A",
+        },
+        {
+          id: "media-b",
+          url: "https://cdn.shortpulse.test/b.png",
+          fileType: "image",
+          filename: "b.png",
+          promptText: "B",
+        },
+      ],
+      {
+        targetId: "target-1",
+        placement: "before",
+      }
+    );
+
+    expect(addLibraryMediaReferencesToQuickSlot).toHaveBeenCalledWith([
+      expect.objectContaining({ id: "media-a" }),
+      expect.objectContaining({ id: "media-b" }),
+    ]);
     expect(addCuratedReference).toHaveBeenCalledTimes(2);
     expect(addCuratedReference).toHaveBeenNthCalledWith(1, "output-b");
     expect(addCuratedReference).toHaveBeenNthCalledWith(2, "output-a");

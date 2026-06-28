@@ -61,7 +61,7 @@ describe("AiStudioInsufficientCreditsModal", () => {
             },
             {
               id: "studio-pack",
-              display_name: "Studio Pack 2,000",
+              display_name: "Studio Pack 2000",
               credit_amount_cents: 2000,
               price_cents: 2600,
               sort_order: 2,
@@ -98,6 +98,8 @@ describe("AiStudioInsufficientCreditsModal", () => {
       expect(screen.queryByRole("button", { name: /^buy credits$/i })).not.toBeInTheDocument();
       expect(screen.getByText("Starter Pack")).toBeInTheDocument();
       expect(screen.queryByText("Starter Pack 500")).not.toBeInTheDocument();
+      expect(screen.getByText("Studio Pack")).toBeInTheDocument();
+      expect(screen.queryByText("Studio Pack 2000")).not.toBeInTheDocument();
 
       fireEvent.click(starterPackageButton);
 
@@ -116,6 +118,75 @@ describe("AiStudioInsufficientCreditsModal", () => {
       });
       expect(onCheckoutStarted).toHaveBeenCalledTimes(1);
       expect(onClose).not.toHaveBeenCalled();
+    } finally {
+      restoreLocation();
+    }
+  });
+
+  it("recovers after a checkout start failure and retries the same package", async () => {
+    const assignMock = vi.fn();
+    const restoreLocation = withMockedLocationAssign(assignMock);
+    fetchWithAuthMock.mockImplementation(async (url: string) => {
+      if (url === "/api/billing/credit-packages") {
+        return jsonResponse({
+          packages: [
+            {
+              id: "growth-pack",
+              display_name: "Growth Pack 2,000",
+              credit_amount_cents: 2000,
+              price_cents: 2600,
+              sort_order: 1,
+            },
+          ],
+        });
+      }
+      if (url === "/api/billing/stripe/checkout") {
+        const checkoutCalls = fetchWithAuthMock.mock.calls.filter(
+          ([calledUrl]) => calledUrl === "/api/billing/stripe/checkout"
+        );
+        return checkoutCalls.length === 1
+          ? jsonResponse({ error: "Stripe checkout is temporarily unavailable." }, false)
+          : jsonResponse({ checkoutUrl: "https://checkout.stripe.test/session-retry" });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    try {
+      render(
+        <AiStudioInsufficientCreditsModal
+          isOpen
+          requiredCredits={1200}
+          availableCredits={100}
+          onClose={vi.fn()}
+        />
+      );
+
+      const buyGrowthCredits = await screen.findByRole("button", {
+        name: /buy credits: growth pack/i,
+      });
+      fireEvent.click(buyGrowthCredits);
+
+      expect(
+        await screen.findByText("Stripe checkout is temporarily unavailable.")
+      ).toBeInTheDocument();
+      expect(assignMock).not.toHaveBeenCalled();
+      expect(buyGrowthCredits).toBeEnabled();
+
+      fireEvent.click(buyGrowthCredits);
+
+      await waitFor(() => {
+        expect(assignMock).toHaveBeenCalledWith("https://checkout.stripe.test/session-retry");
+      });
+      const checkoutCalls = fetchWithAuthMock.mock.calls.filter(
+        ([url]) => url === "/api/billing/stripe/checkout"
+      );
+      expect(checkoutCalls).toHaveLength(2);
+      for (const [, init] of checkoutCalls as [string, RequestInit][]) {
+        expect(JSON.parse(String(init.body))).toEqual({
+          packageId: "growth-pack",
+          returnPath: "/ai-studio?projectId=project-1",
+        });
+      }
     } finally {
       restoreLocation();
     }

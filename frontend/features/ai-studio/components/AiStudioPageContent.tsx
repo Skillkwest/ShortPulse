@@ -615,6 +615,7 @@ export type AiStudioPageContentProps = {
   ) => void;
   onDetailSavePrompt?: (promptText: string) => void | boolean | Promise<boolean>;
   onAddLibraryMediaReference?: (payload: LibraryMediaReferencePayload) => void;
+  onAddLibraryMediaReferences?: (payloads: LibraryMediaReferencePayload[]) => void;
   onAddLibraryPromptReference?: (payload: LibraryPromptReferencePayload) => void;
   onDeleteMediaRowsFromWorkspace?: (rows: MediaFileRow[]) => void;
   mediaLibraryDetailSelectionTarget?: SharedMediaDetailSelectionTarget | null;
@@ -711,6 +712,7 @@ export function AiStudioPageContent({
   onMediaLibraryReloadWorkflow,
   onDetailSavePrompt,
   onAddLibraryMediaReference,
+  onAddLibraryMediaReferences,
   onAddLibraryPromptReference,
   onDeleteMediaRowsFromWorkspace,
   mediaLibraryDetailSelectionTarget = null,
@@ -1704,6 +1706,7 @@ export function AiStudioPageContent({
     onDropFiles: handleReferenceGridFiles,
     onDropMediaReference: resolvedReferenceGridPropsWithStylesPanel.onPasteMediaReference,
     onDropLibraryMediaReference: onAddLibraryMediaReference,
+    onDropLibraryMediaReferences: onAddLibraryMediaReferences,
     onDropLibraryPromptReference: onAddLibraryPromptReference,
     onDropTextReference: resolvedReferenceGridPropsWithStylesPanel.onPasteTextReference,
     useRafBackpressure: FLAG_SHELL_DECOUPLE && FLAG_DND_BACKPRESSURE,

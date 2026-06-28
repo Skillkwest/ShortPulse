@@ -219,6 +219,62 @@ describe("useAiStudioReferenceIngestionActions", () => {
     expect(setOutputs).toHaveBeenCalled();
   });
 
+  it("batch-inserts bulk library media references with one optimistic output update", async () => {
+    let nextOutputs: StudioOutput[] = [];
+    const setOutputs = vi.fn(
+      (updater: StudioOutput[] | ((prev: StudioOutput[]) => StudioOutput[])) => {
+        nextOutputs = typeof updater === "function" ? updater(nextOutputs) : updater;
+      }
+    );
+    prepareLibraryMediaIngestionPayloadMock.mockImplementation(() => new Promise(() => undefined));
+    const { result } = renderHook(() =>
+      useAiStudioReferenceIngestionActions(
+        createParams({
+          projectId: "project-1",
+          setOutputs,
+        })
+      )
+    );
+
+    await act(async () => {
+      await result.current.addLibraryMediaReferencesToQuickSlot([
+        {
+          id: "media-1",
+          url: "https://cdn.test/media-1.png",
+          fileType: "image",
+          filename: "Reference 1",
+        },
+        {
+          id: "media-2",
+          url: "https://cdn.test/media-2.mp4",
+          fileType: "video",
+          filename: "Reference 2",
+        },
+      ]);
+    });
+
+    expect(setOutputs).toHaveBeenCalledTimes(1);
+    expect(nextOutputs).toHaveLength(2);
+    expect(nextOutputs[0]).toEqual(
+      expect.objectContaining({
+        savedMediaIds: ["media-1"],
+        previewUrl: "https://cdn.test/media-1.png",
+      })
+    );
+    expect(nextOutputs[1]).toEqual(
+      expect.objectContaining({
+        savedMediaIds: ["media-2"],
+        previewUrl: "https://cdn.test/media-2.mp4",
+      })
+    );
+    expect(associateMediaFilesWithProjectMock).toHaveBeenCalledWith({
+      projectId: "project-1",
+      mediaFileIds: ["media-1", "media-2"],
+      userId: CURRENT_USER_ID,
+    });
+    expect(prepareLibraryMediaIngestionPayloadMock).toHaveBeenCalledTimes(2);
+  });
+
   it("inserts quick-slot library media before prepared URL hydration finishes", async () => {
     let nextOutputs: StudioOutput[] = [];
     const setOutputs = vi.fn(

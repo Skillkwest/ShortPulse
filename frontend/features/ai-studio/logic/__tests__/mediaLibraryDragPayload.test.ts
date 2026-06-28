@@ -1,8 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  getMediaLibraryBulkMediaDragTypes,
   getMediaLibraryDragTypes,
+  hasMediaLibraryBulkMediaDragTypeHints,
   hasMediaLibraryDragTypeHints,
+  readMediaLibraryBulkMediaDragPayload,
   readMediaLibraryDragPayload,
+  writeMediaLibraryBulkMediaDragPayload,
   writeMediaLibraryDragPayload,
 } from "../mediaLibraryDragPayload";
 
@@ -63,6 +67,72 @@ describe("mediaLibraryDragPayload", () => {
       getData: vi.fn(() => "not-json"),
     } as unknown as DataTransfer;
     expect(readMediaLibraryDragPayload(transfer)).toBeNull();
+  });
+
+  it("serializes and parses bulk library media payloads separately from single-item payloads", () => {
+    const transferData = new Map<string, string>();
+    const transferTypes: string[] = [];
+    const transfer = {
+      get types() {
+        return transferTypes;
+      },
+      setData: vi.fn((type: string, value: string) => {
+        transferData.set(type, value);
+        transferTypes.splice(0, transferTypes.length, ...transferData.keys());
+      }),
+      getData: vi.fn((type: string) => transferData.get(type) ?? ""),
+    } as unknown as DataTransfer;
+
+    writeMediaLibraryBulkMediaDragPayload(transfer, {
+      kind: "bulkLibraryMedia",
+      source: "mediaLibrary",
+      payload: {
+        draggedItemId: "media-2",
+        originFolderId: "all_items",
+        items: [
+          {
+            id: "media-1",
+            url: "https://example.com/a.png",
+            fileType: "image",
+            filename: "a.png",
+          },
+          {
+            id: "media-2",
+            url: "https://example.com/b.mp4",
+            fileType: "video",
+            filename: "b.mp4",
+            previewPosterUrl: "https://example.com/b-poster.jpg",
+          },
+        ],
+      },
+    });
+
+    expect(transfer.setData).toHaveBeenCalledWith(
+      "text/shortpulse-media-library-bulk-marker",
+      "shortpulse-media-library-bulk-v1"
+    );
+    expect(readMediaLibraryDragPayload(transfer)).toBeNull();
+    expect(readMediaLibraryBulkMediaDragPayload(transfer)).toEqual({
+      kind: "bulkLibraryMedia",
+      source: "mediaLibrary",
+      payload: {
+        draggedItemId: "media-2",
+        originFolderId: "all_items",
+        items: [
+          expect.objectContaining({
+            id: "media-1",
+            url: "https://example.com/a.png",
+            fileType: "image",
+          }),
+          expect.objectContaining({
+            id: "media-2",
+            url: "https://example.com/b.mp4",
+            fileType: "video",
+            previewPosterUrl: "https://example.com/b-poster.jpg",
+          }),
+        ],
+      },
+    });
   });
 
   it("reconstructs library media payloads from text/* fallback marker data", () => {
@@ -312,6 +382,30 @@ describe("mediaLibraryDragPayload", () => {
     expect(getMediaLibraryDragTypes()).toContain("application/x-shortpulse-media-library-item");
     expect(getMediaLibraryDragTypes()).toContain("text/x-shortpulse-media-library-item");
     expect(getMediaLibraryDragTypes()).toContain("text/shortpulse-media-library-marker");
+  });
+
+  it("exposes and detects bulk drag transfer types without single-item hints", () => {
+    expect(getMediaLibraryBulkMediaDragTypes()).toContain(
+      "application/x-shortpulse-media-library-items"
+    );
+    expect(getMediaLibraryBulkMediaDragTypes()).toContain("text/x-shortpulse-media-library-items");
+    expect(getMediaLibraryBulkMediaDragTypes()).toContain(
+      "text/shortpulse-media-library-bulk-marker"
+    );
+    expect(getMediaLibraryDragTypes()).not.toContain(
+      "application/x-shortpulse-media-library-items"
+    );
+
+    const transfer = {
+      types: ["text/shortpulse-media-library-bulk-marker"],
+      getData: vi.fn(() => {
+        throw new Error("payload read should not be required");
+      }),
+    } as unknown as DataTransfer;
+
+    expect(hasMediaLibraryBulkMediaDragTypeHints(transfer)).toBe(true);
+    expect(hasMediaLibraryDragTypeHints(transfer)).toBe(false);
+    expect(transfer.getData).not.toHaveBeenCalled();
   });
 
   it("detects media-library drag hints without reading payload data", () => {

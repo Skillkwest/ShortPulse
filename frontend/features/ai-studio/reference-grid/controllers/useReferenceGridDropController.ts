@@ -12,7 +12,10 @@ import {
   buildAiStudioDropSnapshotTransfer,
   captureAiStudioDropSnapshot,
 } from "../../logic/aiStudioDropSnapshot";
-import { readMediaLibraryDragPayload } from "../../logic/mediaLibraryDragPayload";
+import {
+  readMediaLibraryBulkMediaDragPayload,
+  readMediaLibraryDragPayload,
+} from "../../logic/mediaLibraryDragPayload";
 import type {
   LibraryMediaReferencePayload,
   LibraryPromptReferencePayload,
@@ -37,6 +40,7 @@ type UseReferenceGridDropControllerArgs = {
   onPasteMediaReference?: (reference: { url: string; mimeType?: string | null }) => void;
   onPasteTextReference?: (text: string) => void;
   onAddLibraryMediaReference?: (payload: LibraryMediaReferencePayload) => void;
+  onAddLibraryMediaReferences?: (payloads: LibraryMediaReferencePayload[]) => void;
   onAddLibraryPromptReference?: (payload: LibraryPromptReferencePayload) => void;
 };
 
@@ -63,6 +67,7 @@ export const useReferenceGridDropController = ({
   onPasteMediaReference,
   onPasteTextReference,
   onAddLibraryMediaReference,
+  onAddLibraryMediaReferences,
   onAddLibraryPromptReference,
 }: UseReferenceGridDropControllerArgs): UseReferenceGridDropControllerResult => {
   useEffect(() => {
@@ -87,6 +92,13 @@ export const useReferenceGridDropController = ({
     const dropSnapshot = captureAiStudioDropSnapshot(event.dataTransfer);
     const transfer = buildAiStudioDropSnapshotTransfer(dropSnapshot);
 
+    const bulkMediaLibraryPayload = readMediaLibraryBulkMediaDragPayload(transfer);
+    if (bulkMediaLibraryPayload && onAddLibraryMediaReferences) {
+      event.preventDefault();
+      event.stopPropagation();
+      onAddLibraryMediaReferences(bulkMediaLibraryPayload.payload.items);
+      return;
+    }
     const mediaLibraryPayload = readMediaLibraryDragPayload(transfer);
     if (mediaLibraryPayload?.kind === "libraryMedia" && onAddLibraryMediaReference) {
       event.preventDefault();

@@ -43,10 +43,14 @@ const resolveReturnPath = (): string => {
 };
 
 const resolvePackageDisplayName = (pkg: CreditPackage): string => {
-  const creditAmount = pkg.credit_amount_cents.toLocaleString();
-  const escapedCreditAmount = creditAmount.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const creditAmountPattern = [
+    pkg.credit_amount_cents.toLocaleString(),
+    String(pkg.credit_amount_cents),
+  ]
+    .map((amount) => amount.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("|");
   const withoutTrailingAmount = pkg.display_name
-    .replace(new RegExp(`\\s+${escapedCreditAmount}$`), "")
+    .replace(new RegExp(`\\s+(?:${creditAmountPattern})$`), "")
     .trim();
   return withoutTrailingAmount || pkg.display_name;
 };

@@ -8,6 +8,9 @@ import { normalizeAudioSourceMode } from "./audioSourceMode";
 
 const MEDIA_LIBRARY_DRAG_TYPE = "application/x-shortpulse-media-library-item";
 const MEDIA_LIBRARY_DRAG_TEXT_TYPE = "text/x-shortpulse-media-library-item";
+const MEDIA_LIBRARY_BULK_DRAG_TYPE = "application/x-shortpulse-media-library-items";
+const MEDIA_LIBRARY_BULK_DRAG_TEXT_TYPE = "text/x-shortpulse-media-library-items";
+const MEDIA_LIBRARY_BULK_FALLBACK_MARKER_TYPE = "text/shortpulse-media-library-bulk-marker";
 const MEDIA_LIBRARY_FALLBACK_MARKER_TYPE = "text/shortpulse-media-library-marker";
 const MEDIA_LIBRARY_FALLBACK_KIND_TYPE = "text/shortpulse-media-library-kind";
 const MEDIA_LIBRARY_FALLBACK_ID_TYPE = "text/shortpulse-media-library-id";
@@ -46,12 +49,22 @@ const MEDIA_LIBRARY_FALLBACK_PROMPT_TEXT_TYPE = "text/shortpulse-media-library-p
 const MEDIA_LIBRARY_FALLBACK_TRANSCRIPT_TEXT_TYPE = "text/shortpulse-media-library-transcript";
 const MEDIA_LIBRARY_FALLBACK_TITLE_TYPE = "text/shortpulse-media-library-title";
 const MEDIA_LIBRARY_FALLBACK_MARKER_VALUE = "shortpulse-media-library-v1";
+const MEDIA_LIBRARY_BULK_FALLBACK_MARKER_VALUE = "shortpulse-media-library-bulk-v1";
 const URLISH_TEXT_PATTERN = /^(?:data:(?:image|video|audio)\/|blob:|https?:\/\/)/i;
 
 type LibraryMediaPayload = Extract<ReferenceIngestionInput, { kind: "libraryMedia" }>;
 type LibraryPromptPayload = Extract<ReferenceIngestionInput, { kind: "libraryPrompt" }>;
 
 export type MediaLibraryDragPayload = LibraryMediaPayload | LibraryPromptPayload;
+export type MediaLibraryBulkMediaDragPayload = {
+  kind: "bulkLibraryMedia";
+  source: "mediaLibrary";
+  payload: {
+    items: LibraryMediaPayload["payload"][];
+    draggedItemId?: string | null;
+    originFolderId?: string | null;
+  };
+};
 
 const MEDIA_LIBRARY_FALLBACK_TRANSFER_HINT_TYPES = [
   MEDIA_LIBRARY_FALLBACK_MARKER_TYPE,
@@ -154,6 +167,45 @@ const parseDragPayload = (value: string): MediaLibraryDragPayload | null => {
       return row as MediaLibraryDragPayload;
     }
     return null;
+  } catch {
+    return null;
+  }
+};
+
+const isLibraryMediaPayloadValue = (value: unknown): value is LibraryMediaPayload["payload"] => {
+  if (!value || typeof value !== "object") return false;
+  const payload = value as { id?: unknown; fileType?: unknown };
+  return (
+    typeof payload.id === "string" &&
+    payload.id.trim().length > 0 &&
+    (payload.fileType === "image" || payload.fileType === "video" || payload.fileType === "audio")
+  );
+};
+
+const parseBulkMediaDragPayload = (value: string): MediaLibraryBulkMediaDragPayload | null => {
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!parsed || typeof parsed !== "object") return null;
+    const row = parsed as { kind?: unknown; source?: unknown; payload?: unknown };
+    if (row.source !== "mediaLibrary" || row.kind !== "bulkLibraryMedia") return null;
+    if (!row.payload || typeof row.payload !== "object") return null;
+    const payload = row.payload as {
+      items?: unknown;
+      draggedItemId?: unknown;
+      originFolderId?: unknown;
+    };
+    if (!Array.isArray(payload.items)) return null;
+    const items = payload.items.filter(isLibraryMediaPayloadValue);
+    if (items.length === 0) return null;
+    return {
+      kind: "bulkLibraryMedia",
+      source: "mediaLibrary",
+      payload: {
+        items,
+        draggedItemId: typeof payload.draggedItemId === "string" ? payload.draggedItemId : null,
+        originFolderId: typeof payload.originFolderId === "string" ? payload.originFolderId : null,
+      },
+    };
   } catch {
     return null;
   }
@@ -287,6 +339,18 @@ export const readMediaLibraryDragPayload = (
 };
 
 /**
+ * Reads a serialized multi-media Media Library drag payload from a transfer object.
+ */
+export const readMediaLibraryBulkMediaDragPayload = (
+  transfer: Pick<DataTransfer, "getData"> | null | undefined
+): MediaLibraryBulkMediaDragPayload | null => {
+  if (!transfer) return null;
+  const primary = transfer.getData(MEDIA_LIBRARY_BULK_DRAG_TYPE);
+  const fallback = transfer.getData(MEDIA_LIBRARY_BULK_DRAG_TEXT_TYPE);
+  return parseBulkMediaDragPayload(primary || fallback);
+};
+
+/**
  * Returns whether a transfer advertises media-library drag payload types without reading payload data.
  */
 export const hasMediaLibraryDragTypeHints = (
@@ -294,6 +358,13 @@ export const hasMediaLibraryDragTypeHints = (
 ): boolean =>
   getMediaLibraryDragTypes().some((type) => hasTransferType(transfer, type)) ||
   MEDIA_LIBRARY_FALLBACK_TRANSFER_HINT_TYPES.some((type) => hasTransferType(transfer, type));
+
+/**
+ * Returns whether a transfer advertises bulk media-library drag payload types.
+ */
+export const hasMediaLibraryBulkMediaDragTypeHints = (
+  transfer: Pick<DataTransfer, "types"> | null | undefined
+): boolean => getMediaLibraryBulkMediaDragTypes().some((type) => hasTransferType(transfer, type));
 
 const setTransferTextIfPresent = (
   transfer: Pick<DataTransfer, "setData">,
@@ -467,10 +538,37 @@ export const writeMediaLibraryDragPayload = (
 };
 
 /**
+ * Writes a bulk media-library drag payload without single-item fallback fields.
+ */
+export const writeMediaLibraryBulkMediaDragPayload = (
+  transfer: Pick<DataTransfer, "setData">,
+  payload: MediaLibraryBulkMediaDragPayload
+): void => {
+  if (!payload.payload.items.length) return;
+  const serialized = JSON.stringify(payload);
+  safeTransferSetData(
+    transfer,
+    MEDIA_LIBRARY_BULK_FALLBACK_MARKER_TYPE,
+    MEDIA_LIBRARY_BULK_FALLBACK_MARKER_VALUE
+  );
+  safeTransferSetData(transfer, MEDIA_LIBRARY_BULK_DRAG_TEXT_TYPE, serialized);
+  safeTransferSetData(transfer, MEDIA_LIBRARY_BULK_DRAG_TYPE, serialized);
+};
+
+/**
  * Returns transfer types used by media-library payload drags.
  */
 export const getMediaLibraryDragTypes = (): readonly string[] => [
   MEDIA_LIBRARY_DRAG_TYPE,
   MEDIA_LIBRARY_DRAG_TEXT_TYPE,
   MEDIA_LIBRARY_FALLBACK_MARKER_TYPE,
+];
+
+/**
+ * Returns transfer types used by bulk media-library payload drags.
+ */
+export const getMediaLibraryBulkMediaDragTypes = (): readonly string[] => [
+  MEDIA_LIBRARY_BULK_DRAG_TYPE,
+  MEDIA_LIBRARY_BULK_DRAG_TEXT_TYPE,
+  MEDIA_LIBRARY_BULK_FALLBACK_MARKER_TYPE,
 ];

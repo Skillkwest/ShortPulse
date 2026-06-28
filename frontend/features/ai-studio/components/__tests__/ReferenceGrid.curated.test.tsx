@@ -3,7 +3,7 @@
  * Validates add/dedupe/reorder/remove behavior and curated drop rejection rules.
  */
 import React from "react";
-import { act, fireEvent, render, within } from "@testing-library/react";
+import { act, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ReferenceGrid, type ReferenceGridProps } from "../ReferenceGrid";
 import type { StudioOutput } from "../../types";
@@ -119,6 +119,35 @@ const makeLibraryMediaTransfer = (overrides: Record<string, string> = {}): DataT
     "text/shortpulse-media-library-filename": "library-drop-1.png",
     "text/prompt": "Library media prompt",
     ...overrides,
+  });
+
+const makeBulkLibraryMediaTransfer = (): DataTransfer =>
+  makeTransfer({
+    "application/x-shortpulse-media-library-items": JSON.stringify({
+      kind: "bulkLibraryMedia",
+      source: "mediaLibrary",
+      payload: {
+        draggedItemId: "media-bulk-1",
+        originFolderId: null,
+        items: [
+          {
+            id: "media-bulk-1",
+            url: "https://cdn.example.com/library-bulk-1.png",
+            fileType: "image",
+            filename: "library-bulk-1.png",
+            promptText: "Library bulk prompt 1",
+          },
+          {
+            id: "media-bulk-2",
+            url: "https://cdn.example.com/library-bulk-2.mp4",
+            fileType: "video",
+            filename: "library-bulk-2.mp4",
+            promptText: "Library bulk prompt 2",
+          },
+        ],
+      },
+    }),
+    "text/shortpulse-media-library-bulk-marker": "shortpulse-media-library-bulk-v1",
   });
 
 const makeLibraryAudioTransfer = (overrides: Record<string, string> = {}): DataTransfer =>
@@ -1421,6 +1450,36 @@ describe("ReferenceGrid curated split", () => {
     expect(onDeleteOutput).not.toHaveBeenCalled();
   });
 
+  it("removes the selected quick-slot card with document Backspace without deleting the reference output", () => {
+    const onRemoveCuratedReference = vi.fn();
+    const onDeleteOutput = vi.fn();
+    const StatefulReferenceGrid = () => {
+      const [activeOutputId, setActiveOutputId] = React.useState("out-2");
+      return (
+        <ReferenceGrid
+          {...createProps({
+            activeOutputId,
+            curatedReferenceIds: ["out-1"],
+            onRemoveCuratedReference,
+            onDeleteOutput,
+            onSelectOutput: setActiveOutputId,
+          })}
+        />
+      );
+    };
+    const { container } = render(<StatefulReferenceGrid />);
+    const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
+    expect(curatedSection).toBeTruthy();
+    const quickSlotCard = curatedSection.querySelector(".reference-card") as HTMLElement;
+    expect(quickSlotCard).toBeTruthy();
+
+    fireEvent.click(quickSlotCard);
+    fireEvent.keyDown(document, { key: "Backspace" });
+
+    expect(onRemoveCuratedReference).toHaveBeenCalledWith("out-1");
+    expect(onDeleteOutput).not.toHaveBeenCalled();
+  });
+
   it("removes the selected reference-grid card with document Delete without touching quick slots", () => {
     const onRemoveCuratedReference = vi.fn();
     const onDeleteOutput = vi.fn();
@@ -1449,6 +1508,33 @@ describe("ReferenceGrid curated split", () => {
 
     expect(onDeleteOutput).toHaveBeenCalledWith("out-1");
     expect(onRemoveCuratedReference).not.toHaveBeenCalled();
+  });
+
+  it("does not remove a selected reference-grid card with modified Backspace", () => {
+    const onDeleteOutput = vi.fn();
+    const StatefulReferenceGrid = () => {
+      const [activeOutputId, setActiveOutputId] = React.useState("out-2");
+      return (
+        <ReferenceGrid
+          {...createProps({
+            activeOutputId,
+            curatedReferenceIds: [],
+            onDeleteOutput,
+            onSelectOutput: setActiveOutputId,
+          })}
+        />
+      );
+    };
+    const { container } = render(<StatefulReferenceGrid />);
+    const allRefsSection = container.querySelector(".reference-all-refs-section") as HTMLElement;
+    expect(allRefsSection).toBeTruthy();
+    const referenceGridCard = allRefsSection.querySelector(".reference-card") as HTMLElement;
+    expect(referenceGridCard).toBeTruthy();
+
+    fireEvent.click(referenceGridCard);
+    fireEvent.keyDown(document, { key: "Backspace", metaKey: true });
+
+    expect(onDeleteOutput).not.toHaveBeenCalled();
   });
 
   it("removes the selected reference-grid card with document Backspace for Mac Delete keyboards", () => {
@@ -1654,6 +1740,54 @@ describe("ReferenceGrid curated split", () => {
         placement: "start",
       }
     );
+  });
+
+  it("adds bulk media-library media drops directly into quick slots", async () => {
+    const onAddLibraryMediaReferencesToQuickSlot = vi.fn(async () => [
+      "library-bulk-out-1",
+      "library-bulk-out-2",
+    ]);
+    const onSelectOutput = vi.fn();
+    const { container } = render(
+      <ReferenceGrid
+        {...createProps({
+          onSelectOutput,
+          onAddLibraryMediaReferencesToQuickSlot,
+        })}
+      />
+    );
+    const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
+    expect(curatedSection).toBeTruthy();
+
+    fireEvent.drop(curatedSection, {
+      dataTransfer: makeBulkLibraryMediaTransfer(),
+    });
+
+    await waitFor(() => {
+      expect(onAddLibraryMediaReferencesToQuickSlot).toHaveBeenCalledWith(
+        [
+          expect.objectContaining({
+            id: "media-bulk-1",
+            url: "https://cdn.example.com/library-bulk-1.png",
+            fileType: "image",
+            filename: "library-bulk-1.png",
+            promptText: "Library bulk prompt 1",
+          }),
+          expect.objectContaining({
+            id: "media-bulk-2",
+            url: "https://cdn.example.com/library-bulk-2.mp4",
+            fileType: "video",
+            filename: "library-bulk-2.mp4",
+            promptText: "Library bulk prompt 2",
+          }),
+        ],
+        {
+          targetId: null,
+          placement: "start",
+        }
+      );
+    });
+    expect(onSelectOutput).toHaveBeenCalledWith("library-bulk-out-2");
   });
 
   it("adds dropped external media references directly into quick slots", () => {

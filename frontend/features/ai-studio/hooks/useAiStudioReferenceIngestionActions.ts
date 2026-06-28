@@ -235,10 +235,14 @@ type UseAiStudioReferenceIngestionActionsResult = {
   addPastedMediaReference: (payload: { url: string; mimeType?: string | null }) => void;
   insertPastedMediaReference: (payload: PastedMediaReference) => StudioOutput[];
   addLibraryMediaReference: (payload: LibraryMediaReferencePayload) => void;
+  addLibraryMediaReferences: (payloads: LibraryMediaReferencePayload[]) => void;
   addLibraryMediaReferenceToQuickSlot: (
     payload: LibraryMediaReferencePayload,
     placement?: QuickSlotLibraryPlacement
   ) => Promise<string | null>;
+  addLibraryMediaReferencesToQuickSlot: (
+    payloads: LibraryMediaReferencePayload[]
+  ) => Promise<string[]>;
   addLibraryPromptReference: (payload: LibraryPromptReferencePayload) => void;
   addLibraryPromptReferenceToQuickSlot: (
     payload: LibraryPromptReferencePayload,
@@ -316,6 +320,26 @@ export const useAiStudioReferenceIngestionActions = ({
           await associateMediaFilesWithProject({
             projectId,
             mediaFileIds: [mediaFileId],
+            userId: currentUserId,
+          });
+        } catch {
+          // Project membership should not block media authority hydration.
+        }
+      })();
+    },
+    [currentUserId, projectId]
+  );
+  const associateMediaBatchWithProject = useCallback(
+    (mediaFileIds: string[]) => {
+      const uniqueIds = Array.from(
+        new Set(mediaFileIds.map((id) => id.trim()).filter((id) => id.length > 0))
+      );
+      if (!uniqueIds.length || !projectId) return;
+      void (async () => {
+        try {
+          await associateMediaFilesWithProject({
+            projectId,
+            mediaFileIds: uniqueIds,
             userId: currentUserId,
           });
         } catch {
@@ -471,6 +495,61 @@ export const useAiStudioReferenceIngestionActions = ({
     ]
   );
 
+  const insertLibraryMediaReferences = useCallback(
+    async (payloads: LibraryMediaReferencePayload[]): Promise<IngestedReferenceMediaResult[]> => {
+      const pendingReferences = payloads
+        .map((payload) => {
+          const outputId = `library-${randomId()}`;
+          const optimisticOutput = buildLibraryMediaOutputWithId(payload, outputId);
+          return optimisticOutput
+            ? {
+                outputId,
+                payload,
+                output: optimisticOutput,
+              }
+            : null;
+        })
+        .filter((item): item is IngestedReferenceMediaResult => Boolean(item));
+
+      if (!pendingReferences.length) {
+        setUiError?.(libraryMediaIngestionErrorMessage);
+        return [];
+      }
+
+      pendingReferences.forEach((item) => rememberReferenceOutputId(item.outputId));
+      associateMediaBatchWithProject(pendingReferences.map((item) => item.payload.id));
+      setOutputs((prev) => [...pendingReferences.map((item) => item.output), ...prev]);
+
+      pendingReferences.forEach((pending) => {
+        void (async () => {
+          try {
+            const preparedPayload = await prepareLibraryMediaIngestionPayload(pending.payload);
+            if (!isReferenceOutputStillPresent(pending.outputId)) return;
+            const preparedOutput = buildLibraryMediaOutputWithId(preparedPayload, pending.outputId);
+            if (!preparedOutput) return;
+            updateReferenceOutputById(pending.outputId, (item) =>
+              applyLibraryMediaOutputPatch(item, preparedOutput)
+            );
+          } catch {
+            // Keep the optimistic card visible. The drag payload already has renderable metadata.
+          }
+        })();
+      });
+
+      return pendingReferences;
+    },
+    [
+      associateMediaBatchWithProject,
+      buildLibraryMediaOutputWithId,
+      isReferenceOutputStillPresent,
+      libraryMediaIngestionErrorMessage,
+      rememberReferenceOutputId,
+      setOutputs,
+      setUiError,
+      updateReferenceOutputById,
+    ]
+  );
+
   const insertLibraryPromptReference = useCallback(
     (payload: LibraryPromptReferencePayload): string | null => {
       const outputId = `prompt-library-${randomId()}`;
@@ -571,6 +650,13 @@ export const useAiStudioReferenceIngestionActions = ({
     [insertLibraryMediaReference]
   );
 
+  const addLibraryMediaReferences = useCallback(
+    (payloads: LibraryMediaReferencePayload[]) => {
+      void insertLibraryMediaReferences(payloads);
+    },
+    [insertLibraryMediaReferences]
+  );
+
   const addLibraryPromptReference = useCallback(
     (payload: LibraryPromptReferencePayload) => {
       insertLibraryPromptReference(payload);
@@ -584,6 +670,14 @@ export const useAiStudioReferenceIngestionActions = ({
       return inserted?.outputId ?? null;
     },
     [insertLibraryMediaReference]
+  );
+
+  const addLibraryMediaReferencesToQuickSlot = useCallback(
+    async (payloads: LibraryMediaReferencePayload[]): Promise<string[]> => {
+      const inserted = await insertLibraryMediaReferences(payloads);
+      return inserted.map((item) => item.outputId);
+    },
+    [insertLibraryMediaReferences]
   );
 
   const addLibraryPromptReferenceToQuickSlot = useCallback(
@@ -765,7 +859,9 @@ export const useAiStudioReferenceIngestionActions = ({
     addPastedMediaReference,
     insertPastedMediaReference,
     addLibraryMediaReference,
+    addLibraryMediaReferences,
     addLibraryMediaReferenceToQuickSlot,
+    addLibraryMediaReferencesToQuickSlot,
     addLibraryPromptReference,
     addLibraryPromptReferenceToQuickSlot,
     ingestReferenceFiles,

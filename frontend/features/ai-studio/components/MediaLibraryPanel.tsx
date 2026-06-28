@@ -625,6 +625,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       });
     },
   });
+  const selectedVisibleMediaRowsRef = useRef<MediaFileRow[]>([]);
+  const getSelectedVisibleMediaRows = useCallback(() => selectedVisibleMediaRowsRef.current, []);
   const {
     handleCardDragEnd,
     handleDownloadMediaFile,
@@ -632,6 +634,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     handlePromptCardDragStart,
   } = useMediaLibraryPanelItemInteractions({
     activeFolderId,
+    getSelectedVisibleMediaRows,
   });
 
   const openFolderContextMenu = useCallback(
@@ -818,6 +821,9 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     visibleImageRows,
     visibleVideoRows,
   });
+  useLayoutEffect(() => {
+    selectedVisibleMediaRowsRef.current = selectedVisibleMediaRows;
+  }, [selectedVisibleMediaRows]);
   useAiStudioModalActivity(
     "media-library-panel-delete-confirm",
     Boolean(pendingLibraryDelete || pendingBulkDeleteIds || pendingFolderDelete)

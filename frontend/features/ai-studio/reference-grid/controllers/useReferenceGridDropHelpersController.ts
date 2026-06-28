@@ -6,7 +6,10 @@ import { useCallback } from "react";
 import { normalizeMediaFile } from "./referenceGridClipboard";
 import type { ReferenceGridDropMode } from "./useReferenceGridDropController";
 import { hasInternalReferenceDragTypeHints } from "../../utils/dragDrop";
-import { hasMediaLibraryDragTypeHints } from "../../logic/mediaLibraryDragPayload";
+import {
+  hasMediaLibraryBulkMediaDragTypeHints,
+  hasMediaLibraryDragTypeHints,
+} from "../../logic/mediaLibraryDragPayload";
 
 type UseReferenceGridDropHelpersControllerResult = {
   normalizeMediaFiles: (files: File[]) => File[];
@@ -31,7 +34,12 @@ export const useReferenceGridDropHelpersController =
         if (!transfer) return "none";
         if (hasInternalReferenceDragTypeHints(transfer)) return "none";
         const normalizedTypes = Array.from(transfer.types || []).map((type) => type.toLowerCase());
-        if (hasMediaLibraryDragTypeHints(transfer)) return "files";
+        if (
+          hasMediaLibraryDragTypeHints(transfer) ||
+          hasMediaLibraryBulkMediaDragTypeHints(transfer)
+        ) {
+          return "files";
+        }
         if (transfer.files && transfer.files.length > 0) return "files";
         if (normalizedTypes.includes("files")) return "files";
         if (

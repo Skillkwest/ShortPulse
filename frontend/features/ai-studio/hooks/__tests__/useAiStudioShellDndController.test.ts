@@ -100,6 +100,7 @@ describe("useAiStudioShellDndController", () => {
     const onDropFiles = vi.fn();
     const onDropMediaReference = vi.fn();
     const onDropLibraryMediaReference = vi.fn();
+    const onDropLibraryMediaReferences = vi.fn();
     const onDropLibraryPromptReference = vi.fn();
     const onDropTextReference = vi.fn();
     const shellRef = { current: document.createElement("section") };
@@ -117,6 +118,7 @@ describe("useAiStudioShellDndController", () => {
         onDropFiles,
         onDropMediaReference,
         onDropLibraryMediaReference,
+        onDropLibraryMediaReferences,
         onDropLibraryPromptReference,
         onDropTextReference,
         useRafBackpressure: false,
@@ -159,6 +161,37 @@ describe("useAiStudioShellDndController", () => {
       url: "https://example.com/media-1.png",
       fileType: "image",
     });
+
+    payloadRef.current = {
+      kind: "bulkLibraryMedia",
+      payloads: [
+        {
+          id: "media-bulk-1",
+          url: "https://example.com/media-bulk-1.png",
+          fileType: "image",
+        },
+        {
+          id: "media-bulk-2",
+          url: "https://example.com/media-bulk-2.mp4",
+          fileType: "video",
+        },
+      ],
+    };
+    act(() => {
+      result.current.handleDropCapture(createDragEvent(createTransfer(["text/plain"])));
+    });
+    expect(onDropLibraryMediaReferences).toHaveBeenCalledWith([
+      {
+        id: "media-bulk-1",
+        url: "https://example.com/media-bulk-1.png",
+        fileType: "image",
+      },
+      {
+        id: "media-bulk-2",
+        url: "https://example.com/media-bulk-2.mp4",
+        fileType: "video",
+      },
+    ]);
 
     payloadRef.current = {
       kind: "libraryPrompt",

@@ -1,5 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AuthRetryableFetchError, AuthSessionMissingError } from "@supabase/supabase-js";
 import { useProtectedRouteRestoreGuard } from "../useProtectedRouteRestoreGuard";
 
 const replaceReceiverMock = vi.hoisted(() => vi.fn());
@@ -8,6 +9,7 @@ const routerMock = vi.hoisted(() => ({
   replace: replaceMock,
 }));
 const readSupabaseSessionMock = vi.hoisted(() => vi.fn());
+const refreshSupabaseSessionMock = vi.hoisted(() => vi.fn());
 const clearSupabaseSessionSnapshotMock = vi.hoisted(() => vi.fn());
 const isSessionOlderThanLogoutEpochMock = vi.hoisted(() => vi.fn());
 const clearLogoutEpochWhenSessionIsFreshMock = vi.hoisted(() => vi.fn());
@@ -18,7 +20,11 @@ vi.mock("next/router", () => ({
 
 vi.mock("../supabaseClient", () => ({
   readSupabaseSession: (...args: unknown[]) => readSupabaseSessionMock(...args),
+  refreshSupabaseSession: (...args: unknown[]) => refreshSupabaseSessionMock(...args),
   clearSupabaseSessionSnapshot: (...args: unknown[]) => clearSupabaseSessionSnapshotMock(...args),
+  isSupabaseAbortError: (error: unknown) =>
+    error instanceof Error &&
+    (error.name === "AbortError" || error.message.toLowerCase().includes("signal is aborted")),
 }));
 
 vi.mock("../authSessionInvalidation", () => ({
@@ -34,6 +40,10 @@ describe("useProtectedRouteRestoreGuard", () => {
       replaceReceiverMock(this, href);
     });
     readSupabaseSessionMock.mockResolvedValue({
+      access_token: "token",
+      user: { id: "user-1" },
+    });
+    refreshSupabaseSessionMock.mockResolvedValue({
       access_token: "token",
       user: { id: "user-1" },
     });
@@ -85,7 +95,7 @@ describe("useProtectedRouteRestoreGuard", () => {
     expect(clearSupabaseSessionSnapshotMock).toHaveBeenCalledTimes(1);
   });
 
-  it("marks protected content as checking when the browser hides the page", async () => {
+  it("does not mark protected content as checking for non-BFCache pagehide", async () => {
     const { result } = renderHook(() =>
       useProtectedRouteRestoreGuard({ enabled: true, nextPath: "/ai-studio" })
     );
@@ -97,7 +107,64 @@ describe("useProtectedRouteRestoreGuard", () => {
       window.dispatchEvent(new Event("pagehide"));
     });
 
+    expect(result.current.checking).toBe(false);
+  });
+
+  it("marks protected content as checking when the browser stores the page in BFCache", async () => {
+    const { result } = renderHook(() =>
+      useProtectedRouteRestoreGuard({ enabled: true, nextPath: "/ai-studio" })
+    );
+    await waitFor(() => {
+      expect(result.current.checking).toBe(false);
+    });
+    const pageHideEvent = new Event("pagehide") as PageTransitionEvent;
+    Object.defineProperty(pageHideEvent, "persisted", {
+      configurable: true,
+      value: true,
+    });
+
+    act(() => {
+      window.dispatchEvent(pageHideEvent);
+    });
+
     expect(result.current.checking).toBe(true);
+  });
+
+  it("keeps visible revalidation blocking when protected content is already in a restore check", async () => {
+    const { result } = renderHook(() =>
+      useProtectedRouteRestoreGuard({ enabled: true, nextPath: "/ai-studio" })
+    );
+    await waitFor(() => {
+      expect(result.current.checking).toBe(false);
+    });
+    const pageHideEvent = new Event("pagehide") as PageTransitionEvent;
+    Object.defineProperty(pageHideEvent, "persisted", {
+      configurable: true,
+      value: true,
+    });
+    vi.clearAllMocks();
+    readSupabaseSessionMock.mockResolvedValue({
+      access_token: "bfcache-token",
+      user: { id: "user-1" },
+    });
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "visible",
+    });
+
+    act(() => {
+      window.dispatchEvent(pageHideEvent);
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    expect(result.current.checking).toBe(true);
+    await waitFor(() => {
+      expect(readSupabaseSessionMock).toHaveBeenCalledWith({ forceRefresh: true });
+    });
+    expect(refreshSupabaseSessionMock).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(result.current.checking).toBe(false);
+    });
   });
 
   it("revalidates silently when a hidden tab becomes visible again", async () => {
@@ -109,7 +176,7 @@ describe("useProtectedRouteRestoreGuard", () => {
     });
     vi.clearAllMocks();
     let resolveVisibleCheck: (session: unknown) => void = () => undefined;
-    readSupabaseSessionMock.mockReturnValue(
+    refreshSupabaseSessionMock.mockReturnValue(
       new Promise((resolve) => {
         resolveVisibleCheck = resolve;
       })
@@ -123,7 +190,9 @@ describe("useProtectedRouteRestoreGuard", () => {
       document.dispatchEvent(new Event("visibilitychange"));
     });
 
-    expect(readSupabaseSessionMock).toHaveBeenCalledWith({ forceRefresh: true });
+    expect(refreshSupabaseSessionMock).toHaveBeenCalledWith({
+      preserveSnapshotOnError: true,
+    });
     expect(result.current.checking).toBe(false);
     expect(replaceMock).not.toHaveBeenCalled();
 
@@ -142,6 +211,58 @@ describe("useProtectedRouteRestoreGuard", () => {
     expect(result.current.checking).toBe(false);
   });
 
+  it("preserves mounted protected content when visible-tab revalidation has a transient refresh failure", async () => {
+    const { result } = renderHook(() =>
+      useProtectedRouteRestoreGuard({ enabled: true, nextPath: "/ai-studio" })
+    );
+    await waitFor(() => {
+      expect(result.current.checking).toBe(false);
+    });
+    vi.clearAllMocks();
+    refreshSupabaseSessionMock.mockRejectedValue(new AuthRetryableFetchError("Failed to fetch", 0));
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "visible",
+    });
+
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    await waitFor(() => {
+      expect(refreshSupabaseSessionMock).toHaveBeenCalledWith({
+        preserveSnapshotOnError: true,
+      });
+    });
+    expect(result.current.checking).toBe(false);
+    expect(replaceMock).not.toHaveBeenCalled();
+    expect(clearSupabaseSessionSnapshotMock).not.toHaveBeenCalled();
+  });
+
+  it("redirects from visible-tab revalidation when Supabase reports the session is missing", async () => {
+    const { result } = renderHook(() =>
+      useProtectedRouteRestoreGuard({ enabled: true, nextPath: "/ai-studio" })
+    );
+    await waitFor(() => {
+      expect(result.current.checking).toBe(false);
+    });
+    vi.clearAllMocks();
+    refreshSupabaseSessionMock.mockRejectedValue(new AuthSessionMissingError());
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "visible",
+    });
+
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    await waitFor(() => {
+      expect(replaceMock).toHaveBeenCalledWith("/log-in?next=%2Fai-studio");
+    });
+    expect(clearSupabaseSessionSnapshotMock).toHaveBeenCalledTimes(1);
+  });
+
   it("redirects from a silent visible-tab revalidation when the session is missing", async () => {
     const { result } = renderHook(() =>
       useProtectedRouteRestoreGuard({ enabled: true, nextPath: "/ai-studio" })
@@ -150,7 +271,7 @@ describe("useProtectedRouteRestoreGuard", () => {
       expect(result.current.checking).toBe(false);
     });
     vi.clearAllMocks();
-    readSupabaseSessionMock.mockResolvedValue(null);
+    refreshSupabaseSessionMock.mockResolvedValue(null);
     Object.defineProperty(document, "visibilityState", {
       configurable: true,
       value: "visible",

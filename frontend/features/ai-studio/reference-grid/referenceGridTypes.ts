@@ -53,6 +53,7 @@ export type ReferenceGridProps = {
   onPasteTextReference?: (text: string) => void;
   onPasteMediaReference?: (reference: PastedMediaReference) => void;
   onAddLibraryMediaReference?: (payload: LibraryMediaReferencePayload) => void;
+  onAddLibraryMediaReferences?: (payloads: LibraryMediaReferencePayload[]) => void;
   onAddLibraryPromptReference?: (payload: LibraryPromptReferencePayload) => void;
   onTriggerFileSelect?: () => void;
   onSaveToLibrary?: (output: StudioOutput) => void;
@@ -78,6 +79,13 @@ export type ReferenceGridProps = {
       placement: "start" | "before" | "after" | "end";
     }
   ) => Promise<string | null>;
+  onAddLibraryMediaReferencesToQuickSlot?: (
+    payloads: LibraryMediaReferencePayload[],
+    options?: {
+      targetId: string | null;
+      placement: "start" | "before" | "after" | "end";
+    }
+  ) => Promise<string[]>;
   onAddDroppedFilesToQuickSlot?: (
     files: FileList,
     options?: {

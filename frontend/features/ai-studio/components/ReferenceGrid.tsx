@@ -82,6 +82,7 @@ function ReferenceGridComponent({
   onPasteTextReference,
   onPasteMediaReference,
   onAddLibraryMediaReference,
+  onAddLibraryMediaReferences,
   onAddLibraryPromptReference,
   onTriggerFileSelect,
   onSaveToLibrary,
@@ -95,6 +96,7 @@ function ReferenceGridComponent({
   onReorderCuratedReference,
   onAddDroppedFilesToQuickSlot,
   onAddLibraryMediaReferenceToQuickSlot,
+  onAddLibraryMediaReferencesToQuickSlot,
   onAddLibraryPromptReferenceToQuickSlot,
   onAddPastedMediaReferenceToQuickSlot,
   onRestoreArchivedOutput,
@@ -498,6 +500,7 @@ function ReferenceGridComponent({
       onPasteMediaReference,
       onPasteTextReference,
       onAddLibraryMediaReference,
+      onAddLibraryMediaReferences,
       onAddLibraryPromptReference,
     });
 
@@ -535,6 +538,7 @@ function ReferenceGridComponent({
     onSelectOutput: handleSelectQuickSlotOutput,
     onAddDroppedFilesToQuickSlot,
     onAddLibraryMediaReferenceToQuickSlot,
+    onAddLibraryMediaReferencesToQuickSlot,
     onAddLibraryPromptReferenceToQuickSlot,
     onAddPastedMediaReferenceToQuickSlot,
   });

@@ -982,7 +982,7 @@
 
 .media-library-panel .media-library-panel-media-duration {
   position: absolute;
-  left: 10px;
+  right: 10px;
   bottom: 10px;
   z-index: 3;
 }
@@ -1041,8 +1041,8 @@
 
 .media-library-panel-card-actions {
   position: absolute;
-  top: 6px;
-  right: 6px;
+  left: 6px;
+  bottom: 6px;
   display: flex;
   gap: 6px;
   z-index: 4;

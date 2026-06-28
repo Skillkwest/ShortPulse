@@ -126,7 +126,47 @@ const asOptionalString = (value: unknown): string | null => {
   return trimmed.length ? trimmed : null;
 };
 
-const maybeFillMissingWorkflowReloadMetadata = async ({
+const normalizeDurationMetadataCandidateMs = (
+  value: unknown,
+  unit: "ms" | "seconds"
+): number | null => {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return null;
+  const durationMs = unit === "seconds" ? value * 1000 : value;
+  return Math.max(1, Math.round(durationMs));
+};
+
+const resolveDurationMetadataPatch = (
+  metadata: Record<string, unknown>
+): Record<string, number> | null => {
+  const candidates: Array<{ value: unknown; unit: "ms" | "seconds" }> = [
+    { value: metadata.duration_ms, unit: "ms" },
+    { value: metadata.durationMs, unit: "ms" },
+    { value: metadata.video_duration_ms, unit: "ms" },
+    { value: metadata.videoDurationMs, unit: "ms" },
+    { value: metadata.resolved_duration_ms, unit: "ms" },
+    { value: metadata.resolvedDurationMs, unit: "ms" },
+    { value: metadata.duration_seconds, unit: "seconds" },
+    { value: metadata.durationSeconds, unit: "seconds" },
+    { value: metadata.video_duration_seconds, unit: "seconds" },
+    { value: metadata.videoDurationSeconds, unit: "seconds" },
+    { value: metadata.resolved_duration_seconds, unit: "seconds" },
+    { value: metadata.resolvedDurationSeconds, unit: "seconds" },
+  ];
+  for (const candidate of candidates) {
+    const durationMs = normalizeDurationMetadataCandidateMs(candidate.value, candidate.unit);
+    if (durationMs === null) continue;
+    return {
+      duration_ms: durationMs,
+      duration_seconds: durationMs / 1000,
+    };
+  }
+  return null;
+};
+
+const hasDurationMetadata = (metadata: Record<string, unknown>): boolean =>
+  resolveDurationMetadataPatch(metadata) !== null;
+
+const maybeFillMissingGeneratedMediaMetadata = async ({
   supabase,
   userId,
   mediaFileId,
@@ -139,16 +179,25 @@ const maybeFillMissingWorkflowReloadMetadata = async ({
   existingMetadata: Record<string, unknown> | null;
   incomingMetadata: Record<string, unknown> | null | undefined;
 }): Promise<void> => {
-  const incomingWorkflowReload = asRecord(incomingMetadata).workflow_reload;
-  if (!incomingWorkflowReload) return;
+  const incoming = asRecord(incomingMetadata);
   const currentMetadata = asRecord(existingMetadata);
-  if (currentMetadata.workflow_reload) return;
+  const metadataPatch: Record<string, unknown> = {};
+  if (incoming.workflow_reload && !currentMetadata.workflow_reload) {
+    metadataPatch.workflow_reload = incoming.workflow_reload;
+  }
+  if (!hasDurationMetadata(currentMetadata)) {
+    const durationPatch = resolveDurationMetadataPatch(incoming);
+    if (durationPatch) {
+      Object.assign(metadataPatch, durationPatch);
+    }
+  }
+  if (Object.keys(metadataPatch).length === 0) return;
   await supabase
     .from("media_files")
     .update({
       metadata: {
         ...currentMetadata,
-        workflow_reload: incomingWorkflowReload,
+        ...metadataPatch,
       },
     })
     .eq("user_id", userId)
@@ -1309,7 +1358,7 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
         }
       }
       try {
-        await maybeFillMissingWorkflowReloadMetadata({
+        await maybeFillMissingGeneratedMediaMetadata({
           supabase,
           userId,
           mediaFileId: existingRow.id,
@@ -1526,7 +1575,7 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
           // best-effort cleanup only
         }
         try {
-          await maybeFillMissingWorkflowReloadMetadata({
+          await maybeFillMissingGeneratedMediaMetadata({
             supabase,
             userId,
             mediaFileId: existingRow.id,

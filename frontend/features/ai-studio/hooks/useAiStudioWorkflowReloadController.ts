@@ -11,6 +11,7 @@ import {
   type ResolveWorkflowReloadConfigOptions,
   resolveWorkflowReloadConfigForOutput,
 } from "../logic/workflowReload";
+import { isManualWorkflowReloadEnabled } from "../logic/workflowReloadAvailability";
 import type { AiStudioKlingElement } from "../logic/klingElements";
 import {
   createEmptyExpertEditSecondaryImageUrls,
@@ -41,6 +42,7 @@ import { useSharedVoicesGrid } from "./useSharedVoicesGrid";
 
 export type WorkflowReloadResultStatus =
   | "success"
+  | "deferred"
   | "output_not_found"
   | "invalid_metadata"
   | "unsupported_legacy_output"
@@ -519,6 +521,15 @@ export const useAiStudioWorkflowReloadController = ({
       options: ResolveWorkflowReloadConfigOptions = {}
     ): WorkflowReloadResult => {
       const normalizedOutputId = output.id.trim();
+      if (!isManualWorkflowReloadEnabled()) {
+        addBreadcrumb({
+          type: "ui",
+          level: "info",
+          message: "workflow_reload_deferred",
+          data: { output_id: normalizedOutputId },
+        });
+        return { status: "deferred", outputId: normalizedOutputId };
+      }
       if (!canReloadWorkflowOutput(output, options)) {
         return fail(
           output.mediaSource === "generated" ? "unsupported_legacy_output" : "invalid_metadata",

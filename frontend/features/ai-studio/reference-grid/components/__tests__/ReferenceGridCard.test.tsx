@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import type React from "react";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -11,6 +12,9 @@ import { ReferenceGridCard } from "../ReferenceGridCard";
 const playMock = vi.fn();
 const pauseMock = vi.fn();
 const loadMock = vi.fn();
+const aiStudioCanvasStylesheet = readFileSync("styles/ai-studio-canvas.css", "utf8");
+const MANUAL_WORKFLOW_RELOAD_FLAG = "NEXT_PUBLIC_AI_STUDIO_MANUAL_WORKFLOW_RELOAD_ENABLED";
+const originalManualWorkflowReloadFlag = process.env[MANUAL_WORKFLOW_RELOAD_FLAG];
 
 beforeAll(() => {
   vi.spyOn(HTMLMediaElement.prototype, "play").mockImplementation(() => {
@@ -30,6 +34,7 @@ afterAll(() => {
 });
 
 beforeEach(() => {
+  process.env[MANUAL_WORKFLOW_RELOAD_FLAG] = "true";
   vi.useFakeTimers();
   __resetExclusiveSoundPlaybackForTests();
   playMock.mockClear();
@@ -38,6 +43,11 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  if (originalManualWorkflowReloadFlag === undefined) {
+    delete process.env[MANUAL_WORKFLOW_RELOAD_FLAG];
+  } else {
+    process.env[MANUAL_WORKFLOW_RELOAD_FLAG] = originalManualWorkflowReloadFlag;
+  }
   vi.useRealTimers();
 });
 
@@ -372,7 +382,7 @@ describe("ReferenceGridCard", () => {
 
     const reloadButton = screen.getByLabelText("Reload workflow");
 
-    expect(reloadButton.parentElement).toHaveClass("reference-card-workflow-reload-actions");
+    expect(reloadButton.parentElement).toHaveClass("reference-card-bottom-actions");
 
     fireEvent.click(reloadButton);
 
@@ -529,6 +539,145 @@ describe("ReferenceGridCard", () => {
 
     expect(reloadButton.parentElement).toHaveClass("reference-card-bottom-actions");
     expect(reloadButton.previousElementSibling).toBe(rerollButton);
+  });
+
+  it("places generated video re-roll and workflow reload in the shared bottom action row", () => {
+    const onRerollOutput = vi.fn();
+    const onReloadWorkflowOutput = vi.fn();
+    const output = createOutput({
+      mode: "video",
+      taskState: "success",
+      mediaSource: "generated",
+      workflowReload: {
+        version: 1,
+        source: "ai_studio_generation",
+        capturedAt: "2026-06-06T12:00:00.000Z",
+        originTool: "video",
+        panelKind: "video",
+        outputMode: "video",
+        restoreBehavior: "navigate_and_hydrate",
+        createMode: null,
+        pulse: null,
+        prompt: { display: "A cinematic tracking shot" },
+        model: { id: "kie-ai/kling-3.0" },
+        payload: {
+          kind: "video",
+          aspect: "16:9",
+          videoReferenceMode: "standard",
+          durationSeconds: 8,
+          resolution: "1080p",
+          generateAudio: true,
+          cameraFixed: false,
+          autoFix: true,
+          referenceInputs: ["https://example.com/frame.png"],
+        },
+      },
+    });
+
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: output,
+          isVideoPreview: true,
+          cardPreviewUrl: "https://example.com/video.mp4",
+          onRerollOutput,
+          onReloadWorkflowOutput,
+        })}
+      />
+    );
+
+    const rerollButton = screen.getByLabelText("Re-roll");
+    const reloadButton = screen.getByLabelText("Reload workflow");
+
+    expect(rerollButton.parentElement).toHaveClass("reference-card-bottom-actions");
+    expect(reloadButton.parentElement).toBe(rerollButton.parentElement);
+    expect(reloadButton.previousElementSibling).toBe(rerollButton);
+
+    fireEvent.click(rerollButton);
+    fireEvent.click(reloadButton);
+
+    expect(onRerollOutput).toHaveBeenCalledWith(output);
+    expect(onReloadWorkflowOutput).toHaveBeenCalledWith(output, { mediaKindHint: "video" });
+  });
+
+  it("keeps generated video duration badges separate from replay actions", () => {
+    const output = createOutput({
+      mode: "video",
+      durationMs: 6_000,
+      taskState: "success",
+      mediaSource: "generated",
+      generationReplay: {
+        version: 1,
+        mode: "video",
+        submitTool: "video",
+        modelId: "kie-ai/kling-3.0",
+        displayPrompt: "A cinematic tracking shot",
+        submissionPrompt: "A cinematic tracking shot",
+        aspect: "16:9",
+        referenceInputs: [],
+        capturedAt: "2026-06-06T12:00:00.000Z",
+      },
+      workflowReload: {
+        version: 1,
+        source: "ai_studio_generation",
+        capturedAt: "2026-06-06T12:00:00.000Z",
+        originTool: "video",
+        panelKind: "video",
+        outputMode: "video",
+        restoreBehavior: "navigate_and_hydrate",
+        createMode: null,
+        pulse: null,
+        prompt: { display: "A cinematic tracking shot" },
+        model: { id: "kie-ai/kling-3.0" },
+        payload: {
+          kind: "video",
+          aspect: "16:9",
+          videoReferenceMode: "standard",
+          durationSeconds: 6,
+          resolution: "1080p",
+          generateAudio: true,
+          cameraFixed: false,
+          autoFix: true,
+          referenceInputs: [],
+        },
+      },
+    });
+
+    const { container } = render(
+      <ReferenceGridCard
+        {...createProps({
+          item: output,
+          isVideoPreview: true,
+          cardPreviewUrl: "https://example.com/video.mp4",
+          onRerollOutput: vi.fn(),
+          onReloadWorkflowOutput: vi.fn(),
+        })}
+      />
+    );
+
+    const durationBadge = screen.getByText("0:06");
+    const rerollButton = screen.getByLabelText("Re-roll");
+    const reloadButton = screen.getByLabelText("Reload workflow");
+    const actionRow = rerollButton.parentElement;
+
+    expect(durationBadge.closest(".reference-card-media-duration")).not.toBeNull();
+    expect(actionRow).toHaveClass("reference-card-bottom-actions");
+    expect(actionRow).toContainElement(reloadButton);
+    expect(actionRow).not.toContainElement(durationBadge);
+    expect(container.querySelector(".reference-card-bottom-actions--video")).toBeNull();
+    expect(container.querySelector(".reference-card-workflow-reload-actions")).toBeNull();
+  });
+
+  it("anchors bottom actions left and video duration badges bottom-right", () => {
+    expect(aiStudioCanvasStylesheet).toMatch(
+      /\.reference-card-bottom-actions\s*{[^}]*left:\s*6px;[^}]*bottom:\s*6px;/s
+    );
+    expect(aiStudioCanvasStylesheet).not.toMatch(
+      /\.reference-card-bottom-actions--video\s*{[^}]*right:\s*6px;/s
+    );
+    expect(aiStudioCanvasStylesheet).toMatch(
+      /\.reference-card-media-duration\s*{[^}]*right:\s*8px;[^}]*bottom:\s*8px;/s
+    );
   });
 
   it("shows reroll for generated audio workflow outputs", () => {

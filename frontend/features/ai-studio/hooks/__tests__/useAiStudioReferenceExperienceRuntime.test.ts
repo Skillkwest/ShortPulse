@@ -1,11 +1,14 @@
 import { renderHook } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../types";
 import type { AiStudioPageBaseRuntime } from "../useAiStudioPageBaseRuntime";
 import { useAiStudioReferenceExperienceRuntime } from "../useAiStudioReferenceExperienceRuntime";
 import type { CanvasImageItem } from "../../components/canvas/canvasTypes";
 import type { CanvasPropertiesPanelProps } from "../../components/canvas/canvasWorkspaceContracts";
 import { resetAiStudioOutputStore, setAiStudioOutputStoreSnapshot } from "../aiStudioOutputStore";
+
+const MANUAL_WORKFLOW_RELOAD_FLAG = "NEXT_PUBLIC_AI_STUDIO_MANUAL_WORKFLOW_RELOAD_ENABLED";
+const originalManualWorkflowReloadFlag = process.env[MANUAL_WORKFLOW_RELOAD_FLAG];
 
 vi.mock("../useAiStudioReferenceAssetActions", () => ({
   useAiStudioReferenceAssetActions: () => ({
@@ -98,7 +101,16 @@ const createBaseRuntime = (
 
 describe("useAiStudioReferenceExperienceRuntime", () => {
   beforeEach(() => {
+    process.env[MANUAL_WORKFLOW_RELOAD_FLAG] = "true";
     resetAiStudioOutputStore();
+  });
+
+  afterEach(() => {
+    if (originalManualWorkflowReloadFlag === undefined) {
+      delete process.env[MANUAL_WORKFLOW_RELOAD_FLAG];
+      return;
+    }
+    process.env[MANUAL_WORKFLOW_RELOAD_FLAG] = originalManualWorkflowReloadFlag;
   });
 
   it("routes Reference Grid workflow reload through the clicked output snapshot", () => {

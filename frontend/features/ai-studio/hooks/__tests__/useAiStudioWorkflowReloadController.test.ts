@@ -1,5 +1,5 @@
 import { act, renderHook } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { addBreadcrumb } from "../../../../lib/clientBreadcrumbs";
 import type { AiStudioKlingElement } from "../../logic/klingElements";
 import { resolveInternalMediaRefForUrl } from "../../logic/referenceInputInternalMediaRegistry";
@@ -14,6 +14,8 @@ import type {
 import { useAiStudioWorkflowReloadController } from "../useAiStudioWorkflowReloadController";
 
 const setSelectedVoiceMock = vi.fn();
+const MANUAL_WORKFLOW_RELOAD_FLAG = "NEXT_PUBLIC_AI_STUDIO_MANUAL_WORKFLOW_RELOAD_ENABLED";
+const originalManualWorkflowReloadFlag = process.env[MANUAL_WORKFLOW_RELOAD_FLAG];
 
 vi.mock("../../../../lib/clientBreadcrumbs", () => ({
   addBreadcrumb: vi.fn(),
@@ -145,8 +147,17 @@ const makeImageReload = (): WorkflowReloadConfigV1 => ({
 
 describe("useAiStudioWorkflowReloadController", () => {
   beforeEach(() => {
+    process.env[MANUAL_WORKFLOW_RELOAD_FLAG] = "true";
     setSelectedVoiceMock.mockReset();
     vi.mocked(addBreadcrumb).mockReset();
+  });
+
+  afterEach(() => {
+    if (originalManualWorkflowReloadFlag === undefined) {
+      delete process.env[MANUAL_WORKFLOW_RELOAD_FLAG];
+      return;
+    }
+    process.env[MANUAL_WORKFLOW_RELOAD_FLAG] = originalManualWorkflowReloadFlag;
   });
 
   it("hydrates create image workflow state without submitting", () => {
@@ -203,6 +214,29 @@ describe("useAiStudioWorkflowReloadController", () => {
       null,
       null,
     ]);
+  });
+
+  it("blocks manual workflow reload by default without hydrating workflow state", () => {
+    delete process.env[MANUAL_WORKFLOW_RELOAD_FLAG];
+    const workflowReload = makeImageReload();
+    const params = makeParams(makeOutput(workflowReload));
+    const { result } = renderHook(() => useAiStudioWorkflowReloadController(params));
+
+    let status;
+    act(() => {
+      status = result.current.reloadWorkflowFromOutput(" out-1 ");
+    });
+
+    expect(status).toEqual({ status: "deferred", outputId: "out-1" });
+    expect(params.beginManualWorkflowReload).not.toHaveBeenCalled();
+    expect(params.setSelectedTool).not.toHaveBeenCalled();
+    expect(params.setModel).not.toHaveBeenCalled();
+    expect(params.setStandardCreatePrompt).not.toHaveBeenCalled();
+    expect(params.setReferenceSelectionStateForCreateMode).not.toHaveBeenCalled();
+    expect(params.setUiNotice).not.toHaveBeenCalled();
+    expect(addBreadcrumb).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "workflow_reload_deferred" })
+    );
   });
 
   it("hydrates Expert Edit secondary references back into their original token slots", () => {

@@ -9,8 +9,16 @@ import { resolveRequiredAudioSoundEffectsModelId } from "../../../lib/model-runt
 import { resolvePricingGridBilledCredits } from "../../../lib/model-runtime/pricingGridBilledCredits";
 import type { ModelPricingPolicyDocument } from "../../../lib/model-runtime/pricingPolicy";
 import { useAudioInspirationRail } from "../hooks/useAudioInspirationRail";
+import type { CanvasTearOutComposerTargetRegistry } from "../hooks/useAiStudioCanvasTearOutTargets";
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
+import type { AgentComposerDirectDropPayload } from "../logic/agentComposerDirectDropPayload";
 import { resolveGenerateCreditConfidence } from "./shared/generateCreditConfidence";
+import {
+  handlePromptTextAreaDragOver,
+  handlePromptTextAreaDrop,
+  insertCanvasPromptTextIntoTextarea,
+} from "./shared/promptTextDropHandlers";
+import { useAgentComposerPromptDropModifierTracking } from "./promptStep/agentComposerDrop";
 
 export type SoundEffectFormat = "mp3_44100_128" | "pcm_48000";
 export const hardcodedSoundEffectsModelId = resolveRequiredAudioSoundEffectsModelId();
@@ -35,6 +43,7 @@ export type SoundEffectsPropertiesPanelProps = {
   onPromptChange?: (value: string) => void;
   pricingPolicy?: ModelPricingPolicyDocument | null;
   pricingPolicyReady?: boolean;
+  canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
   loopEnabled?: boolean;
   prompt?: string;
 };
@@ -105,10 +114,13 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
   onPromptChange,
   pricingPolicy = null,
   pricingPolicyReady = true,
+  canvasTearOutTargetRegistry,
   loopEnabled: controlledLoopEnabled,
   prompt: controlledPrompt,
 }: SoundEffectsPropertiesPanelProps) {
+  useAgentComposerPromptDropModifierTracking();
   const splitContainerRef = React.useRef<HTMLDivElement | null>(null);
+  const promptTextareaRef = React.useRef<HTMLTextAreaElement | null>(null);
   const durationMenuRef = React.useRef<HTMLDivElement | null>(null);
   const [uncontrolledPrompt, setUncontrolledPrompt] = React.useState("");
   const [uncontrolledLoopEnabled, setUncontrolledLoopEnabled] = React.useState(false);
@@ -182,6 +194,52 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
   React.useEffect(() => {
     setInspirationInsertError(null);
   }, [prompt]);
+
+  const canAcceptSoundEffectCanvasTearOutPayload = React.useCallback(
+    (payload: AgentComposerDirectDropPayload) =>
+      payload.kind === "text" && payload.text.trim().length > 0,
+    []
+  );
+  const acceptSoundEffectCanvasTearOutPayload = React.useCallback(
+    (payload: AgentComposerDirectDropPayload) => {
+      if (!canAcceptSoundEffectCanvasTearOutPayload(payload) || payload.kind !== "text") return;
+      insertCanvasPromptTextIntoTextarea({
+        composerText: prompt,
+        droppedPromptText: payload.text,
+        maxCharacters: maxPromptCharacters,
+        onChange: setPrompt,
+        textarea: promptTextareaRef.current,
+      });
+    },
+    [canAcceptSoundEffectCanvasTearOutPayload, prompt, setPrompt]
+  );
+
+  React.useEffect(() => {
+    if (!canvasTearOutTargetRegistry || !promptTextareaRef.current) return;
+    return canvasTearOutTargetRegistry.registerTarget({
+      id: "sound-effects-prompt-composer",
+      element: promptTextareaRef.current,
+      canAccept: canAcceptSoundEffectCanvasTearOutPayload,
+      accept: acceptSoundEffectCanvasTearOutPayload,
+    });
+  }, [
+    acceptSoundEffectCanvasTearOutPayload,
+    canAcceptSoundEffectCanvasTearOutPayload,
+    canvasTearOutTargetRegistry,
+  ]);
+
+  const handlePromptDrop = React.useCallback(
+    (event: React.DragEvent<HTMLTextAreaElement>) => {
+      handlePromptTextAreaDrop({
+        event,
+        composerText: prompt,
+        maxCharacters: maxPromptCharacters,
+        onChange: setPrompt,
+        textareaRef: promptTextareaRef,
+      });
+    },
+    [prompt, setPrompt]
+  );
 
   React.useEffect(() => {
     if (!isDurationMenuOpen) return;
@@ -293,12 +351,15 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
           <div className="sound-effects-properties-compose-area" style={bottomSectionStyle}>
             <div className="sound-effects-properties-script-input-shell sound-effects-properties-script-input-shell--with-inspiration">
               <textarea
+                ref={promptTextareaRef}
                 className="sound-effects-properties-script-input"
                 value={prompt}
                 onChange={(event) => setPrompt(event.target.value.slice(0, maxPromptCharacters))}
                 maxLength={maxPromptCharacters}
                 placeholder={soundEffectPromptPlaceholder}
                 aria-label="Sound effect prompt"
+                onDrop={handlePromptDrop}
+                onDragOver={handlePromptTextAreaDragOver}
               />
 
               <div

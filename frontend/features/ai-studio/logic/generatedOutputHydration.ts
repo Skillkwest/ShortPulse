@@ -58,6 +58,14 @@ const preserveExistingOutputWhenUnchanged = (
   return existing;
 };
 
+const areOutputSequencesIdentical = (
+  left: readonly StudioOutput[],
+  right: readonly StudioOutput[]
+): boolean => {
+  if (left.length !== right.length) return false;
+  return left.every((output, index) => Object.is(output, right[index]));
+};
+
 type IndexedOutputMatchQueue = {
   indexes: number[];
   cursor: number;
@@ -258,8 +266,11 @@ export const mergeCanonicalGeneratedOutputs = (
     canonicalOutputs.push(hydrated);
   }
 
-  return sortStudioOutputsByCreatedAtDesc([
+  const sortedOutputs = sortStudioOutputsByCreatedAtDesc([
     ...canonicalOutputs,
     ...existingOutputs.filter((_, index) => !matchedExistingIndexes.has(index)),
   ]);
+  return areOutputSequencesIdentical(existingOutputs, sortedOutputs)
+    ? existingOutputs
+    : sortedOutputs;
 };

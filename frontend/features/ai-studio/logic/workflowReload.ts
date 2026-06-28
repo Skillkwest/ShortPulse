@@ -38,6 +38,7 @@ import type {
   WorkflowReloadVoiceoverPayload,
 } from "../types";
 import { MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT } from "./expertEditReferenceSlots";
+import { isManualWorkflowReloadEnabled } from "./workflowReloadAvailability";
 import { isGenerationReplayConfigV1, isGenerationReplayConfigV2 } from "./generationReplay";
 import { SEEDANCE_REFERENCE_IMAGE_LIMIT } from "./klingElements";
 import { isNonDurableLipSyncAudioUrl, normalizeLipSyncAudioStoragePath } from "./lipSyncAudioState";
@@ -1001,6 +1002,7 @@ export const canReloadWorkflowOutput = (
   output: StudioOutput,
   options: ResolveWorkflowReloadConfigOptions = {}
 ): boolean => {
+  if (!isManualWorkflowReloadEnabled()) return false;
   if (output.mediaSource !== "generated") return false;
   return resolveWorkflowReloadConfigForOutput(output, options) != null;
 };

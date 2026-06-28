@@ -144,8 +144,11 @@ describe("generatedOutputHydration", () => {
         height: 1024,
       }),
     ];
+    const existing = [existingOutput];
+    const result = mergeCanonicalGeneratedOutputs(existing, hydrated);
 
-    expect(mergeCanonicalGeneratedOutputs([existingOutput], hydrated)[0]).toBe(existingOutput);
+    expect(result).toBe(existing);
+    expect(result[0]).toBe(existingOutput);
   });
 
   it("replaces fallback generated timestamps with canonical hydrated createdAt", () => {

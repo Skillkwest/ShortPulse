@@ -1,6 +1,6 @@
 import React from "react";
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   resolveMediaMetadataPromptText,
   type MediaFileRow,
@@ -10,8 +10,12 @@ import { MediaLibraryPanelPreviewModal } from "../media-library-modal/MediaLibra
 import { ReferenceAudioPlayer } from "../shared/ReferenceAudioPlayer";
 import { __resetExclusiveSoundPlaybackForTests } from "../shared/exclusiveSoundPlayback";
 
+const MANUAL_WORKFLOW_RELOAD_FLAG = "NEXT_PUBLIC_AI_STUDIO_MANUAL_WORKFLOW_RELOAD_ENABLED";
+const originalManualWorkflowReloadFlag = process.env[MANUAL_WORKFLOW_RELOAD_FLAG];
+
 describe("MediaLibraryPanelPreviewModal", () => {
   beforeEach(() => {
+    process.env[MANUAL_WORKFLOW_RELOAD_FLAG] = "true";
     __resetExclusiveSoundPlaybackForTests();
     Object.defineProperty(HTMLMediaElement.prototype, "play", {
       configurable: true,
@@ -21,6 +25,14 @@ describe("MediaLibraryPanelPreviewModal", () => {
       configurable: true,
       value: vi.fn(),
     });
+  });
+
+  afterEach(() => {
+    if (originalManualWorkflowReloadFlag === undefined) {
+      delete process.env[MANUAL_WORKFLOW_RELOAD_FLAG];
+      return;
+    }
+    process.env[MANUAL_WORKFLOW_RELOAD_FLAG] = originalManualWorkflowReloadFlag;
   });
 
   const createPreviewItem = (

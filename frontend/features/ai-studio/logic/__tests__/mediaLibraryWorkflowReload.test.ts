@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { MediaFileRow } from "../mediaLibraryModalModel";
 import {
   resolveMediaMetadataLyricsText,
@@ -10,6 +10,9 @@ import {
   resolveMediaLibraryWorkflowReloadMediaKindHint,
 } from "../mediaLibraryWorkflowReload";
 import { resolveWorkflowReloadConfigForOutput } from "../workflowReload";
+
+const MANUAL_WORKFLOW_RELOAD_FLAG = "NEXT_PUBLIC_AI_STUDIO_MANUAL_WORKFLOW_RELOAD_ENABLED";
+const originalManualWorkflowReloadFlag = process.env[MANUAL_WORKFLOW_RELOAD_FLAG];
 
 const workflowReload = {
   version: 1,
@@ -69,6 +72,18 @@ const styleContext = {
 } as const;
 
 describe("mediaLibraryWorkflowReload", () => {
+  beforeEach(() => {
+    process.env[MANUAL_WORKFLOW_RELOAD_FLAG] = "true";
+  });
+
+  afterEach(() => {
+    if (originalManualWorkflowReloadFlag === undefined) {
+      delete process.env[MANUAL_WORKFLOW_RELOAD_FLAG];
+      return;
+    }
+    process.env[MANUAL_WORKFLOW_RELOAD_FLAG] = originalManualWorkflowReloadFlag;
+  });
+
   const createRow = (overrides: Partial<MediaFileRow> = {}): MediaFileRow => ({
     id: "media-1",
     filename: "glass-fox.png",
@@ -104,6 +119,15 @@ describe("mediaLibraryWorkflowReload", () => {
       styleContext,
     });
     expect(canReloadMediaLibraryWorkflow(createRow())).toBe(true);
+  });
+
+  it("keeps saved workflow metadata readable while default launch availability hides reload", () => {
+    delete process.env[MANUAL_WORKFLOW_RELOAD_FLAG];
+    const row = createRow();
+    const output = createMediaLibraryWorkflowReloadOutput(row);
+
+    expect(output?.workflowReload).toEqual(workflowReload);
+    expect(canReloadMediaLibraryWorkflow(row)).toBe(false);
   });
 
   it("derives the reload media-kind hint from the saved media file type", () => {

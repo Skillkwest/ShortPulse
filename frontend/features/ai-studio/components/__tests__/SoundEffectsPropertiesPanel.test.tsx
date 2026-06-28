@@ -3,13 +3,64 @@
  * Verifies the standalone Sound Effects workflow now uses the simplified single-surface composer.
  */
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { resolvePricingGridBilledCredits } from "../../../../lib/model-runtime/pricingGridBilledCredits";
+import { createCanvasTearOutComposerTargetRegistry } from "../../hooks/useAiStudioCanvasTearOutTargets";
+import { preparePromptReferenceDrag } from "../../utils/dragDrop";
 import {
   hardcodedSoundEffectsModelId,
   SoundEffectsPropertiesPanel,
 } from "../SoundEffectsPropertiesPanel";
+
+const emptyFileList = { length: 0, item: () => null } as unknown as FileList;
+
+const createPromptReferenceDragTransfer = (promptText: string): DataTransfer => {
+  const data: Record<string, string> = {};
+  const transfer = {
+    effectAllowed: "all",
+    dropEffect: "none",
+    files: emptyFileList,
+    setData: (type: string, value: string) => {
+      data[type] = value;
+    },
+    getData: (type: string) => data[type] ?? "",
+    get types() {
+      return Object.keys(data);
+    },
+    setDragImage: () => undefined,
+  } as unknown as DataTransfer;
+  const dragNode = document.createElement("div");
+  preparePromptReferenceDrag(
+    {
+      dataTransfer: transfer,
+      currentTarget: dragNode,
+    } as unknown as Parameters<typeof preparePromptReferenceDrag>[0],
+    {
+      promptText,
+      referenceId: "canvas-text-reference",
+      sourceSurface: "all-refs",
+    }
+  );
+  return transfer;
+};
+
+const createTransfer = (data: Record<string, string>): DataTransfer => {
+  const transferData = { ...data };
+  return {
+    effectAllowed: "all",
+    dropEffect: "none",
+    files: emptyFileList,
+    setData: (type: string, value: string) => {
+      transferData[type] = value;
+    },
+    getData: (type: string) => transferData[type] ?? "",
+    get types() {
+      return Object.keys(transferData);
+    },
+    setDragImage: () => undefined,
+  } as unknown as DataTransfer;
+};
 
 describe("SoundEffectsPropertiesPanel", () => {
   it("renders the simplified sound effects workflow surface", () => {
@@ -84,6 +135,119 @@ describe("SoundEffectsPropertiesPanel", () => {
 
     expect(promptField).toHaveValue("Short vinyl crackle burst with a dusty hi-fi tail.");
     expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
+  });
+
+  it("accepts session-backed text reference drops into the sound effect prompt", () => {
+    render(<SoundEffectsPropertiesPanel />);
+
+    const promptField = screen.getByRole("textbox", { name: "Sound effect prompt" });
+    const transfer = createPromptReferenceDragTransfer("Canvas hit reference with metallic tail.");
+
+    fireEvent.dragOver(promptField, { dataTransfer: transfer });
+    fireEvent.drop(promptField, { dataTransfer: transfer });
+
+    expect(promptField).toHaveValue("Canvas hit reference with metallic tail.");
+    expect(transfer.dropEffect).toBe("copy");
+  });
+
+  it("restores session-backed sound effect text and clamps it to the prompt budget", () => {
+    render(<SoundEffectsPropertiesPanel />);
+
+    const fullPrompt = `Impact start. ${"Metallic debris scatter with long warehouse tail. ".repeat(15)}Final ring.`;
+    const shortenedPrompt = fullPrompt.slice(0, 90);
+    const promptField = screen.getByRole("textbox", { name: "Sound effect prompt" });
+    const transfer = createPromptReferenceDragTransfer(fullPrompt);
+    transfer.setData("text/prompt", shortenedPrompt);
+    transfer.setData("text/plain", shortenedPrompt);
+
+    fireEvent.drop(promptField, { dataTransfer: transfer });
+
+    expect(promptField).toHaveValue(fullPrompt.slice(0, 450));
+  });
+
+  it("inserts sound effect text reference drops at the caret when Shift is held", () => {
+    render(<SoundEffectsPropertiesPanel />);
+
+    const promptField = screen.getByRole("textbox", {
+      name: "Sound effect prompt",
+    }) as HTMLTextAreaElement;
+    fireEvent.change(promptField, { target: { value: "Soft  tail" } });
+    const transfer = createPromptReferenceDragTransfer("boom");
+
+    act(() => {
+      promptField.focus();
+      promptField.setSelectionRange("Soft ".length, "Soft ".length);
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Shift", shiftKey: true }));
+      fireEvent.dragOver(promptField, { dataTransfer: transfer, shiftKey: true });
+      fireEvent.drop(promptField, {
+        dataTransfer: transfer,
+        shiftKey: true,
+      });
+      window.dispatchEvent(new KeyboardEvent("keyup", { key: "Shift" }));
+    });
+
+    expect(promptField).toHaveValue("Soft boom tail");
+  });
+
+  it("does not treat media reference drops as sound effect text", () => {
+    render(<SoundEffectsPropertiesPanel />);
+
+    const promptField = screen.getByRole("textbox", { name: "Sound effect prompt" });
+    fireEvent.change(promptField, { target: { value: "Keep this SFX draft." } });
+    const transfer = createTransfer({
+      "image/url": "https://cdn.example.test/reference.png",
+      "text/reference-url": "https://cdn.example.test/reference.png",
+      "text/plain": "https://cdn.example.test/reference.png",
+    });
+
+    fireEvent.dragOver(promptField, { dataTransfer: transfer });
+    fireEvent.drop(promptField, { dataTransfer: transfer });
+
+    expect(promptField).toHaveValue("Keep this SFX draft.");
+    expect(transfer.dropEffect).toBe("none");
+  });
+
+  it("registers the prompt as a Canvas text tear-out target", async () => {
+    const registry = createCanvasTearOutComposerTargetRegistry();
+    const rectSpy = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
+      () =>
+        ({
+          bottom: 100,
+          height: 100,
+          left: 0,
+          right: 100,
+          top: 0,
+          width: 100,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        }) as DOMRect
+    );
+
+    render(<SoundEffectsPropertiesPanel canvasTearOutTargetRegistry={registry} />);
+
+    await waitFor(() => {
+      expect(
+        registry.resolveTargetAtPoint(
+          { clientX: 10, clientY: 10 },
+          { kind: "text", text: "Canvas tear-out boom." }
+        )
+      ).not.toBeNull();
+    });
+
+    const target = registry.resolveTargetAtPoint(
+      { clientX: 10, clientY: 10 },
+      { kind: "text", text: "Canvas tear-out boom." }
+    );
+
+    act(() => {
+      target?.target.accept({ kind: "text", text: "Canvas tear-out boom." });
+    });
+
+    expect(screen.getByRole("textbox", { name: "Sound effect prompt" })).toHaveValue(
+      "Canvas tear-out boom."
+    );
+    rectSpy.mockRestore();
   });
 
   it("supports a controlled prompt draft from page state", () => {

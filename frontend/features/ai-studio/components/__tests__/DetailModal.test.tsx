@@ -4,13 +4,28 @@
  */
 import { useState, type ComponentProps } from "react";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DetailModal } from "../DetailModal";
 import { ReferenceGridCard } from "../../reference-grid/components/ReferenceGridCard";
 import { ReferenceAudioPlayer } from "../shared/ReferenceAudioPlayer";
 import { __resetExclusiveSoundPlaybackForTests } from "../shared/exclusiveSoundPlayback";
 import type { StudioOutput } from "../../types";
 import { getAiStudioErrorScenario } from "../../testing/errorScenarioFixtures";
+
+const MANUAL_WORKFLOW_RELOAD_FLAG = "NEXT_PUBLIC_AI_STUDIO_MANUAL_WORKFLOW_RELOAD_ENABLED";
+const originalManualWorkflowReloadFlag = process.env[MANUAL_WORKFLOW_RELOAD_FLAG];
+
+beforeEach(() => {
+  process.env[MANUAL_WORKFLOW_RELOAD_FLAG] = "true";
+});
+
+afterEach(() => {
+  if (originalManualWorkflowReloadFlag === undefined) {
+    delete process.env[MANUAL_WORKFLOW_RELOAD_FLAG];
+    return;
+  }
+  process.env[MANUAL_WORKFLOW_RELOAD_FLAG] = originalManualWorkflowReloadFlag;
+});
 
 const baseOutput: StudioOutput = {
   id: "out-1",

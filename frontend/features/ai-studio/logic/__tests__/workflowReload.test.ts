@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { StudioOutput } from "../../types";
 import {
   buildWorkflowReloadConfigV1,
@@ -8,7 +8,22 @@ import {
   resolveWorkflowReloadConfigForOutput,
 } from "../workflowReload";
 
+const MANUAL_WORKFLOW_RELOAD_FLAG = "NEXT_PUBLIC_AI_STUDIO_MANUAL_WORKFLOW_RELOAD_ENABLED";
+const originalManualWorkflowReloadFlag = process.env[MANUAL_WORKFLOW_RELOAD_FLAG];
+
 describe("workflowReload", () => {
+  beforeEach(() => {
+    process.env[MANUAL_WORKFLOW_RELOAD_FLAG] = "true";
+  });
+
+  afterEach(() => {
+    if (originalManualWorkflowReloadFlag === undefined) {
+      delete process.env[MANUAL_WORKFLOW_RELOAD_FLAG];
+      return;
+    }
+    process.env[MANUAL_WORKFLOW_RELOAD_FLAG] = originalManualWorkflowReloadFlag;
+  });
+
   it("builds a normalized image reload config", () => {
     const reload = buildWorkflowReloadConfigV1({
       capturedAt: "2026-06-06T12:00:00.000Z",
@@ -800,6 +815,40 @@ describe("workflowReload", () => {
       })
     ).toBe(false);
     expect(resolveWorkflowReloadConfigForOutput(baseOutput)).toBeNull();
+  });
+
+  it("disables manual reload eligibility by default without hiding parsed reload metadata", () => {
+    delete process.env[MANUAL_WORKFLOW_RELOAD_FLAG];
+    const workflowReload = buildWorkflowReloadConfigV1({
+      capturedAt: "2026-06-06T12:00:00.000Z",
+      originTool: "create",
+      panelKind: "create",
+      outputMode: "image",
+      prompt: { display: "Prompt" },
+      model: { id: "model-1" },
+      payload: {
+        kind: "image",
+        submitTool: "create",
+        aspect: "1:1",
+        imageResolution: null,
+        referenceInputs: [],
+      },
+    });
+    const output: StudioOutput = {
+      id: "out-1",
+      prompt: "Prompt",
+      mode: "image",
+      aspect: "1:1",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      mediaSource: "generated",
+      previewUrl: "https://example.com/image.png",
+      workflowReload: workflowReload ?? undefined,
+    };
+
+    expect(canReloadWorkflowOutput(output)).toBe(false);
+    expect(resolveWorkflowReloadConfigForOutput(output)).toEqual(workflowReload);
   });
 
   it("allows video workflow reload only for generated video outputs with valid metadata", () => {

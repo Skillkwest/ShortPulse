@@ -371,19 +371,14 @@
 }
 
 .canvas-scene-item__media-action-row--bottom {
-  right: 6px;
+  left: 6px;
   bottom: 6px;
-  transform-origin: bottom right;
+  transform-origin: bottom left;
 }
 
 .canvas-scene-item__media-action-row .reference-card-action-btn {
   width: 30px;
   height: 30px;
-}
-
-.canvas-scene-item.is-selected .canvas-scene-item__media-duration {
-  left: 8px;
-  right: auto;
 }
 
 .canvas-scene-item > .reference-save-chip {

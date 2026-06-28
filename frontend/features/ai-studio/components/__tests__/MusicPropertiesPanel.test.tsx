@@ -3,10 +3,77 @@
  * Verifies the dedicated Music workflow stays decoupled from generic Sound and Sound Effects.
  */
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { resolvePricingGridBilledCredits } from "../../../../lib/model-runtime/pricingGridBilledCredits";
+import { createCanvasTearOutComposerTargetRegistry } from "../../hooks/useAiStudioCanvasTearOutTargets";
+import { preparePromptReferenceDrag } from "../../utils/dragDrop";
 import { hardcodedMusicModelId, MusicPropertiesPanel } from "../MusicPropertiesPanel";
+
+const emptyFileList = { length: 0, item: () => null } as unknown as FileList;
+
+const createPromptReferenceDragTransfer = (promptText: string): DataTransfer => {
+  const data: Record<string, string> = {};
+  const transfer = {
+    effectAllowed: "all",
+    dropEffect: "none",
+    files: emptyFileList,
+    setData: (type: string, value: string) => {
+      data[type] = value;
+    },
+    getData: (type: string) => data[type] ?? "",
+    get types() {
+      return Object.keys(data);
+    },
+    setDragImage: () => undefined,
+  } as unknown as DataTransfer;
+  const dragNode = document.createElement("div");
+  preparePromptReferenceDrag(
+    {
+      dataTransfer: transfer,
+      currentTarget: dragNode,
+    } as unknown as Parameters<typeof preparePromptReferenceDrag>[0],
+    {
+      promptText,
+      referenceId: "canvas-text-reference",
+      sourceSurface: "all-refs",
+    }
+  );
+  return transfer;
+};
+
+const createTransfer = (data: Record<string, string>): DataTransfer => {
+  const transferData = { ...data };
+  return {
+    effectAllowed: "all",
+    dropEffect: "none",
+    files: emptyFileList,
+    setData: (type: string, value: string) => {
+      transferData[type] = value;
+    },
+    getData: (type: string) => transferData[type] ?? "",
+    get types() {
+      return Object.keys(transferData);
+    },
+    setDragImage: () => undefined,
+  } as unknown as DataTransfer;
+};
+
+const mockElementRect = (
+  element: HTMLElement,
+  rect: Pick<DOMRect, "bottom" | "height" | "left" | "right" | "top" | "width" | "x" | "y">
+) => {
+  Object.defineProperty(element, "getBoundingClientRect", {
+    configurable: true,
+    value: vi.fn(
+      () =>
+        ({
+          ...rect,
+          toJSON: () => ({}),
+        }) as DOMRect
+    ),
+  });
+};
 
 describe("MusicPropertiesPanel", () => {
   it("renders the music mode toggle instead of the retired preview area", () => {
@@ -86,6 +153,152 @@ describe("MusicPropertiesPanel", () => {
       "Warm melodic house cue with a soft vocal texture, subtle lift into the hook, and a clean branded ending."
     );
     expect(screen.getByRole("button", { name: "Generate music" })).toBeEnabled();
+  });
+
+  it("accepts session-backed text reference drops into the music prompt", () => {
+    render(<MusicPropertiesPanel />);
+
+    const promptField = screen.getByRole("textbox", { name: "Music prompt" });
+    const transfer = createPromptReferenceDragTransfer("Canvas text direction for the music cue.");
+
+    fireEvent.dragOver(promptField, { dataTransfer: transfer });
+    fireEvent.drop(promptField, { dataTransfer: transfer });
+
+    expect(promptField).toHaveValue("Canvas text direction for the music cue.");
+    expect(transfer.dropEffect).toBe("copy");
+  });
+
+  it("restores full session-backed music text when browser fields are shortened", () => {
+    render(<MusicPropertiesPanel />);
+
+    const fullPrompt = `Opening cue. ${"Layered synth motif with live drums. ".repeat(25)}Final lift.`;
+    const shortenedPrompt = fullPrompt.slice(0, 120);
+    const promptField = screen.getByRole("textbox", { name: "Music prompt" });
+    const transfer = createPromptReferenceDragTransfer(fullPrompt);
+    transfer.setData("text/prompt", shortenedPrompt);
+    transfer.setData("text/plain", shortenedPrompt);
+
+    fireEvent.drop(promptField, { dataTransfer: transfer });
+
+    expect(promptField).toHaveValue(fullPrompt);
+  });
+
+  it("inserts music text reference drops at the caret when Shift is held", () => {
+    render(<MusicPropertiesPanel />);
+
+    const promptField = screen.getByRole("textbox", {
+      name: "Music prompt",
+    }) as HTMLTextAreaElement;
+    fireEvent.change(promptField, { target: { value: "Intro  outro" } });
+    const transfer = createPromptReferenceDragTransfer("bridge");
+
+    act(() => {
+      promptField.focus();
+      promptField.setSelectionRange("Intro ".length, "Intro ".length);
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Shift", shiftKey: true }));
+      fireEvent.dragOver(promptField, { dataTransfer: transfer, shiftKey: true });
+      fireEvent.drop(promptField, {
+        dataTransfer: transfer,
+        shiftKey: true,
+      });
+      window.dispatchEvent(new KeyboardEvent("keyup", { key: "Shift" }));
+    });
+
+    expect(promptField).toHaveValue("Intro bridge outro");
+  });
+
+  it("accepts session-backed text reference drops into custom lyrics", () => {
+    render(<MusicPropertiesPanel />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Custom" }));
+    const lyricsField = screen.getByRole("textbox", { name: "Song lyrics" });
+
+    fireEvent.drop(lyricsField, {
+      dataTransfer: createPromptReferenceDragTransfer("Canvas lyric reference line."),
+    });
+
+    expect(lyricsField).toHaveValue("Canvas lyric reference line.");
+  });
+
+  it("does not treat media reference drops as music text", () => {
+    render(<MusicPropertiesPanel />);
+
+    const promptField = screen.getByRole("textbox", { name: "Music prompt" });
+    fireEvent.change(promptField, { target: { value: "Keep this music draft." } });
+    const transfer = createTransfer({
+      "image/url": "https://cdn.example.test/reference.png",
+      "text/reference-url": "https://cdn.example.test/reference.png",
+      "text/plain": "https://cdn.example.test/reference.png",
+    });
+
+    fireEvent.dragOver(promptField, { dataTransfer: transfer });
+    fireEvent.drop(promptField, { dataTransfer: transfer });
+
+    expect(promptField).toHaveValue("Keep this music draft.");
+    expect(transfer.dropEffect).toBe("none");
+  });
+
+  it("registers music prompt and custom lyrics as Canvas text tear-out targets", async () => {
+    const registry = createCanvasTearOutComposerTargetRegistry();
+    render(<MusicPropertiesPanel canvasTearOutTargetRegistry={registry} />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Custom" }));
+
+    const promptField = screen.getByRole("textbox", { name: "Music prompt" });
+    const lyricsField = screen.getByRole("textbox", { name: "Song lyrics" });
+    mockElementRect(promptField, {
+      bottom: 100,
+      height: 100,
+      left: 0,
+      right: 100,
+      top: 0,
+      width: 100,
+      x: 0,
+      y: 0,
+    });
+    mockElementRect(lyricsField, {
+      bottom: 240,
+      height: 100,
+      left: 0,
+      right: 100,
+      top: 140,
+      width: 100,
+      x: 0,
+      y: 140,
+    });
+
+    await waitFor(() => {
+      expect(
+        registry.resolveTargetAtPoint(
+          { clientX: 10, clientY: 10 },
+          { kind: "text", text: "Canvas music prompt." }
+        )
+      ).not.toBeNull();
+      expect(
+        registry.resolveTargetAtPoint(
+          { clientX: 10, clientY: 160 },
+          { kind: "text", text: "Canvas lyric line." }
+        )
+      ).not.toBeNull();
+    });
+
+    act(() => {
+      registry
+        .resolveTargetAtPoint(
+          { clientX: 10, clientY: 10 },
+          { kind: "text", text: "Canvas music prompt." }
+        )
+        ?.target.accept({ kind: "text", text: "Canvas music prompt." });
+      registry
+        .resolveTargetAtPoint(
+          { clientX: 10, clientY: 160 },
+          { kind: "text", text: "Canvas lyric line." }
+        )
+        ?.target.accept({ kind: "text", text: "Canvas lyric line." });
+    });
+
+    expect(promptField).toHaveValue("Canvas music prompt.");
+    expect(lyricsField).toHaveValue("Canvas lyric line.");
   });
 
   it("supports controlled prompt and lyrics drafts from page state", () => {

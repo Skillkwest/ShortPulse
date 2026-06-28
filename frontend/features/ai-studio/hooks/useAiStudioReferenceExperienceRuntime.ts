@@ -14,6 +14,7 @@ import type { useAiStudioWorkspaceActions } from "./useAiStudioWorkspaceActions"
 import type { useAiStudioGenerationController } from "./useAiStudioGenerationController";
 import type { CanvasSceneItem } from "../components/canvas/canvasTypes";
 import type { StudioOutput } from "../types";
+import { isManualWorkflowReloadEnabled } from "../logic/workflowReloadAvailability";
 
 type CreatePanelProps = AiStudioPageContentProps["propertiesCreate"];
 type EditPanelProps = AiStudioPageContentProps["propertiesEditExpert"];
@@ -99,6 +100,9 @@ export const useAiStudioReferenceExperienceRuntime = ({
     videoReferenceText,
   } = base;
   const resolvedRerollOutput = handleRerollOutput ?? rerollOutputFromReplay;
+  const manualWorkflowReloadHandler = isManualWorkflowReloadEnabled()
+    ? reloadWorkflowFromStudioOutput
+    : undefined;
   const { handleDownloadReference, handleSaveReference } = useAiStudioReferenceAssetActions({
     projectId,
     findOutputById,
@@ -116,7 +120,7 @@ export const useAiStudioReferenceExperienceRuntime = ({
       onSaveToLibrary: (output: StudioOutput) => handleSaveReference(output.id),
       onDownload: (output: StudioOutput) => handleDownloadReference(output.id),
       onRerollOutput: (output: StudioOutput) => resolvedRerollOutput(output.id),
-      onReloadWorkflowOutput: reloadWorkflowFromStudioOutput,
+      onReloadWorkflowOutput: manualWorkflowReloadHandler,
       onRemoveCanvasItem: removeCanvasItemById,
       isMediaStorageFull,
     }),
@@ -126,7 +130,7 @@ export const useAiStudioReferenceExperienceRuntime = ({
       handleSaveReference,
       handleSelectOutput,
       isMediaStorageFull,
-      reloadWorkflowFromStudioOutput,
+      manualWorkflowReloadHandler,
       removeCanvasItemById,
       resolvedRerollOutput,
     ]
@@ -162,7 +166,7 @@ export const useAiStudioReferenceExperienceRuntime = ({
     handleAddLibraryMediaReferences: addLibraryMediaReferences,
     handleAddLibraryPromptReference: addLibraryPromptReference,
     handleRerollOutput: resolvedRerollOutput,
-    handleReloadWorkflowOutput: reloadWorkflowFromStudioOutput,
+    handleReloadWorkflowOutput: manualWorkflowReloadHandler,
     deleteOutput,
     clearGenerationOutput,
     addCuratedReference,

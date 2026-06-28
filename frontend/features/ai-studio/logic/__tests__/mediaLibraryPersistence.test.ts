@@ -356,6 +356,104 @@ describe("saveMediaUrlToLibrary", () => {
     );
   });
 
+  it("backfills missing duration metadata on an existing ai_studio media row", async () => {
+    const maybeSingle = vi
+      .fn()
+      .mockResolvedValueOnce({
+        data: {
+          id: "media-existing-video",
+          storage_path: "user-1/generations/videos/existing.mp4",
+          file_type: "video",
+          metadata: null,
+          poster_variant_path: "user-1/variants/videos/media-existing-video/poster_720.jpg",
+          preview_variant_path: "user-1/variants/videos/media-existing-video/preview_loop_360p.mp4",
+        },
+        error: null,
+      })
+      .mockResolvedValue({
+        data: null,
+        error: null,
+      });
+    const selectBuilder = createMediaFileSelectBuilder(maybeSingle);
+    const mediaUpdateEqMediaId = vi.fn(async () => ({ error: null }));
+    const mediaUpdateEqUserId = vi.fn(() => ({
+      eq: mediaUpdateEqMediaId,
+    }));
+    const mediaUpdate = vi.fn(() => ({
+      eq: mediaUpdateEqUserId,
+    }));
+    const generationOutputMaybeSingle = vi
+      .fn()
+      .mockResolvedValueOnce({
+        data: { media_file_id: "media-existing-video" },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: { id: "gen-output-existing-video" },
+        error: null,
+      });
+    const generationOutputSelectBuilder = createGenerationOutputSelectBuilder(
+      generationOutputMaybeSingle
+    );
+    const generationOutputUpdate = vi.fn(() => ({
+      eq: vi.fn(() => ({
+        eq: vi.fn(async () => ({ error: null })),
+      })),
+    }));
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "media_files") {
+          return {
+            select: vi.fn(() => selectBuilder),
+            update: mediaUpdate,
+            insert: vi.fn(),
+          };
+        }
+        if (table === "ai_generation_outputs") {
+          return {
+            select: vi.fn(() => generationOutputSelectBuilder),
+            update: generationOutputUpdate,
+            insert: vi.fn(),
+          };
+        }
+        if (table === "media_events") {
+          return mockMediaEventsTable();
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+      storage: {
+        from: vi.fn(() => ({
+          upload: vi.fn(),
+          remove: vi.fn(),
+        })),
+      },
+    });
+
+    vi.stubGlobal("fetch", vi.fn());
+
+    const result = await saveMediaUrlToLibrary({
+      url: "https://tempfile.aiquickdraw.com/r/generated-video.mp4",
+      mode: "video",
+      source: "ai_studio",
+      generationId: "gen-video-1",
+      index: 0,
+      metadata: {
+        duration_ms: 15_000,
+      },
+    });
+
+    expect(result.mediaFileId).toBe("media-existing-video");
+    expect(mediaUpdate).toHaveBeenCalledWith({
+      metadata: {
+        duration_ms: 15_000,
+        duration_seconds: 15,
+      },
+    });
+    expect(mediaUpdateEqUserId).toHaveBeenCalledWith("user_id", "user-1");
+    expect(mediaUpdateEqMediaId).toHaveBeenCalledWith("id", "media-existing-video");
+  });
+
   it("backfills a durable poster for an existing ai_studio video row when file_type is stale", async () => {
     mockVideoPosterExtraction();
 

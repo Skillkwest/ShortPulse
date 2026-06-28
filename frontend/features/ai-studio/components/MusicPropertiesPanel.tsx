@@ -9,8 +9,16 @@ import { resolveRequiredAudioMusicModelId } from "../../../lib/model-runtime/mod
 import { resolvePricingGridBilledCredits } from "../../../lib/model-runtime/pricingGridBilledCredits";
 import type { ModelPricingPolicyDocument } from "../../../lib/model-runtime/pricingPolicy";
 import { useAudioInspirationRail } from "../hooks/useAudioInspirationRail";
+import type { CanvasTearOutComposerTargetRegistry } from "../hooks/useAiStudioCanvasTearOutTargets";
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
+import type { AgentComposerDirectDropPayload } from "../logic/agentComposerDirectDropPayload";
 import { resolveGenerateCreditConfidence } from "./shared/generateCreditConfidence";
+import {
+  handlePromptTextAreaDragOver,
+  handlePromptTextAreaDrop,
+  insertCanvasPromptTextIntoTextarea,
+} from "./shared/promptTextDropHandlers";
+import { useAgentComposerPromptDropModifierTracking } from "./promptStep/agentComposerDrop";
 
 export type MusicMode = "instrumental" | "vocal";
 export type MusicStructure = "loop" | "full-track" | "cinematic";
@@ -52,6 +60,7 @@ export type MusicPropertiesPanelProps = {
   onSongBatchCountChange?: (value: MusicSongBatchCount) => void;
   pricingPolicy?: ModelPricingPolicyDocument | null;
   pricingPolicyReady?: boolean;
+  canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
   composerMode?: MusicComposerMode;
   instrumentalEnabled?: boolean;
   lyrics?: string;
@@ -156,6 +165,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   onSongBatchCountChange,
   pricingPolicy = null,
   pricingPolicyReady = true,
+  canvasTearOutTargetRegistry,
   composerMode: controlledComposerMode,
   instrumentalEnabled: controlledInstrumentalEnabled,
   lyrics: controlledLyrics,
@@ -163,7 +173,10 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   singerEnabled: controlledSingerEnabled,
   songBatchCount: controlledSongBatchCount,
 }: MusicPropertiesPanelProps) {
+  useAgentComposerPromptDropModifierTracking();
   const splitContainerRef = React.useRef<HTMLDivElement | null>(null);
+  const promptTextareaRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const lyricsTextareaRef = React.useRef<HTMLTextAreaElement | null>(null);
   const songBatchMenuRef = React.useRef<HTMLDivElement | null>(null);
   const durationMenuRef = React.useRef<HTMLDivElement | null>(null);
   const [uncontrolledPrompt, setUncontrolledPrompt] = React.useState("");
@@ -301,6 +314,37 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
     [composerMode]
   );
   const isStandardMode = composerMode === "simple";
+  const canAcceptMusicCanvasTearOutPayload = React.useCallback(
+    (payload: AgentComposerDirectDropPayload) =>
+      payload.kind === "text" && payload.text.trim().length > 0,
+    []
+  );
+  const acceptMusicPromptCanvasTearOutPayload = React.useCallback(
+    (payload: AgentComposerDirectDropPayload) => {
+      if (!canAcceptMusicCanvasTearOutPayload(payload) || payload.kind !== "text") return;
+      insertCanvasPromptTextIntoTextarea({
+        composerText: prompt,
+        droppedPromptText: payload.text,
+        maxCharacters: maxPromptCharacters,
+        onChange: setPrompt,
+        textarea: promptTextareaRef.current,
+      });
+    },
+    [canAcceptMusicCanvasTearOutPayload, prompt, setPrompt]
+  );
+  const acceptMusicLyricsCanvasTearOutPayload = React.useCallback(
+    (payload: AgentComposerDirectDropPayload) => {
+      if (!canAcceptMusicCanvasTearOutPayload(payload) || payload.kind !== "text") return;
+      insertCanvasPromptTextIntoTextarea({
+        composerText: lyrics,
+        droppedPromptText: payload.text,
+        maxCharacters: maxPromptCharacters,
+        onChange: setLyrics,
+        textarea: lyricsTextareaRef.current,
+      });
+    },
+    [canAcceptMusicCanvasTearOutPayload, lyrics, setLyrics]
+  );
 
   const { topSectionStyle, bottomSectionStyle, dividerProps } = useReferenceGridHorizontalSplit({
     enabled: isStandardMode,
@@ -361,6 +405,63 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   React.useEffect(() => {
     setInspirationInsertError(null);
   }, [composerMode, lyrics, prompt]);
+
+  React.useEffect(() => {
+    if (!canvasTearOutTargetRegistry || !promptTextareaRef.current) return;
+    return canvasTearOutTargetRegistry.registerTarget({
+      id: "music-prompt-composer",
+      element: promptTextareaRef.current,
+      canAccept: canAcceptMusicCanvasTearOutPayload,
+      accept: acceptMusicPromptCanvasTearOutPayload,
+    });
+  }, [
+    acceptMusicPromptCanvasTearOutPayload,
+    canAcceptMusicCanvasTearOutPayload,
+    canvasTearOutTargetRegistry,
+    composerMode,
+  ]);
+
+  React.useEffect(() => {
+    if (!canvasTearOutTargetRegistry || !lyricsTextareaRef.current || composerMode !== "custom") {
+      return;
+    }
+    return canvasTearOutTargetRegistry.registerTarget({
+      id: "music-lyrics-composer",
+      element: lyricsTextareaRef.current,
+      canAccept: canAcceptMusicCanvasTearOutPayload,
+      accept: acceptMusicLyricsCanvasTearOutPayload,
+    });
+  }, [
+    acceptMusicLyricsCanvasTearOutPayload,
+    canAcceptMusicCanvasTearOutPayload,
+    canvasTearOutTargetRegistry,
+    composerMode,
+  ]);
+
+  const handlePromptDrop = React.useCallback(
+    (event: React.DragEvent<HTMLTextAreaElement>) => {
+      handlePromptTextAreaDrop({
+        event,
+        composerText: prompt,
+        maxCharacters: maxPromptCharacters,
+        onChange: setPrompt,
+        textareaRef: promptTextareaRef,
+      });
+    },
+    [prompt, setPrompt]
+  );
+  const handleLyricsDrop = React.useCallback(
+    (event: React.DragEvent<HTMLTextAreaElement>) => {
+      handlePromptTextAreaDrop({
+        event,
+        composerText: lyrics,
+        maxCharacters: maxPromptCharacters,
+        onChange: setLyrics,
+        textareaRef: lyricsTextareaRef,
+      });
+    },
+    [lyrics, setLyrics]
+  );
 
   React.useEffect(() => {
     if (!activeFooterMenu) return;
@@ -577,6 +678,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
                 <>
                   <div className="music-properties-script-input-shell music-properties-script-input-shell--with-inspiration">
                     <textarea
+                      ref={promptTextareaRef}
                       className="music-properties-script-input"
                       value={prompt}
                       onChange={(event) =>
@@ -585,6 +687,8 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
                       maxLength={maxPromptCharacters}
                       placeholder={promptPlaceholder}
                       aria-label="Music prompt"
+                      onDrop={handlePromptDrop}
+                      onDragOver={handlePromptTextAreaDragOver}
                     />
                     <div
                       className="music-properties-script-input-shell-divider"
@@ -602,6 +706,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
                     <p className="music-properties-custom-pane-title">Song style and vibe</p>
                     <div className="music-properties-script-input-shell music-properties-script-input-shell--custom-prompt">
                       <textarea
+                        ref={promptTextareaRef}
                         className="music-properties-script-input music-properties-script-input--custom-prompt"
                         value={prompt}
                         onChange={(event) =>
@@ -610,6 +715,8 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
                         maxLength={maxPromptCharacters}
                         placeholder={customMusicPromptPlaceholder}
                         aria-label="Music prompt"
+                        onDrop={handlePromptDrop}
+                        onDragOver={handlePromptTextAreaDragOver}
                       />
                       <div
                         className="music-properties-script-input-shell-divider"
@@ -635,6 +742,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
                     </div>
                     <div className="music-properties-script-input-shell music-properties-script-input-shell--custom-lyrics">
                       <textarea
+                        ref={lyricsTextareaRef}
                         className="music-properties-script-input music-properties-script-input--lyrics"
                         value={lyrics}
                         onChange={(event) =>
@@ -643,6 +751,8 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
                         maxLength={maxPromptCharacters}
                         placeholder={lyricsPromptPlaceholder}
                         aria-label="Song lyrics"
+                        onDrop={handleLyricsDrop}
+                        onDragOver={handlePromptTextAreaDragOver}
                       />
                     </div>
                   </div>

@@ -292,6 +292,12 @@ export const useAiStudioPersistenceActions = ({
 
       for (let index = 0; index < urls.length; index += 1) {
         try {
+          const outputDurationMs =
+            typeof output.durationMs === "number" &&
+            Number.isFinite(output.durationMs) &&
+            output.durationMs > 0
+              ? Math.round(output.durationMs)
+              : null;
           const result = await saveMediaUrlToLibrary({
             url: urls[index],
             promptText: output.prompt,
@@ -315,6 +321,12 @@ export const useAiStudioPersistenceActions = ({
               lyrics_text: output.lyricsText ?? null,
               music_mode: output.musicMode ?? null,
               source_mode: output.audioSourceMode ?? null,
+              ...(outputDurationMs !== null
+                ? {
+                    duration_ms: outputDurationMs,
+                    duration_seconds: outputDurationMs / 1000,
+                  }
+                : {}),
               ...(output.workflowReload ? { workflow_reload: output.workflowReload } : {}),
               ...(output.generationReplay ? { generation_replay: output.generationReplay } : {}),
               ...(output.characterContext ? { character_context: output.characterContext } : {}),

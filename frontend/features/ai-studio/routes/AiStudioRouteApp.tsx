@@ -13,6 +13,7 @@ import {
   resolveWorkflowReloadCharacterContextCandidate,
   resolveWorkflowReloadCharacterSelection,
 } from "../logic/workflowReloadCharacterRestore";
+import { isManualWorkflowReloadEnabled } from "../logic/workflowReloadAvailability";
 import { useAiStudioPageUiNotices } from "../hooks/useAiStudioPageUiNotices";
 import {
   useAiStudioPageBaseRuntime,
@@ -933,8 +934,12 @@ const AiStudioPageRuntimeBody = ({
     onDetailSaveReference,
     onSnapshotVideoFrame: handleSnapshotVideoFrame,
     onSnapshotVideoFrameError: setUiError,
-    onDetailReloadWorkflow: base.reloadWorkflowFromStudioOutput,
-    onMediaLibraryReloadWorkflow: base.reloadWorkflowFromStudioOutput,
+    onDetailReloadWorkflow: isManualWorkflowReloadEnabled()
+      ? base.reloadWorkflowFromStudioOutput
+      : undefined,
+    onMediaLibraryReloadWorkflow: isManualWorkflowReloadEnabled()
+      ? base.reloadWorkflowFromStudioOutput
+      : undefined,
     onDetailSavePrompt,
     onAddLibraryMediaReference: addLibraryMediaReference,
     onAddLibraryMediaReferences: addLibraryMediaReferences,

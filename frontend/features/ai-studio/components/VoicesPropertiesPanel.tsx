@@ -9,11 +9,14 @@ import { useResolvedProtectedSessionState } from "../../../lib/protectedRouteSes
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { sanitizeCustomerFacingProviderText } from "../../../lib/customerFacingProviderText";
 import { AgentEnhanceButton } from "../../../prefabs/agent";
+import { useAgentComposerPromptDropModifierTracking } from "./promptStep/agentComposerDrop";
+import type { CanvasTearOutComposerTargetRegistry } from "../hooks/useAiStudioCanvasTearOutTargets";
+import type { AgentComposerDirectDropPayload } from "../logic/agentComposerDirectDropPayload";
 import {
-  resolveDroppedPromptTextEdit,
-  resolveDroppedPromptTextEditMode,
-  useAgentComposerPromptDropModifierTracking,
-} from "./promptStep/agentComposerDrop";
+  handlePromptTextAreaDragOver,
+  handlePromptTextAreaDrop,
+  insertCanvasPromptTextIntoTextarea,
+} from "./shared/promptTextDropHandlers";
 import {
   buildVoiceChangerRequestSettings,
   buildVoiceoverRequestConfig,
@@ -95,8 +98,6 @@ const minVoiceChangerTopSectionHeightPx = 120;
 const minVoiceChangerBottomSectionHeightPx = 600;
 const maxVoiceChangerBottomSectionHeightPx = 600;
 const fixedVoiceChangerBottomSectionHeightPx = 600;
-const droppedImageUrlPattern = /^https?:\/\/\S+\.(?:png|jpe?g|gif|webp|svg)(?:\?.*)?$/i;
-const droppedVideoUrlPattern = /^https?:\/\/\S+\.(?:mp4|mov|webm|m4v)(?:\?.*)?$/i;
 const cloneVoiceSourceDropzoneCopy = {
   inputAriaLabel: "Voice clone source file input",
   dropzoneAriaLabel: "Voice clone source drop zone",
@@ -134,36 +135,6 @@ const loadedVoiceValueInlineStyle: React.CSSProperties = {
   color: "rgba(239, 255, 252, 1)",
   textShadow: "0 0 16px rgba(105, 220, 203, 0.28)",
 };
-const extractDroppedPromptText = (transfer: DataTransfer): string | null => {
-  const promptText = (
-    transfer.getData("text/prompt") ||
-    transfer.getData("text/plain") ||
-    transfer.getData("text")
-  ).trim();
-  if (!promptText) return null;
-  if (/^data:(image|video)\//i.test(promptText)) return null;
-  if (droppedImageUrlPattern.test(promptText) || droppedVideoUrlPattern.test(promptText)) {
-    return null;
-  }
-  return promptText.slice(0, maxVoiceScriptCharacters);
-};
-
-const isPromptTextDrag = (transfer: DataTransfer): boolean => {
-  const normalizedTypes = Array.from(transfer.types ?? [], (type) => type.toLowerCase());
-  if (
-    normalizedTypes.some(
-      (type) =>
-        type.includes("text") ||
-        type.includes("plain") ||
-        type.includes("prompt") ||
-        type.includes("utf8")
-    )
-  ) {
-    return true;
-  }
-  return Boolean(extractDroppedPromptText(transfer));
-};
-
 const buildVoiceDesignPreviewAudioSrc = (
   audioBase64: string,
   mediaType: string | null | undefined
@@ -219,6 +190,7 @@ export type VoicesPropertiesPanelProps = {
   onVoiceScriptChange?: (value: string) => void;
   onActiveVoiceChangerSourceVideoChange?: (source: ActiveVoiceChangerSourceVideo | null) => void;
   resolveVoiceChangerInternalReferenceSource?: ResolveVoiceChangerInternalReferenceSource;
+  canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
   selectedVoiceId?: string | null;
   voiceChangerSource?: VoiceChangerSource | null;
   voicePrompt?: string;
@@ -272,6 +244,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   onVoiceScriptChange: onControlledVoiceScriptChange,
   onActiveVoiceChangerSourceVideoChange,
   resolveVoiceChangerInternalReferenceSource,
+  canvasTearOutTargetRegistry,
   selectedVoiceId: controlledSelectedVoiceId,
   voiceChangerSource: controlledVoiceChangerSource,
   voicePrompt: controlledVoicePrompt,
@@ -802,61 +775,62 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     }
   }, [stopActiveDesignedPreview, voiceName, voicePrompt]);
 
-  const handleVoicePromptDrop = (event: React.DragEvent<HTMLTextAreaElement>) => {
-    const droppedPromptText = extractDroppedPromptText(event.dataTransfer);
-    if (!droppedPromptText) {
-      return;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
-    const textarea = event.currentTarget;
-    const nextPrompt = resolveDroppedPromptTextEdit({
-      composerText: voicePrompt,
-      droppedPromptText,
-      selectionStart: textarea.selectionStart ?? voicePrompt.length,
-      selectionEnd: textarea.selectionEnd ?? textarea.selectionStart ?? voicePrompt.length,
-      editMode: resolveDroppedPromptTextEditMode(event),
+  const canAcceptVoiceCanvasTearOutPayload = React.useCallback(
+    (payload: AgentComposerDirectDropPayload) =>
+      payload.kind === "text" && payload.text.trim().length > 0,
+    []
+  );
+  const acceptVoiceoverScriptCanvasTearOutPayload = React.useCallback(
+    (payload: AgentComposerDirectDropPayload) => {
+      if (!canAcceptVoiceCanvasTearOutPayload(payload) || payload.kind !== "text") return;
+      insertCanvasPromptTextIntoTextarea({
+        composerText: voiceScript,
+        droppedPromptText: payload.text,
+        maxCharacters: maxVoiceScriptCharacters,
+        onChange: setVoiceScript,
+        textarea: voiceScriptRef.current,
+      });
+      setVoiceoverEnhanceDraft(null);
+      setVoiceoverEnhanceError(null);
+    },
+    [canAcceptVoiceCanvasTearOutPayload, setVoiceScript, voiceScript]
+  );
+  React.useEffect(() => {
+    if (!canvasTearOutTargetRegistry || !voiceScriptRef.current || surfaceMode !== "create") return;
+    return canvasTearOutTargetRegistry.registerTarget({
+      id: "voiceover-script-composer",
+      element: voiceScriptRef.current,
+      canAccept: canAcceptVoiceCanvasTearOutPayload,
+      accept: acceptVoiceoverScriptCanvasTearOutPayload,
     });
-    setVoicePrompt(nextPrompt.prompt.slice(0, maxVoiceScriptCharacters));
-    requestAnimationFrame(() => {
-      const caret = Math.min(nextPrompt.caret, maxVoiceScriptCharacters);
-      voicePromptRef.current?.focus();
-      voicePromptRef.current?.setSelectionRange(caret, caret);
+  }, [
+    acceptVoiceoverScriptCanvasTearOutPayload,
+    canAcceptVoiceCanvasTearOutPayload,
+    canvasTearOutTargetRegistry,
+    surfaceMode,
+  ]);
+
+  const handleVoicePromptDrop = (event: React.DragEvent<HTMLTextAreaElement>) => {
+    handlePromptTextAreaDrop({
+      event,
+      composerText: voicePrompt,
+      maxCharacters: maxVoicePromptCharacters,
+      onChange: setVoicePrompt,
+      textareaRef: voicePromptRef,
     });
   };
 
   const handleVoiceScriptDrop = (event: React.DragEvent<HTMLTextAreaElement>) => {
-    const droppedPromptText = extractDroppedPromptText(event.dataTransfer);
-    if (!droppedPromptText) {
-      return;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
-    const textarea = event.currentTarget;
-    const nextScript = resolveDroppedPromptTextEdit({
+    const handled = handlePromptTextAreaDrop({
+      event,
       composerText: voiceScript,
-      droppedPromptText,
-      selectionStart: textarea.selectionStart ?? voiceScript.length,
-      selectionEnd: textarea.selectionEnd ?? textarea.selectionStart ?? voiceScript.length,
-      editMode: resolveDroppedPromptTextEditMode(event),
+      maxCharacters: maxVoiceScriptCharacters,
+      onChange: setVoiceScript,
+      textareaRef: voiceScriptRef,
     });
-    setVoiceScript(nextScript.prompt.slice(0, maxVoiceScriptCharacters));
-    requestAnimationFrame(() => {
-      const caret = Math.min(nextScript.caret, maxVoiceScriptCharacters);
-      voiceScriptRef.current?.focus();
-      voiceScriptRef.current?.setSelectionRange(caret, caret);
-    });
-  };
-
-  const handleVoicePromptDragOver = (event: React.DragEvent<HTMLTextAreaElement>) => {
-    if (!isPromptTextDrag(event.dataTransfer)) {
-      return;
-    }
-
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "copy";
+    if (!handled) return;
+    setVoiceoverEnhanceDraft(null);
+    setVoiceoverEnhanceError(null);
   };
 
   const openCreateVoiceModal = React.useCallback(
@@ -1406,7 +1380,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                         setVoiceoverEnhanceError(null);
                       }}
                       onDrop={handleVoiceScriptDrop}
-                      onDragOver={handleVoicePromptDragOver}
+                      onDragOver={handlePromptTextAreaDragOver}
                       maxLength={maxVoiceScriptCharacters}
                       placeholder={voiceScriptPlaceholder}
                       aria-label="Voice script"
@@ -1692,7 +1666,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
             onVoicePromptChange={setVoicePrompt}
             onCloneConsentChange={setIsCloneConsentChecked}
             onVoicePromptDrop={handleVoicePromptDrop}
-            onVoicePromptDragOver={handleVoicePromptDragOver}
+            onVoicePromptDragOver={handlePromptTextAreaDragOver}
             onGenerateVoicePreviews={() => {
               void handleCreateVoicePreviewGeneration();
             }}

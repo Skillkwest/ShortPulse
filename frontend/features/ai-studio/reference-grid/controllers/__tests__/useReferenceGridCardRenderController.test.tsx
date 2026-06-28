@@ -37,6 +37,7 @@ const createOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput =>
 
 describe("useReferenceGridCardRenderController", () => {
   beforeEach(() => {
+    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_MANUAL_WORKFLOW_RELOAD_ENABLED", "true");
     __resetExclusiveSoundPlaybackForTests();
   });
 

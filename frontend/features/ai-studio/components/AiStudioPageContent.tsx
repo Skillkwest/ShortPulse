@@ -1604,7 +1604,10 @@ export function AiStudioPageContent({
         case "music":
           return (
             <React.Suspense fallback={lazyPanelFallback}>
-              <LazyMusicPropertiesPanel {...propertiesMusic} />
+              <LazyMusicPropertiesPanel
+                canvasTearOutTargetRegistry={canvasTearOutTargetRegistry}
+                {...propertiesMusic}
+              />
             </React.Suspense>
           );
         case "sound":
@@ -1616,7 +1619,10 @@ export function AiStudioPageContent({
         case "sound-effects":
           return (
             <React.Suspense fallback={lazyPanelFallback}>
-              <LazySoundEffectsPropertiesPanel {...propertiesSoundEffects} />
+              <LazySoundEffectsPropertiesPanel
+                canvasTearOutTargetRegistry={canvasTearOutTargetRegistry}
+                {...propertiesSoundEffects}
+              />
             </React.Suspense>
           );
         case "voices":
@@ -1624,6 +1630,7 @@ export function AiStudioPageContent({
             <React.Suspense fallback={lazyPanelFallback}>
               <LazyVoicesPropertiesPanel
                 selectedTool={selectedTool}
+                canvasTearOutTargetRegistry={canvasTearOutTargetRegistry}
                 {...propertiesVoices}
                 onActiveVoiceChangerSourceVideoChange={handleActiveVoiceChangerSourceVideoChange}
                 resolveVoiceChangerInternalReferenceSource={
@@ -1649,6 +1656,7 @@ export function AiStudioPageContent({
     },
     [
       characterPropertiesPanelContent,
+      canvasTearOutTargetRegistry,
       createPropertiesPanelContent,
       elementsPropertiesPanelContent,
       editPropertiesPanelContent,

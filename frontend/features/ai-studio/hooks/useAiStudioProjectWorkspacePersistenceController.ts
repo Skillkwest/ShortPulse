@@ -1065,6 +1065,44 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     },
     [onPersistenceWarning, projectId]
   );
+  const markProjectAutosaveBaselineSaved = useCallback(
+    (activeProjectId: string, snapshot: AiStudioSessionSnapshot) => {
+      if (activeProjectId !== projectId) return;
+      const nextAutosaveUnlockSignature = resolveProjectAutosaveUnlockSignature(snapshot);
+      if (!nextAutosaveUnlockSignature) return;
+      setSettledAutosaveBaseline((current) => {
+        if (current?.projectId !== activeProjectId || current.revision !== projectRuntimeRevision) {
+          return current;
+        }
+        if (current.autosaveUnlockSignature === nextAutosaveUnlockSignature) {
+          return current;
+        }
+        return {
+          projectId: activeProjectId,
+          revision: projectRuntimeRevision,
+          autosaveUnlockSignature: nextAutosaveUnlockSignature,
+        };
+      });
+      setPendingVisibilityAutosaveBaseline((current) => {
+        if (current?.projectId !== activeProjectId || current.revision !== projectRuntimeRevision) {
+          return current;
+        }
+        if (current.autosaveUnlockSignature === nextAutosaveUnlockSignature) {
+          return current;
+        }
+        return {
+          ...current,
+          autosaveUnlockSignature: nextAutosaveUnlockSignature,
+        };
+      });
+      setPostBootstrapAutosaveUnlocked((current) =>
+        current?.projectId === activeProjectId && current.revision === projectRuntimeRevision
+          ? null
+          : current
+      );
+    },
+    [projectId, projectRuntimeRevision]
+  );
 
   const clearRecoveredProjectAutosaveWarning = useCallback(
     (
@@ -1431,6 +1469,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
           },
         });
       }
+      markProjectAutosaveBaselineSaved(activeProjectId, snapshot);
       if (savedWorkspace.saveOutcome?.status === "saved_with_repair_pending") {
         const noticeKey = [
           activeProjectId,
@@ -1456,6 +1495,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
       autosaveSnapshotSelection.fallbackKind,
       clearRecoveredProjectAutosaveWarning,
       emitProjectAutosaveWarning,
+      markProjectAutosaveBaselineSaved,
     ]
   );
 

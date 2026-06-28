@@ -2489,7 +2489,8 @@ describe("ReferenceGrid curated split", () => {
     expect(queryByLabelText("Re-roll")).toBeNull();
   });
 
-  it("hides reroll action for curated-only references", () => {
+  it("shows replay actions for curated-only generated references with replay metadata", () => {
+    const onRerollOutput = vi.fn();
     const generatedImage: StudioOutput = {
       id: "generated-image-curated-only-1",
       prompt: "Generated image",
@@ -2521,6 +2522,55 @@ describe("ReferenceGrid curated split", () => {
           curatedReferenceIds: [generatedImage.id],
           removedFromAllRefsIds: [generatedImage.id],
           activeOutputId: generatedImage.id,
+          onRerollOutput,
+        })}
+      />
+    );
+
+    const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
+    expect(curatedSection).toBeTruthy();
+    const curatedQueries = within(curatedSection);
+    const rerollButton = curatedQueries.getByLabelText("Re-roll");
+
+    fireEvent.click(rerollButton);
+
+    expect(onRerollOutput).toHaveBeenCalledWith(expect.objectContaining({ id: generatedImage.id }));
+    expect(curatedQueries.queryByLabelText("Save to media library")).toBeNull();
+    expect(curatedQueries.queryByLabelText("Download reference")).toBeNull();
+  });
+
+  it("keeps curated-only video refs showing the shared duration badge", () => {
+    const generatedVideo: StudioOutput = {
+      id: "generated-video-curated-only-1",
+      prompt: "Generated video",
+      mode: "video",
+      aspect: "16:9",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "https://example.com/generated-video-curated-only.mp4",
+      mediaSource: "generated",
+      durationMs: 8_000,
+      generationReplay: {
+        version: 1,
+        mode: "video",
+        submitTool: "video",
+        modelId: "kie-ai/kling-3.0",
+        displayPrompt: "Generated video",
+        submissionPrompt: "Generated video",
+        aspect: "16:9",
+        referenceInputs: [],
+        capturedAt: "2026-02-25T00:00:00.000Z",
+      },
+    };
+
+    const { container } = render(
+      <ReferenceGrid
+        {...createProps({
+          outputs: [generatedVideo],
+          curatedReferenceIds: [generatedVideo.id],
+          removedFromAllRefsIds: [generatedVideo.id],
+          activeOutputId: generatedVideo.id,
           onRerollOutput: vi.fn(),
         })}
       />
@@ -2529,7 +2579,12 @@ describe("ReferenceGrid curated split", () => {
     const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
     expect(curatedSection).toBeTruthy();
     const curatedQueries = within(curatedSection);
-    expect(curatedQueries.queryByLabelText("Re-roll")).toBeNull();
+    const durationBadge = curatedQueries.getByText("0:08");
+
+    expect(durationBadge.closest(".reference-card-media-duration")).not.toBeNull();
+    expect(durationBadge.closest("[data-right-rail-drop-surface='quick-slot']")).toBe(
+      curatedSection
+    );
   });
 
   it("keeps save action for unsaved prompt references", () => {

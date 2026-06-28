@@ -2933,6 +2933,116 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     expect(revertedAutosaveArgs?.preparedSnapshot?.hash).toMatch(/^fnv1a32:/);
   });
 
+  it("relocks project autosave after a successful save until the durable signature changes again", async () => {
+    const baseSnapshot = createSnapshot();
+    const savedSnapshot = {
+      ...baseSnapshot,
+      outputs: {
+        ...baseSnapshot.outputs,
+        curatedReferenceIds: ["saved-ref"],
+      },
+    } as AiStudioSessionSnapshot;
+    const sameDurableSignatureSnapshot = {
+      ...savedSnapshot,
+      agent: {
+        ...savedSnapshot.agent,
+        input: "runtime-only churn after save",
+      },
+    } as AiStudioSessionSnapshot;
+    const nextDurableSnapshot = {
+      ...savedSnapshot,
+      outputs: {
+        ...savedSnapshot.outputs,
+        curatedReferenceIds: ["saved-ref", "next-ref"],
+      },
+    } as AiStudioSessionSnapshot;
+    const buildSessionSnapshot = vi.fn(() => baseSnapshot);
+    const buildSavedSnapshot = vi.fn(() => savedSnapshot);
+    const buildSameDurableSignatureSnapshot = vi.fn(() => sameDurableSignatureSnapshot);
+    const buildNextDurableSnapshot = vi.fn(() => nextDurableSnapshot);
+    const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
+    mockedSaveProjectWorkspaceViaApi.mockResolvedValue(createWorkspaceSaveResponse(savedSnapshot));
+
+    const { rerender } = renderHook(
+      ({ buildSnapshot }) =>
+        useAiStudioProjectWorkspacePersistenceController({
+          projectId: "project-1",
+          projectRouteRequested: true,
+          sessionId: "session-1",
+          buildBaseSessionSnapshot: buildSnapshot,
+          hydrateFromSessionSnapshot,
+        }),
+      {
+        initialProps: {
+          buildSnapshot: buildSessionSnapshot as (sessionId: string) => AiStudioSessionSnapshot,
+        },
+      }
+    );
+
+    const restoreHydrationArgs =
+      mockedUseAiStudioProjectWorkspaceRestoreHydration.mock.calls[0]?.[0];
+    act(() => {
+      restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
+    });
+    rerender({
+      buildSnapshot: buildSessionSnapshot as (sessionId: string) => AiStudioSessionSnapshot,
+    });
+    await flushBootstrapVisibilityLatch();
+
+    await act(async () => {
+      rerender({
+        buildSnapshot: buildSavedSnapshot as (sessionId: string) => AiStudioSessionSnapshot,
+      });
+      await Promise.resolve();
+    });
+
+    const saveReadyAutosaveArgs = mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0];
+    expect(saveReadyAutosaveArgs?.enabled).toBe(true);
+    expect(saveReadyAutosaveArgs?.snapshot?.outputs.curatedReferenceIds).toEqual(["saved-ref"]);
+    expect(saveReadyAutosaveArgs?.preparedSnapshot?.hash).toMatch(/^fnv1a32:/);
+
+    await act(async () => {
+      await saveReadyAutosaveArgs?.persistSnapshot?.("project-1", saveReadyAutosaveArgs.snapshot!, {
+        snapshotHash: saveReadyAutosaveArgs.preparedSnapshot?.hash,
+        preparedSnapshot: saveReadyAutosaveArgs.preparedSnapshot ?? undefined,
+      });
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      rerender({
+        buildSnapshot: buildSameDurableSignatureSnapshot as (
+          sessionId: string
+        ) => AiStudioSessionSnapshot,
+      });
+      await Promise.resolve();
+    });
+
+    const relockedAutosaveArgs = mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0];
+    expect(relockedAutosaveArgs).toEqual(
+      expect.objectContaining({
+        sessionId: "project-1",
+        enabled: false,
+        snapshot: null,
+        preparedSnapshot: null,
+      })
+    );
+
+    await act(async () => {
+      rerender({
+        buildSnapshot: buildNextDurableSnapshot as (sessionId: string) => AiStudioSessionSnapshot,
+      });
+      await Promise.resolve();
+    });
+
+    const nextDurableAutosaveArgs = mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0];
+    expect(nextDurableAutosaveArgs?.enabled).toBe(true);
+    expect(nextDurableAutosaveArgs?.snapshot?.outputs.curatedReferenceIds).toEqual([
+      "saved-ref",
+      "next-ref",
+    ]);
+  });
+
   it("ignores stale bootstrap state after leaving and re-entering the same project", async () => {
     const buildSessionSnapshot = vi.fn(() => createSnapshot());
     const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());

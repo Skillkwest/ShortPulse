@@ -1,11 +1,26 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CanvasMediaActionOverlay } from "../CanvasMediaActionOverlay";
 import { buildGenerationReplayConfigV1 } from "../../../logic/generationReplay";
 import { buildWorkflowReloadConfigV1 } from "../../../logic/workflowReload";
 import type { StudioOutput } from "../../../types";
 import type { CanvasAudioItem, CanvasImageItem, CanvasVideoItem } from "../canvasTypes";
 import type { CanvasMediaActions } from "../canvasWorkspaceContracts";
+
+const MANUAL_WORKFLOW_RELOAD_FLAG = "NEXT_PUBLIC_AI_STUDIO_MANUAL_WORKFLOW_RELOAD_ENABLED";
+const originalManualWorkflowReloadFlag = process.env[MANUAL_WORKFLOW_RELOAD_FLAG];
+
+beforeEach(() => {
+  process.env[MANUAL_WORKFLOW_RELOAD_FLAG] = "true";
+});
+
+afterEach(() => {
+  if (originalManualWorkflowReloadFlag === undefined) {
+    delete process.env[MANUAL_WORKFLOW_RELOAD_FLAG];
+    return;
+  }
+  process.env[MANUAL_WORKFLOW_RELOAD_FLAG] = originalManualWorkflowReloadFlag;
+});
 
 const imageReplay = buildGenerationReplayConfigV1({
   mode: "image",
@@ -211,10 +226,16 @@ describe("CanvasMediaActionOverlay", () => {
 
     render(<CanvasMediaActionOverlay item={videoItem} actions={actions} />);
 
-    fireEvent.click(screen.getByLabelText("Re-roll"));
+    const rerollButton = screen.getByLabelText("Re-roll");
+    const reloadButton = screen.getByLabelText("Reload workflow");
+
+    expect(reloadButton.parentElement).toBe(rerollButton.parentElement);
+    expect(reloadButton.previousElementSibling).toBe(rerollButton);
+
+    fireEvent.click(rerollButton);
     expect(actions.onRerollOutput).toHaveBeenCalledWith(output);
 
-    fireEvent.click(screen.getByLabelText("Reload workflow"));
+    fireEvent.click(reloadButton);
 
     expect(actions.onReloadWorkflowOutput).toHaveBeenCalledWith(output, {
       mediaKindHint: "video",

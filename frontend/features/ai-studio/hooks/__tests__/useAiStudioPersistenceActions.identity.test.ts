@@ -451,6 +451,54 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
     );
   });
 
+  it("persists generated video duration metadata on manual library save", async () => {
+    const outputs = new Map<string, StudioOutput>([
+      [
+        "out-1",
+        makeOutput({
+          mode: "video",
+          resultUrls: ["https://signed.example/generated-video.mp4"],
+          generationId: EXISTING_GENERATION_ID,
+          durationMs: 15_000,
+        }),
+      ],
+    ]);
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      const current = outputs.get(id);
+      if (!current) return;
+      outputs.set(id, updater(current));
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioPersistenceActions({
+        projectId: "project-1",
+        findOutputById: (id) => outputs.get(id) ?? null,
+        updateOutputById,
+        setUiError: vi.fn(),
+        setOutputs: vi.fn(),
+        setSaved: vi.fn(),
+        activeOutputId: "out-1",
+        model: "model-id",
+        aspect: "1:1",
+        prompt: "prompt",
+      })
+    );
+
+    await act(async () => {
+      await result.current.persistOutputSave("out-1");
+    });
+
+    expect(saveMediaUrlToLibraryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: EXISTING_GENERATION_ID,
+        metadata: expect.objectContaining({
+          duration_ms: 15_000,
+          duration_seconds: 15,
+        }),
+      })
+    );
+  });
+
   it("persists workflow reload and replay metadata mirrors on manual library save", async () => {
     const workflowReload = {
       version: 1,

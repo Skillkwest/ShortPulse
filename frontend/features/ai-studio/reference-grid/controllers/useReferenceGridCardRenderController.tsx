@@ -367,7 +367,7 @@ export const useReferenceGridCardRenderController = ({
           onRequestAudioPlay={resolvedAudioPlaybackController.requestPlay}
           onAudioPlaybackStarted={resolvedAudioPlaybackController.markPlaying}
           onAudioPlaybackStopped={resolvedAudioPlaybackController.clearActivePlayer}
-          onRerollOutput={options.isCuratedSurface ? undefined : onRerollOutput}
+          onRerollOutput={onRerollOutput}
           onReloadWorkflowOutput={
             onReloadWorkflowOutput
               ? (_output, reloadOptions) => {
@@ -384,6 +384,7 @@ export const useReferenceGridCardRenderController = ({
           onSaveToLibrary={onSaveToLibrary}
           onDownload={onDownload}
           hideReferenceActions={options.isCuratedSurface}
+          allowRerollWhenActionsHidden={options.isCuratedSurface}
           allowWorkflowReloadWhenActionsHidden={options.isCuratedSurface}
         />
       );

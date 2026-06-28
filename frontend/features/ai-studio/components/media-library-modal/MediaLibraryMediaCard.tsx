@@ -528,6 +528,16 @@ export function MediaLibraryVisualMediaCard({
     [onMediaPaint]
   );
 
+  const renderVideoDurationBadge = () =>
+    isVideo ? (
+      <MediaDurationBadge
+        className="media-library-panel-media-duration"
+        durationMs={durationMs}
+        mediaUrl={durationMediaUrl}
+        mediaKind="video"
+      />
+    ) : null;
+
   const shouldRenderPoster = Boolean(posterUrl);
   const shouldRenderFallbackImage =
     !isVideo && Boolean(cardPreviewUrl) && !isVideoUrl(cardPreviewUrl);
@@ -704,14 +714,7 @@ export function MediaLibraryVisualMediaCard({
           aria-hidden
         />
       )}
-      {isVideo ? (
-        <MediaDurationBadge
-          className="media-library-panel-media-duration"
-          durationMs={durationMs}
-          mediaUrl={durationMediaUrl}
-          mediaKind="video"
-        />
-      ) : null}
+      {renderVideoDurationBadge()}
     </div>
   );
 
@@ -808,7 +811,14 @@ export function MediaLibraryVisualMediaCard({
         onPointerEnter={variant === "mixed-feed" ? handleMixedPointerEnter : undefined}
         onPointerLeave={variant === "mixed-feed" ? handleMixedPointerLeave : undefined}
       >
-        {variant === "mixed-feed" ? renderMixedMedia() : renderMediaGridMedia()}
+        {variant === "mixed-feed" ? (
+          renderMixedMedia()
+        ) : (
+          <>
+            {renderMediaGridMedia()}
+            {renderVideoDurationBadge()}
+          </>
+        )}
       </button>
       {renderCardActions({
         file,

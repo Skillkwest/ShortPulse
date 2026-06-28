@@ -133,7 +133,13 @@ describe("Canvas interaction behavior", () => {
       /\.canvas-scene-item__media-action-row--top\s*{[^}]*transform-origin:\s*top right;/s
     );
     expect(canvasWorkspaceCss).toMatch(
-      /\.canvas-scene-item__media-action-row--bottom\s*{[^}]*transform-origin:\s*bottom right;/s
+      /\.canvas-scene-item__media-action-row--bottom\s*{[^}]*left:\s*6px;[^}]*bottom:\s*6px;[^}]*transform-origin:\s*bottom left;/s
+    );
+    expect(canvasWorkspaceCss).toMatch(
+      /\.canvas-scene-item__media-duration\s*{[^}]*right:\s*8px;[^}]*bottom:\s*8px;/s
+    );
+    expect(canvasWorkspaceCss).not.toMatch(
+      /\.canvas-scene-item\.is-selected\s+\.canvas-scene-item__media-duration\s*{[^}]*left:\s*8px;/s
     );
     expect(canvasWorkspaceCss).toMatch(
       /\.canvas-scene-item--audio\.canvas-scene-item--ghost\s*{[^}]*opacity:\s*1;/s

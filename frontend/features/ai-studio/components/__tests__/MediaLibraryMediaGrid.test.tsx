@@ -1,9 +1,13 @@
 import { readFileSync } from "node:fs";
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MEDIA_LIBRARY_PANEL_DENSITY_CONFIG } from "../../../media-library/logic/mediaLibraryRuntimeConfig";
 import { MediaLibraryMediaGrid } from "../media-library-modal/MediaLibraryMediaGrid";
+import {
+  MediaLibraryVisualMediaCard,
+  buildMediaLibraryCardActionLabels,
+} from "../media-library-modal/MediaLibraryMediaCard";
 
 const useMediaMasonryVirtualizationMock = vi.fn();
 const useMediaGridVideoBudgetControllerMock = vi.fn();
@@ -12,6 +16,8 @@ const mediaLibraryPanelStylesheet = readFileSync(
   "styles/ai-studio-media-library-panel.css",
   "utf8"
 );
+const MANUAL_WORKFLOW_RELOAD_FLAG = "NEXT_PUBLIC_AI_STUDIO_MANUAL_WORKFLOW_RELOAD_ENABLED";
+const originalManualWorkflowReloadFlag = process.env[MANUAL_WORKFLOW_RELOAD_FLAG];
 
 vi.mock("../../../media-library/hooks/useMediaMasonryVirtualization", () => ({
   useMediaMasonryVirtualization: (...args: unknown[]) => useMediaMasonryVirtualizationMock(...args),
@@ -24,6 +30,7 @@ vi.mock("../../../media-library/hooks/useMediaGridVideoBudgetController", () => 
 
 describe("MediaLibraryMediaGrid", () => {
   beforeEach(() => {
+    process.env[MANUAL_WORKFLOW_RELOAD_FLAG] = "true";
     vi.clearAllMocks();
     useMediaMasonryVirtualizationMock.mockImplementation(({ items }: { items: unknown[] }) => ({
       containerRef: { current: null },
@@ -52,6 +59,14 @@ describe("MediaLibraryMediaGrid", () => {
       configurable: true,
       value: vi.fn(),
     });
+  });
+
+  afterEach(() => {
+    if (originalManualWorkflowReloadFlag === undefined) {
+      delete process.env[MANUAL_WORKFLOW_RELOAD_FLAG];
+      return;
+    }
+    process.env[MANUAL_WORKFLOW_RELOAD_FLAG] = originalManualWorkflowReloadFlag;
   });
 
   const baseProps = (): React.ComponentProps<typeof MediaLibraryMediaGrid> => ({
@@ -98,6 +113,75 @@ describe("MediaLibraryMediaGrid", () => {
     expect(screen.getByAltText("clip-1.mp4")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Select media clip-1.mp4" })).toBeInTheDocument();
     expect(document.querySelector("video.media-thumb")).toBeNull();
+  });
+
+  it("shows a video duration badge on video-tab grid cards when duration metadata exists", () => {
+    const props = baseProps();
+    props.activeMedia = [
+      {
+        ...props.activeMedia[0],
+        metadata: { duration_ms: 15_000 },
+      },
+    ];
+
+    render(<MediaLibraryMediaGrid {...props} />);
+
+    expect(screen.getByText("0:15")).toBeInTheDocument();
+  });
+
+  it("keeps mixed-feed video duration badges in the media frame and out of the action row", () => {
+    const file = {
+      ...baseProps().activeMedia[0],
+      metadata: { duration_ms: 15_000 },
+    };
+
+    const { container } = render(
+      <MediaLibraryVisualMediaCard
+        file={file}
+        isSelected={false}
+        previewAspectRatio={16 / 9}
+        cardPreviewUrl="https://cdn.example.com/clip-1-poster.jpg"
+        hoverVideoUrl="https://cdn.example.com/clip-1-preview.mp4"
+        posterPreviewUrl="https://cdn.example.com/clip-1-poster.jpg"
+        adaptivePressureLevel={0}
+        fetchPriorityAttr="auto"
+        getMediaCardRef={() => () => undefined}
+        onSelectMediaFile={vi.fn()}
+        onMediaDoubleClick={vi.fn()}
+        onMediaDragStart={vi.fn()}
+        onMediaDragEnd={vi.fn()}
+        onToggleMediaSelection={vi.fn()}
+        onMediaContextMenu={vi.fn()}
+        onMediaPreviewError={vi.fn()}
+        onMediaPaint={vi.fn()}
+        onSignedUrlLoaded={vi.fn()}
+        onRequestSignedUrl={vi.fn()}
+        cacheAspectRatio={vi.fn()}
+        showCardActions
+        canShowDownloadAction
+        canShowWorkflowReloadAction={false}
+        canShowRemoveAction={false}
+        canShowDeleteAction
+        actionLabels={buildMediaLibraryCardActionLabels(file, {
+          actionAriaLabel: "Video actions",
+          downloadLabelPrefix: "Download media",
+          removeLabel: "Remove clip-1.mp4 from folder",
+          deleteLabel: "Delete clip-1.mp4 from library",
+        })}
+        dangerActionMode="delete"
+        onDownloadMediaFile={vi.fn()}
+        onDeleteMediaFromLibrary={vi.fn()}
+        variant="mixed-feed"
+      />
+    );
+
+    const durationBadge = screen.getByText("0:15");
+    const actionRow = container.querySelector(".media-library-panel-card-actions");
+
+    expect(durationBadge.closest(".media-library-panel-media-duration")).not.toBeNull();
+    expect(durationBadge.closest(".media-library-panel-media-frame")).not.toBeNull();
+    expect(actionRow).not.toBeNull();
+    expect(actionRow).not.toContainElement(durationBadge);
   });
 
   it("marks selected image and video tab cards for the panel selection border", () => {
@@ -187,6 +271,18 @@ describe("MediaLibraryMediaGrid", () => {
     );
     expect(mediaLibraryPanelStylesheet).toMatch(
       /border:\s*2px solid rgba\(171, 233, 194, 0\.92\);/
+    );
+  });
+
+  it("anchors shared card actions bottom-left and video duration badges bottom-right", () => {
+    expect(mediaLibraryPanelStylesheet).toMatch(
+      /\.media-library-panel-card-actions\s*{[^}]*left:\s*6px;[^}]*bottom:\s*6px;/s
+    );
+    expect(mediaLibraryPanelStylesheet).not.toMatch(
+      /\.media-library-panel-card-actions\s*{[^}]*top:\s*6px;[^}]*right:\s*6px;/s
+    );
+    expect(mediaLibraryPanelStylesheet).toMatch(
+      /\.media-library-panel\s+\.media-library-panel-media-duration\s*{[^}]*right:\s*10px;[^}]*bottom:\s*10px;/s
     );
   });
 

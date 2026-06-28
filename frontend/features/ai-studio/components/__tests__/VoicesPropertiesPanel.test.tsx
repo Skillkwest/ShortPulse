@@ -7,6 +7,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MAX_CUSTOM_VOICE_NAME_CHARACTERS } from "../../../../lib/customVoiceName";
 import { resolvePricingGridBilledCredits } from "../../../../lib/model-runtime/pricingGridBilledCredits";
+import { createCanvasTearOutComposerTargetRegistry } from "../../hooks/useAiStudioCanvasTearOutTargets";
 import { resetSharedVoicesGridStore } from "../../hooks/useSharedVoicesGrid";
 import { useVoiceChangerSourceController } from "../../hooks/useVoiceChangerSourceController";
 import {
@@ -18,7 +19,7 @@ import {
   VoicesPropertiesPanel,
 } from "../VoicesPropertiesPanel";
 import { createVoiceChangerSourceFromFile } from "../VoiceChangerSourceDropzone";
-import { prepareReferenceDrag } from "../../utils/dragDrop";
+import { preparePromptReferenceDrag, prepareReferenceDrag } from "../../utils/dragDrop";
 
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
 const extractAudioWaveformPeaksFromUrlMock = vi.hoisted(() => vi.fn());
@@ -56,6 +57,49 @@ const createReferenceDragTransfer = () => {
     currentTarget: dragNode,
   } as unknown as Parameters<typeof prepareReferenceDrag>[0];
   return { transfer, event };
+};
+
+const createPromptReferenceDragTransfer = (promptText: string): DataTransfer => {
+  const { transfer, event } = createReferenceDragTransfer();
+  preparePromptReferenceDrag(event, {
+    promptText,
+    referenceId: "canvas-text-reference",
+    sourceSurface: "all-refs",
+  });
+  return transfer;
+};
+
+const createTransfer = (data: Record<string, string>): DataTransfer => {
+  const transferData = { ...data };
+  return {
+    effectAllowed: "all",
+    dropEffect: "none",
+    files: emptyFileList,
+    setData: (type: string, value: string) => {
+      transferData[type] = value;
+    },
+    getData: (type: string) => transferData[type] ?? "",
+    get types() {
+      return Object.keys(transferData);
+    },
+    setDragImage: () => undefined,
+  } as unknown as DataTransfer;
+};
+
+const mockElementRect = (
+  element: HTMLElement,
+  rect: Pick<DOMRect, "bottom" | "height" | "left" | "right" | "top" | "width" | "x" | "y">
+) => {
+  Object.defineProperty(element, "getBoundingClientRect", {
+    configurable: true,
+    value: vi.fn(
+      () =>
+        ({
+          ...rect,
+          toJSON: () => ({}),
+        }) as DOMRect
+    ),
+  });
 };
 
 const openVoicesLibraryModal = async () => {
@@ -263,6 +307,113 @@ describe("VoicesPropertiesPanel", () => {
         .querySelector(".voices-properties-panel-header")
         ?.contains(screen.getByRole("tablist", { name: "Voice mode" }))
     ).toBe(true);
+  });
+
+  it("accepts session-backed text reference drops into the voice script", () => {
+    render(<VoicesPropertiesPanel />);
+
+    const scriptField = screen.getByRole("textbox", { name: "Voice script" });
+    const transfer = createPromptReferenceDragTransfer("Canvas narration line.");
+
+    fireEvent.dragOver(scriptField, { dataTransfer: transfer });
+    fireEvent.drop(scriptField, { dataTransfer: transfer });
+
+    expect(scriptField).toHaveValue("Canvas narration line.");
+    expect(transfer.dropEffect).toBe("copy");
+  });
+
+  it("restores full session-backed voice script text when browser fields are shortened", () => {
+    render(<VoicesPropertiesPanel />);
+
+    const fullScript = `Opening narration. ${"Measured dramatic sentence with careful pacing. ".repeat(35)}Final line.`;
+    const shortenedScript = fullScript.slice(0, 100);
+    const scriptField = screen.getByRole("textbox", { name: "Voice script" });
+    const transfer = createPromptReferenceDragTransfer(fullScript);
+    transfer.setData("text/prompt", shortenedScript);
+    transfer.setData("text/plain", shortenedScript);
+
+    fireEvent.drop(scriptField, { dataTransfer: transfer });
+
+    expect(scriptField).toHaveValue(fullScript);
+  });
+
+  it("inserts voice script text reference drops at the caret when Shift is held", () => {
+    render(<VoicesPropertiesPanel />);
+
+    const scriptField = screen.getByRole("textbox", {
+      name: "Voice script",
+    }) as HTMLTextAreaElement;
+    fireEvent.change(scriptField, { target: { value: "Line one.  Line three." } });
+    const transfer = createPromptReferenceDragTransfer("Line two.");
+
+    act(() => {
+      scriptField.focus();
+      scriptField.setSelectionRange("Line one. ".length, "Line one. ".length);
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Shift", shiftKey: true }));
+      fireEvent.dragOver(scriptField, { dataTransfer: transfer, shiftKey: true });
+      fireEvent.drop(scriptField, {
+        dataTransfer: transfer,
+        shiftKey: true,
+      });
+      window.dispatchEvent(new KeyboardEvent("keyup", { key: "Shift" }));
+    });
+
+    expect(scriptField).toHaveValue("Line one. Line two. Line three.");
+  });
+
+  it("does not treat media reference drops as voice script text", () => {
+    render(<VoicesPropertiesPanel />);
+
+    const scriptField = screen.getByRole("textbox", { name: "Voice script" });
+    fireEvent.change(scriptField, { target: { value: "Keep this voice script." } });
+    const transfer = createTransfer({
+      "image/url": "https://cdn.example.test/reference.png",
+      "text/reference-url": "https://cdn.example.test/reference.png",
+      "text/plain": "https://cdn.example.test/reference.png",
+    });
+
+    fireEvent.dragOver(scriptField, { dataTransfer: transfer });
+    fireEvent.drop(scriptField, { dataTransfer: transfer });
+
+    expect(scriptField).toHaveValue("Keep this voice script.");
+    expect(transfer.dropEffect).toBe("none");
+  });
+
+  it("registers the voice script as a Canvas text tear-out target", async () => {
+    const registry = createCanvasTearOutComposerTargetRegistry();
+    render(<VoicesPropertiesPanel canvasTearOutTargetRegistry={registry} />);
+
+    const scriptField = screen.getByRole("textbox", { name: "Voice script" });
+    mockElementRect(scriptField, {
+      bottom: 100,
+      height: 100,
+      left: 0,
+      right: 100,
+      top: 0,
+      width: 100,
+      x: 0,
+      y: 0,
+    });
+
+    await waitFor(() => {
+      expect(
+        registry.resolveTargetAtPoint(
+          { clientX: 10, clientY: 10 },
+          { kind: "text", text: "Canvas voiceover line." }
+        )
+      ).not.toBeNull();
+    });
+
+    act(() => {
+      registry
+        .resolveTargetAtPoint(
+          { clientX: 10, clientY: 10 },
+          { kind: "text", text: "Canvas voiceover line." }
+        )
+        ?.target.accept({ kind: "text", text: "Canvas voiceover line." });
+    });
+
+    expect(scriptField).toHaveValue("Canvas voiceover line.");
   });
 
   it("supports controlled voice script and voice description drafts from page state", async () => {
@@ -762,7 +913,7 @@ describe("VoicesPropertiesPanel", () => {
     await openVoicesLibraryModal();
 
     expect(screen.getByRole("tab", { name: "My Voices" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("button", { name: /custom voice voice/i })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /custom voice voice/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /adam voice/i })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Select voice" })).toBeDisabled();

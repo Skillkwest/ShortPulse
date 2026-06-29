@@ -32,7 +32,6 @@ const MEDIA_TRANSFER_HINTS = new Set([
 type ApplyPromptTextEditOptions = {
   composerText: string;
   droppedPromptText: string;
-  maxCharacters: number;
   onChange: (value: string) => void;
   selectionStart: number;
   selectionEnd: number;
@@ -43,7 +42,6 @@ type ApplyPromptTextEditOptions = {
 type PromptTextAreaDropOptions = {
   event: React.DragEvent<HTMLTextAreaElement>;
   composerText: string;
-  maxCharacters: number;
   onChange: (value: string) => void;
   textareaRef?: React.RefObject<HTMLTextAreaElement | null>;
 };
@@ -51,7 +49,6 @@ type PromptTextAreaDropOptions = {
 type CanvasPromptTextDropOptions = {
   composerText: string;
   droppedPromptText: string;
-  maxCharacters: number;
   onChange: (value: string) => void;
   textarea: HTMLTextAreaElement | null;
 };
@@ -78,7 +75,6 @@ export const applyPromptTextEdit = ({
   composerText,
   droppedPromptText,
   editMode = "insert",
-  maxCharacters,
   onChange,
   selectionEnd,
   selectionStart,
@@ -99,10 +95,8 @@ export const applyPromptTextEdit = ({
           selectionStart,
           selectionEnd,
         });
-  const clampedPrompt = nextPrompt.prompt.slice(0, maxCharacters);
-  const caret = Math.min(nextPrompt.caret, clampedPrompt.length);
-  onChange(clampedPrompt);
-  restoreTextareaCaret(textareaRef?.current, caret);
+  onChange(nextPrompt.prompt);
+  restoreTextareaCaret(textareaRef?.current, nextPrompt.caret);
   return true;
 };
 
@@ -115,7 +109,6 @@ export const handlePromptTextAreaDragOver = (event: React.DragEvent<HTMLTextArea
 export const handlePromptTextAreaDrop = ({
   event,
   composerText,
-  maxCharacters,
   onChange,
   textareaRef,
 }: PromptTextAreaDropOptions): boolean => {
@@ -131,17 +124,14 @@ export const handlePromptTextAreaDrop = ({
 
   event.preventDefault();
   event.stopPropagation();
-  const clampedPrompt = insertedPrompt.prompt.slice(0, maxCharacters);
-  const caret = Math.min(insertedPrompt.caret, clampedPrompt.length);
-  onChange(clampedPrompt);
-  restoreTextareaCaret(textareaRef?.current ?? textarea, caret);
+  onChange(insertedPrompt.prompt);
+  restoreTextareaCaret(textareaRef?.current ?? textarea, insertedPrompt.caret);
   return true;
 };
 
 export const insertCanvasPromptTextIntoTextarea = ({
   composerText,
   droppedPromptText,
-  maxCharacters,
   onChange,
   textarea,
 }: CanvasPromptTextDropOptions): boolean => {
@@ -150,7 +140,6 @@ export const insertCanvasPromptTextIntoTextarea = ({
   return applyPromptTextEdit({
     composerText,
     droppedPromptText,
-    maxCharacters,
     onChange,
     selectionStart: shouldUseTextareaSelection
       ? (textarea?.selectionStart ?? composerText.length)

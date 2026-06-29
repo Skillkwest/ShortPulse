@@ -31,13 +31,18 @@ describe("mediaPerfTelemetry sampling policy", () => {
     logMediaPerf("media.grid.scroll.sample", { a: 2 });
     expect(getMediaPerfSnapshot()).toHaveLength(0);
 
-    vi.advanceTimersByTime(800);
-    logMediaPerf("media.grid.scroll.sample", { a: 3 });
-    expect(getMediaPerfSnapshot()).toHaveLength(0);
-
     vi.advanceTimersByTime(200);
     expect(getMediaPerfSnapshot()).toHaveLength(1);
-    expect(getMediaPerfSnapshot()[0]?.event).toBe("media.grid.scroll.sample");
+    expect(getMediaPerfSnapshot()[0]?.data.a).toBe(1);
+
+    vi.advanceTimersByTime(600);
+    logMediaPerf("media.grid.scroll.sample", { a: 3 });
+    expect(getMediaPerfSnapshot()).toHaveLength(1);
+
+    vi.advanceTimersByTime(200);
+    expect(getMediaPerfSnapshot()).toHaveLength(2);
+    expect(getMediaPerfSnapshot()[1]?.event).toBe("media.grid.scroll.sample");
+    expect(getMediaPerfSnapshot()[1]?.data.a).toBe(3);
   });
 
   it("keeps critical events immediate in defer mode", () => {
@@ -46,6 +51,17 @@ describe("mediaPerfTelemetry sampling policy", () => {
 
     expect(getMediaPerfSnapshot()).toHaveLength(1);
     expect(getMediaPerfSnapshot()[0]?.event).toBe("media.grid.render.commit");
+  });
+
+  it("defers long-task samples under telemetry backpressure", () => {
+    setMediaPerfSamplingPolicy("defer_non_critical");
+    logMediaPerf("media.grid.longtask.sample", { duration_ms: 120 });
+
+    expect(getMediaPerfSnapshot()).toHaveLength(0);
+
+    vi.advanceTimersByTime(200);
+    expect(getMediaPerfSnapshot()).toHaveLength(1);
+    expect(getMediaPerfSnapshot()[0]?.event).toBe("media.grid.longtask.sample");
   });
 
   it("accepts panel media paint events", () => {

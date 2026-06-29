@@ -113,9 +113,10 @@ Role-based admin access for `/admin` APIs:
 
 ## Supabase client initialization
 
-- Browser/client calls should use `frontend/lib/supabaseClient.ts` (anon key only).
+- Browser/client calls should use `frontend/lib/supabaseClient.ts` (anon key only). The primary browser client must keep `auth.flowType = "pkce"` so new signup, sign-in, recovery, email-change, and OAuth callbacks use authorization codes instead of bearer-token URL fragments.
 - Server-side admin operations should use a service-role client (`frontend/lib/server/api/supabaseAdmin.ts`).
 - Add the exact callback URL path you use in the app to the Supabase redirect allowlist. ShortPulse now expects `/auth/callback` to be allowed for signup confirmation, password reset, email-change confirmation, and Google sign-in completion flows. Local development should allow `http://localhost:3000/auth/callback`, any non-production dry run should use one exact allowlisted external host, and production should allow `https://www.shortpulse.ai/auth/callback`.
+- After any PKCE or hosted-provider auth change, smoke email/password confirmation, password recovery, email-change confirmation, Google sign-in, and Google signup against the target hosted environment. Treat any remaining token-fragment callback support as migration compatibility with a removal condition, not as the preferred browser auth flow.
 - If you use custom SMTP for production, raise Supabase Auth email rate limits above the default post-setup baseline before launch. The repo’s current launch planning assumes a higher limit than the Supabase default. See [`docs/sops/sop_supabase_auth_email_operations.md`](./sops/sop_supabase_auth_email_operations.md).
 
 ## Security requirements
@@ -134,7 +135,7 @@ Role-based admin access for `/admin` APIs:
 6. Verify password reset emails return to `/auth/callback` and allow `updateUser({ password })` completion.
 7. Verify protected routes redirect to `/log-in` when signed out and preserve a safe `next` return path.
 8. Verify email-change confirmation returns through `/auth/callback` and only then syncs downstream billing identity.
-9. Verify an existing approved Google account can sign in through `/log-in` and return through `/auth/callback?flow=signin&provider=google`.
+9. Verify Google sign-in from `/log-in` with prefilled email/password fields still shows Google account selection, does not pass `login_hint`, allows the selected existing approved Google account to sign in, and returns through `/auth/callback?flow=signin&provider=google`.
 10. Verify canceling/backing out of Google OAuth returns to `/log-in` or `/sign-up` with `Google sign-in was canceled.` and does not render the invalid-link callback page.
 11. Verify user-scoped data is isolated across two test users.
 12. Verify billing/credit tables (`billing_profiles`, `ai_credit_balance`, `ai_credit_ledger`) obey RLS.

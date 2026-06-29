@@ -20,6 +20,7 @@ import { useReferenceGridScrollController } from "../reference-grid/controllers/
 import { useReferenceGridVideoLifecycleController } from "../reference-grid/controllers/useReferenceGridVideoLifecycleController";
 import { useReferenceGridAutoplayBudgetController } from "../reference-grid/controllers/useReferenceGridAutoplayBudgetController";
 import { useReferenceGridTelemetryController } from "../reference-grid/controllers/useReferenceGridTelemetryController";
+import { useReferenceGridStabilityTelemetryController } from "../reference-grid/controllers/useReferenceGridStabilityTelemetryController";
 import { useReferenceGridAutoplayEventController } from "../reference-grid/controllers/useReferenceGridAutoplayEventController";
 import { useReferenceGridCardDragController } from "../reference-grid/controllers/useReferenceGridCardDragController";
 import { useReferenceGridCardRenderController } from "../reference-grid/controllers/useReferenceGridCardRenderController";
@@ -484,6 +485,14 @@ function ReferenceGridComponent({
     canvasDropMode,
     isCuratedDropActive,
     loadingCardCount: loadingIdsLength,
+  });
+
+  useReferenceGridStabilityTelemetryController({
+    effectivePerfDegradeLevel,
+    perfWatchdog,
+    renderedItemCount,
+    outputsLength: allOutputIds.length,
+    archivedOutputsLength: archivedOutputs.length,
   });
 
   const { handleCanvasDrop, handleCanvasDragOver, handleCanvasDragEnter, handleCanvasDragLeave } =

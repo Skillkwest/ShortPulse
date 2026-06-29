@@ -156,7 +156,7 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
   );
   const setPrompt = React.useCallback(
     (action: React.SetStateAction<string>) => {
-      const nextPrompt = resolveTextAction(prompt, action).slice(0, maxPromptCharacters);
+      const nextPrompt = resolveTextAction(prompt, action);
       setInspirationInsertError(null);
       if (onPromptChange) {
         onPromptChange(nextPrompt);
@@ -206,7 +206,6 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
       insertCanvasPromptTextIntoTextarea({
         composerText: prompt,
         droppedPromptText: payload.text,
-        maxCharacters: maxPromptCharacters,
         onChange: setPrompt,
         textarea: promptTextareaRef.current,
       });
@@ -233,7 +232,6 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
       handlePromptTextAreaDrop({
         event,
         composerText: prompt,
-        maxCharacters: maxPromptCharacters,
         onChange: setPrompt,
         textareaRef: promptTextareaRef,
       });
@@ -271,7 +269,8 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
     balanceCredits,
     formatCredits: formatCreditValue,
   });
-  const isGenerateEnabled = Boolean(onGenerate) && prompt.trim().length > 0;
+  const isWithinPromptLimit = prompt.length <= maxPromptCharacters;
+  const isGenerateEnabled = Boolean(onGenerate) && prompt.trim().length > 0 && isWithinPromptLimit;
   const selectedDurationOption =
     ELEVENLABS_SOUND_EFFECT_DURATION_OPTIONS.find((option) => option.value === durationSeconds) ??
     ELEVENLABS_SOUND_EFFECT_DURATION_OPTIONS[0];
@@ -309,7 +308,7 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
 
   const handleGenerate = React.useCallback(async () => {
     const text = prompt.trim();
-    if (!onGenerate || !text) return;
+    if (!onGenerate || !text || !isWithinPromptLimit) return;
     await onGenerate({
       text,
       durationSeconds,
@@ -319,7 +318,15 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
       displayedBilledCredits: generateCost,
       pricingPolicyReady,
     });
-  }, [durationSeconds, generateCost, loopEnabled, onGenerate, pricingPolicyReady, prompt]);
+  }, [
+    durationSeconds,
+    generateCost,
+    isWithinPromptLimit,
+    loopEnabled,
+    onGenerate,
+    pricingPolicyReady,
+    prompt,
+  ]);
 
   return (
     <section className="sound-effects-properties-panel tool-properties" aria-busy={isGenerating}>
@@ -354,8 +361,7 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
                 ref={promptTextareaRef}
                 className="sound-effects-properties-script-input"
                 value={prompt}
-                onChange={(event) => setPrompt(event.target.value.slice(0, maxPromptCharacters))}
-                maxLength={maxPromptCharacters}
+                onChange={(event) => setPrompt(event.target.value)}
                 placeholder={soundEffectPromptPlaceholder}
                 aria-label="Sound effect prompt"
                 onDrop={handlePromptDrop}

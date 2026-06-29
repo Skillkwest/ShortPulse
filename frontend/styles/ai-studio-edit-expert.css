@@ -5544,7 +5544,7 @@
   min-height: var(--edit-expert-prompt-input-min-height);
   height: auto;
   max-height: var(--edit-expert-prompt-input-max-height);
-  overflow-y: hidden;
+  overflow-y: auto;
   resize: none;
 }
 

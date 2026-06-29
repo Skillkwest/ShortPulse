@@ -223,6 +223,8 @@ export const useReferenceGridCardRenderController = ({
         !shouldPreferCuratedSurface &&
         autoplayEnabledIdSet.has(currentOutput.id) &&
         perfDegradeLevel < 2;
+      const suppressHoverVideo =
+        card.isVideoPreview && perfDegradeLevel >= 2 && activeOutputId !== currentOutput.id;
       const isPromptOnly = !card.cardPreviewUrl && !!currentOutput.previewText;
       const isLinkedPromptReference =
         isPromptOnly && linkedPromptReferenceIdSet.has(currentOutput.id);
@@ -318,6 +320,7 @@ export const useReferenceGridCardRenderController = ({
           cardPreviewUrl={card.cardPreviewUrl}
           videoPosterUrl={videoPosterUrl}
           hoverVideoUrl={hoverVideoUrl}
+          suppressHoverVideo={suppressHoverVideo}
           playableMediaUrl={card.playableMediaUrl ?? null}
           isVideoPreview={card.isVideoPreview}
           isImagePreview={card.isImagePreview}

@@ -150,8 +150,8 @@ describe("SoundEffectsPropertiesPanel", () => {
     expect(transfer.dropEffect).toBe("copy");
   });
 
-  it("restores session-backed sound effect text and clamps it to the prompt budget", () => {
-    render(<SoundEffectsPropertiesPanel />);
+  it("restores full session-backed sound effect text when browser fields are shortened", () => {
+    render(<SoundEffectsPropertiesPanel onGenerate={vi.fn()} />);
 
     const fullPrompt = `Impact start. ${"Metallic debris scatter with long warehouse tail. ".repeat(15)}Final ring.`;
     const shortenedPrompt = fullPrompt.slice(0, 90);
@@ -162,7 +162,27 @@ describe("SoundEffectsPropertiesPanel", () => {
 
     fireEvent.drop(promptField, { dataTransfer: transfer });
 
-    expect(promptField).toHaveValue(fullPrompt.slice(0, 450));
+    expect(promptField).toHaveValue(fullPrompt);
+    expect(screen.getByRole("button", { name: "Generate" })).toBeDisabled();
+  });
+
+  it("preserves over-budget typed sound effect prompts without submitting them", () => {
+    const onGenerate = vi.fn();
+    render(<SoundEffectsPropertiesPanel onGenerate={onGenerate} />);
+
+    const promptField = screen.getByRole("textbox", { name: "Sound effect prompt" });
+    const overBudgetPrompt = "Layered impact. ".repeat(40);
+
+    fireEvent.change(promptField, { target: { value: overBudgetPrompt } });
+
+    expect(promptField).toHaveValue(overBudgetPrompt);
+    expect(
+      screen.getByText(`${overBudgetPrompt.length.toLocaleString()} / 450`)
+    ).toBeInTheDocument();
+    const generateButton = screen.getByRole("button", { name: "Generate" });
+    expect(generateButton).toBeDisabled();
+    fireEvent.click(generateButton);
+    expect(onGenerate).not.toHaveBeenCalled();
   });
 
   it("inserts sound effect text reference drops at the caret when Shift is held", () => {

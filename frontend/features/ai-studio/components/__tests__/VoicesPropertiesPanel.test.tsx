@@ -2,6 +2,7 @@
  * VoicesPropertiesPanel rendering tests.
  * Verifies the dedicated Voices workflow shell renders independently from TTS.
  */
+import { readFileSync } from "node:fs";
 import React from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -35,6 +36,18 @@ const revokeObjectUrlMock = vi.hoisted(() => vi.fn());
 const useSupabaseSessionStateMock = vi.hoisted(() => vi.fn());
 
 const emptyFileList = { length: 0, item: () => null } as unknown as FileList;
+const voicesPropertiesStylesheet = readFileSync(
+  "styles/ai-studio-voices-properties.module.css",
+  "utf8"
+);
+
+const extractVoicesCssRule = (selector: string): string => {
+  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const matches = Array.from(
+    voicesPropertiesStylesheet.matchAll(new RegExp(`${escapedSelector}\\s*{(?<body>[^}]*)}`, "g"))
+  );
+  return matches.at(-1)?.groups?.body ?? "";
+};
 
 const createReferenceDragTransfer = () => {
   const data: Record<string, string> = {};
@@ -465,6 +478,41 @@ describe("VoicesPropertiesPanel", () => {
     ).toHaveValue("Updated controlled description.");
   });
 
+  it("measures existing create-voice prompt text when the modal opens", async () => {
+    const textareaPrototype = HTMLTextAreaElement.prototype as unknown as {
+      scrollHeight?: number;
+    };
+    Object.defineProperty(textareaPrototype, "scrollHeight", {
+      configurable: true,
+      get: () => 420,
+    });
+
+    try {
+      render(<VoicesPropertiesPanel voicePrompt={"Warm cinematic narrator. ".repeat(30)} />);
+
+      const createVoiceModal = await openCreateVoiceModal();
+      const voiceDescriptionField = within(createVoiceModal).getByRole("textbox", {
+        name: "Enter your prompt",
+      }) as HTMLTextAreaElement;
+
+      expect(voiceDescriptionField).toHaveValue("Warm cinematic narrator. ".repeat(30));
+      expect(voiceDescriptionField.style.height).toBe("264px");
+      expect(voiceDescriptionField.style.overflowY).toBe("auto");
+    } finally {
+      delete textareaPrototype.scrollHeight;
+    }
+  });
+
+  it("keeps create-voice prompt textareas scrollable by default", () => {
+    const railTextareaRule = extractVoicesCssRule(
+      ".bootstrapStyleScope :global(.voices-properties-rail-textarea)"
+    );
+
+    expect(railTextareaRule).toContain("overflow-y: auto");
+    expect(railTextareaRule).toContain("overflow-x: hidden");
+    expect(railTextareaRule).not.toContain("overflow: hidden");
+  });
+
   it("enhances the voiceover script through the protected enhance route", async () => {
     fetchWithAuthMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ enhancedScript: "[excited] Updated launch script." }), {
@@ -755,7 +803,7 @@ describe("VoicesPropertiesPanel", () => {
     });
 
     expect(scriptField).toHaveValue("");
-    expect(scriptField).toHaveAttribute("maxLength", "5000");
+    expect(scriptField).not.toHaveAttribute("maxLength");
     expect(screen.getByText("0 / 5,000")).toBeInTheDocument();
     expect(screen.queryByText("Design setup")).not.toBeInTheDocument();
     expect(screen.queryByText("Create mode uses the fixed 11v3 model.")).not.toBeInTheDocument();
@@ -771,6 +819,21 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.queryByRole("textbox", { name: "Voice name" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Voice changer shaping")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Voice changer settings")).not.toBeInTheDocument();
+  });
+
+  it("preserves over-budget voice scripts so they can be scrolled and edited down", () => {
+    render(<VoicesPropertiesPanel onGenerate={vi.fn()} />);
+
+    const scriptField = screen.getByRole("textbox", { name: "Voice script" });
+    const overBudgetScript = "Long narrated beat. ".repeat(300);
+
+    fireEvent.change(scriptField, { target: { value: overBudgetScript } });
+
+    expect(scriptField).toHaveValue(overBudgetScript);
+    expect(
+      screen.getByText(`${overBudgetScript.length.toLocaleString()} / 5,000`)
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Generate" })).toBeDisabled();
   });
 
   it("uses the voices modal create button as the entry point to the create panel", async () => {
@@ -820,6 +883,30 @@ describe("VoicesPropertiesPanel", () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Voice changer shaping")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Voice changer settings")).not.toBeInTheDocument();
+  });
+
+  it("preserves over-budget create-voice prompts without enabling preview generation", async () => {
+    render(<VoicesPropertiesPanel />);
+
+    const createVoiceModal = await openCreateVoiceModal();
+    const voiceNameField = screen.getByRole("textbox", { name: "Voice name" });
+    const promptField = screen.getByRole("textbox", { name: "Enter your prompt" });
+    const createVoiceButton = within(createVoiceModal).getByRole("button", {
+      name: "Generate Voice",
+    });
+    const overBudgetPrompt = "Warm theatrical voice description. ".repeat(40);
+
+    fireEvent.change(voiceNameField, { target: { value: "Long Prompt Voice" } });
+    fireEvent.change(promptField, { target: { value: overBudgetPrompt } });
+
+    expect(promptField).toHaveValue(overBudgetPrompt);
+    expect(promptField).not.toHaveAttribute("maxLength");
+    expect(createVoiceButton).toBeDisabled();
+    fireEvent.click(createVoiceButton);
+    expect(fetchWithAuthMock).not.toHaveBeenCalledWith(
+      "/api/elevenlabs/text-to-voice/design",
+      expect.anything()
+    );
   });
 
   it("renders skeleton voice chips while the live voices request is loading", () => {

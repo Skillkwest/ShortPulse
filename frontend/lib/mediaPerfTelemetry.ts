@@ -121,6 +121,7 @@ const DEFERRED_NON_CRITICAL_EVENTS = new Set<MediaPerfEventName>([
   "media.grid.scroll.sample",
   "media.grid.autoplay.started",
   "media.grid.autoplay.stopped",
+  "media.grid.longtask.sample",
   "media.grid.memory.sample",
 ]);
 
@@ -272,8 +273,8 @@ export const logMediaPerf = (
 
   if (samplingPolicy === "defer_non_critical" && DEFERRED_NON_CRITICAL_EVENTS.has(event)) {
     const now = getNow();
-    const previous = deferredLastLoggedAtByEvent.get(event) ?? 0;
-    if (now - previous < NON_CRITICAL_SAMPLE_INTERVAL_MS) {
+    const previous = deferredLastLoggedAtByEvent.get(event);
+    if (previous != null && now - previous < NON_CRITICAL_SAMPLE_INTERVAL_MS) {
       return;
     }
     deferredLastLoggedAtByEvent.set(event, now);

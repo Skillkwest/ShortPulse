@@ -16,6 +16,7 @@ const useSupabaseSessionStateMock = vi.hoisted(() => vi.fn());
 const primeSupabaseSessionMock = vi.hoisted(() => vi.fn());
 const readPersistedSupabaseSessionHintMock = vi.hoisted(() => vi.fn());
 const readSupabaseSessionBootstrapHintMock = vi.hoisted(() => vi.fn());
+const useProtectedRouteRestoreGuardMock = vi.hoisted(() => vi.fn());
 const useMediaComplianceGateMock = vi.hoisted(() => vi.fn());
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
 const publicFetchMock = vi.hoisted(() => vi.fn());
@@ -86,6 +87,10 @@ vi.mock("../../lib/supabaseSessionHints", async () => {
 
 vi.mock("../../lib/authenticatedFetch", () => ({
   fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
+}));
+
+vi.mock("../../lib/useProtectedRouteRestoreGuard", () => ({
+  useProtectedRouteRestoreGuard: (...args: unknown[]) => useProtectedRouteRestoreGuardMock(...args),
 }));
 
 vi.mock("../../features/compliance/hooks/useMediaComplianceGate", () => ({
@@ -191,6 +196,7 @@ describe("Dashboard bootstrap state", () => {
     });
     readPersistedSupabaseSessionHintMock.mockReturnValue(true);
     readSupabaseSessionBootstrapHintMock.mockReturnValue(true);
+    useProtectedRouteRestoreGuardMock.mockReturnValue({ checking: false });
     useMediaComplianceGateMock.mockReturnValue(acceptedMediaComplianceState);
     fetchWithAuthMock.mockImplementation(async (input: unknown) => {
       if (input === "/api/announcements/active") {
@@ -250,10 +256,37 @@ describe("Dashboard bootstrap state", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Profile menu" })).toBeInTheDocument();
     });
+    expect(useProtectedRouteRestoreGuardMock).toHaveBeenLastCalledWith({
+      enabled: true,
+      nextPath: "/dashboard",
+      missingSessionBehavior: "clear",
+    });
     expect(screen.getByRole("heading", { name: /welcome back, kirk/i })).toBeInTheDocument();
     expect(
       screen.queryByText("Checking your session before your dashboard workspace loads.")
     ).not.toBeInTheDocument();
+  });
+
+  it("keeps signed-in dashboard content hidden while browser-restore auth is revalidated", async () => {
+    useSupabaseSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: { user: appUser },
+      user: appUser,
+    });
+    useProtectedRouteRestoreGuardMock.mockReturnValue({ checking: true });
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("status")).toHaveTextContent("Loading dashboard");
+    });
+    expect(useProtectedRouteRestoreGuardMock).toHaveBeenLastCalledWith({
+      enabled: true,
+      nextPath: "/dashboard",
+      missingSessionBehavior: "clear",
+    });
+    expect(screen.queryByRole("button", { name: "Profile menu" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /welcome back/i })).not.toBeInTheDocument();
   });
 
   it("keeps signed-in dashboard content hidden when media consent is still required", async () => {

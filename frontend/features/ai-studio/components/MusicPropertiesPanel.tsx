@@ -225,7 +225,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   );
   const setPrompt = React.useCallback(
     (action: React.SetStateAction<string>) => {
-      const nextPrompt = resolveTextAction(prompt, action).slice(0, maxPromptCharacters);
+      const nextPrompt = resolveTextAction(prompt, action);
       setInspirationInsertError(null);
       if (onPromptChange) {
         onPromptChange(nextPrompt);
@@ -237,7 +237,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   );
   const setLyrics = React.useCallback(
     (action: React.SetStateAction<string>) => {
-      const nextLyrics = resolveTextAction(lyrics, action).slice(0, maxPromptCharacters);
+      const nextLyrics = resolveTextAction(lyrics, action);
       setInspirationInsertError(null);
       if (onLyricsChange) {
         onLyricsChange(nextLyrics);
@@ -325,7 +325,6 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
       insertCanvasPromptTextIntoTextarea({
         composerText: prompt,
         droppedPromptText: payload.text,
-        maxCharacters: maxPromptCharacters,
         onChange: setPrompt,
         textarea: promptTextareaRef.current,
       });
@@ -338,7 +337,6 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
       insertCanvasPromptTextIntoTextarea({
         composerText: lyrics,
         droppedPromptText: payload.text,
-        maxCharacters: maxPromptCharacters,
         onChange: setLyrics,
         textarea: lyricsTextareaRef.current,
       });
@@ -443,7 +441,6 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
       handlePromptTextAreaDrop({
         event,
         composerText: prompt,
-        maxCharacters: maxPromptCharacters,
         onChange: setPrompt,
         textareaRef: promptTextareaRef,
       });
@@ -455,7 +452,6 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
       handlePromptTextAreaDrop({
         event,
         composerText: lyrics,
-        maxCharacters: maxPromptCharacters,
         onChange: setLyrics,
         textareaRef: lyricsTextareaRef,
       });
@@ -681,10 +677,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
                       ref={promptTextareaRef}
                       className="music-properties-script-input"
                       value={prompt}
-                      onChange={(event) =>
-                        setPrompt(event.target.value.slice(0, maxPromptCharacters))
-                      }
-                      maxLength={maxPromptCharacters}
+                      onChange={(event) => setPrompt(event.target.value)}
                       placeholder={promptPlaceholder}
                       aria-label="Music prompt"
                       onDrop={handlePromptDrop}
@@ -709,10 +702,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
                         ref={promptTextareaRef}
                         className="music-properties-script-input music-properties-script-input--custom-prompt"
                         value={prompt}
-                        onChange={(event) =>
-                          setPrompt(event.target.value.slice(0, maxPromptCharacters))
-                        }
-                        maxLength={maxPromptCharacters}
+                        onChange={(event) => setPrompt(event.target.value)}
                         placeholder={customMusicPromptPlaceholder}
                         aria-label="Music prompt"
                         onDrop={handlePromptDrop}
@@ -745,10 +735,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
                         ref={lyricsTextareaRef}
                         className="music-properties-script-input music-properties-script-input--lyrics"
                         value={lyrics}
-                        onChange={(event) =>
-                          setLyrics(event.target.value.slice(0, maxPromptCharacters))
-                        }
-                        maxLength={maxPromptCharacters}
+                        onChange={(event) => setLyrics(event.target.value)}
                         placeholder={lyricsPromptPlaceholder}
                         aria-label="Song lyrics"
                         onDrop={handleLyricsDrop}

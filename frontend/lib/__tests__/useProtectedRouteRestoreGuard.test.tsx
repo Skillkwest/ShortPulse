@@ -84,6 +84,24 @@ describe("useProtectedRouteRestoreGuard", () => {
     expect(clearSupabaseSessionSnapshotMock).toHaveBeenCalledTimes(1);
   });
 
+  it("can clear local session authority without redirecting for public session-aware routes", async () => {
+    readSupabaseSessionMock.mockResolvedValue(null);
+
+    const { result } = renderHook(() =>
+      useProtectedRouteRestoreGuard({
+        enabled: true,
+        nextPath: "/dashboard",
+        missingSessionBehavior: "clear",
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.checking).toBe(false);
+    });
+    expect(clearSupabaseSessionSnapshotMock).toHaveBeenCalledTimes(1);
+    expect(replaceMock).not.toHaveBeenCalled();
+  });
+
   it("clears local session authority and redirects when the session predates logout", async () => {
     isSessionOlderThanLogoutEpochMock.mockReturnValue(true);
 

@@ -11,7 +11,6 @@ import {
 } from "../../lib/server/api/auth";
 import {
   resetSupabaseUserVerificationCache,
-  SUPABASE_USER_VERIFICATION_STALE_GRACE_MS,
   SUPABASE_USER_VERIFICATION_CACHE_TTL_MS,
 } from "../../lib/server/api/authTokenVerifier";
 
@@ -228,7 +227,7 @@ describe("auth helper protected-route auth behavior", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
-  it("uses a recently verified bearer identity during a transient auth lookup outage", async () => {
+  it("fails closed after the verification cache expires during an auth lookup outage", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-01T00:00:00.000Z"));
 
@@ -254,47 +253,6 @@ describe("auth helper protected-route auth behavior", () => {
 
     await requireApiUser(req as never, res as never);
     vi.advanceTimersByTime(SUPABASE_USER_VERIFICATION_CACHE_TTL_MS + 1);
-
-    const user = await requireApiUser(req as never, res as never);
-
-    expect(user).toEqual(
-      expect.objectContaining({
-        id: "verified-user-id",
-        email: "verified@example.com",
-      })
-    );
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(res.status).not.toHaveBeenCalled();
-  });
-
-  it("does not use a stale bearer identity after the auth lookup outage grace expires", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-06-01T00:00:00.000Z"));
-
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          id: "verified-user-id",
-          email: "verified@example.com",
-        }),
-      })
-      .mockRejectedValue(new Error("network down"));
-    vi.stubGlobal("fetch", fetchMock);
-
-    const req = {
-      url: "/api/media/move",
-      headers: {
-        authorization: "Bearer valid-token",
-      },
-    };
-    const res = createMockResponse();
-
-    await requireApiUser(req as never, res as never);
-    vi.advanceTimersByTime(
-      SUPABASE_USER_VERIFICATION_CACHE_TTL_MS + SUPABASE_USER_VERIFICATION_STALE_GRACE_MS + 1
-    );
 
     const pendingUser = requireApiUser(req as never, res as never);
     await vi.advanceTimersByTimeAsync(250);

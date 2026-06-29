@@ -13,6 +13,7 @@ import {
   MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED,
 } from "../../media-library/logic/mediaLibraryRuntimeConfig";
 import { resolveMediaLibraryPanelGridAdaptiveCardPreviewUrl } from "../../media-library/logic/mediaLibraryAdaptivePreview";
+import { applyAiStudioPressureQuarantineLevel } from "../logic/aiStudioStabilityTelemetry";
 import {
   getMediaDataTabForRow,
   isNextImageOptimizerUrl,
@@ -228,6 +229,9 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     surface: "media-library-panel",
     enabled: adaptivePreviewQualityEnabled,
   });
+  const effectiveAdaptivePressureLevel = applyAiStudioPressureQuarantineLevel(
+    mediaAdaptivePressure.previewPressureLevel
+  );
 
   const normalizedSearch = "";
   const shouldShowMedia = itemType !== "prompts";
@@ -900,7 +904,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         activeMedia={rows}
         selectedIds={selectedIds}
         optimizerFallbackMediaIds={optimizerFallbackMediaIds}
-        adaptivePressureLevel={mediaAdaptivePressure.previewPressureLevel}
+        adaptivePressureLevel={effectiveAdaptivePressureLevel}
         adaptivePreviewQualityEnabled={adaptivePreviewQualityEnabled}
         resolveCardPreviewUrl={resolvePanelCardPreviewUrl}
         scrollContainerRef={panelBodyRef as React.MutableRefObject<HTMLElement | null>}
@@ -948,7 +952,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       refreshSignedUrl,
       handleReloadWorkflowFromMedia,
       handleRemoveItemFromActiveFolder,
-      mediaAdaptivePressure.previewPressureLevel,
+      effectiveAdaptivePressureLevel,
       optimizerFallbackMediaIds,
       resolvePanelCardPreviewUrl,
       signedUrlRetryRef,
@@ -974,7 +978,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         promptRows={gridPromptRows}
         selectedIds={combinedSelectedIds}
         optimizerFallbackMediaIds={optimizerFallbackMediaIds}
-        adaptivePressureLevel={mediaAdaptivePressure.previewPressureLevel}
+        adaptivePressureLevel={effectiveAdaptivePressureLevel}
         adaptivePreviewQualityEnabled={adaptivePreviewQualityEnabled}
         resolveCardPreviewUrl={resolvePanelCardPreviewUrl}
         scrollContainerRef={panelBodyRef as React.MutableRefObject<HTMLElement | null>}
@@ -1043,7 +1047,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       handleRemoveItemFromActiveFolder,
       combinedSelectedIds,
       handleToggleSelectedPrompt,
-      mediaAdaptivePressure.previewPressureLevel,
+      effectiveAdaptivePressureLevel,
       optimizerFallbackMediaIds,
       panelBodyRef,
       panelListSurface,

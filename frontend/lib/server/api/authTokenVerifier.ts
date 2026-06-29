@@ -22,11 +22,9 @@ export type AuthenticatedApiUser = {
 type VerifiedUserCacheEntry = {
   user: AuthenticatedApiUser;
   expiresAtMs: number;
-  staleUntilMs: number;
 };
 
 export const SUPABASE_USER_VERIFICATION_CACHE_TTL_MS = 5_000;
-export const SUPABASE_USER_VERIFICATION_STALE_GRACE_MS = 30_000;
 const SUPABASE_USER_VERIFICATION_CACHE_MAX_ENTRIES = 128;
 const SUPABASE_USER_VERIFICATION_TIMEOUT_MS = 8_000;
 const SUPABASE_USER_VERIFICATION_RETRY_DELAY_MS = 250;
@@ -66,18 +64,6 @@ const readCachedVerifiedUser = (token: string): AuthenticatedApiUser | null => {
   const cached = verifiedUserCache.get(token);
   if (!cached) return null;
   if (cached.expiresAtMs <= Date.now()) {
-    if (cached.staleUntilMs <= Date.now()) {
-      verifiedUserCache.delete(token);
-    }
-    return null;
-  }
-  return cached.user;
-};
-
-const readStaleVerifiedUser = (token: string): AuthenticatedApiUser | null => {
-  const cached = verifiedUserCache.get(token);
-  if (!cached) return null;
-  if (cached.staleUntilMs <= Date.now()) {
     verifiedUserCache.delete(token);
     return null;
   }
@@ -90,7 +76,6 @@ const writeCachedVerifiedUser = (token: string, user: AuthenticatedApiUser): voi
   verifiedUserCache.set(token, {
     user,
     expiresAtMs,
-    staleUntilMs: expiresAtMs + SUPABASE_USER_VERIFICATION_STALE_GRACE_MS,
   });
 
   while (verifiedUserCache.size > SUPABASE_USER_VERIFICATION_CACHE_MAX_ENTRIES) {
@@ -122,7 +107,6 @@ export const fetchSupabaseUser = async (token: string): Promise<AuthenticatedApi
   if (cachedUser) {
     return cachedUser;
   }
-  const staleUser = readStaleVerifiedUser(token);
 
   const inFlightLookup = inFlightUserLookups.get(token);
   if (inFlightLookup) {
@@ -187,20 +171,13 @@ export const fetchSupabaseUser = async (token: string): Promise<AuthenticatedApi
 
   const pendingLookup = (async () => {
     try {
-      try {
-        return await requestVerifiedUser();
-      } catch (error) {
-        if (!isAuthVerificationUnavailableError(error) || staleUser) {
-          throw error;
-        }
-        await waitForAuthVerificationRetry();
-        return await requestVerifiedUser();
-      }
+      return await requestVerifiedUser();
     } catch (error) {
-      if (staleUser && isAuthVerificationUnavailableError(error)) {
-        return staleUser;
+      if (!isAuthVerificationUnavailableError(error)) {
+        throw error;
       }
-      throw error;
+      await waitForAuthVerificationRetry();
+      return await requestVerifiedUser();
     }
   })().finally(() => {
     inFlightUserLookups.delete(token);

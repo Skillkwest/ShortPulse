@@ -41,6 +41,9 @@ This checkpoint protects the cursor append, panel runtime ordering, indexed virt
   - `frontend/features/media-library/logic/mediaLibraryAdaptivePreview.ts`
 - Shared route/modal virtualization math:
   - `frontend/features/media-library/logic/mediaGridVirtualization.ts`
+- Shared adaptive browser-pressure sampler:
+  - `frontend/lib/adaptive-media/sharedPressure.ts`
+  - consumed by Media Library adaptive pressure and Reference Grid perf watchdog hooks
 - Reference Grid autoplay budget:
   - `frontend/features/ai-studio/components/ReferenceGrid.tsx`
 - Reference Grid archive + output lifecycle controls:
@@ -50,6 +53,9 @@ This checkpoint protects the cursor append, panel runtime ordering, indexed virt
 - Telemetry buffer + debug handle:
   - `frontend/lib/mediaPerfTelemetry.ts`
   - initialized via `frontend/pages/_app.tsx`
+- AI Studio crash-adjacent stability telemetry:
+  - `frontend/features/ai-studio/logic/aiStudioStabilityTelemetry.ts`
+  - emitted as medium-severity `telemetry.ai_studio.stability.*` events so they reach `app_error_events` without grouped incidents
 - Reference-grid modularization governance:
   - `docs/planning/ai-studio-reference-grid-modularization-program.md`
   - `docs/planning/ai-studio-reference-grid-modularization-tracker.md`
@@ -179,6 +185,14 @@ Key indicators:
   - `media.grid.longtask.sample`
   - `media.grid.memory.sample`
   - `media.grid.archive.transition`
+- AI Studio stability events via `app_error_events` source filters:
+  - `telemetry.ai_studio.stability.session_started`
+  - `telemetry.ai_studio.stability.visibility_hidden`
+  - `telemetry.ai_studio.stability.pagehide`
+  - `telemetry.ai_studio.stability.first_grid_commit`
+  - `telemetry.ai_studio.stability.pressure_level_changed`
+  - `telemetry.ai_studio.stability.pressure_quarantine_set`
+- Under telemetry backpressure, non-critical long-task samples (`media.grid.longtask.sample`) are deferred/rate-limited before lower-value volume can crowd the browser.
 - shell section isolation trends via `runStudioShellAudit` scenario fields:
   - `sectionRenderCounters`
   - `sectionCommit`
@@ -220,6 +234,11 @@ Key indicators:
   - Effective adaptive preview routing requires both:
     - `NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW=true`
     - `NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW_QUALITY=true`
+- Shared adaptive pressure runtime:
+  - Media Library and Reference Grid use one visible-tab sampler for long-task, input-stall, and heap pressure, then apply surface-specific preview-quality recovery semantics.
+  - The sampler pauses and resets while the document is hidden to avoid stale hidden-tab pressure driving visible-tab behavior.
+  - AI Studio can apply a session-scoped 10-minute pressure quarantine after severe level-2 pressure, keeping new Media Library and Reference Grid renders conservative after a crash-adjacent event.
+  - Critical pressure suppresses incidental hover-video attachment while preserving selected/active output behavior.
 - Adaptive media controls:
   - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_TUNED_POLICY`
   - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES` (csv allowlist for transform-free adaptive behavior only; not permission to emit Supabase `/storage/v1/render/image/`)

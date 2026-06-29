@@ -318,7 +318,7 @@ const generateAndPersistAudioCompanionArt = async ({
     throw new Error("Audio generation row not found.");
   }
 
-  const promptText = asTrimmedString(generationRow.prompt_text) ?? "Audio reference cover art";
+  const promptText = asTrimmedString(generationRow.prompt_text) ?? "Audio reference companion art";
   const metadata = asObject(generationRow.metadata);
   const sourceMode = readSourceMode(metadata);
   if (!sourceMode) {

@@ -19,6 +19,7 @@ import { buildLoginPath } from "../../../lib/authRedirects";
 import { useSupabaseSessionState } from "../../../lib/supabaseClient";
 import { ProtectedRouteSessionProvider } from "../../../lib/protectedRouteSessionContext";
 import { readPersistedSupabaseSessionHint } from "../../../lib/supabaseSessionHints";
+import { useProtectedRouteRestoreGuard } from "../../../lib/useProtectedRouteRestoreGuard";
 
 const DASHBOARD_BOOTSTRAP_ROUTE = "/dashboard";
 const ROOT_BOOTSTRAP_ROUTE = "/";
@@ -65,8 +66,15 @@ export function DashboardRouteSessionAware({
     [router.asPath]
   );
   const isDashboardBootstrapPending =
-    router.pathname === DASHBOARD_BOOTSTRAP_ROUTE && !initialized && shouldHoldForPersistedSession;
+    (router.pathname === DASHBOARD_BOOTSTRAP_ROUTE || router.pathname === ROOT_BOOTSTRAP_ROUTE) &&
+    !initialized &&
+    shouldHoldForPersistedSession;
   const isAuthenticated = Boolean(user);
+  const restoreGuard = useProtectedRouteRestoreGuard({
+    enabled: Boolean(session || user || shouldHoldForPersistedSession),
+    nextPath: router.asPath || "/dashboard",
+    missingSessionBehavior: "clear",
+  });
   const mediaCompliance = useMediaComplianceGate({
     enabled: Boolean(session),
     userId: user?.id ?? session?.user?.id ?? null,
@@ -100,7 +108,7 @@ export function DashboardRouteSessionAware({
     void router.replace(authRedirectPath);
   }, [authRedirectPath, mediaCompliance.status, router]);
 
-  if (isDashboardBootstrapPending) {
+  if (isDashboardBootstrapPending || restoreGuard.checking) {
     return renderDashboardBootstrap();
   }
 

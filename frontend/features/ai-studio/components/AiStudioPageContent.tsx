@@ -47,6 +47,7 @@ import type {
 } from "./detail-modal/detailModalPlatformTypes";
 import { useAiStudioShellResize } from "../hooks/useAiStudioShellResize";
 import { useAiStudioShellDndController } from "../hooks/useAiStudioShellDndController";
+import { useAiStudioStabilityLifecycleTelemetry } from "../hooks/useAiStudioStabilityLifecycleTelemetry";
 import { useAiStudioStylesRuntime } from "../hooks/useAiStudioStylesRuntime";
 import type { CanvasTearOutComposerTargetRegistry } from "../hooks/useAiStudioCanvasTearOutTargets";
 import type { CharacterPanelUploadRequest } from "../../../lib/characterPanelUploadRequest";
@@ -743,6 +744,11 @@ export function AiStudioPageContent({
   onSelectedStylePromptChange,
   onSelectedStyleContextChange,
 }: AiStudioPageContentProps) {
+  useAiStudioStabilityLifecycleTelemetry({
+    projectId,
+    projectRouteRequested,
+  });
+
   const visibleProjectName =
     typeof projectName === "string" && projectName.trim().length > 0 ? projectName.trim() : null;
   const creditValueLabel = formatCreditFractionLabel({

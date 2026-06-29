@@ -21,6 +21,35 @@ describe("supabaseClient session reads", () => {
     process.env = ORIGINAL_ENV;
   });
 
+  it("uses PKCE for the primary browser auth client", async () => {
+    const createClientMock = vi.fn(() => ({
+      auth: {
+        getSession: vi.fn(),
+        onAuthStateChange: vi.fn(),
+        refreshSession: vi.fn(),
+      },
+    }));
+
+    vi.doMock("@supabase/supabase-js", () => ({
+      createClient: createClientMock,
+    }));
+
+    await import("../supabaseClient");
+
+    expect(createClientMock).toHaveBeenNthCalledWith(
+      1,
+      "https://example.supabase.co",
+      "anon-key",
+      expect.objectContaining({
+        auth: expect.objectContaining({
+          persistSession: true,
+          autoRefreshToken: true,
+          flowType: "pkce",
+        }),
+      })
+    );
+  });
+
   it("uses Supabase refreshSession when force-refreshing the access token", async () => {
     const getSessionMock = vi.fn().mockResolvedValue({
       data: {

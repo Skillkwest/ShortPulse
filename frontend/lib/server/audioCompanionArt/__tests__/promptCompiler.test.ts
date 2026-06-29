@@ -21,7 +21,7 @@ describe("audioCompanionArt promptCompiler", () => {
     expect(compiled.prompt).toContain("logos");
   });
 
-  it("includes music-specific cues in branded album-cover prompts", () => {
+  it("includes music-specific cues in branded companion-art prompts", () => {
     const compiled = compileAudioCompanionArtPrompt({
       promptText: "Neon city synthwave chase theme",
       sourceMode: "music",
@@ -55,6 +55,25 @@ describe("audioCompanionArt promptCompiler", () => {
     expect(compiled.prompt).toContain("Do not render any text from the audio concept or metadata.");
   });
 
+  it("sanitizes stale runtime cover-art wording before generation", () => {
+    const compiled = compileAudioCompanionArtPrompt({
+      promptText: "",
+      sourceMode: "music",
+      styleLine:
+        "Branded audio cover art style with premium album-cover composition and painted cover art.",
+    });
+
+    expect(compiled.prompt).toContain("Audio concept: Audio reference companion art");
+    expect(compiled.prompt).toContain("Branded audio companion art style");
+    expect(compiled.prompt).toContain("premium companion artwork composition");
+    expect(compiled.prompt).toContain("painted companion art");
+    expect(compiled.prompt).not.toContain("cover art style");
+    expect(compiled.prompt).not.toContain("album-cover");
+    expect(compiled.prompt).toContain(
+      "Apply style language only as text-free visual treatment; ignore any request for typography, labels, logos, or symbolic marks."
+    );
+  });
+
   it("treats title-like prompt text as mood only and forbids label/icon artifacts", () => {
     const compiled = compileAudioCompanionArtPrompt({
       promptText: "TITLE: Neon Thick Loop - rap hip hop beats",
@@ -70,7 +89,7 @@ describe("audioCompanionArt promptCompiler", () => {
       "No readable text, fake text, pseudo-letters, numbers, captions, labels, stickers, badges, logos, brand marks, watermarks, signatures, typography, subtitles, UI, icons, symbols, glyphs, QR codes, barcodes, advisory labels, music-note icons, or waveform graphics."
     );
     expect(compiled.prompt).toContain(
-      "Avoid poster, flyer, product packaging, record-label, and literal album-cover layouts"
+      "Avoid poster, flyer, product packaging, record-label, and literal music-packaging layouts"
     );
   });
 });

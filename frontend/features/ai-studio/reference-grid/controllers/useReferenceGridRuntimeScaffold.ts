@@ -26,6 +26,7 @@ import { useReferenceGridHydrationBudget } from "../../hooks/useReferenceGridHyd
 import { useReferenceGridPerfWatchdog } from "../../hooks/useReferenceGridPerfWatchdog";
 import { useReferenceGridMediaWorkBudget } from "../../hooks/useReferenceGridMediaWorkBudget";
 import { useReferenceGridHorizontalSplit } from "../../hooks/useReferenceGridHorizontalSplit";
+import { resolveAiStudioPressureQuarantineLevel } from "../../logic/aiStudioStabilityTelemetry";
 import { resolveReferenceGridDensityPressureLevel } from "../../logic/referenceGridVirtualization";
 import { isReferenceGridAdaptivePreviewRoutingEnabled } from "../logic/referenceGridAdaptivePreview";
 import { useReferenceGridHeaderMeasurements } from "./useReferenceGridHeaderMeasurements";
@@ -201,13 +202,16 @@ export const useReferenceGridRuntimeScaffold = ({
     itemCount: allOutputIds.length,
     curatedItemCount: curatedOutputIds.length,
   });
-  const effectivePerfDegradeLevel = Math.max(perfWatchdog.degradeLevel, densityPressureLevel) as
-    | 0
-    | 1
-    | 2;
+  const pressureQuarantineLevel = resolveAiStudioPressureQuarantineLevel();
+  const effectivePerfDegradeLevel = Math.max(
+    perfWatchdog.degradeLevel,
+    densityPressureLevel,
+    pressureQuarantineLevel
+  ) as 0 | 1 | 2;
   const previewQualityPressureLevel = Math.max(
     perfWatchdog.previewQualityPressureLevel,
-    densityPressureLevel
+    densityPressureLevel,
+    pressureQuarantineLevel
   ) as 0 | 1 | 2;
   const liveWatchdogDegradeLevelRef = React.useRef<0 | 1 | 2>(effectivePerfDegradeLevel);
   const hydrationBudget = useReferenceGridHydrationBudget({

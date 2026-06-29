@@ -794,6 +794,30 @@ describe("ReferenceGridCard", () => {
     expect(pauseMock).toHaveBeenCalled();
   });
 
+  it("does not attach video media on hover when hover video is suppressed", async () => {
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({ mode: "video" }),
+          isVideoPreview: true,
+          cardPreviewUrl: "https://example.com/video.mp4",
+          canAutoplayVideo: false,
+          videoPreload: "none",
+          suppressHoverVideo: true,
+        })}
+      />
+    );
+
+    const card = screen.getByRole("button");
+    const videoNode = document.querySelector(".reference-card-video") as HTMLVideoElement | null;
+
+    expect(videoNode).toBeNull();
+
+    fireEvent.pointerEnter(card);
+
+    expect(playMock).not.toHaveBeenCalled();
+  });
+
   it("does not show a generated posterless video frame as the resting card preview", async () => {
     render(
       <ReferenceGridCard

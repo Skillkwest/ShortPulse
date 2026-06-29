@@ -25,7 +25,6 @@ type CreateVoiceModalProps = {
   voicePromptRef: React.Ref<HTMLTextAreaElement>;
   normalizedVoicePromptLength: number;
   minVoicePromptCharacters: number;
-  maxVoicePromptCharacters: number;
   voicePromptPlaceholder: string;
   isCreateVoiceEnabled: boolean;
   isDesigningVoice: boolean;
@@ -72,7 +71,6 @@ export function CreateVoiceModal({
   voicePromptRef,
   normalizedVoicePromptLength,
   minVoicePromptCharacters,
-  maxVoicePromptCharacters,
   voicePromptPlaceholder,
   isCreateVoiceEnabled,
   isDesigningVoice,
@@ -201,7 +199,6 @@ export function CreateVoiceModal({
                     onChange={(event) => onVoicePromptChange(event.target.value)}
                     onDrop={onVoicePromptDrop}
                     onDragOver={onVoicePromptDragOver}
-                    maxLength={maxVoicePromptCharacters}
                     placeholder={voicePromptPlaceholder}
                     aria-label="Enter your prompt"
                   />

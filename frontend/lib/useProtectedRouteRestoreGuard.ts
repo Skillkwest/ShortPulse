@@ -20,6 +20,7 @@ import {
 type ProtectedRouteRestoreGuardOptions = {
   enabled: boolean;
   nextPath: string;
+  missingSessionBehavior?: "redirect" | "clear";
 };
 
 type ProtectedRouteRestoreGuardState = {
@@ -39,6 +40,7 @@ const isTransientVisibleRefreshFailure = (error: unknown): boolean =>
 export const useProtectedRouteRestoreGuard = ({
   enabled,
   nextPath,
+  missingSessionBehavior = "redirect",
 }: ProtectedRouteRestoreGuardOptions): ProtectedRouteRestoreGuardState => {
   const router = useRouter();
   const routerRef = useRef(router);
@@ -87,6 +89,10 @@ export const useProtectedRouteRestoreGuard = ({
 
       if (!session || isSessionOlderThanLogoutEpoch(session)) {
         clearSupabaseSessionSnapshot();
+        if (missingSessionBehavior === "clear") {
+          setCheckingState(false);
+          return;
+        }
         void routerRef.current.replace(buildLoginPath({ nextPath }));
         return;
       }
@@ -94,7 +100,7 @@ export const useProtectedRouteRestoreGuard = ({
       clearLogoutEpochWhenSessionIsFresh(session);
       setCheckingState(false);
     },
-    [enabled, nextPath, setCheckingState]
+    [enabled, missingSessionBehavior, nextPath, setCheckingState]
   );
 
   useEffect(() => {

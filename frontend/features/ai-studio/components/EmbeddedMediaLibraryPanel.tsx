@@ -13,6 +13,7 @@ import {
   MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED,
 } from "../../media-library/logic/mediaLibraryRuntimeConfig";
 import { resolveMediaLibraryPanelGridAdaptiveCardPreviewUrl } from "../../media-library/logic/mediaLibraryAdaptivePreview";
+import { applyAiStudioPressureQuarantineLevel } from "../logic/aiStudioStabilityTelemetry";
 import {
   getMediaDataTabForRow,
   isNextImageOptimizerUrl,
@@ -147,6 +148,9 @@ export function EmbeddedMediaLibraryPanel({
     surface,
     enabled: adaptivePreviewQualityEnabled,
   });
+  const effectiveAdaptivePressureLevel = applyAiStudioPressureQuarantineLevel(
+    mediaAdaptivePressure.previewPressureLevel
+  );
 
   const normalizedSearch = "";
   const itemType = rootTab;
@@ -519,7 +523,7 @@ export function EmbeddedMediaLibraryPanel({
         activeMedia={rows}
         selectedIds={activeSelectedMediaIds}
         optimizerFallbackMediaIds={optimizerFallbackMediaIds}
-        adaptivePressureLevel={mediaAdaptivePressure.previewPressureLevel}
+        adaptivePressureLevel={effectiveAdaptivePressureLevel}
         adaptivePreviewQualityEnabled={adaptivePreviewQualityEnabled}
         resolveCardPreviewUrl={resolvePanelCardPreviewUrl}
         scrollContainerRef={panelBodyRef as React.MutableRefObject<HTMLElement | null>}
@@ -567,7 +571,7 @@ export function EmbeddedMediaLibraryPanel({
       handleSelectMediaFile,
       handleToggleSelectedMedia,
       mediaCardUsesAssignment,
-      mediaAdaptivePressure.previewPressureLevel,
+      effectiveAdaptivePressureLevel,
       optimizerFallbackMediaIds,
       refreshSignedUrl,
       resolvePanelCardPreviewUrl,
@@ -592,7 +596,7 @@ export function EmbeddedMediaLibraryPanel({
         promptRows={gridPromptRows}
         selectedIds={combinedSelectedIds}
         optimizerFallbackMediaIds={optimizerFallbackMediaIds}
-        adaptivePressureLevel={mediaAdaptivePressure.previewPressureLevel}
+        adaptivePressureLevel={effectiveAdaptivePressureLevel}
         adaptivePreviewQualityEnabled={adaptivePreviewQualityEnabled}
         resolveCardPreviewUrl={resolvePanelCardPreviewUrl}
         scrollContainerRef={panelBodyRef as React.MutableRefObject<HTMLElement | null>}
@@ -656,7 +660,7 @@ export function EmbeddedMediaLibraryPanel({
       handleToggleSelectedMedia,
       handleToggleSelectedPrompt,
       mediaCardUsesAssignment,
-      mediaAdaptivePressure.previewPressureLevel,
+      effectiveAdaptivePressureLevel,
       mediaRows,
       optimizerFallbackMediaIds,
       refreshSignedUrl,

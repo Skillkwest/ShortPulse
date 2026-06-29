@@ -846,7 +846,7 @@ export function VideoPropertiesPanel({
         availableHeight
       );
       textarea.style.height = `${nextHeight}px`;
-      textarea.style.overflowY = "hidden";
+      textarea.style.overflowY = textarea.scrollHeight > nextHeight + 1 ? "auto" : "hidden";
       textareaResizeFrameMapRef.current.delete(textarea);
     });
     textareaResizeFrameMapRef.current.set(textarea, frameId);

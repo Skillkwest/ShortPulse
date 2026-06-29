@@ -362,6 +362,7 @@ export function MediaLibraryAllItemsGrid({
           ? (signedVideoUrlById[file.id] ??
             (file.signedUrl && isVideoUrl(file.signedUrl) ? file.signedUrl : null))
           : null;
+        const pressureSafeHoverVideoUrl = adaptivePressureLevel >= 2 ? null : hoverVideoUrl;
         const posterSourceUrl = resolveVideoPosterSourceUrl(
           file,
           signedPosterUrl,
@@ -436,7 +437,7 @@ export function MediaLibraryAllItemsGrid({
                 isSelected={selectedIds.has(file.id)}
                 previewAspectRatio={previewAspectRatio}
                 cardPreviewUrl={cardPreviewUrl}
-                hoverVideoUrl={hoverVideoUrl ?? null}
+                hoverVideoUrl={pressureSafeHoverVideoUrl}
                 posterPreviewUrl={posterPreviewUrl}
                 adaptivePressureLevel={adaptivePressureLevel}
                 fetchPriorityAttr={fetchPriorityAttr}

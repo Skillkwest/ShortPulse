@@ -89,6 +89,24 @@ describe("appErrorReporter", () => {
     }
   );
 
+  it("keeps medium-severity ai-studio stability telemetry ingestible", async () => {
+    await reportAppError({
+      source: "telemetry.ai_studio.stability.pressure_level_changed",
+      scope: "app",
+      severity: "medium",
+      message: "ai_studio_stability.pressure_level_changed",
+      route: "/ai-studio",
+    });
+
+    expect(readCachedSupabaseAccessTokenMock).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/log/client-error",
+      expect.objectContaining({
+        method: "POST",
+      })
+    );
+  });
+
   it("backs off after client-error ingest is rate limited", async () => {
     vi.mocked(fetch)
       .mockResolvedValueOnce({

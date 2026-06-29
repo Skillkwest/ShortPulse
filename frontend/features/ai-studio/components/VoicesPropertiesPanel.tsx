@@ -393,6 +393,8 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const isSelectedVoiceProviderReady =
     selectedLibraryVoice?.provider === "elevenlabs" && !selectedLibraryVoice?.isFallback;
   const normalizedVoicePromptLength = voicePrompt.trim().length;
+  const isVoicePromptWithinLimit = voicePrompt.length <= maxVoicePromptCharacters;
+  const isVoiceScriptWithinLimit = voiceScript.length <= maxVoiceScriptCharacters;
   const estimatedCredits =
     surfaceMode === "create"
       ? ((pricingPolicyReady
@@ -426,17 +428,19 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     Boolean(selectedLibraryVoice?.id) &&
     (!requiresProviderVoice || isSelectedVoiceProviderReady) &&
     (surfaceMode === "create"
-      ? voiceScript.trim().length > 0
+      ? voiceScript.trim().length > 0 && isVoiceScriptWithinLimit
       : voiceChangerSource?.status === "ready");
   const isVoiceoverEnhanceEnabled =
     surfaceMode === "create" && voiceScript.trim().length > 0 && !isEnhancingVoiceover;
   const isCreateVoiceEnabled =
     voiceName.trim().length > 0 &&
     normalizedVoicePromptLength >= minVoicePromptCharacters &&
+    isVoicePromptWithinLimit &&
     !isSavingDesignedVoice;
   const isSaveVoiceEnabled =
     voiceName.trim().length > 0 &&
     normalizedVoicePromptLength >= minVoicePromptCharacters &&
+    isVoicePromptWithinLimit &&
     selectedVoiceDesignPreviewId !== null &&
     !isDesigningVoice &&
     !isSavingDesignedVoice;
@@ -552,7 +556,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     const nextHeight = Math.min(Math.max(112, textarea.scrollHeight), maxVoicePromptHeightPx);
     textarea.style.height = `${nextHeight}px`;
     textarea.style.overflowY = textarea.scrollHeight > maxVoicePromptHeightPx ? "auto" : "hidden";
-  }, [voicePrompt]);
+  }, [isCreateVoiceModalOpen, voicePrompt]);
 
   React.useLayoutEffect(() => {
     const textarea = voiceScriptRef.current;
@@ -733,7 +737,11 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const handleCreateVoicePreviewGeneration = React.useCallback(async () => {
     const nextVoiceName = voiceName.trim();
     const nextVoiceDescription = voicePrompt.trim();
-    if (!nextVoiceName || nextVoiceDescription.length < minVoicePromptCharacters) {
+    if (
+      !nextVoiceName ||
+      nextVoiceDescription.length < minVoicePromptCharacters ||
+      !isVoicePromptWithinLimit
+    ) {
       return;
     }
 
@@ -776,7 +784,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     } finally {
       setIsDesigningVoice(false);
     }
-  }, [stopActiveDesignedPreview, voiceName, voicePrompt]);
+  }, [isVoicePromptWithinLimit, stopActiveDesignedPreview, voiceName, voicePrompt]);
 
   const canAcceptVoiceCanvasTearOutPayload = React.useCallback(
     (payload: AgentComposerDirectDropPayload) =>
@@ -789,7 +797,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       insertCanvasPromptTextIntoTextarea({
         composerText: voiceScript,
         droppedPromptText: payload.text,
-        maxCharacters: maxVoiceScriptCharacters,
         onChange: setVoiceScript,
         textarea: voiceScriptRef.current,
       });
@@ -817,7 +824,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     handlePromptTextAreaDrop({
       event,
       composerText: voicePrompt,
-      maxCharacters: maxVoicePromptCharacters,
       onChange: setVoicePrompt,
       textareaRef: voicePromptRef,
     });
@@ -827,7 +833,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     const handled = handlePromptTextAreaDrop({
       event,
       composerText: voiceScript,
-      maxCharacters: maxVoiceScriptCharacters,
       onChange: setVoiceScript,
       textareaRef: voiceScriptRef,
     });
@@ -1018,7 +1023,8 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     if (
       !nextVoiceName ||
       nextVoiceDescription.length < minVoicePromptCharacters ||
-      !selectedVoiceDesignPreviewId
+      !selectedVoiceDesignPreviewId ||
+      !isVoicePromptWithinLimit
     ) {
       return;
     }
@@ -1082,6 +1088,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     }
   }, [
     resetCreateVoiceModalState,
+    isVoicePromptWithinLimit,
     playedVoiceDesignPreviewIds,
     selectedVoiceDesignPreviewId,
     upsertSharedVoice,
@@ -1217,7 +1224,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       return;
     }
     if (surfaceMode === "create") {
-      if (!voiceScript.trim()) return;
+      if (!voiceScript.trim() || !isVoiceScriptWithinLimit) return;
       void onGenerate({
         mode: "voiceover",
         voice: selectedLibraryVoice,
@@ -1247,6 +1254,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     selectedLibraryVoice,
     surfaceMode,
     estimatedCredits,
+    isVoiceScriptWithinLimit,
     pricingPolicyReady,
     voiceChangerSource,
     voiceScript,
@@ -1260,7 +1268,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     setIsEnhancingVoiceover(true);
     try {
       const enhancedScript = await enhanceVoiceoverScript(script);
-      setVoiceoverEnhanceDraft(enhancedScript.slice(0, maxVoiceScriptCharacters));
+      setVoiceoverEnhanceDraft(enhancedScript);
       const restoreFocus = () => {
         voiceScriptRef.current?.focus();
       };
@@ -1389,7 +1397,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                       }}
                       onDrop={handleVoiceScriptDrop}
                       onDragOver={handlePromptTextAreaDragOver}
-                      maxLength={maxVoiceScriptCharacters}
                       placeholder={voiceScriptPlaceholder}
                       aria-label="Voice script"
                     />
@@ -1657,7 +1664,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
             voicePromptRef={voicePromptRef}
             normalizedVoicePromptLength={normalizedVoicePromptLength}
             minVoicePromptCharacters={minVoicePromptCharacters}
-            maxVoicePromptCharacters={maxVoicePromptCharacters}
             voicePromptPlaceholder={voicePromptPlaceholder}
             isCreateVoiceEnabled={isCreateVoiceEnabled}
             isDesigningVoice={isDesigningVoice}

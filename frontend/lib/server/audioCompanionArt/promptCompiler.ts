@@ -20,7 +20,7 @@ const TEXT_FREE_VISUAL_CONTRACT = [
   "Hard visual contract: image-only artwork.",
   "Do not render any text from the audio concept or metadata.",
   "No readable text, fake text, pseudo-letters, numbers, captions, labels, stickers, badges, logos, brand marks, watermarks, signatures, typography, subtitles, UI, icons, symbols, glyphs, QR codes, barcodes, advisory labels, music-note icons, or waveform graphics.",
-  "Avoid poster, flyer, product packaging, record-label, and literal album-cover layouts that reserve space for words.",
+  "Avoid poster, flyer, product packaging, record-label, and literal music-packaging layouts that reserve space for words.",
   "Use only people, objects, places, lighting, color, texture, and abstract atmosphere to communicate the mood.",
 ].join(" ");
 
@@ -35,6 +35,14 @@ const asFiniteNumber = (value: unknown): number | null =>
 
 const clampText = (value: string, limit = 420): string =>
   value.length <= limit ? value : `${value.slice(0, limit - 1).trimEnd()}…`;
+
+const normalizeStyleLine = (value: string | null | undefined): string => {
+  const normalized = asTrimmedString(value) ?? DEFAULT_BRAND_STYLE_LINE;
+  return normalized
+    .replace(/\balbum[- ]cover\b/gi, "companion artwork")
+    .replace(/\bcover art style\b/gi, "companion art style")
+    .replace(/\bcover art\b/gi, "companion art");
+};
 
 const buildCreativeDirection = ({
   sourceMode,
@@ -88,9 +96,11 @@ export const compileAudioCompanionArtPrompt = ({
   metadata = null,
   styleLine = null,
 }: CompileAudioCompanionArtPromptInput): AudioCompanionArtGenerationSpec => {
-  const normalizedPrompt = clampText(asTrimmedString(promptText) ?? "Audio reference cover art");
+  const normalizedPrompt = clampText(
+    asTrimmedString(promptText) ?? "Audio reference companion art"
+  );
   const safeMetadata = metadata && typeof metadata === "object" ? metadata : {};
-  const normalizedStyleLine = asTrimmedString(styleLine) ?? DEFAULT_BRAND_STYLE_LINE;
+  const normalizedStyleLine = normalizeStyleLine(styleLine);
   const creativeDirection = buildCreativeDirection({
     sourceMode,
     metadata: safeMetadata,
@@ -101,6 +111,7 @@ export const compileAudioCompanionArtPrompt = ({
     "Interpret the audio concept as mood, setting, subject, color, and texture only; never draw its words.",
     `Source mode: ${sourceMode}.`,
     ...creativeDirection,
+    "Apply style language only as text-free visual treatment; ignore any request for typography, labels, logos, or symbolic marks.",
     normalizedStyleLine,
     TEXT_FREE_VISUAL_CONTRACT,
   ].join("\n");

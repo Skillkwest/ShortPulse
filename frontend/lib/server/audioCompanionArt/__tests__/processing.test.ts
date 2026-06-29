@@ -76,7 +76,7 @@ describe("audioCompanionArt processing", () => {
     mirrorGeneratedAudioPresentationToMediaFilesMock.mockResolvedValue({ updatedCount: 0 });
     resolveRuntimeAgentPromptMock.mockResolvedValue({
       promptId: "AUDIO_COMPANION_ART_STYLE_SYSTEM",
-      promptBody: "Control-plane branded style line.",
+      promptBody: "Control-plane branded cover art style line.",
       updatedAt: null,
       updatedByEmail: null,
       source: "seed",
@@ -238,7 +238,10 @@ describe("audioCompanionArt processing", () => {
     );
     expect(claimBuilder.like).toHaveBeenCalledWith("preview_storage_path", "%/generations/audio/%");
     expect(buildFalFluxKleinAudioCompanionArtPayloadMock).toHaveBeenCalledWith(
-      expect.stringContaining("Control-plane branded style line.")
+      expect.stringContaining("Control-plane branded companion art style line.")
+    );
+    expect(buildFalFluxKleinAudioCompanionArtPayloadMock).not.toHaveBeenCalledWith(
+      expect.stringContaining("cover art style")
     );
     expect(buildFalFluxKleinAudioCompanionArtPayloadMock).toHaveBeenCalledWith(
       expect.stringContaining("Hard visual contract: image-only artwork.")
@@ -246,7 +249,7 @@ describe("audioCompanionArt processing", () => {
     expect(generateFalFluxKleinImageMock).toHaveBeenCalledWith(
       expect.objectContaining({
         payload: expect.objectContaining({
-          prompt: expect.stringContaining("Control-plane branded style line."),
+          prompt: expect.stringContaining("Control-plane branded companion art style line."),
           image_size: { width: 512, height: 512 },
           num_inference_steps: 4,
         }),

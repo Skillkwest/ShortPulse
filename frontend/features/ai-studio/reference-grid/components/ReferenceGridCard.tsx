@@ -60,6 +60,7 @@ export type ReferenceGridCardProps = {
   cardPreviewUrl: string | null;
   videoPosterUrl?: string | null;
   hoverVideoUrl?: string | null;
+  suppressHoverVideo?: boolean;
   playableMediaUrl?: string | null;
   isVideoPreview: boolean;
   isImagePreview: boolean;
@@ -162,6 +163,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   cardPreviewUrl,
   videoPosterUrl,
   hoverVideoUrl,
+  suppressHoverVideo = false,
   playableMediaUrl = null,
   isVideoPreview,
   isImagePreview,
@@ -279,8 +281,9 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
         ? "audio"
         : "text";
   const resolvedVideoPosterUrl = videoPosterUrl?.trim() || null;
-  const resolvedHoverVideoUrl =
-    hoverVideoUrl?.trim() || (isVideoPreview ? cardPreviewUrl?.trim() : "") || null;
+  const resolvedHoverVideoUrl = suppressHoverVideo
+    ? null
+    : hoverVideoUrl?.trim() || (isVideoPreview ? cardPreviewUrl?.trim() : "") || null;
   const hasVideoPosterPreview = Boolean(item.mode === "video" && resolvedVideoPosterUrl);
   const hasPosterBackedVideoPreview = Boolean(hasVideoPosterPreview && resolvedHoverVideoUrl);
   const shouldSuppressGeneratedPosterlessVideoSurface = Boolean(

@@ -1,4 +1,4 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { resetCachedAdminAccessStateForTests, useAdminAccess } from "../useAdminAccess";
 
@@ -63,7 +63,7 @@ describe("useAdminAccess", () => {
     await waitFor(() => expect(fetchWithAuthMock).toHaveBeenCalledTimes(2));
   });
 
-  it("preserves granted access when a background verification fails", async () => {
+  it("drops cached granted access when background verification fails", async () => {
     fetchWithAuthMock.mockResolvedValueOnce(
       jsonResponse({
         isAdmin: true,
@@ -83,13 +83,34 @@ describe("useAdminAccess", () => {
 
     await waitFor(() => expect(fetchWithAuthMock).toHaveBeenCalledTimes(2));
 
-    expect(second.result.current.status).toBe("granted");
-    expect(second.result.current.isAdmin).toBe(true);
+    expect(second.result.current.status).toBe("error");
+    expect(second.result.current.isAdmin).toBe(false);
+    expect(second.result.current.accessVia).toBeNull();
     expect(second.result.current.error).toBe("Access endpoint unavailable.");
+  });
 
-    await act(async () => {
-      second.result.current.refresh();
-    });
+  it("drops cached granted access when background verification throws", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      jsonResponse({
+        isAdmin: true,
+        accessVia: "role",
+      })
+    );
+
+    const first = renderHook(() => useAdminAccess({ enabled: true, userId: "admin-1" }));
+    await waitFor(() => expect(first.result.current.status).toBe("granted"));
+    first.unmount();
+
+    fetchWithAuthMock.mockRejectedValueOnce(new Error("Network unavailable."));
+
+    const second = renderHook(() => useAdminAccess({ enabled: true, userId: "admin-1" }));
+
+    await waitFor(() => expect(fetchWithAuthMock).toHaveBeenCalledTimes(2));
+
+    expect(second.result.current.status).toBe("error");
+    expect(second.result.current.isAdmin).toBe(false);
+    expect(second.result.current.accessVia).toBeNull();
+    expect(second.result.current.error).toBe("Network unavailable.");
   });
 
   it("does not reuse a prior user's cached grant after an account switch", async () => {

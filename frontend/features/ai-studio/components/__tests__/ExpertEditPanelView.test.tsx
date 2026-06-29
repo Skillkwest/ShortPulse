@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import React from "react";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -40,6 +41,16 @@ import {
   type CanvasTearOutPoint,
 } from "../../hooks/useAiStudioCanvasTearOutTargets";
 import type { AgentComposerDirectDropPayload } from "../../logic/agentComposerDirectDropPayload";
+
+const expertEditStylesheet = readFileSync("styles/ai-studio-edit-expert.css", "utf8");
+
+const extractExpertEditCssRule = (selector: string): string => {
+  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const matches = Array.from(
+    expertEditStylesheet.matchAll(new RegExp(`${escapedSelector}\\s*{(?<body>[^}]*)}`, "g"))
+  );
+  return matches.at(-1)?.groups?.body ?? "";
+};
 
 const { composePrimaryStageLayersToBlobMock, composeFlattenedMarkupReferenceBlobMock } = vi.hoisted(
   () => ({
@@ -573,6 +584,13 @@ describe("ExpertEditPanelView", () => {
   afterEach(() => {
     restoreInstalledMockImageDimensions?.();
     vi.useRealTimers();
+  });
+
+  it("keeps the expert edit prompt textarea scrollable when long prompts hit max height", () => {
+    const promptInputRule = extractExpertEditCssRule(".edit-expert-prompt-input");
+
+    expect(promptInputRule).toContain("max-height: var(--edit-expert-prompt-input-max-height)");
+    expect(promptInputRule).toContain("overflow-y: auto");
   });
 
   it("renders one primary edit stage and two default secondary edit dropzones", () => {

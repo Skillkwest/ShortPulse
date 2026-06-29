@@ -155,6 +155,25 @@ describe("MusicPropertiesPanel", () => {
     expect(screen.getByRole("button", { name: "Generate music" })).toBeEnabled();
   });
 
+  it("preserves over-budget standard music prompts without submitting them", () => {
+    const onGenerate = vi.fn();
+    render(<MusicPropertiesPanel onGenerate={onGenerate} />);
+
+    const promptField = screen.getByRole("textbox", { name: "Music prompt" });
+    const overBudgetPrompt = "Wide cinematic song direction. ".repeat(90);
+
+    fireEvent.change(promptField, { target: { value: overBudgetPrompt } });
+
+    expect(promptField).toHaveValue(overBudgetPrompt);
+    expect(
+      screen.getByText(`${overBudgetPrompt.length.toLocaleString()} / 2,000`)
+    ).toBeInTheDocument();
+    const generateButton = screen.getByRole("button", { name: "Generate music" });
+    expect(generateButton).toBeDisabled();
+    fireEvent.click(generateButton);
+    expect(onGenerate).not.toHaveBeenCalled();
+  });
+
   it("accepts session-backed text reference drops into the music prompt", () => {
     render(<MusicPropertiesPanel />);
 

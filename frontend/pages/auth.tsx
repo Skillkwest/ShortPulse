@@ -433,7 +433,6 @@ export default function AuthPage() {
     setOauthLoading(true);
     try {
       const supabase = ensureSupabaseClient();
-      const normalizedEmail = email.trim();
       if (activeMode === "signup") {
         if (!signupAllowed || !signupNextPath) {
           setError("Account creation is temporarily closed.");
@@ -442,7 +441,6 @@ export default function AuthPage() {
           return;
         }
         await createSignupIntent({
-          email: isValidEmailAddress(normalizedEmail) ? normalizedEmail : undefined,
           nextPath: signupNextPath,
           provider: "google",
         });
@@ -465,13 +463,9 @@ export default function AuthPage() {
         provider: "google",
         options: {
           redirectTo,
-          ...(isValidEmailAddress(normalizedEmail)
-            ? {
-                queryParams: {
-                  login_hint: normalizedEmail,
-                },
-              }
-            : {}),
+          queryParams: {
+            prompt: "select_account",
+          },
         },
       });
       if (oauthError) throw oauthError;

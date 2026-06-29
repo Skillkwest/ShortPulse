@@ -112,3 +112,4 @@ ADRs capture **important, durable decisions** so the repo stays coherent as it g
 - `docs/adr/0094-paid-signup-intent-gate.md` (historical; superseded by `docs/adr/0095-account-first-signup-intent-gate.md`)
 - `docs/adr/0095-account-first-signup-intent-gate.md`
 - `docs/adr/0096-google-oauth-signup-intent-match.md`
+- `docs/adr/0097-google-signup-account-chooser-independence.md`

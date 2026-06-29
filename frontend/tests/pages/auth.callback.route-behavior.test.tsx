@@ -137,7 +137,22 @@ describe("Auth callback route behavior", () => {
     expect(fetchWithAuthMock).not.toHaveBeenCalled();
   });
 
-  it("renders the auth callback stylesheet class contract used by auth.css", async () => {
+  it("renders a minimal loading status while the callback is settling", () => {
+    setCallbackRoute("/auth/callback?flow=signin&next=%2Fdashboard", {
+      flow: "signin",
+      next: "/dashboard",
+    });
+    readSupabaseSessionMock.mockResolvedValue(null);
+
+    const { container } = render(<AuthCallbackPage />);
+
+    expect(screen.getByRole("status")).toHaveTextContent("Completing sign-in...");
+    expect(container.querySelector("main.auth-callback-minimal-shell")).toBeInTheDocument();
+    expect(container.querySelector("form.auth-card")).not.toBeInTheDocument();
+    expect(container.querySelector(".auth-brand-logo")).not.toBeInTheDocument();
+  });
+
+  it("renders invalid callback links as minimal text without the auth card", async () => {
     setCallbackRoute("/auth/callback?flow=recovery&next=%2Fdashboard#type=recovery", {
       flow: "recovery",
       next: "/dashboard",
@@ -146,15 +161,16 @@ describe("Auth callback route behavior", () => {
 
     const { container } = render(<AuthCallbackPage />);
 
-    expect(
-      await screen.findByText(
-        "This password reset link is invalid or has expired. Request a new one."
-      )
-    ).toBeInTheDocument();
-    expect(container.querySelector("main.auth-shell")).toBeInTheDocument();
-    expect(container.querySelector("form.auth-card")).toBeInTheDocument();
-    expect(container.querySelector(".auth-card-header")).toBeInTheDocument();
-    expect(container.querySelector(".auth-footnote")).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "This password reset link is invalid or has expired. Request a new one."
+    );
+    expect(screen.getByRole("link", { name: "Return to sign in" })).toHaveAttribute(
+      "href",
+      "/log-in?next=%2Fdashboard"
+    );
+    expect(container.querySelector("main.auth-callback-minimal-shell")).toBeInTheDocument();
+    expect(container.querySelector("form.auth-card")).not.toBeInTheDocument();
+    expect(container.querySelector(".auth-brand-logo")).not.toBeInTheDocument();
   });
 
   it("renders the recovery form when Supabase emits PASSWORD_RECOVERY", async () => {
@@ -246,7 +262,7 @@ describe("Auth callback route behavior", () => {
 
     render(<AuthCallbackPage />);
 
-    expect(await screen.findByText("Recovery link expired")).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Recovery link expired");
     expect(replaceMock).not.toHaveBeenCalled();
   });
 
@@ -259,11 +275,9 @@ describe("Auth callback route behavior", () => {
 
     render(<AuthCallbackPage />);
 
-    expect(
-      await screen.findByText(
-        "This password reset link is invalid or has expired. Request a new one."
-      )
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "This password reset link is invalid or has expired. Request a new one."
+    );
     expect(replaceMock).not.toHaveBeenCalled();
   });
 
@@ -279,16 +293,14 @@ describe("Auth callback route behavior", () => {
 
     render(<AuthCallbackPage />);
 
-    expect(
-      await screen.findByText(
-        "This password reset link is invalid or has expired. Request a new one."
-      )
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "This password reset link is invalid or has expired. Request a new one."
+    );
     expect(updateUserMock).not.toHaveBeenCalled();
     expect(replaceMock).not.toHaveBeenCalled();
   });
 
-  it("does not complete a signup callback from an existing initial session without callback artifacts", async () => {
+  it("routes an authenticated stale signup callback to the sanitized destination without completing signup", async () => {
     setCallbackRoute("/auth/callback?flow=signup&next=%2Fdashboard", {
       flow: "signup",
       next: "/dashboard",
@@ -297,16 +309,26 @@ describe("Auth callback route behavior", () => {
 
     render(<AuthCallbackPage />);
 
-    expect(
-      await screen.findByText(
-        "This confirmation link is invalid or has expired. Sign up again to request a new confirmation email."
-      )
-    ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Return to signup" })).toHaveAttribute(
-      "href",
-      "/sign-up?next=%2Fdashboard"
-    );
-    expect(replaceMock).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(primeSupabaseSessionMock).toHaveBeenCalledWith({ user: { id: "user-1" } });
+      expect(replaceMock).toHaveBeenCalledWith("/dashboard");
+    });
+    expect(fetchWithAuthMock).not.toHaveBeenCalled();
+  });
+
+  it("routes an authenticated stale sign-in callback to the sanitized destination", async () => {
+    setCallbackRoute("/auth/callback?flow=signin&next=%2Fai-studio", {
+      flow: "signin",
+      next: "/ai-studio",
+    });
+    readSupabaseSessionMock.mockResolvedValue({ user: { id: "user-1" } });
+
+    render(<AuthCallbackPage />);
+
+    await waitFor(() => {
+      expect(primeSupabaseSessionMock).toHaveBeenCalledWith({ user: { id: "user-1" } });
+      expect(replaceMock).toHaveBeenCalledWith("/ai-studio");
+    });
   });
 
   it("fails closed for a sign-in callback with no resolved session", async () => {
@@ -318,9 +340,9 @@ describe("Auth callback route behavior", () => {
 
     render(<AuthCallbackPage />);
 
-    expect(
-      await screen.findByText("This sign-in link is invalid or has expired. Try signing in again.")
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "This sign-in link is invalid or has expired. Try signing in again."
+    );
     expect(replaceMock).not.toHaveBeenCalled();
   });
 

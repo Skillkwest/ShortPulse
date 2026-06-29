@@ -882,7 +882,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 
 - `id` (uuid, pk): Short-lived signup intent id.
 - `email_hash` (text): SHA-256 hash of the normalized signup email; raw email is not stored.
-- `match_strategy` (text): Intent matching strategy (`email_hash | google_ip`). Email/password and typed-email Google signup use `email_hash`; blank-email Google signup uses short-lived `google_ip`.
+- `match_strategy` (text): Intent matching strategy (`email_hash | google_ip`). Email/password signup uses `email_hash`; Google signup uses short-lived `google_ip` so visible email/password form fields do not choose the Google account.
 - `signup_context` (text): Intent class (`account | pricing`).
 - `plan_id` (text, nullable): Paid plan requested from pricing (`starter | media | studio | business`) for `pricing` intents; null for account-first intents.
 - `billing_interval` (text, nullable): Requested recurring interval (`month | year`) for `pricing` intents; null for account-first intents.
@@ -894,7 +894,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `auth_user_id` (uuid, nullable): Supabase Auth user id from the Before User Created hook payload.
 - `expires_at` / `auth_allowed_at` / `created_at` / `updated_at` (timestamptz): Intent TTL and lifecycle timestamps.
 - `created_ip_hash` / `user_agent_hash` (text, nullable): Hashes for abuse diagnostics without storing raw request identifiers.
-- Runtime role: canonical signup creation gate for email/password and Google signup. `/api/auth/signup-intent` inserts pending rows, and Supabase Auth's Before User Created hook `hook_shortpulse_signup_intent(event jsonb)` consumes one matching pending row before `auth.users` insertion. The hook tries email-hash matching first, then a Google-only short-lived IP-bound fallback for blank-email OAuth starts. The legacy `hook_shortpulse_paid_signup_intent(event jsonb)` name is a compatibility wrapper after migration `165`.
+- Runtime role: canonical signup creation gate for email/password and Google signup. `/api/auth/signup-intent` inserts pending rows, and Supabase Auth's Before User Created hook `hook_shortpulse_signup_intent(event jsonb)` consumes one matching pending row before `auth.users` insertion. The hook tries email-hash matching first, then a Google-only short-lived IP-bound fallback for Google OAuth starts. The legacy `hook_shortpulse_paid_signup_intent(event jsonb)` name is a compatibility wrapper after migration `165`.
 - Access model: RLS enabled with no browser policies; table access is service-role-only, and the hook function is executable by `supabase_auth_admin` only.
 
 ### billing_plans

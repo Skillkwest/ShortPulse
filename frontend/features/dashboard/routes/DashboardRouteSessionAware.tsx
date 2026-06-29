@@ -4,7 +4,7 @@
  */
 import Head from "next/head";
 import { useRouter } from "next/router";
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { AuthenticatedDashboardRoute } from "../components/AuthenticatedDashboardRoute";
 import { ProjectEntryLoadingSurface } from "../../projects/components/ProjectEntryLoadingSurface";
@@ -13,6 +13,9 @@ import {
   emptyBillingCatalogSnapshot,
   type PublicDashboardStaticProps,
 } from "./publicDashboardData";
+import { MediaComplianceGate } from "../../compliance/components/MediaComplianceGate";
+import { useMediaComplianceGate } from "../../compliance/hooks/useMediaComplianceGate";
+import { buildLoginPath } from "../../../lib/authRedirects";
 import { useSupabaseSessionState } from "../../../lib/supabaseClient";
 import { ProtectedRouteSessionProvider } from "../../../lib/protectedRouteSessionContext";
 import { readPersistedSupabaseSessionHint } from "../../../lib/supabaseSessionHints";
@@ -57,9 +60,17 @@ export function DashboardRouteSessionAware({
   const router = useRouter();
   const { initialized, session, user } = useSupabaseSessionState();
   const [shouldHoldForPersistedSession, setShouldHoldForPersistedSession] = useState(false);
+  const authRedirectPath = useMemo(
+    () => buildLoginPath({ nextPath: router.asPath || "/dashboard" }),
+    [router.asPath]
+  );
   const isDashboardBootstrapPending =
     router.pathname === DASHBOARD_BOOTSTRAP_ROUTE && !initialized && shouldHoldForPersistedSession;
   const isAuthenticated = Boolean(user);
+  const mediaCompliance = useMediaComplianceGate({
+    enabled: Boolean(session),
+    userId: user?.id ?? session?.user?.id ?? null,
+  });
 
   useIsomorphicLayoutEffect(() => {
     const isBootstrapRoute =
@@ -84,6 +95,11 @@ export function DashboardRouteSessionAware({
     }
   }, [isAuthenticated]);
 
+  useEffect(() => {
+    if (mediaCompliance.status !== "auth_recovery_required") return;
+    void router.replace(authRedirectPath);
+  }, [authRedirectPath, mediaCompliance.status, router]);
+
   if (isDashboardBootstrapPending) {
     return renderDashboardBootstrap();
   }
@@ -100,6 +116,41 @@ export function DashboardRouteSessionAware({
 
   if (!session) {
     return renderDashboardBootstrap();
+  }
+
+  if (mediaCompliance.status === "loading") {
+    return renderDashboardBootstrap();
+  }
+
+  if (mediaCompliance.status === "auth_recovery_required") {
+    return renderDashboardBootstrap();
+  }
+
+  if (mediaCompliance.status === "service_unavailable") {
+    return (
+      <MediaComplianceGate
+        mode="unavailable"
+        agreement={mediaCompliance.agreement}
+        error={mediaCompliance.error}
+        loading={mediaCompliance.loading}
+        primaryActionLabel="Retry"
+        showSecondaryAction={false}
+        onAccept={mediaCompliance.acceptAgreement}
+        onRetry={mediaCompliance.refreshStatus}
+      />
+    );
+  }
+
+  if (mediaCompliance.status === "needs_consent") {
+    return (
+      <MediaComplianceGate
+        agreement={mediaCompliance.agreement}
+        error={mediaCompliance.error}
+        loading={mediaCompliance.loading}
+        onAccept={mediaCompliance.acceptAgreement}
+        onRetry={mediaCompliance.refreshStatus}
+      />
+    );
   }
 
   return (

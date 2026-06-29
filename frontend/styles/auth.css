@@ -34,6 +34,37 @@
   background: rgba(243, 109, 58, 0.26);
 }
 
+.auth-callback-minimal-shell {
+  min-height: var(--app-fixed-height);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px;
+  background: #0f1115;
+  color: rgba(201, 214, 227, 0.66);
+}
+
+.auth-callback-minimal-status {
+  margin: 0;
+  max-width: min(500px, 100%);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0;
+  text-align: center;
+}
+
+.auth-callback-minimal-status a {
+  color: inherit;
+  font-weight: 400;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.auth-callback-minimal-status a:hover {
+  color: rgba(201, 214, 227, 0.82);
+}
+
 .auth-layout {
   position: relative;
   z-index: 1;

@@ -3,6 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const getSupabaseAdminMock = vi.hoisted(() => vi.fn());
 const readStoredMediaBufferMock = vi.hoisted(() => vi.fn());
 const normalizeVoiceChangerSourceVideoForProcessingMock = vi.hoisted(() => vi.fn());
+const mediaComplianceAcceptanceMocks = vi.hoisted(() => ({
+  getMediaComplianceAcceptanceStatusForUser: vi.fn(),
+  isMediaComplianceUnavailableError: vi.fn(),
+}));
 const { MockMediaAudioExtractionInputError, MockVoiceChangerSourceVideoNormalizationError } =
   vi.hoisted(() => {
     class MediaAudioExtractionInputError extends Error {
@@ -35,6 +39,13 @@ vi.mock("../api/supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
 }));
 
+vi.mock("../api/mediaComplianceAcceptance", () => ({
+  getMediaComplianceAcceptanceStatusForUser:
+    mediaComplianceAcceptanceMocks.getMediaComplianceAcceptanceStatusForUser,
+  isMediaComplianceUnavailableError:
+    mediaComplianceAcceptanceMocks.isMediaComplianceUnavailableError,
+}));
+
 vi.mock("../mediaAudioExtraction", () => ({
   MAX_VOICE_CHANGER_SOURCE_BYTES: 40 * 1024 * 1024,
   MediaAudioExtractionInputError: MockMediaAudioExtractionInputError,
@@ -59,6 +70,11 @@ describe("finalizeVoiceChangerSourceUploadForUser", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mediaComplianceAcceptanceMocks.getMediaComplianceAcceptanceStatusForUser.mockResolvedValue({
+      accepted: true,
+      acceptedAt: "2026-06-29T00:00:00.000Z",
+    });
+    mediaComplianceAcceptanceMocks.isMediaComplianceUnavailableError.mockReturnValue(false);
     uploadMock.mockResolvedValue({ error: null });
     createSignedUrlMock.mockImplementation(async (path: string) => ({
       data: { signedUrl: `https://signed.example/${path}` },

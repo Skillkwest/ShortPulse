@@ -13,10 +13,21 @@ const videoVariantMocks = vi.hoisted(() => ({
   upsertVideoPosterVariantFromBuffer: vi.fn(),
   upsertVideoPreviewVariantFromBuffer: vi.fn(),
 }));
+const mediaComplianceAcceptanceMocks = vi.hoisted(() => ({
+  getMediaComplianceAcceptanceStatusForUser: vi.fn(),
+  isMediaComplianceUnavailableError: vi.fn(),
+}));
 
 vi.mock("../videoPosterVariant", () => ({
   upsertVideoPosterVariantFromBuffer: videoVariantMocks.upsertVideoPosterVariantFromBuffer,
   upsertVideoPreviewVariantFromBuffer: videoVariantMocks.upsertVideoPreviewVariantFromBuffer,
+}));
+
+vi.mock("../api/mediaComplianceAcceptance", () => ({
+  getMediaComplianceAcceptanceStatusForUser:
+    mediaComplianceAcceptanceMocks.getMediaComplianceAcceptanceStatusForUser,
+  isMediaComplianceUnavailableError:
+    mediaComplianceAcceptanceMocks.isMediaComplianceUnavailableError,
 }));
 
 const getSupabaseAdminMock = vi.mocked(getSupabaseAdmin);
@@ -41,6 +52,11 @@ describe("prepareMediaUploadForUser", () => {
     vi.clearAllMocks();
     videoVariantMocks.upsertVideoPosterVariantFromBuffer.mockResolvedValue(null);
     videoVariantMocks.upsertVideoPreviewVariantFromBuffer.mockResolvedValue(null);
+    mediaComplianceAcceptanceMocks.getMediaComplianceAcceptanceStatusForUser.mockResolvedValue({
+      accepted: true,
+      acceptedAt: "2026-06-29T00:00:00.000Z",
+    });
+    mediaComplianceAcceptanceMocks.isMediaComplianceUnavailableError.mockReturnValue(false);
     let insertedMediaPayload: {
       filename: string;
       storage_path: string;
@@ -137,6 +153,27 @@ describe("prepareMediaUploadForUser", () => {
       mimeType: "image/webp",
       name: "reference.webp",
     });
+  });
+
+  it("rejects upload target creation when media consent has not been accepted", async () => {
+    mediaComplianceAcceptanceMocks.getMediaComplianceAcceptanceStatusForUser.mockResolvedValueOnce({
+      accepted: false,
+      acceptedAt: null,
+    });
+
+    await expect(
+      prepareMediaUploadForUser({
+        userId: "user-1",
+        destinationTab: "uploaded_images",
+        filename: "reference.webp",
+        declaredMimeType: "image/webp",
+      })
+    ).rejects.toMatchObject({
+      status: 403,
+      message: "Media agreement acceptance is required.",
+      details: "Accept the current media agreement before uploading or staging media.",
+    });
+    expect(createSignedUploadUrlMock).not.toHaveBeenCalled();
   });
 
   it("fails closed when the signed upload path differs from the requested path", async () => {

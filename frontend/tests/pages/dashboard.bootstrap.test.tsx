@@ -16,6 +16,7 @@ const useSupabaseSessionStateMock = vi.hoisted(() => vi.fn());
 const primeSupabaseSessionMock = vi.hoisted(() => vi.fn());
 const readPersistedSupabaseSessionHintMock = vi.hoisted(() => vi.fn());
 const readSupabaseSessionBootstrapHintMock = vi.hoisted(() => vi.fn());
+const useMediaComplianceGateMock = vi.hoisted(() => vi.fn());
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
 const publicFetchMock = vi.hoisted(() => vi.fn());
 
@@ -87,6 +88,14 @@ vi.mock("../../lib/authenticatedFetch", () => ({
   fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
 }));
 
+vi.mock("../../features/compliance/hooks/useMediaComplianceGate", () => ({
+  useMediaComplianceGate: (...args: unknown[]) => useMediaComplianceGateMock(...args),
+}));
+
+vi.mock("../../features/compliance/components/MediaComplianceGate", () => ({
+  MediaComplianceGate: () => <div data-testid="media-compliance-gate">Media compliance gate</div>,
+}));
+
 const appUser = {
   id: "user-1",
   email: "user@example.com",
@@ -132,6 +141,26 @@ const buildSupabaseClient = () => ({
   }),
 });
 
+const acceptedMediaComplianceState = {
+  accepted: true,
+  acceptedAt: "2026-06-29T00:00:00.000Z",
+  acceptAgreement: vi.fn(),
+  agreement: {
+    key: "media_usage_compliance",
+    version: "2026-04-25",
+    title: "Media agreement",
+    intro: "Please accept.",
+    rules: [],
+    checkboxLabel: "I agree",
+    confirmLabel: "Continue",
+  },
+  error: null,
+  initialized: true,
+  loading: false,
+  refreshStatus: vi.fn(),
+  status: "accepted",
+};
+
 describe("Dashboard bootstrap state", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -162,6 +191,7 @@ describe("Dashboard bootstrap state", () => {
     });
     readPersistedSupabaseSessionHintMock.mockReturnValue(true);
     readSupabaseSessionBootstrapHintMock.mockReturnValue(true);
+    useMediaComplianceGateMock.mockReturnValue(acceptedMediaComplianceState);
     fetchWithAuthMock.mockImplementation(async (input: unknown) => {
       if (input === "/api/announcements/active") {
         return {
@@ -224,5 +254,26 @@ describe("Dashboard bootstrap state", () => {
     expect(
       screen.queryByText("Checking your session before your dashboard workspace loads.")
     ).not.toBeInTheDocument();
+  });
+
+  it("keeps signed-in dashboard content hidden when media consent is still required", async () => {
+    useSupabaseSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: { user: appUser },
+      user: appUser,
+    });
+    useMediaComplianceGateMock.mockReturnValue({
+      ...acceptedMediaComplianceState,
+      accepted: false,
+      status: "needs_consent",
+    });
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("media-compliance-gate")).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("button", { name: "Profile menu" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /welcome back/i })).not.toBeInTheDocument();
   });
 });

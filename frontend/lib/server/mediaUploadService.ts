@@ -49,6 +49,10 @@ import {
   readStoredMediaBuffer,
 } from "./mediaAudioExtraction";
 import {
+  getMediaComplianceAcceptanceStatusForUser,
+  isMediaComplianceUnavailableError,
+} from "./api/mediaComplianceAcceptance";
+import {
   MotionReferenceVideoNormalizationError,
   normalizeMotionReferenceVideoForProvider,
 } from "./motionReferenceVideoNormalization";
@@ -597,6 +601,30 @@ export class MediaUploadServiceError extends Error {
   }
 }
 
+const assertMediaComplianceAcceptedForUpload = async (userId: string): Promise<void> => {
+  try {
+    const status = await getMediaComplianceAcceptanceStatusForUser(userId);
+    if (status.accepted) return;
+    throw new MediaUploadServiceError(
+      403,
+      "Media agreement acceptance is required.",
+      "Accept the current media agreement before uploading or staging media."
+    );
+  } catch (error) {
+    if (error instanceof MediaUploadServiceError) {
+      throw error;
+    }
+    if (isMediaComplianceUnavailableError(error)) {
+      throw new MediaUploadServiceError(
+        503,
+        "Media agreement service is temporarily unavailable.",
+        "Media agreement acceptance could not be verified."
+      );
+    }
+    throw error;
+  }
+};
+
 type UploadedStorageAsset = {
   storagePath: string;
   signedUrl: string;
@@ -958,6 +986,7 @@ export const prepareVoiceChangerSourceUploadForUser = async ({
   mimeType: string;
   name: string;
 }> => {
+  await assertMediaComplianceAcceptedForUpload(userId);
   const normalizedFilename =
     filename.trim() || `voice-changer-source.${kind === "video" ? "mp4" : "wav"}`;
   const normalizedMimeType = resolvePreparedVoiceChangerSourceMimeType({
@@ -1008,6 +1037,7 @@ export const prepareMediaUploadForUser = async ({
   mimeType: string;
   name: string;
 }> => {
+  await assertMediaComplianceAcceptedForUpload(userId);
   const normalizedFilename = filename.trim() || "upload";
   const normalizedMimeType = resolvePreparedMediaUploadMimeType({
     destinationTab,
@@ -1054,6 +1084,7 @@ export const prepareReferenceImageUploadForUser = async ({
   mimeType: string;
   name: string;
 }> => {
+  await assertMediaComplianceAcceptedForUpload(userId);
   const normalizedFilename = filename.trim() || "reference-image";
   const normalizedMimeType = resolvePreparedMediaUploadMimeType({
     destinationTab: "private",
@@ -1100,6 +1131,7 @@ export const prepareReferenceVideoUploadForUser = async ({
   mimeType: string;
   name: string;
 }> => {
+  await assertMediaComplianceAcceptedForUpload(userId);
   const normalizedFilename = filename.trim() || "reference-video";
   const normalizedMimeType = resolvePreparedMediaUploadMimeType({
     destinationTab: "uploaded_videos",
@@ -1146,6 +1178,7 @@ export const prepareMotionReferenceVideoUploadForUser = async ({
   mimeType: string;
   name: string;
 }> => {
+  await assertMediaComplianceAcceptedForUpload(userId);
   const normalizedFilename = filename.trim() || "motion-reference";
   const normalizedMimeType = resolvePreparedMediaUploadMimeType({
     destinationTab: "uploaded_videos",
@@ -1197,6 +1230,7 @@ export const finalizeVoiceChangerSourceUploadForUser = async ({
   mimeType: string;
   name: string;
 }> => {
+  await assertMediaComplianceAcceptedForUpload(userId);
   const safeStoragePath = assertUserScopedMediaStoragePath({
     path: storagePath,
     userId,
@@ -1316,6 +1350,7 @@ export const uploadVoiceCloneSourceForUser = async ({
   mimeType: string;
   name: string;
 }> => {
+  await assertMediaComplianceAcceptedForUpload(userId);
   const filename =
     readHeaderString(req.headers["x-shortpulse-upload-filename"]) || "voice-clone-source.wav";
   const buffer = await readRawBody(req, {
@@ -1376,6 +1411,7 @@ export const uploadSignedStorageAssetForUser = async ({
   size: number;
   mimeType: string;
 }> => {
+  await assertMediaComplianceAcceptedForUpload(userId);
   let uploaded: UploadedStorageAsset | null = null;
   try {
     uploaded = await uploadStorageAssetForUser({
@@ -1458,6 +1494,7 @@ export const finalizePreparedMediaUploadForUser = async ({
   filename: string;
   declaredMimeType: string;
 }): Promise<MediaUploadResponseFile> => {
+  await assertMediaComplianceAcceptedForUpload(userId);
   const safeStoragePath = assertUserScopedMediaStoragePath({
     path: storagePath,
     userId,
@@ -1521,6 +1558,7 @@ export const finalizeReferenceImageUploadForUser = async ({
   filename: string;
   declaredMimeType: string;
 }): Promise<SignedStorageUploadResponse> => {
+  await assertMediaComplianceAcceptedForUpload(userId);
   const safeStoragePath = assertUserScopedMediaStoragePath({
     path: storagePath,
     userId,
@@ -1588,6 +1626,7 @@ export const finalizeReferenceVideoUploadForUser = async ({
   filename: string;
   declaredMimeType: string;
 }): Promise<SignedStorageUploadResponse> => {
+  await assertMediaComplianceAcceptedForUpload(userId);
   const safeStoragePath = assertUserScopedMediaStoragePath({
     path: storagePath,
     userId,
@@ -1655,6 +1694,7 @@ export const finalizeMotionReferenceVideoUploadForUser = async ({
   filename: string;
   declaredMimeType: string;
 }): Promise<SignedStorageUploadResponse> => {
+  await assertMediaComplianceAcceptedForUpload(userId);
   const safeStoragePath = assertUserScopedMediaStoragePath({
     path: storagePath,
     userId,
@@ -1879,6 +1919,7 @@ export const uploadMediaForUser = async ({
   req: NextApiRequest;
   userId: string;
 }): Promise<MediaUploadResponseFile> => {
+  await assertMediaComplianceAcceptedForUpload(userId);
   let parsedUpload: ParsedUpload | null = null;
   let storagePathForCleanup: string | null = null;
 

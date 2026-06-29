@@ -9,6 +9,7 @@ import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 const dnsLookupMock = vi.hoisted(() => vi.fn());
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
+const requireMediaComplianceAcceptedMock = vi.fn();
 const readProviderApiKeyMock = vi.fn();
 const storageFromMock = vi.fn();
 const storageDownloadMock = vi.fn();
@@ -26,6 +27,11 @@ vi.mock("../../lib/server/api/auth", () => ({
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
+}));
+
+vi.mock("../../lib/server/api/mediaComplianceGuard", () => ({
+  requireMediaComplianceAccepted: (...args: unknown[]) =>
+    requireMediaComplianceAcceptedMock(...args),
 }));
 
 vi.mock("../../lib/server/providerIntegration/providerRuntimeConfig", () => ({
@@ -74,6 +80,7 @@ describe("POST /api/fal/upload-url", () => {
     resetApiRateLimitForTests();
     vi.unstubAllGlobals();
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "user@example.com" });
+    requireMediaComplianceAcceptedMock.mockResolvedValue(true);
     readProviderApiKeyMock.mockReturnValue("fal-test-key");
     dnsLookupMock.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
     storageFromMock.mockReturnValue({
@@ -116,6 +123,38 @@ describe("POST /api/fal/upload-url", () => {
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({
       error: "Fal upload failed",
+    });
+  });
+
+  it("rejects Fal provider uploads before reading bodies when media consent is missing", async () => {
+    requireMediaComplianceAcceptedMock.mockImplementationOnce(async ({ res }) => {
+      res.status(403).json({
+        error: "Media agreement acceptance is required.",
+        code: "MEDIA_COMPLIANCE_REQUIRED",
+      });
+      return false;
+    });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const req = createMockRequest({
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        fileUrl: "https://example.com/public-image.png",
+      }),
+    });
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(readProviderApiKeyMock).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(storageDownloadMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Media agreement acceptance is required.",
+      code: "MEDIA_COMPLIANCE_REQUIRED",
     });
   });
 

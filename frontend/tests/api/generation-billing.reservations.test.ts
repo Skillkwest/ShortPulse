@@ -25,6 +25,7 @@ import { chargeGenerationRequest } from "../../lib/server/api/generationBilling"
 import { buildPricingParams } from "../../lib/server/api/generationBilling/pricingParams";
 
 const requireApiUserMock = vi.fn();
+const requireMediaComplianceAcceptedMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
 const insertCreditLedgerEntryMock = vi.fn();
 const logGenerationFailureMock = vi.fn();
@@ -33,6 +34,11 @@ const resolveBillingConcurrencyEntitlementMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
+}));
+
+vi.mock("../../lib/server/api/mediaComplianceGuard", () => ({
+  requireMediaComplianceAccepted: (...args: unknown[]) =>
+    requireMediaComplianceAcceptedMock(...args),
 }));
 
 vi.mock("../../lib/server/api/supabaseAdmin", () => ({
@@ -104,6 +110,7 @@ describe("generationBilling reservation RPC handling", () => {
     vi.clearAllMocks();
     delete process.env.SHORTPULSE_FAL_ADMISSION_MODE;
     requireApiUserMock.mockResolvedValue({ id: "user-1" });
+    requireMediaComplianceAcceptedMock.mockResolvedValue(true);
     insertCreditLedgerEntryMock.mockResolvedValue({ error: null });
     logGenerationFailureMock.mockResolvedValue(undefined);
     resolveBillingConcurrencyEntitlementMock.mockResolvedValue({
@@ -162,6 +169,40 @@ describe("generationBilling reservation RPC handling", () => {
     expect(getSupabaseAdminMock).not.toHaveBeenCalled();
     expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
     expect(logGenerationFailureMock).not.toHaveBeenCalled();
+  });
+
+  it("fails closed before billing or provider reservation when media consent is missing", async () => {
+    requireMediaComplianceAcceptedMock.mockImplementationOnce(async ({ res }) => {
+      res.status(403).json({
+        error: "Media agreement acceptance is required.",
+        code: "MEDIA_COMPLIANCE_REQUIRED",
+      });
+      return false;
+    });
+    const req = {
+      headers: { "x-shortpulse-request-id": "req-consent-required" },
+      url: "/api/fal/seedream-submit",
+      body: {},
+    };
+    const res = createMockResponse();
+
+    const charge = await chargeGenerationRequest({
+      req: req as never,
+      res: res as never,
+      modelId: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+      payload: {},
+      reason: "Seedream image generation",
+    });
+
+    expect(charge).toBeNull();
+    expect(resolveRuntimeModelPricingPolicyMock).not.toHaveBeenCalled();
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Media agreement acceptance is required.",
+      code: "MEDIA_COMPLIANCE_REQUIRED",
+    });
   });
 
   it("fails closed when runtime pricing policy is unavailable", async () => {

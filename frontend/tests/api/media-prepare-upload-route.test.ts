@@ -123,6 +123,40 @@ describe("POST /api/media/prepare-upload", () => {
     });
   });
 
+  it("rejects upload preparation before issuing a storage target when media consent is missing", async () => {
+    const { MediaUploadServiceError } = await import("../../lib/server/mediaUploadService");
+    prepareMediaUploadForUserMock.mockRejectedValueOnce(
+      new MediaUploadServiceError(
+        403,
+        "Media agreement acceptance is required.",
+        "Accept the current media agreement before uploading or staging media."
+      )
+    );
+    const req = {
+      method: "POST",
+      body: {
+        destinationTab: "uploaded_images",
+        sourceMimeType: "image/webp",
+        sourceName: "image.webp",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(prepareMediaUploadForUserMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      destinationTab: "uploaded_images",
+      filename: "image.webp",
+      declaredMimeType: "image/webp",
+    });
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Media agreement acceptance is required.",
+      details: "Accept the current media agreement before uploading or staging media.",
+    });
+  });
+
   it("returns a sanitized 500 when preparation fails unexpectedly", async () => {
     prepareMediaUploadForUserMock.mockRejectedValueOnce(new Error("signed upload target exploded"));
     const req = {

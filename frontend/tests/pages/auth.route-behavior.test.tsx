@@ -247,6 +247,9 @@ describe("Auth route behavior", () => {
         options: {
           redirectTo:
             "https://www.shortpulse.ai/auth/callback?flow=signin&next=%2Fprofile%3Fsection%3Daccount&provider=google",
+          queryParams: {
+            prompt: "select_account",
+          },
         },
       });
     });
@@ -267,9 +270,39 @@ describe("Auth route behavior", () => {
         options: {
           redirectTo:
             "https://www.shortpulse.ai/auth/callback?flow=signin&next=%2Fdashboard&provider=google",
+          queryParams: {
+            prompt: "select_account",
+          },
         },
       });
     });
+  });
+
+  it("starts Google sign-in without using populated email and password fields as account hints", async () => {
+    routerState.query = { next: "/ai-studio" };
+
+    render(<AuthPage />);
+
+    fireEvent.change(screen.getByLabelText("Email"), {
+      target: { value: " existing@example.com " },
+    });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "stored-password" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in with Google" }));
+
+    await waitFor(() => {
+      expect(signInWithOAuthMock).toHaveBeenCalledWith({
+        provider: "google",
+        options: {
+          redirectTo:
+            "https://www.shortpulse.ai/auth/callback?flow=signin&next=%2Fai-studio&provider=google",
+          queryParams: {
+            prompt: "select_account",
+          },
+        },
+      });
+    });
+    expect(signInWithPasswordMock).not.toHaveBeenCalled();
+    expect(signUpMock).not.toHaveBeenCalled();
   });
 
   it("shows a calm message after Google OAuth is cancelled", async () => {
@@ -327,6 +360,9 @@ describe("Auth route behavior", () => {
         options: {
           redirectTo:
             "https://www.shortpulse.ai/auth/callback?flow=signup&next=%2Fai-studio&provider=google",
+          queryParams: {
+            prompt: "select_account",
+          },
         },
       });
     });
@@ -529,7 +565,7 @@ describe("Auth route behavior", () => {
     );
   });
 
-  it("starts Google signup after creating a paid signup intent for the entered email", async () => {
+  it("starts Google signup without using populated email and password fields as account hints", async () => {
     vi.stubEnv("NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED", "true");
     routerState.query = {
       mode: "signup",
@@ -541,6 +577,7 @@ describe("Auth route behavior", () => {
     fireEvent.change(screen.getByLabelText("Account email"), {
       target: { value: " buyer@example.com " },
     });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "stored-password" } });
     fireEvent.click(screen.getByRole("button", { name: "Sign up with Google" }));
 
     await waitFor(() => {
@@ -550,7 +587,7 @@ describe("Auth route behavior", () => {
           redirectTo:
             "https://www.shortpulse.ai/auth/callback?flow=signup&next=%2Fpricing%3Fintent%3Dopen-projects%26plan%3Dmedia%26interval%3Dmonth&provider=google",
           queryParams: {
-            login_hint: "buyer@example.com",
+            prompt: "select_account",
           },
         },
       });
@@ -560,7 +597,6 @@ describe("Auth route behavior", () => {
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({
-          email: "buyer@example.com",
           nextPath: "/pricing?intent=open-projects&plan=media&interval=month",
           provider: "google",
         }),

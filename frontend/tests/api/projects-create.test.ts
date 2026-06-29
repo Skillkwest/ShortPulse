@@ -16,6 +16,7 @@ const { MockInvalidProjectWorkspaceSnapshotError } = vi.hoisted(() => ({
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
+const requireMediaComplianceAcceptedMock = vi.fn();
 const writeAppErrorLogMock = vi.fn();
 const createProjectForUserMock = vi.fn();
 const listProjectsForUserMock = vi.fn();
@@ -37,6 +38,11 @@ vi.mock("../../lib/server/api/auth", () => ({
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
   writeAppErrorLog: (...args: unknown[]) => writeAppErrorLogMock(...args),
+}));
+
+vi.mock("../../lib/server/api/mediaComplianceGuard", () => ({
+  requireMediaComplianceAccepted: (...args: unknown[]) =>
+    requireMediaComplianceAcceptedMock(...args),
 }));
 
 vi.mock("../../lib/server/projectsService", () => ({
@@ -111,6 +117,7 @@ describe("projects routes", () => {
     vi.clearAllMocks();
     resetApiRateLimitForTests();
     requireApiUserMock.mockResolvedValue({ id: "user-1" });
+    requireMediaComplianceAcceptedMock.mockResolvedValue(true);
     writeAppErrorLogMock.mockResolvedValue({ ok: true, skipped: false, id: "event-1" });
     parseProjectIdMock.mockImplementation((value: unknown) =>
       typeof value === "string" ? value : null
@@ -192,6 +199,31 @@ describe("projects routes", () => {
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({
       error: "Failed to create project",
+    });
+  });
+
+  it("rejects project creation before side effects when media consent is missing", async () => {
+    requireMediaComplianceAcceptedMock.mockImplementationOnce(async ({ res }) => {
+      res.status(403).json({
+        error: "Media agreement acceptance is required.",
+        code: "MEDIA_COMPLIANCE_REQUIRED",
+      });
+      return false;
+    });
+    const req = {
+      method: "POST",
+      body: { title: "Blocked" },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
+    const res = createMockResponse();
+
+    await createHandler(req as never, res as never);
+
+    expect(createProjectForUserMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Media agreement acceptance is required.",
+      code: "MEDIA_COMPLIANCE_REQUIRED",
     });
   });
 

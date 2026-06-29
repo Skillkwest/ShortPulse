@@ -3,6 +3,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
+import { requireMediaComplianceAccepted } from "../../../lib/server/api/mediaComplianceGuard";
 import {
   fetchPublicProviderSource,
   parseSafeProviderHttpUrl,
@@ -810,6 +811,14 @@ export default async function handler(
   }
   if (!user) return;
   const userId = user.id;
+  const hasAcceptedMediaAgreement = await requireMediaComplianceAccepted({
+    req,
+    res,
+    user,
+    routeLabel: "kie-upload-url",
+    scope: "generation",
+  });
+  if (!hasAcceptedMediaAgreement) return;
   if (
     !enforceApiRateLimit(req, res, {
       ...KIE_UPLOAD_URL_RATE_LIMIT,

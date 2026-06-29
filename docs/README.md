@@ -53,6 +53,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/adr/0094-paid-signup-intent-gate.md` (historical; superseded by `docs/adr/0095-account-first-signup-intent-gate.md`)
 - `docs/adr/0095-account-first-signup-intent-gate.md`
 - `docs/adr/0096-google-oauth-signup-intent-match.md`
+- `docs/adr/0097-google-signup-account-chooser-independence.md`
 - `docs/AGENTS.md`
 - `docs/developer-analytics-stat-sheet.md`
 - `docs/ux-decision-framework.md`

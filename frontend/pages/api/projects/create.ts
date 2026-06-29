@@ -4,6 +4,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
+import { requireMediaComplianceAccepted } from "../../../lib/server/api/mediaComplianceGuard";
 import { enforceApiRateLimit } from "../../../lib/server/api/rateLimit";
 import { createProjectForUser } from "../../../lib/server/projectsService";
 
@@ -69,6 +70,14 @@ export default async function handler(
     });
   }
   if (!user) return;
+  const hasAcceptedMediaAgreement = await requireMediaComplianceAccepted({
+    req,
+    res,
+    user,
+    routeLabel: "projects-create",
+    scope: "app",
+  });
+  if (!hasAcceptedMediaAgreement) return;
   if (
     !enforceApiRateLimit(req, res, {
       ...PROJECT_CREATE_RATE_LIMIT,

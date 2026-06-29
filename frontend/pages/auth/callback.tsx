@@ -381,6 +381,11 @@ export default function AuthCallbackPage() {
           void handleResolvedSession(session);
           return;
         }
+        if (session && callbackFlow !== "recovery") {
+          primeSupabaseSession(session);
+          void replace(nextPath);
+          return;
+        }
         if (
           callbackCode &&
           isGoogleOAuthCallback &&
@@ -545,6 +550,61 @@ export default function AuthCallbackPage() {
       setLoading(false);
     }
   };
+
+  if (status === "loading") {
+    const loadingTitle =
+      callbackFlow === "recovery"
+        ? "Reset password"
+        : callbackFlow === "email-change"
+          ? "Confirm email change"
+          : "Complete sign in";
+    const loadingMessage =
+      info ??
+      (callbackFlow === "recovery"
+        ? "Finalizing recovery link..."
+        : callbackFlow === "email-change"
+          ? "Confirming email..."
+          : "Completing sign-in...");
+
+    return (
+      <>
+        <Head>
+          <title>{`ShortPulse · ${loadingTitle}`}</title>
+        </Head>
+        <main className="auth-callback-minimal-shell">
+          <p
+            className="auth-callback-minimal-status"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            {loadingMessage}
+          </p>
+        </main>
+      </>
+    );
+  }
+
+  if (status === "error" && !accountSyncRetryKind) {
+    return (
+      <>
+        <Head>
+          <title>ShortPulse · Authentication link issue</title>
+        </Head>
+        <main className="auth-callback-minimal-shell">
+          <p
+            className="auth-callback-minimal-status"
+            role="alert"
+            aria-live="assertive"
+            aria-atomic="true"
+          >
+            {error ?? "The callback link could not be completed."}{" "}
+            <Link href={signInHref}>{authReturnLabel}</Link>.
+          </p>
+        </main>
+      </>
+    );
+  }
 
   return (
     <>

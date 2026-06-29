@@ -16,6 +16,7 @@ import { resolvePricingGridCostBreakdown } from "../../model-runtime/pricingGrid
 import { resolveVideoBilledCreditLookup } from "../../model-runtime/videoBilledCredits";
 import { materializeImageBilledCreditPolicy } from "../../model-runtime/materializeImageBilledCreditPolicy";
 import { requireApiUser } from "./auth";
+import { requireMediaComplianceAccepted } from "./mediaComplianceGuard";
 import { resolveBillingConcurrencyEntitlement } from "./billingConcurrencyEntitlements";
 import { readFalRuntimeFlags } from "./falRuntimeFlags";
 import { resolveRuntimeModelPricingPolicy } from "./modelPricingControlPlane";
@@ -221,6 +222,14 @@ export const chargeGenerationRequest = async ({
   });
   const sourceRef = resolveSourceRef({ req, shortpulseContext });
   const routeLabel = req.url ?? "/api/generation";
+  const hasAcceptedMediaAgreement = await requireMediaComplianceAccepted({
+    req,
+    res,
+    user,
+    routeLabel,
+    scope: "generation",
+  });
+  if (!hasAcceptedMediaAgreement) return null;
 
   if (skipBilling) {
     return {

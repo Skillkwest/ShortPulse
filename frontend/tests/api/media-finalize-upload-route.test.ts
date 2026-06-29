@@ -131,6 +131,42 @@ describe("POST /api/media/finalize-upload", () => {
     });
   });
 
+  it("rejects upload finalization before media rows are created when media consent is missing", async () => {
+    const { MediaUploadServiceError } = await import("../../lib/server/mediaUploadService");
+    finalizePreparedMediaUploadForUserMock.mockRejectedValueOnce(
+      new MediaUploadServiceError(
+        403,
+        "Media agreement acceptance is required.",
+        "Accept the current media agreement before uploading or staging media."
+      )
+    );
+    const req = {
+      method: "POST",
+      body: {
+        destinationTab: "uploaded_images",
+        sourceMimeType: "image/webp",
+        sourceName: "image.webp",
+        sourceStoragePath: "user-1/upload-staging/uploaded_images/image.webp",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(finalizePreparedMediaUploadForUserMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      destinationTab: "uploaded_images",
+      storagePath: "user-1/upload-staging/uploaded_images/image.webp",
+      filename: "image.webp",
+      declaredMimeType: "image/webp",
+    });
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Media agreement acceptance is required.",
+      details: "Accept the current media agreement before uploading or staging media.",
+    });
+  });
+
   it("returns a sanitized 500 when finalization fails unexpectedly", async () => {
     finalizePreparedMediaUploadForUserMock.mockRejectedValueOnce(
       new Error("storage download exploded")

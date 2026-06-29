@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted; amended by `docs/adr/0097-google-signup-account-chooser-independence.md`
 
 Extends: `docs/adr/0095-account-first-signup-intent-gate.md`
 
@@ -20,14 +20,14 @@ Keep email-hash signup intents as the default and safest match strategy. Add a G
 - `google_ip` intents are scoped to the hashed client IP observed by the app route and expire faster than email-hash intents.
 - Supabase Auth's Before User Created hook still requires a pending ShortPulse-created intent before insertion.
 - The hook first tries the existing email-hash match. If that fails and the provider is Google, it may consume the newest pending `google_ip` intent for the hook request IP.
-- When a valid email is already present on the signup form, Google signup continues to create an email-hash intent and passes `login_hint` to Google.
+- Historical behavior: when a valid email was present on the signup form, Google signup created an email-hash intent and passed `login_hint` to Google. ADR 0097 supersedes that behavior: Google signup now ignores the visible email/password fields, creates the short-lived Google/IP-bound intent, and asks Google to show the account chooser.
 - Email/password signup remains email-hash-only.
 
 ## Consequences
 
 - Positive: The signup Google button can open Google immediately without weakening email/password signup.
 - Positive: Direct generic OAuth signup is still blocked unless a fresh app-created intent exists.
-- Positive: Typed-email Google signup keeps the stricter email-hash match and can hint the same email to Google.
+- Positive: ADR 0097 keeps Google signup independent from browser-autofilled email/password fields so users can choose a different Google account.
 - Tradeoff: IP-bound matching is less precise than email-hash matching for users behind shared NATs or unstable networks.
 - Mitigation: The IP-bound path is Google-only, short-lived, and consumed once by the hook before an Auth row can be created.
-- Production rollout requires applying `sql/migrations/167_add_google_ip_signup_intent.sql`, deploying the matching app code, and proving both blank-email and typed-email Google signup through the production URL.
+- Production rollout requires applying `sql/migrations/167_add_google_ip_signup_intent.sql`, deploying the matching app code, and proving Google signup through the production URL with both blank and prefilled email/password fields.

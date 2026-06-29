@@ -10,6 +10,7 @@ import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
+const getMediaComplianceAcceptanceStatusForUserMock = vi.fn();
 const retireMotionReferenceVideoStoragePathForUserMock = vi.fn();
 const normalizeMotionReferenceVideoForProviderMock = vi.hoisted(() => vi.fn());
 
@@ -23,6 +24,17 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
 
 vi.mock("../../lib/server/api/supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
+}));
+
+vi.mock("../../lib/server/api/mediaComplianceAcceptance", () => ({
+  getMediaComplianceAcceptanceStatusForUser: (...args: unknown[]) =>
+    getMediaComplianceAcceptanceStatusForUserMock(...args),
+  isMediaComplianceUnavailableError: (error: unknown) =>
+    Boolean(
+      error &&
+      typeof error === "object" &&
+      (error as { code?: unknown }).code === "MEDIA_COMPLIANCE_UNAVAILABLE"
+    ),
 }));
 
 vi.mock("../../lib/server/motionReferenceVideoAssetLease", () => ({
@@ -63,6 +75,10 @@ describe("motion reference video direct-upload routes", () => {
     vi.clearAllMocks();
     resetApiRateLimitForTests();
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
+    getMediaComplianceAcceptanceStatusForUserMock.mockResolvedValue({
+      accepted: true,
+      acceptedAt: "2026-06-29T00:00:00.000Z",
+    });
     retireMotionReferenceVideoStoragePathForUserMock.mockResolvedValue({
       deleted: false,
       waitingOnLease: true,

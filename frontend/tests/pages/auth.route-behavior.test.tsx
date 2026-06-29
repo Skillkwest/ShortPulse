@@ -305,6 +305,22 @@ describe("Auth route behavior", () => {
     expect(signUpMock).not.toHaveBeenCalled();
   });
 
+  it("resets the Google sign-in loading state when the browser restores the auth page", async () => {
+    routerState.asPath = "/log-in?next=%2Fai-studio";
+    routerState.pathname = "/log-in";
+    routerState.query = { next: "/ai-studio" };
+
+    render(<AuthPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign in with Google" }));
+
+    expect(await screen.findByRole("button", { name: "Opening Google..." })).toBeDisabled();
+
+    fireEvent(window, new Event("pageshow"));
+
+    expect(screen.getByRole("button", { name: "Sign in with Google" })).not.toBeDisabled();
+  });
+
   it("shows a calm message after Google OAuth is cancelled", async () => {
     routerState.query = { oauth: "cancelled", next: "/dashboard" };
     routerState.asPath = "/auth?next=%2Fdashboard&oauth=cancelled";
@@ -379,6 +395,22 @@ describe("Auth route behavior", () => {
     expect(
       screen.queryByText("Create a free account with full studio access and zero starting credits.")
     ).not.toBeInTheDocument();
+  });
+
+  it("resets the Google signup loading state when the browser restores the auth page", async () => {
+    routerState.asPath = "/sign-up?next=%2Fai-studio";
+    routerState.pathname = "/sign-up";
+    routerState.query = { next: "/ai-studio" };
+
+    render(<AuthPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign up with Google" }));
+
+    expect(await screen.findByRole("button", { name: "Opening Google..." })).toBeDisabled();
+
+    fireEvent(window, new Event("pageshow"));
+
+    expect(screen.getByRole("button", { name: "Sign up with Google" })).not.toBeDisabled();
   });
 
   it("keeps signup closed when explicitly disabled even with a selected paid pricing plan", async () => {

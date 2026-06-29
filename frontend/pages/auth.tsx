@@ -285,6 +285,24 @@ export default function AuthPage() {
   }, [postAuthPath, requestedMode, router]);
 
   useEffect(() => {
+    const clearPendingOAuthState = () => {
+      setOauthLoading(false);
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        clearPendingOAuthState();
+      }
+    };
+
+    window.addEventListener("pageshow", clearPendingOAuthState);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.removeEventListener("pageshow", clearPendingOAuthState);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!shouldLoadAuthShowcaseMotion()) {
       setAttachedShowcaseVideoCount(0);
       return;

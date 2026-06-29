@@ -14,7 +14,15 @@ export type AudioCompanionArtGenerationSpec = {
 };
 
 const DEFAULT_BRAND_STYLE_LINE =
-  "Branded audio cover art style: cinematic editorial illustration, bold silhouette, layered atmosphere, premium gradients, restrained color palette, tactile texture, crisp focal subject, no text, no logos, no typography, no UI, no watermark, no border.";
+  "Branded audio companion art style: cinematic editorial illustration, bold silhouette, layered atmosphere, premium gradients, restrained color palette, tactile texture, crisp focal subject, no border.";
+
+const TEXT_FREE_VISUAL_CONTRACT = [
+  "Hard visual contract: image-only artwork.",
+  "Do not render any text from the audio concept or metadata.",
+  "No readable text, fake text, pseudo-letters, numbers, captions, labels, stickers, badges, logos, brand marks, watermarks, signatures, typography, subtitles, UI, icons, symbols, glyphs, QR codes, barcodes, advisory labels, music-note icons, or waveform graphics.",
+  "Avoid poster, flyer, product packaging, record-label, and literal album-cover layouts that reserve space for words.",
+  "Use only people, objects, places, lighting, color, texture, and abstract atmosphere to communicate the mood.",
+].join(" ");
 
 const asTrimmedString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
@@ -66,7 +74,7 @@ const buildCreativeDirection = ({
   const structure = asTrimmedString(metadata.structure);
   const mode = asTrimmedString(metadata.music_mode);
   return [
-    "Treat this like premium album-cover art inspired by the track mood.",
+    "Treat this as premium square companion artwork inspired by the track mood, not literal album packaging.",
     tempoBpm ? `Tempo cue: ${tempoBpm} BPM.` : "",
     energyPercent != null ? `Energy cue: ${energyPercent} percent.` : "",
     structure ? `Arrangement cue: ${structure}.` : "",
@@ -90,9 +98,11 @@ export const compileAudioCompanionArtPrompt = ({
 
   const prompt = [
     `Audio concept: ${normalizedPrompt}`,
+    "Interpret the audio concept as mood, setting, subject, color, and texture only; never draw its words.",
     `Source mode: ${sourceMode}.`,
     ...creativeDirection,
     normalizedStyleLine,
+    TEXT_FREE_VISUAL_CONTRACT,
   ].join("\n");
 
   return {

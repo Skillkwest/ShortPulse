@@ -1,4 +1,4 @@
-/* global require, process, console */
+/* global require, process, console, URL, document, window */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * AI Studio production perf gate audit.
@@ -8,10 +8,13 @@ const { chromium } = require("playwright");
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3100";
 const AI_STUDIO_AUDIT_PATH = "/ai-studio?perfAuditRuntime=1";
+const LOGIN_ENTRY_PATH = "/log-in";
 const EMAIL = (process.env.PLAYWRIGHT_AUDIT_EMAIL || "").trim();
 const PASSWORD = (process.env.PLAYWRIGHT_AUDIT_PASSWORD || "").trim() || "AuditPass!12345";
 
 const COUNTS = [40, 60];
+const TARGET_TOTAL_COUNT = 500;
+const TARGET_ACTIVE_COUNT = 128;
 const CLICK_SAMPLES = 24;
 
 async function signIn(page) {
@@ -27,13 +30,42 @@ async function signIn(page) {
   await page.locator("button.auth-submit").click();
 }
 
-async function waitForNonAuthRoute(page, timeoutMs) {
+function isAuthEntryPath(pathname) {
+  return (
+    pathname === "/auth" ||
+    pathname.startsWith("/auth/") ||
+    pathname === LOGIN_ENTRY_PATH ||
+    pathname === "/sign-up"
+  );
+}
+
+async function waitForProtectedRoute(page, targetPath, timeoutMs) {
+  const targetUrl = new URL(targetPath, BASE_URL);
   try {
-    await page.waitForURL((url) => !url.pathname.startsWith("/auth"), { timeout: timeoutMs });
+    await page.waitForURL((url) => url.pathname === targetUrl.pathname, { timeout: timeoutMs });
     return true;
   } catch {
     return false;
   }
+}
+
+async function readAuthBlockDetails(page) {
+  return page.evaluate(() => {
+    const bodyText = document.body?.innerText || "";
+    const messageSnippets = bodyText
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .filter((line) =>
+        /incorrect|confirm|check your email|unable|error|try again|too many|invalid/i.test(line)
+      )
+      .slice(0, 6);
+
+    return {
+      observedUrl: window.location.href,
+      messageSnippets,
+    };
+  });
 }
 
 async function main() {
@@ -61,23 +93,30 @@ async function main() {
     auth: {
       reachedProtectedRoute: false,
       blockedReason: null,
+      observedUrl: null,
+      messageSnippets: [],
     },
+    referenceGridTargetSeed: null,
     referenceGrid: null,
     studioShell: null,
   };
 
   try {
-    await page.goto(`${BASE_URL}/auth?next=${encodeURIComponent(AI_STUDIO_AUDIT_PATH)}`, {
-      waitUntil: "domcontentloaded",
-      timeout: 45_000,
-    });
+    await page.goto(
+      `${BASE_URL}${LOGIN_ENTRY_PATH}?next=${encodeURIComponent(AI_STUDIO_AUDIT_PATH)}`,
+      {
+        waitUntil: "domcontentloaded",
+        timeout: 45_000,
+      }
+    );
     await page.waitForTimeout(1000);
 
-    if (page.url().includes("/auth")) {
+    if (isAuthEntryPath(new URL(page.url()).pathname)) {
       await signIn(page);
-      const reached = await waitForNonAuthRoute(page, 20_000);
+      const reached = await waitForProtectedRoute(page, AI_STUDIO_AUDIT_PATH, 20_000);
       if (!reached) {
         result.auth.blockedReason = "auth_blocked_or_confirmation_required";
+        Object.assign(result.auth, await readAuthBlockDetails(page));
         console.log(JSON.stringify(result, null, 2));
         process.exitCode = 1;
         return;
@@ -94,6 +133,24 @@ async function main() {
       () => typeof globalThis.__shortpulseAiStudioPerf?.runReferenceGridAudit === "function",
       { timeout: 45_000 }
     );
+
+    const referenceGridTargetSeed = await page.evaluate(
+      ({ targetTotalCount }) =>
+        globalThis.__shortpulseAiStudioPerf.seedReferenceGrid(targetTotalCount),
+      { targetTotalCount: TARGET_TOTAL_COUNT }
+    );
+    result.referenceGridTargetSeed = referenceGridTargetSeed;
+    if (
+      referenceGridTargetSeed?.requestedCount !== TARGET_TOTAL_COUNT ||
+      referenceGridTargetSeed?.activeCount !== TARGET_ACTIVE_COUNT ||
+      referenceGridTargetSeed?.archivedCount !== TARGET_TOTAL_COUNT - TARGET_ACTIVE_COUNT ||
+      referenceGridTargetSeed?.totalCount !== TARGET_TOTAL_COUNT
+    ) {
+      result.ok = false;
+      console.log(JSON.stringify(result, null, 2));
+      process.exitCode = 1;
+      return;
+    }
 
     const referenceGrid = await page.evaluate(
       async ({ counts, clickSamples }) =>

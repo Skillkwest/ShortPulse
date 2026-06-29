@@ -78,6 +78,9 @@ const AUDIO_COMPANION_ART_REFRESH_INTERVAL_MS = 3_500;
 const EXTERNAL_LIBRARY_REFRESH_DEBOUNCE_MS = 400;
 const EXTERNAL_LIBRARY_REFRESH_MAX_WAIT_MS = 2_000;
 
+const isDocumentVisible = (): boolean =>
+  typeof document === "undefined" || document.visibilityState === "visible";
+
 const isRefreshableAudioCompanionArtRow = (
   row: MediaFileRow,
   statusRefreshAttempts = 0
@@ -173,6 +176,7 @@ export const useMediaLibraryPanelDataController = ({
   });
   const [audioCompanionArtRefreshAttemptVersion, setAudioCompanionArtRefreshAttemptVersion] =
     React.useState(0);
+  const [documentVisible, setDocumentVisible] = React.useState(isDocumentVisible);
 
   const requestFolderId = React.useMemo(
     () => normalizeMediaLibraryPanelRequestFolderId(activeFolderId),
@@ -229,6 +233,18 @@ export const useMediaLibraryPanelDataController = ({
   React.useEffect(() => {
     promptScopeCacheRef.current = promptScopeCache;
   }, [promptScopeCache]);
+
+  React.useEffect(() => {
+    if (typeof document === "undefined") return;
+    const updateDocumentVisible = () => {
+      setDocumentVisible(isDocumentVisible());
+    };
+    updateDocumentVisible();
+    document.addEventListener("visibilitychange", updateDocumentVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", updateDocumentVisible);
+    };
+  }, []);
 
   const commitMediaScopeCache = React.useCallback(
     (updater: React.SetStateAction<MediaLibraryAggregateScopeCacheState>) => {
@@ -771,6 +787,7 @@ export const useMediaLibraryPanelDataController = ({
 
   React.useEffect(() => {
     if (!refreshableAudioCompanionArtRefreshKey) return;
+    if (!documentVisible) return;
 
     let cancelled = false;
     const refreshPendingAudioCompanionArt = () => {
@@ -791,7 +808,7 @@ export const useMediaLibraryPanelDataController = ({
       cancelled = true;
       globalThis.clearInterval(intervalId);
     };
-  }, [refreshableAudioCompanionArtRefreshKey, refreshAudioCompanionArtRows]);
+  }, [documentVisible, refreshableAudioCompanionArtRefreshKey, refreshAudioCompanionArtRows]);
 
   const maybeAutoLoadMore = React.useCallback(() => {
     const container = panelBodyRef.current;

@@ -240,6 +240,9 @@ describe("audioCompanionArt processing", () => {
     expect(buildFalFluxKleinAudioCompanionArtPayloadMock).toHaveBeenCalledWith(
       expect.stringContaining("Control-plane branded style line.")
     );
+    expect(buildFalFluxKleinAudioCompanionArtPayloadMock).toHaveBeenCalledWith(
+      expect.stringContaining("Hard visual contract: image-only artwork.")
+    );
     expect(generateFalFluxKleinImageMock).toHaveBeenCalledWith(
       expect.objectContaining({
         payload: expect.objectContaining({
@@ -652,6 +655,13 @@ describe("audioCompanionArt processing", () => {
         }),
         pollIntervalMs: 500,
         initialPollDelayMs: 0,
+      })
+    );
+    expect(generateFalFluxKleinImageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          prompt: expect.stringContaining("Hard visual contract: image-only artwork."),
+        }),
       })
     );
     expect(uploadMock).toHaveBeenCalledWith(

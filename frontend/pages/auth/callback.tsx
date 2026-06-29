@@ -67,6 +67,15 @@ const hasAuthCallbackArtifacts = (asPath: string, hash: string): boolean => {
   return callbackKeys.some((key) => queryParams.has(key) || hashParams.has(key));
 };
 
+const readCallbackCode = (asPath: string): string | null => {
+  const beforeHash = asPath.split("#", 1)[0] ?? asPath;
+  const queryString = beforeHash.includes("?") ? beforeHash.slice(beforeHash.indexOf("?") + 1) : "";
+  const candidate = new URLSearchParams(queryString).get("code");
+  if (!candidate) return null;
+  const normalized = candidate.trim();
+  return normalized.length > 0 ? normalized : null;
+};
+
 const readCallbackAccessToken = (asPath: string, hash: string): string | null => {
   const beforeHash = asPath.split("#", 1)[0] ?? asPath;
   const queryString = beforeHash.includes("?") ? beforeHash.slice(beforeHash.indexOf("?") + 1) : "";
@@ -158,6 +167,17 @@ export default function AuthCallbackPage() {
         : null,
     [callbackFlow, nextPath, shouldReturnToAuthForGoogleOAuthError]
   );
+  const googleOAuthFailedHref = useMemo(
+    () =>
+      isGoogleOAuthCallback && (callbackFlow === "signin" || callbackFlow === "signup")
+        ? buildAuthReturnPath({
+            nextPath,
+            callbackFlow,
+            oauthStatus: callbackFlow === "signup" ? "signup_failed" : "signin_failed",
+          })
+        : null,
+    [callbackFlow, isGoogleOAuthCallback, nextPath]
+  );
   const recoveryFlowHint = useMemo(
     () =>
       hasPasswordRecoveryHint(
@@ -182,6 +202,7 @@ export default function AuthCallbackPage() {
       ),
     [router.asPath]
   );
+  const callbackCode = useMemo(() => readCallbackCode(router.asPath || ""), [router.asPath]);
   const [status, setStatus] = useState<CallbackStatus>("loading");
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
@@ -360,6 +381,29 @@ export default function AuthCallbackPage() {
           void handleResolvedSession(session);
           return;
         }
+        if (
+          callbackCode &&
+          isGoogleOAuthCallback &&
+          (callbackFlow === "signin" || callbackFlow === "signup")
+        ) {
+          void supabase.auth
+            .exchangeCodeForSession(callbackCode)
+            .then(({ data, error }) => {
+              if (cancelled || callbackError || isGoogleOAuthAccessDenied) return;
+              if (error) throw error;
+              const exchangedSession = data.session ?? null;
+              if (!exchangedSession) {
+                throw new Error("Google did not return an authenticated ShortPulse session.");
+              }
+              completionEventSeenRef.current = true;
+              void handleResolvedSession(exchangedSession);
+            })
+            .catch(() => {
+              if (cancelled || callbackError || isGoogleOAuthAccessDenied) return;
+              void replace(googleOAuthFailedHref ?? googleOAuthErrorHref ?? oauthCancelledHref);
+            });
+          return;
+        }
         window.setTimeout(() => {
           if (
             cancelled ||
@@ -384,7 +428,7 @@ export default function AuthCallbackPage() {
             !callbackArtifactsPresent &&
             (callbackFlow === "signin" || callbackFlow === "signup")
           ) {
-            void replace(oauthCancelledHref);
+            void replace(googleOAuthFailedHref ?? googleOAuthErrorHref ?? oauthCancelledHref);
             return;
           }
           setStatus("error");
@@ -414,9 +458,12 @@ export default function AuthCallbackPage() {
     };
   }, [
     callbackAccessToken,
+    callbackCode,
     callbackArtifactsPresent,
     callbackError,
     callbackFlow,
+    googleOAuthErrorHref,
+    googleOAuthFailedHref,
     isGoogleOAuthAccessDenied,
     isGoogleOAuthCallback,
     nextPath,

@@ -16,7 +16,9 @@ describe("audioCompanionArt promptCompiler", () => {
     );
     expect(compiled.prompt).toContain("Source mode: voiceover.");
     expect(compiled.prompt).toContain("Subtle performance character reference: Alice.");
-    expect(compiled.prompt).toContain("no text, no logos");
+    expect(compiled.prompt).toContain("Hard visual contract: image-only artwork.");
+    expect(compiled.prompt).toContain("No readable text, fake text, pseudo-letters");
+    expect(compiled.prompt).toContain("logos");
   });
 
   it("includes music-specific cues in branded album-cover prompts", () => {
@@ -31,9 +33,9 @@ describe("audioCompanionArt promptCompiler", () => {
       },
     });
 
-    expect(compiled.prompt).toContain(
-      "Treat this like premium album-cover art inspired by the track mood."
-    );
+    expect(compiled.prompt).toContain("premium square companion artwork");
+    expect(compiled.prompt).toContain("not literal album packaging");
+    expect(compiled.prompt).not.toContain("premium album-cover art");
     expect(compiled.prompt).toContain("Tempo cue: 122 BPM.");
     expect(compiled.prompt).toContain("Energy cue: 84 percent.");
     expect(compiled.prompt).toContain("Arrangement cue: cinematic.");
@@ -49,5 +51,26 @@ describe("audioCompanionArt promptCompiler", () => {
 
     expect(compiled.prompt).toContain("Custom runtime style line.");
     expect(compiled.prompt).not.toContain("cinematic editorial illustration");
+    expect(compiled.prompt).toContain("Hard visual contract: image-only artwork.");
+    expect(compiled.prompt).toContain("Do not render any text from the audio concept or metadata.");
+  });
+
+  it("treats title-like prompt text as mood only and forbids label/icon artifacts", () => {
+    const compiled = compileAudioCompanionArtPrompt({
+      promptText: "TITLE: Neon Thick Loop - rap hip hop beats",
+      sourceMode: "music",
+      styleLine: "Custom style without restrictions.",
+    });
+
+    expect(compiled.prompt).toContain("Audio concept: TITLE: Neon Thick Loop - rap hip hop beats");
+    expect(compiled.prompt).toContain(
+      "Interpret the audio concept as mood, setting, subject, color, and texture only; never draw its words."
+    );
+    expect(compiled.prompt).toContain(
+      "No readable text, fake text, pseudo-letters, numbers, captions, labels, stickers, badges, logos, brand marks, watermarks, signatures, typography, subtitles, UI, icons, symbols, glyphs, QR codes, barcodes, advisory labels, music-note icons, or waveform graphics."
+    );
+    expect(compiled.prompt).toContain(
+      "Avoid poster, flyer, product packaging, record-label, and literal album-cover layouts"
+    );
   });
 });

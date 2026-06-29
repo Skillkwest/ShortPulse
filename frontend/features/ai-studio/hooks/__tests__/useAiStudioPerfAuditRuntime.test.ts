@@ -1,4 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { renderHook, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+  REFERENCE_GRID_TARGET_TOTAL_ITEMS,
+} from "../../reference-grid/logic/referenceGridLimits";
 import {
   AI_STUDIO_PERF_AUDIT_ROOT_SELECTOR,
   createPerfAuditReferenceImageFile,
@@ -6,7 +11,27 @@ import {
   queryAiStudioPerfAudit,
   queryAiStudioPerfAuditAll,
   resolveAiStudioPerfAuditRoot,
+  useAiStudioPerfAuditRuntime,
 } from "../useAiStudioPerfAuditRuntime";
+
+type PerfAuditWindow = Window & {
+  __shortpulseAiStudioPerf?: {
+    seedReferenceGrid: (count: number) => {
+      requestedCount: number;
+      activeCount: number;
+      archivedCount: number;
+      totalCount: number;
+    };
+  };
+};
+
+const getPerfWindow = (): PerfAuditWindow => window as PerfAuditWindow;
+
+afterEach(() => {
+  delete getPerfWindow().__shortpulseAiStudioPerf;
+  window.history.pushState(null, "", "/");
+  vi.restoreAllMocks();
+});
 
 describe("createPerfAuditReferenceImageFile", () => {
   it("builds a valid PNG file for shell audit drop sampling", async () => {
@@ -17,6 +42,55 @@ describe("createPerfAuditReferenceImageFile", () => {
     expect(file.type).toBe("image/png");
     expect(file.size).toBe(bytes.length);
     expect(Array.from(bytes.slice(0, 8))).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
+  });
+});
+
+describe("useAiStudioPerfAuditRuntime", () => {
+  it("registers the browser audit helper from the perfAuditRuntime route flag and seeds the 500 target", async () => {
+    window.history.pushState(null, "", "/ai-studio?perfAuditRuntime=1");
+
+    const { unmount } = renderHook(() =>
+      useAiStudioPerfAuditRuntime({
+        enabled: false,
+        aspect: "9:16",
+        currentModelLabel: "Seedream",
+        model: "seedream",
+        getOutputSnapshot: () => ({ outputOrder: [] }),
+        resetReferenceGridState: vi.fn(),
+        projectRouteRequested: false,
+        standardCreatePrompt: "",
+        editReferenceText: "",
+        videoReferenceText: "",
+        setActiveOutputId: vi.fn(),
+        setStandardCreatePrompt: vi.fn(),
+        setEditReferenceText: vi.fn(),
+        setVideoReferenceText: vi.fn(),
+        setOutputs: vi.fn(),
+      })
+    );
+
+    await waitFor(() => {
+      expect(getPerfWindow().__shortpulseAiStudioPerf?.seedReferenceGrid).toEqual(
+        expect.any(Function)
+      );
+    });
+
+    const seeded = getPerfWindow().__shortpulseAiStudioPerf?.seedReferenceGrid(
+      REFERENCE_GRID_TARGET_TOTAL_ITEMS
+    );
+
+    expect(seeded).toEqual({
+      requestedCount: REFERENCE_GRID_TARGET_TOTAL_ITEMS,
+      activeCount: REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+      archivedCount: REFERENCE_GRID_TARGET_TOTAL_ITEMS - REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+      totalCount: REFERENCE_GRID_TARGET_TOTAL_ITEMS,
+    });
+
+    unmount();
+
+    await waitFor(() => {
+      expect(getPerfWindow().__shortpulseAiStudioPerf).toBeUndefined();
+    });
   });
 });
 

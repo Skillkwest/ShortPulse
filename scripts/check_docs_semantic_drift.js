@@ -8,6 +8,7 @@ const ROUTES_DOC = path.join(REPO_ROOT, "docs", "routes.md");
 const README_DOC = path.join(REPO_ROOT, "README.md");
 const SECURITY_DOC = path.join(REPO_ROOT, "docs", "security-checklist.md");
 const API_DOC = path.join(REPO_ROOT, "docs", "api", "api-internal-routes.md");
+const NEXT_CONFIG_PATH = path.join(REPO_ROOT, "frontend", "next.config.js");
 const PAGE_AUTH_GUARD_PATH = path.join(
   REPO_ROOT,
   "frontend",
@@ -332,6 +333,15 @@ function checkChangelogDates(errors) {
   }
 }
 
+function checkPublicSurfaceConfig(errors) {
+  const nextConfig = require(NEXT_CONFIG_PATH);
+  if (nextConfig.poweredByHeader !== false) {
+    errors.push(
+      "frontend/next.config.js must keep poweredByHeader: false for the launch public-surface contract",
+    );
+  }
+}
+
 function run() {
   const errors = [];
 
@@ -446,6 +456,7 @@ function run() {
 
   checkSkillPathValidity(errors);
   checkChangelogDates(errors);
+  checkPublicSurfaceConfig(errors);
 
   if (errors.length) {
     console.error("Semantic drift checks failed:");

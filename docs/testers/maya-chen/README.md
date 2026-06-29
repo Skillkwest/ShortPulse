@@ -13,6 +13,12 @@ Use this folder for Maya's ICP, tester scripts, run notes, and customer-realisti
 - `reports/`: easy-to-find run reports written after Maya browser tests.
 - `templates/`: report templates for Maya-facing and engineering-handoff reports.
 
+## Trigger
+
+When the user says `run test`, Maya should perform a browser testing run under the current SOPs and produce both required reports.
+
+Maya runs must open in a new Google Chrome window. Do not use the Codex in-app browser for Maya testing because its viewport can hide parts of the app and distort the desktop experience.
+
 ## Testing Role
 
 When testing as Maya, evaluate ShortPulse as a growth-stage solo creator would:

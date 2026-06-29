@@ -57,4 +57,12 @@ describe("agentPromptsConfig", () => {
     expect(styleExtractPrompt).toContain("descriptor #1");
     expect(styleExtractPrompt).toContain("hard style class, descriptor");
   });
+
+  it("keeps the audio companion art seed away from literal cover packaging", () => {
+    expect(agentPrompts.AUDIO_COMPANION_ART_STYLE_SYSTEM).toContain(
+      "Branded audio companion art style"
+    );
+    expect(agentPrompts.AUDIO_COMPANION_ART_STYLE_SYSTEM).not.toContain("album-cover");
+    expect(agentPrompts.AUDIO_COMPANION_ART_STYLE_SYSTEM).not.toContain("cover art style");
+  });
 });

@@ -16,6 +16,7 @@ const routerState = vi.hoisted(() => ({
 }));
 const updateUserMock = vi.hoisted(() => vi.fn());
 const onAuthStateChangeMock = vi.hoisted(() => vi.fn());
+const exchangeCodeForSessionMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next/head", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -82,9 +83,11 @@ describe("Auth callback route behavior", () => {
     ensureSupabaseClientMock.mockReturnValue({
       auth: {
         onAuthStateChange: onAuthStateChangeMock,
+        exchangeCodeForSession: exchangeCodeForSessionMock,
         updateUser: updateUserMock,
       },
     });
+    exchangeCodeForSessionMock.mockResolvedValue({ data: { session: null }, error: null });
   });
 
   it("bootstraps account identity and redirects after a confirmed signup session is available", async () => {
@@ -377,7 +380,7 @@ describe("Auth callback route behavior", () => {
 
     await waitFor(() => {
       expect(replaceMock).toHaveBeenCalledWith(
-        "/sign-up?next=%2Fpricing%3Fintent%3Dcreate-project%26plan%3Dstarter&oauth=cancelled"
+        "/sign-up?next=%2Fpricing%3Fintent%3Dcreate-project%26plan%3Dstarter&oauth=signup_failed"
       );
     });
     expect(
@@ -385,6 +388,62 @@ describe("Auth callback route behavior", () => {
         "This confirmation link is invalid or has expired. Sign up again to request a new confirmation email."
       )
     ).not.toBeInTheDocument();
+  });
+
+  it("exchanges a Google signup callback code when the initial session is not hydrated yet", async () => {
+    setCallbackRoute(
+      "/auth/callback?flow=signup&next=%2Fai-studio&provider=google&code=oauth-code",
+      {
+        flow: "signup",
+        next: "/ai-studio",
+        provider: "google",
+        code: "oauth-code",
+      }
+    );
+    readSupabaseSessionMock.mockResolvedValue(null);
+    exchangeCodeForSessionMock.mockResolvedValue({
+      data: {
+        session: {
+          user: { id: "user-1" },
+          access_token: "exchanged-token",
+        },
+      },
+      error: null,
+    });
+
+    render(<AuthCallbackPage />);
+
+    await waitFor(() => {
+      expect(exchangeCodeForSessionMock).toHaveBeenCalledWith("oauth-code");
+      expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/account/bootstrap", {
+        method: "POST",
+      });
+      expect(replaceMock).toHaveBeenCalledWith("/ai-studio");
+    });
+  });
+
+  it("returns to signup failure instead of canceled when Google code exchange fails", async () => {
+    setCallbackRoute(
+      "/auth/callback?flow=signup&next=%2Fai-studio&provider=google&code=oauth-code",
+      {
+        flow: "signup",
+        next: "/ai-studio",
+        provider: "google",
+        code: "oauth-code",
+      }
+    );
+    readSupabaseSessionMock.mockResolvedValue(null);
+    exchangeCodeForSessionMock.mockResolvedValue({
+      data: { session: null },
+      error: new Error("OAuth exchange failed"),
+    });
+
+    render(<AuthCallbackPage />);
+
+    await waitFor(() => {
+      expect(exchangeCodeForSessionMock).toHaveBeenCalledWith("oauth-code");
+      expect(replaceMock).toHaveBeenCalledWith("/sign-up?next=%2Fai-studio&oauth=signup_failed");
+    });
   });
 
   it("allows retrying email sync after Supabase confirms the email but downstream sync fails", async () => {

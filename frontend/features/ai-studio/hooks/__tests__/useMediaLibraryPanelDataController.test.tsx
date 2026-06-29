@@ -122,6 +122,7 @@ describe("useMediaLibraryPanelDataController", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it("applies seeded signed urls returned by the reset page load", async () => {
@@ -1177,6 +1178,92 @@ describe("useMediaLibraryPanelDataController", () => {
         "https://signed.test/gen-audio-1-cover.webp"
       );
     });
+  });
+
+  it("pauses audio companion-art panel polling while the document is hidden", async () => {
+    const visibilitySpy = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+    fetchMediaListPageMock
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "audio-1",
+            filename: "tiny-glitch.mp3",
+            storage_path: "user-1/generations/audio/audio-1.mp3",
+            file_type: "audio/mpeg",
+            source: "ai_studio",
+            source_ref: "gen-audio-1",
+            companion_art_status: "pending",
+            companion_art_storage_path: null,
+            companion_art_url: null,
+            created_at: "2026-06-17T12:00:00.000Z",
+          },
+        ],
+        nextCursor: null,
+        hasMore: false,
+        signedById: new Map(),
+        libraryTotalCount: 1,
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "audio-1",
+            filename: "tiny-glitch.mp3",
+            storage_path: "user-1/generations/audio/audio-1.mp3",
+            file_type: "audio/mpeg",
+            source: "ai_studio",
+            source_ref: "gen-audio-1",
+            companion_art_status: "ready",
+            companion_art_storage_path:
+              "user-1/generations/audio/gen-audio-1/companion-art/cover.webp",
+            companion_art_url: "https://signed.test/gen-audio-1-cover.webp",
+            created_at: "2026-06-17T12:00:00.000Z",
+          },
+        ],
+        nextCursor: null,
+        hasMore: false,
+        signedById: new Map(),
+        libraryTotalCount: 1,
+      });
+
+    const { result, unmount } = renderHook(() =>
+      useMediaLibraryPanelDataController({
+        activeFolderId: "all_items",
+        itemType: "all",
+        normalizedSearch: "",
+        shouldShowMedia: true,
+        shouldShowPrompts: false,
+        panelBodyRef: { current: null },
+      })
+    );
+
+    try {
+      await waitFor(() => {
+        expect(result.current.mediaScopeResolved).toBe(true);
+      });
+
+      vi.useFakeTimers();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(7_000);
+      });
+      expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
+
+      visibilitySpy.mockReturnValue("visible");
+      act(() => {
+        document.dispatchEvent(new Event("visibilitychange"));
+      });
+
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(fetchMediaListPageMock).toHaveBeenCalledTimes(2);
+      expect(result.current.mediaRows[0]?.companion_art_status).toBe("ready");
+    } finally {
+      unmount();
+      visibilitySpy.mockRestore();
+    }
   });
 
   it("stops status-only audio companion-art panel refreshes after the retry budget", async () => {

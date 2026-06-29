@@ -2,7 +2,7 @@
 
 Purpose: running audit-only ledger for high-ROI ShortPulse launch-hardening findings before the July 7, 2026 launch decision.
 
-Status: original audit-list implementation and proof gates complete as of Checkpoint 35 on 2026-06-28. Checkpoint 33 still records separate current-worktree drift outside the original fixes.
+Status: original audit-list implementation and proof gates complete as of Checkpoint 35 on 2026-06-28. Checkpoint 36 cleaned the local proof residue, tightened the public-surface regression guard, and preserved older unresolved/blocked checkpoint text as historical evidence only.
 
 Authority: this is a retained evidence/report artifact, not a source-of-truth contract. Current repo instructions, Copperknot launch authority, launch board, queue, ADRs, SOPs, source code, and fresh validation evidence override this ledger.
 
@@ -1259,9 +1259,41 @@ Updated boundary:
 - Separate current-worktree drift from Checkpoint 33 still exists outside the original list: Voice panel size-ratchet growth and Generate CTA versus Expert Edit launch-lock test contract.
 - Because the live Stripe secret was pasted into chat before this proof, rotate it in Stripe after the proof window.
 
+### 2026-06-29 Checkpoint 36 - Stale Cleanup And Regression Hardening
+
+Mode: cleanup and hardening after the completed list was challenged again. Scope stayed limited to local proof residue, this retained report, and a narrow docs-check regression guard. No UI, UX, route behavior, billing behavior, Stripe state, production data, deploy, commit, or push state changed.
+
+Cleanup result:
+
+- Removed live Stripe values from ignored `.env.agent.local` after the proof window and preserved mode `600`.
+- Removed temporary local proof files under `/tmp` that were no longer source-of-truth evidence.
+- Confirmed tracked source does not contain a pasted live Stripe key; the only tracked `sk_live_` match is the intentional Stripe key-prefix validation literal in the rollout helper.
+- Re-audited this report for stale current-state claims. Older checkpoint text that says F-007 or F-017 was open/blocked is retained as historical evidence and superseded by Checkpoints 34 and 35. The active status is the top `Status`, this checkpoint, the refreshed priority stack, and `Next Checkpoint`.
+
+Regression hardening:
+
+- Extended `scripts/check_docs_semantic_drift.js` so `docs:check` now fails if `frontend/next.config.js` stops setting `poweredByHeader: false`.
+- Existing `docs:check` coverage still verifies documented static public routes against `frontend/public/robots.txt` and `frontend/public/sitemap.xml`.
+- This converts the F-017 source-side public-surface fix from manual memory into a recurring local regression gate.
+
+Validation:
+
+- `node --check scripts/check_docs_semantic_drift.js` passed.
+- `npm -C frontend run docs:check` passed.
+- `git diff --check` passed.
+- Local secret-residue scan found no live Stripe key in tracked files or `.env.agent.local`; `.env.agent.local` remains mode `600`.
+- Temporary proof files `/tmp/billing-readiness-strict.json`, `/tmp/stripe_webhook_endpoints.json`, `/tmp/stripe_webhook_endpoints.txt`, and `/tmp/stripe_cli_err.txt` are absent.
+- Read-only production probes on `2026-06-29` returned `200` and no `x-powered-by` header for `https://www.shortpulse.ai/`, `/robots.txt`, and `/sitemap.xml`.
+
+Updated boundary:
+
+- No original F-001 through F-018 audit-list item remains unresolved.
+- Remaining known issues are not stale report items; they are separate current-worktree drift from Checkpoint 33: Voice panel size-ratchet growth and Generate CTA versus Expert Edit launch-lock test contract.
+- Rotate the live Stripe secret in Stripe because it was pasted into chat before local proof cleanup.
+
 ## Current July 7 Priority Stack
 
-This is the final deduped pre-launch worklist from this audit pass, refreshed by Checkpoints 17 through 35. It is not launch signoff. The original F-001 through F-018 implementation and proof items are complete; Checkpoint 33 found newer current-worktree validation drift outside those original fixes.
+This is the final deduped pre-launch worklist from this audit pass, refreshed by Checkpoints 17 through 36. It is not launch signoff. The original F-001 through F-018 implementation and proof items are complete; Checkpoint 33 found newer current-worktree validation drift outside those original fixes.
 
 ### P0 - Fix before relying on launch gates
 
@@ -1354,4 +1386,4 @@ Resolved locally during Checkpoint 32:
 
 ## Next Checkpoint
 
-Current boundary: no original F-001 through F-018 audit-list item remains unresolved. Current-worktree drift should be handled in targeted owner lanes: Voice panel size-ratchet growth and Generate CTA versus Expert Edit launch-lock test contract. Rotate the live Stripe secret after this proof window because it was pasted into chat.
+Current boundary: no original F-001 through F-018 audit-list item remains unresolved, and Checkpoint 36 has cleaned the local proof residue plus added a recurring `poweredByHeader: false` guard to `docs:check`. Current-worktree drift should be handled in targeted owner lanes: Voice panel size-ratchet growth and Generate CTA versus Expert Edit launch-lock test contract. Rotate the live Stripe secret after this proof window because it was pasted into chat.

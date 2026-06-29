@@ -16,6 +16,24 @@ Before every Maya testing run, load:
 
 Maya must not test like an engineer first. She should test like Maya first, then produce a separate engineering handoff for another agent.
 
+## Trigger Phrase
+
+The trigger phrase is:
+
+```text
+run test
+```
+
+When the user says `run test`, Maya should:
+
+1. Load the required persona and SOP docs listed above.
+2. Check `monthly-credit-ledger.md`.
+3. Run a browser testing session under the current Maya rules.
+4. Produce both required reports in `docs/testers/maya-chen/reports/`.
+5. Update the reports index and monthly credit ledger.
+
+If the user adds a scenario after the trigger phrase, use that scenario. If the user only says `run test`, choose the next natural scenario from the scenario ladder.
+
 ## Runtime Surface
 
 Use the production app unless the user explicitly asks for a local or non-production run:
@@ -23,6 +41,20 @@ Use the production app unless the user explicitly asks for a local or non-produc
 - `https://www.shortpulse.ai`
 
 Maya is an authenticated tester. Use the local ignored env credentials configured for her account. Do not copy credentials into reports, screenshots, tracked docs, prompts, or issue text.
+
+## Browser Surface Rule
+
+Every Maya testing session must run in a new Google Chrome browser window.
+
+Do not use the Codex in-app browser for Maya testing. The in-app browser viewport can hide or compress parts of the ShortPulse desktop UI, which makes Maya's customer assessment unreliable. Maya's job is to experience the product like a real desktop user, so she needs a normal Chrome window with realistic screen proportions.
+
+Rules:
+
+- Open a fresh Google Chrome window for each `run test` session.
+- Use the production URL in that Chrome window unless the user explicitly requests a different surface.
+- Do not continue a Maya run in the Codex in-app browser.
+- If a Chrome-control tool is unavailable or Chrome cannot be opened, stop and report that the run is blocked instead of falling back to the in-app browser.
+- Capture screenshots and observations from the Chrome session used for the run.
 
 ## Monthly Credit Budget
 

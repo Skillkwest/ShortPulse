@@ -4,6 +4,7 @@ import type { MediaLibraryPromptDetailModalItem } from "../../logic/mediaLibrary
 import { SharedMediaDetailActionBar } from "../detail-modal/SharedMediaDetailActionBar";
 import { SharedMediaDetailContentLayout } from "../detail-modal/SharedMediaDetailContentLayout";
 import { SharedMediaDetailModalShell } from "../detail-modal/SharedMediaDetailModalShell";
+import { PromptCopyButton } from "../detail-modal/PromptCopyButton";
 import { SharedMediaDetailTopBar } from "../detail-modal/SharedMediaDetailTopBar";
 import type { SharedMediaDetailActionItem } from "../detail-modal/detailModalPlatformTypes";
 import { resolveSharedMediaDetailMediaActionItems } from "../detail-modal/sharedMediaDetailActions";
@@ -61,7 +62,12 @@ export function MediaLibraryPromptDetailModal({
           <SharedMediaDetailTopBar
             title={item.presentation?.title ?? null}
             items={[]}
-            actions={<SharedMediaDetailActionBar items={actionItems} />}
+            actions={
+              <>
+                <PromptCopyButton text={item.prompt.prompt_text} />
+                <SharedMediaDetailActionBar items={actionItems} />
+              </>
+            }
             onClose={onClose}
             closeLabel="Close text detail"
           />

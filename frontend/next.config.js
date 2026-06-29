@@ -100,6 +100,7 @@ const nextConfig = {
   reactStrictMode: true,
   reactCompiler: false,
   devIndicators: false,
+  poweredByHeader: false,
   outputFileTracingIncludes: {
     "/api/**/*": bundledMediaRuntimeFiles,
   },

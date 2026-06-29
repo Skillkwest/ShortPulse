@@ -11,6 +11,7 @@ import {
 } from "../../lib/server/api/auth";
 import {
   resetSupabaseUserVerificationCache,
+  SUPABASE_USER_VERIFICATION_STALE_GRACE_MS,
   SUPABASE_USER_VERIFICATION_CACHE_TTL_MS,
 } from "../../lib/server/api/authTokenVerifier";
 
@@ -192,6 +193,120 @@ describe("auth helper protected-route auth behavior", () => {
 
     await getOptionalApiUser(req as never);
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries a first-time transient bearer verification outage once before failing closed", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("network down"))
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          id: "verified-user-id",
+          email: "verified@example.com",
+        }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = {
+      url: "/api/media/move",
+      headers: {
+        authorization: "Bearer valid-token",
+      },
+    };
+    const res = createMockResponse();
+
+    const user = await requireApiUser(req as never, res as never);
+
+    expect(user).toEqual(
+      expect.objectContaining({
+        id: "verified-user-id",
+        email: "verified@example.com",
+      })
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it("uses a recently verified bearer identity during a transient auth lookup outage", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-01T00:00:00.000Z"));
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          id: "verified-user-id",
+          email: "verified@example.com",
+        }),
+      })
+      .mockRejectedValue(new Error("network down"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = {
+      url: "/api/media/move",
+      headers: {
+        authorization: "Bearer valid-token",
+      },
+    };
+    const res = createMockResponse();
+
+    await requireApiUser(req as never, res as never);
+    vi.advanceTimersByTime(SUPABASE_USER_VERIFICATION_CACHE_TTL_MS + 1);
+
+    const user = await requireApiUser(req as never, res as never);
+
+    expect(user).toEqual(
+      expect.objectContaining({
+        id: "verified-user-id",
+        email: "verified@example.com",
+      })
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it("does not use a stale bearer identity after the auth lookup outage grace expires", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-01T00:00:00.000Z"));
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          id: "verified-user-id",
+          email: "verified@example.com",
+        }),
+      })
+      .mockRejectedValue(new Error("network down"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = {
+      url: "/api/media/move",
+      headers: {
+        authorization: "Bearer valid-token",
+      },
+    };
+    const res = createMockResponse();
+
+    await requireApiUser(req as never, res as never);
+    vi.advanceTimersByTime(
+      SUPABASE_USER_VERIFICATION_CACHE_TTL_MS + SUPABASE_USER_VERIFICATION_STALE_GRACE_MS + 1
+    );
+
+    const pendingUser = requireApiUser(req as never, res as never);
+    await vi.advanceTimersByTimeAsync(250);
+    const user = await pendingUser;
+
+    expect(user).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Authentication verification is temporarily unavailable.",
+      code: "AUTH_VERIFICATION_UNAVAILABLE",
+    });
   });
 
   it("rejects protected-route proxy headers when bearer token is missing", async () => {

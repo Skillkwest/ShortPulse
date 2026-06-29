@@ -297,6 +297,7 @@ export function SharedMediaDetailPreviewModal({
               audioLyricsText={item.media.lyricsText ?? null}
               audioDurationMs={item.media.durationMs ?? null}
               audioWaveformPeaks={item.media.waveformPeaks ?? null}
+              audioBackgroundImageUrl={item.media.companionArtUrl ?? null}
               videoPosterUrl={item.media.previewPosterUrl ?? null}
               videoRef={videoRef}
               audioRef={audioRef}
@@ -330,6 +331,7 @@ export function SharedMediaDetailPreviewModal({
               label={bladeContent.label}
               value={bladeContent.value}
               placeholder={item ? resolveSharedMediaDetailBladePlaceholder(item) : undefined}
+              copyText={bladeContent.label === "PROMPT" ? bladeContent.value : null}
             />
           ) : null
         }

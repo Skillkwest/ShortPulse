@@ -2,9 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  DEFAULT_EXPECTED_STATUS_ROUTES,
   DEFAULT_FORBIDDEN_ROUTES,
   normalizePathLike,
   parseArgs,
+  parseExpectedStatusRoute,
   pathMatchesRequired,
 } from "../../../scripts/verify_deployment_route_parity.mjs";
 
@@ -33,6 +35,41 @@ describe("deployment route parity launch gate", () => {
     expect(args.forbiddenRoutes).toContain("/api/upload-audio");
     expect(args.forbiddenRoutes).toContain("/api/media/upload");
     expect(args.forbiddenRoutes).toContain("/api/media/admit-image-asset");
+  });
+
+  it("probes source-present dev-only routes by expected anonymous status", () => {
+    const args = parseArgs(["--base-url", "https://www.shortpulse.ai"]);
+
+    expect(args.expectedStatusRoutes).toEqual(DEFAULT_EXPECTED_STATUS_ROUTES);
+    expect(args.expectedStatusRoutes).toContainEqual({
+      route: "/dev/ai-studio-stage-bakeoff",
+      status: 404,
+    });
+    expect(args.forbiddenRoutes).not.toContain("/dev/ai-studio-stage-bakeoff");
+  });
+
+  it("allows expected-status route probes to be extended or bypassed", () => {
+    const args = parseArgs([
+      "--base-url",
+      "https://www.shortpulse.ai",
+      "--expected-status-route",
+      "401:/api/custom-protected-route",
+    ]);
+
+    expect(args.expectedStatusRoutes).toEqual([
+      ...DEFAULT_EXPECTED_STATUS_ROUTES,
+      {
+        route: "/api/custom-protected-route",
+        status: 401,
+      },
+    ]);
+
+    const bypassed = parseArgs([
+      "--base-url",
+      "https://www.shortpulse.ai",
+      "--ignore-default-expected-status-routes",
+    ]);
+    expect(bypassed.expectedStatusRoutes).toEqual([]);
   });
 
   it("keeps manual forbidden routes additive", () => {
@@ -68,6 +105,18 @@ describe("deployment route parity launch gate", () => {
     );
   });
 
+  it("parses expected-status routes", () => {
+    expect(
+      parseExpectedStatusRoute("404:https://www.shortpulse.ai/dev/ai-studio-stage-bakeoff")
+    ).toEqual({
+      route: "/dev/ai-studio-stage-bakeoff",
+      status: 404,
+    });
+    expect(() => parseExpectedStatusRoute("ok:/dev/ai-studio-stage-bakeoff")).toThrow(
+      "Invalid --expected-status-route value"
+    );
+  });
+
   it("matches Vercel function outputs under canonical route paths", () => {
     expect(pathMatchesRequired("/api/upload-video", "/api/upload-video.func")).toBe(true);
     expect(pathMatchesRequired("/api/upload-video", "/api/upload-video/index.func")).toBe(true);
@@ -82,5 +131,15 @@ describe("deployment route parity launch gate", () => {
     );
 
     expect(presentRetiredRouteFiles).toEqual([]);
+  });
+
+  it("keeps expected-status source-present dev-only routes out of retired-route checks", () => {
+    const expectedStatusRouteFiles = DEFAULT_EXPECTED_STATUS_ROUTES.flatMap(({ route }) =>
+      toPageRouteCandidates(route)
+        .filter((candidate) => fs.existsSync(candidate))
+        .map((candidate) => path.relative(process.cwd(), candidate))
+    );
+
+    expect(expectedStatusRouteFiles).toContain("pages/dev/ai-studio-stage-bakeoff.tsx");
   });
 });

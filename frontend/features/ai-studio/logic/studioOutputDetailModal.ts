@@ -124,6 +124,8 @@ export const createStudioOutputDetailModalItem = ({
       previewPosterUrl: output.previewPosterUrl ?? null,
       previewPosterStoragePath: output.previewPosterStoragePath ?? null,
       fullUrl: output.resultUrls?.find((candidate) => candidate?.trim()) ?? null,
+      companionArtUrl: output.companionArtUrl ?? null,
+      companionArtStoragePath: output.companionArtStoragePath ?? null,
       audioSourceMode: resolveStudioOutputAudioSourceMode(output),
       musicMode: resolveStudioOutputMusicMode(output),
       durationMs: output.durationMs ?? null,

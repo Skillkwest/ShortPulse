@@ -440,15 +440,15 @@ describe("ExpertEditPanelView interaction flow", () => {
     fireEvent.click(await screen.findByRole("menuitem", { name: "Reset All" }));
 
     await waitFor(() => {
-      expect(onSessionStateChange).toHaveBeenCalled();
+      const latestState = onSessionStateChange.mock.calls.at(-1)?.[0] as
+        | ExpertEditSessionState
+        | undefined;
+      expect(latestState?.layers.layers).toHaveLength(2);
+      expect(latestState?.layers.layers[0]?.transform.scale).toBe(1);
+      expect(latestState?.layers.layers[1]?.transform.scale).toBe(1);
+      expect(latestState?.markup.strokes).toHaveLength(0);
+      expect(latestState?.inpaint.snapshot.layers).toHaveLength(0);
     });
-
-    const latestState = onSessionStateChange.mock.calls.at(-1)?.[0] as ExpertEditSessionState;
-    expect(latestState.layers.layers).toHaveLength(2);
-    expect(latestState.layers.layers[0]?.transform.scale).toBe(1);
-    expect(latestState.layers.layers[1]?.transform.scale).toBe(1);
-    expect(latestState.markup.strokes).toHaveLength(0);
-    expect(latestState.inpaint.snapshot.layers).toHaveLength(0);
   });
 
   it("keeps zoom state in sync between inline and expanded modal surfaces", async () => {

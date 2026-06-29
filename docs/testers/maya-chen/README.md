@@ -7,6 +7,10 @@ Use this folder for Maya's ICP, tester scripts, run notes, and customer-realisti
 ## Durable Profile
 
 - `icp.md`: Maya's customer profile and testing lens.
+- `standard-operating-procedure.md`: how to run browser tests while acting as Maya.
+- `authenticated-testing-and-reporting-sop.md`: authenticated browser testing duties, credit budget, generation limits, and required reports.
+- `reports/`: easy-to-find run reports written after Maya browser tests.
+- `templates/`: report templates for Maya-facing and engineering-handoff reports.
 
 ## Testing Role
 

@@ -24,3 +24,4 @@ Purpose: store reusable prompts that improve Gottspan's repo-steward, audit, and
 - `pursue-goal-to-solve-discovered-issues-prompt.md`: autonomous issue-resolution prompt for solving a known issue list one by one through root-cause audits, source fixes, validation, and stop conditions.
 - `scaled-plan-first-workflow-prompt.md`: general-purpose task prompt that scales planning effort to task size while preserving stop condition, scope, source-of-truth, and no-drift controls.
 - `setup-build-automation-prompt.md`: checkpointed execution-loop prompt for build, cleanup, and repo-management tasks that need explicit stop conditions, scope locks, checkpoint audits, and continuation rules.
+- `solve-current-backlog-item-prompt.md`: single-backlog-item implementation prompt for solving the current conversation's backlog item at the source without drifting into neighboring work.

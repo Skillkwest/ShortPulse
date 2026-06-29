@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { EventEmitter } from "node:events";
 import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

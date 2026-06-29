@@ -112,6 +112,37 @@ describe("useCredits", () => {
     expect(ensureSupabaseQueryClientMock).not.toHaveBeenCalled();
   });
 
+  it("retries a transient snapshot service failure before surfacing a balance error", async () => {
+    fetchWithAuthMock
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+      } as unknown as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          spendableCents: 875,
+          reservedCents: 25,
+          updatedAt: "2026-02-15T20:00:00.000Z",
+        }),
+      } as unknown as Response);
+
+    const { result } = renderHook(() => useCredits());
+
+    await waitFor(
+      () => {
+        expect(result.current.balanceLoading).toBe(false);
+      },
+      { timeout: 2_000 }
+    );
+
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(2);
+    expect(result.current.balanceCents).toBe(875);
+    expect(result.current.balanceReservedCents).toBe(25);
+    expect(result.current.balanceError).toBeNull();
+    expect(ensureSupabaseQueryClientMock).not.toHaveBeenCalled();
+  });
+
   it("hides the previous user's balance and reloads when the authenticated user changes", async () => {
     fetchWithAuthMock
       .mockResolvedValueOnce({

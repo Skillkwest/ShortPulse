@@ -16,6 +16,7 @@ import { AppMessage } from "../../../components/AppMessage";
 import { MEDIA_STORAGE_FULL_USER_MESSAGE } from "../../../lib/mediaStorageQuota";
 import { resolveCustomerFacingModelLabel } from "../../../lib/customerFacingProviderText";
 import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../../../lib/model-runtime/falModelIds";
+import { isSupabaseRenderImageUrl } from "../../../lib/mediaPreviewTrustPolicy";
 import { stripEditLabel } from "../utils/modelLabels";
 import { useAvatarResilience } from "../hooks/useAvatarResilience";
 import {
@@ -31,6 +32,7 @@ import { SharedMediaDetailContentLayout } from "./detail-modal/SharedMediaDetail
 import { SharedMediaDetailActionBar } from "./detail-modal/SharedMediaDetailActionBar";
 import { SharedMediaDetailInfoPanel } from "./detail-modal/SharedMediaDetailInfoPanel";
 import { SharedMediaDetailModalShell } from "./detail-modal/SharedMediaDetailModalShell";
+import { PromptCopyButton } from "./detail-modal/PromptCopyButton";
 import { resolveSharedMediaDetailMediaActionItems } from "./detail-modal/sharedMediaDetailActions";
 import { SharedMediaDetailTopBar } from "./detail-modal/SharedMediaDetailTopBar";
 import { SharedMediaDetailVideoSnapshotControl } from "./detail-modal/SharedMediaDetailVideoSnapshotControl";
@@ -80,6 +82,12 @@ const resolveDetailWorkflowReloadMediaKindHint = (
 ): WorkflowReloadMediaKindHint => inferWorkflowReloadMediaKindForOutput(output);
 
 const LIP_SYNC_DETAIL_MODEL_LABEL = "Lip Sync";
+
+const normalizeDetailAudioBackgroundUrl = (value: string | null | undefined): string | null => {
+  const normalized = value?.trim();
+  if (!normalized || isSupabaseRenderImageUrl(normalized)) return null;
+  return normalized;
+};
 
 const shouldStripDetailModelEditLabel = (output: StudioOutput, label: string): boolean => {
   const modelId = output.modelId?.trim().toLowerCase() ?? "";
@@ -211,6 +219,10 @@ function DetailModalContent({
     url: string;
     width: number;
     height: number;
+  } | null>(null);
+  const [reflectedPreviewByOutput, setReflectedPreviewByOutput] = useState<{
+    outputId: string;
+    url: string | null;
   } | null>(null);
   const [imageZoomScaleByOutput, setImageZoomScaleByOutput] = useState<{
     outputId: string;
@@ -912,6 +924,19 @@ function DetailModalContent({
       sharedTopBarItems,
     ]
   );
+  const audioBackgroundImageUrl = normalizeDetailAudioBackgroundUrl(
+    detailModalItem.media.companionArtUrl
+  );
+  const reflectedPreviewUrl =
+    !displayPreviewUrl || isErrorDetail
+      ? null
+      : isAudioOutput
+        ? audioBackgroundImageUrl
+        : isImageOutput &&
+            reflectedPreviewByOutput?.outputId === outputId &&
+            reflectedPreviewByOutput.url
+          ? reflectedPreviewByOutput.url
+          : displayPreviewUrl;
   const shouldRenderDetailInfoPanel = shouldRenderSharedMediaDetailInfoPanel(
     detailModalItem,
     bladeContent
@@ -1121,6 +1146,20 @@ function DetailModalContent({
     [setIsImagePanningForOutput]
   );
 
+  const handleDisplayedImageUrlChange = useCallback(
+    (displayedUrl: string | null) => {
+      if (!outputId || isErrorDetail) return;
+      setReflectedPreviewByOutput((current) => {
+        if (current?.outputId === outputId && current.url === displayedUrl) return current;
+        return {
+          outputId,
+          url: displayedUrl,
+        };
+      });
+    },
+    [isErrorDetail, outputId]
+  );
+
   const imageVesselClassName = [
     "art-image-vessel",
     isImageOutput ? "is-zoomable" : "",
@@ -1246,10 +1285,10 @@ function DetailModalContent({
         dialogClassName={`reference-modal-new ${shouldUseTextDetailLayout ? "is-text-only" : ""} ${shouldUseExternalFileLayout ? "is-uploaded" : ""} ${shouldUseExternalFileLayout ? "is-stage-only" : ""} ${isAudioOutput ? "is-audio-modal" : ""}`}
         dialogStyle={detailModalStyle}
         backdropDecoration={
-          displayPreviewUrl && !isErrorDetail ? (
+          reflectedPreviewUrl && !isErrorDetail ? (
             <div
               className="reference-modal-bg-reflect"
-              style={{ backgroundImage: `url(${displayPreviewUrl})` }}
+              style={{ backgroundImage: `url(${reflectedPreviewUrl})` }}
             />
           ) : null
         }
@@ -1300,6 +1339,7 @@ function DetailModalContent({
                   audioLyricsText={detailModalItem.media.lyricsText ?? null}
                   audioDurationMs={detailModalItem.media.durationMs ?? null}
                   audioWaveformPeaks={detailModalItem.media.waveformPeaks ?? null}
+                  audioBackgroundImageUrl={audioBackgroundImageUrl}
                   videoPosterUrl={detailVideoPosterUrl}
                   imageStyle={imageStyle}
                   videoStyle={aspectStyle}
@@ -1312,6 +1352,7 @@ function DetailModalContent({
                   onImageLoad={handleImageLoad}
                   onImageError={handleDetailImageError}
                   onImageCandidateError={handleDetailImageError}
+                  onDisplayedImageUrlChange={handleDisplayedImageUrlChange}
                   onVideoLoadedMetadata={(event) => {
                     handlePreviewAspectLoad(
                       event.currentTarget.videoWidth,
@@ -1414,6 +1455,7 @@ function DetailModalContent({
                   textareaRef={promptTextareaRef}
                   placeholder={resolveSharedMediaDetailBladePlaceholder(detailModalItem)}
                   onChange={handlePromptChange}
+                  copyText={bladeContent.label === "PROMPT" ? bladeContent.value : null}
                 />
               ) : null
             }
@@ -1428,19 +1470,24 @@ function DetailModalContent({
                 title={detailModalItem.presentation?.title ?? null}
                 items={isErrorDetail ? resolveSharedMediaDetailTopBarItems(detailModalItem) : []}
                 actions={
-                  <SharedMediaDetailActionBar
-                    items={sharedPromptActionItems}
-                    notice={
-                      isPromptOnlySaved ? (
-                        <AppMessage
-                          className="art-save-feedback"
-                          tone="success"
-                          mode="inline"
-                          message="Changes saved successfully."
-                        />
-                      ) : null
-                    }
-                  />
+                  <>
+                    {!isErrorDetail && trimmedPrompt ? (
+                      <PromptCopyButton text={draftPrompt} />
+                    ) : null}
+                    <SharedMediaDetailActionBar
+                      items={sharedPromptActionItems}
+                      notice={
+                        isPromptOnlySaved ? (
+                          <AppMessage
+                            className="art-save-feedback"
+                            tone="success"
+                            mode="inline"
+                            message="Changes saved successfully."
+                          />
+                        ) : null
+                      }
+                    />
+                  </>
                 }
                 onClose={handleCloseModal}
                 closeLabel={isErrorDetail ? "Close error detail" : "Close text detail"}

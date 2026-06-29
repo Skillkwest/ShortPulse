@@ -357,6 +357,8 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const voiceScriptRef = React.useRef<HTMLTextAreaElement | null>(null);
   const splitContainerRef = React.useRef<HTMLDivElement | null>(null);
   const voicesLibraryTriggerRef = React.useRef<HTMLButtonElement | null>(null);
+  const selectedVoiceTriggerRef = React.useRef<HTMLButtonElement | null>(null);
+  const voicesLibraryFocusRestoreTargetRef = React.useRef<HTMLButtonElement | null>(null);
   const designedPreviewAudioRef = React.useRef<HTMLAudioElement | null>(null);
   const designedPreviewAudioIdRef = React.useRef<string | null>(null);
   const shouldFocusCreateControlsRef = React.useRef(false);
@@ -584,7 +586,8 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       return;
     }
     queueMicrotask(() => {
-      voicesLibraryTriggerRef.current?.focus();
+      (voicesLibraryFocusRestoreTargetRef.current ?? voicesLibraryTriggerRef.current)?.focus();
+      voicesLibraryFocusRestoreTargetRef.current = null;
     });
     shouldRestoreVoicesLibraryTriggerFocusRef.current = false;
   }, [isVoicesLibraryModalOpen]);
@@ -872,12 +875,17 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
 
   useAiStudioModalActivity("voices-create-modal", isCreateVoiceModalOpen);
 
-  const handleOpenVoicesLibraryModal = React.useCallback(() => {
-    shouldRestoreVoicesLibraryTriggerFocusRef.current = true;
-    setActiveVoicesLibrarySection("my");
-    setVoicesLoadNotice((current) => (isTransientVoicePreviewNotice(current) ? null : current));
-    setIsVoicesLibraryModalOpen(true);
-  }, [setVoicesLoadNotice]);
+  const handleOpenVoicesLibraryModal = React.useCallback(
+    (restoreFocusTo?: HTMLButtonElement | null) => {
+      voicesLibraryFocusRestoreTargetRef.current =
+        restoreFocusTo ?? voicesLibraryTriggerRef.current;
+      shouldRestoreVoicesLibraryTriggerFocusRef.current = true;
+      setActiveVoicesLibrarySection("my");
+      setVoicesLoadNotice((current) => (isTransientVoicePreviewNotice(current) ? null : current));
+      setIsVoicesLibraryModalOpen(true);
+    },
+    [setVoicesLoadNotice]
+  );
 
   React.useEffect(() => {
     if (!isCreateVoiceModalOpen) {
@@ -1475,7 +1483,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                       fontSize: "0.98rem",
                     }}
                     aria-label="Voices"
-                    onClick={handleOpenVoicesLibraryModal}
+                    onClick={() => handleOpenVoicesLibraryModal(voicesLibraryTriggerRef.current)}
                   >
                     <span>Voices</span>
                   </button>
@@ -1492,7 +1500,13 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                         →
                       </span>
                     ) : null}
-                    <span className="voices-properties-generate-context-copy">
+                    <button
+                      ref={selectedVoiceTriggerRef}
+                      type="button"
+                      className="voices-properties-generate-context-copy voices-properties-selected-voice-trigger"
+                      aria-label={`Open voices modal for selected voice ${selectedGenerateVoiceName}`}
+                      onClick={() => handleOpenVoicesLibraryModal(selectedVoiceTriggerRef.current)}
+                    >
                       <span className="voices-properties-generate-context-label">
                         Selected voice
                       </span>
@@ -1504,7 +1518,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                       >
                         {selectedGenerateVoiceName}
                       </span>
-                    </span>
+                    </button>
                   </span>
                 </div>
                 <button

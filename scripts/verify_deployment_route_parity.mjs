@@ -35,6 +35,13 @@ export const DEFAULT_FORBIDDEN_ROUTES = [
   "/api/media/admit-image-asset",
 ];
 
+export const DEFAULT_EXPECTED_STATUS_ROUTES = [
+  {
+    route: "/dev/ai-studio-stage-bakeoff",
+    status: 404,
+  },
+];
+
 const usage = () => {
   console.log(`Usage:
   node scripts/verify_deployment_route_parity.mjs [options]
@@ -50,6 +57,12 @@ ${DEFAULT_REQUIRED_ROUTES.map((route) => `                          - ${route}`)
 ${DEFAULT_FORBIDDEN_ROUTES.map((route) => `                          - ${route}`).join("\n")}
   --ignore-default-forbidden-routes
                           Inspect an older deployment without enforcing the default retired-route list.
+  --expected-status-route <status>:<path>
+                          Anonymous HTTP probe that must return the expected status (repeatable).
+                          Default expected-status routes:
+${DEFAULT_EXPECTED_STATUS_ROUTES.map((entry) => `                          - ${entry.status}:${entry.route}`).join("\n")}
+  --ignore-default-expected-status-routes
+                          Inspect without enforcing default anonymous expected-status probes.
   --token <token>         Vercel API token.
                           Optional. Falls back to authenticated \`vercel\` CLI state when omitted.
                           Env fallback: SHORTPULSE_VERCEL_API_TOKEN, VERCEL_API_TOKEN
@@ -97,6 +110,18 @@ export const normalizePathLike = (rawValue) => {
     .toLowerCase()}`;
 };
 
+export const parseExpectedStatusRoute = (rawValue) => {
+  const [rawStatus, ...rawRouteParts] = rawValue.split(":");
+  const status = Number(rawStatus);
+  const route = normalizePathLike(rawRouteParts.join(":"));
+  if (!Number.isInteger(status) || status < 100 || status > 599 || !route) {
+    throw new Error(
+      `Invalid --expected-status-route value: ${rawValue}. Expected <status>:<path>.`,
+    );
+  }
+  return { route, status };
+};
+
 export const parseArgs = (argv) => {
   const parsed = {
     baseUrl:
@@ -109,7 +134,9 @@ export const parseArgs = (argv) => {
       "",
     requiredRoutes: [],
     forbiddenRoutes: [],
+    expectedStatusRoutes: [],
     ignoreDefaultForbiddenRoutes: false,
+    ignoreDefaultExpectedStatusRoutes: false,
     maxDeploymentAgeHours: null,
     minCreatedAt: "",
     output: "",
@@ -141,6 +168,19 @@ export const parseArgs = (argv) => {
     }
     if (arg === "--ignore-default-forbidden-routes") {
       parsed.ignoreDefaultForbiddenRoutes = true;
+      continue;
+    }
+    if (arg === "--expected-status-route") {
+      parsed.expectedStatusRoutes.push(
+        parseExpectedStatusRoute(
+          readArgValue(argv, index, "--expected-status-route"),
+        ),
+      );
+      index += 1;
+      continue;
+    }
+    if (arg === "--ignore-default-expected-status-routes") {
+      parsed.ignoreDefaultExpectedStatusRoutes = true;
       continue;
     }
     if (arg === "--token") {
@@ -188,6 +228,9 @@ export const parseArgs = (argv) => {
   parsed.forbiddenRoutes = parsed.ignoreDefaultForbiddenRoutes
     ? parsed.forbiddenRoutes
     : [...DEFAULT_FORBIDDEN_ROUTES, ...parsed.forbiddenRoutes];
+  parsed.expectedStatusRoutes = parsed.ignoreDefaultExpectedStatusRoutes
+    ? parsed.expectedStatusRoutes
+    : [...DEFAULT_EXPECTED_STATUS_ROUTES, ...parsed.expectedStatusRoutes];
   return parsed;
 };
 
@@ -338,6 +381,25 @@ export const pathMatchesRequired = (requiredRoute, candidatePath) => {
   return false;
 };
 
+const probeExpectedStatusRoute = async (baseUrl, { route, status }) => {
+  const url = new URL(route, `${baseUrl}/`).toString();
+  const response = await fetch(url, {
+    method: "GET",
+    redirect: "manual",
+    headers: {
+      accept: "text/html,*/*",
+    },
+  });
+  await response.arrayBuffer().catch(() => null);
+  return {
+    route,
+    expected_status: status,
+    actual_status: response.status,
+    pass: response.status === status,
+    url,
+  };
+};
+
 const run = async () => {
   const loadedEnvFiles = loadLocalEnv({
     argv: process.argv.slice(2),
@@ -357,6 +419,12 @@ const run = async () => {
   const forbiddenRoutes = args.forbiddenRoutes
     .map((route) => normalizePathLike(route))
     .filter(Boolean);
+  const expectedStatusRoutes = args.expectedStatusRoutes
+    .map((entry) => ({
+      route: normalizePathLike(entry.route),
+      status: entry.status,
+    }))
+    .filter((entry) => entry.route);
   const maxDeploymentAgeHours = parsePositiveNumber(
     args.maxDeploymentAgeHours,
     "--max-deployment-age-hours",
@@ -445,6 +513,12 @@ const run = async () => {
       console.log(`  - ${route}`);
     }
   }
+  if (expectedStatusRoutes.length > 0) {
+    console.log("[route-parity] expected anonymous route statuses:");
+    for (const { route, status } of expectedStatusRoutes) {
+      console.log(`  - ${status} ${route}`);
+    }
+  }
 
   const nowMs = Date.now();
   const lineageFailures = [];
@@ -470,6 +544,16 @@ const run = async () => {
     }
   }
 
+  const statusProbeResults = [];
+  for (const expectedStatusRoute of expectedStatusRoutes) {
+    statusProbeResults.push(
+      await probeExpectedStatusRoute(args.baseUrl, expectedStatusRoute),
+    );
+  }
+  const statusProbeFailures = statusProbeResults.filter(
+    (result) => !result.pass,
+  );
+
   const summary = {
     target: args.baseUrl,
     resolved_deployment: resolvedDeploymentUrl || null,
@@ -482,12 +566,16 @@ const run = async () => {
     missing_routes: missingRoutes,
     forbidden_routes: forbiddenRoutes,
     exposed_forbidden_routes: exposedForbiddenRoutes,
+    expected_status_routes: expectedStatusRoutes,
+    status_probe_results: statusProbeResults,
+    status_probe_failures: statusProbeFailures,
     max_deployment_age_hours: maxDeploymentAgeHours,
     min_created_at_epoch_ms: minCreatedAtMs,
     lineage_failures: lineageFailures,
     pass:
       missingRoutes.length === 0 &&
       exposedForbiddenRoutes.length === 0 &&
+      statusProbeFailures.length === 0 &&
       lineageFailures.length === 0,
     checked_at: new Date().toISOString(),
   };
@@ -523,6 +611,15 @@ const run = async () => {
     console.error("[route-parity] FAIL: lineage gates:");
     for (const failure of lineageFailures) {
       console.error(`  - ${failure}`);
+    }
+  }
+
+  if (statusProbeFailures.length > 0) {
+    console.error("[route-parity] FAIL: anonymous route status probes:");
+    for (const failure of statusProbeFailures) {
+      console.error(
+        `  - ${failure.route}: expected ${failure.expected_status}, got ${failure.actual_status}`,
+      );
     }
   }
 

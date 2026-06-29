@@ -97,6 +97,111 @@ const ADMIN_HEALTH_TARGET_BUDGETS = [
   { file: "frontend/lib/server/adminUserHealth/fleet.ts", maxLines: 900 },
 ];
 
+// Ratchet ceilings for the largest current launch surfaces that are not ready
+// for a broad split during the July 7 hardening window. These caps preserve
+// today's shape while warning if the files grow further.
+const LAUNCH_SOURCE_INVENTORY_BUDGETS = [
+  {
+    file: "frontend/features/admin/components/AdminAgentInstructionsSection.tsx",
+    maxLines: 2591,
+  },
+  {
+    file: "frontend/features/ai-studio/logic/generatedMediaAuthority.ts",
+    maxLines: 2418,
+  },
+  {
+    file: "frontend/features/ai-studio/components/VideoPropertiesPanel.tsx",
+    maxLines: 2119,
+  },
+  {
+    file: "frontend/features/ai-studio/hooks/useAiStudioProjectWorkspacePersistenceController.ts",
+    maxLines: 1993,
+  },
+  {
+    file: "frontend/features/ai-studio/hooks/useAiStudioPageMediaReferenceRuntime.ts",
+    maxLines: 1978,
+  },
+  {
+    file: "frontend/features/ai-studio/components/AiStudioPageContent.tsx",
+    maxLines: 1969,
+  },
+  {
+    file: "frontend/lib/server/mediaUploadService.ts",
+    maxLines: 1915,
+  },
+  {
+    file: "frontend/lib/server/mediaCopyFromUrlService.ts",
+    maxLines: 1859,
+  },
+  {
+    file: "frontend/features/ai-studio/logic/mediaLibraryPersistence.ts",
+    maxLines: 1793,
+  },
+  {
+    file: "frontend/lib/model-runtime/modelCatalog.ts",
+    maxLines: 1786,
+  },
+  {
+    file: "frontend/lib/server/projectWorkspaceStatesService.ts",
+    maxLines: 1749,
+  },
+  {
+    file: "frontend/features/ai-studio/components/useReferencePropertiesInteractions.ts",
+    maxLines: 1707,
+  },
+  {
+    file: "frontend/features/ai-studio/components/VoicesPropertiesPanel.tsx",
+    maxLines: 1687,
+  },
+  {
+    file: "frontend/features/ai-studio/components/canvas/useCanvasViewportInstanceState.ts",
+    maxLines: 1622,
+  },
+  {
+    file: "frontend/features/ai-studio/hooks/useAiStudioTasks.ts",
+    maxLines: 1579,
+  },
+  {
+    file: "frontend/lib/server/projectGenerationAssociationsService.ts",
+    maxLines: 1570,
+  },
+  {
+    file: "frontend/features/elements-manager/components/ElementsManagerShell.tsx",
+    maxLines: 1556,
+  },
+  {
+    file: "frontend/features/character-manager/logic/characterManagerPersistence.ts",
+    maxLines: 1554,
+  },
+  {
+    file: "frontend/lib/server/falIntegration/recoveryExecution.ts",
+    maxLines: 1551,
+  },
+  {
+    file: "frontend/features/ai-studio/components/DetailModal.tsx",
+    maxLines: 1523,
+  },
+  {
+    file: "frontend/lib/server/api/adminBillingDiagnostics.ts",
+    maxLines: 1511,
+  },
+];
+
+const LAUNCH_STYLE_INVENTORY_BUDGETS = [
+  { file: "frontend/styles/ai-studio-edit-expert.css", maxLines: 6255 },
+  { file: "frontend/styles/admin.module.css", maxLines: 5077 },
+  {
+    file: "frontend/styles/ai-studio-voices-properties.module.css",
+    maxLines: 4382,
+  },
+  { file: "frontend/styles/workspace-dashboard.css", maxLines: 3928 },
+  { file: "frontend/styles/ai-studio-layout.css", maxLines: 2803 },
+  { file: "frontend/styles/ai-studio-video-theme.css", maxLines: 2624 },
+  { file: "frontend/styles/character-manager.css", maxLines: 2227 },
+  { file: "frontend/styles/workspace-media.css", maxLines: 1799 },
+  { file: "frontend/styles/ai-studio-modals.css", maxLines: 1731 },
+];
+
 function countLines(text) {
   if (!text.length) return 0;
   return text.split(/\r?\n/).length;
@@ -218,6 +323,18 @@ function run() {
     "ADMIN_HEALTH_SIZE_BUDGET_MODE",
     "Admin/Health target",
     ADMIN_HEALTH_TARGET_BUDGETS,
+    hardErrors,
+  );
+  reportTargetBudgetGroup(
+    "LAUNCH_SOURCE_INVENTORY_SIZE_BUDGET_MODE",
+    "Launch source inventory",
+    LAUNCH_SOURCE_INVENTORY_BUDGETS,
+    hardErrors,
+  );
+  reportTargetBudgetGroup(
+    "LAUNCH_STYLE_INVENTORY_SIZE_BUDGET_MODE",
+    "Launch style inventory",
+    LAUNCH_STYLE_INVENTORY_BUDGETS,
     hardErrors,
   );
 

@@ -1,5 +1,6 @@
 import React from "react";
 import { Pause, Play } from "phosphor-react";
+import { isSupabaseRenderImageUrl } from "../../../../lib/mediaPreviewTrustPolicy";
 import type { StudioAudioSourceMode, WorkflowReloadMusicMode } from "../../types";
 import { MediaDurationBadge } from "../shared/MediaDurationBadge";
 import {
@@ -9,6 +10,18 @@ import {
 } from "../../reference-grid/logic/referenceGridAudioWaveform";
 
 const DETAIL_AUDIO_WAVEFORM_BAR_COUNT = 64;
+
+const resolveDetailAudioBackgroundStyle = (
+  backgroundImageUrl: string | null | undefined
+): React.CSSProperties | undefined => {
+  const normalizedBackgroundImageUrl = backgroundImageUrl?.trim();
+  if (!normalizedBackgroundImageUrl || isSupabaseRenderImageUrl(normalizedBackgroundImageUrl)) {
+    return undefined;
+  }
+  return {
+    "--detail-audio-background-image": `url(${JSON.stringify(normalizedBackgroundImageUrl)})`,
+  } as React.CSSProperties;
+};
 
 const assignMediaRef = <ElementType extends HTMLElement>(
   targetRef: React.Ref<ElementType> | undefined,
@@ -32,6 +45,8 @@ type SharedMediaDetailAudioPreviewProps = {
   audioSourceMode?: StudioAudioSourceMode | null;
   audioDurationMs?: number | null;
   audioWaveformPeaks?: number[] | null;
+  audioBackgroundStyle?: React.CSSProperties;
+  hasAudioBackground?: boolean;
   layout?: "centered" | "compact-row";
   playLabel?: string;
   pauseLabel?: string;
@@ -73,6 +88,7 @@ type SharedMediaDetailPreviewMediaProps = {
   audioLyricsText?: string | null;
   audioDurationMs?: number | null;
   audioWaveformPeaks?: number[] | null;
+  audioBackgroundImageUrl?: string | null;
   audioPlayLabel?: string;
   audioPauseLabel?: string;
   deferImagePromotion?: boolean;
@@ -82,6 +98,7 @@ type SharedMediaDetailPreviewMediaProps = {
   onImageLoad?: React.ReactEventHandler<HTMLImageElement>;
   onImageError?: React.ReactEventHandler<HTMLImageElement>;
   onImageCandidateError?: (failedUrl: string) => void;
+  onDisplayedImageUrlChange?: (displayedUrl: string | null) => void;
   onVideoLoadedMetadata?: React.ReactEventHandler<HTMLVideoElement>;
   onVideoPlay?: React.ReactEventHandler<HTMLVideoElement>;
   onVideoPause?: React.ReactEventHandler<HTMLVideoElement>;
@@ -106,6 +123,8 @@ function SharedMediaDetailAudioPreview({
   audioSourceMode = null,
   audioDurationMs = null,
   audioWaveformPeaks = null,
+  audioBackgroundStyle,
+  hasAudioBackground = false,
   layout = "centered",
   playLabel = "Play audio preview",
   pauseLabel = "Pause audio preview",
@@ -298,12 +317,13 @@ function SharedMediaDetailAudioPreview({
   const previewClassName = [
     "detail-modal-audio-preview",
     layout === "compact-row" ? "detail-modal-audio-preview--compact-row" : "",
+    hasAudioBackground ? "has-companion-art" : "",
   ]
     .filter(Boolean)
     .join(" ");
 
   return (
-    <div className={previewClassName}>
+    <div className={previewClassName} style={audioBackgroundStyle}>
       <button
         type="button"
         className={`detail-modal-audio-play ${isPlaying ? "is-playing" : ""}`}
@@ -402,6 +422,8 @@ function SharedMediaDetailAudioPreview({
 function SharedMediaDetailMusicPreview({
   lyricsText,
   musicMode,
+  audioBackgroundStyle,
+  hasAudioBackground = false,
   ...audioPreviewProps
 }: SharedMediaDetailAudioPreviewProps & {
   lyricsText?: string | null;
@@ -409,9 +431,15 @@ function SharedMediaDetailMusicPreview({
 }) {
   const normalizedLyrics = lyricsText?.trim() ?? "";
   const lyricsDisplay = musicMode === "instrumental" ? "Instrumental" : normalizedLyrics;
+  const previewClassName = [
+    "detail-modal-music-preview",
+    hasAudioBackground ? "has-companion-art" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
-    <div className="detail-modal-music-preview">
+    <div className={previewClassName} style={audioBackgroundStyle}>
       <section className="detail-modal-music-lyrics" aria-label="Song lyrics">
         <div className="detail-modal-music-lyrics-label">LYRICS</div>
         <div className="detail-modal-music-lyrics-copy">
@@ -473,6 +501,7 @@ export function SharedMediaDetailPreviewMedia({
   audioLyricsText,
   audioDurationMs,
   audioWaveformPeaks,
+  audioBackgroundImageUrl,
   audioPlayLabel,
   audioPauseLabel,
   deferImagePromotion = true,
@@ -482,6 +511,7 @@ export function SharedMediaDetailPreviewMedia({
   onImageLoad,
   onImageError,
   onImageCandidateError,
+  onDisplayedImageUrlChange,
   onVideoLoadedMetadata,
   onVideoPlay,
   onVideoPause,
@@ -568,6 +598,16 @@ export function SharedMediaDetailPreviewMedia({
   ]);
 
   const displayedMediaUrl = mediaKind === "image" ? (renderedImageState.url ?? mediaUrl) : mediaUrl;
+  const audioBackgroundStyle = React.useMemo(
+    () => resolveDetailAudioBackgroundStyle(audioBackgroundImageUrl),
+    [audioBackgroundImageUrl]
+  );
+  const hasAudioBackground = Boolean(audioBackgroundStyle);
+
+  React.useEffect(() => {
+    if (mediaKind !== "image") return;
+    onDisplayedImageUrlChange?.(displayedMediaUrl ?? null);
+  }, [displayedMediaUrl, mediaKind, onDisplayedImageUrlChange]);
 
   if (!displayedMediaUrl) {
     return (
@@ -614,6 +654,8 @@ export function SharedMediaDetailPreviewMedia({
           audioSourceMode={audioSourceMode}
           audioDurationMs={audioDurationMs}
           audioWaveformPeaks={audioWaveformPeaks}
+          audioBackgroundStyle={audioBackgroundStyle}
+          hasAudioBackground={hasAudioBackground}
           lyricsText={audioLyricsText}
           musicMode={audioMusicMode}
           playLabel={audioPlayLabel}
@@ -639,6 +681,8 @@ export function SharedMediaDetailPreviewMedia({
         audioSourceMode={audioSourceMode}
         audioDurationMs={audioDurationMs}
         audioWaveformPeaks={audioWaveformPeaks}
+        audioBackgroundStyle={audioBackgroundStyle}
+        hasAudioBackground={hasAudioBackground}
         playLabel={audioPlayLabel}
         pauseLabel={audioPauseLabel}
         onAudioPlay={onAudioPlay}

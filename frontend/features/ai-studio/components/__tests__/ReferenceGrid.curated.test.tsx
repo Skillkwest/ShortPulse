@@ -2551,17 +2551,6 @@ describe("ReferenceGrid curated split", () => {
       previewUrl: "https://example.com/generated-video-curated-only.mp4",
       mediaSource: "generated",
       durationMs: 8_000,
-      generationReplay: {
-        version: 1,
-        mode: "video",
-        submitTool: "video",
-        modelId: "kie-ai/kling-3.0",
-        displayPrompt: "Generated video",
-        submissionPrompt: "Generated video",
-        aspect: "16:9",
-        referenceInputs: [],
-        capturedAt: "2026-02-25T00:00:00.000Z",
-      },
     };
 
     const { container } = render(

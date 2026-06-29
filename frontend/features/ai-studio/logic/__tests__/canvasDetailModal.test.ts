@@ -79,4 +79,36 @@ describe("canvasDetailModal", () => {
 
     expect(detailItem).toBeNull();
   });
+
+  it("preserves canvas audio companion art for shared detail rendering", () => {
+    const detailItem = createCanvasDetailModalItem({
+      item: {
+        id: "canvas-audio-1",
+        kind: "audio",
+        x: 20,
+        y: 32,
+        z: 3,
+        selected: false,
+        outputId: "audio-output-1",
+        sourceSurface: "all-refs",
+        mediaId: "saved-audio-1",
+        audioUrl: "https://cdn.shortpulse.test/canvas-audio.mp3",
+        title: "Canvas audio",
+        companionArtUrl: "https://cdn.shortpulse.test/canvas-audio-cover.webp",
+        companionArtStoragePath: "user-1/generations/audio/audio-output-1/companion-art/cover.webp",
+        width: 320,
+        height: 96,
+      },
+      instanceId: "rail",
+    });
+
+    expect(detailItem?.media.kind).toBe("audio");
+    expect(detailItem?.media.url).toBe("https://cdn.shortpulse.test/canvas-audio.mp3");
+    expect(detailItem?.media.companionArtUrl).toBe(
+      "https://cdn.shortpulse.test/canvas-audio-cover.webp"
+    );
+    expect(detailItem?.media.companionArtStoragePath).toBe(
+      "user-1/generations/audio/audio-output-1/companion-art/cover.webp"
+    );
+  });
 });

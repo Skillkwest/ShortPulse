@@ -210,7 +210,7 @@ export function ExpertEditPromptComposer({
         <AgentGenerateButton
           onClick={onGenerate}
           disabled={inlineGenerateDisabled}
-          cost={costCredits != null ? costCredits : "—"}
+          cost={costCredits}
         />
       </div>
     </div>

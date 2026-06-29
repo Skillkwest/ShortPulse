@@ -423,6 +423,7 @@ if (frontendLintFiles.length > 0) {
       "eslint.config.mjs",
       "--max-warnings",
       "0",
+      "--no-warn-ignored",
       ...frontendLintFiles,
     ],
     cwd: frontendRoot,

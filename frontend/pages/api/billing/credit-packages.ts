@@ -4,6 +4,10 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
+import {
+  CREDIT_TOP_UP_REQUIRES_SUBSCRIPTION_MESSAGE,
+  resolveCreditTopUpEligibilityForUser,
+} from "../../../lib/server/api/creditTopUpEligibility";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
 
 type PackageResponse = {
@@ -37,6 +41,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
+    const eligibility = await resolveCreditTopUpEligibilityForUser(user.id);
+    if (!eligibility.eligible) {
+      return res.status(403).json({ error: CREDIT_TOP_UP_REQUIRES_SUBSCRIPTION_MESSAGE });
+    }
+
     const supabaseAdmin = getSupabaseAdmin();
     const { data, error } = await supabaseAdmin
       .from("billing_credit_packages")

@@ -65,6 +65,7 @@ ADRs capture **important, durable decisions** so the repo stays coherent as it g
 - `docs/adr/0047-ai-studio-generation-recovery-timing-and-failure-threshold-contract.md`
 - `docs/adr/0048-generation-pipeline-control-plane-mutation-ownership.md`
 - `docs/adr/0049-ai-studio-right-rail-surface-ownership-and-media-resolution-contract.md`
+- `docs/adr/0050-generation-pipeline-canonical-request-output-architecture.md`
 - `docs/adr/0051-generation-pipeline-lifecycle-state-machine-service.md`
 - `docs/adr/0052-ai-studio-media-library-real-folder-hierarchy-foundation.md`
 - `docs/adr/0053-ai-studio-character-surface-ownership-and-image-performance-contract.md`
@@ -110,3 +111,4 @@ ADRs capture **important, durable decisions** so the repo stays coherent as it g
 - `docs/adr/0093-legal-policy-control-plane.md`
 - `docs/adr/0094-paid-signup-intent-gate.md` (historical; superseded by `docs/adr/0095-account-first-signup-intent-gate.md`)
 - `docs/adr/0095-account-first-signup-intent-gate.md`
+- `docs/adr/0096-google-oauth-signup-intent-match.md`

@@ -832,6 +832,7 @@ describe("MediaLibraryPanelPreviewModal", () => {
           source: "ai_studio",
           audioSourceMode: "music",
           lyricsText: "Moonlight folded in the glass",
+          companionArtUrl: "https://cdn.example.com/midnight-loop-cover.webp",
         })}
         isLoading={false}
         error={null}
@@ -840,6 +841,13 @@ describe("MediaLibraryPanelPreviewModal", () => {
     );
 
     expect(baseElement.querySelector(".detail-modal-music-preview")).not.toBeNull();
+    const musicPreview = baseElement.querySelector(
+      ".detail-modal-music-preview"
+    ) as HTMLDivElement | null;
+    expect(musicPreview).toHaveClass("has-companion-art");
+    expect(musicPreview?.style.getPropertyValue("--detail-audio-background-image")).toContain(
+      "https://cdn.example.com/midnight-loop-cover.webp"
+    );
     expect(baseElement.querySelector(".detail-modal-audio-preview--compact-row")).not.toBeNull();
     expect(screen.getByText("LYRICS")).toBeInTheDocument();
     expect(screen.getByLabelText("Song lyrics")).toHaveTextContent("Moonlight folded in the glass");

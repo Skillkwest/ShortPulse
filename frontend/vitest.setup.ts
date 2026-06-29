@@ -10,3 +10,23 @@ if (typeof HTMLCanvasElement !== "undefined") {
     value: () => null,
   });
 }
+
+// jsdom also leaves media playback methods unimplemented. Provide quiet no-ops
+// while keeping them writable so focused media tests can install spies.
+if (typeof HTMLMediaElement !== "undefined") {
+  Object.defineProperty(HTMLMediaElement.prototype, "load", {
+    configurable: true,
+    writable: true,
+    value: () => undefined,
+  });
+  Object.defineProperty(HTMLMediaElement.prototype, "pause", {
+    configurable: true,
+    writable: true,
+    value: () => undefined,
+  });
+  Object.defineProperty(HTMLMediaElement.prototype, "play", {
+    configurable: true,
+    writable: true,
+    value: () => Promise.resolve(),
+  });
+}

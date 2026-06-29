@@ -331,6 +331,35 @@ async function deleteProject(token, projectId) {
   }
 }
 
+async function deleteMediaFolder(token, folderId, { required = false } = {}) {
+  try {
+    const result = await apiRequest({
+      token,
+      method: "POST",
+      path: "/api/media/folders/delete",
+      body: {
+        folderId,
+      },
+    });
+    if (required) {
+      assertJsonApiResult("Global media folder delete", result, 200);
+    }
+    return result.ok;
+  } catch (error) {
+    if (required) {
+      throw error;
+    }
+    return false;
+  }
+}
+
+function maskAuditEmail(email) {
+  const [localPart = "", domain = ""] = email.split("@");
+  const maskedLocal =
+    localPart.length <= 2 ? `${localPart.slice(0, 1)}*` : `${localPart.slice(0, 2)}***`;
+  return domain ? `${maskedLocal}@${domain}` : maskedLocal;
+}
+
 async function main() {
   const email = (process.env.PLAYWRIGHT_AUDIT_EMAIL || "").trim();
   const password = (process.env.PLAYWRIGHT_AUDIT_PASSWORD || "").trim() || "AuditPass!12345";
@@ -348,6 +377,20 @@ async function main() {
     return;
   }
 
+  console.log(
+    JSON.stringify(
+      {
+        audit: "project-persistence",
+        mutating: true,
+        baseUrl: DEFAULT_BASE_URL,
+        account: maskAuditEmail(email),
+        cleanup: ["project", "media-folder"],
+      },
+      null,
+      2
+    )
+  );
+
   const browser = await chromium.launch({ headless: HEADLESS });
   const context = await browser.newContext({ viewport: { width: 1720, height: 980 } });
   const page = await context.newPage();
@@ -355,6 +398,7 @@ async function main() {
 
   let token = null;
   let projectId = null;
+  let folderId = null;
 
   try {
     await ensureSignedIn(page, DEFAULT_BASE_URL, "/ai-studio", email, password);
@@ -444,7 +488,7 @@ async function main() {
       },
     });
     assertJsonApiResult("Global media folder create", folderCreateResult, 200);
-    const folderId = folderCreateResult.payload?.folder?.id;
+    folderId = folderCreateResult.payload?.folder?.id;
     if (!folderId) {
       throw new Error(
         `Global media folder create failed: ${summarizeApiResult(folderCreateResult)}`
@@ -510,15 +554,8 @@ async function main() {
       throw new Error(`Project workspace read failed: ${summarizeApiResult(readResult)}`);
     }
 
-    const folderDeleteResult = await apiRequest({
-      token,
-      method: "POST",
-      path: "/api/media/folders/delete",
-      body: {
-        folderId,
-      },
-    });
-    assertJsonApiResult("Global media folder delete", folderDeleteResult, 200);
+    await deleteMediaFolder(token, folderId, { required: true });
+    folderId = null;
 
     const persistedSnapshot = readResult.payload.workspace.snapshot;
     const persistedOutputs = persistedSnapshot?.outputs ?? {};
@@ -601,6 +638,9 @@ async function main() {
       throw new Error("Project persistence audit detected leaked orphan project media.");
     }
   } finally {
+    if (token && folderId) {
+      await deleteMediaFolder(token, folderId);
+    }
     if (token && projectId) {
       await deleteProject(token, projectId);
     }

@@ -659,6 +659,28 @@ describe("VoicesPropertiesPanel", () => {
     expect(voicesButton).toHaveFocus();
   });
 
+  it("opens the voices library modal from the selected voice label without changing the header trigger", async () => {
+    render(<VoicesPropertiesPanel />);
+
+    const selectedVoiceTrigger = screen.getByRole("button", {
+      name: /open voices modal for selected voice darian/i,
+    });
+    fireEvent.click(selectedVoiceTrigger);
+
+    expect(screen.getByRole("dialog", { name: "Voices" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Voices" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Close voices modal" }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: "Voices" })).not.toBeInTheDocument();
+    });
+    expect(selectedVoiceTrigger).toHaveFocus();
+
+    fireEvent.click(screen.getByRole("button", { name: "Voices" }));
+    expect(screen.getByRole("dialog", { name: "Voices" })).toBeInTheDocument();
+  });
+
   it("shows a header delete action for a selected live voice and removes it from the grid", async () => {
     fetchWithAuthMock
       .mockResolvedValueOnce({
@@ -2381,7 +2403,9 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.queryByRole("dialog", { name: "Create New Voice" })).not.toBeInTheDocument();
     const voicesPanel = screen.getByRole("region", { name: "Voices properties" });
     expect(within(voicesPanel).getByText("Lantern")).toBeInTheDocument();
-    expect(within(voicesPanel).getByTestId("selected-voice-loaded-arrow")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(within(voicesPanel).getByTestId("selected-voice-loaded-arrow")).toBeInTheDocument();
+    });
     expect(within(voicesPanel).getByTestId("selected-voice-loaded-arrow")).toHaveTextContent("→");
     expect(within(voicesPanel).getByTestId("selected-voice-loaded-arrow")).toHaveStyle(
       "font-size: 44px"

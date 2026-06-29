@@ -5,6 +5,7 @@ import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const writeAppErrorLogMock = vi.fn();
+const resolveCreditTopUpEligibilityForUserMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
 const stripePostFormMock = vi.fn();
 const getCanonicalAppBaseUrlMock = vi.fn();
@@ -17,6 +18,13 @@ vi.mock("../../lib/server/api/auth", () => ({
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
   writeAppErrorLog: (...args: unknown[]) => writeAppErrorLogMock(...args),
+}));
+
+vi.mock("../../lib/server/api/creditTopUpEligibility", () => ({
+  CREDIT_TOP_UP_REQUIRES_SUBSCRIPTION_MESSAGE:
+    "Choose a paid subscription plan before buying credit top-ups.",
+  resolveCreditTopUpEligibilityForUser: (...args: unknown[]) =>
+    resolveCreditTopUpEligibilityForUserMock(...args),
 }));
 
 vi.mock("../../lib/server/api/supabaseAdmin", () => ({
@@ -46,6 +54,10 @@ describe("POST /api/billing/stripe/checkout", () => {
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "user@example.com" });
     getCanonicalAppBaseUrlMock.mockReturnValue("https://app.shortpulse.test");
     ensureStripeCustomerForUserMock.mockResolvedValue("cus_existing");
+    resolveCreditTopUpEligibilityForUserMock.mockResolvedValue({
+      eligible: true,
+      contractId: "contract-1",
+    });
     writeAppErrorLogMock.mockResolvedValue({ ok: true, skipped: false, id: null });
   });
 
@@ -81,6 +93,31 @@ describe("POST /api/billing/stripe/checkout", () => {
     await handler(req as never, res as never);
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({ error: "packageId is required." });
+  });
+
+  it("blocks credit checkout for users without an active paid subscription contract", async () => {
+    resolveCreditTopUpEligibilityForUserMock.mockResolvedValueOnce({
+      eligible: false,
+      reason: "missing_subscription_contract",
+    });
+
+    const req = {
+      method: "POST",
+      body: { packageId: "pkg_studio_10000" },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(resolveCreditTopUpEligibilityForUserMock).toHaveBeenCalledWith("user-1");
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(ensureStripeCustomerForUserMock).not.toHaveBeenCalled();
+    expect(stripePostFormMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Choose a paid subscription plan before buying credit top-ups.",
+    });
   });
 
   it("builds redirect URLs from canonical app base url", async () => {

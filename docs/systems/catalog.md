@@ -2,7 +2,7 @@
 
 Purpose: provide the authoritative current-state system registry and ship-readiness control surface for ShortPulse.
 
-July 7 launch-control note: for the active `2026-07-07` launch decision, `docs/agents/copperknot/july-7-launch-authority.md`, `docs/agents/copperknot/july-7-system-map.md`, `docs/agents/copperknot/july-7-launch-board.md`, and `docs/agents/copperknot/prioritized-launch-queue-2026-07-07.md` are the controlling readiness and queue surfaces. Use `docs/systems/launch-fitness-scorecard-2026-06-16.md` for the current easy-read launch-fitness scores. This catalog remains the architecture inventory and historical score baseline, but its `/10` scores no longer override the July 7 launch-control fields.
+July 7 launch-control note: for the active `2026-07-07` launch decision, `docs/agents/copperknot/july-7-launch-authority.md`, `docs/agents/copperknot/july-7-system-map.md`, `docs/agents/copperknot/july-7-launch-board.md`, and `docs/agents/copperknot/prioritized-launch-queue-2026-07-07.md` are the controlling readiness and queue surfaces. Treat `docs/systems/launch-fitness-scorecard-2026-06-16.md` as a historical fast-read score snapshot unless Copperknot refreshes and re-accepts it. This catalog remains the architecture inventory and historical score baseline, but its `/10` scores no longer override the July 7 launch-control fields.
 
 Notes:
 

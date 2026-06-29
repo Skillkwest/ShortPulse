@@ -1,4 +1,5 @@
 import React from "react";
+import { PromptCopyButton } from "./PromptCopyButton";
 
 type SharedMediaDetailInfoPanelProps = {
   leadingContent?: React.ReactNode;
@@ -9,6 +10,7 @@ type SharedMediaDetailInfoPanelProps = {
   placeholder?: string;
   textareaRef?: React.Ref<HTMLTextAreaElement>;
   onChange?: React.ChangeEventHandler<HTMLTextAreaElement>;
+  copyText?: string | null;
 };
 
 /**
@@ -24,12 +26,18 @@ export function SharedMediaDetailInfoPanel({
   placeholder,
   textareaRef,
   onChange,
+  copyText = null,
 }: SharedMediaDetailInfoPanelProps) {
+  const shouldRenderCopyButton = label === "PROMPT" && Boolean(copyText?.trim());
+
   return (
     <div className="art-prompt-blade">
       {leadingContent}
       <div className="art-blade-header">
         <span className="art-label">{label}</span>
+        {shouldRenderCopyButton ? (
+          <PromptCopyButton text={copyText ?? ""} className="art-copy-prompt-btn--blade" />
+        ) : null}
       </div>
       <div className="art-blade-scroll-frame">
         <textarea

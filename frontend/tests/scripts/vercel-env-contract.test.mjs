@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  KNOWN_FRONTEND_ENV_EXAMPLE_KEYS,
+  LOCAL_OR_TOOLING_ONLY_KEYS,
+  MIRRORED_FLAG_PAIRS,
+  MUST_RESOLVE_FALSE_VERCEL_KEYS,
+  REQUIRED_VERCEL_KEYS_BY_ENVIRONMENT,
   getRequiredVercelKeysForEnvironment,
   SENSITIVE_PRESENCE_ONLY_KEYS,
   SHORTPULSE_PRODUCTION_APP_ORIGIN,
@@ -79,5 +84,21 @@ describe("vercel env contract provider keys", () => {
 
   it("treats ElevenLabs credentials as sensitive presence-only values", () => {
     expect(SENSITIVE_PRESENCE_ONLY_KEYS.has("ELEVENLABS_API_KEY")).toBe(true);
+  });
+});
+
+describe("vercel env contract declaration parity", () => {
+  it("keeps required, mirrored, and guarded Vercel keys declared in the frontend env template", () => {
+    const contractKeys = new Set([
+      ...Object.values(REQUIRED_VERCEL_KEYS_BY_ENVIRONMENT).flat(),
+      ...MIRRORED_FLAG_PAIRS.flat(),
+      ...MUST_RESOLVE_FALSE_VERCEL_KEYS,
+    ]);
+    const undeclared = [...contractKeys]
+      .filter((key) => !LOCAL_OR_TOOLING_ONLY_KEYS.has(key))
+      .filter((key) => !KNOWN_FRONTEND_ENV_EXAMPLE_KEYS.has(key))
+      .sort();
+
+    expect(undeclared).toEqual([]);
   });
 });

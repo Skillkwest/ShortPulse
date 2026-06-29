@@ -101,6 +101,7 @@ type SupabaseMockOptions = {
   projectionRows?: Array<Record<string, unknown>>;
   publicationRows?: Array<Record<string, unknown>>;
   mediaRows?: Array<Record<string, unknown>>;
+  promptRows?: Array<Record<string, unknown>>;
   outputDisplayRows?: Array<Record<string, unknown>>;
   outputDisplayReadError?: string;
   outputDisplayUpsertError?: string;
@@ -149,6 +150,7 @@ const createSupabaseMock = ({
   ],
   publicationRows = [],
   mediaRows = [],
+  promptRows = [],
   outputDisplayRows = [],
   outputDisplayReadError,
   outputDisplayUpsertError,
@@ -264,6 +266,14 @@ const createSupabaseMock = ({
       )
       .map((row) => [row.id, row])
   );
+  const promptRowsById = new Map<string, Record<string, unknown>>(
+    promptRows
+      .filter(
+        (row): row is Record<string, unknown> & { id: string } =>
+          typeof row.id === "string" && row.id.length > 0
+      )
+      .map((row) => [row.id, row])
+  );
   let mutableOutputDisplayRows = outputDisplayRows.map((row) => ({ ...row }));
   const selectGenerationRows = (column: string, ids: string[]) => {
     const requestedIds = new Set(ids);
@@ -305,9 +315,15 @@ const createSupabaseMock = ({
     data: ids.filter((id) => id === PROMPT_ID_1).map((id) => ({ id })),
     error: null,
   }));
-  const promptSelect = vi.fn(() => ({
+  const promptSelect = vi.fn((columns?: string) => ({
     eq: vi.fn(() => ({
-      in: promptIdInMock,
+      in:
+        typeof columns === "string" && columns.includes("prompt_text")
+          ? vi.fn(async (_column: string, ids: string[]) => ({
+              data: ids.filter((id) => promptRowsById.has(id)).map((id) => promptRowsById.get(id)),
+              error: null,
+            }))
+          : promptIdInMock,
     })),
   }));
   const generationIdInMock = vi.fn(async (_column: string, ids: string[]) => ({
@@ -5156,6 +5172,400 @@ describe("projectWorkspaceStatesService", () => {
         },
       },
     });
+  });
+
+  it("does not let display summaries overwrite full prompt-only reference text on workspace read", async () => {
+    const fullPrompt = `Full restored prompt. ${"Precise shot direction and continuity detail. ".repeat(80)}Final sentence.`;
+    const displaySummary = fullPrompt.slice(0, 1000);
+
+    createSupabaseMock({
+      workspaceSnapshot: {
+        schemaVersion: 2,
+        sessionId: "session-full-text-reference-read",
+        updatedAt: "2026-06-03T12:00:00.000Z",
+        meta: {
+          generatedAt: "2026-06-03T12:00:00.000Z",
+          checkpointRevision: 4,
+        },
+        workspace: {
+          selectedTool: "create",
+        },
+        outputs: {
+          active: [
+            {
+              id: "full-text-reference-1",
+              mode: "text",
+              mediaSource: "prompt",
+              promptId: PROMPT_ID_1,
+              prompt: fullPrompt,
+              previewText: fullPrompt,
+              title: "Full text reference title that should not be replaced",
+              status: "ready",
+            },
+          ],
+          archived: [],
+          activeOutputId: "full-text-reference-1",
+          curatedReferenceIds: ["full-text-reference-1"],
+          removedFromAllRefsIds: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+      outputDisplayRows: [
+        {
+          project_id: "project-1",
+          user_id: "user-1",
+          output_id: "full-text-reference-1",
+          version: 3,
+          source_snapshot_updated_at: "2026-06-03T12:00:00.000Z",
+          mode: "text",
+          media_source: "prompt",
+          created_at: "2026-06-03T11:55:00.000Z",
+          generation_id: null,
+          prompt_id: PROMPT_ID_1,
+          task_id: null,
+          source_ref: null,
+          generation_trace_id: null,
+          preview_text: displaySummary,
+          display_title: "Summary title",
+          display_prompt_summary: displaySummary,
+          mime_type: null,
+          width: null,
+          height: null,
+          duration_ms: null,
+          preview_storage_path: null,
+          full_storage_path: null,
+          preview_poster_storage_path: null,
+          companion_art_storage_path: null,
+          preview_url_fallback: null,
+          preview_poster_url_fallback: null,
+          companion_art_url_fallback: null,
+          result_urls_fallback: [],
+          saved_media_ids: [],
+          task_state: "success",
+          queue_state: null,
+          save_state: "saved",
+          status: "ready",
+          error_message_short: null,
+          hidden_in_reference_grid: false,
+          updated_at: "2026-06-03T12:00:01.000Z",
+        },
+      ],
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      projectionRows: [],
+    });
+
+    const result = await getProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+    });
+    const restoredRow = (
+      ((result?.snapshot.outputs as { active?: Array<Record<string, unknown>> })?.active ??
+        []) as Array<Record<string, unknown>>
+    )[0];
+
+    expect(restoredRow).toMatchObject({
+      id: "full-text-reference-1",
+      previewText: fullPrompt,
+      title: "Full text reference title that should not be replaced",
+    });
+    expect(restoredRow).not.toHaveProperty("prompt");
+    expect(restoredRow.previewText).not.toBe(displaySummary);
+    expect(restoredRow.title).not.toBe("Summary title");
+  });
+
+  it("hydrates full prompt-only reference text from owned prompt records when the checkpoint is lightweight", async () => {
+    const fullPrompt = `Full prompt library authority. ${"Detailed motion, wardrobe, location, and continuity instruction. ".repeat(80)}Final prompt sentence.`;
+    const displaySummary = fullPrompt.slice(0, 1000);
+
+    createSupabaseMock({
+      workspaceSnapshot: {
+        schemaVersion: 2,
+        sessionId: "session-lightweight-text-reference-read",
+        updatedAt: "2026-06-03T12:00:00.000Z",
+        meta: {
+          generatedAt: "2026-06-03T12:00:00.000Z",
+          checkpointRevision: 4,
+        },
+        workspace: {
+          selectedTool: "create",
+        },
+        outputs: {
+          active: [
+            {
+              id: "lightweight-text-reference-1",
+              mode: "text",
+              mediaSource: "prompt",
+              promptId: PROMPT_ID_1,
+              status: "ready",
+            },
+          ],
+          archived: [],
+          activeOutputId: "lightweight-text-reference-1",
+          curatedReferenceIds: ["lightweight-text-reference-1"],
+          removedFromAllRefsIds: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+      promptRows: [
+        {
+          id: PROMPT_ID_1,
+          title: "Full prompt library title",
+          prompt_text: fullPrompt,
+        },
+      ],
+      outputDisplayRows: [
+        {
+          project_id: "project-1",
+          user_id: "user-1",
+          output_id: "lightweight-text-reference-1",
+          version: 3,
+          source_snapshot_updated_at: "2026-06-03T12:00:00.000Z",
+          mode: "text",
+          media_source: "prompt",
+          created_at: "2026-06-03T11:55:00.000Z",
+          generation_id: null,
+          prompt_id: PROMPT_ID_1,
+          task_id: null,
+          source_ref: null,
+          generation_trace_id: null,
+          preview_text: displaySummary,
+          display_title: "Summary title",
+          display_prompt_summary: displaySummary,
+          mime_type: null,
+          width: null,
+          height: null,
+          duration_ms: null,
+          preview_storage_path: null,
+          full_storage_path: null,
+          preview_poster_storage_path: null,
+          companion_art_storage_path: null,
+          preview_url_fallback: null,
+          preview_poster_url_fallback: null,
+          companion_art_url_fallback: null,
+          result_urls_fallback: [],
+          saved_media_ids: [],
+          task_state: "success",
+          queue_state: null,
+          save_state: "saved",
+          status: "ready",
+          error_message_short: null,
+          hidden_in_reference_grid: false,
+          updated_at: "2026-06-03T12:00:01.000Z",
+        },
+      ],
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      projectionRows: [],
+    });
+
+    const result = await getProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+    });
+    const restoredRow = (
+      ((result?.snapshot.outputs as { active?: Array<Record<string, unknown>> })?.active ??
+        []) as Array<Record<string, unknown>>
+    )[0];
+
+    expect(restoredRow).toMatchObject({
+      id: "lightweight-text-reference-1",
+      previewText: fullPrompt,
+      title: "Full prompt library title",
+    });
+    expect(restoredRow).not.toHaveProperty("prompt");
+    expect(restoredRow.previewText).not.toBe(displaySummary);
+    expect(restoredRow.title).not.toBe("Summary title");
+  });
+
+  it("hydrates full prompt-only reference text from owned prompt records without display rows", async () => {
+    const fullPrompt = `Full prompt authority without display rows. ${"Reference text survives missing display materialization. ".repeat(80)}Final prompt sentence.`;
+
+    createSupabaseMock({
+      workspaceSnapshot: {
+        schemaVersion: 2,
+        sessionId: "session-prompt-authority-no-display",
+        updatedAt: "2026-06-03T12:00:00.000Z",
+        meta: {
+          generatedAt: "2026-06-03T12:00:00.000Z",
+          checkpointRevision: 4,
+        },
+        workspace: {
+          selectedTool: "create",
+        },
+        outputs: {
+          active: [
+            {
+              id: "prompt-authority-no-display-1",
+              mode: "text",
+              mediaSource: "prompt",
+              promptId: PROMPT_ID_1,
+              status: "ready",
+            },
+          ],
+          archived: [],
+          activeOutputId: "prompt-authority-no-display-1",
+          curatedReferenceIds: ["prompt-authority-no-display-1"],
+          removedFromAllRefsIds: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+      promptRows: [
+        {
+          id: PROMPT_ID_1,
+          title: "Prompt authority title",
+          prompt_text: fullPrompt,
+        },
+      ],
+      outputDisplayRows: [],
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      projectionRows: [],
+    });
+
+    const result = await getProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+    });
+    const restoredRow = (
+      ((result?.snapshot.outputs as { active?: Array<Record<string, unknown>> })?.active ??
+        []) as Array<Record<string, unknown>>
+    )[0];
+
+    expect(restoredRow).toMatchObject({
+      id: "prompt-authority-no-display-1",
+      previewText: fullPrompt,
+      title: "Prompt authority title",
+    });
+    expect(restoredRow).not.toHaveProperty("prompt");
+  });
+
+  it("does not let display summaries overwrite full media detail prompts on workspace read", async () => {
+    const fullPrompt = `Full image detail prompt. ${"Long lighting, wardrobe, composition, and camera note. ".repeat(80)}Final detail.`;
+    const displaySummary = fullPrompt.slice(0, 1000);
+
+    createSupabaseMock({
+      workspaceSnapshot: {
+        schemaVersion: 2,
+        sessionId: "session-full-media-prompt-read",
+        updatedAt: "2026-06-03T12:00:00.000Z",
+        meta: {
+          generatedAt: "2026-06-03T12:00:00.000Z",
+          checkpointRevision: 4,
+        },
+        workspace: {
+          selectedTool: "create",
+        },
+        outputs: {
+          active: [
+            {
+              id: "full-media-prompt-1",
+              mode: "image",
+              mediaSource: "library",
+              savedMediaIds: [MEDIA_ID_1],
+              prompt: fullPrompt,
+              previewUrl: "https://cdn.example.com/full-media-prompt.png",
+              resultUrls: ["https://cdn.example.com/full-media-prompt.png"],
+              status: "ready",
+            },
+          ],
+          archived: [],
+          activeOutputId: "full-media-prompt-1",
+          curatedReferenceIds: ["full-media-prompt-1"],
+          removedFromAllRefsIds: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+      outputDisplayRows: [
+        {
+          project_id: "project-1",
+          user_id: "user-1",
+          output_id: "full-media-prompt-1",
+          version: 3,
+          source_snapshot_updated_at: "2026-06-03T12:00:00.000Z",
+          mode: "image",
+          media_source: "library",
+          created_at: "2026-06-03T11:55:00.000Z",
+          generation_id: null,
+          prompt_id: null,
+          task_id: null,
+          source_ref: null,
+          generation_trace_id: null,
+          preview_text: null,
+          display_title: "Summary title",
+          display_prompt_summary: displaySummary,
+          mime_type: "image/png",
+          width: 1024,
+          height: 768,
+          duration_ms: null,
+          preview_storage_path: "user-1/generated/full-media-prompt-preview.png",
+          full_storage_path: "user-1/generated/full-media-prompt-full.png",
+          preview_poster_storage_path: null,
+          companion_art_storage_path: null,
+          preview_url_fallback: "https://cdn.example.com/display-full-media-prompt.png",
+          preview_poster_url_fallback: null,
+          companion_art_url_fallback: null,
+          result_urls_fallback: ["https://cdn.example.com/display-full-media-prompt.png"],
+          saved_media_ids: [MEDIA_ID_1],
+          task_state: "success",
+          queue_state: null,
+          save_state: "saved",
+          status: "ready",
+          error_message_short: null,
+          hidden_in_reference_grid: false,
+          updated_at: "2026-06-03T12:00:01.000Z",
+        },
+      ],
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      projectionRows: [],
+    });
+
+    const result = await getProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+    });
+    const restoredRow = (
+      ((result?.snapshot.outputs as { active?: Array<Record<string, unknown>> })?.active ??
+        []) as Array<Record<string, unknown>>
+    )[0];
+
+    expect(restoredRow).toMatchObject({
+      id: "full-media-prompt-1",
+      prompt: fullPrompt,
+      previewStoragePath: "user-1/generated/full-media-prompt-preview.png",
+      fullStoragePath: "user-1/generated/full-media-prompt-full.png",
+      savedMediaIds: [MEDIA_ID_1],
+    });
+    expect(restoredRow.prompt).not.toBe(displaySummary);
   });
 
   it("strips unsafe Supabase display fallback URLs from non-generated rows on workspace read", async () => {

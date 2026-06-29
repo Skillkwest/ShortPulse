@@ -61,6 +61,8 @@ Use these for durable schema evolution across environments.
 
 Current set:
 
+Migration number 134 is intentionally unused; the ordered sequence moves from `133_restore_model_pricing_policy_function_grants.sql` to `135_add_media_folder_count_rpcs.sql`.
+
 - `001_add_studio_10000_credit_package.sql`
 - `002_add_generation_credit_reservations.sql`
 - `003_add_private_media_source.sql`
@@ -109,7 +111,7 @@ Current set:
 - `046_fix_character_quickswap_storage_scope_check.sql`
 - `047_add_agent_safety_policy_control_plane.sql`
 - `048_harden_agent_safety_policy_control_plane_grants.sql`
-- `049_enforce_expert_default_beginner_mode.sql` (historical legacy `beginner_mode` preference migration; removed by `120_remove_legacy_onboarding_user_preference.sql`)
+- `049_enforce_expert_default_beginner_mode.sql`
 - `050_add_media_list_search_cursor_indexes.sql`
 - `051_add_agent_safety_policy_version_rpc.sql`
 - `052_extend_queue_recovery_provider_scope_to_kie.sql`
@@ -119,14 +121,11 @@ Current set:
 - `056_add_user_preferences_expert_edit_preset_ids_and_custom_presets.sql`
 - `057_add_user_preferences_ai_studio_deleted_style_ids.sql`
 - `058_add_user_preferences_ai_studio_style_details_overrides.sql`
-- `059_add_user_preferences_ai_studio_character_quickswap_tip_hidden.sql` (historical; removed from current schema by `138_retire_character_quickswap_tip_preference.sql`)
-- `138_retire_character_quickswap_tip_preference.sql`
-- `090_add_user_preferences_ai_studio_style_panel_ids.sql`
+- `059_add_user_preferences_ai_studio_character_quickswap_tip_hidden.sql`
 - `060_add_media_folders_and_membership.sql`
 - `061_backfill_media_image_dimensions_metadata.sql`
 - `062_add_dashboard_announcements.sql`
-- `063_add_media_folder_canvas_states.sql` (historical; removed from current schema by `144_retire_media_folder_canvas_states.sql`)
-- `144_retire_media_folder_canvas_states.sql`
+- `063_add_media_folder_canvas_states.sql`
 - `064_backfill_media_files_from_storage_objects.sql`
 - `065_add_media_derivative_processing_fields.sql`
 - `066_add_media_derivative_processing_rpcs.sql`
@@ -161,6 +160,11 @@ Current set:
 - `095_add_project_media_folder_canvas_states.sql`
 - `096_add_model_pricing_control_plane.sql`
 - `097_retire_model_pricing_rounding_exceptions.sql`
+- `098_add_billing_plan_creation_metadata.sql`
+- `099_add_admin_global_stats_rpcs.sql`
+- `100_add_admin_global_stats_v1_rpc.sql`
+- `101_fix_admin_stats_and_pricing_rpc_lint.sql`
+- `102_add_admin_growth_stats_v1.sql`
 - `103_sanitize_project_workspace_conversational_runtime.sql`
 - `104_add_user_media_compliance_acceptances.sql`
 - `105_enforce_spendable_balance_for_direct_generation_charges.sql`
@@ -178,7 +182,7 @@ Current set:
 - `117_add_create_pulse_builtin_control_plane.sql`
 - `118_canonicalize_character_metadata_media_ids.sql`
 - `119_require_character_media_id_on_character_links.sql`
-- `120_remove_legacy_onboarding_user_preference.sql` (removes deprecated `user_preferences.beginner_mode`; current schema state)
+- `120_remove_legacy_onboarding_user_preference.sql`
 - `121_add_agent_prompt_runtime_control_plane.sql`
 - `122_retire_character_sheet_alias_compat.sql`
 - `123_add_audio_companion_art_projection_fields.sql`
@@ -221,6 +225,11 @@ Current set:
 - `161_harden_hidden_free_billing_offer.sql`
 - `162_repair_generation_projection_workflow_reload.sql`
 - `163_add_legal_policy_control_plane.sql`
+- `164_add_paid_signup_intent_gate.sql`
+- `165_account_first_signup_intent_gate.sql`
+- `166_grant_signup_hook_schema_usage.sql`
+- `167_add_google_ip_signup_intent.sql`
+- `168_retire_saved_creators.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 

@@ -127,6 +127,27 @@ const installDeferredImagePreloadMock = () => {
   };
 };
 
+const installClipboardWriteMock = () => {
+  const originalDescriptor = Object.getOwnPropertyDescriptor(globalThis.navigator, "clipboard");
+  const writeText = vi.fn().mockResolvedValue(undefined);
+
+  Object.defineProperty(globalThis.navigator, "clipboard", {
+    configurable: true,
+    value: { writeText },
+  });
+
+  return {
+    writeText,
+    restore: () => {
+      if (originalDescriptor) {
+        Object.defineProperty(globalThis.navigator, "clipboard", originalDescriptor);
+        return;
+      }
+      Reflect.deleteProperty(globalThis.navigator, "clipboard");
+    },
+  };
+};
+
 describe("DetailModal", () => {
   it("opens a failed reference from the grid and shows customer-facing error detail in the modal", () => {
     const scenario = getAiStudioErrorScenario("provider_upstream");
@@ -244,6 +265,32 @@ describe("DetailModal", () => {
       Node.DOCUMENT_POSITION_FOLLOWING
     );
     expect(styleName.compareDocumentPosition(promptLabel)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
+  it("copies prompt text from the shared generated media prompt blade", async () => {
+    const clipboard = installClipboardWriteMock();
+
+    try {
+      render(
+        <DetailModal
+          output={{
+            ...baseOutput,
+            prompt: "Copy this generated prompt",
+          }}
+          onClose={vi.fn()}
+          onUpdatePrompt={vi.fn()}
+          onDeleteOutput={vi.fn()}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Copy prompt" }));
+
+      await waitFor(() => {
+        expect(clipboard.writeText).toHaveBeenCalledWith("Copy this generated prompt");
+      });
+    } finally {
+      clipboard.restore();
+    }
   });
 
   it("does not fall back to legacy seeded style previews when style context has no explicit preview url", () => {
@@ -368,6 +415,7 @@ describe("DetailModal", () => {
     expect(baseElement.querySelector(".art-prompt-only-header")).toBeNull();
     expect(baseElement.querySelector(".art-prompt-only-container")).toBeNull();
     expect(screen.queryByRole("button", { name: "Apply Changes" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy prompt" })).toHaveClass("is-icon-only");
     expect(screen.getByRole("button", { name: "Delete" })).toHaveClass("is-icon-only");
 
     const promptTextarea = screen.getByPlaceholderText("Describe your adjustments...");
@@ -383,6 +431,37 @@ describe("DetailModal", () => {
     const savedButton = await screen.findByRole("button", { name: "Saved" });
     expect(savedButton).toHaveClass("is-icon-only");
     expect(savedButton).toHaveTextContent("");
+  });
+
+  it("copies the current draft from text reference detail modals", async () => {
+    const clipboard = installClipboardWriteMock();
+
+    try {
+      render(
+        <DetailModal
+          output={{
+            ...baseOutput,
+            mode: "text",
+            previewUrl: undefined,
+            prompt: "Original prompt",
+          }}
+          onClose={vi.fn()}
+          onUpdatePrompt={vi.fn()}
+          onDeleteOutput={vi.fn()}
+        />
+      );
+
+      fireEvent.change(screen.getByPlaceholderText("Describe your adjustments..."), {
+        target: { value: "Draft prompt to copy" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Copy prompt" }));
+
+      await waitFor(() => {
+        expect(clipboard.writeText).toHaveBeenCalledWith("Draft prompt to copy");
+      });
+    } finally {
+      clipboard.restore();
+    }
   });
 
   it("preserves long text references in the shared detail modal textarea", () => {
@@ -1340,6 +1419,7 @@ describe("DetailModal", () => {
           modelId: "eleven_music_v1",
           audioSourceMode: "music",
           lyricsText: "Soft static on the wire\nWe keep moving through the night",
+          companionArtUrl: "https://cdn.test/generated-music-cover.webp",
         })}
         onClose={vi.fn()}
         onUpdatePrompt={vi.fn()}
@@ -1350,6 +1430,18 @@ describe("DetailModal", () => {
     const headerPill = baseElement.querySelector(".art-modal-meta-pill");
     expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("Audio/music");
     expect(baseElement.querySelector(".detail-modal-music-preview")).not.toBeNull();
+    const musicPreview = baseElement.querySelector(
+      ".detail-modal-music-preview"
+    ) as HTMLDivElement | null;
+    expect(musicPreview).toHaveClass("has-companion-art");
+    expect(musicPreview?.style.getPropertyValue("--detail-audio-background-image")).toContain(
+      "https://cdn.test/generated-music-cover.webp"
+    );
+    const reflect = baseElement.querySelector(
+      ".reference-modal-bg-reflect"
+    ) as HTMLDivElement | null;
+    expect(reflect?.style.backgroundImage).toContain("https://cdn.test/generated-music-cover.webp");
+    expect(reflect?.style.backgroundImage).not.toContain("https://cdn.test/audio.mp3");
     expect(baseElement.querySelector(".detail-modal-audio-preview--compact-row")).not.toBeNull();
     expect(screen.getByText("LYRICS")).toBeInTheDocument();
     const lyricsSection = screen.getByLabelText("Song lyrics");
@@ -1897,6 +1989,81 @@ describe("DetailModal", () => {
       });
 
       expect(promotedImage?.getAttribute("src")).toBe("https://cdn.test/final-full.jpg");
+    } finally {
+      restore();
+    }
+  });
+
+  it("keeps the reflected modal background stable until a promoted image has loaded", () => {
+    const { imageInstances, restore } = installDeferredImagePreloadMock();
+    const initialOutput = {
+      ...baseOutput,
+      previewUrl: "https://cdn.test/initial-reflect-preview.jpg",
+      resultUrls: ["https://cdn.test/initial-reflect-preview.jpg"],
+    };
+    try {
+      const { baseElement, rerender } = render(
+        <DetailModal
+          output={initialOutput}
+          onClose={vi.fn()}
+          onUpdatePrompt={vi.fn()}
+          onDeleteOutput={vi.fn()}
+        />
+      );
+
+      const initialImage = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
+      const initialReflect = baseElement.querySelector(
+        ".reference-modal-bg-reflect"
+      ) as HTMLDivElement | null;
+      expect(initialImage).not.toBeNull();
+      expect(initialImage?.getAttribute("src")).toBe(
+        "https://cdn.test/initial-reflect-preview.jpg"
+      );
+      expect(initialReflect?.style.backgroundImage).toContain(
+        "https://cdn.test/initial-reflect-preview.jpg"
+      );
+
+      rerender(
+        <DetailModal
+          output={{
+            ...initialOutput,
+            fullStoragePath: "https://cdn.test/final-reflect-full.jpg",
+            previewUrl: "https://cdn.test/final-reflect-full.jpg",
+            resultUrls: ["https://cdn.test/final-reflect-full.jpg"],
+          }}
+          onClose={vi.fn()}
+          onUpdatePrompt={vi.fn()}
+          onDeleteOutput={vi.fn()}
+        />
+      );
+
+      const promotedImage = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
+      const pendingReflect = baseElement.querySelector(
+        ".reference-modal-bg-reflect"
+      ) as HTMLDivElement | null;
+      expect(promotedImage?.getAttribute("src")).toBe(
+        "https://cdn.test/initial-reflect-preview.jpg"
+      );
+      expect(pendingReflect?.style.backgroundImage).toContain(
+        "https://cdn.test/initial-reflect-preview.jpg"
+      );
+      expect(imageInstances.map((instance) => instance.src)).toContain(
+        "https://cdn.test/final-reflect-full.jpg"
+      );
+
+      act(() => {
+        imageInstances
+          .filter((instance) => instance.src === "https://cdn.test/final-reflect-full.jpg")
+          .forEach((instance) => instance.onload?.());
+      });
+
+      const loadedReflect = baseElement.querySelector(
+        ".reference-modal-bg-reflect"
+      ) as HTMLDivElement | null;
+      expect(promotedImage?.getAttribute("src")).toBe("https://cdn.test/final-reflect-full.jpg");
+      expect(loadedReflect?.style.backgroundImage).toContain(
+        "https://cdn.test/final-reflect-full.jpg"
+      );
     } finally {
       restore();
     }

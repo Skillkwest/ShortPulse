@@ -138,6 +138,13 @@ type ProjectOutputDisplayItemRow = {
 type ProjectOutputDisplayItemUpsertRow = Omit<ProjectOutputDisplayItemRow, "updated_at"> & {
   updated_at: string;
 };
+
+type ProjectPromptTextAuthorityRow = {
+  id: string;
+  title: string | null;
+  prompt_text: string | null;
+};
+
 export type ProjectOutputDisplaySyncResult = {
   outputCount: number;
   upsertedCount: number;
@@ -633,24 +640,125 @@ const toCompatibilityOutputPatch = (row: ProjectOutputDisplayItemRow): Record<st
     hiddenInReferenceGrid: row.hidden_in_reference_grid,
   });
 
-export const materializeProjectWorkspaceSnapshotWithDisplayItems = ({
+const collectSnapshotPromptIdsForMaterialization = ({
   snapshot,
   displayItems,
 }: {
   snapshot: Record<string, unknown>;
   displayItems: readonly ProjectOutputDisplayItemRow[];
+}): string[] => {
+  const promptIds = new Set<string>();
+  getSnapshotOutputRows(snapshot).forEach((output) => {
+    const promptId = normalizeUuid(output.promptId);
+    if (promptId) promptIds.add(promptId);
+  });
+  displayItems.forEach((row) => {
+    const promptId = normalizeUuid(row.prompt_id);
+    if (promptId) promptIds.add(promptId);
+  });
+  return [...promptIds];
+};
+
+const loadProjectPromptTextAuthorities = async ({
+  userId,
+  promptIds,
+}: {
+  userId: string;
+  promptIds: string[];
+}): Promise<Map<string, ProjectPromptTextAuthorityRow>> => {
+  if (promptIds.length === 0) return new Map();
+  const supabaseAdmin = getSupabaseAdmin();
+  const promptRows = new Map<string, ProjectPromptTextAuthorityRow>();
+
+  for (const idChunk of chunkValues(promptIds)) {
+    const { data, error } = await supabaseAdmin
+      .from("media_prompts")
+      .select("id, title, prompt_text")
+      .eq("user_id", userId)
+      .in("id", idChunk);
+
+    if (error) {
+      throw new Error(error.message || "Failed to load project prompt text authorities");
+    }
+
+    (Array.isArray(data) ? data : []).forEach((row) => {
+      const record = asRecord(row);
+      const id = normalizeUuid(record.id);
+      const promptText = normalizeString(record.prompt_text);
+      if (!id || !promptText) return;
+      promptRows.set(id, {
+        id,
+        title: normalizeString(record.title),
+        prompt_text: promptText,
+      });
+    });
+  }
+
+  return promptRows;
+};
+
+const preservePromptTextAuthority = ({
+  patch,
+  promptAuthority,
+}: {
+  patch: Record<string, unknown>;
+  promptAuthority: ProjectPromptTextAuthorityRow | null;
 }): Record<string, unknown> => {
-  if (displayItems.length === 0) return snapshot;
+  const promptText = normalizeString(promptAuthority?.prompt_text);
+  if (!promptText) return patch;
+  return compactRecord({
+    ...patch,
+    previewText: promptText,
+    prompt: promptText,
+    title: normalizeString(promptAuthority?.title) ?? patch.title,
+  });
+};
+
+const preserveSnapshotTextAuthority = ({
+  output,
+  patch,
+}: {
+  output: Record<string, unknown>;
+  patch: Record<string, unknown>;
+}): Record<string, unknown> => {
+  const merged = { ...patch };
+  (["previewText", "prompt", "title", "errorMessageShort"] as const).forEach((field) => {
+    if (normalizeString(output[field])) {
+      merged[field] = output[field];
+    }
+  });
+  return merged;
+};
+
+export const materializeProjectWorkspaceSnapshotWithDisplayItems = ({
+  snapshot,
+  displayItems,
+  promptTextAuthorities = new Map(),
+}: {
+  snapshot: Record<string, unknown>;
+  displayItems: readonly ProjectOutputDisplayItemRow[];
+  promptTextAuthorities?: ReadonlyMap<string, ProjectPromptTextAuthorityRow>;
+}): Record<string, unknown> => {
   const displayByOutputId = new Map(displayItems.map((row) => [row.output_id, row]));
   const outputs = asRecord(snapshot.outputs);
   const patchOutputRows = (rows: Record<string, unknown>[]) =>
     rows.map((output) => {
       const outputId = normalizeString(output.id);
       const displayItem = outputId ? displayByOutputId.get(outputId) : null;
-      if (!displayItem) return output;
+      const promptId = normalizeUuid(output.promptId ?? displayItem?.prompt_id);
+      const promptAuthority = promptId ? (promptTextAuthorities.get(promptId) ?? null) : null;
+      if (!displayItem && !promptAuthority) return output;
+      const snapshotPreservedPatch = preserveSnapshotTextAuthority({
+        output,
+        patch: displayItem ? toCompatibilityOutputPatch(displayItem) : {},
+      });
+      const compatibilityPatch = preservePromptTextAuthority({
+        patch: snapshotPreservedPatch,
+        promptAuthority,
+      });
       return {
         ...output,
-        ...toCompatibilityOutputPatch(displayItem),
+        ...compatibilityPatch,
         id: outputId,
       };
     });
@@ -676,5 +784,13 @@ export const materializeProjectWorkspaceSnapshotForUser = async ({
   snapshot: Record<string, unknown>;
 }): Promise<Record<string, unknown>> => {
   const displayItems = await loadProjectOutputDisplayItemsForProject({ userId, projectId });
-  return materializeProjectWorkspaceSnapshotWithDisplayItems({ snapshot, displayItems });
+  const promptTextAuthorities = await loadProjectPromptTextAuthorities({
+    userId,
+    promptIds: collectSnapshotPromptIdsForMaterialization({ snapshot, displayItems }),
+  });
+  return materializeProjectWorkspaceSnapshotWithDisplayItems({
+    snapshot,
+    displayItems,
+    promptTextAuthorities,
+  });
 };

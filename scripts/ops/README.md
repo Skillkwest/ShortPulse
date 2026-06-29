@@ -33,19 +33,22 @@ Purpose: keep shared ShortPulse operations scripts and agent-specific helper aud
 - `bash scripts/ops/supabase_public_acl_sync.sh`
   - Copies live `public` grant/revoke posture from one hosted Supabase database to another.
   - Useful after schema-only bootstrap when object parity passes but service-role or client grants are missing.
+  - Defaults to SQL emit mode; target mutation requires `--mode apply --apply`.
 - `bash scripts/ops/supabase_rowcount_diff.sh`
   - Compares exact `COUNT(*)` totals for shared tables across staging/production.
 - `bash scripts/ops/supabase_storage_parity.sh`
   - Compares bucket metadata plus `storage.objects` counts and byte totals.
 - `bash scripts/ops/supabase_storage_rclone_sync.sh --bucket media_library`
   - Uses Supabase S3 access keys plus `rclone` for the supported bulk object transfer path.
-  - Supports `--mode copy|check|size`.
+  - Supports `--mode copy|check|size`; defaults to `size`, and mutating copy requires `--apply` unless `--dry-run` is set.
 - `bash scripts/ops/supabase_hot_table_delta_sync.sh`
   - Watermark-based delta sync for the currently known live-write hot tables.
   - Upserts `auth.refresh_tokens`, `public.worker_instances`, `public.worker_runs`, `public.app_error_logs`, `public.app_error_events`, `public.ai_credit_reservations`, `public.ai_credit_ledger`, and `public.growth_attribution_identities`.
+  - Mutates the target database and requires `--apply`.
 - `bash scripts/ops/supabase_media_generation_delta_sync.sh`
   - Watermark-based delta sync for the current media-generation drift tables.
   - Upserts `public.ai_generations`, `public.generation_attempts`, `public.ai_generation_outputs`, `public.generation_projection`, `public.media_files`, `public.generation_publications`, `public.project_media_items`, and `public.media_events`.
+  - Mutates the target database and requires `--apply`.
 - `bash scripts/ops/secret_rotation_validate.sh`
   - Runs the standard post-rotation validation sequence for development/preview/production env contract, preview+production route parity, homepage reachability, and authenticated preview+production internal worker-route runtime probes.
 - `node scripts/verify_internal_route_runtime.mjs --base-url <url>`
@@ -87,14 +90,15 @@ Purpose: keep shared ShortPulse operations scripts and agent-specific helper aud
 1. `bash scripts/ops/vercel_env_audit.sh`
 2. `bash scripts/ops/github_env_audit.sh`
 3. `bash scripts/ops/supabase_public_schema_parity.sh --source-label staging --target-label production`
-4. `bash scripts/ops/supabase_public_acl_sync.sh --source-label staging --target-label development`
+4. `bash scripts/ops/supabase_public_acl_sync.sh --source-label staging --target-label development --mode emit --output-file /tmp/public-acl-sync.sql`
 5. `bash scripts/ops/supabase_rowcount_diff.sh --source-label staging --target-label production`
 6. `bash scripts/ops/supabase_storage_parity.sh --bucket media_library --source-label staging --target-label production`
 7. `bash scripts/ops/supabase_storage_rclone_sync.sh --bucket media_library --mode size`
-8. `bash scripts/ops/supabase_storage_rclone_sync.sh --bucket media_library --mode copy`
-9. `bash scripts/ops/supabase_storage_rclone_sync.sh --bucket media_library --mode check`
-10. `bash scripts/ops/supabase_hot_table_delta_sync.sh`
-11. `bash scripts/ops/supabase_media_generation_delta_sync.sh`
+8. `bash scripts/ops/supabase_storage_rclone_sync.sh --bucket media_library --mode copy --dry-run`
+9. `bash scripts/ops/supabase_storage_rclone_sync.sh --bucket media_library --mode copy --apply`
+10. `bash scripts/ops/supabase_storage_rclone_sync.sh --bucket media_library --mode check`
+11. `bash scripts/ops/supabase_hot_table_delta_sync.sh --apply`
+12. `bash scripts/ops/supabase_media_generation_delta_sync.sh --apply`
 
 ## Post-Rotation Validation
 

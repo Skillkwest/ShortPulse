@@ -124,7 +124,7 @@ export function VideoGenerateFooter({
               !hasRequiredPromptForGenerate ||
               shouldShowKlingReferenceImageWarning
             }
-            cost={costCredits != null ? costCredits : "—"}
+            cost={costCredits}
           />
         </div>
       </div>

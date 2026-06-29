@@ -55,6 +55,8 @@ let creditSnapshotRetryAfterMs = 0;
 let creditSnapshotInFlightPromise: Promise<CreditSnapshotApiResponse | null> | null = null;
 const CREDIT_SNAPSHOT_RETRY_BACKOFF_MS = 30_000;
 const CREDIT_SNAPSHOT_IDLE_REFRESH_INTERVAL_MS = 120_000;
+const CREDIT_SNAPSHOT_TRANSIENT_RETRY_DELAY_MS = 750;
+const CREDIT_SNAPSHOT_RETRYABLE_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
 
 const createBalanceState = (
   ownerUserId: string | null,
@@ -242,6 +244,25 @@ const parseCreditSnapshot = (payload: unknown): CreditSnapshotApiResponse | null
   };
 };
 
+const waitForCreditSnapshotRetry = async (): Promise<void> => {
+  await new Promise((resolve) => {
+    window.setTimeout(resolve, CREDIT_SNAPSHOT_TRANSIENT_RETRY_DELAY_MS);
+  });
+};
+
+const requestCreditSnapshot = async (): Promise<Response> =>
+  await fetchWithAuth("/api/credits/snapshot", {
+    method: "GET",
+    cache: "no-store",
+    headers: {
+      "cache-control": "no-cache",
+      pragma: "no-cache",
+    },
+    shortpulseLogScope: "generation",
+    shortpulseSkipErrorLogging: true,
+    shortpulseRetryNetworkOnce: true,
+  });
+
 const fetchCreditSnapshot = async (): Promise<CreditSnapshotApiResponse | null> => {
   if (creditSnapshotRetryAfterMs > Date.now()) {
     return null;
@@ -252,16 +273,11 @@ const fetchCreditSnapshot = async (): Promise<CreditSnapshotApiResponse | null> 
 
   const request = (async () => {
     try {
-      const response = await fetchWithAuth("/api/credits/snapshot", {
-        method: "GET",
-        cache: "no-store",
-        headers: {
-          "cache-control": "no-cache",
-          pragma: "no-cache",
-        },
-        shortpulseLogScope: "generation",
-        shortpulseSkipErrorLogging: true,
-      });
+      let response = await requestCreditSnapshot();
+      if (!response.ok && CREDIT_SNAPSHOT_RETRYABLE_STATUSES.has(response.status)) {
+        await waitForCreditSnapshotRetry();
+        response = await requestCreditSnapshot();
+      }
       if (!response.ok) {
         creditSnapshotRetryAfterMs = Date.now() + CREDIT_SNAPSHOT_RETRY_BACKOFF_MS;
         return null;

@@ -12,13 +12,14 @@ Usage:
 
 Options:
   --bucket <name>             Bucket to operate on. Required for copy/check/size.
-  --mode <copy|check|size>    Default: copy
+  --mode <copy|check|size>    Default: size
   --transfers <n>             Default: 4
   --checkers <n>              Default: 8
   --timeout <duration>        Default: 30m
   --size-only                 Use size-only verification for `check` (default on).
   --full-check                Disable --size-only for `check`.
   --dry-run                   Pass --dry-run to rclone.
+  --apply                     Required for mutating copy operations unless --dry-run is set.
   --help                      Show this message.
 
 Required env:
@@ -53,12 +54,13 @@ require_env() {
 }
 
 BUCKET=""
-MODE="copy"
+MODE="size"
 TRANSFERS="4"
 CHECKERS="8"
 TIMEOUT="30m"
 DRY_RUN="false"
 SIZE_ONLY="true"
+APPLY="false"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -84,6 +86,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --dry-run)
       DRY_RUN="true"
+      shift
+      ;;
+    --apply)
+      APPLY="true"
       shift
       ;;
     --size-only)
@@ -116,6 +122,12 @@ esac
 
 if [[ -z "$BUCKET" ]]; then
   echo "[nuclo-rclone-sync] --bucket is required." >&2
+  exit 1
+fi
+
+if [[ "$MODE" == "copy" && "$DRY_RUN" != "true" && "$APPLY" != "true" ]]; then
+  echo "[nuclo-rclone-sync] refusing to copy objects without explicit --apply or --dry-run." >&2
+  usage >&2
   exit 1
 fi
 
@@ -171,7 +183,7 @@ fi
 SOURCE_REMOTE="staging:${BUCKET}"
 TARGET_REMOTE="production:${BUCKET}"
 
-echo "[nuclo-rclone-sync] mode=$MODE bucket=$BUCKET transfers=$TRANSFERS checkers=$CHECKERS timeout=$TIMEOUT dry_run=$DRY_RUN"
+echo "[nuclo-rclone-sync] mode=$MODE bucket=$BUCKET transfers=$TRANSFERS checkers=$CHECKERS timeout=$TIMEOUT dry_run=$DRY_RUN apply=$APPLY"
 echo "[nuclo-rclone-sync] source=staging target=production"
 
 case "$MODE" in

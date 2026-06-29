@@ -185,7 +185,7 @@ describe("StandardCreatePropertiesPanel single mode", () => {
   });
 
   it("always renders the standard create panel view", () => {
-    render(<StandardCreatePropertiesPanel {...baseProps} />);
+    render(<StandardCreatePropertiesPanel {...baseProps} costCredits={2} />);
 
     expect(screen.getByTestId("standard-create-panel-view")).toBeInTheDocument();
     expect(screen.getByText("Ask anything")).toBeInTheDocument();

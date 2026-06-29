@@ -2763,6 +2763,30 @@
   min-width: 0;
 }
 
+.bootstrapStyleScope:global(.voices-properties-selected-voice-trigger),
+.bootstrapStyleScope :global(.voices-properties-selected-voice-trigger) {
+  appearance: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.bootstrapStyleScope:global(.voices-properties-selected-voice-trigger):focus,
+.bootstrapStyleScope :global(.voices-properties-selected-voice-trigger):focus {
+  outline: none;
+}
+
+.bootstrapStyleScope:global(.voices-properties-selected-voice-trigger):focus-visible,
+.bootstrapStyleScope :global(.voices-properties-selected-voice-trigger):focus-visible {
+  outline: 2px solid rgba(149, 235, 228, 0.28);
+  outline-offset: 4px;
+}
+
 .bootstrapStyleScope:global(.voices-properties-generate-context-value--loaded),
 .bootstrapStyleScope :global(.voices-properties-generate-context-value--loaded) {
   animation: voices-properties-loaded-voice-flash 1.8s ease-out;

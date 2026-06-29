@@ -358,6 +358,7 @@ const sanitizeProjectWorkspaceSnapshot = (
   options: {
     trimGeneratedOutputDeliveryUrls?: boolean;
     trimGeneratedOutputMetadata?: boolean;
+    trimOutputTextSummaries?: boolean;
   } = {}
 ): Record<string, unknown> =>
   createAiStudioProjectWorkspaceSnapshot(
@@ -934,11 +935,13 @@ const canonicalizeProjectWorkspaceSnapshotForRead = async ({
   projectId,
   snapshot,
   trimGeneratedOutputMetadata = true,
+  trimOutputTextSummaries = true,
 }: {
   userId: string;
   projectId: string;
   snapshot: Record<string, unknown>;
   trimGeneratedOutputMetadata?: boolean;
+  trimOutputTextSummaries?: boolean;
 }): Promise<Record<string, unknown>> => {
   const baseSanitizedSnapshot = sanitizeProjectWorkspaceOutputsByShape({
     userId,
@@ -965,6 +968,7 @@ const canonicalizeProjectWorkspaceSnapshotForRead = async ({
     });
     const reSanitizedSnapshot = sanitizeProjectWorkspaceSnapshot(sanitizedOutputsSnapshot, {
       trimGeneratedOutputMetadata,
+      trimOutputTextSummaries,
     });
 
     if (failedAuthorities.length === 0) {
@@ -1147,6 +1151,7 @@ const prepareProjectWorkspaceSnapshotForReadResponse = async ({
     userId,
     projectId,
     snapshot: materialized.snapshot,
+    trimOutputTextSummaries: false,
   });
   const convergedSnapshot = await convergeProjectWorkspaceGeneratedOutputsForRead({
     userId,
@@ -1158,6 +1163,7 @@ const prepareProjectWorkspaceSnapshotForReadResponse = async ({
   // Keep restored detail metadata in the response while preserving lean checkpoint trimming on save.
   return sanitizeProjectWorkspaceSnapshot(convergedSnapshot, {
     trimGeneratedOutputMetadata: false,
+    trimOutputTextSummaries: false,
   });
 };
 

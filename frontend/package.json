@@ -51,6 +51,7 @@
     "test:e2e:pulse-builtin-contract": "NODE_PATH=./node_modules node ./tests/e2e/pulse-builtin-contract.audit.js",
     "test:pulse-custom-contract:release-check": "node ./scripts/pulse-custom-contract-release-check.mjs",
     "test:pulse-builtin-contract:release-check": "node ./scripts/pulse-builtin-contract-release-check.mjs",
+    "browser-audit:preflight": "node ./scripts/browser_audit_preflight.mjs",
     "test:e2e:media-library-runtime": "NODE_PATH=./node_modules node ./tests/e2e/media-library-runtime.audit.js",
     "test:e2e:media-panel-persistence": "NODE_PATH=./node_modules node ./tests/e2e/media-panel-persistence.audit.js",
     "test:e2e:audio-exclusivity": "NODE_PATH=./node_modules node ./tests/e2e/ai-studio-audio-exclusivity.audit.js",

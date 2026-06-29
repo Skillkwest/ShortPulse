@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthenticatedDashboardView } from "../../features/dashboard/components/AuthenticatedDashboardView";
 import { SHORTPULSE_COMMUNITY_URL } from "../../features/dashboard/communityLinks";
 import { DashboardAppBar } from "../../features/dashboard/components/DashboardAppBar";
+import { resetBillingAccountSummaryClientStateForTests } from "../../features/billing/accountSummary";
 import DashboardPage from "../../pages/dashboard";
 
 const useRouterMock = vi.hoisted(() => vi.fn());
@@ -170,6 +171,7 @@ describe("Dashboard actions", () => {
       ok: true,
       json: async () => ({ tutorials: [] }),
     });
+    resetBillingAccountSummaryClientStateForTests();
 
     useRouterMock.mockReturnValue({ replace: routerReplaceMock, push: routerPushMock });
     useCreditsMock.mockReturnValue({
@@ -202,6 +204,29 @@ describe("Dashboard actions", () => {
         return {
           ok: true,
           json: async () => ({ announcement: null }),
+        };
+      }
+      if (input === "/api/billing/account-summary") {
+        return {
+          ok: true,
+          json: async () => ({
+            userId: "user-1",
+            resolvedPlan: {
+              id: "business",
+              label: "Business",
+              className: "plan-business",
+              monthlyCreditsCents: 12_000,
+            },
+            quotaStatus: "available",
+            quotaSummary: {
+              usedBytes: 1024,
+              baseLimitBytes: 500 * 1024 * 1024 * 1024,
+              addonLimitBytes: 0,
+              totalLimitBytes: 500 * 1024 * 1024 * 1024,
+              remainingBytes: 500 * 1024 * 1024 * 1024 - 1024,
+              isOverLimit: false,
+            },
+          }),
         };
       }
       if (input === "/api/projects?limit=12&offset=0&previewMode=none") {

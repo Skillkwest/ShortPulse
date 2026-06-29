@@ -240,6 +240,7 @@ describe("SharedMediaDetailPreviewMedia image stability", () => {
 
     const previewUrl = "https://cdn.example.com/generated-preview.jpg";
     const fullUrl = "https://cdn.example.com/generated-full.jpg";
+    const onDisplayedImageUrlChange = vi.fn();
     const { rerender } = render(
       <SharedMediaDetailPreviewMedia
         mediaUrl={previewUrl}
@@ -247,10 +248,13 @@ describe("SharedMediaDetailPreviewMedia image stability", () => {
         altText="Generated image"
         imageClassName="art-hero-image"
         imageIdentityKey="out-1"
+        onDisplayedImageUrlChange={onDisplayedImageUrlChange}
       />
     );
 
     expect(screen.getByAltText("Generated image")).toHaveAttribute("src", previewUrl);
+    expect(onDisplayedImageUrlChange).toHaveBeenLastCalledWith(previewUrl);
+    onDisplayedImageUrlChange.mockClear();
 
     rerender(
       <SharedMediaDetailPreviewMedia
@@ -259,11 +263,13 @@ describe("SharedMediaDetailPreviewMedia image stability", () => {
         altText="Generated image"
         imageClassName="art-hero-image"
         imageIdentityKey="out-1"
+        onDisplayedImageUrlChange={onDisplayedImageUrlChange}
       />
     );
 
     expect(screen.getByAltText("Generated image")).toHaveAttribute("src", previewUrl);
     expect(imageInstances.map((instance) => instance.src)).toContain(fullUrl);
+    expect(onDisplayedImageUrlChange).not.toHaveBeenCalledWith(fullUrl);
 
     act(() => {
       imageInstances
@@ -273,10 +279,12 @@ describe("SharedMediaDetailPreviewMedia image stability", () => {
     });
 
     expect(screen.getByAltText("Generated image")).toHaveAttribute("src", fullUrl);
+    expect(onDisplayedImageUrlChange).toHaveBeenLastCalledWith(fullUrl);
   });
 
   it("keeps the current image visible when the same item temporarily has no candidate URL", () => {
     const previewUrl = "https://cdn.example.com/generated-preview.jpg";
+    const onDisplayedImageUrlChange = vi.fn();
     const { rerender } = render(
       <SharedMediaDetailPreviewMedia
         mediaUrl={previewUrl}
@@ -284,10 +292,13 @@ describe("SharedMediaDetailPreviewMedia image stability", () => {
         altText="Generated image"
         imageClassName="art-hero-image"
         imageIdentityKey="out-1"
+        onDisplayedImageUrlChange={onDisplayedImageUrlChange}
       />
     );
 
     expect(screen.getByAltText("Generated image")).toHaveAttribute("src", previewUrl);
+    expect(onDisplayedImageUrlChange).toHaveBeenLastCalledWith(previewUrl);
+    onDisplayedImageUrlChange.mockClear();
 
     rerender(
       <SharedMediaDetailPreviewMedia
@@ -296,11 +307,13 @@ describe("SharedMediaDetailPreviewMedia image stability", () => {
         altText="Generated image"
         imageClassName="art-hero-image"
         imageIdentityKey="out-1"
+        onDisplayedImageUrlChange={onDisplayedImageUrlChange}
       />
     );
 
     expect(screen.getByAltText("Generated image")).toHaveAttribute("src", previewUrl);
     expect(screen.queryByText("Preview unavailable.")).not.toBeInTheDocument();
+    expect(onDisplayedImageUrlChange).not.toHaveBeenCalledWith(null);
   });
 
   it("switches immediately when the selected image identity changes", () => {
@@ -328,5 +341,45 @@ describe("SharedMediaDetailPreviewMedia image stability", () => {
       "src",
       "https://cdn.example.com/second.jpg"
     );
+  });
+
+  it("renders companion art as a shared audio detail background", () => {
+    const { baseElement } = render(
+      <SharedMediaDetailPreviewMedia
+        mediaUrl="https://cdn.example.com/generated-audio.mp3"
+        mediaKind="audio"
+        altText="Generated audio"
+        imageClassName="art-hero-image"
+        audioBackgroundImageUrl="https://cdn.example.com/generated-audio-cover.webp"
+      />
+    );
+
+    const preview = baseElement.querySelector(
+      ".detail-modal-audio-preview"
+    ) as HTMLDivElement | null;
+    expect(preview).not.toBeNull();
+    expect(preview).toHaveClass("has-companion-art");
+    expect(preview?.style.getPropertyValue("--detail-audio-background-image")).toContain(
+      "https://cdn.example.com/generated-audio-cover.webp"
+    );
+  });
+
+  it("rejects Supabase render-image companion art in shared audio detail backgrounds", () => {
+    const { baseElement } = render(
+      <SharedMediaDetailPreviewMedia
+        mediaUrl="https://cdn.example.com/generated-audio.mp3"
+        mediaKind="audio"
+        altText="Generated audio"
+        imageClassName="art-hero-image"
+        audioBackgroundImageUrl="https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/render/image/sign/media_library/user-1/audio-cover.webp?token=abc123"
+      />
+    );
+
+    const preview = baseElement.querySelector(
+      ".detail-modal-audio-preview"
+    ) as HTMLDivElement | null;
+    expect(preview).not.toBeNull();
+    expect(preview).not.toHaveClass("has-companion-art");
+    expect(preview?.style.getPropertyValue("--detail-audio-background-image")).toBe("");
   });
 });

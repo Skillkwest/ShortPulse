@@ -96,6 +96,8 @@ export const createCanvasDetailModalItem = ({
               filename: title,
               previewUrl: item.audioUrl,
               fullUrl: item.audioUrl,
+              companionArtUrl: item.companionArtUrl ?? null,
+              companionArtStoragePath: item.companionArtStoragePath ?? null,
               source: item.audioSourceMode ?? null,
               audioSourceMode: item.audioSourceMode ?? null,
               durationMs: item.durationMs ?? null,

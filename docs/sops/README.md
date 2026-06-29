@@ -38,6 +38,7 @@ Reusable cross-agent onboarding and training guidance lives under `agent-teachin
 - `docs/sops/sop_ai_studio_index.md`
 - `docs/sops/sop_ai_studio_agent.md`
 - `docs/sops/sop_ai_studio_agent_chat_ops.md`
+- `docs/sops/sop_ai_studio_internal_drag_drop_intake.md`
 - `docs/sops/sop_ai_studio_agent_safety_control_plane.md`
 - `docs/sops/sop_ai_studio_agent_rollout_operations.md`
 - `docs/sops/sop_ai_studio_pulse_mode.md`
@@ -65,6 +66,7 @@ Reusable cross-agent onboarding and training guidance lives under `agent-teachin
 - `docs/sops/sop_gear_ball_github_pr_merge_operations.md`
 - `docs/sops/sop_admin_user_health_fleet_operations.md`
 - `docs/sops/sop_admin_user_health_fleet_staging_walkthrough.md`
+- `docs/sops/sop_account_health_snapshot.md`
 - `docs/sops/sop_generation_recovery_diagnostics.md`
 - `docs/sops/sop_provider_incident_response.md`
 - `docs/sops/sop_lever_model_management.md`

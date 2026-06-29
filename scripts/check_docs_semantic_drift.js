@@ -8,20 +8,27 @@ const ROUTES_DOC = path.join(REPO_ROOT, "docs", "routes.md");
 const README_DOC = path.join(REPO_ROOT, "README.md");
 const SECURITY_DOC = path.join(REPO_ROOT, "docs", "security-checklist.md");
 const API_DOC = path.join(REPO_ROOT, "docs", "api", "api-internal-routes.md");
-const PAGE_AUTH_GUARD_PATH = path.join(REPO_ROOT, "frontend", "lib", "protectedRoutes.ts");
+const PAGE_AUTH_GUARD_PATH = path.join(
+  REPO_ROOT,
+  "frontend",
+  "lib",
+  "protectedRoutes.ts",
+);
 const API_AUTH_GUARD_PATH = path.join(
   REPO_ROOT,
   "frontend",
   "lib",
   "server",
   "api",
-  "protectedApiPaths.ts"
+  "protectedApiPaths.ts",
 );
 const PAGES_DIR = path.join(REPO_ROOT, "frontend", "pages");
+const PUBLIC_DIR = path.join(REPO_ROOT, "frontend", "public");
 const SKILLS_DIR = path.join(REPO_ROOT, "skills");
 const CHANGELOG_PATH = path.join(REPO_ROOT, "docs", "change_log.md");
 
 const IGNORE_PAGE_FILES = new Set(["_app.tsx", "_document.tsx", "_error.tsx"]);
+const PUBLIC_STATIC_ROUTES = new Set(["/robots.txt", "/sitemap.xml"]);
 
 function walk(dir, out = []) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -95,13 +102,14 @@ function listApiRoutes() {
 function parseDisabledApiExactPaths() {
   const content = readText(API_AUTH_GUARD_PATH);
   const disabledSetMatch = content.match(
-    /DISABLED_API_EXACT_PATHS\s*=\s*new Set\(\[([\s\S]*?)\]\)/
+    /DISABLED_API_EXACT_PATHS\s*=\s*new Set\(\[([\s\S]*?)\]\)/,
   );
   if (!disabledSetMatch) return new Set();
   return new Set(
-    Array.from(disabledSetMatch[1].matchAll(/"([^"]+)"/g), (match) => match[1]).filter(
-      (route) => route.startsWith("/api/")
-    )
+    Array.from(
+      disabledSetMatch[1].matchAll(/"([^"]+)"/g),
+      (match) => match[1],
+    ).filter((route) => route.startsWith("/api/")),
   );
 }
 
@@ -111,7 +119,10 @@ function parseRoutesDoc() {
   for (const line of text.split("\n")) {
     const routeMatch = line.match(/^\|\s*`([^`]+)`\s*\|/);
     if (!routeMatch) continue;
-    const columns = line.split("|").slice(1, -1).map((value) => value.trim());
+    const columns = line
+      .split("|")
+      .slice(1, -1)
+      .map((value) => value.trim());
     if (columns.length < 2) continue;
 
     const authModeCell = columns[1];
@@ -130,7 +141,10 @@ function parseRoutesDoc() {
 function parseStringArrayExport(filePath, exportName) {
   const text = readText(filePath);
   const arrayMatch = text.match(
-    new RegExp(`export const ${exportName}\\s*=\\s*\\[([\\s\\S]*?)\\](?:\\s+as\\s+const)?;`, "m")
+    new RegExp(
+      `export const ${exportName}\\s*=\\s*\\[([\\s\\S]*?)\\](?:\\s+as\\s+const)?;`,
+      "m",
+    ),
   );
   if (!arrayMatch) return [];
   const values = [];
@@ -146,7 +160,10 @@ function parseStringArrayExport(filePath, exportName) {
 function parseStringSetExport(filePath, exportName) {
   const text = readText(filePath);
   const setMatch = text.match(
-    new RegExp(`export const ${exportName}\\s*=\\s*new Set\\(\\[([\\s\\S]*?)\\]\\);`, "m")
+    new RegExp(
+      `export const ${exportName}\\s*=\\s*new Set\\(\\[([\\s\\S]*?)\\]\\);`,
+      "m",
+    ),
   );
   if (!setMatch) return [];
   const values = [];
@@ -172,7 +189,10 @@ function parseApiProtectedExactPaths() {
 }
 
 function isProtectedByRuntime(route, prefixes, exactPaths = []) {
-  return exactPaths.includes(route) || prefixes.some((prefix) => route === prefix || route.startsWith(prefix));
+  return (
+    exactPaths.includes(route) ||
+    prefixes.some((prefix) => route === prefix || route.startsWith(prefix))
+  );
 }
 
 function parseReadmeRouteProtectionList() {
@@ -217,7 +237,9 @@ function routeMatchesPattern(route, pattern) {
 
 function checkSkillPathValidity(errors) {
   if (!fs.existsSync(SKILLS_DIR)) return;
-  const skillFiles = walk(SKILLS_DIR).filter((fullPath) => fullPath.endsWith("SKILL.md"));
+  const skillFiles = walk(SKILLS_DIR).filter((fullPath) =>
+    fullPath.endsWith("SKILL.md"),
+  );
 
   for (const skillFile of skillFiles) {
     const text = readText(skillFile);
@@ -229,7 +251,11 @@ function checkSkillPathValidity(errors) {
         match = pattern.exec(text);
         continue;
       }
-      if (/^https?:\/\//i.test(candidate) || candidate.includes("*") || candidate.includes("{")) {
+      if (
+        /^https?:\/\//i.test(candidate) ||
+        candidate.includes("*") ||
+        candidate.includes("{")
+      ) {
         match = pattern.exec(text);
         continue;
       }
@@ -253,7 +279,7 @@ function checkSkillPathValidity(errors) {
       const exists = resolvedPaths.some((resolved) => fs.existsSync(resolved));
       if (!exists) {
         errors.push(
-          `Missing referenced path in ${path.relative(REPO_ROOT, skillFile)} -> ${candidate}`
+          `Missing referenced path in ${path.relative(REPO_ROOT, skillFile)} -> ${candidate}`,
         );
       }
 
@@ -269,7 +295,9 @@ function checkChangelogDates(errors) {
     return;
   }
   const legacySectionMatch = /^##\s+Legacy Imported Entries\b.*$/im.exec(text);
-  const activeTimelineText = legacySectionMatch ? text.slice(0, legacySectionMatch.index) : text;
+  const activeTimelineText = legacySectionMatch
+    ? text.slice(0, legacySectionMatch.index)
+    : text;
   const headingPattern = /^##\s+(\d{4}-\d{2}-\d{2})(?:\b|$)/gm;
   const dates = [];
   let match = headingPattern.exec(activeTimelineText);
@@ -280,7 +308,7 @@ function checkChangelogDates(errors) {
 
   const today = new Date();
   const todayIso = `${today.getUTCFullYear()}-${String(today.getUTCMonth() + 1).padStart(2, "0")}-${String(
-    today.getUTCDate()
+    today.getUTCDate(),
   ).padStart(2, "0")}`;
 
   let previous = null;
@@ -291,10 +319,14 @@ function checkChangelogDates(errors) {
       continue;
     }
     if (dateText > todayIso) {
-      errors.push(`Future-dated changelog entry found: ${dateText} > ${todayIso}`);
+      errors.push(
+        `Future-dated changelog entry found: ${dateText} > ${todayIso}`,
+      );
     }
     if (previous && dateText > previous) {
-      errors.push(`Changelog chronology drift: ${dateText} appears after older date ${previous}`);
+      errors.push(
+        `Changelog chronology drift: ${dateText} appears after older date ${previous}`,
+      );
     }
     previous = dateText;
   }
@@ -307,8 +339,17 @@ function run() {
   const apiRoutes = listApiRoutes();
   const disabledApiExactPaths = parseDisabledApiExactPaths();
   const routeDocEntries = parseRoutesDoc();
-  const pageDocEntries = routeDocEntries.filter((entry) => !entry.route.startsWith("/api/"));
-  const apiDocEntries = routeDocEntries.filter((entry) => entry.route.startsWith("/api/"));
+  const publicStaticDocEntries = routeDocEntries.filter((entry) =>
+    PUBLIC_STATIC_ROUTES.has(entry.route),
+  );
+  const pageDocEntries = routeDocEntries.filter(
+    (entry) =>
+      !entry.route.startsWith("/api/") &&
+      !PUBLIC_STATIC_ROUTES.has(entry.route),
+  );
+  const apiDocEntries = routeDocEntries.filter((entry) =>
+    entry.route.startsWith("/api/"),
+  );
   const pageDocSet = new Set(pageDocEntries.map((entry) => entry.route));
   const protectedPageDocRoutes = pageDocEntries
     .filter((entry) => entry.authMode === "runtime")
@@ -324,7 +365,17 @@ function run() {
   }
   for (const route of pageDocSet) {
     if (!pageRoutes.has(route)) {
-      errors.push(`Route listed in docs/routes.md but missing in frontend/pages: ${route}`);
+      errors.push(
+        `Route listed in docs/routes.md but missing in frontend/pages: ${route}`,
+      );
+    }
+  }
+  for (const { route } of publicStaticDocEntries) {
+    const publicPath = path.join(PUBLIC_DIR, route.replace(/^\//, ""));
+    if (!fs.existsSync(publicPath)) {
+      errors.push(
+        `Static public route listed in docs/routes.md but missing in frontend/public: ${route}`,
+      );
     }
   }
 
@@ -332,7 +383,7 @@ function run() {
   for (const route of protectedPageDocRoutes) {
     if (!isProtectedByRuntime(route, pageProtectedPrefixes)) {
       errors.push(
-        `Route marked auth-required in docs/routes.md but not protected by runtime prefixes: ${route}`
+        `Route marked auth-required in docs/routes.md but not protected by runtime prefixes: ${route}`,
       );
     }
   }
@@ -340,9 +391,11 @@ function run() {
   const apiProtectedPrefixes = parseApiProtectedPrefixes();
   const apiProtectedExactPaths = parseApiProtectedExactPaths();
   for (const route of protectedApiDocRoutes) {
-    if (!isProtectedByRuntime(route, apiProtectedPrefixes, apiProtectedExactPaths)) {
+    if (
+      !isProtectedByRuntime(route, apiProtectedPrefixes, apiProtectedExactPaths)
+    ) {
       errors.push(
-        `Route marked auth-required in docs/routes.md but not protected by runtime auth guards: ${route}`
+        `Route marked auth-required in docs/routes.md but not protected by runtime auth guards: ${route}`,
       );
     }
   }
@@ -351,30 +404,43 @@ function run() {
   const securityRoutes = parseSecurityRouteProtectionList();
   for (const prefix of pageProtectedPrefixes) {
     const docHasExact =
-      readmeRoutes.has(prefix.toLowerCase()) || readmeRoutes.has(`${prefix.toLowerCase()}*`);
+      readmeRoutes.has(prefix.toLowerCase()) ||
+      readmeRoutes.has(`${prefix.toLowerCase()}*`);
     const docHasDerived = [...pageRoutes].some(
-      (route) => (route === prefix || route.startsWith(prefix)) && readmeRoutes.has(route.toLowerCase())
+      (route) =>
+        (route === prefix || route.startsWith(prefix)) &&
+        readmeRoutes.has(route.toLowerCase()),
     );
     if (!docHasExact && !docHasDerived) {
-      errors.push(`README route protection list missing protected prefix coverage: ${prefix}`);
+      errors.push(
+        `README route protection list missing protected prefix coverage: ${prefix}`,
+      );
     }
 
     const securityHasExact =
-      securityRoutes.has(prefix.toLowerCase()) || securityRoutes.has(`${prefix.toLowerCase()}*`);
+      securityRoutes.has(prefix.toLowerCase()) ||
+      securityRoutes.has(`${prefix.toLowerCase()}*`);
     const securityHasDerived = [...pageRoutes].some(
       (route) =>
-        (route === prefix || route.startsWith(prefix)) && securityRoutes.has(route.toLowerCase())
+        (route === prefix || route.startsWith(prefix)) &&
+        securityRoutes.has(route.toLowerCase()),
     );
     if (!securityHasExact && !securityHasDerived) {
-      errors.push(`docs/security-checklist.md missing protected prefix coverage: ${prefix}`);
+      errors.push(
+        `docs/security-checklist.md missing protected prefix coverage: ${prefix}`,
+      );
     }
   }
   const apiDocPatterns = parseApiDocPatterns();
   for (const route of apiRoutes) {
     if (disabledApiExactPaths.has(route)) continue;
-    const covered = apiDocPatterns.some((pattern) => routeMatchesPattern(route, pattern));
+    const covered = apiDocPatterns.some((pattern) =>
+      routeMatchesPattern(route, pattern),
+    );
     if (!covered) {
-      errors.push(`API route missing from docs/api/api-internal-routes.md: ${route}`);
+      errors.push(
+        `API route missing from docs/api/api-internal-routes.md: ${route}`,
+      );
     }
   }
 

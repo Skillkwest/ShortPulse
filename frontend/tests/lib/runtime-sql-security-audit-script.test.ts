@@ -64,11 +64,35 @@ const REQUIRED_SIGNATURES = [
   "public.rollback_model_pricing_policy(text,uuid,text,text)",
 ] as const;
 
+const extractExpectedFunctionSignatureBlocks = (sql: string): string[][] =>
+  Array.from(
+    sql.matchAll(
+      /with expected_functions as \([\s\S]*?\) as f\(signature, alternate_signature\)\s*\),/g
+    )
+  ).map((match) =>
+    Array.from(match[0].matchAll(/\(\s*'([^']+)'/g)).map((signatureMatch) => signatureMatch[1])
+  );
+
 describe("check_runtime_sql_security_audit.sql", () => {
   it("tracks all critical runtime RPC signatures", () => {
     const sql = fs.readFileSync(auditScriptPath, "utf8");
     for (const signature of REQUIRED_SIGNATURES) {
       expect(sql).toContain(signature);
+    }
+  });
+
+  it("keeps detailed and summary expected RPC lists in parity", () => {
+    const sql = fs.readFileSync(auditScriptPath, "utf8");
+    const blocks = extractExpectedFunctionSignatureBlocks(sql);
+    expect(blocks).toHaveLength(2);
+
+    const [detailSignatures, summarySignatures] = blocks.map((block) => [...new Set(block)].sort());
+    expect(summarySignatures).toEqual(detailSignatures);
+    expect(detailSignatures).toHaveLength(REQUIRED_SIGNATURES.length);
+
+    for (const signature of REQUIRED_SIGNATURES) {
+      expect(detailSignatures).toContain(signature);
+      expect(summarySignatures).toContain(signature);
     }
   });
 

@@ -600,23 +600,12 @@ describe("ReferenceGridCard", () => {
     expect(onReloadWorkflowOutput).toHaveBeenCalledWith(output, { mediaKindHint: "video" });
   });
 
-  it("keeps generated video duration badges separate from replay actions", () => {
+  it("keeps generated video duration badges separate from workflow reload actions", () => {
     const output = createOutput({
       mode: "video",
       durationMs: 6_000,
       taskState: "success",
       mediaSource: "generated",
-      generationReplay: {
-        version: 1,
-        mode: "video",
-        submitTool: "video",
-        modelId: "kie-ai/kling-3.0",
-        displayPrompt: "A cinematic tracking shot",
-        submissionPrompt: "A cinematic tracking shot",
-        aspect: "16:9",
-        referenceInputs: [],
-        capturedAt: "2026-06-06T12:00:00.000Z",
-      },
       workflowReload: {
         version: 1,
         source: "ai_studio_generation",
@@ -656,9 +645,8 @@ describe("ReferenceGridCard", () => {
     );
 
     const durationBadge = screen.getByText("0:06");
-    const rerollButton = screen.getByLabelText("Re-roll");
     const reloadButton = screen.getByLabelText("Reload workflow");
-    const actionRow = rerollButton.parentElement;
+    const actionRow = reloadButton.parentElement;
 
     expect(durationBadge.closest(".reference-card-media-duration")).not.toBeNull();
     expect(actionRow).toHaveClass("reference-card-bottom-actions");

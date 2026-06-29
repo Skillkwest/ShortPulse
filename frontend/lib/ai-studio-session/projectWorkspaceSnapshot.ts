@@ -345,6 +345,7 @@ type CanonicalizedProjectWorkspaceOutputs = {
 type ProjectWorkspaceSnapshotOptions = {
   trimGeneratedOutputDeliveryUrls?: boolean;
   trimGeneratedOutputMetadata?: boolean;
+  trimOutputTextSummaries?: boolean;
 };
 
 const normalizeProjectWorkspaceOutputRows = (
@@ -353,6 +354,7 @@ const normalizeProjectWorkspaceOutputRows = (
 ): Record<string, unknown>[] => {
   const trimGeneratedOutputDeliveryUrls = options.trimGeneratedOutputDeliveryUrls !== false;
   const trimGeneratedOutputMetadata = options.trimGeneratedOutputMetadata !== false;
+  const trimOutputTextSummaries = options.trimOutputTextSummaries !== false;
   return (Array.isArray(value) ? value : [])
     .map((output) => asRecord(output))
     .filter(shouldPersistOutputInProjectWorkspaceSnapshot)
@@ -361,9 +363,11 @@ const normalizeProjectWorkspaceOutputRows = (
         trimDeliveryUrls: trimGeneratedOutputDeliveryUrls,
         trimMetadata: trimGeneratedOutputMetadata,
       });
-      return trimProjectWorkspaceOutputTextSummaries(
-        trimPromptOnlyProjectWorkspaceOutput(generatedNormalizedOutput)
-      );
+      const promptNormalizedOutput =
+        trimPromptOnlyProjectWorkspaceOutput(generatedNormalizedOutput);
+      return trimOutputTextSummaries
+        ? trimProjectWorkspaceOutputTextSummaries(promptNormalizedOutput)
+        : promptNormalizedOutput;
     });
 };
 

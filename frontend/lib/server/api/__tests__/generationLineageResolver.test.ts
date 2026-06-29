@@ -360,7 +360,7 @@ describe("resolveGenerationLineageBySourceRef", () => {
     getSupabaseAdminMock.mockReturnValue(createMockSupabase());
   });
 
-  it("prefers caller-owned ai_generations source-ref metadata before projection", async () => {
+  it("prefers projection source-ref lineage before caller-owned metadata", async () => {
     readGenerationProjectionLinkBySourceRefMock.mockResolvedValue({
       generationId: "gen-projection-source-1",
       sourceRef: "source-ref-1",
@@ -384,20 +384,24 @@ describe("resolveGenerationLineageBySourceRef", () => {
         userId: " user-1 ",
       })
     ).resolves.toEqual({
-      generationId: "gen-metadata-source-1",
+      generationId: "gen-projection-source-1",
       generationAttemptId: null,
       userId: "user-1",
-      modelId: "model-1",
+      modelId: null,
       sourceRef: "source-ref-1",
-      requestId: "req-metadata-source-1",
+      requestId: "req-projection-source-1",
       providerRequestId: "",
-      evidence: ["generation_source_ref"],
+      evidence: ["projection_source_ref"],
       attemptLookupError: null,
     });
-    expect(readGenerationProjectionLinkBySourceRefMock).not.toHaveBeenCalled();
+    expect(readGenerationProjectionLinkBySourceRefMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      sourceRef: "source-ref-1",
+    });
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
   });
 
-  it("falls back to projection source-ref lineage when canonical metadata is absent", async () => {
+  it("uses projection source-ref lineage when canonical metadata is absent", async () => {
     readGenerationProjectionLinkBySourceRefMock.mockResolvedValue({
       generationId: "gen-projection-source-1",
       sourceRef: "source-ref-1",

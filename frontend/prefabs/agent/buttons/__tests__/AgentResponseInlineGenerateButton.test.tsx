@@ -7,11 +7,15 @@ import { describe, expect, it, vi } from "vitest";
 import { AgentResponseInlineGenerateButton } from "../AgentResponseInlineGenerateButton";
 
 describe("AgentResponseInlineGenerateButton", () => {
-  it("renders generate label and fallback cost when missing", () => {
+  it("fails closed with pending-cost copy when cost is missing", () => {
     render(<AgentResponseInlineGenerateButton onClick={vi.fn()} />);
 
-    expect(screen.getByRole("button", { name: "Generate" })).toBeInTheDocument();
-    expect(screen.getByText("—")).toBeInTheDocument();
+    const button = screen.getByRole("button", {
+      name: "Generate: cost estimate pending",
+    });
+    expect(button).toBeDisabled();
+    expect(button).toHaveTextContent("Cost pending");
+    expect(button).toHaveAttribute("title", "Cost estimate pending");
   });
 
   it("renders localized cost and calls onClick", () => {
@@ -26,7 +30,7 @@ describe("AgentResponseInlineGenerateButton", () => {
 
   it("honors disabled state", () => {
     const onClick = vi.fn();
-    render(<AgentResponseInlineGenerateButton onClick={onClick} disabled />);
+    render(<AgentResponseInlineGenerateButton onClick={onClick} costCredits={5} disabled />);
 
     const button = screen.getByRole("button", { name: "Generate" });
     expect(button).toBeDisabled();
@@ -40,7 +44,7 @@ describe("AgentResponseInlineGenerateButton", () => {
     const onClick = vi.fn();
     render(
       <div onClick={parentClick} onDoubleClick={parentDoubleClick}>
-        <AgentResponseInlineGenerateButton onClick={onClick} stopPropagation />
+        <AgentResponseInlineGenerateButton onClick={onClick} costCredits={4} stopPropagation />
       </div>
     );
 

@@ -25,6 +25,26 @@ describe("AgentGenerateButton", () => {
     expect(onClick).not.toHaveBeenCalled();
   });
 
+  it("fails closed when cost is unavailable", () => {
+    const onClick = vi.fn();
+    render(<AgentGenerateButton onClick={onClick} cost={null} />);
+
+    const button = screen.getByRole("button", { name: "Generate: cost estimate pending" });
+    expect(button).toBeDisabled();
+    expect(button).toHaveTextContent("Cost pending");
+    expect(button).toHaveAttribute("title", "Cost estimate pending");
+    fireEvent.click(button);
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it("treats undefined cost as unavailable", () => {
+    render(<AgentGenerateButton onClick={vi.fn()} cost={undefined} />);
+
+    const button = screen.getByRole("button", { name: "Generate: cost estimate pending" });
+    expect(button).toBeDisabled();
+    expect(button).toHaveTextContent("Cost pending");
+  });
+
   it("does not expose busy semantics when active", () => {
     render(<AgentGenerateButton onClick={vi.fn()} cost={7} />);
 

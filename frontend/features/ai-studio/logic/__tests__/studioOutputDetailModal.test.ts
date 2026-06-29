@@ -106,4 +106,30 @@ describe("createStudioOutputDetailModalItem", () => {
       "This request was blocked for explicit or unsafe content. Try revising the prompt or references."
     );
   });
+
+  it("preserves generated audio companion art for shared detail rendering", () => {
+    const item = createStudioOutputDetailModalItem({
+      output: createOutput({
+        id: "audio-output-1",
+        mode: "audio",
+        taskState: "success",
+        mediaSource: "generated",
+        generationId: "generation-audio-1",
+        previewUrl: "https://cdn.shortpulse.test/audio-output-1.mp3",
+        companionArtUrl: "https://cdn.shortpulse.test/audio-output-1-cover.webp",
+        companionArtStoragePath:
+          "user-1/generations/audio/generation-audio-1/companion-art/cover.webp",
+      }),
+      canSavePrompt: true,
+    });
+
+    expect(item.media.kind).toBe("audio");
+    expect(item.media.url).toBe("https://cdn.shortpulse.test/audio-output-1.mp3");
+    expect(item.media.companionArtUrl).toBe(
+      "https://cdn.shortpulse.test/audio-output-1-cover.webp"
+    );
+    expect(item.media.companionArtStoragePath).toBe(
+      "user-1/generations/audio/generation-audio-1/companion-art/cover.webp"
+    );
+  });
 });

@@ -176,25 +176,6 @@ export const resolveGenerationLineageBySourceRef = async ({
     };
   }
 
-  const generationSourceLink = await lookupGenerationBySourceRef({
-    sourceRef: normalizedSourceRef,
-    userId: normalizedUserId,
-    supabaseAdmin,
-  }).catch(() => null);
-  if (generationSourceLink?.generationId) {
-    return {
-      generationId: generationSourceLink.generationId,
-      generationAttemptId: null,
-      userId: generationSourceLink.userId,
-      modelId: generationSourceLink.modelId,
-      sourceRef: generationSourceLink.sourceRef ?? normalizedSourceRef,
-      requestId: generationSourceLink.requestId,
-      providerRequestId: "",
-      evidence: ["generation_source_ref"],
-      attemptLookupError: null,
-    };
-  }
-
   if (includeProjection) {
     const projectionLink = await readGenerationProjectionLinkBySourceRef({
       userId: normalizedUserId,
@@ -214,6 +195,25 @@ export const resolveGenerationLineageBySourceRef = async ({
         attemptLookupError: null,
       };
     }
+  }
+
+  const generationSourceLink = await lookupGenerationBySourceRef({
+    sourceRef: normalizedSourceRef,
+    userId: normalizedUserId,
+    supabaseAdmin,
+  }).catch(() => null);
+  if (generationSourceLink?.generationId) {
+    return {
+      generationId: generationSourceLink.generationId,
+      generationAttemptId: null,
+      userId: generationSourceLink.userId,
+      modelId: generationSourceLink.modelId,
+      sourceRef: generationSourceLink.sourceRef ?? normalizedSourceRef,
+      requestId: generationSourceLink.requestId,
+      providerRequestId: "",
+      evidence: ["generation_source_ref"],
+      attemptLookupError: null,
+    };
   }
 
   return {

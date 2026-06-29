@@ -168,7 +168,7 @@ describe("MediaLibraryMediaGrid", () => {
           removeLabel: "Remove clip-1.mp4 from folder",
           deleteLabel: "Delete clip-1.mp4 from library",
         })}
-        dangerActionMode="delete"
+        dangerActionMode="exclusive"
         onDownloadMediaFile={vi.fn()}
         onDeleteMediaFromLibrary={vi.fn()}
         variant="mixed-feed"

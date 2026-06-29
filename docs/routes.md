@@ -14,6 +14,13 @@ Auth required legend:
 - `Route`: authenticated inside the route handler instead of the shared runtime auth prefix lists.
 - `No`: public route or non-user auth path (for example cron-secret or internal secret protection).
 
+Public discovery files:
+
+| Route          | Auth required | Purpose               | Notes                                                                                          |
+| -------------- | ------------- | --------------------- | ---------------------------------------------------------------------------------------------- |
+| `/robots.txt`  | No            | Public crawler policy | Static file under `frontend/public/robots.txt`; allows public crawling and points to sitemap.  |
+| `/sitemap.xml` | No            | Public launch sitemap | Static file under `frontend/public/sitemap.xml`; lists public/legal/support launch pages only. |
+
 Public legal policy routes:
 
 | Route            | Auth required | Purpose                      | Notes                                                                                                                                                                                                      |

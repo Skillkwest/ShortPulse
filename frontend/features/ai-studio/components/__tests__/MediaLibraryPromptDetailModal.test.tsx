@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { createMediaLibraryPromptDetailModalItem } from "../../logic/mediaLibraryPromptDetailModal";
 import type { PromptRow } from "../../logic/mediaLibraryModalModel";
@@ -21,6 +21,27 @@ describe("MediaLibraryPromptDetailModal", () => {
       surface: "media-library-panel",
     });
 
+  const installClipboardWriteMock = () => {
+    const originalDescriptor = Object.getOwnPropertyDescriptor(globalThis.navigator, "clipboard");
+    const writeText = vi.fn().mockResolvedValue(undefined);
+
+    Object.defineProperty(globalThis.navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+
+    return {
+      writeText,
+      restore: () => {
+        if (originalDescriptor) {
+          Object.defineProperty(globalThis.navigator, "clipboard", originalDescriptor);
+          return;
+        }
+        Reflect.deleteProperty(globalThis.navigator, "clipboard");
+      },
+    };
+  };
+
   it("renders saved prompt text in the shared text-detail layout", () => {
     render(<MediaLibraryPromptDetailModal item={createItem()} onClose={vi.fn()} />);
 
@@ -33,6 +54,24 @@ describe("MediaLibraryPromptDetailModal", () => {
         .readOnly
     ).toBe(true);
     expect(screen.queryByRole("button", { name: "Saved" })).not.toBeInTheDocument();
+  });
+
+  it("copies saved prompt text from the top-row text reference action", async () => {
+    const clipboard = installClipboardWriteMock();
+
+    try {
+      render(<MediaLibraryPromptDetailModal item={createItem()} onClose={vi.fn()} />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Copy prompt" }));
+
+      await waitFor(() => {
+        expect(clipboard.writeText).toHaveBeenCalledWith(
+          "A cinematic portrait with soft rim light"
+        );
+      });
+    } finally {
+      clipboard.restore();
+    }
   });
 
   it("labels untitled saved prompts as text references", () => {

@@ -12,7 +12,8 @@ Usage:
     --source-url <postgres-url> \
     --target-url <postgres-url> \
     [--source-label staging] \
-    [--target-label production]
+    [--target-label production] \
+    --apply
 
 Env fallbacks:
   SHORTPULSE_STAGING_DB_URL
@@ -32,6 +33,7 @@ Notes:
     with publication-delta lineage pulled in explicitly so FK dependencies land
     before new publications.
   - Imports use primary-key upserts.
+  - This script mutates the target database and requires explicit --apply.
 EOF
 }
 
@@ -62,6 +64,7 @@ SOURCE_URL="${SHORTPULSE_STAGING_DB_URL:-}"
 TARGET_URL="${SHORTPULSE_PRODUCTION_DB_URL:-}"
 SOURCE_LABEL="staging"
 TARGET_LABEL="production"
+APPLY="false"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -81,6 +84,10 @@ while [[ $# -gt 0 ]]; do
       TARGET_LABEL="${2:-}"
       shift 2
       ;;
+    --apply)
+      APPLY="true"
+      shift
+      ;;
     --help|-h)
       usage
       exit 0
@@ -92,6 +99,12 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if [[ "$APPLY" != "true" ]]; then
+  echo "[nuclo-media-sync] refusing to mutate target without explicit --apply." >&2
+  usage >&2
+  exit 1
+fi
 
 if [[ -z "$SOURCE_URL" || -z "$TARGET_URL" ]]; then
   echo "[nuclo-media-sync] source and target URLs are required." >&2

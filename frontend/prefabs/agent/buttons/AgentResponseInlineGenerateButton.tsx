@@ -3,7 +3,7 @@
  * Keeps the compact response-style CTA markup consistent across surfaces while
  * leaving duplicate-click suppression to the owning generation lane.
  */
-import React, { useMemo } from "react";
+import React from "react";
 
 type AgentResponseInlineGenerateButtonProps = {
   onClick: () => void;
@@ -22,10 +22,10 @@ export function AgentResponseInlineGenerateButton({
   className = "",
   stopPropagation = false,
 }: AgentResponseInlineGenerateButtonProps) {
-  const costLabel = useMemo(
-    () => (costCredits != null ? costCredits.toLocaleString() : "—"),
-    [costCredits]
-  );
+  const hasKnownCost = typeof costCredits === "number" && Number.isFinite(costCredits);
+  const costLabel = hasKnownCost ? costCredits.toLocaleString() : "Cost pending";
+  const isDisabled = disabled || !hasKnownCost;
+  const resolvedAriaLabel = hasKnownCost ? ariaLabel : `${ariaLabel}: cost estimate pending`;
 
   return (
     <button
@@ -38,8 +38,9 @@ export function AgentResponseInlineGenerateButton({
       onDoubleClick={(event) => {
         if (stopPropagation) event.stopPropagation();
       }}
-      disabled={disabled}
-      aria-label={ariaLabel}
+      disabled={isDisabled}
+      aria-label={resolvedAriaLabel}
+      title={hasKnownCost ? undefined : "Cost estimate pending"}
     >
       <span className="agent-generate-label">Generate</span>
       <span className="model-chip-pill generate-pill">

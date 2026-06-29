@@ -129,9 +129,43 @@ function checkApiDocsIndexed(errors) {
 
   for (const apiDoc of apiDocs) {
     if (!docsIndex.includes(`docs/api/${apiDoc}`)) {
-      errors.push(
-        `Missing API doc link in docs/README.md: docs/api/${apiDoc}`,
-      );
+      errors.push(`Missing API doc link in docs/README.md: docs/api/${apiDoc}`);
+    }
+  }
+}
+
+function checkSectionReadmeInventory(errors) {
+  const sections = [
+    {
+      dir: path.join(DOCS_DIR, "sops"),
+      readme: path.join(DOCS_DIR, "sops", "README.md"),
+      label: "SOP",
+      matches: (fileName) => /^sop_.*\.md$/.test(fileName),
+      repoPath: (fileName) => `docs/sops/${fileName}`,
+    },
+    {
+      dir: path.join(DOCS_DIR, "adr"),
+      readme: path.join(DOCS_DIR, "adr", "README.md"),
+      label: "ADR",
+      matches: (fileName) => /^\d{4}-.*\.md$/.test(fileName),
+      repoPath: (fileName) => `docs/adr/${fileName}`,
+    },
+  ];
+
+  for (const section of sections) {
+    const readmeText = readText(section.readme);
+    const files = fs
+      .readdirSync(section.dir)
+      .filter((fileName) => section.matches(fileName))
+      .sort();
+
+    for (const fileName of files) {
+      const repoPath = section.repoPath(fileName);
+      if (!readmeText.includes(repoPath)) {
+        errors.push(
+          `Missing ${section.label} section index link in ${toRepoPath(section.readme)}: ${repoPath}`,
+        );
+      }
     }
   }
 }
@@ -194,6 +228,7 @@ function checkLegacyStatusPlacement(errors) {
 function runChecks() {
   const errors = [];
   checkApiDocsIndexed(errors);
+  checkSectionReadmeInventory(errors);
   checkMarkdownLinks(errors);
   checkLegacyStatusPlacement(errors);
 

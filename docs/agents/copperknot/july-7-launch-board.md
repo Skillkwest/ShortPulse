@@ -2,13 +2,19 @@
 
 Purpose: provide the first Copperknot-owned launch-control board for the July 7, 2026 launch decision.
 
-## Evidence Snapshot
+## Current Freshness Pointer
 
-- Snapshot date: `2026-06-08`
-- Latest active evidence is in the current board table plus the June 28 refresh entries below. Older snapshot bullets are retained baseline/history and must not override fresher route, queue, or production evidence.
-- Branch: `production`
-- Commit anchor: `a621b6f54`
-- Worktree: dirty with multiple active product/doc lanes. Treat Copperknot docs and explicitly assigned source files as the only editable scope here; dirty Media/Admin/unknown-owned product files are parallel work, not Copperknot proof targets or blame surfaces.
+- Active July 7 readiness and queue authority: `docs/agents/copperknot/july-7-launch-authority.md`, `docs/agents/copperknot/july-7-system-map.md`, `docs/agents/copperknot/prioritized-launch-queue-2026-07-07.md`, and the current board table below.
+- Latest active evidence is in the current board table plus the June 28 refresh entries below. Older snapshot bullets are retained baseline/history and must not override fresher route, queue, production, or issue-list evidence.
+- Branch policy: `production` only during the pre-launch phase.
+- Current repo anchor for this retained board refresh: `7910dadc1` before the June 28 issue-list implementation pass. Use fresh `git status` for the current worktree; do not use the retained June 8 dirty-worktree note as current ownership evidence.
+
+## Retained Evidence Snapshot
+
+- Retained snapshot date: `2026-06-08`
+- Retained branch: `production`
+- Retained commit anchor: `a621b6f54`
+- Retained worktree note: dirty with multiple active product/doc lanes. Treat this as historical context only; current branch/worktree authority comes from fresh repo checks and the current task lane.
 - Audit mode: rolling weakness audit plus bounded Video workflow source hardening. This pass corrected local model-catalog and Video UI/state guardrail seams without committing, pushing, deploying, spending credits, or claiming production behavior.
 - Current operating mode: rolling weakness audit. While lanes are moving, prefer source hardening, narrow invariant tests, meaningful variant checks, and bounded validation; reserve final production/user-journey proof for stable lanes, launch week, or cheap non-mutating checks that directly guide hardening.
 - Explicit Expert Edit deferral: Markup and Inpaint are not active July 7 launch scope. Preserve the existing launch-locked/hidden behavior, but do not reopen Markup/Inpaint internals, history stacks, mask rendering, or browser-load concerns as launch blockers or hardening work unless the user explicitly approves a post-launch lane. Expert Edit launch proof remains bounded to the visible standard Edit surface and non-generative controls unless a separate user-approved lane changes that boundary.

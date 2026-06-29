@@ -2,7 +2,7 @@
 
 Purpose: running audit-only ledger for high-ROI ShortPulse launch-hardening findings before the July 7, 2026 launch decision.
 
-Status: active audit in progress.
+Status: repo-local implementation list completed at Checkpoint 32 on 2026-06-28; Checkpoint 33 re-audit found subsequent current-worktree drift in validation evidence. F-007 remains an external Stripe proof boundary, not an implementation item from this list.
 
 Authority: this is a retained evidence/report artifact, not a source-of-truth contract. Current repo instructions, Copperknot launch authority, launch board, queue, ADRs, SOPs, source code, and fresh validation evidence override this ledger.
 
@@ -95,7 +95,7 @@ Each finding should use this shape:
 ### F-001 - Extend size-budget coverage to current oversized launch surfaces
 
 - ID: F-001
-- Status: candidate
+- Status: resolved locally during Checkpoint 32
 - Launch lane: tooling/tests/scripts/config; AI Studio shell; admin/operator; media/generation maintainability
 - Evidence level: Locally Tested
 - Source seam: `scripts/check_size_budgets.js`
@@ -109,7 +109,7 @@ Each finding should use this shape:
 ### F-002 - Add an automated production 404 probe for the dev-only bakeoff route
 
 - ID: F-002
-- Status: candidate
+- Status: resolved locally during Checkpoint 25, with production-safe proof
 - Launch lane: route surface / public trust / launch operations
 - Evidence level: Production Checked
 - Source seam: `frontend/pages/dev/ai-studio-stage-bakeoff.tsx`, `scripts/verify_deployment_route_parity.mjs`, and production route probe harnesses
@@ -123,11 +123,11 @@ Each finding should use this shape:
 ### F-003 - Refresh the launch board header so stale snapshot facts do not lead the current truth
 
 - ID: F-003
-- Status: candidate
+- Status: resolved locally during Checkpoint 29
 - Launch lane: launch-control docs / queue authority
 - Evidence level: Repo Inspected
 - Source seam: `docs/agents/copperknot/july-7-launch-board.md`
-- Problem: the launch board begins with `Snapshot date: 2026-06-08`, commit anchor `a621b6f54`, and a dirty-worktree note, while the current repo is on commit `7ef871892`, current branch/config are `production`, and the only worktree changes are this audit report and its index entry. The queue has fresher June 28 evidence, but the board's top metadata still foregrounds old context.
+- Problem: the launch board begins with `Snapshot date: 2026-06-08`, commit anchor `a621b6f54`, and a dirty-worktree note, while the current repo is on commit `7910dadc1`, current branch/config are `production`, and the only current worktree change in this lane is this audit report. The board does include fresher June 28 evidence and a warning that older snapshot bullets are retained history, but the top metadata still foregrounds old context.
 - Why it matters for July 7: launch-control docs are delegated authority surfaces. Stale top-of-file facts can cause agents to classify current clean files as dirty/parallel-owned, rely on old validation counts, or waste time reconciling evidence that has already been superseded.
 - Proposed change: refresh the launch board's opening snapshot into a "baseline retained" section plus a current freshness header that points to the June 28 queue rows. Do not rewrite historical bullets; clearly mark them as retained history and keep current branch/worktree/commit freshness separate.
 - Behavior/UI/UX impact: none.
@@ -137,13 +137,13 @@ Each finding should use this shape:
 ### F-004 - Reconcile stale systems-catalog launch-facing fields with the June 28 queue
 
 - ID: F-004
-- Status: candidate
+- Status: resolved locally during Checkpoint 29
 - Launch lane: systems catalog / launch-control docs
 - Evidence level: Repo Inspected
 - Source seam: `docs/systems/catalog.md`, `docs/systems/README.md`, `docs/systems/launch-fitness-scorecard-2026-06-16.md`
-- Problem: `docs/systems/README.md` says launch-facing catalog fields are stale when more than 7 calendar days have passed since the execution snapshot, but `docs/systems/catalog.md` still has many `Last reviewed` dates in May and points to the June 16 launch-fitness scorecard as the current easy-read scorecard. The active launch queue now contains June 28 evidence and state changes.
+- Problem: `docs/systems/README.md` now correctly routes active July 7 readiness decisions to Copperknot launch-control docs and marks the June 16 scorecard as historical, but `docs/systems/catalog.md` still has many `Last reviewed` dates in May and points to the June 16 launch-fitness scorecard as the current easy-read scorecard. The active launch queue now contains June 28 evidence and state changes.
 - Why it matters for July 7: agents use the systems catalog for inventory and boundary mapping. If launch-facing fields look current when they are stale, agents can pick the wrong seam, rerun old proof, or underweight fresh queue evidence.
-- Proposed change: either refresh the launch-facing catalog/scoreboard rows from the June 28 launch queue, or add a prominent stale/secondary banner that routes launch-readiness decisions to the queue until a catalog refresh is performed. Keep `/10` maturity scoring separate from July 7 launch state.
+- Proposed change: refresh the launch-facing catalog/scoreboard rows from the June 28 launch queue, or change the catalog's top note so it matches `docs/systems/README.md` and treats the June 16 scorecard as historical/secondary. Keep `/10` maturity scoring separate from July 7 launch state.
 - Behavior/UI/UX impact: none.
 - Validation path: `npm -C frontend run docs:check`; targeted grep for references that call the June 16 scorecard "current" after the refresh decision.
 - Gate/owner: Copperknot/Gottspan system-catalog lane.
@@ -151,7 +151,7 @@ Each finding should use this shape:
 ### F-005 - Investigate native test-runtime warning from `canvas` plus `sharp`
 
 - ID: F-005
-- Status: candidate
+- Status: resolved locally during Checkpoint 30
 - Launch lane: tooling/tests/scripts/config
 - Evidence level: Locally Tested
 - Source seam: `frontend/package.json`, Vitest/jsdom test environment, `fabric`/`canvas`/`sharp` dependency interaction
@@ -165,7 +165,7 @@ Each finding should use this shape:
 ### F-006 - Strengthen migration-doc parity around the newest migration stream
 
 - ID: F-006
-- Status: candidate
+- Status: resolved locally during Checkpoint 28
 - Launch lane: SQL/migration operations; docs/SOP guardrails
 - Evidence level: Repo Inspected
 - Source seam: `scripts/check_migration_doc_parity.js`, `docs/database-migrations.md`, `docs/sops/sop_sql_migration_operations.md`, `sql/migrations/`
@@ -179,7 +179,7 @@ Each finding should use this shape:
 ### F-007 - Close the Stripe webhook endpoint proof gap in billing launch-readiness
 
 - ID: F-007
-- Status: candidate
+- Status: blocked on external proof boundary since Checkpoint 19
 - Launch lane: billing/signup-to-paid-use proof
 - Evidence level: Production Checked
 - Source seam: `scripts/check_billing_launch_readiness.mjs`, Stripe webhook endpoint configuration, local/ops credential packet
@@ -193,7 +193,7 @@ Each finding should use this shape:
 ### F-008 - Harden project-persistence E2E cleanup before any live run
 
 - ID: F-008
-- Status: candidate
+- Status: resolved locally during Checkpoint 21
 - Launch lane: project/workspace persistence; test/ops hygiene
 - Evidence level: Repo Inspected
 - Source seam: `frontend/tests/e2e/project-persistence.audit.js`, `frontend/package.json` script `test:e2e:project-persistence`
@@ -207,7 +207,7 @@ Each finding should use this shape:
 ### F-009 - Reconcile dashboard account-summary test with the API-backed billing contract
 
 - ID: F-009
-- Status: candidate
+- Status: resolved locally during Checkpoint 20
 - Launch lane: dashboard/account summary; billing signup-to-paid-use proof; test reliability
 - Evidence level: Locally Tested
 - Source seam: `frontend/tests/pages/dashboard.actions.test.tsx`, `frontend/features/dashboard/components/AuthenticatedDashboardRoute.tsx`, `frontend/features/billing/accountSummary.ts`
@@ -221,7 +221,7 @@ Each finding should use this shape:
 ### F-010 - Centralize jsdom media-element mocks for dashboard/tutorial tests
 
 - ID: F-010
-- Status: candidate
+- Status: resolved locally during Checkpoint 30
 - Launch lane: tooling/tests/scripts/config; dashboard/tutorial validation
 - Evidence level: Repo Inspected
 - Source seam: `frontend/vitest.setup.ts`, `frontend/tests/pages/dashboard-tutorial-grid.test.tsx`, `frontend/tests/pages/dashboard.guest-route.test.tsx`, `frontend/tests/pages/public-home-video-gallery.test.tsx`
@@ -235,7 +235,7 @@ Each finding should use this shape:
 ### F-011 - Stabilize the Expert Edit Reset All integration gate
 
 - ID: F-011
-- Status: candidate
+- Status: resolved locally during Checkpoint 19
 - Launch lane: AI Studio Edit / Expert Edit release gate
 - Evidence level: Locally Tested
 - Source seam: `frontend/features/ai-studio/components/edit/__tests__/ExpertEditPanelView.integration.test.tsx`, `frontend/features/ai-studio/components/edit/useExpertEditStageHistory.ts`, `frontend/features/ai-studio/components/edit/useExpertEditTransformHistory.ts`
@@ -249,7 +249,7 @@ Each finding should use this shape:
 ### F-012 - Make AI Studio browser release-check proof boundaries explicit and cleanup-safe
 
 - ID: F-012
-- Status: candidate
+- Status: resolved locally during Checkpoint 22
 - Launch lane: AI Studio Create/Pulse/perf/style/audio browser proof
 - Evidence level: Repo Inspected
 - Source seam: `frontend/scripts/pulse-custom-contract-release-check.mjs`, `frontend/scripts/pulse-builtin-contract-release-check.mjs`, `frontend/scripts/ai-studio-perf-release-check.mjs`, `frontend/tests/e2e/pulse-custom-contract.audit.js`, `frontend/tests/e2e/pulse-builtin-contract.audit.js`, `frontend/tests/e2e/ai-studio-style-drop.audit.js`, `frontend/tests/e2e/ai-studio-audio-exclusivity.audit.js`, `frontend/tests/e2e/ai-studio-loading-gate.audit.js`
@@ -263,7 +263,7 @@ Each finding should use this shape:
 ### F-013 - Add section-index parity checks for SOP and ADR inventories
 
 - ID: F-013
-- Status: candidate
+- Status: resolved locally during Checkpoint 27
 - Launch lane: docs/SOP/ADR/index drift; tooling
 - Evidence level: Locally Tested
 - Source seam: `docs/sops/README.md`, `docs/adr/README.md`, `scripts/check_docs_links.js`, `npm -C frontend run docs:check`
@@ -277,7 +277,7 @@ Each finding should use this shape:
 ### F-014 - Restore the full TypeScript gate by fixing AI Studio test-fixture type drift
 
 - ID: F-014
-- Status: candidate
+- Status: resolved locally during Checkpoint 19
 - Launch lane: tooling/tests/scripts/config; AI Studio media/reference-grid test contracts
 - Evidence level: Locally Tested
 - Source seam: `frontend/features/ai-studio/components/__tests__/MediaLibraryMediaGrid.test.tsx`, `frontend/features/ai-studio/components/__tests__/ReferenceGrid.curated.test.tsx`, `frontend/features/ai-studio/reference-grid/components/__tests__/ReferenceGridCard.test.tsx`, `frontend/features/ai-studio/logic/generationReplay.ts`, `frontend/features/ai-studio/components/MediaLibraryMediaGrid.tsx`
@@ -291,7 +291,7 @@ Each finding should use this shape:
 ### F-015 - Add explicit dry-run/apply gates to production-touching Supabase sync helpers
 
 - ID: F-015
-- Status: candidate
+- Status: resolved locally during Checkpoint 24
 - Launch lane: ops/database/storage cutover safety
 - Evidence level: Repo Inspected
 - Source seam: `scripts/ops/supabase_hot_table_delta_sync.sh`, `scripts/ops/supabase_media_generation_delta_sync.sh`, `scripts/ops/supabase_public_acl_sync.sh`, `scripts/ops/supabase_storage_rclone_sync.sh`, `scripts/ops/README.md`
@@ -305,7 +305,7 @@ Each finding should use this shape:
 ### F-016 - Reconcile Vercel env contract required keys with `frontend/.env.example`
 
 - ID: F-016
-- Status: candidate
+- Status: resolved locally during Checkpoint 26, with production audit pass
 - Launch lane: env contract / admin access / launch tooling
 - Evidence level: Repo Inspected
 - Source seam: `scripts/lib/vercel_env_contract.mjs`, `scripts/check_vercel_env_contract.mjs`, `frontend/.env.example`
@@ -319,7 +319,7 @@ Each finding should use this shape:
 ### F-017 - Hide framework disclosure and decide public crawler discovery files
 
 - ID: F-017
-- Status: candidate
+- Status: resolved locally during Checkpoint 31, with post-deploy proof boundary
 - Launch lane: deployment/runtime config; public trust; SEO/discovery
 - Evidence level: Production Checked
 - Source seam: `frontend/next.config.js`, `frontend/pages/_document.tsx`, `frontend/public/`
@@ -333,7 +333,7 @@ Each finding should use this shape:
 ### F-018 - Deduplicate runtime SQL security audit so the summary covers the full function set
 
 - ID: F-018
-- Status: candidate
+- Status: resolved locally during Checkpoint 23
 - Launch lane: SQL/security release gate accuracy
 - Evidence level: Repo Inspected
 - Source seam: `sql/check_runtime_sql_security_audit.sql`
@@ -661,65 +661,608 @@ Final dedupe notes:
 - P1 contains launch-hardening work that reduces proof/operator risk without changing user-visible behavior: dashboard billing smoke fixture (F-009), project-persistence cleanup (F-008), browser-audit preflight/cleanup boundaries (F-012), runtime SQL audit summary accuracy (F-018), production-touching ops apply gates (F-015), and expected-404 route proof (F-002).
 - P2/P3 are docs/tooling/public-surface signal improvements and governed maintainability cleanup. They should not displace red gates unless a lane owner explicitly changes launch priority.
 
+### 2026-06-28 Checkpoint 17 - Re-audit Against Current Repo State
+
+Mode: audit-only refresh of this list. No product source, UI, UX, route behavior, SQL, env, or ops script files were changed.
+
+Fresh repo boundary:
+
+- Current branch remains `production`.
+- Local `shortpulse.allowedBranch` remains `production`.
+- Worktree was clean before this report update.
+- Workspace safety check found no generated backup/build artifact paths matching `.next.bak`, `.next-*`, `*backup*`, or `*bak*` at max depth 3.
+- Subagents were skipped for this refresh because the known finding list needed direct local proof checks rather than new disjoint research lanes.
+
+Re-audit commands/checks run:
+
+- `npm -C frontend run type-check` still fails with the same five AI Studio test-fixture type errors in `MediaLibraryMediaGrid.test.tsx`, `ReferenceGrid.curated.test.tsx`, and `ReferenceGridCard.test.tsx`.
+- `npm -C frontend run test:expert-edit:coordinate-parity:core` still fails the full Expert Edit core gate at `ExpertEditPanelView.integration.test.tsx:449`, with the second layer transform scale remaining `0.5` instead of resetting to `1`.
+- `npm -C frontend run test -- tests/pages/dashboard.actions.test.tsx` still fails the dashboard account-summary card test because the rendered credits link is `AI credits: 86` instead of the expected `AI credits: 86 / 12,000`; the run also still emits many jsdom `HTMLMediaElement.pause()` warnings.
+- `npm -C frontend run billing:launch-readiness -- --strict` still exits non-zero only because Stripe webhook endpoint event proof is unavailable without local `STRIPE_SECRET_KEY`; production env, route parity, public pricing, Supabase catalog, hidden free tier, signup trigger, and renewal-worker checks pass.
+- Static parity for `sql/check_runtime_sql_security_audit.sql` still finds two expected-function lists: `49` signatures in the detailed block and `43` in the summary block. The summary still omits billing offer activation, media folder counts, tutorial reorder, and legal policy functions.
+- Env contract grep still shows `SHORTPULSE_ADMIN_EMAILS` required in `scripts/lib/vercel_env_contract.mjs`, while `frontend/.env.example` still lacks that declaration. Mirrored media-list flags remain referenced in the contract and absent from `.env.example`.
+- Manual SOP/ADR section-index parity still finds `docs/sops/sop_account_health_snapshot.md`, `docs/sops/sop_ai_studio_internal_drag_drop_intake.md`, `docs/adr/0050-generation-pipeline-canonical-request-output-architecture.md`, and `docs/adr/0096-google-oauth-signup-intent-match.md` missing from their section README indexes.
+- `node scripts/check_migration_doc_parity.js` still passes, but targeted grep confirms `docs/sops/sop_sql_migration_operations.md` mentions migrations `164`-`167` in the top layout while its ordered `Current set` still stops at `163`; `docs/database-migrations.md` lists `168_retire_saved_creators.sql` in the long required set.
+- `npm -C frontend run check:size-budget` still passes in warn mode, with `frontend/features/ai-studio/hooks/useAiStudioState.ts` at `953` lines over the `950` line reference-grid budget.
+- Production probe for `https://www.shortpulse.ai/dev/ai-studio-stage-bakeoff` still returns `404`, so the route behavior remains safe but still deserves automated expected-404 coverage.
+- Production root header probe showed CSP, Permissions-Policy, Referrer-Policy, HSTS, and `X-Frame-Options`; the second-pass probe in Checkpoint 18 also returned `x-powered-by: Next.js`, so framework disclosure remains open. `robots.txt` and `sitemap.xml` still return `404`, and no root `frontend/public/robots.txt` or `frontend/public/sitemap.xml` file exists.
+- `docs/agents/copperknot/july-7-launch-board.md` now includes a freshness warning that latest active evidence lives in the table plus June 28 entries, but the header still foregrounds the June 8 snapshot date, old commit anchor, and dirty-worktree note.
+- `docs/systems/README.md` now correctly routes active July 7 readiness to Copperknot launch-control docs and marks the June 16 scorecard as historical. `docs/systems/catalog.md` still says to use `docs/systems/launch-fitness-scorecard-2026-06-16.md` for the "current easy-read" launch-fitness scores.
+- `frontend/tests/e2e/project-persistence.audit.js` still declares `folderId` inside the happy-path block and deletes the audit folder before UI reopen; the `finally` cleanup still deletes only the project/browser context. The cleanup-hardening finding remains open despite retained production proof that one successful run completed.
+- Browser audit scripts still require real audit credentials and mix local default server proof, production URL proof, and mutating audit-account behavior without a shared dry-run/preflight boundary.
+- Ops script grep still shows `supabase_public_acl_sync.sh` defaulting to `MODE="apply"` and `supabase_storage_rclone_sync.sh` defaulting to `MODE="copy"` with `DRY_RUN="false"`, while safer adjacent scripts use `--apply` or dry-run patterns.
+- `npm -C frontend ls canvas sharp --depth=3` still shows `canvas@3.2.3` through `fabric`/`jsdom` and `sharp@0.34.5` through Next/direct dependency, so the native warning's dependency shape remains plausible.
+- Supporting safety checks passed: `npm -C frontend run docs:check:frontend-contracts`, `node scripts/check_secret_exposure.js`, and `npm -C frontend run test:supabase-transform-guard`.
+
+Re-audited finding status:
+
+| Finding | Current status                                                                                                                                                                            | Priority impact                                                  |
+| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| F-014   | Still open and still P0. `type-check` remains red on the same five AI Studio fixture/type-contract errors.                                                                                | No change.                                                       |
+| F-011   | Still open and still P0. Expert Edit full core gate remains red on Reset All session-state publication.                                                                                   | No change.                                                       |
+| F-007   | Still open and still P0 proof gap. Strict billing readiness still passes all non-Stripe checks but fails strict mode on missing Stripe endpoint event proof.                              | No change.                                                       |
+| F-009   | Still open and still P1. Dashboard account-summary test remains red for stale billing-summary fixture behavior.                                                                           | No change.                                                       |
+| F-008   | Still open and still P1, but not because the successful production proof is missing. The current repo script still has failure-cleanup risk for the created folder path.                  | No change.                                                       |
+| F-012   | Still open and still P1. Browser audit proof boundaries remain scattered across credential-gated, mutating, local-default, and production-default checks.                                 | No change.                                                       |
+| F-018   | Still open and still P1. Runtime SQL security audit summary still counts a smaller function set than the detailed audit.                                                                  | No change.                                                       |
+| F-015   | Still open and still P1. Production-touching Supabase sync helpers still have mutation-friendly defaults.                                                                                 | No change.                                                       |
+| F-002   | Still open and still P1. Production currently returns the desired `404`, but the expected-404 proof is still manual rather than part of the default automated gate.                       | No change.                                                       |
+| F-016   | Still open and still P2. Required admin env declaration drift remains.                                                                                                                    | No change.                                                       |
+| F-013   | Still open and still P2. The same SOP/ADR section-index omissions remain.                                                                                                                 | No change.                                                       |
+| F-006   | Still open and still P2. Mention parity passes, but ordered operator inventories remain stale around the newest migration stream.                                                         | No change.                                                       |
+| F-003   | Partially mitigated but still open. The board now warns that fresher evidence lives in current table/June 28 entries, but stale top metadata remains prominent.                           | Keep P2, lower urgency within the docs-cleanup cluster.          |
+| F-004   | Partially mitigated but still open. `docs/systems/README.md` now routes readiness to Copperknot, but `docs/systems/catalog.md` still calls the June 16 scorecard current.                 | Keep P2, lower urgency within the docs-cleanup cluster.          |
+| F-010   | Still open and still P2. Dashboard test output confirms repeated jsdom media-method warnings.                                                                                             | No change.                                                       |
+| F-005   | Still open as a lower-confidence/noise item. Dependency shape remains, but this refresh did not reproduce the native duplicate-class warning directly.                                    | Keep P2/P3-level only; do not let it outrank concrete red tests. |
+| F-017   | Still open. A second-pass production header probe returned `x-powered-by: Next.js`, and crawler/discovery posture remains accidental with `robots.txt` and `sitemap.xml` returning `404`. | Keep original public-surface hardening scope.                    |
+| F-001   | Still open and still P3. Size-budget check remains green only in warn mode while large current source surfaces are outside conservative inventory coverage.                               | No change.                                                       |
+
+Updated judgment:
+
+- The P0 stack is unchanged: F-014, F-011, and F-007 remain the first fix/proof targets if this audit is promoted into implementation mode.
+- The most meaningful status changes are partial mitigations, not closures: F-003/F-004 now have clearer freshness routing but still carry stale top-level/catalog language.
+- No finding should be removed from the worklist yet. F-017 should remain the broader public-surface hardening item because the second-pass header probe still shows framework disclosure.
+
+### 2026-06-28 Checkpoint 18 - Second-Pass Audit And Rewrite
+
+Purpose: re-check the latest checkpoint and rewrite any wording that overstated a fix or carried stale facts from the first audit pass.
+
+Second-pass checks:
+
+- Report consistency script found `18` finding headings, `18` unique IDs, no duplicates, no missing expected IDs from F-001 through F-018, no missing findings from the priority stack, and no missing findings from the Checkpoint 17 status table.
+- Current branch remains `production`; local `shortpulse.allowedBranch` remains `production`; no generated backup/build artifact paths were found by the workspace safety check.
+- Current commit anchor for this audit refresh is `7910dadc1`; this supersedes the earlier retained F-003 wording that named `7ef871892`.
+- `npm -C frontend run type-check` still fails on the same five AI Studio fixture/type-contract errors, so F-014 remains P0.
+- `npm -C frontend run test:expert-edit:coordinate-parity:core` still fails the Reset All integration assertion at `ExpertEditPanelView.integration.test.tsx:449`, so F-011 remains P0.
+- `npm -C frontend run billing:launch-readiness -- --strict` still has `9` pass, `1` warn, and `0` fail, but exits non-zero because Stripe webhook endpoint event proof is unavailable without local `STRIPE_SECRET_KEY`; F-007 remains P0 proof work.
+- `npm -C frontend run test -- tests/pages/dashboard.actions.test.tsx` still fails the account-summary card assertion; the rendered credits link remains `AI credits: 86`, so F-009 remains P1.
+- Production header recheck returned `x-powered-by: Next.js`. This corrects the softer Checkpoint 17 wording and keeps F-017 fully open.
+- Production probes still returned `404` for `/dev/ai-studio-stage-bakeoff`, `robots.txt`, and `sitemap.xml`. Bakeoff behavior is safe but manually proven; crawler posture remains undecided.
+- Static SQL audit recheck still found two expected-function lists in `sql/check_runtime_sql_security_audit.sql`, with `49` signatures in the detailed block, `43` in the summary block, and `6` functions missing from the summary set; F-018 remains P1.
+
+Rewrite decisions:
+
+- F-003 now names the current commit anchor and clarifies that the board has some freshness warning already, while stale top metadata still needs cleanup.
+- F-004 now reflects the improved `docs/systems/README.md` wording and narrows the remaining issue to `docs/systems/catalog.md` and scorecard language.
+- F-017 is restored to the broader framework-disclosure plus crawler-discovery scope because current production evidence still shows `x-powered-by: Next.js`.
+- The priority stack remains unchanged after the second pass: P0 is F-014, F-011, F-007; P1 is F-009, F-008, F-012, F-018, F-015, F-002.
+
+### 2026-06-28 Checkpoint 19 - P0 Implementation Pass And Stop Gate
+
+Mode: implementation promotion for the existing audit list. Scope stayed limited to canonical P0 validation gates and the retained audit artifact; no UI, UX, route behavior, product semantics, billing policy, production data, commit, push, deploy, or release state was changed.
+
+Issue-list source of truth:
+
+- Active list: this report's `Current July 7 Priority Stack`, refreshed by Checkpoints 17 and 18.
+- Active lane: Copperknot launch hardening, with F-007 owned by the Money Stuff/Copperknot billing launch-readiness seam.
+- Protected contracts: preserve current UI/UX/design/copy/navigation/intended behavior, keep work on `production`, do not mutate production data or Stripe state, do not expose secrets, and do not change billing/credit behavior without explicit product authority.
+- Stop condition hit: F-007 requires approved read-capable Stripe endpoint proof or equivalent Stripe dashboard/CLI evidence. The repo-owned checker is already correctly warning when `STRIPE_SECRET_KEY` is unavailable locally, and no source-code defect was proven.
+
+Implementation/audit results:
+
+| Finding | Current status                                  | Source fix or blocker                                                                                                                                                                                                 | Validation proof                                                                                                                                                                                                                                                                                                                                                 | Remaining risk                                                                                                                                    |
+| ------- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F-014   | Solved locally.                                 | Corrected AI Studio test fixtures to match canonical type contracts: `dangerActionMode` uses `exclusive`, and video Reference Grid items use workflow reload instead of image-only `generationReplay`.                | `npm -C frontend run type-check` passed. `npm -C frontend run test -- features/ai-studio/components/__tests__/MediaLibraryMediaGrid.test.tsx features/ai-studio/components/__tests__/ReferenceGrid.curated.test.tsx features/ai-studio/reference-grid/components/__tests__/ReferenceGridCard.test.tsx` passed: 3 files / 165 tests.                              | Local proof only until the changed tree is committed/deployed/CI-checked. Related jsdom media-method warnings remain tracked separately as F-010. |
+| F-011   | Solved locally.                                 | Stabilized the Expert Edit Reset All integration assertion so it waits for the eventual published session-state reset instead of sampling an earlier post-reset publication. No runtime Expert Edit behavior changed. | `npm -C frontend run test:expert-edit:coordinate-parity:core` passed: 7 files / 78 tests. `npm -C frontend run test -- features/ai-studio/components/edit/__tests__/ExpertEditPanelView.integration.test.tsx` passed: 1 file / 10 tests. A combined `npm -C frontend run type-check && npm -C frontend run test:expert-edit:coordinate-parity:core` also passed. | Local proof only until commit/deploy/CI.                                                                                                          |
+| F-007   | Blocked on proof boundary; no code change made. | The readiness script intentionally requires local `STRIPE_SECRET_KEY` to prove the live Stripe endpoint and required events. Without that credential, strict mode correctly exits non-zero on the warning.            | `npm -C frontend run billing:launch-readiness -- --strict --json` returned 9 pass / 1 warn / 0 fail, with the only warning `stripe_webhook_endpoint`. `npm -C frontend run test -- tests/api/stripe-webhook.test.ts` passed: 1 file / 20 tests.                                                                                                                  | Production Stripe may still lack the enabled endpoint or required event set; this cannot be closed without approved live Stripe proof.            |
+
+Updated judgment:
+
+- The local repo no longer has the F-014 or F-011 P0 red-gate failures in the current worktree.
+- F-007 remains the only unresolved P0 from this list, but it is now an external proof gate rather than an implementation target unless the approved Stripe proof reveals a real mismatch.
+- The next implementation lane would normally be P1 F-009, but this run stops here because the current highest-priority remaining item depends on production/billing proof outside this agent's available credential boundary.
+
+### 2026-06-28 Checkpoint 20 - F-009 Dashboard Account-Summary Gate
+
+Mode: continued implementation after recording F-007 as an external proof gate. Scope stayed limited to the dashboard/account-summary smoke-test seam; no dashboard UI, UX, route behavior, billing policy, credit behavior, or account-summary runtime code changed.
+
+Issue boundary:
+
+- Active issue: F-009.
+- Owner/lane: dashboard/account summary, billing signup-to-paid-use proof, Copperknot launch smoke-test lane.
+- Source boundary: `frontend/tests/pages/dashboard.actions.test.tsx` fixture coverage for the already-canonical `fetchBillingAccountSummary()` API path.
+- Protected behavior: signed-in dashboard account-summary cards must keep linking to the profile sections, and plan/credit display must continue to come from the authenticated account-summary boundary rather than test-only Supabase fixture assumptions.
+
+Implementation/audit result:
+
+- Reproduced the failure with `npm -C frontend run test -- tests/pages/dashboard.actions.test.tsx`: the suite rendered `AI credits: 86` because the test's `fetchWithAuth` mock did not handle `/api/billing/account-summary`, causing `AuthenticatedDashboardRoute` to fall back to the baseline account summary.
+- Inspected `frontend/features/dashboard/components/AuthenticatedDashboardRoute.tsx`, `frontend/features/billing/accountSummary.ts`, and `frontend/pages/api/billing/account-summary.ts`. The product path is intentionally API-backed and caches successful summaries by user.
+- Updated the dashboard actions test to reset `fetchBillingAccountSummary` client state before each test and to return the current account-summary payload shape for `/api/billing/account-summary`.
+
+Validation:
+
+- `npm -C frontend run test -- tests/pages/dashboard.actions.test.tsx` passed: 1 file / 16 tests.
+- `npm -C frontend run test -- features/billing/__tests__/accountSummary.test.ts features/billing/__tests__/useMediaStorageQuotaSummary.test.ts features/billing/__tests__/useResolvedAccountPlan.test.ts` passed: 3 files / 11 tests.
+
+Residual risk:
+
+- The dashboard suite still emits repeated jsdom `HTMLMediaElement.pause()` warnings. That warning stream remains tracked separately as F-010 and was not folded into the F-009 fixture fix.
+
+### 2026-06-28 Checkpoint 21 - F-008 Project-Persistence Audit Cleanup
+
+Mode: continued implementation on the project-persistence proof harness. Scope stayed limited to the audit script's cleanup and preflight messaging; no product persistence behavior, project APIs, media-folder APIs, UI, UX, or production data changed.
+
+Issue boundary:
+
+- Active issue: F-008.
+- Owner/lane: Copperknot/Gottspan project-persistence proof lane.
+- Source boundary: `frontend/tests/e2e/project-persistence.audit.js`.
+- Protected behavior: keep the existing project create/list/read/delete, global folder create/rename/move/delete, workspace save/read canonicalization, and project reopen checks intact; avoid running the mutating audit against production without explicit approval.
+
+Implementation/audit result:
+
+- Confirmed the audit creates a real project and a real global Media Library folder under the authenticated audit user.
+- Confirmed `projectId` already lived outside the happy path and was deleted from `finally`, while `folderId` was local to the happy-path block and could not be cleaned up after failures between folder creation and folder deletion.
+- Added a `deleteMediaFolder()` helper with required and best-effort modes.
+- Moved `folderId` to the outer cleanup scope, kept the required folder-delete assertion on the happy path, and added best-effort folder cleanup in `finally` when any later failure leaves `folderId` set.
+- Added startup JSON that identifies the audit as mutating and prints the base URL, masked audit account, and cleanup domains before browser launch.
+
+Validation:
+
+- `node --check frontend/tests/e2e/project-persistence.audit.js` passed.
+- `PLAYWRIGHT_AUDIT_EMAIL=audit@example.com NODE_PATH=frontend/node_modules node frontend/tests/e2e/project-persistence.audit.js` exited before browser launch with the expected dedicated-account guard.
+
+Residual risk:
+
+- Full end-to-end cleanup proof still requires a controlled audit account and explicit approval because the script mutates real project and Media Library folder state. Production execution was not attempted in this implementation pass.
+
+### 2026-06-28 Checkpoint 22 - F-012 Browser-Audit Preflight Boundary
+
+Mode: continued implementation on browser-proof safety and runbook clarity. Scope stayed limited to a read-only preflight script, npm wiring, and testing documentation; no browser audit behavior, app UI/UX, account data, production data, or release/deploy behavior changed.
+
+Issue boundary:
+
+- Active issue: F-012.
+- Owner/lane: Copperknot/Gottspan AI Studio browser-proof lane.
+- Source boundary: browser audit command/runbook layer for Pulse custom/built-in contracts, Pulse release checks, AI Studio perf release, style-drop, audio-exclusivity, and loading-gate audits.
+- Protected behavior: existing audit scripts and release-check wrappers should keep their current execution behavior; preflight must not launch browsers, start servers, sign in, create records, or spend credits.
+
+Implementation/audit result:
+
+- Added `frontend/scripts/browser_audit_preflight.mjs`.
+- Added `npm run browser-audit:preflight`.
+- Updated `docs/testing-guide.md` so the preflight is listed before the credentialed/mutating browser audit commands.
+- The preflight prints credential status, resolved target URL, production proof policy, mutation class, cleanup expectation, and retained-artifact expectation. It supports `--json` and `--audit <name>`.
+
+Validation:
+
+- `node --check frontend/scripts/browser_audit_preflight.mjs` passed.
+- `npm -C frontend run browser-audit:preflight -- --json` passed and printed the full audit matrix without credentials or browser launch.
+- `npm -C frontend run browser-audit:preflight -- --audit audio` passed and filtered to the audio-exclusivity audit.
+- `npm -C frontend run check:test-script-paths` passed.
+- `npm -C frontend run docs:check` passed.
+
+Residual risk:
+
+- This closes the preflight/runbook boundary, not the live browser proof itself. The actual Pulse/perf/style/audio/loading browser audits still require approved credentials and, where applicable, explicit production or local-production-bundle proof selection.
+
+### 2026-06-28 Checkpoint 23 - F-018 Runtime SQL Security Audit Summary Parity
+
+Mode: continued implementation on SQL release-gate accuracy. Scope stayed limited to the read-only runtime SQL security audit and its static guardrail test; no hosted SQL was executed, and no production/staging database state changed.
+
+Issue boundary:
+
+- Active issue: F-018.
+- Owner/lane: Dave/Nuclo/Copperknot SQL security release-gate lane.
+- Source boundary: `sql/check_runtime_sql_security_audit.sql` and `frontend/tests/lib/runtime-sql-security-audit-script.test.ts`.
+- Protected behavior: keep the audit read-only, keep the detailed and summary query shape usable in hosted Supabase SQL execution, and do not claim fresh hosted security proof without approved DB credentials.
+
+Implementation/audit result:
+
+- Confirmed the script had two `expected_functions` lists because detailed rows and summary counters are separate SQL statements.
+- Added the six missing signatures to the summary block: `activate_billing_plan_offer`, `activate_billing_storage_addon_offer`, `get_media_folder_item_counts`, `reorder_dashboard_tutorials`, `get_active_legal_policy`, and `publish_legal_policy`.
+- Added a static regression test that extracts both expected-function blocks and requires the sorted signature sets to remain identical.
+
+Validation:
+
+- `npm -C frontend run test -- tests/lib/runtime-sql-security-audit-script.test.ts` passed: 1 file / 3 tests.
+- Static extraction found `2` expected-function blocks, with signature counts `[48, 48]`, and equal sorted signature sets.
+
+Residual risk:
+
+- Hosted SQL proof remains required before final launch security signoff. The local fix proves summary/list parity in source, not that the target database currently returns `failing_checks = 0`.
+
+### 2026-06-28 Checkpoint 24 - F-015 Supabase Sync Helper Apply Gates
+
+Mode: continued implementation on production-touching ops safety. Scope stayed limited to operator script entrypoint contracts and the ops README; no database rows, storage objects, grants, UI, UX, product behavior, release, deploy, commit, or push state changed.
+
+Issue boundary:
+
+- Active issue: F-015.
+- Owner/lane: Nuclo/Copperknot ops-safety lane.
+- Source boundary: `scripts/ops/supabase_hot_table_delta_sync.sh`, `scripts/ops/supabase_media_generation_delta_sync.sh`, `scripts/ops/supabase_public_acl_sync.sh`, `scripts/ops/supabase_storage_rclone_sync.sh`, and `scripts/ops/README.md`.
+- Protected behavior: preserve the canonical hot-table/media-generation SQL upsert logic, public ACL SQL generation/apply path, rclone copy/check/size wrapper, command names, and documented cutover sequence while making mutation intent explicit.
+
+Implementation/audit result:
+
+- Confirmed the hot-table and media-generation delta scripts immediately upserted into the target database once source/target URLs were present.
+- Confirmed `supabase_public_acl_sync.sh` defaulted to `MODE="apply"` and could fall back to `SHORTPULSE_PRODUCTION_DB_URL` as target.
+- Confirmed `supabase_storage_rclone_sync.sh` defaulted to `MODE="copy"` with `DRY_RUN="false"`.
+- Added explicit `--apply` gates to the hot-table and media-generation delta scripts before URL/tool checks or target writes.
+- Changed ACL sync to default to emit mode and require `--mode apply --apply` before target mutation.
+- Changed rclone sync to default to `size` mode and require either `--apply` or `--dry-run` for `--mode copy`.
+- Updated `scripts/ops/README.md` so the recommended order now uses emit/dry-run/read-only defaults first and marks mutating steps with `--apply`.
+
+Validation:
+
+- `bash -n scripts/ops/supabase_hot_table_delta_sync.sh scripts/ops/supabase_media_generation_delta_sync.sh scripts/ops/supabase_public_acl_sync.sh scripts/ops/supabase_storage_rclone_sync.sh` passed.
+- `bash scripts/ops/supabase_hot_table_delta_sync.sh` refused with `refusing to mutate target without explicit --apply` before credential access.
+- `bash scripts/ops/supabase_media_generation_delta_sync.sh` refused with `refusing to mutate target without explicit --apply` before credential access.
+- `bash scripts/ops/supabase_public_acl_sync.sh --mode apply` refused with `refusing to mutate target without explicit --apply` before credential access.
+- `bash scripts/ops/supabase_storage_rclone_sync.sh --bucket media_library --mode copy` refused with `refusing to copy objects without explicit --apply or --dry-run` before rclone/env access.
+- `npm -C frontend run docs:check` passed.
+
+Residual risk:
+
+- This proves local mutation gates and documentation, not an approved live production cutover. Any actual DB/storage apply still requires the operator to provide the correct credentials and intentionally pass `--apply`.
+
+### 2026-06-28 Checkpoint 25 - F-002 Dev-Only Bakeoff Expected 404 Probe
+
+Mode: continued implementation on route-surface launch proof. Scope stayed limited to the deployment route-parity gate and its focused test coverage; no route was removed, no UI/UX changed, and no product behavior changed.
+
+Issue boundary:
+
+- Active issue: F-002.
+- Owner/lane: Copperknot/Gottspan route-surface lane.
+- Source boundary: `scripts/verify_deployment_route_parity.mjs` and `frontend/tests/scripts/deployment-route-parity.test.mjs`.
+- Protected behavior: keep `/dev/ai-studio-stage-bakeoff` source-present for local/development use, keep production returning `404`, and keep retired build-manifest route checks separate from source-present expected-status probes.
+
+Implementation/audit result:
+
+- Added `DEFAULT_EXPECTED_STATUS_ROUTES` to the deployment route-parity verifier with `/dev/ai-studio-stage-bakeoff` expected to return anonymous `404`.
+- Added `--expected-status-route <status>:<path>` for additive anonymous status probes and `--ignore-default-expected-status-routes` for controlled older-deployment inspection.
+- The verifier now performs GET probes with manual redirect handling and includes expected-status results/failures in the JSON summary and pass/fail decision.
+- Added focused tests proving the dev-only bakeoff route is checked by expected status, not by the forbidden route list, and that the source-present page file remains allowed.
+
+Validation:
+
+- `node --check scripts/verify_deployment_route_parity.mjs` passed.
+- `npm -C frontend run test -- tests/scripts/deployment-route-parity.test.mjs` passed: 1 file / 10 tests.
+- Anonymous production probe `curl https://www.shortpulse.ai/dev/ai-studio-stage-bakeoff` returned `404`.
+- `node scripts/verify_deployment_route_parity.mjs --base-url https://www.shortpulse.ai` passed against deployment `shortpulse-mde2xbvig-kirk-artmans-projects.vercel.app`, created `2026-06-28T23:55:11.096Z`, with `187` route entries inspected and expected anonymous route status `404 /dev/ai-studio-stage-bakeoff`.
+- `npm -C frontend run docs:check` passed.
+- `cd frontend && npx eslint tests/scripts/deployment-route-parity.test.mjs ../scripts/verify_deployment_route_parity.mjs` returned no errors; ESLint warned that the root script is outside the frontend base path.
+
+Residual risk:
+
+- The source fix is local until committed/deployed/CI-checked. The production route currently returns the intended `404`, and the local launch gate now enforces that expectation for future runs.
+
+### 2026-06-28 Checkpoint 26 - F-016 Vercel Env Contract Declaration Parity
+
+Mode: continued implementation on env-contract signal quality. Scope stayed limited to the canonical frontend env template and focused env-contract tests; no live Vercel variables, secrets, production runtime values, UI/UX, billing behavior, or release state changed.
+
+Issue boundary:
+
+- Active issue: F-016.
+- Owner/lane: Nuclo/Copperknot env-contract lane.
+- Source boundary: `frontend/.env.example` and `frontend/tests/scripts/vercel-env-contract.test.mjs`, with `scripts/lib/vercel_env_contract.mjs` treated as the canonical contract source.
+- Protected behavior: keep the current required-key contract intact, do not change any live Vercel env values, and do not broaden into unrelated undeclared-key cleanup from the live project.
+
+Implementation/audit result:
+
+- Confirmed `SHORTPULSE_ADMIN_EMAILS` is required for preview and production but was absent from `frontend/.env.example`, while `KNOWN_VERCEL_KEYS` is derived from that file.
+- Confirmed the media-list mirror pair `SHORTPULSE_MEDIA_LIST_API_ENABLED` / `NEXT_PUBLIC_MEDIA_LIST_API_ENABLED` was referenced by the contract but absent from the env template.
+- Added `SHORTPULSE_ADMIN_EMAILS=ops@example.com` as a non-secret placeholder to the frontend env template.
+- Added both media-list rollout flags to the frontend env template with `false` defaults.
+- Added a focused regression test requiring all required, mirrored, and guarded Vercel contract keys to be declared in `frontend/.env.example` unless explicitly local/tooling-only.
+
+Validation:
+
+- `npm -C frontend run test -- tests/scripts/vercel-env-contract.test.mjs tests/scripts/vercel-env-file-cli.test.mjs` passed: 2 files / 11 tests.
+- `node --check scripts/lib/vercel_env_contract.mjs scripts/check_vercel_env_contract.mjs scripts/check_vercel_env_file.mjs` passed.
+- Static import check confirmed `SHORTPULSE_ADMIN_EMAILS`, `SHORTPULSE_MEDIA_LIST_API_ENABLED`, and `NEXT_PUBLIC_MEDIA_LIST_API_ENABLED` are present in `KNOWN_FRONTEND_ENV_EXAMPLE_KEYS`.
+- `node scripts/check_vercel_env_contract.mjs --environment production` passed.
+- `npm -C frontend run docs:check` passed.
+
+Residual risk:
+
+- The live production env audit still reports unrelated undeclared-key warnings for existing project variables outside the F-016 source boundary. This checkpoint closes the listed self-contradiction around required admin env and the media-list mirrored flags, not every env-template drift warning in production.
+
+### 2026-06-28 Checkpoint 27 - F-013 SOP/ADR Section-Index Parity
+
+Mode: continued implementation on docs-governance signal quality. Scope stayed limited to active SOP/ADR section indexes and the existing docs-link checker; no product behavior, UI/UX, architecture decision content, or operational SOP content changed.
+
+Issue boundary:
+
+- Active issue: F-013.
+- Owner/lane: Gottspan/docs-governance lane.
+- Source boundary: `docs/sops/README.md`, `docs/adr/README.md`, and `scripts/check_docs_links.js`.
+- Protected behavior: preserve existing docs-check command shape and keep planning/archive parity out of scope because those folders intentionally contain historical and transition material.
+
+Implementation/audit result:
+
+- Reproduced the section-index omissions: `docs/sops/README.md` missed `sop_account_health_snapshot.md` and `sop_ai_studio_internal_drag_drop_intake.md`; `docs/adr/README.md` missed ADR `0050` and ADR `0096`.
+- Added the missing SOP and ADR links to their section READMEs.
+- Extended `scripts/check_docs_links.js` with `checkSectionReadmeInventory()`, which requires active `docs/sops/sop_*.md` files and numbered `docs/adr/*.md` files to be linked from their section README.
+
+Validation:
+
+- `node --check scripts/check_docs_links.js` passed.
+- `npm -C frontend run docs:check` passed.
+- Static inventory check reported `docs/sops/README.md: missing=0` and `docs/adr/README.md: missing=0`.
+
+Residual risk:
+
+- This intentionally covers active SOP and ADR section indexes only. It does not enforce parity for planning or archive material.
+
+### 2026-06-28 Checkpoint 28 - F-006 Migration-Doc Ordered Inventory Parity
+
+Mode: continued implementation on SQL-operations docs guardrails. Scope stayed limited to migration inventory documentation and the existing migration-doc parity checker; no SQL, database state, migration files, app behavior, UI/UX, release, deploy, commit, or push state changed.
+
+Issue boundary:
+
+- Active issue: F-006.
+- Owner/lane: Nuclo/Copperknot SQL-operations documentation lane.
+- Source boundary: `scripts/check_migration_doc_parity.js`, `docs/database-migrations.md`, `docs/sops/sop_sql_migration_operations.md`, and read-only inventory of `sql/migrations/`.
+- Protected behavior: preserve the intentional migration-number gap at `134`, preserve Supabase operations policy, and do not infer hosted migration state from docs-only parity.
+
+Implementation/audit result:
+
+- Added migration inventory parity checks for the SQL SOP `Current set` block and the database migration doc `Current required migration set`.
+- Proved the new checker failed before the docs refresh on missing `098`-`102`, missing `164`-`168`, duplicate `090`/`138`/`144`, out-of-order SOP inventory, and missing database-doc required-set entries `164`-`167`.
+- Regenerated the SQL SOP `Current set` from the canonical `sql/migrations/` directory.
+- Added an explicit note that migration number `134` is intentionally unused.
+- Added `164_add_paid_signup_intent_gate.sql`, `165_account_first_signup_intent_gate.sql`, `166_grant_signup_hook_schema_usage.sql`, and `167_add_google_ip_signup_intent.sql` to the database migration required set immediately before `168_retire_saved_creators.sql`.
+
+Validation:
+
+- `node --check scripts/check_migration_doc_parity.js` passed.
+- `node scripts/check_migration_doc_parity.js` passed.
+- `npm -C frontend run docs:check` passed.
+- Static inventory check confirmed the SQL SOP inventory has `167` entries, matching the `167` forward migration files exactly, with tail `164`-`168`.
+
+Residual risk:
+
+- This is documentation/tooling parity only. It does not prove any hosted database has applied the newest migrations.
+
+### 2026-06-28 Checkpoint 29 - F-003/F-004 Launch-Control Freshness Labels
+
+Mode: continued implementation on launch-control truth labeling. Scope stayed limited to stale authority wording in launch/system docs; no product behavior, UI/UX, readiness score, launch state, queue order, release, deploy, commit, or push state changed.
+
+Issue boundary:
+
+- Active issues: F-003 and F-004.
+- Owner/lane: Copperknot launch-control docs and system-catalog lane.
+- Source boundary: `docs/agents/copperknot/july-7-launch-board.md` and `docs/systems/catalog.md`.
+- Protected behavior: preserve historical evidence, preserve the current queue authority, and avoid silently rerating systems or changing launch state.
+
+Implementation/audit result:
+
+- Replaced the launch board's leading `2026-06-08` snapshot header with a `Current Freshness Pointer` that names the active July 7 authority docs, production-only branch policy, current repo anchor `7910dadc1`, and the rule to use fresh `git status` instead of the retained June 8 dirty-worktree note.
+- Moved the old snapshot date, branch, commit anchor, and dirty-worktree note into a `Retained Evidence Snapshot` section labeled as historical context.
+- Updated the systems catalog top note so the June 16 launch-fitness scorecard is explicitly a historical fast-read score snapshot unless Copperknot refreshes and re-accepts it.
+
+Validation:
+
+- `npm -C frontend run docs:check` passed.
+- Targeted grep found no remaining active references that call `docs/systems/launch-fitness-scorecard-2026-06-16.md` the current easy-read scorecard, nor the old unqualified launch-board `Snapshot date`, `Commit anchor`, or `Worktree: dirty` labels.
+
+Residual risk:
+
+- This resolves misleading top-level authority labels only. It does not rerate systems, refresh every catalog row date, or change launch readiness.
+
+### 2026-06-28 Checkpoint 30 - F-010/F-005 Validation Warning Cleanup
+
+Mode: continued implementation on test-signal quality. Scope stayed limited to Vitest setup and test-environment declarations; no product runtime, UI/UX, media playback behavior, dependencies, or build configuration changed.
+
+Issue boundary:
+
+- Active issues: F-010 and F-005.
+- Owner/lane: Gottspan/tooling validation-signal lane.
+- Source boundary: `frontend/vitest.setup.ts`, `frontend/tests/api/fal-upload-url.test.ts`, and `frontend/tests/api/kie-upload-url.test.ts`.
+- Protected behavior: keep media/video tests able to install spies and preserve API upload-url assertions without replacing or removing `sharp`, `canvas`, `fabric`, or `jsdom`.
+
+Implementation/audit result:
+
+- Reproduced the F-010 warning stream: `tests/pages/dashboard.actions.test.tsx` passed but emitted repeated `Not implemented: HTMLMediaElement's pause() method`.
+- Added shared writable no-op implementations for `HTMLMediaElement.load`, `pause`, and `play` in `frontend/vitest.setup.ts`; `play` resolves a promise to match browser call sites.
+- Reproduced the F-005 warning: `tests/api/fal-upload-url.test.ts` passed but emitted the native duplicate `GNotificationCenterDelegate` warning because jsdom/canvas and sharp were loaded in the same test process.
+- Marked the Fal and Kie upload-url API tests with `// @vitest-environment node`, isolating sharp-heavy API tests from jsdom/canvas.
+
+Validation:
+
+- `npm -C frontend run test -- tests/pages/dashboard.actions.test.tsx` passed: 1 file / 16 tests, with the prior media-method warning stream gone.
+- `npm -C frontend run test -- tests/pages/dashboard-tutorial-grid.test.tsx tests/pages/dashboard.guest-route.test.tsx tests/pages/public-home-video-gallery.test.tsx` passed: 3 files / 34 tests, without media-method warnings.
+- `npm -C frontend run test -- tests/api/fal-upload-url.test.ts tests/api/kie-upload-url.test.ts` passed: 2 files / 31 tests, with `environment 0ms` and without the native `canvas`/`sharp` duplicate-class warning.
+- Combined dashboard/tutorial/gallery validation passed: 4 files / 50 tests.
+- Targeted ESLint passed for the changed setup/test files.
+- `npm -C frontend run type-check` passed.
+
+Residual risk:
+
+- This closes the reproduced warning classes in the focused suites. Other future native warnings should be handled by moving similarly DOM-free, sharp-heavy API tests to node environment rather than changing runtime dependencies.
+
+### 2026-06-28 Checkpoint 31 - F-017 Public Header And Discovery Posture
+
+Mode: continued implementation on public metadata and static discovery posture. Scope stayed limited to HTTP framework disclosure configuration, static crawler/discovery files, and route-doc checker support; no visible UI, UX, navigation, product behavior, billing/credit behavior, deploy, commit, or push state changed.
+
+Issue boundary:
+
+- Active issue: F-017.
+- Owner/lane: Copperknot/Nuclo deployment-public-surface lane.
+- Source boundary: `frontend/next.config.js`, `frontend/public/robots.txt`, `frontend/public/sitemap.xml`, `docs/routes.md`, and `scripts/check_docs_semantic_drift.js`.
+- Protected behavior: preserve the current public route set and legal/support pages; do not invent policy promises or add app routes for static files that belong under `frontend/public`.
+
+Implementation/audit result:
+
+- Reproduced the production issue before editing: `https://www.shortpulse.ai/` returned `x-powered-by: Next.js`, while `/robots.txt` and `/sitemap.xml` returned `404`.
+- Set `poweredByHeader: false` in `frontend/next.config.js`.
+- Added `frontend/public/robots.txt` with explicit public crawl allowance and a sitemap pointer.
+- Added `frontend/public/sitemap.xml` listing only the current public, legal, pricing, and support routes.
+- Documented `/robots.txt` and `/sitemap.xml` in `docs/routes.md`.
+- Updated `scripts/check_docs_semantic_drift.js` so static public files listed in `docs/routes.md` are checked against `frontend/public` instead of being treated as missing page routes under `frontend/pages`.
+
+Validation:
+
+- `npm -C frontend run build` passed.
+- Static config inspection confirmed `poweredByHeader` is `false` and custom headers are still configured.
+- Static file inspection confirmed the intended robots and sitemap content exists in `frontend/public`.
+- `node --check scripts/check_docs_semantic_drift.js` passed.
+- `npm -C frontend run docs:check` passed.
+
+Residual risk:
+
+- This is local/source proof only until the next deployment. Post-deploy proof still needs a production header probe showing no `x-powered-by`, plus production `200` responses for `/robots.txt` and `/sitemap.xml` with the intended content.
+
+### 2026-06-28 Checkpoint 32 - F-001 Size-Budget Inventory Ratchets
+
+Mode: continued implementation on source-governance tooling. Scope stayed limited to the size-budget checker and this report; no oversized launch files were split, refactored, reformatted, or behavior-changed.
+
+Issue boundary:
+
+- Active issue: F-001.
+- Owner/lane: Copperknot/Gottspan source-governance lane.
+- Source boundary: `scripts/check_size_budgets.js`.
+- Protected behavior: preserve current UI/UX/runtime behavior, avoid broad cleanup, and avoid turning F-001 into a stealth refactor of unrelated oversized files.
+
+Implementation/audit result:
+
+- Reconfirmed current behavior before editing: `npm -C frontend run check:size-budget` passed but only warned on the existing `useAiStudioState.ts` reference-grid target.
+- Refreshed the current oversized production inventory, excluding generated outputs, tests, `node_modules`, `.next`, `.vercel`, and Mini Ecosystem scope.
+- Added `LAUNCH_SOURCE_INVENTORY_BUDGETS` for the largest current production TypeScript/TSX launch surfaces that were outside the historical target groups.
+- Added `LAUNCH_STYLE_INVENTORY_BUDGETS` for the largest current production stylesheets.
+- Set both groups as ratchet ceilings at today's observed line counts. They do not demand launch-week splits, but they warn if these already-large surfaces grow further. Enforce mode is available through `LAUNCH_SOURCE_INVENTORY_SIZE_BUDGET_MODE=enforce` and `LAUNCH_STYLE_INVENTORY_SIZE_BUDGET_MODE=enforce`.
+
+Validation:
+
+- `node --check scripts/check_size_budgets.js` passed.
+- `npm -C frontend run check:size-budget` passed, with only the pre-existing `useAiStudioState.ts` reference-grid warning.
+- `LAUNCH_SOURCE_INVENTORY_SIZE_BUDGET_MODE=enforce LAUNCH_STYLE_INVENTORY_SIZE_BUDGET_MODE=enforce npm -C frontend run check:size-budget` passed, again with only the existing reference-grid warn-mode warning.
+- `npm -C frontend run check:architecture-boundary` passed.
+- `npm -C frontend run docs:check` passed.
+
+Residual risk:
+
+- This is governance coverage, not maintainability debt payoff. Actual file splits remain separate issue-specific lanes that should start only from a concrete launch risk and local owner seam.
+
+### 2026-06-28 Checkpoint 33 - Re-Audit Of Completed Lane Against Current Worktree
+
+Mode: audit-only recheck after the completed list was challenged. Scope stayed limited to verifying the completed Copperknot list against the current worktree and recording drift; no product code, tests, config, route behavior, billing behavior, deploy, commit, or push state changed.
+
+Fresh boundary:
+
+- Current branch remains `production`.
+- Local `shortpulse.allowedBranch` remains `production`.
+- Workspace safety check found only expected `frontend/.next` and `docs/records/artifacts` directories in the broad backup/artifact scan.
+- The active subagent tool contract required an explicit current-task delegation request, so no subagents were spawned for this re-audit.
+- The current worktree contains additional dirty files outside the completed Copperknot list, including Voice panel, Generate CTA, billing/auth, and tester-doc changes. Treat those as current-worktree drift unless a lane owner assigns them back to this report.
+
+Re-audit result:
+
+- Report structure remains coherent: `18` unique finding headings, `32` prior checkpoints, and no actual `- Status: candidate` finding rows.
+- `npm -C frontend run docs:check` passed.
+- `npm -C frontend run type-check` passed.
+- `npm -C frontend run build` passed.
+- `git diff --check` passed.
+- `node --check` passed for the touched checker scripts: `scripts/verify_deployment_route_parity.mjs`, `scripts/check_docs_links.js`, `scripts/check_docs_semantic_drift.js`, `scripts/check_migration_doc_parity.js`, `scripts/check_size_budgets.js`, `scripts/lib/vercel_env_contract.mjs`, and `scripts/check_vercel_env_contract.mjs`.
+- `bash -n` passed for the four production-touching Supabase sync helpers changed in F-015.
+- `npm -C frontend run test -- tests/scripts/deployment-route-parity.test.mjs tests/scripts/vercel-env-contract.test.mjs tests/lib/runtime-sql-security-audit-script.test.ts` passed: `3` files / `22` tests.
+- `npm -C frontend run test -- tests/api/fal-upload-url.test.ts tests/api/kie-upload-url.test.ts` passed: `2` files / `31` tests.
+- `npm -C frontend run test -- tests/pages/dashboard.actions.test.tsx` passed: `1` file / `16` tests.
+- `npm -C frontend run test -- features/ai-studio/components/edit/__tests__/ExpertEditPanelView.integration.test.tsx` passed: `1` file / `10` tests, proving the original F-011 Reset All/session-state failure remains fixed.
+- `npm -C frontend run check:generate-cta-contract` passed.
+- `node scripts/verify_deployment_route_parity.mjs --base-url https://www.shortpulse.ai` passed against deployment `shortpulse-mde2xbvig-kirk-artmans-projects.vercel.app`, with `187` route entries and expected anonymous `404 /dev/ai-studio-stage-bakeoff`.
+- `npm -C frontend run billing:launch-readiness -- --strict --json` still returned `9` pass / `1` warn / `0` fail and exited non-zero only because local `STRIPE_SECRET_KEY` is unavailable for Stripe webhook endpoint proof.
+
+Current-worktree drift found:
+
+- `npm -C frontend run check:size-budget` still exits `0`, but now warns on the new launch inventory ratchets because later dirty changes grew `frontend/features/ai-studio/components/VoicesPropertiesPanel.tsx` from `1687` to `1701` lines and `frontend/styles/ai-studio-voices-properties.module.css` from `4382` to `4406` lines. Enforcing only the new launch inventory groups now exits non-zero on those two files. This proves F-001's ratchet is working; it also means the Checkpoint 32 "inventory enforce mode passed" evidence is stale for the current worktree.
+- `npm -C frontend run test:expert-edit:coordinate-parity:core` is red again in the current worktree: `ExpertEditPanelView.launch-lock.test.tsx` cannot find a button with accessible name `Generate` because current dirty Generate CTA code exposes `Generate: cost estimate pending`. The original F-011 Reset All integration failure is still fixed, but the full Expert Edit core gate is no longer green under the current Generate CTA/test contract.
+- Production still reflects the pre-F-017 deployment: `https://www.shortpulse.ai/` returns `x-powered-by: Next.js`, while `/robots.txt` and `/sitemap.xml` return `404`. This matches the known F-017 post-deploy proof boundary.
+
+Updated boundary:
+
+- The completed Copperknot source fixes still stand, but the current worktree is no longer a clean "all repo-local checks green except F-007" state.
+- Next safe work is not broad reopening of this entire list. It is targeted owner-lane cleanup for the new current-worktree drift: either reduce/accept the Voice panel line growth against the F-001 ratchet, and reconcile the Generate CTA accessible-name change with the Expert Edit launch-lock tests.
+- F-007 still requires approved read-capable Stripe endpoint proof or equivalent retained Stripe dashboard/CLI evidence.
+
 ## Current July 7 Priority Stack
 
-This is the final deduped pre-launch worklist from this audit pass. It is not launch signoff; it is the next best implementation queue if the audit lane is promoted from no-edit to fix mode.
+This is the final deduped pre-launch worklist from this audit pass, refreshed by Checkpoints 17 through 33. It is not launch signoff. The original repo-local implementation items were completed at Checkpoint 32, but Checkpoint 33 found newer current-worktree validation drift outside those original fixes.
 
 ### P0 - Fix before relying on launch gates
 
-1. F-014: restore `npm -C frontend run type-check`.
-   - Reason: CI `type_check` is part of the split frontend compatibility gate. Build is green, but production-branch safety still depends on full TypeScript.
-2. F-011: stabilize `npm -C frontend run test:expert-edit:coordinate-parity:core`.
-   - Reason: Expert Edit reset/session-state proof is currently red as a full gate.
-3. F-007: close the Stripe webhook endpoint proof gap.
+1. F-007: close the Stripe webhook endpoint proof gap.
    - Reason: signup-to-paid-use launch proof remains warning-only without read-capable Stripe evidence.
+
+Resolved locally during Checkpoint 19:
+
+- F-014: `npm -C frontend run type-check` is green in the current worktree.
+- F-011: the original Reset All/session-state failure remains fixed; `ExpertEditPanelView.integration.test.tsx` is green in the current worktree. As of Checkpoint 33, the broader `test:expert-edit:coordinate-parity:core` gate is red again on a newer Generate CTA accessible-name/test-contract mismatch in `ExpertEditPanelView.launch-lock.test.tsx`.
 
 ### P1 - High-ROI launch hardening
 
-4. F-009: fix dashboard account-summary test drift.
-   - Reason: dashboard/billing smoke coverage is currently red for a stale API-backed fixture.
-5. F-008: harden project-persistence E2E cleanup before any live production run.
-   - Reason: the most relevant project-persistence browser proof mutates real audit data and should be failure-clean.
-6. F-012: add explicit browser-audit preflight/runbook for AI Studio Pulse/perf/style/audio checks.
-   - Reason: these are the closest live-browser proofs, but target URL, credentials, mutation, and cleanup boundaries need to be explicit.
-7. F-018: deduplicate runtime SQL security audit so summary proof covers the full function set.
-   - Reason: the current summary gate can pass while omitting billing, media-folder, dashboard tutorial, and legal policy control-plane functions from the counted check set.
-8. F-015: add explicit dry-run/apply gates to production-touching Supabase sync helpers.
-   - Reason: launch-week data/storage reconciliation should require an intentional apply step before touching production rows, grants, or objects.
-9. F-002: add automated production expected-404 probe for `/dev/ai-studio-stage-bakeoff`.
-   - Reason: current production behavior is safe, but not part of the standard proof set.
+Resolved locally during Checkpoint 20:
 
-### P2 - Documentation and validation signal quality
+- F-009: `npm -C frontend run test -- tests/pages/dashboard.actions.test.tsx` is green in the current worktree.
 
-10. F-016: reconcile Vercel env contract required keys with `frontend/.env.example`.
+Resolved locally during Checkpoint 21:
 
-- Reason: required production admin env should not also appear as an undeclared/unknown key in env audits.
+- F-008: project-persistence audit folder cleanup now reaches `finally`; static syntax and no-mutation guard checks are green in the current worktree.
 
-11. F-013: add SOP/ADR section-index parity and refresh missing entries.
+Resolved locally during Checkpoint 22:
 
-- Reason: active docs exist but are missing from their section indexes.
+- F-012: `npm -C frontend run browser-audit:preflight -- --json`, `npm -C frontend run check:test-script-paths`, and `npm -C frontend run docs:check` are green in the current worktree.
 
-12. F-006: strengthen migration-doc parity for ordered migration inventories.
+Resolved locally during Checkpoint 23:
 
-- Reason: the current check proves mentions, not operator-list coherence.
+- F-018: `npm -C frontend run test -- tests/lib/runtime-sql-security-audit-script.test.ts` is green, and static extraction confirms both expected-function blocks contain the same `48` primary signatures.
 
-13. F-003 and F-004: refresh stale launch board/systems catalog headers or route readers to the fresher queue.
+Resolved locally during Checkpoint 24:
 
-- Reason: delegated-authority docs should not foreground outdated launch facts.
+- F-015: production-touching Supabase sync helpers now require explicit `--apply` for mutating paths; shell syntax, no-apply refusal checks, and `docs:check` are green in the current worktree.
 
-14. F-010 and F-005: reduce noisy jsdom/native validation warnings.
+Resolved locally during Checkpoint 25:
 
-- Reason: noisy tests make launch-week failure triage slower and less trustworthy.
+- F-002: deployment route parity now includes an anonymous expected-404 probe for `/dev/ai-studio-stage-bakeoff`; local tests and the production route-parity run are green.
 
-15. F-017: hide framework disclosure and decide public crawler discovery files.
+Resolved locally during Checkpoint 26:
 
-- Reason: small deployment/public-surface hardening with no intended UI behavior change.
+- F-016: required/mirrored/guarded Vercel env contract keys are declared in `frontend/.env.example`; focused tests and the production Vercel env audit are green, with unrelated undeclared-key warnings still outside this issue.
 
-### P3 - Keep as governed cleanup
+Resolved locally during Checkpoint 27:
 
-16. F-001: extend size-budget inventory/warn coverage to current oversized source surfaces.
+- F-013: active SOP/ADR section indexes are complete and `docs:check` now enforces SOP/ADR section-index parity.
 
-- Reason: worthwhile governance, but broad refactors should not jump ahead of red gates or proof gaps.
+Resolved locally during Checkpoint 28:
+
+- F-006: migration-doc parity now checks ordered operator inventories; SQL SOP and database migration docs include the current `164`-`168` migration stream.
+
+Resolved locally during Checkpoint 29:
+
+- F-003/F-004: launch board and systems catalog now route active readiness to current Copperknot authority docs while retaining older score/snapshot material as history.
+
+Resolved locally during Checkpoint 30:
+
+- F-010/F-005: shared Vitest media no-ops remove jsdom media-method warnings, and sharp-heavy upload-url API tests now run in node environment to avoid the native canvas/sharp duplicate-class warning.
+
+Resolved locally during Checkpoint 31:
+
+- F-017: public framework disclosure is disabled in source, explicit robots/sitemap files exist, route docs list the static discovery files, and docs semantic drift checking recognizes static public files. Post-deploy production proof remains required.
+
+Resolved locally during Checkpoint 32:
+
+- F-001: size-budget tooling now has ratchet-style warn/enforce inventory coverage for the largest current launch source and stylesheet surfaces without triggering broad refactors. As of Checkpoint 33, the ratchet warns on later current-worktree growth in the Voice panel and Voice panel CSS.
 
 ## Audit Coverage
 
@@ -747,4 +1290,4 @@ This is the final deduped pre-launch worklist from this audit pass. It is not la
 
 ## Next Checkpoint
 
-If this audit lane is promoted from no-edit to fix mode, start with P0 in order: F-014, F-011, then F-007. Do not begin adjacent fixes without a concrete repo-backed problem statement, preserved UI/UX behavior, and a validation plan tied to the owning source seam.
+Current boundary: close F-007 only with approved read-capable Stripe endpoint proof or equivalent retained Stripe dashboard/CLI evidence that shows an enabled endpoint for `https://www.shortpulse.ai/api/billing/stripe/webhook` and the required event set. Separately, current-worktree drift should be handled in targeted owner lanes: Voice panel size-ratchet growth and Generate CTA versus Expert Edit launch-lock test contract.

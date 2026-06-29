@@ -14,7 +14,8 @@ Usage:
     [--source-label staging] \
     [--target-label development] \
     [--mode apply|emit] \
-    [--output-file /tmp/public-acl-sync.sql]
+    [--output-file /tmp/public-acl-sync.sql] \
+    [--apply]
 
 Env fallbacks:
   SHORTPULSE_STAGING_DB_URL
@@ -24,6 +25,7 @@ Env fallbacks:
 Notes:
   - Copies grant posture for schema `public` only.
   - Includes schema usage, table grants, sequence usage, and function execute grants/revokes.
+  - Defaults to emit mode. Applying to a target database requires --mode apply --apply.
   - Exit code 0 means the SQL was emitted/applied successfully.
 EOF
 }
@@ -48,8 +50,9 @@ SOURCE_URL="${SHORTPULSE_STAGING_DB_URL:-}"
 TARGET_URL="${SHORTPULSE_DEVELOPMENT_DB_URL:-${SHORTPULSE_PRODUCTION_DB_URL:-}}"
 SOURCE_LABEL="source"
 TARGET_LABEL="target"
-MODE="apply"
+MODE="emit"
 OUTPUT_FILE=""
+APPLY="false"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -77,6 +80,10 @@ while [[ $# -gt 0 ]]; do
       OUTPUT_FILE="${2:-}"
       shift 2
       ;;
+    --apply)
+      APPLY="true"
+      shift
+      ;;
     --help|-h)
       usage
       exit 0
@@ -89,14 +96,26 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ -z "$SOURCE_URL" || -z "$TARGET_URL" ]]; then
-  echo "[nuclo-acl-sync] source and target URLs are required." >&2
+if [[ "$MODE" != "apply" && "$MODE" != "emit" ]]; then
+  echo "[nuclo-acl-sync] mode must be apply or emit." >&2
+  exit 1
+fi
+
+if [[ "$MODE" == "apply" && "$APPLY" != "true" ]]; then
+  echo "[nuclo-acl-sync] refusing to mutate target without explicit --apply." >&2
   usage >&2
   exit 1
 fi
 
-if [[ "$MODE" != "apply" && "$MODE" != "emit" ]]; then
-  echo "[nuclo-acl-sync] mode must be apply or emit." >&2
+if [[ -z "$SOURCE_URL" ]]; then
+  echo "[nuclo-acl-sync] source URL is required." >&2
+  usage >&2
+  exit 1
+fi
+
+if [[ "$MODE" == "apply" && -z "$TARGET_URL" ]]; then
+  echo "[nuclo-acl-sync] target URL is required for apply mode." >&2
+  usage >&2
   exit 1
 fi
 
@@ -181,7 +200,7 @@ order by ord, stmt;
 SQL
 
 statement_count="$(wc -l < "$SQL_FILE" | tr -d ' ')"
-echo "[nuclo-acl-sync] source=$SOURCE_LABEL target=$TARGET_LABEL mode=$MODE statements=$statement_count file=$SQL_FILE"
+echo "[nuclo-acl-sync] source=$SOURCE_LABEL target=$TARGET_LABEL mode=$MODE apply=$APPLY statements=$statement_count file=$SQL_FILE"
 
 if [[ "$MODE" == "emit" ]]; then
   exit 0

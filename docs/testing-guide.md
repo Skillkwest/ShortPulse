@@ -14,6 +14,11 @@ For default closeout selection by planning program, see:
   - `cd frontend && npm run test:coverage`
 - End-to-end tests (Playwright, when specs exist):
   - `cd frontend && npm run test:e2e`
+  - AI Studio browser audit preflight:
+    - `cd frontend && npm run browser-audit:preflight`
+    - Prints the target URL, required credentials, mutation scope, cleanup expectation, and retained-artifact expectation for the Pulse, perf, style-drop, audio-exclusivity, and loading-gate browser audits without launching a browser or starting a server.
+    - Use `-- --json` for machine-readable output, or `-- --audit <name>` to narrow the report to one audit family.
+    - Local release-check wrappers prove a local production bundle. Production behavior claims should target `https://www.shortpulse.ai` unless the current task explicitly approves a different browser validation surface.
   - AI Studio audio exclusivity audit:
   - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:audio-exclusivity`
     - Seeds two Media panel audio fixtures plus one Reference Grid audio fixture in a live AI Studio session, then verifies Media-panel inline exclusivity plus `ref grid audio -> media preview modal audio` and `ref grid audio -> detail modal audio` one-at-a-time playback handoff.

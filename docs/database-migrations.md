@@ -286,7 +286,11 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 160.  `sql/migrations/161_harden_hidden_free_billing_offer.sql`
 161.  `sql/migrations/162_repair_generation_projection_workflow_reload.sql`
 162.  `sql/migrations/163_add_legal_policy_control_plane.sql`
-163.  `sql/migrations/168_retire_saved_creators.sql`
+163.  `sql/migrations/164_add_paid_signup_intent_gate.sql`
+164.  `sql/migrations/165_account_first_signup_intent_gate.sql`
+165.  `sql/migrations/166_grant_signup_hook_schema_usage.sql`
+166.  `sql/migrations/167_add_google_ip_signup_intent.sql`
+167.  `sql/migrations/168_retire_saved_creators.sql`
       Rollback files:
 
 

@@ -200,6 +200,13 @@ const resolveOauthMessage = (
       message: "Google sign-in could not be completed. Try signing in again.",
     };
   }
+  if (oauthStatus === "account_not_found") {
+    return {
+      tone: "error",
+      message:
+        "No ShortPulse account exists for that Google account. Sign in with an existing account, or create an account first.",
+    };
+  }
   return null;
 };
 

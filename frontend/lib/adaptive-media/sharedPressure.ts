@@ -126,7 +126,6 @@ const startSharedAdaptivePressureSampling = (config: SharedAdaptivePressureConfi
     try {
       sharedAdaptivePressure.longTaskObserver.observe({
         type: "longtask",
-        buffered: true,
       });
     } catch {
       sharedAdaptivePressure.longTaskObserver.disconnect();

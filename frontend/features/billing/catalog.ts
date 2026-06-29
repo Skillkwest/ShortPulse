@@ -112,8 +112,6 @@ type PlanPresentation = {
   seatsLabel: string;
   description: string;
   cardFooterDescription: string;
-  concurrentGenerationsLabel: string;
-  concurrentGenerationsCompactLabel: string;
   cardFeatures: SubscriptionPlanFeature[];
   bonusCreditsLabel?: string;
   displayPricing?: SubscriptionPlanDisplayPricing;
@@ -148,8 +146,6 @@ const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
     seatsLabel: "1 workspace seat",
     description: "Account access without generation privileges.",
     cardFooterDescription: "Generation access starts on Starter.",
-    concurrentGenerationsLabel: "No generation access",
-    concurrentGenerationsCompactLabel: "No generation access",
     cardFeatures: [
       { label: "Create studio", included: true },
       { label: "Editing studio", included: true },
@@ -175,8 +171,6 @@ const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
     seatsLabel: "1 workspace seat",
     description: "Starter access for exploration.",
     cardFooterDescription: "Best for graphic artists and all image based workflows.",
-    concurrentGenerationsLabel: "Image-only workflow",
-    concurrentGenerationsCompactLabel: "Image-only workflow",
     cardFeatures: [
       { label: "Create studio", included: true },
       { label: "Editing studio", included: true },
@@ -202,8 +196,6 @@ const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
     seatsLabel: "1 workspace seat",
     description: "Ideal for creators testing cadence.",
     cardFooterDescription: "Best for image + short form video workflows.",
-    concurrentGenerationsLabel: "Parallel mixed-media workflow",
-    concurrentGenerationsCompactLabel: "Parallel mixed-media workflow",
     cardFeatures: [
       { label: "Create studio", included: true },
       { label: "Editing studio", included: true },
@@ -230,8 +222,6 @@ const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
     description: "Built for consistent creative production.",
     cardFooterDescription:
       "Best for creators moving from casual experimenting to serious AI production.",
-    concurrentGenerationsLabel: "Higher-concurrency mixed-media workflow",
-    concurrentGenerationsCompactLabel: "Higher-concurrency mixed-media workflow",
     cardFeatures: [
       { label: "Create studio", included: true },
       { label: "Editing studio", included: true },
@@ -257,8 +247,6 @@ const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
     seatsLabel: "Team access",
     description: "Highest throughput for heavy AI workloads.",
     cardFooterDescription: "Best for serious creators with heavy workflow & storage needs",
-    concurrentGenerationsLabel: "Highest-concurrency mixed-media workflow",
-    concurrentGenerationsCompactLabel: "Highest-concurrency mixed-media workflow",
     cardFeatures: [
       { label: "Create studio", included: true },
       { label: "Editing studio", included: true },
@@ -289,8 +277,6 @@ const GENERIC_PLAN_PRESENTATION: PlanPresentation = {
   seatsLabel: "Workspace access",
   description: "Subscription plan.",
   cardFooterDescription: "Built for creators scaling their workflow.",
-  concurrentGenerationsLabel: "Standard concurrent generation access",
-  concurrentGenerationsCompactLabel: "Standard concurrent access",
   cardFeatures: [
     { label: "Create studio", included: true },
     { label: "Editing studio", included: true },
@@ -361,6 +347,15 @@ const humanizePlanId = (value: string): string =>
     .join(" ") || "Plan";
 
 /**
+ * Formats the plan's active-generation slot entitlement as exact customer-facing copy.
+ */
+export const formatConcurrentGenerationsLabel = (value: number): string => {
+  const normalizedValue = Math.max(0, Math.trunc(Number.isFinite(value) ? value : 0));
+  if (normalizedValue === 1) return "1 concurrent generation allowed";
+  return `${normalizedValue.toLocaleString()} concurrent generations allowed`;
+};
+
+/**
  * Resolves plan display data from database rows plus stable presentation metadata.
  */
 export const buildPlanView = (params: {
@@ -375,6 +370,9 @@ export const buildPlanView = (params: {
   const presentation =
     PLAN_PRESENTATION[normalizedId] ??
     (fromCatalog ? GENERIC_PLAN_PRESENTATION : PLAN_PRESENTATION[DEFAULT_PLAN_ID]);
+  const maxConcurrentGenerations =
+    resolvedCatalog?.max_concurrent_generations ?? resolveDefaultPlanConcurrencyLimit(normalizedId);
+  const concurrentGenerationsLabel = formatConcurrentGenerationsLabel(maxConcurrentGenerations);
 
   return {
     id: normalizedId,
@@ -386,8 +384,8 @@ export const buildPlanView = (params: {
     description: presentation.description,
     cardFooterDescription: presentation.cardFooterDescription,
     seatsLabel: presentation.seatsLabel,
-    concurrentGenerationsLabel: presentation.concurrentGenerationsLabel,
-    concurrentGenerationsCompactLabel: presentation.concurrentGenerationsCompactLabel,
+    concurrentGenerationsLabel,
+    concurrentGenerationsCompactLabel: concurrentGenerationsLabel,
     cardFeatures: presentation.cardFeatures,
     bonusCreditsLabel: presentation.bonusCreditsLabel ?? null,
     displayPricing: presentation.displayPricing ?? GENERIC_PLAN_DISPLAY_PRICING,
@@ -397,9 +395,7 @@ export const buildPlanView = (params: {
     monthlyCreditsCents: resolvedCatalog?.monthly_credits_cents ?? 0,
     storageLimitBytes:
       resolvedCatalog?.storage_limit_bytes ?? DEFAULT_PLAN_STORAGE_LIMITS[normalizedId] ?? 0,
-    maxConcurrentGenerations:
-      resolvedCatalog?.max_concurrent_generations ??
-      resolveDefaultPlanConcurrencyLimit(normalizedId),
+    maxConcurrentGenerations,
   };
 };
 
@@ -437,6 +433,7 @@ export type BillingPlanIntervalPricing = {
   monthlyEquivalentCents: number;
   monthlyCreditsCents: number;
   storageLimitBytes: number;
+  maxConcurrentGenerations: number;
   billedPriceCents: number;
   savingsAmountCents: number;
   savingsPercent: number;
@@ -456,6 +453,8 @@ export const resolvePlanPricingForInterval = (
   const baseMonthlyPriceCents = Math.max(0, Number(plan.monthly_price_cents ?? 0));
   const baseMonthlyCreditsCents = Math.max(0, Number(plan.monthly_credits_cents ?? 0));
   const baseStorageLimitBytes = Math.max(0, Number(plan.storage_limit_bytes ?? 0));
+  const baseMaxConcurrentGenerations =
+    plan.max_concurrent_generations ?? resolveDefaultPlanConcurrencyLimit(plan.id);
 
   if (billingInterval === "month" || normalizedPlanId === "free") {
     return {
@@ -466,6 +465,8 @@ export const resolvePlanPricingForInterval = (
       monthlyEquivalentCents: baseMonthlyPriceCents,
       monthlyCreditsCents: monthlyOffer?.monthly_credits_cents ?? baseMonthlyCreditsCents,
       storageLimitBytes: monthlyOffer?.storage_limit_bytes ?? baseStorageLimitBytes,
+      maxConcurrentGenerations:
+        monthlyOffer?.max_concurrent_generations ?? baseMaxConcurrentGenerations,
       billedPriceCents: baseMonthlyPriceCents,
       savingsAmountCents: 0,
       savingsPercent: 0,
@@ -494,6 +495,8 @@ export const resolvePlanPricingForInterval = (
       monthlyEquivalentCents,
       monthlyCreditsCents: Number(annualOffer.monthly_credits_cents ?? baseMonthlyCreditsCents),
       storageLimitBytes: Number(annualOffer.storage_limit_bytes ?? baseStorageLimitBytes),
+      maxConcurrentGenerations:
+        annualOffer.max_concurrent_generations ?? baseMaxConcurrentGenerations,
       billedPriceCents,
       savingsAmountCents,
       savingsPercent,
@@ -515,6 +518,8 @@ export const resolvePlanPricingForInterval = (
       monthlyEquivalentCents: baseMonthlyPriceCents,
       monthlyCreditsCents: monthlyOffer?.monthly_credits_cents ?? baseMonthlyCreditsCents,
       storageLimitBytes: monthlyOffer?.storage_limit_bytes ?? baseStorageLimitBytes,
+      maxConcurrentGenerations:
+        monthlyOffer?.max_concurrent_generations ?? baseMaxConcurrentGenerations,
       billedPriceCents: baseMonthlyPriceCents,
       savingsAmountCents: 0,
       savingsPercent: 0,
@@ -541,6 +546,7 @@ export const resolvePlanPricingForInterval = (
     monthlyEquivalentCents,
     monthlyCreditsCents: baseMonthlyCreditsCents,
     storageLimitBytes: baseStorageLimitBytes,
+    maxConcurrentGenerations: baseMaxConcurrentGenerations,
     billedPriceCents,
     savingsAmountCents,
     savingsPercent,

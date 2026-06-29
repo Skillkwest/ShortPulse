@@ -4,7 +4,7 @@
  */
 import Head from "next/head";
 import { useRouter } from "next/router";
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { AuthenticatedDashboardRoute } from "../components/AuthenticatedDashboardRoute";
 import { ProjectEntryLoadingSurface } from "../../projects/components/ProjectEntryLoadingSurface";
@@ -16,7 +16,7 @@ import {
 import { MediaComplianceGate } from "../../compliance/components/MediaComplianceGate";
 import { useMediaComplianceGate } from "../../compliance/hooks/useMediaComplianceGate";
 import { buildLoginPath } from "../../../lib/authRedirects";
-import { useSupabaseSessionState } from "../../../lib/supabaseClient";
+import { signOutSupabaseSession, useSupabaseSessionState } from "../../../lib/supabaseClient";
 import { ProtectedRouteSessionProvider } from "../../../lib/protectedRouteSessionContext";
 import { readPersistedSupabaseSessionHint } from "../../../lib/supabaseSessionHints";
 import { useProtectedRouteRestoreGuard } from "../../../lib/useProtectedRouteRestoreGuard";
@@ -79,6 +79,13 @@ export function DashboardRouteSessionAware({
     enabled: Boolean(session),
     userId: user?.id ?? session?.user?.id ?? null,
   });
+  const handleComplianceSignOut = useCallback(async () => {
+    try {
+      await signOutSupabaseSession();
+    } finally {
+      await router.replace(authRedirectPath);
+    }
+  }, [authRedirectPath, router]);
 
   useIsomorphicLayoutEffect(() => {
     const isBootstrapRoute =
@@ -126,7 +133,7 @@ export function DashboardRouteSessionAware({
     return renderDashboardBootstrap();
   }
 
-  if (mediaCompliance.status === "loading") {
+  if (!mediaCompliance.initialized || mediaCompliance.status === "loading") {
     return renderDashboardBootstrap();
   }
 
@@ -142,9 +149,10 @@ export function DashboardRouteSessionAware({
         error={mediaCompliance.error}
         loading={mediaCompliance.loading}
         primaryActionLabel="Retry"
-        showSecondaryAction={false}
+        secondaryActionLabel="Sign out"
         onAccept={mediaCompliance.acceptAgreement}
         onRetry={mediaCompliance.refreshStatus}
+        onSecondaryAction={handleComplianceSignOut}
       />
     );
   }
@@ -155,10 +163,16 @@ export function DashboardRouteSessionAware({
         agreement={mediaCompliance.agreement}
         error={mediaCompliance.error}
         loading={mediaCompliance.loading}
+        secondaryActionLabel="Sign out"
         onAccept={mediaCompliance.acceptAgreement}
         onRetry={mediaCompliance.refreshStatus}
+        onSecondaryAction={handleComplianceSignOut}
       />
     );
+  }
+
+  if (mediaCompliance.status !== "accepted") {
+    return renderDashboardBootstrap();
   }
 
   return (

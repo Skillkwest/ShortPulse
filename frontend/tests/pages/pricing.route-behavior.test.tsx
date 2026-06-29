@@ -538,7 +538,7 @@ describe("Pricing route behavior", () => {
 
     expect(screen.getByRole("link", { name: "ShortPulse" })).toHaveAttribute("href", "/dashboard");
     expect(screen.getByRole("button", { name: "Annual" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByText("with annual billing paid upfront")).toBeInTheDocument();
+    expect(screen.getByText("with annual billing")).toBeInTheDocument();
     expect(
       screen.getByText("Upgrade anytime. Downgrades apply at the next billing cycle.")
     ).toBeInTheDocument();

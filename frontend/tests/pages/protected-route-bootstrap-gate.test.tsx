@@ -126,6 +126,22 @@ describe("ProtectedRouteBootstrapGate", () => {
     expect(screen.queryByTestId("protected-page")).not.toBeInTheDocument();
   });
 
+  it("keeps protected content hidden before media compliance initializes", () => {
+    useMediaComplianceGateMock.mockReturnValue({
+      ...baseComplianceState,
+      accepted: false,
+      initialized: false,
+      loading: false,
+      status: "idle",
+    });
+
+    renderGate();
+
+    expect(screen.getByText("Checking your media agreement…")).toBeInTheDocument();
+    expect(screen.queryByTestId("protected-page")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("media-compliance-gate")).not.toBeInTheDocument();
+  });
+
   it("keeps the explicit compliance gate when acceptance is still required", () => {
     useMediaComplianceGateMock.mockReturnValue({
       ...baseComplianceState,
@@ -140,6 +156,8 @@ describe("ProtectedRouteBootstrapGate", () => {
       expect.objectContaining({
         loading: false,
         error: null,
+        secondaryActionLabel: "Sign out",
+        onSecondaryAction: expect.any(Function),
       })
     );
   });

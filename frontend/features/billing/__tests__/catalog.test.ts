@@ -68,34 +68,34 @@ describe("buildPlanView", () => {
 
   it("exposes plan-card concurrency copy that stays consistent with each tier's included studios", () => {
     expect(buildPlanView({ planId: "free", plans }).concurrentGenerationsLabel).toBe(
-      "No generation access"
+      "0 concurrent generations allowed"
     );
     expect(buildPlanView({ planId: "starter", plans }).concurrentGenerationsLabel).toBe(
-      "Image-only workflow"
+      "1 concurrent generation allowed"
     );
     expect(buildPlanView({ planId: "media", plans }).concurrentGenerationsLabel).toBe(
-      "Parallel mixed-media workflow"
+      "2 concurrent generations allowed"
     );
     expect(buildPlanView({ planId: "studio", plans }).concurrentGenerationsLabel).toBe(
-      "Higher-concurrency mixed-media workflow"
+      "4 concurrent generations allowed"
     );
     expect(buildPlanView({ planId: "business", plans }).concurrentGenerationsLabel).toBe(
-      "Highest-concurrency mixed-media workflow"
+      "8 concurrent generations allowed"
     );
     expect(buildPlanView({ planId: "free", plans }).concurrentGenerationsCompactLabel).toBe(
-      "No generation access"
+      "0 concurrent generations allowed"
     );
     expect(buildPlanView({ planId: "starter", plans }).concurrentGenerationsCompactLabel).toBe(
-      "Image-only workflow"
+      "1 concurrent generation allowed"
     );
     expect(buildPlanView({ planId: "media", plans }).concurrentGenerationsCompactLabel).toBe(
-      "Parallel mixed-media workflow"
+      "2 concurrent generations allowed"
     );
     expect(buildPlanView({ planId: "studio", plans }).concurrentGenerationsCompactLabel).toBe(
-      "Higher-concurrency mixed-media workflow"
+      "4 concurrent generations allowed"
     );
     expect(buildPlanView({ planId: "business", plans }).concurrentGenerationsCompactLabel).toBe(
-      "Highest-concurrency mixed-media workflow"
+      "8 concurrent generations allowed"
     );
   });
 
@@ -105,6 +105,26 @@ describe("buildPlanView", () => {
     expect(buildPlanView({ planId: "media", plans }).maxConcurrentGenerations).toBe(2);
     expect(buildPlanView({ planId: "studio", plans }).maxConcurrentGenerations).toBe(4);
     expect(buildPlanView({ planId: "business", plans }).maxConcurrentGenerations).toBe(8);
+  });
+
+  it("uses catalog-provided concurrency values before tier defaults", () => {
+    const customMediaPlan = buildPlanView({
+      planId: "media",
+      plans: [
+        {
+          id: "media",
+          display_name: "Media",
+          monthly_price_cents: 4900,
+          monthly_credits_cents: 1200,
+          storage_limit_bytes: 25 * 1024 * 1024 * 1024,
+          max_concurrent_generations: 3,
+          is_active: true,
+        },
+      ],
+    });
+
+    expect(customMediaPlan.maxConcurrentGenerations).toBe(3);
+    expect(customMediaPlan.concurrentGenerationsLabel).toBe("3 concurrent generations allowed");
   });
 
   it("adds business pricing highlights for credit efficiency", () => {

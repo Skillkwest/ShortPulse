@@ -96,6 +96,7 @@ const renderSubscriptionSection = ({
       currentSubscriptionBillingInterval={currentSubscriptionBillingInterval}
       currentSubscriptionPriceCents={currentSubscriptionPriceCents}
       currentSubscriptionStorageLimitBytes={GIB}
+      currentSubscriptionMaxConcurrentGenerations={1}
       recurringPaymentLabel={
         currentSubscriptionBillingInterval === "year" ? "$180.00 / year" : "$15.00 / month"
       }
@@ -145,5 +146,15 @@ describe("ProfileSubscriptionSection", () => {
     fireEvent.click(screen.getByRole("button", { name: "Downgrade to monthly billing" }));
 
     expect(onRequestPlanChange).toHaveBeenCalledWith("starter", "month");
+  });
+
+  it("shows the current plan concurrent generation entitlement", () => {
+    renderSubscriptionSection({
+      currentSubscriptionBillingInterval: "month",
+      currentSubscriptionPriceCents: 1500,
+    });
+
+    expect(screen.getByText("Concurrent generations")).toBeInTheDocument();
+    expect(screen.getAllByText("1 concurrent generation allowed").length).toBeGreaterThan(0);
   });
 });

@@ -28,6 +28,10 @@ type PressureQuarantineInput = {
   heapUsageRatio: number | null;
 };
 
+type StabilityEventOptions = {
+  message?: string;
+};
+
 const STABILITY_SOURCE_PREFIX = "telemetry.ai_studio.stability";
 const PRESSURE_QUARANTINE_STORAGE_KEY = "shortpulse.ai_studio.pressure_quarantine.v1";
 const PRESSURE_QUARANTINE_TTL_MS = 10 * 60 * 1000;
@@ -81,13 +85,14 @@ const writePressureQuarantine = (record: PressureQuarantineRecord): void => {
  */
 export const reportAiStudioStabilityEvent = (
   event: AiStudioStabilityEvent,
-  metadata: StabilityMetadata = {}
+  metadata: StabilityMetadata = {},
+  options: StabilityEventOptions = {}
 ): void => {
   void reportAppError({
     source: `${STABILITY_SOURCE_PREFIX}.${event}`,
     scope: "app",
     severity: "medium",
-    message: `ai_studio_stability.${event}`,
+    message: options.message ?? `ai_studio_stability.${event}`,
     metadata,
   });
 };

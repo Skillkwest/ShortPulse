@@ -46,6 +46,7 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "test:adaptive-media-runtime": "npm run lint && npm run type-check && npm run test -- ReferenceGrid.curated.test.tsx referenceGridMedia.test.ts sessionRestoreMediaSigning.test.ts features/ai-studio/components/__tests__/MediaLibraryPanel.test.tsx features/character-manager/components/__tests__/CharacterPanelWorkspace.test.tsx lib/adaptive-media/__tests__/policy.test.ts lib/adaptive-media/__tests__/flags.test.ts",
+    "test:ai-studio-crash-resilience": "vitest run features/media-library/hooks/__tests__/useMediaAdaptivePressure.test.ts features/ai-studio/hooks/__tests__/useReferenceGridPerfWatchdog.test.ts features/ai-studio/logic/__tests__/aiStudioStabilityTelemetry.test.ts features/ai-studio/reference-grid/controllers/__tests__/useReferenceGridStabilityTelemetryController.test.ts lib/mediaPerfTelemetry.test.ts lib/__tests__/appErrorReporter.test.ts features/ai-studio/reference-grid/components/__tests__/ReferenceGridCard.test.tsx features/ai-studio/components/__tests__/MediaLibraryMediaGrid.test.tsx lib/adaptive-media/__tests__/pressure.test.ts",
     "test:e2e": "playwright test",
     "test:e2e:pulse-custom-contract": "NODE_PATH=./node_modules node ./tests/e2e/pulse-custom-contract.audit.js",
     "test:e2e:pulse-builtin-contract": "NODE_PATH=./node_modules node ./tests/e2e/pulse-builtin-contract.audit.js",

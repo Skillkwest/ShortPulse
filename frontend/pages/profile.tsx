@@ -247,7 +247,7 @@ export default function ProfilePage() {
       const { data, error } = await supabase
         .from("billing_subscription_contracts")
         .select(
-          "id, plan_id, offer_id, billing_interval, stripe_subscription_id, stripe_price_id, contract_source, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, status, current_period_start, current_period_end, cancel_at_period_end, started_at, ended_at"
+          "id, plan_id, offer_id, billing_interval, stripe_subscription_id, stripe_price_id, contract_source, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, max_concurrent_generations, status, current_period_start, current_period_end, cancel_at_period_end, started_at, ended_at"
         )
         .eq("user_id", currentUser.id)
         .is("ended_at", null)
@@ -618,6 +618,8 @@ export default function ProfilePage() {
     billingContract?.monthly_credits_cents ?? activePlan.monthlyCreditsCents;
   const currentSubscriptionStorageLimitBytes =
     billingContract?.storage_limit_bytes ?? activePlan.storageLimitBytes;
+  const currentSubscriptionMaxConcurrentGenerations =
+    billingContract?.max_concurrent_generations ?? activePlan.maxConcurrentGenerations;
   const nextCreditRenewalAt =
     billingContract?.current_period_end ?? billingProfile?.current_period_end ?? null;
   const activePlanRank = getPlanTierRank(activePlan.id, billingPlans);
@@ -1038,6 +1040,9 @@ export default function ProfilePage() {
               currentSubscriptionBillingInterval={currentSubscriptionBillingInterval}
               currentSubscriptionPriceCents={currentSubscriptionPriceCents}
               currentSubscriptionStorageLimitBytes={currentSubscriptionStorageLimitBytes}
+              currentSubscriptionMaxConcurrentGenerations={
+                currentSubscriptionMaxConcurrentGenerations
+              }
               recurringPaymentLabel={recurringPaymentSummary.primaryLabel}
               recurringPaymentHelper={recurringPaymentSummary.breakdownLabel}
               subscriptionRenewalText={subscriptionRenewalText}

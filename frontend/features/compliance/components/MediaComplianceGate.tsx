@@ -3,7 +3,6 @@
  * Keeps the user in a single gated flow until the current agreement version is accepted.
  */
 import { useState } from "react";
-import Image from "next/image";
 import { AppMessage } from "../../../components/AppMessage";
 import type { MediaComplianceAgreementDefinition } from "../../../lib/compliance/mediaAgreement";
 
@@ -17,6 +16,7 @@ type MediaComplianceGateProps = {
   showSecondaryAction?: boolean;
   onAccept: () => Promise<void>;
   onRetry: () => Promise<void>;
+  onSecondaryAction?: () => Promise<void>;
 };
 
 /**
@@ -32,6 +32,7 @@ export function MediaComplianceGate({
   showSecondaryAction = true,
   onAccept,
   onRetry,
+  onSecondaryAction,
 }: MediaComplianceGateProps) {
   const [checked, setChecked] = useState(false);
   const helperCopy = checked
@@ -45,25 +46,15 @@ export function MediaComplianceGate({
 
   return (
     <main className="page page-wide compliance-gate-page">
-      <div className="panel compliance-gate-panel hero-image-card">
+      <div className="compliance-gate-panel">
         <div className="compliance-gate-header">
-          <div className="compliance-gate-brand" aria-label="ShortPulse">
-            <Image
-              src="/small good d.png"
-              alt="ShortPulse logo"
-              className="compliance-gate-brand-logo"
-              width={203}
-              height={64}
-              style={{ height: "auto" }}
-              priority
-            />
-          </div>
           <div className="compliance-gate-meta">
-            <p className="eyebrow compliance-gate-eyebrow">Account compliance</p>
-            <span className="compliance-gate-badge">
+            <p className="compliance-gate-wordmark">ShortPulse</p>
+            <span className="compliance-gate-status">
               {isConsentMode ? "One-time step" : "Temporarily unavailable"}
             </span>
           </div>
+          <p className="compliance-gate-document-label">Media rights agreement</p>
           <h1 className="title compliance-gate-title">{resolvedTitle}</h1>
           <p className="subdued compliance-gate-intro">{resolvedIntro}</p>
         </div>
@@ -76,20 +67,17 @@ export function MediaComplianceGate({
             >
               <div className="compliance-gate-section-header">
                 <p id="media-compliance-rules" className="compliance-gate-section-label">
-                  You agree that
+                  You agree to the following
                 </p>
-                <p className="compliance-gate-section-note">
-                  These rules apply to images, audio, and video.
-                </p>
+                <p className="compliance-gate-section-note">Applies to images, audio, and video.</p>
               </div>
-              <ul className="compliance-gate-rules" aria-label="Media agreement rules">
+              <ol className="compliance-gate-rules" aria-label="Media agreement rules">
                 {agreement.rules.map((rule) => (
                   <li key={rule}>
-                    <span className="compliance-gate-rule-dot" aria-hidden="true" />
                     <span>{rule}</span>
                   </li>
                 ))}
-              </ul>
+              </ol>
             </section>
 
             <div className="compliance-gate-confirm" data-checked={checked ? "true" : "false"}>
@@ -149,7 +137,8 @@ export function MediaComplianceGate({
               className="ghost-btn compliance-gate-secondary"
               disabled={loading}
               onClick={() => {
-                void onRetry();
+                const action = onSecondaryAction ?? onRetry;
+                void action();
               }}
             >
               {secondaryActionLabel ?? "Retry"}

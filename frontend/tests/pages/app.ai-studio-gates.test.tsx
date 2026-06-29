@@ -192,6 +192,28 @@ describe("AiStudioProtectedRouteEntry", () => {
     expect(screen.queryByTestId("ai-studio-runtime")).not.toBeInTheDocument();
   });
 
+  it("keeps the AI Studio runtime hidden before media compliance initializes", () => {
+    routerState.pathname = "/ai-studio";
+    routerState.asPath = "/ai-studio";
+    routerState.query = {};
+    useMediaComplianceGateMock.mockReturnValue({
+      ...baseComplianceState,
+      accepted: false,
+      initialized: false,
+      loading: false,
+      status: "idle",
+    });
+
+    renderRouteEntry();
+
+    expect(screen.getByRole("status")).toHaveTextContent("Loading project");
+    expect(
+      screen.getByText("Checking your media agreement before project restore continues.")
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("ai-studio-runtime")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("media-compliance-gate")).not.toBeInTheDocument();
+  });
+
   it("creates a saved checkout project after consent clears before opening AI Studio", async () => {
     routerState.asPath =
       "/ai-studio?checkout=subscription_success&project=new&checkout_session_id=cs_test_123";
@@ -245,6 +267,12 @@ describe("AiStudioProtectedRouteEntry", () => {
     renderRouteEntry();
 
     expect(screen.getByTestId("media-compliance-gate")).toBeInTheDocument();
+    expect(mediaComplianceGatePropsSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        secondaryActionLabel: "Sign out",
+        onSecondaryAction: expect.any(Function),
+      })
+    );
     expect(createProjectMock).not.toHaveBeenCalled();
     expect(replaceMock).not.toHaveBeenCalled();
   });

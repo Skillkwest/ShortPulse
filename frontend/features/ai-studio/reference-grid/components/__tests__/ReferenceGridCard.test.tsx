@@ -818,6 +818,29 @@ describe("ReferenceGridCard", () => {
     expect(playMock).not.toHaveBeenCalled();
   });
 
+  it("restores poster visibility when pressure suppresses hover video during hover", async () => {
+    const baseProps = createProps({
+      item: createOutput({ mode: "video", taskState: "success" }),
+      isVideoPreview: true,
+      cardPreviewUrl: "https://example.com/video.mp4",
+      hoverVideoUrl: "https://example.com/video.mp4",
+      videoPosterUrl: "https://example.com/poster.jpg",
+      canAutoplayVideo: false,
+      videoPreload: "metadata",
+    });
+    const { container, rerender } = render(<ReferenceGridCard {...baseProps} />);
+
+    const card = screen.getByRole("button");
+    const posterImage = container.querySelector(".reference-card-image");
+
+    fireEvent.pointerEnter(card);
+    expect(posterImage).toHaveClass("is-hidden");
+
+    rerender(<ReferenceGridCard {...baseProps} suppressHoverVideo />);
+
+    expect(container.querySelector(".reference-card-image")).not.toHaveClass("is-hidden");
+  });
+
   it("does not show a generated posterless video frame as the resting card preview", async () => {
     render(
       <ReferenceGridCard

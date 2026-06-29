@@ -332,6 +332,22 @@ describe("Auth route behavior", () => {
     expect(replaceMock).not.toHaveBeenCalled();
   });
 
+  it("shows a missing-account message after Google sign-in cannot find a ShortPulse account", async () => {
+    routerState.query = { oauth: "account_not_found", next: "/dashboard" };
+    routerState.asPath = "/log-in?next=%2Fdashboard&oauth=account_not_found";
+    routerState.pathname = "/log-in";
+
+    render(<AuthPage />);
+
+    expect(
+      await screen.findByText(
+        "No ShortPulse account exists for that Google account. Sign in with an existing account, or create an account first."
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeInTheDocument();
+    expect(replaceMock).not.toHaveBeenCalled();
+  });
+
   it("uses asPath fallback while router query is hydrating", async () => {
     routerState.isReady = false;
     routerState.asPath = "/auth?next=%2Fai-studio";

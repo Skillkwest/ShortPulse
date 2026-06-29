@@ -5,12 +5,13 @@
  */
 import Head from "next/head";
 import { useRouter } from "next/router";
-import { useEffect, useMemo, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, type ReactNode } from "react";
 import { MediaComplianceGate } from "../components/MediaComplianceGate";
 import { useMediaComplianceGate } from "../hooks/useMediaComplianceGate";
 import { buildLoginPath } from "../../../lib/authRedirects";
 import { useProtectedRoute } from "../../../lib/authGuard";
 import { ProtectedRouteSessionProvider } from "../../../lib/protectedRouteSessionContext";
+import { signOutSupabaseSession } from "../../../lib/supabaseClient";
 import { useProtectedRouteRestoreGuard } from "../../../lib/useProtectedRouteRestoreGuard";
 
 type ProtectedRouteBootstrapGateProps = {
@@ -48,6 +49,13 @@ export function ProtectedRouteBootstrapGate({ children }: ProtectedRouteBootstra
     enabled: Boolean(session),
     userId: user?.id ?? null,
   });
+  const handleComplianceSignOut = useCallback(async () => {
+    try {
+      await signOutSupabaseSession();
+    } finally {
+      await router.replace(authRedirectPath);
+    }
+  }, [authRedirectPath, router]);
 
   useEffect(() => {
     if (mediaCompliance.status !== "auth_recovery_required") return;
@@ -58,7 +66,7 @@ export function ProtectedRouteBootstrapGate({ children }: ProtectedRouteBootstra
     return <GenericProtectedLoader message="Checking your session…" />;
   }
 
-  if (mediaCompliance.status === "loading") {
+  if (!mediaCompliance.initialized || mediaCompliance.status === "loading") {
     return <GenericProtectedLoader message="Checking your media agreement…" />;
   }
 
@@ -74,9 +82,10 @@ export function ProtectedRouteBootstrapGate({ children }: ProtectedRouteBootstra
         error={mediaCompliance.error}
         loading={mediaCompliance.loading}
         primaryActionLabel="Retry"
-        showSecondaryAction={false}
+        secondaryActionLabel="Sign out"
         onAccept={mediaCompliance.acceptAgreement}
         onRetry={mediaCompliance.refreshStatus}
+        onSecondaryAction={handleComplianceSignOut}
       />
     );
   }
@@ -87,10 +96,16 @@ export function ProtectedRouteBootstrapGate({ children }: ProtectedRouteBootstra
         agreement={mediaCompliance.agreement}
         error={mediaCompliance.error}
         loading={mediaCompliance.loading}
+        secondaryActionLabel="Sign out"
         onAccept={mediaCompliance.acceptAgreement}
         onRetry={mediaCompliance.refreshStatus}
+        onSecondaryAction={handleComplianceSignOut}
       />
     );
+  }
+
+  if (mediaCompliance.status !== "accepted") {
+    return <GenericProtectedLoader message="Checking your media agreement…" />;
   }
 
   const resolvedUser = user ?? session.user;

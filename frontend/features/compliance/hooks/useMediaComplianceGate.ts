@@ -318,6 +318,29 @@ export const useMediaComplianceGate = ({
     void refreshStatus();
   }, [enabled, refreshStatus, userId]);
 
+  useEffect(() => {
+    if (!enabled || !userId || typeof window === "undefined" || typeof document === "undefined") {
+      return undefined;
+    }
+
+    const refreshVisibleStatus = () => {
+      void refreshStatus();
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshVisibleStatus();
+      }
+    };
+
+    window.addEventListener("pageshow", refreshVisibleStatus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("pageshow", refreshVisibleStatus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [enabled, refreshStatus, userId]);
+
   return {
     ...state,
     accepted: state.status === "accepted",

@@ -406,24 +406,27 @@ Monitor these events during rollout:
 1. `npm -C frontend run lint`
 2. `npm -C frontend run type-check`
 3. When adaptive paths are touched: `npm -C frontend run test:adaptive-media-runtime`
-4. `npm -C frontend run build`
-5. `npm -C frontend run check:architecture-boundary`
-6. `npm -C frontend run check:size-budget`
+4. When AI Studio browser-crash resilience paths are touched: `npm -C frontend run test:ai-studio-crash-resilience`
+5. `npm -C frontend run build`
+6. `npm -C frontend run check:architecture-boundary`
+7. `npm -C frontend run check:size-budget`
    - For media-rendering guardrail slices, prefer the combined enforcement bundle:
      - `npm -C frontend run validate:media-rendering-guardrails`
-7. For reference-grid modularization phases, include phase report:
+8. For reference-grid modularization phases, include phase report:
    - `docs/planning/evidence/reference-grid-modularization/phase-*/`
-8. Run in-browser gate audit from DevTools on `/ai-studio`:
+9. Run in-browser gate audit from DevTools on `/ai-studio`:
    - `await window.__shortpulseAiStudioPerf?.runReferenceGridAudit()`
    - `await window.__shortpulseAiStudioPerf?.runStudioShellAudit()`
-9. Production-mode verification (release signal):
-   - Run the one-command release check (build + start + authenticated perf audit + teardown):
-     - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<audit-password> npm run perf:ai-studio:release-check`
-   - Optional fast rerun without rebuild:
-     - `cd frontend && AI_STUDIO_PERF_SKIP_BUILD=true PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<audit-password> npm run perf:ai-studio:release-check`
-   - Optional port override:
-     - `cd frontend && AI_STUDIO_PERF_PORT=3200 PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<audit-password> npm run perf:ai-studio:release-check`
-10. Manual verification:
+10. Production-mode verification (release signal):
+
+- Run the one-command release check (build + start + authenticated perf audit + teardown):
+  - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<audit-password> npm run perf:ai-studio:release-check`
+- Optional fast rerun without rebuild:
+  - `cd frontend && AI_STUDIO_PERF_SKIP_BUILD=true PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<audit-password> npm run perf:ai-studio:release-check`
+- Optional port override:
+  - `cd frontend && AI_STUDIO_PERF_PORT=3200 PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<audit-password> npm run perf:ai-studio:release-check`
+
+11. Manual verification:
 
 - AI Studio modal search + paging + selection
 - Reference Grid autoplay behavior on desktop and small-screen widths

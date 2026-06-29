@@ -72,7 +72,7 @@ Google auth posture:
   npm run auth:google-config -- --project-ref <production-project-ref> --apply-enable-google --apply-redirect-url --confirm-enable-google <production-project-ref>
   ```
   This command summarizes only credential presence and provider state; it must not print the Management API token, Google client secret, or raw auth config.
-- ShortPulse marks Google OAuth callback URLs with `provider=google`. If the user cancels or backs out of Google before a session is established, `/auth/callback` returns them to `/log-in` or `/sign-up` with a calm `Google sign-in was canceled.` message. Email confirmation, password recovery, and email-change callbacks must continue to fail closed when their callback artifacts are missing or invalid.
+- ShortPulse marks Google OAuth callback URLs with `provider=google`. If the user cancels or backs out of Google before a session is established, `/auth/callback` returns them to `/log-in` or `/sign-up` with a calm `Google sign-in was canceled.` message. If Google sign-in reaches the callback but Supabase reports that the selected Google identity has no ShortPulse account, `/log-in` shows a missing-account message instead of cancellation copy. Email confirmation, password recovery, and email-change callbacks must continue to fail closed when their callback artifacts are missing or invalid.
 
 Suspicious account removal posture:
 
@@ -137,6 +137,7 @@ Role-based admin access for `/admin` APIs:
 8. Verify email-change confirmation returns through `/auth/callback` and only then syncs downstream billing identity.
 9. Verify Google sign-in from `/log-in` with prefilled email/password fields still shows Google account selection, does not pass `login_hint`, allows the selected existing approved Google account to sign in, and returns through `/auth/callback?flow=signin&provider=google`.
 10. Verify canceling/backing out of Google OAuth returns to `/log-in` or `/sign-up` with `Google sign-in was canceled.` and does not render the invalid-link callback page.
-11. Verify user-scoped data is isolated across two test users.
-12. Verify billing/credit tables (`billing_profiles`, `ai_credit_balance`, `ai_credit_ledger`) obey RLS.
-13. Verify admin access works for one operator account with the expected `raw_app_meta_data` role.
+11. Verify Google sign-in for a deleted or never-created Google account returns to `/log-in` with a missing-account message instead of `Google sign-in was canceled.`.
+12. Verify user-scoped data is isolated across two test users.
+13. Verify billing/credit tables (`billing_profiles`, `ai_credit_balance`, `ai_credit_ledger`) obey RLS.
+14. Verify admin access works for one operator account with the expected `raw_app_meta_data` role.

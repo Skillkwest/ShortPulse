@@ -9,6 +9,7 @@ import { SubscriptionPlanCard } from "../../billing/components/SubscriptionPlanC
 import {
   buildPlanView,
   filterPublicSubscriptionPlans,
+  formatConcurrentGenerationsLabel,
   getPlanTierRank,
   resolvePlanPricingForInterval,
   type BillingInterval,
@@ -35,6 +36,7 @@ type ProfileSubscriptionSectionProps = {
   currentSubscriptionBillingInterval: BillingInterval;
   currentSubscriptionPriceCents: number;
   currentSubscriptionStorageLimitBytes: number;
+  currentSubscriptionMaxConcurrentGenerations: number;
   recurringPaymentLabel: string;
   recurringPaymentHelper: string;
   subscriptionRenewalText: string;
@@ -60,6 +62,7 @@ export function ProfileSubscriptionSection({
   currentSubscriptionBillingInterval,
   currentSubscriptionPriceCents,
   currentSubscriptionStorageLimitBytes,
+  currentSubscriptionMaxConcurrentGenerations,
   recurringPaymentLabel,
   recurringPaymentHelper,
   subscriptionRenewalText,
@@ -86,6 +89,7 @@ export function ProfileSubscriptionSection({
       : "Plan term refreshes automatically";
   const monthlyCreditsHelperText = "Credits added each renewal cycle";
   const storageIncludedHelperText = "Included with your base plan";
+  const concurrentGenerationsHelperText = "Active generation slots included with your plan";
   const activeAddonsHelperText =
     activeAddonStorageBytes > 0
       ? "Recurring storage add-ons renew monthly"
@@ -172,6 +176,12 @@ export function ProfileSubscriptionSection({
             label="Storage included"
             value={formatStorageBytes(currentSubscriptionStorageLimitBytes)}
             helper={storageIncludedHelperText}
+          />
+          <ProfileMetricCard
+            className="profile-hero-stat-card"
+            label="Concurrent generations"
+            value={formatConcurrentGenerationsLabel(currentSubscriptionMaxConcurrentGenerations)}
+            helper={concurrentGenerationsHelperText}
           />
           {activeAddonStorageBytes > 0 ? (
             <ProfileMetricCard

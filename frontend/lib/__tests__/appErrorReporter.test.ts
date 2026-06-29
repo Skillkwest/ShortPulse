@@ -107,6 +107,27 @@ describe("appErrorReporter", () => {
     );
   });
 
+  it("keeps distinct ai-studio pressure transitions ingestible inside the dedupe window", async () => {
+    const baseEvent = {
+      source: "telemetry.ai_studio.stability.pressure_level_changed",
+      scope: "app" as const,
+      severity: "medium" as const,
+      route: "/ai-studio",
+    };
+
+    await reportAppError({
+      ...baseEvent,
+      message: "ai_studio_stability.pressure_level_changed.0_to_1",
+    });
+    await reportAppError({
+      ...baseEvent,
+      message: "ai_studio_stability.pressure_level_changed.1_to_2",
+    });
+
+    expect(readCachedSupabaseAccessTokenMock).toHaveBeenCalledTimes(2);
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
   it("backs off after client-error ingest is rate limited", async () => {
     vi.mocked(fetch)
       .mockResolvedValueOnce({

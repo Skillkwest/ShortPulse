@@ -40,7 +40,7 @@ export function BillingIntervalToggle({
       </div>
       <p className="pricing-interval-support">
         <span className="pricing-interval-badge">Save up to {annualSavingsPercent || 0}%</span>
-        <span className="pricing-interval-support-copy">with annual billing paid upfront</span>
+        <span className="pricing-interval-support-copy">with annual billing</span>
       </p>
     </div>
   );

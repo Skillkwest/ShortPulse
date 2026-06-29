@@ -42,4 +42,24 @@ describe("MediaComplianceGate", () => {
 
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
+
+  it("uses the configured secondary action when provided", () => {
+    const onRetry = vi.fn().mockResolvedValue(undefined);
+    const onSecondaryAction = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <MediaComplianceGate
+        {...buildProps({
+          onRetry,
+          onSecondaryAction,
+          secondaryActionLabel: "Sign out",
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
+
+    expect(onSecondaryAction).toHaveBeenCalledTimes(1);
+    expect(onRetry).not.toHaveBeenCalled();
+  });
 });

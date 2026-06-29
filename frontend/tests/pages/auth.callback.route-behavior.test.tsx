@@ -363,6 +363,21 @@ describe("Auth callback route behavior", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("returns to login with account-not-found copy when Google sign-in cannot find a ShortPulse account", async () => {
+    setCallbackRoute(
+      "/auth/callback?flow=signin&next=%2Fdashboard&provider=google&error=access_denied&error_description=User%20from%20sub%20claim%20in%20JWT%20does%20not%20exist",
+      { flow: "signin", next: "/dashboard", provider: "google", error: "access_denied" }
+    );
+    readSupabaseSessionMock.mockResolvedValue(null);
+
+    render(<AuthCallbackPage />);
+
+    await waitFor(() => {
+      expect(replaceMock).toHaveBeenCalledWith("/log-in?next=%2Fdashboard&oauth=account_not_found");
+    });
+    expect(replaceMock).not.toHaveBeenCalledWith("/log-in?next=%2Fdashboard&oauth=cancelled");
+  });
+
   it("returns to signup auth when Google signup is rejected by the provider or auth hook", async () => {
     setCallbackRoute(
       "/auth/callback?flow=signup&next=%2Fpricing%3Fintent%3Dcreate-project%26plan%3Dstarter&provider=google&error=server_error&error_description=Choose%20a%20paid%20ShortPulse%20plan",
@@ -465,6 +480,30 @@ describe("Auth callback route behavior", () => {
     await waitFor(() => {
       expect(exchangeCodeForSessionMock).toHaveBeenCalledWith("oauth-code");
       expect(replaceMock).toHaveBeenCalledWith("/sign-up?next=%2Fai-studio&oauth=signup_failed");
+    });
+  });
+
+  it("returns to login with account-not-found copy when Google sign-in code exchange reports a missing user", async () => {
+    setCallbackRoute(
+      "/auth/callback?flow=signin&next=%2Fai-studio&provider=google&code=oauth-code",
+      {
+        flow: "signin",
+        next: "/ai-studio",
+        provider: "google",
+        code: "oauth-code",
+      }
+    );
+    readSupabaseSessionMock.mockResolvedValue(null);
+    exchangeCodeForSessionMock.mockResolvedValue({
+      data: { session: null },
+      error: new Error("User from sub claim in JWT does not exist"),
+    });
+
+    render(<AuthCallbackPage />);
+
+    await waitFor(() => {
+      expect(exchangeCodeForSessionMock).toHaveBeenCalledWith("oauth-code");
+      expect(replaceMock).toHaveBeenCalledWith("/log-in?next=%2Fai-studio&oauth=account_not_found");
     });
   });
 

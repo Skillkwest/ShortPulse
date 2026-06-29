@@ -309,4 +309,28 @@ describe("Dashboard bootstrap state", () => {
     expect(screen.queryByRole("button", { name: "Profile menu" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: /welcome back/i })).not.toBeInTheDocument();
   });
+
+  it("keeps signed-in dashboard content hidden before media consent status initializes", async () => {
+    useSupabaseSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: { user: appUser },
+      user: appUser,
+    });
+    useMediaComplianceGateMock.mockReturnValue({
+      ...acceptedMediaComplianceState,
+      accepted: false,
+      initialized: false,
+      loading: false,
+      status: "idle",
+    });
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("status")).toHaveTextContent("Loading dashboard");
+    });
+    expect(screen.queryByTestId("media-compliance-gate")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Profile menu" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /welcome back/i })).not.toBeInTheDocument();
+  });
 });

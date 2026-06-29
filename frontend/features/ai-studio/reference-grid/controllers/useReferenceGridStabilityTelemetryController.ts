@@ -51,17 +51,28 @@ export const useReferenceGridStabilityTelemetryController = ({
 
     const previousPressureLevel = previousPressureLevelRef.current;
     previousPressureLevelRef.current = effectivePerfDegradeLevel;
-    if (previousPressureLevel === effectivePerfDegradeLevel) return;
+    if (previousPressureLevel === null || previousPressureLevel === effectivePerfDegradeLevel) {
+      return;
+    }
 
-    reportAiStudioStabilityEvent("pressure_level_changed", {
-      previous_pressure_level: previousPressureLevel,
-      pressure_level: effectivePerfDegradeLevel,
-      long_task_p95_ms: perfWatchdog.longTaskP95Ms,
-      max_input_stall_ms: perfWatchdog.maxInputStallMs,
-      heap_usage_ratio: perfWatchdog.heapUsageRatio,
-      total_item_count: outputsLength,
-      archived_item_count: archivedOutputsLength,
-    });
+    const transitionLabel = `${previousPressureLevel}_to_${effectivePerfDegradeLevel}`;
+
+    reportAiStudioStabilityEvent(
+      "pressure_level_changed",
+      {
+        previous_pressure_level: previousPressureLevel,
+        pressure_level: effectivePerfDegradeLevel,
+        pressure_transition: transitionLabel,
+        long_task_p95_ms: perfWatchdog.longTaskP95Ms,
+        max_input_stall_ms: perfWatchdog.maxInputStallMs,
+        heap_usage_ratio: perfWatchdog.heapUsageRatio,
+        total_item_count: outputsLength,
+        archived_item_count: archivedOutputsLength,
+      },
+      {
+        message: `ai_studio_stability.pressure_level_changed.${transitionLabel}`,
+      }
+    );
   }, [
     archivedOutputsLength,
     effectivePerfDegradeLevel,

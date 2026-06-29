@@ -598,6 +598,15 @@ export function MediaLibraryVisualMediaCard({
     videoNodeRef.current?.pause();
   };
 
+  React.useEffect(() => {
+    if (hoverVideoUrl) return;
+    setIsHoveringVideo(false);
+    setIsHoverVideoVisible(false);
+    if (!hoverAutoplayStartedRef.current) return;
+    hoverAutoplayStartedRef.current = false;
+    videoNodeRef.current?.pause();
+  }, [hoverVideoUrl]);
+
   const renderMixedMedia = () => (
     <div className="media-library-panel-media-frame" style={{ aspectRatio: previewAspectRatio }}>
       {shouldRenderFallbackVideo ? (

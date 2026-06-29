@@ -26,6 +26,7 @@ export type BillingSubscriptionContract = {
   recurring_price_cents: number;
   monthly_credits_cents: number;
   storage_limit_bytes: number;
+  max_concurrent_generations?: number | null;
   status: string | null;
   current_period_start: string | null;
   current_period_end: string | null;

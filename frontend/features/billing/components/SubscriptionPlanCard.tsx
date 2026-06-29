@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { CheckCircle, XCircle } from "phosphor-react";
 import {
   buildPlanView,
+  formatConcurrentGenerationsLabel,
   resolvePlanPricingForInterval,
   type BillingInterval,
   type BillingPlanRecord,
@@ -73,7 +74,7 @@ export function SubscriptionPlanCard({
       annotation: null,
     })),
     {
-      label: planView.concurrentGenerationsCompactLabel,
+      label: formatConcurrentGenerationsLabel(pricing.maxConcurrentGenerations),
       included: true,
       annotation: null,
     },

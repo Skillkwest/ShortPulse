@@ -9,6 +9,7 @@ import type { ParsedUrlQuery } from "querystring";
 import { useRouter } from "next/router";
 import {
   useEffect,
+  useCallback,
   useMemo,
   useRef,
   useState,
@@ -20,6 +21,7 @@ import { buildLoginPath } from "../../../lib/authRedirects";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { useProtectedRoute } from "../../../lib/authGuard";
 import { ProtectedRouteSessionProvider } from "../../../lib/protectedRouteSessionContext";
+import { signOutSupabaseSession } from "../../../lib/supabaseClient";
 import { useProtectedRouteRestoreGuard } from "../../../lib/useProtectedRouteRestoreGuard";
 import { MediaComplianceGate } from "../../compliance/components/MediaComplianceGate";
 import { useMediaComplianceGate } from "../../compliance/hooks/useMediaComplianceGate";
@@ -233,6 +235,13 @@ export default function AiStudioProtectedRouteEntry({
     enabled: Boolean(session),
     userId: resolvedUserId,
   });
+  const handleComplianceSignOut = useCallback(async () => {
+    try {
+      await signOutSupabaseSession();
+    } finally {
+      await router.replace(authRedirectPath);
+    }
+  }, [authRedirectPath, router]);
 
   useEffect(() => {
     if (mediaCompliance.status !== "auth_recovery_required") return;
@@ -347,7 +356,7 @@ export default function AiStudioProtectedRouteEntry({
     );
   }
 
-  if (mediaCompliance.status === "loading") {
+  if (!mediaCompliance.initialized || mediaCompliance.status === "loading") {
     return (
       <AiStudioEntryStateFrame
         variant="loading"
@@ -380,9 +389,10 @@ export default function AiStudioProtectedRouteEntry({
           error={mediaCompliance.error}
           loading={mediaCompliance.loading}
           primaryActionLabel="Retry"
-          showSecondaryAction={false}
+          secondaryActionLabel="Sign out"
           onAccept={mediaCompliance.acceptAgreement}
           onRetry={mediaCompliance.refreshStatus}
+          onSecondaryAction={handleComplianceSignOut}
         />
       </AppErrorBoundary>
     );
@@ -395,8 +405,10 @@ export default function AiStudioProtectedRouteEntry({
           agreement={mediaCompliance.agreement}
           error={mediaCompliance.error}
           loading={mediaCompliance.loading}
+          secondaryActionLabel="Sign out"
           onAccept={mediaCompliance.acceptAgreement}
           onRetry={mediaCompliance.refreshStatus}
+          onSecondaryAction={handleComplianceSignOut}
         />
       </AppErrorBoundary>
     );
@@ -428,6 +440,18 @@ export default function AiStudioProtectedRouteEntry({
         message="Saving your starter project before AI Studio opens."
         activeStepIndex={2}
         stepsAriaLabel="Project creation progress"
+      />
+    );
+  }
+
+  if (mediaCompliance.status !== "accepted") {
+    return (
+      <AiStudioEntryStateFrame
+        variant="loading"
+        phase="resolving-project"
+        message="Checking your media agreement before project restore continues."
+        activeStepIndex={1}
+        stepsAriaLabel="Project loading progress"
       />
     );
   }

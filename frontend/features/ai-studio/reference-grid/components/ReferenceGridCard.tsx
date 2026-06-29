@@ -433,6 +433,16 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   }, [canAutoplayVideo]);
 
   React.useEffect(() => {
+    if (resolvedHoverVideoUrl) return;
+    setIsHoveringVideo(false);
+    setIsHoverVideoVisible(false);
+    if (!hoverAutoplayStartedRef.current) return;
+    hoverAutoplayStartedRef.current = false;
+    videoNodeRef.current?.pause();
+    onAutoplayStopped(item.id);
+  }, [item.id, onAutoplayStopped, resolvedHoverVideoUrl]);
+
+  React.useEffect(() => {
     const previousAttachedVideoSource = attachedVideoSourceRef.current;
     attachedVideoSourceRef.current = attachedVideoSourceUrl;
     const node = videoNodeRef.current;

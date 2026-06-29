@@ -39,9 +39,38 @@ const authClass = (...names: Array<string | false | null | undefined>) =>
 type CallbackStatus = "loading" | "recovery" | "error";
 type CompletionAuthEvent = "SIGNED_IN" | "USER_UPDATED";
 type AccountSyncRetryKind = "email-change" | "signup";
+type OAuthReturnStatus = "cancelled" | "signup_failed" | "signin_failed" | "account_not_found";
+
+const GOOGLE_SIGN_IN_ACCOUNT_NOT_FOUND_MARKERS = [
+  "account does not exist",
+  "no account",
+  "no user",
+  "signups not allowed",
+  "signup disabled",
+  "user from sub claim in jwt does not exist",
+  "user not found",
+];
 
 const getErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error ? error.message : fallback;
+
+const getSearchableErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message.toLowerCase();
+  if (typeof error === "string") return error.toLowerCase();
+  if (error && typeof error === "object") {
+    const record = error as Record<string, unknown>;
+    return [record.message, record.error_description, record.error, record.code]
+      .filter((value): value is string => typeof value === "string")
+      .join(" ")
+      .toLowerCase();
+  }
+  return "";
+};
+
+const isGoogleSignInAccountNotFoundError = (error: unknown): boolean => {
+  const message = getSearchableErrorMessage(error);
+  return GOOGLE_SIGN_IN_ACCOUNT_NOT_FOUND_MARKERS.some((marker) => message.includes(marker));
+};
 
 const resolveCallbackErrorMessage = (
   flow: "signin" | "signup" | "recovery" | "email-change"
@@ -93,7 +122,7 @@ const isCallbackCompletionEvent = (event: string): event is CompletionAuthEvent 
 const buildAuthReturnPath = (options: {
   nextPath: string;
   callbackFlow: "signin" | "signup" | "recovery" | "email-change";
-  oauthStatus?: "cancelled" | "signup_failed" | "signin_failed";
+  oauthStatus?: OAuthReturnStatus;
 }): string => {
   if (options.callbackFlow === "signup") {
     const signupPath = buildSignupPath({ nextPath: options.nextPath });
@@ -150,12 +179,32 @@ export default function AuthCallbackPage() {
     [router.asPath]
   );
   const isGoogleOAuthCallback = oauthProvider === "google";
-  const isGoogleOAuthAccessDenied = isGoogleOAuthCallback && callbackErrorCode === "access_denied";
+  const isGoogleOAuthSignInAccountNotFound =
+    isGoogleOAuthCallback &&
+    callbackFlow === "signin" &&
+    callbackError !== null &&
+    isGoogleSignInAccountNotFoundError(callbackError);
+  const isGoogleOAuthAccessDenied =
+    isGoogleOAuthCallback &&
+    callbackErrorCode === "access_denied" &&
+    !isGoogleOAuthSignInAccountNotFound;
   const shouldReturnToAuthForGoogleOAuthError =
     isGoogleOAuthCallback &&
     callbackError !== null &&
     !isGoogleOAuthAccessDenied &&
+    !isGoogleOAuthSignInAccountNotFound &&
     (callbackFlow === "signin" || callbackFlow === "signup");
+  const googleOAuthAccountNotFoundHref = useMemo(
+    () =>
+      isGoogleOAuthSignInAccountNotFound
+        ? buildAuthReturnPath({
+            nextPath,
+            callbackFlow,
+            oauthStatus: "account_not_found",
+          })
+        : null,
+    [callbackFlow, isGoogleOAuthSignInAccountNotFound, nextPath]
+  );
   const googleOAuthErrorHref = useMemo(
     () =>
       shouldReturnToAuthForGoogleOAuthError
@@ -232,6 +281,11 @@ export default function AuthCallbackPage() {
   );
 
   useEffect(() => {
+    if (!googleOAuthAccountNotFoundHref) return;
+    void replace(googleOAuthAccountNotFoundHref);
+  }, [googleOAuthAccountNotFoundHref, replace]);
+
+  useEffect(() => {
     if (!isGoogleOAuthAccessDenied) return;
     void replace(oauthCancelledHref);
   }, [isGoogleOAuthAccessDenied, oauthCancelledHref, replace]);
@@ -242,13 +296,23 @@ export default function AuthCallbackPage() {
   }, [googleOAuthErrorHref, replace]);
 
   useEffect(() => {
-    if (!callbackError || isGoogleOAuthAccessDenied || shouldReturnToAuthForGoogleOAuthError)
+    if (
+      !callbackError ||
+      isGoogleOAuthAccessDenied ||
+      isGoogleOAuthSignInAccountNotFound ||
+      shouldReturnToAuthForGoogleOAuthError
+    )
       return;
     setStatus("error");
     setError(callbackError);
     setInfo(null);
     setAccountSyncRetryKind(null);
-  }, [callbackError, isGoogleOAuthAccessDenied, shouldReturnToAuthForGoogleOAuthError]);
+  }, [
+    callbackError,
+    isGoogleOAuthAccessDenied,
+    isGoogleOAuthSignInAccountNotFound,
+    shouldReturnToAuthForGoogleOAuthError,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -403,8 +467,18 @@ export default function AuthCallbackPage() {
               completionEventSeenRef.current = true;
               void handleResolvedSession(exchangedSession);
             })
-            .catch(() => {
+            .catch((exchangeError) => {
               if (cancelled || callbackError || isGoogleOAuthAccessDenied) return;
+              if (callbackFlow === "signin" && isGoogleSignInAccountNotFoundError(exchangeError)) {
+                void replace(
+                  buildAuthReturnPath({
+                    nextPath,
+                    callbackFlow,
+                    oauthStatus: "account_not_found",
+                  })
+                );
+                return;
+              }
               void replace(googleOAuthFailedHref ?? googleOAuthErrorHref ?? oauthCancelledHref);
             });
           return;
@@ -467,10 +541,12 @@ export default function AuthCallbackPage() {
     callbackArtifactsPresent,
     callbackError,
     callbackFlow,
+    googleOAuthAccountNotFoundHref,
     googleOAuthErrorHref,
     googleOAuthFailedHref,
     isGoogleOAuthAccessDenied,
     isGoogleOAuthCallback,
+    isGoogleOAuthSignInAccountNotFound,
     nextPath,
     oauthCancelledHref,
     recoveryFlowHint,

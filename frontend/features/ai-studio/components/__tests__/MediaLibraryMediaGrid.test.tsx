@@ -184,6 +184,67 @@ describe("MediaLibraryMediaGrid", () => {
     expect(actionRow).not.toContainElement(durationBadge);
   });
 
+  it("restores poster visibility when pressure removes a mixed-feed hover video", () => {
+    const file = {
+      ...baseProps().activeMedia[0],
+      metadata: { duration_ms: 15_000 },
+    };
+    const sharedProps = {
+      file,
+      isSelected: false,
+      previewAspectRatio: 16 / 9,
+      cardPreviewUrl: "https://cdn.example.com/clip-1-poster.jpg",
+      posterPreviewUrl: "https://cdn.example.com/clip-1-poster.jpg",
+      adaptivePressureLevel: 0 as const,
+      fetchPriorityAttr: "auto" as const,
+      getMediaCardRef: () => () => undefined,
+      onSelectMediaFile: vi.fn(),
+      onMediaDoubleClick: vi.fn(),
+      onMediaDragStart: vi.fn(),
+      onMediaDragEnd: vi.fn(),
+      onToggleMediaSelection: vi.fn(),
+      onMediaContextMenu: vi.fn(),
+      onMediaPreviewError: vi.fn(),
+      onMediaPaint: vi.fn(),
+      onSignedUrlLoaded: vi.fn(),
+      onRequestSignedUrl: vi.fn(),
+      cacheAspectRatio: vi.fn(),
+      showCardActions: true,
+      canShowDownloadAction: true,
+      canShowWorkflowReloadAction: false,
+      canShowRemoveAction: false,
+      canShowDeleteAction: true,
+      actionLabels: buildMediaLibraryCardActionLabels(file, {
+        actionAriaLabel: "Video actions",
+        downloadLabelPrefix: "Download media",
+        removeLabel: "Remove clip-1.mp4 from folder",
+        deleteLabel: "Delete clip-1.mp4 from library",
+      }),
+      dangerActionMode: "exclusive" as const,
+      onDownloadMediaFile: vi.fn(),
+      onDeleteMediaFromLibrary: vi.fn(),
+      variant: "mixed-feed" as const,
+    };
+    const { container, rerender } = render(
+      <MediaLibraryVisualMediaCard
+        {...sharedProps}
+        hoverVideoUrl="https://cdn.example.com/clip-1-preview.mp4"
+      />
+    );
+
+    const card = screen.getByRole("button", { name: "Select media clip-1.mp4" });
+    const posterImage = container.querySelector(".media-library-panel-video-poster");
+
+    fireEvent.pointerEnter(card);
+    expect(posterImage).toHaveClass("is-hidden");
+
+    rerender(<MediaLibraryVisualMediaCard {...sharedProps} hoverVideoUrl={null} />);
+
+    expect(container.querySelector(".media-library-panel-video-poster")).not.toHaveClass(
+      "is-hidden"
+    );
+  });
+
   it("marks selected image and video tab cards for the panel selection border", () => {
     const props = baseProps();
     props.selectedIds = new Set<string>(["video-1"]);

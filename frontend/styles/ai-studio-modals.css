@@ -570,10 +570,10 @@
 .art-stage-snapshot-status {
   min-height: 30px;
   padding: 0 11px;
-  border: 1px solid rgba(110, 231, 183, 0.34);
+  border: 1px solid rgba(37, 169, 191, 0.42);
   border-radius: 999px;
-  background: rgba(10, 24, 19, 0.82);
-  color: rgba(205, 255, 232, 0.96);
+  background: rgba(7, 30, 38, 0.84);
+  color: rgba(206, 247, 255, 0.96);
   display: inline-flex;
   align-items: center;
   font-size: 12px;
@@ -1036,6 +1036,20 @@
   justify-content: stretch;
 }
 
+.art-text-detail-textarea-shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.art-copy-prompt-btn.art-copy-prompt-btn--text-detail {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+}
+
 .art-text-detail-textarea {
   width: 100%;
   height: 100%;
@@ -1043,7 +1057,7 @@
   background: transparent;
   border: 1px solid rgba(201, 205, 214, 0.08);
   border-radius: 8px;
-  padding: 24px;
+  padding: 24px 64px 24px 24px;
   font-size: 16px;
   line-height: 1.66;
   letter-spacing: 0;

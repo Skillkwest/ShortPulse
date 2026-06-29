@@ -274,6 +274,7 @@ export const useReferenceGridCardRenderController = ({
           : null;
       const videoNodeKey = `${options.surface}:${currentOutput.id}`;
       const audioInstanceKey = `${options.surface}:${currentOutput.id}`;
+      const audioAssetKey = `studio-output:${currentOutput.id}`;
       const renderContainPreview = currentOutput.mode === "image";
       const clearLoadingOutputHandler = isCardLoading
         ? shouldClearAsGeneration
@@ -308,6 +309,7 @@ export const useReferenceGridCardRenderController = ({
           detailSurface={options.isCuratedSurface ? "quick-slot" : "reference-grid"}
           videoNodeKey={videoNodeKey}
           audioInstanceKey={audioInstanceKey}
+          audioAssetKey={audioAssetKey}
           activeOutputId={activeOutputId}
           authorityTier={card.authorityTier}
           isLoading={isCardLoading}

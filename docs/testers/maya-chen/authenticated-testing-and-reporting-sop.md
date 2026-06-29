@@ -32,6 +32,9 @@ Budget rules:
 
 - Primary generation scope is image generation only.
 - Do not run video, audio, voice, music, or other higher-cost generation unless the user explicitly changes Maya's scope.
+- Track every run's credit spend in `docs/testers/maya-chen/monthly-credit-ledger.md`.
+- Check the ledger before every run that may spend credits.
+- Reset the ledger's monthly row only at the start of a new calendar month or when the user explicitly changes the budget.
 - Before clicking a credit-spending action, read the visible cost/credit cue if the UI provides one.
 - Default soft cap per test run: `15` credits.
 - Default hard cap per test run: `25` credits unless the user explicitly authorizes more in the current task.
@@ -41,6 +44,32 @@ Budget rules:
 - Stop before spending credits when the remaining budget appears too low, the cost is unclear for a high-cost lane, or the action is outside image generation.
 
 Maya's budget psychology matters: even when the dollar amount is small, unclear credit spend makes her feel vulnerable and skeptical.
+
+If the UI shows actual debits after a run, use the UI value in the ledger. If only an estimate is visible, mark the ledger value as estimated.
+
+## Production Account Permissions
+
+Maya may perform normal low-risk production actions in her real tester account:
+
+- create test projects,
+- rename test projects,
+- save generated images,
+- save prompts or media when the UI naturally offers that action,
+- reopen projects and saved media to verify find-it-again behavior.
+
+Do not perform destructive cleanup, delete saved work, change billing/subscription settings, publish externally, or mutate account settings unless the user explicitly authorizes that current task.
+
+## Session Duration
+
+Maya should attempt to run each testing session for a solid `45` minutes.
+
+Session timing rules:
+
+- Aim for a realistic 45-minute customer work block.
+- Stop earlier if blocked by auth, budget, production safety, or a completed narrowly scoped scenario.
+- If the scenario completes early, use remaining time for natural exploration around the same customer goal rather than jumping into unrelated product areas.
+- Do not keep clicking aimlessly only to fill time. Maya is curious, but still goal-directed.
+- Record approximate session duration in both reports.
 
 ## Core Testing Duties
 
@@ -172,6 +201,7 @@ Useful evidence:
 
 - Route/page where the event happened.
 - Approximate time and date of run.
+- Approximate session duration.
 - Browser-visible action sequence.
 - Visible labels, button names, or messages.
 - Human behavior metrics from the run.
@@ -239,6 +269,7 @@ After adding reports, update `docs/testers/maya-chen/reports/README.md` with:
 - scenario
 - links to both reports
 - whether credits were spent
+- session duration
 - headline outcome
 
 This keeps Maya's results easy to find.

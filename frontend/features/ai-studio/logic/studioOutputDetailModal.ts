@@ -8,6 +8,7 @@ import { canDownloadReferenceOutput, canSaveReferenceOutput } from "./referenceA
 import type { StudioOutput } from "../types";
 import { resolveOutputAudioSourceMode } from "./audioSourceMode";
 import { resolveAiStudioErrorPresentation } from "./errorPresentation";
+import { stripHiddenVideoShotModePromptPrefix } from "../../../lib/model-runtime/videoShotModePromptVisibility";
 
 export type StudioOutputDetailModalItem = SharedMediaDetailItemBase & {
   output: StudioOutput;
@@ -114,7 +115,9 @@ export const createStudioOutputDetailModalItem = ({
         "",
       createdAt: output.createdAt ?? output.timestamp ?? null,
       filename: null,
-      promptText: output.prompt,
+      promptText:
+        stripHiddenVideoShotModePromptPrefix(output.workflowReload?.prompt?.display) ??
+        stripHiddenVideoShotModePromptPrefix(output.prompt),
       transcriptText: output.transcriptText ?? null,
       lyricsText: resolveStudioOutputLyricsText(output),
       source: resolveStudioOutputDetailSource(output),

@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ReferenceAudioPlayer } from "../ReferenceAudioPlayer";
+import { __resetExclusiveSoundPlaybackForTests } from "../exclusiveSoundPlayback";
 
 const extractAudioWaveformPeaksFromUrlMock = vi.hoisted(() => vi.fn());
 
@@ -18,6 +19,7 @@ vi.mock("../../../reference-grid/logic/referenceGridAudioWaveform", async (impor
 
 describe("ReferenceAudioPlayer", () => {
   beforeEach(() => {
+    __resetExclusiveSoundPlaybackForTests();
     extractAudioWaveformPeaksFromUrlMock.mockResolvedValue([20, 40, 60]);
     vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => undefined);
     vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
@@ -25,6 +27,7 @@ describe("ReferenceAudioPlayer", () => {
   });
 
   afterEach(() => {
+    __resetExclusiveSoundPlaybackForTests();
     vi.restoreAllMocks();
     extractAudioWaveformPeaksFromUrlMock.mockReset();
   });
@@ -295,5 +298,89 @@ describe("ReferenceAudioPlayer", () => {
     expect(firstResolver).toHaveBeenCalledTimes(1);
     expect(secondResolver).not.toHaveBeenCalled();
     expect(audio?.getAttribute("src")).toBe("https://signed.test/stable-audio.mp3");
+  });
+
+  it("mirrors active playback state for another player with the same audio asset", async () => {
+    render(
+      <>
+        <ReferenceAudioPlayer
+          audioId="audio-card"
+          audioAssetKey="studio-output:shared-audio"
+          audioUrl="https://signed.test/shared-audio.mp3"
+          playLabel="Play card audio"
+          pauseLabel="Pause card audio"
+        />
+        <ReferenceAudioPlayer
+          audioId="audio-modal"
+          audioAssetKey="studio-output:shared-audio"
+          audioUrl="https://signed.test/shared-audio.mp3"
+          playLabel="Play modal audio"
+          pauseLabel="Pause modal audio"
+        />
+      </>
+    );
+
+    const [cardAudio] = Array.from(document.querySelectorAll("audio"));
+    Object.defineProperty(cardAudio, "duration", { configurable: true, value: 20 });
+    Object.defineProperty(cardAudio, "currentTime", {
+      configurable: true,
+      writable: true,
+      value: 5,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Play card audio" }));
+    fireEvent.play(cardAudio);
+    fireEvent.timeUpdate(cardAudio);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Pause modal audio" })).toBeInTheDocument();
+    });
+    expect(screen.getAllByRole("slider", { name: "Audio seek position" })[1]).toHaveAttribute(
+      "aria-valuenow",
+      "25"
+    );
+  });
+
+  it("pauses the active same-asset owner from a mirrored player", async () => {
+    const pauseSpy = vi.spyOn(HTMLMediaElement.prototype, "pause");
+    render(
+      <>
+        <ReferenceAudioPlayer
+          audioId="audio-card"
+          audioAssetKey="studio-output:shared-audio"
+          audioUrl="https://signed.test/shared-audio.mp3"
+          playLabel="Play card audio"
+          pauseLabel="Pause card audio"
+        />
+        <ReferenceAudioPlayer
+          audioId="audio-modal"
+          audioAssetKey="studio-output:shared-audio"
+          audioUrl="https://signed.test/shared-audio.mp3"
+          playLabel="Play modal audio"
+          pauseLabel="Pause modal audio"
+        />
+      </>
+    );
+
+    const [cardAudio] = Array.from(document.querySelectorAll("audio"));
+    Object.defineProperty(cardAudio, "duration", { configurable: true, value: 20 });
+    Object.defineProperty(cardAudio, "currentTime", {
+      configurable: true,
+      writable: true,
+      value: 5,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Play card audio" }));
+    fireEvent.play(cardAudio);
+    fireEvent.timeUpdate(cardAudio);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Pause modal audio" })).toBeInTheDocument();
+    });
+
+    pauseSpy.mockClear();
+    fireEvent.click(screen.getByRole("button", { name: "Pause modal audio" }));
+
+    expect(pauseSpy).toHaveBeenCalled();
   });
 });

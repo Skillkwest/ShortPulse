@@ -14,5 +14,5 @@ Each completed run should produce two files:
 
 ## Report Index
 
-| Date | Scenario | Maya report | Engineering handoff | Credits spent | Outcome |
-| ---- | -------- | ----------- | ------------------- | ------------- | ------- |
+| Date | Scenario | Maya report | Engineering handoff | Duration | Credits spent | Outcome |
+| ---- | -------- | ----------- | ------------------- | -------- | ------------- | ------- |

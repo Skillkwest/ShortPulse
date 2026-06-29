@@ -8,6 +8,13 @@ import {
   extractAudioWaveformPeaksFromUrl,
   normalizeStoredWaveformPeaks,
 } from "../../reference-grid/logic/referenceGridAudioWaveform";
+import {
+  type ExclusiveSoundPlayer,
+  pauseActiveSharedSoundPlayback,
+  seekActiveSharedSoundPlayback,
+  updateExclusiveSoundPlaybackProgress,
+  useSharedSoundPlaybackSnapshot,
+} from "../shared/exclusiveSoundPlayback";
 
 const DETAIL_AUDIO_WAVEFORM_BAR_COUNT = 64;
 
@@ -38,6 +45,7 @@ const assignMediaRef = <ElementType extends HTMLElement>(
 type SharedMediaDetailAudioPreviewProps = {
   mediaUrl: string;
   audioId?: string;
+  audioAssetKey?: string | null;
   audioClassName?: string;
   audioRef?: React.Ref<HTMLAudioElement>;
   audioAutoPlay: boolean;
@@ -83,6 +91,7 @@ type SharedMediaDetailPreviewMediaProps = {
   audioAutoPlay?: boolean;
   audioPreload?: "none" | "metadata" | "auto";
   audioId?: string;
+  audioAssetKey?: string | null;
   audioSourceMode?: StudioAudioSourceMode | null;
   audioMusicMode?: WorkflowReloadMusicMode | null;
   audioLyricsText?: string | null;
@@ -116,6 +125,7 @@ type SharedMediaDetailPreviewMediaProps = {
 function SharedMediaDetailAudioPreview({
   mediaUrl,
   audioId = "detail-audio",
+  audioAssetKey = null,
   audioClassName,
   audioRef,
   audioAutoPlay,
@@ -136,6 +146,8 @@ function SharedMediaDetailAudioPreview({
   onAudioVolumeChange,
 }: SharedMediaDetailAudioPreviewProps) {
   const internalAudioRef = React.useRef<HTMLAudioElement | null>(null);
+  const resolvedAudioAssetKey = audioAssetKey?.trim() || audioId || mediaUrl;
+  const sharedPlaybackSnapshot = useSharedSoundPlaybackSnapshot(resolvedAudioAssetKey);
   const [isPlaying, setIsPlaying] = React.useState(false);
   const [progressRatio, setProgressRatio] = React.useState(0);
   const [resolvedDurationMs, setResolvedDurationMs] = React.useState<number | null>(
@@ -165,6 +177,9 @@ function SharedMediaDetailAudioPreview({
     .filter(Boolean)
     .join(" ");
 
+  const displayedProgressRatio = sharedPlaybackSnapshot?.progressRatio ?? progressRatio;
+  const displayedIsPlaying = sharedPlaybackSnapshot?.isPlaying ?? isPlaying;
+
   const waveformColumns = React.useMemo(
     () =>
       waveformPeaks.map((peak, index) => {
@@ -174,7 +189,10 @@ function SharedMediaDetailAudioPreview({
         const progress =
           columnEnd <= columnStart
             ? 0
-            : Math.max(0, Math.min(1, (progressRatio - columnStart) / (columnEnd - columnStart)));
+            : Math.max(
+                0,
+                Math.min(1, (displayedProgressRatio - columnStart) / (columnEnd - columnStart))
+              );
         const progressState = progress >= 1 ? "played" : progress > 0 ? "playing" : "pending";
 
         return {
@@ -184,7 +202,7 @@ function SharedMediaDetailAudioPreview({
           progressState,
         };
       }),
-    [audioId, progressRatio, waveformPeaks]
+    [audioId, displayedProgressRatio, waveformPeaks]
   );
 
   React.useEffect(() => {
@@ -237,13 +255,49 @@ function SharedMediaDetailAudioPreview({
     [audioRef]
   );
 
+  const getPlaybackPlayer = React.useCallback(
+    (): ExclusiveSoundPlayer => ({
+      instanceKey: `detail-audio:${audioId}`,
+      assetKey: resolvedAudioAssetKey,
+      pause: () => {
+        internalAudioRef.current?.pause();
+      },
+      seekTo: (timeSeconds) => {
+        const node = internalAudioRef.current;
+        if (!node) return;
+        node.currentTime = timeSeconds;
+      },
+      getCurrentTime: () => internalAudioRef.current?.currentTime ?? null,
+      getDuration: () => internalAudioRef.current?.duration ?? null,
+      getMediaUrl: () =>
+        mediaUrl ||
+        internalAudioRef.current?.currentSrc ||
+        internalAudioRef.current?.getAttribute("src") ||
+        null,
+    }),
+    [audioId, mediaUrl, resolvedAudioAssetKey]
+  );
+
+  React.useEffect(() => {
+    const node = internalAudioRef.current;
+    const sharedTimeSeconds = sharedPlaybackSnapshot?.currentTimeSeconds;
+    if (!node || !Number.isFinite(sharedTimeSeconds) || sharedTimeSeconds == null) return;
+    if (Math.abs(node.currentTime - sharedTimeSeconds) < 0.25) return;
+    try {
+      node.currentTime = sharedTimeSeconds;
+    } catch {
+      // Some browsers reject seeking before enough metadata is loaded.
+    }
+  }, [sharedPlaybackSnapshot?.currentTimeSeconds]);
+
   const handleTogglePlayback = React.useCallback(
     async (event: React.MouseEvent<HTMLButtonElement>) => {
       event.preventDefault();
       event.stopPropagation();
       const node = internalAudioRef.current;
       if (!node) return;
-      if (isPlaying) {
+      if (displayedIsPlaying) {
+        pauseActiveSharedSoundPlayback(resolvedAudioAssetKey);
         node.pause();
         return;
       }
@@ -253,6 +307,19 @@ function SharedMediaDetailAudioPreview({
       ) {
         node.currentTime = 0;
         setProgressRatio(0);
+      } else {
+        const sharedTimeSeconds = sharedPlaybackSnapshot?.currentTimeSeconds;
+        if (
+          Number.isFinite(sharedTimeSeconds) &&
+          sharedTimeSeconds != null &&
+          sharedTimeSeconds > 0
+        ) {
+          try {
+            node.currentTime = sharedTimeSeconds;
+          } catch {
+            // Some browsers reject seeking before enough metadata is loaded.
+          }
+        }
       }
       setShouldDecodeWaveform(true);
       onAudioRequestPlayback?.();
@@ -262,7 +329,12 @@ function SharedMediaDetailAudioPreview({
         setIsPlaying(false);
       }
     },
-    [isPlaying, onAudioRequestPlayback]
+    [
+      displayedIsPlaying,
+      onAudioRequestPlayback,
+      resolvedAudioAssetKey,
+      sharedPlaybackSnapshot?.currentTimeSeconds,
+    ]
   );
 
   const seekAudioToRatio = React.useCallback(
@@ -276,11 +348,13 @@ function SharedMediaDetailAudioPreview({
           : 0;
       if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return;
       const clampedRatio = Math.max(0, Math.min(1, nextRatio));
-      node.currentTime = clampedRatio * durationSeconds;
+      const nextTimeSeconds = clampedRatio * durationSeconds;
+      node.currentTime = nextTimeSeconds;
       setProgressRatio(clampedRatio);
+      seekActiveSharedSoundPlayback(resolvedAudioAssetKey, nextTimeSeconds);
       setShouldDecodeWaveform(true);
     },
-    [resolvedDurationMs]
+    [resolvedAudioAssetKey, resolvedDurationMs]
   );
 
   const handleWaveformSeek = React.useCallback(
@@ -309,9 +383,9 @@ function SharedMediaDetailAudioPreview({
         seekAudioToRatio(1);
         return;
       }
-      seekAudioToRatio(progressRatio + (event.key === "ArrowRight" ? 0.05 : -0.05));
+      seekAudioToRatio(displayedProgressRatio + (event.key === "ArrowRight" ? 0.05 : -0.05));
     },
-    [progressRatio, seekAudioToRatio]
+    [displayedProgressRatio, seekAudioToRatio]
   );
 
   const previewClassName = [
@@ -326,14 +400,14 @@ function SharedMediaDetailAudioPreview({
     <div className={previewClassName} style={audioBackgroundStyle}>
       <button
         type="button"
-        className={`detail-modal-audio-play ${isPlaying ? "is-playing" : ""}`}
-        aria-label={isPlaying ? pauseLabel : playLabel}
-        aria-pressed={isPlaying}
+        className={`detail-modal-audio-play ${displayedIsPlaying ? "is-playing" : ""}`}
+        aria-label={displayedIsPlaying ? pauseLabel : playLabel}
+        aria-pressed={displayedIsPlaying}
         onClick={(event) => {
           void handleTogglePlayback(event);
         }}
       >
-        {isPlaying ? (
+        {displayedIsPlaying ? (
           <Pause size={28} weight="fill" aria-hidden="true" />
         ) : (
           <Play size={28} weight="fill" aria-hidden="true" />
@@ -384,7 +458,22 @@ function SharedMediaDetailAudioPreview({
           if (Number.isFinite(durationSeconds) && durationSeconds > 0) {
             setResolvedDurationMs(Math.round(durationSeconds * 1000));
           }
-          setProgressRatio(0);
+          const sharedTimeSeconds = sharedPlaybackSnapshot?.currentTimeSeconds;
+          if (
+            Number.isFinite(durationSeconds) &&
+            durationSeconds > 0 &&
+            Number.isFinite(sharedTimeSeconds) &&
+            sharedTimeSeconds != null
+          ) {
+            try {
+              event.currentTarget.currentTime = sharedTimeSeconds;
+            } catch {
+              // Some browsers reject seeking before enough metadata is loaded.
+            }
+            setProgressRatio(Math.max(0, Math.min(1, sharedTimeSeconds / durationSeconds)));
+          } else {
+            setProgressRatio(0);
+          }
         }}
         onTimeUpdate={(event) => {
           const durationSeconds = event.currentTarget.duration;
@@ -394,6 +483,12 @@ function SharedMediaDetailAudioPreview({
             return;
           }
           setProgressRatio(Math.max(0, Math.min(1, currentTimeSeconds / durationSeconds)));
+          updateExclusiveSoundPlaybackProgress(getPlaybackPlayer(), {
+            currentTimeSeconds,
+            durationSeconds,
+            mediaUrl:
+              mediaUrl || event.currentTarget.currentSrc || event.currentTarget.getAttribute("src"),
+          });
         }}
         onPlay={(event) => {
           setShouldDecodeWaveform(true);
@@ -496,6 +591,7 @@ export function SharedMediaDetailPreviewMedia({
   audioAutoPlay = true,
   audioPreload = "metadata",
   audioId,
+  audioAssetKey,
   audioSourceMode,
   audioMusicMode,
   audioLyricsText,
@@ -647,6 +743,7 @@ export function SharedMediaDetailPreviewMedia({
         <SharedMediaDetailMusicPreview
           mediaUrl={displayedMediaUrl}
           audioId={audioId}
+          audioAssetKey={audioAssetKey}
           audioClassName={audioClassName ?? imageClassName}
           audioRef={audioRef}
           audioAutoPlay={audioControls ? audioAutoPlay : false}
@@ -674,6 +771,7 @@ export function SharedMediaDetailPreviewMedia({
       <SharedMediaDetailAudioPreview
         mediaUrl={displayedMediaUrl}
         audioId={audioId}
+        audioAssetKey={audioAssetKey}
         audioClassName={audioClassName ?? imageClassName}
         audioRef={audioRef}
         audioAutoPlay={audioControls ? audioAutoPlay : false}

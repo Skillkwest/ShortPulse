@@ -35,6 +35,7 @@ import type {
 } from "../referenceGridTypes";
 import { MediaDurationBadge } from "../../components/shared/MediaDurationBadge";
 import { ReferenceAudioPlayer } from "../../components/shared/ReferenceAudioPlayer";
+import type { ExclusiveSoundPlayer } from "../../components/shared/exclusiveSoundPlayback";
 import {
   REFERENCE_GRID_GENERIC_ERROR_TITLE,
   resolveReferenceGridFailureTone,
@@ -51,6 +52,7 @@ export type ReferenceGridCardProps = {
   detailSurface?: ReferenceGridDetailSurface;
   videoNodeKey: string;
   audioInstanceKey?: string;
+  audioAssetKey?: string;
   activeOutputId: string | null;
   isLoading: boolean;
   loadingVisual: "none" | "spinner" | "hydrating";
@@ -95,8 +97,8 @@ export type ReferenceGridCardProps = {
   markLoaded: (id: string, options?: { notifyAutoSave?: boolean }) => void;
   onAutoplayStarted: (id: string) => void;
   onAutoplayStopped: (id: string) => void;
-  onRequestAudioPlay?: (player: { instanceKey: string; pause: () => void }) => void;
-  onAudioPlaybackStarted?: (player: { instanceKey: string; pause: () => void }) => void;
+  onRequestAudioPlay?: (player: ExclusiveSoundPlayer) => void;
+  onAudioPlaybackStarted?: (player: ExclusiveSoundPlayer) => void;
   onAudioPlaybackStopped?: (instanceKey: string) => void;
   onRerollOutput?: (output: StudioOutput) => void;
   onReloadWorkflowOutput?: (
@@ -152,6 +154,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   detailSurface,
   videoNodeKey,
   audioInstanceKey,
+  audioAssetKey,
   activeOutputId,
   isLoading,
   loadingVisual,
@@ -604,6 +607,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           audioId={item.id}
           audioUrl={audioPreviewUrl}
           audioInstanceKey={audioInstanceKey}
+          audioAssetKey={audioAssetKey}
           title={audioTitle}
           backgroundImageUrl={audioBackgroundImageUrl}
           audioSourceMode={audioSourceMode}

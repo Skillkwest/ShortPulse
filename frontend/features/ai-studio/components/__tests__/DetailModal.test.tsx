@@ -11,6 +11,10 @@ import { ReferenceAudioPlayer } from "../shared/ReferenceAudioPlayer";
 import { __resetExclusiveSoundPlaybackForTests } from "../shared/exclusiveSoundPlayback";
 import type { StudioOutput } from "../../types";
 import { getAiStudioErrorScenario } from "../../testing/errorScenarioFixtures";
+import {
+  HIDDEN_VIDEO_SHOT_MODE_INSTRUCTIONS,
+  VIDEO_SHOT_MODE_PROMPT_SEPARATOR,
+} from "../../../../lib/model-runtime/videoShotModePromptVisibility";
 
 const MANUAL_WORKFLOW_RELOAD_FLAG = "NEXT_PUBLIC_AI_STUDIO_MANUAL_WORKFLOW_RELOAD_ENABLED";
 const originalManualWorkflowReloadFlag = process.env[MANUAL_WORKFLOW_RELOAD_FLAG];
@@ -415,7 +419,10 @@ describe("DetailModal", () => {
     expect(baseElement.querySelector(".art-prompt-only-header")).toBeNull();
     expect(baseElement.querySelector(".art-prompt-only-container")).toBeNull();
     expect(screen.queryByRole("button", { name: "Apply Changes" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Copy prompt" })).toHaveClass("is-icon-only");
+    const copyButton = screen.getByRole("button", { name: "Copy prompt" });
+    expect(copyButton).toHaveClass("is-icon-only");
+    expect(copyButton.closest(".art-text-detail-textarea-shell")).not.toBeNull();
+    expect(copyButton.closest(".art-modal-action-row")).toBeNull();
     expect(screen.getByRole("button", { name: "Delete" })).toHaveClass("is-icon-only");
 
     const promptTextarea = screen.getByPlaceholderText("Describe your adjustments...");
@@ -868,7 +875,7 @@ describe("DetailModal", () => {
     const video = baseElement.querySelector("video.art-hero-image") as HTMLVideoElement | null;
     expect(video).not.toBeNull();
     expect(onSnapshotVideoFrame).toHaveBeenCalledWith(video, baseOutput.prompt);
-    expect(await screen.findByText("Snapshot saved")).toBeInTheDocument();
+    expect(await screen.findByText("Frame saved.")).toBeInTheDocument();
 
     rerender(
       <DetailModal
@@ -1292,6 +1299,36 @@ describe("DetailModal", () => {
     expect(headerText).toContain("1080p");
     expect(headerText).not.toContain(storageLikeId);
     expect(screen.queryByRole("heading", { name: storageLikeId })).not.toBeInTheDocument();
+  });
+
+  it("hides hidden video shot-mode prompt prefixes in generated video details", () => {
+    const userPrompt = "A flooded fantasy stage performance";
+    const injectedPrompt = `${HIDDEN_VIDEO_SHOT_MODE_INSTRUCTIONS.seedance.single}${VIDEO_SHOT_MODE_PROMPT_SEPARATOR}${userPrompt}`;
+    const { baseElement } = render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          id: "seedance-video-output",
+          mode: "video",
+          aspect: "16:9",
+          mediaSource: "generated",
+          generationId: "generation-seedance-123",
+          model: "Seedance 2",
+          modelId: "kie-ai/seedance-2",
+          prompt: injectedPrompt,
+          previewText: injectedPrompt,
+          previewUrl: "https://cdn.test/generated-video.mp4",
+          resultUrls: ["https://cdn.test/generated-video.mp4"],
+          mimeType: "video/mp4",
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    expect(baseElement).toHaveTextContent(userPrompt);
+    expect(baseElement).not.toHaveTextContent(HIDDEN_VIDEO_SHOT_MODE_INSTRUCTIONS.seedance.single);
   });
 
   it("strips the edit suffix from GPT Image 2 detail metadata", () => {
@@ -2438,6 +2475,67 @@ describe("DetailModal", () => {
     fireEvent.click(screen.getByRole("button", { name: "Play audio preview" }));
 
     expect(pauseSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("mirrors generated reference audio playback state in the detail modal", async () => {
+    __resetExclusiveSoundPlaybackForTests();
+    Object.defineProperty(HTMLMediaElement.prototype, "play", {
+      configurable: true,
+      value: vi.fn().mockResolvedValue(undefined),
+    });
+    Object.defineProperty(HTMLMediaElement.prototype, "pause", {
+      configurable: true,
+      value: vi.fn(),
+    });
+
+    render(
+      <>
+        <div className="reference-card has-audio">
+          <ReferenceAudioPlayer
+            audioId="audio-out-1"
+            audioAssetKey="studio-output:audio-out-1"
+            audioUrl="https://cdn.test/generated-audio.mp3"
+            durationMs={20_000}
+            playLabel="Play reference audio"
+            pauseLabel="Pause reference audio"
+          />
+        </div>
+        <DetailModal
+          output={buildGeneratedAudioOutput({
+            id: "audio-out-1",
+            previewUrl: "https://cdn.test/generated-audio.mp3",
+            durationMs: 20_000,
+          })}
+          onClose={vi.fn()}
+          onUpdatePrompt={vi.fn()}
+          onDeleteOutput={vi.fn()}
+        />
+      </>
+    );
+
+    const referenceAudioNode = document.querySelector(
+      ".reference-card-audio"
+    ) as HTMLAudioElement | null;
+    expect(referenceAudioNode).not.toBeNull();
+    Object.defineProperty(referenceAudioNode, "duration", { configurable: true, value: 20 });
+    Object.defineProperty(referenceAudioNode, "currentTime", {
+      configurable: true,
+      writable: true,
+      value: 6,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Play reference audio" }));
+    fireEvent.play(referenceAudioNode as HTMLAudioElement);
+    fireEvent.timeUpdate(referenceAudioNode as HTMLAudioElement);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Pause audio preview" })).toBeInTheDocument();
+    });
+
+    const detailAudioNode = document.querySelector(
+      "audio.art-hero-audio"
+    ) as HTMLAudioElement | null;
+    expect(detailAudioNode?.currentTime).toBeCloseTo(6);
   });
 
   it("does not settle detail modal images on Supabase render-image urls when full media is available", () => {

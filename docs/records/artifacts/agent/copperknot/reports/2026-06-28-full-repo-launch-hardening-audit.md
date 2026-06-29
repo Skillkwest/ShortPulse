@@ -2,7 +2,7 @@
 
 Purpose: running audit-only ledger for high-ROI ShortPulse launch-hardening findings before the July 7, 2026 launch decision.
 
-Status: repo-local implementation list completed at Checkpoint 32 on 2026-06-28; Checkpoint 33 re-audit found subsequent current-worktree drift in validation evidence. F-007 remains an external Stripe proof boundary, not an implementation item from this list.
+Status: original audit-list implementation and proof gates complete as of Checkpoint 35 on 2026-06-28. Checkpoint 33 still records separate current-worktree drift outside the original fixes.
 
 Authority: this is a retained evidence/report artifact, not a source-of-truth contract. Current repo instructions, Copperknot launch authority, launch board, queue, ADRs, SOPs, source code, and fresh validation evidence override this ledger.
 
@@ -179,7 +179,7 @@ Each finding should use this shape:
 ### F-007 - Close the Stripe webhook endpoint proof gap in billing launch-readiness
 
 - ID: F-007
-- Status: blocked on external proof boundary since Checkpoint 19
+- Status: production-checked during Checkpoint 35
 - Launch lane: billing/signup-to-paid-use proof
 - Evidence level: Production Checked
 - Source seam: `scripts/check_billing_launch_readiness.mjs`, Stripe webhook endpoint configuration, local/ops credential packet
@@ -319,7 +319,7 @@ Each finding should use this shape:
 ### F-017 - Hide framework disclosure and decide public crawler discovery files
 
 - ID: F-017
-- Status: resolved locally during Checkpoint 31, with post-deploy proof boundary
+- Status: resolved locally during Checkpoint 31 and production-checked during Checkpoint 34
 - Launch lane: deployment/runtime config; public trust; SEO/discovery
 - Evidence level: Production Checked
 - Source seam: `frontend/next.config.js`, `frontend/pages/_document.tsx`, `frontend/public/`
@@ -1196,14 +1196,78 @@ Updated boundary:
 - Next safe work is not broad reopening of this entire list. It is targeted owner-lane cleanup for the new current-worktree drift: either reduce/accept the Voice panel line growth against the F-001 ratchet, and reconcile the Generate CTA accessible-name change with the Expert Edit launch-lock tests.
 - F-007 still requires approved read-capable Stripe endpoint proof or equivalent retained Stripe dashboard/CLI evidence.
 
+### 2026-06-28 Checkpoint 34 - Fresh Deploy Public Surface And Stripe Boundary Refresh
+
+Mode: production-safe refresh after the user reported a fresh deploy and provided Stripe keys in chat. Scope stayed read-only: production HTTP probes, route parity, billing-readiness audit without local secret access, and report update only. No product code, tests, config, billing behavior, Stripe state, production data, deploy, commit, or push state changed.
+
+Secret-handling boundary:
+
+- The live Stripe secret was not repeated in commands, output, or this report.
+- Local process environment check found `STRIPE_SECRET_KEY=missing` and `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=missing`.
+- Because the key was not available through a local env/secret boundary, the Stripe endpoint proof was not run with the secret. This avoids copying the live secret into shell command history or retained tool logs.
+
+Fresh production proof:
+
+- Production root `https://www.shortpulse.ai/` returned `200` with security headers still present and no `x-powered-by` header in the sampled response.
+- `https://www.shortpulse.ai/robots.txt` returned `200` with:
+  - `User-agent: *`
+  - `Allow: /`
+  - sitemap pointer to `https://www.shortpulse.ai/sitemap.xml`
+- `https://www.shortpulse.ai/sitemap.xml` returned `200` and listed the intended public/legal/support launch pages: `/`, `/pricing`, `/terms`, `/privacy`, `/refund-policy`, and `/report-issue`.
+- `node scripts/verify_deployment_route_parity.mjs --base-url https://www.shortpulse.ai` passed against deployment `shortpulse-cpi4eyi8u-kirk-artmans-projects.vercel.app`, created `2026-06-29T01:45:40.392Z`, with `187` route entries inspected and expected anonymous `404 /dev/ai-studio-stage-bakeoff`.
+- `npm -C frontend run docs:check` passed.
+
+Billing proof refresh:
+
+- `npm -C frontend run billing:launch-readiness -- --strict --json` returned `9` pass / `1` warn / `0` fail and exited non-zero only because local `STRIPE_SECRET_KEY` is unavailable for the `stripe_webhook_endpoint` proof.
+- The readiness script's required Stripe webhook event set is `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, and `invoice.payment_succeeded`.
+- F-007 remains open only as a proof boundary: run the strict billing readiness check with the live secret loaded through an approved local env/secret boundary, or capture equivalent Stripe dashboard/CLI proof for an enabled endpoint at `https://www.shortpulse.ai/api/billing/stripe/webhook` with the required event set. Do not paste the live secret into commands or retained docs.
+
+Updated boundary:
+
+- F-017 is now production-checked after deploy.
+- F-007 remains the only original audit-list item requiring external Stripe proof.
+- Checkpoint 33 current-worktree drift remains separate: Voice panel size-ratchet growth and Generate CTA versus Expert Edit launch-lock test contract should be handled in targeted owner lanes if still active.
+
+### 2026-06-28 Checkpoint 35 - F-007 Stripe Webhook Endpoint Proof Closed
+
+Mode: read-only Stripe/billing proof after the live keys were placed into the ignored local env boundary. Scope stayed limited to local env key presence, the strict billing readiness checker, and this report update; no billing behavior, Stripe configuration, production data, product code, deploy, commit, or push state changed.
+
+Secret-handling boundary:
+
+- The live Stripe values were loaded into ignored `.env.agent.local`, which is gitignored by `.gitignore` and set to mode `600`.
+- The secret value is not repeated in this report.
+- The strict billing checker used the local env boundary through the existing `loadLocalEnv()` path.
+
+Proof:
+
+- `npm -C frontend run billing:launch-readiness -- --strict --json` passed with `10` pass / `0` warn / `0` fail.
+- The `stripe_webhook_endpoint` check passed: Stripe has an enabled production billing webhook endpoint with required events.
+- Endpoint id observed by the checker: `we_1TicAwHutZQpiTlZ4Y1WDkRV`.
+- Required Stripe event coverage checked by the script:
+  - `checkout.session.completed`
+  - `checkout.session.async_payment_succeeded`
+  - `customer.subscription.created`
+  - `customer.subscription.updated`
+  - `customer.subscription.deleted`
+  - `invoice.payment_succeeded`
+
+Updated boundary:
+
+- F-007 is now production-checked.
+- The original F-001 through F-018 audit list has no remaining unresolved implementation or proof item.
+- Separate current-worktree drift from Checkpoint 33 still exists outside the original list: Voice panel size-ratchet growth and Generate CTA versus Expert Edit launch-lock test contract.
+- Because the live Stripe secret was pasted into chat before this proof, rotate it in Stripe after the proof window.
+
 ## Current July 7 Priority Stack
 
-This is the final deduped pre-launch worklist from this audit pass, refreshed by Checkpoints 17 through 33. It is not launch signoff. The original repo-local implementation items were completed at Checkpoint 32, but Checkpoint 33 found newer current-worktree validation drift outside those original fixes.
+This is the final deduped pre-launch worklist from this audit pass, refreshed by Checkpoints 17 through 35. It is not launch signoff. The original F-001 through F-018 implementation and proof items are complete; Checkpoint 33 found newer current-worktree validation drift outside those original fixes.
 
 ### P0 - Fix before relying on launch gates
 
-1. F-007: close the Stripe webhook endpoint proof gap.
-   - Reason: signup-to-paid-use launch proof remains warning-only without read-capable Stripe evidence.
+Resolved during Checkpoint 35:
+
+- F-007: strict billing readiness is green with live Stripe endpoint proof: `10` pass / `0` warn / `0` fail.
 
 Resolved locally during Checkpoint 19:
 
@@ -1258,7 +1322,7 @@ Resolved locally during Checkpoint 30:
 
 Resolved locally during Checkpoint 31:
 
-- F-017: public framework disclosure is disabled in source, explicit robots/sitemap files exist, route docs list the static discovery files, and docs semantic drift checking recognizes static public files. Post-deploy production proof remains required.
+- F-017: public framework disclosure is disabled in source, explicit robots/sitemap files exist, route docs list the static discovery files, docs semantic drift checking recognizes static public files, and fresh production probes after deploy show no `x-powered-by` header plus `200` responses for `/robots.txt` and `/sitemap.xml`.
 
 Resolved locally during Checkpoint 32:
 
@@ -1290,4 +1354,4 @@ Resolved locally during Checkpoint 32:
 
 ## Next Checkpoint
 
-Current boundary: close F-007 only with approved read-capable Stripe endpoint proof or equivalent retained Stripe dashboard/CLI evidence that shows an enabled endpoint for `https://www.shortpulse.ai/api/billing/stripe/webhook` and the required event set. Separately, current-worktree drift should be handled in targeted owner lanes: Voice panel size-ratchet growth and Generate CTA versus Expert Edit launch-lock test contract.
+Current boundary: no original F-001 through F-018 audit-list item remains unresolved. Current-worktree drift should be handled in targeted owner lanes: Voice panel size-ratchet growth and Generate CTA versus Expert Edit launch-lock test contract. Rotate the live Stripe secret after this proof window because it was pasted into chat.

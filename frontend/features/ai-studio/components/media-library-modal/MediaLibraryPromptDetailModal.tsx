@@ -62,12 +62,7 @@ export function MediaLibraryPromptDetailModal({
           <SharedMediaDetailTopBar
             title={item.presentation?.title ?? null}
             items={[]}
-            actions={
-              <>
-                <PromptCopyButton text={item.prompt.prompt_text} />
-                <SharedMediaDetailActionBar items={actionItems} />
-              </>
-            }
+            actions={<SharedMediaDetailActionBar items={actionItems} />}
             onClose={onClose}
             closeLabel="Close text detail"
           />
@@ -75,13 +70,19 @@ export function MediaLibraryPromptDetailModal({
         mainContentClassName="art-text-detail-main"
         stageClassName="art-image-vessel art-text-detail-vessel"
         stage={
-          <textarea
-            className="art-text-detail-textarea"
-            value={item.prompt.prompt_text}
-            readOnly
-            rows={12}
-            placeholder={resolveSharedMediaDetailBladePlaceholder(item)}
-          />
+          <div className="art-text-detail-textarea-shell">
+            <PromptCopyButton
+              text={item.prompt.prompt_text}
+              className="art-copy-prompt-btn--text-detail"
+            />
+            <textarea
+              className="art-text-detail-textarea"
+              value={item.prompt.prompt_text}
+              readOnly
+              rows={12}
+              placeholder={resolveSharedMediaDetailBladePlaceholder(item)}
+            />
+          </div>
         }
       />
     </SharedMediaDetailModalShell>

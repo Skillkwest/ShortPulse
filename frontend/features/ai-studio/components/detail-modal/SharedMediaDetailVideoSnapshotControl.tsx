@@ -82,7 +82,7 @@ export function SharedMediaDetailVideoSnapshotControl({
     <div className="art-stage-snapshot-control" data-testid="detail-video-snapshot-control">
       {isSnapshotSaved ? (
         <span className="art-stage-snapshot-status" role="status" aria-live="polite">
-          Snapshot saved
+          Frame saved.
         </span>
       ) : null}
       <button

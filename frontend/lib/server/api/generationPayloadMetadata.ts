@@ -1,4 +1,5 @@
 import { getModelConfig } from "../../model-runtime/pricing";
+import { stripHiddenVideoShotModePromptPrefix } from "../../model-runtime/videoShotModePromptVisibility";
 
 type JsonObject = Record<string, unknown>;
 
@@ -23,7 +24,18 @@ const asObject = (value: unknown): JsonObject | null =>
 const resolveGenerationReplayDisplayPrompt = (payload: JsonObject): string | null => {
   const generationReplay =
     asObject(payload.generation_replay) ?? asObject(payload.generationReplay);
-  return asString(generationReplay?.displayPrompt);
+  return stripHiddenVideoShotModePromptPrefix(asString(generationReplay?.displayPrompt));
+};
+
+const resolveWorkflowReloadDisplayPrompt = (payload: JsonObject): string | null => {
+  const workflowReload = asObject(payload.workflow_reload) ?? asObject(payload.workflowReload);
+  const prompt = asObject(workflowReload?.prompt);
+  return stripHiddenVideoShotModePromptPrefix(asString(prompt?.display));
+};
+
+const resolveVisiblePromptCandidate = (value: unknown): string | null => {
+  const normalized = asString(value);
+  return stripHiddenVideoShotModePromptPrefix(normalized);
 };
 
 export const readGenerationDurationSeconds = (payload: JsonObject): number | null => {
@@ -64,11 +76,12 @@ export const resolveGenerationPromptFromPayload = (
   payload: JsonObject
 ): string =>
   resolveGenerationReplayDisplayPrompt(payload) ??
-  asString(payload.display_prompt) ??
-  asString(payload.displayPrompt) ??
-  asString(payload.prompt) ??
-  asString(payload.input) ??
-  asString(payload.description) ??
+  resolveWorkflowReloadDisplayPrompt(payload) ??
+  resolveVisiblePromptCandidate(payload.display_prompt) ??
+  resolveVisiblePromptCandidate(payload.displayPrompt) ??
+  resolveVisiblePromptCandidate(payload.prompt) ??
+  resolveVisiblePromptCandidate(payload.input) ??
+  resolveVisiblePromptCandidate(payload.description) ??
   `${routeLabel} generation`;
 
 export const resolveGenerationAspectFromPayload = (payload: JsonObject): string | null =>

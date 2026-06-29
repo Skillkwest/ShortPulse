@@ -12,6 +12,7 @@ import {
   buildHiddenMediaArtifactStoragePathLikePatterns,
   isHiddenMediaArtifactStoragePath,
 } from "../mediaHiddenArtifacts";
+import { stripHiddenVideoShotModePromptPrefix } from "../model-runtime/videoShotModePromptVisibility";
 
 const PROJECT_GENERATION_PROJECTION_SELECT_COLUMNS = [
   "generation_id",
@@ -1049,7 +1050,9 @@ const patchSnapshotOutputRow = ({
   const nextErrorMessage = asTrimmedString(projection.error_message);
   const nextErrorMessageShort = asTrimmedString(projection.error_message_short);
   const nextErrorDetail = asTrimmedString(projection.error_detail);
-  const nextPrompt = asTrimmedString(projection.display_prompt);
+  const nextPrompt = stripHiddenVideoShotModePromptPrefix(
+    asTrimmedString(projection.display_prompt)
+  );
   const nextTitle = asTrimmedString(projection.display_title);
   const nextTranscriptText = asTrimmedString(projection.transcript_text);
   const nextProvider = asTrimmedString(projection.provider);
@@ -1116,7 +1119,9 @@ const patchSnapshotOutputMetadataRow = ({
   row: SnapshotRecord;
   projection: ProjectGenerationProjectionRow;
 }): SnapshotRecord => {
-  const nextPrompt = asTrimmedString(projection.display_prompt);
+  const nextPrompt = stripHiddenVideoShotModePromptPrefix(
+    asTrimmedString(projection.display_prompt)
+  );
   const nextTitle = asTrimmedString(projection.display_title);
   const nextTranscriptText = asTrimmedString(projection.transcript_text);
   const nextProvider = asTrimmedString(projection.provider);
@@ -1296,7 +1301,8 @@ const createSnapshotOutputRowFromProjection = ({
       model: modelId ?? "Generated media",
       modelId: modelId ?? undefined,
       title: asTrimmedString(projection.display_title) ?? null,
-      prompt: asTrimmedString(projection.display_prompt) ?? "",
+      prompt:
+        stripHiddenVideoShotModePromptPrefix(asTrimmedString(projection.display_prompt)) ?? "",
       transcriptText: asTrimmedString(projection.transcript_text) ?? null,
       status: restoredStatus,
       timestamp: "Just now",

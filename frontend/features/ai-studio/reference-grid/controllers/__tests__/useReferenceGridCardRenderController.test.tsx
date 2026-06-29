@@ -1,5 +1,5 @@
 import React from "react";
-import { act, fireEvent, render } from "@testing-library/react";
+import { act, fireEvent, render, waitFor } from "@testing-library/react";
 import { renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../../types";
@@ -280,7 +280,7 @@ describe("useReferenceGridCardRenderController", () => {
     expect(queryByText("Generating")).toBeNull();
   });
 
-  it("keeps duplicate quick-slot and all-refs audio players mutually exclusive", () => {
+  it("mirrors duplicate quick-slot and all-refs audio players as one shared asset", async () => {
     playMock.mockClear();
     pauseMock.mockClear();
     const output = createOutput({
@@ -348,12 +348,17 @@ describe("useReferenceGridCardRenderController", () => {
 
     act(() => {
       (playButtons[0] as HTMLButtonElement).click();
-      audioNodes[0]?.dispatchEvent(new Event("play"));
-      (playButtons[1] as HTMLButtonElement).click();
     });
+    fireEvent.play(audioNodes[0] as HTMLAudioElement);
 
-    expect(playMock).toHaveBeenCalledTimes(2);
-    expect(pauseMock).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(playButtons[1]).toHaveAttribute("aria-label", "Pause audio preview");
+    });
+    expect(playMock).toHaveBeenCalledTimes(1);
+
+    pauseMock.mockClear();
+    fireEvent.click(playButtons[1] as HTMLButtonElement);
+    expect(pauseMock).toHaveBeenCalled();
   });
 
   it("rejects supabase render-image audio cover art before rendering the player background", () => {

@@ -8,6 +8,10 @@ import {
   resolveKieKlingElementToken,
   type AiStudioKlingElement,
 } from "./klingElements";
+import {
+  HIDDEN_VIDEO_SHOT_MODE_INSTRUCTIONS,
+  VIDEO_SHOT_MODE_PROMPT_SEPARATOR,
+} from "../../../lib/model-runtime/videoShotModePromptVisibility";
 
 export const KLING_SINGLE_PROMPT_MAX_CHARACTERS = 2500;
 export const KLING_MULTI_SHOT_PROMPT_MAX_CHARACTERS = 500;
@@ -15,19 +19,12 @@ const KLING_SINGLE_PROMPT_VISIBLE_MAX_CHARACTERS = 2000;
 
 export type HiddenShotModePromptCompositionMode = "single" | "multi";
 
-const HIDDEN_SHOT_MODE_PROMPT_SEPARATOR = "\n\n";
-
-const HIDDEN_SHOT_MODE_INSTRUCTIONS: Record<HiddenShotModePromptCompositionMode, string> = {
-  multi:
-    "Create this as a multi-shot sequence with multiple distinct shots or scene beats. Use cuts or shot changes as needed to cover the described action while preserving continuity.",
-  single:
-    "Create this as one continuous uninterrupted shot only. Do not add cuts, shot changes, montage beats, separate camera setups, or scene breaks. Stage every described action inside one continuous take.",
-};
+const HIDDEN_SHOT_MODE_INSTRUCTIONS = HIDDEN_VIDEO_SHOT_MODE_INSTRUCTIONS.kling;
 
 const HIDDEN_SHOT_MODE_RESERVED_CHARACTERS = Math.floor(
   Math.max(
     ...Object.values(HIDDEN_SHOT_MODE_INSTRUCTIONS).map(
-      (instruction) => instruction.length + HIDDEN_SHOT_MODE_PROMPT_SEPARATOR.length
+      (instruction) => instruction.length + VIDEO_SHOT_MODE_PROMPT_SEPARATOR.length
     )
   )
 );
@@ -49,7 +46,7 @@ export const composeHiddenShotModePrompt = ({
 }): string => {
   const trimmedPrompt = prompt.trim();
   if (!trimmedPrompt) return trimmedPrompt;
-  return `${resolveHiddenShotModeInstruction(mode)}${HIDDEN_SHOT_MODE_PROMPT_SEPARATOR}${trimmedPrompt}`;
+  return `${resolveHiddenShotModeInstruction(mode)}${VIDEO_SHOT_MODE_PROMPT_SEPARATOR}${trimmedPrompt}`;
 };
 
 export const rewritePromptWithKieElementTokens = (

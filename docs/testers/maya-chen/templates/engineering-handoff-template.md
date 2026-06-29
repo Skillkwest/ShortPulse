@@ -4,6 +4,7 @@ Date: <YYYY-MM-DD>
 Tester: Maya Chen
 Scenario: <scenario>
 Production surface: <route(s)>
+Session duration: <approximate duration>
 Credits spent: <none / estimate / exact if visible>
 
 ## Summary

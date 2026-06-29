@@ -7,6 +7,7 @@
  * large-project rollout is stable.
  */
 import { computeAiStudioSessionChecksum } from "../ai-studio-session/projectWorkspaceSnapshot";
+import { stripHiddenVideoShotModePromptPrefix } from "../model-runtime/videoShotModePromptVisibility";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
 import { chunkValues } from "./queryBatching";
 
@@ -239,6 +240,9 @@ const truncateTextField = (value: unknown, maxChars: number): string | null => {
 const truncateSummary = (value: unknown): string | null =>
   truncateTextField(value, PROJECT_OUTPUT_DISPLAY_SUMMARY_MAX_CHARS);
 
+const truncateVisiblePromptSummary = (value: unknown): string | null =>
+  truncateSummary(stripHiddenVideoShotModePromptPrefix(normalizeString(value)));
+
 const truncateDisplayTitle = (value: unknown): string | null =>
   truncateTextField(value, PROJECT_OUTPUT_DISPLAY_TITLE_MAX_CHARS);
 
@@ -399,9 +403,11 @@ const toDisplayItemCandidate = ({
     task_id: normalizeString(output.taskId),
     source_ref: normalizeString(output.sourceRef),
     generation_trace_id: normalizeString(output.generationTraceId),
-    preview_text: truncateSummary(output.previewText),
+    preview_text: truncateVisiblePromptSummary(output.previewText),
     display_title: truncateDisplayTitle(output.title),
-    display_prompt_summary: truncateSummary(output.prompt) ?? truncateSummary(output.previewText),
+    display_prompt_summary:
+      truncateVisiblePromptSummary(output.prompt) ??
+      truncateVisiblePromptSummary(output.previewText),
     mime_type: normalizeString(output.mimeType),
     width: normalizePositiveInteger(output.width),
     height: normalizePositiveInteger(output.height),
@@ -436,9 +442,9 @@ const displayValuesForComparison = (
   task_id: row.task_id,
   source_ref: row.source_ref,
   generation_trace_id: row.generation_trace_id,
-  preview_text: row.preview_text,
+  preview_text: stripHiddenVideoShotModePromptPrefix(row.preview_text),
   display_title: row.display_title ?? null,
-  display_prompt_summary: row.display_prompt_summary,
+  display_prompt_summary: stripHiddenVideoShotModePromptPrefix(row.display_prompt_summary),
   mime_type: row.mime_type,
   width: row.width,
   height: row.height,
@@ -616,9 +622,9 @@ const toCompatibilityOutputPatch = (row: ProjectOutputDisplayItemRow): Record<st
     taskId: row.task_id,
     sourceRef: row.source_ref,
     generationTraceId: row.generation_trace_id,
-    previewText: row.preview_text,
+    previewText: stripHiddenVideoShotModePromptPrefix(row.preview_text),
     title: row.display_title,
-    prompt: row.display_prompt_summary,
+    prompt: stripHiddenVideoShotModePromptPrefix(row.display_prompt_summary),
     mimeType: row.mime_type,
     width: row.width,
     height: row.height,

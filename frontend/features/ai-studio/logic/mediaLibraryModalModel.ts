@@ -7,6 +7,7 @@ import {
   resolveMediaKindFromFileType,
   resolveMediaRowKind,
 } from "../../../lib/mediaRowKind";
+import { stripHiddenVideoShotModePromptPrefix } from "../../../lib/model-runtime/videoShotModePromptVisibility";
 import { isSupabaseRenderImageUrl } from "../../../lib/mediaPreviewTrustPolicy";
 import { normalizeAudioSourceMode } from "./audioSourceMode";
 import type { StudioAudioSourceMode } from "../types";
@@ -345,8 +346,7 @@ const asRecord = (value: unknown): Record<string, unknown> | null =>
 
 const normalizePromptCandidate = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
+  return stripHiddenVideoShotModePromptPrefix(value);
 };
 
 const resolveWorkflowReloadPromptText = (metadata: Record<string, unknown>): string | null => {
@@ -364,10 +364,10 @@ export const resolveMediaMetadataPromptText = (
 ): string | null => {
   if (!metadata) return null;
   return (
+    resolveWorkflowReloadPromptText(metadata) ??
     normalizePromptCandidate(metadata.prompt) ??
     normalizePromptCandidate(metadata.prompt_text) ??
-    normalizePromptCandidate(metadata.promptText) ??
-    resolveWorkflowReloadPromptText(metadata)
+    normalizePromptCandidate(metadata.promptText)
   );
 };
 

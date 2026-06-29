@@ -16,6 +16,7 @@ import { AppMessage } from "../../../components/AppMessage";
 import { MEDIA_STORAGE_FULL_USER_MESSAGE } from "../../../lib/mediaStorageQuota";
 import { resolveCustomerFacingModelLabel } from "../../../lib/customerFacingProviderText";
 import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../../../lib/model-runtime/falModelIds";
+import { stripHiddenVideoShotModePromptPrefix } from "../../../lib/model-runtime/videoShotModePromptVisibility";
 import { isSupabaseRenderImageUrl } from "../../../lib/mediaPreviewTrustPolicy";
 import { stripEditLabel } from "../utils/modelLabels";
 import { useAvatarResilience } from "../hooks/useAvatarResilience";
@@ -198,9 +199,11 @@ function DetailModalContent({
   const promptOnlyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const promptLibrarySavedTimerRef = useRef<number | null>(null);
   const lastAutoSavedPromptRef = useRef<{ outputId: string; value: string } | null>(null);
+  const detailAudioAssetKey = `studio-output:${output.id}`;
   const audioPreviewPlayback = useExclusiveSoundMediaElement(
     `detail-modal-audio:${output.id}`,
-    audioPreviewRef
+    audioPreviewRef,
+    detailAudioAssetKey
   );
   const videoPreviewPlayback = useExclusiveSoundMediaElement(
     `detail-modal-video:${output.id}`,
@@ -475,9 +478,10 @@ function DetailModalContent({
         ? { aspectRatio: displayAspect.replace(":", " / ") }
         : undefined;
   const displayPromptText =
-    output?.generationReplay?.displayPrompt?.trim() ||
-    output?.previewText?.trim() ||
-    output?.prompt ||
+    stripHiddenVideoShotModePromptPrefix(output?.generationReplay?.displayPrompt) ??
+    stripHiddenVideoShotModePromptPrefix(output?.workflowReload?.prompt?.display) ??
+    stripHiddenVideoShotModePromptPrefix(output?.previewText) ??
+    stripHiddenVideoShotModePromptPrefix(output?.prompt) ??
     "";
   const draftPrompt =
     outputId && output ? (draftPromptsById[outputId] ?? displayPromptText) : displayPromptText;
@@ -1334,6 +1338,7 @@ function DetailModalContent({
                   videoClassName="art-hero-image"
                   audioClassName="art-hero-audio"
                   audioId={detailModalItem.media.id}
+                  audioAssetKey={detailAudioAssetKey}
                   audioSourceMode={detailModalItem.media.audioSourceMode ?? null}
                   audioMusicMode={detailModalItem.media.musicMode ?? null}
                   audioLyricsText={detailModalItem.media.lyricsText ?? null}
@@ -1470,24 +1475,19 @@ function DetailModalContent({
                 title={detailModalItem.presentation?.title ?? null}
                 items={isErrorDetail ? resolveSharedMediaDetailTopBarItems(detailModalItem) : []}
                 actions={
-                  <>
-                    {!isErrorDetail && trimmedPrompt ? (
-                      <PromptCopyButton text={draftPrompt} />
-                    ) : null}
-                    <SharedMediaDetailActionBar
-                      items={sharedPromptActionItems}
-                      notice={
-                        isPromptOnlySaved ? (
-                          <AppMessage
-                            className="art-save-feedback"
-                            tone="success"
-                            mode="inline"
-                            message="Changes saved successfully."
-                          />
-                        ) : null
-                      }
-                    />
-                  </>
+                  <SharedMediaDetailActionBar
+                    items={sharedPromptActionItems}
+                    notice={
+                      isPromptOnlySaved ? (
+                        <AppMessage
+                          className="art-save-feedback"
+                          tone="success"
+                          mode="inline"
+                          message="Changes saved successfully."
+                        />
+                      ) : null
+                    }
+                  />
                 }
                 onClose={handleCloseModal}
                 closeLabel={isErrorDetail ? "Close error detail" : "Close text detail"}
@@ -1496,19 +1496,27 @@ function DetailModalContent({
             mainContentClassName="art-text-detail-main"
             stageClassName="art-image-vessel art-text-detail-vessel"
             stage={
-              <textarea
-                className={`art-text-detail-textarea ${isPromptEditable ? "is-editing" : ""}`.trim()}
-                ref={promptOnlyTextareaRef}
-                value={isErrorDetail ? bladeContent.value : draftPrompt}
-                onChange={handlePromptChange}
-                readOnly={!isPromptEditable}
-                rows={12}
-                placeholder={
-                  isErrorDetail
-                    ? resolveSharedMediaDetailBladePlaceholder(detailModalItem)
-                    : "Describe your adjustments..."
-                }
-              />
+              <div className="art-text-detail-textarea-shell">
+                {!isErrorDetail && trimmedPrompt ? (
+                  <PromptCopyButton
+                    text={draftPrompt}
+                    className="art-copy-prompt-btn--text-detail"
+                  />
+                ) : null}
+                <textarea
+                  className={`art-text-detail-textarea ${isPromptEditable ? "is-editing" : ""}`.trim()}
+                  ref={promptOnlyTextareaRef}
+                  value={isErrorDetail ? bladeContent.value : draftPrompt}
+                  onChange={handlePromptChange}
+                  readOnly={!isPromptEditable}
+                  rows={12}
+                  placeholder={
+                    isErrorDetail
+                      ? resolveSharedMediaDetailBladePlaceholder(detailModalItem)
+                      : "Describe your adjustments..."
+                  }
+                />
+              </div>
             }
           />
         ) : null}

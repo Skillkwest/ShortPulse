@@ -7,8 +7,13 @@ import {
 } from "../../reference-grid/logic/referenceGridAudioWaveform";
 import {
   clearExclusiveSoundPlayback,
+  type ExclusiveSoundPlayer,
   markExclusiveSoundPlaying,
+  pauseActiveSharedSoundPlayback,
   requestExclusiveSoundPlayback,
+  seekActiveSharedSoundPlayback,
+  updateExclusiveSoundPlaybackProgress,
+  useSharedSoundPlaybackSnapshot,
 } from "./exclusiveSoundPlayback";
 import { MediaDurationBadge } from "./MediaDurationBadge";
 import type { StudioAudioSourceMode } from "../../types";
@@ -22,6 +27,7 @@ export type ReferenceAudioPlayerProps = {
   audioId: string;
   audioUrl?: string | null;
   audioInstanceKey?: string;
+  audioAssetKey?: string;
   title?: string | null;
   backgroundImageUrl?: string | null;
   audioSourceMode?: StudioAudioSourceMode | null;
@@ -38,8 +44,8 @@ export type ReferenceAudioPlayerProps = {
   onReady?: () => void;
   onError?: () => void;
   eagerWaveformDecode?: boolean;
-  onRequestPlay?: (player: { instanceKey: string; pause: () => void }) => void;
-  onPlaybackStarted?: (player: { instanceKey: string; pause: () => void }) => void;
+  onRequestPlay?: (player: ExclusiveSoundPlayer) => void;
+  onPlaybackStarted?: (player: ExclusiveSoundPlayer) => void;
   onPlaybackStopped?: (instanceKey: string) => void;
 };
 
@@ -47,6 +53,7 @@ export function ReferenceAudioPlayer({
   audioId,
   audioUrl,
   audioInstanceKey,
+  audioAssetKey,
   title = null,
   backgroundImageUrl = null,
   audioSourceMode = null,
@@ -72,9 +79,11 @@ export function ReferenceAudioPlayer({
   const isWaveformSeekingRef = React.useRef(false);
   const suppressNextAudioClickRef = React.useRef(false);
   const resolvedAudioInstanceKey = audioInstanceKey ?? audioId;
+  const resolvedAudioAssetKey = audioAssetKey?.trim() || audioId;
   const requestPlayback = onRequestPlay ?? requestExclusiveSoundPlayback;
   const markPlaybackStarted = onPlaybackStarted ?? markExclusiveSoundPlaying;
   const clearPlayback = onPlaybackStopped ?? clearExclusiveSoundPlayback;
+  const sharedPlaybackSnapshot = useSharedSoundPlaybackSnapshot(resolvedAudioAssetKey);
   const [activeAudioUrl, setActiveAudioUrl] = React.useState(() =>
     onResolveAudioUrl ? "" : (audioUrl?.trim() ?? "")
   );
@@ -134,6 +143,10 @@ export function ReferenceAudioPlayer({
     fallbackAudioUrlRef.current = audioUrl?.trim() ?? "";
   }, [audioUrl]);
 
+  const displayedAudioProgressRatio = sharedPlaybackSnapshot?.progressRatio ?? audioProgressRatio;
+  const displayedIsAudioPlaying = sharedPlaybackSnapshot?.isPlaying ?? isAudioPlaying;
+  const audioProgressPercent = Math.round(displayedAudioProgressRatio * 100);
+
   const audioWaveformColumns = React.useMemo(
     () =>
       audioWaveformBars.map((peak, index) => {
@@ -143,7 +156,10 @@ export function ReferenceAudioPlayer({
         const progress =
           barEnd <= barStart
             ? 0
-            : Math.max(0, Math.min(1, (audioProgressRatio - barStart) / (barEnd - barStart)));
+            : Math.max(
+                0,
+                Math.min(1, (displayedAudioProgressRatio - barStart) / (barEnd - barStart))
+              );
         const progressState = progress >= 1 ? "played" : progress > 0 ? "playing" : "pending";
 
         return {
@@ -153,9 +169,8 @@ export function ReferenceAudioPlayer({
           progressState,
         };
       }),
-    [audioId, audioProgressRatio, audioWaveformBars]
+    [audioId, displayedAudioProgressRatio, audioWaveformBars]
   );
-  const audioProgressPercent = Math.round(audioProgressRatio * 100);
   const normalizedTitle = title?.trim() || null;
   const resolvedAudioDurationSeconds = React.useMemo(() => {
     if (resolvedAudioDurationMs != null && resolvedAudioDurationMs > 0) {
@@ -220,6 +235,29 @@ export function ReferenceAudioPlayer({
     return resolutionPromise;
   }, [applyResolvedAudioUrl]);
 
+  const getPlaybackPlayer = React.useCallback(
+    (): ExclusiveSoundPlayer => ({
+      instanceKey: resolvedAudioInstanceKey,
+      assetKey: resolvedAudioAssetKey,
+      pause: () => {
+        audioNodeRef.current?.pause();
+      },
+      seekTo: (timeSeconds) => {
+        const node = audioNodeRef.current;
+        if (!node) return;
+        node.currentTime = timeSeconds;
+      },
+      getCurrentTime: () => audioNodeRef.current?.currentTime ?? null,
+      getDuration: () => audioNodeRef.current?.duration ?? null,
+      getMediaUrl: () =>
+        activeAudioUrlRef.current ||
+        audioNodeRef.current?.currentSrc ||
+        audioNodeRef.current?.getAttribute("src") ||
+        null,
+    }),
+    [resolvedAudioAssetKey, resolvedAudioInstanceKey]
+  );
+
   React.useEffect(() => {
     setResolvedAudioDurationMs(durationMs ?? null);
   }, [audioId, durationMs]);
@@ -257,6 +295,18 @@ export function ReferenceAudioPlayer({
       cancelled = true;
     };
   }, [audioId, resolveAudioUrlOnMount, resolveFreshAudioUrl]);
+
+  React.useEffect(() => {
+    const node = audioNodeRef.current;
+    const sharedTimeSeconds = sharedPlaybackSnapshot?.currentTimeSeconds;
+    if (!node || !Number.isFinite(sharedTimeSeconds) || sharedTimeSeconds == null) return;
+    if (Math.abs(node.currentTime - sharedTimeSeconds) < 0.25) return;
+    try {
+      node.currentTime = sharedTimeSeconds;
+    } catch {
+      // Some browsers reject seeking before enough metadata is loaded.
+    }
+  }, [sharedPlaybackSnapshot?.currentTimeSeconds]);
 
   React.useEffect(() => {
     if (storedAudioWaveformPeaks.length > 0) {
@@ -341,7 +391,8 @@ export function ReferenceAudioPlayer({
     if (!shouldDecodeWaveform) setShouldDecodeWaveform(true);
     const node = audioNodeRef.current;
     if (!node) return;
-    if (isAudioPlaying) {
+    if (displayedIsAudioPlaying) {
+      pauseActiveSharedSoundPlayback(resolvedAudioAssetKey);
       node.pause();
       setIsAudioPlaying(false);
       return;
@@ -368,14 +419,22 @@ export function ReferenceAudioPlayer({
     ) {
       node.currentTime = 0;
       setAudioProgressRatio(0);
+    } else {
+      const sharedTimeSeconds = sharedPlaybackSnapshot?.currentTimeSeconds;
+      if (
+        Number.isFinite(sharedTimeSeconds) &&
+        sharedTimeSeconds != null &&
+        sharedTimeSeconds > 0
+      ) {
+        try {
+          node.currentTime = sharedTimeSeconds;
+        } catch {
+          // Some browsers reject seeking before enough metadata is loaded.
+        }
+      }
     }
     try {
-      requestPlayback({
-        instanceKey: resolvedAudioInstanceKey,
-        pause: () => {
-          audioNodeRef.current?.pause();
-        },
-      });
+      requestPlayback(getPlaybackPlayer());
       await node.play();
     } catch {
       clearPlayback(resolvedAudioInstanceKey);
@@ -383,14 +442,17 @@ export function ReferenceAudioPlayer({
     }
   }, [
     clearPlayback,
-    isAudioPlaying,
+    displayedIsAudioPlaying,
+    getPlaybackPlayer,
     isResolvingAudioUrl,
     onActivate,
     onError,
     hasAudioUrlResolver,
     requestPlayback,
     resolveFreshAudioUrl,
+    resolvedAudioAssetKey,
     resolvedAudioInstanceKey,
+    sharedPlaybackSnapshot?.currentTimeSeconds,
     shouldDecodeWaveform,
   ]);
 
@@ -450,8 +512,9 @@ export function ReferenceAudioPlayer({
         }
       }
       setAudioProgressRatio(clampedRatio);
+      seekActiveSharedSoundPlayback(resolvedAudioAssetKey, durationSeconds * clampedRatio);
     },
-    [resolveAudioSeekDurationSeconds, shouldDecodeWaveform]
+    [resolveAudioSeekDurationSeconds, resolvedAudioAssetKey, shouldDecodeWaveform]
   );
 
   const seekAudioFromPointerEvent = React.useCallback(
@@ -513,7 +576,7 @@ export function ReferenceAudioPlayer({
       const currentSeconds =
         node && Number.isFinite(node.currentTime)
           ? node.currentTime
-          : durationSeconds * audioProgressRatio;
+          : durationSeconds * displayedAudioProgressRatio;
       let nextSeconds: number | null = null;
 
       if (event.key === "ArrowLeft") {
@@ -535,7 +598,7 @@ export function ReferenceAudioPlayer({
       event.stopPropagation();
       seekAudioToRatio(nextSeconds / durationSeconds);
     },
-    [audioProgressRatio, resolveAudioSeekDurationSeconds, seekAudioToRatio]
+    [displayedAudioProgressRatio, resolveAudioSeekDurationSeconds, seekAudioToRatio]
   );
 
   return (
@@ -567,15 +630,15 @@ export function ReferenceAudioPlayer({
           <div className="reference-card-audio-player-row">
             <button
               type="button"
-              className={`reference-card-audio-play ${isAudioPlaying ? "is-playing" : ""}`}
+              className={`reference-card-audio-play ${displayedIsAudioPlaying ? "is-playing" : ""}`}
               aria-label={
                 isResolvingAudioUrl
                   ? `Loading ${playLabel}`
-                  : isAudioPlaying
+                  : displayedIsAudioPlaying
                     ? pauseLabel
                     : playLabel
               }
-              aria-pressed={isAudioPlaying}
+              aria-pressed={displayedIsAudioPlaying}
               disabled={isResolvingAudioUrl}
               onPointerDown={handleAudioPointerDown}
               onDoubleClick={(event) => {
@@ -584,7 +647,7 @@ export function ReferenceAudioPlayer({
               }}
               onClick={handleAudioToggle}
             >
-              {isAudioPlaying ? (
+              {displayedIsAudioPlaying ? (
                 <Pause size={24} weight="fill" aria-hidden="true" />
               ) : (
                 <Play size={24} weight="fill" aria-hidden="true" />
@@ -657,7 +720,22 @@ export function ReferenceAudioPlayer({
             if (Number.isFinite(durationSeconds) && durationSeconds > 0) {
               setResolvedAudioDurationMs(Math.round(durationSeconds * 1000));
             }
-            setAudioProgressRatio(0);
+            const sharedTimeSeconds = sharedPlaybackSnapshot?.currentTimeSeconds;
+            if (
+              Number.isFinite(durationSeconds) &&
+              durationSeconds > 0 &&
+              Number.isFinite(sharedTimeSeconds) &&
+              sharedTimeSeconds != null
+            ) {
+              try {
+                event.currentTarget.currentTime = sharedTimeSeconds;
+              } catch {
+                // Some browsers reject seeking before enough metadata is loaded.
+              }
+              setAudioProgressRatio(Math.max(0, Math.min(1, sharedTimeSeconds / durationSeconds)));
+            } else {
+              setAudioProgressRatio(0);
+            }
             notifyReady();
           }}
           onCanPlay={() => {
@@ -669,12 +747,7 @@ export function ReferenceAudioPlayer({
             onError?.();
           }}
           onPlay={() => {
-            markPlaybackStarted({
-              instanceKey: resolvedAudioInstanceKey,
-              pause: () => {
-                audioNodeRef.current?.pause();
-              },
-            });
+            markPlaybackStarted(getPlaybackPlayer());
             setIsAudioPlaying(true);
           }}
           onPause={() => {
@@ -690,6 +763,14 @@ export function ReferenceAudioPlayer({
             }
             const ratio = Math.min(1, Math.max(0, currentTimeSeconds / durationSeconds));
             setAudioProgressRatio(ratio);
+            updateExclusiveSoundPlaybackProgress(getPlaybackPlayer(), {
+              currentTimeSeconds,
+              durationSeconds,
+              mediaUrl:
+                activeAudioUrlRef.current ||
+                event.currentTarget.currentSrc ||
+                event.currentTarget.getAttribute("src"),
+            });
           }}
           onEnded={() => {
             clearPlayback(resolvedAudioInstanceKey);

@@ -2,6 +2,7 @@
 
 Date: <YYYY-MM-DD>
 Scenario: <plain-English scenario>
+Session duration: <approximate duration>
 Credits spent: <none / estimate / exact if visible>
 
 ## My Quick Scores

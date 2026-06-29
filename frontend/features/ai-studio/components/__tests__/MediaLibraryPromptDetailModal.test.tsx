@@ -56,13 +56,17 @@ describe("MediaLibraryPromptDetailModal", () => {
     expect(screen.queryByRole("button", { name: "Saved" })).not.toBeInTheDocument();
   });
 
-  it("copies saved prompt text from the top-row text reference action", async () => {
+  it("copies saved prompt text from the text-area corner action", async () => {
     const clipboard = installClipboardWriteMock();
 
     try {
       render(<MediaLibraryPromptDetailModal item={createItem()} onClose={vi.fn()} />);
 
-      fireEvent.click(screen.getByRole("button", { name: "Copy prompt" }));
+      const copyButton = screen.getByRole("button", { name: "Copy prompt" });
+      expect(copyButton.closest(".art-text-detail-textarea-shell")).not.toBeNull();
+      expect(copyButton.closest(".art-modal-action-row")).toBeNull();
+
+      fireEvent.click(copyButton);
 
       await waitFor(() => {
         expect(clipboard.writeText).toHaveBeenCalledWith(

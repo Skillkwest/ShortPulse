@@ -3,6 +3,7 @@
  */
 import { useCallback, useRef, type Dispatch, type SetStateAction } from "react";
 import { useResolvedProtectedSessionState } from "../../../lib/protectedRouteSessionContext";
+import { stripHiddenVideoShotModePromptPrefix } from "../../../lib/model-runtime/videoShotModePromptVisibility";
 import { isVideoUrl, type Provider } from "../logic/stateParsers";
 import type { StudioOutput, StudioOutputSaveState } from "../types";
 import {
@@ -300,7 +301,10 @@ export const useAiStudioPersistenceActions = ({
               : null;
           const result = await saveMediaUrlToLibrary({
             url: urls[index],
-            promptText: output.prompt,
+            promptText:
+              stripHiddenVideoShotModePromptPrefix(output.workflowReload?.prompt?.display) ??
+              stripHiddenVideoShotModePromptPrefix(output.prompt) ??
+              output.prompt,
             mode: output.mode,
             source,
             fileTypeHint: resolveFileTypeHintForPersistedUrl(output, urls[index] ?? ""),

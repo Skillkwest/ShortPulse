@@ -5,6 +5,10 @@ import {
   resolveMediaMetadataPromptText,
   type MediaFileRow,
 } from "../../logic/mediaLibraryModalModel";
+import {
+  HIDDEN_VIDEO_SHOT_MODE_INSTRUCTIONS,
+  VIDEO_SHOT_MODE_PROMPT_SEPARATOR,
+} from "../../../../lib/model-runtime/videoShotModePromptVisibility";
 import { createMediaLibraryDetailModalItem } from "../../logic/mediaLibraryDetailModal";
 import { MediaLibraryPanelPreviewModal } from "../media-library-modal/MediaLibraryPanelPreviewModal";
 import { ReferenceAudioPlayer } from "../shared/ReferenceAudioPlayer";
@@ -342,6 +346,70 @@ describe("MediaLibraryPanelPreviewModal", () => {
     expect(headerText).toContain("16:9");
     expect(headerText).toContain("1080p");
     expect(headerText).not.toContain(storageLikeFilename);
+  });
+
+  it("hides hidden video shot-mode prompt prefixes for generated media library details", () => {
+    const userPrompt = "A neon rooftop chase";
+    const injectedPrompt = `${HIDDEN_VIDEO_SHOT_MODE_INSTRUCTIONS.kling.multi}${VIDEO_SHOT_MODE_PROMPT_SEPARATOR}${userPrompt}`;
+    const generatedFile: MediaFileRow = {
+      id: "generated-kling-video",
+      filename: "generated-kling-video.mp4",
+      storage_path: "user-1/generations/videos/generated-kling-video.mp4",
+      file_type: "video/mp4",
+      source: "ai_studio",
+      source_ref: "generation-kling-1",
+      signedUrl: "https://cdn.example.com/generated-kling-video.mp4",
+      metadata: {
+        prompt: injectedPrompt,
+        workflow_reload: {
+          version: 1,
+          source: "ai_studio_generation",
+          capturedAt: "2026-06-28T12:00:00.000Z",
+          originTool: "video",
+          panelKind: "video",
+          outputMode: "video",
+          restoreBehavior: "navigate_and_hydrate",
+          prompt: {
+            display: userPrompt,
+            submission: injectedPrompt,
+          },
+          model: { id: "kie-ai/kling-3.0" },
+          payload: {
+            kind: "video",
+            aspect: "16:9",
+            videoReferenceMode: "standard",
+            durationSeconds: 6,
+            resolution: "1080p",
+            generateAudio: true,
+            cameraFixed: false,
+            autoFix: true,
+            referenceInputs: ["https://cdn.example.com/reference-frame.png"],
+          },
+        },
+      },
+    };
+    const promptText = resolveMediaMetadataPromptText(generatedFile.metadata);
+
+    expect(promptText).toBe(userPrompt);
+
+    const { baseElement } = render(
+      <MediaLibraryPanelPreviewModal
+        item={createPreviewItem(
+          generatedFile,
+          "https://cdn.example.com/generated-kling-video.mp4",
+          {
+            source: "ai_studio",
+            promptText,
+          }
+        )}
+        isLoading={false}
+        error={null}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(baseElement).toHaveTextContent(userPrompt);
+    expect(baseElement).not.toHaveTextContent(HIDDEN_VIDEO_SHOT_MODE_INSTRUCTIONS.kling.multi);
   });
 
   it("keeps generated media on the generated detail view while preview URLs resolve", () => {
@@ -1111,7 +1179,7 @@ describe("MediaLibraryPanelPreviewModal", () => {
     ) as HTMLVideoElement | null;
     expect(video).not.toBeNull();
     expect(onSnapshotVideoFrame).toHaveBeenCalledWith(video, "clip.mp4");
-    expect(await screen.findByText("Snapshot saved")).toBeInTheDocument();
+    expect(await screen.findByText("Frame saved.")).toBeInTheDocument();
 
     rerender(
       <MediaLibraryPanelPreviewModal

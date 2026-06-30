@@ -1,3 +1,9 @@
+/**
+ * Defines pass/fail gates for browser-run AI Studio performance audits.
+ * These helpers keep threshold decisions pure so runtime probes and tests share
+ * one interpretation of measured audit data.
+ */
+
 export type PerfGate = {
   name: string;
   pass: boolean;
@@ -82,6 +88,7 @@ export type ProjectRestoreScenario = {
   interaction: { maxInputStallMs: number };
   memory: { beforeMb: number | null; afterMb: number | null };
   outputStore: {
+    instrumentationAvailable: boolean;
     publishCount: number;
     allRefsScanCount: number;
     quickSlotLookupCount: number;
@@ -329,6 +336,32 @@ export const evaluateProjectRestoreAuditGates = (
       ? Math.round((scenario.memory.afterMb - scenario.memory.beforeMb) * 100) / 100
       : null;
 
+  const outputStoreGate = ({
+    name,
+    actual,
+    threshold,
+  }: {
+    name: string;
+    actual: number;
+    threshold: number;
+  }): PerfGate => {
+    if (!scenario.outputStore.instrumentationAvailable) {
+      return {
+        name,
+        pass: true,
+        actual: null,
+        expected: `<= ${threshold}`,
+        note: "Output-store instrumentation unavailable in this browser runtime.",
+      };
+    }
+    return {
+      name,
+      pass: actual <= threshold,
+      actual,
+      expected: `<= ${threshold}`,
+    };
+  };
+
   return [
     {
       name: "project_restore_active_count",
@@ -392,24 +425,21 @@ export const evaluateProjectRestoreAuditGates = (
           ? undefined
           : "Heap metric unavailable in this browser runtime.",
     },
-    {
+    outputStoreGate({
       name: "project_restore_output_store_publish_count",
-      pass: scenario.outputStore.publishCount <= thresholds.outputStorePublishCountAtTarget,
       actual: scenario.outputStore.publishCount,
-      expected: `<= ${thresholds.outputStorePublishCountAtTarget}`,
-    },
-    {
+      threshold: thresholds.outputStorePublishCountAtTarget,
+    }),
+    outputStoreGate({
       name: "project_restore_all_refs_scan_count",
-      pass: scenario.outputStore.allRefsScanCount <= thresholds.allRefsScanCountAtTarget,
       actual: scenario.outputStore.allRefsScanCount,
-      expected: `<= ${thresholds.allRefsScanCountAtTarget}`,
-    },
-    {
+      threshold: thresholds.allRefsScanCountAtTarget,
+    }),
+    outputStoreGate({
       name: "project_restore_quick_slot_lookup_count",
-      pass: scenario.outputStore.quickSlotLookupCount <= thresholds.quickSlotLookupCountAtTarget,
       actual: scenario.outputStore.quickSlotLookupCount,
-      expected: `<= ${thresholds.quickSlotLookupCountAtTarget}`,
-    },
+      threshold: thresholds.quickSlotLookupCountAtTarget,
+    }),
   ];
 };
 

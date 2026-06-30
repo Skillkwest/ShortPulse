@@ -135,7 +135,11 @@ async function main() {
       timeout: 45_000,
     });
     await page.waitForFunction(
-      () => typeof globalThis.__shortpulseAiStudioPerf?.runReferenceGridAudit === "function",
+      () =>
+        typeof globalThis.__shortpulseAiStudioPerf?.seedReferenceGrid === "function" &&
+        typeof globalThis.__shortpulseAiStudioPerf?.runReferenceGridAudit === "function" &&
+        typeof globalThis.__shortpulseAiStudioPerf?.runStudioShellAudit === "function" &&
+        typeof globalThis.__shortpulseAiStudioPerf?.runProjectRestoreAudit === "function",
       { timeout: 45_000 }
     );
 

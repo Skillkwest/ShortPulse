@@ -1182,6 +1182,7 @@ export function useAiStudioPerfAuditRuntime({
           interaction: { maxInputStallMs: 0 },
           memory: { beforeMb: null, afterMb: null },
           outputStore: {
+            instrumentationAvailable: false,
             publishCount: Number.POSITIVE_INFINITY,
             allRefsScanCount: Number.POSITIVE_INFINITY,
             quickSlotLookupCount: Number.POSITIVE_INFINITY,
@@ -1230,6 +1231,8 @@ export function useAiStudioPerfAuditRuntime({
       }, expectedTickMs);
 
       resetFreezeInvestigationSnapshot();
+      const outputStoreInstrumentationAvailable =
+        typeof window.__shortpulseFreezeInvestigation?.getSnapshot === "function";
       const beforeCounters = getFreezeInvestigationSnapshot();
       const beforeMb = sampleHeapMb();
       const restoreSnapshot = createProjectRestoreSnapshot(snapshot);
@@ -1268,6 +1271,7 @@ export function useAiStudioPerfAuditRuntime({
           afterMb,
         },
         outputStore: {
+          instrumentationAvailable: outputStoreInstrumentationAvailable,
           publishCount: outputStoreCounters["outputStore.snapshot.publish"] ?? 0,
           allRefsScanCount: outputStoreCounters["referenceGrid.outputProjection.allRefs.scan"] ?? 0,
           quickSlotLookupCount:

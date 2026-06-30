@@ -482,6 +482,7 @@ describe("perfAuditGates", () => {
         interaction: { maxInputStallMs: 40 },
         memory: { beforeMb: 100, afterMb: 140 },
         outputStore: {
+          instrumentationAvailable: true,
           publishCount: 1,
           allRefsScanCount: 1,
           quickSlotLookupCount: 1,
@@ -513,6 +514,7 @@ describe("perfAuditGates", () => {
         interaction: { maxInputStallMs: 1_200 },
         memory: { beforeMb: 100, afterMb: 260 },
         outputStore: {
+          instrumentationAvailable: true,
           publishCount: 8,
           allRefsScanCount: 6,
           quickSlotLookupCount: 5,
@@ -536,5 +538,43 @@ describe("perfAuditGates", () => {
     expect(activeCountGate?.pass).toBe(false);
     expect(publishGate?.pass).toBe(false);
     expect(gates.every((gate) => gate.pass)).toBe(false);
+  });
+
+  it("keeps project restore counter gates informational when store instrumentation is unavailable", () => {
+    const scenarios: ProjectRestoreScenario[] = [
+      {
+        totalCount: 500,
+        activeCount: 128,
+        archivedCount: 372,
+        hydrate: { durationMs: 120 },
+        settle: { durationMs: 260 },
+        longTask: { samples: 0, p95Ms: null },
+        interaction: { maxInputStallMs: 40 },
+        memory: { beforeMb: null, afterMb: null },
+        outputStore: {
+          instrumentationAvailable: false,
+          publishCount: 0,
+          allRefsScanCount: 0,
+          quickSlotLookupCount: 0,
+        },
+        semantics: {
+          restoredActiveCount: 128,
+          restoredArchivedCount: 372,
+          quickSlotCount: 4,
+          removedFromAllRefsCount: 3,
+          activeOutputId: null,
+        },
+      },
+    ];
+
+    const gates = evaluateProjectRestoreAuditGates(scenarios, PROJECT_RESTORE_THRESHOLDS);
+    const publishGate = gates.find(
+      (gate) => gate.name === "project_restore_output_store_publish_count"
+    );
+
+    expect(publishGate?.pass).toBe(true);
+    expect(publishGate?.actual).toBeNull();
+    expect(publishGate?.note).toContain("instrumentation unavailable");
+    expect(gates.every((gate) => gate.pass)).toBe(true);
   });
 });

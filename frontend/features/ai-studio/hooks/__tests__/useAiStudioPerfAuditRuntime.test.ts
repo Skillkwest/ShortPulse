@@ -38,6 +38,9 @@ type PerfAuditWindow = Window & {
           restoredArchivedCount: number;
           activeOutputId: string | null;
         };
+        outputStore: {
+          instrumentationAvailable: boolean;
+        };
       }>;
     }>;
   };
@@ -229,6 +232,9 @@ describe("useAiStudioPerfAuditRuntime", () => {
           restoredArchivedCount:
             REFERENCE_GRID_TARGET_TOTAL_ITEMS - REFERENCE_GRID_MAX_VISIBLE_ITEMS,
           activeOutputId: null,
+        }),
+        outputStore: expect.objectContaining({
+          instrumentationAvailable: true,
         }),
       })
     );

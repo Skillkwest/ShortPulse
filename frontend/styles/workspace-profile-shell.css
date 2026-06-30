@@ -79,9 +79,9 @@
 
 .profile-account-summary-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(132px, 1fr));
-  gap: 10px;
-  width: min(760px, 100%);
+  grid-template-columns: repeat(4, minmax(116px, 1fr));
+  gap: 8px;
+  width: min(680px, 100%);
 }
 
 .profile-shell-action {

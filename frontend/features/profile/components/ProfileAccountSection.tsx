@@ -1,7 +1,8 @@
 /**
  * Account settings section for the profile workspace.
- * Groups identity, security, and AI Studio preference controls into cohesive workspace panels.
+ * Groups identity, billing, security, and AI Studio preference controls into cohesive workspace panels.
  */
+import { CreditCard } from "phosphor-react";
 import { ProfilePreferenceToggleCard } from "./ProfilePreferenceToggleCard";
 import { profileClass } from "../profileRouteStyles";
 import { ProfilePanel } from "./ProfileSurface";
@@ -15,6 +16,10 @@ type ProfileAccountSectionProps = {
   mediaAutosaveDisabled: boolean;
   mediaAutosaveSaving: boolean;
   mediaAutosaveError: string | null;
+  billingIdentityDescription: string;
+  portalActionLabel: string;
+  portalLoading: boolean;
+  portalManagementAvailable: boolean;
   onDisplayNameInputChange: (value: string) => void;
   onWorkspaceEmailChange: (value: string) => void;
   onCurrentPasswordInputChange: (value: string) => void;
@@ -22,6 +27,7 @@ type ProfileAccountSectionProps = {
   onEmailUpdate: () => void;
   onPasswordReset: () => void;
   onMediaAutosaveToggle: (next: boolean) => void;
+  onOpenBillingPortal: () => void;
 };
 
 /**
@@ -36,6 +42,10 @@ export function ProfileAccountSection({
   mediaAutosaveDisabled,
   mediaAutosaveSaving,
   mediaAutosaveError,
+  billingIdentityDescription,
+  portalActionLabel,
+  portalLoading,
+  portalManagementAvailable,
   onDisplayNameInputChange,
   onWorkspaceEmailChange,
   onCurrentPasswordInputChange,
@@ -43,6 +53,7 @@ export function ProfileAccountSection({
   onEmailUpdate,
   onPasswordReset,
   onMediaAutosaveToggle,
+  onOpenBillingPortal,
 }: ProfileAccountSectionProps) {
   return (
     <div className={profileClass("profile-section-grid", "profile-account-grid")}>
@@ -119,6 +130,30 @@ export function ProfileAccountSection({
             Update email
           </button>
         </div>
+      </ProfilePanel>
+
+      <ProfilePanel
+        id="billing"
+        eyebrow="Billing"
+        title="Payment details"
+        description={billingIdentityDescription}
+        icon={CreditCard}
+        className="profile-billing-panel"
+      >
+        {portalManagementAvailable ? (
+          <div className={profileClass("profile-actions")}>
+            <button
+              type="button"
+              className={profileClass("profile-button", "primary-btn")}
+              onClick={onOpenBillingPortal}
+              disabled={portalLoading}
+            >
+              {portalLoading ? "Opening secure portal…" : portalActionLabel}
+            </button>
+          </div>
+        ) : (
+          <p className="tiny subdued">Billing changes for this account are managed internally.</p>
+        )}
       </ProfilePanel>
 
       <ProfilePanel

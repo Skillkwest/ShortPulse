@@ -13,28 +13,22 @@ import { profileClass } from "../profileRouteStyles";
 import { ProfileExplainer, ProfilePanel } from "./ProfileSurface";
 
 type ProfileTransactionsSectionProps = {
-  portalActionLabel: string;
-  portalLoading: boolean;
   portalManagementAvailable: boolean;
   transactions: SubscriptionTransaction[];
   transactionsError: string | null;
   transactionsLoading: boolean;
   userEmail: string | null | undefined;
-  onOpenBillingPortal: () => void;
 };
 
 /**
  * Renders the consolidated billing payment history for the user.
  */
 export function ProfileTransactionsSection({
-  portalActionLabel,
-  portalLoading,
   portalManagementAvailable,
   transactions,
   transactionsError,
   transactionsLoading,
   userEmail,
-  onOpenBillingPortal,
 }: ProfileTransactionsSectionProps) {
   return (
     <>
@@ -56,19 +50,6 @@ export function ProfileTransactionsSection({
         icon={CreditCard}
         className="profile-panel-stack"
       >
-        {portalManagementAvailable ? (
-          <div className={profileClass("profile-actions")}>
-            <button
-              type="button"
-              className={profileClass("profile-button", "ghost-btn")}
-              onClick={onOpenBillingPortal}
-              disabled={portalLoading}
-            >
-              {portalLoading ? "Opening secure portal…" : portalActionLabel}
-            </button>
-          </div>
-        ) : null}
-
         <div className={profileClass("profile-receipts", "profile-receipts-standalone")}>
           <div className={profileClass("profile-receipts-header")}>
             <h3 className={profileClass("profile-subsection-title")}>Recent transactions</h3>

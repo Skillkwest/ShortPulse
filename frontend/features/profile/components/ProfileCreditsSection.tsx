@@ -1,8 +1,8 @@
 /**
  * Credits section for the profile workspace.
- * Separates one-time credit purchasing and billing history from recurring plan and storage management.
+ * Separates one-time credit purchasing and credit activity from account billing management.
  */
-import { ArrowsClockwise, CreditCard, Receipt } from "phosphor-react";
+import { ArrowsClockwise, Receipt } from "phosphor-react";
 import type { BillingLedgerEvent } from "../profilePageModel";
 import {
   formatCurrencyFromCents,
@@ -49,16 +49,11 @@ type ProfileCreditsSectionProps = {
   balanceUpdatedAt: string | null;
   billingActivity: BillingLedgerEvent[];
   billingActivityLoading: boolean;
-  billingIdentityDescription: string;
   checkoutLoadingId: string | null;
   packageCards: readonly CreditPackageCard[];
   packagesLoading: boolean;
-  portalActionLabel: string;
-  portalLoading: boolean;
-  portalManagementAvailable: boolean;
   refreshingCredits: boolean;
   onCheckout: (packageId: string) => void;
-  onOpenBillingPortal: () => void;
   onRefreshCredits: () => void;
 };
 
@@ -75,16 +70,11 @@ export function ProfileCreditsSection({
   balanceUpdatedAt,
   billingActivity,
   billingActivityLoading,
-  billingIdentityDescription,
   checkoutLoadingId,
   packageCards,
   packagesLoading,
-  portalActionLabel,
-  portalLoading,
-  portalManagementAvailable,
   refreshingCredits,
   onCheckout,
-  onOpenBillingPortal,
   onRefreshCredits,
 }: ProfileCreditsSectionProps) {
   const balanceDisplayValue = balanceLoading
@@ -138,13 +128,6 @@ export function ProfileCreditsSection({
           />
         </div>
       </article>
-
-      {!portalManagementAvailable ? (
-        <aside className={profileClass("profile-callout")}>
-          <CreditCard size={18} />
-          <p className="tiny">{billingIdentityDescription}</p>
-        </aside>
-      ) : null}
 
       <div className={profileClass("profile-section-stack")}>
         <ProfilePanel
@@ -215,24 +198,12 @@ export function ProfileCreditsSection({
         </ProfilePanel>
 
         <ProfilePanel
-          eyebrow="Payment details"
-          title="Invoices and payment method"
-          icon={CreditCard}
+          eyebrow="Credit activity"
+          title="Recent credit activity"
+          description="Review recent credit grants, renewals, and one-time top-ups."
+          icon={Receipt}
           className="profile-panel-stack"
         >
-          {portalManagementAvailable ? (
-            <div className={profileClass("profile-actions")}>
-              <button
-                type="button"
-                className={profileClass("profile-button", "primary-btn")}
-                onClick={onOpenBillingPortal}
-                disabled={portalLoading}
-              >
-                {portalLoading ? "Opening secure portal…" : portalActionLabel}
-              </button>
-            </div>
-          ) : null}
-
           <div className={profileClass("profile-receipts")}>
             <div className={profileClass("profile-receipts-header")}>
               <h3 className={profileClass("profile-subsection-title")}>Recent credit activity</h3>

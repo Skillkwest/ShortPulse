@@ -108,7 +108,7 @@ describe("POST /api/billing/stripe/portal", () => {
     expect(stripePostFormMock).toHaveBeenCalledWith(
       "/billing_portal/sessions",
       expect.objectContaining({
-        return_url: "https://app.shortpulse.test/profile?section=credits",
+        return_url: "https://app.shortpulse.test/profile?section=account#billing",
       })
     );
     expect(res.status).toHaveBeenCalledWith(200);

@@ -178,7 +178,7 @@ export default function ProfilePage() {
   const section = useMemo<ProfileSection>(() => {
     const query = (router.query.section as string | undefined)?.toLowerCase();
     if (query === "profile") return "account";
-    if (query === "billing") return "credits";
+    if (query === "billing") return "account";
     if (
       query === "account" ||
       query === "subscription" ||
@@ -606,7 +606,7 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!user || section !== "credits") return;
     trackBillingPricingViewed({
-      pricing_surface: "profile_billing",
+      pricing_surface: "profile_credits",
     });
   }, [section, user]);
 
@@ -791,7 +791,7 @@ export default function ProfilePage() {
   const handleCheckout = async (packageId: string) => {
     setCheckoutLoadingId(packageId);
     trackBillingUpgradeClicked({
-      upgrade_surface: "profile_billing",
+      upgrade_surface: "profile_credits",
       upgrade_target: "credit_package",
       package_id: packageId,
     });
@@ -852,7 +852,7 @@ export default function ProfilePage() {
   ) => {
     setPlanChangeLoadingPlanId(targetPlanId);
     trackBillingUpgradeClicked({
-      upgrade_surface: "profile_billing",
+      upgrade_surface: "profile_subscription",
       upgrade_target: "subscription_plan",
       current_plan_id: activePlan.id,
       plan_id: targetPlanId,
@@ -1021,6 +1021,10 @@ export default function ProfilePage() {
               mediaAutosaveDisabled={mediaAutosaveDisabled}
               mediaAutosaveSaving={mediaAutosaveSaving}
               mediaAutosaveError={mediaAutosaveError}
+              billingIdentityDescription={billingIdentityDescription}
+              portalActionLabel={portalActionLabel}
+              portalLoading={portalLoading}
+              portalManagementAvailable={portalManagementAvailable}
               onDisplayNameInputChange={setDisplayNameInput}
               onWorkspaceEmailChange={setWorkspaceEmail}
               onCurrentPasswordInputChange={setCurrentPasswordInput}
@@ -1028,6 +1032,7 @@ export default function ProfilePage() {
               onEmailUpdate={handleEmailUpdate}
               onPasswordReset={handlePasswordReset}
               onMediaAutosaveToggle={setMediaAutosaveEnabled}
+              onOpenBillingPortal={handleOpenBillingPortal}
             />
           ) : null}
 
@@ -1069,16 +1074,11 @@ export default function ProfilePage() {
               nextCreditRenewalAt={nextCreditRenewalAt}
               billingActivity={billingActivity}
               billingActivityLoading={billingActivityLoading}
-              billingIdentityDescription={billingIdentityDescription}
               checkoutLoadingId={checkoutLoadingId}
               packageCards={packageCards}
               packagesLoading={packagesLoading}
-              portalActionLabel={portalActionLabel}
-              portalLoading={portalLoading}
-              portalManagementAvailable={portalManagementAvailable}
               refreshingCredits={refreshingCredits}
               onCheckout={handleCheckout}
-              onOpenBillingPortal={handleOpenBillingPortal}
               onRefreshCredits={handleRefreshCredits}
             />
           ) : null}
@@ -1105,14 +1105,11 @@ export default function ProfilePage() {
 
           {section === "transactions" ? (
             <ProfileTransactionsSection
-              portalActionLabel={portalActionLabel}
-              portalLoading={portalLoading}
               portalManagementAvailable={portalManagementAvailable}
               transactions={allTransactions}
               transactionsError={allTransactionsError}
               transactionsLoading={allTransactionsLoading}
               userEmail={user?.email}
-              onOpenBillingPortal={handleOpenBillingPortal}
             />
           ) : null}
         </ProfileWorkspaceShell>

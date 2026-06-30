@@ -268,8 +268,8 @@ export const getProfileSectionContent = (
   }
   if (section === "credits") {
     return {
-      title: "Credits & billing",
-      body: "Manage credit balance, purchases, payment details, and billing history.",
+      title: "Credits",
+      body: "Manage credit balance, one-time top-ups, and recent credit activity.",
     };
   }
   if (section === "storage") {
@@ -286,6 +286,6 @@ export const getProfileSectionContent = (
   }
   return {
     title: "Account settings",
-    body: "Manage identity, email, and security controls for your workspace.",
+    body: "Manage identity, billing, email, and security controls for your workspace.",
   };
 };

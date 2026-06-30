@@ -245,11 +245,15 @@ describe("AiStudioToolbar current mode", () => {
       "href",
       "/profile?section=account"
     );
+    expect(screen.getByRole("menuitem", { name: "Billing" })).toHaveAttribute(
+      "href",
+      "/profile?section=account#billing"
+    );
     expect(screen.getByRole("menuitem", { name: "Subscription" })).toHaveAttribute(
       "href",
       "/profile?section=subscription"
     );
-    expect(screen.getByRole("menuitem", { name: "Credits & billing" })).toHaveAttribute(
+    expect(screen.getByRole("menuitem", { name: "Credits" })).toHaveAttribute(
       "href",
       "/profile?section=credits"
     );

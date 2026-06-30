@@ -159,7 +159,7 @@ Admin legal policy routes:
 
 ## Profile Sections
 
-`/profile` is the protected customer account workspace. Supported section query values are `account`, `subscription`, `credits`, `storage`, and `transactions`; legacy aliases map `profile` to `account` and `billing` to `credits`. Dashboard profile-menu links should route subscription management to `/profile?section=subscription` and credit/billing top-ups to `/profile?section=credits`; signed-in dashboard summary cards route media storage to `/profile?section=storage`, AI credits to `/profile?section=credits`, and plan management to `/profile?section=subscription`.
+`/profile` is the protected customer account workspace. Supported section query values are `account`, `subscription`, `credits`, `storage`, and `transactions`; legacy aliases map `profile` and `billing` to `account`. Dashboard profile-menu links should route billing management to `/profile?section=account#billing`, subscription management to `/profile?section=subscription`, and credit top-ups to `/profile?section=credits`; signed-in dashboard summary cards route media storage to `/profile?section=storage`, AI credits to `/profile?section=credits`, and plan management to `/profile?section=subscription`.
 
 The profile header shows a persistent `Payment` summary from the active subscriber contract plus active recurring storage add-on contracts. The subscription section mirrors that total as `Total payment` with the plan/add-on breakdown.
 

@@ -133,7 +133,7 @@ Primary path:
 - `/admin/user-health` diagnostics -> `/api/admin/user-health` for user-level generation/queue/reservation/ledger health checks, cost-without-success signals, and guided next actions.
 - `/admin/user-health-fleet` diagnostics -> `/api/admin/user-health-fleet` for hourly active-user triage and risk-ranked escalation into per-user billing/runtime analysis.
 - `/api/admin/users` reports spendable credits (`available - reserved`) and also returns `availableCredits` / `reservedCredits` for hold visibility.
-- `/profile?section=account` now updates display name and email through server-owned `/api/account/profile/update` and `/api/account/email/update` routes so Stripe customer identity can stay aligned with Supabase auth.
+- `/profile?section=account` updates display name and email through server-owned `/api/account/profile/update` and `/api/account/email/update` routes so Stripe customer identity can stay aligned with Supabase auth, and its `#billing` panel is the customer-facing Stripe billing portal entry for payment method, invoice, and subscription management.
 
 Request contract:
 
@@ -209,7 +209,7 @@ Recommended operator sequence:
 2. For a brand-new plan, use `Create new plan` so ShortPulse and Stripe are created together.
 3. For existing plan/storage/top-up changes, create or attach the correct Stripe Price before activating the catalog update.
 4. For AI usage pricing changes, edit the truth grid, verify the exact canonical `Billed credits` variant rows needed by live product workflows, and confirm those same rows are what billable UI and server debit consume.
-5. After any pricing change, verify the customer-facing catalog on `/profile?section=credits` and `/profile?section=storage`.
+5. After any pricing change, verify the customer-facing catalog on `/profile?section=credits` and `/profile?section=storage`, plus the billing portal entry on `/profile?section=account#billing`.
 6. Verify `/profile?section=subscription` still routes each plan card to the intended self-serve flow:
    - baseline-fallback/internal-comp to paid should open Stripe Checkout for the selected target plan
    - Stripe-managed paid upgrades/downgrades should open a Stripe Billing Portal plan-change flow

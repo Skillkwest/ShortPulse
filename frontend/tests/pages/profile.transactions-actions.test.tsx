@@ -258,7 +258,7 @@ describe("Profile transactions actions", () => {
       "https://stripe.test/invoices/in_100"
     );
     expect(
-      screen.getByRole("button", { name: "Manage card, invoices, and subscription" })
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: "Manage card, invoices, and subscription" })
+    ).not.toBeInTheDocument();
   });
 });

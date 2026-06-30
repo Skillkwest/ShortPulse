@@ -9,6 +9,7 @@ import type { NoticeState } from "../profilePageModel";
 import { profileClass } from "../profileRouteStyles";
 
 type ProfilePanelProps = {
+  id?: string;
   eyebrow?: string;
   title: string;
   description?: ReactNode;
@@ -38,6 +39,7 @@ type ProfileNoticeBannerProps = {
  * Renders a reusable section panel with consistent header and optional action slot.
  */
 export function ProfilePanel({
+  id,
   eyebrow,
   title,
   description,
@@ -47,7 +49,7 @@ export function ProfilePanel({
   children,
 }: ProfilePanelProps) {
   return (
-    <section className={profileClass("panel", "profile-panel", className)}>
+    <section id={id} className={profileClass("panel", "profile-panel", className)}>
       <div className={profileClass("panel-header", "profile-panel-header")}>
         <div>
           {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}

@@ -1,5 +1,5 @@
 /**
- * Profile credits-section tests for portal and credit-refresh action wiring.
+ * Profile credits and account-billing tests for portal and credit-refresh action wiring.
  */
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -185,13 +185,13 @@ describe("Profile credits actions", () => {
   it("renders the credits section controls", () => {
     render(<ProfilePage />);
 
-    expect(screen.getByRole("heading", { name: "Credits & billing" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Credits" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Your credits" })).toBeInTheDocument();
     expect(screen.getAllByText("1,000").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Refresh credits" })).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Manage card, invoices, and subscription" })
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: "Manage card, invoices, and subscription" })
+    ).not.toBeInTheDocument();
     expect(screen.queryByText("Billing identity")).not.toBeInTheDocument();
     expect(
       screen.queryByText(/Payment method and subscription billing are managed outside Stripe/)
@@ -251,12 +251,13 @@ describe("Profile credits actions", () => {
     expect(await screen.findByText("+3,000")).toBeInTheDocument();
   });
 
-  it("maps the legacy billing section alias to credits", () => {
+  it("maps the legacy billing section alias to account settings", () => {
     routerState.query = { section: "billing" };
 
     render(<ProfilePage />);
 
-    expect(screen.getByRole("heading", { name: "Credits & billing" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Account settings" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Payment details" })).toBeInTheDocument();
   });
 
   it("shows an info notice when credit refresh returns the same balance", async () => {
@@ -315,6 +316,7 @@ describe("Profile credits actions", () => {
   });
 
   it("shows an error notice when opening the billing portal fails", async () => {
+    routerState.query = { section: "account" };
     fetchWithAuthMock.mockResolvedValue({
       ok: false,
       json: async () => ({ error: "Portal unavailable" }),
@@ -334,6 +336,7 @@ describe("Profile credits actions", () => {
   });
 
   it("disables Stripe portal controls for internal comp contracts", async () => {
+    routerState.query = { section: "account" };
     useProtectedRouteMock.mockReturnValue({
       loading: false,
       user: {
@@ -365,7 +368,7 @@ describe("Profile credits actions", () => {
 
     render(<ProfilePage />);
 
-    expect(await screen.findByRole("heading", { name: "Credits & billing" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Account settings" })).toBeInTheDocument();
     expect(screen.getByText("Subscription managed internally outside Stripe")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Managed internally" })).not.toBeInTheDocument();
   });

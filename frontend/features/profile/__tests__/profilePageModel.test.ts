@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  getProfileSectionContent,
   resolveLedgerLabel,
   resolveLedgerReference,
   resolveRecurringPaymentSummary,
@@ -65,5 +66,13 @@ describe("profilePageModel billing helpers", () => {
       shortHelperLabel: "Billed as $180.00 yearly + add-ons monthly",
       breakdownLabel: "Plan $180.00 / year + add-ons $5.00 / month",
     });
+  });
+
+  it("keeps credits copy separate from account billing controls", () => {
+    expect(getProfileSectionContent("credits")).toEqual({
+      title: "Credits",
+      body: "Manage credit balance, one-time top-ups, and recent credit activity.",
+    });
+    expect(getProfileSectionContent("account").body).toContain("billing");
   });
 });

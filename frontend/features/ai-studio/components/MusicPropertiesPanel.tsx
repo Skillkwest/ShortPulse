@@ -915,7 +915,10 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
                     </div>
                   </div>
                   {generationAccessCta ? (
-                    <GenerationAccessCtaButton cta={generationAccessCta} />
+                    <GenerationAccessCtaButton
+                      cta={generationAccessCta}
+                      className="ai-generation-access-cta--audio"
+                    />
                   ) : (
                     <button
                       type="button"

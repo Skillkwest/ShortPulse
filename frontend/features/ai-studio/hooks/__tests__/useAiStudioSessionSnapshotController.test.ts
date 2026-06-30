@@ -954,6 +954,40 @@ describe("useAiStudioSessionSnapshotController", () => {
     expect(snapshot.outputs.removedFromAllRefsIds).toEqual(["archived-1"]);
   });
 
+  it("preserves full visible output prompts in project workspace snapshots", () => {
+    const longPrompt = `Detailed reference prompt. ${"Lighting, camera, wardrobe, and continuity instruction. ".repeat(120)}Final instruction.`;
+    const output = createOutput({
+      id: "long-prompt-output",
+      prompt: longPrompt,
+      previewText: longPrompt,
+      previewStoragePath: "user-1/projects/long-prompt.webp",
+      fullStoragePath: "user-1/projects/long-prompt.webp",
+      savedMediaIds: ["media-long-prompt"],
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioSessionSnapshotController(
+        createControllerParams({
+          standardCreatePrompt: "Do not persist project draft text",
+          outputs: [output],
+          curatedReferenceIds: ["long-prompt-output"],
+        })
+      )
+    );
+
+    const snapshot = result.current.buildProjectWorkspaceSnapshot({
+      sessionId: "project-session-long-prompt",
+      updatedAt: "2026-06-27T12:02:00.000Z",
+    });
+
+    expect(snapshot.workspace.prompt).toBe("");
+    expect(snapshot.outputs.active[0]).toMatchObject({
+      id: "long-prompt-output",
+      prompt: longPrompt,
+      previewText: longPrompt,
+    });
+  });
+
   it("moves the 500-item target into project-restorable archived overflow", () => {
     const targetOutputs = Array.from({ length: REFERENCE_GRID_TARGET_TOTAL_ITEMS }, (_, index) =>
       createOutput({

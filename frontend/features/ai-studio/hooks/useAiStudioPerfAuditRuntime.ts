@@ -31,6 +31,8 @@ import {
 import {
   buildReferenceGridOverflowArchiveRows,
   limitReferenceGridVisibleOutputs,
+  REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+  REFERENCE_GRID_TARGET_TOTAL_ITEMS,
 } from "../reference-grid/logic/referenceGridLimits";
 import {
   createEmptyAiStudioSessionSnapshot,
@@ -405,9 +407,9 @@ export function useAiStudioPerfAuditRuntime({
       draftCandidateSelectionCountP95: 0,
     };
     const PROJECT_RESTORE_GATES = {
-      targetTotalCount: 500,
-      targetActiveCount: 128,
-      targetArchivedCount: 372,
+      targetTotalCount: REFERENCE_GRID_TARGET_TOTAL_ITEMS,
+      targetActiveCount: REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+      targetArchivedCount: REFERENCE_GRID_TARGET_TOTAL_ITEMS - REFERENCE_GRID_MAX_VISIBLE_ITEMS,
       hydrateDurationMsAtTarget: 750,
       settleDurationMsAtTarget: 1_500,
       longTaskP95MsAtTarget: 180,

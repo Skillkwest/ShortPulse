@@ -216,6 +216,7 @@
 
 .pricing-route-shell {
   max-width: 1320px;
+  gap: 8px;
   padding-bottom: 80px;
 }
 

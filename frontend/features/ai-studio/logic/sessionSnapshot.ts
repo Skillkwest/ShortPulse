@@ -275,6 +275,13 @@ export type AiStudioProjectWorkspaceAutosaveCandidate = {
   snapshot: AiStudioSessionSnapshot;
 };
 
+export type AiStudioProjectWorkspaceSnapshotOptions = {
+  trimGeneratedOutputDeliveryUrls?: boolean;
+  trimGeneratedOutputMetadata?: boolean;
+  trimGeneratedOutputText?: boolean;
+  trimOutputTextSummaries?: boolean;
+};
+
 export type BuildAiStudioSessionSnapshotInput = {
   sessionId: string;
   updatedAt?: string;
@@ -1100,8 +1107,9 @@ export const createEmptyAiStudioSessionSnapshot = ({
  * workspace rows persist only authored workspace content, not chat history.
  */
 export const createAiStudioProjectWorkspaceSnapshot = (
-  snapshot: AiStudioSessionSnapshot
-): AiStudioSessionSnapshot => createProjectWorkspaceSnapshot(snapshot);
+  snapshot: AiStudioSessionSnapshot,
+  options?: AiStudioProjectWorkspaceSnapshotOptions
+): AiStudioSessionSnapshot => createProjectWorkspaceSnapshot(snapshot, options);
 
 const rebuildV2SnapshotMeta = (
   snapshot: Omit<AiStudioSessionSnapshotV2, "meta"> & { updatedAt: string }

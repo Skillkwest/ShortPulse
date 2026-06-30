@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+  REFERENCE_GRID_TARGET_TOTAL_ITEMS,
+} from "../../reference-grid/logic/referenceGridLimits";
+import {
   evaluateReferenceGridAuditGates,
   evaluateProjectRestoreAuditGates,
   evaluateProjectWorkspaceAutosaveTypingAuditGates,
@@ -42,9 +46,9 @@ const PROJECT_WORKSPACE_AUTOSAVE_TYPING_THRESHOLDS = {
 };
 
 const PROJECT_RESTORE_THRESHOLDS = {
-  targetTotalCount: 500,
-  targetActiveCount: 128,
-  targetArchivedCount: 372,
+  targetTotalCount: REFERENCE_GRID_TARGET_TOTAL_ITEMS,
+  targetActiveCount: REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+  targetArchivedCount: REFERENCE_GRID_TARGET_TOTAL_ITEMS - REFERENCE_GRID_MAX_VISIBLE_ITEMS,
   hydrateDurationMsAtTarget: 750,
   settleDurationMsAtTarget: 1_500,
   longTaskP95MsAtTarget: 180,
@@ -473,9 +477,9 @@ describe("perfAuditGates", () => {
   it("passes project restore gates for the target large restore scenario", () => {
     const scenarios: ProjectRestoreScenario[] = [
       {
-        totalCount: 500,
-        activeCount: 128,
-        archivedCount: 372,
+        totalCount: REFERENCE_GRID_TARGET_TOTAL_ITEMS,
+        activeCount: REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+        archivedCount: REFERENCE_GRID_TARGET_TOTAL_ITEMS - REFERENCE_GRID_MAX_VISIBLE_ITEMS,
         hydrate: { durationMs: 120 },
         settle: { durationMs: 260 },
         longTask: { samples: 0, p95Ms: null },
@@ -488,8 +492,9 @@ describe("perfAuditGates", () => {
           quickSlotLookupCount: 1,
         },
         semantics: {
-          restoredActiveCount: 128,
-          restoredArchivedCount: 372,
+          restoredActiveCount: REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+          restoredArchivedCount:
+            REFERENCE_GRID_TARGET_TOTAL_ITEMS - REFERENCE_GRID_MAX_VISIBLE_ITEMS,
           quickSlotCount: 4,
           removedFromAllRefsCount: 3,
           activeOutputId: null,
@@ -505,9 +510,9 @@ describe("perfAuditGates", () => {
   it("fails project restore gates when restore semantics or publish churn drift", () => {
     const scenarios: ProjectRestoreScenario[] = [
       {
-        totalCount: 500,
-        activeCount: 128,
-        archivedCount: 372,
+        totalCount: REFERENCE_GRID_TARGET_TOTAL_ITEMS,
+        activeCount: REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+        archivedCount: REFERENCE_GRID_TARGET_TOTAL_ITEMS - REFERENCE_GRID_MAX_VISIBLE_ITEMS,
         hydrate: { durationMs: 900 },
         settle: { durationMs: 1_800 },
         longTask: { samples: 2, p95Ms: 240 },
@@ -520,8 +525,9 @@ describe("perfAuditGates", () => {
           quickSlotLookupCount: 5,
         },
         semantics: {
-          restoredActiveCount: 127,
-          restoredArchivedCount: 373,
+          restoredActiveCount: REFERENCE_GRID_MAX_VISIBLE_ITEMS - 1,
+          restoredArchivedCount:
+            REFERENCE_GRID_TARGET_TOTAL_ITEMS - REFERENCE_GRID_MAX_VISIBLE_ITEMS + 1,
           quickSlotCount: 4,
           removedFromAllRefsCount: 3,
           activeOutputId: "perf-output-1",
@@ -543,9 +549,9 @@ describe("perfAuditGates", () => {
   it("keeps project restore counter gates informational when store instrumentation is unavailable", () => {
     const scenarios: ProjectRestoreScenario[] = [
       {
-        totalCount: 500,
-        activeCount: 128,
-        archivedCount: 372,
+        totalCount: REFERENCE_GRID_TARGET_TOTAL_ITEMS,
+        activeCount: REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+        archivedCount: REFERENCE_GRID_TARGET_TOTAL_ITEMS - REFERENCE_GRID_MAX_VISIBLE_ITEMS,
         hydrate: { durationMs: 120 },
         settle: { durationMs: 260 },
         longTask: { samples: 0, p95Ms: null },
@@ -558,8 +564,9 @@ describe("perfAuditGates", () => {
           quickSlotLookupCount: 0,
         },
         semantics: {
-          restoredActiveCount: 128,
-          restoredArchivedCount: 372,
+          restoredActiveCount: REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+          restoredArchivedCount:
+            REFERENCE_GRID_TARGET_TOTAL_ITEMS - REFERENCE_GRID_MAX_VISIBLE_ITEMS,
           quickSlotCount: 4,
           removedFromAllRefsCount: 3,
           activeOutputId: null,

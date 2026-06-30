@@ -210,6 +210,7 @@ const trimProjectWorkspaceOutputTextSummaries = (
 type GeneratedOutputTrimOptions = {
   trimDeliveryUrls?: boolean;
   trimMetadata?: boolean;
+  trimTextPayload?: boolean;
 };
 
 const trimGeneratedProjectWorkspaceOutput = (
@@ -221,6 +222,7 @@ const trimGeneratedProjectWorkspaceOutput = (
   };
   const trimDeliveryUrls = options.trimDeliveryUrls !== false;
   const trimMetadata = options.trimMetadata !== false;
+  const trimTextPayload = options.trimTextPayload !== false;
 
   if (trimMetadata && hasText(output.generationId)) {
     delete trimmedOutput.generationReplay;
@@ -233,7 +235,7 @@ const trimGeneratedProjectWorkspaceOutput = (
     return trimmedOutput;
   }
 
-  if (trimMetadata) {
+  if (trimMetadata && trimTextPayload) {
     delete trimmedOutput.prompt;
     delete trimmedOutput.transcriptText;
     delete trimmedOutput.errorMessage;
@@ -345,6 +347,7 @@ type CanonicalizedProjectWorkspaceOutputs = {
 type ProjectWorkspaceSnapshotOptions = {
   trimGeneratedOutputDeliveryUrls?: boolean;
   trimGeneratedOutputMetadata?: boolean;
+  trimGeneratedOutputText?: boolean;
   trimOutputTextSummaries?: boolean;
 };
 
@@ -354,6 +357,7 @@ const normalizeProjectWorkspaceOutputRows = (
 ): Record<string, unknown>[] => {
   const trimGeneratedOutputDeliveryUrls = options.trimGeneratedOutputDeliveryUrls !== false;
   const trimGeneratedOutputMetadata = options.trimGeneratedOutputMetadata !== false;
+  const trimGeneratedOutputText = options.trimGeneratedOutputText !== false;
   const trimOutputTextSummaries = options.trimOutputTextSummaries !== false;
   return (Array.isArray(value) ? value : [])
     .map((output) => asRecord(output))
@@ -362,6 +366,7 @@ const normalizeProjectWorkspaceOutputRows = (
       const generatedNormalizedOutput = trimGeneratedProjectWorkspaceOutput(output, {
         trimDeliveryUrls: trimGeneratedOutputDeliveryUrls,
         trimMetadata: trimGeneratedOutputMetadata,
+        trimTextPayload: trimGeneratedOutputText,
       });
       const promptNormalizedOutput =
         trimPromptOnlyProjectWorkspaceOutput(generatedNormalizedOutput);

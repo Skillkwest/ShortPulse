@@ -228,7 +228,7 @@ const compactRecord = (record: Record<string, unknown>): Record<string, unknown>
   return compacted;
 };
 
-const PROJECT_OUTPUT_DISPLAY_SUMMARY_MAX_CHARS = 1000;
+const PROJECT_OUTPUT_DISPLAY_ERROR_MAX_CHARS = 1000;
 const PROJECT_OUTPUT_DISPLAY_TITLE_MAX_CHARS = 40;
 
 const truncateTextField = (value: unknown, maxChars: number): string | null => {
@@ -238,10 +238,10 @@ const truncateTextField = (value: unknown, maxChars: number): string | null => {
 };
 
 const truncateSummary = (value: unknown): string | null =>
-  truncateTextField(value, PROJECT_OUTPUT_DISPLAY_SUMMARY_MAX_CHARS);
+  truncateTextField(value, PROJECT_OUTPUT_DISPLAY_ERROR_MAX_CHARS);
 
-const truncateVisiblePromptSummary = (value: unknown): string | null =>
-  truncateSummary(stripHiddenVideoShotModePromptPrefix(normalizeString(value)));
+const normalizeVisiblePromptText = (value: unknown): string | null =>
+  normalizeString(stripHiddenVideoShotModePromptPrefix(normalizeString(value)));
 
 const truncateDisplayTitle = (value: unknown): string | null =>
   truncateTextField(value, PROJECT_OUTPUT_DISPLAY_TITLE_MAX_CHARS);
@@ -403,11 +403,10 @@ const toDisplayItemCandidate = ({
     task_id: normalizeString(output.taskId),
     source_ref: normalizeString(output.sourceRef),
     generation_trace_id: normalizeString(output.generationTraceId),
-    preview_text: truncateVisiblePromptSummary(output.previewText),
+    preview_text: normalizeVisiblePromptText(output.previewText),
     display_title: truncateDisplayTitle(output.title),
     display_prompt_summary:
-      truncateVisiblePromptSummary(output.prompt) ??
-      truncateVisiblePromptSummary(output.previewText),
+      normalizeVisiblePromptText(output.prompt) ?? normalizeVisiblePromptText(output.previewText),
     mime_type: normalizeString(output.mimeType),
     width: normalizePositiveInteger(output.width),
     height: normalizePositiveInteger(output.height),

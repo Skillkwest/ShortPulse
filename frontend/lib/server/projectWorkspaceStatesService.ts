@@ -358,6 +358,7 @@ const sanitizeProjectWorkspaceSnapshot = (
   options: {
     trimGeneratedOutputDeliveryUrls?: boolean;
     trimGeneratedOutputMetadata?: boolean;
+    trimGeneratedOutputText?: boolean;
     trimOutputTextSummaries?: boolean;
   } = {}
 ): Record<string, unknown> =>
@@ -1310,6 +1311,13 @@ export const upsertProjectWorkspaceStateForUser = async ({
     userId,
     snapshot: parsedSnapshot,
   });
+  const displayAuthoritySnapshot = sanitizeProjectWorkspaceSnapshot(
+    canvasStorageAuthoritySnapshot,
+    {
+      trimGeneratedOutputText: false,
+      trimOutputTextSummaries: false,
+    }
+  );
   const sanitizedSnapshot = sanitizeProjectWorkspaceSnapshot(canvasStorageAuthoritySnapshot);
   maybeLogProjectWorkspaceReferenceGridCapNormalization({
     userId,
@@ -1372,12 +1380,12 @@ export const upsertProjectWorkspaceStateForUser = async ({
 
     if (sameProjectAssetAssociations) {
       const lightweightRetrySnapshot = createLightweightProjectWorkspaceCheckpointSnapshot({
-        snapshot: sanitizedSnapshot,
+        snapshot: displayAuthoritySnapshot,
         checkpointRevision: existingRow.checkpoint_revision,
       });
       const retryOutputDisplayChecksum =
         readProjectOutputDisplayChecksum(lightweightRetrySnapshot) ??
-        computeProjectOutputDisplayChecksumForSnapshot(sanitizedSnapshot);
+        computeProjectOutputDisplayChecksumForSnapshot(displayAuthoritySnapshot);
       const existingOutputDisplayChecksum = readProjectOutputDisplayChecksum(existingRow.snapshot);
       const sameDisplay =
         existingOutputDisplayChecksum !== null &&
@@ -1400,13 +1408,20 @@ export const upsertProjectWorkspaceStateForUser = async ({
   }
   const preparedSnapshot = await prepareProjectWorkspaceSnapshotForWrite({
     userId,
-    snapshot: sanitizedSnapshot,
+    snapshot: displayAuthoritySnapshot,
   });
+  const preparedDisplayAuthoritySnapshot = sanitizeProjectWorkspaceSnapshot(
+    preparedSnapshot.snapshot,
+    {
+      trimGeneratedOutputText: false,
+      trimOutputTextSummaries: false,
+    }
+  );
 
   const existingCheckpointRevision = existingRow?.checkpoint_revision ?? 0;
   const nextCheckpointRevision = existingCheckpointRevision + 1;
   const lightweightCheckpointSnapshot = createLightweightProjectWorkspaceCheckpointSnapshot({
-    snapshot: preparedSnapshot.snapshot,
+    snapshot: preparedDisplayAuthoritySnapshot,
     checkpointRevision: nextCheckpointRevision,
   });
   const incomingOutputDisplayChecksum =
@@ -1477,7 +1492,7 @@ export const upsertProjectWorkspaceStateForUser = async ({
         backfillProjectAssetAssociationsForSnapshot({
           userId,
           projectId,
-          snapshot: preparedSnapshot.snapshot,
+          snapshot: preparedDisplayAuthoritySnapshot,
           ownedMediaFileIds: preparedSnapshot.ownedMediaFileIds,
           ownedPromptIds: preparedSnapshot.ownedPromptIds,
           ownedGenerationIds: preparedSnapshot.ownedGenerationIds,
@@ -1520,7 +1535,7 @@ export const upsertProjectWorkspaceStateForUser = async ({
       projectAssetAssociationChanged ||
       !existingRow
       ? createLightweightProjectWorkspaceCheckpointSnapshot({
-          snapshot: preparedSnapshot.snapshot,
+          snapshot: preparedDisplayAuthoritySnapshot,
           checkpointRevision: workspaceCheckpointRevisionForWrite,
         })
       : existingRow.snapshot,
@@ -1620,7 +1635,7 @@ export const upsertProjectWorkspaceStateForUser = async ({
         syncProjectOutputDisplayItemsForSnapshot({
           userId,
           projectId,
-          snapshot: preparedSnapshot.snapshot,
+          snapshot: preparedDisplayAuthoritySnapshot,
           snapshotUpdatedAt,
           deferDeletes: checkpointStructureChanged,
         }),
@@ -1653,7 +1668,7 @@ export const upsertProjectWorkspaceStateForUser = async ({
         syncProjectOutputDisplayItemsForSnapshot({
           userId,
           projectId,
-          snapshot: preparedSnapshot.snapshot,
+          snapshot: preparedDisplayAuthoritySnapshot,
           snapshotUpdatedAt,
           deferDeletes: false,
         }),

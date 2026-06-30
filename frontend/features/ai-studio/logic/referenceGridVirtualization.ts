@@ -85,8 +85,8 @@ export const resolveReferenceGridDensityPressureLevel = ({
   curatedItemCount = 0,
 }: ResolveReferenceGridDensityPressureInput): 0 | 1 | 2 => {
   const largestSurfaceCount = Math.max(0, Math.floor(Math.max(itemCount, curatedItemCount)));
-  if (largestSurfaceCount >= 128) return 2;
-  if (largestSurfaceCount >= 96) return 1;
+  if (largestSurfaceCount >= 300) return 2;
+  if (largestSurfaceCount >= 225) return 1;
   return 0;
 };
 

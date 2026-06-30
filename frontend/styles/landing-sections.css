@@ -498,20 +498,20 @@
   gap: 6px;
   margin: 0;
   color: rgba(232, 226, 216, 0.62);
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1.2;
 }
 
 .pricing-interval-support-copy {
-  font-weight: 600;
+  font-weight: 450;
 }
 
 .pricing-billing-helper {
   margin: 2px 0 0;
   color: rgba(232, 226, 216, 0.52);
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1.35;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .lp-plan-name {

@@ -216,7 +216,7 @@ normalized_outputs as (
         nullif(btrim(output ->> 'sourceRef'), '') as source_ref,
         nullif(btrim(output ->> 'generationTraceId'), '') as generation_trace_id,
         nullif(btrim(output ->> 'previewText'), '') as preview_text,
-        left(nullif(btrim(coalesce(output ->> 'prompt', output ->> 'previewText')), ''), 1000)
+        nullif(btrim(coalesce(output ->> 'prompt', output ->> 'previewText')), '')
             as display_prompt_summary,
         nullif(btrim(output ->> 'mimeType'), '') as mime_type,
         case

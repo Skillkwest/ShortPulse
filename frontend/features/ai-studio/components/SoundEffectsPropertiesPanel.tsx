@@ -518,7 +518,10 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
 
                 <div className="sound-effects-properties-generate-stack">
                   {generationAccessCta ? (
-                    <GenerationAccessCtaButton cta={generationAccessCta} />
+                    <GenerationAccessCtaButton
+                      cta={generationAccessCta}
+                      className="ai-generation-access-cta--audio"
+                    />
                   ) : (
                     <button
                       type="button"

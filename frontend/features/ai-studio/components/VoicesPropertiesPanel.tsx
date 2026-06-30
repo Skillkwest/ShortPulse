@@ -1533,7 +1533,10 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                   </span>
                 </div>
                 {generationAccessCta ? (
-                  <GenerationAccessCtaButton cta={generationAccessCta} />
+                  <GenerationAccessCtaButton
+                    cta={generationAccessCta}
+                    className="ai-generation-access-cta--audio"
+                  />
                 ) : (
                   <button
                     type="button"

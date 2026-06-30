@@ -50,13 +50,13 @@ describe("referenceGridVirtualization", () => {
   });
 
   it("resolves density pressure before watchdog samples under large grids", () => {
-    expect(resolveReferenceGridDensityPressureLevel({ itemCount: 80 })).toBe(0);
-    expect(resolveReferenceGridDensityPressureLevel({ itemCount: 96 })).toBe(1);
-    expect(resolveReferenceGridDensityPressureLevel({ itemCount: 128 })).toBe(2);
+    expect(resolveReferenceGridDensityPressureLevel({ itemCount: 200 })).toBe(0);
+    expect(resolveReferenceGridDensityPressureLevel({ itemCount: 225 })).toBe(1);
+    expect(resolveReferenceGridDensityPressureLevel({ itemCount: 300 })).toBe(2);
     expect(
       resolveReferenceGridDensityPressureLevel({
         itemCount: 20,
-        curatedItemCount: 128,
+        curatedItemCount: 300,
       })
     ).toBe(2);
   });

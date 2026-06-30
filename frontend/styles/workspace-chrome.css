@@ -153,8 +153,7 @@
   overflow: hidden;
   border-radius: 16px;
   border: 1px solid rgba(201, 205, 214, 0.16);
-  background:
-    radial-gradient(120% 120% at 10% 0%, rgba(37, 169, 191, 0.1), transparent), rgba(5, 7, 13, 0.98);
+  background: var(--color-panel);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
   color: #e8fbff;
 }

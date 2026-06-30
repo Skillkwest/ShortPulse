@@ -1742,10 +1742,10 @@ describe("projectWorkspaceStatesService", () => {
     ).at(0)?.[0];
     expect(
       (firstWorkspaceUpsertArg?.snapshot?.outputs as { active?: unknown[] })?.active
-    ).toHaveLength(128);
+    ).toHaveLength(generationIds.length);
     expect(
       (firstWorkspaceUpsertArg?.snapshot?.outputs as { archived?: unknown[] })?.archived
-    ).toHaveLength(77);
+    ).toHaveLength(0);
   });
 
   it("stores pathological output-heavy projects as capped lightweight checkpoints", async () => {
@@ -1825,8 +1825,8 @@ describe("projectWorkspaceStatesService", () => {
       }
     )?.archived ?? []) as Array<Record<string, unknown>>;
 
-    expect(storedActiveOutputs).toHaveLength(128);
-    expect(storedArchivedOutputs).toHaveLength(472);
+    expect(storedActiveOutputs).toHaveLength(REFERENCE_GRID_MAX_VISIBLE_ITEMS);
+    expect(storedArchivedOutputs).toHaveLength(600 - REFERENCE_GRID_MAX_VISIBLE_ITEMS);
     expect(storedBytes).toBeLessThan(originalBytes * 0.3);
     expect(storedActiveOutputs[0]).toEqual({
       id: "pathological-output-1",
@@ -1834,15 +1834,14 @@ describe("projectWorkspaceStatesService", () => {
       mediaSource: "library",
     });
     expect(storedActiveOutputs.at(-1)).toEqual({
-      id: "pathological-output-128",
+      id: `pathological-output-${REFERENCE_GRID_MAX_VISIBLE_ITEMS}`,
       mode: "image",
       mediaSource: "library",
     });
     expect(storedArchivedOutputs[0]).toEqual({
-      id: "pathological-output-129",
+      id: `pathological-output-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 1}`,
       mode: "image",
       mediaSource: "library",
-      savedMediaIds: [MEDIA_ID_1],
       archivedAt: "2026-06-03T14:00:00.000Z",
       archiveReason: "cleanup",
     });
@@ -1855,7 +1854,7 @@ describe("projectWorkspaceStatesService", () => {
     });
     expect(
       (storedCheckpoint.outputs as { curatedReferenceIds?: string[] }).curatedReferenceIds
-    ).toEqual(["pathological-output-1", "pathological-output-2"]);
+    ).toEqual(["pathological-output-1", "pathological-output-2", "pathological-output-129"]);
     expect(
       (storedCheckpoint.outputs as { removedFromAllRefsIds?: string[] }).removedFromAllRefsIds
     ).toEqual(["pathological-output-3", "pathological-output-130"]);
@@ -1880,36 +1879,18 @@ describe("projectWorkspaceStatesService", () => {
         metadata: expect.objectContaining({
           project_id: "project-1",
           incoming_visible_active_outputs: 600,
-          persisted_visible_active_outputs: 128,
-          reference_grid_visible_limit: 128,
-          trimmed_visible_active_outputs: 472,
-          trimmed_sample_output_ids: [
-            "pathological-output-129",
-            "pathological-output-130",
-            "pathological-output-131",
-            "pathological-output-132",
-            "pathological-output-133",
-            "pathological-output-134",
-            "pathological-output-135",
-            "pathological-output-136",
-            "pathological-output-137",
-            "pathological-output-138",
-            "pathological-output-139",
-            "pathological-output-140",
-            "pathological-output-141",
-            "pathological-output-142",
-            "pathological-output-143",
-            "pathological-output-144",
-            "pathological-output-145",
-            "pathological-output-146",
-            "pathological-output-147",
-            "pathological-output-148",
-          ],
-          trimmed_with_durable_authority_count: 1,
-          trimmed_with_runtime_identity_count: 1,
-          trimmed_with_saved_media_ids_count: 1,
-          trimmed_with_prompt_id_count: 1,
-          trimmed_with_generation_id_count: 1,
+          persisted_visible_active_outputs: REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+          reference_grid_visible_limit: REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+          trimmed_visible_active_outputs: 600 - REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+          trimmed_sample_output_ids: Array.from(
+            { length: 20 },
+            (_, index) => `pathological-output-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + index + 1}`
+          ),
+          trimmed_with_durable_authority_count: 0,
+          trimmed_with_runtime_identity_count: 0,
+          trimmed_with_saved_media_ids_count: 0,
+          trimmed_with_prompt_id_count: 0,
+          trimmed_with_generation_id_count: 0,
         }),
       })
     );
@@ -2088,7 +2069,7 @@ describe("projectWorkspaceStatesService", () => {
     );
   });
 
-  it("bounds rich display text before syncing project output display rows", async () => {
+  it("preserves full visible prompt text before syncing project output display rows", async () => {
     const { outputDisplayUpsert } = createSupabaseMock();
     const longPrompt = "P".repeat(5000);
     const longPreviewText = "V".repeat(5000);
@@ -2140,10 +2121,82 @@ describe("projectWorkspaceStatesService", () => {
       [
         expect.objectContaining({
           output_id: "display-text-bounds-output",
-          preview_text: longPreviewText.slice(0, 1000),
-          display_prompt_summary: longPrompt.slice(0, 1000),
+          preview_text: longPreviewText,
+          display_prompt_summary: longPrompt,
           display_title: longTitle.slice(0, 40),
           error_message_short: longError.slice(0, 1000),
+        }),
+      ],
+      expect.objectContaining({
+        onConflict: "project_id,output_id",
+      })
+    );
+  });
+
+  it("preserves settled generated prompts in display rows while keeping checkpoints lightweight", async () => {
+    const { workspaceUpsert, outputDisplayUpsert } = createSupabaseMock();
+    const longPrompt = `Generated video prompt. ${"Camera motion, continuity, and blocking detail. ".repeat(120)}Final beat.`;
+
+    await upsertProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+      schemaVersion: 2,
+      snapshot: {
+        schemaVersion: 2,
+        sessionId: "session-generated-display-prompt",
+        updatedAt: "2026-06-03T14:06:00.000Z",
+        workspace: {
+          selectedTool: "create",
+        },
+        outputs: {
+          active: [
+            {
+              id: "generated-display-prompt-output",
+              mode: "video",
+              mediaSource: "generated",
+              generationId: GENERATION_ID_1,
+              taskId: "task-1",
+              taskState: "success",
+              prompt: longPrompt,
+              previewText: longPrompt,
+              previewUrl: "https://cdn.example.com/generated-display-prompt.mp4",
+              resultUrls: ["https://cdn.example.com/generated-display-prompt.mp4"],
+            },
+          ],
+          archived: [],
+          activeOutputId: "generated-display-prompt-output",
+          curatedReferenceIds: ["generated-display-prompt-output"],
+          removedFromAllRefsIds: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+    });
+
+    const firstWorkspaceUpsertArg = (
+      workspaceUpsert.mock.calls as Array<[{ snapshot?: Record<string, unknown> }?, unknown?]>
+    ).at(0)?.[0];
+    const storedActiveOutputs = ((
+      firstWorkspaceUpsertArg?.snapshot?.outputs as { active?: Array<Record<string, unknown>> }
+    )?.active ?? []) as Array<Record<string, unknown>>;
+
+    expect(storedActiveOutputs[0]).toMatchObject({
+      id: `generated:${GENERATION_ID_1}`,
+      generationId: GENERATION_ID_1,
+    });
+    expect(storedActiveOutputs[0]).not.toHaveProperty("prompt");
+    expect(outputDisplayUpsert).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          output_id: `generated:${GENERATION_ID_1}`,
+          preview_text: longPrompt,
+          display_prompt_summary: longPrompt,
         }),
       ],
       expect.objectContaining({
@@ -2158,13 +2211,16 @@ describe("projectWorkspaceStatesService", () => {
       recentGenerationIds: [],
       projectionRows: [],
     });
-    const visibleOutputs = Array.from({ length: 130 }, (_, index) => ({
-      id: `visible-output-${index + 1}`,
-      mode: "image",
-      mediaSource: "library",
-      previewUrl: `https://cdn.example.com/visible-${index + 1}.png`,
-      resultUrls: [`https://cdn.example.com/visible-${index + 1}.png`],
-    }));
+    const visibleOutputs = Array.from(
+      { length: REFERENCE_GRID_MAX_VISIBLE_ITEMS + 2 },
+      (_, index) => ({
+        id: `visible-output-${index + 1}`,
+        mode: "image",
+        mediaSource: "library",
+        previewUrl: `https://cdn.example.com/visible-${index + 1}.png`,
+        resultUrls: [`https://cdn.example.com/visible-${index + 1}.png`],
+      })
+    );
     const hiddenOutput = {
       id: "hidden-output-1",
       mode: "image",
@@ -2189,7 +2245,10 @@ describe("projectWorkspaceStatesService", () => {
           active: [...visibleOutputs.slice(0, 64), hiddenOutput, ...visibleOutputs.slice(64)],
           archived: [],
           activeOutputId: "visible-output-1",
-          curatedReferenceIds: ["hidden-output-1", "visible-output-130"],
+          curatedReferenceIds: [
+            "hidden-output-1",
+            `visible-output-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 2}`,
+          ],
           removedFromAllRefsIds: [],
         },
         agent: {
@@ -2218,17 +2277,25 @@ describe("projectWorkspaceStatesService", () => {
       }
     )?.archived ?? []) as Array<Record<string, unknown>>;
 
-    expect(storedActiveOutputs).toHaveLength(128);
+    expect(storedActiveOutputs).toHaveLength(REFERENCE_GRID_MAX_VISIBLE_ITEMS);
     expect(storedArchivedOutputs.map((row) => row.id)).toEqual([
-      "visible-output-129",
-      "visible-output-130",
+      `visible-output-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 1}`,
+      `visible-output-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 2}`,
     ]);
     expect(storedActiveOutputs.filter((row) => row.hiddenInReferenceGrid !== true)).toHaveLength(
-      128
+      REFERENCE_GRID_MAX_VISIBLE_ITEMS
     );
     expect(storedActiveOutputs.some((row) => row.id === "hidden-output-1")).toBe(false);
-    expect(storedActiveOutputs.some((row) => row.id === "visible-output-129")).toBe(false);
-    expect(storedActiveOutputs.some((row) => row.id === "visible-output-130")).toBe(false);
+    expect(
+      storedActiveOutputs.some(
+        (row) => row.id === `visible-output-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 1}`
+      )
+    ).toBe(false);
+    expect(
+      storedActiveOutputs.some(
+        (row) => row.id === `visible-output-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 2}`
+      )
+    ).toBe(false);
     expect(
       (storedCheckpoint.outputs as { curatedReferenceIds?: string[] }).curatedReferenceIds
     ).toEqual([]);

@@ -857,7 +857,10 @@ export const useAiStudioSessionSnapshotController = ({
         chatModeEnabled: EMPTY_PROJECT_AGENT_RUNTIME.chatModeEnabled,
         pulseWorkflowSession: EMPTY_PROJECT_AGENT_RUNTIME.pulseWorkflowSession,
       });
-      return createAiStudioProjectWorkspaceSnapshot(baseSnapshot) as AiStudioSessionSnapshotV2;
+      return createAiStudioProjectWorkspaceSnapshot(baseSnapshot, {
+        trimGeneratedOutputText: false,
+        trimOutputTextSummaries: false,
+      }) as AiStudioSessionSnapshotV2;
     },
     [archivedOutputs, curatedReferenceIds, outputs, removedFromAllRefsIds]
   );

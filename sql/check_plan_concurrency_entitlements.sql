@@ -1,5 +1,7 @@
 -- Read-only diagnostics for plan-based active-generation concurrency entitlements.
 -- Expected result: the summary query reports failing_checks = 0.
+-- Current offer rows are checked against today's public ladder. Open contracts
+-- are checked as subscriber snapshots so grandfathered values do not false-fail.
 
 with expected_limits(plan_id, expected_max_concurrent_generations) as (
   values
@@ -42,21 +44,42 @@ missing_current_monthly_offers as (
       and offer.effective_end_at is null
   )
 ),
-open_contract_mismatches as (
+open_contract_snapshot_issues as (
   select
     contract.plan_id,
+    contract.offer_id,
     contract.max_concurrent_generations,
-    expected.expected_max_concurrent_generations,
+    offer.max_concurrent_generations as expected_max_concurrent_generations,
+    case
+      when contract.max_concurrent_generations is null then 'missing_contract_snapshot'
+      when contract.max_concurrent_generations < 0 then 'negative_contract_snapshot'
+      when contract.offer_id is not null and offer.id is null then 'missing_linked_offer'
+      else 'linked_offer_snapshot_mismatch'
+    end as issue,
     count(*) as affected_rows
   from public.billing_subscription_contracts contract
-  join expected_limits expected on expected.plan_id = contract.plan_id
+  left join public.billing_plan_offers offer on offer.id = contract.offer_id
   where contract.ended_at is null
-    and coalesce(contract.max_concurrent_generations, -1)
-      <> expected.expected_max_concurrent_generations
+    and (
+      contract.max_concurrent_generations is null
+      or contract.max_concurrent_generations < 0
+      or (contract.offer_id is not null and offer.id is null)
+      or (
+        offer.id is not null
+        and contract.max_concurrent_generations <> offer.max_concurrent_generations
+      )
+    )
   group by
     contract.plan_id,
+    contract.offer_id,
     contract.max_concurrent_generations,
-    expected.expected_max_concurrent_generations
+    offer.max_concurrent_generations,
+    case
+      when contract.max_concurrent_generations is null then 'missing_contract_snapshot'
+      when contract.max_concurrent_generations < 0 then 'negative_contract_snapshot'
+      when contract.offer_id is not null and offer.id is null then 'missing_linked_offer'
+      else 'linked_offer_snapshot_mismatch'
+    end
 ),
 checks as (
   select
@@ -70,9 +93,9 @@ checks as (
     (select count(*) from missing_current_monthly_offers) as affected_rows
   union all
   select
-    'open_contract_concurrency_mismatch' as check_name,
-    case when exists (select 1 from open_contract_mismatches) then 'fail' else 'pass' end as status,
-    coalesce((select sum(affected_rows) from open_contract_mismatches), 0) as affected_rows
+    'open_contract_concurrency_snapshot_issue' as check_name,
+    case when exists (select 1 from open_contract_snapshot_issues) then 'fail' else 'pass' end as status,
+    coalesce((select sum(affected_rows) from open_contract_snapshot_issues), 0) as affected_rows
 )
 select
   'plan_concurrency_entitlements' as check_family,
@@ -122,26 +145,47 @@ missing_current_monthly_offers as (
       and offer.effective_end_at is null
   )
 ),
-open_contract_mismatches as (
+open_contract_snapshot_issues as (
   select
     contract.plan_id,
+    contract.offer_id,
     contract.max_concurrent_generations,
-    expected.expected_max_concurrent_generations,
+    offer.max_concurrent_generations as expected_max_concurrent_generations,
+    case
+      when contract.max_concurrent_generations is null then 'missing_contract_snapshot'
+      when contract.max_concurrent_generations < 0 then 'negative_contract_snapshot'
+      when contract.offer_id is not null and offer.id is null then 'missing_linked_offer'
+      else 'linked_offer_snapshot_mismatch'
+    end as issue,
     count(*) as affected_rows
   from public.billing_subscription_contracts contract
-  join expected_limits expected on expected.plan_id = contract.plan_id
+  left join public.billing_plan_offers offer on offer.id = contract.offer_id
   where contract.ended_at is null
-    and coalesce(contract.max_concurrent_generations, -1)
-      <> expected.expected_max_concurrent_generations
+    and (
+      contract.max_concurrent_generations is null
+      or contract.max_concurrent_generations < 0
+      or (contract.offer_id is not null and offer.id is null)
+      or (
+        offer.id is not null
+        and contract.max_concurrent_generations <> offer.max_concurrent_generations
+      )
+    )
   group by
     contract.plan_id,
+    contract.offer_id,
     contract.max_concurrent_generations,
-    expected.expected_max_concurrent_generations
+    offer.max_concurrent_generations,
+    case
+      when contract.max_concurrent_generations is null then 'missing_contract_snapshot'
+      when contract.max_concurrent_generations < 0 then 'negative_contract_snapshot'
+      when contract.offer_id is not null and offer.id is null then 'missing_linked_offer'
+      else 'linked_offer_snapshot_mismatch'
+    end
 )
 select
   'current_offer_concurrency_mismatch' as issue,
   plan_id,
-  billing_interval,
+  billing_interval as entitlement_context,
   max_concurrent_generations,
   expected_max_concurrent_generations,
   affected_rows
@@ -150,18 +194,18 @@ union all
 select
   'missing_current_monthly_offer' as issue,
   plan_id,
-  'month' as billing_interval,
+  'month' as entitlement_context,
   null as max_concurrent_generations,
   expected_max_concurrent_generations,
   1 as affected_rows
 from missing_current_monthly_offers
 union all
 select
-  'open_contract_concurrency_mismatch' as issue,
+  issue,
   plan_id,
-  null as billing_interval,
+  offer_id as entitlement_context,
   max_concurrent_generations,
   expected_max_concurrent_generations,
   affected_rows
-from open_contract_mismatches
-order by issue, plan_id, billing_interval nulls last, max_concurrent_generations nulls last;
+from open_contract_snapshot_issues
+order by issue, plan_id, entitlement_context nulls last, max_concurrent_generations nulls last;

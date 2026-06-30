@@ -15,9 +15,12 @@ const PASSWORD = (process.env.PLAYWRIGHT_AUDIT_PASSWORD || "").trim() || "AuditP
 const COUNTS = [40, 60, 100];
 const ACTIVE_WORKSET_COUNTS = [40, 60, 100, 300];
 const TARGET_TOTAL_COUNT = 500;
-const TARGET_ACTIVE_COUNT = 128;
+const TARGET_ACTIVE_COUNT = 300;
 const TARGET_AUDIT_ACTIVE_COUNT = 300;
 const CLICK_SAMPLES = 24;
+const REFERENCE_GRID_SURFACE_SELECTOR =
+  ".reference-canvas-panel[data-grid-surface='reference-grid']";
+const REFERENCE_GRID_CARD_SELECTOR = ".reference-column .reference-card";
 
 async function signIn(page) {
   const signInTab = page.getByRole("tab", { name: /^Sign in$/i }).first();
@@ -68,6 +71,20 @@ async function readAuthBlockDetails(page) {
       messageSnippets,
     };
   });
+}
+
+async function waitForReferenceGridSurface(page) {
+  await page.waitForSelector(REFERENCE_GRID_SURFACE_SELECTOR, {
+    timeout: 45_000,
+  });
+}
+
+async function waitForSeededReferenceGridCards(page) {
+  await page.waitForFunction(
+    ({ cardSelector }) => document.querySelectorAll(cardSelector).length > 0,
+    { cardSelector: REFERENCE_GRID_CARD_SELECTOR },
+    { timeout: 45_000 }
+  );
 }
 
 async function main() {
@@ -142,12 +159,14 @@ async function main() {
         typeof globalThis.__shortpulseAiStudioPerf?.runProjectRestoreAudit === "function",
       { timeout: 45_000 }
     );
+    await waitForReferenceGridSurface(page);
 
     const referenceGridTargetSeed = await page.evaluate(
       ({ targetTotalCount }) =>
         globalThis.__shortpulseAiStudioPerf.seedReferenceGrid(targetTotalCount),
       { targetTotalCount: TARGET_TOTAL_COUNT }
     );
+    await waitForSeededReferenceGridCards(page);
     result.referenceGridTargetSeed = referenceGridTargetSeed;
     if (
       referenceGridTargetSeed?.requestedCount !== TARGET_TOTAL_COUNT ||
@@ -168,6 +187,7 @@ async function main() {
         }),
       { targetActiveCount: TARGET_AUDIT_ACTIVE_COUNT }
     );
+    await waitForSeededReferenceGridCards(page);
     result.referenceGridActiveWorksetSeed = referenceGridActiveWorksetSeed;
     if (
       referenceGridActiveWorksetSeed?.requestedCount !== TARGET_AUDIT_ACTIVE_COUNT ||

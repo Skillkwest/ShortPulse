@@ -266,6 +266,19 @@
   white-space: nowrap;
 }
 
+.ai-generation-access-cta--audio {
+  width: 94px;
+  min-width: 94px;
+  max-width: 94px;
+  height: 64px;
+  min-height: 64px;
+  max-height: 64px;
+  align-self: center;
+  justify-self: end;
+  padding: 10px 6px;
+  font-size: 0.9rem;
+}
+
 .agent-messages::-webkit-scrollbar {
   width: 2px;
 }

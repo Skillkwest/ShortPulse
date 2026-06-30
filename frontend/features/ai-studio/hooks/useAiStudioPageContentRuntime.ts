@@ -11,8 +11,12 @@ type UseAiStudioPageContentRuntimeParams = {
   onFileBrowserSelection: AiStudioPageContentProps["onFileBrowserSelection"];
   uiError: AiStudioPageContentProps["uiError"];
   uiNotice: AiStudioPageContentProps["uiNotice"];
+  mediaPlanNoticeMessage: AiStudioPageContentProps["mediaPlanNoticeMessage"];
+  mediaPlanNoticeCta: AiStudioPageContentProps["mediaPlanNoticeCta"];
+  onMediaPlanAccessAttempt: AiStudioPageContentProps["onMediaPlanAccessAttempt"];
   onDismissUiError: AiStudioPageContentProps["onDismissUiError"];
   onDismissUiNotice: AiStudioPageContentProps["onDismissUiNotice"];
+  onDismissMediaPlanNotice: AiStudioPageContentProps["onDismissMediaPlanNotice"];
   balanceCredits: AiStudioPageContentProps["balanceCredits"];
   creditTotalCredits: AiStudioPageContentProps["creditTotalCredits"];
   pendingHoldCredits: AiStudioPageContentProps["pendingHoldCredits"];
@@ -94,8 +98,12 @@ export const useAiStudioPageContentRuntime = ({
   onFileBrowserSelection,
   uiError,
   uiNotice,
+  mediaPlanNoticeMessage,
+  mediaPlanNoticeCta,
+  onMediaPlanAccessAttempt,
   onDismissUiError,
   onDismissUiNotice,
+  onDismissMediaPlanNotice,
   balanceCredits,
   creditTotalCredits,
   pendingHoldCredits,
@@ -174,8 +182,12 @@ export const useAiStudioPageContentRuntime = ({
       onFileBrowserSelection,
       uiError,
       uiNotice,
+      mediaPlanNoticeMessage,
+      mediaPlanNoticeCta,
+      onMediaPlanAccessAttempt,
       onDismissUiError,
       onDismissUiNotice,
+      onDismissMediaPlanNotice,
       balanceCredits,
       creditTotalCredits,
       pendingHoldCredits,
@@ -253,8 +265,12 @@ export const useAiStudioPageContentRuntime = ({
       onFileBrowserSelection,
       uiError,
       uiNotice,
+      mediaPlanNoticeMessage,
+      mediaPlanNoticeCta,
+      onMediaPlanAccessAttempt,
       onDismissUiError,
       onDismissUiNotice,
+      onDismissMediaPlanNotice,
       balanceCredits,
       creditTotalCredits,
       pendingHoldCredits,

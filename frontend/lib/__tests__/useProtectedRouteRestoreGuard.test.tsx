@@ -128,7 +128,7 @@ describe("useProtectedRouteRestoreGuard", () => {
     expect(result.current.checking).toBe(false);
   });
 
-  it("marks protected content as checking when the browser stores the page in BFCache", async () => {
+  it("does not unmount protected content when the browser stores the page in BFCache", async () => {
     const { result } = renderHook(() =>
       useProtectedRouteRestoreGuard({ enabled: true, nextPath: "/ai-studio" })
     );
@@ -145,34 +145,31 @@ describe("useProtectedRouteRestoreGuard", () => {
       window.dispatchEvent(pageHideEvent);
     });
 
-    expect(result.current.checking).toBe(true);
+    expect(result.current.checking).toBe(false);
   });
 
-  it("keeps visible revalidation blocking when protected content is already in a restore check", async () => {
+  it("blocks revalidation when the browser restores a BFCache page", async () => {
     const { result } = renderHook(() =>
       useProtectedRouteRestoreGuard({ enabled: true, nextPath: "/ai-studio" })
     );
     await waitFor(() => {
       expect(result.current.checking).toBe(false);
     });
-    const pageHideEvent = new Event("pagehide") as PageTransitionEvent;
-    Object.defineProperty(pageHideEvent, "persisted", {
+    const pageShowEvent = new Event("pageshow") as PageTransitionEvent;
+    Object.defineProperty(pageShowEvent, "persisted", {
       configurable: true,
       value: true,
     });
     vi.clearAllMocks();
-    readSupabaseSessionMock.mockResolvedValue({
-      access_token: "bfcache-token",
-      user: { id: "user-1" },
-    });
-    Object.defineProperty(document, "visibilityState", {
-      configurable: true,
-      value: "visible",
-    });
+    let resolveRestoreCheck: (session: unknown) => void = () => undefined;
+    readSupabaseSessionMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveRestoreCheck = resolve;
+      })
+    );
 
     act(() => {
-      window.dispatchEvent(pageHideEvent);
-      document.dispatchEvent(new Event("visibilitychange"));
+      window.dispatchEvent(pageShowEvent);
     });
 
     expect(result.current.checking).toBe(true);
@@ -180,6 +177,14 @@ describe("useProtectedRouteRestoreGuard", () => {
       expect(readSupabaseSessionMock).toHaveBeenCalledWith({ forceRefresh: true });
     });
     expect(refreshSupabaseSessionMock).not.toHaveBeenCalled();
+
+    act(() => {
+      resolveRestoreCheck({
+        access_token: "bfcache-token",
+        user: { id: "user-1" },
+      });
+    });
+
     await waitFor(() => {
       expect(result.current.checking).toBe(false);
     });
@@ -194,7 +199,7 @@ describe("useProtectedRouteRestoreGuard", () => {
     });
     vi.clearAllMocks();
     let resolveVisibleCheck: (session: unknown) => void = () => undefined;
-    refreshSupabaseSessionMock.mockReturnValue(
+    readSupabaseSessionMock.mockReturnValue(
       new Promise((resolve) => {
         resolveVisibleCheck = resolve;
       })
@@ -208,9 +213,8 @@ describe("useProtectedRouteRestoreGuard", () => {
       document.dispatchEvent(new Event("visibilitychange"));
     });
 
-    expect(refreshSupabaseSessionMock).toHaveBeenCalledWith({
-      preserveSnapshotOnError: true,
-    });
+    expect(readSupabaseSessionMock).toHaveBeenCalledWith();
+    expect(refreshSupabaseSessionMock).not.toHaveBeenCalled();
     expect(result.current.checking).toBe(false);
     expect(replaceMock).not.toHaveBeenCalled();
 
@@ -229,7 +233,7 @@ describe("useProtectedRouteRestoreGuard", () => {
     expect(result.current.checking).toBe(false);
   });
 
-  it("preserves mounted protected content when visible-tab revalidation has a transient refresh failure", async () => {
+  it("preserves mounted protected content when visible-tab revalidation has a transient session-read failure", async () => {
     const { result } = renderHook(() =>
       useProtectedRouteRestoreGuard({ enabled: true, nextPath: "/ai-studio" })
     );
@@ -237,7 +241,7 @@ describe("useProtectedRouteRestoreGuard", () => {
       expect(result.current.checking).toBe(false);
     });
     vi.clearAllMocks();
-    refreshSupabaseSessionMock.mockRejectedValue(new AuthRetryableFetchError("Failed to fetch", 0));
+    readSupabaseSessionMock.mockRejectedValue(new AuthRetryableFetchError("Failed to fetch", 0));
     Object.defineProperty(document, "visibilityState", {
       configurable: true,
       value: "visible",
@@ -248,10 +252,9 @@ describe("useProtectedRouteRestoreGuard", () => {
     });
 
     await waitFor(() => {
-      expect(refreshSupabaseSessionMock).toHaveBeenCalledWith({
-        preserveSnapshotOnError: true,
-      });
+      expect(readSupabaseSessionMock).toHaveBeenCalledWith();
     });
+    expect(refreshSupabaseSessionMock).not.toHaveBeenCalled();
     expect(result.current.checking).toBe(false);
     expect(replaceMock).not.toHaveBeenCalled();
     expect(clearSupabaseSessionSnapshotMock).not.toHaveBeenCalled();
@@ -265,7 +268,7 @@ describe("useProtectedRouteRestoreGuard", () => {
       expect(result.current.checking).toBe(false);
     });
     vi.clearAllMocks();
-    refreshSupabaseSessionMock.mockRejectedValue(new AuthSessionMissingError());
+    readSupabaseSessionMock.mockRejectedValue(new AuthSessionMissingError());
     Object.defineProperty(document, "visibilityState", {
       configurable: true,
       value: "visible",
@@ -289,7 +292,7 @@ describe("useProtectedRouteRestoreGuard", () => {
       expect(result.current.checking).toBe(false);
     });
     vi.clearAllMocks();
-    refreshSupabaseSessionMock.mockResolvedValue(null);
+    readSupabaseSessionMock.mockResolvedValue(null);
     Object.defineProperty(document, "visibilityState", {
       configurable: true,
       value: "visible",

@@ -24,6 +24,7 @@ type UseAiStudioReferenceAssetActionsParams = {
   saveReferenceToLibrary: (outputId: string) => Promise<PersistOutputSaveResult>;
   setUiError: Dispatch<SetStateAction<string | null>>;
   isMediaStorageFull?: boolean;
+  onStorageBlockedSaveAttempt?: () => void;
 };
 
 /**
@@ -35,6 +36,7 @@ export const useAiStudioReferenceAssetActions = ({
   saveReferenceToLibrary,
   setUiError,
   isMediaStorageFull = false,
+  onStorageBlockedSaveAttempt,
 }: UseAiStudioReferenceAssetActionsParams) => {
   const handleDownloadReference = useCallback(
     async (outputId: string) => {
@@ -124,7 +126,11 @@ export const useAiStudioReferenceAssetActions = ({
     (outputId: string) => {
       if (!outputId) return;
       if (isMediaStorageFull) {
-        setUiError(MEDIA_STORAGE_FULL_USER_MESSAGE);
+        if (onStorageBlockedSaveAttempt) {
+          onStorageBlockedSaveAttempt();
+        } else {
+          setUiError(MEDIA_STORAGE_FULL_USER_MESSAGE);
+        }
         return;
       }
       void saveReferenceToLibrary(outputId)
@@ -139,7 +145,7 @@ export const useAiStudioReferenceAssetActions = ({
           requestMediaStorageQuotaSummaryRefresh();
         });
     },
-    [isMediaStorageFull, saveReferenceToLibrary, setUiError]
+    [isMediaStorageFull, onStorageBlockedSaveAttempt, saveReferenceToLibrary, setUiError]
   );
 
   return {

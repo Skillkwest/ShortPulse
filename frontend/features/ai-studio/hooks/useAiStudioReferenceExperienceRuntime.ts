@@ -10,6 +10,7 @@ import { useAiStudioPreviewDetailProps } from "./useAiStudioPreviewDetailProps";
 import { mapHookContractsToPageContentProps } from "./contracts/pageContentAdapter";
 import type { AiStudioPageBaseRuntime } from "./useAiStudioPageBaseRuntime";
 import { MEDIA_STORAGE_FULL_USER_MESSAGE } from "../../../lib/mediaStorageQuota";
+import type { GenerationAccessCta } from "../logic/generationAccessCta";
 import type { useAiStudioWorkspaceActions } from "./useAiStudioWorkspaceActions";
 import type { useAiStudioGenerationController } from "./useAiStudioGenerationController";
 import type { CanvasSceneItem } from "../components/canvas/canvasTypes";
@@ -24,6 +25,8 @@ type PageContentRuntimeProps = ReturnType<typeof mapHookContractsToPageContentPr
 type UseAiStudioReferenceExperienceRuntimeParams = {
   base: AiStudioPageBaseRuntime;
   isMediaStorageFull: boolean;
+  mediaPlanAccessCta?: GenerationAccessCta | null;
+  onMediaPlanAccessAttempt?: () => void;
   linkedPromptReferenceIds: string[];
   propertiesCreate: CreatePanelProps;
   propertiesEditExpert: EditPanelProps;
@@ -45,6 +48,8 @@ type UseAiStudioReferenceExperienceRuntimeParams = {
 export const useAiStudioReferenceExperienceRuntime = ({
   base,
   isMediaStorageFull,
+  mediaPlanAccessCta = null,
+  onMediaPlanAccessAttempt,
   linkedPromptReferenceIds,
   propertiesCreate,
   propertiesEditExpert,
@@ -103,12 +108,14 @@ export const useAiStudioReferenceExperienceRuntime = ({
   const manualWorkflowReloadHandler = isManualWorkflowReloadEnabled()
     ? reloadWorkflowFromStudioOutput
     : undefined;
+  const isPlanAccessBlocked = Boolean(mediaPlanAccessCta);
   const { handleDownloadReference, handleSaveReference } = useAiStudioReferenceAssetActions({
     projectId,
     findOutputById,
     saveReferenceToLibrary,
     setUiError,
     isMediaStorageFull,
+    onStorageBlockedSaveAttempt: isPlanAccessBlocked ? onMediaPlanAccessAttempt : undefined,
   });
   const canvasMediaActions = useMemo(
     () => ({
@@ -148,7 +155,7 @@ export const useAiStudioReferenceExperienceRuntime = ({
   const referenceGridHookProps = useAiStudioReferenceGridProps({
     readOutputsFromStore: true,
     activeOutputId,
-    topNotice: isMediaStorageFull ? MEDIA_STORAGE_FULL_USER_MESSAGE : null,
+    topNotice: isMediaStorageFull && !isPlanAccessBlocked ? MEDIA_STORAGE_FULL_USER_MESSAGE : null,
     curatedReferenceIds,
     removedFromAllRefsIds,
     isMediaStorageFull,

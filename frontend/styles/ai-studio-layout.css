@@ -130,6 +130,33 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   color: #fff3de;
 }
 
+.ai-studio-page .ai-alert-banner--plan-access {
+  --app-message-accent: rgba(34, 211, 238, 0.62);
+  --app-message-bg: #25272c;
+  --app-message-border: rgba(255, 255, 255, 0.13);
+  --app-message-text: #f5f7fb;
+  --app-message-muted: rgba(245, 247, 251, 0.82);
+
+  background: #25272c;
+  color: #f5f7fb;
+  box-shadow:
+    0 14px 34px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.ai-studio-page .ai-alert-banner--plan-access .app-message__action {
+  border-color: rgba(255, 162, 92, 0.66);
+  background: linear-gradient(135deg, #ff9a4a 0%, #ff5357 48%, #ff2f7a 100%);
+  color: #fff;
+  box-shadow: 0 0 18px rgba(255, 74, 96, 0.34);
+}
+
+.ai-studio-page .ai-alert-banner--plan-access .app-message__action:hover,
+.ai-studio-page .ai-alert-banner--plan-access .app-message__action:focus-visible {
+  border-color: rgba(255, 205, 130, 0.9);
+  background: linear-gradient(135deg, #ffad55 0%, #ff5d5a 44%, #ff347d 100%);
+}
+
 .ai-studio-page .ai-alert-banner__message {
   margin: 0;
   flex: 1;

@@ -165,6 +165,7 @@ describe("useMediaLibraryFolderDropController", () => {
     const refreshActiveRows = vi.fn().mockResolvedValue(undefined);
     const refreshFolders = vi.fn().mockResolvedValue(undefined);
     const onDropFilesToFolder = vi.fn().mockResolvedValue(undefined);
+    const onStorageQuotaBlockedFileDrop = vi.fn();
     readMediaLibraryDragPayloadMock.mockReturnValue(null);
 
     const { result } = renderHook(() =>
@@ -186,6 +187,7 @@ describe("useMediaLibraryFolderDropController", () => {
         refreshActiveRows,
         refreshFolders,
         onDropFilesToFolder,
+        onStorageQuotaBlockedFileDrop,
       })
     );
 
@@ -209,6 +211,7 @@ describe("useMediaLibraryFolderDropController", () => {
     });
 
     expect(onDropFilesToFolder).not.toHaveBeenCalled();
+    expect(onStorageQuotaBlockedFileDrop).toHaveBeenCalledTimes(1);
     expect(setFolderError).not.toHaveBeenCalledWith("Unable to process dropped files.");
     expect(setMembershipPendingMessage).not.toHaveBeenCalled();
   });

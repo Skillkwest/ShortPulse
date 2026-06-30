@@ -9,7 +9,10 @@ import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../logic/editPromptPolicy";
 import { buildDefaultPricingParams } from "../logic/pricing";
 import { captureVideoFrameSnapshotFile } from "../logic/videoFrameSnapshot";
 import { resolveAiStudioMediaAutosaveRouteEnabled } from "../logic/mediaAutosaveRouteReadiness";
-import { resolveGenerationAccessCta } from "../logic/generationAccessCta";
+import {
+  AI_STUDIO_MEDIA_PLAN_REQUIRED_MESSAGE,
+  resolveGenerationAccessCta,
+} from "../logic/generationAccessCta";
 import {
   resolveWorkflowReloadCharacterContextCandidate,
   resolveWorkflowReloadCharacterSelection,
@@ -29,6 +32,7 @@ import { useAiStudioAudioRerollController } from "../hooks/useAiStudioAudioRerol
 import { useAiStudioCreatePanelRuntime } from "../hooks/useAiStudioCreatePanelRuntime";
 import { useAiStudioEditVideoPanelRuntimes } from "../hooks/useAiStudioEditVideoPanelRuntimes";
 import { useAiStudioReferenceExperienceRuntime } from "../hooks/useAiStudioReferenceExperienceRuntime";
+import { resolveMediaStorageQuotaUserMessage } from "../../../lib/mediaStorageQuota";
 import { useMediaStorageQuotaSummary } from "../../billing/useMediaStorageQuotaSummary";
 import { useResolvedAccountPlan } from "../../billing/useResolvedAccountPlan";
 import { useCreatePulsePresetPageRuntime } from "../hooks/createPulsePageRuntime/useCreatePulsePresetPageRuntime";
@@ -199,6 +203,12 @@ const AiStudioPageRuntimeBody = ({
       }),
     [resolvedPlan, resolvedPlanStatus]
   );
+  const [isMediaPlanNoticeVisible, setIsMediaPlanNoticeVisible] = useState(false);
+  React.useEffect(() => {
+    if (!generationAccessCta) {
+      setIsMediaPlanNoticeVisible(false);
+    }
+  }, [generationAccessCta]);
   const {
     activeCreatePrompt,
     activeCreatePulsePresetId,
@@ -336,6 +346,11 @@ const AiStudioPageRuntimeBody = ({
     videoReferenceText,
     videoResolution,
   } = base;
+  const handleMediaPlanAccessAttempt = useCallback(() => {
+    if (!generationAccessCta) return;
+    setIsMediaPlanNoticeVisible(true);
+    setUiError((current) => (resolveMediaStorageQuotaUserMessage(current) ? null : current));
+  }, [generationAccessCta, setUiError]);
   const [rightRailLayout, setRightRailLayout] = useState(createDefaultRightRailLayout);
   const hydrateRightRailLayout = useCallback((layout: unknown) => {
     setRightRailLayout(sanitizeRightRailLayoutSnapshot(layout));
@@ -701,6 +716,24 @@ const AiStudioPageRuntimeBody = ({
     videoReferenceText,
     videoResolution,
   });
+  const handleFileBrowserSelectionWithPlanNotice = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      if (event.target.files && event.target.files.length > 0 && generationAccessCta) {
+        handleMediaPlanAccessAttempt();
+      }
+      handleFileBrowserSelection(event);
+    },
+    [generationAccessCta, handleFileBrowserSelection, handleMediaPlanAccessAttempt]
+  );
+  const handleReferenceGridFilesWithPlanNotice = useCallback(
+    (files: FileList) => {
+      if (files.length > 0 && generationAccessCta) {
+        handleMediaPlanAccessAttempt();
+      }
+      handleReferenceGridFiles(files);
+    },
+    [generationAccessCta, handleMediaPlanAccessAttempt, handleReferenceGridFiles]
+  );
   const { rerollAudioOutputFromWorkflow } = useAiStudioAudioRerollController({
     findOutputById: base.findOutputById,
     handleVoicesGenerate,
@@ -799,6 +832,8 @@ const AiStudioPageRuntimeBody = ({
   } = useAiStudioReferenceExperienceRuntime({
     base,
     isMediaStorageFull,
+    mediaPlanAccessCta: generationAccessCta,
+    onMediaPlanAccessAttempt: handleMediaPlanAccessAttempt,
     linkedPromptReferenceIds,
     propertiesCreate,
     propertiesEditExpert: editExpertPanelProps,
@@ -858,11 +893,15 @@ const AiStudioPageRuntimeBody = ({
   const pageContentProps = useAiStudioPageContentRuntime({
     sessionId,
     referenceGridFileInputRef,
-    onFileBrowserSelection: handleFileBrowserSelection,
-    uiError,
+    onFileBrowserSelection: handleFileBrowserSelectionWithPlanNotice,
+    uiError: generationAccessCta && resolveMediaStorageQuotaUserMessage(uiError) ? null : uiError,
     uiNotice: effectiveUiNotice,
+    mediaPlanNoticeMessage: isMediaPlanNoticeVisible ? AI_STUDIO_MEDIA_PLAN_REQUIRED_MESSAGE : null,
+    mediaPlanNoticeCta: generationAccessCta,
+    onMediaPlanAccessAttempt: handleMediaPlanAccessAttempt,
     onDismissUiError: dismissError,
     onDismissUiNotice: dismissNotice,
+    onDismissMediaPlanNotice: () => setIsMediaPlanNoticeVisible(false),
     balanceCredits: effectiveBalanceCredits,
     creditTotalCredits: resolvedPlan?.monthlyCreditsCents ?? null,
     pendingHoldCredits: pendingHoldCredits > 0 ? pendingHoldCredits : null,
@@ -979,7 +1018,7 @@ const AiStudioPageRuntimeBody = ({
     resolveStyleLibraryInternalDrop,
     onOpenMediaLibrary: handleOpenMediaLibraryPanelOnly,
     modelModalState,
-    handleReferenceGridFiles,
+    handleReferenceGridFiles: handleReferenceGridFilesWithPlanNotice,
     triggerFilePicker,
     resolveCharacterDropReference,
     canvasTearOutTargetRegistry: base.canvasTearOutTargetRegistry,

@@ -13,7 +13,12 @@ import {
   StackSimple,
 } from "phosphor-react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
-import { AppMessage, AppMessageStack } from "../../../components/AppMessage";
+import {
+  AppMessage,
+  AppMessageStack,
+  type AppMessageAction,
+  type AppMessageTone,
+} from "../../../components/AppMessage";
 import {
   normalizeCustomerFacingProviderError,
   normalizeProviderSideGenerationFailure,
@@ -58,6 +63,7 @@ import type {
   AiStudioDetailNavigationContract,
   AiStudioReferenceGridContract,
 } from "../hooks/contracts/pageContentContracts";
+import type { GenerationAccessCta } from "../logic/generationAccessCta";
 import type { StudioOutput, ToolId, WorkflowReloadMediaKindHint } from "../types";
 import type {
   LibraryMediaReferencePayload,
@@ -334,16 +340,22 @@ type AiStudioAlertsStackProps = {
   uiError: string | null;
   uiNotice: string | null;
   visibleFailures: FailureCard[];
+  mediaPlanNotice: {
+    message: string;
+    action: AppMessageAction;
+  } | null;
   onDismissUiError: () => void;
   onDismissUiNotice: () => void;
+  onDismissMediaPlanNotice: () => void;
   onDismissFailure: (id: string) => void;
 };
 
 type AiStudioAlertBannerProps = {
   message: string;
-  variant: "error" | "warning";
+  variant: "error" | "warning" | "plan-access";
   role: "alert" | "status";
   live: "assertive" | "polite";
+  action?: AppMessageAction;
   onDismiss: () => void;
 };
 
@@ -365,18 +377,23 @@ const AiStudioAlertBanner = ({
   variant,
   role,
   live,
+  action,
   onDismiss,
-}: AiStudioAlertBannerProps) => (
-  <AppMessage
-    className={`ai-alert-banner ai-alert-banner--${variant}`}
-    tone={variant}
-    mode="banner"
-    message={message}
-    role={role}
-    ariaLive={live}
-    onDismiss={onDismiss}
-  />
-);
+}: AiStudioAlertBannerProps) => {
+  const tone: AppMessageTone = variant === "plan-access" ? "info" : variant;
+  return (
+    <AppMessage
+      className={`ai-alert-banner ai-alert-banner--${variant}`}
+      tone={tone}
+      mode="banner"
+      message={message}
+      role={role}
+      ariaLive={live}
+      action={action}
+      onDismiss={onDismiss}
+    />
+  );
+};
 
 const normalizeAlertText = (value: string | null | undefined): string =>
   (value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
@@ -422,8 +439,10 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
   uiError,
   uiNotice,
   visibleFailures,
+  mediaPlanNotice,
   onDismissUiError,
   onDismissUiNotice,
+  onDismissMediaPlanNotice,
   onDismissFailure,
 }: AiStudioAlertsStackProps) {
   const normalizedUiError = normalizeAlertText(uiError);
@@ -466,7 +485,9 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
       group.ids.forEach((id) => onDismissFailure(id));
     });
   }, [groupedFailures, onDismissFailure]);
-  const hasVisibleAlerts = Boolean(effectiveUiError || uiNotice || groupedFailures.length);
+  const hasVisibleAlerts = Boolean(
+    mediaPlanNotice || effectiveUiError || uiNotice || groupedFailures.length
+  );
   const dismissUiErrorRef = React.useRef(onDismissUiError);
   const dismissUiNoticeRef = React.useRef(onDismissUiNotice);
 
@@ -513,6 +534,16 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
       placement="viewport"
       label="AI Studio notifications"
     >
+      {mediaPlanNotice ? (
+        <AiStudioAlertBanner
+          message={mediaPlanNotice.message}
+          variant="plan-access"
+          role="status"
+          live="polite"
+          action={mediaPlanNotice.action}
+          onDismiss={onDismissMediaPlanNotice}
+        />
+      ) : null}
       {effectiveUiError ? (
         <AiStudioAlertBanner
           message={effectiveUiError}
@@ -566,8 +597,12 @@ export type AiStudioPageContentProps = {
   onFileBrowserSelection: (event: React.ChangeEvent<HTMLInputElement>) => void;
   uiError: string | null;
   uiNotice: string | null;
+  mediaPlanNoticeMessage?: string | null;
+  mediaPlanNoticeCta?: GenerationAccessCta | null;
+  onMediaPlanAccessAttempt?: () => void;
   onDismissUiError: () => void;
   onDismissUiNotice: () => void;
+  onDismissMediaPlanNotice?: () => void;
   balanceCredits: number | null;
   creditTotalCredits: number | null;
   pendingHoldCredits: number | null;
@@ -673,8 +708,12 @@ export function AiStudioPageContent({
   onFileBrowserSelection,
   uiError,
   uiNotice,
+  mediaPlanNoticeMessage = null,
+  mediaPlanNoticeCta = null,
+  onMediaPlanAccessAttempt,
   onDismissUiError,
   onDismissUiNotice,
+  onDismissMediaPlanNotice,
   balanceCredits,
   creditTotalCredits,
   balanceLoading,
@@ -744,6 +783,22 @@ export function AiStudioPageContent({
   onSelectedStylePromptChange,
   onSelectedStyleContextChange,
 }: AiStudioPageContentProps) {
+  const mediaPlanNotice = React.useMemo(
+    () =>
+      mediaPlanNoticeMessage && mediaPlanNoticeCta
+        ? {
+            message: mediaPlanNoticeMessage,
+            action: {
+              label: mediaPlanNoticeCta.label,
+              href: mediaPlanNoticeCta.href,
+            },
+          }
+        : null,
+    [mediaPlanNoticeCta, mediaPlanNoticeMessage]
+  );
+  const handleDismissMediaPlanNotice = React.useCallback(() => {
+    onDismissMediaPlanNotice?.();
+  }, [onDismissMediaPlanNotice]);
   useAiStudioStabilityLifecycleTelemetry({
     projectId,
     projectRouteRequested,
@@ -1564,6 +1619,8 @@ export function AiStudioPageContent({
             projectNameFocusRequestKey={mediaLibraryProjectNameFocusRequestKey}
             isMediaLibraryPanelExpanded={isMediaLibraryPanelExpanded}
             isStorageQuotaBlocked={isMediaStorageFull}
+            isPlanAccessBlocked={Boolean(mediaPlanNoticeCta)}
+            onPlanAccessBlockedUploadAttempt={onMediaPlanAccessAttempt}
             onExpandMediaLibraryPanel={handleExpandMediaLibraryPanel}
             onCollapseMediaLibraryPanel={handleCollapseMediaLibraryPanel}
             resolveInternalDropItem={resolveMediaLibraryInternalDropItem}
@@ -1593,6 +1650,8 @@ export function AiStudioPageContent({
       handleExpandMediaLibraryPanel,
       isMediaLibraryPanelExpanded,
       mediaLibraryProjectNameFocusRequestKey,
+      mediaPlanNoticeCta,
+      onMediaPlanAccessAttempt,
       onProjectNameCommit,
       projectName,
       resolveMediaLibraryInternalDropItem,
@@ -1869,8 +1928,10 @@ export function AiStudioPageContent({
           uiError={uiError}
           uiNotice={uiNotice}
           visibleFailures={visibleFailures}
+          mediaPlanNotice={mediaPlanNotice}
           onDismissUiError={onDismissUiError}
           onDismissUiNotice={onDismissUiNotice}
+          onDismissMediaPlanNotice={handleDismissMediaPlanNotice}
           onDismissFailure={onDismissFailure}
         />
 

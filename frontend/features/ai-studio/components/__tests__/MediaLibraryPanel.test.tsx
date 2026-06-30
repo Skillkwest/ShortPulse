@@ -4600,4 +4600,37 @@ describe("MediaLibraryPanel", () => {
     );
     expect(screen.getByRole("button", { name: "Add files" })).toBeDisabled();
   });
+
+  it("keeps no-plan upload attempts clickable so the page can show the plan banner", async () => {
+    useMediaStorageQuotaSummaryMock.mockReturnValue({
+      quotaSummary: {
+        usedBytes: 0,
+        baseLimitBytes: 0,
+        addonLimitBytes: 0,
+        totalLimitBytes: 0,
+        remainingBytes: 0,
+        isOverLimit: true,
+      },
+      loading: false,
+      refreshQuotaSummary: vi.fn(),
+    });
+    const onPlanAccessBlockedUploadAttempt = vi.fn();
+
+    render(
+      <MediaLibraryPanel
+        onSelectMedia={vi.fn()}
+        onSelectPrompt={vi.fn()}
+        isPlanAccessBlocked
+        onPlanAccessBlockedUploadAttempt={onPlanAccessBlockedUploadAttempt}
+      />
+    );
+
+    const addFilesButton = await screen.findByRole("button", { name: "Add files" });
+    expect(addFilesButton).not.toBeDisabled();
+    expect(screen.queryByText(/Your media storage is full\./i)).not.toBeInTheDocument();
+
+    fireEvent.click(addFilesButton);
+
+    expect(onPlanAccessBlockedUploadAttempt).toHaveBeenCalledTimes(1);
+  });
 });

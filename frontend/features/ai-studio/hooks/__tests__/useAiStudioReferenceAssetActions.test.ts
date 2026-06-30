@@ -850,4 +850,28 @@ describe("useAiStudioReferenceAssetActions", () => {
     expect(saveReferenceToLibrary).not.toHaveBeenCalled();
     expect(setUiError).toHaveBeenCalledWith(MEDIA_STORAGE_FULL_USER_MESSAGE);
   });
+
+  it("routes blocked save attempts through the optional storage-block callback", () => {
+    const saveReferenceToLibrary = vi.fn();
+    const setUiError = vi.fn();
+    const onStorageBlockedSaveAttempt = vi.fn();
+    const { result } = renderHook(() =>
+      useAiStudioReferenceAssetActions(
+        createParams({
+          isMediaStorageFull: true,
+          saveReferenceToLibrary,
+          setUiError: asDispatch<string | null>(setUiError),
+          onStorageBlockedSaveAttempt,
+        })
+      )
+    );
+
+    act(() => {
+      result.current.handleSaveReference("out-1");
+    });
+
+    expect(saveReferenceToLibrary).not.toHaveBeenCalled();
+    expect(setUiError).not.toHaveBeenCalled();
+    expect(onStorageBlockedSaveAttempt).toHaveBeenCalledTimes(1);
+  });
 });

@@ -21,6 +21,9 @@ export const AI_STUDIO_PLAN_CTA: GenerationAccessCta = {
   ariaLabel: "View subscription plans",
 };
 
+export const AI_STUDIO_MEDIA_PLAN_REQUIRED_MESSAGE =
+  "Choose a plan to add media to your Reference Grid and Media Library.";
+
 /**
  * Returns the shared plan CTA only after billing confirms a baseline/free plan.
  */

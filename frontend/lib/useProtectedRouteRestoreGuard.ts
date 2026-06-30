@@ -10,7 +10,6 @@ import {
   clearSupabaseSessionSnapshot,
   isSupabaseAbortError,
   readSupabaseSession,
-  refreshSupabaseSession,
 } from "./supabaseClient";
 import {
   clearLogoutEpochWhenSessionIsFresh,
@@ -31,7 +30,7 @@ type RestoreCheckOptions = {
   blockWhileChecking?: boolean;
 };
 
-const isTransientVisibleRefreshFailure = (error: unknown): boolean =>
+const isTransientVisibleSessionCheckFailure = (error: unknown): boolean =>
   isAuthRetryableFetchError(error) || isSupabaseAbortError(error);
 
 /**
@@ -71,18 +70,20 @@ export const useProtectedRouteRestoreGuard = ({
         setCheckingState(true);
       }
 
-      let refreshError: unknown = null;
+      let sessionCheckError: unknown = null;
       const session = await (
-        blockWhileChecking
-          ? readSupabaseSession({ forceRefresh: true })
-          : refreshSupabaseSession({ preserveSnapshotOnError: true })
+        blockWhileChecking ? readSupabaseSession({ forceRefresh: true }) : readSupabaseSession()
       ).catch((error: unknown) => {
-        refreshError = error;
+        sessionCheckError = error;
         return null;
       });
       if (checkVersionRef.current !== checkVersion) return;
 
-      if (refreshError && !blockWhileChecking && isTransientVisibleRefreshFailure(refreshError)) {
+      if (
+        sessionCheckError &&
+        !blockWhileChecking &&
+        isTransientVisibleSessionCheckFailure(sessionCheckError)
+      ) {
         setCheckingState(false);
         return;
       }
@@ -119,13 +120,10 @@ export const useProtectedRouteRestoreGuard = ({
       return undefined;
     }
 
-    const handlePageHide = (event: PageTransitionEvent) => {
+    const handlePageShow = (event: PageTransitionEvent) => {
       if (event.persisted) {
-        setCheckingState(true);
+        void runRestoreCheck({ blockWhileChecking: true });
       }
-    };
-    const handlePageShow = () => {
-      void runRestoreCheck({ blockWhileChecking: true });
     };
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
@@ -133,12 +131,10 @@ export const useProtectedRouteRestoreGuard = ({
       }
     };
 
-    window.addEventListener("pagehide", handlePageHide);
     window.addEventListener("pageshow", handlePageShow);
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      window.removeEventListener("pagehide", handlePageHide);
       window.removeEventListener("pageshow", handlePageShow);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };

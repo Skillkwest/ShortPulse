@@ -80,7 +80,10 @@ Purpose: give Gear Ball the compact execution checklist for its real job: analyz
 - related tails were folded into the lane after the earlier proof
 - a post-validation fix changed committed content
 
-If rerun is required, rerun only the affected rung set (`gear-ball:preflight`, owning tests, `build`, or `docs:check`). Do not duplicate the full earlier ladder just because a commit happened. 14. After the last validation rung and before the final report, rerun `git status --short`. If any non-temp repo-backed file is still live, the run is not finished. 15. After a CI-recovery push, classify any remaining or newly exposed GitHub failures before editing again:
+If rerun is required, rerun only the affected rung set (`gear-ball:preflight`, owning tests, `build`, or `docs:check`). Do not duplicate the full earlier ladder just because a commit happened.
+
+14. After the last validation rung and before the final report, rerun `git status --short`. If any non-temp repo-backed file is still live, the run is not finished.
+15. After a CI-recovery push, classify any remaining or newly exposed GitHub failures before editing again:
 
 - `same-root`
 - `adjacent-test-contract`
@@ -116,6 +119,16 @@ If rerun is required, rerun only the affected rung set (`gear-ball:preflight`, o
    - validation/manifest/leftover-discipline improvements
 10. Do not expand the run into Gear Ball process maintenance unless the user explicitly asked for that separate job.
 11. Treat user corrections about missing full-worktree accounting as behavior/SOP drift and record them in retained training data when the lesson is still new.
+
+## Process-Work Closeout
+
+Use this instead of the publish closeout when the user explicitly asks Gear Ball to audit, prune, train, or update its own operating surfaces.
+
+1. Confirm the target was Gear Ball and list the owned surfaces touched.
+2. Report what stayed cold, compressed, archived, or intentionally left alone.
+3. Run docs-only validation for edited files.
+4. Do not append a performance-ledger score row unless the user separately authorizes a publish-style SOP score loop.
+5. Do not commit or push unless the user explicitly asks for normal Gear Ball publish handling after the process-work changes.
 
 ## Stop Conditions
 

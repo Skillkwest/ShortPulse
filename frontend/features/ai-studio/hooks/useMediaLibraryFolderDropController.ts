@@ -56,6 +56,7 @@ type UseMediaLibraryFolderDropControllerArgs = {
   refreshFolders: () => Promise<void>;
   resolveInternalDropItem?: ResolveInternalDropItem;
   onDropFilesToFolder?: (folderId: string, files: FileList) => Promise<void>;
+  onStorageQuotaBlockedFileDrop?: () => void;
 };
 
 type UseMediaLibraryFolderDropControllerResult = {
@@ -182,6 +183,7 @@ export const useMediaLibraryFolderDropController = ({
   refreshFolders,
   resolveInternalDropItem,
   onDropFilesToFolder,
+  onStorageQuotaBlockedFileDrop,
 }: UseMediaLibraryFolderDropControllerArgs): UseMediaLibraryFolderDropControllerResult => {
   const [hoveredFolderId, setHoveredFolderId] = useState<string | null>(null);
   const [hoveredContentFolderId, setHoveredContentFolderId] = useState<string | null>(null);
@@ -310,6 +312,7 @@ export const useMediaLibraryFolderDropController = ({
         return;
       }
       if (isStorageQuotaBlocked && droppedFiles && droppedFiles.length > 0) {
+        onStorageQuotaBlockedFileDrop?.();
         return;
       }
       setMembershipPendingMessage(
@@ -448,6 +451,7 @@ export const useMediaLibraryFolderDropController = ({
       if (droppedFiles && droppedFiles.length > 0) {
         if (isStorageQuotaBlocked) {
           setMembershipPendingMessage(null);
+          onStorageQuotaBlockedFileDrop?.();
           return;
         }
         if (!onDropFilesToFolder) {
@@ -474,6 +478,7 @@ export const useMediaLibraryFolderDropController = ({
       folders,
       isStorageQuotaBlocked,
       onDropFilesToFolder,
+      onStorageQuotaBlockedFileDrop,
       projectId,
       refreshActiveRows,
       refreshFolderState,

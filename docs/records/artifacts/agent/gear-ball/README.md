@@ -17,7 +17,7 @@ These artifacts support training, traceability, and workflow continuity. They do
 
 ## Recordkeeping Default
 
-Always:
+For substantive publish SOP runs:
 
 - keep the self-audit and score in chat
 - append one compact row to `performance-ledger.md`
@@ -29,6 +29,12 @@ Only update heavier retained surfaces when the run:
 - changed Gear Ball process/tooling
 - or explicitly required retained process records
 
+For Gear Ball process-work lanes:
+
+- do not append a performance score row by default
+- do not load full ledgers or dated reports unless the current audit names them or repeats their exact failure pattern
+- prefer updating the active contract, memory, hot path, or runtime-load policy over adding another retained report
+
 ## Canonical Entry Points
 
 - Agent contract: `docs/agents/gear-ball/README.md`
@@ -37,3 +43,7 @@ Only update heavier retained surfaces when the run:
 - Worktree batch SOP: `docs/sops/sop_gear_ball_worktree_batch_commit_operations.md`
 - GitHub operations SOP: `docs/sops/sop_gear_ball_github_pr_merge_operations.md`
 - Shared-risk map: `docs/agents/gear-ball/shared-file-risk-map.md`
+
+## Default-Load Boundary
+
+This artifact folder is cold storage for normal SOP startup. Load its indexes first, then only the specific artifact needed for the current scoring, report, or training question.

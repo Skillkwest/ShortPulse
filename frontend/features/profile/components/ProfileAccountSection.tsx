@@ -2,6 +2,7 @@
  * Account settings section for the profile workspace.
  * Groups identity, billing, security, and AI Studio preference controls into cohesive workspace panels.
  */
+import Link from "next/link";
 import { CreditCard } from "phosphor-react";
 import { ProfilePreferenceToggleCard } from "./ProfilePreferenceToggleCard";
 import { profileClass } from "../profileRouteStyles";
@@ -140,8 +141,17 @@ export function ProfileAccountSection({
         icon={CreditCard}
         className="profile-billing-panel"
       >
-        {portalManagementAvailable ? (
-          <div className={profileClass("profile-actions")}>
+        <div className={profileClass("profile-actions")}>
+          <Link
+            href="/profile?section=subscription"
+            className={profileClass(
+              "profile-button",
+              portalManagementAvailable ? "ghost-btn" : "primary-btn"
+            )}
+          >
+            Manage subscription
+          </Link>
+          {portalManagementAvailable ? (
             <button
               type="button"
               className={profileClass("profile-button", "primary-btn")}
@@ -150,10 +160,11 @@ export function ProfileAccountSection({
             >
               {portalLoading ? "Opening secure portal…" : portalActionLabel}
             </button>
-          </div>
-        ) : (
+          ) : null}
+        </div>
+        {!portalManagementAvailable ? (
           <p className="tiny subdued">Billing changes for this account are managed internally.</p>
-        )}
+        ) : null}
       </ProfilePanel>
 
       <ProfilePanel

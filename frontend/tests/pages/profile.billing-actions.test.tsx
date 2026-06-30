@@ -258,6 +258,10 @@ describe("Profile credits actions", () => {
 
     expect(screen.getByRole("heading", { name: "Account settings" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Payment details" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Manage subscription" })).toHaveAttribute(
+      "href",
+      "/profile?section=subscription"
+    );
   });
 
   it("shows an info notice when credit refresh returns the same balance", async () => {
@@ -323,6 +327,10 @@ describe("Profile credits actions", () => {
     });
 
     render(<ProfilePage />);
+    expect(screen.getByRole("link", { name: "Manage subscription" })).toHaveAttribute(
+      "href",
+      "/profile?section=subscription"
+    );
     fireEvent.click(
       screen.getByRole("button", { name: "Manage card, invoices, and subscription" })
     );
@@ -370,6 +378,10 @@ describe("Profile credits actions", () => {
 
     expect(await screen.findByRole("heading", { name: "Account settings" })).toBeInTheDocument();
     expect(screen.getByText("Subscription managed internally outside Stripe")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Manage subscription" })).toHaveAttribute(
+      "href",
+      "/profile?section=subscription"
+    );
     expect(screen.queryByRole("button", { name: "Managed internally" })).not.toBeInTheDocument();
   });
 });

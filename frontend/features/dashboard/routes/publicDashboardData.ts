@@ -9,6 +9,7 @@ import {
   readActiveDashboardTutorials,
   type DashboardTutorial,
 } from "../../../lib/server/api/dashboardTutorials";
+import { withStaticGenerationDataTimeout } from "../../../lib/server/api/staticGenerationTimeout";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
 
 export type PublicDashboardStaticProps = {
@@ -39,8 +40,8 @@ const loadDashboardTutorialsSnapshot = async (): Promise<DashboardTutorial[]> =>
  */
 export const loadPublicDashboardStaticProps = async (): Promise<PublicDashboardStaticProps> => {
   const [billingCatalogResult, dashboardTutorialsResult] = await Promise.allSettled([
-    loadBillingCatalogSnapshot(),
-    loadDashboardTutorialsSnapshot(),
+    withStaticGenerationDataTimeout(loadBillingCatalogSnapshot(), "dashboard billing catalog"),
+    withStaticGenerationDataTimeout(loadDashboardTutorialsSnapshot(), "dashboard tutorials"),
   ]);
 
   return {

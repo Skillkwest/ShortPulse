@@ -12,6 +12,7 @@ const useMediaStorageQuotaSummaryMock = vi.hoisted(() => vi.fn());
 const ensureSupabaseClientMock = vi.hoisted(() => vi.fn());
 const ensureSupabaseQueryClientMock = vi.hoisted(() => vi.fn());
 const useSupabaseSessionStateMock = vi.hoisted(() => vi.fn());
+const readSupabaseSessionMock = vi.hoisted(() => vi.fn());
 const primeSupabaseSessionMock = vi.hoisted(() => vi.fn());
 const readSupabaseSessionBootstrapHintMock = vi.hoisted(() => vi.fn());
 const readPersistedSupabaseSessionHintMock = vi.hoisted(() => vi.fn());
@@ -65,6 +66,7 @@ vi.mock("../../lib/supabaseClient", () => ({
   ensureSupabaseClient: (...args: unknown[]) => ensureSupabaseClientMock(...args),
   ensureSupabaseQueryClient: (...args: unknown[]) => ensureSupabaseQueryClientMock(...args),
   useSupabaseSessionState: (...args: unknown[]) => useSupabaseSessionStateMock(...args),
+  readSupabaseSession: (...args: unknown[]) => readSupabaseSessionMock(...args),
   primeSupabaseSession: (...args: unknown[]) => primeSupabaseSessionMock(...args),
 }));
 
@@ -129,6 +131,7 @@ describe("Index route behavior", () => {
       session: null,
       user: null,
     });
+    readSupabaseSessionMock.mockResolvedValue(null);
     useMediaComplianceGateMock.mockReturnValue(acceptedMediaComplianceState);
   });
 
@@ -221,6 +224,7 @@ describe("Index route behavior", () => {
       session: { user: appUser },
       user: appUser,
     });
+    readSupabaseSessionMock.mockResolvedValue({ user: appUser });
     useMediaComplianceGateMock.mockReturnValue({
       ...acceptedMediaComplianceState,
       accepted: false,

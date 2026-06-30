@@ -3,7 +3,7 @@
  * Keeps image/video/audio card behavior aligned across modal, panel, Elements, and Character grids.
  */
 import React from "react";
-import { Check, DownloadSimple, FlowArrow, TrashSimple, X } from "phosphor-react";
+import { CheckCircle, DownloadSimple, FlowArrow, TrashSimple, X } from "phosphor-react";
 import { resolveDurablePreviewStoragePath } from "../../../../lib/mediaPreviewPath";
 import { resolveMediaRowKind } from "../../../../lib/mediaRowKind";
 import { canReloadMediaLibraryWorkflow } from "../../logic/mediaLibraryWorkflowReload";
@@ -166,87 +166,100 @@ export function MediaLibraryCardActions({
 }: MediaLibraryCardActionsProps) {
   const showExclusiveDangerAction =
     dangerActionMode === "exclusive" && (canShowRemoveAction || canShowDeleteAction);
+  const shouldShowTopActions =
+    canShowDownloadAction ||
+    (dangerActionMode === "separate" && (canShowRemoveAction || canShowDeleteAction)) ||
+    showExclusiveDangerAction;
   return (
-    <div className="media-library-panel-card-actions" aria-label={labels.actionAriaLabel}>
-      {canShowDownloadAction ? (
-        <button
-          type="button"
-          className="reference-card-action-btn media-library-panel-card-download-btn"
-          aria-label={labels.downloadLabel}
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            onDownloadMediaFile?.(file);
-          }}
-        >
-          <DownloadSimple size={16} weight="bold" aria-hidden />
-        </button>
+    <>
+      {shouldShowTopActions ? (
+        <div className="media-library-panel-card-actions" aria-label={labels.actionAriaLabel}>
+          {canShowDownloadAction ? (
+            <button
+              type="button"
+              className="reference-card-action-btn media-library-panel-card-download-btn"
+              aria-label={labels.downloadLabel}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onDownloadMediaFile?.(file);
+              }}
+            >
+              <DownloadSimple size={16} weight="bold" aria-hidden />
+            </button>
+          ) : null}
+          {dangerActionMode === "separate" && canShowRemoveAction ? (
+            <button
+              type="button"
+              className="reference-card-action-btn reference-card-action-btn--danger media-library-panel-card-remove-btn"
+              aria-label={labels.removeLabel}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onRemoveMediaFromFolder?.(file);
+              }}
+            >
+              <X size={16} weight="bold" aria-hidden />
+            </button>
+          ) : null}
+          {dangerActionMode === "separate" && canShowDeleteAction ? (
+            <button
+              type="button"
+              className="reference-card-action-btn reference-card-action-btn--danger media-library-panel-card-remove-btn"
+              aria-label={labels.deleteLabel}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onDeleteMediaFromLibrary?.(file);
+              }}
+            >
+              <TrashSimple size={16} weight="bold" aria-hidden />
+            </button>
+          ) : null}
+          {showExclusiveDangerAction ? (
+            <button
+              type="button"
+              className="reference-card-action-btn reference-card-action-btn--danger media-library-panel-card-remove-btn"
+              aria-label={canShowDeleteAction ? labels.deleteLabel : labels.removeLabel}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (canShowDeleteAction) {
+                  onDeleteMediaFromLibrary?.(file);
+                  return;
+                }
+                onRemoveMediaFromFolder?.(file);
+              }}
+            >
+              {canShowDeleteAction ? (
+                <TrashSimple size={16} weight="bold" aria-hidden />
+              ) : (
+                <X size={16} weight="bold" aria-hidden />
+              )}
+            </button>
+          ) : null}
+        </div>
       ) : null}
       {canShowWorkflowReloadAction ? (
-        <button
-          type="button"
-          className="reference-card-action-btn media-library-panel-card-reload-workflow-btn"
-          aria-label={labels.workflowReloadLabel}
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            onReloadWorkflowFromMedia?.(file);
-          }}
+        <div
+          className="media-library-panel-card-actions media-library-panel-card-actions--workflow"
+          aria-label="Workflow actions"
         >
-          <FlowArrow size={16} weight="bold" aria-hidden />
-        </button>
+          <button
+            type="button"
+            className="reference-card-action-btn media-library-panel-card-reload-workflow-btn"
+            aria-label={labels.workflowReloadLabel}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onReloadWorkflowFromMedia?.(file);
+            }}
+          >
+            <FlowArrow size={16} weight="bold" aria-hidden />
+          </button>
+        </div>
       ) : null}
-      {dangerActionMode === "separate" && canShowRemoveAction ? (
-        <button
-          type="button"
-          className="reference-card-action-btn reference-card-action-btn--danger media-library-panel-card-remove-btn"
-          aria-label={labels.removeLabel}
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            onRemoveMediaFromFolder?.(file);
-          }}
-        >
-          <X size={16} weight="bold" aria-hidden />
-        </button>
-      ) : null}
-      {dangerActionMode === "separate" && canShowDeleteAction ? (
-        <button
-          type="button"
-          className="reference-card-action-btn reference-card-action-btn--danger media-library-panel-card-remove-btn"
-          aria-label={labels.deleteLabel}
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            onDeleteMediaFromLibrary?.(file);
-          }}
-        >
-          <TrashSimple size={16} weight="bold" aria-hidden />
-        </button>
-      ) : null}
-      {showExclusiveDangerAction ? (
-        <button
-          type="button"
-          className="reference-card-action-btn reference-card-action-btn--danger media-library-panel-card-remove-btn"
-          aria-label={canShowDeleteAction ? labels.deleteLabel : labels.removeLabel}
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            if (canShowDeleteAction) {
-              onDeleteMediaFromLibrary?.(file);
-              return;
-            }
-            onRemoveMediaFromFolder?.(file);
-          }}
-        >
-          {canShowDeleteAction ? (
-            <TrashSimple size={16} weight="bold" aria-hidden />
-          ) : (
-            <X size={16} weight="bold" aria-hidden />
-          )}
-        </button>
-      ) : null}
-    </div>
+    </>
   );
 }
 
@@ -278,7 +291,7 @@ const renderSelectionToggle = ({
         onToggleMediaSelection(file);
       }}
     >
-      {isSelected ? <Check size={17} weight="fill" aria-hidden /> : null}
+      {isSelected ? <CheckCircle size={16} weight="fill" aria-hidden /> : null}
     </button>
   );
 };

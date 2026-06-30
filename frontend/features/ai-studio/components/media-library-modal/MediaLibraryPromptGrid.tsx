@@ -1,5 +1,5 @@
 import React, { type MutableRefObject } from "react";
-import { Check, TrashSimple, X } from "phosphor-react";
+import { CheckCircle, TrashSimple, X } from "phosphor-react";
 import { useMediaMasonryVirtualization } from "../../../media-library/hooks/useMediaMasonryVirtualization";
 import { MEDIA_LIBRARY_VIRTUALIZATION_ENABLED } from "../../../media-library/logic/mediaLibraryRuntimeConfig";
 import { formatDate, type PromptRow } from "../../logic/mediaLibraryModalModel";
@@ -165,7 +165,7 @@ export function MediaLibraryPromptGrid({
               >
                 {isSelected ? (
                   <span className="media-library-select-indicator" aria-hidden>
-                    <Check size={17} weight="fill" />
+                    <CheckCircle size={16} weight="fill" />
                   </span>
                 ) : null}
                 <div className="prompt-card-header">

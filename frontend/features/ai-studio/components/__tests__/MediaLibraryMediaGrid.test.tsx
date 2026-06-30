@@ -345,15 +345,24 @@ describe("MediaLibraryMediaGrid", () => {
     );
   });
 
-  it("anchors shared card actions bottom-left and video duration badges bottom-right", () => {
+  it("anchors media card actions top-right, workflow actions bottom-left, and duration badges bottom-right", () => {
     expect(mediaLibraryPanelStylesheet).toMatch(
-      /\.media-library-panel-card-actions\s*{[^}]*left:\s*6px;[^}]*bottom:\s*6px;/s
-    );
-    expect(mediaLibraryPanelStylesheet).not.toMatch(
       /\.media-library-panel-card-actions\s*{[^}]*top:\s*6px;[^}]*right:\s*6px;/s
     );
     expect(mediaLibraryPanelStylesheet).toMatch(
+      /\.media-library-panel-card-actions--workflow\s*{[^}]*top:\s*auto;[^}]*right:\s*auto;[^}]*left:\s*6px;[^}]*bottom:\s*6px;/s
+    );
+    expect(mediaLibraryPanelStylesheet).toMatch(
       /\.media-library-panel\s+\.media-library-panel-media-duration\s*{[^}]*right:\s*10px;[^}]*bottom:\s*10px;/s
+    );
+  });
+
+  it("keeps media-library selected markers visually aligned with Reference Grid check chips", () => {
+    expect(mediaLibraryPanelStylesheet).toMatch(
+      /\.media-library-panel-selection-toggle,\s*\.media-library-select-indicator\s*{[^}]*top:\s*6px;[^}]*left:\s*6px;[^}]*width:\s*20px;[^}]*height:\s*20px;[^}]*border-radius:\s*999px;/s
+    );
+    expect(mediaLibraryPanelStylesheet).toMatch(
+      /\.media-library-panel-selection-toggle,\s*\.media-library-select-indicator\s*{[^}]*border:\s*1px solid rgba\(110, 231, 183, 0\.75\);[^}]*background:\s*rgba\(10, 14, 18, 0\.86\);[^}]*color:\s*#6ee7b7;/s
     );
   });
 
@@ -559,7 +568,18 @@ describe("MediaLibraryMediaGrid", () => {
       <MediaLibraryMediaGrid {...props} onReloadWorkflowFromMedia={onReloadWorkflowFromMedia} />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Reload workflow for glass-fox.png" }));
+    const downloadButton = screen.getByRole("button", { name: "Download glass-fox.png" });
+    const reloadButton = screen.getByRole("button", { name: "Reload workflow for glass-fox.png" });
+    const topActionRow = downloadButton.parentElement;
+    const workflowActionRow = reloadButton.parentElement;
+
+    expect(topActionRow).toHaveClass("media-library-panel-card-actions");
+    expect(topActionRow).not.toHaveClass("media-library-panel-card-actions--workflow");
+    expect(workflowActionRow).toHaveClass("media-library-panel-card-actions");
+    expect(workflowActionRow).toHaveClass("media-library-panel-card-actions--workflow");
+    expect(workflowActionRow).not.toBe(topActionRow);
+
+    fireEvent.click(reloadButton);
 
     expect(onReloadWorkflowFromMedia).toHaveBeenCalledWith(props.activeMedia[0]);
 

@@ -7,7 +7,13 @@ import { reportAppError } from "../../../lib/appErrorReporter";
 export type AiStudioStabilityEvent =
   | "session_started"
   | "visibility_hidden"
+  | "visibility_visible"
   | "pagehide"
+  | "pageshow"
+  | "beforeunload"
+  | "unload"
+  | "window_blur"
+  | "window_focus"
   | "first_grid_commit"
   | "pressure_level_changed"
   | "pressure_quarantine_set";

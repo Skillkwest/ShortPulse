@@ -1041,13 +1041,20 @@
 
 .media-library-panel-card-actions {
   position: absolute;
-  left: 6px;
-  bottom: 6px;
+  top: 6px;
+  right: 6px;
   display: flex;
   gap: 6px;
   z-index: 4;
   opacity: 0;
   pointer-events: none;
+}
+
+.media-library-panel-card-actions--workflow {
+  top: auto;
+  right: auto;
+  left: 6px;
+  bottom: 6px;
 }
 
 .media-library-panel-media-card-shell:hover .media-library-panel-card-actions,
@@ -1061,38 +1068,44 @@
 .media-library-panel-selection-toggle,
 .media-library-select-indicator {
   position: absolute;
-  top: 8px;
-  left: 8px;
-  width: 22px;
-  height: 22px;
-  border-radius: 7px;
-  border: 0;
-  background: rgba(16, 19, 24, 0.9);
-  color: rgba(154, 228, 179, 0.96);
+  top: 6px;
+  left: 6px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(110, 231, 183, 0.75);
+  background: rgba(10, 14, 18, 0.86);
+  color: #6ee7b7;
   z-index: 5;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.22);
+  box-shadow:
+    0 10px 22px rgba(0, 0, 0, 0.38),
+    0 0 0 1px rgba(110, 231, 183, 0.16) inset;
 }
 
 .media-library-panel-selection-toggle {
   cursor: pointer;
   transition:
     background 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
     color 0.18s ease;
 }
 
 .media-library-panel-selection-toggle:hover,
 .media-library-panel-selection-toggle:focus-visible {
-  background: rgba(24, 29, 35, 0.96);
-  color: rgba(185, 241, 203, 0.98);
+  border-color: rgba(137, 246, 201, 0.9);
+  background: rgba(12, 18, 22, 0.92);
+  color: #89f6c9;
 }
 
 .media-library-panel-selection-toggle.is-selected,
 .media-library-select-indicator {
-  background: rgba(18, 22, 27, 0.94);
-  color: rgba(165, 232, 188, 0.98);
+  background: rgba(10, 14, 18, 0.86);
+  color: #6ee7b7;
 }
 
 .media-library-select-indicator {

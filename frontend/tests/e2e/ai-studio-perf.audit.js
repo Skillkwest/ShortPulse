@@ -100,6 +100,7 @@ async function main() {
     },
     referenceGridTargetSeed: null,
     referenceGridActiveWorksetSeed: null,
+    projectRestore: null,
     referenceGrid: null,
     referenceGridActiveWorkset: null,
     studioShell: null,
@@ -215,14 +216,27 @@ async function main() {
       async ({ counts }) => globalThis.__shortpulseAiStudioPerf.runStudioShellAudit({ counts }),
       { counts: COUNTS }
     );
+    const projectRestore = await page.evaluate(
+      async ({ totalCount, activeCount }) =>
+        globalThis.__shortpulseAiStudioPerf.runProjectRestoreAudit({
+          totalCount,
+          activeCount,
+        }),
+      {
+        totalCount: TARGET_TOTAL_COUNT,
+        activeCount: TARGET_ACTIVE_COUNT,
+      }
+    );
 
     result.referenceGrid = referenceGrid;
     result.referenceGridActiveWorkset = referenceGridActiveWorkset;
     result.studioShell = studioShell;
+    result.projectRestore = projectRestore;
     result.ok =
       Boolean(referenceGrid?.ok) &&
       Boolean(referenceGridActiveWorkset?.ok) &&
-      Boolean(studioShell?.ok);
+      Boolean(studioShell?.ok) &&
+      Boolean(projectRestore?.ok);
     console.log(JSON.stringify(result, null, 2));
 
     if (!result.ok) {

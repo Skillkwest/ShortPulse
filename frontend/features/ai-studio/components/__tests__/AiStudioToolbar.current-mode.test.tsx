@@ -227,13 +227,18 @@ describe("AiStudioToolbar current mode", () => {
     renderToolbar();
 
     const trigger = screen.getByRole("button", { name: "Account settings" });
-    mockElementRect(trigger, { left: 18, right: 178, bottom: 930, width: 160 });
+    mockElementRect(trigger, { left: 18, right: 178, top: 680, bottom: 724, width: 160 });
     fireEvent.click(trigger);
 
     const menu = await screen.findByRole("menu", { name: "Account settings" });
 
     expect(document.body.contains(menu)).toBe(true);
-    expect(menu).toHaveStyle({ position: "fixed", zIndex: "1230" });
+    expect(menu).toHaveStyle({
+      position: "fixed",
+      left: "18px",
+      bottom: `${window.innerHeight - 680 + 12}px`,
+      zIndex: "1230",
+    });
     expect(screen.getByText("Kirk Artman")).toBeInTheDocument();
     expect(screen.getByText("kirk@example.com")).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Account settings" })).toHaveAttribute(

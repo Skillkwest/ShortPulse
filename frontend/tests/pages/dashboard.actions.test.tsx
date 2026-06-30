@@ -17,10 +17,14 @@ const ensureSupabaseClientMock = vi.hoisted(() => vi.fn());
 const ensureSupabaseQueryClientMock = vi.hoisted(() => vi.fn());
 const useSupabaseSessionStateMock = vi.hoisted(() => vi.fn());
 const primeSupabaseSessionMock = vi.hoisted(() => vi.fn());
+const readSupabaseSessionMock = vi.hoisted(() => vi.fn());
+const refreshSupabaseSessionMock = vi.hoisted(() => vi.fn());
 const readPersistedSupabaseSessionHintMock = vi.hoisted(() => vi.fn());
 const readSupabaseSessionBootstrapHintMock = vi.hoisted(() => vi.fn());
 const signOutSupabaseSessionMock = vi.hoisted(() => vi.fn());
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
+const isAuthRequiredErrorMock = vi.hoisted(() => vi.fn());
+const isAuthSessionTimeoutErrorMock = vi.hoisted(() => vi.fn());
 const publicFetchMock = vi.hoisted(() => vi.fn());
 const routerReplaceMock = vi.hoisted(() => vi.fn());
 const routerPushMock = vi.hoisted(() => vi.fn());
@@ -73,6 +77,8 @@ vi.mock("../../lib/supabaseClient", () => ({
   ensureSupabaseQueryClient: (...args: unknown[]) => ensureSupabaseQueryClientMock(...args),
   useSupabaseSessionState: (...args: unknown[]) => useSupabaseSessionStateMock(...args),
   primeSupabaseSession: (...args: unknown[]) => primeSupabaseSessionMock(...args),
+  readSupabaseSession: (...args: unknown[]) => readSupabaseSessionMock(...args),
+  refreshSupabaseSession: (...args: unknown[]) => refreshSupabaseSessionMock(...args),
   readPersistedSupabaseSessionHint: (...args: unknown[]) =>
     readPersistedSupabaseSessionHintMock(...args),
   signOutSupabaseSession: (...args: unknown[]) => signOutSupabaseSessionMock(...args),
@@ -93,6 +99,8 @@ vi.mock("../../lib/supabaseSessionHints", async () => {
 
 vi.mock("../../lib/authenticatedFetch", () => ({
   fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
+  isAuthRequiredError: (...args: unknown[]) => isAuthRequiredErrorMock(...args),
+  isAuthSessionTimeoutError: (...args: unknown[]) => isAuthSessionTimeoutErrorMock(...args),
 }));
 
 const appUser = {
@@ -195,6 +203,10 @@ describe("Dashboard actions", () => {
       session: { user: appUser },
       user: appUser,
     });
+    readSupabaseSessionMock.mockResolvedValue({ user: appUser });
+    refreshSupabaseSessionMock.mockResolvedValue({ user: appUser });
+    isAuthRequiredErrorMock.mockReturnValue(false);
+    isAuthSessionTimeoutErrorMock.mockReturnValue(false);
     readPersistedSupabaseSessionHintMock.mockReturnValue(true);
     readSupabaseSessionBootstrapHintMock.mockReturnValue(true);
     ensureSupabaseClientMock.mockReturnValue(buildSupabaseClient());
@@ -226,6 +238,21 @@ describe("Dashboard actions", () => {
               remainingBytes: 500 * 1024 * 1024 * 1024 - 1024,
               isOverLimit: false,
             },
+          }),
+        };
+      }
+      if (input === "/api/account/media-compliance") {
+        return {
+          ok: true,
+          json: async () => ({
+            agreement: {
+              version: "test-media-compliance",
+              title: "Media agreement",
+              summary: "Test media compliance agreement.",
+              bullets: [],
+            },
+            accepted: true,
+            acceptedAt: "2026-06-29T00:00:00.000Z",
           }),
         };
       }
@@ -484,6 +511,7 @@ describe("Dashboard actions", () => {
 
     const menu = screen.getByRole("menu", { name: "Account settings" });
     expect(menu).toBeInTheDocument();
+    expect(menu).toHaveClass("toolbar-account-menu");
     expect(within(menu).getByText("Kirk")).toBeInTheDocument();
     expect(within(menu).getByText("user@example.com")).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Account settings" })).toHaveAttribute(

@@ -567,6 +567,7 @@ export const useAiStudioPageBaseRuntime = () => {
     setEditReferenceText,
     setVideoReferenceText,
     setOutputs,
+    hydrateFromSessionSnapshot,
     setReferenceGridAuditOutputs,
   });
 

@@ -54,6 +54,7 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/check_pg_net_failure_taxonomy.sql`: canonical `pg_net` queue-depth/failure-taxonomy diagnostics (read-only).
 - `sql/check_agent_safety_policy_control_plane.sql`: agent safety control-plane table/function/execute-posture diagnostics (read-only).
 - `sql/check_model_pricing_control_plane.sql`: model-pricing control-plane active policy/version diagnostics (read-only).
+- `sql/check_plan_concurrency_entitlements.sql`: plan-based active-generation concurrency entitlement diagnostics for current offers and open subscription contracts (read-only).
 
 ### 2) Ordered migrations (`sql/migrations/`)
 

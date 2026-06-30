@@ -1,7 +1,7 @@
 /**
  * AI Studio account menu for the left toolbar footer.
  * Provides protected account navigation, issue reporting, and sign-out without
- * changing the dashboard profile-menu authority.
+ * forking the shared authenticated account-menu styling.
  */
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -68,12 +68,9 @@ export function AiStudioToolbarAccountMenu() {
 
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
-    const availableRight = viewportWidth - triggerRect.right - MENU_MARGIN_PX;
-    const openRight = availableRight >= MENU_WIDTH_PX;
-    const left = openRight
-      ? triggerRect.right + MENU_MARGIN_PX
-      : Math.max(MENU_MARGIN_PX, triggerRect.left);
-    const bottom = Math.max(MENU_MARGIN_PX, viewportHeight - triggerRect.bottom);
+    const maxLeft = Math.max(MENU_MARGIN_PX, viewportWidth - MENU_WIDTH_PX - MENU_MARGIN_PX);
+    const left = Math.min(Math.max(MENU_MARGIN_PX, triggerRect.left), maxLeft);
+    const bottom = Math.max(MENU_MARGIN_PX, viewportHeight - triggerRect.top + MENU_MARGIN_PX);
 
     setMenuStyle({
       position: "fixed",
@@ -81,7 +78,7 @@ export function AiStudioToolbarAccountMenu() {
       bottom,
       width: MENU_WIDTH_PX,
       zIndex: 1230,
-      "--ai-toolbar-account-menu-transform-origin": openRight ? "bottom left" : "bottom center",
+      "--ai-toolbar-account-menu-transform-origin": "bottom left",
     });
   }, []);
 

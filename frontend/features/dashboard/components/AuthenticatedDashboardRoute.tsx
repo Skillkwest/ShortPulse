@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
-import { ChartBar, Sparkle } from "phosphor-react";
+import { ChartBar, SignOut, Sparkle } from "phosphor-react";
 import { useCredits } from "../../ai-studio/hooks/useCredits";
 import { buildPlanView, type BillingCatalogSnapshot } from "../../billing/catalog";
 import { fetchBillingAccountSummary } from "../../billing/accountSummary";
@@ -391,17 +391,21 @@ export function AuthenticatedDashboardRoute({
                 <div className="avatar">{initials}</div>
               </button>
               {profileMenuOpen ? (
-                <div className="profile-dropdown" role="menu" aria-label="Account settings">
-                  <div className="profile-dropdown__identity" aria-label="Signed-in account">
-                    <span className="profile-dropdown__avatar" aria-hidden="true">
+                <div
+                  className="profile-dropdown toolbar-account-menu"
+                  role="menu"
+                  aria-label="Account settings"
+                >
+                  <div className="toolbar-account-menu__identity" aria-label="Signed-in account">
+                    <span className="toolbar-account-menu__avatar" aria-hidden="true">
                       {initials}
                     </span>
-                    <span className="profile-dropdown__identity-copy">
+                    <span className="toolbar-account-menu__identity-copy">
                       <strong>{displayName}</strong>
                       {user.email ? <span>{user.email}</span> : null}
                     </span>
                   </div>
-                  <div className="profile-dropdown__links">
+                  <div className="toolbar-account-menu__links">
                     {ACCOUNT_MENU_LINKS.map((item) => (
                       <Link
                         key={item.href}
@@ -414,7 +418,7 @@ export function AuthenticatedDashboardRoute({
                       </Link>
                     ))}
                   </div>
-                  <div className="profile-dropdown__actions">
+                  <div className="toolbar-account-menu__actions">
                     <Link
                       href="/report-issue?from=%2Fdashboard"
                       role="menuitem"
@@ -431,6 +435,7 @@ export function AuthenticatedDashboardRoute({
                         setShowLogoutConfirm(true);
                       }}
                     >
+                      <SignOut size={15} weight="regular" />
                       Log out
                     </button>
                   </div>

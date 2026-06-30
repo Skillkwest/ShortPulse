@@ -1,0 +1,167 @@
+-- Read-only diagnostics for plan-based active-generation concurrency entitlements.
+-- Expected result: the summary query reports failing_checks = 0.
+
+with expected_limits(plan_id, expected_max_concurrent_generations) as (
+  values
+    ('free', 0),
+    ('starter', 1),
+    ('media', 2),
+    ('studio', 4),
+    ('business', 8)
+),
+current_offer_mismatches as (
+  select
+    offer.plan_id,
+    offer.billing_interval,
+    offer.max_concurrent_generations,
+    expected.expected_max_concurrent_generations,
+    count(*) as affected_rows
+  from public.billing_plan_offers offer
+  join expected_limits expected on expected.plan_id = offer.plan_id
+  where offer.is_active = true
+    and offer.effective_end_at is null
+    and coalesce(offer.max_concurrent_generations, -1)
+      <> expected.expected_max_concurrent_generations
+  group by
+    offer.plan_id,
+    offer.billing_interval,
+    offer.max_concurrent_generations,
+    expected.expected_max_concurrent_generations
+),
+missing_current_monthly_offers as (
+  select
+    expected.plan_id,
+    expected.expected_max_concurrent_generations
+  from expected_limits expected
+  where not exists (
+    select 1
+    from public.billing_plan_offers offer
+    where offer.plan_id = expected.plan_id
+      and offer.billing_interval = 'month'
+      and offer.is_active = true
+      and offer.effective_end_at is null
+  )
+),
+open_contract_mismatches as (
+  select
+    contract.plan_id,
+    contract.max_concurrent_generations,
+    expected.expected_max_concurrent_generations,
+    count(*) as affected_rows
+  from public.billing_subscription_contracts contract
+  join expected_limits expected on expected.plan_id = contract.plan_id
+  where contract.ended_at is null
+    and coalesce(contract.max_concurrent_generations, -1)
+      <> expected.expected_max_concurrent_generations
+  group by
+    contract.plan_id,
+    contract.max_concurrent_generations,
+    expected.expected_max_concurrent_generations
+),
+checks as (
+  select
+    'current_offer_concurrency_mismatch' as check_name,
+    case when exists (select 1 from current_offer_mismatches) then 'fail' else 'pass' end as status,
+    coalesce((select sum(affected_rows) from current_offer_mismatches), 0) as affected_rows
+  union all
+  select
+    'missing_current_monthly_offer' as check_name,
+    case when exists (select 1 from missing_current_monthly_offers) then 'fail' else 'pass' end as status,
+    (select count(*) from missing_current_monthly_offers) as affected_rows
+  union all
+  select
+    'open_contract_concurrency_mismatch' as check_name,
+    case when exists (select 1 from open_contract_mismatches) then 'fail' else 'pass' end as status,
+    coalesce((select sum(affected_rows) from open_contract_mismatches), 0) as affected_rows
+)
+select
+  'plan_concurrency_entitlements' as check_family,
+  count(*) filter (where status = 'fail') as failing_checks,
+  count(*) as total_checks,
+  sum(affected_rows) as affected_rows
+from checks;
+
+with expected_limits(plan_id, expected_max_concurrent_generations) as (
+  values
+    ('free', 0),
+    ('starter', 1),
+    ('media', 2),
+    ('studio', 4),
+    ('business', 8)
+),
+current_offer_mismatches as (
+  select
+    offer.plan_id,
+    offer.billing_interval,
+    offer.max_concurrent_generations,
+    expected.expected_max_concurrent_generations,
+    count(*) as affected_rows
+  from public.billing_plan_offers offer
+  join expected_limits expected on expected.plan_id = offer.plan_id
+  where offer.is_active = true
+    and offer.effective_end_at is null
+    and coalesce(offer.max_concurrent_generations, -1)
+      <> expected.expected_max_concurrent_generations
+  group by
+    offer.plan_id,
+    offer.billing_interval,
+    offer.max_concurrent_generations,
+    expected.expected_max_concurrent_generations
+),
+missing_current_monthly_offers as (
+  select
+    expected.plan_id,
+    expected.expected_max_concurrent_generations
+  from expected_limits expected
+  where not exists (
+    select 1
+    from public.billing_plan_offers offer
+    where offer.plan_id = expected.plan_id
+      and offer.billing_interval = 'month'
+      and offer.is_active = true
+      and offer.effective_end_at is null
+  )
+),
+open_contract_mismatches as (
+  select
+    contract.plan_id,
+    contract.max_concurrent_generations,
+    expected.expected_max_concurrent_generations,
+    count(*) as affected_rows
+  from public.billing_subscription_contracts contract
+  join expected_limits expected on expected.plan_id = contract.plan_id
+  where contract.ended_at is null
+    and coalesce(contract.max_concurrent_generations, -1)
+      <> expected.expected_max_concurrent_generations
+  group by
+    contract.plan_id,
+    contract.max_concurrent_generations,
+    expected.expected_max_concurrent_generations
+)
+select
+  'current_offer_concurrency_mismatch' as issue,
+  plan_id,
+  billing_interval,
+  max_concurrent_generations,
+  expected_max_concurrent_generations,
+  affected_rows
+from current_offer_mismatches
+union all
+select
+  'missing_current_monthly_offer' as issue,
+  plan_id,
+  'month' as billing_interval,
+  null as max_concurrent_generations,
+  expected_max_concurrent_generations,
+  1 as affected_rows
+from missing_current_monthly_offers
+union all
+select
+  'open_contract_concurrency_mismatch' as issue,
+  plan_id,
+  null as billing_interval,
+  max_concurrent_generations,
+  expected_max_concurrent_generations,
+  affected_rows
+from open_contract_mismatches
+order by issue, plan_id, billing_interval nulls last, max_concurrent_generations nulls last;

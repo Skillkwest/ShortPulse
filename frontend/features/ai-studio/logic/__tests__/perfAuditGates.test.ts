@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   evaluateReferenceGridAuditGates,
+  evaluateProjectRestoreAuditGates,
   evaluateProjectWorkspaceAutosaveTypingAuditGates,
   evaluateStudioShellAuditGates,
+  type ProjectRestoreScenario,
   type ProjectWorkspaceAutosaveTypingScenario,
   type ReferenceGridScenario,
   type StudioShellScenario,
@@ -37,6 +39,20 @@ const PROJECT_WORKSPACE_AUTOSAVE_TYPING_THRESHOLDS = {
   draftBaseSnapshotBuildsP95: 0,
   draftSessionSnapshotComposeCountP95: 0,
   draftCandidateSelectionCountP95: 0,
+};
+
+const PROJECT_RESTORE_THRESHOLDS = {
+  targetTotalCount: 500,
+  targetActiveCount: 128,
+  targetArchivedCount: 372,
+  hydrateDurationMsAtTarget: 750,
+  settleDurationMsAtTarget: 1_500,
+  longTaskP95MsAtTarget: 180,
+  maxInputStallMsAtTarget: 1_000,
+  heapDeltaMbAtTarget: 128,
+  outputStorePublishCountAtTarget: 4,
+  allRefsScanCountAtTarget: 4,
+  quickSlotLookupCountAtTarget: 4,
 };
 
 describe("perfAuditGates", () => {
@@ -452,5 +468,73 @@ describe("perfAuditGates", () => {
     );
 
     expect(draftBuildGate?.pass).toBe(false);
+  });
+
+  it("passes project restore gates for the target large restore scenario", () => {
+    const scenarios: ProjectRestoreScenario[] = [
+      {
+        totalCount: 500,
+        activeCount: 128,
+        archivedCount: 372,
+        hydrate: { durationMs: 120 },
+        settle: { durationMs: 260 },
+        longTask: { samples: 0, p95Ms: null },
+        interaction: { maxInputStallMs: 40 },
+        memory: { beforeMb: 100, afterMb: 140 },
+        outputStore: {
+          publishCount: 1,
+          allRefsScanCount: 1,
+          quickSlotLookupCount: 1,
+        },
+        semantics: {
+          restoredActiveCount: 128,
+          restoredArchivedCount: 372,
+          quickSlotCount: 4,
+          removedFromAllRefsCount: 3,
+          activeOutputId: null,
+        },
+      },
+    ];
+
+    const gates = evaluateProjectRestoreAuditGates(scenarios, PROJECT_RESTORE_THRESHOLDS);
+
+    expect(gates.every((gate) => gate.pass)).toBe(true);
+  });
+
+  it("fails project restore gates when restore semantics or publish churn drift", () => {
+    const scenarios: ProjectRestoreScenario[] = [
+      {
+        totalCount: 500,
+        activeCount: 128,
+        archivedCount: 372,
+        hydrate: { durationMs: 900 },
+        settle: { durationMs: 1_800 },
+        longTask: { samples: 2, p95Ms: 240 },
+        interaction: { maxInputStallMs: 1_200 },
+        memory: { beforeMb: 100, afterMb: 260 },
+        outputStore: {
+          publishCount: 8,
+          allRefsScanCount: 6,
+          quickSlotLookupCount: 5,
+        },
+        semantics: {
+          restoredActiveCount: 127,
+          restoredArchivedCount: 373,
+          quickSlotCount: 4,
+          removedFromAllRefsCount: 3,
+          activeOutputId: "perf-output-1",
+        },
+      },
+    ];
+
+    const gates = evaluateProjectRestoreAuditGates(scenarios, PROJECT_RESTORE_THRESHOLDS);
+    const activeCountGate = gates.find((gate) => gate.name === "project_restore_active_count");
+    const publishGate = gates.find(
+      (gate) => gate.name === "project_restore_output_store_publish_count"
+    );
+
+    expect(activeCountGate?.pass).toBe(false);
+    expect(publishGate?.pass).toBe(false);
+    expect(gates.every((gate) => gate.pass)).toBe(false);
   });
 });

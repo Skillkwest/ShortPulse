@@ -210,18 +210,26 @@
   min-width: 112px;
   min-height: 58px;
   padding: 0 18px;
-  border: 1px solid rgba(255, 255, 255, 0.24);
-  border-radius: 12px;
-  background: linear-gradient(135deg, #ff3b7f 0%, #ff8a34 58%, #ffd84a 100%);
-  color: #161414;
+  border: 1px solid rgba(255, 162, 92, 0.72);
+  border-radius: 10px;
+  background:
+    radial-gradient(
+      ellipse 76% 130% at 32% 10%,
+      rgba(255, 255, 255, 0.32),
+      rgba(255, 255, 255, 0.14) 36%,
+      transparent 70%
+    ),
+    linear-gradient(135deg, #ff9a4a 0%, #ff5357 48%, #ff2f7a 100%);
+  color: #fff;
   font-size: 0.98rem;
   font-weight: 850;
   line-height: 1;
   text-align: center;
   text-decoration: none;
   box-shadow:
-    0 10px 24px rgba(255, 97, 64, 0.2),
-    0 4px 1px rgba(255, 138, 52, 0.42);
+    0 0 22px rgba(255, 74, 96, 0.56),
+    0 12px 30px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.44);
   cursor: pointer;
   transition:
     box-shadow 0.16s ease,
@@ -230,12 +238,22 @@
 }
 
 .ai-generation-access-cta:hover {
-  color: #111010;
-  filter: saturate(1.08) brightness(1.03);
+  color: #fff;
+  border-color: rgba(255, 205, 130, 0.92);
+  background:
+    radial-gradient(
+      ellipse 80% 136% at 32% 10%,
+      rgba(255, 255, 255, 0.36),
+      rgba(255, 255, 255, 0.16) 38%,
+      transparent 72%
+    ),
+    linear-gradient(135deg, #ffad55 0%, #ff5d5a 44%, #ff347d 100%);
+  filter: none;
   transform: translateY(-1px);
   box-shadow:
-    0 14px 30px rgba(255, 97, 64, 0.28),
-    0 5px 1px rgba(255, 138, 52, 0.48);
+    0 0 26px rgba(255, 74, 96, 0.72),
+    0 14px 34px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.48);
 }
 
 .ai-generation-access-cta:focus-visible {

@@ -6,8 +6,10 @@ import { useEffect } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import {
   evaluateReferenceGridAuditGates,
+  evaluateProjectRestoreAuditGates,
   evaluateProjectWorkspaceAutosaveTypingAuditGates,
   evaluateStudioShellAuditGates,
+  type ProjectRestoreScenario,
   type ProjectWorkspaceAutosaveTypingScenario,
   type ReferenceGridScenario,
   type StudioShellScenario,
@@ -30,6 +32,13 @@ import {
   buildReferenceGridOverflowArchiveRows,
   limitReferenceGridVisibleOutputs,
 } from "../reference-grid/logic/referenceGridLimits";
+import {
+  createEmptyAiStudioSessionSnapshot,
+  patchAiStudioSessionSnapshotOutputs,
+  type AiStudioSessionSnapshot,
+} from "../logic/sessionSnapshot";
+import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
+import { createProjectRestoreSnapshot } from "../logic/projectRestoreSnapshot";
 import type { StudioOutput } from "../types";
 
 const PERF_REFERENCE_IMAGE_SVG = `data:image/svg+xml;utf8,${encodeURIComponent(
@@ -254,6 +263,18 @@ type AiStudioPerfWindow = Window & {
         note?: string;
       }>;
     }>;
+    runProjectRestoreAudit: (options?: { totalCount?: number; activeCount?: number }) => Promise<{
+      ok: boolean;
+      generatedAt: string;
+      scenarios: ProjectRestoreScenario[];
+      gates: Array<{
+        name: string;
+        pass: boolean;
+        actual: number | null;
+        expected: string;
+        note?: string;
+      }>;
+    }>;
     getProjectWorkspaceAutosavePerfCounters: () => ProjectWorkspaceAutosavePerfCounters;
     resetProjectWorkspaceAutosavePerfCounters: () => void;
   };
@@ -295,6 +316,9 @@ type UseAiStudioPerfAuditRuntimeParams = {
   setEditReferenceText: (value: string) => void;
   setVideoReferenceText: (value: string) => void;
   setOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
+  hydrateFromSessionSnapshot?: (
+    snapshot: AiStudioSessionSnapshot
+  ) => AiStudioSessionHydrationPayload;
   setReferenceGridAuditOutputs?: (collections: {
     active: StudioOutput[];
     archived?: StudioOutput[];
@@ -321,6 +345,7 @@ export function useAiStudioPerfAuditRuntime({
   setEditReferenceText,
   setVideoReferenceText,
   setOutputs,
+  hydrateFromSessionSnapshot,
   setReferenceGridAuditOutputs,
 }: UseAiStudioPerfAuditRuntimeParams): void {
   useEffect(() => {
@@ -378,6 +403,19 @@ export function useAiStudioPerfAuditRuntime({
       draftBaseSnapshotBuildsP95: 0,
       draftSessionSnapshotComposeCountP95: 0,
       draftCandidateSelectionCountP95: 0,
+    };
+    const PROJECT_RESTORE_GATES = {
+      targetTotalCount: 500,
+      targetActiveCount: 128,
+      targetArchivedCount: 372,
+      hydrateDurationMsAtTarget: 750,
+      settleDurationMsAtTarget: 1_500,
+      longTaskP95MsAtTarget: 180,
+      maxInputStallMsAtTarget: 1_000,
+      heapDeltaMbAtTarget: 128,
+      outputStorePublishCountAtTarget: 4,
+      allRefsScanCountAtTarget: 4,
+      quickSlotLookupCountAtTarget: 4,
     };
     const sleep = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
     const nextFrame = () =>
@@ -512,6 +550,38 @@ export function useAiStudioPerfAuditRuntime({
           saveError: null,
         } satisfies StudioOutput;
       });
+    };
+    const createProjectRestorePerfSnapshot = ({
+      totalCount,
+      activeCount,
+    }: {
+      totalCount: number;
+      activeCount: number;
+    }): {
+      snapshot: AiStudioSessionSnapshot;
+      activeRows: StudioOutput[];
+      archivedRows: StudioOutput[];
+    } => {
+      const allRows = createPerfOutputs(totalCount);
+      const limited = limitReferenceGridVisibleOutputs(allRows, activeCount);
+      const activeRows = limited.rows;
+      const archivedRows = buildReferenceGridOverflowArchiveRows(limited.trimmedRows);
+      const baseSnapshot = createEmptyAiStudioSessionSnapshot({
+        sessionId: `perf-project-restore-${Date.now()}`,
+        updatedAt: new Date().toISOString(),
+      });
+
+      return {
+        activeRows,
+        archivedRows,
+        snapshot: patchAiStudioSessionSnapshotOutputs(baseSnapshot, {
+          active: activeRows,
+          archived: archivedRows,
+          activeOutputId: activeRows[0]?.id ?? null,
+          curatedReferenceIds: activeRows.slice(0, 4).map((row) => row.id),
+          removedFromAllRefsIds: archivedRows.slice(0, 3).map((row) => row.id),
+        }),
+      };
     };
     const resolveDropTransfer = () => {
       if (typeof DataTransfer === "undefined") return null;
@@ -1094,6 +1164,125 @@ export function useAiStudioPerfAuditRuntime({
       };
     };
 
+    const runProjectRestoreScenario = async ({
+      totalCount,
+      activeCount,
+    }: {
+      totalCount: number;
+      activeCount: number;
+    }): Promise<ProjectRestoreScenario> => {
+      if (!hydrateFromSessionSnapshot) {
+        return {
+          totalCount,
+          activeCount,
+          archivedCount: Math.max(0, totalCount - activeCount),
+          hydrate: { durationMs: null },
+          settle: { durationMs: null },
+          longTask: { samples: 0, p95Ms: null },
+          interaction: { maxInputStallMs: 0 },
+          memory: { beforeMb: null, afterMb: null },
+          outputStore: {
+            publishCount: Number.POSITIVE_INFINITY,
+            allRefsScanCount: Number.POSITIVE_INFINITY,
+            quickSlotLookupCount: Number.POSITIVE_INFINITY,
+          },
+          semantics: {
+            restoredActiveCount: 0,
+            restoredArchivedCount: 0,
+            quickSlotCount: 0,
+            removedFromAllRefsCount: 0,
+            activeOutputId: "missing_hydrator",
+          },
+        };
+      }
+
+      const { snapshot, activeRows, archivedRows } = createProjectRestorePerfSnapshot({
+        totalCount,
+        activeCount,
+      });
+      resetReferenceGridState();
+      await afterTwoFrames();
+
+      const longTaskDurationsMs: number[] = [];
+      let observer: PerformanceObserver | null = null;
+      if (typeof PerformanceObserver !== "undefined") {
+        observer = new PerformanceObserver((list) => {
+          list.getEntries().forEach((entry) => {
+            longTaskDurationsMs.push(entry.duration);
+          });
+        });
+        try {
+          observer.observe({ type: "longtask" });
+        } catch {
+          observer.disconnect();
+          observer = null;
+        }
+      }
+
+      const expectedTickMs = 50;
+      let maxInputStallMs = 0;
+      let previousTick = performance.now();
+      const stallTimer = window.setInterval(() => {
+        const now = performance.now();
+        const stall = Math.max(0, now - previousTick - expectedTickMs);
+        if (stall > maxInputStallMs) maxInputStallMs = stall;
+        previousTick = now;
+      }, expectedTickMs);
+
+      resetFreezeInvestigationSnapshot();
+      const beforeCounters = getFreezeInvestigationSnapshot();
+      const beforeMb = sampleHeapMb();
+      const restoreSnapshot = createProjectRestoreSnapshot(snapshot);
+      const hydrateStartedAt = performance.now();
+      const payload = hydrateFromSessionSnapshot(restoreSnapshot);
+      const hydrateDurationMs = performance.now() - hydrateStartedAt;
+      await afterTwoFrames();
+      const settleDurationMs = performance.now() - hydrateStartedAt;
+      window.clearInterval(stallTimer);
+      if (observer) observer.disconnect();
+
+      const afterMb = sampleHeapMb();
+      const afterCounters = getFreezeInvestigationSnapshot();
+      const outputStoreCounters = diffFreezeCounters(beforeCounters, afterCounters);
+      const outputSnapshot = getOutputSnapshot();
+
+      return {
+        totalCount,
+        activeCount: activeRows.length,
+        archivedCount: archivedRows.length,
+        hydrate: {
+          durationMs: Math.round(hydrateDurationMs * 100) / 100,
+        },
+        settle: {
+          durationMs: Math.round(settleDurationMs * 100) / 100,
+        },
+        longTask: {
+          samples: longTaskDurationsMs.length,
+          p95Ms: p95(longTaskDurationsMs),
+        },
+        interaction: {
+          maxInputStallMs: Math.round(maxInputStallMs * 100) / 100,
+        },
+        memory: {
+          beforeMb,
+          afterMb,
+        },
+        outputStore: {
+          publishCount: outputStoreCounters["outputStore.snapshot.publish"] ?? 0,
+          allRefsScanCount: outputStoreCounters["referenceGrid.outputProjection.allRefs.scan"] ?? 0,
+          quickSlotLookupCount:
+            outputStoreCounters["referenceGrid.outputProjection.quickSlot.lookup"] ?? 0,
+        },
+        semantics: {
+          restoredActiveCount: outputSnapshot.outputOrder.length || payload.outputs.active.length,
+          restoredArchivedCount: payload.outputs.archived.length,
+          quickSlotCount: payload.outputs.curatedReferenceIds.length,
+          removedFromAllRefsCount: payload.outputs.removedFromAllRefsIds.length,
+          activeOutputId: payload.outputs.activeOutputId,
+        },
+      };
+    };
+
     const runProjectWorkspaceAutosaveTypingScenario = async ({
       field,
       currentValue,
@@ -1397,6 +1586,37 @@ export function useAiStudioPerfAuditRuntime({
         console.log("[shortpulse][project-workspace-autosave-typing-audit]", result);
         return result;
       },
+      runProjectRestoreAudit: async (options) => {
+        const totalCount = Math.max(
+          1,
+          Math.floor(options?.totalCount ?? PROJECT_RESTORE_GATES.targetTotalCount)
+        );
+        const activeCount = Math.min(
+          totalCount,
+          Math.max(1, Math.floor(options?.activeCount ?? PROJECT_RESTORE_GATES.targetActiveCount))
+        );
+        const scenarios = [
+          await runProjectRestoreScenario({
+            totalCount,
+            activeCount,
+          }),
+        ];
+        const gates = evaluateProjectRestoreAuditGates(scenarios, {
+          ...PROJECT_RESTORE_GATES,
+          targetTotalCount: totalCount,
+          targetActiveCount: activeCount,
+          targetArchivedCount: totalCount - activeCount,
+        });
+        const result = {
+          ok: gates.every((gate) => gate.pass),
+          generatedAt: new Date().toISOString(),
+          scenarios,
+          gates,
+        };
+        console.table(gates);
+        console.log("[shortpulse][project-restore-audit]", result);
+        return result;
+      },
       getProjectWorkspaceAutosavePerfCounters: () => getProjectWorkspaceAutosavePerfCounters(),
       resetProjectWorkspaceAutosavePerfCounters: () => {
         resetProjectWorkspaceAutosavePerfCounters();
@@ -1424,6 +1644,7 @@ export function useAiStudioPerfAuditRuntime({
     setEditReferenceText,
     setVideoReferenceText,
     setOutputs,
+    hydrateFromSessionSnapshot,
     setReferenceGridAuditOutputs,
   ]);
 }

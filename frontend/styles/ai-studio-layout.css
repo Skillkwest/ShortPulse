@@ -2451,8 +2451,7 @@ body.ai-shell-resizing * {
   outline-offset: 3px;
 }
 
-.toolbar-account-trigger__avatar,
-.toolbar-account-menu__avatar {
+.toolbar-account-trigger__avatar {
   flex: 0 0 auto;
   display: grid;
   place-items: center;
@@ -2485,93 +2484,6 @@ body.ai-shell-resizing * {
   font-size: 10px;
   font-weight: 600;
   color: rgba(201, 209, 222, 0.66);
-}
-
-.toolbar-account-menu {
-  transform-origin: var(--ai-toolbar-account-menu-transform-origin, bottom left);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  border-radius: 16px;
-  border: 1px solid rgba(201, 205, 214, 0.16);
-  background:
-    radial-gradient(120% 120% at 10% 0%, rgba(37, 169, 191, 0.1), transparent), rgba(5, 7, 13, 0.98);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
-  color: #e8fbff;
-}
-
-.toolbar-account-menu__identity {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 13px 14px;
-  border-bottom: 1px solid rgba(201, 205, 214, 0.12);
-}
-
-.toolbar-account-menu__identity-copy {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.toolbar-account-menu__identity-copy strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: #eefbff;
-  font-size: 13px;
-  line-height: 1.2;
-}
-
-.toolbar-account-menu__identity-copy span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: rgba(201, 209, 222, 0.68);
-  font-size: 11px;
-  line-height: 1.2;
-}
-
-.toolbar-account-menu__links,
-.toolbar-account-menu__actions {
-  display: flex;
-  flex-direction: column;
-}
-
-.toolbar-account-menu__actions {
-  border-top: 1px solid rgba(201, 205, 214, 0.12);
-}
-
-.toolbar-account-menu a,
-.toolbar-account-menu button {
-  min-height: 38px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border: none;
-  background: transparent;
-  color: rgba(232, 251, 255, 0.9);
-  text-align: left;
-  text-decoration: none;
-  padding: 10px 14px;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.toolbar-account-menu button {
-  color: var(--color-ash);
-}
-
-.toolbar-account-menu a:hover,
-.toolbar-account-menu a:focus-visible,
-.toolbar-account-menu button:hover,
-.toolbar-account-menu button:focus-visible {
-  outline: none;
-  background: rgba(37, 169, 191, 0.16);
-  color: #e8fbff;
 }
 
 .toolbar-sessions-btn {

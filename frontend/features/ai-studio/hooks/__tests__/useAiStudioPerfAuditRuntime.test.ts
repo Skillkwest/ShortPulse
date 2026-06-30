@@ -13,6 +13,7 @@ import {
   resolveAiStudioPerfAuditRoot,
   useAiStudioPerfAuditRuntime,
 } from "../useAiStudioPerfAuditRuntime";
+import type { AiStudioSessionSnapshot } from "../../logic/sessionSnapshot";
 
 type PerfAuditWindow = Window & {
   __shortpulseAiStudioPerf?: {
@@ -26,6 +27,19 @@ type PerfAuditWindow = Window & {
       totalCount: number;
       activeCapOverride: number | null;
     };
+    runProjectRestoreAudit: (options?: { totalCount?: number; activeCount?: number }) => Promise<{
+      ok: boolean;
+      scenarios: Array<{
+        totalCount: number;
+        activeCount: number;
+        archivedCount: number;
+        semantics: {
+          restoredActiveCount: number;
+          restoredArchivedCount: number;
+          activeOutputId: string | null;
+        };
+      }>;
+    }>;
   };
 };
 
@@ -152,6 +166,73 @@ describe("useAiStudioPerfAuditRuntime", () => {
     });
     expect(setReferenceGridAuditOutputs.mock.calls[0]?.[0].active).toHaveLength(300);
     expect(setOutputs).not.toHaveBeenCalled();
+
+    unmount();
+  });
+
+  it("runs the project restore audit through the provided session hydrator", async () => {
+    window.history.pushState(null, "", "/ai-studio?perfAuditRuntime=1");
+    let restoredOutputOrder: string[] = [];
+    const hydrateFromSessionSnapshot = vi.fn((snapshot: AiStudioSessionSnapshot) => {
+      restoredOutputOrder = snapshot.outputs.active.map((output) => output.id);
+      return {
+        outputs: {
+          active: snapshot.outputs.active,
+          archived: snapshot.outputs.archived,
+          activeOutputId: snapshot.outputs.activeOutputId,
+          curatedReferenceIds: snapshot.outputs.curatedReferenceIds,
+          removedFromAllRefsIds: snapshot.outputs.removedFromAllRefsIds,
+        },
+      } as never;
+    });
+
+    const { unmount } = renderHook(() =>
+      useAiStudioPerfAuditRuntime({
+        enabled: false,
+        aspect: "9:16",
+        currentModelLabel: "Seedream",
+        model: "seedream",
+        getOutputSnapshot: () => ({ outputOrder: restoredOutputOrder }),
+        resetReferenceGridState: vi.fn(),
+        projectRouteRequested: false,
+        standardCreatePrompt: "",
+        editReferenceText: "",
+        videoReferenceText: "",
+        setActiveOutputId: vi.fn(),
+        setStandardCreatePrompt: vi.fn(),
+        setEditReferenceText: vi.fn(),
+        setVideoReferenceText: vi.fn(),
+        setOutputs: vi.fn(),
+        hydrateFromSessionSnapshot,
+      })
+    );
+
+    await waitFor(() => {
+      expect(getPerfWindow().__shortpulseAiStudioPerf?.runProjectRestoreAudit).toEqual(
+        expect.any(Function)
+      );
+    });
+
+    const result = await getPerfWindow().__shortpulseAiStudioPerf?.runProjectRestoreAudit({
+      totalCount: REFERENCE_GRID_TARGET_TOTAL_ITEMS,
+      activeCount: REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+    });
+
+    expect(hydrateFromSessionSnapshot).toHaveBeenCalledTimes(1);
+    expect(result?.scenarios[0]).toEqual(
+      expect.objectContaining({
+        totalCount: REFERENCE_GRID_TARGET_TOTAL_ITEMS,
+        activeCount: REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+        archivedCount: REFERENCE_GRID_TARGET_TOTAL_ITEMS - REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+        semantics: expect.objectContaining({
+          restoredActiveCount: REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+          restoredArchivedCount:
+            REFERENCE_GRID_TARGET_TOTAL_ITEMS - REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+          activeOutputId: null,
+        }),
+      })
+    );
+    expect(result?.ok).toBe(true);
 
     unmount();
   });

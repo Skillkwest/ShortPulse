@@ -142,114 +142,111 @@
   position: absolute;
   top: calc(100% + 10px);
   right: 0;
-  min-width: 260px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  color: #edf9ff;
-  background:
-    radial-gradient(120% 120% at 90% -10%, rgba(255, 128, 82, 0.18), transparent 48%),
-    radial-gradient(110% 110% at 0% 0%, rgba(37, 169, 191, 0.12), transparent 48%),
-    linear-gradient(180deg, rgba(10, 15, 21, 0.98), rgba(4, 8, 13, 0.98));
-  border: 1px solid rgba(255, 128, 82, 0.22);
-  border-radius: 16px;
-  box-shadow:
-    0 22px 52px rgba(0, 0, 0, 0.58),
-    0 0 0 1px rgba(37, 169, 191, 0.05),
-    0 0 34px rgba(255, 80, 96, 0.08);
-  backdrop-filter: blur(18px);
+  width: 238px;
   z-index: 200;
 }
 
-.profile-dropdown__identity {
+.toolbar-account-menu {
+  transform-origin: var(--ai-toolbar-account-menu-transform-origin, top right);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 16px;
+  border: 1px solid rgba(201, 205, 214, 0.16);
+  background:
+    radial-gradient(120% 120% at 10% 0%, rgba(37, 169, 191, 0.1), transparent), rgba(5, 7, 13, 0.98);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  color: #e8fbff;
+}
+
+.toolbar-account-menu__identity {
   display: flex;
   align-items: center;
-  gap: 11px;
-  padding: 14px 15px;
+  gap: 10px;
+  padding: 13px 14px;
   border-bottom: 1px solid rgba(201, 205, 214, 0.12);
 }
 
-.profile-dropdown__avatar {
-  width: 34px;
-  height: 34px;
+.toolbar-account-menu__avatar {
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  border-radius: 999px;
-  border: 1px solid rgba(37, 169, 191, 0.36);
-  background:
-    radial-gradient(circle at 35% 20%, rgba(255, 255, 255, 0.28), transparent 28%),
-    linear-gradient(135deg, rgba(37, 169, 191, 0.36), rgba(255, 63, 115, 0.5));
-  color: #fff;
-  font-size: 12px;
-  font-weight: 850;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid rgba(37, 169, 191, 0.42);
+  background: rgba(37, 169, 191, 0.18);
+  color: #e8fbff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
-.profile-dropdown__identity-copy {
+.toolbar-account-menu__identity-copy {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
 }
 
-.profile-dropdown__identity-copy strong,
-.profile-dropdown__identity-copy span {
+.toolbar-account-menu__identity-copy strong,
+.toolbar-account-menu__identity-copy span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.profile-dropdown__identity-copy strong {
-  color: #f6fbff;
+.toolbar-account-menu__identity-copy strong {
+  color: #eefbff;
   font-size: 13px;
   line-height: 1.2;
-  font-weight: 800;
+  font-weight: 650;
 }
 
-.profile-dropdown__identity-copy span {
-  color: rgba(201, 209, 222, 0.7);
+.toolbar-account-menu__identity-copy span {
+  color: rgba(201, 209, 222, 0.68);
   font-size: 11px;
-  line-height: 1.25;
+  line-height: 1.2;
 }
 
-.profile-dropdown__links,
-.profile-dropdown__actions {
+.toolbar-account-menu__links,
+.toolbar-account-menu__actions {
   display: flex;
   flex-direction: column;
 }
 
-.profile-dropdown__actions {
+.toolbar-account-menu__actions {
   border-top: 1px solid rgba(201, 205, 214, 0.12);
 }
 
-.profile-dropdown a,
-.profile-dropdown button {
-  min-height: 40px;
+.toolbar-account-menu a,
+.toolbar-account-menu button {
+  min-height: 38px;
   display: flex;
   align-items: center;
   gap: 8px;
-  background: transparent;
-  color: rgba(232, 251, 255, 0.9);
-  text-decoration: none;
   border: none;
+  color: rgba(232, 251, 255, 0.9);
   text-align: left;
-  padding: 10px 15px;
-  cursor: pointer;
+  text-decoration: none;
+  padding: 10px 14px;
   font: inherit;
-  font-size: 13px;
-  font-weight: 750;
+  font-size: 12px;
+  font-weight: 600;
+  background: transparent;
+  cursor: pointer;
 }
 
-.profile-dropdown button {
-  color: rgba(201, 209, 222, 0.78);
+.toolbar-account-menu button {
+  color: var(--color-ash);
 }
 
-.profile-dropdown a:hover,
-.profile-dropdown a:focus-visible,
-.profile-dropdown button:hover,
-.profile-dropdown button:focus-visible {
+.toolbar-account-menu a:hover,
+.toolbar-account-menu a:focus-visible,
+.toolbar-account-menu button:hover,
+.toolbar-account-menu button:focus-visible {
   outline: none;
-  background: linear-gradient(90deg, rgba(37, 169, 191, 0.18), rgba(255, 128, 82, 0.12));
+  background: rgba(37, 169, 191, 0.16);
   color: #e8fbff;
 }
 

@@ -72,6 +72,29 @@ export type ProjectWorkspaceAutosaveTypingScenario = {
   };
 };
 
+export type ProjectRestoreScenario = {
+  totalCount: number;
+  activeCount: number;
+  archivedCount: number;
+  hydrate: { durationMs: number | null };
+  settle: { durationMs: number | null };
+  longTask: { samples: number; p95Ms: number | null };
+  interaction: { maxInputStallMs: number };
+  memory: { beforeMb: number | null; afterMb: number | null };
+  outputStore: {
+    publishCount: number;
+    allRefsScanCount: number;
+    quickSlotLookupCount: number;
+  };
+  semantics: {
+    restoredActiveCount: number;
+    restoredArchivedCount: number;
+    quickSlotCount: number;
+    removedFromAllRefsCount: number;
+    activeOutputId: string | null;
+  };
+};
+
 export const evaluateReferenceGridAuditGates = (
   scenarios: ReferenceGridScenario[],
   thresholds: {
@@ -266,6 +289,128 @@ export const evaluateReferenceGridAuditGates = (
   }
 
   return gates;
+};
+
+export const evaluateProjectRestoreAuditGates = (
+  scenarios: ProjectRestoreScenario[],
+  thresholds: {
+    targetTotalCount: number;
+    targetActiveCount: number;
+    targetArchivedCount: number;
+    hydrateDurationMsAtTarget: number;
+    settleDurationMsAtTarget: number;
+    longTaskP95MsAtTarget: number;
+    maxInputStallMsAtTarget: number;
+    heapDeltaMbAtTarget: number;
+    outputStorePublishCountAtTarget: number;
+    allRefsScanCountAtTarget: number;
+    quickSlotLookupCountAtTarget: number;
+  }
+): PerfGate[] => {
+  const scenario = scenarios.find(
+    (candidate) =>
+      candidate.totalCount === thresholds.targetTotalCount &&
+      candidate.activeCount === thresholds.targetActiveCount &&
+      candidate.archivedCount === thresholds.targetArchivedCount
+  );
+  if (!scenario) {
+    return [
+      {
+        name: "project_restore_target_scenario_exists",
+        pass: false,
+        actual: null,
+        expected: `${thresholds.targetTotalCount} total / ${thresholds.targetActiveCount} active / ${thresholds.targetArchivedCount} archived scenario must run`,
+      },
+    ];
+  }
+
+  const heapDelta =
+    typeof scenario.memory.beforeMb === "number" && typeof scenario.memory.afterMb === "number"
+      ? Math.round((scenario.memory.afterMb - scenario.memory.beforeMb) * 100) / 100
+      : null;
+
+  return [
+    {
+      name: "project_restore_active_count",
+      pass: scenario.semantics.restoredActiveCount === thresholds.targetActiveCount,
+      actual: scenario.semantics.restoredActiveCount,
+      expected: `${thresholds.targetActiveCount}`,
+    },
+    {
+      name: "project_restore_archived_count",
+      pass: scenario.semantics.restoredArchivedCount === thresholds.targetArchivedCount,
+      actual: scenario.semantics.restoredArchivedCount,
+      expected: `${thresholds.targetArchivedCount}`,
+    },
+    {
+      name: "project_restore_active_output_cleared",
+      pass: scenario.semantics.activeOutputId === null,
+      actual: scenario.semantics.activeOutputId === null ? 0 : 1,
+      expected: "0",
+    },
+    {
+      name: "project_restore_hydrate_duration_ms",
+      pass:
+        typeof scenario.hydrate.durationMs === "number" &&
+        scenario.hydrate.durationMs <= thresholds.hydrateDurationMsAtTarget,
+      actual: scenario.hydrate.durationMs,
+      expected: `<= ${thresholds.hydrateDurationMsAtTarget}`,
+    },
+    {
+      name: "project_restore_two_frame_settle_duration_ms",
+      pass:
+        typeof scenario.settle.durationMs === "number" &&
+        scenario.settle.durationMs <= thresholds.settleDurationMsAtTarget,
+      actual: scenario.settle.durationMs,
+      expected: `<= ${thresholds.settleDurationMsAtTarget}`,
+    },
+    {
+      name: "project_restore_long_task_p95_ms",
+      pass:
+        typeof scenario.longTask.p95Ms !== "number" ||
+        scenario.longTask.p95Ms <= thresholds.longTaskP95MsAtTarget,
+      actual: scenario.longTask.p95Ms,
+      expected: `<= ${thresholds.longTaskP95MsAtTarget}`,
+      note:
+        typeof scenario.longTask.p95Ms === "number"
+          ? undefined
+          : "No long tasks observed during project restore scenario.",
+    },
+    {
+      name: "project_restore_max_input_stall_ms",
+      pass: scenario.interaction.maxInputStallMs <= thresholds.maxInputStallMsAtTarget,
+      actual: scenario.interaction.maxInputStallMs,
+      expected: `<= ${thresholds.maxInputStallMsAtTarget}`,
+    },
+    {
+      name: "project_restore_heap_delta_mb",
+      pass: typeof heapDelta !== "number" || heapDelta <= thresholds.heapDeltaMbAtTarget,
+      actual: heapDelta,
+      expected: `<= ${thresholds.heapDeltaMbAtTarget}`,
+      note:
+        typeof heapDelta === "number"
+          ? undefined
+          : "Heap metric unavailable in this browser runtime.",
+    },
+    {
+      name: "project_restore_output_store_publish_count",
+      pass: scenario.outputStore.publishCount <= thresholds.outputStorePublishCountAtTarget,
+      actual: scenario.outputStore.publishCount,
+      expected: `<= ${thresholds.outputStorePublishCountAtTarget}`,
+    },
+    {
+      name: "project_restore_all_refs_scan_count",
+      pass: scenario.outputStore.allRefsScanCount <= thresholds.allRefsScanCountAtTarget,
+      actual: scenario.outputStore.allRefsScanCount,
+      expected: `<= ${thresholds.allRefsScanCountAtTarget}`,
+    },
+    {
+      name: "project_restore_quick_slot_lookup_count",
+      pass: scenario.outputStore.quickSlotLookupCount <= thresholds.quickSlotLookupCountAtTarget,
+      actual: scenario.outputStore.quickSlotLookupCount,
+      expected: `<= ${thresholds.quickSlotLookupCountAtTarget}`,
+    },
+  ];
 };
 
 export const evaluateStudioShellAuditGates = (

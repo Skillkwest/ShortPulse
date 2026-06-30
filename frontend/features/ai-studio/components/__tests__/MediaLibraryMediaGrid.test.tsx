@@ -115,6 +115,16 @@ describe("MediaLibraryMediaGrid", () => {
     expect(document.querySelector("video.media-thumb")).toBeNull();
   });
 
+  it("passes adaptive pressure into the shared video budget controller", () => {
+    render(<MediaLibraryMediaGrid {...baseProps()} adaptivePressureLevel={2} />);
+
+    expect(useMediaGridVideoBudgetControllerMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pressureLevel: 2,
+      })
+    );
+  });
+
   it("shows a video duration badge on video-tab grid cards when duration metadata exists", () => {
     const props = baseProps();
     props.activeMedia = [

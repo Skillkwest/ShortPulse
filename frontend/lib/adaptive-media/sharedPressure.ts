@@ -5,6 +5,8 @@
  */
 import {
   evaluateAdaptivePressureCandidateLevel,
+  type AdaptivePressurePhase,
+  resolveAdaptivePressurePhase,
   resolveAdaptiveHeapUsageRatio,
   resolveAdaptivePercentile,
   resolveAdaptivePressureTransition,
@@ -13,6 +15,7 @@ import type { AdaptivePressureLevel } from "./types";
 
 export type SharedAdaptivePressureState = {
   rawPressureLevel: AdaptivePressureLevel;
+  pressurePhase: AdaptivePressurePhase;
   longTaskP95Ms: number | null;
   maxInputStallMs: number;
   heapUsageRatio: number | null;
@@ -33,6 +36,7 @@ const STALL_SAMPLE_INTERVAL_MS = 120;
 
 export const createInitialSharedAdaptivePressureState = (): SharedAdaptivePressureState => ({
   rawPressureLevel: 0,
+  pressurePhase: "normal",
   longTaskP95Ms: null,
   maxInputStallMs: 0,
   heapUsageRatio: null,
@@ -171,6 +175,7 @@ const startSharedAdaptivePressureSampling = (config: SharedAdaptivePressureConfi
 
       emitSharedAdaptivePressureState({
         rawPressureLevel: sharedAdaptivePressure.rawPressureLevel,
+        pressurePhase: resolveAdaptivePressurePhase(sharedAdaptivePressure.rawPressureLevel),
         longTaskP95Ms,
         maxInputStallMs,
         heapUsageRatio,

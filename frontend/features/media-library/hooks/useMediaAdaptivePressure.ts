@@ -10,6 +10,7 @@ import {
   resolveAdaptivePressureDelayedRecoveryTransition,
   subscribeSharedAdaptivePressure,
   type AdaptivePressureLevel,
+  type AdaptivePressurePhase,
   type AdaptivePressureRecoveryCandidate,
   type SharedAdaptivePressureState,
 } from "../../../lib/adaptive-media";
@@ -27,6 +28,7 @@ type RecoveryCandidate = AdaptivePressureRecoveryCandidate<MediaPreviewPressureL
 
 export type MediaAdaptivePressureState = {
   rawPressureLevel: AdaptivePressureLevel;
+  pressurePhase: AdaptivePressurePhase;
   previewPressureLevel: MediaPreviewPressureLevel;
   longTaskP95Ms: number | null;
   maxInputStallMs: number;
@@ -99,6 +101,7 @@ export const resolveMediaPreviewPressureTransition = ({
 
 const initialState = (): MediaAdaptivePressureState => ({
   rawPressureLevel: 0,
+  pressurePhase: "normal",
   previewPressureLevel: 0,
   longTaskP95Ms: null,
   maxInputStallMs: 0,
@@ -158,6 +161,7 @@ export const useMediaAdaptivePressure = ({
 
       setState({
         rawPressureLevel: sharedState.rawPressureLevel,
+        pressurePhase: sharedState.pressurePhase,
         previewPressureLevel: previewPressureLevelRef.current,
         longTaskP95Ms: sharedState.longTaskP95Ms,
         maxInputStallMs: sharedState.maxInputStallMs,

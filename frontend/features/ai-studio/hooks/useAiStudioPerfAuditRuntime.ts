@@ -26,7 +26,10 @@ import {
   resetFreezeInvestigationSnapshot,
   type FreezeInvestigationSnapshot,
 } from "../logic/freezeInvestigationTelemetry";
-import { limitReferenceGridVisibleOutputs } from "../reference-grid/logic/referenceGridLimits";
+import {
+  buildReferenceGridOverflowArchiveRows,
+  limitReferenceGridVisibleOutputs,
+} from "../reference-grid/logic/referenceGridLimits";
 import type { StudioOutput } from "../types";
 
 const PERF_REFERENCE_IMAGE_SVG = `data:image/svg+xml;utf8,${encodeURIComponent(
@@ -79,11 +82,15 @@ export const queryAiStudioPerfAuditAll = <ElementType extends Element>(
 
 type AiStudioPerfWindow = Window & {
   __shortpulseAiStudioPerf?: {
-    seedReferenceGrid: (count: number) => {
+    seedReferenceGrid: (
+      count: number,
+      options?: PerfSeedReferenceGridOptions
+    ) => {
       requestedCount: number;
       activeCount: number;
       archivedCount: number;
       totalCount: number;
+      activeCapOverride: number | null;
     };
     seedReferenceGridItems: (items: PerfSeedOutputInput[]) => {
       activeCount: number;
@@ -96,6 +103,7 @@ type AiStudioPerfWindow = Window & {
       counts?: number[];
       clickSamples?: number;
       scrollDurationMsByCount?: Record<number, number>;
+      activeCapOverride?: number | null;
     }) => Promise<{
       ok: boolean;
       generatedAt: string;
@@ -106,6 +114,7 @@ type AiStudioPerfWindow = Window & {
           activeCount: number;
           archivedCount?: number;
           totalCount?: number;
+          activeCapOverride?: number | null;
         };
         click: { samples: number; p95Ms: number | null };
         longTask: { samples: number; p95Ms: number | null };
@@ -116,6 +125,8 @@ type AiStudioPerfWindow = Window & {
           imageHydrationQueueP95: number | null;
           imageDecodeInflightP95: number | null;
           perfDegradeLevelP95: number | null;
+          mediaWorkTokensP95?: number | null;
+          videoAttachBudgetP95?: number | null;
           previewSrcSwapRatePerMinuteP95: number | null;
           previewRepaintSpikeCountMax: number | null;
           previewLastSwapBurstCountP95: number | null;
@@ -262,6 +273,10 @@ type PerfSeedOutputInput = {
   mediaSource?: StudioOutput["mediaSource"];
 };
 
+type PerfSeedReferenceGridOptions = {
+  activeCapOverride?: number | null;
+};
+
 type PerfOutputSnapshot = { outputOrder: string[] };
 
 type UseAiStudioPerfAuditRuntimeParams = {
@@ -280,6 +295,10 @@ type UseAiStudioPerfAuditRuntimeParams = {
   setEditReferenceText: (value: string) => void;
   setVideoReferenceText: (value: string) => void;
   setOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
+  setReferenceGridAuditOutputs?: (collections: {
+    active: StudioOutput[];
+    archived?: StudioOutput[];
+  }) => void;
 };
 
 /**
@@ -302,6 +321,7 @@ export function useAiStudioPerfAuditRuntime({
   setEditReferenceText,
   setVideoReferenceText,
   setOutputs,
+  setReferenceGridAuditOutputs,
 }: UseAiStudioPerfAuditRuntimeParams): void {
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -331,6 +351,14 @@ export function useAiStudioPerfAuditRuntime({
       longTaskP95MsAt60: 100,
       maxInputStallMsAt60: 800,
       renderedItemCountP95At60: 28,
+      crashResilienceCount: 100,
+      renderedItemCountP95AtCrashCount: 36,
+      longTaskP95MsAtCrashCount: 140,
+      maxInputStallMsAtCrashCount: 1_000,
+      imageDecodeInflightP95AtCrashCount: 6,
+      videoAttachBudgetP95AtCrashCount: 3,
+      mediaWorkTokensP95AtCrashCount: 8,
+      heapDeltaMbAtCrashCount: 96,
     };
     const SHELL_DEFAULT_COUNTS = [20, 40, 50, 60, 100, 300];
     const SHELL_GATES = {
@@ -775,9 +803,10 @@ export function useAiStudioPerfAuditRuntime({
     const runPerfScenario = async (
       count: number,
       clickSamples: number,
-      scrollDurationMs: number
+      scrollDurationMs: number,
+      seedOptions?: PerfSeedReferenceGridOptions
     ) => {
-      const seedResult = perfWindow.__shortpulseAiStudioPerf?.seedReferenceGrid(count);
+      const seedResult = perfWindow.__shortpulseAiStudioPerf?.seedReferenceGrid(count, seedOptions);
       await sleep(280);
 
       const clickLatenciesMs: number[] = [];
@@ -785,6 +814,8 @@ export function useAiStudioPerfAuditRuntime({
       const hydrationQueueSamples: number[] = [];
       const decodeInflightSamples: number[] = [];
       const perfDegradeSamples: number[] = [];
+      const mediaWorkTokenSamples: number[] = [];
+      const videoAttachBudgetSamples: number[] = [];
       const previewSrcSwapRateSamples: number[] = [];
       const previewRepaintSpikeSamples: number[] = [];
       const previewSwapBurstSamples: number[] = [];
@@ -797,6 +828,8 @@ export function useAiStudioPerfAuditRuntime({
         const hydrationQueue = Number(panel.dataset.imageHydrationQueueSize ?? NaN);
         const decodeInflight = Number(panel.dataset.imageDecodeInflightCount ?? NaN);
         const perfDegradeLevel = Number(panel.dataset.gridPerfDegradeLevel ?? NaN);
+        const mediaWorkTokens = Number(panel.dataset.gridMediaWorkTokens ?? NaN);
+        const videoAttachBudget = Number(panel.dataset.gridVideoAttachBudget ?? NaN);
         const previewSrcSwapRate = Number(panel.dataset.gridSrcSwapRatePerMinute ?? NaN);
         const previewRepaintSpikeCount = Number(panel.dataset.gridRepaintSpikeCount ?? NaN);
         const previewSwapBurstCount = Number(panel.dataset.gridLastSwapBurstCount ?? NaN);
@@ -804,6 +837,8 @@ export function useAiStudioPerfAuditRuntime({
         if (Number.isFinite(hydrationQueue)) hydrationQueueSamples.push(hydrationQueue);
         if (Number.isFinite(decodeInflight)) decodeInflightSamples.push(decodeInflight);
         if (Number.isFinite(perfDegradeLevel)) perfDegradeSamples.push(perfDegradeLevel);
+        if (Number.isFinite(mediaWorkTokens)) mediaWorkTokenSamples.push(mediaWorkTokens);
+        if (Number.isFinite(videoAttachBudget)) videoAttachBudgetSamples.push(videoAttachBudget);
         if (Number.isFinite(previewSrcSwapRate)) previewSrcSwapRateSamples.push(previewSrcSwapRate);
         if (Number.isFinite(previewRepaintSpikeCount))
           previewRepaintSpikeSamples.push(previewRepaintSpikeCount);
@@ -893,6 +928,8 @@ export function useAiStudioPerfAuditRuntime({
           imageHydrationQueueP95: p95(hydrationQueueSamples),
           imageDecodeInflightP95: p95(decodeInflightSamples),
           perfDegradeLevelP95: p95(perfDegradeSamples),
+          mediaWorkTokensP95: p95(mediaWorkTokenSamples),
+          videoAttachBudgetP95: p95(videoAttachBudgetSamples),
           previewSrcSwapRatePerMinuteP95: p95(previewSrcSwapRateSamples),
           previewRepaintSpikeCountMax: previewRepaintSpikeSamples.length
             ? Math.max(...previewRepaintSpikeSamples)
@@ -1116,17 +1153,36 @@ export function useAiStudioPerfAuditRuntime({
     };
 
     perfWindow.__shortpulseAiStudioPerf = {
-      seedReferenceGrid: (count: number) => {
+      seedReferenceGrid: (count: number, options?: PerfSeedReferenceGridOptions) => {
         const nextOutputs = createPerfOutputs(count);
-        const limited = limitReferenceGridVisibleOutputs(nextOutputs);
+        const requestedActiveCapOverride =
+          typeof options?.activeCapOverride === "number" &&
+          Number.isFinite(options.activeCapOverride) &&
+          options.activeCapOverride > 0
+            ? Math.floor(options.activeCapOverride)
+            : null;
+        const activeCapOverride = setReferenceGridAuditOutputs ? requestedActiveCapOverride : null;
+        const limited = limitReferenceGridVisibleOutputs(
+          nextOutputs,
+          activeCapOverride ?? undefined
+        );
         resetReferenceGridState();
-        setOutputs(nextOutputs);
-        setActiveOutputId(nextOutputs[0]?.id ?? null);
+        if (activeCapOverride && setReferenceGridAuditOutputs) {
+          setReferenceGridAuditOutputs({
+            active: limited.rows,
+            archived: buildReferenceGridOverflowArchiveRows(limited.trimmedRows),
+          });
+          setActiveOutputId(limited.rows[0]?.id ?? null);
+        } else {
+          setOutputs(nextOutputs);
+          setActiveOutputId(nextOutputs[0]?.id ?? null);
+        }
         return {
           requestedCount: count,
           activeCount: limited.rows.length,
           archivedCount: limited.trimmedCount,
           totalCount: nextOutputs.length,
+          activeCapOverride,
         };
       },
       seedReferenceGridItems: (items: PerfSeedOutputInput[]) => {
@@ -1157,6 +1213,12 @@ export function useAiStudioPerfAuditRuntime({
           ...DEFAULT_SCROLL_MS_BY_COUNT,
           ...(options?.scrollDurationMsByCount ?? {}),
         };
+        const activeCapOverride =
+          typeof options?.activeCapOverride === "number" &&
+          Number.isFinite(options.activeCapOverride) &&
+          options.activeCapOverride > 0
+            ? Math.floor(options.activeCapOverride)
+            : null;
 
         const scenarios: ReferenceGridScenario[] = [];
 
@@ -1165,7 +1227,8 @@ export function useAiStudioPerfAuditRuntime({
           const scenario = await runPerfScenario(
             safeCount,
             clickSamples,
-            scrollDurationMsByCount[safeCount] ?? DEFAULT_SCROLL_MS_BY_COUNT[300]
+            scrollDurationMsByCount[safeCount] ?? DEFAULT_SCROLL_MS_BY_COUNT[300],
+            activeCapOverride ? { activeCapOverride } : undefined
           );
           scenarios.push({
             count: scenario.count,
@@ -1361,5 +1424,6 @@ export function useAiStudioPerfAuditRuntime({
     setEditReferenceText,
     setVideoReferenceText,
     setOutputs,
+    setReferenceGridAuditOutputs,
   ]);
 }

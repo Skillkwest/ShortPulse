@@ -18,11 +18,13 @@ import type {
 import { PromptStep } from "../PromptStep";
 import { StandardCreateChatPanel } from "../promptStep/StandardCreateChatPanel";
 import { ComposerPinButton } from "../shared/ComposerPinButton";
+import { GenerationAccessCtaButton } from "../shared/GenerationAccessCtaButton";
 import { StylesControl } from "../StylesControl";
 import { resolveCreateModelModalContext } from "../../logic/createModelModalContext";
 import { deriveCreateSelectorViewState } from "../../logic/createSelectorState";
 import { filterAspectOptionsForModel } from "../../logic/modelAspectOptions";
 import { getModelConfig } from "../../logic/modelRegistry";
+import type { GenerationAccessCta } from "../../logic/generationAccessCta";
 import { stripEditLabel } from "../../utils/modelLabels";
 import { StandardCreatePanelView } from "./StandardCreatePanelView";
 import {
@@ -67,6 +69,7 @@ export type StandardCreatePropertiesPanelProps = {
   costCredits?: number | null;
   isPromptGenerating?: boolean;
   isGenerateDisabled?: boolean;
+  generationAccessCta?: GenerationAccessCta | null;
   guardrailReason?: string | null;
   onStepActionClick?: (step: "character" | "model" | "prompt" | "imageSettings") => void;
   onAgentInputChange?: (value: string) => void;
@@ -152,6 +155,7 @@ export function StandardCreatePropertiesPanel({
   onAssistantMessageEdit,
   isPromptGenerating = false,
   isGenerateDisabled = false,
+  generationAccessCta = null,
   guardrailReason = null,
   onClearAgentChat,
   imageResolution,
@@ -393,11 +397,15 @@ export function StandardCreatePropertiesPanel({
           onToggle={onStylesPanelToggle}
         />
         <div className="create-composer-inline-generate">
-          <AgentResponseInlineGenerateButton
-            onClick={onGenerate}
-            costCredits={costCredits}
-            disabled={isGenerateDisabled}
-          />
+          {generationAccessCta ? (
+            <GenerationAccessCtaButton cta={generationAccessCta} />
+          ) : (
+            <AgentResponseInlineGenerateButton
+              onClick={onGenerate}
+              costCredits={costCredits}
+              disabled={isGenerateDisabled}
+            />
+          )}
         </div>
       </div>
     ),

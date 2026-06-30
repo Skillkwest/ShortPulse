@@ -53,6 +53,7 @@ describe("useResolvedAccountPlan", () => {
         className: "plan-starter",
         monthlyCreditsCents: 500,
       });
+      expect(result.current.status).toBe("ready");
     });
     expect(fetchBillingAccountSummaryMock).toHaveBeenCalledTimes(1);
   });
@@ -94,6 +95,7 @@ describe("useResolvedAccountPlan", () => {
         className: "plan-business",
         monthlyCreditsCents: 0,
       });
+      expect(result.current.status).toBe("unavailable");
     });
   });
 

@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MAX_CUSTOM_VOICE_NAME_CHARACTERS } from "../../../../lib/customVoiceName";
 import { resolvePricingGridBilledCredits } from "../../../../lib/model-runtime/pricingGridBilledCredits";
 import { createCanvasTearOutComposerTargetRegistry } from "../../hooks/useAiStudioCanvasTearOutTargets";
+import { AI_STUDIO_PLAN_CTA } from "../../logic/generationAccessCta";
 import { resetSharedVoicesGridStore } from "../../hooks/useSharedVoicesGrid";
 import { useVoiceChangerSourceController } from "../../hooks/useVoiceChangerSourceController";
 import {
@@ -3650,5 +3651,17 @@ describe("VoicesPropertiesPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: /bella voice/i }));
 
     expect(selectedVoiceValue?.textContent).toBe("Bella");
+  });
+
+  it("replaces voice generate with the active plan CTA when generation access is gated", () => {
+    const onGenerate = vi.fn();
+    render(
+      <VoicesPropertiesPanel onGenerate={onGenerate} generationAccessCta={AI_STUDIO_PLAN_CTA} />
+    );
+
+    const planCta = screen.getByRole("link", { name: "View subscription plans" });
+    expect(planCta).toHaveAttribute("href", "/pricing");
+    expect(screen.queryByRole("button", { name: "Generate" })).toBeNull();
+    expect(onGenerate).not.toHaveBeenCalled();
   });
 });

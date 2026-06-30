@@ -177,7 +177,7 @@ describe("Pricing route behavior", () => {
     });
   });
 
-  it("sends guest plan selection to signup while public signup is explicitly closed", async () => {
+  it("sends guest plan selection to login while public signup is explicitly closed", async () => {
     vi.stubEnv("NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED", "false");
     useSupabaseSessionStateMock.mockReturnValue({
       initialized: true,
@@ -223,13 +223,15 @@ describe("Pricing route behavior", () => {
       )
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Sign up for Studio" }));
+    expect(screen.queryByRole("button", { name: "Sign up for Studio" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Log in to choose Studio" }));
 
     await waitFor(() => {
       expect(routerPushMock).toHaveBeenCalledTimes(1);
     });
     expect(routerPushMock).toHaveBeenCalledWith(
-      "/sign-up?next=%2Fpricing%3Fintent%3Dcreate-project%26plan%3Dstudio"
+      "/log-in?next=%2Fpricing%3Fintent%3Dcreate-project%26plan%3Dstudio"
     );
   });
 

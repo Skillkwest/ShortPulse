@@ -349,10 +349,14 @@ const humanizePlanId = (value: string): string =>
 /**
  * Formats the plan's active-generation slot entitlement as exact customer-facing copy.
  */
-export const formatConcurrentGenerationsLabel = (value: number): string => {
+export const formatConcurrentGenerationsLabel = (value: number, planId?: string | null): string => {
   const normalizedValue = Math.max(0, Math.trunc(Number.isFinite(value) ? value : 0));
-  if (normalizedValue === 1) return "1 concurrent generation allowed";
-  return `${normalizedValue.toLocaleString()} concurrent generations allowed`;
+  const normalizedPlanId = normalizePlanId(planId);
+  if (normalizedValue === 1 && normalizedPlanId === "starter") {
+    return "1 active image generation at a time";
+  }
+  if (normalizedValue === 1) return "1 active generation at a time";
+  return `${normalizedValue.toLocaleString()} active generations at a time`;
 };
 
 /**
@@ -372,7 +376,10 @@ export const buildPlanView = (params: {
     (fromCatalog ? GENERIC_PLAN_PRESENTATION : PLAN_PRESENTATION[DEFAULT_PLAN_ID]);
   const maxConcurrentGenerations =
     resolvedCatalog?.max_concurrent_generations ?? resolveDefaultPlanConcurrencyLimit(normalizedId);
-  const concurrentGenerationsLabel = formatConcurrentGenerationsLabel(maxConcurrentGenerations);
+  const concurrentGenerationsLabel = formatConcurrentGenerationsLabel(
+    maxConcurrentGenerations,
+    normalizedId
+  );
 
   return {
     id: normalizedId,

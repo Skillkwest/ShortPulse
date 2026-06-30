@@ -110,7 +110,7 @@ export const useReferenceGridTelemetryController = ({
       });
     });
     try {
-      observer.observe({ type: "longtask", buffered: true });
+      observer.observe({ type: "longtask" });
     } catch {
       observer.disconnect();
       return;

@@ -18,6 +18,7 @@ import type {
 } from "../../components/create/useCreateCharacterModeController";
 import type { StandardCreatePropertiesPanelProps } from "../../components/create/StandardCreatePropertiesPanel";
 import type { ExpertEditStyleTile } from "../../components/edit/expertEditStyles";
+import type { GenerationAccessCta } from "../../logic/generationAccessCta";
 import type { StudioMode, ToolId } from "../../types";
 import {
   resolveStandardCreatePrimaryActionDecision,
@@ -70,6 +71,7 @@ export type BuildStandardCreatePanelPropsParams = {
   describeInFlightCount: number;
   createGenerateCostCredits: number | null;
   isGenerateDisabled: boolean;
+  generationAccessCta?: GenerationAccessCta | null;
   generationGuardrail: string | null;
   handleClearAgentChat: () => void;
   handleStandardCreatePrimarySubmit: () => void;
@@ -142,6 +144,7 @@ export const buildStandardCreatePanelProps = ({
   describeInFlightCount,
   createGenerateCostCredits,
   isGenerateDisabled,
+  generationAccessCta,
   generationGuardrail,
   handleClearAgentChat,
   handleStandardCreatePrimarySubmit,
@@ -237,6 +240,7 @@ export const buildStandardCreatePanelProps = ({
     isPromptGenerating: createIsGenerating || isPromptRefining || describeInFlightCount > 0,
     costCredits: createGenerateCostCredits,
     isGenerateDisabled: isPrimaryGenerateDisabled,
+    generationAccessCta,
     guardrailReason,
     onClearAgentChat: handleClearAgentChat,
     onGenerate: handleStandardCreatePrimarySubmit,

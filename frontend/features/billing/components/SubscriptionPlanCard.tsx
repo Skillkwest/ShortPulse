@@ -74,7 +74,7 @@ export function SubscriptionPlanCard({
       annotation: null,
     })),
     {
-      label: formatConcurrentGenerationsLabel(pricing.maxConcurrentGenerations),
+      label: formatConcurrentGenerationsLabel(pricing.maxConcurrentGenerations, plan.id),
       included: true,
       annotation: null,
     },

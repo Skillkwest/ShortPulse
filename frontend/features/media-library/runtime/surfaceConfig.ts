@@ -57,6 +57,31 @@ export const resolvePanelDenseBrowseSignBudget = (budget: MediaSignBudget): Medi
   ),
 });
 
+/**
+ * Reduces panel signing fanout when the shared browser-pressure sampler reports
+ * pressure. Critical pressure keeps a minimal urgent lane and disables prefetch.
+ */
+export const resolvePanelPressureAwareSignBudget = (
+  budget: MediaSignBudget,
+  pressureLevel: 0 | 1 | 2
+): MediaSignBudget => {
+  if (pressureLevel >= 2) {
+    return {
+      initialSignLimit: Math.min(budget.initialSignLimit, 2),
+      prefetchWindow: 0,
+      signBatchSize: Math.min(budget.signBatchSize, 1),
+    };
+  }
+  if (pressureLevel >= 1) {
+    return {
+      initialSignLimit: Math.min(budget.initialSignLimit, 3),
+      prefetchWindow: Math.min(budget.prefetchWindow, 2),
+      signBatchSize: Math.min(budget.signBatchSize, 2),
+    };
+  }
+  return budget;
+};
+
 export const MEDIA_LIBRARY_SURFACE_CONFIG: Record<
   MediaLibrarySurfaceKind,
   MediaLibrarySurfaceConfig

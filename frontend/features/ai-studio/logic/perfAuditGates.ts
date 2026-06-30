@@ -13,6 +13,7 @@ export type ReferenceGridScenario = {
     activeCount: number;
     archivedCount?: number;
     totalCount?: number;
+    activeCapOverride?: number | null;
   };
   click: { samples: number; p95Ms: number | null };
   longTask: { samples: number; p95Ms: number | null };
@@ -23,6 +24,8 @@ export type ReferenceGridScenario = {
     imageHydrationQueueP95: number | null;
     imageDecodeInflightP95: number | null;
     perfDegradeLevelP95: number | null;
+    mediaWorkTokensP95?: number | null;
+    videoAttachBudgetP95?: number | null;
     previewSrcSwapRatePerMinuteP95: number | null;
     previewRepaintSpikeCountMax: number | null;
     previewLastSwapBurstCountP95: number | null;
@@ -80,6 +83,14 @@ export const evaluateReferenceGridAuditGates = (
     longTaskP95MsAt60: number;
     maxInputStallMsAt60: number;
     renderedItemCountP95At60: number;
+    crashResilienceCount?: number;
+    renderedItemCountP95AtCrashCount?: number;
+    longTaskP95MsAtCrashCount?: number;
+    maxInputStallMsAtCrashCount?: number;
+    imageDecodeInflightP95AtCrashCount?: number;
+    videoAttachBudgetP95AtCrashCount?: number;
+    mediaWorkTokensP95AtCrashCount?: number;
+    heapDeltaMbAtCrashCount?: number;
   }
 ): PerfGate[] => {
   const scenarioByCount = new Map(scenarios.map((scenario) => [scenario.count, scenario]));
@@ -151,6 +162,108 @@ export const evaluateReferenceGridAuditGates = (
           : "Rendered-item metric unavailable from grid surface.",
     });
   });
+
+  if (
+    typeof thresholds.crashResilienceCount === "number" &&
+    typeof thresholds.renderedItemCountP95AtCrashCount === "number" &&
+    typeof thresholds.longTaskP95MsAtCrashCount === "number" &&
+    typeof thresholds.maxInputStallMsAtCrashCount === "number" &&
+    typeof thresholds.imageDecodeInflightP95AtCrashCount === "number" &&
+    typeof thresholds.videoAttachBudgetP95AtCrashCount === "number" &&
+    typeof thresholds.mediaWorkTokensP95AtCrashCount === "number"
+  ) {
+    const targetCount = thresholds.crashResilienceCount;
+    const scenario = scenarioByCount.get(targetCount);
+    if (!scenario) {
+      gates.push({
+        name: "crash_resilience_scenario_exists",
+        pass: false,
+        actual: null,
+        expected: `${targetCount}-card crash-resilience scenario must run`,
+      });
+      return gates;
+    }
+
+    gates.push({
+      name: `crash_resilience_rendered_item_count_p95_at_${targetCount}`,
+      pass:
+        typeof scenario.grid.renderedItemCountP95 === "number" &&
+        scenario.grid.renderedItemCountP95 <= thresholds.renderedItemCountP95AtCrashCount,
+      actual: scenario.grid.renderedItemCountP95,
+      expected: `<= ${thresholds.renderedItemCountP95AtCrashCount}`,
+      note:
+        typeof scenario.grid.renderedItemCountP95 === "number"
+          ? undefined
+          : "Rendered-item metric unavailable from grid surface.",
+    });
+    gates.push({
+      name: `crash_resilience_long_task_p95_ms_at_${targetCount}`,
+      pass:
+        typeof scenario.longTask.p95Ms !== "number" ||
+        scenario.longTask.p95Ms <= thresholds.longTaskP95MsAtCrashCount,
+      actual: scenario.longTask.p95Ms,
+      expected: `<= ${thresholds.longTaskP95MsAtCrashCount}`,
+      note:
+        typeof scenario.longTask.p95Ms === "number"
+          ? undefined
+          : "No long tasks observed during crash-resilience scenario.",
+    });
+    gates.push({
+      name: `crash_resilience_max_input_stall_ms_at_${targetCount}`,
+      pass: scenario.interaction.maxInputStallMs <= thresholds.maxInputStallMsAtCrashCount,
+      actual: scenario.interaction.maxInputStallMs,
+      expected: `<= ${thresholds.maxInputStallMsAtCrashCount}`,
+    });
+    gates.push({
+      name: `crash_resilience_image_decode_inflight_p95_at_${targetCount}`,
+      pass:
+        typeof scenario.grid.imageDecodeInflightP95 === "number" &&
+        scenario.grid.imageDecodeInflightP95 <= thresholds.imageDecodeInflightP95AtCrashCount,
+      actual: scenario.grid.imageDecodeInflightP95,
+      expected: `<= ${thresholds.imageDecodeInflightP95AtCrashCount}`,
+      note:
+        typeof scenario.grid.imageDecodeInflightP95 === "number"
+          ? undefined
+          : "Image decode metric unavailable from grid surface.",
+    });
+    gates.push({
+      name: `crash_resilience_video_attach_budget_p95_at_${targetCount}`,
+      pass:
+        typeof scenario.grid.videoAttachBudgetP95 === "number" &&
+        scenario.grid.videoAttachBudgetP95 <= thresholds.videoAttachBudgetP95AtCrashCount,
+      actual: scenario.grid.videoAttachBudgetP95 ?? null,
+      expected: `<= ${thresholds.videoAttachBudgetP95AtCrashCount}`,
+      note:
+        typeof scenario.grid.videoAttachBudgetP95 === "number"
+          ? undefined
+          : "Video attach budget metric unavailable from grid surface.",
+    });
+    gates.push({
+      name: `crash_resilience_media_work_tokens_p95_at_${targetCount}`,
+      pass:
+        typeof scenario.grid.mediaWorkTokensP95 === "number" &&
+        scenario.grid.mediaWorkTokensP95 <= thresholds.mediaWorkTokensP95AtCrashCount,
+      actual: scenario.grid.mediaWorkTokensP95 ?? null,
+      expected: `<= ${thresholds.mediaWorkTokensP95AtCrashCount}`,
+      note:
+        typeof scenario.grid.mediaWorkTokensP95 === "number"
+          ? undefined
+          : "Media work-token metric unavailable from grid surface.",
+    });
+    if (typeof thresholds.heapDeltaMbAtCrashCount === "number") {
+      const heapDeltaMb =
+        typeof scenario.memory.beforeMb === "number" && typeof scenario.memory.afterMb === "number"
+          ? Math.round((scenario.memory.afterMb - scenario.memory.beforeMb) * 100) / 100
+          : null;
+      gates.push({
+        name: `crash_resilience_heap_delta_mb_at_${targetCount}`,
+        pass: heapDeltaMb === null || heapDeltaMb <= thresholds.heapDeltaMbAtCrashCount,
+        actual: heapDeltaMb,
+        expected: `<= ${thresholds.heapDeltaMbAtCrashCount}`,
+        note: heapDeltaMb === null ? "Heap metric unavailable in this browser runtime." : undefined,
+      });
+    }
+  }
 
   return gates;
 };

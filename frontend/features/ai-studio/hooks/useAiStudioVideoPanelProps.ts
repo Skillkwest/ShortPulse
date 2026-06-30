@@ -11,6 +11,7 @@ import type { AiStudioVideoPanelContract } from "./contracts/pageContentContract
 import type { LipSyncAudioState, VideoReferenceMode } from "../types";
 import type { VideoUploadResult } from "../utils/videoUpload";
 import type { CanvasTearOutComposerTargetRegistry } from "./useAiStudioCanvasTearOutTargets";
+import type { GenerationAccessCta } from "../logic/generationAccessCta";
 
 type UseAiStudioVideoPanelPropsParams = {
   aspect: string;
@@ -97,6 +98,7 @@ type UseAiStudioVideoPanelPropsParams = {
   resolveInternalReferenceVideoDropSource?: ResolveInternalReferenceDrop;
   canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
   isGenerateDisabled: boolean;
+  generationAccessCta?: GenerationAccessCta | null;
   generationGuardrail: string | null;
   onCreateCharacter: () => void;
   onCreateElement: () => void;
@@ -176,6 +178,7 @@ export const useAiStudioVideoPanelProps = ({
   resolveInternalReferenceVideoDropSource,
   canvasTearOutTargetRegistry,
   isGenerateDisabled,
+  generationAccessCta = null,
   generationGuardrail,
   onCreateCharacter,
   onCreateElement,
@@ -254,6 +257,7 @@ export const useAiStudioVideoPanelProps = ({
       resolveInternalReferenceVideoDropSource,
       canvasTearOutTargetRegistry,
       isGenerateDisabled,
+      generationAccessCta,
       onCreateCharacter,
       onCreateElement,
     }),
@@ -264,6 +268,7 @@ export const useAiStudioVideoPanelProps = ({
       canvasTearOutTargetRegistry,
       extraImageUrls,
       generationGuardrail,
+      generationAccessCta,
       handleKlingVoiceIdChange,
       handleOpenModelModal,
       handleRegenerateWithDebit,

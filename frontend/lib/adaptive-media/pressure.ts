@@ -4,6 +4,8 @@
  */
 import type { AdaptivePressureLevel } from "./types";
 
+export type AdaptivePressurePhase = "normal" | "constrained" | "critical";
+
 export type AdaptivePressureTransition = {
   nextLevel: AdaptivePressureLevel;
   nextPromoteStreak: number;
@@ -91,6 +93,18 @@ export const evaluateAdaptivePressureCandidateLevel = ({
   if (heapLevel2 || longTaskLevel2 || stallLevel2) return 2;
   if (heapLevel1 || longTaskLevel1 || stallLevel1) return 1;
   return 0;
+};
+
+/**
+ * Resolves the named browser-pressure phase for surfaces that need
+ * low-cardinality policy decisions while preserving numeric budget levels.
+ */
+export const resolveAdaptivePressurePhase = (
+  level: AdaptivePressureLevel
+): AdaptivePressurePhase => {
+  if (level >= 2) return "critical";
+  if (level >= 1) return "constrained";
+  return "normal";
 };
 
 export const resolveAdaptivePressureTransition = ({

@@ -12,6 +12,7 @@ import { AgentEnhanceButton } from "../../../prefabs/agent";
 import { useAgentComposerPromptDropModifierTracking } from "./promptStep/agentComposerDrop";
 import type { CanvasTearOutComposerTargetRegistry } from "../hooks/useAiStudioCanvasTearOutTargets";
 import type { AgentComposerDirectDropPayload } from "../logic/agentComposerDirectDropPayload";
+import type { GenerationAccessCta } from "../logic/generationAccessCta";
 import {
   handlePromptTextAreaDragOver,
   handlePromptTextAreaDrop,
@@ -65,6 +66,7 @@ import {
   markExclusiveSoundPlaying,
   requestExclusiveSoundPlayback,
 } from "./shared/exclusiveSoundPlayback";
+import { GenerationAccessCtaButton } from "./shared/GenerationAccessCtaButton";
 import styles from "../../../styles/ai-studio-voices-properties.module.css";
 
 export {
@@ -181,6 +183,7 @@ export type VoicesPropertiesPanelProps = {
   balanceCredits?: number | null;
   pricingPolicy?: ModelPricingPolicyDocument | null;
   pricingPolicyReady?: boolean;
+  generationAccessCta?: GenerationAccessCta | null;
   selectedTool?: ToolId | null;
   isGenerating?: boolean;
   onGenerate?: (request: VoicesGenerateRequest) => Promise<void> | void;
@@ -236,6 +239,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   balanceCredits = null,
   pricingPolicy = null,
   pricingPolicyReady = true,
+  generationAccessCta = null,
   selectedTool = null,
   onGenerate,
   onSelectedVoiceIdChange,
@@ -1528,24 +1532,28 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                     </button>
                   </span>
                 </div>
-                <button
-                  type="button"
-                  className="voices-properties-generate-btn"
-                  data-credit-confidence={generateCreditConfidence.status}
-                  disabled={!isGenerateEnabled}
-                  aria-label="Generate"
-                  title={generateCreditConfidence.title}
-                  onClick={handleGenerate}
-                >
-                  <span className="voices-properties-generate-label">Generate</span>
-                  <span className="voices-properties-generate-pill" aria-hidden="true">
-                    <span className="voices-properties-generate-cost-icon">✦</span>
-                    <span className="voices-properties-generate-cost-value">
-                      {estimatedCredits != null ? formatCreditValue(estimatedCredits) : "—"}
-                      <span className="voices-properties-generate-cost-label">credits</span>
+                {generationAccessCta ? (
+                  <GenerationAccessCtaButton cta={generationAccessCta} />
+                ) : (
+                  <button
+                    type="button"
+                    className="voices-properties-generate-btn"
+                    data-credit-confidence={generateCreditConfidence.status}
+                    disabled={!isGenerateEnabled}
+                    aria-label="Generate"
+                    title={generateCreditConfidence.title}
+                    onClick={handleGenerate}
+                  >
+                    <span className="voices-properties-generate-label">Generate</span>
+                    <span className="voices-properties-generate-pill" aria-hidden="true">
+                      <span className="voices-properties-generate-cost-icon">✦</span>
+                      <span className="voices-properties-generate-cost-value">
+                        {estimatedCredits != null ? formatCreditValue(estimatedCredits) : "—"}
+                        <span className="voices-properties-generate-cost-label">credits</span>
+                      </span>
                     </span>
-                  </span>
-                </button>
+                  </button>
+                )}
               </div>
             </section>
           </div>

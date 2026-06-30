@@ -4,6 +4,7 @@ import type { AspectOption } from "../../types";
 import { ResolutionDropdown } from "../ResolutionDropdown";
 import { ExpertEditPromptComposer } from "./ExpertEditPromptComposer";
 import { ExpertEditSelectorControls } from "./ExpertEditReferenceControls";
+import type { GenerationAccessCta } from "../../logic/generationAccessCta";
 
 type PromptHighlightSegment = {
   kind: string;
@@ -38,6 +39,7 @@ type ExpertEditPromptSelectorsColumnProps = {
   onPinPromptReference?: (text: string) => void;
   onGenerate: () => void;
   inlineGenerateDisabled: boolean;
+  generationAccessCta?: GenerationAccessCta | null;
   costCredits?: number | null;
   modelId: string | null;
   isModelPickerLocked: boolean;
@@ -78,6 +80,7 @@ export function ExpertEditPromptSelectorsColumn({
   onPinPromptReference,
   onGenerate,
   inlineGenerateDisabled,
+  generationAccessCta = null,
   costCredits = null,
   modelId,
   isModelPickerLocked,
@@ -119,6 +122,7 @@ export function ExpertEditPromptSelectorsColumn({
         onPinPromptReference={onPinPromptReference}
         onGenerate={onGenerate}
         inlineGenerateDisabled={inlineGenerateDisabled}
+        generationAccessCta={generationAccessCta}
         costCredits={costCredits}
       />
       <ExpertEditSelectorControls

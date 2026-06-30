@@ -12,9 +12,11 @@ const LOGIN_ENTRY_PATH = "/log-in";
 const EMAIL = (process.env.PLAYWRIGHT_AUDIT_EMAIL || "").trim();
 const PASSWORD = (process.env.PLAYWRIGHT_AUDIT_PASSWORD || "").trim() || "AuditPass!12345";
 
-const COUNTS = [40, 60];
+const COUNTS = [40, 60, 100];
+const ACTIVE_WORKSET_COUNTS = [40, 60, 100, 300];
 const TARGET_TOTAL_COUNT = 500;
 const TARGET_ACTIVE_COUNT = 128;
+const TARGET_AUDIT_ACTIVE_COUNT = 300;
 const CLICK_SAMPLES = 24;
 
 async function signIn(page) {
@@ -97,7 +99,9 @@ async function main() {
       messageSnippets: [],
     },
     referenceGridTargetSeed: null,
+    referenceGridActiveWorksetSeed: null,
     referenceGrid: null,
+    referenceGridActiveWorkset: null,
     studioShell: null,
   };
 
@@ -152,19 +156,73 @@ async function main() {
       return;
     }
 
+    const referenceGridActiveWorksetSeed = await page.evaluate(
+      ({ targetActiveCount }) =>
+        globalThis.__shortpulseAiStudioPerf.seedReferenceGrid(targetActiveCount, {
+          activeCapOverride: targetActiveCount,
+        }),
+      { targetActiveCount: TARGET_AUDIT_ACTIVE_COUNT }
+    );
+    result.referenceGridActiveWorksetSeed = referenceGridActiveWorksetSeed;
+    if (
+      referenceGridActiveWorksetSeed?.requestedCount !== TARGET_AUDIT_ACTIVE_COUNT ||
+      referenceGridActiveWorksetSeed?.activeCount !== TARGET_AUDIT_ACTIVE_COUNT ||
+      referenceGridActiveWorksetSeed?.archivedCount !== 0 ||
+      referenceGridActiveWorksetSeed?.totalCount !== TARGET_AUDIT_ACTIVE_COUNT ||
+      referenceGridActiveWorksetSeed?.activeCapOverride !== TARGET_AUDIT_ACTIVE_COUNT
+    ) {
+      result.ok = false;
+      console.log(JSON.stringify(result, null, 2));
+      process.exitCode = 1;
+      return;
+    }
+
     const referenceGrid = await page.evaluate(
       async ({ counts, clickSamples }) =>
         globalThis.__shortpulseAiStudioPerf.runReferenceGridAudit({ counts, clickSamples }),
       { counts: COUNTS, clickSamples: CLICK_SAMPLES }
     );
+    const referenceGridActiveWorkset = await page.evaluate(
+      async ({ counts, clickSamples, targetActiveCount }) =>
+        globalThis.__shortpulseAiStudioPerf.runReferenceGridAudit({
+          counts,
+          clickSamples,
+          activeCapOverride: targetActiveCount,
+        }),
+      {
+        counts: ACTIVE_WORKSET_COUNTS,
+        clickSamples: CLICK_SAMPLES,
+        targetActiveCount: TARGET_AUDIT_ACTIVE_COUNT,
+      }
+    );
+    const activeWorksetScenario = referenceGridActiveWorkset?.scenarios?.find(
+      (scenario) => scenario?.count === TARGET_AUDIT_ACTIVE_COUNT
+    );
+    if (
+      activeWorksetScenario?.seeded?.requestedCount !== TARGET_AUDIT_ACTIVE_COUNT ||
+      activeWorksetScenario?.seeded?.activeCount !== TARGET_AUDIT_ACTIVE_COUNT ||
+      activeWorksetScenario?.seeded?.archivedCount !== 0 ||
+      activeWorksetScenario?.seeded?.totalCount !== TARGET_AUDIT_ACTIVE_COUNT ||
+      activeWorksetScenario?.seeded?.activeCapOverride !== TARGET_AUDIT_ACTIVE_COUNT
+    ) {
+      result.referenceGridActiveWorkset = referenceGridActiveWorkset;
+      result.ok = false;
+      console.log(JSON.stringify(result, null, 2));
+      process.exitCode = 1;
+      return;
+    }
     const studioShell = await page.evaluate(
       async ({ counts }) => globalThis.__shortpulseAiStudioPerf.runStudioShellAudit({ counts }),
       { counts: COUNTS }
     );
 
     result.referenceGrid = referenceGrid;
+    result.referenceGridActiveWorkset = referenceGridActiveWorkset;
     result.studioShell = studioShell;
-    result.ok = Boolean(referenceGrid?.ok) && Boolean(studioShell?.ok);
+    result.ok =
+      Boolean(referenceGrid?.ok) &&
+      Boolean(referenceGridActiveWorkset?.ok) &&
+      Boolean(studioShell?.ok);
     console.log(JSON.stringify(result, null, 2));
 
     if (!result.ok) {

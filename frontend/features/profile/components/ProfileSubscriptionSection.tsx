@@ -180,7 +180,10 @@ export function ProfileSubscriptionSection({
           <ProfileMetricCard
             className="profile-hero-stat-card"
             label="Concurrent generations"
-            value={formatConcurrentGenerationsLabel(currentSubscriptionMaxConcurrentGenerations)}
+            value={formatConcurrentGenerationsLabel(
+              currentSubscriptionMaxConcurrentGenerations,
+              activePlan.id
+            )}
             helper={concurrentGenerationsHelperText}
           />
           {activeAddonStorageBytes > 0 ? (

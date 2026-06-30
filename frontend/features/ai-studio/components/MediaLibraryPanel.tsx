@@ -31,6 +31,7 @@ import {
 import {
   getMediaLibrarySurfaceConfig,
   resolvePanelDenseBrowseSignBudget,
+  resolvePanelPressureAwareSignBudget,
 } from "../../media-library/runtime";
 import { MEDIA_LIBRARY_ROOT_FOLDER_ID } from "../logic/mediaLibraryPanelApi";
 import { useMediaLibraryPanelDataController } from "../hooks/useMediaLibraryPanelDataController";
@@ -337,12 +338,20 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     },
     [setSignedUrls]
   );
+  const resolvePanelSignBudgetForPressure = useCallback(
+    () =>
+      resolvePanelPressureAwareSignBudget(
+        panelSurfaceConfig.signBudgetResolver(),
+        effectiveAdaptivePressureLevel
+      ),
+    [effectiveAdaptivePressureLevel, panelSurfaceConfig]
+  );
   const previewRuntime = useMediaSurfacePreviewRuntime<MediaFileRow, MediaTab, HTMLElement>({
     activeMediaQuery: normalizedSearch,
     activeTab: activeMediaTab ?? "saved_prompts",
     firstMediaPaintEventName: "media.panel.first_media_paint",
     previewProfile: panelSurfaceConfig.imageCardPreviewProfile,
-    signBudgetResolver: panelSurfaceConfig.signBudgetResolver,
+    signBudgetResolver: resolvePanelSignBudgetForPressure,
     surface: panelListSurface,
     visibilityRootMargin: panelSurfaceConfig.visibilityRootMargin,
     visibilityRootRef: panelBodyRef as React.MutableRefObject<HTMLElement | null>,
@@ -373,8 +382,13 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   } = previewRuntime;
   const signBudgetOverride = useMemo(
     () =>
-      shouldShowMedia ? resolvePanelDenseBrowseSignBudget(previewRuntime.signBudget) : undefined,
-    [previewRuntime.signBudget, shouldShowMedia]
+      shouldShowMedia
+        ? resolvePanelPressureAwareSignBudget(
+            resolvePanelDenseBrowseSignBudget(previewRuntime.signBudget),
+            effectiveAdaptivePressureLevel
+          )
+        : undefined,
+    [effectiveAdaptivePressureLevel, previewRuntime.signBudget, shouldShowMedia]
   );
   const foldersSplit = useReferenceGridHorizontalSplit({
     enabled: true,

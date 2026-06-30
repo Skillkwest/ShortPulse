@@ -17,6 +17,7 @@ type UseMediaGridVideoBudgetControllerArgs<TItem extends VideoBudgetItem> = {
   enabled: boolean;
   surface: VideoBudgetSurface;
   isVideoFile: (fileType?: string | null) => boolean;
+  pressureLevel?: 0 | 1 | 2;
   scrollContainerRef?: MutableRefObject<HTMLElement | null>;
   smallScreenQuery?: string;
   autoplayMaxDesktop?: number;
@@ -59,6 +60,35 @@ const areStringSetsEqual = (left: Set<string>, right: Set<string>): boolean => {
 };
 
 /**
+ * Resolves the effective video attach budget from device/network constraints
+ * and shared browser pressure.
+ */
+export const resolveMediaGridVideoAttachBudget = ({
+  pressureLevel = 0,
+  isSmallScreen,
+  isConstrained,
+  autoplayMaxDesktop,
+  autoplayMaxSmallScreen,
+  autoplayMaxConstrained,
+}: {
+  pressureLevel?: 0 | 1 | 2;
+  isSmallScreen: boolean;
+  isConstrained: boolean;
+  autoplayMaxDesktop: number;
+  autoplayMaxSmallScreen: number;
+  autoplayMaxConstrained: number;
+}): number => {
+  const deviceBudget = isConstrained
+    ? autoplayMaxConstrained
+    : isSmallScreen
+      ? autoplayMaxSmallScreen
+      : autoplayMaxDesktop;
+  if (pressureLevel >= 2) return 0;
+  if (pressureLevel >= 1) return Math.min(deviceBudget, autoplayMaxConstrained);
+  return deviceBudget;
+};
+
+/**
  * Shared modal/panel video autoplay budget controller.
  * Bounds concurrent autoplay and detaches offscreen sources after a short idle delay.
  */
@@ -67,6 +97,7 @@ export const useMediaGridVideoBudgetController = <TItem extends VideoBudgetItem>
   enabled,
   surface,
   isVideoFile,
+  pressureLevel = 0,
   scrollContainerRef,
   smallScreenQuery = "(max-width: 900px)",
   autoplayMaxDesktop = 3,
@@ -130,11 +161,14 @@ export const useMediaGridVideoBudgetController = <TItem extends VideoBudgetItem>
       const isSlowNetwork = effectiveType.includes("2g");
       const isLowMemory = typeof nav.deviceMemory === "number" && nav.deviceMemory <= 4;
       const isConstrained = saveData || isSlowNetwork || isLowMemory;
-      const nextBudget = isConstrained
-        ? autoplayMaxConstrained
-        : isSmallScreen
-          ? autoplayMaxSmallScreen
-          : autoplayMaxDesktop;
+      const nextBudget = resolveMediaGridVideoAttachBudget({
+        pressureLevel,
+        isSmallScreen,
+        isConstrained,
+        autoplayMaxConstrained,
+        autoplayMaxDesktop,
+        autoplayMaxSmallScreen,
+      });
       setVideoAttachBudget((prev) => (prev === nextBudget ? prev : nextBudget));
     };
     refreshBudget();
@@ -149,6 +183,7 @@ export const useMediaGridVideoBudgetController = <TItem extends VideoBudgetItem>
     autoplayMaxDesktop,
     autoplayMaxSmallScreen,
     enabled,
+    pressureLevel,
     smallScreenQuery,
   ]);
 

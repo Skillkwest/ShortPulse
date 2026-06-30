@@ -14,6 +14,7 @@ import type { AspectOption } from "../../types";
 import type { EditSubmitIntent } from "../../logic/editSubmitIntent";
 import type { ResolveInternalReferenceDrop } from "../../logic/referenceSource/internalReferenceSource";
 import type { CanvasTearOutComposerTargetRegistry } from "../../hooks/useAiStudioCanvasTearOutTargets";
+import type { GenerationAccessCta } from "../../logic/generationAccessCta";
 import type { ModelModalContext } from "../ModelModal";
 import type { CreateCharacterOption } from "../create/useCreateCharacterModeController";
 import type {
@@ -75,6 +76,7 @@ export type ExpertEditPanelViewProps = {
   costCredits?: number | null;
   removeBackgroundCostCredits?: number | null;
   isGenerateDisabled?: boolean;
+  generationAccessCta?: GenerationAccessCta | null;
   isPrimaryStageGenerating?: boolean;
   referenceImageWarning?: string | null;
   onImageResolutionChange?: (value: string) => void;

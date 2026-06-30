@@ -67,6 +67,7 @@ import type { ExpertEditStyleTile } from "./edit/expertEditStyles";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
 import type { CanvasTearOutComposerTargetRegistry } from "../hooks/useAiStudioCanvasTearOutTargets";
 import type { AgentComposerDirectDropPayload } from "../logic/agentComposerDirectDropPayload";
+import type { GenerationAccessCta } from "../logic/generationAccessCta";
 import { useVideoLipSyncAudioController } from "./useVideoLipSyncAudioController";
 import { useVideoSavedKlingElementRefresh } from "./useVideoSavedKlingElementRefresh";
 import { VideoAssetSlotsCard } from "./video/VideoAssetSlotsCard";
@@ -217,6 +218,7 @@ export type VideoPropertiesPanelProps = {
   canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
   costCredits?: number | null;
   isGenerateDisabled?: boolean;
+  generationAccessCta?: GenerationAccessCta | null;
   guardrailReason?: string | null;
   referenceImageWarning?: string | null;
   onCreateCharacter?: () => void;
@@ -291,6 +293,7 @@ export function VideoPropertiesPanel({
   canvasTearOutTargetRegistry,
   costCredits,
   isGenerateDisabled = false,
+  generationAccessCta = null,
   guardrailReason = null,
   referenceImageWarning = null,
   onCreateCharacter,
@@ -2003,6 +2006,7 @@ export function VideoPropertiesPanel({
                   onStylesPanelToggle={onStylesPanelToggle}
                   onRegenerate={onRegenerate}
                   costCredits={costCredits}
+                  generationAccessCta={generationAccessCta}
                 />
               </div>
             </div>

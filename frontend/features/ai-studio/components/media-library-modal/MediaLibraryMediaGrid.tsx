@@ -169,6 +169,7 @@ export function MediaLibraryMediaGrid({
       enabled: MEDIA_LIBRARY_VIDEO_BUDGET_ENABLED,
       surface,
       isVideoFile: isVideoFileType,
+      pressureLevel: adaptivePressureLevel,
       scrollContainerRef,
       detachDelayMs: 850,
       visibilityThreshold: 0.5,

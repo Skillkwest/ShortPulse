@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   evaluateAdaptivePressureCandidateLevel,
+  resolveAdaptivePressurePhase,
   resolveAdaptivePressureDelayedRecoveryTransition,
   resolveAdaptivePressureTransition,
 } from "../pressure";
@@ -70,6 +71,12 @@ describe("adaptive-media pressure transitions", () => {
         memoryGuardEnabled: true,
       })
     ).toBe(1);
+  });
+
+  it("maps numeric pressure levels to stable named phases", () => {
+    expect(resolveAdaptivePressurePhase(0)).toBe("normal");
+    expect(resolveAdaptivePressurePhase(1)).toBe("constrained");
+    expect(resolveAdaptivePressurePhase(2)).toBe("critical");
   });
 
   it("delays recovery transitions until stable duration and min interval pass", () => {

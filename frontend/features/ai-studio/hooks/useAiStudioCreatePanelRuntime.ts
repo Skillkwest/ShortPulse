@@ -24,6 +24,7 @@ import {
 import type { StudioMode, ToolId } from "../types";
 import { STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED } from "../logic/chatModeDefaults";
 import type { CanvasTearOutComposerTargetRegistry } from "./useAiStudioCanvasTearOutTargets";
+import type { GenerationAccessCta } from "../logic/generationAccessCta";
 
 type CreatePulsePresetPageRuntime = ReturnType<typeof useCreatePulsePresetPageRuntime>;
 type CreatePanelProps = AiStudioPageContentProps["propertiesCreate"];
@@ -61,6 +62,7 @@ type UseAiStudioCreatePanelRuntimeParams = {
   hasSufficientCreditsForPromptReferenceGenerate: boolean;
   effectiveGenerationGuardrail: string | null;
   effectiveIsGenerateDisabled: boolean;
+  generationAccessCta?: GenerationAccessCta | null;
   handleStandardCreatePromptChange: (value: string) => void;
   handlePulseCreatePromptChange: (value: string) => void;
   handleExpertCreateModeChangeForPage: (value: "standard" | "pulse") => void;
@@ -107,6 +109,7 @@ export const useAiStudioCreatePanelRuntime = ({
   hasSufficientCreditsForPromptReferenceGenerate,
   effectiveGenerationGuardrail,
   effectiveIsGenerateDisabled,
+  generationAccessCta = null,
   handleStandardCreatePromptChange,
   handlePulseCreatePromptChange,
   handleExpertCreateModeChangeForPage,
@@ -436,6 +439,7 @@ export const useAiStudioCreatePanelRuntime = ({
         describeInFlightCount,
         createGenerateCostCredits,
         isGenerateDisabled: effectiveIsGenerateDisabled,
+        generationAccessCta,
         generationGuardrail: effectiveGenerationGuardrail,
         useReferenceImageIndicator,
         isModelModalOpen: base.isModelModalOpen,
@@ -529,6 +533,7 @@ export const useAiStudioCreatePanelRuntime = ({
     describeInFlightCount,
     effectiveGenerationGuardrail,
     effectiveIsGenerateDisabled,
+    generationAccessCta,
     expertCreateMode,
     handleActiveCreatePulsePresetIdChangeForPage,
     handleAgentAttachmentDragEnter,

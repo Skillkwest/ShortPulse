@@ -7,6 +7,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest";
 import { resolvePricingGridBilledCredits } from "../../../../lib/model-runtime/pricingGridBilledCredits";
 import { createCanvasTearOutComposerTargetRegistry } from "../../hooks/useAiStudioCanvasTearOutTargets";
+import { AI_STUDIO_PLAN_CTA } from "../../logic/generationAccessCta";
 import { preparePromptReferenceDrag } from "../../utils/dragDrop";
 import { hardcodedMusicModelId, MusicPropertiesPanel } from "../MusicPropertiesPanel";
 
@@ -153,6 +154,18 @@ describe("MusicPropertiesPanel", () => {
       "Warm melodic house cue with a soft vocal texture, subtle lift into the hook, and a clean branded ending."
     );
     expect(screen.getByRole("button", { name: "Generate music" })).toBeEnabled();
+  });
+
+  it("replaces music generate with the active plan CTA when generation access is gated", () => {
+    const onGenerate = vi.fn();
+    render(
+      <MusicPropertiesPanel onGenerate={onGenerate} generationAccessCta={AI_STUDIO_PLAN_CTA} />
+    );
+
+    const planCta = screen.getByRole("link", { name: "View subscription plans" });
+    expect(planCta).toHaveAttribute("href", "/pricing");
+    expect(screen.queryByRole("button", { name: "Generate music" })).toBeNull();
+    expect(onGenerate).not.toHaveBeenCalled();
   });
 
   it("preserves over-budget standard music prompts without submitting them", () => {

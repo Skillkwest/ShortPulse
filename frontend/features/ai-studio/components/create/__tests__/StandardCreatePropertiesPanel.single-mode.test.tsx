@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { StandardCreatePropertiesPanel } from "../StandardCreatePropertiesPanel";
 import { resolveCreateComposerInlineGuardrailReason } from "../createComposerEmptyState";
 import { KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID } from "../../../../../lib/model-runtime/providerModelIds";
+import { AI_STUDIO_PLAN_CTA } from "../../../logic/generationAccessCta";
 
 const { createCharacterModeControllerState } = vi.hoisted(() => ({
   createCharacterModeControllerState: {
@@ -197,6 +198,31 @@ describe("StandardCreatePropertiesPanel single mode", () => {
         name: "Generate",
       })
     ).toBeInTheDocument();
+  });
+
+  it("replaces the generate button with the active plan CTA when generation access is gated", () => {
+    const onGenerate = vi.fn();
+
+    render(
+      <StandardCreatePropertiesPanel
+        {...baseProps}
+        onGenerate={onGenerate}
+        isGenerateDisabled
+        generationAccessCta={AI_STUDIO_PLAN_CTA}
+      />
+    );
+
+    const leadingContent = screen.getByTestId("composer-leading-content");
+    const planCta = within(leadingContent).getByRole("link", {
+      name: "View subscription plans",
+    });
+    expect(planCta).toHaveAttribute("href", "/pricing");
+    expect(
+      within(leadingContent).queryByRole("button", {
+        name: "Generate",
+      })
+    ).toBeNull();
+    expect(onGenerate).not.toHaveBeenCalled();
   });
 
   it("hides the create control set and inline actions while chat mode is enabled", () => {

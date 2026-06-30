@@ -7,6 +7,7 @@ Account-first auth route authority:
 - `/sign-up` is the canonical public signup entry. Account-first dashboard/signup CTAs route here with `next=/ai-studio`; paid plan CTAs route here with the selected `/pricing?...&plan=<starter|media|studio|business>` path in `next`.
 - `/log-in` is the canonical public login entry and the signed-out redirect target for protected app routes.
 - `/auth` remains the shared implementation surface behind those dedicated entries.
+- `/pricing` sends guest paid-plan actions to `/sign-up` only when public signup is open; when the emergency app-level signup switch is closed, pricing uses login copy and `/log-in` while preserving the selected pricing return path in `next`.
 - Google OAuth callback handling distinguishes true cancel/back outcomes from missing-account sign-in failures. A deleted or never-created Google identity should return to `/log-in` with missing-account copy, not `Google sign-in was canceled.`.
 
 Auth required legend:

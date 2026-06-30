@@ -32,6 +32,7 @@ import type { PromptOrigin } from "../logic/agentPromptOwnership";
 import type { AgentComposerDirectDropPayload } from "../logic/agentComposerDirectDropPayload";
 import type { AiStudioPulsePresetChangeOptions } from "../hooks/useAiStudioCreateModeRuntime";
 import type { CreateRuntimeAgentHydrationPayload } from "./sessionAgentHydrationBoundary";
+import type { GenerationAccessCta } from "../logic/generationAccessCta";
 
 export type NeutralCreateGenerationServices = {
   handleGenerate: (
@@ -92,6 +93,7 @@ export type StandardCreateRuntimeProps = {
   describeInFlightCount: number;
   createGenerateCostCredits: number | null;
   isGenerateDisabled: boolean;
+  generationAccessCta?: GenerationAccessCta | null;
   generationGuardrail: string | null;
   useReferenceImageIndicator: boolean;
   isModelModalOpen: boolean;

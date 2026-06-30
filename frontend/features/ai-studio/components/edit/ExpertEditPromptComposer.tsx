@@ -6,6 +6,8 @@ import {
   buildExpertEditSecondarySlotToken,
 } from "../../logic/expertEditPromptReferences";
 import { ComposerPinButton } from "../shared/ComposerPinButton";
+import { GenerationAccessCtaButton } from "../shared/GenerationAccessCtaButton";
+import type { GenerationAccessCta } from "../../logic/generationAccessCta";
 
 type PromptHighlightSegment = {
   kind: string;
@@ -40,6 +42,7 @@ type ExpertEditPromptComposerProps = {
   onPinPromptReference?: (text: string) => void;
   onGenerate: () => void;
   inlineGenerateDisabled: boolean;
+  generationAccessCta?: GenerationAccessCta | null;
   costCredits?: number | null;
 };
 
@@ -66,6 +69,7 @@ export function ExpertEditPromptComposer({
   onPinPromptReference,
   onGenerate,
   inlineGenerateDisabled,
+  generationAccessCta = null,
   costCredits = null,
 }: ExpertEditPromptComposerProps) {
   const shouldRenderPromptMirror = promptTextValue.length > 0;
@@ -207,11 +211,15 @@ export function ExpertEditPromptComposer({
         ) : null}
       </div>
       <div className="edit-expert-inline-generate edit-expert-inline-generate--outside">
-        <AgentGenerateButton
-          onClick={onGenerate}
-          disabled={inlineGenerateDisabled}
-          cost={costCredits}
-        />
+        {generationAccessCta ? (
+          <GenerationAccessCtaButton cta={generationAccessCta} />
+        ) : (
+          <AgentGenerateButton
+            onClick={onGenerate}
+            disabled={inlineGenerateDisabled}
+            cost={costCredits}
+          />
+        )}
       </div>
     </div>
   );

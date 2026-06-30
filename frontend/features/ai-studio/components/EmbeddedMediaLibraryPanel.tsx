@@ -31,6 +31,7 @@ import {
 import {
   getMediaLibrarySurfaceConfig,
   resolvePanelDenseBrowseSignBudget,
+  resolvePanelPressureAwareSignBudget,
 } from "../../media-library/runtime";
 import { MEDIA_LIBRARY_ROOT_FOLDER_ID } from "../logic/mediaLibraryPanelApi";
 import { useMediaLibraryPanelDataController } from "../hooks/useMediaLibraryPanelDataController";
@@ -246,13 +247,21 @@ export function EmbeddedMediaLibraryPanel({
     },
     [setSignedUrls]
   );
+  const resolvePanelSignBudgetForPressure = React.useCallback(
+    () =>
+      resolvePanelPressureAwareSignBudget(
+        panelSurfaceConfig.signBudgetResolver(),
+        effectiveAdaptivePressureLevel
+      ),
+    [effectiveAdaptivePressureLevel, panelSurfaceConfig]
+  );
 
   const previewRuntime = useMediaSurfacePreviewRuntime<MediaFileRow, MediaTab, HTMLElement>({
     activeMediaQuery: normalizedSearch,
     activeTab: activeMediaTab ?? "saved_prompts",
     firstMediaPaintEventName: "media.panel.first_media_paint",
     previewProfile: panelSurfaceConfig.imageCardPreviewProfile,
-    signBudgetResolver: panelSurfaceConfig.signBudgetResolver,
+    signBudgetResolver: resolvePanelSignBudgetForPressure,
     surface,
     visibilityRootMargin: panelSurfaceConfig.visibilityRootMargin,
     visibilityRootRef: panelBodyRef as React.MutableRefObject<HTMLElement | null>,
@@ -283,8 +292,13 @@ export function EmbeddedMediaLibraryPanel({
   } = previewRuntime;
   const signBudgetOverride = React.useMemo(
     () =>
-      shouldShowMedia ? resolvePanelDenseBrowseSignBudget(previewRuntime.signBudget) : undefined,
-    [previewRuntime.signBudget, shouldShowMedia]
+      shouldShowMedia
+        ? resolvePanelPressureAwareSignBudget(
+            resolvePanelDenseBrowseSignBudget(previewRuntime.signBudget),
+            effectiveAdaptivePressureLevel
+          )
+        : undefined,
+    [effectiveAdaptivePressureLevel, previewRuntime.signBudget, shouldShowMedia]
   );
 
   useVisibleErrorTelemetry({

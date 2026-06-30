@@ -202,6 +202,52 @@
   letter-spacing: 0.04em;
 }
 
+.ai-generation-access-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 112px;
+  min-height: 58px;
+  padding: 0 18px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ff3b7f 0%, #ff8a34 58%, #ffd84a 100%);
+  color: #161414;
+  font-size: 0.98rem;
+  font-weight: 850;
+  line-height: 1;
+  text-align: center;
+  text-decoration: none;
+  box-shadow:
+    0 10px 24px rgba(255, 97, 64, 0.2),
+    0 4px 1px rgba(255, 138, 52, 0.42);
+  cursor: pointer;
+  transition:
+    box-shadow 0.16s ease,
+    filter 0.16s ease,
+    transform 0.12s ease;
+}
+
+.ai-generation-access-cta:hover {
+  color: #111010;
+  filter: saturate(1.08) brightness(1.03);
+  transform: translateY(-1px);
+  box-shadow:
+    0 14px 30px rgba(255, 97, 64, 0.28),
+    0 5px 1px rgba(255, 138, 52, 0.48);
+}
+
+.ai-generation-access-cta:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.92);
+  outline-offset: 3px;
+}
+
+.ai-generation-access-cta-label {
+  display: block;
+  white-space: nowrap;
+}
+
 .agent-messages::-webkit-scrollbar {
   width: 2px;
 }

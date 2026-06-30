@@ -80,14 +80,17 @@ export const buildPricingAuthPath = (params?: {
   intent?: PricingIntent;
   planId?: string | null;
   billingInterval?: PricingBillingInterval;
+  publicSignupEnabled?: boolean;
 }): string => {
   const planId = normalizePaidPricingPlanId(params?.planId ?? undefined);
-  return buildSignupPath({
-    nextPath: buildPricingPath({
-      ...params,
-      planId,
-    }),
+  const nextPath = buildPricingPath({
+    ...params,
+    planId,
   });
+  if (params?.publicSignupEnabled === false) {
+    return buildLoginPath({ nextPath });
+  }
+  return buildSignupPath({ nextPath });
 };
 
 /**

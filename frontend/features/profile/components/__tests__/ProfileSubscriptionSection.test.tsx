@@ -155,6 +155,6 @@ describe("ProfileSubscriptionSection", () => {
     });
 
     expect(screen.getByText("Concurrent generations")).toBeInTheDocument();
-    expect(screen.getAllByText("1 concurrent generation allowed").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("1 active image generation at a time").length).toBeGreaterThan(0);
   });
 });

@@ -9,6 +9,7 @@ import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../logic/editPromptPolicy";
 import { buildDefaultPricingParams } from "../logic/pricing";
 import { captureVideoFrameSnapshotFile } from "../logic/videoFrameSnapshot";
 import { resolveAiStudioMediaAutosaveRouteEnabled } from "../logic/mediaAutosaveRouteReadiness";
+import { resolveGenerationAccessCta } from "../logic/generationAccessCta";
 import {
   resolveWorkflowReloadCharacterContextCandidate,
   resolveWorkflowReloadCharacterSelection,
@@ -189,7 +190,15 @@ const AiStudioPageRuntimeBody = ({
   pulseCreateAgentRuntime: ReturnType<typeof usePulseCreateAgentRuntime>;
   activeCreateAgentRuntime: CreatePageAgentRuntime;
 }) => {
-  const { resolvedPlan } = useResolvedAccountPlan();
+  const { resolvedPlan, status: resolvedPlanStatus } = useResolvedAccountPlan();
+  const generationAccessCta = React.useMemo(
+    () =>
+      resolveGenerationAccessCta({
+        resolvedPlan,
+        status: resolvedPlanStatus,
+      }),
+    [resolvedPlan, resolvedPlanStatus]
+  );
   const {
     activeCreatePrompt,
     activeCreatePulsePresetId,
@@ -740,6 +749,7 @@ const AiStudioPageRuntimeBody = ({
     removeBackgroundCostCredits,
     effectiveGenerationGuardrail,
     effectiveIsGenerateDisabled,
+    generationAccessCta,
     referenceImageWarning,
     handleOpenModelModal,
     handleEditPromptTextChange,
@@ -760,6 +770,7 @@ const AiStudioPageRuntimeBody = ({
     hasSufficientCreditsForPromptReferenceGenerate,
     effectiveGenerationGuardrail,
     effectiveIsGenerateDisabled,
+    generationAccessCta,
     handleStandardCreatePromptChange,
     handlePulseCreatePromptChange,
     handleExpertCreateModeChangeForPage: createPulsePageRuntime.handleExpertCreateModeChangeForPage,
@@ -882,6 +893,7 @@ const AiStudioPageRuntimeBody = ({
       onSongBatchCountChange: base.setMusicSongBatchCount,
       pricingPolicy: modelPricingPolicy,
       pricingPolicyReady: modelPricingPolicyReady,
+      generationAccessCta,
       composerMode: base.musicComposerMode,
       durationSeconds: base.musicDurationSeconds,
       instrumentalEnabled: base.musicInstrumentalEnabled,
@@ -899,6 +911,7 @@ const AiStudioPageRuntimeBody = ({
       onPromptChange: base.setSoundEffectsPromptDraft,
       pricingPolicy: modelPricingPolicy,
       pricingPolicyReady: modelPricingPolicyReady,
+      generationAccessCta,
       durationSeconds: base.soundEffectsDurationSeconds,
       loopEnabled: base.soundEffectsLoopEnabled,
       prompt: base.soundEffectsPromptDraft,
@@ -913,6 +926,7 @@ const AiStudioPageRuntimeBody = ({
       onVoiceScriptChange: base.setVoiceScriptDraft,
       pricingPolicy: modelPricingPolicy,
       pricingPolicyReady: modelPricingPolicyReady,
+      generationAccessCta,
       selectedVoiceId: base.voiceSelectedVoiceId ?? undefined,
       voiceChangerSource: base.voiceChangerSource,
       voicePrompt: base.voiceDesignPromptDraft,

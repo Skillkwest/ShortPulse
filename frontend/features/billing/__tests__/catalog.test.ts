@@ -68,34 +68,34 @@ describe("buildPlanView", () => {
 
   it("exposes plan-card concurrency copy that stays consistent with each tier's included studios", () => {
     expect(buildPlanView({ planId: "free", plans }).concurrentGenerationsLabel).toBe(
-      "0 concurrent generations allowed"
+      "0 active generations at a time"
     );
     expect(buildPlanView({ planId: "starter", plans }).concurrentGenerationsLabel).toBe(
-      "1 concurrent generation allowed"
+      "1 active image generation at a time"
     );
     expect(buildPlanView({ planId: "media", plans }).concurrentGenerationsLabel).toBe(
-      "2 concurrent generations allowed"
+      "2 active generations at a time"
     );
     expect(buildPlanView({ planId: "studio", plans }).concurrentGenerationsLabel).toBe(
-      "4 concurrent generations allowed"
+      "4 active generations at a time"
     );
     expect(buildPlanView({ planId: "business", plans }).concurrentGenerationsLabel).toBe(
-      "8 concurrent generations allowed"
+      "8 active generations at a time"
     );
     expect(buildPlanView({ planId: "free", plans }).concurrentGenerationsCompactLabel).toBe(
-      "0 concurrent generations allowed"
+      "0 active generations at a time"
     );
     expect(buildPlanView({ planId: "starter", plans }).concurrentGenerationsCompactLabel).toBe(
-      "1 concurrent generation allowed"
+      "1 active image generation at a time"
     );
     expect(buildPlanView({ planId: "media", plans }).concurrentGenerationsCompactLabel).toBe(
-      "2 concurrent generations allowed"
+      "2 active generations at a time"
     );
     expect(buildPlanView({ planId: "studio", plans }).concurrentGenerationsCompactLabel).toBe(
-      "4 concurrent generations allowed"
+      "4 active generations at a time"
     );
     expect(buildPlanView({ planId: "business", plans }).concurrentGenerationsCompactLabel).toBe(
-      "8 concurrent generations allowed"
+      "8 active generations at a time"
     );
   });
 
@@ -124,7 +124,7 @@ describe("buildPlanView", () => {
     });
 
     expect(customMediaPlan.maxConcurrentGenerations).toBe(3);
-    expect(customMediaPlan.concurrentGenerationsLabel).toBe("3 concurrent generations allowed");
+    expect(customMediaPlan.concurrentGenerationsLabel).toBe("3 active generations at a time");
   });
 
   it("adds business pricing highlights for credit efficiency", () => {

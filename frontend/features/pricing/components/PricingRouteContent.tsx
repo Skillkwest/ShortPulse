@@ -47,8 +47,14 @@ const resolvePlanActionLabel = (params: {
   isAuthenticated: boolean;
   monthlyPriceCents: number;
   displayName: string;
+  publicSignupEnabled: boolean;
 }) => {
   if (!params.isAuthenticated) {
+    if (!params.publicSignupEnabled) {
+      return params.monthlyPriceCents === 0
+        ? "Log in to continue"
+        : `Log in to choose ${params.displayName}`;
+    }
     return params.monthlyPriceCents === 0 ? "Create account" : `Sign up for ${params.displayName}`;
   }
   if (params.monthlyPriceCents === 0) {
@@ -132,6 +138,7 @@ export function PricingRouteContent({ billingCatalog, isAuthenticated }: Pricing
           intent,
           planId,
           billingInterval: selectedBillingInterval,
+          publicSignupEnabled,
         })
       );
       return;
@@ -276,6 +283,7 @@ export function PricingRouteContent({ billingCatalog, isAuthenticated }: Pricing
                         isAuthenticated,
                         monthlyPriceCents: planPricing.monthlyEquivalentCents,
                         displayName: planView.displayName,
+                        publicSignupEnabled,
                       });
                   const isLoading = planActionLoadingId === plan.id;
 

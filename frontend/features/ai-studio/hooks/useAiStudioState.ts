@@ -428,6 +428,13 @@ export const useAiStudioState = ({
     pendingFinalizeRemovalIdsRef,
     setUiError,
   });
+  const setReferenceGridAuditOutputs = useCallback(
+    ({ active, archived = [] }: { active: StudioOutput[]; archived?: StudioOutput[] }) => {
+      setOutputsState(active);
+      setArchivedOutputs(archived);
+    },
+    [setArchivedOutputs, setOutputsState]
+  );
   useAiStudioStateEffects({
     promptRef,
     aspect,
@@ -764,6 +771,7 @@ export const useAiStudioState = ({
     outputOrder: activeOutputState.order,
     outputById: activeOutputState.byId,
     setOutputs,
+    setReferenceGridAuditOutputs,
     resetReferenceGridState,
     curatedReferenceIds,
     removedFromAllRefsIds,

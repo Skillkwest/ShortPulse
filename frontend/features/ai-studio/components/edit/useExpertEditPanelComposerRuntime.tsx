@@ -7,6 +7,7 @@ import React from "react";
 import { ExpertEditPanelAuxiliary } from "./ExpertEditPanelAuxiliary";
 import { ExpertEditPromptSelectorsColumn } from "./ExpertEditPromptSelectorsColumn";
 import type { AspectOption } from "../../types";
+import type { GenerationAccessCta } from "../../logic/generationAccessCta";
 
 type UseExpertEditPanelComposerRuntimeArgs = {
   isPromptComposerExpanded: boolean;
@@ -34,6 +35,7 @@ type UseExpertEditPanelComposerRuntimeArgs = {
   onPinPromptReference?: (text: string) => void;
   handleInlineGenerate: () => void;
   inlineGenerateDisabled: boolean;
+  generationAccessCta?: GenerationAccessCta | null;
   costCredits?: number | null;
   effectiveSelectorModelId: string | null;
   isModelPickerLocked: boolean;
@@ -103,6 +105,7 @@ export function useExpertEditPanelComposerRuntime({
   onPinPromptReference,
   handleInlineGenerate,
   inlineGenerateDisabled,
+  generationAccessCta = null,
   costCredits = null,
   effectiveSelectorModelId,
   isModelPickerLocked,
@@ -173,6 +176,7 @@ export function useExpertEditPanelComposerRuntime({
       onPinPromptReference={onPinPromptReference}
       onGenerate={handleInlineGenerate}
       inlineGenerateDisabled={inlineGenerateDisabled}
+      generationAccessCta={generationAccessCta}
       costCredits={costCredits}
       modelId={effectiveSelectorModelId}
       isModelPickerLocked={isModelPickerLocked}

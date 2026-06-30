@@ -193,6 +193,7 @@ Key indicators:
   - `telemetry.ai_studio.stability.pressure_level_changed`
   - `telemetry.ai_studio.stability.pressure_quarantine_set`
 - Under telemetry backpressure, non-critical long-task samples (`media.grid.longtask.sample`) are deferred/rate-limited before lower-value volume can crowd the browser.
+- Release perf gates fail supported `performance.memory` heap growth above the crash-resilience threshold; browsers without heap metrics are recorded as not measurable instead of pass/fail proof.
 - shell section isolation trends via `runStudioShellAudit` scenario fields:
   - `sectionRenderCounters`
   - `sectionCommit`
@@ -239,6 +240,8 @@ Key indicators:
   - The sampler pauses and resets while the document is hidden to avoid stale hidden-tab pressure driving visible-tab behavior.
   - AI Studio can apply a session-scoped 10-minute pressure quarantine after severe level-2 pressure, keeping new Media Library and Reference Grid renders conservative after a crash-adjacent event.
   - Critical pressure suppresses incidental hover-video attachment while preserving selected/active output behavior.
+  - Media Library panel signing budgets are pressure-aware: constrained pressure trims signing fanout and critical pressure disables prefetch while keeping a minimal urgent signing lane.
+  - Media Library grid video budgets are pressure-aware: constrained pressure uses the constrained attach budget and critical pressure suppresses incidental video attachment.
 - Adaptive media controls:
   - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_TUNED_POLICY`
   - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES` (csv allowlist for transform-free adaptive behavior only; not permission to emit Supabase `/storage/v1/render/image/`)
@@ -470,10 +473,11 @@ Monitor these events during rollout:
   - `cd frontend && PLAYWRIGHT_BASE_URL=https://shortpulse.ai PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<audit-password> npm run test:perf:ai-studio`
 - Runtime API (development, or production when `NEXT_PUBLIC_AI_STUDIO_PERF_AUDIT_RUNTIME=true`):
   - `window.__shortpulseAiStudioPerf.seedReferenceGrid(count)`
+  - `window.__shortpulseAiStudioPerf.seedReferenceGrid(count, { activeCapOverride: 300 })` for audit-only active-workset stress; this does not change the product cap.
   - `window.__shortpulseAiStudioPerf.clearReferenceGrid()`
   - `window.__shortpulseAiStudioPerf.runReferenceGridAudit(options?)`
   - `window.__shortpulseAiStudioPerf.runStudioShellAudit(options?)`
-- Scenarios: 20 / 40 / 50 / 60 / 100 / 300 seeded reference cards.
+- Scenarios: 20 / 40 / 50 / 60 / 100 / 300 seeded reference cards. The production release check runs the capped 40 / 60 / 100 path, separately verifies the 500-total / 128-active workset cap, and runs a 300-active audit-only workset through `activeCapOverride` so browser-load proof cannot be confused with the shipped product cap.
 - Gates:
   - grid click p95 at 40 cards: `<= 90ms`
   - grid long-task p95 at 40 cards: `<= 70ms`
@@ -483,10 +487,17 @@ Monitor these events during rollout:
   - grid long-task p95 at 60 cards: `<= 100ms`
   - grid max input stall at 60 cards: `<= 800ms`
   - rendered item count p95 at 60 cards: `<= 28`
+  - crash-resilience rendered item count p95 at 100 cards: `<= 36`
+  - crash-resilience long-task p95 at 100 cards: `<= 140ms`
+  - crash-resilience max input stall at 100 cards: `<= 1000ms`
+  - crash-resilience image decode inflight p95 at 100 cards: `<= 6`
+  - crash-resilience video attach budget p95 at 100 cards: `<= 3`
+  - crash-resilience media work-token p95 at 100 cards: `<= 8`
   - audit output includes:
     - `rendered_item_count_p95_at_count`
     - `image_hydration_queue_p95_at_count`
     - `image_decode_inflight_p95_at_count`
+    - `crash_resilience_*_at_100`
 
 ## Studio Shell Perf Harness
 

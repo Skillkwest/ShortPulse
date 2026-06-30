@@ -7,6 +7,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest";
 import { resolvePricingGridBilledCredits } from "../../../../lib/model-runtime/pricingGridBilledCredits";
 import { createCanvasTearOutComposerTargetRegistry } from "../../hooks/useAiStudioCanvasTearOutTargets";
+import { AI_STUDIO_PLAN_CTA } from "../../logic/generationAccessCta";
 import { preparePromptReferenceDrag } from "../../utils/dragDrop";
 import {
   hardcodedSoundEffectsModelId,
@@ -135,6 +136,21 @@ describe("SoundEffectsPropertiesPanel", () => {
 
     expect(promptField).toHaveValue("Short vinyl crackle burst with a dusty hi-fi tail.");
     expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
+  });
+
+  it("replaces sound effect generate with the active plan CTA when generation access is gated", () => {
+    const onGenerate = vi.fn();
+    render(
+      <SoundEffectsPropertiesPanel
+        onGenerate={onGenerate}
+        generationAccessCta={AI_STUDIO_PLAN_CTA}
+      />
+    );
+
+    const planCta = screen.getByRole("link", { name: "View subscription plans" });
+    expect(planCta).toHaveAttribute("href", "/pricing");
+    expect(screen.queryByRole("button", { name: "Generate" })).toBeNull();
+    expect(onGenerate).not.toHaveBeenCalled();
   });
 
   it("accepts session-backed text reference drops into the sound effect prompt", () => {

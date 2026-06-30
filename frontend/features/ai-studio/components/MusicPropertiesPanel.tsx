@@ -13,12 +13,14 @@ import type { CanvasTearOutComposerTargetRegistry } from "../hooks/useAiStudioCa
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
 import type { AgentComposerDirectDropPayload } from "../logic/agentComposerDirectDropPayload";
 import { resolveGenerateCreditConfidence } from "./shared/generateCreditConfidence";
+import { GenerationAccessCtaButton } from "./shared/GenerationAccessCtaButton";
 import {
   handlePromptTextAreaDragOver,
   handlePromptTextAreaDrop,
   insertCanvasPromptTextIntoTextarea,
 } from "./shared/promptTextDropHandlers";
 import { useAgentComposerPromptDropModifierTracking } from "./promptStep/agentComposerDrop";
+import type { GenerationAccessCta } from "../logic/generationAccessCta";
 
 export type MusicMode = "instrumental" | "vocal";
 export type MusicStructure = "loop" | "full-track" | "cinematic";
@@ -60,6 +62,7 @@ export type MusicPropertiesPanelProps = {
   onSongBatchCountChange?: (value: MusicSongBatchCount) => void;
   pricingPolicy?: ModelPricingPolicyDocument | null;
   pricingPolicyReady?: boolean;
+  generationAccessCta?: GenerationAccessCta | null;
   canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
   composerMode?: MusicComposerMode;
   instrumentalEnabled?: boolean;
@@ -165,6 +168,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   onSongBatchCountChange,
   pricingPolicy = null,
   pricingPolicyReady = true,
+  generationAccessCta = null,
   canvasTearOutTargetRegistry,
   composerMode: controlledComposerMode,
   instrumentalEnabled: controlledInstrumentalEnabled,
@@ -910,25 +914,29 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
                       ) : null}
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    className="music-properties-generate-btn"
-                    data-credit-confidence={generateCreditConfidence.status}
-                    disabled={!isGenerateEnabled}
-                    aria-label="Generate music"
-                    title={generateCreditConfidence.title}
-                    onClick={() => {
-                      void handleGenerate();
-                    }}
-                  >
-                    <span className="music-properties-generate-label">Generate</span>
-                    <span className="music-properties-generate-pill" aria-hidden="true">
-                      <span className="music-properties-generate-cost-icon">✦</span>
-                      <span className="music-properties-generate-cost-value">
-                        {estimatedCredits != null ? formatCreditValue(estimatedCredits) : "—"}
+                  {generationAccessCta ? (
+                    <GenerationAccessCtaButton cta={generationAccessCta} />
+                  ) : (
+                    <button
+                      type="button"
+                      className="music-properties-generate-btn"
+                      data-credit-confidence={generateCreditConfidence.status}
+                      disabled={!isGenerateEnabled}
+                      aria-label="Generate music"
+                      title={generateCreditConfidence.title}
+                      onClick={() => {
+                        void handleGenerate();
+                      }}
+                    >
+                      <span className="music-properties-generate-label">Generate</span>
+                      <span className="music-properties-generate-pill" aria-hidden="true">
+                        <span className="music-properties-generate-cost-icon">✦</span>
+                        <span className="music-properties-generate-cost-value">
+                          {estimatedCredits != null ? formatCreditValue(estimatedCredits) : "—"}
+                        </span>
                       </span>
-                    </span>
-                  </button>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

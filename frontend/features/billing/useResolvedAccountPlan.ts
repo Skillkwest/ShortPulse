@@ -11,6 +11,8 @@ type ResolvedPlanMeta = {
   monthlyCreditsCents: number;
 };
 
+export type ResolvedAccountPlanStatus = "idle" | "loading" | "ready" | "unavailable";
+
 type UseResolvedAccountPlanParams = {
   defaultPlanTier?: string;
   enabled?: boolean;
@@ -24,18 +26,25 @@ export const useResolvedAccountPlan = ({
     enabled,
   });
   const [resolvedPlan, setResolvedPlan] = useState<ResolvedPlanMeta | null>(null);
+  const [status, setStatus] = useState<ResolvedAccountPlanStatus>("idle");
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) {
+      setResolvedPlan(null);
+      setStatus("idle");
+      return;
+    }
     let active = true;
 
     const loadPlan = async () => {
       if (!user) {
         if (!active) return;
         setResolvedPlan(null);
+        setStatus("idle");
         return;
       }
 
+      setStatus("loading");
       try {
         if (session) {
           primeSupabaseSession(session);
@@ -46,6 +55,7 @@ export const useResolvedAccountPlan = ({
         }
         if (!active) return;
         setResolvedPlan(summary.resolvedPlan);
+        setStatus("ready");
       } catch {
         if (!active) return;
         const fallbackPlanId = normalizePlanId(defaultPlanTier);
@@ -59,6 +69,7 @@ export const useResolvedAccountPlan = ({
           className: fallbackPlanView.className,
           monthlyCreditsCents: fallbackPlanView.monthlyCreditsCents,
         });
+        setStatus("unavailable");
       }
     };
 
@@ -71,5 +82,6 @@ export const useResolvedAccountPlan = ({
   return {
     user,
     resolvedPlan,
+    status,
   };
 };

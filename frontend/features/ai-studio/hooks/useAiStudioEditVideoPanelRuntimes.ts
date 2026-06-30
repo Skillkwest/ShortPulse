@@ -10,6 +10,7 @@ import type { VideoUploadResult } from "../utils/videoUpload";
 import type { AiStudioPageBaseRuntime } from "./useAiStudioPageBaseRuntime";
 import type { useAiStudioWorkspaceActions } from "./useAiStudioWorkspaceActions";
 import type { useAiStudioGenerationController } from "./useAiStudioGenerationController";
+import type { GenerationAccessCta } from "../logic/generationAccessCta";
 
 type UseAiStudioEditVideoPanelRuntimesParams = {
   base: AiStudioPageBaseRuntime;
@@ -17,6 +18,7 @@ type UseAiStudioEditVideoPanelRuntimesParams = {
   removeBackgroundCostCredits: number | null;
   effectiveGenerationGuardrail: string | null;
   effectiveIsGenerateDisabled: boolean;
+  generationAccessCta?: GenerationAccessCta | null;
   referenceImageWarning: string | null;
   handleOpenModelModal: ReturnType<typeof useAiStudioWorkspaceActions>["handleOpenModelModal"];
   handleEditPromptTextChange: ReturnType<
@@ -47,6 +49,7 @@ export const useAiStudioEditVideoPanelRuntimes = ({
   removeBackgroundCostCredits,
   effectiveGenerationGuardrail,
   effectiveIsGenerateDisabled,
+  generationAccessCta = null,
   referenceImageWarning,
   handleOpenModelModal,
   handleEditPromptTextChange,
@@ -86,6 +89,7 @@ export const useAiStudioEditVideoPanelRuntimes = ({
     currentCostCredits,
     removeBackgroundCostCredits,
     isGenerateDisabled: effectiveIsGenerateDisabled,
+    generationAccessCta,
     isPrimaryStageGenerating: base.isPrimaryEditStageGenerating,
     referenceImageWarning,
     resolveOutputPreviewUrl: base.resolvePanelOutputPreviewUrl,
@@ -219,6 +223,7 @@ export const useAiStudioEditVideoPanelRuntimes = ({
     resolveInternalReferenceVideoDropSource: base.resolveMotionReferenceVideoDropSource,
     canvasTearOutTargetRegistry: base.canvasTearOutTargetRegistry,
     isGenerateDisabled: effectiveIsGenerateDisabled,
+    generationAccessCta,
     generationGuardrail: effectiveGenerationGuardrail,
     onCreateCharacter: base.handleOpenCharacterCreate,
     onCreateElement: base.handleOpenElementCreate,

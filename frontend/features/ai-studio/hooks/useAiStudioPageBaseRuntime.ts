@@ -227,6 +227,7 @@ export const useAiStudioPageBaseRuntime = () => {
     pulsePrompt,
     outputs,
     setOutputs,
+    setReferenceGridAuditOutputs,
     setStandardCreatePrompt,
     setPulseCreatePrompt,
     resetReferenceGridState,
@@ -566,6 +567,7 @@ export const useAiStudioPageBaseRuntime = () => {
     setEditReferenceText,
     setVideoReferenceText,
     setOutputs,
+    setReferenceGridAuditOutputs,
   });
 
   const referenceGridFileInputRef = useRef<HTMLInputElement | null>(null);

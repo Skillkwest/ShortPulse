@@ -16,11 +16,15 @@ import {
 
 type PerfAuditWindow = Window & {
   __shortpulseAiStudioPerf?: {
-    seedReferenceGrid: (count: number) => {
+    seedReferenceGrid: (
+      count: number,
+      options?: { activeCapOverride?: number | null }
+    ) => {
       requestedCount: number;
       activeCount: number;
       archivedCount: number;
       totalCount: number;
+      activeCapOverride: number | null;
     };
   };
 };
@@ -84,6 +88,7 @@ describe("useAiStudioPerfAuditRuntime", () => {
       activeCount: REFERENCE_GRID_MAX_VISIBLE_ITEMS,
       archivedCount: REFERENCE_GRID_TARGET_TOTAL_ITEMS - REFERENCE_GRID_MAX_VISIBLE_ITEMS,
       totalCount: REFERENCE_GRID_TARGET_TOTAL_ITEMS,
+      activeCapOverride: null,
     });
 
     unmount();
@@ -91,6 +96,64 @@ describe("useAiStudioPerfAuditRuntime", () => {
     await waitFor(() => {
       expect(getPerfWindow().__shortpulseAiStudioPerf).toBeUndefined();
     });
+  });
+
+  it("can seed a 300-active audit workset without using the product cap setter", async () => {
+    window.history.pushState(null, "", "/ai-studio?perfAuditRuntime=1");
+    const setOutputs = vi.fn();
+    const setReferenceGridAuditOutputs = vi.fn();
+
+    const { unmount } = renderHook(() =>
+      useAiStudioPerfAuditRuntime({
+        enabled: false,
+        aspect: "9:16",
+        currentModelLabel: "Seedream",
+        model: "seedream",
+        getOutputSnapshot: () => ({ outputOrder: [] }),
+        resetReferenceGridState: vi.fn(),
+        projectRouteRequested: false,
+        standardCreatePrompt: "",
+        editReferenceText: "",
+        videoReferenceText: "",
+        setActiveOutputId: vi.fn(),
+        setStandardCreatePrompt: vi.fn(),
+        setEditReferenceText: vi.fn(),
+        setVideoReferenceText: vi.fn(),
+        setOutputs,
+        setReferenceGridAuditOutputs,
+      })
+    );
+
+    await waitFor(() => {
+      expect(getPerfWindow().__shortpulseAiStudioPerf?.seedReferenceGrid).toEqual(
+        expect.any(Function)
+      );
+    });
+
+    const seeded = getPerfWindow().__shortpulseAiStudioPerf?.seedReferenceGrid(300, {
+      activeCapOverride: 300,
+    });
+
+    expect(seeded).toEqual({
+      requestedCount: 300,
+      activeCount: 300,
+      archivedCount: 0,
+      totalCount: 300,
+      activeCapOverride: 300,
+    });
+    expect(setReferenceGridAuditOutputs).toHaveBeenCalledWith({
+      active: expect.arrayContaining([
+        expect.objectContaining({
+          id: expect.stringMatching(/^perf-/),
+          archivedAt: null,
+        }),
+      ]),
+      archived: [],
+    });
+    expect(setReferenceGridAuditOutputs.mock.calls[0]?.[0].active).toHaveLength(300);
+    expect(setOutputs).not.toHaveBeenCalled();
+
+    unmount();
   });
 });
 

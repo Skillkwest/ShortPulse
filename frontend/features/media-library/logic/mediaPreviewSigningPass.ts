@@ -170,6 +170,16 @@ export const resolveMediaSignQueuePass = <TRow extends PreparedSigningRowLike>(p
     if (!readyIds.has(id)) return false;
     return nextQueueStateById[id] === "deferred";
   });
+  const shouldRetainDeferredPrefetch =
+    allowDeferredPrefetch && isSignPrefetchEnabled && signBudget.prefetchWindow > 0;
+  if (!shouldRetainDeferredPrefetch) {
+    for (const deferredId of nextDeferredQueue) {
+      if (nextQueueStateById[deferredId] === "deferred") {
+        delete nextQueueStateById[deferredId];
+      }
+    }
+    nextDeferredQueue = [];
+  }
 
   const removeQueuedId = (id: string) => {
     nextUrgentQueue = nextUrgentQueue.filter((queuedId) => queuedId !== id);
@@ -233,7 +243,7 @@ export const resolveMediaSignQueuePass = <TRow extends PreparedSigningRowLike>(p
       for (let idx = start; idx < urgentEnd; idx += 1) {
         enqueue(readyRows[idx], "urgent");
       }
-      if (allowDeferredPrefetch) {
+      if (shouldRetainDeferredPrefetch) {
         for (let idx = urgentEnd; idx < prefetchEnd; idx += 1) {
           enqueue(readyRows[idx], "deferred");
         }

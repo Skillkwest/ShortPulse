@@ -6,6 +6,8 @@ import { AppMessage } from "../../../../components/AppMessage";
 import { AgentGenerateButton } from "../../../../prefabs/agent";
 import { StylesControl } from "../StylesControl";
 import type { ExpertEditStyleTile } from "../edit/expertEditStyles";
+import { GenerationAccessCtaButton } from "../shared/GenerationAccessCtaButton";
+import type { GenerationAccessCta } from "../../logic/generationAccessCta";
 
 type VideoGenerateFooterProps = {
   visibleVideoMode: "standard" | "motion" | "lip-sync";
@@ -23,6 +25,7 @@ type VideoGenerateFooterProps = {
   onStylesPanelToggle?: () => void;
   onRegenerate: () => void;
   costCredits?: number | null;
+  generationAccessCta?: GenerationAccessCta | null;
 };
 
 /**
@@ -44,6 +47,7 @@ export function VideoGenerateFooter({
   onStylesPanelToggle,
   onRegenerate,
   costCredits,
+  generationAccessCta = null,
 }: VideoGenerateFooterProps) {
   return (
     <div className="video-right-generate-slot">
@@ -116,16 +120,20 @@ export function VideoGenerateFooter({
           className="video-generate-styles-control"
         />
         <div className="video-right-generate-button">
-          <AgentGenerateButton
-            onClick={onRegenerate}
-            disabled={
-              Boolean(klingPromptGuardrailReason) ||
-              isGenerateDisabled ||
-              !hasRequiredPromptForGenerate ||
-              shouldShowKlingReferenceImageWarning
-            }
-            cost={costCredits}
-          />
+          {generationAccessCta ? (
+            <GenerationAccessCtaButton cta={generationAccessCta} />
+          ) : (
+            <AgentGenerateButton
+              onClick={onRegenerate}
+              disabled={
+                Boolean(klingPromptGuardrailReason) ||
+                isGenerateDisabled ||
+                !hasRequiredPromptForGenerate ||
+                shouldShowKlingReferenceImageWarning
+              }
+              cost={costCredits}
+            />
+          )}
         </div>
       </div>
     </div>

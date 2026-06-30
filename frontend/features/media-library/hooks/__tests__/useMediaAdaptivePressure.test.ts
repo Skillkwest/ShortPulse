@@ -129,13 +129,14 @@ describe("useMediaAdaptivePressure", () => {
     const visibilitySpy = mockDocumentVisibility("hidden");
     const setIntervalSpy = vi.spyOn(window, "setInterval");
 
-    renderHook(() =>
+    const { result } = renderHook(() =>
       useMediaAdaptivePressure({
         surface: "media-library-panel",
         enabled: true,
       })
     );
 
+    expect(result.current.pressurePhase).toBe("normal");
     expect(setIntervalSpy).not.toHaveBeenCalled();
 
     visibilitySpy.mockReturnValue("visible");

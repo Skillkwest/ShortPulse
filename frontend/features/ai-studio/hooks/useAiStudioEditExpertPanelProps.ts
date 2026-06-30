@@ -22,6 +22,7 @@ import type {
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
 import type { CanvasTearOutComposerTargetRegistry } from "./useAiStudioCanvasTearOutTargets";
 import { normalizeExpertEditSecondaryImageUrls } from "../logic/expertEditReferenceSlots";
+import type { GenerationAccessCta } from "../logic/generationAccessCta";
 
 type UseAiStudioEditExpertPanelPropsParams = {
   aspect: string;
@@ -54,6 +55,7 @@ type UseAiStudioEditExpertPanelPropsParams = {
   currentCostCredits: number | null;
   removeBackgroundCostCredits: number | null;
   isGenerateDisabled: boolean;
+  generationAccessCta?: GenerationAccessCta | null;
   isPrimaryStageGenerating: boolean;
   referenceImageWarning: string | null;
   resolveOutputPreviewUrl: (id: string | null | undefined) => string | null;
@@ -115,6 +117,7 @@ export const useAiStudioEditExpertPanelProps = ({
   currentCostCredits,
   removeBackgroundCostCredits,
   isGenerateDisabled,
+  generationAccessCta = null,
   isPrimaryStageGenerating,
   referenceImageWarning,
   resolveOutputPreviewUrl,
@@ -196,6 +199,7 @@ export const useAiStudioEditExpertPanelProps = ({
       costCredits: currentCostCredits,
       removeBackgroundCostCredits,
       isGenerateDisabled,
+      generationAccessCta,
       isPrimaryStageGenerating,
       referenceImageWarning,
       resolvePreviewUrlById: resolveOutputPreviewUrl,
@@ -241,6 +245,7 @@ export const useAiStudioEditExpertPanelProps = ({
     isCharacterModeEnabled,
     isCharacterOptionsLoading,
     isGenerateDisabled,
+    generationAccessCta,
     isPrimaryStageGenerating,
     isModelModalOpen,
     model,

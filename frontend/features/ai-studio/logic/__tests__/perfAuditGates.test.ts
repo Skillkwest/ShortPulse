@@ -196,6 +196,165 @@ describe("perfAuditGates", () => {
     expect(longTask40?.note).toContain("No long tasks observed");
   });
 
+  it("adds crash-resilience gates when crash thresholds are provided", () => {
+    const scenarios: ReferenceGridScenario[] = [
+      {
+        count: 40,
+        click: { samples: 10, p95Ms: 30 },
+        longTask: { samples: 0, p95Ms: null },
+        interaction: { maxInputStallMs: 20 },
+        memory: { beforeMb: null, afterMb: null },
+        grid: {
+          renderedItemCountP95: 12,
+          imageHydrationQueueP95: null,
+          imageDecodeInflightP95: null,
+          perfDegradeLevelP95: null,
+          previewSrcSwapRatePerMinuteP95: null,
+          previewRepaintSpikeCountMax: null,
+          previewLastSwapBurstCountP95: null,
+        },
+      },
+      {
+        count: 60,
+        click: { samples: 10, p95Ms: 40 },
+        longTask: { samples: 0, p95Ms: null },
+        interaction: { maxInputStallMs: 30 },
+        memory: { beforeMb: null, afterMb: null },
+        grid: {
+          renderedItemCountP95: 20,
+          imageHydrationQueueP95: null,
+          imageDecodeInflightP95: null,
+          perfDegradeLevelP95: null,
+          previewSrcSwapRatePerMinuteP95: null,
+          previewRepaintSpikeCountMax: null,
+          previewLastSwapBurstCountP95: null,
+        },
+      },
+      {
+        count: 100,
+        click: { samples: 10, p95Ms: 70 },
+        longTask: { samples: 1, p95Ms: 90 },
+        interaction: { maxInputStallMs: 120 },
+        memory: { beforeMb: null, afterMb: null },
+        grid: {
+          renderedItemCountP95: 30,
+          imageHydrationQueueP95: 10,
+          imageDecodeInflightP95: 4,
+          perfDegradeLevelP95: 1,
+          mediaWorkTokensP95: 6,
+          videoAttachBudgetP95: 2,
+          previewSrcSwapRatePerMinuteP95: 0,
+          previewRepaintSpikeCountMax: 0,
+          previewLastSwapBurstCountP95: 0,
+        },
+      },
+    ];
+
+    const gates = evaluateReferenceGridAuditGates(scenarios, {
+      ...REFERENCE_THRESHOLDS,
+      crashResilienceCount: 100,
+      renderedItemCountP95AtCrashCount: 36,
+      longTaskP95MsAtCrashCount: 140,
+      maxInputStallMsAtCrashCount: 1_000,
+      imageDecodeInflightP95AtCrashCount: 6,
+      videoAttachBudgetP95AtCrashCount: 3,
+      mediaWorkTokensP95AtCrashCount: 8,
+      heapDeltaMbAtCrashCount: 96,
+    });
+
+    expect(
+      gates.filter((gate) => gate.name.startsWith("crash_resilience_")).map((gate) => gate.name)
+    ).toEqual([
+      "crash_resilience_rendered_item_count_p95_at_100",
+      "crash_resilience_long_task_p95_ms_at_100",
+      "crash_resilience_max_input_stall_ms_at_100",
+      "crash_resilience_image_decode_inflight_p95_at_100",
+      "crash_resilience_video_attach_budget_p95_at_100",
+      "crash_resilience_media_work_tokens_p95_at_100",
+      "crash_resilience_heap_delta_mb_at_100",
+    ]);
+    const heapGate = gates.find((gate) => gate.name === "crash_resilience_heap_delta_mb_at_100");
+    expect(heapGate?.pass).toBe(true);
+    expect(heapGate?.note).toContain("Heap metric unavailable");
+    expect(gates.every((gate) => gate.pass)).toBe(true);
+  });
+
+  it("fails crash-resilience heap gate when supported heap growth exceeds the threshold", () => {
+    const scenarios: ReferenceGridScenario[] = [
+      {
+        count: 40,
+        click: { samples: 10, p95Ms: 30 },
+        longTask: { samples: 0, p95Ms: null },
+        interaction: { maxInputStallMs: 20 },
+        memory: { beforeMb: null, afterMb: null },
+        grid: {
+          renderedItemCountP95: 12,
+          imageHydrationQueueP95: null,
+          imageDecodeInflightP95: null,
+          perfDegradeLevelP95: null,
+          previewSrcSwapRatePerMinuteP95: null,
+          previewRepaintSpikeCountMax: null,
+          previewLastSwapBurstCountP95: null,
+        },
+      },
+      {
+        count: 60,
+        click: { samples: 10, p95Ms: 40 },
+        longTask: { samples: 0, p95Ms: null },
+        interaction: { maxInputStallMs: 30 },
+        memory: { beforeMb: null, afterMb: null },
+        grid: {
+          renderedItemCountP95: 20,
+          imageHydrationQueueP95: null,
+          imageDecodeInflightP95: null,
+          perfDegradeLevelP95: null,
+          previewSrcSwapRatePerMinuteP95: null,
+          previewRepaintSpikeCountMax: null,
+          previewLastSwapBurstCountP95: null,
+        },
+      },
+      {
+        count: 100,
+        click: { samples: 10, p95Ms: 70 },
+        longTask: { samples: 1, p95Ms: 90 },
+        interaction: { maxInputStallMs: 120 },
+        memory: { beforeMb: 100, afterMb: 221 },
+        grid: {
+          renderedItemCountP95: 30,
+          imageHydrationQueueP95: 10,
+          imageDecodeInflightP95: 4,
+          perfDegradeLevelP95: 1,
+          mediaWorkTokensP95: 6,
+          videoAttachBudgetP95: 2,
+          previewSrcSwapRatePerMinuteP95: 0,
+          previewRepaintSpikeCountMax: 0,
+          previewLastSwapBurstCountP95: 0,
+        },
+      },
+    ];
+
+    const gates = evaluateReferenceGridAuditGates(scenarios, {
+      ...REFERENCE_THRESHOLDS,
+      crashResilienceCount: 100,
+      renderedItemCountP95AtCrashCount: 36,
+      longTaskP95MsAtCrashCount: 140,
+      maxInputStallMsAtCrashCount: 1_000,
+      imageDecodeInflightP95AtCrashCount: 6,
+      videoAttachBudgetP95AtCrashCount: 3,
+      mediaWorkTokensP95AtCrashCount: 8,
+      heapDeltaMbAtCrashCount: 96,
+    });
+
+    const heapGate = gates.find((gate) => gate.name === "crash_resilience_heap_delta_mb_at_100");
+    expect(heapGate).toEqual(
+      expect.objectContaining({
+        pass: false,
+        actual: 121,
+        expected: "<= 96",
+      })
+    );
+  });
+
   it("passes project autosave typing gates when drafts trigger no project snapshot churn", () => {
     const scenarios: ProjectWorkspaceAutosaveTypingScenario[] = [
       {

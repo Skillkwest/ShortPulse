@@ -244,10 +244,10 @@ export const useMediaLibraryFolderDropController = ({
       const maybeDesktopFiles =
         hasDesktopFileTransferHints(transfer) &&
         Boolean(onDropFilesToFolder) &&
-        !isStorageQuotaBlocked;
+        (!isStorageQuotaBlocked || Boolean(onStorageQuotaBlockedFileDrop));
       return Boolean(maybeLibraryPayload || canAcceptInternalPayload || maybeDesktopFiles);
     },
-    [isStorageQuotaBlocked, onDropFilesToFolder]
+    [isStorageQuotaBlocked, onDropFilesToFolder, onStorageQuotaBlockedFileDrop]
   );
 
   const handleFolderDragOver = useCallback(

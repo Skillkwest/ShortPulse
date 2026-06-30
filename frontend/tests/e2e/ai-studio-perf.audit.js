@@ -21,6 +21,11 @@ const CLICK_SAMPLES = 24;
 const REFERENCE_GRID_SURFACE_SELECTOR =
   ".reference-canvas-panel[data-grid-surface='reference-grid']";
 const REFERENCE_GRID_CARD_SELECTOR = ".reference-column .reference-card";
+const PROJECT_RESTORE_OUTPUT_STORE_COUNTER_GATE_NAMES = [
+  "project_restore_output_store_publish_count",
+  "project_restore_all_refs_scan_count",
+  "project_restore_quick_slot_lookup_count",
+];
 
 async function signIn(page) {
   const signInTab = page.getByRole("tab", { name: /^Sign in$/i }).first();
@@ -87,6 +92,37 @@ async function waitForSeededReferenceGridCards(page) {
   );
 }
 
+function validateProjectRestoreInstrumentationContract(projectRestore) {
+  const scenario = projectRestore?.scenarios?.[0] ?? null;
+  const outputStore = scenario?.outputStore ?? null;
+  if (!outputStore) {
+    return "project_restore_output_store_summary_missing";
+  }
+  if (typeof outputStore.instrumentationAvailable !== "boolean") {
+    return "project_restore_output_store_instrumentation_flag_missing";
+  }
+
+  const gatesByName = new Map((projectRestore?.gates ?? []).map((gate) => [gate?.name, gate]));
+
+  for (const gateName of PROJECT_RESTORE_OUTPUT_STORE_COUNTER_GATE_NAMES) {
+    const gate = gatesByName.get(gateName);
+    if (!gate) {
+      return `${gateName}_gate_missing`;
+    }
+    if (outputStore.instrumentationAvailable) {
+      if (typeof gate.actual !== "number") {
+        return `${gateName}_must_report_numeric_actual_when_instrumented`;
+      }
+      continue;
+    }
+    if (gate.actual !== null || !/instrumentation unavailable/i.test(gate.note ?? "")) {
+      return `${gateName}_must_be_informational_when_uninstrumented`;
+    }
+  }
+
+  return null;
+}
+
 async function main() {
   if (!EMAIL) {
     console.error("[ai-studio-perf.audit] PLAYWRIGHT_AUDIT_EMAIL is required.");
@@ -121,6 +157,10 @@ async function main() {
     referenceGrid: null,
     referenceGridActiveWorkset: null,
     studioShell: null,
+    projectRestoreInstrumentationContract: {
+      ok: false,
+      reason: null,
+    },
   };
 
   try {
@@ -256,11 +296,18 @@ async function main() {
     result.referenceGridActiveWorkset = referenceGridActiveWorkset;
     result.studioShell = studioShell;
     result.projectRestore = projectRestore;
+    const projectRestoreInstrumentationContractFailure =
+      validateProjectRestoreInstrumentationContract(projectRestore);
+    result.projectRestoreInstrumentationContract = {
+      ok: projectRestoreInstrumentationContractFailure === null,
+      reason: projectRestoreInstrumentationContractFailure,
+    };
     result.ok =
       Boolean(referenceGrid?.ok) &&
       Boolean(referenceGridActiveWorkset?.ok) &&
       Boolean(studioShell?.ok) &&
-      Boolean(projectRestore?.ok);
+      Boolean(projectRestore?.ok) &&
+      result.projectRestoreInstrumentationContract.ok;
     console.log(JSON.stringify(result, null, 2));
 
     if (!result.ok) {

@@ -1,5 +1,5 @@
 import { render, screen, waitFor } from "@testing-library/react";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AiStudioProtectedRouteEntry from "../../features/ai-studio/routes/AiStudioProtectedRouteEntry";
 
@@ -169,6 +169,43 @@ describe("AiStudioProtectedRouteEntry", () => {
       screen.getByText("Checking your session before project restore continues.")
     ).toBeInTheDocument();
     expect(screen.queryByTestId("ai-studio-runtime")).not.toBeInTheDocument();
+  });
+
+  it("preserves the mounted AI Studio runtime while browser restore auth revalidates after startup", () => {
+    const mountSpy = vi.fn();
+    const unmountSpy = vi.fn();
+    const StatefulRuntime = () => {
+      useEffect(() => {
+        mountSpy();
+        return () => {
+          unmountSpy();
+        };
+      }, []);
+      return <div data-testid="ai-studio-runtime">AI Studio runtime</div>;
+    };
+
+    const { rerender } = render(<AiStudioProtectedRouteEntry RuntimeComponent={StatefulRuntime} />);
+
+    expect(screen.getByTestId("ai-studio-runtime")).toBeInTheDocument();
+    expect(mountSpy).toHaveBeenCalledTimes(1);
+    expect(unmountSpy).not.toHaveBeenCalled();
+
+    useProtectedRouteRestoreGuardMock.mockReturnValue({
+      checking: true,
+    });
+
+    rerender(<AiStudioProtectedRouteEntry RuntimeComponent={StatefulRuntime} />);
+
+    expect(
+      screen.getByText("Checking your session before project restore continues.")
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("ai-studio-runtime")).toBeInTheDocument();
+    expect(screen.getByTestId("ai-studio-runtime").parentElement).toHaveAttribute(
+      "aria-hidden",
+      "true"
+    );
+    expect(mountSpy).toHaveBeenCalledTimes(1);
+    expect(unmountSpy).not.toHaveBeenCalled();
   });
 
   it("uses the AI Studio entry shell while checking media compliance", () => {

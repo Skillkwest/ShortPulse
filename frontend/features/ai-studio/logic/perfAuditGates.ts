@@ -12,8 +12,14 @@ export type PerfGate = {
   note?: string;
 };
 
+type ReferenceGridViewport = {
+  width: number | null;
+  height: number | null;
+};
+
 export type ReferenceGridScenario = {
   count: number;
+  viewport?: ReferenceGridViewport;
   seeded?: {
     requestedCount?: number;
     activeCount: number;
@@ -102,6 +108,40 @@ export type ProjectRestoreScenario = {
   };
 };
 
+const REFERENCE_GRID_RENDERED_GATE_BASE_VIEWPORT_HEIGHT = 980;
+const REFERENCE_GRID_RENDERED_GATE_EXTRA_HEIGHT_STEP_PX = 50;
+const REFERENCE_GRID_RENDERED_GATE_EXTRA_ITEMS_PER_STEP = 3;
+
+const resolveRenderedItemThreshold = (
+  baseThreshold: number,
+  viewport?: ReferenceGridViewport
+): { threshold: number; note?: string } => {
+  const viewportHeight = viewport?.height;
+  if (typeof viewportHeight !== "number" || !Number.isFinite(viewportHeight)) {
+    return { threshold: baseThreshold };
+  }
+
+  const extraHeight = Math.max(
+    0,
+    viewportHeight - REFERENCE_GRID_RENDERED_GATE_BASE_VIEWPORT_HEIGHT
+  );
+  if (extraHeight <= 0) {
+    return { threshold: baseThreshold };
+  }
+
+  const extraItems =
+    Math.ceil(extraHeight / REFERENCE_GRID_RENDERED_GATE_EXTRA_HEIGHT_STEP_PX) *
+    REFERENCE_GRID_RENDERED_GATE_EXTRA_ITEMS_PER_STEP;
+  const threshold = baseThreshold + extraItems;
+
+  return {
+    threshold,
+    note: `Rendered-item threshold adjusted from <= ${baseThreshold} for ${Math.round(
+      viewportHeight
+    )}px viewport height.`,
+  };
+};
+
 export const evaluateReferenceGridAuditGates = (
   scenarios: ReferenceGridScenario[],
   thresholds: {
@@ -154,6 +194,11 @@ export const evaluateReferenceGridAuditGates = (
       return;
     }
 
+    const renderedThreshold = resolveRenderedItemThreshold(
+      target.renderedThreshold,
+      scenario.viewport
+    );
+
     gates.push({
       name: `grid_click_p95_ms_at_${target.count}`,
       pass:
@@ -183,12 +228,15 @@ export const evaluateReferenceGridAuditGates = (
       name: `rendered_item_count_p95_at_${target.count}`,
       pass:
         typeof scenario.grid.renderedItemCountP95 === "number" &&
-        scenario.grid.renderedItemCountP95 <= target.renderedThreshold,
+        scenario.grid.renderedItemCountP95 <= renderedThreshold.threshold,
       actual: scenario.grid.renderedItemCountP95,
-      expected: `<= ${target.renderedThreshold}`,
+      expected:
+        renderedThreshold.threshold === target.renderedThreshold
+          ? `<= ${target.renderedThreshold}`
+          : `<= ${renderedThreshold.threshold} (viewport-adjusted from ${target.renderedThreshold})`,
       note:
         typeof scenario.grid.renderedItemCountP95 === "number"
-          ? undefined
+          ? renderedThreshold.note
           : "Rendered-item metric unavailable from grid surface.",
     });
   });

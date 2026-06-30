@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (February 17, 2026); amended for July 7 launch cap (June 12, 2026); amended for browser-load cap (June 13, 2026)
+Accepted (February 17, 2026); amended for July 7 launch cap (June 12, 2026); amended for browser-load cap (June 13, 2026); amended for viewport-aware perf gates (June 30, 2026)
 
 ## Context
 
@@ -49,6 +49,7 @@ Adopt a bounded-work runtime for AI Studio Reference Grid:
 6. Telemetry
 
 - Add explicit Reference Grid performance events for render commits, long tasks, heap samples, and archive transitions.
+- Perf-audit rendered-item gates are strict at the canonical `1720x980` desktop release-check viewport and apply a bounded viewport-height allowance for taller desktop observation runs, so additional visible rows do not read as regressions while unbounded virtualization growth still fails.
 
 ## Consequences
 

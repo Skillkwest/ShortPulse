@@ -478,15 +478,18 @@ Monitor these events during rollout:
   - `window.__shortpulseAiStudioPerf.runReferenceGridAudit(options?)`
   - `window.__shortpulseAiStudioPerf.runStudioShellAudit(options?)`
 - Scenarios: 20 / 40 / 50 / 60 / 100 / 300 seeded reference cards. The production release check runs the capped 40 / 60 / 100 path, separately verifies the 500-total / 300-active workset cap, and runs an explicit 300-active workset through `activeCapOverride`.
+- Viewport posture:
+  - The canonical release-check viewport is `1720x980`.
+  - Wider/taller desktop observation runs may render additional virtualized rows. The rendered-item gates stay strict at the canonical height, then add a bounded allowance of 3 items per extra 50 px of viewport height above 980 px. Treat interaction, long-task, media-work-token, decode, and restore gates as unchanged across these desktop viewports.
 - Gates:
   - grid click p95 at 40 cards: `<= 90ms`
   - grid long-task p95 at 40 cards: `<= 70ms`
   - grid max input stall at 40 cards: `<= 450ms`
-  - rendered item count p95 at 40 cards: `<= 24`
+  - rendered item count p95 at 40 cards: `<= 24` at the canonical viewport; viewport-adjusted for taller desktop observation runs
   - grid click p95 at 60 cards: `<= 120ms`
   - grid long-task p95 at 60 cards: `<= 100ms`
   - grid max input stall at 60 cards: `<= 800ms`
-  - rendered item count p95 at 60 cards: `<= 28`
+  - rendered item count p95 at 60 cards: `<= 28` at the canonical viewport; viewport-adjusted for taller desktop observation runs
   - crash-resilience rendered item count p95 at 100 cards: `<= 36`
   - crash-resilience long-task p95 at 100 cards: `<= 140ms`
   - crash-resilience max input stall at 100 cards: `<= 1000ms`

@@ -4605,11 +4605,11 @@ describe("MediaLibraryPanel", () => {
     useMediaStorageQuotaSummaryMock.mockReturnValue({
       quotaSummary: {
         usedBytes: 0,
-        baseLimitBytes: 0,
+        baseLimitBytes: 300,
         addonLimitBytes: 0,
-        totalLimitBytes: 0,
-        remainingBytes: 0,
-        isOverLimit: true,
+        totalLimitBytes: 300,
+        remainingBytes: 300,
+        isOverLimit: false,
       },
       loading: false,
       refreshQuotaSummary: vi.fn(),

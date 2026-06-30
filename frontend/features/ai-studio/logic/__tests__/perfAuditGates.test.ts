@@ -171,6 +171,106 @@ describe("perfAuditGates", () => {
     expect(renderedGate?.note).toContain("metric unavailable");
   });
 
+  it("keeps the rendered-item gate strict when viewport metadata is unavailable", () => {
+    const scenarios: ReferenceGridScenario[] = [
+      {
+        count: 40,
+        click: { samples: 10, p95Ms: 30 },
+        longTask: { samples: 0, p95Ms: null },
+        interaction: { maxInputStallMs: 20 },
+        memory: { beforeMb: null, afterMb: null },
+        grid: {
+          renderedItemCountP95: 12,
+          imageHydrationQueueP95: null,
+          imageDecodeInflightP95: null,
+          perfDegradeLevelP95: null,
+          previewSrcSwapRatePerMinuteP95: null,
+          previewRepaintSpikeCountMax: null,
+          previewLastSwapBurstCountP95: null,
+        },
+      },
+      {
+        count: 60,
+        click: { samples: 10, p95Ms: 40 },
+        longTask: { samples: 0, p95Ms: null },
+        interaction: { maxInputStallMs: 30 },
+        memory: { beforeMb: null, afterMb: null },
+        grid: {
+          renderedItemCountP95: 30,
+          imageHydrationQueueP95: null,
+          imageDecodeInflightP95: null,
+          perfDegradeLevelP95: null,
+          previewSrcSwapRatePerMinuteP95: null,
+          previewRepaintSpikeCountMax: null,
+          previewLastSwapBurstCountP95: null,
+        },
+      },
+    ];
+
+    const gates = evaluateReferenceGridAuditGates(scenarios, REFERENCE_THRESHOLDS);
+    const renderedGate = gates.find((gate) => gate.name === "rendered_item_count_p95_at_60");
+
+    expect(renderedGate).toEqual(
+      expect.objectContaining({
+        pass: false,
+        actual: 30,
+        expected: "<= 28",
+      })
+    );
+  });
+
+  it("allows bounded extra rendered items for taller desktop audit viewports", () => {
+    const scenarios: ReferenceGridScenario[] = [
+      {
+        count: 40,
+        viewport: { width: 1920, height: 1080 },
+        click: { samples: 10, p95Ms: 30 },
+        longTask: { samples: 0, p95Ms: null },
+        interaction: { maxInputStallMs: 20 },
+        memory: { beforeMb: null, afterMb: null },
+        grid: {
+          renderedItemCountP95: 12,
+          imageHydrationQueueP95: null,
+          imageDecodeInflightP95: null,
+          perfDegradeLevelP95: null,
+          previewSrcSwapRatePerMinuteP95: null,
+          previewRepaintSpikeCountMax: null,
+          previewLastSwapBurstCountP95: null,
+        },
+      },
+      {
+        count: 60,
+        viewport: { width: 1920, height: 1080 },
+        click: { samples: 10, p95Ms: 40 },
+        longTask: { samples: 0, p95Ms: null },
+        interaction: { maxInputStallMs: 30 },
+        memory: { beforeMb: null, afterMb: null },
+        grid: {
+          renderedItemCountP95: 30,
+          imageHydrationQueueP95: null,
+          imageDecodeInflightP95: null,
+          perfDegradeLevelP95: null,
+          previewSrcSwapRatePerMinuteP95: null,
+          previewRepaintSpikeCountMax: null,
+          previewLastSwapBurstCountP95: null,
+        },
+      },
+    ];
+
+    const gates = evaluateReferenceGridAuditGates(scenarios, REFERENCE_THRESHOLDS);
+    const renderedGate = gates.find((gate) => gate.name === "rendered_item_count_p95_at_60");
+
+    expect(renderedGate).toEqual(
+      expect.objectContaining({
+        pass: true,
+        actual: 30,
+        expected: "<= 34 (viewport-adjusted from 28)",
+      })
+    );
+    expect(renderedGate?.note).toContain("1080px viewport height");
+    expect(gates.every((gate) => gate.pass)).toBe(true);
+  });
+
   it("treats missing long-task samples as pass-with-note for reference grid gates", () => {
     const scenarios: ReferenceGridScenario[] = [
       {

@@ -267,16 +267,16 @@
 }
 
 .ai-generation-access-cta--audio {
-  width: 94px;
-  min-width: 94px;
-  max-width: 94px;
+  width: 140px;
+  min-width: 140px;
+  max-width: 140px;
   height: 68px;
   min-height: 68px;
   max-height: 68px;
   align-self: center;
   justify-self: end;
-  padding: 10px 6px;
-  font-size: 0.9rem;
+  padding: 0 18px;
+  font-size: 0.98rem;
 }
 
 .agent-messages::-webkit-scrollbar {

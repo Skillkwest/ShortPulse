@@ -202,7 +202,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const [optimizerFallbackMediaIds, setOptimizerFallbackMediaIds] = useState<Set<string>>(
     () => new Set()
   );
-  const isRoutePlanAccessBlocked = Boolean(routeStorageQuotaBlocked && isPlanAccessBlocked);
+  const isRoutePlanAccessBlocked = Boolean(isPlanAccessBlocked);
 
   useEffect(() => {
     setProjectNameDraft(projectName ?? "");
@@ -295,7 +295,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     setPromptRows,
     onDeleteMediaRowsFromWorkspace,
   });
-  const isPlanBlockedStorageQuota = isStorageQuotaBlocked && isPlanAccessBlocked;
+  const isPlanBlockedStorageQuota = isPlanAccessBlocked;
   const shouldDisableUploads = isStorageQuotaBlocked && !isPlanBlockedStorageQuota;
   const visiblePromptRows = useMemo(() => sortByCreatedAtDesc(promptRows), [promptRows]);
   const foldersById = useMemo(
@@ -636,7 +636,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const foldersDropController = useMediaLibraryFolderDropController({
     projectId,
     folders,
-    isStorageQuotaBlocked,
+    isStorageQuotaBlocked: isStorageQuotaBlocked || isPlanBlockedStorageQuota,
     setFolderError,
     setMembershipMessage,
     setMembershipPendingMessage,

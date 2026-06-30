@@ -120,6 +120,10 @@ type AiStudioPerfWindow = Window & {
       generatedAt: string;
       scenarios: Array<{
         count: number;
+        viewport?: {
+          width: number | null;
+          height: number | null;
+        };
         seeded?: {
           requestedCount?: number;
           activeCount: number;
@@ -439,6 +443,16 @@ export function useAiStudioPerfAuditRuntime({
       if (typeof runtimePerformance.memory?.usedJSHeapSize !== "number") return null;
       return Math.round((runtimePerformance.memory.usedJSHeapSize / (1024 * 1024)) * 100) / 100;
     };
+    const captureViewport = () => ({
+      width:
+        typeof window.innerWidth === "number" && Number.isFinite(window.innerWidth)
+          ? window.innerWidth
+          : null,
+      height:
+        typeof window.innerHeight === "number" && Number.isFinite(window.innerHeight)
+          ? window.innerHeight
+          : null,
+    });
     const diffAutosaveCounters = (
       before: ProjectWorkspaceAutosavePerfCounters,
       after: ProjectWorkspaceAutosavePerfCounters
@@ -979,6 +993,7 @@ export function useAiStudioPerfAuditRuntime({
 
       return {
         count,
+        viewport: captureViewport(),
         seeded: seedResult,
         click: {
           samples: clickLatenciesMs.length,
@@ -1427,6 +1442,7 @@ export function useAiStudioPerfAuditRuntime({
           );
           scenarios.push({
             count: scenario.count,
+            viewport: scenario.viewport,
             seeded: scenario.seeded,
             click: scenario.click,
             longTask: scenario.longTask,

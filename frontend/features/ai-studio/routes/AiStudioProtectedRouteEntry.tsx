@@ -15,6 +15,8 @@ import {
   useState,
   type ComponentProps,
   type ComponentType,
+  type CSSProperties,
+  type ReactNode,
 } from "react";
 import { AppErrorBoundary } from "../../../components/AppErrorBoundary";
 import { buildLoginPath } from "../../../lib/authRedirects";
@@ -42,6 +44,32 @@ const AiStudioEntryStateFrame = (props: ComponentProps<typeof AiStudioProjectEnt
     <AiStudioEntryHead />
     <AiStudioProjectEntryState {...props} />
   </>
+);
+
+const RUNTIME_LAYER_VISIBLE_STYLE: CSSProperties = {
+  display: "contents",
+};
+
+const RESTORE_CHECK_RUNTIME_MASK_STYLE: CSSProperties = {
+  position: "fixed",
+  inset: 0,
+  visibility: "hidden",
+  pointerEvents: "none",
+};
+
+const RuntimePreservationLayer = ({
+  children,
+  masked,
+}: {
+  children: ReactNode;
+  masked: boolean;
+}) => (
+  <div
+    aria-hidden={masked ? "true" : undefined}
+    style={masked ? RESTORE_CHECK_RUNTIME_MASK_STYLE : RUNTIME_LAYER_VISIBLE_STYLE}
+  >
+    {children}
+  </div>
 );
 
 const AiStudioRouteApp = dynamic(loadAiStudioRouteApp, {
@@ -218,6 +246,7 @@ export default function AiStudioProtectedRouteEntry({
   );
   const [checkoutProjectLaunchState, setCheckoutProjectLaunchState] =
     useState<CheckoutProjectLaunchState>({ status: "idle" });
+  const [hasRenderedRuntime, setHasRenderedRuntime] = useState(false);
   const checkoutProjectLaunchKeyRef = useRef<string | null>(null);
   const checkoutProjectLaunchStatusRef = useRef<CheckoutProjectLaunchState["status"]>("idle");
   const authRedirectPath = useMemo(
@@ -344,16 +373,47 @@ export default function AiStudioProtectedRouteEntry({
     setCheckoutProjectLaunchState({ status: "idle" });
   };
 
+  const canRenderRuntime =
+    !loading &&
+    Boolean(session) &&
+    mediaCompliance.initialized &&
+    mediaCompliance.status === "accepted" &&
+    !checkoutProjectLaunchIntent;
+
+  useEffect(() => {
+    if (!restoreGuard.checking && canRenderRuntime) {
+      setHasRenderedRuntime(true);
+    }
+  }, [canRenderRuntime, restoreGuard.checking]);
+
+  const sessionRestoreLoadingFrame = (
+    <AiStudioEntryStateFrame
+      variant="loading"
+      phase="resolving-project"
+      message="Checking your session before project restore continues."
+      activeStepIndex={0}
+      stepsAriaLabel="Project loading progress"
+    />
+  );
+  const runtimeTree = session ? (
+    <RuntimePreservationLayer masked={restoreGuard.checking}>
+      <ProtectedRouteSessionProvider session={session} user={resolvedUser ?? session.user}>
+        <RuntimeComponent />
+      </ProtectedRouteSessionProvider>
+    </RuntimePreservationLayer>
+  ) : null;
+
   if (restoreGuard.checking || loading || !session) {
-    return (
-      <AiStudioEntryStateFrame
-        variant="loading"
-        phase="resolving-project"
-        message="Checking your session before project restore continues."
-        activeStepIndex={0}
-        stepsAriaLabel="Project loading progress"
-      />
-    );
+    if (restoreGuard.checking && hasRenderedRuntime && runtimeTree) {
+      return (
+        <>
+          {runtimeTree}
+          {sessionRestoreLoadingFrame}
+        </>
+      );
+    }
+
+    return sessionRestoreLoadingFrame;
   }
 
   if (!mediaCompliance.initialized || mediaCompliance.status === "loading") {
@@ -456,9 +516,5 @@ export default function AiStudioProtectedRouteEntry({
     );
   }
 
-  return (
-    <ProtectedRouteSessionProvider session={session} user={resolvedUser ?? session.user}>
-      <RuntimeComponent />
-    </ProtectedRouteSessionProvider>
-  );
+  return <>{runtimeTree}</>;
 }

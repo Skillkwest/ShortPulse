@@ -208,7 +208,7 @@
   justify-content: center;
   width: 100%;
   min-width: 112px;
-  min-height: 78px;
+  min-height: 68px;
   padding: 0 18px;
   border: 1px solid rgba(255, 162, 92, 0.72);
   border-radius: 10px;
@@ -270,9 +270,9 @@
   width: 94px;
   min-width: 94px;
   max-width: 94px;
-  height: 78px;
-  min-height: 78px;
-  max-height: 78px;
+  height: 68px;
+  min-height: 68px;
+  max-height: 68px;
   align-self: center;
   justify-self: end;
   padding: 10px 6px;

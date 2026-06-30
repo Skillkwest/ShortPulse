@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+  REFERENCE_GRID_WARN_VISIBLE_ITEMS,
+} from "../../../../lib/model-runtime/referenceGridLimits";
+import {
   calculateReferenceGridWindow,
   resolveReferenceGridDensityPressureLevel,
   resolveReferenceGridMaxColumns,
@@ -50,13 +54,19 @@ describe("referenceGridVirtualization", () => {
   });
 
   it("resolves density pressure before watchdog samples under large grids", () => {
-    expect(resolveReferenceGridDensityPressureLevel({ itemCount: 200 })).toBe(0);
-    expect(resolveReferenceGridDensityPressureLevel({ itemCount: 225 })).toBe(1);
-    expect(resolveReferenceGridDensityPressureLevel({ itemCount: 300 })).toBe(2);
+    expect(
+      resolveReferenceGridDensityPressureLevel({ itemCount: REFERENCE_GRID_WARN_VISIBLE_ITEMS - 1 })
+    ).toBe(0);
+    expect(
+      resolveReferenceGridDensityPressureLevel({ itemCount: REFERENCE_GRID_WARN_VISIBLE_ITEMS })
+    ).toBe(1);
+    expect(
+      resolveReferenceGridDensityPressureLevel({ itemCount: REFERENCE_GRID_MAX_VISIBLE_ITEMS })
+    ).toBe(2);
     expect(
       resolveReferenceGridDensityPressureLevel({
         itemCount: 20,
-        curatedItemCount: 300,
+        curatedItemCount: REFERENCE_GRID_MAX_VISIBLE_ITEMS,
       })
     ).toBe(2);
   });
@@ -78,7 +88,7 @@ describe("referenceGridVirtualization", () => {
 
   it("returns bounded index windows for larger counts", () => {
     const window = calculateReferenceGridWindow({
-      itemCount: 300,
+      itemCount: REFERENCE_GRID_MAX_VISIBLE_ITEMS,
       columnCount: 5,
       rowHeight: 200,
       scrollTop: 2400,
@@ -88,7 +98,7 @@ describe("referenceGridVirtualization", () => {
 
     expect(window.shouldVirtualize).toBe(true);
     expect(window.startIndex).toBeGreaterThanOrEqual(0);
-    expect(window.endIndex).toBeLessThanOrEqual(300);
+    expect(window.endIndex).toBeLessThanOrEqual(REFERENCE_GRID_MAX_VISIBLE_ITEMS);
     expect(window.endIndex).toBeGreaterThan(window.startIndex);
     expect(window.topSpacerHeight).toBeGreaterThanOrEqual(0);
     expect(window.bottomSpacerHeight).toBeGreaterThanOrEqual(0);

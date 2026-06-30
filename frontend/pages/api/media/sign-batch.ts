@@ -9,6 +9,7 @@ import {
 } from "../../../lib/mediaPreviewTransformProfile";
 import { isUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
 import { requireApiUser } from "../../../lib/server/api/auth";
+import { logAuthVerificationUnavailableResponse } from "../../../lib/server/api/authFailureLogging";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
 
@@ -241,7 +242,14 @@ export default async function handler(
       error: "Failed to sign media paths",
     });
   }
-  if (!user) return;
+  if (!user) {
+    await logAuthVerificationUnavailableResponse({
+      req,
+      res,
+      routeLabel: "media-sign-batch.auth",
+    });
+    return;
+  }
   const userId = user.id;
 
   try {

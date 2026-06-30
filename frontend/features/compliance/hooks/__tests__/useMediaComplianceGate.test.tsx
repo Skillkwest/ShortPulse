@@ -91,6 +91,49 @@ describe("useMediaComplianceGate", () => {
     });
   });
 
+  it("can skip browser-restore media compliance revalidation after the initial check", async () => {
+    fetchWithAuthMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          accepted: true,
+          acceptedAt: "2026-04-25T18:00:00.000Z",
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          accepted: false,
+          acceptedAt: null,
+        }),
+      });
+
+    const { result } = renderHook(() =>
+      useMediaComplianceGate({
+        enabled: true,
+        revalidateOnTabReturn: false,
+        userId: "user-123",
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.status).toBe("accepted");
+    });
+
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "visible",
+    });
+
+    act(() => {
+      window.dispatchEvent(new Event("pageshow"));
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
+    expect(result.current.status).toBe("accepted");
+  });
+
   it("records acceptance for the current agreement", async () => {
     fetchWithAuthMock
       .mockResolvedValueOnce({

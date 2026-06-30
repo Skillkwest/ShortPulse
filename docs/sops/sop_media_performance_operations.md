@@ -123,11 +123,11 @@ Before treating an AI Studio freeze or console CSP violation as app-owned perfor
 
 ### 3a) Validate Reference Grid Active-Workset Cap
 
-1. Confirm the Reference Grid counter displays `Media: <visible>/300`.
-2. Add or restore references until the active workset reaches 300 visible items.
+1. Confirm the Reference Grid counter displays `Media: <visible>/400`.
+2. Add or restore references until the active workset reaches 400 visible items.
 3. Confirm new visible references are refused with cap copy instead of entering the hot path.
 4. Confirm restored or normalized over-cap active rows move into Archived with restore actions instead of being dropped.
-5. Confirm high-density posture starts before the cap is reached, with the threshold at 225 visible items.
+5. Confirm high-density posture starts before the cap is reached, with the threshold at 300 visible items.
 
 ### 3b) Validate Curated Split Behavior
 
@@ -473,11 +473,11 @@ Monitor these events during rollout:
   - `cd frontend && PLAYWRIGHT_BASE_URL=https://shortpulse.ai PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<audit-password> npm run test:perf:ai-studio`
 - Runtime API (development, or production when `NEXT_PUBLIC_AI_STUDIO_PERF_AUDIT_RUNTIME=true`):
   - `window.__shortpulseAiStudioPerf.seedReferenceGrid(count)`
-  - `window.__shortpulseAiStudioPerf.seedReferenceGrid(count, { activeCapOverride: 300 })` for explicit 300-active workset stress.
+  - `window.__shortpulseAiStudioPerf.seedReferenceGrid(count, { activeCapOverride: 400 })` for explicit 400-active workset stress.
   - `window.__shortpulseAiStudioPerf.clearReferenceGrid()`
   - `window.__shortpulseAiStudioPerf.runReferenceGridAudit(options?)`
   - `window.__shortpulseAiStudioPerf.runStudioShellAudit(options?)`
-- Scenarios: 20 / 40 / 50 / 60 / 100 / 300 seeded reference cards. The production release check runs the capped 40 / 60 / 100 path, separately verifies the 500-total / 300-active workset cap, and runs an explicit 300-active workset through `activeCapOverride`.
+- Scenarios: 20 / 40 / 50 / 60 / 100 / 400 seeded reference cards. The production release check runs the capped 40 / 60 / 100 path, separately verifies the 500-total / 400-active workset cap, and runs an explicit 400-active workset through `activeCapOverride`.
 - Viewport posture:
   - The canonical release-check viewport is `1720x980`.
   - Wider/taller desktop observation runs may render additional virtualized rows. The rendered-item gates stay strict at the canonical height, then add a bounded allowance of 3 items per extra 50 px of viewport height above 980 px. Treat interaction, long-task, media-work-token, decode, and restore gates as unchanged across these desktop viewports.
@@ -506,7 +506,7 @@ Monitor these events during rollout:
 
 - Browser command (DevTools Console on `/ai-studio`):
   - `await window.__shortpulseAiStudioPerf?.runStudioShellAudit()`
-- Scenarios: 20 / 50 / 60 / 100 / 300 seeded references while exercising toolbar/panel/drop interactions.
+- Scenarios: 20 / 50 / 60 / 100 / 400 seeded references while exercising toolbar/panel/drop interactions.
 - Gates:
   - toolbar switch p95 at 60 refs: `<= 120ms`
   - panel interaction p95 at 60 refs: `<= 140ms`

@@ -4,6 +4,7 @@
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../../lib/server/api/auth";
+import { logAuthVerificationUnavailableResponse } from "../../../../lib/server/api/authFailureLogging";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { getSupabaseAdmin } from "../../../../lib/server/api/supabaseAdmin";
 import {
@@ -174,7 +175,14 @@ export default async function handler(
     });
     return res.status(500).json({ error: "Failed to list prompts" });
   }
-  if (!user) return;
+  if (!user) {
+    await logAuthVerificationUnavailableResponse({
+      req,
+      res,
+      routeLabel: "media-prompts-list.auth",
+    });
+    return;
+  }
   const userId = user.id;
 
   try {

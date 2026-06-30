@@ -137,6 +137,17 @@ describe("API proxy protections", () => {
         error: "Authentication verification is temporarily unavailable.",
         code: "AUTH_VERIFICATION_UNAVAILABLE",
       });
+      expect(consoleErrorMock).toHaveBeenCalledWith(
+        "[proxy] Supabase auth lookup failed",
+        expect.objectContaining({
+          pathname: "/api/media/sign-batch",
+          requestId: null,
+          authError: expect.objectContaining({
+            code: "AUTH_VERIFICATION_UNAVAILABLE",
+            message: "Authentication verification is temporarily unavailable.",
+          }),
+        })
+      );
     } finally {
       consoleErrorMock.mockRestore();
     }

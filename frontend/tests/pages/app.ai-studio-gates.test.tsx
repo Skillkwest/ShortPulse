@@ -101,6 +101,19 @@ const renderRouteEntry = () =>
     />
   );
 
+const createStatefulRuntime = (mountSpy: () => void, unmountSpy: () => void) => {
+  const StatefulRuntime = () => {
+    useEffect(() => {
+      mountSpy();
+      return () => {
+        unmountSpy();
+      };
+    }, []);
+    return <div data-testid="ai-studio-runtime">AI Studio runtime</div>;
+  };
+  return StatefulRuntime;
+};
+
 describe("AiStudioProtectedRouteEntry", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -174,15 +187,7 @@ describe("AiStudioProtectedRouteEntry", () => {
   it("preserves the mounted AI Studio runtime while browser restore auth revalidates after startup", () => {
     const mountSpy = vi.fn();
     const unmountSpy = vi.fn();
-    const StatefulRuntime = () => {
-      useEffect(() => {
-        mountSpy();
-        return () => {
-          unmountSpy();
-        };
-      }, []);
-      return <div data-testid="ai-studio-runtime">AI Studio runtime</div>;
-    };
+    const StatefulRuntime = createStatefulRuntime(mountSpy, unmountSpy);
 
     const { rerender } = render(<AiStudioProtectedRouteEntry RuntimeComponent={StatefulRuntime} />);
 
@@ -206,6 +211,125 @@ describe("AiStudioProtectedRouteEntry", () => {
     );
     expect(mountSpy).toHaveBeenCalledTimes(1);
     expect(unmountSpy).not.toHaveBeenCalled();
+  });
+
+  it("preserves the mounted AI Studio runtime while protected auth loading briefly returns after startup", () => {
+    const mountSpy = vi.fn();
+    const unmountSpy = vi.fn();
+    const StatefulRuntime = createStatefulRuntime(mountSpy, unmountSpy);
+
+    const { rerender } = render(<AiStudioProtectedRouteEntry RuntimeComponent={StatefulRuntime} />);
+
+    expect(screen.getByTestId("ai-studio-runtime")).toBeInTheDocument();
+    expect(mountSpy).toHaveBeenCalledTimes(1);
+
+    useProtectedRouteMock.mockReturnValue({
+      loading: true,
+      session: null,
+      user: null,
+    });
+
+    rerender(<AiStudioProtectedRouteEntry RuntimeComponent={StatefulRuntime} />);
+
+    expect(
+      screen.getByText("Checking your session before project restore continues.")
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("ai-studio-runtime")).toBeInTheDocument();
+    expect(screen.getByTestId("ai-studio-runtime").parentElement).toHaveAttribute(
+      "aria-hidden",
+      "true"
+    );
+    expect(mountSpy).toHaveBeenCalledTimes(1);
+    expect(unmountSpy).not.toHaveBeenCalled();
+  });
+
+  it("preserves the mounted AI Studio runtime while the protected session is transiently missing after startup", () => {
+    const mountSpy = vi.fn();
+    const unmountSpy = vi.fn();
+    const StatefulRuntime = createStatefulRuntime(mountSpy, unmountSpy);
+
+    const { rerender } = render(<AiStudioProtectedRouteEntry RuntimeComponent={StatefulRuntime} />);
+
+    expect(screen.getByTestId("ai-studio-runtime")).toBeInTheDocument();
+    expect(mountSpy).toHaveBeenCalledTimes(1);
+
+    useProtectedRouteMock.mockReturnValue({
+      loading: false,
+      session: null,
+      user: null,
+    });
+
+    rerender(<AiStudioProtectedRouteEntry RuntimeComponent={StatefulRuntime} />);
+
+    expect(
+      screen.getByText("Checking your session before project restore continues.")
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("ai-studio-runtime")).toBeInTheDocument();
+    expect(screen.getByTestId("ai-studio-runtime").parentElement).toHaveAttribute(
+      "aria-hidden",
+      "true"
+    );
+    expect(mountSpy).toHaveBeenCalledTimes(1);
+    expect(unmountSpy).not.toHaveBeenCalled();
+  });
+
+  it("preserves the mounted AI Studio runtime while media compliance is transiently loading after startup", () => {
+    const mountSpy = vi.fn();
+    const unmountSpy = vi.fn();
+    const StatefulRuntime = createStatefulRuntime(mountSpy, unmountSpy);
+
+    const { rerender } = render(<AiStudioProtectedRouteEntry RuntimeComponent={StatefulRuntime} />);
+
+    expect(screen.getByTestId("ai-studio-runtime")).toBeInTheDocument();
+    expect(mountSpy).toHaveBeenCalledTimes(1);
+
+    useMediaComplianceGateMock.mockReturnValue({
+      ...baseComplianceState,
+      initialized: false,
+      loading: true,
+      status: "loading",
+    });
+
+    rerender(<AiStudioProtectedRouteEntry RuntimeComponent={StatefulRuntime} />);
+
+    expect(
+      screen.getByText("Checking your media agreement before project restore continues.")
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("ai-studio-runtime")).toBeInTheDocument();
+    expect(screen.getByTestId("ai-studio-runtime").parentElement).toHaveAttribute(
+      "aria-hidden",
+      "true"
+    );
+    expect(mountSpy).toHaveBeenCalledTimes(1);
+    expect(unmountSpy).not.toHaveBeenCalled();
+  });
+
+  it("does not preserve the mounted AI Studio runtime when media compliance requires auth recovery", () => {
+    const mountSpy = vi.fn();
+    const unmountSpy = vi.fn();
+    const StatefulRuntime = createStatefulRuntime(mountSpy, unmountSpy);
+
+    const { rerender } = render(<AiStudioProtectedRouteEntry RuntimeComponent={StatefulRuntime} />);
+
+    expect(screen.getByTestId("ai-studio-runtime")).toBeInTheDocument();
+    expect(mountSpy).toHaveBeenCalledTimes(1);
+
+    useMediaComplianceGateMock.mockReturnValue({
+      ...baseComplianceState,
+      accepted: false,
+      initialized: true,
+      status: "auth_recovery_required",
+      error: "Your session expired. Sign in again to continue.",
+    });
+
+    rerender(<AiStudioProtectedRouteEntry RuntimeComponent={StatefulRuntime} />);
+
+    expect(
+      screen.getByText("Refreshing your session before project restore continues.")
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("ai-studio-runtime")).not.toBeInTheDocument();
+    expect(unmountSpy).toHaveBeenCalledTimes(1);
+    expect(replaceMock).toHaveBeenCalledWith("/log-in?next=%2Fai-studio%3FprojectId%3Dproject-1");
   });
 
   it("uses the AI Studio entry shell while checking media compliance", () => {

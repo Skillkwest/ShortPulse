@@ -72,7 +72,29 @@ export async function proxy(request: NextRequest) {
     try {
       user = await fetchSupabaseUser(token);
     } catch (error) {
-      console.error("[proxy] Supabase auth lookup failed", error);
+      const authError =
+        error instanceof Error
+          ? (() => {
+              const authLookupError = error as Error & {
+                code?: unknown;
+                statusCode?: unknown;
+              };
+              return {
+                name: authLookupError.name,
+                message: authLookupError.message,
+                code: typeof authLookupError.code === "string" ? authLookupError.code : null,
+                statusCode:
+                  typeof authLookupError.statusCode === "number"
+                    ? authLookupError.statusCode
+                    : null,
+              };
+            })()
+          : { name: null, message: String(error), code: null, statusCode: null };
+      console.error("[proxy] Supabase auth lookup failed", {
+        pathname,
+        requestId: request.headers.get("x-shortpulse-request-id"),
+        authError,
+      });
       return authVerificationUnavailable();
     }
     if (!user) {

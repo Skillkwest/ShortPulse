@@ -115,7 +115,7 @@ describe("useAiStudioPerfAuditRuntime", () => {
     });
   });
 
-  it("can seed a 300-active audit workset without using the product cap setter", async () => {
+  it("can seed a max-active audit workset without using the product cap setter", async () => {
     window.history.pushState(null, "", "/ai-studio?perfAuditRuntime=1");
     const setOutputs = vi.fn();
     const setReferenceGridAuditOutputs = vi.fn();
@@ -147,16 +147,19 @@ describe("useAiStudioPerfAuditRuntime", () => {
       );
     });
 
-    const seeded = getPerfWindow().__shortpulseAiStudioPerf?.seedReferenceGrid(300, {
-      activeCapOverride: 300,
-    });
+    const seeded = getPerfWindow().__shortpulseAiStudioPerf?.seedReferenceGrid(
+      REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+      {
+        activeCapOverride: REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+      }
+    );
 
     expect(seeded).toEqual({
-      requestedCount: 300,
-      activeCount: 300,
+      requestedCount: REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+      activeCount: REFERENCE_GRID_MAX_VISIBLE_ITEMS,
       archivedCount: 0,
-      totalCount: 300,
-      activeCapOverride: 300,
+      totalCount: REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+      activeCapOverride: REFERENCE_GRID_MAX_VISIBLE_ITEMS,
     });
     expect(setReferenceGridAuditOutputs).toHaveBeenCalledWith({
       active: expect.arrayContaining([
@@ -167,7 +170,9 @@ describe("useAiStudioPerfAuditRuntime", () => {
       ]),
       archived: [],
     });
-    expect(setReferenceGridAuditOutputs.mock.calls[0]?.[0].active).toHaveLength(300);
+    expect(setReferenceGridAuditOutputs.mock.calls[0]?.[0].active).toHaveLength(
+      REFERENCE_GRID_MAX_VISIBLE_ITEMS
+    );
     expect(setOutputs).not.toHaveBeenCalled();
 
     unmount();

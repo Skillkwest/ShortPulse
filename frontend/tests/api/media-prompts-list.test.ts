@@ -18,7 +18,11 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
 }));
 
 const createMockResponse = () => ({
-  status: vi.fn().mockReturnThis(),
+  statusCode: 200,
+  status: vi.fn(function status(this: { statusCode: number }, code: number) {
+    this.statusCode = code;
+    return this;
+  }),
   json: vi.fn().mockReturnThis(),
 });
 
@@ -212,6 +216,39 @@ describe("POST /api/media/prompts/list", () => {
     expect(getSupabaseAdminMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({ error: "Failed to list prompts" });
+  });
+
+  it("logs controlled auth verification outages before returning", async () => {
+    requireApiUserMock.mockImplementationOnce(
+      async (_req: unknown, res: { statusCode: number }) => {
+        res.statusCode = 503;
+        return null;
+      }
+    );
+    const req = {
+      method: "POST",
+      body: {
+        folderId: "all_items",
+        query: "",
+        cursor: null,
+        limit: 10,
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        routeLabel: "media-prompts-list.auth",
+        scope: "app",
+        metadata: expect.objectContaining({
+          reason_code: "AUTH_VERIFICATION_UNAVAILABLE",
+        }),
+      })
+    );
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
   });
 
   it("returns 400 for invalid custom folder ids", async () => {

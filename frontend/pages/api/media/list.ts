@@ -13,6 +13,7 @@ import { resolvePreferredMediaSigningStoragePath } from "../../../lib/mediaPrevi
 import { isSupabaseRenderImageUrl } from "../../../lib/mediaPreviewTrustPolicy";
 import { isUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
 import { requireApiUser } from "../../../lib/server/api/auth";
+import { logAuthVerificationUnavailableResponse } from "../../../lib/server/api/authFailureLogging";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
 import {
@@ -796,7 +797,14 @@ export default async function handler(
     });
     return res.status(500).json({ error: "Failed to load media" });
   }
-  if (!user) return;
+  if (!user) {
+    await logAuthVerificationUnavailableResponse({
+      req,
+      res,
+      routeLabel: "media-list.auth",
+    });
+    return;
+  }
   const userId = user.id;
 
   try {

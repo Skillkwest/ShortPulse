@@ -13,10 +13,10 @@ const EMAIL = (process.env.PLAYWRIGHT_AUDIT_EMAIL || "").trim();
 const PASSWORD = (process.env.PLAYWRIGHT_AUDIT_PASSWORD || "").trim() || "AuditPass!12345";
 
 const COUNTS = [40, 60, 100];
-const ACTIVE_WORKSET_COUNTS = [40, 60, 100, 300];
+const ACTIVE_WORKSET_COUNTS = [40, 60, 100, 400];
 const TARGET_TOTAL_COUNT = 500;
-const TARGET_ACTIVE_COUNT = 300;
-const TARGET_AUDIT_ACTIVE_COUNT = 300;
+const TARGET_ACTIVE_COUNT = 400;
+const TARGET_AUDIT_ACTIVE_COUNT = 400;
 const CLICK_SAMPLES = 24;
 const REFERENCE_GRID_SURFACE_SELECTOR =
   ".reference-canvas-panel[data-grid-surface='reference-grid']";

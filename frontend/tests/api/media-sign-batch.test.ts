@@ -18,9 +18,18 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
 }));
 
 const createMockResponse = () => {
-  const res = {
+  const res: {
+    statusCode: number;
+    setHeader: ReturnType<typeof vi.fn>;
+    status: ReturnType<typeof vi.fn>;
+    json: ReturnType<typeof vi.fn>;
+  } = {
+    statusCode: 200,
     setHeader: vi.fn().mockReturnThis(),
-    status: vi.fn().mockReturnThis(),
+    status: vi.fn((code: number) => {
+      res.statusCode = code;
+      return res;
+    }),
     json: vi.fn().mockReturnThis(),
   };
   return res;
@@ -273,6 +282,37 @@ describe("POST /api/media/sign-batch", () => {
     expect(res.json).toHaveBeenCalledWith({
       error: "Failed to sign media paths",
     });
+  });
+
+  it("logs controlled auth verification outages before returning", async () => {
+    requireApiUserMock.mockImplementationOnce(
+      async (_req: unknown, res: { statusCode: number }) => {
+        res.statusCode = 503;
+        return null;
+      }
+    );
+    const req = {
+      method: "POST",
+      body: {
+        bucket: "media_library",
+        paths: ["user-1/private/images/example.png"],
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        routeLabel: "media-sign-batch.auth",
+        scope: "app",
+        metadata: expect.objectContaining({
+          reason_code: "AUTH_VERIFICATION_UNAVAILABLE",
+        }),
+      })
+    );
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
   });
 
   it("rejects traversal-style segments while allowing valid requests", async () => {

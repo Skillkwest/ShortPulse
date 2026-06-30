@@ -30,8 +30,12 @@ type MediaLookupRow = {
 };
 
 const createMockResponse = () => ({
+  statusCode: 200,
   setHeader: vi.fn().mockReturnThis(),
-  status: vi.fn().mockReturnThis(),
+  status: vi.fn(function status(this: { statusCode: number }, code: number) {
+    this.statusCode = code;
+    return this;
+  }),
   json: vi.fn().mockReturnThis(),
 });
 
@@ -179,6 +183,36 @@ describe("POST /api/media/resolve-previews", () => {
     expect(res.json).toHaveBeenCalledWith({
       error: "Failed to resolve media previews",
     });
+  });
+
+  it("logs controlled auth verification outages before returning", async () => {
+    requireApiUserMock.mockImplementationOnce(
+      async (_req: unknown, res: { statusCode: number }) => {
+        res.statusCode = 503;
+        return null;
+      }
+    );
+    const req = {
+      method: "POST",
+      body: {
+        ids: ["media-1"],
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        routeLabel: "media-resolve-previews.auth",
+        scope: "app",
+        metadata: expect.objectContaining({
+          reason_code: "AUTH_VERIFICATION_UNAVAILABLE",
+        }),
+      })
+    );
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
   });
 
   it("signs scoped media paths for user-owned rows", async () => {

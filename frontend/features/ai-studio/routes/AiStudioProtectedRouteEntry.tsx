@@ -6,6 +6,7 @@
 import dynamic from "next/dynamic";
 import Head from "next/head";
 import type { ParsedUrlQuery } from "querystring";
+import type { Session, User } from "@supabase/supabase-js";
 import { useRouter } from "next/router";
 import {
   useEffect,
@@ -100,6 +101,11 @@ type CheckoutProjectLaunchState =
   | { status: "idle" }
   | { status: "creating" }
   | { status: "failed"; message: string };
+
+type RuntimeSessionAuthority = {
+  session: Session;
+  user: User;
+};
 
 const getQueryStringValue = (
   query: ParsedUrlQuery | undefined,
@@ -247,6 +253,7 @@ export default function AiStudioProtectedRouteEntry({
   const [checkoutProjectLaunchState, setCheckoutProjectLaunchState] =
     useState<CheckoutProjectLaunchState>({ status: "idle" });
   const [hasRenderedRuntime, setHasRenderedRuntime] = useState(false);
+  const lastRuntimeSessionAuthorityRef = useRef<RuntimeSessionAuthority | null>(null);
   const checkoutProjectLaunchKeyRef = useRef<string | null>(null);
   const checkoutProjectLaunchStatusRef = useRef<CheckoutProjectLaunchState["status"]>("idle");
   const authRedirectPath = useMemo(
@@ -263,6 +270,7 @@ export default function AiStudioProtectedRouteEntry({
   const resolvedUserId = resolvedUser?.id ?? null;
   const mediaCompliance = useMediaComplianceGate({
     enabled: Boolean(session),
+    revalidateOnTabReturn: false,
     userId: resolvedUserId,
   });
   const handleComplianceSignOut = useCallback(async () => {
@@ -380,12 +388,23 @@ export default function AiStudioProtectedRouteEntry({
     mediaCompliance.initialized &&
     mediaCompliance.status === "accepted" &&
     !checkoutProjectLaunchIntent;
+  const currentRuntimeSessionAuthority: RuntimeSessionAuthority | null = useMemo(
+    () =>
+      session
+        ? {
+            session,
+            user: resolvedUser ?? session.user,
+          }
+        : null,
+    [resolvedUser, session]
+  );
 
   useEffect(() => {
-    if (!restoreGuard.checking && canRenderRuntime) {
+    if (!restoreGuard.checking && canRenderRuntime && currentRuntimeSessionAuthority) {
+      lastRuntimeSessionAuthorityRef.current = currentRuntimeSessionAuthority;
       setHasRenderedRuntime(true);
     }
-  }, [canRenderRuntime, restoreGuard.checking]);
+  }, [canRenderRuntime, currentRuntimeSessionAuthority, restoreGuard.checking]);
 
   const sessionRestoreLoadingFrame = (
     <AiStudioEntryStateFrame
@@ -396,16 +415,39 @@ export default function AiStudioProtectedRouteEntry({
       stepsAriaLabel="Project loading progress"
     />
   );
-  const runtimeTree = session ? (
-    <RuntimePreservationLayer masked={restoreGuard.checking}>
-      <ProtectedRouteSessionProvider session={session} user={resolvedUser ?? session.user}>
+  const mediaComplianceLoadingFrame = (
+    <AiStudioEntryStateFrame
+      variant="loading"
+      phase="resolving-project"
+      message="Checking your media agreement before project restore continues."
+      activeStepIndex={1}
+      stepsAriaLabel="Project loading progress"
+    />
+  );
+  const runtimeSessionAuthority =
+    currentRuntimeSessionAuthority ??
+    (hasRenderedRuntime ? lastRuntimeSessionAuthorityRef.current : null);
+  const shouldPreserveRuntimeForTransientGate =
+    hasRenderedRuntime &&
+    Boolean(runtimeSessionAuthority) &&
+    (restoreGuard.checking ||
+      loading ||
+      !session ||
+      !mediaCompliance.initialized ||
+      mediaCompliance.status === "loading");
+  const runtimeTree = runtimeSessionAuthority ? (
+    <RuntimePreservationLayer masked={shouldPreserveRuntimeForTransientGate}>
+      <ProtectedRouteSessionProvider
+        session={runtimeSessionAuthority.session}
+        user={runtimeSessionAuthority.user}
+      >
         <RuntimeComponent />
       </ProtectedRouteSessionProvider>
     </RuntimePreservationLayer>
   ) : null;
 
   if (restoreGuard.checking || loading || !session) {
-    if (restoreGuard.checking && hasRenderedRuntime && runtimeTree) {
+    if (shouldPreserveRuntimeForTransientGate && runtimeTree) {
       return (
         <>
           {runtimeTree}
@@ -418,15 +460,16 @@ export default function AiStudioProtectedRouteEntry({
   }
 
   if (!mediaCompliance.initialized || mediaCompliance.status === "loading") {
-    return (
-      <AiStudioEntryStateFrame
-        variant="loading"
-        phase="resolving-project"
-        message="Checking your media agreement before project restore continues."
-        activeStepIndex={1}
-        stepsAriaLabel="Project loading progress"
-      />
-    );
+    if (shouldPreserveRuntimeForTransientGate && runtimeTree) {
+      return (
+        <>
+          {runtimeTree}
+          {mediaComplianceLoadingFrame}
+        </>
+      );
+    }
+
+    return mediaComplianceLoadingFrame;
   }
 
   if (mediaCompliance.status === "auth_recovery_required") {
@@ -506,15 +549,7 @@ export default function AiStudioProtectedRouteEntry({
   }
 
   if (mediaCompliance.status !== "accepted") {
-    return (
-      <AiStudioEntryStateFrame
-        variant="loading"
-        phase="resolving-project"
-        message="Checking your media agreement before project restore continues."
-        activeStepIndex={1}
-        stepsAriaLabel="Project loading progress"
-      />
-    );
+    return mediaComplianceLoadingFrame;
   }
 
   return <>{runtimeTree}</>;

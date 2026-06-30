@@ -14,6 +14,7 @@ import {
   resolveMediaSigningStoragePaths,
 } from "../../../lib/mediaPreviewPath";
 import { requireApiUser } from "../../../lib/server/api/auth";
+import { logAuthVerificationUnavailableResponse } from "../../../lib/server/api/authFailureLogging";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
 
@@ -229,7 +230,14 @@ export default async function handler(
       error: "Failed to resolve media previews",
     });
   }
-  if (!user) return;
+  if (!user) {
+    await logAuthVerificationUnavailableResponse({
+      req,
+      res,
+      routeLabel: "media-resolve-previews.auth",
+    });
+    return;
+  }
   const userId = user.id;
 
   try {

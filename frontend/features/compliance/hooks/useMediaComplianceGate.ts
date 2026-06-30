@@ -19,6 +19,7 @@ import { reportAppError } from "../../../lib/appErrorReporter";
 
 type UseMediaComplianceGateOptions = {
   enabled: boolean;
+  revalidateOnTabReturn?: boolean;
   userId: string | null;
 };
 
@@ -128,6 +129,7 @@ const reportMediaComplianceFailure = (errorInfo: MediaComplianceErrorInfo, route
  */
 export const useMediaComplianceGate = ({
   enabled,
+  revalidateOnTabReturn = true,
   userId,
 }: UseMediaComplianceGateOptions): MediaComplianceGateState & {
   accepted: boolean;
@@ -319,7 +321,13 @@ export const useMediaComplianceGate = ({
   }, [enabled, refreshStatus, userId]);
 
   useEffect(() => {
-    if (!enabled || !userId || typeof window === "undefined" || typeof document === "undefined") {
+    if (
+      !enabled ||
+      !revalidateOnTabReturn ||
+      !userId ||
+      typeof window === "undefined" ||
+      typeof document === "undefined"
+    ) {
       return undefined;
     }
 
@@ -339,7 +347,7 @@ export const useMediaComplianceGate = ({
       window.removeEventListener("pageshow", refreshVisibleStatus);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [enabled, refreshStatus, userId]);
+  }, [enabled, refreshStatus, revalidateOnTabReturn, userId]);
 
   return {
     ...state,

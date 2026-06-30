@@ -3,6 +3,7 @@
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../../lib/server/api/auth";
+import { logAuthVerificationUnavailableResponse } from "../../../../lib/server/api/authFailureLogging";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { listMediaFoldersForUser } from "../../../../lib/server/mediaFoldersService";
 
@@ -45,7 +46,14 @@ export default async function handler(
     });
     return res.status(500).json({ error: "Failed to list folders" });
   }
-  if (!user) return;
+  if (!user) {
+    await logAuthVerificationUnavailableResponse({
+      req,
+      res,
+      routeLabel: "media-folders-list.auth",
+    });
+    return;
+  }
 
   try {
     const folders = await listMediaFoldersForUser(user.id);

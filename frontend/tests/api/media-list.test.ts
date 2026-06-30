@@ -70,14 +70,25 @@ type ProjectOutputDisplayRow = {
 
 const createMockResponse = () => {
   const headers = new Map<string, string>();
-  return {
+  const response: {
+    statusCode: number;
+    headers: Map<string, string>;
+    setHeader: ReturnType<typeof vi.fn>;
+    status: ReturnType<typeof vi.fn>;
+    json: ReturnType<typeof vi.fn>;
+  } = {
+    statusCode: 200,
     headers,
     setHeader: vi.fn((key: string, value: string) => {
       headers.set(key.toLowerCase(), value);
     }),
-    status: vi.fn().mockReturnThis(),
-    json: vi.fn().mockReturnThis(),
+    status: vi.fn((code: number) => {
+      response.statusCode = code;
+      return response;
+    }),
+    json: vi.fn(() => response),
   };
+  return response;
 };
 
 const matchesIlike = (value: string | null | undefined, pattern: string): boolean => {
@@ -544,6 +555,37 @@ describe("POST /api/media/list", () => {
 
     await handler(req as never, res as never);
 
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+  });
+
+  it("logs controlled auth verification outages before returning", async () => {
+    requireApiUserMock.mockImplementationOnce(
+      async (_req: unknown, res: { statusCode: number }) => {
+        res.statusCode = 503;
+        return null;
+      }
+    );
+    const req = {
+      method: "POST",
+      body: {
+        tab: "uploaded_images",
+        surface: "media-library-modal",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        routeLabel: "media-list.auth",
+        scope: "app",
+        metadata: expect.objectContaining({
+          reason_code: "AUTH_VERIFICATION_UNAVAILABLE",
+        }),
+      })
+    );
     expect(getSupabaseAdminMock).not.toHaveBeenCalled();
   });
 

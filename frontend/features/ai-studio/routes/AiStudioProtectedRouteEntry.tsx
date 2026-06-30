@@ -256,6 +256,7 @@ export default function AiStudioProtectedRouteEntry({
   const restoreGuard = useProtectedRouteRestoreGuard({
     enabled: true,
     nextPath: router.asPath || "/ai-studio",
+    revalidateOnTabReturn: false,
   });
   const { loading, session, user } = useProtectedRoute(true);
   const resolvedUser = user ?? session?.user ?? null;

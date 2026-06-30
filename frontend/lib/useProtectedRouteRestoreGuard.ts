@@ -20,6 +20,7 @@ type ProtectedRouteRestoreGuardOptions = {
   enabled: boolean;
   nextPath: string;
   missingSessionBehavior?: "redirect" | "clear";
+  revalidateOnTabReturn?: boolean;
 };
 
 type ProtectedRouteRestoreGuardState = {
@@ -40,6 +41,7 @@ export const useProtectedRouteRestoreGuard = ({
   enabled,
   nextPath,
   missingSessionBehavior = "redirect",
+  revalidateOnTabReturn = true,
 }: ProtectedRouteRestoreGuardOptions): ProtectedRouteRestoreGuardState => {
   const router = useRouter();
   const routerRef = useRef(router);
@@ -116,7 +118,12 @@ export const useProtectedRouteRestoreGuard = ({
   }, [runRestoreCheck]);
 
   useEffect(() => {
-    if (!enabled || typeof window === "undefined" || typeof document === "undefined") {
+    if (
+      !enabled ||
+      !revalidateOnTabReturn ||
+      typeof window === "undefined" ||
+      typeof document === "undefined"
+    ) {
       return undefined;
     }
 
@@ -138,7 +145,7 @@ export const useProtectedRouteRestoreGuard = ({
       window.removeEventListener("pageshow", handlePageShow);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [enabled, runRestoreCheck, setCheckingState]);
+  }, [enabled, revalidateOnTabReturn, runRestoreCheck, setCheckingState]);
 
   return { checking: enabled ? checking : false };
 };

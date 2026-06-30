@@ -308,4 +308,38 @@ describe("useProtectedRouteRestoreGuard", () => {
     });
     expect(clearSupabaseSessionSnapshotMock).toHaveBeenCalledTimes(1);
   });
+
+  it("can skip BFCache and visible-tab auth checks after the initial route check", async () => {
+    const { result } = renderHook(() =>
+      useProtectedRouteRestoreGuard({
+        enabled: true,
+        nextPath: "/ai-studio",
+        revalidateOnTabReturn: false,
+      })
+    );
+    await waitFor(() => {
+      expect(result.current.checking).toBe(false);
+    });
+    vi.clearAllMocks();
+    readSupabaseSessionMock.mockResolvedValue(null);
+    const pageShowEvent = new Event("pageshow") as PageTransitionEvent;
+    Object.defineProperty(pageShowEvent, "persisted", {
+      configurable: true,
+      value: true,
+    });
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "visible",
+    });
+
+    act(() => {
+      window.dispatchEvent(pageShowEvent);
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    expect(readSupabaseSessionMock).not.toHaveBeenCalled();
+    expect(replaceMock).not.toHaveBeenCalled();
+    expect(clearSupabaseSessionSnapshotMock).not.toHaveBeenCalled();
+    expect(result.current.checking).toBe(false);
+  });
 });

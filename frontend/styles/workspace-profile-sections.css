@@ -12,8 +12,31 @@
   grid-template-columns:
     minmax(280px, 0.9fr)
     minmax(320px, 1.2fr)
-    minmax(240px, 0.8fr)
-    minmax(240px, 0.8fr);
+    minmax(280px, 0.9fr);
+  grid-template-areas:
+    "profile email security"
+    "billing billing billing"
+    "autosave . .";
+}
+
+.profile-identity-panel {
+  grid-area: profile;
+}
+
+.profile-email-panel {
+  grid-area: email;
+}
+
+.profile-security-panel {
+  grid-area: security;
+}
+
+.profile-billing-panel {
+  grid-area: billing;
+}
+
+.profile-account-grid > .profile-preference-card {
+  grid-area: autosave;
 }
 
 .profile-section-stack {

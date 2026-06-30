@@ -22,6 +22,10 @@
 
   .profile-account-grid {
     grid-template-columns: repeat(2, minmax(290px, 1fr));
+    grid-template-areas:
+      "profile email"
+      "security autosave"
+      "billing billing";
   }
 }
 
@@ -123,6 +127,15 @@
   .profile-plan-grid,
   .profile-metric-grid {
     grid-template-columns: 1fr;
+  }
+
+  .profile-account-grid {
+    grid-template-areas:
+      "profile"
+      "email"
+      "security"
+      "billing"
+      "autosave";
   }
 
   .profile-hero-card,

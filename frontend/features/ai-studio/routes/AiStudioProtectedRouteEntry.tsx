@@ -265,7 +265,9 @@ export default function AiStudioProtectedRouteEntry({
     nextPath: router.asPath || "/ai-studio",
     revalidateOnTabReturn: false,
   });
-  const { loading, session, user } = useProtectedRoute(true);
+  const { loading, session, user } = useProtectedRoute(true, {
+    missingSessionBehavior: hasRenderedRuntime ? "preserve" : "redirect",
+  });
   const resolvedUser = user ?? session?.user ?? null;
   const resolvedUserId = resolvedUser?.id ?? null;
   const mediaCompliance = useMediaComplianceGate({

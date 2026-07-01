@@ -73,6 +73,14 @@ type SignupIntentResponse = {
   error?: unknown;
 };
 
+type OAuthHandoffPreflightResponse = {
+  ok?: unknown;
+  error?: unknown;
+};
+
+const GOOGLE_OAUTH_UNAVAILABLE_MESSAGE =
+  "Google sign-in is temporarily unavailable. Please try again in a few minutes.";
+
 const authClass = (...names: Array<string | false | null | undefined>) =>
   names.filter((name): name is string => Boolean(name)).join(" ");
 
@@ -124,6 +132,22 @@ const createSignupIntent = async (options: {
         ? payload.error.trim()
         : "Unable to prepare account creation right now.";
     throw new Error(errorMessage);
+  }
+};
+
+const preflightGoogleOAuthHandoff = async (url: string): Promise<void> => {
+  const response = await fetch("/api/auth/oauth-handoff-preflight", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ url }),
+  });
+  const payload = (await response.json().catch(() => ({}))) as OAuthHandoffPreflightResponse;
+  if (!response.ok || payload.ok !== true) {
+    const message =
+      typeof payload.error === "string" && payload.error.trim() ? payload.error : null;
+    throw new Error(message ?? GOOGLE_OAUTH_UNAVAILABLE_MESSAGE);
   }
 };
 
@@ -484,16 +508,26 @@ export default function AuthPage() {
           "Unable to resolve the public Google sign-in destination. Please try again in a moment."
         );
       }
-      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      const { data: oauthData, error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo,
+          skipBrowserRedirect: true,
           queryParams: {
             prompt: "select_account",
           },
         },
       });
       if (oauthError) throw oauthError;
+      const oauthUrl =
+        oauthData && typeof oauthData === "object" && typeof oauthData.url === "string"
+          ? oauthData.url
+          : null;
+      if (!oauthUrl) {
+        throw new Error(GOOGLE_OAUTH_UNAVAILABLE_MESSAGE);
+      }
+      await preflightGoogleOAuthHandoff(oauthUrl);
+      window.location.assign(oauthUrl);
     } catch (err: unknown) {
       setError(getErrorMessage(err, "Unable to start Google sign-in."));
       setOauthLoading(false);

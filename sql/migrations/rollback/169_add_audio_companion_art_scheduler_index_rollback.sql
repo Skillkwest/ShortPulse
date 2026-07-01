@@ -1,0 +1,1 @@
+drop index if exists public.ix_generation_projection_audio_companion_art_claim;

@@ -10,6 +10,7 @@ const refreshSupabaseSessionMock = vi.hoisted(() => vi.fn());
 const useSupabaseSessionStateMock = vi.hoisted(() => vi.fn());
 const primeSupabaseSessionMock = vi.hoisted(() => vi.fn());
 const readPersistedSupabaseSessionHintMock = vi.hoisted(() => vi.fn());
+const readAuthSessionLogoutEpochMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next/router", () => ({
   useRouter: (...args: unknown[]) => useRouterMock(...args),
@@ -26,6 +27,10 @@ vi.mock("../supabaseSessionHints", () => ({
     readPersistedSupabaseSessionHintMock(...args),
 }));
 
+vi.mock("../authSessionInvalidation", () => ({
+  readAuthSessionLogoutEpoch: (...args: unknown[]) => readAuthSessionLogoutEpochMock(...args),
+}));
+
 describe("useProtectedRoute", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -35,6 +40,7 @@ describe("useProtectedRoute", () => {
     });
     refreshSupabaseSessionMock.mockResolvedValue(null);
     readPersistedSupabaseSessionHintMock.mockReturnValue(false);
+    readAuthSessionLogoutEpochMock.mockReturnValue(null);
     useSupabaseSessionStateMock.mockReturnValue({
       initialized: true,
       session: null,
@@ -110,5 +116,50 @@ describe("useProtectedRoute", () => {
     await waitFor(() => {
       expect(replaceMock).toHaveBeenCalledWith("/log-in?next=%2Fadmin%2Fpricing");
     });
+  });
+
+  it("can preserve a missing session after a route has its own runtime continuity authority", async () => {
+    const replaceMock = vi.fn();
+    useRouterMock.mockReturnValue({
+      asPath: "/ai-studio",
+      replace: replaceMock,
+    });
+
+    const { result } = renderHook(() =>
+      useProtectedRoute(true, {
+        missingSessionBehavior: "preserve",
+      })
+    );
+
+    expect(result.current).toEqual({
+      session: null,
+      user: null,
+      loading: false,
+    });
+    await waitFor(() => {
+      expect(readPersistedSupabaseSessionHintMock).toHaveBeenCalled();
+    });
+    expect(refreshSupabaseSessionMock).not.toHaveBeenCalled();
+    expect(replaceMock).not.toHaveBeenCalled();
+  });
+
+  it("still redirects preserved missing sessions when the browser has an explicit logout marker", async () => {
+    const replaceMock = vi.fn();
+    readAuthSessionLogoutEpochMock.mockReturnValue(1_782_857_000_000);
+    useRouterMock.mockReturnValue({
+      asPath: "/ai-studio",
+      replace: replaceMock,
+    });
+
+    renderHook(() =>
+      useProtectedRoute(true, {
+        missingSessionBehavior: "preserve",
+      })
+    );
+
+    await waitFor(() => {
+      expect(replaceMock).toHaveBeenCalledWith("/log-in?next=%2Fai-studio");
+    });
+    expect(refreshSupabaseSessionMock).not.toHaveBeenCalled();
   });
 });

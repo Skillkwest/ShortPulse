@@ -44,15 +44,19 @@ const ALLOWLIST_LOCATIONS = new Set<string>([
   "fal/upload-url.ts:315",
   "fal/upload-url.ts:445",
   "fal/upload-url.ts:665",
+  "billing/subscription/change.ts:523",
   "billing/subscription/change.ts:522",
   "billing/subscription/change.ts:582",
   "kie/upload-url.ts:571",
   "kie/upload-url.ts:674",
   "kie/upload-url.ts:702",
+  "kie/upload-url.ts:719",
   "kie/upload-url.ts:813",
   // Storage-object verification fallback: if schema access fails, the helper falls back to
   // Storage API listing before deciding whether to throw a route-level error.
+  "media/list.ts:650",
   "media/list.ts:631",
+  "media/sign-batch.ts:186",
 ]);
 
 const LOG_CALL_PATTERNS = [

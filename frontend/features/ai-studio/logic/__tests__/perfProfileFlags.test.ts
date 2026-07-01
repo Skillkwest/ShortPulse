@@ -46,4 +46,17 @@ describe("perfProfileFlags", () => {
     expect(mod.PERF_FLAG_REFERENCE_GRID_CURATED_SPLIT).toBe(false);
     expect(mod.PERF_FLAG_MODAL_STABILITY_V1).toBe(true);
   });
+
+  it("resolves the route-scoped perf audit runtime flag from router paths", async () => {
+    const mod = await import("../perfProfileFlags");
+
+    expect(
+      mod.resolvePerfAuditRuntimeRouteFlag(
+        "/ai-studio?projectId=project-1&perfAuditRuntime=1&freshAudit=123"
+      )
+    ).toBe(true);
+    expect(mod.resolvePerfAuditRuntimeRouteFlag("/ai-studio?perfAuditRuntime=0")).toBe(false);
+    expect(mod.resolvePerfAuditRuntimeRouteFlag("/ai-studio")).toBe(false);
+    expect(mod.resolvePerfAuditRuntimeRouteFlag(undefined)).toBe(false);
+  });
 });

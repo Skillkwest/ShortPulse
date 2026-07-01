@@ -291,6 +291,9 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 165.  `sql/migrations/166_grant_signup_hook_schema_usage.sql`
 166.  `sql/migrations/167_add_google_ip_signup_intent.sql`
 167.  `sql/migrations/168_retire_saved_creators.sql`
+168.  `sql/migrations/169_add_audio_companion_art_scheduler_index.sql`
+169.  `sql/migrations/170_add_media_files_ai_studio_source_ref_index.sql`
+170.  `sql/migrations/171_add_ai_generations_terminal_repair_index.sql`
       Rollback files:
 
 
@@ -483,6 +486,10 @@ Billing safety note:
 - Migration `146_harden_control_plane_scheduler_timeouts.sql` hardens the recovery and admin-fleet Supabase scheduler HTTP calls with explicit `60000ms` timeouts and restores the missing `service_role` execute grant for `create_agent_safety_policy_version(...)`.
 - Migration `147_add_plan_concurrency_entitlements.sql` adds versioned plan concurrency entitlements to billing offers and subscriber contracts, seeds the `starter/media/studio/business` `1/2/4/8` active-generation ladder, and sets non-public baseline fallback generation concurrency to `0`.
 - Migration `160_repair_global_media_library_visibility.sql` repairs hosted All Media completeness with a temp-table-free durable storage backfill, including first-class audio storage classes, so production pooler behavior cannot strand global Media Library rows.
+- Migration `169_add_audio_companion_art_scheduler_index.sql` adds a narrow claim index for the audio companion-art scheduler's existing `NULL`/`pending`/`failed` work predicate so empty scheduler passes do not repeatedly scan `generation_projection`.
+- Migration `170_add_media_files_ai_studio_source_ref_index.sql` adds a narrow AI Studio media lookup index for generation-owned recovery and reconciliation reads by `user_id + source_ref`.
+- Migration `171_add_ai_generations_terminal_repair_index.sql` adds a narrow terminal-generation scan index for the generation projection repair loop's existing `success`/`fail` + `completed_at` predicate.
+- Read-write hosted-Supabase maintenance script `sql/configure_cron_job_run_details_retention_supabase.sql` prunes old `cron.job_run_details` rows, compacts the pruned table, and schedules daily retention; the active-status index is documented as an owner-only follow-up if retention alone does not reduce pg_cron status-update scan I/O enough.
 - Read-only performance diagnostics script `sql/check_media_preview_variant_coverage_and_size.sql` reports source-class counts, variant-hint coverage, and p50/p90 size distributions for Media Library preview-risk triage.
 - Read-only derivative backlog diagnostics script `sql/check_media_derivative_processing_backlog.sql` reports image-row processing status/attempt distributions and top retry/exhausted candidates.
 - Read-only Character Media V2 diagnostics script `sql/check_character_media_isolation_backfill.sql` reports `character_media_assets` coverage, unmapped legacy linkage rows, and profile/preset metadata completeness.

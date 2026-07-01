@@ -1,0 +1,1 @@
+drop index if exists public.ix_media_files_ai_studio_user_source_ref_created;

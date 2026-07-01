@@ -170,6 +170,14 @@ describe("AiStudioProtectedRouteEntry", () => {
     expect(screen.queryByTestId("ai-studio-runtime")).not.toBeInTheDocument();
   });
 
+  it("keeps missing-session redirects strict until the AI Studio runtime has mounted", () => {
+    renderRouteEntry();
+
+    expect(useProtectedRouteMock).toHaveBeenCalledWith(true, {
+      missingSessionBehavior: "redirect",
+    });
+  });
+
   it("keeps the AI Studio runtime hidden while browser restore auth is revalidating", () => {
     useProtectedRouteRestoreGuardMock.mockReturnValue({
       checking: true,
@@ -211,6 +219,9 @@ describe("AiStudioProtectedRouteEntry", () => {
     );
     expect(mountSpy).toHaveBeenCalledTimes(1);
     expect(unmountSpy).not.toHaveBeenCalled();
+    expect(useProtectedRouteMock).toHaveBeenLastCalledWith(true, {
+      missingSessionBehavior: "preserve",
+    });
   });
 
   it("preserves the mounted AI Studio runtime while protected auth loading briefly returns after startup", () => {

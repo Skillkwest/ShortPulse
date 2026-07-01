@@ -5,6 +5,7 @@ import { useProtectedRouteSessionContext } from "./protectedRouteSessionContext"
 import { refreshSupabaseSession, useSupabaseSessionState } from "./supabaseClient";
 import { readPersistedSupabaseSessionHint } from "./supabaseSessionHints";
 import { buildLoginPath } from "./authRedirects";
+import { readAuthSessionLogoutEpoch } from "./authSessionInvalidation";
 export { PROTECTED_ROUTES } from "./protectedRoutes";
 
 type UseProtectedRouteResult = {
@@ -13,7 +14,15 @@ type UseProtectedRouteResult = {
   loading: boolean;
 };
 
-export function useProtectedRoute(enabled: boolean): UseProtectedRouteResult {
+type UseProtectedRouteOptions = {
+  missingSessionBehavior?: "redirect" | "preserve";
+};
+
+export function useProtectedRoute(
+  enabled: boolean,
+  options?: UseProtectedRouteOptions
+): UseProtectedRouteResult {
+  const missingSessionBehavior = options?.missingSessionBehavior ?? "redirect";
   const protectedRouteSession = useProtectedRouteSessionContext();
   const router = useRouter();
   const { initialized, session, user } = useSupabaseSessionState({
@@ -36,8 +45,12 @@ export function useProtectedRoute(enabled: boolean): UseProtectedRouteResult {
       if (recoveryInFlightRef.current) {
         return;
       }
+      const shouldRedirectMissingSession =
+        missingSessionBehavior === "redirect" || readAuthSessionLogoutEpoch() != null;
       if (!readPersistedSupabaseSessionHint()) {
-        router.replace(authRedirectPath);
+        if (shouldRedirectMissingSession) {
+          router.replace(authRedirectPath);
+        }
         return;
       }
       if (!recoveryAttemptedRef.current) {
@@ -49,12 +62,15 @@ export function useProtectedRoute(enabled: boolean): UseProtectedRouteResult {
         });
         return;
       }
-      router.replace(authRedirectPath);
+      if (shouldRedirectMissingSession) {
+        router.replace(authRedirectPath);
+      }
     }
   }, [
     authRedirectPath,
     enabled,
     initialized,
+    missingSessionBehavior,
     protectedRouteSession,
     recoveryVersion,
     router,

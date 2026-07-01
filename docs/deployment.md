@@ -575,6 +575,40 @@ Notes:
   - rollback baseline: `0 4 * * *` (daily),
   - see `docs/planning/generation-reliability-hardening-fleet-cadence-contract-2026-03-20.md`.
 
+## Supabase Cron run-history retention
+
+Use this when `cron.job_run_details` growth is a database Disk I/O contributor or when scheduler diagnostics show many retained historical run rows.
+
+1. Run the read-only scheduler diagnostics first:
+   ```bash
+   psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 \
+     -f sql/check_scheduler_egress_activity.sql
+   ```
+2. Apply the retention helper in the target Supabase project:
+   ```bash
+   psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 \
+     -f sql/configure_cron_job_run_details_retention_supabase.sql
+   ```
+3. Verify the retention job exists:
+   ```sql
+   select jobid, jobname, schedule, command, active
+   from cron.job
+   where jobname = 'shortpulse_prune_cron_job_run_details_daily';
+   ```
+4. Re-run canonical control-plane diagnostics:
+   - `sql/check_scheduler_egress_activity.sql`
+   - `sql/check_control_plane_scheduler_health.sql`
+   - `sql/check_pg_net_failure_taxonomy.sql`
+5. After a meaningful observation window, re-check `pg_stat_statements` and confirm `cron.job_run_details` maintenance is no longer the top shared-block read offender.
+
+Notes:
+
+- This retention helper deletes only ended `cron.job_run_details` rows older than 7 days.
+- It runs one-time `VACUUM FULL` after the initial prune, so apply it with a hosted Supabase SQL role allowed to maintain `cron.job_run_details` and during a low-risk operations window.
+- It does not touch ShortPulse user data, media, projects, billing rows, Auth users, or storage objects.
+- Keep `cron.log_run` enabled unless a separate control-plane observability decision explicitly approves disabling pg_cron run-detail logging.
+- Add the optional partial active-status index only if post-prune `EXPLAIN` of the pg_cron status-update shape still shows unacceptable scan I/O, and only from a role that owns the Supabase-managed `cron.job_run_details` table.
+
 ### Methodical drain cycle (operations)
 
 After enabling production reliability fixes, run a controlled all-user drain cycle:

@@ -23,6 +23,8 @@ const signInWithOAuthMock = vi.hoisted(() => vi.fn());
 const signUpMock = vi.hoisted(() => vi.fn());
 const resetPasswordForEmailMock = vi.hoisted(() => vi.fn());
 const fetchMock = vi.hoisted(() => vi.fn());
+const locationAssignMock = vi.hoisted(() => vi.fn());
+const googleOAuthUrl = "https://project.supabase.co/auth/v1/authorize?provider=google";
 
 vi.mock("next/head", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -62,7 +64,7 @@ describe("Auth route behavior", () => {
 
     readSupabaseSessionMock.mockResolvedValue(null);
     signInWithPasswordMock.mockResolvedValue({ error: null, data: { session: null } });
-    signInWithOAuthMock.mockResolvedValue({ error: null, data: {} });
+    signInWithOAuthMock.mockResolvedValue({ error: null, data: { url: googleOAuthUrl } });
     signUpMock.mockResolvedValue({ error: null, data: { session: null } });
     resetPasswordForEmailMock.mockResolvedValue({ error: null });
     fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
@@ -74,6 +76,14 @@ describe("Auth route behavior", () => {
           json: async () => ({
             ok: true,
             expiresAt: "2026-06-21T18:00:00.000Z",
+          }),
+        } as Response;
+      }
+      if (parsed.pathname === "/api/auth/oauth-handoff-preflight") {
+        return {
+          ok: true,
+          json: async () => ({
+            ok: true,
           }),
         } as Response;
       }
@@ -91,6 +101,13 @@ describe("Auth route behavior", () => {
       } as Response;
     });
     vi.stubGlobal("fetch", fetchMock);
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: {
+        ...window.location,
+        assign: locationAssignMock,
+      },
+    });
 
     ensureSupabaseClientMock.mockReturnValue({
       auth: {
@@ -247,6 +264,7 @@ describe("Auth route behavior", () => {
         options: {
           redirectTo:
             "https://www.shortpulse.ai/auth/callback?flow=signin&next=%2Fprofile%3Fsection%3Daccount&provider=google",
+          skipBrowserRedirect: true,
           queryParams: {
             prompt: "select_account",
           },
@@ -255,6 +273,56 @@ describe("Auth route behavior", () => {
     });
     expect(signInWithPasswordMock).not.toHaveBeenCalled();
     expect(signUpMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/auth/oauth-handoff-preflight",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ url: googleOAuthUrl }),
+      })
+    );
+    expect(locationAssignMock).toHaveBeenCalledWith(googleOAuthUrl);
+  });
+
+  it("keeps Google sign-in on ShortPulse when the OAuth handoff is unavailable", async () => {
+    routerState.query = { next: "/profile?section=account" };
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const rawUrl = typeof input === "string" ? input : input.toString();
+      const parsed = new URL(rawUrl, "https://shortpulse.test");
+      if (parsed.pathname === "/api/auth/oauth-handoff-preflight") {
+        return {
+          ok: false,
+          status: 503,
+          json: async () => ({
+            ok: false,
+            error: "Google sign-in is temporarily unavailable. Please try again in a few minutes.",
+          }),
+        } as Response;
+      }
+      const flow = parsed.searchParams.get("flow") ?? "signin";
+      const next = parsed.searchParams.get("next") ?? "/dashboard";
+      const provider = parsed.searchParams.get("provider");
+      const providerQuery = provider ? `&provider=${encodeURIComponent(provider)}` : "";
+      return {
+        ok: true,
+        json: async () => ({
+          url: `https://www.shortpulse.ai/auth/callback?flow=${flow}&next=${encodeURIComponent(
+            next
+          )}${providerQuery}`,
+        }),
+      } as Response;
+    });
+
+    render(<AuthPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign in with Google" }));
+
+    expect(
+      await screen.findByText(
+        "Google sign-in is temporarily unavailable. Please try again in a few minutes."
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign in with Google" })).not.toBeDisabled();
+    expect(locationAssignMock).not.toHaveBeenCalled();
   });
 
   it("falls back to /dashboard when Google sign-in receives an unsafe redirect target", async () => {
@@ -270,6 +338,7 @@ describe("Auth route behavior", () => {
         options: {
           redirectTo:
             "https://www.shortpulse.ai/auth/callback?flow=signin&next=%2Fdashboard&provider=google",
+          skipBrowserRedirect: true,
           queryParams: {
             prompt: "select_account",
           },
@@ -295,6 +364,7 @@ describe("Auth route behavior", () => {
         options: {
           redirectTo:
             "https://www.shortpulse.ai/auth/callback?flow=signin&next=%2Fai-studio&provider=google",
+          skipBrowserRedirect: true,
           queryParams: {
             prompt: "select_account",
           },
@@ -392,6 +462,7 @@ describe("Auth route behavior", () => {
         options: {
           redirectTo:
             "https://www.shortpulse.ai/auth/callback?flow=signup&next=%2Fai-studio&provider=google",
+          skipBrowserRedirect: true,
           queryParams: {
             prompt: "select_account",
           },
@@ -634,6 +705,7 @@ describe("Auth route behavior", () => {
         options: {
           redirectTo:
             "https://www.shortpulse.ai/auth/callback?flow=signup&next=%2Fpricing%3Fintent%3Dopen-projects%26plan%3Dmedia%26interval%3Dmonth&provider=google",
+          skipBrowserRedirect: true,
           queryParams: {
             prompt: "select_account",
           },

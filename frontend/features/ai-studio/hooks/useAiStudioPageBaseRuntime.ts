@@ -29,6 +29,7 @@ import {
   PERF_FLAG_OUTPUT_SELECTOR_STORE,
   PERF_FLAG_REFERENCE_GRID_PRECONNECT_HINTS,
   PERF_FLAG_SELECTOR_CALLBACKS,
+  resolvePerfAuditRuntimeRouteFlag,
 } from "../logic/perfProfileFlags";
 import type { StudioOutput, ToolId } from "../types";
 
@@ -82,6 +83,10 @@ const useDeferredModelPricingPolicyLoad = () => {
 
 export const useAiStudioPageBaseRuntime = () => {
   const router = useRouter();
+  const routePerfAuditRuntimeEnabled = useMemo(
+    () => resolvePerfAuditRuntimeRouteFlag(router.asPath),
+    [router.asPath]
+  );
   const { sessionId } = useAiStudioSessionIdentity();
   const shouldLoadModelPricingPolicy = useDeferredModelPricingPolicyLoad();
   const createCharacterWorkflowReloadPrepRef = useRef<
@@ -552,7 +557,7 @@ export const useAiStudioPageBaseRuntime = () => {
     [deleteOutput, removeCanvasItemsForOutput]
   );
   useAiStudioPerfAuditRuntime({
-    enabled: FLAG_PERF_AUDIT_RUNTIME,
+    enabled: FLAG_PERF_AUDIT_RUNTIME || routePerfAuditRuntimeEnabled,
     aspect,
     currentModelLabel,
     model,

@@ -56,3 +56,9 @@ Use:
 ### Hosted Scheduler Work
 
 Use the `sql/configure_*.sql` files together with the relevant SOP and operator env values. Treat these as hosted-configuration helpers, not local development setup.
+
+For Supabase Cron run-history growth, use `sql/configure_cron_job_run_details_retention_supabase.sql` to prune old ended `cron.job_run_details` rows, compact the pruned table, and schedule daily retention, then validate with `sql/check_scheduler_egress_activity.sql` and `sql/check_control_plane_scheduler_health.sql`.
+
+For read-only database Disk I/O triage, use `sql/check_database_io_hotspots.sql`; it classifies `pg_stat_statements` shared-block reads/writes and table-size/read posture without printing raw query text or row data.
+
+For app-owned database I/O hot paths, prefer ordered migrations under `sql/migrations/` such as the generation projection repair and media lookup indexes, with paired rollbacks under `sql/migrations/rollback/`.

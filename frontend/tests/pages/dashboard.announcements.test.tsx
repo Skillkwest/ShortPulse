@@ -13,9 +13,14 @@ const ensureSupabaseClientMock = vi.hoisted(() => vi.fn());
 const ensureSupabaseQueryClientMock = vi.hoisted(() => vi.fn());
 const useSupabaseSessionStateMock = vi.hoisted(() => vi.fn());
 const primeSupabaseSessionMock = vi.hoisted(() => vi.fn());
+const readSupabaseSessionMock = vi.hoisted(() => vi.fn());
+const clearSupabaseSessionSnapshotMock = vi.hoisted(() => vi.fn());
+const isSupabaseAbortErrorMock = vi.hoisted(() => vi.fn());
 const readPersistedSupabaseSessionHintMock = vi.hoisted(() => vi.fn());
 const readSupabaseSessionBootstrapHintMock = vi.hoisted(() => vi.fn());
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
+const isAuthSessionTimeoutErrorMock = vi.hoisted(() => vi.fn());
+const isAuthRequiredErrorMock = vi.hoisted(() => vi.fn());
 const publicFetchMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next/head", () => ({
@@ -65,6 +70,9 @@ vi.mock("../../lib/supabaseClient", () => ({
   ensureSupabaseQueryClient: (...args: unknown[]) => ensureSupabaseQueryClientMock(...args),
   useSupabaseSessionState: (...args: unknown[]) => useSupabaseSessionStateMock(...args),
   primeSupabaseSession: (...args: unknown[]) => primeSupabaseSessionMock(...args),
+  readSupabaseSession: (...args: unknown[]) => readSupabaseSessionMock(...args),
+  clearSupabaseSessionSnapshot: (...args: unknown[]) => clearSupabaseSessionSnapshotMock(...args),
+  isSupabaseAbortError: (...args: unknown[]) => isSupabaseAbortErrorMock(...args),
   readPersistedSupabaseSessionHint: (...args: unknown[]) =>
     readPersistedSupabaseSessionHintMock(...args),
 }));
@@ -84,6 +92,8 @@ vi.mock("../../lib/supabaseSessionHints", async () => {
 
 vi.mock("../../lib/authenticatedFetch", () => ({
   fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
+  isAuthSessionTimeoutError: (...args: unknown[]) => isAuthSessionTimeoutErrorMock(...args),
+  isAuthRequiredError: (...args: unknown[]) => isAuthRequiredErrorMock(...args),
 }));
 
 const appUser = {
@@ -144,6 +154,26 @@ const buildSupabaseClient = () => ({
   }),
 });
 
+const buildAcceptedMediaComplianceResponse = () => ({
+  ok: true,
+  json: async () => ({
+    accepted: true,
+    acceptedAt: "2026-03-10T00:00:00.000Z",
+  }),
+});
+
+const mockAuthenticatedDashboardFetch = (
+  readAnnouncement: () => Promise<{ ok: boolean; json: () => Promise<unknown> }>
+) => {
+  fetchWithAuthMock.mockImplementation(async (input: RequestInfo | URL) => {
+    const path = typeof input === "string" ? input : input.toString();
+    if (path === "/api/account/media-compliance") {
+      return buildAcceptedMediaComplianceResponse();
+    }
+    return readAnnouncement();
+  });
+};
+
 describe("Dashboard announcement rendering", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -169,6 +199,11 @@ describe("Dashboard announcement rendering", () => {
       session: { user: appUser },
       user: appUser,
     });
+    readSupabaseSessionMock.mockResolvedValue({ user: appUser });
+    clearSupabaseSessionSnapshotMock.mockReset();
+    isSupabaseAbortErrorMock.mockReturnValue(false);
+    isAuthSessionTimeoutErrorMock.mockReturnValue(false);
+    isAuthRequiredErrorMock.mockReturnValue(false);
     readPersistedSupabaseSessionHintMock.mockReturnValue(true);
     readSupabaseSessionBootstrapHintMock.mockReturnValue(true);
     ensureSupabaseClientMock.mockReturnValue(buildSupabaseClient());
@@ -186,7 +221,7 @@ describe("Dashboard announcement rendering", () => {
   });
 
   it("renders active announcement title and message when available", async () => {
-    fetchWithAuthMock.mockImplementation(async () => {
+    mockAuthenticatedDashboardFetch(async () => {
       return {
         ok: true,
         json: async () => ({
@@ -211,7 +246,7 @@ describe("Dashboard announcement rendering", () => {
   });
 
   it("renders fallback helper copy when no active announcement exists", async () => {
-    fetchWithAuthMock.mockImplementation(async () => {
+    mockAuthenticatedDashboardFetch(async () => {
       return {
         ok: true,
         json: async () => ({ announcement: null }),
@@ -244,7 +279,7 @@ describe("Dashboard announcement rendering", () => {
         ],
       }),
     });
-    fetchWithAuthMock.mockImplementation(async () => {
+    mockAuthenticatedDashboardFetch(async () => {
       return {
         ok: true,
         json: async () => ({ announcement: null }),
@@ -284,7 +319,9 @@ describe("Dashboard announcement rendering", () => {
   });
 
   it("renders fallback helper copy when announcement API fails", async () => {
-    fetchWithAuthMock.mockRejectedValue(new Error("network down"));
+    mockAuthenticatedDashboardFetch(async () => {
+      throw new Error("network down");
+    });
 
     render(<DashboardPage />);
 

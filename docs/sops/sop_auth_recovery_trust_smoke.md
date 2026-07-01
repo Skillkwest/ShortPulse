@@ -35,6 +35,7 @@ Reference evidence:
 - Auth setup contract: [docs/supabase_auth_setup.md](../supabase_auth_setup.md)
 - SMTP and auth email ops: [docs/sops/sop_supabase_auth_email_operations.md](./sop_supabase_auth_email_operations.md)
 - Callback URL route: `frontend/pages/api/auth/callback-url.ts`
+- Google OAuth handoff preflight route: `frontend/pages/api/auth/oauth-handoff-preflight.ts`
 - Public origin resolver: `frontend/lib/server/api/appOrigin.ts`
 
 ## Prerequisites

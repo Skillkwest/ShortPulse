@@ -35,7 +35,9 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/configure_media_derivative_scheduler_supabase.sql`: configure Supabase Cron + Vault-backed scheduler invocation for `/api/internal/media-derivatives/run`.
 - `sql/configure_admin_user_health_fleet_scheduler_supabase.sql`: configure Supabase Cron + Vault-backed scheduler invocation for `/api/internal/admin-user-health-fleet/run`.
 - `sql/configure_control_plane_scheduler_bypass_secret_supabase.sql`: set/update optional Vault bypass token (`shortpulse_vercel_protection_bypass_token`) for Vercel-protected scheduler targets.
+- `sql/configure_cron_job_run_details_retention_supabase.sql`: prune old ended `cron.job_run_details` rows, compact the pruned table, and schedule daily run-history retention for Supabase Cron Disk I/O control.
 - `sql/audit_billing_credit_rls.sql`: billing RLS audit checks.
+- `sql/check_database_io_hotspots.sql`: read-only `pg_stat_statements` shared-block I/O summary plus table size/read posture and hot diagnostic table age/retention posture without raw query text.
 - `sql/check_media_storage_scope_drift.sql`: media storage scope drift diagnostics (read-only).
 - `sql/check_media_all_media_completeness_drift.sql`: All Media completeness drift diagnostics for durable storage objects missing `media_files` rows (read-only).
 - `sql/check_storage_object_egress_risk_breakdown.sql`: storage object byte-risk breakdown by safe bucket/path class and media tracking state, without printing object paths or user ids (read-only).
@@ -231,6 +233,9 @@ Migration number 134 is intentionally unused; the ordered sequence moves from `1
 - `166_grant_signup_hook_schema_usage.sql`
 - `167_add_google_ip_signup_intent.sql`
 - `168_retire_saved_creators.sql`
+- `169_add_audio_companion_art_scheduler_index.sql`
+- `170_add_media_files_ai_studio_source_ref_index.sql`
+- `171_add_ai_generations_terminal_repair_index.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 
@@ -290,7 +295,7 @@ Use only when explicitly reverting a migration in a controlled window. Prefer ta
 - GitHub Environment `SUPABASE_DB_URL` must be IPv4-compatible for hosted SQL workflows; use the Supavisor session pooler URL unless the Supabase IPv4 add-on is enabled.
 - Runner script authority: `scripts/reliability_control_plane_diagnostics.sh`.
 - Keep mode at `warn` for first-time environment validation; use `enforce` only after baseline reliability evidence is established.
-- Use `.github/workflows/apply-control-plane-ops-sql.yml` for environment-scoped scheduler SQL apply operations (`configure_bypass_secret`, `configure_generation_recovery_cron_secret`, `configure_generation_recovery_scheduler`, `configure_media_derivative_scheduler`, `configure_admin_user_health_fleet_scheduler`).
+- Use `.github/workflows/apply-control-plane-ops-sql.yml` for environment-scoped scheduler SQL apply operations (`configure_bypass_secret`, `configure_generation_recovery_cron_secret`, `configure_generation_recovery_scheduler`, `configure_media_derivative_scheduler`, `configure_admin_user_health_fleet_scheduler`, `configure_cron_job_run_details_retention`).
 
 ## Standard Runbooks
 

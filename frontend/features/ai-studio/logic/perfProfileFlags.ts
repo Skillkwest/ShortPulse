@@ -10,6 +10,18 @@ const resolveBooleanFlag = (rawValue: string | undefined, fallback: boolean): bo
   return fallback;
 };
 
+/**
+ * Resolves the route-scoped operator audit flag from an AI Studio path.
+ */
+export const resolvePerfAuditRuntimeRouteFlag = (asPath: string | undefined): boolean => {
+  if (!asPath) return false;
+  try {
+    return new URL(asPath, "https://shortpulse.local").searchParams.get("perfAuditRuntime") === "1";
+  } catch {
+    return false;
+  }
+};
+
 const PROFILE_DEFAULTS = {
   outputSelectorStore: true,
   selectorCallbacks: true,

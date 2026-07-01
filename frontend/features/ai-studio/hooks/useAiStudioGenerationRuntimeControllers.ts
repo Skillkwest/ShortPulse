@@ -214,7 +214,7 @@ export const useAiStudioGenerationRuntimeControllers = ({
     submitTask,
   });
 
-  const { rerollOutputFromReplay } = useAiStudioRerollController({
+  const { rerollOutputFromReplay, rerollStudioOutputFromReplay } = useAiStudioRerollController({
     findOutputById,
     setUiNotice,
     submitTask,
@@ -240,6 +240,7 @@ export const useAiStudioGenerationRuntimeControllers = ({
     regenerateOutput,
     removeOptimisticGenerationPlaceholder,
     rerollOutputFromReplay,
+    rerollStudioOutputFromReplay,
     retryOutputStatus,
   };
 };

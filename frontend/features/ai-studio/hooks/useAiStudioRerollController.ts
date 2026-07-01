@@ -129,12 +129,10 @@ export const useAiStudioRerollController = ({
   setUiNotice,
   submitTask,
 }: UseAiStudioRerollControllerParams) => {
-  const rerollOutputFromReplay = useCallback(
-    (outputId: string) => {
-      const normalizedOutputId = outputId.trim();
-      if (!normalizedOutputId) return;
-      const output = findOutputById(normalizedOutputId);
-      if (!output || !canRerollOutput(output)) {
+  const rerollStudioOutputFromReplay = useCallback(
+    (output: StudioOutput) => {
+      const normalizedOutputId = output.id.trim();
+      if (!normalizedOutputId || !canRerollOutput(output)) {
         addBreadcrumb({
           type: "ui",
           level: "warn",
@@ -218,10 +216,34 @@ export const useAiStudioRerollController = ({
         options
       );
     },
-    [findOutputById, setUiNotice, submitTask]
+    [setUiNotice, submitTask]
+  );
+
+  const rerollOutputFromReplay = useCallback(
+    (outputId: string) => {
+      const normalizedOutputId = outputId.trim();
+      if (!normalizedOutputId) return;
+      const output = findOutputById(normalizedOutputId);
+      if (!output) {
+        addBreadcrumb({
+          type: "ui",
+          level: "warn",
+          message: "reroll_blocked_missing_or_invalid_replay",
+          data: {
+            output_id: normalizedOutputId,
+            reason: "missing_output_or_replay",
+          },
+        });
+        setUiNotice("Re-roll is unavailable because original generation settings are missing.");
+        return;
+      }
+      rerollStudioOutputFromReplay(output);
+    },
+    [findOutputById, rerollStudioOutputFromReplay, setUiNotice]
   );
 
   return {
     rerollOutputFromReplay,
+    rerollStudioOutputFromReplay,
   };
 };

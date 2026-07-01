@@ -140,11 +140,12 @@ export const useAiStudioAudioRerollController = ({
 }: UseAiStudioAudioRerollControllerParams) => {
   const { voices } = useSharedVoicesGrid();
 
-  const rerollAudioOutputFromWorkflow = useCallback(
-    (outputId: string): boolean => {
-      const normalizedOutputId = outputId.trim();
-      const output = normalizedOutputId ? findOutputById(normalizedOutputId) : null;
-      if (!output || !canRerollOutput(output, { mediaKindHint: "audio" })) return false;
+  const rerollAudioStudioOutputFromWorkflow = useCallback(
+    (output: StudioOutput): boolean => {
+      const normalizedOutputId = output.id.trim();
+      if (!normalizedOutputId || !canRerollOutput(output, { mediaKindHint: "audio" })) {
+        return false;
+      }
       const config = resolveWorkflowRerollConfigForOutput(output, { mediaKindHint: "audio" });
       const payload = config?.payload;
       if (!config || !payload) {
@@ -235,15 +236,17 @@ export const useAiStudioAudioRerollController = ({
       setUiNotice(REROLL_MISSING_NOTICE);
       return true;
     },
-    [
-      findOutputById,
-      handleMusicGenerate,
-      handleSoundEffectsGenerate,
-      handleVoicesGenerate,
-      setUiNotice,
-      voices,
-    ]
+    [handleMusicGenerate, handleSoundEffectsGenerate, handleVoicesGenerate, setUiNotice, voices]
   );
 
-  return { rerollAudioOutputFromWorkflow };
+  const rerollAudioOutputFromWorkflow = useCallback(
+    (outputId: string): boolean => {
+      const normalizedOutputId = outputId.trim();
+      const output = normalizedOutputId ? findOutputById(normalizedOutputId) : null;
+      return output ? rerollAudioStudioOutputFromWorkflow(output) : false;
+    },
+    [findOutputById, rerollAudioStudioOutputFromWorkflow]
+  );
+
+  return { rerollAudioOutputFromWorkflow, rerollAudioStudioOutputFromWorkflow };
 };

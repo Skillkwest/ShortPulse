@@ -205,6 +205,9 @@ vi.mock("../media-library-modal/MediaLibraryMediaGrid", () => ({
       filename: string;
       signedUrl?: string | null;
     }) => void;
+    onRerollWorkflowFromMedia?: (
+      row: Record<string, unknown> & { id: string; filename: string }
+    ) => void;
     onReloadWorkflowFromMedia?: (
       row: Record<string, unknown> & { id: string; filename: string }
     ) => void;
@@ -259,6 +262,11 @@ vi.mock("../media-library-modal/MediaLibraryMediaGrid", () => ({
             {props.onDownloadMediaFile ? (
               <button type="button" onClick={() => props.onDownloadMediaFile?.(row)}>
                 Download media {row.filename}
+              </button>
+            ) : null}
+            {props.onRerollWorkflowFromMedia ? (
+              <button type="button" onClick={() => props.onRerollWorkflowFromMedia?.(row)}>
+                Reroll media workflow {row.filename}
               </button>
             ) : null}
             {props.onReloadWorkflowFromMedia ? (
@@ -319,6 +327,9 @@ vi.mock("../media-library-modal/MediaLibraryAllItemsGrid", () => ({
       filename: string;
       signedUrl?: string | null;
     }) => void;
+    onRerollWorkflowFromMedia?: (
+      row: Record<string, unknown> & { id: string; filename: string }
+    ) => void;
     onReloadWorkflowFromMedia?: (
       row: Record<string, unknown> & { id: string; filename: string }
     ) => void;
@@ -385,6 +396,11 @@ vi.mock("../media-library-modal/MediaLibraryAllItemsGrid", () => ({
             {props.onDownloadMediaFile ? (
               <button type="button" onClick={() => props.onDownloadMediaFile?.(row)}>
                 Download media {row.filename}
+              </button>
+            ) : null}
+            {props.onRerollWorkflowFromMedia ? (
+              <button type="button" onClick={() => props.onRerollWorkflowFromMedia?.(row)}>
+                Reroll media workflow {row.filename}
               </button>
             ) : null}
             {props.onReloadWorkflowFromMedia ? (
@@ -866,6 +882,7 @@ describe("MediaLibraryPanel", () => {
 
   it("emits a generated video output with workflow reload metadata from saved media rows", async () => {
     const onReloadWorkflowFromMedia = vi.fn();
+    const onRerollWorkflowFromMedia = vi.fn();
     const workflowReload = {
       version: 1,
       source: "ai_studio_generation",
@@ -944,14 +961,26 @@ describe("MediaLibraryPanel", () => {
         onSelectMedia={vi.fn()}
         onSelectPrompt={vi.fn()}
         onReloadWorkflowFromMedia={onReloadWorkflowFromMedia}
+        onRerollWorkflowFromMedia={onRerollWorkflowFromMedia}
       />
     );
 
     await waitFor(() => {
       expect(screen.getByTestId("mock-all-items-grid")).toBeInTheDocument();
     });
+    fireEvent.click(screen.getByRole("button", { name: "Reroll media workflow wolf-motion.mp4" }));
     fireEvent.click(screen.getByRole("button", { name: "Reload media workflow wolf-motion.mp4" }));
 
+    expect(onRerollWorkflowFromMedia).toHaveBeenCalledTimes(1);
+    expect(onRerollWorkflowFromMedia).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "media-library:video-reload-1",
+        mode: "video",
+        mediaSource: "generated",
+        generationId: "generation-video-1",
+        workflowReload,
+      })
+    );
     expect(onReloadWorkflowFromMedia).toHaveBeenCalledTimes(1);
     expect(onReloadWorkflowFromMedia).toHaveBeenCalledWith(
       expect.objectContaining({

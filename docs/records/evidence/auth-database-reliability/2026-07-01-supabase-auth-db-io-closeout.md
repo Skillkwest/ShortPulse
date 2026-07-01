@@ -101,7 +101,7 @@ Validation proof:
 Remaining boundary:
 
 - Re-check `pg_stat_statements` after a meaningful traffic window to confirm the hot statements stay down.
-- `public.worker_runs` is a cleanup candidate: production had 203,302 rows, all older than 30 days, no rows newer than 2026-05-09, and about 281 MB total size on 2026-07-01. Because it is a persisted generation control-plane run ledger, deleting or shortening retained history is a persistence/forensics contract change and needs explicit owner approval before live cleanup or a retention migration.
+- `public.worker_runs` follow-through: production had 203,302 rows, all older than 30 days, no rows newer than 2026-05-09, and about 281 MB total size on 2026-07-01. Follow-up owner approval applied/verified the scheduled retention path. The first observed `shortpulse_prune_worker_runs_daily` run succeeded at `2026-07-01 03:15:00.057009+00` with `DELETE 203282`, preserving `9` error rows and `11` running/incomplete rows. Relation size remained about 281 MB because no `VACUUM FULL` was run. Details are recorded in `docs/records/evidence/auth-database-reliability/2026-07-01-worker-runs-retention-audit.md`.
 - `public.app_error_events` is intentionally append-only per `docs/monitoring.md`; do not prune it during this incident lane without a separate monitoring/forensics decision.
 - The optional `cron.job_run_details` active-status index remains owner-only follow-up if retention alone does not reduce pg_cron status-update scan I/O enough.
 

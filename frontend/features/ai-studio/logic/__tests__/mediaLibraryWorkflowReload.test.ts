@@ -6,6 +6,7 @@ import {
 } from "../mediaLibraryModalModel";
 import {
   canReloadMediaLibraryWorkflow,
+  canRerollMediaLibraryWorkflow,
   createMediaLibraryWorkflowReloadOutput,
   resolveMediaLibraryWorkflowReloadMediaKindHint,
 } from "../mediaLibraryWorkflowReload";
@@ -128,6 +129,7 @@ describe("mediaLibraryWorkflowReload", () => {
 
     expect(output?.workflowReload).toEqual(workflowReload);
     expect(canReloadMediaLibraryWorkflow(row)).toBe(false);
+    expect(canRerollMediaLibraryWorkflow(row)).toBe(true);
   });
 
   it("derives the reload media-kind hint from the saved media file type", () => {
@@ -199,6 +201,7 @@ describe("mediaLibraryWorkflowReload", () => {
       workflowReload,
     });
     expect(canReloadMediaLibraryWorkflow(row)).toBe(false);
+    expect(canRerollMediaLibraryWorkflow(row)).toBe(false);
     expect(
       output ? resolveWorkflowReloadConfigForOutput(output, { mediaKindHint: "video" }) : null
     ).toBeNull();

@@ -98,6 +98,42 @@ describe("Profile account settings autosave toggle", () => {
     expect(screen.getByLabelText("Account summary")).toBeInTheDocument();
   });
 
+  it("places Media Library autosave in the first desktop account row", () => {
+    const sectionCss = readFileSync("styles/workspace-profile-sections.css", "utf8");
+    const normalizedCss = sectionCss.replace(/\s+/g, " ");
+
+    expect(normalizedCss).toContain('"profile email security autosave"');
+    expect(normalizedCss).toContain('"billing billing billing billing"');
+    expect(normalizedCss).not.toContain('"autosave . ."');
+  });
+
+  it("keeps account console hero and metric surfaces compact", () => {
+    const sectionCss = readFileSync("styles/workspace-profile-sections.css", "utf8");
+    const normalizedCss = sectionCss.replace(/\s+/g, " ");
+
+    expect(normalizedCss).toContain(".profile-credit-hero-value { font-size: 32px;");
+    expect(normalizedCss).toContain(".profile-hero-value { font-size: 30px;");
+    expect(normalizedCss).toContain("min-height: 62px;");
+    expect(normalizedCss).not.toContain("font-size: 46px;");
+    expect(normalizedCss).not.toContain("font-size: 42px;");
+    expect(normalizedCss).not.toContain("0 18px 42px");
+  });
+
+  it("uses profile-scoped subscription card overrides instead of changing public pricing cards", () => {
+    const planCardCss = readFileSync("styles/subscription-plan-cards.css", "utf8");
+    const normalizedCss = planCardCss.replace(/\s+/g, " ");
+
+    expect(normalizedCss).toContain(
+      ".profile-page .profile-subscription-plan-card.subscription-plan-card {"
+    );
+    expect(normalizedCss).toContain("border-radius: var(--profile-radius);");
+    expect(normalizedCss).toContain(
+      ".profile-page .profile-subscription-plan-card .subscription-plan-card-title {"
+    );
+    expect(normalizedCss).toContain("font-size: 18px;");
+    expect(normalizedCss).toContain(".profile-page .pricing-interval-toggle {");
+  });
+
   it("keeps stale profile shell CSS from overriding restored inline page chrome", () => {
     const shellCss = readFileSync("styles/workspace-profile-shell.css", "utf8");
 

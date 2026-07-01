@@ -169,6 +169,7 @@ describe("MediaLibraryMediaGrid", () => {
         cacheAspectRatio={vi.fn()}
         showCardActions
         canShowDownloadAction
+        canShowRerollAction={false}
         canShowWorkflowReloadAction={false}
         canShowRemoveAction={false}
         canShowDeleteAction
@@ -221,6 +222,7 @@ describe("MediaLibraryMediaGrid", () => {
       cacheAspectRatio: vi.fn(),
       showCardActions: true,
       canShowDownloadAction: true,
+      canShowRerollAction: false,
       canShowWorkflowReloadAction: false,
       canShowRemoveAction: false,
       canShowDeleteAction: true,
@@ -521,6 +523,7 @@ describe("MediaLibraryMediaGrid", () => {
 
   it("shows workflow reload actions only for restorable AI Studio media rows", () => {
     const onReloadWorkflowFromMedia = vi.fn();
+    const onRerollWorkflowFromMedia = vi.fn();
     const props = baseProps();
     const workflowReload = {
       version: 1,
@@ -565,10 +568,15 @@ describe("MediaLibraryMediaGrid", () => {
     ];
 
     const { rerender } = render(
-      <MediaLibraryMediaGrid {...props} onReloadWorkflowFromMedia={onReloadWorkflowFromMedia} />
+      <MediaLibraryMediaGrid
+        {...props}
+        onReloadWorkflowFromMedia={onReloadWorkflowFromMedia}
+        onRerollWorkflowFromMedia={onRerollWorkflowFromMedia}
+      />
     );
 
     const downloadButton = screen.getByRole("button", { name: "Download glass-fox.png" });
+    const rerollButton = screen.getByRole("button", { name: "Re-roll glass-fox.png" });
     const reloadButton = screen.getByRole("button", { name: "Reload workflow for glass-fox.png" });
     const topActionRow = downloadButton.parentElement;
     const workflowActionRow = reloadButton.parentElement;
@@ -577,10 +585,13 @@ describe("MediaLibraryMediaGrid", () => {
     expect(topActionRow).not.toHaveClass("media-library-panel-card-actions--workflow");
     expect(workflowActionRow).toHaveClass("media-library-panel-card-actions");
     expect(workflowActionRow).toHaveClass("media-library-panel-card-actions--workflow");
+    expect(workflowActionRow).toContainElement(rerollButton);
     expect(workflowActionRow).not.toBe(topActionRow);
 
+    fireEvent.click(rerollButton);
     fireEvent.click(reloadButton);
 
+    expect(onRerollWorkflowFromMedia).toHaveBeenCalledWith(props.activeMedia[0]);
     expect(onReloadWorkflowFromMedia).toHaveBeenCalledWith(props.activeMedia[0]);
 
     rerender(
@@ -594,9 +605,11 @@ describe("MediaLibraryMediaGrid", () => {
           },
         ]}
         onReloadWorkflowFromMedia={onReloadWorkflowFromMedia}
+        onRerollWorkflowFromMedia={onRerollWorkflowFromMedia}
       />
     );
 
+    expect(screen.queryByRole("button", { name: "Re-roll glass-fox.png" })).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Reload workflow for glass-fox.png" })
     ).not.toBeInTheDocument();

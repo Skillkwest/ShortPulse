@@ -294,6 +294,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 168.  `sql/migrations/169_add_audio_companion_art_scheduler_index.sql`
 169.  `sql/migrations/170_add_media_files_ai_studio_source_ref_index.sql`
 170.  `sql/migrations/171_add_ai_generations_terminal_repair_index.sql`
+171.  `sql/migrations/172_schedule_worker_runs_retention.sql`
       Rollback files:
 
 
@@ -489,6 +490,7 @@ Billing safety note:
 - Migration `169_add_audio_companion_art_scheduler_index.sql` adds a narrow claim index for the audio companion-art scheduler's existing `NULL`/`pending`/`failed` work predicate so empty scheduler passes do not repeatedly scan `generation_projection`.
 - Migration `170_add_media_files_ai_studio_source_ref_index.sql` adds a narrow AI Studio media lookup index for generation-owned recovery and reconciliation reads by `user_id + source_ref`.
 - Migration `171_add_ai_generations_terminal_repair_index.sql` adds a narrow terminal-generation scan index for the generation projection repair loop's existing `success`/`fail` + `completed_at` predicate.
+- Migration `172_schedule_worker_runs_retention.sql` schedules daily hosted pg_cron retention for completed `ok` rows in the service-role-only `worker_runs` generation control-plane run ledger after 30 days, preserving incomplete/running rows and error rows. The migration does not perform one-time historical cleanup; production cleanup remains an explicit operator step with before/after proof.
 - Read-write hosted-Supabase maintenance script `sql/configure_cron_job_run_details_retention_supabase.sql` prunes old `cron.job_run_details` rows, compacts the pruned table, and schedules daily retention; the active-status index is documented as an owner-only follow-up if retention alone does not reduce pg_cron status-update scan I/O enough.
 - Read-only performance diagnostics script `sql/check_media_preview_variant_coverage_and_size.sql` reports source-class counts, variant-hint coverage, and p50/p90 size distributions for Media Library preview-risk triage.
 - Read-only derivative backlog diagnostics script `sql/check_media_derivative_processing_backlog.sql` reports image-row processing status/attempt distributions and top retry/exhausted candidates.

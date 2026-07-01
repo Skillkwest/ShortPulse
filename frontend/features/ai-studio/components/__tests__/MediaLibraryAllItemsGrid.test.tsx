@@ -127,6 +127,62 @@ describe("MediaLibraryAllItemsGrid", () => {
     expect(screen.getByText("0:09")).toBeInTheDocument();
   });
 
+  it("shows reroll actions for saved AI Studio media in the mixed all-media feed", () => {
+    const onRerollWorkflowFromMedia = vi.fn();
+    const props = baseProps();
+    const workflowReload = {
+      version: 1,
+      source: "ai_studio_generation",
+      capturedAt: "2026-06-06T14:00:00.000Z",
+      originTool: "create",
+      panelKind: "create",
+      outputMode: "image",
+      restoreBehavior: "navigate_and_hydrate",
+      projectId: "project-1",
+      createMode: "standard",
+      pulse: null,
+      prompt: {
+        display: "A glass fox in a desert observatory",
+      },
+      model: {
+        id: "fal-ai/imagen4/preview",
+      },
+      payload: {
+        kind: "image",
+        submitTool: "create",
+        aspect: "16:9",
+        imageResolution: "1K",
+        referenceInputs: [],
+        internalMediaRefs: [],
+      },
+    };
+    props.mediaRows = [
+      {
+        id: "image-1",
+        filename: "glass-fox.png",
+        storage_path: "user-1/media-library/glass-fox.png",
+        file_type: "image/png",
+        source: "ai_studio",
+        source_ref: "generation-1",
+        created_at: "2026-06-06T14:01:00.000Z",
+        signedUrl: "https://cdn.example.com/glass-fox.png",
+        metadata: {
+          workflow_reload: workflowReload,
+        },
+      },
+    ];
+
+    render(
+      <MediaLibraryAllItemsGrid {...props} onRerollWorkflowFromMedia={onRerollWorkflowFromMedia} />
+    );
+
+    const rerollButton = screen.getByRole("button", { name: "Re-roll glass-fox.png" });
+    fireEvent.click(rerollButton);
+
+    expect(rerollButton.parentElement).toHaveClass("media-library-panel-card-actions--workflow");
+    expect(onRerollWorkflowFromMedia).toHaveBeenCalledWith(props.mediaRows[0]);
+  });
+
   it("does not probe hover preview loops as the card duration authority", () => {
     const props = baseProps();
     props.mediaRows = [

@@ -1362,7 +1362,7 @@ export function useAiStudioPerfAuditRuntime({
       };
     };
 
-    perfWindow.__shortpulseAiStudioPerf = {
+    const auditRuntime: NonNullable<AiStudioPerfWindow["__shortpulseAiStudioPerf"]> = {
       seedReferenceGrid: (count: number, options?: PerfSeedReferenceGridOptions) => {
         const nextOutputs = createPerfOutputs(count);
         const requestedActiveCapOverride =
@@ -1644,9 +1644,10 @@ export function useAiStudioPerfAuditRuntime({
         resetProjectWorkspaceAutosavePerfCounters();
       },
     };
+    perfWindow.__shortpulseAiStudioPerf = auditRuntime;
 
     return () => {
-      if (perfWindow.__shortpulseAiStudioPerf) {
+      if (perfWindow.__shortpulseAiStudioPerf === auditRuntime) {
         delete perfWindow.__shortpulseAiStudioPerf;
       }
     };

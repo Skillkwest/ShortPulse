@@ -55,6 +55,7 @@ type UseAiStudioPageContentRuntimeParams = {
   onSnapshotVideoFrameError: AiStudioPageContentProps["onSnapshotVideoFrameError"];
   onDetailReloadWorkflow: AiStudioPageContentProps["onDetailReloadWorkflow"];
   onMediaLibraryReloadWorkflow: AiStudioPageContentProps["onMediaLibraryReloadWorkflow"];
+  onMediaLibraryRerollWorkflow: AiStudioPageContentProps["onMediaLibraryRerollWorkflow"];
   onDetailSavePrompt: AiStudioPageContentProps["onDetailSavePrompt"];
   onAddLibraryMediaReference: AiStudioPageContentProps["onAddLibraryMediaReference"];
   onAddLibraryMediaReferences?: AiStudioPageContentProps["onAddLibraryMediaReferences"];
@@ -142,6 +143,7 @@ export const useAiStudioPageContentRuntime = ({
   onSnapshotVideoFrameError,
   onDetailReloadWorkflow,
   onMediaLibraryReloadWorkflow,
+  onMediaLibraryRerollWorkflow,
   onDetailSavePrompt,
   onAddLibraryMediaReference,
   onAddLibraryMediaReferences,
@@ -226,6 +228,7 @@ export const useAiStudioPageContentRuntime = ({
       onSnapshotVideoFrameError,
       onDetailReloadWorkflow,
       onMediaLibraryReloadWorkflow,
+      onMediaLibraryRerollWorkflow,
       onDetailSavePrompt,
       onAddLibraryMediaReference,
       onAddLibraryMediaReferences,
@@ -309,6 +312,7 @@ export const useAiStudioPageContentRuntime = ({
       onSnapshotVideoFrameError,
       onDetailReloadWorkflow,
       onMediaLibraryReloadWorkflow,
+      onMediaLibraryRerollWorkflow,
       onDetailSavePrompt,
       onAddLibraryMediaReference,
       onAddLibraryMediaReferences,

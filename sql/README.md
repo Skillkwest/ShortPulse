@@ -49,6 +49,7 @@ When touching hosted Supabase state:
 Use:
 
 - `sql/check_character_sheet_alias_drift.sql`
+- `sql/check_media_storage_cleanup_manifest.sql` before any Media Library storage cleanup; review aggregate output first and keep row-level delete-candidate paths local-only
 - other nearby `sql/check_*.sql`
 - plus `scripts/ops/supabase_public_schema_parity.sh` when staging/production comparison matters
 - plus `scripts/ops/supabase_public_acl_sync.sh` after schema-only bootstrap when grants, function execute posture, or service-role worker access must match another hosted environment
@@ -58,6 +59,8 @@ Use:
 Use the `sql/configure_*.sql` files together with the relevant SOP and operator env values. Treat these as hosted-configuration helpers, not local development setup.
 
 For Supabase Cron run-history growth, use `sql/configure_cron_job_run_details_retention_supabase.sql` to prune old ended `cron.job_run_details` rows, compact the pruned table, and schedule daily retention, then validate with `sql/check_scheduler_egress_activity.sql` and `sql/check_control_plane_scheduler_health.sql`.
+
+For generation control-plane run-ledger growth, use `sql/migrations/172_schedule_worker_runs_retention.sql` to schedule daily `worker_runs` retention for completed `ok` rows older than 30 days. It preserves incomplete/running rows and error rows, and it does not perform one-time historical cleanup during migration apply.
 
 For read-only database Disk I/O triage, use `sql/check_database_io_hotspots.sql`; it classifies `pg_stat_statements` shared-block reads/writes and table-size/read posture without printing raw query text or row data.
 

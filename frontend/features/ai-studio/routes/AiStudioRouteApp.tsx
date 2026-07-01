@@ -9,6 +9,7 @@ import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../logic/editPromptPolicy";
 import { buildDefaultPricingParams } from "../logic/pricing";
 import { captureVideoFrameSnapshotFile } from "../logic/videoFrameSnapshot";
 import { resolveAiStudioMediaAutosaveRouteEnabled } from "../logic/mediaAutosaveRouteReadiness";
+import { resolveAiStudioRuntimeScopeKey } from "../logic/aiStudioRuntimeScopeKey";
 import {
   AI_STUDIO_MEDIA_PLAN_REQUIRED_MESSAGE,
   resolveGenerationAccessCta,
@@ -40,6 +41,7 @@ import type { CreatePageAgentRuntime } from "../createRuntime/contracts";
 import { usePulseCreateAgentRuntime } from "../createRuntime/usePulseCreateAgentRuntime";
 import { useStandardCreateAgentRuntime } from "../createRuntime/useStandardCreateAgentRuntime";
 import type { MediaFileRow } from "../logic/mediaLibraryModalModel";
+import type { StudioOutput } from "../types";
 import {
   createEmptyPulseChatProjectState,
   type PulseChatProjectState,
@@ -105,9 +107,19 @@ const CreateRuntimeRoot = ({ base }: { base: AiStudioPageBaseRuntime }) => {
     handleExpertCreateModeChange: base.handleExpertCreateModeChange,
     handleActiveCreatePulsePresetIdChange: base.handleActiveCreatePulsePresetIdChange,
   });
-  const projectScopeKey = base.projectRouteRequested
-    ? `project:${base.projectId ?? "__pending__"}`
-    : "standalone";
+  const [lastProjectScopeKey, setLastProjectScopeKey] = React.useState<string | null>(null);
+  const projectScopeKey = resolveAiStudioRuntimeScopeKey({
+    previousScopeKey: lastProjectScopeKey,
+    projectId: base.projectId,
+    projectRouteRequested: base.projectRouteRequested,
+    projectStatus: base.projectStatus,
+    requestedProjectId: base.requestedProjectId,
+  });
+  React.useEffect(() => {
+    setLastProjectScopeKey((previousScopeKey) =>
+      previousScopeKey === projectScopeKey ? previousScopeKey : projectScopeKey
+    );
+  }, [projectScopeKey]);
   return (
     <CreateAgentRuntimeHost
       key={projectScopeKey}
@@ -734,20 +746,29 @@ const AiStudioPageRuntimeBody = ({
     },
     [generationAccessCta, handleMediaPlanAccessAttempt, handleReferenceGridFiles]
   );
-  const { rerollAudioOutputFromWorkflow } = useAiStudioAudioRerollController({
-    findOutputById: base.findOutputById,
-    handleVoicesGenerate,
-    handleMusicGenerate,
-    handleSoundEffectsGenerate,
-    setUiNotice,
-  });
+  const { rerollAudioOutputFromWorkflow, rerollAudioStudioOutputFromWorkflow } =
+    useAiStudioAudioRerollController({
+      findOutputById: base.findOutputById,
+      handleVoicesGenerate,
+      handleMusicGenerate,
+      handleSoundEffectsGenerate,
+      setUiNotice,
+    });
   const rerollOutputFromReplay = base.rerollOutputFromReplay;
+  const rerollStudioOutputFromReplay = base.rerollStudioOutputFromReplay;
   const handleRerollOutputFromWorkflow = useCallback(
     (outputId: string) => {
       if (rerollAudioOutputFromWorkflow(outputId)) return;
       rerollOutputFromReplay(outputId);
     },
     [rerollAudioOutputFromWorkflow, rerollOutputFromReplay]
+  );
+  const handleRerollStudioOutputFromWorkflow = useCallback(
+    (output: StudioOutput) => {
+      if (rerollAudioStudioOutputFromWorkflow(output)) return;
+      rerollStudioOutputFromReplay(output);
+    },
+    [rerollAudioStudioOutputFromWorkflow, rerollStudioOutputFromReplay]
   );
   const resolveExpertEditVariantCostCredits = useCallback(
     ({
@@ -993,6 +1014,7 @@ const AiStudioPageRuntimeBody = ({
     onMediaLibraryReloadWorkflow: isManualWorkflowReloadEnabled()
       ? base.reloadWorkflowFromStudioOutput
       : undefined,
+    onMediaLibraryRerollWorkflow: handleRerollStudioOutputFromWorkflow,
     onDetailSavePrompt,
     onAddLibraryMediaReference: addLibraryMediaReference,
     onAddLibraryMediaReferences: addLibraryMediaReferences,

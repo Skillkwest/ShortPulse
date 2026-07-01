@@ -5,6 +5,7 @@ import type { StudioOutput, WorkflowReloadConfigV1, WorkflowReloadMediaKindHint 
 import { resolveMediaRowKind } from "../../../lib/mediaRowKind";
 import { resolveMediaMetadataModelId, type MediaFileRow } from "./mediaLibraryModalModel";
 import { isGenerationReplayConfigV1, isGenerationReplayConfigV2 } from "./generationReplay";
+import { canRerollOutput } from "./workflowReroll";
 import { canReloadWorkflowOutput, isWorkflowReloadConfigV1 } from "./workflowReload";
 
 const AI_STUDIO_MEDIA_SOURCE = "ai_studio";
@@ -141,6 +142,14 @@ export const canReloadMediaLibraryWorkflow = (file: MediaFileRow): boolean => {
   const output = createMediaLibraryWorkflowReloadOutput(file);
   if (!output) return false;
   return canReloadWorkflowOutput(output, {
+    mediaKindHint: resolveMediaLibraryWorkflowReloadMediaKindHint(file),
+  });
+};
+
+export const canRerollMediaLibraryWorkflow = (file: MediaFileRow): boolean => {
+  const output = createMediaLibraryWorkflowReloadOutput(file);
+  if (!output) return false;
+  return canRerollOutput(output, {
     mediaKindHint: resolveMediaLibraryWorkflowReloadMediaKindHint(file),
   });
 };

@@ -105,6 +105,7 @@ type MediaLibraryPanelProps = {
     output: StudioOutput,
     options?: { mediaKindHint?: WorkflowReloadMediaKindHint | null }
   ) => void;
+  onRerollWorkflowFromMedia?: (output: StudioOutput) => void;
   onSnapshotVideoFrame?: SharedMediaDetailVideoSnapshotHandler;
   onSnapshotVideoFrameError?: SharedMediaDetailVideoSnapshotErrorHandler;
   detailSelectionTarget?: SharedMediaDetailSelectionTarget | null;
@@ -140,6 +141,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   resolveInternalDropItem,
   onDeleteMediaRowsFromWorkspace,
   onReloadWorkflowFromMedia,
+  onRerollWorkflowFromMedia,
   onSnapshotVideoFrame,
   onSnapshotVideoFrameError,
   detailSelectionTarget = null,
@@ -600,6 +602,16 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     [onReloadWorkflowFromMedia]
   );
 
+  const handleRerollWorkflowFromMedia = useCallback(
+    (file: MediaFileRow) => {
+      if (!onRerollWorkflowFromMedia) return;
+      const output = createMediaLibraryWorkflowReloadOutput(file);
+      if (!output) return;
+      onRerollWorkflowFromMedia(output);
+    },
+    [onRerollWorkflowFromMedia]
+  );
+
   const combinedSelectedIds = useMemo(() => {
     if (!selectedPromptIds.size) return selectedIds;
     if (!selectedIds.size) return selectedPromptIds;
@@ -952,6 +964,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
           });
         }}
         onDownloadMediaFile={handleDownloadMediaFile}
+        onRerollWorkflowFromMedia={handleRerollWorkflowFromMedia}
         onReloadWorkflowFromMedia={handleReloadWorkflowFromMedia}
         onMediaPreviewError={handleMediaPreviewError}
         onMediaPaint={() => undefined}
@@ -973,6 +986,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       handleMediaCardContextMenu,
       handleDownloadMediaFile,
       handleMediaPreviewError,
+      handleRerollWorkflowFromMedia,
       refreshSignedUrl,
       handleReloadWorkflowFromMedia,
       handleRemoveItemFromActiveFolder,
@@ -1039,6 +1053,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
           });
         }}
         onDownloadMediaFile={handleDownloadMediaFile}
+        onRerollWorkflowFromMedia={handleRerollWorkflowFromMedia}
         onReloadWorkflowFromMedia={handleReloadWorkflowFromMedia}
         onMediaPreviewError={handleMediaPreviewError}
         onMediaPaint={() => undefined}
@@ -1065,6 +1080,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       handleMediaCardDragStart,
       handleMediaCardContextMenu,
       handleMediaPreviewError,
+      handleRerollWorkflowFromMedia,
       handleReloadWorkflowFromMedia,
       handlePromptCardDoubleClick,
       handlePromptCardDragStart,

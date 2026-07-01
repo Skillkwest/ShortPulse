@@ -604,6 +604,7 @@ export const useAiStudioState = ({
     regenerateOutput,
     removeOptimisticGenerationPlaceholder,
     rerollOutputFromReplay,
+    rerollStudioOutputFromReplay,
     retryOutputStatus,
     abandonTaskOutput,
   } = useAiStudioStateRuntimeControllers({
@@ -914,6 +915,7 @@ export const useAiStudioState = ({
     reloadWorkflowFromOutput,
     reloadWorkflowFromStudioOutput,
     rerollOutputFromReplay,
+    rerollStudioOutputFromReplay,
     insertOptimisticGenerationPlaceholder,
     removeOptimisticGenerationPlaceholder,
     updateOutputById,

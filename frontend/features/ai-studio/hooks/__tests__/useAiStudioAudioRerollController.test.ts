@@ -93,6 +93,61 @@ describe("useAiStudioAudioRerollController", () => {
     );
   });
 
+  it("rerolls direct saved-media music output without requiring output lookup", () => {
+    const workflowReload = buildWorkflowReloadConfigV1({
+      capturedAt: "2026-06-23T00:00:00.000Z",
+      originTool: "music",
+      panelKind: "music",
+      outputMode: "audio",
+      prompt: { display: "Saved music prompt" },
+      model: { id: "elevenlabs/music" },
+      payload: {
+        kind: "music",
+        text: "Saved song style",
+        prompt: "Saved song style",
+        lyrics: "",
+        durationSeconds: 30,
+        bpm: 100,
+        mode: "instrumental",
+        structure: "loop",
+        energyPercent: 58,
+        outputFormat: "mp3_44100_128",
+        composerMode: "simple",
+        instrumentalEnabled: true,
+        singerEnabled: false,
+        songBatchCount: 1,
+      },
+    });
+    const output = createOutput({
+      id: "media-library:audio-1",
+      workflowReload: workflowReload ?? undefined,
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioAudioRerollController({
+        findOutputById,
+        handleVoicesGenerate,
+        handleMusicGenerate,
+        handleSoundEffectsGenerate,
+        setUiNotice,
+      })
+    );
+
+    act(() => {
+      expect(result.current.rerollAudioStudioOutputFromWorkflow(output)).toBe(true);
+    });
+
+    expect(findOutputById).not.toHaveBeenCalled();
+    expect(handleMusicGenerate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: "Saved song style",
+        rawPrompt: "Saved song style",
+        durationSeconds: 30,
+        modelId: "elevenlabs/music",
+      })
+    );
+  });
+
   it("rerolls generated sound effects using workflow metadata", () => {
     const workflowReload = buildWorkflowReloadConfigV1({
       capturedAt: "2026-06-23T00:00:00.000Z",

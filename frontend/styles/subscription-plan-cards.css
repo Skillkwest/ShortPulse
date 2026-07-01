@@ -390,6 +390,205 @@
   justify-content: center;
 }
 
+.profile-page .profile-subscription-interval-toggle {
+  margin: 0 0 12px;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.profile-page .pricing-interval-toggle {
+  margin-top: 0;
+  gap: 4px;
+  padding: 3px;
+  border-color: rgba(201, 205, 214, 0.14);
+  background: rgba(10, 13, 17, 0.74);
+  box-shadow: none;
+}
+
+.profile-page .pricing-interval-option {
+  min-width: 78px;
+  padding: 7px 11px;
+  border-radius: 6px;
+  color: rgba(219, 224, 233, 0.68);
+  font-size: 12px;
+  line-height: 1.1;
+  font-weight: 650;
+}
+
+.profile-page .pricing-interval-option.is-active {
+  background: rgba(37, 169, 191, 0.2);
+  color: #e8fbff;
+  box-shadow: inset 0 0 0 1px rgba(37, 169, 191, 0.28);
+}
+
+.profile-page .pricing-interval-support {
+  gap: 5px;
+  color: rgba(219, 224, 233, 0.58);
+  font-size: 10px;
+}
+
+.profile-page .pricing-interval-badge {
+  padding: 3px 7px;
+  border-radius: 6px;
+  background: rgba(100, 208, 255, 0.08);
+  color: rgba(157, 216, 255, 0.86);
+  font-size: 10px;
+}
+
+.profile-page .profile-subscription-plan-card.subscription-plan-card {
+  border-radius: var(--profile-radius);
+  border-color: rgba(201, 205, 214, 0.14);
+  background: var(--profile-themed-surface);
+  box-shadow: var(--profile-card-shadow);
+}
+
+.profile-page .profile-subscription-plan-card.subscription-plan-card.plan-free,
+.profile-page .profile-subscription-plan-card.subscription-plan-card.plan-starter {
+  border-color: rgba(156, 168, 184, 0.22);
+}
+
+.profile-page .profile-subscription-plan-card.subscription-plan-card.plan-media {
+  border-color: rgba(78, 160, 158, 0.46);
+}
+
+.profile-page .profile-subscription-plan-card.subscription-plan-card.plan-studio {
+  border-color: rgba(100, 208, 255, 0.44);
+}
+
+.profile-page .profile-subscription-plan-card.subscription-plan-card.plan-business {
+  border-color: rgba(255, 203, 102, 0.46);
+}
+
+.profile-page .profile-subscription-plan-card.subscription-plan-card.is-current,
+.profile-page .profile-subscription-plan-card.subscription-plan-card.is-selected {
+  transform: none;
+  box-shadow:
+    inset 0 0 0 1px rgba(37, 169, 191, 0.12),
+    var(--profile-card-shadow);
+}
+
+.profile-page .profile-subscription-plan-card .subscription-plan-card-frame {
+  gap: 10px;
+  padding: 13px 12px;
+}
+
+.profile-page .profile-subscription-plan-card .subscription-plan-card-head,
+.profile-page .profile-subscription-plan-card .subscription-plan-card-top {
+  gap: 8px;
+}
+
+.profile-page .profile-subscription-plan-card .subscription-plan-card-title {
+  color: #f4fbff;
+  font-size: 18px;
+  line-height: 1.08;
+  letter-spacing: 0;
+  font-weight: 650;
+}
+
+.profile-page .profile-subscription-plan-card .subscription-plan-card-tags {
+  gap: 5px;
+}
+
+.profile-page .profile-subscription-plan-card .subscription-plan-card-tag {
+  min-height: 20px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+}
+
+.profile-page .profile-subscription-plan-card .subscription-plan-card-tag.is-discount {
+  border: 1px solid rgba(255, 203, 102, 0.28);
+  background: rgba(255, 203, 102, 0.1);
+  color: #f1d7a0;
+  box-shadow: none;
+}
+
+.profile-page .profile-subscription-plan-card .subscription-plan-card-price-block {
+  gap: 3px;
+}
+
+.profile-page .profile-subscription-plan-card .subscription-plan-card-price-row {
+  gap: 6px;
+  min-height: 30px;
+}
+
+.profile-page .profile-subscription-plan-card .subscription-plan-card-price {
+  font-size: 22px;
+  line-height: 1;
+  letter-spacing: 0;
+  font-weight: 650;
+}
+
+.profile-page .profile-subscription-plan-card .subscription-plan-card-price.is-struck {
+  color: rgba(255, 159, 159, 0.84);
+  text-decoration-thickness: 2px;
+}
+
+.profile-page .profile-subscription-plan-card .subscription-plan-card-billing-copy,
+.profile-page .profile-subscription-plan-card .subscription-plan-card-footer-copy {
+  color: rgba(219, 224, 233, 0.72);
+  font-size: 12px;
+  line-height: 1.25;
+  font-weight: 500;
+}
+
+.profile-page .profile-subscription-plan-card .subscription-plan-card-feature-list {
+  gap: 5px;
+}
+
+.profile-page .profile-subscription-plan-card .subscription-plan-card-feature-list li {
+  gap: 6px;
+  color: rgba(224, 231, 241, 0.68);
+  font-size: 12px;
+  line-height: 1.22;
+}
+
+.profile-page .profile-subscription-plan-card .subscription-plan-card-feature-list li svg {
+  width: 14px;
+  height: 14px;
+  opacity: 0.82;
+}
+
+.profile-page
+  .profile-subscription-plan-card
+  .subscription-plan-card-feature-list
+  li.is-included
+  svg {
+  color: rgba(159, 210, 125, 0.86);
+}
+
+.profile-page .profile-subscription-plan-card .subscription-plan-card-feature-annotation {
+  color: rgba(255, 203, 102, 0.82);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.profile-page .profile-subscription-plan-card .subscription-plan-card-save-chip {
+  min-height: 22px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 203, 102, 0.28);
+  background: rgba(255, 203, 102, 0.1);
+  color: #f1d7a0;
+  font-size: 11px;
+  font-style: normal;
+  box-shadow: none;
+}
+
+.profile-page .profile-subscription-plan-card .subscription-plan-card-save-chip.is-placeholder {
+  min-height: 0;
+}
+
+.profile-page .profile-subscription-plan-card .subscription-plan-card-footer-copy {
+  min-height: 0;
+}
+
+.profile-page .profile-subscription-plan-card .subscription-plan-card-action .profile-actions {
+  gap: 6px;
+}
+
 @media (max-width: 1120px) {
   .pricing-route-shell .pricing-plan-grid-screenshot {
     grid-template-columns: repeat(2, minmax(0, 1fr));

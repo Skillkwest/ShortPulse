@@ -4,13 +4,13 @@
  */
 .profile-page.page {
   --profile-rail-width: 248px;
-  --profile-rail-gap: 10px;
-  --profile-page-padding: 24px;
+  --profile-rail-gap: 8px;
+  --profile-page-padding: 18px;
   --profile-radius: 8px;
   max-width: none;
   width: 100%;
   margin: 0;
-  padding: var(--profile-page-padding) var(--profile-page-padding) 72px
+  padding: var(--profile-page-padding) var(--profile-page-padding) 56px
     calc(var(--profile-rail-width) + var(--profile-rail-gap) + var(--profile-page-padding));
   min-height: var(--app-fixed-height);
   background: #0b0f14;
@@ -22,28 +22,28 @@
 }
 
 .profile-workspace {
-  --profile-wrapper-surface: rgba(20, 24, 29, 0.94);
-  --profile-wrapper-surface-strong: rgba(25, 30, 36, 0.96);
-  --profile-wrapper-border: rgba(201, 205, 214, 0.14);
-  --profile-wrapper-border-strong: rgba(201, 205, 214, 0.18);
-  --profile-themed-surface: rgba(25, 30, 36, 0.98);
-  --profile-themed-chip-surface: rgba(13, 17, 22, 0.7);
+  --profile-wrapper-surface: rgba(17, 21, 26, 0.96);
+  --profile-wrapper-surface-strong: rgba(20, 24, 29, 0.98);
+  --profile-wrapper-border: rgba(201, 205, 214, 0.12);
+  --profile-wrapper-border-strong: rgba(201, 205, 214, 0.16);
+  --profile-themed-surface: rgba(20, 24, 29, 0.98);
+  --profile-themed-chip-surface: rgba(10, 13, 17, 0.64);
   --profile-tab-surface: rgba(16, 20, 25, 0.96);
   --profile-tab-surface-hover: rgba(25, 31, 38, 0.98);
-  --profile-card-shadow: 0 14px 30px rgba(0, 0, 0, 0.2);
+  --profile-card-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
   width: min(1360px, 100%);
   margin: 0 auto 0 0;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .profile-app-bar {
   margin-bottom: 0;
-  padding: 22px 24px;
+  padding: 16px 18px;
   align-items: stretch;
   justify-content: space-between;
-  gap: 24px;
+  gap: 16px;
   background: var(--profile-wrapper-surface-strong);
   border: 1px solid var(--profile-wrapper-border);
   border-radius: var(--profile-radius);
@@ -54,13 +54,13 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .profile-identity {
   display: flex;
   align-items: flex-start;
-  gap: 14px;
+  gap: 12px;
 }
 
 .profile-identity-copy {
@@ -69,7 +69,8 @@
 
 .profile-identity-copy h1 {
   margin: 0;
-  font-size: 30px;
+  font-size: 24px;
+  line-height: 1.12;
   letter-spacing: 0;
 }
 
@@ -79,9 +80,9 @@
 
 .profile-account-summary-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(116px, 1fr));
-  gap: 8px;
-  width: min(680px, 100%);
+  grid-template-columns: repeat(4, minmax(104px, 1fr));
+  gap: 6px;
+  width: min(620px, 100%);
 }
 
 .profile-shell-action {
@@ -92,7 +93,7 @@
 }
 
 .profile-shell-nav-action {
-  min-height: 48px;
+  min-height: 40px;
   white-space: nowrap;
   border-radius: var(--profile-radius);
 }
@@ -107,21 +108,21 @@
   left: 0;
   width: var(--profile-rail-width);
   height: 100vh;
-  padding: 20px 16px 18px;
+  padding: 16px 14px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   background: var(--profile-wrapper-surface);
   border: 0;
   border-radius: 0;
-  box-shadow: 20px 0 48px rgba(0, 0, 0, 0.16);
+  box-shadow: 12px 0 28px rgba(0, 0, 0, 0.14);
 }
 
 .profile-side-rail-main,
 .profile-side-rail-footer {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .profile-side-rail-footer {
@@ -139,7 +140,7 @@
 .profile-rail-brand-logo {
   display: block;
   width: auto;
-  max-width: 172px;
+  max-width: 156px;
   object-fit: contain;
 }
 
@@ -151,21 +152,21 @@
 .profile-section-tabs {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .profile-section-tab {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
-  min-height: 46px;
+  min-height: 40px;
   border-radius: var(--profile-radius);
   border: 1px solid rgba(201, 205, 214, 0.13);
   background: var(--profile-tab-surface);
   color: var(--color-ash);
   text-decoration: none;
-  padding: 10px 14px;
+  padding: 8px 11px;
   transition:
     background 0.16s ease,
     border-color 0.16s ease,
@@ -182,14 +183,14 @@
 .profile-section-tab.is-active {
   background: rgba(16, 47, 55, 0.95);
   border-color: rgba(37, 169, 191, 0.56);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.24);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
   color: #e8fbff;
 }
 
 .profile-section-tab-icon {
   flex-shrink: 0;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border-radius: var(--profile-radius);
   display: grid;
   place-items: center;
@@ -199,12 +200,13 @@
 
 .profile-section-tab-label {
   font-weight: 700;
+  font-size: 13px;
 }
 
 .profile-workspace-body {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   min-width: 0;
 }
 
@@ -213,7 +215,7 @@
 }
 
 .profile-notice-banner {
-  padding: 12px 14px;
+  padding: 10px 12px;
   border-radius: var(--profile-radius);
   border: 1px solid rgba(201, 205, 214, 0.16);
   background: rgba(21, 26, 32, 0.96);
@@ -221,7 +223,7 @@
 
 .profile-notice-banner p {
   margin: 0;
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.45;
 }
 
@@ -241,7 +243,7 @@
 }
 
 .profile-detail-panel {
-  padding-bottom: 14px;
+  padding-bottom: 12px;
   background: var(--profile-wrapper-surface);
   border: 1px solid var(--profile-wrapper-border);
   box-shadow: var(--profile-card-shadow);

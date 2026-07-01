@@ -270,6 +270,7 @@ export const useAiStudioStateRuntimeControllers = ({
     generateOutput,
     regenerateOutput,
     rerollOutputFromReplay,
+    rerollStudioOutputFromReplay,
     insertOptimisticGenerationPlaceholder,
     removeOptimisticGenerationPlaceholder,
     retryOutputStatus,
@@ -425,6 +426,7 @@ export const useAiStudioStateRuntimeControllers = ({
     regenerateOutput,
     removeOptimisticGenerationPlaceholder,
     rerollOutputFromReplay,
+    rerollStudioOutputFromReplay,
     retryOutputStatus,
     abandonTaskOutput,
   };

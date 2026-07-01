@@ -161,6 +161,44 @@ describe("useAiStudioState rerollOutputFromReplay", () => {
     );
   });
 
+  it("submits direct saved-media reroll without requiring output lookup", () => {
+    const mediaLibraryOutput = makeGeneratedImageOutput("media-library:media-1", {
+      generationReplay: {
+        version: 1,
+        mode: "image",
+        submitTool: "create",
+        modelId: "fal-ai/imagen4/preview",
+        displayPrompt: "Saved visible prompt",
+        submissionPrompt: "Saved submission prompt",
+        aspect: "16:9",
+        imageResolution: "1K",
+        referenceInputs: [],
+        capturedAt: "2026-06-06T14:00:00.000Z",
+      },
+      savedMediaIds: ["media-1"],
+    });
+
+    const { result } = renderHook(() => useAiStudioState());
+
+    act(() => {
+      result.current.rerollStudioOutputFromReplay(mediaLibraryOutput);
+    });
+
+    expect(findOutputByIdMock).not.toHaveBeenCalled();
+    expect(submitTaskMock).toHaveBeenCalledWith(
+      "Saved submission prompt",
+      [],
+      expect.objectContaining({
+        modeOverride: "image",
+        selectedToolOverride: "create",
+        displayPromptOverride: "Saved visible prompt",
+        modelIdOverride: "fal-ai/imagen4/preview",
+        aspectOverride: "16:9",
+        imageResolutionOverride: "1K",
+      })
+    );
+  });
+
   it("shows notice and blocks submit when replay snapshot is missing", () => {
     findOutputByIdMock.mockReturnValue(
       makeGeneratedImageOutput("out-reroll-missing-replay", {

@@ -39,6 +39,7 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/migrations/172_schedule_worker_runs_retention.sql`: schedule daily hosted pg_cron retention for completed `ok` rows in `public.worker_runs` after 30 days while preserving incomplete/running rows and error rows.
 - `sql/migrations/173_add_media_storage_lifecycle_diagnostics.sql`: add the service-role-only `voice_source_lifecycle` proof table and aggregate Media Library storage lifecycle diagnostic RPC for dry-run reporting without raw object paths or user ids.
 - `sql/migrations/174_remove_legacy_signup_seed_credit_grants.sql`: neutralize remaining retired signup seed credit grants, reject future positive signup seed inserts, and keep the hidden baseline tier zero-value.
+- `sql/migrations/176_add_app_error_events_admin_stats_source_index.sql`: add a narrow partial index for admin stats telemetry reads from `app_error_events`.
 - `sql/audit_billing_credit_rls.sql`: billing RLS audit checks.
 - `sql/check_database_io_hotspots.sql`: read-only `pg_stat_statements` shared-block I/O summary plus table size/read posture and hot diagnostic table age/retention posture without raw query text.
 - `sql/check_media_storage_scope_drift.sql`: media storage scope drift diagnostics (read-only).
@@ -244,6 +245,7 @@ Migration number 134 is intentionally unused; the ordered sequence moves from `1
 - `173_add_media_storage_lifecycle_diagnostics.sql`
 - `174_remove_legacy_signup_seed_credit_grants.sql`
 - `175_enforce_storage_addon_no_stack.sql`
+- `176_add_app_error_events_admin_stats_source_index.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 

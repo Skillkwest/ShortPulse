@@ -59,6 +59,8 @@ type BillingPlanRow = {
   id: string;
   display_name: string | null;
   storage_limit_bytes: number | null;
+  sort_order: number | null;
+  is_active: boolean | null;
 };
 
 type BillingStorageAddonRow = {
@@ -351,7 +353,10 @@ const buildAccountStates = (params: {
   });
 };
 
-const buildPlanRows = (accounts: AccountStorageState[]): AdminStorageEconomicsPlanRow[] => {
+const buildPlanRows = (
+  accounts: AccountStorageState[],
+  plans: BillingPlanRow[]
+): AdminStorageEconomicsPlanRow[] => {
   const byPlan = new Map<string, AccountStorageState[]>();
   accounts.forEach((account) => {
     const rows = byPlan.get(account.planId) ?? [];
@@ -359,12 +364,23 @@ const buildPlanRows = (accounts: AccountStorageState[]): AdminStorageEconomicsPl
     byPlan.set(account.planId, rows);
   });
 
-  return [...byPlan.entries()]
-    .map(([planId, rows]) => {
+  const planIds = new Set<string>([
+    ...plans.map((plan) => toPlanId(plan.id)),
+    ...accounts.map((account) => account.planId),
+  ]);
+  const planCatalogById = new Map(plans.map((plan) => [toPlanId(plan.id), plan]));
+
+  return [...planIds]
+    .map((planId) => {
+      const rows = byPlan.get(planId) ?? [];
+      const plan = planCatalogById.get(planId) ?? null;
       const trackedValues = rows.map((row) => row.trackedBytes);
       return {
         planId,
-        displayName: rows[0]?.displayName ?? planId,
+        displayName: plan?.display_name?.trim() || rows[0]?.displayName || planId,
+        isActive: Boolean(plan?.is_active),
+        sortOrder: toCount(plan?.sort_order),
+        catalogStorageLimitBytes: toCount(plan?.storage_limit_bytes),
         accountCount: rows.length,
         usersWithMedia: rows.filter((row) => row.mediaCount > 0).length,
         totalTrackedBytes: rows.reduce((sum, row) => sum + row.trackedBytes, 0),
@@ -385,7 +401,12 @@ const buildPlanRows = (accounts: AccountStorageState[]): AdminStorageEconomicsPl
         ).length,
       };
     })
-    .sort((left, right) => right.totalTrackedBytes - left.totalTrackedBytes);
+    .sort((left, right) => {
+      if (left.isActive !== right.isActive) return left.isActive ? -1 : 1;
+      if (left.sortOrder !== right.sortOrder) return left.sortOrder - right.sortOrder;
+      if (right.accountCount !== left.accountCount) return right.accountCount - left.accountCount;
+      return right.totalTrackedBytes - left.totalTrackedBytes;
+    });
 };
 
 const buildAddonPackageRows = (params: {
@@ -602,7 +623,9 @@ const buildPayload = async (): Promise<AdminStorageEconomicsResponse> => {
       )
       .is("ended_at", null),
     supabaseAdmin.from("billing_profiles").select("user_id, plan_id"),
-    supabaseAdmin.from("billing_plans").select("id, display_name, storage_limit_bytes"),
+    supabaseAdmin
+      .from("billing_plans")
+      .select("id, display_name, storage_limit_bytes, sort_order, is_active"),
     supabaseAdmin.from("billing_storage_addons").select("id, display_name, sort_order, is_active"),
     supabaseAdmin
       .from("billing_storage_addon_offers")
@@ -675,7 +698,7 @@ const buildPayload = async (): Promise<AdminStorageEconomicsResponse> => {
   return {
     assumptions: ASSUMPTIONS,
     overview: buildOverview({ accounts, addonPackages }),
-    byPlan: buildPlanRows(accounts),
+    byPlan: buildPlanRows(accounts, plans),
     addonPackages,
     funnel,
     riskQueue: buildRiskQueue(accounts),

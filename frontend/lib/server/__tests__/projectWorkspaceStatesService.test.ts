@@ -1842,14 +1842,12 @@ describe("projectWorkspaceStatesService", () => {
       id: `pathological-output-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 1}`,
       mode: "image",
       mediaSource: "library",
-      archivedAt: "2026-06-03T14:00:00.000Z",
       archiveReason: "cleanup",
     });
     expect(storedArchivedOutputs.at(-1)).toEqual({
       id: "pathological-output-600",
       mode: "image",
       mediaSource: "library",
-      archivedAt: "2026-06-03T14:00:00.000Z",
       archiveReason: "cleanup",
     });
     expect(
@@ -1978,7 +1976,6 @@ describe("projectWorkspaceStatesService", () => {
       id: `target-output-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 1}`,
       mode: "image",
       mediaSource: "library",
-      archivedAt: "2026-06-28T14:00:00.000Z",
       archiveReason: "cleanup",
     });
     expect(storedOutputs.curatedReferenceIds).toEqual(["target-output-1"]);

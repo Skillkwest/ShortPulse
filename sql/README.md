@@ -67,4 +67,6 @@ For Media Library storage growth, use the manifest-first cleanup classifier for 
 
 For read-only database Disk I/O triage, use `sql/check_database_io_hotspots.sql`; it classifies `pg_stat_statements` shared-block reads/writes and table-size/read posture without printing raw query text or row data.
 
+For admin stats reads over append-only `app_error_events` telemetry, use `sql/migrations/176_add_app_error_events_admin_stats_source_index.sql` to add the narrow source/user/time index used by the global and growth stats RPCs.
+
 For app-owned database I/O hot paths, prefer ordered migrations under `sql/migrations/` such as the generation projection repair and media lookup indexes, with paired rollbacks under `sql/migrations/rollback/`.

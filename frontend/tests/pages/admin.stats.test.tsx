@@ -88,6 +88,9 @@ const buildStorageEconomicsState = () => ({
       {
         planId: "starter",
         displayName: "Starter",
+        isActive: true,
+        sortOrder: 2,
+        catalogStorageLimitBytes: 5368709120,
         accountCount: 1,
         usersWithMedia: 1,
         totalTrackedBytes: 10737418240,
@@ -455,6 +458,7 @@ describe("Admin stats page", () => {
     expect(screen.getByText("Capacity and margin snapshot")).toBeInTheDocument();
     expect(screen.getByText("Tracked Storage")).toBeInTheDocument();
     expect(screen.getByText("Add-on MRR")).toBeInTheDocument();
+    expect(screen.getByText("Plan Limit")).toBeInTheDocument();
     expect(screen.getByText("Recurring storage packages")).toBeInTheDocument();
     expect(screen.getByText("Provider invoice proof is unavailable.")).toBeInTheDocument();
   });

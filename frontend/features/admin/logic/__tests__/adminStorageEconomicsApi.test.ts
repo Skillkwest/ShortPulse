@@ -25,6 +25,9 @@ describe("adminStorageEconomicsApi", () => {
         {
           planId: "starter",
           displayName: "Starter",
+          isActive: true,
+          sortOrder: 2,
+          catalogStorageLimitBytes: 5368709120,
           accountCount: 2,
           usersWithMedia: 1,
           totalTrackedBytes: 900,
@@ -75,6 +78,8 @@ describe("adminStorageEconomicsApi", () => {
     expect(normalized.byPlan[0]).toEqual(
       expect.objectContaining({
         planId: "starter",
+        isActive: true,
+        catalogStorageLimitBytes: 5368709120,
         accountCount: 2,
         accountsOver80Pct: 1,
       })

@@ -3,7 +3,10 @@
  * Monetary values come from Supabase rows so pricing can be changed without app code edits.
  */
 import { resolveDefaultPlanConcurrencyLimit } from "../../lib/billing/planConcurrency";
-import { PLAN_STORAGE_LIMIT_BYTES_BY_ID } from "../../lib/billing/storageAddonEligibility";
+import {
+  PLAN_STORAGE_LIMIT_BYTES_BY_ID,
+  STORAGE_ADDON_LIMIT_BYTES_BY_ID,
+} from "../../lib/billing/storageAddonEligibility";
 
 export type BillingInterval = "month" | "year";
 
@@ -55,6 +58,37 @@ export type BillingCatalogSnapshot = {
 };
 
 const PLAN_TIER_ORDER = ["free", "starter", "media", "studio", "business"] as const;
+
+export const DEFAULT_STORAGE_ADDON_RECORDS: BillingStorageAddonRecord[] = [
+  {
+    id: "storage_10gb",
+    display_name: "Extra 10 GB",
+    storage_limit_bytes: STORAGE_ADDON_LIMIT_BYTES_BY_ID.storage_10gb,
+    monthly_price_cents: 700,
+    sort_order: 10,
+  },
+  {
+    id: "storage_50gb",
+    display_name: "Extra 50 GB",
+    storage_limit_bytes: STORAGE_ADDON_LIMIT_BYTES_BY_ID.storage_50gb,
+    monthly_price_cents: 2900,
+    sort_order: 20,
+  },
+  {
+    id: "storage_100gb",
+    display_name: "Extra 100 GB",
+    storage_limit_bytes: STORAGE_ADDON_LIMIT_BYTES_BY_ID.storage_100gb,
+    monthly_price_cents: 5900,
+    sort_order: 30,
+  },
+  {
+    id: "storage_250gb",
+    display_name: "Extra 250 GB",
+    storage_limit_bytes: STORAGE_ADDON_LIMIT_BYTES_BY_ID.storage_250gb,
+    monthly_price_cents: 14900,
+    sort_order: 40,
+  },
+];
 
 type AnnualPricingConfig = {
   yearlyPriceCents: number;

@@ -109,6 +109,15 @@ describe("GET /api/admin/storage-economics", () => {
           id: "starter",
           display_name: "Starter",
           storage_limit_bytes: 1000,
+          sort_order: 2,
+          is_active: true,
+        },
+        {
+          id: "media",
+          display_name: "Media",
+          storage_limit_bytes: 2500,
+          sort_order: 3,
+          is_active: true,
         },
       ],
       billing_storage_addons: [
@@ -188,7 +197,14 @@ describe("GET /api/admin/storage-economics", () => {
         }),
         expect.objectContaining({
           planId: "starter",
+          catalogStorageLimitBytes: 1000,
+          isActive: true,
           accountsOver80Pct: 0,
+        }),
+        expect.objectContaining({
+          planId: "media",
+          accountCount: 0,
+          catalogStorageLimitBytes: 2500,
         }),
       ])
     );
@@ -216,6 +232,9 @@ describe("GET /api/admin/storage-economics", () => {
     );
     expect(JSON.stringify(payload)).not.toContain("must-not-be-selected");
     expect(supabase.selects.media_files?.[0]).toBe("user_id, file_size, created_at");
+    expect(supabase.selects.billing_plans?.[0]).toBe(
+      "id, display_name, storage_limit_bytes, sort_order, is_active"
+    );
   });
 
   it("returns a safe failure when admin auth verification throws", async () => {

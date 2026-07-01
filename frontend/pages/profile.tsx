@@ -10,6 +10,7 @@ import { CreditCard, HardDrives, Receipt, Stack, UserCircle } from "phosphor-rea
 import {
   annotateCreditPackages,
   buildPlanView,
+  DEFAULT_STORAGE_ADDON_RECORDS,
   getPlanTierRank,
   type BillingPlanRecord,
   type BillingStorageAddonRecord,
@@ -640,12 +641,14 @@ export default function ProfilePage() {
 
   const packageCards = useMemo(() => annotateCreditPackages(creditPackages), [creditPackages]);
   const visibleStorageAddons = useMemo(() => {
+    const storageAddonCatalog =
+      storageAddons.length > 0 ? storageAddons : DEFAULT_STORAGE_ADDON_RECORDS;
     const activeStorageAddonIds = new Set(
       activeStorageAddons
         .map((addon) => addon.storageAddonId)
         .filter((value): value is string => Boolean(value))
     );
-    return storageAddons.filter((addon) => {
+    return storageAddonCatalog.filter((addon) => {
       if (activeStorageAddonIds.has(addon.id)) return true;
       return resolveStorageAddonEligibility({
         planId: activePlan.id,

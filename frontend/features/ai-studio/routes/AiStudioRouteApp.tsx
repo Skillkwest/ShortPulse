@@ -63,7 +63,31 @@ type CreateRuntimeRootSharedProps = {
   base: AiStudioPageBaseRuntime;
   createPulsePageRuntime: CreatePulsePresetPageRuntime;
 };
+
+type AiStudioRouteDebugWindow = Window & {
+  __shortpulseAiStudioRouteDebug?: {
+    href: string;
+    search: string;
+    stage: string;
+    updatedAt: string;
+  };
+};
+
+const recordAiStudioRouteDebug = (stage: string) => {
+  if (typeof window === "undefined") return;
+  if (new URLSearchParams(window.location.search).get("perfAuditRuntime") !== "1") return;
+  (window as AiStudioRouteDebugWindow).__shortpulseAiStudioRouteDebug = {
+    href: window.location.href,
+    search: window.location.search,
+    stage,
+    updatedAt: new Date().toISOString(),
+  };
+};
+
 export default function AiStudioPage() {
+  React.useEffect(() => {
+    recordAiStudioRouteDebug("route_app_mounted");
+  }, []);
   const base = useAiStudioPageBaseRuntime();
   return <CreateRuntimeRoot base={base} />;
 }

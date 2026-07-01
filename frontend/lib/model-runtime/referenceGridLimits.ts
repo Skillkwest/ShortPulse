@@ -104,7 +104,7 @@ export const limitReferenceGridVisibleOutputs = <T extends ReferenceGridIdentifi
 
 export const buildReferenceGridOverflowArchiveRows = <T extends ReferenceGridArchivableRow>(
   rows: readonly T[],
-  archivedAt = new Date().toISOString()
+  archivedAt: string | null = new Date().toISOString()
 ): T[] =>
   rows.map((row) => ({
     ...row,

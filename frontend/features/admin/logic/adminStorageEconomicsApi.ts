@@ -175,6 +175,9 @@ const normalizePlanRows = (value: unknown): AdminStorageEconomicsPlanRow[] => {
     return {
       planId: toText(row.planId, "unknown"),
       displayName: toText(row.displayName, toText(row.planId, "Unknown")),
+      isActive: Boolean(row.isActive),
+      sortOrder: toCount(row.sortOrder),
+      catalogStorageLimitBytes: toCount(row.catalogStorageLimitBytes),
       accountCount: toCount(row.accountCount),
       usersWithMedia: toCount(row.usersWithMedia),
       totalTrackedBytes: toCount(row.totalTrackedBytes),

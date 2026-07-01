@@ -83,16 +83,19 @@ vi.mock("../AiStudioShellFrame", () => ({
   AiStudioShellFrame: ({
     referenceGridProps,
     showPreviewRail,
+    propertiesPanelKey,
     propertiesPanelContent,
   }: {
     referenceGridProps?: { railCanvasProps?: unknown };
     showPreviewRail?: boolean;
+    propertiesPanelKey?: string | null;
     propertiesPanelContent?: React.ReactNode;
   }) => (
     <div
       data-testid="ai-studio-shell-frame"
       data-canvas-visible={referenceGridProps?.railCanvasProps ? "true" : "false"}
       data-show-preview-rail={showPreviewRail === false ? "false" : "true"}
+      data-properties-panel-key={propertiesPanelKey ?? ""}
     >
       {propertiesPanelContent}
     </div>
@@ -685,6 +688,22 @@ describe("AiStudioPageContent header project name", () => {
       expect(shellResizeActionsMock.resetToDefaultWidth).toHaveBeenCalledTimes(1);
     });
     expect(shellResizeActionsMock.collapseToMin).not.toHaveBeenCalled();
+  });
+
+  it("keys the properties rail by selected tool so each navigation can replay panel entry motion", () => {
+    const { rerender } = render(<AiStudioPageContent {...createProps()} selectedTool="edit" />);
+
+    expect(screen.getByTestId("ai-studio-shell-frame")).toHaveAttribute(
+      "data-properties-panel-key",
+      "edit"
+    );
+
+    rerender(<AiStudioPageContent {...createProps()} selectedTool="image" />);
+
+    expect(screen.getByTestId("ai-studio-shell-frame")).toHaveAttribute(
+      "data-properties-panel-key",
+      "image"
+    );
   });
 
   it("enables the styles catalog immediately when workflow reload restores a selected style", () => {

@@ -1925,7 +1925,7 @@ export function AiStudioPageContent({
               selectedTool={selectedTool}
               showDivider={showDivider}
               dividerProps={dividerProps}
-              propertiesPanelKey={selectedTool ? propertiesPanelKind : null}
+              propertiesPanelKey={selectedTool}
               leftColumnHidden={leftColumnHidden}
               rightColumnHidden={effectiveRightColumnHidden}
               propertiesPanelContent={propertiesPanelContent}

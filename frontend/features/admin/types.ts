@@ -641,6 +641,9 @@ export type AdminStorageEconomicsOverview = {
 export type AdminStorageEconomicsPlanRow = {
   planId: string;
   displayName: string;
+  isActive: boolean;
+  sortOrder: number;
+  catalogStorageLimitBytes: number;
   accountCount: number;
   usersWithMedia: number;
   totalTrackedBytes: number;

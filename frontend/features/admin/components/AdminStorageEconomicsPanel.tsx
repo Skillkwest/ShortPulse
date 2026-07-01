@@ -15,7 +15,7 @@ type AdminStorageEconomicsPanelProps = {
 
 const BYTES_PER_GB = 1024 * 1024 * 1024;
 const TABLE_WIDE_STYLE: React.CSSProperties = {
-  minWidth: 1050,
+  minWidth: 1150,
 };
 const RISK_TABLE_STYLE: React.CSSProperties = {
   minWidth: 1100,
@@ -148,7 +148,8 @@ export const AdminStorageEconomicsPanel = ({
             <p className={styles.adminSectionEyebrow}>Plans</p>
             <h2 className={styles.adminSectionTitle}>Storage by plan</h2>
             <p className="tiny subdued">
-              Usage distribution by active billing contract or profile plan.
+              Catalog plan entitlements plus usage distribution by active billing contract or
+              profile plan.
             </p>
           </div>
         </div>
@@ -158,12 +159,13 @@ export const AdminStorageEconomicsPanel = ({
               className={styles.adminTableHead}
               style={{
                 gridTemplateColumns:
-                  "minmax(0, 1.2fr) 0.6fr 0.7fr 0.8fr 0.8fr 0.8fr 0.7fr 0.7fr 0.7fr 0.7fr",
+                  "minmax(0, 1.2fr) 0.6fr 0.7fr 0.8fr 0.8fr 0.8fr 0.8fr 0.7fr 0.7fr 0.7fr 0.7fr",
               }}
             >
               <span>Plan</span>
               <span>Accounts</span>
               <span>With Media</span>
+              <span>Plan Limit</span>
               <span>Tracked</span>
               <span>P90</span>
               <span>Total Limit</span>
@@ -179,15 +181,18 @@ export const AdminStorageEconomicsPanel = ({
                   className={styles.adminTableRow}
                   style={{
                     gridTemplateColumns:
-                      "minmax(0, 1.2fr) 0.6fr 0.7fr 0.8fr 0.8fr 0.8fr 0.7fr 0.7fr 0.7fr 0.7fr",
+                      "minmax(0, 1.2fr) 0.6fr 0.7fr 0.8fr 0.8fr 0.8fr 0.8fr 0.7fr 0.7fr 0.7fr 0.7fr",
                   }}
                 >
                   <span className={styles.adminMonoCell}>
                     {row.displayName}
-                    <small className={styles.adminInlineMeta}>{row.planId}</small>
+                    <small className={styles.adminInlineMeta}>
+                      {row.planId} • {row.isActive ? "active" : "inactive"}
+                    </small>
                   </span>
                   <span>{formatCount(row.accountCount)}</span>
                   <span>{formatCount(row.usersWithMedia)}</span>
+                  <span>{formatBytes(row.catalogStorageLimitBytes)}</span>
                   <span>{formatBytes(row.totalTrackedBytes)}</span>
                   <span>{formatBytes(row.p90TrackedBytes)}</span>
                   <span>{formatBytes(row.baseLimitBytes + row.addonLimitBytes)}</span>

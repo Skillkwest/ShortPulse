@@ -87,6 +87,24 @@ export const useAiStudioPageBaseRuntime = () => {
     () => resolvePerfAuditRuntimeRouteFlag(router.asPath),
     [router.asPath]
   );
+  useEffect(() => {
+    if (!routePerfAuditRuntimeEnabled || typeof window === "undefined") return;
+    (
+      window as Window & {
+        __shortpulseAiStudioBaseRuntimeDebug?: {
+          asPath: string;
+          href: string;
+          routePerfAuditRuntimeEnabled: boolean;
+          updatedAt: string;
+        };
+      }
+    ).__shortpulseAiStudioBaseRuntimeDebug = {
+      asPath: router.asPath,
+      href: window.location.href,
+      routePerfAuditRuntimeEnabled,
+      updatedAt: new Date().toISOString(),
+    };
+  }, [routePerfAuditRuntimeEnabled, router.asPath]);
   const { sessionId } = useAiStudioSessionIdentity();
   const shouldLoadModelPricingPolicy = useDeferredModelPricingPolicyLoad();
   const createCharacterWorkflowReloadPrepRef = useRef<

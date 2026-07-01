@@ -34,6 +34,7 @@ vi.mock("../../utils/videoUpload", () => ({
 
 import { useAiStudioSessionSnapshotController } from "../useAiStudioSessionSnapshotController";
 import { createEmptyLipSyncAudioState } from "../../logic/lipSyncAudioState";
+import { prepareAiStudioSessionAutosaveSnapshot } from "../../logic/sessionAutosaveSerialization";
 
 const createOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput => ({
   id: "out-1",
@@ -1024,7 +1025,7 @@ describe("useAiStudioSessionSnapshotController", () => {
       expect.objectContaining({
         id: `target-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 1}`,
         savedMediaIds: [`media-target-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 1}`],
-        archivedAt: "2026-06-28T12:01:00.000Z",
+        archivedAt: null,
         archiveReason: "cleanup",
       })
     );
@@ -1036,5 +1037,53 @@ describe("useAiStudioSessionSnapshotController", () => {
       "target-2",
       `target-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 2}`,
     ]);
+  });
+
+  it("keeps over-cap project workspace snapshots stable across no-op rebuilds", () => {
+    const targetOutputs = Array.from({ length: REFERENCE_GRID_TARGET_TOTAL_ITEMS }, (_, index) =>
+      createOutput({
+        id: `stable-target-${index + 1}`,
+        previewStoragePath: `user-1/projects/stable-target-${index + 1}.webp`,
+        fullStoragePath: `user-1/projects/stable-target-${index + 1}.webp`,
+        savedMediaIds: [`media-stable-target-${index + 1}`],
+      })
+    );
+
+    const { result } = renderHook(() =>
+      useAiStudioSessionSnapshotController(
+        createControllerParams({
+          outputs: targetOutputs,
+          archivedOutputs: [],
+          curatedReferenceIds: ["stable-target-1"],
+          removedFromAllRefsIds: [`stable-target-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 1}`],
+        })
+      )
+    );
+
+    vi.setSystemTime(new Date("2026-06-28T12:01:00.000Z"));
+    const firstSnapshot = result.current.buildProjectWorkspaceSnapshot({
+      sessionId: "project-session-stable-target",
+    });
+    const firstPrepared = prepareAiStudioSessionAutosaveSnapshot(firstSnapshot);
+
+    vi.setSystemTime(new Date("2026-06-28T12:05:00.000Z"));
+    const secondSnapshot = result.current.buildProjectWorkspaceSnapshot({
+      sessionId: "project-session-stable-target",
+    });
+    const secondPrepared = prepareAiStudioSessionAutosaveSnapshot(secondSnapshot);
+
+    expect(firstSnapshot.outputs.active).toHaveLength(REFERENCE_GRID_MAX_VISIBLE_ITEMS);
+    expect(firstSnapshot.outputs.archived).toHaveLength(
+      REFERENCE_GRID_TARGET_TOTAL_ITEMS - REFERENCE_GRID_MAX_VISIBLE_ITEMS
+    );
+    expect(firstSnapshot.outputs.archived[0]).toEqual(
+      expect.objectContaining({
+        id: `stable-target-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 1}`,
+        archivedAt: null,
+        archiveReason: "cleanup",
+      })
+    );
+    expect(secondSnapshot.outputs.archived[0]).toEqual(firstSnapshot.outputs.archived[0]);
+    expect(secondPrepared.hash).toBe(firstPrepared.hash);
   });
 });

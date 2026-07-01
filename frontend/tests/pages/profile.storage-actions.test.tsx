@@ -343,7 +343,7 @@ describe("Profile storage actions", () => {
     );
   });
 
-  it("shows the legacy 25 GB add-on card for Starter while the new catalog is not live", async () => {
+  it("shows the approved Starter add-on button while the live storage catalog is empty", async () => {
     billingProfileState.plan_id = "starter";
     billingContractState.value = {
       id: "contract_1",
@@ -371,29 +371,7 @@ describe("Profile storage actions", () => {
           json: async () => ({
             plans: [],
             packages: [],
-            storageAddons: [
-              {
-                id: "storage_25gb",
-                display_name: "25 GB add-on",
-                storage_limit_bytes: 25 * 1024 * 1024 * 1024,
-                monthly_price_cents: 500,
-                sort_order: 1,
-              },
-              {
-                id: "storage_100gb",
-                display_name: "100 GB add-on",
-                storage_limit_bytes: 100 * 1024 * 1024 * 1024,
-                monthly_price_cents: 5900,
-                sort_order: 2,
-              },
-              {
-                id: "storage_500gb",
-                display_name: "500 GB add-on",
-                storage_limit_bytes: 500 * 1024 * 1024 * 1024,
-                monthly_price_cents: 29900,
-                sort_order: 3,
-              },
-            ],
+            storageAddons: [],
           }),
         };
       }
@@ -424,13 +402,14 @@ describe("Profile storage actions", () => {
 
     render(<ProfilePage />);
 
-    expect(await screen.findByText("25 GB add-on")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Add 25 GB" })).toBeEnabled();
-    expect(screen.queryByText("100 GB add-on")).toBeNull();
-    expect(screen.queryByText("500 GB add-on")).toBeNull();
+    expect(await screen.findByText("Extra 10 GB")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add 10 GB" })).toBeEnabled();
+    expect(screen.queryByText("Extra 50 GB")).toBeNull();
+    expect(screen.queryByText("Extra 100 GB")).toBeNull();
+    expect(screen.queryByText("Extra 250 GB")).toBeNull();
   });
 
-  it("shows the internal-comp empty state for Stripe storage payments", async () => {
+  it("shows add-on buttons as managed internally when the live catalog is empty", async () => {
     billingProfileState.stripe_customer_id = null;
     billingProfileState.stripe_subscription_id = null;
     billingContractState.value = {
@@ -457,15 +436,7 @@ describe("Profile storage actions", () => {
           json: async () => ({
             plans: [],
             packages: [],
-            storageAddons: [
-              {
-                id: "storage_100gb",
-                display_name: "100 GB add-on",
-                storage_limit_bytes: 107374182400,
-                monthly_price_cents: 5900,
-                sort_order: 1,
-              },
-            ],
+            storageAddons: [],
           }),
         };
       }
@@ -477,16 +448,38 @@ describe("Profile storage actions", () => {
       }
       throw new Error(`Unexpected fetch ${String(url)}`);
     });
+    activeStorageAddonsQueryMock.mockResolvedValue({
+      data: [],
+      error: null,
+    });
+    useMediaStorageQuotaSummaryMock.mockReturnValue({
+      quotaSummary: {
+        usedBytes: 50 * 1024 * 1024 * 1024,
+        baseLimitBytes: 150 * 1024 * 1024 * 1024,
+        addonLimitBytes: 0,
+        totalLimitBytes: 150 * 1024 * 1024 * 1024,
+        remainingBytes: 100 * 1024 * 1024 * 1024,
+        isOverLimit: false,
+      },
+      loading: false,
+      refreshQuotaSummary: refreshQuotaSummaryMock,
+    });
 
     render(<ProfilePage />);
 
     expect(await screen.findByRole("heading", { name: "Media storage" })).toBeInTheDocument();
+    expect(screen.getByText("Extra 10 GB")).toBeInTheDocument();
+    expect(screen.getByText("Extra 250 GB")).toBeInTheDocument();
+    expect(screen.queryByText("No recurring storage add-ons are configured yet.")).toBeNull();
     expect(
       screen.getByText(
         "No Stripe storage payments are available for this internally managed account."
       )
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Managed internally" })).toBeDisabled();
+    expect(screen.getAllByRole("button", { name: "Managed internally" })).toHaveLength(4);
+    screen.getAllByRole("button", { name: "Managed internally" }).forEach((button) => {
+      expect(button).toBeDisabled();
+    });
   });
 
   it("re-polls storage state after a successful add-on change", async () => {

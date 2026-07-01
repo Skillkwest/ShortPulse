@@ -16,6 +16,10 @@ import {
   PROJECT_WORKSPACE_KEEPALIVE_MAX_SNAPSHOT_BYTES,
 } from "../../../../lib/ai-studio-session/projectWorkspaceLimits";
 import {
+  REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+  REFERENCE_GRID_TARGET_TOTAL_ITEMS,
+} from "../../reference-grid/logic/referenceGridLimits";
+import {
   createProjectRestoreSnapshot,
   createProjectRestoreVisibilitySnapshot,
 } from "../../logic/projectRestoreSnapshot";
@@ -1144,6 +1148,88 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
         runtime_revision: 0,
       },
     });
+  });
+
+  it("keeps over-cap project autosave idle when no-op rebuilds only advance snapshot time", async () => {
+    const createOverCapProjectSnapshot = (updatedAt: string): AiStudioSessionSnapshot =>
+      createAiStudioProjectWorkspaceSnapshot({
+        ...createSnapshot(),
+        updatedAt,
+        outputs: {
+          active: Array.from({ length: REFERENCE_GRID_TARGET_TOTAL_ITEMS }, (_, index) => ({
+            id: `stable-target-${index + 1}`,
+            prompt: "Stable target",
+            mode: "image",
+            aspect: "1:1",
+            model: "model-1",
+            status: "ready",
+            timestamp: "Just now",
+            mediaSource: "library",
+            previewStoragePath: `user-1/projects/stable-target-${index + 1}.webp`,
+            fullStoragePath: `user-1/projects/stable-target-${index + 1}.webp`,
+            savedMediaIds: [`media-stable-target-${index + 1}`],
+          })),
+          archived: [],
+          activeOutputId: null,
+          curatedReferenceIds: ["stable-target-1"],
+          removedFromAllRefsIds: [`stable-target-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 1}`],
+        },
+      } as AiStudioSessionSnapshot);
+    const restoredSnapshot = createOverCapProjectSnapshot("2026-06-28T12:01:00.000Z");
+    const rebuiltSnapshot = createOverCapProjectSnapshot("2026-06-28T12:05:00.000Z");
+    mockReadyRestoreCandidate(restoredSnapshot);
+    const buildRestoredSnapshot = vi.fn(() => restoredSnapshot);
+    const buildRebuiltSnapshot = vi.fn(() => rebuiltSnapshot);
+    const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
+
+    const { rerender } = renderHook(
+      ({ buildSnapshot }) =>
+        useAiStudioProjectWorkspacePersistenceController({
+          projectId: "project-1",
+          projectRouteRequested: true,
+          sessionId: "session-1",
+          buildBaseSessionSnapshot: buildSnapshot,
+          hydrateFromSessionSnapshot,
+        }),
+      {
+        initialProps: {
+          buildSnapshot: buildRestoredSnapshot as (sessionId: string) => AiStudioSessionSnapshot,
+        },
+      }
+    );
+
+    const restoreHydrationArgs =
+      mockedUseAiStudioProjectWorkspaceRestoreHydration.mock.calls[0]?.[0];
+    act(() => {
+      restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
+    });
+
+    rerender({
+      buildSnapshot: buildRestoredSnapshot as (sessionId: string) => AiStudioSessionSnapshot,
+    });
+    await flushBootstrapVisibilityLatch();
+    rerender({
+      buildSnapshot: buildRebuiltSnapshot as (sessionId: string) => AiStudioSessionSnapshot,
+    });
+    await flushBootstrapVisibilityLatch();
+
+    const lastAutosaveArgs = mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0];
+    expect(lastAutosaveArgs).toEqual(
+      expect.objectContaining({
+        sessionId: "project-1",
+        enabled: false,
+        snapshot: null,
+        preparedSnapshot: null,
+      })
+    );
+    expect(rebuiltSnapshot.outputs.active).toHaveLength(REFERENCE_GRID_MAX_VISIBLE_ITEMS);
+    expect(rebuiltSnapshot.outputs.archived[0]).toEqual(
+      expect.objectContaining({
+        id: `stable-target-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 1}`,
+        archivedAt: null,
+        archiveReason: "cleanup",
+      })
+    );
   });
 
   it("keeps autosave snapshot preparation stable across an unrelated rerender", async () => {

@@ -78,7 +78,6 @@ export function ProfileCreditsSection({
       <article className={profileClass("panel", "profile-credit-hero-card", activePlanClassName)}>
         <div className={profileClass("profile-credit-hero-copy")}>
           <p className="eyebrow">Available balance</p>
-          <h2 className={profileClass("profile-credit-hero-title")}>Your credits</h2>
           <p className={profileClass("profile-credit-hero-value")}>{balanceDisplayValue}</p>
           {balanceCents == null && balanceError ? (
             <p className="tiny subdued">{balanceError}</p>

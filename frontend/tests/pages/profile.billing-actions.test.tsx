@@ -193,7 +193,8 @@ describe("Profile credits actions", () => {
     render(<ProfilePage />);
 
     expect(screen.getByRole("heading", { name: "Credits" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Your credits" })).toBeInTheDocument();
+    expect(screen.getByText("Available balance")).toBeInTheDocument();
+    expect(screen.queryByText("Your credits")).not.toBeInTheDocument();
     expect(screen.getAllByText("1,000").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Refresh credits" })).toBeInTheDocument();
     expect(screen.queryByText("Last synced")).not.toBeInTheDocument();

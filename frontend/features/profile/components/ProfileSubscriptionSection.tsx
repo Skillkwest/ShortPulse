@@ -104,6 +104,21 @@ export function ProfileSubscriptionSection({
     [visibleBillingPlans]
   );
   const activePlanDisplayName = activePlan.displayName;
+  const cancelSubscriptionButton =
+    activePlan.id !== "free" ? (
+      <button
+        type="button"
+        className={profileClass(
+          "profile-button",
+          "ghost-btn",
+          "profile-subscription-cancel-button",
+          "profile-subscription-cancel-header-button"
+        )}
+        onClick={() => onRequestCancel("free")}
+      >
+        Cancel subscription
+      </button>
+    ) : null;
 
   useEffect(() => {
     setSelectedBillingInterval(currentSubscriptionBillingInterval);
@@ -121,7 +136,6 @@ export function ProfileSubscriptionSection({
       >
         <div className={profileClass("profile-hero-copy")}>
           <p className="eyebrow">Current plan</p>
-          <h2 className={profileClass("profile-hero-title")}>Your subscription</h2>
           <p className={profileClass("profile-hero-value", "profile-hero-value-text")}>
             {activePlanDisplayName}
           </p>
@@ -129,8 +143,8 @@ export function ProfileSubscriptionSection({
 
         <div className={profileClass("profile-hero-meta")}>
           <ProfileMetricCard
-            className={profileClass("profile-hero-stat-card", "profile-payment-stat-card")}
-            label="Total payment"
+            className="profile-hero-stat-card"
+            label="Subscription"
             value={recurringPaymentLabel}
           />
           {showRenewalChip ? (
@@ -168,7 +182,12 @@ export function ProfileSubscriptionSection({
         </div>
       </article>
 
-      <ProfilePanel eyebrow="All plans" title="Available plans" className="profile-panel-stack">
+      <ProfilePanel
+        eyebrow="All plans"
+        title="Available plans"
+        className="profile-panel-stack"
+        headerAction={cancelSubscriptionButton}
+      >
         <BillingIntervalToggle
           selectedBillingInterval={selectedBillingInterval}
           annualSavingsPercent={annualSavingsPercent}
@@ -278,18 +297,6 @@ export function ProfileSubscriptionSection({
                       : "Opening Stripe…"
                     : `Downgrade to ${planView.displayName}`}
                 </button>
-              ) : isFree ? (
-                <button
-                  type="button"
-                  className={profileClass(
-                    "profile-button",
-                    "ghost-btn",
-                    "profile-subscription-cancel-button"
-                  )}
-                  onClick={() => onRequestCancel(plan.id)}
-                >
-                  Cancel subscription
-                </button>
               ) : null;
 
               return (
@@ -311,22 +318,6 @@ export function ProfileSubscriptionSection({
             })
           )}
         </div>
-
-        {activePlan.id !== "free" && visibleBillingPlans.every((plan) => plan.id !== "free") ? (
-          <div className={profileClass("profile-actions")}>
-            <button
-              type="button"
-              className={profileClass(
-                "profile-button",
-                "ghost-btn",
-                "profile-subscription-cancel-button"
-              )}
-              onClick={() => onRequestCancel("free")}
-            >
-              Cancel subscription
-            </button>
-          </div>
-        ) : null}
       </ProfilePanel>
 
       <ProfilePanel

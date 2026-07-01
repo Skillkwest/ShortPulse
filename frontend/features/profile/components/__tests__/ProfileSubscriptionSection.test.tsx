@@ -155,8 +155,10 @@ describe("ProfileSubscriptionSection", () => {
       currentSubscriptionBillingInterval: "month",
       currentSubscriptionPriceCents: 1500,
     });
-    const hero = screen.getByRole("heading", { name: "Your subscription" }).closest("article");
+    const hero = screen.getByText("Current plan").closest("article");
 
+    expect(within(hero as HTMLElement).getByText("Subscription")).toBeInTheDocument();
+    expect(within(hero as HTMLElement).queryByText("Total payment")).not.toBeInTheDocument();
     expect(screen.getByText("Concurrent generations")).toBeInTheDocument();
     expect(within(hero as HTMLElement).getByText("1 (Image only)")).toBeInTheDocument();
     expect(screen.getAllByText("1 active image generation at a time").length).toBeGreaterThan(0);
@@ -169,7 +171,7 @@ describe("ProfileSubscriptionSection", () => {
       currentSubscriptionMaxConcurrentGenerations: 4,
       currentSubscriptionPriceCents: 12900,
     });
-    const hero = screen.getByRole("heading", { name: "Your subscription" }).closest("article");
+    const hero = screen.getByText("Current plan").closest("article");
 
     expect(within(hero as HTMLElement).getByText("4")).toBeInTheDocument();
     expect(

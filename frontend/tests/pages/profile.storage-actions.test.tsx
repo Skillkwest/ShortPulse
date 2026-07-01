@@ -309,7 +309,8 @@ describe("Profile storage actions", () => {
     render(<ProfilePage />);
 
     expect(await screen.findByRole("heading", { name: "Media storage" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Your media storage" })).toBeInTheDocument();
+    expect(screen.getByText("Workspace capacity")).toBeInTheDocument();
+    expect(screen.queryByText("Your media storage")).not.toBeInTheDocument();
     expect(screen.getByText("Expand media capacity")).toBeInTheDocument();
     expect(screen.getByText("250 GB")).toBeInTheDocument();
     expect(screen.queryByText(/across uploads, references, and saved AI Studio media/)).toBeNull();

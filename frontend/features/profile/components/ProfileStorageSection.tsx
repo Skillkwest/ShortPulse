@@ -108,7 +108,6 @@ export function ProfileStorageSection({
       >
         <div className={profileClass("profile-hero-copy")}>
           <p className="eyebrow">Workspace capacity</p>
-          <h2 className={profileClass("profile-hero-title")}>Your media storage</h2>
           <p className={profileClass("profile-hero-value", "profile-hero-value-text")}>
             {formatStorageBytes(totalStorageLimitBytes)}
           </p>

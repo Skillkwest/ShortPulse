@@ -336,14 +336,16 @@ describe("Profile subscription actions", () => {
     const { container } = render(<ProfilePage />);
 
     expect(await screen.findByRole("heading", { name: "Subscription plans" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Your subscription" })).toBeInTheDocument();
+    expect(screen.getByText("Current plan")).toBeInTheDocument();
+    expect(screen.queryByText("Your subscription")).not.toBeInTheDocument();
     expect(container.querySelector(".profile-subscription-hero-card.plan-media")).not.toBeNull();
     expect(container.querySelector(".subscription-plan-card.is-current.plan-media")).not.toBeNull();
     expect(screen.queryByText("Status")).not.toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Current Plan" })).toBeDisabled();
     expect(await screen.findByRole("button", { name: "Upgrade to Business" })).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Cancel subscription" })).toHaveClass(
-      "profile-subscription-cancel-button"
+      "profile-subscription-cancel-button",
+      "profile-subscription-cancel-header-button"
     );
     expect(screen.queryByText(/Ideal for creators testing cadence/)).not.toBeInTheDocument();
     expect(
@@ -433,7 +435,8 @@ describe("Profile subscription actions", () => {
 
     expect(await screen.findByRole("heading", { name: "Subscription plans" })).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Cancel subscription" })).toHaveClass(
-      "profile-subscription-cancel-button"
+      "profile-subscription-cancel-button",
+      "profile-subscription-cancel-header-button"
     );
     expect(screen.getByRole("button", { name: "Downgrade to Starter" })).toBeInTheDocument();
   });
@@ -645,7 +648,8 @@ describe("Profile subscription actions", () => {
     expect(screen.queryByText(/Compare the public offers/)).not.toBeInTheDocument();
     expect(screen.getByText(/2026/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cancel subscription" })).toHaveClass(
-      "profile-subscription-cancel-button"
+      "profile-subscription-cancel-button",
+      "profile-subscription-cancel-header-button"
     );
     expect(screen.getByRole("button", { name: "Downgrade to Media" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Downgrade to Studio" })).toBeInTheDocument();

@@ -47,6 +47,8 @@ type BillingContractRow = {
   storage_limit_bytes: number | null;
   contract_source: string | null;
   stripe_subscription_id: string | null;
+  recurring_price_cents: number | null;
+  billing_interval: string | null;
   status: string | null;
 };
 
@@ -58,9 +60,22 @@ type BillingProfileRow = {
 type BillingPlanRow = {
   id: string;
   display_name: string | null;
+  monthly_price_cents: number | null;
   storage_limit_bytes: number | null;
   sort_order: number | null;
   is_active: boolean | null;
+};
+
+type BillingPlanOfferRow = {
+  id: string;
+  plan_id: string | null;
+  recurring_price_cents: number | null;
+  billing_interval: string | null;
+  acquisition_enabled: boolean | null;
+  is_active: boolean | null;
+  effective_start_at: string | null;
+  effective_end_at: string | null;
+  created_at: string | null;
 };
 
 type BillingStorageAddonRow = {
@@ -178,6 +193,23 @@ const estimateMarginPct = (mrrCents: number, costCents: number): number | null =
   return ((mrrCents - costCents) / mrrCents) * 100;
 };
 
+const CURRENT_BILLABLE_CONTRACT_STATUSES = new Set(["active", "trialing", "past_due", "unpaid"]);
+
+const isCurrentStripeContract = (contract: BillingContractRow | null): boolean => {
+  if (!contract) return false;
+  if (contract.contract_source !== "stripe") return false;
+  return CURRENT_BILLABLE_CONTRACT_STATUSES.has(String(contract.status ?? "").toLowerCase());
+};
+
+const recurringToMonthlyCents = (
+  recurringPriceCents: number | null | undefined,
+  billingInterval: string | null | undefined
+): number => {
+  const priceCents = toCount(recurringPriceCents);
+  const interval = String(billingInterval ?? "month").toLowerCase();
+  return interval === "year" || interval === "annual" ? Math.round(priceCents / 12) : priceCents;
+};
+
 const usagePct = (trackedBytes: number, limitBytes: number): number | null => {
   if (limitBytes <= 0) return trackedBytes > 0 ? null : 0;
   return (trackedBytes / limitBytes) * 100;
@@ -209,6 +241,30 @@ const getLatestPublicOffer = (
     .filter((offer) => {
       if (offer.storage_addon_id !== storageAddonId) return false;
       if (!offer.is_active) return false;
+      if (offer.effective_end_at && Date.parse(offer.effective_end_at) <= now) return false;
+      return true;
+    })
+    .sort((left, right) => {
+      const rightStart = right.effective_start_at ? Date.parse(right.effective_start_at) : 0;
+      const leftStart = left.effective_start_at ? Date.parse(left.effective_start_at) : 0;
+      if (rightStart !== leftStart) return rightStart - leftStart;
+      const rightCreated = right.created_at ? Date.parse(right.created_at) : 0;
+      const leftCreated = left.created_at ? Date.parse(left.created_at) : 0;
+      return rightCreated - leftCreated;
+    });
+  return candidates[0] ?? null;
+};
+
+const getLatestPublicPlanOffer = (
+  offers: BillingPlanOfferRow[],
+  planId: string
+): BillingPlanOfferRow | null => {
+  const now = Date.now();
+  const candidates = offers
+    .filter((offer) => {
+      if (toPlanId(offer.plan_id) !== planId) return false;
+      if (!offer.is_active) return false;
+      if (String(offer.billing_interval ?? "month").toLowerCase() !== "month") return false;
       if (offer.effective_end_at && Date.parse(offer.effective_end_at) <= now) return false;
       return true;
     })
@@ -355,7 +411,8 @@ const buildAccountStates = (params: {
 
 const buildPlanRows = (
   accounts: AccountStorageState[],
-  plans: BillingPlanRow[]
+  plans: BillingPlanRow[],
+  planOffers: BillingPlanOfferRow[]
 ): AdminStorageEconomicsPlanRow[] => {
   const byPlan = new Map<string, AccountStorageState[]>();
   accounts.forEach((account) => {
@@ -374,6 +431,8 @@ const buildPlanRows = (
     .map((planId) => {
       const rows = byPlan.get(planId) ?? [];
       const plan = planCatalogById.get(planId) ?? null;
+      const offer = getLatestPublicPlanOffer(planOffers, planId);
+      const currentStripeRows = rows.filter((row) => isCurrentStripeContract(row.contract));
       const trackedValues = rows.map((row) => row.trackedBytes);
       return {
         planId,
@@ -381,10 +440,20 @@ const buildPlanRows = (
         isActive: Boolean(plan?.is_active),
         sortOrder: toCount(plan?.sort_order),
         catalogStorageLimitBytes: toCount(plan?.storage_limit_bytes),
-        catalogRecurringPriceCents: 0,
-        catalogAcquisitionEnabled: false,
-        activeStripeContracts: rows.filter((row) => row.contract?.stripe_subscription_id).length,
-        contractMrrCents: 0,
+        catalogRecurringPriceCents: toCount(
+          offer?.recurring_price_cents ?? plan?.monthly_price_cents
+        ),
+        catalogAcquisitionEnabled: Boolean(offer?.acquisition_enabled),
+        activeStripeContracts: currentStripeRows.length,
+        contractMrrCents: currentStripeRows.reduce(
+          (sum, row) =>
+            sum +
+            recurringToMonthlyCents(
+              row.contract?.recurring_price_cents,
+              row.contract?.billing_interval
+            ),
+          0
+        ),
         accountCount: rows.length,
         usersWithMedia: rows.filter((row) => row.mediaCount > 0).length,
         totalTrackedBytes: rows.reduce((sum, row) => sum + row.trackedBytes, 0),
@@ -629,6 +698,7 @@ const buildPayload = async (): Promise<AdminStorageEconomicsResponse> => {
     contractsResult,
     profilesResult,
     plansResult,
+    planOffersResult,
     addonsResult,
     addonOffersResult,
     subscriptionAddonsResult,
@@ -638,13 +708,18 @@ const buildPayload = async (): Promise<AdminStorageEconomicsResponse> => {
     supabaseAdmin
       .from("billing_subscription_contracts")
       .select(
-        "user_id, plan_id, storage_limit_bytes, contract_source, stripe_subscription_id, status"
+        "user_id, plan_id, storage_limit_bytes, contract_source, stripe_subscription_id, recurring_price_cents, billing_interval, status"
       )
       .is("ended_at", null),
     supabaseAdmin.from("billing_profiles").select("user_id, plan_id"),
     supabaseAdmin
       .from("billing_plans")
-      .select("id, display_name, storage_limit_bytes, sort_order, is_active"),
+      .select("id, display_name, monthly_price_cents, storage_limit_bytes, sort_order, is_active"),
+    supabaseAdmin
+      .from("billing_plan_offers")
+      .select(
+        "id, plan_id, recurring_price_cents, billing_interval, acquisition_enabled, is_active, effective_start_at, effective_end_at, created_at"
+      ),
     supabaseAdmin.from("billing_storage_addons").select("id, display_name, sort_order, is_active"),
     supabaseAdmin
       .from("billing_storage_addon_offers")
@@ -669,6 +744,7 @@ const buildPayload = async (): Promise<AdminStorageEconomicsResponse> => {
   const contracts = assertQueryOk<BillingContractRow>("billing contracts", contractsResult);
   const profiles = assertQueryOk<BillingProfileRow>("billing profiles", profilesResult);
   const plans = assertQueryOk<BillingPlanRow>("billing plans", plansResult);
+  const planOffers = assertQueryOk<BillingPlanOfferRow>("billing plan offers", planOffersResult);
   const addonCatalog = assertQueryOk<BillingStorageAddonRow>(
     "storage add-on catalog",
     addonsResult
@@ -717,7 +793,7 @@ const buildPayload = async (): Promise<AdminStorageEconomicsResponse> => {
   return {
     assumptions: ASSUMPTIONS,
     overview: buildOverview({ accounts, addonPackages }),
-    byPlan: buildPlanRows(accounts, plans),
+    byPlan: buildPlanRows(accounts, plans, planOffers),
     addonPackages,
     funnel,
     riskQueue: buildRiskQueue(accounts),

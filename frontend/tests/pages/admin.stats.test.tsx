@@ -91,6 +91,10 @@ const buildStorageEconomicsState = () => ({
         isActive: true,
         sortOrder: 2,
         catalogStorageLimitBytes: 5368709120,
+        catalogRecurringPriceCents: 1900,
+        catalogAcquisitionEnabled: true,
+        activeStripeContracts: 1,
+        contractMrrCents: 1900,
         accountCount: 1,
         usersWithMedia: 1,
         totalTrackedBytes: 10737418240,
@@ -464,6 +468,10 @@ describe("Admin stats page", () => {
     expect(screen.getByText("Tracked Storage")).toBeInTheDocument();
     expect(screen.getByText("Add-on MRR")).toBeInTheDocument();
     expect(screen.getByText("Plan Limit")).toBeInTheDocument();
+    expect(screen.getByText("Catalog Price")).toBeInTheDocument();
+    expect(screen.getByText("Contract MRR")).toBeInTheDocument();
+    expect(screen.getAllByText("$19")[0]).toBeInTheDocument();
+    expect(screen.getByText("1 Stripe")).toBeInTheDocument();
     expect(screen.getByText("Recurring storage packages")).toBeInTheDocument();
     expect(screen.getByText("Catalog")).toBeInTheDocument();
     expect(screen.getByText("Provider invoice proof is unavailable.")).toBeInTheDocument();

@@ -95,6 +95,8 @@ describe("GET /api/admin/storage-economics", () => {
           storage_limit_bytes: 1000,
           contract_source: "stripe",
           stripe_subscription_id: "sub_123",
+          recurring_price_cents: 1900,
+          billing_interval: "month",
           status: "active",
         },
       ],
@@ -108,6 +110,7 @@ describe("GET /api/admin/storage-economics", () => {
         {
           id: "starter",
           display_name: "Starter",
+          monthly_price_cents: 1900,
           storage_limit_bytes: 1000,
           sort_order: 2,
           is_active: true,
@@ -115,9 +118,34 @@ describe("GET /api/admin/storage-economics", () => {
         {
           id: "media",
           display_name: "Media",
+          monthly_price_cents: 3900,
           storage_limit_bytes: 2500,
           sort_order: 3,
           is_active: true,
+        },
+      ],
+      billing_plan_offers: [
+        {
+          id: "offer-starter-monthly",
+          plan_id: "starter",
+          recurring_price_cents: 1900,
+          billing_interval: "month",
+          acquisition_enabled: true,
+          is_active: true,
+          effective_start_at: "2026-06-01T00:00:00.000Z",
+          effective_end_at: null,
+          created_at: "2026-06-01T00:00:00.000Z",
+        },
+        {
+          id: "offer-media-monthly",
+          plan_id: "media",
+          recurring_price_cents: 3900,
+          billing_interval: "month",
+          acquisition_enabled: true,
+          is_active: true,
+          effective_start_at: "2026-06-01T00:00:00.000Z",
+          effective_end_at: null,
+          created_at: "2026-06-01T00:00:00.000Z",
         },
       ],
       billing_storage_addons: [
@@ -215,6 +243,10 @@ describe("GET /api/admin/storage-economics", () => {
         expect.objectContaining({
           planId: "starter",
           catalogStorageLimitBytes: 1000,
+          catalogRecurringPriceCents: 1900,
+          catalogAcquisitionEnabled: true,
+          activeStripeContracts: 1,
+          contractMrrCents: 1900,
           isActive: true,
           accountsOver80Pct: 0,
         }),
@@ -222,6 +254,9 @@ describe("GET /api/admin/storage-economics", () => {
           planId: "media",
           accountCount: 0,
           catalogStorageLimitBytes: 2500,
+          catalogRecurringPriceCents: 3900,
+          activeStripeContracts: 0,
+          contractMrrCents: 0,
         }),
       ])
     );
@@ -262,7 +297,10 @@ describe("GET /api/admin/storage-economics", () => {
     expect(JSON.stringify(payload)).not.toContain("must-not-be-selected");
     expect(supabase.selects.media_files?.[0]).toBe("user_id, file_size, created_at");
     expect(supabase.selects.billing_plans?.[0]).toBe(
-      "id, display_name, storage_limit_bytes, sort_order, is_active"
+      "id, display_name, monthly_price_cents, storage_limit_bytes, sort_order, is_active"
+    );
+    expect(supabase.selects.billing_plan_offers?.[0]).toBe(
+      "id, plan_id, recurring_price_cents, billing_interval, acquisition_enabled, is_active, effective_start_at, effective_end_at, created_at"
     );
   });
 

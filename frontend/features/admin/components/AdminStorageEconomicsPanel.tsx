@@ -15,7 +15,7 @@ type AdminStorageEconomicsPanelProps = {
 
 const BYTES_PER_GB = 1024 * 1024 * 1024;
 const TABLE_WIDE_STYLE: React.CSSProperties = {
-  minWidth: 1150,
+  minWidth: 1320,
 };
 const ADDON_TABLE_STYLE: React.CSSProperties = {
   minWidth: 1250,
@@ -162,13 +162,15 @@ export const AdminStorageEconomicsPanel = ({
               className={styles.adminTableHead}
               style={{
                 gridTemplateColumns:
-                  "minmax(0, 1.2fr) 0.6fr 0.7fr 0.8fr 0.8fr 0.8fr 0.8fr 0.7fr 0.7fr 0.7fr 0.7fr",
+                  "minmax(0, 1.2fr) 0.6fr 0.7fr 0.8fr 0.8fr 0.8fr 0.8fr 0.8fr 0.7fr 0.7fr 0.7fr 0.7fr 0.7fr",
               }}
             >
               <span>Plan</span>
               <span>Accounts</span>
               <span>With Media</span>
               <span>Plan Limit</span>
+              <span>Catalog Price</span>
+              <span>Contract MRR</span>
               <span>Tracked</span>
               <span>P90</span>
               <span>Total Limit</span>
@@ -184,7 +186,7 @@ export const AdminStorageEconomicsPanel = ({
                   className={styles.adminTableRow}
                   style={{
                     gridTemplateColumns:
-                      "minmax(0, 1.2fr) 0.6fr 0.7fr 0.8fr 0.8fr 0.8fr 0.8fr 0.7fr 0.7fr 0.7fr 0.7fr",
+                      "minmax(0, 1.2fr) 0.6fr 0.7fr 0.8fr 0.8fr 0.8fr 0.8fr 0.8fr 0.7fr 0.7fr 0.7fr 0.7fr 0.7fr",
                   }}
                 >
                   <span className={styles.adminMonoCell}>
@@ -196,6 +198,18 @@ export const AdminStorageEconomicsPanel = ({
                   <span>{formatCount(row.accountCount)}</span>
                   <span>{formatCount(row.usersWithMedia)}</span>
                   <span>{formatBytes(row.catalogStorageLimitBytes)}</span>
+                  <span>
+                    {formatMoney(row.catalogRecurringPriceCents)}
+                    <small className={styles.adminInlineMeta}>
+                      {row.catalogAcquisitionEnabled ? "available" : "closed"}
+                    </small>
+                  </span>
+                  <span>
+                    {formatMoney(row.contractMrrCents)}
+                    <small className={styles.adminInlineMeta}>
+                      {formatCount(row.activeStripeContracts)} Stripe
+                    </small>
+                  </span>
                   <span>{formatBytes(row.totalTrackedBytes)}</span>
                   <span>{formatBytes(row.p90TrackedBytes)}</span>
                   <span>{formatBytes(row.baseLimitBytes + row.addonLimitBytes)}</span>

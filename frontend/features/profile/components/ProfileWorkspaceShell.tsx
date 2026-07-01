@@ -12,10 +12,9 @@ import { ProfileMetricCard, ProfileNoticeBanner } from "./ProfileSurface";
 
 type ProfileWorkspaceShellProps = {
   planLabel: string;
-  creditsLabel: string;
+  creditsLabel: ReactNode;
   storageLabel: string;
   paymentLabel: string;
-  paymentHelper: string;
   section: ProfileSection;
   sections: readonly ProfileSectionItem[];
   title: string;
@@ -32,7 +31,6 @@ export function ProfileWorkspaceShell({
   creditsLabel,
   storageLabel,
   paymentLabel,
-  paymentHelper,
   section,
   sections,
   title,
@@ -53,10 +51,10 @@ export function ProfileWorkspaceShell({
         </div>
 
         <div className={profileClass("profile-account-summary-grid")} aria-label="Account summary">
-          <ProfileMetricCard label="Plan" value={planLabel} helper="Current workspace access" />
-          <ProfileMetricCard label="Payment" value={paymentLabel} helper={paymentHelper} />
-          <ProfileMetricCard label="Credits" value={creditsLabel} helper="Spendable balance" />
-          <ProfileMetricCard label="Storage" value={storageLabel} helper="Used media capacity" />
+          <ProfileMetricCard label="Plan" value={planLabel} />
+          <ProfileMetricCard label="Payment" value={paymentLabel} />
+          <ProfileMetricCard label="Credits" value={creditsLabel} />
+          <ProfileMetricCard label="Storage" value={storageLabel} />
         </div>
       </header>
 

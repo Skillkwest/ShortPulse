@@ -49,6 +49,7 @@ const AI_SHELL_RESIZE_BODY_CLASS = "ai-shell-resizing";
 const AI_SHELL_RIGHT_COLUMN_FADE_START_PX = 310;
 const AI_SHELL_RIGHT_COLUMN_FADE_END_PX = 290;
 const AI_SHELL_LEFT_COLUMN_FADE_DISTANCE_PX = 160;
+const AI_SHELL_PROGRAMMATIC_RESIZE_MOTION_MS = 280;
 
 /**
  * Returns state and handlers for a resizable AI Studio shell divider.
@@ -70,11 +71,13 @@ export const useAiStudioShellResize = ({
   const detachPointerListenersRef = useRef<(() => void) | null>(null);
   const storedWidthRef = useRef<number | null>(null);
   const appliedMinWidthResetKeyRef = useRef<string | null>(null);
+  const programmaticResizeTimerRef = useRef<number | null>(null);
 
   const [leftWidthPx, setLeftWidthPx] = useState<number | null>(null);
   const [containerWidthPx, setContainerWidthPx] = useState(0);
   const [isResizableViewportState, setIsResizableViewportState] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
+  const [isProgrammaticResizeAnimating, setIsProgrammaticResizeAnimating] = useState(false);
   const [visualLeftWidthPx, setVisualLeftWidthPx] = useState<number | null>(null);
 
   const resolveContainerWidth = useCallback((): number => {
@@ -116,6 +119,27 @@ export const useAiStudioShellResize = ({
   }, []);
 
   useEffect(() => stopResizing, [stopResizing]);
+
+  useEffect(
+    () => () => {
+      if (programmaticResizeTimerRef.current != null && typeof window !== "undefined") {
+        window.clearTimeout(programmaticResizeTimerRef.current);
+      }
+    },
+    []
+  );
+
+  const beginProgrammaticResizeAnimation = useCallback(() => {
+    if (typeof window === "undefined" || isResizing) return;
+    if (programmaticResizeTimerRef.current != null) {
+      window.clearTimeout(programmaticResizeTimerRef.current);
+    }
+    setIsProgrammaticResizeAnimating(true);
+    programmaticResizeTimerRef.current = window.setTimeout(() => {
+      setIsProgrammaticResizeAnimating(false);
+      programmaticResizeTimerRef.current = null;
+    }, AI_SHELL_PROGRAMMATIC_RESIZE_MOTION_MS);
+  }, [isResizing]);
 
   useEffect(() => {
     if (!enabled || typeof window === "undefined") return;
@@ -588,6 +612,7 @@ export const useAiStudioShellResize = ({
       preferredRatio: defaultLeftRatio,
       preserveMinLeftWidth: allowLeftCollapse,
     });
+    beginProgrammaticResizeAnimation();
     setVisualLeftWidthPx(null);
     setLeftWidthPx((prev) => (prev === defaultWidth ? prev : defaultWidth));
     setContainerWidthPx(Math.round(containerWidth));
@@ -599,6 +624,7 @@ export const useAiStudioShellResize = ({
     minLeftWidthPx,
     minRightWidthPx,
     allowLeftCollapse,
+    beginProgrammaticResizeAnimation,
     resolveContainerWidth,
   ]);
 
@@ -770,6 +796,7 @@ export const useAiStudioShellResize = ({
     leftWidthPx,
     showDivider,
     isResizing,
+    isLayoutAnimating: isProgrammaticResizeAnimating,
     shellStyle,
     shellLayoutMode,
     collapseToMin,

@@ -31,14 +31,6 @@ const formatCompactDate = (value: string | null): string => {
   }).format(new Date(value));
 };
 
-const formatCompactTime = (value: string | null): string => {
-  if (!value) return "Unavailable";
-  return new Intl.DateTimeFormat(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(value));
-};
-
 type ProfileCreditsSectionProps = {
   activePlanClassName: string;
   balanceCents: number | null;
@@ -46,7 +38,6 @@ type ProfileCreditsSectionProps = {
   balanceLoading: boolean;
   nextCreditRenewalAmount: number;
   nextCreditRenewalAt: string | null;
-  balanceUpdatedAt: string | null;
   billingActivity: BillingLedgerEvent[];
   billingActivityLoading: boolean;
   checkoutLoadingId: string | null;
@@ -67,7 +58,6 @@ export function ProfileCreditsSection({
   balanceLoading,
   nextCreditRenewalAmount,
   nextCreditRenewalAt,
-  balanceUpdatedAt,
   billingActivity,
   billingActivityLoading,
   checkoutLoadingId,
@@ -100,21 +90,11 @@ export function ProfileCreditsSection({
             className="profile-credit-hero-stat-card"
             label="Next renewal"
             value={formatCompactDate(nextCreditRenewalAt)}
-            helper={
-              nextCreditRenewalAt ? "Plan credits refresh automatically" : "No renewal scheduled"
-            }
           />
           <ProfileMetricCard
             className="profile-credit-hero-stat-card"
             label="Incoming credits"
             value={`+${nextCreditRenewalAmount.toLocaleString()}`}
-            helper="Credits added on renewal"
-          />
-          <ProfileMetricCard
-            className="profile-credit-hero-stat-card"
-            label="Last synced"
-            value={formatCompactTime(balanceUpdatedAt)}
-            helper={formatCompactDate(balanceUpdatedAt)}
           />
         </div>
       </article>

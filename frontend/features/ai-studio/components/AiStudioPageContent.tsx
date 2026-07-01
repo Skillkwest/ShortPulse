@@ -95,9 +95,8 @@ import {
   AI_SHELL_RIGHT_COLLAPSED_MIN_PX,
   resolveCreateShellResizeAction,
   shouldCollapseCreateOnSessionChange,
-  shouldCollapseAiShellOnExpertEditPanelSelect,
   shouldCollapseAiShellOnInitialSoundSelection,
-  shouldCollapseAiShellOnToolSelect,
+  shouldResetAiShellToDefaultOnToolSelect,
 } from "../logic/shellResize";
 import { useOutputCounts } from "../hooks/aiStudioOutputStore";
 import {
@@ -1030,6 +1029,7 @@ export function AiStudioPageContent({
     leftWidthPx,
     showDivider,
     isResizing,
+    isLayoutAnimating,
     shellStyle,
     shellLayoutMode,
     collapseToMin,
@@ -1078,6 +1078,7 @@ export function AiStudioPageContent({
     `ai-shell-mode-${shellLayoutMode}`,
     isPerformanceDenseSession ? "ai-shell-performance-dense" : "",
     isResizing ? "ai-shell-resizing" : "",
+    isLayoutAnimating ? "ai-shell-layout-animating" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -1088,23 +1089,12 @@ export function AiStudioPageContent({
     const previousSelectedTool = previousSelectedToolRef.current;
     const previousExpertCreateMode = previousExpertCreateModeRef.current;
     const previousSessionId = previousSessionIdRef.current;
-    const isCharacterShellToolSelected =
-      selectedTool === "character" || selectedTool === "elements";
-    const shouldResetForCharacterShellSelection =
-      isCharacterShellToolSelected && previousSelectedTool !== selectedTool;
-    if (shouldResetForCharacterShellSelection) {
-      collapseToMin();
-      previousSelectedToolRef.current = selectedTool;
-      previousExpertCreateModeRef.current = expertCreateMode;
-      previousSessionIdRef.current = sessionId;
-      return;
-    }
-    const shouldCollapseForEditSelection = shouldCollapseAiShellOnExpertEditPanelSelect(
+    const shouldResetForToolbarSelection = shouldResetAiShellToDefaultOnToolSelect(
       previousSelectedTool,
       selectedTool
     );
-    if (shouldCollapseForEditSelection) {
-      collapseToMin();
+    if (shouldResetForToolbarSelection) {
+      resetToDefaultWidth();
       previousSelectedToolRef.current = selectedTool;
       previousExpertCreateModeRef.current = expertCreateMode;
       previousSessionIdRef.current = sessionId;
@@ -1142,19 +1132,8 @@ export function AiStudioPageContent({
       previousSessionIdRef.current = sessionId;
       return;
     }
-    const shouldResetForVideoSelection =
-      previousSelectedTool !== selectedTool &&
-      (selectedTool === "video" || selectedTool === "kling");
-    if (
-      shouldCollapseAiShellOnToolSelect(previousSelectedTool, selectedTool) ||
-      shouldResetForVideoSelection ||
-      expertCreateShellResizeAction != null
-    ) {
-      if (shouldResetForVideoSelection) {
-        resetToDefaultWidth();
-      } else {
-        collapseToMin();
-      }
+    if (expertCreateShellResizeAction != null) {
+      collapseToMin();
     }
     previousSelectedToolRef.current = selectedTool;
     previousExpertCreateModeRef.current = expertCreateMode;

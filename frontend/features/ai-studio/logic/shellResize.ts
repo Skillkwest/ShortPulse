@@ -213,6 +213,31 @@ export const shouldExpandAiShellOnToolSelect = (
 ): boolean => nextTool === "create" && nextTool !== previousTool;
 
 /**
+ * Indicates whether selecting the next toolbar tab should move the shell divider
+ * back to that tab's computed default position.
+ */
+export const shouldResetAiShellToDefaultOnToolSelect = (
+  previousTool: ToolId | null,
+  nextTool: ToolId | null
+): boolean => {
+  if (previousTool === nextTool || nextTool == null) return false;
+  return (
+    nextTool === "create" ||
+    nextTool === "text" ||
+    nextTool === "edit" ||
+    nextTool === "image" ||
+    nextTool === "video" ||
+    nextTool === "kling" ||
+    nextTool === "sound" ||
+    nextTool === "media-library" ||
+    nextTool === "character" ||
+    nextTool === "elements" ||
+    nextTool === "presets" ||
+    nextTool === "styles"
+  );
+};
+
+/**
  * Resolves the shell resize action for Create based on tool navigation and mode changes.
  */
 export const resolveCreateShellResizeAction = ({

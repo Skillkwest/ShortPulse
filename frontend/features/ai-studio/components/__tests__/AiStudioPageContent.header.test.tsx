@@ -14,6 +14,12 @@ import type { StudioOutput, ToolId } from "../../types";
 const voicePanelActiveSourceEffectMock = vi.hoisted(() => vi.fn());
 const mediaLibraryPanelPropsMock = vi.hoisted(() => vi.fn());
 const downloadUrlToFileMock = vi.hoisted(() => vi.fn());
+const shellResizeActionsMock = vi.hoisted(() => ({
+  collapseToMin: vi.fn(),
+  resetToDefaultWidth: vi.fn(),
+  restoreWidth: vi.fn(),
+  expandToMax: vi.fn(),
+}));
 const useAiStudioShellResizeMock = vi.hoisted(() =>
   vi.fn(() => ({
     shellRef: { current: null },
@@ -21,11 +27,13 @@ const useAiStudioShellResizeMock = vi.hoisted(() =>
     leftWidthPx: null,
     showDivider: false,
     isResizing: false,
+    isLayoutAnimating: false,
     shellStyle: {},
-    collapseToMin: vi.fn(),
-    resetToDefaultWidth: vi.fn(),
-    restoreWidth: vi.fn(),
-    expandToMax: vi.fn(),
+    shellLayoutMode: "split",
+    collapseToMin: shellResizeActionsMock.collapseToMin,
+    resetToDefaultWidth: shellResizeActionsMock.resetToDefaultWidth,
+    restoreWidth: shellResizeActionsMock.restoreWidth,
+    expandToMax: shellResizeActionsMock.expandToMax,
     dividerProps: {},
     leftColumnHidden: false,
     rightColumnHidden: false,
@@ -318,6 +326,10 @@ describe("AiStudioPageContent header project name", () => {
     downloadUrlToFileMock.mockClear();
     useAiStudioShellResizeMock.mockClear();
     useAiStudioStylesRuntimeMock.mockClear();
+    shellResizeActionsMock.collapseToMin.mockClear();
+    shellResizeActionsMock.resetToDefaultWidth.mockClear();
+    shellResizeActionsMock.restoreWidth.mockClear();
+    shellResizeActionsMock.expandToMax.mockClear();
   });
 
   afterEach(() => {
@@ -656,6 +668,23 @@ describe("AiStudioPageContent header project name", () => {
     expect(useAiStudioStylesRuntimeMock).toHaveBeenLastCalledWith(
       expect.objectContaining({ enabled: true })
     );
+  });
+
+  it("resets the shell divider to the selected toolbar tab default on tab changes", async () => {
+    const { rerender } = render(<AiStudioPageContent {...createProps()} selectedTool="create" />);
+
+    await waitFor(() => {
+      expect(shellResizeActionsMock.resetToDefaultWidth).toHaveBeenCalled();
+    });
+    shellResizeActionsMock.resetToDefaultWidth.mockClear();
+    shellResizeActionsMock.collapseToMin.mockClear();
+
+    rerender(<AiStudioPageContent {...createProps()} selectedTool="edit" />);
+
+    await waitFor(() => {
+      expect(shellResizeActionsMock.resetToDefaultWidth).toHaveBeenCalledTimes(1);
+    });
+    expect(shellResizeActionsMock.collapseToMin).not.toHaveBeenCalled();
   });
 
   it("enables the styles catalog immediately when workflow reload restores a selected style", () => {

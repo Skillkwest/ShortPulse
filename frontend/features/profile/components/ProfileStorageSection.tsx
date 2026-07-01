@@ -90,16 +90,10 @@ export function ProfileStorageSection({
         : storageAddonManagementState === "syncing"
           ? "Your Stripe subscription is still syncing. Storage add-on controls will unlock once billing finishes linking."
           : null;
-  const planCapacityHelperText = "Included with your base plan";
-  const currentUsageHelperText = `of ${formatStorageBytes(totalStorageLimitBytes)} available`;
   const usagePercent =
     totalStorageLimitBytes > 0
       ? Math.min(100, Math.max(0, Math.round((usedStorageBytes / totalStorageLimitBytes) * 100)))
       : 0;
-  const activeAddonsHelperText =
-    activeStorageAddons.length > 0
-      ? "Recurring storage add-ons renew monthly"
-      : "No active add-ons";
   const hasActiveStorageAddon = activeStorageAddons.length > 0;
 
   return (
@@ -135,19 +129,16 @@ export function ProfileStorageSection({
             className="profile-hero-stat-card"
             label="Current usage"
             value={formatStorageBytes(usedStorageBytes)}
-            helper={currentUsageHelperText}
           />
           <ProfileMetricCard
             className="profile-hero-stat-card"
             label="Plan capacity"
             value={formatStorageBytes(currentSubscriptionStorageLimitBytes)}
-            helper={planCapacityHelperText}
           />
           <ProfileMetricCard
             className="profile-hero-stat-card"
             label="Active add-ons"
             value={activeAddonSummary}
-            helper={activeAddonsHelperText}
           />
         </div>
       </article>

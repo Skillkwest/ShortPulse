@@ -342,6 +342,93 @@ describe("Profile storage actions", () => {
     );
   });
 
+  it("shows the legacy 25 GB add-on card for Starter while the new catalog is not live", async () => {
+    billingProfileState.plan_id = "starter";
+    billingContractState.value = {
+      id: "contract_1",
+      plan_id: "starter",
+      offer_id: "starter__public",
+      stripe_price_id: "price_starter",
+      stripe_subscription_id: "sub_123",
+      contract_source: "stripe",
+      recurring_price_cents: 1500,
+      monthly_credits_cents: 35000,
+      storage_limit_bytes: 5 * 1024 * 1024 * 1024,
+      max_concurrent_generations: 1,
+      billing_interval: "month",
+      status: "active",
+      current_period_start: "2026-04-01T00:00:00.000Z",
+      current_period_end: "2026-05-01T00:00:00.000Z",
+      cancel_at_period_end: false,
+      started_at: "2026-04-01T00:00:00.000Z",
+      ended_at: null,
+    } as Record<string, unknown>;
+    fetchWithAuthMock.mockImplementation(async (url: unknown) => {
+      if (url === "/api/billing/catalog") {
+        return {
+          ok: true,
+          json: async () => ({
+            plans: [],
+            packages: [],
+            storageAddons: [
+              {
+                id: "storage_25gb",
+                display_name: "25 GB add-on",
+                storage_limit_bytes: 25 * 1024 * 1024 * 1024,
+                monthly_price_cents: 500,
+                sort_order: 1,
+              },
+              {
+                id: "storage_100gb",
+                display_name: "100 GB add-on",
+                storage_limit_bytes: 100 * 1024 * 1024 * 1024,
+                monthly_price_cents: 5900,
+                sort_order: 2,
+              },
+              {
+                id: "storage_500gb",
+                display_name: "500 GB add-on",
+                storage_limit_bytes: 500 * 1024 * 1024 * 1024,
+                monthly_price_cents: 29900,
+                sort_order: 3,
+              },
+            ],
+          }),
+        };
+      }
+      if (url === "/api/billing/stripe/subscription-transactions?kind=storage") {
+        return {
+          ok: true,
+          json: async () => ({ transactions: [] }),
+        };
+      }
+      throw new Error(`Unexpected fetch ${String(url)}`);
+    });
+    activeStorageAddonsQueryMock.mockResolvedValue({
+      data: [],
+      error: null,
+    });
+    useMediaStorageQuotaSummaryMock.mockReturnValue({
+      quotaSummary: {
+        usedBytes: 0,
+        baseLimitBytes: 5 * 1024 * 1024 * 1024,
+        addonLimitBytes: 0,
+        totalLimitBytes: 5 * 1024 * 1024 * 1024,
+        remainingBytes: 5 * 1024 * 1024 * 1024,
+        isOverLimit: false,
+      },
+      loading: false,
+      refreshQuotaSummary: refreshQuotaSummaryMock,
+    });
+
+    render(<ProfilePage />);
+
+    expect(await screen.findByText("25 GB add-on")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add 25 GB" })).toBeEnabled();
+    expect(screen.queryByText("100 GB add-on")).toBeNull();
+    expect(screen.queryByText("500 GB add-on")).toBeNull();
+  });
+
   it("shows the internal-comp empty state for Stripe storage payments", async () => {
     billingProfileState.stripe_customer_id = null;
     billingProfileState.stripe_subscription_id = null;

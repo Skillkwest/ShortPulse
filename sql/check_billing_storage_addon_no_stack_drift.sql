@@ -68,11 +68,11 @@ eligibility as (
         storage_addon_id,
         case
             when storage_addon_id = 'storage_500gb' then 'manual_review'
-            when plan_id = 'starter' and storage_addon_id in ('storage_10gb') then 'eligible'
-            when plan_id = 'media' and storage_addon_id in ('storage_10gb', 'storage_50gb') then 'eligible'
-            when plan_id = 'studio' and storage_addon_id in ('storage_10gb', 'storage_50gb', 'storage_100gb') then 'eligible'
-            when plan_id = 'business' and storage_addon_id in ('storage_10gb', 'storage_50gb', 'storage_100gb', 'storage_250gb') then 'eligible'
-            when storage_addon_id in ('storage_10gb', 'storage_50gb', 'storage_100gb', 'storage_250gb') then 'plan_ineligible'
+            when plan_id = 'starter' and storage_addon_id in ('storage_25gb', 'storage_10gb') then 'eligible'
+            when plan_id = 'media' and storage_addon_id in ('storage_25gb', 'storage_10gb', 'storage_50gb') then 'eligible'
+            when plan_id = 'studio' and storage_addon_id in ('storage_25gb', 'storage_10gb', 'storage_50gb', 'storage_100gb') then 'eligible'
+            when plan_id = 'business' and storage_addon_id in ('storage_25gb', 'storage_10gb', 'storage_50gb', 'storage_100gb', 'storage_250gb') then 'eligible'
+            when storage_addon_id in ('storage_25gb', 'storage_10gb', 'storage_50gb', 'storage_100gb', 'storage_250gb') then 'plan_ineligible'
             else 'unknown_storage_addon'
         end as eligibility_state
     from current_storage_addons

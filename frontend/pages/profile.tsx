@@ -31,6 +31,7 @@ import {
   formatLongDateLabel,
   getProfileSectionContent,
   resolveProfileActivePlanId,
+  resolveAccountCreditsSummary,
   resolveRecurringPaymentSummary,
   type BillingCatalogResponse,
   type BillingLedgerEvent,
@@ -120,8 +121,7 @@ function resolveFallbackMonthlyRenewalDate(startedAt: string | null): string | n
 export default function ProfilePage() {
   const router = useRouter();
   const { loading, user } = useProtectedRoute(true);
-  const { balanceCents, balanceError, balanceUpdatedAt, balanceLoading, refreshBalance } =
-    useCredits();
+  const { balanceCents, balanceError, balanceLoading, refreshBalance } = useCredits();
   const {
     mediaAutosaveEnabled,
     loading: mediaAutosaveLoading,
@@ -623,6 +623,11 @@ export default function ProfilePage() {
     billingContract?.current_period_end ?? billingProfile?.current_period_end ?? null;
   const activePlanRank = getPlanTierRank(activePlan.id, billingPlans);
   const isInternalCompContract = billingContract?.contract_source === "internal_comp";
+  const showLegacyPlanChangeNotice =
+    !isInternalCompContract &&
+    [billingContract?.offer_id, billingContract?.stripe_price_id].some((value) =>
+      typeof value === "string" ? value.toLowerCase().includes("legacy") : false
+    );
   const resolvedSubscriptionRenewalAt =
     billingContract?.current_period_end ??
     billingProfile?.current_period_end ??
@@ -665,11 +670,23 @@ export default function ProfilePage() {
   const mediaAutosaveSaving = mediaAutosaveSyncState === "saving";
   const mediaAutosaveDisabled = mediaAutosaveLoading || mediaAutosaveSaving;
   const content = getProfileSectionContent(section);
-  const accountCreditsLabel = balanceLoading
-    ? "Syncing"
-    : balanceCents == null
-      ? "Unavailable"
-      : balanceCents.toLocaleString();
+  const accountCreditsSummary = resolveAccountCreditsSummary({
+    balanceCents,
+    balanceLoading,
+    planCreditsCents: currentSubscriptionCreditsCents,
+  });
+  const accountCreditsLabel =
+    accountCreditsSummary.state === "ready" && accountCreditsSummary.isSurplus ? (
+      <>
+        <span className={profileClass("profile-credit-surplus-value")}>
+          {accountCreditsSummary.currentLabel}
+        </span>
+        {" / "}
+        {accountCreditsSummary.planLabel}
+      </>
+    ) : (
+      accountCreditsSummary.label
+    );
   const accountStorageLabel =
     quotaStatus === "unavailable" || !quotaSummary
       ? "Unavailable"
@@ -688,9 +705,7 @@ export default function ProfilePage() {
       : activePlan.id === "free"
         ? "requires_paid_plan"
         : "syncing";
-  const portalActionLabel = portalManagementAvailable
-    ? "Manage card, invoices, and subscription"
-    : "Managed internally";
+  const portalActionLabel = portalManagementAvailable ? "Manage Billing" : "Managed internally";
 
   const handleSignOut = async () => {
     try {
@@ -1004,7 +1019,6 @@ export default function ProfilePage() {
         <ProfileWorkspaceShell
           planLabel={activePlan.displayName}
           paymentLabel={recurringPaymentSummary.primaryLabel}
-          paymentHelper={recurringPaymentSummary.shortHelperLabel}
           creditsLabel={accountCreditsLabel}
           storageLabel={accountStorageLabel}
           section={section}
@@ -1048,11 +1062,11 @@ export default function ProfilePage() {
                 currentSubscriptionMaxConcurrentGenerations
               }
               recurringPaymentLabel={recurringPaymentSummary.primaryLabel}
-              recurringPaymentHelper={recurringPaymentSummary.breakdownLabel}
               subscriptionRenewalText={subscriptionRenewalText}
               billingPlans={billingPlans}
               billingPlansLoading={billingPlansLoading}
               isInternalCompContract={isInternalCompContract}
+              showLegacyPlanChangeNotice={showLegacyPlanChangeNotice}
               planChangeLoadingPlanId={planChangeLoadingPlanId}
               subscriptionTransactions={subscriptionTransactions}
               subscriptionTransactionsLoading={subscriptionTransactionsLoading}
@@ -1068,7 +1082,6 @@ export default function ProfilePage() {
               balanceCents={balanceCents}
               balanceError={balanceError}
               balanceLoading={balanceLoading}
-              balanceUpdatedAt={balanceUpdatedAt}
               nextCreditRenewalAmount={currentSubscriptionCreditsCents}
               nextCreditRenewalAt={nextCreditRenewalAt}
               billingActivity={billingActivity}

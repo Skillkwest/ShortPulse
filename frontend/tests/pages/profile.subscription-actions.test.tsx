@@ -342,20 +342,50 @@ describe("Profile subscription actions", () => {
     expect(screen.queryByText("Status")).not.toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Current Plan" })).toBeDisabled();
     expect(await screen.findByRole("button", { name: "Upgrade to Business" })).toBeInTheDocument();
-    expect(
-      await screen.findByRole("button", { name: "Cancel paid subscription" })
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Cancel subscription" })).toHaveClass(
+      "profile-subscription-cancel-button"
+    );
     expect(screen.queryByText(/Ideal for creators testing cadence/)).not.toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Recent subscription payments" })
     ).toBeInTheDocument();
     expect(await screen.findByText("Monthly subscription renewal")).toBeInTheDocument();
+    expect(screen.getByText(/If you are on a legacy contract/)).toBeInTheDocument();
     expect((await screen.findAllByText("$19.00")).length).toBeGreaterThan(0);
     expect(await screen.findByRole("link", { name: "View invoice" })).toHaveAttribute(
       "href",
       "https://stripe.test/invoices/in_123"
     );
   }, 15000);
+
+  it("does not show the legacy plan notice for a current public offer", async () => {
+    billingProfileState.plan_id = "starter";
+    billingProfileState.current_period_end = "2026-07-15T00:00:00.000Z";
+    billingContractState.value = {
+      id: "contract_starter",
+      plan_id: "starter",
+      offer_id: "starter__monthly",
+      billing_interval: "month",
+      stripe_price_id: "price_starter_month",
+      stripe_subscription_id: "sub_123",
+      contract_source: "stripe",
+      recurring_price_cents: 1500,
+      monthly_credits_cents: 350,
+      storage_limit_bytes: 1073741824,
+      max_concurrent_generations: 1,
+      status: "active",
+      current_period_start: "2026-06-15T00:00:00.000Z",
+      current_period_end: "2026-07-15T00:00:00.000Z",
+      cancel_at_period_end: false,
+      started_at: "2026-06-15T00:00:00.000Z",
+      ended_at: null,
+    };
+
+    render(<ProfilePage />);
+
+    expect(await screen.findByRole("heading", { name: "Subscription plans" })).toBeInTheDocument();
+    expect(screen.queryByText(/If you are on a legacy contract/)).not.toBeInTheDocument();
+  });
 
   it("hides the hidden baseline tier when starter exists and keeps the downgrade fallback", async () => {
     fetchWithAuthMock.mockImplementation(async (url: unknown) => {
@@ -402,9 +432,9 @@ describe("Profile subscription actions", () => {
     render(<ProfilePage />);
 
     expect(await screen.findByRole("heading", { name: "Subscription plans" })).toBeInTheDocument();
-    expect(
-      await screen.findByRole("button", { name: "Cancel paid subscription" })
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Cancel subscription" })).toHaveClass(
+      "profile-subscription-cancel-button"
+    );
     expect(screen.getByRole("button", { name: "Downgrade to Starter" })).toBeInTheDocument();
   });
 
@@ -441,7 +471,7 @@ describe("Profile subscription actions", () => {
     render(<ProfilePage />);
 
     await screen.findByText("Monthly subscription renewal");
-    fireEvent.click(screen.getByRole("button", { name: "Cancel paid subscription" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel subscription" }));
     expect(
       await screen.findByRole("heading", { name: "Manage your downgrade?" })
     ).toBeInTheDocument();
@@ -459,11 +489,11 @@ describe("Profile subscription actions", () => {
     render(<ProfilePage />);
 
     await screen.findByText("Monthly subscription renewal");
-    fireEvent.click(screen.getByRole("button", { name: "Cancel paid subscription" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel subscription" }));
     expect(
       await screen.findByRole("heading", { name: "Manage your downgrade?" })
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Continue to Stripe|End paid access/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue to Stripe" }));
 
     await waitFor(() => {
       expect(fetchWithAuthMock).toHaveBeenCalled();
@@ -614,7 +644,9 @@ describe("Profile subscription actions", () => {
     expect(screen.queryByText(/Managed internally ·/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Compare the public offers/)).not.toBeInTheDocument();
     expect(screen.getByText(/2026/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "End paid access" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel subscription" })).toHaveClass(
+      "profile-subscription-cancel-button"
+    );
     expect(screen.getByRole("button", { name: "Downgrade to Media" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Downgrade to Studio" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Current Plan" })).toBeDisabled();

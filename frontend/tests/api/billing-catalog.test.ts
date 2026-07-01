@@ -301,6 +301,13 @@ describe("GET /api/billing/catalog", () => {
       ],
       storageAddons: [
         {
+          id: "storage_25gb",
+          display_name: "Extra 25 GB",
+          storage_limit_bytes: 26843545600,
+          monthly_price_cents: 500,
+          sort_order: 5,
+        },
+        {
           id: "storage_100gb",
           display_name: "Extra 100 GB",
           storage_limit_bytes: 107374182400,

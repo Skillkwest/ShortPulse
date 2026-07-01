@@ -1181,6 +1181,12 @@ a.ai-credit-inline:focus-visible {
   transition: none;
 }
 
+.ai-shell.ai-shell-motion-flat.ai-shell-resizable.ai-shell-layout-animating,
+.ai-shell.ai-shell-motion-flat.ai-shell-resizable.ai-shell-layout-animating.ai-shell-character-open,
+.ai-shell.ai-shell-motion-flat.ai-shell-resizable.ai-shell-layout-animating.ai-shell-expert-edit {
+  transition: grid-template-columns 280ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
 .ai-studio-page[data-selected-tool="character"] .ai-shell.ai-shell-resizable,
 .ai-studio-page[data-selected-tool="character"]
   .ai-shell.ai-shell-resizable.ai-shell-character-open {
@@ -1284,6 +1290,13 @@ a.ai-credit-inline:focus-visible {
   transition: opacity 40ms linear;
 }
 
+.ai-shell.ai-shell-layout-animating .ai-shell-right {
+  transition:
+    width 280ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    transform 280ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    opacity 160ms linear;
+}
+
 .ai-shell-right[data-right-column-hidden="true"] {
   pointer-events: none;
   opacity: 0;
@@ -1320,6 +1333,17 @@ a.ai-credit-inline:focus-visible {
   cursor: col-resize;
   touch-action: none;
   transform: translateX(var(--ai-shell-divider-visual-offset, 0px));
+}
+
+.ai-shell.ai-shell-layout-animating .ai-shell-divider {
+  transition: transform 280ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-shell.ai-shell-layout-animating .ai-shell-right,
+  .ai-shell.ai-shell-layout-animating .ai-shell-divider {
+    transition: none;
+  }
 }
 
 .ai-shell-divider::before {

@@ -31,6 +31,7 @@ import {
   shouldCollapseAiShellOnInitialSoundSelection,
   shouldCollapseAiShellOnToolSelect,
   shouldExpandAiShellOnToolSelect,
+  shouldResetAiShellToDefaultOnToolSelect,
 } from "../shellResize";
 
 describe("getAiShellLeftWidthBounds", () => {
@@ -362,6 +363,32 @@ describe("shouldExpandAiShellOnToolSelect", () => {
     expect(shouldExpandAiShellOnToolSelect("edit", "edit")).toBe(false);
     expect(shouldExpandAiShellOnToolSelect("create", "video")).toBe(false);
     expect(shouldExpandAiShellOnToolSelect("create", null)).toBe(false);
+  });
+});
+
+describe("shouldResetAiShellToDefaultOnToolSelect", () => {
+  it.each([
+    "create",
+    "text",
+    "edit",
+    "image",
+    "video",
+    "kling",
+    "sound",
+    "media-library",
+    "character",
+    "elements",
+    "presets",
+    "styles",
+  ] as const)("resets the divider to the %s default when the toolbar tab changes", (nextTool) => {
+    expect(shouldResetAiShellToDefaultOnToolSelect("create", nextTool)).toBe(nextTool !== "create");
+  });
+
+  it("does not reset for unchanged, null, or nested sound workflow selections", () => {
+    expect(shouldResetAiShellToDefaultOnToolSelect("edit", "edit")).toBe(false);
+    expect(shouldResetAiShellToDefaultOnToolSelect("create", null)).toBe(false);
+    expect(shouldResetAiShellToDefaultOnToolSelect("sound", "music")).toBe(false);
+    expect(shouldResetAiShellToDefaultOnToolSelect("voices", "sound-effects")).toBe(false);
   });
 });
 

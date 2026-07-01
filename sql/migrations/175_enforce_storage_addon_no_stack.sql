@@ -134,13 +134,23 @@ create unique index if not exists billing_subscription_storage_addons_one_curren
     where ended_at is null
       and lower(status) in ('active', 'trialing', 'past_due', 'unpaid');
 
-alter table public.billing_subscription_storage_addons
-    add constraint billing_subscription_storage_addons_current_quantity_one_check
-    check (
-        ended_at is not null
-        or lower(status) not in ('active', 'trialing', 'past_due', 'unpaid')
-        or quantity = 1
-    );
+do $$
+begin
+    if not exists (
+        select 1
+        from pg_constraint
+        where conname = 'billing_subscription_storage_addons_current_quantity_one_check'
+          and conrelid = 'public.billing_subscription_storage_addons'::regclass
+    ) then
+        alter table public.billing_subscription_storage_addons
+            add constraint billing_subscription_storage_addons_current_quantity_one_check
+            check (
+                ended_at is not null
+                or lower(status) not in ('active', 'trialing', 'past_due', 'unpaid')
+                or quantity = 1
+            );
+    end if;
+end $$;
 
 create or replace function public.resolve_media_storage_addon_limit_bytes(p_user_id uuid)
 returns bigint

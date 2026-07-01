@@ -22,7 +22,6 @@ type ProfilePanelProps = {
 type ProfileMetricCardProps = {
   label: string;
   value: ReactNode;
-  helper?: ReactNode;
   className?: string;
 };
 
@@ -72,12 +71,11 @@ export function ProfilePanel({
 /**
  * Renders one compact account metric for hero and summary areas.
  */
-export function ProfileMetricCard({ label, value, helper, className }: ProfileMetricCardProps) {
+export function ProfileMetricCard({ label, value, className }: ProfileMetricCardProps) {
   return (
     <div className={profileClass("profile-metric-card", className)}>
       <p className={profileClass("profile-metric-label")}>{label}</p>
       <p className={profileClass("profile-metric-value")}>{value}</p>
-      {helper ? <p className={profileClass("profile-metric-helper")}>{helper}</p> : null}
     </div>
   );
 }

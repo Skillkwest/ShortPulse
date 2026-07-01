@@ -78,11 +78,7 @@ export type SubscriptionTransaction = {
   reference: string | null;
 };
 
-export const CUSTOMER_CREDIT_ACTIVITY_SOURCES = [
-  "stripe_checkout",
-  "subscription_renewal",
-  "annual_contract_monthly_allocation",
-] as const;
+export const CUSTOMER_CREDIT_ACTIVITY_SOURCES = ["stripe_checkout"] as const;
 
 export type NoticeTone = "info" | "success" | "error";
 
@@ -99,9 +95,74 @@ export type ProfileSectionItem = {
 
 export type RecurringPaymentSummary = {
   primaryLabel: string;
-  shortHelperLabel: string;
-  breakdownLabel: string;
 };
+
+export type AccountCreditsSummary =
+  | {
+      label: string;
+      state: "loading" | "unavailable";
+      currentLabel: null;
+      planLabel: null;
+      isSurplus: false;
+    }
+  | {
+      label: string;
+      state: "ready";
+      currentLabel: string;
+      planLabel: string;
+      isSurplus: boolean;
+    };
+
+/**
+ * Resolves the account summary credit balance as current spendable credits over the plan allowance.
+ */
+export const resolveAccountCreditsSummary = ({
+  balanceCents,
+  balanceLoading,
+  planCreditsCents,
+}: {
+  balanceCents: number | null;
+  balanceLoading: boolean;
+  planCreditsCents: number;
+}): AccountCreditsSummary => {
+  if (balanceLoading) {
+    return {
+      label: "Syncing",
+      state: "loading",
+      currentLabel: null,
+      planLabel: null,
+      isSurplus: false,
+    };
+  }
+  if (balanceCents == null) {
+    return {
+      label: "Unavailable",
+      state: "unavailable",
+      currentLabel: null,
+      planLabel: null,
+      isSurplus: false,
+    };
+  }
+
+  const currentCredits = Math.max(0, Math.round(balanceCents));
+  const planCredits = Math.max(0, Math.round(planCreditsCents));
+  const currentLabel = currentCredits.toLocaleString();
+  const planLabel = planCredits.toLocaleString();
+  return {
+    label: `${currentLabel} / ${planLabel}`,
+    state: "ready",
+    currentLabel,
+    planLabel,
+    isSurplus: currentCredits > planCredits,
+  };
+};
+
+/**
+ * Formats the account summary credit balance as current spendable credits over the plan allowance.
+ */
+export const formatAccountCreditsSummary = (
+  options: Parameters<typeof resolveAccountCreditsSummary>[0]
+): string => resolveAccountCreditsSummary(options).label;
 
 /**
  * Formats integer cent amounts as USD strings for profile billing surfaces.
@@ -128,16 +189,12 @@ export const resolveRecurringPaymentSummary = ({
   if (isInternalCompContract) {
     return {
       primaryLabel: "No Stripe charge",
-      shortHelperLabel: "Managed internally",
-      breakdownLabel: "This account is managed internally outside Stripe billing.",
     };
   }
 
   if (basePriceCents === 0 && addonPriceCents === 0) {
     return {
       primaryLabel: "No recurring payment",
-      shortHelperLabel: "No active paid subscription",
-      breakdownLabel: "No paid plan or recurring storage add-ons are active.",
     };
   }
 
@@ -148,25 +205,12 @@ export const resolveRecurringPaymentSummary = ({
         addonPriceCents > 0
           ? `${formatCurrencyFromCents(monthlyEquivalentCents)} / month`
           : `${formatCurrencyFromCents(basePriceCents)} / year`,
-      shortHelperLabel:
-        addonPriceCents > 0
-          ? `Billed as ${formatCurrencyFromCents(basePriceCents)} yearly + add-ons monthly`
-          : `${formatCurrencyFromCents(Math.round(basePriceCents / 12))} / month equivalent`,
-      breakdownLabel:
-        addonPriceCents > 0
-          ? `Plan ${formatCurrencyFromCents(basePriceCents)} / year + add-ons ${formatCurrencyFromCents(addonPriceCents)} / month`
-          : `${formatCurrencyFromCents(Math.round(basePriceCents / 12))} / month equivalent, billed annually`,
     };
   }
 
   const monthlyTotalCents = basePriceCents + addonPriceCents;
   return {
     primaryLabel: `${formatCurrencyFromCents(monthlyTotalCents)} / month`,
-    shortHelperLabel: addonPriceCents > 0 ? "Plan + active add-ons" : "Plan only",
-    breakdownLabel:
-      addonPriceCents > 0
-        ? `Plan ${formatCurrencyFromCents(basePriceCents)} / month + add-ons ${formatCurrencyFromCents(addonPriceCents)} / month`
-        : `Plan ${formatCurrencyFromCents(basePriceCents)} / month`,
   };
 };
 

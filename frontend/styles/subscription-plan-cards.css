@@ -498,10 +498,10 @@
 }
 
 .profile-page .profile-subscription-plan-card .subscription-plan-card-tag.is-discount {
-  border: 1px solid rgba(255, 203, 102, 0.28);
-  background: rgba(255, 203, 102, 0.1);
-  color: #f1d7a0;
-  box-shadow: none;
+  border: 1px solid rgba(239, 42, 114, 0.44);
+  background: linear-gradient(180deg, #ff5d90, #ef2a72);
+  color: #fffafc;
+  box-shadow: 0 10px 22px rgba(239, 42, 114, 0.2);
 }
 
 .profile-page .profile-subscription-plan-card .subscription-plan-card-price-block {
@@ -521,7 +521,7 @@
 }
 
 .profile-page .profile-subscription-plan-card .subscription-plan-card-price.is-struck {
-  color: rgba(255, 159, 159, 0.84);
+  color: rgba(255, 63, 127, 0.95);
   text-decoration-thickness: 2px;
 }
 
@@ -555,7 +555,8 @@
   .subscription-plan-card-feature-list
   li.is-included
   svg {
-  color: rgba(159, 210, 125, 0.86);
+  color: #49a91f;
+  opacity: 1;
 }
 
 .profile-page .profile-subscription-plan-card .subscription-plan-card-feature-annotation {
@@ -569,12 +570,12 @@
   min-height: 22px;
   padding: 3px 8px;
   border-radius: 6px;
-  border: 1px solid rgba(255, 203, 102, 0.28);
-  background: rgba(255, 203, 102, 0.1);
-  color: #f1d7a0;
+  border: 1px solid rgba(239, 42, 114, 0.44);
+  background: linear-gradient(180deg, #ff5d90, #ef2a72);
+  color: #fffafc;
   font-size: 11px;
   font-style: normal;
-  box-shadow: none;
+  box-shadow: 0 10px 22px rgba(239, 42, 114, 0.18);
 }
 
 .profile-page .profile-subscription-plan-card .subscription-plan-card-save-chip.is-placeholder {

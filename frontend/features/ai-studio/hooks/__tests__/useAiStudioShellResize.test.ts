@@ -173,6 +173,48 @@ describe("useAiStudioShellResize", () => {
     });
   });
 
+  it("marks default-width resets as a short layout animation", async () => {
+    const originalInnerWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1800,
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioShellResize({
+        enabled: true,
+        minLeftWidthPx: AI_SHELL_LEFT_VIDEO_MIN_PX,
+        defaultLeftRatio: 0.6,
+      })
+    );
+
+    act(() => {
+      result.current.shellRef.current = {
+        getBoundingClientRect: () => ({ width: 1800 }),
+      } as HTMLElement;
+    });
+
+    await waitFor(() => {
+      expect(result.current.showDivider).toBe(true);
+    });
+
+    act(() => {
+      result.current.resetToDefaultWidth();
+    });
+
+    expect(result.current.isLayoutAnimating).toBe(true);
+    expect(result.current.leftWidthPx).toBe(1080);
+
+    await waitFor(() => {
+      expect(result.current.isLayoutAnimating).toBe(false);
+    });
+
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: originalInnerWidth,
+    });
+  });
+
   it("keeps programmatic collapse at the visible minimum when left collapse is enabled", async () => {
     const originalInnerWidth = window.innerWidth;
     Object.defineProperty(window, "innerWidth", {

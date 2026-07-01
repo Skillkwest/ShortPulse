@@ -1,20 +1,84 @@
 import { describe, expect, it } from "vitest";
 import {
   CUSTOMER_CREDIT_ACTIVITY_SOURCES,
+  formatAccountCreditsSummary,
   getProfileSectionContent,
+  resolveAccountCreditsSummary,
   resolveLedgerLabel,
   resolveLedgerReference,
   resolveRecurringPaymentSummary,
 } from "../profilePageModel";
 
 describe("profilePageModel billing helpers", () => {
-  it("keeps customer credit activity limited to paid grant sources", () => {
-    expect(CUSTOMER_CREDIT_ACTIVITY_SOURCES).toEqual([
-      "stripe_checkout",
-      "subscription_renewal",
-      "annual_contract_monthly_allocation",
-    ]);
+  it("keeps customer credit activity limited to direct credit purchases", () => {
+    expect(CUSTOMER_CREDIT_ACTIVITY_SOURCES).toEqual(["stripe_checkout"]);
     expect(CUSTOMER_CREDIT_ACTIVITY_SOURCES).not.toContain("signup_seed");
+    expect(CUSTOMER_CREDIT_ACTIVITY_SOURCES).not.toContain("subscription_renewal");
+    expect(CUSTOMER_CREDIT_ACTIVITY_SOURCES).not.toContain("annual_contract_monthly_allocation");
+  });
+
+  it("formats account summary credits as current balance over plan allowance", () => {
+    expect(
+      formatAccountCreditsSummary({
+        balanceCents: 850,
+        balanceLoading: false,
+        planCreditsCents: 350,
+      })
+    ).toBe("850 / 350");
+    expect(
+      formatAccountCreditsSummary({
+        balanceCents: 12_500,
+        balanceLoading: false,
+        planCreditsCents: 7_500,
+      })
+    ).toBe("12,500 / 7,500");
+  });
+
+  it("marks account summary credits as surplus only above the plan allowance", () => {
+    expect(
+      resolveAccountCreditsSummary({
+        balanceCents: 850,
+        balanceLoading: false,
+        planCreditsCents: 350,
+      })
+    ).toMatchObject({
+      label: "850 / 350",
+      state: "ready",
+      currentLabel: "850",
+      planLabel: "350",
+      isSurplus: true,
+    });
+    expect(
+      resolveAccountCreditsSummary({
+        balanceCents: 350,
+        balanceLoading: false,
+        planCreditsCents: 350,
+      }).isSurplus
+    ).toBe(false);
+    expect(
+      resolveAccountCreditsSummary({
+        balanceCents: 294,
+        balanceLoading: false,
+        planCreditsCents: 350,
+      }).isSurplus
+    ).toBe(false);
+  });
+
+  it("preserves account summary credit loading and unavailable states", () => {
+    expect(
+      formatAccountCreditsSummary({
+        balanceCents: 850,
+        balanceLoading: true,
+        planCreditsCents: 350,
+      })
+    ).toBe("Syncing");
+    expect(
+      formatAccountCreditsSummary({
+        balanceCents: null,
+        balanceLoading: false,
+        planCreditsCents: 350,
+      })
+    ).toBe("Unavailable");
   });
 
   it("labels annual recurring grants distinctly from monthly renewals", () => {
@@ -72,8 +136,6 @@ describe("profilePageModel billing helpers", () => {
       })
     ).toEqual({
       primaryLabel: "$20.00 / month",
-      shortHelperLabel: "Plan + active add-ons",
-      breakdownLabel: "Plan $15.00 / month + add-ons $5.00 / month",
     });
   });
 
@@ -87,8 +149,6 @@ describe("profilePageModel billing helpers", () => {
       })
     ).toEqual({
       primaryLabel: "$20.00 / month",
-      shortHelperLabel: "Billed as $180.00 yearly + add-ons monthly",
-      breakdownLabel: "Plan $180.00 / year + add-ons $5.00 / month",
     });
   });
 

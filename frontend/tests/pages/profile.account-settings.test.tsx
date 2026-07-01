@@ -99,7 +99,7 @@ describe("Profile account settings autosave toggle", () => {
     expect(screen.getByLabelText("Account summary")).toBeInTheDocument();
   });
 
-  it("omits left-side helper copy from account panels", () => {
+  it("omits generic panel helper copy while preserving autosave explanation", () => {
     render(<ProfilePage />);
 
     expect(
@@ -111,11 +111,14 @@ describe("Profile account settings autosave toggle", () => {
       )
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByText(
+      screen.getByText(
         "Control whether eligible AI Studio media is automatically saved to your Media Library."
       )
-    ).not.toBeInTheDocument();
-    expect(screen.queryByText(/Autosave is ON/)).not.toBeInTheDocument();
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Autosave is ON/)).toBeInTheDocument();
+    expect(screen.queryByText("Current workspace access")).not.toBeInTheDocument();
+    expect(screen.queryByText("Spendable balance")).not.toBeInTheDocument();
+    expect(screen.queryByText("Used media capacity")).not.toBeInTheDocument();
   });
 
   it("places Media Library autosave in the first desktop account row", () => {
@@ -166,6 +169,16 @@ describe("Profile account settings autosave toggle", () => {
       ".profile-page .profile-subscription-plan-card .subscription-plan-card-title {"
     );
     expect(normalizedCss).toContain("font-size: 18px;");
+    expect(normalizedCss).toContain(
+      ".profile-page .profile-subscription-plan-card .subscription-plan-card-tag.is-discount { border: 1px solid rgba(239, 42, 114, 0.44); background: linear-gradient(180deg, #ff5d90, #ef2a72);"
+    );
+    expect(normalizedCss).toContain(
+      ".profile-page .profile-subscription-plan-card .subscription-plan-card-price.is-struck { color: rgba(255, 63, 127, 0.95);"
+    );
+    expect(normalizedCss).toContain("li.is-included svg { color: #49a91f; opacity: 1;");
+    expect(normalizedCss).toContain(
+      ".profile-page .profile-subscription-plan-card .subscription-plan-card-save-chip { min-height: 22px; padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(239, 42, 114, 0.44); background: linear-gradient(180deg, #ff5d90, #ef2a72);"
+    );
     expect(normalizedCss).toContain(".profile-page .pricing-interval-toggle {");
   });
 

@@ -9,7 +9,6 @@ import { SubscriptionPlanCard } from "../../billing/components/SubscriptionPlanC
 import {
   buildPlanView,
   filterPublicSubscriptionPlans,
-  formatConcurrentGenerationsLabel,
   getPlanTierRank,
   resolvePlanPricingForInterval,
   type BillingInterval,
@@ -27,6 +26,14 @@ import { ProfileMetricCard, ProfilePanel } from "./ProfileSurface";
 
 type ActivePlanView = ReturnType<typeof buildPlanView>;
 
+const formatHeroConcurrentGenerationsValue = (value: number, planId: string): string => {
+  const normalizedValue = Math.max(0, Math.round(value));
+  if (planId === "starter") {
+    return `${normalizedValue.toLocaleString()} (Image only)`;
+  }
+  return normalizedValue.toLocaleString();
+};
+
 type ProfileSubscriptionSectionProps = {
   activePlan: ActivePlanView;
   activePlanRank: number;
@@ -37,11 +44,11 @@ type ProfileSubscriptionSectionProps = {
   currentSubscriptionStorageLimitBytes: number;
   currentSubscriptionMaxConcurrentGenerations: number;
   recurringPaymentLabel: string;
-  recurringPaymentHelper: string;
   subscriptionRenewalText: string;
   billingPlans: BillingPlanRecord[];
   billingPlansLoading: boolean;
   isInternalCompContract: boolean;
+  showLegacyPlanChangeNotice: boolean;
   planChangeLoadingPlanId: string | null;
   subscriptionTransactions: SubscriptionTransaction[];
   subscriptionTransactionsLoading: boolean;
@@ -63,11 +70,11 @@ export function ProfileSubscriptionSection({
   currentSubscriptionStorageLimitBytes,
   currentSubscriptionMaxConcurrentGenerations,
   recurringPaymentLabel,
-  recurringPaymentHelper,
   subscriptionRenewalText,
   billingPlans,
   billingPlansLoading,
   isInternalCompContract,
+  showLegacyPlanChangeNotice,
   planChangeLoadingPlanId,
   subscriptionTransactions,
   subscriptionTransactionsLoading,
@@ -82,17 +89,6 @@ export function ProfileSubscriptionSection({
     () => filterPublicSubscriptionPlans(billingPlans),
     [billingPlans]
   );
-  const renewalHelperText =
-    subscriptionRenewalText === "Not scheduled"
-      ? "No active renewal is scheduled"
-      : "Plan term refreshes automatically";
-  const monthlyCreditsHelperText = "Credits added each renewal cycle";
-  const storageIncludedHelperText = "Included with your base plan";
-  const concurrentGenerationsHelperText = "Active generation slots included with your plan";
-  const activeAddonsHelperText =
-    activeAddonStorageBytes > 0
-      ? "Recurring storage add-ons renew monthly"
-      : "No recurring storage add-ons active";
   const showRenewalChip = currentSubscriptionPriceCents > 0 || isInternalCompContract;
   const annualSavingsPercent = useMemo(
     () =>
@@ -136,43 +132,37 @@ export function ProfileSubscriptionSection({
             className={profileClass("profile-hero-stat-card", "profile-payment-stat-card")}
             label="Total payment"
             value={recurringPaymentLabel}
-            helper={recurringPaymentHelper}
           />
           {showRenewalChip ? (
             <ProfileMetricCard
               className="profile-hero-stat-card"
               label="Next renewal"
               value={subscriptionRenewalText}
-              helper={renewalHelperText}
             />
           ) : null}
           <ProfileMetricCard
             className="profile-hero-stat-card"
             label="Monthly credits"
             value={currentSubscriptionCreditsCents.toLocaleString()}
-            helper={monthlyCreditsHelperText}
           />
           <ProfileMetricCard
             className="profile-hero-stat-card"
             label="Storage included"
             value={formatStorageBytes(currentSubscriptionStorageLimitBytes)}
-            helper={storageIncludedHelperText}
           />
           <ProfileMetricCard
             className="profile-hero-stat-card"
             label="Concurrent generations"
-            value={formatConcurrentGenerationsLabel(
+            value={formatHeroConcurrentGenerationsValue(
               currentSubscriptionMaxConcurrentGenerations,
               activePlan.id
             )}
-            helper={concurrentGenerationsHelperText}
           />
           {activeAddonStorageBytes > 0 ? (
             <ProfileMetricCard
               className="profile-hero-stat-card"
               label="Active add-ons"
               value={`+${formatStorageBytes(activeAddonStorageBytes)}`}
-              helper={activeAddonsHelperText}
             />
           ) : null}
         </div>
@@ -291,10 +281,14 @@ export function ProfileSubscriptionSection({
               ) : isFree ? (
                 <button
                   type="button"
-                  className={profileClass("profile-button", "ghost-btn")}
+                  className={profileClass(
+                    "profile-button",
+                    "ghost-btn",
+                    "profile-subscription-cancel-button"
+                  )}
                   onClick={() => onRequestCancel(plan.id)}
                 >
-                  {isInternalCompContract ? "End paid access" : "Cancel paid subscription"}
+                  Cancel subscription
                 </button>
               ) : null;
 
@@ -322,10 +316,14 @@ export function ProfileSubscriptionSection({
           <div className={profileClass("profile-actions")}>
             <button
               type="button"
-              className={profileClass("profile-button", "ghost-btn")}
+              className={profileClass(
+                "profile-button",
+                "ghost-btn",
+                "profile-subscription-cancel-button"
+              )}
               onClick={() => onRequestCancel("free")}
             >
-              {isInternalCompContract ? "End paid access" : "Cancel paid subscription"}
+              Cancel subscription
             </button>
           </div>
         ) : null}
@@ -401,7 +399,7 @@ export function ProfileSubscriptionSection({
         </div>
       </ProfilePanel>
 
-      {!isInternalCompContract ? (
+      {showLegacyPlanChangeNotice ? (
         <aside className={profileClass("profile-callout")}>
           <WarningCircle size={18} />
           <p className="tiny">

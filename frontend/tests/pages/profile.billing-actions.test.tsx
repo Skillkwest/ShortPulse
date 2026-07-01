@@ -1,7 +1,7 @@
 /**
  * Profile credits and account-billing tests for portal and credit-refresh action wiring.
  */
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import ProfilePage from "../../pages/profile";
@@ -19,6 +19,9 @@ const billingProfileState = vi.hoisted(() => ({
 }));
 const billingContractState = vi.hoisted(() => ({
   value: null as Record<string, unknown> | null,
+}));
+const creditLedgerQueryState = vi.hoisted(() => ({
+  sourceFilter: [] as string[],
 }));
 
 const routerState = vi.hoisted(() => ({
@@ -119,14 +122,17 @@ vi.mock("../../lib/supabaseClient", () => ({
         return {
           select: () => ({
             eq: () => ({
-              in: () => ({
-                order: () => ({
-                  limit: async () => ({
-                    data: [],
-                    error: null,
+              in: (_column: string, values: string[]) => {
+                creditLedgerQueryState.sourceFilter = values;
+                return {
+                  order: () => ({
+                    limit: async () => ({
+                      data: [],
+                      error: null,
+                    }),
                   }),
-                }),
-              }),
+                };
+              },
             }),
           }),
         };
@@ -159,6 +165,7 @@ describe("Profile credits actions", () => {
     billingProfileState.current_period_end = "2026-04-01T00:00:00.000Z";
     billingProfileState.stripe_customer_id = "cus_123";
     billingContractState.value = null;
+    creditLedgerQueryState.sourceFilter = [];
 
     useProtectedRouteMock.mockReturnValue({ loading: false, user: null });
     useCreditsMock.mockReturnValue({
@@ -189,14 +196,71 @@ describe("Profile credits actions", () => {
     expect(screen.getByRole("heading", { name: "Your credits" })).toBeInTheDocument();
     expect(screen.getAllByText("1,000").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Refresh credits" })).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Manage card, invoices, and subscription" })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Last synced")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Manage Billing" })).not.toBeInTheDocument();
     expect(screen.queryByText("Billing identity")).not.toBeInTheDocument();
     expect(
       screen.queryByText(/Payment method and subscription billing are managed outside Stripe/)
     ).not.toBeInTheDocument();
     expect(screen.queryByText(/Billing email:/)).not.toBeInTheDocument();
+  });
+
+  it("shows account summary credits as current balance over plan allowance", async () => {
+    useProtectedRouteMock.mockReturnValue({
+      loading: false,
+      user: {
+        id: "user-1",
+        email: "creator@example.com",
+        user_metadata: { plan: "starter" },
+      },
+    });
+    useCreditsMock.mockReturnValue({
+      balanceCents: 850,
+      balanceError: null,
+      balanceUpdatedAt: null,
+      balanceLoading: false,
+      refreshBalance: vi.fn(async () => 850),
+    });
+    billingProfileState.plan_id = "starter";
+    billingContractState.value = {
+      id: "contract_starter",
+      plan_id: "starter",
+      offer_id: "starter__monthly",
+      stripe_price_id: "price_starter",
+      contract_source: "stripe",
+      recurring_price_cents: 1500,
+      monthly_credits_cents: 350,
+      storage_limit_bytes: 1073741824,
+      status: "active",
+      current_period_start: "2026-06-15T00:00:00.000Z",
+      current_period_end: "2026-07-15T00:00:00.000Z",
+      cancel_at_period_end: false,
+      started_at: "2026-06-15T00:00:00.000Z",
+      ended_at: null,
+    } as Record<string, unknown>;
+    fetchWithAuthMock.mockImplementation(async (url: string) => {
+      if (url === "/api/billing/catalog") {
+        return {
+          ok: true,
+          json: async () => ({ plans: [], packages: [], storageAddons: [] }),
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({}),
+      };
+    });
+
+    render(<ProfilePage />);
+
+    const accountSummary = screen.getByLabelText("Account summary");
+    expect(
+      await within(accountSummary).findByText((_, element) => element?.textContent === "850 / 350")
+    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(creditLedgerQueryState.sourceFilter).toEqual(["stripe_checkout"]);
+    });
+    expect(within(accountSummary).getByText("850")).toHaveClass("profile-credit-surplus-value");
   });
 
   it("does not render an unavailable balance as zero", () => {
@@ -331,9 +395,9 @@ describe("Profile credits actions", () => {
       "href",
       "/profile?section=subscription"
     );
-    fireEvent.click(
-      screen.getByRole("button", { name: "Manage card, invoices, and subscription" })
-    );
+    const manageBillingButton = screen.getByRole("button", { name: "Manage Billing" });
+    expect(manageBillingButton).toHaveClass("ghost-btn");
+    fireEvent.click(manageBillingButton);
 
     await waitFor(() => {
       expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/billing/stripe/portal", {

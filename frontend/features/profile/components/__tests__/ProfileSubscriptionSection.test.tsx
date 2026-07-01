@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import {
   buildPlanView,
@@ -79,36 +79,38 @@ const billingPlans: BillingPlanRecord[] = [
 ];
 
 const renderSubscriptionSection = ({
+  activePlanId = "starter",
   currentSubscriptionBillingInterval,
+  currentSubscriptionMaxConcurrentGenerations = 1,
   currentSubscriptionPriceCents,
   onRequestPlanChange = vi.fn<(planId: string, billingInterval: BillingInterval) => void>(),
+  showLegacyPlanChangeNotice = false,
 }: {
+  activePlanId?: string;
   currentSubscriptionBillingInterval: BillingInterval;
+  currentSubscriptionMaxConcurrentGenerations?: number;
   currentSubscriptionPriceCents: number;
   onRequestPlanChange?: (planId: string, billingInterval: BillingInterval) => void;
+  showLegacyPlanChangeNotice?: boolean;
 }) => {
   render(
     <ProfileSubscriptionSection
-      activePlan={buildPlanView({ planId: "starter", plans: billingPlans })}
-      activePlanRank={1}
+      activePlan={buildPlanView({ planId: activePlanId, plans: billingPlans })}
+      activePlanRank={billingPlans.find((plan) => plan.id === activePlanId)?.sort_order ?? 0}
       activeAddonStorageBytes={0}
       currentSubscriptionCreditsCents={350}
       currentSubscriptionBillingInterval={currentSubscriptionBillingInterval}
       currentSubscriptionPriceCents={currentSubscriptionPriceCents}
       currentSubscriptionStorageLimitBytes={GIB}
-      currentSubscriptionMaxConcurrentGenerations={1}
+      currentSubscriptionMaxConcurrentGenerations={currentSubscriptionMaxConcurrentGenerations}
       recurringPaymentLabel={
         currentSubscriptionBillingInterval === "year" ? "$180.00 / year" : "$15.00 / month"
-      }
-      recurringPaymentHelper={
-        currentSubscriptionBillingInterval === "year"
-          ? "$15.00 / month equivalent, billed annually"
-          : "Plan $15.00 / month"
       }
       subscriptionRenewalText="July 15, 2026"
       billingPlans={billingPlans}
       billingPlansLoading={false}
       isInternalCompContract={false}
+      showLegacyPlanChangeNotice={showLegacyPlanChangeNotice}
       planChangeLoadingPlanId={null}
       subscriptionTransactions={[]}
       subscriptionTransactionsLoading={false}
@@ -153,8 +155,25 @@ describe("ProfileSubscriptionSection", () => {
       currentSubscriptionBillingInterval: "month",
       currentSubscriptionPriceCents: 1500,
     });
+    const hero = screen.getByRole("heading", { name: "Your subscription" }).closest("article");
 
     expect(screen.getByText("Concurrent generations")).toBeInTheDocument();
+    expect(within(hero as HTMLElement).getByText("1 (Image only)")).toBeInTheDocument();
     expect(screen.getAllByText("1 active image generation at a time").length).toBeGreaterThan(0);
+  });
+
+  it("shows non-starter concurrent generation entitlements as a number only", () => {
+    renderSubscriptionSection({
+      activePlanId: "studio",
+      currentSubscriptionBillingInterval: "month",
+      currentSubscriptionMaxConcurrentGenerations: 4,
+      currentSubscriptionPriceCents: 12900,
+    });
+    const hero = screen.getByRole("heading", { name: "Your subscription" }).closest("article");
+
+    expect(within(hero as HTMLElement).getByText("4")).toBeInTheDocument();
+    expect(
+      within(hero as HTMLElement).queryByText("4 active generations at a time")
+    ).not.toBeInTheDocument();
   });
 });

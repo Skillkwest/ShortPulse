@@ -78,6 +78,20 @@ const ELEMENT_BUTTON_INLINE_STYLE: React.CSSProperties = {
   fontWeight: 600,
   cursor: "pointer",
 };
+const ELEMENT_SAVE_ACTION_BUTTON_INLINE_STYLE: React.CSSProperties = {
+  borderColor: ELEMENT_PANEL_ACCENT,
+  background: "rgba(255, 123, 167, 0.16)",
+  backgroundColor: "rgba(255, 123, 167, 0.16)",
+  color: ELEMENT_PANEL_ACCENT_SOFT,
+  boxShadow: `0 8px 18px rgba(255, 123, 167, 0.18), 0 0 0 1px ${ELEMENT_PANEL_ACCENT_FAINT}`,
+};
+const ELEMENT_CREATE_ACTION_BUTTON_INLINE_STYLE: React.CSSProperties = {
+  borderColor: "rgba(201, 205, 214, 0.42)",
+  background: "rgba(201, 205, 214, 0.14)",
+  backgroundColor: "rgba(201, 205, 214, 0.14)",
+  color: "rgba(242, 246, 252, 0.94)",
+  boxShadow: "0 6px 14px rgba(0, 0, 0, 0.16), 0 0 0 1px rgba(255, 255, 255, 0.04)",
+};
 const ELEMENT_TOP_ROW_ACTIONS_INLINE_STYLE: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
@@ -404,6 +418,7 @@ export function ElementsManagerShell({
   const [hoveredReferenceCardIndex, setHoveredReferenceCardIndex] = React.useState<number | null>(
     null
   );
+  const [referenceSlotTargetRevision, setReferenceSlotTargetRevision] = React.useState(0);
   const [pendingReferenceUploadCounts, setPendingReferenceUploadCounts] = React.useState<
     Record<number, number>
   >({});
@@ -482,6 +497,7 @@ export function ElementsManagerShell({
     () => ({
       ...secondaryActionButtonStyle,
       ...ELEMENT_SAVE_ICON_BUTTON_INLINE_STYLE,
+      ...ELEMENT_SAVE_ACTION_BUTTON_INLINE_STYLE,
     }),
     [secondaryActionButtonStyle]
   );
@@ -495,10 +511,7 @@ export function ElementsManagerShell({
       minHeight: `${ELEMENT_TOP_ACTION_BUTTON_SIDE_PX}px`,
       maxHeight: `${ELEMENT_TOP_ACTION_BUTTON_SIDE_PX}px`,
       flex: "0 0 auto",
-      borderColor: ELEMENT_PANEL_ACCENT,
-      background: "rgba(28, 32, 37, 0.94)",
-      color: ELEMENT_PANEL_ACCENT_SOFT,
-      boxShadow: "0 6px 14px rgba(0, 0, 0, 0.18)",
+      ...ELEMENT_CREATE_ACTION_BUTTON_INLINE_STYLE,
     }),
     [secondaryActionButtonStyle]
   );
@@ -507,18 +520,35 @@ export function ElementsManagerShell({
     (
       baseStyle: React.CSSProperties,
       isHovered: boolean,
-      disabled: boolean
+      disabled: boolean,
+      tone: "accent" | "neutral" = "accent"
     ): React.CSSProperties => ({
       ...baseStyle,
       transition: ELEMENT_TOP_ACTION_BUTTON_TRANSITION,
       transform: !disabled && isHovered ? "translateY(-2px)" : "translateY(0)",
-      borderColor: !disabled && isHovered ? "rgba(240, 135, 172, 0.84)" : baseStyle.borderColor,
-      background: !disabled && isHovered ? "rgba(36, 41, 47, 0.98)" : baseStyle.background,
+      borderColor:
+        !disabled && isHovered
+          ? tone === "neutral"
+            ? "rgba(228, 235, 243, 0.66)"
+            : "rgba(240, 135, 172, 0.84)"
+          : baseStyle.borderColor,
+      background:
+        !disabled && isHovered
+          ? tone === "neutral"
+            ? "rgba(201, 205, 214, 0.22)"
+            : "rgba(255, 123, 167, 0.22)"
+          : baseStyle.background,
       backgroundColor:
-        !disabled && isHovered ? "rgba(36, 41, 47, 0.98)" : baseStyle.backgroundColor,
+        !disabled && isHovered
+          ? tone === "neutral"
+            ? "rgba(201, 205, 214, 0.22)"
+            : "rgba(255, 123, 167, 0.22)"
+          : baseStyle.backgroundColor,
       boxShadow:
         !disabled && isHovered
-          ? `0 10px 22px rgba(0, 0, 0, 0.24), 0 0 0 1px ${ELEMENT_PANEL_ACCENT_FAINT}`
+          ? tone === "neutral"
+            ? "0 10px 22px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(228, 235, 243, 0.12)"
+            : `0 10px 22px rgba(0, 0, 0, 0.24), 0 0 0 1px ${ELEMENT_PANEL_ACCENT_FAINT}`
           : baseStyle.boxShadow,
     }),
     []
@@ -555,7 +585,8 @@ export function ElementsManagerShell({
       getTopActionButtonStyle(
         createActionButtonBaseStyle,
         hoveredTopActionButton === "create",
-        createActionDisabled
+        createActionDisabled,
+        "neutral"
       ),
     [
       createActionButtonBaseStyle,
@@ -939,6 +970,7 @@ export function ElementsManagerShell({
     canvasTearOutTargetRegistry,
     draft.assetType,
     isReferenceSlotPending,
+    referenceSlotTargetRevision,
   ]);
 
   const handleReferenceSlotDragStart = React.useCallback(
@@ -1061,11 +1093,19 @@ export function ElementsManagerShell({
 
   const handleReferenceSlotElementRef = React.useCallback(
     (slotIndex: number, node: HTMLElement | null) => {
+      const currentNode = referenceSlotElementRefs.current.get(slotIndex) ?? null;
+      if (currentNode === node) {
+        if (slotIndex === 0) {
+          handleReferenceCardMeasureRef(node);
+        }
+        return;
+      }
       if (node) {
         referenceSlotElementRefs.current.set(slotIndex, node);
       } else {
         referenceSlotElementRefs.current.delete(slotIndex);
       }
+      setReferenceSlotTargetRevision((current) => current + 1);
       if (slotIndex === 0) {
         handleReferenceCardMeasureRef(node);
       }

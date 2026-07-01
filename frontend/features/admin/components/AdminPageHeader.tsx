@@ -14,6 +14,7 @@ const ADMIN_NAV_ITEMS = [
   { href: "/admin/pricing", label: "Pricing" },
   { href: "/admin/offers", label: "Offers" },
   { href: "/admin/stats", label: "Analytics" },
+  { href: "/admin/storage", label: "Storage" },
   { href: "/admin/errors", label: "Errors" },
   { href: "/admin/reports", label: "Reports" },
   { href: "/admin/user-health", label: "User health" },

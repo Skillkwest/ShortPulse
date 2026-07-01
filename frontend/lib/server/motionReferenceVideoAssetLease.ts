@@ -141,7 +141,7 @@ export const releaseMotionReferenceVideoLeasesForGeneration = async ({
   userId: string;
 }): Promise<void> => {
   const nowIso = new Date().toISOString();
-  const { error } = await getSupabaseAdmin()
+  const { data, error } = await getSupabaseAdmin()
     .from("motion_reference_video_generation_leases")
     .update({
       released_at: nowIso,
@@ -151,4 +151,13 @@ export const releaseMotionReferenceVideoLeasesForGeneration = async ({
     .is("released_at", null)
     .select("storage_path");
   if (error) throw error;
+
+  for (const releasedLease of data ?? []) {
+    const storagePath = asString((releasedLease as Record<string, unknown>).storage_path);
+    if (!storagePath) continue;
+    await retireMotionReferenceVideoStoragePathForUser({
+      userId,
+      storagePath,
+    });
+  }
 };

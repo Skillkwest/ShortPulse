@@ -180,9 +180,9 @@ media_file_variant_hint_refs as (
     from public.media_files mf
     cross join lateral (
         values
-            (to_jsonb(mf)->>'thumb_variant_path', 'media_files.thumb_variant_path'),
-            (to_jsonb(mf)->>'poster_variant_path', 'media_files.poster_variant_path'),
-            (to_jsonb(mf)->>'preview_variant_path', 'media_files.preview_variant_path')
+            (mf.thumb_variant_path, 'media_files.thumb_variant_path'),
+            (mf.poster_variant_path, 'media_files.poster_variant_path'),
+            (mf.preview_variant_path, 'media_files.preview_variant_path')
     ) as ref(storage_path, ref_source)
     where nullif(btrim(coalesce(ref.storage_path, '')), '') is not null
 ),
@@ -208,7 +208,7 @@ generation_projection_refs as (
         values
             (gp.preview_storage_path, 'generation_projection.preview_storage_path'),
             (gp.full_storage_path, 'generation_projection.full_storage_path'),
-            (to_jsonb(gp)->>'companion_art_storage_path', 'generation_projection.companion_art_storage_path')
+            (gp.companion_art_storage_path, 'generation_projection.companion_art_storage_path')
     ) as ref(storage_path, ref_source)
     where nullif(btrim(coalesce(ref.storage_path, '')), '') is not null
 ),

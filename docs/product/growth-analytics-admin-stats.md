@@ -4,14 +4,15 @@ Purpose: define the lean growth analytics contract layered onto `/admin/stats`.
 
 ## Scope
 
-The stats workspace now has four lenses:
+The stats workspace has three growth/product analytics lenses:
 
 - `Product`: existing usage, model, workflow, asset, and project analytics.
 - `Marketing`: signup, activation, time-to-value, retention, and source/campaign attribution.
 - `Sales`: pricing intent, checkout behavior, paid conversion, and high-intent/PQL users.
-- `Storage`: product-tracked media storage, recurring storage add-on MRR, estimated storage/egress/Stripe/compute cost, capacity risk, and storage add-on conversion telemetry.
 
-This is intentionally not a full CDP, CRM pipeline, billing ledger, or provider invoice reconciliation surface. The current scope is admin-side product-growth and storage-economics visibility only.
+Storage economics now lives on the sibling `/admin/storage` page: product-tracked media storage, recurring storage add-on MRR, estimated storage/egress/Stripe/compute cost, capacity risk, and storage add-on conversion telemetry.
+
+This is intentionally not a full CDP, CRM pipeline, billing ledger, or provider invoice reconciliation surface. The current scope is admin-side product-growth visibility plus a separate storage-economics workspace.
 
 ## Canonical Definitions
 
@@ -93,9 +94,10 @@ Growth telemetry remains telemetry-only rows in `app_error_events`; it does not 
 ## Admin Read Surface
 
 - `/admin/stats`
+- `/admin/storage`
 - `/api/admin/stats/global`
 - `/api/admin/storage-economics`
 - `get_admin_global_stats_v1()`
 - `get_admin_growth_stats_v1()`
 
-The stats workspace degrades safely when the growth RPC is missing, leaving Product analytics intact while Marketing/Sales fall back to empty states with an operator-facing warning. Storage economics is a sibling admin endpoint, not part of the product/growth stats RPC. It reports provider-cost assumptions and known data gaps inline; it is not proof of provider invoices, live Stripe state, or customer-facing pricing readiness.
+The stats workspace degrades safely when the growth RPC is missing, leaving Product analytics intact while Marketing/Sales fall back to empty states with an operator-facing warning. Storage economics is a sibling admin page and endpoint, not part of the product/growth stats RPC. It reports provider-cost assumptions and known data gaps inline; it is not proof of provider invoices, live Stripe state, or customer-facing pricing readiness.

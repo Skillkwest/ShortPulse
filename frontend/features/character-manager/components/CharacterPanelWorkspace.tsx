@@ -99,6 +99,20 @@ const CHARACTER_BUTTON_INLINE_STYLE: React.CSSProperties = {
   fontWeight: 600,
   cursor: "pointer",
 };
+const CHARACTER_SAVE_ACTION_BUTTON_INLINE_STYLE: React.CSSProperties = {
+  borderColor: "rgba(37, 204, 255, 0.72)",
+  background: "rgba(37, 204, 255, 0.16)",
+  backgroundColor: "rgba(37, 204, 255, 0.16)",
+  color: "rgba(183, 240, 252, 0.98)",
+  boxShadow: "0 8px 18px rgba(37, 204, 255, 0.18), 0 0 0 1px rgba(37, 204, 255, 0.18)",
+};
+const CHARACTER_CREATE_ACTION_BUTTON_INLINE_STYLE: React.CSSProperties = {
+  borderColor: "rgba(201, 205, 214, 0.42)",
+  background: "rgba(201, 205, 214, 0.14)",
+  backgroundColor: "rgba(201, 205, 214, 0.14)",
+  color: "rgba(242, 246, 252, 0.94)",
+  boxShadow: "0 6px 14px rgba(0, 0, 0, 0.16), 0 0 0 1px rgba(255, 255, 255, 0.04)",
+};
 const CHARACTER_TOP_ROW_ACTIONS_INLINE_STYLE: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
@@ -593,6 +607,7 @@ export function CharacterPanelWorkspace({
     () => ({
       ...secondaryActionButtonStyle,
       ...CHARACTER_SAVE_ICON_BUTTON_INLINE_STYLE,
+      ...CHARACTER_SAVE_ACTION_BUTTON_INLINE_STYLE,
     }),
     [secondaryActionButtonStyle]
   );
@@ -606,6 +621,7 @@ export function CharacterPanelWorkspace({
       minHeight: `${CHARACTER_TOP_ACTION_BUTTON_SIDE_PX}px`,
       maxHeight: `${CHARACTER_TOP_ACTION_BUTTON_SIDE_PX}px`,
       flex: "0 0 auto",
+      ...CHARACTER_CREATE_ACTION_BUTTON_INLINE_STYLE,
     }),
     [secondaryActionButtonStyle]
   );
@@ -614,18 +630,35 @@ export function CharacterPanelWorkspace({
     (
       baseStyle: React.CSSProperties,
       isHovered: boolean,
-      disabled: boolean
+      disabled: boolean,
+      tone: "accent" | "neutral" = "accent"
     ): React.CSSProperties => ({
       ...baseStyle,
       transition: CHARACTER_TOP_ACTION_BUTTON_TRANSITION,
       transform: !disabled && isHovered ? "translateY(-2px)" : "translateY(0)",
-      borderColor: !disabled && isHovered ? "rgba(77, 214, 255, 0.84)" : baseStyle.borderColor,
-      background: !disabled && isHovered ? "rgba(36, 41, 47, 0.98)" : baseStyle.background,
+      borderColor:
+        !disabled && isHovered
+          ? tone === "neutral"
+            ? "rgba(228, 235, 243, 0.66)"
+            : "rgba(77, 214, 255, 0.84)"
+          : baseStyle.borderColor,
+      background:
+        !disabled && isHovered
+          ? tone === "neutral"
+            ? "rgba(201, 205, 214, 0.22)"
+            : "rgba(37, 204, 255, 0.22)"
+          : baseStyle.background,
       backgroundColor:
-        !disabled && isHovered ? "rgba(36, 41, 47, 0.98)" : baseStyle.backgroundColor,
+        !disabled && isHovered
+          ? tone === "neutral"
+            ? "rgba(201, 205, 214, 0.22)"
+            : "rgba(37, 204, 255, 0.22)"
+          : baseStyle.backgroundColor,
       boxShadow:
         !disabled && isHovered
-          ? "0 10px 22px rgba(0, 0, 0, 0.24), 0 0 0 1px rgba(37, 204, 255, 0.12)"
+          ? tone === "neutral"
+            ? "0 10px 22px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(228, 235, 243, 0.12)"
+            : "0 10px 22px rgba(0, 0, 0, 0.24), 0 0 0 1px rgba(37, 204, 255, 0.2)"
           : baseStyle.boxShadow,
     }),
     []
@@ -661,7 +694,8 @@ export function CharacterPanelWorkspace({
       getTopActionButtonStyle(
         createActionButtonBaseStyle,
         hoveredTopActionButton === "create",
-        createActionDisabled
+        createActionDisabled,
+        "neutral"
       ),
     [
       createActionButtonBaseStyle,

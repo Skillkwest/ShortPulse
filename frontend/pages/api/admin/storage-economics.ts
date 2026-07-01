@@ -1,5 +1,5 @@
 /**
- * Admin API: storage economics snapshot for the /admin/stats Storage lens.
+ * Admin API: storage economics snapshot for the /admin/storage workspace.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import {

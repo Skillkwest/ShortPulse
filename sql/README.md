@@ -63,12 +63,14 @@ For Supabase Cron run-history growth, use `sql/configure_cron_job_run_details_re
 
 For generation control-plane run-ledger growth, use `sql/migrations/172_schedule_worker_runs_retention.sql` to schedule daily `worker_runs` retention for completed `ok` rows older than 30 days. It preserves incomplete/running rows and error rows, and it does not perform one-time historical cleanup during migration apply.
 
-For Media Library storage growth, use the manifest-first cleanup classifier for local review and the `sql/migrations/173_add_media_storage_lifecycle_diagnostics.sql` aggregate RPC for dry-run route reporting. Voice-source cleanup requires `voice_source_lifecycle` proof and elapsed retention. Actual storage object deletion remains outside this migration and requires a separate approved cleanup plan.
+For Media Library storage growth, use the manifest-first cleanup classifier for local review and the `sql/migrations/173_add_media_storage_lifecycle_diagnostics.sql` aggregate RPC for dry-run route reporting. Apply `sql/migrations/179_optimize_media_storage_lifecycle_summary.sql` after `173` to keep the same aggregate contract while staging reference joins through temp tables for hosted dry-run performance. Voice-source cleanup requires `voice_source_lifecycle` proof and elapsed retention. Actual storage object deletion remains outside these migrations and requires a separate approved cleanup plan.
 
 For read-only database Disk I/O triage, use `sql/check_database_io_hotspots.sql`; it classifies `pg_stat_statements` shared-block reads/writes and table-size/read posture without printing raw query text or row data.
 
 For admin stats reads over append-only `app_error_events` telemetry, use `sql/migrations/176_add_app_error_events_admin_stats_source_index.sql` to add the narrow source/user/time index used by the global and growth stats RPCs.
 
 For admin global stats reads over generation tables, use `sql/migrations/177_optimize_admin_global_stats_v1_rpc.sql` to keep `get_admin_global_stats_v1()` on the canonical payload contract while avoiding repeated TOAST-heavy generation metadata reads in shared aggregates.
+
+For remaining admin global stats JSON read pressure, use `sql/migrations/178_add_admin_stats_generated_columns.sql` to add DB-maintained scalar projections for autosave and generation-projection flags before the RPC reads them.
 
 For app-owned database I/O hot paths, prefer ordered migrations under `sql/migrations/` such as the generation projection repair and media lookup indexes, with paired rollbacks under `sql/migrations/rollback/`.

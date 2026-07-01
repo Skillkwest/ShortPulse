@@ -1,5 +1,5 @@
 /**
- * Admin storage-economics panel for the stats workspace.
+ * Admin storage-economics panel for the standalone Storage workspace.
  */
 import React from "react";
 import { AppMessage } from "../../../components/AppMessage";

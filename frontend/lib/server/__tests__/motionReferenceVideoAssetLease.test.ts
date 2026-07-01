@@ -228,4 +228,32 @@ describe("motionReferenceVideoAssetLease", () => {
     expect(deleteSignedStorageAssetForUserMock).not.toHaveBeenCalled();
     expect(retirementRows[0]?.deleted_at).toBeNull();
   });
+
+  it("retires a released generation lease for later lifecycle cleanup", async () => {
+    leaseRows = [
+      {
+        generation_id: "gen-1",
+        user_id: "user-1",
+        storage_path: "user-1/videos/motion-control/ref.mp4",
+        released_at: null,
+        metadata: {},
+      },
+    ];
+
+    await releaseMotionReferenceVideoLeasesForGeneration({
+      generationId: "gen-1",
+      userId: "user-1",
+    });
+
+    expect(leaseRows[0]?.released_at).toEqual(expect.any(String));
+    expect(retirementRows).toEqual([
+      expect.objectContaining({
+        user_id: "user-1",
+        storage_path: "user-1/videos/motion-control/ref.mp4",
+        deleted_at: null,
+        last_delete_attempt_at: null,
+      }),
+    ]);
+    expect(deleteSignedStorageAssetForUserMock).not.toHaveBeenCalled();
+  });
 });

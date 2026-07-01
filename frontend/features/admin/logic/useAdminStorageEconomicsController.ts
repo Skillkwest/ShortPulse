@@ -1,6 +1,6 @@
 /**
  * Admin storage-economics controller.
- * Loads and refreshes the Storage lens snapshot for the admin stats page.
+ * Loads and refreshes the standalone admin storage economics snapshot.
  */
 import React from "react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";

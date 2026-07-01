@@ -110,6 +110,11 @@ const buildStorageEconomicsState = () => ({
       {
         storageAddonId: "storage_50gb",
         displayName: "50 GB",
+        isActive: true,
+        sortOrder: 2,
+        acquisitionEnabled: true,
+        catalogStorageLimitBytes: 53687091200,
+        catalogRecurringPriceCents: 900,
         activeSubscribers: 1,
         activeQuantity: 1,
         mrrCents: 900,
@@ -460,6 +465,7 @@ describe("Admin stats page", () => {
     expect(screen.getByText("Add-on MRR")).toBeInTheDocument();
     expect(screen.getByText("Plan Limit")).toBeInTheDocument();
     expect(screen.getByText("Recurring storage packages")).toBeInTheDocument();
+    expect(screen.getByText("Catalog")).toBeInTheDocument();
     expect(screen.getByText("Provider invoice proof is unavailable.")).toBeInTheDocument();
   });
 });

@@ -17,6 +17,9 @@ const BYTES_PER_GB = 1024 * 1024 * 1024;
 const TABLE_WIDE_STYLE: React.CSSProperties = {
   minWidth: 1150,
 };
+const ADDON_TABLE_STYLE: React.CSSProperties = {
+  minWidth: 1250,
+};
 const RISK_TABLE_STYLE: React.CSSProperties = {
   minWidth: 1100,
 };
@@ -224,15 +227,16 @@ export const AdminStorageEconomicsPanel = ({
           </div>
         </div>
         <TableShell>
-          <div className={styles.adminTable} style={TABLE_WIDE_STYLE}>
+          <div className={styles.adminTable} style={ADDON_TABLE_STYLE}>
             <div
               className={styles.adminTableHead}
               style={{
                 gridTemplateColumns:
-                  "minmax(0, 1.3fr) 0.7fr 0.6fr 0.8fr 0.9fr 0.9fr 0.9fr 0.7fr 0.7fr",
+                  "minmax(0, 1.3fr) 0.9fr 0.7fr 0.6fr 0.8fr 0.9fr 0.9fr 0.9fr 0.7fr 0.7fr",
               }}
             >
               <span>Package</span>
+              <span>Catalog</span>
               <span>Subscribers</span>
               <span>Qty</span>
               <span>MRR</span>
@@ -249,12 +253,21 @@ export const AdminStorageEconomicsPanel = ({
                   className={styles.adminTableRow}
                   style={{
                     gridTemplateColumns:
-                      "minmax(0, 1.3fr) 0.7fr 0.6fr 0.8fr 0.9fr 0.9fr 0.9fr 0.7fr 0.7fr",
+                      "minmax(0, 1.3fr) 0.9fr 0.7fr 0.6fr 0.8fr 0.9fr 0.9fr 0.9fr 0.7fr 0.7fr",
                   }}
                 >
                   <span className={styles.adminMonoCell}>
                     {row.displayName}
-                    <small className={styles.adminInlineMeta}>{row.storageAddonId}</small>
+                    <small className={styles.adminInlineMeta}>
+                      {row.storageAddonId} • {row.isActive ? "active" : "inactive"}
+                    </small>
+                  </span>
+                  <span>
+                    {formatBytes(row.catalogStorageLimitBytes)}
+                    <small className={styles.adminInlineMeta}>
+                      {formatMoney(row.catalogRecurringPriceCents)} •{" "}
+                      {row.acquisitionEnabled ? "available" : "closed"}
+                    </small>
                   </span>
                   <span>{formatCount(row.activeSubscribers)}</span>
                   <span>{formatCount(row.activeQuantity)}</span>
@@ -273,7 +286,7 @@ export const AdminStorageEconomicsPanel = ({
                 </div>
               ))
             ) : (
-              <EmptyTableRow message="No active recurring storage add-ons are available yet." />
+              <EmptyTableRow message="No recurring storage add-on catalog rows are available yet." />
             )}
           </div>
         </TableShell>

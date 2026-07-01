@@ -40,6 +40,11 @@ const FLAG_PERF_AUDIT_RUNTIME = PERF_FLAG_AUDIT_RUNTIME;
 const MODEL_PRICING_POLICY_IDLE_TIMEOUT_MS = 1500;
 const MODEL_PRICING_POLICY_FALLBACK_DELAY_MS = 250;
 
+const readBrowserPerfAuditRuntimeFlag = (): boolean => {
+  if (typeof window === "undefined") return false;
+  return resolvePerfAuditRuntimeRouteFlag(`${window.location.pathname}${window.location.search}`);
+};
+
 const useDeferredModelPricingPolicyLoad = () => {
   const [shouldLoadModelPricingPolicy, setShouldLoadModelPricingPolicy] = useState(false);
 
@@ -83,10 +88,27 @@ const useDeferredModelPricingPolicyLoad = () => {
 
 export const useAiStudioPageBaseRuntime = () => {
   const router = useRouter();
-  const routePerfAuditRuntimeEnabled = useMemo(
+  const routerPerfAuditRuntimeEnabled = useMemo(
     () => resolvePerfAuditRuntimeRouteFlag(router.asPath),
     [router.asPath]
   );
+  const [browserPerfAuditRuntimeEnabled, setBrowserPerfAuditRuntimeEnabled] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const refreshBrowserPerfAuditRuntimeFlag = () => {
+      setBrowserPerfAuditRuntimeEnabled(readBrowserPerfAuditRuntimeFlag());
+    };
+
+    refreshBrowserPerfAuditRuntimeFlag();
+    const stableUrlCheckId = window.setTimeout(refreshBrowserPerfAuditRuntimeFlag, 0);
+
+    return () => {
+      window.clearTimeout(stableUrlCheckId);
+    };
+  }, [router.asPath]);
+  const routePerfAuditRuntimeEnabled =
+    routerPerfAuditRuntimeEnabled || browserPerfAuditRuntimeEnabled;
   useEffect(() => {
     if (!routePerfAuditRuntimeEnabled || typeof window === "undefined") return;
     (

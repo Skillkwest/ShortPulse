@@ -202,6 +202,11 @@ const normalizeAddonPackageRows = (value: unknown): AdminStorageEconomicsAddonPa
     return {
       storageAddonId: toText(row.storageAddonId, "unknown"),
       displayName: toText(row.displayName, toText(row.storageAddonId, "Unknown")),
+      isActive: Boolean(row.isActive),
+      sortOrder: toCount(row.sortOrder),
+      acquisitionEnabled: Boolean(row.acquisitionEnabled),
+      catalogStorageLimitBytes: toCount(row.catalogStorageLimitBytes),
+      catalogRecurringPriceCents: toCount(row.catalogRecurringPriceCents),
       activeSubscribers: toCount(row.activeSubscribers),
       activeQuantity: toCount(row.activeQuantity),
       mrrCents: toCount(row.mrrCents),

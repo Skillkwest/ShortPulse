@@ -127,6 +127,12 @@ describe("GET /api/admin/storage-economics", () => {
           sort_order: 1,
           is_active: true,
         },
+        {
+          id: "storage_250gb",
+          display_name: "250 GB",
+          sort_order: 2,
+          is_active: true,
+        },
       ],
       billing_storage_addon_offers: [
         {
@@ -134,6 +140,17 @@ describe("GET /api/admin/storage-economics", () => {
           storage_addon_id: "storage_50gb",
           storage_limit_bytes: 500,
           recurring_price_cents: 900,
+          acquisition_enabled: true,
+          is_active: true,
+          effective_start_at: "2026-06-01T00:00:00.000Z",
+          effective_end_at: null,
+          created_at: "2026-06-01T00:00:00.000Z",
+        },
+        {
+          id: "offer-storage-250gb",
+          storage_addon_id: "storage_250gb",
+          storage_limit_bytes: 2500,
+          recurring_price_cents: 2500,
           acquisition_enabled: true,
           is_active: true,
           effective_start_at: "2026-06-01T00:00:00.000Z",
@@ -211,9 +228,21 @@ describe("GET /api/admin/storage-economics", () => {
     expect(payload.addonPackages[0]).toEqual(
       expect.objectContaining({
         storageAddonId: "storage_50gb",
+        catalogStorageLimitBytes: 500,
+        catalogRecurringPriceCents: 900,
         activeSubscribers: 1,
         mrrCents: 900,
       })
+    );
+    expect(payload.addonPackages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          storageAddonId: "storage_250gb",
+          catalogStorageLimitBytes: 2500,
+          catalogRecurringPriceCents: 2500,
+          activeSubscribers: 0,
+        }),
+      ])
     );
     expect(payload.funnel).toEqual(
       expect.objectContaining({

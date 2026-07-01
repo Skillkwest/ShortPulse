@@ -69,4 +69,6 @@ For read-only database Disk I/O triage, use `sql/check_database_io_hotspots.sql`
 
 For admin stats reads over append-only `app_error_events` telemetry, use `sql/migrations/176_add_app_error_events_admin_stats_source_index.sql` to add the narrow source/user/time index used by the global and growth stats RPCs.
 
+For admin global stats reads over generation tables, use `sql/migrations/177_optimize_admin_global_stats_v1_rpc.sql` to keep `get_admin_global_stats_v1()` on the canonical payload contract while avoiding repeated TOAST-heavy generation metadata reads in shared aggregates.
+
 For app-owned database I/O hot paths, prefer ordered migrations under `sql/migrations/` such as the generation projection repair and media lookup indexes, with paired rollbacks under `sql/migrations/rollback/`.

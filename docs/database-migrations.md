@@ -304,6 +304,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 173.  `sql/migrations/174_remove_legacy_signup_seed_credit_grants.sql`
 174.  `sql/migrations/175_enforce_storage_addon_no_stack.sql`
 175.  `sql/migrations/176_add_app_error_events_admin_stats_source_index.sql`
+176.  `sql/migrations/177_optimize_admin_global_stats_v1_rpc.sql`
       Rollback files:
 
 
@@ -398,6 +399,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/173_add_media_storage_lifecycle_diagnostics_rollback.sql`
     - `sql/migrations/rollback/174_remove_legacy_signup_seed_credit_grants_rollback.sql`
     - `sql/migrations/rollback/175_enforce_storage_addon_no_stack_rollback.sql`
+    - `sql/migrations/rollback/177_optimize_admin_global_stats_v1_rpc_rollback.sql`
 
 Hosted SQL lint note:
 
@@ -505,6 +507,7 @@ Billing safety note:
 - Migration `171_add_ai_generations_terminal_repair_index.sql` adds a narrow terminal-generation scan index for the generation projection repair loop's existing `success`/`fail` + `completed_at` predicate.
 - Migration `172_schedule_worker_runs_retention.sql` schedules daily hosted pg_cron retention for completed `ok` rows in the service-role-only `worker_runs` generation control-plane run ledger after 30 days, preserving incomplete/running rows and error rows. The migration does not perform one-time historical cleanup; production cleanup remains an explicit operator step with before/after proof.
 - Migration `176_add_app_error_events_admin_stats_source_index.sql` adds a narrow partial source/user/time index for the telemetry rows read by admin global and growth stats RPCs, avoiding repeated full scans of the append-only `app_error_events` incident stream.
+- Migration `177_optimize_admin_global_stats_v1_rpc.sql` keeps the `/api/admin/stats/global` payload contract intact while removing TOAST-heavy `ai_generations.metadata` from the shared generation CTE inside `get_admin_global_stats_v1()` and isolating autosave metadata reads to their own aggregate.
 - Migration `173_add_media_storage_lifecycle_diagnostics.sql` adds the service-role-only `voice_source_lifecycle` proof table plus the aggregate Media Library storage lifecycle diagnostic RPC used by the disabled-by-default internal dry-run route. It returns counts/bytes by lifecycle class without raw object paths or user ids and does not delete storage objects.
 - Migration `175_enforce_storage_addon_no_stack.sql` updates base plan storage to `0/5/25/75/150 GB`, refreshes recurring storage add-on metadata to `10/50/100/250 GB` self-serve plus `500 GB` manual review, closes old public storage add-on offers until matching Stripe Prices are activated, clamps add-on quota math to one unit, and adds the database guard for one current billable recurring storage add-on per user with quantity exactly one; run `sql/check_billing_storage_addon_no_stack_drift.sql` before applying it.
 - Read-write hosted-Supabase maintenance script `sql/configure_cron_job_run_details_retention_supabase.sql` prunes old `cron.job_run_details` rows, compacts the pruned table, and schedules daily retention; the active-status index is documented as an owner-only follow-up if retention alone does not reduce pg_cron status-update scan I/O enough.

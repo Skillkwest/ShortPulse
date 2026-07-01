@@ -644,6 +644,10 @@ export type AdminStorageEconomicsPlanRow = {
   isActive: boolean;
   sortOrder: number;
   catalogStorageLimitBytes: number;
+  catalogRecurringPriceCents: number;
+  catalogAcquisitionEnabled: boolean;
+  activeStripeContracts: number;
+  contractMrrCents: number;
   accountCount: number;
   usersWithMedia: number;
   totalTrackedBytes: number;
@@ -662,6 +666,11 @@ export type AdminStorageEconomicsPlanRow = {
 export type AdminStorageEconomicsAddonPackageRow = {
   storageAddonId: string;
   displayName: string;
+  isActive: boolean;
+  sortOrder: number;
+  acquisitionEnabled: boolean;
+  catalogStorageLimitBytes: number;
+  catalogRecurringPriceCents: number;
   activeSubscribers: number;
   activeQuantity: number;
   mrrCents: number;

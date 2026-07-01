@@ -423,8 +423,11 @@ const buildAddonPackageRows = (params: {
     grouped.set(row.storage_addon_id, rows);
   });
 
-  return [...grouped.entries()]
-    .map(([storageAddonId, rows]) => {
+  const storageAddonIds = new Set<string>([...params.addonCatalogById.keys(), ...grouped.keys()]);
+
+  return [...storageAddonIds]
+    .map((storageAddonId) => {
+      const rows = grouped.get(storageAddonId) ?? [];
       const catalog = params.addonCatalogById.get(storageAddonId);
       const offer = getLatestPublicOffer(params.publicOffers, storageAddonId);
       const subscribers = new Set(rows.map((row) => row.user_id).filter(Boolean));
@@ -449,6 +452,11 @@ const buildAddonPackageRows = (params: {
       return {
         storageAddonId,
         displayName: catalog?.display_name?.trim() || storageAddonId,
+        isActive: Boolean(catalog?.is_active),
+        sortOrder: toCount(catalog?.sort_order),
+        acquisitionEnabled: Boolean(offer?.acquisition_enabled),
+        catalogStorageLimitBytes: toCount(offer?.storage_limit_bytes),
+        catalogRecurringPriceCents: toCount(offer?.recurring_price_cents),
         activeSubscribers: subscribers.size,
         activeQuantity,
         mrrCents,
@@ -468,7 +476,14 @@ const buildAddonPackageRows = (params: {
         ),
       };
     })
-    .sort((left, right) => right.mrrCents - left.mrrCents);
+    .sort((left, right) => {
+      if (left.isActive !== right.isActive) return left.isActive ? -1 : 1;
+      if (left.sortOrder !== right.sortOrder) return left.sortOrder - right.sortOrder;
+      if (right.activeSubscribers !== left.activeSubscribers) {
+        return right.activeSubscribers - left.activeSubscribers;
+      }
+      return right.mrrCents - left.mrrCents;
+    });
 };
 
 const buildRiskQueue = (accounts: AccountStorageState[]): AdminStorageEconomicsRiskRow[] =>

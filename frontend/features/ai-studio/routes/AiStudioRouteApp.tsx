@@ -87,6 +87,14 @@ const recordAiStudioRouteDebug = (stage: string) => {
 export default function AiStudioPage() {
   React.useEffect(() => {
     recordAiStudioRouteDebug("route_app_mounted");
+    const stableUrlCheckId = window.setTimeout(
+      () => recordAiStudioRouteDebug("route_app_stable_url"),
+      0
+    );
+
+    return () => {
+      window.clearTimeout(stableUrlCheckId);
+    };
   }, []);
   const base = useAiStudioPageBaseRuntime();
   return <CreateRuntimeRoot base={base} />;

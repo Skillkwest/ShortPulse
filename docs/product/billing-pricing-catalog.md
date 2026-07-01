@@ -58,7 +58,7 @@ Purpose: keep subscription, storage add-on, and credit-pack pricing easy to chan
   - `billing_subscription_contracts.next_credit_grant_at` tracks the next monthly allocation due inside the active annual term
   - annual monthly allocations are processed by the secured billing renewal runner rather than by annual Stripe invoices alone
 
-## Current catalog (2026-06-04)
+## Current catalog (2026-07-01)
 
 Public entry-plan note:
 
@@ -67,16 +67,23 @@ Public entry-plan note:
 
 ### Subscription plans
 
-- `starter`: `$15/month` or `$180/year`, `350` credits/month, `1 GB`, `1` active generation
+- `starter`: `$15/month` or `$180/year`, `350` credits/month, `5 GB`, `1` active generation
 - `media`: `$49/month` or `$588/year`, `1,200` credits/month, `25 GB`, `2` active generations
-- `studio`: `$129/month` or `$1,188/year`, `3,200` credits/month, `100 GB`, `4` active generations
-- `business`: `$299/month` or `$2,748/year`, `7,500` credits/month, `500 GB`, `8` active generations
+- `studio`: `$129/month` or `$1,188/year`, `3,200` credits/month, `75 GB`, `4` active generations
+- `business`: `$299/month` or `$2,748/year`, `7,500` credits/month, `150 GB`, `8` active generations
 
 ### Recurring storage add-ons
 
-- `storage_25gb`: `$5/month`, `+25 GB`
-- `storage_100gb`: `$15/month`, `+100 GB`
-- `storage_500gb`: `$49/month`, `+500 GB`
+- `storage_10gb`: `$7/month`, `+10 GB`
+- `storage_50gb`: `$29/month`, `+50 GB`
+- `storage_100gb`: `$59/month`, `+100 GB`
+- `storage_250gb`: `$149/month`, `+250 GB`
+- `storage_500gb`: `$299/month`, `+500 GB`, manual review only
+
+Public self-serve recurring storage is additionally gated by `frontend/lib/billing/storageAddonEligibility.ts`.
+Only eligible self-serve add-ons for the subscriber's current paid plan may be shown in `/profile?section=storage` or submitted to `/api/billing/storage-addon/change`.
+`storage_500gb` is manual-review only, and recurring storage add-ons must not stack or use quantity greater than one.
+New recurring storage add-ons are not acquisition-enabled until the matching Stripe recurring Price exists and `/admin/pricing` activates the storage offer; SQL bootstrap and migration seeds keep missing-Stripe offers non-public by default.
 
 ### Credit packs
 

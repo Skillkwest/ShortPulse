@@ -645,10 +645,6 @@ export type AiStudioPageContentProps = {
     output: StudioOutput,
     options?: { mediaKindHint?: WorkflowReloadMediaKindHint | null }
   ) => void;
-  onMediaLibraryReloadWorkflow?: (
-    output: StudioOutput,
-    options?: { mediaKindHint?: WorkflowReloadMediaKindHint | null }
-  ) => void;
   onMediaLibraryRerollWorkflow?: (output: StudioOutput) => void;
   onDetailSavePrompt?: (promptText: string) => void | boolean | Promise<boolean>;
   onAddLibraryMediaReference?: (payload: LibraryMediaReferencePayload) => void;
@@ -750,7 +746,6 @@ export function AiStudioPageContent({
   onSnapshotVideoFrame,
   onSnapshotVideoFrameError,
   onDetailReloadWorkflow,
-  onMediaLibraryReloadWorkflow,
   onMediaLibraryRerollWorkflow,
   onDetailSavePrompt,
   onAddLibraryMediaReference,
@@ -1627,7 +1622,6 @@ export function AiStudioPageContent({
             onCollapseMediaLibraryPanel={handleCollapseMediaLibraryPanel}
             resolveInternalDropItem={resolveMediaLibraryInternalDropItem}
             onDeleteMediaRowsFromWorkspace={onDeleteMediaRowsFromWorkspace}
-            onReloadWorkflowFromMedia={onMediaLibraryReloadWorkflow}
             onRerollWorkflowFromMedia={onMediaLibraryRerollWorkflow}
             onSnapshotVideoFrame={onSnapshotVideoFrame}
             onSnapshotVideoFrameError={onSnapshotVideoFrameError}
@@ -1642,7 +1636,6 @@ export function AiStudioPageContent({
       onAddLibraryMediaReference,
       onAddLibraryPromptReference,
       onDeleteMediaRowsFromWorkspace,
-      onMediaLibraryReloadWorkflow,
       onMediaLibraryRerollWorkflow,
       onSnapshotVideoFrame,
       onSnapshotVideoFrameError,

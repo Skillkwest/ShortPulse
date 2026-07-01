@@ -1,5 +1,10 @@
 #!/usr/bin/env npx tsx
 
+import {
+  isManualReviewStorageAddon,
+  isCurrentBillableStorageAddonStatus,
+  resolveStorageAddonEligibility,
+} from "../frontend/lib/billing/storageAddonEligibility";
 import { loadLocalEnv } from "./lib/load_local_env.mjs";
 
 type ParsedArgs = {
@@ -140,7 +145,8 @@ const readSingleArg = (names: string[]): string | null => {
   return null;
 };
 
-const hasFlag = (names: string[]): boolean => names.some((name) => process.argv.includes(name));
+const hasFlag = (names: string[]): boolean =>
+  names.some((name) => process.argv.includes(name));
 
 const asPositiveInt = (value: string | null, fallback: number): number => {
   const parsed = Number(value);
@@ -150,7 +156,10 @@ const asPositiveInt = (value: string | null, fallback: number): number => {
 
 const parseArgs = (): ParsedArgs => ({
   userId: readSingleArg(["--user-id"])?.trim() || null,
-  limit: Math.min(MAX_LIMIT, asPositiveInt(readSingleArg(["--limit"]), DEFAULT_LIMIT)),
+  limit: Math.min(
+    MAX_LIMIT,
+    asPositiveInt(readSingleArg(["--limit"]), DEFAULT_LIMIT),
+  ),
   json: hasFlag(["--json"]),
   strict: hasFlag(["--strict"]),
   help: hasFlag(["--help", "-h"]),
@@ -165,7 +174,7 @@ const asCents = (value: number | string | null | undefined): number | null => {
 const stripeGet = async <T>(
   secretKey: string,
   path: string,
-  query?: Record<string, string | number | boolean | null | undefined>
+  query?: Record<string, string | number | boolean | null | undefined>,
 ): Promise<T> => {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query ?? {})) {
@@ -179,9 +188,13 @@ const stripeGet = async <T>(
       Authorization: `Bearer ${secretKey}`,
     },
   });
-  const payload = (await response.json().catch(() => ({}))) as T & { error?: { message?: string } };
+  const payload = (await response.json().catch(() => ({}))) as T & {
+    error?: { message?: string };
+  };
   if (!response.ok) {
-    throw new Error(payload?.error?.message || `Stripe call failed (${response.status})`);
+    throw new Error(
+      payload?.error?.message || `Stripe call failed (${response.status})`,
+    );
   }
   return payload as T;
 };
@@ -190,23 +203,29 @@ const supabaseSelect = async <T>(
   baseUrl: string,
   serviceRoleKey: string,
   table: string,
-  query: Record<string, string | number>
+  query: Record<string, string | number>,
 ): Promise<T[]> => {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) {
     params.set(key, String(value));
   }
-  const response = await fetch(`${baseUrl}${SUPABASE_REST_PREFIX}/${table}?${params.toString()}`, {
-    method: "GET",
-    headers: {
-      apikey: serviceRoleKey,
-      Authorization: `Bearer ${serviceRoleKey}`,
+  const response = await fetch(
+    `${baseUrl}${SUPABASE_REST_PREFIX}/${table}?${params.toString()}`,
+    {
+      method: "GET",
+      headers: {
+        apikey: serviceRoleKey,
+        Authorization: `Bearer ${serviceRoleKey}`,
+      },
     },
-  });
-  const payload = (await response.json().catch(() => [])) as T[] | { message?: string };
+  );
+  const payload = (await response.json().catch(() => [])) as
+    | T[]
+    | { message?: string };
   if (!response.ok) {
     throw new Error(
-      (payload as { message?: string })?.message || `Supabase select failed (${response.status})`
+      (payload as { message?: string })?.message ||
+        `Supabase select failed (${response.status})`,
     );
   }
   return Array.isArray(payload) ? payload : [];
@@ -215,7 +234,7 @@ const supabaseSelect = async <T>(
 const isActivePaidProfile = (profile: BillingProfileRow | null): boolean => {
   if (!profile?.plan_id || profile.plan_id === "free") return false;
   return ["active", "trialing", "past_due", "unpaid"].includes(
-    String(profile.subscription_status ?? "").toLowerCase()
+    String(profile.subscription_status ?? "").toLowerCase(),
   );
 };
 
@@ -241,7 +260,9 @@ const main = async () => {
   const stripeSecretKey = process.env.STRIPE_SECRET_KEY?.trim();
 
   if (!supabaseUrl || !supabaseServiceRoleKey) {
-    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.");
+    throw new Error(
+      "Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.",
+    );
   }
   if (!stripeSecretKey) {
     throw new Error("Missing STRIPE_SECRET_KEY.");
@@ -265,7 +286,7 @@ const main = async () => {
           or: "(stripe_customer_id.not.is.null,stripe_subscription_id.not.is.null,and(plan_id.neq.free,subscription_status.in.(active,trialing,past_due,unpaid)))",
           order: "updated_at.desc",
           limit: args.limit,
-        }
+        },
   );
   const userIds = [...new Set(profiles.map((profile) => profile.user_id))];
 
@@ -281,7 +302,7 @@ const main = async () => {
           "user_id,plan_id,offer_id,stripe_subscription_id,stripe_price_id,recurring_price_cents,monthly_credits_cents,status,current_period_end",
         user_id: `in.(${userIds.join(",")})`,
         ended_at: "is.null",
-      }
+      },
     );
     storageAddons = await supabaseSelect<BillingStorageAddonContractRow>(
       supabaseUrl,
@@ -292,14 +313,17 @@ const main = async () => {
           "user_id,storage_addon_id,offer_id,stripe_subscription_id,stripe_subscription_item_id,stripe_price_id,storage_limit_bytes,quantity,recurring_price_cents,status",
         user_id: `in.(${userIds.join(",")})`,
         ended_at: "is.null",
-      }
+      },
     );
   }
 
   const contractByUser = new Map<string, BillingContractRow>(
-    contracts.map((contract) => [contract.user_id, contract])
+    contracts.map((contract) => [contract.user_id, contract]),
   );
-  const storageAddonsByUser = new Map<string, BillingStorageAddonContractRow[]>();
+  const storageAddonsByUser = new Map<
+    string,
+    BillingStorageAddonContractRow[]
+  >();
   for (const row of storageAddons) {
     const existing = storageAddonsByUser.get(row.user_id) ?? [];
     existing.push(row);
@@ -310,9 +334,14 @@ const main = async () => {
   for (const profile of profiles) {
     const currentContract = contractByUser.get(profile.user_id) ?? null;
     const currentStorageAddons = storageAddonsByUser.get(profile.user_id) ?? [];
+    const activeStorageAddons = currentStorageAddons.filter((addon) =>
+      isCurrentBillableStorageAddonStatus(addon.status),
+    );
     const findings: VerificationFinding[] = [];
     const subscriptionId =
-      currentContract?.stripe_subscription_id ?? profile.stripe_subscription_id ?? null;
+      currentContract?.stripe_subscription_id ??
+      profile.stripe_subscription_id ??
+      null;
     const customerId = profile.stripe_customer_id ?? null;
     let liveSubscription: StripeSubscriptionResponse | null = null;
     let stripeLookupError: string | null = null;
@@ -322,7 +351,7 @@ const main = async () => {
         liveSubscription = await stripeGet<StripeSubscriptionResponse>(
           stripeSecretKey,
           `/subscriptions/${subscriptionId}`,
-          { "expand[]": "items.data.price" }
+          { "expand[]": "items.data.price" },
         );
       } catch (error) {
         stripeLookupError =
@@ -340,9 +369,11 @@ const main = async () => {
             status: "all",
             limit: 1,
             "expand[]": "data.items.data.price",
-          }
+          },
         );
-        liveSubscription = Array.isArray(list.data) ? (list.data[0] ?? null) : null;
+        liveSubscription = Array.isArray(list.data)
+          ? (list.data[0] ?? null)
+          : null;
       } catch (error) {
         stripeLookupError =
           error instanceof Error && error.message.trim().length > 0
@@ -363,7 +394,7 @@ const main = async () => {
 
     const livePrice = liveSubscription?.items?.data?.[0]?.price ?? null;
     const liveItems = Array.isArray(liveSubscription?.items?.data)
-      ? liveSubscription.items?.data ?? []
+      ? (liveSubscription.items?.data ?? [])
       : [];
     const liveSnapshot = {
       customerId,
@@ -371,7 +402,8 @@ const main = async () => {
       status: liveSubscription?.status ?? null,
       priceId: livePrice?.id ?? null,
       recurringPriceCents:
-        typeof livePrice?.unit_amount === "number" && Number.isFinite(livePrice.unit_amount)
+        typeof livePrice?.unit_amount === "number" &&
+        Number.isFinite(livePrice.unit_amount)
           ? livePrice.unit_amount
           : null,
       currentPeriodEnd:
@@ -384,7 +416,57 @@ const main = async () => {
       findings.push({
         code: "missing_active_contract",
         severity: "critical",
-        message: "Active paid billing profile is missing a current contract row.",
+        message:
+          "Active paid billing profile is missing a current contract row.",
+      });
+    }
+
+    if (activeStorageAddons.length > 1) {
+      findings.push({
+        code: "multiple_active_storage_addons",
+        severity: "critical",
+        message: `${activeStorageAddons.length} active recurring storage add-ons are open for this user.`,
+      });
+    }
+
+    const quantityNotOneCount = activeStorageAddons.filter(
+      (addon) => asQuantity(addon.quantity) !== 1,
+    ).length;
+    if (quantityNotOneCount > 0) {
+      findings.push({
+        code: "storage_addon_quantity_not_one",
+        severity: "critical",
+        message: `${quantityNotOneCount} active recurring storage add-on row(s) have quantity other than one.`,
+      });
+    }
+
+    const manualReviewStorageAddonCount = activeStorageAddons.filter((addon) =>
+      isManualReviewStorageAddon(addon.storage_addon_id),
+    ).length;
+    if (manualReviewStorageAddonCount > 0) {
+      findings.push({
+        code: "manual_review_storage_addon_active",
+        severity: "warning",
+        message: `${manualReviewStorageAddonCount} active manual-review storage add-on row(s) are open for this user.`,
+      });
+    }
+
+    const verificationPlanId =
+      currentContract?.plan_id ?? profile.plan_id ?? "free";
+    const planIneligibleStorageAddonCount = activeStorageAddons.filter(
+      (addon) => {
+        const eligibility = resolveStorageAddonEligibility({
+          planId: verificationPlanId,
+          storageAddonId: addon.storage_addon_id,
+        });
+        return !eligibility.isEligible && !eligibility.isManualReviewOnly;
+      },
+    ).length;
+    if (planIneligibleStorageAddonCount > 0) {
+      findings.push({
+        code: "storage_addon_plan_ineligible",
+        severity: "critical",
+        message: `${planIneligibleStorageAddonCount} active recurring storage add-on row(s) do not match current plan eligibility rules.`,
       });
     }
 
@@ -401,11 +483,17 @@ const main = async () => {
       });
     }
 
-    if (customerId && subscriptionId && !liveSubscription && !stripeLookupError) {
+    if (
+      customerId &&
+      subscriptionId &&
+      !liveSubscription &&
+      !stripeLookupError
+    ) {
       findings.push({
         code: "stripe_subscription_not_found",
         severity: "critical",
-        message: "Local Stripe references exist but no live Stripe subscription was found.",
+        message:
+          "Local Stripe references exist but no live Stripe subscription was found.",
       });
     }
 
@@ -439,7 +527,8 @@ const main = async () => {
       currentContract &&
       liveSnapshot.recurringPriceCents != null &&
       asCents(currentContract.recurring_price_cents) != null &&
-      asCents(currentContract.recurring_price_cents) !== liveSnapshot.recurringPriceCents
+      asCents(currentContract.recurring_price_cents) !==
+        liveSnapshot.recurringPriceCents
     ) {
       findings.push({
         code: "stripe_amount_mismatch",
@@ -453,7 +542,8 @@ const main = async () => {
       liveSnapshot.priceId &&
       currentContract.stripe_price_id &&
       currentContract.stripe_price_id === liveSnapshot.priceId &&
-      asCents(currentContract.recurring_price_cents) === liveSnapshot.recurringPriceCents
+      asCents(currentContract.recurring_price_cents) ===
+        liveSnapshot.recurringPriceCents
     ) {
       findings.push({
         code: "stripe_contract_aligned",
@@ -467,10 +557,15 @@ const main = async () => {
       const matchedLiveItem = liveItems.find((item) => {
         const liveItemId = typeof item?.id === "string" ? item.id : null;
         const livePriceId = item?.price?.id ?? null;
-        if (addon.stripe_subscription_item_id && liveItemId === addon.stripe_subscription_item_id) {
+        if (
+          addon.stripe_subscription_item_id &&
+          liveItemId === addon.stripe_subscription_item_id
+        ) {
           return true;
         }
-        return addon.stripe_price_id != null && livePriceId === addon.stripe_price_id;
+        return (
+          addon.stripe_price_id != null && livePriceId === addon.stripe_price_id
+        );
       });
 
       if (!matchedLiveItem) {
@@ -482,7 +577,8 @@ const main = async () => {
         continue;
       }
 
-      const liveItemId = typeof matchedLiveItem.id === "string" ? matchedLiveItem.id : null;
+      const liveItemId =
+        typeof matchedLiveItem.id === "string" ? matchedLiveItem.id : null;
       if (liveItemId) {
         matchedLiveAddonItemIds.add(liveItemId);
       }
@@ -520,7 +616,10 @@ const main = async () => {
       const liveItemId = typeof liveItem?.id === "string" ? liveItem.id : null;
       const livePriceId = liveItem?.price?.id ?? null;
       if (!livePriceId) continue;
-      if (currentContract?.stripe_price_id && livePriceId === currentContract.stripe_price_id) {
+      if (
+        currentContract?.stripe_price_id &&
+        livePriceId === currentContract.stripe_price_id
+      ) {
         continue;
       }
       if (liveItemId && matchedLiveAddonItemIds.has(liveItemId)) {
@@ -546,34 +645,40 @@ const main = async () => {
 
   const summary = {
     scanned: rows.length,
-    critical: rows.flatMap((row) => row.findings).filter((finding) => finding.severity === "critical")
-      .length,
-    warning: rows.flatMap((row) => row.findings).filter((finding) => finding.severity === "warning")
-      .length,
-    info: rows.flatMap((row) => row.findings).filter((finding) => finding.severity === "info").length,
+    critical: rows
+      .flatMap((row) => row.findings)
+      .filter((finding) => finding.severity === "critical").length,
+    warning: rows
+      .flatMap((row) => row.findings)
+      .filter((finding) => finding.severity === "warning").length,
+    info: rows
+      .flatMap((row) => row.findings)
+      .filter((finding) => finding.severity === "info").length,
   };
 
   if (args.json) {
     console.log(JSON.stringify({ summary, rows }, null, 2));
   } else {
     console.log(
-      `[billing-contract-verify] scanned=${summary.scanned} critical=${summary.critical} warning=${summary.warning} info=${summary.info}`
+      `[billing-contract-verify] scanned=${summary.scanned} critical=${summary.critical} warning=${summary.warning} info=${summary.info}`,
     );
     for (const row of rows) {
       console.log(
-        `[billing-contract-verify] user=${row.userId} profile_plan=${row.billingProfile?.plan_id ?? "—"} contract_plan=${row.currentContract?.plan_id ?? "—"} contract_price=${asCents(row.currentContract?.recurring_price_cents) ?? "—"} stripe_price=${row.liveStripeSubscription.recurringPriceCents ?? "—"} findings=${row.findings.map((finding) => finding.code).join(",") || "none"}`
+        `[billing-contract-verify] user=${row.userId} profile_plan=${row.billingProfile?.plan_id ?? "—"} contract_plan=${row.currentContract?.plan_id ?? "—"} contract_price=${asCents(row.currentContract?.recurring_price_cents) ?? "—"} stripe_price=${row.liveStripeSubscription.recurringPriceCents ?? "—"} findings=${row.findings.map((finding) => finding.code).join(",") || "none"}`,
       );
     }
   }
 
   if (args.strict && (summary.critical > 0 || summary.warning > 0)) {
-    throw new Error("Strict verification failed due to billing/Stripe drift findings.");
+    throw new Error(
+      "Strict verification failed due to billing/Stripe drift findings.",
+    );
   }
 };
 
 main().catch((error) => {
   console.error(
-    `[billing-contract-verify] error=${error instanceof Error ? error.message : String(error)}`
+    `[billing-contract-verify] error=${error instanceof Error ? error.message : String(error)}`,
   );
   process.exit(1);
 });

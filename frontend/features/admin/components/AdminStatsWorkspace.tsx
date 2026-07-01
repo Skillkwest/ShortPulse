@@ -1,12 +1,13 @@
 /**
  * Admin stats workspace.
- * Splits the stats route into Product / Marketing / Sales lenses while
+ * Splits the stats route into Product / Marketing / Sales / Storage lenses while
  * reusing the existing product stats panel.
  */
 import React from "react";
 import { AppMessage } from "../../../components/AppMessage";
 import styles from "../../../styles/admin.module.css";
 import { AdminGlobalStatsPanel } from "./AdminGlobalStatsPanel";
+import { AdminStorageEconomicsPanel } from "./AdminStorageEconomicsPanel";
 import type {
   AdminGlobalModelUsageRow,
   AdminGlobalStatsAssets,
@@ -16,10 +17,11 @@ import type {
   AdminGlobalStatsWorkflows,
   AdminGrowthStatsResponse,
   AdminStatsCountWindow,
+  AdminStorageEconomicsResponse,
 } from "../types";
 
 type CountWindowKey = keyof AdminStatsCountWindow;
-type StatsLens = "product" | "marketing" | "sales";
+type StatsLens = "product" | "marketing" | "sales" | "storage";
 
 type AdminStatsWorkspaceProps = {
   overview: AdminGlobalStatsOverview;
@@ -29,10 +31,14 @@ type AdminStatsWorkspaceProps = {
   projects: AdminGlobalStatsProjects;
   health: AdminGlobalStatsHealth;
   growth: AdminGrowthStatsResponse;
+  storageEconomics: AdminStorageEconomicsResponse;
   generatedAt: string | null;
   loading: boolean;
   error: string | null;
   onRefresh: () => void;
+  storageLoading: boolean;
+  storageError: string | null;
+  onRefreshStorage: () => void;
 };
 
 const WINDOW_OPTIONS: Array<{ key: CountWindowKey; label: string }> = [
@@ -79,6 +85,14 @@ const LENS_OPTIONS: Array<{
     description:
       "Track pricing interest, PQL depth, checkout starts, and paid conversion from one view.",
     supportingNote: "Use this lens to spot high-intent users and monetization friction quickly.",
+  },
+  {
+    key: "storage",
+    label: "Storage",
+    eyebrow: "Capacity and margin",
+    description:
+      "Track product storage use, recurring add-on MRR, capacity risk, and cost assumptions.",
+    supportingNote: "Use this lens to pressure-test storage pricing before changing plans.",
   },
 ];
 
@@ -519,18 +533,43 @@ export const AdminStatsWorkspace = ({
   projects,
   health,
   growth,
+  storageEconomics,
   generatedAt,
   loading,
   error,
   onRefresh,
+  storageLoading,
+  storageError,
+  onRefreshStorage,
 }: AdminStatsWorkspaceProps) => {
   const [activeLens, setActiveLens] = React.useState<StatsLens>("product");
   const activeLensConfig =
     LENS_OPTIONS.find((option) => option.key === activeLens) ?? LENS_OPTIONS[0];
-  const activeLensDegraded = activeLens === "product" ? health.degraded : growth.health.degraded;
+  const activeLensDegraded =
+    activeLens === "product"
+      ? health.degraded
+      : activeLens === "storage"
+        ? storageEconomics.health.degraded
+        : growth.health.degraded;
   const activeLensReason =
-    activeLens === "product" ? (error ?? health.reason) : growth.health.reason;
-  const activeLensMetaReason = activeLens === "product" && error ? null : activeLensReason;
+    activeLens === "product"
+      ? (error ?? health.reason)
+      : activeLens === "storage"
+        ? (storageError ?? storageEconomics.health.reason)
+        : growth.health.reason;
+  const activeLensMetaReason =
+    (activeLens === "product" && error) || (activeLens === "storage" && storageError)
+      ? null
+      : activeLensReason;
+  const activeGeneratedAt = activeLens === "storage" ? storageEconomics.generatedAt : generatedAt;
+  const activeStatusLabel =
+    activeLens === "storage"
+      ? activeLensDegraded
+        ? "Storage unavailable"
+        : "Local estimates"
+      : activeLensDegraded
+        ? "Fallback mode"
+        : "Live contract";
 
   return (
     <>
@@ -546,14 +585,15 @@ export const AdminStatsWorkspace = ({
                   : styles.statsWorkspaceStatusPillOk
               }`}
             >
-              {activeLensDegraded ? "Fallback mode" : "Live contract"}
+              {activeStatusLabel}
             </span>
           </div>
           <p className={styles.statsWorkspaceDescription}>{activeLensConfig.description}</p>
           <p className={styles.statsWorkspaceSupport}>{activeLensConfig.supportingNote}</p>
           <div className={styles.statsWorkspaceMetaRow}>
             <span className={styles.statsWorkspaceMetaPill}>
-              Snapshot {generatedAt ? formatDateTime(generatedAt) : "pending first refresh"}
+              Snapshot{" "}
+              {activeGeneratedAt ? formatDateTime(activeGeneratedAt) : "pending first refresh"}
             </span>
             <span className={styles.statsWorkspaceMetaPill}>Windows All time • 24h • 7d</span>
             {activeLensMetaReason ? (
@@ -604,6 +644,15 @@ export const AdminStatsWorkspace = ({
 
       {activeLens === "sales" ? (
         <SalesPanel growth={growth} loading={loading} onRefresh={onRefresh} />
+      ) : null}
+
+      {activeLens === "storage" ? (
+        <AdminStorageEconomicsPanel
+          storageEconomics={storageEconomics}
+          loading={storageLoading}
+          error={storageError}
+          onRefresh={onRefreshStorage}
+        />
       ) : null}
     </>
   );

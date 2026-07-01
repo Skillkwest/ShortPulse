@@ -3,20 +3,10 @@
  * Keeps image/video/audio card behavior aligned across modal, panel, Elements, and Character grids.
  */
 import React from "react";
-import {
-  ArrowClockwise,
-  CheckCircle,
-  DownloadSimple,
-  FlowArrow,
-  TrashSimple,
-  X,
-} from "phosphor-react";
+import { ArrowClockwise, CheckCircle, DownloadSimple, TrashSimple, X } from "phosphor-react";
 import { resolveDurablePreviewStoragePath } from "../../../../lib/mediaPreviewPath";
 import { resolveMediaRowKind } from "../../../../lib/mediaRowKind";
-import {
-  canReloadMediaLibraryWorkflow,
-  canRerollMediaLibraryWorkflow,
-} from "../../logic/mediaLibraryWorkflowReload";
+import { canRerollMediaLibraryWorkflow } from "../../logic/mediaLibraryWorkflowReload";
 import { isVideoUrl } from "../../logic/stateParsers";
 import { MediaDurationBadge } from "../shared/MediaDurationBadge";
 import { ReferenceAudioPlayer } from "../shared/ReferenceAudioPlayer";
@@ -41,7 +31,6 @@ type MediaLibraryCardActionLabels = {
   actionAriaLabel: string;
   downloadLabel: string;
   rerollLabel: string;
-  workflowReloadLabel: string;
   removeLabel: string;
   deleteLabel: string;
 };
@@ -50,14 +39,12 @@ type MediaLibraryCardActionsProps = {
   file: MediaFileRow;
   canShowDownloadAction: boolean;
   canShowRerollAction: boolean;
-  canShowWorkflowReloadAction: boolean;
   canShowRemoveAction: boolean;
   canShowDeleteAction: boolean;
   labels: MediaLibraryCardActionLabels;
   dangerActionMode: "separate" | "exclusive";
   onDownloadMediaFile?: (file: MediaFileRow) => void;
   onRerollWorkflowFromMedia?: (file: MediaFileRow) => void;
-  onReloadWorkflowFromMedia?: (file: MediaFileRow) => void;
   onRemoveMediaFromFolder?: (file: MediaFileRow) => void;
   onDeleteMediaFromLibrary?: (file: MediaFileRow) => void;
 };
@@ -86,14 +73,12 @@ type SharedMediaCardProps = {
   showCardActions: boolean;
   canShowDownloadAction: boolean;
   canShowRerollAction: boolean;
-  canShowWorkflowReloadAction: boolean;
   canShowRemoveAction: boolean;
   canShowDeleteAction: boolean;
   actionLabels: MediaLibraryCardActionLabels;
   dangerActionMode: "separate" | "exclusive";
   onDownloadMediaFile?: (file: MediaFileRow) => void;
   onRerollWorkflowFromMedia?: (file: MediaFileRow) => void;
-  onReloadWorkflowFromMedia?: (file: MediaFileRow) => void;
   onRemoveMediaFromFolder?: (file: MediaFileRow) => void;
   onDeleteMediaFromLibrary?: (file: MediaFileRow) => void;
   shellStyle?: React.CSSProperties;
@@ -141,7 +126,6 @@ export const buildMediaLibraryCardActionLabels = (
   actionAriaLabel,
   downloadLabel: `${downloadLabelPrefix} ${resolveMediaLibraryCardDisplayLabel(file)}`,
   rerollLabel: `Re-roll ${resolveMediaLibraryCardDisplayLabel(file)}`,
-  workflowReloadLabel: `Reload workflow for ${resolveMediaLibraryCardDisplayLabel(file)}`,
   removeLabel,
   deleteLabel,
 });
@@ -171,14 +155,12 @@ export function MediaLibraryCardActions({
   file,
   canShowDownloadAction,
   canShowRerollAction,
-  canShowWorkflowReloadAction,
   canShowRemoveAction,
   canShowDeleteAction,
   labels,
   dangerActionMode,
   onDownloadMediaFile,
   onRerollWorkflowFromMedia,
-  onReloadWorkflowFromMedia,
   onRemoveMediaFromFolder,
   onDeleteMediaFromLibrary,
 }: MediaLibraryCardActionsProps) {
@@ -258,36 +240,22 @@ export function MediaLibraryCardActions({
           ) : null}
         </div>
       ) : null}
-      {canShowRerollAction || canShowWorkflowReloadAction ? (
+      {canShowRerollAction ? (
         <div
           className="media-library-panel-card-actions media-library-panel-card-actions--workflow"
           aria-label="Media replay actions"
         >
-          {canShowRerollAction ? (
-            <button
-              type="button"
-              className="reference-card-action-btn reference-card-reroll-btn media-library-panel-card-reroll-btn"
-              aria-label={labels.rerollLabel}
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                onRerollWorkflowFromMedia?.(file);
-              }}
-            >
-              <ArrowClockwise size={16} weight="bold" aria-hidden />
-            </button>
-          ) : null}
           <button
             type="button"
-            className="reference-card-action-btn media-library-panel-card-reload-workflow-btn"
-            aria-label={labels.workflowReloadLabel}
+            className="reference-card-action-btn reference-card-reroll-btn media-library-panel-card-reroll-btn"
+            aria-label={labels.rerollLabel}
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
-              onReloadWorkflowFromMedia?.(file);
+              onRerollWorkflowFromMedia?.(file);
             }}
           >
-            <FlowArrow size={16} weight="bold" aria-hidden />
+            <ArrowClockwise size={16} weight="bold" aria-hidden />
           </button>
         </div>
       ) : null}
@@ -333,14 +301,12 @@ const renderCardActions = ({
   showCardActions,
   canShowDownloadAction,
   canShowRerollAction,
-  canShowWorkflowReloadAction,
   canShowRemoveAction,
   canShowDeleteAction,
   actionLabels,
   dangerActionMode,
   onDownloadMediaFile,
   onRerollWorkflowFromMedia,
-  onReloadWorkflowFromMedia,
   onRemoveMediaFromFolder,
   onDeleteMediaFromLibrary,
 }: Pick<
@@ -349,14 +315,12 @@ const renderCardActions = ({
   | "showCardActions"
   | "canShowDownloadAction"
   | "canShowRerollAction"
-  | "canShowWorkflowReloadAction"
   | "canShowRemoveAction"
   | "canShowDeleteAction"
   | "actionLabels"
   | "dangerActionMode"
   | "onDownloadMediaFile"
   | "onRerollWorkflowFromMedia"
-  | "onReloadWorkflowFromMedia"
   | "onRemoveMediaFromFolder"
   | "onDeleteMediaFromLibrary"
 >) =>
@@ -365,14 +329,12 @@ const renderCardActions = ({
       file={file}
       canShowDownloadAction={canShowDownloadAction}
       canShowRerollAction={canShowRerollAction}
-      canShowWorkflowReloadAction={canShowWorkflowReloadAction}
       canShowRemoveAction={canShowRemoveAction}
       canShowDeleteAction={canShowDeleteAction}
       labels={actionLabels}
       dangerActionMode={dangerActionMode}
       onDownloadMediaFile={onDownloadMediaFile}
       onRerollWorkflowFromMedia={onRerollWorkflowFromMedia}
-      onReloadWorkflowFromMedia={onReloadWorkflowFromMedia}
       onRemoveMediaFromFolder={onRemoveMediaFromFolder}
       onDeleteMediaFromLibrary={onDeleteMediaFromLibrary}
     />
@@ -399,14 +361,12 @@ export function MediaLibraryAudioCard({
   showCardActions,
   canShowDownloadAction,
   canShowRerollAction,
-  canShowWorkflowReloadAction,
   canShowRemoveAction,
   canShowDeleteAction,
   actionLabels,
   dangerActionMode,
   onDownloadMediaFile,
   onRerollWorkflowFromMedia,
-  onReloadWorkflowFromMedia,
   onRemoveMediaFromFolder,
   onDeleteMediaFromLibrary,
   shellStyle,
@@ -489,14 +449,12 @@ export function MediaLibraryAudioCard({
         showCardActions,
         canShowDownloadAction,
         canShowRerollAction,
-        canShowWorkflowReloadAction,
         canShowRemoveAction,
         canShowDeleteAction,
         actionLabels,
         dangerActionMode,
         onDownloadMediaFile,
         onRerollWorkflowFromMedia,
-        onReloadWorkflowFromMedia,
         onRemoveMediaFromFolder,
         onDeleteMediaFromLibrary,
       })}
@@ -531,14 +489,12 @@ export function MediaLibraryVisualMediaCard({
   showCardActions,
   canShowDownloadAction,
   canShowRerollAction,
-  canShowWorkflowReloadAction,
   canShowRemoveAction,
   canShowDeleteAction,
   actionLabels,
   dangerActionMode,
   onDownloadMediaFile,
   onRerollWorkflowFromMedia,
-  onReloadWorkflowFromMedia,
   onRemoveMediaFromFolder,
   onDeleteMediaFromLibrary,
   shellStyle,
@@ -891,25 +847,18 @@ export function MediaLibraryVisualMediaCard({
         showCardActions,
         canShowDownloadAction,
         canShowRerollAction,
-        canShowWorkflowReloadAction,
         canShowRemoveAction,
         canShowDeleteAction,
         actionLabels,
         dangerActionMode,
         onDownloadMediaFile,
         onRerollWorkflowFromMedia,
-        onReloadWorkflowFromMedia,
         onRemoveMediaFromFolder,
         onDeleteMediaFromLibrary,
       })}
     </div>
   );
 }
-
-export const canShowMediaLibraryWorkflowReloadAction = (
-  file: MediaFileRow,
-  onReloadWorkflowFromMedia?: (file: MediaFileRow) => void
-): boolean => Boolean(onReloadWorkflowFromMedia && canReloadMediaLibraryWorkflow(file));
 
 export const canShowMediaLibraryRerollAction = (
   file: MediaFileRow,

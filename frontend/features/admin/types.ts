@@ -604,6 +604,125 @@ export type AdminGlobalStatsResponse = {
   generatedAt: string | null;
 };
 
+export type AdminStorageEconomicsAssumptions = {
+  storageCostPerGbMonth: number;
+  uncachedEgressCostPerGb: number;
+  stripePercent: number;
+  stripeFixedCents: number;
+  targetGrossMarginPct: number;
+  computePlan: string;
+  computeMonthlyCostCents: number;
+  source: "configured_estimate";
+};
+
+export type AdminStorageEconomicsOverview = {
+  trackedAccounts: number;
+  accountsWithMedia: number;
+  totalTrackedBytes: number;
+  medianTrackedBytes: number;
+  p90TrackedBytes: number;
+  accountsOver80Pct: number;
+  accountsOverQuota: number;
+  baselineStorageUsers: number;
+  activeAddonSubscribers: number;
+  activeAddonMrrCents: number;
+  activeAddonSoldCapacityBytes: number;
+  estimatedStorageCostCents: number;
+  estimatedEgressCost1xCents: number;
+  estimatedEgressCost2xCents: number;
+  estimatedStripeFeeCents: number;
+  estimatedComputeCostCents: number;
+  estimatedVariableCost1xCents: number;
+  estimatedVariableCost2xCents: number;
+  estimatedGrossMargin1xPct: number | null;
+  estimatedGrossMargin2xPct: number | null;
+};
+
+export type AdminStorageEconomicsPlanRow = {
+  planId: string;
+  displayName: string;
+  accountCount: number;
+  usersWithMedia: number;
+  totalTrackedBytes: number;
+  medianTrackedBytes: number;
+  p90TrackedBytes: number;
+  baseLimitBytes: number;
+  addonLimitBytes: number;
+  monthlyStorageGrowthBytes: number | null;
+  accountsOver50Pct: number;
+  accountsOver80Pct: number;
+  accountsOver95Pct: number;
+  accountsOverQuota: number;
+  baselineStorageUsers: number;
+};
+
+export type AdminStorageEconomicsAddonPackageRow = {
+  storageAddonId: string;
+  displayName: string;
+  activeSubscribers: number;
+  activeQuantity: number;
+  mrrCents: number;
+  soldCapacityBytes: number;
+  trackedUsageBytes: number;
+  estimatedStorageCostCents: number;
+  estimatedEgressCost1xCents: number;
+  estimatedEgressCost2xCents: number;
+  estimatedStripeFeeCents: number;
+  estimatedMargin1xPct: number | null;
+  estimatedMargin2xPct: number | null;
+};
+
+export type AdminStorageEconomicsFunnel = {
+  impressions: AdminStatsCountWindow;
+  addClicks: AdminStatsCountWindow;
+  warningViews: AdminStatsCountWindow;
+  addRequests: AdminStatsCountWindow;
+  addSuccesses: AdminStatsCountWindow;
+  addFailures: AdminStatsCountWindow;
+  removals: AdminStatsCountWindow;
+  source: "app_error_events" | "unavailable";
+};
+
+export type AdminStorageEconomicsRiskType =
+  | "baseline_storage_usage"
+  | "over_quota"
+  | "near_quota"
+  | "addon_without_paid_plan"
+  | "multiple_active_addons"
+  | "stacked_addon_quantity"
+  | "manual_review_addon"
+  | "local_addon_missing_stripe_item";
+
+export type AdminStorageEconomicsRiskRow = {
+  userId: string;
+  planId: string;
+  trackedBytes: number;
+  totalLimitBytes: number;
+  usagePct: number | null;
+  activeAddonCount: number;
+  riskTypes: AdminStorageEconomicsRiskType[];
+  details: string;
+};
+
+export type AdminStorageEconomicsHealth = {
+  degraded: boolean;
+  reason: string | null;
+  storageSource: "live_query" | "unavailable";
+  funnelSource: "app_error_events" | "unavailable";
+};
+
+export type AdminStorageEconomicsResponse = {
+  assumptions: AdminStorageEconomicsAssumptions;
+  overview: AdminStorageEconomicsOverview;
+  byPlan: AdminStorageEconomicsPlanRow[];
+  addonPackages: AdminStorageEconomicsAddonPackageRow[];
+  funnel: AdminStorageEconomicsFunnel;
+  riskQueue: AdminStorageEconomicsRiskRow[];
+  dataGaps: string[];
+  health: AdminStorageEconomicsHealth;
+  generatedAt: string | null;
+};
+
 export type AdminAccessResponse =
   | {
       ok: true;

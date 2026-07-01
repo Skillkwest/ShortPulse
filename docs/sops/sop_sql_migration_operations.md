@@ -37,6 +37,8 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/configure_control_plane_scheduler_bypass_secret_supabase.sql`: set/update optional Vault bypass token (`shortpulse_vercel_protection_bypass_token`) for Vercel-protected scheduler targets.
 - `sql/configure_cron_job_run_details_retention_supabase.sql`: prune old ended `cron.job_run_details` rows, compact the pruned table, and schedule daily run-history retention for Supabase Cron Disk I/O control.
 - `sql/migrations/172_schedule_worker_runs_retention.sql`: schedule daily hosted pg_cron retention for completed `ok` rows in `public.worker_runs` after 30 days while preserving incomplete/running rows and error rows.
+- `sql/migrations/173_add_media_storage_lifecycle_diagnostics.sql`: add the service-role-only `voice_source_lifecycle` proof table and aggregate Media Library storage lifecycle diagnostic RPC for dry-run reporting without raw object paths or user ids.
+- `sql/migrations/174_remove_legacy_signup_seed_credit_grants.sql`: neutralize remaining retired signup seed credit grants, reject future positive signup seed inserts, and keep the hidden baseline tier zero-value.
 - `sql/audit_billing_credit_rls.sql`: billing RLS audit checks.
 - `sql/check_database_io_hotspots.sql`: read-only `pg_stat_statements` shared-block I/O summary plus table size/read posture and hot diagnostic table age/retention posture without raw query text.
 - `sql/check_media_storage_scope_drift.sql`: media storage scope drift diagnostics (read-only).
@@ -239,6 +241,9 @@ Migration number 134 is intentionally unused; the ordered sequence moves from `1
 - `170_add_media_files_ai_studio_source_ref_index.sql`
 - `171_add_ai_generations_terminal_repair_index.sql`
 - `172_schedule_worker_runs_retention.sql`
+- `173_add_media_storage_lifecycle_diagnostics.sql`
+- `174_remove_legacy_signup_seed_credit_grants.sql`
+- `175_enforce_storage_addon_no_stack.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 

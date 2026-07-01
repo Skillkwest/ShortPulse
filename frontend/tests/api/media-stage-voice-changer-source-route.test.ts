@@ -5,6 +5,7 @@ import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const finalizeVoiceChangerSourceUploadForUserMock = vi.fn();
+const recordVoiceSourceLifecycleStateMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -25,6 +26,12 @@ vi.mock("../../lib/server/mediaUploadService", async () => {
   };
 });
 
+vi.mock("../../lib/server/voiceSourceLifecycle", () => ({
+  VOICE_CHANGER_SOURCE_RETENTION_DAYS: 14,
+  recordVoiceSourceLifecycleState: (...args: unknown[]) =>
+    recordVoiceSourceLifecycleStateMock(...args),
+}));
+
 const createMockResponse = () => ({
   setHeader: vi.fn().mockReturnThis(),
   status: vi.fn().mockReturnThis(),
@@ -43,6 +50,7 @@ describe("POST /api/media/stage-voice-changer-source", () => {
       mimeType: "audio/wav",
       name: "sample.wav",
     });
+    recordVoiceSourceLifecycleStateMock.mockResolvedValue({ recorded: true });
   });
 
   it("finalizes a staged local audio source", async () => {
@@ -66,6 +74,16 @@ describe("POST /api/media/stage-voice-changer-source", () => {
       filename: "sample.wav",
       declaredMimeType: "audio/wav",
     });
+    expect(recordVoiceSourceLifecycleStateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        workflowKind: "voice_changer",
+        sourceKind: "audio",
+        storagePath: "user-1/voice-changer/source-audio/sample.wav",
+        state: "staged",
+        retentionDays: 14,
+      })
+    );
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       source: {
@@ -106,6 +124,16 @@ describe("POST /api/media/stage-voice-changer-source", () => {
       filename: "clip.mp4",
       declaredMimeType: "video/mp4",
     });
+    expect(recordVoiceSourceLifecycleStateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        workflowKind: "voice_changer",
+        sourceKind: "video",
+        storagePath: "user-1/voice-changer/source-video/clip.mp4",
+        state: "staged",
+        retentionDays: 14,
+      })
+    );
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       source: {

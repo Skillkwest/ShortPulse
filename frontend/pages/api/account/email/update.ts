@@ -4,7 +4,6 @@ import {
   isValidEmailAddress,
   normalizeEmailInput,
   updateSupabaseAuthUser,
-  verifySupabasePassword,
 } from "../../../../lib/server/api/accountIdentity";
 import { resolveEmailChangeErrorMessage } from "../../../../lib/authErrorMessages";
 import { resolvePublicAppOrigin } from "../../../../lib/server/api/appOrigin";
@@ -14,7 +13,6 @@ import { enforceApiRateLimit } from "../../../../lib/server/api/rateLimit";
 
 type EmailUpdateBody = {
   email?: unknown;
-  currentPassword?: unknown;
 };
 
 type EmailUpdateResponse = {
@@ -74,24 +72,10 @@ export default async function handler(
 
   const body = ((req.body as EmailUpdateBody | null) ?? {}) as EmailUpdateBody;
   const email = normalizeEmailInput(body.email);
-  const currentPassword = typeof body.currentPassword === "string" ? body.currentPassword : "";
   if (!email || !isValidEmailAddress(email)) {
     return res.status(400).json({ error: "Enter a valid email." });
   }
-  if (!currentPassword.trim()) {
-    return res.status(400).json({ error: "Enter your current password." });
-  }
   try {
-    if (
-      !user.email ||
-      !(await verifySupabasePassword({
-        email: user.email,
-        password: currentPassword,
-      }))
-    ) {
-      return res.status(401).json({ error: "Current password is incorrect." });
-    }
-
     const requestOrigin = resolvePublicAppOrigin(req);
     if (!requestOrigin) {
       throw new Error("Unable to resolve app origin.");

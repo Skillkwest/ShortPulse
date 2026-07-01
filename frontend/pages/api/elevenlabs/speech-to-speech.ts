@@ -39,6 +39,10 @@ import {
 import { transcribeAudioBuffer } from "../../../lib/server/openAiAudioTranscription";
 import { readGenerationWorkspaceRuntimeKeyFromContext } from "../../../lib/server/api/generationWorkspaceRuntimeKey";
 import { generateAudioReferenceTitleBestEffort } from "../../../lib/server/audioTitleGeneration";
+import {
+  recordVoiceSourceLifecycleState,
+  VOICE_CHANGER_SOURCE_RETENTION_DAYS,
+} from "../../../lib/server/voiceSourceLifecycle";
 
 type GenerateAudioSuccessResponse = {
   output: {
@@ -181,7 +185,50 @@ export default async function handler(
     });
   }
   if (!user) return;
+  const authenticatedUser = user;
   let charge: Awaited<ReturnType<typeof chargeGenerationRequest>> = null;
+  let lifecycleSourceStoragePath: string | null = null;
+  let lifecycleOriginalVideoStoragePath: string | null = null;
+  let lifecycleSourceRef: string | null = null;
+
+  const recordVoiceChangerLifecycleBestEffort = async ({
+    storagePath,
+    sourceKind,
+    state,
+    generationId = null,
+    providerRequestId = null,
+    metadata = null,
+  }: {
+    storagePath: string | null;
+    sourceKind: "audio" | "video";
+    state: "submitted" | "terminal_success" | "terminal_failure";
+    generationId?: string | null;
+    providerRequestId?: string | null;
+    metadata?: Record<string, unknown> | null;
+  }): Promise<void> => {
+    if (!storagePath) return;
+    await recordVoiceSourceLifecycleState({
+      userId: authenticatedUser.id,
+      workflowKind: "voice_changer",
+      sourceKind,
+      storagePath,
+      state,
+      lifecycleKey: lifecycleSourceRef ?? state,
+      sourceRef: lifecycleSourceRef,
+      generationId,
+      providerRequestId,
+      retentionDays: state === "submitted" ? null : VOICE_CHANGER_SOURCE_RETENTION_DAYS,
+      metadata,
+    }).catch((lifecycleError) =>
+      logApiRouteException({
+        req,
+        error: lifecycleError,
+        routeLabel: "elevenlabs-speech-to-speech.lifecycle",
+        scope: "generation",
+        user: authenticatedUser,
+      })
+    );
+  };
 
   if (!process.env.ELEVENLABS_API_KEY?.trim()) {
     return res.status(503).json({
@@ -284,6 +331,7 @@ export default async function handler(
         userId: user.id,
         label: "Voice changer source storage path",
       });
+      lifecycleSourceStoragePath = trustedStoragePath;
       const storedSource = await readStoredMediaBuffer({ storagePath: trustedStoragePath });
       sourceBuffer = storedSource.buffer;
       sourceMimeType = storedSource.contentType;
@@ -333,12 +381,32 @@ export default async function handler(
     });
     if (!charge) return;
     const settledCharge = charge;
+    lifecycleSourceRef = charge.sourceRef;
+    await recordVoiceChangerLifecycleBestEffort({
+      storagePath: lifecycleSourceStoragePath,
+      sourceKind: "audio",
+      state: "submitted",
+      metadata: {
+        source_duration_seconds: sourceDurationSeconds,
+        source_name: sourceName,
+      },
+    });
 
     if (originalVideoStoragePath) {
       const trustedStoragePath = assertUserScopedMediaStoragePath({
         path: originalVideoStoragePath,
         userId: user.id,
         label: "Voice changer source video storage path",
+      });
+      lifecycleOriginalVideoStoragePath = trustedStoragePath;
+      await recordVoiceChangerLifecycleBestEffort({
+        storagePath: lifecycleOriginalVideoStoragePath,
+        sourceKind: "video",
+        state: "submitted",
+        metadata: {
+          source_duration_seconds: sourceDurationSeconds,
+          source_name: originalVideoName ?? sourceName,
+        },
       });
       const storedVideo = await readStoredMediaBuffer({
         storagePath: trustedStoragePath,
@@ -473,6 +541,17 @@ export default async function handler(
       },
     });
     const persistedVoiceChangerTitle = persisted.displayTitle ?? voiceChangerTitle;
+    await recordVoiceChangerLifecycleBestEffort({
+      storagePath: lifecycleSourceStoragePath,
+      sourceKind: "audio",
+      state: "terminal_success",
+      generationId: persisted.generationId,
+      providerRequestId,
+      metadata: {
+        source_duration_seconds: sourceDurationSeconds,
+        generated_audio_generation_id: persisted.generationId,
+      },
+    });
     await markAudioCompanionArtPendingBestEffort({
       req,
       routeLabel: "elevenlabs-speech-to-speech",
@@ -533,6 +612,19 @@ export default async function handler(
         persistedRemuxedVideo = null;
       }
     }
+    await recordVoiceChangerLifecycleBestEffort({
+      storagePath: lifecycleOriginalVideoStoragePath,
+      sourceKind: "video",
+      state: "terminal_success",
+      generationId: persistedRemuxedVideo?.generationId ?? persisted.generationId,
+      providerRequestId,
+      metadata: {
+        source_duration_seconds: sourceDurationSeconds,
+        generated_audio_generation_id: persisted.generationId,
+        remuxed_video_generation_id: persistedRemuxedVideo?.generationId ?? null,
+        remux_status: persistedRemuxedVideo ? "persisted" : "not_persisted",
+      },
+    });
 
     return res.status(200).json({
       output: {
@@ -584,6 +676,23 @@ export default async function handler(
     });
   } catch (error) {
     if (charge) {
+      lifecycleSourceRef = charge.sourceRef;
+      await recordVoiceChangerLifecycleBestEffort({
+        storagePath: lifecycleSourceStoragePath,
+        sourceKind: "audio",
+        state: "terminal_failure",
+        metadata: {
+          source_ref: charge.sourceRef,
+        },
+      });
+      await recordVoiceChangerLifecycleBestEffort({
+        storagePath: lifecycleOriginalVideoStoragePath,
+        sourceKind: "video",
+        state: "terminal_failure",
+        metadata: {
+          source_ref: charge.sourceRef,
+        },
+      });
       await charge.refund("Auto-refund: audio voice changer generation failed.", {
         source_mode: "voice-changer",
       });

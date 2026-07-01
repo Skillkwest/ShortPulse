@@ -93,9 +93,29 @@ describe("Profile account settings autosave toggle", () => {
 
     expect(screen.getByRole("main")).toHaveClass("profile-page-shell");
     expect(screen.getByLabelText("Display name")).toHaveClass("profile-input");
+    expect(screen.queryByLabelText("Current password")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Account" })).toHaveClass("is-active");
     expect(screen.getByText("Profile").closest(".profile-account-grid")).toBeInTheDocument();
     expect(screen.getByLabelText("Account summary")).toBeInTheDocument();
+  });
+
+  it("omits left-side helper copy from account panels", () => {
+    render(<ProfilePage />);
+
+    expect(
+      screen.queryByText("This name appears in your dashboard and account records.")
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "Email changes require your current password and must be confirmed from your inbox."
+      )
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "Control whether eligible AI Studio media is automatically saved to your Media Library."
+      )
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/Autosave is ON/)).not.toBeInTheDocument();
   });
 
   it("places Media Library autosave in the first desktop account row", () => {
@@ -119,6 +139,21 @@ describe("Profile account settings autosave toggle", () => {
     expect(normalizedCss).not.toContain("0 18px 42px");
   });
 
+  it("keeps desktop hero metric chips in a single row", () => {
+    const sectionCss = readFileSync("styles/workspace-profile-sections.css", "utf8");
+    const responsiveCss = readFileSync("styles/workspace-profile-responsive.css", "utf8");
+    const normalizedSectionCss = sectionCss.replace(/\s+/g, " ");
+    const normalizedResponsiveCss = responsiveCss.replace(/\s+/g, " ");
+
+    expect(normalizedSectionCss).toContain(".profile-hero-meta { display: grid;");
+    expect(normalizedSectionCss).toContain("grid-auto-flow: column;");
+    expect(normalizedSectionCss).toContain("grid-auto-columns: minmax(118px, 1fr);");
+    expect(normalizedSectionCss).not.toContain(
+      "grid-template-columns: repeat(3, minmax(0, 180px));"
+    );
+    expect(normalizedResponsiveCss).toContain("grid-auto-flow: row;");
+  });
+
   it("uses profile-scoped subscription card overrides instead of changing public pricing cards", () => {
     const planCardCss = readFileSync("styles/subscription-plan-cards.css", "utf8");
     const normalizedCss = planCardCss.replace(/\s+/g, " ");
@@ -132,6 +167,16 @@ describe("Profile account settings autosave toggle", () => {
     );
     expect(normalizedCss).toContain("font-size: 18px;");
     expect(normalizedCss).toContain(".profile-page .pricing-interval-toggle {");
+  });
+
+  it("keeps browser-autofilled profile inputs on the dark account theme", () => {
+    const sectionCss = readFileSync("styles/workspace-profile-sections.css", "utf8");
+    const normalizedCss = sectionCss.replace(/\s+/g, " ");
+
+    expect(normalizedCss).toContain("color-scheme: dark;");
+    expect(normalizedCss).toContain(".profile-input:-webkit-autofill");
+    expect(normalizedCss).toContain("box-shadow: 0 0 0 1000px rgba(10, 14, 20, 0.96) inset;");
+    expect(normalizedCss).toContain("-webkit-text-fill-color: var(--color-ash);");
   });
 
   it("keeps stale profile shell CSS from overriding restored inline page chrome", () => {

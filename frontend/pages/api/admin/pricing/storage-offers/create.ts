@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { isManualReviewStorageAddon } from "../../../../../lib/billing/storageAddonEligibility";
 import { isUniqueViolationError } from "../../../../../lib/server/api/billingContracts";
 import { logApiRouteException } from "../../../../../lib/server/api/appErrorLogs";
 import { requireAdminUser } from "../../../../../lib/server/api/auth";
@@ -72,6 +73,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (!storageAddonId) {
     return res.status(400).json({ error: "storageAddonId is required." });
+  }
+  if (isManualReviewStorageAddon(storageAddonId)) {
+    return res.status(400).json({
+      error: "Manual-review storage add-ons cannot be activated as public self-serve offers.",
+    });
   }
   if (!offerName) {
     return res.status(400).json({ error: "offerName is required." });

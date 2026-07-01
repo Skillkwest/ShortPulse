@@ -32,6 +32,11 @@ create temporary table if not exists _media_storage_cleanup_manifest (
     blocking_reference_count bigint not null,
     active_motion_lease_count bigint not null,
     pending_motion_retirement_count bigint not null,
+    voice_source_lifecycle_count bigint not null,
+    active_voice_source_lifecycle_count bigint not null,
+    terminal_voice_source_lifecycle_count bigint not null,
+    expired_voice_source_lifecycle_count bigint not null,
+    voice_source_retention_until timestamptz,
     reference_sources text not null,
     age_days integer,
     older_than_ttl boolean,
@@ -46,7 +51,8 @@ create temporary table if not exists _media_storage_cleanup_optional_refs (
     user_id uuid,
     storage_path text not null,
     ref_source text not null,
-    blocks_cleanup boolean not null
+    blocks_cleanup boolean not null,
+    retention_until timestamptz
 );
 
 truncate table _media_storage_cleanup_optional_refs;
@@ -59,7 +65,8 @@ begin
                 user_id,
                 storage_path,
                 ref_source,
-                blocks_cleanup
+                blocks_cleanup,
+                retention_until
             )
             select
                 ml.user_id,
@@ -69,7 +76,8 @@ begin
                         then 'motion_reference_video_generation_leases.active'
                     else 'motion_reference_video_generation_leases.released'
                 end as ref_source,
-                (ml.released_at is null) as blocks_cleanup
+                (ml.released_at is null) as blocks_cleanup,
+                null::timestamptz as retention_until
             from public.motion_reference_video_generation_leases ml
             where nullif(btrim(coalesce(ml.storage_path, '')), '') is not null
         $sql$;
@@ -81,7 +89,8 @@ begin
                 user_id,
                 storage_path,
                 ref_source,
-                blocks_cleanup
+                blocks_cleanup,
+                retention_until
             )
             select
                 mr.user_id,
@@ -91,9 +100,34 @@ begin
                         then 'motion_reference_video_retirements.pending'
                     else 'motion_reference_video_retirements.deleted'
                 end as ref_source,
-                false as blocks_cleanup
+                false as blocks_cleanup,
+                null::timestamptz as retention_until
             from public.motion_reference_video_retirements mr
             where nullif(btrim(coalesce(mr.storage_path, '')), '') is not null
+        $sql$;
+    end if;
+
+    if to_regclass('public.voice_source_lifecycle') is not null then
+        execute $sql$
+            insert into _media_storage_cleanup_optional_refs (
+                user_id,
+                storage_path,
+                ref_source,
+                blocks_cleanup,
+                retention_until
+            )
+            select
+                vsl.user_id,
+                btrim(vsl.storage_path) as storage_path,
+                'voice_source_lifecycle.' || vsl.lifecycle_state as ref_source,
+                (
+                    vsl.lifecycle_state = 'submitted'
+                    or vsl.retention_until is null
+                    or vsl.retention_until >= now()
+                ) as blocks_cleanup,
+                vsl.retention_until
+            from public.voice_source_lifecycle vsl
+            where nullif(btrim(coalesce(vsl.storage_path, '')), '') is not null
         $sql$;
     end if;
 end $$;
@@ -111,6 +145,11 @@ insert into _media_storage_cleanup_manifest (
     blocking_reference_count,
     active_motion_lease_count,
     pending_motion_retirement_count,
+    voice_source_lifecycle_count,
+    active_voice_source_lifecycle_count,
+    terminal_voice_source_lifecycle_count,
+    expired_voice_source_lifecycle_count,
+    voice_source_retention_until,
     reference_sources,
     age_days,
     older_than_ttl,
@@ -126,7 +165,8 @@ media_file_original_refs as (
         mf.user_id,
         btrim(mf.storage_path) as storage_path,
         'media_files.storage_path'::text as ref_source,
-        true as blocks_cleanup
+        true as blocks_cleanup,
+        null::timestamptz as retention_until
     from public.media_files mf
     where nullif(btrim(coalesce(mf.storage_path, '')), '') is not null
 ),
@@ -135,7 +175,8 @@ media_file_variant_hint_refs as (
         mf.user_id,
         btrim(ref.storage_path) as storage_path,
         ref.ref_source,
-        true as blocks_cleanup
+        true as blocks_cleanup,
+        null::timestamptz as retention_until
     from public.media_files mf
     cross join lateral (
         values
@@ -150,7 +191,8 @@ media_asset_variant_refs as (
         mav.user_id,
         btrim(mav.storage_path) as storage_path,
         'media_asset_variants.storage_path'::text as ref_source,
-        true as blocks_cleanup
+        true as blocks_cleanup,
+        null::timestamptz as retention_until
     from public.media_asset_variants mav
     where nullif(btrim(coalesce(mav.storage_path, '')), '') is not null
 ),
@@ -159,7 +201,8 @@ generation_projection_refs as (
         gp.user_id,
         btrim(ref.storage_path) as storage_path,
         ref.ref_source,
-        true as blocks_cleanup
+        true as blocks_cleanup,
+        null::timestamptz as retention_until
     from public.generation_projection gp
     cross join lateral (
         values
@@ -174,7 +217,8 @@ generation_publication_refs as (
         gp.user_id,
         btrim(ref.storage_path) as storage_path,
         ref.ref_source,
-        true as blocks_cleanup
+        true as blocks_cleanup,
+        null::timestamptz as retention_until
     from public.generation_publications gp
     cross join lateral (
         values
@@ -188,7 +232,8 @@ project_output_display_refs as (
         podi.user_id,
         btrim(ref.storage_path) as storage_path,
         ref.ref_source,
-        true as blocks_cleanup
+        true as blocks_cleanup,
+        null::timestamptz as retention_until
     from public.project_output_display_items podi
     cross join lateral (
         values
@@ -204,7 +249,8 @@ character_asset_refs as (
         cma.user_id,
         btrim(cma.storage_path) as storage_path,
         'character_media_assets.storage_path'::text as ref_source,
-        true as blocks_cleanup
+        true as blocks_cleanup,
+        null::timestamptz as retention_until
     from public.character_media_assets cma
     where nullif(btrim(coalesce(cma.storage_path, '')), '') is not null
 ),
@@ -213,7 +259,8 @@ element_asset_refs as (
         ema.user_id,
         btrim(ema.storage_path) as storage_path,
         'element_media_assets.storage_path'::text as ref_source,
-        true as blocks_cleanup
+        true as blocks_cleanup,
+        null::timestamptz as retention_until
     from public.element_media_assets ema
     where nullif(btrim(coalesce(ema.storage_path, '')), '') is not null
 ),
@@ -222,7 +269,8 @@ custom_voice_sample_refs as (
         uocv.user_id,
         btrim(uocv.sample_storage_path) as storage_path,
         'user_owned_custom_voices.sample_storage_path'::text as ref_source,
-        true as blocks_cleanup
+        true as blocks_cleanup,
+        null::timestamptz as retention_until
     from public.user_owned_custom_voices uocv
     where nullif(btrim(coalesce(uocv.sample_storage_path, '')), '') is not null
 ),
@@ -231,7 +279,8 @@ optional_motion_reference_refs as (
         user_id,
         storage_path,
         ref_source,
-        blocks_cleanup
+        blocks_cleanup,
+        retention_until
     from _media_storage_cleanup_optional_refs
 ),
 all_refs as (
@@ -257,6 +306,27 @@ ref_summary as (
         count(*) filter (
             where ref_source = 'motion_reference_video_retirements.pending'
         )::bigint as pending_motion_retirement_count,
+        count(*) filter (
+            where ref_source like 'voice_source_lifecycle.%'
+        )::bigint as voice_source_lifecycle_count,
+        count(*) filter (
+            where ref_source = 'voice_source_lifecycle.submitted'
+        )::bigint as active_voice_source_lifecycle_count,
+        count(*) filter (
+            where ref_source in (
+                'voice_source_lifecycle.terminal_success',
+                'voice_source_lifecycle.terminal_failure',
+                'voice_source_lifecycle.retained_for_custom_voice'
+            )
+        )::bigint as terminal_voice_source_lifecycle_count,
+        count(*) filter (
+            where ref_source like 'voice_source_lifecycle.%'
+              and retention_until is not null
+              and retention_until < now()
+        )::bigint as expired_voice_source_lifecycle_count,
+        max(retention_until) filter (
+            where ref_source like 'voice_source_lifecycle.%'
+        ) as voice_source_retention_until,
         string_agg(distinct ref_source, ', ' order by ref_source) as reference_sources
     from all_refs
     group by storage_path
@@ -343,6 +413,13 @@ classified as (
         coalesce(rs.blocking_reference_count, 0) as blocking_reference_count,
         coalesce(rs.active_motion_lease_count, 0) as active_motion_lease_count,
         coalesce(rs.pending_motion_retirement_count, 0) as pending_motion_retirement_count,
+        coalesce(rs.voice_source_lifecycle_count, 0) as voice_source_lifecycle_count,
+        coalesce(rs.active_voice_source_lifecycle_count, 0) as active_voice_source_lifecycle_count,
+        coalesce(rs.terminal_voice_source_lifecycle_count, 0)
+            as terminal_voice_source_lifecycle_count,
+        coalesce(rs.expired_voice_source_lifecycle_count, 0)
+            as expired_voice_source_lifecycle_count,
+        rs.voice_source_retention_until,
         coalesce(rs.reference_sources, '') as reference_sources
     from storage_rows sr
     left join ref_summary rs
@@ -376,6 +453,16 @@ manifest as (
                 'media_library/element_assets',
                 'media_library/other_user_scoped'
             ) then 'protected_durable_or_ambiguous'
+            when c.safe_path_class in (
+                'media_library/voice_changer_source_audio',
+                'media_library/voice_changer_source_video',
+                'media_library/voice_clone_source_audio'
+            )
+              and c.voice_source_lifecycle_count > 0
+              and c.terminal_voice_source_lifecycle_count > 0
+              and c.expired_voice_source_lifecycle_count = c.voice_source_lifecycle_count
+              and c.voice_source_retention_until < now()
+                then 'delete_candidate'
             when c.safe_path_class in (
                 'media_library/voice_changer_source_audio',
                 'media_library/voice_changer_source_video',
@@ -428,6 +515,22 @@ manifest as (
                 'media_library/voice_changer_source_audio',
                 'media_library/voice_changer_source_video',
                 'media_library/voice_clone_source_audio'
+            )
+              and c.voice_source_lifecycle_count > 0
+              and c.terminal_voice_source_lifecycle_count > 0
+              and c.expired_voice_source_lifecycle_count = c.voice_source_lifecycle_count
+                then 'voice source lifecycle retention elapsed'
+            when c.safe_path_class in (
+                'media_library/voice_changer_source_audio',
+                'media_library/voice_changer_source_video',
+                'media_library/voice_clone_source_audio'
+            )
+              and c.voice_source_lifecycle_count > 0
+                then 'voice source lifecycle proof exists but retention is active'
+            when c.safe_path_class in (
+                'media_library/voice_changer_source_audio',
+                'media_library/voice_changer_source_video',
+                'media_library/voice_clone_source_audio'
             ) then 'voice source namespace requires workflow/custom-voice review'
             else 'protected or ambiguous storage class'
         end as manifest_reason,
@@ -448,6 +551,11 @@ select
     blocking_reference_count,
     active_motion_lease_count,
     pending_motion_retirement_count,
+    voice_source_lifecycle_count,
+    active_voice_source_lifecycle_count,
+    terminal_voice_source_lifecycle_count,
+    expired_voice_source_lifecycle_count,
+    voice_source_retention_until,
     reference_sources,
     age_days,
     older_than_ttl,

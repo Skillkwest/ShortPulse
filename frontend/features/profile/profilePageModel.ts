@@ -78,6 +78,12 @@ export type SubscriptionTransaction = {
   reference: string | null;
 };
 
+export const CUSTOMER_CREDIT_ACTIVITY_SOURCES = [
+  "stripe_checkout",
+  "subscription_renewal",
+  "annual_contract_monthly_allocation",
+] as const;
+
 export type NoticeTone = "info" | "success" | "error";
 
 export type NoticeState = {
@@ -250,42 +256,34 @@ export const resolveLedgerLabel = (event: BillingLedgerEvent): string => {
     return "Annual monthly credit allocation";
   }
   if (event.source === "stripe_checkout") return "Credit purchase";
-  if (event.source === "signup_seed") return "Initial plan allocation";
   return "Billing activity";
 };
 
 /**
- * Returns the title and helper copy for the selected profile section.
+ * Returns the title for the selected profile section.
  */
-export const getProfileSectionContent = (
-  section: ProfileSection
-): { title: string; body: string } => {
+export const getProfileSectionContent = (section: ProfileSection): { title: string } => {
   if (section === "subscription") {
     return {
       title: "Subscription plans",
-      body: "Choose the plan that fits your content creation needs. Change or cancel anytime.",
     };
   }
   if (section === "credits") {
     return {
       title: "Credits",
-      body: "Manage credit balance, one-time top-ups, and recent credit activity.",
     };
   }
   if (section === "storage") {
     return {
       title: "Media storage",
-      body: "Track media capacity and manage recurring storage add-ons for your workspace.",
     };
   }
   if (section === "transactions") {
     return {
       title: "Transaction history",
-      body: "Review recent billing payments across subscriptions, storage, and credit top-ups.",
     };
   }
   return {
     title: "Account settings",
-    body: "Manage identity, billing, email, and security controls for your workspace.",
   };
 };

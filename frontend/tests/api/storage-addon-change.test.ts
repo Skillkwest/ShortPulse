@@ -4,6 +4,7 @@ import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
+const writeAppErrorLogMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
 const stripeGetMock = vi.fn();
 const stripePostFormMock = vi.fn();
@@ -15,6 +16,7 @@ vi.mock("../../lib/server/api/auth", () => ({
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
+  writeAppErrorLog: (...args: unknown[]) => writeAppErrorLogMock(...args),
 }));
 
 vi.mock("../../lib/server/api/supabaseAdmin", () => ({
@@ -92,16 +94,27 @@ const createSupabaseAdminMock = (params: {
 
     if (table === "billing_storage_addon_offers") {
       return {
-        select: () => ({
-          eq: () => ({
+        select: (columns?: string) => {
+          if (columns === "stripe_price_id") {
+            return Promise.resolve({
+              data: (params.storageAddonOffers ?? []).map((offer) => ({
+                stripe_price_id: offer.stripe_price_id ?? null,
+              })),
+              error: null,
+            });
+          }
+
+          return {
             eq: () => ({
-              eq: async () => ({
-                data: params.storageAddonOffers ?? [],
-                error: null,
+              eq: () => ({
+                eq: async () => ({
+                  data: params.storageAddonOffers ?? [],
+                  error: null,
+                }),
               }),
             }),
-          }),
-        }),
+          };
+        },
       };
     }
 
@@ -109,12 +122,14 @@ const createSupabaseAdminMock = (params: {
       return {
         select: () => ({
           eq: () => ({
-            eq: () => ({
-              is: () => ({
-                eq: async () => ({
-                  data: params.activeStorageAddonRows ?? [],
-                  error: null,
-                }),
+            is: () => ({
+              eq: async () => ({
+                data: params.activeStorageAddonRows ?? [],
+                error: null,
+              }),
+              in: async () => ({
+                data: params.activeStorageAddonRows ?? [],
+                error: null,
               }),
             }),
           }),
@@ -247,6 +262,183 @@ describe("POST /api/billing/storage-addon/change", () => {
     });
   });
 
+  it("blocks adding a different storage add-on when any current billable local add-on already exists", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({
+        billingProfile: {
+          user_id: "user-1",
+          plan_id: "business",
+          stripe_customer_id: "cus_123",
+          stripe_subscription_id: "sub_123",
+          subscription_status: "active",
+        },
+        billingContract: {
+          id: "contract_1",
+          plan_id: "business",
+          stripe_subscription_id: "sub_123",
+          contract_source: "stripe",
+          status: "active",
+        },
+        storageAddon: {
+          id: "storage_250gb",
+          display_name: "Extra 250 GB",
+          is_active: true,
+        },
+        storageAddonOffers: [
+          {
+            id: "storage_250gb__current",
+            storage_addon_id: "storage_250gb",
+            stripe_price_id: "price_storage_250",
+            recurring_price_cents: 2500,
+            storage_limit_bytes: 268435456000,
+            acquisition_enabled: true,
+            is_active: true,
+            effective_start_at: "2026-04-01T00:00:00.000Z",
+            created_at: "2026-04-01T00:00:00.000Z",
+          },
+        ],
+        activeStorageAddonRows: [
+          {
+            id: "addon_row_1",
+            storage_addon_id: "storage_100gb",
+            offer_id: "storage_100gb__current",
+            stripe_subscription_item_id: "si_storage_100",
+            stripe_price_id: "price_storage_100",
+            quantity: 1,
+            status: "past_due",
+          },
+        ],
+      })
+    );
+
+    const req = {
+      method: "POST",
+      body: { storageAddonId: "storage_250gb", action: "add" },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(readVerifiedStripeSubscriptionForUserMock).not.toHaveBeenCalled();
+    expect(stripePostFormMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({
+      error:
+        "You already have an active storage add-on. Remove it before adding a different storage package.",
+    });
+  });
+
+  it("blocks plan-ineligible self-serve storage add-ons before Stripe mutation", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({
+        billingProfile: {
+          user_id: "user-1",
+          plan_id: "studio",
+          stripe_customer_id: "cus_123",
+          stripe_subscription_id: "sub_123",
+          subscription_status: "active",
+        },
+        billingContract: {
+          id: "contract_1",
+          plan_id: "studio",
+          stripe_subscription_id: "sub_123",
+          contract_source: "stripe",
+          status: "active",
+        },
+        storageAddon: {
+          id: "storage_250gb",
+          display_name: "Extra 250 GB",
+          is_active: true,
+        },
+        storageAddonOffers: [
+          {
+            id: "storage_250gb__current",
+            storage_addon_id: "storage_250gb",
+            stripe_price_id: "price_storage_250",
+            recurring_price_cents: 2500,
+            storage_limit_bytes: 268435456000,
+            acquisition_enabled: true,
+            is_active: true,
+            effective_start_at: "2026-04-01T00:00:00.000Z",
+            created_at: "2026-04-01T00:00:00.000Z",
+          },
+        ],
+        activeStorageAddonRows: [],
+      })
+    );
+
+    const req = {
+      method: "POST",
+      body: { storageAddonId: "storage_250gb", action: "add" },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(readVerifiedStripeSubscriptionForUserMock).not.toHaveBeenCalled();
+    expect(stripePostFormMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "This storage add-on is not available for your current plan.",
+    });
+  });
+
+  it("blocks manual-review storage add-ons from self-serve checkout", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({
+        billingProfile: {
+          user_id: "user-1",
+          plan_id: "business",
+          stripe_customer_id: "cus_123",
+          stripe_subscription_id: "sub_123",
+          subscription_status: "active",
+        },
+        billingContract: {
+          id: "contract_1",
+          plan_id: "business",
+          stripe_subscription_id: "sub_123",
+          contract_source: "stripe",
+          status: "active",
+        },
+        storageAddon: {
+          id: "storage_500gb",
+          display_name: "Extra 500 GB",
+          is_active: true,
+        },
+        storageAddonOffers: [
+          {
+            id: "storage_500gb__current",
+            storage_addon_id: "storage_500gb",
+            stripe_price_id: "price_storage_500",
+            recurring_price_cents: 4500,
+            storage_limit_bytes: 536870912000,
+            acquisition_enabled: true,
+            is_active: true,
+            effective_start_at: "2026-04-01T00:00:00.000Z",
+            created_at: "2026-04-01T00:00:00.000Z",
+          },
+        ],
+        activeStorageAddonRows: [],
+      })
+    );
+
+    const req = {
+      method: "POST",
+      body: { storageAddonId: "storage_500gb", action: "add" },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(readVerifiedStripeSubscriptionForUserMock).not.toHaveBeenCalled();
+    expect(stripePostFormMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({
+      error:
+        "This storage add-on requires manual review and is not available for self-serve checkout.",
+    });
+  });
+
   it("removes an active recurring storage add-on using the live Stripe subscription item", async () => {
     getSupabaseAdminMock.mockReturnValue(
       createSupabaseAdminMock({
@@ -318,6 +510,70 @@ describe("POST /api/billing/storage-addon/change", () => {
     expect(stripePostFormMock).toHaveBeenCalledWith("/subscriptions/sub_123", {
       proration_behavior: "create_prorations",
       "items[0][id]": "si_storage_100",
+      "items[0][deleted]": true,
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("allows removing a current billable storage add-on after its catalog row is retired", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({
+        billingProfile: {
+          user_id: "user-1",
+          plan_id: "business",
+          stripe_customer_id: "cus_123",
+          stripe_subscription_id: "sub_123",
+          subscription_status: "active",
+        },
+        billingContract: {
+          id: "contract_1",
+          plan_id: "business",
+          stripe_subscription_id: "sub_123",
+          contract_source: "stripe",
+          status: "active",
+        },
+        storageAddon: {
+          id: "storage_25gb",
+          display_name: "Extra 25 GB",
+          is_active: false,
+        },
+        storageAddonOffers: [],
+        activeStorageAddonRows: [
+          {
+            id: "addon_row_1",
+            storage_addon_id: "storage_25gb",
+            offer_id: "storage_25gb__current",
+            stripe_subscription_item_id: "si_storage_25",
+            stripe_price_id: "price_storage_25",
+            quantity: 1,
+            status: "past_due",
+          },
+        ],
+      })
+    );
+    readVerifiedStripeSubscriptionForUserMock.mockResolvedValue({
+      id: "sub_123",
+      customer: "cus_123",
+      items: {
+        data: [
+          { id: "si_base", quantity: 1, price: { id: "price_business" } },
+          { id: "si_storage_25", quantity: 1, price: { id: "price_storage_25" } },
+        ],
+      },
+    });
+    stripePostFormMock.mockResolvedValue({ id: "sub_123" });
+
+    const req = {
+      method: "POST",
+      body: { storageAddonId: "storage_25gb", action: "remove" },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(stripePostFormMock).toHaveBeenCalledWith("/subscriptions/sub_123", {
+      proration_behavior: "create_prorations",
+      "items[0][id]": "si_storage_25",
       "items[0][deleted]": true,
     });
     expect(res.status).toHaveBeenCalledWith(200);
@@ -538,6 +794,82 @@ describe("POST /api/billing/storage-addon/change", () => {
     expect(res.status).toHaveBeenCalledWith(409);
     expect(res.json).toHaveBeenCalledWith({
       error: "Extra 100 GB is already active on this workspace.",
+    });
+  });
+
+  it("blocks add-on purchases when Stripe already has any known storage add-on price", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({
+        billingProfile: {
+          user_id: "user-1",
+          plan_id: "business",
+          stripe_customer_id: "cus_123",
+          stripe_subscription_id: "sub_123",
+          subscription_status: "active",
+        },
+        billingContract: {
+          id: "contract_1",
+          plan_id: "business",
+          stripe_subscription_id: "sub_123",
+          contract_source: "stripe",
+          status: "active",
+        },
+        storageAddon: {
+          id: "storage_250gb",
+          display_name: "Extra 250 GB",
+          is_active: true,
+        },
+        storageAddonOffers: [
+          {
+            id: "storage_50gb__historical",
+            storage_addon_id: "storage_50gb",
+            stripe_price_id: "price_storage_50_old",
+            recurring_price_cents: 900,
+            storage_limit_bytes: 53687091200,
+            acquisition_enabled: false,
+            is_active: false,
+            effective_start_at: "2026-03-01T00:00:00.000Z",
+            created_at: "2026-03-01T00:00:00.000Z",
+          },
+          {
+            id: "storage_250gb__current",
+            storage_addon_id: "storage_250gb",
+            stripe_price_id: "price_storage_250",
+            recurring_price_cents: 2500,
+            storage_limit_bytes: 268435456000,
+            acquisition_enabled: true,
+            is_active: true,
+            effective_start_at: "2026-04-01T00:00:00.000Z",
+            created_at: "2026-04-01T00:00:00.000Z",
+          },
+        ],
+        activeStorageAddonRows: [],
+      })
+    );
+    readVerifiedStripeSubscriptionForUserMock.mockResolvedValue({
+      id: "sub_123",
+      customer: "cus_123",
+      items: {
+        data: [
+          { id: "si_base", quantity: 1, price: { id: "price_business" } },
+          { id: "si_storage_50", quantity: 1, price: { id: "price_storage_50_old" } },
+        ],
+      },
+    });
+
+    const req = {
+      method: "POST",
+      body: { storageAddonId: "storage_250gb", action: "add" },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(stripePostFormMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({
+      error:
+        "You already have an active storage add-on. Remove it before adding a different storage package.",
     });
   });
 

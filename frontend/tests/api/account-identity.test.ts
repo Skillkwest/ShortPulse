@@ -8,7 +8,6 @@ import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const updateSupabaseAuthUserMock = vi.fn();
-const verifySupabasePasswordMock = vi.fn();
 const syncStripeCustomerForUserMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
@@ -26,7 +25,6 @@ vi.mock("../../lib/server/api/accountIdentity", async () => {
   return {
     ...actual,
     updateSupabaseAuthUser: (...args: unknown[]) => updateSupabaseAuthUserMock(...args),
-    verifySupabasePassword: (...args: unknown[]) => verifySupabasePasswordMock(...args),
   };
 });
 
@@ -58,7 +56,6 @@ describe("account identity routes", () => {
       },
     });
     updateSupabaseAuthUserMock.mockResolvedValue({});
-    verifySupabasePasswordMock.mockResolvedValue(true);
     syncStripeCustomerForUserMock.mockResolvedValue({
       stripeCustomerId: "cus_123",
       created: false,
@@ -209,7 +206,7 @@ describe("account identity routes", () => {
   it("updates email through the server-owned email route using forwarded request origin when no canonical base url is configured", async () => {
     const req = {
       method: "POST",
-      body: { email: "alice@example.com", currentPassword: "secret-pass" },
+      body: { email: "alice@example.com" },
       headers: {
         authorization: "Bearer token",
         host: "internal.shortpulse.test",
@@ -239,7 +236,7 @@ describe("account identity routes", () => {
     process.env.APP_BASE_URL = "https://canonical.shortpulse.test/base/path";
     const req = {
       method: "POST",
-      body: { email: "alice@example.com", currentPassword: "secret-pass" },
+      body: { email: "alice@example.com" },
       headers: {
         authorization: "Bearer token",
         host: "internal.shortpulse.test",
@@ -264,7 +261,7 @@ describe("account identity routes", () => {
     process.env.SHORTPULSE_PUBLIC_API_BASE_URL = "https://preview.shortpulse.test/base/path";
     const req = {
       method: "POST",
-      body: { email: "alice@example.com", currentPassword: "secret-pass" },
+      body: { email: "alice@example.com" },
       headers: {
         authorization: "Bearer token",
         host: "localhost:3000",
@@ -287,7 +284,7 @@ describe("account identity routes", () => {
     process.env.APP_BASE_URL = "http://localhost:3000";
     const req = {
       method: "POST",
-      body: { email: "alice@example.com", currentPassword: "secret-pass" },
+      body: { email: "alice@example.com" },
       headers: {
         authorization: "Bearer token",
         host: "internal.shortpulse.test",
@@ -312,7 +309,7 @@ describe("account identity routes", () => {
     process.env.APP_BASE_URL = "https://preview.shortpulse.test";
     const req = {
       method: "POST",
-      body: { email: "alice@example.com", currentPassword: "secret-pass" },
+      body: { email: "alice@example.com" },
       headers: {
         authorization: "Bearer token",
         host: "preview.shortpulse.test",
@@ -332,7 +329,7 @@ describe("account identity routes", () => {
     vi.stubEnv("NODE_ENV", "production");
     const req = {
       method: "POST",
-      body: { email: "alice@example.com", currentPassword: "secret-pass" },
+      body: { email: "alice@example.com" },
       headers: {
         authorization: "Bearer token",
         host: "internal.shortpulse.test",
@@ -354,7 +351,7 @@ describe("account identity routes", () => {
     process.env.SHORTPULSE_PUBLIC_API_BASE_URL = "https://preview.shortpulse.test";
     const req = {
       method: "POST",
-      body: { email: "alice@example.com", currentPassword: "secret-pass" },
+      body: { email: "alice@example.com" },
       headers: {
         authorization: "Bearer token",
         host: "preview.shortpulse.test",
@@ -370,7 +367,35 @@ describe("account identity routes", () => {
     expect(res.json).toHaveBeenCalledWith({ error: "Unable to update your email." });
   });
 
-  it("requires the current password before updating email", async () => {
+  it("updates email without requiring current password reauthentication", async () => {
+    const req = {
+      method: "POST",
+      body: { email: "alice@example.com" },
+      headers: {
+        authorization: "Bearer token",
+        host: "shortpulse.test",
+        "x-forwarded-proto": "https",
+      },
+    };
+    const res = createMockResponse();
+
+    await emailHandler(req as never, res as never);
+
+    expect(updateSupabaseAuthUserMock).toHaveBeenCalledWith({
+      req,
+      payload: { email: "alice@example.com" },
+      emailRedirectTo:
+        "https://shortpulse.test/auth/callback?flow=email-change&next=%2Fprofile%3Fsection%3Daccount",
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      email: "alice@example.com",
+      confirmationRequired: true,
+    });
+  });
+
+  it("returns a safe email update failure when Supabase email update fails", async () => {
+    updateSupabaseAuthUserMock.mockRejectedValueOnce(new Error("Supabase auth is not configured."));
     const req = {
       method: "POST",
       body: { email: "alice@example.com" },
@@ -380,44 +405,12 @@ describe("account identity routes", () => {
 
     await emailHandler(req as never, res as never);
 
-    expect(verifySupabasePasswordMock).not.toHaveBeenCalled();
-    expect(updateSupabaseAuthUserMock).not.toHaveBeenCalled();
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({ error: "Enter your current password." });
-  });
-
-  it("rejects the email update when the current password is incorrect", async () => {
-    verifySupabasePasswordMock.mockResolvedValueOnce(false);
-    const req = {
-      method: "POST",
-      body: { email: "alice@example.com", currentPassword: "wrong-pass" },
-      headers: { authorization: "Bearer token" },
-    };
-    const res = createMockResponse();
-
-    await emailHandler(req as never, res as never);
-
-    expect(verifySupabasePasswordMock).toHaveBeenCalledWith({
-      email: "user@example.com",
-      password: "wrong-pass",
+    expect(updateSupabaseAuthUserMock).toHaveBeenCalledWith({
+      req,
+      payload: { email: "alice@example.com" },
+      emailRedirectTo:
+        "http://localhost:3000/auth/callback?flow=email-change&next=%2Fprofile%3Fsection%3Daccount",
     });
-    expect(updateSupabaseAuthUserMock).not.toHaveBeenCalled();
-    expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith({ error: "Current password is incorrect." });
-  });
-
-  it("returns a safe email update failure when password verification is unavailable", async () => {
-    verifySupabasePasswordMock.mockRejectedValueOnce(new Error("Supabase auth is not configured."));
-    const req = {
-      method: "POST",
-      body: { email: "alice@example.com", currentPassword: "secret-pass" },
-      headers: { authorization: "Bearer token" },
-    };
-    const res = createMockResponse();
-
-    await emailHandler(req as never, res as never);
-
-    expect(updateSupabaseAuthUserMock).not.toHaveBeenCalled();
     expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
       req,
       error: expect.any(Error),
@@ -432,14 +425,13 @@ describe("account identity routes", () => {
     requireApiUserMock.mockRejectedValueOnce(new Error("Auth verifier exploded."));
     const req = {
       method: "POST",
-      body: { email: "alice@example.com", currentPassword: "secret-pass" },
+      body: { email: "alice@example.com" },
       headers: { authorization: "Bearer token" },
     };
     const res = createMockResponse();
 
     await emailHandler(req as never, res as never);
 
-    expect(verifySupabasePasswordMock).not.toHaveBeenCalled();
     expect(updateSupabaseAuthUserMock).not.toHaveBeenCalled();
     expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
       req,
@@ -454,7 +446,7 @@ describe("account identity routes", () => {
     for (let index = 0; index < 5; index += 1) {
       const req = {
         method: "POST",
-        body: { email: `alice${index}@example.com`, currentPassword: "secret-pass" },
+        body: { email: `alice${index}@example.com` },
         headers: { authorization: "Bearer token" },
         socket: { remoteAddress: "127.0.0.1" },
       };
@@ -465,7 +457,7 @@ describe("account identity routes", () => {
 
     const blockedReq = {
       method: "POST",
-      body: { email: "blocked@example.com", currentPassword: "secret-pass" },
+      body: { email: "blocked@example.com" },
       headers: { authorization: "Bearer token" },
       socket: { remoteAddress: "127.0.0.1" },
     };

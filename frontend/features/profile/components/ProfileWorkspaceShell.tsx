@@ -19,7 +19,6 @@ type ProfileWorkspaceShellProps = {
   section: ProfileSection;
   sections: readonly ProfileSectionItem[];
   title: string;
-  body: string;
   notice: NoticeState | null;
   onRequestLogout: () => void;
   children: ReactNode;
@@ -37,7 +36,6 @@ export function ProfileWorkspaceShell({
   section,
   sections,
   title,
-  body,
   notice,
   onRequestLogout,
   children,
@@ -50,7 +48,6 @@ export function ProfileWorkspaceShell({
             <div className={profileClass("profile-identity-copy")}>
               <p className="eyebrow">Account workspace</p>
               <h1>{title}</h1>
-              <p className="subdued">{body}</p>
             </div>
           </div>
         </div>

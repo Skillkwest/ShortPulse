@@ -220,7 +220,7 @@ vi.mock("../../lib/supabaseClient", () => ({
           select: () => ({
             eq: () => ({
               is: () => ({
-                eq: async () => ({
+                in: async () => ({
                   data: [],
                   error: null,
                 }),
@@ -345,9 +345,7 @@ describe("Profile subscription actions", () => {
     expect(
       await screen.findByRole("button", { name: "Cancel paid subscription" })
     ).toBeInTheDocument();
-    expect(
-      await screen.findByText("$10.00 / month · Ideal for creators testing cadence.")
-    ).toBeInTheDocument();
+    expect(screen.queryByText(/Ideal for creators testing cadence/)).not.toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Recent subscription payments" })
     ).toBeInTheDocument();
@@ -417,9 +415,8 @@ describe("Profile subscription actions", () => {
 
     expect(await screen.findByRole("heading", { name: "Subscription plans" })).toBeInTheDocument();
     expect(screen.getAllByText("Media")[0]).toBeInTheDocument();
-    expect(
-      screen.getByText("$19.00 / month · Ideal for creators testing cadence.")
-    ).toBeInTheDocument();
+    expect(screen.getAllByText("$19.00 / month").length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Ideal for creators testing cadence/)).not.toBeInTheDocument();
   });
 
   it("hides the renewal hero chip for the baseline fallback plan", async () => {
@@ -613,10 +610,13 @@ describe("Profile subscription actions", () => {
     expect(
       container.querySelector(".subscription-plan-card.is-current.plan-business")
     ).not.toBeNull();
+    expect(screen.queryByText("How subscriptions work")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Managed internally ·/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Compare the public offers/)).not.toBeInTheDocument();
     expect(screen.getByText(/2026/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "End paid access" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Choose Media" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Choose Studio" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Downgrade to Media" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Downgrade to Studio" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Current Plan" })).toBeDisabled();
     expect(
       screen.getByText(

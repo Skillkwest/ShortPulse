@@ -26,7 +26,6 @@ import {
   MediaLibraryVisualMediaCard,
   buildMediaLibraryCardActionLabels,
   canShowMediaLibraryRerollAction,
-  canShowMediaLibraryWorkflowReloadAction,
   resolveMediaLibraryCardDisplayLabel,
   type MediaLibraryMediaDragPreview,
 } from "./MediaLibraryMediaCard";
@@ -66,7 +65,6 @@ type MediaLibraryMediaGridProps = {
   onDeleteMediaFromLibrary?: (file: MediaFileRow) => void;
   onDownloadMediaFile?: (file: MediaFileRow) => void;
   onRerollWorkflowFromMedia?: (file: MediaFileRow) => void;
-  onReloadWorkflowFromMedia?: (file: MediaFileRow) => void;
   onMediaContextMenu?: (event: React.MouseEvent<HTMLElement>, file: MediaFileRow) => void;
   onMediaPreviewError: (file: MediaFileRow, failedUrl?: string | null) => void;
   onMediaPaint: (assetKind: "image" | "video") => void;
@@ -102,7 +100,6 @@ export function MediaLibraryMediaGrid({
   onDeleteMediaFromLibrary,
   onDownloadMediaFile,
   onRerollWorkflowFromMedia,
-  onReloadWorkflowFromMedia,
   onMediaContextMenu,
   onMediaPreviewError,
   onMediaPaint,
@@ -220,10 +217,6 @@ export function MediaLibraryMediaGrid({
           const canShowAudioDownloadAction = Boolean(
             isAudio && onDownloadMediaFile && hasDownloadableMediaSource
           );
-          const canShowWorkflowReloadAction = canShowMediaLibraryWorkflowReloadAction(
-            file,
-            onReloadWorkflowFromMedia
-          );
           const canShowRerollAction = canShowMediaLibraryRerollAction(
             file,
             onRerollWorkflowFromMedia
@@ -232,7 +225,6 @@ export function MediaLibraryMediaGrid({
             canShowDownloadAction ||
             canShowAudioDownloadAction ||
             canShowRerollAction ||
-            canShowWorkflowReloadAction ||
             canShowRemoveAction ||
             canShowDeleteAction;
           const shouldBypassAdaptivePreview = optimizerFallbackMediaIds.has(file.id);
@@ -303,7 +295,6 @@ export function MediaLibraryMediaGrid({
                 showCardActions={shouldShowCardActions}
                 canShowDownloadAction={canShowAudioDownloadAction}
                 canShowRerollAction={canShowRerollAction}
-                canShowWorkflowReloadAction={canShowWorkflowReloadAction}
                 canShowRemoveAction={canShowRemoveAction}
                 canShowDeleteAction={canShowDeleteAction}
                 actionLabels={buildMediaLibraryCardActionLabels(file, {
@@ -315,7 +306,6 @@ export function MediaLibraryMediaGrid({
                 dangerActionMode="exclusive"
                 onDownloadMediaFile={onDownloadMediaFile}
                 onRerollWorkflowFromMedia={onRerollWorkflowFromMedia}
-                onReloadWorkflowFromMedia={onReloadWorkflowFromMedia}
                 onRemoveMediaFromFolder={onRemoveMediaFromFolder}
                 onDeleteMediaFromLibrary={onDeleteMediaFromLibrary}
                 shellStyle={renderItem.style}
@@ -349,7 +339,6 @@ export function MediaLibraryMediaGrid({
               showCardActions={shouldShowCardActions}
               canShowDownloadAction={canShowDownloadAction}
               canShowRerollAction={canShowRerollAction}
-              canShowWorkflowReloadAction={canShowWorkflowReloadAction}
               canShowRemoveAction={canShowRemoveAction}
               canShowDeleteAction={canShowDeleteAction}
               actionLabels={buildMediaLibraryCardActionLabels(file, {
@@ -361,7 +350,6 @@ export function MediaLibraryMediaGrid({
               dangerActionMode="exclusive"
               onDownloadMediaFile={onDownloadMediaFile}
               onRerollWorkflowFromMedia={onRerollWorkflowFromMedia}
-              onReloadWorkflowFromMedia={onReloadWorkflowFromMedia}
               onRemoveMediaFromFolder={onRemoveMediaFromFolder}
               onDeleteMediaFromLibrary={onDeleteMediaFromLibrary}
               shellStyle={renderItem.style}

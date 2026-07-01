@@ -7,14 +7,14 @@ import { profileClass } from "../profileRouteStyles";
 
 type ProfilePreferenceToggleCardProps = {
   title: string;
-  description: string;
+  description?: string;
   enabled: boolean;
   disabled?: boolean;
   saving?: boolean;
   error?: string | null;
   onToggle: (next: boolean) => void;
-  enabledHelperText: string;
-  disabledHelperText: string;
+  enabledHelperText?: string;
+  disabledHelperText?: string;
 };
 
 /**
@@ -36,7 +36,7 @@ export function ProfilePreferenceToggleCard({
       <div className={profileClass("profile-preference-row")}>
         <div className={profileClass("profile-preference-copy")}>
           <h3>{title}</h3>
-          <p className="tiny subdued">{description}</p>
+          {description ? <p className="tiny subdued">{description}</p> : null}
         </div>
         <button
           type="button"
@@ -55,9 +55,11 @@ export function ProfilePreferenceToggleCard({
           </span>
         </button>
       </div>
-      <p className={profileClass("tiny", "subdued", "profile-preference-helper")}>
-        {enabled ? enabledHelperText : disabledHelperText}
-      </p>
+      {enabledHelperText && disabledHelperText ? (
+        <p className={profileClass("tiny", "subdued", "profile-preference-helper")}>
+          {enabled ? enabledHelperText : disabledHelperText}
+        </p>
+      ) : null}
       {saving ? (
         <p className={profileClass("tiny", "profile-preference-status")} role="status">
           Saving autosave preference...

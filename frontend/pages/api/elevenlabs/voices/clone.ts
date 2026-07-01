@@ -13,6 +13,10 @@ import {
   MediaAudioExtractionInputError,
   readStoredMediaBuffer,
 } from "../../../../lib/server/mediaAudioExtraction";
+import {
+  recordVoiceSourceLifecycleState,
+  VOICE_CLONE_SOURCE_RETENTION_DAYS,
+} from "../../../../lib/server/voiceSourceLifecycle";
 
 type VoiceCloneRequestBody = {
   voiceName?: unknown;
@@ -100,6 +104,38 @@ export default async function handler(
   }
   if (!user) return;
   const userId = user.id;
+  let lifecycleSourceStoragePath: string | null = null;
+
+  const recordVoiceCloneLifecycleBestEffort = async ({
+    state,
+    providerVoiceId = null,
+    metadata = null,
+  }: {
+    state: "submitted" | "terminal_failure" | "retained_for_custom_voice";
+    providerVoiceId?: string | null;
+    metadata?: Record<string, unknown> | null;
+  }): Promise<void> => {
+    if (!lifecycleSourceStoragePath) return;
+    await recordVoiceSourceLifecycleState({
+      userId,
+      workflowKind: "voice_clone",
+      sourceKind: "audio",
+      storagePath: lifecycleSourceStoragePath,
+      state,
+      lifecycleKey: "voice-clone-source",
+      providerVoiceId,
+      retentionDays: state === "submitted" ? null : VOICE_CLONE_SOURCE_RETENTION_DAYS,
+      metadata,
+    }).catch((lifecycleError) =>
+      logApiRouteException({
+        req,
+        error: lifecycleError,
+        routeLabel: "elevenlabs-voice-clone.lifecycle",
+        scope: "generation",
+        user,
+      })
+    );
+  };
   if (
     !enforceApiRateLimit(req, res, {
       ...ELEVENLABS_VOICE_CLONE_RATE_LIMIT,
@@ -137,6 +173,7 @@ export default async function handler(
       userId,
       label: "Voice clone source storage path",
     });
+    lifecycleSourceStoragePath = trustedStoragePath;
 
     const storedSource = await readStoredMediaBuffer({
       storagePath: trustedStoragePath,
@@ -144,6 +181,14 @@ export default async function handler(
     });
     const sourceFilename =
       sourceName ?? trustedStoragePath.split("/").filter(Boolean).pop() ?? "voice-clone-source";
+    await recordVoiceCloneLifecycleBestEffort({
+      state: "submitted",
+      metadata: {
+        source_name: sourceFilename,
+        mime_type: storedSource.contentType,
+        size_bytes: storedSource.size,
+      },
+    });
 
     const clonedVoice = await createElevenLabsClonedVoice({
       voiceName,
@@ -192,7 +237,21 @@ export default async function handler(
       if (!savedVoice) {
         throw new Error("Unable to persist custom voice ownership.");
       }
+      await recordVoiceCloneLifecycleBestEffort({
+        state: "retained_for_custom_voice",
+        providerVoiceId: clonedVoice.voiceId,
+        metadata: {
+          sample_storage_path: voiceSample.sampleStoragePath,
+        },
+      });
     } catch (persistenceError) {
+      await recordVoiceCloneLifecycleBestEffort({
+        state: "terminal_failure",
+        providerVoiceId: clonedVoice.voiceId,
+        metadata: {
+          failure_stage: "ownership_persistence",
+        },
+      });
       await logApiRouteException({
         req,
         error: persistenceError,
@@ -230,6 +289,12 @@ export default async function handler(
       },
     });
   } catch (error) {
+    await recordVoiceCloneLifecycleBestEffort({
+      state: "terminal_failure",
+      metadata: {
+        failure_stage: "voice_clone_route",
+      },
+    });
     if (error instanceof MediaAudioExtractionInputError) {
       return res.status(error.statusCode).json({
         error: "Invalid request",

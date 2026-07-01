@@ -253,13 +253,15 @@
 
 .profile-credit-hero-meta {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 180px));
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(118px, 1fr);
   gap: 8px;
   align-items: stretch;
   justify-items: stretch;
   justify-content: end;
   text-align: left;
-  min-width: calc((180px * 3) + (8px * 2));
+  width: min(560px, 100%);
+  min-width: min(100%, calc((118px * 3) + (8px * 2)));
 }
 
 .profile-credit-hero-stat-card {
@@ -347,13 +349,15 @@
 
 .profile-hero-meta {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 180px));
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(118px, 1fr);
   gap: 8px;
   align-items: stretch;
   justify-items: stretch;
   justify-content: end;
   text-align: left;
-  min-width: calc((180px * 3) + (8px * 2));
+  width: min(760px, 100%);
+  min-width: min(100%, calc((118px * 5) + (8px * 4)));
 }
 
 .profile-hero-stat,
@@ -445,6 +449,7 @@
   border-radius: var(--profile-radius);
   border: 1px solid rgba(201, 205, 214, 0.18);
   background: rgba(10, 14, 20, 0.92);
+  color-scheme: dark;
   color: var(--color-ash);
   font-size: 14px;
   transition:
@@ -464,6 +469,27 @@
   border-color: rgba(37, 169, 191, 0.52);
   box-shadow: 0 0 0 3px rgba(37, 169, 191, 0.12);
   background: rgba(12, 16, 24, 0.96);
+}
+
+.profile-input:-webkit-autofill,
+.profile-input:-webkit-autofill:hover,
+.profile-input:-webkit-autofill:active {
+  border-color: rgba(201, 205, 214, 0.22);
+  caret-color: var(--color-ash);
+  -webkit-text-fill-color: var(--color-ash);
+  box-shadow: 0 0 0 1000px rgba(10, 14, 20, 0.96) inset;
+  transition:
+    background-color 9999s ease-out,
+    color 9999s ease-out;
+}
+
+.profile-input:-webkit-autofill:focus {
+  border-color: rgba(37, 169, 191, 0.52);
+  caret-color: var(--color-ash);
+  -webkit-text-fill-color: var(--color-ash);
+  box-shadow:
+    0 0 0 1000px rgba(12, 16, 24, 0.96) inset,
+    0 0 0 3px rgba(37, 169, 191, 0.12);
 }
 
 .profile-actions {

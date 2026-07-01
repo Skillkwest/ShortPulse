@@ -559,7 +559,6 @@ export function EmbeddedMediaLibraryPanel({
           });
         }}
         onDownloadMediaFile={handleDownloadMediaFile}
-        onReloadWorkflowFromMedia={handleReloadWorkflowFromMedia}
         onMediaPreviewError={handleMediaPreviewError}
         onMediaPaint={() => undefined}
         onSignedUrlLoaded={(id) => {
@@ -577,7 +576,6 @@ export function EmbeddedMediaLibraryPanel({
       getMediaCardRef,
       handleCardDragEnd,
       handleDownloadMediaFile,
-      handleReloadWorkflowFromMedia,
       handleMediaCardContextMenu,
       handleMediaCardDoubleClick,
       handleMediaCardDragStart,
@@ -642,7 +640,6 @@ export function EmbeddedMediaLibraryPanel({
           });
         }}
         onDownloadMediaFile={handleDownloadMediaFile}
-        onReloadWorkflowFromMedia={handleReloadWorkflowFromMedia}
         onMediaPreviewError={handleMediaPreviewError}
         onMediaPaint={() => undefined}
         onSignedUrlLoaded={(id) => {
@@ -663,7 +660,6 @@ export function EmbeddedMediaLibraryPanel({
       getMediaCardRef,
       handleCardDragEnd,
       handleDownloadMediaFile,
-      handleReloadWorkflowFromMedia,
       handleMediaCardContextMenu,
       handleMediaCardDoubleClick,
       handleMediaCardDragStart,

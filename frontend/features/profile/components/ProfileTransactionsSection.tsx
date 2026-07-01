@@ -10,43 +10,27 @@ import {
   type SubscriptionTransaction,
 } from "../profilePageModel";
 import { profileClass } from "../profileRouteStyles";
-import { ProfileExplainer, ProfilePanel } from "./ProfileSurface";
+import { ProfilePanel } from "./ProfileSurface";
 
 type ProfileTransactionsSectionProps = {
-  portalManagementAvailable: boolean;
   transactions: SubscriptionTransaction[];
   transactionsError: string | null;
   transactionsLoading: boolean;
-  userEmail: string | null | undefined;
 };
 
 /**
  * Renders the consolidated billing payment history for the user.
  */
 export function ProfileTransactionsSection({
-  portalManagementAvailable,
   transactions,
   transactionsError,
   transactionsLoading,
-  userEmail,
 }: ProfileTransactionsSectionProps) {
   return (
     <>
-      <ProfileExplainer summary="How transaction history works">
-        <p>
-          This feed combines recurring subscription invoices, storage add-on charges, and one-time
-          credit top-ups so you can review every recent billing payment in one place.
-        </p>
-      </ProfileExplainer>
-
       <ProfilePanel
         eyebrow="Billing overview"
         title="Recent transactions"
-        description={`${userEmail ? `Billing email: ${userEmail}. ` : ""}${
-          portalManagementAvailable
-            ? "Includes automatic subscription payments and manual credit purchases."
-            : "This account is managed internally, so Stripe-backed billing history may be limited."
-        }`}
         icon={CreditCard}
         className="profile-panel-stack"
       >

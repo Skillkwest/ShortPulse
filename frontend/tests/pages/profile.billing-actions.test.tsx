@@ -136,7 +136,7 @@ vi.mock("../../lib/supabaseClient", () => ({
           select: () => ({
             eq: () => ({
               is: () => ({
-                eq: async () => ({
+                in: async () => ({
                   data: [],
                   error: null,
                 }),
@@ -377,7 +377,9 @@ describe("Profile credits actions", () => {
     render(<ProfilePage />);
 
     expect(await screen.findByRole("heading", { name: "Account settings" })).toBeInTheDocument();
-    expect(screen.getByText("Subscription managed internally outside Stripe")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Subscription managed internally outside Stripe")
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Manage subscription" })).toHaveAttribute(
       "href",
       "/profile?section=subscription"

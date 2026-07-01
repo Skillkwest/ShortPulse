@@ -1,6 +1,7 @@
 import React from "react";
 import { AppMessage } from "../../components/AppMessage";
 import { formatStorageBytes } from "../billing/storage";
+import { isManualReviewStorageAddon } from "../../lib/billing/storageAddonEligibility";
 import { getStripeStatus } from "./PricingPageChrome";
 import type { AdminPricingStateResponse } from "./types";
 import {
@@ -39,9 +40,9 @@ export function PricingStorageAddonsSection({
       <div className={styles.adminSectionHead}>
         <div>
           <p className="eyebrow">Storage add-ons</p>
-          <h2 className={styles.adminSectionTitle}>Public storage add-ons</h2>
+          <h2 className={styles.adminSectionTitle}>Storage add-ons</h2>
           <p className="tiny subdued">
-            Active add-on metadata plus the current acquisition offer when one exists.
+            Self-serve offers can be activated here; manual-review storage stays non-public.
           </p>
         </div>
       </div>
@@ -58,6 +59,7 @@ export function PricingStorageAddonsSection({
             <span>Action</span>
           </div>
           {pricingState.storageAddons.map((addon) => {
+            const isManualReview = isManualReviewStorageAddon(addon.storageAddonId);
             const stripeStatus = addon.offerId
               ? getStripeStatus({
                   priceCents: addon.recurringPriceCents,
@@ -73,6 +75,13 @@ export function PricingStorageAddonsSection({
               <div key={addon.storageAddonId} className={styles.pricingCatalogRow}>
                 <span className={styles.pricingPrimaryCell}>
                   <strong>{addon.displayName}</strong>
+                  <small>
+                    {isManualReview
+                      ? "Manual review"
+                      : addon.acquisitionEnabled
+                        ? "Self-serve"
+                        : "Inactive"}
+                  </small>
                 </span>
                 <span>
                   {addon.offerId ? formatCurrencyFromCents(addon.recurringPriceCents) : "—"}
@@ -86,12 +95,18 @@ export function PricingStorageAddonsSection({
                     type="button"
                     className="ghost-btn mini"
                     onClick={() => {
+                      if (isManualReview) return;
                       setStorageDraft(buildStorageOfferDraft(addon));
                       setStorageError(null);
                       setStorageMessage(null);
                     }}
+                    disabled={isManualReview}
                   >
-                    {addon.offerId ? "Create next" : "Create first offer"}
+                    {isManualReview
+                      ? "Manual review only"
+                      : addon.offerId
+                        ? "Create next"
+                        : "Create first offer"}
                   </button>
                 </span>
               </div>

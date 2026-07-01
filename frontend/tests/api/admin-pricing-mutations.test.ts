@@ -164,9 +164,9 @@ describe("admin pricing mutation routes", () => {
     const req = {
       method: "POST",
       body: {
-        storageAddonId: "storage_25gb",
-        offerName: "Extra 25 GB Admin Offer",
-        storageLimitBytes: 26843545600,
+        storageAddonId: "storage_10gb",
+        offerName: "Extra 10 GB Admin Offer",
+        storageLimitBytes: 10737418240,
         recurringPriceCents: 700,
         stripePriceId: "price_storage_admin",
       },
@@ -558,7 +558,7 @@ describe("admin pricing mutation routes", () => {
       data: [
         {
           status: "activated",
-          offer_id: "storage_25gb__month__extra_25_gb_admin_offer__abc",
+          offer_id: "storage_10gb__month__extra_10_gb_admin_offer__abc",
           message: "Storage add-on offer created and activated.",
         },
       ],
@@ -572,7 +572,7 @@ describe("admin pricing mutation routes", () => {
       recurring: { interval: "month" },
       metadata: {
         shortpulse_catalog_type: "storage_addon",
-        shortpulse_storage_addon_id: "storage_25gb",
+        shortpulse_storage_addon_id: "storage_10gb",
       },
       product: { id: "prod_storage", metadata: {} },
     });
@@ -584,12 +584,12 @@ describe("admin pricing mutation routes", () => {
     const req = {
       method: "POST",
       body: {
-        storageAddonId: "storage_25gb",
-        offerName: "Extra 25 GB Admin Offer",
-        storageLimitBytes: 26843545600,
+        storageAddonId: "storage_10gb",
+        offerName: "Extra 10 GB Admin Offer",
+        storageLimitBytes: 10737418240,
         recurringPriceCents: 700,
         stripePriceId: "price_storage_admin",
-        expectedCurrentOfferId: "storage_25gb__current",
+        expectedCurrentOfferId: "storage_10gb__current",
       },
     };
     const res = createMockResponse();
@@ -602,11 +602,11 @@ describe("admin pricing mutation routes", () => {
     expect(activateStorageOffer).toHaveBeenCalledWith(
       "activate_billing_storage_addon_offer",
       expect.objectContaining({
-        p_storage_addon_id: "storage_25gb",
-        p_offer_name: "Extra 25 GB Admin Offer",
+        p_storage_addon_id: "storage_10gb",
+        p_offer_name: "Extra 10 GB Admin Offer",
         p_recurring_price_cents: 700,
         p_stripe_price_id: "price_storage_admin",
-        p_expected_current_offer_id: "storage_25gb__current",
+        p_expected_current_offer_id: "storage_10gb__current",
         p_expected_current_offer_absent: false,
       })
     );
@@ -618,5 +618,28 @@ describe("admin pricing mutation routes", () => {
         id: expect.any(String),
       })
     );
+  });
+
+  it("rejects manual-review storage add-ons before public offer activation", async () => {
+    const req = {
+      method: "POST",
+      body: {
+        storageAddonId: "storage_500gb",
+        offerName: "Extra 500 GB Admin Offer",
+        storageLimitBytes: 536870912000,
+        recurringPriceCents: 29900,
+        stripePriceId: "price_storage_500",
+      },
+    };
+    const res = createMockResponse();
+
+    await createStorageOfferHandler(req as never, res as never);
+
+    expect(stripeGetMock).not.toHaveBeenCalled();
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Manual-review storage add-ons cannot be activated as public self-serve offers.",
+    });
   });
 });

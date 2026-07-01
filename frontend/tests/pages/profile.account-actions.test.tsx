@@ -199,16 +199,13 @@ describe("Profile account actions", () => {
     fireEvent.change(screen.getByLabelText("Email address"), {
       target: { value: "alice@example.com" },
     });
-    fireEvent.change(screen.getByLabelText("Current password"), {
-      target: { value: "secret-pass" },
-    });
     fireEvent.click(screen.getByRole("button", { name: "Update email" }));
 
     await waitFor(() => {
       expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/account/email/update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: "alice@example.com", currentPassword: "secret-pass" }),
+        body: JSON.stringify({ email: "alice@example.com" }),
       });
     });
     expect(await screen.findByRole("status")).toHaveTextContent(
@@ -223,9 +220,6 @@ describe("Profile account actions", () => {
 
     fireEvent.change(screen.getByLabelText("Email address"), {
       target: { value: "alice@example.com" },
-    });
-    fireEvent.change(screen.getByLabelText("Current password"), {
-      target: { value: "secret-pass" },
     });
 
     await act(async () => {
@@ -256,9 +250,6 @@ describe("Profile account actions", () => {
     fireEvent.change(screen.getByLabelText("Email address"), {
       target: { value: "alice@example.com" },
     });
-    fireEvent.change(screen.getByLabelText("Current password"), {
-      target: { value: "secret-pass" },
-    });
     fireEvent.click(screen.getByRole("button", { name: "Update email" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -266,15 +257,12 @@ describe("Profile account actions", () => {
     );
   });
 
-  it("requires the current password before requesting an email change", async () => {
+  it("requires an email before requesting an email change", async () => {
     render(<ProfilePage />);
 
-    fireEvent.change(screen.getByLabelText("Email address"), {
-      target: { value: "alice@example.com" },
-    });
     fireEvent.click(screen.getByRole("button", { name: "Update email" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Enter your current password.");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Enter a valid email.");
     expect(fetchWithAuthMock).not.toHaveBeenCalled();
   });
 

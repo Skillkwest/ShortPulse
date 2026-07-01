@@ -11,7 +11,7 @@ import {
   resolveLedgerReference,
 } from "../profilePageModel";
 import { profileClass } from "../profileRouteStyles";
-import { ProfileExplainer, ProfileMetricCard, ProfilePanel } from "./ProfileSurface";
+import { ProfileMetricCard, ProfilePanel } from "./ProfileSurface";
 
 type CreditPackageCard = {
   id: string;
@@ -82,27 +82,17 @@ export function ProfileCreditsSection({
     : balanceCents == null
       ? "Unavailable"
       : balanceCents.toLocaleString();
-  const balanceHelperText = balanceLoading
-    ? "Syncing spendable credits from your account snapshot."
-    : balanceCents == null
-      ? balanceError || "Unable to load spendable credits right now."
-      : "Spendable credits ready for AI generations right now.";
 
   return (
     <>
-      <ProfileExplainer summary="How credits work">
-        <p>
-          Credit packs are one-time top-ups. Every generation debits credits based on model cost,
-          and your spendable balance syncs from Supabase in real time.
-        </p>
-      </ProfileExplainer>
-
       <article className={profileClass("panel", "profile-credit-hero-card", activePlanClassName)}>
         <div className={profileClass("profile-credit-hero-copy")}>
           <p className="eyebrow">Available balance</p>
           <h2 className={profileClass("profile-credit-hero-title")}>Your credits</h2>
           <p className={profileClass("profile-credit-hero-value")}>{balanceDisplayValue}</p>
-          <p className="tiny subdued">{balanceHelperText}</p>
+          {balanceCents == null && balanceError ? (
+            <p className="tiny subdued">{balanceError}</p>
+          ) : null}
         </div>
 
         <div className={profileClass("profile-credit-hero-meta")}>
@@ -133,7 +123,6 @@ export function ProfileCreditsSection({
         <ProfilePanel
           eyebrow="Credits & top-ups"
           title="Buy credits"
-          description="One-time purchases. Taxes may apply. Receipts are available in Stripe."
           className="profile-panel-stack"
           headerAction={
             <button
@@ -200,7 +189,6 @@ export function ProfileCreditsSection({
         <ProfilePanel
           eyebrow="Credit activity"
           title="Recent credit activity"
-          description="Review recent credit grants, renewals, and one-time top-ups."
           icon={Receipt}
           className="profile-panel-stack"
         >

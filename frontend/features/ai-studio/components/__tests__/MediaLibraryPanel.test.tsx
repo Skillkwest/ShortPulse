@@ -880,7 +880,7 @@ describe("MediaLibraryPanel", () => {
     expect(latestSigningArgs?.filteredMedia?.map((row) => row.id)).toEqual(["image-1", "audio-1"]);
   });
 
-  it("emits a generated video output with workflow reload metadata from saved media rows", async () => {
+  it("emits a generated video output for reroll while omitting deferred reload actions", async () => {
     const onReloadWorkflowFromMedia = vi.fn();
     const onRerollWorkflowFromMedia = vi.fn();
     const workflowReload = {
@@ -969,7 +969,6 @@ describe("MediaLibraryPanel", () => {
       expect(screen.getByTestId("mock-all-items-grid")).toBeInTheDocument();
     });
     fireEvent.click(screen.getByRole("button", { name: "Reroll media workflow wolf-motion.mp4" }));
-    fireEvent.click(screen.getByRole("button", { name: "Reload media workflow wolf-motion.mp4" }));
 
     expect(onRerollWorkflowFromMedia).toHaveBeenCalledTimes(1);
     expect(onRerollWorkflowFromMedia).toHaveBeenCalledWith(
@@ -981,100 +980,16 @@ describe("MediaLibraryPanel", () => {
         workflowReload,
       })
     );
-    expect(onReloadWorkflowFromMedia).toHaveBeenCalledTimes(1);
-    expect(onReloadWorkflowFromMedia).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: "media-library:video-reload-1",
-        mode: "video",
-        mediaSource: "generated",
-        generationId: "generation-video-1",
-        workflowReload,
-      }),
-      { mediaKindHint: "video" }
-    );
-    const output = onReloadWorkflowFromMedia.mock.calls[0]?.[0];
+    expect(
+      screen.queryByRole("button", { name: "Reload media workflow wolf-motion.mp4" })
+    ).not.toBeInTheDocument();
+    expect(onReloadWorkflowFromMedia).not.toHaveBeenCalled();
+    const output = onRerollWorkflowFromMedia.mock.calls[0]?.[0];
     expect(output.workflowReload.payload.videoReferences.firstFrame.sourceUrl).toBe(
       "https://cdn.example.com/first-frame.png"
     );
     expect(output.workflowReload.payload.videoReferences.lastFrame.sourceUrl).toBe(
       "https://cdn.example.com/last-frame.png"
-    );
-  });
-
-  it("keeps saved video reload actions video-shaped when workflow metadata is legacy image-shaped", async () => {
-    const onReloadWorkflowFromMedia = vi.fn();
-    const workflowReload = {
-      version: 1,
-      source: "ai_studio_generation",
-      capturedAt: "2026-06-13T15:00:00.000Z",
-      originTool: "create",
-      panelKind: "create",
-      outputMode: "image",
-      restoreBehavior: "navigate_and_hydrate",
-      projectId: "project-1",
-      createMode: "standard",
-      pulse: null,
-      prompt: {
-        display: "Legacy-shaped video row",
-      },
-      model: {
-        id: "fal-ai/imagen4/preview",
-      },
-      payload: {
-        kind: "image",
-        submitTool: "create",
-        aspect: "16:9",
-        imageResolution: "1K",
-        referenceInputs: [],
-        internalMediaRefs: [],
-      },
-    };
-    fetchMediaListPageMock.mockResolvedValueOnce({
-      rows: [
-        {
-          id: "legacy-video-reload-1",
-          filename: "legacy-video.mp4",
-          storage_path: "user-1/videos/legacy-video.mp4",
-          preview_storage_path: "user-1/videos/legacy-video.mp4",
-          file_type: "video/mp4",
-          source: "ai_studio",
-          source_ref: "generation-legacy-video-1",
-          created_at: "2026-06-13T15:01:00.000Z",
-          metadata: {
-            model_id: "kie-ai/kling-3.0",
-            workflow_reload: workflowReload,
-          },
-          signedUrl: "https://cdn.example.com/legacy-video",
-        },
-      ],
-      nextCursor: null,
-      hasMore: false,
-      signedById: new Map<string, string>(),
-    });
-
-    render(
-      <MediaLibraryPanel
-        onSelectMedia={vi.fn()}
-        onSelectPrompt={vi.fn()}
-        onReloadWorkflowFromMedia={onReloadWorkflowFromMedia}
-      />
-    );
-
-    await waitFor(() => {
-      expect(screen.getByTestId("mock-all-items-grid")).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Reload media workflow legacy-video.mp4" }));
-
-    expect(onReloadWorkflowFromMedia).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: "media-library:legacy-video-reload-1",
-        mode: "video",
-        modelId: "kie-ai/kling-3.0",
-        mediaSource: "generated",
-        generationId: "generation-legacy-video-1",
-        workflowReload,
-      }),
-      { mediaKindHint: "video" }
     );
   });
 
@@ -1620,7 +1535,7 @@ describe("MediaLibraryPanel", () => {
     expect(latestProps?.fixedVisualAspectRatio).toBe(4 / 5);
   });
 
-  it("routes embedded Elements media reload actions through saved workflow metadata", async () => {
+  it("omits deferred embedded Elements media reload card actions", async () => {
     const onReloadWorkflowFromMedia = vi.fn();
     const workflowReload = {
       version: 1,
@@ -1685,20 +1600,11 @@ describe("MediaLibraryPanel", () => {
     await waitFor(() => {
       expect(screen.getByTestId("mock-all-items-grid")).toBeInTheDocument();
     });
-    fireEvent.click(
-      screen.getByRole("button", { name: "Reload media workflow embedded-video.mp4" })
-    );
 
-    expect(onReloadWorkflowFromMedia).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: "media-library:embedded-video-1",
-        mode: "video",
-        mediaSource: "generated",
-        generationId: "generation-embedded-video-1",
-        workflowReload,
-      }),
-      { mediaKindHint: "video" }
-    );
+    expect(
+      screen.queryByRole("button", { name: "Reload media workflow embedded-video.mp4" })
+    ).not.toBeInTheDocument();
+    expect(onReloadWorkflowFromMedia).not.toHaveBeenCalled();
   });
 
   it("passes panel density config to media-only grids", async () => {

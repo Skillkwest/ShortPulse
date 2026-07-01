@@ -811,6 +811,23 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `updated_at` (timestamptz, default now, maintained by trigger)
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 
+### voice_source_lifecycle
+
+- `id` (uuid, pk, default `gen_random_uuid()`): Lifecycle proof row id.
+- `user_id` (uuid, fk -> `auth.users.id`): Owner used for storage-path scope validation and cleanup classification.
+- `storage_path` (text): Private `media_library` source object path under `voice-changer/source-audio`, `voice-changer/source-video`, or `voice-clone/source-audio`.
+- `source_path_class` (text): Normalized class (`voice_changer_source_audio`, `voice_changer_source_video`, `voice_clone_source_audio`).
+- `workflow_kind` (text): Owning workflow (`voice_changer` or `voice_clone`).
+- `source_kind` (text): Source media kind (`audio` or `video`).
+- `lifecycle_key` (text): Stable per-source usage key, such as a billing source ref or staged marker.
+- `lifecycle_state` (text): Current lifecycle state (`staged`, `submitted`, `terminal_success`, `terminal_failure`, or `retained_for_custom_voice`).
+- `source_ref`, `generation_id`, `provider_request_id`, `provider_voice_id` (nullable): Cross-links used for operator proof and diagnostics.
+- `retention_until` (timestamptz, nullable): Earliest time the source usage may stop blocking cleanup.
+- `metadata` (jsonb object): Non-authoritative diagnostic context such as MIME type, source size, generation ids, or failure stage.
+- `created_at` / `updated_at` (timestamptz): First registration and latest lifecycle write.
+- Runtime role: operator cleanup proof for Voice Changer and Voice Clone source objects. It is not customer quota authority, custom voice ownership authority, or provider access authority.
+- Access model: RLS enabled; direct reads/writes are service-role-only. Customer sessions must never query this table directly.
+
 ### user_owned_custom_voices
 
 - `id` (uuid, pk, default `gen_random_uuid()`)
@@ -1049,6 +1066,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `started_at` (timestamptz): Add-on start timestamp.
 - `ended_at` (timestamptz, nullable): Add-on end timestamp; `null` means current/open row.
 - `created_at` / `updated_at` (timestamptz)
+- Constraints/indexes: current billable rows (`ended_at is null` and status in `active`, `trialing`, `past_due`, or `unpaid`) must have `quantity = 1`; at most one current billable recurring storage add-on row may exist per user.
 - RLS: users can read only their own rows; writes are server-only/service-role-only. At most one open row per Stripe subscription item.
 
 ### ai_credit_balance
@@ -1064,7 +1082,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `user_id` (uuid, fk -> `auth.users.id`): Balance owner.
 - `change_cents` (int): Positive credits grant; negative credits debit.
 - `reason` (text): Human-readable reason (generation, purchase, admin adjustment, etc.).
-- `source` (text): signup_seed | stripe_checkout | subscription_renewal | admin_adjustment | generation | ...
+- `source` (text): stripe_checkout | subscription_renewal | annual_contract_monthly_allocation | admin_adjustment | generation | ... Retired legacy sources such as `signup_seed` may exist only as historical audit rows and must not mint current customer credits; migration `174` rejects future positive `signup_seed` inserts.
 - `source_ref` (text, nullable): Idempotency reference (unique by user+source+ref when provided).
 - `metadata` (jsonb): Context payload for audits/debugging.
   - Current generation debit rows may include:

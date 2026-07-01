@@ -11,6 +11,7 @@ import type {
   CreditPackageRecord,
 } from "../../../features/billing/catalog";
 import { resolveDefaultPlanConcurrencyLimit } from "../../billing/planConcurrency";
+import { isSelfServeStorageAddon } from "../../billing/storageAddonEligibility";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 
 type BillingPlanMetadataRow = {
@@ -299,7 +300,7 @@ export const loadBillingCatalogSnapshot = async (
   const storageAddons: BillingStorageAddonRecord[] = [...latestStorageAddonOfferByAddonId.values()]
     .map((offer) => {
       const metadata = storageAddonMetadata.get(offer.storage_addon_id);
-      if (!metadata) return null;
+      if (!metadata || !isSelfServeStorageAddon(offer.storage_addon_id)) return null;
       return {
         id: offer.storage_addon_id,
         display_name: metadata.display_name,

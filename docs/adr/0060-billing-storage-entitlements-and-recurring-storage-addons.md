@@ -1,12 +1,15 @@
 # 0060: Billing Storage Entitlements And Recurring Storage Add-Ons
 
 ## Status
+
 Accepted - 2026-04-23
 
 ## Context
+
 ShortPulse already supports versioned billing offers and subscriber contracts for recurring plan pricing, but media storage capacity was still a hard-coded `1 GB` UI placeholder and not a first-class entitlement.
 
 The repo also has multiple media persistence lanes:
+
 - `frontend/lib/server/mediaUploadService.ts`
 - `frontend/pages/api/media/copy-from-url.ts`
 - `frontend/features/ai-studio/logic/mediaLibraryPersistence.ts`
@@ -16,6 +19,7 @@ That means storage enforcement cannot live only in the route page or one client 
 There was also a product-policy ambiguity about what should count toward customer quota. Internal derivative assets such as posters, previews, and thumbs consume infrastructure storage, but they are implementation details rather than user-authored source media.
 
 ## Decision
+
 1. Storage capacity is part of the billing entitlement model.
    - `billing_plans` stores shared tier storage limits.
    - `billing_plan_offers` stores versioned public storage limits.
@@ -39,29 +43,40 @@ There was also a product-policy ambiguity about what should count toward custome
    - Base plan recurring contract remains synchronized from the plan subscription item.
    - Storage add-ons are synchronized from additional subscription items on the same Stripe subscription.
 
-## Initial Product Ladder
-- `free`: `1 GB`
-- `media`: `25 GB`
-- `studio`: `100 GB`
-- `business`: `500 GB`
+## Current Product Ladder
 
-Initial recurring storage add-ons:
-- `+25 GB` for `$5/month`
-- `+100 GB` for `$15/month`
-- `+500 GB` for `$49/month`
+- `free`: `0 GB` baseline fallback, not customer-facing
+- `starter`: `5 GB`
+- `media`: `25 GB`
+- `studio`: `75 GB`
+- `business`: `150 GB`
+
+Current recurring storage add-ons:
+
+- `+10 GB` for `$7/month`
+- `+50 GB` for `$29/month`
+- `+100 GB` for `$59/month`
+- `+250 GB` for `$149/month`
+- `+500 GB` for `$299/month`, manual review only
+
+Self-serve recurring storage is one add-on per account, quantity exactly one, and gated by plan eligibility. Retired public add-ons such as `storage_25gb` may remain as historical Stripe/subscriber references, but they are not public self-serve catalog entries.
 
 ## Consequences
+
 ### Positive
+
 - Storage limits are no longer hard-coded UI values.
 - Grandfathered storage capacity can evolve the same way grandfathered pricing does.
 - All canonical media write paths share one storage rule.
 - Storage add-ons can be explained, sold, and reconciled as real subscription entitlements.
 
 ### Negative
+
 - Billing synchronization becomes more complex because Stripe subscriptions may contain multiple item types.
 - Upload flows need cleanup handling for quota-triggered DB rejections after storage upload already happened.
 - Docs and support tooling must distinguish customer quota from raw infrastructure storage.
 
 ## Notes
+
 - Over-limit policy remains fail-closed for new writes and fail-open for reads/deletes.
 - Downgrades that place an account over limit do not delete existing files; they only block new writes until usage drops below entitlement or capacity is increased.

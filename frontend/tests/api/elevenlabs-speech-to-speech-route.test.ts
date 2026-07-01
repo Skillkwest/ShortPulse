@@ -21,6 +21,7 @@ const markAudioCompanionArtPendingBestEffortMock = vi.fn();
 const generateAudioCompanionArtNowBestEffortMock = vi.fn();
 const transcribeAudioBufferMock = vi.fn();
 const generateAudioReferenceTitleBestEffortMock = vi.fn();
+const recordVoiceSourceLifecycleStateMock = vi.fn();
 
 let mockFields: Record<string, unknown> = {};
 let mockFiles: Record<string, unknown> = {};
@@ -151,6 +152,12 @@ vi.mock("../../lib/server/openAiAudioTranscription", () => ({
   transcribeAudioBuffer: (...args: unknown[]) => transcribeAudioBufferMock(...args),
 }));
 
+vi.mock("../../lib/server/voiceSourceLifecycle", () => ({
+  VOICE_CHANGER_SOURCE_RETENTION_DAYS: 14,
+  recordVoiceSourceLifecycleState: (...args: unknown[]) =>
+    recordVoiceSourceLifecycleStateMock(...args),
+}));
+
 const createMockResponse = () => ({
   setHeader: vi.fn().mockReturnThis(),
   status: vi.fn().mockReturnThis(),
@@ -183,7 +190,7 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
       outputFormat: "mp3_44100_128",
       modelId: "eleven_multilingual_sts_v2",
       inputFormat: "mp3_44100_128",
-      sourceStoragePath: "user-1/voice-changer/staged-audio/source.wav",
+      sourceStoragePath: "user-1/voice-changer/source-audio/source.wav",
       sourceName: "source.wav",
       sourceOrigin: "local",
       shortpulseContext: JSON.stringify({
@@ -208,11 +215,13 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
     generateAudioCompanionArtNowBestEffortMock.mockReset();
     transcribeAudioBufferMock.mockReset();
     generateAudioReferenceTitleBestEffortMock.mockReset();
+    recordVoiceSourceLifecycleStateMock.mockReset();
     probeMediaDurationSecondsMock.mockResolvedValue(12);
     markAudioCompanionArtPendingBestEffortMock.mockResolvedValue(undefined);
     generateAudioCompanionArtNowBestEffortMock.mockResolvedValue(null);
     transcribeAudioBufferMock.mockResolvedValue("I can hear the city waking up below us.");
     generateAudioReferenceTitleBestEffortMock.mockResolvedValue("I Can Hear The City I0OZ21");
+    recordVoiceSourceLifecycleStateMock.mockResolvedValue({ recorded: true });
     chargeGenerationRequestMock.mockResolvedValue({
       userId: "user-1",
       modelId: "eleven_multilingual_sts_v2",
@@ -452,7 +461,7 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
     await handler(req as never, res as never);
 
     expect(readStoredMediaBufferMock).toHaveBeenNthCalledWith(1, {
-      storagePath: "user-1/voice-changer/staged-audio/source.wav",
+      storagePath: "user-1/voice-changer/source-audio/source.wav",
     });
     expect(readStoredMediaBufferMock).toHaveBeenNthCalledWith(2, {
       storagePath: "user-1/voice-changer/source-video/source.mp4",
@@ -543,6 +552,43 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
         source_duration_seconds: 12,
       },
     });
+    expect(recordVoiceSourceLifecycleStateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        workflowKind: "voice_changer",
+        sourceKind: "audio",
+        storagePath: "user-1/voice-changer/source-audio/source.wav",
+        state: "submitted",
+        sourceRef: "billing-source-voice-1",
+        retentionDays: null,
+      })
+    );
+    expect(recordVoiceSourceLifecycleStateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        workflowKind: "voice_changer",
+        sourceKind: "audio",
+        storagePath: "user-1/voice-changer/source-audio/source.wav",
+        state: "terminal_success",
+        sourceRef: "billing-source-voice-1",
+        generationId: "gen-audio-1",
+        providerRequestId: "provider-voice-req-1",
+        retentionDays: 14,
+      })
+    );
+    expect(recordVoiceSourceLifecycleStateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        workflowKind: "voice_changer",
+        sourceKind: "video",
+        storagePath: "user-1/voice-changer/source-video/source.mp4",
+        state: "terminal_success",
+        sourceRef: "billing-source-voice-1",
+        generationId: "gen-video-1",
+        providerRequestId: "provider-voice-req-1",
+        retentionDays: 14,
+      })
+    );
     expect(markAudioCompanionArtPendingBestEffortMock).toHaveBeenCalledWith(
       expect.objectContaining({
         routeLabel: "elevenlabs-speech-to-speech",

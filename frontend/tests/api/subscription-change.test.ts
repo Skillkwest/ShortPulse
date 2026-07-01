@@ -57,6 +57,7 @@ const createSupabaseAdminMock = (params: {
   billingContract?: Record<string, unknown> | null;
   billingPlan?: Record<string, unknown> | null;
   billingOffers?: Record<string, unknown>[];
+  activeStorageAddonRows?: Record<string, unknown>[];
   onCloseContract?: (payload: unknown) => void;
   onCloseStorageAddons?: (payload: unknown) => void;
   onUpsertProfile?: (payload: unknown) => void;
@@ -143,6 +144,16 @@ const createSupabaseAdminMock = (params: {
 
     if (table === "billing_subscription_storage_addons") {
       return {
+        select: () => ({
+          eq: () => ({
+            is: () => ({
+              in: async () => ({
+                data: params.activeStorageAddonRows ?? [],
+                error: null,
+              }),
+            }),
+          }),
+        }),
         update: (payload: unknown) => ({
           eq: () => ({
             is: async () => {
@@ -372,6 +383,69 @@ describe("POST /api/billing/subscription/change", () => {
     expect(ensureStripeCustomerForUserMock).not.toHaveBeenCalled();
     expect(stripePostFormMock).not.toHaveBeenCalledWith("/checkout/sessions", expect.any(Object));
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("blocks plan changes that cannot carry a current billable storage add-on", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({
+        billingProfile: {
+          user_id: "user-1",
+          plan_id: "media",
+          stripe_customer_id: "cus_123",
+          stripe_subscription_id: "sub_123",
+        },
+        billingContract: {
+          id: "contract_1",
+          plan_id: "media",
+          stripe_subscription_id: "sub_123",
+          stripe_price_id: "price_media",
+          billing_interval: "month",
+          contract_source: "stripe",
+        },
+        billingPlan: {
+          id: "starter",
+          display_name: "Starter",
+          is_active: true,
+        },
+        billingOffers: [
+          {
+            id: "starter__current",
+            plan_id: "starter",
+            stripe_price_id: "price_starter",
+            billing_interval: "month",
+            recurring_price_cents: 1500,
+            acquisition_enabled: true,
+            is_active: true,
+            effective_start_at: "2026-04-01T00:00:00.000Z",
+            created_at: "2026-04-01T00:00:00.000Z",
+          },
+        ],
+        activeStorageAddonRows: [
+          {
+            id: "storage_row_1",
+            storage_addon_id: "storage_50gb",
+            quantity: 1,
+            status: "past_due",
+          },
+        ],
+      })
+    );
+
+    const req = {
+      method: "POST",
+      body: { targetPlanId: "starter" },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(readVerifiedStripeSubscriptionForUserMock).not.toHaveBeenCalled();
+    expect(stripePostFormMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({
+      error:
+        "Remove or change your active storage add-on before switching to this subscription plan.",
+    });
   });
 
   it("starts subscription checkout when an internal-comp account selects a paid public plan", async () => {

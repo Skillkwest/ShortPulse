@@ -69,6 +69,11 @@ Current guardrail policy:
 4. Deploy app code dependent on the migration.
 5. Run post-deploy smoke checks.
 
+Recurring storage add-on no-stack guard:
+
+- Before applying `sql/migrations/175_enforce_storage_addon_no_stack.sql`, run `sql/check_billing_storage_addon_no_stack_drift.sql` against the target database and resolve any aggregate drift it reports.
+- The migration updates the plan/storage catalog to the July 1, 2026 storage ladder, closes old public storage add-on acquisition offers, seeds missing-Stripe replacement offers as non-public, clamps quota math to one unit, and intentionally fails if current billable storage add-on rows are stacked per user or have quantity other than one.
+
 Safety posture:
 
 - Keep the local default Supabase link on staging.
@@ -295,6 +300,9 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 169.  `sql/migrations/170_add_media_files_ai_studio_source_ref_index.sql`
 170.  `sql/migrations/171_add_ai_generations_terminal_repair_index.sql`
 171.  `sql/migrations/172_schedule_worker_runs_retention.sql`
+172.  `sql/migrations/173_add_media_storage_lifecycle_diagnostics.sql`
+173.  `sql/migrations/174_remove_legacy_signup_seed_credit_grants.sql`
+174.  `sql/migrations/175_enforce_storage_addon_no_stack.sql`
       Rollback files:
 
 
@@ -386,6 +394,9 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/155_add_dashboard_tutorial_thumbnail_display_derivatives_rollback.sql`
     - `sql/migrations/rollback/156_add_user_preferences_deleted_builtin_presets_rollback.sql`
     - `sql/migrations/rollback/157_add_generation_projection_error_payload_rollback.sql`
+    - `sql/migrations/rollback/173_add_media_storage_lifecycle_diagnostics_rollback.sql`
+    - `sql/migrations/rollback/174_remove_legacy_signup_seed_credit_grants_rollback.sql`
+    - `sql/migrations/rollback/175_enforce_storage_addon_no_stack_rollback.sql`
 
 Hosted SQL lint note:
 
@@ -445,6 +456,7 @@ Billing safety note:
 - Migration `157_add_generation_projection_error_payload.sql` adds `generation_projection.error_payload` for user-scoped raw provider/client failure detail shown in generated-output detail views.
 - Migration `158_disable_signup_seed_credit_grants.sql` disables hidden-baseline signup credit grants so new users must select a paid Stripe-backed plan before receiving plan credits.
 - Migration `161_harden_hidden_free_billing_offer.sql` forces the hidden `free` billing tier and offers to zero credits, zero storage, zero concurrency, no Stripe price, and non-acquisition status; it also blocks service-role activation of free or zero-price public plan offers.
+- Migration `174_remove_legacy_signup_seed_credit_grants.sql` inserts bounded compensating debits for remaining retired `signup_seed` ledger grants, installs a trigger that rejects future positive `signup_seed` inserts, and reasserts that the hidden `free` tier/offers carry no credits, storage, concurrency, or public acquisition value.
 - Migration `058_add_user_preferences_ai_studio_style_details_overrides.sql` adds durable per-user Styles Library metadata override persistence (`user_preferences.ai_studio_style_details_overrides`) for editing `style`, `title`, `referenceImageName`, and `stylePrompt` values.
 - Migration `059_add_user_preferences_ai_studio_character_quickswap_tip_hidden.sql` added durable per-user Character panel QuickSwap guidance visibility persistence (`user_preferences.ai_studio_character_quickswap_tip_hidden`) before the embedded QuickSwap UX was retired.
 - Migration `138_retire_character_quickswap_tip_preference.sql` removes the now-unused `user_preferences.ai_studio_character_quickswap_tip_hidden` column from the current schema contract.
@@ -491,6 +503,8 @@ Billing safety note:
 - Migration `170_add_media_files_ai_studio_source_ref_index.sql` adds a narrow AI Studio media lookup index for generation-owned recovery and reconciliation reads by `user_id + source_ref`.
 - Migration `171_add_ai_generations_terminal_repair_index.sql` adds a narrow terminal-generation scan index for the generation projection repair loop's existing `success`/`fail` + `completed_at` predicate.
 - Migration `172_schedule_worker_runs_retention.sql` schedules daily hosted pg_cron retention for completed `ok` rows in the service-role-only `worker_runs` generation control-plane run ledger after 30 days, preserving incomplete/running rows and error rows. The migration does not perform one-time historical cleanup; production cleanup remains an explicit operator step with before/after proof.
+- Migration `173_add_media_storage_lifecycle_diagnostics.sql` adds the service-role-only `voice_source_lifecycle` proof table plus the aggregate Media Library storage lifecycle diagnostic RPC used by the disabled-by-default internal dry-run route. It returns counts/bytes by lifecycle class without raw object paths or user ids and does not delete storage objects.
+- Migration `175_enforce_storage_addon_no_stack.sql` updates base plan storage to `0/5/25/75/150 GB`, refreshes recurring storage add-on metadata to `10/50/100/250 GB` self-serve plus `500 GB` manual review, closes old public storage add-on offers until matching Stripe Prices are activated, clamps add-on quota math to one unit, and adds the database guard for one current billable recurring storage add-on per user with quantity exactly one; run `sql/check_billing_storage_addon_no_stack_drift.sql` before applying it.
 - Read-write hosted-Supabase maintenance script `sql/configure_cron_job_run_details_retention_supabase.sql` prunes old `cron.job_run_details` rows, compacts the pruned table, and schedules daily retention; the active-status index is documented as an owner-only follow-up if retention alone does not reduce pg_cron status-update scan I/O enough.
 - Read-only performance diagnostics script `sql/check_media_preview_variant_coverage_and_size.sql` reports source-class counts, variant-hint coverage, and p50/p90 size distributions for Media Library preview-risk triage.
 - Read-only derivative backlog diagnostics script `sql/check_media_derivative_processing_backlog.sql` reports image-row processing status/attempt distributions and top retry/exhausted candidates.

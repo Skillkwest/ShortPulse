@@ -92,6 +92,16 @@ export const queryAiStudioPerfAuditAll = <ElementType extends Element>(
 };
 
 type AiStudioPerfWindow = Window & {
+  __shortpulseAiStudioPerfMountDebug?: {
+    enabled: boolean;
+    routeFlagEnabled: boolean;
+    runtimeEnabled: boolean;
+    stage: string;
+    href: string;
+    search: string;
+    updatedAt: string;
+    hasRuntime: boolean;
+  };
   __shortpulseAiStudioPerf?: {
     seedReferenceGrid: (
       count: number,
@@ -356,12 +366,26 @@ export function useAiStudioPerfAuditRuntime({
 }: UseAiStudioPerfAuditRuntimeParams): void {
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const runtimeEnabled =
-      enabled ||
+    const perfWindow = window as AiStudioPerfWindow;
+    const routeFlagEnabled =
       new URLSearchParams(window.location.search).get("perfAuditRuntime")?.trim() === "1";
+    const runtimeEnabled = enabled || routeFlagEnabled;
+    const recordMountDebug = (stage: string) => {
+      if (!runtimeEnabled) return;
+      perfWindow.__shortpulseAiStudioPerfMountDebug = {
+        enabled,
+        routeFlagEnabled,
+        runtimeEnabled,
+        stage,
+        href: window.location.href,
+        search: window.location.search,
+        updatedAt: new Date().toISOString(),
+        hasRuntime: Boolean(perfWindow.__shortpulseAiStudioPerf),
+      };
+    };
+    recordMountDebug("effect_enter");
     if (process.env.NODE_ENV === "production" && !runtimeEnabled) return;
     if (!runtimeEnabled) return;
-    const perfWindow = window as AiStudioPerfWindow;
     const CLICK_SAMPLES_DEFAULT = 24;
     const DEFAULT_COUNTS = [20, 40, 50, 60, 100, 300];
     const DEFAULT_SCROLL_MS_BY_COUNT: Record<number, number> = {
@@ -1362,6 +1386,7 @@ export function useAiStudioPerfAuditRuntime({
       };
     };
 
+    recordMountDebug("building_runtime");
     const auditRuntime: NonNullable<AiStudioPerfWindow["__shortpulseAiStudioPerf"]> = {
       seedReferenceGrid: (count: number, options?: PerfSeedReferenceGridOptions) => {
         const nextOutputs = createPerfOutputs(count);
@@ -1645,11 +1670,15 @@ export function useAiStudioPerfAuditRuntime({
       },
     };
     perfWindow.__shortpulseAiStudioPerf = auditRuntime;
+    recordMountDebug("assigned");
 
     return () => {
       if (perfWindow.__shortpulseAiStudioPerf === auditRuntime) {
         delete perfWindow.__shortpulseAiStudioPerf;
+        recordMountDebug("cleanup_deleted");
+        return;
       }
+      recordMountDebug("cleanup_skipped_newer_runtime");
     };
   }, [
     aspect,

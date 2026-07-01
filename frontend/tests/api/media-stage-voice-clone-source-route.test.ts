@@ -5,6 +5,7 @@ import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const uploadVoiceCloneSourceForUserMock = vi.fn();
+const recordVoiceSourceLifecycleStateMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -25,6 +26,12 @@ vi.mock("../../lib/server/mediaUploadService", async () => {
   };
 });
 
+vi.mock("../../lib/server/voiceSourceLifecycle", () => ({
+  VOICE_CLONE_SOURCE_RETENTION_DAYS: 90,
+  recordVoiceSourceLifecycleState: (...args: unknown[]) =>
+    recordVoiceSourceLifecycleStateMock(...args),
+}));
+
 const createMockResponse = () => ({
   setHeader: vi.fn().mockReturnThis(),
   status: vi.fn().mockReturnThis(),
@@ -43,6 +50,7 @@ describe("POST /api/media/stage-voice-clone-source", () => {
       mimeType: "audio/wav",
       name: "sample.wav",
     });
+    recordVoiceSourceLifecycleStateMock.mockResolvedValue({ recorded: true });
   });
 
   it("stages a local audio source into the voice-clone namespace", async () => {
@@ -55,6 +63,16 @@ describe("POST /api/media/stage-voice-clone-source", () => {
       req,
       userId: "user-1",
     });
+    expect(recordVoiceSourceLifecycleStateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        workflowKind: "voice_clone",
+        sourceKind: "audio",
+        storagePath: "user-1/voice-clone/source-audio/sample.wav",
+        state: "staged",
+        retentionDays: 90,
+      })
+    );
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       source: {

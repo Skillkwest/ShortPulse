@@ -4,13 +4,14 @@ Purpose: define the lean growth analytics contract layered onto `/admin/stats`.
 
 ## Scope
 
-The stats workspace now has three lenses:
+The stats workspace now has four lenses:
 
 - `Product`: existing usage, model, workflow, asset, and project analytics.
 - `Marketing`: signup, activation, time-to-value, retention, and source/campaign attribution.
 - `Sales`: pricing intent, checkout behavior, paid conversion, and high-intent/PQL users.
+- `Storage`: product-tracked media storage, recurring storage add-on MRR, estimated storage/egress/Stripe/compute cost, capacity risk, and storage add-on conversion telemetry.
 
-This is intentionally not a full CDP or CRM pipeline. The current scope is admin-side product-growth visibility only.
+This is intentionally not a full CDP, CRM pipeline, billing ledger, or provider invoice reconciliation surface. The current scope is admin-side product-growth and storage-economics visibility only.
 
 ## Canonical Definitions
 
@@ -45,6 +46,15 @@ This is intentionally not a full CDP or CRM pipeline. The current scope is admin
   - `billing_profiles`
   - `billing_subscription_contracts`
   - `ai_credit_ledger`
+- Storage economics state:
+  - `media_files.file_size`
+  - `billing_subscription_contracts.storage_limit_bytes`
+  - `billing_profiles.plan_id`
+  - `billing_plans`
+  - `billing_storage_addons`
+  - `billing_storage_addon_offers`
+  - `billing_subscription_storage_addons`
+  - sanitized storage add-on mutation telemetry in `app_error_events`
 
 ## Attribution Contract
 
@@ -76,14 +86,16 @@ This is intentionally not a full CDP or CRM pipeline. The current scope is admin
 - `telemetry.billing.upgrade_clicked`
 - `telemetry.billing.checkout_started`
 - `telemetry.billing.checkout_completed`
+- `telemetry.storage.addon`
 
-All of these remain telemetry-only rows in `app_error_events`; they do not open grouped incidents in `app_error_logs`.
+Growth telemetry remains telemetry-only rows in `app_error_events`; it does not open grouped incidents in `app_error_logs`. Storage add-on telemetry uses the existing app-error event surface with sanitized event-name metadata for admin counting and must not include raw storage paths, signed URLs, prompt text, payment details, or Stripe secrets.
 
 ## Admin Read Surface
 
 - `/admin/stats`
 - `/api/admin/stats/global`
+- `/api/admin/storage-economics`
 - `get_admin_global_stats_v1()`
 - `get_admin_growth_stats_v1()`
 
-The route degrades safely when the growth RPC is missing, leaving Product analytics intact while Marketing/Sales fall back to empty states with an operator-facing warning.
+The stats workspace degrades safely when the growth RPC is missing, leaving Product analytics intact while Marketing/Sales fall back to empty states with an operator-facing warning. Storage economics is a sibling admin endpoint, not part of the product/growth stats RPC. It reports provider-cost assumptions and known data gaps inline; it is not proof of provider invoices, live Stripe state, or customer-facing pricing readiness.

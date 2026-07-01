@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  CUSTOMER_CREDIT_ACTIVITY_SOURCES,
   getProfileSectionContent,
   resolveLedgerLabel,
   resolveLedgerReference,
@@ -7,6 +8,15 @@ import {
 } from "../profilePageModel";
 
 describe("profilePageModel billing helpers", () => {
+  it("keeps customer credit activity limited to paid grant sources", () => {
+    expect(CUSTOMER_CREDIT_ACTIVITY_SOURCES).toEqual([
+      "stripe_checkout",
+      "subscription_renewal",
+      "annual_contract_monthly_allocation",
+    ]);
+    expect(CUSTOMER_CREDIT_ACTIVITY_SOURCES).not.toContain("signup_seed");
+  });
+
   it("labels annual recurring grants distinctly from monthly renewals", () => {
     expect(
       resolveLedgerLabel({
@@ -36,6 +46,20 @@ describe("profilePageModel billing helpers", () => {
         created_at: "2026-05-18T00:00:00.000Z",
       })
     ).toBe("in_123");
+  });
+
+  it("does not preserve retired signup seed grants as a customer-facing credit label", () => {
+    expect(
+      resolveLedgerLabel({
+        id: "ledger-signup-seed",
+        change_cents: 100,
+        reason: "Legacy signup seed grant",
+        source: "signup_seed",
+        source_ref: "user-1",
+        metadata: null,
+        created_at: "2026-05-15T20:48:26.000Z",
+      })
+    ).toBe("Billing activity");
   });
 
   it("summarizes monthly plan payments with recurring storage add-ons", () => {
@@ -68,11 +92,12 @@ describe("profilePageModel billing helpers", () => {
     });
   });
 
-  it("keeps credits copy separate from account billing controls", () => {
+  it("keeps section content titles compact without helper body copy", () => {
     expect(getProfileSectionContent("credits")).toEqual({
       title: "Credits",
-      body: "Manage credit balance, one-time top-ups, and recent credit activity.",
     });
-    expect(getProfileSectionContent("account").body).toContain("billing");
+    expect(getProfileSectionContent("account")).toEqual({
+      title: "Account settings",
+    });
   });
 });

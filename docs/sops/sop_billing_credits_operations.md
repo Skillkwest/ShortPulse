@@ -61,6 +61,9 @@ This SOP is the operational runbook for credit ledger migrations, admin balance 
 - `billing_plans.storage_limit_bytes`, `billing_plan_offers.storage_limit_bytes`, and `billing_subscription_contracts.storage_limit_bytes` define base storage entitlements for each tier and subscriber contract snapshot.
 - `billing_storage_addons` and `billing_storage_addon_offers` define recurring public storage add-on catalog entries.
 - `billing_subscription_storage_addons` defines subscriber-specific recurring storage add-on contracts synchronized from Stripe subscription items.
+- Recurring storage add-ons are single-slot entitlements: one current billable add-on per user, quantity exactly one, and self-serve eligibility must come from `frontend/lib/billing/storageAddonEligibility.ts`.
+- `storage_500gb` is manual-review only and must not be exposed as a public self-serve checkout option.
+- Missing-Stripe storage add-on offers must stay `acquisition_enabled = false`; attach and validate the Stripe recurring Price through `/admin/pricing` before public self-serve checkout is exposed.
 - `billing_profiles` remains a runtime projection for current plan/customer/subscription linkage, but it is not the long-term authoritative source for grandfathered recurring price.
 - `billing_subscription_contracts.contract_source` distinguishes Stripe-paid recurring contracts from non-public internal comp contracts.
 - Customer-facing `/profile` recurring payment totals must be calculated from `billing_subscription_contracts.recurring_price_cents` plus active `billing_subscription_storage_addons.recurring_price_cents`, not from current public catalog sticker prices or `billing_profiles`.
@@ -442,7 +445,8 @@ After release:
 
 ## Post-deploy health check (signup bootstrap)
 
-Use this query to detect recent users missing the expected bootstrap rows:
+Use this query to detect recent users missing the expected zero-credit bootstrap rows
+or receiving retired free-plan seed credits:
 
 ```sql
 with recent_users as (
@@ -456,23 +460,25 @@ select
   u.created_at,
   bp.plan_id,
   bp.subscription_status,
+  cb.balance_cents,
   exists (
     select 1
     from ai_credit_ledger l
     where l.user_id = u.id
       and l.source = 'signup_seed'
-      and l.source_ref = u.id::text
-  ) as has_signup_seed
+  ) as has_retired_signup_seed
 from recent_users u
 left join billing_profiles bp on bp.user_id = u.id
+left join ai_credit_balance cb on cb.user_id = u.id
 where bp.user_id is null
    or bp.plan_id <> 'free'
-   or not exists (
+   or cb.user_id is null
+   or coalesce(cb.balance_cents, 0) <> 0
+   or exists (
       select 1
       from ai_credit_ledger l
       where l.user_id = u.id
         and l.source = 'signup_seed'
-        and l.source_ref = u.id::text
    )
 order by u.created_at desc;
 ```

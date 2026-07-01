@@ -10,6 +10,7 @@ const cleanupFailedElevenLabsCustomVoiceMock = vi.fn();
 const createElevenLabsClonedVoiceMock = vi.fn();
 const createPersistedElevenLabsVoiceSampleMock = vi.fn();
 const readStoredMediaBufferMock = vi.fn();
+const recordVoiceSourceLifecycleStateMock = vi.fn();
 const { MockMediaAudioExtractionInputError } = vi.hoisted(() => ({
   MockMediaAudioExtractionInputError: class MockMediaAudioExtractionInputError extends Error {
     readonly statusCode: number;
@@ -51,6 +52,12 @@ vi.mock("../../lib/server/elevenlabsVoiceSamples", () => ({
 vi.mock("../../lib/server/mediaAudioExtraction", () => ({
   readStoredMediaBuffer: (...args: unknown[]) => readStoredMediaBufferMock(...args),
   MediaAudioExtractionInputError: MockMediaAudioExtractionInputError,
+}));
+
+vi.mock("../../lib/server/voiceSourceLifecycle", () => ({
+  VOICE_CLONE_SOURCE_RETENTION_DAYS: 90,
+  recordVoiceSourceLifecycleState: (...args: unknown[]) =>
+    recordVoiceSourceLifecycleStateMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -96,6 +103,7 @@ describe("POST /api/elevenlabs/voices/clone", () => {
       isFallback: false,
       createdAt: new Date().toISOString(),
     });
+    recordVoiceSourceLifecycleStateMock.mockResolvedValue({ recorded: true });
   });
 
   it("creates and saves a cloned provider voice from staged audio", async () => {
@@ -142,6 +150,27 @@ describe("POST /api/elevenlabs/voices/clone", () => {
         providerDeleteEligible: true,
       },
     });
+    expect(recordVoiceSourceLifecycleStateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        workflowKind: "voice_clone",
+        sourceKind: "audio",
+        storagePath: "user-1/voice-clone/source-audio/sample.mp3",
+        state: "submitted",
+        retentionDays: null,
+      })
+    );
+    expect(recordVoiceSourceLifecycleStateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        workflowKind: "voice_clone",
+        sourceKind: "audio",
+        storagePath: "user-1/voice-clone/source-audio/sample.mp3",
+        state: "retained_for_custom_voice",
+        providerVoiceId: "cloned-voice-1",
+        retentionDays: 90,
+      })
+    );
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       voice: {

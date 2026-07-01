@@ -4,7 +4,7 @@
  */
 import { Receipt } from "phosphor-react";
 import type { BillingStorageAddonRecord } from "../../billing/catalog";
-import { formatStorageBytes, formatStorageUsageValue } from "../../billing/storage";
+import { formatStorageBytes } from "../../billing/storage";
 import {
   formatCurrencyAmount,
   formatCurrencyFromCents,
@@ -14,7 +14,7 @@ import {
   type SubscriptionTransaction,
 } from "../profilePageModel";
 import { profileClass } from "../profileRouteStyles";
-import { ProfileExplainer, ProfileMetricCard, ProfilePanel } from "./ProfileSurface";
+import { ProfileMetricCard, ProfilePanel } from "./ProfileSurface";
 
 type ProfileStorageSectionProps = {
   activeAddonStorageBytes: number;
@@ -100,16 +100,10 @@ export function ProfileStorageSection({
     activeStorageAddons.length > 0
       ? "Recurring storage add-ons renew monthly"
       : "No active add-ons";
+  const hasActiveStorageAddon = activeStorageAddons.length > 0;
 
   return (
     <>
-      <ProfileExplainer summary="How media storage works">
-        <p>
-          Your workspace includes storage with your base plan. Recurring storage add-ons increase
-          total media capacity for uploads, references, and saved generations.
-        </p>
-      </ProfileExplainer>
-
       <article
         className={profileClass(
           "panel",
@@ -123,10 +117,6 @@ export function ProfileStorageSection({
           <h2 className={profileClass("profile-hero-title")}>Your media storage</h2>
           <p className={profileClass("profile-hero-value", "profile-hero-value-text")}>
             {formatStorageBytes(totalStorageLimitBytes)}
-          </p>
-          <p className="tiny subdued">
-            Using {formatStorageUsageValue(usedStorageBytes, totalStorageLimitBytes)} across
-            uploads, references, and saved AI Studio media.
           </p>
           <div
             className={profileClass("profile-storage-meter")}
@@ -143,15 +133,15 @@ export function ProfileStorageSection({
         <div className={profileClass("profile-hero-meta")}>
           <ProfileMetricCard
             className="profile-hero-stat-card"
-            label="Plan capacity"
-            value={formatStorageBytes(currentSubscriptionStorageLimitBytes)}
-            helper={planCapacityHelperText}
-          />
-          <ProfileMetricCard
-            className="profile-hero-stat-card"
             label="Current usage"
             value={formatStorageBytes(usedStorageBytes)}
             helper={currentUsageHelperText}
+          />
+          <ProfileMetricCard
+            className="profile-hero-stat-card"
+            label="Plan capacity"
+            value={formatStorageBytes(currentSubscriptionStorageLimitBytes)}
+            helper={planCapacityHelperText}
           />
           <ProfileMetricCard
             className="profile-hero-stat-card"
@@ -171,9 +161,9 @@ export function ProfileStorageSection({
       <ProfilePanel
         eyebrow="Storage add-ons"
         title="Expand media capacity"
-        description="Recurring add-ons increase workspace capacity and renew alongside your subscription. Removing one updates Stripe immediately; if usage stays over the remaining limit, new uploads may be blocked until usage drops."
         className="profile-panel-stack"
       >
+        <p className="tiny subdued">You can keep one recurring storage add-on active at a time.</p>
         <div className={profileClass("profile-plan-grid")}>
           {billingPlansLoading ? (
             <div className={profileClass("profile-plan-card")}>
@@ -215,6 +205,7 @@ export function ProfileStorageSection({
                     0
                   );
                   const isActive = activeQuantity > 0;
+                  const blocksDifferentAddon = hasActiveStorageAddon && !isActive;
                   const isLoading = storageAddonChangeLoadingId === addon.id;
                   const isBusy = storageAddonChangeLoadingId !== null;
                   const actionLabel = isLoading
@@ -222,7 +213,9 @@ export function ProfileStorageSection({
                     : isStorageAddonManagementAvailable
                       ? isActive
                         ? "Remove"
-                        : `Add ${formatStorageBytes(addon.storage_limit_bytes)}`
+                        : blocksDifferentAddon
+                          ? "Remove current add-on first"
+                          : `Add ${formatStorageBytes(addon.storage_limit_bytes)}`
                       : storageAddonManagementState === "managed_internally"
                         ? "Managed internally"
                         : storageAddonManagementState === "requires_paid_plan"
@@ -236,7 +229,9 @@ export function ProfileStorageSection({
                           ? activeQuantity > 1
                             ? `${activeQuantity} recurring units active`
                             : "Active and renewing with your subscription"
-                          : "Renews with your subscription"}
+                          : blocksDifferentAddon
+                            ? "Remove your active add-on before choosing a different package"
+                            : "Renews with your subscription"}
                       </p>
 
                       <div className={profileClass("profile-actions")}>
@@ -249,7 +244,10 @@ export function ProfileStorageSection({
                               action: isActive ? "remove" : "add",
                             })
                           }
-                          disabled={!isStorageAddonManagementAvailable || isBusy}
+                          aria-disabled={blocksDifferentAddon ? true : undefined}
+                          disabled={
+                            !isStorageAddonManagementAvailable || isBusy || blocksDifferentAddon
+                          }
                         >
                           {actionLabel}
                         </button>
@@ -261,6 +259,7 @@ export function ProfileStorageSection({
             ))
           )}
         </div>
+        <p className="tiny subdued">Need 500 GB or more? Contact support for a storage review.</p>
 
         {billingContractLoading ? (
           <p className="tiny subdued">Syncing active storage entitlements…</p>
@@ -270,11 +269,6 @@ export function ProfileStorageSection({
       <ProfilePanel
         eyebrow="Payment history"
         title="Recent storage payments"
-        description={
-          storagePaymentsAvailable
-            ? "Recent recurring storage add-on charges billed through Stripe."
-            : "This account is managed internally, so there are no Stripe storage charges to show here."
-        }
         icon={Receipt}
         className="profile-panel-stack"
       >

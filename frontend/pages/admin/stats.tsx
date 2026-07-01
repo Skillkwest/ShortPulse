@@ -1,11 +1,12 @@
 /**
  * Admin global stats route.
- * Shows the admin stats workspace for Product, Marketing, and Sales lenses.
+ * Shows the admin stats workspace for Product, Marketing, Sales, and Storage lenses.
  */
 import { AdminRouteShell } from "../../features/admin/components/AdminRouteShell";
 import { AdminStatsWorkspace } from "../../features/admin/components/AdminStatsWorkspace";
 import { useAdminAccess } from "../../features/admin/logic/useAdminAccess";
 import { useAdminGlobalStatsController } from "../../features/admin/logic/useAdminGlobalStatsController";
+import { useAdminStorageEconomicsController } from "../../features/admin/logic/useAdminStorageEconomicsController";
 import { useProtectedRoute } from "../../lib/authGuard";
 
 export default function AdminStatsPage() {
@@ -35,6 +36,14 @@ export default function AdminStatsPage() {
   } = useAdminGlobalStatsController({
     enabled: Boolean(user && adminEnabled),
   });
+  const {
+    storageEconomics,
+    loading: storageLoading,
+    error: storageError,
+    refresh: refreshStorageEconomics,
+  } = useAdminStorageEconomicsController({
+    enabled: Boolean(user && adminEnabled),
+  });
 
   return (
     <AdminRouteShell
@@ -45,9 +54,9 @@ export default function AdminStatsPage() {
       adminAccessError={adminAccessError}
       onRetryAccessCheck={refreshAdminAccess}
       documentTitle="ShortPulse · Admin Stats"
-      metaDescription="Admin stats for product usage, marketing activation, attribution, and sales-intent analytics."
+      metaDescription="Admin stats for product usage, marketing activation, attribution, sales-intent analytics, and storage economics."
       pageTitle="Global stats"
-      pageDescription="Track product value, marketing activation, and sales-intent analytics from one admin workspace."
+      pageDescription="Track product value, marketing activation, sales-intent analytics, and storage economics from one admin workspace."
       userEmail={user?.email}
       currentPath="/admin/stats"
     >
@@ -59,11 +68,17 @@ export default function AdminStatsPage() {
         projects={projects}
         health={health}
         growth={growth}
+        storageEconomics={storageEconomics}
         generatedAt={generatedAt}
         loading={statsLoading}
         error={error}
         onRefresh={() => {
           void refresh();
+        }}
+        storageLoading={storageLoading}
+        storageError={storageError}
+        onRefreshStorage={() => {
+          void refreshStorageEconomics();
         }}
       />
     </AdminRouteShell>

@@ -366,6 +366,30 @@ const recordBillingTelemetrySafely = async (params: {
   }
 };
 
+const recordStorageAddonProjectionDriftSafely = async (params: {
+  userId: string | null;
+  storageAddonItemCount: number;
+  quantityNotOneCount: number;
+}) => {
+  try {
+    await writeAppErrorLog({
+      source: "telemetry.billing.storage_addon_projection_drift",
+      scope: "app",
+      severity: "medium",
+      message: "Stripe webhook projected recurring storage add-on drift.",
+      userId: params.userId,
+      metadata: {
+        telemetry_family: "billing_storage",
+        telemetry_version: 1,
+        storage_addon_item_count: params.storageAddonItemCount,
+        quantity_not_one_count: params.quantityNotOneCount,
+      },
+    });
+  } catch {
+    // Webhook success must not depend on telemetry persistence.
+  }
+};
+
 const resolveBillingProfileByCustomer = async (
   stripeCustomerId: string
 ): Promise<BillingProfileProjection | null> => {
@@ -949,6 +973,15 @@ const processSubscriptionUpdate = async (subscription: JsonObject) => {
       storageLimitBytes: Number(resolvedAddon.storageLimitBytes ?? 0),
       quantity,
       recurringPriceCents: Number(resolvedAddon.recurringPriceCents ?? 0) * quantity,
+    });
+  }
+
+  const quantityNotOneCount = resolvedAddons.filter((addon) => addon.quantity !== 1).length;
+  if (resolvedAddons.length > 1 || quantityNotOneCount > 0) {
+    await recordStorageAddonProjectionDriftSafely({
+      userId: profile?.user_id ?? null,
+      storageAddonItemCount: resolvedAddons.length,
+      quantityNotOneCount,
     });
   }
 

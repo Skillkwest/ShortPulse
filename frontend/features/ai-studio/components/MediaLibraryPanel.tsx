@@ -965,7 +965,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         }}
         onDownloadMediaFile={handleDownloadMediaFile}
         onRerollWorkflowFromMedia={handleRerollWorkflowFromMedia}
-        onReloadWorkflowFromMedia={handleReloadWorkflowFromMedia}
         onMediaPreviewError={handleMediaPreviewError}
         onMediaPaint={() => undefined}
         onSignedUrlLoaded={(id) => {
@@ -988,7 +987,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       handleMediaPreviewError,
       handleRerollWorkflowFromMedia,
       refreshSignedUrl,
-      handleReloadWorkflowFromMedia,
       handleRemoveItemFromActiveFolder,
       effectiveAdaptivePressureLevel,
       optimizerFallbackMediaIds,
@@ -1054,7 +1052,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         }}
         onDownloadMediaFile={handleDownloadMediaFile}
         onRerollWorkflowFromMedia={handleRerollWorkflowFromMedia}
-        onReloadWorkflowFromMedia={handleReloadWorkflowFromMedia}
         onMediaPreviewError={handleMediaPreviewError}
         onMediaPaint={() => undefined}
         onSignedUrlLoaded={(id) => {
@@ -1081,7 +1078,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       handleMediaCardContextMenu,
       handleMediaPreviewError,
       handleRerollWorkflowFromMedia,
-      handleReloadWorkflowFromMedia,
       handlePromptCardDoubleClick,
       handlePromptCardDragStart,
       handleRemoveItemFromActiveFolder,

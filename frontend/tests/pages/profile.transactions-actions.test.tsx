@@ -146,7 +146,7 @@ vi.mock("../../lib/supabaseClient", () => ({
           select: () => ({
             eq: () => ({
               is: () => ({
-                eq: async () => ({
+                in: async () => ({
                   data: [],
                   error: null,
                 }),

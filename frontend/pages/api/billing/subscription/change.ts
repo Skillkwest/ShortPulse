@@ -1,4 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import {
+  CURRENT_BILLABLE_STORAGE_ADDON_STATUSES,
+  resolveStorageAddonEligibility,
+} from "../../../../lib/billing/storageAddonEligibility";
 import { resolveAuthDisplayName } from "../../../../lib/server/api/accountIdentity";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../../lib/server/api/auth";
@@ -73,6 +77,13 @@ type StripePortalSession = {
 type StripeCheckoutSession = {
   id: string;
   url?: string | null;
+};
+
+type BillingSubscriptionStorageAddonRow = {
+  id: string;
+  storage_addon_id: string | null;
+  quantity: number | null;
+  status: string | null;
 };
 
 const BILLING_SUBSCRIPTION_CHANGE_RATE_LIMIT = {
@@ -271,6 +282,43 @@ const loadTargetPlan = async (targetPlanId: string, billingInterval: "month" | "
 
   const currentOffer = [...offers].sort(compareOfferRecency)[0] ?? null;
   return { plan, offer: currentOffer };
+};
+
+const loadActiveStorageAddonRows = async (
+  userId: string
+): Promise<BillingSubscriptionStorageAddonRow[]> => {
+  const supabaseAdmin = getSupabaseAdmin();
+  const { data, error } = await supabaseAdmin
+    .from("billing_subscription_storage_addons")
+    .select("id, storage_addon_id, quantity, status")
+    .eq("user_id", userId)
+    .is("ended_at", null)
+    .in("status", [...CURRENT_BILLABLE_STORAGE_ADDON_STATUSES]);
+
+  if (error) {
+    throw new Error(error.message || "Failed to load active storage add-ons.");
+  }
+
+  return Array.isArray(data) ? (data as BillingSubscriptionStorageAddonRow[]) : [];
+};
+
+const resolveIncompatibleStorageAddonForPlan = (
+  activeStorageAddons: BillingSubscriptionStorageAddonRow[],
+  targetPlanId: string
+): BillingSubscriptionStorageAddonRow | null => {
+  if (activeStorageAddons.length > 1) {
+    return activeStorageAddons[0] ?? null;
+  }
+
+  return (
+    activeStorageAddons.find(
+      (addon) =>
+        !resolveStorageAddonEligibility({
+          planId: targetPlanId,
+          storageAddonId: addon.storage_addon_id,
+        }).isEligible || Math.max(1, Number(addon.quantity ?? 1) || 1) !== 1
+    ) ?? null
+  );
 };
 
 const resolveBaseSubscriptionItem = async (params: {
@@ -493,6 +541,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     if (targetOffer.recurring_price_cents > 0 && !targetOffer.stripe_price_id) {
       return res.status(409).json({ error: PLAN_UNAVAILABLE_MESSAGE });
+    }
+
+    const activeStorageAddonRows = await loadActiveStorageAddonRows(user.id);
+    const incompatibleStorageAddon = resolveIncompatibleStorageAddonForPlan(
+      activeStorageAddonRows,
+      targetPlanId
+    );
+    if (incompatibleStorageAddon) {
+      return res.status(409).json({
+        error:
+          "Remove or change your active storage add-on before switching to this subscription plan.",
+      });
     }
 
     if (!process.env.STRIPE_SECRET_KEY) {

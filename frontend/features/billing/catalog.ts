@@ -3,6 +3,7 @@
  * Monetary values come from Supabase rows so pricing can be changed without app code edits.
  */
 import { resolveDefaultPlanConcurrencyLimit } from "../../lib/billing/planConcurrency";
+import { PLAN_STORAGE_LIMIT_BYTES_BY_ID } from "../../lib/billing/storageAddonEligibility";
 
 export type BillingInterval = "month" | "year";
 
@@ -54,15 +55,6 @@ export type BillingCatalogSnapshot = {
 };
 
 const PLAN_TIER_ORDER = ["free", "starter", "media", "studio", "business"] as const;
-const GIB = 1024 * 1024 * 1024;
-
-const DEFAULT_PLAN_STORAGE_LIMITS: Record<string, number> = {
-  free: 0,
-  starter: 1 * GIB,
-  media: 25 * GIB,
-  studio: 100 * GIB,
-  business: 500 * GIB,
-};
 
 type AnnualPricingConfig = {
   yearlyPriceCents: number;
@@ -188,7 +180,7 @@ const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
     },
     displayBenefits: {
       monthlyCreditsLabel: "350 credits every month",
-      storageLabel: "1.0 GB of media storage",
+      storageLabel: "5 GB of media storage",
     },
   },
   media: {
@@ -213,7 +205,7 @@ const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
     },
     displayBenefits: {
       monthlyCreditsLabel: "1,200 credits every month",
-      storageLabel: "25.0 GB of media storage",
+      storageLabel: "25 GB of media storage",
     },
   },
   studio: {
@@ -239,7 +231,7 @@ const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
     },
     displayBenefits: {
       monthlyCreditsLabel: "3,200 credits every month",
-      storageLabel: "100 GB of media storage",
+      storageLabel: "75 GB of media storage",
     },
   },
   business: {
@@ -265,7 +257,7 @@ const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
     },
     displayBenefits: {
       monthlyCreditsLabel: "7,500 credits every month",
-      storageLabel: "500 GB of media storage",
+      storageLabel: "150 GB of media storage",
     },
     pricingHighlights: ["Lowest cost per credit", "Discounted credit top-ups"],
   },
@@ -401,7 +393,7 @@ export const buildPlanView = (params: {
     monthlyPriceCents: resolvedCatalog?.monthly_price_cents ?? 0,
     monthlyCreditsCents: resolvedCatalog?.monthly_credits_cents ?? 0,
     storageLimitBytes:
-      resolvedCatalog?.storage_limit_bytes ?? DEFAULT_PLAN_STORAGE_LIMITS[normalizedId] ?? 0,
+      resolvedCatalog?.storage_limit_bytes ?? PLAN_STORAGE_LIMIT_BYTES_BY_ID[normalizedId] ?? 0,
     maxConcurrentGenerations,
   };
 };

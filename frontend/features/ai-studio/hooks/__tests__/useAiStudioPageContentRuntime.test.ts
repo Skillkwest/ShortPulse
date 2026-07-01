@@ -53,7 +53,6 @@ const createParams = (
     onSnapshotVideoFrame: vi.fn(),
     onSnapshotVideoFrameError: vi.fn(),
     onDetailReloadWorkflow: vi.fn(),
-    onMediaLibraryReloadWorkflow: vi.fn(),
     onDetailSavePrompt: vi.fn(),
     onAddLibraryMediaReference: vi.fn(),
     onAddLibraryPromptReference: vi.fn(),

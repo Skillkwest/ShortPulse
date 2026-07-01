@@ -18,13 +18,12 @@ import {
 import { formatStorageBytes } from "../../billing/storage";
 import {
   formatCurrencyAmount,
-  formatCurrencyFromCents,
   formatDateTimeLabel,
   formatStatusLabel,
   type SubscriptionTransaction,
 } from "../profilePageModel";
 import { profileClass } from "../profileRouteStyles";
-import { ProfileExplainer, ProfileMetricCard, ProfilePanel } from "./ProfileSurface";
+import { ProfileMetricCard, ProfilePanel } from "./ProfileSurface";
 
 type ActivePlanView = ReturnType<typeof buildPlanView>;
 
@@ -109,13 +108,6 @@ export function ProfileSubscriptionSection({
     [visibleBillingPlans]
   );
   const activePlanDisplayName = activePlan.displayName;
-  const currentPlanSummary = isInternalCompContract
-    ? "Managed internally"
-    : currentSubscriptionPriceCents === 0
-      ? "No active paid subscription"
-      : currentSubscriptionBillingInterval === "year"
-        ? `${formatCurrencyFromCents(Math.round(currentSubscriptionPriceCents / 12))} per month billed annually`
-        : `${formatCurrencyFromCents(currentSubscriptionPriceCents)} / month`;
 
   useEffect(() => {
     setSelectedBillingInterval(currentSubscriptionBillingInterval);
@@ -123,14 +115,6 @@ export function ProfileSubscriptionSection({
 
   return (
     <>
-      <ProfileExplainer summary="How subscriptions work">
-        <p>
-          Paid plans include recurring credits whether you choose monthly or annual billing. You can
-          upgrade or downgrade anytime. Upgrades take effect immediately with prorated charges.
-          Downgrades apply at the end of your billing period. Credits never expire.
-        </p>
-      </ProfileExplainer>
-
       <article
         className={profileClass(
           "panel",
@@ -144,9 +128,6 @@ export function ProfileSubscriptionSection({
           <h2 className={profileClass("profile-hero-title")}>Your subscription</h2>
           <p className={profileClass("profile-hero-value", "profile-hero-value-text")}>
             {activePlanDisplayName}
-          </p>
-          <p className="tiny subdued">
-            {currentPlanSummary} · {activePlan.description}
           </p>
         </div>
 
@@ -197,12 +178,7 @@ export function ProfileSubscriptionSection({
         </div>
       </article>
 
-      <ProfilePanel
-        eyebrow="All plans"
-        title="Available plans"
-        description="Compare the public offers available if you change plans now, including your current plan."
-        className="profile-panel-stack"
-      >
+      <ProfilePanel eyebrow="All plans" title="Available plans" className="profile-panel-stack">
         <BillingIntervalToggle
           selectedBillingInterval={selectedBillingInterval}
           annualSavingsPercent={annualSavingsPercent}
@@ -310,9 +286,7 @@ export function ProfileSubscriptionSection({
                     ? paidPlanLabel
                       ? "Starting billing flow…"
                       : "Opening Stripe…"
-                    : paidPlanLabel
-                      ? `Choose ${planView.displayName}`
-                      : `Downgrade to ${planView.displayName}`}
+                    : `Downgrade to ${planView.displayName}`}
                 </button>
               ) : isFree ? (
                 <button
@@ -360,11 +334,6 @@ export function ProfileSubscriptionSection({
       <ProfilePanel
         eyebrow="Payment history"
         title="Recent subscription payments"
-        description={
-          isInternalCompContract
-            ? "This account is managed internally, so there are no Stripe subscription charges to show here."
-            : "Recent Stripe invoices that include subscription charges."
-        }
         icon={Receipt}
         className="profile-panel-stack"
       >

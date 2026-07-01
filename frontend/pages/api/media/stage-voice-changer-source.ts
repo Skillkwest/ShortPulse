@@ -11,6 +11,10 @@ import {
   finalizeVoiceChangerSourceUploadForUser,
   MediaUploadServiceError,
 } from "../../../lib/server/mediaUploadService";
+import {
+  recordVoiceSourceLifecycleState,
+  VOICE_CHANGER_SOURCE_RETENTION_DAYS,
+} from "../../../lib/server/voiceSourceLifecycle";
 
 type StageVoiceChangerSourceRequestBody = {
   sourceKind?: unknown;
@@ -126,6 +130,28 @@ export default async function handler(
       filename: sourceName,
       declaredMimeType: sourceMimeType,
     });
+    await recordVoiceSourceLifecycleState({
+      userId: user.id,
+      workflowKind: "voice_changer",
+      sourceKind,
+      storagePath: staged.path,
+      state: "staged",
+      lifecycleKey: "staged",
+      retentionDays: VOICE_CHANGER_SOURCE_RETENTION_DAYS,
+      metadata: {
+        source_name: staged.name,
+        mime_type: staged.mimeType,
+        size_bytes: staged.size,
+      },
+    }).catch((lifecycleError) =>
+      logApiRouteException({
+        req,
+        error: lifecycleError,
+        routeLabel: "media-stage-voice-changer-source.lifecycle",
+        scope: "generation",
+        user,
+      })
+    );
 
     return res.status(200).json({
       source: {

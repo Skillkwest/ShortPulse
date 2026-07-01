@@ -29,6 +29,9 @@ ShortPulse now treats custom voice ownership as an app-owned server contract:
    ownership persistence does not succeed.
 6. Only high-confidence or explicitly repaired ownership rows are trusted at runtime; legacy
    migrated rows must be quarantined for review before they can act as custom-voice authority.
+7. Voice Clone source audio retention is tracked separately in `voice_source_lifecycle`; source
+   audio is cleanup evidence, while `user_owned_custom_voices.sample_storage_path` remains the
+   protected custom-voice sample authority.
 
 ## Consequences
 

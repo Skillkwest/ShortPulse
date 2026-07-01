@@ -1011,9 +1011,6 @@ const AiStudioPageRuntimeBody = ({
     onDetailReloadWorkflow: isManualWorkflowReloadEnabled()
       ? base.reloadWorkflowFromStudioOutput
       : undefined,
-    onMediaLibraryReloadWorkflow: isManualWorkflowReloadEnabled()
-      ? base.reloadWorkflowFromStudioOutput
-      : undefined,
     onMediaLibraryRerollWorkflow: handleRerollStudioOutputFromWorkflow,
     onDetailSavePrompt,
     onAddLibraryMediaReference: addLibraryMediaReference,

@@ -11,19 +11,16 @@ import { ProfilePanel } from "./ProfileSurface";
 type ProfileAccountSectionProps = {
   displayNameInput: string;
   workspaceEmail: string;
-  currentPasswordInput: string;
   pendingWorkspaceEmail: string;
   mediaAutosaveEnabled: boolean;
   mediaAutosaveDisabled: boolean;
   mediaAutosaveSaving: boolean;
   mediaAutosaveError: string | null;
-  billingIdentityDescription: string;
   portalActionLabel: string;
   portalLoading: boolean;
   portalManagementAvailable: boolean;
   onDisplayNameInputChange: (value: string) => void;
   onWorkspaceEmailChange: (value: string) => void;
-  onCurrentPasswordInputChange: (value: string) => void;
   onProfileSave: () => void;
   onEmailUpdate: () => void;
   onPasswordReset: () => void;
@@ -37,19 +34,16 @@ type ProfileAccountSectionProps = {
 export function ProfileAccountSection({
   displayNameInput,
   workspaceEmail,
-  currentPasswordInput,
   pendingWorkspaceEmail,
   mediaAutosaveEnabled,
   mediaAutosaveDisabled,
   mediaAutosaveSaving,
   mediaAutosaveError,
-  billingIdentityDescription,
   portalActionLabel,
   portalLoading,
   portalManagementAvailable,
   onDisplayNameInputChange,
   onWorkspaceEmailChange,
-  onCurrentPasswordInputChange,
   onProfileSave,
   onEmailUpdate,
   onPasswordReset,
@@ -58,12 +52,7 @@ export function ProfileAccountSection({
 }: ProfileAccountSectionProps) {
   return (
     <div className={profileClass("profile-section-grid", "profile-account-grid")}>
-      <ProfilePanel
-        eyebrow="Identity"
-        title="Profile"
-        description="This name appears in your dashboard and account records."
-        className="profile-identity-panel"
-      >
+      <ProfilePanel eyebrow="Identity" title="Profile" className="profile-identity-panel">
         <div className={profileClass("profile-field")}>
           <label htmlFor="display-name">Display name</label>
           <input
@@ -86,12 +75,7 @@ export function ProfileAccountSection({
         </div>
       </ProfilePanel>
 
-      <ProfilePanel
-        eyebrow="Workspace email"
-        title="Email"
-        description="Email changes require your current password and must be confirmed from your inbox."
-        className="profile-email-panel"
-      >
+      <ProfilePanel eyebrow="Workspace email" title="Email" className="profile-email-panel">
         <div className={profileClass("profile-field-stack")}>
           <div className={profileClass("profile-field")}>
             <label htmlFor="workspace-email">Email address</label>
@@ -102,18 +86,6 @@ export function ProfileAccountSection({
               onChange={(event) => onWorkspaceEmailChange(event.target.value)}
               className={profileClass("profile-input")}
               placeholder="you@example.com"
-            />
-          </div>
-          <div className={profileClass("profile-field")}>
-            <label htmlFor="workspace-current-password">Current password</label>
-            <input
-              id="workspace-current-password"
-              type="password"
-              value={currentPasswordInput}
-              onChange={(event) => onCurrentPasswordInputChange(event.target.value)}
-              className={profileClass("profile-input")}
-              autoComplete="current-password"
-              placeholder="Enter your current password"
             />
           </div>
         </div>
@@ -137,7 +109,6 @@ export function ProfileAccountSection({
         id="billing"
         eyebrow="Billing"
         title="Payment details"
-        description={billingIdentityDescription}
         icon={CreditCard}
         className="profile-billing-panel"
       >
@@ -162,17 +133,9 @@ export function ProfileAccountSection({
             </button>
           ) : null}
         </div>
-        {!portalManagementAvailable ? (
-          <p className="tiny subdued">Billing changes for this account are managed internally.</p>
-        ) : null}
       </ProfilePanel>
 
-      <ProfilePanel
-        eyebrow="Security"
-        title="Password reset"
-        description="Send a recovery link to the email currently entered above."
-        className="profile-security-panel"
-      >
+      <ProfilePanel eyebrow="Security" title="Password reset" className="profile-security-panel">
         <div className={profileClass("profile-actions")}>
           <button
             type="button"
@@ -186,14 +149,11 @@ export function ProfileAccountSection({
 
       <ProfilePreferenceToggleCard
         title="Media Library autosave"
-        description="Control whether eligible AI Studio media is automatically saved to your Media Library."
         enabled={mediaAutosaveEnabled}
         disabled={mediaAutosaveDisabled}
         saving={mediaAutosaveSaving}
         error={mediaAutosaveError}
         onToggle={onMediaAutosaveToggle}
-        enabledHelperText="Autosave is ON. New eligible AI Studio media will save automatically to your Media Library."
-        disabledHelperText="Autosave is OFF. Media Library autosave is disabled, but AI Studio may still keep private restore-safe copies for project continuity."
       />
     </div>
   );

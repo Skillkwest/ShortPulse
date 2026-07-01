@@ -29,10 +29,10 @@ insert into billing_plans (
 )
 values
     ('free', 'Baseline fallback', 0, 0, 0, null, null, 0, true),
-    ('starter', 'Starter', 1500, 350, 1::bigint * 1024 * 1024 * 1024, null, null, 10, true),
+    ('starter', 'Starter', 1500, 350, 5::bigint * 1024 * 1024 * 1024, null, null, 10, true),
     ('media', 'Media', 4900, 1200, 25::bigint * 1024 * 1024 * 1024, null, null, 20, true),
-    ('studio', 'Studio', 12900, 3200, 100::bigint * 1024 * 1024 * 1024, null, null, 30, true),
-    ('business', 'Business', 29900, 7500, 500::bigint * 1024 * 1024 * 1024, null, null, 40, true)
+    ('studio', 'Studio', 12900, 3200, 75::bigint * 1024 * 1024 * 1024, null, null, 30, true),
+    ('business', 'Business', 29900, 7500, 150::bigint * 1024 * 1024 * 1024, null, null, 40, true)
 on conflict (id) do update
 set display_name = excluded.display_name,
     monthly_price_cents = excluded.monthly_price_cents,
@@ -132,8 +132,8 @@ insert into billing_plan_offers (
 )
 values
     ('media__internal_comp', 'media', 'Media Internal Comp', 0, 1200, 25::bigint * 1024 * 1024 * 1024, 2, null, 'month', false, true, now()),
-    ('studio__internal_comp', 'studio', 'Studio Internal Comp', 0, 3200, 100::bigint * 1024 * 1024 * 1024, 4, null, 'month', false, true, now()),
-    ('business__internal_comp', 'business', 'Business Internal Comp', 0, 7500, 500::bigint * 1024 * 1024 * 1024, 8, null, 'month', false, true, now())
+    ('studio__internal_comp', 'studio', 'Studio Internal Comp', 0, 3200, 75::bigint * 1024 * 1024 * 1024, 4, null, 'month', false, true, now()),
+    ('business__internal_comp', 'business', 'Business Internal Comp', 0, 7500, 150::bigint * 1024 * 1024 * 1024, 8, null, 'month', false, true, now())
 on conflict (id) do update
 set offer_name = excluded.offer_name,
     recurring_price_cents = excluded.recurring_price_cents,
@@ -390,9 +390,11 @@ insert into billing_storage_addons (
     sort_order
 )
 values
-    ('storage_25gb', 'Extra 25 GB', 25::bigint * 1024 * 1024 * 1024, 500, null, true, 10),
-    ('storage_100gb', 'Extra 100 GB', 100::bigint * 1024 * 1024 * 1024, 1500, null, true, 20),
-    ('storage_500gb', 'Extra 500 GB', 500::bigint * 1024 * 1024 * 1024, 4900, null, true, 30)
+    ('storage_10gb', 'Extra 10 GB', 10::bigint * 1024 * 1024 * 1024, 700, null, true, 10),
+    ('storage_50gb', 'Extra 50 GB', 50::bigint * 1024 * 1024 * 1024, 2900, null, true, 20),
+    ('storage_100gb', 'Extra 100 GB', 100::bigint * 1024 * 1024 * 1024, 5900, null, true, 30),
+    ('storage_250gb', 'Extra 250 GB', 250::bigint * 1024 * 1024 * 1024, 14900, null, true, 40),
+    ('storage_500gb', 'Extra 500 GB', 500::bigint * 1024 * 1024 * 1024, 29900, null, true, 50)
 on conflict (id) do update
 set display_name = excluded.display_name,
     storage_limit_bytes = excluded.storage_limit_bytes,
@@ -452,7 +454,9 @@ select
     addon.storage_limit_bytes,
     addon.monthly_price_cents,
     addon.stripe_price_id,
-    addon.is_active,
+    addon.is_active
+        and addon.id in ('storage_10gb', 'storage_50gb', 'storage_100gb', 'storage_250gb')
+        and addon.stripe_price_id is not null,
     addon.is_active,
     now()
 from billing_storage_addons addon
@@ -522,6 +526,20 @@ create index if not exists ix_billing_subscription_storage_addons_status
 create unique index if not exists ux_billing_subscription_storage_addons_current_item
     on billing_subscription_storage_addons (stripe_subscription_item_id)
     where stripe_subscription_item_id is not null and ended_at is null;
+create unique index if not exists billing_subscription_storage_addons_one_current_per_user_idx
+    on billing_subscription_storage_addons (user_id)
+    where ended_at is null
+      and lower(status) in ('active', 'trialing', 'past_due', 'unpaid');
+
+alter table billing_subscription_storage_addons
+    drop constraint if exists billing_subscription_storage_addons_current_quantity_one_check;
+alter table billing_subscription_storage_addons
+    add constraint billing_subscription_storage_addons_current_quantity_one_check
+    check (
+        ended_at is not null
+        or lower(status) not in ('active', 'trialing', 'past_due', 'unpaid')
+        or quantity = 1
+    );
 
 alter table billing_subscription_storage_addons enable row level security;
 drop policy if exists select_billing_subscription_storage_addons_isolation on billing_subscription_storage_addons;
@@ -598,12 +616,15 @@ begin
         return 0;
     end if;
 
-    select coalesce(sum(addon.storage_limit_bytes * addon.quantity), 0)::bigint
+    select coalesce(sum(
+        addon.storage_limit_bytes
+        * case when addon.quantity > 0 then 1 else 0 end
+    ), 0)::bigint
     into v_limit
     from billing_subscription_storage_addons addon
     where addon.user_id = p_user_id
       and addon.ended_at is null
-      and addon.status in ('active', 'trialing', 'past_due', 'unpaid');
+      and lower(addon.status) in ('active', 'trialing', 'past_due', 'unpaid');
 
     return greatest(coalesce(v_limit, 0), 0);
 end;

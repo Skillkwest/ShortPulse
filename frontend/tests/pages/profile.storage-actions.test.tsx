@@ -38,7 +38,7 @@ const billingContractState = vi.hoisted(() => ({
     contract_source: "stripe",
     recurring_price_cents: 4900,
     monthly_credits_cents: 60000,
-    storage_limit_bytes: 536870912000,
+    storage_limit_bytes: 161061273600,
     status: "active",
     current_period_start: "2026-04-01T00:00:00.000Z",
     current_period_end: "2026-05-01T00:00:00.000Z",
@@ -150,7 +150,7 @@ vi.mock("../../lib/supabaseClient", () => ({
           select: () => ({
             eq: () => ({
               is: () => ({
-                eq: activeStorageAddonsQueryMock,
+                in: activeStorageAddonsQueryMock,
               }),
             }),
           }),
@@ -179,7 +179,7 @@ describe("Profile storage actions", () => {
       contract_source: "stripe",
       recurring_price_cents: 4900,
       monthly_credits_cents: 60000,
-      storage_limit_bytes: 536870912000,
+      storage_limit_bytes: 161061273600,
       status: "active",
       current_period_start: "2026-04-01T00:00:00.000Z",
       current_period_end: "2026-05-01T00:00:00.000Z",
@@ -197,11 +197,18 @@ describe("Profile storage actions", () => {
             packages: [],
             storageAddons: [
               {
-                id: "addon_100gb",
+                id: "storage_100gb",
                 display_name: "100 GB add-on",
                 storage_limit_bytes: 107374182400,
-                monthly_price_cents: 1500,
+                monthly_price_cents: 5900,
                 sort_order: 1,
+              },
+              {
+                id: "storage_250gb",
+                display_name: "250 GB add-on",
+                storage_limit_bytes: 268435456000,
+                monthly_price_cents: 14900,
+                sort_order: 2,
               },
             ],
           }),
@@ -215,7 +222,7 @@ describe("Profile storage actions", () => {
               {
                 id: "in_storage_1",
                 invoiceNumber: "S100GB1",
-                amountPaidCents: 1500,
+                amountPaidCents: 5900,
                 currency: "usd",
                 status: "paid",
                 title: "Extra 100 GB",
@@ -245,8 +252,8 @@ describe("Profile storage actions", () => {
       data: [
         {
           id: "storage_row_1",
-          storage_addon_id: "addon_100gb",
-          offer_id: "addon_100gb__current",
+          storage_addon_id: "storage_100gb",
+          offer_id: "storage_100gb__current",
           stripe_subscription_item_id: "si_storage_100",
           storage_limit_bytes: 107374182400,
           quantity: 1,
@@ -283,10 +290,10 @@ describe("Profile storage actions", () => {
     useMediaStorageQuotaSummaryMock.mockReturnValue({
       quotaSummary: {
         usedBytes: 50 * 1024 * 1024 * 1024,
-        baseLimitBytes: 500 * 1024 * 1024 * 1024,
+        baseLimitBytes: 150 * 1024 * 1024 * 1024,
         addonLimitBytes: 100 * 1024 * 1024 * 1024,
-        totalLimitBytes: 600 * 1024 * 1024 * 1024,
-        remainingBytes: 550 * 1024 * 1024 * 1024,
+        totalLimitBytes: 250 * 1024 * 1024 * 1024,
+        remainingBytes: 200 * 1024 * 1024 * 1024,
         isOverLimit: false,
       },
       loading: false,
@@ -304,19 +311,29 @@ describe("Profile storage actions", () => {
     expect(await screen.findByRole("heading", { name: "Media storage" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Your media storage" })).toBeInTheDocument();
     expect(screen.getByText("Expand media capacity")).toBeInTheDocument();
-    expect(screen.getByText("600.0 GB")).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "Using 50.0 GB / 600.0 GB across uploads, references, and saved AI Studio media."
-      )
-    ).toBeInTheDocument();
+    expect(screen.getByText("250 GB")).toBeInTheDocument();
+    expect(screen.queryByText(/across uploads, references, and saved AI Studio media/)).toBeNull();
     expect(screen.getByRole("meter", { name: "Media storage used" })).toHaveAttribute(
       "aria-valuenow",
-      "8"
+      "20"
     );
+    const currentUsageChip = screen.getByText("Current usage");
+    const planCapacityChip = screen.getByText("Plan capacity");
+    expect(
+      currentUsageChip.compareDocumentPosition(planCapacityChip) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
     expect((await screen.findAllByText("100 GB add-on")).length).toBeGreaterThan(1);
     expect(await screen.findByText("Active add-on")).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Remove" })).toBeEnabled();
+    expect(
+      await screen.findByRole("button", { name: "Remove current add-on first" })
+    ).toBeDisabled();
+    expect(
+      screen.getByText("You can keep one recurring storage add-on active at a time.")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Need 500 GB or more? Contact support for a storage review.")
+    ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Recent storage payments" })).toBeInTheDocument();
     expect(screen.getByText("Extra 100 GB")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "View invoice" })).toHaveAttribute(
@@ -337,7 +354,7 @@ describe("Profile storage actions", () => {
       contract_source: "internal_comp",
       recurring_price_cents: 0,
       monthly_credits_cents: 12000,
-      storage_limit_bytes: 536870912000,
+      storage_limit_bytes: 161061273600,
       status: "active",
       current_period_start: "2026-04-01T00:00:00.000Z",
       current_period_end: "2026-05-01T00:00:00.000Z",
@@ -354,10 +371,10 @@ describe("Profile storage actions", () => {
             packages: [],
             storageAddons: [
               {
-                id: "addon_100gb",
+                id: "storage_100gb",
                 display_name: "100 GB add-on",
                 storage_limit_bytes: 107374182400,
-                monthly_price_cents: 1500,
+                monthly_price_cents: 5900,
                 sort_order: 1,
               },
             ],
@@ -396,7 +413,7 @@ describe("Profile storage actions", () => {
       expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/billing/storage-addon/change", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ storageAddonId: "addon_100gb", action: "remove" }),
+        body: JSON.stringify({ storageAddonId: "storage_100gb", action: "remove" }),
       });
     });
 

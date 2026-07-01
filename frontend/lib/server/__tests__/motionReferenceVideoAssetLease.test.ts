@@ -183,25 +183,22 @@ describe("motionReferenceVideoAssetLease", () => {
     ]);
   });
 
-  it("retires and deletes a committed motion asset immediately when no active lease remains", async () => {
+  it("retires a committed motion asset without deleting it immediately", async () => {
     const result = await retireMotionReferenceVideoStoragePathForUser({
       userId: "user-1",
       storagePath: "user-1/videos/motion-control/ref.mp4",
     });
 
     expect(result).toEqual({
-      deleted: true,
+      deleted: false,
       waitingOnLease: false,
     });
-    expect(deleteSignedStorageAssetForUserMock).toHaveBeenCalledWith({
-      userId: "user-1",
-      storagePath: "user-1/videos/motion-control/ref.mp4",
-      storageFolderOverride: "videos/motion-control",
-    });
-    expect(retirementRows[0]?.deleted_at).toEqual(expect.any(String));
+    expect(deleteSignedStorageAssetForUserMock).not.toHaveBeenCalled();
+    expect(retirementRows[0]?.deleted_at).toBeNull();
+    expect(retirementRows[0]?.last_delete_attempt_at).toBeNull();
   });
 
-  it("waits for the generation lease to release before deleting a retired motion asset", async () => {
+  it("releases a generation lease without deleting retired motion storage", async () => {
     leaseRows = [
       {
         generation_id: "gen-1",
@@ -228,11 +225,7 @@ describe("motionReferenceVideoAssetLease", () => {
     });
 
     expect(leaseRows[0]?.released_at).toEqual(expect.any(String));
-    expect(deleteSignedStorageAssetForUserMock).toHaveBeenCalledWith({
-      userId: "user-1",
-      storagePath: "user-1/videos/motion-control/ref.mp4",
-      storageFolderOverride: "videos/motion-control",
-    });
-    expect(retirementRows[0]?.deleted_at).toEqual(expect.any(String));
+    expect(deleteSignedStorageAssetForUserMock).not.toHaveBeenCalled();
+    expect(retirementRows[0]?.deleted_at).toBeNull();
   });
 });

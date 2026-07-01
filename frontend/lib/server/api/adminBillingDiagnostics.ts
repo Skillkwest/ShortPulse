@@ -9,6 +9,11 @@ import type {
   AdminStripeCustomerSnapshot,
   AdminStripeSubscriptionSnapshot,
 } from "../../../features/admin/types";
+import {
+  isManualReviewStorageAddon,
+  isCurrentBillableStorageAddonStatus,
+  resolveStorageAddonEligibility,
+} from "../../billing/storageAddonEligibility";
 import { resolveAuthDisplayName } from "./accountIdentity";
 import { stripeGet } from "./stripe";
 import { getSupabaseAdmin } from "./supabaseAdmin";
@@ -817,6 +822,88 @@ export const resolveAdminBillingDiagnostics = async ({
     : [];
 
   const findings: AdminHealthFinding[] = [];
+  const activeRecurringStorageAddons = activeStorageAddons.filter((addon) =>
+    isCurrentBillableStorageAddonStatus(addon.status)
+  );
+  const diagnosticsPlanId = responseContract?.planId ?? responseProfile?.planId ?? "free";
+
+  if (activeRecurringStorageAddons.length > 1) {
+    pushFinding(findings, {
+      code: "multiple_active_storage_addons",
+      severity: "critical",
+      confidence: "high",
+      summary: "Account has more than one active recurring storage add-on.",
+      details:
+        `${activeRecurringStorageAddons.length} active recurring storage add-on rows are open for this account. ` +
+        "Storage add-ons are single-slot entitlements, so stacked rows can overstate the media storage limit.",
+      recommendedActions: [
+        "Inspect the live Stripe subscription items before editing local storage add-on rows.",
+        "Close or repair extra active rows only after confirming the intended single add-on.",
+      ],
+    });
+  }
+
+  const quantityDriftCount = activeRecurringStorageAddons.filter(
+    (addon) => addon.quantity !== 1
+  ).length;
+  if (quantityDriftCount > 0) {
+    pushFinding(findings, {
+      code: "storage_addon_quantity_not_one",
+      severity: "critical",
+      confidence: "high",
+      summary: "Active recurring storage add-on quantity is not one.",
+      details:
+        `${quantityDriftCount} active recurring storage add-on row(s) have quantity other than one. ` +
+        "Recurring storage add-ons should not multiply entitlement by Stripe quantity.",
+      recommendedActions: [
+        "Confirm the live Stripe item quantity before changing local state.",
+        "Repair the Stripe item or local row so the active storage add-on quantity is exactly one.",
+      ],
+    });
+  }
+
+  const manualReviewActiveCount = activeRecurringStorageAddons.filter((addon) =>
+    isManualReviewStorageAddon(addon.storageAddonId)
+  ).length;
+  if (manualReviewActiveCount > 0) {
+    pushFinding(findings, {
+      code: "manual_review_storage_addon_active",
+      severity: "warning",
+      confidence: "high",
+      summary: "Manual-review storage add-on is active on the account.",
+      details:
+        `${manualReviewActiveCount} active recurring storage add-on row(s) use manual-review capacity. ` +
+        "These add-ons should not enter the self-serve checkout path.",
+      recommendedActions: [
+        "Verify the account was intentionally granted manual-review storage capacity.",
+        "If this was self-serve drift, remove or migrate the add-on after confirming Stripe state.",
+      ],
+    });
+  }
+
+  const planIneligibleActiveCount = activeRecurringStorageAddons.filter((addon) => {
+    const eligibility = resolveStorageAddonEligibility({
+      planId: diagnosticsPlanId,
+      storageAddonId: addon.storageAddonId,
+    });
+    return !eligibility.isEligible && !eligibility.isManualReviewOnly;
+  }).length;
+  if (planIneligibleActiveCount > 0) {
+    pushFinding(findings, {
+      code: "storage_addon_plan_ineligible",
+      severity: "critical",
+      confidence: "high",
+      summary: "Active recurring storage add-on is not eligible for the current plan.",
+      details:
+        `${planIneligibleActiveCount} active recurring storage add-on row(s) do not match the current plan eligibility rules. ` +
+        "The account may be receiving storage capacity that the self-serve plan should not allow.",
+      recommendedActions: [
+        "Confirm the intended customer plan and live Stripe storage item.",
+        "Repair the add-on or plan state through the canonical billing reconciliation path.",
+      ],
+    });
+  }
+
   const activePaidProfile =
     billingProfile?.plan_id != null &&
     billingProfile.plan_id !== "free" &&

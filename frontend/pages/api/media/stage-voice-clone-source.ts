@@ -10,6 +10,10 @@ import {
   MediaUploadServiceError,
   uploadVoiceCloneSourceForUser,
 } from "../../../lib/server/mediaUploadService";
+import {
+  recordVoiceSourceLifecycleState,
+  VOICE_CLONE_SOURCE_RETENTION_DAYS,
+} from "../../../lib/server/voiceSourceLifecycle";
 
 type StageVoiceCloneSourceSuccessResponse = {
   source: {
@@ -75,6 +79,28 @@ export default async function handler(
       req,
       userId: user.id,
     });
+    await recordVoiceSourceLifecycleState({
+      userId: user.id,
+      workflowKind: "voice_clone",
+      sourceKind: "audio",
+      storagePath: staged.path,
+      state: "staged",
+      lifecycleKey: "staged",
+      retentionDays: VOICE_CLONE_SOURCE_RETENTION_DAYS,
+      metadata: {
+        source_name: staged.name,
+        mime_type: staged.mimeType,
+        size_bytes: staged.size,
+      },
+    }).catch((lifecycleError) =>
+      logApiRouteException({
+        req,
+        error: lifecycleError,
+        routeLabel: "media-stage-voice-clone-source.lifecycle",
+        scope: "generation",
+        user,
+      })
+    );
 
     return res.status(200).json({
       source: {

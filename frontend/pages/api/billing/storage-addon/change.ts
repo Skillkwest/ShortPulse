@@ -1,6 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
-import { requireApiUser } from "../../../../lib/server/api/auth";
+import {
+  CURRENT_BILLABLE_STORAGE_ADDON_STATUSES,
+  normalizeStorageAddonId,
+  resolveStorageAddonEligibility,
+} from "../../../../lib/billing/storageAddonEligibility";
+import { logApiRouteException, writeAppErrorLog } from "../../../../lib/server/api/appErrorLogs";
+import { requireApiUser, type AuthenticatedApiUser } from "../../../../lib/server/api/auth";
 import { BILLING_CONTRACT_SOURCE_INTERNAL_COMP } from "../../../../lib/server/api/billingContracts";
 import { enforceApiRateLimit } from "../../../../lib/server/api/rateLimit";
 import { getSupabaseAdmin } from "../../../../lib/server/api/supabaseAdmin";
@@ -63,9 +68,53 @@ const BILLING_STORAGE_ADDON_CHANGE_RATE_LIMIT = {
 } as const;
 const STORAGE_ADDON_CHANGE_UNAVAILABLE_MESSAGE =
   "Recurring storage changes are temporarily unavailable. Try again later.";
+const STORAGE_ADDON_ALREADY_ACTIVE_MESSAGE =
+  "You already have an active storage add-on. Remove it before adding a different storage package.";
+const STORAGE_ADDON_TELEMETRY_SOURCE = "telemetry.storage.addon";
 
-const normalizeStorageAddonId = (value: unknown): string =>
-  typeof value === "string" ? value.trim().toLowerCase() : "";
+const writeStorageAddonTelemetry = async ({
+  userId,
+  userEmail,
+  eventName,
+  storageAddonId,
+  action,
+  reason,
+  statusCode,
+}: {
+  userId: string;
+  userEmail: string | null;
+  eventName:
+    | "storage_addon_request_started"
+    | "storage_addon_request_succeeded"
+    | "storage_addon_request_failed"
+    | "storage_addon_removed";
+  storageAddonId: string;
+  action: "add" | "remove";
+  reason?: string;
+  statusCode?: number;
+}) => {
+  try {
+    await writeAppErrorLog({
+      source: STORAGE_ADDON_TELEMETRY_SOURCE,
+      scope: "app",
+      severity: "low",
+      message: eventName,
+      statusCode: statusCode ?? null,
+      userId,
+      userEmail,
+      metadata: {
+        telemetry_family: "storage_addon",
+        telemetry_version: 1,
+        event_name: eventName,
+        storage_addon_id: storageAddonId,
+        action,
+        reason: reason ?? null,
+      },
+    });
+  } catch {
+    // Telemetry must never block a billing mutation response.
+  }
+};
 
 const compareOfferRecency = (
   left: BillingStorageAddonOfferRow,
@@ -154,17 +203,17 @@ const loadTargetStorageAddon = async (storageAddonId: string) => {
       ) as BillingStorageAddonOfferRow[])
     : [];
 
-  if (!addon || !addon.is_active) {
+  if (!addon) {
     return { addon: null, offer: null };
   }
 
   return {
     addon,
-    offer: [...offers].sort(compareOfferRecency)[0] ?? null,
+    offer: addon.is_active ? ([...offers].sort(compareOfferRecency)[0] ?? null) : null,
   };
 };
 
-const loadActiveStorageAddonRows = async (userId: string, storageAddonId: string) => {
+const loadActiveStorageAddonRows = async (userId: string) => {
   const supabaseAdmin = getSupabaseAdmin();
   const { data, error } = await supabaseAdmin
     .from("billing_subscription_storage_addons")
@@ -172,15 +221,31 @@ const loadActiveStorageAddonRows = async (userId: string, storageAddonId: string
       "id, storage_addon_id, offer_id, stripe_subscription_item_id, stripe_price_id, quantity, status"
     )
     .eq("user_id", userId)
-    .eq("storage_addon_id", storageAddonId)
     .is("ended_at", null)
-    .eq("status", "active");
+    .in("status", [...CURRENT_BILLABLE_STORAGE_ADDON_STATUSES]);
 
   if (error) {
     throw new Error(error.message || "Failed to load active storage add-ons.");
   }
 
   return Array.isArray(data) ? (data as BillingSubscriptionStorageAddonRow[]) : [];
+};
+
+const loadStorageAddonStripePriceIds = async () => {
+  const supabaseAdmin = getSupabaseAdmin();
+  const { data, error } = await supabaseAdmin
+    .from("billing_storage_addon_offers")
+    .select("stripe_price_id");
+
+  if (error) {
+    throw new Error(error.message || "Failed to load storage add-on Stripe prices.");
+  }
+
+  return new Set(
+    (Array.isArray(data) ? (data as Array<{ stripe_price_id: string | null }>) : [])
+      .map((row) => row.stripe_price_id)
+      .filter((value): value is string => Boolean(value))
+  );
 };
 
 const buildSubscriptionUpdatePayload = (
@@ -205,7 +270,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  let user;
+  let user: AuthenticatedApiUser | null = null;
   try {
     user = await requireApiUser(req, res);
   } catch (error) {
@@ -219,10 +284,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   }
   if (!user) return;
+  const authenticatedUser = user;
   if (
     !enforceApiRateLimit(req, res, {
       ...BILLING_STORAGE_ADDON_CHANGE_RATE_LIMIT,
-      keyPrefix: `${BILLING_STORAGE_ADDON_CHANGE_RATE_LIMIT.keyPrefix}:${user.id}`,
+      keyPrefix: `${BILLING_STORAGE_ADDON_CHANGE_RATE_LIMIT.keyPrefix}:${authenticatedUser.id}`,
     })
   ) {
     return;
@@ -236,61 +302,144 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: "Select a valid storage add-on action." });
   }
 
+  const writeMutationTelemetry = async (
+    eventName: Parameters<typeof writeStorageAddonTelemetry>[0]["eventName"],
+    reason?: string,
+    statusCode?: number
+  ) =>
+    writeStorageAddonTelemetry({
+      userId: authenticatedUser.id,
+      userEmail: authenticatedUser.email ?? null,
+      eventName,
+      storageAddonId,
+      action,
+      reason,
+      statusCode,
+    });
+
+  const failStorageAddonMutation = async (statusCode: number, error: string, reason: string) => {
+    await writeMutationTelemetry("storage_addon_request_failed", reason, statusCode);
+    return res.status(statusCode).json({ error });
+  };
+
   try {
-    const [{ billingProfile, billingContract }, { addon, offer }, activeAddonRows] =
-      await Promise.all([
-        loadBillingState(user.id),
-        loadTargetStorageAddon(storageAddonId),
-        loadActiveStorageAddonRows(user.id, storageAddonId),
-      ]);
+    await writeMutationTelemetry("storage_addon_request_started");
+
+    const [
+      { billingProfile, billingContract },
+      { addon, offer },
+      activeAddonRows,
+      storageAddonStripePriceIds,
+    ] = await Promise.all([
+      loadBillingState(authenticatedUser.id),
+      loadTargetStorageAddon(storageAddonId),
+      loadActiveStorageAddonRows(authenticatedUser.id),
+      loadStorageAddonStripePriceIds(),
+    ]);
 
     if (!addon) {
-      return res.status(404).json({ error: "This storage add-on is no longer available." });
+      return failStorageAddonMutation(
+        404,
+        "This storage add-on is no longer available.",
+        "addon_unavailable"
+      );
+    }
+
+    if (action === "add" && !addon.is_active) {
+      return failStorageAddonMutation(
+        404,
+        "This storage add-on is no longer available.",
+        "addon_unavailable"
+      );
     }
 
     if (billingContract?.contract_source === BILLING_CONTRACT_SOURCE_INTERNAL_COMP) {
-      return res.status(400).json({
-        error: "Recurring storage add-ons are not available for this account.",
-      });
+      return failStorageAddonMutation(
+        400,
+        "Recurring storage add-ons are not available for this account.",
+        "internal_comp"
+      );
     }
 
     const stripeSubscriptionId =
       billingContract?.stripe_subscription_id ?? billingProfile?.stripe_subscription_id ?? null;
 
+    const currentPlanId = billingContract?.plan_id ?? billingProfile?.plan_id ?? "free";
+    const storageAddonEligibility = resolveStorageAddonEligibility({
+      planId: currentPlanId,
+      storageAddonId,
+    });
+    const targetActiveAddonRows = activeAddonRows.filter(
+      (row) => row.storage_addon_id === storageAddonId
+    );
+
+    if (action === "add" && !storageAddonEligibility.isEligible) {
+      if (storageAddonEligibility.reason === "paid_plan_required") {
+        return failStorageAddonMutation(
+          400,
+          "Choose a paid subscription plan before adding recurring storage capacity.",
+          "paid_plan_required"
+        );
+      }
+      if (storageAddonEligibility.reason === "manual_review_required") {
+        return failStorageAddonMutation(
+          409,
+          "This storage add-on requires manual review and is not available for self-serve checkout.",
+          "manual_review_required"
+        );
+      }
+      return failStorageAddonMutation(
+        400,
+        "This storage add-on is not available for your current plan.",
+        "ineligible_plan"
+      );
+    }
+
     if (!stripeSubscriptionId) {
-      const currentPlanId = billingContract?.plan_id ?? billingProfile?.plan_id ?? "free";
-      return res.status(400).json({
-        error:
-          currentPlanId === "free"
-            ? "Choose a paid subscription plan before adding recurring storage capacity."
-            : "Your subscription is still syncing. Try again in a moment.",
-      });
+      return failStorageAddonMutation(
+        400,
+        "Your subscription is still syncing. Try again in a moment.",
+        "subscription_missing"
+      );
     }
 
     if (action === "add" && activeAddonRows.length > 0) {
-      return res
-        .status(409)
-        .json({ error: `${addon.display_name} is already active on this workspace.` });
+      const sameAddonAlreadyActive = targetActiveAddonRows.length > 0;
+      return failStorageAddonMutation(
+        409,
+        sameAddonAlreadyActive
+          ? `${addon.display_name} is already active on this workspace.`
+          : STORAGE_ADDON_ALREADY_ACTIVE_MESSAGE,
+        sameAddonAlreadyActive ? "same_addon_active" : "different_addon_active"
+      );
     }
 
     if (action === "add" && !offer?.stripe_price_id) {
-      return res.status(409).json({
-        error: "This storage add-on is temporarily unavailable. Try again later.",
-      });
+      return failStorageAddonMutation(
+        409,
+        "This storage add-on is temporarily unavailable. Try again later.",
+        "offer_price_missing"
+      );
     }
 
-    if (action === "remove" && activeAddonRows.length === 0) {
-      return res
-        .status(409)
-        .json({ error: `${addon.display_name} is not active on this workspace.` });
+    if (action === "remove" && targetActiveAddonRows.length === 0) {
+      return failStorageAddonMutation(
+        409,
+        `${addon.display_name} is not active on this workspace.`,
+        "addon_not_active"
+      );
     }
 
     if (!process.env.STRIPE_SECRET_KEY) {
-      return res.status(501).json({ error: STORAGE_ADDON_CHANGE_UNAVAILABLE_MESSAGE });
+      return failStorageAddonMutation(
+        501,
+        STORAGE_ADDON_CHANGE_UNAVAILABLE_MESSAGE,
+        "stripe_key_missing"
+      );
     }
 
     const stripeSubscription = await readVerifiedStripeSubscriptionForUser({
-      userId: user.id,
+      userId: authenticatedUser.id,
       stripeSubscriptionId,
     });
     const liveItems = Array.isArray(stripeSubscription.items?.data)
@@ -298,19 +447,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       : [];
 
     if (!liveItems.length) {
-      return res.status(409).json({
-        error: STORAGE_ADDON_CHANGE_UNAVAILABLE_MESSAGE,
-      });
+      return failStorageAddonMutation(
+        409,
+        STORAGE_ADDON_CHANGE_UNAVAILABLE_MESSAGE,
+        "stripe_live_items_missing"
+      );
     }
 
     if (action === "add") {
-      const addonAlreadyLiveInStripe = liveItems.some(
-        (item) => item.price?.id && item.price.id === offer!.stripe_price_id
+      if (offer?.stripe_price_id) {
+        storageAddonStripePriceIds.add(offer.stripe_price_id);
+      }
+      const liveStorageAddonItems = liveItems.filter(
+        (item) => item.price?.id && storageAddonStripePriceIds.has(item.price.id)
       );
-      if (addonAlreadyLiveInStripe) {
-        return res
-          .status(409)
-          .json({ error: `${addon.display_name} is already active on this workspace.` });
+      if (liveStorageAddonItems.length > 0) {
+        const addonAlreadyLiveInStripe = liveStorageAddonItems.some(
+          (item) => item.price?.id === offer!.stripe_price_id
+        );
+        return failStorageAddonMutation(
+          409,
+          addonAlreadyLiveInStripe
+            ? `${addon.display_name} is already active on this workspace.`
+            : STORAGE_ADDON_ALREADY_ACTIVE_MESSAGE,
+          addonAlreadyLiveInStripe ? "same_addon_live_in_stripe" : "different_addon_live_in_stripe"
+        );
       }
 
       await stripePostForm(`/subscriptions/${stripeSubscriptionId}`, {
@@ -323,6 +484,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         payment_behavior: "error_if_incomplete",
       });
 
+      await writeMutationTelemetry("storage_addon_request_succeeded", undefined, 200);
       return res.status(200).json({
         ok: true,
         message: `${addon.display_name} added. Your workspace storage is syncing now.`,
@@ -331,14 +493,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const removableItemIds = Array.from(
       new Set(
-        activeAddonRows
+        targetActiveAddonRows
           .map((row) => row.stripe_subscription_item_id)
           .filter((value): value is string => Boolean(value))
       )
     );
 
     const activeStripePriceIds = new Set(
-      activeAddonRows
+      targetActiveAddonRows
         .map((row) => row.stripe_price_id)
         .filter((value): value is string => Boolean(value))
     );
@@ -355,10 +517,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (!removableItemIds.length) {
-      return res.status(409).json({
-        error:
-          "This storage add-on could not be found on your subscription. Refresh and try again.",
-      });
+      return failStorageAddonMutation(
+        409,
+        "This storage add-on could not be found on your subscription. Refresh and try again.",
+        "removable_item_missing"
+      );
     }
 
     await stripePostForm(
@@ -371,6 +534,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       )
     );
 
+    await writeMutationTelemetry("storage_addon_removed", undefined, 200);
     return res.status(200).json({
       ok: true,
       message:
@@ -381,12 +545,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     await logApiRouteException({
       error,
       routeLabel: "billing.storage-addon.change",
-      user,
+      user: authenticatedUser,
       metadata: {
         storageAddonId,
         action,
       },
     });
+    await writeMutationTelemetry("storage_addon_request_failed", "unexpected_exception", 500);
     return res.status(500).json({
       error: "Unable to update recurring storage right now.",
     });

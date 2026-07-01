@@ -26,6 +26,7 @@ import { ProfileSubscriptionSection } from "../features/profile/components/Profi
 import { ProfileTransactionsSection } from "../features/profile/components/ProfileTransactionsSection";
 import { ProfileWorkspaceShell } from "../features/profile/components/ProfileWorkspaceShell";
 import {
+  CUSTOMER_CREDIT_ACTIVITY_SOURCES,
   formatDateLabel,
   formatLongDateLabel,
   getProfileSectionContent,
@@ -45,6 +46,10 @@ import { profileClass } from "../features/profile/profileRouteStyles";
 import { formatStorageUsageValue } from "../features/billing/storage";
 import { fetchWithAuth } from "../lib/authenticatedFetch";
 import { fetchCanonicalAuthCallbackUrl } from "../lib/authRedirects";
+import {
+  CURRENT_BILLABLE_STORAGE_ADDON_STATUSES,
+  resolveStorageAddonEligibility,
+} from "../lib/billing/storageAddonEligibility";
 import {
   resolveEmailChangeErrorMessage,
   resolvePasswordResetErrorMessage,
@@ -129,7 +134,6 @@ export default function ProfilePage() {
   const [pendingCancelPlanId, setPendingCancelPlanId] = useState<string | null>(null);
   const [displayNameInput, setDisplayNameInput] = useState("User");
   const [workspaceEmail, setWorkspaceEmail] = useState("");
-  const [currentPasswordInput, setCurrentPasswordInput] = useState("");
   const [notice, setNotice] = useState<NoticeState | null>(null);
 
   const [billingProfile, setBillingProfile] = useState<BillingProfile | null>(null);
@@ -301,12 +305,7 @@ export default function ProfilePage() {
         .from("ai_credit_ledger")
         .select("id, change_cents, reason, source, source_ref, metadata, created_at")
         .eq("user_id", currentUser.id)
-        .in("source", [
-          "stripe_checkout",
-          "subscription_renewal",
-          "annual_contract_monthly_allocation",
-          "signup_seed",
-        ])
+        .in("source", [...CUSTOMER_CREDIT_ACTIVITY_SOURCES])
         .order("created_at", { ascending: false })
         .limit(5);
       if (error) throw error;
@@ -418,7 +417,7 @@ export default function ProfilePage() {
         )
         .eq("user_id", currentUser.id)
         .is("ended_at", null)
-        .eq("status", "active");
+        .in("status", [...CURRENT_BILLABLE_STORAGE_ADDON_STATUSES]);
       if (error) throw error;
       const nextAddons = Array.isArray(data)
         ? data
@@ -635,6 +634,20 @@ export default function ProfilePage() {
     : "Not scheduled";
 
   const packageCards = useMemo(() => annotateCreditPackages(creditPackages), [creditPackages]);
+  const visibleStorageAddons = useMemo(() => {
+    const activeStorageAddonIds = new Set(
+      activeStorageAddons
+        .map((addon) => addon.storageAddonId)
+        .filter((value): value is string => Boolean(value))
+    );
+    return storageAddons.filter((addon) => {
+      if (activeStorageAddonIds.has(addon.id)) return true;
+      return resolveStorageAddonEligibility({
+        planId: activePlan.id,
+        storageAddonId: addon.id,
+      }).isEligible;
+    });
+  }, [activePlan.id, activeStorageAddons, storageAddons]);
   const activeAddonStorageBytes = quotaSummary?.addonLimitBytes ?? 0;
   const activeAddonRecurringPriceCents = activeStorageAddons.reduce(
     (total, addon) => total + Math.max(0, addon.recurringPriceCents),
@@ -675,11 +688,6 @@ export default function ProfilePage() {
       : activePlan.id === "free"
         ? "requires_paid_plan"
         : "syncing";
-  const billingIdentityDescription = portalManagementAvailable
-    ? billingProfile?.stripe_customer_id
-      ? "Payment method managed in Stripe billing portal"
-      : "No payment method on file yet"
-    : "Subscription managed internally outside Stripe";
   const portalActionLabel = portalManagementAvailable
     ? "Manage card, invoices, and subscription"
     : "Managed internally";
@@ -727,23 +735,18 @@ export default function ProfilePage() {
       setNotice({ tone: "error", message: "Enter a valid email." });
       return;
     }
-    if (!currentPasswordInput.trim()) {
-      setNotice({ tone: "error", message: "Enter your current password." });
-      return;
-    }
 
     try {
       const response = await fetchWithAuth("/api/account/email/update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: nextEmail, currentPassword: currentPasswordInput }),
+        body: JSON.stringify({ email: nextEmail }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(data?.error || "Email update failed.");
       }
       void refreshSupabaseSession({ preserveSnapshotOnError: true }).catch(() => null);
-      setCurrentPasswordInput("");
       setNotice({
         tone: "success",
         message: "Email update requested. Check your inbox to confirm.",
@@ -1007,7 +1010,6 @@ export default function ProfilePage() {
           section={section}
           sections={sections}
           title={content.title}
-          body={content.body}
           notice={notice}
           onRequestLogout={() => setShowLogoutConfirm(true)}
         >
@@ -1015,19 +1017,16 @@ export default function ProfilePage() {
             <ProfileAccountSection
               displayNameInput={displayNameInput}
               workspaceEmail={workspaceEmail}
-              currentPasswordInput={currentPasswordInput}
               pendingWorkspaceEmail={pendingWorkspaceEmail}
               mediaAutosaveEnabled={mediaAutosaveEnabled}
               mediaAutosaveDisabled={mediaAutosaveDisabled}
               mediaAutosaveSaving={mediaAutosaveSaving}
               mediaAutosaveError={mediaAutosaveError}
-              billingIdentityDescription={billingIdentityDescription}
               portalActionLabel={portalActionLabel}
               portalLoading={portalLoading}
               portalManagementAvailable={portalManagementAvailable}
               onDisplayNameInputChange={setDisplayNameInput}
               onWorkspaceEmailChange={setWorkspaceEmail}
-              onCurrentPasswordInputChange={setCurrentPasswordInput}
               onProfileSave={handleProfileSave}
               onEmailUpdate={handleEmailUpdate}
               onPasswordReset={handlePasswordReset}
@@ -1093,7 +1092,7 @@ export default function ProfilePage() {
               currentSubscriptionStorageLimitBytes={currentSubscriptionStorageLimitBytes}
               storageAddonChangeLoadingId={storageAddonChangeLoadingId}
               storageAddonManagementState={storageAddonManagementState}
-              storageAddons={storageAddons}
+              storageAddons={visibleStorageAddons}
               storageTransactions={storageTransactions}
               storageTransactionsError={storageTransactionsError}
               storageTransactionsLoading={storageTransactionsLoading}
@@ -1105,11 +1104,9 @@ export default function ProfilePage() {
 
           {section === "transactions" ? (
             <ProfileTransactionsSection
-              portalManagementAvailable={portalManagementAvailable}
               transactions={allTransactions}
               transactionsError={allTransactionsError}
               transactionsLoading={allTransactionsLoading}
-              userEmail={user?.email}
             />
           ) : null}
         </ProfileWorkspaceShell>

@@ -393,6 +393,10 @@ describe("GET /api/admin/billing-diagnostics", () => {
             code: "grandfathered_price_gap",
             severity: "info",
           }),
+          expect.objectContaining({
+            code: "storage_addon_plan_ineligible",
+            severity: "critical",
+          }),
         ]),
       })
     );

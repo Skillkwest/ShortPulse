@@ -12,6 +12,7 @@ const EXPECTED_INTERNAL_ROUTE_FILES = [
   "admin-user-health-fleet/run.ts",
   "billing-contract-renewals/run.ts",
   "generation-recovery/run.ts",
+  "media-storage-lifecycle/run.ts",
   "media-derivatives/run.ts",
 ] as const;
 

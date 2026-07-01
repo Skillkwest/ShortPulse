@@ -35,8 +35,10 @@ generation.
 3. Clearing or replacing a committed motion clip tombstones the old storage path
    instead of deleting it unconditionally.
 4. Terminal generation settlement releases leases server-side.
-5. A tombstoned motion clip is deleted only when no active generation lease
-   still references that storage path.
+5. A tombstoned motion clip becomes cleanup-eligible only when no active
+   generation lease still references that storage path and the lifecycle TTL has
+   elapsed. Actual object deletion remains a later Storage API cleanup lane that
+   requires separate approval.
 6. Stale pre-authoritative uploads continue using immediate best-effort delete,
    because they were never submitted into provider work.
 
@@ -70,5 +72,6 @@ This decision is implemented correctly only when:
 3. Clearing or replacing a committed motion clip retires the asset without
    deleting it while an active lease still exists.
 4. Direct-settlement and recovery terminal transitions release leases.
-5. Once all leases are released, tombstoned motion assets are deleted from the
-   private motion-control namespace.
+5. Once all leases are released, tombstoned motion assets are reported as
+   delete candidates only after the lifecycle TTL has elapsed. They are not
+   deleted by the replacement/clear route or by lease release.

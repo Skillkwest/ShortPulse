@@ -46,6 +46,7 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/migrations/180_harden_scheduler_and_admin_error_summary.sql`: add the missing internal billing scheduler HTTP timeout and provision service-role-only aggregate admin error-events summary RPC.
 - `sql/migrations/181_harden_admin_pricing_offer_activation_grants.sql`: re-harden service-role-only execute grants for admin pricing offer activation RPCs and keep the enforce gate aligned with the runtime SQL audit.
 - `sql/migrations/182_add_voice_changer_staged_audio_lifecycle.sql`: add Voice Changer video-derived staged-audio source objects to the service-role-only voice lifecycle proof class and aggregate dry-run diagnostics.
+- `sql/migrations/183_fix_media_storage_lifecycle_lint.sql`: rewrite the aggregate media storage lifecycle diagnostic without temp-table references so hosted Supabase lint can analyze the service-role-only RPC.
 - `sql/audit_billing_credit_rls.sql`: billing RLS audit checks.
 - `sql/check_database_io_hotspots.sql`: read-only `pg_stat_statements` shared-block I/O summary plus table size/read posture, planner-stat freshness, and hot diagnostic table age/retention posture without raw query text.
 - `sql/analyze_hot_database_tables_supabase.sql`: hosted apply-gated maintenance script that refreshes planner statistics on hot public tables without rewriting tables or deleting rows. Run through `.github/workflows/apply-control-plane-ops-sql.yml` with `operation=analyze_hot_database_tables`.
@@ -260,6 +261,7 @@ Migration number 134 is intentionally unused; the ordered sequence moves from `1
 - `180_harden_scheduler_and_admin_error_summary.sql`
 - `181_harden_admin_pricing_offer_activation_grants.sql`
 - `182_add_voice_changer_staged_audio_lifecycle.sql`
+- `183_fix_media_storage_lifecycle_lint.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 

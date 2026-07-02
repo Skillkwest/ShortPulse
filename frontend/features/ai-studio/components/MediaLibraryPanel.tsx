@@ -82,6 +82,14 @@ type MoveFolderPickerState = {
   folderName: string;
 };
 
+type FolderOpenGhostState = {
+  key: string;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
 type MediaLibraryPanelProps = {
   onSelectMedia: (payload: LibraryMediaReferencePayload) => void;
   onSelectPrompt: (payload: { id: string; promptText: string; title?: string | null }) => void;
@@ -118,6 +126,8 @@ const MEDIA_LIBRARY_FOLDERS_DEFAULT_TOP_RATIO = 0.3;
 const MEDIA_LIBRARY_FOLDERS_EXPANDED_GRID_TOP_HEIGHT_PX = 0,
   MEDIA_LIBRARY_FOLDERS_COLLAPSE_TOP_HEIGHT_PX = 86;
 const PROJECT_NAME_PLACEHOLDER = "Untitled project";
+const FOLDER_OPEN_GHOST_IMAGE_SRC = "/Folder 1.png";
+const FOLDER_OPEN_GHOST_DURATION_MS = 340;
 const ROOT_ALL_MEDIA_VISUAL_PRIORITY_COUNT = MEDIA_LIBRARY_PANEL_DENSITY_CONFIG.maxColumnCount;
 const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
@@ -185,6 +195,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [selectedPromptIds, setSelectedPromptIds] = useState<Set<string>>(() => new Set());
   const [folderContextMenu, setFolderContextMenu] = useState<FolderContextMenuState | null>(null);
+  const [folderOpenGhost, setFolderOpenGhost] = useState<FolderOpenGhostState | null>(null);
   const [pendingFolderDelete, setPendingFolderDelete] = useState<{
     folderId: string;
     folderName: string;
@@ -201,10 +212,19 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const panelBodyRef = useRef<HTMLDivElement | null>(null);
   const splitContainerRef = useRef<HTMLDivElement | null>(null);
   const folderContextMenuRef = useRef<HTMLDivElement | null>(null);
+  const folderOpenGhostTimeoutRef = useRef<number | null>(null);
   const [optimizerFallbackMediaIds, setOptimizerFallbackMediaIds] = useState<Set<string>>(
     () => new Set()
   );
   const isRoutePlanAccessBlocked = Boolean(isPlanAccessBlocked);
+
+  useEffect(() => {
+    return () => {
+      if (folderOpenGhostTimeoutRef.current !== null) {
+        window.clearTimeout(folderOpenGhostTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     setProjectNameDraft(projectName ?? "");
@@ -818,6 +838,38 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     },
     [setActiveFolderId]
   );
+
+  const handleOpenFolderWithAnimation = useCallback(
+    (folderId: string, sourceElement: HTMLElement) => {
+      const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      const rect = sourceElement.getBoundingClientRect();
+
+      if (folderOpenGhostTimeoutRef.current !== null) {
+        window.clearTimeout(folderOpenGhostTimeoutRef.current);
+        folderOpenGhostTimeoutRef.current = null;
+      }
+
+      if (!prefersReducedMotion && rect.width > 0 && rect.height > 0) {
+        setFolderOpenGhost({
+          key: `${folderId}:${Date.now()}`,
+          left: rect.left,
+          top: rect.top,
+          width: rect.width,
+          height: rect.height,
+        });
+        folderOpenGhostTimeoutRef.current = window.setTimeout(() => {
+          setFolderOpenGhost(null);
+          folderOpenGhostTimeoutRef.current = null;
+        }, FOLDER_OPEN_GHOST_DURATION_MS);
+      } else {
+        setFolderOpenGhost(null);
+      }
+
+      setActiveFolderId(folderId || MEDIA_LIBRARY_ROOT_FOLDER_ID);
+    },
+    [setActiveFolderId]
+  );
+
   const canShowFolderItemRemoveAction = !isRootFolderSelected;
   const activeFolderGridMediaRows = useMemo(
     () => (shouldShowMedia ? mediaRows : []),
@@ -1290,6 +1342,23 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         onRootUploadSelection={handleRootUploadSelection}
         disableUploads={shouldDisableUploads}
       />
+      {folderOpenGhost ? (
+        <div
+          key={folderOpenGhost.key}
+          className="media-library-panel-folder-open-ghost"
+          aria-hidden="true"
+          style={{
+            left: `${folderOpenGhost.left}px`,
+            top: `${folderOpenGhost.top}px`,
+            width: `${folderOpenGhost.width}px`,
+            height: `${folderOpenGhost.height}px`,
+          }}
+        >
+          {/* Decorative folder-open echo for double-click navigation. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={FOLDER_OPEN_GHOST_IMAGE_SRC} alt="" />
+        </div>
+      ) : null}
 
       <div ref={splitContainerRef} className="media-library-panel-split">
         <div className="media-library-panel-folders-panel" style={foldersSplit.topSectionStyle}>
@@ -1301,6 +1370,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
               onNavigateUp={handleNavigateUp}
               onNavigateToRoot={handleNavigateToRoot}
               onNavigateToFolder={handleNavigateToFolder}
+              onOpenFolderWithAnimation={handleOpenFolderWithAnimation}
               setActiveFolderId={setActiveFolderId}
               editingFolderId={editingFolderId}
               editingFolderName={editingFolderName}

@@ -27,6 +27,7 @@ type MediaLibraryPanelFoldersSectionProps = {
   onNavigateUp: () => void;
   onNavigateToRoot: () => void;
   onNavigateToFolder: (folderId: string) => void;
+  onOpenFolderWithAnimation: (folderId: string, sourceElement: HTMLElement) => void;
   setActiveFolderId: (folderId: string) => void;
   editingFolderId: string | null;
   editingFolderName: string;
@@ -76,6 +77,7 @@ export const MediaLibraryPanelFoldersSection = React.memo(function MediaLibraryP
   onNavigateUp,
   onNavigateToRoot,
   onNavigateToFolder,
+  onOpenFolderWithAnimation,
   setActiveFolderId,
   editingFolderId,
   editingFolderName,
@@ -140,6 +142,14 @@ export const MediaLibraryPanelFoldersSection = React.memo(function MediaLibraryP
       folderNameClickTimeoutRef.current = null;
     }
     startFolderRename(folderId, folderName, { clearInput: true });
+  };
+
+  const handleFolderChipDoubleClick = (
+    folderId: string,
+    event: React.MouseEvent<HTMLButtonElement>
+  ) => {
+    if (isPendingFolderId(folderId)) return;
+    onOpenFolderWithAnimation(folderId, event.currentTarget);
   };
 
   const clearPendingFolderNameClick = () => {
@@ -327,7 +337,7 @@ export const MediaLibraryPanelFoldersSection = React.memo(function MediaLibraryP
                     <button
                       type="button"
                       className="media-library-panel-folder-chip media-library-panel-folder-chip--image"
-                      onDoubleClick={() => handleOpenFolder(folder.id)}
+                      onDoubleClick={(event) => handleFolderChipDoubleClick(folder.id, event)}
                       aria-label={`${folder.name} folder`}
                       aria-disabled={isPending}
                       draggable={!isPending}

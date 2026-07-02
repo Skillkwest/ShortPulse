@@ -162,6 +162,19 @@ export function ReferenceGridSections({
   curatedCardNodes,
   allRefsCardNodes,
 }: ReferenceGridSectionsProps) {
+  const panelVisibilitySignature = `${showRailCanvasSection ? "1" : "0"}:${
+    showQuickSlotSection ? "1" : "0"
+  }:${showReferenceGridSection ? "1" : "0"}:${showStylesSection ? "1" : "0"}`;
+  const previousPanelVisibilitySignatureRef = React.useRef(panelVisibilitySignature);
+  const [isPanelLayoutAnimating, setIsPanelLayoutAnimating] = React.useState(false);
+  React.useEffect(() => {
+    if (previousPanelVisibilitySignatureRef.current === panelVisibilitySignature) return;
+    previousPanelVisibilitySignatureRef.current = panelVisibilitySignature;
+    setIsPanelLayoutAnimating(true);
+    const timeoutId = window.setTimeout(() => setIsPanelLayoutAnimating(false), 320);
+    return () => window.clearTimeout(timeoutId);
+  }, [panelVisibilitySignature]);
+
   const hasInventorySections =
     showQuickSlotSection || showReferenceGridSection || showStylesSection;
   const showCanvasInventoryDivider = showRailCanvasSection && hasInventorySections;
@@ -249,7 +262,11 @@ export function ReferenceGridSections({
   const showEmptyState = !showRailCanvasSection && !hasInventorySections;
   return (
     <>
-      <div className={`reference-grid-sections${isCuratedSplitEnabled ? " is-curated-split" : ""}`}>
+      <div
+        className={`reference-grid-sections${isCuratedSplitEnabled ? " is-curated-split" : ""}${
+          isPanelLayoutAnimating ? " is-panel-layout-animating" : ""
+        }`}
+      >
         {showRailCanvasSection && railCanvasProps ? (
           <>
             <div

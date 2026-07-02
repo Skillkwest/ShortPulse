@@ -1,6 +1,6 @@
 import React from "react";
 import { act, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ReferenceGridSections } from "../ReferenceGridSections";
 
 vi.mock("../../../components/canvas/CanvasPropertiesPanel", () => ({
@@ -87,6 +87,10 @@ const createProps = (): React.ComponentProps<typeof ReferenceGridSections> => ({
 });
 
 describe("ReferenceGridSections", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("shows the Canvas camera zoom badge in the Canvas header divider row", () => {
     const { container } = render(<ReferenceGridSections {...createProps()} showQuickSlotSection />);
 
@@ -178,6 +182,28 @@ describe("ReferenceGridSections", () => {
       height: "180px",
       flexBasis: "180px",
     });
+  });
+
+  it("marks right-rail panel visibility changes so dividers can move smoothly", () => {
+    vi.useFakeTimers();
+    const { container, rerender } = render(
+      <ReferenceGridSections {...createProps()} showQuickSlotSection />
+    );
+    const sections = container.querySelector(".reference-grid-sections");
+
+    expect(sections).not.toHaveClass("is-panel-layout-animating");
+
+    rerender(
+      <ReferenceGridSections {...createProps()} showQuickSlotSection showReferenceGridSection />
+    );
+
+    expect(sections).toHaveClass("is-panel-layout-animating");
+
+    act(() => {
+      vi.advanceTimersByTime(320);
+    });
+
+    expect(sections).not.toHaveClass("is-panel-layout-animating");
   });
 
   it("removes canvas drop ownership when the canvas body is collapsed", () => {

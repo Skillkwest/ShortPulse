@@ -67,7 +67,7 @@ type VoiceSourceDropzoneCopy = {
   extractingDetail: string;
   failedTitle: string;
   failedFallbackDetail: string;
-  extractedFromDetail: (sourceName: string) => string;
+  extractedFromDetail: string;
 };
 
 const defaultVoiceChangerDropzoneCopy: VoiceSourceDropzoneCopy = {
@@ -94,7 +94,7 @@ const defaultVoiceChangerDropzoneCopy: VoiceSourceDropzoneCopy = {
   extractingDetail: "Pulling the voice audio out of the staged video.",
   failedTitle: "Source processing failed",
   failedFallbackDetail: "Unable to prepare the selected source.",
-  extractedFromDetail: (sourceName) => `Using extracted audio from ${sourceName}.`,
+  extractedFromDetail: "Extracted audio is ready for conversion.",
 };
 
 const resolveSourceStatusTitle = (
@@ -123,7 +123,7 @@ const resolveSourceStatusDetail = (
     return source.errorMessage ?? copy.failedFallbackDetail;
   }
   if (source.extractedFrom) {
-    return copy.extractedFromDetail(source.extractedFrom.name);
+    return copy.extractedFromDetail;
   }
   return null;
 };

@@ -1114,11 +1114,13 @@ describe("VoicesPropertiesPanel", () => {
       expect(screen.getByText("Ready for conversion")).toBeInTheDocument();
     });
 
+    expect(screen.getByText("Extracted audio is ready for conversion.")).toBeInTheDocument();
     expect(uploadVoiceChangerSourceFileMock).toHaveBeenCalledWith({
       file,
       kind: "video",
     });
     expect(extractVoiceChangerVideoSourceMock).toHaveBeenCalled();
+    expect(screen.queryByText(/using extracted audio/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/5 B ready for conversion/i)).not.toBeInTheDocument();
     expect(screen.queryByText("demo-clip.mp4")).not.toBeInTheDocument();
     expect(screen.queryByText("Video source")).not.toBeInTheDocument();
@@ -1917,6 +1919,8 @@ describe("VoicesPropertiesPanel", () => {
 
     expect(screen.queryByText("shot-01.mp4")).not.toBeInTheDocument();
     expect(screen.queryByText("Reference Grid")).not.toBeInTheDocument();
+    expect(screen.getByText("Extracted audio is ready for conversion.")).toBeInTheDocument();
+    expect(screen.queryByText(/using extracted audio/i)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
   });
 

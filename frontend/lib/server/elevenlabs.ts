@@ -21,6 +21,7 @@ import {
   upsertVideoPreviewVariantFromBuffer,
 } from "./videoPosterVariant";
 import { normalizeGenerationWorkspaceRuntimeKey } from "./api/generationWorkspaceRuntimeKey";
+import { DURABLE_MEDIA_CACHE_CONTROL_SECONDS } from "./mediaIngest";
 export {
   createElevenLabsClonedVoice,
   createElevenLabsDesignedVoice,
@@ -439,6 +440,7 @@ export const persistGeneratedAudioAsset = async ({
     .upload(storagePath, outputBuffer, {
       contentType: outputContentType,
       upsert: false,
+      cacheControl: DURABLE_MEDIA_CACHE_CONTROL_SECONDS,
     });
   if (uploadResult.error) {
     throw new Error(uploadResult.error.message || "Unable to persist generated audio.");
@@ -814,6 +816,7 @@ export const persistGeneratedVideoAsset = async ({
     .upload(storagePath, outputBuffer, {
       contentType: outputContentType,
       upsert: false,
+      cacheControl: DURABLE_MEDIA_CACHE_CONTROL_SECONDS,
     });
   if (uploadResult.error) {
     throw new Error(uploadResult.error.message || "Unable to persist generated video.");

@@ -1193,7 +1193,8 @@ a.ai-credit-inline:focus-visible {
   --ai-shell-right-min-width: 440px;
 }
 
-.ai-studio-page[data-selected-tool="presets"] .ai-shell.ai-shell-resizable {
+.ai-studio-page[data-selected-tool="presets"] .ai-shell.ai-shell-resizable,
+.ai-studio-page[data-selected-tool="styles"] .ai-shell.ai-shell-resizable {
   --ai-shell-left-width: minmax(760px, 1.2fr);
 }
 

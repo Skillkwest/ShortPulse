@@ -215,12 +215,12 @@ describe("ai-studio layout scroll behavior contract", () => {
     expect(css).toContain("var(--ai-shell-left-width, minmax(920px, 1040px))");
   });
 
-  it("starts Presets with a wider resizable left column fallback", () => {
+  it("starts Presets and Styles with a wider resizable left column fallback", () => {
     const css = fs.readFileSync(layoutCssPath, "utf8");
 
     const presetsFallbackRule = extractRuleBlock(
       css,
-      '.ai-studio-page[data-selected-tool="presets"] .ai-shell.ai-shell-resizable'
+      '.ai-studio-page[data-selected-tool="presets"] .ai-shell.ai-shell-resizable,\n.ai-studio-page[data-selected-tool="styles"] .ai-shell.ai-shell-resizable'
     );
     expect(presetsFallbackRule).toContain("--ai-shell-left-width: minmax(760px, 1.2fr);");
   });

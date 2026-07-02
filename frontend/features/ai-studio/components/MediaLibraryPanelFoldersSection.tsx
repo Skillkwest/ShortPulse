@@ -149,7 +149,11 @@ export const MediaLibraryPanelFoldersSection = React.memo(function MediaLibraryP
     event: React.MouseEvent<HTMLButtonElement>
   ) => {
     if (isPendingFolderId(folderId)) return;
-    onOpenFolderWithAnimation(folderId, event.currentTarget);
+    const folderImage = event.currentTarget.querySelector(".media-library-panel-folder-chip-image");
+    onOpenFolderWithAnimation(
+      folderId,
+      folderImage instanceof HTMLElement ? folderImage : event.currentTarget
+    );
   };
 
   const clearPendingFolderNameClick = () => {

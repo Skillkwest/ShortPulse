@@ -44,6 +44,18 @@ export type ReferenceGridScenario = {
   };
 };
 
+type ReferenceGridCapacityGateThreshold = {
+  count: number;
+  clickP95Ms: number;
+  renderedItemCountP95: number;
+  longTaskP95Ms: number;
+  maxInputStallMs: number;
+  imageDecodeInflightP95: number;
+  videoAttachBudgetP95: number;
+  mediaWorkTokensP95: number;
+  heapDeltaMb: number;
+};
+
 export type StudioShellScenario = {
   count: number;
   toolbar: { samples: number; p95Ms: number | null };
@@ -161,6 +173,7 @@ export const evaluateReferenceGridAuditGates = (
     videoAttachBudgetP95AtCrashCount?: number;
     mediaWorkTokensP95AtCrashCount?: number;
     heapDeltaMbAtCrashCount?: number;
+    capacityGateThresholds?: ReferenceGridCapacityGateThreshold[];
   }
 ): PerfGate[] => {
   const scenarioByCount = new Map(scenarios.map((scenario) => [scenario.count, scenario]));
@@ -342,6 +355,111 @@ export const evaluateReferenceGridAuditGates = (
       });
     }
   }
+
+  thresholds.capacityGateThresholds?.forEach((target) => {
+    const scenario = scenarioByCount.get(target.count);
+    if (!scenario) {
+      gates.push({
+        name: `target_capacity_scenario_exists_at_${target.count}`,
+        pass: false,
+        actual: null,
+        expected: `${target.count}-card target-capacity scenario must run`,
+      });
+      return;
+    }
+
+    const renderedThreshold = resolveRenderedItemThreshold(
+      target.renderedItemCountP95,
+      scenario.viewport
+    );
+    const heapDeltaMb =
+      typeof scenario.memory.beforeMb === "number" && typeof scenario.memory.afterMb === "number"
+        ? Math.round((scenario.memory.afterMb - scenario.memory.beforeMb) * 100) / 100
+        : null;
+
+    gates.push({
+      name: `target_capacity_click_p95_ms_at_${target.count}`,
+      pass: typeof scenario.click.p95Ms === "number" && scenario.click.p95Ms <= target.clickP95Ms,
+      actual: scenario.click.p95Ms,
+      expected: `<= ${target.clickP95Ms}`,
+    });
+    gates.push({
+      name: `target_capacity_rendered_item_count_p95_at_${target.count}`,
+      pass:
+        typeof scenario.grid.renderedItemCountP95 === "number" &&
+        scenario.grid.renderedItemCountP95 <= renderedThreshold.threshold,
+      actual: scenario.grid.renderedItemCountP95,
+      expected:
+        renderedThreshold.threshold === target.renderedItemCountP95
+          ? `<= ${target.renderedItemCountP95}`
+          : `<= ${renderedThreshold.threshold} (viewport-adjusted from ${target.renderedItemCountP95})`,
+      note:
+        typeof scenario.grid.renderedItemCountP95 === "number"
+          ? renderedThreshold.note
+          : "Rendered-item metric unavailable from grid surface.",
+    });
+    gates.push({
+      name: `target_capacity_long_task_p95_ms_at_${target.count}`,
+      pass:
+        typeof scenario.longTask.p95Ms !== "number" ||
+        scenario.longTask.p95Ms <= target.longTaskP95Ms,
+      actual: scenario.longTask.p95Ms,
+      expected: `<= ${target.longTaskP95Ms}`,
+      note:
+        typeof scenario.longTask.p95Ms === "number"
+          ? undefined
+          : "No long tasks observed during target-capacity scenario.",
+    });
+    gates.push({
+      name: `target_capacity_max_input_stall_ms_at_${target.count}`,
+      pass: scenario.interaction.maxInputStallMs <= target.maxInputStallMs,
+      actual: scenario.interaction.maxInputStallMs,
+      expected: `<= ${target.maxInputStallMs}`,
+    });
+    gates.push({
+      name: `target_capacity_image_decode_inflight_p95_at_${target.count}`,
+      pass:
+        typeof scenario.grid.imageDecodeInflightP95 === "number" &&
+        scenario.grid.imageDecodeInflightP95 <= target.imageDecodeInflightP95,
+      actual: scenario.grid.imageDecodeInflightP95,
+      expected: `<= ${target.imageDecodeInflightP95}`,
+      note:
+        typeof scenario.grid.imageDecodeInflightP95 === "number"
+          ? undefined
+          : "Image decode metric unavailable from grid surface.",
+    });
+    gates.push({
+      name: `target_capacity_video_attach_budget_p95_at_${target.count}`,
+      pass:
+        typeof scenario.grid.videoAttachBudgetP95 === "number" &&
+        scenario.grid.videoAttachBudgetP95 <= target.videoAttachBudgetP95,
+      actual: scenario.grid.videoAttachBudgetP95 ?? null,
+      expected: `<= ${target.videoAttachBudgetP95}`,
+      note:
+        typeof scenario.grid.videoAttachBudgetP95 === "number"
+          ? undefined
+          : "Video attach budget metric unavailable from grid surface.",
+    });
+    gates.push({
+      name: `target_capacity_media_work_tokens_p95_at_${target.count}`,
+      pass:
+        typeof scenario.grid.mediaWorkTokensP95 === "number" &&
+        scenario.grid.mediaWorkTokensP95 <= target.mediaWorkTokensP95,
+      actual: scenario.grid.mediaWorkTokensP95 ?? null,
+      expected: `<= ${target.mediaWorkTokensP95}`,
+      note:
+        typeof scenario.grid.mediaWorkTokensP95 === "number"
+          ? undefined
+          : "Media work-token metric unavailable from grid surface.",
+    });
+    gates.push({
+      name: `target_capacity_heap_delta_mb_at_${target.count}`,
+      pass: heapDeltaMb === null || heapDeltaMb <= target.heapDeltaMb,
+      actual: heapDeltaMb,
+      expected: `<= ${target.heapDeltaMb}`,
+      note: heapDeltaMb === null ? "Heap metric unavailable in this browser runtime." : undefined,
+    });
+  });
 
   return gates;
 };

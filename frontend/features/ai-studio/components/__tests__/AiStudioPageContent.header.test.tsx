@@ -814,15 +814,18 @@ describe("AiStudioPageContent header project name", () => {
     }
   );
 
-  it("gives the Presets panel a wider minimum left column", () => {
-    render(<AiStudioPageContent {...createProps()} selectedTool="presets" />);
+  it.each(["presets", "styles"] satisfies ToolId[])(
+    "gives the %s panel the shared wider library minimum left column",
+    (selectedTool) => {
+      render(<AiStudioPageContent {...createProps()} selectedTool={selectedTool} />);
 
-    expect(useAiStudioShellResizeMock).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        minLeftWidthPx: AI_SHELL_LEFT_PRESETS_MIN_PX,
-        minRightWidthPx: undefined,
-        allowLeftCollapse: false,
-      })
-    );
-  });
+      expect(useAiStudioShellResizeMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          minLeftWidthPx: AI_SHELL_LEFT_PRESETS_MIN_PX,
+          minRightWidthPx: undefined,
+          allowLeftCollapse: false,
+        })
+      );
+    }
+  );
 });

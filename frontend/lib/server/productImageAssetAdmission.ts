@@ -14,6 +14,7 @@ import {
 import {
   ALLOWED_IMAGE_MIME_TYPES,
   createSignedMediaUrl,
+  DURABLE_MEDIA_CACHE_CONTROL_SECONDS,
   MAX_IMAGE_MEDIA_BYTES,
   MAX_VIDEO_MEDIA_BYTES,
   MEDIA_BUCKET,
@@ -466,6 +467,7 @@ const admitProductImageAssetBufferForUser = async ({
     storagePath,
     buffer: admittedImage.buffer,
     mimeType: admittedImage.mimeType,
+    cacheControl: DURABLE_MEDIA_CACHE_CONTROL_SECONDS,
   });
   const signedUrl = await createSignedMediaUrl(storagePath);
   const dimensions =

@@ -412,6 +412,7 @@ export const useAiStudioGeneratedOutputMaintenance = ({
         const hydratedOutputs = await listVisibleGeneratedOutputs({
           projectId: projectId ?? null,
           workspaceRuntimeKey: projectId ? null : workspaceRuntimeKey,
+          includeWorkflowContext: false,
         });
         if (!cancelled && hydratedOutputs.length > 0) {
           setOutputsState((currentOutputs) =>
@@ -425,6 +426,7 @@ export const useAiStudioGeneratedOutputMaintenance = ({
         const reconciledOutputs = await listVisibleGeneratedOutputs({
           projectId,
           workspaceRuntimeKey: null,
+          includeWorkflowContext: false,
         });
         if (cancelled || reconciledOutputs.length === 0) return;
         setOutputsState((currentOutputs) =>

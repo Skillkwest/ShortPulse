@@ -7,6 +7,7 @@ import { assertUserScopedMediaStoragePath } from "../mediaStoragePath";
 import { admitImageBufferForProductUse, type ImageAdmissionMetadata } from "./imageAdmission";
 import {
   createSignedMediaUrl,
+  DURABLE_MEDIA_CACHE_CONTROL_SECONDS,
   MEDIA_BUCKET,
   removeScopedMediaStorageObject,
   resolveDetectedMediaMimeType,
@@ -363,6 +364,7 @@ export const resolveProductUseImageReferenceForMediaFile = async ({
     buffer: admission.buffer,
     mimeType: admission.mimeType,
     upsert: true,
+    cacheControl: DURABLE_MEDIA_CACHE_CONTROL_SECONDS,
   });
 
   const variantPayload = {

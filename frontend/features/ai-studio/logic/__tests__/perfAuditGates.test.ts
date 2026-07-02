@@ -25,6 +25,31 @@ const REFERENCE_THRESHOLDS = {
   renderedItemCountP95At60: 28,
 };
 
+const TARGET_CAPACITY_THRESHOLDS = [
+  {
+    count: 400,
+    clickP95Ms: 150,
+    renderedItemCountP95: 36,
+    longTaskP95Ms: 180,
+    maxInputStallMs: 1_000,
+    imageDecodeInflightP95: 6,
+    videoAttachBudgetP95: 3,
+    mediaWorkTokensP95: 8,
+    heapDeltaMb: 128,
+  },
+  {
+    count: 500,
+    clickP95Ms: 150,
+    renderedItemCountP95: 36,
+    longTaskP95Ms: 180,
+    maxInputStallMs: 1_000,
+    imageDecodeInflightP95: 6,
+    videoAttachBudgetP95: 3,
+    mediaWorkTokensP95: 8,
+    heapDeltaMb: 128,
+  },
+];
+
 const SHELL_THRESHOLDS = {
   toolbarP95MsAt60: 150,
   panelP95MsAt60: 150,
@@ -33,6 +58,30 @@ const SHELL_THRESHOLDS = {
   maxInputStallMs: 1000,
   nonGridRerendersPerOutputStatusTick: 3,
 };
+
+const createPassingReferenceGridScenario = (
+  count: number,
+  overrides: Partial<ReferenceGridScenario> = {}
+): ReferenceGridScenario => ({
+  count,
+  ...overrides,
+  click: { samples: 12, p95Ms: 20, ...overrides.click },
+  longTask: { samples: 0, p95Ms: null, ...overrides.longTask },
+  interaction: { maxInputStallMs: 20, ...overrides.interaction },
+  memory: { beforeMb: 100, afterMb: 110, ...overrides.memory },
+  grid: {
+    renderedItemCountP95: 12,
+    imageHydrationQueueP95: 0,
+    imageDecodeInflightP95: 0,
+    perfDegradeLevelP95: 0,
+    mediaWorkTokensP95: 5,
+    videoAttachBudgetP95: 1,
+    previewSrcSwapRatePerMinuteP95: 0,
+    previewRepaintSpikeCountMax: 0,
+    previewLastSwapBurstCountP95: 0,
+    ...overrides.grid,
+  },
+});
 
 const PROJECT_WORKSPACE_AUTOSAVE_TYPING_THRESHOLDS = {
   standardPromptCommitP95Ms: 45,
@@ -473,6 +522,104 @@ describe("perfAuditGates", () => {
         expected: "<= 96",
       })
     );
+  });
+
+  it("adds target-capacity gates for 400 and 500 card scenarios", () => {
+    const scenarios: ReferenceGridScenario[] = [
+      createPassingReferenceGridScenario(40),
+      createPassingReferenceGridScenario(60),
+      createPassingReferenceGridScenario(400),
+      createPassingReferenceGridScenario(500),
+    ];
+
+    const gates = evaluateReferenceGridAuditGates(scenarios, {
+      ...REFERENCE_THRESHOLDS,
+      capacityGateThresholds: TARGET_CAPACITY_THRESHOLDS,
+    });
+
+    expect(
+      gates.filter((gate) => gate.name.startsWith("target_capacity_")).map((gate) => gate.name)
+    ).toEqual([
+      "target_capacity_click_p95_ms_at_400",
+      "target_capacity_rendered_item_count_p95_at_400",
+      "target_capacity_long_task_p95_ms_at_400",
+      "target_capacity_max_input_stall_ms_at_400",
+      "target_capacity_image_decode_inflight_p95_at_400",
+      "target_capacity_video_attach_budget_p95_at_400",
+      "target_capacity_media_work_tokens_p95_at_400",
+      "target_capacity_heap_delta_mb_at_400",
+      "target_capacity_click_p95_ms_at_500",
+      "target_capacity_rendered_item_count_p95_at_500",
+      "target_capacity_long_task_p95_ms_at_500",
+      "target_capacity_max_input_stall_ms_at_500",
+      "target_capacity_image_decode_inflight_p95_at_500",
+      "target_capacity_video_attach_budget_p95_at_500",
+      "target_capacity_media_work_tokens_p95_at_500",
+      "target_capacity_heap_delta_mb_at_500",
+    ]);
+    expect(gates.every((gate) => gate.pass)).toBe(true);
+  });
+
+  it("fails target-capacity gates when the 500 card scenario is missing", () => {
+    const scenarios: ReferenceGridScenario[] = [
+      createPassingReferenceGridScenario(40),
+      createPassingReferenceGridScenario(60),
+      createPassingReferenceGridScenario(400),
+    ];
+
+    const gates = evaluateReferenceGridAuditGates(scenarios, {
+      ...REFERENCE_THRESHOLDS,
+      capacityGateThresholds: TARGET_CAPACITY_THRESHOLDS,
+    });
+    const missing500Gate = gates.find(
+      (gate) => gate.name === "target_capacity_scenario_exists_at_500"
+    );
+
+    expect(missing500Gate).toEqual(
+      expect.objectContaining({
+        pass: false,
+        actual: null,
+        expected: "500-card target-capacity scenario must run",
+      })
+    );
+    expect(gates.every((gate) => gate.pass)).toBe(false);
+  });
+
+  it("fails target-capacity gates when the 500 card scenario regresses", () => {
+    const scenarios: ReferenceGridScenario[] = [
+      createPassingReferenceGridScenario(40),
+      createPassingReferenceGridScenario(60),
+      createPassingReferenceGridScenario(400),
+      createPassingReferenceGridScenario(500, {
+        interaction: { maxInputStallMs: 1_200 },
+        memory: { beforeMb: 100, afterMb: 260 },
+      }),
+    ];
+
+    const gates = evaluateReferenceGridAuditGates(scenarios, {
+      ...REFERENCE_THRESHOLDS,
+      capacityGateThresholds: TARGET_CAPACITY_THRESHOLDS,
+    });
+    const inputStallGate = gates.find(
+      (gate) => gate.name === "target_capacity_max_input_stall_ms_at_500"
+    );
+    const heapGate = gates.find((gate) => gate.name === "target_capacity_heap_delta_mb_at_500");
+
+    expect(inputStallGate).toEqual(
+      expect.objectContaining({
+        pass: false,
+        actual: 1200,
+        expected: "<= 1000",
+      })
+    );
+    expect(heapGate).toEqual(
+      expect.objectContaining({
+        pass: false,
+        actual: 160,
+        expected: "<= 128",
+      })
+    );
+    expect(gates.every((gate) => gate.pass)).toBe(false);
   });
 
   it("passes project autosave typing gates when drafts trigger no project snapshot churn", () => {

@@ -40,6 +40,7 @@ const resolvePersistedMediaLibraryFileType = (row: MediaRowKindInput): MediaLibr
 };
 
 const BUCKET = "media_library";
+const DURABLE_MEDIA_CACHE_CONTROL_SECONDS = "31536000";
 const FETCH_TIMEOUT_MS = 60000;
 const FETCH_RETRY_ATTEMPTS = 2;
 const AI_STUDIO_EXISTING_ROW_RETRY_ATTEMPTS = 5;
@@ -860,6 +861,7 @@ const upsertVideoPosterVariant = async ({
     .upload(storagePath, fetched.blob, {
       upsert: true,
       contentType,
+      cacheControl: DURABLE_MEDIA_CACHE_CONTROL_SECONDS,
     });
   if (uploadError) {
     throw uploadError;
@@ -1014,6 +1016,7 @@ const upsertVideoPosterVariantFromVideoBlob = async ({
     .upload(storagePath, posterBlob, {
       upsert: true,
       contentType: "image/jpeg",
+      cacheControl: DURABLE_MEDIA_CACHE_CONTROL_SECONDS,
     });
   if (uploadError) {
     throw uploadError;
@@ -1508,6 +1511,7 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
   const { error: uploadError } = await supabase.storage.from(BUCKET).upload(storagePath, blob, {
     upsert: false,
     contentType: contentType ?? undefined,
+    cacheControl: DURABLE_MEDIA_CACHE_CONTROL_SECONDS,
   });
   if (uploadError) {
     throw uploadError;

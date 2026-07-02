@@ -1006,7 +1006,7 @@ export function AiStudioPageContent({
       ? AI_SHELL_LEFT_SOUND_MIN_PX
       : selectedTool === "video" || selectedTool === "kling"
         ? AI_SHELL_LEFT_VIDEO_MIN_PX
-        : selectedTool === "presets"
+        : selectedTool === "presets" || selectedTool === "styles"
           ? AI_SHELL_LEFT_PRESETS_MIN_PX
           : showCreatePropertiesPanel
             ? AI_SHELL_LEFT_CREATE_MIN_PX

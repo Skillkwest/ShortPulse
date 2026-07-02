@@ -2168,12 +2168,16 @@ export const listVisibleGeneratedOutputs = async ({
   projectId = null,
   workspaceRuntimeKey = null,
   runtimeIdentities = null,
-  includeWorkflowContext = true,
+  includeWorkflowContext = false,
 }: {
   limit?: number;
   projectId?: string | null;
   workspaceRuntimeKey?: string | null;
   runtimeIdentities?: VisibleGeneratedOutputRuntimeIdentity[] | null;
+  /**
+   * Include heavy workflow/replay/style restore payloads. Frequent delivery/status refreshes
+   * should leave this false and rely on project/session restore authorities for saved context.
+   */
   includeWorkflowContext?: boolean;
 } = {}): Promise<StudioOutput[]> => {
   try {

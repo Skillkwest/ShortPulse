@@ -9,6 +9,7 @@ import path from "path";
 import { promisify } from "util";
 import ffmpegStatic from "ffmpeg-static";
 import { assertUserScopedMediaStoragePath } from "../mediaStoragePath";
+import { DURABLE_MEDIA_CACHE_CONTROL_SECONDS } from "./mediaIngest";
 import { extractImageDimensionsFromBuffer } from "./imageDimensions";
 import type { getSupabaseAdmin } from "./api/supabaseAdmin";
 
@@ -384,6 +385,7 @@ export const upsertVideoPosterVariantFromBuffer = async ({
     .upload(storagePath, posterBuffer, {
       upsert: true,
       contentType: "image/jpeg",
+      cacheControl: DURABLE_MEDIA_CACHE_CONTROL_SECONDS,
     });
   if (uploadError) return null;
 
@@ -460,6 +462,7 @@ export const upsertVideoPreviewVariantFromBuffer = async ({
     .upload(storagePath, previewBuffer, {
       upsert: true,
       contentType: "video/mp4",
+      cacheControl: DURABLE_MEDIA_CACHE_CONTROL_SECONDS,
     });
   if (uploadError) return null;
 

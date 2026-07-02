@@ -217,6 +217,7 @@ describe("prepareMediaUploadForUser", () => {
       {
         contentType: "image/png",
         upsert: false,
+        cacheControl: "31536000",
       }
     );
     expect(insertMock).toHaveBeenCalledWith(
@@ -290,6 +291,7 @@ describe("prepareMediaUploadForUser", () => {
       {
         contentType: "video/mp4",
         upsert: false,
+        cacheControl: "31536000",
       }
     );
     expect(insertMock).toHaveBeenCalledWith(

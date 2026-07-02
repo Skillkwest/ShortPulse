@@ -97,8 +97,9 @@ describe("MediaLibraryPanelFoldersSection", () => {
     );
 
     const folderTile = screen.getByLabelText("Campaign folder");
+    const folderImage = folderTile.querySelector(".media-library-panel-folder-chip-image");
     fireEvent.doubleClick(folderTile);
 
-    expect(onOpenFolderWithAnimation).toHaveBeenCalledWith("folder-1", folderTile);
+    expect(onOpenFolderWithAnimation).toHaveBeenCalledWith("folder-1", folderImage);
   });
 });

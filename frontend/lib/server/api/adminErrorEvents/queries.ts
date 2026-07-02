@@ -22,6 +22,7 @@ const APP_ERROR_EVENTS_DETAIL_COLUMNS =
 export type ErrorEventsDatasetResult = {
   eventsResult: ListQueryResult;
   filteredCountResult: CountQueryResult;
+  filteredCountEstimated: boolean;
   last15mCountResult: CountQueryResult;
   high15mCountResult: CountQueryResult;
   generation15mCountResult: CountQueryResult;
@@ -48,6 +49,7 @@ export type ErrorActionableEventsResult = {
   unlinkedEventsResult: ListQueryResult;
   openCountResult: CountQueryResult;
   unlinkedCountResult: CountQueryResult;
+  countsEstimated: boolean;
 };
 
 type SummaryRpcResult = {
@@ -81,6 +83,8 @@ const asSummaryRecord = (value: unknown): Record<string, unknown> | null => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   return value as Record<string, unknown>;
 };
+
+const estimatedCountResult = (): CountQueryResult => ({ count: null, error: null });
 
 const summaryCountResult = (result: SummaryRpcResult, key: SummaryCountKey): CountQueryResult => {
   if (result.error) return { count: null, error: result.error };
@@ -125,17 +129,8 @@ export const fetchErrorEventsDataset = async (params: {
     params.listFilters
   ) as unknown as Promise<ListQueryResult>;
 
-  const filteredCountQuery = applyEventFilters(
-    params.supabaseAdmin.from("app_error_events").select("id, app_error_logs!left(status)", {
-      count: "exact",
-      head: true,
-    }) as unknown as EventQuery,
-    params.listFilters
-  ) as unknown as Promise<CountQueryResult>;
-
-  const [eventsResult, filteredCountResult, summaryResult] = await Promise.all([
+  const [eventsResult, summaryResult] = await Promise.all([
     eventsQuery,
-    filteredCountQuery,
     params.supabaseAdmin.rpc("get_admin_error_events_summary_v1", {
       p_since_15m: params.since15mIso,
       p_since_hour: params.sinceHourIso,
@@ -183,7 +178,8 @@ export const fetchErrorEventsDataset = async (params: {
 
   return {
     eventsResult,
-    filteredCountResult,
+    filteredCountResult: estimatedCountResult(),
+    filteredCountEstimated: true,
     last15mCountResult,
     high15mCountResult,
     generation15mCountResult,
@@ -221,43 +217,31 @@ export const fetchActionableErrorEvents = async (params: {
     excludeGrowthTelemetrySources: true,
   };
 
-  const [openEventsResult, unlinkedEventsResult, openCountResult, unlinkedCountResult] =
-    await Promise.all([
-      applyEventFilters(
-        params.supabaseAdmin
-          .from("app_error_events")
-          .select(APP_ERROR_EVENTS_LIST_COLUMNS)
-          .order("occurred_at", { ascending: false })
-          .range(0, end) as unknown as EventQuery,
-        openFilters
-      ) as unknown as Promise<ListQueryResult>,
-      applyEventFilters(
-        params.supabaseAdmin
-          .from("app_error_events")
-          .select(APP_ERROR_EVENTS_LIST_COLUMNS)
-          .order("occurred_at", { ascending: false })
-          .range(0, end) as unknown as EventQuery,
-        unlinkedFilters
-      ) as unknown as Promise<ListQueryResult>,
-      applyEventFilters(
-        params.supabaseAdmin
-          .from("app_error_events")
-          .select("id", { count: "exact", head: true }) as unknown as EventQuery,
-        openFilters
-      ) as unknown as Promise<CountQueryResult>,
-      applyEventFilters(
-        params.supabaseAdmin
-          .from("app_error_events")
-          .select("id", { count: "exact", head: true }) as unknown as EventQuery,
-        unlinkedFilters
-      ) as unknown as Promise<CountQueryResult>,
-    ]);
+  const [openEventsResult, unlinkedEventsResult] = await Promise.all([
+    applyEventFilters(
+      params.supabaseAdmin
+        .from("app_error_events")
+        .select(APP_ERROR_EVENTS_LIST_COLUMNS)
+        .order("occurred_at", { ascending: false })
+        .range(0, end) as unknown as EventQuery,
+      openFilters
+    ) as unknown as Promise<ListQueryResult>,
+    applyEventFilters(
+      params.supabaseAdmin
+        .from("app_error_events")
+        .select(APP_ERROR_EVENTS_LIST_COLUMNS)
+        .order("occurred_at", { ascending: false })
+        .range(0, end) as unknown as EventQuery,
+      unlinkedFilters
+    ) as unknown as Promise<ListQueryResult>,
+  ]);
 
   return {
     openEventsResult,
     unlinkedEventsResult,
-    openCountResult,
-    unlinkedCountResult,
+    openCountResult: estimatedCountResult(),
+    unlinkedCountResult: estimatedCountResult(),
+    countsEstimated: true,
   };
 };
 

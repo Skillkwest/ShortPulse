@@ -162,6 +162,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const {
       eventsResult,
       filteredCountResult,
+      filteredCountEstimated,
       last15mCountResult,
       high15mCountResult,
       generation15mCountResult,
@@ -215,14 +216,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     let events = isActionableIncidentFilter ? [] : (eventsResult.data ?? []);
     let eventRowsCount = Array.isArray(events) ? events.length : 0;
     let fallbackLikelyHasNextPage = eventRowsCount === limit;
-    let hasFilteredCountError = isActionableIncidentFilter || Boolean(filteredCountResult.error);
-    let totalCount = hasFilteredCountError
+    let hasFilteredCountError = Boolean(filteredCountResult.error);
+    let paginationTotalsEstimated =
+      isActionableIncidentFilter || filteredCountEstimated || hasFilteredCountError;
+    let totalCount = paginationTotalsEstimated
       ? offset + eventRowsCount + (fallbackLikelyHasNextPage ? 1 : 0)
       : Number(filteredCountResult.count ?? 0);
-    let totalPages = hasFilteredCountError
+    let totalPages = paginationTotalsEstimated
       ? Math.max(1, page + (fallbackLikelyHasNextPage ? 1 : 0))
       : Math.max(1, Math.ceil(totalCount / limit));
-    let resolvedPage = hasFilteredCountError
+    let resolvedPage = paginationTotalsEstimated
       ? page
       : totalCount > 0
         ? Math.min(page, totalPages)
@@ -322,20 +325,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const hasOpenCountError = Boolean(actionableEventData.openCountResult.error);
       const hasUnlinkedCountError = Boolean(actionableEventData.unlinkedCountResult.error);
       hasFilteredCountError = hasOpenCountError || hasUnlinkedCountError;
+      paginationTotalsEstimated = actionableEventData.countsEstimated || hasFilteredCountError;
       eventRowsCount = mergedActionableEvents.length;
       fallbackLikelyHasNextPage =
         openEvents.length === actionableWindow || unlinkedEvents.length === actionableWindow;
-      totalCount = hasFilteredCountError
+      totalCount = paginationTotalsEstimated
         ? offset + eventRowsCount + (fallbackLikelyHasNextPage ? 1 : 0)
         : countOrZero(actionableEventData.openCountResult) +
           countOrZero(actionableEventData.unlinkedCountResult);
-      totalPages = hasFilteredCountError
+      totalPages = paginationTotalsEstimated
         ? Math.max(1, page + (fallbackLikelyHasNextPage ? 1 : 0))
         : Math.max(1, Math.ceil(totalCount / limit));
-      resolvedPage = totalCount > 0 && !hasFilteredCountError ? Math.min(page, totalPages) : page;
+      resolvedPage =
+        totalCount > 0 && !paginationTotalsEstimated ? Math.min(page, totalPages) : page;
       const responseOffset = (resolvedPage - 1) * limit;
       events = mergedActionableEvents.slice(responseOffset, responseOffset + limit);
-    } else if (!hasFilteredCountError && resolvedPage !== page) {
+    } else if (!paginationTotalsEstimated && resolvedPage !== page) {
       const fallbackOffset = (resolvedPage - 1) * limit;
       const fallbackResult = await fetchFallbackEventsPage({
         supabaseAdmin,
@@ -380,7 +385,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const healthReasons: string[] = [];
     if (hasFilteredCountError) {
-      healthReasons.push("Event pagination totals are estimated.");
+      healthReasons.push("Event pagination totals are temporarily unavailable.");
     }
     if (summaryErrorMessages.length > 0) {
       healthReasons.push("Some event summary metrics are temporarily unavailable.");
@@ -395,7 +400,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       perPage: limit,
       totalCount,
       totalPages,
-      hasNextPage: hasFilteredCountError ? fallbackLikelyHasNextPage : resolvedPage < totalPages,
+      hasNextPage: paginationTotalsEstimated
+        ? fallbackLikelyHasNextPage
+        : resolvedPage < totalPages,
       hasPrevPage: resolvedPage > 1,
     };
 
@@ -417,6 +424,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           summary_errors: summaryErrorMessages,
           incident_enrichment_error: enrichedEventsResult.reason ?? null,
           actionable_incident_filter: isActionableIncidentFilter,
+          pagination_totals_estimated: paginationTotalsEstimated,
         },
       });
     }

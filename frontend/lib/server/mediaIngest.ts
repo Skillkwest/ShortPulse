@@ -8,6 +8,7 @@ import { getSupabaseAdmin } from "./api/supabaseAdmin";
 import { detectAudioMimeType, detectImageMimeType, detectVideoMimeType } from "./uploadSignature";
 
 export const MEDIA_BUCKET = "media_library";
+export const DURABLE_MEDIA_CACHE_CONTROL_SECONDS = "31536000";
 
 export type MediaLibraryFileType = "image" | "video" | "audio";
 
@@ -27,6 +28,8 @@ export type InsertedMediaRow = {
 };
 
 export const MAX_IMAGE_MEDIA_BYTES = IMAGE_ADMISSION_MAX_BYTES;
+// Server-buffered storage writes use Supabase's standard upload path, which production enforces at 50 MB.
+export const MAX_SUPABASE_STANDARD_UPLOAD_BYTES = 50 * 1024 * 1024;
 export const MAX_VIDEO_MEDIA_BYTES = 100 * 1024 * 1024;
 export const MAX_AUDIO_MEDIA_BYTES = 100 * 1024 * 1024;
 
@@ -125,17 +128,20 @@ export const uploadMediaBufferToStoragePath = async ({
   buffer,
   mimeType,
   upsert = false,
+  cacheControl,
 }: {
   storagePath: string;
   buffer: Buffer;
   mimeType: string;
   upsert?: boolean;
+  cacheControl?: string;
 }): Promise<void> => {
   const { error } = await getSupabaseAdmin()
     .storage.from(MEDIA_BUCKET)
     .upload(storagePath, buffer, {
       contentType: mimeType,
       upsert,
+      ...(cacheControl ? { cacheControl } : {}),
     });
 
   if (error) {

@@ -1,5 +1,6 @@
 import { assertUserScopedMediaStoragePath } from "../../mediaStoragePath";
 import sharp from "sharp";
+import { DURABLE_MEDIA_CACHE_CONTROL_SECONDS } from "../mediaIngest";
 import { writeAppErrorLog } from "../api/appErrorLogs";
 import { upsertGenerationProjection } from "../api/generationProjection";
 import { resolveRuntimeAgentPrompt } from "../api/runtimeAgentPromptControlPlane";
@@ -381,6 +382,7 @@ const generateAndPersistAudioCompanionArt = async ({
     .upload(storagePath, deliveryBuffer, {
       contentType: AUDIO_COMPANION_ART_DELIVERY_MIME_TYPE,
       upsert: true,
+      cacheControl: DURABLE_MEDIA_CACHE_CONTROL_SECONDS,
     });
   if (uploadResult.error) {
     throw new Error(uploadResult.error.message || "Unable to persist audio companion art.");

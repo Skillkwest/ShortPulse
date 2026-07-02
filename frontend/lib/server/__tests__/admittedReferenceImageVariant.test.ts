@@ -236,6 +236,7 @@ describe("resolveProductUseImageReferenceForMediaFile", () => {
       buffer: Buffer.from("admitted"),
       mimeType: "image/jpeg",
       upsert: true,
+      cacheControl: "31536000",
     });
     expect(supabase.upsertPayloads[0]).toEqual(
       expect.objectContaining({

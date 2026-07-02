@@ -2115,6 +2115,95 @@ describe("POST /api/media/copy-from-url", () => {
     expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
   });
 
+  it("rejects trusted videos over the standard storage upload cap before storage upload", async () => {
+    const supabase = createSupabaseAdmin({
+      generationOutputRows: [
+        {
+          id: "gen-output-too-large-1",
+          output_index: 0,
+          result_url: "https://trusted.example.com/too-large.mp4",
+          media_file_id: null,
+        },
+      ],
+    });
+    getSupabaseAdminMock.mockReturnValue(supabase.admin);
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(Buffer.from([0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70]), {
+        status: 200,
+        headers: { "Content-Type": "video/mp4", "Content-Length": String(60 * 1024 * 1024) },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = {
+      method: "POST",
+      headers: { host: "app.shortpulse.test", "x-forwarded-proto": "https" },
+      socket: { remoteAddress: "127.0.0.1" },
+      body: {
+        url: "https://trusted.example.com/too-large.mp4",
+        mode: "video",
+        source: "ai_studio",
+        generationId: "generation-1",
+        fileTypeHint: "video",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(supabase.uploadMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(413);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Fetched media exceeds size limit.",
+    });
+    expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects image-hinted provider URLs that resolve to over-cap video before storage upload", async () => {
+    detectVideoMimeTypeMock.mockReturnValueOnce("video/mp4");
+    const supabase = createSupabaseAdmin({
+      generationOutputRows: [
+        {
+          id: "gen-output-mislabeled-too-large-1",
+          output_index: 0,
+          result_url: "https://trusted.example.com/mislabeled-output",
+          media_file_id: null,
+        },
+      ],
+    });
+    getSupabaseAdminMock.mockReturnValue(supabase.admin);
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(Buffer.alloc(50 * 1024 * 1024 + 1), {
+        status: 200,
+        headers: { "Content-Type": "video/mp4" },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = {
+      method: "POST",
+      headers: { host: "app.shortpulse.test", "x-forwarded-proto": "https" },
+      socket: { remoteAddress: "127.0.0.1" },
+      body: {
+        url: "https://trusted.example.com/mislabeled-output",
+        mode: "image",
+        source: "ai_studio",
+        generationId: "generation-1",
+        fileTypeHint: "image",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(supabase.uploadMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(413);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Fetched media exceeds size limit.",
+    });
+    expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+  });
+
   it("rate limits repeated media copy requests for the same authenticated user", async () => {
     const fetchMock = vi.fn().mockImplementation(
       async () =>

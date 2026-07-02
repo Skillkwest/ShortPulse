@@ -127,6 +127,7 @@ describe("useAiStudioGeneratedOutputMaintenance", () => {
     expect(listVisibleGeneratedOutputsMock).toHaveBeenNthCalledWith(1, {
       projectId: "project-1",
       workspaceRuntimeKey: null,
+      includeWorkflowContext: false,
     });
     expect(fetchWithAuthMock).toHaveBeenCalledWith(
       "/api/generation/reconcile",
@@ -159,10 +160,12 @@ describe("useAiStudioGeneratedOutputMaintenance", () => {
     expect(listVisibleGeneratedOutputsMock).toHaveBeenNthCalledWith(1, {
       projectId: "project-1",
       workspaceRuntimeKey: null,
+      includeWorkflowContext: false,
     });
     expect(listVisibleGeneratedOutputsMock).toHaveBeenNthCalledWith(2, {
       projectId: "project-1",
       workspaceRuntimeKey: null,
+      includeWorkflowContext: false,
     });
   });
 
@@ -209,6 +212,7 @@ describe("useAiStudioGeneratedOutputMaintenance", () => {
     expect(listVisibleGeneratedOutputsMock).toHaveBeenCalledWith({
       projectId: "project-1",
       workspaceRuntimeKey: null,
+      includeWorkflowContext: false,
     });
   });
 
@@ -303,6 +307,7 @@ describe("useAiStudioGeneratedOutputMaintenance", () => {
       expect(listVisibleGeneratedOutputsMock).toHaveBeenNthCalledWith(1, {
         projectId: "project-1",
         workspaceRuntimeKey: null,
+        includeWorkflowContext: false,
       });
       expect(listVisibleGeneratedOutputsMock).toHaveBeenCalledWith({
         projectId: "project-1",
@@ -443,6 +448,7 @@ describe("useAiStudioGeneratedOutputMaintenance", () => {
     expect(listVisibleGeneratedOutputsMock).toHaveBeenCalledWith({
       projectId: null,
       workspaceRuntimeKey: "session:session-1",
+      includeWorkflowContext: false,
     });
   });
 

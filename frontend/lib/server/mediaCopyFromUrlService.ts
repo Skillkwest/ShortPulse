@@ -24,11 +24,13 @@ import { requireApiUser } from "./api/auth";
 import { reconcileOwnedGenerationOutputSlot } from "./api/generationOutputConvergence";
 import {
   createSignedMediaUrl,
+  DURABLE_MEDIA_CACHE_CONTROL_SECONDS,
   insertMediaFileRow,
   type MediaLibraryFileType,
   MAX_AUDIO_MEDIA_BYTES,
   maxBytesForMediaFileType,
   MAX_IMAGE_MEDIA_BYTES,
+  MAX_SUPABASE_STANDARD_UPLOAD_BYTES,
   removeScopedMediaStorageObject,
   resolveDetectedMediaMimeType,
   resolveMediaStorageExtension,
@@ -54,9 +56,12 @@ const FETCH_TIMEOUT_MS = 60000;
 const MAX_REDIRECTS = 4;
 const MEDIA_LIBRARY_BUCKET = "media_library";
 const MAX_IMAGE_BYTES = MAX_IMAGE_MEDIA_BYTES;
-const MAX_VIDEO_BYTES = maxBytesForMediaFileType("video");
-const MAX_AUDIO_BYTES = MAX_AUDIO_MEDIA_BYTES;
-const MAX_REMOTE_IMAGE_FETCH_BYTES = MAX_VIDEO_BYTES;
+const MAX_VIDEO_BYTES = Math.min(
+  maxBytesForMediaFileType("video"),
+  MAX_SUPABASE_STANDARD_UPLOAD_BYTES
+);
+const MAX_AUDIO_BYTES = Math.min(MAX_AUDIO_MEDIA_BYTES, MAX_SUPABASE_STANDARD_UPLOAD_BYTES);
+const MAX_REMOTE_IMAGE_FETCH_BYTES = maxBytesForMediaFileType("video");
 const REDIRECT_STATUS_CODES = new Set([301, 302, 303, 307, 308]);
 const VIDEO_PREVIEW_MIME_TYPE_BY_EXTENSION: Record<string, string> = {
   m4v: "video/x-m4v",
@@ -543,6 +548,7 @@ const persistVideoPosterVariant = async ({
     buffer: fetched.buffer,
     mimeType,
     upsert: true,
+    cacheControl: DURABLE_MEDIA_CACHE_CONTROL_SECONDS,
   });
 
   const dimensions = extractImageDimensionsFromBuffer(fetched.buffer);
@@ -1544,6 +1550,9 @@ export async function handleMediaCopyFromUrlRequest(
       storageBuffer = admission.buffer;
       mimeType = admission.mimeType;
     }
+    if (storageBuffer.byteLength > MAX_SUPABASE_STANDARD_UPLOAD_BYTES) {
+      return res.status(413).json({ error: "Fetched media exceeds size limit." });
+    }
 
     const extension = resolveExtension(mimeType, fetched.finalUrl.toString());
     const rootFolder = source === "ai_studio" ? "generations" : "uploads";
@@ -1584,6 +1593,7 @@ export async function handleMediaCopyFromUrlRequest(
         storagePath,
         buffer: storageBuffer,
         mimeType,
+        cacheControl: DURABLE_MEDIA_CACHE_CONTROL_SECONDS,
       });
     } catch (error) {
       await logMediaCopyRouteFailure({

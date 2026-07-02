@@ -7,6 +7,7 @@ import { ELEVENLABS_VOICEOVER_MODEL_ID } from "../model-runtime/elevenLabsModels
 import { assertUserScopedMediaStoragePath } from "../mediaStoragePath";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
 import { generateElevenLabsVoiceover } from "./elevenlabs";
+import { DURABLE_MEDIA_CACHE_CONTROL_SECONDS } from "./mediaIngest";
 
 const MEDIA_BUCKET = "media_library";
 const VOICE_SAMPLE_TEXT = "This is a preview sample for your new ShortPulse voice.";
@@ -79,6 +80,7 @@ export const createPersistedElevenLabsVoiceSample = async ({
     .upload(storagePath, generatedSample.buffer, {
       contentType: generatedSample.contentType,
       upsert: false,
+      cacheControl: DURABLE_MEDIA_CACHE_CONTROL_SECONDS,
     });
   if (uploadResult.error) {
     throw new Error(uploadResult.error.message || "Unable to persist voice sample.");

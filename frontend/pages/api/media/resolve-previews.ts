@@ -39,6 +39,47 @@ type MediaLookupRow = {
   preview_variant_path: string | null;
 };
 
+type StorageObjectRow = {
+  name?: unknown;
+};
+
+type StorageObjectQueryClient = {
+  from: (table: string) => {
+    select: (columns: string) => {
+      eq: (
+        column: string,
+        value: string
+      ) => {
+        in: (
+          column: string,
+          values: string[]
+        ) => Promise<{ data?: StorageObjectRow[] | null; error?: { message?: string } | null }>;
+      };
+    };
+  };
+};
+
+type StorageListObject = {
+  name?: unknown;
+};
+
+type StorageVerificationBucketClient = {
+  list?: (
+    path?: string,
+    options?: {
+      limit?: number;
+      search?: string;
+    }
+  ) => Promise<{ data?: StorageListObject[] | null; error?: { message?: string } | null }>;
+};
+
+type SupabaseAdminWithStorageVerification = {
+  schema?: unknown;
+  storage?: {
+    from?: (bucket: string) => StorageVerificationBucketClient;
+  };
+};
+
 const MEDIA_BUCKET = "media_library";
 const DEFAULT_SIGNED_URL_TTL_SECONDS = 3600;
 const MIN_SIGNED_URL_TTL_SECONDS = 60;
@@ -144,6 +185,78 @@ const isResolvableBasename = (basename: string): boolean =>
     !basename.includes("%") &&
     !basename.includes("_")
   );
+
+const splitStoragePath = (storagePath: string): { folder: string; name: string } | null => {
+  const segments = storagePath
+    .split("/")
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+  const name = segments.pop();
+  if (!name) return null;
+  return {
+    folder: segments.join("/"),
+    name,
+  };
+};
+
+const resolveExistingStorageObjectPaths = async ({
+  supabaseAdmin,
+  paths,
+}: {
+  supabaseAdmin: SupabaseAdminWithStorageVerification;
+  paths: string[];
+}): Promise<Set<string>> => {
+  if (!paths.length) return new Set();
+  let schemaErrorMessage: string | null = null;
+  if (typeof supabaseAdmin.schema === "function") {
+    try {
+      const storageSchemaClient = supabaseAdmin.schema("storage") as StorageObjectQueryClient;
+      const { data, error } = await storageSchemaClient
+        .from("objects")
+        .select("name")
+        .eq("bucket_id", MEDIA_BUCKET)
+        .in("name", paths);
+      if (!error) {
+        return new Set(
+          (data ?? [])
+            .map((row) => (typeof row.name === "string" ? row.name.trim() : ""))
+            .filter((path): path is string => Boolean(path))
+        );
+      }
+      schemaErrorMessage = error.message || "Unable to verify media preview storage objects.";
+    } catch (error) {
+      schemaErrorMessage =
+        error instanceof Error ? error.message : "Unable to verify media preview storage objects.";
+    }
+  }
+
+  const storageBucket = supabaseAdmin.storage?.from?.(MEDIA_BUCKET);
+  if (typeof storageBucket?.list !== "function") {
+    if (schemaErrorMessage) {
+      throw new Error(schemaErrorMessage);
+    }
+    return new Set(paths);
+  }
+
+  const existingPaths = new Set<string>();
+  const uniquePaths = Array.from(new Set(paths.map((path) => path.trim()).filter(Boolean)));
+  for (const path of uniquePaths) {
+    const splitPath = splitStoragePath(path);
+    if (!splitPath) continue;
+    const { data, error } = await storageBucket.list(splitPath.folder, {
+      limit: 100,
+      search: splitPath.name,
+    });
+    if (error) {
+      throw new Error(error.message || "Unable to verify media preview storage objects.");
+    }
+    const exists = (data ?? []).some((row) => row.name === splitPath.name);
+    if (exists) {
+      existingPaths.add(path);
+    }
+  }
+  return existingPaths;
+};
 
 const resolveObjectByBasename = async (
   userId: string,
@@ -291,19 +404,11 @@ export default async function handler(
     const existingPaths = new Set<string>();
     const dedupedCandidates = Array.from(new Set(allCandidates));
     if (dedupedCandidates.length) {
-      const { data: existingRows, error: existingError } = await supabaseAdmin
-        .schema("storage")
-        .from("objects")
-        .select("name")
-        .eq("bucket_id", MEDIA_BUCKET)
-        .in("name", dedupedCandidates);
-      if (existingError) {
-        throw new Error(existingError.message || "Unable to verify media preview storage objects.");
-      }
-      for (const row of (existingRows ?? []) as Array<{ name?: string | null }>) {
-        const name = typeof row.name === "string" ? row.name.trim() : "";
-        if (name) existingPaths.add(name);
-      }
+      const resolvedExistingPaths = await resolveExistingStorageObjectPaths({
+        supabaseAdmin,
+        paths: dedupedCandidates,
+      });
+      for (const path of resolvedExistingPaths) existingPaths.add(path);
     }
 
     const resolvedPathById = new Map<string, string>();

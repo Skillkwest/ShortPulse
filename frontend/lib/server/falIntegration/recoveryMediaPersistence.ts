@@ -10,6 +10,7 @@ import { isTrustedMediaDirectPreviewUrl } from "../../mediaPreviewTrustPolicy";
 import { withCanonicalImageDimensions } from "../../mediaDimensionMetadata";
 import { assertUserScopedMediaStoragePath } from "../../mediaStoragePath";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
+import { DURABLE_MEDIA_CACHE_CONTROL_SECONDS } from "../mediaIngest";
 import { readPersistedGenerationOutputs } from "../api/generationOutputs";
 import { reconcileOwnedGenerationOutputSlot } from "../api/generationOutputConvergence";
 import { associateMediaFilesWithProjectForUser } from "../projectGenerationAssociationsService";
@@ -297,6 +298,7 @@ export const persistRecoveryMediaFilesForGeneration = async ({
       .upload(storagePath, buffer, {
         contentType: contentType ?? undefined,
         upsert: false,
+        cacheControl: DURABLE_MEDIA_CACHE_CONTROL_SECONDS,
       });
     if (uploadError) {
       throw new Error(`Upload failed: ${uploadError.message}`);

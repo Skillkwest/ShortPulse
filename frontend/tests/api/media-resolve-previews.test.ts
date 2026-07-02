@@ -58,15 +58,21 @@ const setupSupabaseAdmin = ({
   basenameMatches,
   signedUrlsByPath,
   storageObjectsError = null,
+  storageListError = null,
 }: {
   rows: MediaLookupRow[];
   existingObjectNames: string[];
   basenameMatches?: Record<string, string | null>;
   signedUrlsByPath?: Record<string, string>;
   storageObjectsError?: { message: string } | null;
+  storageListError?: { message: string } | null;
 }) => {
   let capturedInNames: string[] = [];
   const ilikePatterns: string[] = [];
+  const storageListCalls: Array<{
+    folder?: string;
+    options?: { limit?: number; search?: string };
+  }> = [];
   const createSignedUrlMock = vi.fn(async (path: string) => ({
     data: {
       signedUrl:
@@ -135,6 +141,22 @@ const setupSupabaseAdmin = ({
     storage: {
       from: vi.fn(() => ({
         createSignedUrl: createSignedUrlMock,
+        list: vi.fn(async (folder?: string, options?: { limit?: number; search?: string }) => {
+          storageListCalls.push({ folder, options });
+          if (storageListError) {
+            return { data: null, error: storageListError };
+          }
+          const search = typeof options?.search === "string" ? options.search : "";
+          const normalizedFolder = typeof folder === "string" ? folder.trim() : "";
+          const matchedNames = existingObjectNames
+            .filter((name) => {
+              const segments = name.split("/");
+              const objectName = segments.pop() ?? "";
+              return segments.join("/") === normalizedFolder && objectName === search;
+            })
+            .map((name) => ({ name: name.split("/").pop() ?? "" }));
+          return { data: matchedNames, error: null };
+        }),
       })),
     },
   });
@@ -143,6 +165,7 @@ const setupSupabaseAdmin = ({
     createSignedUrlMock,
     getCapturedInNames: () => capturedInNames,
     getIlikePatterns: () => ilikePatterns,
+    getStorageListCalls: () => storageListCalls,
   };
 };
 
@@ -244,14 +267,17 @@ describe("POST /api/media/resolve-previews", () => {
     });
   });
 
-  it("fails closed without signing when storage metadata verification fails", async () => {
+  it("uses Storage API verification when storage metadata verification is unavailable", async () => {
     const row = createRow({
       id: "media-storage-error-1",
       storage_path: "user-1/images/storage-error.jpg",
     });
-    const { createSignedUrlMock, getCapturedInNames, getIlikePatterns } = setupSupabaseAdmin({
+    const { createSignedUrlMock, getCapturedInNames, getStorageListCalls } = setupSupabaseAdmin({
       rows: [row],
-      existingObjectNames: [],
+      existingObjectNames: [row.storage_path as string],
+      signedUrlsByPath: {
+        [row.storage_path as string]: "https://example.test/signed-storage-api-verified",
+      },
       storageObjectsError: { message: "storage metadata unavailable" },
     });
 
@@ -266,19 +292,19 @@ describe("POST /api/media/resolve-previews", () => {
     await handler(req as never, res as never);
 
     expect(getCapturedInNames()).toEqual([row.storage_path as string]);
-    expect(getIlikePatterns()).toEqual([]);
-    expect(createSignedUrlMock).not.toHaveBeenCalled();
-    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        req,
-        error: expect.any(Error),
-        routeLabel: "media-resolve-previews",
-        user: { id: "user-1" },
-      })
-    );
-    expect(res.status).toHaveBeenCalledWith(500);
+    expect(getStorageListCalls()).toEqual([
+      {
+        folder: "user-1/images",
+        options: { limit: 100, search: "storage-error.jpg" },
+      },
+    ]);
+    expect(createSignedUrlMock).toHaveBeenCalledWith(row.storage_path as string, 3600);
+    expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
-      error: "Failed to resolve media previews",
+      urls: {
+        [row.id]: "https://example.test/signed-storage-api-verified",
+      },
     });
   });
 

@@ -13,7 +13,34 @@ import {
   SYNTHETIC_TEST_SOURCE_LIKE_PATTERN,
   TELEMETRY_SOURCE_LIKE_PATTERN,
 } from "../errorTelemetryPolicy";
+import { UUID_PATTERN } from "./constants";
 import type { EventFilterInput, EventQuery } from "./types";
+
+const buildSearchClause = (search: string): string | null => {
+  const trimmedSearch = search.trim();
+  if (!trimmedSearch) return null;
+
+  const pattern = `%${trimmedSearch.replace(/\s+/g, "%")}%`;
+  const clauses = [
+    `message.ilike.${pattern}`,
+    `user_email.ilike.${pattern}`,
+    `endpoint.ilike.${pattern}`,
+    `route.ilike.${pattern}`,
+    `request_id.ilike.${pattern}`,
+    `source.ilike.${pattern}`,
+    `fingerprint.ilike.${pattern}`,
+  ];
+
+  if (UUID_PATTERN.test(trimmedSearch)) {
+    clauses.push(
+      `id.eq.${trimmedSearch}`,
+      `user_id.eq.${trimmedSearch}`,
+      `incident_id.eq.${trimmedSearch}`
+    );
+  }
+
+  return clauses.join(",");
+};
 
 export const applyEventFilters = (query: EventQuery, filters: EventFilterInput): EventQuery => {
   let next = query;
@@ -65,21 +92,7 @@ export const applyEventFilters = (query: EventQuery, filters: EventFilterInput):
     next = next.is("incident_id", null);
   }
 
-  const searchClause = (() => {
-    if (!filters.search) return null;
-    const pattern = `%${filters.search.replace(/\s+/g, "%")}%`;
-    return [
-      `message.ilike.${pattern}`,
-      `user_email.ilike.${pattern}`,
-      `user_id.ilike.${pattern}`,
-      `endpoint.ilike.${pattern}`,
-      `route.ilike.${pattern}`,
-      `request_id.ilike.${pattern}`,
-      `source.ilike.${pattern}`,
-      `fingerprint.ilike.${pattern}`,
-      `incident_id.ilike.${pattern}`,
-    ].join(",");
-  })();
+  const searchClause = filters.search ? buildSearchClause(filters.search) : null;
 
   if (filters.incident === "actionable") {
     if (searchClause) {

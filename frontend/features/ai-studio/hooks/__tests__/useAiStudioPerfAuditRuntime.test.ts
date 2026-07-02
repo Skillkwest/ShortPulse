@@ -332,23 +332,25 @@ describe("useAiStudioPerfAuditRuntime", () => {
     });
 
     const result = await getPerfWindow().__shortpulseAiStudioPerf?.runReferenceGridAudit({
-      counts: [40, 60, 100],
+      counts: [40, 60, 100, 400, 500],
       clickSamples: 1,
       scrollDurationMsByCount: {
         40: 1,
         60: 1,
         100: 1,
+        400: 1,
+        500: 1,
       },
     });
 
     const progress = getPerfWindow().__shortpulseAiStudioPerf?.getReferenceGridAuditProgress();
-    expect(result?.scenarios.map((scenario) => scenario.count)).toEqual([40, 60, 100]);
+    expect(result?.scenarios.map((scenario) => scenario.count)).toEqual([40, 60, 100, 400, 500]);
     expect(progress).toEqual(
       expect.objectContaining({
         status: "done",
-        counts: [40, 60, 100],
+        counts: [40, 60, 100, 400, 500],
         currentCount: null,
-        completedCounts: [40, 60, 100],
+        completedCounts: [40, 60, 100, 400, 500],
         failedCount: null,
         error: null,
       })

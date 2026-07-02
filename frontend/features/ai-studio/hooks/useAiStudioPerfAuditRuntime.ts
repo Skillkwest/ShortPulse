@@ -401,7 +401,7 @@ export function useAiStudioPerfAuditRuntime({
     if (process.env.NODE_ENV === "production" && !runtimeEnabled) return;
     if (!runtimeEnabled) return;
     const CLICK_SAMPLES_DEFAULT = 24;
-    const DEFAULT_COUNTS = [20, 40, 50, 60, 100, 300];
+    const DEFAULT_COUNTS = [20, 40, 50, 60, 100, 300, 400, 500];
     const DEFAULT_SCROLL_MS_BY_COUNT: Record<number, number> = {
       20: 2_500,
       40: 3_500,
@@ -409,6 +409,8 @@ export function useAiStudioPerfAuditRuntime({
       60: 5_000,
       100: 12_000,
       300: 20_000,
+      400: 20_000,
+      500: 20_000,
     };
     const BASELINE_COUNTS = [40, 60, 100];
     const PERF_GATES = {
@@ -428,6 +430,30 @@ export function useAiStudioPerfAuditRuntime({
       videoAttachBudgetP95AtCrashCount: 3,
       mediaWorkTokensP95AtCrashCount: 8,
       heapDeltaMbAtCrashCount: 96,
+      capacityGateThresholds: [
+        {
+          count: 400,
+          clickP95Ms: 150,
+          renderedItemCountP95: 36,
+          longTaskP95Ms: 180,
+          maxInputStallMs: 1_000,
+          imageDecodeInflightP95: 6,
+          videoAttachBudgetP95: 3,
+          mediaWorkTokensP95: 8,
+          heapDeltaMb: 128,
+        },
+        {
+          count: 500,
+          clickP95Ms: 150,
+          renderedItemCountP95: 36,
+          longTaskP95Ms: 180,
+          maxInputStallMs: 1_000,
+          imageDecodeInflightP95: 6,
+          videoAttachBudgetP95: 3,
+          mediaWorkTokensP95: 8,
+          heapDeltaMb: 128,
+        },
+      ],
     };
     const SHELL_DEFAULT_COUNTS = [20, 40, 50, 60, 100, 300];
     const SHELL_GATES = {

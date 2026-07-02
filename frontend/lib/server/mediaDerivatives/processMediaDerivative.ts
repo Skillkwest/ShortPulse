@@ -4,6 +4,7 @@
  */
 import sharp from "sharp";
 import { assertUserScopedMediaStoragePath } from "../../mediaStoragePath";
+import { DURABLE_MEDIA_CACHE_CONTROL_SECONDS } from "../mediaIngest";
 import type { MediaDerivativesRuntimeFlags } from "../api/mediaDerivativesRuntimeFlags";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -170,6 +171,7 @@ const uploadVariantObject = async ({
   const { error } = await supabaseAdmin.storage.from(MEDIA_BUCKET).upload(storagePath, body, {
     contentType: DERIVATIVE_MIME_TYPE,
     upsert: true,
+    cacheControl: DURABLE_MEDIA_CACHE_CONTROL_SECONDS,
   });
   if (error) {
     throwDerivativeError("upload_failed", error.message);

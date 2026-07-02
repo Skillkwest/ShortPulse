@@ -870,7 +870,7 @@ describe("generatedMediaAuthority", () => {
     ).resolves.toBe("gen-request-project-projection");
   });
 
-  it("lists visible generated outputs from canonical projection rows", async () => {
+  it("lists visible generated outputs from canonical projection rows with lightweight context by default", async () => {
     const projectionBuilder = createAwaitableSelectBuilder({
       data: [
         {
@@ -956,19 +956,30 @@ describe("generatedMediaAuthority", () => {
         queueState: "dispatched",
         timestamp: "Just now",
         aspect: "9:16",
-        workflowReload: {
-          version: 1,
-          originTool: "video",
-          panelKind: "video",
-        },
       }),
     ]);
     const projectionSelectCalls = projectionSelect.mock.calls as unknown as Array<[string]>;
     const projectionSelectColumns = projectionSelectCalls[0]?.[0] ?? "";
-    expect(projectionSelectColumns).toContain("generation_replay");
-    expect(projectionSelectColumns).toContain("workflow_reload");
-    expect(projectionSelectColumns).toContain("character_context");
-    expect(projectionSelectColumns).toContain("style_context");
+    expect(projectionSelectColumns).toContain("preview_url");
+    expect(projectionSelectColumns).toContain("task_state");
+    expect(projectionSelectColumns).not.toContain("generation_replay");
+    expect(projectionSelectColumns).not.toContain("workflow_reload");
+    expect(projectionSelectColumns).not.toContain("character_context");
+    expect(projectionSelectColumns).not.toContain("style_context");
+
+    projectionSelect.mockClear();
+    await expect(
+      listVisibleGeneratedOutputs({
+        workspaceRuntimeKey: "session:test",
+        includeWorkflowContext: true,
+      })
+    ).resolves.toHaveLength(1);
+    const heavyProjectionSelectCalls = projectionSelect.mock.calls as unknown as Array<[string]>;
+    const heavyProjectionSelectColumns = heavyProjectionSelectCalls[0]?.[0] ?? "";
+    expect(heavyProjectionSelectColumns).toContain("generation_replay");
+    expect(heavyProjectionSelectColumns).toContain("workflow_reload");
+    expect(heavyProjectionSelectColumns).toContain("character_context");
+    expect(heavyProjectionSelectColumns).toContain("style_context");
   });
 
   it("keeps provider-url-only success rows visible during restore", async () => {

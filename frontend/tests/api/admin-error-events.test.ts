@@ -478,6 +478,7 @@ describe("GET /api/admin/error-events", () => {
         error: null,
       },
       filteredCountResult: { count: 0, error: null },
+      filteredCountEstimated: true,
       last15mCountResult: { count: 3, error: null },
       high15mCountResult: { count: 1, error: null },
       generation15mCountResult: { count: 0, error: null },
@@ -526,6 +527,7 @@ describe("GET /api/admin/error-events", () => {
       },
       openCountResult: { count: 1, error: null },
       unlinkedCountResult: { count: 1, error: null },
+      countsEstimated: true,
     });
 
     await handler(req as never, res as never);
@@ -636,26 +638,87 @@ describe("GET /api/admin/error-events", () => {
     expect(payload.health.reason).toContain("app_error_events");
   });
 
+  it("keeps estimated pagination totals healthy on normal list responses", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({
+        "rpc:get_admin_error_events_summary_v1": [
+          {
+            data: {
+              last15mCount: 0,
+              high15mCount: 0,
+              generation15mCount: 0,
+              providerRunningTimeout15mCount: 0,
+              lastHourCount: 0,
+              last24hCount: 0,
+              app24hCount: 0,
+              generation24hCount: 0,
+              high24hCount: 0,
+              characterModeReferenceRefreshEmptyLastHourCount: 0,
+              characterModeReferenceRefreshEmptyLast24hCount: 0,
+              characterModeBundleUnavailableFallbackLastHourCount: 0,
+              characterModeBundleUnavailableFallbackLast24hCount: 0,
+              projectWorkspaceRepairPendingLastHourCount: 0,
+              projectWorkspaceRepairPendingLast24hCount: 0,
+            },
+            error: null,
+          },
+        ],
+        app_error_events: [
+          {
+            data: [
+              {
+                id: "evt-1",
+                incident_id: null,
+                source: "api.example",
+                scope: "app",
+                severity: "low",
+                message: "first",
+                occurred_at: "2026-02-27T18:00:00.000Z",
+              },
+            ],
+            error: null,
+          },
+        ],
+        app_error_logs: [],
+      })
+    );
+
+    const req = { method: "GET", query: { page: "1", limit: "20" } };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const payload = res.json.mock.calls[0]?.[0] as {
+      health: {
+        degraded: boolean;
+        reason: string | null;
+      };
+      pagination: {
+        totalCount: number;
+        totalPages: number;
+        hasNextPage: boolean;
+      };
+    };
+    expect(payload.pagination).toMatchObject({
+      totalCount: 1,
+      totalPages: 1,
+      hasNextPage: false,
+    });
+    expect(payload.health).toMatchObject({
+      degraded: false,
+      reason: null,
+    });
+    expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+  });
+
   it("returns degraded health when non-core summary queries fail", async () => {
     getSupabaseAdminMock.mockReturnValue(
       createSupabaseAdminMock({
-        app_error_events: [
-          { data: [], error: null },
-          { count: null, error: { message: "db failure" } },
-          { count: 0, error: null },
-          { count: 0, error: null },
-          { count: 0, error: null },
-          { count: 0, error: null },
-          { count: 0, error: null },
-          { count: 0, error: null },
-          { count: 0, error: null },
-          { count: 0, error: null },
-          { count: 0, error: null },
-          { count: 0, error: null },
-          { count: 0, error: null },
-          { count: 0, error: null },
-          { data: [], error: null },
+        "rpc:get_admin_error_events_summary_v1": [
+          { data: null, error: { message: "summary failure" } },
         ],
+        app_error_events: [{ data: [], error: null }],
         app_error_logs: [],
       })
     );
@@ -681,17 +744,20 @@ describe("GET /api/admin/error-events", () => {
       eventsTableAvailable: true,
       degraded: true,
     });
-    expect(payload.health.reason).toContain("pagination totals are estimated");
+    expect(payload.health.reason).toContain(
+      "Some event summary metrics are temporarily unavailable"
+    );
     expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
       req,
       error: expect.any(Error),
       routeLabel: "admin/error-events.summary",
       user: { id: "admin-1", email: "admin@example.com" },
       metadata: {
-        filtered_count_error: "db failure",
-        summary_errors: [],
+        filtered_count_error: null,
+        summary_errors: expect.arrayContaining(["summary failure"]),
         incident_enrichment_error: null,
         actionable_incident_filter: false,
+        pagination_totals_estimated: true,
       },
     });
     expect(payload.pagination).toMatchObject({

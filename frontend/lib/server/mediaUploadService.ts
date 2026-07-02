@@ -31,6 +31,7 @@ import {
   ALLOWED_VIDEO_MIME_TYPES,
   buildScopedMediaStoragePath,
   createSignedMediaUrl,
+  DURABLE_MEDIA_CACHE_CONTROL_SECONDS,
   type InsertedMediaRow,
   insertMediaFileRow,
   MEDIA_BUCKET,
@@ -697,12 +698,14 @@ const uploadScopedStorageBuffer = async ({
   filename,
   mimeType,
   buffer,
+  cacheControl,
 }: {
   userId: string;
   storageFolder: string;
   filename: string;
   mimeType: string;
   buffer: Buffer;
+  cacheControl?: string;
 }): Promise<SignedStorageAssetResult> => {
   const extension =
     resolveMediaStorageExtension(
@@ -723,6 +726,7 @@ const uploadScopedStorageBuffer = async ({
       storagePath,
       buffer,
       mimeType,
+      cacheControl,
     });
   } catch (error) {
     throw new MediaUploadServiceError(
@@ -834,13 +838,15 @@ const uploadStorageAssetForUser = async ({
   defaultDestinationTab,
   storageFolderOverride,
   normalizeMotionReferenceVideo = false,
-}: StorageUploadOptions): Promise<UploadedStorageAsset> => {
+  cacheControl,
+}: StorageUploadOptions & { cacheControl?: string }): Promise<UploadedStorageAsset> => {
   const parsedUpload = await parseUpload(req, { defaultDestinationTab });
   return await uploadStorageAssetFromParsedUpload({
     parsedUpload,
     userId,
     storageFolderOverride,
     normalizeMotionReferenceVideo,
+    cacheControl,
   });
 };
 
@@ -849,11 +855,13 @@ const uploadStorageAssetFromParsedUpload = async ({
   userId,
   storageFolderOverride,
   normalizeMotionReferenceVideo = false,
+  cacheControl,
 }: {
   parsedUpload: ParsedUpload;
   userId: string;
   storageFolderOverride?: string;
   normalizeMotionReferenceVideo?: boolean;
+  cacheControl?: string;
 }): Promise<UploadedStorageAsset> => {
   const detectedMimeType = resolveDetectedMimeType(
     parsedUpload.destinationTab,
@@ -951,6 +959,7 @@ const uploadStorageAssetFromParsedUpload = async ({
     filename: normalizedUpload.filename,
     mimeType: uploadMimeType,
     buffer: uploadBuffer,
+    cacheControl,
   });
   const storedAdmissionMetadata = admissionMetadata
     ? {
@@ -1537,6 +1546,7 @@ export const finalizePreparedMediaUploadForUser = async ({
     uploaded = await uploadStorageAssetFromParsedUpload({
       parsedUpload,
       userId,
+      cacheControl: DURABLE_MEDIA_CACHE_CONTROL_SECONDS,
     });
     return await persistUploadedMediaAsset({
       userId,
@@ -1927,6 +1937,7 @@ export const uploadMediaForUser = async ({
     const uploaded = await uploadStorageAssetForUser({
       req,
       userId,
+      cacheControl: DURABLE_MEDIA_CACHE_CONTROL_SECONDS,
     });
     parsedUpload = uploaded.parsedUpload;
     storagePathForCleanup = uploaded.storagePath;

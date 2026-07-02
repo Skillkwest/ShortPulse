@@ -126,6 +126,7 @@ describe("admitProductImageAssetFromStorageForUser", () => {
       expect.objectContaining({
         contentType: "image/png",
         upsert: false,
+        cacheControl: "31536000",
       })
     );
     expect(result).toEqual(

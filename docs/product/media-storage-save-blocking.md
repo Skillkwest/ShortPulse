@@ -118,15 +118,15 @@ Out of scope:
 
 ## Lane inventory
 
-| Lane | Current entrypoint(s) | Preparation requirement |
-| --- | --- | --- |
-| Media Library upload | `frontend/lib/server/mediaUploadService.ts`, `frontend/features/media-library/hooks/useMediaUploadController.ts`, `frontend/features/ai-studio/components/MediaLibraryPanel.tsx` | Normalize quota copy, add proactive disable/banner behavior, and add UI regression coverage. |
-| AI Studio manual save | `frontend/features/ai-studio/hooks/useAiStudioOutputSaveRuntime.ts`, `frontend/features/ai-studio/logic/mediaLibraryPersistence.ts`, `frontend/features/ai-studio/components/DetailModal.tsx`, `frontend/features/ai-studio/components/AiStudioPageContent.tsx` | Preserve actionable server-copy details, add local blocked-save UX, and avoid generic failure-only treatment. |
-| AI Studio server-copy fallback | `frontend/pages/api/media/copy-from-url.ts`, `frontend/features/ai-studio/logic/mediaLibraryPersistence.ts` | Preserve `details` instead of collapsing to `error` only. |
-| AI Studio autosave orchestrator | `frontend/features/ai-studio/hooks/useAiStudioMediaAutosaveOrchestrator.ts`, `frontend/features/ai-studio/hooks/useAiStudioOutputSaveRuntime.ts` | Make storage-full autosave outcomes visible and distinguishable from ordinary idle outputs. |
-| Retired direct-response OpenAI image autosave | Retired; direct OpenAI image routes are disabled stubs and active GPT Image 2 lanes use queued Kie routes. | No active storage-full lane remains here; preserve the disabled route stubs and cover current queued generation persistence instead. |
-| Direct-response ElevenLabs audio/video autosave | `frontend/lib/server/elevenlabs.ts` | Project storage-full autosave failure back into explicit client save state. |
-| Direct terminal settlement / recovery | `frontend/lib/server/api/directGenerationSettlement.ts`, `frontend/lib/server/falIntegration/recoveryExecution.ts`, `frontend/lib/server/falIntegration/recoveryMediaPersistence.ts` | Keep canonical output usable, but propagate blocked-save state and canonical message when quota rejects durable persistence. |
+| Lane                                            | Current entrypoint(s)                                                                                                                                                                                                                                           | Preparation requirement                                                                                                              |
+| ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Media Library upload                            | `frontend/lib/server/mediaUploadService.ts`, `frontend/features/media-library/hooks/useMediaUploadController.ts`, `frontend/features/ai-studio/components/MediaLibraryPanel.tsx`                                                                                | Normalize quota copy, add proactive disable/banner behavior, and add UI regression coverage.                                         |
+| AI Studio manual save                           | `frontend/features/ai-studio/hooks/useAiStudioOutputSaveRuntime.ts`, `frontend/features/ai-studio/logic/mediaLibraryPersistence.ts`, `frontend/features/ai-studio/components/DetailModal.tsx`, `frontend/features/ai-studio/components/AiStudioPageContent.tsx` | Preserve actionable server-copy details, add local blocked-save UX, and avoid generic failure-only treatment.                        |
+| AI Studio server-copy fallback                  | `frontend/pages/api/media/copy-from-url.ts`, `frontend/features/ai-studio/logic/mediaLibraryPersistence.ts`                                                                                                                                                     | Preserve `details` instead of collapsing to `error` only.                                                                            |
+| AI Studio autosave orchestrator                 | `frontend/features/ai-studio/hooks/useAiStudioMediaAutosaveOrchestrator.ts`, `frontend/features/ai-studio/hooks/useAiStudioOutputSaveRuntime.ts`                                                                                                                | Make storage-full autosave outcomes visible and distinguishable from ordinary idle outputs.                                          |
+| Retired direct-response OpenAI image autosave   | Retired; direct OpenAI image routes are disabled stubs and active GPT Image 2 lanes use queued Kie routes.                                                                                                                                                      | No active storage-full lane remains here; preserve the disabled route stubs and cover current queued generation persistence instead. |
+| Direct-response ElevenLabs audio/video autosave | `frontend/lib/server/elevenlabs.ts`                                                                                                                                                                                                                             | Project storage-full autosave failure back into explicit client save state.                                                          |
+| Direct terminal settlement / recovery           | `frontend/lib/server/api/directGenerationSettlement.ts`, `frontend/lib/server/falIntegration/recoveryExecution.ts`, `frontend/lib/server/falIntegration/recoveryMediaPersistence.ts`                                                                            | Keep canonical output usable, but propagate blocked-save state and canonical message when quota rejects durable persistence.         |
 
 ## Implementation order
 
@@ -171,7 +171,7 @@ Out of scope:
 - [ ] Media Library upload UI test covers proactive over-limit blocking.
 - [ ] Media Library upload UI test covers reactive quota rejection banner.
 - [ ] AI Studio manual save test covers storage-full message propagation.
-- [ ] AI Studio server-copy fallback test covers `details` preservation.
+- [x] AI Studio server-copy fallback test covers `details` preservation.
 - [ ] Direct-response ElevenLabs audio/video tests cover explicit storage-blocked projection.
 - [ ] Recovery/direct-settlement tests cover blocked durable persistence without losing playable output.
 

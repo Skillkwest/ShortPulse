@@ -11,6 +11,7 @@ const makeTempFileHandleMock = vi.fn();
 const extractAudioTrackMock = vi.fn();
 const readFileMock = vi.fn();
 const assertTrustedRemoteMediaUrlMock = vi.fn();
+const recordVoiceSourceLifecycleStateMock = vi.fn();
 const { MockTrustedRemoteMediaUrlError, MockMediaAudioExtractionInputError } = vi.hoisted(() => {
   class TrustedRemoteMediaUrlError extends Error {
     readonly statusCode: number;
@@ -64,6 +65,12 @@ vi.mock("../../lib/server/mediaAudioExtraction", () => ({
     Boolean(mimeType?.startsWith("video/") || filename?.endsWith(".mp4")),
 }));
 
+vi.mock("../../lib/server/voiceSourceLifecycle", () => ({
+  recordVoiceSourceLifecycleState: (...args: unknown[]) =>
+    recordVoiceSourceLifecycleStateMock(...args),
+  VOICE_CHANGER_SOURCE_RETENTION_DAYS: 14,
+}));
+
 const createMockResponse = () => ({
   setHeader: vi.fn().mockReturnThis(),
   status: vi.fn().mockReturnThis(),
@@ -91,6 +98,7 @@ describe("POST /api/media/extract-audio", () => {
       contentType: "video/mp4",
       size: Buffer.from("video-source").length,
     });
+    recordVoiceSourceLifecycleStateMock.mockResolvedValue({ recorded: true });
     getSupabaseAdminMock.mockReturnValue({
       storage: {
         from: vi.fn(() => ({
@@ -130,6 +138,23 @@ describe("POST /api/media/extract-audio", () => {
       sourcePath: "/tmp/source.mp4",
     });
     expect(res.status).toHaveBeenCalledWith(200);
+    expect(recordVoiceSourceLifecycleStateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        workflowKind: "voice_changer",
+        sourceKind: "audio",
+        storagePath: expect.stringMatching(/^user-1\/voice-changer\/staged-audio\//),
+        state: "staged",
+        lifecycleKey: "staged",
+        retentionDays: 14,
+        metadata: {
+          source_name: "clip.wav",
+          mime_type: "audio/wav",
+          size_bytes: Buffer.from("wav-audio").length,
+          source_derivation: "video_audio_extract",
+        },
+      })
+    );
     expect(res.json).toHaveBeenCalledWith({
       audio: {
         name: "clip.wav",
@@ -340,6 +365,7 @@ describe("POST /api/media/extract-audio", () => {
     expect(uploadedPath).toEqual(expect.stringMatching(/^user-1\/voice-changer\/staged-audio\//));
     expect(createSignedUrlMock).toHaveBeenCalledWith(uploadedPath, 60 * 60);
     expect(removeMock).toHaveBeenCalledWith([uploadedPath]);
+    expect(recordVoiceSourceLifecycleStateMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({
       error: "Unable to extract audio",

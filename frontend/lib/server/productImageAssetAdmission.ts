@@ -78,11 +78,13 @@ const SAFE_ID_PATTERN = /^[A-Za-z0-9_-]{1,96}$/;
 export class ProductImageAssetAdmissionError extends Error {
   readonly status: number;
   readonly details?: string;
+  readonly code?: string;
 
-  constructor(status: number, message: string, details?: string) {
+  constructor(status: number, message: string, details?: string, code?: string) {
     super(message);
     this.status = status;
     this.details = details;
+    this.code = code;
   }
 }
 
@@ -126,6 +128,7 @@ const assertMediaComplianceAcceptedForProductImageAsset = async (userId: string)
     throw new ProductImageAssetAdmissionError(
       403,
       "Media agreement acceptance is required.",
+      "Accept the current media agreement before uploading or staging media.",
       "MEDIA_COMPLIANCE_REQUIRED"
     );
   } catch (error) {
@@ -136,6 +139,7 @@ const assertMediaComplianceAcceptedForProductImageAsset = async (userId: string)
       throw new ProductImageAssetAdmissionError(
         503,
         "Media agreement service is temporarily unavailable.",
+        "Media agreement acceptance could not be verified.",
         "MEDIA_COMPLIANCE_UNAVAILABLE"
       );
     }

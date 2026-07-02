@@ -45,9 +45,10 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/migrations/178_add_admin_stats_generated_columns.sql`: add DB-maintained scalar projections for the remaining TOAST-heavy admin stats JSON flags and update `get_admin_global_stats_v1()` to read those scalars.
 - `sql/migrations/180_harden_scheduler_and_admin_error_summary.sql`: add the missing internal billing scheduler HTTP timeout and provision service-role-only aggregate admin error-events summary RPC.
 - `sql/migrations/181_harden_admin_pricing_offer_activation_grants.sql`: re-harden service-role-only execute grants for admin pricing offer activation RPCs and keep the enforce gate aligned with the runtime SQL audit.
+- `sql/migrations/182_add_voice_changer_staged_audio_lifecycle.sql`: add Voice Changer video-derived staged-audio source objects to the service-role-only voice lifecycle proof class and aggregate dry-run diagnostics.
 - `sql/audit_billing_credit_rls.sql`: billing RLS audit checks.
 - `sql/check_database_io_hotspots.sql`: read-only `pg_stat_statements` shared-block I/O summary plus table size/read posture, planner-stat freshness, and hot diagnostic table age/retention posture without raw query text.
-- `sql/analyze_hot_database_tables_supabase.sql`: hosted apply-gated maintenance script that refreshes planner statistics on hot public tables without rewriting tables or deleting rows.
+- `sql/analyze_hot_database_tables_supabase.sql`: hosted apply-gated maintenance script that refreshes planner statistics on hot public tables without rewriting tables or deleting rows. Run through `.github/workflows/apply-control-plane-ops-sql.yml` with `operation=analyze_hot_database_tables`.
 - `sql/check_media_storage_scope_drift.sql`: media storage scope drift diagnostics (read-only).
 - `sql/check_media_all_media_completeness_drift.sql`: All Media completeness drift diagnostics for durable storage objects missing `media_files` rows (read-only).
 - `sql/check_storage_object_egress_risk_breakdown.sql`: storage object byte-risk breakdown by safe bucket/path class and media tracking state, without printing object paths or user ids (read-only).
@@ -258,6 +259,7 @@ Migration number 134 is intentionally unused; the ordered sequence moves from `1
 - `179_optimize_media_storage_lifecycle_summary.sql`
 - `180_harden_scheduler_and_admin_error_summary.sql`
 - `181_harden_admin_pricing_offer_activation_grants.sql`
+- `182_add_voice_changer_staged_audio_lifecycle.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 
@@ -320,7 +322,7 @@ Use only when explicitly reverting a migration in a controlled window. Prefer ta
 - Use `.github/workflows/cost-performance-diagnostics.yml` for read-only DB I/O, database/API egress, storage-object byte posture, scheduler activity, and media-derivative cost diagnostics against `staging`/`production`.
 - Runner script authority: `scripts/cost_performance_diagnostics.sh`.
 - Keep cost-performance mode at `warn` until a production baseline artifact has been reviewed. The hosted workflow intentionally excludes `sql/check_media_storage_cleanup_manifest.sql` because that local-review manifest can print raw storage paths for delete candidates.
-- Use `.github/workflows/apply-control-plane-ops-sql.yml` for environment-scoped scheduler SQL apply operations (`configure_bypass_secret`, `configure_generation_recovery_cron_secret`, `configure_generation_recovery_scheduler`, `configure_media_derivative_scheduler`, `configure_admin_user_health_fleet_scheduler`, `configure_internal_billing_renewal_scheduler`, `configure_cron_job_run_details_retention`).
+- Use `.github/workflows/apply-control-plane-ops-sql.yml` for environment-scoped scheduler and maintenance SQL apply operations (`configure_bypass_secret`, `configure_generation_recovery_cron_secret`, `configure_generation_recovery_scheduler`, `configure_media_derivative_scheduler`, `configure_admin_user_health_fleet_scheduler`, `configure_internal_billing_renewal_scheduler`, `configure_cron_job_run_details_retention`, `analyze_hot_database_tables`).
 - Use `.github/workflows/apply-hosted-sql-migration.yml` for numbered hosted migrations such as `sql/migrations/172_schedule_worker_runs_retention.sql`.
 
 ## Standard Runbooks

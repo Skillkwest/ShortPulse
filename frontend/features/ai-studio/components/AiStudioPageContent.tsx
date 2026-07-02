@@ -89,6 +89,7 @@ import {
   AI_SHELL_LEFT_CHARACTER_DEFAULT_RATIO,
   AI_SHELL_LEFT_CREATE_MIN_PX,
   AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX,
+  AI_SHELL_LEFT_PRESETS_MIN_PX,
   AI_SHELL_LEFT_SOUND_MIN_PX,
   AI_SHELL_LEFT_VIDEO_DEFAULT_RATIO,
   AI_SHELL_LEFT_VIDEO_MIN_PX,
@@ -1005,11 +1006,13 @@ export function AiStudioPageContent({
       ? AI_SHELL_LEFT_SOUND_MIN_PX
       : selectedTool === "video" || selectedTool === "kling"
         ? AI_SHELL_LEFT_VIDEO_MIN_PX
-        : showCreatePropertiesPanel
-          ? AI_SHELL_LEFT_CREATE_MIN_PX
-          : showExpertEditPanel
-            ? AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX
-            : undefined;
+        : selectedTool === "presets"
+          ? AI_SHELL_LEFT_PRESETS_MIN_PX
+          : showCreatePropertiesPanel
+            ? AI_SHELL_LEFT_CREATE_MIN_PX
+            : showExpertEditPanel
+              ? AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX
+              : undefined;
   const isCollapsibleRightRailShell =
     showCreatePropertiesPanel ||
     showExpertEditPanel ||

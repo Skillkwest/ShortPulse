@@ -205,9 +205,32 @@ describe("admitProductImageAssetFromStorageForUser", () => {
     await expect(action()).rejects.toMatchObject({
       status: 403,
       message: "Media agreement acceptance is required.",
-      details: "MEDIA_COMPLIANCE_REQUIRED",
+      details: "Accept the current media agreement before uploading or staging media.",
+      code: "MEDIA_COMPLIANCE_REQUIRED",
     });
     expect(getMediaComplianceAcceptanceStatusForUserMock).toHaveBeenCalledWith("user-1");
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+  });
+
+  it("fails closed before storage work when media agreement status is unavailable", async () => {
+    const unavailableError = new Error("media compliance unavailable") as Error & { code: string };
+    unavailableError.code = "MEDIA_COMPLIANCE_UNAVAILABLE";
+    getMediaComplianceAcceptanceStatusForUserMock.mockRejectedValueOnce(unavailableError);
+
+    await expect(
+      prepareProductImageAssetUploadForUser({
+        userId: "user-1",
+        intent: "character_sheet_preset",
+        characterId: "char-1",
+        filename: "source.png",
+        declaredMimeType: "image/png",
+      })
+    ).rejects.toMatchObject({
+      status: 503,
+      message: "Media agreement service is temporarily unavailable.",
+      details: "Media agreement acceptance could not be verified.",
+      code: "MEDIA_COMPLIANCE_UNAVAILABLE",
+    });
     expect(getSupabaseAdminMock).not.toHaveBeenCalled();
   });
 });

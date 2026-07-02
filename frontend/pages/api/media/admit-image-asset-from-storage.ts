@@ -29,6 +29,7 @@ type AdmitImageAssetFromStorageSuccessResponse = {
 type AdmitImageAssetFromStorageErrorResponse = {
   error: string;
   details?: string;
+  code?: string;
 };
 
 const ADMIT_IMAGE_ASSET_FROM_STORAGE_RATE_LIMIT = {
@@ -100,7 +101,8 @@ export default async function handler(
       }
       return res.status(error.status).json({
         error: error.message,
-        details: error.details,
+        ...(error.details ? { details: error.details } : {}),
+        ...(error.code ? { code: error.code } : {}),
       });
     }
 

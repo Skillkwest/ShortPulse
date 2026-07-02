@@ -1452,7 +1452,7 @@ describe("saveMediaUrlToLibrary", () => {
         generationId: "gen-1",
         index: 0,
       })
-    ).rejects.toThrow("Untrusted media URL.");
+    ).rejects.toThrow("URL host is not in the trusted media allowlist.");
 
     expect(fetchWithAuthMock).toHaveBeenCalledWith(
       "/api/media/copy-from-url",

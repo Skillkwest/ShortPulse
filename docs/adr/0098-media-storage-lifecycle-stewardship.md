@@ -40,7 +40,7 @@ ADR 0060 intentionally keeps derivative and transient infrastructure bytes out o
    - It uses the same cron-secret fail-closed pattern as existing internal workers.
 
 6. Forward lifecycle proof is required for voice-source cleanup decisions.
-   - `voice_source_lifecycle` records staged, submitted, terminal, and retained custom-voice source states for Voice Changer and Voice Clone source objects.
+   - `voice_source_lifecycle` records staged, submitted, terminal, and retained custom-voice source states for Voice Changer and Voice Clone source objects, including Voice Changer video-derived extracted audio under `voice-changer/staged-audio`.
    - Registry-backed decisions outrank path heuristics for supported new voice-source writes.
    - Existing manifest classification remains the migration and audit bridge for historical objects.
 
@@ -60,11 +60,11 @@ Candidate cleanup classes after TTL and no blocking reference:
 - upload staging paths
 - transient reference image paths
 - retired motion-reference paths only when lease and retirement tables prove no active lease
-- voice changer and voice clone source paths only when `voice_source_lifecycle` proves retention has elapsed and no blocking source lifecycle remains
+- voice changer and voice clone source paths, including video-derived Voice Changer staged audio, only when `voice_source_lifecycle` proves retention has elapsed and no blocking source lifecycle remains
 
 Manual-review classes:
 
-- voice changer and voice clone source paths when lifecycle proof is missing, ambiguous, active, or still inside retention
+- voice changer and voice clone source paths, including video-derived Voice Changer staged audio, when lifecycle proof is missing, ambiguous, active, or still inside retention
 - motion-reference paths when lease tables or retirement evidence are absent
 - invalid-prefix or integrity-problem rows
 - unknown buckets or path classes

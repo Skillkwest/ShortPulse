@@ -13,6 +13,7 @@ import {
   AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX,
   AI_SHELL_LEFT_MIN_FALLBACK_PX,
   AI_SHELL_LEFT_MIN_PX,
+  AI_SHELL_LEFT_PRESETS_MIN_PX,
   AI_SHELL_LEFT_SOUND_MIN_PX,
   AI_SHELL_LEFT_VIDEO_MIN_PX,
   AI_SHELL_RIGHT_CANVAS_MIN_PX,
@@ -83,6 +84,7 @@ describe("getAiShellLeftWidthBounds", () => {
   it.each([
     { label: "Create", minLeftWidthPx: AI_SHELL_LEFT_CREATE_MIN_PX },
     { label: "Expert Edit", minLeftWidthPx: AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX },
+    { label: "Presets", minLeftWidthPx: AI_SHELL_LEFT_PRESETS_MIN_PX },
     { label: "Video", minLeftWidthPx: AI_SHELL_LEFT_VIDEO_MIN_PX },
     { label: "Sound", minLeftWidthPx: AI_SHELL_LEFT_SOUND_MIN_PX },
   ])(
@@ -142,6 +144,7 @@ describe("clampAiShellLeftWidth", () => {
   it.each([
     { label: "Create", minLeftWidthPx: AI_SHELL_LEFT_CREATE_MIN_PX },
     { label: "Expert Edit", minLeftWidthPx: AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX },
+    { label: "Presets", minLeftWidthPx: AI_SHELL_LEFT_PRESETS_MIN_PX },
     { label: "Video", minLeftWidthPx: AI_SHELL_LEFT_VIDEO_MIN_PX },
     { label: "Sound", minLeftWidthPx: AI_SHELL_LEFT_SOUND_MIN_PX },
   ])(
@@ -213,6 +216,7 @@ describe("resolveAiShellLayoutMode", () => {
     { label: "Expert Edit", minLeftWidthPx: AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX },
     { label: "Video", minLeftWidthPx: AI_SHELL_LEFT_VIDEO_MIN_PX },
     { label: "Sound", minLeftWidthPx: AI_SHELL_LEFT_SOUND_MIN_PX },
+    { label: "Presets", minLeftWidthPx: AI_SHELL_LEFT_PRESETS_MIN_PX },
     { label: "Character", minLeftWidthPx: AI_SHELL_LEFT_CHARACTER_MIN_PX },
   ] as const;
 

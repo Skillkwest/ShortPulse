@@ -437,6 +437,7 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
   it("returns both audio and remuxed video when an original staged video is supplied", async () => {
     mockFields = {
       ...mockFields,
+      sourceStoragePath: "user-1/voice-changer/staged-audio/source.wav",
       originalVideoStoragePath: "user-1/voice-changer/source-video/source.mp4",
       originalVideoName: "source.mp4",
       originalVideoMimeType: "video/mp4",
@@ -461,7 +462,7 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
     await handler(req as never, res as never);
 
     expect(readStoredMediaBufferMock).toHaveBeenNthCalledWith(1, {
-      storagePath: "user-1/voice-changer/source-audio/source.wav",
+      storagePath: "user-1/voice-changer/staged-audio/source.wav",
     });
     expect(readStoredMediaBufferMock).toHaveBeenNthCalledWith(2, {
       storagePath: "user-1/voice-changer/source-video/source.mp4",
@@ -557,7 +558,7 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
         userId: "user-1",
         workflowKind: "voice_changer",
         sourceKind: "audio",
-        storagePath: "user-1/voice-changer/source-audio/source.wav",
+        storagePath: "user-1/voice-changer/staged-audio/source.wav",
         state: "submitted",
         sourceRef: "billing-source-voice-1",
         retentionDays: null,
@@ -568,7 +569,7 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
         userId: "user-1",
         workflowKind: "voice_changer",
         sourceKind: "audio",
-        storagePath: "user-1/voice-changer/source-audio/source.wav",
+        storagePath: "user-1/voice-changer/staged-audio/source.wav",
         state: "terminal_success",
         sourceRef: "billing-source-voice-1",
         generationId: "gen-audio-1",

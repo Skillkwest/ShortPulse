@@ -11,8 +11,8 @@ Objective: re-audit and solve the two confirmed findings from the full repo-loca
 ## 2026-07-02 Remediation Result
 
 - Issue 1 fixed at the canonical helper: `frontend/lib/server/productImageAssetAdmission.ts` now requires current media agreement acceptance before preparing product-image signed upload targets, finalizing staged product-image uploads, or admitting storage-backed product images.
-- Issue 1 regression coverage added in `frontend/lib/server/__tests__/productImageAssetAdmission.test.ts` for all three helper entry points. Existing route tests still pass without duplicating route-level consent logic.
-- Issue 2 fixed by data minimization: default reliability diagnostics remain aggregate-only, and row-level diagnostic queries were moved to explicit break-glass SQL files gated by `RELIABILITY_DIAGNOSTICS_INCLUDE_ROW_DETAILS=false` by default and the manual workflow `include_row_details` input.
+- Issue 1 regression coverage added in `frontend/lib/server/__tests__/productImageAssetAdmission.test.ts` for all three helper entry points, including unavailable media-compliance status. Route coverage in `frontend/tests/api/media-product-image-asset-routes.test.ts` now proves consent failures return stable `MEDIA_COMPLIANCE_REQUIRED` codes without logging them as server faults.
+- Issue 2 fixed by data minimization: default reliability diagnostics remain aggregate-only, and row-level diagnostic queries were moved to explicit break-glass SQL files gated by `RELIABILITY_DIAGNOSTICS_INCLUDE_ROW_DETAILS=false` by default and the manual workflow `include_row_details` input. Diagnostics artifacts now explicitly retain for 7 days.
 - No hosted Supabase, Vercel, GitHub secrets, customer data, production data, billing state, UI/UX behavior, signup semantics, credit semantics, or product flow was mutated in this remediation run.
 
 Validation recorded for this remediation:

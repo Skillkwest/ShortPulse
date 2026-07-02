@@ -661,8 +661,8 @@ const saveMediaUrlToLibraryViaServerCopy = async (
       throw new Error(normalizedQuotaError.message);
     }
     const message =
-      asOptionalString(payloadRecord.error) ??
       asOptionalString(payloadRecord.details) ??
+      asOptionalString(payloadRecord.error) ??
       `Unable to save media (${response.status}).`;
     throw new Error(message);
   }

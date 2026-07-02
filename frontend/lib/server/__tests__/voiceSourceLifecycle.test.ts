@@ -65,6 +65,34 @@ describe("voiceSourceLifecycle", () => {
     );
   });
 
+  it("records lifecycle proof for video-derived voice changer staged audio", async () => {
+    const result = await recordVoiceSourceLifecycleState({
+      userId: "user-1",
+      storagePath: "user-1/voice-changer/staged-audio/extracted.wav",
+      workflowKind: "voice_changer",
+      state: "staged",
+      lifecycleKey: "staged",
+      retentionDays: VOICE_CHANGER_SOURCE_RETENTION_DAYS,
+    });
+
+    expect(result).toEqual({ recorded: true });
+    expect(upsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: "user-1",
+        storage_path: "user-1/voice-changer/staged-audio/extracted.wav",
+        source_path_class: "voice_changer_staged_audio",
+        workflow_kind: "voice_changer",
+        source_kind: "audio",
+        lifecycle_key: "staged",
+        lifecycle_state: "staged",
+        retention_until: expect.any(String),
+      }),
+      {
+        onConflict: "user_id,storage_path,workflow_kind,lifecycle_key",
+      }
+    );
+  });
+
   it("leaves non-voice-source storage paths unregistered for manual review", async () => {
     const result = await recordVoiceSourceLifecycleState({
       userId: "user-1",

@@ -1223,6 +1223,63 @@ const isDuplicateInsertError = (error: { code?: string; message?: string } | nul
     .toLowerCase()
     .includes("duplicate");
 
+const logMediaCopyRouteFailure = async ({
+  req,
+  user,
+  error,
+  stage,
+  parsedUrl,
+  source,
+  mode,
+  fileType,
+  fileTypeHint,
+  generationId,
+  index,
+  provider,
+  modelId,
+  duplicateInsert,
+  storagePathCreated,
+}: {
+  req: NextApiRequest;
+  user: Awaited<ReturnType<typeof requireApiUser>>;
+  error: unknown;
+  stage: "storage_upload" | "media_row_insert";
+  parsedUrl: URL;
+  source: "upload" | "ai_studio";
+  mode: "image" | "video" | "audio";
+  fileType?: MediaLibraryFileType | null;
+  fileTypeHint?: MediaLibraryFileType | null;
+  generationId?: string | null;
+  index: number;
+  provider?: string | null;
+  modelId?: string | null;
+  duplicateInsert?: boolean;
+  storagePathCreated?: boolean;
+}) => {
+  await logApiRouteException({
+    req,
+    error,
+    routeLabel: "media-copy-from-url",
+    scope: "generation",
+    user,
+    metadata: {
+      response_status: 500,
+      failure_stage: stage,
+      source,
+      mode,
+      file_type: fileType ?? null,
+      file_type_hint: fileTypeHint ?? null,
+      generation_id_present: Boolean(generationId),
+      output_index: index,
+      provider: provider ?? null,
+      model_id: modelId ?? null,
+      trusted_url_host: parsedUrl.hostname,
+      duplicate_insert: duplicateInsert ?? undefined,
+      storage_path_created: storagePathCreated ?? undefined,
+    },
+  });
+};
+
 export async function handleMediaCopyFromUrlRequest(
   req: NextApiRequest,
   res: NextApiResponse<CopyFromUrlResponse>
@@ -1528,7 +1585,23 @@ export async function handleMediaCopyFromUrlRequest(
         buffer: storageBuffer,
         mimeType,
       });
-    } catch {
+    } catch (error) {
+      await logMediaCopyRouteFailure({
+        req,
+        user,
+        error,
+        stage: "storage_upload",
+        parsedUrl,
+        source,
+        mode,
+        fileType,
+        fileTypeHint,
+        generationId,
+        index,
+        provider,
+        modelId,
+        storagePathCreated: false,
+      });
       return res.status(500).json({
         error: "Upload failed",
       });
@@ -1695,10 +1768,45 @@ export async function handleMediaCopyFromUrlRequest(
           });
         }
         await removeScopedMediaStorageObject(storagePath);
+        await logMediaCopyRouteFailure({
+          req,
+          user,
+          error: insertError,
+          stage: "media_row_insert",
+          parsedUrl,
+          source,
+          mode,
+          fileType,
+          fileTypeHint,
+          generationId,
+          index,
+          provider,
+          modelId,
+          duplicateInsert,
+          storagePathCreated: true,
+        });
         return res.status(500).json({
           error: "Failed to persist media record",
         });
       }
+      await removeScopedMediaStorageObject(storagePath);
+      await logMediaCopyRouteFailure({
+        req,
+        user,
+        error: insertError,
+        stage: "media_row_insert",
+        parsedUrl,
+        source,
+        mode,
+        fileType,
+        fileTypeHint,
+        generationId,
+        index,
+        provider,
+        modelId,
+        duplicateInsert,
+        storagePathCreated: true,
+      });
       return res.status(500).json({
         error: "Failed to persist media record",
       });

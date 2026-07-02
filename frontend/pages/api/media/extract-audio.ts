@@ -20,6 +20,10 @@ import {
   readRemoteMediaBuffer,
   readStoredMediaBuffer,
 } from "../../../lib/server/mediaAudioExtraction";
+import {
+  recordVoiceSourceLifecycleState,
+  VOICE_CHANGER_SOURCE_RETENTION_DAYS,
+} from "../../../lib/server/voiceSourceLifecycle";
 
 const MEDIA_BUCKET = "media_library";
 
@@ -186,6 +190,29 @@ export default async function handler(
         await storage.remove([storagePath]).catch(() => undefined);
         throw new Error(signedResult.error?.message || "Unable to sign extracted audio.");
       }
+      await recordVoiceSourceLifecycleState({
+        userId,
+        workflowKind: "voice_changer",
+        sourceKind: "audio",
+        storagePath,
+        state: "staged",
+        lifecycleKey: "staged",
+        retentionDays: VOICE_CHANGER_SOURCE_RETENTION_DAYS,
+        metadata: {
+          source_name: filename,
+          mime_type: "audio/wav",
+          size_bytes: extractedBuffer.length,
+          source_derivation: "video_audio_extract",
+        },
+      }).catch((lifecycleError) =>
+        logApiRouteException({
+          req,
+          error: lifecycleError,
+          routeLabel: "media-extract-audio.lifecycle",
+          scope: "generation",
+          user,
+        })
+      );
 
       return res.status(200).json({
         audio: {

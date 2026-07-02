@@ -815,8 +815,8 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 
 - `id` (uuid, pk, default `gen_random_uuid()`): Lifecycle proof row id.
 - `user_id` (uuid, fk -> `auth.users.id`): Owner used for storage-path scope validation and cleanup classification.
-- `storage_path` (text): Private `media_library` source object path under `voice-changer/source-audio`, `voice-changer/source-video`, or `voice-clone/source-audio`.
-- `source_path_class` (text): Normalized class (`voice_changer_source_audio`, `voice_changer_source_video`, `voice_clone_source_audio`).
+- `storage_path` (text): Private `media_library` source object path under `voice-changer/source-audio`, `voice-changer/staged-audio`, `voice-changer/source-video`, or `voice-clone/source-audio`.
+- `source_path_class` (text): Normalized class (`voice_changer_source_audio`, `voice_changer_staged_audio`, `voice_changer_source_video`, `voice_clone_source_audio`).
 - `workflow_kind` (text): Owning workflow (`voice_changer` or `voice_clone`).
 - `source_kind` (text): Source media kind (`audio` or `video`).
 - `lifecycle_key` (text): Stable per-source usage key, such as a billing source ref or staged marker.

@@ -393,6 +393,8 @@ classified as (
                 then 'media_library/transient_motion_reference'
             when sr.storage_path like split_part(sr.storage_path, '/', 1) || '/voice-changer/source-audio/%'
                 then 'media_library/voice_changer_source_audio'
+            when sr.storage_path like split_part(sr.storage_path, '/', 1) || '/voice-changer/staged-audio/%'
+                then 'media_library/voice_changer_staged_audio'
             when sr.storage_path like split_part(sr.storage_path, '/', 1) || '/voice-changer/source-video/%'
                 then 'media_library/voice_changer_source_video'
             when sr.storage_path like split_part(sr.storage_path, '/', 1) || '/voice-clone/source-audio/%'
@@ -455,6 +457,7 @@ manifest as (
             ) then 'protected_durable_or_ambiguous'
             when c.safe_path_class in (
                 'media_library/voice_changer_source_audio',
+                'media_library/voice_changer_staged_audio',
                 'media_library/voice_changer_source_video',
                 'media_library/voice_clone_source_audio'
             )
@@ -465,6 +468,7 @@ manifest as (
                 then 'delete_candidate'
             when c.safe_path_class in (
                 'media_library/voice_changer_source_audio',
+                'media_library/voice_changer_staged_audio',
                 'media_library/voice_changer_source_video',
                 'media_library/voice_clone_source_audio'
             ) then 'manual_review_required'
@@ -513,6 +517,7 @@ manifest as (
                 then 'unreferenced transient reference image older than TTL'
             when c.safe_path_class in (
                 'media_library/voice_changer_source_audio',
+                'media_library/voice_changer_staged_audio',
                 'media_library/voice_changer_source_video',
                 'media_library/voice_clone_source_audio'
             )
@@ -522,6 +527,7 @@ manifest as (
                 then 'voice source lifecycle retention elapsed'
             when c.safe_path_class in (
                 'media_library/voice_changer_source_audio',
+                'media_library/voice_changer_staged_audio',
                 'media_library/voice_changer_source_video',
                 'media_library/voice_clone_source_audio'
             )
@@ -529,6 +535,7 @@ manifest as (
                 then 'voice source lifecycle proof exists but retention is active'
             when c.safe_path_class in (
                 'media_library/voice_changer_source_audio',
+                'media_library/voice_changer_staged_audio',
                 'media_library/voice_changer_source_video',
                 'media_library/voice_clone_source_audio'
             ) then 'voice source namespace requires workflow/custom-voice review'

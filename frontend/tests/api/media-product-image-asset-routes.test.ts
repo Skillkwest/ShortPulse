@@ -316,6 +316,72 @@ describe("product image asset API routes", () => {
     expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
   });
 
+  it.each([
+    [
+      "prepare",
+      prepareHandler,
+      prepareProductImageAssetUploadForUserMock,
+      {
+        characterId: "char-1",
+        intent: "character_sheet_preset",
+        sourceMimeType: "image/png",
+        sourceName: "image.png",
+      },
+    ],
+    [
+      "finalize",
+      finalizeHandler,
+      finalizePreparedProductImageAssetUploadForUserMock,
+      {
+        characterId: "char-1",
+        intent: "character_sheet_preset",
+        sourceMimeType: "image/png",
+        sourceName: "image.png",
+        sourceStoragePath:
+          "user-1/upload-staging/product-image-assets/character_sheet_preset/image.png",
+      },
+    ],
+    [
+      "admit from storage",
+      admitFromStorageHandler,
+      admitProductImageAssetFromStorageForUserMock,
+      {
+        characterId: "char-1",
+        intent: "character_sheet_preset",
+        sourceName: "generated.png",
+        sourceStoragePath: "user-1/images/generated/generated.png",
+      },
+    ],
+  ])(
+    "maps %s media agreement failures to a stable route code",
+    async (_label, handler, serviceMock, body) => {
+      serviceMock.mockRejectedValueOnce(
+        new ProductImageAssetAdmissionError(
+          403,
+          "Media agreement acceptance is required.",
+          "Accept the current media agreement before uploading or staging media.",
+          "MEDIA_COMPLIANCE_REQUIRED"
+        )
+      );
+      const req = {
+        method: "POST",
+        body,
+        headers: {},
+      };
+      const res = createMockResponse();
+
+      await handler(req as never, res as never);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({
+        error: "Media agreement acceptance is required.",
+        details: "Accept the current media agreement before uploading or staging media.",
+        code: "MEDIA_COMPLIANCE_REQUIRED",
+      });
+      expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+    }
+  );
+
   it("logs unexpected product image route failures with the owning route label", async () => {
     admitProductImageAssetFromStorageForUserMock.mockRejectedValueOnce(
       new Error("storage copy exploded")

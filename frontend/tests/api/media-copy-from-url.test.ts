@@ -1531,6 +1531,10 @@ describe("POST /api/media/copy-from-url", () => {
 
   it("fails closed when a duplicate ai_studio row exists but its stored paths are outside the caller scope", async () => {
     detectImageMimeTypeMock.mockReturnValue("image/png");
+    const insertError = {
+      code: "23505",
+      message: "duplicate key value violates unique constraint",
+    };
     const supabase = createSupabaseAdmin({
       existingRow: {
         id: "media-duplicate-foreign-1",
@@ -1550,10 +1554,7 @@ describe("POST /api/media/copy-from-url", () => {
           media_file_id: null,
         },
       ],
-      insertError: {
-        code: "23505",
-        message: "duplicate key value violates unique constraint",
-      },
+      insertError,
       signedUrls: {
         "user-2/generations/images/foreign.png": "https://signed.test/foreign.png",
       },
@@ -1588,6 +1589,27 @@ describe("POST /api/media/copy-from-url", () => {
     expect(supabase.createSignedUrlMock).not.toHaveBeenCalledWith(
       "user-2/generations/images/foreign.png",
       expect.anything()
+    );
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        error: insertError,
+        routeLabel: "media-copy-from-url",
+        scope: "generation",
+        user: { id: "user-1", email: "u@example.com" },
+        metadata: expect.objectContaining({
+          response_status: 500,
+          failure_stage: "media_row_insert",
+          source: "ai_studio",
+          mode: "image",
+          file_type: "image",
+          generation_id_present: true,
+          output_index: 0,
+          trusted_url_host: "trusted.example.com",
+          duplicate_insert: true,
+          storage_path_created: true,
+        }),
+      })
     );
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({
@@ -1854,6 +1876,124 @@ describe("POST /api/media/copy-from-url", () => {
         fullUrl: "https://signed.test/media-new-1.png",
         previewPosterUrl: null,
       },
+    });
+  });
+
+  it("logs storage upload failures before returning the route-owned 500", async () => {
+    const uploadError = { message: "storage upload unavailable" };
+    const supabase = createSupabaseAdmin({
+      uploadError,
+    });
+    getSupabaseAdminMock.mockReturnValue(supabase.admin);
+    const fetchMock = vi.fn().mockImplementation(
+      async () =>
+        new Response(Buffer.from([0x89, 0x50, 0x4e, 0x47]), {
+          status: 200,
+          headers: { "Content-Type": "image/png", "Content-Length": "4" },
+        })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = {
+      method: "POST",
+      headers: { host: "app.shortpulse.test", "x-forwarded-proto": "https" },
+      body: {
+        url: "https://trusted.example.com/reference.png",
+        promptText: "reference image",
+        mode: "image",
+        source: "upload",
+        index: 0,
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        error: uploadError,
+        routeLabel: "media-copy-from-url",
+        scope: "generation",
+        user: { id: "user-1", email: "u@example.com" },
+        metadata: expect.objectContaining({
+          response_status: 500,
+          failure_stage: "storage_upload",
+          source: "upload",
+          mode: "image",
+          file_type: "image",
+          generation_id_present: false,
+          output_index: 0,
+          trusted_url_host: "trusted.example.com",
+          storage_path_created: false,
+        }),
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Upload failed",
+    });
+  });
+
+  it("logs media row insert failures before returning the route-owned 500", async () => {
+    const insertError = { code: "PGRST204", message: "insert failed" };
+    const supabase = createSupabaseAdmin({
+      insertError,
+    });
+    getSupabaseAdminMock.mockReturnValue(supabase.admin);
+    const fetchMock = vi.fn().mockImplementation(
+      async () =>
+        new Response(Buffer.from([0x89, 0x50, 0x4e, 0x47]), {
+          status: 200,
+          headers: { "Content-Type": "image/png", "Content-Length": "4" },
+        })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = {
+      method: "POST",
+      headers: { host: "app.shortpulse.test", "x-forwarded-proto": "https" },
+      body: {
+        url: "https://trusted.example.com/reference.png",
+        promptText: "reference image",
+        mode: "image",
+        source: "upload",
+        index: 0,
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(supabase.uploadMock).toHaveBeenCalledTimes(1);
+    expect(supabase.removeMock).toHaveBeenCalledTimes(1);
+    expect(supabase.removeMock).toHaveBeenCalledWith([
+      expect.stringMatching(/^user-1\/uploads\/images\//),
+    ]);
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        error: insertError,
+        routeLabel: "media-copy-from-url",
+        scope: "generation",
+        user: { id: "user-1", email: "u@example.com" },
+        metadata: expect.objectContaining({
+          response_status: 500,
+          failure_stage: "media_row_insert",
+          source: "upload",
+          mode: "image",
+          file_type: "image",
+          generation_id_present: false,
+          output_index: 0,
+          trusted_url_host: "trusted.example.com",
+          duplicate_insert: false,
+          storage_path_created: true,
+        }),
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Failed to persist media record",
     });
   });
 

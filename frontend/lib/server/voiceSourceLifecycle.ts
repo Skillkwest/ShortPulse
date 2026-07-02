@@ -16,6 +16,7 @@ export type VoiceSourceLifecycleState =
 
 type VoiceSourcePathClass =
   | "voice_changer_source_audio"
+  | "voice_changer_staged_audio"
   | "voice_changer_source_video"
   | "voice_clone_source_audio";
 
@@ -80,6 +81,13 @@ const resolveVoiceSourcePathInfo = ({
     return {
       storagePath: safeStoragePath,
       sourcePathClass: "voice_changer_source_audio",
+      sourceKind: "audio",
+    };
+  }
+  if (safeStoragePath.startsWith(`${userId}/voice-changer/staged-audio/`)) {
+    return {
+      storagePath: safeStoragePath,
+      sourcePathClass: "voice_changer_staged_audio",
       sourceKind: "audio",
     };
   }

@@ -93,4 +93,5 @@ jobs:
           path: |
             /tmp/reliability_control_plane_diagnostics.log
             /tmp/reliability_control_plane_diagnostics
+          retention-days: 7
           if-no-files-found: ignore

@@ -7,7 +7,10 @@ import React from "react";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AiStudioPageContent } from "../AiStudioPageContent";
-import { AI_SHELL_RIGHT_COLLAPSED_MIN_PX } from "../../logic/shellResize";
+import {
+  AI_SHELL_LEFT_PRESETS_MIN_PX,
+  AI_SHELL_RIGHT_COLLAPSED_MIN_PX,
+} from "../../logic/shellResize";
 import { createDefaultRightRailLayout } from "../../logic/rightRailLayout";
 import type { StudioOutput, ToolId } from "../../types";
 
@@ -810,4 +813,16 @@ describe("AiStudioPageContent header project name", () => {
       );
     }
   );
+
+  it("gives the Presets panel a wider minimum left column", () => {
+    render(<AiStudioPageContent {...createProps()} selectedTool="presets" />);
+
+    expect(useAiStudioShellResizeMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        minLeftWidthPx: AI_SHELL_LEFT_PRESETS_MIN_PX,
+        minRightWidthPx: undefined,
+        allowLeftCollapse: false,
+      })
+    );
+  });
 });

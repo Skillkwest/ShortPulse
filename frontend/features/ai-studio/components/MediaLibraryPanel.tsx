@@ -127,7 +127,7 @@ const MEDIA_LIBRARY_FOLDERS_EXPANDED_GRID_TOP_HEIGHT_PX = 0,
   MEDIA_LIBRARY_FOLDERS_COLLAPSE_TOP_HEIGHT_PX = 86;
 const PROJECT_NAME_PLACEHOLDER = "Untitled project";
 const FOLDER_OPEN_GHOST_IMAGE_SRC = "/Folder 1.png";
-const FOLDER_OPEN_GHOST_DURATION_MS = 340;
+const FOLDER_OPEN_GHOST_DURATION_MS = 180;
 const ROOT_ALL_MEDIA_VISUAL_PRIORITY_COUNT = MEDIA_LIBRARY_PANEL_DENSITY_CONFIG.maxColumnCount;
 const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
@@ -852,8 +852,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       if (!prefersReducedMotion && rect.width > 0 && rect.height > 0) {
         setFolderOpenGhost({
           key: `${folderId}:${Date.now()}`,
-          left: rect.left,
-          top: rect.top,
+          left: rect.left + rect.width / 2,
+          top: rect.top + rect.height / 2,
           width: rect.width,
           height: rect.height,
         });

@@ -22,6 +22,7 @@ on:
           - configure_admin_user_health_fleet_scheduler
           - configure_internal_billing_renewal_scheduler
           - configure_cron_job_run_details_retention
+          - analyze_hot_database_tables
       confirm_token:
         description: "Type apply-control-plane-ops to confirm"
         required: true
@@ -110,6 +111,11 @@ jobs:
               ;;
             configure_cron_job_run_details_retention)
               SQL_FILE="sql/configure_cron_job_run_details_retention_supabase.sql"
+              echo "Applying $SQL_FILE"
+              psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$SQL_FILE" | tee /tmp/control_plane_ops_sql.log
+              ;;
+            analyze_hot_database_tables)
+              SQL_FILE="sql/analyze_hot_database_tables_supabase.sql"
               echo "Applying $SQL_FILE"
               psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$SQL_FILE" | tee /tmp/control_plane_ops_sql.log
               ;;

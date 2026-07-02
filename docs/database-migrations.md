@@ -307,6 +307,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 176.  `sql/migrations/177_optimize_admin_global_stats_v1_rpc.sql`
 177.  `sql/migrations/178_add_admin_stats_generated_columns.sql`
 178.  `sql/migrations/179_optimize_media_storage_lifecycle_summary.sql`
+179.  `sql/migrations/180_harden_scheduler_and_admin_error_summary.sql`
       Rollback files:
 
 
@@ -404,6 +405,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/177_optimize_admin_global_stats_v1_rpc_rollback.sql`
     - `sql/migrations/rollback/178_add_admin_stats_generated_columns_rollback.sql`
     - `sql/migrations/rollback/179_optimize_media_storage_lifecycle_summary_rollback.sql`
+    - `sql/migrations/rollback/180_harden_scheduler_and_admin_error_summary_rollback.sql`
 
 Hosted SQL lint note:
 
@@ -513,12 +515,13 @@ Billing safety note:
 - Migration `176_add_app_error_events_admin_stats_source_index.sql` adds a narrow partial source/user/time index for the telemetry rows read by admin global and growth stats RPCs, avoiding repeated full scans of the append-only `app_error_events` incident stream.
 - Migration `177_optimize_admin_global_stats_v1_rpc.sql` keeps the `/api/admin/stats/global` payload contract intact while removing TOAST-heavy `ai_generations.metadata` from the shared generation CTE inside `get_admin_global_stats_v1()` and isolating autosave metadata reads to their own aggregate.
 - Migration `178_add_admin_stats_generated_columns.sql` adds generated scalar projections for the admin stats autosave decision and generation-projection style/character/reference flags, then points `get_admin_global_stats_v1()` at those scalars so dashboard reads do not repeatedly reopen TOAST-heavy JSON payloads.
+- Migration `180_harden_scheduler_and_admin_error_summary.sql` adds the missing explicit `60000ms` timeout to the internal billing renewals scheduler and provisions service-role-only `get_admin_error_events_summary_v1(...)` so `/api/admin/error-events` can load fixed summary counters through one aggregate RPC instead of many hot-table exact-count calls.
 - Migration `173_add_media_storage_lifecycle_diagnostics.sql` adds the service-role-only `voice_source_lifecycle` proof table plus the aggregate Media Library storage lifecycle diagnostic RPC used by the disabled-by-default internal dry-run route. It returns counts/bytes by lifecycle class without raw object paths or user ids and does not delete storage objects.
 - Migration `179_optimize_media_storage_lifecycle_summary.sql` keeps that aggregate Media Library lifecycle RPC contract intact while staging storage rows and reference rows through temp tables so hosted dry-run reporting avoids the prior timeout-prone all-in-one CTE plan.
 - Migration `175_enforce_storage_addon_no_stack.sql` updates base plan storage to `0/5/25/75/150 GB`, refreshes recurring storage add-on metadata to `10/50/100/250 GB` self-serve plus `500 GB` manual review, closes old public storage add-on offers until matching Stripe Prices are activated, clamps add-on quota math to one unit, and adds the database guard for one current billable recurring storage add-on per user with quantity exactly one; run `sql/check_billing_storage_addon_no_stack_drift.sql` before applying it.
 - Read-write hosted-Supabase maintenance script `sql/configure_cron_job_run_details_retention_supabase.sql` prunes old `cron.job_run_details` rows, compacts the pruned table, and schedules daily retention; the active-status index is documented as an owner-only follow-up if retention alone does not reduce pg_cron status-update scan I/O enough.
 - Read-only performance diagnostics script `sql/check_media_preview_variant_coverage_and_size.sql` reports source-class counts, variant-hint coverage, and p50/p90 size distributions for Media Library preview-risk triage.
-- Read-only derivative backlog diagnostics script `sql/check_media_derivative_processing_backlog.sql` reports image-row processing status/attempt distributions and top retry/exhausted candidates.
+- Read-only derivative backlog diagnostics script `sql/check_media_derivative_processing_backlog.sql` reports image-row processing status/attempt distributions as aggregate buckets only, without row ids, user ids, or storage paths in hosted artifacts.
 - Read-only Character Media V2 diagnostics script `sql/check_character_media_isolation_backfill.sql` reports `character_media_assets` coverage, unmapped legacy linkage rows, and profile/preset metadata completeness.
 
 ## Media storage scope verification (post-017)

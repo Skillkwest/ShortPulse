@@ -26,7 +26,10 @@ with expected_jobs as (
     values
       ('shortpulse_generation_recovery_every_minute'::text, '* * * * *'::text, 600::integer),
       ('shortpulse_media_derivatives_every_minute'::text, '* * * * *'::text, 600::integer),
-      ('shortpulse_admin_user_health_fleet_hourly'::text, '0 * * * *'::text, 3600::integer)
+      ('shortpulse_admin_user_health_fleet_hourly'::text, '0 * * * *'::text, 3600::integer),
+      ('shortpulse_internal_billing_renewals_hourly'::text, '15 * * * *'::text, 3600::integer),
+      ('shortpulse_prune_cron_job_run_details_daily'::text, '5 3 * * *'::text, 3600::integer),
+      ('shortpulse_prune_worker_runs_daily'::text, '15 3 * * *'::text, 3600::integer)
   ) as t(jobname, expected_schedule, max_runtime_seconds)
 )
 select
@@ -53,7 +56,10 @@ with expected_jobs as (
     values
       ('shortpulse_generation_recovery_every_minute'::text, 3::integer),
       ('shortpulse_media_derivatives_every_minute'::text, 3::integer),
-      ('shortpulse_admin_user_health_fleet_hourly'::text, 3::integer)
+      ('shortpulse_admin_user_health_fleet_hourly'::text, 1::integer),
+      ('shortpulse_internal_billing_renewals_hourly'::text, 1::integer),
+      ('shortpulse_prune_cron_job_run_details_daily'::text, 0::integer),
+      ('shortpulse_prune_worker_runs_daily'::text, 0::integer)
   ) as t(jobname, minimum_sample_runs)
 ),
 runs as (
@@ -105,7 +111,10 @@ with expected_jobs as (
     values
       ('shortpulse_generation_recovery_every_minute'::text, 600::integer),
       ('shortpulse_media_derivatives_every_minute'::text, 600::integer),
-      ('shortpulse_admin_user_health_fleet_hourly'::text, 3600::integer)
+      ('shortpulse_admin_user_health_fleet_hourly'::text, 3600::integer),
+      ('shortpulse_internal_billing_renewals_hourly'::text, 3600::integer),
+      ('shortpulse_prune_cron_job_run_details_daily'::text, 3600::integer),
+      ('shortpulse_prune_worker_runs_daily'::text, 3600::integer)
   ) as t(jobname, max_runtime_seconds)
 )
 select
@@ -129,7 +138,10 @@ with expected_jobs as (
     values
       ('shortpulse_generation_recovery_every_minute'::text),
       ('shortpulse_media_derivatives_every_minute'::text),
-      ('shortpulse_admin_user_health_fleet_hourly'::text)
+      ('shortpulse_admin_user_health_fleet_hourly'::text),
+      ('shortpulse_internal_billing_renewals_hourly'::text),
+      ('shortpulse_prune_cron_job_run_details_daily'::text),
+      ('shortpulse_prune_worker_runs_daily'::text)
   ) as t(jobname)
 ),
 latest as (
@@ -175,6 +187,12 @@ with expected_contract as (
       ),
       (
         'public.invoke_admin_user_health_fleet_scheduler()'::text,
+        'shortpulse_vercel_protection_bypass_token'::text,
+        'x-vercel-protection-bypass'::text,
+        'timeout_milliseconds := 60000'::text
+      ),
+      (
+        'public.invoke_internal_billing_renewals_scheduler()'::text,
         'shortpulse_vercel_protection_bypass_token'::text,
         'x-vercel-protection-bypass'::text,
         'timeout_milliseconds := 60000'::text

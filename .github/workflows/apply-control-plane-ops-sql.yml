@@ -20,6 +20,7 @@ on:
           - configure_generation_recovery_scheduler
           - configure_media_derivative_scheduler
           - configure_admin_user_health_fleet_scheduler
+          - configure_internal_billing_renewal_scheduler
           - configure_cron_job_run_details_retention
       confirm_token:
         description: "Type apply-control-plane-ops to confirm"
@@ -99,6 +100,11 @@ jobs:
               ;;
             configure_admin_user_health_fleet_scheduler)
               SQL_FILE="sql/configure_admin_user_health_fleet_scheduler_supabase.sql"
+              echo "Applying $SQL_FILE"
+              psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$SQL_FILE" | tee /tmp/control_plane_ops_sql.log
+              ;;
+            configure_internal_billing_renewal_scheduler)
+              SQL_FILE="sql/configure_internal_billing_renewal_scheduler_supabase.sql"
               echo "Applying $SQL_FILE"
               psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$SQL_FILE" | tee /tmp/control_plane_ops_sql.log
               ;;

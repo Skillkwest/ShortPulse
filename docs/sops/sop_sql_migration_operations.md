@@ -34,6 +34,7 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/configure_generation_recovery_cron_secret_supabase.sql`: set/update recovery scheduler bearer secret (`shortpulse_reconciler_cron_secret`) in Supabase Vault.
 - `sql/configure_media_derivative_scheduler_supabase.sql`: configure Supabase Cron + Vault-backed scheduler invocation for `/api/internal/media-derivatives/run`.
 - `sql/configure_admin_user_health_fleet_scheduler_supabase.sql`: configure Supabase Cron + Vault-backed scheduler invocation for `/api/internal/admin-user-health-fleet/run`.
+- `sql/configure_internal_billing_renewal_scheduler_supabase.sql`: configure Supabase Cron + Vault-backed scheduler invocation for `/api/internal/billing-contract-renewals/run`.
 - `sql/configure_control_plane_scheduler_bypass_secret_supabase.sql`: set/update optional Vault bypass token (`shortpulse_vercel_protection_bypass_token`) for Vercel-protected scheduler targets.
 - `sql/configure_cron_job_run_details_retention_supabase.sql`: prune old ended `cron.job_run_details` rows, compact the pruned table, and schedule daily run-history retention for Supabase Cron Disk I/O control.
 - `sql/migrations/172_schedule_worker_runs_retention.sql`: schedule daily hosted pg_cron retention for completed `ok` rows in `public.worker_runs` after 30 days while preserving incomplete/running rows and error rows.
@@ -42,6 +43,7 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/migrations/176_add_app_error_events_admin_stats_source_index.sql`: add a narrow partial index for admin stats telemetry reads from `app_error_events`.
 - `sql/migrations/177_optimize_admin_global_stats_v1_rpc.sql`: slim the shared generation CTE inside `get_admin_global_stats_v1()` so admin stats reads avoid carrying TOAST-heavy generation metadata through unrelated aggregates.
 - `sql/migrations/178_add_admin_stats_generated_columns.sql`: add DB-maintained scalar projections for the remaining TOAST-heavy admin stats JSON flags and update `get_admin_global_stats_v1()` to read those scalars.
+- `sql/migrations/180_harden_scheduler_and_admin_error_summary.sql`: add the missing internal billing scheduler HTTP timeout and provision service-role-only aggregate admin error-events summary RPC.
 - `sql/audit_billing_credit_rls.sql`: billing RLS audit checks.
 - `sql/check_database_io_hotspots.sql`: read-only `pg_stat_statements` shared-block I/O summary plus table size/read posture and hot diagnostic table age/retention posture without raw query text.
 - `sql/check_media_storage_scope_drift.sql`: media storage scope drift diagnostics (read-only).
@@ -51,8 +53,8 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/check_database_egress_query_stats.sql`: `pg_stat_statements` query-class summary plus hot-path table scan/cache/index posture for database/API egress risk without printing raw query text or row data (read-only).
 - `sql/check_postgrest_payload_projection_risk.sql`: PostgREST payload projection risk summary for generation tables, including aggregate column-size posture and hot query projection classes without printing raw query text or row data (read-only).
 - `sql/check_scheduler_egress_activity.sql`: Supabase Cron and `pg_net` activity profile for distinguishing expected scheduler cadence from duplicate jobs or failing HTTP patterns, without printing URLs, headers, bodies, or secrets (read-only).
-- `sql/check_media_derivative_processing_backlog.sql`: media derivative backlog/retry diagnostics for image rows (read-only).
-- `sql/check_media_derivative_terminal_failures.sql`: terminal derivative failure diagnostics for image rows exhausted out of retry (read-only).
+- `sql/check_media_derivative_processing_backlog.sql`: aggregate media derivative backlog/retry diagnostics for image rows without row ids, user ids, or storage paths (read-only).
+- `sql/check_media_derivative_terminal_failures.sql`: aggregate terminal derivative failure diagnostics for image rows exhausted out of retry without row ids, user ids, or storage paths (read-only).
 - `sql/repair_media_derivative_requeue_terminal_row.sql`: targeted operator requeue for a repaired terminal image row (read-write).
 - `sql/check_user_owned_custom_voices_backfill.sql`: custom-voice ownership backfill diagnostics after migrations `128`/`129`/`130` (read-only).
 - `sql/check_user_owned_custom_voices_review_queue.sql`: custom-voice ownership review-queue diagnostics for migrated/disputed rows and suspicious sample-path scope mismatches (read-only).
@@ -251,6 +253,7 @@ Migration number 134 is intentionally unused; the ordered sequence moves from `1
 - `177_optimize_admin_global_stats_v1_rpc.sql`
 - `178_add_admin_stats_generated_columns.sql`
 - `179_optimize_media_storage_lifecycle_summary.sql`
+- `180_harden_scheduler_and_admin_error_summary.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 
@@ -313,7 +316,7 @@ Use only when explicitly reverting a migration in a controlled window. Prefer ta
 - Use `.github/workflows/cost-performance-diagnostics.yml` for read-only DB I/O, database/API egress, storage-object byte posture, scheduler activity, and media-derivative cost diagnostics against `staging`/`production`.
 - Runner script authority: `scripts/cost_performance_diagnostics.sh`.
 - Keep cost-performance mode at `warn` until a production baseline artifact has been reviewed. The hosted workflow intentionally excludes `sql/check_media_storage_cleanup_manifest.sql` because that local-review manifest can print raw storage paths for delete candidates.
-- Use `.github/workflows/apply-control-plane-ops-sql.yml` for environment-scoped scheduler SQL apply operations (`configure_bypass_secret`, `configure_generation_recovery_cron_secret`, `configure_generation_recovery_scheduler`, `configure_media_derivative_scheduler`, `configure_admin_user_health_fleet_scheduler`, `configure_cron_job_run_details_retention`).
+- Use `.github/workflows/apply-control-plane-ops-sql.yml` for environment-scoped scheduler SQL apply operations (`configure_bypass_secret`, `configure_generation_recovery_cron_secret`, `configure_generation_recovery_scheduler`, `configure_media_derivative_scheduler`, `configure_admin_user_health_fleet_scheduler`, `configure_internal_billing_renewal_scheduler`, `configure_cron_job_run_details_retention`).
 - Use `.github/workflows/apply-hosted-sql-migration.yml` for numbered hosted migrations such as `sql/migrations/172_schedule_worker_runs_retention.sql`.
 
 ## Standard Runbooks

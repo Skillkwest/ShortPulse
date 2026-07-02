@@ -3,15 +3,15 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import {
-  ADMISSION_LIMITED_TELEMETRY_SOURCE,
-  CHARACTER_MODE_BUNDLE_UNAVAILABLE_FALLBACK_EVENT,
-  CHARACTER_MODE_REFERENCE_REFRESH_EMPTY_EVENT,
-  CHARACTER_MODE_TELEMETRY_SOURCE,
-  PROJECT_WORKSPACE_REPAIR_PENDING_TELEMETRY_SOURCE,
-} from "../errorTelemetryPolicy";
 import { applyEventFilters } from "./filters";
-import type { CountQueryResult, EventFilterInput, EventQuery, ListQueryResult } from "./types";
+import { createAdmissionSummary } from "./summary";
+import type {
+  AdmissionSummary,
+  CountQueryResult,
+  EventFilterInput,
+  EventQuery,
+  ListQueryResult,
+} from "./types";
 
 const APP_ERROR_EVENTS_COLUMNS =
   "id, incident_id, fingerprint, source, scope, severity, message, stack, route, endpoint, request_id, http_status, user_id, user_email, metadata, occurred_at, created_at, app_error_logs!left(status)";
@@ -34,7 +34,10 @@ export type ErrorEventsDatasetResult = {
   characterModeBundleUnavailableFallbackLast24hCountResult: CountQueryResult;
   projectWorkspaceRepairPendingLastHourCountResult: CountQueryResult;
   projectWorkspaceRepairPendingLast24hCountResult: CountQueryResult;
-  admissionDeniedTelemetryRowsResult: ListQueryResult;
+  admissionDeniedTelemetryResult: {
+    data: AdmissionSummary | null;
+    error: { message: string } | null;
+  };
 };
 
 export type ErrorActionableEventsResult = {
@@ -44,10 +47,61 @@ export type ErrorActionableEventsResult = {
   unlinkedCountResult: CountQueryResult;
 };
 
+type SummaryRpcResult = {
+  data: unknown;
+  error: { message: string } | null;
+};
+
+type SummaryCountKey =
+  | "last15mCount"
+  | "high15mCount"
+  | "generation15mCount"
+  | "providerRunningTimeout15mCount"
+  | "lastHourCount"
+  | "last24hCount"
+  | "app24hCount"
+  | "generation24hCount"
+  | "high24hCount"
+  | "characterModeReferenceRefreshEmptyLastHourCount"
+  | "characterModeReferenceRefreshEmptyLast24hCount"
+  | "characterModeBundleUnavailableFallbackLastHourCount"
+  | "characterModeBundleUnavailableFallbackLast24hCount"
+  | "projectWorkspaceRepairPendingLastHourCount"
+  | "projectWorkspaceRepairPendingLast24hCount";
+
+const asSummaryRecord = (value: unknown): Record<string, unknown> | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+};
+
+const summaryCountResult = (result: SummaryRpcResult, key: SummaryCountKey): CountQueryResult => {
+  if (result.error) return { count: null, error: result.error };
+  const payload = asSummaryRecord(result.data);
+  const rawValue = payload?.[key];
+  const numericValue = typeof rawValue === "number" ? rawValue : Number(rawValue ?? 0);
+  return {
+    count: Number.isFinite(numericValue) ? numericValue : 0,
+    error: null,
+  };
+};
+
+const summaryAdmissionResult = (
+  result: SummaryRpcResult
+): ErrorEventsDatasetResult["admissionDeniedTelemetryResult"] => {
+  if (result.error) return { data: null, error: result.error };
+  const payload = asSummaryRecord(result.data);
+  const admissionSummary = payload?.admissionDeniedTelemetry;
+  return {
+    data: asSummaryRecord(admissionSummary)
+      ? (admissionSummary as AdmissionSummary)
+      : createAdmissionSummary(),
+    error: null,
+  };
+};
+
 export const fetchErrorEventsDataset = async (params: {
   supabaseAdmin: SupabaseClient;
   listFilters: EventFilterInput;
-  summaryFilters: EventFilterInput;
   listRangeStart: number;
   listRangeEnd: number;
   since15mIso: string;
@@ -71,153 +125,53 @@ export const fetchErrorEventsDataset = async (params: {
     params.listFilters
   ) as unknown as Promise<CountQueryResult>;
 
-  const [
-    eventsResult,
-    filteredCountResult,
-    last15mCountResult,
-    high15mCountResult,
-    generation15mCountResult,
-    providerRunningTimeout15mCountResult,
-    lastHourCountResult,
-    last24hCountResult,
-    app24hCountResult,
-    generation24hCountResult,
-    high24hCountResult,
-    characterModeReferenceRefreshEmptyLastHourCountResult,
-    characterModeReferenceRefreshEmptyLast24hCountResult,
-    characterModeBundleUnavailableFallbackLastHourCountResult,
-    characterModeBundleUnavailableFallbackLast24hCountResult,
-    projectWorkspaceRepairPendingLastHourCountResult,
-    projectWorkspaceRepairPendingLast24hCountResult,
-    admissionDeniedTelemetryRowsResult,
-  ] = await Promise.all([
+  const [eventsResult, filteredCountResult, summaryResult] = await Promise.all([
     eventsQuery,
     filteredCountQuery,
-    applyEventFilters(
-      params.supabaseAdmin
-        .from("app_error_events")
-        .select("id", { count: "exact", head: true })
-        .gte("occurred_at", params.since15mIso) as unknown as EventQuery,
-      params.summaryFilters
-    ) as unknown as Promise<CountQueryResult>,
-    applyEventFilters(
-      params.supabaseAdmin
-        .from("app_error_events")
-        .select("id", { count: "exact", head: true })
-        .gte("occurred_at", params.since15mIso)
-        .eq("severity", "high") as unknown as EventQuery,
-      params.summaryFilters
-    ) as unknown as Promise<CountQueryResult>,
-    applyEventFilters(
-      params.supabaseAdmin
-        .from("app_error_events")
-        .select("id", { count: "exact", head: true })
-        .gte("occurred_at", params.since15mIso)
-        .eq("scope", "generation") as unknown as EventQuery,
-      params.summaryFilters
-    ) as unknown as Promise<CountQueryResult>,
-    params.supabaseAdmin
-      .from("ai_generations")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "fail")
-      .eq("failure_reason_code", "provider_running_timeout")
-      .gte("completed_at", params.since15mIso) as unknown as Promise<CountQueryResult>,
-    applyEventFilters(
-      params.supabaseAdmin
-        .from("app_error_events")
-        .select("id", { count: "exact", head: true })
-        .gte("occurred_at", params.sinceHourIso) as unknown as EventQuery,
-      params.summaryFilters
-    ) as unknown as Promise<CountQueryResult>,
-    applyEventFilters(
-      params.supabaseAdmin
-        .from("app_error_events")
-        .select("id", { count: "exact", head: true })
-        .gte("occurred_at", params.since24hIso) as unknown as EventQuery,
-      params.summaryFilters
-    ) as unknown as Promise<CountQueryResult>,
-    applyEventFilters(
-      params.supabaseAdmin
-        .from("app_error_events")
-        .select("id", { count: "exact", head: true })
-        .gte("occurred_at", params.since24hIso)
-        .eq("scope", "app") as unknown as EventQuery,
-      params.summaryFilters
-    ) as unknown as Promise<CountQueryResult>,
-    applyEventFilters(
-      params.supabaseAdmin
-        .from("app_error_events")
-        .select("id", { count: "exact", head: true })
-        .gte("occurred_at", params.since24hIso)
-        .eq("scope", "generation") as unknown as EventQuery,
-      params.summaryFilters
-    ) as unknown as Promise<CountQueryResult>,
-    applyEventFilters(
-      params.supabaseAdmin
-        .from("app_error_events")
-        .select("id", { count: "exact", head: true })
-        .gte("occurred_at", params.since24hIso)
-        .eq("severity", "high") as unknown as EventQuery,
-      params.summaryFilters
-    ) as unknown as Promise<CountQueryResult>,
-    params.supabaseAdmin
-      .from("app_error_events")
-      .select("id", { count: "exact", head: true })
-      .gte("occurred_at", params.sinceHourIso)
-      .eq("source", CHARACTER_MODE_TELEMETRY_SOURCE)
-      .eq(
-        "message",
-        CHARACTER_MODE_REFERENCE_REFRESH_EMPTY_EVENT
-      ) as unknown as Promise<CountQueryResult>,
-    params.supabaseAdmin
-      .from("app_error_events")
-      .select("id", { count: "exact", head: true })
-      .gte("occurred_at", params.since24hIso)
-      .eq("source", CHARACTER_MODE_TELEMETRY_SOURCE)
-      .eq(
-        "message",
-        CHARACTER_MODE_REFERENCE_REFRESH_EMPTY_EVENT
-      ) as unknown as Promise<CountQueryResult>,
-    params.supabaseAdmin
-      .from("app_error_events")
-      .select("id", { count: "exact", head: true })
-      .gte("occurred_at", params.sinceHourIso)
-      .eq("source", CHARACTER_MODE_TELEMETRY_SOURCE)
-      .eq(
-        "message",
-        CHARACTER_MODE_BUNDLE_UNAVAILABLE_FALLBACK_EVENT
-      ) as unknown as Promise<CountQueryResult>,
-    params.supabaseAdmin
-      .from("app_error_events")
-      .select("id", { count: "exact", head: true })
-      .gte("occurred_at", params.since24hIso)
-      .eq("source", CHARACTER_MODE_TELEMETRY_SOURCE)
-      .eq(
-        "message",
-        CHARACTER_MODE_BUNDLE_UNAVAILABLE_FALLBACK_EVENT
-      ) as unknown as Promise<CountQueryResult>,
-    params.supabaseAdmin
-      .from("app_error_events")
-      .select("id", { count: "exact", head: true })
-      .gte("occurred_at", params.sinceHourIso)
-      .eq(
-        "source",
-        PROJECT_WORKSPACE_REPAIR_PENDING_TELEMETRY_SOURCE
-      ) as unknown as Promise<CountQueryResult>,
-    params.supabaseAdmin
-      .from("app_error_events")
-      .select("id", { count: "exact", head: true })
-      .gte("occurred_at", params.since24hIso)
-      .eq(
-        "source",
-        PROJECT_WORKSPACE_REPAIR_PENDING_TELEMETRY_SOURCE
-      ) as unknown as Promise<CountQueryResult>,
-    params.supabaseAdmin
-      .from("app_error_events")
-      .select("occurred_at, metadata")
-      .eq("source", ADMISSION_LIMITED_TELEMETRY_SOURCE)
-      .gte("occurred_at", params.since24hIso) as unknown as Promise<ListQueryResult>,
+    params.supabaseAdmin.rpc("get_admin_error_events_summary_v1", {
+      p_since_15m: params.since15mIso,
+      p_since_hour: params.sinceHourIso,
+      p_since_24h: params.since24hIso,
+    }) as unknown as Promise<SummaryRpcResult>,
   ]);
+
+  const last15mCountResult = summaryCountResult(summaryResult, "last15mCount");
+  const high15mCountResult = summaryCountResult(summaryResult, "high15mCount");
+  const generation15mCountResult = summaryCountResult(summaryResult, "generation15mCount");
+  const providerRunningTimeout15mCountResult = summaryCountResult(
+    summaryResult,
+    "providerRunningTimeout15mCount"
+  );
+  const lastHourCountResult = summaryCountResult(summaryResult, "lastHourCount");
+  const last24hCountResult = summaryCountResult(summaryResult, "last24hCount");
+  const app24hCountResult = summaryCountResult(summaryResult, "app24hCount");
+  const generation24hCountResult = summaryCountResult(summaryResult, "generation24hCount");
+  const high24hCountResult = summaryCountResult(summaryResult, "high24hCount");
+  const characterModeReferenceRefreshEmptyLastHourCountResult = summaryCountResult(
+    summaryResult,
+    "characterModeReferenceRefreshEmptyLastHourCount"
+  );
+  const characterModeReferenceRefreshEmptyLast24hCountResult = summaryCountResult(
+    summaryResult,
+    "characterModeReferenceRefreshEmptyLast24hCount"
+  );
+  const characterModeBundleUnavailableFallbackLastHourCountResult = summaryCountResult(
+    summaryResult,
+    "characterModeBundleUnavailableFallbackLastHourCount"
+  );
+  const characterModeBundleUnavailableFallbackLast24hCountResult = summaryCountResult(
+    summaryResult,
+    "characterModeBundleUnavailableFallbackLast24hCount"
+  );
+  const projectWorkspaceRepairPendingLastHourCountResult = summaryCountResult(
+    summaryResult,
+    "projectWorkspaceRepairPendingLastHourCount"
+  );
+  const projectWorkspaceRepairPendingLast24hCountResult = summaryCountResult(
+    summaryResult,
+    "projectWorkspaceRepairPendingLast24hCount"
+  );
+  const admissionDeniedTelemetryResult = summaryAdmissionResult(summaryResult);
 
   return {
     eventsResult,
@@ -237,7 +191,7 @@ export const fetchErrorEventsDataset = async (params: {
     characterModeBundleUnavailableFallbackLast24hCountResult,
     projectWorkspaceRepairPendingLastHourCountResult,
     projectWorkspaceRepairPendingLast24hCountResult,
-    admissionDeniedTelemetryRowsResult,
+    admissionDeniedTelemetryResult,
   };
 };
 

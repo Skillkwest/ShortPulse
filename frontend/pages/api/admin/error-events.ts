@@ -29,7 +29,7 @@ import {
   fetchActionableErrorEvents,
 } from "../../../lib/server/api/adminErrorEvents/queries";
 import {
-  buildAdmissionSummary,
+  createAdmissionSummary,
   buildDegradedEventsPayload,
   countErrorMessage,
   countOrZero,
@@ -81,18 +81,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ? { ...filters, incident: "all" as IncidentFilterValue }
       : filters;
 
-    const summaryFilters: EventFilterInput = {
-      scope: "all",
-      severity: "all",
-      source: "all",
-      search: "",
-      // Operational summaries should reflect real traffic, not operator test events.
-      synthetic: "exclude",
-      signal: "all",
-      incident: "all",
-      excludeTelemetrySources: true,
-    };
-
     const listRangeStart = isActionableIncidentFilter ? 0 : offset;
     const listRangeEnd = isActionableIncidentFilter ? Math.max(0, limit - 1) : offset + limit - 1;
 
@@ -100,9 +88,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const since15mIso = new Date(nowMs - 15 * 60 * 1000).toISOString();
     const sinceHourIso = new Date(nowMs - 60 * 60 * 1000).toISOString();
     const since24hIso = new Date(nowMs - 24 * 60 * 60 * 1000).toISOString();
-    const since15mMs = nowMs - 15 * 60 * 1000;
-    const sinceHourMs = nowMs - 60 * 60 * 1000;
-    const since24hMs = nowMs - 24 * 60 * 60 * 1000;
 
     const total15mThreshold = asThreshold(
       process.env.SHORTPULSE_ADMIN_ALERT_TOTAL_15M,
@@ -139,11 +124,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       characterModeBundleUnavailableFallbackLast24hCountResult,
       projectWorkspaceRepairPendingLastHourCountResult,
       projectWorkspaceRepairPendingLast24hCountResult,
-      admissionDeniedTelemetryRowsResult,
+      admissionDeniedTelemetryResult,
     } = await fetchErrorEventsDataset({
       supabaseAdmin,
       listFilters,
-      summaryFilters,
       listRangeStart,
       listRangeEnd,
       since15mIso,
@@ -335,15 +319,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       countErrorMessage(characterModeBundleUnavailableFallbackLast24hCountResult),
       countErrorMessage(projectWorkspaceRepairPendingLastHourCountResult),
       countErrorMessage(projectWorkspaceRepairPendingLast24hCountResult),
-      admissionDeniedTelemetryRowsResult.error?.message ?? null,
+      admissionDeniedTelemetryResult.error?.message ?? null,
     ].filter((value): value is string => Boolean(value));
 
-    const admissionDeniedTelemetry = buildAdmissionSummary({
-      rows: admissionDeniedTelemetryRowsResult.data,
-      since15mMs,
-      sinceHourMs,
-      since24hMs,
-    });
+    const admissionDeniedTelemetry =
+      admissionDeniedTelemetryResult.data ?? createAdmissionSummary();
 
     const healthReasons: string[] = [];
     if (hasFilteredCountError) {

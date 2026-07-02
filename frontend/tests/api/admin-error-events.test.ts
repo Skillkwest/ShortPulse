@@ -23,12 +23,16 @@ const createMockResponse = () => ({
   json: vi.fn().mockReturnThis(),
 });
 type QueryResult = {
-  data?: unknown[] | null;
+  data?: unknown;
   count?: number | null;
   error?: { message: string } | null;
 };
 
 const createSupabaseAdminMock = (queues: Record<string, QueryResult[]>) => ({
+  rpc: (functionName: string) => {
+    const queue = queues[`rpc:${functionName}`] ?? [];
+    return Promise.resolve(queue.shift() ?? { data: null, count: null, error: null });
+  },
   from: (table: string) => {
     const queue = queues[table] ?? [];
 
@@ -111,9 +115,92 @@ describe("GET /api/admin/error-events", () => {
   });
 
   it("returns enriched events with threshold summary", async () => {
-    const nowMs = Date.now();
     getSupabaseAdminMock.mockReturnValue(
       createSupabaseAdminMock({
+        "rpc:get_admin_error_events_summary_v1": [
+          {
+            data: {
+              last15mCount: 50,
+              high15mCount: 9,
+              generation15mCount: 22,
+              providerRunningTimeout15mCount: 0,
+              lastHourCount: 60,
+              last24hCount: 500,
+              app24hCount: 300,
+              generation24hCount: 200,
+              high24hCount: 40,
+              characterModeReferenceRefreshEmptyLastHourCount: 3,
+              characterModeReferenceRefreshEmptyLast24hCount: 9,
+              characterModeBundleUnavailableFallbackLastHourCount: 2,
+              characterModeBundleUnavailableFallbackLast24hCount: 7,
+              projectWorkspaceRepairPendingLastHourCount: 0,
+              projectWorkspaceRepairPendingLast24hCount: 0,
+              admissionDeniedTelemetry: {
+                last15m: {
+                  total: 1,
+                  byTier: {
+                    unknown: 0,
+                    video_long: 1,
+                    image_heavy: 0,
+                    image_standard: 0,
+                  },
+                  byReason: {
+                    unknown: 0,
+                    global_limit: 0,
+                    tier_limit: 1,
+                    global_and_tier_limit: 0,
+                  },
+                  byScope: {
+                    unknown: 0,
+                    per_user: 0,
+                    shared_provider: 1,
+                  },
+                },
+                lastHour: {
+                  total: 2,
+                  byTier: {
+                    unknown: 0,
+                    video_long: 1,
+                    image_heavy: 0,
+                    image_standard: 1,
+                  },
+                  byReason: {
+                    unknown: 0,
+                    global_limit: 1,
+                    tier_limit: 1,
+                    global_and_tier_limit: 0,
+                  },
+                  byScope: {
+                    unknown: 0,
+                    per_user: 1,
+                    shared_provider: 1,
+                  },
+                },
+                last24h: {
+                  total: 3,
+                  byTier: {
+                    unknown: 0,
+                    video_long: 1,
+                    image_heavy: 1,
+                    image_standard: 1,
+                  },
+                  byReason: {
+                    unknown: 0,
+                    global_limit: 1,
+                    tier_limit: 1,
+                    global_and_tier_limit: 1,
+                  },
+                  byScope: {
+                    unknown: 0,
+                    per_user: 2,
+                    shared_provider: 1,
+                  },
+                },
+              },
+            },
+            error: null,
+          },
+        ],
         app_error_events: [
           {
             data: [
@@ -140,49 +227,6 @@ describe("GET /api/admin/error-events", () => {
             error: null,
           },
           { count: 123, error: null },
-          { count: 50, error: null },
-          { count: 9, error: null },
-          { count: 22, error: null },
-          { count: 60, error: null },
-          { count: 500, error: null },
-          { count: 300, error: null },
-          { count: 200, error: null },
-          { count: 40, error: null },
-          { count: 3, error: null },
-          { count: 9, error: null },
-          { count: 2, error: null },
-          { count: 7, error: null },
-          { count: 0, error: null },
-          { count: 0, error: null },
-          {
-            data: [
-              {
-                occurred_at: new Date(nowMs - 2 * 60 * 1000).toISOString(),
-                metadata: {
-                  tier: "video_long",
-                  reason: "tier_limit",
-                  admission_scope: "shared_provider",
-                },
-              },
-              {
-                occurred_at: new Date(nowMs - 30 * 60 * 1000).toISOString(),
-                metadata: {
-                  tier: "image_standard",
-                  reason: "global_limit",
-                  admission_scope: "per_user",
-                },
-              },
-              {
-                occurred_at: new Date(nowMs - 2 * 60 * 60 * 1000).toISOString(),
-                metadata: {
-                  tier: "image_heavy",
-                  reason: "global_and_tier_limit",
-                  admission_scope: "per_user",
-                },
-              },
-            ],
-            error: null,
-          },
         ],
         app_error_logs: [
           { data: [{ id: "11111111-1111-4111-8111-111111111111", status: "open" }], error: null },
@@ -387,7 +431,7 @@ describe("GET /api/admin/error-events", () => {
       characterModeBundleUnavailableFallbackLast24hCountResult: { count: 0, error: null },
       projectWorkspaceRepairPendingLastHourCountResult: { count: 0, error: null },
       projectWorkspaceRepairPendingLast24hCountResult: { count: 0, error: null },
-      admissionDeniedTelemetryRowsResult: { data: [], error: null },
+      admissionDeniedTelemetryResult: { data: null, error: null },
     });
     vi.spyOn(errorEventQueries, "fetchActionableErrorEvents").mockResolvedValue({
       openEventsResult: {

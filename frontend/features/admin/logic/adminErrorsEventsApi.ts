@@ -212,6 +212,30 @@ export const normalizeAdminErrorsResponse = (
   pagination: buildPagination(data.pagination, activePage, ERRORS_PER_PAGE),
 });
 
+export const normalizeAdminErrorEventRow = (item: unknown): AdminErrorEventRow => {
+  const value = toObjectRecord(item);
+  return {
+    id: String(value.id ?? ""),
+    incidentId: toStringOrNull(value.incident_id),
+    incidentStatus: toIncidentStatus(value.incident_status),
+    fingerprint: String(value.fingerprint ?? ""),
+    source: String(value.source ?? "unknown"),
+    scope: toScope(value.scope),
+    severity: toSeverity(value.severity),
+    message: String(value.message ?? "Unknown error event"),
+    stack: toStringOrNull(value.stack),
+    route: toStringOrNull(value.route),
+    endpoint: toStringOrNull(value.endpoint),
+    requestId: toStringOrNull(value.request_id),
+    httpStatus: Number.isFinite(Number(value.http_status)) ? Number(value.http_status) : null,
+    userId: toStringOrNull(value.user_id),
+    userEmail: toStringOrNull(value.user_email),
+    metadata: toMetadataRecordOrNull(value.metadata),
+    occurredAt: toStringOrNull(value.occurred_at),
+    createdAt: toStringOrNull(value.created_at),
+  };
+};
+
 export const normalizeAdminErrorEventsResponse = (
   data: {
     events?: unknown[];
@@ -221,29 +245,7 @@ export const normalizeAdminErrorEventsResponse = (
   },
   activePage: number
 ): NormalizedAdminErrorEventsResponse => ({
-  rows: (data.events ?? []).map((item) => {
-    const value = toObjectRecord(item);
-    return {
-      id: String(value.id ?? ""),
-      incidentId: toStringOrNull(value.incident_id),
-      incidentStatus: toIncidentStatus(value.incident_status),
-      fingerprint: String(value.fingerprint ?? ""),
-      source: String(value.source ?? "unknown"),
-      scope: toScope(value.scope),
-      severity: toSeverity(value.severity),
-      message: String(value.message ?? "Unknown error event"),
-      stack: toStringOrNull(value.stack),
-      route: toStringOrNull(value.route),
-      endpoint: toStringOrNull(value.endpoint),
-      requestId: toStringOrNull(value.request_id),
-      httpStatus: Number.isFinite(Number(value.http_status)) ? Number(value.http_status) : null,
-      userId: toStringOrNull(value.user_id),
-      userEmail: toStringOrNull(value.user_email),
-      metadata: toMetadataRecordOrNull(value.metadata),
-      occurredAt: toStringOrNull(value.occurred_at),
-      createdAt: toStringOrNull(value.created_at),
-    };
-  }),
+  rows: (data.events ?? []).map((item) => normalizeAdminErrorEventRow(item)),
   summary: {
     admissionDeniedTelemetry:
       data.summary?.admissionDeniedTelemetry ??

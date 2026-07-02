@@ -697,15 +697,19 @@ describe("DetailModal", () => {
     const actionButtons = screen
       .getAllByRole("button")
       .filter((button) =>
-        ["Delete", "Save", "Download"].includes(
+        ["Delete", "Save to media library", "Download"].includes(
           button.getAttribute("aria-label") ?? button.textContent ?? ""
         )
       );
     expect(
       actionButtons.map((button) => button.getAttribute("aria-label") ?? button.textContent)
-    ).toEqual(["Delete", "Save", "Download"]);
+    ).toEqual(["Delete", "Save to media library", "Download"]);
 
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    const saveButton = screen.getByRole("button", { name: "Save to media library" });
+    expect(saveButton).toHaveClass("is-icon-only");
+    expect(saveButton).toHaveTextContent("");
+
+    fireEvent.click(saveButton);
     expect(onSaveReference).toHaveBeenCalledWith("out-1");
   });
 
@@ -1046,7 +1050,7 @@ describe("DetailModal", () => {
     );
 
     expect(screen.queryByRole("button", { name: "Saved" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save to media library" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Download" })).toBeInTheDocument();
   });
 
@@ -1069,11 +1073,11 @@ describe("DetailModal", () => {
       />
     );
 
-    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save to media library" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Download" })).not.toBeInTheDocument();
   });
 
-  it("shows Retry Save for failed media persistence state", () => {
+  it("shows an icon-only Retry save action for failed media persistence state", () => {
     render(
       <DetailModal
         output={{
@@ -1087,7 +1091,10 @@ describe("DetailModal", () => {
       />
     );
 
-    expect(screen.getByRole("button", { name: "Retry Save" })).toBeInTheDocument();
+    const retryButton = screen.getByRole("button", { name: "Retry save" });
+    expect(retryButton).toBeInTheDocument();
+    expect(retryButton).toHaveClass("is-icon-only");
+    expect(retryButton).toHaveTextContent("");
   });
 
   it("shows Retry Save and allows retrying after quota recovers", () => {
@@ -1105,7 +1112,7 @@ describe("DetailModal", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Retry Save" }));
+    fireEvent.click(screen.getByRole("button", { name: "Retry save" }));
     expect(onSaveReference).toHaveBeenCalledWith("out-1");
   });
 
@@ -1123,7 +1130,11 @@ describe("DetailModal", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    const saveButton = screen.getByRole("button", { name: "Save to media library" });
+    expect(saveButton).toHaveClass("is-icon-only");
+    expect(saveButton).toHaveTextContent("");
+
+    fireEvent.click(saveButton);
     expect(onSaveReference).toHaveBeenCalledWith("audio-out-1");
   });
 
@@ -1139,7 +1150,10 @@ describe("DetailModal", () => {
       />
     );
 
-    expect(screen.getByRole("button", { name: "Storage Full" })).toBeDisabled();
+    const storageFullButton = screen.getByRole("button", { name: "Storage full" });
+    expect(storageFullButton).toBeDisabled();
+    expect(storageFullButton).toHaveClass("is-icon-only");
+    expect(storageFullButton).toHaveTextContent("");
     expect(screen.getByText(/Your media storage is full\./i)).toBeInTheDocument();
   });
 

@@ -17,7 +17,7 @@ export type ReferenceGridArchivableRow = {
 };
 
 export const REFERENCE_GRID_WARN_VISIBLE_ITEMS = 300;
-export const REFERENCE_GRID_MAX_VISIBLE_ITEMS = 400;
+export const REFERENCE_GRID_MAX_VISIBLE_ITEMS = 500;
 export const REFERENCE_GRID_TARGET_TOTAL_ITEMS = 500;
 
 export const REFERENCE_GRID_CAP_REACHED_MESSAGE = `Reference Grid is limited to ${REFERENCE_GRID_MAX_VISIBLE_ITEMS} items. Remove items from the grid or use Media Library as your archive before adding more.`;

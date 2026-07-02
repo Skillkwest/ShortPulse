@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (February 17, 2026); amended for July 7 launch cap (June 12, 2026); amended for browser-load cap (June 13, 2026); amended for viewport-aware perf gates (June 30, 2026); amended for 400-active waypoint (June 30, 2026)
+Accepted (February 17, 2026); amended for July 7 launch cap (June 12, 2026); amended for browser-load cap (June 13, 2026); amended for viewport-aware perf gates (June 30, 2026); amended for 400-active waypoint (June 30, 2026); amended for 500-active target (July 2, 2026)
 
 ## Context
 
@@ -31,7 +31,7 @@ Adopt a bounded-work runtime for AI Studio Reference Grid:
 3. Soft archive by default
 
 - Keep the newest active references in the hot path.
-- For the July 7 launch window, cap the visible active Reference Grid workset at 400 items after the 300-active production perf and project-restore baselines passed and the next 400-active local buildout is validated.
+- For the July 7 launch window, cap the visible active Reference Grid workset at 500 items after the 300/400-active production perf and project-restore baselines passed, 500-active dark runtime proof completed, and the canonical cap promotion is validated.
 - Start high-density pressure at 300 items so the grid reduces browser work before it reaches the hard cap.
 - Move older over-cap cards into an archived bucket with restore actions instead of dropping them.
 - Project persistence must preserve project-restorable archived/cold rows separately from the hot active workset so reopening a project does not silently discard over-cap media.
@@ -62,7 +62,7 @@ Adopt a bounded-work runtime for AI Studio Reference Grid:
   - Requires disciplined cleanup handling for local object URLs.
 - Follow-ups:
   - Continue toward normalized output storage for deeper O(1) update guarantees.
-  - Add perf-harness baselines for 300/400-card profiles and archive-restore flows.
+  - Add perf-harness baselines for 300/400/500-card profiles and archive-restore flows.
   - Revisit adaptive preview tiering once derivative coverage is fully deployed.
 
 ## Alternatives considered

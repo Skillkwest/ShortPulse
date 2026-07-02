@@ -61,6 +61,14 @@ const createSupabaseAdminMock = (queues: Record<string, QueryResult[]>) => ({
       not: () => query,
       gte: () => query,
       or: () => query,
+      maybeSingle: () => {
+        ensureSelected();
+        return Promise.resolve({
+          data: selected?.data ?? null,
+          count: selected?.count ?? null,
+          error: selected?.error ?? null,
+        });
+      },
       then: (resolve: (value: QueryResult) => unknown, reject: (reason: unknown) => unknown) => {
         ensureSelected();
         const payload: QueryResult = {
@@ -112,6 +120,60 @@ describe("GET /api/admin/error-events", () => {
     expect(getSupabaseAdminMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({ error: "Unable to load error events." });
+  });
+
+  it("returns one full event detail for copy/detail hydration", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({
+        app_error_events: [
+          {
+            data: {
+              id: "evt-detail",
+              incident_id: "11111111-1111-4111-8111-111111111111",
+              fingerprint: "fp-detail",
+              source: "api.example",
+              scope: "app",
+              severity: "high",
+              message: "Detailed boom",
+              stack: "stack trace",
+              route: "api/example",
+              endpoint: "/api/example",
+              request_id: "req-detail",
+              http_status: 500,
+              user_id: "user-1",
+              user_email: "user@example.com",
+              metadata: { attempt: 1 },
+              occurred_at: "2026-02-14T00:00:00.000Z",
+              created_at: "2026-02-14T00:00:00.000Z",
+            },
+            error: null,
+          },
+        ],
+        app_error_logs: [
+          { data: [{ id: "11111111-1111-4111-8111-111111111111", status: "open" }], error: null },
+        ],
+      })
+    );
+
+    const req = {
+      method: "GET",
+      query: { eventId: "evt-detail" },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: expect.objectContaining({
+          id: "evt-detail",
+          stack: "stack trace",
+          metadata: { attempt: 1 },
+          incident_status: "open",
+        }),
+      })
+    );
   });
 
   it("returns enriched events with threshold summary", async () => {

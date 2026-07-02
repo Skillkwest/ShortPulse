@@ -308,6 +308,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 177.  `sql/migrations/178_add_admin_stats_generated_columns.sql`
 178.  `sql/migrations/179_optimize_media_storage_lifecycle_summary.sql`
 179.  `sql/migrations/180_harden_scheduler_and_admin_error_summary.sql`
+180.  `sql/migrations/181_harden_admin_pricing_offer_activation_grants.sql`
       Rollback files:
 
 
@@ -516,6 +517,7 @@ Billing safety note:
 - Migration `177_optimize_admin_global_stats_v1_rpc.sql` keeps the `/api/admin/stats/global` payload contract intact while removing TOAST-heavy `ai_generations.metadata` from the shared generation CTE inside `get_admin_global_stats_v1()` and isolating autosave metadata reads to their own aggregate.
 - Migration `178_add_admin_stats_generated_columns.sql` adds generated scalar projections for the admin stats autosave decision and generation-projection style/character/reference flags, then points `get_admin_global_stats_v1()` at those scalars so dashboard reads do not repeatedly reopen TOAST-heavy JSON payloads.
 - Migration `180_harden_scheduler_and_admin_error_summary.sql` adds the missing explicit `60000ms` timeout to the internal billing renewals scheduler and provisions service-role-only `get_admin_error_events_summary_v1(...)` so `/api/admin/error-events` can load fixed summary counters through one aggregate RPC instead of many hot-table exact-count calls.
+- Migration `181_harden_admin_pricing_offer_activation_grants.sql` re-hardens service-role-only execute grants for the admin billing plan/storage offer activation RPCs and keeps the control-plane enforce gate aligned with the runtime SQL security audit.
 - Migration `173_add_media_storage_lifecycle_diagnostics.sql` adds the service-role-only `voice_source_lifecycle` proof table plus the aggregate Media Library storage lifecycle diagnostic RPC used by the disabled-by-default internal dry-run route. It returns counts/bytes by lifecycle class without raw object paths or user ids and does not delete storage objects.
 - Migration `179_optimize_media_storage_lifecycle_summary.sql` keeps that aggregate Media Library lifecycle RPC contract intact while staging storage rows and reference rows through temp tables so hosted dry-run reporting avoids the prior timeout-prone all-in-one CTE plan.
 - Migration `175_enforce_storage_addon_no_stack.sql` updates base plan storage to `0/5/25/75/150 GB`, refreshes recurring storage add-on metadata to `10/50/100/250 GB` self-serve plus `500 GB` manual review, closes old public storage add-on offers until matching Stripe Prices are activated, clamps add-on quota math to one unit, and adds the database guard for one current billable recurring storage add-on per user with quantity exactly one; run `sql/check_billing_storage_addon_no_stack_drift.sql` before applying it.

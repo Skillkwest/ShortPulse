@@ -1,0 +1,5 @@
+-- Rollback intentionally leaves admin pricing offer activation grants hardened.
+--
+-- Migration 181 repairs least-privilege execute posture for service-role-only
+-- admin RPCs. Revoking service_role EXECUTE during rollback would reintroduce
+-- the production admin-pricing failure mode the migration fixes.

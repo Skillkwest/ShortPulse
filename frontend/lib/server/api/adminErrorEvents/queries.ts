@@ -13,7 +13,10 @@ import type {
   ListQueryResult,
 } from "./types";
 
-const APP_ERROR_EVENTS_COLUMNS =
+const APP_ERROR_EVENTS_LIST_COLUMNS =
+  "id, incident_id, fingerprint, source, scope, severity, message, route, endpoint, request_id, http_status, user_id, user_email, occurred_at, created_at, app_error_logs!left(status)";
+
+const APP_ERROR_EVENTS_DETAIL_COLUMNS =
   "id, incident_id, fingerprint, source, scope, severity, message, stack, route, endpoint, request_id, http_status, user_id, user_email, metadata, occurred_at, created_at, app_error_logs!left(status)";
 
 export type ErrorEventsDatasetResult = {
@@ -49,6 +52,11 @@ export type ErrorActionableEventsResult = {
 
 type SummaryRpcResult = {
   data: unknown;
+  error: { message: string } | null;
+};
+
+export type EventDetailQueryResult = {
+  data: unknown | null;
   error: { message: string } | null;
 };
 
@@ -111,7 +119,7 @@ export const fetchErrorEventsDataset = async (params: {
   const eventsQuery = applyEventFilters(
     params.supabaseAdmin
       .from("app_error_events")
-      .select(APP_ERROR_EVENTS_COLUMNS)
+      .select(APP_ERROR_EVENTS_LIST_COLUMNS)
       .order("occurred_at", { ascending: false })
       .range(params.listRangeStart, params.listRangeEnd) as unknown as EventQuery,
     params.listFilters
@@ -218,7 +226,7 @@ export const fetchActionableErrorEvents = async (params: {
       applyEventFilters(
         params.supabaseAdmin
           .from("app_error_events")
-          .select(APP_ERROR_EVENTS_COLUMNS)
+          .select(APP_ERROR_EVENTS_LIST_COLUMNS)
           .order("occurred_at", { ascending: false })
           .range(0, end) as unknown as EventQuery,
         openFilters
@@ -226,7 +234,7 @@ export const fetchActionableErrorEvents = async (params: {
       applyEventFilters(
         params.supabaseAdmin
           .from("app_error_events")
-          .select(APP_ERROR_EVENTS_COLUMNS)
+          .select(APP_ERROR_EVENTS_LIST_COLUMNS)
           .order("occurred_at", { ascending: false })
           .range(0, end) as unknown as EventQuery,
         unlinkedFilters
@@ -262,9 +270,20 @@ export const fetchFallbackEventsPage = async (params: {
   return (await applyEventFilters(
     params.supabaseAdmin
       .from("app_error_events")
-      .select(APP_ERROR_EVENTS_COLUMNS)
+      .select(APP_ERROR_EVENTS_LIST_COLUMNS)
       .order("occurred_at", { ascending: false })
       .range(params.offset, params.offset + params.limit - 1) as unknown as EventQuery,
     params.filters
   )) as unknown as ListQueryResult;
+};
+
+export const fetchErrorEventDetail = async (params: {
+  supabaseAdmin: SupabaseClient;
+  eventId: string;
+}): Promise<EventDetailQueryResult> => {
+  return (await params.supabaseAdmin
+    .from("app_error_events")
+    .select(APP_ERROR_EVENTS_DETAIL_COLUMNS)
+    .eq("id", params.eventId)
+    .maybeSingle()) as unknown as EventDetailQueryResult;
 };

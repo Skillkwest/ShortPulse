@@ -25,6 +25,7 @@ import {
 } from "../../../lib/server/api/adminErrorEvents/parsing";
 import {
   fetchErrorEventsDataset,
+  fetchErrorEventDetail,
   fetchFallbackEventsPage,
   fetchActionableErrorEvents,
 } from "../../../lib/server/api/adminErrorEvents/queries";
@@ -62,6 +63,58 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const supabaseAdmin = getSupabaseAdmin();
+    const eventId = typeof req.query.eventId === "string" ? req.query.eventId.trim() : "";
+    if (eventId) {
+      const detailResult = await fetchErrorEventDetail({
+        supabaseAdmin,
+        eventId,
+      });
+
+      if (detailResult.error) {
+        if (isMissingEventsTableError(detailResult.error.message)) {
+          return res.status(200).json({
+            event: null,
+            health: {
+              eventsTableAvailable: false,
+              degraded: true,
+              reason: APP_ERROR_EVENTS_MISSING_REASON,
+            },
+          });
+        }
+        await logApiRouteException({
+          req,
+          error: detailResult.error,
+          routeLabel: "admin/error-events.detail",
+          user: adminUser,
+          metadata: { event_id: eventId },
+        });
+        return res.status(500).json({
+          error: detailResult.error.message || "Unable to load error event detail.",
+        });
+      }
+
+      if (!detailResult.data) {
+        return res.status(200).json({
+          event: null,
+          health: healthyState(),
+        });
+      }
+
+      const enrichedDetailResult = await enrichEventsWithIncidentStatus(supabaseAdmin, [
+        detailResult.data,
+      ]);
+      return res.status(200).json({
+        event: enrichedDetailResult.events[0] ?? null,
+        health: enrichedDetailResult.degraded
+          ? {
+              eventsTableAvailable: true,
+              degraded: true,
+              reason: enrichedDetailResult.reason,
+            }
+          : healthyState(),
+      });
+    }
+
     const page = asPositiveInt(req.query.page, 1);
     const limit = Math.min(MAX_LIMIT, asPositiveInt(req.query.limit, DEFAULT_LIMIT));
     const offset = (page - 1) * limit;

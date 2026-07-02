@@ -1,6 +1,6 @@
 # 2026-07-01 Full Repo Security Sweep
 
-Status: complete from repo-local audit evidence; hosted/live proof remains outside this pass.
+Status: complete from repo-local audit evidence; 2026-07-02 repo-local remediation closed F-001 and F-002; hosted/live proof remains outside this pass.
 
 Owner/lane: Dave the Security Guy, launch-readiness security audit.
 
@@ -59,6 +59,8 @@ Proof boundaries:
 | GitHub Actions/scripts/deploy gates            | Complete                 | SQL mutation workflows have environment-scoped secrets, confirmation tokens, constrained SQL paths/operations, and read-only permissions. Diagnostic workflows can upload row-level production identifiers as artifacts; finding below.                                                                                                            |
 
 ## Findings
+
+Remediation note, 2026-07-02: F-001 and F-002 were re-audited from current repo evidence and remediated in repo-local code. F-001 now fails closed in `frontend/lib/server/productImageAssetAdmission.ts` before product-image asset side effects when the current media agreement is not accepted. F-002 now keeps default reliability diagnostics aggregate-only; row-level diagnostic output lives behind explicit break-glass SQL files and the `include_row_details` workflow input. Validation is recorded in `docs/records/artifacts/agent/dave-the-security-guy/reports/2026-07-01-full-sweep-findings-remediation-handoff.md`.
 
 ### F-001: Product Image Asset Routes Bypass Server-Side Media Agreement Guard
 

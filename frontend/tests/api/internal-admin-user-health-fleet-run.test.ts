@@ -191,7 +191,7 @@ describe("POST /api/internal/admin-user-health-fleet/run", () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
-  it("returns 409 when an overlapping run is already active", async () => {
+  it("returns 200 when a scheduled overlapping run is already active", async () => {
     runAdminUserHealthFleetScanMock.mockResolvedValue({
       ok: false,
       status: "running",
@@ -208,6 +208,38 @@ describe("POST /api/internal/admin-user-health-fleet/run", () => {
     });
 
     const req = { method: "POST", headers: { "x-shortpulse-cron-secret": "fleet-secret" } };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("returns 409 when a manual overlapping run is already active", async () => {
+    runAdminUserHealthFleetScanMock.mockResolvedValue({
+      ok: false,
+      status: "running",
+      runId: "run-3",
+      targeted: 0,
+      processed: 0,
+      failed: 0,
+      partial: true,
+      criticalUsers: 0,
+      warningUsers: 0,
+      totalCostWithoutSuccessCents: 0,
+      durationMs: 20,
+      errors: ["A fleet scan run is already active."],
+    });
+
+    const req = {
+      method: "POST",
+      headers: {
+        "x-shortpulse-cron-secret": "fleet-secret",
+        "x-shortpulse-trigger-source": "manual",
+      },
+      query: {},
+      body: {},
+    };
     const res = createMockResponse();
 
     await handler(req as never, res as never);

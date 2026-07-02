@@ -1,12 +1,30 @@
 # 2026-07-01 Full Sweep Findings Remediation Handoff
 
-Status: ready for implementation by the next Dave/security agent.
+Status: completed from repo-local remediation on 2026-07-02; hosted/live proof not performed.
 
 Owner/lane: Dave the Security Guy, launch-readiness security remediation.
 
 Source sweep: `docs/records/artifacts/agent/dave-the-security-guy/reports/2026-07-01-full-repo-security-sweep.md`
 
 Objective: re-audit and solve the two confirmed findings from the full repo-local security sweep without widening into broad cleanup, UI/UX changes, behavior redesign, or low-ROI hardening.
+
+## 2026-07-02 Remediation Result
+
+- Issue 1 fixed at the canonical helper: `frontend/lib/server/productImageAssetAdmission.ts` now requires current media agreement acceptance before preparing product-image signed upload targets, finalizing staged product-image uploads, or admitting storage-backed product images.
+- Issue 1 regression coverage added in `frontend/lib/server/__tests__/productImageAssetAdmission.test.ts` for all three helper entry points. Existing route tests still pass without duplicating route-level consent logic.
+- Issue 2 fixed by data minimization: default reliability diagnostics remain aggregate-only, and row-level diagnostic queries were moved to explicit break-glass SQL files gated by `RELIABILITY_DIAGNOSTICS_INCLUDE_ROW_DETAILS=false` by default and the manual workflow `include_row_details` input.
+- No hosted Supabase, Vercel, GitHub secrets, customer data, production data, billing state, UI/UX behavior, signup semantics, credit semantics, or product flow was mutated in this remediation run.
+
+Validation recorded for this remediation:
+
+- `npm -C frontend test -- productImageAssetAdmission` passed.
+- `npm -C frontend test -- media-product-image-asset-routes` passed.
+- Static scan of the default artifact-bound reliability diagnostics path found no `user_id`, `generation_id`, `provider_request_id`, `source_ref`, row timing JSON, or media visibility timestamp fields.
+- `bash -n scripts/reliability_control_plane_diagnostics.sh` passed.
+- `node scripts/check_secret_exposure.js` passed.
+- `npm -C frontend run docs:check` passed.
+- `git diff --check` passed.
+- `npm -C frontend run type-check` is still blocked by unrelated pre-existing billing concurrency test typings in `frontend/tests/api/billingConcurrencyEntitlements.test.ts`.
 
 ## Startup Contract For The Next Agent
 

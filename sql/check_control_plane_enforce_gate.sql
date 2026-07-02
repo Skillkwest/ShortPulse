@@ -82,6 +82,8 @@ runtime_sql as (
         ('public.update_admin_kanban_item(uuid,text,text,uuid,text)'),
         ('public.move_admin_kanban_item(uuid,text,uuid,text)'),
         ('public.archive_admin_kanban_item(uuid,uuid,text)'),
+        ('public.activate_billing_plan_offer(text,text,text,text,integer,integer,bigint,integer,text,text,boolean)'),
+        ('public.activate_billing_storage_addon_offer(text,text,text,bigint,integer,text,text,boolean)'),
         ('public.reserve_generation_credits(uuid,text,text,integer,text,jsonb)'),
         ('public.mark_generation_reservation_submitted(uuid,text,text,jsonb)'),
         ('public.release_generation_reservation_by_source_ref(uuid,text,text,jsonb)'),

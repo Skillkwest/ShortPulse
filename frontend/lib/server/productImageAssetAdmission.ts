@@ -22,6 +22,10 @@ import {
 } from "./mediaIngest";
 import { admitImageBufferForProductUse } from "./imageAdmission";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
+import {
+  getMediaComplianceAcceptanceStatusForUser,
+  isMediaComplianceUnavailableError,
+} from "./api/mediaComplianceAcceptance";
 
 export type ProductImageAssetIntent =
   | "character_profile"
@@ -113,6 +117,30 @@ const resolveIntent = (value: string): ProductImageAssetIntent => {
     return value;
   }
   throw new ProductImageAssetAdmissionError(400, "Invalid request", "Unknown image asset intent.");
+};
+
+const assertMediaComplianceAcceptedForProductImageAsset = async (userId: string): Promise<void> => {
+  try {
+    const status = await getMediaComplianceAcceptanceStatusForUser(userId);
+    if (status.accepted) return;
+    throw new ProductImageAssetAdmissionError(
+      403,
+      "Media agreement acceptance is required.",
+      "MEDIA_COMPLIANCE_REQUIRED"
+    );
+  } catch (error) {
+    if (error instanceof ProductImageAssetAdmissionError) {
+      throw error;
+    }
+    if (isMediaComplianceUnavailableError(error)) {
+      throw new ProductImageAssetAdmissionError(
+        503,
+        "Media agreement service is temporarily unavailable.",
+        "MEDIA_COMPLIANCE_UNAVAILABLE"
+      );
+    }
+    throw error;
+  }
 };
 
 const resolveStoragePath = ({
@@ -477,6 +505,7 @@ export const prepareProductImageAssetUploadForUser = async ({
   filename: string;
   declaredMimeType: string;
 }): Promise<{ path: string; token: string; mimeType: string; name: string }> => {
+  await assertMediaComplianceAcceptedForProductImageAsset(userId);
   const resolvedIntent = resolveIntent(intent);
   const normalizedFilename = filename.trim() || "upload";
   const normalizedMimeType = resolvePreparedImageMimeType(declaredMimeType);
@@ -530,6 +559,7 @@ export const finalizePreparedProductImageAssetUploadForUser = async ({
   filename: string;
   declaredMimeType: string;
 }): Promise<ProductImageAssetAdmissionResponse> => {
+  await assertMediaComplianceAcceptedForProductImageAsset(userId);
   const resolvedIntent = resolveIntent(intent);
   const normalizedFilename = filename.trim() || "upload";
   const normalizedMimeType = resolvePreparedImageMimeType(declaredMimeType);
@@ -595,6 +625,7 @@ export const admitProductImageAssetFromStorageForUser = async ({
   filename?: string;
   declaredMimeType?: string;
 }): Promise<ProductImageAssetAdmissionResponse> => {
+  await assertMediaComplianceAcceptedForProductImageAsset(userId);
   const resolvedIntent = resolveIntent(intent);
   if (!sourceStoragePath.trim()) {
     throw new ProductImageAssetAdmissionError(

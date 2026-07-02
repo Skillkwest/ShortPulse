@@ -18,6 +18,11 @@ on:
         options:
           - warn
           - enforce
+      include_row_details:
+        description: "Break-glass: include private row identifiers in artifacts"
+        required: true
+        default: false
+        type: boolean
 
 concurrency:
   group: reliability-control-plane-diagnostics-${{ github.event.inputs.target_environment }}
@@ -46,6 +51,7 @@ jobs:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           MODE_INPUT: ${{ github.event.inputs.mode }}
           RELIABILITY_DIAGNOSTICS_MODE: ${{ github.event.inputs.mode }}
+          RELIABILITY_DIAGNOSTICS_INCLUDE_ROW_DETAILS: ${{ github.event.inputs.include_row_details }}
           RELIABILITY_DIAGNOSTICS_LOG_DIR: /tmp/reliability_control_plane_diagnostics
         run: |
           set -euo pipefail

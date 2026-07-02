@@ -1156,7 +1156,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
         ...createSnapshot(),
         updatedAt,
         outputs: {
-          active: Array.from({ length: REFERENCE_GRID_TARGET_TOTAL_ITEMS }, (_, index) => ({
+          active: Array.from({ length: REFERENCE_GRID_TARGET_TOTAL_ITEMS + 2 }, (_, index) => ({
             id: `stable-target-${index + 1}`,
             prompt: "Stable target",
             mode: "image",

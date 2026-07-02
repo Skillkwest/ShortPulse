@@ -387,6 +387,65 @@ const loadRepairableProjectionRowsByGenerationIds = async ({
   });
 };
 
+const hydrateRepairableProjectionRows = async ({
+  adminClient,
+  projectionRows,
+  selectColumns,
+}: {
+  adminClient: ReturnType<typeof getSupabaseAdmin>;
+  projectionRows: RepairableProjectionRow[];
+  selectColumns: readonly string[];
+}): Promise<RepairableProjectionRow[]> => {
+  const hydrationIds = Array.from(
+    new Set(
+      projectionRows
+        .filter((row) => row.repairReason !== "generation_fallback")
+        .map((row) => row.generationId)
+    )
+  );
+  if (!hydrationIds.length) return projectionRows;
+
+  const hydratedByGenerationId = new Map(
+    (
+      await loadRepairableProjectionRowsByGenerationIds({
+        adminClient,
+        generationIds: hydrationIds,
+        selectColumns,
+      })
+    ).map((row) => [row.generationId, row])
+  );
+
+  return projectionRows.map((row) => {
+    const hydrated = hydratedByGenerationId.get(row.generationId);
+    if (!hydrated) return row;
+    return {
+      ...hydrated,
+      repairReason: row.repairReason,
+    };
+  });
+};
+
+const REPAIR_PROJECTION_DISCOVERY_COLUMNS = [
+  "generation_id",
+  "user_id",
+  "project_id",
+  "workspace_runtime_key",
+  "source_ref",
+  "request_id",
+  "provider",
+  "provider_request_id",
+  "latest_attempt_id",
+  "display_prompt",
+  "display_title",
+  "transcript_text",
+  "model_id",
+  "hidden_in_reference_grid",
+  "reference_grid_visible",
+  "started_at",
+  "task_state",
+  "publication_state",
+] as const;
+
 const readFailedProjectionMessage = (
   failureReasonCode: string | null,
   providerErrorMessage?: string | null
@@ -913,8 +972,8 @@ export const repairStaleTerminalGenerationProjections = async ({
     "task_state",
     "publication_state",
   ];
-  const projectionRows = await readRepairableProjectionRowsWithFallback({
-    selectColumns: repairSelectColumns,
+  let projectionRows = await readRepairableProjectionRowsWithFallback({
+    selectColumns: REPAIR_PROJECTION_DISCOVERY_COLUMNS,
     runSelect: async (columns) =>
       await adminClient
         .from("generation_projection")
@@ -964,7 +1023,7 @@ export const repairStaleTerminalGenerationProjections = async ({
           await loadRepairableProjectionRowsByGenerationIds({
             adminClient,
             generationIds: terminalGenerations.map((row) => row.generationId),
-            selectColumns: repairSelectColumns,
+            selectColumns: REPAIR_PROJECTION_DISCOVERY_COLUMNS,
           })
         ).map((row) => [row.generationId, row])
       );
@@ -1006,6 +1065,12 @@ export const repairStaleTerminalGenerationProjections = async ({
   if (!projectionRows.length) {
     return { scanned: 0, repaired: 0, skipped: 0 };
   }
+
+  projectionRows = await hydrateRepairableProjectionRows({
+    adminClient,
+    projectionRows,
+    selectColumns: repairSelectColumns,
+  });
 
   const generationResponse = await adminClient
     .from("ai_generations")

@@ -989,7 +989,7 @@ describe("useAiStudioSessionSnapshotController", () => {
     });
   });
 
-  it("moves the 500-item target into project-restorable archived overflow", () => {
+  it("keeps the 500-item target active without project-restorable archived overflow", () => {
     const targetOutputs = Array.from({ length: REFERENCE_GRID_TARGET_TOTAL_ITEMS }, (_, index) =>
       createOutput({
         id: `target-${index + 1}`,
@@ -1004,8 +1004,8 @@ describe("useAiStudioSessionSnapshotController", () => {
         createControllerParams({
           outputs: targetOutputs,
           archivedOutputs: [],
-          curatedReferenceIds: ["target-1", `target-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 1}`],
-          removedFromAllRefsIds: ["target-2", `target-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 2}`],
+          curatedReferenceIds: ["target-1", `target-${REFERENCE_GRID_MAX_VISIBLE_ITEMS}`],
+          removedFromAllRefsIds: ["target-2", `target-${REFERENCE_GRID_MAX_VISIBLE_ITEMS}`],
         })
       )
     );
@@ -1016,31 +1016,22 @@ describe("useAiStudioSessionSnapshotController", () => {
     });
 
     expect(snapshot.outputs.active).toHaveLength(REFERENCE_GRID_MAX_VISIBLE_ITEMS);
-    expect(snapshot.outputs.archived).toHaveLength(
-      REFERENCE_GRID_TARGET_TOTAL_ITEMS - REFERENCE_GRID_MAX_VISIBLE_ITEMS
-    );
+    expect(snapshot.outputs.archived).toHaveLength(0);
     expect(snapshot.outputs.active[0]?.id).toBe("target-1");
     expect(snapshot.outputs.active.at(-1)?.id).toBe(`target-${REFERENCE_GRID_MAX_VISIBLE_ITEMS}`);
-    expect(snapshot.outputs.archived[0]).toEqual(
-      expect.objectContaining({
-        id: `target-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 1}`,
-        savedMediaIds: [`media-target-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 1}`],
-        archivedAt: null,
-        archiveReason: "cleanup",
-      })
-    );
-    expect(snapshot.outputs.archived.at(-1)?.id).toBe(
-      `target-${REFERENCE_GRID_TARGET_TOTAL_ITEMS}`
-    );
-    expect(snapshot.outputs.curatedReferenceIds).toEqual(["target-1"]);
+    expect(snapshot.outputs.curatedReferenceIds).toEqual([
+      "target-1",
+      `target-${REFERENCE_GRID_MAX_VISIBLE_ITEMS}`,
+    ]);
     expect(snapshot.outputs.removedFromAllRefsIds).toEqual([
       "target-2",
-      `target-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 2}`,
+      `target-${REFERENCE_GRID_MAX_VISIBLE_ITEMS}`,
     ]);
   });
 
   it("keeps over-cap project workspace snapshots stable across no-op rebuilds", () => {
-    const targetOutputs = Array.from({ length: REFERENCE_GRID_TARGET_TOTAL_ITEMS }, (_, index) =>
+    const overCapTotal = REFERENCE_GRID_TARGET_TOTAL_ITEMS + 2;
+    const targetOutputs = Array.from({ length: overCapTotal }, (_, index) =>
       createOutput({
         id: `stable-target-${index + 1}`,
         previewStoragePath: `user-1/projects/stable-target-${index + 1}.webp`,
@@ -1074,7 +1065,7 @@ describe("useAiStudioSessionSnapshotController", () => {
 
     expect(firstSnapshot.outputs.active).toHaveLength(REFERENCE_GRID_MAX_VISIBLE_ITEMS);
     expect(firstSnapshot.outputs.archived).toHaveLength(
-      REFERENCE_GRID_TARGET_TOTAL_ITEMS - REFERENCE_GRID_MAX_VISIBLE_ITEMS
+      overCapTotal - REFERENCE_GRID_MAX_VISIBLE_ITEMS
     );
     expect(firstSnapshot.outputs.archived[0]).toEqual(
       expect.objectContaining({

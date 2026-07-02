@@ -5,18 +5,20 @@ import type { EventQuery } from "../../lib/server/api/adminErrorEvents/types";
 type QueryRecord = {
   table: string;
   operations: string[];
+  selections: string[];
 };
 
 const createSupabaseAdminQueryRecorder = () => {
   const queries: QueryRecord[] = [];
   const supabaseAdmin = {
     from: (table: string) => {
-      const record: QueryRecord = { table, operations: [] };
+      const record: QueryRecord = { table, operations: [], selections: [] };
       queries.push(record);
 
       const query = {
-        select: () => {
+        select: (columns?: string) => {
           record.operations.push("select");
+          if (columns) record.selections.push(columns);
           return query;
         },
         order: () => {
@@ -94,6 +96,36 @@ describe("admin error-events query helpers", () => {
       expect(query.operations).toContain("not:source:like:telemetry.marketing.%");
       expect(query.operations).toContain("not:source:like:telemetry.auth.%");
       expect(query.operations).toContain("not:source:like:telemetry.billing.%");
+    }
+  });
+
+  it("keeps actionable list projections off heavy event detail columns", async () => {
+    const { queries, supabaseAdmin } = createSupabaseAdminQueryRecorder();
+
+    await fetchActionableErrorEvents({
+      supabaseAdmin: supabaseAdmin as never,
+      filters: {
+        scope: "all",
+        severity: "all",
+        source: "all",
+        search: "",
+        synthetic: "exclude",
+        signal: "all",
+        incident: "actionable",
+        excludeTelemetrySources: false,
+      },
+      fetchWindow: 50,
+    });
+
+    const listSelections = queries
+      .filter((query) => query.table === "app_error_events")
+      .flatMap((query) => query.selections)
+      .filter((selection) => selection.includes("occurred_at"));
+
+    expect(listSelections.length).toBeGreaterThan(0);
+    for (const selection of listSelections) {
+      expect(selection).not.toContain("stack");
+      expect(selection).not.toContain("metadata");
     }
   });
 });

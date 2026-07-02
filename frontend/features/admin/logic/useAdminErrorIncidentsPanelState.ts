@@ -6,7 +6,9 @@ import type {
   AdminPagination,
   AdminErrorStatus,
 } from "../types";
+import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { copyToClipboard } from "./copyToClipboard";
+import { normalizeAdminErrorEventRow } from "./adminErrorsEventsApi";
 import { eventMatchesIncidentFilter } from "./errorIncidentViewUtils";
 import { buildEventTriagePacket, buildIncidentTriagePacket } from "./triagePackets";
 
@@ -56,6 +58,9 @@ export const useAdminErrorIncidentsPanelState = ({
   const [copiedIncidentId, setCopiedIncidentId] = React.useState<string | null>(null);
   const [copiedEventId, setCopiedEventId] = React.useState<string | null>(null);
   const [selectedEventId, setSelectedEventId] = React.useState<string | null>(null);
+  const [eventDetailsById, setEventDetailsById] = React.useState<
+    Record<string, AdminErrorEventRow>
+  >({});
   const [bulkResolveSubmitting, setBulkResolveSubmitting] = React.useState(false);
   const [bulkResolveResult, setBulkResolveResult] = React.useState<string | null>(null);
   const autoAdvancedEventPageRef = React.useRef<number | null>(null);
@@ -73,10 +78,14 @@ export const useAdminErrorIncidentsPanelState = ({
     [errorEventIncidentFilter, errorEvents]
   );
 
-  const selectedEvent = React.useMemo(
-    () => errorEvents.find((row) => row.id === selectedEventId) ?? null,
-    [errorEvents, selectedEventId]
-  );
+  const selectedEvent = React.useMemo(() => {
+    if (!selectedEventId) return null;
+    return (
+      eventDetailsById[selectedEventId] ??
+      errorEvents.find((row) => row.id === selectedEventId) ??
+      null
+    );
+  }, [errorEvents, eventDetailsById, selectedEventId]);
   const selectedIncidentId = selectedEvent?.incidentId ?? null;
 
   const resolvableVisibleIncidentIds = React.useMemo(
@@ -118,14 +127,44 @@ export const useAdminErrorIncidentsPanelState = ({
     }, 1200);
   }, []);
 
-  const handleCopyEvent = React.useCallback(async (row: AdminErrorEventRow) => {
-    const success = await copyToClipboard(buildEventTriagePacket(row));
-    if (!success) return;
-    setCopiedEventId(row.id);
-    window.setTimeout(() => {
-      setCopiedEventId((current) => (current === row.id ? null : current));
-    }, 1200);
-  }, []);
+  const loadEventDetail = React.useCallback(
+    async (eventId: string): Promise<AdminErrorEventRow | null> => {
+      const cached = eventDetailsById[eventId];
+      if (cached) return cached;
+
+      const listRow = errorEvents.find((row) => row.id === eventId) ?? null;
+      if (listRow && (listRow.stack !== null || listRow.metadata !== null)) {
+        return listRow;
+      }
+
+      const params = new URLSearchParams({ eventId });
+      const response = await fetchWithAuth(`/api/admin/error-events?${params.toString()}`, {
+        method: "GET",
+      });
+      if (!response.ok) return listRow;
+
+      const data = (await response.json().catch(() => ({}))) as { event?: unknown };
+      if (!data.event) return listRow;
+
+      const detail = normalizeAdminErrorEventRow(data.event);
+      setEventDetailsById((current) => ({ ...current, [detail.id]: detail }));
+      return detail;
+    },
+    [errorEvents, eventDetailsById]
+  );
+
+  const handleCopyEvent = React.useCallback(
+    async (row: AdminErrorEventRow) => {
+      const detail = (await loadEventDetail(row.id)) ?? row;
+      const success = await copyToClipboard(buildEventTriagePacket(detail));
+      if (!success) return;
+      setCopiedEventId(row.id);
+      window.setTimeout(() => {
+        setCopiedEventId((current) => (current === row.id ? null : current));
+      }, 1200);
+    },
+    [loadEventDetail]
+  );
 
   const handleEventStatusUpdate = React.useCallback(
     async (incidentId: string | null, status: AdminErrorStatus) => {
@@ -191,9 +230,13 @@ export const useAdminErrorIncidentsPanelState = ({
     resolveVisibleTargetCount,
   ]);
 
-  const openSelectedEvent = React.useCallback((eventId: string) => {
-    setSelectedEventId(eventId);
-  }, []);
+  const openSelectedEvent = React.useCallback(
+    (eventId: string) => {
+      setSelectedEventId(eventId);
+      void loadEventDetail(eventId);
+    },
+    [loadEventDetail]
+  );
 
   const closeSelectedEvent = React.useCallback(() => {
     setSelectedEventId(null);

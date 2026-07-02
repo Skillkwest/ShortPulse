@@ -90,7 +90,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       triggerSource,
     });
 
-    if (!result.ok && result.status === "running") {
+    if (!result.ok && result.status === "running" && triggerSource === "manual") {
       return res.status(409).json(result);
     }
 

@@ -16,8 +16,6 @@ with dispatch_events as (
         e.occurred_at,
         nullif(e.metadata->>'model_id', '') as model_id,
         nullif(e.metadata->>'provider', '') as provider,
-        nullif(e.metadata->>'generation_id', '') as generation_id,
-        nullif(e.metadata->>'provider_request_id', '') as provider_request_id,
         case
             when jsonb_typeof(e.metadata->'queue_latency_ms') = 'number'
                 then (e.metadata->>'queue_latency_ms')::numeric
@@ -71,28 +69,3 @@ where queue_latency_ms is not null
 group by model_id, provider
 order by p95_queue_latency_ms desc nulls last, dispatched_rows desc, model_id asc, provider asc
 limit 25;
-
--- -----------------------------------------------------------------------------
--- Recent worst-case rows for spot checks
--- -----------------------------------------------------------------------------
-select
-    e.occurred_at,
-    e.user_id,
-    coalesce(nullif(e.metadata->>'model_id', ''), 'unknown') as model_id,
-    coalesce(nullif(e.metadata->>'provider', ''), 'unknown') as provider,
-    e.metadata->>'generation_id' as generation_id,
-    e.metadata->>'provider_request_id' as provider_request_id,
-    e.metadata->>'source_ref' as source_ref,
-    case
-        when jsonb_typeof(e.metadata->'queue_latency_ms') = 'number'
-            then round((e.metadata->>'queue_latency_ms')::numeric)::bigint
-        else null
-    end as queue_latency_ms,
-    e.metadata->>'queue_enqueued_at' as queue_enqueued_at,
-    e.metadata->>'queue_dispatched_at' as queue_dispatched_at,
-    e.metadata->'dispatch_stage_timings_ms' as dispatch_stage_timings_ms
-from public.app_error_events e
-where e.source = 'telemetry.queue.dispatch.submitted'
-  and e.occurred_at >= now() - interval '60 minutes'
-order by queue_latency_ms desc nulls last, e.occurred_at desc
-limit 50;

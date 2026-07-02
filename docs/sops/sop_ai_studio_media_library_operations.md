@@ -106,7 +106,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 ### 6) Right-click behaviors
 
 1. Right-clicking media (image/video/audio) in `All Media` sends that media to the Reference Grid.
-2. Double-clicking media (image/video/audio) in `All Media` opens the shared media detail modal without Reference Grid ingest side effects; library-owned items show persisted-library `Saved` state plus `Download` and `Delete` actions, and audible previews follow the shared exclusive-sound rule so only one sound plays at a time across AI Studio and Media Library surfaces.
+2. Double-clicking media (image/video/audio) in `All Media` opens the shared media detail modal without Reference Grid ingest side effects; library-owned items show `Download` and `Delete` actions with no save action because the media is already persisted, and audible previews follow the shared exclusive-sound rule so only one sound plays at a time across AI Studio and Media Library surfaces.
 
 ### 7) Bulk selection and action semantics
 
@@ -178,7 +178,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
    - Current: Right-click on media cards dispatches media ingestion to Reference Grid.
 4. Double-click media in `All Media` -> shared detail modal:
    - Status: Aligned.
-   - Current: Double-click opens the shared media detail modal for image/video/audio cards, does not dispatch ingestion, surfaces persisted-library `Saved` state plus `Download` and `Delete` actions, and respects the shared exclusive-sound playback rule for audible previews.
+   - Current: Double-click opens the shared media detail modal for image/video/audio cards, does not dispatch ingestion, surfaces `Download` and `Delete` actions without a save action for already-persisted media, and respects the shared exclusive-sound playback rule for audible previews.
 5. Drag ghost visibility for Media Library drags:
    - Status: Aligned.
    - Current: Media and prompt drag-start paths mount explicit custom drag ghost previews.

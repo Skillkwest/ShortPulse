@@ -172,6 +172,73 @@ where t.schemaname in ('public', 'storage', 'cron')
 order by pg_total_relation_size(format('%I.%I', t.schemaname, t.relname)::regclass) desc
 limit 30;
 
+with target_tables as (
+    select
+        t.schemaname,
+        t.relname,
+        to_regclass(format('%I.%I', t.schemaname, t.relname)) as relid
+    from (
+        values
+            ('public'::text, 'app_error_events'::text),
+            ('public'::text, 'ai_generations'::text),
+            ('public'::text, 'generation_projection'::text),
+            ('public'::text, 'media_files'::text),
+            ('public'::text, 'project_generation_items'::text),
+            ('storage'::text, 'objects'::text),
+            ('cron'::text, 'job_run_details'::text)
+    ) as t(schemaname, relname)
+),
+stats_health as (
+    select
+        targets.schemaname,
+        targets.relname as table_name,
+        case
+            when targets.relid is null then 0::bigint
+            else pg_total_relation_size(targets.relid)
+        end as total_bytes,
+        stats.n_live_tup,
+        stats.n_dead_tup,
+        stats.n_mod_since_analyze,
+        greatest(stats.last_analyze, stats.last_autoanalyze) as last_analyze_at,
+        case
+            when stats.last_analyze is null and stats.last_autoanalyze is null
+                then null
+            else now() - greatest(stats.last_analyze, stats.last_autoanalyze)
+        end as analyze_age,
+        case
+            when stats.relid is null then 'missing_table'
+            when stats.last_analyze is null and stats.last_autoanalyze is null then 'missing_analyze'
+            when stats.n_mod_since_analyze > greatest(1000, stats.n_live_tup / 10) then 'high_mod_since_analyze'
+            when greatest(stats.last_analyze, stats.last_autoanalyze) < now() - interval '7 days' then 'older_than_7d'
+            else 'fresh_enough'
+        end as planner_stats_state
+    from target_tables targets
+    left join pg_stat_all_tables stats
+      on stats.schemaname = targets.schemaname
+     and stats.relname = targets.relname
+)
+select
+    schemaname,
+    table_name,
+    pg_size_pretty(total_bytes) as total_size,
+    total_bytes,
+    n_live_tup,
+    n_dead_tup,
+    n_mod_since_analyze,
+    last_analyze_at,
+    analyze_age,
+    planner_stats_state
+from stats_health
+order by
+    case planner_stats_state
+        when 'missing_table' then 0
+        when 'missing_analyze' then 1
+        when 'high_mod_since_analyze' then 2
+        when 'older_than_7d' then 3
+        else 4
+    end,
+    total_bytes desc;
+
 select
     'public.worker_runs' as table_name,
     count(*)::bigint as rows,

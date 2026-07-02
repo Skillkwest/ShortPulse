@@ -44,11 +44,14 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/migrations/177_optimize_admin_global_stats_v1_rpc.sql`: slim the shared generation CTE inside `get_admin_global_stats_v1()` so admin stats reads avoid carrying TOAST-heavy generation metadata through unrelated aggregates.
 - `sql/migrations/178_add_admin_stats_generated_columns.sql`: add DB-maintained scalar projections for the remaining TOAST-heavy admin stats JSON flags and update `get_admin_global_stats_v1()` to read those scalars.
 - `sql/migrations/180_harden_scheduler_and_admin_error_summary.sql`: add the missing internal billing scheduler HTTP timeout and provision service-role-only aggregate admin error-events summary RPC.
+- `sql/migrations/181_harden_admin_pricing_offer_activation_grants.sql`: re-harden service-role-only execute grants for admin pricing offer activation RPCs and keep the enforce gate aligned with the runtime SQL audit.
 - `sql/audit_billing_credit_rls.sql`: billing RLS audit checks.
-- `sql/check_database_io_hotspots.sql`: read-only `pg_stat_statements` shared-block I/O summary plus table size/read posture and hot diagnostic table age/retention posture without raw query text.
+- `sql/check_database_io_hotspots.sql`: read-only `pg_stat_statements` shared-block I/O summary plus table size/read posture, planner-stat freshness, and hot diagnostic table age/retention posture without raw query text.
+- `sql/analyze_hot_database_tables_supabase.sql`: hosted apply-gated maintenance script that refreshes planner statistics on hot public tables without rewriting tables or deleting rows.
 - `sql/check_media_storage_scope_drift.sql`: media storage scope drift diagnostics (read-only).
 - `sql/check_media_all_media_completeness_drift.sql`: All Media completeness drift diagnostics for durable storage objects missing `media_files` rows (read-only).
 - `sql/check_storage_object_egress_risk_breakdown.sql`: storage object byte-risk breakdown by safe bucket/path class and media tracking state, without printing object paths or user ids (read-only).
+- `sql/check_media_storage_lifecycle_summary.sql`: aggregate Media Library lifecycle dry-run classes from `get_media_storage_lifecycle_summary(integer)` without object paths or user ids (read-only).
 - `sql/check_media_storage_cleanup_manifest.sql`: manifest-first Media Library storage cleanup classifier for protected, review, integrity, and deletion-candidate object classes. It is read-only, prints raw storage paths only for local delete-candidate review, and must be run before any storage cleanup deletion is proposed.
 - `sql/check_database_egress_query_stats.sql`: `pg_stat_statements` query-class summary plus hot-path table scan/cache/index posture for database/API egress risk without printing raw query text or row data (read-only).
 - `sql/check_postgrest_payload_projection_risk.sql`: PostgREST payload projection risk summary for generation tables, including aggregate column-size posture and hot query projection classes without printing raw query text or row data (read-only).
@@ -254,6 +257,7 @@ Migration number 134 is intentionally unused; the ordered sequence moves from `1
 - `178_add_admin_stats_generated_columns.sql`
 - `179_optimize_media_storage_lifecycle_summary.sql`
 - `180_harden_scheduler_and_admin_error_summary.sql`
+- `181_harden_admin_pricing_offer_activation_grants.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 

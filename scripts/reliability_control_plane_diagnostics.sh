@@ -58,6 +58,12 @@ if [[ "$MODE" != "warn" && "$MODE" != "enforce" ]]; then
   exit 1
 fi
 
+INCLUDE_ROW_DETAILS="${RELIABILITY_DIAGNOSTICS_INCLUDE_ROW_DETAILS:-false}"
+if [[ "$INCLUDE_ROW_DETAILS" != "true" && "$INCLUDE_ROW_DETAILS" != "false" ]]; then
+  echo "[reliability-diagnostics] Unknown RELIABILITY_DIAGNOSTICS_INCLUDE_ROW_DETAILS='$INCLUDE_ROW_DETAILS'. Allowed: true, false."
+  exit 1
+fi
+
 SQL_FILES=(
   "$ROOT_DIR/sql/check_control_plane_scheduler_health.sql"
   "$ROOT_DIR/sql/check_pg_net_failure_taxonomy.sql"
@@ -69,6 +75,11 @@ SQL_FILES=(
   "$ROOT_DIR/sql/check_control_plane_enforce_gate.sql"
 )
 
+ROW_DETAIL_SQL_FILES=(
+  "$ROOT_DIR/sql/check_generation_queue_dispatch_latency_row_details.sql"
+  "$ROOT_DIR/sql/check_generation_recovery_media_visible_latency_row_details.sql"
+)
+
 mkdir -p "$LOG_DIR"
 COMBINED_LOG="$LOG_DIR/combined.log"
 : > "$COMBINED_LOG"
@@ -76,6 +87,7 @@ COMBINED_LOG="$LOG_DIR/combined.log"
 echo "[reliability-diagnostics] Writing logs to: $LOG_DIR"
 echo "[reliability-diagnostics] Starting diagnostics run..."
 echo "[reliability-diagnostics] Mode: $MODE"
+echo "[reliability-diagnostics] Include row details: $INCLUDE_ROW_DETAILS"
 
 run_sql_file() {
   local sql_file="$1"
@@ -98,6 +110,13 @@ run_sql_file() {
 for sql_file in "${SQL_FILES[@]}"; do
   run_sql_file "$sql_file"
 done
+
+if [[ "$INCLUDE_ROW_DETAILS" == "true" ]]; then
+  echo "[reliability-diagnostics] Row-detail diagnostics are enabled; artifacts may include private row identifiers."
+  for sql_file in "${ROW_DETAIL_SQL_FILES[@]}"; do
+    run_sql_file "$sql_file"
+  done
+fi
 
 if [[ "$MODE" == "enforce" ]]; then
   ENFORCE_LOG="$LOG_DIR/check_control_plane_enforce_gate_enforce.log"
@@ -131,6 +150,7 @@ if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
     echo ""
     echo "- Status: PASS (SQL execution)"
     echo "- Mode: \`$MODE\`"
+    echo "- Include row details: \`$INCLUDE_ROW_DETAILS\`"
     echo "- Log directory: \`$LOG_DIR\`"
     echo "- Combined log: \`$COMBINED_LOG\`"
     echo "- SQL files:"
@@ -142,5 +162,9 @@ if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
     echo "  - \`sql/check_runtime_sql_security_audit.sql\`"
     echo "  - \`sql/check_generation_settlement_integrity.sql\`"
     echo "  - \`sql/check_control_plane_enforce_gate.sql\`"
+    if [[ "$INCLUDE_ROW_DETAILS" == "true" ]]; then
+      echo "  - \`sql/check_generation_queue_dispatch_latency_row_details.sql\`"
+      echo "  - \`sql/check_generation_recovery_media_visible_latency_row_details.sql\`"
+    fi
   } >> "$GITHUB_STEP_SUMMARY"
 fi

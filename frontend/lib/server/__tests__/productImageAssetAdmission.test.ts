@@ -2,14 +2,25 @@ import sharp from "sharp";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   admitProductImageAssetFromStorageForUser,
+  finalizePreparedProductImageAssetUploadForUser,
   prepareProductImageAssetUploadForUser,
 } from "../productImageAssetAdmission";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
+import { getMediaComplianceAcceptanceStatusForUser } from "../api/mediaComplianceAcceptance";
 
 const getSupabaseAdminMock = vi.mocked(getSupabaseAdmin);
+const getMediaComplianceAcceptanceStatusForUserMock = vi.mocked(
+  getMediaComplianceAcceptanceStatusForUser
+);
 
 vi.mock("../api/supabaseAdmin", () => ({
   getSupabaseAdmin: vi.fn(),
+}));
+
+vi.mock("../api/mediaComplianceAcceptance", () => ({
+  getMediaComplianceAcceptanceStatusForUser: vi.fn(),
+  isMediaComplianceUnavailableError: (error: unknown) =>
+    Boolean(error && typeof error === "object" && (error as { code?: unknown }).code),
 }));
 
 const createQueryMock = (result: { data: unknown; error: { message: string } | null }) => {
@@ -76,6 +87,10 @@ const setupSupabaseAdmin = () => {
 describe("admitProductImageAssetFromStorageForUser", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getMediaComplianceAcceptanceStatusForUserMock.mockResolvedValue({
+      accepted: true,
+      acceptedAt: "2026-07-01T00:00:00.000Z",
+    });
   });
 
   it("admits a character look by copying from an owned storage path", async () => {
@@ -143,5 +158,56 @@ describe("admitProductImageAssetFromStorageForUser", () => {
         declaredMimeType: "image/png",
       })
     ).rejects.toThrow("Signed upload target path did not match requested storage path.");
+  });
+
+  it.each([
+    [
+      "prepare",
+      () =>
+        prepareProductImageAssetUploadForUser({
+          userId: "user-1",
+          intent: "character_sheet_preset",
+          characterId: "char-1",
+          filename: "source.png",
+          declaredMimeType: "image/png",
+        }),
+    ],
+    [
+      "finalize",
+      () =>
+        finalizePreparedProductImageAssetUploadForUser({
+          userId: "user-1",
+          sourceStoragePath:
+            "user-1/upload-staging/product-image-assets/character_sheet_preset/source.png",
+          intent: "character_sheet_preset",
+          characterId: "char-1",
+          filename: "source.png",
+          declaredMimeType: "image/png",
+        }),
+    ],
+    [
+      "admit from storage",
+      () =>
+        admitProductImageAssetFromStorageForUser({
+          userId: "user-1",
+          sourceStoragePath: "user-1/generations/images/source.png",
+          intent: "character_sheet_preset",
+          characterId: "char-1",
+          filename: "source.png",
+        }),
+    ],
+  ])("requires media agreement acceptance before %s side effects", async (_label, action) => {
+    getMediaComplianceAcceptanceStatusForUserMock.mockResolvedValueOnce({
+      accepted: false,
+      acceptedAt: null,
+    });
+
+    await expect(action()).rejects.toMatchObject({
+      status: 403,
+      message: "Media agreement acceptance is required.",
+      details: "MEDIA_COMPLIANCE_REQUIRED",
+    });
+    expect(getMediaComplianceAcceptanceStatusForUserMock).toHaveBeenCalledWith("user-1");
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
   });
 });

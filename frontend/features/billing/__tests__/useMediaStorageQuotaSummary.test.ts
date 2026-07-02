@@ -104,4 +104,30 @@ describe("useMediaStorageQuotaSummary", () => {
     await waitFor(() => expect(result.current.quotaStatus).toBe("unavailable"));
     expect(result.current.quotaSummary).toBeNull();
   });
+
+  it("can defer automatic focus refresh without blocking initial or requested refreshes", async () => {
+    const shouldDeferAutomaticRefresh = vi.fn(() => true);
+    renderHook(() =>
+      useMediaStorageQuotaSummary({
+        enabled: true,
+        shouldDeferAutomaticRefresh,
+      })
+    );
+
+    await waitFor(() => expect(fetchBillingAccountSummaryMock).toHaveBeenCalledTimes(1));
+    fetchBillingAccountSummaryMock.mockClear();
+
+    act(() => {
+      window.dispatchEvent(new Event("focus"));
+    });
+
+    expect(shouldDeferAutomaticRefresh).toHaveBeenCalled();
+    expect(fetchBillingAccountSummaryMock).not.toHaveBeenCalled();
+
+    act(() => {
+      requestMediaStorageQuotaSummaryRefresh();
+    });
+
+    await waitFor(() => expect(fetchBillingAccountSummaryMock).toHaveBeenCalledTimes(1));
+  });
 });

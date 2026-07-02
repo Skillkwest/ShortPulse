@@ -34,6 +34,7 @@ Mitigation:
 
 - Ask the affected user to disable the conflicting extension on `shortpulse.ai` or retry from an extension-free browser context.
 - If the freeze also reproduces in a clean profile, return to the normal AI Studio performance triage path and capture `window.__shortpulseMediaPerf` / `window.__shortpulseAiStudioPerf` evidence where available.
+- On AI Studio builds with crash-evidence support, capture `window.__shortpulseAiStudioCrashEvidence?.snapshot()` from the affected profile before reloading; it is local browser evidence only and does not weaken CSP or identify extensions as product dependencies.
 
 ## Stuck on `Confirm media rights`
 

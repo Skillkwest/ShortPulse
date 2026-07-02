@@ -2,6 +2,8 @@
  * Browser-side Motion Control video pre-staging.
  * Shrinks oversized local clips before signed storage upload; server finalization remains canonical.
  */
+import { shouldDeferAiStudioBackgroundWork } from "../logic/aiStudioPressureConservation";
+
 const MOTION_REFERENCE_LOCAL_PRESTAGE_THRESHOLD_BYTES = 20 * 1024 * 1024;
 const MOTION_REFERENCE_LOCAL_PRESTAGE_TARGET_BYTES = 18 * 1024 * 1024;
 const MOTION_REFERENCE_LOCAL_PRESTAGE_FPS = 24;
@@ -71,6 +73,24 @@ const loadVideoElementForPrestage = async (objectUrl: string): Promise<HTMLVideo
   return await loaded;
 };
 
+const releaseVideoElementForPrestage = (video: HTMLVideoElement | null): void => {
+  if (!video) return;
+  video.onloadedmetadata = null;
+  video.onerror = null;
+  video.onended = null;
+  try {
+    video.pause();
+  } catch {
+    // Best-effort browser resource release.
+  }
+  try {
+    video.removeAttribute("src");
+    video.load();
+  } catch {
+    // Best-effort browser resource release.
+  }
+};
+
 const waitForVideoPlaybackToEnd = async (video: HTMLVideoElement): Promise<boolean> => {
   const durationMs =
     Number.isFinite(video.duration) && video.duration > 0
@@ -134,16 +154,33 @@ const transcodeMotionReferenceBlobWithCanvas = async ({
   const mimeType = resolveMotionReferenceRecordingMimeType();
   if (!mimeType) return null;
   const objectUrl = URL.createObjectURL(blob);
+  let video: HTMLVideoElement | null = null;
+  let stream: MediaStream | null = null;
+  let recorder: MediaRecorder | null = null;
+  let tracksStopped = false;
+
+  const stopStreamTracks = () => {
+    if (tracksStopped) return;
+    tracksStopped = true;
+    stream?.getTracks().forEach((track) => {
+      try {
+        track.stop();
+      } catch {
+        // Best-effort browser resource release.
+      }
+    });
+  };
 
   try {
-    const video = await loadVideoElementForPrestage(objectUrl);
+    video = await loadVideoElementForPrestage(objectUrl);
     const sourceWidth = Math.max(0, Math.round(video?.videoWidth ?? 0));
     const sourceHeight = Math.max(0, Math.round(video?.videoHeight ?? 0));
     if (!video || sourceWidth <= 0 || sourceHeight <= 0) return null;
+    const loadedVideo = video;
     if (
-      Number.isFinite(video.duration) &&
-      (video.duration < MOTION_REFERENCE_MIN_DURATION_SECONDS ||
-        video.duration > MOTION_REFERENCE_MAX_DURATION_SECONDS)
+      Number.isFinite(loadedVideo.duration) &&
+      (loadedVideo.duration < MOTION_REFERENCE_MIN_DURATION_SECONDS ||
+        loadedVideo.duration > MOTION_REFERENCE_MAX_DURATION_SECONDS)
     ) {
       return null;
     }
@@ -158,19 +195,22 @@ const transcodeMotionReferenceBlobWithCanvas = async ({
     canvas.height = dimensions.height;
     const context = canvas.getContext("2d");
     if (!context || typeof canvas.captureStream !== "function") return null;
-    const stream = canvas.captureStream(MOTION_REFERENCE_LOCAL_PRESTAGE_FPS);
-    const recorder = new MediaRecorder(stream, {
+    stream = canvas.captureStream(MOTION_REFERENCE_LOCAL_PRESTAGE_FPS);
+    recorder = new MediaRecorder(stream, {
       mimeType,
       videoBitsPerSecond,
     });
     const chunks: BlobPart[] = [];
     const recorded = new Promise<Blob | null>((resolve) => {
-      recorder.ondataavailable = (event) => {
+      recorder!.ondataavailable = (event) => {
         if (event.data?.size) chunks.push(event.data);
       };
-      recorder.onerror = () => resolve(null);
-      recorder.onstop = () => {
-        stream.getTracks().forEach((track) => track.stop());
+      recorder!.onerror = () => {
+        stopStreamTracks();
+        resolve(null);
+      };
+      recorder!.onstop = () => {
+        stopStreamTracks();
         resolve(chunks.length ? new Blob(chunks, { type: mimeType }) : null);
       };
     });
@@ -184,21 +224,31 @@ const transcodeMotionReferenceBlobWithCanvas = async ({
               1000 / MOTION_REFERENCE_LOCAL_PRESTAGE_FPS
             );
     const drawFrame = () => {
-      if (video.paused || video.ended) return;
-      context.drawImage(video, 0, 0, dimensions.width, dimensions.height);
+      if (loadedVideo.paused || loadedVideo.ended) return;
+      context.drawImage(loadedVideo, 0, 0, dimensions.width, dimensions.height);
       requestNextFrame(drawFrame);
     };
 
     recorder.start(250);
-    await video.play();
+    await loadedVideo.play();
     drawFrame();
-    const completed = await waitForVideoPlaybackToEnd(video);
+    const completed = await waitForVideoPlaybackToEnd(loadedVideo);
     if (recorder.state !== "inactive") recorder.stop();
     const blob = await recorded;
     return completed ? blob : null;
   } catch {
     return null;
   } finally {
+    if (recorder && recorder.state !== "inactive") {
+      try {
+        recorder.stop();
+      } catch {
+        stopStreamTracks();
+      }
+    } else {
+      stopStreamTracks();
+    }
+    releaseVideoElementForPrestage(video);
     URL.revokeObjectURL(objectUrl);
   }
 };
@@ -209,6 +259,7 @@ const transcodeMotionReferenceBlobWithCanvas = async ({
  */
 export const maybePrestageMotionReferenceVideoBlob = async (blob: Blob): Promise<Blob> => {
   if (blob.size <= MOTION_REFERENCE_LOCAL_PRESTAGE_THRESHOLD_BYTES) return blob;
+  if (shouldDeferAiStudioBackgroundWork()) return blob;
   let bestBlob: Blob | null = null;
 
   for (const plan of MOTION_REFERENCE_LOCAL_PRESTAGE_PLANS) {

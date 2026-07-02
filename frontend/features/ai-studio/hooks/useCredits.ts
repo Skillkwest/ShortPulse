@@ -10,6 +10,7 @@ import {
   incrementFreezeInvestigationCounter,
   setFreezeInvestigationGauge,
 } from "../logic/freezeInvestigationTelemetry";
+import { shouldDeferAiStudioBackgroundWork } from "../logic/aiStudioPressureConservation";
 
 type BalanceState = {
   ownerUserId: string | null;
@@ -414,11 +415,13 @@ export const useCredits = ({ enabled = true }: { enabled?: boolean } = {}) => {
   useEffect(() => {
     if (!enabled) return;
     const onFocus = () => {
+      if (shouldDeferAiStudioBackgroundWork()) return;
       void refresh({ silent: true });
     };
 
     const onVisibilityChange = () => {
       if (typeof document === "undefined" || document.visibilityState !== "visible") return;
+      if (shouldDeferAiStudioBackgroundWork()) return;
       void refresh({ silent: true });
     };
 
@@ -434,6 +437,7 @@ export const useCredits = ({ enabled = true }: { enabled?: boolean } = {}) => {
     if (!enabled || !currentUserId) return;
     const intervalId = window.setInterval(() => {
       if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      if (shouldDeferAiStudioBackgroundWork()) return;
       void refresh({ silent: true });
     }, CREDIT_SNAPSHOT_IDLE_REFRESH_INTERVAL_MS);
     return () => window.clearInterval(intervalId);

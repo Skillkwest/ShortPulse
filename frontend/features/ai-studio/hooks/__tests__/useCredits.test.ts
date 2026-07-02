@@ -50,6 +50,8 @@ describe("useCredits", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    window.sessionStorage.clear();
+    window.history.pushState(null, "", "/");
     Object.defineProperty(document, "visibilityState", {
       configurable: true,
       value: "visible",
@@ -328,6 +330,46 @@ describe("useCredits", () => {
     });
     expect(fetchWithAuthMock).not.toHaveBeenCalled();
 
+    setIntervalSpy.mockRestore();
+  });
+
+  it("defers idle credit polling while AI Studio is under pressure quarantine", async () => {
+    window.history.pushState(null, "", "/ai-studio");
+    window.sessionStorage.setItem(
+      "shortpulse.ai_studio.pressure_quarantine.v1",
+      JSON.stringify({
+        expiresAt: Date.now() + 60_000,
+        level: 2,
+        reason: "heap_pressure",
+        updatedAt: Date.now(),
+      })
+    );
+    let idleRefreshCallback: (() => void) | null = null;
+    const setIntervalSpy = vi.spyOn(window, "setInterval").mockImplementation((handler) => {
+      if (typeof handler === "function") {
+        idleRefreshCallback = handler as () => void;
+      }
+      return 1 as unknown as ReturnType<typeof window.setInterval>;
+    });
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        spendableCents: 900,
+        reservedCents: 120,
+        updatedAt: "2026-02-15T20:00:00.000Z",
+      }),
+    } as unknown as Response);
+
+    renderHook(() => useCredits());
+
+    await waitFor(() => expect(fetchWithAuthMock).toHaveBeenCalledTimes(1));
+    fetchWithAuthMock.mockClear();
+
+    act(() => {
+      idleRefreshCallback?.();
+    });
+
+    expect(fetchWithAuthMock).not.toHaveBeenCalled();
     setIntervalSpy.mockRestore();
   });
 });

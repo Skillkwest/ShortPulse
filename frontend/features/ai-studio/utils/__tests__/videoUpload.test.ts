@@ -118,6 +118,8 @@ describe("videoUpload", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    window.sessionStorage.clear();
+    window.history.pushState(null, "", "/");
     forgetObjectUrlBlob("blob:missing-motion-reference");
     forgetObjectUrlBlob("blob:remembered-motion-reference");
     forgetObjectUrlBlob("blob:remembered-reference-video");
@@ -337,7 +339,7 @@ describe("videoUpload", () => {
 
   it("pre-stages oversized local motion videos before browser-direct storage upload", async () => {
     const prestagedBlob = new Blob(["prestaged-motion"], { type: "video/webm" });
-    const { createElementSpy } = installMotionVideoPrestageMocks(prestagedBlob);
+    const { createElementSpy, stopTrackMock } = installMotionVideoPrestageMocks(prestagedBlob);
     const oversizedFile = new File([new Uint8Array(21 * 1024 * 1024)], "large-motion.mp4", {
       type: "video/mp4",
     });
@@ -376,6 +378,66 @@ describe("videoUpload", () => {
         prestagedBlob,
         expect.objectContaining({
           contentType: "video/webm",
+          upsert: false,
+        })
+      );
+      expect(stopTrackMock).toHaveBeenCalledTimes(1);
+    } finally {
+      createElementSpy.mockRestore();
+    }
+  });
+
+  it("skips browser-side video pre-staging under AI Studio pressure quarantine", async () => {
+    window.history.pushState(null, "", "/ai-studio");
+    window.sessionStorage.setItem(
+      "shortpulse.ai_studio.pressure_quarantine.v1",
+      JSON.stringify({
+        expiresAt: Date.now() + 60_000,
+        level: 2,
+        reason: "heap_pressure",
+        updatedAt: Date.now(),
+      })
+    );
+    const createElementSpy = vi.spyOn(document, "createElement");
+    const oversizedFile = new File([new Uint8Array(21 * 1024 * 1024)], "large-motion.mp4", {
+      type: "video/mp4",
+    });
+    fetchWithAuthMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          target: {
+            storagePath: "user-1/upload-staging/videos/motion-control/large-motion.mp4",
+            uploadToken: "upload-token",
+            mimeType: "video/mp4",
+            name: "large-motion.mp4",
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          url: "https://signed.example/large-motion.mp4",
+          path: "user-1/videos/motion-control/large-motion.mp4",
+          size: 2048,
+          mimeType: "video/mp4",
+          name: "large-motion.mp4",
+        })
+      );
+
+    try {
+      const uploaded = await uploadVideoFileToStorage(oversizedFile);
+
+      expect(uploaded.url).toBe("https://signed.example/large-motion.mp4");
+      expect(createElementSpy).not.toHaveBeenCalledWith("video");
+      expect(JSON.parse(String(fetchWithAuthMock.mock.calls[0]?.[1]?.body))).toMatchObject({
+        sourceMimeType: "video/mp4",
+        sourceName: expect.stringMatching(/^large-motion-\d+-[a-z0-9]+\.mp4$/),
+      });
+      expect(uploadToSignedUrlMock).toHaveBeenCalledWith(
+        "user-1/upload-staging/videos/motion-control/large-motion.mp4",
+        "upload-token",
+        oversizedFile,
+        expect.objectContaining({
+          contentType: "video/mp4",
           upsert: false,
         })
       );

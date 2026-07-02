@@ -1,12 +1,17 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { reportAiStudioStabilityEvent } from "../../logic/aiStudioStabilityTelemetry";
+import {
+  installAiStudioCrashEvidenceHandle,
+  reportAiStudioStabilityEvent,
+} from "../../logic/aiStudioStabilityTelemetry";
 import { useAiStudioStabilityLifecycleTelemetry } from "../useAiStudioStabilityLifecycleTelemetry";
 
 vi.mock("../../logic/aiStudioStabilityTelemetry", () => ({
+  installAiStudioCrashEvidenceHandle: vi.fn(() => vi.fn()),
   reportAiStudioStabilityEvent: vi.fn(),
 }));
 
+const installAiStudioCrashEvidenceHandleMock = vi.mocked(installAiStudioCrashEvidenceHandle);
 const reportAiStudioStabilityEventMock = vi.mocked(reportAiStudioStabilityEvent);
 
 const setVisibilityState = (visibilityState: DocumentVisibilityState) => {
@@ -31,6 +36,7 @@ const clearLifecycleWindowState = () => {
 
 describe("useAiStudioStabilityLifecycleTelemetry", () => {
   beforeEach(() => {
+    installAiStudioCrashEvidenceHandleMock.mockClear();
     reportAiStudioStabilityEventMock.mockClear();
     clearLifecycleWindowState();
     window.sessionStorage.clear();
@@ -60,6 +66,7 @@ describe("useAiStudioStabilityLifecycleTelemetry", () => {
     expect(JSON.stringify(reportAiStudioStabilityEventMock.mock.calls)).not.toContain(
       "project-123"
     );
+    expect(installAiStudioCrashEvidenceHandleMock).toHaveBeenCalledTimes(1);
   });
 
   it("reports visible return, page transition, unload, and focus breadcrumbs", () => {

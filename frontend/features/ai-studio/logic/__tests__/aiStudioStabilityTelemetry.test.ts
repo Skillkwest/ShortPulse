@@ -3,7 +3,9 @@ import { reportAppError } from "../../../../lib/appErrorReporter";
 import {
   applyAiStudioPressureQuarantineLevel,
   clearAiStudioPressureQuarantineForTests,
+  installAiStudioCrashEvidenceHandle,
   maybeMarkAiStudioPressureQuarantine,
+  readAiStudioCrashEvidenceSnapshot,
   reportAiStudioStabilityEvent,
   resolveAiStudioPressureQuarantineLevel,
 } from "../aiStudioStabilityTelemetry";
@@ -18,10 +20,14 @@ describe("aiStudioStabilityTelemetry", () => {
   beforeEach(() => {
     reportAppErrorMock.mockClear();
     clearAiStudioPressureQuarantineForTests();
+    window.history.pushState(null, "", "/");
   });
 
   afterEach(() => {
     clearAiStudioPressureQuarantineForTests();
+    delete (window as { __shortpulseAiStudioCrashEvidence?: unknown })
+      .__shortpulseAiStudioCrashEvidence;
+    window.history.pushState(null, "", "/");
   });
 
   it("reports medium-severity telemetry-only stability events", () => {
@@ -71,5 +77,48 @@ describe("aiStudioStabilityTelemetry", () => {
         severity: "medium",
       })
     );
+  });
+
+  it("exposes local crash evidence without sending telemetry", () => {
+    window.history.pushState(null, "", "/ai-studio?perfAuditRuntime=1");
+    maybeMarkAiStudioPressureQuarantine({
+      level: 2,
+      longTaskP95Ms: 120,
+      maxInputStallMs: 100,
+      heapUsageRatio: 0.4,
+    });
+    reportAppErrorMock.mockClear();
+
+    const cleanup = installAiStudioCrashEvidenceHandle();
+    const evidenceWindow = window as {
+      __shortpulseAiStudioCrashEvidence?: {
+        snapshot: typeof readAiStudioCrashEvidenceSnapshot;
+      };
+    };
+    const snapshot = evidenceWindow.__shortpulseAiStudioCrashEvidence?.snapshot();
+
+    expect(snapshot).toEqual(
+      expect.objectContaining({
+        path: "/ai-studio",
+        search: "?perfAuditRuntime=1",
+        pressureQuarantine: expect.objectContaining({
+          level: 2,
+          reason: "long_task",
+        }),
+        resources: expect.objectContaining({
+          total: expect.any(Number),
+          fetch: expect.any(Number),
+          api: expect.any(Number),
+        }),
+        dom: expect.objectContaining({
+          nodes: expect.any(Number),
+          extensionRoots: expect.any(Number),
+        }),
+      })
+    );
+    expect(reportAppErrorMock).not.toHaveBeenCalled();
+
+    cleanup();
+    expect(evidenceWindow.__shortpulseAiStudioCrashEvidence).toBeUndefined();
   });
 });

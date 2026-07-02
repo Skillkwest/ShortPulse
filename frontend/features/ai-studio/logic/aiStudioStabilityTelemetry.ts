@@ -27,6 +27,45 @@ type PressureQuarantineRecord = {
   updatedAt: number;
 };
 
+type AiStudioCrashEvidenceMemory = {
+  usedJSHeapSize: number;
+  totalJSHeapSize: number;
+  jsHeapSizeLimit: number | null;
+  usedToTotalRatio: number | null;
+  usedToLimitRatio: number | null;
+} | null;
+
+export type AiStudioCrashEvidenceSnapshot = {
+  capturedAt: string;
+  path: string | null;
+  search: string | null;
+  readyState: string | null;
+  visibilityState: string | null;
+  pressureQuarantine: PressureQuarantineRecord | null;
+  memory: AiStudioCrashEvidenceMemory;
+  resources: {
+    total: number;
+    fetch: number;
+    api: number;
+    totalTransferBytes: number;
+    totalDecodedBytes: number;
+  };
+  dom: {
+    nodes: number;
+    images: number;
+    videos: number;
+    audios: number;
+    canvases: number;
+    extensionRoots: number;
+  };
+};
+
+type AiStudioCrashEvidenceWindow = Window & {
+  __shortpulseAiStudioCrashEvidence?: {
+    snapshot: () => AiStudioCrashEvidenceSnapshot;
+  };
+};
+
 type PressureQuarantineInput = {
   level: 0 | 1 | 2;
   longTaskP95Ms: number | null;
@@ -84,6 +123,117 @@ const writePressureQuarantine = (record: PressureQuarantineRecord): void => {
   } catch {
     // Best-effort pressure memory only.
   }
+};
+
+const readCrashEvidenceMemory = (): AiStudioCrashEvidenceMemory => {
+  if (typeof performance === "undefined") return null;
+  const memory = (
+    performance as Performance & {
+      memory?: {
+        usedJSHeapSize?: number;
+        totalJSHeapSize?: number;
+        jsHeapSizeLimit?: number;
+      };
+    }
+  ).memory;
+  const used = memory?.usedJSHeapSize;
+  const total = memory?.totalJSHeapSize;
+  if (typeof used !== "number" || typeof total !== "number" || total <= 0) return null;
+  const limit = typeof memory?.jsHeapSizeLimit === "number" ? memory.jsHeapSizeLimit : null;
+  return {
+    usedJSHeapSize: used,
+    totalJSHeapSize: total,
+    jsHeapSizeLimit: limit,
+    usedToTotalRatio: Math.round((used / total) * 1000) / 1000,
+    usedToLimitRatio: limit && limit > 0 ? Math.round((used / limit) * 1000) / 1000 : null,
+  };
+};
+
+const readCrashEvidenceResources = (): AiStudioCrashEvidenceSnapshot["resources"] => {
+  if (typeof performance === "undefined" || typeof performance.getEntriesByType !== "function") {
+    return {
+      total: 0,
+      fetch: 0,
+      api: 0,
+      totalTransferBytes: 0,
+      totalDecodedBytes: 0,
+    };
+  }
+  const resources = performance.getEntriesByType("resource") as PerformanceResourceTiming[];
+  return resources.reduce(
+    (summary, resource) => {
+      const name = typeof resource.name === "string" ? resource.name : "";
+      summary.total += 1;
+      if (resource.initiatorType === "fetch") summary.fetch += 1;
+      if (name.includes("/api/")) summary.api += 1;
+      summary.totalTransferBytes += Math.max(0, Math.round(resource.transferSize || 0));
+      summary.totalDecodedBytes += Math.max(0, Math.round(resource.decodedBodySize || 0));
+      return summary;
+    },
+    {
+      total: 0,
+      fetch: 0,
+      api: 0,
+      totalTransferBytes: 0,
+      totalDecodedBytes: 0,
+    }
+  );
+};
+
+const readCrashEvidenceDom = (): AiStudioCrashEvidenceSnapshot["dom"] => {
+  if (typeof document === "undefined") {
+    return {
+      nodes: 0,
+      images: 0,
+      videos: 0,
+      audios: 0,
+      canvases: 0,
+      extensionRoots: 0,
+    };
+  }
+  return {
+    nodes: document.getElementsByTagName("*").length,
+    images: document.images.length,
+    videos: document.querySelectorAll("video").length,
+    audios: document.querySelectorAll("audio").length,
+    canvases: document.querySelectorAll("canvas").length,
+    extensionRoots: document.querySelectorAll(
+      '[id*="extension" i], [class*="extension" i], iframe[src^="chrome-extension://"], script[src^="chrome-extension://"], [src^="chrome-extension://"]'
+    ).length,
+  };
+};
+
+/**
+ * Reads local browser evidence for crash-adjacent AI Studio investigations.
+ * This intentionally does not send network telemetry or expose secrets.
+ */
+export const readAiStudioCrashEvidenceSnapshot = (): AiStudioCrashEvidenceSnapshot => ({
+  capturedAt: new Date().toISOString(),
+  path: typeof window === "undefined" ? null : (window.location?.pathname ?? null),
+  search: typeof window === "undefined" ? null : (window.location?.search ?? null),
+  readyState: typeof document === "undefined" ? null : document.readyState,
+  visibilityState: typeof document === "undefined" ? null : document.visibilityState,
+  pressureQuarantine: readStoredPressureQuarantine(),
+  memory: readCrashEvidenceMemory(),
+  resources: readCrashEvidenceResources(),
+  dom: readCrashEvidenceDom(),
+});
+
+/**
+ * Installs a local window handle for manual crash forensics in affected browsers.
+ */
+export const installAiStudioCrashEvidenceHandle = (): (() => void) => {
+  if (typeof window === "undefined") return () => undefined;
+  const evidenceWindow = window as AiStudioCrashEvidenceWindow;
+  const handle = {
+    snapshot: readAiStudioCrashEvidenceSnapshot,
+  };
+  evidenceWindow.__shortpulseAiStudioCrashEvidence = handle;
+  return () => {
+    if (evidenceWindow.__shortpulseAiStudioCrashEvidence === handle) {
+      delete evidenceWindow.__shortpulseAiStudioCrashEvidence;
+    }
+  };
 };
 
 /**

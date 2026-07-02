@@ -35,6 +35,7 @@ import { useAiStudioEditVideoPanelRuntimes } from "../hooks/useAiStudioEditVideo
 import { useAiStudioReferenceExperienceRuntime } from "../hooks/useAiStudioReferenceExperienceRuntime";
 import { resolveMediaStorageQuotaUserMessage } from "../../../lib/mediaStorageQuota";
 import { useMediaStorageQuotaSummary } from "../../billing/useMediaStorageQuotaSummary";
+import { shouldDeferAiStudioBackgroundWork } from "../logic/aiStudioPressureConservation";
 import { useResolvedAccountPlan } from "../../billing/useResolvedAccountPlan";
 import { useCreatePulsePresetPageRuntime } from "../hooks/createPulsePageRuntime/useCreatePulsePresetPageRuntime";
 import type { CreatePageAgentRuntime } from "../createRuntime/contracts";
@@ -402,6 +403,7 @@ const AiStudioPageRuntimeBody = ({
   const workspaceRuntimeKey = projectId ? null : sessionId ? `session:${sessionId}` : null;
   const { quotaSummary } = useMediaStorageQuotaSummary({
     enabled: true,
+    shouldDeferAutomaticRefresh: shouldDeferAiStudioBackgroundWork,
   });
   const isMediaStorageFull = quotaSummary?.isOverLimit === true;
   const { activeCreatePulsePresetSnapshot, beginPulseActivation, hasActivePulseSession } =

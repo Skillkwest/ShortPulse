@@ -198,6 +198,8 @@ Key indicators:
   - `sectionRenderCounters`
   - `sectionCommit`
   - `nonGridRerendersPerOutputStatusTick`
+- crash-adjacent local browser evidence via:
+  - `window.__shortpulseAiStudioCrashEvidence?.snapshot()`
 - When extension interference is suspected, run the same local telemetry flow once in the affected profile and once in a clean extension-disabled profile. Treat the clean profile as the app-owned baseline and the affected profile as environment evidence.
 
 ## Tuning Knobs

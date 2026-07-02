@@ -3,7 +3,10 @@
  * Emits low-cardinality breadcrumbs for crash forensics without changing route behavior.
  */
 import { useCallback, useEffect, useRef } from "react";
-import { reportAiStudioStabilityEvent } from "../logic/aiStudioStabilityTelemetry";
+import {
+  installAiStudioCrashEvidenceHandle,
+  reportAiStudioStabilityEvent,
+} from "../logic/aiStudioStabilityTelemetry";
 import type { AiStudioStabilityEvent } from "../logic/aiStudioStabilityTelemetry";
 
 type UseAiStudioStabilityLifecycleTelemetryArgs = {
@@ -98,6 +101,8 @@ export const useAiStudioStabilityLifecycleTelemetry = ({
 }: UseAiStudioStabilityLifecycleTelemetryArgs): void => {
   const sessionStartedRef = useRef(false);
   const projectIdPresent = Boolean(projectId?.trim());
+
+  useEffect(() => installAiStudioCrashEvidenceHandle(), []);
 
   const emitLifecycleEvent = useCallback(
     (event: AiStudioStabilityEvent, metadata: LifecycleEventMetadata = {}) => {

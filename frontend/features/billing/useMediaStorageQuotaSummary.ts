@@ -8,9 +8,11 @@ const MEDIA_STORAGE_QUOTA_REFRESH_EVENT = "shortpulse:media-storage-quota-refres
 
 export const useMediaStorageQuotaSummary = ({
   enabled = true,
+  shouldDeferAutomaticRefresh,
 }: {
   enabled?: boolean;
   fallbackPlanId?: string | null;
+  shouldDeferAutomaticRefresh?: () => boolean;
 }) => {
   const { session, user } = useResolvedProtectedSessionState({
     enabled,
@@ -62,10 +64,12 @@ export const useMediaStorageQuotaSummary = ({
     if (!enabled || !user || typeof window === "undefined") return;
 
     const handleWindowFocus = () => {
+      if (shouldDeferAutomaticRefresh?.()) return;
       void refreshQuotaSummary();
     };
     const handleVisibilityChange = () => {
       if (document.visibilityState !== "visible") return;
+      if (shouldDeferAutomaticRefresh?.()) return;
       void refreshQuotaSummary();
     };
 
@@ -75,7 +79,7 @@ export const useMediaStorageQuotaSummary = ({
       window.removeEventListener("focus", handleWindowFocus);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [enabled, refreshQuotaSummary, user]);
+  }, [enabled, refreshQuotaSummary, shouldDeferAutomaticRefresh, user]);
 
   useEffect(() => {
     if (!enabled || !user || typeof window === "undefined") return;

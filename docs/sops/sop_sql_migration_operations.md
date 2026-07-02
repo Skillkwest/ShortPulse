@@ -310,6 +310,9 @@ Use only when explicitly reverting a migration in a controlled window. Prefer ta
 - GitHub Environment `SUPABASE_DB_URL` must be IPv4-compatible for hosted SQL workflows; use the Supavisor session pooler URL unless the Supabase IPv4 add-on is enabled.
 - Runner script authority: `scripts/reliability_control_plane_diagnostics.sh`.
 - Keep mode at `warn` for first-time environment validation; use `enforce` only after baseline reliability evidence is established.
+- Use `.github/workflows/cost-performance-diagnostics.yml` for read-only DB I/O, database/API egress, storage-object byte posture, scheduler activity, and media-derivative cost diagnostics against `staging`/`production`.
+- Runner script authority: `scripts/cost_performance_diagnostics.sh`.
+- Keep cost-performance mode at `warn` until a production baseline artifact has been reviewed. The hosted workflow intentionally excludes `sql/check_media_storage_cleanup_manifest.sql` because that local-review manifest can print raw storage paths for delete candidates.
 - Use `.github/workflows/apply-control-plane-ops-sql.yml` for environment-scoped scheduler SQL apply operations (`configure_bypass_secret`, `configure_generation_recovery_cron_secret`, `configure_generation_recovery_scheduler`, `configure_media_derivative_scheduler`, `configure_admin_user_health_fleet_scheduler`, `configure_cron_job_run_details_retention`).
 - Use `.github/workflows/apply-hosted-sql-migration.yml` for numbered hosted migrations such as `sql/migrations/172_schedule_worker_runs_retention.sql`.
 

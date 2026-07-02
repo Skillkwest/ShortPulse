@@ -27,34 +27,7 @@
     .reference-all-refs-styles-stack,
     .reference-styles-section
   ) {
-  transition:
-    flex-basis 300ms cubic-bezier(0.22, 0.61, 0.36, 1),
-    flex-grow 300ms cubic-bezier(0.22, 0.61, 0.36, 1),
-    opacity 220ms ease;
-}
-
-.reference-grid-sections.is-panel-layout-animating
-  :is(
-    .reference-rail-canvas-section,
-    .reference-grid-inventory-stack,
-    .reference-curated-section,
-    .reference-all-refs-section,
-    .reference-all-refs-styles-stack,
-    .reference-styles-section,
-    .reference-grid-horizontal-divider-wrap
-  ) {
-  animation: reference-rail-panel-layout-fade-in 220ms ease-out both;
-}
-
-@keyframes reference-rail-panel-layout-fade-in {
-  0%,
-  12% {
-    opacity: 0;
-  }
-
-  100% {
-    opacity: 1;
-  }
+  transition: flex-basis 240ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -65,10 +38,8 @@
       .reference-curated-section,
       .reference-all-refs-section,
       .reference-all-refs-styles-stack,
-      .reference-styles-section,
-      .reference-grid-horizontal-divider-wrap
+      .reference-styles-section
     ) {
-    animation: none;
     transition: none;
   }
 }

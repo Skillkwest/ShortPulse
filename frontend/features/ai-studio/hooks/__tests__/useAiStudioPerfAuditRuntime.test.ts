@@ -16,6 +16,14 @@ import {
 import type { AiStudioSessionSnapshot } from "../../logic/sessionSnapshot";
 
 type PerfAuditWindow = Window & {
+  __shortpulseAiStudioReferenceGridAuditProgress?: {
+    status: "idle" | "running" | "done" | "error";
+    counts: number[];
+    currentCount: number | null;
+    completedCounts: number[];
+    failedCount: number | null;
+    error: string | null;
+  };
   __shortpulseAiStudioPerf?: {
     seedReferenceGrid: (
       count: number,
@@ -43,6 +51,22 @@ type PerfAuditWindow = Window & {
         };
       }>;
     }>;
+    runReferenceGridAudit: (options?: {
+      counts?: number[];
+      clickSamples?: number;
+      scrollDurationMsByCount?: Record<number, number>;
+    }) => Promise<{
+      ok: boolean;
+      scenarios: Array<{ count: number }>;
+    }>;
+    getReferenceGridAuditProgress: () => {
+      status: "idle" | "running" | "done" | "error";
+      counts: number[];
+      currentCount: number | null;
+      completedCounts: number[];
+      failedCount: number | null;
+      error: string | null;
+    };
   };
 };
 
@@ -50,8 +74,10 @@ const getPerfWindow = (): PerfAuditWindow => window as PerfAuditWindow;
 
 afterEach(() => {
   delete getPerfWindow().__shortpulseAiStudioPerf;
+  delete getPerfWindow().__shortpulseAiStudioReferenceGridAuditProgress;
   window.history.pushState(null, "", "/");
   vi.restoreAllMocks();
+  document.body.innerHTML = "";
 });
 
 describe("createPerfAuditReferenceImageFile", () => {
@@ -245,6 +271,91 @@ describe("useAiStudioPerfAuditRuntime", () => {
     );
     expect(result?.ok).toBe(true);
 
+    unmount();
+  });
+
+  it("reports Reference Grid audit progress for each completed scenario", async () => {
+    window.history.pushState(null, "", "/ai-studio?perfAuditRuntime=1");
+    document.body.innerHTML = `
+      <main class="page page-wide ai-studio-page">
+        <section
+          class="reference-canvas-panel"
+          data-grid-surface="reference-grid"
+          data-rendered-item-count="9"
+          data-image-hydration-queue-size="0"
+          data-image-decode-inflight-count="0"
+          data-grid-perf-degrade-level="2"
+          data-grid-media-work-tokens="5"
+          data-grid-video-attach-budget="1"
+          data-grid-src-swap-rate-per-minute="0"
+          data-grid-repaint-spike-count="0"
+          data-grid-last-swap-burst-count="0"
+        >
+          <div class="reference-canvas-scroll">
+            <button class="reference-card" type="button">Card</button>
+          </div>
+        </section>
+      </main>
+    `;
+    const requestAnimationFrameSpy = vi
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation((callback: FrameRequestCallback) => {
+        window.setTimeout(() => callback(performance.now()), 0);
+        return 1;
+      });
+
+    const { unmount } = renderHook(() =>
+      useAiStudioPerfAuditRuntime({
+        enabled: false,
+        aspect: "9:16",
+        currentModelLabel: "Seedream",
+        model: "seedream",
+        getOutputSnapshot: () => ({ outputOrder: [] }),
+        resetReferenceGridState: vi.fn(),
+        projectRouteRequested: false,
+        standardCreatePrompt: "",
+        editReferenceText: "",
+        videoReferenceText: "",
+        setActiveOutputId: vi.fn(),
+        setStandardCreatePrompt: vi.fn(),
+        setEditReferenceText: vi.fn(),
+        setVideoReferenceText: vi.fn(),
+        setOutputs: vi.fn(),
+        setReferenceGridAuditOutputs: vi.fn(),
+      })
+    );
+
+    await waitFor(() => {
+      expect(getPerfWindow().__shortpulseAiStudioPerf?.runReferenceGridAudit).toEqual(
+        expect.any(Function)
+      );
+    });
+
+    const result = await getPerfWindow().__shortpulseAiStudioPerf?.runReferenceGridAudit({
+      counts: [40, 60, 100],
+      clickSamples: 1,
+      scrollDurationMsByCount: {
+        40: 1,
+        60: 1,
+        100: 1,
+      },
+    });
+
+    const progress = getPerfWindow().__shortpulseAiStudioPerf?.getReferenceGridAuditProgress();
+    expect(result?.scenarios.map((scenario) => scenario.count)).toEqual([40, 60, 100]);
+    expect(progress).toEqual(
+      expect.objectContaining({
+        status: "done",
+        counts: [40, 60, 100],
+        currentCount: null,
+        completedCounts: [40, 60, 100],
+        failedCount: null,
+        error: null,
+      })
+    );
+    expect(getPerfWindow().__shortpulseAiStudioReferenceGridAuditProgress).toEqual(progress);
+
+    requestAnimationFrameSpy.mockRestore();
     unmount();
   });
 });

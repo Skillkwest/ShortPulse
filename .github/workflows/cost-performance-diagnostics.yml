@@ -1,0 +1,91 @@
+name: Cost Performance Diagnostics
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_environment:
+        description: "GitHub Environment containing IPv4-compatible SUPABASE_DB_URL"
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      mode:
+        description: "warn (non-blocking) or enforce (blocking SQL execution)"
+        required: true
+        default: warn
+        type: choice
+        options:
+          - warn
+          - enforce
+
+concurrency:
+  group: cost-performance-diagnostics-${{ github.event.inputs.target_environment }}
+  cancel-in-progress: false
+
+jobs:
+  cost_performance_diagnostics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: ${{ github.event.inputs.target_environment }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6.0.3
+        with:
+          fetch-depth: 1
+
+      - name: Install PostgreSQL client
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Run cost performance diagnostics (warn/enforce)
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          MODE_INPUT: ${{ github.event.inputs.mode }}
+          COST_PERFORMANCE_DIAGNOSTICS_MODE: ${{ github.event.inputs.mode }}
+          COST_PERFORMANCE_DIAGNOSTICS_LOG_DIR: /tmp/cost_performance_diagnostics
+        run: |
+          set -euo pipefail
+          MODE="${MODE_INPUT:-warn}"
+          if [ "$MODE" != "warn" ] && [ "$MODE" != "enforce" ]; then
+            echo "::warning::Unknown mode '$MODE'. Falling back to warn."
+            MODE="warn"
+          fi
+          export COST_PERFORMANCE_DIAGNOSTICS_MODE="$MODE"
+
+          if [ -z "${SUPABASE_DB_URL:-}" ]; then
+            echo "::error::Missing environment secret SUPABASE_DB_URL."
+            exit 1
+          fi
+
+          set +e
+          ./scripts/cost_performance_diagnostics.sh 2>&1 | tee /tmp/cost_performance_diagnostics.log
+          STATUS=${PIPESTATUS[0]}
+          set -e
+
+          if [ "$STATUS" -eq 0 ]; then
+            echo "cost_performance_diagnostics passed (mode=$MODE)." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if [ "$MODE" = "warn" ]; then
+            echo "::warning::cost_performance_diagnostics failed in warn mode."
+            echo "cost_performance_diagnostics failed in warn mode." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "cost_performance_diagnostics failed in enforce mode." >> "$GITHUB_STEP_SUMMARY"
+          exit "$STATUS"
+
+      - name: Upload diagnostics artifacts
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: cost-performance-diagnostics-${{ github.run_id }}
+          path: |
+            /tmp/cost_performance_diagnostics.log
+            /tmp/cost_performance_diagnostics
+          if-no-files-found: ignore

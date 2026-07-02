@@ -102,6 +102,7 @@ type AiStudioPerfWindow = Window & {
     updatedAt: string;
     hasRuntime: boolean;
   };
+  __shortpulseAiStudioReferenceGridAuditProgress?: ReferenceGridAuditProgressSnapshot;
   __shortpulseAiStudioPerf?: {
     seedReferenceGrid: (
       count: number,
@@ -165,6 +166,7 @@ type AiStudioPerfWindow = Window & {
         note?: string;
       }>;
     }>;
+    getReferenceGridAuditProgress: () => ReferenceGridAuditProgressSnapshot;
     capturePerfBaseline: () => Promise<{
       generatedAt: string;
       referenceGrid: {
@@ -316,6 +318,18 @@ type PerfSeedReferenceGridOptions = {
 
 type PerfOutputSnapshot = { outputOrder: string[] };
 
+type ReferenceGridAuditProgressSnapshot = {
+  status: "idle" | "running" | "done" | "error";
+  runId: string | null;
+  startedAt: string | null;
+  updatedAt: string | null;
+  counts: number[];
+  currentCount: number | null;
+  completedCounts: number[];
+  failedCount: number | null;
+  error: string | null;
+};
+
 type UseAiStudioPerfAuditRuntimeParams = {
   enabled: boolean;
   aspect: string;
@@ -449,7 +463,20 @@ export function useAiStudioPerfAuditRuntime({
     };
     const sleep = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
     const nextFrame = () =>
-      new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+      new Promise<void>((resolve) => {
+        let settled = false;
+        const timeoutId = window.setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          resolve();
+        }, 250);
+        window.requestAnimationFrame(() => {
+          if (settled) return;
+          settled = true;
+          window.clearTimeout(timeoutId);
+          resolve();
+        });
+      });
     const afterTwoFrames = async () => {
       await nextFrame();
       await nextFrame();
@@ -460,6 +487,30 @@ export function useAiStudioPerfAuditRuntime({
       const index = Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95));
       return Math.round((sorted[index] ?? 0) * 100) / 100;
     };
+    let referenceGridAuditProgress: ReferenceGridAuditProgressSnapshot =
+      perfWindow.__shortpulseAiStudioReferenceGridAuditProgress ?? {
+        status: "idle",
+        runId: null,
+        startedAt: null,
+        updatedAt: null,
+        counts: [],
+        currentCount: null,
+        completedCounts: [],
+        failedCount: null,
+        error: null,
+      };
+    const updateReferenceGridAuditProgress = (
+      patch: Partial<ReferenceGridAuditProgressSnapshot>
+    ): ReferenceGridAuditProgressSnapshot => {
+      referenceGridAuditProgress = {
+        ...referenceGridAuditProgress,
+        ...patch,
+        updatedAt: new Date().toISOString(),
+      };
+      perfWindow.__shortpulseAiStudioReferenceGridAuditProgress = referenceGridAuditProgress;
+      return referenceGridAuditProgress;
+    };
+    updateReferenceGridAuditProgress(referenceGridAuditProgress);
     const sampleHeapMb = (): number | null => {
       const runtimePerformance = performance as Performance & {
         memory?: { usedJSHeapSize?: number };
@@ -916,8 +967,20 @@ export function useAiStudioPerfAuditRuntime({
       scrollDurationMs: number,
       seedOptions?: PerfSeedReferenceGridOptions
     ) => {
+      const scenarioStartedAt = performance.now();
+      const scenarioBudgetMs = Math.max(5_000, scrollDurationMs + clickSamples * 1_500 + 5_000);
+      const assertScenarioBudget = (phase: string) => {
+        const elapsedMs = performance.now() - scenarioStartedAt;
+        if (elapsedMs <= scenarioBudgetMs) return;
+        throw new Error(
+          `Reference Grid audit scenario ${count} exceeded ${Math.round(
+            scenarioBudgetMs
+          )}ms during ${phase}.`
+        );
+      };
       const seedResult = perfWindow.__shortpulseAiStudioPerf?.seedReferenceGrid(count, seedOptions);
       await sleep(280);
+      assertScenarioBudget("settle");
 
       const clickLatenciesMs: number[] = [];
       const renderedItemSamples: number[] = [];
@@ -964,6 +1027,7 @@ export function useAiStudioPerfAuditRuntime({
         const start = performance.now();
         targetCard.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
         await afterTwoFrames();
+        assertScenarioBudget("click sampling");
         clickLatenciesMs.push(performance.now() - start);
         sampleGridRuntimeMetrics();
         if (scroller instanceof HTMLElement && scroller.scrollHeight > scroller.clientHeight) {
@@ -974,6 +1038,7 @@ export function useAiStudioPerfAuditRuntime({
           scroller.scrollTop = nextTop;
         }
         await sleep(18);
+        assertScenarioBudget("click sampling");
       }
 
       const longTaskDurationsMs: number[] = [];
@@ -1011,6 +1076,7 @@ export function useAiStudioPerfAuditRuntime({
           scroller.scrollTop = nextTop;
         }
         sampleGridRuntimeMetrics();
+        assertScenarioBudget("scroll sampling");
       }
       if (observer) observer.disconnect();
       const afterMb = sampleHeapMb();
@@ -1437,9 +1503,11 @@ export function useAiStudioPerfAuditRuntime({
         resetReferenceGridState();
         return { activeCount: 0, archivedCount: 0, totalCount: 0 };
       },
+      getReferenceGridAuditProgress: () => referenceGridAuditProgress,
       runReferenceGridAudit: async (options) => {
-        const counts =
+        const rawCounts =
           options?.counts?.filter((value) => Number.isFinite(value) && value > 0) ?? DEFAULT_COUNTS;
+        const counts = rawCounts.map((count) => Math.max(1, Math.floor(count)));
         const clickSamples = Math.max(
           1,
           Math.floor(options?.clickSamples ?? CLICK_SAMPLES_DEFAULT)
@@ -1456,25 +1524,53 @@ export function useAiStudioPerfAuditRuntime({
             : null;
 
         const scenarios: ReferenceGridScenario[] = [];
+        const runId = `reference-grid-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        updateReferenceGridAuditProgress({
+          status: "running",
+          runId,
+          startedAt: new Date().toISOString(),
+          counts,
+          currentCount: null,
+          completedCounts: [],
+          failedCount: null,
+          error: null,
+        });
 
-        for (const count of counts) {
-          const safeCount = Math.max(1, Math.floor(count));
-          const scenario = await runPerfScenario(
-            safeCount,
-            clickSamples,
-            scrollDurationMsByCount[safeCount] ?? DEFAULT_SCROLL_MS_BY_COUNT[300],
-            activeCapOverride ? { activeCapOverride } : undefined
-          );
-          scenarios.push({
-            count: scenario.count,
-            viewport: scenario.viewport,
-            seeded: scenario.seeded,
-            click: scenario.click,
-            longTask: scenario.longTask,
-            interaction: scenario.interaction,
-            memory: scenario.memory,
-            grid: scenario.grid,
+        try {
+          for (const count of counts) {
+            updateReferenceGridAuditProgress({
+              currentCount: count,
+              failedCount: null,
+              error: null,
+            });
+            const scenario = await runPerfScenario(
+              count,
+              clickSamples,
+              scrollDurationMsByCount[count] ?? DEFAULT_SCROLL_MS_BY_COUNT[300],
+              activeCapOverride ? { activeCapOverride } : undefined
+            );
+            scenarios.push({
+              count: scenario.count,
+              viewport: scenario.viewport,
+              seeded: scenario.seeded,
+              click: scenario.click,
+              longTask: scenario.longTask,
+              interaction: scenario.interaction,
+              memory: scenario.memory,
+              grid: scenario.grid,
+            });
+            updateReferenceGridAuditProgress({
+              currentCount: null,
+              completedCounts: scenarios.map((scenario) => scenario.count),
+            });
+          }
+        } catch (error) {
+          updateReferenceGridAuditProgress({
+            status: "error",
+            failedCount: referenceGridAuditProgress.currentCount,
+            error: error instanceof Error ? error.message : "Reference Grid audit failed.",
           });
+          throw error;
         }
 
         const gates = evaluateReferenceGridAuditGates(scenarios, PERF_GATES);
@@ -1485,6 +1581,13 @@ export function useAiStudioPerfAuditRuntime({
           scenarios,
           gates,
         };
+        updateReferenceGridAuditProgress({
+          status: result.ok ? "done" : "error",
+          currentCount: null,
+          completedCounts: scenarios.map((scenario) => scenario.count),
+          failedCount: result.ok ? null : null,
+          error: result.ok ? null : "Reference Grid audit gates failed.",
+        });
         console.table(gates);
         console.log("[shortpulse][reference-grid-audit]", result);
         return result;

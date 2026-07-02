@@ -387,6 +387,75 @@ describe("videoUpload", () => {
     }
   });
 
+  it("releases temporary video sources when motion pre-staging cannot load metadata", async () => {
+    const originalCreateElement = document.createElement.bind(document);
+    const pauseMock = vi.fn();
+    const removeAttributeMock = vi.fn();
+    const loadMock = vi.fn(() => {
+      throw new Error("metadata load failed");
+    });
+    const videoElement = {
+      muted: false,
+      playsInline: false,
+      preload: "",
+      src: "",
+      onloadedmetadata: null as null | (() => void),
+      onerror: null as null | (() => void),
+      onended: null as null | (() => void),
+      pause: pauseMock,
+      removeAttribute: removeAttributeMock,
+      load: loadMock,
+    };
+    const createElementSpy = vi.spyOn(document, "createElement").mockImplementation((tagName) => {
+      if (tagName === "video") return videoElement as unknown as HTMLVideoElement;
+      return originalCreateElement(tagName);
+    });
+    vi.stubGlobal("MediaRecorder", {
+      isTypeSupported: vi.fn((mimeType: string) => mimeType.startsWith("video/webm")),
+    });
+    const oversizedFile = new File([new Uint8Array(21 * 1024 * 1024)], "large-motion.mp4", {
+      type: "video/mp4",
+    });
+    fetchWithAuthMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          target: {
+            storagePath: "user-1/upload-staging/videos/motion-control/large-motion.mp4",
+            uploadToken: "upload-token",
+            mimeType: "video/mp4",
+            name: "large-motion.mp4",
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          url: "https://signed.example/large-motion.mp4",
+          path: "user-1/videos/motion-control/large-motion.mp4",
+          size: 2048,
+          mimeType: "video/mp4",
+          name: "large-motion.mp4",
+        })
+      );
+
+    try {
+      await uploadVideoFileToStorage(oversizedFile);
+
+      expect(removeAttributeMock).toHaveBeenCalledWith("src");
+      expect(pauseMock).toHaveBeenCalled();
+      expect(uploadToSignedUrlMock).toHaveBeenCalledWith(
+        "user-1/upload-staging/videos/motion-control/large-motion.mp4",
+        "upload-token",
+        oversizedFile,
+        expect.objectContaining({
+          contentType: "video/mp4",
+          upsert: false,
+        })
+      );
+    } finally {
+      createElementSpy.mockRestore();
+    }
+  });
+
   it("skips browser-side video pre-staging under AI Studio pressure quarantine", async () => {
     window.history.pushState(null, "", "/ai-studio");
     window.sessionStorage.setItem(

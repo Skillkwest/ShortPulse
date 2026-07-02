@@ -36,43 +36,6 @@ const resolveMotionReferenceRecordingMimeType = (): string | null => {
   );
 };
 
-const loadVideoElementForPrestage = async (objectUrl: string): Promise<HTMLVideoElement | null> => {
-  if (typeof document === "undefined") return null;
-  const video = document.createElement("video");
-  video.muted = true;
-  video.playsInline = true;
-  video.preload = "auto";
-
-  const loaded = new Promise<HTMLVideoElement | null>((resolve) => {
-    const timeoutId = window.setTimeout(() => {
-      cleanup();
-      resolve(null);
-    }, MOTION_REFERENCE_METADATA_TIMEOUT_MS);
-    const cleanup = () => {
-      window.clearTimeout(timeoutId);
-      video.onloadedmetadata = null;
-      video.onerror = null;
-    };
-    video.onloadedmetadata = () => {
-      cleanup();
-      resolve(video);
-    };
-    video.onerror = () => {
-      cleanup();
-      resolve(null);
-    };
-  });
-
-  video.src = objectUrl;
-  try {
-    video.load();
-  } catch {
-    return null;
-  }
-
-  return await loaded;
-};
-
 const releaseVideoElementForPrestage = (video: HTMLVideoElement | null): void => {
   if (!video) return;
   video.onloadedmetadata = null;
@@ -89,6 +52,46 @@ const releaseVideoElementForPrestage = (video: HTMLVideoElement | null): void =>
   } catch {
     // Best-effort browser resource release.
   }
+};
+
+const loadVideoElementForPrestage = async (objectUrl: string): Promise<HTMLVideoElement | null> => {
+  if (typeof document === "undefined") return null;
+  const video = document.createElement("video");
+  video.muted = true;
+  video.playsInline = true;
+  video.preload = "auto";
+
+  const loaded = new Promise<HTMLVideoElement | null>((resolve) => {
+    const timeoutId = window.setTimeout(() => {
+      cleanup();
+      releaseVideoElementForPrestage(video);
+      resolve(null);
+    }, MOTION_REFERENCE_METADATA_TIMEOUT_MS);
+    const cleanup = () => {
+      window.clearTimeout(timeoutId);
+      video.onloadedmetadata = null;
+      video.onerror = null;
+    };
+    video.onloadedmetadata = () => {
+      cleanup();
+      resolve(video);
+    };
+    video.onerror = () => {
+      cleanup();
+      releaseVideoElementForPrestage(video);
+      resolve(null);
+    };
+  });
+
+  video.src = objectUrl;
+  try {
+    video.load();
+  } catch {
+    releaseVideoElementForPrestage(video);
+    return null;
+  }
+
+  return await loaded;
 };
 
 const waitForVideoPlaybackToEnd = async (video: HTMLVideoElement): Promise<boolean> => {

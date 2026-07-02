@@ -231,7 +231,7 @@ const parseRepairableProjectionRow = (value: unknown): RepairableProjectionRow |
   };
 };
 
-const parseRepairableGenerationRow = (value: unknown): RepairableGenerationRow | null => {
+const parseRepairableGenerationSummaryRow = (value: unknown): RepairableGenerationRow | null => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const row = value as Record<string, unknown>;
   const generationId = asString(row.id);
@@ -250,7 +250,16 @@ const parseRepairableGenerationRow = (value: unknown): RepairableGenerationRow |
     errorMessage: asString(row.error_message),
     completedAt: asString(row.completed_at),
     createdAt: asString(row.created_at),
-    metadata: asObject(row.metadata),
+    metadata: {},
+  };
+};
+
+const parseRepairableGenerationRow = (value: unknown): RepairableGenerationRow | null => {
+  const row = parseRepairableGenerationSummaryRow(value);
+  if (!row || !value || typeof value !== "object" || Array.isArray(value)) return row;
+  return {
+    ...row,
+    metadata: asObject((value as Record<string, unknown>).metadata),
   };
 };
 
@@ -445,6 +454,67 @@ const REPAIR_PROJECTION_DISCOVERY_COLUMNS = [
   "task_state",
   "publication_state",
 ] as const;
+
+const REPAIR_GENERATION_SUMMARY_COLUMNS =
+  "id, user_id, request_id, provider, model_id, prompt_text, status, failure_reason_code, error_message, completed_at, created_at";
+const REPAIR_GENERATION_DETAIL_COLUMNS = `${REPAIR_GENERATION_SUMMARY_COLUMNS}, metadata`;
+
+const loadRepairableGenerationRowsByIds = async ({
+  adminClient,
+  generationIds,
+  includeMetadata = false,
+}: {
+  adminClient: ReturnType<typeof getSupabaseAdmin>;
+  generationIds: string[];
+  includeMetadata?: boolean;
+}): Promise<RepairableGenerationRow[]> => {
+  const ids = Array.from(new Set(generationIds.map(asString))).filter((id): id is string =>
+    Boolean(id)
+  );
+  if (!ids.length) return [];
+  const response = await adminClient
+    .from("ai_generations")
+    .select(includeMetadata ? REPAIR_GENERATION_DETAIL_COLUMNS : REPAIR_GENERATION_SUMMARY_COLUMNS)
+    .in("id", ids)
+    .limit(ids.length);
+  if (response.error) throw response.error;
+  return (Array.isArray(response.data) ? response.data : [])
+    .map((row) =>
+      includeMetadata ? parseRepairableGenerationRow(row) : parseRepairableGenerationSummaryRow(row)
+    )
+    .filter((row): row is RepairableGenerationRow => Boolean(row));
+};
+
+const buildRepairGenerationMap = (
+  rows: RepairableGenerationRow[]
+): Map<string, RepairableGenerationRow> => new Map(rows.map((row) => [row.generationId, row]));
+
+const hydrateRepairGenerationMetadata = async ({
+  adminClient,
+  generationById,
+  generationIds,
+}: {
+  adminClient: ReturnType<typeof getSupabaseAdmin>;
+  generationById: Map<string, RepairableGenerationRow>;
+  generationIds: string[];
+}): Promise<Map<string, RepairableGenerationRow>> => {
+  const ids = Array.from(new Set(generationIds)).filter((id) => generationById.has(id));
+  if (!ids.length) return generationById;
+  const hydratedRows = await loadRepairableGenerationRowsByIds({
+    adminClient,
+    generationIds: ids,
+    includeMetadata: true,
+  });
+  hydratedRows.forEach((row) => generationById.set(row.generationId, row));
+  return generationById;
+};
+
+const needsGenerationMetadataForRepair = (projection: RepairableProjectionRow): boolean =>
+  projection.repairReason === "generation_fallback" ||
+  projection.repairReason === "project_scope_backfill" ||
+  !projection.projectId ||
+  !projection.workspaceRuntimeKey ||
+  !projection.sourceRef;
 
 const readFailedProjectionMessage = (
   failureReasonCode: string | null,
@@ -992,9 +1062,7 @@ export const repairStaleTerminalGenerationProjections = async ({
     while (projectionRows.length < limit && terminalScanOffset < terminalScanMaxRows) {
       const terminalGenerationResponse = await adminClient
         .from("ai_generations")
-        .select(
-          "id, user_id, request_id, provider, model_id, prompt_text, status, failure_reason_code, error_message, completed_at, created_at, metadata"
-        )
+        .select(REPAIR_GENERATION_SUMMARY_COLUMNS)
         .in("status", ["success", "fail"])
         .lte("completed_at", cutoffIso)
         .order("completed_at", { ascending: false, nullsFirst: false })
@@ -1003,7 +1071,7 @@ export const repairStaleTerminalGenerationProjections = async ({
 
       const terminalGenerations = Array.isArray(terminalGenerationResponse.data)
         ? terminalGenerationResponse.data
-            .map((row) => parseRepairableGenerationRow(row))
+            .map((row) => parseRepairableGenerationSummaryRow(row))
             .filter((row): row is RepairableGenerationRow => Boolean(row))
             .filter((row) => !existingProjectionIds.has(row.generationId))
         : [];
@@ -1028,8 +1096,25 @@ export const repairStaleTerminalGenerationProjections = async ({
         ).map((row) => [row.generationId, row])
       );
       const remainingSlots = Math.max(0, limit - projectionRows.length);
+      const repairCandidateRows = terminalGenerations.filter((generation) => {
+        const projection = projectionByGenerationId.get(generation.generationId) ?? null;
+        return (
+          !projection ||
+          !isTerminalProjectionTaskState(projection.taskState) ||
+          !projection.projectId
+        );
+      });
+      const generationWithMetadataById = buildRepairGenerationMap(
+        await loadRepairableGenerationRowsByIds({
+          adminClient,
+          generationIds: repairCandidateRows.map((row) => row.generationId),
+          includeMetadata: true,
+        })
+      );
       projectionRows.push(
-        ...terminalGenerations
+        ...repairCandidateRows
+          .map((generation) => generationWithMetadataById.get(generation.generationId) ?? null)
+          .filter((generation): generation is RepairableGenerationRow => Boolean(generation))
           .filter((generation) => {
             const projection = projectionByGenerationId.get(generation.generationId) ?? null;
             if (!projection || !isTerminalProjectionTaskState(projection.taskState)) return true;
@@ -1072,24 +1157,19 @@ export const repairStaleTerminalGenerationProjections = async ({
     selectColumns: repairSelectColumns,
   });
 
-  const generationResponse = await adminClient
-    .from("ai_generations")
-    .select(
-      "id, user_id, request_id, provider, model_id, prompt_text, status, failure_reason_code, error_message, completed_at, created_at, metadata"
-    )
-    .in(
-      "id",
-      projectionRows.map((row) => row.generationId)
-    )
-    .limit(projectionRows.length);
-  if (generationResponse.error) throw generationResponse.error;
-
-  const generationById = new Map(
-    (Array.isArray(generationResponse.data) ? generationResponse.data : [])
-      .map((row) => parseRepairableGenerationRow(row))
-      .filter((row): row is RepairableGenerationRow => Boolean(row))
-      .map((row) => [row.generationId, row])
+  const generationById = buildRepairGenerationMap(
+    await loadRepairableGenerationRowsByIds({
+      adminClient,
+      generationIds: projectionRows.map((row) => row.generationId),
+    })
   );
+  await hydrateRepairGenerationMetadata({
+    adminClient,
+    generationById,
+    generationIds: projectionRows
+      .filter((projection) => needsGenerationMetadataForRepair(projection))
+      .map((projection) => projection.generationId),
+  });
 
   let repaired = 0;
   let skipped = 0;

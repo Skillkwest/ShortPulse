@@ -56,6 +56,7 @@ const setupSupabaseAdmin = ({
   rows,
   existingObjectNames,
   basenameMatches,
+  basenameResolverError = null,
   signedUrlsByPath,
   storageObjectsError = null,
   storageListError = null,
@@ -63,12 +64,16 @@ const setupSupabaseAdmin = ({
   rows: MediaLookupRow[];
   existingObjectNames: string[];
   basenameMatches?: Record<string, string | null>;
+  basenameResolverError?: { message: string } | null;
   signedUrlsByPath?: Record<string, string>;
   storageObjectsError?: { message: string } | null;
   storageListError?: { message: string } | null;
 }) => {
   let capturedInNames: string[] = [];
-  const ilikePatterns: string[] = [];
+  const basenameResolverCalls: Array<{
+    fn: string;
+    args: Record<string, unknown>;
+  }> = [];
   const storageListCalls: Array<{
     folder?: string;
     options?: { limit?: number; search?: string };
@@ -92,19 +97,6 @@ const setupSupabaseAdmin = ({
     })),
   };
 
-  const ilikeMock = vi.fn((_column: string, pattern: string) => {
-    ilikePatterns.push(pattern);
-    return {
-      limit: vi.fn(async () => ({
-        data: (() => {
-          const match = basenameMatches?.[pattern] ?? null;
-          return match ? [{ name: match }] : [];
-        })(),
-        error: null,
-      })),
-    };
-  });
-
   const storageObjectsFromMock = {
     select: vi.fn(() => ({
       eq: vi.fn(() => ({
@@ -119,7 +111,6 @@ const setupSupabaseAdmin = ({
             error: storageObjectsError,
           };
         }),
-        ilike: ilikeMock,
       })),
     })),
   };
@@ -137,6 +128,19 @@ const setupSupabaseAdmin = ({
           return storageObjectsFromMock;
         }),
       };
+    }),
+    rpc: vi.fn(async (fn: string, args: Record<string, unknown>) => {
+      basenameResolverCalls.push({ fn, args });
+      if (basenameResolverError) {
+        return { data: null, error: basenameResolverError };
+      }
+      if (fn !== "resolve_media_storage_object_by_basename") {
+        throw new Error(`Unexpected RPC: ${fn}`);
+      }
+      const userId = typeof args.p_user_id === "string" ? args.p_user_id : "";
+      const basename = typeof args.p_basename === "string" ? args.p_basename : "";
+      const match = basenameMatches?.[`${userId}/%/${basename}`] ?? null;
+      return { data: match, error: null };
     }),
     storage: {
       from: vi.fn(() => ({
@@ -164,7 +168,7 @@ const setupSupabaseAdmin = ({
   return {
     createSignedUrlMock,
     getCapturedInNames: () => capturedInNames,
-    getIlikePatterns: () => ilikePatterns,
+    getBasenameResolverCalls: () => basenameResolverCalls,
     getStorageListCalls: () => storageListCalls,
   };
 };
@@ -478,10 +482,11 @@ describe("POST /api/media/resolve-previews", () => {
       storage_path: traversalPath,
       filename: "legacy_unsafe_name.jpg",
     });
-    const { createSignedUrlMock, getCapturedInNames, getIlikePatterns } = setupSupabaseAdmin({
-      rows: [row],
-      existingObjectNames: [traversalPath],
-    });
+    const { createSignedUrlMock, getCapturedInNames, getBasenameResolverCalls } =
+      setupSupabaseAdmin({
+        rows: [row],
+        existingObjectNames: [traversalPath],
+      });
 
     const req = {
       method: "POST",
@@ -494,7 +499,7 @@ describe("POST /api/media/resolve-previews", () => {
     await handler(req as never, res as never);
 
     expect(getCapturedInNames()).toEqual([]);
-    expect(getIlikePatterns()).toEqual([]);
+    expect(getBasenameResolverCalls()).toEqual([]);
     expect(createSignedUrlMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
@@ -582,7 +587,7 @@ describe("POST /api/media/resolve-previews", () => {
       thumb_variant_path: directUrl,
     });
 
-    const { createSignedUrlMock, getIlikePatterns } = setupSupabaseAdmin({
+    const { createSignedUrlMock, getBasenameResolverCalls } = setupSupabaseAdmin({
       rows: [row],
       existingObjectNames: [],
     });
@@ -598,7 +603,7 @@ describe("POST /api/media/resolve-previews", () => {
     await handler(req as never, res as never);
 
     expect(createSignedUrlMock).not.toHaveBeenCalled();
-    expect(getIlikePatterns()).toEqual([]);
+    expect(getBasenameResolverCalls()).toEqual([]);
     expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-resolve-fallback-lookups", "0");
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
@@ -619,10 +624,11 @@ describe("POST /api/media/resolve-previews", () => {
       thumb_variant_path: directUrl,
     });
 
-    const { createSignedUrlMock, getCapturedInNames, getIlikePatterns } = setupSupabaseAdmin({
-      rows: [row],
-      existingObjectNames: [row.storage_path as string],
-    });
+    const { createSignedUrlMock, getCapturedInNames, getBasenameResolverCalls } =
+      setupSupabaseAdmin({
+        rows: [row],
+        existingObjectNames: [row.storage_path as string],
+      });
 
     const req = {
       method: "POST",
@@ -636,7 +642,7 @@ describe("POST /api/media/resolve-previews", () => {
     await handler(req as never, res as never);
 
     expect(getCapturedInNames()).toEqual([]);
-    expect(getIlikePatterns()).toEqual([]);
+    expect(getBasenameResolverCalls()).toEqual([]);
     expect(createSignedUrlMock).not.toHaveBeenCalled();
     expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-resolve-fallback-lookups", "0");
     expect(res.json).toHaveBeenCalledWith({
@@ -662,7 +668,7 @@ describe("POST /api/media/resolve-previews", () => {
       filename: "second.jpg",
       storage_path: "user-1/images/second.jpg",
     });
-    const { createSignedUrlMock, getIlikePatterns } = setupSupabaseAdmin({
+    const { createSignedUrlMock, getBasenameResolverCalls } = setupSupabaseAdmin({
       rows: [rowA, rowB, rowC],
       existingObjectNames: [],
       basenameMatches: {
@@ -681,10 +687,55 @@ describe("POST /api/media/resolve-previews", () => {
 
     await handler(req as never, res as never);
 
-    expect(getIlikePatterns().sort()).toEqual(["user-1/%/second.jpg", "user-1/%/shared.jpg"]);
+    expect(
+      getBasenameResolverCalls()
+        .map((call) => call.args)
+        .sort((a, b) => String(a.p_basename).localeCompare(String(b.p_basename)))
+    ).toEqual([
+      { p_user_id: "user-1", p_basename: "second.jpg" },
+      { p_user_id: "user-1", p_basename: "shared.jpg" },
+    ]);
     expect(createSignedUrlMock).toHaveBeenCalledWith("user-1/recovered/shared.jpg", 3600);
     expect(createSignedUrlMock).toHaveBeenCalledWith("user-1/recovered/second.jpg", 3600);
     expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-resolve-fallback-lookups", "2");
+  });
+
+  it("fails soft when the basename resolver RPC is unavailable", async () => {
+    const row = createRow({
+      id: "media-rpc-unavailable-1",
+      filename: "legacy.jpg",
+      storage_path: "user-1/images/legacy.jpg",
+    });
+    const { createSignedUrlMock, getBasenameResolverCalls } = setupSupabaseAdmin({
+      rows: [row],
+      existingObjectNames: [],
+      basenameResolverError: { message: "function missing" },
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        ids: [row.id],
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(getBasenameResolverCalls()).toEqual([
+      {
+        fn: "resolve_media_storage_object_by_basename",
+        args: { p_user_id: "user-1", p_basename: "legacy.jpg" },
+      },
+    ]);
+    expect(createSignedUrlMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      urls: {
+        [row.id]: null,
+      },
+    });
   });
 
   it("skips basename fallback jobs for non-resolvable basenames", async () => {
@@ -693,7 +744,7 @@ describe("POST /api/media/resolve-previews", () => {
       filename: "generated_asset.jpg",
       storage_path: "user-1/images/generated_asset.jpg",
     });
-    const { createSignedUrlMock, getIlikePatterns } = setupSupabaseAdmin({
+    const { createSignedUrlMock, getBasenameResolverCalls } = setupSupabaseAdmin({
       rows: [row],
       existingObjectNames: [],
       basenameMatches: {
@@ -712,7 +763,7 @@ describe("POST /api/media/resolve-previews", () => {
 
     await handler(req as never, res as never);
 
-    expect(getIlikePatterns()).toEqual([]);
+    expect(getBasenameResolverCalls()).toEqual([]);
     expect(createSignedUrlMock).not.toHaveBeenCalled();
     expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-resolve-fallback-lookups", "0");
     expect(res.json).toHaveBeenCalledWith({

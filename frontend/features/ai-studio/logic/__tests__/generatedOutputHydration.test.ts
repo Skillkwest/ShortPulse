@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { StudioOutput } from "../../types";
 import { mergeCanonicalGeneratedOutputs } from "../generatedOutputHydration";
+import { canRerollOutput } from "../workflowReroll";
 
 const createOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput => ({
   id: "out-1",
@@ -294,6 +295,91 @@ describe("generatedOutputHydration", () => {
         workflowReload,
       })
     );
+  });
+
+  it("preserves restore and replay metadata when lightweight hydration omits heavy projection columns", () => {
+    const displayPrompt = "A preserved reroll prompt";
+    const generationReplay: StudioOutput["generationReplay"] = {
+      version: 2,
+      mode: "image",
+      submitTool: "create",
+      modelId: "fal-ai/seedream",
+      displayPrompt,
+      submissionPrompt: displayPrompt,
+      aspect: "1:1",
+      imageResolution: "2K",
+      referenceInputs: [],
+      internalMediaRefs: [],
+      capturedAt: "2026-06-06T12:00:00.000Z",
+    };
+    const workflowReload: StudioOutput["workflowReload"] = {
+      version: 1,
+      source: "ai_studio_generation",
+      capturedAt: "2026-06-06T12:00:00.000Z",
+      originTool: "image",
+      panelKind: "create",
+      outputMode: "image",
+      restoreBehavior: "navigate_and_hydrate",
+      createMode: "standard",
+      pulse: null,
+      prompt: { display: displayPrompt },
+      model: { id: "fal-ai/seedream" },
+      payload: {
+        kind: "image",
+        submitTool: "create",
+        aspect: "1:1",
+        imageResolution: null,
+        referenceInputs: [],
+      },
+    };
+    const characterContext = {
+      applied: true,
+      characterId: "character-1",
+    };
+    const styleContext = {
+      applied: true,
+      styleId: "style-1",
+    };
+    const existing = [
+      createOutput({
+        id: "generated:gen-1",
+        generationId: "gen-1",
+        taskId: "req-1",
+        sourceRef: "source-1",
+        mediaSource: "generated",
+        taskState: "success",
+        generationReplay,
+        workflowReload,
+        characterContext,
+        styleContext,
+      }),
+    ];
+    const lightweightHydrated = [
+      createOutput({
+        id: "generated:gen-1",
+        generationId: "gen-1",
+        taskId: "req-1",
+        sourceRef: "source-1",
+        mediaSource: "generated",
+        taskState: "success",
+        previewUrl: "https://cdn.test/generated-preview.png",
+        resultUrls: ["https://cdn.test/generated-full.png"],
+      }),
+    ];
+
+    const mergedOutput = mergeCanonicalGeneratedOutputs(existing, lightweightHydrated)[0];
+
+    expect(mergedOutput).toEqual(
+      expect.objectContaining({
+        generationReplay,
+        workflowReload,
+        characterContext,
+        styleContext,
+        previewUrl: "https://cdn.test/generated-preview.png",
+        resultUrls: ["https://cdn.test/generated-full.png"],
+      })
+    );
+    expect(canRerollOutput(mergedOutput)).toBe(true);
   });
 
   it("hydrates audio source mode onto matching generated outputs", () => {

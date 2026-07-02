@@ -75,6 +75,10 @@ type StorageVerificationBucketClient = {
 
 type SupabaseAdminWithStorageVerification = {
   schema?: unknown;
+  rpc?: (
+    fn: string,
+    args: Record<string, unknown>
+  ) => PromiseLike<{ data?: unknown; error?: { message?: string } | null }>;
   storage?: {
     from?: (bucket: string) => StorageVerificationBucketClient;
   };
@@ -265,18 +269,14 @@ const resolveObjectByBasename = async (
   if (!isResolvableBasename(basename)) {
     return null;
   }
-  const supabaseAdmin = getSupabaseAdmin();
-  const pattern = `${userId}/%/${basename}`;
-  const { data, error } = await supabaseAdmin
-    .schema("storage")
-    .from("objects")
-    .select("name")
-    .eq("bucket_id", MEDIA_BUCKET)
-    .ilike("name", pattern)
-    .limit(1);
+  const supabaseAdmin = getSupabaseAdmin() as SupabaseAdminWithStorageVerification;
+  if (typeof supabaseAdmin.rpc !== "function") return null;
+  const { data, error } = await supabaseAdmin.rpc("resolve_media_storage_object_by_basename", {
+    p_user_id: userId,
+    p_basename: basename,
+  });
   if (error) return null;
-  const match = ((data ?? []) as Array<{ name?: string | null }>)[0];
-  const name = typeof match?.name === "string" ? match.name.trim() : "";
+  const name = typeof data === "string" ? data.trim() : "";
   return name || null;
 };
 

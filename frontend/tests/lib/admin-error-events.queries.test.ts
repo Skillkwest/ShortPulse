@@ -234,6 +234,9 @@ describe("admin error-events query helpers", () => {
     expect(searchOperation).toContain(`id.eq.${uuid}`);
     expect(searchOperation).toContain(`user_id.eq.${uuid}`);
     expect(searchOperation).toContain(`incident_id.eq.${uuid}`);
+    expect(searchOperation).toContain(`request_id.eq.${uuid}`);
+    expect(searchOperation).not.toContain("message.ilike");
+    expect(searchOperation).not.toContain("route.ilike");
     expect(searchOperation).not.toContain("user_id.ilike");
     expect(searchOperation).not.toContain("incident_id.ilike");
   });

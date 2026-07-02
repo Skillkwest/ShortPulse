@@ -20,8 +20,17 @@ const buildSearchClause = (search: string): string | null => {
   const trimmedSearch = search.trim();
   if (!trimmedSearch) return null;
 
+  if (UUID_PATTERN.test(trimmedSearch)) {
+    return [
+      `id.eq.${trimmedSearch}`,
+      `user_id.eq.${trimmedSearch}`,
+      `incident_id.eq.${trimmedSearch}`,
+      `request_id.eq.${trimmedSearch}`,
+    ].join(",");
+  }
+
   const pattern = `%${trimmedSearch.replace(/\s+/g, "%")}%`;
-  const clauses = [
+  return [
     `message.ilike.${pattern}`,
     `user_email.ilike.${pattern}`,
     `endpoint.ilike.${pattern}`,
@@ -29,17 +38,7 @@ const buildSearchClause = (search: string): string | null => {
     `request_id.ilike.${pattern}`,
     `source.ilike.${pattern}`,
     `fingerprint.ilike.${pattern}`,
-  ];
-
-  if (UUID_PATTERN.test(trimmedSearch)) {
-    clauses.push(
-      `id.eq.${trimmedSearch}`,
-      `user_id.eq.${trimmedSearch}`,
-      `incident_id.eq.${trimmedSearch}`
-    );
-  }
-
-  return clauses.join(",");
+  ].join(",");
 };
 
 export const applyEventFilters = (query: EventQuery, filters: EventFilterInput): EventQuery => {

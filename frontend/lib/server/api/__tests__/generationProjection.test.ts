@@ -38,6 +38,32 @@ const createSupabaseAdmin = ({
         error: null,
       }))
   );
+  const generationSelect = vi.fn(() => ({
+    in: (column: string, values: string[]) => {
+      const byGenerationIds = column === "id";
+      const rows = byGenerationIds
+        ? generationRows.filter((row) => values.includes(String(row.id)))
+        : generationRows.filter((row) => values.includes(String(row.status)));
+      return {
+        limit: async () => ({
+          data: rows,
+          error: null,
+        }),
+        lte: () => ({
+          order: () => ({
+            limit: async () => ({
+              data: rows,
+              error: null,
+            }),
+            range: async (from: number, to: number) => ({
+              data: rows.slice(from, to + 1),
+              error: null,
+            }),
+          }),
+        }),
+      };
+    },
+  }));
 
   const from = vi.fn((table: string) => {
     if (table === "generation_projection") {
@@ -78,32 +104,7 @@ const createSupabaseAdmin = ({
 
     if (table === "ai_generations") {
       return {
-        select: () => ({
-          in: (column: string, values: string[]) => {
-            const byGenerationIds = column === "id";
-            const rows = byGenerationIds
-              ? generationRows.filter((row) => values.includes(String(row.id)))
-              : generationRows.filter((row) => values.includes(String(row.status)));
-            return {
-              limit: async () => ({
-                data: rows,
-                error: null,
-              }),
-              lte: () => ({
-                order: () => ({
-                  limit: async () => ({
-                    data: rows,
-                    error: null,
-                  }),
-                  range: async (from: number, to: number) => ({
-                    data: rows.slice(from, to + 1),
-                    error: null,
-                  }),
-                }),
-              }),
-            };
-          },
-        }),
+        select: generationSelect,
       };
     }
 
@@ -150,6 +151,7 @@ const createSupabaseAdmin = ({
 
   return {
     from,
+    generationSelect,
     upsert,
   };
 };
@@ -855,6 +857,12 @@ describe("repairStaleTerminalGenerationProjections", () => {
         onConflict: "generation_id",
       })
     );
+    const generationSelectCalls = supabaseAdmin.generationSelect.mock.calls as unknown as Array<
+      [string]
+    >;
+    const generationSelectColumns = generationSelectCalls.map(([columns]) => columns);
+    expect(generationSelectColumns[0]).not.toContain("metadata");
+    expect(generationSelectColumns.some((columns) => columns.includes("metadata"))).toBe(true);
   });
 
   it("reports project association failures without failing projection repair", async () => {

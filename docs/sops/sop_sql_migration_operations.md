@@ -48,6 +48,7 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/migrations/182_add_voice_changer_staged_audio_lifecycle.sql`: add Voice Changer video-derived staged-audio source objects to the service-role-only voice lifecycle proof class and aggregate dry-run diagnostics.
 - `sql/migrations/183_fix_media_storage_lifecycle_lint.sql`: rewrite the aggregate media storage lifecycle diagnostic without temp-table references so hosted Supabase lint can analyze the service-role-only RPC.
 - `sql/migrations/184_harden_media_library_bucket_limits.sql`: set private `media_library` bucket file-size and MIME guardrails to match app upload admission without deleting objects.
+- `sql/migrations/185_add_media_storage_basename_resolver_rpc.sql`: add a service-role-only basename resolver RPC for legacy media preview repair without exposing route-local direct `storage.objects` lookup code.
 - `sql/audit_billing_credit_rls.sql`: billing RLS audit checks.
 - `sql/check_database_io_hotspots.sql`: read-only `pg_stat_statements` shared-block I/O summary plus table size/read posture, planner-stat freshness, and hot diagnostic table age/retention posture without raw query text.
 - `sql/analyze_hot_database_tables_supabase.sql`: hosted apply-gated maintenance script that refreshes planner statistics on hot public tables without rewriting tables or deleting rows. Run through `.github/workflows/apply-control-plane-ops-sql.yml` with `operation=analyze_hot_database_tables`.
@@ -264,6 +265,7 @@ Migration number 134 is intentionally unused; the ordered sequence moves from `1
 - `182_add_voice_changer_staged_audio_lifecycle.sql`
 - `183_fix_media_storage_lifecycle_lint.sql`
 - `184_harden_media_library_bucket_limits.sql`
+- `185_add_media_storage_basename_resolver_rpc.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 

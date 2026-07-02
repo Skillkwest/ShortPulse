@@ -312,6 +312,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 181.  `sql/migrations/182_add_voice_changer_staged_audio_lifecycle.sql`
 182.  `sql/migrations/183_fix_media_storage_lifecycle_lint.sql`
 183.  `sql/migrations/184_harden_media_library_bucket_limits.sql`
+184.  `sql/migrations/185_add_media_storage_basename_resolver_rpc.sql`
       Rollback files:
 
 
@@ -413,6 +414,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/182_add_voice_changer_staged_audio_lifecycle_rollback.sql`
     - `sql/migrations/rollback/183_fix_media_storage_lifecycle_lint_rollback.sql`
     - `sql/migrations/rollback/184_harden_media_library_bucket_limits_rollback.sql`
+    - `sql/migrations/rollback/185_add_media_storage_basename_resolver_rpc_rollback.sql`
 
 Hosted SQL lint note:
 
@@ -529,6 +531,7 @@ Billing safety note:
 - Migration `182_add_voice_changer_staged_audio_lifecycle.sql` adds the video-derived Voice Changer `voice-changer/staged-audio` namespace to `voice_source_lifecycle` path classes and the same proof-gated aggregate diagnostic rules.
 - Migration `183_fix_media_storage_lifecycle_lint.sql` rewrites `get_media_storage_lifecycle_summary(integer)` without temp-table references so hosted Supabase lint can analyze the service-role-only aggregate diagnostic while keeping its no-raw-path output contract.
 - Migration `184_harden_media_library_bucket_limits.sql` sets the private `media_library` bucket's storage-level file-size and MIME allowlist guardrails to match the existing app upload admission contract. Hosted apply remains a separate approved Supabase operation.
+- Migration `185_add_media_storage_basename_resolver_rpc.sql` adds service-role-only `resolve_media_storage_object_by_basename(uuid, text)` so legacy preview repair can resolve one caller-scoped `media_library` object by basename through an audited RPC instead of route-local direct `storage.objects` lookup code.
 - Migration `175_enforce_storage_addon_no_stack.sql` updates base plan storage to `0/5/25/75/150 GB`, refreshes recurring storage add-on metadata to `10/50/100/250 GB` self-serve plus `500 GB` manual review, closes old public storage add-on offers until matching Stripe Prices are activated, clamps add-on quota math to one unit, and adds the database guard for one current billable recurring storage add-on per user with quantity exactly one; run `sql/check_billing_storage_addon_no_stack_drift.sql` before applying it.
 - Read-write hosted-Supabase maintenance script `sql/configure_cron_job_run_details_retention_supabase.sql` prunes old `cron.job_run_details` rows, compacts the pruned table, and schedules daily retention; the active-status index is documented as an owner-only follow-up if retention alone does not reduce pg_cron status-update scan I/O enough.
 - Read-only performance diagnostics script `sql/check_media_preview_variant_coverage_and_size.sql` reports source-class counts, variant-hint coverage, and p50/p90 size distributions for Media Library preview-risk triage.

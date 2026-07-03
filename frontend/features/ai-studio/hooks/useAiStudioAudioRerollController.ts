@@ -167,7 +167,7 @@ export const useAiStudioAudioRerollController = ({
           composerMode: payload.composerMode ?? "simple",
           instrumentalEnabled: payload.instrumentalEnabled ?? payload.mode !== "vocal",
           singerEnabled: payload.singerEnabled ?? payload.mode === "vocal",
-          songBatchCount: payload.songBatchCount ?? 1,
+          songBatchCount: 1,
           modelId: config.model.id as MusicGenerateRequest["modelId"],
         });
         return true;

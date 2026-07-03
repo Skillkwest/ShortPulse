@@ -155,6 +155,13 @@ export const useMediaLibraryPanelDataController = ({
     media: false,
     prompts: false,
   });
+  const resetRequestAbortControllerRef = React.useRef<{
+    media: AbortController | null;
+    prompts: AbortController | null;
+  }>({
+    media: null,
+    prompts: null,
+  });
   const audioCompanionArtRefreshInFlightRef = React.useRef(false);
   const audioCompanionArtRefreshAttemptByKeyRef = React.useRef<Map<string, number>>(new Map());
   const mediaRowsRef = React.useRef<MediaFileRow[]>([]);
@@ -271,6 +278,26 @@ export const useMediaLibraryPanelDataController = ({
   const shouldRefreshLibraryTotalCount =
     requestFolderId === "all_items" && normalizedSearch.length === 0;
 
+  const createResetRequestAbortController = React.useCallback((kind: "media" | "prompts") => {
+    if (typeof AbortController === "undefined") return null;
+    const currentController = resetRequestAbortControllerRef.current[kind];
+    if (currentController && !currentController.signal.aborted) {
+      currentController.abort();
+    }
+    const nextController = new AbortController();
+    resetRequestAbortControllerRef.current[kind] = nextController;
+    return nextController;
+  }, []);
+
+  const clearResetRequestAbortController = React.useCallback(
+    (kind: "media" | "prompts", controller: AbortController | null) => {
+      if (!controller) return;
+      if (resetRequestAbortControllerRef.current[kind] !== controller) return;
+      resetRequestAbortControllerRef.current[kind] = null;
+    },
+    []
+  );
+
   const cancelLibraryTotalCountRefresh = React.useCallback(() => {
     cancelLibraryTotalCountRefreshRef.current?.();
     cancelLibraryTotalCountRefreshRef.current = null;
@@ -349,6 +376,7 @@ export const useMediaLibraryPanelDataController = ({
       if (!reset) {
         appendRequestInFlightRef.current.media = true;
       }
+      const resetAbortController = reset ? createResetRequestAbortController("media") : null;
       const requestToken = mediaRequestTokenRef.current + 1;
       mediaRequestTokenRef.current = requestToken;
       const shouldPreserveRowsDuringRefresh =
@@ -376,6 +404,7 @@ export const useMediaLibraryPanelDataController = ({
           profile: resolveMediaLibraryPanelListProfile(itemType),
           folderId: requestFolderId,
           includeLibraryTotalCount: false,
+          signal: resetAbortController?.signal,
         });
         if (!result) {
           throw new Error("Unable to load media.");
@@ -418,6 +447,7 @@ export const useMediaLibraryPanelDataController = ({
           scheduleLibraryTotalCountRefresh({ scopeKey });
         }
       } catch (loadError) {
+        if (resetAbortController?.signal.aborted) return;
         if (mediaRequestTokenRef.current !== requestToken) return;
         const nextError = toMediaLibraryErrorText(loadError, "Unable to load media.");
         commitMediaScopeCache((prev) => ({
@@ -426,6 +456,9 @@ export const useMediaLibraryPanelDataController = ({
           error: nextError,
         }));
       } finally {
+        if (reset) {
+          clearResetRequestAbortController("media", resetAbortController);
+        }
         if (!reset) {
           appendRequestInFlightRef.current.media = false;
         }
@@ -434,7 +467,9 @@ export const useMediaLibraryPanelDataController = ({
     [
       activeRowsScopeKey,
       cancelLibraryTotalCountRefresh,
+      clearResetRequestAbortController,
       commitMediaScopeCache,
+      createResetRequestAbortController,
       itemType,
       listSurface,
       normalizedSearch,
@@ -466,6 +501,7 @@ export const useMediaLibraryPanelDataController = ({
       if (!reset) {
         appendRequestInFlightRef.current.prompts = true;
       }
+      const resetAbortController = reset ? createResetRequestAbortController("prompts") : null;
       const requestToken = promptRequestTokenRef.current + 1;
       promptRequestTokenRef.current = requestToken;
       const shouldPreserveRowsDuringRefresh =
@@ -488,6 +524,7 @@ export const useMediaLibraryPanelDataController = ({
           query: normalizedSearch,
           cursor: reset ? null : promptCursorRef.current,
           limit: PROMPT_PAGE_SIZE,
+          signal: resetAbortController?.signal,
         });
         if (promptRequestTokenRef.current !== requestToken) return;
         const normalizedRows: PromptRow[] = result.rows.map((row) => ({
@@ -518,6 +555,7 @@ export const useMediaLibraryPanelDataController = ({
           resolvedScopeKey: scopeKey,
         }));
       } catch (loadError) {
+        if (resetAbortController?.signal.aborted) return;
         if (promptRequestTokenRef.current !== requestToken) return;
         const nextError = toMediaLibraryErrorText(loadError, "Unable to load prompts.");
         commitPromptScopeCache((prev) => ({
@@ -526,12 +564,33 @@ export const useMediaLibraryPanelDataController = ({
           error: nextError,
         }));
       } finally {
+        if (reset) {
+          clearResetRequestAbortController("prompts", resetAbortController);
+        }
         if (!reset) {
           appendRequestInFlightRef.current.prompts = false;
         }
       }
     },
-    [activeRowsScopeKey, commitPromptScopeCache, normalizedSearch, requestFolderId, setPromptRows]
+    [
+      activeRowsScopeKey,
+      clearResetRequestAbortController,
+      commitPromptScopeCache,
+      createResetRequestAbortController,
+      normalizedSearch,
+      requestFolderId,
+      setPromptRows,
+    ]
+  );
+
+  React.useEffect(
+    () => () => {
+      resetRequestAbortControllerRef.current.media?.abort();
+      resetRequestAbortControllerRef.current.prompts?.abort();
+      resetRequestAbortControllerRef.current.media = null;
+      resetRequestAbortControllerRef.current.prompts = null;
+    },
+    []
   );
 
   React.useEffect(() => {

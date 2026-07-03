@@ -228,6 +228,33 @@ const tryReleaseMotionReferenceVideoLeases = async ({
 const buildUnsettledBillingError = (note: string): string =>
   `Generation billing settlement did not complete: ${note}`;
 
+const buildDirectTerminalOutputMetadata = ({
+  autosaveDecision,
+  autosaveDecisionReason,
+  autosaveEnabled,
+  autosavePreferenceSource,
+  outcome,
+  providerState,
+  visibilityState,
+}: {
+  autosaveDecision: string;
+  autosaveDecisionReason: string;
+  autosaveEnabled: boolean;
+  autosavePreferenceSource: string;
+  outcome: "success";
+  providerState: string;
+  visibilityState: "settlement_pending" | "settled";
+}): JsonObject => ({
+  direct_terminal_settlement: true,
+  direct_terminal_settlement_outcome: outcome,
+  direct_terminal_provider_state: providerState,
+  direct_terminal_visibility_state: visibilityState,
+  autosave_enabled: autosaveEnabled,
+  autosave_preference_source: autosavePreferenceSource,
+  autosave_decision: autosaveDecision,
+  autosave_decision_reason: autosaveDecisionReason,
+});
+
 const mergeSettlementMetadata = ({
   metadata,
   nowIso,
@@ -360,19 +387,19 @@ export const settleDirectGenerationSuccess = async ({
     providerRequestId: generation.request_id,
     resultUrls: normalizedResultUrls,
     mediaFileIds: [],
-    metadata: {
-      direct_terminal_settlement: true,
-      direct_terminal_settlement_outcome: "success",
-      direct_terminal_provider_state: providerState,
-      autosave_enabled: mediaAutosaveEnabled,
-      autosave_preference_source: mediaAutosavePreference.source,
-      autosave_decision: autosavePolicyDecision.allowed
+    metadata: buildDirectTerminalOutputMetadata({
+      autosaveDecision: autosavePolicyDecision.allowed
         ? "provider_urls_persisted"
         : "autosave_skipped",
-      autosave_decision_reason: autosavePolicyDecision.allowed
+      autosaveDecisionReason: autosavePolicyDecision.allowed
         ? "canonical_outputs_before_media_autosave"
         : autosavePolicyDecision.reason,
-    },
+      autosaveEnabled: mediaAutosaveEnabled,
+      autosavePreferenceSource: mediaAutosavePreference.source,
+      outcome: "success",
+      providerState,
+      visibilityState: "settlement_pending",
+    }),
   });
 
   if (autosavePolicyDecision.allowed) {
@@ -397,15 +424,15 @@ export const settleDirectGenerationSuccess = async ({
         providerRequestId: generation.request_id,
         resultUrls: normalizedResultUrls,
         mediaFileIds,
-        metadata: {
-          direct_terminal_settlement: true,
-          direct_terminal_settlement_outcome: "success",
-          direct_terminal_provider_state: providerState,
-          autosave_enabled: mediaAutosaveEnabled,
-          autosave_preference_source: mediaAutosavePreference.source,
-          autosave_decision: "auto_persisted",
-          autosave_decision_reason: autosavePolicyDecision.reason,
-        },
+        metadata: buildDirectTerminalOutputMetadata({
+          autosaveDecision: "auto_persisted",
+          autosaveDecisionReason: autosavePolicyDecision.reason,
+          autosaveEnabled: mediaAutosaveEnabled,
+          autosavePreferenceSource: mediaAutosavePreference.source,
+          outcome: "success",
+          providerState,
+          visibilityState: "settlement_pending",
+        }),
       });
     } catch (error) {
       autosaveDecision = "autosave_skipped";
@@ -428,6 +455,30 @@ export const settleDirectGenerationSuccess = async ({
       }).catch(() => undefined);
     }
   }
+  const billingSettlement = await settleGenerationOutcome({
+    userId: generation.user_id,
+    providerRequestId: generation.request_id,
+    outcome: "success",
+    reason: "Provider completed and canonical results were persisted synchronously.",
+    routeLabel,
+    detail: {
+      generation_id: generation.id,
+      output_count: normalizedResultUrls.length,
+      direct_terminal_settlement: true,
+      provider_state: providerState,
+      user_abandoned: isAbandoned,
+      autosave_preference_source: mediaAutosavePreference.source,
+      autosave_decision: autosaveDecision,
+      autosave_decision_reason: autosaveDecisionReason,
+    },
+  });
+  if (!billingSettlement.settled) {
+    return {
+      ok: false,
+      error: buildUnsettledBillingError(billingSettlement.note),
+    };
+  }
+
   const transition = await applyGenerationLifecycleTransition({
     intent: "provider_completed_observed",
     applyGenerationMutation: async () => {
@@ -482,29 +533,23 @@ export const settleDirectGenerationSuccess = async ({
     userId: generation.user_id,
   });
 
-  const billingSettlement = await settleGenerationOutcome({
+  persistedOutputRows = await persistGenerationOutputRecords({
+    generationId: generation.id,
     userId: generation.user_id,
+    generationAttemptId: attempt?.id,
     providerRequestId: generation.request_id,
-    outcome: "success",
-    reason: "Provider completed and canonical results were persisted synchronously.",
-    routeLabel,
-    detail: {
-      generation_id: generation.id,
-      output_count: normalizedResultUrls.length,
-      direct_terminal_settlement: true,
-      provider_state: providerState,
-      user_abandoned: isAbandoned,
-      autosave_preference_source: mediaAutosavePreference.source,
-      autosave_decision: autosaveDecision,
-      autosave_decision_reason: autosaveDecisionReason,
-    },
+    resultUrls: normalizedResultUrls,
+    mediaFileIds,
+    metadata: buildDirectTerminalOutputMetadata({
+      autosaveDecision,
+      autosaveDecisionReason,
+      autosaveEnabled: mediaAutosaveEnabled,
+      autosavePreferenceSource: mediaAutosavePreference.source,
+      outcome: "success",
+      providerState,
+      visibilityState: "settled",
+    }),
   });
-  if (!billingSettlement.settled) {
-    return {
-      ok: false,
-      error: buildUnsettledBillingError(billingSettlement.note),
-    };
-  }
 
   await syncTerminalSuccessViewState({
     generation: {
@@ -632,6 +677,30 @@ export const settleDirectGenerationFailure = async ({
     outcome: "fail",
   });
 
+  const billingSettlement = await settleGenerationOutcome({
+    userId: generation.user_id,
+    providerRequestId: generation.request_id,
+    outcome: "fail",
+    reason: normalizedErrorMessage,
+    routeLabel,
+    detail: {
+      generation_id: generation.id,
+      failure_reason_code: failureReasonCode,
+      direct_terminal_settlement: true,
+      provider_state: providerState,
+      error_detail: normalizedErrorDetail,
+      error_payload: durableErrorPayload,
+      user_abandoned: isAbandoned,
+    },
+    abandonedNoRefund: isAbandoned && abandonment.noRefund,
+  });
+  if (!billingSettlement.settled) {
+    return {
+      ok: false,
+      error: buildUnsettledBillingError(billingSettlement.note),
+    };
+  }
+
   const transition = await applyGenerationLifecycleTransition({
     intent: "provider_failed_observed",
     applyGenerationMutation: async () => {
@@ -686,30 +755,6 @@ export const settleDirectGenerationFailure = async ({
     routeLabel,
     userId: generation.user_id,
   });
-
-  const billingSettlement = await settleGenerationOutcome({
-    userId: generation.user_id,
-    providerRequestId: generation.request_id,
-    outcome: "fail",
-    reason: normalizedErrorMessage,
-    routeLabel,
-    detail: {
-      generation_id: generation.id,
-      failure_reason_code: failureReasonCode,
-      direct_terminal_settlement: true,
-      provider_state: providerState,
-      error_detail: normalizedErrorDetail,
-      error_payload: durableErrorPayload,
-      user_abandoned: isAbandoned,
-    },
-    abandonedNoRefund: isAbandoned && abandonment.noRefund,
-  });
-  if (!billingSettlement.settled) {
-    return {
-      ok: false,
-      error: buildUnsettledBillingError(billingSettlement.note),
-    };
-  }
 
   await syncTerminalFailureViewState({
     generation: {

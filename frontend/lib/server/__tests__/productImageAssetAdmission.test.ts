@@ -57,9 +57,22 @@ const setupSupabaseAdmin = () => {
     if (table === "elements") return elementQuery;
     throw new Error(`Unexpected table: ${table}`);
   });
+  const rpcMock = vi.fn(async (fn: string) => {
+    if (fn === "resolve_media_storage_usage_bytes") {
+      return { data: 0, error: null };
+    }
+    if (fn === "resolve_media_storage_base_limit_bytes") {
+      return { data: 1024 * 1024, error: null };
+    }
+    if (fn === "resolve_media_storage_addon_limit_bytes") {
+      return { data: 0, error: null };
+    }
+    throw new Error(`Unexpected RPC: ${fn}`);
+  });
 
   getSupabaseAdminMock.mockReturnValue({
     from: fromMock,
+    rpc: rpcMock,
     storage: {
       from: vi.fn(() => ({
         upload: uploadMock,
@@ -78,6 +91,7 @@ const setupSupabaseAdmin = () => {
     createSignedUploadUrlMock,
     createSignedUrlMock,
     fromMock,
+    rpcMock,
     characterQuery,
     sheetQuery,
     elementQuery,
@@ -138,6 +152,53 @@ describe("admitProductImageAssetFromStorageForUser", () => {
         height: 40,
       })
     );
+  });
+
+  it("blocks product image asset admission before durable storage when media storage is full", async () => {
+    const image = await sharp({
+      create: {
+        width: 40,
+        height: 40,
+        channels: 3,
+        background: { r: 90, g: 80, b: 70 },
+      },
+    })
+      .png()
+      .toBuffer();
+    const { downloadMock, uploadMock, rpcMock } = setupSupabaseAdmin();
+    downloadMock.mockResolvedValue({
+      data: image as never,
+      error: null,
+    });
+    rpcMock.mockImplementation(async (fn: string) => {
+      if (fn === "resolve_media_storage_usage_bytes") {
+        return { data: 900, error: null };
+      }
+      if (fn === "resolve_media_storage_base_limit_bytes") {
+        return { data: 901, error: null };
+      }
+      if (fn === "resolve_media_storage_addon_limit_bytes") {
+        return { data: 0, error: null };
+      }
+      throw new Error(`Unexpected RPC: ${fn}`);
+    });
+
+    await expect(
+      admitProductImageAssetFromStorageForUser({
+        userId: "user-1",
+        sourceStoragePath: "user-1/generations/images/source.png",
+        intent: "character_sheet_preset",
+        characterId: "char-1",
+        filename: "source.png",
+      })
+    ).rejects.toMatchObject({
+      status: 413,
+      message: "Media storage limit exceeded",
+      details:
+        "Your media storage is full. Delete media, upgrade your plan, or add recurring storage before saving more files.",
+      code: "MEDIA_STORAGE_LIMIT_EXCEEDED",
+    });
+    expect(uploadMock).not.toHaveBeenCalled();
   });
 
   it("fails closed when a prepared upload target returns a different storage path", async () => {

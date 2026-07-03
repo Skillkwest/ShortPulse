@@ -42,9 +42,7 @@ textarea:focus-visible,
 /* Card focus */
 .card:focus-visible,
 .tool-card:focus-visible,
-.media-card:focus-visible,
-.dash-card:focus-visible,
-.module-tile:focus-visible {
+.media-card:focus-visible {
   outline: 2px solid #22d3ee;
   outline-offset: 3px;
 }
@@ -163,8 +161,6 @@ a:focus-visible {
   .card:hover,
   .tool-card:hover,
   .media-card:hover,
-  .dash-card:hover,
-  .module-tile:hover,
   .hero-onboarding:hover {
     transform: none;
   }

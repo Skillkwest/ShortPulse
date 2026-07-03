@@ -13,6 +13,7 @@ import { useAgentComposerPromptDropModifierTracking } from "./promptStep/agentCo
 import type { CanvasTearOutComposerTargetRegistry } from "../hooks/useAiStudioCanvasTearOutTargets";
 import type { AgentComposerDirectDropPayload } from "../logic/agentComposerDirectDropPayload";
 import type { GenerationAccessCta } from "../logic/generationAccessCta";
+import { isRemoteFetchableUrlProtocol } from "../logic/voiceChangerSourceUrl";
 import {
   handlePromptTextAreaDragOver,
   handlePromptTextAreaDrop,
@@ -83,6 +84,26 @@ export {
 type VoicesSurfaceMode = "create" | "edit";
 type CreateVoiceMode = "generate" | "clone";
 type VoicesLibrarySection = "default" | "my";
+
+const canSubmitVoiceChangerSourceUrl = (source: VoiceChangerSource): boolean => {
+  const sourceUrl = source.sourceUrl?.trim();
+  if (!sourceUrl || /^(?:blob:|data:)/i.test(sourceUrl)) return false;
+  try {
+    const parsed = new URL(
+      sourceUrl,
+      typeof window === "undefined" ? "https://shortpulse.local" : window.location.href
+    );
+    return isRemoteFetchableUrlProtocol(parsed.protocol);
+  } catch {
+    return false;
+  }
+};
+
+const canSubmitVoiceChangerSource = (source: VoiceChangerSource | null | undefined): boolean =>
+  Boolean(
+    source?.status === "ready" &&
+    (source.storagePath?.trim() || canSubmitVoiceChangerSourceUrl(source))
+  );
 
 const voicePromptPlaceholder =
   "Enter the prompt used to generate this voice: tone, age, and delivery.";
@@ -433,7 +454,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     (!requiresProviderVoice || isSelectedVoiceProviderReady) &&
     (surfaceMode === "create"
       ? voiceScript.trim().length > 0 && isVoiceScriptWithinLimit
-      : voiceChangerSource?.status === "ready");
+      : canSubmitVoiceChangerSource(voiceChangerSource));
   const isVoiceoverEnhanceEnabled =
     surfaceMode === "create" && voiceScript.trim().length > 0 && !isEnhancingVoiceover;
   const isCreateVoiceEnabled =
@@ -1240,7 +1261,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       });
       return;
     }
-    if (!voiceChangerSource) return;
+    if (!voiceChangerSource || !canSubmitVoiceChangerSource(voiceChangerSource)) return;
     void onGenerate({
       mode: "voice-changer",
       voice: selectedLibraryVoice,

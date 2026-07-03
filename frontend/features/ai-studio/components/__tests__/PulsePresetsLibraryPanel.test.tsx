@@ -130,7 +130,7 @@ describe("PulsePresetsLibraryPanel", () => {
     expect(screen.queryByLabelText("Role & Goal")).not.toBeInTheDocument();
   });
 
-  it("does not open the editor for a built-in pulse preset", async () => {
+  it("opens read-only details instead of the editor for a built-in pulse preset", () => {
     const onSavedPresetsChange = vi.fn();
 
     render(
@@ -141,6 +141,10 @@ describe("PulsePresetsLibraryPanel", () => {
       screen.getByRole("button", { name: "Inspect pulse preset tile: Video Prompt Magic" })
     );
 
+    expect(screen.getByRole("dialog", { name: "Video Prompt Magic details" })).toBeInTheDocument();
+    expect(screen.getByText(/Inspecting here does not activate this Pulse\./)).toBeInTheDocument();
+    expect(screen.getByText("Built-in guided workflow")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Duplicate to custom" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Edit Preset" })).not.toBeInTheDocument();
     expect(onSavedPresetsChange).not.toHaveBeenCalled();
   });

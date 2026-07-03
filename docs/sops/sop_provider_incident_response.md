@@ -3,6 +3,7 @@
 Purpose: operational runbook for diagnosing and mitigating provider failures that impact generation, billing, or webhook processing.
 
 ## Scope
+
 - In scope:
   - Fal submit/status failures (`/api/fal/*`).
   - OpenAI prompt/agent failures (`/api/ai/*`).
@@ -12,6 +13,7 @@ Purpose: operational runbook for diagnosing and mitigating provider failures tha
   - General deployment rollback procedures (see `docs/disaster-recovery.md`).
 
 ## Prerequisites
+
 - Admin access to `/admin` for incident triage.
 - Supabase SQL access for read diagnostics.
 - Access to deployment logs for API routes.
@@ -19,6 +21,7 @@ Purpose: operational runbook for diagnosing and mitigating provider failures tha
 - For Fal/Kie generation reliability, also verify: `SHORTPULSE_FAL_RECONCILER_ENABLED`, `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`, optional `CRON_SECRET` (manual bearer), `SHORTPULSE_FAL_RECONCILER_LEASE_SECONDS`, `SHORTPULSE_FAL_TRUSTED_HOSTS`, `SHORTPULSE_FAL_STATUS_TRANSIENT_FAILURES_ENABLED`, `SHORTPULSE_FAL_NO_MEDIA_EXHAUST_MIN_AGE_SECONDS`, `SHORTPULSE_FAL_RUNNING_EXHAUST_MIN_AGE_SECONDS`, `SHORTPULSE_FAL_RUNNING_HARD_TIMEOUT_SECONDS`, `SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_CLEANUP_ENABLED`, `SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_CLEANUP_MIN_AGE_SECONDS`, `SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_ORPHAN_MIN_AGE_SECONDS`, `SHORTPULSE_FAL_ADMISSION_MODE`, `SHORTPULSE_FAL_ADMISSION_GLOBAL_MAX`, `SHORTPULSE_FAL_ADMISSION_SHARED_PROVIDER_ENABLED`, `SHORTPULSE_FAL_ADMISSION_SHARED_PROVIDER_GLOBAL_MAX`, `SHORTPULSE_FAL_ADMISSION_TIER_LIMITS_JSON`, `SHORTPULSE_FAL_ADMISSION_RETRY_AFTER_SECONDS`.
 
 ## Triage workflow (first 15 minutes)
+
 1. Confirm incident scope in `/admin`:
    - Filter `source`, `severity`, `route`, and `endpoint` in the Errors panel.
    - Capture one representative incident fingerprint and request ID.
@@ -36,12 +39,15 @@ Purpose: operational runbook for diagnosing and mitigating provider failures tha
 ## Provider-specific diagnostics
 
 ### Fal generation failures
+
 Primary signals:
+
 - `source = api.exception` with routes under `/api/fal/*`.
 - User-visible generation errors or stuck pending tasks.
 - Recovery backlog growth (`terminal_success_no_media`, stale running, or failed persist).
 
 Checks:
+
 ```sql
 select id, source, route, endpoint, message, http_status, last_seen_at, occurrences_count
 from app_error_logs
@@ -59,6 +65,7 @@ limit 100;
 ```
 
 Mitigation guidance:
+
 1. Confirm submit path rejects are auto-refunded by checking reservation state transitions (`reserved` -> `released`).
 2. Confirm completed runs capture (`reserved` -> `captured`) and create a ledger debit.
 3. If one model endpoint is degraded, temporarily remove that model from UI selection until provider recovers.
@@ -71,6 +78,7 @@ Mitigation guidance:
    - terminal-success/no-media outcomes should map to recoverable `terminal_success_no_media` lifecycle semantics.
 
 Scheduler health checks (Supabase Cron standard):
+
 ```sql
 select jobid, jobname, schedule, command, active
 from cron.job
@@ -90,14 +98,17 @@ limit 20;
 ```
 
 Correlate scheduler health with recovery pressure:
+
 - stale `reserved` holds with `provider_request_id` should decline after repeated passes.
 
 Fal reliability controls:
+
 1. Confirm model gating:
    - `SHORTPULSE_FAL_INTEGRATION_MODEL_ALLOWLIST`
 2. If incident severity requires immediate containment, remove the affected model from UI selection or the allowlist.
 3. If recovery lag is accumulating, run one protected reconciler pass via `/api/internal/generation-recovery/run` and inspect replay outcomes.
-   - Validate cleanup metrics in response: `reservationCleanupScanned`, `reservationCleanupReleased`, `reservationCleanupErrors`.
+   - Validate cleanup total metrics in response: `reservationCleanupScanned`, `reservationCleanupReleased`, `reservationCleanupErrors`.
+   - Use split cleanup metrics to distinguish pre-provider cleanup from provider-attached cleanup: `preProviderReservationCleanupScanned`, `preProviderReservationCleanupReleased`, `preProviderReservationCleanupErrors`, `providerAttachedReservationCleanupScanned`, `providerAttachedReservationCleanupReleased`, `providerAttachedReservationCleanupErrors`.
 4. For exhausted/edge cases, use admin replay (`/api/admin/generation-recovery/replay`).
 5. If webhook ingestion is unhealthy, verify `/api/fal/webhook` signature errors and keep accepted-job recovery active.
 6. Webhook ingress ownership is now explicitly split:
@@ -110,7 +121,9 @@ Fal reliability controls:
    - use accepted-job recovery and admin replay as the safety path if webhook delivery is degraded.
 
 ### Capacity backlog triage and guarded cleanup
+
 When accepted-job recovery is healthy but users still hit repeated `429` due stale provider-attached holds, follow `docs/sops/sop_generation_recovery_diagnostics.md` as the canonical workflow.
+
 1. Run generation admission, recovery visibility, convergence, settlement, and scheduler diagnostics.
 2. Run repeated scheduler/recovery drain passes (`/api/internal/generation-recovery/run`) and re-check counts.
 3. Only after stable stale confirmation, run guarded manual remediation using strict age/state filters.
@@ -118,7 +131,7 @@ When accepted-job recovery is healthy but users still hit repeated `429` due sta
 5. If capacity appears blocked with no active provider jobs, check stale-ignore telemetry:
    - `telemetry.api.fal_submit.capacity_stale_ignored`
    - `telemetry.queue.dispatch.capacity_stale_ignored`
-   and confirm stale provider-attached holds are being ignored/released.
+     and confirm stale provider-attached holds are being ignored/released.
 6. If admission pressure is rising, run `sql/check_generation_admission_metrics.sql` and separate:
    - `admission_scope = 'shared_provider'`: shared Fal-account saturation; do not solve by raising per-user limits.
    - `admission_scope = 'per_user'`: one-user burst pressure; evaluate UI batching, fairness, or per-user cap tuning first.
@@ -146,6 +159,7 @@ Failure-code action map (Fal reliability rollout):
 | `recovery_exhausted` | Use admin replay path and escalate to engineering incident review. |
 
 Queue transition guard diagnostics:
+
 1. Queue transition failures now emit deterministic error codes from guarded steps (`QUEUE_*`, `GENERATION_MARK_RUNNING_*`, `RESERVATION_SUBMIT_*`).
 2. During queue incident triage, filter app errors by:
    - `source in ('telemetry.queue.dispatch.retry','telemetry.queue.dispatch.exhausted')`
@@ -171,6 +185,7 @@ Queue transition guard diagnostics:
    - do not bulk replay until identity ownership is coherent again.
 
 Trusted outbound URL guard diagnostics:
+
 1. Status route fail-closed guard emits `source='api.fal_status.untrusted_base_url'` when no trusted `queueBaseUrl` remains after filtering.
 2. Submit/recovery guard failures include `Untrusted Fal provider URL blocked` in route exception metadata.
 3. First verify configured status/submit base URLs still target Fal-owned hosts and use `https`.
@@ -185,11 +200,14 @@ Admission-control action map:
 | `telemetry.api.fal_submit.recovery_backpressure_applied` | Recovery-lag safeguard reduced shared-provider headroom; inspect stale holds, queued/recovering backlog, `QUEUE_WAIT_TIMEOUT`, and recovery-visibility latency before changing admission caps. |
 
 ### OpenAI prompt/agent failures
+
 Primary signals:
+
 - Errors from `/api/ai/studio-agent-standard`, `/api/ai/studio-agent-pulse`, and retained image-analysis routes such as `/api/ai/extract-style`.
 - Large spike in failed prompt refine/describe interactions.
 
 Checks:
+
 ```sql
 select id, endpoint, message, http_status, metadata, last_seen_at, occurrences_count
 from app_error_logs
@@ -199,17 +217,21 @@ limit 50;
 ```
 
 Mitigation guidance:
+
 1. Verify `OPENAI_API_KEY` and model env vars are present and unchanged.
 2. Fallback to manual prompt entry when agent endpoints degrade.
 3. If only one retained endpoint fails (`extract-style` vs `studio-agent`), keep unaffected AI paths enabled.
 
 ### Stripe webhook or billing failures
+
 Primary signals:
+
 - Checkout/portal route failures.
 - Missing credit grants after successful payments.
 - Webhook failures or signature errors.
 
 Checks:
+
 ```sql
 select id, event_type, received_at
 from stripe_event_log
@@ -226,11 +248,13 @@ limit 50;
 ```
 
 Mitigation guidance:
+
 1. If webhook signature validation fails, verify `STRIPE_WEBHOOK_SECRET` matches the active endpoint in Stripe.
 2. If duplicate grant concerns appear, confirm event IDs are recorded in `stripe_event_log` and skipped on replay.
 3. If checkout/portal creation fails, verify `STRIPE_SECRET_KEY` and customer linkage in `billing_profiles`.
 
 ## Recovery validation checklist
+
 1. Submit one generation and verify:
    - reservation created,
    - provider request id attached,
@@ -240,6 +264,7 @@ Mitigation guidance:
 4. Verify no new high-severity incidents are opening for the affected endpoints.
 
 ## Reconciler and replay runbook (Fal reliability rollout)
+
 1. Candidate classes:
    - `terminal_success_no_media`
    - stale `running` beyond model wall-time budget
@@ -264,6 +289,7 @@ Mitigation guidance:
    - Billing reservation/capture/refund invariants remain unchanged.
 
 ## Methodical all-user drain cycle
+
 Use this after production reliability patches are enabled and scheduler health is green.
 
 1. Execute drain loop:
@@ -278,6 +304,7 @@ Use this after production reliability patches are enabled and scheduler health i
    - `POST /api/admin/generation-recovery/replay` with explicit `generationId` or `requestId`.
 
 Transient-status telemetry note:
+
 - When `SHORTPULSE_FAL_STATUS_TRANSIENT_FAILURES_ENABLED=true`, monitor:
   - `telemetry.fal.status.transient.transport`
   - `telemetry.fal.status.transient.non_json_status`
@@ -285,6 +312,7 @@ Transient-status telemetry note:
   - `telemetry.fal.status.transient.no_media`
 
 ## Post-incident requirements
+
 1. Record incident summary and fix in `docs/change_log.md`.
 2. Add unresolved issues and temporary mitigations to `docs/known-issues.md`.
 3. If the fix changes architecture or control boundaries, add/update an ADR in `docs/adr/`.

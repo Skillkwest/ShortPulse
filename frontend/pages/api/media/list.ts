@@ -69,7 +69,6 @@ type GenerationProjectionCompanionArtRow = {
   display_title?: unknown;
   companion_art_status?: unknown;
   companion_art_storage_path?: unknown;
-  workflow_reload?: unknown;
 };
 
 type ProjectOutputCompanionArtRow = {
@@ -435,7 +434,7 @@ const enrichRowsWithGenerationProjectionMetadata = async ({
   const { data, error } = await supabaseAdmin
     .from("generation_projection")
     .select(
-      "generation_id, user_id, display_title, companion_art_status, companion_art_storage_path, workflow_reload"
+      "generation_id, user_id, display_title, companion_art_status, companion_art_storage_path"
     )
     .eq("user_id", userId)
     .in("generation_id", generationIds);
@@ -446,7 +445,6 @@ const enrichRowsWithGenerationProjectionMetadata = async ({
       status: string | null;
       displayTitle: string | null;
       storagePath: string | null;
-      workflowReload: unknown;
     }
   >();
   const displayCompanionArtByGenerationId = new Map<
@@ -478,7 +476,6 @@ const enrichRowsWithGenerationProjectionMetadata = async ({
         status,
         displayTitle: normalizeAudioDisplayTitle(rawRow.display_title),
         storagePath,
-        workflowReload: rawRow.workflow_reload,
       });
       if (storagePath) {
         signablePaths.add(storagePath);
@@ -560,17 +557,12 @@ const enrichRowsWithGenerationProjectionMetadata = async ({
     const projectionDisplayTitle = isAudioFileType(row.file_type)
       ? (projection?.displayTitle ?? displayCompanionArt?.displayTitle ?? null)
       : null;
-    const nextMetadata =
-      (projection?.workflowReload && typeof projection.workflowReload === "object") ||
-      projectionDisplayTitle
-        ? {
-            ...(row.metadata ?? {}),
-            ...(projectionDisplayTitle ? { display_title: projectionDisplayTitle } : {}),
-            ...(projection?.workflowReload && typeof projection.workflowReload === "object"
-              ? { workflow_reload: projection.workflowReload }
-              : {}),
-          }
-        : row.metadata;
+    const nextMetadata = projectionDisplayTitle
+      ? {
+          ...(row.metadata ?? {}),
+          ...(projectionDisplayTitle ? { display_title: projectionDisplayTitle } : {}),
+        }
+      : row.metadata;
     const companionArtStoragePath =
       projection?.storagePath ?? displayCompanionArt?.storagePath ?? null;
     const companionArtSignedUrl = companionArtStoragePath

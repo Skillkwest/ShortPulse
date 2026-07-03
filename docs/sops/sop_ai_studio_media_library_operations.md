@@ -113,7 +113,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 1. Bulk media actions are panel-first and media-only in v1; prompt bulk actions remain out of scope.
 2. Card click in the panel toggles selected state for both media and prompt cards and must not ingest that item into Reference Grid.
 3. Right-click and double-click preserve their dedicated gesture contracts: root `All Media` right-click sends media to Reference Grid, and root `All Media` double-click opens the shared media detail modal for media without ingesting it.
-4. Media cards expose a dedicated selection affordance in addition to card-click toggle behavior; prompt cards use card-click toggle behavior only.
+4. Media cards use card-click toggle behavior with accessible `Select` / `Deselect` labels and a visible selected-state chip/border once selected; prompt cards use card-click toggle behavior only.
 5. The bulk action bar appears only when one or more visible media rows are selected and must show the selected count plus `Clear`.
 6. In `All Media`, bulk actions allow:
    - `Move to folder` using the global folder membership assignment semantics.
@@ -284,6 +284,11 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 
 - Status: Aligned.
 - Current: The AI Studio autosave preference governs automatic Media Library saving only. Turning it OFF does not disable private restore-durability uploads used to keep local Reference Grid media restorable across reload or project reopen.
+
+28. Panel search activation boundary:
+
+- Status: Deferred gap.
+- Current: The shared media and prompt list APIs accept search queries, and the panel data controller threads a normalized search value through media, prompt, signing, and pagination requests. The primary AI Studio Media Library panel and embedded media panels currently pass an empty search value and do not render a search input, so panel search is not an active runtime capability until a scoped search UX lane is approved.
 
 ## Error and feedback behavior
 

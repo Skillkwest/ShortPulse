@@ -193,7 +193,10 @@ const redactSensitiveDiagnostics = (value) => {
   const text = String(value ?? "");
   return text
     .replace(/postgres(?:ql)?:\/\/[^@\s]+@/gi, "postgresql://[redacted]@")
-    .replace(/(SUPABASE_(?:ACCESS|MANAGEMENT_API)_TOKEN=)[^\s]+/gi, "$1[redacted]")
+    .replace(
+      /(SUPABASE_(?:ACCESS|MANAGEMENT_API)_TOKEN=)[^\s]+/gi,
+      "$1[redacted]",
+    )
     .replace(/(STRIPE_SECRET_KEY=)[^\s]+/gi, "$1[redacted]");
 };
 
@@ -310,69 +313,75 @@ const checkProductionSupabaseCatalog = async (reporter) => {
     },
   );
 
-  const freePlan = Array.isArray(freePlans) ? freePlans[0] : null;
-  const freeOfferRows = Array.isArray(freeOffers) ? freeOffers : [];
-  const hiddenFreeTierGaps = [];
+  const baselineAccessPlan = Array.isArray(freePlans) ? freePlans[0] : null;
+  const baselineAccessOfferRows = Array.isArray(freeOffers) ? freeOffers : [];
+  const baselineAccessGaps = [];
 
-  if (!freePlan) {
-    hiddenFreeTierGaps.push("free billing plan row is missing");
+  if (!baselineAccessPlan) {
+    baselineAccessGaps.push("baseline access sentinel row is missing");
   } else {
-    if (Number(freePlan.monthly_price_cents ?? 0) !== 0) {
-      hiddenFreeTierGaps.push("free plan has non-zero monthly price");
+    if (Number(baselineAccessPlan.monthly_price_cents ?? 0) !== 0) {
+      baselineAccessGaps.push("baseline access has non-zero monthly price");
     }
-    if (Number(freePlan.monthly_credits_cents ?? 0) !== 0) {
-      hiddenFreeTierGaps.push("free plan has non-zero monthly credits");
+    if (Number(baselineAccessPlan.monthly_credits_cents ?? 0) !== 0) {
+      baselineAccessGaps.push("baseline access has non-zero monthly credits");
     }
-    if (Number(freePlan.storage_limit_bytes ?? 0) !== 0) {
-      hiddenFreeTierGaps.push("free plan has non-zero storage");
+    if (Number(baselineAccessPlan.storage_limit_bytes ?? 0) !== 0) {
+      baselineAccessGaps.push("baseline access has non-zero storage");
     }
-    if (freePlan.stripe_price_id) {
-      hiddenFreeTierGaps.push("free plan has a Stripe price id");
+    if (baselineAccessPlan.stripe_price_id) {
+      baselineAccessGaps.push("baseline access has a Stripe price id");
     }
   }
 
-  for (const offer of freeOfferRows) {
+  for (const offer of baselineAccessOfferRows) {
     if (offer.acquisition_enabled === true) {
-      hiddenFreeTierGaps.push(`${offer.id}: free offer is acquisition-enabled`);
+      baselineAccessGaps.push(
+        `${offer.id}: baseline access offer is acquisition-enabled`,
+      );
     }
     if (Number(offer.recurring_price_cents ?? 0) !== 0) {
-      hiddenFreeTierGaps.push(
-        `${offer.id}: free offer has non-zero recurring price`,
+      baselineAccessGaps.push(
+        `${offer.id}: baseline access offer has non-zero recurring price`,
       );
     }
     if (Number(offer.monthly_credits_cents ?? 0) !== 0) {
-      hiddenFreeTierGaps.push(
-        `${offer.id}: free offer has non-zero monthly credits`,
+      baselineAccessGaps.push(
+        `${offer.id}: baseline access offer has non-zero monthly credits`,
       );
     }
     if (Number(offer.storage_limit_bytes ?? 0) !== 0) {
-      hiddenFreeTierGaps.push(`${offer.id}: free offer has non-zero storage`);
+      baselineAccessGaps.push(
+        `${offer.id}: baseline access offer has non-zero storage`,
+      );
     }
     if (Number(offer.max_concurrent_generations ?? 0) !== 0) {
-      hiddenFreeTierGaps.push(
-        `${offer.id}: free offer has generation concurrency`,
+      baselineAccessGaps.push(
+        `${offer.id}: baseline access offer has generation concurrency`,
       );
     }
     if (offer.stripe_price_id) {
-      hiddenFreeTierGaps.push(`${offer.id}: free offer has a Stripe price id`);
+      baselineAccessGaps.push(
+        `${offer.id}: baseline access offer has a Stripe price id`,
+      );
     }
   }
 
-  if (hiddenFreeTierGaps.length > 0) {
+  if (baselineAccessGaps.length > 0) {
     reporter.fail(
-      "production_hidden_free_tier",
-      "Production hidden free tier still carries launch-risk value.",
-      hiddenFreeTierGaps,
+      "production_baseline_access",
+      "Production baseline access still carries launch-risk paid value.",
+      baselineAccessGaps,
     );
     return;
   }
 
   reporter.pass(
-    "production_hidden_free_tier",
-    "Production hidden free tier is zero-value and not acquisition-enabled.",
+    "production_baseline_access",
+    "Production baseline access is zero-value and not acquisition-enabled.",
     {
-      freePlanPresent: Boolean(freePlan),
-      freeOfferRows: freeOfferRows.length,
+      baselineAccessSentinelPresent: Boolean(baselineAccessPlan),
+      baselineAccessOfferRows: baselineAccessOfferRows.length,
     },
   );
 };
@@ -445,7 +454,11 @@ select coalesce(json_agg(checks order by check_name), '[]'::json) from checks;
         missingPsqlCommands.push(psqlCommand);
         continue;
       }
-      throw new Error(redactSensitiveDiagnostics(error instanceof Error ? error.message : error));
+      throw new Error(
+        redactSensitiveDiagnostics(
+          error instanceof Error ? error.message : error,
+        ),
+      );
     }
   }
   if (stdout === null) {
@@ -639,7 +652,9 @@ const main = async () => {
     } catch (error) {
       reporter.fail(
         id,
-        redactSensitiveDiagnostics(error instanceof Error ? error.message : error),
+        redactSensitiveDiagnostics(
+          error instanceof Error ? error.message : error,
+        ),
       );
     }
   }

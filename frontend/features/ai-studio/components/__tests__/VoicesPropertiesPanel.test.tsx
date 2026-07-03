@@ -1241,6 +1241,118 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.getByText("—")).toBeInTheDocument();
   });
 
+  it("blocks voice changer generate when a ready source has no staged media authority", async () => {
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        source: "api",
+        voices: [
+          {
+            voiceId: "voice_live_darian_123",
+            name: "Darian",
+            previewUrl: "https://cdn.elevenlabs.test/darian.mp3",
+            description: "Warm, grounded storyteller",
+            isFallback: false,
+          },
+        ],
+      }),
+    });
+    const onGenerate = vi.fn();
+
+    render(
+      <VoicesPropertiesPanel
+        onGenerate={onGenerate}
+        voiceChangerSource={{
+          id: "source-without-authority",
+          kind: "audio",
+          origin: "local",
+          status: "ready",
+          aspect: null,
+          durationMs: 1000,
+          name: "unstaged.wav",
+          mimeType: "audio/wav",
+          file: null,
+          previewUrl: null,
+          sourceUrl: null,
+          objectUrl: null,
+          storagePath: null,
+          referenceOutputId: null,
+          referenceMediaId: null,
+          errorMessage: null,
+          extractedFrom: null,
+        }}
+      />
+    );
+    await openVoicesLibraryModal();
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Remove" })).toBeEnabled();
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Voice Changer" }));
+
+    const generateButton = screen.getByRole("button", { name: "Generate" });
+    expect(generateButton).toBeDisabled();
+    fireEvent.click(generateButton);
+    expect(onGenerate).not.toHaveBeenCalled();
+  });
+
+  it("blocks voice changer generate when a ready source only has a transient blob URL", async () => {
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        source: "api",
+        voices: [
+          {
+            voiceId: "voice_live_darian_123",
+            name: "Darian",
+            previewUrl: "https://cdn.elevenlabs.test/darian.mp3",
+            description: "Warm, grounded storyteller",
+            isFallback: false,
+          },
+        ],
+      }),
+    });
+    const onGenerate = vi.fn();
+
+    render(
+      <VoicesPropertiesPanel
+        onGenerate={onGenerate}
+        voiceChangerSource={{
+          id: "blob-only-source",
+          kind: "audio",
+          origin: "local",
+          status: "ready",
+          aspect: null,
+          durationMs: 1000,
+          name: "unstaged.wav",
+          mimeType: "audio/wav",
+          file: null,
+          previewUrl: null,
+          sourceUrl: "blob:http://localhost:3000/unstaged-source",
+          objectUrl: "blob:http://localhost:3000/unstaged-source",
+          storagePath: null,
+          referenceOutputId: null,
+          referenceMediaId: null,
+          errorMessage: null,
+          extractedFrom: null,
+        }}
+      />
+    );
+    await openVoicesLibraryModal();
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Remove" })).toBeEnabled();
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Voice Changer" }));
+
+    const generateButton = screen.getByRole("button", { name: "Generate" });
+    expect(generateButton).toBeDisabled();
+    fireEvent.click(generateButton);
+    expect(onGenerate).not.toHaveBeenCalled();
+  });
+
   it("preserves the original video aspect when submitting a remuxable voice changer source", async () => {
     fetchWithAuthMock.mockResolvedValue({
       ok: true,

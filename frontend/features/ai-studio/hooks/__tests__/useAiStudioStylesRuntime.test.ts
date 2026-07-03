@@ -212,6 +212,34 @@ describe("useAiStudioStylesRuntime", () => {
     });
   });
 
+  it("does not emit applied style context for a selected custom style without prompt text", async () => {
+    detailsPreference.styleDetailsById = {
+      "style-library-custom-empty-prompt": {
+        style: "Needs Prompt",
+        title: "Needs Prompt",
+        referenceImageName: "Needs Prompt",
+        stylePrompt: "",
+        previewImageUrl: "data:image/png;base64,custom",
+      },
+    };
+    const onSelectedStylePromptChange = vi.fn();
+    const onSelectedStyleContextChange = vi.fn();
+
+    renderHook(() =>
+      useAiStudioStylesRuntime({
+        selectedStyleId: "style-library-custom-empty-prompt",
+        setSelectedStyleId: vi.fn(),
+        onSelectedStylePromptChange,
+        onSelectedStyleContextChange,
+      })
+    );
+
+    await waitFor(() => {
+      expect(onSelectedStylePromptChange).toHaveBeenLastCalledWith(null);
+    });
+    expect(onSelectedStyleContextChange).toHaveBeenLastCalledWith(null);
+  });
+
   it("uses deterministic custom-style fallback order when no user order exists", () => {
     detailsPreference.styleDetailsById = {
       "style-library-custom-200": {

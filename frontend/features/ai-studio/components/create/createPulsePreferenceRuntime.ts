@@ -10,6 +10,9 @@ export type CreatePulsePreferenceRuntimeValue = {
   deletedBuiltInPresetIds: readonly CreatePulsePresetId[];
   builtInDefinitions: readonly CreatePulseBuiltInPresetDefinition[];
   builtInDefinitionsLoading: boolean;
+  builtInDefinitionsError: string | null;
+  builtInDefinitionsSource: "control_plane" | "seed" | null;
+  builtInDefinitionsDegraded: boolean;
   builtInDefinitionsAuthoritative: boolean;
   refreshBuiltInDefinitions: () => Promise<readonly CreatePulseBuiltInPresetDefinition[] | null>;
   setPresetPanelIds: (value: CreatePulsePresetId[]) => Promise<boolean>;

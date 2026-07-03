@@ -10,6 +10,7 @@ const readExistingRecoveryMediaRowsMock = vi.fn();
 const persistRecoveryMediaFilesForGenerationMock = vi.fn();
 const persistGenerationOutputRecordsMock = vi.fn();
 const readPersistedGenerationOutputsMock = vi.fn();
+const markGenerationOutputRowsVisibilitySettledMock = vi.fn();
 const upsertGenerationProjectionMock = vi.fn();
 const upsertGenerationPublicationMock = vi.fn();
 const probeGenerationProviderResultMock = vi.fn();
@@ -37,6 +38,8 @@ vi.mock("../../api/generationOutputs", () => ({
     persistGenerationOutputRecordsMock(...args),
   readPersistedGenerationOutputs: (...args: unknown[]) =>
     readPersistedGenerationOutputsMock(...args),
+  markGenerationOutputRowsVisibilitySettled: (...args: unknown[]) =>
+    markGenerationOutputRowsVisibilitySettledMock(...args),
 }));
 
 vi.mock("../../api/generationProjection", () => ({
@@ -229,8 +232,12 @@ describe("executeGenerationRecovery", () => {
         outputIndex: 0,
         resultUrl: "https://cdn.shortpulse.test/recovered.png",
         mediaFileId: null,
+        metadata: {},
       },
     ]);
+    markGenerationOutputRowsVisibilitySettledMock.mockImplementation(
+      async ({ outputRows }: { outputRows: unknown[] }) => outputRows
+    );
     upsertGenerationProjectionMock.mockResolvedValue(undefined);
     upsertGenerationPublicationMock.mockResolvedValue(undefined);
     associateGenerationWithProjectForUserMock.mockResolvedValue(true);
@@ -283,6 +290,37 @@ describe("executeGenerationRecovery", () => {
         outputIndex: 0,
         resultUrl: "https://cdn.shortpulse.test/already-persisted.png",
         mediaFileId: "media-1",
+        metadata: {
+          direct_terminal_visibility_state: "settlement_pending",
+          recovery_visibility_state: "settlement_pending",
+          keep_me: true,
+        },
+      },
+    ]);
+    markGenerationOutputRowsVisibilitySettledMock.mockResolvedValueOnce([
+      {
+        id: "output-1",
+        outputIndex: 0,
+        resultUrl: "https://cdn.shortpulse.test/already-persisted.png",
+        mediaFileId: "media-1",
+        metadata: {
+          direct_terminal_visibility_state: "settlement_pending",
+          recovery_visibility_state: "settled",
+          keep_me: true,
+        },
+      },
+    ]);
+    markGenerationOutputRowsVisibilitySettledMock.mockResolvedValueOnce([
+      {
+        id: "output-1",
+        outputIndex: 0,
+        resultUrl: "https://cdn.shortpulse.test/already-persisted.png",
+        mediaFileId: "media-1",
+        metadata: {
+          direct_terminal_visibility_state: "settled",
+          recovery_visibility_state: "settled",
+          keep_me: true,
+        },
       },
     ]);
 
@@ -316,6 +354,40 @@ describe("executeGenerationRecovery", () => {
       })
     );
     expect(probeGenerationProviderResultMock).not.toHaveBeenCalled();
+    expect(markGenerationOutputRowsVisibilitySettledMock).toHaveBeenNthCalledWith(1, {
+      generationId: "gen-1",
+      userId: "user-1",
+      outputRows: [
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            direct_terminal_visibility_state: "settlement_pending",
+            recovery_visibility_state: "settlement_pending",
+            keep_me: true,
+          }),
+        }),
+      ],
+      visibilityMetadataKey: "recovery_visibility_state",
+    });
+    expect(markGenerationOutputRowsVisibilitySettledMock).toHaveBeenNthCalledWith(2, {
+      generationId: "gen-1",
+      userId: "user-1",
+      outputRows: [
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            direct_terminal_visibility_state: "settlement_pending",
+            recovery_visibility_state: "settled",
+            keep_me: true,
+          }),
+        }),
+      ],
+      visibilityMetadataKey: "direct_terminal_visibility_state",
+    });
+    expect(settleGenerationOutcomeMock.mock.invocationCallOrder[0]).toBeLessThan(
+      markGenerationOutputRowsVisibilitySettledMock.mock.invocationCallOrder[0]
+    );
+    expect(markGenerationOutputRowsVisibilitySettledMock.mock.invocationCallOrder[1]).toBeLessThan(
+      upsertGenerationPublicationMock.mock.invocationCallOrder[0]
+    );
     expect(upsertGenerationPublicationMock).toHaveBeenCalledWith(
       expect.objectContaining({
         generationId: "gen-1",
@@ -1285,6 +1357,47 @@ describe("executeGenerationRecovery", () => {
     );
   });
 
+  it("does not terminalize recovered success when billing capture does not settle", async () => {
+    const scenario = createAiGenerationsAdmin([
+      {
+        ...baseGenerationRow,
+        status: "running",
+      },
+    ]);
+    getSupabaseAdminMock.mockReturnValue(scenario.admin);
+    settleGenerationOutcomeMock.mockResolvedValueOnce({
+      settled: false,
+      note: "reservation_capture_failed",
+    });
+
+    await expect(
+      executeGenerationRecovery({
+        actor: "webhook",
+        generationId: "gen-1",
+        routeLabel: "test/recovery",
+        observation: {
+          state: "completed",
+          payload: null,
+          mediaUrls: ["https://cdn.shortpulse.test/recovered.png"],
+        },
+      })
+    ).rejects.toThrow("Generation billing settlement did not complete: reservation_capture_failed");
+
+    expect(persistRecoveryMediaFilesForGenerationMock).toHaveBeenCalled();
+    expect(persistGenerationOutputRecordsMock).toHaveBeenCalled();
+    expect(persistGenerationOutputRecordsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          recovery_visibility_state: "settlement_pending",
+        }),
+      })
+    );
+    expect(updateGenerationAttemptStateMock).not.toHaveBeenCalled();
+    expect(scenario.updatePayloads).toHaveLength(0);
+    expect(upsertGenerationPublicationMock).not.toHaveBeenCalled();
+    expect(upsertGenerationProjectionMock).not.toHaveBeenCalled();
+  });
+
   it("skips persistence when media autosave preference is off and still settles success", async () => {
     const scenario = createAiGenerationsAdmin(
       [
@@ -1328,6 +1441,21 @@ describe("executeGenerationRecovery", () => {
         providerRequestId: "req-1",
         resultUrls: ["https://cdn.shortpulse.test/recovered.png"],
         mediaFileIds: [],
+        metadata: expect.objectContaining({
+          recovery_visibility_state: "settlement_pending",
+        }),
+      })
+    );
+    expect(persistGenerationOutputRecordsMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        generationId: "gen-1",
+        userId: "user-1",
+        providerRequestId: "req-1",
+        resultUrls: ["https://cdn.shortpulse.test/recovered.png"],
+        mediaFileIds: [],
+        metadata: expect.objectContaining({
+          recovery_visibility_state: "settled",
+        }),
       })
     );
     expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
@@ -1727,6 +1855,34 @@ describe("executeGenerationRecovery", () => {
         outputIndex: 0,
         resultUrl: "https://cdn.shortpulse.test/existing-media.png",
         mediaFileId: "media-1",
+        metadata: {
+          direct_terminal_visibility_state: "settlement_pending",
+          recovery_visibility_state: "settlement_pending",
+        },
+      },
+    ]);
+    markGenerationOutputRowsVisibilitySettledMock.mockResolvedValueOnce([
+      {
+        id: "output-1",
+        outputIndex: 0,
+        resultUrl: "https://cdn.shortpulse.test/existing-media.png",
+        mediaFileId: "media-1",
+        metadata: {
+          direct_terminal_visibility_state: "settlement_pending",
+          recovery_visibility_state: "settled",
+        },
+      },
+    ]);
+    markGenerationOutputRowsVisibilitySettledMock.mockResolvedValueOnce([
+      {
+        id: "output-1",
+        outputIndex: 0,
+        resultUrl: "https://cdn.shortpulse.test/existing-media.png",
+        mediaFileId: "media-1",
+        metadata: {
+          direct_terminal_visibility_state: "settled",
+          recovery_visibility_state: "settled",
+        },
       },
     ]);
 
@@ -1748,6 +1904,38 @@ describe("executeGenerationRecovery", () => {
       expect.objectContaining({
         outcome: "success",
       })
+    );
+    expect(markGenerationOutputRowsVisibilitySettledMock).toHaveBeenNthCalledWith(1, {
+      generationId: "gen-1",
+      userId: "user-1",
+      outputRows: [
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            direct_terminal_visibility_state: "settlement_pending",
+            recovery_visibility_state: "settlement_pending",
+          }),
+        }),
+      ],
+      visibilityMetadataKey: "recovery_visibility_state",
+    });
+    expect(markGenerationOutputRowsVisibilitySettledMock).toHaveBeenNthCalledWith(2, {
+      generationId: "gen-1",
+      userId: "user-1",
+      outputRows: [
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            direct_terminal_visibility_state: "settlement_pending",
+            recovery_visibility_state: "settled",
+          }),
+        }),
+      ],
+      visibilityMetadataKey: "direct_terminal_visibility_state",
+    });
+    expect(settleGenerationOutcomeMock.mock.invocationCallOrder[0]).toBeLessThan(
+      markGenerationOutputRowsVisibilitySettledMock.mock.invocationCallOrder[0]
+    );
+    expect(markGenerationOutputRowsVisibilitySettledMock.mock.invocationCallOrder[1]).toBeLessThan(
+      upsertGenerationPublicationMock.mock.invocationCallOrder[0]
     );
     expect(upsertGenerationPublicationMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1842,6 +2030,37 @@ describe("executeGenerationRecovery", () => {
         failureReasonCode: "provider_error",
       })
     );
+  });
+
+  it("does not terminalize provider failure when billing release does not settle", async () => {
+    const scenario = createAiGenerationsAdmin([
+      {
+        ...baseGenerationRow,
+        status: "running",
+      },
+    ]);
+    getSupabaseAdminMock.mockReturnValue(scenario.admin);
+    settleGenerationOutcomeMock.mockResolvedValueOnce({
+      settled: false,
+      note: "reservation_release_failed",
+    });
+
+    await expect(
+      executeGenerationRecovery({
+        actor: "webhook",
+        generationId: "gen-1",
+        routeLabel: "test/recovery",
+        observation: {
+          state: "failed",
+          payload: { error: "Provider rejected request" },
+          mediaUrls: [],
+        },
+      })
+    ).rejects.toThrow("Generation billing settlement did not complete: reservation_release_failed");
+
+    expect(updateGenerationAttemptStateMock).not.toHaveBeenCalled();
+    expect(scenario.updatePayloads).toHaveLength(0);
+    expect(upsertGenerationProjectionMock).not.toHaveBeenCalled();
   });
 
   it("does not refund abandoned provider failures during shared recovery", async () => {

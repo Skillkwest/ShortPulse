@@ -1536,7 +1536,7 @@ describe("POST /api/media/list", () => {
     );
   });
 
-  it("enriches saved AI Studio media rows with workflow reload metadata from projection", async () => {
+  it("does not hydrate workflow reload metadata from projection during media list enrichment", async () => {
     const workflowReload = {
       version: 1,
       source: "ai_studio_generation",
@@ -1619,7 +1619,6 @@ describe("POST /api/media/list", () => {
             id: "image-1",
             metadata: {
               prompt: "stale prompt",
-              workflow_reload: workflowReload,
             },
           }),
         ],

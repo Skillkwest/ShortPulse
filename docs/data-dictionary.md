@@ -916,7 +916,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 
 ### billing_plans
 
-- `id` (text, pk): Stable plan identifier used across billing profiles, subscriber contracts, and the public catalog. Public acquisition uses `starter | media | studio | business`; the legacy `free` database id is a non-public baseline fallback row, not a customer-facing plan.
+- `id` (text, pk): Stable plan identifier used across billing profiles, subscriber contracts, and the public catalog. Public acquisition uses `starter | media | studio | business`; the legacy `free` database id is a non-public baseline-access sentinel, not a customer-facing plan, free plan, trial, subscription, or paid entitlement.
 - `display_name` (text): UI-facing plan label.
 - `monthly_price_cents` (int): Current public baseline price in cents for the tier.
 - `monthly_credits_cents` (int): Current public baseline monthly credits for the tier.

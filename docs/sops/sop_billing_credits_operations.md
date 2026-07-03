@@ -445,8 +445,8 @@ After release:
 
 ## Post-deploy health check (signup bootstrap)
 
-Use this query to detect recent users missing the expected zero-credit bootstrap rows
-or receiving retired free-plan seed credits:
+Use this query to detect recent users missing the expected zero-credit baseline-access
+bootstrap rows or receiving retired signup seed credits:
 
 ```sql
 with recent_users as (

@@ -11,6 +11,7 @@ const useCreditsMock = vi.hoisted(() => vi.fn());
 const useMediaAutosavePreferenceMock = vi.hoisted(() => vi.fn());
 const useMediaStorageQuotaSummaryMock = vi.hoisted(() => vi.fn());
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
+const fetchBillingAccountSummaryMock = vi.hoisted(() => vi.fn());
 const refreshQuotaSummaryMock = vi.hoisted(() => vi.fn());
 const activeStorageAddonsQueryMock = vi.hoisted(() => vi.fn());
 
@@ -90,6 +91,10 @@ vi.mock("../../features/ai-studio/hooks/useMediaAutosavePreference", () => ({
 
 vi.mock("../../features/billing/useMediaStorageQuotaSummary", () => ({
   useMediaStorageQuotaSummary: (...args: unknown[]) => useMediaStorageQuotaSummaryMock(...args),
+}));
+
+vi.mock("../../features/billing/accountSummary", () => ({
+  fetchBillingAccountSummary: (...args: unknown[]) => fetchBillingAccountSummaryMock(...args),
 }));
 
 vi.mock("../../lib/authenticatedFetch", () => ({
@@ -262,6 +267,40 @@ describe("Profile storage actions", () => {
         },
       ],
       error: null,
+    });
+    fetchBillingAccountSummaryMock.mockReset();
+    fetchBillingAccountSummaryMock.mockImplementation(async () => {
+      const addonsResponse = await activeStorageAddonsQueryMock();
+      return {
+        userId: "user-1",
+        resolvedPlan: {
+          id: billingContractState.value?.plan_id ?? billingProfileState.plan_id ?? "free",
+          label: "Business",
+          className: "plan-business",
+          monthlyCreditsCents: 60000,
+        },
+        quotaStatus: "unavailable",
+        quotaSummary: null,
+        profileState: {
+          billingProfile: { ...billingProfileState },
+          billingContract: billingContractState.value,
+          billingActivity: [],
+          activeStorageAddons: Array.isArray(addonsResponse.data)
+            ? addonsResponse.data
+                .map((row: Record<string, unknown>) => ({
+                  id: row.id,
+                  storageAddonId: row.storage_addon_id,
+                  offerId: row.offer_id,
+                  stripeSubscriptionItemId: row.stripe_subscription_item_id,
+                  storageLimitBytes: row.storage_limit_bytes,
+                  quantity: row.quantity,
+                  recurringPriceCents: row.recurring_price_cents,
+                  status: row.status,
+                }))
+                .filter((row: Record<string, unknown>) => row.id && row.storageAddonId)
+            : [],
+        },
+      };
     });
     refreshQuotaSummaryMock.mockReset();
     refreshQuotaSummaryMock.mockResolvedValue(undefined);

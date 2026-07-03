@@ -9,6 +9,7 @@ import {
 } from "../aiStudioOutputStore";
 import { useAiStudioState } from "../useAiStudioState";
 import * as ingestionPreparation from "../../reference-ingestion/prepareLibraryMediaIngestionPayload";
+import { REFERENCE_GRID_MAX_VISIBLE_ITEMS } from "../../reference-grid/logic/referenceGridLimits";
 
 const mockUpdateOutputById = vi.fn();
 const mockFindOutputById = vi.fn<(id: string) => StudioOutput | null>(() => null);
@@ -278,6 +279,7 @@ describe("useAiStudioState output store bridge", () => {
       expect(listVisibleGeneratedOutputsMock).toHaveBeenCalledWith({
         projectId: "project-1",
         workspaceRuntimeKey: null,
+        includeWorkflowContext: false,
       });
     });
   });
@@ -853,6 +855,7 @@ describe("useAiStudioState output store bridge", () => {
       expect(listVisibleGeneratedOutputsMock).toHaveBeenCalledWith({
         projectId: null,
         workspaceRuntimeKey: "session:session-1",
+        includeWorkflowContext: false,
       });
     });
   });
@@ -1224,9 +1227,11 @@ describe("useAiStudioState output store bridge", () => {
     });
 
     await waitFor(() => {
-      expect(result.current.outputs.length).toBe(128);
+      expect(result.current.outputs.length).toBe(REFERENCE_GRID_MAX_VISIBLE_ITEMS);
     });
-    expect(result.current.archivedOutputs).toHaveLength(394);
+    expect(result.current.archivedOutputs).toHaveLength(
+      bulkOutputs.length + 2 - REFERENCE_GRID_MAX_VISIBLE_ITEMS
+    );
   });
 
   it("deletes quick-slotted references from the shared workspace when grid delete is requested", async () => {

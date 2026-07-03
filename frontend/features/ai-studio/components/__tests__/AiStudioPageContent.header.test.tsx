@@ -401,7 +401,7 @@ describe("AiStudioPageContent header project name", () => {
     ).toHaveTextContent("Campaign Alpha");
   });
 
-  it("shows a download action for canvas fallback detail items", () => {
+  it("shows a download action for canvas fallback detail items", async () => {
     const sharedDetailModalItem = {
       surface: "right-rail-canvas",
       selectionTarget: {
@@ -437,7 +437,7 @@ describe("AiStudioPageContent header project name", () => {
 
     render(<AiStudioPageContent {...createProps({ sharedDetailModalItem })} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Download" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Download" }));
 
     expect(downloadUrlToFileMock).toHaveBeenCalledWith(
       "https://cdn.example.com/canvas-image-full.png",
@@ -634,11 +634,11 @@ describe("AiStudioPageContent header project name", () => {
     );
   });
 
-  it("preloads the styles catalog when Standard Create is active", () => {
+  it("keeps the styles catalog disabled on Standard Create until Styles is requested", () => {
     render(<AiStudioPageContent {...createProps()} selectedTool="create" />);
 
     expect(useAiStudioStylesRuntimeMock).toHaveBeenCalledWith(
-      expect.objectContaining({ enabled: true })
+      expect.objectContaining({ enabled: false })
     );
   });
 
@@ -663,7 +663,7 @@ describe("AiStudioPageContent header project name", () => {
   });
 
   it("keeps the styles catalog enabled after the mounted session has warmed it", () => {
-    const { rerender } = render(<AiStudioPageContent {...createProps()} selectedTool="create" />);
+    const { rerender } = render(<AiStudioPageContent {...createProps()} selectedTool="styles" />);
 
     expect(useAiStudioStylesRuntimeMock).toHaveBeenLastCalledWith(
       expect.objectContaining({ enabled: true })

@@ -2,7 +2,10 @@ import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { maybeTranscodeLocalImageBlobForUpload } from "../../../lib/adaptive-media";
 import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import type { MediaListCursor } from "../../media-library/logic/mediaListApi";
-import { isTransientMediaLibraryNetworkError } from "./mediaLibraryErrorText";
+import {
+  isMediaLibraryAbortError,
+  isTransientMediaLibraryNetworkError,
+} from "./mediaLibraryErrorText";
 
 export const MEDIA_LIBRARY_ROOT_FOLDER_ID = "all_items" as const;
 const DURABLE_MEDIA_CACHE_CONTROL_SECONDS = "31536000";
@@ -332,6 +335,9 @@ const withTransientNetworkRetry = async <T>(
       return await operation();
     } catch (error) {
       lastError = error;
+      if (isMediaLibraryAbortError(error)) {
+        throw error;
+      }
       const hasRemainingAttempts = attempt < attempts;
       if (!hasRemainingAttempts || !isTransientMediaLibraryNetworkError(error)) {
         throw error;
@@ -590,12 +596,14 @@ export const fetchMediaPromptListPage = async ({
   query,
   cursor,
   limit,
+  signal,
 }: {
   folderId: MediaFolderId;
   projectId?: string | null;
   query: string;
   cursor: PromptListCursor | null;
   limit: number;
+  signal?: AbortSignal;
 }): Promise<PromptListPageResult> => {
   const response = await withTransientNetworkRetry(
     async () =>
@@ -610,6 +618,7 @@ export const fetchMediaPromptListPage = async ({
           cursor,
           limit,
         }),
+        signal,
         shortpulseLogScope: "app",
       })
   );

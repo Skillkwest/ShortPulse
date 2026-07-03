@@ -82,6 +82,27 @@ describe("useAiStudioCreateModeRuntime", () => {
     expect(result.current.pulseWorkflowSession).toEqual(workflowSession);
   });
 
+  it("keeps explicit Pulse deactivation destructive without changing back to Standard", () => {
+    const workflowSession = buildWorkflowSession(ACTIVE_PULSE_ID);
+    const { result } = renderHook(() =>
+      useAiStudioCreateModeRuntime({
+        initialExpertCreateMode: "pulse",
+        initialActiveCreatePulsePresetId: ACTIVE_PULSE_ID,
+        initialPulseSessionInstanceId: TEST_PULSE_SESSION_ID,
+        initialPulseWorkflowSession: workflowSession,
+      })
+    );
+
+    act(() => {
+      result.current.deactivatePulse();
+    });
+
+    expect(result.current.expertCreateMode).toBe("pulse");
+    expect(result.current.activeCreatePulsePresetId).toBeNull();
+    expect(result.current.pulseSessionInstanceId).toBeNull();
+    expect(result.current.pulseWorkflowSession).toBeNull();
+  });
+
   it("clears stale workflow state when the active Pulse changes through the UI handler", () => {
     const { result } = renderHook(() =>
       useAiStudioCreateModeRuntime({

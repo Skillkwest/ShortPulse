@@ -31,7 +31,9 @@ Options:
   --project-id <uuid>       Convenience option for /ai-studio?projectId=<uuid>.
   --sid <uuid>              Optional sid query param when using --project-id.
   --email <email>           Optional login email for /auth.
+                            Fallback env: PLAYWRIGHT_AUDIT_EMAIL.
   --password <password>     Optional login password for /auth.
+                            Fallback env: PLAYWRIGHT_AUDIT_PASSWORD.
   --storage-state <path>    Optional Playwright storage state JSON.
   --user-data-dir <path>    Optional persistent Chromium profile directory.
   --ready-text <text>       Text marker for first useful AI Studio shell. Default: ${DEFAULT_READY_TEXT}
@@ -48,8 +50,8 @@ const parseArgs = (argv) => {
     path: "/ai-studio",
     projectId: "",
     sid: "",
-    email: "",
-    password: "",
+    email: process.env.PLAYWRIGHT_AUDIT_EMAIL?.trim() ?? "",
+    password: process.env.PLAYWRIGHT_AUDIT_PASSWORD?.trim() ?? "",
     storageState: "",
     userDataDir: "",
     readyText: DEFAULT_READY_TEXT,
@@ -185,6 +187,47 @@ const summarizeApiRequests = (requests) => {
     );
 };
 
+const summarizeResourceTimings = (resources) => {
+  const byType = new Map();
+  for (const resource of resources) {
+    const key = resource.initiatorType || "unknown";
+    const entry = byType.get(key) ?? {
+      type: key,
+      count: 0,
+      transferSizeBytes: 0,
+      encodedBodySizeBytes: 0,
+      decodedBodySizeBytes: 0,
+      totalDurationMs: 0,
+      maxDurationMs: 0,
+    };
+    entry.count += 1;
+    entry.transferSizeBytes += resource.transferSizeBytes;
+    entry.encodedBodySizeBytes += resource.encodedBodySizeBytes;
+    entry.decodedBodySizeBytes += resource.decodedBodySizeBytes;
+    entry.totalDurationMs += resource.durationMs;
+    entry.maxDurationMs = Math.max(entry.maxDurationMs, resource.durationMs);
+    byType.set(key, entry);
+  }
+
+  return [...byType.values()]
+    .map((entry) => ({
+      type: entry.type,
+      count: entry.count,
+      transferSizeBytes: Math.round(entry.transferSizeBytes),
+      encodedBodySizeBytes: Math.round(entry.encodedBodySizeBytes),
+      decodedBodySizeBytes: Math.round(entry.decodedBodySizeBytes),
+      avgDurationMs:
+        Math.round((entry.totalDurationMs / entry.count) * 100) / 100,
+      maxDurationMs: Math.round(entry.maxDurationMs * 100) / 100,
+    }))
+    .sort(
+      (left, right) =>
+        right.transferSizeBytes - left.transferSizeBytes ||
+        right.maxDurationMs - left.maxDurationMs ||
+        right.count - left.count,
+    );
+};
+
 const createBrowserContext = async (args) => {
   if (args.userDataDir) {
     const context = await chromium.launchPersistentContext(
@@ -241,9 +284,14 @@ const main = async () => {
   });
 
   const startedAt = performance.now();
+  let targetStartedAt = null;
+  let targetReadyElapsedMs = null;
   let auth = { attempted: false, reachedProtectedRoute: true };
   let ready = false;
   let failure = null;
+  let navigationTiming = null;
+  let resourceTimings = [];
+  let preTargetApiRequestCount = 0;
 
   try {
     auth = await loginIfNeeded({
@@ -254,6 +302,15 @@ const main = async () => {
       password: args.password,
       timeoutMs: args.timeoutMs,
     });
+    preTargetApiRequestCount = apiRequests.length;
+    apiRequests.length = 0;
+    requestStarts.clear();
+    await page.evaluate(() => {
+      if (typeof performance.clearResourceTimings === "function") {
+        performance.clearResourceTimings();
+      }
+    });
+    targetStartedAt = performance.now();
     await page.goto(targetUrl.toString(), {
       waitUntil: "domcontentloaded",
       timeout: args.timeoutMs,
@@ -263,6 +320,51 @@ const main = async () => {
       .first()
       .waitFor({ timeout: args.timeoutMs });
     ready = true;
+    targetReadyElapsedMs =
+      targetStartedAt == null
+        ? null
+        : Math.round((performance.now() - targetStartedAt) * 100) / 100;
+    const browserTimings = await page.evaluate(() => {
+      const navigation = performance.getEntriesByType("navigation").at(-1);
+      const serializeSize = (value) =>
+        typeof value === "number" && Number.isFinite(value) ? value : 0;
+      const serializeTime = (value) =>
+        typeof value === "number" && Number.isFinite(value)
+          ? Math.round(value * 100) / 100
+          : null;
+      return {
+        navigation: navigation
+          ? {
+              startTimeMs: serializeTime(navigation.startTime),
+              domContentLoadedEventEndMs: serializeTime(
+                navigation.domContentLoadedEventEnd,
+              ),
+              loadEventEndMs: serializeTime(navigation.loadEventEnd),
+              transferSizeBytes: serializeSize(navigation.transferSize),
+              encodedBodySizeBytes: serializeSize(navigation.encodedBodySize),
+              decodedBodySizeBytes: serializeSize(navigation.decodedBodySize),
+            }
+          : null,
+        resources: performance.getEntriesByType("resource").map((entry) => {
+          let pathname = "";
+          try {
+            pathname = new URL(entry.name).pathname;
+          } catch {
+            pathname = entry.name;
+          }
+          return {
+            name: pathname,
+            initiatorType: entry.initiatorType || "unknown",
+            durationMs: serializeTime(entry.duration) ?? 0,
+            transferSizeBytes: serializeSize(entry.transferSize),
+            encodedBodySizeBytes: serializeSize(entry.encodedBodySize),
+            decodedBodySizeBytes: serializeSize(entry.decodedBodySize),
+          };
+        }),
+      };
+    });
+    navigationTiming = browserTimings.navigation;
+    resourceTimings = browserTimings.resources;
   } catch (error) {
     failure = error instanceof Error ? error.message : String(error);
   }
@@ -275,8 +377,11 @@ const main = async () => {
     path: `${targetUrl.pathname}${targetUrl.search}`,
     readyText: args.readyText,
     elapsedMs,
+    targetReadyElapsedMs,
+    navigationTiming,
     auth,
     failure,
+    preTargetApiRequestCount,
     apiRequestCount: apiRequests.length,
     protectedApiRequestCount: apiRequests.filter(
       (request) => !request.path.startsWith("/api/internal/"),
@@ -284,6 +389,14 @@ const main = async () => {
     apiSummary: summarizeApiRequests(apiRequests),
     slowestApiRequests: [...apiRequests]
       .sort((left, right) => right.elapsedMs - left.elapsedMs)
+      .slice(0, 20),
+    resourceSummary: summarizeResourceTimings(resourceTimings),
+    largestResources: [...resourceTimings]
+      .sort(
+        (left, right) =>
+          right.transferSizeBytes - left.transferSizeBytes ||
+          right.durationMs - left.durationMs,
+      )
       .slice(0, 20),
     consoleErrorCount: consoleErrors.length,
     consoleErrors: consoleErrors.slice(0, 10),

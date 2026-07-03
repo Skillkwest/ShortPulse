@@ -176,7 +176,8 @@ reach them.
 2. Monitor response metrics per pass:
    - observation inbox: `observationClaimed`, `observationProcessed`, `observationIgnored`, `observationFailed`, `observationErrors`
    - recovery: `claimed`, `processed`, `recovered`, `requeued`, `exhausted`, `errors`
-   - cleanup: `reservationCleanupScanned`, `reservationCleanupReleased`, `reservationCleanupErrors`.
+   - cleanup totals: `reservationCleanupScanned`, `reservationCleanupReleased`, `reservationCleanupErrors`
+   - cleanup split: `preProviderReservationCleanupScanned`, `preProviderReservationCleanupReleased`, `preProviderReservationCleanupErrors`, `providerAttachedReservationCleanupScanned`, `providerAttachedReservationCleanupReleased`, `providerAttachedReservationCleanupErrors`
    - audio companion art: `audioCompanionArtClaimed`, `audioCompanionArtProcessed`, `audioCompanionArtReady`, `audioCompanionArtFailed`, `audioCompanionArtSkipped`, `audioCompanionArtErrors`
    - projection repair counts: `projectionRepairScanned`, `projectionRepairRepaired`, `projectionRepairSkipped`.
    - stage timings: `stageTimings.reservationCleanup.durationMs`, `stageTimings.providerAttachedReservationCleanup.durationMs`, `stageTimings.observationInboxProcessing.durationMs`, `stageTimings.recoveryClaim.durationMs`, `stageTimings.recoveryExecution.durationMs`, `stageTimings.projectionRepair.durationMs`, `stageTimings.audioCompanionArtProcessing.durationMs`.

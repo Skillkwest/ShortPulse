@@ -50,6 +50,18 @@ type DroppedStorageCandidate = {
   storagePath: string;
 };
 
+type QueuedElementSnapshotSaveResult =
+  | {
+      updatedAt: string;
+      status: ElementLibraryItem["status"];
+      isLatest: boolean;
+    }
+  | {
+      updatedAt: null;
+      status: null;
+      isLatest: false;
+    };
+
 const toErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error && error.message.trim().length ? error.message : fallback;
 
@@ -322,6 +334,8 @@ export const useElementsManagerViewState = ({
   const selectedElementIdRef = React.useRef<string | null>(null);
   const suppressNextPersistRef = React.useRef(false);
   const persistTimerRef = React.useRef<number | null>(null);
+  const persistQueueRef = React.useRef<Promise<void>>(Promise.resolve());
+  const persistRequestRevisionRef = React.useRef(0);
   const selectionRequestIdRef = React.useRef(0);
   const lastPersistedDraftRef = React.useRef<string>(
     serializeDraftState(createEmptyElementDraft())
@@ -401,6 +415,67 @@ export const useElementsManagerViewState = ({
     [setDraft, syncSelectedElement]
   );
 
+  const queueElementSnapshotSave = React.useCallback(
+    async ({
+      elementId,
+      nextDraft,
+      suppressStaleError = false,
+    }: {
+      elementId: string;
+      nextDraft: ElementDraft;
+      suppressStaleError?: boolean;
+    }): Promise<QueuedElementSnapshotSaveResult> => {
+      const requestRevision = persistRequestRevisionRef.current + 1;
+      persistRequestRevisionRef.current = requestRevision;
+      const serializedDraft = serializeDraftState(nextDraft);
+      const previousQueue = persistQueueRef.current.catch(() => undefined);
+      const queuedSave = previousQueue.then(async () => {
+        let result: { updatedAt: string; status: ElementLibraryItem["status"] };
+        try {
+          result = await saveElementManagerDraftSnapshot({
+            elementId,
+            name: nextDraft.name,
+            profileImageTransform: nextDraft.profileImageTransform,
+            description: nextDraft.description,
+            assetType: nextDraft.assetType,
+            imageReferenceUrls: nextDraft.imageReferenceUrls,
+            videoReferenceUrl: nextDraft.videoReferenceUrl || null,
+          });
+        } catch (error) {
+          const isLatest = requestRevision === persistRequestRevisionRef.current;
+          if (!isLatest && suppressStaleError) {
+            const staleResult: QueuedElementSnapshotSaveResult = {
+              updatedAt: null,
+              status: null,
+              isLatest: false,
+            };
+            return staleResult;
+          }
+          throw error;
+        }
+        const isLatest = requestRevision === persistRequestRevisionRef.current;
+        if (isLatest) {
+          lastPersistedDraftRef.current = serializedDraft;
+          syncElementListEntryById(elementId, nextDraft, {
+            updatedAt: result.updatedAt,
+            status: result.status,
+          });
+        }
+        return {
+          updatedAt: result.updatedAt,
+          status: result.status,
+          isLatest,
+        };
+      });
+      persistQueueRef.current = queuedSave.then(
+        () => undefined,
+        () => undefined
+      );
+      return await queuedSave;
+    },
+    [syncElementListEntryById]
+  );
+
   const handleCreateElement = React.useCallback(async () => {
     setError(null);
     setIsCreatingElement(true);
@@ -425,25 +500,13 @@ export const useElementsManagerViewState = ({
     setIsSavingElement(true);
     try {
       if (targetId) {
-        const result = await saveElementManagerDraftSnapshot({
-          elementId: targetId,
-          name: draft.name,
-          profileImageTransform: draft.profileImageTransform,
-          description: draft.description,
-          assetType: draft.assetType,
-          imageReferenceUrls: draft.imageReferenceUrls,
-          videoReferenceUrl: draft.videoReferenceUrl || null,
-        });
-        const serializedDraft = serializeDraftState(draft);
-        suppressNextPersistRef.current = true;
-        lastPersistedDraftRef.current = serializedDraft;
         if (persistTimerRef.current) {
           window.clearTimeout(persistTimerRef.current);
           persistTimerRef.current = null;
         }
-        syncElementListEntryById(targetId, draft, {
-          updatedAt: result.updatedAt,
-          status: result.status,
+        await queueElementSnapshotSave({
+          elementId: targetId,
+          nextDraft: draft,
         });
         setPendingDeleteElementId(null);
         return true;
@@ -481,7 +544,7 @@ export const useElementsManagerViewState = ({
     } finally {
       setIsSavingElement(false);
     }
-  }, [draft, hydrateDraft, syncElementListEntryById, updateElementListEntry]);
+  }, [draft, hydrateDraft, queueElementSnapshotSave, updateElementListEntry]);
 
   const handleSelectElement = React.useCallback(
     async (elementId: string) => {
@@ -816,25 +879,13 @@ export const useElementsManagerViewState = ({
       window.clearTimeout(persistTimerRef.current);
     }
     persistTimerRef.current = window.setTimeout(() => {
-      void saveElementManagerDraftSnapshot({
+      void queueElementSnapshotSave({
         elementId: targetId,
-        name: draft.name,
-        profileImageTransform: draft.profileImageTransform,
-        description: draft.description,
-        assetType: draft.assetType,
-        imageReferenceUrls: draft.imageReferenceUrls,
-        videoReferenceUrl: draft.videoReferenceUrl || null,
-      })
-        .then((result) => {
-          lastPersistedDraftRef.current = serializedDraft;
-          syncElementListEntryById(targetId, draft, {
-            updatedAt: result.updatedAt,
-            status: result.status,
-          });
-        })
-        .catch((nextError) => {
-          setError(toErrorMessage(nextError, "Failed to save element."));
-        });
+        nextDraft: draft,
+        suppressStaleError: true,
+      }).catch((nextError) => {
+        setError(toErrorMessage(nextError, "Failed to save element."));
+      });
     }, 500);
 
     return () => {
@@ -842,7 +893,7 @@ export const useElementsManagerViewState = ({
         window.clearTimeout(persistTimerRef.current);
       }
     };
-  }, [draft, selectedElementId, syncElementListEntryById]);
+  }, [draft, queueElementSnapshotSave, selectedElementId]);
 
   React.useEffect(
     () => () => {

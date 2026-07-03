@@ -47,6 +47,17 @@ const normalizePersistedQueueState = (
   return null;
 };
 
+const hasPendingTerminalVisibility = (metadata: unknown): boolean => {
+  const record =
+    metadata && typeof metadata === "object" && !Array.isArray(metadata)
+      ? (metadata as Record<string, unknown>)
+      : {};
+  return (
+    record.direct_terminal_visibility_state === "settlement_pending" ||
+    record.recovery_visibility_state === "settlement_pending"
+  );
+};
+
 export const buildPersistedCompletedPayload = ({
   requestId,
   resultUrls,
@@ -140,36 +151,41 @@ const readSafePersistedOutputResultUrls = async ({
   userId,
   supabaseAdmin,
 }: {
-  outputRows: Array<{ resultUrl: string; mediaFileId: string | null }>;
+  outputRows: Array<{ resultUrl: string; mediaFileId: string | null; metadata: unknown }>;
   userId: string;
   supabaseAdmin: ReturnType<typeof getSupabaseAdmin>;
 }): Promise<{
   resultUrls: string[];
   deliveryState: "transient_provider" | "canonical_owned";
+  hasVisibilityPendingOutputs: boolean;
 }> => {
   if (!outputRows.length) {
     return {
       resultUrls: [],
       deliveryState: "transient_provider",
+      hasVisibilityPendingOutputs: false,
     };
   }
 
+  const visibleOutputRows = outputRows.filter((row) => !hasPendingTerminalVisibility(row.metadata));
+  const hasVisibilityPendingOutputs = visibleOutputRows.length < outputRows.length;
+
   const deliveryPathsByMediaId = await readMediaDeliveryPathsById({
-    mediaFileIds: outputRows
+    mediaFileIds: visibleOutputRows
       .map((row) => row.mediaFileId)
       .filter((value): value is string => typeof value === "string" && value.trim().length > 0),
     userId,
     supabaseAdmin,
   });
   const allOutputsOwned =
-    outputRows.length > 0 &&
-    outputRows.every(
+    visibleOutputRows.length > 0 &&
+    visibleOutputRows.every(
       (row) => typeof row.mediaFileId === "string" && deliveryPathsByMediaId.has(row.mediaFileId)
     );
   const signedUrlByPath = new Map<string, string | null>();
   const resultUrls: string[] = [];
 
-  for (const row of outputRows) {
+  for (const row of visibleOutputRows) {
     const mediaFileId = asString(row.mediaFileId);
     if (mediaFileId) {
       const deliveryPaths = deliveryPathsByMediaId.get(mediaFileId);
@@ -202,6 +218,7 @@ const readSafePersistedOutputResultUrls = async ({
   return {
     resultUrls,
     deliveryState: allOutputsOwned ? "canonical_owned" : "transient_provider",
+    hasVisibilityPendingOutputs,
   };
 };
 
@@ -317,6 +334,23 @@ export const readPersistedGenerationStatusContext = async ({
               userId,
               supabaseAdmin: adminClient,
             });
+            if (safeOutputUrls.hasVisibilityPendingOutputs) {
+              return {
+                generationId: projectionContext.generationId,
+                resultUrls: [],
+                status: projectionContext.status,
+                taskState: projectionContext.taskState,
+                recoveryPending: true,
+                completionState: null,
+                queueState: normalizePersistedQueueState(projectionContext.queueState),
+                errorMessageShort: projectionContext.errorMessageShort,
+                errorDetail: projectionContext.errorDetail,
+                errorPayload: projectionContext.errorPayload,
+                saveState:
+                  projectionContext.saveState as PersistedGenerationStatusContext["saveState"],
+                saveError: projectionContext.saveError,
+              };
+            }
             if (safeOutputUrls.resultUrls.length) {
               return {
                 generationId: projectionContext.generationId,
@@ -377,6 +411,23 @@ export const readPersistedGenerationStatusContext = async ({
             userId,
             supabaseAdmin: adminClient,
           });
+          if (safeOutputUrls.hasVisibilityPendingOutputs) {
+            return {
+              generationId: projectionContext.generationId,
+              resultUrls: [],
+              status: projectionContext.status,
+              taskState: projectionContext.taskState,
+              recoveryPending: true,
+              completionState: null,
+              queueState: normalizePersistedQueueState(projectionContext.queueState),
+              errorMessageShort: projectionContext.errorMessageShort,
+              errorDetail: projectionContext.errorDetail,
+              errorPayload: projectionContext.errorPayload,
+              saveState:
+                projectionContext.saveState as PersistedGenerationStatusContext["saveState"],
+              saveError: projectionContext.saveError,
+            };
+          }
           if (safeOutputUrls.resultUrls.length) {
             return {
               generationId: projectionContext.generationId,
@@ -472,6 +523,14 @@ export const readPersistedGenerationStatusContext = async ({
           userId,
           supabaseAdmin: adminClient,
         });
+        if (safeOutputUrls.hasVisibilityPendingOutputs) {
+          return {
+            generationId,
+            resultUrls: [],
+            recoveryPending: true,
+            completionState: null,
+          };
+        }
         const saveState = safeOutputUrls.deliveryState === "canonical_owned" ? "saved" : "idle";
         return {
           generationId,

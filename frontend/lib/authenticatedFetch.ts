@@ -133,6 +133,14 @@ const shouldLogHttpFailure = (
   return status >= 400;
 };
 
+const isAbortError = (error: unknown): boolean => {
+  if (!error || typeof error !== "object") return false;
+  const maybeError = error as { name?: unknown; message?: unknown };
+  if (maybeError.name === "AbortError") return true;
+  if (typeof maybeError.message !== "string") return false;
+  return /\babort(?:ed)?\b/i.test(maybeError.message);
+};
+
 /**
  * Executes `fetch` with a bearer token from the active Supabase session.
  */
@@ -199,7 +207,7 @@ export const fetchWithAuth = async (
     try {
       response = await executeWithAuthRefresh();
     } catch (error) {
-      if (!retryNetworkOnce) {
+      if (!retryNetworkOnce || isAbortError(error)) {
         throw error;
       }
       response = await executeWithAuthRefresh();
@@ -240,10 +248,11 @@ export const fetchWithAuth = async (
 
     return response;
   } catch (error) {
+    const aborted = isAbortError(error);
     addBreadcrumb({
       type: "network",
-      level: "error",
-      message: "fetch_error",
+      level: aborted ? "info" : "error",
+      message: aborted ? "fetch_aborted" : "fetch_error",
       data: {
         method,
         endpoint: breadcrumbEndpoint,
@@ -252,7 +261,7 @@ export const fetchWithAuth = async (
       },
     });
 
-    if (!skipErrorLogging && !endpoint.includes("/api/log/client-error")) {
+    if (!aborted && !skipErrorLogging && !endpoint.includes("/api/log/client-error")) {
       void reportAppError({
         source: "client.api_network",
         scope,

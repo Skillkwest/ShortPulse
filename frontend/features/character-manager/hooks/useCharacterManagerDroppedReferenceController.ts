@@ -42,6 +42,7 @@ type UseCharacterManagerDroppedReferenceControllerParams = {
     }
   ) => Promise<unknown>;
   resolveCharacterDropReference?: ResolveCharacterDropReference;
+  setDropErrorMessage?: (message: string) => void;
 };
 
 type UseCharacterManagerDroppedReferenceControllerResult = {
@@ -62,6 +63,8 @@ type DroppedStorageCandidate = {
 
 const MEDIA_BUCKET = "media_library";
 const DROPPED_REFERENCE_TELEMETRY_SOURCE = "client.character_manager.drop_reference";
+const CHARACTER_REFERENCE_DROP_ERROR_MESSAGE =
+  "We couldn't add that Character reference. Try dragging it again from the source.";
 const SUPABASE_STORAGE_OBJECT_URL_PATTERN =
   /\/storage\/v1\/object\/(?:sign|public|authenticated)\/([^/]+)\/(.+)$/i;
 
@@ -273,9 +276,17 @@ export const useCharacterManagerDroppedReferenceController = ({
   setCharacterSheetPresetFile,
   setCharacterSheetPresetStorageReference,
   resolveCharacterDropReference,
+  setDropErrorMessage,
 }: UseCharacterManagerDroppedReferenceControllerParams): UseCharacterManagerDroppedReferenceControllerResult => {
   const mediaReferenceCacheRef = useRef(
     new Map<string, { storagePath: string; previewUrl: string | null }>()
+  );
+
+  const notifyDropError = useCallback(
+    (message = CHARACTER_REFERENCE_DROP_ERROR_MESSAGE) => {
+      setDropErrorMessage?.(message);
+    },
+    [setDropErrorMessage]
   );
 
   const resolveMediaReferenceById = useCallback(async (mediaId: string) => {
@@ -350,6 +361,7 @@ export const useCharacterManagerDroppedReferenceController = ({
           reason: "resolver_unavailable",
           origin: payload.origin,
         });
+        notifyDropError();
         return null;
       }
       try {
@@ -365,6 +377,7 @@ export const useCharacterManagerDroppedReferenceController = ({
             output_id: payload.outputId ?? null,
             image_index: payload.imageIndex,
           });
+          notifyDropError();
           return null;
         }
         logCharacterDropBreadcrumb("character_drop_resolved", {
@@ -397,10 +410,11 @@ export const useCharacterManagerDroppedReferenceController = ({
           image_index: payload.imageIndex,
           reason,
         });
+        notifyDropError();
         return null;
       }
     },
-    [logCharacterDropBreadcrumb, resolveCharacterDropReference]
+    [logCharacterDropBreadcrumb, notifyDropError, resolveCharacterDropReference]
   );
 
   const resolveInternalCharacterDrop = useCallback(
@@ -440,9 +454,10 @@ export const useCharacterManagerDroppedReferenceController = ({
             reason: errorMessage,
           },
         });
+        notifyDropError(errorMessage);
       }
     },
-    [setCharacterSheetPresetFile]
+    [notifyDropError, setCharacterSheetPresetFile]
   );
 
   const ingestResolvedInternalCharacterDrop = useCallback(
@@ -478,6 +493,7 @@ export const useCharacterManagerDroppedReferenceController = ({
           image_index: resolvedReference.imageIndex ?? null,
           media_id: resolvedMediaId || null,
         });
+        notifyDropError();
         return;
       }
       if (resolvedReference.storagePath && setCharacterSheetPresetStorageReference) {
@@ -499,6 +515,7 @@ export const useCharacterManagerDroppedReferenceController = ({
     [
       ingestCharacterSheetDroppedReference,
       logCharacterDropBreadcrumb,
+      notifyDropError,
       resolveMediaReferenceById,
       setCharacterSheetPresetStorageReference,
     ]
@@ -573,6 +590,7 @@ export const useCharacterManagerDroppedReferenceController = ({
             internal_hint_present: true,
           },
         });
+        notifyDropError();
         return;
       }
 
@@ -605,6 +623,7 @@ export const useCharacterManagerDroppedReferenceController = ({
       ingestCharacterSheetDroppedReference,
       ingestResolvedInternalCharacterDrop,
       logCharacterDropBreadcrumb,
+      notifyDropError,
       resolveCharacterDropReference,
       resolveInternalCharacterDrop,
     ]

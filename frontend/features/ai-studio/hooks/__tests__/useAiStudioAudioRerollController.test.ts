@@ -88,7 +88,7 @@ describe("useAiStudioAudioRerollController", () => {
         composerMode: "custom",
         singerEnabled: true,
         instrumentalEnabled: false,
-        songBatchCount: 2,
+        songBatchCount: 1,
       })
     );
   });

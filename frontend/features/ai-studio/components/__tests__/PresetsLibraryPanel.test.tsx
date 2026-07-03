@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { PresetsLibraryPanel } from "../PresetsLibraryPanel";
 import {
@@ -112,6 +112,83 @@ describe("PresetsLibraryPanel", () => {
     expect(screen.getByRole("dialog", { name: "Edit Custom 1 preset" })).toBeInTheDocument();
     expect(screen.getByDisplayValue("Custom 1")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Use the custom prompt.")).toBeInTheDocument();
+  });
+
+  it("opens read-only details for a built-in preset without saving or editing", () => {
+    const onSelectPreset = vi.fn();
+    const onSavePresetOverride = vi.fn();
+
+    render(
+      <PresetsLibraryPanel
+        presets={PRESETS}
+        selectedPresetId={null}
+        onSelectPreset={onSelectPreset}
+        onSavePresetOverride={onSavePresetOverride}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Inspect preset tile: Selfie" }));
+
+    expect(onSelectPreset).toHaveBeenCalledWith("selfie");
+    const detailDialog = screen.getByRole("dialog", { name: "Selfie details" });
+    expect(detailDialog).toBeInTheDocument();
+    expect(
+      screen.getByText("Built-in preset details. Inspecting here does not apply this preset.")
+    ).toBeInTheDocument();
+    expect(within(detailDialog).getByText("Use a selfie perspective.")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Edit Preset" })).not.toBeInTheDocument();
+    expect(onSavePresetOverride).not.toHaveBeenCalled();
+  });
+
+  it("duplicates a built-in preset into the next custom slot from the detail modal", async () => {
+    const onSelectPreset = vi.fn();
+    const onSavePresetOverride = vi.fn().mockResolvedValue(true);
+
+    render(
+      <PresetsLibraryPanel
+        presets={PRESETS}
+        selectedPresetId={null}
+        onSelectPreset={onSelectPreset}
+        onSavePresetOverride={onSavePresetOverride}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Inspect preset tile: Selfie" }));
+    fireEvent.click(screen.getByRole("button", { name: "Duplicate to custom" }));
+
+    expect(screen.getByRole("dialog", { name: "Create Custom 4 preset" })).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Selfie Copy")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Use a selfie perspective.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+
+    await waitFor(() => {
+      expect(onSavePresetOverride).toHaveBeenCalledWith("custom_4", {
+        label: "Selfie Copy",
+        prompt: "Use a selfie perspective.",
+      });
+    });
+    expect(onSelectPreset).toHaveBeenCalledWith("custom_4");
+  });
+
+  it("hides built-in preset duplication when no custom preset slot is available", () => {
+    const presetsWithNoOpenSlots: ExpertEditResolvedPreset[] = [
+      PRESETS[0]!,
+      ...EDIT_PRESET_CUSTOM_PRESET_IDS.map((presetId, index) => ({
+        presetId,
+        label: `Custom ${index + 1}`,
+        prompt: "Saved custom preset prompt.",
+        isCustom: true,
+        hasOverride: true,
+      })),
+    ];
+
+    render(<PresetsLibraryPanel presets={presetsWithNoOpenSlots} selectedPresetId={null} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Inspect preset tile: Selfie" }));
+
+    expect(screen.getByRole("dialog", { name: "Selfie details" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Duplicate to custom" })).not.toBeInTheDocument();
   });
 
   it("opens the requested custom preset editor and consumes the request", () => {

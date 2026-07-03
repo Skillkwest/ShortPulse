@@ -1011,6 +1011,81 @@ describe("useAiStudioWorkflowReloadController", () => {
     expect(setSelectedVoiceMock).toHaveBeenCalledWith("voice-1");
   });
 
+  it("clears stale audio workflow duration and loop state when reload metadata uses Auto defaults", () => {
+    const fixedMusicReload: WorkflowReloadConfigV1 = {
+      ...makeImageReload(),
+      originTool: "music",
+      panelKind: "music",
+      outputMode: "audio",
+      prompt: { display: "Fixed length music" },
+      payload: {
+        kind: "music",
+        text: "Fixed length music",
+        durationSeconds: 45,
+      },
+    };
+    const autoMusicReload: WorkflowReloadConfigV1 = {
+      ...fixedMusicReload,
+      prompt: { display: "Auto length music" },
+      payload: {
+        kind: "music",
+        text: "Auto length music",
+        durationSeconds: null,
+      },
+    };
+    const fixedSoundReload: WorkflowReloadConfigV1 = {
+      ...fixedMusicReload,
+      originTool: "sound-effects",
+      panelKind: "sound-effects",
+      prompt: { display: "Looping impact" },
+      payload: {
+        kind: "sound-effects",
+        text: "Looping impact",
+        durationSeconds: 8,
+        loop: true,
+      },
+    };
+    const autoSoundReload: WorkflowReloadConfigV1 = {
+      ...fixedSoundReload,
+      prompt: { display: "One shot impact" },
+      payload: {
+        kind: "sound-effects",
+        text: "One shot impact",
+        durationSeconds: null,
+        loop: null,
+      },
+    };
+
+    let currentOutput = makeOutput(fixedMusicReload);
+    const params = makeParams(currentOutput);
+    params.findOutputById.mockImplementation(() => currentOutput);
+    const { result, rerender } = renderHook(
+      ({ revision }) => {
+        void revision;
+        return useAiStudioWorkflowReloadController(params);
+      },
+      { initialProps: { revision: 0 } }
+    );
+
+    act(() => result.current.reloadWorkflowFromOutput("out-1"));
+    currentOutput = makeOutput(autoMusicReload);
+    rerender({ revision: 1 });
+    act(() => result.current.reloadWorkflowFromOutput("out-1"));
+    currentOutput = makeOutput(fixedSoundReload);
+    rerender({ revision: 2 });
+    act(() => result.current.reloadWorkflowFromOutput("out-1"));
+    currentOutput = makeOutput(autoSoundReload);
+    rerender({ revision: 3 });
+    act(() => result.current.reloadWorkflowFromOutput("out-1"));
+
+    expect(params.setMusicDurationSeconds).toHaveBeenNthCalledWith(1, 45);
+    expect(params.setMusicDurationSeconds).toHaveBeenNthCalledWith(2, null);
+    expect(params.setSoundEffectsDurationSeconds).toHaveBeenNthCalledWith(1, 8);
+    expect(params.setSoundEffectsDurationSeconds).toHaveBeenNthCalledWith(2, null);
+    expect(params.setSoundEffectsLoopEnabled).toHaveBeenNthCalledWith(1, true);
+    expect(params.setSoundEffectsLoopEnabled).toHaveBeenNthCalledWith(2, false);
+  });
+
   it("hydrates Lip Sync audio reference and turbo mode", () => {
     const workflowReload: WorkflowReloadConfigV1 = {
       ...makeImageReload(),

@@ -17,6 +17,16 @@ describe("storage entitlement helper grants", () => {
       expect(sql).toContain(`revoke all on function public.${fn}(uuid) from authenticated;`);
       expect(sql).toContain(`grant execute on function public.${fn}(uuid) to service_role;`);
     }
+    const usageHelperSql = fs.readFileSync(
+      path.resolve(process.cwd(), "../sql/migrations/188_add_media_storage_usage_helper.sql"),
+      "utf8"
+    );
+    expect(usageHelperSql).toContain(
+      "revoke all on function public.resolve_media_storage_usage_bytes(uuid) from authenticated;"
+    );
+    expect(usageHelperSql).toContain(
+      "grant execute on function public.resolve_media_storage_usage_bytes(uuid) to service_role;"
+    );
     expect(sql).toContain(
       "grant execute on function public.get_media_storage_quota_summary() to authenticated, service_role;"
     );

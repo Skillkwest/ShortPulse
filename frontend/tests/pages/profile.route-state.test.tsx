@@ -12,6 +12,7 @@ const useMediaAutosavePreferenceMock = vi.hoisted(() => vi.fn());
 const useMediaStorageQuotaSummaryMock = vi.hoisted(() => vi.fn());
 const routerReplaceMock = vi.hoisted(() => vi.fn());
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
+const fetchBillingAccountSummaryMock = vi.hoisted(() => vi.fn());
 const billingProfileMaybeSingleMock = vi.hoisted(() => vi.fn());
 const billingContractMaybeSingleMock = vi.hoisted(() => vi.fn());
 const billingLedgerLimitMock = vi.hoisted(() => vi.fn());
@@ -64,6 +65,10 @@ vi.mock("../../features/ai-studio/hooks/useMediaAutosavePreference", () => ({
 
 vi.mock("../../features/billing/useMediaStorageQuotaSummary", () => ({
   useMediaStorageQuotaSummary: (...args: unknown[]) => useMediaStorageQuotaSummaryMock(...args),
+}));
+
+vi.mock("../../features/billing/accountSummary", () => ({
+  fetchBillingAccountSummary: (...args: unknown[]) => fetchBillingAccountSummaryMock(...args),
 }));
 
 vi.mock("../../lib/authenticatedFetch", () => ({
@@ -147,6 +152,31 @@ describe("Profile route state", () => {
     });
 
     useProtectedRouteMock.mockReturnValue({ loading: false, user: null });
+    fetchBillingAccountSummaryMock.mockReset();
+    fetchBillingAccountSummaryMock.mockImplementation(async () => {
+      const [profileResponse, contractResponse, ledgerResponse] = await Promise.all([
+        billingProfileMaybeSingleMock(),
+        billingContractMaybeSingleMock(),
+        billingLedgerLimitMock(),
+      ]);
+      return {
+        userId: "user-1",
+        resolvedPlan: {
+          id: "media",
+          label: "Media",
+          className: "plan-media",
+          monthlyCreditsCents: 20000,
+        },
+        quotaStatus: "unavailable",
+        quotaSummary: null,
+        profileState: {
+          billingProfile: profileResponse.data ?? null,
+          billingContract: contractResponse.data ?? null,
+          billingActivity: Array.isArray(ledgerResponse.data) ? ledgerResponse.data : [],
+          activeStorageAddons: [],
+        },
+      };
+    });
     fetchWithAuthMock.mockReset();
     fetchWithAuthMock.mockImplementation(async (url: unknown) => {
       if (url === "/api/billing/catalog") {

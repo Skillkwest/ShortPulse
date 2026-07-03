@@ -412,7 +412,7 @@ describe("useReferenceGridImageHydrationController", () => {
     expect(runNonUrgentUpdate).toHaveBeenCalledTimes(1);
   });
 
-  it("does not finalize the same failed image URL as hydrated", async () => {
+  it("suppresses repeated hydration attempts for the same failed image URL", async () => {
     const requestedUrls: string[] = [];
     const imageInstances: MockImage[] = [];
     class MockImage {
@@ -465,6 +465,25 @@ describe("useReferenceGridImageHydrationController", () => {
     await waitFor(() => {
       expect(result.current.imageHydrationState.decodeInflight).toBe(0);
       expect(result.current.imageHydrationState.hydratedById).toEqual({});
+    });
+
+    act(() => {
+      result.current.enqueueImageHydration("out-1", "https://cdn.example.com/broken.jpg");
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(requestedUrls).toEqual(["https://cdn.example.com/broken.jpg"]);
+
+    act(() => {
+      result.current.enqueueImageHydration("out-1", "https://cdn.example.com/repaired.jpg");
+    });
+
+    await waitFor(() => {
+      expect(requestedUrls).toEqual([
+        "https://cdn.example.com/broken.jpg",
+        "https://cdn.example.com/repaired.jpg",
+      ]);
     });
   });
 
@@ -538,5 +557,18 @@ describe("useReferenceGridImageHydrationController", () => {
         renderUrl: "https://cdn.example.com/full-fallback.jpg",
       });
     });
+
+    act(() => {
+      result.current.enqueueImageHydration("out-1", "https://cdn.example.com/broken-preview.jpg", {
+        fallbackUrl: "https://cdn.example.com/full-fallback.jpg",
+      });
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(requestedUrls).toEqual([
+      "https://cdn.example.com/broken-preview.jpg",
+      "https://cdn.example.com/full-fallback.jpg",
+    ]);
   });
 });

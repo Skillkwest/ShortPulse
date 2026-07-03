@@ -16,6 +16,7 @@ import {
   type BillingStorageAddonRecord,
   type CreditPackageRecord,
 } from "../features/billing/catalog";
+import { fetchBillingAccountSummary } from "../features/billing/accountSummary";
 import { useMediaStorageQuotaSummary } from "../features/billing/useMediaStorageQuotaSummary";
 import { useCredits } from "../features/ai-studio/hooks/useCredits";
 import { useMediaAutosavePreference } from "../features/ai-studio/hooks/useMediaAutosavePreference";
@@ -27,7 +28,6 @@ import { ProfileSubscriptionSection } from "../features/profile/components/Profi
 import { ProfileTransactionsSection } from "../features/profile/components/ProfileTransactionsSection";
 import { ProfileWorkspaceShell } from "../features/profile/components/ProfileWorkspaceShell";
 import {
-  CUSTOMER_CREDIT_ACTIVITY_SOURCES,
   formatDateLabel,
   formatLongDateLabel,
   getProfileSectionContent,
@@ -48,10 +48,7 @@ import { profileClass } from "../features/profile/profileRouteStyles";
 import { formatStorageUsageValue } from "../features/billing/storage";
 import { fetchWithAuth } from "../lib/authenticatedFetch";
 import { fetchCanonicalAuthCallbackUrl } from "../lib/authRedirects";
-import {
-  CURRENT_BILLABLE_STORAGE_ADDON_STATUSES,
-  resolveStorageAddonEligibility,
-} from "../lib/billing/storageAddonEligibility";
+import { resolveStorageAddonEligibility } from "../lib/billing/storageAddonEligibility";
 import {
   resolveEmailChangeErrorMessage,
   resolvePasswordResetErrorMessage,
@@ -138,7 +135,6 @@ export default function ProfilePage() {
   const [notice, setNotice] = useState<NoticeState | null>(null);
 
   const [billingProfile, setBillingProfile] = useState<BillingProfile | null>(null);
-  const [, setBillingProfileLoading] = useState(false);
   const [billingContract, setBillingContract] = useState<BillingSubscriptionContract | null>(null);
   const [billingContractLoading, setBillingContractLoading] = useState(false);
   const [billingPlans, setBillingPlans] = useState<BillingPlanRecord[]>([]);
@@ -226,45 +222,28 @@ export default function ProfilePage() {
     return () => window.clearTimeout(timeoutId);
   }, [notice]);
 
-  const loadBillingProfile = async (currentUser: User) => {
-    setBillingProfileLoading(true);
+  const loadBillingAccountState = async (currentUser: User) => {
+    setBillingContractLoading(true);
+    setBillingActivityLoading(true);
     try {
-      const supabase = ensureSupabaseClient();
-      const { data } = await supabase
-        .from("billing_profiles")
-        .select(
-          "plan_id, subscription_status, current_period_end, stripe_customer_id, stripe_subscription_id"
-        )
-        .eq("user_id", currentUser.id)
-        .maybeSingle();
-      setBillingProfile((data as BillingProfile | null) ?? null);
+      const summary = await fetchBillingAccountSummary({
+        expectedUserId: currentUser.id,
+        force: true,
+        includeProfileState: true,
+      });
+      const profileState = summary?.profileState ?? null;
+      setBillingProfile(profileState?.billingProfile ?? null);
+      setBillingContract(profileState?.billingContract ?? null);
+      setBillingActivity(profileState?.billingActivity ?? []);
+      setActiveStorageAddons(profileState?.activeStorageAddons ?? []);
     } catch {
       setBillingProfile(null);
-    } finally {
-      setBillingProfileLoading(false);
-    }
-  };
-
-  const loadBillingContract = async (currentUser: User) => {
-    setBillingContractLoading(true);
-    try {
-      const supabase = ensureSupabaseClient();
-      const { data, error } = await supabase
-        .from("billing_subscription_contracts")
-        .select(
-          "id, plan_id, offer_id, billing_interval, stripe_subscription_id, stripe_price_id, contract_source, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, max_concurrent_generations, status, current_period_start, current_period_end, cancel_at_period_end, started_at, ended_at"
-        )
-        .eq("user_id", currentUser.id)
-        .is("ended_at", null)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      setBillingContract((data as BillingSubscriptionContract | null) ?? null);
-    } catch {
       setBillingContract(null);
+      setBillingActivity([]);
+      setActiveStorageAddons([]);
     } finally {
       setBillingContractLoading(false);
+      setBillingActivityLoading(false);
     }
   };
 
@@ -295,26 +274,6 @@ export default function ProfilePage() {
     } finally {
       setBillingPlansLoading(false);
       setPackagesLoading(false);
-    }
-  };
-
-  const loadBillingActivity = async (currentUser: User) => {
-    setBillingActivityLoading(true);
-    try {
-      const supabase = ensureSupabaseClient();
-      const { data, error } = await supabase
-        .from("ai_credit_ledger")
-        .select("id, change_cents, reason, source, source_ref, metadata, created_at")
-        .eq("user_id", currentUser.id)
-        .in("source", [...CUSTOMER_CREDIT_ACTIVITY_SOURCES])
-        .order("created_at", { ascending: false })
-        .limit(5);
-      if (error) throw error;
-      setBillingActivity(Array.isArray(data) ? (data as BillingLedgerEvent[]) : []);
-    } catch {
-      setBillingActivity([]);
-    } finally {
-      setBillingActivityLoading(false);
     }
   };
 
@@ -408,56 +367,10 @@ export default function ProfilePage() {
     }
   };
 
-  const loadActiveStorageAddons = async (currentUser: User) => {
-    try {
-      const supabase = ensureSupabaseClient();
-      const { data, error } = await supabase
-        .from("billing_subscription_storage_addons")
-        .select(
-          "id, storage_addon_id, offer_id, stripe_subscription_item_id, storage_limit_bytes, quantity, recurring_price_cents, status"
-        )
-        .eq("user_id", currentUser.id)
-        .is("ended_at", null)
-        .in("status", [...CURRENT_BILLABLE_STORAGE_ADDON_STATUSES]);
-      if (error) throw error;
-      const nextAddons = Array.isArray(data)
-        ? data
-            .map((row) => {
-              if (!row || typeof row !== "object") return null;
-              const typedRow = row as Record<string, unknown>;
-              const id = typeof typedRow.id === "string" ? typedRow.id : "";
-              const storageAddonId =
-                typeof typedRow.storage_addon_id === "string" ? typedRow.storage_addon_id : "";
-              if (!id || !storageAddonId) return null;
-              return {
-                id,
-                storageAddonId,
-                offerId: typeof typedRow.offer_id === "string" ? typedRow.offer_id : null,
-                stripeSubscriptionItemId:
-                  typeof typedRow.stripe_subscription_item_id === "string"
-                    ? typedRow.stripe_subscription_item_id
-                    : null,
-                storageLimitBytes: Number(typedRow.storage_limit_bytes ?? 0) || 0,
-                quantity: Math.max(1, Number(typedRow.quantity ?? 1) || 1),
-                recurringPriceCents: Number(typedRow.recurring_price_cents ?? 0) || 0,
-                status: typeof typedRow.status === "string" ? typedRow.status : null,
-              } satisfies BillingSubscriptionStorageAddon;
-            })
-            .filter((row): row is BillingSubscriptionStorageAddon => Boolean(row))
-        : [];
-      setActiveStorageAddons(nextAddons);
-    } catch {
-      setActiveStorageAddons([]);
-    }
-  };
-
   useEffect(() => {
     if (!user) return;
-    void loadBillingProfile(user);
-    void loadBillingContract(user);
+    void loadBillingAccountState(user);
     void loadBillingCatalog();
-    void loadBillingActivity(user);
-    void loadActiveStorageAddons(user);
   }, [user]);
 
   useEffect(() => {
@@ -495,11 +408,9 @@ export default function ProfilePage() {
 
       if (billingSyncRequest.scope === "credits") {
         refreshTasks.push(refreshBalance({ silent: true }));
-        refreshTasks.push(loadBillingActivity(user));
+        refreshTasks.push(loadBillingAccountState(user));
       } else {
-        refreshTasks.push(loadBillingProfile(user));
-        refreshTasks.push(loadBillingContract(user));
-        refreshTasks.push(loadBillingActivity(user));
+        refreshTasks.push(loadBillingAccountState(user));
         refreshTasks.push(refreshQuotaSummary());
 
         if (billingSyncRequest.scope === "subscription") {
@@ -507,7 +418,6 @@ export default function ProfilePage() {
         }
 
         if (billingSyncRequest.scope === "storage") {
-          refreshTasks.push(loadActiveStorageAddons(user));
           refreshTasks.push(loadStorageTransactions());
         }
       }
@@ -546,7 +456,7 @@ export default function ProfilePage() {
       });
       void refreshBalance({ silent: true });
       if (user) {
-        void loadBillingActivity(user);
+        void loadBillingAccountState(user);
       }
       requestBillingSync("credits");
     }
@@ -713,7 +623,7 @@ export default function ProfilePage() {
   const handleSignOut = async () => {
     try {
       await signOutSupabaseSession();
-      await router.replace("/auth");
+      await router.replace("/log-in");
     } finally {
       setShowLogoutConfirm(false);
     }
@@ -966,12 +876,7 @@ export default function ProfilePage() {
             : "Storage add-on update submitted. Your workspace storage is syncing now.",
       });
 
-      await Promise.allSettled([
-        loadBillingProfile(user),
-        loadBillingContract(user),
-        loadActiveStorageAddons(user),
-        loadStorageTransactions(),
-      ]);
+      await Promise.allSettled([loadBillingAccountState(user), loadStorageTransactions()]);
       void refreshQuotaSummary();
       requestBillingSync("storage");
     } catch (error) {

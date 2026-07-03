@@ -46,6 +46,34 @@ const FILTER_OPTIONS: ReadonlyArray<{
   { id: "prompt-presets", label: "Prompt Presets" },
 ];
 
+const resolvePulseCatalogStatus = ({
+  loading,
+  error,
+  source,
+  degraded,
+  authoritative,
+}: {
+  loading: boolean;
+  error: string | null;
+  source: "control_plane" | "seed" | null;
+  degraded: boolean;
+  authoritative: boolean;
+}): { tone: "info" | "warning" | "error"; message: string } | null => {
+  if (loading) {
+    return { tone: "info", message: "Refreshing Pulse built-ins..." };
+  }
+  if (error) {
+    return { tone: "error", message: error };
+  }
+  if (!authoritative || degraded || source === "seed") {
+    return {
+      tone: "warning",
+      message: "Pulse built-ins are showing the seeded fallback until the admin catalog reloads.",
+    };
+  }
+  return null;
+};
+
 /**
  * Renders the combined Presets library with internal sections for the Pulse catalog and Prompt Presets.
  */
@@ -101,12 +129,26 @@ const UnifiedPresetsLibraryPanelContent = ({
     show: showRestoreStatus,
     clear: clearRestoreStatus,
   } = useTransientAppMessage();
-  const { deletedBuiltInPresetIds, restoreDeletedBuiltInPresetIds } =
-    useCreatePulsePreferenceRuntime();
+  const {
+    deletedBuiltInPresetIds,
+    restoreDeletedBuiltInPresetIds,
+    builtInDefinitionsLoading,
+    builtInDefinitionsError,
+    builtInDefinitionsSource,
+    builtInDefinitionsDegraded,
+    builtInDefinitionsAuthoritative,
+  } = useCreatePulsePreferenceRuntime();
   const showPulses = viewFilter === "all" || viewFilter === "pulses";
   const showPromptPresets = viewFilter === "all" || viewFilter === "prompt-presets";
   const normalizedSearchQuery = searchQuery.trim();
   const restoreDisabled = restoreSubmitting;
+  const pulseCatalogStatus = resolvePulseCatalogStatus({
+    loading: builtInDefinitionsLoading,
+    error: builtInDefinitionsError,
+    source: builtInDefinitionsSource,
+    degraded: builtInDefinitionsDegraded,
+    authoritative: builtInDefinitionsAuthoritative,
+  });
 
   React.useEffect(() => {
     if (!openPromptPresetEditRequest) return;
@@ -232,6 +274,14 @@ const UnifiedPresetsLibraryPanelContent = ({
                 </h3>
               </div>
             </div>
+            {pulseCatalogStatus ? (
+              <AppMessage
+                className="tiny merged-presets-library-catalog-status"
+                tone={pulseCatalogStatus.tone}
+                mode="inline"
+                message={pulseCatalogStatus.message}
+              />
+            ) : null}
             <div className="merged-presets-library-section-body">
               <UnifiedPulsePresetsLibraryPanel searchQuery={normalizedSearchQuery} />
             </div>

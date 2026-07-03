@@ -11,11 +11,13 @@ const useCreditsMock = vi.hoisted(() => vi.fn());
 const useMediaAutosavePreferenceMock = vi.hoisted(() => vi.fn());
 const useMediaStorageQuotaSummaryMock = vi.hoisted(() => vi.fn());
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
+const fetchBillingAccountSummaryMock = vi.hoisted(() => vi.fn());
 const billingProfileState = vi.hoisted(() => ({
   plan_id: "media",
   subscription_status: "active",
   current_period_end: "2026-04-01T00:00:00.000Z",
   stripe_customer_id: "cus_123" as string | null,
+  stripe_subscription_id: "sub_123" as string | null,
 }));
 const billingContractState = vi.hoisted(() => ({
   value: null as Record<string, unknown> | null,
@@ -79,6 +81,10 @@ vi.mock("../../features/ai-studio/hooks/useMediaAutosavePreference", () => ({
 
 vi.mock("../../features/billing/useMediaStorageQuotaSummary", () => ({
   useMediaStorageQuotaSummary: (...args: unknown[]) => useMediaStorageQuotaSummaryMock(...args),
+}));
+
+vi.mock("../../features/billing/accountSummary", () => ({
+  fetchBillingAccountSummary: (...args: unknown[]) => fetchBillingAccountSummaryMock(...args),
 }));
 
 vi.mock("../../lib/authenticatedFetch", () => ({
@@ -164,8 +170,30 @@ describe("Profile credits actions", () => {
     billingProfileState.subscription_status = "active";
     billingProfileState.current_period_end = "2026-04-01T00:00:00.000Z";
     billingProfileState.stripe_customer_id = "cus_123";
+    billingProfileState.stripe_subscription_id = "sub_123";
     billingContractState.value = null;
     creditLedgerQueryState.sourceFilter = [];
+    fetchBillingAccountSummaryMock.mockReset();
+    fetchBillingAccountSummaryMock.mockImplementation(async () => {
+      creditLedgerQueryState.sourceFilter = ["stripe_checkout"];
+      return {
+        userId: "user-1",
+        resolvedPlan: {
+          id: billingContractState.value?.plan_id ?? billingProfileState.plan_id ?? "free",
+          label: "Media",
+          className: "plan-media",
+          monthlyCreditsCents: billingContractState.value?.monthly_credits_cents ?? 0,
+        },
+        quotaStatus: "unavailable",
+        quotaSummary: null,
+        profileState: {
+          billingProfile: { ...billingProfileState },
+          billingContract: billingContractState.value,
+          billingActivity: [],
+          activeStorageAddons: [],
+        },
+      };
+    });
 
     useProtectedRouteMock.mockReturnValue({ loading: false, user: null });
     useCreditsMock.mockReturnValue({

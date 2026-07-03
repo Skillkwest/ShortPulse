@@ -32,6 +32,7 @@ const baseProps: React.ComponentProps<typeof ExpertEditPanelView> = {
   onExtraImageChange: vi.fn(),
   onPromptTextChange: vi.fn(),
   onRegenerate: vi.fn(),
+  costCredits: 2,
 };
 
 describe("ExpertEditPanelView launch lock", () => {

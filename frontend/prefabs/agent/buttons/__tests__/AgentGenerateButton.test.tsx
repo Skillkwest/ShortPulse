@@ -29,7 +29,7 @@ describe("AgentGenerateButton", () => {
     const onClick = vi.fn();
     render(<AgentGenerateButton onClick={onClick} cost={null} />);
 
-    const button = screen.getByRole("button", { name: "Generate: cost estimate pending" });
+    const button = screen.getByRole("button", { name: "Generate" });
     expect(button).toBeDisabled();
     expect(button).toHaveTextContent("Cost pending");
     expect(button).toHaveAttribute("title", "Cost estimate pending");
@@ -40,7 +40,7 @@ describe("AgentGenerateButton", () => {
   it("treats undefined cost as unavailable", () => {
     render(<AgentGenerateButton onClick={vi.fn()} cost={undefined} />);
 
-    const button = screen.getByRole("button", { name: "Generate: cost estimate pending" });
+    const button = screen.getByRole("button", { name: "Generate" });
     expect(button).toBeDisabled();
     expect(button).toHaveTextContent("Cost pending");
   });

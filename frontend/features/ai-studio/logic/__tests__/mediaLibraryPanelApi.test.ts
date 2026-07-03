@@ -315,6 +315,7 @@ describe("mediaLibraryPanelApi transient retry hardening", () => {
   });
 
   it("keeps prompt-list requests on the global media prompt route when projectId is provided", async () => {
+    const controller = new AbortController();
     fetchWithAuthMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -330,15 +331,34 @@ describe("mediaLibraryPanelApi transient retry hardening", () => {
       query: "",
       cursor: null,
       limit: 20,
+      signal: controller.signal,
     });
 
     expect(fetchWithAuthMock).toHaveBeenCalledWith(
       "/api/media/prompts/list",
       expect.objectContaining({
         method: "POST",
+        signal: controller.signal,
         body: JSON.stringify({ folderId: "folder-1", query: "", cursor: null, limit: 20 }),
       })
     );
+  });
+
+  it("does not retry caller-aborted prompt-list requests", async () => {
+    const abortError = new DOMException("Aborted", "AbortError");
+    fetchWithAuthMock.mockRejectedValueOnce(abortError);
+
+    await expect(
+      fetchMediaPromptListPage({
+        folderId: "folder-1",
+        query: "",
+        cursor: null,
+        limit: 20,
+        signal: new AbortController().signal,
+      })
+    ).rejects.toBe(abortError);
+
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
   });
 });
 

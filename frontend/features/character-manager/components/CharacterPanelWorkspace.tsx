@@ -880,6 +880,7 @@ export function CharacterPanelWorkspace({
       setCharacterSheetPresetFile,
       setCharacterSheetPresetStorageReference: setCharacterSheetPresetStorageReferenceWithPending,
       resolveCharacterDropReference,
+      setDropErrorMessage: setErrorMessage,
     });
 
   const handleCharacterSheetReferenceDropWithPending = React.useCallback(

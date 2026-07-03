@@ -6,6 +6,7 @@ import { settleGenerationOutcome } from "../api/generationBilling";
 import { readMediaAutosaveEnabledForUser } from "../api/mediaAutosavePreference";
 import { resolveMediaAutosavePreferenceLookupUserMessage } from "../api/mediaAutosavePreference";
 import {
+  markGenerationOutputRowsVisibilitySettled,
   persistGenerationOutputRecords,
   readPersistedGenerationOutputs,
   type PersistedGenerationOutputRow,
@@ -118,6 +119,27 @@ const asOptionalString = (value: unknown): string | null => {
   const trimmed = value.trim();
   return trimmed.length ? trimmed : null;
 };
+
+const buildRecoveryOutputMetadata = ({
+  actor,
+  autosaveDecision,
+  autosaveDecisionReason,
+  autosavePreferenceSource,
+  visibilityState,
+}: {
+  actor: RecoveryActor;
+  autosaveDecision: "autosave_skipped" | "auto_persisted";
+  autosaveDecisionReason: string;
+  autosavePreferenceSource: string;
+  visibilityState: "settlement_pending" | "settled";
+}): JsonObject => ({
+  actor,
+  autosave_preference_source: autosavePreferenceSource,
+  autosave_decision: autosaveDecision,
+  autosave_decision_reason: autosaveDecisionReason,
+  recovery_execution: true,
+  recovery_visibility_state: visibilityState,
+});
 
 const readMetadataObject = (metadata: JsonObject, ...keys: string[]): JsonObject => {
   for (const key of keys) {
@@ -683,6 +705,18 @@ export const executeGenerationRecovery = async ({
           existing_media_count: existingRows.length,
         },
       });
+      const recoverySettledOutputRows = await markGenerationOutputRowsVisibilitySettled({
+        generationId: generation.id,
+        userId: generation.user_id,
+        outputRows: persistedOutputRows,
+        visibilityMetadataKey: "recovery_visibility_state",
+      });
+      const settledOutputRows = await markGenerationOutputRowsVisibilitySettled({
+        generationId: generation.id,
+        userId: generation.user_id,
+        outputRows: recoverySettledOutputRows,
+        visibilityMetadataKey: "direct_terminal_visibility_state",
+      });
       await syncRecoveredGenerationProjection({
         abandonmentOverride: terminalAbandonmentPolicy.abandonment,
         actor,
@@ -692,8 +726,8 @@ export const executeGenerationRecovery = async ({
         metadataOverride: terminalAbandonmentPolicy.metadata,
         mediaFileIds: existingRows.map((row) => row.id),
         nowIso: generation.completed_at ?? nowIso,
-        persistedOutputRows,
-        recoveredUrls: persistedOutputRows.map((row) => row.resultUrl),
+        persistedOutputRows: settledOutputRows,
+        recoveredUrls: settledOutputRows.map((row) => row.resultUrl),
         routeLabel,
       });
       await applyRecoveryTransition({
@@ -762,6 +796,18 @@ export const executeGenerationRecovery = async ({
         existing_media_count: existingRows.length,
       },
     });
+    const recoverySettledOutputRows = await markGenerationOutputRowsVisibilitySettled({
+      generationId: generation.id,
+      userId: generation.user_id,
+      outputRows: persistedOutputRows,
+      visibilityMetadataKey: "recovery_visibility_state",
+    });
+    const settledOutputRows = await markGenerationOutputRowsVisibilitySettled({
+      generationId: generation.id,
+      userId: generation.user_id,
+      outputRows: recoverySettledOutputRows,
+      visibilityMetadataKey: "direct_terminal_visibility_state",
+    });
     await syncRecoveredGenerationProjection({
       abandonmentOverride: terminalAbandonmentPolicy.abandonment,
       actor,
@@ -771,8 +817,8 @@ export const executeGenerationRecovery = async ({
       metadataOverride: terminalAbandonmentPolicy.metadata,
       mediaFileIds: existingRows.map((row) => row.id),
       nowIso,
-      persistedOutputRows,
-      recoveredUrls: persistedOutputRows.map((row) => row.resultUrl),
+      persistedOutputRows: settledOutputRows,
+      recoveredUrls: settledOutputRows.map((row) => row.resultUrl),
       routeLabel,
     });
     await applyRecoveryTransition({
@@ -820,20 +866,6 @@ export const executeGenerationRecovery = async ({
     const hardTimeoutReached =
       runningHardTimeoutSeconds > 0 && generationAgeSeconds >= runningHardTimeoutSeconds;
     if (hardTimeoutReached) {
-      await applyRecoveryTransition({
-        generation,
-        attemptTransition: {
-          status: "timed_out",
-          observedAt: nowIso,
-          completedAt: nowIso,
-          failureReasonCode: "provider_running_timeout",
-          errorMessage: "Provider exceeded running hard-timeout during recovery execution.",
-          metadata: {
-            recovery_actor: actor,
-            recovery_outcome: "running_timeout",
-          },
-        },
-      });
       try {
         await writeAppErrorLog({
           source: GENERATION_RECOVERY_RUNNING_TIMEOUT_TELEMETRY_SOURCE,
@@ -865,6 +897,20 @@ export const executeGenerationRecovery = async ({
           generation_id: generation.id,
           generation_age_seconds: generationAgeSeconds,
           running_hard_timeout_seconds: runningHardTimeoutSeconds,
+        },
+      });
+      await applyRecoveryTransition({
+        generation,
+        attemptTransition: {
+          status: "timed_out",
+          observedAt: nowIso,
+          completedAt: nowIso,
+          failureReasonCode: "provider_running_timeout",
+          errorMessage: "Provider exceeded running hard-timeout during recovery execution.",
+          metadata: {
+            recovery_actor: actor,
+            recovery_outcome: "running_timeout",
+          },
         },
       });
       await syncFailedGenerationProjection({
@@ -927,6 +973,18 @@ export const executeGenerationRecovery = async ({
             : retryPlanBase.nextRecoveryAt
           : retryPlanBase.nextRecoveryAt,
     };
+    if (retryPlan.isExhausted) {
+      await settleRecoveryOutcome({
+        outcome: "fail",
+        reason: "Provider remained running after recovery attempts were exhausted.",
+        detail: {
+          actor,
+          generation_id: generation.id,
+          recovery_attempts: attempts,
+          recovery_max_attempts: effectiveMaxAttempts,
+        },
+      });
+    }
     await applyRecoveryTransition({
       generation,
       attemptTransition: {
@@ -943,18 +1001,6 @@ export const executeGenerationRecovery = async ({
         },
       },
     });
-    if (retryPlan.isExhausted) {
-      await settleRecoveryOutcome({
-        outcome: "fail",
-        reason: "Provider remained running after recovery attempts were exhausted.",
-        detail: {
-          actor,
-          generation_id: generation.id,
-          recovery_attempts: attempts,
-          recovery_max_attempts: effectiveMaxAttempts,
-        },
-      });
-    }
     await applyRecoveryTransition({
       generation,
       generationUpdates: buildProviderRunningUpdate({ nowIso, attempts, retryPlan }),
@@ -1009,6 +1055,15 @@ export const executeGenerationRecovery = async ({
       (providerFailureMessage || "Provider reported failed state during recovery execution.");
     const failureShortMessage =
       explicitContentFailure?.errorMessageShort ?? (providerFailureMessage || "Generation failed");
+    await settleRecoveryOutcome({
+      outcome: "fail",
+      reason: failureMessage,
+      abandonmentOverride: terminalAbandonmentPolicy.abandonment,
+      detail: {
+        actor,
+        generation_id: generation.id,
+      },
+    });
     await applyRecoveryTransition({
       generation,
       attemptTransition: {
@@ -1021,15 +1076,6 @@ export const executeGenerationRecovery = async ({
           recovery_actor: actor,
           recovery_outcome: "provider_failed",
         },
-      },
-    });
-    await settleRecoveryOutcome({
-      outcome: "fail",
-      reason: failureMessage,
-      abandonmentOverride: terminalAbandonmentPolicy.abandonment,
-      detail: {
-        actor,
-        generation_id: generation.id,
       },
     });
     await syncFailedGenerationProjection({
@@ -1075,6 +1121,17 @@ export const executeGenerationRecovery = async ({
       exhaustMinAgeSeconds: runtimeFlags.noMediaExhaustMinAgeSeconds,
       enforceMinAgeForExhaustion: true,
     });
+    if (retryPlan.isExhausted) {
+      await settleRecoveryOutcome({
+        outcome: "fail",
+        reason: "Provider terminal success without media payload.",
+        abandonmentOverride: terminalAbandonmentPolicy.abandonment,
+        detail: {
+          actor,
+          generation_id: generation.id,
+        },
+      });
+    }
     await applyRecoveryTransition({
       generation,
       attemptTransition: {
@@ -1090,15 +1147,6 @@ export const executeGenerationRecovery = async ({
       },
     });
     if (retryPlan.isExhausted) {
-      await settleRecoveryOutcome({
-        outcome: "fail",
-        reason: "Provider terminal success without media payload.",
-        abandonmentOverride: terminalAbandonmentPolicy.abandonment,
-        detail: {
-          actor,
-          generation_id: generation.id,
-        },
-      });
       await syncFailedGenerationProjection({
         abandonmentOverride: terminalAbandonmentPolicy.abandonment,
         actor,
@@ -1160,34 +1208,19 @@ export const executeGenerationRecovery = async ({
     mediaAutosaveEnabled,
   });
   if (!autosavePolicyDecision.allowed) {
-    await applyRecoveryTransition({
-      generation,
-      attemptTransition: {
-        status: "succeeded",
-        observedAt: nowIso,
-        completedAt: nowIso,
-        metadata: {
-          recovery_actor: actor,
-          recovery_outcome: "recovered_success",
-          autosave_preference_source: mediaAutosavePreference.source,
-          autosave_decision: "autosave_skipped",
-          autosave_decision_reason: autosavePolicyDecision.reason,
-        },
-      },
-    });
-    const persistedOutputRows = await persistGenerationOutputRecords({
+    await persistGenerationOutputRecords({
       generationId: generation.id,
       userId: generation.user_id,
       providerRequestId: generation.request_id,
       resultUrls: recoveredUrls,
       mediaFileIds: [],
-      metadata: {
+      metadata: buildRecoveryOutputMetadata({
         actor,
-        autosave_preference_source: mediaAutosavePreference.source,
-        autosave_decision: "autosave_skipped",
-        autosave_decision_reason: autosavePolicyDecision.reason,
-        recovery_execution: true,
-      },
+        autosavePreferenceSource: mediaAutosavePreference.source,
+        autosaveDecision: "autosave_skipped",
+        autosaveDecisionReason: autosavePolicyDecision.reason,
+        visibilityState: "settlement_pending",
+      }),
     });
     await settleRecoveryOutcome({
       outcome: "success",
@@ -1201,6 +1234,21 @@ export const executeGenerationRecovery = async ({
         autosave_preference_source: mediaAutosavePreference.source,
         autosave_decision: "autosave_skipped",
         decision_reason: autosavePolicyDecision.reason,
+      },
+    });
+    await applyRecoveryTransition({
+      generation,
+      attemptTransition: {
+        status: "succeeded",
+        observedAt: nowIso,
+        completedAt: nowIso,
+        metadata: {
+          recovery_actor: actor,
+          recovery_outcome: "recovered_success",
+          autosave_preference_source: mediaAutosavePreference.source,
+          autosave_decision: "autosave_skipped",
+          autosave_decision_reason: autosavePolicyDecision.reason,
+        },
       },
     });
     await logRecoveryAutosaveDecisionEvent({
@@ -1227,6 +1275,20 @@ export const executeGenerationRecovery = async ({
         autosaveDecisionReason: autosavePolicyDecision.reason,
       }),
     });
+    const settledOutputRows = await persistGenerationOutputRecords({
+      generationId: generation.id,
+      userId: generation.user_id,
+      providerRequestId: generation.request_id,
+      resultUrls: recoveredUrls,
+      mediaFileIds: [],
+      metadata: buildRecoveryOutputMetadata({
+        actor,
+        autosavePreferenceSource: mediaAutosavePreference.source,
+        autosaveDecision: "autosave_skipped",
+        autosaveDecisionReason: autosavePolicyDecision.reason,
+        visibilityState: "settled",
+      }),
+    });
     await syncRecoveredGenerationProjection({
       abandonmentOverride: terminalAbandonmentPolicy.abandonment,
       actor,
@@ -1237,7 +1299,7 @@ export const executeGenerationRecovery = async ({
       metadataOverride: terminalAbandonmentPolicy.metadata,
       mediaFileIds: [],
       nowIso,
-      persistedOutputRows,
+      persistedOutputRows: settledOutputRows,
       recoveredUrls,
       routeLabel,
     });
@@ -1269,34 +1331,19 @@ export const executeGenerationRecovery = async ({
     if (quotaSaveError) {
       const autosaveDecisionReason =
         error instanceof Error ? error.message : "media_autosave_failed";
-      await applyRecoveryTransition({
-        generation,
-        attemptTransition: {
-          status: "succeeded",
-          observedAt: nowIso,
-          completedAt: nowIso,
-          metadata: {
-            recovery_actor: actor,
-            recovery_outcome: "recovered_success",
-            autosave_preference_source: mediaAutosavePreference.source,
-            autosave_decision: "autosave_skipped",
-            autosave_decision_reason: autosaveDecisionReason,
-          },
-        },
-      });
-      const persistedOutputRows = await persistGenerationOutputRecords({
+      await persistGenerationOutputRecords({
         generationId: generation.id,
         userId: generation.user_id,
         providerRequestId: generation.request_id,
         resultUrls: recoveredUrls,
         mediaFileIds: [],
-        metadata: {
+        metadata: buildRecoveryOutputMetadata({
           actor,
-          autosave_preference_source: mediaAutosavePreference.source,
-          autosave_decision: "autosave_skipped",
-          autosave_decision_reason: autosaveDecisionReason,
-          recovery_execution: true,
-        },
+          autosavePreferenceSource: mediaAutosavePreference.source,
+          autosaveDecision: "autosave_skipped",
+          autosaveDecisionReason,
+          visibilityState: "settlement_pending",
+        }),
       });
       await settleRecoveryOutcome({
         outcome: "success",
@@ -1310,6 +1357,21 @@ export const executeGenerationRecovery = async ({
           autosave_preference_source: mediaAutosavePreference.source,
           autosave_decision: "autosave_skipped",
           decision_reason: autosaveDecisionReason,
+        },
+      });
+      await applyRecoveryTransition({
+        generation,
+        attemptTransition: {
+          status: "succeeded",
+          observedAt: nowIso,
+          completedAt: nowIso,
+          metadata: {
+            recovery_actor: actor,
+            recovery_outcome: "recovered_success",
+            autosave_preference_source: mediaAutosavePreference.source,
+            autosave_decision: "autosave_skipped",
+            autosave_decision_reason: autosaveDecisionReason,
+          },
         },
       });
       await logRecoveryAutosaveDecisionEvent({
@@ -1351,6 +1413,20 @@ export const executeGenerationRecovery = async ({
           autosaveDecisionReason,
         }),
       });
+      const settledOutputRows = await persistGenerationOutputRecords({
+        generationId: generation.id,
+        userId: generation.user_id,
+        providerRequestId: generation.request_id,
+        resultUrls: recoveredUrls,
+        mediaFileIds: [],
+        metadata: buildRecoveryOutputMetadata({
+          actor,
+          autosavePreferenceSource: mediaAutosavePreference.source,
+          autosaveDecision: "autosave_skipped",
+          autosaveDecisionReason,
+          visibilityState: "settled",
+        }),
+      });
       await syncRecoveredGenerationProjection({
         abandonmentOverride: terminalAbandonmentPolicy.abandonment,
         actor,
@@ -1360,7 +1436,7 @@ export const executeGenerationRecovery = async ({
         metadataOverride: terminalAbandonmentPolicy.metadata,
         mediaFileIds: [],
         nowIso,
-        persistedOutputRows,
+        persistedOutputRows: settledOutputRows,
         recoveredUrls,
         routeLabel,
       });
@@ -1384,6 +1460,16 @@ export const executeGenerationRecovery = async ({
     }
     const failureMessage =
       "Generated media could not be saved because the generation owner is no longer active.";
+    await settleRecoveryOutcome({
+      outcome: "fail",
+      reason: failureMessage,
+      abandonmentOverride: terminalAbandonmentPolicy.abandonment,
+      detail: {
+        actor,
+        generation_id: generation.id,
+        persistence_error_class: "invalid_generation_owner",
+      },
+    });
     await applyRecoveryTransition({
       generation,
       attemptTransition: {
@@ -1396,16 +1482,6 @@ export const executeGenerationRecovery = async ({
           recovery_actor: actor,
           recovery_outcome: "media_persistence_failed",
         },
-      },
-    });
-    await settleRecoveryOutcome({
-      outcome: "fail",
-      reason: failureMessage,
-      abandonmentOverride: terminalAbandonmentPolicy.abandonment,
-      detail: {
-        actor,
-        generation_id: generation.id,
-        persistence_error_class: "invalid_generation_owner",
       },
     });
     await applyRecoveryTransition({
@@ -1438,6 +1514,34 @@ export const executeGenerationRecovery = async ({
       note: "media_persistence_failed",
     };
   }
+  await persistGenerationOutputRecords({
+    generationId: generation.id,
+    userId: generation.user_id,
+    providerRequestId: generation.request_id,
+    resultUrls: recoveredUrls,
+    mediaFileIds,
+    metadata: buildRecoveryOutputMetadata({
+      actor,
+      autosavePreferenceSource: mediaAutosavePreference.source,
+      autosaveDecision: "auto_persisted",
+      autosaveDecisionReason: autosavePolicyDecision.reason,
+      visibilityState: "settlement_pending",
+    }),
+  });
+  await settleRecoveryOutcome({
+    outcome: "success",
+    reason: "Generation recovered with persisted media.",
+    abandonmentOverride: terminalAbandonmentPolicy.abandonment,
+    detail: {
+      actor,
+      generation_id: generation.id,
+      media_file_count: mediaFileIds.length,
+      autosave_enabled: mediaAutosaveEnabled,
+      autosave_preference_source: mediaAutosavePreference.source,
+      autosave_decision: "auto_persisted",
+      decision_reason: autosavePolicyDecision.reason,
+    },
+  });
   await applyRecoveryTransition({
     generation,
     attemptTransition: {
@@ -1452,34 +1556,6 @@ export const executeGenerationRecovery = async ({
         autosave_decision_reason: autosavePolicyDecision.reason,
         media_file_count: mediaFileIds.length,
       },
-    },
-  });
-  const persistedOutputRows = await persistGenerationOutputRecords({
-    generationId: generation.id,
-    userId: generation.user_id,
-    providerRequestId: generation.request_id,
-    resultUrls: recoveredUrls,
-    mediaFileIds,
-    metadata: {
-      actor,
-      autosave_preference_source: mediaAutosavePreference.source,
-      autosave_decision: "auto_persisted",
-      autosave_decision_reason: autosavePolicyDecision.reason,
-      recovery_execution: true,
-    },
-  });
-  await settleRecoveryOutcome({
-    outcome: "success",
-    reason: "Generation recovered with persisted media.",
-    abandonmentOverride: terminalAbandonmentPolicy.abandonment,
-    detail: {
-      actor,
-      generation_id: generation.id,
-      media_file_count: mediaFileIds.length,
-      autosave_enabled: mediaAutosaveEnabled,
-      autosave_preference_source: mediaAutosavePreference.source,
-      autosave_decision: "auto_persisted",
-      decision_reason: autosavePolicyDecision.reason,
     },
   });
   await logRecoveryAutosaveDecisionEvent({
@@ -1506,6 +1582,20 @@ export const executeGenerationRecovery = async ({
       autosaveDecisionReason: autosavePolicyDecision.reason,
     }),
   });
+  const settledOutputRows = await persistGenerationOutputRecords({
+    generationId: generation.id,
+    userId: generation.user_id,
+    providerRequestId: generation.request_id,
+    resultUrls: recoveredUrls,
+    mediaFileIds,
+    metadata: buildRecoveryOutputMetadata({
+      actor,
+      autosavePreferenceSource: mediaAutosavePreference.source,
+      autosaveDecision: "auto_persisted",
+      autosaveDecisionReason: autosavePolicyDecision.reason,
+      visibilityState: "settled",
+    }),
+  });
   await syncRecoveredGenerationProjection({
     abandonmentOverride: terminalAbandonmentPolicy.abandonment,
     actor,
@@ -1516,7 +1606,7 @@ export const executeGenerationRecovery = async ({
     metadataOverride: terminalAbandonmentPolicy.metadata,
     mediaFileIds,
     nowIso,
-    persistedOutputRows,
+    persistedOutputRows: settledOutputRows,
     recoveredUrls,
     routeLabel,
   });

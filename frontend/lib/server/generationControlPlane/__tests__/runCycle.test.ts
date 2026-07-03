@@ -62,6 +62,12 @@ const createSupabaseMock = (): SupabaseMock => {
         error: null,
       };
     }
+    if (functionName === "release_stale_provider_attached_generation_reservations") {
+      return {
+        data: [{ scanned_count: 3, released_count: 2, error_count: 1 }],
+        error: null,
+      };
+    }
     if (functionName === "claim_generation_recovery_batch") {
       return { data: [], error: null };
     }
@@ -172,8 +178,15 @@ describe("runGenerationControlPlaneCycle", () => {
         observationFailed: 0,
         observationErrors: 0,
         claimed: 0,
-        reservationCleanupScanned: 2,
-        reservationCleanupReleased: 1,
+        reservationCleanupScanned: 5,
+        reservationCleanupReleased: 3,
+        reservationCleanupErrors: 1,
+        preProviderReservationCleanupScanned: 2,
+        preProviderReservationCleanupReleased: 1,
+        preProviderReservationCleanupErrors: 0,
+        providerAttachedReservationCleanupScanned: 3,
+        providerAttachedReservationCleanupReleased: 2,
+        providerAttachedReservationCleanupErrors: 1,
         projectionRepairScanned: 0,
         projectionRepairRepaired: 0,
         projectionRepairSkipped: 0,

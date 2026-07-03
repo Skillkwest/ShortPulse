@@ -3,23 +3,37 @@ import type React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UnifiedPresetsLibraryPanel } from "../UnifiedPresetsLibraryPanel";
 import type { ExpertEditResolvedPreset } from "../edit/expertEditPresets";
+import type { CreatePulsePreferenceRuntimeValue } from "../create/createPulsePreferenceRuntime";
 
 const restoreDeletedBuiltInPresetIdsMock = vi.hoisted(() => vi.fn(async () => true));
+const useCreatePulsePreferenceRuntimeMock = vi.hoisted(() => vi.fn());
+
+const createPulseRuntimeMockValue = (
+  overrides: Partial<CreatePulsePreferenceRuntimeValue> = {}
+): CreatePulsePreferenceRuntimeValue => ({
+  ...buildPulseRuntimeMockValue(),
+  ...overrides,
+});
+
+const buildPulseRuntimeMockValue = (): CreatePulsePreferenceRuntimeValue => ({
+  presetPanelIds: [],
+  savedPresets: [],
+  deletedBuiltInPresetIds: ["image"],
+  builtInDefinitions: [],
+  builtInDefinitionsLoading: false,
+  builtInDefinitionsError: null,
+  builtInDefinitionsSource: "control_plane" as const,
+  builtInDefinitionsDegraded: false,
+  builtInDefinitionsAuthoritative: true,
+  refreshBuiltInDefinitions: vi.fn(async () => []),
+  setPresetPanelIds: vi.fn(async () => true),
+  setSavedPresets: vi.fn(async () => true),
+  restoreDeletedBuiltInPresetIds: restoreDeletedBuiltInPresetIdsMock,
+});
 
 vi.mock("../create/CreatePulsePreferenceProvider", () => ({
   CreatePulsePreferenceProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  useCreatePulsePreferenceRuntime: () => ({
-    presetPanelIds: [],
-    savedPresets: [],
-    deletedBuiltInPresetIds: ["image"],
-    builtInDefinitions: [],
-    builtInDefinitionsLoading: false,
-    builtInDefinitionsAuthoritative: true,
-    refreshBuiltInDefinitions: vi.fn(async () => []),
-    setPresetPanelIds: vi.fn(async () => true),
-    setSavedPresets: vi.fn(async () => true),
-    restoreDeletedBuiltInPresetIds: restoreDeletedBuiltInPresetIdsMock,
-  }),
+  useCreatePulsePreferenceRuntime: () => useCreatePulsePreferenceRuntimeMock(),
 }));
 
 vi.mock("../PulsePresetsLibraryPanel", () => ({
@@ -31,6 +45,7 @@ vi.mock("../PulsePresetsLibraryPanel", () => ({
 describe("UnifiedPresetsLibraryPanel", () => {
   beforeEach(() => {
     restoreDeletedBuiltInPresetIdsMock.mockClear();
+    useCreatePulsePreferenceRuntimeMock.mockReturnValue(createPulseRuntimeMockValue());
   });
 
   it("restores prompt and Pulse built-ins from one confirmation action", async () => {
@@ -137,5 +152,23 @@ describe("UnifiedPresetsLibraryPanel", () => {
       "data-search-query",
       "drone"
     );
+  });
+
+  it("shows a quiet Pulse catalog status when built-ins are using fallback definitions", () => {
+    useCreatePulsePreferenceRuntimeMock.mockReturnValue(
+      createPulseRuntimeMockValue({
+        builtInDefinitionsSource: "seed",
+        builtInDefinitionsDegraded: true,
+        builtInDefinitionsAuthoritative: false,
+      })
+    );
+
+    render(<UnifiedPresetsLibraryPanel promptPresets={[]} selectedPromptPresetId={null} />);
+
+    expect(
+      screen.getByText(
+        "Pulse built-ins are showing the seeded fallback until the admin catalog reloads."
+      )
+    ).toBeInTheDocument();
   });
 });

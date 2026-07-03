@@ -12,7 +12,7 @@ ShortPulse needs public account creation that lets a logged-out visitor enter th
 
 ADR 0094 kept signup tied to a selected paid pricing plan. That protected Supabase Auth from direct public account creation, but it also made the public funnel incoherent: public CTAs could invite signup while the auth page refused generic account creation. The product decision now changes that posture. Signup should be account-first, but it still needs an app-controlled gate so direct Supabase Auth or OAuth-provider calls cannot create users outside the ShortPulse signup flow.
 
-The hidden `free` bootstrap plan remains zero-value. Signup must not grant paid credits, paid storage, concurrency, or Stripe subscription entitlement. Paid access remains owned by `/api/billing/subscription/change` plus Stripe webhook projection.
+The baseline-access bootstrap state remains zero-value. The legacy `free` database id is only a non-public sentinel for that state; it is not a customer-facing plan, trial, subscription, or paid entitlement. Signup must not grant paid credits, paid storage, concurrency, or Stripe subscription entitlement. Paid access remains owned by `/api/billing/subscription/change` plus Stripe webhook projection.
 
 ## Decision
 
@@ -22,7 +22,7 @@ Use one canonical signup intent gate for account-first signup and pricing-return
 - The app creates a short-lived `signup_intents` row before email/password signup or Google signup calls Supabase Auth. Email/password signup uses hashed-email matching; ADR 0096 introduced the Google/IP-bound fallback and ADR 0097 makes that fallback the signup-mode Google path so visible email/password fields do not steer Google account choice.
 - The Supabase Before User Created hook consumes that pending intent before `auth.users` insertion.
 - The intent supports account signup without a paid plan and pricing signup with a selected paid plan. Paid-plan metadata remains required only for pricing-return intents.
-- A successful signup creates only the zero-value baseline account shell from the existing new-user billing bootstrap: hidden `free` plan, zero credits, and no paid entitlement.
+- A successful signup creates only the zero-value baseline account shell from the existing new-user billing bootstrap: baseline access, zero credits, and no paid entitlement.
 - Signup completion must idempotently bootstrap a Stripe customer record for the authenticated user, using the existing server-side Stripe customer sync authority. Stripe customer bootstrap is identity setup, not entitlement.
 - The expected signed-up state is a real active Supabase user, a real active Stripe customer identity, and access to navigate AI Studio with a credit balance of exactly zero. This is not a bypass, trial, or free plan entitlement.
 - `/api/billing/subscription/change` remains the only customer-facing recurring plan checkout authority, and Stripe webhooks remain the subscription/credit projection authority.
@@ -44,7 +44,7 @@ Use one canonical signup intent gate for account-first signup and pricing-return
 
 ## Alternatives considered
 
-- Keep ADR 0094 paid-plan-only signup: secure but no longer matches the product requirement for free zero-credit exploration.
+- Keep ADR 0094 paid-plan-only signup: secure but no longer matches the product requirement for zero-credit baseline exploration.
 - Open Supabase signup directly: simpler, but direct Auth/OAuth calls could create users outside the app-controlled signup surface.
-- Guest Stripe Checkout before account creation: strong purchase-first posture, but it contradicts the free-exploration requirement and would rewrite checkout success identity linking.
+- Guest Stripe Checkout before account creation: strong purchase-first posture, but it contradicts the baseline-exploration requirement and would rewrite checkout success identity linking.
 - UI-only `/sign-up` page over the paid-only gate: visually better, but it would preserve the broken account-creation contract.

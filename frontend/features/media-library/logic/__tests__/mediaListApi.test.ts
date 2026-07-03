@@ -8,6 +8,7 @@ import {
 
 describe("fetchMediaListPage", () => {
   it("opts media-list panel requests into the authenticated fetch network retry", async () => {
+    const controller = new AbortController();
     const fetcher = vi.fn(async () => {
       return new Response(
         JSON.stringify({
@@ -36,6 +37,7 @@ describe("fetchMediaListPage", () => {
       query: "",
       surface: "media-library-panel",
       tab: null,
+      signal: controller.signal,
       fetcher,
     });
 
@@ -44,6 +46,7 @@ describe("fetchMediaListPage", () => {
       expect.objectContaining({
         shortpulseLogScope: "app",
         shortpulseRetryNetworkOnce: true,
+        signal: controller.signal,
       })
     );
     const requestOptions = (fetcher.mock.calls as unknown as Array<[string, RequestInit]>)[0]?.[1];

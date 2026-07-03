@@ -188,7 +188,7 @@ export const useAiStudioStylesRuntime = ({
       null;
     const stylePrompt = selectedStyle.stylePrompt?.trim() || null;
     const stylePreviewImageUrl = selectedStyle.previewUrl?.trim() || null;
-    if (!styleName && !stylePrompt) return null;
+    if (!stylePrompt) return null;
     return {
       applied: true,
       styleId: selectedStyle.id,

@@ -178,7 +178,8 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 - Treat these response fields as hard health signals during drain:
   - recovery: `claimed`, `processed`, `recovered`, `requeued`, `exhausted`, `errors`
   - observation inbox: `observationClaimed`, `observationProcessed`, `observationIgnored`, `observationFailed`, `observationErrors`
-  - cleanup: `reservationCleanupScanned`, `reservationCleanupReleased`, `reservationCleanupErrors`
+  - cleanup totals: `reservationCleanupScanned`, `reservationCleanupReleased`, `reservationCleanupErrors`
+  - cleanup split: `preProviderReservationCleanupScanned`, `preProviderReservationCleanupReleased`, `preProviderReservationCleanupErrors`, `providerAttachedReservationCleanupScanned`, `providerAttachedReservationCleanupReleased`, `providerAttachedReservationCleanupErrors`
   - audio companion art: `audioCompanionArtClaimed`, `audioCompanionArtProcessed`, `audioCompanionArtReady`, `audioCompanionArtFailed`, `audioCompanionArtSkipped`, `audioCompanionArtErrors`
   - projection repair cadence/counts: `projectionRepairRan`, `projectionRepairScanned`, `projectionRepairRepaired`, `projectionRepairSkipped`
   - stage timings: `stageTimings.reservationCleanup.durationMs`, `stageTimings.providerAttachedReservationCleanup.durationMs`, `stageTimings.observationInboxProcessing.durationMs`, `stageTimings.recoveryClaim.durationMs`, `stageTimings.recoveryExecution.durationMs`, `stageTimings.projectionRepair.durationMs`, `stageTimings.audioCompanionArtProcessing.durationMs`

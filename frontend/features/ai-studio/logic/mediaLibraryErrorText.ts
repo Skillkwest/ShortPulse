@@ -43,12 +43,21 @@ const toErrorStatus = (error: unknown): number | null => {
 };
 
 /**
- * Returns true when an error matches transient network-fetch failure signatures.
+ * Returns true when an error is an intentional caller/browser cancellation.
  */
-export const isTransientMediaLibraryNetworkError = (error: unknown): boolean => {
+export const isMediaLibraryAbortError = (error: unknown): boolean => {
   if (typeof DOMException !== "undefined" && error instanceof DOMException) {
     if (error.name === "AbortError") return true;
   }
+  if (!error || typeof error !== "object") return false;
+  return (error as { name?: unknown }).name === "AbortError";
+};
+
+/**
+ * Returns true when an error matches transient network-fetch failure signatures.
+ */
+export const isTransientMediaLibraryNetworkError = (error: unknown): boolean => {
+  if (isMediaLibraryAbortError(error)) return true;
   const message = toErrorMessage(error);
   if (!message) return false;
   return TRANSIENT_NETWORK_ERROR_PATTERN.test(message);

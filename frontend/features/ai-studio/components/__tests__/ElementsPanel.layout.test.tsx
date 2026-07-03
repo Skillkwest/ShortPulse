@@ -4,7 +4,7 @@
  */
 import type React from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ElementsPanel } from "../ElementsPanel";
 import { INTERNAL_REFERENCE_DRAG_ORIGIN } from "../../utils/dragDrop";
 import { createCanvasTearOutComposerTargetRegistry } from "../../hooks/useAiStudioCanvasTearOutTargets";
@@ -17,6 +17,8 @@ import { deriveElementAliasFromName } from "../../../elements-manager/logic/elem
 import {
   loadElementManagerDraftByElementId,
   saveElementManagerDraft,
+  saveElementManagerDraftSnapshot,
+  type ElementManagerDraftSnapshot,
 } from "../../../elements-manager/logic/elementsManagerPersistence";
 import { uploadImageBlobToStorage, uploadImageToStorage } from "../../utils/imageUpload";
 
@@ -53,7 +55,9 @@ const elementsManagerPersistenceMockState = vi.hoisted(() => {
     "https://example.com/reference/red-lantern-01.jpg",
     "https://example.com/reference/red-lantern-02.jpg",
   ];
-  const makeSnapshot = (overrides?: Partial<Record<string, unknown>>) => ({
+  const makeSnapshot = (
+    overrides?: Partial<ElementManagerDraftSnapshot>
+  ): ElementManagerDraftSnapshot => ({
     userId: "user-1",
     elementId: "element-red-lantern",
     name: "Red Lantern",
@@ -354,6 +358,12 @@ const openElementLibrary = async () => {
   return screen.findByRole("dialog", { name: "Element library" });
 };
 
+const flushMicrotasks = async () => {
+  for (let index = 0; index < 8; index += 1) {
+    await Promise.resolve();
+  }
+};
+
 const getPickerCardButtonByName = (name: string) => {
   const label = screen.getByText(name);
   const card = label.closest("article");
@@ -364,10 +374,15 @@ const getPickerCardButtonByName = (name: string) => {
 };
 
 describe("ElementsPanel layout", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   beforeEach(() => {
     elementsManagerPersistenceMockState.reset();
     vi.mocked(loadElementManagerDraftByElementId).mockClear();
     vi.mocked(saveElementManagerDraft).mockClear();
+    vi.mocked(saveElementManagerDraftSnapshot).mockClear();
     vi.mocked(uploadImageBlobToStorage).mockClear();
     vi.mocked(uploadImageToStorage).mockClear();
     ensureSupabaseQueryClientMock.mockClear();
@@ -488,6 +503,117 @@ describe("ElementsPanel layout", () => {
     expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
     expect(screen.getByText("Saved")).toBeInTheDocument();
     expect(screen.queryByRole("dialog", { name: "Delete this element?" })).not.toBeInTheDocument();
+  });
+
+  it("serializes an in-flight autosave before manual save so the latest save wins", async () => {
+    render(<ElementsPanel />);
+    await waitForElementEditor();
+
+    await openElementLibrary();
+    fireEvent.click(getPickerCardButtonByName("Red Lantern"));
+    await waitFor(() => {
+      expect(screen.getByLabelText("Name:")).toHaveValue("Red Lantern");
+    });
+
+    const autosaveGate = createDeferred<void>();
+    vi.mocked(saveElementManagerDraftSnapshot).mockImplementationOnce(async (input) => {
+      await autosaveGate.promise;
+      const snapshot = elementsManagerPersistenceMockState.snapshots.get(input.elementId);
+      if (!snapshot) {
+        throw new Error(`Missing element snapshot: ${input.elementId}`);
+      }
+      const nextSnapshot = {
+        ...snapshot,
+        name: input.name,
+        alias: deriveElementAliasFromName(input.name),
+        description: input.description,
+        assetType: input.assetType,
+        imageReferenceUrls: input.imageReferenceUrls,
+        videoReferenceUrl: input.videoReferenceUrl,
+        updatedAt: "2026-04-07T00:00:00.000Z",
+      };
+      elementsManagerPersistenceMockState.snapshots.set(input.elementId, nextSnapshot);
+      return { updatedAt: nextSnapshot.updatedAt, status: nextSnapshot.status };
+    });
+
+    vi.useFakeTimers();
+    fireEvent.change(screen.getByLabelText("Name:"), {
+      target: { value: "Autosaved Lantern" },
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(500);
+      await flushMicrotasks();
+    });
+    expect(saveElementManagerDraftSnapshot).toHaveBeenCalledTimes(1);
+
+    fireEvent.change(screen.getByLabelText("Name:"), {
+      target: { value: "Manual Lantern" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await act(async () => {
+      await flushMicrotasks();
+    });
+    expect(saveElementManagerDraftSnapshot).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      autosaveGate.resolve();
+      await autosaveGate.promise;
+      await flushMicrotasks();
+    });
+
+    expect(saveElementManagerDraftSnapshot).toHaveBeenCalledTimes(2);
+    expect(elementsManagerPersistenceMockState.snapshots.get("element-red-lantern")?.name).toBe(
+      "Manual Lantern"
+    );
+  });
+
+  it("does not show a stale autosave failure after a queued manual save succeeds", async () => {
+    render(<ElementsPanel />);
+    await waitForElementEditor();
+
+    await openElementLibrary();
+    fireEvent.click(getPickerCardButtonByName("Red Lantern"));
+    await waitFor(() => {
+      expect(screen.getByLabelText("Name:")).toHaveValue("Red Lantern");
+    });
+
+    const autosaveGate = createDeferred<void>();
+    vi.mocked(saveElementManagerDraftSnapshot).mockImplementationOnce(async () => {
+      await autosaveGate.promise;
+      throw new Error("Transient autosave failure");
+    });
+
+    vi.useFakeTimers();
+    fireEvent.change(screen.getByLabelText("Name:"), {
+      target: { value: "Autosaved Lantern" },
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(500);
+      await flushMicrotasks();
+    });
+    expect(saveElementManagerDraftSnapshot).toHaveBeenCalledTimes(1);
+
+    fireEvent.change(screen.getByLabelText("Name:"), {
+      target: { value: "Manual Lantern" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await act(async () => {
+      await flushMicrotasks();
+    });
+    expect(saveElementManagerDraftSnapshot).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      autosaveGate.resolve();
+      await autosaveGate.promise;
+      await flushMicrotasks();
+    });
+
+    expect(saveElementManagerDraftSnapshot).toHaveBeenCalledTimes(2);
+    expect(screen.getByText("Saved")).toBeInTheDocument();
+    expect(screen.queryByText("Transient autosave failure")).not.toBeInTheDocument();
+    expect(elementsManagerPersistenceMockState.snapshots.get("element-red-lantern")?.name).toBe(
+      "Manual Lantern"
+    );
   });
 
   it("accepts an internal reference-grid drop into the staged element sheet before first save", async () => {

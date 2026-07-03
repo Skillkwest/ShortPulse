@@ -14,6 +14,7 @@ import {
   type ModelLifecycle,
   type ModelLogoKey,
   type ModelProvider,
+  type ModelStylePromptFamily,
   type ModelSubmissionAdapterKey,
   type ModelSurface,
   type ModelVisibilityFlag,
@@ -41,6 +42,7 @@ export type ModelConfig = {
   providerModelId?: string;
   providerVariants?: string[];
   replacementModelId?: string;
+  stylePromptFamily?: ModelStylePromptFamily;
   defaultAspect: string;
   allowedAspects: string[];
   pricingStrategy?: PricingStrategyId;
@@ -106,6 +108,7 @@ const buildModelConfig = (entry: RegistryReadyCatalogEntry): ModelConfig => ({
   providerModelId: entry.providerModelId,
   providerVariants: entry.providerVariants,
   replacementModelId: entry.replacementModelId,
+  stylePromptFamily: entry.stylePromptFamily,
   defaultAspect: entry.defaultAspect,
   allowedAspects: entry.allowedAspects,
   pricingStrategy: entry.pricingStrategy,

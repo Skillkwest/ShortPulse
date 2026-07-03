@@ -44,13 +44,29 @@ describe("useCreatePulsePresetPageRuntime", () => {
     });
   });
 
-  it("warms the Pulse built-in catalog while Standard Create is mounted", () => {
+  it("keeps the Pulse built-in catalog disabled while plain Standard Create is mounted", () => {
     renderHook(() =>
       useCreatePulsePresetPageRuntime(
         createParams({
           expertCreateMode: "standard",
           activeCreatePulsePresetId: null,
           pulseSessionInstanceId: null,
+        })
+      )
+    );
+
+    expect(useCreatePulseBuiltInCatalogMock).toHaveBeenLastCalledWith({
+      enabled: false,
+    });
+  });
+
+  it("loads the Pulse built-in catalog when Standard Create has a parked Pulse session", () => {
+    renderHook(() =>
+      useCreatePulsePresetPageRuntime(
+        createParams({
+          expertCreateMode: "standard",
+          activeCreatePulsePresetId: "story_builder",
+          pulseSessionInstanceId: "pulse-session-1",
         })
       )
     );

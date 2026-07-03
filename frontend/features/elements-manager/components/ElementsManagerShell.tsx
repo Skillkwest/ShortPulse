@@ -418,6 +418,9 @@ export function ElementsManagerShell({
   const [hoveredReferenceCardIndex, setHoveredReferenceCardIndex] = React.useState<number | null>(
     null
   );
+  const [focusedReferenceCardIndex, setFocusedReferenceCardIndex] = React.useState<number | null>(
+    null
+  );
   const [referenceSlotTargetRevision, setReferenceSlotTargetRevision] = React.useState(0);
   const [pendingReferenceUploadCounts, setPendingReferenceUploadCounts] = React.useState<
     Record<number, number>
@@ -1299,7 +1302,8 @@ export function ElementsManagerShell({
                             const isRequiredSlot = draft.assetType === "video" || index < 2;
                             const showDeleteButton =
                               Boolean(slotValue) &&
-                              hoveredReferenceCardIndex === index &&
+                              (hoveredReferenceCardIndex === index ||
+                                focusedReferenceCardIndex === index) &&
                               !isDropPending;
                             return (
                               <article
@@ -1337,6 +1341,21 @@ export function ElementsManagerShell({
                                     current === index ? null : current
                                   )
                                 }
+                                onFocus={() => setFocusedReferenceCardIndex(index)}
+                                onBlur={(event) => {
+                                  const nextFocusedNode =
+                                    event.relatedTarget instanceof Node
+                                      ? event.relatedTarget
+                                      : null;
+                                  if (
+                                    !nextFocusedNode ||
+                                    !event.currentTarget.contains(nextFocusedNode)
+                                  ) {
+                                    setFocusedReferenceCardIndex((current) =>
+                                      current === index ? null : current
+                                    );
+                                  }
+                                }}
                                 onDragEnter={handleSheetDragEnter(index)}
                                 onDragOver={handleSheetDragOver(index)}
                                 onDragLeave={() => {

@@ -39,6 +39,7 @@ const createMockSupabase = ({
     user_id?: string | null;
     model_id?: string | null;
     request_id?: string | null;
+    source_ref?: string | null;
     metadata?: Record<string, unknown> | null;
   } | null;
 } = {}) => {
@@ -48,7 +49,16 @@ const createMockSupabase = ({
   generationBuilder.order = vi.fn(() => generationBuilder);
   generationBuilder.limit = vi.fn(() => generationBuilder);
   generationBuilder.maybeSingle = vi.fn(async () => ({
-    data: generationData,
+    data: generationData
+      ? {
+          ...generationData,
+          source_ref:
+            generationData.source_ref ??
+            (typeof generationData.metadata?.source_ref === "string"
+              ? generationData.metadata.source_ref
+              : null),
+        }
+      : null,
     error: null,
   }));
 

@@ -433,7 +433,7 @@ describe("Dashboard actions", () => {
       SHORTPULSE_COMMUNITY_URL
     );
     expect(
-      await screen.findByRole("link", { name: "Media Storage: 0.0 MB / 500.0 GB" })
+      await screen.findByRole("link", { name: "Media Storage: 0.0 MB / 500 GB" })
     ).toHaveAttribute("href", "/profile?section=storage");
     expect(await screen.findByRole("link", { name: "AI credits: 86 / 12,000" })).toHaveAttribute(
       "href",

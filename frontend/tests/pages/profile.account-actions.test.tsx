@@ -320,7 +320,7 @@ describe("Profile account actions", () => {
 
     await waitFor(() => {
       expect(signOutSupabaseSessionMock).toHaveBeenCalledTimes(1);
-      expect(routerReplaceMock).toHaveBeenCalledWith("/auth");
+      expect(routerReplaceMock).toHaveBeenCalledWith("/log-in");
     });
   });
 });

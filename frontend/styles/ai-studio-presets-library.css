@@ -63,6 +63,10 @@
   margin-top: 4px;
 }
 
+.merged-presets-library-catalog-status {
+  margin: -4px 0 0;
+}
+
 .merged-presets-library-filter-row {
   display: flex;
   align-items: center;
@@ -768,4 +772,114 @@
     pointer-events: auto;
     transform: none;
   }
+}
+
+.preset-library-detail-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--ai-studio-z-modal-backdrop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(4, 7, 12, 0.58);
+}
+
+.preset-library-detail-modal {
+  width: min(720px, calc(100vw - 24px));
+  max-height: min(760px, calc(100vh - 24px));
+  overflow: auto;
+  border-radius: 12px;
+  border: 1px solid rgba(201, 205, 214, 0.24);
+  background: #131518;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  z-index: var(--ai-studio-z-modal-content);
+  gap: 16px;
+  font-family: inherit;
+}
+
+.preset-library-detail-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.preset-library-detail-eyebrow {
+  margin: 0;
+}
+
+.preset-library-detail-title {
+  margin: 0;
+  color: rgba(235, 241, 248, 0.96);
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.preset-library-detail-description {
+  margin: 0;
+  color: rgba(201, 211, 224, 0.82);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.preset-library-detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+}
+
+.preset-library-detail-row {
+  display: grid;
+  grid-template-columns: minmax(110px, 150px) minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(201, 205, 214, 0.1);
+  border-radius: 10px;
+  background: rgba(201, 205, 214, 0.04);
+}
+
+.preset-library-detail-row dt {
+  color: rgba(179, 189, 204, 0.78);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.preset-library-detail-row dd {
+  margin: 0;
+  min-width: 0;
+  color: rgba(238, 242, 248, 0.94);
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.preset-library-detail-row dd.preserve-whitespace {
+  white-space: pre-wrap;
+}
+
+.preset-library-detail-actions {
+  display: inline-flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.preset-library-detail-action-btn {
+  min-width: 112px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.preset-library-detail-action-btn.primary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
 }

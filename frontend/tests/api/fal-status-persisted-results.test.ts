@@ -522,6 +522,52 @@ describe("falStatusPersistedResults", () => {
     expect(outputEqCalls).toContainEqual(["generation_id", "gen-processing-1"]);
   });
 
+  it("does not expose terminal output rows while billing settlement is pending", async () => {
+    persistedProjectionRows = [
+      {
+        generation_id: "gen-pending-settlement-1",
+        result_urls: ["https://cdn.shortpulse.test/pending-projection-output.mp4"],
+        publication_state: "suppressed",
+        status: "processing",
+        task_state: "running",
+        queue_state: "dispatched",
+      },
+    ];
+    persistedOutputRows = [
+      {
+        output_index: 0,
+        result_url: "https://cdn.shortpulse.test/pending-output.mp4",
+        media_file_id: null,
+        metadata: {
+          direct_terminal_settlement: true,
+          direct_terminal_settlement_outcome: "success",
+          direct_terminal_visibility_state: "settlement_pending",
+          recovery_visibility_state: "settlement_pending",
+        },
+      },
+    ];
+
+    await expect(
+      readPersistedGenerationStatusContext({
+        userId: "user-1",
+        requestId: "req-pending-settlement-1",
+      })
+    ).resolves.toEqual({
+      generationId: "gen-pending-settlement-1",
+      resultUrls: [],
+      saveState: null,
+      saveError: null,
+      status: "processing",
+      taskState: "running",
+      recoveryPending: true,
+      completionState: null,
+      queueState: "dispatched",
+      errorMessageShort: null,
+      errorDetail: null,
+      errorPayload: null,
+    });
+  });
+
   it("keeps transient provider outputs idle in the generation-id fallback branch", async () => {
     persistedGenerationRows = [
       {

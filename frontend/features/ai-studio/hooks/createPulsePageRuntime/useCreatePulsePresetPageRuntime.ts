@@ -61,8 +61,11 @@ export const useCreatePulsePresetPageRuntime = ({
     selectedTool === "create" &&
     expertCreateMode === "pulse" &&
     savedPresets == null;
+  const shouldLoadBuiltInPulseCatalog =
+    selectedTool === "create" &&
+    (expertCreateMode === "pulse" || activeCreatePulsePresetId != null);
   const builtInCatalog = useCreatePulseBuiltInCatalog({
-    enabled: selectedTool === "create",
+    enabled: shouldLoadBuiltInPulseCatalog,
   });
   const pulsePreference = useCreatePulsePresetPanelPreference({
     enabled: shouldLoadPulsePreferences,
@@ -83,6 +86,9 @@ export const useCreatePulsePresetPageRuntime = ({
       deletedBuiltInPresetIds: pulsePreference.deletedBuiltInPresetIds,
       builtInDefinitions: builtInCatalog.builtInDefinitions,
       builtInDefinitionsLoading: builtInCatalog.loading,
+      builtInDefinitionsError: builtInCatalog.error,
+      builtInDefinitionsSource: builtInCatalog.source,
+      builtInDefinitionsDegraded: builtInCatalog.degraded,
       builtInDefinitionsAuthoritative: builtInCatalog.isAuthoritative,
       refreshBuiltInDefinitions,
       setPresetPanelIds: pulsePreference.setPresetPanelIds,
@@ -91,8 +97,11 @@ export const useCreatePulsePresetPageRuntime = ({
     }),
     [
       builtInCatalog.builtInDefinitions,
+      builtInCatalog.degraded,
+      builtInCatalog.error,
       builtInCatalog.isAuthoritative,
       builtInCatalog.loading,
+      builtInCatalog.source,
       pulsePreference.presetPanelIds,
       pulsePreference.savedPresets,
       pulsePreference.deletedBuiltInPresetIds,

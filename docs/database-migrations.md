@@ -315,6 +315,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 184.  `sql/migrations/185_add_media_storage_basename_resolver_rpc.sql`
 185.  `sql/migrations/186_add_admin_storage_usage_snapshots.sql`
 186.  `sql/migrations/187_add_app_error_event_telemetry_retention.sql`
+187.  `sql/migrations/188_add_media_storage_usage_helper.sql`
       Rollback files:
 
 
@@ -419,6 +420,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/185_add_media_storage_basename_resolver_rpc_rollback.sql`
     - `sql/migrations/rollback/186_add_admin_storage_usage_snapshots_rollback.sql`
     - `sql/migrations/rollback/187_add_app_error_event_telemetry_retention_rollback.sql`
+    - `sql/migrations/rollback/188_add_media_storage_usage_helper_rollback.sql`
 
 Hosted SQL lint note:
 
@@ -477,8 +479,8 @@ Billing safety note:
 - Migration `156_add_user_preferences_deleted_builtin_presets.sql` adds durable per-user deletion persistence for admin-owned AI Studio built-ins (`user_preferences.expert_edit_deleted_system_preset_ids`, `user_preferences.ai_studio_deleted_builtin_pulse_ids`) so deleted Prompt Presets and Pulses can be restored per account without storing global built-in definitions in user preference payloads.
 - Migration `157_add_generation_projection_error_payload.sql` adds `generation_projection.error_payload` for user-scoped raw provider/client failure detail shown in generated-output detail views.
 - Migration `158_disable_signup_seed_credit_grants.sql` disables hidden-baseline signup credit grants so new users must select a paid Stripe-backed plan before receiving plan credits.
-- Migration `161_harden_hidden_free_billing_offer.sql` forces the hidden `free` billing tier and offers to zero credits, zero storage, zero concurrency, no Stripe price, and non-acquisition status; it also blocks service-role activation of free or zero-price public plan offers.
-- Migration `174_remove_legacy_signup_seed_credit_grants.sql` inserts bounded compensating debits for remaining retired `signup_seed` ledger grants, installs a trigger that rejects future positive `signup_seed` inserts, and reasserts that the hidden `free` tier/offers carry no credits, storage, concurrency, or public acquisition value.
+- Migration `161_harden_hidden_free_billing_offer.sql` forces the legacy baseline-access sentinel and any associated offers to zero credits, zero storage, zero concurrency, no Stripe price, and non-acquisition status; it also blocks service-role activation of baseline access or zero-price public plan offers.
+- Migration `174_remove_legacy_signup_seed_credit_grants.sql` inserts bounded compensating debits for remaining retired `signup_seed` ledger grants, installs a trigger that rejects future positive `signup_seed` inserts, and reasserts that baseline access carries no credits, storage, concurrency, or public acquisition value.
 - Migration `058_add_user_preferences_ai_studio_style_details_overrides.sql` adds durable per-user Styles Library metadata override persistence (`user_preferences.ai_studio_style_details_overrides`) for editing `style`, `title`, `referenceImageName`, and `stylePrompt` values.
 - Migration `059_add_user_preferences_ai_studio_character_quickswap_tip_hidden.sql` added durable per-user Character panel QuickSwap guidance visibility persistence (`user_preferences.ai_studio_character_quickswap_tip_hidden`) before the embedded QuickSwap UX was retired.
 - Migration `138_retire_character_quickswap_tip_preference.sql` removes the now-unused `user_preferences.ai_studio_character_quickswap_tip_hidden` column from the current schema contract.
@@ -538,6 +540,7 @@ Billing safety note:
 - Migration `185_add_media_storage_basename_resolver_rpc.sql` adds service-role-only `resolve_media_storage_object_by_basename(uuid, text)` so legacy preview repair can resolve one caller-scoped `media_library` object by basename through an audited RPC instead of route-local direct `storage.objects` lookup code.
 - Migration `186_add_admin_storage_usage_snapshots.sql` adds service-role-only `admin_storage_usage_snapshots` so `/admin/storage` can compare product-tracked storage/add-on revenue against operator-captured Supabase usage, egress, and observed overage cost snapshots without exposing provider economics to customer roles.
 - Migration `187_add_app_error_event_telemetry_retention.sql` adds service-role-only daily telemetry rollups and schedules raw retention for low/medium `telemetry.*` rows in `app_error_events`, without performing a one-time historical prune during migration apply.
+- Migration `188_add_media_storage_usage_helper.sql` adds service-role-only `resolve_media_storage_usage_bytes(uuid)` so trusted server quota preflights can read aggregate Media Library usage without exposing direct table access to customer roles.
 - Migration `175_enforce_storage_addon_no_stack.sql` updates base plan storage to `0/5/25/75/150 GB`, refreshes recurring storage add-on metadata to `10/50/100/250 GB` self-serve plus `500 GB` manual review, closes old public storage add-on offers until matching Stripe Prices are activated, clamps add-on quota math to one unit, and adds the database guard for one current billable recurring storage add-on per user with quantity exactly one; run `sql/check_billing_storage_addon_no_stack_drift.sql` before applying it.
 - Read-write hosted-Supabase maintenance script `sql/configure_cron_job_run_details_retention_supabase.sql` prunes old `cron.job_run_details` rows, compacts the pruned table, and schedules daily retention; the active-status index is documented as an owner-only follow-up if retention alone does not reduce pg_cron status-update scan I/O enough.
 - Read-only performance diagnostics script `sql/check_media_preview_variant_coverage_and_size.sql` reports source-class counts, variant-hint coverage, and p50/p90 size distributions for Media Library preview-risk triage.

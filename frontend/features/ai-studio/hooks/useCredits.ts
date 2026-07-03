@@ -308,6 +308,7 @@ export const useCredits = ({ enabled = true }: { enabled?: boolean } = {}) => {
     enabled,
   });
   const currentUserId = enabled ? (user?.id ?? null) : null;
+  const canRunAutomaticRefresh = enabled && initialized && currentUserId != null;
   const [balance, setBalance] = useState<BalanceState>(() =>
     createBalanceState(currentUserId, { loading: true })
   );
@@ -408,12 +409,12 @@ export const useCredits = ({ enabled = true }: { enabled?: boolean } = {}) => {
   }, [balance.ownerUserId, currentUserId, enabled, initialized]);
 
   useEffect(() => {
-    if (!enabled) return;
-    refresh();
-  }, [enabled, refresh]);
+    if (!canRunAutomaticRefresh) return;
+    void refresh();
+  }, [canRunAutomaticRefresh, refresh]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!canRunAutomaticRefresh) return;
     const onFocus = () => {
       if (shouldDeferAiStudioBackgroundWork()) return;
       void refresh({ silent: true });
@@ -431,17 +432,17 @@ export const useCredits = ({ enabled = true }: { enabled?: boolean } = {}) => {
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [enabled, refresh]);
+  }, [canRunAutomaticRefresh, refresh]);
 
   useEffect(() => {
-    if (!enabled || !currentUserId) return;
+    if (!canRunAutomaticRefresh) return;
     const intervalId = window.setInterval(() => {
       if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       if (shouldDeferAiStudioBackgroundWork()) return;
       void refresh({ silent: true });
     }, CREDIT_SNAPSHOT_IDLE_REFRESH_INTERVAL_MS);
     return () => window.clearInterval(intervalId);
-  }, [currentUserId, enabled, refresh]);
+  }, [canRunAutomaticRefresh, refresh]);
 
   const exposingCurrentUserBalance = balance.ownerUserId === currentUserId;
 

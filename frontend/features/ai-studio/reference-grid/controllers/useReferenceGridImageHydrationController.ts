@@ -57,6 +57,7 @@ type UseReferenceGridImageHydrationControllerResult = {
 };
 
 const MAX_FAILED_OPTIMIZER_SOURCE_CACHE_SIZE = 256;
+const MAX_FAILED_HYDRATION_URLS_PER_OUTPUT = 8;
 
 export const useReferenceGridImageHydrationController = ({
   decodeBudgetEnabled,
@@ -80,6 +81,7 @@ export const useReferenceGridImageHydrationController = ({
   const hydrationInflightIdSetRef = useRef<Set<string>>(new Set());
   const hydrationUrlByIdRef = useRef<Record<string, string>>({});
   const hydrationFallbackUrlByIdRef = useRef<Record<string, string>>({});
+  const hydrationFailedImageUrlSetByIdRef = useRef<Record<string, Set<string>>>({});
   const hydrationFailedOptimizedUrlByIdRef = useRef<Record<string, string>>({});
   const hydrationBypassCountedOptimizedUrlByIdRef = useRef<Record<string, string>>({});
   const hydrationFailedOptimizerSourceSetRef = useRef<Set<string>>(new Set());
@@ -131,6 +133,31 @@ export const useReferenceGridImageHydrationController = ({
       }
     }
     cache.add(sourceUrl);
+  }, []);
+
+  const rememberFailedHydrationUrl = useCallback((id: string, url: string) => {
+    let failedUrlSet = hydrationFailedImageUrlSetByIdRef.current[id];
+    if (!failedUrlSet) {
+      failedUrlSet = new Set();
+      hydrationFailedImageUrlSetByIdRef.current[id] = failedUrlSet;
+    }
+    if (failedUrlSet.has(url)) return;
+    if (failedUrlSet.size >= MAX_FAILED_HYDRATION_URLS_PER_OUTPUT) {
+      const oldest = failedUrlSet.values().next().value;
+      if (typeof oldest === "string") {
+        failedUrlSet.delete(oldest);
+      }
+    }
+    failedUrlSet.add(url);
+  }, []);
+
+  const forgetFailedHydrationUrl = useCallback((id: string, url: string) => {
+    const failedUrlSet = hydrationFailedImageUrlSetByIdRef.current[id];
+    if (!failedUrlSet?.has(url)) return;
+    failedUrlSet.delete(url);
+    if (failedUrlSet.size === 0) {
+      delete hydrationFailedImageUrlSetByIdRef.current[id];
+    }
   }, []);
 
   const revokeGeneratedHydrationUrl = useCallback((id: string) => {
@@ -384,6 +411,7 @@ export const useReferenceGridImageHydrationController = ({
         processHydrationQueueRef.current();
       };
       image.onload = () => {
+        forgetFailedHydrationUrl(nextId, nextUrl);
         if (hydrationFailedOptimizedUrlByIdRef.current[nextId] === nextUrl) {
           delete hydrationFailedOptimizedUrlByIdRef.current[nextId];
         }
@@ -396,6 +424,7 @@ export const useReferenceGridImageHydrationController = ({
       };
       image.onerror = () => {
         const resolvedFallback = fallbackUrl && fallbackUrl !== nextUrl ? fallbackUrl : null;
+        rememberFailedHydrationUrl(nextId, nextUrl);
         if (isNextOptimizerUrl(nextUrl)) {
           hydrationFailedOptimizedUrlByIdRef.current[nextId] = nextUrl;
           const optimizerSourceUrl = resolveOptimizerSourceUrl(nextUrl);
@@ -424,6 +453,8 @@ export const useReferenceGridImageHydrationController = ({
     imageDecodeBudget,
     maybeCreateLocalAdaptivePreviewUrl,
     recordOptimizerFailoverError,
+    forgetFailedHydrationUrl,
+    rememberFailedHydrationUrl,
     rememberFailedOptimizerSource,
     revokeGeneratedHydrationUrl,
     scheduleHydrationFlush,
@@ -471,7 +502,16 @@ export const useReferenceGridImageHydrationController = ({
       }
       const nextHydrationUrl =
         shouldBypassOptimizedUrl && typeof fallbackUrl === "string" ? fallbackUrl : url;
-      hydrationUrlByIdRef.current[id] = nextHydrationUrl;
+      const failedHydrationUrlSet = hydrationFailedImageUrlSetByIdRef.current[id];
+      const shouldBypassFailedHydrationUrl =
+        failedHydrationUrlSet?.has(nextHydrationUrl) &&
+        typeof fallbackUrl === "string" &&
+        fallbackUrl.length > 0 &&
+        fallbackUrl !== nextHydrationUrl &&
+        !failedHydrationUrlSet.has(fallbackUrl);
+      const resolvedHydrationUrl = shouldBypassFailedHydrationUrl ? fallbackUrl : nextHydrationUrl;
+      if (failedHydrationUrlSet?.has(resolvedHydrationUrl)) return;
+      hydrationUrlByIdRef.current[id] = resolvedHydrationUrl;
       if (
         hydrationFailedOptimizedUrlByIdRef.current[id] &&
         hydrationFailedOptimizedUrlByIdRef.current[id] !== url
@@ -484,13 +524,13 @@ export const useReferenceGridImageHydrationController = ({
       ) {
         delete hydrationBypassCountedOptimizedUrlByIdRef.current[id];
       }
-      if (previousUrl && previousUrl !== nextHydrationUrl) {
+      if (previousUrl && previousUrl !== resolvedHydrationUrl) {
         revokeGeneratedHydrationUrl(id);
       }
       const pendingHydratedEntry = hydrationPendingLoadedRef.current[id];
-      if (pendingHydratedEntry?.sourceUrl === nextHydrationUrl) return;
+      if (pendingHydratedEntry?.sourceUrl === resolvedHydrationUrl) return;
       const hydratedEntry = hydrationHydratedByIdRef.current[id];
-      if (hydratedEntry?.sourceUrl === nextHydrationUrl) return;
+      if (hydratedEntry?.sourceUrl === resolvedHydrationUrl) return;
       if (hydrationInflightIdSetRef.current.has(id)) return;
       const priority = options?.priority ?? "normal";
       if (hydrationQueuedIdSetRef.current.has(id)) {
@@ -565,6 +605,10 @@ export const useReferenceGridImageHydrationController = ({
     Object.keys(hydrationFallbackUrlByIdRef.current).forEach((id) => {
       if (validOutputIdSet.has(id)) return;
       delete hydrationFallbackUrlByIdRef.current[id];
+    });
+    Object.keys(hydrationFailedImageUrlSetByIdRef.current).forEach((id) => {
+      if (validOutputIdSet.has(id)) return;
+      delete hydrationFailedImageUrlSetByIdRef.current[id];
     });
     Object.keys(hydrationFailedOptimizedUrlByIdRef.current).forEach((id) => {
       if (validOutputIdSet.has(id)) return;

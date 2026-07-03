@@ -4,7 +4,6 @@
  * legacy formatting and tool gating semantics.
  */
 import { getModelConfig } from "./pricing";
-import type { PricingStrategyId } from "./pricingTypes";
 import type { ToolId } from "../types";
 
 export type StylePromptModelFamily = "nano_banana" | "seedream" | "generic";
@@ -24,16 +23,6 @@ const STYLE_PROMPT_ENABLED_TOOLS = new Set<ToolId>([
   "edit",
   "video",
   "kling",
-]);
-
-const NANO_BANANA_STRATEGIES = new Set<PricingStrategyId>([
-  "nano-banana-per-image",
-  "nano-banana-2-per-image",
-]);
-
-const SEEDREAM_STRATEGIES = new Set<PricingStrategyId>([
-  "seedream-per-image",
-  "seedream-5-lite-per-image",
 ]);
 
 const resolveNormalizedStylePrompt = (value: string | null | undefined): string => {
@@ -65,17 +54,13 @@ const resolveStylePromptLine = ({
 };
 
 /**
- * Resolves model-family grouping for style prompt adaptation from pricing strategy.
+ * Resolves model-family grouping for style prompt adaptation from model runtime metadata.
  */
 export const resolveStylePromptModelFamily = (
   modelId: string | null | undefined
 ): StylePromptModelFamily => {
   if (!modelId) return "generic";
-  const pricingStrategy = getModelConfig(modelId)?.pricingStrategy;
-  if (!pricingStrategy) return "generic";
-  if (NANO_BANANA_STRATEGIES.has(pricingStrategy)) return "nano_banana";
-  if (SEEDREAM_STRATEGIES.has(pricingStrategy)) return "seedream";
-  return "generic";
+  return getModelConfig(modelId)?.stylePromptFamily ?? "generic";
 };
 
 /**

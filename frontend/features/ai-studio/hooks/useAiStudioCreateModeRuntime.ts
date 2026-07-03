@@ -98,11 +98,6 @@ export const useAiStudioCreateModeRuntime = ({
     clearPulseRuntime();
   }, [clearPulseRuntime]);
 
-  const exitPulseMode = useCallback(() => {
-    setExpertCreateModeState("standard");
-    clearPulseRuntime();
-  }, [clearPulseRuntime]);
-
   const activatePulse = useCallback((presetId: CreatePulsePresetId) => {
     const sessionInstanceId = createPulseSessionInstanceId();
     setExpertCreateModeState("pulse");
@@ -178,7 +173,6 @@ export const useAiStudioCreateModeRuntime = ({
     activatePulse,
     restartPulse,
     deactivatePulse,
-    exitPulseMode,
     handleExpertCreateModeChange,
     handleActiveCreatePulsePresetIdChange,
   };

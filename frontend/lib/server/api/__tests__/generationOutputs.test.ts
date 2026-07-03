@@ -8,6 +8,7 @@ vi.mock("../supabaseAdmin", () => ({
 
 import {
   attachMediaFileToGenerationOutput,
+  markGenerationOutputRowsVisibilitySettled,
   persistGenerationOutputRecords,
 } from "../generationOutputs";
 
@@ -16,6 +17,7 @@ type OutputRow = {
   output_index: number;
   result_url: string;
   media_file_id: string | null;
+  metadata?: Record<string, unknown> | null;
 };
 
 const createAdminClient = ({
@@ -33,7 +35,7 @@ const createAdminClient = ({
     return {
       upsert: vi.fn(() => ({
         select: vi.fn(async (fields: string) => {
-          if (fields !== "id, output_index, result_url, media_file_id") {
+          if (fields !== "id, output_index, result_url, media_file_id, metadata") {
             throw new Error(`Unexpected upsert select fields: ${fields}`);
           }
           return {
@@ -43,7 +45,7 @@ const createAdminClient = ({
         }),
       })),
       select: vi.fn((fields: string) => {
-        if (fields !== "id, output_index, result_url, media_file_id") {
+        if (fields !== "id, output_index, result_url, media_file_id, metadata") {
           throw new Error(`Unexpected reread select fields: ${fields}`);
         }
         const builder = {
@@ -106,6 +108,7 @@ describe("generationOutputs", () => {
         outputIndex: 0,
         resultUrl: "https://provider.example/out-1.png",
         mediaFileId: "media-1",
+        metadata: {},
       },
     ]);
     expect(adminClient.from).toHaveBeenCalledTimes(2);
@@ -140,6 +143,86 @@ describe("generationOutputs", () => {
         outputIndex: 0,
         resultUrl: "https://provider.example/out-1.png",
         mediaFileId: "media-1",
+        metadata: {},
+      },
+    ]);
+  });
+
+  it("marks pending visibility rows settled while preserving metadata", async () => {
+    const updateMock = vi.fn(() => ({
+      eq: vi.fn().mockReturnThis(),
+    }));
+    const adminClient = {
+      from: vi.fn((table: string) => {
+        if (table !== "ai_generation_outputs") {
+          throw new Error(`Unexpected table: ${table}`);
+        }
+        return {
+          update: updateMock,
+          select: vi.fn(() => {
+            const builder = {
+              eq: vi.fn(),
+              order: vi.fn(),
+              limit: vi.fn(async () => ({
+                data: [
+                  {
+                    id: "output-1",
+                    output_index: 0,
+                    result_url: "https://provider.example/out-1.png",
+                    media_file_id: "media-1",
+                    metadata: {
+                      recovery_visibility_state: "settled",
+                      keep_me: true,
+                    },
+                  },
+                ],
+                error: null,
+              })),
+            };
+            builder.eq.mockReturnValue(builder);
+            builder.order.mockReturnValue(builder);
+            return builder;
+          }),
+        };
+      }),
+    };
+
+    const result = await markGenerationOutputRowsVisibilitySettled({
+      generationId: "gen-1",
+      userId: "user-1",
+      visibilityMetadataKey: "recovery_visibility_state",
+      outputRows: [
+        {
+          id: "output-1",
+          outputIndex: 0,
+          resultUrl: "https://provider.example/out-1.png",
+          mediaFileId: "media-1",
+          metadata: {
+            recovery_visibility_state: "settlement_pending",
+            keep_me: true,
+          },
+        },
+      ],
+      supabaseAdmin: adminClient as never,
+    });
+
+    expect(updateMock).toHaveBeenCalledWith({
+      metadata: {
+        recovery_visibility_state: "settled",
+        keep_me: true,
+      },
+      updated_at: expect.any(String),
+    });
+    expect(result).toEqual([
+      {
+        id: "output-1",
+        outputIndex: 0,
+        resultUrl: "https://provider.example/out-1.png",
+        mediaFileId: "media-1",
+        metadata: {
+          recovery_visibility_state: "settled",
+          keep_me: true,
+        },
       },
     ]);
   });

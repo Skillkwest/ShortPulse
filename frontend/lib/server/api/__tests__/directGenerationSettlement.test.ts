@@ -267,6 +267,9 @@ describe("directGenerationSettlement", () => {
         providerRequestId: "req-1",
         resultUrls: ["https://provider.example/out-1.png", "https://provider.example/out-2.png"],
         mediaFileIds: [],
+        metadata: expect.objectContaining({
+          direct_terminal_visibility_state: "settlement_pending",
+        }),
       })
     );
     expect(persistGenerationOutputRecordsMock).toHaveBeenNthCalledWith(
@@ -278,6 +281,23 @@ describe("directGenerationSettlement", () => {
         providerRequestId: "req-1",
         resultUrls: ["https://provider.example/out-1.png", "https://provider.example/out-2.png"],
         mediaFileIds: ["media-1", "media-2"],
+        metadata: expect.objectContaining({
+          direct_terminal_visibility_state: "settlement_pending",
+        }),
+      })
+    );
+    expect(persistGenerationOutputRecordsMock).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({
+        generationId: "gen-1",
+        userId: "user-1",
+        generationAttemptId: "attempt-1",
+        providerRequestId: "req-1",
+        resultUrls: ["https://provider.example/out-1.png", "https://provider.example/out-2.png"],
+        mediaFileIds: ["media-1", "media-2"],
+        metadata: expect.objectContaining({
+          direct_terminal_visibility_state: "settled",
+        }),
       })
     );
     expect(upsertGenerationPublicationMock).toHaveBeenNthCalledWith(
@@ -324,15 +344,18 @@ describe("directGenerationSettlement", () => {
       persistRecoveryMediaFilesForGenerationMock.mock.invocationCallOrder[0]
     );
     expect(persistGenerationOutputRecordsMock.mock.invocationCallOrder[1]).toBeLessThan(
-      applyGenerationLifecycleTransitionMock.mock.invocationCallOrder[0]
-    );
-    expect(applyGenerationLifecycleTransitionMock.mock.invocationCallOrder[0]).toBeLessThan(
       settleGenerationOutcomeMock.mock.invocationCallOrder[0]
     );
     expect(settleGenerationOutcomeMock.mock.invocationCallOrder[0]).toBeLessThan(
+      applyGenerationLifecycleTransitionMock.mock.invocationCallOrder[0]
+    );
+    expect(applyGenerationLifecycleTransitionMock.mock.invocationCallOrder[0]).toBeLessThan(
+      persistGenerationOutputRecordsMock.mock.invocationCallOrder[2]
+    );
+    expect(persistGenerationOutputRecordsMock.mock.invocationCallOrder[2]).toBeLessThan(
       upsertGenerationPublicationMock.mock.invocationCallOrder[0]
     );
-    expect(settleGenerationOutcomeMock.mock.invocationCallOrder[0]).toBeLessThan(
+    expect(persistGenerationOutputRecordsMock.mock.invocationCallOrder[2]).toBeLessThan(
       upsertGenerationProjectionMock.mock.invocationCallOrder[0]
     );
   });
@@ -698,7 +721,7 @@ describe("directGenerationSettlement", () => {
     persistRecoveryMediaFilesForGenerationMock.mockRejectedValueOnce(
       new Error("Fetch failed (403)")
     );
-    persistGenerationOutputRecordsMock.mockResolvedValueOnce([
+    persistGenerationOutputRecordsMock.mockResolvedValue([
       {
         id: "output-1",
         resultUrl: "https://provider.example/out-1.png",
@@ -720,11 +743,25 @@ describe("directGenerationSettlement", () => {
       generationId: "gen-1",
       requestId: "req-1",
     });
-    expect(persistGenerationOutputRecordsMock).toHaveBeenCalledTimes(1);
-    expect(persistGenerationOutputRecordsMock).toHaveBeenCalledWith(
+    expect(persistGenerationOutputRecordsMock).toHaveBeenCalledTimes(2);
+    expect(persistGenerationOutputRecordsMock).toHaveBeenNthCalledWith(
+      1,
       expect.objectContaining({
         resultUrls: ["https://provider.example/out-1.png"],
         mediaFileIds: [],
+        metadata: expect.objectContaining({
+          direct_terminal_visibility_state: "settlement_pending",
+        }),
+      })
+    );
+    expect(persistGenerationOutputRecordsMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        resultUrls: ["https://provider.example/out-1.png"],
+        mediaFileIds: [],
+        metadata: expect.objectContaining({
+          direct_terminal_visibility_state: "settled",
+        }),
       })
     );
     expect(writeAppErrorLogMock).toHaveBeenCalledWith(
@@ -773,7 +810,7 @@ describe("directGenerationSettlement", () => {
         "Media storage limit exceeded (used_bytes=1073741824 incoming_bytes=16 limit_bytes=1073741824)"
       )
     );
-    persistGenerationOutputRecordsMock.mockResolvedValueOnce([
+    persistGenerationOutputRecordsMock.mockResolvedValue([
       {
         id: "output-1",
         resultUrl: "https://provider.example/out-1.png",
@@ -914,7 +951,7 @@ describe("directGenerationSettlement", () => {
       error: null,
     });
     persistRecoveryMediaFilesForGenerationMock.mockReset();
-    persistGenerationOutputRecordsMock.mockResolvedValueOnce([
+    persistGenerationOutputRecordsMock.mockResolvedValue([
       {
         id: "output-1",
         resultUrl: "https://provider.example/out-1.png",
@@ -1008,6 +1045,18 @@ describe("directGenerationSettlement", () => {
       ok: false,
       error: "Generation billing settlement did not complete: reservation_capture_failed",
     });
+    expect(applyGenerationLifecycleTransitionMock).not.toHaveBeenCalled();
+    expect(releaseMotionReferenceVideoLeasesForGenerationMock).not.toHaveBeenCalled();
+    expect(upsertGenerationPublicationMock).not.toHaveBeenCalled();
+    expect(upsertGenerationProjectionMock).not.toHaveBeenCalled();
+    expect(persistGenerationOutputRecordsMock).toHaveBeenCalledTimes(2);
+    expect(persistGenerationOutputRecordsMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          direct_terminal_visibility_state: "settlement_pending",
+        }),
+      })
+    );
   });
 
   it("keeps direct terminal success settled when projection persistence fails", async () => {
@@ -1149,6 +1198,30 @@ describe("directGenerationSettlement", () => {
         abandonedNoRefund: true,
       })
     );
+  });
+
+  it("does not mark direct terminal failure until billing release settles", async () => {
+    settleGenerationOutcomeMock.mockResolvedValueOnce({
+      settled: false,
+      note: "reservation_release_failed",
+    });
+
+    const result = await settleDirectGenerationFailure({
+      generationId: "gen-1",
+      requestId: "req-1",
+      userId: "user-1",
+      routeLabel: "test/direct-failure-unsettled",
+      providerState: "FAILED",
+      errorMessage: "Provider rejected request",
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: "Generation billing settlement did not complete: reservation_release_failed",
+    });
+    expect(applyGenerationLifecycleTransitionMock).not.toHaveBeenCalled();
+    expect(releaseMotionReferenceVideoLeasesForGenerationMock).not.toHaveBeenCalled();
+    expect(upsertGenerationProjectionMock).not.toHaveBeenCalled();
   });
 
   it("keeps direct terminal failures settled when projection persistence fails", async () => {

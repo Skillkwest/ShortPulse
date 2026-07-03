@@ -63,7 +63,8 @@ Purpose: keep subscription, storage add-on, and credit-pack pricing easy to chan
 Public entry-plan note:
 
 - `Starter` is the public first paid plan.
-- The legacy `free` database id is a non-public baseline fallback row, not a customer-facing plan, and carries `0` active generation slots.
+- Signed-in, pre-subscription users have baseline access to AI Studio. Baseline access is not a free plan, trial, subscription, or paid entitlement.
+- The legacy `free` database id is a non-public baseline-access sentinel, not a customer-facing plan, and carries `0` active generation slots.
 
 ### Subscription plans
 

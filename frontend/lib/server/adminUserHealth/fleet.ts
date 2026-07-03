@@ -49,6 +49,7 @@ type GenerationRow = {
   recovery_state: string | null;
   request_id: string | null;
   created_at: string | null;
+  source_ref?: string | null;
   metadata?: Record<string, unknown> | null;
 };
 
@@ -115,6 +116,8 @@ const lineageKey = (userId: string, value: string | null | undefined): string | 
 };
 
 const readGenerationSourceRef = (row: GenerationRow): string | null => {
+  const sourceRef = asTrimmedString(row.source_ref);
+  if (sourceRef) return sourceRef;
   const metadata = asRecord(row.metadata);
   return asTrimmedString(metadata.source_ref);
 };
@@ -261,13 +264,17 @@ const loadChunkMetrics = async ({
         .order("created_at", { ascending: false }),
       supabaseAdmin
         .from("ai_generations")
-        .select("user_id,status,recovery_state,request_id,created_at,metadata")
+        .select(
+          "user_id,status,recovery_state,request_id,created_at,source_ref:metadata->>source_ref"
+        )
         .in("user_id", userIds)
         .gte("created_at", lookbackStartIso)
         .order("created_at", { ascending: false }),
       supabaseAdmin
         .from("ai_generations")
-        .select("user_id,status,recovery_state,request_id,created_at,metadata")
+        .select(
+          "user_id,status,recovery_state,request_id,created_at,source_ref:metadata->>source_ref"
+        )
         .in("user_id", userIds)
         .in("status", ["pending", "submitted", "running", "fail"])
         .in("recovery_state", ["queued", "recovering"])

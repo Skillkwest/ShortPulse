@@ -1,4 +1,4 @@
-/* global require, process, console, HTMLElement, MouseEvent, document */
+/* global require, process, console, document */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Character Manager save/reopen audit runner.
@@ -121,14 +121,17 @@ async function findSavedCharacterCard(page, characterName) {
   return page.locator(".ai-character-picker-card--character").filter({ hasText: characterName });
 }
 
-async function clickDom(locator) {
-  await locator.evaluate((element) => {
-    if (element instanceof HTMLElement) {
-      element.click();
-      return;
-    }
-    element.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
-  });
+async function clickCharacterCardDeleteButton(card, accessibleName) {
+  const targetCard = card.first();
+  await targetCard.scrollIntoViewIfNeeded();
+  await targetCard.hover();
+  await targetCard.getByLabel(accessibleName, { exact: true }).click({ timeout: 10_000 });
+}
+
+async function confirmCharacterDelete(page) {
+  const confirmationDialog = page.getByRole("dialog", { name: /^Delete this character\?$/ });
+  await confirmationDialog.waitFor({ timeout: 10_000 });
+  await confirmationDialog.getByRole("button", { name: /^Delete$/ }).click({ timeout: 10_000 });
 }
 
 async function waitForCharacterAbsent(page, characterName) {
@@ -149,8 +152,8 @@ async function deleteAuditCharacter(page, characterName) {
     return false;
   }
 
-  await clickDom(card.first().getByLabel(`Delete ${characterName}`));
-  await clickDom(page.getByRole("button", { name: /^Delete$/ }));
+  await clickCharacterCardDeleteButton(card, `Delete ${characterName}`);
+  await confirmCharacterDelete(page);
   await waitForCharacterAbsent(page, characterName);
   return true;
 }
@@ -168,8 +171,8 @@ async function cleanupPriorAuditCharacters(page) {
     const characterName =
       (await auditCard.locator(".ai-character-list-name").textContent())?.trim() ??
       AUDIT_CHARACTER_PREFIX;
-    await clickDom(auditCard.locator(".ai-character-picker-card-delete-btn"));
-    await clickDom(page.getByRole("button", { name: /^Delete$/ }));
+    await clickCharacterCardDeleteButton(auditCard, `Delete ${characterName}`);
+    await confirmCharacterDelete(page);
     await waitForCharacterAbsent(page, characterName);
   }
   await closeCharacterLibrary(page);
@@ -213,9 +216,7 @@ async function runAudit(page) {
         appearedBeforeReload: true,
         appearedAfterReload: true,
         cleanupDeleted: true,
-        cleanupMethod: "dom-click",
-        cleanupPointerClickFinding:
-          "Character Library delete confirmation is visible but normal Playwright pointer clicks are intercepted by the library card layer.",
+        cleanupMethod: "pointer-click",
       },
       null,
       2

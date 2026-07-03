@@ -22,7 +22,7 @@ export function AgentGenerateButton({ onClick, disabled = false, cost }: AgentGe
       className="agent-generate-prefab"
       onClick={onClick}
       disabled={isDisabled}
-      aria-label={normalizedCost == null ? "Generate: cost estimate pending" : "Generate"}
+      aria-label="Generate"
       title={normalizedCost == null ? "Cost estimate pending" : undefined}
     >
       <span className="agent-generate-label">Generate</span>

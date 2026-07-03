@@ -93,7 +93,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .json({ error: "planId must contain only lowercase letters, numbers, and underscores." });
   }
   if (planId === "free") {
-    return res.status(400).json({ error: "The hidden free tier is system-owned." });
+    return res.status(400).json({ error: "Baseline access is system-owned." });
   }
   if (!displayName) {
     return res.status(400).json({ error: "displayName is required." });

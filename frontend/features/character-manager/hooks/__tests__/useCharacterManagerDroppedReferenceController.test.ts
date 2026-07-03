@@ -324,6 +324,39 @@ describe("useCharacterManagerDroppedReferenceController", () => {
     expect(vi.mocked(reportAppError)).not.toHaveBeenCalled();
   });
 
+  it("shows a user-visible error when an internal character drop resolver fails", async () => {
+    const setCharacterSheetPresetFile = vi.fn().mockResolvedValue(true);
+    const setDropErrorMessage = vi.fn();
+    const resolveCharacterDropReference = vi.fn().mockRejectedValue(new Error("resolver failed"));
+
+    const { result } = renderHook(() =>
+      useCharacterManagerDroppedReferenceController({
+        setCharacterSheetPresetFile,
+        setDropErrorMessage,
+        resolveCharacterDropReference,
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleCharacterSheetInternalReferenceDrop("close_up", {
+        version: 1,
+        origin: "ai-studio-reference-grid",
+        referenceId: "out-canvas-1",
+        outputId: "out-canvas-1",
+        imageIndex: 0,
+        mediaId: "media-canvas-1",
+        mediaKind: "image",
+        referenceUrl: "https://cdn.example.com/canvas-preview.png",
+        sourceSurface: "all-refs",
+      });
+    });
+
+    expect(setCharacterSheetPresetFile).not.toHaveBeenCalled();
+    expect(setDropErrorMessage).toHaveBeenCalledWith(
+      "We couldn't add that Character reference. Try dragging it again from the source."
+    );
+  });
+
   it("prefers degraded internal reference hints over synthetic browser files", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue({
       ok: true,
@@ -363,6 +396,7 @@ describe("useCharacterManagerDroppedReferenceController", () => {
 
   it("fails closed for degraded internal drags instead of uploading synthetic files", async () => {
     const setCharacterSheetPresetFile = vi.fn().mockResolvedValue(true);
+    const setDropErrorMessage = vi.fn();
     const syntheticFile = new File(["ghost"], "ghost.txt", { type: "text/plain" });
     const data = new Map<string, string>([["text/reference-origin", "ai-studio-reference-grid"]]);
     const transfer = {
@@ -375,6 +409,7 @@ describe("useCharacterManagerDroppedReferenceController", () => {
     const { result } = renderHook(() =>
       useCharacterManagerDroppedReferenceController({
         setCharacterSheetPresetFile,
+        setDropErrorMessage,
       })
     );
 
@@ -383,6 +418,9 @@ describe("useCharacterManagerDroppedReferenceController", () => {
     });
 
     expect(setCharacterSheetPresetFile).not.toHaveBeenCalled();
+    expect(setDropErrorMessage).toHaveBeenCalledWith(
+      "We couldn't add that Character reference. Try dragging it again from the source."
+    );
     expect(vi.mocked(reportAppError)).toHaveBeenCalledWith(
       expect.objectContaining({
         message: "character_sheet_drop_reference_blocked_by_trust_policy",

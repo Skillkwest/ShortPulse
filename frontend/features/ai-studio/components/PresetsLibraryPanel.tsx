@@ -4,7 +4,7 @@
  */
 import React from "react";
 import Image from "next/image";
-import { TrashSimple } from "phosphor-react";
+import { CopySimple, TrashSimple } from "phosphor-react";
 import {
   EDIT_PRESET_CUSTOM_PRESET_IDS,
   createDeletedPresetOverride,
@@ -20,6 +20,7 @@ import { AppMessage } from "../../../components/AppMessage";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
+import { PresetLibraryDetailModal } from "./PresetLibraryDetailModal";
 
 export type PresetsLibraryPanelProps = {
   presets: readonly ExpertEditResolvedPreset[];
@@ -47,6 +48,13 @@ type PendingPresetDeleteState = {
   presetId: ExpertEditPresetId;
   presetLabel: string;
   isBuiltIn: boolean;
+};
+
+const buildDuplicatePresetLabel = (label: string) => {
+  const baseLabel = label.trim() || "Preset";
+  const suffix = " Copy";
+  if (baseLabel.length + suffix.length <= 60) return `${baseLabel}${suffix}`;
+  return `${baseLabel.slice(0, 60 - suffix.length).trimEnd()}${suffix}`;
 };
 
 export function PresetsLibraryPanel({
@@ -91,6 +99,8 @@ export function PresetsLibraryPanel({
   );
   const [pendingPresetDelete, setPendingPresetDelete] =
     React.useState<PendingPresetDeleteState | null>(null);
+  const [pendingPresetDetail, setPendingPresetDetail] =
+    React.useState<ExpertEditResolvedPreset | null>(null);
   const [editSubmitting, setEditSubmitting] = React.useState(false);
   const [deleteSubmitting, setDeleteSubmitting] = React.useState(false);
   const [localSaveError, setLocalSaveError] = React.useState<string | null>(null);
@@ -106,6 +116,9 @@ export function PresetsLibraryPanel({
     setPendingPresetDelete(null);
     setLocalSaveError(null);
   }, [deleteSubmitting]);
+  const closeDetailModal = React.useCallback(() => {
+    setPendingPresetDetail(null);
+  }, []);
 
   React.useEffect(() => {
     if (!openPresetEditRequest) return;
@@ -119,6 +132,7 @@ export function PresetsLibraryPanel({
     onSelectPreset?.(requestedPreset.presetId);
     setLocalSaveError(null);
     setPendingPresetDelete(null);
+    setPendingPresetDetail(null);
     if (!requestedPreset.isCustom) return;
     setPendingPresetEdit({
       presetId: requestedPreset.presetId,
@@ -128,6 +142,25 @@ export function PresetsLibraryPanel({
       mode: "edit",
     });
   }, [onOpenPresetEditRequestConsumed, onSelectPreset, openPresetEditRequest, presets]);
+
+  const handleDuplicatePreset = React.useCallback(
+    (preset: ExpertEditResolvedPreset) => {
+      if (!nextCreatableCustomPresetId) return;
+      const defaultLabel = resolveExpertEditPresetLabelById(nextCreatableCustomPresetId);
+      onSelectPreset?.(nextCreatableCustomPresetId);
+      setLocalSaveError(null);
+      setPendingPresetDelete(null);
+      setPendingPresetDetail(null);
+      setPendingPresetEdit({
+        presetId: nextCreatableCustomPresetId,
+        presetLabel: defaultLabel,
+        label: buildDuplicatePresetLabel(preset.label),
+        prompt: preset.prompt,
+        mode: "create",
+      });
+    },
+    [nextCreatableCustomPresetId, onSelectPreset]
+  );
 
   const handleSavePreset = React.useCallback(async () => {
     if (!pendingPresetEdit || editSubmitting) return;
@@ -180,6 +213,9 @@ export function PresetsLibraryPanel({
       if (selectedPresetId === pendingPresetDelete.presetId) {
         onSelectPreset?.(null);
       }
+      setPendingPresetDetail((previous) =>
+        previous?.presetId === pendingPresetDelete.presetId ? null : previous
+      );
       setPendingPresetDelete(null);
     } catch {
       setLocalSaveError("Unable to delete this preset right now.");
@@ -244,12 +280,18 @@ export function PresetsLibraryPanel({
                   aria-label={
                     preset.isCustom
                       ? `Edit preset tile: ${preset.label}`
-                      : `Select preset tile: ${preset.label}`
+                      : `Inspect preset tile: ${preset.label}`
                   }
                   onClick={() => {
                     onSelectPreset?.(preset.presetId);
                     setLocalSaveError(null);
-                    if (!preset.isCustom) return;
+                    setPendingPresetDelete(null);
+                    if (!preset.isCustom) {
+                      setPendingPresetEdit(null);
+                      setPendingPresetDetail(preset);
+                      return;
+                    }
+                    setPendingPresetDetail(null);
                     setPendingPresetEdit({
                       presetId: preset.presetId,
                       presetLabel: preset.label,
@@ -425,6 +467,41 @@ export function PresetsLibraryPanel({
             </div>
           </div>
         </AiStudioModalLayer>
+      ) : null}
+      {pendingPresetDetail ? (
+        <PresetLibraryDetailModal
+          eyebrow="Prompt Preset"
+          title={pendingPresetDetail.label}
+          description={
+            pendingPresetDetail.isCustom
+              ? "Custom preset details."
+              : "Built-in preset details. Inspecting here does not apply this preset."
+          }
+          fields={[
+            {
+              label: "Type",
+              value: pendingPresetDetail.isCustom ? "Custom" : "Built-in",
+            },
+            {
+              label: "Prompt",
+              value: pendingPresetDetail.prompt,
+              preserveWhitespace: true,
+            },
+          ]}
+          actions={
+            nextCreatableCustomPresetId ? (
+              <button
+                type="button"
+                className="primary-btn preset-library-detail-action-btn"
+                onClick={() => handleDuplicatePreset(pendingPresetDetail)}
+              >
+                <CopySimple size={15} weight="bold" aria-hidden="true" />
+                <span>Duplicate to custom</span>
+              </button>
+            ) : null
+          }
+          onClose={closeDetailModal}
+        />
       ) : null}
       {pendingPresetDelete ? (
         <AiStudioModalLayer>

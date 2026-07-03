@@ -25,6 +25,12 @@ describe("stylePromptAdapter", () => {
     expect(resolveStylePromptModelFamily(null)).toBe("generic");
   });
 
+  it("keeps models without explicit style prompt family metadata on generic phrasing", () => {
+    expect(resolveStylePromptModelFamily("kie-ai/gpt-image-2-text-to-image")).toBe("generic");
+    expect(resolveStylePromptModelFamily("kie-ai/gpt-image-2-image-to-image")).toBe("generic");
+    expect(resolveStylePromptModelFamily("kie-ai/seedance-2")).toBe("generic");
+  });
+
   it("appends family-adapted line for Nano Banana models", () => {
     const compiled = appendStylePromptToSubmission({
       tool: "edit",

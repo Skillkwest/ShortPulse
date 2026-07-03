@@ -55,6 +55,7 @@ type FetchMediaListPageArgs = {
   mediaKind?: MediaListMediaKind | null;
   includeLibraryTotalCount?: boolean;
   countOnly?: boolean;
+  signal?: AbortSignal;
   fetcher?: typeof fetchWithAuth;
 };
 
@@ -176,6 +177,7 @@ export const fetchMediaListPage = async <TRow>({
   mediaKind,
   includeLibraryTotalCount,
   countOnly,
+  signal,
   fetcher = fetchWithAuth,
 }: FetchMediaListPageArgs): Promise<FetchMediaListPageResult<TRow>> => {
   try {
@@ -196,6 +198,7 @@ export const fetchMediaListPage = async <TRow>({
         includeLibraryTotalCount: includeLibraryTotalCount === true,
         countOnly: countOnly === true,
       }),
+      signal,
       shortpulseLogScope: "app",
       shortpulseRetryNetworkOnce: true,
     });

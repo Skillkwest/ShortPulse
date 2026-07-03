@@ -18,7 +18,12 @@ export type PersistedGenerationOutputRow = {
   outputIndex: number;
   resultUrl: string;
   mediaFileId: string | null;
+  metadata: JsonObject;
 };
+
+export type GenerationOutputVisibilityMetadataKey =
+  | "direct_terminal_visibility_state"
+  | "recovery_visibility_state";
 
 const hasExpectedMediaFileAttachments = ({
   persistedRows,
@@ -59,6 +64,7 @@ const normalizePersistedGenerationOutputRows = (data: unknown): PersistedGenerat
         outputIndex,
         resultUrl,
         mediaFileId: asString(record.media_file_id),
+        metadata: asObject(record.metadata),
       };
     })
     .filter((row): row is PersistedGenerationOutputRow => Boolean(row));
@@ -131,7 +137,7 @@ export const persistGenerationOutputRecords = async ({
   const { data, error } = await adminClient
     .from("ai_generation_outputs")
     .upsert(rows, { onConflict: "generation_id,output_index" })
-    .select("id, output_index, result_url, media_file_id");
+    .select("id, output_index, result_url, media_file_id, metadata");
   if (error) {
     throw error;
   }
@@ -170,7 +176,7 @@ export const readPersistedGenerationOutputs = async ({
 
   const { data, error } = await adminClient
     .from("ai_generation_outputs")
-    .select("id, output_index, result_url, media_file_id")
+    .select("id, output_index, result_url, media_file_id, metadata")
     .eq("generation_id", generationId)
     .eq("user_id", userId)
     .order("output_index", { ascending: true })
@@ -178,6 +184,65 @@ export const readPersistedGenerationOutputs = async ({
   if (error || !Array.isArray(data)) return [];
 
   return normalizePersistedGenerationOutputRows(data);
+};
+
+export const markGenerationOutputRowsVisibilitySettled = async ({
+  generationId,
+  userId,
+  outputRows,
+  visibilityMetadataKey,
+  supabaseAdmin,
+}: {
+  generationId: string;
+  userId: string;
+  outputRows: PersistedGenerationOutputRow[];
+  visibilityMetadataKey: GenerationOutputVisibilityMetadataKey;
+  supabaseAdmin?: ReturnType<typeof getSupabaseAdmin>;
+}): Promise<PersistedGenerationOutputRow[]> => {
+  const pendingRows = outputRows.filter(
+    (row) => asObject(row.metadata)[visibilityMetadataKey] === "settlement_pending"
+  );
+  if (!pendingRows.length) {
+    return outputRows;
+  }
+
+  const adminClient = supabaseAdmin ?? getSupabaseAdmin();
+  const nowIso = new Date().toISOString();
+  for (const row of pendingRows) {
+    const metadata = {
+      ...asObject(row.metadata),
+      [visibilityMetadataKey]: "settled",
+    };
+    if (row.id) {
+      const { error } = await adminClient
+        .from("ai_generation_outputs")
+        .update({
+          metadata,
+          updated_at: nowIso,
+        })
+        .eq("id", row.id)
+        .eq("user_id", userId);
+      if (error) throw error;
+      continue;
+    }
+
+    const { error } = await adminClient
+      .from("ai_generation_outputs")
+      .update({
+        metadata,
+        updated_at: nowIso,
+      })
+      .eq("generation_id", generationId)
+      .eq("user_id", userId)
+      .eq("output_index", row.outputIndex);
+    if (error) throw error;
+  }
+
+  return readPersistedGenerationOutputs({
+    generationId,
+    userId,
+    supabaseAdmin: adminClient,
+  });
 };
 
 export const attachMediaFileToGenerationOutput = async ({

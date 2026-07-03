@@ -9,6 +9,8 @@ import {
   isAuthRequiredError,
   isAuthSessionTimeoutError,
 } from "../authenticatedFetch";
+import { reportAppError } from "../appErrorReporter";
+import { addBreadcrumb } from "../clientBreadcrumbs";
 import { readSupabaseAccessToken } from "../supabaseClient";
 
 vi.mock("../supabaseClient", () => ({
@@ -25,6 +27,8 @@ vi.mock("../clientBreadcrumbs", () => ({
 }));
 
 const readSupabaseAccessTokenMock = vi.mocked(readSupabaseAccessToken);
+const reportAppErrorMock = vi.mocked(reportAppError);
+const addBreadcrumbMock = vi.mocked(addBreadcrumb);
 
 describe("fetchWithAuth auth-session timeout", () => {
   beforeEach(() => {
@@ -178,6 +182,32 @@ describe("fetchWithAuth auth-session timeout", () => {
       expect(response.status).toBe(401);
       expect(readSupabaseAccessTokenMock).toHaveBeenCalledTimes(1);
       expect(fetchSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("does not retry or report caller-aborted requests as network errors", async () => {
+    readSupabaseAccessTokenMock.mockResolvedValueOnce("token-123");
+    const abortError = new DOMException("Aborted", "AbortError");
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValueOnce(abortError);
+
+    try {
+      await expect(
+        fetchWithAuth("/api/media/list", {
+          method: "POST",
+          shortpulseRetryNetworkOnce: true,
+        })
+      ).rejects.toBe(abortError);
+
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(reportAppErrorMock).not.toHaveBeenCalled();
+      expect(addBreadcrumbMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          level: "info",
+          message: "fetch_aborted",
+        })
+      );
     } finally {
       fetchSpy.mockRestore();
     }

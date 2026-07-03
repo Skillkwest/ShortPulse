@@ -43,24 +43,32 @@ type TableResults = {
   offer?: QueryResult<OfferRow>;
 };
 
+type MaybeSingleQuery = {
+  select: ReturnType<typeof vi.fn>;
+  eq: ReturnType<typeof vi.fn>;
+  is: ReturnType<typeof vi.fn>;
+  order: ReturnType<typeof vi.fn>;
+  limit: ReturnType<typeof vi.fn>;
+  maybeSingle: ReturnType<typeof vi.fn>;
+};
+
 const ok = <T>(data: T | null): QueryResult<T> => ({ data, error: null });
 
 const failed = <T>(error: SupabaseError): QueryResult<T> => ({ data: null, error });
 
-const createMaybeSingleQuery = <T>(result: QueryResult<T>) => {
-  const query = {
-    select: vi.fn(() => query),
-    eq: vi.fn(() => query),
-    is: vi.fn(() => query),
-    order: vi.fn(() => query),
-    limit: vi.fn(() => query),
-    maybeSingle: vi.fn(async () => result),
-  };
+const createMaybeSingleQuery = <T>(result: QueryResult<T>): MaybeSingleQuery => {
+  const query = {} as MaybeSingleQuery;
+  query.select = vi.fn(() => query);
+  query.eq = vi.fn(() => query);
+  query.is = vi.fn(() => query);
+  query.order = vi.fn(() => query);
+  query.limit = vi.fn(() => query);
+  query.maybeSingle = vi.fn(async () => result);
   return query;
 };
 
 const createSupabaseMock = (results: TableResults) => {
-  const queries: Record<string, ReturnType<typeof createMaybeSingleQuery>> = {};
+  const queries: Record<string, MaybeSingleQuery> = {};
   const from = vi.fn((table: string) => {
     const result =
       table === "billing_subscription_contracts"
@@ -115,7 +123,7 @@ describe("resolveBillingConcurrencyEntitlement", () => {
 
   it("falls back to the active monthly offer for users without an open contract", async () => {
     const supabase = createSupabaseMock({
-      contract: ok(null),
+      contract: ok<ContractRow>(null),
       profile: ok({ plan_id: "media" }),
       offer: ok({
         id: "media__current",

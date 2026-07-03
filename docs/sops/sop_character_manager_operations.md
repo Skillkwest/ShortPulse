@@ -12,7 +12,7 @@ Define the operational contract for the AI Studio-owned Character surfaces, incl
 
 ## Current Product Contract
 
-1. Users can upload reference images by drag/drop or file picker in the Drop References card.
+1. Users can upload reference images by drag/drop or file picker into the active Character Sheet reference zones. Direct zone picker/drop assigns one image to the targeted zone; external Character authoring upload requests may distribute multiple incoming files across open zones.
 2. Character Sheet drop zones are persisted per character with dynamic preset tabs (`1`..`10`):
    - `Create New Character` opens a local unsaved Character Profile draft only.
    - The character is first created in Supabase and added to the library when the user presses `Save Character`.
@@ -176,8 +176,9 @@ Use this when Character Sheet data looks inconsistent across environments or aft
 
 ## QA Checklist (Before Ship)
 
-- Upload from file picker works and persists after refresh.
-- Multi-file drag/drop upload works and appends all valid references.
+- Direct zone file picker upload works and persists after refresh.
+- Direct zone drag/drop assigns one valid image to the targeted reference zone.
+- External Character authoring upload requests distribute multiple valid files across open reference zones and acknowledge handled failures.
 - Non-image files are rejected with clear message.
 - Oversize images are rejected with clear message.
 - Dragging a reference into a Character Sheet zone assigns it.

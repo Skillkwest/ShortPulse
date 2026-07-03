@@ -84,7 +84,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   if (planId === "free") {
     return res.status(400).json({
-      error: "The hidden free tier cannot be activated as a billing offer.",
+      error: "Baseline access cannot be activated as a billing offer.",
     });
   }
   if (!offerName) {

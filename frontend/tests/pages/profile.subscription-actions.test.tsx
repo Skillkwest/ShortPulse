@@ -11,6 +11,7 @@ const useCreditsMock = vi.hoisted(() => vi.fn());
 const useMediaAutosavePreferenceMock = vi.hoisted(() => vi.fn());
 const useMediaStorageQuotaSummaryMock = vi.hoisted(() => vi.fn());
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
+const fetchBillingAccountSummaryMock = vi.hoisted(() => vi.fn());
 
 const routerState = vi.hoisted(() => ({
   query: { section: "subscription" } as Record<string, string>,
@@ -162,6 +163,10 @@ vi.mock("../../features/billing/useMediaStorageQuotaSummary", () => ({
   useMediaStorageQuotaSummary: (...args: unknown[]) => useMediaStorageQuotaSummaryMock(...args),
 }));
 
+vi.mock("../../features/billing/accountSummary", () => ({
+  fetchBillingAccountSummary: (...args: unknown[]) => fetchBillingAccountSummaryMock(...args),
+}));
+
 vi.mock("../../lib/authenticatedFetch", () => ({
   fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
 }));
@@ -260,6 +265,24 @@ describe("Profile subscription actions", () => {
       started_at: "2026-03-01T00:00:00.000Z",
       ended_at: null,
     };
+    fetchBillingAccountSummaryMock.mockReset();
+    fetchBillingAccountSummaryMock.mockImplementation(async () => ({
+      userId: "user-1",
+      resolvedPlan: {
+        id: billingContractState.value?.plan_id ?? billingProfileState.plan_id ?? "free",
+        label: "Media",
+        className: "plan-media",
+        monthlyCreditsCents: billingContractState.value?.monthly_credits_cents ?? 0,
+      },
+      quotaStatus: "unavailable",
+      quotaSummary: null,
+      profileState: {
+        billingProfile: { ...billingProfileState },
+        billingContract: billingContractState.value,
+        billingActivity: [],
+        activeStorageAddons: [],
+      },
+    }));
     fetchWithAuthMock.mockReset();
     fetchWithAuthMock.mockImplementation(async (url: unknown) => {
       if (url === "/api/billing/catalog") {

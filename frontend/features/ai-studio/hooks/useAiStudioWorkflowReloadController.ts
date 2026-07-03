@@ -674,7 +674,7 @@ export const useAiStudioWorkflowReloadController = ({
         setModel(config.model.id);
         setMusicPromptDraft(payload.prompt ?? payload.text);
         setMusicLyricsDraft(payload.lyrics ?? "");
-        if (payload.durationSeconds != null) setMusicDurationSeconds(payload.durationSeconds);
+        setMusicDurationSeconds(payload.durationSeconds ?? null);
         if (payload.composerMode) setMusicComposerMode(payload.composerMode);
         if (payload.instrumentalEnabled != null) {
           setMusicInstrumentalEnabled(payload.instrumentalEnabled);
@@ -687,10 +687,8 @@ export const useAiStudioWorkflowReloadController = ({
         setModel(config.model.id);
         const soundPayload: WorkflowReloadSoundEffectsPayload = payload;
         setSoundEffectsPromptDraft(soundPayload.text);
-        if (soundPayload.durationSeconds != null) {
-          setSoundEffectsDurationSeconds(soundPayload.durationSeconds);
-        }
-        if (soundPayload.loop != null) setSoundEffectsLoopEnabled(soundPayload.loop);
+        setSoundEffectsDurationSeconds(soundPayload.durationSeconds ?? null);
+        setSoundEffectsLoopEnabled(soundPayload.loop ?? false);
       }
 
       if (payload.kind === "voiceover") {

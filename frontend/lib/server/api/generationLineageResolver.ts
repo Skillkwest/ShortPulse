@@ -127,7 +127,7 @@ const lookupGenerationBySourceRef = async ({
   const adminClient = supabaseAdmin ?? getSupabaseAdmin();
   const { data, error } = await adminClient
     .from("ai_generations")
-    .select("id, user_id, model_id, request_id, metadata")
+    .select("id, user_id, model_id, request_id, source_ref:metadata->>source_ref")
     .eq("user_id", userId)
     .filter("metadata->>source_ref", "eq", sourceRef)
     .order("created_at", { ascending: false })
@@ -139,20 +139,16 @@ const lookupGenerationBySourceRef = async ({
     user_id?: unknown;
     model_id?: unknown;
     request_id?: unknown;
-    metadata?: unknown;
+    source_ref?: unknown;
   } | null;
   const generationId = normalizeString(row?.id as string | null | undefined);
   if (!generationId) return null;
-  const metadata =
-    row?.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
-      ? (row.metadata as Record<string, unknown>)
-      : {};
   return {
     generationId,
     userId: normalizeString(row?.user_id as string | null | undefined),
     modelId: normalizeString(row?.model_id as string | null | undefined),
     requestId: normalizeString(row?.request_id as string | null | undefined),
-    sourceRef: normalizeString(metadata.source_ref as string | null | undefined),
+    sourceRef: normalizeString(row?.source_ref as string | null | undefined),
   };
 };
 

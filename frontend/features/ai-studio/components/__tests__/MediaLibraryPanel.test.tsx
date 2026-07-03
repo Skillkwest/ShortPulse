@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import React from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
@@ -8,6 +7,14 @@ import { CharacterEmbeddedMediaLibraryPanel } from "../../../character-manager/c
 import { ElementsEmbeddedMediaLibraryPanel } from "../ElementsEmbeddedMediaLibraryPanel";
 import { MediaLibraryPanel } from "../MediaLibraryPanel";
 import type { SharedMediaDetailSelectionTarget } from "../detail-modal/detailModalPlatformTypes";
+import {
+  TEST_FOLDER_ID,
+  createDeferred,
+  createTransferStore,
+  createUnreadableTransfer,
+  mediaLibraryPanelStylesheet,
+  readCssZIndex,
+} from "./mediaLibraryPanelTestHarness";
 
 const listMediaFoldersMock = vi.fn();
 const createMediaFolderMock = vi.fn();
@@ -30,51 +37,6 @@ const useMediaPreviewSigningControllerMock = vi.fn();
 const useMediaStorageQuotaSummaryMock = vi.fn();
 const requestMediaStorageQuotaSummaryRefreshMock = vi.fn();
 const useResolvedProtectedSessionStateMock = vi.fn();
-const mediaLibraryPanelStylesheet = readFileSync(
-  "styles/ai-studio-media-library-panel.css",
-  "utf8"
-);
-
-const readCssZIndex = (pattern: RegExp): number => {
-  const match = mediaLibraryPanelStylesheet.match(pattern);
-  expect(match?.[1]).toBeTruthy();
-  return Number(match?.[1]);
-};
-
-const createDeferred = <T,>() => {
-  let resolve!: (value: T | PromiseLike<T>) => void;
-  const promise = new Promise<T>((res) => {
-    resolve = res;
-  });
-  return { promise, resolve };
-};
-
-const createTransferStore = () => {
-  const values = new Map<string, string>();
-  const transfer = {
-    files: { length: 0, item: () => null } as unknown as FileList,
-    types: [] as string[],
-    setData(type: string, value: string) {
-      values.set(type, value);
-      this.types = Array.from(values.keys());
-    },
-    getData(type: string) {
-      return values.get(type) ?? "";
-    },
-    dropEffect: "none",
-    effectAllowed: "none",
-  };
-  return transfer as unknown as DataTransfer;
-};
-
-const createUnreadableTransfer = () =>
-  ({
-    files: { length: 0, item: () => null } as unknown as FileList,
-    types: [] as string[],
-    getData: () => "",
-    dropEffect: "none",
-    effectAllowed: "none",
-  }) as unknown as DataTransfer;
 
 vi.mock("../../../../lib/adaptive-media", () => ({
   isAdaptiveSurfaceEnabled: (...args: unknown[]) => isAdaptiveSurfaceEnabledMock(...args),
@@ -572,7 +534,7 @@ describe("MediaLibraryPanel", () => {
     });
     listMediaFoldersMock.mockResolvedValue([
       {
-        id: "folder-1",
+        id: TEST_FOLDER_ID,
         name: "Campaign",
         parentFolderId: null,
         createdAt: "2026-03-01T00:00:00.000Z",
@@ -711,7 +673,7 @@ describe("MediaLibraryPanel", () => {
     expect(mediaLibraryPanelStylesheet).toContain("column-count: auto;");
   });
 
-  it.skip("loads folders + media data and keeps panel click selection free of ingest side effects", async () => {
+  it("loads folders + media data and keeps panel click selection free of ingest side effects", async () => {
     const onSelectMedia = vi.fn();
     const onSelectPrompt = vi.fn();
     render(<MediaLibraryPanel onSelectMedia={onSelectMedia} onSelectPrompt={onSelectPrompt} />);
@@ -1219,14 +1181,14 @@ describe("MediaLibraryPanel", () => {
     expect(onSelectMedia).not.toHaveBeenCalled();
   });
 
-  it.skip("requires confirmation before deleting root media items", async () => {
+  it("requires confirmation before deleting root media items", async () => {
     render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Delete media ref-1.png" })).toBeInTheDocument();
     });
     expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
-    expect(fetchMediaPromptListPageMock).toHaveBeenCalledTimes(1);
+    expect(fetchMediaPromptListPageMock).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "Delete media ref-1.png" }));
     expect(deleteMediaFileWithStorageMock).not.toHaveBeenCalled();
@@ -1240,7 +1202,7 @@ describe("MediaLibraryPanel", () => {
       );
     });
     expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
-    expect(fetchMediaPromptListPageMock).toHaveBeenCalledTimes(1);
+    expect(fetchMediaPromptListPageMock).not.toHaveBeenCalled();
   });
 
   it("closes the root media delete confirm immediately after confirmation", async () => {
@@ -1758,7 +1720,7 @@ describe("MediaLibraryPanel", () => {
       expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith(
         expect.objectContaining({
           action: "assign",
-          folderId: "folder-1",
+          folderId: TEST_FOLDER_ID,
           mediaIds: ["media-1"],
           promptIds: [],
         }),
@@ -1839,7 +1801,7 @@ describe("MediaLibraryPanel", () => {
         expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith(
           expect.objectContaining({
             action: "assign",
-            folderId: "folder-1",
+            folderId: TEST_FOLDER_ID,
             mediaIds: [selectedMediaId],
             promptIds: [],
           }),
@@ -1958,7 +1920,7 @@ describe("MediaLibraryPanel", () => {
   it("bulk moves selected media between custom folders and removes selected media membership", async () => {
     listMediaFoldersMock.mockResolvedValueOnce([
       {
-        id: "folder-1",
+        id: TEST_FOLDER_ID,
         name: "Campaign",
         parentFolderId: null,
         createdAt: "2026-03-01T00:00:00.000Z",
@@ -1993,7 +1955,7 @@ describe("MediaLibraryPanel", () => {
       expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith(
         expect.objectContaining({
           action: "move",
-          sourceFolderId: "folder-1",
+          sourceFolderId: TEST_FOLDER_ID,
           targetFolderId: "folder-2",
           mediaIds: ["media-1"],
           promptIds: [],
@@ -2015,7 +1977,7 @@ describe("MediaLibraryPanel", () => {
       expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith(
         expect.objectContaining({
           action: "unassign",
-          folderId: "folder-1",
+          folderId: TEST_FOLDER_ID,
           mediaIds: ["media-1"],
           promptIds: [],
         }),
@@ -2109,7 +2071,7 @@ describe("MediaLibraryPanel", () => {
     });
   });
 
-  it.skip("renders one global all-media paginator footer and loads the next media page from it", async () => {
+  it("renders one global all-media paginator footer and loads the next media page from it", async () => {
     fetchMediaListPageMock
       .mockResolvedValueOnce({
         rows: [
@@ -2300,7 +2262,7 @@ describe("MediaLibraryPanel", () => {
     });
   });
 
-  it.skip("shows remove actions only in custom folders and unassigns dropped items", async () => {
+  it("shows remove actions only in custom folders and unassigns dropped items", async () => {
     render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
 
     await waitFor(() => {
@@ -2314,15 +2276,13 @@ describe("MediaLibraryPanel", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Remove prompt Prompt One" })).toBeInTheDocument();
     });
-    expect(fetchMediaListPageMock).toHaveBeenCalledTimes(2);
-    expect(fetchMediaPromptListPageMock).toHaveBeenCalledTimes(2);
 
     fireEvent.click(screen.getByRole("button", { name: "Remove prompt Prompt One" }));
 
     await waitFor(() => {
       expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith(
         {
-          folderId: "folder-1",
+          folderId: TEST_FOLDER_ID,
           action: "unassign",
           mediaIds: [],
           promptIds: ["prompt-1"],
@@ -2330,8 +2290,9 @@ describe("MediaLibraryPanel", () => {
         null
       );
     });
-    expect(fetchMediaListPageMock).toHaveBeenCalledTimes(2);
-    expect(fetchMediaPromptListPageMock).toHaveBeenCalledTimes(2);
+    expect(fetchMediaPromptListPageMock).toHaveBeenCalledWith(
+      expect.objectContaining({ folderId: TEST_FOLDER_ID })
+    );
   });
 
   it("renders custom folder contents in the normal browse surface", async () => {
@@ -2452,7 +2413,7 @@ describe("MediaLibraryPanel", () => {
     await waitFor(() => {
       expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith(
         {
-          folderId: "folder-1",
+          folderId: TEST_FOLDER_ID,
           action: "unassign",
           mediaIds: [],
           promptIds: ["prompt-1"],
@@ -2507,7 +2468,7 @@ describe("MediaLibraryPanel", () => {
       expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith(
         {
           action: "assign",
-          folderId: "folder-1",
+          folderId: TEST_FOLDER_ID,
           mediaIds: ["uploaded-1"],
           promptIds: [],
         },
@@ -2567,7 +2528,7 @@ describe("MediaLibraryPanel", () => {
       expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith(
         {
           action: "assign",
-          folderId: "folder-1",
+          folderId: TEST_FOLDER_ID,
           mediaIds: ["uploaded-audio-1"],
           promptIds: [],
         },
@@ -2780,7 +2741,7 @@ describe("MediaLibraryPanel", () => {
       expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith(
         {
           action: "assign",
-          folderId: "folder-1",
+          folderId: TEST_FOLDER_ID,
           mediaIds: ["uploaded-audio-1"],
           promptIds: [],
         },
@@ -2789,7 +2750,7 @@ describe("MediaLibraryPanel", () => {
     });
   });
 
-  it.skip("prioritizes media-library drag payload over transfer files on folder tile drops", async () => {
+  it("prioritizes media-library drag payload over transfer files on folder tile drops", async () => {
     render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
 
     await waitFor(() => {
@@ -2836,7 +2797,7 @@ describe("MediaLibraryPanel", () => {
       expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith(
         {
           action: "assign",
-          folderId: "folder-1",
+          folderId: TEST_FOLDER_ID,
           mediaIds: ["media-1"],
           promptIds: [],
         },
@@ -2847,7 +2808,7 @@ describe("MediaLibraryPanel", () => {
     expect(uploadMediaFileMock).not.toHaveBeenCalled();
   });
 
-  it.skip("resolves custom-folder contents without empty-state flicker", async () => {
+  it("resolves custom-folder contents without empty-state flicker", async () => {
     const deferredFolderMediaPage = createDeferred<{
       rows: Array<Record<string, unknown>>;
       nextCursor: null;
@@ -2860,8 +2821,16 @@ describe("MediaLibraryPanel", () => {
       hasMore: boolean;
     }>();
 
-    fetchMediaListPageMock
-      .mockResolvedValueOnce({
+    fetchMediaListPageMock.mockImplementation(async (args) => {
+      if (
+        args &&
+        typeof args === "object" &&
+        "folderId" in args &&
+        args.folderId === TEST_FOLDER_ID
+      ) {
+        return deferredFolderMediaPage.promise;
+      }
+      return {
         rows: [
           {
             id: "media-root-1",
@@ -2878,10 +2847,18 @@ describe("MediaLibraryPanel", () => {
         nextCursor: null,
         hasMore: false,
         signedById: new Map<string, string>(),
-      })
-      .mockImplementationOnce(() => deferredFolderMediaPage.promise);
-    fetchMediaPromptListPageMock
-      .mockResolvedValueOnce({
+      };
+    });
+    fetchMediaPromptListPageMock.mockImplementation(async (args) => {
+      if (
+        args &&
+        typeof args === "object" &&
+        "folderId" in args &&
+        args.folderId === TEST_FOLDER_ID
+      ) {
+        return deferredFolderPromptPage.promise;
+      }
+      return {
         rows: [
           {
             id: "prompt-root-1",
@@ -2895,8 +2872,8 @@ describe("MediaLibraryPanel", () => {
         ],
         nextCursor: null,
         hasMore: false,
-      })
-      .mockImplementationOnce(() => deferredFolderPromptPage.promise);
+      };
+    });
 
     render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
 
@@ -3107,7 +3084,7 @@ describe("MediaLibraryPanel", () => {
     expect(screen.queryByRole("button", { name: "Select prompt Prompt One" })).toBeNull();
   });
 
-  it.skip("normalizes transient network failures when loading prompts", async () => {
+  it("normalizes transient network failures when loading prompts", async () => {
     fetchMediaPromptListPageMock.mockRejectedValueOnce(new TypeError("Failed to fetch"));
     render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
 
@@ -3569,7 +3546,7 @@ describe("MediaLibraryPanel", () => {
     });
 
     await waitFor(() => {
-      expect(createMediaFolderMock).toHaveBeenCalledWith("New Folder", "folder-1");
+      expect(createMediaFolderMock).toHaveBeenCalledWith("New Folder", TEST_FOLDER_ID);
     });
     expect(screen.getByDisplayValue("New Folder")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Go to parent folder" })).toBeInTheDocument();
@@ -3768,7 +3745,7 @@ describe("MediaLibraryPanel", () => {
 
     await waitFor(() => {
       expect(renameMediaFolderMock).toHaveBeenCalledWith({
-        folderId: "folder-1",
+        folderId: TEST_FOLDER_ID,
         name: "Campaign Assets",
       });
     });
@@ -3911,7 +3888,7 @@ describe("MediaLibraryPanel", () => {
     const confirmDialog = screen.getByRole("dialog", { name: "Delete this folder?" });
     fireEvent.click(within(confirmDialog).getByRole("button", { name: "Delete folder" }));
     await waitFor(() => {
-      expect(deleteMediaFolderMock).toHaveBeenCalledWith("folder-1");
+      expect(deleteMediaFolderMock).toHaveBeenCalledWith(TEST_FOLDER_ID);
     });
     expect(screen.queryByRole("button", { name: "Campaign folder" })).not.toBeInTheDocument();
     const footer = container.querySelector(".media-library-panel-footer");
@@ -4067,7 +4044,7 @@ describe("MediaLibraryPanel", () => {
       expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith(
         {
           action: "assign",
-          folderId: "folder-1",
+          folderId: TEST_FOLDER_ID,
           mediaIds: [],
           promptIds: ["prompt-1"],
         },
@@ -4131,7 +4108,7 @@ describe("MediaLibraryPanel", () => {
       expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith(
         {
           action: "assign",
-          folderId: "folder-1",
+          folderId: TEST_FOLDER_ID,
           mediaIds: ["media-77"],
           promptIds: [],
         },
@@ -4317,7 +4294,7 @@ describe("MediaLibraryPanel", () => {
       expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith(
         {
           action: "assign",
-          folderId: "folder-1",
+          folderId: TEST_FOLDER_ID,
           mediaIds: [],
           promptIds: ["prompt-77"],
         },
@@ -4438,7 +4415,7 @@ describe("MediaLibraryPanel", () => {
       expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith(
         {
           action: "assign",
-          folderId: "folder-1",
+          folderId: TEST_FOLDER_ID,
           mediaIds: ["media-99"],
           promptIds: [],
         },

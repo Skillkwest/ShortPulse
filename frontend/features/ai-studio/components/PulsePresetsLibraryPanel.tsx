@@ -11,6 +11,7 @@ import {
   isCreatePulseBuiltInPresetId,
   resolveCreatePulsePresetCatalog,
   type CreatePulseBuiltInPresetDefinition,
+  type CreatePulseResolvedPreset,
   upsertCreatePulseSavedPreset,
   type CreatePulsePresetId,
   type CreatePulseSavedPreset,
@@ -19,6 +20,7 @@ import { AppMessage } from "../../../components/AppMessage";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
+import { PresetLibraryDetailModal } from "./PresetLibraryDetailModal";
 
 type PulsePresetsLibraryPanelProps = {
   builtInDefinitions?: readonly CreatePulseBuiltInPresetDefinition[];
@@ -44,6 +46,9 @@ type PendingPulsePresetDeleteState = {
   schemaVersion: number;
 };
 
+const formatPresetContractValue = (value: string | null | undefined) =>
+  value ? value.replaceAll("_", " ") : "None";
+
 export function PulsePresetsLibraryPanel({
   builtInDefinitions,
   savedPresets = [],
@@ -55,6 +60,8 @@ export function PulsePresetsLibraryPanel({
     React.useState<PendingPulsePresetEditState | null>(null);
   const [pendingPresetDelete, setPendingPresetDelete] =
     React.useState<PendingPulsePresetDeleteState | null>(null);
+  const [pendingPresetDetail, setPendingPresetDetail] =
+    React.useState<CreatePulseResolvedPreset | null>(null);
   const [editSubmitting, setEditSubmitting] = React.useState(false);
   const [deleteSubmitting, setDeleteSubmitting] = React.useState(false);
   const [localSaveError, setLocalSaveError] = React.useState<string | null>(null);
@@ -91,6 +98,10 @@ export function PulsePresetsLibraryPanel({
     setPendingPresetDelete(null);
     setLocalSaveError(null);
   }, [deleteSubmitting]);
+
+  const closeDetailModal = React.useCallback(() => {
+    setPendingPresetDetail(null);
+  }, []);
 
   const handleSavePreset = React.useCallback(async () => {
     if (!pendingPresetEdit || editSubmitting || !onSavedPresetsChange) return;
@@ -173,6 +184,9 @@ export function PulsePresetsLibraryPanel({
       if (selectedPresetId === pendingPresetDelete.presetId) {
         setSelectedPresetId(null);
       }
+      setPendingPresetDetail((previous) =>
+        previous?.presetId === pendingPresetDelete.presetId ? null : previous
+      );
       setPendingPresetDelete(null);
     } catch {
       setLocalSaveError("Unable to delete this Pulse right now.");
@@ -244,10 +258,13 @@ export function PulsePresetsLibraryPanel({
                     onClick={() => {
                       setSelectedPresetId(preset.presetId);
                       setLocalSaveError(null);
+                      setPendingPresetDelete(null);
                       if (!preset.isEditable) {
                         setPendingPresetEdit(null);
+                        setPendingPresetDetail(preset);
                         return;
                       }
+                      setPendingPresetDetail(null);
                       setPendingPresetEdit({
                         presetId: preset.presetId,
                         presetLabel: preset.label,
@@ -437,6 +454,58 @@ export function PulsePresetsLibraryPanel({
             </div>
           </div>
         </AiStudioModalLayer>
+      ) : null}
+      {pendingPresetDetail ? (
+        <PresetLibraryDetailModal
+          eyebrow="Pulse"
+          title={pendingPresetDetail.label}
+          description={
+            <>
+              {pendingPresetDetail.description ? `${pendingPresetDetail.description} ` : null}
+              Inspecting here does not activate this Pulse.
+            </>
+          }
+          fields={[
+            {
+              label: "Type",
+              value: pendingPresetDetail.isBuiltIn ? "Built-in guided workflow" : "Custom Pulse",
+            },
+            {
+              label: "Runtime",
+              value: formatPresetContractValue(pendingPresetDetail.runtimeMode),
+            },
+            {
+              label: "Activation",
+              value: formatPresetContractValue(pendingPresetDetail.activationMode),
+            },
+            {
+              label: "Output",
+              value: formatPresetContractValue(pendingPresetDetail.outputMode),
+            },
+            {
+              label: "Artifact Target",
+              value: formatPresetContractValue(pendingPresetDetail.artifactTarget),
+            },
+            ...(pendingPresetDetail.starterAssistantMessage
+              ? [
+                  {
+                    label: "Starter Message",
+                    value: pendingPresetDetail.starterAssistantMessage,
+                    preserveWhitespace: true,
+                  },
+                ]
+              : []),
+            ...(pendingPresetDetail.workflowStageHints?.length
+              ? [
+                  {
+                    label: "Workflow Stages",
+                    value: pendingPresetDetail.workflowStageHints.join(" -> "),
+                  },
+                ]
+              : []),
+          ]}
+          onClose={closeDetailModal}
+        />
       ) : null}
       {pendingPresetDelete ? (
         <AiStudioModalLayer>

@@ -133,6 +133,12 @@ export const runGenerationControlPlaneCycle = async ({
   let reservationCleanupScanned = 0;
   let reservationCleanupReleased = 0;
   let reservationCleanupErrors = 0;
+  let preProviderReservationCleanupScanned = 0;
+  let preProviderReservationCleanupReleased = 0;
+  let preProviderReservationCleanupErrors = 0;
+  let providerAttachedReservationCleanupScanned = 0;
+  let providerAttachedReservationCleanupReleased = 0;
+  let providerAttachedReservationCleanupErrors = 0;
   let projectionRepairRan = false;
   let projectionRepairScanned = 0;
   let projectionRepairRepaired = 0;
@@ -156,7 +162,7 @@ export const runGenerationControlPlaneCycle = async ({
         p_min_age_seconds: flags.reservationCleanupMinAgeSeconds,
       });
       if (cleanupResponse.error) {
-        reservationCleanupErrors = 1;
+        preProviderReservationCleanupErrors = 1;
         await logControlPlaneException({
           context,
           error: cleanupResponse.error,
@@ -166,9 +172,9 @@ export const runGenerationControlPlaneCycle = async ({
         });
       } else {
         const metrics = parseCleanupMetrics(cleanupResponse.data);
-        reservationCleanupScanned = metrics.scanned;
-        reservationCleanupReleased = metrics.released;
-        reservationCleanupErrors = metrics.errors;
+        preProviderReservationCleanupScanned = metrics.scanned;
+        preProviderReservationCleanupReleased = metrics.released;
+        preProviderReservationCleanupErrors = metrics.errors;
       }
     });
   }
@@ -184,7 +190,7 @@ export const runGenerationControlPlaneCycle = async ({
         }
       );
       if (providerCleanupResponse.error) {
-        reservationCleanupErrors += 1;
+        providerAttachedReservationCleanupErrors = 1;
         await logControlPlaneException({
           context,
           error: providerCleanupResponse.error,
@@ -194,12 +200,19 @@ export const runGenerationControlPlaneCycle = async ({
         });
       } else {
         const metrics = parseCleanupMetrics(providerCleanupResponse.data);
-        reservationCleanupScanned += metrics.scanned;
-        reservationCleanupReleased += metrics.released;
-        reservationCleanupErrors += metrics.errors;
+        providerAttachedReservationCleanupScanned = metrics.scanned;
+        providerAttachedReservationCleanupReleased = metrics.released;
+        providerAttachedReservationCleanupErrors = metrics.errors;
       }
     });
   }
+
+  reservationCleanupScanned =
+    preProviderReservationCleanupScanned + providerAttachedReservationCleanupScanned;
+  reservationCleanupReleased =
+    preProviderReservationCleanupReleased + providerAttachedReservationCleanupReleased;
+  reservationCleanupErrors =
+    preProviderReservationCleanupErrors + providerAttachedReservationCleanupErrors;
 
   await measureStage("observationInboxProcessing", async () => {
     try {
@@ -355,6 +368,12 @@ export const runGenerationControlPlaneCycle = async ({
     reservationCleanupScanned,
     reservationCleanupReleased,
     reservationCleanupErrors,
+    preProviderReservationCleanupScanned,
+    preProviderReservationCleanupReleased,
+    preProviderReservationCleanupErrors,
+    providerAttachedReservationCleanupScanned,
+    providerAttachedReservationCleanupReleased,
+    providerAttachedReservationCleanupErrors,
     projectionRepairRan,
     projectionRepairScanned,
     projectionRepairRepaired,

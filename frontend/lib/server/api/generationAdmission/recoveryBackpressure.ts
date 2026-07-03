@@ -39,6 +39,15 @@ const ACTIVE_RECOVERY_STATES = ["queued", "recovering"];
 const ACTIVE_GENERATION_STATUSES = ["pending", "submitted", "running", "fail"];
 const DECISION_CACHE_TTL_MS = 30 * 1000;
 const TELEMETRY_COOLDOWN_MS = 60 * 1000;
+const QUEUE_WAIT_TIMEOUT_SELECT_COLUMNS = [
+  "error_code:metadata->>error_code",
+  "model_id:metadata->>model_id",
+].join(", ");
+const RECOVERY_MEDIA_VISIBLE_SELECT_COLUMNS = [
+  "provider:metadata->>provider",
+  "model_id:metadata->>model_id",
+  "provider_terminal_to_media_visible_ms:metadata->>provider_terminal_to_media_visible_ms",
+].join(", ");
 
 type CachedDecisionEntry = {
   expiresAtMs: number;
@@ -168,15 +177,15 @@ const readRecentQueueWaitTimeouts = async ({
 }): Promise<number> => {
   const response = await getSupabaseAdmin()
     .from("app_error_events")
-    .select("metadata")
+    .select(QUEUE_WAIT_TIMEOUT_SELECT_COLUMNS)
     .eq("source", "telemetry.queue.dispatch.exhausted")
     .gte("occurred_at", recentAfterIso);
   if (response.error) throw response.error;
 
   return (Array.isArray(response.data) ? response.data : []).reduce((count, row) => {
-    const metadata = asObject(row)?.metadata;
-    const errorCode = asString(asObject(metadata)?.error_code)?.toUpperCase();
-    const modelId = asString(asObject(metadata)?.model_id);
+    const event = asObject(row);
+    const errorCode = asString(event?.error_code)?.toUpperCase();
+    const modelId = asString(event?.model_id);
     if (errorCode !== "QUEUE_WAIT_TIMEOUT") return count;
     return matchesProviderFamily({ provider, modelId, providerLabel: null }) ? count + 1 : count;
   }, 0);
@@ -191,18 +200,18 @@ const readRecentRecoveryP95Ms = async ({
 }): Promise<number | null> => {
   const response = await getSupabaseAdmin()
     .from("app_error_events")
-    .select("metadata")
+    .select(RECOVERY_MEDIA_VISIBLE_SELECT_COLUMNS)
     .eq("source", "telemetry.generation.recovery.media_visible")
     .gte("occurred_at", recentAfterIso);
   if (response.error) throw response.error;
 
   const samples = (Array.isArray(response.data) ? response.data : []).flatMap((row) => {
-    const metadata = asObject(asObject(row)?.metadata);
-    if (!metadata) return [];
-    const providerLabel = asString(metadata.provider);
-    const modelId = asString(metadata.model_id);
+    const event = asObject(row);
+    if (!event) return [];
+    const providerLabel = asString(event.provider);
+    const modelId = asString(event.model_id);
     if (!matchesProviderFamily({ provider, modelId, providerLabel })) return [];
-    const sample = asNumber(metadata.provider_terminal_to_media_visible_ms);
+    const sample = asNumber(event.provider_terminal_to_media_visible_ms);
     return sample === null ? [] : [sample];
   });
 

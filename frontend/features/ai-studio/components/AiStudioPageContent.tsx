@@ -25,16 +25,13 @@ import {
 } from "../../../lib/customerFacingProviderText";
 import { AiStudioToolbar } from "./AiStudioToolbar";
 import { AiStudioToolbarRail } from "./AiStudioToolbarRail";
-import { AiStudioInsufficientCreditsModal } from "./AiStudioInsufficientCreditsModal";
 import { PresetsPanelLoader } from "./PresetsPanelLoader";
 import { StandardCreatePropertiesPanel } from "./create/StandardCreatePropertiesPanel";
 import { PulseCreatePropertiesPanel } from "./create/PulseCreatePropertiesPanel";
 import { CreateModeToggle } from "./create/CreateModeToggle";
-import { DetailModal } from "./DetailModal";
-import { SharedMediaDetailPreviewModal } from "./detail-modal/SharedMediaDetailPreviewModal";
 import type { SharedMediaDetailItemBase } from "./detail-modal/detailModalPlatformTypes";
 import { resolveSharedMediaDetailMediaActionItems } from "./detail-modal/sharedMediaDetailActions";
-import { ModelModal, type ModelModalContext } from "./ModelModal";
+import type { ModelModalContext } from "./ModelModal";
 import { AiStudioShellFrame } from "./AiStudioShellFrame";
 import { StudioPreview } from "./StudioPreview";
 import type { ModelOption } from "../constants";
@@ -324,7 +321,28 @@ const LazyMediaLibraryPanel = React.lazy(() =>
     default: module.MediaLibraryPanel,
   }))
 );
+const LazyAiStudioInsufficientCreditsModal = React.lazy(() =>
+  import("./AiStudioInsufficientCreditsModal").then((module) => ({
+    default: module.AiStudioInsufficientCreditsModal,
+  }))
+);
+const LazyModelModal = React.lazy(() =>
+  import("./ModelModal").then((module) => ({
+    default: module.ModelModal,
+  }))
+);
+const LazyDetailModal = React.lazy(() =>
+  import("./DetailModal").then((module) => ({
+    default: module.DetailModal,
+  }))
+);
+const LazySharedMediaDetailPreviewModal = React.lazy(() =>
+  import("./detail-modal/SharedMediaDetailPreviewModal").then((module) => ({
+    default: module.SharedMediaDetailPreviewModal,
+  }))
+);
 const lazyPanelFallback = <p className="tiny subdued">Loading panel...</p>;
+const lazyModalFallback = null;
 
 type CreateSectionProps = AiStudioCreatePanelContract;
 type EditExpertSectionProps = React.ComponentProps<typeof LazyExpertEditPanelView>;
@@ -909,15 +927,8 @@ export function AiStudioPageContent({
     return baseVisibility;
   }, [panelToggleAvailability, panelVisibility, selectedTool]);
   const isStylesPanelOpen = effectivePanelVisibility.styles;
-  const isStandardCreateStylesSurface =
-    showCreatePropertiesPanel && resolvedStandardCreateProperties != null;
   const shouldWarmStylesCatalog =
-    isStandardCreateStylesSurface ||
-    showExpertEditPanel ||
-    showVideoPropertiesPanel ||
-    isStylesPanelOpen ||
-    selectedTool === "styles" ||
-    selectedStyleId != null;
+    isStylesPanelOpen || selectedTool === "styles" || selectedStyleId != null;
   const [stylesCatalogWarmRequested, setStylesCatalogWarmRequested] =
     React.useState(shouldWarmStylesCatalog);
   React.useEffect(() => {
@@ -1797,12 +1808,16 @@ export function AiStudioPageContent({
 
   return (
     <>
-      <AiStudioInsufficientCreditsModal
-        isOpen={isInsufficientCreditsModalOpen}
-        availableCredits={balanceCredits}
-        onClose={handleCloseInsufficientCreditsModal}
-        onCheckoutStarted={handleCloseInsufficientCreditsModal}
-      />
+      {isInsufficientCreditsModalOpen ? (
+        <React.Suspense fallback={lazyModalFallback}>
+          <LazyAiStudioInsufficientCreditsModal
+            isOpen
+            availableCredits={balanceCredits}
+            onClose={handleCloseInsufficientCreditsModal}
+            onCheckoutStarted={handleCloseInsufficientCreditsModal}
+          />
+        </React.Suspense>
+      ) : null}
       <main
         className="page page-wide ai-studio-page"
         data-shell-boundary-split={FLAG_SHELL_BOUNDARY_SPLIT ? "on" : "off"}
@@ -1972,43 +1987,55 @@ export function AiStudioPageContent({
           </div>
         </div>
       </main>
-      <ModelModal
-        isOpen={modelModalState.isOpen}
-        onClose={modelModalState.onClose}
-        onSelect={modelModalState.onSelect}
-        options={modelModalState.options}
-        resolveCreditsForModel={modelModalState.resolveCreditsForModel}
-        context={modelModalState.context}
-        onPresentationResolved={modelModalState.onPresentationResolved}
-      />
-      <DetailModal
-        output={detailModalOutput}
-        detailNavigation={detailNavigation}
-        isMediaStorageFull={isMediaStorageFull}
-        context={detailModalContext}
-        projectId={projectId}
-        onClose={onDetailClose}
-        onUpdatePrompt={onUpdateOutputPrompt}
-        onDeleteOutput={onDeleteOutput}
-        onDownloadReference={onDetailDownload}
-        onSaveReference={onDetailSaveReference}
-        onSnapshotVideoFrame={onSnapshotVideoFrame}
-        onSnapshotVideoFrameError={onSnapshotVideoFrameError}
-        onReloadWorkflowReference={onDetailReloadWorkflow}
-        onSavePrompt={onDetailSavePrompt}
-        refreshCharacterOptions={refreshCharacterOptions}
-        resolveCharacterAvatarUrlById={resolveCharacterAvatarUrlById}
-      />
-      <SharedMediaDetailPreviewModal
-        item={sharedDetailModalItem}
-        onClose={onDetailClose}
-        onSnapshotVideoFrame={onSnapshotVideoFrame}
-        onSnapshotVideoFrameError={onSnapshotVideoFrameError}
-        topBarActionItems={sharedDetailModalActionItems}
-        modalActivityId="ai-studio-shared-detail-preview-modal"
-        backdropDataTestId="ai-studio-shared-detail-preview-backdrop"
-        closeLabel="Close media detail"
-      />
+      {modelModalState.isOpen ? (
+        <React.Suspense fallback={lazyModalFallback}>
+          <LazyModelModal
+            isOpen
+            onClose={modelModalState.onClose}
+            onSelect={modelModalState.onSelect}
+            options={modelModalState.options}
+            resolveCreditsForModel={modelModalState.resolveCreditsForModel}
+            context={modelModalState.context}
+            onPresentationResolved={modelModalState.onPresentationResolved}
+          />
+        </React.Suspense>
+      ) : null}
+      {detailModalOutput ? (
+        <React.Suspense fallback={lazyModalFallback}>
+          <LazyDetailModal
+            output={detailModalOutput}
+            detailNavigation={detailNavigation}
+            isMediaStorageFull={isMediaStorageFull}
+            context={detailModalContext}
+            projectId={projectId}
+            onClose={onDetailClose}
+            onUpdatePrompt={onUpdateOutputPrompt}
+            onDeleteOutput={onDeleteOutput}
+            onDownloadReference={onDetailDownload}
+            onSaveReference={onDetailSaveReference}
+            onSnapshotVideoFrame={onSnapshotVideoFrame}
+            onSnapshotVideoFrameError={onSnapshotVideoFrameError}
+            onReloadWorkflowReference={onDetailReloadWorkflow}
+            onSavePrompt={onDetailSavePrompt}
+            refreshCharacterOptions={refreshCharacterOptions}
+            resolveCharacterAvatarUrlById={resolveCharacterAvatarUrlById}
+          />
+        </React.Suspense>
+      ) : null}
+      {sharedDetailModalItem ? (
+        <React.Suspense fallback={lazyModalFallback}>
+          <LazySharedMediaDetailPreviewModal
+            item={sharedDetailModalItem}
+            onClose={onDetailClose}
+            onSnapshotVideoFrame={onSnapshotVideoFrame}
+            onSnapshotVideoFrameError={onSnapshotVideoFrameError}
+            topBarActionItems={sharedDetailModalActionItems}
+            modalActivityId="ai-studio-shared-detail-preview-modal"
+            backdropDataTestId="ai-studio-shared-detail-preview-backdrop"
+            closeLabel="Close media detail"
+          />
+        </React.Suspense>
+      ) : null}
     </>
   );
 }

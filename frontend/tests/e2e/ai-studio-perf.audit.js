@@ -1,12 +1,49 @@
-/* global require, process, console, URL, document, window */
+/* global require, process, console, __dirname, URL, document, window */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * AI Studio production perf gate audit.
  * Signs in to a dedicated account, runs grid/shell audits, and exits non-zero on gate failures.
  */
+const fs = require("node:fs");
+const path = require("node:path");
 const { chromium } = require("playwright");
 
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3100";
+function loadEnvFromFileIfNeeded(filePath) {
+  if (!fs.existsSync(filePath)) return;
+  const raw = fs.readFileSync(filePath, "utf8");
+  for (const line of raw.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const match = /^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/.exec(trimmed);
+    if (!match) continue;
+    const key = match[1];
+    if (!key || (process.env[key] ?? "") !== "") continue;
+    let value = match[2] ?? "";
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    process.env[key] = value;
+  }
+}
+
+function loadAuditEnv() {
+  const frontendRoot = path.resolve(__dirname, "..", "..");
+  const repoRoot = path.resolve(frontendRoot, "..");
+  loadEnvFromFileIfNeeded(path.join(frontendRoot, ".env.local"));
+  loadEnvFromFileIfNeeded(path.join(frontendRoot, ".env.playwright.local"));
+  loadEnvFromFileIfNeeded(path.join(repoRoot, ".env.agent.local"));
+}
+
+loadAuditEnv();
+
+const BASE_URL = (
+  process.env.PLAYWRIGHT_AI_STUDIO_ENTRY_BASE_URL ||
+  process.env.PLAYWRIGHT_BASE_URL ||
+  "http://localhost:3100"
+).trim();
 const AI_STUDIO_AUDIT_PATH = "/ai-studio?perfAuditRuntime=1";
 const LOGIN_ENTRY_PATH = "/log-in";
 const EMAIL = (process.env.PLAYWRIGHT_AUDIT_EMAIL || "").trim();

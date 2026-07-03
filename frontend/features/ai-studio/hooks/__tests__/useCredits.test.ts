@@ -26,8 +26,13 @@ const ensureSupabaseQueryClientMock = vi.mocked(ensureSupabaseQueryClient);
 const fetchWithAuthMock = vi.mocked(fetchWithAuth);
 const useSupabaseSessionStateMock = vi.mocked(useSupabaseSessionState);
 
-const createSessionState = (userId: string | null) => ({
-  initialized: true,
+const createSessionState = (
+  userId: string | null,
+  options?: {
+    initialized?: boolean;
+  }
+) => ({
+  initialized: options?.initialized ?? true,
   session: userId
     ? ({
         access_token: `token-${userId}`,
@@ -78,6 +83,58 @@ describe("useCredits", () => {
     expect(result.current.balanceReservedCents).toBe(120);
     expect(ensureSupabaseQueryClientMock).not.toHaveBeenCalled();
     expect(useSupabaseSessionStateMock).toHaveBeenCalled();
+  });
+
+  it("waits for an initialized authenticated session before automatic credit refreshes", async () => {
+    sessionState = createSessionState("user-123", { initialized: false });
+    const addWindowListenerSpy = vi.spyOn(window, "addEventListener");
+    const addDocumentListenerSpy = vi.spyOn(document, "addEventListener");
+    const setIntervalSpy = vi.spyOn(window, "setInterval");
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        spendableCents: 900,
+        reservedCents: 120,
+        updatedAt: "2026-02-15T20:00:00.000Z",
+      }),
+    } as unknown as Response);
+
+    const { result, rerender } = renderHook(() => useCredits());
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(fetchWithAuthMock).not.toHaveBeenCalled();
+    expect(addWindowListenerSpy.mock.calls.some(([eventName]) => eventName === "focus")).toBe(
+      false
+    );
+    expect(
+      addDocumentListenerSpy.mock.calls.some(([eventName]) => eventName === "visibilitychange")
+    ).toBe(false);
+    expect(setIntervalSpy).not.toHaveBeenCalled();
+    expect(result.current.balanceLoading).toBe(true);
+
+    await act(async () => {
+      const refreshed = await result.current.refreshBalance({ silent: true });
+      expect(refreshed).toBe(900);
+    });
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
+
+    fetchWithAuthMock.mockClear();
+    sessionState = createSessionState("user-123");
+    rerender();
+
+    await waitFor(() => expect(fetchWithAuthMock).toHaveBeenCalledTimes(1));
+    expect(addWindowListenerSpy.mock.calls.some(([eventName]) => eventName === "focus")).toBe(true);
+    expect(
+      addDocumentListenerSpy.mock.calls.some(([eventName]) => eventName === "visibilitychange")
+    ).toBe(true);
+    expect(setIntervalSpy).toHaveBeenCalled();
+
+    addWindowListenerSpy.mockRestore();
+    addDocumentListenerSpy.mockRestore();
+    setIntervalSpy.mockRestore();
   });
 
   it("preserves the last known good spendable balance when snapshot refresh fails", async () => {

@@ -101,6 +101,7 @@ export type ModelSurface =
   | "audio_tool"
   | "metadata";
 export type ModelLogoKey = "flux" | "google" | "kling" | "seedream" | "openai" | "elevenlabs";
+export type ModelStylePromptFamily = "nano_banana" | "seedream" | "generic";
 export type ModelVisibilityFlag = "NEXT_PUBLIC_KIE_SEEDANCE_2_ENABLED";
 
 export type ModelPayloadValidationSpec = {
@@ -139,6 +140,7 @@ export type ModelCatalogEntry = {
   pairedModelId?: string;
   replacementModelId?: string;
   createCharacterModeOrder?: number;
+  stylePromptFamily?: ModelStylePromptFamily;
   promptPolicy?: ModelPromptPolicy;
   admissionTier?: ModelAdmissionTier;
   alwaysOnProviderRuntime?: boolean;
@@ -222,6 +224,7 @@ type ModelCatalogRuntimeMetadata = Pick<
   | "pairedModelId"
   | "replacementModelId"
   | "createCharacterModeOrder"
+  | "stylePromptFamily"
   | "promptPolicy"
   | "admissionTier"
   | "alwaysOnProviderRuntime"
@@ -1278,6 +1281,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     pricingFamily: "Image",
     logoKey: "google",
     pairedModelId: FAL_NANO_BANANA_2_EDIT_MODEL_ID,
+    stylePromptFamily: "nano_banana",
     supportsTextToImage: true,
     generationLanes: ["text-to-image"],
     executionMode: "queued",
@@ -1296,6 +1300,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     logoKey: "google",
     pairedModelId: FAL_NANO_BANANA_2_MODEL_ID,
     createCharacterModeOrder: 30,
+    stylePromptFamily: "nano_banana",
     promptPolicy: "required",
     supportsImageToImage: true,
     generationLanes: ["image-to-image"],
@@ -1314,6 +1319,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     pricingFamily: "Image",
     logoKey: "google",
     pairedModelId: FAL_NANO_BANANA_PRO_EDIT_MODEL_ID,
+    stylePromptFamily: "nano_banana",
     admissionTier: "image_heavy",
     supportsTextToImage: true,
     generationLanes: ["text-to-image"],
@@ -1333,6 +1339,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     logoKey: "google",
     pairedModelId: FAL_NANO_BANANA_PRO_MODEL_ID,
     createCharacterModeOrder: 40,
+    stylePromptFamily: "nano_banana",
     promptPolicy: "required",
     admissionTier: "image_heavy",
     supportsImageToImage: true,
@@ -1353,6 +1360,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     logoKey: "seedream",
     pairedModelId: FAL_SEEDREAM_45_EDIT_MODEL_ID,
     defaultRoles: ["create-startup"],
+    stylePromptFamily: "seedream",
     admissionTier: "image_heavy",
     supportsTextToImage: true,
     generationLanes: ["text-to-image"],
@@ -1373,6 +1381,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     pairedModelId: FAL_SEEDREAM_45_TEXT_MODEL_ID,
     defaultRoles: ["create-character-mode-startup", "edit-startup"],
     createCharacterModeOrder: 10,
+    stylePromptFamily: "seedream",
     promptPolicy: "required",
     admissionTier: "image_heavy",
     supportsImageToImage: true,
@@ -1392,6 +1401,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     pricingFamily: "Image",
     logoKey: "seedream",
     pairedModelId: FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID,
+    stylePromptFamily: "seedream",
     supportsTextToImage: true,
     generationLanes: ["text-to-image"],
     executionMode: "queued",
@@ -1410,6 +1420,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     logoKey: "seedream",
     pairedModelId: FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID,
     createCharacterModeOrder: 20,
+    stylePromptFamily: "seedream",
     promptPolicy: "required",
     supportsImageToImage: true,
     generationLanes: ["image-to-image"],

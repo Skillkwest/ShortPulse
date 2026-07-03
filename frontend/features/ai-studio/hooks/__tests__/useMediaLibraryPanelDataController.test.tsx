@@ -1047,6 +1047,158 @@ describe("useMediaLibraryPanelDataController", () => {
     });
   });
 
+  it("aborts obsolete media reset loads when a newer reset starts", async () => {
+    fetchMediaListPageMock.mockReset();
+    type MediaPageResult = {
+      rows: never[];
+      nextCursor: string | null;
+      hasMore: boolean;
+      signedById: Map<string, string>;
+      libraryTotalCount: number;
+    };
+    const mediaResetCalls: Array<{
+      signal: AbortSignal | undefined;
+      resolve: (value: MediaPageResult | null) => void;
+    }> = [];
+    fetchMediaListPageMock.mockImplementation(({ signal }: { signal?: AbortSignal }) => {
+      const deferred = createDeferred<MediaPageResult | null>();
+      signal?.addEventListener(
+        "abort",
+        () => {
+          deferred.resolve(null);
+        },
+        { once: true }
+      );
+      mediaResetCalls.push({ signal, resolve: deferred.resolve });
+      return deferred.promise;
+    });
+
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelDataController({
+        activeFolderId: "all_items",
+        itemType: "all",
+        normalizedSearch: "",
+        shouldShowMedia: false,
+        shouldShowPrompts: false,
+        panelBodyRef: { current: null },
+      })
+    );
+
+    let firstResetPromise: Promise<void> | null = null;
+    act(() => {
+      firstResetPromise = result.current.loadMediaPage({ reset: true, force: true });
+    });
+
+    await waitFor(() => {
+      expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
+    });
+    expect(mediaResetCalls[0]?.signal?.aborted).toBe(false);
+
+    let secondResetPromise: Promise<void> | null = null;
+    act(() => {
+      secondResetPromise = result.current.loadMediaPage({ reset: true, force: true });
+    });
+
+    await waitFor(() => {
+      expect(fetchMediaListPageMock).toHaveBeenCalledTimes(2);
+    });
+    expect(mediaResetCalls[0]?.signal?.aborted).toBe(true);
+
+    await act(async () => {
+      await firstResetPromise;
+    });
+
+    mediaResetCalls[1]?.resolve({
+      rows: [],
+      nextCursor: null,
+      hasMore: false,
+      signedById: new Map(),
+      libraryTotalCount: 0,
+    });
+
+    await act(async () => {
+      await secondResetPromise;
+    });
+
+    expect(result.current.error).toBeNull();
+  });
+
+  it("aborts obsolete prompt reset loads when a newer reset starts", async () => {
+    fetchMediaPromptListPageMock.mockReset();
+    type PromptPageResult = {
+      rows: never[];
+      nextCursor: string | null;
+      hasMore: boolean;
+    };
+    const promptResetCalls: Array<{
+      signal: AbortSignal | undefined;
+      resolve: (value: PromptPageResult) => void;
+      reject: (error: unknown) => void;
+    }> = [];
+    fetchMediaPromptListPageMock.mockImplementation(({ signal }: { signal?: AbortSignal }) => {
+      let reject!: (error: unknown) => void;
+      const promise = new Promise<PromptPageResult>((resolve, nextReject) => {
+        reject = nextReject;
+        promptResetCalls.push({ signal, resolve, reject });
+      });
+      signal?.addEventListener(
+        "abort",
+        () => {
+          reject(new DOMException("Aborted", "AbortError"));
+        },
+        { once: true }
+      );
+      return promise;
+    });
+
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelDataController({
+        activeFolderId: "all_items",
+        itemType: "prompts",
+        normalizedSearch: "",
+        shouldShowMedia: false,
+        shouldShowPrompts: false,
+        panelBodyRef: { current: null },
+      })
+    );
+
+    let firstResetPromise: Promise<void> | null = null;
+    act(() => {
+      firstResetPromise = result.current.loadPromptPage({ reset: true, force: true });
+    });
+
+    await waitFor(() => {
+      expect(fetchMediaPromptListPageMock).toHaveBeenCalledTimes(1);
+    });
+    expect(promptResetCalls[0]?.signal?.aborted).toBe(false);
+
+    let secondResetPromise: Promise<void> | null = null;
+    act(() => {
+      secondResetPromise = result.current.loadPromptPage({ reset: true, force: true });
+    });
+
+    await waitFor(() => {
+      expect(fetchMediaPromptListPageMock).toHaveBeenCalledTimes(2);
+    });
+    expect(promptResetCalls[0]?.signal?.aborted).toBe(true);
+
+    await act(async () => {
+      await firstResetPromise;
+    });
+
+    promptResetCalls[1]?.resolve({
+      rows: [],
+      nextCursor: null,
+      hasMore: false,
+    });
+
+    await act(async () => {
+      await secondResetPromise;
+    });
+
+    expect(result.current.error).toBeNull();
+  });
+
   it("uses the minimal media list profile for images and keeps videos expanded for duration metadata", async () => {
     const { rerender } = renderHook(
       ({ itemType }: { itemType: "images" | "videos" }) =>

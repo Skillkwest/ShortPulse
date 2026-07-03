@@ -4,6 +4,11 @@
  */
 import crypto from "crypto";
 import type { ImageAdmissionMetadata } from "../imageAdmissionPolicy";
+import {
+  MEDIA_STORAGE_FULL_USER_MESSAGE,
+  MEDIA_STORAGE_LIMIT_EXCEEDED_MESSAGE,
+  MEDIA_STORAGE_QUOTA_UNAVAILABLE_USER_MESSAGE,
+} from "../mediaStorageQuota";
 import { assertUserScopedMediaStoragePath } from "../mediaStoragePath";
 import { extractImageDimensionsFromBuffer } from "./imageDimensions";
 import {
@@ -350,6 +355,82 @@ const resolvePreparedUploadStoragePath = ({
   });
 };
 
+const toNonNegativeByteCount = (value: unknown): number => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.max(0, Math.floor(parsed)) : 0;
+};
+
+const createStorageQuotaUnavailableError = (details?: string): ProductImageAssetAdmissionError =>
+  new ProductImageAssetAdmissionError(
+    503,
+    "Media storage quota is temporarily unavailable.",
+    details || MEDIA_STORAGE_QUOTA_UNAVAILABLE_USER_MESSAGE,
+    "MEDIA_STORAGE_QUOTA_UNAVAILABLE"
+  );
+
+const loadMediaStorageUsageBytesForUser = async ({
+  supabaseAdmin,
+  userId,
+}: {
+  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>;
+  userId: string;
+}): Promise<number> => {
+  const { data, error } = await supabaseAdmin.rpc("resolve_media_storage_usage_bytes", {
+    p_user_id: userId,
+  });
+  if (error) {
+    throw createStorageQuotaUnavailableError(error.message);
+  }
+  return toNonNegativeByteCount(data);
+};
+
+const loadMediaStorageLimitBytesForUser = async ({
+  supabaseAdmin,
+  userId,
+}: {
+  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>;
+  userId: string;
+}): Promise<number> => {
+  const [baseLimitResponse, addonLimitResponse] = await Promise.all([
+    supabaseAdmin.rpc("resolve_media_storage_base_limit_bytes", { p_user_id: userId }),
+    supabaseAdmin.rpc("resolve_media_storage_addon_limit_bytes", { p_user_id: userId }),
+  ]);
+  if (baseLimitResponse.error) {
+    throw createStorageQuotaUnavailableError(baseLimitResponse.error.message);
+  }
+  if (addonLimitResponse.error) {
+    throw createStorageQuotaUnavailableError(addonLimitResponse.error.message);
+  }
+  return (
+    toNonNegativeByteCount(baseLimitResponse.data) + toNonNegativeByteCount(addonLimitResponse.data)
+  );
+};
+
+const assertMediaStorageQuotaAllowsProductImageAsset = async ({
+  userId,
+  incomingBytes,
+}: {
+  userId: string;
+  incomingBytes: number;
+}): Promise<void> => {
+  const normalizedIncomingBytes = toNonNegativeByteCount(incomingBytes);
+  if (normalizedIncomingBytes <= 0) return;
+
+  const supabaseAdmin = getSupabaseAdmin();
+  const [usedBytes, totalLimitBytes] = await Promise.all([
+    loadMediaStorageUsageBytesForUser({ supabaseAdmin, userId }),
+    loadMediaStorageLimitBytesForUser({ supabaseAdmin, userId }),
+  ]);
+  if (usedBytes + normalizedIncomingBytes <= totalLimitBytes) return;
+
+  throw new ProductImageAssetAdmissionError(
+    413,
+    MEDIA_STORAGE_LIMIT_EXCEEDED_MESSAGE,
+    MEDIA_STORAGE_FULL_USER_MESSAGE,
+    "MEDIA_STORAGE_LIMIT_EXCEEDED"
+  );
+};
+
 const createSignedUploadTarget = async (
   storagePath: string
 ): Promise<{ path: string; token: string }> => {
@@ -457,6 +538,10 @@ const admitProductImageAssetBufferForUser = async ({
       admittedImage.reason === "animated_over_cap" ? admittedImage.userMessage : undefined
     );
   }
+  await assertMediaStorageQuotaAllowsProductImageAsset({
+    userId,
+    incomingBytes: admittedImage.buffer.length,
+  });
 
   const storagePath = resolveStoragePath({
     userId,

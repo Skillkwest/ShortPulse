@@ -141,4 +141,19 @@ describe("ElementsManagerShell reference reordering", () => {
       "https://example.com/primary.png",
     ]);
   });
+
+  it("reveals a filled reference clear button when keyboard focus enters the card", () => {
+    renderShell();
+    const clearButton = screen.getByRole("button", { name: "Clear Primary View reference" });
+
+    expect(clearButton).toHaveStyle({ opacity: "0", pointerEvents: "none" });
+
+    fireEvent.focus(clearButton);
+
+    expect(clearButton).toHaveStyle({ opacity: "1", pointerEvents: "auto" });
+
+    fireEvent.blur(clearButton, { relatedTarget: null });
+
+    expect(clearButton).toHaveStyle({ opacity: "0", pointerEvents: "none" });
+  });
 });

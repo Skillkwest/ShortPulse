@@ -22,7 +22,7 @@ is_active = true
 where id in ('free', 'media', 'studio', 'business');
 
 insert into billing_credit_packages (id, display_name, credit_amount_cents, price_cents, stripe_price_id, is_active, sort_order)
-values ('studio_10000', 'Studio 10,000', 10000, 10000, null, true, 40)
+values ('studio_10000', '10,000 credits', 10000, 10000, null, true, 40)
 on conflict (id) do update
 set display_name = excluded.display_name,
     credit_amount_cents = excluded.credit_amount_cents,

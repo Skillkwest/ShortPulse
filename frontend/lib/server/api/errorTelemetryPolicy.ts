@@ -13,6 +13,13 @@ export const GROWTH_TELEMETRY_SOURCE_PREFIXES = [
 export const GROWTH_TELEMETRY_SOURCE_LIKE_PATTERNS = GROWTH_TELEMETRY_SOURCE_PREFIXES.map(
   (prefix) => `${prefix}%`
 );
+export const AI_STUDIO_STABILITY_TELEMETRY_SOURCE_PREFIX = "telemetry.ai_studio.stability.";
+export const ROUTINE_NON_ACTIONABLE_TELEMETRY_SOURCE_PREFIXES = [
+  ...GROWTH_TELEMETRY_SOURCE_PREFIXES,
+  AI_STUDIO_STABILITY_TELEMETRY_SOURCE_PREFIX,
+] as const;
+export const ROUTINE_NON_ACTIONABLE_TELEMETRY_SOURCE_LIKE_PATTERNS =
+  ROUTINE_NON_ACTIONABLE_TELEMETRY_SOURCE_PREFIXES.map((prefix) => `${prefix}%`);
 
 export const SYNTHETIC_TEST_SOURCE_PREFIX = "admin.synthetic_test.";
 export const SYNTHETIC_TEST_SOURCE_LIKE_PATTERN = `${SYNTHETIC_TEST_SOURCE_PREFIX}%`;
@@ -68,4 +75,14 @@ export const shouldRetainEventUserEmail = (source: string): boolean => {
  */
 export const isGrowthTelemetrySource = (source: string): boolean => {
   return GROWTH_TELEMETRY_SOURCE_PREFIXES.some((prefix) => source.startsWith(prefix));
+};
+
+/**
+ * Routine telemetry remains available in raw event/source views, but should not
+ * create default operator work in the Actionable queue.
+ */
+export const isRoutineNonActionableTelemetrySource = (source: string): boolean => {
+  return ROUTINE_NON_ACTIONABLE_TELEMETRY_SOURCE_PREFIXES.some((prefix) =>
+    source.startsWith(prefix)
+  );
 };

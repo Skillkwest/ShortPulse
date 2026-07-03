@@ -110,6 +110,7 @@ describe("useAiStudioAudioGeneration", () => {
         energyPercent: 58,
         outputFormat: "mp3_44100_128",
         modelId: hardcodedMusicModelId,
+        displayedBilledCredits: 6,
       });
     });
 
@@ -148,7 +149,7 @@ describe("useAiStudioAudioGeneration", () => {
         selected_tool: "music",
         pricing_display_source: "pricing_grid",
         pricing_policy_ready: true,
-        displayed_billed_credits: null,
+        displayed_billed_credits: 6,
       },
       workflow_reload: expect.objectContaining({
         version: 1,
@@ -239,6 +240,7 @@ describe("useAiStudioAudioGeneration", () => {
         loop: false,
         outputFormat: "mp3_44100_128",
         modelId: hardcodedSoundEffectsModelId,
+        displayedBilledCredits: 3,
       });
     });
 
@@ -308,6 +310,7 @@ describe("useAiStudioAudioGeneration", () => {
         energyPercent: 58,
         outputFormat: "mp3_44100_128",
         modelId: hardcodedMusicModelId,
+        displayedBilledCredits: 6,
       });
     });
 
@@ -378,6 +381,7 @@ describe("useAiStudioAudioGeneration", () => {
         energyPercent: 58,
         outputFormat: "mp3_44100_128",
         modelId: hardcodedMusicModelId,
+        displayedBilledCredits: 6,
       });
     });
 
@@ -474,6 +478,7 @@ describe("useAiStudioAudioGeneration", () => {
             style: 0,
           },
         },
+        displayedBilledCredits: 4,
       });
     });
 
@@ -572,6 +577,7 @@ describe("useAiStudioAudioGeneration", () => {
             style: 0,
           },
         },
+        displayedBilledCredits: 4,
       });
     });
 
@@ -713,6 +719,7 @@ describe("useAiStudioAudioGeneration", () => {
           use_speaker_boost: true,
         },
         inputFormat: "other",
+        displayedBilledCredits: 5,
       });
     });
 
@@ -871,6 +878,7 @@ describe("useAiStudioAudioGeneration", () => {
           use_speaker_boost: true,
         },
         inputFormat: "other",
+        displayedBilledCredits: 5,
       });
     });
 
@@ -880,6 +888,69 @@ describe("useAiStudioAudioGeneration", () => {
       expect.objectContaining({ method: "POST" })
     );
     expect(uiError).toBeNull();
+  });
+
+  it("blocks voice changer generation when displayed pricing is unresolved", async () => {
+    let uiError: string | null = null;
+    const setUiError = asDispatch<string | null>((value) => {
+      uiError = typeof value === "function" ? value(uiError) : value;
+    });
+    const insertOptimisticGenerationPlaceholder = vi.fn(() => "out-voice");
+
+    const { result } = renderHook(() =>
+      useAiStudioAudioGeneration({
+        setUiError,
+        insertOptimisticGenerationPlaceholder,
+        notifyGenerationFailure: vi.fn(),
+        updateOutputById: vi.fn(),
+        setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleVoicesGenerate({
+        mode: "voice-changer",
+        voice: {
+          id: "voice-1",
+          name: "Narrator",
+          librarySection: "my",
+          provider: "elevenlabs",
+        },
+        source: {
+          id: "src-1",
+          kind: "audio",
+          origin: "local",
+          status: "ready",
+          aspect: null,
+          durationMs: 12_000,
+          name: "take.wav",
+          mimeType: "audio/wav",
+          file: null,
+          previewUrl: null,
+          sourceUrl: "https://example.com/take.wav",
+          objectUrl: null,
+          storagePath: "users/demo/take.wav",
+          referenceOutputId: null,
+          referenceMediaId: null,
+          errorMessage: null,
+          extractedFrom: null,
+        },
+        outputFormat: "mp3_44100_128",
+        removeBackgroundNoise: true,
+        modelId: "eleven_multilingual_sts_v2",
+        voiceSettings: {
+          stability: 1,
+          similarity_boost: 1,
+          speed: 1,
+          use_speaker_boost: true,
+        },
+        inputFormat: "other",
+      });
+    });
+
+    expect(insertOptimisticGenerationPlaceholder).not.toHaveBeenCalled();
+    expect(fetchWithAuthMock).not.toHaveBeenCalled();
+    expect(uiError).toBe("Pricing is unavailable for this configuration. Retry in a moment.");
   });
 
   it("keeps music busy state active until parallel generations settle", async () => {
@@ -959,6 +1030,7 @@ describe("useAiStudioAudioGeneration", () => {
         energyPercent: 58,
         outputFormat: "mp3_44100_128",
         modelId: hardcodedMusicModelId,
+        displayedBilledCredits: 6,
       });
       secondPending = result.current.handleMusicGenerate({
         text: "parallel synth cue",
@@ -969,6 +1041,7 @@ describe("useAiStudioAudioGeneration", () => {
         energyPercent: 58,
         outputFormat: "mp3_44100_128",
         modelId: hardcodedMusicModelId,
+        displayedBilledCredits: 6,
       });
       await Promise.resolve();
     });
@@ -1085,6 +1158,7 @@ describe("useAiStudioAudioGeneration", () => {
         outputFormat: "mp3_44100_128",
         modelId: hardcodedMusicModelId,
         songBatchCount: 2,
+        displayedBilledCredits: 6,
       });
     });
 
@@ -1185,6 +1259,7 @@ describe("useAiStudioAudioGeneration", () => {
         loop: false,
         outputFormat: "mp3_44100_128",
         modelId: hardcodedSoundEffectsModelId,
+        displayedBilledCredits: 3,
       });
     });
 

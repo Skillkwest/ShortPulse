@@ -214,7 +214,7 @@ export const fetchActionableErrorEvents = async (params: {
   const unlinkedFilters: EventFilterInput = {
     ...params.filters,
     incident: "unlinked",
-    excludeGrowthTelemetrySources: true,
+    excludeRoutineNonActionableTelemetrySources: true,
   };
 
   const [openEventsResult, unlinkedEventsResult] = await Promise.all([

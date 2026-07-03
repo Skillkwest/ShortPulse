@@ -1195,7 +1195,7 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
   });
 
-  it("keeps voice changer generate available when the source is ready but priced credits are unresolved", async () => {
+  it("blocks voice changer generate when the source is ready but priced credits are unresolved", async () => {
     fetchWithAuthMock.mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -1213,7 +1213,8 @@ describe("VoicesPropertiesPanel", () => {
     });
     resolveVoiceChangerMediaDurationMsMock.mockResolvedValueOnce(null);
 
-    const { container } = render(<VoicesPropertiesPanel onGenerate={vi.fn()} />);
+    const onGenerate = vi.fn();
+    const { container } = render(<VoicesPropertiesPanel onGenerate={onGenerate} />);
     await openVoicesLibraryModal();
 
     await waitFor(() => {
@@ -1237,8 +1238,10 @@ describe("VoicesPropertiesPanel", () => {
     });
 
     const generateButton = screen.getByRole("button", { name: "Generate" });
-    expect(generateButton).toBeEnabled();
-    expect(screen.getByText("—")).toBeInTheDocument();
+    expect(generateButton).toBeDisabled();
+    expect(screen.getByText("Pending")).toBeInTheDocument();
+    fireEvent.click(generateButton);
+    expect(onGenerate).not.toHaveBeenCalled();
   });
 
   it("blocks voice changer generate when a ready source has no staged media authority", async () => {

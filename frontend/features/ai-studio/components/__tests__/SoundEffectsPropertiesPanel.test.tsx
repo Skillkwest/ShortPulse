@@ -351,15 +351,21 @@ describe("SoundEffectsPropertiesPanel", () => {
     expect(onLoopEnabledChange).toHaveBeenCalledWith(false);
   });
 
-  it("keeps generate available when shared pricing is unavailable", () => {
-    render(<SoundEffectsPropertiesPanel onGenerate={vi.fn()} pricingPolicyReady={false} />);
+  it("blocks generate when shared pricing is unavailable", () => {
+    const onGenerate = vi.fn();
+    render(<SoundEffectsPropertiesPanel onGenerate={onGenerate} pricingPolicyReady={false} />);
 
     fireEvent.change(screen.getByRole("textbox", { name: "Sound effect prompt" }), {
       target: { value: "Layered whoosh with a clean sparkle tail." },
     });
 
-    expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
-    expect(screen.getByText("—")).toBeInTheDocument();
+    const generateButton = screen.getByRole("button", { name: "Generate" });
+    expect(generateButton).toBeDisabled();
+    expect(screen.getByText("Pending")).toBeInTheDocument();
+
+    fireEvent.click(generateButton);
+
+    expect(onGenerate).not.toHaveBeenCalled();
   });
 
   it("shows balance context on the generate control without changing the command label", () => {

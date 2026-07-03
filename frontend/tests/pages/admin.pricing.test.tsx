@@ -307,7 +307,7 @@ describe("Admin pricing page", () => {
     state.creditPackages = [
       {
         id: "starter_500",
-        displayName: "Starter 500",
+        displayName: "500 credits",
         creditAmountCents: 500,
         priceCents: 900,
         stripePriceId: null,

@@ -293,7 +293,7 @@ describe("GET /api/admin/pricing/state", () => {
                 data: [
                   {
                     id: "growth_2000",
-                    display_name: "Growth 2,000",
+                    display_name: "2,000 credits",
                     credit_amount_cents: 2000,
                     price_cents: 2600,
                     stripe_price_id: null,
@@ -302,7 +302,7 @@ describe("GET /api/admin/pricing/state", () => {
                   },
                   {
                     id: "starter_500",
-                    display_name: "Starter 500",
+                    display_name: "500 credits",
                     credit_amount_cents: 500,
                     price_cents: 900,
                     stripe_price_id: null,

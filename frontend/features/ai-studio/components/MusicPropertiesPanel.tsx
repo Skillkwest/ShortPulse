@@ -369,6 +369,10 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
       : null) ?? null;
   const estimatedCredits =
     estimatedCreditsPerSong != null ? estimatedCreditsPerSong * songBatchCount : null;
+  const hasKnownEstimatedCredits = estimatedCreditsPerSong != null && estimatedCredits != null;
+  const generateCostLabel = hasKnownEstimatedCredits
+    ? formatCreditValue(estimatedCredits)
+    : "Pending";
   const generateCreditConfidence = resolveGenerateCreditConfidence({
     actionLabel: "Generate music",
     estimatedCredits,
@@ -399,7 +403,8 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   const overflowCharacterCount = Math.max(0, submissionLength - maxPromptCharacters);
   const displayedCharacterCount = composerMode === "custom" ? submissionLength : prompt.length;
   const isWithinPromptLimit = submissionLength <= maxPromptCharacters;
-  const isGenerateEnabled = Boolean(onGenerate) && submissionLength > 0 && isWithinPromptLimit;
+  const isGenerateEnabled =
+    Boolean(onGenerate) && submissionLength > 0 && isWithinPromptLimit && hasKnownEstimatedCredits;
   const selectedDurationOption =
     ELEVENLABS_MUSIC_DURATION_OPTIONS.find((option) => option.value === selectedDurationSeconds) ??
     ELEVENLABS_MUSIC_DURATION_OPTIONS[0];
@@ -506,7 +511,9 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   );
 
   const handleGenerate = React.useCallback(() => {
-    if (!onGenerate || !submissionText || !isWithinPromptLimit) return;
+    if (!onGenerate || !submissionText || !isWithinPromptLimit || estimatedCreditsPerSong == null) {
+      return;
+    }
     const request = {
       text: submissionText,
       rawPrompt: prompt,
@@ -935,7 +942,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
                       <span className="music-properties-generate-pill" aria-hidden="true">
                         <span className="music-properties-generate-cost-icon">✦</span>
                         <span className="music-properties-generate-cost-value">
-                          {estimatedCredits != null ? formatCreditValue(estimatedCredits) : "—"}
+                          {generateCostLabel}
                         </span>
                       </span>
                     </button>

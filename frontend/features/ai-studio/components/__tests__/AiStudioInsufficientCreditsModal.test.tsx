@@ -54,14 +54,14 @@ describe("AiStudioInsufficientCreditsModal", () => {
           packages: [
             {
               id: "starter-pack",
-              display_name: "Starter Pack 500",
+              display_name: "500 credits",
               credit_amount_cents: 500,
               price_cents: 700,
               sort_order: 1,
             },
             {
               id: "studio-pack",
-              display_name: "Studio Pack 2000",
+              display_name: "2,000 credits",
               credit_amount_cents: 2000,
               price_cents: 2600,
               sort_order: 2,
@@ -90,16 +90,16 @@ describe("AiStudioInsufficientCreditsModal", () => {
       expect(screen.getByText(/This generation needs 1,200 credits/)).toBeInTheDocument();
       expect(screen.getByText(/You have 100 available/)).toBeInTheDocument();
       const starterPackageButton = screen.getByRole("button", {
-        name: /buy credits: starter pack/i,
+        name: /buy credits: 500 credits/i,
       });
-      expect(screen.getByRole("button", { name: /buy credits: studio pack/i })).toBeEnabled();
+      expect(screen.getByRole("button", { name: /buy credits: 2,000 credits/i })).toBeEnabled();
       expect(screen.getAllByText("Buy credits")).toHaveLength(2);
       expect(screen.queryByRole("button", { name: /not now/i })).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: /^buy credits$/i })).not.toBeInTheDocument();
-      expect(screen.getByText("Starter Pack")).toBeInTheDocument();
-      expect(screen.queryByText("Starter Pack 500")).not.toBeInTheDocument();
-      expect(screen.getByText("Studio Pack")).toBeInTheDocument();
-      expect(screen.queryByText("Studio Pack 2000")).not.toBeInTheDocument();
+      expect(screen.getByText("500 credits")).toBeInTheDocument();
+      expect(screen.getByText("2,000 credits")).toBeInTheDocument();
+      expect(screen.queryByText(/starter pack/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/studio pack/i)).not.toBeInTheDocument();
 
       fireEvent.click(starterPackageButton);
 
@@ -132,7 +132,7 @@ describe("AiStudioInsufficientCreditsModal", () => {
           packages: [
             {
               id: "growth-pack",
-              display_name: "Growth Pack 2,000",
+              display_name: "2,000 credits",
               credit_amount_cents: 2000,
               price_cents: 2600,
               sort_order: 1,
@@ -162,7 +162,7 @@ describe("AiStudioInsufficientCreditsModal", () => {
       );
 
       const buyGrowthCredits = await screen.findByRole("button", {
-        name: /buy credits: growth pack/i,
+        name: /buy credits: 2,000 credits/i,
       });
       fireEvent.click(buyGrowthCredits);
 
@@ -200,7 +200,7 @@ describe("AiStudioInsufficientCreditsModal", () => {
         packages: [
           {
             id: "starter-pack",
-            display_name: "Starter Pack",
+            display_name: "500 credits",
             credit_amount_cents: 500,
             price_cents: 700,
             sort_order: 1,

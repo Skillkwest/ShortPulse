@@ -182,7 +182,7 @@ describe("Profile transactions actions", () => {
                 amountPaidCents: 2600,
                 currency: "usd",
                 status: "paid",
-                title: "Credit top-up · Growth 2,000",
+                title: "Credit top-up · 2,000 credits",
                 createdAt: "2026-04-03T15:00:00.000Z",
                 paidAt: "2026-04-03T15:00:00.000Z",
                 receiptUrl: null,
@@ -250,7 +250,7 @@ describe("Profile transactions actions", () => {
 
     expect(await screen.findByRole("heading", { name: "Transaction history" })).toBeInTheDocument();
     expect(screen.getAllByRole("heading", { name: "Recent transactions" })).toHaveLength(2);
-    expect(await screen.findByText("Credit top-up · Growth 2,000")).toBeInTheDocument();
+    expect(await screen.findByText("Credit top-up · 2,000 credits")).toBeInTheDocument();
     expect(await screen.findByText("Subscription + storage")).toBeInTheDocument();
     expect(await screen.findByText(/Ref cs_test_123/)).toBeInTheDocument();
     expect(await screen.findByRole("link", { name: "View invoice" })).toHaveAttribute(

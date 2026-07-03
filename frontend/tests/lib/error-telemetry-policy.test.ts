@@ -10,9 +10,11 @@ import {
   GENERATION_RECOVERY_RUNNING_TIMEOUT_EVENT,
   GENERATION_RECOVERY_RUNNING_TIMEOUT_TELEMETRY_SOURCE,
   GROWTH_TELEMETRY_SOURCE_LIKE_PATTERNS,
+  ROUTINE_NON_ACTIONABLE_TELEMETRY_SOURCE_LIKE_PATTERNS,
   SYNTHETIC_TEST_SOURCE_LIKE_PATTERN,
   TELEMETRY_SOURCE_LIKE_PATTERN,
   isGrowthTelemetrySource,
+  isRoutineNonActionableTelemetrySource,
   isTelemetrySource,
   shouldRetainEventUserEmail,
   shouldRetainRichEventContext,
@@ -29,6 +31,11 @@ describe("error telemetry source policy", () => {
     expect(isGrowthTelemetrySource("telemetry.auth.signup_submitted")).toBe(true);
     expect(isGrowthTelemetrySource("telemetry.billing.checkout_started")).toBe(true);
     expect(isGrowthTelemetrySource("telemetry.character_mode")).toBe(false);
+    expect(isRoutineNonActionableTelemetrySource("telemetry.marketing.page_view")).toBe(true);
+    expect(
+      isRoutineNonActionableTelemetrySource("telemetry.ai_studio.stability.window_focus")
+    ).toBe(true);
+    expect(isRoutineNonActionableTelemetrySource("telemetry.character_mode")).toBe(false);
   });
 
   it("keeps rich event context and email snapshots for incidents, not routine telemetry", () => {
@@ -60,6 +67,12 @@ describe("error telemetry source policy", () => {
       "telemetry.marketing.%",
       "telemetry.auth.%",
       "telemetry.billing.%",
+    ]);
+    expect(ROUTINE_NON_ACTIONABLE_TELEMETRY_SOURCE_LIKE_PATTERNS).toEqual([
+      "telemetry.marketing.%",
+      "telemetry.auth.%",
+      "telemetry.billing.%",
+      "telemetry.ai_studio.stability.%",
     ]);
     expect(SYNTHETIC_TEST_SOURCE_LIKE_PATTERN).toBe("admin.synthetic_test.%");
     expect(ADMISSION_LIMITED_TELEMETRY_SOURCE).toBe("telemetry.api.fal_submit.admission_limited");

@@ -40,6 +40,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
    - Sources under `telemetry.*` stay in `app_error_events` only (no grouped incident row)
    - Low-severity browser `telemetry.ai_studio.*` reports are currently dropped before ingest and therefore do not reach `app_error_events`.
    - Medium-severity `telemetry.ai_studio.stability.*` reports are intentionally ingestible for browser-crash forensics and still do not create grouped incidents.
+   - Routine telemetry sources such as growth attribution and `telemetry.ai_studio.stability.*` remain inspectable in raw/source-filtered views, but are excluded from the default Actionable event queue.
    - Actionable AI Studio failures, such as generation submit/status failures and media-library save failures, stay on non-telemetry sources so they can create operator incidents.
    - Shared policy contract lives in `frontend/lib/server/api/errorTelemetryPolicy.ts`
 4. Operator retrieval:
@@ -240,6 +241,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 - `app_error_event_telemetry_daily_rollups` preserves aggregate telemetry counts after low/medium raw telemetry rows leave the raw retention window.
 - Use incident status transitions (`open` -> `resolved`/`ignored`, with `reopen` when needed) to represent triage state.
 - Admin UI supports single-item and listed-page bulk status transitions for incidents (resolve/ignore) via `/api/admin/errors-status` and `/api/admin/errors-status-bulk`.
+- Unlinked routine telemetry events are raw evidence and must not be promoted to grouped incidents through `/api/admin/errors-status`; inspect them through the Event Stream source/signal filters instead.
 - Use `Copy triage` in the Incidents/Event Stream tables for handoff packets. These payloads are versioned and intentionally compact (key identifiers + normalized triage metadata) to keep troubleshooting reproducible without pasting full raw metadata blobs.
 - Event Stream display controls are operator-local:
   - Incident-state display filter (`Actionable`, `Open`, `Resolved`, `Ignored`, `Unlinked`) trims visible rows for active work.

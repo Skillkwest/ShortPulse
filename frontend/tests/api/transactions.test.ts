@@ -134,7 +134,7 @@ describe("GET /api/billing/stripe/transactions", () => {
     });
     creditPackageRows.push({
       id: "pkg_growth",
-      display_name: "Growth 2,000",
+      display_name: "2,000 credits",
       price_cents: 2600,
     });
     stripeGetMock.mockImplementation(async (path: string) => {
@@ -209,7 +209,7 @@ describe("GET /api/billing/stripe/transactions", () => {
           amountPaidCents: 2600,
           currency: "usd",
           status: "paid",
-          title: "Credit top-up · Growth 2,000",
+          title: "Credit top-up · 2,000 credits",
           createdAt: "2026-04-03T15:00:00.000Z",
           paidAt: "2026-04-03T15:00:00.000Z",
           receiptUrl: null,
@@ -251,7 +251,7 @@ describe("GET /api/billing/stripe/transactions", () => {
     });
     creditPackageRows.push({
       id: "pkg_starter",
-      display_name: "Starter 500",
+      display_name: "500 credits",
       price_cents: 700,
     });
 
@@ -270,7 +270,7 @@ describe("GET /api/billing/stripe/transactions", () => {
           amountPaidCents: 700,
           currency: "usd",
           status: "paid",
-          title: "Credit top-up · Starter 500",
+          title: "Credit top-up · 500 credits",
           createdAt: "2026-04-02T10:00:00.000Z",
           paidAt: "2026-04-02T10:00:00.000Z",
           receiptUrl: null,
@@ -293,7 +293,7 @@ describe("GET /api/billing/stripe/transactions", () => {
       metadata: {
         checkout_session_id: "cs_archived_1",
         credit_package_id: "pkg_growth",
-        credit_package_display_name: "Growth 2,000",
+        credit_package_display_name: "2,000 credits",
         credit_package_price_cents: 2600,
       },
       created_at: "2026-04-01T10:00:00.000Z",
@@ -334,7 +334,7 @@ describe("GET /api/billing/stripe/transactions", () => {
           amountPaidCents: 2600,
           currency: "usd",
           status: "paid",
-          title: "Credit top-up · Growth 2,000",
+          title: "Credit top-up · 2,000 credits",
           createdAt: "2026-04-01T10:00:00.000Z",
           paidAt: "2026-04-01T10:00:00.000Z",
           receiptUrl: null,

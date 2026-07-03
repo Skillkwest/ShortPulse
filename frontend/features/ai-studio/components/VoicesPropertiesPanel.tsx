@@ -449,9 +449,14 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     balanceCredits,
     formatCredits: formatCreditValue,
   });
+  const hasKnownEstimatedCredits = estimatedCredits != null;
+  const generateCostLabel = hasKnownEstimatedCredits
+    ? formatCreditValue(estimatedCredits)
+    : "Pending";
   const isGenerateEnabled =
     Boolean(selectedLibraryVoice?.id) &&
     (!requiresProviderVoice || isSelectedVoiceProviderReady) &&
+    hasKnownEstimatedCredits &&
     (surfaceMode === "create"
       ? voiceScript.trim().length > 0 && isVoiceScriptWithinLimit
       : canSubmitVoiceChangerSource(voiceChangerSource));
@@ -1249,7 +1254,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       return;
     }
     if (surfaceMode === "create") {
-      if (!voiceScript.trim() || !isVoiceScriptWithinLimit) return;
+      if (!voiceScript.trim() || !isVoiceScriptWithinLimit || estimatedCredits == null) return;
       void onGenerate({
         mode: "voiceover",
         voice: selectedLibraryVoice,
@@ -1261,7 +1266,13 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       });
       return;
     }
-    if (!voiceChangerSource || !canSubmitVoiceChangerSource(voiceChangerSource)) return;
+    if (
+      !voiceChangerSource ||
+      !canSubmitVoiceChangerSource(voiceChangerSource) ||
+      estimatedCredits == null
+    ) {
+      return;
+    }
     void onGenerate({
       mode: "voice-changer",
       voice: selectedLibraryVoice,
@@ -1572,7 +1583,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                     <span className="voices-properties-generate-pill" aria-hidden="true">
                       <span className="voices-properties-generate-cost-icon">✦</span>
                       <span className="voices-properties-generate-cost-value">
-                        {estimatedCredits != null ? formatCreditValue(estimatedCredits) : "—"}
+                        {generateCostLabel}
                         <span className="voices-properties-generate-cost-label">credits</span>
                       </span>
                     </span>

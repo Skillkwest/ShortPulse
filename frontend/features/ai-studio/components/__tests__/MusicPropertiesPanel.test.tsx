@@ -443,8 +443,9 @@ describe("MusicPropertiesPanel", () => {
     expect(onSongBatchCountChange).toHaveBeenCalledWith(1);
   });
 
-  it("keeps generate available when shared pricing is unavailable", () => {
-    render(<MusicPropertiesPanel onGenerate={() => undefined} pricingPolicyReady={false} />);
+  it("blocks generate when shared pricing is unavailable", () => {
+    const onGenerate = vi.fn();
+    render(<MusicPropertiesPanel onGenerate={onGenerate} pricingPolicyReady={false} />);
 
     fireEvent.change(screen.getByRole("textbox", { name: "Music prompt" }), {
       target: {
@@ -452,8 +453,13 @@ describe("MusicPropertiesPanel", () => {
       },
     });
 
-    expect(screen.getByRole("button", { name: "Generate music" })).toBeEnabled();
-    expect(screen.getByText("—")).toBeInTheDocument();
+    const generateButton = screen.getByRole("button", { name: "Generate music" });
+    expect(generateButton).toBeDisabled();
+    expect(screen.getByText("Pending")).toBeInTheDocument();
+
+    fireEvent.click(generateButton);
+
+    expect(onGenerate).not.toHaveBeenCalled();
   });
 
   it("shows balance context on the generate control without changing the command label", () => {

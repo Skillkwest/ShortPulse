@@ -26,6 +26,10 @@ const forbiddenButtonPatterns = [
     reason: "Generate button must not swap its label to a busy label",
   },
   {
+    pattern: /["'`]\u2014["'`]/,
+    reason: "Generate button must not render an unknown-cost dash placeholder",
+  },
+  {
     pattern:
       /\bdisabled\s*=\s*{[^}]*\b(?:isGenerating|isBusy|isSubmitting|isPending|isLoading|loading|pending|submitting|inFlight)\b[^}]*}/i,
     reason: "Generate button must not disable purely from in-flight/busy state",

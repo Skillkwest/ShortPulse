@@ -7,6 +7,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { requireAdminUser } from "../../../lib/server/api/auth";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
+import { isRoutineNonActionableTelemetrySource } from "../../../lib/server/api/errorTelemetryPolicy";
 
 type ErrorStatus = "open" | "resolved" | "ignored";
 
@@ -22,6 +23,26 @@ type RpcIncidentPayload = {
   status?: ErrorStatus;
   updated_at?: string;
   event_id?: string | null;
+};
+
+type EventStatusLookupRow = {
+  source?: string | null;
+  incident_id?: string | null;
+};
+
+type EventStatusLookupResult = {
+  data: EventStatusLookupRow | null;
+  error: { code?: string; message?: string } | null;
+};
+
+type EventStatusLookupQuery = {
+  select: (columns: string) => EventStatusLookupQuery;
+  eq: (column: string, value: string) => EventStatusLookupQuery;
+  maybeSingle: () => Promise<EventStatusLookupResult>;
+};
+
+type EventStatusSupabaseClient = ReturnType<typeof getSupabaseAdmin> & {
+  from: (table: string) => EventStatusLookupQuery;
 };
 
 const ALLOWED_STATUSES: ErrorStatus[] = ["open", "resolved", "ignored"];
@@ -53,6 +74,17 @@ const mapRpcErrorToStatus = (error: { code?: string; message?: string } | null):
   if (code === "P0002") return 404;
   if (code === "22023") return 400;
   return 500;
+};
+
+const lookupEventStatusTarget = async (
+  supabaseAdmin: EventStatusSupabaseClient,
+  eventId: string
+): Promise<EventStatusLookupResult> => {
+  return await supabaseAdmin
+    .from("app_error_events")
+    .select("source, incident_id")
+    .eq("id", eventId)
+    .maybeSingle();
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -89,7 +121,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const supabaseAdmin = getSupabaseAdmin();
+    const supabaseAdmin = getSupabaseAdmin() as EventStatusSupabaseClient;
+    if (!errorId && eventId) {
+      const eventLookup = await lookupEventStatusTarget(supabaseAdmin, eventId);
+      if (eventLookup.error) {
+        await logApiRouteException({
+          req,
+          error: eventLookup.error,
+          routeLabel: "admin/errors-status.event-lookup",
+          user: adminUser,
+          metadata: {
+            target_event_id: eventId,
+            target_status: status,
+          },
+        });
+        return res.status(mapRpcErrorToStatus(eventLookup.error)).json({
+          error: eventLookup.error.message || "Unable to update incident status.",
+        });
+      }
+      if (!eventLookup.data) {
+        return res.status(404).json({ error: "Event not found." });
+      }
+      if (
+        !eventLookup.data.incident_id &&
+        isRoutineNonActionableTelemetrySource(String(eventLookup.data.source ?? ""))
+      ) {
+        return res.status(400).json({
+          error: "Routine telemetry events are raw evidence and cannot be promoted to incidents.",
+        });
+      }
+    }
+
     const { data, error } = await supabaseAdmin.rpc("admin_update_app_error_status", {
       p_error_id: errorId,
       p_event_id: eventId,

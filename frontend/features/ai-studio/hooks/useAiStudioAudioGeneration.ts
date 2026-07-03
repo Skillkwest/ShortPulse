@@ -162,6 +162,8 @@ const VOICE_CHANGER_MODEL_ID = resolveRequiredAudioVoiceChangerModelId();
 const MUSIC_MODEL_ID = resolveRequiredAudioMusicModelId();
 const SOUND_EFFECTS_MODEL_ID = resolveRequiredAudioSoundEffectsModelId();
 const INSUFFICIENT_AUDIO_CREDITS_MESSAGE = INSUFFICIENT_CREDITS_TITLE;
+const AUDIO_PRICING_UNAVAILABLE_MESSAGE =
+  "Pricing is unavailable for this configuration. Retry in a moment.";
 
 const buildVoicesOutputModelLabel = (request: VoicesGenerateRequest): string =>
   request.mode === "voiceover"
@@ -522,7 +524,11 @@ export const useAiStudioAudioGeneration = ({
   const canSubmitKnownAudioCreditCost = useCallback(
     (requiredCredits: number | null): boolean => {
       const normalizedBalanceCredits = normalizeAudioCreditAmount(balanceCredits);
-      if (normalizedBalanceCredits == null || requiredCredits == null) return true;
+      if (requiredCredits == null) {
+        setUiError(AUDIO_PRICING_UNAVAILABLE_MESSAGE);
+        return false;
+      }
+      if (normalizedBalanceCredits == null) return true;
       if (normalizedBalanceCredits >= requiredCredits) return true;
       setUiError(INSUFFICIENT_AUDIO_CREDITS_MESSAGE);
       return false;

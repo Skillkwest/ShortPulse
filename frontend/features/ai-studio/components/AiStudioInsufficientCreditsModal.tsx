@@ -42,18 +42,8 @@ const resolveReturnPath = (): string => {
   return `${pathname}${search}`;
 };
 
-const resolvePackageDisplayName = (pkg: CreditPackage): string => {
-  const creditAmountPattern = [
-    pkg.credit_amount_cents.toLocaleString(),
-    String(pkg.credit_amount_cents),
-  ]
-    .map((amount) => amount.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
-    .join("|");
-  const withoutTrailingAmount = pkg.display_name
-    .replace(new RegExp(`\\s+(?:${creditAmountPattern})$`), "")
-    .trim();
-  return withoutTrailingAmount || pkg.display_name;
-};
+const formatCreditPackageLabel = (credits: number): string =>
+  `${Math.max(0, credits).toLocaleString()} credits`;
 
 /**
  * Renders a blocking-but-dismissable credit top-up prompt.
@@ -196,27 +186,23 @@ export function AiStudioInsufficientCreditsModal({
           ) : sortedPackages.length > 0 ? (
             <div className="ai-credit-modal-package-grid" aria-label="Credit top-up packages">
               {sortedPackages.map((pkg) => {
-                const packageDisplayName = resolvePackageDisplayName(pkg);
+                const creditPackageLabel = formatCreditPackageLabel(pkg.credit_amount_cents);
                 const checkoutInProgress = checkoutPackageId !== null;
                 return (
                   <article
                     key={pkg.id}
                     className="ai-credit-modal-package-card"
-                    aria-label={`${packageDisplayName} credit top-up package`}
+                    aria-label={`${creditPackageLabel} top-up package`}
                   >
-                    <span className="ai-credit-modal-package-kicker">Credit package</span>
-                    <span className="ai-credit-modal-package-name">{packageDisplayName}</span>
-                    <strong>
-                      {pkg.credit_amount_cents.toLocaleString()}{" "}
-                      <span className="ai-credit-modal-package-unit">credits</span>
-                    </strong>
+                    <span className="ai-credit-modal-package-kicker">Credit top-up</span>
+                    <strong>{creditPackageLabel}</strong>
                     <span className="ai-credit-modal-package-price">
                       {formatCurrencyFromCents(pkg.price_cents)} one-time purchase
                     </span>
                     <button
                       type="button"
                       className="ai-credit-modal-package-buy"
-                      aria-label={`Buy credits: ${packageDisplayName}`}
+                      aria-label={`Buy credits: ${creditPackageLabel}`}
                       onClick={() => handleCheckout(pkg)}
                       disabled={checkoutInProgress}
                     >

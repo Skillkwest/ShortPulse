@@ -10,6 +10,7 @@ import {
   GENERATION_RECOVERY_RUNNING_TIMEOUT_TELEMETRY_SOURCE,
   PROJECT_WORKSPACE_REPAIR_PENDING_TELEMETRY_SOURCE,
   GROWTH_TELEMETRY_SOURCE_LIKE_PATTERNS,
+  ROUTINE_NON_ACTIONABLE_TELEMETRY_SOURCE_LIKE_PATTERNS,
   SYNTHETIC_TEST_SOURCE_LIKE_PATTERN,
   TELEMETRY_SOURCE_LIKE_PATTERN,
 } from "../errorTelemetryPolicy";
@@ -62,6 +63,11 @@ export const applyEventFilters = (query: EventQuery, filters: EventFilterInput):
   }
   if (filters.excludeGrowthTelemetrySources) {
     for (const pattern of GROWTH_TELEMETRY_SOURCE_LIKE_PATTERNS) {
+      next = next.not("source", "like", pattern);
+    }
+  }
+  if (filters.excludeRoutineNonActionableTelemetrySources) {
+    for (const pattern of ROUTINE_NON_ACTIONABLE_TELEMETRY_SOURCE_LIKE_PATTERNS) {
       next = next.not("source", "like", pattern);
     }
   }

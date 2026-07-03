@@ -97,7 +97,7 @@ describe("GET /api/billing/credit-packages", () => {
               data: [
                 {
                   id: "growth_2000",
-                  display_name: "Growth 2,000",
+                  display_name: "2,000 credits",
                   credit_amount_cents: 2000,
                   price_cents: 2600,
                   sort_order: 20,
@@ -120,7 +120,7 @@ describe("GET /api/billing/credit-packages", () => {
       packages: [
         {
           id: "growth_2000",
-          display_name: "Growth 2,000",
+          display_name: "2,000 credits",
           credit_amount_cents: 2000,
           price_cents: 2600,
           sort_order: 20,

@@ -1029,10 +1029,10 @@ create table if not exists billing_credit_packages (
 
 insert into billing_credit_packages (id, display_name, credit_amount_cents, price_cents, stripe_price_id, is_active, sort_order)
 values
-    ('starter_500', 'Starter 500', 500, 700, null, true, 10),
-    ('growth_2000', 'Growth 2,000', 2000, 2600, null, true, 20),
-    ('scale_6000', 'Scale 6,000', 6000, 7800, null, true, 30),
-    ('studio_10000', 'Studio 10,000', 10000, 10000, null, true, 40)
+    ('starter_500', '500 credits', 500, 700, null, true, 10),
+    ('growth_2000', '2,000 credits', 2000, 2600, null, true, 20),
+    ('scale_6000', '6,000 credits', 6000, 7800, null, true, 30),
+    ('studio_10000', '10,000 credits', 10000, 10000, null, true, 40)
 on conflict (id) do update
 set display_name = excluded.display_name,
     credit_amount_cents = excluded.credit_amount_cents,

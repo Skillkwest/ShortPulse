@@ -81,7 +81,7 @@ const createSupabaseAdminQueryRecorder = () => {
 };
 
 describe("admin error-events query helpers", () => {
-  it("excludes growth telemetry from actionable event queries", async () => {
+  it("excludes routine non-actionable telemetry from actionable unlinked event queries", async () => {
     const { queries, supabaseAdmin } = createSupabaseAdminQueryRecorder();
 
     await fetchActionableErrorEvents({
@@ -101,10 +101,13 @@ describe("admin error-events query helpers", () => {
 
     const appErrorEventQueries = queries.filter((query) => query.table === "app_error_events");
     expect(appErrorEventQueries).toHaveLength(2);
+    const [openQuery, unlinkedQuery] = appErrorEventQueries;
+    expect(openQuery?.operations).not.toContain("not:source:like:telemetry.ai_studio.stability.%");
+    expect(unlinkedQuery?.operations).toContain("not:source:like:telemetry.marketing.%");
+    expect(unlinkedQuery?.operations).toContain("not:source:like:telemetry.auth.%");
+    expect(unlinkedQuery?.operations).toContain("not:source:like:telemetry.billing.%");
+    expect(unlinkedQuery?.operations).toContain("not:source:like:telemetry.ai_studio.stability.%");
     for (const query of appErrorEventQueries) {
-      expect(query.operations).toContain("not:source:like:telemetry.marketing.%");
-      expect(query.operations).toContain("not:source:like:telemetry.auth.%");
-      expect(query.operations).toContain("not:source:like:telemetry.billing.%");
       expect(query.operations).not.toContain("count:exact");
       expect(query.operations).not.toContain("head");
     }

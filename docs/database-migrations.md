@@ -318,6 +318,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 187.  `sql/migrations/188_add_media_storage_usage_helper.sql`
 188.  `sql/migrations/189_rename_free_plan_offer_rejection_to_baseline_access.sql`
 189.  `sql/migrations/190_require_paid_plan_for_media_library_inserts.sql`
+190.  `sql/migrations/191_rename_credit_top_up_packages.sql`
       Rollback files:
 
 
@@ -545,6 +546,7 @@ Billing safety note:
 - Migration `188_add_media_storage_usage_helper.sql` adds service-role-only `resolve_media_storage_usage_bytes(uuid)` so trusted server quota preflights can read aggregate Media Library usage without exposing direct table access to customer roles.
 - Migration `189_rename_free_plan_offer_rejection_to_baseline_access.sql` renames the service-role plan-offer rejection copy for the legacy baseline-access sentinel without changing pricing, entitlement, acquisition, or execute-grant behavior. Hosted apply remains a separate approved Supabase operation.
 - Migration `190_require_paid_plan_for_media_library_inserts.sql` adds `user_has_paid_media_library_access(uuid)` and requires a current non-free billing plan before authenticated users can insert `media_files` or `media_prompts`; existing owned select/update/delete isolation remains intact. Hosted apply remains a separate approved Supabase operation.
+- Migration `191_rename_credit_top_up_packages.sql` renames credit top-up package display names to amount-only customer copy while leaving ids, pricing, Stripe linkage, activation state, and grant amounts unchanged. Hosted apply remains a separate approved Supabase operation.
 - Migration `175_enforce_storage_addon_no_stack.sql` updates base plan storage to `0/5/25/75/150 GB`, refreshes recurring storage add-on metadata to `10/50/100/250 GB` self-serve plus `500 GB` manual review, closes old public storage add-on offers until matching Stripe Prices are activated, clamps add-on quota math to one unit, and adds the database guard for one current billable recurring storage add-on per user with quantity exactly one; run `sql/check_billing_storage_addon_no_stack_drift.sql` before applying it.
 - Read-write hosted-Supabase maintenance script `sql/configure_cron_job_run_details_retention_supabase.sql` prunes old `cron.job_run_details` rows, compacts the pruned table, and schedules daily retention; the active-status index is documented as an owner-only follow-up if retention alone does not reduce pg_cron status-update scan I/O enough.
 - Read-only performance diagnostics script `sql/check_media_preview_variant_coverage_and_size.sql` reports source-class counts, variant-hint coverage, and p50/p90 size distributions for Media Library preview-risk triage.

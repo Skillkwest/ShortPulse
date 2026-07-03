@@ -86,4 +86,5 @@ export type EventFilterInput = {
   incident: IncidentFilterValue;
   excludeTelemetrySources: boolean;
   excludeGrowthTelemetrySources?: boolean;
+  excludeRoutineNonActionableTelemetrySources?: boolean;
 };

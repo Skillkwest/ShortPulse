@@ -10,14 +10,17 @@ import type {
   AdminErrorStatus,
 } from "../types";
 
-const GROWTH_TELEMETRY_SOURCE_PREFIXES = [
+const ROUTINE_NON_ACTIONABLE_TELEMETRY_SOURCE_PREFIXES = [
   "telemetry.marketing.",
   "telemetry.auth.",
   "telemetry.billing.",
+  "telemetry.ai_studio.stability.",
 ] as const;
 
-const isGrowthTelemetrySource = (source: string): boolean => {
-  return GROWTH_TELEMETRY_SOURCE_PREFIXES.some((prefix) => source.startsWith(prefix));
+const isRoutineNonActionableTelemetrySource = (source: string): boolean => {
+  return ROUTINE_NON_ACTIONABLE_TELEMETRY_SOURCE_PREFIXES.some((prefix) =>
+    source.startsWith(prefix)
+  );
 };
 
 /**
@@ -81,7 +84,7 @@ export const eventMatchesIncidentFilter = (
   if (filter === "actionable") {
     return (
       row.incidentStatus === "open" ||
-      (row.incidentId === null && !isGrowthTelemetrySource(row.source))
+      (row.incidentId === null && !isRoutineNonActionableTelemetrySource(row.source))
     );
   }
   if (filter === "unlinked") {

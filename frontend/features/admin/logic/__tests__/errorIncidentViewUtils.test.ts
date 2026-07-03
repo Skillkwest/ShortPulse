@@ -66,6 +66,11 @@ describe("errorIncidentViewUtils", () => {
       incidentStatus: null,
       source: "telemetry.character_mode",
     });
+    const unlinkedAiStudioStabilityTelemetry = baseEvent({
+      incidentId: null,
+      incidentStatus: null,
+      source: "telemetry.ai_studio.stability.window_focus",
+    });
 
     expect(eventMatchesIncidentFilter(openLinked, "all")).toBe(true);
     expect(eventMatchesIncidentFilter(openLinked, "open")).toBe(true);
@@ -74,6 +79,10 @@ describe("errorIncidentViewUtils", () => {
     expect(eventMatchesIncidentFilter(unlinked, "actionable")).toBe(true);
     expect(eventMatchesIncidentFilter(unlinkedGrowthTelemetry, "unlinked")).toBe(true);
     expect(eventMatchesIncidentFilter(unlinkedGrowthTelemetry, "actionable")).toBe(false);
+    expect(eventMatchesIncidentFilter(unlinkedAiStudioStabilityTelemetry, "unlinked")).toBe(true);
+    expect(eventMatchesIncidentFilter(unlinkedAiStudioStabilityTelemetry, "actionable")).toBe(
+      false
+    );
     expect(eventMatchesIncidentFilter(unlinkedOperationalTelemetry, "actionable")).toBe(true);
     expect(eventMatchesIncidentFilter(resolvedLinked, "actionable")).toBe(false);
   });

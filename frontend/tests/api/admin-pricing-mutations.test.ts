@@ -62,7 +62,7 @@ describe("admin pricing mutation routes", () => {
       method: "POST",
       body: {
         id: "growth_2000",
-        displayName: "Growth 2,000",
+        displayName: "2,000 credits",
         creditAmountCents: 2000,
         priceCents: 2600,
         stripePriceId: "price_growth_2000",
@@ -231,7 +231,7 @@ describe("admin pricing mutation routes", () => {
       method: "POST",
       body: {
         id: "growth_2000",
-        displayName: "Growth 2,000",
+        displayName: "2,000 credits",
         creditAmountCents: 2000,
         priceCents: 2600,
         stripePriceId: "price_growth_2000",

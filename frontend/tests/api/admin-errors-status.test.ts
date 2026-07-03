@@ -22,6 +22,19 @@ const createMockResponse = () => ({
   json: vi.fn().mockReturnThis(),
 });
 
+const createEventLookupMock = (
+  result: {
+    data: { source: string | null; incident_id: string | null } | null;
+    error: { code?: string; message?: string } | null;
+  } = { data: { source: "api.example", incident_id: null }, error: null }
+) =>
+  vi.fn(() => {
+    const maybeSingle = vi.fn(async () => result);
+    const eq = vi.fn(() => ({ maybeSingle }));
+    const select = vi.fn(() => ({ eq }));
+    return { select };
+  });
+
 describe("POST /api/admin/errors-status", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -107,7 +120,7 @@ describe("POST /api/admin/errors-status", () => {
       },
       error: null,
     });
-    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock, from: createEventLookupMock() });
 
     const req = { method: "POST", body: { eventId: "evt-1", status: "ignored" } };
     const res = createMockResponse();
@@ -121,6 +134,60 @@ describe("POST /api/admin/errors-status", () => {
     });
   });
 
+  it("does not promote routine telemetry-only events to incidents", async () => {
+    const rpcMock = vi.fn();
+    getSupabaseAdminMock.mockReturnValue({
+      rpc: rpcMock,
+      from: createEventLookupMock({
+        data: { source: "telemetry.ai_studio.stability.window_focus", incident_id: null },
+        error: null,
+      }),
+    });
+
+    const req = { method: "POST", body: { eventId: "evt-routine", status: "resolved" } };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(rpcMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Routine telemetry events are raw evidence and cannot be promoted to incidents.",
+    });
+  });
+
+  it("allows routine telemetry event status updates when already linked to an incident", async () => {
+    const rpcMock = vi.fn().mockResolvedValue({
+      data: {
+        incident_id: "inc-linked-telemetry",
+        status: "ignored",
+        updated_at: "2026-02-17T04:30:00.000Z",
+        event_id: "evt-linked",
+      },
+      error: null,
+    });
+    getSupabaseAdminMock.mockReturnValue({
+      rpc: rpcMock,
+      from: createEventLookupMock({
+        data: { source: "telemetry.ai_studio.stability.window_focus", incident_id: "inc-linked" },
+        error: null,
+      }),
+    });
+
+    const req = { method: "POST", body: { eventId: "evt-linked", status: "ignored" } };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(rpcMock).toHaveBeenCalledWith("admin_update_app_error_status", {
+      p_error_id: null,
+      p_event_id: "evt-linked",
+      p_status: "ignored",
+      p_note: null,
+      p_admin_user_id: "admin-1",
+      p_admin_user_email: "admin@example.com",
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
   it("maps rpc not-found error to 404", async () => {
     const rpcMock = vi.fn().mockResolvedValue({
       data: null,
@@ -128,7 +195,7 @@ describe("POST /api/admin/errors-status", () => {
     });
     getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
 
-    const req = { method: "POST", body: { eventId: "evt-missing", status: "open" } };
+    const req = { method: "POST", body: { errorId: "inc-missing", status: "open" } };
     const res = createMockResponse();
     await handler(req as never, res as never);
 
@@ -138,8 +205,8 @@ describe("POST /api/admin/errors-status", () => {
       routeLabel: "admin/errors-status.rpc",
       user: { id: "admin-1", email: "admin@example.com" },
       metadata: {
-        target_error_id: null,
-        target_event_id: "evt-missing",
+        target_error_id: "inc-missing",
+        target_event_id: null,
         target_status: "open",
         rpc_error_code: "P0002",
       },

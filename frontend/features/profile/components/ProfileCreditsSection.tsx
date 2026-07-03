@@ -31,6 +31,9 @@ const formatCompactDate = (value: string | null): string => {
   }).format(new Date(value));
 };
 
+const formatCreditPackageLabel = (credits: number): string =>
+  `${Math.max(0, credits).toLocaleString()} credits`;
+
 type ProfileCreditsSectionProps = {
   activePlanClassName: string;
   balanceCents: number | null;
@@ -125,42 +128,41 @@ export function ProfileCreditsSection({
                 <p className="tiny subdued">No active credit packages are configured yet.</p>
               </div>
             ) : (
-              packageCards.map((pkg) => (
-                <div key={pkg.id} className={profileClass("profile-plan-card")}>
-                  <div className={profileClass("profile-plan-top")}>
-                    <div>
-                      <p className="tiny subdued">Credit package</p>
-                      <h3 className={profileClass("profile-plan-card-title")}>
-                        {pkg.display_name}
-                      </h3>
+              packageCards.map((pkg) => {
+                const creditPackageLabel = formatCreditPackageLabel(pkg.credit_amount_cents);
+                return (
+                  <div key={pkg.id} className={profileClass("profile-plan-card")}>
+                    <div className={profileClass("profile-plan-top")}>
+                      <div>
+                        <p className="tiny subdued">Credit top-up</p>
+                        <h3 className={profileClass("profile-plan-card-title")}>
+                          {creditPackageLabel}
+                        </h3>
+                      </div>
+                      {pkg.badge ? (
+                        <span className={profileClass("profile-plan-badge")}>{pkg.badge}</span>
+                      ) : null}
                     </div>
-                    {pkg.badge ? (
-                      <span className={profileClass("profile-plan-badge")}>{pkg.badge}</span>
-                    ) : null}
-                  </div>
 
-                  <p className="meta-value">
-                    {pkg.credit_amount_cents.toLocaleString()}{" "}
-                    <span className="tiny subdued">credits</span>
-                  </p>
-                  <p className="tiny subdued">
-                    {formatCurrencyFromCents(pkg.price_cents)} one-time purchase
-                  </p>
-                  <p className="tiny subdued">{`$${pkg.unitUsdPerThousand.toFixed(2)} / 1,000 credits`}</p>
+                    <p className="tiny subdued">
+                      {formatCurrencyFromCents(pkg.price_cents)} one-time purchase
+                    </p>
+                    <p className="tiny subdued">{`$${pkg.unitUsdPerThousand.toFixed(2)} / 1,000 credits`}</p>
 
-                  <div className={profileClass("profile-actions")}>
-                    <button
-                      type="button"
-                      className={profileClass("profile-button", "primary-btn")}
-                      onClick={() => onCheckout(pkg.id)}
-                      aria-label={`Buy ${pkg.display_name} for ${formatCurrencyFromCents(pkg.price_cents)}`}
-                      disabled={checkoutLoadingId === pkg.id}
-                    >
-                      {checkoutLoadingId === pkg.id ? "Starting checkout…" : "Buy credits"}
-                    </button>
+                    <div className={profileClass("profile-actions")}>
+                      <button
+                        type="button"
+                        className={profileClass("profile-button", "primary-btn")}
+                        onClick={() => onCheckout(pkg.id)}
+                        aria-label={`Buy ${creditPackageLabel} for ${formatCurrencyFromCents(pkg.price_cents)}`}
+                        disabled={checkoutLoadingId === pkg.id}
+                      >
+                        {checkoutLoadingId === pkg.id ? "Starting checkout…" : "Buy credits"}
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </ProfilePanel>

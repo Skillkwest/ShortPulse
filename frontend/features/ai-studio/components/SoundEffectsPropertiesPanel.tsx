@@ -267,6 +267,8 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
           pricingPolicy,
         })
       : null) ?? null;
+  const hasKnownGenerateCost = generateCost != null;
+  const generateCostLabel = hasKnownGenerateCost ? formatCreditValue(generateCost) : "Pending";
   const generateCreditConfidence = resolveGenerateCreditConfidence({
     actionLabel: "Generate sound effect",
     estimatedCredits: generateCost,
@@ -274,7 +276,8 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
     formatCredits: formatCreditValue,
   });
   const isWithinPromptLimit = prompt.length <= maxPromptCharacters;
-  const isGenerateEnabled = Boolean(onGenerate) && prompt.trim().length > 0 && isWithinPromptLimit;
+  const isGenerateEnabled =
+    Boolean(onGenerate) && prompt.trim().length > 0 && isWithinPromptLimit && hasKnownGenerateCost;
   const selectedDurationOption =
     ELEVENLABS_SOUND_EFFECT_DURATION_OPTIONS.find((option) => option.value === durationSeconds) ??
     ELEVENLABS_SOUND_EFFECT_DURATION_OPTIONS[0];
@@ -312,7 +315,7 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
 
   const handleGenerate = React.useCallback(async () => {
     const text = prompt.trim();
-    if (!onGenerate || !text || !isWithinPromptLimit) return;
+    if (!onGenerate || !text || !isWithinPromptLimit || generateCost == null) return;
     await onGenerate({
       text,
       durationSeconds,
@@ -538,7 +541,7 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
                       <span className="sound-effects-properties-generate-pill" aria-hidden="true">
                         <span className="sound-effects-properties-generate-cost-icon">✦</span>
                         <span className="sound-effects-properties-generate-cost-value">
-                          {generateCost != null ? formatCreditValue(generateCost) : "—"}
+                          {generateCostLabel}
                         </span>
                       </span>
                     </button>

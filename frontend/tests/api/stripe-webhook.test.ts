@@ -272,7 +272,7 @@ describe("POST /api/billing/stripe/webhook", () => {
               user_id: "user_123",
               credit_amount_cents: "1500",
               credit_package_id: "pkg_starter",
-              credit_package_display_name: "Starter 500",
+              credit_package_display_name: "500 credits",
               credit_package_price_cents: "700",
             },
           },
@@ -323,7 +323,7 @@ describe("POST /api/billing/stripe/webhook", () => {
               user_id: "user_123",
               credit_amount_cents: "1500",
               credit_package_id: "pkg_starter",
-              credit_package_display_name: "Starter 500",
+              credit_package_display_name: "500 credits",
               credit_package_price_cents: "700",
             },
           },
@@ -346,7 +346,7 @@ describe("POST /api/billing/stripe/webhook", () => {
         source: "stripe_checkout",
         sourceRef: "checkout_session:cs_test_1",
         metadata: expect.objectContaining({
-          credit_package_display_name: "Starter 500",
+          credit_package_display_name: "500 credits",
           credit_package_price_cents: 700,
         }),
       })
@@ -379,7 +379,7 @@ describe("POST /api/billing/stripe/webhook", () => {
               user_id: "user_123",
               credit_amount_cents: "1500",
               credit_package_id: "pkg_starter",
-              credit_package_display_name: "Starter 500",
+              credit_package_display_name: "500 credits",
               credit_package_price_cents: "700",
             },
           },
@@ -409,7 +409,7 @@ describe("POST /api/billing/stripe/webhook", () => {
               user_id: "user_123",
               credit_amount_cents: "1500",
               credit_package_id: "pkg_starter",
-              credit_package_display_name: "Starter 500",
+              credit_package_display_name: "500 credits",
               credit_package_price_cents: "700",
             },
           },
@@ -429,7 +429,7 @@ describe("POST /api/billing/stripe/webhook", () => {
         source: "stripe_checkout",
         sourceRef: "checkout_session:cs_async_1",
         metadata: expect.objectContaining({
-          credit_package_display_name: "Starter 500",
+          credit_package_display_name: "500 credits",
           credit_package_price_cents: 700,
         }),
       })

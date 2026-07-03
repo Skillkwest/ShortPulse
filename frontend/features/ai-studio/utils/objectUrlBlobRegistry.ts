@@ -3,7 +3,34 @@
  * Lets submission preflight reuse known blobs without re-fetching fragile `blob:` URLs.
  */
 
-const objectUrlBlobRegistry = new Map<string, Blob>();
+export const REMEMBERED_OBJECT_URL_BLOB_ENTRY_LIMIT = 256;
+const REMEMBERED_OBJECT_URL_BLOB_BYTE_LIMIT = 512 * 1024 * 1024;
+
+type ObjectUrlBlobRegistryEntry = {
+  blob: Blob;
+  size: number;
+};
+
+const objectUrlBlobRegistry = new Map<string, ObjectUrlBlobRegistryEntry>();
+let rememberedObjectUrlBlobBytes = 0;
+
+const deleteRememberedObjectUrlBlob = (url: string): void => {
+  const existing = objectUrlBlobRegistry.get(url);
+  if (!existing) return;
+  rememberedObjectUrlBlobBytes = Math.max(0, rememberedObjectUrlBlobBytes - existing.size);
+  objectUrlBlobRegistry.delete(url);
+};
+
+const pruneRememberedObjectUrlBlobs = (): void => {
+  while (
+    objectUrlBlobRegistry.size > REMEMBERED_OBJECT_URL_BLOB_ENTRY_LIMIT ||
+    rememberedObjectUrlBlobBytes > REMEMBERED_OBJECT_URL_BLOB_BYTE_LIMIT
+  ) {
+    const oldestUrl = objectUrlBlobRegistry.keys().next().value;
+    if (!oldestUrl) return;
+    deleteRememberedObjectUrlBlob(oldestUrl);
+  }
+};
 
 /**
  * Associates an object URL with the blob it was created from.
@@ -11,7 +38,14 @@ const objectUrlBlobRegistry = new Map<string, Blob>();
 export const rememberObjectUrlBlob = (url: string, blob: Blob): void => {
   const normalizedUrl = url.trim();
   if (!normalizedUrl.startsWith("blob:")) return;
-  objectUrlBlobRegistry.set(normalizedUrl, blob);
+  deleteRememberedObjectUrlBlob(normalizedUrl);
+  const size = Number.isFinite(blob.size) ? Math.max(0, blob.size) : 0;
+  objectUrlBlobRegistry.set(normalizedUrl, {
+    blob,
+    size,
+  });
+  rememberedObjectUrlBlobBytes += size;
+  pruneRememberedObjectUrlBlobs();
 };
 
 /**
@@ -19,7 +53,11 @@ export const rememberObjectUrlBlob = (url: string, blob: Blob): void => {
  */
 export const readRememberedObjectUrlBlob = (url: string): Blob | null => {
   const normalizedUrl = url.trim();
-  return objectUrlBlobRegistry.get(normalizedUrl) ?? null;
+  const entry = objectUrlBlobRegistry.get(normalizedUrl);
+  if (!entry) return null;
+  objectUrlBlobRegistry.delete(normalizedUrl);
+  objectUrlBlobRegistry.set(normalizedUrl, entry);
+  return entry.blob;
 };
 
 /**
@@ -28,7 +66,7 @@ export const readRememberedObjectUrlBlob = (url: string): Blob | null => {
 export const forgetObjectUrlBlob = (url: string): void => {
   const normalizedUrl = url.trim();
   if (!normalizedUrl) return;
-  objectUrlBlobRegistry.delete(normalizedUrl);
+  deleteRememberedObjectUrlBlob(normalizedUrl);
 };
 
 /**

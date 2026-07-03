@@ -14,6 +14,8 @@ import {
   TELEMETRY_SOURCE_LIKE_PATTERN,
   isGrowthTelemetrySource,
   isTelemetrySource,
+  shouldRetainEventUserEmail,
+  shouldRetainRichEventContext,
 } from "../../lib/server/api/errorTelemetryPolicy";
 
 describe("error telemetry source policy", () => {
@@ -27,6 +29,29 @@ describe("error telemetry source policy", () => {
     expect(isGrowthTelemetrySource("telemetry.auth.signup_submitted")).toBe(true);
     expect(isGrowthTelemetrySource("telemetry.billing.checkout_started")).toBe(true);
     expect(isGrowthTelemetrySource("telemetry.character_mode")).toBe(false);
+  });
+
+  it("keeps rich event context and email snapshots for incidents, not routine telemetry", () => {
+    expect(
+      shouldRetainRichEventContext({
+        source: "client.runtime",
+        severity: "high",
+      })
+    ).toBe(true);
+    expect(
+      shouldRetainRichEventContext({
+        source: "telemetry.ai_studio.stability.pressure_level_changed",
+        severity: "medium",
+      })
+    ).toBe(false);
+    expect(
+      shouldRetainRichEventContext({
+        source: "telemetry.api.fal_submit.direct_transition_failed",
+        severity: "high",
+      })
+    ).toBe(true);
+    expect(shouldRetainEventUserEmail("client.runtime")).toBe(true);
+    expect(shouldRetainEventUserEmail("telemetry.marketing.page_view")).toBe(false);
   });
 
   it("exposes stable query patterns and known telemetry source constants", () => {

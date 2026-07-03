@@ -199,6 +199,26 @@ describe("GET /api/admin/storage-economics", () => {
           status: "active",
         },
       ],
+      admin_storage_usage_snapshots: [
+        {
+          snapshot_month: "2026-07-01",
+          captured_at: new Date().toISOString(),
+          source: "manual",
+          supabase_plan: "Pro",
+          compute_plan: "medium",
+          compute_monthly_cost_cents: 6000,
+          storage_used_gb: 42,
+          storage_included_gb: 100,
+          uncached_egress_gb: 120,
+          cached_egress_gb: 60,
+          uncached_egress_included_gb: 250,
+          cached_egress_included_gb: 250,
+          observed_storage_overage_cost_cents: null,
+          observed_uncached_egress_overage_cost_cents: null,
+          observed_cached_egress_overage_cost_cents: null,
+          notes: "usage page snapshot",
+        },
+      ],
       app_error_events: [
         {
           message: "storage_addon_request_started",
@@ -232,6 +252,21 @@ describe("GET /api/admin/storage-economics", () => {
         baselineStorageUsers: 1,
         activeAddonSubscribers: 1,
         activeAddonMrrCents: 900,
+        estimatedPlanMrrCents: 1900,
+        estimatedComputeCostCents: 6000,
+      })
+    );
+    expect(payload.providerUsage).toEqual(
+      expect.objectContaining({
+        status: "current",
+        source: "manual",
+        snapshotMonth: "2026-07-01",
+        storageUsedGb: 42,
+        uncachedEgressGb: 120,
+        cachedEgressGb: 60,
+        storageQuotaUsedPct: 42,
+        egressMultiple: expect.any(Number),
+        notes: "usage page snapshot",
       })
     );
     expect(payload.byPlan).toEqual(
@@ -301,6 +336,9 @@ describe("GET /api/admin/storage-economics", () => {
     );
     expect(supabase.selects.billing_plan_offers?.[0]).toBe(
       "id, plan_id, recurring_price_cents, billing_interval, acquisition_enabled, is_active, effective_start_at, effective_end_at, created_at"
+    );
+    expect(supabase.selects.admin_storage_usage_snapshots?.[0]).toBe(
+      "snapshot_month, captured_at, source, supabase_plan, compute_plan, compute_monthly_cost_cents, storage_used_gb, storage_included_gb, uncached_egress_gb, cached_egress_gb, uncached_egress_included_gb, cached_egress_included_gb, observed_storage_overage_cost_cents, observed_uncached_egress_overage_cost_cents, observed_cached_egress_overage_cost_cents, notes"
     );
   });
 

@@ -27,6 +27,7 @@ const MAX_MESSAGE_LENGTH = 600;
 const REPORT_DEDUPE_WINDOW_MS = 60_000;
 const HIGH_SEVERITY_REPORT_DEDUPE_WINDOW_MS = 10_000;
 const DEFAULT_INGEST_BACKOFF_MS = 60_000;
+const TELEMETRY_SOURCE_PREFIX = "telemetry.";
 const LOW_VALUE_CLIENT_TELEMETRY_SOURCE_PREFIX = "telemetry.ai_studio.";
 let listenersInstalled = false;
 let supabaseAccessTokenHintsPromise: Promise<typeof import("./supabaseAccessTokenHints")> | null =
@@ -237,6 +238,11 @@ const shouldBackpressureReport = (event: ClientAppErrorEvent): boolean => {
   return false;
 };
 
+const shouldIncludeRichContext = (event: ClientAppErrorEvent): boolean => {
+  if (!event.source.startsWith(TELEMETRY_SOURCE_PREFIX)) return true;
+  return event.severity === "high";
+};
+
 const resolveClientReleaseMetadata = (): JsonObject => ({
   client_release:
     normalizeText(process.env.NEXT_PUBLIC_SHORTPULSE_RELEASE, 120) ??
@@ -291,6 +297,15 @@ const reportToApi = async (event: ClientAppErrorEvent): Promise<void> => {
   if (!token) return;
 
   const endpoint = "/api/log/client-error";
+  const metadata: JsonObject = {
+    ...resolveClientReleaseMetadata(),
+    ...resolveClientRuntimeMetadata(),
+    ...(event.metadata ?? {}),
+  };
+  if (shouldIncludeRichContext(event)) {
+    metadata.breadcrumbs = getBreadcrumbsSnapshot();
+  }
+
   const response = await fetch(endpoint, {
     method: "POST",
     headers: {
@@ -307,12 +322,7 @@ const reportToApi = async (event: ClientAppErrorEvent): Promise<void> => {
       endpoint: endpointPath(event.endpoint),
       requestId: normalizeText(event.requestId, 120),
       statusCode: typeof event.statusCode === "number" ? Math.trunc(event.statusCode) : null,
-      metadata: {
-        ...resolveClientReleaseMetadata(),
-        ...resolveClientRuntimeMetadata(),
-        breadcrumbs: getBreadcrumbsSnapshot(),
-        ...(event.metadata ?? {}),
-      },
+      metadata,
       occurredAt: event.occurredAt ?? new Date().toISOString(),
     }),
     keepalive: true,

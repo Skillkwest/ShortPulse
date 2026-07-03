@@ -986,6 +986,23 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `created_at` / `updated_at` (timestamptz)
 - RLS: select allowed for all users; writes are server-only/service-role-only.
 
+### admin_storage_usage_snapshots
+
+- `id` (uuid, pk): Operator/provider usage snapshot id for Admin Storage economics.
+- `snapshot_month` (date): Month represented by the snapshot; constrained to the first day of the month.
+- `captured_at` (timestamptz): When the operator captured or imported the usage numbers.
+- `source` (text): Snapshot source (`manual | supabase_usage_page | supabase_export | api_import`).
+- `supabase_plan` / `compute_plan` (text): Provider plan labels used for operator interpretation.
+- `compute_monthly_cost_cents` (int): Shared Supabase compute cost included in business-level storage economics.
+- `storage_used_gb` / `storage_included_gb` (numeric): Provider storage usage and included quota for the month.
+- `uncached_egress_gb` / `cached_egress_gb` (numeric): Provider egress usage for the month.
+- `uncached_egress_included_gb` / `cached_egress_included_gb` (numeric): Included egress quotas used for bill-pressure calculations.
+- `observed_storage_overage_cost_cents`, `observed_uncached_egress_overage_cost_cents`, `observed_cached_egress_overage_cost_cents` (int, nullable): Optional observed invoice/export cost values. When absent, `/api/admin/storage-economics` estimates overage from configured rates.
+- `notes` (text, nullable): Operator note for source/freshness context.
+- `created_at` / `updated_at` (timestamptz)
+- Runtime role: provider bill-pressure evidence for `/admin/storage`; not customer entitlement, pricing, Stripe, or quota authority.
+- Access model: RLS enabled with no browser policies; service-role-only read/write.
+
 ### billing_profiles
 
 - `user_id` (uuid, pk, references `auth.users(id)`): Owner.
@@ -1200,11 +1217,13 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `endpoint` (text, nullable): Endpoint involved where applicable.
 - `request_id` (text, nullable): Correlation id from `x-shortpulse-request-id`.
 - `http_status` (int, nullable): HTTP status when available.
-- `user_id` / `user_email` (nullable): user context snapshot.
+- `user_id` / `user_email` (nullable): user context snapshot. Telemetry-only rows keep `user_id` when available for aggregate/operator correlation but do not store `user_email`.
 - `metadata` (jsonb): sanitized structured context captured at event time.
 - `occurred_at` / `created_at` (timestamptz)
 - RLS: enabled with no client policies by default (service-role/server-only writes and reads).
 - Telemetry contract notes:
+  - Low/medium `telemetry.*` raw rows are retention-managed after daily rollup. Low-severity telemetry is retained raw for 14 days; medium-severity telemetry is retained raw for 30 days. High-severity telemetry and non-telemetry incident rows are preserved by the initial retention policy.
+  - Routine `telemetry.*` rows omit rich browser context such as breadcrumbs unless severity is `high`; real `client.*`, `api.*`, and `generation.*` incidents keep rich context for triage.
   - `telemetry.ai_studio.generate_clicked` was the original intent authority for admin stats v1, but low-severity browser `telemetry.ai_studio.*` ingest is currently suppressed before `/api/log/client-error`, so do not treat this source as fresh/live authority until a dedicated product-telemetry lane replaces it.
   - Growth funnel sources now include:
     - `telemetry.marketing.page_view`
@@ -1234,6 +1253,16 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
     - `landing_path`
     - `referrer_host`
     - event-specific metadata such as `page_name`, `cta_id`, `pricing_surface`, `upgrade_target`, `package_id`
+
+### app_error_event_telemetry_daily_rollups
+
+- `rollup_day` / `source` / `scope` / `severity` (composite pk): daily telemetry aggregate grain.
+- `event_count` (bigint): greatest known raw count for the day/source/scope/severity group before retention pruning.
+- `first_occurred_at` / `last_occurred_at`: raw event time bounds observed for the aggregate group.
+- `last_rolled_up_at`: most recent rollup function execution that touched the group.
+- `created_at` / `updated_at`
+- RLS: enabled with no client policies by default; service-role-only table grants.
+- Authority: aggregate telemetry history only. It is not an incident table, not user-facing analytics authority, and not a replacement for recent raw event triage in `/admin/error-events`.
 
 ### storage.objects (Supabase bucket)
 

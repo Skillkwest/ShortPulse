@@ -642,4 +642,27 @@ describe("admin pricing mutation routes", () => {
       error: "Manual-review storage add-ons cannot be activated as public self-serve offers.",
     });
   });
+
+  it("rejects retired legacy storage add-ons before public offer activation", async () => {
+    const req = {
+      method: "POST",
+      body: {
+        storageAddonId: "storage_25gb",
+        offerName: "Extra 25 GB Legacy Offer",
+        storageLimitBytes: 26843545600,
+        recurringPriceCents: 500,
+        stripePriceId: "price_storage_25",
+      },
+    };
+    const res = createMockResponse();
+
+    await createStorageOfferHandler(req as never, res as never);
+
+    expect(stripeGetMock).not.toHaveBeenCalled();
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Only current self-serve storage add-ons can be activated as public offers.",
+    });
+  });
 });

@@ -105,6 +105,21 @@ describe("appErrorReporter", () => {
         method: "POST",
       })
     );
+    const requestBody = JSON.parse(String(vi.mocked(fetch).mock.calls[0]?.[1]?.body));
+    expect(requestBody.metadata).not.toHaveProperty("breadcrumbs");
+  });
+
+  it("keeps rich browser context for actionable runtime errors", async () => {
+    await reportAppError({
+      source: "client.runtime",
+      scope: "app",
+      severity: "high",
+      message: "Cannot read properties of null",
+      route: "/ai-studio",
+    });
+
+    const requestBody = JSON.parse(String(vi.mocked(fetch).mock.calls[0]?.[1]?.body));
+    expect(requestBody.metadata).toHaveProperty("breadcrumbs");
   });
 
   it("keeps distinct ai-studio pressure transitions ingestible inside the dedupe window", async () => {

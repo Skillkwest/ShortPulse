@@ -26,6 +26,11 @@ export type VideoUploadError = {
 
 const SUPABASE_SIGNED_URL_REFRESH_BUFFER_SECONDS = 5 * 60;
 const MOTION_REFERENCE_UPLOAD_AUTH_TIMEOUT_MS = 12_000;
+const FETCH_LOCAL_VIDEO_TIMEOUT_MS = 30_000;
+const PREPARE_VIDEO_UPLOAD_TIMEOUT_MS = 20_000;
+const UPLOAD_VIDEO_STORAGE_TIMEOUT_MS = 180_000;
+const STAGE_VIDEO_UPLOAD_TIMEOUT_MS = 60_000;
+const SIGNED_VIDEO_URL_REFRESH_TIMEOUT_MS = 10_000;
 
 const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "::1", "0.0.0.0"]);
 const MOTION_REFERENCE_PROVIDER_READY_VIDEO_EXTENSIONS = new Set(["mp4", "mov"]);
@@ -102,6 +107,15 @@ type StageMotionReferenceVideoPayload = {
 
 type PrepareReferenceVideoUploadPayload = PrepareMotionReferenceVideoUploadPayload;
 type StageReferenceVideoPayload = StageMotionReferenceVideoPayload;
+
+type PrepareVideoSourceKind = "blob" | "data-url" | "remote" | "supabase-signed";
+
+type PrepareVideoStage =
+  | "fetch_local_video"
+  | "prepare_video_upload"
+  | "upload_video_storage"
+  | "stage_video_upload"
+  | "refresh_signed_url";
 
 const normalizeVideoUploadMimeType = (mimeType: string): string =>
   (mimeType.split(";")[0] ?? "").trim().toLowerCase() || "video/mp4";
@@ -213,6 +227,72 @@ const resolveVideoUploadPipelineError = (
   return fallbackMessage;
 };
 
+const runAbortableVideoStep = async <T>({
+  stage,
+  sourceKind,
+  timeoutMs,
+  run,
+}: {
+  stage: PrepareVideoStage;
+  sourceKind: PrepareVideoSourceKind;
+  timeoutMs: number;
+  run: (signal: AbortSignal) => Promise<T>;
+}): Promise<T> => {
+  const abortController = new AbortController();
+  let timeoutHandle: ReturnType<typeof globalThis.setTimeout> | null = null;
+  let timedOut = false;
+  const timeoutPromise = new Promise<T>((_resolve, reject) => {
+    timeoutHandle = globalThis.setTimeout(() => {
+      timedOut = true;
+      abortController.abort();
+      reject(new Error(`${stage} timed out after ${timeoutMs}ms.`));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([run(abortController.signal), timeoutPromise]);
+  } catch (error) {
+    if (timedOut) {
+      const label =
+        sourceKind === "supabase-signed"
+          ? "signed video URL refresh"
+          : sourceKind === "remote"
+            ? "video URL read"
+            : "video upload";
+      throw new Error(`${label} timed out. Please retry with a smaller or local video.`);
+    }
+    throw error;
+  } finally {
+    if (timeoutHandle) {
+      globalThis.clearTimeout(timeoutHandle);
+    }
+  }
+};
+
+const resolveVideoSourceKind = (url: string): PrepareVideoSourceKind => {
+  if (url.startsWith("blob:")) return "blob";
+  if (/^data:video\//i.test(url)) return "data-url";
+  if (parseSupabaseSignedObjectRef(url)) return "supabase-signed";
+  return "remote";
+};
+
+const readVideoUrlBlob = async (
+  normalizedLocalVideoUrl: string,
+  sourceKind: PrepareVideoSourceKind
+): Promise<Blob> =>
+  await runAbortableVideoStep({
+    stage: "fetch_local_video",
+    sourceKind,
+    timeoutMs: FETCH_LOCAL_VIDEO_TIMEOUT_MS,
+    run: async (signal) => {
+      const response = await fetch(normalizedLocalVideoUrl, { signal });
+      if (!response.ok) {
+        throw new Error(`Unable to read local video input (${response.status}).`);
+      }
+      return await response.blob();
+    },
+  });
+
 const refreshSupabaseSignedUrlIfNeeded = async (url: string): Promise<string> => {
   const objectRef = parseSupabaseSignedObjectRef(url);
   if (!objectRef) return url;
@@ -225,10 +305,16 @@ const refreshSupabaseSignedUrlIfNeeded = async (url: string): Promise<string> =>
     return url;
   }
 
-  const refreshedUrl = await getSignedMediaUrl({
-    bucket: objectRef.bucket,
-    storagePath: objectRef.storagePath,
-    forceRefresh: true,
+  const refreshedUrl = await runAbortableVideoStep({
+    stage: "refresh_signed_url",
+    sourceKind: "supabase-signed",
+    timeoutMs: SIGNED_VIDEO_URL_REFRESH_TIMEOUT_MS,
+    run: async () =>
+      await getSignedMediaUrl({
+        bucket: objectRef.bucket,
+        storagePath: objectRef.storagePath,
+        forceRefresh: true,
+      }),
   });
   if (refreshedUrl?.trim()) return refreshedUrl;
   throw new Error(
@@ -268,10 +354,12 @@ const uploadVideoBlob = async ({
   blob,
   mimeType,
   filename,
+  sourceKind,
 }: {
   blob: Blob;
   mimeType: string;
   filename: string;
+  sourceKind: PrepareVideoSourceKind;
 }): Promise<VideoUploadResult> => {
   const preparedBlob = await maybePrestageMotionReferenceVideoBlob(blob);
   const wasPrestaged = preparedBlob !== blob;
@@ -281,18 +369,25 @@ const uploadVideoBlob = async ({
   const uploadFilename = wasPrestaged
     ? replaceVideoFileExtension(filename, inferVideoFileExtensionFromMimeType(normalizedMimeType))
     : filename;
-  const prepareResponse = await fetchWithAuth("/api/media/prepare-motion-reference-video-upload", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      sourceMimeType: normalizedMimeType,
-      sourceName: uploadFilename,
-    }),
-    shortpulseLogScope: "generation",
-    shortpulseAuthTimeoutMs: MOTION_REFERENCE_UPLOAD_AUTH_TIMEOUT_MS,
-    shortpulseRetryNetworkOnce: true,
+  const prepareResponse = await runAbortableVideoStep({
+    stage: "prepare_video_upload",
+    sourceKind,
+    timeoutMs: PREPARE_VIDEO_UPLOAD_TIMEOUT_MS,
+    run: async (signal) =>
+      await fetchWithAuth("/api/media/prepare-motion-reference-video-upload", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sourceMimeType: normalizedMimeType,
+          sourceName: uploadFilename,
+        }),
+        signal,
+        shortpulseLogScope: "generation",
+        shortpulseAuthTimeoutMs: MOTION_REFERENCE_UPLOAD_AUTH_TIMEOUT_MS,
+        shortpulseRetryNetworkOnce: true,
+      }),
   });
   const preparePayload = (await prepareResponse
     .json()
@@ -324,31 +419,44 @@ const uploadVideoBlob = async ({
   }
 
   const supabase = ensureSupabaseQueryClient();
-  const uploadToSignedUrlResult = await supabase.storage
-    .from(BUCKET)
-    .uploadToSignedUrl(storagePath, uploadToken, preparedBlob, {
-      contentType: preparedMimeType,
-      upsert: false,
-    });
+  const uploadToSignedUrlResult = await runAbortableVideoStep({
+    stage: "upload_video_storage",
+    sourceKind,
+    timeoutMs: UPLOAD_VIDEO_STORAGE_TIMEOUT_MS,
+    run: async () =>
+      await supabase.storage
+        .from(BUCKET)
+        .uploadToSignedUrl(storagePath, uploadToken, preparedBlob, {
+          contentType: preparedMimeType,
+          upsert: false,
+        }),
+  });
   if (uploadToSignedUrlResult.error) {
     throw new Error(
       uploadToSignedUrlResult.error.message || "Unable to upload the motion reference video."
     );
   }
 
-  const finalizeResponse = await fetchWithAuth("/api/media/stage-motion-reference-video", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      sourceMimeType: preparedMimeType,
-      sourceName: preparedName,
-      sourceStoragePath: storagePath,
-    }),
-    shortpulseLogScope: "generation",
-    shortpulseAuthTimeoutMs: MOTION_REFERENCE_UPLOAD_AUTH_TIMEOUT_MS,
-    shortpulseRetryNetworkOnce: true,
+  const finalizeResponse = await runAbortableVideoStep({
+    stage: "stage_video_upload",
+    sourceKind,
+    timeoutMs: STAGE_VIDEO_UPLOAD_TIMEOUT_MS,
+    run: async (signal) =>
+      await fetchWithAuth("/api/media/stage-motion-reference-video", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sourceMimeType: preparedMimeType,
+          sourceName: preparedName,
+          sourceStoragePath: storagePath,
+        }),
+        signal,
+        shortpulseLogScope: "generation",
+        shortpulseAuthTimeoutMs: MOTION_REFERENCE_UPLOAD_AUTH_TIMEOUT_MS,
+        shortpulseRetryNetworkOnce: true,
+      }),
   });
   const result = (await finalizeResponse
     .json()
@@ -381,24 +489,33 @@ const uploadReferenceVideoBlob = async ({
   blob,
   mimeType,
   filename,
+  sourceKind,
 }: {
   blob: Blob;
   mimeType: string;
   filename: string;
+  sourceKind: PrepareVideoSourceKind;
 }): Promise<VideoUploadResult> => {
   const normalizedMimeType = normalizeVideoUploadMimeType(mimeType || blob.type);
-  const prepareResponse = await fetchWithAuth("/api/media/prepare-reference-video-upload", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      sourceMimeType: normalizedMimeType,
-      sourceName: filename,
-    }),
-    shortpulseLogScope: "generation",
-    shortpulseAuthTimeoutMs: MOTION_REFERENCE_UPLOAD_AUTH_TIMEOUT_MS,
-    shortpulseRetryNetworkOnce: true,
+  const prepareResponse = await runAbortableVideoStep({
+    stage: "prepare_video_upload",
+    sourceKind,
+    timeoutMs: PREPARE_VIDEO_UPLOAD_TIMEOUT_MS,
+    run: async (signal) =>
+      await fetchWithAuth("/api/media/prepare-reference-video-upload", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sourceMimeType: normalizedMimeType,
+          sourceName: filename,
+        }),
+        signal,
+        shortpulseLogScope: "generation",
+        shortpulseAuthTimeoutMs: MOTION_REFERENCE_UPLOAD_AUTH_TIMEOUT_MS,
+        shortpulseRetryNetworkOnce: true,
+      }),
   });
   const preparePayload = (await prepareResponse
     .json()
@@ -425,31 +542,42 @@ const uploadReferenceVideoBlob = async ({
   }
 
   const supabase = ensureSupabaseQueryClient();
-  const uploadToSignedUrlResult = await supabase.storage
-    .from(BUCKET)
-    .uploadToSignedUrl(storagePath, uploadToken, blob, {
-      contentType: preparedMimeType,
-      upsert: false,
-    });
+  const uploadToSignedUrlResult = await runAbortableVideoStep({
+    stage: "upload_video_storage",
+    sourceKind,
+    timeoutMs: UPLOAD_VIDEO_STORAGE_TIMEOUT_MS,
+    run: async () =>
+      await supabase.storage.from(BUCKET).uploadToSignedUrl(storagePath, uploadToken, blob, {
+        contentType: preparedMimeType,
+        upsert: false,
+      }),
+  });
   if (uploadToSignedUrlResult.error) {
     throw new Error(
       uploadToSignedUrlResult.error.message || "Unable to upload the reference video."
     );
   }
 
-  const finalizeResponse = await fetchWithAuth("/api/media/stage-reference-video", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      sourceMimeType: preparedMimeType,
-      sourceName: preparedName,
-      sourceStoragePath: storagePath,
-    }),
-    shortpulseLogScope: "generation",
-    shortpulseAuthTimeoutMs: MOTION_REFERENCE_UPLOAD_AUTH_TIMEOUT_MS,
-    shortpulseRetryNetworkOnce: true,
+  const finalizeResponse = await runAbortableVideoStep({
+    stage: "stage_video_upload",
+    sourceKind,
+    timeoutMs: STAGE_VIDEO_UPLOAD_TIMEOUT_MS,
+    run: async (signal) =>
+      await fetchWithAuth("/api/media/stage-reference-video", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sourceMimeType: preparedMimeType,
+          sourceName: preparedName,
+          sourceStoragePath: storagePath,
+        }),
+        signal,
+        shortpulseLogScope: "generation",
+        shortpulseAuthTimeoutMs: MOTION_REFERENCE_UPLOAD_AUTH_TIMEOUT_MS,
+        shortpulseRetryNetworkOnce: true,
+      }),
   });
   const result = (await finalizeResponse.json().catch(() => null)) as StageReferenceVideoPayload;
 
@@ -493,6 +621,7 @@ export const uploadVideoFileToStorage = async (file: File): Promise<VideoUploadR
       blob: file,
       mimeType: sourceMimeType,
       filename,
+      sourceKind: "blob",
     });
   } catch (error) {
     console.error("Video file upload error:", error);
@@ -519,6 +648,7 @@ export const uploadReferenceVideoFileToStorage = async (file: File): Promise<Vid
       blob: file,
       mimeType: sourceMimeType,
       filename,
+      sourceKind: "blob",
     });
   } catch (error) {
     console.error("Reference video file upload error:", error);
@@ -536,6 +666,7 @@ export const uploadVideoAssetToStorage = async (
 ): Promise<VideoUploadResult> => {
   const normalizedLocalVideoUrl = localVideoUrl.replace(/#video=1$/i, "");
   const isLocalMemoryUrl = shouldUploadForProviderAccess(normalizedLocalVideoUrl);
+  const sourceKind = resolveVideoSourceKind(normalizedLocalVideoUrl);
   try {
     const rememberedBlob = normalizedLocalVideoUrl.startsWith("blob:")
       ? readRememberedObjectUrlBlob(normalizedLocalVideoUrl)
@@ -551,13 +682,7 @@ export const uploadVideoAssetToStorage = async (
     const blob =
       rememberedBlob ??
       dataUrlBlob ??
-      (await (async () => {
-        const response = await fetch(normalizedLocalVideoUrl);
-        if (!response.ok) {
-          throw new Error(`Unable to read local video input (${response.status}).`);
-        }
-        return response.blob();
-      })());
+      (await readVideoUrlBlob(normalizedLocalVideoUrl, sourceKind));
 
     const timestamp = Date.now();
     const randomString = Math.random().toString(36).substring(7);
@@ -574,6 +699,7 @@ export const uploadVideoAssetToStorage = async (
       blob,
       mimeType: sourceMimeType,
       filename,
+      sourceKind,
     });
   } catch (error) {
     console.error("Video upload error:", error);
@@ -600,6 +726,7 @@ export const uploadReferenceVideoAssetToStorage = async (
 ): Promise<VideoUploadResult> => {
   const normalizedLocalVideoUrl = localVideoUrl.replace(/#video=1$/i, "");
   const isLocalMemoryUrl = shouldUploadForProviderAccess(normalizedLocalVideoUrl);
+  const sourceKind = resolveVideoSourceKind(normalizedLocalVideoUrl);
   try {
     const rememberedBlob = normalizedLocalVideoUrl.startsWith("blob:")
       ? readRememberedObjectUrlBlob(normalizedLocalVideoUrl)
@@ -615,13 +742,7 @@ export const uploadReferenceVideoAssetToStorage = async (
     const blob =
       rememberedBlob ??
       dataUrlBlob ??
-      (await (async () => {
-        const response = await fetch(normalizedLocalVideoUrl);
-        if (!response.ok) {
-          throw new Error(`Unable to read local video input (${response.status}).`);
-        }
-        return response.blob();
-      })());
+      (await readVideoUrlBlob(normalizedLocalVideoUrl, sourceKind));
 
     const timestamp = Date.now();
     const randomString = Math.random().toString(36).substring(7);
@@ -638,6 +759,7 @@ export const uploadReferenceVideoAssetToStorage = async (
       blob,
       mimeType: sourceMimeType,
       filename,
+      sourceKind,
     });
   } catch (error) {
     console.error("Reference video upload error:", error);

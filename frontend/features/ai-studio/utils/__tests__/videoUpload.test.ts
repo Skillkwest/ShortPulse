@@ -3,6 +3,7 @@
  * Ensures recorded clips use browser-direct storage upload before final staging.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ShortPulseFetchInit } from "../../../../lib/authenticatedFetch";
 
 const fetchWithAuthMock = vi.fn();
 const uploadToSignedUrlMock = vi.fn();
@@ -165,6 +166,7 @@ describe("videoUpload", () => {
       expect.objectContaining({
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: expect.any(Object),
         shortpulseRetryNetworkOnce: true,
       })
     );
@@ -187,6 +189,7 @@ describe("videoUpload", () => {
       expect.objectContaining({
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: expect.any(Object),
         shortpulseRetryNetworkOnce: true,
       })
     );
@@ -562,13 +565,11 @@ describe("videoUpload", () => {
 
   it("infers URL-staged motion-reference MIME type from extension when fetched blobs omit type", async () => {
     const remoteBlob = new Blob(["remote-video"], { type: "" });
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => ({
-        ok: true,
-        blob: async () => remoteBlob,
-      }))
-    );
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      blob: async () => remoteBlob,
+    }));
+    vi.stubGlobal("fetch", fetchMock);
     fetchWithAuthMock
       .mockResolvedValueOnce(
         jsonResponse({
@@ -592,6 +593,12 @@ describe("videoUpload", () => {
 
     await uploadVideoAssetToStorage("https://cdn.example.com/motion-reference.webm");
 
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://cdn.example.com/motion-reference.webm",
+      expect.objectContaining({
+        signal: expect.any(Object),
+      })
+    );
     expect(JSON.parse(String(fetchWithAuthMock.mock.calls[0]?.[1]?.body))).toMatchObject({
       sourceMimeType: "video/webm",
       sourceName: expect.stringMatching(/^motion-reference-\d+-[a-z0-9]+\.webm$/),
@@ -610,6 +617,45 @@ describe("videoUpload", () => {
       sourceName: "motion-reference.webm",
       sourceStoragePath: "user-1/upload-staging/videos/motion-control/ref.webm",
     });
+    const [, prepareOptions] = fetchWithAuthMock.mock.calls[0] as [string, ShortPulseFetchInit];
+    const [, finalizeOptions] = fetchWithAuthMock.mock.calls[1] as [string, ShortPulseFetchInit];
+    expect(prepareOptions.signal).toBeTruthy();
+    expect(finalizeOptions.signal).toBeTruthy();
+  });
+
+  it("times out hosted motion-reference video reads before staging", async () => {
+    vi.useFakeTimers();
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const fetchMock = vi.fn(
+      (_url: string, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            reject(new DOMException("Aborted", "AbortError"));
+          });
+        })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const uploadPromise = uploadVideoAssetToStorage(
+        "https://cdn.example.com/hung-reference.webm"
+      );
+      const timeoutExpectation = expect(uploadPromise).rejects.toThrow("video URL read timed out");
+      await vi.advanceTimersByTimeAsync(30_000);
+
+      await timeoutExpectation;
+      expect(fetchMock).toHaveBeenCalledWith(
+        "https://cdn.example.com/hung-reference.webm",
+        expect.objectContaining({
+          signal: expect.any(Object),
+        })
+      );
+      expect(fetchWithAuthMock).not.toHaveBeenCalled();
+      expect(uploadToSignedUrlMock).not.toHaveBeenCalled();
+      expect(consoleErrorSpy).toHaveBeenCalledWith("Video upload error:", expect.any(Error));
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("rejects blob motion-reference URLs that no longer have Blob authority", async () => {

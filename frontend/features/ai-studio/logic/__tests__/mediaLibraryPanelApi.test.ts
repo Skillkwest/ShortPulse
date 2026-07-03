@@ -410,6 +410,7 @@ describe("mediaLibraryPanelApi.uploadMediaFile", () => {
       }),
       expect.objectContaining({
         contentType: "image/webp",
+        cacheControl: "31536000",
         upsert: false,
       })
     );

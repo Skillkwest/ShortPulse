@@ -40,6 +40,8 @@ const formatUnitUsd = (value: number): string =>
   }).format(value);
 const formatPct = (value: number | null): string =>
   value === null || !Number.isFinite(value) ? "—" : `${value.toFixed(1)}%`;
+const formatGb = (value: number | null): string =>
+  value === null || !Number.isFinite(value) ? "—" : `${value.toFixed(1)} GB`;
 const formatBytes = (bytes: number): string => {
   if (!Number.isFinite(bytes) || bytes <= 0) return "0 GB";
   const gb = bytes / BYTES_PER_GB;
@@ -81,8 +83,18 @@ export const AdminStorageEconomicsPanel = ({
   error,
   onRefresh,
 }: AdminStorageEconomicsPanelProps) => {
-  const { overview, byPlan, addonPackages, funnel, riskQueue, dataGaps, assumptions } =
-    storageEconomics;
+  const {
+    overview,
+    providerUsage,
+    byPlan,
+    addonPackages,
+    funnel,
+    riskQueue,
+    dataGaps,
+    assumptions,
+  } = storageEconomics;
+  const providerOverageCostCents =
+    providerUsage.observedTotalOverageCostCents ?? providerUsage.estimatedTotalOverageCostCents;
 
   return (
     <>
@@ -133,14 +145,102 @@ export const AdminStorageEconomicsPanel = ({
             meta={`${formatCount(overview.activeAddonSubscribers)} subscribers • ${formatBytes(overview.activeAddonSoldCapacityBytes)} sold`}
           />
           <MetricCard
-            label="Estimated Cost 1x"
-            value={formatMoney(overview.estimatedVariableCost1xCents)}
-            meta={`Margin ${formatPct(overview.estimatedGrossMargin1xPct)} • storage ${formatMoney(overview.estimatedStorageCostCents)}`}
+            label="Add-on Cost 1x"
+            value={formatMoney(overview.estimatedAddonCost1xCents)}
+            meta={`Margin ${formatPct(overview.estimatedAddonGrossMargin1xPct)} • storage ${formatMoney(overview.estimatedStorageCostCents)}`}
           />
           <MetricCard
-            label="Estimated Cost 2x"
-            value={formatMoney(overview.estimatedVariableCost2xCents)}
-            meta={`Margin ${formatPct(overview.estimatedGrossMargin2xPct)} • egress ${formatMoney(overview.estimatedEgressCost2xCents)}`}
+            label="Add-on Cost 2x"
+            value={formatMoney(overview.estimatedAddonCost2xCents)}
+            meta={`Margin ${formatPct(overview.estimatedAddonGrossMargin2xPct)} • egress ${formatMoney(overview.estimatedEgressCost2xCents)}`}
+          />
+        </div>
+      </section>
+
+      <section className={styles.adminSection}>
+        <div className={styles.adminSectionHead}>
+          <div>
+            <p className={styles.adminSectionEyebrow}>Supabase pressure</p>
+            <h2 className={styles.adminSectionTitle}>Provider usage snapshot</h2>
+            <p className="tiny subdued">
+              Latest operator-entered Supabase usage snapshot compared with included storage and
+              egress quota.
+            </p>
+          </div>
+        </div>
+        <div className={styles.adminGrid}>
+          <MetricCard
+            label="Snapshot"
+            value={providerUsage.status}
+            meta={`${providerUsage.snapshotMonth ?? "No month"} • ${providerUsage.source}`}
+          />
+          <MetricCard
+            label="Storage Used"
+            value={formatGb(providerUsage.storageUsedGb)}
+            meta={`${formatPct(providerUsage.storageQuotaUsedPct)} of ${formatGb(providerUsage.storageIncludedGb)} included`}
+          />
+          <MetricCard
+            label="Uncached Egress"
+            value={formatGb(providerUsage.uncachedEgressGb)}
+            meta={`${formatPct(providerUsage.uncachedEgressQuotaUsedPct)} of ${formatGb(providerUsage.uncachedEgressIncludedGb)} included`}
+          />
+          <MetricCard
+            label="Cached Egress"
+            value={formatGb(providerUsage.cachedEgressGb)}
+            meta={`${formatPct(providerUsage.cachedEgressQuotaUsedPct)} of ${formatGb(providerUsage.cachedEgressIncludedGb)} included`}
+          />
+          <MetricCard
+            label="Egress Multiple"
+            value={
+              providerUsage.egressMultiple === null
+                ? "—"
+                : `${providerUsage.egressMultiple.toFixed(2)}x`
+            }
+            meta={`${formatGb(providerUsage.totalEgressGb)} egress / product-tracked storage`}
+          />
+          <MetricCard
+            label="Provider Overage"
+            value={formatMoney(providerOverageCostCents)}
+            meta={
+              providerUsage.observedTotalOverageCostCents === null
+                ? "Estimated from snapshot"
+                : "Observed cost from snapshot"
+            }
+          />
+        </div>
+      </section>
+
+      <section className={styles.adminSection}>
+        <div className={styles.adminSectionHead}>
+          <div>
+            <p className={styles.adminSectionEyebrow}>Business margin</p>
+            <h2 className={styles.adminSectionTitle}>Storage revenue against shared infra</h2>
+            <p className="tiny subdued">
+              Plan and add-on recurring revenue compared with Stripe estimates, Supabase compute,
+              and provider overage pressure.
+            </p>
+          </div>
+        </div>
+        <div className={styles.adminGrid}>
+          <MetricCard
+            label="Plan MRR"
+            value={formatMoney(overview.estimatedPlanMrrCents)}
+            meta="Current Stripe-backed plan contracts"
+          />
+          <MetricCard
+            label="Storage Revenue"
+            value={formatMoney(overview.estimatedTotalStorageRevenueCents)}
+            meta={`Plans plus ${formatMoney(overview.activeAddonMrrCents)} add-on MRR`}
+          />
+          <MetricCard
+            label="Shared Infra Cost"
+            value={formatMoney(overview.estimatedBusinessStorageCostCents)}
+            meta={`${formatMoney(overview.estimatedComputeCostCents)} compute • ${formatMoney(providerOverageCostCents)} overage`}
+          />
+          <MetricCard
+            label="Business Margin"
+            value={formatPct(overview.estimatedBusinessStorageMarginPct)}
+            meta={`Target ${formatPct(assumptions.targetGrossMarginPct)}`}
           />
         </div>
       </section>
@@ -415,11 +515,11 @@ export const AdminStorageEconomicsPanel = ({
             <h2 className={styles.adminSectionTitle}>Estimate boundaries</h2>
             <p className="tiny subdued">
               Storage is estimated at {formatUnitUsd(assumptions.storageCostPerGbMonth)}/GB-month
-              and egress at {formatUnitUsd(assumptions.uncachedEgressCostPerGb)}/GB. Stripe is
-              estimated at {formatPct(assumptions.stripePercent * 100)} plus{" "}
-              {formatMoney(assumptions.stripeFixedCents)} per transaction, with{" "}
-              {formatMoney(assumptions.computeMonthlyCostCents)} {assumptions.computePlan} compute
-              included when active storage add-on subscribers exist.
+              and egress at {formatUnitUsd(assumptions.uncachedEgressCostPerGb)}/GB uncached or{" "}
+              {formatUnitUsd(assumptions.cachedEgressCostPerGb)}/GB cached. Stripe is estimated at{" "}
+              {formatPct(assumptions.stripePercent * 100)} plus{" "}
+              {formatMoney(assumptions.stripeFixedCents)} per transaction. Supabase compute is
+              treated as shared business overhead, not add-on variable cost.
             </p>
           </div>
         </div>

@@ -3,6 +3,7 @@
  * Encapsulates render commit sampling, longtask observation, and telemetry backpressure policy.
  */
 import { useEffect, type MutableRefObject } from "react";
+import { subscribeSharedAdaptiveLongTaskSamples } from "../../../../lib/adaptive-media/sharedPressure";
 import { logMediaPerf, setMediaPerfSamplingPolicy } from "../../../../lib/mediaPerfTelemetry";
 import type { ReferenceGridDropMode } from "./useReferenceGridDropController";
 
@@ -99,23 +100,13 @@ export const useReferenceGridTelemetryController = ({
   ]);
 
   useEffect(() => {
-    if (typeof window === "undefined" || typeof PerformanceObserver === "undefined") return;
-    const observer = new PerformanceObserver((entryList) => {
-      entryList.getEntries().forEach((entry) => {
-        logMediaPerf("media.grid.longtask.sample", {
-          surface: "reference-grid",
-          duration_ms: Math.round(entry.duration),
-          name: entry.name,
-        });
+    return subscribeSharedAdaptiveLongTaskSamples((sample) => {
+      logMediaPerf("media.grid.longtask.sample", {
+        surface: "reference-grid",
+        duration_ms: Math.round(sample.durationMs),
+        name: sample.name,
       });
     });
-    try {
-      observer.observe({ type: "longtask" });
-    } catch {
-      observer.disconnect();
-      return;
-    }
-    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {

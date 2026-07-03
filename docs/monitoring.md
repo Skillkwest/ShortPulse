@@ -33,7 +33,8 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
    - Server/API handlers: `logApiRouteException` / `logGenerationFailure` in `frontend/lib/server/api/appErrorLogs.ts`
 2. Normalization + storage:
    - Shared sanitizer/fingerprint flow in `writeAppErrorLog`
-   - Per-occurrence events stored in `app_error_events` (append-only)
+   - Per-occurrence raw events stored in `app_error_events` during the raw retention window
+   - Daily telemetry aggregates stored in `app_error_event_telemetry_daily_rollups`
    - Deduplicated incidents stored in `app_error_logs` (open incident merge by fingerprint)
 3. Telemetry-only source policy:
    - Sources under `telemetry.*` stay in `app_error_events` only (no grouped incident row)
@@ -234,7 +235,8 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 
 ## Admin triage controls
 
-- `app_error_events` is append-only telemetry. Do not delete rows during troubleshooting; preserve forensic history.
+- `app_error_events` raw rows are retention-managed telemetry. Do not manually delete rows during troubleshooting; preserve forensic history through the approved retention/rollup path.
+- `app_error_event_telemetry_daily_rollups` preserves aggregate telemetry counts after low/medium raw telemetry rows leave the raw retention window.
 - Use incident status transitions (`open` -> `resolved`/`ignored`, with `reopen` when needed) to represent triage state.
 - Admin UI supports single-item and listed-page bulk status transitions for incidents (resolve/ignore) via `/api/admin/errors-status` and `/api/admin/errors-status-bulk`.
 - Use `Copy triage` in the Incidents/Event Stream tables for handoff packets. These payloads are versioned and intentionally compact (key identifiers + normalized triage metadata) to keep troubleshooting reproducible without pasting full raw metadata blobs.

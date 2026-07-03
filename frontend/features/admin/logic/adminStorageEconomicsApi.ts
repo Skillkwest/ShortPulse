@@ -10,14 +10,16 @@ import type {
   AdminStorageEconomicsHealth,
   AdminStorageEconomicsOverview,
   AdminStorageEconomicsPlanRow,
+  AdminStorageProviderUsage,
   AdminStorageEconomicsResponse,
   AdminStorageEconomicsRiskRow,
   AdminStorageEconomicsRiskType,
 } from "../types";
 
 export const DEFAULT_ADMIN_STORAGE_ECONOMICS_ASSUMPTIONS: AdminStorageEconomicsAssumptions = {
-  storageCostPerGbMonth: 0.0213,
+  storageCostPerGbMonth: 0.021,
   uncachedEgressCostPerGb: 0.09,
+  cachedEgressCostPerGb: 0.03,
   stripePercent: 0.029,
   stripeFixedCents: 30,
   targetGrossMarginPct: 60,
@@ -43,10 +45,48 @@ export const DEFAULT_ADMIN_STORAGE_ECONOMICS_OVERVIEW: AdminStorageEconomicsOver
   estimatedEgressCost2xCents: 0,
   estimatedStripeFeeCents: 0,
   estimatedComputeCostCents: 0,
+  estimatedAddonCost1xCents: 0,
+  estimatedAddonCost2xCents: 0,
+  estimatedAddonGrossMargin1xPct: null,
+  estimatedAddonGrossMargin2xPct: null,
+  estimatedPlanMrrCents: 0,
+  estimatedTotalStorageRevenueCents: 0,
+  estimatedBusinessStorageCostCents: 0,
+  estimatedBusinessStorageMarginPct: null,
   estimatedVariableCost1xCents: 0,
   estimatedVariableCost2xCents: 0,
   estimatedGrossMargin1xPct: null,
   estimatedGrossMargin2xPct: null,
+};
+
+export const DEFAULT_ADMIN_STORAGE_PROVIDER_USAGE: AdminStorageProviderUsage = {
+  status: "unavailable",
+  source: "unavailable",
+  snapshotMonth: null,
+  capturedAt: null,
+  supabasePlan: null,
+  computePlan: DEFAULT_ADMIN_STORAGE_ECONOMICS_ASSUMPTIONS.computePlan,
+  computeMonthlyCostCents: DEFAULT_ADMIN_STORAGE_ECONOMICS_ASSUMPTIONS.computeMonthlyCostCents,
+  storageUsedGb: 0,
+  storageIncludedGb: 0,
+  storageQuotaUsedPct: null,
+  projectedStorageUsedGb: null,
+  uncachedEgressGb: 0,
+  cachedEgressGb: 0,
+  totalEgressGb: 0,
+  uncachedEgressIncludedGb: 0,
+  cachedEgressIncludedGb: 0,
+  uncachedEgressQuotaUsedPct: null,
+  cachedEgressQuotaUsedPct: null,
+  projectedUncachedEgressGb: null,
+  projectedCachedEgressGb: null,
+  egressMultiple: null,
+  estimatedStorageOverageCostCents: 0,
+  estimatedUncachedEgressOverageCostCents: 0,
+  estimatedCachedEgressOverageCostCents: 0,
+  estimatedTotalOverageCostCents: 0,
+  observedTotalOverageCostCents: null,
+  notes: null,
 };
 
 export const DEFAULT_ADMIN_STORAGE_ECONOMICS_FUNNEL: AdminStorageEconomicsFunnel = {
@@ -70,6 +110,7 @@ export const DEFAULT_ADMIN_STORAGE_ECONOMICS_HEALTH: AdminStorageEconomicsHealth
 export const DEFAULT_ADMIN_STORAGE_ECONOMICS_RESPONSE: AdminStorageEconomicsResponse = {
   assumptions: DEFAULT_ADMIN_STORAGE_ECONOMICS_ASSUMPTIONS,
   overview: DEFAULT_ADMIN_STORAGE_ECONOMICS_OVERVIEW,
+  providerUsage: DEFAULT_ADMIN_STORAGE_PROVIDER_USAGE,
   byPlan: [],
   addonPackages: [],
   funnel: DEFAULT_ADMIN_STORAGE_ECONOMICS_FUNNEL,
@@ -103,6 +144,11 @@ const toNumber = (value: unknown): number => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+const toNumberWithFallback = (value: unknown, fallback: number): number => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
 const toNullableNumber = (value: unknown): number | null => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
@@ -133,6 +179,10 @@ const normalizeAssumptions = (value: unknown): AdminStorageEconomicsAssumptions 
   return {
     storageCostPerGbMonth: toNumber(row.storageCostPerGbMonth),
     uncachedEgressCostPerGb: toNumber(row.uncachedEgressCostPerGb),
+    cachedEgressCostPerGb: toNumberWithFallback(
+      row.cachedEgressCostPerGb,
+      DEFAULT_ADMIN_STORAGE_ECONOMICS_ASSUMPTIONS.cachedEgressCostPerGb
+    ),
     stripePercent: toNumber(row.stripePercent),
     stripeFixedCents: toCount(row.stripeFixedCents),
     targetGrossMarginPct: toNumber(row.targetGrossMarginPct),
@@ -161,10 +211,62 @@ const normalizeOverview = (value: unknown): AdminStorageEconomicsOverview => {
     estimatedEgressCost2xCents: toCount(row.estimatedEgressCost2xCents),
     estimatedStripeFeeCents: toCount(row.estimatedStripeFeeCents),
     estimatedComputeCostCents: toCount(row.estimatedComputeCostCents),
+    estimatedAddonCost1xCents: toCount(row.estimatedAddonCost1xCents),
+    estimatedAddonCost2xCents: toCount(row.estimatedAddonCost2xCents),
+    estimatedAddonGrossMargin1xPct: toNullableNumber(row.estimatedAddonGrossMargin1xPct),
+    estimatedAddonGrossMargin2xPct: toNullableNumber(row.estimatedAddonGrossMargin2xPct),
+    estimatedPlanMrrCents: toCount(row.estimatedPlanMrrCents),
+    estimatedTotalStorageRevenueCents: toCount(row.estimatedTotalStorageRevenueCents),
+    estimatedBusinessStorageCostCents: toCount(row.estimatedBusinessStorageCostCents),
+    estimatedBusinessStorageMarginPct: toNullableNumber(row.estimatedBusinessStorageMarginPct),
     estimatedVariableCost1xCents: toCount(row.estimatedVariableCost1xCents),
     estimatedVariableCost2xCents: toCount(row.estimatedVariableCost2xCents),
     estimatedGrossMargin1xPct: toNullableNumber(row.estimatedGrossMargin1xPct),
     estimatedGrossMargin2xPct: toNullableNumber(row.estimatedGrossMargin2xPct),
+  };
+};
+
+const normalizeProviderUsage = (value: unknown): AdminStorageProviderUsage => {
+  const row = toObject(value);
+  const source =
+    row.source === "manual" ||
+    row.source === "supabase_usage_page" ||
+    row.source === "supabase_export" ||
+    row.source === "api_import"
+      ? row.source
+      : "unavailable";
+  const status =
+    row.status === "current" || row.status === "stale" || row.status === "unavailable"
+      ? row.status
+      : "unavailable";
+  return {
+    status,
+    source,
+    snapshotMonth: toTextOrNull(row.snapshotMonth),
+    capturedAt: toTextOrNull(row.capturedAt),
+    supabasePlan: toTextOrNull(row.supabasePlan),
+    computePlan: toText(row.computePlan, DEFAULT_ADMIN_STORAGE_PROVIDER_USAGE.computePlan),
+    computeMonthlyCostCents: toCount(row.computeMonthlyCostCents),
+    storageUsedGb: toNumber(row.storageUsedGb),
+    storageIncludedGb: toNumber(row.storageIncludedGb),
+    storageQuotaUsedPct: toNullableNumber(row.storageQuotaUsedPct),
+    projectedStorageUsedGb: toNullableNumber(row.projectedStorageUsedGb),
+    uncachedEgressGb: toNumber(row.uncachedEgressGb),
+    cachedEgressGb: toNumber(row.cachedEgressGb),
+    totalEgressGb: toNumber(row.totalEgressGb),
+    uncachedEgressIncludedGb: toNumber(row.uncachedEgressIncludedGb),
+    cachedEgressIncludedGb: toNumber(row.cachedEgressIncludedGb),
+    uncachedEgressQuotaUsedPct: toNullableNumber(row.uncachedEgressQuotaUsedPct),
+    cachedEgressQuotaUsedPct: toNullableNumber(row.cachedEgressQuotaUsedPct),
+    projectedUncachedEgressGb: toNullableNumber(row.projectedUncachedEgressGb),
+    projectedCachedEgressGb: toNullableNumber(row.projectedCachedEgressGb),
+    egressMultiple: toNullableNumber(row.egressMultiple),
+    estimatedStorageOverageCostCents: toCount(row.estimatedStorageOverageCostCents),
+    estimatedUncachedEgressOverageCostCents: toCount(row.estimatedUncachedEgressOverageCostCents),
+    estimatedCachedEgressOverageCostCents: toCount(row.estimatedCachedEgressOverageCostCents),
+    estimatedTotalOverageCostCents: toCount(row.estimatedTotalOverageCostCents),
+    observedTotalOverageCostCents: toNullableNumber(row.observedTotalOverageCostCents),
+    notes: toTextOrNull(row.notes),
   };
 };
 
@@ -282,6 +384,7 @@ export const normalizeAdminStorageEconomicsResponse = (
   return {
     assumptions: normalizeAssumptions(row.assumptions),
     overview: normalizeOverview(row.overview),
+    providerUsage: normalizeProviderUsage(row.providerUsage),
     byPlan: normalizePlanRows(row.byPlan),
     addonPackages: normalizeAddonPackageRows(row.addonPackages),
     funnel: normalizeFunnel(row.funnel),

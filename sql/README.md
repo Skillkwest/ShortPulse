@@ -68,7 +68,9 @@ For Media Library storage growth, use the manifest-first cleanup classifier for 
 
 For read-only database Disk I/O triage, use `sql/check_database_io_hotspots.sql`; it classifies `pg_stat_statements` shared-block reads/writes, table-size/read posture, and planner-stat freshness for hot tables without printing raw query text or row data. If a hosted audit shows stale planner stats, `sql/analyze_hot_database_tables_supabase.sql` is the explicit apply-gated maintenance script for refreshing statistics on the hot public tables only.
 
-For admin stats reads over append-only `app_error_events` telemetry, use `sql/migrations/176_add_app_error_events_admin_stats_source_index.sql` to add the narrow source/user/time index used by the global and growth stats RPCs.
+For admin stats reads over raw `app_error_events` telemetry, use `sql/migrations/176_add_app_error_events_admin_stats_source_index.sql` to add the narrow source/user/time index used by the global and growth stats RPCs.
+
+For app-error telemetry growth, use `sql/migrations/187_add_app_error_event_telemetry_retention.sql` to install service-role-only daily rollups plus scheduled raw retention for low/medium `telemetry.*` rows. The migration schedules future cleanup only and does not perform one-time historical pruning during apply.
 
 For admin global stats reads over generation tables, use `sql/migrations/177_optimize_admin_global_stats_v1_rpc.sql` to keep `get_admin_global_stats_v1()` on the canonical payload contract while avoiding repeated TOAST-heavy generation metadata reads in shared aggregates.
 

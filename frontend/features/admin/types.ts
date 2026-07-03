@@ -607,6 +607,7 @@ export type AdminGlobalStatsResponse = {
 export type AdminStorageEconomicsAssumptions = {
   storageCostPerGbMonth: number;
   uncachedEgressCostPerGb: number;
+  cachedEgressCostPerGb: number;
   stripePercent: number;
   stripeFixedCents: number;
   targetGrossMarginPct: number;
@@ -632,10 +633,50 @@ export type AdminStorageEconomicsOverview = {
   estimatedEgressCost2xCents: number;
   estimatedStripeFeeCents: number;
   estimatedComputeCostCents: number;
+  estimatedAddonCost1xCents: number;
+  estimatedAddonCost2xCents: number;
+  estimatedAddonGrossMargin1xPct: number | null;
+  estimatedAddonGrossMargin2xPct: number | null;
+  estimatedPlanMrrCents: number;
+  estimatedTotalStorageRevenueCents: number;
+  estimatedBusinessStorageCostCents: number;
+  estimatedBusinessStorageMarginPct: number | null;
   estimatedVariableCost1xCents: number;
   estimatedVariableCost2xCents: number;
   estimatedGrossMargin1xPct: number | null;
   estimatedGrossMargin2xPct: number | null;
+};
+
+export type AdminStorageProviderUsageStatus = "current" | "stale" | "unavailable";
+
+export type AdminStorageProviderUsage = {
+  status: AdminStorageProviderUsageStatus;
+  source: "manual" | "supabase_usage_page" | "supabase_export" | "api_import" | "unavailable";
+  snapshotMonth: string | null;
+  capturedAt: string | null;
+  supabasePlan: string | null;
+  computePlan: string;
+  computeMonthlyCostCents: number;
+  storageUsedGb: number;
+  storageIncludedGb: number;
+  storageQuotaUsedPct: number | null;
+  projectedStorageUsedGb: number | null;
+  uncachedEgressGb: number;
+  cachedEgressGb: number;
+  totalEgressGb: number;
+  uncachedEgressIncludedGb: number;
+  cachedEgressIncludedGb: number;
+  uncachedEgressQuotaUsedPct: number | null;
+  cachedEgressQuotaUsedPct: number | null;
+  projectedUncachedEgressGb: number | null;
+  projectedCachedEgressGb: number | null;
+  egressMultiple: number | null;
+  estimatedStorageOverageCostCents: number;
+  estimatedUncachedEgressOverageCostCents: number;
+  estimatedCachedEgressOverageCostCents: number;
+  estimatedTotalOverageCostCents: number;
+  observedTotalOverageCostCents: number | null;
+  notes: string | null;
 };
 
 export type AdminStorageEconomicsPlanRow = {
@@ -726,6 +767,7 @@ export type AdminStorageEconomicsHealth = {
 export type AdminStorageEconomicsResponse = {
   assumptions: AdminStorageEconomicsAssumptions;
   overview: AdminStorageEconomicsOverview;
+  providerUsage: AdminStorageProviderUsage;
   byPlan: AdminStorageEconomicsPlanRow[];
   addonPackages: AdminStorageEconomicsAddonPackageRow[];
   funnel: AdminStorageEconomicsFunnel;

@@ -72,11 +72,22 @@ describe("appErrorLogs telemetry-only integration", () => {
       scope: "generation",
       severity: "medium",
       message: "Queue retry telemetry sample",
-      metadata: { attempts: 2 },
+      userId: "user-1",
+      userEmail: "owner@example.com",
+      metadata: { attempts: 2, breadcrumbs: [{ message: "heavy client context" }] },
     });
 
     expect(result).toEqual({ ok: true, skipped: false, id: null });
     expect(appErrorEventsInsertMock).toHaveBeenCalledTimes(1);
+    expect(appErrorEventsInsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: "user-1",
+        user_email: null,
+        metadata: expect.not.objectContaining({
+          breadcrumbs: expect.anything(),
+        }),
+      })
+    );
     expect(fromMock).toHaveBeenCalledWith("app_error_events");
     expect(fromMock).not.toHaveBeenCalledWith("app_error_logs");
   });

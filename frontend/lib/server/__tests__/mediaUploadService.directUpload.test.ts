@@ -452,4 +452,50 @@ describe("prepareMediaUploadForUser", () => {
     ]);
     expect(removeMock).toHaveBeenCalledWith(["user-1/upload-staging/uploaded_images/track.mp3"]);
   });
+
+  it("removes a moved durable audio upload when media row persistence fails", async () => {
+    downloadMock.mockResolvedValueOnce({
+      data: {
+        size: MINIMAL_MP3_BYTES.length,
+        type: "audio/mpeg",
+        arrayBuffer: async () =>
+          MINIMAL_MP3_BYTES.buffer.slice(
+            MINIMAL_MP3_BYTES.byteOffset,
+            MINIMAL_MP3_BYTES.byteOffset + MINIMAL_MP3_BYTES.byteLength
+          ),
+      },
+      error: null,
+    });
+    moveMock.mockResolvedValueOnce({
+      data: { path: "user-1/audio/moved-track.mp3" },
+      error: null,
+    });
+    insertMock.mockImplementationOnce(() => ({
+      select: vi.fn(() => ({
+        single: vi.fn(async () => ({
+          data: null,
+          error: { message: "insert exploded" },
+        })),
+      })),
+    }));
+
+    await expect(
+      finalizePreparedMediaUploadForUser({
+        userId: "user-1",
+        destinationTab: "uploaded_images",
+        storagePath: "user-1/upload-staging/uploaded_images/track.mp3",
+        filename: "track.mp3",
+        declaredMimeType: "audio/mpeg",
+      })
+    ).rejects.toMatchObject({
+      status: 500,
+      message: "Failed to persist media record",
+      details: "insert exploded",
+    });
+
+    expect(removeMock).toHaveBeenCalledWith([
+      expect.stringMatching(/^user-1\/audio\/.*track\.mp3$/),
+    ]);
+    expect(removeMock).toHaveBeenCalledWith(["user-1/upload-staging/uploaded_images/track.mp3"]);
+  });
 });

@@ -17,20 +17,14 @@ describe("storage add-on eligibility", () => {
   });
 
   it("limits self-serve storage add-ons by plan tier", () => {
-    expect(getAllowedSelfServeStorageAddonIds("starter")).toEqual(["storage_25gb", "storage_10gb"]);
-    expect(getAllowedSelfServeStorageAddonIds("media")).toEqual([
-      "storage_25gb",
-      "storage_10gb",
-      "storage_50gb",
-    ]);
+    expect(getAllowedSelfServeStorageAddonIds("starter")).toEqual(["storage_10gb"]);
+    expect(getAllowedSelfServeStorageAddonIds("media")).toEqual(["storage_10gb", "storage_50gb"]);
     expect(getAllowedSelfServeStorageAddonIds("studio")).toEqual([
-      "storage_25gb",
       "storage_10gb",
       "storage_50gb",
       "storage_100gb",
     ]);
     expect(getAllowedSelfServeStorageAddonIds("business")).toEqual([
-      "storage_25gb",
       "storage_10gb",
       "storage_50gb",
       "storage_100gb",
@@ -56,6 +50,13 @@ describe("storage add-on eligibility", () => {
       reason: "plan_ineligible",
     });
     expect(
+      resolveStorageAddonEligibility({ planId: "business", storageAddonId: "storage_25gb" })
+    ).toMatchObject({
+      isKnownStorageAddon: false,
+      isEligible: false,
+      reason: "unknown_storage_addon",
+    });
+    expect(
       resolveStorageAddonEligibility({ planId: "business", storageAddonId: "storage_999gb" })
     ).toMatchObject({
       isKnownStorageAddon: false,
@@ -65,7 +66,7 @@ describe("storage add-on eligibility", () => {
   });
 
   it("reports the maximum self-serve add-on capacity by plan", () => {
-    expect(getMaximumSelfServeStorageAddonBytes("starter")).toBe(25 * 1024 * 1024 * 1024);
+    expect(getMaximumSelfServeStorageAddonBytes("starter")).toBe(10 * 1024 * 1024 * 1024);
     expect(getMaximumSelfServeStorageAddonBytes("business")).toBe(250 * 1024 * 1024 * 1024);
   });
 

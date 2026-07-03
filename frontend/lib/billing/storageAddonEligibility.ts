@@ -18,7 +18,6 @@ export const normalizeBillingPlanId = (planId: string | null | undefined): strin
 };
 
 export const SELF_SERVE_STORAGE_ADDON_IDS = [
-  "storage_25gb",
   "storage_10gb",
   "storage_50gb",
   "storage_100gb",
@@ -34,10 +33,10 @@ export const CURRENT_BILLABLE_STORAGE_ADDON_STATUSES = [
 ] as const;
 
 const SELF_SERVE_STORAGE_ADDONS_BY_PLAN: Record<string, readonly string[]> = {
-  starter: ["storage_25gb", "storage_10gb"],
-  media: ["storage_25gb", "storage_10gb", "storage_50gb"],
-  studio: ["storage_25gb", "storage_10gb", "storage_50gb", "storage_100gb"],
-  business: ["storage_25gb", "storage_10gb", "storage_50gb", "storage_100gb", "storage_250gb"],
+  starter: ["storage_10gb"],
+  media: ["storage_10gb", "storage_50gb"],
+  studio: ["storage_10gb", "storage_50gb", "storage_100gb"],
+  business: ["storage_10gb", "storage_50gb", "storage_100gb", "storage_250gb"],
 };
 
 export const STORAGE_ADDON_LIMIT_BYTES_BY_ID: Record<string, number> = {

@@ -48,8 +48,9 @@ const buildEmptyCountWindow = () => ({
 const buildStorageEconomicsState = () => ({
   storageEconomics: {
     assumptions: {
-      storageCostPerGbMonth: 0.0213,
+      storageCostPerGbMonth: 0.021,
       uncachedEgressCostPerGb: 0.09,
+      cachedEgressCostPerGb: 0.03,
       stripePercent: 0.029,
       stripeFixedCents: 30,
       targetGrossMarginPct: 60,
@@ -74,10 +75,47 @@ const buildStorageEconomicsState = () => ({
       estimatedEgressCost2xCents: 900,
       estimatedStripeFeeCents: 56,
       estimatedComputeCostCents: 6000,
-      estimatedVariableCost1xCents: 6613,
-      estimatedVariableCost2xCents: 7063,
-      estimatedGrossMargin1xPct: 26.5,
-      estimatedGrossMargin2xPct: 21.5,
+      estimatedAddonCost1xCents: 613,
+      estimatedAddonCost2xCents: 1063,
+      estimatedAddonGrossMargin1xPct: 31.9,
+      estimatedAddonGrossMargin2xPct: 26.9,
+      estimatedPlanMrrCents: 1900,
+      estimatedTotalStorageRevenueCents: 2800,
+      estimatedBusinessStorageCostCents: 6141,
+      estimatedBusinessStorageMarginPct: -119.3,
+      estimatedVariableCost1xCents: 613,
+      estimatedVariableCost2xCents: 1063,
+      estimatedGrossMargin1xPct: 31.9,
+      estimatedGrossMargin2xPct: 26.9,
+    },
+    providerUsage: {
+      status: "current",
+      source: "manual",
+      snapshotMonth: "2026-07-01",
+      capturedAt: "2026-07-15T00:00:00.000Z",
+      supabasePlan: "Pro",
+      computePlan: "medium",
+      computeMonthlyCostCents: 6000,
+      storageUsedGb: 42,
+      storageIncludedGb: 100,
+      storageQuotaUsedPct: 42,
+      projectedStorageUsedGb: 84,
+      uncachedEgressGb: 120,
+      cachedEgressGb: 60,
+      totalEgressGb: 180,
+      uncachedEgressIncludedGb: 250,
+      cachedEgressIncludedGb: 250,
+      uncachedEgressQuotaUsedPct: 48,
+      cachedEgressQuotaUsedPct: 24,
+      projectedUncachedEgressGb: 240,
+      projectedCachedEgressGb: 120,
+      egressMultiple: 18,
+      estimatedStorageOverageCostCents: 0,
+      estimatedUncachedEgressOverageCostCents: 0,
+      estimatedCachedEgressOverageCostCents: 0,
+      estimatedTotalOverageCostCents: 0,
+      observedTotalOverageCostCents: null,
+      notes: null,
     },
     byPlan: [
       {
@@ -186,8 +224,14 @@ describe("Admin storage page", () => {
     expect(screen.getByRole("heading", { name: "Storage", level: 1 })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Storage" })).toHaveAttribute("href", "/admin/storage");
     expect(screen.getByText("Capacity and margin snapshot")).toBeInTheDocument();
+    expect(screen.getByText("Provider usage snapshot")).toBeInTheDocument();
+    expect(screen.getByText("Supabase pressure")).toBeInTheDocument();
+    expect(screen.getByText("Business margin")).toBeInTheDocument();
+    expect(screen.getByText("Storage revenue against shared infra")).toBeInTheDocument();
     expect(screen.getByText("Tracked Storage")).toBeInTheDocument();
     expect(screen.getByText("Add-on MRR")).toBeInTheDocument();
+    expect(screen.getByText("Egress Multiple")).toBeInTheDocument();
+    expect(screen.getByText("18.00x")).toBeInTheDocument();
     expect(screen.getByText("Plan Limit")).toBeInTheDocument();
     expect(screen.getByText("Catalog Price")).toBeInTheDocument();
     expect(screen.getByText("Contract MRR")).toBeInTheDocument();

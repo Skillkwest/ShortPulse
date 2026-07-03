@@ -5,6 +5,7 @@ import type { MediaListCursor } from "../../media-library/logic/mediaListApi";
 import { isTransientMediaLibraryNetworkError } from "./mediaLibraryErrorText";
 
 export const MEDIA_LIBRARY_ROOT_FOLDER_ID = "all_items" as const;
+const DURABLE_MEDIA_CACHE_CONTROL_SECONDS = "31536000";
 
 export type MediaFolderId = typeof MEDIA_LIBRARY_ROOT_FOLDER_ID | string;
 
@@ -674,6 +675,7 @@ export const uploadMediaFile = async ({
     .from("media_library")
     .uploadToSignedUrl(preparedTarget.storagePath, preparedTarget.uploadToken, normalizedFile, {
       contentType: preparedTarget.mimeType,
+      cacheControl: DURABLE_MEDIA_CACHE_CONTROL_SECONDS,
       upsert: false,
     });
   if (uploadResult.error) {

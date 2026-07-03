@@ -83,7 +83,7 @@ Public entry-plan note:
 Public self-serve recurring storage is additionally gated by `frontend/lib/billing/storageAddonEligibility.ts`.
 Only eligible self-serve add-ons for the subscriber's current paid plan may be shown in `/profile?section=storage` or submitted to `/api/billing/storage-addon/change`.
 `storage_500gb` is manual-review only, and recurring storage add-ons must not stack or use quantity greater than one.
-Until the new Stripe/catalog migration is applied, `storage_25gb` remains a legacy self-serve bridge so current production catalog rows still render purchase cards.
+`storage_25gb` is retired from self-serve catalog eligibility and must not render purchase cards or be reactivated as a public offer.
 New recurring storage add-ons are not acquisition-enabled until the matching Stripe recurring Price exists and `/admin/pricing` activates the storage offer; SQL bootstrap and migration seeds keep missing-Stripe offers non-public by default.
 
 ### Credit packs

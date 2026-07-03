@@ -32,6 +32,13 @@ type SharedAdaptivePressureSubscriber = {
   notify: (state: SharedAdaptivePressureState) => void;
 };
 
+export type SharedAdaptiveLongTaskSample = {
+  durationMs: number;
+  name: string;
+};
+
+type SharedAdaptiveLongTaskSampleSubscriber = (sample: SharedAdaptiveLongTaskSample) => void;
+
 const STALL_SAMPLE_INTERVAL_MS = 120;
 
 export const createInitialSharedAdaptivePressureState = (): SharedAdaptivePressureState => ({
@@ -53,6 +60,7 @@ const isDocumentVisible = (): boolean =>
 
 const sharedAdaptivePressure = {
   subscribers: new Map<symbol, SharedAdaptivePressureSubscriber>(),
+  longTaskSampleSubscribers: new Map<symbol, SharedAdaptiveLongTaskSampleSubscriber>(),
   state: createInitialSharedAdaptivePressureState(),
   longTaskDurations: [] as number[],
   maxInputStallMs: 0,
@@ -72,6 +80,17 @@ const emitSharedAdaptivePressureState = (state: SharedAdaptivePressureState) => 
   sharedAdaptivePressure.state = state;
   sharedAdaptivePressure.subscribers.forEach((subscriber) => {
     subscriber.notify(state);
+  });
+};
+
+const emitSharedAdaptiveLongTaskSample = (entry: PerformanceEntry) => {
+  if (sharedAdaptivePressure.longTaskSampleSubscribers.size === 0) return;
+  const sample: SharedAdaptiveLongTaskSample = {
+    durationMs: entry.duration,
+    name: entry.name,
+  };
+  sharedAdaptivePressure.longTaskSampleSubscribers.forEach((subscriber) => {
+    subscriber(sample);
   });
 };
 
@@ -103,9 +122,12 @@ const buildSharedAdaptivePressureConfigKey = (
     ? [config.memoryGuardEnabled ? "memory" : "no-memory", config.evaluationWindowMs].join("|")
     : "";
 
-const stopSharedAdaptivePressureSampling = () => {
+const stopSharedAdaptiveLongTaskObserver = () => {
   sharedAdaptivePressure.longTaskObserver?.disconnect();
   sharedAdaptivePressure.longTaskObserver = null;
+};
+
+const stopSharedAdaptivePressureEvaluation = () => {
   if (sharedAdaptivePressure.stallIntervalId !== null && typeof window !== "undefined") {
     window.clearInterval(sharedAdaptivePressure.stallIntervalId);
   }
@@ -117,14 +139,22 @@ const stopSharedAdaptivePressureSampling = () => {
   sharedAdaptivePressure.activeConfigKey = "";
 };
 
-const startSharedAdaptivePressureSampling = (config: SharedAdaptivePressureConfig) => {
+const stopSharedAdaptivePressureSampling = () => {
+  stopSharedAdaptiveLongTaskObserver();
+  stopSharedAdaptivePressureEvaluation();
+};
+
+const startSharedAdaptiveLongTaskObserver = () => {
   if (typeof window === "undefined") return;
-  stopSharedAdaptivePressureSampling();
+  if (sharedAdaptivePressure.longTaskObserver) return;
 
   if (typeof PerformanceObserver !== "undefined") {
     sharedAdaptivePressure.longTaskObserver = new PerformanceObserver((entryList) => {
       entryList.getEntries().forEach((entry) => {
-        sharedAdaptivePressure.longTaskDurations.push(entry.duration);
+        if (sharedAdaptivePressure.subscribers.size > 0) {
+          sharedAdaptivePressure.longTaskDurations.push(entry.duration);
+        }
+        emitSharedAdaptiveLongTaskSample(entry);
       });
     });
     try {
@@ -136,6 +166,11 @@ const startSharedAdaptivePressureSampling = (config: SharedAdaptivePressureConfi
       sharedAdaptivePressure.longTaskObserver = null;
     }
   }
+};
+
+const startSharedAdaptivePressureEvaluation = (config: SharedAdaptivePressureConfig) => {
+  if (typeof window === "undefined") return;
+  stopSharedAdaptivePressureEvaluation();
 
   sharedAdaptivePressure.stallIntervalId = window.setInterval(() => {
     const now = nowMs();
@@ -192,7 +227,9 @@ const startSharedAdaptivePressureSampling = (config: SharedAdaptivePressureConfi
 };
 
 const syncSharedAdaptivePressureSampling = () => {
-  if (sharedAdaptivePressure.subscribers.size === 0) {
+  const hasPressureSubscribers = sharedAdaptivePressure.subscribers.size > 0;
+  const hasLongTaskSampleSubscribers = sharedAdaptivePressure.longTaskSampleSubscribers.size > 0;
+  if (!hasPressureSubscribers && !hasLongTaskSampleSubscribers) {
     stopSharedAdaptivePressureSampling();
     resetSharedAdaptivePressureRuntime();
     if (sharedAdaptivePressure.visibilityListenerAttached && typeof document !== "undefined") {
@@ -217,10 +254,17 @@ const syncSharedAdaptivePressureSampling = () => {
     return;
   }
 
+  startSharedAdaptiveLongTaskObserver();
+
   const config = resolveSharedAdaptivePressureConfig();
   const configKey = buildSharedAdaptivePressureConfigKey(config);
-  if (!config || sharedAdaptivePressure.activeConfigKey === configKey) return;
-  startSharedAdaptivePressureSampling(config);
+  if (!config) {
+    stopSharedAdaptivePressureEvaluation();
+    resetSharedAdaptivePressureRuntime();
+    return;
+  }
+  if (sharedAdaptivePressure.activeConfigKey === configKey) return;
+  startSharedAdaptivePressureEvaluation(config);
 };
 
 function handleSharedAdaptivePressureVisibilityChange() {
@@ -244,9 +288,22 @@ export const subscribeSharedAdaptivePressure = (
   };
 };
 
+export const subscribeSharedAdaptiveLongTaskSamples = (
+  subscriber: SharedAdaptiveLongTaskSampleSubscriber
+): (() => void) => {
+  const subscriberId = Symbol("adaptive-longtask-subscriber");
+  sharedAdaptivePressure.longTaskSampleSubscribers.set(subscriberId, subscriber);
+  syncSharedAdaptivePressureSampling();
+  return () => {
+    sharedAdaptivePressure.longTaskSampleSubscribers.delete(subscriberId);
+    syncSharedAdaptivePressureSampling();
+  };
+};
+
 export const resetSharedAdaptivePressureForTests = (): void => {
   stopSharedAdaptivePressureSampling();
   sharedAdaptivePressure.subscribers.clear();
+  sharedAdaptivePressure.longTaskSampleSubscribers.clear();
   resetSharedAdaptivePressureRuntime();
   if (sharedAdaptivePressure.visibilityListenerAttached && typeof document !== "undefined") {
     document.removeEventListener("visibilitychange", handleSharedAdaptivePressureVisibilityChange);

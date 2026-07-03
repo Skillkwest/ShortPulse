@@ -62,7 +62,7 @@ Required schema per row:
 4. Admin incident ingestion degradation
 
 - Use [monitoring.md](/docs/monitoring.md) and [troubleshooting.md](/docs/troubleshooting.md) degraded-mode guidance.
-- Preserve `app_error_events` append-only history; resolve via status transitions, not deletion.
+- Preserve `app_error_events` forensic history through the approved raw-retention/rollup policy; resolve incidents via status transitions, not manual deletion.
 
 5. Scheduler/deployment drift
 

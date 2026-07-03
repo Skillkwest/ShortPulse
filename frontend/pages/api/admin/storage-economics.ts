@@ -8,6 +8,10 @@ import {
   isManualReviewStorageAddon,
 } from "../../../lib/billing/storageAddonEligibility";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
+import {
+  buildAdminStorageProviderUsage,
+  type AdminStorageUsageSnapshotRow,
+} from "../../../lib/server/api/adminStorageProviderUsage";
 import { requireAdminUser } from "../../../lib/server/api/auth";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
 import type {
@@ -17,6 +21,7 @@ import type {
   AdminStorageEconomicsFunnel,
   AdminStorageEconomicsOverview,
   AdminStorageEconomicsPlanRow,
+  AdminStorageProviderUsage,
   AdminStorageEconomicsResponse,
   AdminStorageEconomicsRiskRow,
   AdminStorageEconomicsRiskType,
@@ -25,8 +30,9 @@ import type {
 const STORAGE_ADDON_TELEMETRY_SOURCE = "telemetry.storage.addon";
 
 const ASSUMPTIONS: AdminStorageEconomicsAssumptions = {
-  storageCostPerGbMonth: 0.0213,
+  storageCostPerGbMonth: 0.021,
   uncachedEgressCostPerGb: 0.09,
+  cachedEgressCostPerGb: 0.03,
   stripePercent: 0.029,
   stripeFixedCents: 30,
   targetGrossMarginPct: 60,
@@ -608,11 +614,21 @@ const buildRiskQueue = (accounts: AccountStorageState[]): AdminStorageEconomicsR
 const buildOverview = (params: {
   accounts: AccountStorageState[];
   addonPackages: AdminStorageEconomicsAddonPackageRow[];
+  providerUsage: AdminStorageProviderUsage;
 }): AdminStorageEconomicsOverview => {
   const trackedValues = params.accounts.map((account) => account.trackedBytes);
   const activeAddonSubscribers = new Set(
     params.accounts.flatMap((account) => (account.activeAddons.length > 0 ? [account.userId] : []))
   ).size;
+  const currentStripeContracts = params.accounts.filter((account) =>
+    isCurrentStripeContract(account.contract)
+  );
+  const estimatedPlanMrrCents = currentStripeContracts.reduce(
+    (sum, row) =>
+      sum +
+      recurringToMonthlyCents(row.contract?.recurring_price_cents, row.contract?.billing_interval),
+    0
+  );
   const activeAddonMrrCents = params.addonPackages.reduce((sum, row) => sum + row.mrrCents, 0);
   const activeAddonSoldCapacityBytes = params.addonPackages.reduce(
     (sum, row) => sum + row.soldCapacityBytes,
@@ -625,18 +641,24 @@ const buildOverview = (params: {
     activeAddonMrrCents,
     activeAddonSubscribers
   );
-  const estimatedComputeCostCents =
-    activeAddonSubscribers > 0 ? ASSUMPTIONS.computeMonthlyCostCents : 0;
-  const estimatedVariableCost1xCents =
-    estimatedStorageCostCents +
-    estimatedEgressCost1xCents +
-    estimatedStripeFeeCents +
-    estimatedComputeCostCents;
-  const estimatedVariableCost2xCents =
-    estimatedStorageCostCents +
-    estimatedEgressCost2xCents +
-    estimatedStripeFeeCents +
-    estimatedComputeCostCents;
+  const estimatedPlanStripeFeeCents = estimateStripeFeeCents(
+    estimatedPlanMrrCents,
+    currentStripeContracts.length
+  );
+  const estimatedAddonCost1xCents =
+    estimatedStorageCostCents + estimatedEgressCost1xCents + estimatedStripeFeeCents;
+  const estimatedAddonCost2xCents =
+    estimatedStorageCostCents + estimatedEgressCost2xCents + estimatedStripeFeeCents;
+  const estimatedComputeCostCents = params.providerUsage.computeMonthlyCostCents;
+  const providerOverageCostCents =
+    params.providerUsage.observedTotalOverageCostCents ??
+    params.providerUsage.estimatedTotalOverageCostCents;
+  const estimatedBusinessStorageCostCents =
+    estimatedComputeCostCents +
+    providerOverageCostCents +
+    estimatedPlanStripeFeeCents +
+    estimatedStripeFeeCents;
+  const estimatedTotalStorageRevenueCents = estimatedPlanMrrCents + activeAddonMrrCents;
 
   return {
     trackedAccounts: params.accounts.length,
@@ -661,20 +683,46 @@ const buildOverview = (params: {
     estimatedEgressCost2xCents,
     estimatedStripeFeeCents,
     estimatedComputeCostCents,
-    estimatedVariableCost1xCents,
-    estimatedVariableCost2xCents,
-    estimatedGrossMargin1xPct: estimateMarginPct(activeAddonMrrCents, estimatedVariableCost1xCents),
-    estimatedGrossMargin2xPct: estimateMarginPct(activeAddonMrrCents, estimatedVariableCost2xCents),
+    estimatedAddonCost1xCents,
+    estimatedAddonCost2xCents,
+    estimatedAddonGrossMargin1xPct: estimateMarginPct(
+      activeAddonMrrCents,
+      estimatedAddonCost1xCents
+    ),
+    estimatedAddonGrossMargin2xPct: estimateMarginPct(
+      activeAddonMrrCents,
+      estimatedAddonCost2xCents
+    ),
+    estimatedPlanMrrCents,
+    estimatedTotalStorageRevenueCents,
+    estimatedBusinessStorageCostCents,
+    estimatedBusinessStorageMarginPct: estimateMarginPct(
+      estimatedTotalStorageRevenueCents,
+      estimatedBusinessStorageCostCents
+    ),
+    estimatedVariableCost1xCents: estimatedAddonCost1xCents,
+    estimatedVariableCost2xCents: estimatedAddonCost2xCents,
+    estimatedGrossMargin1xPct: estimateMarginPct(activeAddonMrrCents, estimatedAddonCost1xCents),
+    estimatedGrossMargin2xPct: estimateMarginPct(activeAddonMrrCents, estimatedAddonCost2xCents),
   };
 };
 
-const buildDataGaps = (funnel: AdminStorageEconomicsFunnel): string[] => {
+const buildDataGaps = (
+  funnel: AdminStorageEconomicsFunnel,
+  providerUsage: AdminStorageProviderUsage
+): string[] => {
   const gaps = [
     "Product-tracked storage uses media_files.file_size, not provider invoice/object-storage metering.",
-    "Supabase egress is estimated from configured 1x and 2x uncached egress assumptions.",
     "Average monthly storage growth is unavailable until durable historical storage snapshots exist.",
     "Risk rows use local billing rows only; use Admin Billing Diagnostics for per-user live Stripe proof.",
   ];
+  if (providerUsage.status === "unavailable") {
+    gaps.push(
+      "Supabase provider usage snapshot is unavailable; bill-pressure cards use empty provider evidence."
+    );
+  } else if (providerUsage.status === "stale") {
+    gaps.push("Supabase provider usage snapshot is stale; refresh it before pricing decisions.");
+  }
   if (funnel.source === "unavailable") {
     gaps.push(
       "Storage add-on impression, click, warning, request, success, failure, and removal telemetry is not available yet."
@@ -702,6 +750,7 @@ const buildPayload = async (): Promise<AdminStorageEconomicsResponse> => {
     addonsResult,
     addonOffersResult,
     subscriptionAddonsResult,
+    providerUsageResult,
     telemetryResult,
   ] = await Promise.all([
     supabaseAdmin.from("media_files").select("user_id, file_size, created_at"),
@@ -733,6 +782,14 @@ const buildPayload = async (): Promise<AdminStorageEconomicsResponse> => {
       )
       .is("ended_at", null),
     supabaseAdmin
+      .from("admin_storage_usage_snapshots")
+      .select(
+        "snapshot_month, captured_at, source, supabase_plan, compute_plan, compute_monthly_cost_cents, storage_used_gb, storage_included_gb, uncached_egress_gb, cached_egress_gb, uncached_egress_included_gb, cached_egress_included_gb, observed_storage_overage_cost_cents, observed_uncached_egress_overage_cost_cents, observed_cached_egress_overage_cost_cents, notes"
+      )
+      .order("snapshot_month", { ascending: false })
+      .order("captured_at", { ascending: false })
+      .limit(1),
+    supabaseAdmin
       .from("app_error_events")
       .select("message, occurred_at, metadata")
       .eq("source", STORAGE_ADDON_TELEMETRY_SOURCE)
@@ -756,6 +813,10 @@ const buildPayload = async (): Promise<AdminStorageEconomicsResponse> => {
   const subscriptionAddons = assertQueryOk<BillingSubscriptionStorageAddonRow>(
     "subscription storage add-ons",
     subscriptionAddonsResult
+  );
+  const providerUsageRows = assertQueryOk<AdminStorageUsageSnapshotRow>(
+    "admin storage usage snapshots",
+    providerUsageResult
   );
   const telemetryEvents = telemetryResult.error
     ? []
@@ -782,6 +843,12 @@ const buildPayload = async (): Promise<AdminStorageEconomicsResponse> => {
     activeAddonsByUser,
   });
   const usageByUser = new Map(accounts.map((account) => [account.userId, account.trackedBytes]));
+  const totalTrackedBytes = accounts.reduce((sum, account) => sum + account.trackedBytes, 0);
+  const providerUsage = buildAdminStorageProviderUsage({
+    row: providerUsageRows[0] ?? null,
+    assumptions: ASSUMPTIONS,
+    productTrackedBytes: totalTrackedBytes,
+  });
   const addonPackages = buildAddonPackageRows({
     activeAddons,
     addonCatalogById,
@@ -792,12 +859,13 @@ const buildPayload = async (): Promise<AdminStorageEconomicsResponse> => {
 
   return {
     assumptions: ASSUMPTIONS,
-    overview: buildOverview({ accounts, addonPackages }),
+    overview: buildOverview({ accounts, addonPackages, providerUsage }),
+    providerUsage,
     byPlan: buildPlanRows(accounts, plans, planOffers),
     addonPackages,
     funnel,
     riskQueue: buildRiskQueue(accounts),
-    dataGaps: buildDataGaps(funnel),
+    dataGaps: buildDataGaps(funnel, providerUsage),
     health: {
       degraded: false,
       reason: null,

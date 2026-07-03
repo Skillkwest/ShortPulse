@@ -55,6 +55,7 @@ This is intentionally not a full CDP, CRM pipeline, billing ledger, or provider 
   - `billing_storage_addons`
   - `billing_storage_addon_offers`
   - `billing_subscription_storage_addons`
+  - `admin_storage_usage_snapshots`
   - sanitized storage add-on mutation telemetry in `app_error_events`
 
 ## Attribution Contract
@@ -100,4 +101,4 @@ Growth telemetry remains telemetry-only rows in `app_error_events`; it does not 
 - `get_admin_global_stats_v1()`
 - `get_admin_growth_stats_v1()`
 
-The stats workspace degrades safely when the growth RPC is missing, leaving Product analytics intact while Marketing/Sales fall back to empty states with an operator-facing warning. Storage economics is a sibling admin page and endpoint, not part of the product/growth stats RPC. It reports provider-cost assumptions and known data gaps inline; it is not proof of provider invoices, live Stripe state, or customer-facing pricing readiness.
+The stats workspace degrades safely when the growth RPC is missing, leaving Product analytics intact while Marketing/Sales fall back to empty states with an operator-facing warning. Storage economics is a sibling admin page and endpoint, not part of the product/growth stats RPC. It reports provider-cost assumptions, latest operator-entered Supabase usage snapshots, and known data gaps inline; it is not proof of provider invoices, live Stripe state, or customer-facing pricing readiness unless the snapshot source and freshness say so.

@@ -6,7 +6,11 @@ import { createHash } from "crypto";
 import type { NextApiRequest } from "next";
 import type { AuthenticatedApiUser } from "./auth";
 import { getOptionalApiUserResult } from "./auth";
-import { isTelemetrySource } from "./errorTelemetryPolicy";
+import {
+  isTelemetrySource,
+  shouldRetainEventUserEmail,
+  shouldRetainRichEventContext,
+} from "./errorTelemetryPolicy";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 
 type JsonObject = Record<string, unknown>;
@@ -543,6 +547,12 @@ const mergeIncidentMetadata = (existingRaw: unknown, incomingRaw: unknown): Json
   return sanitizeMetadata(merged);
 };
 
+const omitRichEventContext = (metadata: JsonObject): JsonObject => {
+  const leanMetadata: JsonObject = { ...metadata };
+  delete leanMetadata.breadcrumbs;
+  return leanMetadata;
+};
+
 const resolveReleaseMetadata = (): JsonObject => {
   const release =
     toTrimmedString(process.env.SHORTPULSE_RELEASE, 120) ??
@@ -646,6 +656,10 @@ export const writeAppErrorLog = async (input: AppErrorLogInput): Promise<AppErro
   const metadata = mergeIncidentMetadata(input.metadata, resolveReleaseMetadata());
   const userId = toTrimmedString(input.userId, 120);
   const userEmail = toTrimmedString(input.userEmail, 320);
+  const eventMetadata = shouldRetainRichEventContext({ source, severity })
+    ? metadata
+    : omitRichEventContext(metadata);
+  const eventUserEmail = shouldRetainEventUserEmail(source) ? userEmail : null;
   const occurredAt = normalizeOccurredAt(input.occurredAt) ?? new Date().toISOString();
 
   if (
@@ -686,8 +700,8 @@ export const writeAppErrorLog = async (input: AppErrorLogInput): Promise<AppErro
     requestId,
     statusCode,
     userId,
-    userEmail,
-    metadata,
+    userEmail: eventUserEmail,
+    metadata: eventMetadata,
     occurredAt,
   });
 

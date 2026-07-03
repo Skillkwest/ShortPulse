@@ -5,8 +5,9 @@ describe("adminStorageEconomicsApi", () => {
   it("normalizes populated storage economics payloads", () => {
     const normalized = normalizeAdminStorageEconomicsResponse({
       assumptions: {
-        storageCostPerGbMonth: 0.0213,
+        storageCostPerGbMonth: 0.021,
         uncachedEgressCostPerGb: 0.09,
+        cachedEgressCostPerGb: 0.03,
         stripePercent: 0.029,
         stripeFixedCents: 30,
         targetGrossMarginPct: 60,
@@ -19,7 +20,38 @@ describe("adminStorageEconomicsApi", () => {
         totalTrackedBytes: 1200,
         p90TrackedBytes: 900,
         activeAddonMrrCents: 900,
+        estimatedAddonGrossMargin2xPct: 72.5,
+        estimatedBusinessStorageMarginPct: 48.5,
         estimatedGrossMargin2xPct: 72.5,
+      },
+      providerUsage: {
+        status: "current",
+        source: "manual",
+        snapshotMonth: "2026-07-01",
+        capturedAt: "2026-07-15T00:00:00.000Z",
+        supabasePlan: "Pro",
+        computePlan: "medium",
+        computeMonthlyCostCents: 6000,
+        storageUsedGb: 42,
+        storageIncludedGb: 100,
+        storageQuotaUsedPct: 42,
+        projectedStorageUsedGb: 84,
+        uncachedEgressGb: 100,
+        cachedEgressGb: 80,
+        totalEgressGb: 180,
+        uncachedEgressIncludedGb: 250,
+        cachedEgressIncludedGb: 250,
+        uncachedEgressQuotaUsedPct: 40,
+        cachedEgressQuotaUsedPct: 32,
+        projectedUncachedEgressGb: 200,
+        projectedCachedEgressGb: 160,
+        egressMultiple: 4.29,
+        estimatedStorageOverageCostCents: 0,
+        estimatedUncachedEgressOverageCostCents: 0,
+        estimatedCachedEgressOverageCostCents: 0,
+        estimatedTotalOverageCostCents: 0,
+        observedTotalOverageCostCents: null,
+        notes: "usage page snapshot",
       },
       byPlan: [
         {
@@ -83,7 +115,18 @@ describe("adminStorageEconomicsApi", () => {
 
     expect(normalized.assumptions.source).toBe("configured_estimate");
     expect(normalized.overview.trackedAccounts).toBe(3);
+    expect(normalized.overview.estimatedAddonGrossMargin2xPct).toBe(72.5);
+    expect(normalized.overview.estimatedBusinessStorageMarginPct).toBe(48.5);
     expect(normalized.overview.estimatedGrossMargin2xPct).toBe(72.5);
+    expect(normalized.providerUsage).toEqual(
+      expect.objectContaining({
+        status: "current",
+        source: "manual",
+        storageUsedGb: 42,
+        egressMultiple: 4.29,
+        notes: "usage page snapshot",
+      })
+    );
     expect(normalized.byPlan[0]).toEqual(
       expect.objectContaining({
         planId: "starter",
@@ -119,6 +162,11 @@ describe("adminStorageEconomicsApi", () => {
         trackedAccounts: "bad",
         estimatedGrossMargin1xPct: "bad",
       },
+      providerUsage: {
+        status: "weird",
+        source: "spreadsheet",
+        egressMultiple: "bad",
+      },
       byPlan: "bad",
       addonPackages: null,
       funnel: {
@@ -137,6 +185,9 @@ describe("adminStorageEconomicsApi", () => {
 
     expect(normalized.overview.trackedAccounts).toBe(0);
     expect(normalized.overview.estimatedGrossMargin1xPct).toBeNull();
+    expect(normalized.providerUsage.status).toBe("unavailable");
+    expect(normalized.providerUsage.source).toBe("unavailable");
+    expect(normalized.providerUsage.egressMultiple).toBeNull();
     expect(normalized.byPlan).toEqual([]);
     expect(normalized.addonPackages).toEqual([]);
     expect(normalized.funnel.source).toBe("unavailable");

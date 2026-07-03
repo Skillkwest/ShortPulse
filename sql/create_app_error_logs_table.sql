@@ -96,4 +96,34 @@ create index if not exists app_error_events_fingerprint_occurred_idx
 alter table app_error_events enable row level security;
 
 comment on table app_error_events is
-    'Immutable app error occurrences for complete runtime/API generation failure history.';
+    'Raw app error occurrences for runtime/API generation failure history, with telemetry rows managed by retention policy.';
+
+create table if not exists app_error_event_telemetry_daily_rollups (
+    rollup_day date not null,
+    source text not null,
+    scope text not null,
+    severity text not null,
+    event_count bigint not null default 0,
+    first_occurred_at timestamptz,
+    last_occurred_at timestamptz,
+    last_rolled_up_at timestamptz not null default now(),
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now(),
+    constraint app_error_event_telemetry_daily_rollups_pkey
+        primary key (rollup_day, source, scope, severity),
+    constraint app_error_event_telemetry_daily_rollups_scope_check
+        check (scope in ('app', 'generation')),
+    constraint app_error_event_telemetry_daily_rollups_severity_check
+        check (severity in ('low', 'medium', 'high'))
+);
+
+alter table app_error_event_telemetry_daily_rollups enable row level security;
+
+revoke all on table app_error_event_telemetry_daily_rollups from public;
+revoke all on table app_error_event_telemetry_daily_rollups from anon;
+revoke all on table app_error_event_telemetry_daily_rollups from authenticated;
+grant select, insert, update, delete on table app_error_event_telemetry_daily_rollups
+    to service_role;
+
+comment on table app_error_event_telemetry_daily_rollups is
+    'Service-role-only daily aggregate counts for telemetry rows pruned from raw app_error_events retention windows.';

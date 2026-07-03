@@ -43,6 +43,26 @@ export const isTelemetrySource = (source: string): boolean => {
 };
 
 /**
+ * Returns true when a source should keep rich browser context such as
+ * breadcrumbs in the raw event row.
+ */
+export const shouldRetainRichEventContext = (params: {
+  source: string;
+  severity?: string | null;
+}): boolean => {
+  if (!isTelemetrySource(params.source)) return true;
+  return params.severity === "high";
+};
+
+/**
+ * Telemetry rows keep user_id for aggregate/operator correlation, but avoid
+ * duplicating email snapshots in the raw event stream.
+ */
+export const shouldRetainEventUserEmail = (source: string): boolean => {
+  return !isTelemetrySource(source);
+};
+
+/**
  * Growth attribution/funnel telemetry is useful in raw event views, but should
  * not be treated as operator-actionable error work.
  */

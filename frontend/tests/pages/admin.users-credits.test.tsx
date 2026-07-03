@@ -595,8 +595,8 @@ describe("Admin users and credits overview", () => {
     expect(screen.getByTestId("snapshot-card-plan")).toHaveTextContent("Business");
     expect(screen.getByTestId("snapshot-card-price")).toHaveTextContent("10,000 credits / month");
     expect(screen.getByTestId("snapshot-status-badge")).toHaveTextContent("Active");
-    expect(screen.getByTestId("snapshot-card-storage")).toHaveTextContent("500.0 GB");
-    expect(screen.getByTestId("snapshot-card-storage")).toHaveTextContent("2.0 GB used");
+    expect(screen.getByTestId("snapshot-card-storage")).toHaveTextContent("500 GB");
+    expect(screen.getByTestId("snapshot-card-storage")).toHaveTextContent("2 GB used");
     expect(screen.getByTestId("snapshot-card-billing-state")).toHaveTextContent("Active");
     expect(screen.getByTestId("snapshot-card-renewal")).toHaveTextContent("Apr 30, 2026");
     expect(screen.getByTestId("snapshot-card-joined")).toHaveTextContent("Mar 2, 2026");
@@ -631,7 +631,7 @@ describe("Admin users and credits overview", () => {
     expect(screen.getByTestId("snapshot-card-price")).toHaveTextContent("10,000 credits / month");
     expect(screen.getByTestId("snapshot-status-badge")).toHaveTextContent("Inactive");
     expect(screen.queryByTestId("snapshot-payment-exempt-badge")).not.toBeInTheDocument();
-    expect(screen.getByTestId("snapshot-card-storage")).toHaveTextContent("500.0 GB");
+    expect(screen.getByTestId("snapshot-card-storage")).toHaveTextContent("500 GB");
     expect(screen.getByTestId("snapshot-card-credits")).toHaveTextContent("0");
     expect(screen.getByTestId("snapshot-card-credits")).toHaveTextContent("Spendable");
     expect(screen.getByTestId("snapshot-card-credits")).toHaveTextContent("available 0");
@@ -666,9 +666,9 @@ describe("Admin users and credits overview", () => {
     expect(screen.getByTestId("snapshot-card-price")).toHaveTextContent("4,000 credits / month");
     expect(screen.getByTestId("snapshot-status-badge")).toHaveTextContent("Active");
     expect(screen.queryByTestId("snapshot-payment-exempt-badge")).not.toBeInTheDocument();
-    expect(screen.getByTestId("snapshot-card-storage")).toHaveTextContent("125.0 GB");
+    expect(screen.getByTestId("snapshot-card-storage")).toHaveTextContent("125 GB");
     expect(screen.getByTestId("snapshot-card-storage")).toHaveTextContent(
-      "5.0 GB used · 25.0 GB add-ons"
+      "5 GB used · 25 GB add-ons"
     );
     expect(screen.getByTestId("snapshot-card-credits")).toHaveTextContent("120");
     expect(screen.getByTestId("snapshot-card-credits")).toHaveTextContent("Spendable");

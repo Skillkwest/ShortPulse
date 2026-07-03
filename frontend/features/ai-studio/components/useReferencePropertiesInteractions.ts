@@ -4,31 +4,18 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, DragEvent, RefObject } from "react";
-import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import type { AgentComposerDirectDropPayload } from "../logic/agentComposerDirectDropPayload";
 import {
   buildAiStudioDropSnapshotTransfer,
   captureAiStudioDropSnapshot,
 } from "../logic/aiStudioDropSnapshot";
 import {
-  resolveMotionReferenceVideoDropSource,
-  resolveMotionReferenceVideoDropSourceFromPayload,
-} from "../logic/motionReferenceVideoDropSource";
-import {
-  resolveLipSyncAudioDropSource,
-  resolveLipSyncAudioDropSourceFromPayload,
-} from "../logic/lipSyncAudioDropSource";
-import {
   extractDragDropPayload,
   extractComposerImageDropPayload,
   extractPromptDropText,
   extractInternalReferenceDragPayload,
-  isAudioDragTransfer,
-  isAudioFile,
   isImageDragTransfer,
   isImageFile,
-  isVideoFile,
-  isVideoDragTransfer,
   looksLikeImageUrl,
 } from "../utils/dragDrop";
 import {
@@ -42,414 +29,37 @@ import {
   INTERNAL_MEDIA_REF_BUCKET,
 } from "../../../lib/media/internalMediaRefs";
 import { readMediaLibraryDragPayload } from "../logic/mediaLibraryDragPayload";
-import {
-  createEmptyAiStudioKlingElement,
-  getAiStudioKlingElementReferenceUrls,
-  type AiStudioKlingElement,
-} from "../logic/klingElements";
+import { getAiStudioKlingElementReferenceUrls } from "../logic/klingElements";
 import {
   readRememberedObjectUrlBlob,
   rememberObjectUrlBlob,
   revokeRememberedObjectUrl,
 } from "../utils/objectUrlBlobRegistry";
-import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
-import {
-  registerInternalMediaRefForUrl,
-  resolveInternalMediaRefForUrl,
-} from "../logic/referenceInputInternalMediaRegistry";
+import { registerInternalMediaRefForUrl } from "../logic/referenceInputInternalMediaRegistry";
 import {
   prepareLocalImageBlobForEditIngress,
   prepareLocalImageFileForEditIngress,
 } from "../logic/editImageIngress";
 import {
-  uploadImageAssetToStorage,
-  uploadImageBlobAssetToStorage,
-  type ImageUploadResponse,
-} from "../utils/imageUpload";
-import {
-  uploadReferenceVideoAssetToStorage,
-  uploadReferenceVideoFileToStorage,
-  type VideoUploadResult,
-} from "../utils/videoUpload";
-import { uploadAudioBlobToStorage, type AudioUploadResult } from "../utils/audioUpload";
-
-export type ReferenceStepKey =
-  | "reference"
-  | "model"
-  | "imageSettings"
-  | "prompt"
-  | "motionAudio"
-  | "videoSettings"
-  | "klingAdvanced"
-  | "klingAssets"
-  | "klingGuidance"
-  | "generate";
-
-type KlingMultiPrompt = { id: string; prompt: string; duration: number };
-
-type KlingElement = AiStudioKlingElement;
-
-type ReferenceImageDropSnapshot = {
-  internalPayload: ReturnType<typeof extractInternalReferenceDragPayload> | null;
-  imageUrl: string | null;
-  imageFile?: File | null;
-  fromFile?: boolean;
-  referenceId?: string | null;
-  mediaId?: string | null;
-  mediaKind?: string | null;
-  previewStoragePath?: string | null;
-  fullStoragePath?: string | null;
-  displayPreviewUrl?: string | null;
-  preferLocalRenderArtifact?: boolean;
-};
-
-type ImageDisplayPreviewEntry = {
-  sourceUrl: string;
-  displayUrl: string;
-  ownsObjectUrl: boolean;
-};
-
-type ServerCopiedMediaResponse = {
-  storagePath?: unknown;
-  fileSize?: unknown;
-  delivery?: {
-    previewUrl?: unknown;
-    fullUrl?: unknown;
-  } | null;
-};
-
-type UseReferencePropertiesInteractionsParams = {
-  interactionScope?: "full" | "image";
-  referenceImageUrl: string | null;
-  extraImageUrls: readonly (string | null)[];
-  onPrimaryImageChange: (url: string | null) => void;
-  onExtraImageChange: (index: number, url: string | null) => void;
-  onPromptTextChange: (value: string) => void;
-  stagePrimaryImageForProviderAccess?: boolean;
-  onMotionVideoChange?: (url: string | null) => void;
-  onStageMotionVideoSelection?: (input: {
-    videoFile?: File | null;
-    videoUrl?: string | null;
-  }) => Promise<void>;
-  resolvePreviewUrlById?: (id: string | null) => string | null;
-  resolveMotionVideoUrlById?: (id: string | null) => string | null;
-  resolveInternalReferenceImageDropSource?: ResolveInternalReferenceDrop;
-  resolveInternalReferenceVideoDropSource?: ResolveInternalReferenceDrop;
-  klingMultiPrompts: KlingMultiPrompt[];
-  onKlingMultiPromptsChange?: (value: KlingMultiPrompt[]) => void;
-  klingElements: KlingElement[];
-  onKlingElementsChange?: (value: KlingElement[]) => void;
-  seedanceElementSlotCount?: number;
-  onSeedanceElementMediaSlotChange?: (
-    slotIndex: number,
-    value: { kind: "image" | "video" | "audio"; url: string; name?: string | null } | null
-  ) => void;
-};
+  createImageSlotInternalMediaRef,
+  createUploadedImageInternalMediaRef,
+  isLocalRenderArtifactUrl,
+  resolveImageStoragePath,
+  resolveCanvasTearOutReferenceImageSnapshot,
+  trimOptionalString,
+  type ReferenceImageDropSnapshot,
+  type ReferenceStepKey,
+  type UseReferencePropertiesInteractionsParams,
+} from "./referencePropertiesTypes";
+import { stageProviderImageSelection } from "./referencePropertiesMediaStaging";
+import { createSmallImageDisplayPreviewUrl } from "./referencePropertiesDisplayPreviews";
+import { useReferencePropertiesImageDisplayPreviews } from "./useReferencePropertiesImageDisplayPreviews";
+import { useReferencePropertiesKlingActions } from "./useReferencePropertiesKlingActions";
+import { useReferencePropertiesMotionVideoInteractions } from "./useReferencePropertiesMotionVideoInteractions";
+import { useReferencePropertiesSeedanceInteractions } from "./useReferencePropertiesSeedanceInteractions";
 
 const reconcileBooleanListLength = (values: boolean[], length: number): boolean[] =>
   Array.from({ length }, (_, index) => values[index] ?? false);
-
-const trimOptionalString = (value: string | null | undefined): string | null => {
-  const trimmed = value?.trim() ?? "";
-  return trimmed.length ? trimmed : null;
-};
-
-const isLocalRenderArtifactUrl = (value: string | null | undefined): boolean => {
-  const trimmed = value?.trim() ?? "";
-  return trimmed.startsWith("blob:") || trimmed.startsWith("data:image/");
-};
-
-const IMAGE_STORAGE_PATH_PATTERN = /\.(?:avif|bmp|gif|heic|heif|jpe?g|png|tiff?|webp)(?:$|[?#])/i;
-const NON_IMAGE_STORAGE_PATH_PATTERN =
-  /\.(?:aac|flac|m4a|m4v|mov|mp3|mp4|oga|ogg|ogv|wav|webm)(?:$|[?#])/i;
-
-const isImageStoragePath = (value: string | null | undefined): boolean =>
-  Boolean(value && IMAGE_STORAGE_PATH_PATTERN.test(value.trim()));
-
-const isKnownNonImageStoragePath = (value: string | null | undefined): boolean =>
-  Boolean(value && NON_IMAGE_STORAGE_PATH_PATTERN.test(value.trim()));
-
-const resolveImageStoragePath = ({
-  fullStoragePath,
-  previewStoragePath,
-  mediaKind,
-}: {
-  fullStoragePath?: string | null;
-  previewStoragePath?: string | null;
-  mediaKind?: string | null;
-}): string | null => {
-  const fullPath = trimOptionalString(fullStoragePath);
-  const previewPath = trimOptionalString(previewStoragePath);
-  if (!fullPath) return previewPath;
-  if (!previewPath) return isKnownNonImageStoragePath(fullPath) ? null : fullPath;
-  if (mediaKind && mediaKind !== "image") {
-    return isImageStoragePath(previewPath) ? previewPath : null;
-  }
-  if (isKnownNonImageStoragePath(fullPath) && isImageStoragePath(previewPath)) return previewPath;
-  return fullPath;
-};
-
-const createImageSlotInternalMediaRef = ({
-  fullStoragePath,
-  previewStoragePath,
-  mediaId,
-  mediaKind,
-}: {
-  fullStoragePath?: string | null;
-  previewStoragePath?: string | null;
-  mediaId?: string | null;
-  mediaKind?: string | null;
-}) => {
-  const storagePath = resolveImageStoragePath({
-    fullStoragePath,
-    previewStoragePath,
-    mediaKind,
-  });
-  if (!storagePath) return null;
-  return createInternalMediaRef({
-    bucket: INTERNAL_MEDIA_REF_BUCKET,
-    storagePath,
-    mediaFileId: mediaId ?? null,
-  });
-};
-
-const createUploadedImageInternalMediaRef = (uploaded: ImageUploadResponse) =>
-  createInternalMediaRef({
-    bucket: INTERNAL_MEDIA_REF_BUCKET,
-    storagePath: uploaded.path,
-  });
-
-const createUploadedVideoInternalMediaRef = (uploaded: VideoUploadResult) =>
-  createInternalMediaRef({
-    bucket: INTERNAL_MEDIA_REF_BUCKET,
-    storagePath: uploaded.path,
-  });
-
-const createUploadedAudioInternalMediaRef = (uploaded: AudioUploadResult) =>
-  createInternalMediaRef({
-    bucket: INTERNAL_MEDIA_REF_BUCKET,
-    storagePath: uploaded.path,
-  });
-
-const isHttpImageSourceUrl = (value: string): boolean => /^https?:\/\//i.test(value.trim());
-const isHttpMediaSourceUrl = (value: string): boolean => /^https?:\/\//i.test(value.trim());
-
-const EDIT_SECONDARY_DISPLAY_PREVIEW_LONG_EDGE_PX = 224;
-const EDIT_SECONDARY_DISPLAY_PREVIEW_QUALITY = 0.82;
-const EDIT_SECONDARY_DISPLAY_PREVIEW_LOAD_TIMEOUT_MS = 250;
-
-const loadImageElementFromObjectUrl = (src: string): Promise<HTMLImageElement> =>
-  new Promise((resolve, reject) => {
-    const image = new Image();
-    const timeoutId = window.setTimeout(() => {
-      image.onload = null;
-      image.onerror = null;
-      reject(new Error("Timed out while loading display preview image."));
-    }, EDIT_SECONDARY_DISPLAY_PREVIEW_LOAD_TIMEOUT_MS);
-    image.onload = () => {
-      window.clearTimeout(timeoutId);
-      resolve(image);
-    };
-    image.onerror = () => {
-      window.clearTimeout(timeoutId);
-      reject(new Error("Unable to load display preview image."));
-    };
-    image.src = src;
-  });
-
-const resolveBlobImageSource = async (
-  blob: Blob
-): Promise<{
-  source: CanvasImageSource;
-  width: number;
-  height: number;
-  release: () => void;
-} | null> => {
-  if (typeof createImageBitmap === "function") {
-    try {
-      const bitmap = await createImageBitmap(blob);
-      return {
-        source: bitmap,
-        width: Math.max(1, Math.round(bitmap.width)),
-        height: Math.max(1, Math.round(bitmap.height)),
-        release: () => bitmap.close(),
-      };
-    } catch {
-      // Fall back to image-element loading below.
-    }
-  }
-
-  let objectUrl: string | null = URL.createObjectURL(blob);
-  const releaseObjectUrl = () => {
-    if (!objectUrl) return;
-    URL.revokeObjectURL(objectUrl);
-    objectUrl = null;
-  };
-  try {
-    const image = await loadImageElementFromObjectUrl(objectUrl);
-    return {
-      source: image,
-      width: Math.max(1, Math.round(image.naturalWidth || image.width || 1)),
-      height: Math.max(1, Math.round(image.naturalHeight || image.height || 1)),
-      release: releaseObjectUrl,
-    };
-  } catch {
-    releaseObjectUrl();
-    return null;
-  }
-};
-
-const canvasToBlob = (
-  canvas: HTMLCanvasElement,
-  mimeType: string,
-  quality: number
-): Promise<Blob | null> =>
-  new Promise((resolve) => {
-    try {
-      canvas.toBlob((blob) => resolve(blob), mimeType, quality);
-    } catch {
-      resolve(null);
-    }
-  });
-
-const createSmallImageDisplayPreviewUrl = async (blob: Blob | null): Promise<string | null> => {
-  if (!blob || typeof document === "undefined") return null;
-  if (!blob.type.toLowerCase().startsWith("image/")) return null;
-  const resolved = await resolveBlobImageSource(blob);
-  if (!resolved) return null;
-  try {
-    const longEdge = Math.max(resolved.width, resolved.height);
-    const scale = Math.min(1, EDIT_SECONDARY_DISPLAY_PREVIEW_LONG_EDGE_PX / longEdge);
-    const width = Math.max(1, Math.round(resolved.width * scale));
-    const height = Math.max(1, Math.round(resolved.height * scale));
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const context = canvas.getContext("2d");
-    if (!context) return null;
-    context.imageSmoothingEnabled = true;
-    context.imageSmoothingQuality = "high";
-    context.drawImage(resolved.source, 0, 0, width, height);
-    const previewBlob =
-      (await canvasToBlob(canvas, "image/webp", EDIT_SECONDARY_DISPLAY_PREVIEW_QUALITY)) ??
-      (await canvasToBlob(canvas, "image/jpeg", EDIT_SECONDARY_DISPLAY_PREVIEW_QUALITY));
-    return previewBlob ? URL.createObjectURL(previewBlob) : null;
-  } finally {
-    resolved.release();
-  }
-};
-
-const copyRemoteImageToStorage = async (sourceUrl: string): Promise<ImageUploadResponse> => {
-  const response = await fetchWithAuth("/api/media/copy-from-url", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      url: sourceUrl,
-      mode: "image",
-      source: "upload",
-      fileTypeHint: "image",
-      metadata: {
-        ai_studio_reference_provider_staging: true,
-      },
-    }),
-    shortpulseLogScope: "generation",
-  });
-  const payload = (await response.json().catch(() => null)) as ServerCopiedMediaResponse | null;
-  if (!response.ok) {
-    throw new Error(
-      typeof (payload as { error?: unknown } | null)?.error === "string"
-        ? (payload as { error: string }).error
-        : "Unable to copy remote reference image."
-    );
-  }
-  const path = typeof payload?.storagePath === "string" ? payload.storagePath.trim() : "";
-  const delivery = payload?.delivery ?? null;
-  const url =
-    typeof delivery?.previewUrl === "string" && delivery.previewUrl.trim()
-      ? delivery.previewUrl.trim()
-      : typeof delivery?.fullUrl === "string" && delivery.fullUrl.trim()
-        ? delivery.fullUrl.trim()
-        : "";
-  if (!path || !url) {
-    throw new Error("Remote reference image copy did not return durable media.");
-  }
-  return {
-    url,
-    path,
-    size: typeof payload?.fileSize === "number" ? payload.fileSize : 0,
-  };
-};
-
-const copyRemoteSeedanceMediaToStorage = async (
-  sourceUrl: string,
-  mediaKind: "video" | "audio"
-): Promise<VideoUploadResult | AudioUploadResult> => {
-  const response = await fetchWithAuth("/api/media/copy-from-url", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      url: sourceUrl,
-      mode: mediaKind,
-      source: "upload",
-      fileTypeHint: mediaKind,
-      metadata: {
-        ai_studio_reference_provider_staging: true,
-      },
-    }),
-    shortpulseLogScope: "generation",
-  });
-  const payload = (await response.json().catch(() => null)) as ServerCopiedMediaResponse | null;
-  if (!response.ok) {
-    throw new Error(
-      typeof (payload as { error?: unknown } | null)?.error === "string"
-        ? (payload as { error: string }).error
-        : `Unable to copy remote reference ${mediaKind}.`
-    );
-  }
-  const path = typeof payload?.storagePath === "string" ? payload.storagePath.trim() : "";
-  const delivery = payload?.delivery ?? null;
-  const url =
-    typeof delivery?.fullUrl === "string" && delivery.fullUrl.trim()
-      ? delivery.fullUrl.trim()
-      : typeof delivery?.previewUrl === "string" && delivery.previewUrl.trim()
-        ? delivery.previewUrl.trim()
-        : "";
-  if (!path || !url) {
-    throw new Error(`Remote reference ${mediaKind} copy did not return durable media.`);
-  }
-  return {
-    url,
-    path,
-    size: typeof payload?.fileSize === "number" ? payload.fileSize : 0,
-  };
-};
-
-const resolveCanvasTearOutReferenceImageSnapshot = (
-  payload: AgentComposerDirectDropPayload
-): ReferenceImageDropSnapshot | null => {
-  if (payload.kind !== "image") return null;
-  const internalPayload = payload.internalPayload ?? null;
-  const composerImagePayload = payload.composerImagePayload ?? null;
-  const imageUrl =
-    trimOptionalString(composerImagePayload?.displayArtifactUrl) ??
-    trimOptionalString(internalPayload?.referenceRenderUrl) ??
-    trimOptionalString(internalPayload?.referenceUrl);
-  const referenceId =
-    trimOptionalString(composerImagePayload?.referenceId) ??
-    trimOptionalString(internalPayload?.referenceId) ??
-    trimOptionalString(composerImagePayload?.outputId) ??
-    trimOptionalString(internalPayload?.outputId) ??
-    trimOptionalString(composerImagePayload?.mediaId) ??
-    trimOptionalString(internalPayload?.mediaId);
-  return {
-    internalPayload,
-    imageUrl,
-    referenceId,
-    mediaKind: internalPayload?.mediaKind ?? null,
-    displayPreviewUrl: trimOptionalString(composerImagePayload?.displayArtifactUrl),
-    preferLocalRenderArtifact: Boolean(composerImagePayload?.displayArtifactUrl),
-  };
-};
 
 /**
  * Returns UI interaction state and handlers for reference properties editing.
@@ -498,30 +108,13 @@ export const useReferencePropertiesInteractions = ({
   const extraOneInputRef = inputRefs[0] ?? { current: null };
   const extraTwoInputRef = inputRefs[1] ?? { current: null };
   const extraThreeInputRef = inputRefs[2] ?? { current: null };
-  const motionVideoInputRef = useRef<HTMLInputElement | null>(null);
-  const seedanceElementImageInputRefsRef = useRef<Array<{ current: HTMLInputElement | null }>>([]);
-  while (seedanceElementImageInputRefsRef.current.length < effectiveSeedanceElementSlotCount) {
-    seedanceElementImageInputRefsRef.current.push({ current: null });
-  }
-  const seedanceElementImageInputRefs = seedanceElementImageInputRefsRef.current.slice(
-    0,
-    effectiveSeedanceElementSlotCount
-  );
   const ownedImageObjectUrlsRef = useRef<Set<string>>(new Set());
   const pendingCommittedImageObjectUrlsRef = useRef<Set<string>>(new Set());
-  const makeId = () => `kling-${Math.random().toString(36).slice(2, 9)}`;
 
   const [primaryDragActive, setPrimaryDragActive] = useState(false);
   const [extraDragActive, setExtraDragActive] = useState([false, false, false]);
   const [primaryImageLoading, setPrimaryImageLoading] = useState(false);
   const [extraImageLoading, setExtraImageLoading] = useState([false, false, false]);
-  const [seedanceElementImageDragActive, setSeedanceElementImageDragActive] = useState<boolean[]>(
-    []
-  );
-  const [seedanceElementImageLoading, setSeedanceElementImageLoading] = useState<boolean[]>([]);
-  const [motionVideoDragActive, setMotionVideoDragActive] = useState(false);
-  const extraImageDisplayPreviewEntriesRef = useRef<Array<ImageDisplayPreviewEntry | null>>([]);
-  const [extraImageDisplayPreviewVersion, setExtraImageDisplayPreviewVersion] = useState(0);
   const [collapsedSteps, setCollapsedSteps] = useState<Record<ReferenceStepKey, boolean>>({
     reference: false,
     model: false,
@@ -548,76 +141,16 @@ export const useReferencePropertiesInteractions = ({
 
   const canSwapFrames = Boolean(referenceImageUrl || extraImageUrls[0]);
 
-  const releaseDisplayPreviewEntry = useCallback((entry: ImageDisplayPreviewEntry | null) => {
-    if (!entry?.ownsObjectUrl || !entry.displayUrl.startsWith("blob:")) return;
-    URL.revokeObjectURL(entry.displayUrl);
-  }, []);
-
-  const setExtraImageDisplayPreviewAt = useCallback(
-    (index: number, sourceUrl: string | null, displayUrl: string | null, ownsObjectUrl = false) => {
-      const previous = extraImageDisplayPreviewEntriesRef.current[index] ?? null;
-      releaseDisplayPreviewEntry(previous);
-      const nextEntries = [...extraImageDisplayPreviewEntriesRef.current];
-      nextEntries[index] =
-        sourceUrl && displayUrl
-          ? {
-              sourceUrl,
-              displayUrl,
-              ownsObjectUrl,
-            }
-          : null;
-      extraImageDisplayPreviewEntriesRef.current = nextEntries;
-      setExtraImageDisplayPreviewVersion((version) => version + 1);
-    },
-    [releaseDisplayPreviewEntry]
-  );
-
-  const extraImageDisplayUrls = useMemo(() => {
-    void extraImageDisplayPreviewVersion;
-    return inputRefs.map((_, index) => {
-      const sourceUrl = extraImageUrls[index] ?? null;
-      const entry = extraImageDisplayPreviewEntriesRef.current[index] ?? null;
-      if (!sourceUrl || !entry || entry.sourceUrl !== sourceUrl) return null;
-      return entry.displayUrl;
+  const { extraImageDisplayUrls, setExtraImageDisplayPreviewAt } =
+    useReferencePropertiesImageDisplayPreviews({
+      extraImageUrls,
+      slotCount: inputRefs.length,
     });
-  }, [extraImageDisplayPreviewVersion, extraImageUrls, inputRefs]);
 
   useEffect(() => {
     setExtraDragActive((prev) => reconcileBooleanListLength(prev, inputRefs.length));
     setExtraImageLoading((prev) => reconcileBooleanListLength(prev, inputRefs.length));
   }, [inputRefs.length]);
-
-  useEffect(() => {
-    let didChange = false;
-    const nextEntries = extraImageDisplayPreviewEntriesRef.current.map((entry, index) => {
-      const sourceUrl = extraImageUrls[index] ?? null;
-      if (!entry || entry.sourceUrl === sourceUrl) return entry ?? null;
-      releaseDisplayPreviewEntry(entry);
-      didChange = true;
-      return null;
-    });
-    if (didChange) {
-      extraImageDisplayPreviewEntriesRef.current = nextEntries;
-      setExtraImageDisplayPreviewVersion((version) => version + 1);
-    }
-  }, [extraImageUrls, releaseDisplayPreviewEntry]);
-
-  useEffect(
-    () => () => {
-      extraImageDisplayPreviewEntriesRef.current.forEach(releaseDisplayPreviewEntry);
-      extraImageDisplayPreviewEntriesRef.current = [];
-    },
-    [releaseDisplayPreviewEntry]
-  );
-
-  useEffect(() => {
-    setSeedanceElementImageDragActive((prev) =>
-      reconcileBooleanListLength(prev, effectiveSeedanceElementSlotCount)
-    );
-    setSeedanceElementImageLoading((prev) =>
-      reconcileBooleanListLength(prev, effectiveSeedanceElementSlotCount)
-    );
-  }, [effectiveSeedanceElementSlotCount]);
 
   const handleSwapFrames = () => {
     if (!canSwapFrames) return;
@@ -625,53 +158,20 @@ export const useReferencePropertiesInteractions = ({
     onExtraImageChange(0, referenceImageUrl);
   };
 
-  const updateKlingMultiPrompt = (
-    id: string,
-    key: "prompt" | "duration",
-    value: string | number
-  ) => {
-    if (!enableFullReferenceInteractions) return;
-    const next = effectiveKlingMultiPrompts.map((item) =>
-      item.id === id ? { ...item, [key]: value } : item
-    );
-    onKlingMultiPromptsChange?.(next);
-  };
-
-  const addKlingShot = () => {
-    if (!enableFullReferenceInteractions) return;
-    onKlingMultiPromptsChange?.([
-      ...effectiveKlingMultiPrompts,
-      { id: makeId(), prompt: "", duration: 5 },
-    ]);
-  };
-
-  const removeKlingShot = (id: string) => {
-    if (!enableFullReferenceInteractions) return;
-    onKlingMultiPromptsChange?.(effectiveKlingMultiPrompts.filter((item) => item.id !== id));
-  };
-
-  const updateKlingElement = (
-    id: string,
-    key: "frontalImageUrl" | "referenceImageUrls" | "videoUrl",
-    value: string
-  ) => {
-    if (!enableFullReferenceInteractions) return;
-    const next = effectiveKlingElements.map((item) =>
-      item.id === id ? { ...item, [key]: value } : item
-    );
-    onKlingElementsChange?.(next);
-  };
-
-  const addKlingElement = () => {
-    if (!enableFullReferenceInteractions) return;
-    if (effectiveKlingElements.length >= 3) return;
-    onKlingElementsChange?.([...effectiveKlingElements, createEmptyAiStudioKlingElement()]);
-  };
-
-  const removeKlingElement = (id: string) => {
-    if (!enableFullReferenceInteractions) return;
-    onKlingElementsChange?.(effectiveKlingElements.filter((item) => item.id !== id));
-  };
+  const {
+    updateKlingMultiPrompt,
+    addKlingShot,
+    removeKlingShot,
+    updateKlingElement,
+    addKlingElement,
+    removeKlingElement,
+  } = useReferencePropertiesKlingActions({
+    enabled: enableFullReferenceInteractions,
+    klingMultiPrompts: effectiveKlingMultiPrompts,
+    onKlingMultiPromptsChange,
+    klingElements: effectiveKlingElements,
+    onKlingElementsChange,
+  });
 
   const releaseOwnedImageObjectUrl = useCallback((url: string) => {
     if (!ownedImageObjectUrlsRef.current.has(url)) return;
@@ -695,12 +195,22 @@ export const useReferencePropertiesInteractions = ({
     setter(url);
   };
 
-  const commitMotionVideoUrl = useCallback(
-    (url: string | null) => {
-      onMotionVideoChange?.(url);
-    },
-    [onMotionVideoChange]
-  );
+  const {
+    motionVideoInputRef,
+    motionVideoDragActive,
+    setMotionVideoDragActive,
+    acceptMotionVideoCanvasTearOutPayload,
+    allowVideoDrag,
+    handleMotionVideoDrop,
+    handleMotionVideoSelection,
+  } = useReferencePropertiesMotionVideoInteractions({
+    enabled: enableFullReferenceInteractions,
+    onMotionVideoChange,
+    onStageMotionVideoSelection,
+    resolvePreviewUrlById,
+    resolveMotionVideoUrlById,
+    resolveInternalReferenceVideoDropSource,
+  });
 
   const stabilizeDroppedImageUrl = async ({
     imageUrl,
@@ -783,131 +293,6 @@ export const useReferencePropertiesInteractions = ({
       })();
       event.target.value = "";
     };
-
-  const stageProviderImageSelection = async ({
-    imageFile,
-    imageUrl,
-    imageBlob,
-  }: {
-    imageFile?: File | null;
-    imageUrl?: string | null;
-    imageBlob?: Blob | null;
-  }): Promise<ImageUploadResponse | null> => {
-    if (imageFile) {
-      return await uploadImageBlobAssetToStorage(imageFile);
-    }
-    if (imageBlob) {
-      return await uploadImageBlobAssetToStorage(imageBlob);
-    }
-    const normalizedUrl = imageUrl?.trim() ?? "";
-    if (!normalizedUrl) return null;
-    if (isHttpImageSourceUrl(normalizedUrl)) {
-      return await copyRemoteImageToStorage(normalizedUrl);
-    }
-    return await uploadImageAssetToStorage(normalizedUrl);
-  };
-
-  const stageSeedanceVideoSelection = async ({
-    videoFile,
-    videoUrl,
-    storagePath,
-  }: {
-    videoFile?: File | null;
-    videoUrl?: string | null;
-    storagePath?: string | null;
-  }): Promise<{ url: string; name?: string | null } | null> => {
-    if (videoFile) {
-      const uploaded = await uploadReferenceVideoFileToStorage(videoFile);
-      registerInternalMediaRefForUrl(uploaded.url, createUploadedVideoInternalMediaRef(uploaded));
-      return { url: uploaded.url, name: uploaded.name ?? videoFile.name };
-    }
-    const normalizedUrl = videoUrl?.trim() ?? "";
-    if (!normalizedUrl) return null;
-    const normalizedStoragePath = storagePath?.trim() ?? "";
-    const existingInternalRef = resolveInternalMediaRefForUrl(normalizedUrl);
-    if (normalizedStoragePath) {
-      registerInternalMediaRefForUrl(
-        normalizedUrl,
-        createInternalMediaRef({
-          bucket: INTERNAL_MEDIA_REF_BUCKET,
-          storagePath: normalizedStoragePath,
-        })
-      );
-      return { url: normalizedUrl };
-    }
-    if (existingInternalRef?.storagePath) {
-      return { url: normalizedUrl };
-    }
-    if (normalizedUrl.startsWith("blob:") || /^data:video\//i.test(normalizedUrl)) {
-      const uploaded = await uploadReferenceVideoAssetToStorage(normalizedUrl);
-      registerInternalMediaRefForUrl(uploaded.url, createUploadedVideoInternalMediaRef(uploaded));
-      return { url: uploaded.url, name: uploaded.name ?? null };
-    }
-    if (isHttpMediaSourceUrl(normalizedUrl)) {
-      const uploaded = await copyRemoteSeedanceMediaToStorage(normalizedUrl, "video");
-      registerInternalMediaRefForUrl(uploaded.url, createUploadedVideoInternalMediaRef(uploaded));
-      return { url: uploaded.url, name: "name" in uploaded ? (uploaded.name ?? null) : null };
-    }
-    return { url: normalizedUrl };
-  };
-
-  const stageSeedanceAudioSelection = async ({
-    audioFile,
-    audioUrl,
-    storagePath,
-    name,
-  }: {
-    audioFile?: File | null;
-    audioUrl?: string | null;
-    storagePath?: string | null;
-    name?: string | null;
-  }): Promise<{ url: string; name?: string | null } | null> => {
-    if (audioFile) {
-      const uploaded = await uploadAudioBlobToStorage(audioFile, {
-        sourceName: audioFile.name,
-        mimeType: audioFile.type,
-      });
-      registerInternalMediaRefForUrl(uploaded.url, createUploadedAudioInternalMediaRef(uploaded));
-      return { url: uploaded.url, name: audioFile.name };
-    }
-    const normalizedUrl = audioUrl?.trim() ?? "";
-    if (!normalizedUrl) return null;
-    const normalizedStoragePath = storagePath?.trim() ?? "";
-    const existingInternalRef = resolveInternalMediaRefForUrl(normalizedUrl);
-    if (normalizedStoragePath) {
-      registerInternalMediaRefForUrl(
-        normalizedUrl,
-        createInternalMediaRef({
-          bucket: INTERNAL_MEDIA_REF_BUCKET,
-          storagePath: normalizedStoragePath,
-        })
-      );
-      return { url: normalizedUrl, name };
-    }
-    if (existingInternalRef?.storagePath) {
-      return { url: normalizedUrl, name };
-    }
-    if (normalizedUrl.startsWith("blob:") || /^data:audio\//i.test(normalizedUrl)) {
-      const rememberedBlob = normalizedUrl.startsWith("blob:")
-        ? readRememberedObjectUrlBlob(normalizedUrl)
-        : null;
-      const sourceBlob =
-        rememberedBlob ?? (await fetch(normalizedUrl).then((response) => response.blob()));
-      if (!sourceBlob) return null;
-      const uploaded = await uploadAudioBlobToStorage(sourceBlob, {
-        sourceName: name,
-        mimeType: sourceBlob.type,
-      });
-      registerInternalMediaRefForUrl(uploaded.url, createUploadedAudioInternalMediaRef(uploaded));
-      return { url: uploaded.url, name };
-    }
-    if (isHttpMediaSourceUrl(normalizedUrl)) {
-      const uploaded = await copyRemoteSeedanceMediaToStorage(normalizedUrl, "audio");
-      registerInternalMediaRefForUrl(uploaded.url, createUploadedAudioInternalMediaRef(uploaded));
-      return { url: uploaded.url, name };
-    }
-    return { url: normalizedUrl, name };
-  };
 
   const handlePrimaryFileSelection = async (event: ChangeEvent<HTMLInputElement>) => {
     if (!stagePrimaryImageForProviderAccess) {
@@ -1224,21 +609,27 @@ export const useReferencePropertiesInteractions = ({
     setExtraImageLoading((prev) => prev.map((item, idx) => (idx === index ? value : item)));
   };
 
-  const setSeedanceElementImageDragActiveAt = (index: number, value: boolean) => {
-    setSeedanceElementImageDragActive((prev) =>
-      reconcileBooleanListLength(prev, effectiveSeedanceElementSlotCount).map((item, idx) =>
-        idx === index ? value : item
-      )
-    );
-  };
-
-  const setSeedanceElementImageLoadingAt = (index: number, value: boolean) => {
-    setSeedanceElementImageLoading((prev) =>
-      reconcileBooleanListLength(prev, effectiveSeedanceElementSlotCount).map((item, idx) =>
-        idx === index ? value : item
-      )
-    );
-  };
+  const {
+    seedanceElementImageInputRefs,
+    seedanceElementImageDragActive,
+    seedanceElementImageLoading,
+    setSeedanceElementImageDragActiveAt,
+    handleSeedanceElementMediaFileSelection,
+    handleSeedanceElementMediaDrop,
+    handleSeedanceElementMediaDragEnter,
+    handleSeedanceElementMediaDragOver,
+    handleSeedanceElementMediaDragLeave,
+    acceptSeedanceElementMediaCanvasTearOutPayload,
+  } = useReferencePropertiesSeedanceInteractions({
+    enabled: enableFullReferenceInteractions,
+    slotCount: effectiveSeedanceElementSlotCount,
+    onSeedanceElementMediaSlotChange,
+    resolvePreviewUrlById,
+    resolveMotionVideoUrlById,
+    resolveInternalReferenceVideoDropSource,
+    acceptImageDropSnapshot,
+    handleImageDrop,
+  });
 
   const acceptPrimaryCanvasTearOutPayload = (payload: AgentComposerDirectDropPayload) => {
     const snapshot = resolveCanvasTearOutReferenceImageSnapshot(payload);
@@ -1263,104 +654,6 @@ export const useReferencePropertiesInteractions = ({
           setExtraImageDisplayPreviewAt(index, sourceUrl, displayUrl, ownsObjectUrl),
       }
     );
-  };
-
-  const acceptSeedanceElementMediaCanvasTearOutPayload = (
-    index: number,
-    payload: AgentComposerDirectDropPayload
-  ) => {
-    if (!enableFullReferenceInteractions) return;
-    setSeedanceElementImageDragActiveAt(index, false);
-    if (!onSeedanceElementMediaSlotChange) return;
-    if (payload.kind === "image") {
-      const snapshot = resolveCanvasTearOutReferenceImageSnapshot(payload);
-      if (!snapshot) return;
-      void acceptImageDropSnapshot(
-        snapshot,
-        (url) => onSeedanceElementMediaSlotChange(index, url ? { kind: "image", url } : null),
-        (value) => setSeedanceElementImageLoadingAt(index, value),
-        { stageForProviderAccess: true }
-      );
-      return;
-    }
-    if (payload.kind === "audio") {
-      setSeedanceElementImageLoadingAt(index, true);
-      void (async () => {
-        try {
-          const resolvedAudioSource = await resolveLipSyncAudioDropSourceFromPayload({
-            payload,
-            resolvePreviewUrlById,
-          });
-          const stagedAudio =
-            resolvedAudioSource?.kind === "durable"
-              ? await stageSeedanceAudioSelection({
-                  audioUrl: resolvedAudioSource.url,
-                  storagePath: resolvedAudioSource.storagePath,
-                  name: resolvedAudioSource.title,
-                })
-              : null;
-          if (!stagedAudio) return;
-          onSeedanceElementMediaSlotChange(index, {
-            kind: "audio",
-            url: stagedAudio.url,
-            name: stagedAudio.name,
-          });
-        } catch (error) {
-          console.error("AI Studio Seedance audio reference staging failed:", error);
-        } finally {
-          setSeedanceElementImageLoadingAt(index, false);
-        }
-      })();
-      return;
-    }
-    if (payload.kind !== "video") return;
-    setSeedanceElementImageLoadingAt(index, true);
-    void (async () => {
-      try {
-        const resolvedSource = await resolveMotionReferenceVideoDropSourceFromPayload({
-          payload,
-          resolveInternalReferenceVideoDropSource,
-          resolveMotionVideoUrlById,
-          resolvePreviewUrlById,
-        });
-        if (!resolvedSource) return;
-        const stagedVideo =
-          resolvedSource.kind === "file"
-            ? await stageSeedanceVideoSelection({ videoFile: resolvedSource.videoFile })
-            : await stageSeedanceVideoSelection({
-                videoUrl: resolvedSource.videoUrl,
-                storagePath: resolvedSource.storagePath,
-              });
-        if (!stagedVideo) return;
-        onSeedanceElementMediaSlotChange(index, {
-          kind: "video",
-          url: stagedVideo.url,
-          name: stagedVideo.name,
-        });
-      } catch (error) {
-        console.error("AI Studio Seedance video reference staging failed:", error);
-      } finally {
-        setSeedanceElementImageLoadingAt(index, false);
-      }
-    })();
-  };
-
-  const acceptMotionVideoCanvasTearOutPayload = async (payload: AgentComposerDirectDropPayload) => {
-    if (!enableFullReferenceInteractions) return;
-    if (payload.kind !== "video") return;
-    setMotionVideoDragActive(false);
-    const resolvedSource = await resolveMotionReferenceVideoDropSourceFromPayload({
-      payload,
-      resolveInternalReferenceVideoDropSource,
-      resolveMotionVideoUrlById,
-      resolvePreviewUrlById,
-    });
-    if (!resolvedSource || resolvedSource.kind !== "url") return;
-    if (onStageMotionVideoSelection) {
-      await onStageMotionVideoSelection({ videoUrl: resolvedSource.videoUrl });
-      return;
-    }
-    commitMotionVideoUrl(resolvedSource.videoUrl);
   };
 
   const allowImageDrag = (event: DragEvent<HTMLDivElement>) => {
@@ -1412,132 +705,6 @@ export const useReferencePropertiesInteractions = ({
     })();
   };
 
-  const handleSeedanceElementMediaFileSelection =
-    (index: number) => (event: ChangeEvent<HTMLInputElement>) => {
-      if (!enableFullReferenceInteractions) return;
-      const file = event.target.files?.[0];
-      if (!file) return;
-      const isImage = isImageFile(file);
-      const isVideo = isVideoFile(file);
-      const isAudio = isAudioFile(file);
-      const fileName = file.name;
-      if (!isImage && !isVideo && !isAudio) {
-        event.target.value = "";
-        return;
-      }
-      setSeedanceElementImageLoadingAt(index, true);
-      void (async () => {
-        try {
-          if (isImage) {
-            const stagedImage = await stageProviderImageSelection({ imageFile: file });
-            if (!stagedImage) return;
-            registerInternalMediaRefForUrl(
-              stagedImage.url,
-              createUploadedImageInternalMediaRef(stagedImage)
-            );
-            onSeedanceElementMediaSlotChange?.(index, {
-              kind: "image",
-              url: stagedImage.url,
-              name: fileName,
-            });
-            return;
-          }
-          if (isAudio) {
-            const stagedAudio = await stageSeedanceAudioSelection({ audioFile: file });
-            if (!stagedAudio) return;
-            onSeedanceElementMediaSlotChange?.(index, {
-              kind: "audio",
-              url: stagedAudio.url,
-              name: stagedAudio.name ?? fileName,
-            });
-            return;
-          }
-          const stagedVideo = await stageSeedanceVideoSelection({ videoFile: file });
-          if (!stagedVideo) return;
-          onSeedanceElementMediaSlotChange?.(index, {
-            kind: "video",
-            url: stagedVideo.url,
-            name: stagedVideo.name ?? fileName,
-          });
-        } catch (error) {
-          console.error("AI Studio Seedance media reference staging failed:", error);
-        } finally {
-          setSeedanceElementImageLoadingAt(index, false);
-        }
-      })();
-      event.target.value = "";
-    };
-
-  const handleSeedanceElementMediaDrop = (index: number) => (event: DragEvent<HTMLDivElement>) => {
-    if (!enableFullReferenceInteractions) return;
-    setSeedanceElementImageDragActiveAt(index, false);
-    if (!onSeedanceElementMediaSlotChange) return;
-    if (isImageDragTransfer(event.dataTransfer)) {
-      return handleImageDrop(
-        (url) => onSeedanceElementMediaSlotChange(index, url ? { kind: "image", url } : null),
-        (value) => setSeedanceElementImageLoadingAt(index, value),
-        { stageForProviderAccess: true }
-      )(event);
-    }
-    if (!isVideoDragTransfer(event.dataTransfer) && !isAudioDragTransfer(event.dataTransfer))
-      return;
-    event.preventDefault();
-    event.stopPropagation();
-    const snapshot = captureAiStudioDropSnapshot(event.dataTransfer);
-    setSeedanceElementImageLoadingAt(index, true);
-    void (async () => {
-      try {
-        const resolvedSource = await resolveMotionReferenceVideoDropSource({
-          snapshot,
-          resolveInternalReferenceVideoDropSource,
-          resolveMotionVideoUrlById,
-          resolvePreviewUrlById,
-        });
-        if (resolvedSource) {
-          const stagedVideo =
-            resolvedSource.kind === "file"
-              ? await stageSeedanceVideoSelection({ videoFile: resolvedSource.videoFile })
-              : await stageSeedanceVideoSelection({
-                  videoUrl: resolvedSource.videoUrl,
-                  storagePath: resolvedSource.storagePath,
-                });
-          if (stagedVideo) {
-            onSeedanceElementMediaSlotChange(index, {
-              kind: "video",
-              url: stagedVideo.url,
-              name: stagedVideo.name,
-            });
-            return;
-          }
-        }
-        const resolvedAudioSource = await resolveLipSyncAudioDropSource({
-          snapshot,
-          resolvePreviewUrlById,
-        });
-        const stagedAudio =
-          resolvedAudioSource?.kind === "file"
-            ? await stageSeedanceAudioSelection({ audioFile: resolvedAudioSource.audioFile })
-            : resolvedAudioSource?.kind === "durable"
-              ? await stageSeedanceAudioSelection({
-                  audioUrl: resolvedAudioSource.url,
-                  storagePath: resolvedAudioSource.storagePath,
-                  name: resolvedAudioSource.title,
-                })
-              : null;
-        if (!stagedAudio) return;
-        onSeedanceElementMediaSlotChange(index, {
-          kind: "audio",
-          url: stagedAudio.url,
-          name: stagedAudio.name,
-        });
-      } catch (error) {
-        console.error("AI Studio Seedance media reference drop failed:", error);
-      } finally {
-        setSeedanceElementImageLoadingAt(index, false);
-      }
-    })();
-  };
-
   const handlePrimaryDragEnter = (event: DragEvent<HTMLDivElement>) => {
     if (allowImageDrag(event)) {
       setPrimaryDragActive(true);
@@ -1568,85 +735,6 @@ export const useReferencePropertiesInteractions = ({
 
   const handleExtraDragLeave = (index: number) => () => {
     setExtraDragActiveAt(index, false);
-  };
-
-  const allowMediaDrag = (event: DragEvent<HTMLDivElement>) => {
-    if (
-      isImageDragTransfer(event.dataTransfer) ||
-      isVideoDragTransfer(event.dataTransfer) ||
-      isAudioDragTransfer(event.dataTransfer)
-    ) {
-      event.preventDefault();
-      return true;
-    }
-    return false;
-  };
-
-  const handleSeedanceElementMediaDragEnter =
-    (index: number) => (event: DragEvent<HTMLDivElement>) => {
-      if (!enableFullReferenceInteractions) return;
-      if (allowMediaDrag(event)) {
-        setSeedanceElementImageDragActiveAt(index, true);
-      }
-    };
-
-  const handleSeedanceElementMediaDragOver =
-    (index: number) => (event: DragEvent<HTMLDivElement>) => {
-      if (!enableFullReferenceInteractions) return;
-      if (allowMediaDrag(event)) {
-        setSeedanceElementImageDragActiveAt(index, true);
-      }
-    };
-
-  const handleSeedanceElementMediaDragLeave = (index: number) => () => {
-    if (!enableFullReferenceInteractions) return;
-    setSeedanceElementImageDragActiveAt(index, false);
-  };
-
-  const allowVideoDrag = (event: DragEvent<HTMLDivElement>) => {
-    if (!enableFullReferenceInteractions) return false;
-    if (isVideoDragTransfer(event.dataTransfer)) {
-      event.preventDefault();
-      return true;
-    }
-    return false;
-  };
-
-  const handleMotionVideoDrop = async (event: DragEvent<HTMLDivElement>) => {
-    if (!enableFullReferenceInteractions) return;
-    event.preventDefault();
-    event.stopPropagation();
-    setMotionVideoDragActive(false);
-    const snapshot = captureAiStudioDropSnapshot(event.dataTransfer);
-
-    const resolvedSource = await resolveMotionReferenceVideoDropSource({
-      snapshot,
-      resolveInternalReferenceVideoDropSource,
-      resolveMotionVideoUrlById,
-      resolvePreviewUrlById,
-    });
-    if (!resolvedSource) return;
-
-    if (resolvedSource.kind === "file") {
-      await onStageMotionVideoSelection?.({ videoFile: resolvedSource.videoFile });
-      return;
-    }
-
-    if (onStageMotionVideoSelection) {
-      await onStageMotionVideoSelection({ videoUrl: resolvedSource.videoUrl });
-      return;
-    }
-
-    commitMotionVideoUrl(resolvedSource.videoUrl);
-  };
-
-  const handleMotionVideoSelection = async (event: ChangeEvent<HTMLInputElement>) => {
-    if (!enableFullReferenceInteractions) return;
-    const file = event.target.files?.[0];
-    if (isVideoFile(file)) {
-      await onStageMotionVideoSelection?.({ videoFile: file });
-    }
-    event.target.value = "";
   };
 
   return {

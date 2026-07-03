@@ -429,44 +429,46 @@ export const useElementsManagerViewState = ({
       persistRequestRevisionRef.current = requestRevision;
       const serializedDraft = serializeDraftState(nextDraft);
       const previousQueue = persistQueueRef.current.catch(() => undefined);
-      const queuedSave = previousQueue.then(async () => {
-        let result: { updatedAt: string; status: ElementLibraryItem["status"] };
-        try {
-          result = await saveElementManagerDraftSnapshot({
-            elementId,
-            name: nextDraft.name,
-            profileImageTransform: nextDraft.profileImageTransform,
-            description: nextDraft.description,
-            assetType: nextDraft.assetType,
-            imageReferenceUrls: nextDraft.imageReferenceUrls,
-            videoReferenceUrl: nextDraft.videoReferenceUrl || null,
-          });
-        } catch (error) {
-          const isLatest = requestRevision === persistRequestRevisionRef.current;
-          if (!isLatest && suppressStaleError) {
-            const staleResult: QueuedElementSnapshotSaveResult = {
-              updatedAt: null,
-              status: null,
-              isLatest: false,
-            };
-            return staleResult;
+      const queuedSave: Promise<QueuedElementSnapshotSaveResult> = previousQueue.then(
+        async (): Promise<QueuedElementSnapshotSaveResult> => {
+          let result: { updatedAt: string; status: ElementLibraryItem["status"] };
+          try {
+            result = await saveElementManagerDraftSnapshot({
+              elementId,
+              name: nextDraft.name,
+              profileImageTransform: nextDraft.profileImageTransform,
+              description: nextDraft.description,
+              assetType: nextDraft.assetType,
+              imageReferenceUrls: nextDraft.imageReferenceUrls,
+              videoReferenceUrl: nextDraft.videoReferenceUrl || null,
+            });
+          } catch (error) {
+            const isLatest = requestRevision === persistRequestRevisionRef.current;
+            if (!isLatest && suppressStaleError) {
+              const staleResult: QueuedElementSnapshotSaveResult = {
+                updatedAt: null,
+                status: null,
+                isLatest: false,
+              };
+              return staleResult;
+            }
+            throw error;
           }
-          throw error;
-        }
-        const isLatest = requestRevision === persistRequestRevisionRef.current;
-        if (isLatest) {
-          lastPersistedDraftRef.current = serializedDraft;
-          syncElementListEntryById(elementId, nextDraft, {
+          const isLatest = requestRevision === persistRequestRevisionRef.current;
+          if (isLatest) {
+            lastPersistedDraftRef.current = serializedDraft;
+            syncElementListEntryById(elementId, nextDraft, {
+              updatedAt: result.updatedAt,
+              status: result.status,
+            });
+          }
+          return {
             updatedAt: result.updatedAt,
             status: result.status,
-          });
+            isLatest,
+          };
         }
-        return {
-          updatedAt: result.updatedAt,
-          status: result.status,
-          isLatest,
-        };
-      });
+      );
       persistQueueRef.current = queuedSave.then(
         () => undefined,
         () => undefined

@@ -22,10 +22,10 @@ export function AgentResponseInlineGenerateButton({
   className = "",
   stopPropagation = false,
 }: AgentResponseInlineGenerateButtonProps) {
+  const costDescriptionId = React.useId();
   const hasKnownCost = typeof costCredits === "number" && Number.isFinite(costCredits);
   const costLabel = hasKnownCost ? costCredits.toLocaleString() : "Cost pending";
   const isDisabled = disabled || !hasKnownCost;
-  const resolvedAriaLabel = hasKnownCost ? ariaLabel : `${ariaLabel}: cost estimate pending`;
 
   return (
     <button
@@ -39,15 +39,17 @@ export function AgentResponseInlineGenerateButton({
         if (stopPropagation) event.stopPropagation();
       }}
       disabled={isDisabled}
-      aria-label={resolvedAriaLabel}
-      title={hasKnownCost ? undefined : "Cost estimate pending"}
+      aria-label={ariaLabel}
+      aria-describedby={costDescriptionId}
     >
       <span className="agent-generate-label">Generate</span>
       <span className="model-chip-pill generate-pill">
         <span aria-hidden="true" className="model-chip-icon">
           ✦
         </span>
-        <span className="model-chip-credits">{costLabel}</span>
+        <span id={costDescriptionId} className="model-chip-credits">
+          {costLabel}
+        </span>
       </span>
     </button>
   );

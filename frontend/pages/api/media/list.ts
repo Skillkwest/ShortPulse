@@ -151,7 +151,9 @@ const INITIAL_SIGNED_SEED_LIMIT_BY_SURFACE: Partial<Record<MediaListSurface, num
   // Panel surfaces return sooner when the server only warms the first visible previews;
   // client visibility signing fills the rest without blocking list hydration.
   "media-library-panel": 2,
-  "elements-media-panel": 2,
+  // The embedded Elements panel opens directly into a compact browse grid; warming
+  // the first row avoids an immediate client-side sign burst on panel open.
+  "elements-media-panel": 5,
   "character-media-panel": 2,
 };
 

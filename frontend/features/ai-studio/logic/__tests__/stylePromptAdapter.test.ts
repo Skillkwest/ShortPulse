@@ -6,13 +6,13 @@ import {
 } from "../stylePromptAdapter";
 
 describe("stylePromptAdapter", () => {
-  it("resolves Nano Banana family from pricing strategy-backed model config", () => {
+  it("resolves Nano Banana family from model runtime metadata", () => {
     expect(resolveStylePromptModelFamily("fal-ai/nano-banana-2/edit")).toBe("nano_banana");
     expect(resolveStylePromptModelFamily("fal-ai/nano-banana-pro/edit")).toBe("nano_banana");
     expect(resolveStylePromptModelFamily("fal-ai/nano-banana-2/edit")).toBe("nano_banana");
   });
 
-  it("resolves Seedream family from pricing strategy-backed model config", () => {
+  it("resolves Seedream family from model runtime metadata", () => {
     expect(resolveStylePromptModelFamily("fal-ai/bytedance/seedream/v4.5/edit")).toBe("seedream");
     expect(resolveStylePromptModelFamily("fal-ai/bytedance/seedream/v5/lite/edit")).toBe(
       "seedream"

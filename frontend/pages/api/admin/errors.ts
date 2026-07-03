@@ -8,6 +8,7 @@ import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 500;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const APP_ERROR_LOGS_MISSING_REASON =
   "app_error_logs is unavailable; apply sql/create_app_error_logs_table.sql.";
 
@@ -108,18 +109,20 @@ const applyIncidentFilters = (
   }
   if (filters.search) {
     const pattern = `%${filters.search.replace(/\s+/g, "%")}%`;
-    next = next.or(
-      [
-        `message.ilike.${pattern}`,
-        `user_email.ilike.${pattern}`,
-        `user_id.ilike.${pattern}`,
-        `endpoint.ilike.${pattern}`,
-        `route.ilike.${pattern}`,
-        `request_id.ilike.${pattern}`,
-        `source.ilike.${pattern}`,
-        `fingerprint.ilike.${pattern}`,
-      ].join(",")
-    );
+    const clauses = [
+      `message.ilike.${pattern}`,
+      `user_email.ilike.${pattern}`,
+      `endpoint.ilike.${pattern}`,
+      `route.ilike.${pattern}`,
+      `request_id.ilike.${pattern}`,
+      `source.ilike.${pattern}`,
+      `fingerprint.ilike.${pattern}`,
+    ];
+    if (UUID_PATTERN.test(filters.search)) {
+      clauses.push(`id.eq.${filters.search}`);
+      clauses.push(`user_id.eq.${filters.search}`);
+    }
+    next = next.or(clauses.join(","));
   }
   return next;
 };

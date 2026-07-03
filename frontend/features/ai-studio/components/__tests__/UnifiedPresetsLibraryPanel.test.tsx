@@ -171,4 +171,22 @@ describe("UnifiedPresetsLibraryPanel", () => {
       )
     ).toBeInTheDocument();
   });
+
+  it("explains that seeded Pulse built-ins remain visible when catalog refresh fails", () => {
+    useCreatePulsePreferenceRuntimeMock.mockReturnValue(
+      createPulseRuntimeMockValue({
+        builtInDefinitionsError: "Unable to load Pulse built-ins.",
+        builtInDefinitionsSource: "seed",
+        builtInDefinitionsAuthoritative: false,
+      })
+    );
+
+    render(<UnifiedPresetsLibraryPanel promptPresets={[]} selectedPromptPresetId={null} />);
+
+    expect(
+      screen.getByText(
+        "Unable to load Pulse built-ins. Showing seeded Pulse built-ins until the admin catalog reloads."
+      )
+    ).toBeInTheDocument();
+  });
 });

@@ -108,7 +108,27 @@ export const extractApiReferences = (source) => {
 
 const classifyTrigger = ({ relativePath, source, route }) => {
   const haystack = `${relativePath}\n${source}`.toLowerCase();
+  const normalizedPath = relativePath.toLowerCase();
   if (relativePath.includes("useMediaComplianceGate")) return "startup";
+  if (normalizedPath.includes("aistudioinsufficientcreditsmodal"))
+    return "modal-demand";
+  if (normalizedPath.includes("projectsmodal")) return "modal-demand";
+  if (normalizedPath.includes("usestyleslibrarypanelidspreference"))
+    return "visible-panel";
+  if (normalizedPath.includes("usevoicelibraryloader")) return "visible-tool";
+  if (
+    normalizedPath.includes("useactivemodelpricingpolicy") ||
+    (normalizedPath.includes("useaistudiopagebaseruntime") &&
+      route === "/api/pricing/model-policy")
+  ) {
+    return "idle-deferred";
+  }
+  if (
+    normalizedPath.includes("useaistudioprojectidentity") ||
+    normalizedPath.includes("aistudioprotectedrouteentry")
+  ) {
+    return "project-route";
+  }
   if (route === "/api/log/client-error") return "error-reporting";
   if (route.includes("-status") || haystack.includes("poll")) return "polling";
   if (haystack.includes("autosave") || haystack.includes("workspace"))
@@ -131,7 +151,7 @@ const classifyTrigger = ({ relativePath, source, route }) => {
     relativePath.includes("_app") ||
     haystack.includes("useeffect")
   ) {
-    return "startup";
+    return relativePath.includes("_app") ? "startup" : "effect-driven";
   }
   return "unknown";
 };

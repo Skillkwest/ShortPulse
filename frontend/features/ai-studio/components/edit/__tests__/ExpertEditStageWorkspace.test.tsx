@@ -15,56 +15,64 @@ describe("ExpertEditStageWorkspace", () => {
 
     render(
       <ExpertEditStageWorkspace
-        sidebar={null}
-        inlineStageHeaderControls={<button type="button">Undo</button>}
-        hasPrimaryCompositePreview
-        selectedLayerName="Layer 1"
-        onDeleteSelectedLayer={onDeleteSelectedLayer}
-        isPrimaryStageBusy={false}
-        onInlineStagePointerDownCapture={noopPointerHandler}
-        onInlineStagePointerMoveCapture={noopPointerHandler}
-        onInlineStagePointerUpCapture={noopPointerHandler}
-        onInlineStagePointerCancelCapture={noopPointerHandler}
-        inlineViewportStyle={{}}
-        inlineStageRef={React.createRef<HTMLDivElement>()}
-        frameStackRef={React.createRef<HTMLDivElement>()}
-        isPrimaryDragActive={false}
-        frameStyle={{}}
-        onPrimaryDrop={noopDragHandler}
-        onPrimaryDragEnter={noopDragHandler}
-        onPrimaryDragOver={noopDragHandler}
-        onPrimaryDragLeave={noopDragHandler}
-        primarySurfaceRef={React.createRef<HTMLDivElement>()}
-        isMorePresetsSurfaceOpen={false}
-        primarySurfaceStyle={{}}
-        emptyPrimarySurfaceStyle={{}}
-        shouldRenderInlineInteractiveStage={false}
-        inlineBackdropPanHandlers={{
-          onPointerDown: noopPointerHandler,
-          onPointerMove: noopPointerHandler,
-          onPointerUp: noopPointerHandler,
-          onPointerCancel: noopPointerHandler,
-          onPointerLeave: noopPointerHandler,
+        shell={{
+          sidebar: null,
+          inlineStageHeaderControls: <button type="button">Undo</button>,
+          hasPrimaryCompositePreview: true,
+          selectedLayerName: "Layer 1",
+          onDeleteSelectedLayer,
+          isPrimaryStageBusy: false,
+          isMorePresetsSurfaceOpen: false,
+          shouldBlurPromptUnderlay: false,
+          statusToast: null,
         }}
-        inlineInteractionHandlers={{
-          onPointerDown: noopPointerHandler,
-          onPointerMove: noopPointerHandler,
-          onPointerUp: noopPointerHandler,
-          onPointerCancel: noopPointerHandler,
-          onPointerLeave: noopPointerHandler,
+        inlineStage={{
+          onInlineStagePointerDownCapture: noopPointerHandler,
+          onInlineStagePointerMoveCapture: noopPointerHandler,
+          onInlineStagePointerUpCapture: noopPointerHandler,
+          onInlineStagePointerCancelCapture: noopPointerHandler,
+          inlineViewportStyle: {},
+          inlineStageRef: React.createRef<HTMLDivElement>(),
+          shouldRenderInlineInteractiveStage: false,
+          inlineBackdropPanHandlers: {
+            onPointerDown: noopPointerHandler,
+            onPointerMove: noopPointerHandler,
+            onPointerUp: noopPointerHandler,
+            onPointerCancel: noopPointerHandler,
+            onPointerLeave: noopPointerHandler,
+          },
+          inlineInteractionHandlers: {
+            onPointerDown: noopPointerHandler,
+            onPointerMove: noopPointerHandler,
+            onPointerUp: noopPointerHandler,
+            onPointerCancel: noopPointerHandler,
+            onPointerLeave: noopPointerHandler,
+          },
+          onStageMouseDown: noopMouseHandler,
+          onStageAuxClick: noopMouseHandler,
+          onStageContextMenu: noopMouseHandler,
+          onStageClick: noopMouseHandler,
+          onStageDoubleClick: noopMouseHandler,
+          onInlineStageWheel: noopWheelHandler,
+          inlineSceneContent: null,
+          inlineTransformOverlay: null,
         }}
-        onStageMouseDown={noopMouseHandler}
-        onStageAuxClick={noopMouseHandler}
-        onStageContextMenu={noopMouseHandler}
-        onStageClick={noopMouseHandler}
-        onStageDoubleClick={noopMouseHandler}
-        onInlineStageWheel={noopWheelHandler}
-        inlineSceneContent={null}
-        inlineTransformOverlay={null}
-        inlinePostStageTools={null}
-        promptAndSelectors={null}
-        shouldBlurPromptUnderlay={false}
-        statusToast={null}
+        primarySurface={{
+          frameStackRef: React.createRef<HTMLDivElement>(),
+          isPrimaryDragActive: false,
+          frameStyle: {},
+          onPrimaryDrop: noopDragHandler,
+          onPrimaryDragEnter: noopDragHandler,
+          onPrimaryDragOver: noopDragHandler,
+          onPrimaryDragLeave: noopDragHandler,
+          primarySurfaceRef: React.createRef<HTMLDivElement>(),
+          primarySurfaceStyle: {},
+          emptyPrimarySurfaceStyle: {},
+        }}
+        postStage={{
+          inlinePostStageTools: null,
+          promptAndSelectors: null,
+        }}
         modalSurface={{
           isOpen: false,
           modalRef: React.createRef<HTMLDivElement>(),

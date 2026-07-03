@@ -12,6 +12,7 @@ type AgentGenerateButtonProps = {
 };
 
 export function AgentGenerateButton({ onClick, disabled = false, cost }: AgentGenerateButtonProps) {
+  const costDescriptionId = React.useId();
   const normalizedCost =
     typeof cost === "number" && Number.isFinite(cost) ? cost.toLocaleString() : null;
   const isDisabled = disabled || normalizedCost == null;
@@ -23,14 +24,14 @@ export function AgentGenerateButton({ onClick, disabled = false, cost }: AgentGe
       onClick={onClick}
       disabled={isDisabled}
       aria-label="Generate"
-      title={normalizedCost == null ? "Cost estimate pending" : undefined}
+      aria-describedby={costDescriptionId}
     >
       <span className="agent-generate-label">Generate</span>
       <span className="model-chip-pill generate-pill">
         <span aria-hidden="true" className="model-chip-icon">
           ✦
         </span>
-        <span className="model-chip-credits">
+        <span id={costDescriptionId} className="model-chip-credits">
           {normalizedCost == null ? (
             "Cost pending"
           ) : (

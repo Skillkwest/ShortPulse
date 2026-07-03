@@ -1,4 +1,4 @@
-import { useCallback, type Dispatch, type SetStateAction } from "react";
+import { useCallback } from "react";
 import type { InternalMediaRef } from "../../../lib/media/internalMediaRefs";
 import { StudioOutput, type ToolId } from "../types";
 import { resolvePreviewUrlById } from "../logic/stateParsers";
@@ -28,7 +28,7 @@ import { useAiStudioStateRuntimeControllers } from "./useAiStudioStateRuntimeCon
 import { useAiStudioStateSupportControllers } from "./useAiStudioStateSupportControllers";
 import { useAiStudioWorkflowReloadController } from "./useAiStudioWorkflowReloadController";
 import { useAiStudioProjectWorkspaceCriticalSaveSignal } from "./useAiStudioProjectWorkspaceCriticalSaveSignal";
-import type { VoiceChangerSource } from "../components/VoiceChangerSourceDropzone";
+import type { AiStudioStateOptions } from "./useAiStudioStateTypes";
 
 export const useAiStudioState = ({
   projectId = null,
@@ -47,26 +47,7 @@ export const useAiStudioState = ({
   prepareCreateCharacterWorkflowReload,
   prepareImageStyleWorkflowReload,
   prepareStandardCreateWorkflowReload,
-}: {
-  projectId?: string | null;
-  projectRouteRequested?: boolean;
-  sessionId?: string | null;
-  isCharacterModeEnabled?: boolean;
-  selectedStylePrompt?: string | null;
-  selectedStyleContext?: StudioOutput["styleContext"] | null;
-  expertCreateMode?: "standard" | "pulse";
-  activePulsePresetId?: string | null;
-  pulseSessionInstanceId?: string | null;
-  setExpertCreateMode?: Dispatch<SetStateAction<"standard" | "pulse">>;
-  setActivePulsePresetId?: Dispatch<SetStateAction<string | null>>;
-  setPulseSessionInstanceId?: Dispatch<SetStateAction<string | null>>;
-  setVoiceChangerSource?: (source: VoiceChangerSource | null) => void;
-  prepareCreateCharacterWorkflowReload?: (
-    characterContext: StudioOutput["characterContext"] | null
-  ) => void;
-  prepareImageStyleWorkflowReload?: (styleContext: StudioOutput["styleContext"] | null) => void;
-  prepareStandardCreateWorkflowReload?: (prompt: string) => void;
-} = {}) => {
+}: AiStudioStateOptions = {}) => {
   const {
     promptRef,
     mode,

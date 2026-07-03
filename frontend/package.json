@@ -181,6 +181,7 @@
   "knip": {
     "ignoreFiles": [
       "features/ai-studio/components/canvas/__tests__/canvasTestHarness.tsx",
+      "features/ai-studio/components/__tests__/mediaLibraryPanelTestHarness.ts",
       "features/ai-studio/components/style-creator/__tests__/styleDropCharacterization.fixtures.ts",
       "features/agent-runtime/canaryThresholdDecision.ts",
       "features/ai-studio/hooks/useAiStudioAgentOrchestration.ts",
@@ -209,6 +210,7 @@
       "scripts/audit_orphaned_media_videos.mjs",
       "scripts/audit_stale_image_thumb_variants.mjs",
       "scripts/backfill_dashboard_tutorial_thumbnail_derivatives.mjs",
+      "scripts/browser_audit_preflight.mjs",
       "scripts/cleanup_orphaned_media_videos.mjs",
       "scripts/create_workflow_capture_ingest.mjs",
       "scripts/create_workflow_debug_report.mjs",

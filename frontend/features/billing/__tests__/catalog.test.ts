@@ -152,7 +152,7 @@ describe("buildPlanView", () => {
     );
     expect(studioPlan.displayBenefits).toEqual({
       monthlyCreditsLabel: "3,200 credits every month",
-      storageLabel: "100 GB of media storage",
+      storageLabel: "75 GB of media storage",
     });
     expect(businessPlan.displayPricing).toEqual(
       expect.objectContaining({
@@ -164,7 +164,7 @@ describe("buildPlanView", () => {
     );
     expect(businessPlan.displayBenefits).toEqual({
       monthlyCreditsLabel: "7,500 credits every month",
-      storageLabel: "500 GB of media storage",
+      storageLabel: "150 GB of media storage",
     });
     expect(businessPlan.cardFeatures).toEqual(
       expect.arrayContaining([

@@ -123,12 +123,14 @@ describe("useExpertEditInlineGenerate", () => {
     );
     const insertOptimisticGenerationPlaceholder = vi.fn().mockReturnValue("out-optimistic-1");
     const onRegenerateWithReferenceInputs = vi.fn(async () => undefined);
+    const showStatusToast = vi.fn();
 
     const { result } = renderHook(() =>
       useExpertEditInlineGenerate(
         createArgs({
           onRegenerateWithReferenceInputs,
           insertOptimisticGenerationPlaceholder,
+          showStatusToast,
         })
       )
     );
@@ -139,6 +141,7 @@ describe("useExpertEditInlineGenerate", () => {
     });
 
     expect(insertOptimisticGenerationPlaceholder).toHaveBeenCalledTimes(1);
+    expect(showStatusToast).toHaveBeenCalledWith("Generation is already in progress.");
     await waitFor(() => {
       expect(result.current.isInlineGeneratePending).toBe(true);
     });

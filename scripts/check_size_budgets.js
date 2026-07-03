@@ -147,7 +147,7 @@ const LAUNCH_SOURCE_INVENTORY_BUDGETS = [
   },
   {
     file: "frontend/features/ai-studio/components/useReferencePropertiesInteractions.ts",
-    maxLines: 1707,
+    maxLines: 850,
   },
   {
     file: "frontend/features/ai-studio/components/VoicesPropertiesPanel.tsx",

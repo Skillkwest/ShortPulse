@@ -62,6 +62,7 @@ type UseExpertEditInlineGenerateParams = {
 
 const LAYER_IMAGE_LOAD_FAILURE_PREFIX = "Failed to load layer image:";
 const EXPIRED_REFERENCE_FRAGMENT = "Reference URL expired";
+const DUPLICATE_INLINE_GENERATE_TOAST = "Generation is already in progress.";
 
 const resolveFlattenFailureToastMessage = (error: unknown): string => {
   if (!(error instanceof Error)) return "Unable to flatten layers.";
@@ -133,6 +134,7 @@ export const useExpertEditInlineGenerate = ({
   );
   const handleInlineGenerate = React.useCallback(() => {
     if (inlineGenerateInFlightRef.current) {
+      showStatusToast(DUPLICATE_INLINE_GENERATE_TOAST);
       return;
     }
     const allowSecondaryReferenceTokens =

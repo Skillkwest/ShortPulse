@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Creates or updates the real ShortPulse subscription ladder in Stripe and Supabase.
+ * Creates or updates the real ShortPulse paid subscription ladder in Stripe and Supabase.
  *
  * Required env:
  * - STRIPE_SECRET_KEY
@@ -14,25 +14,16 @@
 
 const GIB = 1024 * 1024 * 1024;
 const NOW_ISO = new Date().toISOString();
-const DRY_RUN = process.argv.includes("--dry-run") || process.env.DRY_RUN === "1";
-const CUTOVER_TAG = process.env.SHORTPULSE_PRICING_CUTOVER_TAG || "shortpulse_pricing_20260509";
+const DRY_RUN =
+  process.argv.includes("--dry-run") || process.env.DRY_RUN === "1";
+const CUTOVER_TAG =
+  process.env.SHORTPULSE_PRICING_CUTOVER_TAG || "shortpulse_pricing_20260509";
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY ?? "";
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
 
-const PLAN_BLUEPRINT = [
-  {
-    id: "free",
-    displayName: "Free",
-    monthlyPriceCents: 0,
-    annualPriceCents: 0,
-    monthlyCreditsCents: 100,
-    storageLimitBytes: 1 * GIB,
-    sortOrder: 0,
-    createStripeProduct: false,
-    acquisitionEnabled: false,
-  },
+const PAID_PLAN_BLUEPRINT = [
   {
     id: "starter",
     displayName: "Starter",
@@ -82,11 +73,13 @@ const PLAN_BLUEPRINT = [
 const assertRequiredEnv = () => {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
     throw new Error(
-      "NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required for catalog rollout."
+      "NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required for catalog rollout.",
     );
   }
   if (!DRY_RUN && !STRIPE_SECRET_KEY.startsWith("sk_live_")) {
-    throw new Error("A live STRIPE_SECRET_KEY is required for a non-dry-run catalog rollout.");
+    throw new Error(
+      "A live STRIPE_SECRET_KEY is required for a non-dry-run catalog rollout.",
+    );
   }
 };
 
@@ -94,7 +87,8 @@ const logStep = (message) => {
   process.stdout.write(`${message}\n`);
 };
 
-const toSupabaseUrl = (path) => `${SUPABASE_URL.replace(/\/$/, "")}/rest/v1${path}`;
+const toSupabaseUrl = (path) =>
+  `${SUPABASE_URL.replace(/\/$/, "")}/rest/v1${path}`;
 
 const supabaseHeaders = {
   apikey: SUPABASE_SERVICE_ROLE_KEY,
@@ -123,7 +117,9 @@ const supabaseGet = async (path) => {
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data?.message || data?.error || `Supabase GET failed: ${path}`);
+    throw new Error(
+      data?.message || data?.error || `Supabase GET failed: ${path}`,
+    );
   }
   return data;
 };
@@ -137,7 +133,9 @@ const supabasePatch = async (path, body) => {
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data?.message || data?.error || `Supabase PATCH failed: ${path}`);
+    throw new Error(
+      data?.message || data?.error || `Supabase PATCH failed: ${path}`,
+    );
   }
   return data;
 };
@@ -154,7 +152,9 @@ const supabasePost = async (path, body, options = {}) => {
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data?.message || data?.error || `Supabase POST failed: ${path}`);
+    throw new Error(
+      data?.message || data?.error || `Supabase POST failed: ${path}`,
+    );
   }
   return data;
 };
@@ -179,7 +179,7 @@ const stripePost = async (path, payload) => {
 
 const fetchPlanRows = async () => {
   const rows = await supabaseGet(
-    "/billing_plans?select=id,display_name,monthly_price_cents,monthly_credits_cents,storage_limit_bytes,stripe_product_id,stripe_price_id,sort_order,is_active"
+    "/billing_plans?select=id,display_name,monthly_price_cents,monthly_credits_cents,storage_limit_bytes,stripe_product_id,stripe_price_id,sort_order,is_active",
   );
   return new Map(rows.map((row) => [row.id, row]));
 };
@@ -199,23 +199,44 @@ const upsertPlanMetadata = async ({ plan, stripeProductId, stripePriceId }) => {
       sort_order: plan.sortOrder,
       is_active: true,
     },
-    { prefer: "resolution=merge-duplicates,return=representation" }
+    { prefer: "resolution=merge-duplicates,return=representation" },
   );
 };
 
-const deactivateFreeAcquisitionOffers = async () => {
-  logStep("Disable free acquisition offers so paid Starter becomes the first public tier");
+const hardenBaselineAccessSentinel = async () => {
+  logStep("Harden baseline access sentinel to zero value");
+  return supabasePatch("/billing_plans?id=eq.free", {
+    display_name: "Baseline access",
+    monthly_price_cents: 0,
+    monthly_credits_cents: 0,
+    storage_limit_bytes: 0,
+    stripe_product_id: null,
+    stripe_price_id: null,
+    sort_order: 0,
+    is_active: true,
+  });
+};
+
+const deactivateBaselineAccessAcquisitionOffers = async () => {
+  logStep(
+    "Disable baseline access acquisition offers so Starter remains the first public tier",
+  );
   return supabasePatch(
     "/billing_plan_offers?plan_id=eq.free&acquisition_enabled=eq.true&is_active=eq.true&effective_end_at=is.null",
     {
       acquisition_enabled: false,
       effective_end_at: NOW_ISO,
       updated_at: NOW_ISO,
-    }
+    },
   );
 };
 
-const activatePlanOffer = async ({ plan, billingInterval, recurringPriceCents, stripePriceId }) => {
+const activatePlanOffer = async ({
+  plan,
+  billingInterval,
+  recurringPriceCents,
+  stripePriceId,
+}) => {
   const offerId =
     billingInterval === "month"
       ? `${plan.id}__month__${CUTOVER_TAG}`
@@ -251,7 +272,12 @@ const createPlanProduct = async (plan) => {
   return product.id;
 };
 
-const createRecurringPrice = async ({ plan, stripeProductId, interval, amountCents }) => {
+const createRecurringPrice = async ({
+  plan,
+  stripeProductId,
+  interval,
+  amountCents,
+}) => {
   logStep(`Create Stripe ${interval} price for ${plan.id}`);
   const price = await stripePost("/prices", {
     product: stripeProductId,
@@ -273,7 +299,10 @@ const run = async () => {
   const existingPlans = await fetchPlanRows();
   const summary = [];
 
-  for (const plan of PLAN_BLUEPRINT) {
+  await hardenBaselineAccessSentinel();
+  await deactivateBaselineAccessAcquisitionOffers();
+
+  for (const plan of PAID_PLAN_BLUEPRINT) {
     const existingPlan = existingPlans.get(plan.id) ?? null;
     let stripeProductId = existingPlan?.stripe_product_id ?? null;
     let monthlyStripePriceId = plan.monthlyPriceCents > 0 ? null : null;
@@ -283,23 +312,23 @@ const run = async () => {
       stripeProductId = stripeProductId ?? (await createPlanProduct(plan));
     }
 
-    if (plan.id !== "free") {
-      if (!stripeProductId) {
-        throw new Error(`Plan ${plan.id} is missing stripe_product_id and cannot be repriced.`);
-      }
-      monthlyStripePriceId = await createRecurringPrice({
-        plan,
-        stripeProductId,
-        interval: "month",
-        amountCents: plan.monthlyPriceCents,
-      });
-      annualStripePriceId = await createRecurringPrice({
-        plan,
-        stripeProductId,
-        interval: "year",
-        amountCents: plan.annualPriceCents,
-      });
+    if (!stripeProductId) {
+      throw new Error(
+        `Plan ${plan.id} is missing stripe_product_id and cannot be repriced.`,
+      );
     }
+    monthlyStripePriceId = await createRecurringPrice({
+      plan,
+      stripeProductId,
+      interval: "month",
+      amountCents: plan.monthlyPriceCents,
+    });
+    annualStripePriceId = await createRecurringPrice({
+      plan,
+      stripeProductId,
+      interval: "year",
+      amountCents: plan.annualPriceCents,
+    });
 
     await upsertPlanMetadata({
       plan,
@@ -307,7 +336,7 @@ const run = async () => {
       stripePriceId: monthlyStripePriceId,
     });
 
-    if (plan.id !== "free" && plan.acquisitionEnabled) {
+    if (plan.acquisitionEnabled) {
       await activatePlanOffer({
         plan,
         billingInterval: "month",
@@ -330,11 +359,15 @@ const run = async () => {
     });
   }
 
-  await deactivateFreeAcquisitionOffers();
-
   logStep("");
   logStep("ShortPulse subscription catalog rollout summary");
-  logStep(JSON.stringify({ dryRun: DRY_RUN, cutoverTag: CUTOVER_TAG, summary }, null, 2));
+  logStep(
+    JSON.stringify(
+      { dryRun: DRY_RUN, cutoverTag: CUTOVER_TAG, summary },
+      null,
+      2,
+    ),
+  );
 };
 
 run().catch((error) => {

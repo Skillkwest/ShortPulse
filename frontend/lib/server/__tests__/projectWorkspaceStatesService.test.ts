@@ -1964,25 +1964,14 @@ describe("projectWorkspaceStatesService", () => {
     );
 
     expect(storedOutputs.active).toHaveLength(REFERENCE_GRID_MAX_VISIBLE_ITEMS);
-    expect(storedOutputs.archived).toHaveLength(
-      REFERENCE_GRID_TARGET_TOTAL_ITEMS - REFERENCE_GRID_MAX_VISIBLE_ITEMS
-    );
+    expect(storedOutputs.archived).toHaveLength(0);
     expect(storedOutputs.active?.[0]).toEqual({
       id: "target-output-1",
       mode: "image",
       mediaSource: "library",
     });
-    expect(storedOutputs.archived?.[0]).toEqual({
-      id: `target-output-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 1}`,
-      mode: "image",
-      mediaSource: "library",
-      archiveReason: "cleanup",
-    });
     expect(storedOutputs.curatedReferenceIds).toEqual(["target-output-1"]);
-    expect(storedOutputs.removedFromAllRefsIds).toEqual([
-      "target-output-2",
-      `target-output-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 2}`,
-    ]);
+    expect(storedOutputs.removedFromAllRefsIds).toEqual(["target-output-2"]);
     expect(outputDisplayUpsertRows).toHaveLength(REFERENCE_GRID_TARGET_TOTAL_ITEMS);
     expect(outputDisplayUpsertRows.at(-1)).toMatchObject({
       output_id: `target-output-${REFERENCE_GRID_TARGET_TOTAL_ITEMS}`,

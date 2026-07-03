@@ -2335,6 +2335,56 @@ describe("POST /api/media/list", () => {
     expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-list-initial-signed-count", "2");
   });
 
+  it("seeds the first Elements panel row to avoid an open-time client signing burst", async () => {
+    const rows = Array.from({ length: 6 }, (_, index) => ({
+      id: `elements-seed-${index + 1}`,
+      user_id: "user-1",
+      filename: `elements-seed-${index + 1}.png`,
+      storage_path: `user-1/uploads/images/elements-seed-${index + 1}.png`,
+      file_type: "image/png",
+      file_size: 10,
+      source: "upload",
+      source_ref: null,
+      prompt_id: null,
+      metadata: null,
+      thumb_variant_path: `user-1/uploads/images/elements-seed-${index + 1}-thumb.png`,
+      poster_variant_path: null,
+      preview_variant_path: null,
+      created_at: `2026-02-20T0${6 - index}:00:00.000Z`,
+      updated_at: null,
+    })) as MediaRow[];
+    const { createSignedUrlsMock } = createSupabaseAdminMock(rows);
+    resolvePreferredMediaSigningStoragePathMock.mockImplementation(
+      (row: MediaRow) => row.thumb_variant_path
+    );
+
+    const req = {
+      method: "POST",
+      body: {
+        mediaKind: "all",
+        cursor: null,
+        query: "",
+        limit: 36,
+        surface: "elements-media-panel",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(createSignedUrlsMock).toHaveBeenCalledWith(
+      [
+        "user-1/uploads/images/elements-seed-1-thumb.png",
+        "user-1/uploads/images/elements-seed-2-thumb.png",
+        "user-1/uploads/images/elements-seed-3-thumb.png",
+        "user-1/uploads/images/elements-seed-4-thumb.png",
+        "user-1/uploads/images/elements-seed-5-thumb.png",
+      ],
+      3600
+    );
+    expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-list-initial-signed-count", "5");
+  });
+
   it.each(["elements-media-panel", "character-media-panel"] as const)(
     "seeds initial signed urls for the %s surface on the default mixed open",
     async (surface) => {

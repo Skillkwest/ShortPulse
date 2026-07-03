@@ -197,7 +197,7 @@ const createSupabaseScenario = (scenario: SupabaseScenario) => {
 
   const aiGenerationOutputsTable = {
     select: vi.fn((fields: string) => {
-      if (fields === "id, output_index, result_url, media_file_id") {
+      if (fields === "id, output_index, result_url, media_file_id, metadata") {
         const limit = vi.fn(async () => ({
           data: structuredClone(generationOutputRows),
           error: null,
@@ -218,6 +218,7 @@ const createSupabaseScenario = (scenario: SupabaseScenario) => {
           output_index: payload.output_index,
           result_url: payload.result_url,
           media_file_id: payload.media_file_id ?? null,
+          metadata: payload.metadata ?? {},
         });
       }
       return response;

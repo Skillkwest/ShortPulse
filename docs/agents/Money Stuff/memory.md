@@ -23,7 +23,7 @@ Purpose: keep repo-visible memory for Money Stuff's customer commerce billing st
 - 2026-05-13: Billing work in this repo naturally splits into recurring commerce and one-time commerce. AI generation usage billing is adjacent but should stay a separate lane unless the user explicitly expands Money Stuff into it.
 - 2026-05-13: Subscription truth alignment must be checked across four layers: public truth, commercial/sellable truth, billing/runtime truth, and support truth.
 - 2026-05-13: Public pricing surfaces must be live-catalog driven. Hardcoded commercial numbers and customer-facing `free` language are recurring drift risks.
-- 2026-05-13: Hidden internal `free` remains a backend/runtime billing contract even when the public product ladder prefers `starter`, `media`, `studio`, and `business`.
+- 2026-05-13: The legacy internal `free` database id remains a backend/runtime sentinel for baseline access, not a customer-facing, creatable, or sellable free plan; the public product ladder prefers `starter`, `media`, `studio`, and `business`.
 - 2026-05-13: Annual recurring credits are not Stripe-only behavior in this repo. They also depend on the internal billing renewal worker and its environment/cron path.
 - 2026-05-13: Stripe customer repair is a high-risk support surface. Contract-aware reconciliation is mandatory; silent mode-mismatch recreation is unsafe.
 - 2026-05-13: The first real recurring-commerce run showed the best execution order for subscription truth alignment is: public truth first, support/runtime safety second, post-purchase sync third, and annual ops verification last.

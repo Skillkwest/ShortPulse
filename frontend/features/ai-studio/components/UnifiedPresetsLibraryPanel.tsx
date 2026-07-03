@@ -63,6 +63,12 @@ const resolvePulseCatalogStatus = ({
     return { tone: "info", message: "Refreshing Pulse built-ins..." };
   }
   if (error) {
+    if (!authoritative || degraded || source === "seed") {
+      return {
+        tone: "warning",
+        message: `${error} Showing seeded Pulse built-ins until the admin catalog reloads.`,
+      };
+    }
     return { tone: "error", message: error };
   }
   if (!authoritative || degraded || source === "seed") {

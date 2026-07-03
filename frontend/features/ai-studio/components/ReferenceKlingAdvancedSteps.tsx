@@ -18,6 +18,7 @@ type ReferenceKlingAdvancedStepsProps = {
   supportsVoiceControls?: boolean;
   supportsNegativePrompt?: boolean;
   supportsCfgScale?: boolean;
+  showShotTimingControls?: boolean;
   assetsHelperText?: string;
   guidanceHelperText?: string;
   klingAdvancedOrder?: number;
@@ -72,6 +73,7 @@ export const ReferenceKlingAdvancedSteps: React.FC<ReferenceKlingAdvancedStepsPr
   supportsVoiceControls = !isKieKlingModel,
   supportsNegativePrompt = !isKieKlingModel,
   supportsCfgScale = true,
+  showShotTimingControls = false,
   assetsHelperText,
   guidanceHelperText,
   klingAdvancedOrder,
@@ -108,6 +110,7 @@ export const ReferenceKlingAdvancedSteps: React.FC<ReferenceKlingAdvancedStepsPr
   removeKlingElement,
 }) => {
   if (!isKling3Mode) return null;
+  const shouldRenderShotTimingControls = showShotTimingControls;
   const klingAssetsCardOrder = klingAssetsOrder ?? (klingAdvancedOrder ?? 5) + 1;
   const klingGuidanceCardOrder = klingGuidanceOrder ?? klingAssetsCardOrder + 1;
   const firstEmptySlotIndex = [0, 1, 2].find(
@@ -120,97 +123,101 @@ export const ReferenceKlingAdvancedSteps: React.FC<ReferenceKlingAdvancedStepsPr
 
   return (
     <>
-      <div
-        className={`step-card kling-advanced-card ${collapsedKlingAdvanced ? "is-collapsed" : ""}`}
-        onClick={onExpandKlingAdvanced}
-        style={{ order: klingAdvancedOrder }}
-      >
-        <div className="step-card-header">
-          <div className="step-header-copy">
-            <p className="step-title">Shots & Timing</p>
-            <span className="step-subtitle tiny helper-text">{klingShotSummary}</span>
-          </div>
-          <div className="step-header-actions">
-            <ReferenceStepHeaderActionButton
-              label={`Toggle ${workflowLabel} shots`}
-              isCollapsed={collapsedKlingAdvanced}
-              onClick={onToggleKlingAdvanced}
-            />
-          </div>
-        </div>
-        {!collapsedKlingAdvanced ? (
-          <div className="create-controls kling-advanced-grid">
-            <div className="control-row compact">
-              <label className="input-label">Shot type</label>
-              <select
-                className="model-select"
-                value={klingShotType}
-                onChange={(event) =>
-                  onKlingShotTypeChange?.(event.target.value as "customize" | "intelligent")
-                }
-              >
-                <option value="customize">Customize (per-shot prompts)</option>
-                <option value="intelligent">Intelligent (auto pacing)</option>
-              </select>
-              <span className="tiny helper-text">
-                Use multi-shot for micro-beats; intelligent for automatic pacing.
-              </span>
+      {shouldRenderShotTimingControls ? (
+        <div
+          className={`step-card kling-advanced-card ${
+            collapsedKlingAdvanced ? "is-collapsed" : ""
+          }`}
+          onClick={onExpandKlingAdvanced}
+          style={{ order: klingAdvancedOrder }}
+        >
+          <div className="step-card-header">
+            <div className="step-header-copy">
+              <p className="step-title">Shots & Timing</p>
+              <span className="step-subtitle tiny helper-text">{klingShotSummary}</span>
             </div>
-            <div className="control-row compact full-span">
-              <label className="input-label">Multi-shot prompts</label>
-              <div className="kling-multi-shot-list">
-                {klingMultiPrompts.length === 0 ? (
-                  <p className="tiny helper-text">
-                    Add shots to split the video into multiple beats.
-                  </p>
-                ) : null}
-                {klingMultiPrompts.map((shot, index) => (
-                  <div className="kling-shot-row" key={shot.id}>
-                    <div className="shot-meta">
-                      <span className="shot-index">Shot {index + 1}</span>
-                      <button
-                        type="button"
-                        className="ghost-btn mini"
-                        onClick={() => removeKlingShot(shot.id)}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                    <textarea
-                      className="model-select kling-textarea"
-                      value={shot.prompt}
-                      rows={2}
-                      onChange={(event) =>
-                        updateKlingMultiPrompt(shot.id, "prompt", event.target.value)
-                      }
-                      placeholder="Describe this shot..."
-                    />
-                    <div className="kling-shot-controls">
-                      <label className="tiny helper-text">Duration</label>
-                      <select
-                        className="model-select"
-                        value={shot.duration}
+            <div className="step-header-actions">
+              <ReferenceStepHeaderActionButton
+                label={`Toggle ${workflowLabel} shots`}
+                isCollapsed={collapsedKlingAdvanced}
+                onClick={onToggleKlingAdvanced}
+              />
+            </div>
+          </div>
+          {!collapsedKlingAdvanced ? (
+            <div className="create-controls kling-advanced-grid">
+              <div className="control-row compact">
+                <label className="input-label">Shot type</label>
+                <select
+                  className="model-select"
+                  value={klingShotType}
+                  onChange={(event) =>
+                    onKlingShotTypeChange?.(event.target.value as "customize" | "intelligent")
+                  }
+                >
+                  <option value="customize">Customize (per-shot prompts)</option>
+                  <option value="intelligent">Intelligent (auto pacing)</option>
+                </select>
+                <span className="tiny helper-text">
+                  Use multi-shot for micro-beats; intelligent for automatic pacing.
+                </span>
+              </div>
+              <div className="control-row compact full-span">
+                <label className="input-label">Multi-shot prompts</label>
+                <div className="kling-multi-shot-list">
+                  {klingMultiPrompts.length === 0 ? (
+                    <p className="tiny helper-text">
+                      Add shots to split the video into multiple beats.
+                    </p>
+                  ) : null}
+                  {klingMultiPrompts.map((shot, index) => (
+                    <div className="kling-shot-row" key={shot.id}>
+                      <div className="shot-meta">
+                        <span className="shot-index">Shot {index + 1}</span>
+                        <button
+                          type="button"
+                          className="ghost-btn mini"
+                          onClick={() => removeKlingShot(shot.id)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                      <textarea
+                        className="model-select kling-textarea"
+                        value={shot.prompt}
+                        rows={2}
                         onChange={(event) =>
-                          updateKlingMultiPrompt(shot.id, "duration", Number(event.target.value))
+                          updateKlingMultiPrompt(shot.id, "prompt", event.target.value)
                         }
-                      >
-                        {VIDEO_DURATION_OPTIONS.map((seconds) => (
-                          <option value={seconds} key={`shot-duration-${seconds}`}>
-                            {seconds}s
-                          </option>
-                        ))}
-                      </select>
+                        placeholder="Describe this shot..."
+                      />
+                      <div className="kling-shot-controls">
+                        <label className="tiny helper-text">Duration</label>
+                        <select
+                          className="model-select"
+                          value={shot.duration}
+                          onChange={(event) =>
+                            updateKlingMultiPrompt(shot.id, "duration", Number(event.target.value))
+                          }
+                        >
+                          {VIDEO_DURATION_OPTIONS.map((seconds) => (
+                            <option value={seconds} key={`shot-duration-${seconds}`}>
+                              {seconds}s
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
-                  </div>
-                ))}
-                <button type="button" className="ghost-btn small" onClick={addKlingShot}>
-                  + Add shot
-                </button>
+                  ))}
+                  <button type="button" className="ghost-btn small" onClick={addKlingShot}>
+                    + Add shot
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        ) : null}
-      </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <div
         className={`step-card kling-advanced-card ${collapsedKlingAssets ? "is-collapsed" : ""}`}

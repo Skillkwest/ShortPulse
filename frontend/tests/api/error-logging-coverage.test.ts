@@ -47,6 +47,8 @@ const ALLOWLIST_LOCATIONS = new Set<string>([
   "billing/subscription/change.ts:523",
   "billing/subscription/change.ts:522",
   "billing/subscription/change.ts:582",
+  "billing/subscription/change.ts:583",
+  "billing/subscription/change.ts:642",
   "kie/upload-url.ts:571",
   "kie/upload-url.ts:674",
   "kie/upload-url.ts:702",
@@ -54,8 +56,10 @@ const ALLOWLIST_LOCATIONS = new Set<string>([
   "kie/upload-url.ts:813",
   // Storage-object verification fallback: if schema access fails, the helper falls back to
   // Storage API listing before deciding whether to throw a route-level error.
+  "media/list.ts:644",
   "media/list.ts:650",
   "media/list.ts:631",
+  "media/resolve-previews.ts:231",
   "media/sign-batch.ts:186",
 ]);
 

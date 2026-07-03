@@ -126,6 +126,15 @@ function isGenericResourceFailure(text) {
   return GENERIC_RESOURCE_FAILURE_PATTERN.test(text);
 }
 
+function isIgnorableConsoleEntry(entry) {
+  if (!entry || typeof entry !== "object") return false;
+  if (shouldIgnoreConsole(entry.text)) return true;
+  if (isGenericResourceFailure(entry.text)) return true;
+  return (
+    /typeerror:\s*failed to fetch/i.test(entry.text) && /_refreshAccessToken/i.test(entry.text)
+  );
+}
+
 function isMediaLibraryRelevantUrl(rawUrl) {
   if (typeof rawUrl !== "string" || rawUrl.length === 0) return false;
   try {
@@ -144,6 +153,19 @@ function isMediaLibraryRelevantUrl(rawUrl) {
 function isIgnorableRequestFailure(entry) {
   if (!entry || typeof entry !== "object") return false;
   if (!/net::ERR_ABORTED/i.test(entry.errorText || "")) return false;
+  if (entry.method === "POST" && entry.resourceType === "fetch" && typeof entry.url === "string") {
+    try {
+      const parsed = new URL(entry.url);
+      if (parsed.pathname === "/api/media/list") {
+        // Panel tab changes intentionally abort obsolete reset loads; visible UI errors still fail.
+        return true;
+      }
+    } catch {
+      if (entry.url.includes("/api/media/list")) {
+        return true;
+      }
+    }
+  }
   if (
     entry.method === "GET" &&
     typeof entry.url === "string" &&
@@ -159,11 +181,9 @@ function summarizeSignals(consoleEntries, pageErrors, httpFailures, requestFailu
   const severeConsole = consoleEntries.filter((entry) => {
     if (hasSevereSignal(entry.text)) return true;
     if (entry.type !== "error") return false;
-    if (shouldIgnoreConsole(entry.text)) return false;
-    if (isGenericResourceFailure(entry.text)) return false;
-    return true;
+    return !isIgnorableConsoleEntry(entry);
   });
-  const severePageErrors = pageErrors.filter((entry) => !shouldIgnoreConsole(entry.text));
+  const severePageErrors = pageErrors.filter((entry) => !isIgnorableConsoleEntry(entry));
   const relevantHttpFailures = httpFailures.filter((entry) => isMediaLibraryRelevantUrl(entry.url));
   const relevantRequestFailures = requestFailures.filter(
     (entry) => isMediaLibraryRelevantUrl(entry.url) && !isIgnorableRequestFailure(entry)

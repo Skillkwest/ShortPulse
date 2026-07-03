@@ -46,6 +46,30 @@ const baseProps: React.ComponentProps<typeof ReferenceKlingAdvancedSteps> = {
 };
 
 describe("ReferenceKlingAdvancedSteps", () => {
+  it("keeps true custom shot timing controls deferred by default", () => {
+    render(<ReferenceKlingAdvancedSteps {...baseProps} collapsedKlingAdvanced={false} />);
+
+    expect(screen.queryByText("Shots & Timing")).not.toBeInTheDocument();
+    expect(screen.queryByText("Shot type")).not.toBeInTheDocument();
+    expect(screen.queryByText("Multi-shot prompts")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "+ Add shot" })).not.toBeInTheDocument();
+  });
+
+  it("renders true custom shot timing controls only behind explicit opt-in", () => {
+    render(
+      <ReferenceKlingAdvancedSteps
+        {...baseProps}
+        collapsedKlingAdvanced={false}
+        showShotTimingControls
+      />
+    );
+
+    expect(screen.getByText("Shots & Timing")).toBeInTheDocument();
+    expect(screen.getByText("Shot type")).toBeInTheDocument();
+    expect(screen.getByText("Multi-shot prompts")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "+ Add shot" })).toBeInTheDocument();
+  });
+
   it("does not render static provider-dollar launch cost copy", () => {
     render(<ReferenceKlingAdvancedSteps {...baseProps} collapsedKlingAdvanced={false} />);
 

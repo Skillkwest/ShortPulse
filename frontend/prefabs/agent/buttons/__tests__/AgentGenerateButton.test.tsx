@@ -32,7 +32,7 @@ describe("AgentGenerateButton", () => {
     const button = screen.getByRole("button", { name: "Generate" });
     expect(button).toBeDisabled();
     expect(button).toHaveTextContent("Cost pending");
-    expect(button).toHaveAttribute("title", "Cost estimate pending");
+    expect(button).toHaveAccessibleDescription("Cost pending");
     fireEvent.click(button);
     expect(onClick).not.toHaveBeenCalled();
   });
@@ -43,6 +43,7 @@ describe("AgentGenerateButton", () => {
     const button = screen.getByRole("button", { name: "Generate" });
     expect(button).toBeDisabled();
     expect(button).toHaveTextContent("Cost pending");
+    expect(button).toHaveAccessibleDescription("Cost pending");
   });
 
   it("does not expose busy semantics when active", () => {
@@ -50,6 +51,7 @@ describe("AgentGenerateButton", () => {
 
     const button = screen.getByRole("button", { name: "Generate" });
     expect(button).toBeEnabled();
+    expect(button).toHaveAccessibleDescription("7 credits");
     expect(button).not.toHaveAttribute("aria-busy");
     expect(button).not.toHaveClass("is-busy");
   });

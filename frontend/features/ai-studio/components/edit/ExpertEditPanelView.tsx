@@ -3,8 +3,6 @@ import { modelLogos } from "../../constants";
 import { needsImageUpload } from "../../utils/imageUpload";
 import { setExpertEditPromptTokenDragData } from "../../logic/expertEditPromptReferences";
 import { normalizeExpertEditSecondaryImageUrls } from "../../logic/expertEditReferenceSlots";
-import type { AgentComposerDirectDropPayload } from "../../logic/agentComposerDirectDropPayload";
-import { insertDroppedPromptTextAtSelection } from "../promptStep/agentComposerDrop";
 import {
   isEditGenerationModeToggleEnabled,
   isMarkupCollapsedOpenModalEnabled,
@@ -37,16 +35,15 @@ import { useExpertEditPanelControlsRuntime } from "./useExpertEditPanelControlsR
 import { useExpertEditStageWorkspaceRuntime } from "./useExpertEditStageWorkspaceRuntime";
 import { useExpertEditPanelComposerRuntime } from "./useExpertEditPanelComposerRuntime";
 import { useExpertEditPanelShellRuntime } from "./useExpertEditPanelShellRuntime";
-import { useExpertEditStageWorkspacePropsRuntime } from "./useExpertEditStageWorkspacePropsRuntime";
 import { ExpertEditStageWorkspace } from "./ExpertEditStageWorkspace";
+import { useExpertEditSecondaryReferenceSlots } from "./useExpertEditSecondaryReferenceSlots";
+import { useExpertEditCanvasTearOutRuntime } from "./useExpertEditCanvasTearOutRuntime";
 import { useExpertEditMarkupDrawController } from "./useExpertEditMarkupDrawController";
 import { useExpertEditStageViewportController } from "./useExpertEditStageViewportController";
 import {
   INPAINT_STROKE_SIZE_DEFAULT,
   MARKUP_STROKE_SIZE_DEFAULT,
   MARKUP_STROKE_SIZE_MAX,
-  DEFAULT_EXPERT_EDIT_SECONDARY_SLOT_COUNT,
-  MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT,
   STATUS_TOAST_FADE_MS,
   STATUS_TOAST_VISIBLE_MS,
   TRANSIENT_OBJECT_URL_REVOKE_MS,
@@ -79,22 +76,6 @@ import {
 import { cloneMarkupStrokesSnapshot } from "./expertEditSessionState";
 import { isClientPointInsideElementBounds } from "./expertEditInteractionUtils";
 const EXPERT_EDIT_IMAGE_TRANSFORM_EDITING_ENABLED = true;
-
-const resolveDefaultVisibleSecondarySlotIndexes = (
-  values: readonly (string | null)[]
-): number[] => {
-  const indexes = new Set<number>();
-  Array.from({ length: DEFAULT_EXPERT_EDIT_SECONDARY_SLOT_COUNT }, (_, index) => index).forEach(
-    (index) => indexes.add(index)
-  );
-  values.forEach((value, index) => {
-    if (index >= MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT) return;
-    if ((value?.trim() ?? "").length > 0) {
-      indexes.add(index);
-    }
-  });
-  return Array.from(indexes).sort((left, right) => left - right);
-};
 
 export function ExpertEditPanelView({
   aspect,
@@ -336,48 +317,15 @@ export function ExpertEditPanelView({
     () => normalizeExpertEditSecondaryImageUrls(extraImageUrls),
     [extraImageUrls]
   );
-  const [visibleSecondarySlotIndexes, setVisibleSecondarySlotIndexes] = React.useState<number[]>(
-    () => resolveDefaultVisibleSecondarySlotIndexes(normalizedExtraImageUrls)
-  );
-  React.useEffect(() => {
-    setVisibleSecondarySlotIndexes((previous) => {
-      const nextIndexes = new Set(previous);
-      normalizedExtraImageUrls.forEach((value, index) => {
-        if ((value?.trim() ?? "").length > 0) {
-          nextIndexes.add(index);
-        }
-      });
-      return Array.from(nextIndexes)
-        .filter((index) => index >= 0 && index < MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT)
-        .sort((left, right) => left - right);
-    });
-  }, [normalizedExtraImageUrls]);
-  const visibleSecondaryGridItemCount =
-    visibleSecondarySlotIndexes.length +
-    (visibleSecondarySlotIndexes.length < normalizedExtraImageUrls.length ? 1 : 0);
-  const isSecondaryReferenceTrayWrapped = visibleSecondaryGridItemCount > 5;
-  const handleAddSecondaryReferenceSlot = React.useCallback(() => {
-    setVisibleSecondarySlotIndexes((previous) => {
-      if (previous.length >= MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT) return previous;
-      const visibleSet = new Set(previous);
-      const nextIndex = Array.from(
-        { length: MAX_EXPERT_EDIT_SECONDARY_SLOT_COUNT },
-        (_, index) => index
-      ).find((index) => !visibleSet.has(index));
-      if (nextIndex == null) return previous;
-      return [...previous, nextIndex].sort((left, right) => left - right);
-    });
-  }, []);
-  const handleRemoveSecondaryReferenceSlot = React.useCallback(
-    (index: number) => {
-      onExtraImageChange(index, null);
-      if (index === 0) return;
-      setVisibleSecondarySlotIndexes((previous) =>
-        previous.filter((slotIndex) => slotIndex !== index)
-      );
-    },
-    [onExtraImageChange]
-  );
+  const {
+    visibleSecondarySlotIndexes,
+    isSecondaryReferenceTrayWrapped,
+    handleAddSecondaryReferenceSlot,
+    handleRemoveSecondaryReferenceSlot,
+  } = useExpertEditSecondaryReferenceSlots({
+    extraImageUrls: normalizedExtraImageUrls,
+    onExtraImageChange,
+  });
   const {
     inlineStageWrapperRef,
     primaryCanvasFrameStackElement,
@@ -616,81 +564,16 @@ export function ExpertEditPanelView({
     imageHasInteractiveMask;
   const shouldShowMarkupBrushReticle = isMarkupToolSelected && hasPrimaryCompositePreview;
   const morePresetsSurfaceId = React.useId();
-  const [isPrimaryCanvasTearOutActive, setIsPrimaryCanvasTearOutActive] = React.useState(false);
-  const [isPromptCanvasTearOutActive, setIsPromptCanvasTearOutActive] = React.useState(false);
-  const canAcceptEditCanvasTearOutPayload = React.useCallback(
-    (payload: AgentComposerDirectDropPayload) => payload.kind === "image",
-    []
-  );
-  const canAcceptEditPromptCanvasTearOutPayload = React.useCallback(
-    (payload: AgentComposerDirectDropPayload) =>
-      payload.kind === "text" && payload.text.trim().length > 0,
-    []
-  );
-  const acceptPromptCanvasTearOutPayload = React.useCallback(
-    (payload: AgentComposerDirectDropPayload) => {
-      if (payload.kind !== "text") return;
-      const droppedText = payload.text.trim();
-      if (!droppedText) return;
-      const textarea = promptTextareaRef.current;
-      const shouldUseTextareaSelection =
-        typeof document !== "undefined" && textarea ? document.activeElement === textarea : false;
-      const selectionStart = shouldUseTextareaSelection
-        ? (textarea?.selectionStart ?? promptTextValue.length)
-        : promptTextValue.length;
-      const selectionEnd = shouldUseTextareaSelection
-        ? (textarea?.selectionEnd ?? promptTextValue.length)
-        : promptTextValue.length;
-      const inserted = insertDroppedPromptTextAtSelection({
-        composerText: promptTextValue,
-        droppedPromptText: droppedText,
-        selectionStart,
-        selectionEnd,
-      });
-      handlePromptTextChange(inserted.prompt);
-      const restoreCaret = () => {
-        const activeTextarea = promptTextareaRef.current;
-        activeTextarea?.focus();
-        activeTextarea?.setSelectionRange(inserted.caret, inserted.caret);
-      };
-      if (typeof requestAnimationFrame === "function") {
-        requestAnimationFrame(restoreCaret);
-      } else {
-        restoreCaret();
-      }
-    },
-    [handlePromptTextChange, promptTextareaRef, promptTextValue]
-  );
-  React.useEffect(() => {
-    if (!canvasTearOutTargetRegistry || !primaryCanvasFrameStackElement) return;
-    return canvasTearOutTargetRegistry.registerTarget({
-      id: "expert-edit-primary-stage",
-      element: primaryCanvasFrameStackElement,
-      canAccept: canAcceptEditCanvasTearOutPayload,
-      accept: acceptPrimaryCanvasTearOutPayload,
-      setActive: setIsPrimaryCanvasTearOutActive,
+  const { isPrimaryCanvasTearOutActive, isPromptCanvasTearOutActive } =
+    useExpertEditCanvasTearOutRuntime({
+      canvasTearOutTargetRegistry,
+      primaryCanvasFrameStackElement,
+      acceptPrimaryCanvasTearOutPayload,
+      promptInputShellRef,
+      promptTextareaRef,
+      promptTextValue,
+      handlePromptTextChange,
     });
-  }, [
-    acceptPrimaryCanvasTearOutPayload,
-    canAcceptEditCanvasTearOutPayload,
-    canvasTearOutTargetRegistry,
-    primaryCanvasFrameStackElement,
-  ]);
-  React.useEffect(() => {
-    if (!canvasTearOutTargetRegistry || !promptInputShellRef.current) return;
-    return canvasTearOutTargetRegistry.registerTarget({
-      id: "expert-edit-prompt-composer",
-      element: promptInputShellRef.current,
-      canAccept: canAcceptEditPromptCanvasTearOutPayload,
-      accept: acceptPromptCanvasTearOutPayload,
-      setActive: setIsPromptCanvasTearOutActive,
-    });
-  }, [
-    acceptPromptCanvasTearOutPayload,
-    canAcceptEditPromptCanvasTearOutPayload,
-    canvasTearOutTargetRegistry,
-    promptInputShellRef,
-  ]);
   const resolveStageFlattenSnapshot = React.useCallback(() => {
     return {
       outputAspectRatio: primaryCompositionSurfaceAspectRatioValue,
@@ -1476,48 +1359,56 @@ export function ExpertEditPanelView({
     handleStageContextMenuRemoveImage,
   });
 
-  const stageWorkspaceProps = useExpertEditStageWorkspacePropsRuntime({
-    sidebar,
-    inlineStageHeaderControls: resolvedInlineStageHeaderControls,
-    hasPrimaryCompositePreview,
-    selectedLayerName: selectedLayer?.name ?? null,
-    onDeleteSelectedLayer: handleDeleteSelectedLayer,
-    isPrimaryStageBusy,
-    onInlineStagePointerDownCapture: handleInlineStagePointerDownCapture,
-    onInlineStagePointerMoveCapture: handleInlineStagePointerMoveCapture,
-    onInlineStagePointerUpCapture: handleInlineStagePointerUpCapture,
-    onInlineStagePointerCancelCapture: handleInlineStagePointerCancelCapture,
-    inlineViewportStyle: inlineStageViewportStyle,
-    inlineStageRef: inlineStageWrapperRef,
-    frameStackRef: handlePrimaryCanvasFrameStackRef,
-    isPrimaryDragActive: primaryDragActive || isPrimaryCanvasTearOutActive,
-    frameStyle: primaryCanvasFrameBoundsStyle,
-    onPrimaryDrop: handlePrimaryDrop,
-    onPrimaryDragEnter: handlePrimaryDragEnter,
-    onPrimaryDragOver: handlePrimaryDragOver,
-    onPrimaryDragLeave: handlePrimaryDragLeave,
-    primarySurfaceRef: primaryCompositionSurfaceRef,
-    isMorePresetsSurfaceOpen,
-    primarySurfaceStyle: primaryCompositionSurfaceStyle,
-    emptyPrimarySurfaceStyle: emptyPrimaryCompositionSurfaceStyle,
-    shouldRenderInlineInteractiveStage,
-    inlineBackdropPanHandlers: inlineStageBackdropPanHandlers,
-    inlineInteractionHandlers,
-    onInlineStageWheel: inlineStageWheelHandler,
-    onStageMouseDown: handleMarkupStageMiddleClickSuppress,
-    onStageAuxClick: handleMarkupStageMiddleClickSuppress,
-    onStageContextMenu: handlePrimaryDropzoneContextMenu,
-    onStageClick: handlePrimaryDropzoneClick,
-    onStageDoubleClick: handlePrimaryDropzoneDoubleClick,
-    inlineSceneContent,
-    inlineTransformOverlay,
-    inlinePostStageTools,
-    promptAndSelectors,
-    shouldBlurPromptUnderlay,
-    statusToast: null,
+  const stageWorkspaceProps = {
+    shell: {
+      sidebar,
+      inlineStageHeaderControls: resolvedInlineStageHeaderControls,
+      hasPrimaryCompositePreview,
+      selectedLayerName: selectedLayer?.name ?? null,
+      onDeleteSelectedLayer: handleDeleteSelectedLayer,
+      isPrimaryStageBusy,
+      isMorePresetsSurfaceOpen,
+      shouldBlurPromptUnderlay,
+      statusToast: null,
+    },
+    inlineStage: {
+      onInlineStagePointerDownCapture: handleInlineStagePointerDownCapture,
+      onInlineStagePointerMoveCapture: handleInlineStagePointerMoveCapture,
+      onInlineStagePointerUpCapture: handleInlineStagePointerUpCapture,
+      onInlineStagePointerCancelCapture: handleInlineStagePointerCancelCapture,
+      inlineViewportStyle: inlineStageViewportStyle,
+      inlineStageRef: inlineStageWrapperRef,
+      shouldRenderInlineInteractiveStage,
+      inlineBackdropPanHandlers: inlineStageBackdropPanHandlers,
+      inlineInteractionHandlers,
+      onInlineStageWheel: inlineStageWheelHandler,
+      onStageMouseDown: handleMarkupStageMiddleClickSuppress,
+      onStageAuxClick: handleMarkupStageMiddleClickSuppress,
+      onStageContextMenu: handlePrimaryDropzoneContextMenu,
+      onStageClick: handlePrimaryDropzoneClick,
+      onStageDoubleClick: handlePrimaryDropzoneDoubleClick,
+      inlineSceneContent,
+      inlineTransformOverlay,
+    },
+    primarySurface: {
+      frameStackRef: handlePrimaryCanvasFrameStackRef,
+      isPrimaryDragActive: primaryDragActive || isPrimaryCanvasTearOutActive,
+      frameStyle: primaryCanvasFrameBoundsStyle,
+      onPrimaryDrop: handlePrimaryDrop,
+      onPrimaryDragEnter: handlePrimaryDragEnter,
+      onPrimaryDragOver: handlePrimaryDragOver,
+      onPrimaryDragLeave: handlePrimaryDragLeave,
+      primarySurfaceRef: primaryCompositionSurfaceRef,
+      primarySurfaceStyle: primaryCompositionSurfaceStyle,
+      emptyPrimarySurfaceStyle: emptyPrimaryCompositionSurfaceStyle,
+    },
+    postStage: {
+      inlinePostStageTools,
+      promptAndSelectors,
+    },
     modalSurface,
     contextMenu,
-  });
+  };
 
   useExpertEditSessionBridge({
     initialReferenceImageUrl: referenceImageUrl,

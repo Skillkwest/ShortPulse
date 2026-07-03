@@ -21,6 +21,36 @@ const DEFAULT_BASE_URL = "https://www.shortpulse.ai";
 const DEFAULT_READY_TEXT = "What do you want to make?";
 const DEFAULT_TIMEOUT_MS = 45_000;
 
+const loadEnvFromFileIfNeeded = (filePath) => {
+  if (!fs.existsSync(filePath)) return;
+  const raw = fs.readFileSync(filePath, "utf8");
+  for (const line of raw.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const match = /^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/.exec(trimmed);
+    if (!match) continue;
+    const key = match[1];
+    if (!key || (process.env[key] ?? "") !== "") continue;
+    let value = match[2] ?? "";
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    process.env[key] = value;
+  }
+};
+
+const loadAuditEnv = () => {
+  const frontendRoot = path.join(REPO_ROOT, "frontend");
+  loadEnvFromFileIfNeeded(path.join(frontendRoot, ".env.local"));
+  loadEnvFromFileIfNeeded(path.join(frontendRoot, ".env.playwright.local"));
+  loadEnvFromFileIfNeeded(path.join(REPO_ROOT, ".env.agent.local"));
+};
+
+loadAuditEnv();
+
 const printUsage = () => {
   console.log(`Usage:
   node scripts/capture_ai_studio_production_trace.mjs [options]
@@ -32,8 +62,7 @@ Options:
   --sid <uuid>              Optional sid query param when using --project-id.
   --email <email>           Optional login email for /auth.
                             Fallback env: PLAYWRIGHT_AUDIT_EMAIL.
-  --password <password>     Optional login password for /auth.
-                            Fallback env: PLAYWRIGHT_AUDIT_PASSWORD.
+  Password input is env-only via PLAYWRIGHT_AUDIT_PASSWORD.
   --storage-state <path>    Optional Playwright storage state JSON.
   --user-data-dir <path>    Optional persistent Chromium profile directory.
   --ready-text <text>       Text marker for first useful AI Studio shell. Default: ${DEFAULT_READY_TEXT}
@@ -77,7 +106,6 @@ const parseArgs = (argv) => {
       "--project-id",
       "--sid",
       "--email",
-      "--password",
       "--storage-state",
       "--user-data-dir",
       "--ready-text",
@@ -93,7 +121,6 @@ const parseArgs = (argv) => {
     if (arg === "--project-id") parsed.projectId = value;
     if (arg === "--sid") parsed.sid = value;
     if (arg === "--email") parsed.email = value;
-    if (arg === "--password") parsed.password = value;
     if (arg === "--storage-state") parsed.storageState = value;
     if (arg === "--user-data-dir") parsed.userDataDir = value;
     if (arg === "--ready-text") parsed.readyText = value;
@@ -127,7 +154,7 @@ const loginIfNeeded = async ({
     return { attempted: false, reachedProtectedRoute: true };
   if (!email || !password)
     throw new Error(
-      "Both --email and --password are required when logging in.",
+      "Both audit email and password are required when logging in. Provide the email with --email or PLAYWRIGHT_AUDIT_EMAIL, and provide the password with PLAYWRIGHT_AUDIT_PASSWORD.",
     );
 
   await page.goto(`${baseUrl}/auth?next=${encodeURIComponent(targetPath)}`, {

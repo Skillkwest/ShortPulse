@@ -9,30 +9,26 @@ import {
   type StageInteractionHandlers,
 } from "./ExpertEditStageSurface";
 import type { NonPassiveStageWheelHandler } from "./useNonPassiveWheelCapture";
-type ExpertEditStageWorkspaceProps = {
+
+export type ExpertEditStageWorkspaceShellProps = {
   sidebar: React.ReactNode;
   inlineStageHeaderControls?: React.ReactNode;
   hasPrimaryCompositePreview: boolean;
   selectedLayerName: string | null;
   onDeleteSelectedLayer: () => void;
   isPrimaryStageBusy: boolean;
+  isMorePresetsSurfaceOpen: boolean;
+  shouldBlurPromptUnderlay: boolean;
+  statusToast: React.ReactNode;
+};
+
+export type ExpertEditInlineStageWorkspaceProps = {
   onInlineStagePointerDownCapture: React.PointerEventHandler<HTMLDivElement>;
   onInlineStagePointerMoveCapture: React.PointerEventHandler<HTMLDivElement>;
   onInlineStagePointerUpCapture: React.PointerEventHandler<HTMLDivElement>;
   onInlineStagePointerCancelCapture: React.PointerEventHandler<HTMLDivElement>;
   inlineViewportStyle: React.CSSProperties;
   inlineStageRef: React.Ref<HTMLDivElement>;
-  frameStackRef: React.Ref<HTMLDivElement>;
-  isPrimaryDragActive: boolean;
-  frameStyle: React.CSSProperties;
-  onPrimaryDrop: React.DragEventHandler<HTMLDivElement>;
-  onPrimaryDragEnter: React.DragEventHandler<HTMLDivElement>;
-  onPrimaryDragOver: React.DragEventHandler<HTMLDivElement>;
-  onPrimaryDragLeave: React.DragEventHandler<HTMLDivElement>;
-  primarySurfaceRef: React.Ref<HTMLDivElement>;
-  isMorePresetsSurfaceOpen: boolean;
-  primarySurfaceStyle: React.CSSProperties;
-  emptyPrimarySurfaceStyle: React.CSSProperties;
   shouldRenderInlineInteractiveStage: boolean;
   inlineBackdropPanHandlers: StagePanHandlers;
   inlineInteractionHandlers: StageInteractionHandlers;
@@ -44,91 +40,125 @@ type ExpertEditStageWorkspaceProps = {
   onInlineStageWheel: NonPassiveStageWheelHandler;
   inlineSceneContent: React.ReactNode;
   inlineTransformOverlay: React.ReactNode;
+};
+
+export type ExpertEditPrimaryStageSurfaceProps = {
+  frameStackRef: React.Ref<HTMLDivElement>;
+  isPrimaryDragActive: boolean;
+  frameStyle: React.CSSProperties;
+  onPrimaryDrop: React.DragEventHandler<HTMLDivElement>;
+  onPrimaryDragEnter: React.DragEventHandler<HTMLDivElement>;
+  onPrimaryDragOver: React.DragEventHandler<HTMLDivElement>;
+  onPrimaryDragLeave: React.DragEventHandler<HTMLDivElement>;
+  primarySurfaceRef: React.Ref<HTMLDivElement>;
+  primarySurfaceStyle: React.CSSProperties;
+  emptyPrimarySurfaceStyle: React.CSSProperties;
+};
+
+export type ExpertEditPostStageWorkspaceProps = {
   inlinePostStageTools: React.ReactNode;
   promptAndSelectors: React.ReactNode;
-  shouldBlurPromptUnderlay: boolean;
-  statusToast: React.ReactNode;
-  modalSurface: {
-    isOpen: boolean;
-    modalRef: React.Ref<HTMLDivElement>;
-    controlsColumnRef: React.Ref<HTMLDivElement>;
-    stageRef: React.Ref<HTMLDivElement>;
-    stageStyle: React.CSSProperties;
-    generalPanel: React.ReactNode;
-    movePanel: React.ReactNode;
-    inpaintPanel: React.ReactNode;
-    markupPanel: React.ReactNode;
-    viewportStyle: React.CSSProperties;
-    sceneContent: React.ReactNode;
-    transformOverlay: React.ReactNode;
-    layersPanel: React.ReactNode;
-    onClose: () => void;
-    onDragShield: React.DragEventHandler<HTMLDivElement>;
-    interactionHandlers: StageInteractionHandlers;
-    onStageWheel: NonPassiveStageWheelHandler;
-    onStagePointerDownCapture: React.PointerEventHandler<HTMLDivElement>;
-    onStagePointerMoveCapture: React.PointerEventHandler<HTMLDivElement>;
-    onStagePointerUpCapture: React.PointerEventHandler<HTMLDivElement>;
-    onStagePointerCancelCapture: React.PointerEventHandler<HTMLDivElement>;
-  };
-  contextMenu: {
-    isOpen: boolean;
-    menuRef: React.Ref<HTMLDivElement>;
-    x: number;
-    y: number;
-    canExpand?: boolean;
-    isMarkupExpandSelected: boolean;
-    hasSelectedLayerImage: boolean;
-    onResetView: () => void;
-    onExpand: () => void;
-    onAddImage: () => void;
-    onReset: () => void;
-    onRemoveImage: () => void;
-  };
+};
+
+export type ExpertEditModalStageWorkspaceProps = {
+  isOpen: boolean;
+  modalRef: React.Ref<HTMLDivElement>;
+  controlsColumnRef: React.Ref<HTMLDivElement>;
+  stageRef: React.Ref<HTMLDivElement>;
+  stageStyle: React.CSSProperties;
+  generalPanel: React.ReactNode;
+  movePanel: React.ReactNode;
+  inpaintPanel: React.ReactNode;
+  markupPanel: React.ReactNode;
+  viewportStyle: React.CSSProperties;
+  sceneContent: React.ReactNode;
+  transformOverlay: React.ReactNode;
+  layersPanel: React.ReactNode;
+  onClose: () => void;
+  onDragShield: React.DragEventHandler<HTMLDivElement>;
+  interactionHandlers: StageInteractionHandlers;
+  onStageWheel: NonPassiveStageWheelHandler;
+  onStagePointerDownCapture: React.PointerEventHandler<HTMLDivElement>;
+  onStagePointerMoveCapture: React.PointerEventHandler<HTMLDivElement>;
+  onStagePointerUpCapture: React.PointerEventHandler<HTMLDivElement>;
+  onStagePointerCancelCapture: React.PointerEventHandler<HTMLDivElement>;
+};
+
+export type ExpertEditStageContextMenuProps = {
+  isOpen: boolean;
+  menuRef: React.Ref<HTMLDivElement>;
+  x: number;
+  y: number;
+  canExpand?: boolean;
+  isMarkupExpandSelected: boolean;
+  hasSelectedLayerImage: boolean;
+  onResetView: () => void;
+  onExpand: () => void;
+  onAddImage: () => void;
+  onReset: () => void;
+  onRemoveImage: () => void;
+};
+
+export type ExpertEditStageWorkspaceProps = {
+  shell: ExpertEditStageWorkspaceShellProps;
+  inlineStage: ExpertEditInlineStageWorkspaceProps;
+  primarySurface: ExpertEditPrimaryStageSurfaceProps;
+  postStage: ExpertEditPostStageWorkspaceProps;
+  modalSurface: ExpertEditModalStageWorkspaceProps;
+  contextMenu: ExpertEditStageContextMenuProps;
 };
 
 export function ExpertEditStageWorkspace({
-  sidebar,
-  inlineStageHeaderControls = null,
-  hasPrimaryCompositePreview,
-  selectedLayerName,
-  onDeleteSelectedLayer,
-  isPrimaryStageBusy,
-  onInlineStagePointerDownCapture,
-  onInlineStagePointerMoveCapture,
-  onInlineStagePointerUpCapture,
-  onInlineStagePointerCancelCapture,
-  inlineViewportStyle,
-  inlineStageRef,
-  frameStackRef,
-  isPrimaryDragActive,
-  frameStyle,
-  onPrimaryDrop,
-  onPrimaryDragEnter,
-  onPrimaryDragOver,
-  onPrimaryDragLeave,
-  primarySurfaceRef,
-  isMorePresetsSurfaceOpen,
-  primarySurfaceStyle,
-  emptyPrimarySurfaceStyle,
-  shouldRenderInlineInteractiveStage,
-  inlineBackdropPanHandlers,
-  inlineInteractionHandlers,
-  onStageMouseDown,
-  onStageAuxClick,
-  onStageContextMenu,
-  onStageClick,
-  onStageDoubleClick,
-  onInlineStageWheel,
-  inlineSceneContent,
-  inlineTransformOverlay,
-  inlinePostStageTools,
-  promptAndSelectors,
-  shouldBlurPromptUnderlay,
-  statusToast,
+  shell,
+  inlineStage,
+  primarySurface,
+  postStage,
   modalSurface,
   contextMenu,
 }: ExpertEditStageWorkspaceProps) {
+  const {
+    sidebar,
+    inlineStageHeaderControls = null,
+    hasPrimaryCompositePreview,
+    selectedLayerName,
+    onDeleteSelectedLayer,
+    isPrimaryStageBusy,
+    isMorePresetsSurfaceOpen,
+    shouldBlurPromptUnderlay,
+    statusToast,
+  } = shell;
+  const {
+    onInlineStagePointerDownCapture,
+    onInlineStagePointerMoveCapture,
+    onInlineStagePointerUpCapture,
+    onInlineStagePointerCancelCapture,
+    inlineViewportStyle,
+    inlineStageRef,
+    shouldRenderInlineInteractiveStage,
+    inlineBackdropPanHandlers,
+    inlineInteractionHandlers,
+    onStageMouseDown,
+    onStageAuxClick,
+    onStageContextMenu,
+    onStageClick,
+    onStageDoubleClick,
+    onInlineStageWheel,
+    inlineSceneContent,
+    inlineTransformOverlay,
+  } = inlineStage;
+  const {
+    frameStackRef,
+    isPrimaryDragActive,
+    frameStyle,
+    onPrimaryDrop,
+    onPrimaryDragEnter,
+    onPrimaryDragOver,
+    onPrimaryDragLeave,
+    primarySurfaceRef,
+    primarySurfaceStyle,
+    emptyPrimarySurfaceStyle,
+  } = primarySurface;
+  const { inlinePostStageTools, promptAndSelectors } = postStage;
   const shouldShowStageOverlayActions =
     !isMorePresetsSurfaceOpen &&
     (Boolean(inlineStageHeaderControls) || (hasPrimaryCompositePreview && selectedLayerName));

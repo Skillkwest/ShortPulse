@@ -28,7 +28,10 @@ type QueryResult = {
   error?: { message: string } | null;
 };
 
-const createSupabaseAdminMock = (queues: Record<string, QueryResult[]>) => ({
+const createSupabaseAdminMock = (
+  queues: Record<string, QueryResult[]>,
+  orFilters: string[] = []
+) => ({
   from: (table: string) => {
     const queue = queues[table];
     if (!queue) {
@@ -51,7 +54,10 @@ const createSupabaseAdminMock = (queues: Record<string, QueryResult[]>) => ({
       range: () => query,
       eq: () => query,
       gte: () => query,
-      or: () => query,
+      or: (filters: string) => {
+        orFilters.push(filters);
+        return query;
+      },
       then: (resolve: (value: QueryResult) => unknown, reject: (reason: unknown) => unknown) => {
         ensureSelected();
         const payload: QueryResult = {
@@ -263,6 +269,76 @@ describe("GET /api/admin/errors", () => {
     expect(payload.summary.openCount).toBe(0);
     expect(payload.summary.highSeverityOpenCount).toBe(0);
     expect(payload.pagination).toMatchObject({ page: 1, perPage: 50, totalCount: 0 });
+  });
+
+  it("keeps text search off uuid columns", async () => {
+    const orFilters: string[] = [];
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock(
+        {
+          app_error_logs: [
+            { data: [], error: null },
+            { count: 0, error: null },
+            { count: 0, error: null },
+            { count: 0, error: null },
+            { count: 0, error: null },
+            { count: 0, error: null },
+            { count: 0, error: null },
+          ],
+        },
+        orFilters
+      )
+    );
+
+    const req = { method: "GET", query: { search: "/api/media/list" } };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(orFilters).toHaveLength(2);
+    for (const filter of orFilters) {
+      expect(filter).toContain("endpoint.ilike.%/api/media/list%");
+      expect(filter).toContain("route.ilike.%/api/media/list%");
+      expect(filter).toContain("request_id.ilike.%/api/media/list%");
+      expect(filter).not.toContain("user_id.ilike");
+      expect(filter).not.toMatch(/(^|,)id\.ilike/);
+    }
+  });
+
+  it("matches uuid searches with exact uuid filters", async () => {
+    const orFilters: string[] = [];
+    const uuid = "11111111-1111-4111-8111-111111111111";
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock(
+        {
+          app_error_logs: [
+            { data: [], error: null },
+            { count: 0, error: null },
+            { count: 0, error: null },
+            { count: 0, error: null },
+            { count: 0, error: null },
+            { count: 0, error: null },
+            { count: 0, error: null },
+          ],
+        },
+        orFilters
+      )
+    );
+
+    const req = { method: "GET", query: { search: uuid } };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(orFilters).toHaveLength(2);
+    for (const filter of orFilters) {
+      expect(filter).toContain(`id.eq.${uuid}`);
+      expect(filter).toContain(`user_id.eq.${uuid}`);
+      expect(filter).not.toContain("user_id.ilike");
+      expect(filter).not.toMatch(/(^|,)id\.ilike/);
+    }
   });
 
   it("returns 500 when core incident query fails", async () => {

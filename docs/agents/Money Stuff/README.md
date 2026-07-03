@@ -168,7 +168,7 @@ For AI usage billed pricing decisions specifically:
 3. Load the canonical billing SOP and ADRs before changing billing surfaces.
 4. Prefer one concrete billing lane at a time: public truth, sellability, billing runtime, or support safety.
 5. Treat public customer pricing as live-catalog driven; avoid hardcoded commercial values in user-facing surfaces.
-6. Treat hidden internal `free` semantics as backend/runtime truth unless product docs explicitly expose them.
+6. Treat the legacy internal `free` database id as a baseline-access sentinel only; it is not a customer-facing, creatable, or sellable free plan.
 7. Use Stripe test mode or non-destructive verification paths first whenever externally visible purchase behavior is involved.
 8. Validate the customer-facing path and the back-office path together when billing behavior changes.
 9. Record only durable lessons in repo-visible memory; keep larger retained evidence in the artifact area.

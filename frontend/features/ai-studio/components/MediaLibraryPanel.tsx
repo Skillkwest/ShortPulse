@@ -127,7 +127,7 @@ const MEDIA_LIBRARY_FOLDERS_EXPANDED_GRID_TOP_HEIGHT_PX = 0,
   MEDIA_LIBRARY_FOLDERS_COLLAPSE_TOP_HEIGHT_PX = 86;
 const PROJECT_NAME_PLACEHOLDER = "Untitled project";
 const FOLDER_OPEN_GHOST_IMAGE_SRC = "/Folder 1.png";
-const FOLDER_OPEN_GHOST_DURATION_MS = 220;
+const FOLDER_OPEN_GHOST_DURATION_MS = 320;
 const FOLDER_OPEN_NAVIGATION_DELAY_MS = 70;
 const ROOT_ALL_MEDIA_VISUAL_PRIORITY_COUNT = MEDIA_LIBRARY_PANEL_DENSITY_CONFIG.maxColumnCount;
 const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
@@ -197,6 +197,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const [selectedPromptIds, setSelectedPromptIds] = useState<Set<string>>(() => new Set());
   const [folderContextMenu, setFolderContextMenu] = useState<FolderContextMenuState | null>(null);
   const [folderOpenGhost, setFolderOpenGhost] = useState<FolderOpenGhostState | null>(null);
+  const [openingFolderId, setOpeningFolderId] = useState<string | null>(null);
   const [pendingFolderDelete, setPendingFolderDelete] = useState<{
     folderId: string;
     folderName: string;
@@ -866,16 +867,19 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
           width: rect.width,
           height: rect.height,
         });
+        setOpeningFolderId(folderId);
         folderOpenNavigationTimeoutRef.current = window.setTimeout(() => {
           setActiveFolderId(folderId || MEDIA_LIBRARY_ROOT_FOLDER_ID);
           folderOpenNavigationTimeoutRef.current = null;
         }, FOLDER_OPEN_NAVIGATION_DELAY_MS);
         folderOpenGhostTimeoutRef.current = window.setTimeout(() => {
           setFolderOpenGhost(null);
+          setOpeningFolderId(null);
           folderOpenGhostTimeoutRef.current = null;
         }, FOLDER_OPEN_GHOST_DURATION_MS);
       } else {
         setFolderOpenGhost(null);
+        setOpeningFolderId(null);
         setActiveFolderId(folderId || MEDIA_LIBRARY_ROOT_FOLDER_ID);
       }
     },
@@ -1378,6 +1382,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
             <MediaLibraryPanelFoldersSection
               ancestorFolders={ancestorFolders}
               folders={visibleFolders}
+              openingFolderId={openingFolderId}
               canNavigateUp={canNavigateUp}
               onNavigateUp={handleNavigateUp}
               onNavigateToRoot={handleNavigateToRoot}

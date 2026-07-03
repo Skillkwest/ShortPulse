@@ -23,6 +23,7 @@ type FolderContextMenuState = {
 type MediaLibraryPanelFoldersSectionProps = {
   ancestorFolders: FolderRow[];
   folders: FolderRow[];
+  openingFolderId: string | null;
   canNavigateUp: boolean;
   onNavigateUp: () => void;
   onNavigateToRoot: () => void;
@@ -73,6 +74,7 @@ type MediaLibraryPanelFoldersSectionProps = {
 export const MediaLibraryPanelFoldersSection = React.memo(function MediaLibraryPanelFoldersSection({
   ancestorFolders,
   folders,
+  openingFolderId,
   canNavigateUp,
   onNavigateUp,
   onNavigateToRoot,
@@ -340,7 +342,9 @@ export const MediaLibraryPanelFoldersSection = React.memo(function MediaLibraryP
                   <>
                     <button
                       type="button"
-                      className="media-library-panel-folder-chip media-library-panel-folder-chip--image"
+                      className={`media-library-panel-folder-chip media-library-panel-folder-chip--image${
+                        openingFolderId === folder.id ? " is-opening" : ""
+                      }`}
                       onDoubleClick={(event) => handleFolderChipDoubleClick(folder.id, event)}
                       aria-label={`${folder.name} folder`}
                       aria-disabled={isPending}

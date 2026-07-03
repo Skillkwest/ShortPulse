@@ -39,12 +39,14 @@ const MINIMAL_MP4_BYTES = Buffer.concat([
   Buffer.from([0x00, 0x00, 0x00, 0x18]),
   Buffer.from("ftypmp42", "ascii"),
 ]);
+const MINIMAL_MP3_BYTES = Buffer.from("ID3\u0003\u0000\u0000\u0000\u0000\u0000\u0000", "binary");
 
 describe("prepareMediaUploadForUser", () => {
   const createSignedUploadUrlMock = vi.fn();
   const createSignedUrlMock = vi.fn();
   const downloadMock = vi.fn();
   const uploadMock = vi.fn();
+  const moveMock = vi.fn();
   const removeMock = vi.fn();
   const insertMock = vi.fn();
 
@@ -99,6 +101,7 @@ describe("prepareMediaUploadForUser", () => {
           createSignedUrl: createSignedUrlMock,
           download: downloadMock,
           upload: uploadMock,
+          move: moveMock,
           remove: removeMock,
         })),
       },
@@ -257,7 +260,7 @@ describe("prepareMediaUploadForUser", () => {
     });
   });
 
-  it("finalizes a staged video upload with durable preview and poster variant authority", async () => {
+  it("finalizes a staged video upload by moving it into durable storage and preserving variant authority", async () => {
     videoVariantMocks.upsertVideoPreviewVariantFromBuffer.mockResolvedValueOnce(
       "user-1/variants/videos/media-1/preview_loop_360p.mp4"
     );
@@ -276,6 +279,10 @@ describe("prepareMediaUploadForUser", () => {
       },
       error: null,
     });
+    moveMock.mockResolvedValueOnce({
+      data: { path: "user-1/videos/moved-clip.mp4" },
+      error: null,
+    });
 
     const file = await finalizePreparedMediaUploadForUser({
       userId: "user-1",
@@ -285,14 +292,10 @@ describe("prepareMediaUploadForUser", () => {
       declaredMimeType: "video/mp4",
     });
 
-    expect(uploadMock).toHaveBeenCalledWith(
-      expect.stringMatching(/^user-1\/videos\/.*clip\.mp4$/),
-      MINIMAL_MP4_BYTES,
-      {
-        contentType: "video/mp4",
-        upsert: false,
-        cacheControl: "31536000",
-      }
+    expect(uploadMock).not.toHaveBeenCalled();
+    expect(moveMock).toHaveBeenCalledWith(
+      "user-1/upload-staging/uploaded_videos/clip.mp4",
+      expect.stringMatching(/^user-1\/videos\/.*clip\.mp4$/)
     );
     expect(insertMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -347,5 +350,106 @@ describe("prepareMediaUploadForUser", () => {
       signedUrl:
         "https://signed.example/user-1%2Fvariants%2Fvideos%2Fmedia-1%2Fpreview_loop_360p.mp4",
     });
+  });
+
+  it("finalizes a staged audio upload by moving it into durable storage", async () => {
+    downloadMock.mockResolvedValueOnce({
+      data: {
+        size: MINIMAL_MP3_BYTES.length,
+        type: "audio/mpeg",
+        arrayBuffer: async () =>
+          MINIMAL_MP3_BYTES.buffer.slice(
+            MINIMAL_MP3_BYTES.byteOffset,
+            MINIMAL_MP3_BYTES.byteOffset + MINIMAL_MP3_BYTES.byteLength
+          ),
+      },
+      error: null,
+    });
+    moveMock.mockResolvedValueOnce({
+      data: { path: "user-1/audio/moved-track.mp3" },
+      error: null,
+    });
+
+    const file = await finalizePreparedMediaUploadForUser({
+      userId: "user-1",
+      destinationTab: "uploaded_images",
+      storagePath: "user-1/upload-staging/uploaded_images/track.mp3",
+      filename: "track.mp3",
+      declaredMimeType: "audio/mpeg",
+    });
+
+    expect(uploadMock).not.toHaveBeenCalled();
+    expect(moveMock).toHaveBeenCalledWith(
+      "user-1/upload-staging/uploaded_images/track.mp3",
+      expect.stringMatching(/^user-1\/audio\/.*track\.mp3$/)
+    );
+    expect(insertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: "user-1",
+        filename: "track.mp3",
+        storage_path: expect.stringMatching(/^user-1\/audio\/.*track\.mp3$/),
+        file_type: "audio",
+        file_size: MINIMAL_MP3_BYTES.length,
+        source: "upload",
+      })
+    );
+    expect(videoVariantMocks.upsertVideoPreviewVariantFromBuffer).not.toHaveBeenCalled();
+    expect(videoVariantMocks.upsertVideoPosterVariantFromBuffer).not.toHaveBeenCalled();
+    expect(createSignedUrlMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^user-1\/audio\/.*track\.mp3$/),
+      3600
+    );
+    expect(removeMock).toHaveBeenCalledWith(["user-1/upload-staging/uploaded_images/track.mp3"]);
+    expect(file).toEqual({
+      id: "media-1",
+      filename: "track.mp3",
+      storage_path: expect.stringMatching(/^user-1\/audio\/.*track\.mp3$/),
+      preview_storage_path: expect.stringMatching(/^user-1\/audio\/.*track\.mp3$/),
+      file_type: "audio",
+      file_size: MINIMAL_MP3_BYTES.length,
+      source: "upload",
+      created_at: "2026-06-21T00:00:00.000Z",
+      signedUrl: expect.stringMatching(/^https:\/\/signed\.example\//),
+    });
+  });
+
+  it("removes a moved durable upload if signing the finalized audio path fails", async () => {
+    downloadMock.mockResolvedValueOnce({
+      data: {
+        size: MINIMAL_MP3_BYTES.length,
+        type: "audio/mpeg",
+        arrayBuffer: async () =>
+          MINIMAL_MP3_BYTES.buffer.slice(
+            MINIMAL_MP3_BYTES.byteOffset,
+            MINIMAL_MP3_BYTES.byteOffset + MINIMAL_MP3_BYTES.byteLength
+          ),
+      },
+      error: null,
+    });
+    moveMock.mockResolvedValueOnce({
+      data: { path: "user-1/audio/moved-track.mp3" },
+      error: null,
+    });
+    createSignedUrlMock.mockRejectedValueOnce(new Error("signing failed"));
+
+    await expect(
+      finalizePreparedMediaUploadForUser({
+        userId: "user-1",
+        destinationTab: "uploaded_images",
+        storagePath: "user-1/upload-staging/uploaded_images/track.mp3",
+        filename: "track.mp3",
+        declaredMimeType: "audio/mpeg",
+      })
+    ).rejects.toMatchObject({
+      status: 500,
+      message: "Failed to generate signed preview URL",
+      details: "signing failed",
+    });
+
+    expect(insertMock).not.toHaveBeenCalled();
+    expect(removeMock).toHaveBeenCalledWith([
+      expect.stringMatching(/^user-1\/audio\/.*track\.mp3$/),
+    ]);
+    expect(removeMock).toHaveBeenCalledWith(["user-1/upload-staging/uploaded_images/track.mp3"]);
   });
 });

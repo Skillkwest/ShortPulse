@@ -740,6 +740,7 @@ const uploadScopedStorageBuffer = async ({
   try {
     signedUrl = await createSignedMediaUrl(storagePath);
   } catch (error) {
+    await removeScopedMediaStorageObject(storagePath);
     throw new MediaUploadServiceError(
       500,
       "Failed to generate signed preview URL",
@@ -751,6 +752,70 @@ const uploadScopedStorageBuffer = async ({
     storagePath,
     signedUrl,
     size: buffer.length,
+  };
+};
+
+const movePreparedUploadToDurableStorage = async ({
+  userId,
+  sourceStoragePath,
+  parsedUpload,
+  mimeType,
+  fileType,
+}: {
+  userId: string;
+  sourceStoragePath: string;
+  parsedUpload: ParsedUpload;
+  mimeType: string;
+  fileType: Exclude<MediaLibraryFileType, "image">;
+}): Promise<UploadedStorageAsset> => {
+  const extension =
+    resolveMediaStorageExtension(
+      mimeType,
+      VOICE_CHANGER_AUDIO_EXTENSION_BY_MIME[mimeType] ?? "bin"
+    ) ?? "bin";
+  const fileBaseName = resolveBaseFileName(parsedUpload.filename);
+  const storedFileName = `${Date.now()}-${Math.random().toString(36).slice(2)}-${fileBaseName}.${extension}`;
+  const storagePath = buildScopedMediaStoragePath({
+    userId,
+    storageFolder: resolveUploadFolder(parsedUpload.destinationTab, fileType),
+    storedFileName,
+    label: "Durable prepared media upload storage path",
+  });
+
+  const { error: moveError } = await getSupabaseAdmin()
+    .storage.from(MEDIA_BUCKET)
+    .move(sourceStoragePath, storagePath);
+  if (moveError) {
+    throw new MediaUploadServiceError(
+      500,
+      "Upload failed",
+      moveError.message || "Unable to move prepared upload into durable storage."
+    );
+  }
+
+  let signedUrl: string;
+  try {
+    signedUrl = await createSignedMediaUrl(storagePath);
+  } catch (error) {
+    await removeScopedMediaStorageObject(storagePath);
+    throw new MediaUploadServiceError(
+      500,
+      "Failed to generate signed preview URL",
+      error instanceof Error ? error.message : "Missing signed preview URL"
+    );
+  }
+
+  return {
+    storagePath,
+    signedUrl,
+    size: parsedUpload.size,
+    parsedUpload: {
+      ...parsedUpload,
+      declaredMimeType: mimeType,
+    },
+    fileType,
+    imageDimensions: null,
+    admissionMetadata: null,
   };
 };
 
@@ -1543,11 +1608,31 @@ export const finalizePreparedMediaUploadForUser = async ({
       filename: filename.trim() || safeStoragePath.split("/").filter(Boolean).pop() || "upload",
       destinationTab,
     };
-    uploaded = await uploadStorageAssetFromParsedUpload({
-      parsedUpload,
-      userId,
-      cacheControl: DURABLE_MEDIA_CACHE_CONTROL_SECONDS,
+    const detectedMimeType = resolveDetectedMimeType(destinationTab, parsedUpload.buffer);
+    const validatedUpload = validateUpload({
+      destinationTab,
+      declaredMimeType: parsedUpload.declaredMimeType,
+      detectedMimeType,
     });
+    if (validatedUpload.fileType === "image") {
+      uploaded = await uploadStorageAssetFromParsedUpload({
+        parsedUpload,
+        userId,
+        cacheControl: DURABLE_MEDIA_CACHE_CONTROL_SECONDS,
+      });
+    } else {
+      enforceUploadSizeLimit({
+        fileType: validatedUpload.fileType,
+        fileSize: parsedUpload.size,
+      });
+      uploaded = await movePreparedUploadToDurableStorage({
+        userId,
+        sourceStoragePath: safeStoragePath,
+        parsedUpload,
+        mimeType: validatedUpload.mimeType,
+        fileType: validatedUpload.fileType,
+      });
+    }
     return await persistUploadedMediaAsset({
       userId,
       uploaded,

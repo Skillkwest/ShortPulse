@@ -127,7 +127,8 @@ const MEDIA_LIBRARY_FOLDERS_EXPANDED_GRID_TOP_HEIGHT_PX = 0,
   MEDIA_LIBRARY_FOLDERS_COLLAPSE_TOP_HEIGHT_PX = 86;
 const PROJECT_NAME_PLACEHOLDER = "Untitled project";
 const FOLDER_OPEN_GHOST_IMAGE_SRC = "/Folder 1.png";
-const FOLDER_OPEN_GHOST_DURATION_MS = 180;
+const FOLDER_OPEN_GHOST_DURATION_MS = 220;
+const FOLDER_OPEN_NAVIGATION_DELAY_MS = 70;
 const ROOT_ALL_MEDIA_VISUAL_PRIORITY_COUNT = MEDIA_LIBRARY_PANEL_DENSITY_CONFIG.maxColumnCount;
 const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
@@ -213,6 +214,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const splitContainerRef = useRef<HTMLDivElement | null>(null);
   const folderContextMenuRef = useRef<HTMLDivElement | null>(null);
   const folderOpenGhostTimeoutRef = useRef<number | null>(null);
+  const folderOpenNavigationTimeoutRef = useRef<number | null>(null);
   const [optimizerFallbackMediaIds, setOptimizerFallbackMediaIds] = useState<Set<string>>(
     () => new Set()
   );
@@ -222,6 +224,9 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     return () => {
       if (folderOpenGhostTimeoutRef.current !== null) {
         window.clearTimeout(folderOpenGhostTimeoutRef.current);
+      }
+      if (folderOpenNavigationTimeoutRef.current !== null) {
+        window.clearTimeout(folderOpenNavigationTimeoutRef.current);
       }
     };
   }, []);
@@ -848,6 +853,10 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         window.clearTimeout(folderOpenGhostTimeoutRef.current);
         folderOpenGhostTimeoutRef.current = null;
       }
+      if (folderOpenNavigationTimeoutRef.current !== null) {
+        window.clearTimeout(folderOpenNavigationTimeoutRef.current);
+        folderOpenNavigationTimeoutRef.current = null;
+      }
 
       if (!prefersReducedMotion && rect.width > 0 && rect.height > 0) {
         setFolderOpenGhost({
@@ -857,15 +866,18 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
           width: rect.width,
           height: rect.height,
         });
+        folderOpenNavigationTimeoutRef.current = window.setTimeout(() => {
+          setActiveFolderId(folderId || MEDIA_LIBRARY_ROOT_FOLDER_ID);
+          folderOpenNavigationTimeoutRef.current = null;
+        }, FOLDER_OPEN_NAVIGATION_DELAY_MS);
         folderOpenGhostTimeoutRef.current = window.setTimeout(() => {
           setFolderOpenGhost(null);
           folderOpenGhostTimeoutRef.current = null;
         }, FOLDER_OPEN_GHOST_DURATION_MS);
       } else {
         setFolderOpenGhost(null);
+        setActiveFolderId(folderId || MEDIA_LIBRARY_ROOT_FOLDER_ID);
       }
-
-      setActiveFolderId(folderId || MEDIA_LIBRARY_ROOT_FOLDER_ID);
     },
     [setActiveFolderId]
   );

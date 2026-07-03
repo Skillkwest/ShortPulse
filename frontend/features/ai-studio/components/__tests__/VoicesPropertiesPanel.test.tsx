@@ -3182,7 +3182,7 @@ describe("VoicesPropertiesPanel", () => {
 
     const firstRender = render(<VoicesPropertiesPanel onGenerate={vi.fn()} />);
     await openVoicesLibraryModal();
-    expect(screen.getByRole("button", { name: "Custom Voice voice" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Custom Voice voice" })).toBeInTheDocument();
     firstRender.unmount();
 
     fetchWithAuthMock.mockRejectedValueOnce(new Error("Unable to load voices."));
@@ -3219,7 +3219,7 @@ describe("VoicesPropertiesPanel", () => {
 
     const view = render(<VoicesPropertiesPanel onGenerate={vi.fn()} />);
     await openVoicesLibraryModal();
-    expect(screen.getByRole("button", { name: "Custom Voice voice" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Custom Voice voice" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "+ Create New Voice" }));
     fireEvent.change(screen.getByRole("textbox", { name: "Voice name" }), {
       target: { value: "Leaked Preview Voice" },

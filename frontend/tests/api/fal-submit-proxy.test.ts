@@ -265,6 +265,11 @@ describe("createFalSubmitHandler", () => {
         generationId: expect.any(String),
       })
     );
+    expect(logGenerationFailureMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.api.fal_submit.direct_submitted",
+      })
+    );
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({

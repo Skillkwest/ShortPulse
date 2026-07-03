@@ -14,6 +14,7 @@ import type { CanvasTearOutComposerTargetRegistry } from "../hooks/useAiStudioCa
 import type { ResolveCharacterDropReference } from "../../character-manager/hooks/useCharacterManagerDroppedReferenceController";
 import type { CharacterPanelUploadRequest } from "../../../lib/characterPanelUploadRequest";
 import type { InternalReferenceDragPayload } from "../utils/dragDrop";
+import type { GenerationAccessCta } from "../logic/generationAccessCta";
 
 type CharacterPanelProps = {
   resolveCharacterDropReference?: ResolveCharacterDropReference;
@@ -34,6 +35,7 @@ type CharacterPanelProps = {
   onDetailSelectionTargetChange?: (target: SharedMediaDetailSelectionTarget | null) => void;
   onSnapshotVideoFrame?: SharedMediaDetailVideoSnapshotHandler;
   onSnapshotVideoFrameError?: SharedMediaDetailVideoSnapshotErrorHandler;
+  generationAccessCta?: GenerationAccessCta | null;
 };
 
 const CHARACTER_PANEL_SIDE_GUTTER_REDUCTION_PX = 8;
@@ -60,6 +62,7 @@ export function CharacterPanel({
   onDetailSelectionTargetChange,
   onSnapshotVideoFrame,
   onSnapshotVideoFrameError,
+  generationAccessCta = null,
 }: CharacterPanelProps) {
   const panelRootRef = React.useRef<HTMLDivElement | null>(null);
 
@@ -89,6 +92,7 @@ export function CharacterPanel({
         onDetailSelectionTargetChange={onDetailSelectionTargetChange}
         onSnapshotVideoFrame={onSnapshotVideoFrame}
         onSnapshotVideoFrameError={onSnapshotVideoFrameError}
+        generationAccessCta={generationAccessCta}
       />
     </div>
   );

@@ -4,14 +4,7 @@
  */
 import Link from "next/link";
 import React from "react";
-import {
-  FlowArrow,
-  Globe,
-  PencilSimple,
-  type IconProps,
-  SquaresFour,
-  StackSimple,
-} from "phosphor-react";
+import { FlowArrow, Globe, PencilSimple, type IconProps, SquaresFour } from "phosphor-react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import {
   AppMessage,
@@ -86,6 +79,7 @@ import {
   AI_SHELL_LEFT_CHARACTER_DEFAULT_RATIO,
   AI_SHELL_LEFT_CREATE_MIN_PX,
   AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX,
+  AI_SHELL_LEFT_MEDIA_LIBRARY_MIN_PX,
   AI_SHELL_LEFT_PRESETS_MIN_PX,
   AI_SHELL_LEFT_SOUND_MIN_PX,
   AI_SHELL_LEFT_VIDEO_DEFAULT_RATIO,
@@ -144,7 +138,7 @@ type GroupedFailureCard = {
   count: number;
 };
 
-type ComingSoonToolId = "templates" | "workflows" | "my-generations" | "community";
+type ComingSoonToolId = "templates" | "workflows" | "community";
 type IconComponent = ForwardRefExoticComponent<IconProps & RefAttributes<SVGSVGElement>>;
 
 const comingSoonCopy: Record<
@@ -163,12 +157,6 @@ const comingSoonCopy: Record<
     summary: "Reusable Canvas Node Builder pipelines for advanced automations.",
     detail: "Workflows will be a library of pre-made Canvas Node Builder workflows.",
     icon: FlowArrow,
-  },
-  "my-generations": {
-    title: "My Generations",
-    summary: "Your personal gallery for every asset you have generated.",
-    detail: "My Generations is where you can see all of your generated content in a gallery.",
-    icon: StackSimple,
   },
   community: {
     title: "Community",
@@ -192,7 +180,7 @@ const areActiveVoiceChangerSourceVideosEqual = (
 };
 
 const isComingSoonTool = (tool: ToolId | null): tool is ComingSoonToolId =>
-  tool === "templates" || tool === "workflows" || tool === "my-generations" || tool === "community";
+  tool === "templates" || tool === "workflows" || tool === "community";
 
 const normalizeCreditCount = (value: number | null | undefined): number | null => {
   if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return null;
@@ -1017,13 +1005,15 @@ export function AiStudioPageContent({
       ? AI_SHELL_LEFT_SOUND_MIN_PX
       : selectedTool === "video" || selectedTool === "kling"
         ? AI_SHELL_LEFT_VIDEO_MIN_PX
-        : selectedTool === "presets" || selectedTool === "styles"
-          ? AI_SHELL_LEFT_PRESETS_MIN_PX
-          : showCreatePropertiesPanel
-            ? AI_SHELL_LEFT_CREATE_MIN_PX
-            : showExpertEditPanel
-              ? AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX
-              : undefined;
+        : selectedTool === "media-library"
+          ? AI_SHELL_LEFT_MEDIA_LIBRARY_MIN_PX
+          : selectedTool === "presets" || selectedTool === "styles"
+            ? AI_SHELL_LEFT_PRESETS_MIN_PX
+            : showCreatePropertiesPanel
+              ? AI_SHELL_LEFT_CREATE_MIN_PX
+              : showExpertEditPanel
+                ? AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX
+                : undefined;
   const isCollapsibleRightRailShell =
     showCreatePropertiesPanel ||
     showExpertEditPanel ||
@@ -1478,6 +1468,7 @@ export function AiStudioPageContent({
           onDetailSelectionTargetChange={onMediaLibraryDetailSelectionTargetChange}
           onSnapshotVideoFrame={onSnapshotVideoFrame}
           onSnapshotVideoFrameError={onSnapshotVideoFrameError}
+          generationAccessCta={mediaPlanNoticeCta}
         />
       </React.Suspense>
     ),
@@ -1497,6 +1488,7 @@ export function AiStudioPageContent({
       projectRouteRequested,
       resolveCharacterDropReference,
       resolveMediaLibraryInternalDropItem,
+      mediaPlanNoticeCta,
     ]
   );
   const sharedDetailModalActionItems = React.useMemo(() => {
@@ -1553,6 +1545,7 @@ export function AiStudioPageContent({
           onDetailSelectionTargetChange={onMediaLibraryDetailSelectionTargetChange}
           onSnapshotVideoFrame={onSnapshotVideoFrame}
           onSnapshotVideoFrameError={onSnapshotVideoFrameError}
+          generationAccessCta={mediaPlanNoticeCta}
         />
       </React.Suspense>
     ),
@@ -1567,6 +1560,7 @@ export function AiStudioPageContent({
       projectId,
       resolveElementProfileImageDropSource,
       resolveMediaLibraryInternalDropItem,
+      mediaPlanNoticeCta,
     ]
   );
   const stylesPropertiesPanelContent = React.useMemo(

@@ -114,9 +114,86 @@ export const useAiStudioReferenceExperienceRuntime = ({
     findOutputById,
     saveReferenceToLibrary,
     setUiError,
-    isMediaStorageFull,
+    isMediaStorageFull: isMediaStorageFull || isPlanAccessBlocked,
     onStorageBlockedSaveAttempt: isPlanAccessBlocked ? onMediaPlanAccessAttempt : undefined,
   });
+  const handlePlanBlockedTextReference = useMemo(
+    () =>
+      isPlanAccessBlocked
+        ? () => {
+            onMediaPlanAccessAttempt?.();
+          }
+        : addPastedPromptReference,
+    [addPastedPromptReference, isPlanAccessBlocked, onMediaPlanAccessAttempt]
+  );
+  const handlePlanBlockedMediaReference = useMemo(
+    () =>
+      isPlanAccessBlocked
+        ? () => {
+            onMediaPlanAccessAttempt?.();
+          }
+        : addPastedMediaReference,
+    [addPastedMediaReference, isPlanAccessBlocked, onMediaPlanAccessAttempt]
+  );
+  const notifyPlanBlockedVoid = useMemo(
+    () =>
+      isPlanAccessBlocked
+        ? () => {
+            onMediaPlanAccessAttempt?.();
+          }
+        : null,
+    [isPlanAccessBlocked, onMediaPlanAccessAttempt]
+  );
+  const handlePlanBlockedComposerPin = useMemo(
+    () =>
+      isPlanAccessBlocked
+        ? () => {
+            onMediaPlanAccessAttempt?.();
+          }
+        : null,
+    [isPlanAccessBlocked, onMediaPlanAccessAttempt]
+  );
+  const handlePlanBlockedSavePromptToLibrary = useMemo(
+    () =>
+      isPlanAccessBlocked
+        ? () => {
+            onMediaPlanAccessAttempt?.();
+            return false;
+          }
+        : savePromptToLibrary,
+    [isPlanAccessBlocked, onMediaPlanAccessAttempt, savePromptToLibrary]
+  );
+  const panelPropsWithMediaPlanAccess = useMemo(() => {
+    if (!handlePlanBlockedComposerPin) {
+      return {
+        propertiesCreate,
+        propertiesEditExpert,
+        propertiesVideo,
+      };
+    }
+    const propertiesCreateWithBlockedPin =
+      propertiesCreate.expertCreateMode === "standard"
+        ? {
+            ...propertiesCreate,
+            standard: {
+              ...propertiesCreate.standard,
+              onPinPromptReference: handlePlanBlockedComposerPin,
+            },
+          }
+        : propertiesCreate;
+
+    return {
+      propertiesCreate: propertiesCreateWithBlockedPin,
+      propertiesEditExpert: {
+        ...propertiesEditExpert,
+        onPinPromptReference: handlePlanBlockedComposerPin,
+      },
+      propertiesVideo: {
+        ...propertiesVideo,
+        onPinPromptReference: handlePlanBlockedComposerPin,
+      },
+    };
+  }, [handlePlanBlockedComposerPin, propertiesCreate, propertiesEditExpert, propertiesVideo]);
   const canvasMediaActions = useMemo(
     () => ({
       getOutputForCanvasItem: (item: CanvasSceneItem) => {
@@ -129,7 +206,7 @@ export const useAiStudioReferenceExperienceRuntime = ({
       onRerollOutput: (output: StudioOutput) => resolvedRerollOutput(output.id),
       onReloadWorkflowOutput: manualWorkflowReloadHandler,
       onRemoveCanvasItem: removeCanvasItemById,
-      isMediaStorageFull,
+      isMediaStorageFull: isMediaStorageFull || isPlanAccessBlocked,
     }),
     [
       findOutputById,
@@ -137,28 +214,35 @@ export const useAiStudioReferenceExperienceRuntime = ({
       handleSaveReference,
       handleSelectOutput,
       isMediaStorageFull,
+      isPlanAccessBlocked,
       manualWorkflowReloadHandler,
       removeCanvasItemById,
       resolvedRerollOutput,
     ]
   );
-  const railCanvasPropsWithMediaActions = useMemo(
-    () =>
-      railCanvasProps
-        ? {
-            ...railCanvasProps,
-            mediaActions: canvasMediaActions,
+  const railCanvasPropsWithMediaActions = useMemo(() => {
+    if (!railCanvasProps) return railCanvasProps;
+    const currentRailCanvasProps = railCanvasProps as typeof railCanvasProps & {
+      onPinTextReference?: (text: string) => void;
+    };
+
+    return {
+      ...railCanvasProps,
+      onPinTextReference: isPlanAccessBlocked
+        ? () => {
+            onMediaPlanAccessAttempt?.();
           }
-        : railCanvasProps,
-    [canvasMediaActions, railCanvasProps]
-  );
+        : currentRailCanvasProps.onPinTextReference,
+      mediaActions: canvasMediaActions,
+    };
+  }, [canvasMediaActions, isPlanAccessBlocked, onMediaPlanAccessAttempt, railCanvasProps]);
   const referenceGridHookProps = useAiStudioReferenceGridProps({
     readOutputsFromStore: true,
     activeOutputId,
     topNotice: isMediaStorageFull && !isPlanAccessBlocked ? MEDIA_STORAGE_FULL_USER_MESSAGE : null,
     curatedReferenceIds,
     removedFromAllRefsIds,
-    isMediaStorageFull,
+    isMediaStorageFull: isMediaStorageFull || isPlanAccessBlocked,
     onReferenceOutputMediaLoaded,
     linkedPromptReferenceIds,
     handleSelectOutput,
@@ -167,11 +251,17 @@ export const useAiStudioReferenceExperienceRuntime = ({
     setDetailOutputId,
     handleSaveReference,
     handleDownloadReference,
-    handlePasteTextReference: addPastedPromptReference,
-    handlePasteMediaReference: addPastedMediaReference,
-    handleAddLibraryMediaReference: addLibraryMediaReference,
-    handleAddLibraryMediaReferences: addLibraryMediaReferences,
-    handleAddLibraryPromptReference: addLibraryPromptReference,
+    handlePasteTextReference: handlePlanBlockedTextReference,
+    handlePasteMediaReference: handlePlanBlockedMediaReference,
+    handleAddLibraryMediaReference: isPlanAccessBlocked
+      ? () => notifyPlanBlockedVoid?.()
+      : addLibraryMediaReference,
+    handleAddLibraryMediaReferences: isPlanAccessBlocked
+      ? () => notifyPlanBlockedVoid?.()
+      : addLibraryMediaReferences,
+    handleAddLibraryPromptReference: isPlanAccessBlocked
+      ? () => notifyPlanBlockedVoid?.()
+      : addLibraryPromptReference,
     handleRerollOutput: resolvedRerollOutput,
     handleReloadWorkflowOutput: manualWorkflowReloadHandler,
     deleteOutput,
@@ -190,11 +280,36 @@ export const useAiStudioReferenceExperienceRuntime = ({
     return {
       ...referenceGridComponentProps,
       railCanvasProps: railCanvasPropsWithMediaActions,
-      onAddDroppedFilesToQuickSlot: handleQuickSlotDroppedFiles,
-      onAddPastedMediaReferenceToQuickSlot: handleQuickSlotDroppedMediaReference,
-      onAddLibraryMediaReferenceToQuickSlot: handleQuickSlotLibraryMediaDrop,
-      onAddLibraryMediaReferencesToQuickSlot: handleQuickSlotLibraryMediaBulkDrop,
-      onAddLibraryPromptReferenceToQuickSlot: handleQuickSlotLibraryPromptDrop,
+      onAddDroppedFilesToQuickSlot: isPlanAccessBlocked
+        ? async () => {
+            onMediaPlanAccessAttempt?.();
+            return [];
+          }
+        : handleQuickSlotDroppedFiles,
+      onAddPastedMediaReferenceToQuickSlot: isPlanAccessBlocked
+        ? () => {
+            onMediaPlanAccessAttempt?.();
+            return null;
+          }
+        : handleQuickSlotDroppedMediaReference,
+      onAddLibraryMediaReferenceToQuickSlot: isPlanAccessBlocked
+        ? async () => {
+            onMediaPlanAccessAttempt?.();
+            return null;
+          }
+        : handleQuickSlotLibraryMediaDrop,
+      onAddLibraryMediaReferencesToQuickSlot: isPlanAccessBlocked
+        ? async () => {
+            onMediaPlanAccessAttempt?.();
+            return [];
+          }
+        : handleQuickSlotLibraryMediaBulkDrop,
+      onAddLibraryPromptReferenceToQuickSlot: isPlanAccessBlocked
+        ? () => {
+            onMediaPlanAccessAttempt?.();
+            return null;
+          }
+        : handleQuickSlotLibraryPromptDrop,
     };
   }, [
     handleQuickSlotDroppedFiles,
@@ -202,6 +317,8 @@ export const useAiStudioReferenceExperienceRuntime = ({
     handleQuickSlotLibraryMediaDrop,
     handleQuickSlotLibraryMediaBulkDrop,
     handleQuickSlotLibraryPromptDrop,
+    isPlanAccessBlocked,
+    onMediaPlanAccessAttempt,
     railCanvasPropsWithMediaActions,
     referenceGridHookProps,
   ]);
@@ -223,16 +340,16 @@ export const useAiStudioReferenceExperienceRuntime = ({
     deleteOutput,
     handleSaveReference,
     handleDownloadReference,
-    isMediaStorageFull,
-    savePromptToLibrary,
+    isMediaStorageFull: isMediaStorageFull || isPlanAccessBlocked,
+    savePromptToLibrary: handlePlanBlockedSavePromptToLibrary,
     handleOpenMediaLibrary,
   });
 
   return mapHookContractsToPageContentProps({
     panelProps: {
-      propertiesCreate,
-      propertiesEditExpert,
-      propertiesVideo,
+      propertiesCreate: panelPropsWithMediaPlanAccess.propertiesCreate,
+      propertiesEditExpert: panelPropsWithMediaPlanAccess.propertiesEditExpert,
+      propertiesVideo: panelPropsWithMediaPlanAccess.propertiesVideo,
     },
     referenceGridProps: referenceGridPageProps,
     previewDetailProps,

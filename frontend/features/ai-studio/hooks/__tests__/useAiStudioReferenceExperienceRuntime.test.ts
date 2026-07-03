@@ -60,6 +60,7 @@ const createBaseRuntime = (
     activeOutputId: null,
     addCuratedReference: vi.fn(),
     addLibraryMediaReference: vi.fn(),
+    addLibraryMediaReferences: vi.fn(),
     addLibraryPromptReference: vi.fn(),
     addPastedMediaReference: vi.fn(),
     addPastedPromptReference: vi.fn(),
@@ -71,6 +72,7 @@ const createBaseRuntime = (
     editReferenceText: "",
     findOutputById: vi.fn(),
     handleQuickSlotLibraryMediaDrop: vi.fn(),
+    handleQuickSlotLibraryMediaBulkDrop: vi.fn(),
     handleQuickSlotDroppedFiles: vi.fn(),
     handleQuickSlotDroppedMediaReference: vi.fn(),
     handleQuickSlotLibraryPromptDrop: vi.fn(),
@@ -256,5 +258,54 @@ describe("useAiStudioReferenceExperienceRuntime", () => {
       outputSnapshot: thirdOutput,
     });
     expect(setDetailOutputId).toHaveBeenCalledWith(thirdOutput.id);
+  });
+
+  it("routes baseline composer pin clicks to the media plan notice without adding references", () => {
+    const onMediaPlanAccessAttempt = vi.fn();
+    const createPin = vi.fn();
+    const editPin = vi.fn();
+    const videoPin = vi.fn();
+    const base = createBaseRuntime();
+
+    const { result } = renderHook(() =>
+      useAiStudioReferenceExperienceRuntime({
+        base,
+        isMediaStorageFull: false,
+        mediaPlanAccessCta: {
+          label: "View plans",
+          href: "/pricing",
+          ariaLabel: "View subscription plans",
+        },
+        onMediaPlanAccessAttempt,
+        linkedPromptReferenceIds: [],
+        propertiesCreate: {
+          expertCreateMode: "standard",
+          standard: {
+            onPinPromptReference: createPin,
+          } as never,
+        },
+        propertiesEditExpert: {
+          onPinPromptReference: editPin,
+        } as never,
+        propertiesVideo: {
+          onPinPromptReference: videoPin,
+        } as never,
+        handleSelectOutput: vi.fn(),
+        handleManualPromptChange: vi.fn(),
+        handleRegenerateWithDebit: vi.fn(),
+        handleOpenMediaLibrary: vi.fn(),
+      })
+    );
+
+    if (result.current.propertiesCreate.expertCreateMode === "standard") {
+      result.current.propertiesCreate.standard.onPinPromptReference?.("baseline text reference");
+    }
+    result.current.propertiesEditExpert.onPinPromptReference?.("baseline edit reference");
+    result.current.propertiesVideo.onPinPromptReference?.("baseline video reference");
+
+    expect(onMediaPlanAccessAttempt).toHaveBeenCalledTimes(3);
+    expect(createPin).not.toHaveBeenCalled();
+    expect(editPin).not.toHaveBeenCalled();
+    expect(videoPin).not.toHaveBeenCalled();
   });
 });

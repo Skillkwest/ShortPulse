@@ -14,5 +14,6 @@ Each completed run should produce two files:
 
 ## Report Index
 
-| Date | Scenario | Maya report | Engineering handoff | Duration | Credits spent | Outcome |
-| ---- | -------- | ----------- | ------------------- | -------- | ------------- | ------- |
+| Date       | Scenario                                          | Maya report                                                        | Engineering handoff                                                                | Duration | Credits spent | Outcome                                                                                                                            |
+| ---------- | ------------------------------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------- | -------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-07-03 | Authenticated orientation before spending credits | [Maya report](2026-07-03-authenticated-orientation-maya-report.md) | [Engineering handoff](2026-07-03-authenticated-orientation-engineering-handoff.md) | ~35 min  | 0             | Dashboard and AI Studio were explorable, but prompt draft loss and unclear save-to-Media behavior kept Maya from spending credits. |

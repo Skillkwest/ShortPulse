@@ -126,7 +126,7 @@ describe("Admin users and credits overview", () => {
               availableCredits: 0,
               reservedCredits: 0,
               subscriptionStatus: "inactive",
-              createdAt: "2026-03-02T00:00:00.000Z",
+              createdAt: "2026-03-02T12:00:00.000Z",
             },
             {
               id: ADMIN_ID,
@@ -142,7 +142,7 @@ describe("Admin users and credits overview", () => {
               availableCredits: 5000,
               reservedCredits: 0,
               subscriptionStatus: "active",
-              createdAt: "2026-03-03T00:00:00.000Z",
+              createdAt: "2026-03-02T12:00:00.000Z",
             },
           ],
           pagination: {
@@ -201,7 +201,7 @@ describe("Admin users and credits overview", () => {
             subscriptionStatus: userId === USER_2_ID ? "inactive" : "active",
             stripeCustomerId: "cus_test",
             stripeSubscriptionId: "sub_test",
-            currentPeriodEnd: "2026-05-01T00:00:00.000Z",
+            currentPeriodEnd: "2026-04-30T12:00:00.000Z",
           },
           currentContract:
             userId === USER_2_ID
@@ -216,7 +216,7 @@ describe("Admin users and credits overview", () => {
                   monthlyCreditsCents: 10000,
                   storageLimitBytes: 536870912000,
                   status: "inactive",
-                  currentPeriodEnd: "2026-05-01T00:00:00.000Z",
+                  currentPeriodEnd: "2026-04-30T12:00:00.000Z",
                 }
               : userId === ADMIN_ID
                 ? null
@@ -231,7 +231,7 @@ describe("Admin users and credits overview", () => {
                     monthlyCreditsCents: 4000,
                     storageLimitBytes: 107374182400,
                     status: "active",
-                    currentPeriodEnd: "2026-05-01T00:00:00.000Z",
+                    currentPeriodEnd: "2026-04-30T12:00:00.000Z",
                   },
           linkedOffer:
             userId === USER_2_ID || userId === ADMIN_ID
@@ -325,7 +325,7 @@ describe("Admin users and credits overview", () => {
                   priceId: "price_current_business",
                   recurringPriceCents: 3000,
                   currency: "usd",
-                  currentPeriodEnd: "2026-05-01T00:00:00.000Z",
+                  currentPeriodEnd: "2026-04-30T12:00:00.000Z",
                 }
               : {
                   configured: true,
@@ -335,7 +335,7 @@ describe("Admin users and credits overview", () => {
                   priceId: "price_legacy_studio",
                   recurringPriceCents: 1000,
                   currency: "usd",
-                  currentPeriodEnd: "2026-05-01T00:00:00.000Z",
+                  currentPeriodEnd: "2026-04-30T12:00:00.000Z",
                 },
           pricingObservability:
             userId === USER_2_ID || userId === ADMIN_ID
@@ -546,7 +546,7 @@ describe("Admin users and credits overview", () => {
             availableCredits: 0,
             reservedCredits: 0,
             subscriptionStatus: "inactive",
-            createdAt: "2026-03-02T00:00:00.000Z",
+            createdAt: "2026-03-02T12:00:00.000Z",
           },
           {
             id: ADMIN_ID,
@@ -562,7 +562,7 @@ describe("Admin users and credits overview", () => {
             availableCredits: 5000,
             reservedCredits: 0,
             subscriptionStatus: "active",
-            createdAt: "2026-03-03T00:00:00.000Z",
+            createdAt: "2026-03-02T12:00:00.000Z",
           },
         ],
         pagination: {

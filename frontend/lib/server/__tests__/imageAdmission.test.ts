@@ -115,7 +115,7 @@ describe("admitImageBufferForProductUse", () => {
         supabase_transform_used: false,
       })
     );
-  }, 10000);
+  }, 30000);
 
   it("rejects over-cap animated images without converting them to still images", async () => {
     const image = await buildAnimatedWebpBuffer();

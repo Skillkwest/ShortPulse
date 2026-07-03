@@ -61,7 +61,7 @@ import { MediaLibraryAllItemsGrid } from "./media-library-modal/MediaLibraryAllI
 import { MediaLibraryMediaGrid } from "./media-library-modal/MediaLibraryMediaGrid";
 import { MediaLibraryPanelPreviewModal } from "./media-library-modal/MediaLibraryPanelPreviewModal";
 import { MediaLibraryPromptDetailModal } from "./media-library-modal/MediaLibraryPromptDetailModal";
-import { useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
+import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 import type { StudioOutput, WorkflowReloadMediaKindHint } from "../types";
 import type { LibraryMediaReferencePayload } from "../reference-grid/referenceGridTypes";
 import {
@@ -1103,21 +1103,23 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         disableUploads={shouldDisableUploads}
       />
       {folderOpenGhost ? (
-        <div
-          key={folderOpenGhost.key}
-          className="media-library-panel-folder-open-ghost"
-          aria-hidden="true"
-          style={{
-            left: `${folderOpenGhost.left}px`,
-            top: `${folderOpenGhost.top}px`,
-            width: `${folderOpenGhost.width}px`,
-            height: `${folderOpenGhost.height}px`,
-          }}
-        >
-          {/* Decorative folder-open echo for double-click navigation. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={FOLDER_OPEN_GHOST_IMAGE_SRC} alt="" />
-        </div>
+        <AiStudioModalLayer>
+          <div
+            key={folderOpenGhost.key}
+            className="media-library-panel-folder-open-ghost"
+            aria-hidden="true"
+            style={{
+              left: `${folderOpenGhost.left}px`,
+              top: `${folderOpenGhost.top}px`,
+              width: `${folderOpenGhost.width}px`,
+              height: `${folderOpenGhost.height}px`,
+            }}
+          >
+            {/* Decorative folder-open echo for double-click navigation. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={FOLDER_OPEN_GHOST_IMAGE_SRC} alt="" />
+          </div>
+        </AiStudioModalLayer>
       ) : null}
 
       <div ref={splitContainerRef} className="media-library-panel-split">

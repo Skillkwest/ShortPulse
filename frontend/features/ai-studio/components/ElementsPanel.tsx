@@ -13,6 +13,7 @@ import { useElementsPanelPropertiesScrollLock } from "../hooks/useElementsPanelP
 import type { CanvasTearOutComposerTargetRegistry } from "../hooks/useAiStudioCanvasTearOutTargets";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
 import type { InternalReferenceDragPayload } from "../utils/dragDrop";
+import type { GenerationAccessCta } from "../logic/generationAccessCta";
 
 type ElementsPanelProps = {
   resolveProfileImageDropSource?: ResolveInternalReferenceDrop;
@@ -28,6 +29,7 @@ type ElementsPanelProps = {
   onDetailSelectionTargetChange?: (target: SharedMediaDetailSelectionTarget | null) => void;
   onSnapshotVideoFrame?: SharedMediaDetailVideoSnapshotHandler;
   onSnapshotVideoFrameError?: SharedMediaDetailVideoSnapshotErrorHandler;
+  generationAccessCta?: GenerationAccessCta | null;
 };
 
 const ELEMENTS_PANEL_SIDE_GUTTER_REDUCTION_PX = 8;
@@ -49,6 +51,7 @@ export function ElementsPanel({
   onDetailSelectionTargetChange,
   onSnapshotVideoFrame,
   onSnapshotVideoFrameError,
+  generationAccessCta = null,
 }: ElementsPanelProps) {
   const panelRootRef = React.useRef<HTMLDivElement | null>(null);
 
@@ -73,6 +76,7 @@ export function ElementsPanel({
         onDetailSelectionTargetChange={onDetailSelectionTargetChange}
         onSnapshotVideoFrame={onSnapshotVideoFrame}
         onSnapshotVideoFrameError={onSnapshotVideoFrameError}
+        generationAccessCta={generationAccessCta}
       />
     </div>
   );

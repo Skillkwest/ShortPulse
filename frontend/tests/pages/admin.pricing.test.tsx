@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import AdminCatalogPage from "../../pages/admin/catalog";
 import AdminPricingPage from "../../pages/admin/pricing";
 import type { AdminPricingStateResponse } from "../../features/admin/types";
 
@@ -209,15 +210,6 @@ const buildPricingStateWithPlans = (): AdminPricingStateResponse => ({
   ],
 });
 
-const maybeOpenCatalogTools = () => {
-  const toggle = screen.queryByRole("button", {
-    name: /Show catalog tools|Hide catalog tools/,
-  });
-  if (toggle && toggle.textContent?.includes("Show")) {
-    fireEvent.click(toggle);
-  }
-};
-
 describe("Admin pricing page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -293,7 +285,24 @@ describe("Admin pricing page", () => {
     expect(screen.getByText(/Background refresh failed\./)).toBeInTheDocument();
   });
 
-  it("renders catalog warnings and catalog tools for inactive entries", () => {
+  it("keeps catalog tools off the model pricing page", () => {
+    useAdminPricingControllerMock.mockReturnValue({
+      pricingState: buildPricingStateWithPlans(),
+      pricingLoading: false,
+      pricingRefreshing: false,
+      pricingError: null,
+      refreshPricingState: refreshPricingStateMock,
+    });
+
+    render(<AdminPricingPage />);
+
+    expect(screen.getByRole("heading", { level: 1, name: "Model Pricing" })).toBeInTheDocument();
+    expect(screen.getByText("Pricing Grid")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Catalog tools" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Create new plan" })).not.toBeInTheDocument();
+  });
+
+  it("renders catalog warnings and catalog tools on the catalog page", () => {
     const state = buildPricingState();
     state.creditPackages = [
       {
@@ -338,15 +347,16 @@ describe("Admin pricing page", () => {
       refreshPricingState: refreshPricingStateMock,
     });
 
-    render(<AdminPricingPage />);
-    maybeOpenCatalogTools();
+    render(<AdminCatalogPage />);
 
+    expect(screen.getByRole("heading", { level: 1, name: "Catalog" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Catalog warnings" })).toBeInTheDocument();
     expect(
       screen.getByText("1 active public plan offer missing Stripe price ids.")
     ).toBeInTheDocument();
-    expect(screen.getByText("Pricing Grid")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Add simulator plan" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Catalog tools" })).toBeInTheDocument();
+    expect(screen.queryByText("Pricing Grid")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add simulator plan" })).not.toBeInTheDocument();
   });
 
   it("renders workbook controls and lets the admin add simulator plans", () => {
@@ -508,8 +518,7 @@ describe("Admin pricing page", () => {
       refreshPricingState: refreshPricingStateMock,
     });
 
-    render(<AdminPricingPage />);
-    maybeOpenCatalogTools();
+    render(<AdminCatalogPage />);
 
     fireEvent.click(screen.getAllByRole("button", { name: "Edit monthly" })[0]!);
     fireEvent.change(screen.getByLabelText("Recurring price (cents)"), {
@@ -553,8 +562,7 @@ describe("Admin pricing page", () => {
       refreshPricingState: refreshPricingStateMock,
     });
 
-    render(<AdminPricingPage />);
-    maybeOpenCatalogTools();
+    render(<AdminCatalogPage />);
 
     fireEvent.click(screen.getByRole("button", { name: "Create new plan" }));
     fireEvent.change(screen.getByLabelText("Plan id"), {
@@ -617,8 +625,7 @@ describe("Admin pricing page", () => {
       refreshPricingState: refreshPricingStateMock,
     });
 
-    render(<AdminPricingPage />);
-    maybeOpenCatalogTools();
+    render(<AdminCatalogPage />);
 
     fireEvent.click(screen.getByRole("button", { name: "Create annual" }));
     fireEvent.change(screen.getByLabelText("Stripe price id"), {

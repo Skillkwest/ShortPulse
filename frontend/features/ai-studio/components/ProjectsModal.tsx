@@ -141,6 +141,7 @@ export function ProjectsModal({
   });
   const loadStateRef = React.useRef(loadState);
   const [actionError, setActionError] = React.useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = React.useState<string | null>(null);
   const [pendingProjectId, setPendingProjectId] = React.useState<string | null>(null);
   const [deleteConfirmProject, setDeleteConfirmProject] = React.useState<ProjectListRecord | null>(
     null
@@ -154,6 +155,13 @@ export function ProjectsModal({
   const projectNameModalWasOpenRef = React.useRef(false);
   useAiStudioModalActivity("projects-modal", isOpen);
   const hasProjectActionInFlight = Boolean(pendingProjectId || deletePendingProjectId);
+  const selectedProject = React.useMemo(
+    () => loadState.projects.find((project) => project.id === selectedProjectId) ?? null,
+    [loadState.projects, selectedProjectId]
+  );
+  const canDeleteSelectedProject = Boolean(
+    selectedProject && selectedProject.id !== currentProjectId && !hasProjectActionInFlight
+  );
   const {
     isOpen: isProjectNameModalOpen,
     title: createProjectTitle,
@@ -254,6 +262,7 @@ export function ProjectsModal({
   React.useEffect(() => {
     if (!isOpen) {
       setActionError(null);
+      setSelectedProjectId(null);
       setPendingProjectId(null);
       projectOpenInFlightIdRef.current = null;
       setDeleteConfirmProject(null);
@@ -263,6 +272,12 @@ export function ProjectsModal({
     }
     return loadProjects();
   }, [isOpen, loadProjects]);
+
+  React.useEffect(() => {
+    if (!selectedProjectId) return;
+    if (loadState.projects.some((project) => project.id === selectedProjectId)) return;
+    setSelectedProjectId(null);
+  }, [loadState.projects, selectedProjectId]);
 
   React.useEffect(() => {
     if (isOpen) {
@@ -316,7 +331,7 @@ export function ProjectsModal({
     disabled: !isOpen || isProjectNameModalOpen,
   });
 
-  const handleProjectSelect = React.useCallback(
+  const handleProjectOpen = React.useCallback(
     async (projectId: string) => {
       if (projectOpenInFlightIdRef.current) return;
       if (projectId === currentProjectId) {
@@ -340,6 +355,19 @@ export function ProjectsModal({
       }
     },
     [currentProjectId, onClose, onSelectProject]
+  );
+
+  const handleProjectClick = React.useCallback(
+    (projectId: string) => {
+      if (projectOpenInFlightIdRef.current || deleteInFlightProjectIdRef.current) return;
+      if (selectedProjectId !== projectId) {
+        setActionError(null);
+        setSelectedProjectId(projectId);
+        return;
+      }
+      void handleProjectOpen(projectId);
+    },
+    [handleProjectOpen, selectedProjectId]
   );
 
   const openDeleteConfirm = React.useCallback((project: ProjectListRecord) => {
@@ -368,6 +396,7 @@ export function ProjectsModal({
       if (!response.ok) {
         if (response.status === 404) {
           setLoadState((current) => removeProjectFromLoadState(current, deleteConfirmProject.id));
+          setSelectedProjectId((current) => (current === deleteConfirmProject.id ? null : current));
           setDeleteConfirmProject(null);
           return;
         }
@@ -375,6 +404,7 @@ export function ProjectsModal({
       }
 
       setLoadState((current) => removeProjectFromLoadState(current, deleteConfirmProject.id));
+      setSelectedProjectId((current) => (current === deleteConfirmProject.id ? null : current));
       setDeleteConfirmProject(null);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Failed to delete project.");
@@ -419,6 +449,29 @@ export function ProjectsModal({
                 New Project
               </button>
             ) : null}
+            <button
+              type="button"
+              className="ghost-btn mini ai-projects-modal-delete-selected-button"
+              onClick={() => {
+                if (!selectedProject || !canDeleteSelectedProject) return;
+                openDeleteConfirm(selectedProject);
+              }}
+              aria-label={
+                selectedProject
+                  ? `Delete selected project ${selectedProject.title}`
+                  : "Delete selected project"
+              }
+              title={
+                selectedProject?.id === currentProjectId
+                  ? "Current project cannot be deleted here."
+                  : selectedProject
+                    ? `Delete ${selectedProject.title}`
+                    : "Select a project to delete"
+              }
+              disabled={!canDeleteSelectedProject}
+            >
+              <Trash size={15} weight="bold" aria-hidden="true" />
+            </button>
             <button
               ref={closeButtonRef}
               type="button"
@@ -489,6 +542,7 @@ export function ProjectsModal({
             <div className="ai-projects-modal-grid" aria-label="Saved projects">
               {loadState.projects.map((project) => {
                 const isCurrentProject = project.id === currentProjectId;
+                const isSelectedProject = project.id === selectedProjectId;
                 const isPending =
                   pendingProjectId === project.id || deletePendingProjectId === project.id;
                 const isInteractionDisabled = hasProjectActionInFlight || isPending;
@@ -498,72 +552,70 @@ export function ProjectsModal({
                     key={project.id}
                     className={`ai-projects-modal-card-shell${isCurrentProject ? " is-current" : ""}${
                       isPending ? " is-pending" : ""
-                    }`}
+                    }${isSelectedProject ? " is-selected" : ""}`}
                   >
                     <button
                       type="button"
-                      className={`ai-projects-modal-card${isCurrentProject ? " is-current" : ""}`}
+                      className={`ai-projects-modal-card${isCurrentProject ? " is-current" : ""}${
+                        isSelectedProject ? " is-selected" : ""
+                      }`}
                       onClick={() => {
-                        void handleProjectSelect(project.id);
+                        handleProjectClick(project.id);
                       }}
                       aria-label={
-                        isCurrentProject
-                          ? `Current project ${project.title}`
-                          : `Open project ${project.title}`
+                        isSelectedProject
+                          ? `Open project ${project.title}`
+                          : isCurrentProject
+                            ? `Current project ${project.title}`
+                            : `Select project ${project.title}`
                       }
+                      aria-pressed={isSelectedProject}
                       disabled={isInteractionDisabled}
                     >
-                      <div className="ai-projects-modal-card-topline">
-                        <span className="ai-projects-modal-card-title">{project.title}</span>
-                        {showStatusPill ? (
-                          <span
-                            className={`ai-projects-modal-status-pill${
-                              isCurrentProject ? " is-current" : ""
-                            }`}
-                          >
-                            {pendingProjectId === project.id
-                              ? "Opening..."
-                              : deletePendingProjectId === project.id
-                                ? "Deleting..."
-                                : "Current"}
-                          </span>
-                        ) : null}
-                      </div>
-                      <div className="ai-projects-modal-card-body">
-                        {project.previewImageUrls?.length ? (
-                          <div
-                            className="ai-projects-modal-card-preview-grid"
-                            data-testid={`project-preview-grid-${project.id}`}
-                            data-count={Math.min(project.previewImageUrls.length, 4)}
-                            aria-hidden="true"
-                          >
-                            {project.previewImageUrls.slice(0, 4).map((url, index) => (
+                      {isSelectedProject && !isPending ? (
+                        <span className="ai-projects-modal-card-open-label">Open</span>
+                      ) : (
+                        <>
+                          <div className="ai-projects-modal-card-topline">
+                            <span className="ai-projects-modal-card-title">{project.title}</span>
+                            {showStatusPill ? (
                               <span
-                                key={`${project.id}-preview-${index}`}
-                                className="ai-projects-modal-card-preview-tile"
+                                className={`ai-projects-modal-status-pill${
+                                  isCurrentProject ? " is-current" : ""
+                                }`}
                               >
-                                {/* Signed thumbnail URLs are already surface-sized for this modal. */}
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={url} alt="" loading="lazy" decoding="async" />
+                                {pendingProjectId === project.id
+                                  ? "Opening..."
+                                  : deletePendingProjectId === project.id
+                                    ? "Deleting..."
+                                    : "Current"}
                               </span>
-                            ))}
+                            ) : null}
                           </div>
-                        ) : null}
-                      </div>
+                          <div className="ai-projects-modal-card-body">
+                            {project.previewImageUrls?.length ? (
+                              <div
+                                className="ai-projects-modal-card-preview-grid"
+                                data-testid={`project-preview-grid-${project.id}`}
+                                data-count={Math.min(project.previewImageUrls.length, 4)}
+                                aria-hidden="true"
+                              >
+                                {project.previewImageUrls.slice(0, 4).map((url, index) => (
+                                  <span
+                                    key={`${project.id}-preview-${index}`}
+                                    className="ai-projects-modal-card-preview-tile"
+                                  >
+                                    {/* Signed thumbnail URLs are already surface-sized for this modal. */}
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src={url} alt="" loading="lazy" decoding="async" />
+                                  </span>
+                                ))}
+                              </div>
+                            ) : null}
+                          </div>
+                        </>
+                      )}
                     </button>
-                    {!isCurrentProject ? (
-                      <button
-                        type="button"
-                        className="ai-projects-modal-card-delete"
-                        onClick={() => {
-                          openDeleteConfirm(project);
-                        }}
-                        aria-label={`Delete project ${project.title}`}
-                        disabled={isInteractionDisabled}
-                      >
-                        <Trash size={15} weight="bold" />
-                      </button>
-                    ) : null}
                   </div>
                 );
               })}

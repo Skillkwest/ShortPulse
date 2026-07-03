@@ -16,6 +16,8 @@ import styles from "../../styles/admin.module.css";
 
 type PricingCatalogSectionsProps = {
   pricingState: AdminPricingStateResponse | null;
+  defaultExpanded?: boolean;
+  showToggle?: boolean;
   planDraft: PlanCreateDraft | null;
   setPlanDraft: React.Dispatch<React.SetStateAction<PlanCreateDraft | null>>;
   planOfferDraft: PlanOfferDraft | null;
@@ -47,6 +49,8 @@ type PricingCatalogSectionsProps = {
 
 export function PricingCatalogSections({
   pricingState,
+  defaultExpanded = false,
+  showToggle = true,
   planDraft,
   setPlanDraft,
   planOfferDraft,
@@ -76,7 +80,7 @@ export function PricingCatalogSections({
   onConfirmStorageOffer,
 }: PricingCatalogSectionsProps) {
   const hasOpenEditor = Boolean(planDraft || planOfferDraft || creditDraft || storageDraft);
-  const [isExpanded, setIsExpanded] = React.useState(hasOpenEditor);
+  const [isExpanded, setIsExpanded] = React.useState(defaultExpanded || hasOpenEditor);
 
   React.useEffect(() => {
     if (hasOpenEditor) setIsExpanded(true);
@@ -88,14 +92,16 @@ export function PricingCatalogSections({
         <div>
           <h2 className={styles.adminSectionTitle}>Catalog tools</h2>
         </div>
-        <button
-          type="button"
-          className="ghost-btn mini"
-          aria-expanded={isExpanded}
-          onClick={() => setIsExpanded((current) => !current)}
-        >
-          {isExpanded ? "Hide catalog tools" : "Show catalog tools"}
-        </button>
+        {showToggle ? (
+          <button
+            type="button"
+            className="ghost-btn mini"
+            aria-expanded={isExpanded}
+            onClick={() => setIsExpanded((current) => !current)}
+          >
+            {isExpanded ? "Hide catalog tools" : "Show catalog tools"}
+          </button>
+        ) : null}
       </div>
 
       {isExpanded ? (

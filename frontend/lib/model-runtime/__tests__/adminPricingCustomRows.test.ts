@@ -108,7 +108,7 @@ describe("adminPricingCustomRows", () => {
     ).toEqual([
       expect.objectContaining({
         displayRowId: "builtin:flux-2-klein-audio-companion-art",
-        label: "Audio reference background",
+        label: "Sound reference background companion art",
         variantId: `${FAL_FLUX_2_KLEIN_AUDIO_COMPANION_ART_VARIANT_BASE_ID}|res:model_default|aspect:1:1`,
         spec: expect.objectContaining({
           baseVariantId: FAL_FLUX_2_KLEIN_AUDIO_COMPANION_ART_VARIANT_BASE_ID,
@@ -118,7 +118,7 @@ describe("adminPricingCustomRows", () => {
       }),
       expect.objectContaining({
         displayRowId: "builtin:flux-2-klein-style-preview",
-        label: "Style placeholder preview",
+        label: "Text-only style creation generation",
         variantId: `${FAL_FLUX_2_KLEIN_STYLE_PREVIEW_VARIANT_BASE_ID}|res:model_default|aspect:1:1`,
         spec: expect.objectContaining({
           baseVariantId: FAL_FLUX_2_KLEIN_STYLE_PREVIEW_VARIANT_BASE_ID,

@@ -8,6 +8,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AiStudioPageContent } from "../AiStudioPageContent";
 import {
+  AI_SHELL_LEFT_MEDIA_LIBRARY_MIN_PX,
   AI_SHELL_LEFT_PRESETS_MIN_PX,
   AI_SHELL_RIGHT_COLLAPSED_MIN_PX,
 } from "../../logic/shellResize";
@@ -828,4 +829,16 @@ describe("AiStudioPageContent header project name", () => {
       );
     }
   );
+
+  it("gives the Media Library panel its own wider minimum left column", () => {
+    render(<AiStudioPageContent {...createProps()} selectedTool="media-library" />);
+
+    expect(useAiStudioShellResizeMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        minLeftWidthPx: AI_SHELL_LEFT_MEDIA_LIBRARY_MIN_PX,
+        minRightWidthPx: undefined,
+        allowLeftCollapse: false,
+      })
+    );
+  });
 });

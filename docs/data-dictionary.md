@@ -33,7 +33,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `preview_variant_path` (text, nullable): Preferred video-preview derivative storage path.
 - `created_at` (timestamptz, default now)
 - `updated_at` (timestamptz, default now)
-- RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
+- RLS: select/update/delete allowed only when `user_id = auth.uid()`; insert also requires `user_has_paid_media_library_access(auth.uid())` so baseline-access accounts cannot create Media Library or Reference Grid media rows.
 - Integrity checks:
   - `source` constrained to `upload | private_upload | ai_studio | character_reference | character_generation | character_quickswap`.
   - `source` is non-null with default `upload` (see `sql/migrations/007_harden_media_source_and_usage_rpc.sql`).
@@ -218,7 +218,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `source` (text, default `manual`): manual | ai_studio | agent.
 - `created_at` (timestamptz, default now)
 - `updated_at` (timestamptz, default now)
-- RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
+- RLS: select/update/delete allowed only when `user_id = auth.uid()`; insert also requires `user_has_paid_media_library_access(auth.uid())` so baseline-access accounts cannot save prompts into the Reference Grid.
 
 ### media_folders
 

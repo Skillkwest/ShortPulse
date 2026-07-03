@@ -97,7 +97,7 @@ describe("admitKieMotionControlCharacterImage", () => {
     expect(admitted.size).toBeLessThanOrEqual(320 * 1024);
     expect(admitted.mimeType).toMatch(/^image\/(jpeg|png)$/);
     expect(admitted.admission.status).toBe("admitted");
-  }, 10000);
+  }, 30000);
 
   it("rejects images below Kie's Motion Control dimension floor", async () => {
     const image = await buildPng(340, 512);

@@ -11,6 +11,7 @@ import {
   AI_SHELL_LEFT_CREATE_MAX_PX,
   AI_SHELL_LEFT_CREATE_MIN_PX,
   AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX,
+  AI_SHELL_LEFT_MEDIA_LIBRARY_MIN_PX,
   AI_SHELL_LEFT_MIN_FALLBACK_PX,
   AI_SHELL_LEFT_MIN_PX,
   AI_SHELL_LEFT_PRESETS_MIN_PX,
@@ -217,6 +218,7 @@ describe("resolveAiShellLayoutMode", () => {
     { label: "Video", minLeftWidthPx: AI_SHELL_LEFT_VIDEO_MIN_PX },
     { label: "Sound", minLeftWidthPx: AI_SHELL_LEFT_SOUND_MIN_PX },
     { label: "Presets", minLeftWidthPx: AI_SHELL_LEFT_PRESETS_MIN_PX },
+    { label: "Media Library", minLeftWidthPx: AI_SHELL_LEFT_MEDIA_LIBRARY_MIN_PX },
     { label: "Character", minLeftWidthPx: AI_SHELL_LEFT_CHARACTER_MIN_PX },
   ] as const;
 

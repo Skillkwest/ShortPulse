@@ -766,6 +766,8 @@ const AiStudioPageRuntimeBody = ({
     (event: React.ChangeEvent<HTMLInputElement>) => {
       if (event.target.files && event.target.files.length > 0 && generationAccessCta) {
         handleMediaPlanAccessAttempt();
+        event.target.value = "";
+        return;
       }
       handleFileBrowserSelection(event);
     },
@@ -775,6 +777,7 @@ const AiStudioPageRuntimeBody = ({
     (files: FileList) => {
       if (files.length > 0 && generationAccessCta) {
         handleMediaPlanAccessAttempt();
+        return;
       }
       handleReferenceGridFiles(files);
     },

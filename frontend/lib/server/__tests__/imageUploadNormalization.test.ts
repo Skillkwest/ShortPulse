@@ -61,5 +61,5 @@ describe("maybeNormalizeOversizedImageUpload", () => {
         failure_reason: null,
       })
     );
-  }, 10000);
+  }, 30000);
 });

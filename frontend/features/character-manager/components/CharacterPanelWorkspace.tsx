@@ -50,6 +50,7 @@ import {
 import { AiStudioModalLayer } from "../../ai-studio/components/modal-layer/AiStudioModalLayer";
 import type { CanvasTearOutComposerTargetRegistry } from "../../ai-studio/hooks/useAiStudioCanvasTearOutTargets";
 import type { AgentComposerDirectDropPayload } from "../../ai-studio/logic/agentComposerDirectDropPayload";
+import type { GenerationAccessCta } from "../../ai-studio/logic/generationAccessCta";
 
 type CharacterPanelWorkspaceProps = {
   resolveCharacterDropReference?: ResolveCharacterDropReference;
@@ -60,6 +61,7 @@ type CharacterPanelWorkspaceProps = {
   preferredCharacterId?: string | null;
   suppressSelectedCharacterPersistence?: boolean;
   onSelectedCharacterIdChange?: (characterId: string | null) => void;
+  generationAccessCta?: GenerationAccessCta | null;
 };
 
 const CHARACTER_DESCRIPTION_MAX_LENGTH = 150;
@@ -385,6 +387,7 @@ export function CharacterPanelWorkspace({
   preferredCharacterId = null,
   suppressSelectedCharacterPersistence = false,
   onSelectedCharacterIdChange,
+  generationAccessCta = null,
 }: CharacterPanelWorkspaceProps) {
   const editorColumnPanelRef = React.useRef<HTMLDivElement | null>(null);
   const characterSheetDropZoneRefs = React.useRef(
@@ -1170,8 +1173,9 @@ export function CharacterPanelWorkspace({
     if (externalCreateRequestKey === 0) return;
     if (lastHandledExternalCreateRequestKeyRef.current === externalCreateRequestKey) return;
     lastHandledExternalCreateRequestKeyRef.current = externalCreateRequestKey;
+    if (generationAccessCta) return;
     void handleCreateNewCharacter();
-  }, [externalCreateRequestKey, handleCreateNewCharacter]);
+  }, [externalCreateRequestKey, generationAccessCta, handleCreateNewCharacter]);
 
   React.useEffect(() => {
     const activeUploadRequest = externalUploadRequest;
@@ -1268,30 +1272,40 @@ export function CharacterPanelWorkspace({
                   <div className="character-profile-card" style={characterProfileCardStyle}>
                     <div className="character-panel-profile-top-row" style={topRowActionsStyle}>
                       <div style={topRowPrimaryActionsStyle}>
-                        <button
-                          type="button"
-                          className="character-panel-action-btn character-panel-action-btn--picker-accent"
-                          style={charactersTopButtonStyle}
-                          aria-describedby={
-                            isSavingCharacter ? "character-save-progress-status" : undefined
-                          }
-                          onClick={() => setIsCharacterLibraryModalOpen(true)}
-                          onMouseEnter={() => setHoveredTopActionButton("characters")}
-                          onMouseLeave={() =>
-                            setHoveredTopActionButton((current) =>
-                              current === "characters" ? null : current
-                            )
-                          }
-                          disabled={characterLibraryButtonDisabled}
-                        >
-                          <FolderSimple
-                            size={CHARACTER_FOLDER_ICON_SIZE_PX}
-                            weight="fill"
-                            aria-hidden
-                            style={CHARACTER_FOLDER_ICON_INLINE_STYLE}
-                          />
-                          <span style={CHARACTER_BUTTON_LABEL_INLINE_STYLE}>Characters</span>
-                        </button>
+                        {generationAccessCta ? (
+                          <a
+                            className="app-message__action ai-panel-plan-access-cta"
+                            href={generationAccessCta.href}
+                            aria-label={generationAccessCta.ariaLabel}
+                          >
+                            {generationAccessCta.label}
+                          </a>
+                        ) : (
+                          <button
+                            type="button"
+                            className="character-panel-action-btn character-panel-action-btn--picker-accent"
+                            style={charactersTopButtonStyle}
+                            aria-describedby={
+                              isSavingCharacter ? "character-save-progress-status" : undefined
+                            }
+                            onClick={() => setIsCharacterLibraryModalOpen(true)}
+                            onMouseEnter={() => setHoveredTopActionButton("characters")}
+                            onMouseLeave={() =>
+                              setHoveredTopActionButton((current) =>
+                                current === "characters" ? null : current
+                              )
+                            }
+                            disabled={characterLibraryButtonDisabled}
+                          >
+                            <FolderSimple
+                              size={CHARACTER_FOLDER_ICON_SIZE_PX}
+                              weight="fill"
+                              aria-hidden
+                              style={CHARACTER_FOLDER_ICON_INLINE_STYLE}
+                            />
+                            <span style={CHARACTER_BUTTON_LABEL_INLINE_STYLE}>Characters</span>
+                          </button>
+                        )}
                       </div>
                       <div style={topRowSecondaryActionsStyle}>
                         {isSavingCharacter ? (
@@ -1339,24 +1353,26 @@ export function CharacterPanelWorkspace({
                         >
                           <FloppyDisk size={20} weight="fill" aria-hidden />
                         </button>
-                        <button
-                          type="button"
-                          className="character-panel-action-btn character-panel-action-btn--picker-accent"
-                          style={createTopButtonStyle}
-                          onClick={() => {
-                            void handleCreateNewCharacter();
-                          }}
-                          onMouseEnter={() => setHoveredTopActionButton("create")}
-                          onMouseLeave={() =>
-                            setHoveredTopActionButton((current) =>
-                              current === "create" ? null : current
-                            )
-                          }
-                          disabled={createActionDisabled}
-                        >
-                          <Plus size={14} weight="bold" aria-hidden />
-                          <span>Create</span>
-                        </button>
+                        {generationAccessCta ? null : (
+                          <button
+                            type="button"
+                            className="character-panel-action-btn character-panel-action-btn--picker-accent"
+                            style={createTopButtonStyle}
+                            onClick={() => {
+                              void handleCreateNewCharacter();
+                            }}
+                            onMouseEnter={() => setHoveredTopActionButton("create")}
+                            onMouseLeave={() =>
+                              setHoveredTopActionButton((current) =>
+                                current === "create" ? null : current
+                              )
+                            }
+                            disabled={createActionDisabled}
+                          >
+                            <Plus size={14} weight="bold" aria-hidden />
+                            <span>Create</span>
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -1789,16 +1805,26 @@ export function CharacterPanelWorkspace({
         onClose={() => setIsCharacterLibraryModalOpen(false)}
         headerActions={
           <div className="model-modal-header-actions">
-            <button
-              type="button"
-              className="ai-character-picker-library-btn"
-              disabled={createActionDisabled}
-              onClick={() => {
-                void handleCreateNewCharacter();
-              }}
-            >
-              + Create New Character
-            </button>
+            {generationAccessCta ? (
+              <a
+                className="app-message__action ai-panel-plan-access-cta"
+                href={generationAccessCta.href}
+                aria-label={generationAccessCta.ariaLabel}
+              >
+                {generationAccessCta.label}
+              </a>
+            ) : (
+              <button
+                type="button"
+                className="ai-character-picker-library-btn"
+                disabled={createActionDisabled}
+                onClick={() => {
+                  void handleCreateNewCharacter();
+                }}
+              >
+                + Create New Character
+              </button>
+            )}
             <button
               type="button"
               className="ghost-btn mini model-modal-close"

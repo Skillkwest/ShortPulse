@@ -4,6 +4,8 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 
+- AI Studio navigation:
+  - retired the hidden `My Generations` toolbar entry and removed its stale coming-soon/snapshot allow-list wiring, leaving generated work discovery owned by the active Reference Grid and Media Library surfaces.
 - AI Studio Styles Library:
   - added a Restore built-ins action that clears only the per-user built-in Style deletion denylist, preserving custom Styles, custom order, and admin-managed built-in definitions,
   - and clarified built-in Style delete copy so account-local removal is not described as permanent deletion.

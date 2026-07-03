@@ -31,6 +31,7 @@ import { readMediaLibraryDragPayload } from "../../ai-studio/logic/mediaLibraryD
 import type { AgentComposerDirectDropPayload } from "../../ai-studio/logic/agentComposerDirectDropPayload";
 import type { CanvasTearOutComposerTargetRegistry } from "../../ai-studio/hooks/useAiStudioCanvasTearOutTargets";
 import type { ResolveInternalReferenceDrop } from "../../ai-studio/logic/referenceSource/internalReferenceSource";
+import type { GenerationAccessCta } from "../../ai-studio/logic/generationAccessCta";
 import { hasDroppedImageReferenceTransfer } from "../../character-manager/logic/characterDropPayload";
 import { buildElementProfileImageBackgroundStyle } from "../logic/elementProfileImageTransform";
 import { swapElementImageReferenceSlots } from "../logic/elementReferenceSlots";
@@ -48,6 +49,7 @@ type ElementsManagerShellProps = {
   resolveProfileImageDropSource?: ResolveInternalReferenceDrop;
   externalCreateRequestKey?: number;
   canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
+  generationAccessCta?: GenerationAccessCta | null;
 };
 
 const IMAGE_REFERENCE_SLOT_LABELS = ["Primary View", "Secondary View", "Detail View"] as const;
@@ -374,6 +376,7 @@ export function ElementsManagerShell({
   resolveProfileImageDropSource,
   externalCreateRequestKey = 0,
   canvasTearOutTargetRegistry,
+  generationAccessCta = null,
 }: ElementsManagerShellProps) {
   const editorColumnPanelRef = React.useRef<HTMLDivElement | null>(null);
   const elementNameInputRef = React.useRef<HTMLInputElement | null>(null);
@@ -703,10 +706,11 @@ export function ElementsManagerShell({
     if (externalCreateRequestKey === 0) return;
     if (lastHandledExternalCreateRequestKeyRef.current === externalCreateRequestKey) return;
     lastHandledExternalCreateRequestKeyRef.current = externalCreateRequestKey;
+    if (generationAccessCta) return;
     setIsElementLibraryModalOpen(false);
     setShowSaveSuccessIndicator(false);
     void onCreateElement();
-  }, [externalCreateRequestKey, onCreateElement]);
+  }, [externalCreateRequestKey, generationAccessCta, onCreateElement]);
 
   React.useEffect(
     () => () => {
@@ -1149,27 +1153,37 @@ export function ElementsManagerShell({
                       className="elements-panel-top-row-primary-actions"
                       style={topRowPrimaryActionsStyle}
                     >
-                      <button
-                        type="button"
-                        className="elements-panel-action-btn elements-panel-action-btn--picker-accent"
-                        style={elementsTopButtonStyle}
-                        onClick={() => setIsElementLibraryModalOpen(true)}
-                        onMouseEnter={() => setHoveredTopActionButton("elements")}
-                        onMouseLeave={() =>
-                          setHoveredTopActionButton((current) =>
-                            current === "elements" ? null : current
-                          )
-                        }
-                        disabled={libraryButtonDisabled && elements.length === 0}
-                      >
-                        <FolderSimple
-                          size={20}
-                          weight="fill"
-                          aria-hidden
-                          style={ELEMENT_FOLDER_ICON_INLINE_STYLE}
-                        />
-                        <span style={ELEMENT_BUTTON_LABEL_INLINE_STYLE}>Elements</span>
-                      </button>
+                      {generationAccessCta ? (
+                        <a
+                          className="app-message__action ai-panel-plan-access-cta"
+                          href={generationAccessCta.href}
+                          aria-label={generationAccessCta.ariaLabel}
+                        >
+                          {generationAccessCta.label}
+                        </a>
+                      ) : (
+                        <button
+                          type="button"
+                          className="elements-panel-action-btn elements-panel-action-btn--picker-accent"
+                          style={elementsTopButtonStyle}
+                          onClick={() => setIsElementLibraryModalOpen(true)}
+                          onMouseEnter={() => setHoveredTopActionButton("elements")}
+                          onMouseLeave={() =>
+                            setHoveredTopActionButton((current) =>
+                              current === "elements" ? null : current
+                            )
+                          }
+                          disabled={libraryButtonDisabled && elements.length === 0}
+                        >
+                          <FolderSimple
+                            size={20}
+                            weight="fill"
+                            aria-hidden
+                            style={ELEMENT_FOLDER_ICON_INLINE_STYLE}
+                          />
+                          <span style={ELEMENT_BUTTON_LABEL_INLINE_STYLE}>Elements</span>
+                        </button>
+                      )}
                     </div>
 
                     <div
@@ -1222,24 +1236,26 @@ export function ElementsManagerShell({
                       >
                         <FloppyDisk size={20} weight="fill" aria-hidden />
                       </button>
-                      <button
-                        type="button"
-                        className="elements-panel-action-btn elements-panel-action-btn--picker-accent"
-                        style={createTopButtonStyle}
-                        onClick={() => {
-                          handleCreateNewElement();
-                        }}
-                        onMouseEnter={() => setHoveredTopActionButton("create")}
-                        onMouseLeave={() =>
-                          setHoveredTopActionButton((current) =>
-                            current === "create" ? null : current
-                          )
-                        }
-                        disabled={createActionDisabled}
-                      >
-                        <Plus size={14} weight="bold" aria-hidden />
-                        <span style={ELEMENT_BUTTON_LABEL_INLINE_STYLE}>Create</span>
-                      </button>
+                      {generationAccessCta ? null : (
+                        <button
+                          type="button"
+                          className="elements-panel-action-btn elements-panel-action-btn--picker-accent"
+                          style={createTopButtonStyle}
+                          onClick={() => {
+                            handleCreateNewElement();
+                          }}
+                          onMouseEnter={() => setHoveredTopActionButton("create")}
+                          onMouseLeave={() =>
+                            setHoveredTopActionButton((current) =>
+                              current === "create" ? null : current
+                            )
+                          }
+                          disabled={createActionDisabled}
+                        >
+                          <Plus size={14} weight="bold" aria-hidden />
+                          <span style={ELEMENT_BUTTON_LABEL_INLINE_STYLE}>Create</span>
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -1500,16 +1516,26 @@ export function ElementsManagerShell({
         onClose={() => setIsElementLibraryModalOpen(false)}
         headerActions={
           <div className="model-modal-header-actions">
-            <button
-              type="button"
-              className="ai-character-picker-library-btn ai-character-picker-library-btn--elements"
-              disabled={createActionDisabled}
-              onClick={() => {
-                handleCreateNewElement();
-              }}
-            >
-              + Create New Element
-            </button>
+            {generationAccessCta ? (
+              <a
+                className="app-message__action ai-panel-plan-access-cta"
+                href={generationAccessCta.href}
+                aria-label={generationAccessCta.ariaLabel}
+              >
+                {generationAccessCta.label}
+              </a>
+            ) : (
+              <button
+                type="button"
+                className="ai-character-picker-library-btn ai-character-picker-library-btn--elements"
+                disabled={createActionDisabled}
+                onClick={() => {
+                  handleCreateNewElement();
+                }}
+              >
+                + Create New Element
+              </button>
+            )}
             <button
               type="button"
               className="ghost-btn mini model-modal-close"

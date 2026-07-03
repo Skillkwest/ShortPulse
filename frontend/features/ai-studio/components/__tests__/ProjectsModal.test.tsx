@@ -99,10 +99,21 @@ describe("ProjectsModal", () => {
     });
     expect(screen.queryByText("Saved")).not.toBeInTheDocument();
     expect(screen.getByText("Current")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Delete project Current Workspace" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Delete selected project" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /Delete project/i })).toBeNull();
     expect(
       screen.getByTestId("project-preview-grid-project-1").querySelectorAll("img")
     ).toHaveLength(2);
+
+    fireEvent.click(screen.getByRole("button", { name: "Select project Campaign Alpha" }));
+
+    expect(onSelectProject).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Open project Campaign Alpha" })).toHaveTextContent(
+      "Open"
+    );
+    expect(
+      screen.getByRole("button", { name: "Delete selected project Campaign Alpha" })
+    ).toBeEnabled();
 
     fireEvent.click(screen.getByRole("button", { name: "Open project Campaign Alpha" }));
 
@@ -143,10 +154,15 @@ describe("ProjectsModal", () => {
 
     render(<ProjectsModal isOpen onClose={onClose} onSelectProject={onSelectProject} />);
 
-    const alphaButton = await screen.findByRole("button", { name: "Open project Campaign Alpha" });
-    const betaButton = screen.getByRole("button", { name: "Open project Campaign Beta" });
+    const alphaButton = await screen.findByRole("button", {
+      name: "Select project Campaign Alpha",
+    });
+    const betaButton = screen.getByRole("button", { name: "Select project Campaign Beta" });
 
     fireEvent.click(alphaButton);
+    expect(onSelectProject).not.toHaveBeenCalled();
+    const alphaOpenButton = screen.getByRole("button", { name: "Open project Campaign Alpha" });
+    fireEvent.click(alphaOpenButton);
     fireEvent.click(betaButton);
 
     expect(onSelectProject).toHaveBeenCalledTimes(1);
@@ -258,7 +274,9 @@ describe("ProjectsModal", () => {
 
     expect(await screen.findByText("Campaign Alpha")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete project Campaign Alpha" }));
+    expect(screen.getByRole("button", { name: "Delete selected project" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Select project Campaign Alpha" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete selected project Campaign Alpha" }));
 
     expect(screen.getByRole("dialog", { name: "Delete this project?" })).toBeInTheDocument();
 
@@ -303,7 +321,8 @@ describe("ProjectsModal", () => {
 
     expect(await screen.findByText("Campaign Alpha")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete project Campaign Alpha" }));
+    fireEvent.click(screen.getByRole("button", { name: "Select project Campaign Alpha" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete selected project Campaign Alpha" }));
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
     await waitFor(() => {
@@ -336,7 +355,8 @@ describe("ProjectsModal", () => {
 
     expect(await screen.findByText("Campaign Alpha")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete project Campaign Alpha" }));
+    fireEvent.click(screen.getByRole("button", { name: "Select project Campaign Alpha" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete selected project Campaign Alpha" }));
     const deleteButton = screen.getByRole("button", { name: "Delete" });
     fireEvent.click(deleteButton);
     fireEvent.click(deleteButton);
@@ -409,7 +429,8 @@ describe("ProjectsModal", () => {
 
     expect(await screen.findByText("Campaign Alpha")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete project Campaign Alpha" }));
+    fireEvent.click(screen.getByRole("button", { name: "Select project Campaign Alpha" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete selected project Campaign Alpha" }));
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
     expect(await screen.findByText("Session expired. Retry project delete.")).toBeInTheDocument();

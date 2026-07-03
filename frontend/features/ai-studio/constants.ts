@@ -155,7 +155,6 @@ export const shortcutsToolList: ToolConfig[] = [
 ];
 
 export const creationsToolList: ToolConfig[] = [
-  { id: "my-generations", label: "My Generations", desc: "See your outputs" },
   { id: "community", label: "Community", desc: "Browse shared creations" },
 ];
 

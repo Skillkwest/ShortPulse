@@ -8,6 +8,7 @@ import type {
 import type { ResolveCharacterDropReference } from "../hooks/useCharacterManagerDroppedReferenceController";
 import type { InternalReferenceDragPayload } from "../../ai-studio/utils/dragDrop";
 import type { CanvasTearOutComposerTargetRegistry } from "../../ai-studio/hooks/useAiStudioCanvasTearOutTargets";
+import type { GenerationAccessCta } from "../../ai-studio/logic/generationAccessCta";
 import { CharacterEmbeddedMediaLibraryPanel } from "./CharacterEmbeddedMediaLibraryPanel";
 import { CharacterPanelWorkspace } from "./CharacterPanelWorkspace";
 
@@ -30,6 +31,7 @@ type CharacterPanelSplitHostProps = {
   onDetailSelectionTargetChange?: (target: SharedMediaDetailSelectionTarget | null) => void;
   onSnapshotVideoFrame?: SharedMediaDetailVideoSnapshotHandler;
   onSnapshotVideoFrameError?: SharedMediaDetailVideoSnapshotErrorHandler;
+  generationAccessCta?: GenerationAccessCta | null;
 };
 
 const CHARACTER_PANEL_MIN_TOP_HEIGHT_PX = 336;
@@ -55,6 +57,7 @@ export function CharacterPanelSplitHost({
   onDetailSelectionTargetChange,
   onSnapshotVideoFrame,
   onSnapshotVideoFrameError,
+  generationAccessCta = null,
 }: CharacterPanelSplitHostProps) {
   const bottomSectionStyle = React.useMemo<React.CSSProperties>(
     () => ({
@@ -80,6 +83,7 @@ export function CharacterPanelSplitHost({
           preferredCharacterId={preferredCharacterId}
           suppressSelectedCharacterPersistence={suppressSelectedCharacterPersistence}
           onSelectedCharacterIdChange={onSelectedCharacterIdChange}
+          generationAccessCta={generationAccessCta}
         />
       </div>
 

@@ -8,6 +8,7 @@ import type {
 import type { ResolveInternalReferenceDrop } from "../../ai-studio/logic/referenceSource/internalReferenceSource";
 import type { CanvasTearOutComposerTargetRegistry } from "../../ai-studio/hooks/useAiStudioCanvasTearOutTargets";
 import type { InternalReferenceDragPayload } from "../../ai-studio/utils/dragDrop";
+import type { GenerationAccessCta } from "../../ai-studio/logic/generationAccessCta";
 import { ElementsManagerShell } from "./ElementsManagerShell";
 
 type ElementsPanelSplitHostProps = {
@@ -24,6 +25,7 @@ type ElementsPanelSplitHostProps = {
   onDetailSelectionTargetChange?: (target: SharedMediaDetailSelectionTarget | null) => void;
   onSnapshotVideoFrame?: SharedMediaDetailVideoSnapshotHandler;
   onSnapshotVideoFrameError?: SharedMediaDetailVideoSnapshotErrorHandler;
+  generationAccessCta?: GenerationAccessCta | null;
 };
 
 const ELEMENTS_PANEL_MIN_TOP_HEIGHT_PX = 336;
@@ -44,6 +46,7 @@ export function ElementsPanelSplitHost({
   onDetailSelectionTargetChange,
   onSnapshotVideoFrame,
   onSnapshotVideoFrameError,
+  generationAccessCta = null,
 }: ElementsPanelSplitHostProps) {
   const bottomSectionStyle = React.useMemo<React.CSSProperties>(
     () => ({
@@ -65,6 +68,7 @@ export function ElementsPanelSplitHost({
           externalCreateRequestKey={externalCreateRequestKey}
           resolveProfileImageDropSource={resolveProfileImageDropSource}
           canvasTearOutTargetRegistry={canvasTearOutTargetRegistry}
+          generationAccessCta={generationAccessCta}
         />
       </div>
 

@@ -4,10 +4,8 @@ import { AdminRouteShell } from "../../features/admin/components/AdminRouteShell
 import {
   PricingConfirmationDialog,
   PricingCostDocsPopover,
-  PricingHealthSection,
   PricingWorkspaceNotice,
 } from "../../features/admin/PricingPageChrome";
-import { PricingCatalogSections } from "../../features/admin/PricingCatalogSections";
 import { PricingCalculatorSupportStrip } from "../../features/admin/PricingCalculatorSupportStrip";
 import { PricingModelWorkbook } from "../../features/admin/PricingModelWorkbook";
 import { PricingPolicyStatusBar } from "../../features/admin/PricingPolicyStatusBar";
@@ -49,10 +47,10 @@ export default function AdminPricingPage() {
       adminAccessStatus={adminAccessStatus}
       adminAccessError={adminAccessError}
       onRetryAccessCheck={refreshAdminAccess}
-      documentTitle="ShortPulse · Admin Pricing"
-      metaDescription="Grid-first admin pricing calculator for draft runtime pricing and live policy saves."
-      pageTitle="Pricing"
-      pageDescription="Edit draft runtime pricing in the truth grid and save it live when the math looks right."
+      documentTitle="ShortPulse · Admin Model Pricing"
+      metaDescription="Model-pricing calculator for draft runtime pricing and live policy saves."
+      pageTitle="Model Pricing"
+      pageDescription="Edit draft model pricing in the truth grid and save it live when the math looks right."
       userEmail={user?.email}
       currentPath="/admin/pricing"
       mainClassName={styles.adminPricingPageWide}
@@ -98,39 +96,6 @@ export default function AdminPricingPage() {
             onSave={pageState.openModelPolicyApplyConfirmation}
             onReset={pageState.resetModelPolicyDraft}
             onRollback={pageState.openModelPolicyRollbackConfirmation}
-          />
-
-          <PricingHealthSection health={pricingState?.health} />
-
-          <PricingCatalogSections
-            pricingState={pricingState}
-            planDraft={pageState.planDraft}
-            setPlanDraft={pageState.setPlanDraft}
-            planOfferDraft={pageState.planOfferDraft}
-            setPlanOfferDraft={pageState.setPlanOfferDraft}
-            planSaving={pageState.planSaving}
-            planMessage={pageState.planMessage}
-            planError={pageState.planError}
-            setPlanMessage={pageState.setPlanMessage}
-            setPlanError={pageState.setPlanError}
-            onConfirmPlanCreate={pageState.openPlanCreateConfirmation}
-            onConfirmPlanOffer={pageState.openPlanOfferConfirmation}
-            creditDraft={pageState.creditDraft}
-            setCreditDraft={pageState.setCreditDraft}
-            creditSaving={pageState.creditSaving}
-            creditMessage={pageState.creditMessage}
-            creditError={pageState.creditError}
-            setCreditMessage={pageState.setCreditMessage}
-            setCreditError={pageState.setCreditError}
-            onConfirmCreditPackage={pageState.openCreditPackageConfirmation}
-            storageDraft={pageState.storageDraft}
-            setStorageDraft={pageState.setStorageDraft}
-            storageSaving={pageState.storageSaving}
-            storageMessage={pageState.storageMessage}
-            storageError={pageState.storageError}
-            setStorageMessage={pageState.setStorageMessage}
-            setStorageError={pageState.setStorageError}
-            onConfirmStorageOffer={pageState.openStorageOfferConfirmation}
           />
 
           <PricingModelWorkbook

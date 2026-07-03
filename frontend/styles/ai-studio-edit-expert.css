@@ -5347,7 +5347,7 @@
   justify-content: center;
   padding: 0;
   opacity: 0;
-  pointer-events: none;
+  pointer-events: auto;
   z-index: 3;
   box-shadow: 0 8px 14px rgba(0, 0, 0, 0.35);
   transition:

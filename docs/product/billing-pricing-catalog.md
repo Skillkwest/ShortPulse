@@ -23,11 +23,11 @@ Purpose: keep subscription, storage add-on, and credit-pack pricing easy to chan
 - Authenticated account-management surfaces still read those values through the authenticated catalog route:
   - `frontend/pages/api/billing/catalog.ts`
 - Operators can now inspect and update public catalog pricing from:
-  - `/admin/pricing`
+  - `/admin/catalog`
 - New plan tiers can now be created from the same admin surface:
   - `/api/admin/pricing/plans/create` creates the `billing_plans` row, initial monthly and annual current `billing_plan_offers` rows, and the Stripe product plus recurring prices in one operator flow.
 - Existing plan/storage offer activation uses service-role-only atomic RPCs from `sql/migrations/116_add_atomic_admin_pricing_offer_activation_rpcs.sql`.
-- Operators can inspect the active runtime model-pricing policy from the same admin surface, but that policy is a separate control plane from the billing catalog tables in this doc.
+- Operators can inspect the active runtime model-pricing policy from `/admin/pricing`, but that policy is a separate control plane from the billing catalog tables in this doc.
 - UI presentation and package math helpers live in:
   - `frontend/features/billing/catalog.ts`
 - Subscriber-specific recurring terms are stored separately in:
@@ -85,7 +85,7 @@ Public self-serve recurring storage is additionally gated by `frontend/lib/billi
 Only eligible self-serve add-ons for the subscriber's current paid plan may be shown in `/profile?section=storage` or submitted to `/api/billing/storage-addon/change`.
 `storage_500gb` is manual-review only, and recurring storage add-ons must not stack or use quantity greater than one.
 `storage_25gb` is retired from self-serve catalog eligibility and must not render purchase cards or be reactivated as a public offer.
-New recurring storage add-ons are not acquisition-enabled until the matching Stripe recurring Price exists and `/admin/pricing` activates the storage offer; SQL bootstrap and migration seeds keep missing-Stripe offers non-public by default.
+New recurring storage add-ons are not acquisition-enabled until the matching Stripe recurring Price exists and `/admin/catalog` activates the storage offer; SQL bootstrap and migration seeds keep missing-Stripe offers non-public by default.
 
 ### Credit packs
 
@@ -97,9 +97,9 @@ New recurring storage add-ons are not acquisition-enabled until the matching Str
 ## How to change pricing
 
 1. Decide which pricing domain is changing:
-   - billing catalog (`plans`, `storage add-ons`, `credit top-ups`) via `/admin/pricing`
-   - runtime AI model debit policy (`credit conversion`, per-model markup, row-specific round-nearest values) via the same admin page's model-pricing section and `docs/product/ai-studio-pricing.md`
-2. If you are creating a brand-new plan tier, use `/admin/pricing` -> `Create new plan`.
+   - billing catalog (`plans`, `storage add-ons`, `credit top-ups`) via `/admin/catalog`
+   - runtime AI model debit policy (`credit conversion`, per-model markup, row-specific round-nearest values) via `/admin/pricing` and `docs/product/ai-studio-pricing.md`
+2. If you are creating a brand-new plan tier, use `/admin/catalog` -> `Create new plan`.
    - This creates the Stripe product, monthly and annual recurring Stripe prices, the new `billing_plans` row, and the first current monthly and annual `billing_plan_offers` rows together.
 3. If you are changing public pricing for an existing recurring plan, create a new internal offer row instead of overwriting historical subscriber pricing:
    - `billing_plan_offers`

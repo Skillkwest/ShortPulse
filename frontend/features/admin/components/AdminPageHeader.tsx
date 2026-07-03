@@ -8,18 +8,31 @@ import styles from "../../../styles/admin.module.css";
 
 const ADMIN_NAV_ITEMS = [
   { href: "/admin/announcements", label: "Dashboard" },
-  { href: "/admin", label: "Support" },
+  { href: "/admin", label: "Customer Support" },
   { href: "/admin/legal", label: "Legal" },
   { href: "/admin/agent-instructions", label: "Agent Instructions" },
-  { href: "/admin/pricing", label: "Pricing" },
+  { href: "/admin/pricing", label: "Model Pricing" },
+  { href: "/admin/catalog", label: "Catalog" },
   { href: "/admin/offers", label: "Offers" },
   { href: "/admin/stats", label: "Analytics" },
   { href: "/admin/storage", label: "Storage" },
   { href: "/admin/errors", label: "Errors" },
+  { href: "/admin/user-health", label: "Generation health" },
+] as const;
+
+const CUSTOMER_SUPPORT_NAV_ITEMS = [
+  { href: "/admin", label: "Support" },
   { href: "/admin/reports", label: "Reports" },
+] as const;
+
+const GENERATION_HEALTH_NAV_ITEMS = [
   { href: "/admin/user-health", label: "User health" },
   { href: "/admin/user-health-fleet", label: "Fleet health" },
   { href: "/admin/generation-trace", label: "Generation trace" },
+] as const;
+
+const ERRORS_NAV_ITEMS = [
+  { href: "/admin/errors", label: "Errors" },
   { href: "/admin/kanban", label: "Ophestivus" },
 ] as const;
 
@@ -41,6 +54,33 @@ export function AdminPageHeader({
   currentPath,
   renderBareNav = false,
 }: AdminPageHeaderProps) {
+  const isCustomerSupportPath = CUSTOMER_SUPPORT_NAV_ITEMS.some(
+    (item) => item.href === currentPath
+  );
+  const isGenerationHealthPath = GENERATION_HEALTH_NAV_ITEMS.some(
+    (item) => item.href === currentPath
+  );
+  const isErrorsPath = ERRORS_NAV_ITEMS.some((item) => item.href === currentPath);
+  const activeSubNav = isCustomerSupportPath
+    ? {
+        label: "Customer Support",
+        ariaLabel: "Customer support pages",
+        items: CUSTOMER_SUPPORT_NAV_ITEMS,
+      }
+    : isErrorsPath
+      ? {
+          label: "Errors",
+          ariaLabel: "Error management pages",
+          items: ERRORS_NAV_ITEMS,
+        }
+      : isGenerationHealthPath
+        ? {
+            label: "Generation health",
+            ariaLabel: "Generation health pages",
+            items: GENERATION_HEALTH_NAV_ITEMS,
+          }
+        : null;
+
   const navContent = (
     <>
       <p className={styles.adminNavLabel}>Jump to</p>
@@ -49,7 +89,11 @@ export function AdminPageHeader({
         aria-label="Admin pages"
       >
         {ADMIN_NAV_ITEMS.map((item) => {
-          const active = item.href === currentPath;
+          const active =
+            item.href === currentPath ||
+            (item.href === "/admin" && isCustomerSupportPath) ||
+            (item.href === "/admin/errors" && isErrorsPath) ||
+            (item.href === "/admin/user-health" && isGenerationHealthPath);
           return (
             <Link
               key={item.href}
@@ -62,6 +106,29 @@ export function AdminPageHeader({
           );
         })}
       </nav>
+      {activeSubNav ? (
+        <div className={styles.adminSubNavShell}>
+          <p className={styles.adminNavLabel}>{activeSubNav.label}</p>
+          <nav
+            className={`${styles.adminNavRow} ${styles.adminSubNavRow}`}
+            aria-label={activeSubNav.ariaLabel}
+          >
+            {activeSubNav.items.map((item) => {
+              const active = item.href === currentPath;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={active ? "page" : undefined}
+                  className={`${styles.adminNavLink} ${active ? styles.adminNavLinkActive : ""}`}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+      ) : null}
     </>
   );
 

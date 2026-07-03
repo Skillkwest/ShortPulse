@@ -23,6 +23,10 @@ import { logApiRouteException } from "./api/appErrorLogs";
 import { requireApiUser } from "./api/auth";
 import { reconcileOwnedGenerationOutputSlot } from "./api/generationOutputConvergence";
 import {
+  assertPaidMediaLibraryAccess,
+  MediaLibraryPaidAccessError,
+} from "./api/mediaLibraryPaidAccess";
+import {
   createSignedMediaUrl,
   DURABLE_MEDIA_CACHE_CONTROL_SECONDS,
   insertMediaFileRow,
@@ -1308,6 +1312,21 @@ export async function handleMediaCopyFromUrlRequest(
   }
   if (!user) return;
   const userId = user.id;
+  try {
+    await assertPaidMediaLibraryAccess(userId);
+  } catch (error) {
+    if (error instanceof MediaLibraryPaidAccessError) {
+      return res.status(error.status).json({ error: error.message });
+    }
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "media-copy-from-url.access",
+      scope: "app",
+      user,
+    });
+    return res.status(500).json({ error: "Unable to verify media library access." });
+  }
   if (
     !enforceApiRateLimit(req, res, {
       ...MEDIA_COPY_FROM_URL_RATE_LIMIT,

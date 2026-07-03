@@ -75,7 +75,6 @@ const TOOL_IDS = new Set<ToolId>([
   "presets",
   "styles",
   "templates",
-  "my-generations",
   "community",
   "character",
   "image",

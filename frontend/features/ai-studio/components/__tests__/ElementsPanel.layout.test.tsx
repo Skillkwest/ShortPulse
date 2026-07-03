@@ -9,6 +9,7 @@ import { ElementsPanel } from "../ElementsPanel";
 import { INTERNAL_REFERENCE_DRAG_ORIGIN } from "../../utils/dragDrop";
 import { createCanvasTearOutComposerTargetRegistry } from "../../hooks/useAiStudioCanvasTearOutTargets";
 import type { AgentComposerDirectDropPayload } from "../../logic/agentComposerDirectDropPayload";
+import { AI_STUDIO_PLAN_CTA } from "../../logic/generationAccessCta";
 import {
   COMPOSER_IMAGE_DROP_SESSION_TYPE,
   registerComposerImageDropSession,
@@ -410,6 +411,18 @@ describe("ElementsPanel layout", () => {
     expect(screen.getByRole("button", { name: "Create" })).toBeInTheDocument();
     expect(screen.getByRole("tablist", { name: "All Media type tabs" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add files" })).toBeInTheDocument();
+  });
+
+  it("replaces element library creation entry points with View plans for baseline access", async () => {
+    render(<ElementsPanel generationAccessCta={AI_STUDIO_PLAN_CTA} createRequestKey={1} />);
+    await waitForElementEditor();
+
+    const planLink = screen.getByRole("link", { name: "View subscription plans" });
+    expect(planLink).toHaveTextContent("View plans");
+    expect(planLink).toHaveAttribute("href", "/pricing");
+    expect(screen.queryByRole("button", { name: "Elements" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Create" })).not.toBeInTheDocument();
+    expect(saveElementManagerDraft).not.toHaveBeenCalled();
   });
 
   it("opens the saved elements modal and loads a saved element into the editor", async () => {

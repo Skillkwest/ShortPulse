@@ -42,10 +42,7 @@ export const useAiStudioPageDerivations = ({
   isCharacterModeEnabled = false,
 }: UseAiStudioPageDerivationsParams) => {
   const isTemplateView =
-    selectedTool === "templates" ||
-    selectedTool === "workflows" ||
-    selectedTool === "my-generations" ||
-    selectedTool === "community";
+    selectedTool === "templates" || selectedTool === "workflows" || selectedTool === "community";
 
   const costParamsForModel = useCallback(
     (targetModelId: string, overrides: Omit<PricingParams, "modelId"> = {}) => {

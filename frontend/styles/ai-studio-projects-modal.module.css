@@ -43,8 +43,39 @@
 }
 
 .bootstrapStyleScope :global(.ai-projects-modal-create-button),
+.bootstrapStyleScope :global(.ai-projects-modal-delete-selected-button),
 .bootstrapStyleScope :global(.ai-projects-modal-empty-action) {
   min-height: 34px;
+}
+
+.bootstrapStyleScope :global(.ai-projects-modal-delete-selected-button) {
+  width: 34px;
+  padding: 0;
+  border-color: rgba(244, 245, 247, 0.1);
+  background: rgba(244, 245, 247, 0.035);
+  color: rgba(201, 214, 227, 0.38);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bootstrapStyleScope :global(.ai-projects-modal-delete-selected-button):not(:disabled) {
+  border-color: rgba(248, 113, 113, 0.28);
+  background: rgba(54, 18, 24, 0.84);
+  color: #fecaca;
+}
+
+.bootstrapStyleScope :global(.ai-projects-modal-delete-selected-button):not(:disabled):hover,
+.bootstrapStyleScope
+  :global(.ai-projects-modal-delete-selected-button):not(:disabled):focus-visible {
+  border-color: rgba(252, 165, 165, 0.42);
+  background: rgba(91, 24, 34, 0.94);
+  color: #fee2e2;
+}
+
+.bootstrapStyleScope :global(.ai-projects-modal-delete-selected-button):disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
 }
 
 .bootstrapStyleScope :global(.ai-projects-modal-scroll) {
@@ -191,6 +222,33 @@
     0 0 0 1px rgba(37, 169, 191, 0.08);
 }
 
+.bootstrapStyleScope :global(.ai-projects-modal-card):global(.is-selected) {
+  align-items: center;
+  justify-content: center;
+  border-color: rgba(124, 213, 228, 0.48);
+  background:
+    linear-gradient(180deg, rgba(37, 169, 191, 0.2), rgba(16, 26, 32, 0.94)), rgba(16, 24, 30, 0.94);
+  box-shadow:
+    inset 0 1px 0 rgba(244, 252, 255, 0.08),
+    0 16px 30px rgba(0, 0, 0, 0.26),
+    0 0 0 1px rgba(37, 169, 191, 0.14);
+}
+
+.bootstrapStyleScope :global(.ai-projects-modal-card-open-label) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 86px;
+  min-height: 34px;
+  border-radius: 8px;
+  border: 1px solid rgba(124, 213, 228, 0.42);
+  background: rgba(124, 213, 228, 0.12);
+  color: #f5fcff;
+  font-size: 14px;
+  font-weight: 750;
+  letter-spacing: 0;
+}
+
 .bootstrapStyleScope
   :global(.ai-projects-modal-card-shell):global(.is-current):hover
   :global(.ai-projects-modal-card),
@@ -201,47 +259,6 @@
   background:
     linear-gradient(180deg, rgba(37, 169, 191, 0.14), rgba(20, 26, 32, 0.92)),
     rgba(18, 24, 31, 0.92);
-}
-
-.bootstrapStyleScope :global(.ai-projects-modal-card-delete) {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  border: 1px solid rgba(248, 113, 113, 0.22);
-  background: rgba(54, 18, 24, 0.86);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #fecaca;
-  opacity: 0;
-  transition:
-    opacity 160ms ease,
-    border-color 160ms ease,
-    background 160ms ease,
-    transform 160ms ease;
-}
-
-.bootstrapStyleScope
-  :global(.ai-projects-modal-card-shell):hover
-  :global(.ai-projects-modal-card-delete),
-.bootstrapStyleScope :global(.ai-projects-modal-card-delete):focus-visible {
-  opacity: 1;
-}
-
-.bootstrapStyleScope :global(.ai-projects-modal-card-delete):hover:not(:disabled),
-.bootstrapStyleScope :global(.ai-projects-modal-card-delete):focus-visible {
-  border-color: rgba(252, 165, 165, 0.4);
-  background: rgba(91, 24, 34, 0.94);
-  transform: translateY(-1px);
-}
-
-.bootstrapStyleScope :global(.ai-projects-modal-card-delete):disabled {
-  cursor: wait;
-  opacity: 0.62;
-  transform: none;
 }
 
 .bootstrapStyleScope :global(.ai-projects-modal-card-topline) {

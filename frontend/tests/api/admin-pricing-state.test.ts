@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/admin/pricing/state";
 import {
+  FAL_FLUX_2_KLEIN_9B_MODEL_ID,
+  FAL_FLUX_2_KLEIN_AUDIO_COMPANION_ART_VARIANT_BASE_ID,
+  FAL_FLUX_2_KLEIN_STYLE_PREVIEW_VARIANT_BASE_ID,
+} from "../../lib/model-runtime/falModelIds";
+import {
   KIE_KLING_30_MOTION_CONTROL_LABEL,
   KIE_KLING_30_MOTION_CONTROL_VARIANT_ID,
 } from "../../lib/model-runtime/klingMotionControlPricing";
@@ -464,6 +469,12 @@ describe("GET /api/admin/pricing/state", () => {
         id: string;
         pricingPreviewVariants?: Array<{ id: string; label: string }>;
       }>;
+      customRows: {
+        rowsByModel: Record<
+          string,
+          Array<{ displayRowId: string; label: string | null; variantId: string }>
+        >;
+      };
       health: { warnings: string[] };
     };
     expect(payload.models).not.toEqual(
@@ -485,6 +496,18 @@ describe("GET /api/admin/pricing/state", () => {
         }),
       ])
     );
+    expect(payload.customRows.rowsByModel[FAL_FLUX_2_KLEIN_9B_MODEL_ID]).toEqual([
+      expect.objectContaining({
+        displayRowId: "builtin:flux-2-klein-audio-companion-art",
+        label: "Sound reference background companion art",
+        variantId: `${FAL_FLUX_2_KLEIN_AUDIO_COMPANION_ART_VARIANT_BASE_ID}|res:model_default|aspect:1:1`,
+      }),
+      expect.objectContaining({
+        displayRowId: "builtin:flux-2-klein-style-preview",
+        label: "Text-only style creation generation",
+        variantId: `${FAL_FLUX_2_KLEIN_STYLE_PREVIEW_VARIANT_BASE_ID}|res:model_default|aspect:1:1`,
+      }),
+    ]);
     expect(payload.health.warnings).toContain(
       "1 active storage add-on missing a current public offer."
     );

@@ -216,11 +216,12 @@ describe("AiStudioToolbar current mode", () => {
     ).toBeTruthy();
   });
 
-  it("hides deferred shortcuts and templates entry points", () => {
+  it("omits deferred shortcuts, templates, and retired My Generations entry points", () => {
     renderToolbar();
 
     expect(screen.queryByText("Shortcuts")).toBeNull();
     expect(screen.queryByRole("button", { name: "Templates" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "My Generations" })).toBeNull();
   });
 
   it("opens the account menu with profile sections, report issue, and logout", async () => {

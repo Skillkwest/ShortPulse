@@ -1326,23 +1326,6 @@ export const createFalSubmitHandler = ({
             },
           });
 
-          await logGenerationFailure({
-            req,
-            routeLabel,
-            source: "telemetry.api.fal_submit.direct_submitted",
-            message: "Generation submitted directly to provider.",
-            statusCode: 200,
-            userId: charge.userId,
-            metadata: {
-              model_id: modelId,
-              generation_id: generationId,
-              source_ref: charge.sourceRef,
-              provider_request_id: providerRequestId,
-              upstream_target_url: submitResult.targetUrl,
-              upstream_target_index: submitResult.targetIndex,
-            },
-          });
-
           void requestGenerationControlPlaneWake({
             routeLabel,
             reason: "direct_submit_accepted",

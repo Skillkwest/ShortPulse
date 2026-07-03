@@ -5,6 +5,7 @@ import { CharacterPanelWorkspace } from "../CharacterPanelWorkspace";
 import { INTERNAL_REFERENCE_DRAG_ORIGIN } from "../../../../lib/internalReferenceDragPayload";
 import { createCanvasTearOutComposerTargetRegistry } from "../../../ai-studio/hooks/useAiStudioCanvasTearOutTargets";
 import type { AgentComposerDirectDropPayload } from "../../../ai-studio/logic/agentComposerDirectDropPayload";
+import { AI_STUDIO_PLAN_CTA } from "../../../ai-studio/logic/generationAccessCta";
 import {
   CHARACTER_SHEET_PRESET_IDS,
   createDefaultCharacterSheetPresetState,
@@ -281,6 +282,22 @@ describe("CharacterPanelWorkspace", () => {
       background: "rgb(19, 21, 24)",
       backgroundColor: "rgb(19, 21, 24)",
     });
+  });
+
+  it("replaces character library creation entry points with View plans for baseline access", () => {
+    render(
+      <CharacterPanelWorkspace
+        generationAccessCta={AI_STUDIO_PLAN_CTA}
+        externalCreateRequestKey={1}
+      />
+    );
+
+    const planLink = screen.getByRole("link", { name: "View subscription plans" });
+    expect(planLink).toHaveTextContent("View plans");
+    expect(planLink).toHaveAttribute("href", "/pricing");
+    expect(screen.queryByRole("button", { name: "Characters" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Create" })).not.toBeInTheDocument();
+    expect(createCharacterDraftMock).not.toHaveBeenCalled();
   });
 
   it("opens the saved character grid inside the Characters modal", () => {

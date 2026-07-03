@@ -426,7 +426,6 @@ export type ToolId =
   | "presets"
   | "styles"
   | "templates"
-  | "my-generations"
   | "community"
   | "character"
   | "image"

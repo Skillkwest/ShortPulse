@@ -111,6 +111,17 @@
   margin-bottom: 20px;
 }
 
+.adminSubNavShell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 4px;
+}
+
+.adminSubNavRow {
+  padding-left: 10px;
+}
+
 .adminNavLink {
   display: inline-flex;
   align-items: center;

@@ -184,12 +184,12 @@ export const getDefaultAdminPricingCustomRowsDocument = (): AdminPricingCustomRo
     [FAL_FLUX_2_KLEIN_9B_MODEL_ID]: [
       createBuiltInFlux2KleinCustomRow({
         displayRowId: "builtin:flux-2-klein-audio-companion-art",
-        label: "Audio reference background",
+        label: "Sound reference background companion art",
         baseVariantId: FAL_FLUX_2_KLEIN_AUDIO_COMPANION_ART_VARIANT_BASE_ID,
       }),
       createBuiltInFlux2KleinCustomRow({
         displayRowId: "builtin:flux-2-klein-style-preview",
-        label: "Style placeholder preview",
+        label: "Text-only style creation generation",
         baseVariantId: FAL_FLUX_2_KLEIN_STYLE_PREVIEW_VARIANT_BASE_ID,
       }),
     ],

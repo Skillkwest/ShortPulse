@@ -30,6 +30,7 @@ import { KIE_KLING_30_MODEL_ID } from "../../../../lib/model-runtime/providerMod
 import { getAdminModelWorkflowType } from "../../../../lib/model-runtime/modelWorkflowType";
 import { getAdminPricingStrategyLabel } from "../../../../lib/model-runtime/modelPricingStrategyLabel";
 import { resolveDefaultPlanConcurrencyLimit } from "../../../../lib/billing/planConcurrency";
+import { compactAdminPricingCustomRowsDocument } from "../../../../lib/model-runtime/adminPricingCustomRows";
 import {
   getModelPricingPolicySnapshot,
   resolveModelPricingForModel,
@@ -693,7 +694,7 @@ export default async function handler(
         updatedAt: runtimePricingPolicy.updatedAt,
         updatedByEmail: runtimePricingPolicy.updatedByEmail,
       }),
-      customRows: runtimePricingPolicy.customRows,
+      customRows: compactAdminPricingCustomRowsDocument(runtimePricingPolicy.customRows),
       models,
       plans,
       creditPackages,

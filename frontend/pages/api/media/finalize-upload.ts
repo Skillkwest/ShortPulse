@@ -1,6 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
+import {
+  assertPaidMediaLibraryAccess,
+  MediaLibraryPaidAccessError,
+} from "../../../lib/server/api/mediaLibraryPaidAccess";
 import { enforceApiRateLimit } from "../../../lib/server/api/rateLimit";
 import {
   finalizePreparedMediaUploadForUser,
@@ -77,6 +81,7 @@ export default async function handler(
   }
 
   try {
+    await assertPaidMediaLibraryAccess(user.id);
     const body = (req.body ?? {}) as FinalizeMediaUploadRequestBody;
     const destinationTab = resolveDestinationTab(body.destinationTab);
     const sourceName = normalizeOptionalString(body.sourceName);
@@ -118,6 +123,11 @@ export default async function handler(
 
     return res.status(200).json({ file });
   } catch (error) {
+    if (error instanceof MediaLibraryPaidAccessError) {
+      return res.status(error.status).json({
+        error: error.message,
+      });
+    }
     if (error instanceof MediaUploadServiceError) {
       if (error.status >= 500) {
         await logApiRouteException({

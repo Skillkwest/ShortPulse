@@ -240,6 +240,7 @@
       "tests/e2e/expert-edit-coordinate-parity.audit.js",
       "tests/e2e/ai-studio-style-drop.audit.js",
       "tests/e2e/ai-studio-audio-exclusivity.audit.js",
+      "tests/e2e/ai-studio-lazy-modal-first-open.audit.js",
       "tests/e2e/ai-studio-loading-gate.audit.js",
       "tests/e2e/character-manager-save-reopen.audit.js",
       "tests/e2e/media-library-runtime.audit.js",

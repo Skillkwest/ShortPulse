@@ -280,9 +280,6 @@
 
 .bootstrapStyleScope
   :global(.ai-projects-modal-card-shell):global(.is-selected):hover
-  :global(.ai-projects-modal-card-open-label),
-.bootstrapStyleScope
-  :global(.ai-projects-modal-card-shell):global(.is-selected):focus-within
   :global(.ai-projects-modal-card-open-label) {
   transform: translateX(8px);
 }

@@ -12,6 +12,7 @@ import {
   MEDIA_STORAGE_FULL_USER_MESSAGE,
 } from "../../../lib/mediaStorageQuota";
 import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
+import { readRememberedObjectUrlBlob } from "../utils/objectUrlBlobRegistry";
 import {
   resolveImageDimensionsFromMetadata,
   withCanonicalImageDimensions,
@@ -251,6 +252,15 @@ const resolveSupabaseContext = async (userIdHint?: string | null) => {
 };
 
 const fetchBlobWithTimeout = async (url: string) => {
+  if (url.trim().startsWith("blob:")) {
+    const rememberedBlob = readRememberedObjectUrlBlob(url);
+    if (rememberedBlob) {
+      return {
+        blob: rememberedBlob,
+        contentType: rememberedBlob.type || null,
+      };
+    }
+  }
   let lastError: unknown = null;
   for (let attempt = 1; attempt <= FETCH_RETRY_ATTEMPTS; attempt += 1) {
     const controller = new AbortController();

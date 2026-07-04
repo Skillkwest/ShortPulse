@@ -11,11 +11,13 @@ type ErrorIncidentsOverviewSectionProps = {
   errorPagination: AdminPagination;
   copiedIncidentId: string | null;
   inProgressIncidentIds: Set<string>;
+  statusUpdatingErrorId: string | null;
   onErrorSearchChange: (value: string) => void;
   onPrevPage: () => void;
   onNextPage: () => void;
   onRefresh: () => void;
   onCopyIncident: (row: AdminErrorLogRow) => void;
+  onResolveIncident: (row: AdminErrorLogRow) => void;
 };
 
 export function ErrorIncidentsOverviewSection({
@@ -26,11 +28,13 @@ export function ErrorIncidentsOverviewSection({
   errorPagination,
   copiedIncidentId,
   inProgressIncidentIds,
+  statusUpdatingErrorId,
   onErrorSearchChange,
   onPrevPage,
   onNextPage,
   onRefresh,
   onCopyIncident,
+  onResolveIncident,
 }: ErrorIncidentsOverviewSectionProps) {
   const resultStart =
     errorPagination.totalCount === 0 ? 0 : (errorPagination.page - 1) * errorPagination.perPage + 1;
@@ -123,6 +127,8 @@ export function ErrorIncidentsOverviewSection({
         ) : (
           errors.map((row) => {
             const isInProgress = inProgressIncidentIds.has(row.id);
+            const isUpdatingStatus = statusUpdatingErrorId === row.id;
+            const canResolve = row.status === "open";
             return (
               <div
                 key={row.id}
@@ -176,8 +182,17 @@ export function ErrorIncidentsOverviewSection({
                     type="button"
                     className="ghost-btn mini"
                     onClick={() => onCopyIncident(row)}
+                    disabled={isUpdatingStatus}
                   >
                     {copiedIncidentId === row.id ? "Copied" : "Copy triage"}
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost-btn mini"
+                    onClick={() => onResolveIncident(row)}
+                    disabled={!canResolve || isUpdatingStatus}
+                  >
+                    {isUpdatingStatus ? "Resolving..." : canResolve ? "Resolve" : "Resolved"}
                   </button>
                 </div>
               </div>

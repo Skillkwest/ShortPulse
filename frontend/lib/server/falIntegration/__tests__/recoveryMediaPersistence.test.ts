@@ -14,6 +14,7 @@ import {
   persistRecoveryMediaFilesForGeneration,
   readExistingRecoveryMediaRows,
 } from "../recoveryMediaPersistence";
+import { MAX_SUPABASE_STANDARD_UPLOAD_BYTES } from "../../mediaIngest";
 
 const getSupabaseAdminMock = vi.fn();
 const ORIGINAL_ENV = { ...process.env };
@@ -263,8 +264,16 @@ const createSupabaseScenario = (scenario: SupabaseScenario) => {
   };
 
   const upload = vi.fn(async () => uploadResponses.shift() ?? { error: null });
+  const createSignedUploadUrl = vi.fn(async (storagePath: string) => ({
+    data: {
+      path: storagePath,
+      token: "signed-upload-token",
+    },
+    error: null,
+  }));
+  const uploadToSignedUrl = vi.fn(async () => ({ error: null }));
   const remove = vi.fn(async () => ({ error: null }));
-  const fromStorage = vi.fn(() => ({ upload, remove }));
+  const fromStorage = vi.fn(() => ({ upload, createSignedUploadUrl, uploadToSignedUrl, remove }));
   const fromTable = vi.fn((table: string) => {
     if (table === "media_files") return mediaFilesTable;
     if (table === "media_events") return mediaEventsTable;
@@ -280,6 +289,8 @@ const createSupabaseScenario = (scenario: SupabaseScenario) => {
       storage: { from: fromStorage },
     },
     upload,
+    createSignedUploadUrl,
+    uploadToSignedUrl,
     remove,
     mediaFileInsertPayloads,
     mediaEventInsertPayloads,
@@ -750,6 +761,71 @@ describe("recoveryMediaPersistence", () => {
         generation_id: "gen-video-1",
         preview_storage_path: "user-1/variants/videos/media-video-1/preview_loop_360p.mp4",
         full_storage_path: expect.stringMatching(/^user-1\/generations\/videos\//),
+      })
+    );
+  });
+
+  it("uses signed upload transport for recovered videos above the standard upload ceiling", async () => {
+    const scenario = createSupabaseScenario({
+      generationOutputListResponses: [
+        {
+          data: [
+            {
+              id: "output-1",
+              output_index: 0,
+              result_url: trustedUserPreviewUrl("user-1", "large-frame.mp4"),
+              media_file_id: null,
+            },
+          ],
+          error: null,
+        },
+      ],
+      listResponses: [{ data: [], error: null }],
+      insertResponses: [{ data: { id: "media-large-video-1" }, error: null }],
+    });
+    getSupabaseAdminMock.mockReturnValue(scenario.adminClient);
+    const largeVideo = Buffer.alloc(MAX_SUPABASE_STANDARD_UPLOAD_BYTES + 1, 0);
+    largeVideo.write("ftypmp42", 4, "ascii");
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(largeVideo, {
+        status: 200,
+        headers: { "content-type": "video/mp4" },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const mediaFileIds = await persistRecoveryMediaFilesForGeneration({
+      generation: {
+        id: "gen-large-video-1",
+        user_id: "user-1",
+        request_id: "req-large-video-1",
+        model_id: "kie-ai/seedance-2",
+        provider: "kie",
+        prompt_text: "Large generated video",
+        metadata: {},
+      },
+      mediaUrls: [trustedUserPreviewUrl("user-1", "large-frame.mp4")],
+    });
+
+    expect(mediaFileIds).toEqual(["media-large-video-1"]);
+    expect(scenario.upload).not.toHaveBeenCalled();
+    expect(scenario.createSignedUploadUrl).toHaveBeenCalledWith(
+      expect.stringMatching(/^user-1\/generations\/videos\//)
+    );
+    expect(scenario.uploadToSignedUrl).toHaveBeenCalledWith(
+      expect.stringMatching(/^user-1\/generations\/videos\//),
+      "signed-upload-token",
+      expect.any(Blob),
+      expect.objectContaining({
+        contentType: "video/mp4",
+        cacheControl: "31536000",
+      })
+    );
+    expect(scenario.mediaFileInsertPayloads[0]).toEqual(
+      expect.objectContaining({
+        source_ref: "gen-large-video-1",
+        file_type: "video",
+        file_size: MAX_SUPABASE_STANDARD_UPLOAD_BYTES + 1,
       })
     );
   });

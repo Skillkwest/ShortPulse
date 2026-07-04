@@ -162,6 +162,10 @@ Admin legal policy routes:
 | `/api/ai/studio-agent-standard` | Yes | Standard AI Studio agent route | `POST` JSON only. Accepts Standard-mode agent payloads, rejects Pulse runtime context, and runs the Standard-owned Create agent runtime as a raw OpenAI chat pass-through. Standard does not inject local system instructions, does not run the local Standard precheck/canonical-prompt path, and does not return Pulse workflow fields. Standard requests must not carry Pulse preset/session/workflow authority. |
 | `/api/ai/studio-agent-pulse` | Yes | Pulse AI Studio agent route | `POST` JSON only. Requires Pulse runtime context, requires a Pulse session namespace, rejects Standard-mode payloads, rejects namespace/preset mismatches between `clientSessionNamespace` and `context.pulse.presetId`, and runs the Pulse-owned agent runtime. Custom Pulses execute as saved-instruction profiles; built-in preset ids resolve through the guided-workflow compatibility path. |
 
+## Admin Error Handoff Notes
+
+`/admin/errors` intentionally hides provider-sensitive/refusal messages such as "flagged as sensitive" because they are expected safety outcomes, not operator work. The underlying incident records remain available outside the simplified page workflow when raw forensic inspection is needed.
+
 ## Profile Sections
 
 `/profile` is the protected customer account workspace. Supported section query values are `account`, `subscription`, `credits`, `storage`, and `transactions`; legacy aliases map `profile` and `billing` to `account`. Dashboard profile-menu links should route billing management to `/profile?section=account#billing`, subscription management to `/profile?section=subscription`, and credit top-ups to `/profile?section=credits`; signed-in dashboard summary cards route media storage to `/profile?section=storage`, AI credits to `/profile?section=credits`, and plan management to `/profile?section=subscription`.

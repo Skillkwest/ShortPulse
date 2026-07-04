@@ -259,6 +259,29 @@ describe("statusProviderPayload", () => {
     ).toEqual(["https://cdn.shortpulse.test/kie-envelope.mp4"]);
   });
 
+  it("reads Kie GPT Image 2 camelCase URL object result payloads", () => {
+    const payload = {
+      status: "completed",
+      state: "completed",
+      resultUrls: [{ imageUrl: "https://cdn.shortpulse.test/kie-gpt-image-2-edit.png" }],
+    };
+
+    expect(
+      providerPayloadHasMedia({
+        provider: "kie",
+        modelId: "kie-ai/gpt-image-2-image-to-image",
+        payload,
+      })
+    ).toBe(true);
+    expect(
+      readProviderMediaUrls({
+        provider: "kie",
+        modelId: "kie-ai/gpt-image-2-image-to-image",
+        payload,
+      })
+    ).toEqual(["https://cdn.shortpulse.test/kie-gpt-image-2-edit.png"]);
+  });
+
   it("fails closed for malformed or unsupported kie status/result payloads", () => {
     expect(
       readProviderLifecycleStatus({

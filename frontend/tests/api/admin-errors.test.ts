@@ -30,7 +30,8 @@ type QueryResult = {
 
 const createSupabaseAdminMock = (
   queues: Record<string, QueryResult[]>,
-  orFilters: string[] = []
+  orFilters: string[] = [],
+  notFilters: Array<{ column: string; operator: string; value: string }> = []
 ) => ({
   from: (table: string) => {
     const queue = queues[table];
@@ -54,6 +55,10 @@ const createSupabaseAdminMock = (
       range: () => query,
       eq: () => query,
       gte: () => query,
+      not: (column: string, operator: string, value: string) => {
+        notFilters.push({ column, operator, value });
+        return query;
+      },
       or: (filters: string) => {
         orFilters.push(filters);
         return query;
@@ -106,30 +111,35 @@ describe("GET /api/admin/errors", () => {
   });
 
   it("returns incidents with summary and healthy status", async () => {
+    const notFilters: Array<{ column: string; operator: string; value: string }> = [];
     getSupabaseAdminMock.mockReturnValue(
-      createSupabaseAdminMock({
-        app_error_logs: [
-          {
-            data: [
-              {
-                id: "inc-1",
-                source: "client.api_response",
-                scope: "app",
-                severity: "medium",
-                status: "open",
-                message: "API 500 response from /api/admin/errors",
-              },
-            ],
-            error: null,
-          },
-          { count: 11, error: null },
-          { count: 4, error: null },
-          { count: 1, error: null },
-          { count: 3, error: null },
-          { count: 1, error: null },
-          { count: 8, error: null },
-        ],
-      })
+      createSupabaseAdminMock(
+        {
+          app_error_logs: [
+            {
+              data: [
+                {
+                  id: "inc-1",
+                  source: "client.api_response",
+                  scope: "app",
+                  severity: "medium",
+                  status: "open",
+                  message: "API 500 response from /api/admin/errors",
+                },
+              ],
+              error: null,
+            },
+            { count: 11, error: null },
+            { count: 4, error: null },
+            { count: 1, error: null },
+            { count: 3, error: null },
+            { count: 1, error: null },
+            { count: 8, error: null },
+          ],
+        },
+        [],
+        notFilters
+      )
     );
 
     const req = { method: "GET", query: { page: "1", limit: "50", status: "open" } };
@@ -137,6 +147,13 @@ describe("GET /api/admin/errors", () => {
 
     await handler(req as never, res as never);
 
+    expect(notFilters).toEqual(
+      Array.from({ length: 7 }, () => ({
+        column: "message",
+        operator: "ilike",
+        value: "%flagged%as%sensitive%",
+      }))
+    );
     expect(res.status).toHaveBeenCalledWith(200);
     const payload = res.json.mock.calls[0]?.[0] as {
       errors: Array<{ id: string }>;
@@ -176,6 +193,44 @@ describe("GET /api/admin/errors", () => {
       totalCount: 11,
       totalPages: 1,
     });
+  });
+
+  it("keeps provider-sensitive success incidents out of admin queue queries", async () => {
+    const notFilters: Array<{ column: string; operator: string; value: string }> = [];
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock(
+        {
+          app_error_logs: [
+            {
+              data: [],
+              error: null,
+            },
+            { count: 0, error: null },
+            { count: 0, error: null },
+            { count: 0, error: null },
+            { count: 0, error: null },
+            { count: 0, error: null },
+            { count: 0, error: null },
+          ],
+        },
+        [],
+        notFilters
+      )
+    );
+
+    const req = { method: "GET", query: { status: "open", scope: "generation" } };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(notFilters).toEqual(
+      Array.from({ length: 7 }, () => ({
+        column: "message",
+        operator: "ilike",
+        value: "%flagged%as%sensitive%",
+      }))
+    );
   });
 
   it("returns degraded health when non-core summary queries fail", async () => {

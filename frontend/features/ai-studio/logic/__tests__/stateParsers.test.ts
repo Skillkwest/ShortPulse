@@ -45,6 +45,16 @@ describe("extractResultUrls", () => {
 
     expect(result).toEqual(["https://cdn.shortpulse.test/encoded-result.mp4"]);
   });
+
+  it("extracts image URL objects from terminal Kie-style payloads", () => {
+    const result = extractResultUrls({
+      status: "completed",
+      state: "completed",
+      images: [{ imageUrl: "https://cdn.shortpulse.test/kie-image-result.png" }],
+    });
+
+    expect(result).toEqual(["https://cdn.shortpulse.test/kie-image-result.png"]);
+  });
 });
 
 describe("extractFalMediaUrls", () => {

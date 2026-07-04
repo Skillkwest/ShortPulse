@@ -190,6 +190,92 @@ describe("POST /api/media/sign-batch", () => {
     });
   });
 
+  it("bounds bucket-list fallback fanout when storage metadata verification is unavailable", async () => {
+    const paths = Array.from(
+      { length: 8 },
+      (_value, index) => `user-1/uploads/images/media-${index + 1}.png`
+    );
+    const createSignedUrlsMock = vi.fn(async (signPaths: string[]) => ({
+      data: signPaths.map((path) => ({
+        path,
+        signedUrl: `https://example.test/${path.split("/").pop() ?? "media"}`,
+      })),
+      error: null,
+    }));
+    const storageObjectsInMock = vi.fn(async () => ({
+      data: null,
+      error: { message: "storage metadata unavailable" },
+    }));
+    let activeListCalls = 0;
+    let maxActiveListCalls = 0;
+    const pendingListResolves: Array<() => void> = [];
+    const listMock = vi.fn(
+      async (_folder: string, options?: { limit?: number; search?: string }) => {
+        activeListCalls += 1;
+        maxActiveListCalls = Math.max(maxActiveListCalls, activeListCalls);
+        await new Promise<void>((resolve) => {
+          pendingListResolves.push(resolve);
+        });
+        activeListCalls -= 1;
+        return {
+          data: [{ name: options?.search }],
+          error: null,
+        };
+      }
+    );
+
+    getSupabaseAdminMock.mockReturnValue({
+      schema: vi.fn(() => ({
+        from: vi.fn(() => ({
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              in: storageObjectsInMock,
+            })),
+          })),
+        })),
+      })),
+      storage: {
+        from: vi.fn(() => ({
+          createSignedUrls: createSignedUrlsMock,
+          createSignedUrl: vi.fn(),
+          list: listMock,
+        })),
+      },
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        bucket: "media_library",
+        paths,
+      },
+    };
+    const res = createMockResponse();
+    const responsePromise = handler(req as never, res as never);
+
+    for (let attempts = 0; pendingListResolves.length < 4 && attempts < 10; attempts += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    expect(listMock).toHaveBeenCalledTimes(4);
+    expect(pendingListResolves).toHaveLength(4);
+    expect(maxActiveListCalls).toBe(4);
+
+    pendingListResolves.splice(0).forEach((resolve) => resolve());
+    for (let attempts = 0; pendingListResolves.length < 4 && attempts < 10; attempts += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    expect(listMock).toHaveBeenCalledTimes(8);
+    expect(pendingListResolves).toHaveLength(4);
+    expect(maxActiveListCalls).toBe(4);
+
+    pendingListResolves.splice(0).forEach((resolve) => resolve());
+    await responsePromise;
+
+    expect(storageObjectsInMock).toHaveBeenCalledWith("name", paths);
+    expect(createSignedUrlsMock).toHaveBeenCalledWith(paths, 3600);
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
   it("fails closed without signing when storage metadata verification fails", async () => {
     const path = "user-1/uploads/images/media-1.png";
     const createSignedUrlsMock = vi.fn(async () => ({

@@ -577,7 +577,7 @@ export function ProjectsModal({
                           <span className="ai-projects-modal-card-open-icon" aria-hidden="true">
                             <FolderSimple size={30} weight="duotone" />
                           </span>
-                          <span className="ai-projects-modal-card-open-label">Open</span>
+                          <span className="ai-projects-modal-card-open-label">Open →</span>
                         </span>
                       ) : (
                         <>

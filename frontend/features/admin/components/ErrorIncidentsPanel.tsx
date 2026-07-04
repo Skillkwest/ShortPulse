@@ -73,6 +73,7 @@ export function ErrorIncidentsPanel({
   errorEventIncidentFilter,
   errorSearch,
   errorPagination,
+  statusUpdatingErrorId,
   onErrorSearchChange,
   onUpdateErrorStatus,
   onUpdateErrorEventStatus,
@@ -103,12 +104,16 @@ export function ErrorIncidentsPanel({
         errorPagination={errorPagination}
         copiedIncidentId={copiedIncidentId}
         inProgressIncidentIds={inProgressIncidentIds}
+        statusUpdatingErrorId={statusUpdatingErrorId}
         onErrorSearchChange={onErrorSearchChange}
         onPrevPage={onPrevPage}
         onNextPage={onNextPage}
         onRefresh={onRefresh}
         onCopyIncident={(row) => {
           void handleCopyIncident(row);
+        }}
+        onResolveIncident={(row) => {
+          void onUpdateErrorStatus(row.id, "resolved");
         }}
       />
     </>

@@ -5,6 +5,7 @@ import {
   savePromptRecord,
   saveMediaUrlToLibrary,
 } from "../mediaLibraryPersistence";
+import { forgetObjectUrlBlob, rememberObjectUrlBlob } from "../../utils/objectUrlBlobRegistry";
 
 const ensureSupabaseQueryClientMock = vi.hoisted(() => vi.fn());
 const readSupabaseUserIdMock = vi.hoisted(() => vi.fn());
@@ -1342,6 +1343,86 @@ describe("saveMediaUrlToLibrary", () => {
     );
     expect(upload).not.toHaveBeenCalled();
     expect(insert).not.toHaveBeenCalled();
+  });
+
+  it("uses remembered local upload blobs when object URL fetch is unavailable", async () => {
+    vi.spyOn(globalThis.crypto, "randomUUID").mockReturnValue("uuid-remembered-upload");
+    vi.stubGlobal(
+      "createImageBitmap",
+      vi.fn(async () => ({
+        width: 640,
+        height: 480,
+        close: vi.fn(),
+      }))
+    );
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: null,
+      error: null,
+    });
+    const selectBuilder = createMediaFileSelectBuilder(maybeSingle);
+    const single = vi.fn().mockResolvedValue({
+      data: { id: "media-remembered-upload" },
+      error: null,
+    });
+    const insert = vi.fn(() => ({
+      select: vi.fn(() => ({
+        single,
+      })),
+    }));
+    const upload = vi.fn().mockResolvedValue({ error: null });
+    const remove = vi.fn().mockResolvedValue({ error: null });
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "media_files") {
+          return {
+            select: vi.fn(() => selectBuilder),
+            insert,
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+      storage: {
+        from: vi.fn(() => ({
+          upload,
+          remove,
+        })),
+      },
+    });
+
+    const blobUrl = "blob:local-upload-remembered";
+    const rememberedBlob = new Blob(["remembered-image"], { type: "image/png" });
+    rememberObjectUrlBlob(blobUrl, rememberedBlob);
+    const browserFetch = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
+    vi.stubGlobal("fetch", browserFetch);
+
+    try {
+      const result = await saveMediaUrlToLibrary({
+        url: blobUrl,
+        mode: "image",
+        source: "upload",
+        index: 0,
+      });
+
+      expect(result.mediaFileId).toBe("media-remembered-upload");
+      expect(browserFetch).not.toHaveBeenCalled();
+      expect(upload).toHaveBeenCalledWith(
+        "user-1/uploads/images/uuid-remembered-upload-0.png",
+        rememberedBlob,
+        expect.objectContaining({
+          contentType: "image/png",
+        })
+      );
+      expect(insert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          file_size: rememberedBlob.size,
+          file_type: "image",
+          storage_path: "user-1/uploads/images/uuid-remembered-upload-0.png",
+        })
+      );
+    } finally {
+      forgetObjectUrlBlob(blobUrl);
+    }
   });
 
   it("rejects server-copy responses that do not return a persisted media id", async () => {

@@ -400,10 +400,20 @@ const asText = (value: unknown): string | null =>
 const extractDirectUrlFromRecord = (record: Record<string, unknown>): string | null =>
   asText(record.url) ||
   asText(record.download_url) ||
+  asText(record.downloadUrl) ||
   asText(record.video_url) ||
+  asText(record.videoUrl) ||
   asText(record.image_url) ||
+  asText(record.imageUrl) ||
   asText(record.file_url) ||
-  asText(record.media_url);
+  asText(record.fileUrl) ||
+  asText(record.media_url) ||
+  asText(record.mediaUrl) ||
+  asText(record.signed_url) ||
+  asText(record.signedUrl) ||
+  asText(record.public_url) ||
+  asText(record.publicUrl) ||
+  asText(record.href);
 
 const extractUrlObjects = (value: unknown): string[] => {
   if (!Array.isArray(value)) return [];
@@ -724,12 +734,20 @@ export const extractResultUrls = (resultJson: unknown, fallback?: unknown): stri
     }
     const videosFromRoot = extractUrlObjects(record.videos);
     if (videosFromRoot.length) return videosFromRoot;
+    const imagesFromRoot = extractUrlObjects(record.images);
+    if (imagesFromRoot.length) return imagesFromRoot;
     const videosFromData = extractUrlObjects(toRecord(record.data).videos);
     if (videosFromData.length) return videosFromData;
+    const imagesFromData = extractUrlObjects(toRecord(record.data).images);
+    if (imagesFromData.length) return imagesFromData;
     const videosFromOutput = extractUrlObjects(toRecord(record.output).videos);
     if (videosFromOutput.length) return videosFromOutput;
+    const imagesFromOutput = extractUrlObjects(toRecord(record.output).images);
+    if (imagesFromOutput.length) return imagesFromOutput;
     const videosFromResponse = extractUrlObjects(toRecord(record.response).videos);
     if (videosFromResponse.length) return videosFromResponse;
+    const imagesFromResponse = extractUrlObjects(toRecord(record.response).images);
+    if (imagesFromResponse.length) return imagesFromResponse;
     const videoUrl =
       asText(toRecord(record.video).url) ||
       asText(toRecord(toRecord(record.data).video).url) ||
@@ -739,7 +757,21 @@ export const extractResultUrls = (resultJson: unknown, fallback?: unknown): stri
       asText(record.video_url) ||
       asText(toRecord(record.data).video_url) ||
       asText(toRecord(record.output).video_url);
-    return videoUrl ? [videoUrl] : [];
+    if (videoUrl) return [videoUrl];
+    const imageUrl =
+      asText(toRecord(record.image).url) ||
+      asText(toRecord(toRecord(record.data).image).url) ||
+      asText(toRecord(toRecord(record.output).image).url) ||
+      asText(toRecord(toRecord(record.response).image).url) ||
+      asText(toRecord(record.response).image_url) ||
+      asText(toRecord(record.response).imageUrl) ||
+      asText(record.image_url) ||
+      asText(record.imageUrl) ||
+      asText(toRecord(record.data).image_url) ||
+      asText(toRecord(record.data).imageUrl) ||
+      asText(toRecord(record.output).image_url) ||
+      asText(toRecord(record.output).imageUrl);
+    return imageUrl ? [imageUrl] : [];
   };
 
   if (!resultJson && fallback && typeof fallback === "object") {

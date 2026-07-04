@@ -73,6 +73,7 @@ const DEFAULT_SIGNED_URL_TTL_SECONDS = 3600;
 const MIN_SIGNED_URL_TTL_SECONDS = 60;
 const MAX_SIGNED_URL_TTL_SECONDS = 3600;
 const MAX_SIGN_PATHS = 60;
+const STORAGE_LIST_FALLBACK_CONCURRENCY = 4;
 const TRAVERSAL_SEGMENT_REGEX = /(?:^|\/)\.\.(?:\/|$)/;
 const ALLOWED_SURFACE_VALUES = new Set([
   "media-library-modal",
@@ -155,6 +156,26 @@ const splitStoragePath = (storagePath: string): { folder: string; name: string }
   };
 };
 
+const runWithConcurrency = async <T>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T) => Promise<void>
+): Promise<void> => {
+  if (!items.length) return;
+  const workerCount = Math.min(items.length, Math.max(1, concurrency));
+  let cursor = 0;
+  await Promise.all(
+    Array.from({ length: workerCount }, async () => {
+      while (true) {
+        const itemIndex = cursor;
+        cursor += 1;
+        if (itemIndex >= items.length) return;
+        await worker(items[itemIndex] as T);
+      }
+    })
+  );
+};
+
 const resolveExistingStorageObjectPaths = async ({
   supabaseAdmin,
   paths,
@@ -196,13 +217,14 @@ const resolveExistingStorageObjectPaths = async ({
     }
     return new Set(paths);
   }
+  const listStorageObjects = storageBucket.list.bind(storageBucket);
 
   const existingPaths = new Set<string>();
   const uniquePaths = Array.from(new Set(paths.map((path) => path.trim()).filter(Boolean)));
-  for (const path of uniquePaths) {
+  await runWithConcurrency(uniquePaths, STORAGE_LIST_FALLBACK_CONCURRENCY, async (path) => {
     const splitPath = splitStoragePath(path);
-    if (!splitPath) continue;
-    const { data, error } = await storageBucket.list(splitPath.folder, {
+    if (!splitPath) return;
+    const { data, error } = await listStorageObjects(splitPath.folder, {
       limit: 100,
       search: splitPath.name,
     });
@@ -213,7 +235,7 @@ const resolveExistingStorageObjectPaths = async ({
     if (exists) {
       existingPaths.add(path);
     }
-  }
+  });
   return existingPaths;
 };
 

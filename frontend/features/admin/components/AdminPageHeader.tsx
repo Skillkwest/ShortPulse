@@ -8,10 +8,10 @@ import styles from "../../../styles/admin.module.css";
 
 const ADMIN_NAV_ITEMS = [
   { href: "/admin/announcements", label: "Dashboard" },
-  { href: "/admin", label: "Customer Support" },
-  { href: "/admin/legal", label: "Legal" },
   { href: "/admin/agent-instructions", label: "Agent Instructions" },
   { href: "/admin/pricing", label: "Model Pricing" },
+  { href: "/admin", label: "Customer Support" },
+  { href: "/admin/legal", label: "Legal" },
   { href: "/admin/catalog", label: "Catalog" },
   { href: "/admin/offers", label: "Offers" },
   { href: "/admin/stats", label: "Analytics" },

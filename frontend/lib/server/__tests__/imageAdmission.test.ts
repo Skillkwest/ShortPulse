@@ -7,7 +7,7 @@ import {
 } from "../../imageAdmissionPolicy";
 import { admitImageBufferForProductUse } from "../imageAdmission";
 
-const buildNoisyAvifBuffer = async (width = 1000, height = 1000): Promise<Buffer> => {
+const buildNoisyAvifBuffer = async (width = 512, height = 512): Promise<Buffer> => {
   const raw = Buffer.alloc(width * height * 3);
   crypto.randomFillSync(raw);
   return await sharp(raw, {
@@ -86,7 +86,7 @@ describe("admitImageBufferForProductUse", () => {
 
   it("compresses over-cap still images under the provided admission cap", async () => {
     const image = await buildNoisyAvifBuffer();
-    const maxBytes = 2 * 1024 * 1024;
+    const maxBytes = 768 * 1024;
     expect(image.length).toBeGreaterThan(maxBytes);
 
     const result = await admitImageBufferForProductUse({

@@ -73,6 +73,23 @@ describe("kieResultMediaContracts", () => {
         },
       })
     ).toEqual(["https://cdn.shortpulse.test/kie-gpt-image-2-edit.png"]);
+
+    expect(
+      extractKieResultMediaUrls({
+        modelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+        payload: {
+          status: "completed",
+          state: "completed",
+          data: {
+            resultJson: JSON.stringify({
+              resultUrls: [
+                { imageUrl: "https://cdn.shortpulse.test/kie-gpt-image-2-edit-camel.png" },
+              ],
+            }),
+          },
+        },
+      })
+    ).toEqual(["https://cdn.shortpulse.test/kie-gpt-image-2-edit-camel.png"]);
   });
 
   it("extracts media URLs for active Kie Seedance 2 payloads", () => {

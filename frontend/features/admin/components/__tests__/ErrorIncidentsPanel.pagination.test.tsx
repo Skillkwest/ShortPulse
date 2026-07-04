@@ -170,6 +170,7 @@ describe("ErrorIncidentsPanel handoff queue", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Open incident")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copy triage" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Resolve" })).toBeInTheDocument();
     expect(screen.queryByText("Event Stream")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Resolve listed open/i })).not.toBeInTheDocument();
   });
@@ -187,6 +188,30 @@ describe("ErrorIncidentsPanel handoff queue", () => {
       expect(screen.getByText("In progress")).toBeInTheDocument();
     });
     expect(copyToClipboardMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("marks a row resolved through the incident status callback", async () => {
+    const props = buildBaseProps();
+    props.errors = [buildIncident()];
+
+    render(<ErrorIncidentsPanel {...props} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Resolve" }));
+
+    await waitFor(() => {
+      expect(props.onUpdateErrorStatus).toHaveBeenCalledWith("incident-open-row", "resolved");
+    });
+  });
+
+  it("shows row-level resolving state while an incident status update is pending", () => {
+    const props = buildBaseProps();
+    props.errors = [buildIncident()];
+    props.statusUpdatingErrorId = "incident-open-row";
+
+    render(<ErrorIncidentsPanel {...props} />);
+
+    expect(screen.getByRole("button", { name: "Resolving..." })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Copy triage" })).toBeDisabled();
   });
 
   it("routes search, refresh, and pagination through the provided callbacks", () => {

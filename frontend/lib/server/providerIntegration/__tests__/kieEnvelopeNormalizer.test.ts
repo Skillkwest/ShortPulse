@@ -70,4 +70,17 @@ describe("kieEnvelopeNormalizer", () => {
     expect(normalized.resultUrls).toEqual(["https://cdn.shortpulse.test/veo-response-result.mp4"]);
     expect(normalized.result_urls).toEqual(["https://cdn.shortpulse.test/veo-response-result.mp4"]);
   });
+
+  it("normalizes resultUrl object arrays with camelCase URL fields", () => {
+    const normalized = normalizeKieEnvelopePayload({
+      code: 200,
+      data: {
+        state: "success",
+        resultUrls: [{ imageUrl: "https://cdn.shortpulse.test/kie-image-result.png" }],
+      },
+    });
+
+    expect(normalized.resultUrls).toEqual(["https://cdn.shortpulse.test/kie-image-result.png"]);
+    expect(normalized.result_urls).toEqual(["https://cdn.shortpulse.test/kie-image-result.png"]);
+  });
 });

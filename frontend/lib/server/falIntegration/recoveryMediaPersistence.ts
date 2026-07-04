@@ -10,7 +10,13 @@ import { isTrustedMediaDirectPreviewUrl } from "../../mediaPreviewTrustPolicy";
 import { withCanonicalImageDimensions } from "../../mediaDimensionMetadata";
 import { assertUserScopedMediaStoragePath } from "../../mediaStoragePath";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
-import { DURABLE_MEDIA_CACHE_CONTROL_SECONDS } from "../mediaIngest";
+import {
+  DURABLE_MEDIA_CACHE_CONTROL_SECONDS,
+  MAX_SUPABASE_STANDARD_UPLOAD_BYTES,
+  maxBytesForMediaFileType,
+  uploadMediaBufferToSignedStoragePath,
+  uploadMediaBufferToStoragePath,
+} from "../mediaIngest";
 import { readPersistedGenerationOutputs } from "../api/generationOutputs";
 import { reconcileOwnedGenerationOutputSlot } from "../api/generationOutputConvergence";
 import { associateMediaFilesWithProjectForUser } from "../projectGenerationAssociationsService";
@@ -285,6 +291,9 @@ export const persistRecoveryMediaFilesForGeneration = async ({
       userId: generation.user_id,
     });
     const fileType = resolveFileType(contentType, mediaUrl);
+    if (buffer.byteLength > maxBytesForMediaFileType(fileType)) {
+      throw new Error("Fetched media exceeds size limit.");
+    }
     const extension = resolveExtension(contentType, mediaUrl);
     const imageDimensions = fileType === "image" ? extractImageDimensionsFromBuffer(buffer) : null;
     const storagePath = assertUserScopedMediaStoragePath({
@@ -293,15 +302,21 @@ export const persistRecoveryMediaFilesForGeneration = async ({
       label: "Recovery execution media storage path",
     });
 
-    const { error: uploadError } = await supabaseAdmin.storage
-      .from(MEDIA_BUCKET)
-      .upload(storagePath, buffer, {
-        contentType: contentType ?? undefined,
-        upsert: false,
+    try {
+      const upload = {
+        storagePath,
+        buffer,
+        mimeType: contentType ?? "application/octet-stream",
         cacheControl: DURABLE_MEDIA_CACHE_CONTROL_SECONDS,
-      });
-    if (uploadError) {
-      throw new Error(`Upload failed: ${uploadError.message}`);
+      };
+      if (buffer.byteLength > MAX_SUPABASE_STANDARD_UPLOAD_BYTES) {
+        await uploadMediaBufferToSignedStoragePath(upload);
+      } else {
+        await uploadMediaBufferToStoragePath(upload);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown upload error";
+      throw new Error(`Upload failed: ${message}`);
     }
 
     const filename = sanitizeFilename(`${promptBase}-${index + 1}.${extension}`);

@@ -181,6 +181,24 @@ export function VoiceChangerSourceDropzone({
     setSourceSelectionRecoveryHint(null);
   }, []);
 
+  const handleAudioDurationResolved = React.useCallback(
+    (durationMs: number) => {
+      if (
+        !source ||
+        source.kind !== "audio" ||
+        source.status !== "ready" ||
+        source.durationMs === durationMs
+      ) {
+        return;
+      }
+      onSourceChange({
+        ...source,
+        durationMs,
+      });
+    },
+    [onSourceChange, source]
+  );
+
   const {
     isRecording,
     isRequestingPermission,
@@ -369,7 +387,11 @@ export function VoiceChangerSourceDropzone({
               />
             ) : source.kind === "audio" && source.sourceUrl ? (
               <div className="voices-properties-voice-changer-dropzone-audio-preview">
-                <VoiceChangerAudioSourcePreview key={source.id} audioUrl={source.sourceUrl} />
+                <VoiceChangerAudioSourcePreview
+                  key={source.id}
+                  audioUrl={source.sourceUrl}
+                  onDurationResolved={handleAudioDurationResolved}
+                />
               </div>
             ) : (
               <div className="voices-properties-voice-changer-dropzone-audio-preview" />

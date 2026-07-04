@@ -268,6 +268,7 @@ export default function AiStudioProtectedRouteEntry({
   const { loading, session, user } = useProtectedRoute(true, {
     missingSessionBehavior: hasRenderedRuntime ? "preserve" : "redirect",
   });
+  const shouldPreloadAiStudioRouteApp = RuntimeComponent === AiStudioRouteApp;
   const resolvedUser = user ?? session?.user ?? null;
   const resolvedUserId = resolvedUser?.id ?? null;
   const mediaCompliance = useMediaComplianceGate({
@@ -289,6 +290,7 @@ export default function AiStudioProtectedRouteEntry({
   }, [authRedirectPath, mediaCompliance.status, router]);
 
   useEffect(() => {
+    if (!shouldPreloadAiStudioRouteApp) return;
     if (restoreGuard.checking || loading || !session) return;
     if (mediaCompliance.status !== "accepted") return;
     if (checkoutProjectLaunchIntent) return;
@@ -298,6 +300,7 @@ export default function AiStudioProtectedRouteEntry({
     loading,
     mediaCompliance.status,
     restoreGuard.checking,
+    shouldPreloadAiStudioRouteApp,
     session,
   ]);
 

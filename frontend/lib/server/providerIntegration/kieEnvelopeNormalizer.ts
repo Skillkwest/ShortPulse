@@ -118,21 +118,43 @@ const readFirstResultJson = (candidates: Record<string, unknown>[]): Record<stri
 };
 
 const readFirstResultUrls = (candidates: Record<string, unknown>[]): string[] => {
+  const readUrlArray = (value: unknown): string[] => {
+    if (!Array.isArray(value)) return [];
+    return value
+      .map((item) => {
+        if (typeof item === "string") return asProviderString(item);
+        const record = asProviderRecord(item);
+        return (
+          asProviderString(record.url) ||
+          asProviderString(record.download_url) ||
+          asProviderString(record.downloadUrl) ||
+          asProviderString(record.video_url) ||
+          asProviderString(record.videoUrl) ||
+          asProviderString(record.image_url) ||
+          asProviderString(record.imageUrl) ||
+          asProviderString(record.file_url) ||
+          asProviderString(record.fileUrl) ||
+          asProviderString(record.media_url) ||
+          asProviderString(record.mediaUrl) ||
+          asProviderString(record.signed_url) ||
+          asProviderString(record.signedUrl) ||
+          asProviderString(record.public_url) ||
+          asProviderString(record.publicUrl) ||
+          asProviderString(record.href)
+        );
+      })
+      .filter((url): url is string => Boolean(url));
+  };
+
   for (const candidate of candidates) {
     const list = candidate.resultUrls ?? candidate.result_urls;
-    if (!Array.isArray(list)) continue;
-    const urls = list
-      .map((item) => asProviderString(item))
-      .filter((url): url is string => Boolean(url));
+    const urls = readUrlArray(list);
     if (urls.length) return urls;
   }
   for (const candidate of candidates) {
     const response = asProviderRecord(candidate.response);
     const nestedList = response.resultUrls ?? response.result_urls;
-    if (!Array.isArray(nestedList)) continue;
-    const urls = nestedList
-      .map((item) => asProviderString(item))
-      .filter((url): url is string => Boolean(url));
+    const urls = readUrlArray(nestedList);
     if (urls.length) return urls;
   }
   return [];

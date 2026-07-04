@@ -109,7 +109,7 @@ describe("ProjectsModal", () => {
 
     expect(onSelectProject).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "Open project Campaign Alpha" })).toHaveTextContent(
-      "Open"
+      "Open →"
     );
     expect(
       screen.getByRole("button", { name: "Delete selected project Campaign Alpha" })

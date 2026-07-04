@@ -1345,6 +1345,73 @@ describe("createFalStatusHandler", () => {
     );
   });
 
+  it("captures Kie GPT Image 2 Edit resultJson URL objects with camelCase imageUrl fields", async () => {
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/gpt-image-2-image-to-image";
+    process.env.SHORTPULSE_KIE_TRUSTED_HOSTS = "kie.ai";
+    process.env.KIE_API_KEY = "test-kie-key";
+
+    const resultUrl = "https://cdn.shortpulse.test/kie-gpt-image-2-edit-camel.png";
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          code: 200,
+          msg: "success",
+          data: {
+            taskId: "req-kie-gpt-image-2-edit",
+            state: "success",
+            resultJson: JSON.stringify({
+              resultUrls: [{ imageUrl: resultUrl }],
+            }),
+          },
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      provider: "kie",
+      modelId: "kie-ai/gpt-image-2-image-to-image",
+      queueBaseUrl: "https://api.kie.ai/api/v1/jobs/recordInfo?taskId={requestId}",
+      routeLabel: "Kie GPT Image 2 Image to Image",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-kie-gpt-image-2-edit", generationId: "gen-kie-gpt-image-2-edit" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(settleDirectGenerationSuccessMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestId: "req-kie-gpt-image-2-edit",
+        resultUrls: [resultUrl],
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "completed",
+        state: "completed",
+        resultUrls: [toSignedResultUrl("user-1/generations/results/media-1.png")],
+        shortpulseLifecycle: expect.objectContaining({
+          taskState: "success",
+          resultUrls: [toSignedResultUrl("user-1/generations/results/media-1.png")],
+        }),
+      })
+    );
+    expect(executeGenerationRecoveryMock).not.toHaveBeenCalled();
+  });
+
   it("captures kie veo success payload media from data.response.originUrls", async () => {
     process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
     process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";

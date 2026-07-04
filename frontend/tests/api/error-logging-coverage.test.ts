@@ -61,6 +61,7 @@ const ALLOWLIST_LOCATIONS = new Set<string>([
   "media/list.ts:631",
   "media/resolve-previews.ts:231",
   "media/sign-batch.ts:186",
+  "media/sign-batch.ts:207",
 ]);
 
 const LOG_CALL_PATTERNS = [

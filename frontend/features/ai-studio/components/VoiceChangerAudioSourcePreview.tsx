@@ -13,6 +13,7 @@ import { useExclusiveSoundMediaElement } from "./shared/exclusiveSoundPlayback";
 
 type VoiceChangerAudioSourcePreviewProps = {
   audioUrl: string;
+  onDurationResolved?: (durationMs: number) => void;
 };
 
 const formatPlaybackClock = (valueMs: number | null): string => {
@@ -28,6 +29,7 @@ const formatPlaybackClock = (valueMs: number | null): string => {
  */
 export const VoiceChangerAudioSourcePreview = React.memo(function VoiceChangerAudioSourcePreview({
   audioUrl,
+  onDurationResolved,
 }: VoiceChangerAudioSourcePreviewProps) {
   const audioNodeRef = React.useRef<HTMLAudioElement | null>(null);
   const exclusiveSound = useExclusiveSoundMediaElement(
@@ -188,7 +190,9 @@ export const VoiceChangerAudioSourcePreview = React.memo(function VoiceChangerAu
         onLoadedMetadata={(event) => {
           const durationSeconds = event.currentTarget.duration;
           if (Number.isFinite(durationSeconds) && durationSeconds > 0) {
-            setResolvedDurationMs(Math.round(durationSeconds * 1000));
+            const durationMs = Math.round(durationSeconds * 1000);
+            setResolvedDurationMs(durationMs);
+            onDurationResolved?.(durationMs);
           }
           setCurrentTimeMs(0);
           setAudioProgressRatio(0);

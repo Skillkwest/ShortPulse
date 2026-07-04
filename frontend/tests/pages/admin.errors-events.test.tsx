@@ -1,6 +1,6 @@
 /**
- * Admin page tests for errors and events workflows.
- * Locks telemetry loading and incident status mutation before the B4-01 errors/events extraction.
+ * Admin page tests for the errors handoff queue.
+ * Locks the operator-facing copy-to-Codex incident workflow.
  */
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -10,6 +10,7 @@ import AdminErrorsPage from "../../pages/admin/errors";
 const useProtectedRouteMock = vi.hoisted(() => vi.fn());
 const useAdminAccessMock = vi.hoisted(() => vi.fn());
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
+const copyToClipboardMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next/head", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -42,14 +43,19 @@ vi.mock("../../lib/authenticatedFetch", () => ({
   fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
 }));
 
+vi.mock("../../features/admin/logic/copyToClipboard", () => ({
+  copyToClipboard: (value: string) => copyToClipboardMock(value),
+}));
+
 const jsonResponse = (body: unknown, ok = true) => ({
   ok,
   json: vi.fn(async () => body),
 });
 
-describe("Admin errors and events overview", () => {
+describe("Admin errors handoff queue", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    copyToClipboardMock.mockResolvedValue(true);
 
     useProtectedRouteMock.mockReturnValue({
       loading: false,
@@ -63,7 +69,7 @@ describe("Admin errors and events overview", () => {
       refresh: vi.fn(),
     });
 
-    fetchWithAuthMock.mockImplementation(async (url: unknown, options?: RequestInit) => {
+    fetchWithAuthMock.mockImplementation(async (url: unknown) => {
       const path = String(url);
       if (path.startsWith("/api/admin/users?")) {
         return jsonResponse({
@@ -134,47 +140,6 @@ describe("Admin errors and events overview", () => {
           },
         });
       }
-      if (path.startsWith("/api/admin/error-events?")) {
-        return jsonResponse({
-          events: [],
-          summary: {
-            last15mCount: 1,
-            high15mCount: 1,
-            generation15mCount: 1,
-            providerRunningTimeout15mCount: 1,
-            lastHourCount: 1,
-            last24hCount: 1,
-            app24hCount: 0,
-            generation24hCount: 1,
-            high24hCount: 1,
-            characterModeReferenceRefreshEmptyLastHourCount: 0,
-            characterModeReferenceRefreshEmptyLast24hCount: 0,
-            characterModeBundleUnavailableFallbackLastHourCount: 0,
-            characterModeBundleUnavailableFallbackLast24hCount: 0,
-            total15mThreshold: 40,
-            high15mThreshold: 8,
-            generation15mThreshold: 20,
-            providerRunningTimeout15mThreshold: 2,
-            total15mBreached: false,
-            high15mBreached: false,
-            generation15mBreached: false,
-            providerRunningTimeout15mBreached: false,
-          },
-          health: { eventsTableAvailable: true, degraded: false, reason: null },
-          pagination: {
-            page: 1,
-            perPage: 50,
-            totalCount: 0,
-            totalPages: 1,
-            hasNextPage: false,
-            hasPrevPage: false,
-          },
-        });
-      }
-      if (path === "/api/admin/errors-status") {
-        expect(options?.method).toBe("POST");
-        return jsonResponse({ ok: true });
-      }
       if (path === "/api/admin/announcements/current") {
         return jsonResponse({ announcement: null });
       }
@@ -182,52 +147,45 @@ describe("Admin errors and events overview", () => {
     });
   });
 
-  it("loads incident summary and telemetry when the errors tab is opened", async () => {
+  it("loads the handoff queue without event-stream telemetry", async () => {
     render(<AdminErrorsPage />);
 
     await waitFor(() => {
-      expect(screen.getByText("Open incidents")).toBeInTheDocument();
+      expect(screen.getByText("Error queue")).toBeInTheDocument();
+      expect(
+        screen.getByText("Copy one error packet, then paste it into Codex.")
+      ).toBeInTheDocument();
       expect(screen.getByText("Generation timeout")).toBeInTheDocument();
-      expect(screen.getByText("Healthy")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Copy triage" })).toBeInTheDocument();
     });
 
     expect(fetchWithAuthMock).toHaveBeenCalledWith(
       "/api/admin/errors?page=1&limit=50&status=open",
       expect.objectContaining({ method: "GET" })
     );
-    expect(fetchWithAuthMock).toHaveBeenCalledWith(
-      "/api/admin/error-events?page=1&limit=50&synthetic=exclude&incident=actionable",
-      expect.objectContaining({ method: "GET" })
-    );
+
+    const calls = fetchWithAuthMock.mock.calls.map(([value]) => String(value));
+    expect(calls.some((value) => value.startsWith("/api/admin/error-events?"))).toBe(false);
   });
 
-  it("resolves an incident and refreshes errors plus telemetry", async () => {
+  it("copies an incident packet and marks the row in progress", async () => {
     render(<AdminErrorsPage />);
 
     await waitFor(() => {
       expect(screen.getByText("Generation timeout")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Resolve" }));
-
-    await waitFor(() =>
-      expect(fetchWithAuthMock).toHaveBeenCalledWith(
-        "/api/admin/errors-status",
-        expect.objectContaining({
-          method: "POST",
-          body: JSON.stringify({ errorId: "err-1", status: "resolved" }),
-        })
-      )
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Copy triage" }));
 
     await waitFor(() => {
-      const calls = fetchWithAuthMock.mock.calls.map(([value]) => String(value));
-      expect(
-        calls.filter((value) => value.startsWith("/api/admin/errors?")).length
-      ).toBeGreaterThan(1);
-      expect(
-        calls.filter((value) => value.startsWith("/api/admin/error-events?")).length
-      ).toBeGreaterThan(1);
+      expect(copyToClipboardMock).toHaveBeenCalledTimes(1);
+      expect(screen.getByText("In progress")).toBeInTheDocument();
     });
+
+    expect(copyToClipboardMock.mock.calls[0]?.[0]).toContain("Generation timeout");
+
+    const calls = fetchWithAuthMock.mock.calls.map(([value]) => String(value));
+    expect(calls.some((value) => value === "/api/admin/errors-status")).toBe(false);
+    expect(calls.some((value) => value.startsWith("/api/admin/error-events?"))).toBe(false);
   });
 });

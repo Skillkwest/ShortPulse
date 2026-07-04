@@ -21,6 +21,47 @@ const publicFetchMock = vi.hoisted(() => vi.fn());
 const loadGrowthTelemetryMock = vi.hoisted(() => vi.fn());
 const trackMarketingPageViewMock = vi.hoisted(() => vi.fn());
 
+type NavigatorPerformanceHintKey = "connection" | "deviceMemory" | "hardwareConcurrency";
+
+const navigatorPerformanceHintKeys: NavigatorPerformanceHintKey[] = [
+  "connection",
+  "deviceMemory",
+  "hardwareConcurrency",
+];
+
+const originalNavigatorPerformanceHintDescriptors = navigatorPerformanceHintKeys.map(
+  (key) => [key, Object.getOwnPropertyDescriptor(navigator, key)] as const
+);
+
+const stubNavigatorPerformanceHints = () => {
+  Object.defineProperties(navigator, {
+    connection: {
+      configurable: true,
+      value: {
+        saveData: false,
+      },
+    },
+    deviceMemory: {
+      configurable: true,
+      value: 8,
+    },
+    hardwareConcurrency: {
+      configurable: true,
+      value: 8,
+    },
+  });
+};
+
+const restoreNavigatorPerformanceHints = () => {
+  originalNavigatorPerformanceHintDescriptors.forEach(([key, descriptor]) => {
+    if (descriptor) {
+      Object.defineProperty(navigator, key, descriptor);
+      return;
+    }
+    delete (navigator as Navigator & Record<NavigatorPerformanceHintKey, unknown>)[key];
+  });
+};
+
 const stubMatchMedia = (matchesByQuery: Record<string, boolean>) => {
   vi.stubGlobal(
     "matchMedia",
@@ -113,6 +154,8 @@ describe("Dashboard guest route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal("fetch", publicFetchMock);
+    stubMatchMedia({});
+    stubNavigatorPerformanceHints();
     publicFetchMock.mockReturnValue(new Promise(() => {}));
     useRouterMock.mockReturnValue({
       pathname: "/dashboard",
@@ -145,6 +188,7 @@ describe("Dashboard guest route", () => {
     vi.restoreAllMocks();
     vi.useRealTimers();
     vi.unstubAllGlobals();
+    restoreNavigatorPerformanceHints();
   });
 
   it("renders a public dashboard with compact pricing, login, and signup guest CTAs", () => {

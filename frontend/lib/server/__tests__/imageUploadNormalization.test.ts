@@ -3,7 +3,7 @@ import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 import { maybeNormalizeOversizedImageUpload } from "../imageUploadNormalization";
 
-const buildNoisyAvifBuffer = async (width = 1000, height = 1000): Promise<Buffer> => {
+const buildNoisyAvifBuffer = async (width = 512, height = 512): Promise<Buffer> => {
   const raw = Buffer.alloc(width * height * 3);
   crypto.randomFillSync(raw);
   return await sharp(raw, {
@@ -39,15 +39,16 @@ describe("maybeNormalizeOversizedImageUpload", () => {
 
   it("respects the provided maxBytes target for oversized still images", async () => {
     const image = await buildNoisyAvifBuffer();
-    expect(image.length).toBeGreaterThan(2 * 1024 * 1024);
+    const maxBytes = 768 * 1024;
+    expect(image.length).toBeGreaterThan(maxBytes);
 
     const result = await maybeNormalizeOversizedImageUpload({
       buffer: image,
       mimeType: "image/avif",
-      maxBytes: 2 * 1024 * 1024,
+      maxBytes,
     });
 
-    expect(result.buffer.length).toBeLessThanOrEqual(2 * 1024 * 1024);
+    expect(result.buffer.length).toBeLessThanOrEqual(maxBytes);
     expect(result.buffer.length).toBeLessThan(image.length);
     expect(result.mimeType).toMatch(/^image\/(avif|webp|jpeg)$/);
     expect(result.metadata).toEqual(

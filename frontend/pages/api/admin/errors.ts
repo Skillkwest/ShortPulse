@@ -14,6 +14,8 @@ const APP_ERROR_LOGS_MISSING_REASON =
 
 type IncidentQuery = {
   eq: (column: string, value: string) => IncidentQuery;
+  gte: (column: string, value: string) => IncidentQuery;
+  not: (column: string, operator: string, value: string) => IncidentQuery;
   or: (filters: string) => IncidentQuery;
 };
 
@@ -31,6 +33,8 @@ type AdminErrorsHealth = {
   degraded: boolean;
   reason: string | null;
 };
+
+const PROVIDER_FLAGGED_SENSITIVE_MESSAGE_PATTERN = "%flagged%as%sensitive%";
 
 const asPositiveInt = (value: unknown, fallback: number): number => {
   const parsed = Number(value);
@@ -127,6 +131,15 @@ const applyIncidentFilters = (
   return next;
 };
 
+const applyAdminQueueVisibilityFilters = (query: IncidentQuery): IncidentQuery => {
+  return query.not("message", "ilike", PROVIDER_FLAGGED_SENSITIVE_MESSAGE_PATTERN);
+};
+
+const applyVisibleIncidentFilters = (
+  query: IncidentQuery,
+  filters: { status: string; severity: string; source: string; scope: string; search: string }
+): IncidentQuery => applyIncidentFilters(applyAdminQueueVisibilityFilters(query), filters);
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -161,7 +174,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       search: normalizeSearchTerm(req.query.search),
     };
 
-    const logsQuery = applyIncidentFilters(
+    const logsQuery = applyVisibleIncidentFilters(
       supabaseAdmin
         .from("app_error_logs")
         .select(
@@ -172,7 +185,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       filters
     ) as unknown as Promise<ListQueryResult>;
 
-    const filteredCountQuery = applyIncidentFilters(
+    const filteredCountQuery = applyVisibleIncidentFilters(
       supabaseAdmin.from("app_error_logs").select("id", {
         count: "exact",
         head: true,
@@ -181,6 +194,38 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     ) as unknown as Promise<CountQueryResult>;
 
     const sinceIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const openCountQuery = applyAdminQueueVisibilityFilters(
+      supabaseAdmin
+        .from("app_error_logs")
+        .select("id", { count: "exact", head: true }) as unknown as IncidentQuery
+    ).eq("status", "open") as unknown as Promise<CountQueryResult>;
+    const highSeverityOpenQuery = applyAdminQueueVisibilityFilters(
+      supabaseAdmin
+        .from("app_error_logs")
+        .select("id", { count: "exact", head: true }) as unknown as IncidentQuery
+    )
+      .eq("status", "open")
+      .eq("severity", "high") as unknown as Promise<CountQueryResult>;
+    const appOpenCountQuery = applyAdminQueueVisibilityFilters(
+      supabaseAdmin
+        .from("app_error_logs")
+        .select("id", { count: "exact", head: true }) as unknown as IncidentQuery
+    )
+      .eq("status", "open")
+      .eq("scope", "app") as unknown as Promise<CountQueryResult>;
+    const generationOpenCountQuery = applyAdminQueueVisibilityFilters(
+      supabaseAdmin
+        .from("app_error_logs")
+        .select("id", { count: "exact", head: true }) as unknown as IncidentQuery
+    )
+      .eq("status", "open")
+      .eq("scope", "generation") as unknown as Promise<CountQueryResult>;
+    const last24hQuery = applyAdminQueueVisibilityFilters(
+      supabaseAdmin
+        .from("app_error_logs")
+        .select("id", { count: "exact", head: true }) as unknown as IncidentQuery
+    ).gte("last_seen_at", sinceIso) as unknown as Promise<CountQueryResult>;
+
     const [
       logsResult,
       filteredCountResult,
@@ -192,29 +237,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     ] = await Promise.all([
       logsQuery,
       filteredCountQuery,
-      supabaseAdmin
-        .from("app_error_logs")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "open"),
-      supabaseAdmin
-        .from("app_error_logs")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "open")
-        .eq("severity", "high"),
-      supabaseAdmin
-        .from("app_error_logs")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "open")
-        .eq("scope", "app"),
-      supabaseAdmin
-        .from("app_error_logs")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "open")
-        .eq("scope", "generation"),
-      supabaseAdmin
-        .from("app_error_logs")
-        .select("id", { count: "exact", head: true })
-        .gte("last_seen_at", sinceIso),
+      openCountQuery,
+      highSeverityOpenQuery,
+      appOpenCountQuery,
+      generationOpenCountQuery,
+      last24hQuery,
     ]);
 
     if (logsResult.error) {
@@ -255,7 +282,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (!hasFilteredCountError && resolvedPage !== page) {
       const fallbackOffset = (resolvedPage - 1) * limit;
-      const fallbackLogsResult = (await applyIncidentFilters(
+      const fallbackLogsResult = (await applyVisibleIncidentFilters(
         supabaseAdmin
           .from("app_error_logs")
           .select(

@@ -7,7 +7,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 - Client runtime, API/network, and generation workflow failures are captured and sent to `/api/log/client-error`.
 - Client route-transition failures (`client.route_change`, excluding cancelled navigations) are captured for incident triage.
 - API/server-side incidents can be written through `frontend/lib/server/api/appErrorLogs.ts`.
-- Operator review surface: `/admin/errors` shows a simple grouped-error handoff queue backed by `app_error_logs`; raw event-stream inspection remains available through `/api/admin/error-events`.
+- Operator review surface: `/admin/errors` shows a simple grouped-error handoff queue backed by `app_error_logs`; raw event-stream inspection remains available through `/api/admin/error-events`. Provider-sensitive/refusal messages such as "flagged as sensitive" are treated as successful safety outcomes and hidden from the admin queue.
 - Fal transient status fallback telemetry is emitted as `telemetry.fal.status.transient.*` when status transient mode is enabled.
 - AI Studio low-severity client telemetry under `telemetry.ai_studio.*` is currently suppressed in the browser reporter before `/api/log/client-error` ingest so incident-budget headroom is reserved for real failures; this includes visible UI mirrors such as `ui_error_banner`, `notice_banner`, `failure_stack`, and media-library panel/modal error banners.
 - AI Studio stability telemetry under `telemetry.ai_studio.stability.*` is emitted at medium severity for crash-adjacent browser pressure signals and therefore reaches `app_error_events` while staying telemetry-only on the server.
@@ -46,7 +46,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
    - Shared policy contract lives in `frontend/lib/server/api/errorTelemetryPolicy.ts`
 4. Operator retrieval:
    - `/api/admin/error-events` = raw stream + enrichment + alert summaries
-   - `/api/admin/errors` = grouped incidents for the Codex handoff queue
+   - `/api/admin/errors` = grouped incidents for the Codex handoff queue, excluding provider-sensitive safety-success rows
    - `/api/admin/stats/global` = admin stats workspace payload for product + growth lenses
 
 ## AI Studio usage analytics
@@ -241,7 +241,8 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 - `app_error_events` raw rows are retention-managed telemetry. Do not manually delete rows during troubleshooting; preserve forensic history through the approved retention/rollup path.
 - `app_error_event_telemetry_daily_rollups` preserves aggregate telemetry counts after low/medium raw telemetry rows leave the raw retention window.
 - Use incident status transitions (`open` -> `resolved`/`ignored`, with `reopen` when needed) to represent triage state.
-- Admin UI focuses on copying grouped incident triage packets into Codex. Copying a row marks it in progress locally; incident status transitions remain available through `/api/admin/errors-status` and `/api/admin/errors-status-bulk` for API/tooling use.
+- Admin UI focuses on copying grouped incident triage packets into Codex and resolving completed rows. Copying a row marks it in progress locally; each listed row has a `Resolve` action that updates `/api/admin/errors-status` and clears it from the default open queue. Bulk status transitions remain available through `/api/admin/errors-status-bulk` for API/tooling use.
+- Provider-sensitive/refusal generation messages are retained in incident storage but excluded from `/admin/errors`; treat them as successful provider safety handling unless a separate user-impacting failure signature appears.
 - Unlinked routine telemetry events are raw evidence and must not be promoted to grouped incidents through `/api/admin/errors-status`; inspect them through the Event Stream source/signal filters instead.
 - Default Event Stream lists hide `telemetry.*` rows. Telemetry remains available through explicit source or signal filters and in aggregate summary modules.
 - Use `Copy triage` in the Incidents/Event Stream tables for handoff packets. These payloads are versioned and intentionally compact (key identifiers + normalized triage metadata) to keep troubleshooting reproducible without pasting full raw metadata blobs.

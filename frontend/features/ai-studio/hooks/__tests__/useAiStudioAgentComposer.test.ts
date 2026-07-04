@@ -748,16 +748,18 @@ describe("useAiStudioAgentComposer", () => {
 
     expect(resolveInternalImageDropSource).toHaveBeenCalledTimes(1);
     expect(result.current.agentAttachmentError).toBeNull();
-    expect(result.current.agentAttachments[0]).toMatchObject({
-      kind: "image",
-      source: "ephemeral_local",
-      referenceId: "out-1",
-      mediaId: "media-1",
-      imageUrl: expect.stringMatching(/^(blob:|data:image\/)/),
-      modelDataUrl: "data:image/png;base64,bW9kZWw=",
-      submissionImageUrl: null,
-      text: "Resolved prompt",
-      deliveryStatus: "ready",
+    await waitFor(() => {
+      expect(result.current.agentAttachments[0]).toMatchObject({
+        kind: "image",
+        source: "ephemeral_local",
+        referenceId: "out-1",
+        mediaId: "media-1",
+        imageUrl: expect.stringMatching(/^(blob:|data:image\/)/),
+        modelDataUrl: "data:image/png;base64,bW9kZWw=",
+        submissionImageUrl: null,
+        text: "Resolved prompt",
+        deliveryStatus: "ready",
+      });
     });
     expect(createEphemeralComposerImageDataMock).toHaveBeenCalledTimes(1);
   });

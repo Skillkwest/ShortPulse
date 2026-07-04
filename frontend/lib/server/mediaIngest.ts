@@ -149,6 +149,39 @@ export const uploadMediaBufferToStoragePath = async ({
   }
 };
 
+export const uploadMediaBufferToSignedStoragePath = async ({
+  storagePath,
+  buffer,
+  mimeType,
+  upsert = false,
+  cacheControl,
+}: {
+  storagePath: string;
+  buffer: Buffer;
+  mimeType: string;
+  upsert?: boolean;
+  cacheControl?: string;
+}): Promise<void> => {
+  const bucket = getSupabaseAdmin().storage.from(MEDIA_BUCKET);
+  const { data, error } = await bucket.createSignedUploadUrl(storagePath);
+  if (error || !data?.token) {
+    throw error ?? new Error("Unable to create signed media upload target.");
+  }
+  if (data.path !== storagePath) {
+    throw new Error("Signed media upload target path mismatch.");
+  }
+
+  const body = new Blob([buffer], { type: mimeType });
+  const { error: uploadError } = await bucket.uploadToSignedUrl(storagePath, data.token, body, {
+    contentType: mimeType,
+    upsert,
+    ...(cacheControl ? { cacheControl } : {}),
+  });
+  if (uploadError) {
+    throw uploadError;
+  }
+};
+
 export const createSignedMediaUrl = async (
   storagePath: string,
   expiresInSeconds = 3600

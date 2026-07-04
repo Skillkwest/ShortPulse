@@ -20,7 +20,11 @@ import {
   buildVoiceoverRequestConfig,
   VoicesPropertiesPanel,
 } from "../VoicesPropertiesPanel";
-import { createVoiceChangerSourceFromFile } from "../VoiceChangerSourceDropzone";
+import {
+  createVoiceChangerSourceFromFile,
+  VoiceChangerSourceDropzone,
+  type VoiceChangerSource,
+} from "../VoiceChangerSourceDropzone";
 import { preparePromptReferenceDrag, prepareReferenceDrag } from "../../utils/dragDrop";
 
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
@@ -1875,6 +1879,50 @@ describe("VoicesPropertiesPanel", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Pause source audio preview" }));
     expect(HTMLMediaElement.prototype.pause).toHaveBeenCalled();
+  });
+
+  it("promotes resolved voice changer audio preview duration back to the source", () => {
+    const onSourceChange = vi.fn();
+    const source: VoiceChangerSource = {
+      id: "source-audio",
+      kind: "audio",
+      origin: "local",
+      status: "ready",
+      aspect: null,
+      durationMs: null,
+      name: "voice-source.mp3",
+      mimeType: "audio/mpeg",
+      file: null,
+      previewUrl: null,
+      sourceUrl: "https://example.com/voice-source.mp3",
+      objectUrl: null,
+      storagePath: "users/demo/voice-source.mp3",
+      referenceOutputId: null,
+      referenceMediaId: null,
+      errorMessage: null,
+      extractedFrom: null,
+    };
+
+    const { container } = render(
+      <VoiceChangerSourceDropzone source={source} onSourceChange={onSourceChange} />
+    );
+    const audioNode = container.querySelector(
+      ".voices-properties-voice-changer-audio-element"
+    ) as HTMLAudioElement | null;
+
+    expect(audioNode).not.toBeNull();
+
+    Object.defineProperty(audioNode, "duration", {
+      configurable: true,
+      value: 15,
+    });
+
+    fireEvent.loadedMetadata(audioNode as HTMLAudioElement);
+
+    expect(onSourceChange).toHaveBeenCalledWith({
+      ...source,
+      durationMs: 15_000,
+    });
   });
 
   it("accepts a native local audio file drag into the voice changer drop zone", async () => {

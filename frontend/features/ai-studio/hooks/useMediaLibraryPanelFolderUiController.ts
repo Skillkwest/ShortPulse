@@ -76,7 +76,7 @@ type UseMediaLibraryPanelFolderUiControllerResult = {
 };
 
 const FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX = 10;
-const FOLDER_OPEN_GHOST_DURATION_MS = 220;
+const FOLDER_OPEN_GHOST_DURATION_MS = 180;
 const FOLDER_OPEN_NAVIGATION_DELAY_MS = 70;
 const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 

@@ -18,9 +18,17 @@ import {
   computeCostForModel,
 } from "../../../../lib/model-runtime/pricing";
 import {
+  ELEVENLABS_SOUND_EFFECTS_AUTO_DURATION_LABEL,
+  ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_DEFAULT_SECONDS,
+  ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_LABEL,
+  ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_VARIANT_ID,
+  ELEVENLABS_SOUND_EFFECTS_MODEL_ID,
+} from "../../../../lib/model-runtime/elevenLabsModels";
+import {
   KIE_KLING_30_MOTION_CONTROL_LABEL,
   KIE_KLING_30_MOTION_CONTROL_VARIANT_ID,
 } from "../../../../lib/model-runtime/klingMotionControlPricing";
+import { resolveModelPricingVariantId } from "../../../../lib/model-runtime/modelPricingVariants";
 import {
   listModelConfigs,
   listPricingModelConfigs,
@@ -217,6 +225,48 @@ const mapPricingPreviewVariants = (
             id: KIE_KLING_30_MOTION_CONTROL_VARIANT_ID,
             label: KIE_KLING_30_MOTION_CONTROL_LABEL,
             breakdown: motionBreakdown,
+          }
+        : null,
+    ].filter((variant): variant is AdminPricingPreviewVariant => variant !== null);
+  }
+
+  if (model.id === ELEVENLABS_SOUND_EFFECTS_MODEL_ID) {
+    const autoVariantId = resolveModelPricingVariantId({
+      modelId: model.id,
+      generationCount: 1,
+    });
+    const explicitVariantId = resolveModelPricingVariantId({
+      modelId: model.id,
+      variantBaseId: ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_VARIANT_ID,
+      durationSeconds: ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_DEFAULT_SECONDS,
+    });
+    const autoBreakdown = mapPricingPreview(
+      model.id,
+      buildDefaultPricingParams(model.id, { generationCount: 1 }),
+      pricingPolicy
+    );
+    const explicitBreakdown = mapPricingPreview(
+      model.id,
+      buildDefaultPricingParams(model.id, {
+        variantBaseId: ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_VARIANT_ID,
+        durationSeconds: ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_DEFAULT_SECONDS,
+      }),
+      pricingPolicy
+    );
+
+    return [
+      autoBreakdown
+        ? {
+            id: autoVariantId,
+            label: ELEVENLABS_SOUND_EFFECTS_AUTO_DURATION_LABEL,
+            breakdown: autoBreakdown,
+          }
+        : null,
+      explicitBreakdown
+        ? {
+            id: explicitVariantId,
+            label: ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_LABEL,
+            breakdown: explicitBreakdown,
           }
         : null,
     ].filter((variant): variant is AdminPricingPreviewVariant => variant !== null);

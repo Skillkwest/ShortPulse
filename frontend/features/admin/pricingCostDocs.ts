@@ -13,6 +13,13 @@ import {
   buildModelPricingVariantId,
   resolveModelPricingVariantId,
 } from "../../lib/model-runtime/modelPricingVariants";
+import {
+  ELEVENLABS_SOUND_EFFECTS_AUTO_DURATION_LABEL,
+  ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_DEFAULT_SECONDS,
+  ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_LABEL,
+  ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_VARIANT_ID,
+  ELEVENLABS_SOUND_EFFECTS_MODEL_ID,
+} from "../../lib/model-runtime/elevenLabsModels";
 import { convertUsdToCredits } from "../../lib/model-runtime/pricingCredits";
 import {
   resolvePricingGridAspectOptions,
@@ -156,7 +163,7 @@ const getProviderPricingDocLines = (
       return [
         "Provider cost basis used here: $0.12 per auto-duration API sound-effect generation.",
         "Explicit-duration API sound effects are normalized to $0.0132 per second.",
-        "The workbook starts at 5s because ShortPulse defaults this workflow to an explicit 5-second clip.",
+        "ShortPulse defaults the Sound Effects panel to Auto; the explicit-duration row uses the workbook duration input.",
       ];
     case "elevenlabs-text-to-speech-per-kchar":
       return [
@@ -327,6 +334,51 @@ export const buildDraftPricingPreviewVariants = (
         },
       },
     ];
+  }
+
+  if (model.id === ELEVENLABS_SOUND_EFFECTS_MODEL_ID) {
+    const autoVariantId = resolveModelPricingVariantId({
+      modelId: model.id,
+      generationCount: 1,
+    });
+    const explicitDurationSeconds =
+      options.usageAmount != null && Number.isFinite(options.usageAmount) && options.usageAmount > 0
+        ? options.usageAmount
+        : ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_DEFAULT_SECONDS;
+    const autoBreakdown = mapDraftPricingBreakdown(
+      model.id,
+      buildDefaultPricingParams(model.id, { generationCount: 1 }),
+      pricingPolicy
+    );
+    const explicitBreakdown = mapDraftPricingBreakdown(
+      model.id,
+      buildDefaultPricingParams(model.id, {
+        variantBaseId: ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_VARIANT_ID,
+        durationSeconds: explicitDurationSeconds,
+      }),
+      pricingPolicy
+    );
+
+    return [
+      autoBreakdown
+        ? {
+            id: autoVariantId,
+            label: ELEVENLABS_SOUND_EFFECTS_AUTO_DURATION_LABEL,
+            breakdown: autoBreakdown,
+          }
+        : null,
+      explicitBreakdown
+        ? {
+            id: resolveModelPricingVariantId({
+              modelId: model.id,
+              variantBaseId: ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_VARIANT_ID,
+              durationSeconds: explicitDurationSeconds,
+            }),
+            label: ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_LABEL,
+            breakdown: explicitBreakdown,
+          }
+        : null,
+    ].filter((variant): variant is AdminPricingPreviewVariant => variant !== null);
   }
 
   const variants = options.baseVariantId

@@ -14,6 +14,12 @@ import {
   KIE_KLING_30_MOTION_CONTROL_VARIANT_ID,
 } from "../../../lib/model-runtime/klingMotionControlPricing";
 import {
+  ELEVENLABS_SOUND_EFFECTS_AUTO_DURATION_LABEL,
+  ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_LABEL,
+  ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_VARIANT_ID,
+  ELEVENLABS_SOUND_EFFECTS_MODEL_ID,
+} from "../../../lib/model-runtime/elevenLabsModels";
+import {
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
 } from "../../../lib/model-runtime/providerModelIds";
@@ -225,7 +231,7 @@ describe("pricing grid invariants", () => {
 
   it("keeps per-second rate fixed while duration scales total provider cost", () => {
     const model = buildModelRow({
-      id: "eleven_text_to_sound_v2",
+      id: ELEVENLABS_SOUND_EFFECTS_MODEL_ID,
       label: "ElevenLabs Sound Effects",
       provider: "elevenlabs",
       sourceUrl: "https://elevenlabs.io/docs/overview/capabilities/sound-effects",
@@ -234,19 +240,29 @@ describe("pricing grid invariants", () => {
       pricingStrategyLabel: "Per second",
       defaultResolution: null,
       allowedResolutions: [],
-      defaultDurationSeconds: 5,
+      defaultDurationSeconds: null,
       minDurationSeconds: 0.5,
       maxDurationSeconds: 30,
       pricingPreview: {
-        usdRaw: 0.066,
-        rawCredits: 11,
-        billedCredits: 11,
-        billedUsd: 0.11,
+        usdRaw: 0.12,
+        rawCredits: 20,
+        billedCredits: 20,
+        billedUsd: 0.2,
       },
       pricingPreviewVariants: [
         {
           id: "default",
-          label: "Default",
+          label: ELEVENLABS_SOUND_EFFECTS_AUTO_DURATION_LABEL,
+          breakdown: {
+            usdRaw: 0.12,
+            rawCredits: 20,
+            billedCredits: 20,
+            billedUsd: 0.2,
+          },
+        },
+        {
+          id: ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_VARIANT_ID,
+          label: ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_LABEL,
           breakdown: {
             usdRaw: 0.066,
             rawCredits: 11,
@@ -263,12 +279,18 @@ describe("pricing grid invariants", () => {
         [model.id]: "10",
       },
     });
-    const row = rows[0];
+    const row = rows.find((candidate) =>
+      candidate.variantId.startsWith(ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_VARIANT_ID)
+    );
 
     expect(row).toMatchObject({
       durationSeconds: 10,
       providerCostUsd: 0.132,
       costPerSecondUsd: 0.0132,
+    });
+    expect(rows.find((candidate) => candidate.variantId.startsWith("default"))).toMatchObject({
+      durationSeconds: null,
+      providerCostUsd: 0.12,
     });
     expect(
       getRateSourceCostUsd({

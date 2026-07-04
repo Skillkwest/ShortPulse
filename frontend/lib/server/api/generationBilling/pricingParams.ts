@@ -65,6 +65,20 @@ const resolveContextDurationSeconds = (context?: JsonObject | null): number | un
   return undefined;
 };
 
+const shouldApplyCatalogDefaultDuration = ({
+  modelId,
+  pricingStrategy,
+  generationCount,
+}: {
+  modelId: string;
+  pricingStrategy?: string | null;
+  generationCount?: number;
+}): boolean => {
+  if (modelId !== "eleven_text_to_sound_v2") return true;
+  if (pricingStrategy !== "elevenlabs-sound-effect") return true;
+  return !(generationCount && generationCount > 0);
+};
+
 const resolveExplicitImageSize = (payload: JsonObject): string | undefined => {
   const directSize = asString(payload.size) ?? asString(payload.image_size);
   return directSize?.trim().toLowerCase() || undefined;
@@ -447,7 +461,15 @@ export const buildPricingParams = (
     }
   }
 
-  if (!params.durationSeconds && config?.defaultDurationSeconds) {
+  if (
+    !params.durationSeconds &&
+    config?.defaultDurationSeconds &&
+    shouldApplyCatalogDefaultDuration({
+      modelId,
+      pricingStrategy: config.pricingStrategy,
+      generationCount: params.generationCount,
+    })
+  ) {
     params.durationSeconds = config.defaultDurationSeconds;
   }
   if (!params.resolution && config?.defaultResolution) {

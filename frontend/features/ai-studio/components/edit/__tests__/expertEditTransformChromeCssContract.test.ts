@@ -63,9 +63,15 @@ describe("Expert Edit transform chrome CSS contract", () => {
 
     expectRuleToContain(
       css,
+      ".edit-expert-preset-toolbar.is-more-presets-open",
+      "z-index: var(--ai-studio-z-modal-context-surface)"
+    );
+    expectRuleToContain(
+      css,
       ".edit-expert-presets-surface",
       "z-index: var(--ai-studio-z-modal-context-surface)"
     );
+    expectRuleToContain(css, ".edit-expert-transform-chrome-layer", "z-index: 1000");
     expectRuleToContain(css, ".edit-expert-stage-overlay-ui", "z-index: 1005");
   });
 

@@ -166,7 +166,12 @@ export function ExpertEditStageWorkspace({
   return (
     <>
       <div className="edit-expert-main-stage">
-        <div className="edit-expert-preset-toolbar" aria-label="Edit preset toolbar">
+        <div
+          className={`edit-expert-preset-toolbar ${
+            isMorePresetsSurfaceOpen ? "is-more-presets-open" : ""
+          }`.trim()}
+          aria-label="Edit preset toolbar"
+        >
           {sidebar}
         </div>
 

@@ -263,9 +263,9 @@ describe("POST /api/elevenlabs/sound-effects", () => {
     expect(chargeGenerationRequestMock).toHaveBeenCalledWith(
       expect.objectContaining({
         modelId: "eleven_text_to_sound_v2",
-        payload: expect.objectContaining({
+        payload: {
           generation_count: 1,
-        }),
+        },
         shortpulseContext: {
           mode: "audio",
           selected_tool: "sound-effects",

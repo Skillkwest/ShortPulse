@@ -9,6 +9,12 @@ import {
   KIE_KLING_30_MOTION_CONTROL_LABEL,
   KIE_KLING_30_MOTION_CONTROL_VARIANT_ID,
 } from "../../lib/model-runtime/klingMotionControlPricing";
+import {
+  ELEVENLABS_SOUND_EFFECTS_AUTO_DURATION_LABEL,
+  ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_LABEL,
+  ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_VARIANT_ID,
+  ELEVENLABS_SOUND_EFFECTS_MODEL_ID,
+} from "../../lib/model-runtime/elevenLabsModels";
 import { KIE_KLING_30_MODEL_ID } from "../../lib/model-runtime/providerModelIds";
 
 const requireAdminUserMock = vi.fn();
@@ -45,6 +51,8 @@ vi.mock("../../lib/model-runtime/pricing", () => ({
 }));
 
 vi.mock("../../lib/model-runtime/modelRegistry", () => ({
+  getModelConfig: (modelId: string) =>
+    listModelConfigsMock().find((model: { id: string }) => model.id === modelId) ?? null,
   listModelConfigs: (...args: unknown[]) => listModelConfigsMock(...args),
   listPricingModelConfigs: (...args: unknown[]) => listPricingModelConfigsMock(...args),
 }));
@@ -65,6 +73,20 @@ describe("GET /api/admin/pricing/state", () => {
     vi.clearAllMocks();
     requireAdminUserMock.mockResolvedValue({ id: "admin-1", email: "admin@example.com" });
     listModelConfigsMock.mockReturnValue([
+      {
+        id: ELEVENLABS_SOUND_EFFECTS_MODEL_ID,
+        label: "Sound Effects",
+        provider: "elevenlabs",
+        sourceUrl: "https://elevenlabs.io/docs/overview/models",
+        mediaType: "audio",
+        supportsTextToImage: false,
+        supportsImageToImage: false,
+        pricingStrategy: "elevenlabs-sound-effect",
+        defaultAspect: "audio",
+        defaultResolution: null,
+        defaultDurationSeconds: undefined,
+        defaultGenerationCount: 1,
+      },
       {
         id: "kie-ai/gpt-image-2-text-to-image",
         label: "GPT Image 2 (Kie)",
@@ -205,6 +227,20 @@ describe("GET /api/admin/pricing/state", () => {
         defaultAspect: "1:1",
         defaultResolution: "model_default",
         defaultDurationSeconds: undefined,
+      },
+      {
+        id: ELEVENLABS_SOUND_EFFECTS_MODEL_ID,
+        label: "Sound Effects",
+        provider: "elevenlabs",
+        sourceUrl: "https://elevenlabs.io/docs/overview/models",
+        mediaType: "audio",
+        supportsTextToImage: false,
+        supportsImageToImage: false,
+        pricingStrategy: "elevenlabs-sound-effect",
+        defaultAspect: "audio",
+        defaultResolution: null,
+        defaultDurationSeconds: undefined,
+        defaultGenerationCount: 1,
       },
       {
         id: "kie-ai/gpt-image-2-text-to-image",
@@ -483,6 +519,7 @@ describe("GET /api/admin/pricing/state", () => {
     expect(payload.models.map((model) => model.id)).toEqual([
       KIE_KLING_30_MODEL_ID,
       "bria-background-remove",
+      ELEVENLABS_SOUND_EFFECTS_MODEL_ID,
       "kie-ai/gpt-image-2-text-to-image",
     ]);
     expect(
@@ -493,6 +530,21 @@ describe("GET /api/admin/pricing/state", () => {
         expect.objectContaining({
           id: KIE_KLING_30_MOTION_CONTROL_VARIANT_ID,
           label: KIE_KLING_30_MOTION_CONTROL_LABEL,
+        }),
+      ])
+    );
+    expect(
+      payload.models.find((model) => model.id === ELEVENLABS_SOUND_EFFECTS_MODEL_ID)
+        ?.pricingPreviewVariants
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "default|aspect:audio",
+          label: ELEVENLABS_SOUND_EFFECTS_AUTO_DURATION_LABEL,
+        }),
+        expect.objectContaining({
+          id: `${ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_VARIANT_ID}|aspect:audio`,
+          label: ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_LABEL,
         }),
       ])
     );

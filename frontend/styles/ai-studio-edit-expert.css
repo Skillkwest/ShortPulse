@@ -218,6 +218,10 @@
   height: 100%;
 }
 
+.edit-expert-preset-toolbar.is-more-presets-open {
+  z-index: var(--ai-studio-z-modal-context-surface);
+}
+
 .edit-expert-column-wrapper {
   width: 100%;
   display: flex;

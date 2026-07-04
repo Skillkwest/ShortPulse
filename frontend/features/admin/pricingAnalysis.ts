@@ -10,7 +10,7 @@ import {
   getVariantSpecSummary,
 } from "./pricingFormatting";
 import {
-  getModelDurationSecondsForUsage,
+  getModelDurationSecondsForVariantUsage,
   getModelUsageDisplayValue,
   getModelUsageRateMultiplier,
   getModelUsageValue,
@@ -185,7 +185,7 @@ const buildModelEconomicsRow = ({
     resolvedPolicy.providerUsdPerSecondOverride;
   const isSharedPolicyModel = model.pricingAuthority === "shared_policy";
   const usageValue = durationSecondsOverride ?? getModelUsageValue(model, undefined);
-  const durationSeconds = getModelDurationSecondsForUsage(model, usageValue);
+  const durationSeconds = getModelDurationSecondsForVariantUsage(model, usageValue, variant.id);
   const usageRateMultiplier = getModelUsageRateMultiplier(model, usageValue);
   const providerCostUsd = isSharedPolicyModel
     ? getEffectiveProviderCostUsd({

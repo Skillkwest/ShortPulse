@@ -5,6 +5,11 @@ import type {
   AdminPricingStorageAddonRow,
 } from "./types";
 import type { PricingGridTab } from "./pricingAnalysis";
+import {
+  ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_DEFAULT_SECONDS,
+  ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_VARIANT_ID,
+  ELEVENLABS_SOUND_EFFECTS_MODEL_ID,
+} from "../../lib/model-runtime/elevenLabsModels";
 
 export type CreditPackageDraft = {
   id: string;
@@ -243,6 +248,19 @@ export const getModelUsageControl = (model: AdminPricingModelRow): ModelUsageCon
     };
   }
 
+  if (model.id === ELEVENLABS_SOUND_EFFECTS_MODEL_ID) {
+    return {
+      kind: "duration_seconds",
+      label: "Explicit duration",
+      unitLabel: "sec",
+      defaultValue: ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_DEFAULT_SECONDS,
+      minValue: model.minDurationSeconds ?? 0.5,
+      maxValue: model.maxDurationSeconds ?? null,
+      step: getDurationInputStep(model),
+      inputMode: "decimal",
+    };
+  }
+
   if (IMAGE_AMOUNT_PRICING_STRATEGIES.has(model.pricingStrategy)) {
     return {
       kind: "generation_count",
@@ -329,6 +347,22 @@ export const getModelDurationSecondsForUsage = (
     return usageValue;
   }
   return model.defaultDurationSeconds ?? model.defaultSourceDurationSeconds ?? null;
+};
+
+export const getModelDurationSecondsForVariantUsage = (
+  model: AdminPricingModelRow,
+  usageValue: number | null | undefined,
+  variantId?: string | null
+): number | null => {
+  if (model.id === ELEVENLABS_SOUND_EFFECTS_MODEL_ID) {
+    if (!variantId?.startsWith(ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_VARIANT_ID)) {
+      return null;
+    }
+    return usageValue != null && Number.isFinite(usageValue) && usageValue > 0
+      ? usageValue
+      : ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_DEFAULT_SECONDS;
+  }
+  return getModelDurationSecondsForUsage(model, usageValue);
 };
 
 export const getModelUsageRateMultiplier = (

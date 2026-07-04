@@ -167,14 +167,14 @@ export default async function handler(
       });
     }
 
+    const billingPayload =
+      durationSeconds == null ? { generation_count: 1 } : { duration_seconds: durationSeconds };
+
     charge = await chargeGenerationRequest({
       req,
       res,
       modelId,
-      payload: {
-        duration_seconds: durationSeconds ?? undefined,
-        generation_count: durationSeconds == null ? 1 : undefined,
-      },
+      payload: billingPayload,
       reason: "elevenlabs-sound-effects generation",
       shortpulseContext,
     });

@@ -1048,7 +1048,6 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     submitAspectField: "none",
     defaultAspect: "audio",
     allowedAspects: [],
-    defaultDurationSeconds: 5,
     defaultGenerationCount: 1,
     minDurationSeconds: ELEVENLABS_SOUND_EFFECT_DURATION_MIN_SECONDS,
     maxDurationSeconds: ELEVENLABS_SOUND_EFFECT_DURATION_MAX_SECONDS,

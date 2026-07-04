@@ -60,4 +60,33 @@ describe("buildPricingParams", () => {
       })
     );
   });
+
+  it("keeps auto-duration sound effects on generation count instead of catalog duration", () => {
+    expect(
+      buildPricingParams("eleven_text_to_sound_v2", {
+        generation_count: 1,
+      })
+    ).toEqual(
+      expect.objectContaining({
+        generationCount: 1,
+      })
+    );
+    expect(
+      buildPricingParams("eleven_text_to_sound_v2", {
+        generation_count: 1,
+      })
+    ).not.toHaveProperty("durationSeconds");
+  });
+
+  it("keeps explicit-duration sound effects duration-based", () => {
+    expect(
+      buildPricingParams("eleven_text_to_sound_v2", {
+        duration_seconds: 10,
+      })
+    ).toEqual(
+      expect.objectContaining({
+        durationSeconds: 10,
+      })
+    );
+  });
 });

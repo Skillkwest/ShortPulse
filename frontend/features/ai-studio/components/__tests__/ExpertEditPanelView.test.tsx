@@ -1924,8 +1924,10 @@ describe("ExpertEditPanelView", () => {
     fireEvent.click(trigger);
     const surface = screen.getByRole("region", { name: /more presets/i });
     const primaryStage = screen.getByLabelText("Primary edit stage");
+    const presetToolbar = surface.closest(".edit-expert-preset-toolbar");
     expect(surface).toBeInTheDocument();
     expect(primaryStage.contains(surface)).toBe(false);
+    expect(presetToolbar).toHaveClass("is-more-presets-open");
     expect(trigger).toHaveAttribute("aria-expanded", "true");
     expect(within(surface).queryByText("Selfie")).not.toBeInTheDocument();
     expect(within(surface).queryByText("Enhance Realism")).not.toBeInTheDocument();

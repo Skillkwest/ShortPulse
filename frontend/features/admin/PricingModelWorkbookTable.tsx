@@ -9,7 +9,7 @@ import {
   getEffectiveProviderCostUsd,
   getEffectiveProviderCostUsdPerSecond,
   getCreditsAtProviderCost,
-  getModelDurationSecondsForUsage,
+  getModelDurationSecondsForVariantUsage,
   getModelRateSourceInputMode,
   getModelUsageControl,
   getModelUsageDisplayValue,
@@ -455,10 +455,6 @@ export function PricingModelWorkbookTable({
                 ? getModelUsageValue(model, durationDraftValue)
                 : null;
             const resolvedUsageAmount = draftUsageAmount ?? defaultUsageValue;
-            const resolvedDurationSeconds = getModelDurationSecondsForUsage(
-              model,
-              resolvedUsageAmount
-            );
             const usageRateMultiplier = getModelUsageRateMultiplier(model, resolvedUsageAmount);
             const usageDisplayLabel = getModelUsageDisplayValue(model, resolvedUsageAmount);
             const mergedPreviewVariantRows = sortMergedPricingPreviewVariantRows({
@@ -572,23 +568,28 @@ export function PricingModelWorkbookTable({
                 variantProviderCostPerSecondDraftValue !== undefined
                   ? parsedVariantProviderCostPerSecondDraft
                   : effectiveRowProviderUsdPerSecondOverride;
+              const resolvedVariantDurationSeconds = getModelDurationSecondsForVariantUsage(
+                model,
+                resolvedUsageAmount,
+                variantId
+              );
               const activeProviderCostUsd = getEffectiveProviderCostUsd({
                 breakdown: activePreview,
                 providerUsdOverride: previewVariantProviderUsdOverride,
                 providerUsdPerSecondOverride: previewVariantProviderUsdPerSecondOverride,
-                durationSeconds: resolvedDurationSeconds,
+                durationSeconds: resolvedVariantDurationSeconds,
                 usageRateMultiplier,
               });
               const activeProviderCostUsdPerSecond = getEffectiveProviderCostUsdPerSecond({
                 providerCostUsd: activeProviderCostUsd,
                 providerUsdPerSecondOverride: previewVariantProviderUsdPerSecondOverride,
-                durationSeconds: resolvedDurationSeconds,
+                durationSeconds: resolvedVariantDurationSeconds,
               });
               const activeRateSourceCostUsd = getRateSourceCostUsd({
                 rateSourceInputMode,
                 providerCostUsd: activeProviderCostUsd,
                 providerCostUsdPerSecond: activeProviderCostUsdPerSecond,
-                durationSeconds: resolvedDurationSeconds,
+                durationSeconds: resolvedVariantDurationSeconds,
                 usageRateMultiplier,
               });
               const variantProviderCostInputValue =
@@ -669,7 +670,7 @@ export function PricingModelWorkbookTable({
                 variantDraftKey,
                 variantId,
                 rowLabel,
-                resolvedDurationSeconds,
+                resolvedDurationSeconds: resolvedVariantDurationSeconds,
                 usageRateMultiplier,
                 variantMarkupInputValue,
                 variantProviderCostInputValue,

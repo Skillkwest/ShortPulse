@@ -32,14 +32,14 @@ describe("ElevenLabs runtime pricing", () => {
     });
   });
 
-  it("prices sound effects from the 5s explicit-duration catalog default", () => {
+  it("prices default sound effects as auto-duration generations", () => {
     const breakdown = computeCostForModel(
       "eleven_text_to_sound_v2",
       buildDefaultPricingParams("eleven_text_to_sound_v2")
     );
 
     expect(breakdown).toMatchObject({
-      usdRaw: 0.066,
+      usdRaw: 0.12,
     });
   });
 

@@ -5,6 +5,7 @@
 import React from "react";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_DEFAULT_SECONDS } from "../../../../lib/model-runtime/elevenLabsModels";
 import { resolvePricingGridBilledCredits } from "../../../../lib/model-runtime/pricingGridBilledCredits";
 import { createCanvasTearOutComposerTargetRegistry } from "../../hooks/useAiStudioCanvasTearOutTargets";
 import { AI_STUDIO_PLAN_CTA } from "../../logic/generationAccessCta";
@@ -96,7 +97,7 @@ describe("SoundEffectsPropertiesPanel", () => {
     );
     expect(screen.queryByLabelText("Sound effect output format")).not.toBeInTheDocument();
     expect(screen.queryByText("MP3")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Sound effect duration" })).toHaveTextContent("Auto");
+    expect(screen.getByRole("button", { name: "Sound effect duration" })).toHaveTextContent("5s");
     expect(screen.getByText("Inspiration")).toBeInTheDocument();
     expect(screen.getByLabelText("Sound effect inspiration")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "cinematic boom" })).toBeInTheDocument();
@@ -379,7 +380,7 @@ describe("SoundEffectsPropertiesPanel", () => {
     expect(screen.queryByText("Balance covers this run")).not.toBeInTheDocument();
   });
 
-  it("submits the mapped request payload with hardcoded mp3 output", () => {
+  it("defaults to the explicit 5s request payload with hardcoded mp3 output", () => {
     const onGenerate = vi.fn();
     render(<SoundEffectsPropertiesPanel onGenerate={onGenerate} />);
 
@@ -390,19 +391,37 @@ describe("SoundEffectsPropertiesPanel", () => {
 
     expect(onGenerate).toHaveBeenCalledWith({
       text: "Huge cinematic boom inside a vaulted cathedral, with a deep sub hit.",
-      durationSeconds: null,
+      durationSeconds: ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_DEFAULT_SECONDS,
       loop: false,
       outputFormat: "mp3_44100_128",
       modelId: hardcodedSoundEffectsModelId,
       displayedBilledCredits: resolvePricingGridBilledCredits({
         modelId: hardcodedSoundEffectsModelId,
         params: {
-          durationSeconds: null,
+          durationSeconds: ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_DEFAULT_SECONDS,
           generationCount: 1,
         },
       }),
       pricingPolicyReady: true,
     });
+  });
+
+  it("still submits Auto when explicitly selected", () => {
+    const onGenerate = vi.fn();
+    render(<SoundEffectsPropertiesPanel onGenerate={onGenerate} />);
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Sound effect prompt" }), {
+      target: { value: "Short glitchy spark with a clean digital tail." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Sound effect duration" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Auto" }));
+    fireEvent.click(screen.getByRole("button", { name: "Generate" }));
+
+    expect(onGenerate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        durationSeconds: null,
+      })
+    );
   });
 
   it("submits the selected explicit sound effect duration", () => {

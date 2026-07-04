@@ -2108,23 +2108,33 @@ body.dashboard-body:has(.public-dashboard-page) {
 
 .hero-announcement {
   display: grid;
-  gap: 6px;
-  max-width: 560px;
+  gap: 4px;
+  max-width: 620px;
+  margin: 4px 0 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .hero-announcement-title {
   margin: 0;
-  color: var(--color-teal);
-  font-size: 19px;
+  color: #ffbd6e;
+  font-size: 15px;
   line-height: 1.25;
   font-weight: var(--font-semibold);
+  letter-spacing: 0;
+  text-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
 }
 
 .hero-announcement-message {
   margin: 0;
-  color: var(--color-ash-70);
+  color: rgba(246, 248, 251, 0.86);
   font-size: 18px;
-  line-height: 1.5;
+  line-height: 1.45;
+  font-weight: var(--font-semibold);
+  text-shadow: 0 10px 26px rgba(0, 0, 0, 0.5);
+  text-wrap: balance;
 }
 
 .dashboard-guest-strip {
@@ -2480,7 +2490,7 @@ button.hero-onboarding {
 
 .authenticated-home-hero-copy .hero-subtext,
 .authenticated-home-hero-copy .hero-announcement {
-  max-width: 520px;
+  max-width: 600px;
   color: rgba(245, 247, 250, 0.78);
   font-size: 16px;
   line-height: 1.5;

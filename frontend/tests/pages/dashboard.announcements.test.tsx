@@ -242,6 +242,9 @@ describe("Dashboard announcement rendering", () => {
     expect(
       screen.getByText("AI Studio saves may be briefly delayed at 2AM UTC.")
     ).toBeInTheDocument();
+    expect(screen.getByText("Maintenance window").closest(".hero-announcement")).not.toHaveClass(
+      "app-message"
+    );
     await vi.dynamicImportSettled();
   });
 

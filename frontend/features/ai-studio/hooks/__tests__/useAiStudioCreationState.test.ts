@@ -1,5 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
+import { ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_DEFAULT_SECONDS } from "../../../../lib/model-runtime/elevenLabsModels";
 import { useAiStudioCreationState } from "../useAiStudioCreationState";
 
 describe("useAiStudioCreationState", () => {
@@ -37,7 +38,7 @@ describe("useAiStudioCreationState", () => {
     expect(result.current.hasUserVideoPrefs).toBe(false);
   });
 
-  it("keeps sound workflow durations page-owned with null defaults", () => {
+  it("keeps sound workflow durations page-owned with the SFX explicit default", () => {
     const { result } = renderHook(() => useAiStudioCreationState());
 
     expect(result.current.musicDurationSeconds).toBeNull();
@@ -45,7 +46,9 @@ describe("useAiStudioCreationState", () => {
     expect(result.current.musicInstrumentalEnabled).toBe(false);
     expect(result.current.musicSingerEnabled).toBe(false);
     expect(result.current.musicSongBatchCount).toBe(2);
-    expect(result.current.soundEffectsDurationSeconds).toBeNull();
+    expect(result.current.soundEffectsDurationSeconds).toBe(
+      ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_DEFAULT_SECONDS
+    );
     expect(result.current.soundEffectsLoopEnabled).toBe(false);
     expect(result.current.voiceSelectedVoiceId).toBeNull();
 

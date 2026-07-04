@@ -5,6 +5,7 @@
 import React from "react";
 import { AppMessage } from "../../../components/AppMessage";
 import { ELEVENLABS_SOUND_EFFECT_DURATION_OPTIONS } from "../../../lib/model-runtime/elevenLabsAudioDurations";
+import { ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_DEFAULT_SECONDS } from "../../../lib/model-runtime/elevenLabsModels";
 import { resolveRequiredAudioSoundEffectsModelId } from "../../../lib/model-runtime/modelCatalog";
 import { resolvePricingGridBilledCredits } from "../../../lib/model-runtime/pricingGridBilledCredits";
 import type { ModelPricingPolicyDocument } from "../../../lib/model-runtime/pricingPolicy";
@@ -130,7 +131,7 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
   const [uncontrolledLoopEnabled, setUncontrolledLoopEnabled] = React.useState(false);
   const [uncontrolledDurationSeconds, setUncontrolledDurationSeconds] = React.useState<
     number | null
-  >(null);
+  >(ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_DEFAULT_SECONDS);
   const [isDurationMenuOpen, setIsDurationMenuOpen] = React.useState(false);
   const [inspirationInsertError, setInspirationInsertError] = React.useState<string | null>(null);
   const prompt = controlledPrompt ?? uncontrolledPrompt;

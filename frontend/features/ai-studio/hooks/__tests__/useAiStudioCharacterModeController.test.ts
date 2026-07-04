@@ -184,6 +184,95 @@ describe("useAiStudioCharacterModeController", () => {
     expect(setIsCharacterBundleLoading).not.toHaveBeenCalled();
   });
 
+  it("refreshes a fresh create bundle before submit when the selected look changed", async () => {
+    const defaultPresetState = createDefaultCharacterSheetPresetState();
+    const setCharacterModeInjectionBundle = vi.fn();
+    const setIsCharacterBundleLoading = vi.fn();
+    loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue({
+      ...createSnapshotWithLookReference({
+        description: "Look 1 description",
+        storagePath: "user/chars/look-1.png",
+        previewUrl: "https://example.com/look-1.png",
+      }),
+      activeCharacterSheetPresetId: "1",
+      visibleCharacterSheetPresetIds: ["1", "2"],
+      characterSheetPresetLabels: {
+        ...defaultPresetState.tabLabels,
+        "1": "Look 1",
+        "2": "Look 2",
+      },
+      characterSheetPresetDescriptions: {
+        ...defaultPresetState.tabDescriptions,
+        "1": "Look 1 description",
+        "2": "Look 2 description",
+      },
+      characterSheetPresets: {
+        ...defaultPresetState.presets,
+        "1": {
+          portrait: {
+            characterMediaId: "media-look-1",
+            storagePath: "user/chars/look-1.png",
+            previewUrl: "https://example.com/look-1.png",
+          },
+          close_up: null,
+          front_shot: null,
+        },
+        "2": {
+          portrait: {
+            characterMediaId: "media-look-2",
+            storagePath: "user/chars/look-2.png",
+            previewUrl: "https://example.com/look-2.png",
+          },
+          close_up: null,
+          front_shot: null,
+        },
+      },
+    } as Awaited<ReturnType<typeof loadCharacterManagerDraftByCharacterId>>);
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([["user/chars/look-2.png", "https://example.com/look-2-fresh.png"]])
+    );
+    const currentBundle: CharacterModeInjectionBundle = {
+      characterId: "char-1",
+      characterDescription: "Look 1 description",
+      characterLookId: "1",
+      characterLookName: "Look 1",
+      sheetReferenceStoragePaths: ["user/chars/look-1.png"],
+      sheetReferenceUrls: ["https://example.com/look-1-stale.png"],
+      loadedAtMs: Date.now(),
+    };
+    const params = createParams({
+      selectedCharacterId: "char-1",
+      selectedCharacterLookId: "2",
+      characterModeInjectionBundle: currentBundle,
+      bundleStaleAfterMs: 60 * 60 * 1000,
+      setCharacterModeInjectionBundle: asDispatch<CharacterModeInjectionBundle | null>(
+        setCharacterModeInjectionBundle
+      ),
+      setIsCharacterBundleLoading: asDispatch<boolean>(setIsCharacterBundleLoading),
+    });
+    const { result } = renderHook(() => useAiStudioCharacterModeController(params));
+
+    const refreshed =
+      await result.current.refreshCharacterModeInjectionBundleForSubmission("create");
+
+    expect(loadCharacterManagerDraftByCharacterIdMock).toHaveBeenCalledWith("char-1", {
+      forceRefresh: true,
+    });
+    expect(refreshed).toEqual(
+      expect.objectContaining({
+        characterId: "char-1",
+        characterDescription: "Look 2 description",
+        characterLookId: "2",
+        characterLookName: "Look 2",
+        sheetReferenceStoragePaths: ["user/chars/look-2.png"],
+        sheetReferenceUrls: ["https://example.com/look-2-fresh.png"],
+      })
+    );
+    expect(setCharacterModeInjectionBundle).toHaveBeenCalledWith(refreshed);
+    expect(setIsCharacterBundleLoading).toHaveBeenCalledWith(true);
+    expect(setIsCharacterBundleLoading).toHaveBeenCalledWith(false);
+  });
+
   it("uses legacy description fallback when the active look description is empty", async () => {
     loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue(
       createSnapshotWithLookReference({

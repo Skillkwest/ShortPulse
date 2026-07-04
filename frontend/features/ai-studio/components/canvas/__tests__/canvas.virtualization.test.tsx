@@ -46,6 +46,19 @@ const createSessionState = (selectedOffscreen = false): CanvasWorkspaceSessionSt
 });
 
 describe("Canvas viewport virtualization", () => {
+  it("does not mount ordinary scene items before the viewport is measurable", () => {
+    render(<SeededCanvasHarness initialSessionState={createSessionState()} />);
+
+    expect(screen.queryByTestId("canvas-item-visible-image")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("canvas-item-offscreen-image")).not.toBeInTheDocument();
+  });
+
+  it("keeps selected scene items mounted before the viewport is measurable", async () => {
+    render(<SeededCanvasHarness initialSessionState={createSessionState(true)} />);
+
+    expect(await screen.findByTestId("canvas-item-offscreen-image")).toBeInTheDocument();
+  });
+
   it("does not mount clearly offscreen scene items when the viewport is measurable", async () => {
     render(<SeededCanvasHarness initialSessionState={createSessionState()} />);
     const viewport = screen.getByTestId("canvas-viewport");

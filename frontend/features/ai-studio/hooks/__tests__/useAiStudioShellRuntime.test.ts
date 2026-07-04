@@ -2,6 +2,7 @@ import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { useAiStudioShellRuntime } from "../useAiStudioShellRuntime";
 import type { AiStudioPageBaseRuntime } from "../useAiStudioPageBaseRuntime";
+import type { AiStudioProjectWorkspaceFlushResult } from "../aiStudioPersistenceControllerContract";
 
 vi.mock("../useAiStudioProjectRouteRecovery", () => ({
   useAiStudioProjectRouteRecovery: () => undefined,
@@ -74,14 +75,15 @@ const createBaseRuntime = (): AiStudioPageBaseRuntime =>
     resolveSelectedCharacterIdForTool: vi.fn(() => null),
   }) as unknown as AiStudioPageBaseRuntime;
 
-const createFlushProjectWorkspaceSnapshot = () =>
-  vi.fn(async () => ({
+const createFlushProjectWorkspaceSnapshot = (
+  result: AiStudioProjectWorkspaceFlushResult = {
     status: "skipped" as const,
     reason: "unchanged" as const,
     projectId: "project-1",
     snapshotHash: "hash-1",
     keepalive: false,
-  }));
+  }
+) => vi.fn(async () => result);
 
 describe("useAiStudioShellRuntime", () => {
   it("opens the studio once project bootstrap settles even before autosave-readiness proof matches", () => {
@@ -207,6 +209,45 @@ describe("useAiStudioShellRuntime", () => {
       pathname: "/ai-studio",
       query: { projectId: "project-2" },
     });
+  });
+
+  it("rejects project modal navigation when the workspace flush cannot safely save", async () => {
+    const base = createBaseRuntime();
+    const push = vi.fn(async () => true);
+    base.router.push = push;
+    const flushProjectWorkspaceSnapshot = createFlushProjectWorkspaceSnapshot({
+      status: "skipped",
+      reason: "not_ready",
+      projectId: "project-1",
+      snapshotHash: null,
+      keepalive: false,
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioShellRuntime({
+        base,
+        sessionRestoreCandidate: {
+          status: "ready",
+          result: "found_snapshot",
+          snapshot: null,
+          source: "project",
+          error: null,
+          retry: vi.fn(),
+        },
+        projectBootstrapSettled: true,
+        projectBootstrapApplied: true,
+        flushProjectWorkspaceSnapshot,
+        filteredModelOptions: [],
+        resolveModelPickerCredits: vi.fn(() => null),
+        handleSelectModelFromModal: vi.fn(),
+      })
+    );
+
+    await expect(result.current.handleSelectProjectFromModal("project-2")).rejects.toThrow(
+      "Project workspace could not be saved before switching projects."
+    );
+    expect(flushProjectWorkspaceSnapshot).toHaveBeenCalledWith({ reason: "project_switch" });
+    expect(push).not.toHaveBeenCalled();
   });
 
   it("keeps project modal navigation pending until route complete even when router push resolves", async () => {

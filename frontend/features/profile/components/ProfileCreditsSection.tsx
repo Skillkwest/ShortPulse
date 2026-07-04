@@ -118,7 +118,7 @@ export function ProfileCreditsSection({
             </button>
           }
         >
-          <div className={profileClass("profile-plan-grid")}>
+          <div className={profileClass("profile-plan-grid", "profile-credit-package-grid")}>
             {packagesLoading ? (
               <div className={profileClass("profile-plan-card")}>
                 <p className="tiny subdued">Loading credit packages…</p>

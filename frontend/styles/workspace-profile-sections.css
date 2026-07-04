@@ -648,6 +648,10 @@
   gap: 10px;
 }
 
+.profile-credit-package-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .profile-plan-card {
   border: 1px solid rgba(201, 205, 214, 0.14);
   border-radius: var(--profile-radius);

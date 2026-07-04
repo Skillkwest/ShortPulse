@@ -37,14 +37,19 @@ const CHARACTER_REFERENCE_REFRESH_ERROR_MESSAGE =
  */
 export const hasUsableCharacterModeInjectionBundle = ({
   selectedCharacterId,
+  selectedCharacterLookId,
   bundle,
 }: {
   selectedCharacterId: string;
+  selectedCharacterLookId?: string | null;
   bundle: CharacterModeInjectionBundle | null | undefined;
 }): boolean => {
   const normalizedSelectedCharacterId = selectedCharacterId.trim();
   if (!normalizedSelectedCharacterId) return false;
-  return bundle?.characterId === normalizedSelectedCharacterId;
+  if (bundle?.characterId !== normalizedSelectedCharacterId) return false;
+  const normalizedSelectedLookId = selectedCharacterLookId?.trim() ?? "";
+  if (!normalizedSelectedLookId) return true;
+  return bundle.characterLookId?.trim() === normalizedSelectedLookId;
 };
 
 /**
@@ -320,6 +325,7 @@ export const useAiStudioCharacterModeController = ({
       const bundleAgeMs = currentBundle ? Date.now() - currentBundle.loadedAtMs : 0;
       const hasUsableCurrentBundle = hasUsableCharacterModeInjectionBundle({
         selectedCharacterId: selectedId,
+        selectedCharacterLookId: selectedLookId,
         bundle: currentBundle,
       });
       const shouldReuseCurrentBundle =

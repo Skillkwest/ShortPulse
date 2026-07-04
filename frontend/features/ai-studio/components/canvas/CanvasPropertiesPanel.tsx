@@ -54,7 +54,7 @@ const isCanvasItemInsideViewport = ({
   camera: CanvasPropertiesPanelProps["camera"];
   viewportSize: CanvasViewportSize;
 }): boolean => {
-  if (viewportSize.width <= 0 || viewportSize.height <= 0 || camera.zoom <= 0) return true;
+  if (viewportSize.width <= 0 || viewportSize.height <= 0 || camera.zoom <= 0) return false;
   const overscanWorldPx = CANVAS_VIEWPORT_CULL_OVERSCAN_PX / camera.zoom;
   const viewportLeft = -camera.x / camera.zoom - overscanWorldPx;
   const viewportTop = -camera.y / camera.zoom - overscanWorldPx;

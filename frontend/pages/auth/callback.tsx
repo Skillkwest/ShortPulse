@@ -47,6 +47,7 @@ const GOOGLE_SIGN_IN_ACCOUNT_NOT_FOUND_MARKERS = [
   "no user",
   "signups not allowed",
   "signup disabled",
+  "start from shortpulse signup before creating an account",
   "user from sub claim in jwt does not exist",
   "user not found",
 ];

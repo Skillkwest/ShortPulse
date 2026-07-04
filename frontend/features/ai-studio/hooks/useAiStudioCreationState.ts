@@ -7,6 +7,7 @@ import {
   type SetStateAction,
 } from "react";
 import type { LipSyncAudioState, StudioMode, VideoReferenceMode } from "../types";
+import { ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_DEFAULT_SECONDS } from "../../../lib/model-runtime/elevenLabsModels";
 import { createEmptyLipSyncAudioState } from "../logic/lipSyncAudioState";
 import { createEmptyAiStudioKlingElement, type AiStudioKlingElement } from "../logic/klingElements";
 import {
@@ -161,7 +162,7 @@ export const useAiStudioCreationState = ({
   const [soundEffectsPromptDraft, setSoundEffectsPromptDraftState] = useState<string>("");
   const [soundEffectsDurationSeconds, setSoundEffectsDurationSecondsState] = useState<
     number | null
-  >(null);
+  >(ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_DEFAULT_SECONDS);
   const [soundEffectsLoopEnabled, setSoundEffectsLoopEnabledState] = useState<boolean>(false);
   const [voiceDesignPromptDraft, setVoiceDesignPromptDraftState] = useState<string>("");
   const [voiceScriptDraft, setVoiceScriptDraftState] = useState<string>("");

@@ -58,6 +58,8 @@ type ResolveReferenceGridCardMediaArgs = {
   cardLongEdgePx: number;
 };
 
+export const REFERENCE_GRID_RESOLVED_MEDIA_CACHE_ENTRY_LIMIT = 512;
+
 const getResolvedMediaCacheKey = ({
   item,
   mediaSurface,
@@ -149,6 +151,8 @@ export const useReferenceGridResolvedMediaController = ({
       });
       const cached = cacheRef.current.get(cacheKey);
       if (cached) {
+        cacheRef.current.delete(cacheKey);
+        cacheRef.current.set(cacheKey, cached);
         return cached;
       }
 
@@ -234,6 +238,11 @@ export const useReferenceGridResolvedMediaController = ({
       };
 
       cacheRef.current.set(cacheKey, resolvedMedia);
+      while (cacheRef.current.size > REFERENCE_GRID_RESOLVED_MEDIA_CACHE_ENTRY_LIMIT) {
+        const oldestCacheKey = cacheRef.current.keys().next().value;
+        if (oldestCacheKey === undefined) break;
+        cacheRef.current.delete(oldestCacheKey);
+      }
       return resolvedMedia;
     },
     [

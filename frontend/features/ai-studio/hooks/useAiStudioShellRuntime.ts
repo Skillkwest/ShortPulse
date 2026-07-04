@@ -7,13 +7,27 @@ import {
 } from "../logic/aiStudioPageProjectState";
 import { useAiStudioProjectRouteRecovery } from "./useAiStudioProjectRouteRecovery";
 import type { AiStudioPageBaseRuntime } from "./useAiStudioPageBaseRuntime";
-import type { AiStudioPersistenceController } from "./aiStudioPersistenceControllerContract";
+import type {
+  AiStudioPersistenceController,
+  AiStudioProjectWorkspaceFlushResult,
+} from "./aiStudioPersistenceControllerContract";
 
 type ModelModalState = AiStudioPageContentProps["modelModalState"];
 
 const PROJECT_OPEN_INTERRUPTED_MESSAGE = "Project open was interrupted. Try again.";
 const PROJECT_OPEN_TIMEOUT_MESSAGE = "Project open is taking longer than expected. Try again.";
+const PROJECT_SWITCH_FLUSH_BLOCKED_MESSAGE =
+  "Project workspace could not be saved before switching projects.";
 const PROJECT_OPEN_HANDOFF_TIMEOUT_MS = 8000;
+
+const blocksProjectSwitchAfterFlush = (result: AiStudioProjectWorkspaceFlushResult): boolean => {
+  if (result.status === "saved") return false;
+  return (
+    result.reason === "not_ready" ||
+    result.reason === "serialization_failed" ||
+    result.reason === "snapshot_too_large"
+  );
+};
 
 const buildProjectRouteHref = (projectId: string): string =>
   `/ai-studio?projectId=${encodeURIComponent(projectId)}`;
@@ -201,7 +215,10 @@ export const useAiStudioShellRuntime = ({
   const handleSelectProjectFromModal = useCallback(
     async (nextProjectId: string) => {
       if (nextProjectId === projectId) return;
-      await flushProjectWorkspaceSnapshot({ reason: "project_switch" });
+      const flushResult = await flushProjectWorkspaceSnapshot({ reason: "project_switch" });
+      if (blocksProjectSwitchAfterFlush(flushResult)) {
+        throw new Error(PROJECT_SWITCH_FLUSH_BLOCKED_MESSAGE);
+      }
       await navigateToProjectRoute(nextProjectId);
     },
     [flushProjectWorkspaceSnapshot, navigateToProjectRoute, projectId]

@@ -7,7 +7,6 @@ import Link from "next/link";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import type { IconProps } from "phosphor-react";
 import { FolderSimple, Plus } from "phosphor-react";
-import { AppMessage } from "../../../components/AppMessage";
 import { DashboardQuickActionCard } from "./DashboardQuickActionCard";
 import { type DashboardTutorial } from "./DashboardTutorialGrid";
 import { PublicHomeCommunitySection } from "./PublicHomeCommunitySection";
@@ -77,13 +76,10 @@ export function AuthenticatedDashboardView({
               Welcome back, <span>{firstName}</span>
             </h1>
             {dashboardAnnouncement ? (
-              <AppMessage
-                className="hero-announcement"
-                tone="info"
-                mode="banner"
-                title={dashboardAnnouncement.title}
-                message={dashboardAnnouncement.message}
-              />
+              <p className="hero-announcement" role="status" aria-live="polite">
+                <strong className="hero-announcement-title">{dashboardAnnouncement.title}</strong>
+                <span className="hero-announcement-message">{dashboardAnnouncement.message}</span>
+              </p>
             ) : (
               <p className="hero-subtext">{dashboardFallbackHelperCopy}</p>
             )}

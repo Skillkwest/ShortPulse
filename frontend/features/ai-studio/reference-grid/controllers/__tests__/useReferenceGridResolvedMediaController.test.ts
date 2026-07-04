@@ -13,7 +13,10 @@ vi.mock("../../../logic/referenceGridMedia", async () => {
 });
 
 import { resolveReferenceCardUrls } from "../../../logic/referenceGridMedia";
-import { useReferenceGridResolvedMediaController } from "../useReferenceGridResolvedMediaController";
+import {
+  REFERENCE_GRID_RESOLVED_MEDIA_CACHE_ENTRY_LIMIT,
+  useReferenceGridResolvedMediaController,
+} from "../useReferenceGridResolvedMediaController";
 import { projectReferenceGridMediaOutput } from "../../logic/referenceGridMediaOutput";
 
 const createImageOutput = (id: string): StudioOutput =>
@@ -83,6 +86,49 @@ describe("useReferenceGridResolvedMediaController", () => {
     });
 
     expect(resolveReferenceCardUrls).toHaveBeenCalledTimes(3);
+  });
+
+  it("evicts least recently used resolved media entries when the cache reaches its cap", () => {
+    const { result } = renderHook(() =>
+      useReferenceGridResolvedMediaController({
+        previewQualityPressureLevel: 0,
+        strictPreviewLadder: true,
+        adaptivePreviewRoutingEnabled: true,
+      })
+    );
+    const resolveOutput = (id: string) =>
+      result.current.resolveCardMedia({
+        item: projectReferenceGridMediaOutput(createImageOutput(id)),
+        mediaSurface: "reference-grid",
+        cardLongEdgePx: 512,
+      });
+
+    for (let index = 0; index < REFERENCE_GRID_RESOLVED_MEDIA_CACHE_ENTRY_LIMIT; index += 1) {
+      resolveOutput(`out-${index}`);
+    }
+    expect(resolveReferenceCardUrls).toHaveBeenCalledTimes(
+      REFERENCE_GRID_RESOLVED_MEDIA_CACHE_ENTRY_LIMIT
+    );
+
+    const firstResolvedMedia = resolveOutput("out-0");
+    expect(resolveReferenceCardUrls).toHaveBeenCalledTimes(
+      REFERENCE_GRID_RESOLVED_MEDIA_CACHE_ENTRY_LIMIT
+    );
+
+    resolveOutput(`out-${REFERENCE_GRID_RESOLVED_MEDIA_CACHE_ENTRY_LIMIT}`);
+    expect(resolveReferenceCardUrls).toHaveBeenCalledTimes(
+      REFERENCE_GRID_RESOLVED_MEDIA_CACHE_ENTRY_LIMIT + 1
+    );
+
+    expect(resolveOutput("out-0")).toBe(firstResolvedMedia);
+    expect(resolveReferenceCardUrls).toHaveBeenCalledTimes(
+      REFERENCE_GRID_RESOLVED_MEDIA_CACHE_ENTRY_LIMIT + 1
+    );
+
+    resolveOutput("out-1");
+    expect(resolveReferenceCardUrls).toHaveBeenCalledTimes(
+      REFERENCE_GRID_RESOLVED_MEDIA_CACHE_ENTRY_LIMIT + 2
+    );
   });
 
   it("keeps weak generated outputs previewable without upgrading fallback authority", () => {

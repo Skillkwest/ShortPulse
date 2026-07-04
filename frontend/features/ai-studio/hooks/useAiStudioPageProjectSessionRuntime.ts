@@ -22,7 +22,6 @@ import {
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 import {
   createProjectDurableAiStudioSessionCanvasState,
-  parseAiStudioSessionCanvasState,
   serializeAiStudioSessionCanvasState,
   type AiStudioSessionCanvasState,
 } from "../logic/sessionSnapshotCanvas";
@@ -185,11 +184,12 @@ export const useAiStudioPageProjectSessionRuntime = ({
       state: durableCanvasState,
     };
   }, [canvasSessionState]);
-  const projectDurableCanvasState = useMemo(() => {
-    if (!projectDurableCanvasPayload.signature) return null;
-
-    return parseAiStudioSessionCanvasState(JSON.parse(projectDurableCanvasPayload.signature));
-  }, [projectDurableCanvasPayload.signature]);
+  const projectDurableCanvasState = useMemo(
+    () => projectDurableCanvasPayload.state,
+    // The serialized signature is the durable Canvas contract; transient-only state changes must not churn this callback.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [projectDurableCanvasPayload.signature]
+  );
   const preparedProjectDurableCanvasStateRef = useRef<AiStudioSessionCanvasState | null>(null);
   const prepareProjectWorkspaceSnapshot = useCallback(() => {
     if (!flushCanvasSessionState) return;

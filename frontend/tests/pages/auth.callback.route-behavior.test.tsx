@@ -378,6 +378,21 @@ describe("Auth callback route behavior", () => {
     expect(replaceMock).not.toHaveBeenCalledWith("/log-in?next=%2Fdashboard&oauth=cancelled");
   });
 
+  it("returns to login with account-not-found copy when Google sign-in is rejected by the signup-intent hook", async () => {
+    setCallbackRoute(
+      "/auth/callback?flow=signin&next=%2Fdashboard&provider=google&error=access_denied&error_description=Start%20from%20ShortPulse%20signup%20before%20creating%20an%20account.",
+      { flow: "signin", next: "/dashboard", provider: "google", error: "access_denied" }
+    );
+    readSupabaseSessionMock.mockResolvedValue(null);
+
+    render(<AuthCallbackPage />);
+
+    await waitFor(() => {
+      expect(replaceMock).toHaveBeenCalledWith("/log-in?next=%2Fdashboard&oauth=account_not_found");
+    });
+    expect(replaceMock).not.toHaveBeenCalledWith("/log-in?next=%2Fdashboard&oauth=cancelled");
+  });
+
   it("returns to signup auth when Google signup is rejected by the provider or auth hook", async () => {
     setCallbackRoute(
       "/auth/callback?flow=signup&next=%2Fpricing%3Fintent%3Dcreate-project%26plan%3Dstarter&provider=google&error=server_error&error_description=Choose%20a%20paid%20ShortPulse%20plan",

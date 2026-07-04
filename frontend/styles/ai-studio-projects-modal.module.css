@@ -160,7 +160,7 @@
   position: relative;
   height: 108px;
   border-radius: 8px;
-  transition: transform 140ms ease;
+  transition: transform 110ms ease;
 }
 
 .bootstrapStyleScope :global(.ai-projects-modal-card-shell):hover,

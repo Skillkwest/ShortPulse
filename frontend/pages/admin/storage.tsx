@@ -1,6 +1,6 @@
 /**
- * Admin storage economics route.
- * Shows product-tracked media storage, recurring storage add-on economics, and quota risk.
+ * Admin storage route.
+ * Shows provider usage snapshots, product-tracked media storage, add-on capacity, and quota risk.
  */
 import { AdminRouteShell } from "../../features/admin/components/AdminRouteShell";
 import { AdminStorageEconomicsPanel } from "../../features/admin/components/AdminStorageEconomicsPanel";
@@ -38,9 +38,9 @@ export default function AdminStoragePage() {
       adminAccessError={adminAccessError}
       onRetryAccessCheck={refreshAdminAccess}
       documentTitle="ShortPulse · Admin Storage"
-      metaDescription="Admin storage economics for product-tracked media usage, add-on MRR, capacity risk, and cost estimates."
+      metaDescription="Admin storage view for Supabase usage snapshots, product-tracked media usage, add-on capacity, and local quota risk."
       pageTitle="Storage"
-      pageDescription="Track product-tracked media usage, recurring storage add-on economics, quota pressure, and local capacity risk."
+      pageDescription="Track Supabase usage snapshots, product-tracked media usage, recurring storage add-ons, and local capacity risk."
       userEmail={user?.email}
       currentPath="/admin/storage"
     >

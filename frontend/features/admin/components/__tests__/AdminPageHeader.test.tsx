@@ -23,7 +23,7 @@ vi.mock("next/link", () => ({
 }));
 
 describe("AdminPageHeader", () => {
-  it("renders Dashboard, Agent Instructions, and Model Pricing as the first admin nav items", () => {
+  it("renders Product Catalog as the fourth admin nav item", () => {
     render(
       <AdminPageHeader
         title="Dashboard"
@@ -43,12 +43,12 @@ describe("AdminPageHeader", () => {
     expect(links[1]).toHaveAttribute("href", "/admin/agent-instructions");
     expect(links[2]).toHaveTextContent("Model Pricing");
     expect(links[2]).toHaveAttribute("href", "/admin/pricing");
-    expect(links[3]).toHaveTextContent("Customer Support");
-    expect(links[3]).toHaveAttribute("href", "/admin");
-    expect(links[4]).toHaveTextContent("Legal");
-    expect(links[4]).toHaveAttribute("href", "/admin/legal");
-    expect(links[5]).toHaveTextContent("Catalog");
-    expect(links[5]).toHaveAttribute("href", "/admin/catalog");
+    expect(links[3]).toHaveTextContent("Product Catalog");
+    expect(links[3]).toHaveAttribute("href", "/admin/catalog");
+    expect(links[4]).toHaveTextContent("Customer Support");
+    expect(links[4]).toHaveAttribute("href", "/admin");
+    expect(links[5]).toHaveTextContent("Legal");
+    expect(links[5]).toHaveAttribute("href", "/admin/legal");
     expect(links[9]).toHaveTextContent("Errors");
     expect(links[9]).toHaveAttribute("href", "/admin/errors");
     expect(links[10]).toHaveTextContent("Generation health");

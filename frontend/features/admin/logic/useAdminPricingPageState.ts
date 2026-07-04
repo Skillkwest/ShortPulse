@@ -196,10 +196,10 @@ export function useAdminPricingPageState({
       const restoredCustomRowsDraft = restoredWorkspace.customRowsDraft ?? activeCustomRowsDocument;
       const nextModelPolicyDraft = compactModelPricingPolicyDocument(restoredPolicyDraft);
       const nextCustomRowsDraft = compactAdminPricingCustomRowsDocument(restoredCustomRowsDraft);
-      const nextModelPolicyDirty =
-        restoredWorkspace.modelPolicyDirty ||
-        !modelPricingPolicyDocumentsEqual(nextModelPolicyDraft, activeModelPolicyDocument) ||
-        !adminPricingCustomRowsDocumentsEqual(nextCustomRowsDraft, activeCustomRowsDocument);
+      const nextModelPolicyDirty = !modelPricingPolicyDocumentsEqual(
+        nextModelPolicyDraft,
+        activeModelPolicyDocument
+      );
 
       setDurationDrafts(restoredWorkspace.durationDrafts);
       setAspectDrafts(restoredWorkspace.aspectDrafts);
@@ -667,16 +667,11 @@ export function useAdminPricingPageState({
       livePolicy: activeModelPolicyDocument,
       draftPolicy: effectiveModelPolicyDraft,
     });
-    const liveCustomRowCount = Object.values(activeCustomRowsDocument.rowsByModel).reduce(
-      (sum, rows) => sum + rows.length,
-      0
-    );
-    const draftCustomRowCount = Object.values(effectiveCustomRowsDraft.rowsByModel).reduce(
-      (sum, rows) => sum + rows.length,
-      0
-    );
-    if (!adminPricingCustomRowsDocumentsEqual(activeCustomRowsDocument, effectiveCustomRowsDraft)) {
-      diffs.push(`Custom rows: ${liveCustomRowCount} -> ${draftCustomRowCount}`);
+    if (
+      modelPolicyDirty &&
+      !adminPricingCustomRowsDocumentsEqual(activeCustomRowsDocument, effectiveCustomRowsDraft)
+    ) {
+      diffs.push("Helper display rows changed.");
     }
     return diffs;
   }, [
@@ -684,6 +679,7 @@ export function useAdminPricingPageState({
     activeModelPolicyDocument,
     effectiveCustomRowsDraft,
     effectiveModelPolicyDraft,
+    modelPolicyDirty,
   ]);
 
   const hasInvalidModelPolicyDraft = React.useMemo(() => {

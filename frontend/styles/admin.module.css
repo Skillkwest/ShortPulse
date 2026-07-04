@@ -1494,6 +1494,14 @@
   overflow-wrap: anywhere;
 }
 
+.adminInlineMeta {
+  display: block;
+  margin-top: 2px;
+  color: var(--admin-text-faint);
+  font-size: 11px;
+  line-height: 1.25;
+}
+
 .adminTableEmptyRow {
   justify-items: start;
   padding: 14px 12px;

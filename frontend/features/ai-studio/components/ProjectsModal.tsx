@@ -438,17 +438,6 @@ export function ProjectsModal({
             <p className="model-modal-subtitle">Open a saved AI Studio project.</p>
           </div>
           <div className="model-modal-header-actions">
-            {onCreateProject ? (
-              <button
-                ref={createButtonRef}
-                type="button"
-                className="ghost-btn mini ai-projects-modal-create-button"
-                onClick={openCreateProjectDialog}
-                disabled={Boolean(pendingProjectId || deletePendingProjectId || isCreatingProject)}
-              >
-                New Project
-              </button>
-            ) : null}
             <button
               type="button"
               className="ghost-btn mini ai-projects-modal-delete-selected-button"
@@ -472,6 +461,17 @@ export function ProjectsModal({
             >
               <Trash size={15} weight="bold" aria-hidden="true" />
             </button>
+            {onCreateProject ? (
+              <button
+                ref={createButtonRef}
+                type="button"
+                className="ghost-btn mini ai-projects-modal-create-button"
+                onClick={openCreateProjectDialog}
+                disabled={Boolean(pendingProjectId || deletePendingProjectId || isCreatingProject)}
+              >
+                New Project
+              </button>
+            ) : null}
             <button
               ref={closeButtonRef}
               type="button"

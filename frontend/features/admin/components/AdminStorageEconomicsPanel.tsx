@@ -1,10 +1,14 @@
 /**
- * Admin storage-economics panel for the standalone Storage workspace.
+ * Admin storage panel for provider usage, plan capacity, and local storage risk.
  */
 import React from "react";
 import { AppMessage } from "../../../components/AppMessage";
 import styles from "../../../styles/admin.module.css";
-import type { AdminStorageEconomicsResponse } from "../types";
+import type {
+  AdminStorageEconomicsResponse,
+  AdminStorageProviderUsage,
+  AdminStorageProviderUsageStatus,
+} from "../types";
 
 type AdminStorageEconomicsPanelProps = {
   storageEconomics: AdminStorageEconomicsResponse;
@@ -18,7 +22,7 @@ const TABLE_WIDE_STYLE: React.CSSProperties = {
   minWidth: 1320,
 };
 const ADDON_TABLE_STYLE: React.CSSProperties = {
-  minWidth: 1250,
+  minWidth: 920,
 };
 const RISK_TABLE_STYLE: React.CSSProperties = {
   minWidth: 1100,
@@ -31,13 +35,6 @@ const formatMoney = (cents: number): string =>
     currency: "USD",
     maximumFractionDigits: cents % 100 === 0 ? 0 : 2,
   }).format(cents / 100);
-const formatUnitUsd = (value: number): string =>
-  new Intl.NumberFormat(undefined, {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 4,
-  }).format(value);
 const formatPct = (value: number | null): string =>
   value === null || !Number.isFinite(value) ? "—" : `${value.toFixed(1)}%`;
 const formatGb = (value: number | null): string =>
@@ -49,8 +46,50 @@ const formatBytes = (bytes: number): string => {
   if (gb < 10) return `${gb.toFixed(2)} GB`;
   return `${gb.toFixed(1)} GB`;
 };
-const formatCountWindowMeta = (value: { total: number; last24h: number; last7d: number }) =>
-  `All ${formatCount(value.total)} • 24h ${formatCount(value.last24h)} • 7d ${formatCount(value.last7d)}`;
+
+const PROVIDER_SOURCE_LABELS: Record<AdminStorageProviderUsage["source"], string> = {
+  manual: "Manual entry",
+  supabase_usage_page: "Supabase usage page",
+  supabase_export: "Supabase export",
+  api_import: "API import",
+  unavailable: "No source",
+};
+
+const PROVIDER_STATUS_LABELS: Record<AdminStorageProviderUsageStatus, string> = {
+  current: "Current",
+  stale: "Stale",
+  unavailable: "No snapshot",
+};
+
+const formatDate = (value: string | null): string => {
+  if (!value) return "No date";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(parsed);
+};
+
+const formatProviderGb = (hasSnapshot: boolean, value: number | null): string =>
+  hasSnapshot ? formatGb(value) : "—";
+
+const formatProviderQuotaMeta = ({
+  hasSnapshot,
+  quotaUsedPct,
+  includedGb,
+  projectedGb,
+}: {
+  hasSnapshot: boolean;
+  quotaUsedPct: number | null;
+  includedGb: number;
+  projectedGb: number | null;
+}): string => {
+  if (!hasSnapshot) return "No Supabase usage snapshot";
+  const projection = projectedGb === null ? "" : ` • projected ${formatGb(projectedGb)}`;
+  return `${formatPct(quotaUsedPct)} of ${formatGb(includedGb)} included${projection}`;
+};
 
 const MetricCard = ({ label, value, meta }: { label: string; value: string; meta: string }) => (
   <article className={styles.adminCard}>
@@ -83,16 +122,9 @@ export const AdminStorageEconomicsPanel = ({
   error,
   onRefresh,
 }: AdminStorageEconomicsPanelProps) => {
-  const {
-    overview,
-    providerUsage,
-    byPlan,
-    addonPackages,
-    funnel,
-    riskQueue,
-    dataGaps,
-    assumptions,
-  } = storageEconomics;
+  const { providerUsage, byPlan, addonPackages, riskQueue } = storageEconomics;
+  const hasProviderSnapshot =
+    providerUsage.status !== "unavailable" && providerUsage.source !== "unavailable";
   const providerOverageCostCents =
     providerUsage.observedTotalOverageCostCents ?? providerUsage.estimatedTotalOverageCostCents;
 
@@ -101,11 +133,10 @@ export const AdminStorageEconomicsPanel = ({
       <section className={styles.adminSection}>
         <div className={styles.adminSectionHead}>
           <div>
-            <p className={styles.adminSectionEyebrow}>Storage economics</p>
-            <h2 className={styles.adminSectionTitle}>Capacity and margin snapshot</h2>
+            <p className={styles.adminSectionEyebrow}>Supabase pressure</p>
+            <h2 className={styles.adminSectionTitle}>Supabase usage</h2>
             <p className="tiny subdued">
-              Product-tracked media storage, recurring add-on MRR, estimated infrastructure cost,
-              and capacity risk.
+              Latest provider snapshot for storage, egress, and overage.
             </p>
           </div>
           <button type="button" className="ghost-btn mini" onClick={onRefresh} disabled={loading}>
@@ -117,130 +148,96 @@ export const AdminStorageEconomicsPanel = ({
             className={styles.adminWarningPanel}
             tone="warning"
             mode="banner"
-            title="Storage economics are unavailable."
+            title="Storage data is unavailable."
             role="status"
           >
             <p className={styles.adminWarningDescription}>{error}</p>
           </AppMessage>
         ) : null}
-        <div className={styles.adminGrid}>
-          <MetricCard
-            label="Tracked Storage"
-            value={formatBytes(overview.totalTrackedBytes)}
-            meta={`${formatCount(overview.accountsWithMedia)} media accounts of ${formatCount(overview.trackedAccounts)} tracked`}
-          />
-          <MetricCard
-            label="P90 Account Usage"
-            value={formatBytes(overview.p90TrackedBytes)}
-            meta={`Median ${formatBytes(overview.medianTrackedBytes)}`}
-          />
-          <MetricCard
-            label="Near/Over Quota"
-            value={formatCount(overview.accountsOver80Pct)}
-            meta={`${formatCount(overview.accountsOverQuota)} over quota • ${formatCount(overview.baselineStorageUsers)} baseline users`}
-          />
-          <MetricCard
-            label="Add-on MRR"
-            value={formatMoney(overview.activeAddonMrrCents)}
-            meta={`${formatCount(overview.activeAddonSubscribers)} subscribers • ${formatBytes(overview.activeAddonSoldCapacityBytes)} sold`}
-          />
-          <MetricCard
-            label="Add-on Cost 1x"
-            value={formatMoney(overview.estimatedAddonCost1xCents)}
-            meta={`Margin ${formatPct(overview.estimatedAddonGrossMargin1xPct)} • storage ${formatMoney(overview.estimatedStorageCostCents)}`}
-          />
-          <MetricCard
-            label="Add-on Cost 2x"
-            value={formatMoney(overview.estimatedAddonCost2xCents)}
-            meta={`Margin ${formatPct(overview.estimatedAddonGrossMargin2xPct)} • egress ${formatMoney(overview.estimatedEgressCost2xCents)}`}
-          />
-        </div>
-      </section>
-
-      <section className={styles.adminSection}>
-        <div className={styles.adminSectionHead}>
-          <div>
-            <p className={styles.adminSectionEyebrow}>Supabase pressure</p>
-            <h2 className={styles.adminSectionTitle}>Provider usage snapshot</h2>
-            <p className="tiny subdued">
-              Latest operator-entered Supabase usage snapshot compared with included storage and
-              egress quota.
+        {!hasProviderSnapshot ? (
+          <AppMessage
+            className={styles.adminWarningPanel}
+            tone="warning"
+            mode="banner"
+            title="No Supabase usage snapshot is available."
+            role="status"
+          >
+            <p className={styles.adminWarningDescription}>
+              Add a service-role provider snapshot before using this panel for Supabase storage or
+              egress decisions.
             </p>
-          </div>
-        </div>
+          </AppMessage>
+        ) : null}
         <div className={styles.adminGrid}>
           <MetricCard
             label="Snapshot"
-            value={providerUsage.status}
-            meta={`${providerUsage.snapshotMonth ?? "No month"} • ${providerUsage.source}`}
+            value={PROVIDER_STATUS_LABELS[providerUsage.status]}
+            meta={
+              hasProviderSnapshot
+                ? `${formatDate(providerUsage.capturedAt)} • ${PROVIDER_SOURCE_LABELS[providerUsage.source]}`
+                : "No source connected"
+            }
           />
           <MetricCard
-            label="Storage Used"
-            value={formatGb(providerUsage.storageUsedGb)}
-            meta={`${formatPct(providerUsage.storageQuotaUsedPct)} of ${formatGb(providerUsage.storageIncludedGb)} included`}
+            label="Supabase Plan"
+            value={hasProviderSnapshot ? (providerUsage.supabasePlan ?? "—") : "—"}
+            meta={
+              hasProviderSnapshot
+                ? `${providerUsage.computePlan} compute • ${formatMoney(providerUsage.computeMonthlyCostCents)}/mo`
+                : "No provider plan snapshot"
+            }
+          />
+          <MetricCard
+            label="Storage"
+            value={formatProviderGb(hasProviderSnapshot, providerUsage.storageUsedGb)}
+            meta={formatProviderQuotaMeta({
+              hasSnapshot: hasProviderSnapshot,
+              quotaUsedPct: providerUsage.storageQuotaUsedPct,
+              includedGb: providerUsage.storageIncludedGb,
+              projectedGb: providerUsage.projectedStorageUsedGb,
+            })}
           />
           <MetricCard
             label="Uncached Egress"
-            value={formatGb(providerUsage.uncachedEgressGb)}
-            meta={`${formatPct(providerUsage.uncachedEgressQuotaUsedPct)} of ${formatGb(providerUsage.uncachedEgressIncludedGb)} included`}
+            value={formatProviderGb(hasProviderSnapshot, providerUsage.uncachedEgressGb)}
+            meta={formatProviderQuotaMeta({
+              hasSnapshot: hasProviderSnapshot,
+              quotaUsedPct: providerUsage.uncachedEgressQuotaUsedPct,
+              includedGb: providerUsage.uncachedEgressIncludedGb,
+              projectedGb: providerUsage.projectedUncachedEgressGb,
+            })}
           />
           <MetricCard
             label="Cached Egress"
-            value={formatGb(providerUsage.cachedEgressGb)}
-            meta={`${formatPct(providerUsage.cachedEgressQuotaUsedPct)} of ${formatGb(providerUsage.cachedEgressIncludedGb)} included`}
+            value={formatProviderGb(hasProviderSnapshot, providerUsage.cachedEgressGb)}
+            meta={formatProviderQuotaMeta({
+              hasSnapshot: hasProviderSnapshot,
+              quotaUsedPct: providerUsage.cachedEgressQuotaUsedPct,
+              includedGb: providerUsage.cachedEgressIncludedGb,
+              projectedGb: providerUsage.projectedCachedEgressGb,
+            })}
           />
           <MetricCard
-            label="Egress Multiple"
-            value={
-              providerUsage.egressMultiple === null
-                ? "—"
-                : `${providerUsage.egressMultiple.toFixed(2)}x`
-            }
-            meta={`${formatGb(providerUsage.totalEgressGb)} egress / product-tracked storage`}
-          />
-          <MetricCard
-            label="Provider Overage"
-            value={formatMoney(providerOverageCostCents)}
+            label="Total Egress"
+            value={hasProviderSnapshot ? formatGb(providerUsage.totalEgressGb) : "—"}
             meta={
-              providerUsage.observedTotalOverageCostCents === null
-                ? "Estimated from snapshot"
-                : "Observed cost from snapshot"
+              !hasProviderSnapshot
+                ? "No Supabase egress snapshot"
+                : providerUsage.egressMultiple === null
+                  ? "No product-tracked storage comparison"
+                  : `${providerUsage.egressMultiple.toFixed(2)}x product-tracked storage`
             }
           />
-        </div>
-      </section>
-
-      <section className={styles.adminSection}>
-        <div className={styles.adminSectionHead}>
-          <div>
-            <p className={styles.adminSectionEyebrow}>Business margin</p>
-            <h2 className={styles.adminSectionTitle}>Storage revenue against shared infra</h2>
-            <p className="tiny subdued">
-              Plan and add-on recurring revenue compared with Stripe estimates, Supabase compute,
-              and provider overage pressure.
-            </p>
-          </div>
-        </div>
-        <div className={styles.adminGrid}>
           <MetricCard
-            label="Plan MRR"
-            value={formatMoney(overview.estimatedPlanMrrCents)}
-            meta="Current Stripe-backed plan contracts"
-          />
-          <MetricCard
-            label="Storage Revenue"
-            value={formatMoney(overview.estimatedTotalStorageRevenueCents)}
-            meta={`Plans plus ${formatMoney(overview.activeAddonMrrCents)} add-on MRR`}
-          />
-          <MetricCard
-            label="Shared Infra Cost"
-            value={formatMoney(overview.estimatedBusinessStorageCostCents)}
-            meta={`${formatMoney(overview.estimatedComputeCostCents)} compute • ${formatMoney(providerOverageCostCents)} overage`}
-          />
-          <MetricCard
-            label="Business Margin"
-            value={formatPct(overview.estimatedBusinessStorageMarginPct)}
-            meta={`Target ${formatPct(assumptions.targetGrossMarginPct)}`}
+            label="Overage"
+            value={hasProviderSnapshot ? formatMoney(providerOverageCostCents) : "—"}
+            meta={
+              !hasProviderSnapshot
+                ? "—"
+                : providerUsage.observedTotalOverageCostCents === null
+                  ? "Estimated from snapshot"
+                  : "Observed cost from snapshot"
+            }
           />
         </div>
       </section>
@@ -292,7 +289,7 @@ export const AdminStorageEconomicsPanel = ({
                   <span className={styles.adminMonoCell}>
                     {row.displayName}
                     <small className={styles.adminInlineMeta}>
-                      {row.planId} • {row.isActive ? "active" : "inactive"}
+                      ID: {row.planId} • {row.isActive ? "active" : "inactive"}
                     </small>
                   </span>
                   <span>{formatCount(row.accountCount)}</span>
@@ -336,7 +333,7 @@ export const AdminStorageEconomicsPanel = ({
             <p className={styles.adminSectionEyebrow}>Add-ons</p>
             <h2 className={styles.adminSectionTitle}>Recurring storage packages</h2>
             <p className="tiny subdued">
-              Sold capacity, MRR, tracked usage, and estimated cost by active add-on package.
+              Sold capacity, MRR, and tracked usage by active add-on package.
             </p>
           </div>
         </div>
@@ -345,8 +342,7 @@ export const AdminStorageEconomicsPanel = ({
             <div
               className={styles.adminTableHead}
               style={{
-                gridTemplateColumns:
-                  "minmax(0, 1.3fr) 0.9fr 0.7fr 0.6fr 0.8fr 0.9fr 0.9fr 0.9fr 0.7fr 0.7fr",
+                gridTemplateColumns: "minmax(0, 1.3fr) 0.9fr 0.7fr 0.6fr 0.8fr 0.9fr 0.9fr",
               }}
             >
               <span>Package</span>
@@ -356,9 +352,6 @@ export const AdminStorageEconomicsPanel = ({
               <span>MRR</span>
               <span>Sold</span>
               <span>Tracked</span>
-              <span>Cost 2x</span>
-              <span>Margin 1x</span>
-              <span>Margin 2x</span>
             </div>
             {addonPackages.length ? (
               addonPackages.map((row) => (
@@ -366,14 +359,13 @@ export const AdminStorageEconomicsPanel = ({
                   key={row.storageAddonId}
                   className={styles.adminTableRow}
                   style={{
-                    gridTemplateColumns:
-                      "minmax(0, 1.3fr) 0.9fr 0.7fr 0.6fr 0.8fr 0.9fr 0.9fr 0.9fr 0.7fr 0.7fr",
+                    gridTemplateColumns: "minmax(0, 1.3fr) 0.9fr 0.7fr 0.6fr 0.8fr 0.9fr 0.9fr",
                   }}
                 >
                   <span className={styles.adminMonoCell}>
                     {row.displayName}
                     <small className={styles.adminInlineMeta}>
-                      {row.storageAddonId} • {row.isActive ? "active" : "inactive"}
+                      ID: {row.storageAddonId} • {row.isActive ? "active" : "inactive"}
                     </small>
                   </span>
                   <span>
@@ -388,15 +380,6 @@ export const AdminStorageEconomicsPanel = ({
                   <span>{formatMoney(row.mrrCents)}</span>
                   <span>{formatBytes(row.soldCapacityBytes)}</span>
                   <span>{formatBytes(row.trackedUsageBytes)}</span>
-                  <span>
-                    {formatMoney(
-                      row.estimatedStorageCostCents +
-                        row.estimatedEgressCost2xCents +
-                        row.estimatedStripeFeeCents
-                    )}
-                  </span>
-                  <span>{formatPct(row.estimatedMargin1xPct)}</span>
-                  <span>{formatPct(row.estimatedMargin2xPct)}</span>
                 </div>
               ))
             ) : (
@@ -404,55 +387,6 @@ export const AdminStorageEconomicsPanel = ({
             )}
           </div>
         </TableShell>
-      </section>
-
-      <section className={styles.adminSection}>
-        <div className={styles.adminSectionHead}>
-          <div>
-            <p className={styles.adminSectionEyebrow}>Funnel</p>
-            <h2 className={styles.adminSectionTitle}>Storage add-on conversion</h2>
-            <p className="tiny subdued">
-              Sanitized telemetry counts for add-on visibility, mutation attempts, and outcomes.
-            </p>
-          </div>
-        </div>
-        <div className={styles.adminGrid}>
-          <MetricCard
-            label="Impressions"
-            value={formatCount(funnel.impressions.total)}
-            meta={formatCountWindowMeta(funnel.impressions)}
-          />
-          <MetricCard
-            label="Add Clicks"
-            value={formatCount(funnel.addClicks.total)}
-            meta={formatCountWindowMeta(funnel.addClicks)}
-          />
-          <MetricCard
-            label="Warnings"
-            value={formatCount(funnel.warningViews.total)}
-            meta={formatCountWindowMeta(funnel.warningViews)}
-          />
-          <MetricCard
-            label="Requests"
-            value={formatCount(funnel.addRequests.total)}
-            meta={formatCountWindowMeta(funnel.addRequests)}
-          />
-          <MetricCard
-            label="Successes"
-            value={formatCount(funnel.addSuccesses.total)}
-            meta={formatCountWindowMeta(funnel.addSuccesses)}
-          />
-          <MetricCard
-            label="Failures"
-            value={formatCount(funnel.addFailures.total)}
-            meta={formatCountWindowMeta(funnel.addFailures)}
-          />
-          <MetricCard
-            label="Removals"
-            value={formatCount(funnel.removals.total)}
-            meta={formatCountWindowMeta(funnel.removals)}
-          />
-        </div>
       </section>
 
       <section className={styles.adminSection}>
@@ -506,30 +440,6 @@ export const AdminStorageEconomicsPanel = ({
             )}
           </div>
         </TableShell>
-      </section>
-
-      <section className={styles.adminSection}>
-        <div className={styles.adminSectionHead}>
-          <div>
-            <p className={styles.adminSectionEyebrow}>Assumptions</p>
-            <h2 className={styles.adminSectionTitle}>Estimate boundaries</h2>
-            <p className="tiny subdued">
-              Storage is estimated at {formatUnitUsd(assumptions.storageCostPerGbMonth)}/GB-month
-              and egress at {formatUnitUsd(assumptions.uncachedEgressCostPerGb)}/GB uncached or{" "}
-              {formatUnitUsd(assumptions.cachedEgressCostPerGb)}/GB cached. Stripe is estimated at{" "}
-              {formatPct(assumptions.stripePercent * 100)} plus{" "}
-              {formatMoney(assumptions.stripeFixedCents)} per transaction. Supabase compute is
-              treated as shared business overhead, not add-on variable cost.
-            </p>
-          </div>
-        </div>
-        {dataGaps.length ? (
-          <ul className={styles.pricingWarningList}>
-            {dataGaps.map((gap) => (
-              <li key={gap}>{gap}</li>
-            ))}
-          </ul>
-        ) : null}
       </section>
     </>
   );

@@ -218,23 +218,31 @@ describe("Admin storage page", () => {
     useAdminStorageEconomicsControllerMock.mockReturnValue(buildStorageEconomicsState());
   });
 
-  it("renders storage economics as a standalone admin page", () => {
+  it("renders storage as a standalone admin page without economics or funnel panels", () => {
     render(<AdminStoragePage />);
 
     expect(screen.getByRole("heading", { name: "Storage", level: 1 })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Storage" })).toHaveAttribute("href", "/admin/storage");
-    expect(screen.getByText("Capacity and margin snapshot")).toBeInTheDocument();
-    expect(screen.getByText("Provider usage snapshot")).toBeInTheDocument();
+    expect(screen.getByText("Supabase usage")).toBeInTheDocument();
     expect(screen.getByText("Supabase pressure")).toBeInTheDocument();
-    expect(screen.getByText("Business margin")).toBeInTheDocument();
-    expect(screen.getByText("Storage revenue against shared infra")).toBeInTheDocument();
-    expect(screen.getByText("Tracked Storage")).toBeInTheDocument();
-    expect(screen.getByText("Add-on MRR")).toBeInTheDocument();
-    expect(screen.getByText("Egress Multiple")).toBeInTheDocument();
-    expect(screen.getByText("18.00x")).toBeInTheDocument();
+    expect(screen.getByText("Current")).toBeInTheDocument();
+    expect(screen.getByText(/Manual entry/)).toBeInTheDocument();
+    expect(screen.getByText("Total Egress")).toBeInTheDocument();
+    expect(screen.getByText("18.00x product-tracked storage")).toBeInTheDocument();
+    expect(screen.queryByText("Capacity and margin snapshot")).not.toBeInTheDocument();
+    expect(screen.queryByText("Storage revenue against shared infra")).not.toBeInTheDocument();
+    expect(screen.queryByText("Storage add-on conversion")).not.toBeInTheDocument();
+    expect(screen.queryByText("Estimate boundaries")).not.toBeInTheDocument();
     expect(screen.getByText("Plan Limit")).toBeInTheDocument();
     expect(screen.getByText("Catalog Price")).toBeInTheDocument();
     expect(screen.getByText("Contract MRR")).toBeInTheDocument();
+    const planSection = screen.getByRole("heading", { name: "Storage by plan" }).closest("section");
+    expect(planSection).toBeTruthy();
+    expect(within(planSection as HTMLElement).getByText("Starter")).toBeInTheDocument();
+    expect(
+      within(planSection as HTMLElement).getByText("ID: starter • active")
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Starterstarter/)).not.toBeInTheDocument();
     expect(screen.getAllByText("$19")[0]).toBeInTheDocument();
     expect(screen.getByText("1 Stripe")).toBeInTheDocument();
     const addOnsSection = screen
@@ -242,6 +250,51 @@ describe("Admin storage page", () => {
       .closest("section");
     expect(addOnsSection).toBeTruthy();
     expect(within(addOnsSection as HTMLElement).getByText("Catalog")).toBeInTheDocument();
-    expect(screen.getByText("Provider invoice proof is unavailable.")).toBeInTheDocument();
+    expect(within(addOnsSection as HTMLElement).getByText("50 GB")).toBeInTheDocument();
+    expect(
+      within(addOnsSection as HTMLElement).getByText("ID: storage_50gb • active")
+    ).toBeInTheDocument();
+    expect(within(addOnsSection as HTMLElement).queryByText("Cost 2x")).not.toBeInTheDocument();
+    expect(within(addOnsSection as HTMLElement).queryByText("Margin 1x")).not.toBeInTheDocument();
+    expect(screen.queryByText(/50 GBstorage_50gb/)).not.toBeInTheDocument();
+  });
+
+  it("does not render missing Supabase provider evidence as zero usage", () => {
+    const baseState = buildStorageEconomicsState();
+    useAdminStorageEconomicsControllerMock.mockReturnValue({
+      ...baseState,
+      storageEconomics: {
+        ...baseState.storageEconomics,
+        providerUsage: {
+          ...baseState.storageEconomics.providerUsage,
+          status: "unavailable",
+          source: "unavailable",
+          snapshotMonth: null,
+          capturedAt: null,
+          supabasePlan: null,
+          storageUsedGb: 0,
+          storageIncludedGb: 0,
+          storageQuotaUsedPct: null,
+          projectedStorageUsedGb: null,
+          uncachedEgressGb: 0,
+          cachedEgressGb: 0,
+          totalEgressGb: 0,
+          uncachedEgressIncludedGb: 0,
+          cachedEgressIncludedGb: 0,
+          uncachedEgressQuotaUsedPct: null,
+          cachedEgressQuotaUsedPct: null,
+          projectedUncachedEgressGb: null,
+          projectedCachedEgressGb: null,
+          egressMultiple: null,
+        },
+      },
+    });
+
+    render(<AdminStoragePage />);
+
+    expect(screen.getByText("No Supabase usage snapshot is available.")).toBeInTheDocument();
+    expect(screen.getByText("No snapshot")).toBeInTheDocument();
+    expect(screen.getAllByText("—").length).toBeGreaterThan(0);
+    expect(screen.queryByText("0.0 GB")).not.toBeInTheDocument();
   });
 });

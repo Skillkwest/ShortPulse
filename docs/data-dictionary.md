@@ -988,12 +988,12 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 
 ### admin_storage_usage_snapshots
 
-- `id` (uuid, pk): Operator/provider usage snapshot id for Admin Storage economics.
+- `id` (uuid, pk): Operator/provider usage snapshot id for Admin Storage.
 - `snapshot_month` (date): Month represented by the snapshot; constrained to the first day of the month.
 - `captured_at` (timestamptz): When the operator captured or imported the usage numbers.
 - `source` (text): Snapshot source (`manual | supabase_usage_page | supabase_export | api_import`).
 - `supabase_plan` / `compute_plan` (text): Provider plan labels used for operator interpretation.
-- `compute_monthly_cost_cents` (int): Shared Supabase compute cost included in business-level storage economics.
+- `compute_monthly_cost_cents` (int): Shared Supabase compute cost captured with the provider usage snapshot.
 - `storage_used_gb` / `storage_included_gb` (numeric): Provider storage usage and included quota for the month.
 - `uncached_egress_gb` / `cached_egress_gb` (numeric): Provider egress usage for the month.
 - `uncached_egress_included_gb` / `cached_egress_included_gb` (numeric): Included egress quotas used for bill-pressure calculations.

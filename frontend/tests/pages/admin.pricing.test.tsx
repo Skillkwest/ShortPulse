@@ -302,6 +302,26 @@ describe("Admin pricing page", () => {
     expect(screen.queryByRole("button", { name: "Create new plan" })).not.toBeInTheDocument();
   });
 
+  it("does not treat built-in custom display rows as unsaved pricing edits", () => {
+    useAdminPricingControllerMock.mockReturnValue({
+      pricingState: buildPricingState(),
+      pricingLoading: false,
+      pricingRefreshing: false,
+      pricingError: null,
+      refreshPricingState: refreshPricingStateMock,
+    });
+
+    render(<AdminPricingPage />);
+
+    expect(screen.getByText("Live pricing active")).toBeInTheDocument();
+    expect(
+      screen.getByText("No runtime pricing edits. Built-in display rows are loaded from code.")
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Unsaved draft")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Custom rows:/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save draft live" })).toBeDisabled();
+  });
+
   it("renders catalog warnings and catalog tools on the catalog page", () => {
     const state = buildPricingState();
     state.creditPackages = [
@@ -349,7 +369,7 @@ describe("Admin pricing page", () => {
 
     render(<AdminCatalogPage />);
 
-    expect(screen.getByRole("heading", { level: 1, name: "Catalog" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Product Catalog" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Catalog warnings" })).toBeInTheDocument();
     expect(
       screen.getByText("1 active public plan offer missing Stripe price ids.")
@@ -462,7 +482,7 @@ describe("Admin pricing page", () => {
     expect(screen.getByLabelText("Model markup for FLUX.2 Lite")).toHaveValue("200");
     expect(screen.getByText("Live policy v4")).toBeInTheDocument();
     expect(screen.getByText(/admin2@example\.com/)).toBeInTheDocument();
-    expect(screen.getByText("Draft matches live")).toBeInTheDocument();
+    expect(screen.getByText("Live pricing active")).toBeInTheDocument();
   });
 
   it("keeps the draft dirty when the applied policy cannot be verified", async () => {

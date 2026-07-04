@@ -45,9 +45,9 @@ export default function AdminCatalogPage() {
       adminAccessStatus={adminAccessStatus}
       adminAccessError={adminAccessError}
       onRetryAccessCheck={refreshAdminAccess}
-      documentTitle="ShortPulse · Admin Catalog"
-      metaDescription="Admin catalog workspace for public plans, credit packages, and storage add-ons."
-      pageTitle="Catalog"
+      documentTitle="ShortPulse · Admin Product Catalog"
+      metaDescription="Admin product catalog workspace for public plans, credit packages, and storage add-ons."
+      pageTitle="Product Catalog"
       pageDescription="Manage public plans, credit top-ups, storage add-ons, and Stripe linkage warnings."
       userEmail={user?.email}
       currentPath="/admin/catalog"

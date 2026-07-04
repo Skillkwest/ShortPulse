@@ -217,9 +217,16 @@ describe("ProjectsModal", () => {
       />
     );
 
-    expect(await screen.findByRole("button", { name: "New Project" })).toBeInTheDocument();
+    const newProjectButton = await screen.findByRole("button", { name: "New Project" });
+    const deleteSelectedButton = screen.getByRole("button", { name: "Delete selected project" });
 
-    fireEvent.click(screen.getByRole("button", { name: "New Project" }));
+    expect(newProjectButton).toBeInTheDocument();
+    expect(
+      deleteSelectedButton.compareDocumentPosition(newProjectButton) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+
+    fireEvent.click(newProjectButton);
     fireEvent.change(screen.getByLabelText("Project name"), {
       target: { value: "Launch Campaign" },
     });

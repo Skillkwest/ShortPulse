@@ -33,6 +33,7 @@ export function PricingPolicyStatusBar({
   const updatedSummary = updatedAt
     ? `Updated ${new Date(updatedAt).toLocaleString()}${updatedByEmail ? ` by ${updatedByEmail}` : ""}.`
     : "No live policy metadata.";
+  const statusLabel = isDraftDirty ? "Unsaved pricing edits" : "Live pricing active";
 
   return (
     <section className={`${styles.adminSection} ${styles.pricingPolicyStatusBar}`}>
@@ -50,7 +51,7 @@ export function PricingPolicyStatusBar({
               className={`${styles.pill} ${isDraftDirty ? styles.pillWarn : styles.pillOk}`}
               role="status"
             >
-              {isDraftDirty ? "Unsaved draft" : "Draft matches live"}
+              {statusLabel}
             </span>
           </div>
           {draftPolicyDiffDescriptions.length > 0 ? (
@@ -60,12 +61,18 @@ export function PricingPolicyStatusBar({
               ))}
             </ul>
           ) : (
-            <p className="tiny subdued">No draft changes.</p>
+            <p className="tiny subdued">
+              No runtime pricing edits. Built-in display rows are loaded from code.
+            </p>
           )}
-          <p className="tiny subdued">
-            Browser refresh keeps this local draft. Use <strong>Save draft live</strong> to make the
-            active runtime policy permanent.
-          </p>
+          {isDraftDirty ? (
+            <p className="tiny subdued">
+              Use <strong>Save draft live</strong> only when you intentionally changed runtime
+              prices in the grid.
+            </p>
+          ) : (
+            <p className="tiny subdued">Edit the grid to create a saveable pricing draft.</p>
+          )}
         </div>
       </div>
 

@@ -70,7 +70,7 @@ describe("POST /api/billing/stripe/checkout", () => {
 
   it("returns a safe checkout failure when auth verification throws unexpectedly", async () => {
     requireApiUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
-    const req = { method: "POST", body: { packageId: "pkg_studio_10000" } };
+    const req = { method: "POST", body: { packageId: "1200" } };
     const res = createMockResponse();
 
     await handler(req as never, res as never);
@@ -103,7 +103,7 @@ describe("POST /api/billing/stripe/checkout", () => {
 
     const req = {
       method: "POST",
-      body: { packageId: "pkg_studio_10000" },
+      body: { packageId: "1200" },
       socket: { remoteAddress: "127.0.0.1" },
     };
     const res = createMockResponse();
@@ -128,12 +128,12 @@ describe("POST /api/billing/stripe/checkout", () => {
             eq: () => ({
               maybeSingle: async () => ({
                 data: {
-                  id: "pkg_studio_10000",
-                  display_name: "10,000 credits",
+                  id: "1200",
+                  display_name: "1,200 credits",
                   is_active: true,
                   stripe_price_id: "price_123",
-                  credit_amount_cents: 10000,
-                  price_cents: 12900,
+                  credit_amount_cents: 1200,
+                  price_cents: 4900,
                 },
                 error: null,
               }),
@@ -152,7 +152,7 @@ describe("POST /api/billing/stripe/checkout", () => {
 
     const req = {
       method: "POST",
-      body: { packageId: "pkg_studio_10000" },
+      body: { packageId: "1200" },
       socket: { remoteAddress: "127.0.0.1" },
     };
     const res = createMockResponse();
@@ -164,8 +164,8 @@ describe("POST /api/billing/stripe/checkout", () => {
       expect.objectContaining({
         success_url: "https://app.shortpulse.test/profile?section=credits&checkout=success",
         cancel_url: "https://app.shortpulse.test/profile?section=credits&checkout=cancel",
-        "metadata[credit_package_display_name]": "10,000 credits",
-        "metadata[credit_package_price_cents]": 12900,
+        "metadata[credit_package_display_name]": "1,200 credits",
+        "metadata[credit_package_price_cents]": 4900,
       })
     );
     expect(ensureStripeCustomerForUserMock).toHaveBeenCalledWith({
@@ -179,7 +179,7 @@ describe("POST /api/billing/stripe/checkout", () => {
         userId: "user-1",
         metadata: expect.objectContaining({
           event_name: "checkout_started",
-          package_id: "pkg_studio_10000",
+          package_id: "1200",
         }),
       })
     );
@@ -193,12 +193,12 @@ describe("POST /api/billing/stripe/checkout", () => {
           eq: () => ({
             maybeSingle: async () => ({
               data: {
-                id: "pkg_studio_10000",
-                display_name: "10,000 credits",
+                id: "1200",
+                display_name: "1,200 credits",
                 is_active: true,
                 stripe_price_id: "price_123",
-                credit_amount_cents: 10000,
-                price_cents: 12900,
+                credit_amount_cents: 1200,
+                price_cents: 4900,
               },
               error: null,
             }),
@@ -214,7 +214,7 @@ describe("POST /api/billing/stripe/checkout", () => {
     const req = {
       method: "POST",
       body: {
-        packageId: "pkg_studio_10000",
+        packageId: "1200",
         returnPath: "/ai-studio?projectId=project-1&checkout=old",
       },
       socket: { remoteAddress: "127.0.0.1" },
@@ -242,12 +242,12 @@ describe("POST /api/billing/stripe/checkout", () => {
           eq: () => ({
             maybeSingle: async () => ({
               data: {
-                id: "pkg_studio_10000",
-                display_name: "10,000 credits",
+                id: "1200",
+                display_name: "1,200 credits",
                 is_active: true,
                 stripe_price_id: "price_123",
-                credit_amount_cents: 10000,
-                price_cents: 12900,
+                credit_amount_cents: 1200,
+                price_cents: 4900,
               },
               error: null,
             }),
@@ -263,7 +263,7 @@ describe("POST /api/billing/stripe/checkout", () => {
     const req = {
       method: "POST",
       body: {
-        packageId: "pkg_studio_10000",
+        packageId: "1200",
         returnPath: "https://evil.test/ai-studio",
       },
       socket: { remoteAddress: "127.0.0.1" },
@@ -288,12 +288,12 @@ describe("POST /api/billing/stripe/checkout", () => {
           eq: () => ({
             maybeSingle: async () => ({
               data: {
-                id: "pkg_studio_10000",
-                display_name: "10,000 credits",
+                id: "1200",
+                display_name: "1,200 credits",
                 is_active: true,
                 stripe_price_id: null,
-                credit_amount_cents: 10000,
-                price_cents: 12900,
+                credit_amount_cents: 1200,
+                price_cents: 4900,
               },
               error: null,
             }),
@@ -304,7 +304,7 @@ describe("POST /api/billing/stripe/checkout", () => {
 
     const req = {
       method: "POST",
-      body: { packageId: "pkg_studio_10000" },
+      body: { packageId: "1200" },
       socket: { remoteAddress: "127.0.0.1" },
     };
     const res = createMockResponse();
@@ -327,12 +327,12 @@ describe("POST /api/billing/stripe/checkout", () => {
           eq: () => ({
             maybeSingle: async () => ({
               data: {
-                id: "pkg_studio_10000",
-                display_name: "10,000 credits",
+                id: "1200",
+                display_name: "1,200 credits",
                 is_active: true,
                 stripe_price_id: "price_123",
-                credit_amount_cents: 10000,
-                price_cents: 12900,
+                credit_amount_cents: 1200,
+                price_cents: 4900,
               },
               error: null,
             }),
@@ -343,7 +343,7 @@ describe("POST /api/billing/stripe/checkout", () => {
 
     const req = {
       method: "POST",
-      body: { packageId: "pkg_studio_10000" },
+      body: { packageId: "1200" },
       socket: { remoteAddress: "127.0.0.1" },
     };
     const res = createMockResponse();
@@ -361,12 +361,12 @@ describe("POST /api/billing/stripe/checkout", () => {
           eq: () => ({
             maybeSingle: async () => ({
               data: {
-                id: "pkg_studio_10000",
-                display_name: "10,000 credits",
+                id: "1200",
+                display_name: "1,200 credits",
                 is_active: true,
                 stripe_price_id: "price_123",
-                credit_amount_cents: 10000,
-                price_cents: 12900,
+                credit_amount_cents: 1200,
+                price_cents: 4900,
               },
               error: null,
             }),
@@ -382,7 +382,7 @@ describe("POST /api/billing/stripe/checkout", () => {
     for (let index = 0; index < 5; index += 1) {
       const req = {
         method: "POST",
-        body: { packageId: "pkg_studio_10000" },
+        body: { packageId: "1200" },
         socket: { remoteAddress: "127.0.0.1" },
       };
       const res = createMockResponse();
@@ -392,7 +392,7 @@ describe("POST /api/billing/stripe/checkout", () => {
 
     const blockedReq = {
       method: "POST",
-      body: { packageId: "pkg_studio_10000" },
+      body: { packageId: "1200" },
       socket: { remoteAddress: "127.0.0.1" },
     };
     const blockedRes = createMockResponse();

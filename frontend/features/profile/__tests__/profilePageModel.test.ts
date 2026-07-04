@@ -3,6 +3,7 @@ import {
   CUSTOMER_CREDIT_ACTIVITY_SOURCES,
   formatAccountCreditsSummary,
   getProfileSectionContent,
+  resolveProfileActivePlanId,
   resolveAccountCreditsSummary,
   resolveLedgerLabel,
   resolveLedgerReference,
@@ -79,6 +80,15 @@ describe("profilePageModel billing helpers", () => {
         planCreditsCents: 350,
       })
     ).toBe("Unavailable");
+  });
+
+  it("does not invent a baseline plan before billing account state resolves", () => {
+    expect(
+      resolveProfileActivePlanId({
+        billingContract: null,
+        billingProfile: null,
+      })
+    ).toBeNull();
   });
 
   it("labels annual recurring grants distinctly from monthly renewals", () => {

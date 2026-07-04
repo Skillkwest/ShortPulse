@@ -61,18 +61,34 @@ describe("Expert Edit transform chrome CSS contract", () => {
   it("orders the presets popup above stage overlay controls", () => {
     const css = readCss();
 
+    expectRuleToContain(css, ".edit-expert-panel", "--edit-expert-z-stage-chrome: 1000");
+    expectRuleToContain(css, ".edit-expert-panel", "--edit-expert-z-stage-overlay-ui: 1005");
+    expectRuleToContain(css, ".edit-expert-panel", "--edit-expert-z-composer-overlay: 1010");
+    expectRuleToContain(
+      css,
+      ".edit-expert-panel",
+      "--edit-expert-z-presets-popup: var(--ai-studio-z-modal-context-surface)"
+    );
     expectRuleToContain(
       css,
       ".edit-expert-preset-toolbar.is-more-presets-open",
-      "z-index: var(--ai-studio-z-modal-context-surface)"
+      "z-index: var(--edit-expert-z-presets-popup)"
     );
     expectRuleToContain(
       css,
       ".edit-expert-presets-surface",
-      "z-index: var(--ai-studio-z-modal-context-surface)"
+      "z-index: var(--edit-expert-z-presets-popup)"
     );
-    expectRuleToContain(css, ".edit-expert-transform-chrome-layer", "z-index: 1000");
-    expectRuleToContain(css, ".edit-expert-stage-overlay-ui", "z-index: 1005");
+    expectRuleToContain(
+      css,
+      ".edit-expert-transform-chrome-layer",
+      "z-index: var(--edit-expert-z-stage-chrome)"
+    );
+    expectRuleToContain(
+      css,
+      ".edit-expert-stage-overlay-ui",
+      "z-index: var(--edit-expert-z-stage-overlay-ui)"
+    );
   });
 
   it("clips render pixels and chrome to the stage shell without clipping chrome hosts", () => {

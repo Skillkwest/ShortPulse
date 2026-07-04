@@ -37,7 +37,17 @@ import {
   resolveOwnedSnapshotAssociationIdsForRead,
   resolveOwnedSnapshotAssociationIdsForWrite,
 } from "./projectWorkspaceAssociationAuthority";
-import { PROJECT_WORKSPACE_MAX_SNAPSHOT_BYTES } from "../ai-studio-session/projectWorkspaceLimits";
+import {
+  asRecord,
+  compareIsoTimestamps,
+  normalizeIsoTimestamp,
+  normalizeOptionalString,
+  normalizeStringList,
+  normalizeUuid,
+  normalizeUuidList,
+  parseProjectWorkspaceSnapshotPayload,
+  toErrorMessage,
+} from "./projectWorkspaceStateParsing";
 import {
   countReferenceGridVisibleOutputs,
   REFERENCE_GRID_MAX_VISIBLE_ITEMS,
@@ -48,7 +58,6 @@ const PROJECT_WORKSPACE_SELECT_COLUMNS =
 const PROJECT_WORKSPACE_WRITE_RETURN_COLUMNS =
   "project_id, user_id, schema_version, snapshot_updated_at, checkpoint_revision, created_at, updated_at" as const;
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const PROJECT_WORKSPACE_POST_WRITE_REPAIR_TIMEOUT_MS = 2_500;
 const PROJECT_WORKSPACE_RESPONSE_MATERIALIZATION_TIMEOUT_MS = 2_500;
 
@@ -95,7 +104,6 @@ type ProjectWorkspaceRepairPending = {
 };
 
 type ProjectWorkspaceMaterializationStage = "workspace read" | "workspace save";
-type ProjectWorkspaceSnapshotInput = Parameters<typeof createAiStudioProjectWorkspaceSnapshot>[0];
 
 export class InvalidProjectWorkspaceSnapshotError extends Error {
   constructor(message = "Invalid project workspace snapshot") {
@@ -103,104 +111,6 @@ export class InvalidProjectWorkspaceSnapshotError extends Error {
     this.name = "InvalidProjectWorkspaceSnapshotError";
   }
 }
-
-const asRecord = (value: unknown): Record<string, unknown> =>
-  value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
-
-const measureProjectWorkspaceSnapshotBytes = (value: unknown): number | null => {
-  try {
-    return Buffer.byteLength(JSON.stringify(value), "utf8");
-  } catch {
-    return null;
-  }
-};
-
-const parseProjectWorkspaceSnapshotPayload = (value: unknown): Record<string, unknown> | null => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  const snapshotBytes = measureProjectWorkspaceSnapshotBytes(value);
-  if (snapshotBytes == null) return null;
-  if (snapshotBytes <= PROJECT_WORKSPACE_MAX_SNAPSHOT_BYTES) {
-    return value as Record<string, unknown>;
-  }
-
-  const normalizedProjectSnapshot = createAiStudioProjectWorkspaceSnapshot(
-    value as ProjectWorkspaceSnapshotInput
-  );
-  const normalizedBytes = measureProjectWorkspaceSnapshotBytes(normalizedProjectSnapshot);
-  if (normalizedBytes == null || normalizedBytes > PROJECT_WORKSPACE_MAX_SNAPSHOT_BYTES) {
-    return null;
-  }
-  return normalizedProjectSnapshot;
-};
-
-const normalizeOptionalString = (value: unknown): string | null => {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-};
-
-const normalizeIsoTimestamp = (value: unknown): string | null => {
-  const normalized = normalizeOptionalString(value);
-  if (!normalized) return null;
-  const parsed = Date.parse(normalized);
-  if (!Number.isFinite(parsed)) return null;
-  return new Date(parsed).toISOString();
-};
-
-const normalizeUuid = (value: unknown): string | null => {
-  const normalized = normalizeOptionalString(value);
-  return normalized && UUID_PATTERN.test(normalized) ? normalized : null;
-};
-
-const normalizeUuidList = (value: unknown): string[] =>
-  Array.isArray(value)
-    ? Array.from(
-        new Set(
-          value
-            .map((entry) => normalizeUuid(entry))
-            .filter((entry): entry is string => Boolean(entry))
-        )
-      )
-    : [];
-
-const normalizeStringList = (value: unknown): string[] =>
-  Array.isArray(value)
-    ? value
-        .map((entry) => normalizeOptionalString(entry))
-        .filter((entry): entry is string => Boolean(entry))
-    : [];
-
-const safeStringifyError = (error: unknown): string | null => {
-  try {
-    const serialized = JSON.stringify(error);
-    return serialized && serialized !== "{}" ? serialized : null;
-  } catch {
-    return null;
-  }
-};
-
-const toErrorMessage = (error: unknown, fallback: string): string => {
-  if (error instanceof Error && error.message.trim().length > 0) return error.message;
-  const record = asRecord(error);
-  const parts = [
-    normalizeOptionalString(record.message),
-    normalizeOptionalString(record.details),
-    normalizeOptionalString(record.hint),
-    normalizeOptionalString(record.code),
-  ].filter((entry): entry is string => Boolean(entry));
-  if (parts.length > 0) return parts.join(" ");
-  return safeStringifyError(error) ?? fallback;
-};
-
-const compareIsoTimestamps = (left: string, right: string): number => {
-  const leftTime = Date.parse(left);
-  const rightTime = Date.parse(right);
-  if (!Number.isFinite(leftTime) || !Number.isFinite(rightTime)) return 0;
-  if (leftTime === rightTime) return 0;
-  return leftTime > rightTime ? 1 : -1;
-};
 
 const wrapProjectWorkspaceSaveStageError = ({
   stage,

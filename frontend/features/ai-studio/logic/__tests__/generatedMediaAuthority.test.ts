@@ -962,6 +962,7 @@ describe("generatedMediaAuthority", () => {
     const projectionSelectColumns = projectionSelectCalls[0]?.[0] ?? "";
     expect(projectionSelectColumns).toContain("preview_url");
     expect(projectionSelectColumns).toContain("task_state");
+    expect(projectionSelectColumns).not.toContain("error_payload");
     expect(projectionSelectColumns).not.toContain("generation_replay");
     expect(projectionSelectColumns).not.toContain("workflow_reload");
     expect(projectionSelectColumns).not.toContain("character_context");
@@ -2808,7 +2809,6 @@ describe("generatedMediaAuthority", () => {
           queue_state: "failed",
           error_message_short: scenario.output.errorMessageShort,
           error_detail: scenario.output.errorDetail,
-          error_payload: scenario.output.errorPayload,
           hidden_in_reference_grid: false,
           reference_grid_visible: true,
           generation_replay: {},
@@ -2819,6 +2819,19 @@ describe("generatedMediaAuthority", () => {
       ],
       error: null,
     });
+    const errorPayloadBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-project-failed-1",
+          error_payload: scenario.output.errorPayload,
+        },
+      ],
+      error: null,
+    });
+    const projectionSelect = vi
+      .fn()
+      .mockImplementationOnce(() => projectionBuilder)
+      .mockImplementationOnce(() => errorPayloadBuilder);
 
     ensureSupabaseQueryClientMock.mockReturnValue({
       from: vi.fn((table: string) => {
@@ -2829,7 +2842,7 @@ describe("generatedMediaAuthority", () => {
         }
         if (table === "generation_projection") {
           return {
-            select: vi.fn(() => projectionBuilder),
+            select: projectionSelect,
           };
         }
         throw new Error(`Unexpected table: ${table}`);
@@ -2854,6 +2867,12 @@ describe("generatedMediaAuthority", () => {
         hiddenInReferenceGrid: false,
       }),
     ]);
+    expect(projectionSelect).toHaveBeenNthCalledWith(
+      1,
+      expect.not.stringContaining("error_payload")
+    );
+    expect(projectionSelect).toHaveBeenNthCalledWith(2, "generation_id, error_payload");
+    expect(errorPayloadBuilder.in).toHaveBeenCalledWith("generation_id", ["gen-project-failed-1"]);
   });
 
   it("reconciles provider-url-only success rows during restore", async () => {

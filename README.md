@@ -133,6 +133,7 @@ Auth/public-origin contract:
 - **Admin Offers (`/admin/offers`)**: Operator offer workspace for creating plan, credit package, media add-on, model-pricing, or custom deal cards. The customer-facing logged-out dashboard offer bar is deferred and hidden for the July 7 launch window.
 - **Admin Errors (`/admin/errors`)**: Simple operator error handoff queue for grouped app/runtime failures. Copying an error triage packet marks that row as in progress locally so it can be pasted into Codex for work, and each row has a `Resolve` action to clear completed items from the open queue. Provider-sensitive/refusal messages are hidden from the queue because they are expected safety outcomes, not operator work.
 - **Admin Reports (`/admin/reports`)**: Operator issue-report queue for reviewing signed-in user submissions from `/report-issue`, capturing admin notes, and moving reports through `new`, `reviewing`, and `resolved`.
+- **Admin Tester Reports (`/admin/tester-reports`)**: Operator tester-run log for automated testing agents. Each row shows the run, tester identity, ShortPulse account tested, scenario/status metadata, and expandable persona plus engineering handoff reports.
 - **Admin Dashboard (`/admin/announcements`)**: Operator dashboard-management workspace for publishing or clearing the signed-in dashboard announcement and managing the global tutorial-card hub shown to signed-in users.
 - **Admin User Health (`/admin/user-health`)**: Operator diagnostics page for user-level generation + credit-drainage health checks (lookup by user id or email, findings, and recommended next actions).
 - **Admin Fleet Health (`/admin/user-health-fleet`)**: Operator fleet triage page for active-user hourly health snapshots, risk/severity/finding filters, and direct drill-down links into per-user health and generation trace workflows.
@@ -177,6 +178,7 @@ Auth/public-origin contract:
 - Start at `docs/README.md`.
 - Character Manager operations runbook: `docs/sops/sop_character_manager_operations.md`.
 - Admin issue reports operations runbook: `docs/sops/sop_admin_issue_reports_operations.md`.
+- Admin tester reports operations runbook: `docs/sops/sop_admin_tester_reports_operations.md`.
 - SQL migration operations runbook: `docs/sops/sop_sql_migration_operations.md`.
 - Expert Edit prompt reference tokens runbook: `docs/sops/sop_ai_studio_expert_edit_prompt_references.md`.
 - Issue reports/admin review ADR: `docs/adr/0081-signed-in-issue-reports-and-admin-review-lane.md`.

@@ -57,6 +57,7 @@ Reusable cross-agent onboarding and training guidance lives under `agent-teachin
 - `docs/sops/sop_media_panel_performance_kpi.md`
 - `docs/sops/sop_billing_credits_operations.md`
 - `docs/sops/sop_admin_issue_reports_operations.md`
+- `docs/sops/sop_admin_tester_reports_operations.md`
 - `docs/sops/sop_admin_ophestivus_board_operations.md`
 - `docs/sops/sop_admin_error_to_ophestivus_resolution.md`
 - `docs/sops/sop_admin_ophestivus_review_to_complete.md`

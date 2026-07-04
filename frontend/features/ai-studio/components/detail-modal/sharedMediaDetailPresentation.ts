@@ -15,12 +15,56 @@ type SharedMediaDetailBladeContent = {
   value: string;
 };
 
+type ResolveSharedMediaDetailReferenceNamesOptions = {
+  displayPreviewUrl: string | null;
+  displayPromptText: string;
+  generatedReferenceFallbackKind: SharedMediaDetailContentKind;
+  isGeneratedReference: boolean;
+  isLoadedReference: boolean;
+  isPromptOnly: boolean;
+  isUploadedReference: boolean;
+  mediaTypeLabel: string;
+  title?: string | null;
+};
+
+type SharedMediaDetailReferenceNames = {
+  detailReferenceName: string | null | undefined;
+  filenameFromUrl: string | null;
+  uploadedHeaderFilename: string | null;
+};
+
 const GENERATED_PROMPT_SOURCES = new Set(["generated", "ai_studio", "prompt"]);
 const PROMPTLESS_IMPORTED_SOURCES = new Set(["clipboard", "library", "upload"]);
 
 const normalizeSource = (value?: string | null): string | null => {
   const normalized = value?.trim().toLowerCase();
   return normalized || null;
+};
+
+const looksLikeSharedMediaDetailFilename = (value?: string | null): boolean => {
+  const candidate = value?.trim();
+  if (!candidate) return false;
+  if (/^data:/i.test(candidate) || /^blob:/i.test(candidate) || /^https?:\/\//i.test(candidate)) {
+    return false;
+  }
+  if (/[\\/]/.test(candidate)) return false;
+  return /\.[a-z0-9]{2,10}$/i.test(candidate);
+};
+
+const resolveSharedMediaDetailFilenameFromUrl = (
+  displayPreviewUrl: string | null
+): string | null => {
+  if (!displayPreviewUrl) return null;
+  try {
+    const parsed = new URL(displayPreviewUrl);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+    const trailing = decodeURIComponent(
+      parsed.pathname.split("/").filter(Boolean).pop() ?? ""
+    ).trim();
+    return looksLikeSharedMediaDetailFilename(trailing) ? trailing : null;
+  } catch {
+    return null;
+  }
 };
 
 const collectUniqueDetailBlocks = (...values: Array<string | null | undefined>): string[] => {
@@ -65,6 +109,45 @@ export const normalizeSharedMediaDetailKindLabel = (
 export const resolveSharedMediaDetailGeneratedFallbackName = (
   kind: SharedMediaDetailContentKind
 ): string => `Generated ${normalizeSharedMediaDetailKindLabel(kind).toLowerCase()}`;
+
+export const resolveSharedMediaDetailReferenceNames = ({
+  displayPreviewUrl,
+  displayPromptText,
+  generatedReferenceFallbackKind,
+  isGeneratedReference,
+  isLoadedReference,
+  isPromptOnly,
+  isUploadedReference,
+  mediaTypeLabel,
+  title,
+}: ResolveSharedMediaDetailReferenceNamesOptions): SharedMediaDetailReferenceNames => {
+  const filenameFromUrl = resolveSharedMediaDetailFilenameFromUrl(displayPreviewUrl);
+  const promptFilename = looksLikeSharedMediaDetailFilename(displayPromptText.trim())
+    ? displayPromptText.trim()
+    : null;
+  const trimmedTitle = title?.trim();
+  const uploadedHeaderFilename = isUploadedReference
+    ? (promptFilename ??
+      filenameFromUrl ??
+      trimmedTitle ??
+      `Uploaded ${mediaTypeLabel.toLowerCase()}`)
+    : null;
+  const loadedMediaReferenceName = isLoadedReference
+    ? (promptFilename ?? filenameFromUrl ?? trimmedTitle ?? null)
+    : null;
+  const generatedReferenceName = isGeneratedReference
+    ? (trimmedTitle ??
+      resolveSharedMediaDetailGeneratedFallbackName(generatedReferenceFallbackKind))
+    : null;
+  const textReferenceName = isPromptOnly ? (trimmedTitle ?? "Text reference") : null;
+  const detailReferenceName =
+    uploadedHeaderFilename ??
+    loadedMediaReferenceName ??
+    generatedReferenceName ??
+    textReferenceName;
+
+  return { detailReferenceName, filenameFromUrl, uploadedHeaderFilename };
+};
 
 export const resolveSharedMediaDetailBladeContent = ({
   item,

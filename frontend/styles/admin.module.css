@@ -4594,7 +4594,7 @@
 
 .adminReportsSummaryStrip {
   display: grid;
-  grid-template-columns: repeat(4, minmax(180px, 1fr));
+  grid-template-columns: repeat(5, minmax(150px, 1fr));
   gap: 8px;
   margin-bottom: 12px;
 }
@@ -4688,6 +4688,133 @@
   color: var(--admin-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.03em;
+}
+
+.adminTesterReportGroup {
+  display: grid;
+  gap: 8px;
+}
+
+.adminTesterReportsHead,
+.adminTesterReportsRow {
+  display: grid;
+  grid-template-columns: 1.15fr 0.8fr 1.1fr 1.35fr 2fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.adminTesterReportsHead {
+  font-size: 12px;
+  color: var(--admin-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.adminTesterReportExpanded {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--admin-border-soft);
+  border-radius: 8px;
+  background: rgba(8, 10, 14, 0.32);
+}
+
+.adminTesterReportMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--admin-text-muted);
+  font-size: 12px;
+}
+
+.adminTesterReportMeta span {
+  padding: 4px 7px;
+  border: 1px solid var(--admin-border-soft);
+  border-radius: 999px;
+  background: var(--admin-surface-2);
+}
+
+.adminTesterReportPanels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.adminTesterReportPanel {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.adminTesterReportDisclosure {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--admin-border-soft);
+  border-radius: 8px;
+  background: var(--admin-surface-2);
+  color: var(--admin-text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.adminTesterReportDisclosure span {
+  color: var(--admin-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.adminTesterReportDisclosure strong {
+  color: var(--admin-text-strong);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.adminTesterReportDisclosure:hover {
+  border-color: var(--admin-border);
+  background: var(--admin-surface-3);
+}
+
+.adminTesterReportArtifacts {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--admin-text-muted);
+  font-size: 12px;
+}
+
+.adminTesterReportArtifacts code {
+  max-width: 100%;
+  padding: 4px 6px;
+  border: 1px solid var(--admin-border-soft);
+  border-radius: 6px;
+  background: rgba(8, 10, 14, 0.72);
+  color: var(--admin-text-strong);
+  overflow-wrap: anywhere;
+}
+
+.testerReportStatusCompleted {
+  border-color: rgba(88, 193, 132, 0.34);
+  color: #d7ffe6;
+}
+
+.testerReportStatusBlocked {
+  border-color: var(--admin-warning-border);
+  color: var(--admin-warning-text);
+}
+
+.testerReportStatusFailed {
+  border-color: rgba(248, 113, 113, 0.48);
+  color: #fecaca;
+}
+
+.testerReportStatusPartial {
+  border-color: var(--admin-border);
+  color: var(--admin-text-strong);
 }
 
 .adminErrorsHead,
@@ -4924,8 +5051,14 @@
   }
 
   .adminReportsHead,
-  .adminReportsRow {
+  .adminReportsRow,
+  .adminTesterReportsHead,
+  .adminTesterReportsRow {
     grid-template-columns: 1.2fr 0.9fr minmax(0, 1.2fr) minmax(0, 2fr);
+  }
+
+  .adminTesterReportPanels {
+    grid-template-columns: 1fr;
   }
 
   .statsLensGrid {

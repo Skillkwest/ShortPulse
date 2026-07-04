@@ -12,6 +12,7 @@ const ADMIN_NAV_ITEMS = [
   { href: "/admin/pricing", label: "Model Pricing" },
   { href: "/admin/catalog", label: "Product Catalog" },
   { href: "/admin", label: "Customer Support" },
+  { href: "/admin/tester-reports", label: "Tester Reports" },
   { href: "/admin/legal", label: "Legal" },
   { href: "/admin/offers", label: "Offers" },
   { href: "/admin/stats", label: "Analytics" },

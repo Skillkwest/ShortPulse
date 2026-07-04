@@ -66,7 +66,7 @@ Route: `/ai-studio` (dashboard tile: AI Studio).
 
 - Becomes the execution arm of ShortPulse intelligence: a pattern-to-output engine and core pillar of the end-to-end content system.
 
-## Current UI Snapshot (Jan 2027)
+## Current UI Snapshot (July 2026 Launch Baseline)
 
 - Photoshop-style canvas: left fixed rail (logo, back-to-dashboard, Create/Edit/Organize) anchors the layout; hero stats for AI credits and plan sit above the workspace.
 - Create card: three-step flow (Select mode / Frame & model / Write your prompt) with Text, Image, Video toggles; fixed aspect/model selects; Media library quick actions; refreshed prompt textarea with slim scrollbar.

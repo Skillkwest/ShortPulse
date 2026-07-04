@@ -13,7 +13,6 @@ import { useAgentComposerPromptDropModifierTracking } from "./promptStep/agentCo
 import type { CanvasTearOutComposerTargetRegistry } from "../hooks/useAiStudioCanvasTearOutTargets";
 import type { AgentComposerDirectDropPayload } from "../logic/agentComposerDirectDropPayload";
 import type { GenerationAccessCta } from "../logic/generationAccessCta";
-import { isRemoteFetchableUrlProtocol } from "../logic/voiceChangerSourceUrl";
 import {
   handlePromptTextAreaDragOver,
   handlePromptTextAreaDrop,
@@ -68,6 +67,29 @@ import {
   requestExclusiveSoundPlayback,
 } from "./shared/exclusiveSoundPlayback";
 import { GenerationAccessCtaButton } from "./shared/GenerationAccessCtaButton";
+import {
+  buildDesignedPreviewInstanceKey,
+  buildVoiceDesignPreviewAudioSrc,
+  cloneVoiceSourceDropzoneCopy,
+  createVoiceDefaultName,
+  fixedVoiceChangerBottomSectionHeightPx,
+  getVoiceChipDisplayName,
+  loadedVoiceArrowInlineStyle,
+  loadedVoiceValueInlineStyle,
+  maxVoiceChangerBottomSectionHeightPx,
+  maxVoicePromptCharacters,
+  maxVoicePromptHeightPx,
+  maxVoiceScriptCharacters,
+  minVoiceChangerBottomSectionHeightPx,
+  minVoiceChangerTopSectionHeightPx,
+  minVoiceoverBottomSectionHeightPx,
+  minVoiceoverTopSectionHeightPx,
+  minVoicePromptCharacters,
+  voiceLoadingSkeletonCount,
+  voicePromptPlaceholder,
+  voiceScriptPlaceholder,
+} from "./voicesPropertiesPanelConstants";
+import { canSubmitVoiceChangerSource } from "./voiceChangerSourceSubmit";
 import styles from "../../../styles/ai-studio-voices-properties.module.css";
 
 export {
@@ -84,93 +106,6 @@ export {
 type VoicesSurfaceMode = "create" | "edit";
 type CreateVoiceMode = "generate" | "clone";
 type VoicesLibrarySection = "default" | "my";
-
-const canSubmitVoiceChangerSourceUrl = (source: VoiceChangerSource): boolean => {
-  const sourceUrl = source.sourceUrl?.trim();
-  if (!sourceUrl || /^(?:blob:|data:)/i.test(sourceUrl)) return false;
-  try {
-    const parsed = new URL(
-      sourceUrl,
-      typeof window === "undefined" ? "https://shortpulse.local" : window.location.href
-    );
-    return isRemoteFetchableUrlProtocol(parsed.protocol);
-  } catch {
-    return false;
-  }
-};
-
-const canSubmitVoiceChangerSource = (source: VoiceChangerSource | null | undefined): boolean =>
-  Boolean(
-    source?.status === "ready" &&
-    (source.storagePath?.trim() || canSubmitVoiceChangerSourceUrl(source))
-  );
-
-const voicePromptPlaceholder =
-  "Enter the prompt used to generate this voice: tone, age, and delivery.";
-const voiceScriptPlaceholder = "Paste or write the script that will be spoken with this voice.";
-const createVoiceDefaultName = "";
-
-const maxVoicePromptCharacters = 1000;
-const minVoicePromptCharacters = 20;
-const maxVoiceScriptCharacters = 5000;
-const voiceLoadingSkeletonCount = 12;
-const maxVoicePromptHeightPx = 264;
-const minVoiceoverTopSectionHeightPx = 72;
-const minVoiceoverBottomSectionHeightPx = 240;
-const minVoiceChangerTopSectionHeightPx = 120;
-const minVoiceChangerBottomSectionHeightPx = 600;
-const maxVoiceChangerBottomSectionHeightPx = 600;
-const fixedVoiceChangerBottomSectionHeightPx = 600;
-const cloneVoiceSourceDropzoneCopy = {
-  inputAriaLabel: "Voice clone source file input",
-  dropzoneAriaLabel: "Voice clone source drop zone",
-  dropzoneCaptionId: "voice-clone-dropzone-caption",
-  recordPanelAriaLabel: "Record voice sample",
-  recordTitle: "Record",
-  recordHelper: "Record a voice sample to create a cloned voice.",
-  recordButtonIdleAriaLabel: "Record your voice sample",
-  recordButtonRecordingAriaLabel: "Stop recording your voice sample",
-  dropTitle: "Drop a voice sample",
-  dropHelper: "Drag one audio file from your computer or the Reference Grid. Click to browse.",
-  caption: "Accepts MP3, WAV, M4A, AAC, FLAC, OGG, and WEBM.",
-  unableReferenceError: "Unable to use this reference as a voice clone sample.",
-  readyTitle: "Ready to clone",
-  uploadingAudioDetail: "Staging the voice sample so it is ready for cloning.",
-  failedFallbackDetail: "Unable to prepare the selected voice sample.",
-};
-const loadedVoiceArrowInlineStyle: React.CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  minWidth: "54px",
-  flexShrink: 0,
-  alignSelf: "center",
-  color: "rgba(114, 243, 217, 0.98)",
-  fontSize: "44px",
-  fontWeight: 800,
-  lineHeight: 1,
-  letterSpacing: "-0.08em",
-  textShadow: "0 0 18px rgba(80, 226, 205, 0.3), 0 0 32px rgba(80, 226, 205, 0.18)",
-  transform: "translateY(1px)",
-};
-
-const loadedVoiceValueInlineStyle: React.CSSProperties = {
-  color: "rgba(239, 255, 252, 1)",
-  textShadow: "0 0 16px rgba(105, 220, 203, 0.28)",
-};
-const buildVoiceDesignPreviewAudioSrc = (
-  audioBase64: string,
-  mediaType: string | null | undefined
-): string => `data:${mediaType?.trim() || "audio/mpeg"};base64,${audioBase64}`;
-
-const buildDesignedPreviewInstanceKey = (previewId: string): string =>
-  `voices:designed-preview:${previewId}`;
-
-const getVoiceChipDisplayName = (voiceName: string): string => {
-  const trimmedName = voiceName.trim();
-  if (!trimmedName) return "";
-  return trimmedName.split(/\s*(?::|[—–-])\s*/u, 1)[0] ?? trimmedName;
-};
 
 export type VoicesGenerateRequest =
   | {

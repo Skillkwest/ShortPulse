@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { KIE_KLING_30_MOTION_CONTROL_VARIANT_ID } from "../klingMotionControlPricing";
-import { ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_VARIANT_ID } from "../elevenLabsModels";
+import {
+  ELEVENLABS_SOUND_EFFECTS_AUTO_DURATION_VARIANT_ID,
+  ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_VARIANT_ID,
+} from "../elevenLabsModels";
 import { KIE_KLING_30_MODEL_ID } from "../providerModelIds";
 import { buildModelPricingVariantId, resolveModelPricingVariantId } from "../modelPricingVariants";
 
@@ -44,13 +47,13 @@ describe("modelPricingVariants", () => {
     ).toBe("motion_control|res:720p|audio:on");
   });
 
-  it("keeps sound effect Auto on the default row and explicit duration on its own row", () => {
+  it("keeps sound effect Auto and explicit duration on separate rows", () => {
     expect(
       resolveModelPricingVariantId({
         modelId: "eleven_text_to_sound_v2",
         generationCount: 1,
       })
-    ).toBe("default|aspect:audio");
+    ).toBe(`${ELEVENLABS_SOUND_EFFECTS_AUTO_DURATION_VARIANT_ID}|aspect:audio`);
 
     expect(
       resolveModelPricingVariantId({

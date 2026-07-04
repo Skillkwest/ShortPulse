@@ -326,10 +326,10 @@ describe("Admin pricing page", () => {
     const state = buildPricingState();
     state.creditPackages = [
       {
-        id: "starter_500",
-        displayName: "500 credits",
-        creditAmountCents: 500,
-        priceCents: 900,
+        id: "100",
+        displayName: "100 credits",
+        creditAmountCents: 100,
+        priceCents: 500,
         stripePriceId: null,
         sortOrder: 30,
         isActive: false,

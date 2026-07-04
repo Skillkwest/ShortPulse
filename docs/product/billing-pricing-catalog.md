@@ -58,7 +58,7 @@ Purpose: keep subscription, storage add-on, and credit-pack pricing easy to chan
   - `billing_subscription_contracts.next_credit_grant_at` tracks the next monthly allocation due inside the active annual term
   - annual monthly allocations are processed by the secured billing renewal runner rather than by annual Stripe invoices alone
 
-## Current catalog (2026-07-01)
+## Current catalog (2026-07-04)
 
 Public entry-plan note:
 
@@ -89,10 +89,17 @@ New recurring storage add-ons are not acquisition-enabled until the matching Str
 
 ### Credit packs
 
-- `starter_500`: `$7`, `500` credits
-- `growth_2000`: `$26`, `2,000` credits
-- `scale_6000`: `$78`, `6,000` credits
-- `studio_10000`: `$100`, `10,000` credits
+New credit packs are not public checkout options until their matching one-time Stripe Prices
+exist and the package rows are activated with `stripe_price_id`.
+
+- `100`: `$5`, `100` credits
+- `275`: `$12`, `275` credits
+- `600`: `$25`, `600` credits
+- `1200`: `$49`, `1,200` credits
+- `2500`: `$99`, `2,500` credits
+- `6800`: `$249`, `6,800` credits
+- `14500`: `$499`, `14,500` credits
+- `30500`: `$999`, `30,500` credits
 
 ## How to change pricing
 

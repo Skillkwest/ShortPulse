@@ -15,20 +15,10 @@ import { withCanonicalImageDimensions } from "../mediaDimensionMetadata";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
 import { extractImageDimensionsFromBuffer } from "./imageDimensions";
 import {
-  areCompatibleMimeTypes,
-  detectAudioMimeType,
-  detectImageMimeType,
-  detectVideoMimeType,
-  normalizeSupportedMimeType,
-} from "./uploadSignature";
-import {
   upsertVideoPosterVariantFromBuffer,
   upsertVideoPreviewVariantFromBuffer,
 } from "./videoPosterVariant";
 import {
-  ALLOWED_AUDIO_MIME_TYPES,
-  ALLOWED_IMAGE_MIME_TYPES,
-  ALLOWED_VIDEO_MIME_TYPES,
   buildScopedMediaStoragePath,
   createSignedMediaUrl,
   DURABLE_MEDIA_CACHE_CONTROL_SECONDS,
@@ -37,11 +27,7 @@ import {
   MEDIA_BUCKET,
   type MediaLibraryFileType,
   MAX_IMAGE_MEDIA_BYTES,
-  maxBytesForMediaFileType,
-  MAX_VIDEO_MEDIA_BYTES,
   removeScopedMediaStorageObject,
-  resolveMediaFileTypeFromMimeType,
-  resolveMediaStorageExtension,
   uploadMediaBufferToStoragePath,
 } from "./mediaIngest";
 import {
@@ -62,66 +48,45 @@ import {
   VoiceChangerSourceVideoNormalizationError,
 } from "./voiceChangerSourceVideoNormalization";
 import { assertUserScopedMediaStoragePath } from "../mediaStoragePath";
+export {
+  MediaUploadServiceError,
+  type MediaUploadDestinationTab,
+  type VoiceChangerSourceKind,
+} from "./mediaUploadPolicy";
+import {
+  enforceUploadSizeLimit,
+  MAX_UPLOAD_BYTES,
+  MAX_VOICE_CHANGER_AUDIO_STAGE_BYTES,
+  MediaUploadServiceError,
+  MOTION_REFERENCE_VIDEO_STAGING_FOLDER,
+  MOTION_REFERENCE_VIDEO_STORAGE_FOLDER,
+  normalizeContentType,
+  readFieldString,
+  readHeaderString,
+  REFERENCE_IMAGE_STAGING_FOLDER,
+  REFERENCE_IMAGE_STORAGE_FOLDER,
+  REFERENCE_VIDEO_STAGING_FOLDER,
+  REFERENCE_VIDEO_STORAGE_FOLDER,
+  resolveBaseFileName,
+  resolveDetectedMimeType,
+  resolveDestinationTab,
+  resolveFinalizedVoiceChangerSourceMimeType,
+  resolveMediaDirectUploadStagingFolder,
+  resolvePreparedMediaUploadMimeType,
+  resolvePreparedMediaUploadStoredFileName,
+  resolvePreparedVoiceChangerSourceMimeType,
+  resolvePreparedVoiceChangerStoredFileName,
+  resolveUploadedStorageExtension,
+  resolveUploadFolder,
+  resolveUploadSource,
+  resolveVoiceAudioSourceMimeType,
+  resolveVoiceChangerSourceStorageFolder,
+  validateUpload,
+  type MediaUploadDestinationTab,
+  type VoiceChangerSourceKind,
+} from "./mediaUploadPolicy";
 
-const PRIVATE_MEDIA_SOURCE = "private_upload";
-const MAX_UPLOAD_BYTES = MAX_VIDEO_MEDIA_BYTES;
 const MAX_VOICE_CHANGER_VIDEO_PROCESSING_BYTES = MAX_VOICE_CHANGER_SOURCE_BYTES;
-const MAX_VOICE_CHANGER_AUDIO_STAGE_BYTES = 100 * 1024 * 1024;
-const MEDIA_DIRECT_UPLOAD_STAGING_ROOT = "upload-staging";
-const MOTION_REFERENCE_VIDEO_STAGING_FOLDER = `${MEDIA_DIRECT_UPLOAD_STAGING_ROOT}/videos/motion-control`;
-const MOTION_REFERENCE_VIDEO_STORAGE_FOLDER = "videos/motion-control";
-const REFERENCE_VIDEO_STAGING_FOLDER = `${MEDIA_DIRECT_UPLOAD_STAGING_ROOT}/videos/reference`;
-const REFERENCE_VIDEO_STORAGE_FOLDER = "videos/reference";
-
-const VIDEO_DESTINATIONS = new Set<MediaUploadDestinationTab>(["uploaded_videos"]);
-
-const ALLOWED_VOICE_CHANGER_AUDIO_MIME_TYPES = new Set([
-  "audio/aac",
-  "audio/flac",
-  "audio/m4a",
-  "audio/mp4",
-  "audio/mpeg",
-  "audio/ogg",
-  "audio/wav",
-  "audio/webm",
-  "audio/x-m4a",
-  "audio/x-wav",
-]);
-
-const VOICE_CHANGER_AUDIO_EXTENSION_BY_MIME: Record<string, string> = {
-  "audio/aac": "aac",
-  "audio/flac": "flac",
-  "audio/m4a": "m4a",
-  "audio/mp4": "m4a",
-  "audio/mpeg": "mp3",
-  "audio/ogg": "ogg",
-  "audio/wav": "wav",
-  "audio/webm": "webm",
-  "audio/x-m4a": "m4a",
-  "audio/x-wav": "wav",
-};
-
-const VOICE_CHANGER_AUDIO_MIME_BY_EXTENSION: Record<string, string> = {
-  aac: "audio/aac",
-  flac: "audio/flac",
-  m4a: "audio/mp4",
-  mp3: "audio/mpeg",
-  oga: "audio/ogg",
-  ogg: "audio/ogg",
-  wav: "audio/wav",
-  webm: "audio/webm",
-};
-
-const VIDEO_MIME_BY_EXTENSION: Record<string, string> = {
-  m4v: "video/x-m4v",
-  mov: "video/quicktime",
-  mp4: "video/mp4",
-  webm: "video/webm",
-};
-
-type VoiceChangerSourceKind = "audio" | "video";
-
-export type MediaUploadDestinationTab = "uploaded_images" | "uploaded_videos" | "private";
 
 export type MediaUploadResponseFile = {
   id: string;
@@ -154,49 +119,6 @@ type ParsedUpload = {
 
 type ParseUploadOptions = {
   defaultDestinationTab?: MediaUploadDestinationTab;
-};
-
-const normalizeContentType = (value: string | string[] | undefined): string => {
-  const header = Array.isArray(value) ? value[0] : value;
-  return normalizeSupportedMimeType(header?.split(";")[0] ?? "");
-};
-
-const normalizeDeclaredMimeType = (value: string): string =>
-  normalizeSupportedMimeType(value.split(";")[0] ?? "");
-
-const readHeaderString = (value: string | string[] | undefined): string => {
-  const header = Array.isArray(value) ? value[0] : value;
-  return header?.trim() ?? "";
-};
-
-const readFieldString = (value: string | string[] | undefined): string => {
-  if (Array.isArray(value)) return value[0]?.trim() ?? "";
-  return value?.trim() ?? "";
-};
-
-const sanitizeFileName = (name: string): string =>
-  name
-    .trim()
-    .replace(/[^A-Za-z0-9._-]+/g, "_")
-    .replace(/^\.+/, "")
-    .replace(/_+/g, "_")
-    .slice(0, 120);
-
-const resolveBaseFileName = (fileName: string): string => {
-  const trimmed = fileName.trim();
-  if (!trimmed) return "upload";
-  const lastSegment = trimmed.split(/[\\/]/).pop() ?? "upload";
-  const dotIndex = lastSegment.lastIndexOf(".");
-  const baseName = dotIndex > 0 ? lastSegment.slice(0, dotIndex) : lastSegment;
-  const normalized = sanitizeFileName(baseName);
-  return normalized || "upload";
-};
-
-const resolveDestinationTab = (value: string): MediaUploadDestinationTab | null => {
-  if (value === "uploaded_images" || value === "uploaded_videos" || value === "private") {
-    return value;
-  }
-  return null;
 };
 
 const parseMultipart = async (
@@ -354,152 +276,6 @@ const parseUpload = async (
   return await parseRaw(req, options);
 };
 
-const destinationPrefersVideo = (destinationTab: MediaUploadDestinationTab): boolean =>
-  VIDEO_DESTINATIONS.has(destinationTab);
-
-const destinationAllowsAudio = (destinationTab: MediaUploadDestinationTab): boolean =>
-  destinationTab !== "private";
-
-const resolveDetectedMimeType = (
-  destinationTab: MediaUploadDestinationTab,
-  buffer: Buffer
-): string | null => {
-  if (destinationPrefersVideo(destinationTab)) {
-    return (
-      detectVideoMimeType(buffer) ??
-      (destinationAllowsAudio(destinationTab) ? detectAudioMimeType(buffer) : null)
-    );
-  }
-  return (
-    detectImageMimeType(buffer) ??
-    (destinationAllowsAudio(destinationTab) ? detectAudioMimeType(buffer) : null)
-  );
-};
-
-const isAllowedMimeType = (
-  destinationTab: MediaUploadDestinationTab,
-  mimeType: string
-): boolean => {
-  if (destinationPrefersVideo(destinationTab)) {
-    return ALLOWED_VIDEO_MIME_TYPES.has(mimeType) || ALLOWED_AUDIO_MIME_TYPES.has(mimeType);
-  }
-  if (destinationTab === "private") {
-    return ALLOWED_IMAGE_MIME_TYPES.has(mimeType);
-  }
-  return ALLOWED_IMAGE_MIME_TYPES.has(mimeType) || ALLOWED_AUDIO_MIME_TYPES.has(mimeType);
-};
-
-const isGenericDeclaredMimeType = (mimeType: string): boolean => {
-  return mimeType === "application/octet-stream" || mimeType === "binary/octet-stream";
-};
-
-const isCompatibleDeclaredMimeType = ({
-  destinationTab,
-  declaredMimeType,
-  detectedMimeType,
-}: {
-  destinationTab: MediaUploadDestinationTab;
-  declaredMimeType: string;
-  detectedMimeType: string;
-}): boolean => {
-  if (areCompatibleMimeTypes(declaredMimeType, detectedMimeType)) return true;
-  if (
-    destinationPrefersVideo(destinationTab) &&
-    declaredMimeType.startsWith("video/") &&
-    detectedMimeType.startsWith("video/")
-  ) {
-    // Browser/file-input MIME metadata can vary between MP4 container aliases.
-    const mp4AliasFamily = new Set(["video/mp4", "video/quicktime", "video/x-m4v"]);
-    if (mp4AliasFamily.has(declaredMimeType) && mp4AliasFamily.has(detectedMimeType)) return true;
-  }
-  if (
-    destinationPrefersVideo(destinationTab) &&
-    declaredMimeType === "video/webm" &&
-    detectedMimeType === "audio/webm"
-  ) {
-    return true;
-  }
-  return false;
-};
-
-const resolveUploadFolder = (
-  destinationTab: MediaUploadDestinationTab,
-  fileType: MediaLibraryFileType
-): string => {
-  if (destinationTab === "private") return "private/images";
-  if (fileType === "video") return "videos";
-  if (fileType === "audio") return "audio";
-  return "images";
-};
-
-const resolveUploadSource = (destinationTab: MediaUploadDestinationTab): string =>
-  destinationTab === "private" ? PRIVATE_MEDIA_SOURCE : "upload";
-
-const resolveMediaDirectUploadStagingFolder = (destinationTab: MediaUploadDestinationTab): string =>
-  `${MEDIA_DIRECT_UPLOAD_STAGING_ROOT}/${destinationTab}`;
-
-const REFERENCE_IMAGE_STAGING_FOLDER = `${MEDIA_DIRECT_UPLOAD_STAGING_ROOT}/images/reference`;
-const REFERENCE_IMAGE_STORAGE_FOLDER = "images/reference";
-
-const resolveVoiceChangerSourceStorageFolder = (kind: VoiceChangerSourceKind): string =>
-  kind === "video" ? "voice-changer/source-video" : "voice-changer/source-audio";
-
-const resolvePreparedVoiceChangerSourceMimeType = ({
-  kind,
-  declaredMimeType,
-}: {
-  kind: VoiceChangerSourceKind;
-  declaredMimeType: string;
-}): string => {
-  const normalizedMimeType = normalizeSupportedMimeType(declaredMimeType);
-  if (!normalizedMimeType) {
-    throw new MediaUploadServiceError(
-      400,
-      "Invalid request",
-      "Voice changer source mime type is required."
-    );
-  }
-  if (kind === "video") {
-    if (!ALLOWED_VIDEO_MIME_TYPES.has(normalizedMimeType)) {
-      throw new MediaUploadServiceError(
-        400,
-        "Invalid request",
-        "Voice changer source file is not a supported video format."
-      );
-    }
-    return normalizedMimeType;
-  }
-  if (!ALLOWED_VOICE_CHANGER_AUDIO_MIME_TYPES.has(normalizedMimeType)) {
-    throw new MediaUploadServiceError(
-      400,
-      "Invalid request",
-      "Voice changer source file is not a supported audio format."
-    );
-  }
-  return normalizedMimeType;
-};
-
-const resolvePreparedMediaUploadMimeType = ({
-  destinationTab,
-  declaredMimeType,
-}: {
-  destinationTab: MediaUploadDestinationTab;
-  declaredMimeType: string;
-}): string => {
-  const normalizedMimeType = normalizeDeclaredMimeType(declaredMimeType);
-  if (!normalizedMimeType) {
-    throw new MediaUploadServiceError(400, "Invalid request", "Upload file mime type is required.");
-  }
-  if (!isAllowedMimeType(destinationTab, normalizedMimeType)) {
-    throw new MediaUploadServiceError(
-      400,
-      "Invalid request",
-      "Upload file is not a supported format for the requested destination."
-    );
-  }
-  return normalizedMimeType;
-};
-
 const createSignedUploadTarget = async ({
   storagePath,
 }: {
@@ -519,88 +295,6 @@ const createSignedUploadTarget = async ({
     token: data.token,
   };
 };
-
-const validateUpload = ({
-  destinationTab,
-  declaredMimeType,
-  detectedMimeType,
-}: {
-  destinationTab: MediaUploadDestinationTab;
-  declaredMimeType: string;
-  detectedMimeType: string | null;
-}): { mimeType: string; fileType: MediaLibraryFileType } => {
-  if (!detectedMimeType || !isAllowedMimeType(destinationTab, detectedMimeType)) {
-    const expected = destinationPrefersVideo(destinationTab)
-      ? "video"
-      : destinationTab === "private"
-        ? "image"
-        : "image or audio";
-    throw new MediaUploadServiceError(
-      400,
-      "Invalid file type",
-      `File content is not a supported ${expected} format (detected: ${detectedMimeType ?? "unknown"}).`
-    );
-  }
-
-  if (declaredMimeType && !isGenericDeclaredMimeType(declaredMimeType)) {
-    if (!isAllowedMimeType(destinationTab, declaredMimeType)) {
-      throw new MediaUploadServiceError(
-        400,
-        "Invalid file type",
-        `Content type does not match file content (declared: ${declaredMimeType}, detected: ${detectedMimeType}).`
-      );
-    }
-    if (
-      !isCompatibleDeclaredMimeType({
-        destinationTab,
-        declaredMimeType,
-        detectedMimeType,
-      })
-    ) {
-      throw new MediaUploadServiceError(
-        400,
-        "Invalid file type",
-        `Content type does not match file content (declared: ${declaredMimeType}, detected: ${detectedMimeType}).`
-      );
-    }
-  }
-
-  const fileType = resolveMediaFileTypeFromMimeType(detectedMimeType);
-  if (!fileType) {
-    throw new MediaUploadServiceError(400, "Invalid file type", "Unsupported uploaded file type.");
-  }
-
-  return {
-    mimeType: detectedMimeType,
-    fileType,
-  };
-};
-
-const enforceUploadSizeLimit = ({
-  fileType,
-  fileSize,
-}: {
-  fileType: MediaLibraryFileType;
-  fileSize: number;
-}): void => {
-  if (fileSize > maxBytesForMediaFileType(fileType)) {
-    throw new MediaUploadServiceError(413, "Upload failed: file too large");
-  }
-};
-
-/**
- * Typed service error returned by Media Library upload parsing/validation logic.
- */
-export class MediaUploadServiceError extends Error {
-  readonly status: number;
-  readonly details?: string;
-
-  constructor(status: number, message: string, details?: string) {
-    super(message);
-    this.status = status;
-    this.details = details;
-  }
-}
 
 const assertMediaComplianceAcceptedForUpload = async (userId: string): Promise<void> => {
   try {
@@ -650,48 +344,6 @@ type SignedStorageAssetResult = {
   size: number;
 };
 
-const resolveExtensionFromFilename = (filename: string): string | null => {
-  const dotIndex = filename.lastIndexOf(".");
-  if (dotIndex < 0) return null;
-  const extension = filename
-    .slice(dotIndex + 1)
-    .trim()
-    .toLowerCase();
-  return extension || null;
-};
-
-const resolvePreparedVoiceChangerStoredFileName = ({
-  filename,
-  mimeType,
-  kind,
-}: {
-  filename: string;
-  mimeType: string;
-  kind: VoiceChangerSourceKind;
-}): string => {
-  const extension =
-    resolveExtensionFromFilename(filename) ||
-    resolveMediaStorageExtension(
-      mimeType,
-      kind === "video" ? "mp4" : (VOICE_CHANGER_AUDIO_EXTENSION_BY_MIME[mimeType] ?? "wav")
-    ) ||
-    (kind === "video" ? "mp4" : "wav");
-  const fileBaseName = resolveBaseFileName(filename);
-  return `${Date.now()}-${Math.random().toString(36).slice(2)}-${fileBaseName}.${extension}`;
-};
-
-const resolvePreparedMediaUploadStoredFileName = ({
-  filename,
-  mimeType,
-}: {
-  filename: string;
-  mimeType: string;
-}): string => {
-  const extension = resolveMediaStorageExtension(mimeType, "bin") || "bin";
-  const fileBaseName = resolveBaseFileName(filename);
-  return `${Date.now()}-${Math.random().toString(36).slice(2)}-${fileBaseName}.${extension}`;
-};
-
 const uploadScopedStorageBuffer = async ({
   userId,
   storageFolder,
@@ -707,11 +359,7 @@ const uploadScopedStorageBuffer = async ({
   buffer: Buffer;
   cacheControl?: string;
 }): Promise<SignedStorageAssetResult> => {
-  const extension =
-    resolveMediaStorageExtension(
-      mimeType,
-      VOICE_CHANGER_AUDIO_EXTENSION_BY_MIME[mimeType] ?? "bin"
-    ) ?? "bin";
+  const extension = resolveUploadedStorageExtension(mimeType);
   const fileBaseName = resolveBaseFileName(filename);
   const storedFileName = `${Date.now()}-${Math.random().toString(36).slice(2)}-${fileBaseName}.${extension}`;
   const storagePath = buildScopedMediaStoragePath({
@@ -768,11 +416,7 @@ const movePreparedUploadToDurableStorage = async ({
   mimeType: string;
   fileType: Exclude<MediaLibraryFileType, "image">;
 }): Promise<UploadedStorageAsset> => {
-  const extension =
-    resolveMediaStorageExtension(
-      mimeType,
-      VOICE_CHANGER_AUDIO_EXTENSION_BY_MIME[mimeType] ?? "bin"
-    ) ?? "bin";
+  const extension = resolveUploadedStorageExtension(mimeType);
   const fileBaseName = resolveBaseFileName(parsedUpload.filename);
   const storedFileName = `${Date.now()}-${Math.random().toString(36).slice(2)}-${fileBaseName}.${extension}`;
   const storagePath = buildScopedMediaStoragePath({
@@ -817,84 +461,6 @@ const movePreparedUploadToDurableStorage = async ({
     imageDimensions: null,
     admissionMetadata: null,
   };
-};
-
-const resolveVoiceAudioSourceMimeType = ({
-  declaredMimeType,
-  filename,
-  buffer,
-  errorDetails,
-}: {
-  declaredMimeType: string;
-  filename: string;
-  buffer: Buffer;
-  errorDetails: string;
-}): string => {
-  const detectedMimeType = detectAudioMimeType(buffer);
-  if (!detectedMimeType || !ALLOWED_VOICE_CHANGER_AUDIO_MIME_TYPES.has(detectedMimeType)) {
-    throw new MediaUploadServiceError(400, "Invalid file type", errorDetails);
-  }
-
-  const filenameExtension = resolveExtensionFromFilename(filename);
-  const filenameMimeType = filenameExtension
-    ? (VOICE_CHANGER_AUDIO_MIME_BY_EXTENSION[filenameExtension] ?? null)
-    : null;
-  if (
-    filenameMimeType &&
-    filenameMimeType !== detectedMimeType &&
-    !areCompatibleMimeTypes(filenameMimeType, detectedMimeType)
-  ) {
-    throw new MediaUploadServiceError(400, "Invalid file type", errorDetails);
-  }
-  if (
-    declaredMimeType &&
-    !isGenericDeclaredMimeType(declaredMimeType) &&
-    !areCompatibleMimeTypes(declaredMimeType, detectedMimeType)
-  ) {
-    throw new MediaUploadServiceError(400, "Invalid file type", errorDetails);
-  }
-
-  return detectedMimeType;
-};
-
-const resolveVoiceChangerSourceMimeType = ({
-  kind,
-  declaredMimeType,
-  filename,
-  buffer,
-}: {
-  kind: VoiceChangerSourceKind;
-  declaredMimeType: string;
-  filename: string;
-  buffer: Buffer;
-}): string => {
-  const filenameExtension = resolveExtensionFromFilename(filename);
-  if (kind === "video") {
-    const detectedMimeType = detectVideoMimeType(buffer);
-    const candidateMimeType =
-      detectedMimeType && ALLOWED_VIDEO_MIME_TYPES.has(detectedMimeType)
-        ? detectedMimeType
-        : declaredMimeType && ALLOWED_VIDEO_MIME_TYPES.has(declaredMimeType)
-          ? declaredMimeType
-          : filenameExtension && VIDEO_MIME_BY_EXTENSION[filenameExtension]
-            ? VIDEO_MIME_BY_EXTENSION[filenameExtension]
-            : null;
-    if (!candidateMimeType || !ALLOWED_VIDEO_MIME_TYPES.has(candidateMimeType)) {
-      throw new MediaUploadServiceError(
-        400,
-        "Invalid file type",
-        "Voice changer source file is not a supported video format."
-      );
-    }
-    return candidateMimeType;
-  }
-
-  return resolveVoiceAudioSourceMimeType({
-    declaredMimeType,
-    filename,
-    buffer,
-    errorDetails: "Voice changer source file is not a supported audio format.",
-  });
 };
 
 const uploadStorageAssetForUser = async ({
@@ -1331,34 +897,12 @@ export const finalizeVoiceChangerSourceUploadForUser = async ({
       storagePath: safeStoragePath,
       maxBytes,
     });
-    const mimeType =
-      kind === "video"
-        ? (() => {
-            const detectedVideoMimeType = detectVideoMimeType(stored.buffer);
-            if (detectedVideoMimeType && ALLOWED_VIDEO_MIME_TYPES.has(detectedVideoMimeType)) {
-              return detectedVideoMimeType;
-            }
-            const detectedAudioMimeType = detectAudioMimeType(stored.buffer);
-            if (
-              detectedAudioMimeType === "audio/webm" &&
-              (normalizedMimeType === "video/webm" ||
-                resolveExtensionFromFilename(normalizedFilename) === "webm")
-            ) {
-              return detectedAudioMimeType;
-            }
-            return resolveVoiceChangerSourceMimeType({
-              kind,
-              declaredMimeType: normalizedMimeType,
-              filename: normalizedFilename,
-              buffer: stored.buffer,
-            });
-          })()
-        : resolveVoiceChangerSourceMimeType({
-            kind,
-            declaredMimeType: normalizedMimeType,
-            filename: normalizedFilename,
-            buffer: stored.buffer,
-          });
+    const mimeType = resolveFinalizedVoiceChangerSourceMimeType({
+      kind,
+      declaredMimeType: normalizedMimeType,
+      filename: normalizedFilename,
+      buffer: stored.buffer,
+    });
 
     if (kind === "video" && stored.size > MAX_VOICE_CHANGER_VIDEO_PROCESSING_BYTES) {
       const normalizedVideo = await normalizeVoiceChangerSourceVideoForProcessing({

@@ -18,6 +18,12 @@ import {
   resolveMissingGenerationProjectionOptionalColumn,
   type GenerationProjectionDeliveryRow,
 } from "./generationProjectionDeliveryColumns";
+import {
+  resolveWorkflowReloadAudioSourceMode,
+  resolveWorkflowReloadLyricsText,
+  resolveWorkflowReloadMusicMode,
+} from "./generatedMediaAudioMetadata";
+import { hydrateGeneratedOutputErrorPayloads } from "./generatedMediaErrorPayloadHydration";
 
 type SupabaseClient = ReturnType<typeof ensureSupabaseQueryClient>;
 
@@ -50,27 +56,6 @@ type GenerationPublicationRow = {
   preview_storage_path?: unknown;
   full_storage_path?: unknown;
   created_at?: unknown;
-};
-
-const resolveWorkflowReloadLyricsText = (
-  workflowReload: StudioOutput["workflowReload"] | undefined
-): string | null => {
-  const payload = workflowReload?.payload;
-  if (payload?.kind !== "music") return null;
-  const lyrics = payload.lyrics?.trim();
-  return lyrics || null;
-};
-
-const resolveWorkflowReloadAudioSourceMode = (
-  workflowReload: StudioOutput["workflowReload"] | undefined
-): StudioOutput["audioSourceMode"] => (workflowReload?.payload?.kind === "music" ? "music" : null);
-
-const resolveWorkflowReloadMusicMode = (
-  workflowReload: StudioOutput["workflowReload"] | undefined
-): StudioOutput["musicMode"] => {
-  const payload = workflowReload?.payload;
-  if (payload?.kind !== "music") return null;
-  return payload.mode === "instrumental" || payload.mode === "vocal" ? payload.mode : null;
 };
 
 export type GeneratedMediaFileRecord = {
@@ -2375,9 +2360,16 @@ export const listVisibleGeneratedOutputs = async ({
       });
     }
 
-    const outputs = data
+    const baseOutputs = data
       .map((row) => toHydratedGeneratedOutput(row as GenerationProjectionDeliveryRow))
       .filter((row): row is StudioOutput => Boolean(row));
+    const outputs = includeWorkflowContext
+      ? baseOutputs
+      : await hydrateGeneratedOutputErrorPayloads({
+          supabase,
+          userId,
+          outputs: baseOutputs,
+        });
     const authorityRepairGenerationIds = outputs
       .filter((output) => {
         if (!output.generationId) return false;

@@ -69,6 +69,7 @@ export const GENERATION_PROJECTION_DELIVERY_SELECT_COLUMN_LIST = [
 ] as const;
 
 const HEAVY_GENERATION_PROJECTION_CONTEXT_COLUMNS = new Set<string>([
+  "error_payload",
   "generation_replay",
   "workflow_reload",
   "character_context",

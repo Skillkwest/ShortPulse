@@ -15,6 +15,7 @@ import {
 } from "../../lib/model-runtime/modelPricingVariants";
 import {
   ELEVENLABS_SOUND_EFFECTS_AUTO_DURATION_LABEL,
+  ELEVENLABS_SOUND_EFFECTS_AUTO_DURATION_VARIANT_ID,
   ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_DEFAULT_SECONDS,
   ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_LABEL,
   ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_VARIANT_ID,
@@ -339,6 +340,7 @@ export const buildDraftPricingPreviewVariants = (
   if (model.id === ELEVENLABS_SOUND_EFFECTS_MODEL_ID) {
     const autoVariantId = resolveModelPricingVariantId({
       modelId: model.id,
+      variantBaseId: ELEVENLABS_SOUND_EFFECTS_AUTO_DURATION_VARIANT_ID,
       generationCount: 1,
     });
     const explicitDurationSeconds =

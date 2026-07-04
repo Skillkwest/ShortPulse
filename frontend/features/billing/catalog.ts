@@ -619,8 +619,7 @@ export const annotateCreditPackages = (packages: CreditPackageRecord[]) => {
     const creditFaceValueUsd = pkg.credit_amount_cents / 100;
     const unitUsdPerThousand = getPackageUsdPerThousandCredits(pkg);
 
-    const badge =
-      pkg.id === bestValueId ? "Best value" : pkg.id === "growth_2000" ? "Most popular" : null;
+    const badge = pkg.id === bestValueId ? "Best value" : pkg.id === "1200" ? "Most popular" : null;
 
     return {
       ...pkg,

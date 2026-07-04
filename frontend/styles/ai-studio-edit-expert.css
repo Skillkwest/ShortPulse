@@ -35,6 +35,10 @@
     var(--edit-expert-prompt-input-min-height) + var(--create-composer-selector-height) +
       var(--edit-expert-post-stage-composer-clearance) + var(--edit-expert-post-stage-overlay-gap)
   );
+  --edit-expert-z-stage-chrome: 1000;
+  --edit-expert-z-stage-overlay-ui: 1005;
+  --edit-expert-z-composer-overlay: 1010;
+  --edit-expert-z-presets-popup: var(--ai-studio-z-modal-context-surface);
 }
 
 .edit-expert-panel.is-generation-mode-tall-stage {
@@ -194,7 +198,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 1010;
+  z-index: var(--edit-expert-z-composer-overlay);
   display: flex;
   flex-direction: column;
   gap: var(--edit-expert-post-stage-overlay-gap);
@@ -219,7 +223,7 @@
 }
 
 .edit-expert-preset-toolbar.is-more-presets-open {
-  z-index: var(--ai-studio-z-modal-context-surface);
+  z-index: var(--edit-expert-z-presets-popup);
 }
 
 .edit-expert-column-wrapper {
@@ -1099,7 +1103,7 @@
   width: clamp(320px, 38vw, 540px);
   max-width: min(540px, calc(100vw - 44px));
   max-height: min(72vh, 560px);
-  z-index: var(--ai-studio-z-modal-context-surface);
+  z-index: var(--edit-expert-z-presets-popup);
   display: flex;
   flex-direction: column;
   padding: 12px;
@@ -1672,7 +1676,7 @@
   position: absolute;
   top: 8px;
   right: 8px;
-  z-index: 1005;
+  z-index: var(--edit-expert-z-stage-overlay-ui);
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
@@ -1894,7 +1898,7 @@
 .edit-expert-transform-chrome-layer {
   position: absolute;
   inset: 0;
-  z-index: 1000;
+  z-index: var(--edit-expert-z-stage-chrome);
   overflow: visible;
   pointer-events: none;
 }

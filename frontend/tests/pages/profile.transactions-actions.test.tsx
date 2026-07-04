@@ -165,6 +165,28 @@ describe("Profile transactions actions", () => {
     routerState.query = { section: "transactions" };
     fetchWithAuthMock.mockReset();
     fetchWithAuthMock.mockImplementation(async (url: unknown) => {
+      if (url === "/api/billing/account-summary?includeProfileState=1") {
+        return {
+          ok: true,
+          json: async () => ({
+            userId: "user-1",
+            resolvedPlan: {
+              id: "business",
+              label: "Business",
+              className: "plan-business",
+              monthlyCreditsCents: 120000,
+            },
+            quotaStatus: "unavailable",
+            quotaSummary: null,
+            profileState: {
+              billingProfile: billingProfileState,
+              billingContract: billingContractState.value,
+              billingActivity: [],
+              activeStorageAddons: [],
+            },
+          }),
+        };
+      }
       if (url === "/api/billing/catalog") {
         return {
           ok: true,
@@ -179,10 +201,10 @@ describe("Profile transactions actions", () => {
               {
                 id: "txn_credit_1",
                 invoiceNumber: null,
-                amountPaidCents: 2600,
+                amountPaidCents: 9900,
                 currency: "usd",
                 status: "paid",
-                title: "Credit top-up · 2,000 credits",
+                title: "Credit top-up · 2,500 credits",
                 createdAt: "2026-04-03T15:00:00.000Z",
                 paidAt: "2026-04-03T15:00:00.000Z",
                 receiptUrl: null,
@@ -250,7 +272,7 @@ describe("Profile transactions actions", () => {
 
     expect(await screen.findByRole("heading", { name: "Transaction history" })).toBeInTheDocument();
     expect(screen.getAllByRole("heading", { name: "Recent transactions" })).toHaveLength(2);
-    expect(await screen.findByText("Credit top-up · 2,000 credits")).toBeInTheDocument();
+    expect(await screen.findByText("Credit top-up · 2,500 credits")).toBeInTheDocument();
     expect(await screen.findByText("Subscription + storage")).toBeInTheDocument();
     expect(await screen.findByText(/Ref cs_test_123/)).toBeInTheDocument();
     expect(await screen.findByRole("link", { name: "View invoice" })).toHaveAttribute(

@@ -61,11 +61,11 @@ describe("admin pricing mutation routes", () => {
     const req = {
       method: "POST",
       body: {
-        id: "growth_2000",
-        displayName: "2,000 credits",
-        creditAmountCents: 2000,
-        priceCents: 2600,
-        stripePriceId: "price_growth_2000",
+        id: "1200",
+        displayName: "1,200 credits",
+        creditAmountCents: 1200,
+        priceCents: 4900,
+        stripePriceId: "price_1200",
         isActive: true,
         sortOrder: 20,
       },
@@ -199,7 +199,7 @@ describe("admin pricing mutation routes", () => {
             select: () => ({
               eq: () => ({
                 maybeSingle: async () => ({
-                  data: { id: "growth_2000" },
+                  data: { id: "1200" },
                   error: null,
                 }),
               }),
@@ -215,14 +215,14 @@ describe("admin pricing mutation routes", () => {
       },
     });
     stripeGetMock.mockResolvedValueOnce({
-      id: "price_growth_2000",
+      id: "price_1200",
       active: true,
       currency: "usd",
-      unit_amount: 2600,
+      unit_amount: 4900,
       recurring: null,
       metadata: {
         shortpulse_catalog_type: "credit_package",
-        shortpulse_credit_package_id: "growth_2000",
+        shortpulse_credit_package_id: "1200",
       },
       product: { id: "prod_growth", metadata: {} },
     });
@@ -230,11 +230,11 @@ describe("admin pricing mutation routes", () => {
     const req = {
       method: "POST",
       body: {
-        id: "growth_2000",
-        displayName: "2,000 credits",
-        creditAmountCents: 2000,
-        priceCents: 2600,
-        stripePriceId: "price_growth_2000",
+        id: "1200",
+        displayName: "1,200 credits",
+        creditAmountCents: 1200,
+        priceCents: 4900,
+        stripePriceId: "price_1200",
         isActive: true,
         sortOrder: 20,
       },
@@ -246,7 +246,7 @@ describe("admin pricing mutation routes", () => {
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       ok: true,
-      id: "growth_2000",
+      id: "1200",
       message: "Credit package updated.",
     });
   });

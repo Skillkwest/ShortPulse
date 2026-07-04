@@ -15,6 +15,7 @@ import {
 } from "../../../lib/model-runtime/klingMotionControlPricing";
 import {
   ELEVENLABS_SOUND_EFFECTS_AUTO_DURATION_LABEL,
+  ELEVENLABS_SOUND_EFFECTS_AUTO_DURATION_VARIANT_ID,
   ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_LABEL,
   ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_VARIANT_ID,
   ELEVENLABS_SOUND_EFFECTS_MODEL_ID,
@@ -288,7 +289,11 @@ describe("pricing grid invariants", () => {
       providerCostUsd: 0.132,
       costPerSecondUsd: 0.0132,
     });
-    expect(rows.find((candidate) => candidate.variantId.startsWith("default"))).toMatchObject({
+    expect(
+      rows.find((candidate) =>
+        candidate.variantId.startsWith(ELEVENLABS_SOUND_EFFECTS_AUTO_DURATION_VARIANT_ID)
+      )
+    ).toMatchObject({
       durationSeconds: null,
       providerCostUsd: 0.12,
     });

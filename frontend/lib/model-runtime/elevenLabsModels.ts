@@ -5,6 +5,7 @@
 
 export const ELEVENLABS_MUSIC_MODEL_ID = "music_v1";
 export const ELEVENLABS_SOUND_EFFECTS_MODEL_ID = "eleven_text_to_sound_v2";
+export const ELEVENLABS_SOUND_EFFECTS_AUTO_DURATION_VARIANT_ID = "auto-duration";
 export const ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_VARIANT_ID = "explicit-duration";
 export const ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_LABEL = "Explicit duration";
 export const ELEVENLABS_SOUND_EFFECTS_AUTO_DURATION_LABEL = "Auto duration";

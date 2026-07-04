@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import admitFromStorageHandler from "../../pages/api/media/admit-image-asset-from-storage";
 import finalizeHandler from "../../pages/api/media/finalize-product-image-asset-upload";

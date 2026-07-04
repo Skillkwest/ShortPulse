@@ -138,6 +138,7 @@ Admin legal policy routes:
 | `/api/admin/kanban/items/[itemId]/archive` | Yes | Admin-only kanban item archive route | `POST` only. Archives one active item through service-role RPC mutation instead of deleting its activity trail. |
 | `/api/admin/kanban/items/[itemId]/activity` | Yes | Admin-only kanban item activity route | `GET` only. Returns the immutable activity timeline for one kanban item, including archived items. |
 | `/api/telemetry/growth` | No | Public/authenticated growth telemetry ingest route | `POST` JSON only. Accepts allowlisted growth event families (`telemetry.marketing.*`, `telemetry.auth.*`, `telemetry.billing.*`), records telemetry in `app_error_events`, and updates/stitches `growth_attribution_identities` using the browser anonymous id plus optional bearer-authenticated user context. |
+| `/api/internal/tester-reports/ingest` | Route | Internal tester-report ingest route | `POST` JSON only. Protected by `SHORTPULSE_TESTER_REPORT_INGEST_SECRET` through bearer or `x-shortpulse-tester-report-secret`; upserts one tester run into `tester_report_runs` by `externalRunId` and requires both persona and engineering report bodies. |
 | `/api/admin/pricing/plans/create` | Yes | Admin-only new plan creation route | `POST` JSON only. Creates a new `billing_plans` tier identity, creates its initial current `billing_plan_offers` row, creates the Stripe product plus recurring price, and returns the new live plan for admin/catalog refresh. |
 | `/api/admin/pricing/credit-packages/update` | Yes | Admin-only credit package pricing update route | `POST` JSON only. Updates one active/inactive credit package row in `billing_credit_packages` with server-side validation, including Stripe price requirements for active paid packages. |
 | `/api/admin/pricing/plan-offers/create` | Yes | Admin-only plan-offer version creation route | `POST` JSON only. Creates and activates the next public recurring plan offer in `billing_plan_offers`, closing the previous current acquisition offer while leaving existing subscriber contracts unchanged. |
@@ -173,3 +174,14 @@ Admin legal policy routes:
 The profile header shows a persistent `Payment` summary from the active subscriber contract plus active recurring storage add-on contracts. The subscription section mirrors that total as `Total payment` with the plan/add-on breakdown.
 
 Keep this table updated when adding routes and reflect protection rules in `frontend/lib/protectedRoutes.ts` for frontend pages and `frontend/lib/server/api/protectedApiPaths.ts` for API routes.
+
+## Admin Tester Reports
+
+| Route                       | Auth required | Purpose                                   | Notes                                                                                                                                                                                                               |
+| --------------------------- | ------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/admin/tester-reports`     | Yes           | Admin tester reports page                 | Operator-only tester-agent run log. Shows recent automated test runs, the tester persona/account, the ShortPulse account tested, status/scenario metadata, and expandable persona plus engineering handoff reports. |
+| `/api/admin/tester-reports` | Yes           | Admin-only tester report collection route | `GET` only. Lists tester-agent run reports with pagination plus status/tester/search filters and returns summary counts for `completed`, `blocked`, `failed`, and `partial`.                                        |
+
+`/admin/tester-reports` is an authenticated admin route for automated tester-agent run reports. It lists recent runs from `tester_report_runs`, shows the tester persona/account and ShortPulse account under test, and lets the operator expand both the persona report and engineering handoff for a run.
+
+`/api/admin/tester-reports` is the authenticated admin read API for that page. `/api/internal/tester-reports/ingest` is the route-secret-protected automation ingest API and is intentionally separate from the customer issue-report path.

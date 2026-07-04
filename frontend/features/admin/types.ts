@@ -5,6 +5,7 @@ import type { AdminPricingCustomRowsDocument } from "../../lib/model-runtime/adm
 import type { ModelPricingPolicySnapshot } from "../../lib/model-runtime/pricingPolicy";
 import type { AdminModelWorkflowType } from "../../lib/model-runtime/modelWorkflowType";
 import type { IssueReportStatus } from "../../lib/issueReports";
+import type { TesterReportStatus } from "../../lib/testerReports";
 
 export type AdminUserRow = {
   id: string;
@@ -325,6 +326,41 @@ export type AdminIssueReportSummary = {
   newCount: number;
   reviewingCount: number;
   resolvedCount: number;
+};
+
+export type AdminTesterReportRunRow = {
+  id: string;
+  externalRunId: string;
+  testerSlug: string;
+  testerDisplayName: string;
+  shortpulseUserId: string | null;
+  shortpulseUserEmail: string | null;
+  scenario: string;
+  status: TesterReportStatus;
+  runStartedAt: string | null;
+  runFinishedAt: string | null;
+  durationMinutes: number | null;
+  creditsSpent: number | null;
+  productionSurface: string | null;
+  personaReportTitle: string;
+  personaReportBody: string;
+  engineeringReportTitle: string;
+  engineeringReportBody: string;
+  reportArtifactPaths: string[];
+  evidence: Record<string, unknown>;
+  createdBySource: "tester_agent" | "automation" | "admin";
+  createdByUserId: string | null;
+  createdByEmail: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminTesterReportSummary = {
+  totalCount: number;
+  completedCount: number;
+  blockedCount: number;
+  failedCount: number;
+  partialCount: number;
 };
 
 export type AdminPagination = {

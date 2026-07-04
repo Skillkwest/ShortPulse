@@ -55,6 +55,8 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/migrations/189_rename_free_plan_offer_rejection_to_baseline_access.sql`: rename the service-role plan-offer rejection copy for the legacy baseline-access sentinel without changing pricing, entitlement, acquisition, or execute-grant behavior.
 - `sql/migrations/190_require_paid_plan_for_media_library_inserts.sql`: require current non-free billing authority before authenticated users can insert Media Library or Reference Grid rows.
 - `sql/migrations/191_rename_credit_top_up_packages.sql`: rename credit top-up package display names to amount-only customer copy without changing ids, pricing, Stripe linkage, or grant amounts.
+- `sql/migrations/192_reprice_credit_top_up_ladder.sql`: add the active numeric-id credit top-up ladder and deactivate legacy package rows without deleting historical references.
+- `sql/migrations/193_add_tester_report_runs.sql`: add service-role-only automated tester-run reports with persona and engineering handoff bodies for `/admin/tester-reports`.
 - `sql/audit_billing_credit_rls.sql`: billing RLS audit checks.
 - `sql/check_database_io_hotspots.sql`: read-only `pg_stat_statements` shared-block I/O summary plus table size/read posture, planner-stat freshness, and hot diagnostic table age/retention posture without raw query text.
 - `sql/analyze_hot_database_tables_supabase.sql`: hosted apply-gated maintenance script that refreshes planner statistics on hot public tables without rewriting tables or deleting rows. Run through `.github/workflows/apply-control-plane-ops-sql.yml` with `operation=analyze_hot_database_tables`.
@@ -278,6 +280,8 @@ Migration number 134 is intentionally unused; the ordered sequence moves from `1
 - `189_rename_free_plan_offer_rejection_to_baseline_access.sql`
 - `190_require_paid_plan_for_media_library_inserts.sql`
 - `191_rename_credit_top_up_packages.sql`
+- `192_reprice_credit_top_up_ladder.sql`
+- `193_add_tester_report_runs.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 

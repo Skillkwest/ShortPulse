@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/media/prepare-upload";
 import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";

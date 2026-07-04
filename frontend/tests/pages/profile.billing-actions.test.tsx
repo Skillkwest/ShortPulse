@@ -282,7 +282,7 @@ describe("Profile credits actions", () => {
 
     render(<ProfilePage />);
 
-    const accountSummary = screen.getByLabelText("Account summary");
+    const accountSummary = await screen.findByLabelText("Account summary");
     expect(
       await within(accountSummary).findByText((_, element) => element?.textContent === "850 / 350")
     ).toBeInTheDocument();

@@ -176,10 +176,8 @@ describe("audioCompanionArt processing", () => {
             id: "gen-1",
             user_id: "user-1",
             prompt_text: "Moonlit radio confession",
-            metadata: {
-              source_mode: "voiceover",
-              voice_name: "Alice",
-            },
+            source_mode: "voiceover",
+            voice_name: "Alice",
           },
           error: null,
         })
@@ -257,6 +255,15 @@ describe("audioCompanionArt processing", () => {
         initialPollDelayMs: 0,
       })
     );
+    expect(aiGenerationsTable.select).toHaveBeenCalledWith(
+      expect.stringContaining("source_mode:metadata->>source_mode")
+    );
+    expect(aiGenerationsTable.select).toHaveBeenCalledWith(
+      expect.not.stringContaining("metadata,")
+    );
+    expect(aiGenerationsTable.select).toHaveBeenCalledWith(
+      expect.not.stringMatching(/\bmetadata\b(?!->>)/)
+    );
     expect(sharpMock).toHaveBeenCalledWith(Buffer.from("cover"), { failOn: "error" });
     expect(sharpResizeMock).toHaveBeenCalledWith({
       width: 480,
@@ -332,7 +339,6 @@ describe("audioCompanionArt processing", () => {
             id: "gen-2",
             user_id: "user-2",
             prompt_text: "Storm warning siren",
-            metadata: {},
           },
           error: null,
         })
@@ -440,9 +446,7 @@ describe("audioCompanionArt processing", () => {
                   id: "gen-white",
                   user_id: "user-white",
                   prompt_text: "Soft tone for a reference audio card",
-                  metadata: {
-                    source_mode: "voiceover",
-                  },
+                  source_mode: "voiceover",
                 },
                 error: null,
               })
@@ -606,10 +610,8 @@ describe("audioCompanionArt processing", () => {
             id: "gen-now",
             user_id: "user-now",
             prompt_text: "A lighthouse keeper narrates an ocean storm.",
-            metadata: {
-              source_mode: "voiceover",
-              voice_name: "Marin",
-            },
+            source_mode: "voiceover",
+            voice_name: "Marin",
           },
           error: null,
         })
@@ -666,6 +668,12 @@ describe("audioCompanionArt processing", () => {
           prompt: expect.stringContaining("Hard visual contract: image-only artwork."),
         }),
       })
+    );
+    expect(aiGenerationsTable.select).toHaveBeenCalledWith(
+      expect.stringContaining("voice_name:metadata->>voice_name")
+    );
+    expect(aiGenerationsTable.select).toHaveBeenCalledWith(
+      expect.not.stringMatching(/\bmetadata\b(?!->>)/)
     );
     expect(uploadMock).toHaveBeenCalledWith(
       "user-now/generations/audio/gen-now/companion-art/cover.webp",

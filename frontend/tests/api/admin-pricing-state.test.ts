@@ -11,6 +11,7 @@ import {
 } from "../../lib/model-runtime/klingMotionControlPricing";
 import {
   ELEVENLABS_SOUND_EFFECTS_AUTO_DURATION_LABEL,
+  ELEVENLABS_SOUND_EFFECTS_AUTO_DURATION_VARIANT_ID,
   ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_LABEL,
   ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_VARIANT_ID,
   ELEVENLABS_SOUND_EFFECTS_MODEL_ID,
@@ -328,19 +329,19 @@ describe("GET /api/admin/pricing/state", () => {
               order: async () => ({
                 data: [
                   {
-                    id: "growth_2000",
-                    display_name: "2,000 credits",
-                    credit_amount_cents: 2000,
-                    price_cents: 2600,
+                    id: "1200",
+                    display_name: "1,200 credits",
+                    credit_amount_cents: 1200,
+                    price_cents: 4900,
                     stripe_price_id: null,
                     sort_order: 20,
                     is_active: true,
                   },
                   {
-                    id: "starter_500",
-                    display_name: "500 credits",
-                    credit_amount_cents: 500,
-                    price_cents: 900,
+                    id: "100",
+                    display_name: "100 credits",
+                    credit_amount_cents: 100,
+                    price_cents: 500,
                     stripe_price_id: null,
                     sort_order: 30,
                     is_active: false,
@@ -473,11 +474,11 @@ describe("GET /api/admin/pricing/state", () => {
         ],
         creditPackages: [
           expect.objectContaining({
-            id: "growth_2000",
+            id: "1200",
             stripePriceId: null,
           }),
           expect.objectContaining({
-            id: "starter_500",
+            id: "100",
             isActive: false,
           }),
         ],
@@ -539,7 +540,7 @@ describe("GET /api/admin/pricing/state", () => {
     ).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          id: "default|aspect:audio",
+          id: `${ELEVENLABS_SOUND_EFFECTS_AUTO_DURATION_VARIANT_ID}|aspect:audio`,
           label: ELEVENLABS_SOUND_EFFECTS_AUTO_DURATION_LABEL,
         }),
         expect.objectContaining({

@@ -220,9 +220,9 @@ describe("expert edit layout contract", () => {
     expect(expandedStageShell).toContain("filter: blur(6px);");
     expect(composerOverlay).toContain("position: absolute;");
     expect(composerOverlay).toContain("bottom: 0;");
-    expect(composerOverlay).toContain("z-index: 1010;");
+    expect(composerOverlay).toContain("z-index: var(--edit-expert-z-composer-overlay);");
     expect(extractRuleBlock(css, ".edit-expert-transform-chrome-layer")).toContain(
-      "z-index: 1000;"
+      "z-index: var(--edit-expert-z-stage-chrome);"
     );
     expect(bottomRow).toContain("min-height: var(--edit-expert-prompt-input-min-height);");
     expect(promptRow).toContain("min-height: var(--edit-expert-prompt-input-min-height);");

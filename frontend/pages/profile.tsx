@@ -72,6 +72,7 @@ const sections: readonly ProfileSectionItem[] = [
 const PROFILE_SUCCESS_NOTICE_AUTO_DISMISS_MS = 6000;
 
 type BillingSyncScope = "credits" | "subscription" | "storage";
+type BillingAccountStateStatus = "idle" | "loading" | "ready" | "unavailable";
 
 function resolveFallbackMonthlyRenewalDate(startedAt: string | null): string | null {
   if (!startedAt) return null;
@@ -136,6 +137,8 @@ export default function ProfilePage() {
 
   const [billingProfile, setBillingProfile] = useState<BillingProfile | null>(null);
   const [billingContract, setBillingContract] = useState<BillingSubscriptionContract | null>(null);
+  const [billingAccountStateStatus, setBillingAccountStateStatus] =
+    useState<BillingAccountStateStatus>("idle");
   const [billingContractLoading, setBillingContractLoading] = useState(false);
   const [billingPlans, setBillingPlans] = useState<BillingPlanRecord[]>([]);
   const [billingPlansLoading, setBillingPlansLoading] = useState(false);
@@ -223,6 +226,7 @@ export default function ProfilePage() {
   }, [notice]);
 
   const loadBillingAccountState = async (currentUser: User) => {
+    setBillingAccountStateStatus("loading");
     setBillingContractLoading(true);
     setBillingActivityLoading(true);
     try {
@@ -236,11 +240,13 @@ export default function ProfilePage() {
       setBillingContract(profileState?.billingContract ?? null);
       setBillingActivity(profileState?.billingActivity ?? []);
       setActiveStorageAddons(profileState?.activeStorageAddons ?? []);
+      setBillingAccountStateStatus("ready");
     } catch {
       setBillingProfile(null);
       setBillingContract(null);
       setBillingActivity([]);
       setActiveStorageAddons([]);
+      setBillingAccountStateStatus("unavailable");
     } finally {
       setBillingContractLoading(false);
       setBillingActivityLoading(false);
@@ -388,12 +394,19 @@ export default function ProfilePage() {
     void loadAllTransactions();
   }, [section, user]);
 
-  const activePlan = buildPlanView({
-    planId: resolveProfileActivePlanId({ billingContract, billingProfile }),
-    plans: billingPlans,
-  });
+  const activePlanId = !user
+    ? "free"
+    : billingAccountStateStatus === "ready"
+      ? resolveProfileActivePlanId({ billingContract, billingProfile })
+      : null;
+  const activePlan = activePlanId
+    ? buildPlanView({
+        planId: activePlanId,
+        plans: billingPlans,
+      })
+    : null;
   const { quotaStatus, quotaSummary, refreshQuotaSummary } = useMediaStorageQuotaSummary({
-    fallbackPlanId: activePlan.id,
+    enabled: Boolean(activePlanId),
   });
 
   useEffect(() => {
@@ -521,18 +534,18 @@ export default function ProfilePage() {
   }, [section, user]);
 
   const currentSubscriptionPriceCents =
-    billingContract?.recurring_price_cents ?? activePlan.monthlyPriceCents;
+    billingContract?.recurring_price_cents ?? activePlan?.monthlyPriceCents ?? 0;
   const currentSubscriptionBillingInterval =
     billingContract?.billing_interval === "year" ? "year" : "month";
   const currentSubscriptionCreditsCents =
-    billingContract?.monthly_credits_cents ?? activePlan.monthlyCreditsCents;
+    billingContract?.monthly_credits_cents ?? activePlan?.monthlyCreditsCents ?? 0;
   const currentSubscriptionStorageLimitBytes =
-    billingContract?.storage_limit_bytes ?? activePlan.storageLimitBytes;
+    billingContract?.storage_limit_bytes ?? activePlan?.storageLimitBytes ?? 0;
   const currentSubscriptionMaxConcurrentGenerations =
-    billingContract?.max_concurrent_generations ?? activePlan.maxConcurrentGenerations;
+    billingContract?.max_concurrent_generations ?? activePlan?.maxConcurrentGenerations ?? 0;
   const nextCreditRenewalAt =
     billingContract?.current_period_end ?? billingProfile?.current_period_end ?? null;
-  const activePlanRank = getPlanTierRank(activePlan.id, billingPlans);
+  const activePlanRank = activePlan ? getPlanTierRank(activePlan.id, billingPlans) : 0;
   const isInternalCompContract = billingContract?.contract_source === "internal_comp";
   const showLegacyPlanChangeNotice =
     !isInternalCompContract &&
@@ -561,11 +574,11 @@ export default function ProfilePage() {
     return storageAddonCatalog.filter((addon) => {
       if (activeStorageAddonIds.has(addon.id)) return true;
       return resolveStorageAddonEligibility({
-        planId: activePlan.id,
+        planId: activePlan?.id ?? "",
         storageAddonId: addon.id,
       }).isEligible;
     });
-  }, [activePlan.id, activeStorageAddons, storageAddons]);
+  }, [activePlan?.id, activeStorageAddons, storageAddons]);
   const activeAddonStorageBytes = quotaSummary?.addonLimitBytes ?? 0;
   const activeAddonRecurringPriceCents = activeStorageAddons.reduce(
     (total, addon) => total + Math.max(0, addon.recurringPriceCents),
@@ -585,7 +598,7 @@ export default function ProfilePage() {
   const content = getProfileSectionContent(section);
   const accountCreditsSummary = resolveAccountCreditsSummary({
     balanceCents,
-    balanceLoading,
+    balanceLoading: balanceLoading || !activePlan,
     planCreditsCents: currentSubscriptionCreditsCents,
   });
   const accountCreditsLabel =
@@ -615,7 +628,7 @@ export default function ProfilePage() {
     ? "managed_internally"
     : stripeManagedSubscriptionId
       ? "eligible"
-      : activePlan.id === "free"
+      : activePlan?.id === "free"
         ? "requires_paid_plan"
         : "syncing";
   const portalActionLabel = portalManagementAvailable ? "Manage Billing" : "Managed internally";
@@ -785,7 +798,7 @@ export default function ProfilePage() {
     trackBillingUpgradeClicked({
       upgrade_surface: "profile_subscription",
       upgrade_target: "subscription_plan",
-      current_plan_id: activePlan.id,
+      current_plan_id: activePlan?.id ?? "",
       plan_id: targetPlanId,
     });
     try {
@@ -902,6 +915,38 @@ export default function ProfilePage() {
       >
         <p className="subdued">Checking your session…</p>
       </main>
+    );
+  }
+
+  if (!activePlan) {
+    const isAccountStateUnavailable =
+      billingAccountStateStatus === "unavailable" || billingAccountStateStatus === "ready";
+    return (
+      <>
+        <Head>
+          <title>ShortPulse · Settings</title>
+          <meta
+            name="description"
+            content="Manage account identity, security, subscription, and credits in ShortPulse."
+          />
+        </Head>
+
+        <main
+          className={profileClass(
+            "page",
+            "page-wide",
+            "dashboard-refresh",
+            "profile-page",
+            "profile-page-shell"
+          )}
+        >
+          <p className="subdued">
+            {isAccountStateUnavailable
+              ? "Unable to load your account billing state. Refresh and try again."
+              : "Syncing your account…"}
+          </p>
+        </main>
+      </>
     );
   }
 

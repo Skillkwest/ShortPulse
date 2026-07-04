@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 /**
  * Unit tests for media derivative image processing helper.
  */

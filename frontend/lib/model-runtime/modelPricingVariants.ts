@@ -1,6 +1,9 @@
 import { getModelConfig } from "./modelRegistry";
 import { isKieKling30MotionControlPricingVariant } from "./klingMotionControlPricing";
-import { ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_VARIANT_ID } from "./elevenLabsModels";
+import {
+  ELEVENLABS_SOUND_EFFECTS_AUTO_DURATION_VARIANT_ID,
+  ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_VARIANT_ID,
+} from "./elevenLabsModels";
 import type { PricingParams } from "./pricingTypes";
 
 export type ModelPricingVariantParts = {
@@ -51,6 +54,14 @@ const resolveBaseVariantId = (params: PricingParams): string => {
     params.durationSeconds > 0
   ) {
     return ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_VARIANT_ID;
+  }
+  if (
+    config?.pricingStrategy === "elevenlabs-sound-effect" &&
+    typeof params.generationCount === "number" &&
+    Number.isFinite(params.generationCount) &&
+    params.generationCount > 0
+  ) {
+    return ELEVENLABS_SOUND_EFFECTS_AUTO_DURATION_VARIANT_ID;
   }
   const hasEditInputs = (params.inputImageCount ?? 0) > 0 || params.maskPresent === true;
   if (config?.supportsTextToImage && config?.supportsImageToImage) {

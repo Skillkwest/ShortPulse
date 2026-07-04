@@ -96,10 +96,10 @@ describe("GET /api/billing/credit-packages", () => {
             order: async () => ({
               data: [
                 {
-                  id: "growth_2000",
-                  display_name: "2,000 credits",
-                  credit_amount_cents: 2000,
-                  price_cents: 2600,
+                  id: "2500",
+                  display_name: "2,500 credits",
+                  credit_amount_cents: 2500,
+                  price_cents: 9900,
                   sort_order: 20,
                 },
               ],
@@ -119,10 +119,10 @@ describe("GET /api/billing/credit-packages", () => {
     expect(res.json).toHaveBeenCalledWith({
       packages: [
         {
-          id: "growth_2000",
-          display_name: "2,000 credits",
-          credit_amount_cents: 2000,
-          price_cents: 2600,
+          id: "2500",
+          display_name: "2,500 credits",
+          credit_amount_cents: 2500,
+          price_cents: 9900,
           sort_order: 20,
         },
       ],

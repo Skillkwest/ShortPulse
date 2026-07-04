@@ -41,7 +41,14 @@ type AudioGenerationRow = {
   id?: unknown;
   user_id?: unknown;
   prompt_text?: unknown;
-  metadata?: unknown;
+  source_mode?: unknown;
+  voice_name?: unknown;
+  loop_enabled?: unknown;
+  duration_seconds?: unknown;
+  tempo_bpm?: unknown;
+  energy_percent?: unknown;
+  structure?: unknown;
+  music_mode?: unknown;
 };
 
 type AudioCompanionArtProjectionEligibilityRow = {
@@ -83,12 +90,25 @@ const asTrimmedString = (value: unknown): string | null => {
   return normalized.length ? normalized : null;
 };
 
-const asObject = (value: unknown): JsonObject =>
-  value && typeof value === "object" && !Array.isArray(value) ? (value as JsonObject) : {};
-
 const asAttemptCount = (value: unknown): number => {
   const normalized = typeof value === "number" && Number.isFinite(value) ? Math.trunc(value) : 0;
   return Math.max(0, normalized);
+};
+
+const asBooleanString = (value: unknown): boolean | null => {
+  if (typeof value === "boolean") return value;
+  const normalized = asTrimmedString(value)?.toLowerCase();
+  if (normalized === "true") return true;
+  if (normalized === "false") return false;
+  return null;
+};
+
+const asFiniteMetadataNumber = (value: unknown): number | null => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  const normalized = asTrimmedString(value);
+  if (!normalized) return null;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
 };
 
 const readSourceMode = (metadata: JsonObject): AudioCompanionArtSourceMode | null => {
@@ -102,6 +122,29 @@ const readSourceMode = (metadata: JsonObject): AudioCompanionArtSourceMode | nul
     return normalized;
   }
   return null;
+};
+
+const buildAudioGenerationPromptMetadata = (row: AudioGenerationRow): JsonObject => {
+  const metadata: JsonObject = {};
+  const sourceMode = asTrimmedString(row.source_mode);
+  const voiceName = asTrimmedString(row.voice_name);
+  const structure = asTrimmedString(row.structure);
+  const musicMode = asTrimmedString(row.music_mode);
+  const loopEnabled = asBooleanString(row.loop_enabled);
+  const durationSeconds = asFiniteMetadataNumber(row.duration_seconds);
+  const tempoBpm = asFiniteMetadataNumber(row.tempo_bpm);
+  const energyPercent = asFiniteMetadataNumber(row.energy_percent);
+
+  if (sourceMode) metadata.source_mode = sourceMode;
+  if (voiceName) metadata.voice_name = voiceName;
+  if (loopEnabled !== null) metadata.loop_enabled = loopEnabled;
+  if (durationSeconds !== null) metadata.duration_seconds = durationSeconds;
+  if (tempoBpm !== null) metadata.tempo_bpm = tempoBpm;
+  if (energyPercent !== null) metadata.energy_percent = energyPercent;
+  if (structure) metadata.structure = structure;
+  if (musicMode) metadata.music_mode = musicMode;
+
+  return metadata;
 };
 
 const buildCompanionArtStoragePath = ({
@@ -244,7 +287,21 @@ const loadAudioGenerationRow = async ({
 }): Promise<AudioGenerationRow | null> => {
   const { data, error } = await getSupabaseAdmin()
     .from("ai_generations")
-    .select("id, user_id, prompt_text, metadata")
+    .select(
+      [
+        "id",
+        "user_id",
+        "prompt_text",
+        "source_mode:metadata->>source_mode",
+        "voice_name:metadata->>voice_name",
+        "loop_enabled:metadata->>loop_enabled",
+        "duration_seconds:metadata->>duration_seconds",
+        "tempo_bpm:metadata->>tempo_bpm",
+        "energy_percent:metadata->>energy_percent",
+        "structure:metadata->>structure",
+        "music_mode:metadata->>music_mode",
+      ].join(", ")
+    )
     .eq("id", generationId)
     .eq("user_id", userId)
     .eq("mode", "audio")
@@ -320,7 +377,7 @@ const generateAndPersistAudioCompanionArt = async ({
   }
 
   const promptText = asTrimmedString(generationRow.prompt_text) ?? "Audio reference companion art";
-  const metadata = asObject(generationRow.metadata);
+  const metadata = buildAudioGenerationPromptMetadata(generationRow);
   const sourceMode = readSourceMode(metadata);
   if (!sourceMode) {
     throw new Error("Audio source mode metadata is unavailable.");

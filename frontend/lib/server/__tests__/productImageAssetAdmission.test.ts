@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import sharp from "sharp";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {

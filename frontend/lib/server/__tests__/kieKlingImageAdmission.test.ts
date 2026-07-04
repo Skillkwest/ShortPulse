@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import crypto from "crypto";
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";

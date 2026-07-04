@@ -46,9 +46,9 @@ import type {
 } from "./detail-modal/detailModalPlatformTypes";
 import type { AiStudioDetailNavigationContract } from "../hooks/contracts/pageContentContracts";
 import {
-  resolveSharedMediaDetailGeneratedFallbackName,
   resolveSharedMediaDetailBladeContent,
   resolveSharedMediaDetailBladePlaceholder,
+  resolveSharedMediaDetailReferenceNames,
   resolveSharedMediaDetailTopBarItems,
   shouldRenderSharedMediaDetailInfoPanel,
 } from "./detail-modal/sharedMediaDetailPresentation";
@@ -350,11 +350,9 @@ function DetailModalContent({
   const hasGeneratedReferenceAuthority = useMemo(
     () =>
       Boolean(
-        output?.mediaSource === "generated" ||
-        output?.generationId?.trim() ||
-        output?.taskId?.trim()
+        output.mediaSource === "generated" || output.generationId?.trim() || output.taskId?.trim()
       ),
-    [output?.generationId, output?.mediaSource, output?.taskId]
+    [output.generationId, output.mediaSource, output.taskId]
   );
   const isNonGeneratedLoadedMedia = useMemo(() => {
     if (!displayPreviewUrl || !output) return false;
@@ -378,8 +376,8 @@ function DetailModalContent({
     return false;
   }, [displayPreviewUrl, hasGeneratedReferenceAuthority, output]);
   const normalizedAudioWorkflowLabel = useMemo(() => {
-    const modelLabel = output?.model?.trim().toLowerCase() ?? "";
-    const modelId = output?.modelId?.trim().toLowerCase() ?? "";
+    const modelLabel = output.model?.trim().toLowerCase() ?? "";
+    const modelId = output.modelId?.trim().toLowerCase() ?? "";
     if (modelLabel.includes("voice changer") || modelId.includes("sts")) {
       return "voice changer";
     }
@@ -393,7 +391,7 @@ function DetailModalContent({
       return "music";
     }
     return null;
-  }, [output?.model, output?.modelId]);
+  }, [output.model, output.modelId]);
   const isGeneratedPureAudioOutput = Boolean(
     isAudioOutput &&
     output?.mediaSource === "generated" &&
@@ -727,56 +725,23 @@ function DetailModalContent({
     navigation: detailNavigation,
   });
 
-  const looksLikeFilename = (value?: string | null) => {
-    const candidate = value?.trim();
-    if (!candidate) return false;
-    if (/^data:/i.test(candidate) || /^blob:/i.test(candidate) || /^https?:\/\//i.test(candidate)) {
-      return false;
-    }
-    if (/[\\/]/.test(candidate)) return false;
-    return /\.[a-z0-9]{2,10}$/i.test(candidate);
-  };
-
-  const filenameFromUrl = (() => {
-    if (!displayPreviewUrl) return null;
-    try {
-      const parsed = new URL(displayPreviewUrl);
-      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
-      const trailing = decodeURIComponent(
-        parsed.pathname.split("/").filter(Boolean).pop() ?? ""
-      ).trim();
-      return looksLikeFilename(trailing) ? trailing : null;
-    } catch {
-      return null;
-    }
-  })();
-
-  const outputPrompt = displayPromptText.trim() || null;
-  const promptFilename = looksLikeFilename(outputPrompt) ? outputPrompt : null;
-  const uploadedHeaderFilename = isUploadedReference
-    ? (promptFilename ??
-      filenameFromUrl ??
-      output.title?.trim() ??
-      `Uploaded ${mediaType.toLowerCase()}`)
-    : null;
-  const loadedMediaReferenceName = isNonGeneratedLoadedMedia
-    ? (promptFilename ?? filenameFromUrl ?? output.title?.trim() ?? null)
-    : null;
   const generatedReferenceFallbackKind =
     detailPreviewKind ?? (output.mode === "text" ? "prompt" : output.mode);
   const isGeneratedReference = Boolean(
     !isNonGeneratedLoadedMedia && !isUploadedReference && hasGeneratedReferenceAuthority
   );
-  const generatedReferenceName = isGeneratedReference
-    ? (output.title?.trim() ??
-      resolveSharedMediaDetailGeneratedFallbackName(generatedReferenceFallbackKind))
-    : null;
-  const textReferenceName = isPromptOnly ? (output.title?.trim() ?? "Text reference") : null;
-  const detailReferenceName =
-    uploadedHeaderFilename ??
-    loadedMediaReferenceName ??
-    generatedReferenceName ??
-    textReferenceName;
+  const { detailReferenceName, filenameFromUrl, uploadedHeaderFilename } =
+    resolveSharedMediaDetailReferenceNames({
+      displayPreviewUrl,
+      displayPromptText,
+      generatedReferenceFallbackKind,
+      isGeneratedReference,
+      isLoadedReference: isNonGeneratedLoadedMedia,
+      isPromptOnly,
+      isUploadedReference,
+      mediaTypeLabel: mediaType,
+      title: output.title,
+    });
   const shouldUseExternalFileLayout = Boolean(
     isUploadedReference || (isLibraryLoadedReference && !isActiveVoiceChangerSourceVideo)
   );

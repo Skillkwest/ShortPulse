@@ -53,17 +53,17 @@ describe("AiStudioInsufficientCreditsModal", () => {
         return jsonResponse({
           packages: [
             {
-              id: "starter-pack",
-              display_name: "500 credits",
-              credit_amount_cents: 500,
-              price_cents: 700,
+              id: "100",
+              display_name: "100 credits",
+              credit_amount_cents: 100,
+              price_cents: 500,
               sort_order: 1,
             },
             {
-              id: "studio-pack",
-              display_name: "2,000 credits",
-              credit_amount_cents: 2000,
-              price_cents: 2600,
+              id: "1200",
+              display_name: "1,200 credits",
+              credit_amount_cents: 1200,
+              price_cents: 4900,
               sort_order: 2,
             },
           ],
@@ -90,14 +90,14 @@ describe("AiStudioInsufficientCreditsModal", () => {
       expect(screen.getByText(/This generation needs 1,200 credits/)).toBeInTheDocument();
       expect(screen.getByText(/You have 100 available/)).toBeInTheDocument();
       const starterPackageButton = screen.getByRole("button", {
-        name: /buy credits: 500 credits/i,
+        name: /buy credits: 100 credits/i,
       });
-      expect(screen.getByRole("button", { name: /buy credits: 2,000 credits/i })).toBeEnabled();
+      expect(screen.getByRole("button", { name: /buy credits: 1,200 credits/i })).toBeEnabled();
       expect(screen.getAllByText("Buy credits")).toHaveLength(2);
       expect(screen.queryByRole("button", { name: /not now/i })).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: /^buy credits$/i })).not.toBeInTheDocument();
-      expect(screen.getByText("500 credits")).toBeInTheDocument();
-      expect(screen.getByText("2,000 credits")).toBeInTheDocument();
+      expect(screen.getByText("100 credits")).toBeInTheDocument();
+      expect(screen.getByText("1,200 credits")).toBeInTheDocument();
       expect(screen.queryByText(/starter pack/i)).not.toBeInTheDocument();
       expect(screen.queryByText(/studio pack/i)).not.toBeInTheDocument();
 
@@ -113,7 +113,7 @@ describe("AiStudioInsufficientCreditsModal", () => {
       const [, init] = checkoutCall as [string, RequestInit];
       expect(init.method).toBe("POST");
       expect(JSON.parse(String(init.body))).toEqual({
-        packageId: "starter-pack",
+        packageId: "100",
         returnPath: "/ai-studio?projectId=project-1",
       });
       expect(onCheckoutStarted).toHaveBeenCalledTimes(1);
@@ -131,10 +131,10 @@ describe("AiStudioInsufficientCreditsModal", () => {
         return jsonResponse({
           packages: [
             {
-              id: "growth-pack",
-              display_name: "2,000 credits",
-              credit_amount_cents: 2000,
-              price_cents: 2600,
+              id: "1200",
+              display_name: "1,200 credits",
+              credit_amount_cents: 1200,
+              price_cents: 4900,
               sort_order: 1,
             },
           ],
@@ -162,7 +162,7 @@ describe("AiStudioInsufficientCreditsModal", () => {
       );
 
       const buyGrowthCredits = await screen.findByRole("button", {
-        name: /buy credits: 2,000 credits/i,
+        name: /buy credits: 1,200 credits/i,
       });
       fireEvent.click(buyGrowthCredits);
 
@@ -183,7 +183,7 @@ describe("AiStudioInsufficientCreditsModal", () => {
       expect(checkoutCalls).toHaveLength(2);
       for (const [, init] of checkoutCalls as [string, RequestInit][]) {
         expect(JSON.parse(String(init.body))).toEqual({
-          packageId: "growth-pack",
+          packageId: "1200",
           returnPath: "/ai-studio?projectId=project-1",
         });
       }
@@ -199,10 +199,10 @@ describe("AiStudioInsufficientCreditsModal", () => {
       jsonResponse({
         packages: [
           {
-            id: "starter-pack",
-            display_name: "500 credits",
-            credit_amount_cents: 500,
-            price_cents: 700,
+            id: "100",
+            display_name: "100 credits",
+            credit_amount_cents: 100,
+            price_cents: 500,
             sort_order: 1,
           },
         ],

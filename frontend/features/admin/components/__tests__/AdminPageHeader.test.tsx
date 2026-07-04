@@ -47,15 +47,34 @@ describe("AdminPageHeader", () => {
     expect(links[3]).toHaveAttribute("href", "/admin/catalog");
     expect(links[4]).toHaveTextContent("Customer Support");
     expect(links[4]).toHaveAttribute("href", "/admin");
-    expect(links[5]).toHaveTextContent("Legal");
-    expect(links[5]).toHaveAttribute("href", "/admin/legal");
-    expect(links[9]).toHaveTextContent("Errors");
-    expect(links[9]).toHaveAttribute("href", "/admin/errors");
-    expect(links[10]).toHaveTextContent("Generation health");
-    expect(links[10]).toHaveAttribute("href", "/admin/user-health");
+    expect(links[5]).toHaveTextContent("Tester Reports");
+    expect(links[5]).toHaveAttribute("href", "/admin/tester-reports");
+    expect(links[6]).toHaveTextContent("Legal");
+    expect(links[6]).toHaveAttribute("href", "/admin/legal");
+    expect(links[10]).toHaveTextContent("Errors");
+    expect(links[10]).toHaveAttribute("href", "/admin/errors");
+    expect(links[11]).toHaveTextContent("Generation health");
+    expect(links[11]).toHaveAttribute("href", "/admin/user-health");
     expect(within(nav).queryByRole("link", { name: "Reports" })).not.toBeInTheDocument();
     expect(within(nav).queryByRole("link", { name: "Fleet health" })).not.toBeInTheDocument();
     expect(within(nav).queryByRole("link", { name: "Ophestivus" })).not.toBeInTheDocument();
+  });
+
+  it("marks the tester reports tab as active", () => {
+    render(
+      <AdminPageHeader
+        title="Tester reports"
+        description="Read automated tester reports."
+        userEmail="admin@example.com"
+        currentPath="/admin/tester-reports"
+      />
+    );
+
+    const nav = screen.getByRole("navigation", { name: "Admin pages" });
+    expect(within(nav).getByRole("link", { name: "Tester Reports" })).toHaveAttribute(
+      "aria-current",
+      "page"
+    );
   });
 
   it("renders customer support pages as secondary tabs", () => {

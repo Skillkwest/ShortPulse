@@ -285,6 +285,49 @@ describe("Profile route state", () => {
     expect(screen.getByRole("heading", { name: "Transaction history" })).toBeInTheDocument();
   });
 
+  it("shows account syncing instead of baseline access while billing account state loads", async () => {
+    useProtectedRouteMock.mockReturnValue({
+      loading: false,
+      user: {
+        id: "user-1",
+        email: "creator@example.com",
+        user_metadata: {},
+      },
+    });
+    fetchBillingAccountSummaryMock.mockImplementation(
+      () =>
+        new Promise(() => {
+          // Keep the request pending to assert the initial authenticated render.
+        })
+    );
+
+    render(<ProfilePage />);
+
+    expect(screen.getByText("Syncing your account…")).toBeInTheDocument();
+    expect(screen.queryByText("Baseline access")).not.toBeInTheDocument();
+    expect(screen.queryByText("Unavailable")).not.toBeInTheDocument();
+  });
+
+  it("shows account billing unavailable when loaded account state has no plan source", async () => {
+    useProtectedRouteMock.mockReturnValue({
+      loading: false,
+      user: {
+        id: "user-1",
+        email: "creator@example.com",
+        user_metadata: {},
+      },
+    });
+    billingProfileMaybeSingleMock.mockResolvedValue({ data: null, error: null });
+    billingContractMaybeSingleMock.mockResolvedValue({ data: null, error: null });
+
+    render(<ProfilePage />);
+
+    expect(
+      await screen.findByText("Unable to load your account billing state. Refresh and try again.")
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Baseline access")).not.toBeInTheDocument();
+  });
+
   it("shows a checkout success notice, refreshes credits, and clears the query flag", async () => {
     const refreshBalance = vi.fn(async () => 1250);
     useCreditsMock.mockReturnValue({

@@ -319,6 +319,8 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 188.  `sql/migrations/189_rename_free_plan_offer_rejection_to_baseline_access.sql`
 189.  `sql/migrations/190_require_paid_plan_for_media_library_inserts.sql`
 190.  `sql/migrations/191_rename_credit_top_up_packages.sql`
+191.  `sql/migrations/192_reprice_credit_top_up_ladder.sql`
+192.  `sql/migrations/193_add_tester_report_runs.sql`
       Rollback files:
 
 
@@ -424,6 +426,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/186_add_admin_storage_usage_snapshots_rollback.sql`
     - `sql/migrations/rollback/187_add_app_error_event_telemetry_retention_rollback.sql`
     - `sql/migrations/rollback/188_add_media_storage_usage_helper_rollback.sql`
+    - `sql/migrations/rollback/193_add_tester_report_runs_rollback.sql`
 
 Hosted SQL lint note:
 
@@ -547,6 +550,8 @@ Billing safety note:
 - Migration `189_rename_free_plan_offer_rejection_to_baseline_access.sql` renames the service-role plan-offer rejection copy for the legacy baseline-access sentinel without changing pricing, entitlement, acquisition, or execute-grant behavior. Hosted apply remains a separate approved Supabase operation.
 - Migration `190_require_paid_plan_for_media_library_inserts.sql` adds `user_has_paid_media_library_access(uuid)` and requires a current non-free billing plan before authenticated users can insert `media_files` or `media_prompts`; existing owned select/update/delete isolation remains intact. Hosted apply remains a separate approved Supabase operation.
 - Migration `191_rename_credit_top_up_packages.sql` renames credit top-up package display names to amount-only customer copy while leaving ids, pricing, Stripe linkage, activation state, and grant amounts unchanged. Hosted apply remains a separate approved Supabase operation.
+- Migration `192_reprice_credit_top_up_ladder.sql` adds the active numeric-id credit top-up ladder (`100`, `275`, `600`, `1200`, `2500`, `6800`, `14500`, `30500`) and deactivates the legacy `starter_500`, `growth_2000`, `scale_6000`, and `studio_10000` package rows without deleting historical references. Hosted apply and Stripe Price attachment remain separate approved operations.
+- Migration `193_add_tester_report_runs.sql` adds the service-role-only `tester_report_runs` table for automated tester-agent run reports, including persona and engineering report bodies, required idempotent `external_run_id` ingest, admin list indexes, and an explicit rollback. Hosted apply remains a separate approved Supabase operation.
 - Migration `175_enforce_storage_addon_no_stack.sql` updates base plan storage to `0/5/25/75/150 GB`, refreshes recurring storage add-on metadata to `10/50/100/250 GB` self-serve plus `500 GB` manual review, closes old public storage add-on offers until matching Stripe Prices are activated, clamps add-on quota math to one unit, and adds the database guard for one current billable recurring storage add-on per user with quantity exactly one; run `sql/check_billing_storage_addon_no_stack_drift.sql` before applying it.
 - Read-write hosted-Supabase maintenance script `sql/configure_cron_job_run_details_retention_supabase.sql` prunes old `cron.job_run_details` rows, compacts the pruned table, and schedules daily retention; the active-status index is documented as an owner-only follow-up if retention alone does not reduce pg_cron status-update scan I/O enough.
 - Read-only performance diagnostics script `sql/check_media_preview_variant_coverage_and_size.sql` reports source-class counts, variant-hint coverage, and p50/p90 size distributions for Media Library preview-risk triage.

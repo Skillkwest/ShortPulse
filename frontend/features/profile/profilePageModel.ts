@@ -266,8 +266,7 @@ export const formatStatusLabel = (status: string | null): string => {
 };
 
 /**
- * Resolves the plan id shown on the profile page.
- * Falls back to billing_profiles when contract drift temporarily hides the active contract row.
+ * Resolves the plan id shown on the profile page from loaded billing account state.
  */
 export const resolveProfileActivePlanId = ({
   billingContract,
@@ -275,7 +274,7 @@ export const resolveProfileActivePlanId = ({
 }: {
   billingContract: BillingSubscriptionContract | null;
   billingProfile: BillingProfile | null;
-}): string => billingContract?.plan_id ?? billingProfile?.plan_id ?? "free";
+}): string | null => billingContract?.plan_id ?? billingProfile?.plan_id ?? null;
 
 /**
  * Pulls the most useful reference id from a billing ledger event.

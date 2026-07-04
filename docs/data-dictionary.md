@@ -895,6 +895,25 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - Runtime role: canonical signed-in issue-report inbox for `/report-issue` and `/admin/reports`.
 - Access model: RLS enabled with no browser policies; all reads and writes flow through trusted server routes using service-role Supabase access.
 
+### tester_report_runs
+
+- `id` (uuid, pk, default `gen_random_uuid()`)
+- `external_run_id` (text, unique): Durable tester/automation id used for idempotent ingest.
+- `tester_slug` / `tester_display_name` (text): The tester persona or agent account identity that ran the test.
+- `shortpulse_user_id` (uuid, nullable fk -> `auth.users.id`) / `shortpulse_user_email` (text, nullable): The ShortPulse account under test. At least one is required so reports are never detached from an account identity.
+- `scenario` (text): Short description of the tested flow or objective.
+- `status` (text): Run result (`completed | blocked | failed | partial`).
+- `run_started_at` / `run_finished_at` (timestamptz, nullable), `duration_minutes` (integer, nullable), `credits_spent` (integer, nullable): Optional run timing and cost metadata.
+- `production_surface` (text, nullable): Production URL or app surface exercised by the tester.
+- `persona_report_title` / `persona_report_body` (text): Tester-persona narrative report.
+- `engineering_report_title` / `engineering_report_body` (text): Technical engineering handoff report for follow-up agent work.
+- `report_artifact_paths` (jsonb array): Optional repo/doc artifact paths attached to the run.
+- `evidence` (jsonb object): Optional structured evidence summary such as screenshots, traces, or browser notes.
+- `created_by_source`, `created_by_user_id`, `created_by_email`: Source attribution for tester agents, automation, or admin-created rows.
+- `created_at` / `updated_at` (timestamptz): Canonical creation/update timestamps.
+- Runtime role: canonical automated tester-report log for `/api/internal/tester-reports/ingest`, `/api/admin/tester-reports`, and `/admin/tester-reports`.
+- Access model: RLS enabled with only a service-role policy; browser access is through admin-only server routes, while ingest is route-secret protected.
+
 ### signup_intents
 
 - `id` (uuid, pk): Short-lived signup intent id.

@@ -694,7 +694,7 @@ describe("ExpertEditPanelView", () => {
     act(() => {
       promptTarget?.target.accept(promptPayload);
     });
-    expect(onPromptTextChangeSpy).toHaveBeenCalledWith("Existing draft Canvas text");
+    expect(onPromptTextChangeSpy).toHaveBeenCalledWith("Canvas text");
 
     act(() => {
       registry.setActiveTarget("expert-edit-prompt-composer");

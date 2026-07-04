@@ -1334,25 +1334,27 @@ export function CharacterPanelWorkspace({
                             <span>Saved</span>
                           </span>
                         ) : null}
-                        <button
-                          type="button"
-                          className="character-panel-action-btn"
-                          style={saveTopButtonStyle}
-                          aria-label={isSavingCharacter ? "Saving..." : "Save"}
-                          title={isSavingCharacter ? "Saving..." : "Save"}
-                          onClick={() => {
-                            void handleSaveCharacter();
-                          }}
-                          onMouseEnter={() => setHoveredTopActionButton("save")}
-                          onMouseLeave={() =>
-                            setHoveredTopActionButton((current) =>
-                              current === "save" ? null : current
-                            )
-                          }
-                          disabled={saveActionDisabled}
-                        >
-                          <FloppyDisk size={20} weight="fill" aria-hidden />
-                        </button>
+                        {generationAccessCta ? null : (
+                          <button
+                            type="button"
+                            className="character-panel-action-btn"
+                            style={saveTopButtonStyle}
+                            aria-label={isSavingCharacter ? "Saving..." : "Save"}
+                            title={isSavingCharacter ? "Saving..." : "Save"}
+                            onClick={() => {
+                              void handleSaveCharacter();
+                            }}
+                            onMouseEnter={() => setHoveredTopActionButton("save")}
+                            onMouseLeave={() =>
+                              setHoveredTopActionButton((current) =>
+                                current === "save" ? null : current
+                              )
+                            }
+                            disabled={saveActionDisabled}
+                          >
+                            <FloppyDisk size={20} weight="fill" aria-hidden />
+                          </button>
+                        )}
                         {generationAccessCta ? null : (
                           <button
                             type="button"

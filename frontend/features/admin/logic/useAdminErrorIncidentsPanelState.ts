@@ -9,8 +9,13 @@ import type {
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { copyToClipboard } from "./copyToClipboard";
 import { normalizeAdminErrorEventRow } from "./adminErrorsEventsApi";
-import { eventMatchesIncidentFilter } from "./errorIncidentViewUtils";
+import {
+  eventMatchesIncidentFilter,
+  isRoutineNonActionableTelemetrySource,
+} from "./errorIncidentViewUtils";
 import { buildEventTriagePacket, buildIncidentTriagePacket } from "./triagePackets";
+
+const IN_PROGRESS_INCIDENT_STORAGE_KEY = "shortpulse.admin.errors.in_progress_incidents";
 
 type UseAdminErrorIncidentsPanelStateParams = {
   errors: AdminErrorLogRow[];
@@ -30,6 +35,7 @@ type UseAdminErrorIncidentsPanelStateResult = {
   selectedEvent: AdminErrorEventRow | null;
   selectedIncidentId: string | null;
   errorSourceOptions: string[];
+  inProgressIncidentIds: Set<string>;
   visibleEvents: AdminErrorEventRow[];
   listedOpenIncidentCount: number;
   resolveVisibleTargetCount: number;
@@ -43,6 +49,27 @@ type UseAdminErrorIncidentsPanelStateResult = {
   handleResolveEventRow: (row: AdminErrorEventRow) => Promise<void>;
   handleIgnoreEventRow: (row: AdminErrorEventRow) => Promise<void>;
   resolveVisibleEvents: () => Promise<void>;
+};
+
+const readInProgressIncidentIds = (): Set<string> => {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const rawValue = window.localStorage.getItem(IN_PROGRESS_INCIDENT_STORAGE_KEY);
+    const parsed = rawValue ? JSON.parse(rawValue) : [];
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(parsed.filter((value): value is string => typeof value === "string"));
+  } catch {
+    return new Set();
+  }
+};
+
+const writeInProgressIncidentIds = (ids: Set<string>) => {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(IN_PROGRESS_INCIDENT_STORAGE_KEY, JSON.stringify(Array.from(ids)));
+  } catch {
+    // Local progress markers are best-effort and should not block copying triage.
+  }
 };
 
 export const useAdminErrorIncidentsPanelState = ({
@@ -61,6 +88,9 @@ export const useAdminErrorIncidentsPanelState = ({
   const [eventDetailsById, setEventDetailsById] = React.useState<
     Record<string, AdminErrorEventRow>
   >({});
+  const [inProgressIncidentIds, setInProgressIncidentIds] = React.useState<Set<string>>(
+    () => new Set()
+  );
   const [bulkResolveSubmitting, setBulkResolveSubmitting] = React.useState(false);
   const [bulkResolveResult, setBulkResolveResult] = React.useState<string | null>(null);
   const autoAdvancedEventPageRef = React.useRef<number | null>(null);
@@ -101,7 +131,12 @@ export const useAdminErrorIncidentsPanelState = ({
   );
 
   const resolvableVisibleUnlinkedEventIds = React.useMemo(
-    () => visibleEvents.filter((row) => row.incidentId === null).map((row) => row.id),
+    () =>
+      visibleEvents
+        .filter(
+          (row) => row.incidentId === null && !isRoutineNonActionableTelemetrySource(row.source)
+        )
+        .map((row) => row.id),
     [visibleEvents]
   );
 
@@ -122,6 +157,12 @@ export const useAdminErrorIncidentsPanelState = ({
     const success = await copyToClipboard(buildIncidentTriagePacket(row));
     if (!success) return;
     setCopiedIncidentId(row.id);
+    setInProgressIncidentIds((current) => {
+      const next = new Set(current);
+      next.add(row.id);
+      writeInProgressIncidentIds(next);
+      return next;
+    });
     window.setTimeout(() => {
       setCopiedIncidentId((current) => (current === row.id ? null : current));
     }, 1200);
@@ -181,6 +222,7 @@ export const useAdminErrorIncidentsPanelState = ({
         return;
       }
       if (row.incidentId === null) {
+        if (isRoutineNonActionableTelemetrySource(row.source)) return;
         await onUpdateErrorEventStatus(row.id, "resolved");
       }
     },
@@ -194,6 +236,7 @@ export const useAdminErrorIncidentsPanelState = ({
         return;
       }
       if (row.incidentId === null) {
+        if (isRoutineNonActionableTelemetrySource(row.source)) return;
         await onUpdateErrorEventStatus(row.id, "ignored");
       }
     },
@@ -243,6 +286,10 @@ export const useAdminErrorIncidentsPanelState = ({
   }, []);
 
   React.useEffect(() => {
+    setInProgressIncidentIds(readInProgressIncidentIds());
+  }, []);
+
+  React.useEffect(() => {
     const shouldAutoAdvance =
       !errorEventsLoading &&
       errorEventIncidentFilter !== "all" &&
@@ -289,6 +336,7 @@ export const useAdminErrorIncidentsPanelState = ({
     selectedEvent,
     selectedIncidentId,
     errorSourceOptions,
+    inProgressIncidentIds,
     visibleEvents,
     listedOpenIncidentCount,
     resolveVisibleTargetCount,

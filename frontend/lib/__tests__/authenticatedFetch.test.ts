@@ -212,4 +212,62 @@ describe("fetchWithAuth auth-session timeout", () => {
       fetchSpy.mockRestore();
     }
   });
+
+  it("retries recoverable network failures once without reporting when retry succeeds", async () => {
+    readSupabaseAccessTokenMock.mockResolvedValueOnce("token-123");
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValueOnce(
+        new Response("{}", {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      );
+
+    try {
+      const response = await fetchWithAuth("/api/media/sign-batch", {
+        method: "POST",
+        shortpulseRetryNetworkOnce: true,
+        shortpulseNetworkErrorSeverity: "low",
+      });
+
+      expect(response.ok).toBe(true);
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(reportAppErrorMock).not.toHaveBeenCalled();
+      expect(addBreadcrumbMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          level: "info",
+          message: "fetch",
+        })
+      );
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("supports lower-severity network reporting for recoverable callers", async () => {
+    readSupabaseAccessTokenMock.mockResolvedValueOnce("token-123");
+    const networkError = new TypeError("Failed to fetch");
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValueOnce(networkError);
+
+    try {
+      await expect(
+        fetchWithAuth("/api/media/sign-batch", {
+          method: "POST",
+          shortpulseNetworkErrorSeverity: "low",
+        })
+      ).rejects.toBe(networkError);
+
+      expect(reportAppErrorMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          source: "client.api_network",
+          severity: "low",
+          endpoint: "/api/media/sign-batch",
+        })
+      );
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
 });

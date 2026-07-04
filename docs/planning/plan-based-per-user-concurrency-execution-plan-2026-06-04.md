@@ -47,7 +47,7 @@ Do not continue into implementation from this document alone if a new product de
   - `video_long=2`
   - `image_heavy=3`
   - `image_standard=4`
-  in [frontend/lib/server/api/generationAdmission/generationAdmissionPolicy.ts](../../frontend/lib/server/api/generationAdmission/generationAdmissionPolicy.ts).
+    in [frontend/lib/server/api/generationAdmission/generationAdmissionPolicy.ts](../../frontend/lib/server/api/generationAdmission/generationAdmissionPolicy.ts).
 
 ### Customer messaging truth
 
@@ -115,26 +115,32 @@ This keeps concurrency aligned with the actual submit/settlement lifecycle alrea
 ## Phase 0: Contract Freeze And Entry Gates
 
 Goal:
+
 - freeze product truth before code changes
 
 Actions:
+
 - treat `1 / 2 / 4 / 8` as the only approved public plan ladder
-- use `0` active generation slots for the non-public baseline fallback runtime state
+- use `0` active generation slots for the baseline-access state
 
 Recommendation:
-- the baseline fallback is not a public plan and should not be able to generate
+
+- baseline access is not a public plan and should not be able to generate
 
 Important coupling:
-- baseline fallback bootstrap now seeds `0` credits in `sql/create_billing_credit_tables.sql`
-- baseline fallback concurrency is `0`
+
+- baseline-access bootstrap now seeds `0` credits in `sql/create_billing_credit_tables.sql`
+- baseline-access concurrency is `0`
 - treat future changes to baseline access as a product-access decision, not just an admission-limit tweak
 
 Stop gate:
+
 - do not implement until fallback-state behavior is explicitly chosen
 
 ## Phase 1: Schema And Catalog Contract
 
 Goal:
+
 - add concurrency to the commercial data model
 
 Primary schema changes:
@@ -143,6 +149,7 @@ Primary schema changes:
 2. Add `max_concurrent_generations integer` to `billing_subscription_contracts`
 
 Why both:
+
 - offers define current sellable truth
 - contracts preserve subscriber snapshot truth
 
@@ -173,6 +180,7 @@ Temporary migration scaffolding allowed:
 ## Phase 2: Server Entitlement Resolver
 
 Goal:
+
 - create one canonical server helper that answers "what concurrency limit does this user have right now?"
 
 New helper responsibilities:
@@ -205,6 +213,7 @@ Failure behavior:
 ## Phase 3: Reservation Gate Integration
 
 Goal:
+
 - make all billable generation routes enforce plan slots through the canonical reservation gate
 
 Why this is the primary seam:
@@ -232,6 +241,7 @@ Important nuance:
 ## Phase 4: Fal Active-Capacity Admission Alignment
 
 Goal:
+
 - keep Fal's richer admission logic aligned with the same plan entitlement
 
 Implementation work:
@@ -253,15 +263,18 @@ Key rule:
 ## Phase 5: Admin And Catalog Wiring
 
 Goal:
+
 - make concurrency part of the real pricing/admin control plane
 
 Implementation work:
 
 1. include `max_concurrent_generations` in:
-  - `loadBillingCatalogSnapshot`
-  - admin pricing state payload
-  - admin plan creation
-  - admin plan-offer activation
+
+- `loadBillingCatalogSnapshot`
+- admin pricing state payload
+- admin plan creation
+- admin plan-offer activation
+
 2. ensure new public plans cannot be created without explicit concurrency
 3. ensure current pricing-state surfaces expose the field for operator verification
 
@@ -281,6 +294,7 @@ Design recommendation:
 ## Phase 6: Customer Experience
 
 Goal:
+
 - make limit behavior understandable without turning pricing cards into infrastructure copy
 
 V1 required UX:
@@ -310,31 +324,36 @@ V2, separate but planned:
 ## Phase 7: Test Plan
 
 Goal:
+
 - verify contract, resolver, enforcement, and messaging across providers
 
 Required test lanes:
 
 1. SQL / RPC behavior
-  - reservation deny at plan limit
-  - reservation allow below plan limit
-  - idempotent behavior unchanged
+
+- reservation deny at plan limit
+- reservation allow below plan limit
+- idempotent behavior unchanged
 
 2. Server unit/integration
-  - entitlement resolver: contract path
-  - entitlement resolver: fallback-offer path
-  - entitlement resolver: temporary fallback path
-  - generation billing reservation path uses resolved limit
-  - Fal submit path uses same resolved limit
+
+- entitlement resolver: contract path
+- entitlement resolver: fallback-offer path
+- entitlement resolver: temporary fallback path
+- generation billing reservation path uses resolved limit
+- Fal submit path uses same resolved limit
 
 3. API route coverage
-  - OpenAI image route plan-limited
-  - ElevenLabs route plan-limited
-  - Fal submit route plan-limited
-  - shared-provider pressure still returns `admissionScope: "shared_provider"`
+
+- OpenAI image route plan-limited
+- ElevenLabs route plan-limited
+- Fal submit route plan-limited
+- shared-provider pressure still returns `admissionScope: "shared_provider"`
 
 4. UI/message coverage
-  - client error parsing remains correct
-  - plan-aware message rendering
+
+- client error parsing remains correct
+- plan-aware message rendering
 
 Likely existing test seams to extend:
 
@@ -348,6 +367,7 @@ Likely existing test seams to extend:
 ## Phase 8: Rollout Strategy
 
 Goal:
+
 - land the entitlement system without breaking live generation paths
 
 Recommended rollout order:
@@ -381,9 +401,11 @@ Removal condition for temporary fallback:
 ### Risk 1: `Business = 8` is undercut by hidden provider caps
 
 Why:
+
 - current internal tier caps are still `2 / 3 / 4` by modality class
 
 Mitigation:
+
 - keep the public contract as total active slots
 - run a pre-implementation ops review of tier caps and shared-provider ceilings
 - do not promise `8` operationally if internal provider caps make routine `8`-slot usage impossible
@@ -391,19 +413,23 @@ Mitigation:
 ### Risk 2: fallback runtime users have no contract row
 
 Why:
+
 - fallback users rely on `billing_profiles` and hidden `free`
 
 Mitigation:
+
 - explicitly support `current_offer` resolution for non-contracted users
 - do not rely on acquisition-enabled offers only
 
 ### Risk 3: OpenAI/ElevenLabs and Fal drift apart
 
 Why:
+
 - OpenAI and ElevenLabs rely on reservation admission only
 - Fal uses reservation plus active-capacity admission
 
 Mitigation:
+
 - one entitlement resolver
 - one per-user slot number
 - explicit tests across provider families
@@ -411,17 +437,19 @@ Mitigation:
 ### Risk 4: schema rollout drift
 
 Why:
+
 - repo bootstrap SQL, hosted production state, and migrations have drifted before
 
 Mitigation:
+
 - ship a dedicated forward migration
 - update bootstrap SQL in the same implementation lane
 - validate admin pricing state and live billing catalog after schema cutover
 
 ## Resolved Build Decisions
 
-1. The non-public baseline fallback runtime state gets `0` active generation slots.
-2. Baseline fallback state is not allowed to generate.
+1. The baseline-access state gets `0` active generation slots.
+2. Baseline access is not allowed to generate.
 3. Bootstrap baseline credits are `0`.
 4. V1 limit messages return plan-aware slot metadata and customer-readable wait/access copy.
 5. Admin pricing exposes max active generations in plan and offer creation/editing.
@@ -452,4 +480,4 @@ This plan is strong enough for autonomous implementation because it now specifie
 - the provider-family differences,
 - the rollout scaffolding,
 - the validation surfaces,
-- and the resolved baseline fallback product-access decision.
+- and the resolved baseline-access product-access decision.

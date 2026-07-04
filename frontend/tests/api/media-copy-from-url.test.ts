@@ -5,6 +5,7 @@ import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 const dnsLookupMock = vi.fn();
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
+const assertPaidMediaLibraryAccessMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
 const resolveMediaPreviewTrustedHostsMock = vi.fn();
 const extractImageDimensionsFromBufferMock = vi.fn();
@@ -34,6 +35,16 @@ vi.mock("../../lib/server/api/auth", () => ({
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
 }));
+
+vi.mock("../../lib/server/api/mediaLibraryPaidAccess", async () => {
+  const actual = await vi.importActual<
+    typeof import("../../lib/server/api/mediaLibraryPaidAccess")
+  >("../../lib/server/api/mediaLibraryPaidAccess");
+  return {
+    ...actual,
+    assertPaidMediaLibraryAccess: (...args: unknown[]) => assertPaidMediaLibraryAccessMock(...args),
+  };
+});
 
 vi.mock("../../lib/server/api/supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
@@ -381,6 +392,7 @@ describe("POST /api/media/copy-from-url", () => {
     upsertVideoPosterVariantFromBufferMock.mockResolvedValue(null);
     upsertVideoPreviewVariantFromBufferMock.mockResolvedValue(null);
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
+    assertPaidMediaLibraryAccessMock.mockResolvedValue(undefined);
     resolveMediaPreviewTrustedHostsMock.mockReturnValue(["trusted.example.com", "cdn.example.com"]);
     dnsLookupMock.mockResolvedValue([{ address: "93.184.216.34" }]);
     extractImageDimensionsFromBufferMock.mockReturnValue({ width: 1280, height: 720 });
@@ -458,6 +470,31 @@ describe("POST /api/media/copy-from-url", () => {
     expect(getSupabaseAdminMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({ error: "Unable to copy media from URL." });
+  });
+
+  it("rejects media copy requests before fetch when paid media access is missing", async () => {
+    const { MediaLibraryPaidAccessError } =
+      await import("../../lib/server/api/mediaLibraryPaidAccess");
+    assertPaidMediaLibraryAccessMock.mockRejectedValueOnce(new MediaLibraryPaidAccessError());
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const req = {
+      method: "POST",
+      headers: { host: "app.shortpulse.test", "x-forwarded-proto": "https" },
+      socket: { remoteAddress: "127.0.0.1" },
+      body: { url: "https://trusted.example.com/reference.png", mode: "image" },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(assertPaidMediaLibraryAccessMock).toHaveBeenCalledWith("user-1");
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(402);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Choose a plan to add media to your Reference Grid and Media Library.",
+    });
   });
 
   it("rejects untrusted hosts before any fetch occurs", async () => {

@@ -424,7 +424,7 @@ describe("PulseCreatePanelView", () => {
       textTarget?.target.accept({ kind: "text", text: "Canvas text" });
     });
 
-    expect(onAgentInputChange).toHaveBeenCalledWith("Existing pulse draft Canvas text");
+    expect(onAgentInputChange).toHaveBeenCalledWith("Canvas text");
 
     const imagePayload: AgentComposerDirectDropPayload = {
       kind: "image",
@@ -450,6 +450,98 @@ describe("PulseCreatePanelView", () => {
       registry.clearActiveTarget();
     });
     expect(panelBody).not.toHaveClass("is-drop-active");
+  });
+
+  it("does not resolve Canvas tear-out targets while Pulse attachment intake is busy", async () => {
+    const registry = createCanvasTearOutComposerTargetRegistry();
+    const point = { clientX: 20, clientY: 20 };
+    const textPayload: AgentComposerDirectDropPayload = {
+      kind: "text",
+      text: "Canvas text",
+    };
+    const imagePayload: AgentComposerDirectDropPayload = {
+      kind: "image",
+      internalPayload: null,
+      composerImagePayload: {
+        version: 1,
+        origin: "ai-studio-reference-grid",
+        referenceId: "canvas-image",
+        outputId: null,
+        mediaId: "media-1",
+        displayArtifactUrl: "https://example.com/canvas.png",
+        displayArtifactKind: "url",
+        sourceSurface: "all-refs",
+      },
+    };
+
+    const { rerender } = render(
+      <PulseCreatePanelView
+        {...baseProps}
+        canvasTearOutTargetRegistry={registry}
+        onAgentComposerDirectDrop={vi.fn()}
+        promptStepProps={{
+          ...basePromptStepProps,
+          agentInput: "Existing pulse draft ",
+          agentIsSending: true,
+          onAgentInputChange: vi.fn(),
+        }}
+      />
+    );
+
+    const panelRoot = screen.getByRole("group", { name: "Create composer" }) as HTMLElement;
+    panelRoot.getBoundingClientRect = vi.fn(
+      () =>
+        ({
+          left: 10,
+          top: 10,
+          right: 410,
+          bottom: 410,
+          width: 400,
+          height: 400,
+          x: 10,
+          y: 10,
+          toJSON: () => ({}),
+        }) as DOMRect
+    );
+
+    expect(registry.resolveTargetAtPoint(point, textPayload)).toBeNull();
+    expect(registry.resolveTargetAtPoint(point, imagePayload)).toBeNull();
+
+    rerender(
+      <PulseCreatePanelView
+        {...baseProps}
+        canvasTearOutTargetRegistry={registry}
+        onAgentComposerDirectDrop={vi.fn()}
+        promptStepProps={{
+          ...basePromptStepProps,
+          agentInput: "Existing pulse draft ",
+          onAgentInputChange: vi.fn(),
+        }}
+      />
+    );
+
+    await waitFor(() =>
+      expect(registry.resolveTargetAtPoint(point, textPayload)?.id).toBe("pulse-create-composer")
+    );
+
+    rerender(
+      <PulseCreatePanelView
+        {...baseProps}
+        canvasTearOutTargetRegistry={registry}
+        onAgentComposerDirectDrop={vi.fn()}
+        promptStepProps={{
+          ...basePromptStepProps,
+          agentInput: "Existing pulse draft ",
+          agentIsSending: true,
+          onAgentInputChange: vi.fn(),
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(registry.resolveTargetAtPoint(point, textPayload)).toBeNull();
+      expect(registry.resolveTargetAtPoint(point, imagePayload)).toBeNull();
+    });
   });
 
   it("routes hybrid internal prompt-reference drags from the wider create panel body into the composer", () => {

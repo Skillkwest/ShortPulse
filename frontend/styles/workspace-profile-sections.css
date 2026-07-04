@@ -781,6 +781,20 @@
   color: #ffcccc;
 }
 
+.profile-subscription-plan-cta-slot {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.profile-subscription-plan-cta-slot .ai-generation-access-cta {
+  width: 140px;
+  min-width: 140px;
+  max-width: 140px;
+  height: 68px;
+  min-height: 68px;
+  max-height: 68px;
+}
+
 .profile-subscription-cancel-header-button {
   width: auto;
   min-width: 150px;

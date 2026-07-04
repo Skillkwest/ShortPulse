@@ -4,6 +4,8 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { Receipt, WarningCircle } from "phosphor-react";
+import { GenerationAccessCtaButton } from "../../ai-studio/components/shared/GenerationAccessCtaButton";
+import { AI_STUDIO_PLAN_CTA } from "../../ai-studio/logic/generationAccessCta";
 import { BillingIntervalToggle } from "../../billing/components/BillingIntervalToggle";
 import { SubscriptionPlanCard } from "../../billing/components/SubscriptionPlanCard";
 import {
@@ -104,6 +106,7 @@ export function ProfileSubscriptionSection({
     [visibleBillingPlans]
   );
   const activePlanDisplayName = activePlan.displayName;
+  const showBaselinePlanCta = activePlan.id === "free";
   const cancelSubscriptionButton =
     activePlan.id !== "free" ? (
       <button
@@ -141,184 +144,193 @@ export function ProfileSubscriptionSection({
           </p>
         </div>
 
-        <div className={profileClass("profile-hero-meta")}>
-          <ProfileMetricCard
-            className="profile-hero-stat-card"
-            label="Subscription"
-            value={recurringPaymentLabel}
-          />
-          {showRenewalChip ? (
+        {showBaselinePlanCta ? (
+          <div className={profileClass("profile-hero-meta", "profile-subscription-plan-cta-slot")}>
+            <GenerationAccessCtaButton cta={AI_STUDIO_PLAN_CTA} />
+          </div>
+        ) : (
+          <div className={profileClass("profile-hero-meta")}>
             <ProfileMetricCard
               className="profile-hero-stat-card"
-              label="Next renewal"
-              value={subscriptionRenewalText}
+              label="Subscription"
+              value={recurringPaymentLabel}
             />
-          ) : null}
-          <ProfileMetricCard
-            className="profile-hero-stat-card"
-            label="Monthly credits"
-            value={currentSubscriptionCreditsCents.toLocaleString()}
-          />
-          <ProfileMetricCard
-            className="profile-hero-stat-card"
-            label="Storage included"
-            value={formatStorageBytes(currentSubscriptionStorageLimitBytes)}
-          />
-          <ProfileMetricCard
-            className="profile-hero-stat-card"
-            label="Concurrent generations"
-            value={formatHeroConcurrentGenerationsValue(
-              currentSubscriptionMaxConcurrentGenerations,
-              activePlan.id
-            )}
-          />
-          {activeAddonStorageBytes > 0 ? (
+            {showRenewalChip ? (
+              <ProfileMetricCard
+                className="profile-hero-stat-card"
+                label="Next renewal"
+                value={subscriptionRenewalText}
+              />
+            ) : null}
             <ProfileMetricCard
               className="profile-hero-stat-card"
-              label="Active add-ons"
-              value={`+${formatStorageBytes(activeAddonStorageBytes)}`}
+              label="Monthly credits"
+              value={currentSubscriptionCreditsCents.toLocaleString()}
             />
-          ) : null}
-        </div>
+            <ProfileMetricCard
+              className="profile-hero-stat-card"
+              label="Storage included"
+              value={formatStorageBytes(currentSubscriptionStorageLimitBytes)}
+            />
+            <ProfileMetricCard
+              className="profile-hero-stat-card"
+              label="Concurrent generations"
+              value={formatHeroConcurrentGenerationsValue(
+                currentSubscriptionMaxConcurrentGenerations,
+                activePlan.id
+              )}
+            />
+            {activeAddonStorageBytes > 0 ? (
+              <ProfileMetricCard
+                className="profile-hero-stat-card"
+                label="Active add-ons"
+                value={`+${formatStorageBytes(activeAddonStorageBytes)}`}
+              />
+            ) : null}
+          </div>
+        )}
       </article>
 
-      <ProfilePanel
-        eyebrow="All plans"
-        title="Available plans"
-        className="profile-panel-stack"
-        headerAction={cancelSubscriptionButton}
-      >
-        <BillingIntervalToggle
-          selectedBillingInterval={selectedBillingInterval}
-          annualSavingsPercent={annualSavingsPercent}
-          onChange={setSelectedBillingInterval}
-          className={profileClass("profile-subscription-interval-toggle")}
-        />
+      {showBaselinePlanCta ? null : (
+        <ProfilePanel
+          eyebrow="All plans"
+          title="Available plans"
+          className="profile-panel-stack"
+          headerAction={cancelSubscriptionButton}
+        >
+          <BillingIntervalToggle
+            selectedBillingInterval={selectedBillingInterval}
+            annualSavingsPercent={annualSavingsPercent}
+            onChange={setSelectedBillingInterval}
+            className={profileClass("profile-subscription-interval-toggle")}
+          />
 
-        <div className={profileClass("profile-plan-grid", "subscription-plan-grid")}>
-          {billingPlansLoading ? (
-            <div className={profileClass("profile-plan-card")}>
-              <p className="tiny subdued">Loading plans…</p>
-            </div>
-          ) : visibleBillingPlans.length === 0 ? (
-            <div className={profileClass("profile-plan-card")}>
-              <p className="tiny subdued">No active plans configured yet.</p>
-            </div>
-          ) : (
-            visibleBillingPlans.map((plan) => {
-              const planView = buildPlanView({ planId: plan.id, plans: visibleBillingPlans });
-              const planPricing = resolvePlanPricingForInterval(plan, selectedBillingInterval);
-              const isCurrentPlan = activePlan.id === plan.id;
-              const isCurrentBillingInterval =
-                isCurrentPlan && selectedBillingInterval === currentSubscriptionBillingInterval;
-              const isPlanIntervalChange =
-                isCurrentPlan && selectedBillingInterval !== currentSubscriptionBillingInterval;
-              const candidatePlanRank = getPlanTierRank(plan.id, visibleBillingPlans);
-              const isHigherTier = candidatePlanRank > activePlanRank;
-              const isLowerTier = candidatePlanRank < activePlanRank;
-              const isFree = plan.monthly_price_cents === 0;
-              const isCurrentInternalCompPlan = isInternalCompContract && isCurrentPlan && !isFree;
-              const isActionLoading = planChangeLoadingPlanId === plan.id;
-              const paidPlanLabel = currentSubscriptionPriceCents === 0 || isInternalCompContract;
-              const billingLabel = selectedBillingInterval === "year" ? "annual" : "monthly";
-              const intervalUnavailable =
-                selectedBillingInterval === "year" && !isFree && !planPricing.hasLiveOffer;
-              const intervalChangeLabel =
-                selectedBillingInterval === "year"
-                  ? "Upgrade to annual billing"
-                  : "Downgrade to monthly billing";
-              const actionButton = isCurrentBillingInterval ? (
-                <button
-                  type="button"
-                  className={profileClass("profile-button", "ghost-btn")}
-                  disabled
-                >
-                  Current Plan
-                </button>
-              ) : intervalUnavailable ? (
-                <button
-                  type="button"
-                  className={profileClass(
-                    "profile-button",
-                    isHigherTier ? "primary-btn" : "ghost-btn"
-                  )}
-                  disabled
-                >
-                  Annual unavailable
-                </button>
-              ) : isPlanIntervalChange && !isFree ? (
-                <button
-                  type="button"
-                  className={profileClass(
-                    "profile-button",
-                    selectedBillingInterval === "year" ? "primary-btn" : "ghost-btn"
-                  )}
-                  onClick={() => onRequestPlanChange(plan.id, selectedBillingInterval)}
-                  disabled={isActionLoading}
-                >
-                  {isActionLoading ? "Opening Stripe…" : intervalChangeLabel}
-                </button>
-              ) : isCurrentInternalCompPlan ? (
-                <button
-                  type="button"
-                  className={profileClass("profile-button", "primary-btn")}
-                  onClick={() => onRequestPlanChange(plan.id, selectedBillingInterval)}
-                  disabled={isActionLoading}
-                >
-                  {isActionLoading
-                    ? "Starting checkout…"
-                    : `Switch to ${planView.displayName} ${billingLabel} billing`}
-                </button>
-              ) : isHigherTier ? (
-                <button
-                  type="button"
-                  className={profileClass("profile-button", "primary-btn")}
-                  onClick={() => onRequestPlanChange(plan.id, selectedBillingInterval)}
-                  disabled={isActionLoading}
-                >
-                  {isActionLoading
-                    ? paidPlanLabel
-                      ? "Starting billing flow…"
-                      : "Opening Stripe…"
-                    : paidPlanLabel
-                      ? `Choose ${planView.displayName}`
-                      : `Upgrade to ${planView.displayName}`}
-                </button>
-              ) : isLowerTier && !isFree ? (
-                <button
-                  type="button"
-                  className={profileClass("profile-button", "ghost-btn")}
-                  onClick={() => onRequestPlanChange(plan.id, selectedBillingInterval)}
-                  disabled={isActionLoading}
-                >
-                  {isActionLoading
-                    ? paidPlanLabel
-                      ? "Starting billing flow…"
-                      : "Opening Stripe…"
-                    : `Downgrade to ${planView.displayName}`}
-                </button>
-              ) : null;
+          <div className={profileClass("profile-plan-grid", "subscription-plan-grid")}>
+            {billingPlansLoading ? (
+              <div className={profileClass("profile-plan-card")}>
+                <p className="tiny subdued">Loading plans…</p>
+              </div>
+            ) : visibleBillingPlans.length === 0 ? (
+              <div className={profileClass("profile-plan-card")}>
+                <p className="tiny subdued">No active plans configured yet.</p>
+              </div>
+            ) : (
+              visibleBillingPlans.map((plan) => {
+                const planView = buildPlanView({ planId: plan.id, plans: visibleBillingPlans });
+                const planPricing = resolvePlanPricingForInterval(plan, selectedBillingInterval);
+                const isCurrentPlan = activePlan.id === plan.id;
+                const isCurrentBillingInterval =
+                  isCurrentPlan && selectedBillingInterval === currentSubscriptionBillingInterval;
+                const isPlanIntervalChange =
+                  isCurrentPlan && selectedBillingInterval !== currentSubscriptionBillingInterval;
+                const candidatePlanRank = getPlanTierRank(plan.id, visibleBillingPlans);
+                const isHigherTier = candidatePlanRank > activePlanRank;
+                const isLowerTier = candidatePlanRank < activePlanRank;
+                const isFree = plan.monthly_price_cents === 0;
+                const isCurrentInternalCompPlan =
+                  isInternalCompContract && isCurrentPlan && !isFree;
+                const isActionLoading = planChangeLoadingPlanId === plan.id;
+                const paidPlanLabel = currentSubscriptionPriceCents === 0 || isInternalCompContract;
+                const billingLabel = selectedBillingInterval === "year" ? "annual" : "monthly";
+                const intervalUnavailable =
+                  selectedBillingInterval === "year" && !isFree && !planPricing.hasLiveOffer;
+                const intervalChangeLabel =
+                  selectedBillingInterval === "year"
+                    ? "Upgrade to annual billing"
+                    : "Downgrade to monthly billing";
+                const actionButton = isCurrentBillingInterval ? (
+                  <button
+                    type="button"
+                    className={profileClass("profile-button", "ghost-btn")}
+                    disabled
+                  >
+                    Current Plan
+                  </button>
+                ) : intervalUnavailable ? (
+                  <button
+                    type="button"
+                    className={profileClass(
+                      "profile-button",
+                      isHigherTier ? "primary-btn" : "ghost-btn"
+                    )}
+                    disabled
+                  >
+                    Annual unavailable
+                  </button>
+                ) : isPlanIntervalChange && !isFree ? (
+                  <button
+                    type="button"
+                    className={profileClass(
+                      "profile-button",
+                      selectedBillingInterval === "year" ? "primary-btn" : "ghost-btn"
+                    )}
+                    onClick={() => onRequestPlanChange(plan.id, selectedBillingInterval)}
+                    disabled={isActionLoading}
+                  >
+                    {isActionLoading ? "Opening Stripe…" : intervalChangeLabel}
+                  </button>
+                ) : isCurrentInternalCompPlan ? (
+                  <button
+                    type="button"
+                    className={profileClass("profile-button", "primary-btn")}
+                    onClick={() => onRequestPlanChange(plan.id, selectedBillingInterval)}
+                    disabled={isActionLoading}
+                  >
+                    {isActionLoading
+                      ? "Starting checkout…"
+                      : `Switch to ${planView.displayName} ${billingLabel} billing`}
+                  </button>
+                ) : isHigherTier ? (
+                  <button
+                    type="button"
+                    className={profileClass("profile-button", "primary-btn")}
+                    onClick={() => onRequestPlanChange(plan.id, selectedBillingInterval)}
+                    disabled={isActionLoading}
+                  >
+                    {isActionLoading
+                      ? paidPlanLabel
+                        ? "Starting billing flow…"
+                        : "Opening Stripe…"
+                      : paidPlanLabel
+                        ? `Choose ${planView.displayName}`
+                        : `Upgrade to ${planView.displayName}`}
+                  </button>
+                ) : isLowerTier && !isFree ? (
+                  <button
+                    type="button"
+                    className={profileClass("profile-button", "ghost-btn")}
+                    onClick={() => onRequestPlanChange(plan.id, selectedBillingInterval)}
+                    disabled={isActionLoading}
+                  >
+                    {isActionLoading
+                      ? paidPlanLabel
+                        ? "Starting billing flow…"
+                        : "Opening Stripe…"
+                      : `Downgrade to ${planView.displayName}`}
+                  </button>
+                ) : null;
 
-              return (
-                <SubscriptionPlanCard
-                  key={plan.id}
-                  plan={plan}
-                  plans={visibleBillingPlans}
-                  billingInterval={selectedBillingInterval}
-                  isCurrent={isCurrentPlan}
-                  stateBadgeLabel={isCurrentPlan ? "Current Plan" : null}
-                  className={profileClass("profile-subscription-plan-card")}
-                  actionSlot={
-                    actionButton ? (
-                      <div className={profileClass("profile-actions")}>{actionButton}</div>
-                    ) : null
-                  }
-                />
-              );
-            })
-          )}
-        </div>
-      </ProfilePanel>
+                return (
+                  <SubscriptionPlanCard
+                    key={plan.id}
+                    plan={plan}
+                    plans={visibleBillingPlans}
+                    billingInterval={selectedBillingInterval}
+                    isCurrent={isCurrentPlan}
+                    stateBadgeLabel={isCurrentPlan ? "Current Plan" : null}
+                    className={profileClass("profile-subscription-plan-card")}
+                    actionSlot={
+                      actionButton ? (
+                        <div className={profileClass("profile-actions")}>{actionButton}</div>
+                      ) : null
+                    }
+                  />
+                );
+              })
+            )}
+          </div>
+        </ProfilePanel>
+      )}
 
       <ProfilePanel
         eyebrow="Payment history"

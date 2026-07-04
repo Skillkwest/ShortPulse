@@ -225,27 +225,55 @@
 .bootstrapStyleScope :global(.ai-projects-modal-card):global(.is-selected) {
   align-items: center;
   justify-content: center;
-  border-color: rgba(124, 213, 228, 0.48);
+  gap: 0;
+  text-align: left;
+  border-color: rgba(37, 169, 191, 0.48);
   background:
-    linear-gradient(180deg, rgba(37, 169, 191, 0.2), rgba(16, 26, 32, 0.94)), rgba(16, 24, 30, 0.94);
+    radial-gradient(120% 120% at 0% 0%, rgba(37, 169, 191, 0.18), transparent 58%),
+    linear-gradient(145deg, rgba(37, 169, 191, 0.08), transparent 48%), rgba(8, 12, 18, 0.76);
   box-shadow:
-    inset 0 1px 0 rgba(244, 252, 255, 0.08),
-    0 16px 30px rgba(0, 0, 0, 0.26),
-    0 0 0 1px rgba(37, 169, 191, 0.14);
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 22px 50px rgba(0, 0, 0, 0.32);
+}
+
+.bootstrapStyleScope
+  :global(.ai-projects-modal-card-shell):global(.is-selected):hover
+  :global(.ai-projects-modal-card),
+.bootstrapStyleScope
+  :global(.ai-projects-modal-card-shell):global(.is-selected):focus-within
+  :global(.ai-projects-modal-card) {
+  border-color: rgba(37, 169, 191, 0.68);
+  background:
+    radial-gradient(120% 120% at 0% 0%, rgba(37, 169, 191, 0.18), transparent 58%),
+    linear-gradient(145deg, rgba(37, 169, 191, 0.08), transparent 48%), rgba(8, 12, 18, 0.76);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 28px 62px rgba(0, 0, 0, 0.4),
+    0 0 30px rgba(37, 169, 191, 0.18);
+}
+
+.bootstrapStyleScope :global(.ai-projects-modal-card-open-content) {
+  width: min(100%, 250px);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 14px;
+}
+
+.bootstrapStyleScope :global(.ai-projects-modal-card-open-icon) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-teal);
 }
 
 .bootstrapStyleScope :global(.ai-projects-modal-card-open-label) {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 86px;
-  min-height: 34px;
-  border-radius: 8px;
-  border: 1px solid rgba(124, 213, 228, 0.42);
-  background: rgba(124, 213, 228, 0.12);
-  color: #f5fcff;
-  font-size: 14px;
-  font-weight: 750;
+  display: block;
+  color: #f8fbff;
+  font-size: 23px;
+  line-height: 1.04;
+  font-weight: var(--font-bold);
   letter-spacing: 0;
 }
 
@@ -259,6 +287,22 @@
   background:
     linear-gradient(180deg, rgba(37, 169, 191, 0.14), rgba(20, 26, 32, 0.92)),
     rgba(18, 24, 31, 0.92);
+}
+
+.bootstrapStyleScope
+  :global(.ai-projects-modal-card-shell):global(.is-current):global(.is-selected):hover
+  :global(.ai-projects-modal-card),
+.bootstrapStyleScope
+  :global(.ai-projects-modal-card-shell):global(.is-current):global(.is-selected):focus-within
+  :global(.ai-projects-modal-card) {
+  border-color: rgba(37, 169, 191, 0.68);
+  background:
+    radial-gradient(120% 120% at 0% 0%, rgba(37, 169, 191, 0.18), transparent 58%),
+    linear-gradient(145deg, rgba(37, 169, 191, 0.08), transparent 48%), rgba(8, 12, 18, 0.76);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 28px 62px rgba(0, 0, 0, 0.4),
+    0 0 30px rgba(37, 169, 191, 0.18);
 }
 
 .bootstrapStyleScope :global(.ai-projects-modal-card-topline) {

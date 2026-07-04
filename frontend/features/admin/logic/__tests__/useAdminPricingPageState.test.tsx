@@ -172,7 +172,7 @@ describe("useAdminPricingPageState", () => {
     );
   });
 
-  it("drops the hidden baseline tier from default simulator plan ids when starter exists", async () => {
+  it("drops the baseline-access sentinel from default simulator plan ids when starter exists", async () => {
     const pricingState = {
       ...buildPricingState(),
       plans: [

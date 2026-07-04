@@ -635,10 +635,11 @@ describe("Dashboard actions", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Load more" }));
 
     expect(
-      await screen.findByRole("button", { name: "Open project Project Three" })
+      await screen.findByRole("button", { name: "Select project Project Three" })
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Open project Project One" }));
+    fireEvent.click(screen.getByRole("button", { name: "Select project Project One" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Open project Project One" }));
 
     await waitFor(() => {
       expect(routerPushMock).toHaveBeenCalledWith({

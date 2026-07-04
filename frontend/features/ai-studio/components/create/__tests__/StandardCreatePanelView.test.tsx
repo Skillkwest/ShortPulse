@@ -354,7 +354,7 @@ describe("StandardCreatePanelView", () => {
       textTarget?.target.accept({ kind: "text", text: "Canvas text" });
     });
 
-    expect(onAgentInputChange).toHaveBeenCalledWith("Existing draft Canvas text");
+    expect(onAgentInputChange).toHaveBeenCalledWith("Canvas text");
 
     const imagePayload: AgentComposerDirectDropPayload = {
       kind: "image",

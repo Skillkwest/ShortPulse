@@ -4,9 +4,9 @@ import type { AgentPulseWorkflowSession } from "../../../../prefabs/agent";
 import type { AiStudioPulsePresetChangeOptions } from "../../hooks/useAiStudioCreateModeRuntime";
 import { PULSE_BUSY_ATTACHMENT_DROP_NOTICE, PulsePromptStep } from "../PulsePromptStep";
 import {
-  insertDroppedPromptTextAtSelection,
   resolveAgentComposerPanelDropKind,
   resolveAgentComposerTextDropInsertion,
+  resolveDroppedPromptTextEdit,
   resolveDroppedPromptTextEditMode,
   useAgentComposerPromptDropModifierTracking,
 } from "../promptStep/agentComposerDrop";
@@ -147,9 +147,10 @@ const PulseCreatePanelViewContent = ({
         useTextareaSelection && textarea ? textarea.selectionStart : composerText.length;
       const selectionEnd =
         useTextareaSelection && textarea ? textarea.selectionEnd : composerText.length;
-      const insertedPrompt = insertDroppedPromptTextAtSelection({
+      const insertedPrompt = resolveDroppedPromptTextEdit({
         composerText,
         droppedPromptText: text,
+        editMode: "replace",
         selectionStart,
         selectionEnd,
       });
@@ -167,12 +168,13 @@ const PulseCreatePanelViewContent = ({
   );
   const canAcceptCanvasTearOutPayload = React.useCallback(
     (payload: AgentComposerDirectDropPayload) => {
+      if (isPulseAttachmentIntakeBusy) return false;
       if (payload.kind === "unsupported") return false;
       if (payload.kind === "image") return Boolean(onAgentComposerDirectDrop);
       if (payload.kind !== "text") return false;
       return Boolean(payload.text.trim() && promptStepProps.onAgentInputChange);
     },
-    [onAgentComposerDirectDrop, promptStepProps]
+    [isPulseAttachmentIntakeBusy, onAgentComposerDirectDrop, promptStepProps]
   );
   const acceptCanvasTearOutPayload = React.useCallback(
     (payload: AgentComposerDirectDropPayload) => {

@@ -43,6 +43,10 @@ import type {
 } from "../../../lib/server/api/adminErrorEvents/types";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
 
+const hasExplicitTelemetryIntent = (filters: Pick<EventFilterInput, "source" | "signal">) => {
+  return filters.signal !== "all" || filters.source.startsWith("telemetry.");
+};
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -129,6 +133,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       incident: asIncidentFilter(req.query.incident),
       excludeTelemetrySources: false,
     };
+    filters.excludeTelemetrySources = !hasExplicitTelemetryIntent(filters);
     const isActionableIncidentFilter = filters.incident === "actionable";
     const listFilters: EventFilterInput = isActionableIncidentFilter
       ? { ...filters, incident: "all" as IncidentFilterValue }

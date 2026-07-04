@@ -13,6 +13,7 @@ import {
   eventSignalFilterLabel,
   formatDateTime,
   incidentStatusLabel,
+  isRoutineNonActionableTelemetrySource,
   sourceLabel,
 } from "../logic/errorIncidentViewUtils";
 import { ErrorEventDetailModal } from "./ErrorEventDetailModal";
@@ -496,7 +497,7 @@ export function ErrorEventsStreamSection({
                         {statusUpdatingErrorId === row.incidentId ? "Updating…" : "Reopen"}
                       </button>
                     )
-                  ) : (
+                  ) : isRoutineNonActionableTelemetrySource(row.source) ? null : (
                     <>
                       <button
                         type="button"

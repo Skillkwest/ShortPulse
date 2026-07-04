@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AdminStoragePage from "../../pages/admin/storage";
@@ -237,8 +237,11 @@ describe("Admin storage page", () => {
     expect(screen.getByText("Contract MRR")).toBeInTheDocument();
     expect(screen.getAllByText("$19")[0]).toBeInTheDocument();
     expect(screen.getByText("1 Stripe")).toBeInTheDocument();
-    expect(screen.getByText("Recurring storage packages")).toBeInTheDocument();
-    expect(screen.getByText("Catalog")).toBeInTheDocument();
+    const addOnsSection = screen
+      .getByRole("heading", { name: "Recurring storage packages" })
+      .closest("section");
+    expect(addOnsSection).toBeTruthy();
+    expect(within(addOnsSection as HTMLElement).getByText("Catalog")).toBeInTheDocument();
     expect(screen.getByText("Provider invoice proof is unavailable.")).toBeInTheDocument();
   });
 });

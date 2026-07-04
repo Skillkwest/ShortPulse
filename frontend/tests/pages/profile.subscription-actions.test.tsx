@@ -412,7 +412,7 @@ describe("Profile subscription actions", () => {
     expect(screen.queryByText(/If you are on a legacy contract/)).not.toBeInTheDocument();
   });
 
-  it("hides the hidden baseline tier when starter exists and keeps the downgrade fallback", async () => {
+  it("hides the baseline-access sentinel when starter exists and keeps the downgrade destination", async () => {
     fetchWithAuthMock.mockImplementation(async (url: unknown) => {
       if (url === "/api/billing/catalog") {
         return {
@@ -475,7 +475,7 @@ describe("Profile subscription actions", () => {
     expect(screen.queryByText(/Ideal for creators testing cadence/)).not.toBeInTheDocument();
   });
 
-  it("hides the renewal hero chip for the baseline fallback plan", async () => {
+  it("shows the shared pricing CTA instead of subscription cards for baseline access", async () => {
     billingProfileState.plan_id = "free";
     billingProfileState.subscription_status = "inactive";
     billingProfileState.current_period_end = null;
@@ -489,8 +489,15 @@ describe("Profile subscription actions", () => {
     expect((await screen.findAllByText("Baseline access")).length).toBeGreaterThan(0);
     expect(screen.queryByText("Next renewal")).not.toBeInTheDocument();
     expect(screen.queryByText("Not scheduled")).not.toBeInTheDocument();
-    expect(screen.getByText("Monthly credits")).toBeInTheDocument();
-    expect(screen.getByText("Storage included")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "View subscription plans" })).toHaveAttribute(
+      "href",
+      "/pricing"
+    );
+    expect(screen.getByText("View plans")).toBeInTheDocument();
+    expect(screen.queryByText("Monthly credits")).not.toBeInTheDocument();
+    expect(screen.queryByText("Storage included")).not.toBeInTheDocument();
+    expect(screen.queryByText("Available plans")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Monthly" })).not.toBeInTheDocument();
   });
 
   it("opens and closes the cancel subscription modal", async () => {

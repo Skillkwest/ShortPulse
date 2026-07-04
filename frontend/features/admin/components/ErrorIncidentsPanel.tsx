@@ -1,6 +1,6 @@
 /**
  * Admin error incidents panel.
- * Renders summary cards, filters, and grouped incident rows for operator triage.
+ * Renders the grouped incident handoff queue for Codex triage.
  */
 import type {
   AdminErrorEventIncidentFilter,
@@ -14,7 +14,6 @@ import type {
   AdminErrorStatus,
 } from "../types";
 import { useAdminErrorIncidentsPanelState } from "../logic/useAdminErrorIncidentsPanelState";
-import { ErrorEventsStreamSection } from "./ErrorEventsStreamSection";
 import { ErrorIncidentsOverviewSection } from "./ErrorIncidentsOverviewSection";
 
 type ErrorIncidentsPanelProps = {
@@ -68,74 +67,31 @@ export function ErrorIncidentsPanel({
   errors,
   errorsLoading,
   errorsError,
-  errorSummary,
   errorEvents,
   errorEventsLoading,
-  errorEventsError,
-  errorEventsSummary,
-  errorEventsHealth,
   errorEventsPagination,
-  errorStatusFilter,
-  errorScopeFilter,
-  errorSeverityFilter,
-  errorSourceFilter,
-  errorEventSyntheticFilter,
-  errorEventSignalFilter,
   errorEventIncidentFilter,
   errorSearch,
   errorPagination,
-  statusUpdatingErrorId,
-  bulkIncidentStatusUpdating,
-  bulkIncidentStatusResult,
-  testIncidentSubmittingScope,
-  testIncidentResult,
-  onErrorStatusFilterChange,
-  onErrorScopeFilterChange,
-  onErrorSeverityFilterChange,
-  onErrorSourceFilterChange,
-  onErrorEventSyntheticFilterChange,
-  onErrorEventSignalFilterChange,
-  onErrorEventIncidentFilterChange,
   onErrorSearchChange,
   onUpdateErrorStatus,
   onUpdateErrorEventStatus,
-  onBulkUpdateListedErrorStatus,
-  onTriggerTestIncident,
   onPrevPage,
   onNextPage,
-  onEventPrevPage,
   onEventNextPage,
   onRefresh,
 }: ErrorIncidentsPanelProps) {
-  const {
-    copiedIncidentId,
-    copiedEventId,
-    selectedEvent,
-    selectedIncidentId,
-    errorSourceOptions,
-    visibleEvents,
-    listedOpenIncidentCount,
-    resolveVisibleTargetCount,
-    bulkResolveSubmitting,
-    bulkResolveResult,
-    eventMetadataText,
-    openSelectedEvent,
-    closeSelectedEvent,
-    handleCopyIncident,
-    handleCopyEvent,
-    handleResolveEventRow,
-    handleIgnoreEventRow,
-    resolveVisibleEvents,
-  } = useAdminErrorIncidentsPanelState({
-    errors,
-    errorEvents,
-    errorEventsLoading,
-    errorEventsPagination,
-    errorEventIncidentFilter,
-    onEventNextPage,
-    onUpdateErrorStatus,
-    onUpdateErrorEventStatus,
-  });
+  const { copiedIncidentId, inProgressIncidentIds, handleCopyIncident } =
+    useAdminErrorIncidentsPanelState({
+      errors,
+      errorEvents,
+      errorEventsLoading,
+      errorEventsPagination,
+      errorEventIncidentFilter,
+      onEventNextPage,
+      onUpdateErrorStatus,
+      onUpdateErrorEventStatus,
+    });
 
   return (
     <>
@@ -143,78 +99,17 @@ export function ErrorIncidentsPanel({
         errors={errors}
         errorsLoading={errorsLoading}
         errorsError={errorsError}
-        errorSummary={errorSummary}
-        errorEventsHealth={errorEventsHealth}
-        errorStatusFilter={errorStatusFilter}
-        errorScopeFilter={errorScopeFilter}
-        errorSeverityFilter={errorSeverityFilter}
-        errorSourceFilter={errorSourceFilter}
-        errorEventSyntheticFilter={errorEventSyntheticFilter}
-        errorEventIncidentFilter={errorEventIncidentFilter}
         errorSearch={errorSearch}
         errorPagination={errorPagination}
-        listedOpenIncidentCount={listedOpenIncidentCount}
-        bulkIncidentStatusUpdating={bulkIncidentStatusUpdating}
-        bulkIncidentStatusResult={bulkIncidentStatusResult}
-        testIncidentSubmittingScope={testIncidentSubmittingScope}
-        testIncidentResult={testIncidentResult}
-        statusUpdatingErrorId={statusUpdatingErrorId}
         copiedIncidentId={copiedIncidentId}
-        errorSourceOptions={errorSourceOptions}
-        onErrorStatusFilterChange={onErrorStatusFilterChange}
-        onErrorScopeFilterChange={onErrorScopeFilterChange}
-        onErrorSeverityFilterChange={onErrorSeverityFilterChange}
-        onErrorSourceFilterChange={onErrorSourceFilterChange}
-        onErrorEventSyntheticFilterChange={onErrorEventSyntheticFilterChange}
-        onErrorEventIncidentFilterChange={onErrorEventIncidentFilterChange}
+        inProgressIncidentIds={inProgressIncidentIds}
         onErrorSearchChange={onErrorSearchChange}
-        onBulkUpdateListedErrorStatus={onBulkUpdateListedErrorStatus}
-        onTriggerTestIncident={onTriggerTestIncident}
         onPrevPage={onPrevPage}
         onNextPage={onNextPage}
         onRefresh={onRefresh}
-        onUpdateErrorStatus={onUpdateErrorStatus}
         onCopyIncident={(row) => {
           void handleCopyIncident(row);
         }}
-      />
-      <ErrorEventsStreamSection
-        errorEvents={errorEvents}
-        errorEventsLoading={errorEventsLoading}
-        errorEventsError={errorEventsError}
-        errorEventsSummary={errorEventsSummary}
-        errorEventsHealth={errorEventsHealth}
-        errorEventsPagination={errorEventsPagination}
-        errorEventSignalFilter={errorEventSignalFilter}
-        errorEventIncidentFilter={errorEventIncidentFilter}
-        visibleEvents={visibleEvents}
-        resolveVisibleTargetCount={resolveVisibleTargetCount}
-        bulkResolveSubmitting={bulkResolveSubmitting}
-        bulkResolveResult={bulkResolveResult}
-        copiedEventId={copiedEventId}
-        selectedEvent={selectedEvent}
-        selectedIncidentId={selectedIncidentId}
-        eventMetadataText={eventMetadataText}
-        statusUpdatingErrorId={statusUpdatingErrorId}
-        onErrorEventSignalFilterChange={onErrorEventSignalFilterChange}
-        onEventPrevPage={onEventPrevPage}
-        onEventNextPage={onEventNextPage}
-        onResolveVisibleEvents={() => {
-          void resolveVisibleEvents();
-        }}
-        onCopyEvent={(row) => {
-          void handleCopyEvent(row);
-        }}
-        onOpenSelectedEvent={openSelectedEvent}
-        onCloseSelectedEvent={closeSelectedEvent}
-        onResolveEventRow={(row) => {
-          void handleResolveEventRow(row);
-        }}
-        onIgnoreEventRow={(row) => {
-          void handleIgnoreEventRow(row);
-        }}
-        onUpdateErrorStatus={onUpdateErrorStatus}
-        onUpdateErrorEventStatus={onUpdateErrorEventStatus}
       />
     </>
   );

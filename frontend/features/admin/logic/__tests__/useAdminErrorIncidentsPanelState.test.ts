@@ -95,6 +95,7 @@ const buildParams = (overrides: HookParams = {}) => ({
 describe("useAdminErrorIncidentsPanelState", () => {
   beforeEach(() => {
     copyToClipboardMock.mockReset();
+    window.localStorage.clear();
   });
 
   afterEach(() => {
@@ -197,6 +198,43 @@ describe("useAdminErrorIncidentsPanelState", () => {
     );
   });
 
+  it("does not promote routine telemetry when resolving visible events", async () => {
+    const onUpdateErrorStatus = vi.fn(async () => {});
+    const onUpdateErrorEventStatus = vi.fn(async () => {});
+
+    const routineTelemetryEvent = buildEvent({
+      id: "event-routine-telemetry",
+      incidentId: null,
+      incidentStatus: null,
+      source: "telemetry.ai_studio.stability.window_focus",
+    });
+
+    const { result } = renderHook(() =>
+      useAdminErrorIncidentsPanelState(
+        buildParams({
+          errorEvents: [
+            buildEvent({ id: "event-open", incidentId: "incident-open", incidentStatus: "open" }),
+            routineTelemetryEvent,
+          ],
+          errorEventIncidentFilter: "unlinked",
+          onUpdateErrorStatus,
+          onUpdateErrorEventStatus,
+        })
+      )
+    );
+
+    expect(result.current.resolveVisibleTargetCount).toBe(0);
+
+    await act(async () => {
+      await result.current.handleResolveEventRow(routineTelemetryEvent);
+      await result.current.handleIgnoreEventRow(routineTelemetryEvent);
+      await result.current.resolveVisibleEvents();
+    });
+
+    expect(onUpdateErrorStatus).not.toHaveBeenCalled();
+    expect(onUpdateErrorEventStatus).not.toHaveBeenCalled();
+  });
+
   it("tracks copied incident state and clears it after the timeout", async () => {
     vi.useFakeTimers();
     copyToClipboardMock.mockResolvedValue(true);
@@ -216,6 +254,7 @@ describe("useAdminErrorIncidentsPanelState", () => {
     });
 
     expect(result.current.copiedIncidentId).toBeNull();
+    expect(result.current.inProgressIncidentIds.has("incident-1")).toBe(true);
   });
 
   it("closes the selected event when Escape is pressed", async () => {

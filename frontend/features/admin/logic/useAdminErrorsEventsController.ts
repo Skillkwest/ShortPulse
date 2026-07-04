@@ -51,6 +51,7 @@ type ErrorEventsLoadOverrides = {
 type UseAdminErrorsEventsControllerParams = {
   enabled: boolean;
   liveRefreshEnabled: boolean;
+  loadEventStreamEnabled?: boolean;
 };
 
 type UseAdminErrorsEventsControllerResult = {
@@ -103,6 +104,7 @@ type UseAdminErrorsEventsControllerResult = {
 export const useAdminErrorsEventsController = ({
   enabled,
   liveRefreshEnabled,
+  loadEventStreamEnabled = true,
 }: UseAdminErrorsEventsControllerParams): UseAdminErrorsEventsControllerResult => {
   const [errors, setErrors] = React.useState<AdminErrorLogRow[]>([]);
   const [errorsLoading, setErrorsLoading] = React.useState(false);
@@ -306,9 +308,9 @@ export const useAdminErrorsEventsController = ({
   }, [enabled, loadErrors]);
 
   React.useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !loadEventStreamEnabled) return;
     void loadErrorEvents();
-  }, [enabled, loadErrorEvents]);
+  }, [enabled, loadErrorEvents, loadEventStreamEnabled]);
 
   const handleUpdateErrorStatus = React.useCallback(
     async (errorId: string, status: AdminErrorStatus) => {
@@ -325,7 +327,10 @@ export const useAdminErrorsEventsController = ({
         if (!response.ok) {
           throw new Error(data?.error || "Failed to update incident status.");
         }
-        await Promise.all([loadErrors(), loadErrorEvents()]);
+        await Promise.all([
+          loadErrors(),
+          loadEventStreamEnabled ? loadErrorEvents() : Promise.resolve(),
+        ]);
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Failed to update incident status.";
@@ -335,7 +340,7 @@ export const useAdminErrorsEventsController = ({
         setErrorStatusUpdatingId((current) => (current === errorId ? null : current));
       }
     },
-    [loadErrorEvents, loadErrors]
+    [loadErrorEvents, loadErrors, loadEventStreamEnabled]
   );
 
   const handleUpdateErrorEventStatus = React.useCallback(
@@ -353,7 +358,10 @@ export const useAdminErrorsEventsController = ({
         if (!response.ok) {
           throw new Error(data?.error || "Failed to update event status.");
         }
-        await Promise.all([loadErrors(), loadErrorEvents()]);
+        await Promise.all([
+          loadErrors(),
+          loadEventStreamEnabled ? loadErrorEvents() : Promise.resolve(),
+        ]);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Failed to update event status.";
         setErrorsError(message);
@@ -362,7 +370,7 @@ export const useAdminErrorsEventsController = ({
         setErrorStatusUpdatingId((current) => (current === eventId ? null : current));
       }
     },
-    [loadErrorEvents, loadErrors]
+    [loadErrorEvents, loadErrors, loadEventStreamEnabled]
   );
 
   const handleBulkUpdateListedErrorStatus = React.useCallback(
@@ -400,7 +408,10 @@ export const useAdminErrorsEventsController = ({
           throw new Error(data?.error || "Failed to update listed incidents.");
         }
 
-        await Promise.all([loadErrors(), loadErrorEvents()]);
+        await Promise.all([
+          loadErrors(),
+          loadEventStreamEnabled ? loadErrorEvents() : Promise.resolve(),
+        ]);
         const updatedCount = Number(data.summary?.updatedCount ?? 0);
         const failedCount = Number(data.summary?.failedCount ?? 0);
         const statusLabel = status === "resolved" ? "resolved" : "ignored";
@@ -423,12 +434,15 @@ export const useAdminErrorsEventsController = ({
         setBulkIncidentStatusUpdating((current) => (current === status ? null : current));
       }
     },
-    [errors, loadErrorEvents, loadErrors]
+    [errors, loadErrorEvents, loadErrors, loadEventStreamEnabled]
   );
 
   const refreshErrorData = React.useCallback(async () => {
-    await Promise.all([loadErrors(), loadErrorEvents()]);
-  }, [loadErrorEvents, loadErrors]);
+    await Promise.all([
+      loadErrors(),
+      loadEventStreamEnabled ? loadErrorEvents() : Promise.resolve(),
+    ]);
+  }, [loadErrorEvents, loadErrors, loadEventStreamEnabled]);
 
   React.useEffect(() => {
     if (!liveRefreshEnabled) return;

@@ -8,6 +8,7 @@ import { buildEventTriagePacket, buildIncidentTriagePacket } from "../triagePack
 
 describe("triagePackets", () => {
   it("builds a compact incident triage packet without raw metadata payload", () => {
+    const longProviderKey = `zz_provider_private_${"x".repeat(160)}`;
     const breadcrumbs = Array.from({ length: 20 }, (_, index) => ({
       t: 1771250000000 + index,
       type: "network",
@@ -34,6 +35,33 @@ describe("triagePackets", () => {
         build_id: "development",
         session_id: "session-1",
         client_environment: "development",
+        ...Object.fromEntries(
+          Array.from({ length: 45 }, (_, index) => [`zz_metadata_key_${index}`, "not copied"])
+        ),
+        output_id: "output-1",
+        model: "Kie Seedance 2 Fast",
+        model_id: "kie-ai/seedance-2-fast",
+        provider: "kie-seedance-2-fast",
+        task_id: "task-1",
+        task_state: "running",
+        generation_id: "generation-1",
+        failure_reason_code: "poll_timeout",
+        provider_state: "timeout",
+        poll_attempt: 42,
+        no_media_attempt: 3,
+        elapsed_ms: 1805000,
+        max_wait_ms: 1800000,
+        error_payload: {
+          status: "error",
+          state: "error",
+          failCode: "timed_out",
+          failMsg: "The upstream API service timed out and no results were returned.",
+          provider_private_blob: "not copied except as a key",
+          ...Object.fromEntries(
+            Array.from({ length: 45 }, (_, index) => [`zz_extra_key_${index}`, "not copied"])
+          ),
+          [longProviderKey]: "not copied",
+        },
         breadcrumbs,
       },
       firstSeenAt: "2026-02-16T13:43:23.863+00:00",
@@ -50,6 +78,19 @@ describe("triagePackets", () => {
           buildId: string | null;
           sessionId: string | null;
           metadataKeys: string[];
+          generation: {
+            modelId: string | null;
+            provider: string | null;
+            taskId: string | null;
+            failureReasonCode: string | null;
+            pollAttempt: number | null;
+            errorPayload: {
+              failCode: string | null;
+              failMsg: string | null;
+              keys: string[];
+              provider_private_blob?: unknown;
+            } | null;
+          } | null;
           breadcrumbs: Array<{ data: string | null }>;
         };
         metadata?: unknown;
@@ -63,6 +104,27 @@ describe("triagePackets", () => {
     expect(payload.incident.triage.buildId).toBe("development");
     expect(payload.incident.triage.sessionId).toBe("session-1");
     expect(payload.incident.triage.metadataKeys).toContain("breadcrumbs");
+    expect(payload.incident.triage.metadataKeys.length).toBeLessThanOrEqual(40);
+    expect(payload.incident.triage.metadataKeys.every((key) => key.length <= 121)).toBe(true);
+    expect(payload.incident.triage.generation).toMatchObject({
+      modelId: "kie-ai/seedance-2-fast",
+      provider: "kie-seedance-2-fast",
+      taskId: "task-1",
+      failureReasonCode: "poll_timeout",
+      pollAttempt: 42,
+    });
+    expect(payload.incident.triage.generation?.errorPayload).toMatchObject({
+      failCode: "timed_out",
+      failMsg: "The upstream API service timed out and no results were returned.",
+    });
+    expect(payload.incident.triage.generation?.errorPayload?.keys).toEqual(
+      expect.arrayContaining(["failCode", "failMsg", "provider_private_blob", "state", "status"])
+    );
+    expect(payload.incident.triage.generation?.errorPayload?.keys.length).toBeLessThanOrEqual(40);
+    expect(
+      payload.incident.triage.generation?.errorPayload?.keys.every((key) => key.length <= 121)
+    ).toBe(true);
+    expect(payload.incident.triage.generation?.errorPayload?.provider_private_blob).toBeUndefined();
     expect(payload.incident.triage.breadcrumbs).toHaveLength(12);
     const breadcrumbData = payload.incident.triage.breadcrumbs[0]?.data ?? "";
     expect(breadcrumbData.length).toBeLessThanOrEqual(401);

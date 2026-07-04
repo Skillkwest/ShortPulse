@@ -4568,6 +4568,14 @@
   margin: 8px 0 12px;
 }
 
+.adminErrorsToolbar {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto auto;
+  gap: 10px;
+  align-items: center;
+  margin: 8px 0 12px;
+}
+
 .adminReportsHeaderActions {
   display: flex;
   align-items: center;
@@ -4677,7 +4685,7 @@
 .adminErrorsHead,
 .adminErrorsRow {
   display: grid;
-  grid-template-columns: 0.8fr 1fr 1.5fr 2.2fr 2fr 0.7fr 1.2fr 1.8fr;
+  grid-template-columns: 0.95fr 0.8fr minmax(280px, 2.8fr) minmax(180px, 1.3fr) 1.1fr 0.9fr;
   gap: 8px;
   align-items: center;
 }
@@ -5042,6 +5050,10 @@
   .adminErrorsRow {
     grid-template-columns: 1fr;
     gap: 6px;
+  }
+
+  .adminErrorsToolbar {
+    grid-template-columns: 1fr;
   }
 
   .adminEventsRow {

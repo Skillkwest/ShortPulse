@@ -65,7 +65,7 @@ begin
         return;
     end if;
     if p_plan_id = 'free' then
-        return query select 'rejected'::text, null::text, 'The hidden free tier cannot be activated as a billing offer.'::text;
+        return query select 'rejected'::text, null::text, 'Baseline access cannot be activated as a billing offer.'::text;
         return;
     end if;
     if v_offer_name is null then

@@ -5,7 +5,7 @@ import React from "react";
 
 import type { CanvasTearOutComposerTargetRegistry } from "../../hooks/useAiStudioCanvasTearOutTargets";
 import type { AgentComposerDirectDropPayload } from "../../logic/agentComposerDirectDropPayload";
-import { insertDroppedPromptTextAtSelection } from "../promptStep/agentComposerDrop";
+import { resolveDroppedPromptTextEdit } from "../promptStep/agentComposerDrop";
 
 type UseExpertEditCanvasTearOutRuntimeArgs = {
   canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
@@ -53,9 +53,10 @@ export function useExpertEditCanvasTearOutRuntime({
       const selectionEnd = shouldUseTextareaSelection
         ? (textarea?.selectionEnd ?? promptTextValue.length)
         : promptTextValue.length;
-      const inserted = insertDroppedPromptTextAtSelection({
+      const inserted = resolveDroppedPromptTextEdit({
         composerText: promptTextValue,
         droppedPromptText: droppedText,
+        editMode: "replace",
         selectionStart,
         selectionEnd,
       });

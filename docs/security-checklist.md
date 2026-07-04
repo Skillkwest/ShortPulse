@@ -98,7 +98,7 @@ Purpose: ensure user isolation and authenticated access across the Next.js app +
 
 - Periodically test RLS with different users to confirm isolation.
 - Manually verify unauthenticated visitors cannot reach gated routes and cannot list/upload media.
-- Verify new-signup flow allocates the hidden baseline account with zero credits, creates or syncs only Stripe customer identity, and grants no paid entitlement before Checkout/webhook projection.
+- Verify new-signup flow allocates the baseline-access account with zero credits, creates or syncs only Stripe customer identity, and grants no paid entitlement before Checkout/webhook projection.
 - Verify Stripe webhook replay does not duplicate credit grants.
 - Verify `/admin` credit adjustments succeed and ledger rows are created with expected attribution fields.
 - Verify runtime SQL audit summary reports `failing_checks = 0` in staging for critical RPCs.

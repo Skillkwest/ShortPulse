@@ -1004,7 +1004,7 @@ describe("VideoPropertiesPanel", () => {
     act(() => {
       registry.resolveTargetAtPoint(promptPoint, promptPayload)?.target.accept(promptPayload);
     });
-    expect(onPromptTextChange).toHaveBeenCalledWith("Existing direction Canvas prompt");
+    expect(onPromptTextChange).toHaveBeenCalledWith("Canvas prompt");
   });
 
   it("registers the Lip Sync audio slot as a Canvas tear-out audio target", async () => {

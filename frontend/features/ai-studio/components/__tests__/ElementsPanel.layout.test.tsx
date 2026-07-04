@@ -422,6 +422,7 @@ describe("ElementsPanel layout", () => {
     expect(planLink).toHaveAttribute("href", "/pricing");
     expect(screen.queryByRole("button", { name: "Elements" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Create" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
     expect(saveElementManagerDraft).not.toHaveBeenCalled();
   });
 

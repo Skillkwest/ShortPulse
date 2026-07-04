@@ -274,7 +274,7 @@ describe("Pricing route behavior", () => {
     expect(screen.getByRole("link", { name: "ShortPulse" })).toHaveAttribute("href", "/dashboard");
   });
 
-  it("hides the hidden baseline tier when a real starter plan exists", () => {
+  it("hides the baseline-access sentinel when a real starter plan exists", () => {
     useSupabaseSessionStateMock.mockReturnValue({
       initialized: true,
       session: null,

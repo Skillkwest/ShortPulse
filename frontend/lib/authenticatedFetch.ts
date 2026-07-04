@@ -4,6 +4,7 @@
  */
 import { readSupabaseAccessToken } from "./supabaseClient";
 import { reportAppError } from "./appErrorReporter";
+import type { ClientErrorSeverity } from "./appErrorReporter";
 import { addBreadcrumb, redactUrlForTelemetry } from "./clientBreadcrumbs";
 
 export type ShortPulseFetchInit = RequestInit & {
@@ -12,6 +13,7 @@ export type ShortPulseFetchInit = RequestInit & {
   shortpulseAuthTimeoutMs?: number;
   shortpulseRetryNetworkOnce?: boolean;
   shortpulseRetryAuth401?: boolean;
+  shortpulseNetworkErrorSeverity?: ClientErrorSeverity;
 };
 
 export const AUTH_SESSION_TIMEOUT_CODE = "AUTH_SESSION_TIMEOUT" as const;
@@ -162,6 +164,7 @@ export const fetchWithAuth = async (
   const skipErrorLogging = Boolean(init?.shortpulseSkipErrorLogging);
   const retryNetworkOnce = Boolean(init?.shortpulseRetryNetworkOnce);
   const retryAuth401 = init?.shortpulseRetryAuth401 !== false;
+  const networkErrorSeverity = init?.shortpulseNetworkErrorSeverity ?? "high";
 
   const headers = asHeaders(init?.headers);
   const callerProvidedAuthorization = headers.has("Authorization");
@@ -179,6 +182,7 @@ export const fetchWithAuth = async (
   delete (requestInit as ShortPulseFetchInit).shortpulseAuthTimeoutMs;
   delete (requestInit as ShortPulseFetchInit).shortpulseRetryNetworkOnce;
   delete (requestInit as ShortPulseFetchInit).shortpulseRetryAuth401;
+  delete (requestInit as ShortPulseFetchInit).shortpulseNetworkErrorSeverity;
   const startedAt = Date.now();
   const method = (requestInit.method ?? "GET").toString().toUpperCase();
   const breadcrumbEndpoint = redactUrlForTelemetry(endpoint);
@@ -265,7 +269,7 @@ export const fetchWithAuth = async (
       void reportAppError({
         source: "client.api_network",
         scope,
-        severity: "high",
+        severity: networkErrorSeverity,
         message: error instanceof Error ? error.message : "Network request failed",
         stack: error instanceof Error ? error.stack : null,
         endpoint,

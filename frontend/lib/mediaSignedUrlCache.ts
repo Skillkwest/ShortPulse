@@ -182,6 +182,8 @@ const signStoragePathsViaApi = async (
       previewProfile: options?.previewProfile,
     }),
     shortpulseLogScope: "app",
+    shortpulseRetryNetworkOnce: true,
+    shortpulseNetworkErrorSeverity: "low",
   }).catch(() => null);
 
   if (!response?.ok) return null;

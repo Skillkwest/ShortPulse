@@ -84,6 +84,8 @@ describe("getSignedMediaUrl", () => {
       "/api/media/sign-batch",
       expect.objectContaining({
         method: "POST",
+        shortpulseRetryNetworkOnce: true,
+        shortpulseNetworkErrorSeverity: "low",
         body: JSON.stringify({
           bucket: "media_library",
           paths: [path],
@@ -289,5 +291,25 @@ describe("getSignedMediaUrlsBatch", () => {
     expect(createSignedUrlMock).not.toHaveBeenCalled();
     expect(ensureSupabaseQueryClientMock).not.toHaveBeenCalled();
     expect(signedByPath.get(path)).toBeNull();
+  });
+
+  it("marks batch signing network failures as recoverable telemetry", async () => {
+    fetchWithAuthMock.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+
+    const signedByPath = await getSignedMediaUrlsBatch({
+      bucket: "media_library",
+      storagePaths: ["user/recoverable-network-path.png"],
+      forceRefresh: true,
+    });
+
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/media/sign-batch",
+      expect.objectContaining({
+        shortpulseRetryNetworkOnce: true,
+        shortpulseNetworkErrorSeverity: "low",
+      })
+    );
+    expect(signedByPath.get("user/recoverable-network-path.png")).toBeNull();
+    expect(ensureSupabaseQueryClientMock).not.toHaveBeenCalled();
   });
 });

@@ -65,6 +65,7 @@ export default function AdminErrorsPage() {
   } = useAdminErrorsEventsController({
     enabled: Boolean(user && adminEnabled),
     liveRefreshEnabled: Boolean(user && adminEnabled),
+    loadEventStreamEnabled: false,
   });
 
   return (
@@ -76,9 +77,9 @@ export default function AdminErrorsPage() {
       adminAccessError={adminAccessError}
       onRetryAccessCheck={refreshAdminAccess}
       documentTitle="ShortPulse · Admin Errors"
-      metaDescription="Admin error triage for monitoring incidents and runtime telemetry."
-      pageTitle="Error triage"
-      pageDescription="Work active incidents and inspect raw runtime events without the support-page noise."
+      metaDescription="Simple admin error handoff queue for Codex triage."
+      pageTitle="Error queue"
+      pageDescription="Copy an error packet, paste it into Codex, and work one item at a time."
       userEmail={user?.email}
       currentPath="/admin/errors"
     >

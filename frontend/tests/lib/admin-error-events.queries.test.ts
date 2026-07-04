@@ -173,6 +173,61 @@ describe("admin error-events query helpers", () => {
     expect(result.filteredCountResult).toEqual({ count: null, error: null });
   });
 
+  it("excludes telemetry sources when the route asks for non-telemetry rows", async () => {
+    const { queries, supabaseAdmin } = createSupabaseAdminQueryRecorder();
+
+    await fetchErrorEventsDataset({
+      supabaseAdmin: supabaseAdmin as never,
+      listFilters: {
+        scope: "all",
+        severity: "all",
+        source: "all",
+        search: "",
+        synthetic: "exclude",
+        signal: "all",
+        incident: "all",
+        excludeTelemetrySources: true,
+      },
+      listRangeStart: 0,
+      listRangeEnd: 49,
+      since15mIso: "2026-07-02T00:00:00.000Z",
+      sinceHourIso: "2026-07-01T23:00:00.000Z",
+      since24hIso: "2026-07-01T00:00:00.000Z",
+    });
+
+    const listQuery = queries.find((query) => query.table === "app_error_events");
+    expect(listQuery?.operations).toContain("not:source:like:telemetry.%");
+  });
+
+  it("keeps telemetry visible for explicit signal filters", async () => {
+    const { queries, supabaseAdmin } = createSupabaseAdminQueryRecorder();
+
+    await fetchErrorEventsDataset({
+      supabaseAdmin: supabaseAdmin as never,
+      listFilters: {
+        scope: "all",
+        severity: "all",
+        source: "all",
+        search: "",
+        synthetic: "exclude",
+        signal: "project_workspace_repair_pending",
+        incident: "all",
+        excludeTelemetrySources: false,
+      },
+      listRangeStart: 0,
+      listRangeEnd: 49,
+      since15mIso: "2026-07-02T00:00:00.000Z",
+      sinceHourIso: "2026-07-01T23:00:00.000Z",
+      since24hIso: "2026-07-01T00:00:00.000Z",
+    });
+
+    const listQuery = queries.find((query) => query.table === "app_error_events");
+    expect(listQuery?.operations).not.toContain("not:source:like:telemetry.%");
+    expect(listQuery?.operations).toContain(
+      "eq:source:telemetry.ai_studio.project_workspace.repair_pending"
+    );
+  });
+
   it("keeps text search off uuid columns", async () => {
     const { queries, supabaseAdmin } = createSupabaseAdminQueryRecorder();
 

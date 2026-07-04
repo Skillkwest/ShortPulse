@@ -17,7 +17,7 @@ const ROUTINE_NON_ACTIONABLE_TELEMETRY_SOURCE_PREFIXES = [
   "telemetry.ai_studio.stability.",
 ] as const;
 
-const isRoutineNonActionableTelemetrySource = (source: string): boolean => {
+export const isRoutineNonActionableTelemetrySource = (source: string): boolean => {
   return ROUTINE_NON_ACTIONABLE_TELEMETRY_SOURCE_PREFIXES.some((prefix) =>
     source.startsWith(prefix)
   );

@@ -962,45 +962,7 @@ export const createFalStatusHandler = ({
         });
       }
 
-      const contentPolicyMessage = readProviderContentPolicyMessage({
-        provider: providerKey,
-        payload: statusData.json,
-      });
-      if (contentPolicyMessage) {
-        const contentPolicyStatus = readPayloadLifecycleStatus(statusData.json) ?? "failed";
-        const explicitContentFailure = normalizeExplicitContentFailure({
-          message: contentPolicyMessage,
-          detail: contentPolicyMessage,
-          force: true,
-        });
-        return await settleCanonicalFailedPayload({
-          providerState: contentPolicyStatus,
-          fallbackMessage: explicitContentFailure?.errorMessage ?? contentPolicyMessage,
-          fallbackDetail: explicitContentFailure?.errorDetail ?? contentPolicyMessage,
-          failureReasonCode: "content_policy_block",
-        });
-      }
-
       const normalizedStatus = readPayloadLifecycleStatus(statusData.json);
-      if (
-        normalizedStatus &&
-        isProviderFailedStatus({
-          provider: providerKey,
-          status: normalizedStatus,
-        })
-      ) {
-        const providerFailureMessage = readCustomerFacingFailureMessage(
-          statusData.json,
-          "Generation failed"
-        );
-        return await settleCanonicalFailedPayload({
-          providerState: normalizedStatus,
-          fallbackMessage: providerFailureMessage,
-          fallbackDetail: statusData.json,
-          failureReasonCode: "provider_error",
-        });
-      }
-
       if (!statusResp.ok) {
         if (
           isProviderRetryableUpstreamResponse({
@@ -1009,6 +971,14 @@ export const createFalStatusHandler = ({
             payload: statusData.json,
           })
         ) {
+          const retryableProviderState =
+            normalizedStatus &&
+            isProviderFailedStatus({
+              provider: providerKey,
+              status: normalizedStatus,
+            })
+              ? "running"
+              : (normalizedStatus ?? "running");
           if (
             payloadHasMedia(statusData.json) &&
             (providerKey !== "kie" ||
@@ -1033,13 +1003,54 @@ export const createFalStatusHandler = ({
                 lifecycle: buildShortPulseLifecycleHint({
                   taskState: "running",
                   isTerminal: false,
-                  providerState: normalizedStatus ?? "running",
+                  providerState: retryableProviderState,
                   recoveryPending: true,
                 }),
               })
             ),
           });
         }
+      }
+
+      const contentPolicyMessage = readProviderContentPolicyMessage({
+        provider: providerKey,
+        payload: statusData.json,
+      });
+      if (contentPolicyMessage) {
+        const contentPolicyStatus = readPayloadLifecycleStatus(statusData.json) ?? "failed";
+        const explicitContentFailure = normalizeExplicitContentFailure({
+          message: contentPolicyMessage,
+          detail: contentPolicyMessage,
+          force: true,
+        });
+        return await settleCanonicalFailedPayload({
+          providerState: contentPolicyStatus,
+          fallbackMessage: explicitContentFailure?.errorMessage ?? contentPolicyMessage,
+          fallbackDetail: explicitContentFailure?.errorDetail ?? contentPolicyMessage,
+          failureReasonCode: "content_policy_block",
+        });
+      }
+
+      if (
+        normalizedStatus &&
+        isProviderFailedStatus({
+          provider: providerKey,
+          status: normalizedStatus,
+        })
+      ) {
+        const providerFailureMessage = readCustomerFacingFailureMessage(
+          statusData.json,
+          "Generation failed"
+        );
+        return await settleCanonicalFailedPayload({
+          providerState: normalizedStatus,
+          fallbackMessage: providerFailureMessage,
+          fallbackDetail: statusData.json,
+          failureReasonCode: "provider_error",
+        });
+      }
+
+      if (!statusResp.ok) {
         return respondErrorWithLogging({
           requestId,
           error: readCustomerFacingFailureMessage(
@@ -1207,24 +1218,6 @@ export const createFalStatusHandler = ({
         });
       }
 
-      const resultPolicyMessage = readProviderContentPolicyMessage({
-        provider: providerKey,
-        payload: resultData.json,
-      });
-      if (resultPolicyMessage) {
-        const explicitContentFailure = normalizeExplicitContentFailure({
-          message: resultPolicyMessage,
-          detail: resultPolicyMessage,
-          force: true,
-        });
-        return await settleCanonicalFailedPayload({
-          providerState: readPayloadLifecycleStatus(resultData.json) ?? normalizedStatus,
-          fallbackMessage: explicitContentFailure?.errorMessage ?? resultPolicyMessage,
-          fallbackDetail: explicitContentFailure?.errorDetail ?? resultPolicyMessage,
-          failureReasonCode: "content_policy_block",
-        });
-      }
-
       if (!resultResp.ok) {
         if (
           isProviderRetryableUpstreamResponse({
@@ -1256,6 +1249,27 @@ export const createFalStatusHandler = ({
             ),
           });
         }
+      }
+
+      const resultPolicyMessage = readProviderContentPolicyMessage({
+        provider: providerKey,
+        payload: resultData.json,
+      });
+      if (resultPolicyMessage) {
+        const explicitContentFailure = normalizeExplicitContentFailure({
+          message: resultPolicyMessage,
+          detail: resultPolicyMessage,
+          force: true,
+        });
+        return await settleCanonicalFailedPayload({
+          providerState: readPayloadLifecycleStatus(resultData.json) ?? normalizedStatus,
+          fallbackMessage: explicitContentFailure?.errorMessage ?? resultPolicyMessage,
+          fallbackDetail: explicitContentFailure?.errorDetail ?? resultPolicyMessage,
+          failureReasonCode: "content_policy_block",
+        });
+      }
+
+      if (!resultResp.ok) {
         return await settleCanonicalFailedPayload({
           providerState: readPayloadLifecycleStatus(resultData.json) ?? normalizedStatus,
           fallbackMessage: readCustomerFacingFailureMessage(resultData.json, "Generation failed"),

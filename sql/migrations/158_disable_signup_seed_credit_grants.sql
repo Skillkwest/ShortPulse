@@ -1,4 +1,4 @@
--- Disable automatic signup credit grants for the hidden baseline fallback plan.
+-- Disable automatic signup credit grants for baseline access.
 -- New users may get a baseline billing profile for account bootstrapping, but
 -- paid credits must come from Stripe-backed subscription or top-up flows.
 
@@ -71,7 +71,7 @@ begin
         stripe_price_id,
         is_active
     )
-    values (desired_plan, 'Baseline fallback', 0, 0, null, true)
+    values (desired_plan, 'Baseline access', 0, 0, null, true)
     on conflict (id) do update
       set display_name = excluded.display_name,
           monthly_price_cents = excluded.monthly_price_cents,

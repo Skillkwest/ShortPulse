@@ -208,7 +208,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       );
       if (profileUpsertError) {
         throw new Error(
-          profileUpsertError.message || "Failed to return the account to the baseline plan state."
+          profileUpsertError.message || "Failed to return the account to baseline access."
         );
       }
 

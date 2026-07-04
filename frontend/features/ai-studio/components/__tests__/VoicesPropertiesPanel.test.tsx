@@ -398,6 +398,7 @@ describe("VoicesPropertiesPanel", () => {
     render(<VoicesPropertiesPanel canvasTearOutTargetRegistry={registry} />);
 
     const scriptField = screen.getByRole("textbox", { name: "Voice script" });
+    fireEvent.change(scriptField, { target: { value: "Existing voice script." } });
     mockElementRect(scriptField, {
       bottom: 100,
       height: 100,

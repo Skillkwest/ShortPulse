@@ -81,15 +81,19 @@ const billingPlans: BillingPlanRecord[] = [
 const renderSubscriptionSection = ({
   activePlanId = "starter",
   currentSubscriptionBillingInterval,
+  currentSubscriptionCreditsCents = activePlanId === "free" ? 0 : 350,
   currentSubscriptionMaxConcurrentGenerations = 1,
   currentSubscriptionPriceCents,
+  currentSubscriptionStorageLimitBytes = activePlanId === "free" ? 0 : GIB,
   onRequestPlanChange = vi.fn<(planId: string, billingInterval: BillingInterval) => void>(),
   showLegacyPlanChangeNotice = false,
 }: {
   activePlanId?: string;
   currentSubscriptionBillingInterval: BillingInterval;
+  currentSubscriptionCreditsCents?: number;
   currentSubscriptionMaxConcurrentGenerations?: number;
   currentSubscriptionPriceCents: number;
+  currentSubscriptionStorageLimitBytes?: number;
   onRequestPlanChange?: (planId: string, billingInterval: BillingInterval) => void;
   showLegacyPlanChangeNotice?: boolean;
 }) => {
@@ -98,13 +102,17 @@ const renderSubscriptionSection = ({
       activePlan={buildPlanView({ planId: activePlanId, plans: billingPlans })}
       activePlanRank={billingPlans.find((plan) => plan.id === activePlanId)?.sort_order ?? 0}
       activeAddonStorageBytes={0}
-      currentSubscriptionCreditsCents={350}
+      currentSubscriptionCreditsCents={currentSubscriptionCreditsCents}
       currentSubscriptionBillingInterval={currentSubscriptionBillingInterval}
       currentSubscriptionPriceCents={currentSubscriptionPriceCents}
-      currentSubscriptionStorageLimitBytes={GIB}
+      currentSubscriptionStorageLimitBytes={currentSubscriptionStorageLimitBytes}
       currentSubscriptionMaxConcurrentGenerations={currentSubscriptionMaxConcurrentGenerations}
       recurringPaymentLabel={
-        currentSubscriptionBillingInterval === "year" ? "$180.00 / year" : "$15.00 / month"
+        currentSubscriptionPriceCents === 0
+          ? "No recurring payment"
+          : currentSubscriptionBillingInterval === "year"
+            ? "$180.00 / year"
+            : "$15.00 / month"
       }
       subscriptionRenewalText="July 15, 2026"
       billingPlans={billingPlans}
@@ -122,6 +130,25 @@ const renderSubscriptionSection = ({
 };
 
 describe("ProfileSubscriptionSection", () => {
+  it("replaces baseline plan metrics and available plans with the shared View plans CTA", () => {
+    renderSubscriptionSection({
+      activePlanId: "free",
+      currentSubscriptionBillingInterval: "month",
+      currentSubscriptionPriceCents: 0,
+      currentSubscriptionMaxConcurrentGenerations: 0,
+    });
+    const hero = screen.getByText("Current plan").closest("article");
+
+    expect(within(hero as HTMLElement).getByText("Baseline access")).toBeInTheDocument();
+    expect(
+      within(hero as HTMLElement).getByRole("link", { name: "View subscription plans" })
+    ).toHaveAttribute("href", "/pricing");
+    expect(within(hero as HTMLElement).getByText("View plans")).toBeInTheDocument();
+    expect(within(hero as HTMLElement).queryByText("Monthly credits")).not.toBeInTheDocument();
+    expect(screen.queryByText("Available plans")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Monthly" })).not.toBeInTheDocument();
+  });
+
   it("offers annual billing on the current monthly plan when annual is selected", () => {
     const onRequestPlanChange = vi.fn<(planId: string, billingInterval: BillingInterval) => void>();
     renderSubscriptionSection({

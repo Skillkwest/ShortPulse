@@ -49,6 +49,7 @@ type PromptTextAreaDropOptions = {
 type CanvasPromptTextDropOptions = {
   composerText: string;
   droppedPromptText: string;
+  editMode?: "replace" | "insert";
   onChange: (value: string) => void;
   textarea: HTMLTextAreaElement | null;
 };
@@ -74,7 +75,7 @@ export const canAcceptPromptTextDrop = (transfer: DataTransfer): boolean => {
 export const applyPromptTextEdit = ({
   composerText,
   droppedPromptText,
-  editMode = "insert",
+  editMode = "replace",
   onChange,
   selectionEnd,
   selectionStart,
@@ -132,6 +133,7 @@ export const handlePromptTextAreaDrop = ({
 export const insertCanvasPromptTextIntoTextarea = ({
   composerText,
   droppedPromptText,
+  editMode = "replace",
   onChange,
   textarea,
 }: CanvasPromptTextDropOptions): boolean => {
@@ -140,6 +142,7 @@ export const insertCanvasPromptTextIntoTextarea = ({
   return applyPromptTextEdit({
     composerText,
     droppedPromptText,
+    editMode,
     onChange,
     selectionStart: shouldUseTextareaSelection
       ? (textarea?.selectionStart ?? composerText.length)

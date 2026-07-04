@@ -76,7 +76,7 @@ insert into public.billing_plans (
     is_active
 )
 values
-    ('free', 'Baseline fallback', 0, 0, 1::bigint * 1024 * 1024 * 1024, null, null, 0, true),
+    ('free', 'Baseline access', 0, 0, 1::bigint * 1024 * 1024 * 1024, null, null, 0, true),
     ('starter', 'Starter', 1500, 350, 1::bigint * 1024 * 1024 * 1024, null, null, 10, true),
     ('media', 'Media', 4900, 1200, 25::bigint * 1024 * 1024 * 1024, null, null, 20, true),
     ('studio', 'Studio', 12900, 3200, 100::bigint * 1024 * 1024 * 1024, null, null, 30, true),

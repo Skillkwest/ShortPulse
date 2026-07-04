@@ -2318,6 +2318,77 @@ describe("createFalStatusHandler", () => {
         userId: "user-1",
         requestId: "req-result-terminal-failure",
         routeLabel: "Fal Nano Banana Pro",
+        failureReasonCode: "provider_error",
+      })
+    );
+  });
+
+  it("settles non-retryable content-policy result responses as content blocks", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            status: "COMPLETED",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            detail: [
+              {
+                type: "content_policy_violation",
+                msg: "Blocked by policy.",
+              },
+            ],
+          }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          }
+        )
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      queueBaseUrl: "https://queue.fal.run/fal-ai/nano-banana-pro/requests",
+      routeLabel: "Fal Nano Banana Pro",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-result-content-policy" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(settleDirectGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestId: "req-result-content-policy",
+        providerState: "completed",
+        errorMessage: "This request was blocked for explicit or unsafe content.",
+        errorDetail:
+          "This request was blocked for explicit or unsafe content. Try revising the prompt or references.",
+        failureReasonCode: "content_policy_block",
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request_id: "req-result-content-policy",
+        status: "error",
+        error: "This request was blocked for explicit or unsafe content.",
+        shortpulseLifecycle: expect.objectContaining({
+          taskState: "fail",
+          isTerminal: true,
+          errorMessage: "This request was blocked for explicit or unsafe content.",
+        }),
       })
     );
   });
@@ -2449,6 +2520,119 @@ describe("createFalStatusHandler", () => {
       expect.objectContaining({
         source: "telemetry.fal.status.transient.non_json_status",
         statusCode: 520,
+      })
+    );
+  });
+
+  it("keeps retryable Kie JSON timeout status responses nonterminal", async () => {
+    process.env.SHORTPULSE_KIE_API_KEY = "test-kie-key";
+    process.env.SHORTPULSE_KIE_TRUSTED_HOSTS = "kie.ai";
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          status: "error",
+          error: {
+            code: "timed_out",
+            message: "The upstream API service timed out and no results were returned.",
+          },
+        }),
+        {
+          status: 504,
+          headers: { "Content-Type": "application/json" },
+        }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      provider: "kie",
+      modelId: "kie-ai/seedance-2-fast",
+      queueBaseUrl: "https://api.kie.ai/api/v1/jobs/recordInfo?taskId={requestId}",
+      routeLabel: "Kie Seedance 2 Fast",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-kie-seedance-timeout-json" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "error",
+        shortpulseLifecycle: expect.objectContaining({
+          taskState: "running",
+          isTerminal: false,
+          providerState: "running",
+          recoveryPending: true,
+        }),
+      })
+    );
+    expect(settleDirectGenerationFailureMock).not.toHaveBeenCalled();
+  });
+
+  it("settles non-retryable content-policy status responses as content blocks", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          detail: [
+            {
+              type: "content_policy_violation",
+              msg: "Blocked by policy.",
+            },
+          ],
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      queueBaseUrl: "https://queue.fal.run/fal-ai/nano-banana-pro/requests",
+      routeLabel: "Fal Nano Banana Pro",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-content-policy-status" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(settleDirectGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestId: "req-content-policy-status",
+        providerState: "failed",
+        errorMessage: "This request was blocked for explicit or unsafe content.",
+        errorDetail:
+          "This request was blocked for explicit or unsafe content. Try revising the prompt or references.",
+        failureReasonCode: "content_policy_block",
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request_id: "req-content-policy-status",
+        status: "error",
+        error: "This request was blocked for explicit or unsafe content.",
+        shortpulseLifecycle: expect.objectContaining({
+          taskState: "fail",
+          isTerminal: true,
+          errorMessage: "This request was blocked for explicit or unsafe content.",
+        }),
       })
     );
   });

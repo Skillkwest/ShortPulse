@@ -4,7 +4,6 @@
 import React from "react";
 import { extractPromptDropText } from "../../utils/dragDrop";
 import {
-  insertDroppedPromptTextAtSelection,
   resolveDroppedPromptTextEdit,
   resolveDroppedPromptTextEditMode,
 } from "../promptStep/agentComposerDrop";
@@ -361,9 +360,10 @@ export function useVideoPromptTokenController({
       const selectionEnd = shouldUseTextareaSelection
         ? (textarea?.selectionEnd ?? primaryPromptValue.length)
         : primaryPromptValue.length;
-      const insertedPrompt = insertDroppedPromptTextAtSelection({
+      const insertedPrompt = resolveDroppedPromptTextEdit({
         composerText: primaryPromptValue,
         droppedPromptText: droppedText,
+        editMode: "replace",
         selectionStart,
         selectionEnd,
       });

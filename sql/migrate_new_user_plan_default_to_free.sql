@@ -1,4 +1,4 @@
--- Enforce the hidden zero-credit baseline as the only default plan for new user bootstrap.
+-- Enforce the zero-credit baseline-access sentinel for new user bootstrap.
 -- Safe to run multiple times.
 
 create or replace function handle_new_user_billing_setup()
@@ -20,7 +20,7 @@ declare
     exception_detail text;
     exception_hint text;
 begin
-    -- Never trust client-provided metadata for initial plan assignment.
+    -- Never trust client-provided metadata for initial access assignment.
     desired_plan := 'free';
 
     select exists (
@@ -55,9 +55,9 @@ begin
         return new;
     end if;
 
-    -- Self-heal hidden baseline plan metadata if `free` was accidentally removed.
+    -- Self-heal baseline-access sentinel metadata if `free` was accidentally removed.
     insert into billing_plans (id, display_name, monthly_price_cents, monthly_credits_cents, stripe_price_id, is_active)
-    values (desired_plan, 'Baseline fallback', 0, 0, null, true)
+    values (desired_plan, 'Baseline access', 0, 0, null, true)
     on conflict (id) do update
       set display_name = excluded.display_name,
           monthly_price_cents = excluded.monthly_price_cents,

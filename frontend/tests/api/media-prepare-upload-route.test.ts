@@ -4,6 +4,7 @@ import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
+const assertPaidMediaLibraryAccessMock = vi.fn();
 const prepareMediaUploadForUserMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
@@ -13,6 +14,16 @@ vi.mock("../../lib/server/api/auth", () => ({
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
 }));
+
+vi.mock("../../lib/server/api/mediaLibraryPaidAccess", async () => {
+  const actual = await vi.importActual<
+    typeof import("../../lib/server/api/mediaLibraryPaidAccess")
+  >("../../lib/server/api/mediaLibraryPaidAccess");
+  return {
+    ...actual,
+    assertPaidMediaLibraryAccess: (...args: unknown[]) => assertPaidMediaLibraryAccessMock(...args),
+  };
+});
 
 vi.mock("../../lib/server/mediaUploadService", async () => {
   const actual = await vi.importActual<typeof import("../../lib/server/mediaUploadService")>(
@@ -35,6 +46,7 @@ describe("POST /api/media/prepare-upload", () => {
     vi.clearAllMocks();
     resetApiRateLimitForTests();
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
+    assertPaidMediaLibraryAccessMock.mockResolvedValue(undefined);
     prepareMediaUploadForUserMock.mockResolvedValue({
       path: "user-1/upload-staging/uploaded_images/image.webp",
       token: "token-1",
@@ -154,6 +166,30 @@ describe("POST /api/media/prepare-upload", () => {
     expect(res.json).toHaveBeenCalledWith({
       error: "Media agreement acceptance is required.",
       details: "Accept the current media agreement before uploading or staging media.",
+    });
+  });
+
+  it("rejects upload preparation before validation when paid media access is missing", async () => {
+    const { MediaLibraryPaidAccessError } =
+      await import("../../lib/server/api/mediaLibraryPaidAccess");
+    assertPaidMediaLibraryAccessMock.mockRejectedValueOnce(new MediaLibraryPaidAccessError());
+    const req = {
+      method: "POST",
+      body: {
+        destinationTab: "uploaded_images",
+        sourceMimeType: "image/webp",
+        sourceName: "image.webp",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(assertPaidMediaLibraryAccessMock).toHaveBeenCalledWith("user-1");
+    expect(prepareMediaUploadForUserMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(402);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Choose a plan to add media to your Reference Grid and Media Library.",
     });
   });
 

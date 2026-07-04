@@ -297,6 +297,7 @@ describe("CharacterPanelWorkspace", () => {
     expect(planLink).toHaveAttribute("href", "/pricing");
     expect(screen.queryByRole("button", { name: "Characters" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Create" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
     expect(createCharacterDraftMock).not.toHaveBeenCalled();
   });
 

@@ -84,6 +84,28 @@ const createSupabaseAdminMock = (queues: Record<string, QueryResult[]>) => ({
   },
 });
 
+const createEmptyEventsDataset = () => ({
+  eventsResult: { data: [], error: null },
+  filteredCountResult: { count: null, error: null },
+  filteredCountEstimated: true,
+  last15mCountResult: { count: 0, error: null },
+  high15mCountResult: { count: 0, error: null },
+  generation15mCountResult: { count: 0, error: null },
+  providerRunningTimeout15mCountResult: { count: 0, error: null },
+  lastHourCountResult: { count: 0, error: null },
+  last24hCountResult: { count: 0, error: null },
+  app24hCountResult: { count: 0, error: null },
+  generation24hCountResult: { count: 0, error: null },
+  high24hCountResult: { count: 0, error: null },
+  characterModeReferenceRefreshEmptyLastHourCountResult: { count: 0, error: null },
+  characterModeReferenceRefreshEmptyLast24hCountResult: { count: 0, error: null },
+  characterModeBundleUnavailableFallbackLastHourCountResult: { count: 0, error: null },
+  characterModeBundleUnavailableFallbackLast24hCountResult: { count: 0, error: null },
+  projectWorkspaceRepairPendingLastHourCountResult: { count: 0, error: null },
+  projectWorkspaceRepairPendingLast24hCountResult: { count: 0, error: null },
+  admissionDeniedTelemetryResult: { data: null, error: null },
+});
+
 describe("GET /api/admin/error-events", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -441,6 +463,29 @@ describe("GET /api/admin/error-events", () => {
       degraded: false,
       reason: null,
     });
+  });
+
+  it("excludes telemetry rows from default event stream requests", async () => {
+    getSupabaseAdminMock.mockReturnValue(createSupabaseAdminMock({}));
+    const datasetSpy = vi
+      .spyOn(errorEventQueries, "fetchErrorEventsDataset")
+      .mockResolvedValue(createEmptyEventsDataset());
+
+    const req = { method: "GET", query: { page: "1", limit: "50", synthetic: "exclude" } };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(datasetSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        listFilters: expect.objectContaining({
+          excludeTelemetrySources: true,
+          signal: "all",
+          source: "",
+        }),
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 
   it("returns actionable events by combining open incidents and unlinked rows", async () => {

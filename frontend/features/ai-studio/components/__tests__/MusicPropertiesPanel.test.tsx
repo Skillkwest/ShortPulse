@@ -278,6 +278,8 @@ describe("MusicPropertiesPanel", () => {
 
     const promptField = screen.getByRole("textbox", { name: "Music prompt" });
     const lyricsField = screen.getByRole("textbox", { name: "Song lyrics" });
+    fireEvent.change(promptField, { target: { value: "Existing music prompt." } });
+    fireEvent.change(lyricsField, { target: { value: "Existing lyric draft." } });
     mockElementRect(promptField, {
       bottom: 100,
       height: 100,

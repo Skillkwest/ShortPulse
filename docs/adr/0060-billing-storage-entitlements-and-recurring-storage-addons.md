@@ -45,7 +45,7 @@ There was also a product-policy ambiguity about what should count toward custome
 
 ## Current Product Ladder
 
-- `free`: `0 GB` baseline fallback, not customer-facing
+- `free`: `0 GB` baseline-access sentinel, not customer-facing
 - `starter`: `5 GB`
 - `media`: `25 GB`
 - `studio`: `75 GB`

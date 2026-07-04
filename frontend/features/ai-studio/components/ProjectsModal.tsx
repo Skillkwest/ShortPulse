@@ -3,7 +3,7 @@
  * Lists saved projects and routes selection back through the page-level project identity boundary.
  */
 import React from "react";
-import { Sparkle, Trash, X } from "phosphor-react";
+import { FolderSimple, Sparkle, Trash, X } from "phosphor-react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { normalizeErrorText } from "../../../lib/errorText";
 import { AppMessage } from "../../../components/AppMessage";
@@ -573,7 +573,12 @@ export function ProjectsModal({
                       disabled={isInteractionDisabled}
                     >
                       {isSelectedProject && !isPending ? (
-                        <span className="ai-projects-modal-card-open-label">Open</span>
+                        <span className="ai-projects-modal-card-open-content">
+                          <span className="ai-projects-modal-card-open-icon" aria-hidden="true">
+                            <FolderSimple size={30} weight="duotone" />
+                          </span>
+                          <span className="ai-projects-modal-card-open-label">Open</span>
+                        </span>
                       ) : (
                         <>
                           <div className="ai-projects-modal-card-topline">

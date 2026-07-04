@@ -30,7 +30,7 @@ describe("buildPlanView", () => {
     expect(buildPlanView({ planId: "studio", plans }).seatsLabel).toBe("1 workspace seat");
   });
 
-  it("presents the hidden baseline tier without Starter-facing customer copy", () => {
+  it("presents the baseline-access sentinel without Starter-facing customer copy", () => {
     expect(
       buildPlanView({
         planId: "free",
@@ -187,7 +187,7 @@ describe("buildPlanView", () => {
     expect(studioAnnual.savingsAmountCents).toBe(36000);
   });
 
-  it("hides the hidden baseline tier from public plan selections when starter exists", () => {
+  it("hides the baseline-access sentinel from public plan selections when starter exists", () => {
     expect(
       filterPublicSubscriptionPlans([
         {

@@ -262,6 +262,9 @@ describe("SoundEffectsPropertiesPanel", () => {
 
     render(<SoundEffectsPropertiesPanel canvasTearOutTargetRegistry={registry} />);
 
+    const promptField = screen.getByRole("textbox", { name: "Sound effect prompt" });
+    fireEvent.change(promptField, { target: { value: "Existing SFX draft." } });
+
     await waitFor(() => {
       expect(
         registry.resolveTargetAtPoint(
@@ -280,9 +283,7 @@ describe("SoundEffectsPropertiesPanel", () => {
       target?.target.accept({ kind: "text", text: "Canvas tear-out boom." });
     });
 
-    expect(screen.getByRole("textbox", { name: "Sound effect prompt" })).toHaveValue(
-      "Canvas tear-out boom."
-    );
+    expect(promptField).toHaveValue("Canvas tear-out boom.");
     rectSpy.mockRestore();
   });
 

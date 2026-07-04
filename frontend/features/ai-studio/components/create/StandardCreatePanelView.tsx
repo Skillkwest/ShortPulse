@@ -6,9 +6,9 @@ import { AspectDropdown } from "../AspectDropdown";
 import { ResolutionDropdown } from "../ResolutionDropdown";
 import { PromptStep } from "../PromptStep";
 import {
-  insertDroppedPromptTextAtSelection,
   resolveAgentComposerPanelDropKind,
   resolveAgentComposerTextDropInsertion,
+  resolveDroppedPromptTextEdit,
   resolveDroppedPromptTextEditMode,
   useAgentComposerPromptDropModifierTracking,
 } from "../promptStep/agentComposerDrop";
@@ -150,9 +150,10 @@ export function StandardCreatePanelView({
         useTextareaSelection && textarea ? textarea.selectionStart : composerText.length;
       const selectionEnd =
         useTextareaSelection && textarea ? textarea.selectionEnd : composerText.length;
-      const insertedPrompt = insertDroppedPromptTextAtSelection({
+      const insertedPrompt = resolveDroppedPromptTextEdit({
         composerText,
         droppedPromptText: text,
+        editMode: "replace",
         selectionStart,
         selectionEnd,
       });

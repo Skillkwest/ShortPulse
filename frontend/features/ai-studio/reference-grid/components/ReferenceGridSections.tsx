@@ -253,9 +253,10 @@ export function ReferenceGridSections({
     railCanvasSplit.topSectionHeightPx <=
       CANVAS_COLLAPSE_TOP_HEIGHT_PX + CANVAS_HIDE_CONTENT_BUFFER_PX;
   const isCanvasInventoryExpanded = showCanvasInventoryDivider && railCanvasSplit.isAllRefsExpanded;
-  const isCanvasDropSurfaceAvailable =
+  const shouldRenderCanvasBody =
     !showCanvasInventoryDivider ||
     (!isCanvasInventoryExpanded && !isCanvasNearCollapsedForInventory);
+  const isCanvasDropSurfaceAvailable = shouldRenderCanvasBody;
   const hideReferenceGridUploadActionsBase =
     allRefsInventoryExpanded || isReferenceGridCollapsedForStyles;
   const hideReferenceGridUploadActions = hideReferenceGridUploadActionsBase;
@@ -293,9 +294,11 @@ export function ReferenceGridSections({
                 ) : null}
                 <CanvasCameraZoomBadge railCanvasProps={railCanvasProps} />
               </div>
-              <div className="reference-rail-canvas-body">
-                <CanvasPropertiesPanel {...railCanvasProps} />
-              </div>
+              {shouldRenderCanvasBody ? (
+                <div className="reference-rail-canvas-body">
+                  <CanvasPropertiesPanel {...railCanvasProps} />
+                </div>
+              ) : null}
             </div>
             {showCanvasInventoryDivider ? (
               <div

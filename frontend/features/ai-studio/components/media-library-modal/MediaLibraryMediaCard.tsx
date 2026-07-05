@@ -472,7 +472,6 @@ export function MediaLibraryVisualMediaCard({
   cardPreviewUrl,
   hoverVideoUrl = null,
   posterPreviewUrl = null,
-  adaptivePressureLevel,
   fetchPriorityAttr,
   getMediaCardRef,
   onSelectMediaFile,
@@ -508,16 +507,20 @@ export function MediaLibraryVisualMediaCard({
 }: MediaLibraryVisualMediaCardProps) {
   const isVideo = resolveMediaRowKind(file) === "video";
   const posterUrl = posterPreviewUrl;
-  const hasPosterBackedVideoPreview = Boolean(isVideo && hoverVideoUrl && posterUrl);
-  const shouldRenderFallbackVideo = Boolean(isVideo && hoverVideoUrl && !posterUrl);
+  const hasManagedVideoBudget = Boolean(getVideoNodeRef);
+  const mixedFeedVideoSrc = hasManagedVideoBudget ? managedVideoSrc : hoverVideoUrl;
+  const hasMixedFeedVideoCandidate = Boolean(isVideo && hoverVideoUrl);
+  const hasPosterBackedVideoPreview = Boolean(hasMixedFeedVideoCandidate && posterUrl);
+  const shouldRenderFallbackVideo = Boolean(hasMixedFeedVideoCandidate && !posterUrl);
   const videoNodeRef = React.useRef<HTMLVideoElement | null>(null);
+  const managedVideoNodeRef = getVideoNodeRef?.(file.id);
   const hoverAutoplayStartedRef = React.useRef(false);
   const signedUrlLoadedRef = React.useRef(false);
   const mediaPaintedRef = React.useRef(false);
   const [isHoveringVideo, setIsHoveringVideo] = React.useState(false);
   const [isHoverVideoVisible, setIsHoverVideoVisible] = React.useState(false);
-  const shouldRenderHoverVideo = Boolean(hasPosterBackedVideoPreview && hoverVideoUrl);
-  const fallbackVideoPreload = adaptivePressureLevel > 0 ? "metadata" : "auto";
+  const shouldRenderHoverVideo = Boolean(hasPosterBackedVideoPreview);
+  const fallbackVideoPreload = "metadata";
   const durationMs = resolveMediaMetadataDurationMs(file.metadata, { fileType: file.file_type });
   const durationMediaUrl = resolveMediaLibraryVideoDurationProbeUrl(file);
   const shouldSetAriaPressed =
@@ -539,6 +542,14 @@ export function MediaLibraryVisualMediaCard({
       onMediaPaint(assetKind);
     },
     [onMediaPaint]
+  );
+
+  const setMixedFeedVideoNodeRef = React.useCallback(
+    (node: HTMLVideoElement | null) => {
+      videoNodeRef.current = node;
+      managedVideoNodeRef?.(node);
+    },
+    [managedVideoNodeRef]
   );
 
   const renderVideoDurationBadge = () =>
@@ -586,7 +597,7 @@ export function MediaLibraryVisualMediaCard({
 
   const handleMixedPointerEnter = () => {
     if (variant !== "mixed-feed") return;
-    if (!hoverVideoUrl) return;
+    if (!mixedFeedVideoSrc || (hasManagedVideoBudget && !autoPlayEnabled)) return;
     setIsHoveringVideo(true);
     const node = videoNodeRef.current;
     if (!node || !node.paused || node.ended) {
@@ -612,23 +623,21 @@ export function MediaLibraryVisualMediaCard({
   };
 
   React.useEffect(() => {
-    if (hoverVideoUrl) return;
+    if (mixedFeedVideoSrc) return;
     setIsHoveringVideo(false);
     setIsHoverVideoVisible(false);
     if (!hoverAutoplayStartedRef.current) return;
     hoverAutoplayStartedRef.current = false;
     videoNodeRef.current?.pause();
-  }, [hoverVideoUrl]);
+  }, [mixedFeedVideoSrc]);
 
   const renderMixedMedia = () => (
     <div className="media-library-panel-media-frame" style={{ aspectRatio: previewAspectRatio }}>
       {shouldRenderFallbackVideo ? (
         <video
           className="media-thumb"
-          ref={(node) => {
-            videoNodeRef.current = node;
-          }}
-          src={hoverVideoUrl ?? undefined}
+          ref={setMixedFeedVideoNodeRef}
+          src={mixedFeedVideoSrc ?? undefined}
           muted
           playsInline
           loop
@@ -643,7 +652,7 @@ export function MediaLibraryVisualMediaCard({
           onLoadedData={() => {
             markPainted("video");
           }}
-          onError={() => onMediaPreviewError(file, hoverVideoUrl)}
+          onError={() => onMediaPreviewError(file, mixedFeedVideoSrc ?? hoverVideoUrl)}
         />
       ) : null}
       {shouldRenderHoverVideo ? (
@@ -651,10 +660,8 @@ export function MediaLibraryVisualMediaCard({
           className={`media-thumb media-library-panel-hover-video${
             isHoveringVideo || isHoverVideoVisible ? " is-visible" : ""
           }`}
-          ref={(node) => {
-            videoNodeRef.current = node;
-          }}
-          src={hoverVideoUrl ?? undefined}
+          ref={setMixedFeedVideoNodeRef}
+          src={mixedFeedVideoSrc ?? undefined}
           muted
           playsInline
           loop
@@ -672,7 +679,7 @@ export function MediaLibraryVisualMediaCard({
           }}
           onError={() => {
             setIsHoverVideoVisible(false);
-            onMediaPreviewError(file, hoverVideoUrl);
+            onMediaPreviewError(file, mixedFeedVideoSrc ?? hoverVideoUrl);
           }}
           onPause={() => {
             if (!isHoveringVideo) {

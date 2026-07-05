@@ -5,6 +5,7 @@
 import type { ReferenceIngestionInput } from "../reference-ingestion/types";
 import { isAudioUrl, isVideoUrl } from "./stateParsers";
 import { normalizeAudioSourceMode } from "./audioSourceMode";
+import { sanitizeStoredWaveformPeaks } from "../reference-grid/logic/referenceGridAudioWaveform";
 
 const MEDIA_LIBRARY_DRAG_TYPE = "application/x-shortpulse-media-library-item";
 const MEDIA_LIBRARY_DRAG_TEXT_TYPE = "text/x-shortpulse-media-library-item";
@@ -51,6 +52,9 @@ const MEDIA_LIBRARY_FALLBACK_TITLE_TYPE = "text/shortpulse-media-library-title";
 const MEDIA_LIBRARY_FALLBACK_MARKER_VALUE = "shortpulse-media-library-v1";
 const MEDIA_LIBRARY_BULK_FALLBACK_MARKER_VALUE = "shortpulse-media-library-bulk-v1";
 const URLISH_TEXT_PATTERN = /^(?:data:(?:image|video|audio)\/|blob:|https?:\/\/)/i;
+export const MEDIA_LIBRARY_BULK_DRAG_MAX_ITEMS = 64;
+export const MEDIA_LIBRARY_BULK_DRAG_MAX_SERIALIZED_CHARS = 512_000;
+const MEDIA_LIBRARY_BULK_TEXT_FIELD_MAX_CHARS = 2_048;
 
 type LibraryMediaPayload = Extract<ReferenceIngestionInput, { kind: "libraryMedia" }>;
 type LibraryPromptPayload = Extract<ReferenceIngestionInput, { kind: "libraryPrompt" }>;
@@ -122,9 +126,7 @@ const parseWaveformPeaks = (value: string | null | undefined): number[] | null =
   if (typeof value !== "string" || !value.trim().length) return null;
   try {
     const parsed = JSON.parse(value) as unknown;
-    if (!Array.isArray(parsed) || parsed.length === 0) return null;
-    const peaks = parsed.filter((entry): entry is number => typeof entry === "number");
-    return peaks.length > 0 ? peaks : null;
+    return sanitizeStoredWaveformPeaks(parsed);
   } catch {
     return null;
   }
@@ -157,13 +159,90 @@ const resolveFallbackMediaUrl = (transfer: Pick<DataTransfer, "getData">): strin
   return null;
 };
 
+const sanitizeLibraryMediaDragPayload = (
+  payload: LibraryMediaPayload["payload"]
+): LibraryMediaPayload["payload"] => {
+  const { waveformPeaks: rawWaveformPeaks, ...rest } = payload;
+  const waveformPeaks = sanitizeStoredWaveformPeaks(rawWaveformPeaks);
+  return waveformPeaks ? { ...rest, waveformPeaks } : rest;
+};
+
+const clampBulkDragTextField = <T extends string | null | undefined>(value: T): T => {
+  if (typeof value !== "string" || value.length <= MEDIA_LIBRARY_BULK_TEXT_FIELD_MAX_CHARS) {
+    return value;
+  }
+  return value.slice(0, MEDIA_LIBRARY_BULK_TEXT_FIELD_MAX_CHARS) as T;
+};
+
+const compactLibraryMediaBulkDragPayload = (
+  payload: LibraryMediaPayload["payload"]
+): LibraryMediaPayload["payload"] => {
+  const sanitized = sanitizeLibraryMediaDragPayload(payload);
+  return {
+    ...sanitized,
+    workflowReload: null,
+    generationReplay: null,
+    characterContext: null,
+    styleContext: null,
+    promptText: clampBulkDragTextField(sanitized.promptText),
+    transcriptText: clampBulkDragTextField(sanitized.transcriptText),
+  };
+};
+
+/**
+ * Returns the bounded bulk media-library transfer contract.
+ *
+ * Bulk drags are an interactive transfer format, not a durable metadata
+ * authority. Keep them light and let drop-side media-id hydration restore rich
+ * generated-media details after optimistic insert.
+ */
+export const prepareMediaLibraryBulkMediaDragPayload = (
+  payload: MediaLibraryBulkMediaDragPayload
+): MediaLibraryBulkMediaDragPayload | null => {
+  let items = payload.payload.items
+    .slice(0, MEDIA_LIBRARY_BULK_DRAG_MAX_ITEMS)
+    .map(compactLibraryMediaBulkDragPayload);
+  if (!items.length) return null;
+
+  let transferPayload: MediaLibraryBulkMediaDragPayload = {
+    ...payload,
+    payload: {
+      ...payload.payload,
+      items,
+    },
+  };
+
+  while (
+    items.length > 1 &&
+    JSON.stringify(transferPayload).length > MEDIA_LIBRARY_BULK_DRAG_MAX_SERIALIZED_CHARS
+  ) {
+    items = items.slice(0, items.length - 1);
+    transferPayload = {
+      ...transferPayload,
+      payload: {
+        ...transferPayload.payload,
+        items,
+      },
+    };
+  }
+
+  return transferPayload;
+};
+
 const parseDragPayload = (value: string): MediaLibraryDragPayload | null => {
   try {
     const parsed = JSON.parse(value) as unknown;
     if (!parsed || typeof parsed !== "object") return null;
     const row = parsed as { kind?: unknown; source?: unknown; payload?: unknown };
     if (row.source !== "mediaLibrary") return null;
-    if (row.kind === "libraryMedia" || row.kind === "libraryPrompt") {
+    if (row.kind === "libraryMedia" && isLibraryMediaPayloadValue(row.payload)) {
+      return {
+        kind: "libraryMedia",
+        source: "mediaLibrary",
+        payload: sanitizeLibraryMediaDragPayload(row.payload),
+      };
+    }
+    if (row.kind === "libraryPrompt") {
       return row as MediaLibraryDragPayload;
     }
     return null;
@@ -195,9 +274,11 @@ const parseBulkMediaDragPayload = (value: string): MediaLibraryBulkMediaDragPayl
       originFolderId?: unknown;
     };
     if (!Array.isArray(payload.items)) return null;
-    const items = payload.items.filter(isLibraryMediaPayloadValue);
+    const items = payload.items
+      .filter(isLibraryMediaPayloadValue)
+      .map(sanitizeLibraryMediaDragPayload);
     if (items.length === 0) return null;
-    return {
+    return prepareMediaLibraryBulkMediaDragPayload({
       kind: "bulkLibraryMedia",
       source: "mediaLibrary",
       payload: {
@@ -205,7 +286,7 @@ const parseBulkMediaDragPayload = (value: string): MediaLibraryBulkMediaDragPayl
         draggedItemId: typeof payload.draggedItemId === "string" ? payload.draggedItemId : null,
         originFolderId: typeof payload.originFolderId === "string" ? payload.originFolderId : null,
       },
-    };
+    });
   } catch {
     return null;
   }
@@ -393,7 +474,14 @@ export const writeMediaLibraryDragPayload = (
   transfer: Pick<DataTransfer, "setData">,
   payload: MediaLibraryDragPayload
 ): void => {
-  const serialized = JSON.stringify(payload);
+  const transferPayload: MediaLibraryDragPayload =
+    payload.kind === "libraryMedia"
+      ? {
+          ...payload,
+          payload: sanitizeLibraryMediaDragPayload(payload.payload),
+        }
+      : payload;
+  const serialized = JSON.stringify(transferPayload);
   // Write resilient text/* fallback fields first so folder-drop operations still work
   // on browsers that reject custom or non-text transfer MIME types.
   safeTransferSetData(
@@ -504,12 +592,11 @@ export const writeMediaLibraryDragPayload = (
       MEDIA_LIBRARY_FALLBACK_DURATION_MS_TYPE,
       payload.payload.durationMs
     );
+    const waveformPeaks = sanitizeStoredWaveformPeaks(payload.payload.waveformPeaks);
     setTransferTextIfPresent(
       transfer,
       MEDIA_LIBRARY_FALLBACK_WAVEFORM_PEAKS_TYPE,
-      Array.isArray(payload.payload.waveformPeaks) && payload.payload.waveformPeaks.length > 0
-        ? JSON.stringify(payload.payload.waveformPeaks)
-        : null
+      waveformPeaks ? JSON.stringify(waveformPeaks) : null
     );
     setTransferNumberIfPresent(transfer, MEDIA_LIBRARY_FALLBACK_WIDTH_TYPE, payload.payload.width);
     setTransferNumberIfPresent(
@@ -544,8 +631,9 @@ export const writeMediaLibraryBulkMediaDragPayload = (
   transfer: Pick<DataTransfer, "setData">,
   payload: MediaLibraryBulkMediaDragPayload
 ): void => {
-  if (!payload.payload.items.length) return;
-  const serialized = JSON.stringify(payload);
+  const transferPayload = prepareMediaLibraryBulkMediaDragPayload(payload);
+  if (!transferPayload) return;
+  const serialized = JSON.stringify(transferPayload);
   safeTransferSetData(
     transfer,
     MEDIA_LIBRARY_BULK_FALLBACK_MARKER_TYPE,

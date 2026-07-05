@@ -18,6 +18,7 @@ import {
   withMediaTabFilter as withMediaTabFilterShared,
   withUserScopedPromptQuery as withUserScopedPromptQueryShared,
 } from "../../media-library/logic/mediaQueryModel";
+import { sanitizeStoredWaveformPeaks } from "../reference-grid/logic/referenceGridAudioWaveform";
 
 export type MediaFileRow = {
   id: string;
@@ -583,9 +584,8 @@ export const resolveMediaMetadataWaveformPeaks = (
     metadata.audio_waveform_peaks,
   ];
   for (const candidate of candidates) {
-    if (!Array.isArray(candidate) || candidate.length === 0) continue;
-    const peaks = candidate.filter((value): value is number => typeof value === "number");
-    if (peaks.length > 0) return peaks;
+    const peaks = sanitizeStoredWaveformPeaks(candidate);
+    if (peaks) return peaks;
   }
   return null;
 };

@@ -280,15 +280,8 @@ export const useReferenceGridHorizontalSplit = ({
       if (Math.abs(nextRatio - topRatioRef.current) < 0.001) return;
       setAllRefsExpandedThresholdRatio((prev) => (prev == null ? prev : null));
       commitTopRatio(nextRatio);
-      commitPersistedTopRatio(nextRatio);
     },
-    [
-      clampTopRatio,
-      commitPersistedTopRatio,
-      commitTopRatio,
-      resolveContainerHeight,
-      resolveContainerTop,
-    ]
+    [clampTopRatio, commitTopRatio, resolveContainerHeight, resolveContainerTop]
   );
 
   const handleDividerPointerDown = useCallback(

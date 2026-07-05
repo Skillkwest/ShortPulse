@@ -8,6 +8,11 @@ For default closeout selection by planning program, see:
 
 - `docs/planning/validation-matrix-by-program-2026-05-11.md`
 
+`cd frontend && npm run validate` is the default local source-validation
+checkpoint for lint/type/test guardrails. It is not launch or release
+confidence; use `docs/release-checklist.md` plus the active Copperknot launch
+authority for launch-readiness claims and production evidence requirements.
+
 - Unit tests (Vitest):
   - `cd frontend && npm run test`
   - `cd frontend && npm run test:ui`
@@ -64,7 +69,7 @@ For default closeout selection by planning program, see:
     - Safety: this audit refuses `@example.com` addresses and requires a dedicated real test account.
   - AI Studio production perf release check:
     - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run perf:ai-studio:release-check`
-- Full local validation:
+- Full local source validation:
   - `cd frontend && npm run validate`
 - Full repo sweep (major CI-aligned breakpoints in one run):
   - `bash scripts/run_repo_sweep.sh`

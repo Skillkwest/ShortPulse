@@ -221,6 +221,25 @@ describe("ReferenceGridSections", () => {
     const canvasSection = container.querySelector(".reference-rail-canvas-section");
     expect(canvasSection).toHaveClass("is-divider-near-collapsed");
     expect(canvasSection).not.toHaveAttribute("data-right-rail-drop-surface");
+    expect(screen.getByTestId("canvas-camera-zoom-badge")).toBeInTheDocument();
+    expect(screen.queryByTestId("canvas-properties-panel")).not.toBeInTheDocument();
+  });
+
+  it("does not mount the canvas body when the inventory section is expanded over canvas", () => {
+    const { container } = render(
+      <ReferenceGridSections
+        {...createProps()}
+        showQuickSlotSection
+        railCanvasSplit={createSplitViewModel({
+          isAllRefsExpanded: true,
+        })}
+      />
+    );
+
+    const canvasSection = container.querySelector(".reference-rail-canvas-section");
+    expect(canvasSection).toHaveClass("is-inventory-expanded");
+    expect(screen.getByTestId("canvas-camera-zoom-badge")).toBeInTheDocument();
+    expect(screen.queryByTestId("canvas-properties-panel")).not.toBeInTheDocument();
   });
 
   it("labels the canvas divider with the first visible downstream section", () => {

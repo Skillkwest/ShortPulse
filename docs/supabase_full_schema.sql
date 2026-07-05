@@ -176,6 +176,10 @@ create index if not exists ix_ai_generations_user_created on ai_generations (use
 create unique index if not exists ai_generations_user_request_id_unique_idx
     on ai_generations (user_id, request_id)
     where request_id is not null;
+create index if not exists ix_ai_generations_request_id_lookup
+    on ai_generations (request_id, created_at desc)
+    include (id, user_id, model_id)
+    where request_id is not null;
 create index if not exists ai_generations_recovery_scan_idx
     on ai_generations (recovery_state, next_recovery_at, created_at);
 

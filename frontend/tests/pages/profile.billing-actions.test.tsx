@@ -224,7 +224,7 @@ describe("Profile credits actions", () => {
     expect(screen.getByText("Available balance")).toBeInTheDocument();
     expect(screen.queryByText("Your credits")).not.toBeInTheDocument();
     expect(screen.getAllByText("1,000").length).toBeGreaterThan(0);
-    expect(screen.getByRole("button", { name: "Refresh credits" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Refresh credits" })).not.toBeInTheDocument();
     expect(screen.queryByText("Last synced")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Manage Billing" })).not.toBeInTheDocument();
     expect(screen.queryByText("Billing identity")).not.toBeInTheDocument();
@@ -354,61 +354,6 @@ describe("Profile credits actions", () => {
     expect(screen.getByRole("link", { name: "Manage subscription" })).toHaveAttribute(
       "href",
       "/profile?section=subscription"
-    );
-  });
-
-  it("shows an info notice when credit refresh returns the same balance", async () => {
-    const refreshBalance = vi.fn(async () => 1000);
-    useCreditsMock.mockReturnValue({
-      balanceCents: 1000,
-      balanceError: null,
-      balanceUpdatedAt: null,
-      balanceLoading: false,
-      refreshBalance,
-    });
-
-    render(<ProfilePage />);
-    fireEvent.click(screen.getByRole("button", { name: "Refresh credits" }));
-
-    expect(await screen.findByRole("status")).toHaveTextContent(
-      "Credits synced. Balance is still 1,000."
-    );
-    expect(refreshBalance).toHaveBeenCalledTimes(1);
-  });
-
-  it("shows a success notice when credit refresh changes the balance", async () => {
-    const refreshBalance = vi.fn(async () => 2500);
-    useCreditsMock.mockReturnValue({
-      balanceCents: 1000,
-      balanceError: null,
-      balanceUpdatedAt: null,
-      balanceLoading: false,
-      refreshBalance,
-    });
-
-    render(<ProfilePage />);
-    fireEvent.click(screen.getByRole("button", { name: "Refresh credits" }));
-
-    expect(await screen.findByRole("status")).toHaveTextContent(
-      "Credits updated from 1,000 to 2,500."
-    );
-  });
-
-  it("shows an error notice when credit refresh fails", async () => {
-    const refreshBalance = vi.fn(async () => null);
-    useCreditsMock.mockReturnValue({
-      balanceCents: 1000,
-      balanceError: null,
-      balanceUpdatedAt: null,
-      balanceLoading: false,
-      refreshBalance,
-    });
-
-    render(<ProfilePage />);
-    fireEvent.click(screen.getByRole("button", { name: "Refresh credits" }));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Unable to sync credits right now. Please try again."
     );
   });
 

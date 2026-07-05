@@ -12,6 +12,7 @@ import {
 } from "react";
 import { randomId } from "../../logic/ids";
 import { AI_STUDIO_CANVAS_ITEM_HARD_CAP } from "../../logic/sessionSnapshotCanvas";
+import { sanitizeStoredWaveformPeaks } from "../../reference-grid/logic/referenceGridAudioWaveform";
 import {
   CANVAS_AUDIO_ITEM_HEIGHT,
   CANVAS_AUDIO_ITEM_WIDTH,
@@ -25,6 +26,7 @@ import {
 import type { CanvasDropResolution, CanvasInsertResult, CanvasSceneItem } from "./canvasTypes";
 
 const CANVAS_PENDING_BASE_Z_INDEX = 1_000_000;
+const CANVAS_IMAGE_DIMENSION_PROBE_TIMEOUT_MS = 2500;
 const CANVAS_VIDEO_FALLBACK_DIMENSIONS = fitCanvasImageToProxyFrame({
   width: 16,
   height: 9,
@@ -70,6 +72,8 @@ export type CanvasSharedSceneState = {
   clearDraftTextEntry: () => void;
   clearTextEditSession: () => void;
   deleteSelection: () => void;
+  getAvailableItemSlots: () => number;
+  notifyItemLimitReached: () => void;
   addResolvedItem: (
     resolved: CanvasDropResolution,
     worldX: number,
@@ -265,11 +269,26 @@ const resolveCanvasImageDimensionsFromUrl = async ({
   if (!normalizedSrc) return fallback;
   return await new Promise<{ width: number; height: number }>((resolve) => {
     const image = new Image();
-    const finalize = (width: number, height: number) =>
+    let settled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const finalize = (width: number, height: number) => {
+      if (settled) return;
+      settled = true;
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+      image.onload = null;
+      image.onerror = null;
       resolve({
         width,
         height,
       });
+    };
+    timeoutId = setTimeout(
+      () => finalize(fallback.width, fallback.height),
+      CANVAS_IMAGE_DIMENSION_PROBE_TIMEOUT_MS
+    );
     image.onload = () => {
       if (image.naturalWidth > 0 && image.naturalHeight > 0) {
         const fitted = fitCanvasImageToProxyFrame({
@@ -420,7 +439,7 @@ const buildCanvasSceneItem = ({
             companionArtStoragePath: resolved.companionArtStoragePath?.trim() || null,
             audioSourceMode: resolved.audioSourceMode ?? null,
             durationMs: resolved.durationMs ?? null,
-            waveformPeaks: Array.isArray(resolved.waveformPeaks) ? resolved.waveformPeaks : null,
+            waveformPeaks: sanitizeStoredWaveformPeaks(resolved.waveformPeaks),
             width: width ?? CANVAS_AUDIO_ITEM_WIDTH,
             height: height ?? CANVAS_AUDIO_ITEM_HEIGHT,
           }
@@ -497,6 +516,11 @@ export const useCanvasSharedSceneState = ({
     setItems((currentItems) => deleteSelectedCanvasSceneItems(currentItems));
     setTextEditSession(null);
   }, []);
+
+  const getAvailableItemSlots = useCallback(
+    () => Math.max(0, AI_STUDIO_CANVAS_ITEM_HARD_CAP - itemsRef.current.length),
+    []
+  );
 
   const addResolvedItem = useCallback(
     async (
@@ -765,6 +789,8 @@ export const useCanvasSharedSceneState = ({
     clearDraftTextEntry,
     clearTextEditSession,
     deleteSelection,
+    getAvailableItemSlots,
+    notifyItemLimitReached,
     addResolvedItem,
     replaceSessionSceneState,
     commitDraftTextEntry,

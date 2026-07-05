@@ -3,6 +3,7 @@
  * Keeps media-relevant equality separate from volatile task-status updates.
  */
 import type { StudioOutput } from "../../types";
+import { sanitizeStoredWaveformPeaks } from "./referenceGridAudioWaveform";
 
 export type ReferenceGridMediaOutput = Pick<
   StudioOutput,
@@ -101,7 +102,7 @@ export const projectReferenceGridMediaOutput = (output: StudioOutput): Reference
     savedMediaIds: output.savedMediaIds ?? undefined,
     audioSourceMode: output.audioSourceMode,
     durationMs: output.durationMs,
-    waveformPeaks: output.waveformPeaks ?? undefined,
+    waveformPeaks: sanitizeStoredWaveformPeaks(output.waveformPeaks) ?? undefined,
     isPlaceholderOnly,
   };
 };

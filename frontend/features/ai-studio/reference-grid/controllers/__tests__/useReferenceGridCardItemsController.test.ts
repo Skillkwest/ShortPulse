@@ -38,7 +38,7 @@ const resolvedMedia = (
 });
 
 describe("useReferenceGridCardItemsController", () => {
-  it("paints visible non-priority image cards while hydration catches up", () => {
+  it("withholds visible non-priority image src values while decode-budget hydration catches up", () => {
     const item = output({
       mediaSource: "generated",
       taskState: "success",
@@ -65,13 +65,11 @@ describe("useReferenceGridCardItemsController", () => {
     );
 
     expect(result.current.visibleCardItems[0]?.authorityTier).toBe("preview-only");
-    expect(result.current.visibleCardItems[0]?.imageSrc).toBe(
-      "https://provider.example.com/generated-preview.png"
-    );
+    expect(result.current.visibleCardItems[0]?.imageSrc).toBeUndefined();
     expect(result.current.hydrationLoadingCardIdSet.has("out-1")).toBe(false);
   });
 
-  it("paints the preview before full fallback while image hydration is pending", () => {
+  it("paints priority previews before full fallback while image hydration is pending", () => {
     const item = output({
       mediaSource: "generated",
       previewUrl: "https://storage.example.com/generated-thumb.jpg",
@@ -114,6 +112,85 @@ describe("useReferenceGridCardItemsController", () => {
     expect(result.current.visibleCardItems[0]?.dragDisplayArtifactUrl).toBe(
       "https://storage.example.com/generated-full.png"
     );
+  });
+
+  it("paints the active image card promptly even when it is outside the visible priority count", () => {
+    const item = output({
+      mediaSource: "generated",
+      taskState: "success",
+      previewUrl: "https://provider.example.com/active-preview.png",
+    });
+
+    const { result } = renderHook(() =>
+      useReferenceGridCardItemsController({
+        activeOutputId: item.id,
+        decodeBudgetEnabled: true,
+        visibleOutputs: [projectReferenceGridMediaOutput(item)],
+        visibleCuratedOutputs: [],
+        visibleQuickSlotIdSet: new Set<string>(),
+        hydrationPriorityCount: 0,
+        curatedHydrationPriorityCount: 0,
+        virtualRowHeight: 280,
+        curatedVirtualRowHeight: 240,
+        quickSlotAdaptiveSurfaceEnabled: false,
+        resolveCardMedia: () =>
+          resolvedMedia({
+            previewUrl: "https://provider.example.com/active-preview.png",
+            fallbackUrl: "https://provider.example.com/active-preview.png",
+            normalizedPreviewUrl: "https://provider.example.com/active-preview.png",
+            normalizedFallbackUrl: "https://provider.example.com/active-preview.png",
+          }),
+        visibleOutputById: { [item.id]: item },
+        loadedMap: {},
+        hydratedById: {},
+      })
+    );
+
+    expect(result.current.visibleCardItems[0]).toMatchObject({
+      isPriorityHydration: true,
+      imageSrc: "https://provider.example.com/active-preview.png",
+    });
+  });
+
+  it("paints priority quick-slot image cards under the decode budget", () => {
+    const item = output({
+      id: "curated-1",
+      mediaSource: "library",
+      taskState: "success",
+      previewUrl: "https://provider.example.com/curated-preview.png",
+    });
+
+    const { result } = renderHook(() =>
+      useReferenceGridCardItemsController({
+        activeOutputId: null,
+        decodeBudgetEnabled: true,
+        visibleOutputs: [],
+        visibleCuratedOutputs: [projectReferenceGridMediaOutput(item)],
+        visibleQuickSlotIdSet: new Set<string>([item.id]),
+        hydrationPriorityCount: 0,
+        curatedHydrationPriorityCount: 1,
+        virtualRowHeight: 280,
+        curatedVirtualRowHeight: 240,
+        quickSlotAdaptiveSurfaceEnabled: true,
+        resolveCardMedia: ({ mediaSurface }) =>
+          resolvedMedia({
+            previewUrl: "https://provider.example.com/curated-preview.png",
+            fallbackUrl: "https://provider.example.com/curated-preview.png",
+            normalizedPreviewUrl: "https://provider.example.com/curated-preview.png",
+            normalizedFallbackUrl: "https://provider.example.com/curated-preview.png",
+            targetLongEdgePx: mediaSurface === "quick-slot" ? 237 : 512,
+          }),
+        visibleOutputById: { [item.id]: item },
+        loadedMap: {},
+        hydratedById: {},
+      })
+    );
+
+    expect(result.current.curatedVisibleCardItems[0]).toMatchObject({
+      mediaSurface: "quick-slot",
+      isPriorityHydration: true,
+      imageSrc: "https://provider.example.com/curated-preview.png",
+    });
   });
 
   it("skips resolved media work for placeholder-only loading outputs", () => {
@@ -316,7 +393,7 @@ describe("useReferenceGridCardItemsController", () => {
         visibleOutputs: [projectReferenceGridMediaOutput(item)],
         visibleCuratedOutputs: [],
         visibleQuickSlotIdSet: new Set<string>(),
-        hydrationPriorityCount: 1,
+        hydrationPriorityCount: 0,
         curatedHydrationPriorityCount: 0,
         virtualRowHeight: 280,
         curatedVirtualRowHeight: 240,

@@ -153,11 +153,14 @@ Auth/public-origin contract:
   cd frontend
   npm run test
   ```
-- Full validation:
+- Local source validation (not launch/release confidence):
   ```bash
   cd frontend
   npm run validate
   ```
+  This command runs the default local lint/type/test guard suite for the current
+  worktree. It does not replace the release checklist, Copperknot launch
+  authority, or production evidence required for launch-readiness claims.
 - One-pass repo sweep (major CI-aligned breakpoints):
   ```bash
   bash scripts/run_repo_sweep.sh

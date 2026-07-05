@@ -21,6 +21,9 @@ Use this path when setting up a new agent for a new recurring task:
 
 ## Agent Contracts
 
+- `docs/agents/testers/README.md`: simulated customer tester index for customer-realistic UI, UX, and behavior audits.
+  - `docs/agents/testers/maya-chen/README.md`: Maya Chen growth-stage creator tester profile, SOPs, reports, workspace, and scoring tools.
+  - `docs/agents/testers/mark-delaney/README.md`: Mark Delaney practical AI content workspace tester profile and local-only credential setup.
 - `docs/agents/beeper/README.md`: Beeper live-product testing, UI/UX audit, and functionality walkthrough contract and memory entrypoint.
   - `docs/agents/beeper/standard-operating-procedure.md`: standing SOP for Beeper live testing, issue capture, handoff packets, and supervised training records.
   - `docs/agents/beeper/workspace/README.md`: Beeper-owned operational workspace for testing reports, run packets, evidence manifests, helper scripts, queues, and temporary working material.

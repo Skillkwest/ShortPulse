@@ -1,0 +1,31 @@
+{
+  "externalRunId": "maya-chen-YYYY-MM-DD-short-run-slug",
+  "testerSlug": "maya-chen",
+  "testerDisplayName": "Maya Chen",
+  "shortpulseUserEmail": "<tested-account-email>",
+  "scenario": "<plain-English scenario>",
+  "status": "completed",
+  "runStartedAt": "<ISO timestamp or omit>",
+  "runFinishedAt": "<ISO timestamp or omit>",
+  "durationMinutes": 45,
+  "creditsSpent": 0,
+  "productionSurface": "https://www.shortpulse.ai/<route>",
+  "personaReportTitle": "Maya report: <short title>",
+  "personaReportBody": "<paste Maya voice report body>",
+  "engineeringReportTitle": "Engineering handoff: <short title>",
+  "engineeringReportBody": "<paste engineering handoff body>",
+  "reportArtifactPaths": [
+    "docs/agents/testers/maya-chen/reports/YYYY-MM-DD-short-slug-maya-report.md",
+    "docs/agents/testers/maya-chen/reports/YYYY-MM-DD-short-slug-engineering-handoff.md"
+  ],
+  "evidence": {
+    "browser": "Google Chrome",
+    "testerSurface": "production",
+    "creditBalanceBefore": null,
+    "creditBalanceAfter": null,
+    "creditsSpentObserved": null,
+    "generatedMediaCountObserved": null,
+    "downloadedArtifactPath": null,
+    "adminPublishNote": "Use SHORTPULSE_TESTER_REPORT_INGEST_SECRET from local env. Do not store the secret in this payload."
+  }
+}

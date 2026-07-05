@@ -52,8 +52,21 @@ export const useReferenceGridAutoplaySelectionController = ({
   autoplayEnabledIdsStateRef,
   autoplayEnabledIds,
 }: UseReferenceGridAutoplaySelectionControllerArgs): UseReferenceGridAutoplaySelectionControllerResult => {
+  const clearAutoplayEnabledIds = useCallback(() => {
+    runNonUrgentUpdate(() => {
+      setAutoplayEnabledIds((prev) => {
+        if (prev.length === 0) return prev;
+        incrementFreezeInvestigationCounter("referenceGrid.autoplayEnabledIds.clearCommit");
+        return [];
+      });
+    });
+  }, [runNonUrgentUpdate, setAutoplayEnabledIds]);
+
   const recomputeAutoplayBudget = useCallback(() => {
-    if (suspendAutoplaySelection) return;
+    if (suspendAutoplaySelection) {
+      clearAutoplayEnabledIds();
+      return;
+    }
     const visibleOutputIdSet = new Set<string>();
     videoVisibleKeySetRef.current.forEach((key) => {
       const outputId = videoOutputIdByKeyRef.current.get(key);
@@ -67,13 +80,7 @@ export const useReferenceGridAutoplaySelectionController = ({
         ? [activeOutputId, ...visibleVideoIds.filter((id) => id !== activeOutputId)]
         : visibleVideoIds;
     if (perfDegradeLevel >= 2) {
-      runNonUrgentUpdate(() => {
-        setAutoplayEnabledIds((prev) => {
-          if (prev.length === 0) return prev;
-          incrementFreezeInvestigationCounter("referenceGrid.autoplayEnabledIds.clearCommit");
-          return [];
-        });
-      });
+      clearAutoplayEnabledIds();
       return;
     }
     const nextEnabled = prioritizedVideoIds.slice(0, Math.max(0, videoAttachBudget));
@@ -86,6 +93,7 @@ export const useReferenceGridAutoplaySelectionController = ({
     });
   }, [
     activeOutputId,
+    clearAutoplayEnabledIds,
     perfDegradeLevel,
     runNonUrgentUpdate,
     setAutoplayEnabledIds,

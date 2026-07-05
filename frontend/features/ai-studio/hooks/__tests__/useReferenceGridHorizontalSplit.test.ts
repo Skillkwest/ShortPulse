@@ -199,6 +199,34 @@ describe("useReferenceGridHorizontalSplit", () => {
     expect(result.current.topRatio).toBeCloseTo(beforeRatio, 3);
   });
 
+  it("commits the top ratio for intentional keyboard divider changes", () => {
+    vi.stubGlobal("ResizeObserver", MockResizeObserver);
+    const containerRef = { current: createContainer(400) };
+    const onTopRatioCommit = vi.fn();
+    const { result } = renderHook(() =>
+      useReferenceGridHorizontalSplit({
+        enabled: true,
+        containerRef,
+        defaultTopRatio: 0.5,
+        onTopRatioCommit,
+        minTopSectionHeightPx: 100,
+        minBottomSectionHeightPx: 100,
+      })
+    );
+
+    act(() => {
+      result.current.dividerProps.onKeyDown?.({
+        key: "ArrowDown",
+        shiftKey: false,
+        preventDefault: vi.fn(),
+      } as unknown as ReactKeyboardEvent<HTMLDivElement>);
+    });
+
+    expect(result.current.topRatio).toBeCloseTo(0.53, 3);
+    expect(onTopRatioCommit).toHaveBeenCalledTimes(1);
+    expect(onTopRatioCommit).toHaveBeenCalledWith(expect.closeTo(0.53, 3));
+  });
+
   it("preserves top section pixel height when the split container grows", () => {
     vi.stubGlobal("ResizeObserver", MockResizeObserver);
     let containerHeight = 400;
@@ -385,12 +413,14 @@ describe("useReferenceGridHorizontalSplit", () => {
     });
 
     expect(result.current.topRatio).toBeCloseTo(0.3, 3);
-    expect(onTopRatioCommit).toHaveBeenCalledWith(expect.closeTo(0.3, 3));
+    expect(onTopRatioCommit).not.toHaveBeenCalled();
 
     act(() => {
       window.dispatchEvent(new PointerEvent("pointerup", { pointerId: 101, clientY: 120 }));
     });
 
+    expect(onTopRatioCommit).toHaveBeenCalledTimes(1);
+    expect(onTopRatioCommit).toHaveBeenCalledWith(expect.closeTo(0.3, 3));
     expect(result.current.isResizing).toBe(false);
   });
 });

@@ -55,6 +55,7 @@ import {
 import type { AiStudioRightRailLayoutV1 } from "./rightRailLayout";
 import { sanitizeRightRailLayoutSnapshot } from "./rightRailLayout";
 import { isSupabaseRenderImageUrl } from "../../../lib/mediaPreviewTrustPolicy";
+import { sanitizeStoredWaveformPeaks } from "../reference-grid/logic/referenceGridAudioWaveform";
 
 export const LATEST_AI_STUDIO_SESSION_SCHEMA_VERSION = 2;
 
@@ -626,10 +627,7 @@ const sanitizeOutput = (output: StudioOutput): AiStudioSessionOutputV1 => {
       typeof output.durationMs === "number" && Number.isFinite(output.durationMs)
         ? Math.max(0, Math.round(output.durationMs))
         : null,
-    waveformPeaks:
-      Array.isArray(output.waveformPeaks) && output.waveformPeaks.length > 0
-        ? output.waveformPeaks.filter((value): value is number => typeof value === "number")
-        : null,
+    waveformPeaks: sanitizeStoredWaveformPeaks(output.waveformPeaks),
     resultUrls: persistedResultUrls,
     previewUrl,
     previewPosterUrl,

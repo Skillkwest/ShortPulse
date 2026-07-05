@@ -4,6 +4,7 @@ import {
   extractAudioWaveformPeaksFromUrl,
   normalizeStoredWaveformPeaks,
   resampleWaveformPeaks,
+  sanitizeStoredWaveformPeaks,
 } from "../referenceGridAudioWaveform";
 import { forgetObjectUrlBlob, rememberObjectUrlBlob } from "../../../utils/objectUrlBlobRegistry";
 
@@ -30,6 +31,13 @@ describe("referenceGridAudioWaveform", () => {
   it("scales unit-normalized stored waveform peaks into the render range", () => {
     const peaks = normalizeStoredWaveformPeaks([0.1, 0.45, 0.9, 0.35], 4);
     expect(peaks).toEqual([10, 45, 90, 35]);
+  });
+
+  it("preserves compact stored peaks but bounds oversized arrays", () => {
+    expect(sanitizeStoredWaveformPeaks([0.1, 0.45, 0.9])).toEqual([0.1, 0.45, 0.9]);
+    expect(
+      sanitizeStoredWaveformPeaks(Array.from({ length: 500 }, (_, index) => index % 101))
+    ).toHaveLength(56);
   });
 
   it("builds a fixed-density fallback waveform for audio cards", () => {

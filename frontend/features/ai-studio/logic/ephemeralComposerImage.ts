@@ -38,7 +38,9 @@ type EphemeralImageData = {
 const canUseCanvasImagePipeline = (): boolean =>
   typeof document !== "undefined" &&
   typeof Image !== "undefined" &&
-  typeof FileReader !== "undefined";
+  typeof URL !== "undefined" &&
+  typeof URL.createObjectURL === "function" &&
+  typeof URL.revokeObjectURL === "function";
 
 const readBlobAsDataUrl = (blob: Blob): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -63,11 +65,10 @@ const loadImageElement = (src: string): Promise<HTMLImageElement> =>
     image.src = src;
   });
 
-const resizeImageDataUrl = async (
-  sourceDataUrl: string,
+const resizeLoadedImage = (
+  image: HTMLImageElement,
   options: ResizeOptions
-): Promise<{ dataUrl: string; width: number; height: number }> => {
-  const image = await loadImageElement(sourceDataUrl);
+): { dataUrl: string; width: number; height: number } => {
   const sourceWidth = Math.max(1, image.naturalWidth || image.width || options.maxWidth);
   const sourceHeight = Math.max(1, image.naturalHeight || image.height || options.maxHeight);
   const scale = Math.min(1, options.maxWidth / sourceWidth, options.maxHeight / sourceHeight);
@@ -89,11 +90,11 @@ const resizeImageDataUrl = async (
 };
 
 const createModelDataUrl = async (
-  sourceDataUrl: string
+  image: HTMLImageElement
 ): Promise<{ dataUrl: string; width: number; height: number }> => {
   for (const maxDimension of EPHEMERAL_MODEL_DIMENSION_STEPS) {
     for (const quality of EPHEMERAL_MODEL_QUALITY_STEPS) {
-      const resized = await resizeImageDataUrl(sourceDataUrl, {
+      const resized = resizeLoadedImage(image, {
         maxWidth: Math.min(maxDimension, EPHEMERAL_MODEL_MAX_DIMENSION_PX),
         maxHeight: Math.min(maxDimension, EPHEMERAL_MODEL_MAX_DIMENSION_PX),
         quality,
@@ -113,8 +114,11 @@ export const createEphemeralComposerImageData = async (blob: Blob): Promise<Ephe
   if (!(blob instanceof Blob) || blob.size <= 0 || !blob.type.startsWith("image/")) {
     throw new Error(EPHEMERAL_IMAGE_UNREADABLE_MESSAGE);
   }
-  const sourceDataUrl = await readBlobAsDataUrl(blob);
   if (!canUseCanvasImagePipeline()) {
+    if (blob.size > AGENT_EPHEMERAL_IMAGE_MAX_BYTES) {
+      throw new Error(EPHEMERAL_IMAGE_TOO_LARGE_MESSAGE);
+    }
+    const sourceDataUrl = await readBlobAsDataUrl(blob);
     if (!isAgentImageDataUrl(sourceDataUrl)) {
       throw new Error(EPHEMERAL_IMAGE_TOO_LARGE_MESSAGE);
     }
@@ -125,20 +129,28 @@ export const createEphemeralComposerImageData = async (blob: Blob): Promise<Ephe
       height: 1,
     };
   }
-  const [preview, model] = await Promise.all([
-    resizeImageDataUrl(sourceDataUrl, {
-      maxWidth: EPHEMERAL_PREVIEW_MAX_WIDTH_PX,
-      maxHeight: EPHEMERAL_PREVIEW_MAX_HEIGHT_PX,
-      quality: EPHEMERAL_PREVIEW_QUALITY,
-    }),
-    createModelDataUrl(sourceDataUrl),
-  ]);
-  return {
-    previewDataUrl: preview.dataUrl,
-    modelDataUrl: model.dataUrl,
-    width: model.width,
-    height: model.height,
-  };
+  const sourceObjectUrl = URL.createObjectURL(blob);
+  try {
+    const image = await loadImageElement(sourceObjectUrl);
+    const [preview, model] = await Promise.all([
+      Promise.resolve(
+        resizeLoadedImage(image, {
+          maxWidth: EPHEMERAL_PREVIEW_MAX_WIDTH_PX,
+          maxHeight: EPHEMERAL_PREVIEW_MAX_HEIGHT_PX,
+          quality: EPHEMERAL_PREVIEW_QUALITY,
+        })
+      ),
+      createModelDataUrl(image),
+    ]);
+    return {
+      previewDataUrl: preview.dataUrl,
+      modelDataUrl: model.dataUrl,
+      width: model.width,
+      height: model.height,
+    };
+  } finally {
+    URL.revokeObjectURL(sourceObjectUrl);
+  }
 };
 
 export const isEphemeralLocalImageAttachment = (

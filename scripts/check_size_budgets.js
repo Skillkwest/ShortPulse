@@ -244,8 +244,9 @@ function reportTargetBudgetGroup(
   headerPrefix,
   budgets,
   hardErrors,
+  defaultMode = "warn",
 ) {
-  const mode = resolveMode(process.env[modeEnvName], "warn");
+  const mode = resolveMode(process.env[modeEnvName], defaultMode);
   const errors = collectBudgetErrors(budgets);
   if (!errors.length) return;
   if (mode === "enforce") {
@@ -264,6 +265,7 @@ function reportTargetBudgetGroup(
 
 function run() {
   const hardErrors = [];
+  const globalMode = resolveMode(process.env.SIZE_BUDGET_MODE, "warn");
   const enforcedErrors = collectBudgetErrors(ENFORCED_BUDGETS);
   if (enforcedErrors.length) {
     hardErrors.push(...enforcedErrors);
@@ -330,12 +332,14 @@ function run() {
     "Launch source inventory",
     LAUNCH_SOURCE_INVENTORY_BUDGETS,
     hardErrors,
+    globalMode,
   );
   reportTargetBudgetGroup(
     "LAUNCH_STYLE_INVENTORY_SIZE_BUDGET_MODE",
     "Launch style inventory",
     LAUNCH_STYLE_INVENTORY_BUDGETS,
     hardErrors,
+    globalMode,
   );
 
   if (hardErrors.length) {

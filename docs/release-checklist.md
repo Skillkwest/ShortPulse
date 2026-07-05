@@ -2,6 +2,11 @@
 
 Use this checklist before promoting code toward `production` (and before any deploy/release process you adopt).
 
+`npm -C frontend run validate` is only a local source-validation checkpoint.
+Do not treat it as release confidence by itself; combine the relevant checks
+below with current launch authority and production evidence for release or
+launch-readiness claims.
+
 ## Engineering checks
 
 - `npm -C frontend run lint`

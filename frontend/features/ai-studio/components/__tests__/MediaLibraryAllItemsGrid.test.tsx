@@ -6,9 +6,15 @@ import { __resetExclusiveSoundPlaybackForTests } from "../shared/exclusiveSoundP
 import { MediaLibraryAllItemsGrid } from "../media-library-modal/MediaLibraryAllItemsGrid";
 
 const useMediaMasonryVirtualizationMock = vi.fn();
+const useMediaGridVideoBudgetControllerMock = vi.fn();
 
 vi.mock("../../../media-library/hooks/useMediaMasonryVirtualization", () => ({
   useMediaMasonryVirtualization: (...args: unknown[]) => useMediaMasonryVirtualizationMock(...args),
+}));
+
+vi.mock("../../../media-library/hooks/useMediaGridVideoBudgetController", () => ({
+  useMediaGridVideoBudgetController: (...args: unknown[]) =>
+    useMediaGridVideoBudgetControllerMock(...args),
 }));
 
 describe("MediaLibraryAllItemsGrid", () => {
@@ -26,6 +32,11 @@ describe("MediaLibraryAllItemsGrid", () => {
         index,
       })),
     }));
+    useMediaGridVideoBudgetControllerMock.mockReturnValue({
+      getVideoNodeRef: () => () => undefined,
+      isVideoAutoplayEnabled: () => true,
+      resolveVideoSource: (_id: string, sourceUrl?: string | null) => sourceUrl ?? undefined,
+    });
     Object.defineProperty(HTMLMediaElement.prototype, "play", {
       configurable: true,
       value: vi.fn().mockResolvedValue(undefined),
@@ -111,6 +122,35 @@ describe("MediaLibraryAllItemsGrid", () => {
     expect(hoverVideo).toHaveAttribute("src", "https://cdn.example.com/clip-1.mp4");
     expect(hoverVideo).not.toHaveClass("is-visible");
     expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
+  });
+
+  it("uses the shared video budget controller for mixed-feed video sources", () => {
+    const videoNodeRef = vi.fn();
+    const resolveVideoSource = vi.fn(() => undefined);
+    useMediaGridVideoBudgetControllerMock.mockReturnValue({
+      getVideoNodeRef: () => videoNodeRef,
+      isVideoAutoplayEnabled: () => false,
+      resolveVideoSource,
+    });
+
+    const { container } = render(<MediaLibraryAllItemsGrid {...baseProps()} />);
+
+    expect(useMediaGridVideoBudgetControllerMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        items: [{ id: "video-1", fileType: "video" }],
+        enabled: expect.any(Boolean),
+        surface: "media-library-panel",
+        pressureLevel: 0,
+      })
+    );
+    expect(resolveVideoSource).toHaveBeenCalledWith(
+      "video-1",
+      "https://cdn.example.com/clip-1.mp4"
+    );
+    const hoverVideo = container.querySelector("video");
+    expect(hoverVideo).not.toBeNull();
+    expect(hoverVideo).not.toHaveAttribute("src");
+    expect(videoNodeRef).toHaveBeenCalledWith(hoverVideo);
   });
 
   it("shows a video duration badge when duration metadata exists", () => {
@@ -649,7 +689,7 @@ describe("MediaLibraryAllItemsGrid", () => {
     const hoverVideo = container.querySelector("video");
     expect(hoverVideo).not.toBeNull();
     expect(hoverVideo).toHaveAttribute("src", "https://cdn.example.com/clip-1.mp4");
-    expect(hoverVideo).toHaveAttribute("preload", "auto");
+    expect(hoverVideo).toHaveAttribute("preload", "metadata");
     expect(screen.queryByAltText("clip-1.mp4")).toBeNull();
 
     const [cardButton] = screen.getAllByRole("button");
@@ -662,7 +702,7 @@ describe("MediaLibraryAllItemsGrid", () => {
     expect(HTMLMediaElement.prototype.pause).toHaveBeenCalled();
   });
 
-  it("avoids auto-preloading posterless video previews under adaptive pressure", () => {
+  it("keeps posterless video previews on metadata preload under adaptive pressure", () => {
     const props = baseProps();
     const rowWithoutPoster = { ...props.mediaRows[0] } as Record<string, unknown>;
     delete rowWithoutPoster.poster_variant_path;

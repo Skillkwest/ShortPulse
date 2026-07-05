@@ -7,8 +7,8 @@ import { describe, expect, it, vi } from "vitest";
 import { useReferenceGridAutoplaySelectionController } from "../useReferenceGridAutoplaySelectionController";
 
 describe("useReferenceGridAutoplaySelectionController", () => {
-  it("stops autoplay-id recompute while suspended and resumes on unsuspend", () => {
-    let autoplayEnabledIdsState: string[] = [];
+  it("clears stale autoplay ids while suspended and resumes on unsuspend", () => {
+    let autoplayEnabledIdsState: string[] = ["stale-video"];
     const setAutoplayEnabledIds = vi.fn((updater: string[] | ((prev: string[]) => string[])) => {
       autoplayEnabledIdsState =
         typeof updater === "function" ? updater(autoplayEnabledIdsState) : updater;
@@ -21,7 +21,7 @@ describe("useReferenceGridAutoplaySelectionController", () => {
     };
     const recomputeAutoplayBudgetRef = { current: () => {} };
     const desiredVideoAttachBudgetRef = { current: 1 };
-    const autoplayEnabledIdsStateRef = { current: [] as string[] };
+    const autoplayEnabledIdsStateRef = { current: autoplayEnabledIdsState };
 
     const { result, rerender } = renderHook(
       ({ suspendAutoplaySelection }: { suspendAutoplaySelection: boolean }) =>
@@ -48,13 +48,13 @@ describe("useReferenceGridAutoplaySelectionController", () => {
     );
 
     result.current.recomputeAutoplayBudget();
-    expect(setAutoplayEnabledIds).not.toHaveBeenCalled();
+    expect(setAutoplayEnabledIds).toHaveBeenCalledTimes(1);
     expect(autoplayEnabledIdsState).toEqual([]);
 
     rerender({ suspendAutoplaySelection: false });
     result.current.recomputeAutoplayBudget();
 
-    expect(setAutoplayEnabledIds).toHaveBeenCalledTimes(1);
+    expect(setAutoplayEnabledIds).toHaveBeenCalledTimes(2);
     expect(autoplayEnabledIdsState).toEqual(["video-1"]);
   });
 });

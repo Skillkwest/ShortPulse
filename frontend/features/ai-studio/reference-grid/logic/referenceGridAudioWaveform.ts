@@ -77,6 +77,20 @@ export const normalizeStoredWaveformPeaks = (
   return resampleWaveformPeaks(normalized, targetCount);
 };
 
+export const sanitizeStoredWaveformPeaks = (
+  peaks: unknown,
+  targetCount = DEFAULT_AUDIO_WAVEFORM_BAR_COUNT
+): number[] | null => {
+  if (!Array.isArray(peaks) || peaks.length === 0) return null;
+  const numericPeaks = peaks.filter(
+    (peak): peak is number => typeof peak === "number" && Number.isFinite(peak)
+  );
+  if (numericPeaks.length === 0) return null;
+  if (numericPeaks.length <= targetCount) return numericPeaks;
+  const normalizedPeaks = normalizeStoredWaveformPeaks(numericPeaks, targetCount);
+  return normalizedPeaks.length > 0 ? normalizedPeaks : null;
+};
+
 /**
  * Builds a neutral mirrored fallback waveform when real peaks are unavailable.
  */

@@ -23,6 +23,7 @@ import {
   clearMediaLibraryDragGhost,
 } from "../logic/mediaLibraryDragGhost";
 import {
+  prepareMediaLibraryBulkMediaDragPayload,
   writeMediaLibraryBulkMediaDragPayload,
   writeMediaLibraryDragPayload,
   type MediaLibraryBulkMediaDragPayload,
@@ -167,21 +168,23 @@ export const useMediaLibraryPanelItemInteractions = ({
             })
           )
           .filter((item): item is LibraryMediaReferencePayload => Boolean(item));
-        if (selectedPayloads.length > 1) {
-          writeMediaLibraryBulkMediaDragPayload(event.dataTransfer, {
-            kind: "bulkLibraryMedia",
-            source: "mediaLibrary",
-            payload: {
-              draggedItemId: file.id,
-              originFolderId: activeFolderId,
-              items: selectedPayloads,
-            },
-          });
+        const boundedBulkPayload = prepareMediaLibraryBulkMediaDragPayload({
+          kind: "bulkLibraryMedia",
+          source: "mediaLibrary",
+          payload: {
+            draggedItemId: file.id,
+            originFolderId: activeFolderId,
+            items: selectedPayloads,
+          },
+        });
+        if (boundedBulkPayload && boundedBulkPayload.payload.items.length > 1) {
+          writeMediaLibraryBulkMediaDragPayload(event.dataTransfer, boundedBulkPayload);
           event.dataTransfer.effectAllowed = "copy";
           event.currentTarget.classList.add("is-dragging");
-          const draggedPayload = selectedPayloads.find((item) => item.id === file.id) ?? payload;
+          const draggedPayload =
+            boundedBulkPayload.payload.items.find((item) => item.id === file.id) ?? payload;
           attachMediaLibraryDragGhost(event, {
-            label: `${selectedPayloads.length} media items`,
+            label: `${boundedBulkPayload.payload.items.length} media items`,
             detail: draggedPayload.promptText,
             previewUrl:
               draggedPayload.fileType === "audio"

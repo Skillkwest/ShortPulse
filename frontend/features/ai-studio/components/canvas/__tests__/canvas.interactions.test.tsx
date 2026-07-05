@@ -649,6 +649,50 @@ describe("Canvas interaction behavior", () => {
     }
   });
 
+  it("cancels pending tear-out ghost animation frames on unmount", async () => {
+    const registry = createCanvasTearOutComposerTargetRegistry();
+    const originalRequestAnimationFrame = window.requestAnimationFrame;
+    const originalCancelAnimationFrame = window.cancelAnimationFrame;
+
+    try {
+      const { unmount } = render(<CanvasHarness canvasTearOutTargetRegistry={registry} />);
+      const viewport = screen.getByTestId("canvas-viewport");
+      mockViewportRect(viewport);
+
+      fireEvent.drop(viewport, {
+        dataTransfer: createTransfer({
+          "text/plain": "Unmount tear out",
+        }),
+        clientX: 220,
+        clientY: 140,
+      });
+
+      const item = await screen.findByTestId(/canvas-item-/);
+      window.requestAnimationFrame = vi.fn(
+        () => 456
+      ) as unknown as typeof window.requestAnimationFrame;
+      window.cancelAnimationFrame = vi.fn() as unknown as typeof window.cancelAnimationFrame;
+      fireEvent.pointerDown(item, {
+        button: 0,
+        pointerId: 456,
+        clientX: 220,
+        clientY: 140,
+      });
+      fireEvent.pointerMove(viewport, {
+        pointerId: 456,
+        clientX: 650,
+        clientY: 150,
+      });
+
+      expect(window.requestAnimationFrame).toHaveBeenCalledTimes(1);
+      unmount();
+      expect(window.cancelAnimationFrame).toHaveBeenCalledWith(456);
+    } finally {
+      window.requestAnimationFrame = originalRequestAnimationFrame;
+      window.cancelAnimationFrame = originalCancelAnimationFrame;
+    }
+  });
+
   it("cancels ghost movement without moving the source item", async () => {
     render(<CanvasHarness />);
     const viewport = screen.getByTestId("canvas-viewport");
@@ -893,6 +937,8 @@ describe("Canvas interaction behavior", () => {
       />
     );
 
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
     const item = await screen.findByTestId("canvas-item-text-1");
     fireEvent.doubleClick(item);
 
@@ -1262,7 +1308,7 @@ describe("Canvas interaction behavior", () => {
     );
     const viewport = screen.getByTestId("canvas-viewport");
     mockViewportRect(viewport);
-    const textNode = screen.getByText(/Scrollable canvas text reference/);
+    const textNode = await screen.findByText(/Scrollable canvas text reference/);
     Object.defineProperty(textNode, "clientHeight", {
       configurable: true,
       value: 80,

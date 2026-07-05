@@ -5,7 +5,10 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../../types";
-import { useReferenceGridImageHydrationController } from "../useReferenceGridImageHydrationController";
+import {
+  REFERENCE_GRID_HYDRATED_IMAGE_ENTRY_LIMIT,
+  useReferenceGridImageHydrationController,
+} from "../useReferenceGridImageHydrationController";
 import {
   logAdaptiveLocalTranscode,
   resolveAdaptivePolicyDecision,
@@ -38,12 +41,18 @@ const createOutput = (id: string): StudioOutput =>
 
 describe("useReferenceGridImageHydrationController", () => {
   const OriginalImage = window.Image;
+  const originalRevokeObjectURL = URL.revokeObjectURL;
 
   afterEach(() => {
     Object.defineProperty(window, "Image", {
       configurable: true,
       writable: true,
       value: OriginalImage,
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      writable: true,
+      value: originalRevokeObjectURL,
     });
     vi.clearAllMocks();
   });
@@ -410,6 +419,114 @@ describe("useReferenceGridImageHydrationController", () => {
     });
 
     expect(runNonUrgentUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it("bounds offscreen hydrated entries while preserving candidates and revoking generated object URLs", async () => {
+    const requestedUrls: string[] = [];
+    const imageInstances: MockImage[] = [];
+    class MockImage {
+      decoding = "";
+      onload: null | (() => void) = null;
+      onerror: null | (() => void) = null;
+      naturalWidth = 1400;
+      naturalHeight = 900;
+
+      constructor() {
+        imageInstances.push(this);
+      }
+
+      set src(value: string) {
+        requestedUrls.push(value);
+      }
+    }
+
+    const revokeObjectURL = vi.fn();
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      writable: true,
+      value: revokeObjectURL,
+    });
+    Object.defineProperty(window, "Image", {
+      configurable: true,
+      writable: true,
+      value: MockImage,
+    });
+    vi.mocked(shouldTranscodeLocalAdaptiveImage).mockReturnValue(true);
+    let transcodeIndex = 0;
+    vi.mocked(transcodeLocalImageToObjectUrl).mockImplementation(async () => {
+      const objectUrl = `blob:hydrated-preview-${transcodeIndex}`;
+      transcodeIndex += 1;
+      return objectUrl;
+    });
+
+    const validOutputIds = Array.from(
+      { length: REFERENCE_GRID_HYDRATED_IMAGE_ENTRY_LIMIT + 2 },
+      (_, index) => `out-${index}`
+    );
+    const runNonUrgentUpdate = vi.fn((updater: () => void) => updater());
+    const liveWatchdogDegradeLevelRef = { current: 0 as 0 | 1 | 2 };
+
+    const { result } = renderHook(() =>
+      useReferenceGridImageHydrationController({
+        decodeBudgetEnabled: true,
+        suspendHydrationProcessing: false,
+        adaptivePreviewRoutingEnabled: true,
+        imageDecodeBudget: REFERENCE_GRID_HYDRATED_IMAGE_ENTRY_LIMIT + 2,
+        activeOutputId: "out-0",
+        validOutputIds,
+        runNonUrgentUpdate,
+        liveWatchdogDegradeLevelRef,
+      })
+    );
+
+    act(() => {
+      result.current.pruneHydrationQueueToCandidateIds(new Set(validOutputIds));
+      validOutputIds.forEach((id, index) => {
+        result.current.enqueueImageHydration(id, `blob:source-${index}`, {
+          mediaSurface: "reference-grid",
+          targetLongEdgePx: 384,
+          previewQualityBand: "balanced",
+        });
+      });
+    });
+
+    await waitFor(() => {
+      expect(requestedUrls).toHaveLength(REFERENCE_GRID_HYDRATED_IMAGE_ENTRY_LIMIT + 2);
+    });
+
+    act(() => {
+      imageInstances.forEach((image) => image.onload?.());
+    });
+
+    await waitFor(() => {
+      const hydratedEntries = result.current.imageHydrationState.hydratedById;
+      expect(Object.keys(hydratedEntries)).toHaveLength(
+        REFERENCE_GRID_HYDRATED_IMAGE_ENTRY_LIMIT + 2
+      );
+      expect(hydratedEntries["out-0"]).toEqual({
+        sourceUrl: "blob:source-0",
+        renderUrl: "blob:hydrated-preview-0",
+      });
+    });
+
+    act(() => {
+      result.current.pruneHydrationQueueToCandidateIds(new Set(["out-0"]));
+    });
+
+    await waitFor(() => {
+      const hydratedEntries = result.current.imageHydrationState.hydratedById;
+      expect(Object.keys(hydratedEntries)).toHaveLength(REFERENCE_GRID_HYDRATED_IMAGE_ENTRY_LIMIT);
+      expect(hydratedEntries["out-0"]).toEqual({
+        sourceUrl: "blob:source-0",
+        renderUrl: "blob:hydrated-preview-0",
+      });
+      expect(hydratedEntries["out-1"]).toBeUndefined();
+      expect(hydratedEntries["out-2"]).toBeUndefined();
+    });
+    await waitFor(() => {
+      expect(revokeObjectURL).toHaveBeenCalledWith("blob:hydrated-preview-1");
+      expect(revokeObjectURL).toHaveBeenCalledWith("blob:hydrated-preview-2");
+    });
   });
 
   it("suppresses repeated hydration attempts for the same failed image URL", async () => {

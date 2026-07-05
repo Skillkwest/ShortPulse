@@ -1,8 +1,10 @@
 import React, { type MutableRefObject } from "react";
 import { resolveMediaRowKind } from "../../../../lib/mediaRowKind";
+import { useMediaGridVideoBudgetController } from "../../../media-library/hooks/useMediaGridVideoBudgetController";
 import { useMediaMasonryVirtualization } from "../../../media-library/hooks/useMediaMasonryVirtualization";
 import { resolveMediaLibraryAdaptiveCardPreviewUrl } from "../../../media-library/logic/mediaLibraryAdaptivePreview";
 import {
+  MEDIA_LIBRARY_VIDEO_BUDGET_ENABLED,
   MEDIA_LIBRARY_VIRTUALIZATION_ENABLED,
   type MediaLibraryGridDensityConfig,
 } from "../../../media-library/logic/mediaLibraryRuntimeConfig";
@@ -248,6 +250,23 @@ export function MediaLibraryAllItemsGrid({
     layoutMode,
   });
 
+  const videoBudgetItems = React.useMemo(
+    () => mediaRows.map((file) => ({ id: file.id, fileType: resolveMediaRowKind(file) })),
+    [mediaRows]
+  );
+  const isVideoFileType = React.useCallback((fileType?: string | null) => fileType === "video", []);
+  const { getVideoNodeRef, isVideoAutoplayEnabled, resolveVideoSource } =
+    useMediaGridVideoBudgetController({
+      items: videoBudgetItems,
+      enabled: MEDIA_LIBRARY_VIDEO_BUDGET_ENABLED,
+      surface,
+      isVideoFile: isVideoFileType,
+      pressureLevel: adaptivePressureLevel,
+      scrollContainerRef,
+      detachDelayMs: 850,
+      visibilityThreshold: 0.5,
+    });
+
   const gridStyle = React.useMemo<React.CSSProperties | undefined>(() => {
     const densityStyle = densityConfig
       ? ({
@@ -363,6 +382,10 @@ export function MediaLibraryAllItemsGrid({
             (file.signedUrl && isVideoUrl(file.signedUrl) ? file.signedUrl : null))
           : null;
         const pressureSafeHoverVideoUrl = adaptivePressureLevel >= 2 ? null : hoverVideoUrl;
+        const managedVideoSrc = isVideo
+          ? resolveVideoSource(file.id, pressureSafeHoverVideoUrl)
+          : undefined;
+        const autoPlayEnabled = isVideoAutoplayEnabled(file.id);
         const posterSourceUrl = resolveVideoPosterSourceUrl(
           file,
           signedPosterUrl,
@@ -438,6 +461,9 @@ export function MediaLibraryAllItemsGrid({
                 previewAspectRatio={previewAspectRatio}
                 cardPreviewUrl={cardPreviewUrl}
                 hoverVideoUrl={pressureSafeHoverVideoUrl}
+                managedVideoSrc={managedVideoSrc ?? null}
+                autoPlayEnabled={autoPlayEnabled}
+                getVideoNodeRef={getVideoNodeRef}
                 posterPreviewUrl={posterPreviewUrl}
                 adaptivePressureLevel={adaptivePressureLevel}
                 fetchPriorityAttr={fetchPriorityAttr}

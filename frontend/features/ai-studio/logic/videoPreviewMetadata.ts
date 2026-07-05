@@ -7,11 +7,13 @@ type LoadVideoPreviewMetadataOptions = {
   posterCaptureTimeSeconds?: number;
   posterMimeType?: string;
   posterQuality?: number;
+  loadTimeoutMs?: number;
 };
 
 const DEFAULT_POSTER_CAPTURE_TIME_SECONDS = 0.05;
 const DEFAULT_POSTER_MIME_TYPE = "image/jpeg";
 const DEFAULT_POSTER_QUALITY = 0.72;
+const DEFAULT_VIDEO_PREVIEW_METADATA_TIMEOUT_MS = 8_000;
 const SEEK_EPSILON_SECONDS = 0.001;
 const SEEK_END_PADDING_SECONDS = 0.1;
 
@@ -66,6 +68,7 @@ export const loadVideoPreviewMetadata = async (
     posterCaptureTimeSeconds = DEFAULT_POSTER_CAPTURE_TIME_SECONDS,
     posterMimeType = DEFAULT_POSTER_MIME_TYPE,
     posterQuality = DEFAULT_POSTER_QUALITY,
+    loadTimeoutMs = DEFAULT_VIDEO_PREVIEW_METADATA_TIMEOUT_MS,
   }: LoadVideoPreviewMetadataOptions = {}
 ): Promise<VideoPreviewMetadata> => {
   if (typeof document === "undefined") {
@@ -85,10 +88,15 @@ export const loadVideoPreviewMetadata = async (
     let settled = false;
     let durationMs: number | null = null;
     let targetTimeSeconds = 0;
+    let timeoutId: number | null = null;
 
     const finalize = (posterUrl: string | null) => {
       if (settled) return;
       settled = true;
+      if (timeoutId != null) {
+        window.clearTimeout(timeoutId);
+        timeoutId = null;
+      }
       video.removeEventListener("loadedmetadata", handleLoadedMetadata);
       video.removeEventListener("loadeddata", handleLoadedData);
       video.removeEventListener("seeked", handleSeeked);
@@ -149,6 +157,10 @@ export const loadVideoPreviewMetadata = async (
     video.addEventListener("loadeddata", handleLoadedData);
     video.addEventListener("seeked", handleSeeked);
     video.addEventListener("error", handleFailure, { once: true });
+    timeoutId =
+      Number.isFinite(loadTimeoutMs) && loadTimeoutMs > 0
+        ? window.setTimeout(() => finalize(null), loadTimeoutMs)
+        : null;
     video.src = videoUrl;
     video.load();
   });

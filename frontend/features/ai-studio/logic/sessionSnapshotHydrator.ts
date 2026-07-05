@@ -52,6 +52,7 @@ import {
 } from "./sessionOutputAuthority";
 import type { AiStudioRightRailLayoutV1 } from "./rightRailLayout";
 import { sanitizeRightRailLayoutSnapshot } from "./rightRailLayout";
+import { sanitizeStoredWaveformPeaks } from "../reference-grid/logic/referenceGridAudioWaveform";
 
 const FALLBACK_MODE: StudioMode = "text";
 const FALLBACK_ASPECT = "9:16";
@@ -519,10 +520,7 @@ const hydrateOutput = (output: AiStudioSessionOutputV1): StudioOutput | null => 
       typeof output.durationMs === "number" && Number.isFinite(output.durationMs)
         ? Math.max(0, Math.round(output.durationMs))
         : null,
-    waveformPeaks:
-      Array.isArray(output.waveformPeaks) && output.waveformPeaks.length > 0
-        ? output.waveformPeaks.filter((value): value is number => typeof value === "number")
-        : null,
+    waveformPeaks: sanitizeStoredWaveformPeaks(output.waveformPeaks),
     resultUrls: output.resultUrls,
     previewUrl: output.previewUrl,
     previewPosterUrl: output.previewPosterUrl ?? null,

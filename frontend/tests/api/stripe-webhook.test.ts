@@ -65,6 +65,7 @@ const createSupabaseAdminForEventClaim = (insertResult: { error: unknown }) => (
 
 const createSupabaseAdminForWebhook = (params?: {
   eventClaimError?: unknown;
+  eventClaimDeleteError?: unknown;
   billingProfile?: Record<string, unknown> | null;
   billingPlan?: Record<string, unknown> | null;
   billingOffer?: Record<string, unknown> | null;
@@ -72,6 +73,7 @@ const createSupabaseAdminForWebhook = (params?: {
   billingStorageAddon?: Record<string, unknown> | null;
   billingStorageAddonOffer?: Record<string, unknown> | null;
   billingStorageAddonContracts?: Record<string, unknown>[];
+  onEventClaimDelete?: (eventId: string) => void;
   onBillingProfileUpdate?: (payload: unknown) => void;
   onContractInsert?: (payload: unknown) => void;
   onContractUpdate?: (payload: unknown) => void;
@@ -82,6 +84,12 @@ const createSupabaseAdminForWebhook = (params?: {
     if (table === "stripe_event_log") {
       return {
         insert: async () => ({ error: params?.eventClaimError ?? null }),
+        delete: () => ({
+          eq: async (_column: string, eventId: string) => {
+            params?.onEventClaimDelete?.(eventId);
+            return { error: params?.eventClaimDeleteError ?? null };
+          },
+        }),
       };
     }
 
@@ -453,6 +461,7 @@ describe("POST /api/billing/stripe/webhook", () => {
         data: {
           object: {
             id: "cs_test_duplicate",
+            customer: "cus_123",
             payment_status: "paid",
             metadata: {
               user_id: "user_123",
@@ -466,6 +475,56 @@ describe("POST /api/billing/stripe/webhook", () => {
 
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ received: true });
+  });
+
+  it("releases the event claim for Stripe retry when checkout credit processing fails", async () => {
+    verifyStripeWebhookSignatureMock.mockReturnValue(true);
+    const releasedEventIds: string[] = [];
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminForWebhook({
+        onEventClaimDelete: (eventId) => releasedEventIds.push(eventId),
+      })
+    );
+    insertCreditLedgerEntryMock.mockResolvedValueOnce({
+      error: {
+        code: "57014",
+        message: "statement timeout",
+      },
+    });
+
+    const { res, promise } = createWebhookRequest(
+      JSON.stringify({
+        id: "evt_checkout_credit_processing_failed",
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            id: "cs_processing_failed",
+            customer: "cus_123",
+            payment_status: "paid",
+            metadata: {
+              user_id: "user_123",
+              credit_amount_cents: "1500",
+            },
+          },
+        },
+      })
+    );
+    await promise;
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Webhook processing failed." });
+    expect(releasedEventIds).toEqual(["evt_checkout_credit_processing_failed"]);
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "billing/stripe/webhook",
+        metadata: expect.objectContaining({
+          stripe_event_id: "evt_checkout_credit_processing_failed",
+          stripe_event_type: "checkout.session.completed",
+          claim_released_for_retry: true,
+          claim_release_error: null,
+        }),
+      })
+    );
   });
 
   it("fails closed on checkout credit grants when the Stripe customer does not belong to the session user", async () => {

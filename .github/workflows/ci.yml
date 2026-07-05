@@ -600,10 +600,14 @@ jobs:
         env:
           SIZE_BUDGET_MODE: ${{ vars.SIZE_BUDGET_MODE }}
           REFERENCE_GRID_SIZE_BUDGET_MODE: ${{ vars.REFERENCE_GRID_SIZE_BUDGET_MODE }}
+          LAUNCH_SOURCE_INVENTORY_SIZE_BUDGET_MODE: ${{ vars.LAUNCH_SOURCE_INVENTORY_SIZE_BUDGET_MODE }}
+          LAUNCH_STYLE_INVENTORY_SIZE_BUDGET_MODE: ${{ vars.LAUNCH_STYLE_INVENTORY_SIZE_BUDGET_MODE }}
         run: |
           set -euo pipefail
           MODE="${SIZE_BUDGET_MODE:-warn}"
           RG_MODE="${REFERENCE_GRID_SIZE_BUDGET_MODE:-warn}"
+          LSI_MODE="${LAUNCH_SOURCE_INVENTORY_SIZE_BUDGET_MODE:-warn}"
+          LSTI_MODE="${LAUNCH_STYLE_INVENTORY_SIZE_BUDGET_MODE:-warn}"
           if [ "$MODE" != "warn" ] && [ "$MODE" != "enforce" ]; then
             echo "::warning::Unknown SIZE_BUDGET_MODE='$MODE'. Falling back to 'warn'."
             MODE="warn"
@@ -612,8 +616,16 @@ jobs:
             echo "::warning::Unknown REFERENCE_GRID_SIZE_BUDGET_MODE='$RG_MODE'. Falling back to 'warn'."
             RG_MODE="warn"
           fi
+          if [ "$LSI_MODE" != "warn" ] && [ "$LSI_MODE" != "enforce" ]; then
+            echo "::warning::Unknown LAUNCH_SOURCE_INVENTORY_SIZE_BUDGET_MODE='$LSI_MODE'. Falling back to 'warn'."
+            LSI_MODE="warn"
+          fi
+          if [ "$LSTI_MODE" != "warn" ] && [ "$LSTI_MODE" != "enforce" ]; then
+            echo "::warning::Unknown LAUNCH_STYLE_INVENTORY_SIZE_BUDGET_MODE='$LSTI_MODE'. Falling back to 'warn'."
+            LSTI_MODE="warn"
+          fi
           EFFECTIVE_MODE="$MODE"
-          if [ "$RG_MODE" = "enforce" ]; then
+          if [ "$RG_MODE" = "enforce" ] || [ "$LSI_MODE" = "enforce" ] || [ "$LSTI_MODE" = "enforce" ]; then
             EFFECTIVE_MODE="enforce"
           fi
 

@@ -43,6 +43,27 @@ const dispatchDropAtPoint = ({
   fireEvent(viewport, event);
 };
 
+const createSeededCanvasSessionState = (itemCount: number) => ({
+  items: Array.from({ length: itemCount }, (_, index) => ({
+    id: `seeded-text-${index + 1}`,
+    kind: "text" as const,
+    x: index,
+    y: index,
+    z: index + 1,
+    selected: index === itemCount - 1,
+    outputId: null,
+    sourceSurface: null,
+    text: `Seeded note ${index + 1}`,
+    width: 260,
+  })),
+  draftTextEntry: null,
+  textEditSession: null,
+  draftOwnerInstanceId: null,
+  textEditOwnerInstanceId: null,
+  mainCamera: { x: 0, y: 0, zoom: 1 },
+  railCamera: { x: 0, y: 0, zoom: 1 },
+});
+
 const createSessionBackedLibraryPromptTransfer = (promptText: string): DataTransfer => {
   const data = new Map<string, string>();
   const transfer = {
@@ -201,6 +222,107 @@ describe("Canvas drop behavior", () => {
       expect(resolveCanvasDropFiles).toHaveBeenCalledWith(files);
     });
     expect(await screen.findByAltText("Desktop file image")).toBeInTheDocument();
+  });
+
+  it("skips desktop file resolution when the canvas is already full", async () => {
+    const resolveCanvasDropFiles = vi.fn(async () => []);
+    const onItemLimitReached = vi.fn();
+
+    render(
+      <SeededCanvasHarness
+        initialSessionState={createSeededCanvasSessionState(AI_STUDIO_CANVAS_ITEM_HARD_CAP)}
+        resolveCanvasDropFiles={resolveCanvasDropFiles}
+        onItemLimitReached={onItemLimitReached}
+      />
+    );
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    await waitFor(() => {
+      expect(viewport).toHaveAttribute(
+        "data-canvas-total-item-count",
+        String(AI_STUDIO_CANVAS_ITEM_HARD_CAP)
+      );
+    });
+
+    const file = new File(["desktop"], "overflow-drop.png", { type: "image/png" });
+    fireEvent.drop(viewport, {
+      dataTransfer: {
+        files: {
+          0: file,
+          length: 1,
+          item: (index: number) => (index === 0 ? file : null),
+        },
+        types: ["Files"],
+        getData: () => "",
+        dropEffect: "copy",
+        effectAllowed: "copy",
+      } as unknown as DataTransfer,
+      clientX: 300,
+      clientY: 200,
+    });
+
+    expect(resolveCanvasDropFiles).not.toHaveBeenCalled();
+    expect(onItemLimitReached).toHaveBeenCalledTimes(1);
+  });
+
+  it("only resolves desktop files that can fit in the remaining canvas slots", async () => {
+    const resolveCanvasDropFiles = vi.fn(async (files: FileList | File[]) =>
+      Array.from(files).map((file, index) => ({
+        kind: "image" as const,
+        outputId: null,
+        mediaId: `media-file-drop-${index + 1}`,
+        src: `https://example.com/${file.name}`,
+        alt: file.name,
+        width: 1280,
+        height: 720,
+      }))
+    );
+    const onItemLimitReached = vi.fn();
+
+    render(
+      <SeededCanvasHarness
+        initialSessionState={createSeededCanvasSessionState(AI_STUDIO_CANVAS_ITEM_HARD_CAP - 1)}
+        resolveCanvasDropFiles={resolveCanvasDropFiles}
+        onItemLimitReached={onItemLimitReached}
+      />
+    );
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    await waitFor(() => {
+      expect(viewport).toHaveAttribute(
+        "data-canvas-total-item-count",
+        String(AI_STUDIO_CANVAS_ITEM_HARD_CAP - 1)
+      );
+    });
+
+    const firstFile = new File(["first"], "first-drop.png", { type: "image/png" });
+    const secondFile = new File(["second"], "second-drop.png", { type: "image/png" });
+    fireEvent.drop(viewport, {
+      dataTransfer: {
+        files: {
+          0: firstFile,
+          1: secondFile,
+          length: 2,
+          item: (index: number) => (index === 0 ? firstFile : index === 1 ? secondFile : null),
+        },
+        types: ["Files"],
+        getData: () => "",
+        dropEffect: "copy",
+        effectAllowed: "copy",
+      } as unknown as DataTransfer,
+      clientX: 300,
+      clientY: 200,
+    });
+
+    await waitFor(() => {
+      expect(resolveCanvasDropFiles).toHaveBeenCalledTimes(1);
+    });
+    expect(Array.from(resolveCanvasDropFiles.mock.calls[0][0])).toEqual([firstFile]);
+    expect(await screen.findByAltText("first-drop.png")).toBeInTheDocument();
+    expect(screen.queryByAltText("second-drop.png")).not.toBeInTheDocument();
+    expect(onItemLimitReached).toHaveBeenCalledTimes(1);
   });
 
   it("shows controlled unavailable UI when canvas image media fails to render", async () => {
@@ -419,6 +541,87 @@ describe("Canvas drop behavior", () => {
     const secondY = Number(secondItem?.getAttribute("data-y"));
     expect(secondX - firstX).toBe(24);
     expect(secondY - firstY).toBe(24);
+  });
+
+  it("only prepares bulk media-library drops that can fit in the remaining canvas slots", async () => {
+    const prepareCanvasMediaLibraryDrop = vi.fn(async (payload) => {
+      if (payload.kind !== "libraryMedia") return null;
+      return {
+        kind: "image" as const,
+        outputId: `output-${payload.payload.id}`,
+        mediaId: payload.payload.id,
+        src: payload.payload.url,
+        alt: payload.payload.filename,
+        width: 160,
+        height: 90,
+      };
+    }) satisfies PrepareCanvasMediaLibraryDrop;
+    const onItemLimitReached = vi.fn();
+
+    render(
+      <SeededCanvasHarness
+        initialSessionState={createSeededCanvasSessionState(AI_STUDIO_CANVAS_ITEM_HARD_CAP - 1)}
+        prepareCanvasMediaLibraryDrop={prepareCanvasMediaLibraryDrop}
+        onItemLimitReached={onItemLimitReached}
+      />
+    );
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    await waitFor(() => {
+      expect(viewport).toHaveAttribute(
+        "data-canvas-total-item-count",
+        String(AI_STUDIO_CANVAS_ITEM_HARD_CAP - 1)
+      );
+    });
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "application/x-shortpulse-media-library-items": JSON.stringify({
+          kind: "bulkLibraryMedia",
+          source: "mediaLibrary",
+          payload: {
+            draggedItemId: "media-bulk-1",
+            originFolderId: null,
+            items: [
+              {
+                id: "media-bulk-1",
+                url: "https://example.com/library-bulk-1.png",
+                fileType: "image",
+                filename: "Bulk library image 1",
+              },
+              {
+                id: "media-bulk-2",
+                url: "https://example.com/library-bulk-2.png",
+                fileType: "image",
+                filename: "Bulk library image 2",
+              },
+            ],
+          },
+        }),
+        "text/shortpulse-media-library-bulk-marker": "shortpulse-media-library-bulk-v1",
+      }),
+      clientX: 300,
+      clientY: 200,
+    });
+
+    await waitFor(() => {
+      expect(prepareCanvasMediaLibraryDrop).toHaveBeenCalledTimes(1);
+    });
+    expect(prepareCanvasMediaLibraryDrop).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "libraryMedia",
+        payload: expect.objectContaining({ id: "media-bulk-1" }),
+      })
+    );
+    await waitFor(() => {
+      expect(viewport).toHaveAttribute(
+        "data-canvas-total-item-count",
+        String(AI_STUDIO_CANVAS_ITEM_HARD_CAP)
+      );
+    });
+    expect(screen.queryByAltText("Bulk library image 2")).not.toBeInTheDocument();
+    expect(onItemLimitReached).toHaveBeenCalledTimes(1);
   });
 
   it("creates an audio card from a media-library audio drop", async () => {
@@ -1071,6 +1274,69 @@ describe("Canvas drop behavior", () => {
       await waitFor(() => {
         expect(screen.queryByTestId("canvas-loading-spinner")).not.toBeInTheDocument();
       });
+      await waitFor(() => {
+        expect(viewport).not.toHaveAttribute("data-canvas-drop-resolving");
+      });
+    } finally {
+      (globalThis as { Image: typeof Image }).Image = OriginalImage;
+      window.requestAnimationFrame = originalRequestAnimationFrame;
+    }
+  });
+
+  it("falls back to default image dimensions when the image dimension probe times out", async () => {
+    const OriginalImage = globalThis.Image;
+    const originalRequestAnimationFrame = window.requestAnimationFrame;
+    let srcAssignments = 0;
+    class NeverResolvingImage {
+      naturalWidth = 0;
+      naturalHeight = 0;
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+
+      set src(_value: string) {
+        srcAssignments += 1;
+      }
+    }
+    (globalThis as { Image: typeof Image }).Image = NeverResolvingImage as unknown as typeof Image;
+    window.requestAnimationFrame = ((callback: FrameRequestCallback) => {
+      callback(16);
+      return 1;
+    }) as typeof window.requestAnimationFrame;
+    try {
+      const timeoutResolveCanvasDropReference: ResolveCanvasDropReference = (payload) => {
+        if (payload.outputId !== "img-timeout") return null;
+        return {
+          kind: "image",
+          outputId: "img-timeout",
+          mediaId: "media-timeout",
+          src: "https://example.com/timeout-reference.png",
+          alt: "Timed out reference image",
+          sourceSurface: payload.sourceSurface ?? null,
+        };
+      };
+      render(<CanvasHarness resolveCanvasDropReference={timeoutResolveCanvasDropReference} />);
+      const viewport = screen.getByTestId("canvas-viewport");
+      mockViewportRect(viewport);
+
+      fireEvent.drop(viewport, {
+        dataTransfer: createTransfer({
+          "text/reference-origin": "ai-studio-reference-grid",
+          "text/reference-version": "1",
+          "text/reference-id": "img-timeout",
+          "text/reference-output-id": "img-timeout",
+          "text/reference-source-surface": "all-refs",
+        }),
+        clientX: 300,
+        clientY: 200,
+      });
+
+      expect(
+        await screen.findByAltText("Timed out reference image", {}, { timeout: 4000 })
+      ).toBeInTheDocument();
+      expect(srcAssignments).toBe(1);
+      const finalItem = screen.getByTestId(/canvas-item-/);
+      expect(Number(finalItem.getAttribute("data-width"))).toBe(220);
+      expect(Number(finalItem.getAttribute("data-height"))).toBe(275);
       await waitFor(() => {
         expect(viewport).not.toHaveAttribute("data-canvas-drop-resolving");
       });

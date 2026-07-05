@@ -20,7 +20,7 @@ const buildReport = () => ({
   personaReportBody: "I felt confident that the app remembered my draft.",
   engineeringReportTitle: "Draft persistence handoff",
   engineeringReportBody: "Verify autosave confidence around AI Studio draft restore.",
-  reportArtifactPaths: ["docs/testers/maya-chen/reports/2026-07-04.md"],
+  reportArtifactPaths: ["docs/agents/testers/maya-chen/reports/2026-07-04.md"],
   evidence: { screenshots: 2 },
   createdBySource: "tester_agent" as const,
   createdByUserId: null,

@@ -20,6 +20,7 @@ import type {
 import type { CanvasWorkspaceInstanceId } from "../components/canvas/canvasWorkspaceContracts";
 import type { ReferenceDragSourceSurface } from "../utils/dragDrop";
 import { normalizeAudioSourceMode } from "./audioSourceMode";
+import { sanitizeStoredWaveformPeaks } from "../reference-grid/logic/referenceGridAudioWaveform";
 
 export const AI_STUDIO_CANVAS_ITEM_HARD_CAP = 300;
 export const AI_STUDIO_SESSION_MAX_SNAPSHOT_BYTES = 900_000;
@@ -193,11 +194,7 @@ const sanitizeCanvasText = (value: unknown): string => {
 };
 
 const sanitizeWaveformPeaks = (value: unknown): number[] | null => {
-  if (!Array.isArray(value) || value.length === 0) return null;
-  const peaks = value.filter(
-    (entry): entry is number => typeof entry === "number" && Number.isFinite(entry)
-  );
-  return peaks.length > 0 ? peaks : null;
+  return sanitizeStoredWaveformPeaks(value);
 };
 
 const isDurableCanvasMediaSource = (value: string): boolean => {
@@ -436,7 +433,7 @@ const toSnapshotSceneItems = (items: CanvasSceneItem[]): CanvasSceneItemSnapshot
             companionArtStoragePath: item.companionArtStoragePath ?? null,
             audioSourceMode: item.audioSourceMode ?? null,
             durationMs: item.durationMs ?? null,
-            waveformPeaks: item.waveformPeaks ?? null,
+            waveformPeaks: sanitizeStoredWaveformPeaks(item.waveformPeaks),
             width: item.width,
             height: item.height,
           }

@@ -11,6 +11,7 @@ import {
   readMediaLibraryBulkMediaDragPayload,
   readMediaLibraryDragPayload,
 } from "../../logic/mediaLibraryDragPayload";
+import { sanitizeStoredWaveformPeaks } from "../../reference-grid/logic/referenceGridAudioWaveform";
 import { getDroppedMediaReference } from "../../reference-grid/controllers/referenceGridClipboard";
 import {
   extractInternalReferenceDragPayload,
@@ -55,6 +56,8 @@ type UseCanvasViewportDropHandlersParams = {
     worldY: number,
     options?: { showLoadingPlaceholder?: boolean }
   ) => Promise<CanvasInsertResult>;
+  getAvailableItemSlots: () => number;
+  notifyItemLimitReached: () => void;
 };
 
 type CanvasDropHandlers = {
@@ -82,6 +85,8 @@ export const useCanvasViewportDropHandlers = ({
   resolveCanvasDroppedMediaReference,
   resolveCanvasDropFiles,
   addResolvedItem,
+  getAvailableItemSlots,
+  notifyItemLimitReached,
 }: UseCanvasViewportDropHandlersParams): CanvasDropHandlers => {
   const dragDepthRef = useRef(0);
   const dropResolvingCountRef = useRef(0);
@@ -345,12 +350,23 @@ export const useCanvasViewportDropHandlers = ({
       if (bulkMediaLibraryPayload) {
         event.preventDefault();
         event.stopPropagation();
+        const availableItemSlots = getAvailableItemSlots();
+        if (availableItemSlots <= 0) {
+          notifyItemLimitReached();
+          return;
+        }
+        const insertablePayloads = bulkMediaLibraryPayload.payload.items.slice(
+          0,
+          availableItemSlots
+        );
+        const skippedPayloadCount =
+          bulkMediaLibraryPayload.payload.items.length - insertablePayloads.length;
         void runDropResolvingTask(async () => {
           const preparedDrops: {
             resolved: CanvasDropResolution;
             afterInsert?: (result: CanvasInsertResult) => Promise<void> | void;
           }[] = [];
-          for (const payload of bulkMediaLibraryPayload.payload.items) {
+          for (const payload of insertablePayloads) {
             const preparedDrop = prepareCanvasMediaLibraryDrop
               ? await prepareCanvasMediaLibraryDrop({
                   kind: "libraryMedia",
@@ -378,6 +394,9 @@ export const useCanvasViewportDropHandlers = ({
               }
             );
             await preparedDrop.afterInsert?.(insertResult);
+          }
+          if (skippedPayloadCount > 0) {
+            notifyItemLimitReached();
           }
         });
         return;
@@ -423,7 +442,9 @@ export const useCanvasViewportDropHandlers = ({
                         mediaLibraryPayload.payload.companionArtStoragePath ?? null,
                       audioSourceMode: mediaLibraryPayload.payload.audioSourceMode ?? null,
                       durationMs: mediaLibraryPayload.payload.durationMs ?? null,
-                      waveformPeaks: mediaLibraryPayload.payload.waveformPeaks ?? null,
+                      waveformPeaks: sanitizeStoredWaveformPeaks(
+                        mediaLibraryPayload.payload.waveformPeaks
+                      ),
                       width: CANVAS_AUDIO_ITEM_WIDTH,
                       height: CANVAS_AUDIO_ITEM_HEIGHT,
                     };
@@ -512,8 +533,19 @@ export const useCanvasViewportDropHandlers = ({
       if (droppedFiles && droppedFiles.length > 0 && resolveCanvasDropFiles) {
         event.preventDefault();
         event.stopPropagation();
+        const availableItemSlots = getAvailableItemSlots();
+        if (availableItemSlots <= 0) {
+          notifyItemLimitReached();
+          return;
+        }
+        const insertableFiles =
+          droppedFiles.length > availableItemSlots
+            ? Array.from(droppedFiles).slice(0, availableItemSlots)
+            : droppedFiles;
+        const skippedFileCount =
+          droppedFiles.length - Math.min(droppedFiles.length, availableItemSlots);
         void runDropResolvingTask(async () => {
-          const resolvedItems = await resolveCanvasDropFiles(droppedFiles);
+          const resolvedItems = await resolveCanvasDropFiles(insertableFiles);
           if (!resolvedItems?.length) {
             showDropFeedback("Unable to add those files to the canvas.");
             return;
@@ -525,6 +557,9 @@ export const useCanvasViewportDropHandlers = ({
             await addResolvedItem(resolvedItem, point.x + offset, point.y + offset, {
               showLoadingPlaceholder: true,
             });
+          }
+          if (skippedFileCount > 0) {
+            notifyItemLimitReached();
           }
         });
         return;
@@ -549,9 +584,11 @@ export const useCanvasViewportDropHandlers = ({
     [
       addResolvedItem,
       camera,
+      getAvailableItemSlots,
       showDropFeedback,
       handleResolvedInternalDrop,
       logUnresolvedInternalDrop,
+      notifyItemLimitReached,
       prepareCanvasMediaLibraryDrop,
       normalizePreparedDrop,
       resolveCanvasDroppedMediaReference,

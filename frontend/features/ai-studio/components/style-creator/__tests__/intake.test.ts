@@ -158,6 +158,56 @@ describe("style-creator derivation helpers", () => {
     expect(processed.previewImageUrl).toBe("data:image/jpeg;base64,512x512");
     expect(processed.extractionSourceImageUrl).toBe("data:image/jpeg;base64,1024x768");
   });
+
+  it("derives preview before starting the extraction resize to lower peak image memory", async () => {
+    const events: string[] = [];
+    let imageLoadCount = 0;
+    class MockImage {
+      onload: null | (() => void) = null;
+      onerror: null | (() => void) = null;
+      naturalWidth = 1600;
+      naturalHeight = 1200;
+      width = 1600;
+      height = 1200;
+      set src(_value: string) {
+        imageLoadCount += 1;
+        events.push(`image-${imageLoadCount}`);
+        this.onload?.();
+      }
+    }
+
+    Object.defineProperty(globalThis, "Image", {
+      configurable: true,
+      writable: true,
+      value: MockImage,
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+      configurable: true,
+      writable: true,
+      value: () =>
+        ({
+          imageSmoothingEnabled: true,
+          imageSmoothingQuality: "high",
+          drawImage: vi.fn(),
+        }) as unknown as CanvasRenderingContext2D,
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", {
+      configurable: true,
+      writable: true,
+      value: function toDataUrlForCanvas() {
+        events.push(
+          `export-${(this as HTMLCanvasElement).width}x${(this as HTMLCanvasElement).height}`
+        );
+        return `data:image/jpeg;base64,${(this as HTMLCanvasElement).width}x${(this as HTMLCanvasElement).height}`;
+      },
+    });
+
+    const processed = await preprocessStyleImageDataUrl("data:image/png;base64,source");
+
+    expect(processed.previewImageUrl).toBe("data:image/jpeg;base64,512x512");
+    expect(processed.extractionSourceImageUrl).toBe("data:image/jpeg;base64,1024x768");
+    expect(events).toEqual(["image-1", "export-512x512", "image-2", "export-1024x768"]);
+  });
 });
 
 describe("style-creator source normalization", () => {

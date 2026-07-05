@@ -111,10 +111,8 @@ export const resizeImageDataUrlForExtraction = async (sourceDataUrl: string): Pr
  * Produces style-intake preview and extraction images from a source data URL.
  */
 export const preprocessStyleImageDataUrl = async (sourceDataUrl: string) => {
-  const [previewImageUrl, extractionSourceImageUrl] = await Promise.all([
-    cropImageDataUrlToSquareDataUrl(sourceDataUrl),
-    resizeImageDataUrlForExtraction(sourceDataUrl),
-  ]);
+  const previewImageUrl = await cropImageDataUrlToSquareDataUrl(sourceDataUrl);
+  const extractionSourceImageUrl = await resizeImageDataUrlForExtraction(sourceDataUrl);
   return {
     previewImageUrl,
     extractionSourceImageUrl,

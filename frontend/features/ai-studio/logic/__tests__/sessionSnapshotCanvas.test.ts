@@ -243,6 +243,41 @@ describe("sessionSnapshotCanvas", () => {
     ]);
   });
 
+  it("bounds oversized audio waveform peaks in canvas snapshots", () => {
+    const state = createCanvasState(0);
+    state.items = [
+      {
+        id: "audio-1",
+        kind: "audio",
+        x: 12,
+        y: 24,
+        z: 3,
+        selected: true,
+        outputId: "output-audio-1",
+        sourceSurface: "all-refs",
+        mediaId: "media-audio-1",
+        audioUrl: "https://example.com/audio-reference.mp3",
+        audioStoragePath: "user-1/audio/audio-reference.mp3",
+        title: "Canvas audio",
+        companionArtUrl: null,
+        companionArtStoragePath: null,
+        audioSourceMode: "sound-effects",
+        durationMs: null,
+        waveformPeaks: Array.from({ length: 500 }, (_, index) => index % 101),
+        width: 160,
+        height: 200,
+      },
+    ];
+
+    const snapshot = serializeAiStudioSessionCanvasState(state);
+    const item = snapshot.scene.items[0];
+    expect(item?.kind).toBe("audio");
+    expect(item?.kind === "audio" ? item.waveformPeaks : null).toHaveLength(56);
+    const parsedItem = parseAiStudioSessionCanvasState(snapshot)?.items[0];
+    expect(parsedItem?.kind).toBe("audio");
+    expect(parsedItem?.kind === "audio" ? parsedItem.waveformPeaks : null).toHaveLength(56);
+  });
+
   it("round-trips durable video canvas items with poster metadata", () => {
     const state = createCanvasState(0);
     state.items = [

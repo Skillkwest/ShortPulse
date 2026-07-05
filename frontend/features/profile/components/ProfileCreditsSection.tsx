@@ -2,7 +2,7 @@
  * Credits section for the profile workspace.
  * Separates one-time credit purchasing and credit activity from account billing management.
  */
-import { ArrowsClockwise, Receipt } from "phosphor-react";
+import { Receipt } from "phosphor-react";
 import type { BillingLedgerEvent } from "../profilePageModel";
 import {
   formatCurrencyFromCents,
@@ -46,9 +46,7 @@ type ProfileCreditsSectionProps = {
   checkoutLoadingId: string | null;
   packageCards: readonly CreditPackageCard[];
   packagesLoading: boolean;
-  refreshingCredits: boolean;
   onCheckout: (packageId: string) => void;
-  onRefreshCredits: () => void;
 };
 
 /**
@@ -66,9 +64,7 @@ export function ProfileCreditsSection({
   checkoutLoadingId,
   packageCards,
   packagesLoading,
-  refreshingCredits,
   onCheckout,
-  onRefreshCredits,
 }: ProfileCreditsSectionProps) {
   const balanceDisplayValue = balanceLoading
     ? "…"
@@ -106,17 +102,6 @@ export function ProfileCreditsSection({
           eyebrow="Credits & top-ups"
           title="Buy credits"
           className="profile-panel-stack"
-          headerAction={
-            <button
-              type="button"
-              className={profileClass("profile-inline-action")}
-              onClick={onRefreshCredits}
-              disabled={refreshingCredits || balanceLoading}
-            >
-              <ArrowsClockwise size={15} />
-              {refreshingCredits ? "Syncing…" : "Refresh credits"}
-            </button>
-          }
         >
           <div className={profileClass("profile-plan-grid", "profile-credit-package-grid")}>
             {packagesLoading ? (

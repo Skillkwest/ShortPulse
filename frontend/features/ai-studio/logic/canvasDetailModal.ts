@@ -11,6 +11,7 @@ import type {
   CanvasSceneItem,
   CanvasVideoItem,
 } from "../components/canvas/canvasTypes";
+import { sanitizeStoredWaveformPeaks } from "../reference-grid/logic/referenceGridAudioWaveform";
 
 type CanvasDetailModalMediaItem = CanvasImageItem | CanvasVideoItem | CanvasAudioItem;
 
@@ -101,7 +102,7 @@ export const createCanvasDetailModalItem = ({
               source: item.audioSourceMode ?? null,
               audioSourceMode: item.audioSourceMode ?? null,
               durationMs: item.durationMs ?? null,
-              waveformPeaks: item.waveformPeaks ?? null,
+              waveformPeaks: sanitizeStoredWaveformPeaks(item.waveformPeaks),
             },
     presentation: {
       title,

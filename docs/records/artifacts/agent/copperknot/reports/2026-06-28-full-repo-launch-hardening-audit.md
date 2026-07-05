@@ -520,7 +520,7 @@ AI Studio notes:
 Commands/checks run:
 
 - Loaded doc-governance helpers: `skills/skill-doc-index/SKILL.md` and `skills/skill-mvp-docs-sop-governance/SKILL.md`.
-- Docs inventory: 2,060 files under `docs/`; top-level docs section indexes exist for `docs/`, `docs/adr/`, `docs/agents/`, `docs/api/`, `docs/archive/`, `docs/brainstorming/`, `docs/design/`, `docs/planning/`, `docs/product/`, `docs/records/`, `docs/sops/`, `docs/systems/`, and the newly present `docs/testers/`.
+- Docs inventory: 2,060 files under `docs/`; top-level docs section indexes exist for `docs/`, `docs/adr/`, `docs/agents/`, `docs/api/`, `docs/archive/`, `docs/brainstorming/`, `docs/design/`, `docs/planning/`, `docs/product/`, `docs/records/`, `docs/sops/`, `docs/systems/`, and the newly present `docs/agents/testers/`.
 - Read index authorities: `docs/README.md`, `docs/documentation_overview.md`, `docs/sops/README.md`, `docs/adr/README.md`, and `docs/known-issues.md`.
 - `npm -C frontend run docs:check` passed.
 - `node scripts/check_docs_links.js` passed.
@@ -547,7 +547,7 @@ Docs/tooling notes:
 - The docs/link checks are healthy for broken links, API doc top-level indexing, semantic route/API drift, archive manifest integrity, model catalog parity, naming drift, operator-map drift, and migration mention parity.
 - The docs checks do not currently catch active SOP or ADR section-index omissions; this is recorded as F-013.
 - Production build is green; full TypeScript is not. This is recorded as F-014 and should be fixed before relying on the CI frontend compatibility gate.
-- Current worktree contains unrelated user/external changes in `docs/README.md`, `docs/planning/backlog.md`, AI Studio view-model files, `docs/records/evidence/ux/*`, and `docs/testers/`; this audit did not modify those files.
+- Current worktree contains unrelated user/external changes in `docs/README.md`, `docs/planning/backlog.md`, AI Studio view-model files, `docs/records/evidence/ux/*`, and `docs/agents/testers/`; this audit did not modify those files.
 
 ### 2026-06-28 Checkpoint 10 - Security, Dependency, And Ops Mutation Safety Recheck
 

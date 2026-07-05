@@ -86,11 +86,14 @@ export const classifyReferenceGridCardVisualState = ({
   const hasPromptOnlyPreview = Boolean(item.previewText);
   const isDecodeBudgetHydrationPending =
     isImagePreview && decodeBudgetEnabled && !imageSrc && isPriorityHydration;
+  const isDecodeBudgetAwaitingTurn =
+    isImagePreview && decodeBudgetEnabled && !imageSrc && !isPriorityHydration;
   const hasActiveStorageResolveWork = hasDurableStoragePathAuthority && isStorageSigningPending;
   const isMediaHydrating =
     !isFailing &&
     !isGenerationLoading &&
     !isLocalVideoPersistenceLoading &&
+    !isDecodeBudgetAwaitingTurn &&
     !hasRenderableGeneratedMedia &&
     (hasRenderablePreview || hasActiveStorageResolveWork) &&
     !hasPromptOnlyPreview &&

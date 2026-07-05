@@ -24,6 +24,7 @@ describe("loadVideoPreviewMetadata", () => {
   const originalCanvasToDataUrl = HTMLCanvasElement.prototype.toDataURL;
 
   afterEach(() => {
+    vi.useRealTimers();
     Object.defineProperty(HTMLMediaElement.prototype, "load", {
       configurable: true,
       value: originalLoad,
@@ -131,5 +132,27 @@ describe("loadVideoPreviewMetadata", () => {
     });
 
     expect(seekTimes).toContain(2.4);
+  });
+
+  it("times out stalled video metadata probes and releases the video source", async () => {
+    vi.useFakeTimers();
+    const loadSpy = vi.fn();
+    Object.defineProperty(HTMLMediaElement.prototype, "load", {
+      configurable: true,
+      value: loadSpy,
+    });
+    const removeAttributeSpy = vi.spyOn(HTMLMediaElement.prototype, "removeAttribute");
+
+    const resultPromise = loadVideoPreviewMetadata("https://example.com/stalled-motion.mp4", {
+      loadTimeoutMs: 25,
+    });
+    await vi.advanceTimersByTimeAsync(25);
+
+    await expect(resultPromise).resolves.toEqual({
+      durationMs: null,
+      posterUrl: null,
+    });
+    expect(removeAttributeSpy).toHaveBeenCalledWith("src");
+    expect(loadSpy).toHaveBeenCalledTimes(2);
   });
 });

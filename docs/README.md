@@ -16,7 +16,7 @@ Start here for all repository documentation.
 - Standalone operational system docs live in `mini-ecosystem/` at repo root.
 - Durable architecture decisions live in `docs/adr/`.
 - Agent workflow helpers live in `docs/agents/`.
-- Simulated customer testers live in `docs/testers/`.
+- Simulated customer testers live in `docs/agents/testers/`.
 - Design rationale lives in `docs/design/`.
 - Historical/deprecated docs live in `docs/archive/`.
 - Early non-authoritative ideas live in `docs/brainstorming/`.
@@ -60,7 +60,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/ux-decision-framework.md`
 - `docs/product-instrumentation.md`
 - `docs/agents/README.md`
-- `docs/testers/README.md`
+- `docs/agents/testers/README.md`
 - `docs/agents/solo-owner-launch-trust-standard.md`
 - `docs/planning/ai-studio-right-rail-drag-drop-buildout-plan-2026-06-08.md`
 - `docs/planning/ai-studio-reference-grid-media-reliability-buildout-plan-2026-06-08.md`

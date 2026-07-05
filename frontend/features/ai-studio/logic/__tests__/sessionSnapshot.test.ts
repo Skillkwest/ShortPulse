@@ -869,6 +869,35 @@ describe("sessionSnapshot", () => {
     );
   });
 
+  it("bounds oversized output waveform peaks across session snapshot hydration", () => {
+    const snapshot = buildAiStudioSessionSnapshot(
+      createSnapshotInput({
+        mode: "audio",
+        selectedTool: "text-to-speech",
+        prompt: "voiceover",
+        model: "eleven_v3",
+        aspect: "audio",
+        outputs: [
+          createOutput({
+            id: "audio-waveform",
+            mode: "audio",
+            durationMs: 4_000,
+            waveformPeaks: Array.from({ length: 500 }, (_, index) => index % 101),
+            previewStoragePath: "user-1/audio/audio-waveform.mp3",
+            fullStoragePath: "user-1/audio/audio-waveform.mp3",
+          }),
+        ],
+        activeOutputId: "audio-waveform",
+        curatedReferenceIds: ["audio-waveform"],
+      })
+    );
+
+    expect(snapshot.outputs.active[0]?.waveformPeaks).toHaveLength(56);
+    expect(
+      buildAiStudioSessionHydrationPayload(snapshot).outputs.active[0]?.waveformPeaks
+    ).toHaveLength(56);
+  });
+
   it("omits unsettled failed generated audio outputs from persisted snapshots", () => {
     const snapshot = buildAiStudioSessionSnapshot({
       sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",

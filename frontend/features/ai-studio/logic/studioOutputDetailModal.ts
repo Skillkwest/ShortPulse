@@ -9,6 +9,7 @@ import type { StudioOutput } from "../types";
 import { resolveOutputAudioSourceMode } from "./audioSourceMode";
 import { resolveAiStudioErrorPresentation } from "./errorPresentation";
 import { stripHiddenVideoShotModePromptPrefix } from "../../../lib/model-runtime/videoShotModePromptVisibility";
+import { sanitizeStoredWaveformPeaks } from "../reference-grid/logic/referenceGridAudioWaveform";
 
 export type StudioOutputDetailModalItem = SharedMediaDetailItemBase & {
   output: StudioOutput;
@@ -132,7 +133,7 @@ export const createStudioOutputDetailModalItem = ({
       audioSourceMode: resolveStudioOutputAudioSourceMode(output),
       musicMode: resolveStudioOutputMusicMode(output),
       durationMs: output.durationMs ?? null,
-      waveformPeaks: output.waveformPeaks ?? null,
+      waveformPeaks: sanitizeStoredWaveformPeaks(output.waveformPeaks),
     },
     presentation: resolvedPresentation,
   };

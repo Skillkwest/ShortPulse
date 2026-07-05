@@ -307,6 +307,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - `ai_generations_recovery_state_check` enforces `recovery_state` enum values.
   - `ai_generations_recovery_attempts_non_negative_check` enforces non-negative attempts.
   - Unique partial index on `(user_id, request_id)` where `request_id is not null`.
+  - Partial request lookup index on `(request_id, created_at desc)` where `request_id is not null` supports provider callback/recovery paths that do not know `user_id` yet.
   - Composite unique index on `(id, user_id)` supports project-scoped generation association foreign keys.
   - Reconciler scan index on `(recovery_state, next_recovery_at, created_at)`.
   - Trigger `trg_ai_generations_enforce_status_transition` blocks illegal status transitions, with guarded recovery override for `fail -> success` when `failure_reason_code='terminal_success_no_media'` and recovery state is converging to `recovered`.

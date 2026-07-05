@@ -3,7 +3,7 @@
  * Centralizes preview/full/fallback URL derivation so card rendering and hydration
  * scheduling reuse the same media policy decisions.
  */
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useRef } from "react";
 import {
   resolveReferenceCardUrls,
   resolveStudioOutputMediaDisplayAuthority,
@@ -64,9 +64,17 @@ const getResolvedMediaCacheKey = ({
   item,
   mediaSurface,
   cardLongEdgePx,
+  previewQualityPressureLevel,
+  strictPreviewLadder,
+  adaptivePreviewRoutingEnabled,
+  devicePixelRatio,
   signedStorageUrlByPath,
   signedMediaAuthorityByMediaId,
 }: ResolveReferenceGridCardMediaArgs & {
+  previewQualityPressureLevel: 0 | 1 | 2;
+  strictPreviewLadder: boolean;
+  adaptivePreviewRoutingEnabled: boolean;
+  devicePixelRatio: number;
   signedStorageUrlByPath?: ReadonlyMap<string, string>;
   signedMediaAuthorityByMediaId?: ReadonlyMap<string, SessionSignedMediaRestoreAuthority>;
 }): string => {
@@ -113,6 +121,10 @@ const getResolvedMediaCacheKey = ({
     signedMediaAuthority ?? "",
     mediaSurface,
     cardLongEdgePx,
+    previewQualityPressureLevel,
+    strictPreviewLadder ? "strict" : "relaxed",
+    adaptivePreviewRoutingEnabled ? "adaptive" : "direct",
+    devicePixelRatio,
   ].join("::");
 };
 
@@ -129,23 +141,16 @@ export const useReferenceGridResolvedMediaController = ({
   const devicePixelRatio = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
   const cacheRef = useRef(new Map<string, ReferenceGridResolvedCardMedia>());
 
-  useEffect(() => {
-    cacheRef.current.clear();
-  }, [
-    adaptivePreviewRoutingEnabled,
-    devicePixelRatio,
-    previewQualityPressureLevel,
-    signedMediaAuthorityByMediaId,
-    signedStorageUrlByPath,
-    strictPreviewLadder,
-  ]);
-
   const resolveCardMedia = useCallback(
     ({ item, mediaSurface, cardLongEdgePx }: ResolveReferenceGridCardMediaArgs) => {
       const cacheKey = getResolvedMediaCacheKey({
         item,
         mediaSurface,
         cardLongEdgePx,
+        previewQualityPressureLevel,
+        strictPreviewLadder,
+        adaptivePreviewRoutingEnabled,
+        devicePixelRatio,
         signedStorageUrlByPath,
         signedMediaAuthorityByMediaId,
       });

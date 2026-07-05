@@ -205,6 +205,8 @@ export const useCanvasViewportInstanceState = ({
     clearDraftTextEntry: clearDraftTextEntryState,
     clearTextEditSession: clearTextEditSessionState,
     deleteSelection,
+    getAvailableItemSlots,
+    notifyItemLimitReached,
     addResolvedItem,
     commitDraftTextEntry: commitDraftTextEntryState,
     commitTextItemEdit: commitTextItemEditState,
@@ -607,6 +609,15 @@ export const useCanvasViewportInstanceState = ({
         window.cancelAnimationFrame(pendingFrame.frameId);
       }
       pendingItemDragPreviewFrameRef.current = null;
+      const pendingTearOutFrame = pendingTearOutDragPreviewFrameRef.current;
+      if (
+        pendingTearOutFrame?.frameId != null &&
+        typeof window !== "undefined" &&
+        typeof window.cancelAnimationFrame === "function"
+      ) {
+        window.cancelAnimationFrame(pendingTearOutFrame.frameId);
+      }
+      pendingTearOutDragPreviewFrameRef.current = null;
       const pendingCameraFrame = pendingCameraFrameRef.current;
       if (
         pendingCameraFrame?.frameId != null &&
@@ -664,6 +675,8 @@ export const useCanvasViewportInstanceState = ({
     resolveCanvasDroppedMediaReference,
     resolveCanvasDropFiles,
     addResolvedItem,
+    getAvailableItemSlots,
+    notifyItemLimitReached,
   });
 
   const {

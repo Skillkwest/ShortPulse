@@ -176,5 +176,5 @@ export type ResolveCanvasDroppedMediaReference = (payload: {
  * Allows surfaces to convert dropped desktop files into one or more Canvas insert items.
  */
 export type ResolveCanvasDropFiles = (
-  files: FileList
+  files: FileList | File[]
 ) => Promise<CanvasDropResolution[] | null> | CanvasDropResolution[] | null;

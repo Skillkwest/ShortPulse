@@ -2496,6 +2496,16 @@ button.hero-onboarding {
   line-height: 1.5;
 }
 
+.authenticated-home-hero-copy .hero-announcement {
+  position: absolute;
+  top: 54%;
+  left: calc(100% + clamp(28px, 4vw, 82px));
+  width: min(440px, 28vw);
+  max-width: none;
+  transform: translateY(-50%);
+  text-align: left;
+}
+
 .authenticated-home-quick-row {
   top: 50%;
   right: clamp(34px, 5vw, 86px);
@@ -2600,6 +2610,13 @@ button.hero-onboarding {
 
   .authenticated-home-hero-copy {
     max-width: 610px;
+  }
+
+  .authenticated-home-hero-copy .hero-announcement {
+    position: static;
+    width: auto;
+    max-width: 600px;
+    transform: none;
   }
 
   .authenticated-home-quick-row {

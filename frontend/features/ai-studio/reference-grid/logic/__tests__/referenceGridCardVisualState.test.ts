@@ -329,4 +329,23 @@ describe("referenceGridCardVisualState", () => {
     expect(state.isMediaHydrating).toBe(false);
     expect(state.loadingVisual).toBe("none");
   });
+
+  it("does not mark budget-held non-priority image cards as hydrating before a src is released", () => {
+    const state = classifyReferenceGridCardVisualState({
+      item: createOutput({
+        taskState: "success",
+        mediaSource: "generated",
+      }),
+      cardPreviewUrl: "https://provider.example.com/generated-preview.png",
+      isLoaded: false,
+      decodeBudgetEnabled: true,
+      isImagePreview: true,
+      isPriorityHydration: false,
+      imageSrc: undefined,
+    });
+
+    expect(state.isGenerationLoading).toBe(false);
+    expect(state.isMediaHydrating).toBe(false);
+    expect(state.loadingVisual).toBe("none");
+  });
 });

@@ -236,6 +236,126 @@ describe("useReferenceGridResolvedMediaController", () => {
     expect(resolved.isImagePreview).toBe(true);
   });
 
+  it("keeps resolved-media cache entries when signed storage map identity changes with the same urls", () => {
+    const output = {
+      ...createImageOutput("out-restored-storage-stable-map"),
+      mediaSource: "generated",
+      generationId: "gen-stable-map-1",
+      previewStoragePath: "user-1/variants/images/gen-stable-map-1/preview.webp",
+      fullStoragePath: "user-1/generations/images/gen-stable-map-1.png",
+      previewUrl: undefined,
+      resultUrls: undefined,
+    } as unknown as StudioOutput;
+    const signedStorageEntries: Array<[string, string]> = [
+      [
+        "user-1/variants/images/gen-stable-map-1/preview.webp",
+        "https://signed.shortpulse.test/gen-stable-map-1-preview.webp",
+      ],
+      [
+        "user-1/generations/images/gen-stable-map-1.png",
+        "https://signed.shortpulse.test/gen-stable-map-1-full.png",
+      ],
+    ];
+    const { result, rerender } = renderHook(
+      ({ signedStorageUrlByPath }: { signedStorageUrlByPath: ReadonlyMap<string, string> }) =>
+        useReferenceGridResolvedMediaController({
+          previewQualityPressureLevel: 0,
+          strictPreviewLadder: true,
+          adaptivePreviewRoutingEnabled: true,
+          signedStorageUrlByPath,
+        }),
+      {
+        initialProps: {
+          signedStorageUrlByPath: new Map(signedStorageEntries),
+        },
+      }
+    );
+    const item = projectReferenceGridMediaOutput(output);
+
+    const first = result.current.resolveCardMedia({
+      item,
+      mediaSurface: "reference-grid",
+      cardLongEdgePx: 512,
+    });
+    rerender({
+      signedStorageUrlByPath: new Map(signedStorageEntries),
+    });
+    const second = result.current.resolveCardMedia({
+      item,
+      mediaSurface: "reference-grid",
+      cardLongEdgePx: 512,
+    });
+
+    expect(second).toBe(first);
+    expect(resolveReferenceCardUrls).toHaveBeenCalledTimes(1);
+  });
+
+  it("recomputes resolved media when signed storage url values change", () => {
+    const output = {
+      ...createImageOutput("out-restored-storage-refreshed-url"),
+      mediaSource: "generated",
+      generationId: "gen-refreshed-url-1",
+      previewStoragePath: "user-1/variants/images/gen-refreshed-url-1/preview.webp",
+      fullStoragePath: "user-1/generations/images/gen-refreshed-url-1.png",
+      previewUrl: undefined,
+      resultUrls: undefined,
+    } as unknown as StudioOutput;
+    const { result, rerender } = renderHook(
+      ({ signedStorageUrlByPath }: { signedStorageUrlByPath: ReadonlyMap<string, string> }) =>
+        useReferenceGridResolvedMediaController({
+          previewQualityPressureLevel: 0,
+          strictPreviewLadder: true,
+          adaptivePreviewRoutingEnabled: true,
+          signedStorageUrlByPath,
+        }),
+      {
+        initialProps: {
+          signedStorageUrlByPath: new Map([
+            [
+              "user-1/variants/images/gen-refreshed-url-1/preview.webp",
+              "https://signed.shortpulse.test/gen-refreshed-url-1-preview-v1.webp",
+            ],
+            [
+              "user-1/generations/images/gen-refreshed-url-1.png",
+              "https://signed.shortpulse.test/gen-refreshed-url-1-full-v1.png",
+            ],
+          ]),
+        },
+      }
+    );
+    const item = projectReferenceGridMediaOutput(output);
+
+    const first = result.current.resolveCardMedia({
+      item,
+      mediaSurface: "reference-grid",
+      cardLongEdgePx: 512,
+    });
+    rerender({
+      signedStorageUrlByPath: new Map([
+        [
+          "user-1/variants/images/gen-refreshed-url-1/preview.webp",
+          "https://signed.shortpulse.test/gen-refreshed-url-1-preview-v2.webp",
+        ],
+        [
+          "user-1/generations/images/gen-refreshed-url-1.png",
+          "https://signed.shortpulse.test/gen-refreshed-url-1-full-v2.png",
+        ],
+      ]),
+    });
+    const second = result.current.resolveCardMedia({
+      item,
+      mediaSurface: "reference-grid",
+      cardLongEdgePx: 512,
+    });
+
+    expect(second).not.toBe(first);
+    expect(second.previewUrl).toBe(
+      "https://signed.shortpulse.test/gen-refreshed-url-1-preview-v2.webp"
+    );
+    expect(second.fullUrl).toBe("https://signed.shortpulse.test/gen-refreshed-url-1-full-v2.png");
+    expect(resolveReferenceCardUrls).toHaveBeenCalledTimes(2);
+  });
+
   it("returns signed audio companion art for generated audio backgrounds", () => {
     const output = {
       id: "audio-1",
@@ -410,6 +530,86 @@ describe("useReferenceGridResolvedMediaController", () => {
     expect(resolved.previewUrl).toBe("https://signed.shortpulse.test/saved-preview.webp");
     expect(resolved.fullUrl).toBe("https://signed.shortpulse.test/saved-full.png");
     expect(resolved.isImagePreview).toBe(true);
+  });
+
+  it("keeps resolved-media cache entries when signed media authority map identity changes with the same urls", () => {
+    const output = {
+      ...createImageOutput("out-saved-media-stable-map"),
+      mediaSource: "library",
+      previewStoragePath: null,
+      fullStoragePath: null,
+      previewUrl: undefined,
+      resultUrls: [],
+      savedMediaIds: ["saved-media-stable-map-1"],
+    } as unknown as StudioOutput;
+    const signedMediaAuthorityEntries: Array<
+      [
+        string,
+        {
+          mediaId: string;
+          fileType: string;
+          previewStoragePath: string;
+          fullStoragePath: string;
+          previewPosterStoragePath: null;
+          signedPreviewUrl: string;
+          signedFullUrl: string;
+          signedPreviewPosterUrl: null;
+        },
+      ]
+    > = [
+      [
+        "saved-media-stable-map-1",
+        {
+          mediaId: "saved-media-stable-map-1",
+          fileType: "image/png",
+          previewStoragePath: "user-1/variants/images/saved-media-stable-map-1/thumb.webp",
+          fullStoragePath: "user-1/generations/images/saved-media-stable-map-1.png",
+          previewPosterStoragePath: null,
+          signedPreviewUrl: "https://signed.shortpulse.test/saved-stable-preview.webp",
+          signedFullUrl: "https://signed.shortpulse.test/saved-stable-full.png",
+          signedPreviewPosterUrl: null,
+        },
+      ],
+    ];
+    const { result, rerender } = renderHook(
+      ({
+        signedMediaAuthorityByMediaId,
+      }: {
+        signedMediaAuthorityByMediaId: ReadonlyMap<
+          string,
+          (typeof signedMediaAuthorityEntries)[number][1]
+        >;
+      }) =>
+        useReferenceGridResolvedMediaController({
+          previewQualityPressureLevel: 0,
+          strictPreviewLadder: true,
+          adaptivePreviewRoutingEnabled: true,
+          signedMediaAuthorityByMediaId,
+        }),
+      {
+        initialProps: {
+          signedMediaAuthorityByMediaId: new Map(signedMediaAuthorityEntries),
+        },
+      }
+    );
+    const item = projectReferenceGridMediaOutput(output);
+
+    const first = result.current.resolveCardMedia({
+      item,
+      mediaSurface: "reference-grid",
+      cardLongEdgePx: 512,
+    });
+    rerender({
+      signedMediaAuthorityByMediaId: new Map(signedMediaAuthorityEntries),
+    });
+    const second = result.current.resolveCardMedia({
+      item,
+      mediaSurface: "reference-grid",
+      cardLongEdgePx: 512,
+    });
+
+    expect(second).toBe(first);
+    expect(resolveReferenceCardUrls).toHaveBeenCalledTimes(1);
   });
 
   it("prefers recovered thumbnail authority over stale original-path previews", () => {

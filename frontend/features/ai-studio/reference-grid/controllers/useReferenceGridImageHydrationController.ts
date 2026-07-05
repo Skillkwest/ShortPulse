@@ -17,6 +17,7 @@ import {
   isNextOptimizerUrl,
   resolveOptimizerSourceUrl,
 } from "../logic/referenceGridMediaHelpers";
+import { revokeRememberedObjectUrl } from "../../utils/objectUrlBlobRegistry";
 
 type HydratedImageEntry = {
   sourceUrl: string;
@@ -58,6 +59,7 @@ type UseReferenceGridImageHydrationControllerResult = {
 
 const MAX_FAILED_OPTIMIZER_SOURCE_CACHE_SIZE = 256;
 const MAX_FAILED_HYDRATION_URLS_PER_OUTPUT = 8;
+export const REFERENCE_GRID_HYDRATED_IMAGE_ENTRY_LIMIT = 256;
 
 export const useReferenceGridImageHydrationController = ({
   decodeBudgetEnabled,
@@ -97,6 +99,8 @@ export const useReferenceGridImageHydrationController = ({
   >({});
   const hydrationGeneratedObjectUrlByIdRef = useRef<Record<string, string>>({});
   const hydrationHydratedByIdRef = useRef<Record<string, HydratedImageEntry>>({});
+  const hydrationHydratedEntryOrderRef = useRef<string[]>([]);
+  const hydrationRetainedCandidateIdSetRef = useRef<Set<string>>(new Set());
   const hydrationQueueSizeRef = useRef(0);
   const hydrationDecodeInflightRef = useRef(0);
   const hydrationRafFlushRef = useRef<number | null>(null);
@@ -163,9 +167,81 @@ export const useReferenceGridImageHydrationController = ({
   const revokeGeneratedHydrationUrl = useCallback((id: string) => {
     const existing = hydrationGeneratedObjectUrlByIdRef.current[id];
     if (!existing) return;
-    URL.revokeObjectURL(existing);
+    revokeRememberedObjectUrl(existing);
     delete hydrationGeneratedObjectUrlByIdRef.current[id];
   }, []);
+
+  const normalizeHydratedEntryOrder = useCallback(
+    (hydratedById: Record<string, HydratedImageEntry>) => {
+      const nextOrder = hydrationHydratedEntryOrderRef.current.filter((id) => hydratedById[id]);
+      Object.keys(hydratedById).forEach((id) => {
+        if (nextOrder.includes(id)) return;
+        nextOrder.push(id);
+      });
+      hydrationHydratedEntryOrderRef.current = nextOrder;
+      return nextOrder;
+    },
+    []
+  );
+
+  const touchHydratedEntry = useCallback((id: string) => {
+    const order = hydrationHydratedEntryOrderRef.current;
+    const currentIndex = order.indexOf(id);
+    if (currentIndex >= 0) {
+      order.splice(currentIndex, 1);
+    }
+    order.push(id);
+  }, []);
+
+  const limitHydratedEntries = useCallback(
+    (
+      hydratedById: Record<string, HydratedImageEntry>,
+      retainedCandidateIds = hydrationRetainedCandidateIdSetRef.current
+    ): Record<string, HydratedImageEntry> => {
+      let nextHydratedById = hydratedById;
+      const order = normalizeHydratedEntryOrder(hydratedById);
+      const retainedIds = new Set(retainedCandidateIds);
+      if (activeOutputId && validOutputIdSetRef.current.has(activeOutputId)) {
+        retainedIds.add(activeOutputId);
+      }
+      let hydratedCount = Object.keys(nextHydratedById).length;
+      while (hydratedCount > REFERENCE_GRID_HYDRATED_IMAGE_ENTRY_LIMIT && order.length > 0) {
+        const evictionIndex = order.findIndex((id) => !retainedIds.has(id));
+        if (evictionIndex < 0) break;
+        const [evictedId] = order.splice(evictionIndex, 1);
+        if (!evictedId || !nextHydratedById[evictedId]) continue;
+        if (nextHydratedById === hydratedById) {
+          nextHydratedById = { ...hydratedById };
+        }
+        delete nextHydratedById[evictedId];
+        hydratedCount -= 1;
+      }
+      hydrationHydratedEntryOrderRef.current = order.filter((id) => nextHydratedById[id]);
+      return nextHydratedById;
+    },
+    [activeOutputId, normalizeHydratedEntryOrder]
+  );
+
+  const applyHydratedEntryLimit = useCallback(
+    (retainedCandidateIds = hydrationRetainedCandidateIdSetRef.current) => {
+      const limitedHydratedById = limitHydratedEntries(
+        hydrationHydratedByIdRef.current,
+        retainedCandidateIds
+      );
+      if (limitedHydratedById === hydrationHydratedByIdRef.current) return;
+      hydrationHydratedByIdRef.current = limitedHydratedById;
+      runNonUrgentUpdate(() => {
+        setImageHydrationState((prev) => {
+          if (prev.hydratedById === limitedHydratedById) return prev;
+          return {
+            ...prev,
+            hydratedById: limitedHydratedById,
+          };
+        });
+      });
+    },
+    [limitHydratedEntries, runNonUrgentUpdate]
+  );
 
   const maybeCreateLocalAdaptivePreviewUrl = useCallback(
     async (id: string, sourceUrl: string, image: HTMLImageElement): Promise<string> => {
@@ -207,7 +283,7 @@ export const useReferenceGridImageHydrationController = ({
       if (!objectUrl) return sourceUrl;
       const previousUrl = hydrationGeneratedObjectUrlByIdRef.current[id];
       if (previousUrl && previousUrl !== objectUrl) {
-        URL.revokeObjectURL(previousUrl);
+        revokeRememberedObjectUrl(previousUrl);
       }
       hydrationGeneratedObjectUrlByIdRef.current[id] = objectUrl;
       logAdaptiveLocalTranscode({
@@ -269,8 +345,9 @@ export const useReferenceGridImageHydrationController = ({
       hydrationDecodeInflightRef.current = nextInflight;
       setImageHydrationState((prev) => {
         let hydratedChanged = false;
-        const nextHydratedById = { ...prev.hydratedById };
+        let nextHydratedById = prev.hydratedById;
         Object.entries(pending).forEach(([id, hydrated]) => {
+          touchHydratedEntry(id);
           const existing = prev.hydratedById[id];
           if (
             existing?.sourceUrl === hydrated.sourceUrl &&
@@ -279,10 +356,15 @@ export const useReferenceGridImageHydrationController = ({
             return;
           }
           hydratedChanged = true;
+          if (nextHydratedById === prev.hydratedById) {
+            nextHydratedById = { ...prev.hydratedById };
+          }
           nextHydratedById[id] = hydrated;
         });
+        const limitedHydratedById = limitHydratedEntries(nextHydratedById);
+        const limitedHydratedChanged = hydratedChanged || limitedHydratedById !== nextHydratedById;
         if (
-          !hydratedChanged &&
+          !limitedHydratedChanged &&
           prev.queueSize === nextQueueSize &&
           prev.decodeInflight === nextInflight
         ) {
@@ -290,13 +372,13 @@ export const useReferenceGridImageHydrationController = ({
         }
         return {
           ...prev,
-          hydratedById: hydratedChanged ? nextHydratedById : prev.hydratedById,
+          hydratedById: limitedHydratedChanged ? limitedHydratedById : prev.hydratedById,
           queueSize: nextQueueSize,
           decodeInflight: nextInflight,
         };
       });
     });
-  }, [runNonUrgentUpdate, syncImageHydrationState]);
+  }, [limitHydratedEntries, runNonUrgentUpdate, syncImageHydrationState, touchHydratedEntry]);
 
   const scheduleHydrationFlush = useCallback(() => {
     if (hydrationRafFlushRef.current != null) return;
@@ -530,7 +612,10 @@ export const useReferenceGridImageHydrationController = ({
       const pendingHydratedEntry = hydrationPendingLoadedRef.current[id];
       if (pendingHydratedEntry?.sourceUrl === resolvedHydrationUrl) return;
       const hydratedEntry = hydrationHydratedByIdRef.current[id];
-      if (hydratedEntry?.sourceUrl === resolvedHydrationUrl) return;
+      if (hydratedEntry?.sourceUrl === resolvedHydrationUrl) {
+        touchHydratedEntry(id);
+        return;
+      }
       if (hydrationInflightIdSetRef.current.has(id)) return;
       const priority = options?.priority ?? "normal";
       if (hydrationQueuedIdSetRef.current.has(id)) {
@@ -557,22 +642,31 @@ export const useReferenceGridImageHydrationController = ({
       recordOptimizerFailoverBypass,
       revokeGeneratedHydrationUrl,
       scheduleHydrationQueueWork,
+      touchHydratedEntry,
     ]
   );
 
   const pruneHydrationQueueToCandidateIds = useCallback(
     (candidateIdSet: Set<string>) => {
+      const retainedCandidateIds = new Set(candidateIdSet);
+      if (activeOutputId && validOutputIdSetRef.current.has(activeOutputId)) {
+        retainedCandidateIds.add(activeOutputId);
+      }
+      hydrationRetainedCandidateIdSetRef.current = retainedCandidateIds;
+      retainedCandidateIds.forEach(touchHydratedEntry);
       const currentQueue = hydrationQueueRef.current;
-      const nextQueue = currentQueue.filter((id) => candidateIdSet.has(id));
+      const nextQueue = currentQueue.filter((id) => retainedCandidateIds.has(id));
       const queueChanged =
         nextQueue.length !== currentQueue.length ||
         nextQueue.some((id, index) => currentQueue[index] !== id);
-      if (!queueChanged) return;
-      hydrationQueueRef.current = nextQueue;
-      hydrationQueuedIdSetRef.current = new Set(nextQueue);
-      scheduleHydrationQueueWork();
+      if (queueChanged) {
+        hydrationQueueRef.current = nextQueue;
+        hydrationQueuedIdSetRef.current = new Set(nextQueue);
+        scheduleHydrationQueueWork();
+      }
+      applyHydratedEntryLimit(retainedCandidateIds);
     },
-    [scheduleHydrationQueueWork]
+    [activeOutputId, applyHydratedEntryLimit, scheduleHydrationQueueWork, touchHydratedEntry]
   );
 
   useEffect(() => {
@@ -618,6 +712,9 @@ export const useReferenceGridImageHydrationController = ({
       if (validOutputIdSet.has(id)) return;
       delete hydrationBypassCountedOptimizedUrlByIdRef.current[id];
     });
+    hydrationHydratedEntryOrderRef.current = hydrationHydratedEntryOrderRef.current.filter((id) =>
+      validOutputIdSet.has(id)
+    );
 
     const hasStaleHydratedIds = Object.keys(hydrationHydratedByIdRef.current).some(
       (id) => !validOutputIdSet.has(id)
@@ -648,6 +745,14 @@ export const useReferenceGridImageHydrationController = ({
     runNonUrgentUpdate,
     validOutputIds,
   ]);
+
+  useEffect(() => {
+    const hydratedIdSet = new Set(Object.keys(imageHydrationState.hydratedById));
+    Object.keys(hydrationGeneratedObjectUrlByIdRef.current).forEach((id) => {
+      if (hydratedIdSet.has(id)) return;
+      revokeGeneratedHydrationUrl(id);
+    });
+  }, [imageHydrationState.hydratedById, revokeGeneratedHydrationUrl]);
 
   useEffect(
     () => () => {

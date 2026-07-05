@@ -14,6 +14,7 @@ import type {
   ReferenceIngestionInput,
   ReferenceIngestionResult,
 } from "./types";
+import { sanitizeStoredWaveformPeaks } from "../reference-grid/logic/referenceGridAudioWaveform";
 
 const resolveNowIso = (context: ReferenceIngestionContext): string =>
   typeof context.nowIso === "function" ? context.nowIso() : new Date().toISOString();
@@ -215,7 +216,7 @@ const buildLibraryMediaOutput = ({
     companionArtStoragePath,
     audioSourceMode: payload.fileType === "audio" ? (payload.audioSourceMode ?? null) : null,
     durationMs: payload.durationMs ?? null,
-    waveformPeaks: Array.isArray(payload.waveformPeaks) ? payload.waveformPeaks : null,
+    waveformPeaks: sanitizeStoredWaveformPeaks(payload.waveformPeaks),
     mediaSource: isGeneratedLibraryMedia ? "generated" : "library",
     previewTier:
       payload.fileType === "video"

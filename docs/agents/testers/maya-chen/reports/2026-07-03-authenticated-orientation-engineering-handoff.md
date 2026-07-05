@@ -63,18 +63,18 @@ Maya could build a rough map of the product, but she did not trust saved work ye
 ## Evidence
 
 - Screenshots:
-  - `docs/testers/maya-chen/reports/assets/2026-07-03-fresh-authenticated-orientation/01-dashboard-or-start.png`
-  - `docs/testers/maya-chen/reports/assets/2026-07-03-fresh-authenticated-orientation/02-open-projects.png`
-  - `docs/testers/maya-chen/reports/assets/2026-07-03-fresh-authenticated-orientation/03-ai-studio-project-open.png`
-  - `docs/testers/maya-chen/reports/assets/2026-07-03-fresh-authenticated-orientation/04-my-generations.png`
-  - `docs/testers/maya-chen/reports/assets/2026-07-03-fresh-authenticated-orientation/05-media-library.png`
-  - `docs/testers/maya-chen/reports/assets/2026-07-03-fresh-authenticated-orientation/06-create-prompt-prep.png`
-  - `docs/testers/maya-chen/reports/assets/2026-07-03-fresh-authenticated-orientation/07-model-menu.png`
-  - `docs/testers/maya-chen/reports/assets/2026-07-03-fresh-authenticated-orientation/08-profile-credits.png`
-  - `docs/testers/maya-chen/reports/assets/2026-07-03-fresh-authenticated-orientation/09-return-ai-studio.png`
-  - `docs/testers/maya-chen/reports/assets/2026-07-03-fresh-authenticated-orientation/12-pin-text-reference-result.png`
-  - `docs/testers/maya-chen/reports/assets/2026-07-03-fresh-authenticated-orientation/13-save-to-media-library.png`
-  - `docs/testers/maya-chen/reports/assets/2026-07-03-fresh-authenticated-orientation/14-media-after-save.png`
+  - `docs/agents/testers/maya-chen/reports/assets/2026-07-03-fresh-authenticated-orientation/01-dashboard-or-start.png`
+  - `docs/agents/testers/maya-chen/reports/assets/2026-07-03-fresh-authenticated-orientation/02-open-projects.png`
+  - `docs/agents/testers/maya-chen/reports/assets/2026-07-03-fresh-authenticated-orientation/03-ai-studio-project-open.png`
+  - `docs/agents/testers/maya-chen/reports/assets/2026-07-03-fresh-authenticated-orientation/04-my-generations.png`
+  - `docs/agents/testers/maya-chen/reports/assets/2026-07-03-fresh-authenticated-orientation/05-media-library.png`
+  - `docs/agents/testers/maya-chen/reports/assets/2026-07-03-fresh-authenticated-orientation/06-create-prompt-prep.png`
+  - `docs/agents/testers/maya-chen/reports/assets/2026-07-03-fresh-authenticated-orientation/07-model-menu.png`
+  - `docs/agents/testers/maya-chen/reports/assets/2026-07-03-fresh-authenticated-orientation/08-profile-credits.png`
+  - `docs/agents/testers/maya-chen/reports/assets/2026-07-03-fresh-authenticated-orientation/09-return-ai-studio.png`
+  - `docs/agents/testers/maya-chen/reports/assets/2026-07-03-fresh-authenticated-orientation/12-pin-text-reference-result.png`
+  - `docs/agents/testers/maya-chen/reports/assets/2026-07-03-fresh-authenticated-orientation/13-save-to-media-library.png`
+  - `docs/agents/testers/maya-chen/reports/assets/2026-07-03-fresh-authenticated-orientation/14-media-after-save.png`
 - Prompt used:
 
 ```text

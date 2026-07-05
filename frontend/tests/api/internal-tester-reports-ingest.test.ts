@@ -35,7 +35,7 @@ const buildValidPayload = (overrides: Record<string, unknown> = {}) => ({
   personaReportBody: "I explored the app like a creator.",
   engineeringReportTitle: "Engineering handoff",
   engineeringReportBody: "Inspect draft persistence and save confidence.",
-  reportArtifactPaths: ["docs/testers/maya-chen/reports/report.md"],
+  reportArtifactPaths: ["docs/agents/testers/maya-chen/reports/report.md"],
   evidence: { screenshots: 2 },
   ...overrides,
 });

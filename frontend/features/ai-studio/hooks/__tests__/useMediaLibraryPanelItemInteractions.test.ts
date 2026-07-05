@@ -2,6 +2,7 @@ import type React from "react";
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import {
+  MEDIA_LIBRARY_BULK_DRAG_MAX_ITEMS,
   readMediaLibraryBulkMediaDragPayload,
   readMediaLibraryDragPayload,
 } from "../../logic/mediaLibraryDragPayload";
@@ -235,6 +236,44 @@ describe("useMediaLibraryPanelItemInteractions", () => {
         fileType: "image",
       },
     });
+  });
+
+  it("caps oversized visible bulk selections before writing drag payloads", () => {
+    const selectedRows: MediaFileRow[] = Array.from(
+      { length: MEDIA_LIBRARY_BULK_DRAG_MAX_ITEMS + 10 },
+      (_, index) => ({
+        id: `media-${index}`,
+        filename: `selected-${index}.png`,
+        storage_path: `user-1/media/selected-${index}.png`,
+        file_type: "image/png",
+        metadata: { prompt: `Selected ${index}` },
+        signedUrl: `https://signed.example.com/selected-${index}.png`,
+      })
+    );
+    const currentTarget = document.createElement("button");
+    const dataTransfer = createMutableTransfer();
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelItemInteractions({
+        activeFolderId: "all_items",
+        getSelectedVisibleMediaRows: () => selectedRows,
+      })
+    );
+
+    result.current.handleMediaCardDragStart(
+      {
+        currentTarget,
+        dataTransfer,
+        preventDefault: vi.fn(),
+      } as unknown as React.DragEvent<HTMLElement>,
+      selectedRows[0]
+    );
+
+    const bulkPayload = readMediaLibraryBulkMediaDragPayload(dataTransfer);
+    expect(bulkPayload?.payload.items).toHaveLength(MEDIA_LIBRARY_BULK_DRAG_MAX_ITEMS);
+    expect(bulkPayload?.payload.items.at(0)?.id).toBe("media-0");
+    expect(bulkPayload?.payload.items.at(-1)?.id).toBe(
+      `media-${MEDIA_LIBRARY_BULK_DRAG_MAX_ITEMS - 1}`
+    );
   });
 
   it("writes rendered video card aspect into media drag dimensions", () => {

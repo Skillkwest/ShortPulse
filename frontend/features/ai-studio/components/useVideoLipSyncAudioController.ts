@@ -36,6 +36,12 @@ const resolveDurableLipSyncDropAudioUrl = (
   });
 };
 
+const normalizeLipSyncAudioObjectUrl = (value: string | null | undefined): string | null => {
+  if (typeof value !== "string") return null;
+  const normalized = value.replace(/#.*$/, "").trim();
+  return normalized.startsWith("blob:") ? normalized : null;
+};
+
 type UseVideoLipSyncAudioControllerArgs = {
   lipSyncAudio: LipSyncAudioState;
   onLipSyncAudioChange?: (value: LipSyncAudioState) => void;
@@ -58,6 +64,25 @@ export const useVideoLipSyncAudioController = ({
   const lipSyncAudioUploadRevisionRef = React.useRef(0);
   const lipSyncAudioObjectUrlsRef = React.useRef<Set<string>>(new Set());
 
+  const revokeLipSyncAudioObjectUrl = React.useCallback((url: string | null | undefined) => {
+    const objectUrl = normalizeLipSyncAudioObjectUrl(url);
+    if (!objectUrl) return;
+    if (lipSyncAudioObjectUrlsRef.current.delete(objectUrl)) {
+      URL.revokeObjectURL(objectUrl);
+    }
+  }, []);
+
+  const revokeLipSyncAudioObjectUrls = React.useCallback(
+    (exceptUrl?: string | null) => {
+      const exceptObjectUrl = normalizeLipSyncAudioObjectUrl(exceptUrl);
+      Array.from(lipSyncAudioObjectUrlsRef.current).forEach((url) => {
+        if (url === exceptObjectUrl) return;
+        revokeLipSyncAudioObjectUrl(url);
+      });
+    },
+    [revokeLipSyncAudioObjectUrl]
+  );
+
   const applyLipSyncAudio = React.useCallback(
     (value: LipSyncAudioState) => {
       onLipSyncAudioChange?.(value);
@@ -67,10 +92,9 @@ export const useVideoLipSyncAudioController = ({
 
   React.useEffect(
     () => () => {
-      lipSyncAudioObjectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
-      lipSyncAudioObjectUrlsRef.current.clear();
+      revokeLipSyncAudioObjectUrls();
     },
-    []
+    [revokeLipSyncAudioObjectUrls]
   );
 
   const readLipSyncAudioDuration = React.useCallback((audioUrl: string): Promise<number | null> => {
@@ -101,10 +125,15 @@ export const useVideoLipSyncAudioController = ({
       if (!file) return;
       const uploadRevision = lipSyncAudioUploadRevisionRef.current + 1;
       lipSyncAudioUploadRevisionRef.current = uploadRevision;
+      revokeLipSyncAudioObjectUrls();
       const objectUrl = URL.createObjectURL(file);
       lipSyncAudioObjectUrlsRef.current.add(objectUrl);
       const previewUrl = objectUrl + "#audio=1";
       const durationMs = await readLipSyncAudioDuration(previewUrl);
+      if (lipSyncAudioUploadRevisionRef.current !== uploadRevision) {
+        revokeLipSyncAudioObjectUrl(objectUrl);
+        return;
+      }
       applyLipSyncAudio(
         createUploadingLipSyncAudioState({
           durationMs,
@@ -119,7 +148,10 @@ export const useVideoLipSyncAudioController = ({
           sourceName: file.name,
           mimeType: file.type,
         });
-        if (lipSyncAudioUploadRevisionRef.current !== uploadRevision) return;
+        if (lipSyncAudioUploadRevisionRef.current !== uploadRevision) {
+          revokeLipSyncAudioObjectUrl(objectUrl);
+          return;
+        }
         applyLipSyncAudio(
           createReadyLipSyncAudioState({
             url: uploaded.url,
@@ -133,7 +165,10 @@ export const useVideoLipSyncAudioController = ({
           })
         );
       } catch (error) {
-        if (lipSyncAudioUploadRevisionRef.current !== uploadRevision) return;
+        if (lipSyncAudioUploadRevisionRef.current !== uploadRevision) {
+          revokeLipSyncAudioObjectUrl(objectUrl);
+          return;
+        }
         applyLipSyncAudio(
           createFailedLipSyncAudioState({
             durationMs,
@@ -149,7 +184,12 @@ export const useVideoLipSyncAudioController = ({
         );
       }
     },
-    [applyLipSyncAudio, readLipSyncAudioDuration]
+    [
+      applyLipSyncAudio,
+      readLipSyncAudioDuration,
+      revokeLipSyncAudioObjectUrl,
+      revokeLipSyncAudioObjectUrls,
+    ]
   );
 
   const handleLipSyncAudioSelection = React.useCallback(
@@ -170,6 +210,8 @@ export const useVideoLipSyncAudioController = ({
         resolvePreviewUrlById,
       });
       if (resolvedSource?.kind === "durable") {
+        lipSyncAudioUploadRevisionRef.current += 1;
+        revokeLipSyncAudioObjectUrls();
         applyLipSyncAudio(
           createLipSyncAudioStateFromDurableUrl({
             url: resolvedSource.url,
@@ -186,7 +228,7 @@ export const useVideoLipSyncAudioController = ({
         return;
       }
     },
-    [applyLipSyncAudio, handleLipSyncAudioFile, resolvePreviewUrlById]
+    [applyLipSyncAudio, handleLipSyncAudioFile, resolvePreviewUrlById, revokeLipSyncAudioObjectUrls]
   );
 
   const canAcceptLipSyncAudioCanvasTearOutPayload = React.useCallback(
@@ -199,6 +241,8 @@ export const useVideoLipSyncAudioController = ({
       if (payload.kind !== "audio") return;
       setLipSyncAudioDragActive(false);
       const resolvedAudio = resolveDurableLipSyncDropAudioUrl(payload);
+      lipSyncAudioUploadRevisionRef.current += 1;
+      revokeLipSyncAudioObjectUrls();
       applyLipSyncAudio(
         resolvedAudio.url || resolvedAudio.storagePath
           ? createLipSyncAudioStateFromDurableUrl({
@@ -210,13 +254,14 @@ export const useVideoLipSyncAudioController = ({
           : createFailedNonDurableLipSyncAudioState(payload.audioUrl)
       );
     },
-    [applyLipSyncAudio]
+    [applyLipSyncAudio, revokeLipSyncAudioObjectUrls]
   );
 
   const clearLipSyncAudio = React.useCallback(() => {
     lipSyncAudioUploadRevisionRef.current += 1;
+    revokeLipSyncAudioObjectUrls();
     applyLipSyncAudio(createEmptyLipSyncAudioState());
-  }, [applyLipSyncAudio]);
+  }, [applyLipSyncAudio, revokeLipSyncAudioObjectUrls]);
 
   return {
     lipSyncAudioInputRef,

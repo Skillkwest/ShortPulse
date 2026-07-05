@@ -181,6 +181,7 @@ export type CanvasHarnessProps = {
   onCanvasMediaRenderError?: (item: CanvasSceneItem) => void;
   canvasTearOutTargetRegistry?: CanvasTearOutComposerTargetRegistry;
   getCanvasTearOutOutputById?: (outputId: string) => StudioOutput | null;
+  onItemLimitReached?: () => void;
 };
 
 type SeededCanvasHarnessProps = CanvasHarnessProps & {
@@ -202,6 +203,7 @@ export function CanvasHarness({
   onCanvasMediaRenderError,
   canvasTearOutTargetRegistry,
   getCanvasTearOutOutputById,
+  onItemLimitReached,
 }: CanvasHarnessProps) {
   const [visible, setVisible] = useState(true);
   const canvasProps = useAiStudioCanvasWorkspaceState({
@@ -215,6 +217,7 @@ export function CanvasHarness({
     onOpenMediaDetail,
     canvasTearOutTargetRegistry,
     getCanvasTearOutOutputById,
+    onItemLimitReached,
   });
 
   return (
@@ -244,6 +247,7 @@ export function DualCanvasHarness({
   resolveCanvasDroppedMediaReference,
   resolveCanvasDropFiles,
   onOpenMediaDetail,
+  onItemLimitReached,
 }: CanvasHarnessProps) {
   const { mainCanvasProps, railCanvasProps } = useAiStudioDualCanvasWorkspaceState({
     resolveCanvasDropReference: resolveCanvasDropReference ?? defaultResolveCanvasDropReference,
@@ -254,6 +258,7 @@ export function DualCanvasHarness({
     resolveCanvasDropFiles,
     onPinTextReference,
     onOpenMediaDetail,
+    onItemLimitReached,
   });
 
   return (
@@ -278,6 +283,7 @@ export function SeededCanvasHarness({
   onItemDragEnd,
   onOpenMediaDetail,
   onCanvasMediaRenderError,
+  onItemLimitReached,
 }: SeededCanvasHarnessProps) {
   const [visible, setVisible] = useState(true);
   const { mainCanvasProps, hydrateSessionState } = useAiStudioDualCanvasWorkspaceState({
@@ -289,6 +295,7 @@ export function SeededCanvasHarness({
     resolveCanvasDropFiles,
     onPinTextReference,
     onOpenMediaDetail,
+    onItemLimitReached,
   });
 
   useEffect(() => {
@@ -315,6 +322,14 @@ export function SeededCanvasHarness({
 }
 
 export const mockViewportRect = (element: HTMLElement) => {
+  Object.defineProperty(element, "clientWidth", {
+    configurable: true,
+    value: 600,
+  });
+  Object.defineProperty(element, "clientHeight", {
+    configurable: true,
+    value: 400,
+  });
   Object.defineProperty(element, "getBoundingClientRect", {
     configurable: true,
     value: () => ({
@@ -329,4 +344,5 @@ export const mockViewportRect = (element: HTMLElement) => {
       toJSON: () => ({}),
     }),
   });
+  window.dispatchEvent(new Event("resize"));
 };

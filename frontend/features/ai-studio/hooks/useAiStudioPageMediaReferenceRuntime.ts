@@ -68,6 +68,7 @@ import {
   attachMediaLibraryDragGhost,
   clearMediaLibraryDragGhost,
 } from "../logic/mediaLibraryDragGhost";
+import { sanitizeStoredWaveformPeaks } from "../reference-grid/logic/referenceGridAudioWaveform";
 import {
   clearDragState,
   preparePromptReferenceDrag,
@@ -413,7 +414,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
           companionArtStoragePath: output.companionArtStoragePath ?? null,
           audioSourceMode: resolveOutputAudioSourceMode(output),
           durationMs: output.durationMs ?? null,
-          waveformPeaks: output.waveformPeaks ?? null,
+          waveformPeaks: sanitizeStoredWaveformPeaks(output.waveformPeaks),
           width: CANVAS_AUDIO_ITEM_WIDTH,
           height: CANVAS_AUDIO_ITEM_HEIGHT,
           ...(sourceSurface ? { sourceSurface } : {}),
@@ -816,7 +817,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
             companionArtStoragePath: payload.payload.companionArtStoragePath ?? null,
             audioSourceMode: payload.payload.audioSourceMode ?? null,
             durationMs: payload.payload.durationMs ?? null,
-            waveformPeaks: payload.payload.waveformPeaks ?? null,
+            waveformPeaks: sanitizeStoredWaveformPeaks(payload.payload.waveformPeaks),
             width: CANVAS_AUDIO_ITEM_WIDTH,
             height: CANVAS_AUDIO_ITEM_HEIGHT,
           };
@@ -882,7 +883,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
   );
 
   const resolveCanvasDropFiles = useCallback(
-    async (files: FileList): Promise<CanvasDropResolution[] | null> => {
+    async (files: FileList | File[]): Promise<CanvasDropResolution[] | null> => {
       const { mediaFiles, rejectedFileCount } = ensureDroppedMediaFiles(files);
       if (mediaFiles.length === 0) return null;
       const insertedResults = await ingestReferenceFiles(mediaFiles, "drop");
@@ -1106,7 +1107,9 @@ export const useAiStudioPageMediaReferenceRuntime = ({
           const nextTitle = resolved.title ?? item.title ?? null;
           const nextDurationMs = resolved.durationMs ?? item.durationMs ?? null;
           const nextAudioSourceMode = resolved.audioSourceMode ?? item.audioSourceMode ?? null;
-          const nextWaveformPeaks = resolved.waveformPeaks ?? item.waveformPeaks ?? null;
+          const nextWaveformPeaks = sanitizeStoredWaveformPeaks(
+            resolved.waveformPeaks ?? item.waveformPeaks
+          );
           if (
             outputId === item.outputId &&
             resolved.audioUrl === item.audioUrl &&
@@ -1566,7 +1569,9 @@ export const useAiStudioPageMediaReferenceRuntime = ({
         const nextTitle = resolved.title ?? item.title ?? null;
         const nextDurationMs = resolved.durationMs ?? item.durationMs ?? null;
         const nextAudioSourceMode = resolved.audioSourceMode ?? item.audioSourceMode ?? null;
-        const nextWaveformPeaks = resolved.waveformPeaks ?? item.waveformPeaks ?? null;
+        const nextWaveformPeaks = sanitizeStoredWaveformPeaks(
+          resolved.waveformPeaks ?? item.waveformPeaks
+        );
         if (
           resolvedOutputId === item.outputId &&
           resolved.audioUrl === item.audioUrl &&

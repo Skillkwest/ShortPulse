@@ -173,7 +173,6 @@ export default function ProfilePage() {
   const [storageAddonChangeLoadingId, setStorageAddonChangeLoadingId] = useState<string | null>(
     null
   );
-  const [refreshingCredits, setRefreshingCredits] = useState(false);
   const [billingSyncRequest, setBillingSyncRequest] = useState<{
     scope: BillingSyncScope;
     key: number;
@@ -830,36 +829,6 @@ export default function ProfilePage() {
     }
   };
 
-  const handleRefreshCredits = async () => {
-    setRefreshingCredits(true);
-    const previous = balanceCents;
-    const next = await refreshBalance();
-    setRefreshingCredits(false);
-
-    if (next === null) {
-      setNotice({ tone: "error", message: "Unable to sync credits right now. Please try again." });
-      return;
-    }
-    if (previous != null && next === previous) {
-      setNotice({
-        tone: "info",
-        message: `Credits synced. Balance is still ${next.toLocaleString()}.`,
-      });
-      return;
-    }
-    if (previous == null) {
-      setNotice({
-        tone: "success",
-        message: `Credits synced. Balance is ${next.toLocaleString()}.`,
-      });
-      return;
-    }
-    setNotice({
-      tone: "success",
-      message: `Credits updated from ${previous.toLocaleString()} to ${next.toLocaleString()}.`,
-    });
-  };
-
   const handleStorageAddonChange = async ({
     storageAddonId,
     action,
@@ -1042,9 +1011,7 @@ export default function ProfilePage() {
               checkoutLoadingId={checkoutLoadingId}
               packageCards={packageCards}
               packagesLoading={packagesLoading}
-              refreshingCredits={refreshingCredits}
               onCheckout={handleCheckout}
-              onRefreshCredits={handleRefreshCredits}
             />
           ) : null}
 

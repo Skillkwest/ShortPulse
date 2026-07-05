@@ -175,6 +175,16 @@ const claimStripeEvent = async (event: StripeEvent): Promise<EventClaimResult> =
   };
 };
 
+const releaseStripeEventClaim = async (event: StripeEvent): Promise<{ error: string | null }> => {
+  try {
+    const supabaseAdmin = getSupabaseAdmin();
+    const { error } = await supabaseAdmin.from("stripe_event_log").delete().eq("id", event.id);
+    return { error: error?.message ?? null };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Stripe event claim release failed." };
+  }
+};
+
 const resolvePlanIdFromSubscription = async (
   stripePriceId: string | undefined
 ): Promise<string | null> => {
@@ -1142,22 +1152,41 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json({ received: true, duplicate: true });
     }
 
-    const object = event.data?.object ?? {};
-    if (
-      event.type === "checkout.session.completed" ||
-      event.type === "checkout.session.async_payment_succeeded"
-    ) {
-      await processCheckoutCompleted(object, event.id);
-    }
-    if (
-      event.type === "customer.subscription.created" ||
-      event.type === "customer.subscription.updated" ||
-      event.type === "customer.subscription.deleted"
-    ) {
-      await processSubscriptionUpdate(object);
-    }
-    if (event.type === "invoice.payment_succeeded") {
-      await processInvoicePaymentSucceeded(object, event.id);
+    try {
+      const object = event.data?.object ?? {};
+      if (
+        event.type === "checkout.session.completed" ||
+        event.type === "checkout.session.async_payment_succeeded"
+      ) {
+        await processCheckoutCompleted(object, event.id);
+      }
+      if (
+        event.type === "customer.subscription.created" ||
+        event.type === "customer.subscription.updated" ||
+        event.type === "customer.subscription.deleted"
+      ) {
+        await processSubscriptionUpdate(object);
+      }
+      if (event.type === "invoice.payment_succeeded") {
+        await processInvoicePaymentSucceeded(object, event.id);
+      }
+    } catch (processingError) {
+      const releaseResult = await releaseStripeEventClaim(event);
+      await logApiRouteException({
+        req,
+        error: processingError,
+        routeLabel: "billing/stripe/webhook",
+        metadata: {
+          stripe_event_signature_present: Boolean(req.headers["stripe-signature"]),
+          stripe_event_id: event.id,
+          stripe_event_type: event.type,
+          claim_released_for_retry: releaseResult.error ? false : true,
+          claim_release_error: releaseResult.error,
+        },
+      });
+      return res.status(500).json({
+        error: "Webhook processing failed.",
+      });
     }
 
     return res.status(200).json({ received: true });

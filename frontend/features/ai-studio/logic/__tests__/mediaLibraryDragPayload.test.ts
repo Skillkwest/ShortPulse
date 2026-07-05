@@ -4,6 +4,8 @@ import {
   getMediaLibraryDragTypes,
   hasMediaLibraryBulkMediaDragTypeHints,
   hasMediaLibraryDragTypeHints,
+  MEDIA_LIBRARY_BULK_DRAG_MAX_ITEMS,
+  MEDIA_LIBRARY_BULK_DRAG_MAX_SERIALIZED_CHARS,
   readMediaLibraryBulkMediaDragPayload,
   readMediaLibraryDragPayload,
   writeMediaLibraryBulkMediaDragPayload,
@@ -69,6 +71,36 @@ describe("mediaLibraryDragPayload", () => {
     expect(readMediaLibraryDragPayload(transfer)).toBeNull();
   });
 
+  it("bounds waveform peaks in custom and fallback media drag payloads", () => {
+    const transferData = new Map<string, string>();
+    const transfer = {
+      setData: vi.fn((type: string, value: string) => {
+        transferData.set(type, value);
+      }),
+      getData: vi.fn((type: string) => transferData.get(type) ?? ""),
+    } as unknown as DataTransfer;
+
+    writeMediaLibraryDragPayload(transfer, {
+      kind: "libraryMedia",
+      source: "mediaLibrary",
+      payload: {
+        id: "media-audio-1",
+        url: "https://example.com/audio.mp3",
+        fileType: "audio",
+        waveformPeaks: Array.from({ length: 500 }, (_, index) => index % 101),
+      },
+    });
+
+    const customPayload = readMediaLibraryDragPayload(transfer);
+    expect(customPayload?.kind).toBe("libraryMedia");
+    expect(
+      customPayload?.kind === "libraryMedia" ? customPayload.payload.waveformPeaks : null
+    ).toHaveLength(56);
+    expect(
+      JSON.parse(transferData.get("text/shortpulse-media-library-waveform-peaks") ?? "[]")
+    ).toHaveLength(56);
+  });
+
   it("serializes and parses bulk library media payloads separately from single-item payloads", () => {
     const transferData = new Map<string, string>();
     const transferTypes: string[] = [];
@@ -103,6 +135,13 @@ describe("mediaLibraryDragPayload", () => {
             filename: "b.mp4",
             previewPosterUrl: "https://example.com/b-poster.jpg",
           },
+          {
+            id: "media-3",
+            url: "https://example.com/c.mp3",
+            fileType: "audio",
+            filename: "c.mp3",
+            waveformPeaks: Array.from({ length: 500 }, (_, index) => index % 101),
+          },
         ],
       },
     });
@@ -130,9 +169,66 @@ describe("mediaLibraryDragPayload", () => {
             fileType: "video",
             previewPosterUrl: "https://example.com/b-poster.jpg",
           }),
+          expect.objectContaining({
+            id: "media-3",
+            url: "https://example.com/c.mp3",
+            fileType: "audio",
+            waveformPeaks: expect.arrayContaining([expect.any(Number)]),
+          }),
         ],
       },
     });
+    const parsedBulk = readMediaLibraryBulkMediaDragPayload(transfer);
+    const parsedAudioItem = parsedBulk?.payload.items.find((item) => item.id === "media-3");
+    expect(parsedAudioItem?.waveformPeaks).toHaveLength(56);
+  });
+
+  it("caps and compacts oversized bulk media drag payloads", () => {
+    const transferData = new Map<string, string>();
+    const transfer = {
+      setData: vi.fn((type: string, value: string) => {
+        transferData.set(type, value);
+      }),
+      getData: vi.fn((type: string) => transferData.get(type) ?? ""),
+    } as unknown as DataTransfer;
+    const longPrompt = "prompt ".repeat(1_000);
+    const longTranscript = "transcript ".repeat(1_000);
+
+    writeMediaLibraryBulkMediaDragPayload(transfer, {
+      kind: "bulkLibraryMedia",
+      source: "mediaLibrary",
+      payload: {
+        draggedItemId: "media-0",
+        originFolderId: "all_items",
+        items: Array.from({ length: MEDIA_LIBRARY_BULK_DRAG_MAX_ITEMS + 12 }, (_, index) => ({
+          id: `media-${index}`,
+          url: `https://example.com/media-${index}.png`,
+          fileType: "image",
+          promptText: longPrompt,
+          transcriptText: longTranscript,
+          workflowReload: { large: "workflow".repeat(1_000) },
+          generationReplay: { large: "replay".repeat(1_000) },
+          characterContext: { large: "character".repeat(1_000) },
+          styleContext: { large: "style".repeat(1_000) },
+        })),
+      },
+    });
+
+    const serialized = transferData.get("application/x-shortpulse-media-library-items") ?? "";
+    const parsed = readMediaLibraryBulkMediaDragPayload(transfer);
+    expect(serialized.length).toBeLessThanOrEqual(MEDIA_LIBRARY_BULK_DRAG_MAX_SERIALIZED_CHARS);
+    expect(parsed?.payload.items).toHaveLength(MEDIA_LIBRARY_BULK_DRAG_MAX_ITEMS);
+    expect(parsed?.payload.items[0]).toMatchObject({
+      id: "media-0",
+      url: "https://example.com/media-0.png",
+      fileType: "image",
+      workflowReload: null,
+      generationReplay: null,
+      characterContext: null,
+      styleContext: null,
+    });
+    expect(parsed?.payload.items[0]?.promptText).toHaveLength(2_048);
+    expect(parsed?.payload.items[0]?.transcriptText).toHaveLength(2_048);
   });
 
   it("reconstructs library media payloads from text/* fallback marker data", () => {

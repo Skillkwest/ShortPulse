@@ -136,7 +136,9 @@ const withMotionReferenceDurationProbeTimeout = async (
       timeoutId = setTimeout(() => resolve(null), MOTION_REFERENCE_DURATION_PROBE_TIMEOUT_MS);
     });
     const preview = await Promise.race([
-      loadVideoPreviewMetadata(videoUrl).then((metadata) => metadata.durationMs),
+      loadVideoPreviewMetadata(videoUrl, {
+        loadTimeoutMs: MOTION_REFERENCE_DURATION_PROBE_TIMEOUT_MS,
+      }).then((metadata) => metadata.durationMs),
       timeoutPromise,
     ]);
     return preview;

@@ -28,6 +28,7 @@ import {
   resolveCanvasMarqueeSelectionIds,
 } from "./canvasMarqueeSelection";
 import { resolveCanvasDropClientPoint } from "./canvasDropController";
+import { releasePointerCaptureIfHeld, setPointerCaptureIfAvailable } from "./canvasPointerCapture";
 import {
   CANVAS_DOUBLE_TAP_MAX_DISTANCE_PX,
   isCanvasEmptySpaceEventTarget,
@@ -94,39 +95,6 @@ type PendingTearOutDragPreviewFrame = {
 type PendingCameraFrame = {
   updater: (currentCamera: CanvasCamera) => CanvasCamera;
   frameId: number | null;
-};
-
-const setPointerCaptureIfAvailable = ({
-  target,
-  pointerId,
-}: {
-  target: HTMLElement;
-  pointerId: number;
-}) => {
-  if (typeof target.setPointerCapture !== "function") return;
-  try {
-    target.setPointerCapture(pointerId);
-  } catch {
-    // Ignore sporadic pointer-capture errors during rapid gesture transitions.
-  }
-};
-
-const releasePointerCaptureIfHeld = ({
-  target,
-  pointerId,
-}: {
-  target: HTMLElement;
-  pointerId: number;
-}) => {
-  if (typeof target.releasePointerCapture !== "function") return;
-  if (typeof target.hasPointerCapture === "function" && !target.hasPointerCapture(pointerId)) {
-    return;
-  }
-  try {
-    target.releasePointerCapture(pointerId);
-  } catch {
-    // Ignore release errors if capture was already lost.
-  }
 };
 
 type UseCanvasViewportInstanceStateParams = {

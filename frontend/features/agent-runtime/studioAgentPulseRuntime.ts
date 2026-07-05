@@ -281,12 +281,20 @@ export const buildStudioAgentWorkflowSessionUpdate = ({
     typeof latestUserInput === "string" && latestUserInput.trim().length > 0
       ? latestUserInput.trim()
       : null;
+  const starterAssistantMessage =
+    typeof pulse?.starterAssistantMessage === "string" ? pulse.starterAssistantMessage.trim() : "";
+  const fallbackInitialPrompt =
+    starterAssistantMessage ||
+    (typeof pulse?.description === "string" ? pulse.description.trim() : "") ||
+    (typeof pulse?.label === "string" ? pulse.label.trim() : "");
   const collectedInputs = appendLatestWorkflowInput(
     existingSession?.collectedInputs ?? [],
     resolvedLatestUserInput
   );
+  const isInitialWorkflowTurn = !existingSession && !resolvedLatestUserInput;
+  const workflowPromptText = message || (isInitialWorkflowTurn ? fallbackInitialPrompt : "");
   const stepDescriptor = extractWorkflowStepDescriptor(message, pulse) ??
-    deriveWorkflowStageHintDescriptor({ pulse, message, existingSession }) ??
+    deriveWorkflowStageHintDescriptor({ pulse, message: workflowPromptText, existingSession }) ??
     extractWorkflowStepDescriptor(pulse?.starterAssistantMessage, pulse) ?? {
       index: existingSession?.currentStepIndex ?? null,
       label: existingSession?.currentStepLabel ?? null,
@@ -305,7 +313,10 @@ export const buildStudioAgentWorkflowSessionUpdate = ({
         resolveNormalizedWorkflowText(existingSession?.currentStepPrompt) ===
           resolveNormalizedWorkflowText(message)));
   const chatReplyArtifact =
-    pulse?.outputMode === "chat_reply" && normalizedSemanticStatus === "ready" && message.length > 0
+    pulse?.outputMode === "chat_reply" &&
+    normalizedSemanticStatus === "ready" &&
+    !isInitialWorkflowTurn &&
+    message.length > 0
       ? message
       : "";
 
@@ -361,7 +372,7 @@ export const buildStudioAgentWorkflowSessionUpdate = ({
     status: "awaiting_input",
     currentStepIndex: stepDescriptor.index ?? existingSession?.currentStepIndex ?? null,
     currentStepLabel: stepDescriptor.label ?? existingSession?.currentStepLabel ?? null,
-    currentStepPrompt: message || (existingSession?.currentStepPrompt ?? null),
+    currentStepPrompt: workflowPromptText || (existingSession?.currentStepPrompt ?? null),
     collectedInputs,
     lastArtifact: existingSession?.lastArtifact ?? null,
     finalArtifactSource: existingSession?.finalArtifactSource ?? null,

@@ -55,6 +55,97 @@ describe("studioAgentPulseRuntime", () => {
     );
   });
 
+  it("keeps an initial guided workflow starter reply awaiting input", () => {
+    const session = buildStudioAgentWorkflowSessionUpdate({
+      pulse: {
+        presetId: "prompt_modifier",
+        label: "Prompt Modifier",
+        instructions: "Ask for the prompt to modify, then improve it.",
+        pulseKind: "guided_workflow",
+        starterAssistantMessage: "paste the prompt you want to modify",
+        workflowStageHints: ["paste the prompt you want to modify"],
+        outputMode: "chat_reply",
+      },
+      response: {
+        message: "paste the prompt you want to modify",
+      },
+      semanticStatus: "ready",
+      latestUserInput: null,
+    });
+
+    expect(session).toEqual({
+      presetId: "prompt_modifier",
+      status: "awaiting_input",
+      currentStepIndex: 1,
+      currentStepLabel: "paste the prompt you want to modify",
+      currentStepPrompt: "paste the prompt you want to modify",
+      collectedInputs: [],
+      lastArtifact: null,
+      finalArtifactSource: null,
+    });
+  });
+
+  it("uses the starter message as the initial workflow prompt when kickoff text is empty", () => {
+    const session = buildStudioAgentWorkflowSessionUpdate({
+      pulse: {
+        presetId: "prompt_modifier",
+        label: "Prompt Modifier",
+        instructions: "Ask for the prompt to modify, then improve it.",
+        pulseKind: "guided_workflow",
+        starterAssistantMessage: "paste the prompt you want to modify",
+        workflowStageHints: ["paste the prompt you want to modify"],
+        outputMode: "chat_reply",
+      },
+      response: {
+        message: "",
+      },
+      semanticStatus: "ready",
+      latestUserInput: null,
+    });
+
+    expect(session).toEqual({
+      presetId: "prompt_modifier",
+      status: "awaiting_input",
+      currentStepIndex: 1,
+      currentStepLabel: "paste the prompt you want to modify",
+      currentStepPrompt: "paste the prompt you want to modify",
+      collectedInputs: [],
+      lastArtifact: null,
+      finalArtifactSource: null,
+    });
+  });
+
+  it("uses description as an initial workflow prompt fallback for legacy starterless built-ins", () => {
+    const session = buildStudioAgentWorkflowSessionUpdate({
+      pulse: {
+        presetId: "legacy_prompt_modifier",
+        label: "Legacy Prompt Modifier",
+        description: "Paste the prompt you want to modify.",
+        instructions: "Ask for the prompt to modify, then improve it.",
+        pulseKind: "guided_workflow",
+        starterAssistantMessage: null,
+        workflowStageHints: null,
+        outputMode: "chat_reply",
+      },
+      response: {
+        message: "",
+      },
+      semanticStatus: "ready",
+      latestUserInput: null,
+    });
+
+    expect(session).toEqual({
+      presetId: "legacy_prompt_modifier",
+      status: "awaiting_input",
+      currentStepIndex: null,
+      currentStepLabel: null,
+      currentStepPrompt: "Paste the prompt you want to modify.",
+      collectedInputs: [],
+      lastArtifact: null,
+      finalArtifactSource: null,
+    });
+  });
+
   it("logs a repeat-risk warning when the same step is returned after a non-empty user answer", () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 

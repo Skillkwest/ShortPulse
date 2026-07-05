@@ -38,6 +38,11 @@ import {
   SEEDED_EXPERT_EDIT_SYSTEM_PRESET_DEFINITIONS,
   type ExpertEditSystemPresetDefinition,
 } from "../../../lib/model-runtime/expertEditPresetDomain";
+import {
+  isPulseDraftBlank,
+  isPulseDraftPersistable,
+  resolvePulseDraftValidationIssue,
+} from "../logic/adminPulseDraftValidation";
 import styles from "../../../styles/admin.module.css";
 
 type CopyFeedbackMap = Record<string, string | null>;
@@ -202,12 +207,6 @@ const buildEmptyPulseDraft = (counter: number): AdminPulseDraft => ({
   schemaVersion: CREATE_PULSE_SCHEMA_VERSION,
 });
 
-const isPulseDraftPersistable = (draft: AdminPulseDraft): boolean =>
-  draft.presetId.trim().length > 0 &&
-  draft.label.trim().length > 0 &&
-  draft.description.trim().length > 0 &&
-  draft.systemInstructions.trim().length > 0;
-
 const arePulseDraftsEqual = (left: AdminPulseDraft, right: AdminPulseDraft): boolean =>
   left.presetId === right.presetId &&
   left.label === right.label &&
@@ -232,15 +231,6 @@ const arePulseDraftListsEqual = (
     const candidate = right[index];
     return candidate ? arePulseDraftsEqual(draft, candidate) : false;
   });
-
-const isPulseDraftBlank = (draft: AdminPulseDraft): boolean =>
-  draft.presetId.trim().length === 0 &&
-  draft.label.trim().length === 0 &&
-  draft.description.trim().length === 0 &&
-  draft.starterAssistantMessage.trim().length === 0 &&
-  draft.workflowStageHints.trim().length === 0 &&
-  draft.systemInstructions.trim().length === 0 &&
-  draft.artifactTarget === "text_artifact";
 
 const buildBuiltInStyleDraftFromDefinition = (
   definition: BuiltInStyleDefinition,
@@ -2212,6 +2202,7 @@ export function AdminAgentInstructionsSection() {
               const cardTitle =
                 draft.label.trim().length > 0 ? draft.label : `Pulse Slot ${index + 1}`;
               const statusLabel = stored ? (isDirty ? "Unsaved edits" : "Stored") : "New slot";
+              const validationIssue = resolvePulseDraftValidationIssue(draft);
               const note = stored
                 ? isDirty
                   ? "This slot differs from the stored global Pulse set."
@@ -2333,6 +2324,7 @@ export function AdminAgentInstructionsSection() {
                             updatePulseDraft(draft.localId, "presetId", event.target.value)
                           }
                           placeholder="video_prompt_magic"
+                          aria-describedby={`admin-pulse-card-note-${draft.localId}`}
                         />
                       </label>
 
@@ -2429,8 +2421,11 @@ export function AdminAgentInstructionsSection() {
                       spellCheck={false}
                       rows={18}
                     />
-                    <p className={styles.agentInstructionNote}>
-                      {copyFeedback[feedbackKey] ?? note}
+                    <p
+                      id={`admin-pulse-card-note-${draft.localId}`}
+                      className={styles.agentInstructionNote}
+                    >
+                      {copyFeedback[feedbackKey] ?? validationIssue ?? note}
                     </p>
                   </div>
                   {isCollapsed ? (

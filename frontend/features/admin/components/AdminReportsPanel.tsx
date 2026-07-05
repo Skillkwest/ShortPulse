@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import type { IssueReportStatus } from "../../../lib/issueReports";
 import type { AdminIssueReportRow, AdminIssueReportSummary, AdminPagination } from "../types";
 import { AdminReportDetailModal } from "./AdminReportDetailModal";
+import reportStyles from "./AdminReportLog.module.css";
 import styles from "../../../styles/admin.module.css";
 
 type AdminReportsPanelProps = {
@@ -91,7 +92,7 @@ export function AdminReportsPanel({
             <p className={styles.adminSectionEyebrow}>Reports</p>
             <h2 className={styles.adminSectionTitle}>User issue queue</h2>
           </div>
-          <div className={styles.adminReportsHeaderActions}>
+          <div className={reportStyles.adminReportsHeaderActions}>
             <button
               type="button"
               className="ghost-btn mini"
@@ -103,15 +104,17 @@ export function AdminReportsPanel({
           </div>
         </div>
 
-        <div className={styles.adminReportsSummaryStrip} aria-label="Report status filters">
+        <div className={reportStyles.adminReportsSummaryStrip} aria-label="Report status filters">
           {countFilters.map((filter) => (
             <button
               key={filter.value}
               type="button"
               aria-label={`${filter.label} reports: ${filter.count}`}
               className={[
-                styles.adminReportsStatButton,
-                reportStatusFilter === filter.value ? styles.adminReportsStatButtonActive : "",
+                reportStyles.adminReportsStatButton,
+                reportStatusFilter === filter.value
+                  ? reportStyles.adminReportsStatButtonActive
+                  : "",
               ]
                 .filter(Boolean)
                 .join(" ")}
@@ -123,8 +126,8 @@ export function AdminReportsPanel({
           ))}
         </div>
 
-        <div className={styles.adminReportsToolbar}>
-          <label className={styles.reportFilterField}>
+        <div className={reportStyles.adminReportsToolbar}>
+          <label className={reportStyles.reportFilterField}>
             <span className="tiny subdued">Search reports</span>
             <input
               className={styles.searchInput}
@@ -148,11 +151,11 @@ export function AdminReportsPanel({
         </div>
 
         <div className={styles.adminTableShell}>
-          <div className={styles.adminReportsTableMeta}>
-            <div className={styles.adminReportsTableMetaBlock}>
+          <div className={reportStyles.adminReportsTableMeta}>
+            <div className={reportStyles.adminReportsTableMetaBlock}>
               <strong>{showingLabel}</strong>
             </div>
-            <div className={styles.adminReportsTableMetaBlock}>
+            <div className={reportStyles.adminReportsTableMetaBlock}>
               <strong>
                 {reportStatusFilter === "all" ? "All statuses" : statusLabel(reportStatusFilter)}
               </strong>
@@ -160,7 +163,7 @@ export function AdminReportsPanel({
           </div>
           <div className={styles.adminTableScroller}>
             <div className={styles.adminTable}>
-              <div className={styles.adminReportsHead}>
+              <div className={reportStyles.adminReportsHead}>
                 <span>Submitted</span>
                 <span>Status</span>
                 <span>Reporter</span>
@@ -176,7 +179,7 @@ export function AdminReportsPanel({
                 </div>
               ) : reports.length === 0 ? (
                 <div
-                  className={`${styles.adminTableRow} ${styles.adminTableEmptyRow} ${styles.adminReportsEmptyState}`}
+                  className={`${styles.adminTableRow} ${styles.adminTableEmptyRow} ${reportStyles.adminReportsEmptyState}`}
                 >
                   <strong>
                     {hasStoredReports
@@ -197,7 +200,7 @@ export function AdminReportsPanel({
                     className={[
                       styles.adminTableRow,
                       styles.adminTableRowButton,
-                      styles.adminReportsRow,
+                      reportStyles.adminReportsRow,
                       selectedReportId === report.id ? styles.adminTableRowActive : "",
                     ]
                       .filter(Boolean)
@@ -208,22 +211,22 @@ export function AdminReportsPanel({
                     <span>
                       <span
                         className={[
-                          styles.reportStatusPill,
+                          reportStyles.reportStatusPill,
                           report.status === "new"
-                            ? styles.reportStatusNew
+                            ? reportStyles.reportStatusNew
                             : report.status === "reviewing"
-                              ? styles.reportStatusReviewing
-                              : styles.reportStatusResolved,
+                              ? reportStyles.reportStatusReviewing
+                              : reportStyles.reportStatusResolved,
                         ].join(" ")}
                       >
                         {statusLabel(report.status)}
                       </span>
                     </span>
-                    <span className={styles.reportIdentityCell}>
+                    <span className={reportStyles.reportIdentityCell}>
                       <strong>{report.submitterEmail}</strong>
                       <span className="tiny subdued">{report.userId ?? "Detached user"}</span>
                     </span>
-                    <span className={styles.reportPreviewCell}>
+                    <span className={reportStyles.reportPreviewCell}>
                       {buildMessagePreview(report.message)}
                     </span>
                   </button>

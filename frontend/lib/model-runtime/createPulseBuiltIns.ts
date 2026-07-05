@@ -36,6 +36,12 @@ export type CreatePulseBuiltInPresetDefinition = CreatePulseBuiltInPresetMetadat
 const CREATE_PULSE_DEFAULT_MEMORY_POLICY = "session" as const satisfies CreatePulseMemoryPolicy;
 const CREATE_PULSE_DEFAULT_ARTIFACT_TARGET =
   "text_artifact" as const satisfies CreatePulseArtifactTarget;
+export const CREATE_PULSE_BUILT_IN_PRESET_ID_REQUIREMENT =
+  "Preset ID must be 1-64 lowercase letters, numbers, underscores, or hyphens, and must not contain spaces or colons.";
+const CREATE_PULSE_BUILT_IN_PRESET_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,63}$/;
+
+export const isValidCreatePulseBuiltInPresetId = (value: string): boolean =>
+  CREATE_PULSE_BUILT_IN_PRESET_ID_PATTERN.test(value.trim());
 
 const isCreatePulsePresetKind = (value: string): value is CreatePulsePresetKind =>
   value === "guided_workflow" || value === "custom_gpt";
@@ -167,7 +173,13 @@ const normalizeCreatePulseBuiltInPresetDefinitionRecord = (
       ? "workflow_gpt"
       : "custom_gpt";
 
-  if (!presetId || !label || !description || !systemInstructions) {
+  if (
+    !presetId ||
+    !isValidCreatePulseBuiltInPresetId(presetId) ||
+    !label ||
+    !description ||
+    !systemInstructions
+  ) {
     return null;
   }
   if (isCreatePulseRetiredPresetId(presetId)) {

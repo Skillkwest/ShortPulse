@@ -114,6 +114,8 @@ function ReferenceGridComponent({
   incrementFreezeInvestigationCounter("referenceGrid.render");
   const [isRailCanvasInteractionActive, setIsRailCanvasInteractionActive] = React.useState(false);
   const [isReferenceCardDragActive, setIsReferenceCardDragActive] = React.useState(false);
+  const [isReferenceGridMediaHoverActive, setIsReferenceGridMediaHoverActive] =
+    React.useState(false);
   const handleRailCanvasInteractionActiveChange = React.useCallback(
     (active: boolean) => {
       setIsRailCanvasInteractionActive(active);
@@ -619,6 +621,7 @@ function ReferenceGridComponent({
     onDeleteOutput,
     onClearGenerationOutput,
     onRemoveCuratedReference,
+    onAllRefsMediaHoverChange: setIsReferenceGridMediaHoverActive,
     isMediaStorageFull,
     onSaveToLibrary,
     onDownload,
@@ -679,6 +682,7 @@ function ReferenceGridComponent({
         showHeader={showHeader}
         archiveCount={archiveCount}
         visibleItemCount={allOutputIds.length}
+        showReferenceGridHoverHelper={isReferenceGridMediaHoverActive}
         topNotice={topNotice}
         isArchivePanelOpen={isArchivePanelOpen}
         archivedOutputs={archivedOutputs}

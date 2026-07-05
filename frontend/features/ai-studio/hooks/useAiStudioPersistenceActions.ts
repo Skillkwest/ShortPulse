@@ -356,7 +356,7 @@ export const useAiStudioPersistenceActions = ({
             previewStoragePathHint: output.previewStoragePath ?? null,
             fullStoragePathHint: output.fullStoragePath ?? null,
             previewUrlHint: output.previewUrl ?? null,
-            fullUrlHint: output.previewUrl ?? null,
+            fullUrlHint: output.fullUrl ?? output.previewUrl ?? null,
             metadata: {
               task_id: output.taskId ?? null,
               generation_trace_id: output.generationTraceId ?? output.taskId ?? null,

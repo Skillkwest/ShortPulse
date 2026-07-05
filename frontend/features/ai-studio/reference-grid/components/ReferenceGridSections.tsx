@@ -58,6 +58,7 @@ type ReferenceGridSectionsProps = {
   showHeader: boolean;
   archiveCount: number;
   visibleItemCount: number;
+  showReferenceGridHoverHelper?: boolean;
   topNotice?: string | null;
   isArchivePanelOpen: boolean;
   archivedOutputs: StudioOutput[];
@@ -119,6 +120,7 @@ export function ReferenceGridSections({
   showHeader,
   archiveCount,
   visibleItemCount,
+  showReferenceGridHoverHelper = false,
   topNotice,
   isArchivePanelOpen,
   archivedOutputs,
@@ -436,6 +438,7 @@ export function ReferenceGridSections({
                     isArchivePanelOpen={isArchivePanelOpen}
                     archivedOutputs={archivedOutputs}
                     hideUploadActions={hideReferenceGridUploadActions}
+                    showHoverHelper={showReferenceGridHoverHelper}
                     onToggleArchivePanel={onToggleArchivePanel}
                     onTriggerFileSelect={onTriggerFileSelect}
                     onRestoreArchivedOutput={onRestoreArchivedOutput}
@@ -518,6 +521,7 @@ export function ReferenceGridSections({
                       isArchivePanelOpen={isArchivePanelOpen}
                       archivedOutputs={archivedOutputs}
                       hideUploadActions={hideReferenceGridUploadActions}
+                      showHoverHelper={showReferenceGridHoverHelper}
                       onToggleArchivePanel={onToggleArchivePanel}
                       onTriggerFileSelect={onTriggerFileSelect}
                       onRestoreArchivedOutput={onRestoreArchivedOutput}

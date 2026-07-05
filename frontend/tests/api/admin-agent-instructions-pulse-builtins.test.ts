@@ -172,6 +172,75 @@ describe("admin pulse built-ins API", () => {
     });
   });
 
+  it("rejects built-in Pulse ids that are unsafe for runtime namespaces", async () => {
+    const req = {
+      method: "PUT",
+      body: {
+        builtInDefinitions: [
+          {
+            ...CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0],
+            presetId: "Prompt Modifier",
+          },
+        ],
+        expectedUpdatedAt: "2026-05-08T17:00:00.000Z",
+      },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(saveCreatePulseBuiltInCatalogMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: expect.stringContaining("must not contain spaces or colons"),
+    });
+  });
+
+  it("rejects built-in Pulse definitions without starter messages", async () => {
+    const req = {
+      method: "PUT",
+      body: {
+        builtInDefinitions: [
+          {
+            ...CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0],
+            starterAssistantMessage: "",
+          },
+        ],
+        expectedUpdatedAt: "2026-05-08T17:00:00.000Z",
+      },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(saveCreatePulseBuiltInCatalogMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'Pulse "image" needs a starter assistant message so kickoff can never be blank.',
+    });
+  });
+
+  it("rejects non-guided built-in Pulse runtime contracts", async () => {
+    const req = {
+      method: "PUT",
+      body: {
+        builtInDefinitions: [
+          {
+            ...CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0],
+            pulseKind: "custom_gpt",
+          },
+        ],
+        expectedUpdatedAt: "2026-05-08T17:00:00.000Z",
+      },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(saveCreatePulseBuiltInCatalogMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'Pulse "image" must use pulseKind "guided_workflow".',
+    });
+  });
+
   it("returns 409 when the stored catalog changed before save", async () => {
     saveCreatePulseBuiltInCatalogMock.mockRejectedValue(
       new CreatePulseBuiltInCatalogVersionMismatchErrorMock()

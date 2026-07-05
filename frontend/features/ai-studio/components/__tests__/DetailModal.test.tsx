@@ -297,6 +297,27 @@ describe("DetailModal", () => {
     }
   });
 
+  it("pins prompt text from the shared generated media prompt blade", () => {
+    const onPinPromptReference = vi.fn();
+
+    render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          prompt: "  Pin this generated prompt  ",
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+        onPinPromptReference={onPinPromptReference}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Pin text reference to reference grid" }));
+
+    expect(onPinPromptReference).toHaveBeenCalledWith("Pin this generated prompt");
+  });
+
   it("does not fall back to legacy seeded style previews when style context has no explicit preview url", () => {
     render(
       <DetailModal

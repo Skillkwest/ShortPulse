@@ -111,6 +111,7 @@ export type ReferenceGridCardProps = {
   onDeleteOutput?: (id: string) => void;
   onClearGenerationOutput?: (id: string) => void;
   onRemoveCuratedReference?: (id: string) => void;
+  onMediaHoverChange?: (active: boolean) => void;
   showCuratedRemoveAction?: boolean;
   isMediaStorageFull?: boolean;
   onSaveToLibrary?: (output: StudioOutput) => void;
@@ -202,6 +203,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   onDeleteOutput,
   onClearGenerationOutput,
   onRemoveCuratedReference,
+  onMediaHoverChange,
   showCuratedRemoveAction = false,
   isMediaStorageFull = false,
   onSaveToLibrary,
@@ -257,6 +259,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     shouldShowRerollInBottomActionRow || shouldShowWorkflowReloadInBottomActionRow
   );
   const bottomActionRowClassName = "reference-card-bottom-actions";
+  const shouldSignalMediaHover = Boolean(isImagePreview || isVideoPreview || isAudioPreview);
   const shouldShowCuratedActionRow = Boolean(
     showCuratedRemoveAction && onRemoveCuratedReference && isSelected
   );
@@ -561,10 +564,22 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
       onDrop={onCardDrop ? (event) => onCardDrop(event, item) : undefined}
       onDragEnter={onCardDragEnter ? (event) => onCardDragEnter(event, item) : undefined}
       onDragLeave={onCardDragLeave ? (event) => onCardDragLeave(event, item) : undefined}
-      onPointerEnter={startHoverPlayback}
+      onPointerEnter={() => {
+        startHoverPlayback();
+        if (shouldSignalMediaHover) onMediaHoverChange?.(true);
+      }}
       onMouseEnter={startHoverPlayback}
-      onPointerLeave={stopHoverPlayback}
+      onPointerLeave={() => {
+        stopHoverPlayback();
+        if (shouldSignalMediaHover) onMediaHoverChange?.(false);
+      }}
       onMouseLeave={stopHoverPlayback}
+      onFocus={() => {
+        if (shouldSignalMediaHover) onMediaHoverChange?.(true);
+      }}
+      onBlur={() => {
+        if (shouldSignalMediaHover) onMediaHoverChange?.(false);
+      }}
     >
       {shouldRenderVideoElement ? (
         <video

@@ -261,6 +261,10 @@ describe("Dashboard guest route", () => {
       "href",
       SHORTPULSE_COMMUNITY_URL
     );
+    expect(within(footer).getByRole("link", { name: "Sign Up" })).toHaveAttribute(
+      "href",
+      "/sign-up?next=%2Fai-studio"
+    );
     const guestActions = screen.getByLabelText("Guest actions");
 
     expect(within(guestActions).getByRole("link", { name: "Login" })).toHaveAttribute(
@@ -283,7 +287,7 @@ describe("Dashboard guest route", () => {
     expect(screen.queryByText(/workspace entry are now one surface/i)).not.toBeInTheDocument();
     expect(document.querySelector(".public-home-launch-button")).toHaveAttribute(
       "href",
-      "/sign-up?next=%2Fai-studio"
+      "/log-in?next=%2Fai-studio"
     );
     expect(screen.getByText("ShortPulse · Home")).toBeInTheDocument();
     expect(
@@ -560,7 +564,7 @@ describe("Dashboard guest route", () => {
     );
     expect(screen.getByRole("link", { name: /launch ai studio/i })).toHaveAttribute(
       "href",
-      "/sign-up?next=%2Fai-studio"
+      "/log-in?next=%2Fai-studio"
     );
   });
 
@@ -791,7 +795,7 @@ describe("Dashboard guest route", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /launch ai studio/i })).toHaveAttribute(
       "href",
-      "/sign-up?next=%2Fai-studio"
+      "/log-in?next=%2Fai-studio"
     );
   });
 });

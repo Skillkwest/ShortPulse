@@ -88,6 +88,7 @@ type UseReferenceGridCardRenderControllerArgs = {
   onDeleteOutput?: (id: string) => void;
   onClearGenerationOutput?: (id: string) => void;
   onRemoveCuratedReference?: (id: string) => void;
+  onAllRefsMediaHoverChange?: (active: boolean) => void;
   isMediaStorageFull?: boolean;
   onSaveToLibrary?: (output: StudioOutput) => void;
   onDownload?: (output: StudioOutput) => void;
@@ -156,6 +157,7 @@ export const useReferenceGridCardRenderController = ({
   onDeleteOutput,
   onClearGenerationOutput,
   onRemoveCuratedReference,
+  onAllRefsMediaHoverChange,
   isMediaStorageFull = false,
   onSaveToLibrary,
   onDownload,
@@ -384,6 +386,7 @@ export const useReferenceGridCardRenderController = ({
           onClearLoadingOutput={clearLoadingOutputHandler}
           loadingClearLabel={clearLoadingLabel}
           onRemoveCuratedReference={options.isCuratedSurface ? onRemoveCuratedReference : undefined}
+          onMediaHoverChange={options.isCuratedSurface ? undefined : onAllRefsMediaHoverChange}
           showCuratedRemoveAction={options.isCuratedSurface}
           isMediaStorageFull={isMediaStorageFull}
           onSaveToLibrary={onSaveToLibrary}
@@ -414,6 +417,7 @@ export const useReferenceGridCardRenderController = ({
       onCuratedSectionDragOver,
       onDeleteOutput,
       onClearGenerationOutput,
+      onAllRefsMediaHoverChange,
       onDownload,
       onOpenDetails,
       onRemoveCuratedReference,

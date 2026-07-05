@@ -106,3 +106,10 @@ export const buildDashboardAuthPath = (): string => {
 export const buildDashboardSignupPath = (): string => {
   return buildSignupPath({ nextPath: "/ai-studio" });
 };
+
+/**
+ * Builds the signed-out app launch route for entering AI Studio.
+ */
+export const buildDashboardLaunchPath = (): string => {
+  return buildLoginPath({ nextPath: "/ai-studio" });
+};

@@ -514,6 +514,7 @@
   white-space: nowrap;
 }
 
+.reference-grid-hover-helper.is-visible,
 .reference-all-refs-section:has(
     .reference-card.has-preview:hover,
     .reference-card.has-video:hover,

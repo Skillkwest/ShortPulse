@@ -460,6 +460,8 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
           resultUrls: ["https://signed.example/generated-video.mp4"],
           generationId: EXISTING_GENERATION_ID,
           durationMs: 15_000,
+          previewUrl: "https://cdn.example.com/generated-video-preview.mp4",
+          fullUrl: "https://cdn.example.com/generated-video-full.mp4",
         }),
       ],
     ]);
@@ -491,6 +493,8 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
     expect(saveMediaUrlToLibraryMock).toHaveBeenCalledWith(
       expect.objectContaining({
         generationId: EXISTING_GENERATION_ID,
+        previewUrlHint: "https://cdn.example.com/generated-video-preview.mp4",
+        fullUrlHint: "https://cdn.example.com/generated-video-full.mp4",
         metadata: expect.objectContaining({
           duration_ms: 15_000,
           duration_seconds: 15,

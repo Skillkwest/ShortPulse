@@ -2151,11 +2151,17 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
           expect.objectContaining({
             id: "canvas-image-render-error-1",
             outputId: "output-image-render-error-1",
-            src: "https://signed.shortpulse.test/user-1/images/render-error/full.png",
+            src: "https://signed.shortpulse.test/user-1/variants/images/render-error/preview.webp",
+            srcStoragePath: "user-1/images/render-error/full.png",
             alt: "Fresh render image",
           }),
         ],
       });
+    });
+    expect(mediaSigningMocks.getSignedMediaUrl).toHaveBeenCalledWith({
+      bucket: "media_library",
+      storagePath: "user-1/variants/images/render-error/preview.webp",
+      forceRefresh: true,
     });
     expect(mediaSigningMocks.getSignedMediaUrl).toHaveBeenCalledWith({
       bucket: "media_library",

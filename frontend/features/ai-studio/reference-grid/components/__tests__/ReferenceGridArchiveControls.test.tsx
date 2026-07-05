@@ -45,4 +45,21 @@ describe("ReferenceGridArchiveControls", () => {
       )
     ).toHaveClass("is-near-active-workset-limit");
   });
+
+  it("marks the detail helper visible when a media reference is hovered", () => {
+    render(
+      <ReferenceGridArchiveControls
+        archiveCount={0}
+        visibleItemCount={1}
+        showHeader
+        showTitle={false}
+        showHoverHelper
+        isArchivePanelOpen={false}
+        archivedOutputs={[]}
+        onToggleArchivePanel={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("Double-click a reference to view details.")).toHaveClass("is-visible");
+  });
 });

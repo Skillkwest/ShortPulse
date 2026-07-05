@@ -4,6 +4,8 @@
 import { useState } from "react";
 import type { TesterReportStatus } from "../../../lib/testerReports";
 import type { AdminPagination, AdminTesterReportRunRow, AdminTesterReportSummary } from "../types";
+import { AdminTesterReportMarkdown } from "./AdminTesterReportMarkdown";
+import reportStyles from "./AdminReportLog.module.css";
 import styles from "../../../styles/admin.module.css";
 
 type AdminTesterReportsPanelProps = {
@@ -41,10 +43,10 @@ const statusLabel = (status: TesterReportStatus): string => {
 };
 
 const statusClassName = (status: TesterReportStatus): string => {
-  if (status === "blocked") return styles.testerReportStatusBlocked;
-  if (status === "failed") return styles.testerReportStatusFailed;
-  if (status === "partial") return styles.testerReportStatusPartial;
-  return styles.testerReportStatusCompleted;
+  if (status === "blocked") return reportStyles.testerReportStatusBlocked;
+  if (status === "failed") return reportStyles.testerReportStatusFailed;
+  if (status === "partial") return reportStyles.testerReportStatusPartial;
+  return reportStyles.testerReportStatusCompleted;
 };
 
 const buildScenarioPreview = (scenario: string): string => {
@@ -110,7 +112,7 @@ export function AdminTesterReportsPanel({
           <p className={styles.adminSectionEyebrow}>Agent Tester Reports</p>
           <h2 className={styles.adminSectionTitle}>Automated run log</h2>
         </div>
-        <div className={styles.adminReportsHeaderActions}>
+        <div className={reportStyles.adminReportsHeaderActions}>
           <button
             type="button"
             className="ghost-btn mini"
@@ -122,15 +124,20 @@ export function AdminTesterReportsPanel({
         </div>
       </div>
 
-      <div className={styles.adminReportsSummaryStrip} aria-label="Tester report status filters">
+      <div
+        className={reportStyles.adminReportsSummaryStrip}
+        aria-label="Tester report status filters"
+      >
         {countFilters.map((filter) => (
           <button
             key={filter.value}
             type="button"
             aria-label={`${filter.label} tester reports: ${filter.count}`}
             className={[
-              styles.adminReportsStatButton,
-              testerReportStatusFilter === filter.value ? styles.adminReportsStatButtonActive : "",
+              reportStyles.adminReportsStatButton,
+              testerReportStatusFilter === filter.value
+                ? reportStyles.adminReportsStatButtonActive
+                : "",
             ]
               .filter(Boolean)
               .join(" ")}
@@ -142,8 +149,8 @@ export function AdminTesterReportsPanel({
         ))}
       </div>
 
-      <div className={styles.adminReportsToolbar}>
-        <label className={styles.reportFilterField}>
+      <div className={reportStyles.adminReportsToolbar}>
+        <label className={reportStyles.reportFilterField}>
           <span className="tiny subdued">Search tester reports</span>
           <input
             className={styles.searchInput}
@@ -152,7 +159,7 @@ export function AdminTesterReportsPanel({
             placeholder="Run id, tester, account, scenario, or surface"
           />
         </label>
-        <label className={styles.reportFilterField}>
+        <label className={reportStyles.reportFilterField}>
           <span className="tiny subdued">Tester slug</span>
           <input
             className={styles.searchInput}
@@ -177,11 +184,11 @@ export function AdminTesterReportsPanel({
       </div>
 
       <div className={styles.adminTableShell}>
-        <div className={styles.adminReportsTableMeta}>
-          <div className={styles.adminReportsTableMetaBlock}>
+        <div className={reportStyles.adminReportsTableMeta}>
+          <div className={reportStyles.adminReportsTableMetaBlock}>
             <strong>{showingLabel}</strong>
           </div>
-          <div className={styles.adminReportsTableMetaBlock}>
+          <div className={reportStyles.adminReportsTableMetaBlock}>
             <strong>
               {testerReportStatusFilter === "all"
                 ? "All statuses"
@@ -191,8 +198,8 @@ export function AdminTesterReportsPanel({
         </div>
         <div className={styles.adminTableScroller}>
           <div className={styles.adminTable}>
-            <div className={styles.adminTesterReportsHead}>
-              <span>Run</span>
+            <div className={reportStyles.adminTesterReportsHead}>
+              <span>Date/time</span>
               <span>Status</span>
               <span>Tester</span>
               <span>Account</span>
@@ -208,7 +215,7 @@ export function AdminTesterReportsPanel({
               </div>
             ) : testerReports.length === 0 ? (
               <div
-                className={`${styles.adminTableRow} ${styles.adminTableEmptyRow} ${styles.adminReportsEmptyState}`}
+                className={`${styles.adminTableRow} ${styles.adminTableEmptyRow} ${reportStyles.adminReportsEmptyState}`}
               >
                 <strong>
                   {hasStoredReports
@@ -231,13 +238,13 @@ export function AdminTesterReportsPanel({
                 const personaExpanded = expandedReportKeys.has(personaKey);
                 const engineeringExpanded = expandedReportKeys.has(engineeringKey);
                 return (
-                  <div key={report.id} className={styles.adminTesterReportGroup}>
+                  <div key={report.id} className={reportStyles.adminTesterReportGroup}>
                     <button
                       type="button"
                       className={[
                         styles.adminTableRow,
                         styles.adminTableRowButton,
-                        styles.adminTesterReportsRow,
+                        reportStyles.adminTesterReportsRow,
                         expanded ? styles.adminTableRowActive : "",
                       ]
                         .filter(Boolean)
@@ -245,37 +252,33 @@ export function AdminTesterReportsPanel({
                       aria-expanded={expanded}
                       onClick={() => setExpandedRunId(expanded ? null : report.id)}
                     >
-                      <span className={styles.reportIdentityCell}>
+                      <span className={reportStyles.reportIdentityCell}>
                         <strong>{formatDateTime(report.createdAt)}</strong>
-                        <span className="tiny subdued">{report.externalRunId}</span>
                       </span>
                       <span>
                         <span
-                          className={[styles.reportStatusPill, statusClassName(report.status)].join(
-                            " "
-                          )}
+                          className={[
+                            reportStyles.reportStatusPill,
+                            statusClassName(report.status),
+                          ].join(" ")}
                         >
                           {statusLabel(report.status)}
                         </span>
                       </span>
-                      <span className={styles.reportIdentityCell}>
+                      <span className={reportStyles.reportIdentityCell}>
                         <strong>{report.testerDisplayName}</strong>
-                        <span className="tiny subdued">{report.testerSlug}</span>
                       </span>
-                      <span className={styles.reportIdentityCell}>
+                      <span className={reportStyles.reportIdentityCell}>
                         <strong>{accountLabel}</strong>
-                        <span className="tiny subdued">
-                          {report.shortpulseUserId ?? "No linked user id"}
-                        </span>
                       </span>
-                      <span className={styles.reportPreviewCell}>
+                      <span className={reportStyles.reportPreviewCell}>
                         {buildScenarioPreview(report.scenario)}
                       </span>
                     </button>
 
                     {expanded ? (
-                      <div className={styles.adminTesterReportExpanded}>
-                        <div className={styles.adminTesterReportMeta}>
+                      <div className={reportStyles.adminTesterReportExpanded}>
+                        <div className={reportStyles.adminTesterReportMeta}>
                           <span>Started: {formatDateTime(report.runStartedAt)}</span>
                           <span>Finished: {formatDateTime(report.runFinishedAt)}</span>
                           <span>
@@ -284,11 +287,11 @@ export function AdminTesterReportsPanel({
                           <span>Credits: {formatOptionalNumber(report.creditsSpent)}</span>
                           <span>Surface: {report.productionSurface ?? "Not recorded"}</span>
                         </div>
-                        <div className={styles.adminTesterReportPanels}>
-                          <article className={styles.adminTesterReportPanel}>
+                        <div className={reportStyles.adminTesterReportPanels}>
+                          <article className={reportStyles.adminTesterReportPanel}>
                             <button
                               type="button"
-                              className={styles.adminTesterReportDisclosure}
+                              className={reportStyles.adminTesterReportDisclosure}
                               aria-expanded={personaExpanded}
                               onClick={() => toggleReport(personaKey)}
                             >
@@ -296,13 +299,13 @@ export function AdminTesterReportsPanel({
                               <strong>{report.personaReportTitle}</strong>
                             </button>
                             {personaExpanded ? (
-                              <pre className={styles.adminPreBlock}>{report.personaReportBody}</pre>
+                              <AdminTesterReportMarkdown body={report.personaReportBody} />
                             ) : null}
                           </article>
-                          <article className={styles.adminTesterReportPanel}>
+                          <article className={reportStyles.adminTesterReportPanel}>
                             <button
                               type="button"
-                              className={styles.adminTesterReportDisclosure}
+                              className={reportStyles.adminTesterReportDisclosure}
                               aria-expanded={engineeringExpanded}
                               onClick={() => toggleReport(engineeringKey)}
                             >
@@ -317,7 +320,7 @@ export function AdminTesterReportsPanel({
                           </article>
                         </div>
                         {report.reportArtifactPaths.length > 0 ? (
-                          <div className={styles.adminTesterReportArtifacts}>
+                          <div className={reportStyles.adminTesterReportArtifacts}>
                             <strong>Artifacts</strong>
                             {report.reportArtifactPaths.map((path) => (
                               <code key={path}>{path}</code>

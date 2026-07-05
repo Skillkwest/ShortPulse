@@ -69,7 +69,12 @@ describe("AdminTesterReportsPanel", () => {
   it("expands a tester run and then expands each report body", () => {
     renderPanel();
 
-    fireEvent.click(screen.getByRole("button", { name: /maya-2026-07-04-orientation/i }));
+    expect(screen.getByText("Date/time")).toBeInTheDocument();
+    expect(screen.queryByText("maya-2026-07-04-orientation")).not.toBeInTheDocument();
+    expect(screen.queryByText("maya-chen")).not.toBeInTheDocument();
+    expect(screen.queryByText("11111111-1111-4111-8111-111111111111")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Authenticated orientation/i }));
     expect(screen.getByText("Persona report")).toBeInTheDocument();
     expect(screen.getByText("Engineering handoff")).toBeInTheDocument();
 
@@ -82,6 +87,28 @@ describe("AdminTesterReportsPanel", () => {
     expect(
       screen.getByText("Verify autosave confidence around AI Studio draft restore.")
     ).toBeInTheDocument();
+  });
+
+  it("renders the persona report body as rich markdown text", () => {
+    renderPanel({
+      testerReports: [
+        {
+          ...buildReport(),
+          personaReportBody:
+            '# Maya notes\n\nI found **the image** again and reused `Quick Slot`.\n\n- Prompt was not visible\n- Project reopened cleanly\n\n```json\n{"ok":true}\n```',
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Authenticated orientation/i }));
+    fireEvent.click(screen.getByRole("button", { name: /maya's creator notebook/i }));
+
+    expect(screen.getByRole("heading", { name: "Maya notes", level: 3 })).toBeInTheDocument();
+    expect(screen.getByText("the image").tagName).toBe("STRONG");
+    expect(screen.getByText("Quick Slot").tagName).toBe("CODE");
+    expect(screen.getByText("Prompt was not visible").tagName).toBe("LI");
+    expect(screen.getByText('{"ok":true}')).toBeInTheDocument();
+    expect(screen.queryByText("# Maya notes")).not.toBeInTheDocument();
   });
 
   it("uses the status strip and tester field as filters", () => {

@@ -750,6 +750,10 @@ export function AiStudioPageContent({
       : null;
   const resolvedPulseCreateProperties =
     resolvedCreateProperties.expertCreateMode === "pulse" ? resolvedCreateProperties.pulse : null;
+  const detailPromptPinHandler =
+    resolvedStandardCreateProperties?.onPinPromptReference ??
+    propertiesEditExpert.onPinPromptReference ??
+    propertiesVideo.onPinPromptReference;
   const resolvedReferenceGridProps = referenceGridProps;
   const selectedComingSoonTool = isComingSoonTool(selectedTool) ? selectedTool : null;
   const comingSoon = selectedComingSoonTool ? comingSoonCopy[selectedComingSoonTool] : null;
@@ -1938,6 +1942,7 @@ export function AiStudioPageContent({
             onSnapshotVideoFrame={onSnapshotVideoFrame}
             onSnapshotVideoFrameError={onSnapshotVideoFrameError}
             onReloadWorkflowReference={onDetailReloadWorkflow}
+            onPinPromptReference={detailPromptPinHandler}
             onSavePrompt={onDetailSavePrompt}
             refreshCharacterOptions={refreshCharacterOptions}
             resolveCharacterAvatarUrlById={resolveCharacterAvatarUrlById}
@@ -1952,6 +1957,7 @@ export function AiStudioPageContent({
             onSnapshotVideoFrame={onSnapshotVideoFrame}
             onSnapshotVideoFrameError={onSnapshotVideoFrameError}
             topBarActionItems={sharedDetailModalActionItems}
+            onPinPromptReference={detailPromptPinHandler}
             modalActivityId="ai-studio-shared-detail-preview-modal"
             backdropDataTestId="ai-studio-shared-detail-preview-backdrop"
             closeLabel="Close media detail"

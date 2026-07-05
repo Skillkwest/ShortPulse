@@ -45,6 +45,7 @@
 @import "./ai-studio-model-picker.css";
 @import "./ai-studio-history.css";
 @import "./ai-studio-modals.css";
+@import "./ai-studio-modals-responsive.css";
 @import "./ai-studio-responsive.css";
 @import "./ai-studio-create-composer.tokens.css";
 @import "./ai-studio-create-composer-chat.css";

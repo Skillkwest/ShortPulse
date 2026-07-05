@@ -1682,7 +1682,7 @@ describe("saveMediaUrlToLibrary", () => {
     );
   });
 
-  it("prefers server copy for remote ai_studio video saves that do not provide a preview hint", async () => {
+  it("prefers server copy for remote ai_studio video saves even when a preview hint exists", async () => {
     const maybeSingle = vi.fn().mockResolvedValue({
       data: null,
       error: null,
@@ -1747,6 +1747,8 @@ describe("saveMediaUrlToLibrary", () => {
       source: "ai_studio",
       generationId: "gen-video-proactive-1",
       index: 0,
+      previewStoragePathHint:
+        "user-1/variants/videos/media-generated-video-proactive/preview_loop_360p.mp4",
     });
 
     expect(browserFetch).not.toHaveBeenCalled();

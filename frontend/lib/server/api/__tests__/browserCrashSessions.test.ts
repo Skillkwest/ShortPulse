@@ -18,19 +18,32 @@ vi.mock("../supabaseAdmin", () => ({
 type UpdatePayload = Record<string, unknown>;
 type UpsertPayload = Record<string, unknown>;
 
-const createSupabaseMock = () => {
+const createSupabaseMock = (
+  selectedPreviousRow: Record<string, unknown> | null = { id: "previous-row-id", metadata: {} }
+) => {
   const updatePayloads: UpdatePayload[] = [];
   const upsertPayloads: UpsertPayload[] = [];
-  const eqMock = vi.fn();
-  const maybeSingleMock = vi
+  const updateEqMock = vi.fn();
+  const updateMaybeSingleMock = vi
     .fn()
     .mockResolvedValue({ data: { id: "previous-row-id" }, error: null });
-  const selectMock = vi.fn(() => ({ maybeSingle: maybeSingleMock }));
+  const updateSelectMock = vi.fn(() => ({ maybeSingle: updateMaybeSingleMock }));
   const updateBuilder = {
-    eq: eqMock,
-    select: selectMock,
+    eq: updateEqMock,
+    select: updateSelectMock,
   };
-  eqMock.mockReturnValue(updateBuilder);
+  updateEqMock.mockReturnValue(updateBuilder);
+
+  const selectEqMock = vi.fn();
+  const selectMaybeSingleMock = vi
+    .fn()
+    .mockResolvedValue({ data: selectedPreviousRow, error: null });
+  const selectBuilder = {
+    eq: selectEqMock,
+    maybeSingle: selectMaybeSingleMock,
+  };
+  selectEqMock.mockReturnValue(selectBuilder);
+  const selectMock = vi.fn(() => selectBuilder);
 
   const updateMock = vi.fn((payload: UpdatePayload) => {
     updatePayloads.push(payload);
@@ -41,14 +54,16 @@ const createSupabaseMock = () => {
     return Promise.resolve({ error: null });
   });
   const fromMock = vi.fn(() => ({
+    select: selectMock,
     update: updateMock,
     upsert: upsertMock,
   }));
 
   return {
     client: { from: fromMock },
-    eqMock,
+    eqMock: updateEqMock,
     fromMock,
+    selectMaybeSingleMock,
     upsertMock,
     updatePayloads,
     upsertPayloads,
@@ -97,6 +112,65 @@ describe("browserCrashSessions", () => {
       confidence: "medium",
       last_event: "previous_session_abandoned",
       suspected_at: "2026-07-05T12:00:00.000Z",
+    });
+    expect(supabase.upsertMock).not.toHaveBeenCalled();
+  });
+
+  it("preserves previous row metadata when marking abandonment evidence", async () => {
+    const supabase = createSupabaseMock({
+      id: "previous-row-id",
+      metadata: {
+        build_id: "previous-build",
+        client_release: "previous-release",
+        client_environment: "production",
+        pressure_level: 2,
+      },
+    });
+    getSupabaseAdminMock.mockReturnValue(supabase.client);
+
+    await recordBrowserSessionEvent({
+      req: {
+        headers: {
+          "user-agent": "Mozilla/5.0 Chrome/120",
+          host: "www.shortpulse.ai",
+        },
+      } as never,
+      user: { id: "user-1", email: "alpha@example.com" },
+      payload: {
+        eventType: "previous_session_abandoned",
+        sessionId: "current-session",
+        previousSessionId: "previous-session",
+        route: "/ai-studio?projectId=secret",
+        occurredAt: "2026-07-05T12:00:00.000Z",
+        metadata: {
+          build_id: "detector-build",
+          client_release: "detector-release",
+          client_environment: "production",
+          visibility_state: "visible",
+          document_hidden: false,
+          last_heartbeat_age_ms: 120000,
+          previous_last_seen_at: "2026-07-05T11:58:00.000Z",
+          status_reason: "previous_session_missing_clean_close",
+        },
+      },
+    });
+
+    expect(supabase.updatePayloads[0]).toMatchObject({
+      confidence: "high",
+      metadata: {
+        build_id: "previous-build",
+        client_release: "previous-release",
+        client_environment: "production",
+        pressure_level: 2,
+        last_heartbeat_age_ms: 120000,
+        previous_last_seen_at: "2026-07-05T11:58:00.000Z",
+        status_reason: "previous_session_missing_clean_close",
+        abandonment_detected_build_id: "detector-build",
+        abandonment_detected_client_release: "detector-release",
+        abandonment_detected_client_environment: "production",
+        abandonment_detected_visibility_state: "visible",
+        abandonment_detected_document_hidden: false,
+      },
     });
     expect(supabase.upsertMock).not.toHaveBeenCalled();
   });

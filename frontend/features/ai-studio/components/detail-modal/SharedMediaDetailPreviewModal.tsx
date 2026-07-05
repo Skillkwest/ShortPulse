@@ -76,6 +76,7 @@ type SharedMediaDetailPreviewModalProps = {
   onSnapshotVideoFrameError?: SharedMediaDetailVideoSnapshotErrorHandler;
   topBarActionItems?: SharedMediaDetailActionItem[];
   topBarActions?: React.ReactNode;
+  onPinPromptReference?: (text: string) => void;
   modalActivityId?: string;
   ariaLabelPrefix?: string;
   backdropClassName?: string;
@@ -105,6 +106,7 @@ export function SharedMediaDetailPreviewModal({
   onSnapshotVideoFrameError,
   topBarActionItems = [],
   topBarActions = null,
+  onPinPromptReference,
   modalActivityId = "shared-media-detail-preview-modal",
   ariaLabelPrefix = "Preview",
   backdropClassName = "reference-modal-backdrop",
@@ -341,6 +343,7 @@ export function SharedMediaDetailPreviewModal({
               value={bladeContent.value}
               placeholder={item ? resolveSharedMediaDetailBladePlaceholder(item) : undefined}
               copyText={bladeContent.label === "PROMPT" ? bladeContent.value : null}
+              onPinPromptReference={onPinPromptReference}
             />
           ) : null
         }

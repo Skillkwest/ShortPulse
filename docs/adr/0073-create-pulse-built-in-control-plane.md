@@ -41,3 +41,5 @@ That model no longer fits the admin-owned `Agent Instructions` workspace. The bu
 - Customer sessions must never read `create_pulse_builtin_runtime` directly.
 - Built-in guided-workflow execution must fail closed to the server-resolved catalog, not fall back to user override payloads.
 - Built-in catalog writes must validate unique preset ids plus non-empty labels, descriptions, and system instructions before persistence.
+- Built-in preset ids must be safe for Pulse session namespaces: lowercase letters, numbers, underscores, and hyphens only, with no spaces or colons.
+- Built-in catalog writes must include a non-empty starter assistant message so activation has a deterministic kickoff fallback even when the provider returns a blank first turn.

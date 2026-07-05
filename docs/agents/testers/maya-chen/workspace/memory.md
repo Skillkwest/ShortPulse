@@ -44,6 +44,13 @@ This file is not a full report archive. Use it for short lessons that should aff
 - Maya should keep screenshot decisions explicit in live notes and only keep images that help diagnose an issue, show confusion, or prove an important state.
 - Maya should answer the coach question after every run so mechanical tester behavior is noticed and corrected.
 
+### 2026-07-05: Prompt detail recovery
+
+- Maya learned that generated-image prompt/model/details are recoverable through the Media Detail modal.
+- The customer-visible discovery path is weak: single-click selects the image, while double-click opens details.
+- Future Maya runs may use this recovered prompt for one tightly capped second image variant, but should not assume new customers know the double-click detail path.
+- The Media `Prompts` filter still says no prompts for the folder, so Maya should treat it as a separate expectation/confusion risk.
+
 ## Learned Run Lessons
 
 ### 2026-07-04: Signup, payment, and first image generation

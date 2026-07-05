@@ -24,6 +24,13 @@ import {
   resolveWorkflowReloadMusicMode,
 } from "./generatedMediaAudioMetadata";
 import { hydrateGeneratedOutputErrorPayloads } from "./generatedMediaErrorPayloadHydration";
+import {
+  asObject,
+  asTrimmedString,
+  asTrimmedStringArray,
+  parseIsoTimestampMs,
+  toPositiveInteger,
+} from "./generatedMediaAuthorityParsing";
 
 type SupabaseClient = ReturnType<typeof ensureSupabaseQueryClient>;
 
@@ -125,25 +132,6 @@ const VIDEO_MODEL_MARKER_PATTERN =
   /(?:veo|kling|seedance|image-to-video|text-to-video|video|i2v|t2v)/i;
 const AUDIO_MODEL_MARKER_PATTERN = /(?:audio|speech|music|tts|voice)/i;
 
-const asTrimmedString = (value: unknown): string | null => {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  return trimmed.length ? trimmed : null;
-};
-
-const toPositiveInteger = (value: unknown): number | null => {
-  const numericValue = typeof value === "string" ? Number(value) : value;
-  if (typeof numericValue !== "number") return null;
-  if (!Number.isFinite(numericValue) || numericValue <= 0) return null;
-  return Math.max(1, Math.round(numericValue));
-};
-
-const parseIsoTimestampMs = (value: unknown): number | null => {
-  const iso = asTrimmedString(value);
-  const parsed = Date.parse(iso ?? "");
-  return Number.isFinite(parsed) ? parsed : null;
-};
-
 const resolveGenerationProjectionRecencyMs = (row: Record<string, unknown>): number | null =>
   parseIsoTimestampMs(row.started_at) ??
   parseIsoTimestampMs(row.created_at) ??
@@ -161,13 +149,6 @@ const resolveProjectId = (value: string | null | undefined): string | null =>
 
 const resolveWorkspaceRuntimeKey = (value: string | null | undefined): string | null =>
   asTrimmedString(value);
-
-const asTrimmedStringArray = (value: unknown): string[] => {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((entry) => asTrimmedString(entry))
-    .filter((entry): entry is string => Boolean(entry));
-};
 
 const resolveVideoDeliveryPosterStoragePath = ({
   mode,
@@ -349,11 +330,6 @@ const toProjectionDelivery = (
     fullStoragePath,
   };
 };
-
-const asObject = (value: unknown): Record<string, unknown> | null =>
-  value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
 
 const normalizeProjectionTaskState = (value: unknown): StudioOutput["taskState"] | undefined => {
   const normalized = asTrimmedString(value)?.toLowerCase();

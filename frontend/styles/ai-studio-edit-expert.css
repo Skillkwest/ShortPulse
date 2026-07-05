@@ -6196,9 +6196,6 @@
 
 .edit-expert-inline-generate .agent-generate-prefab .generate-pill .model-chip-credits-label {
   color: #1a140c;
-}
-
-.edit-expert-inline-generate .agent-generate-prefab .generate-pill .model-chip-credits-label {
   display: none;
 }
 
@@ -6243,9 +6240,7 @@
     min-width: 0;
     max-width: none;
   }
-}
 
-@container ai-properties (max-width: 760px) {
   .edit-expert-panel .create-composer-character-picker-trigger,
   .edit-expert-panel .create-composer-model-picker-trigger,
   .ai-studio-page .edit-expert-panel .aspect-trigger,

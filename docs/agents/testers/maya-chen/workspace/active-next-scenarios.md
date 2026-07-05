@@ -14,6 +14,8 @@ If a scenario completes early, continue only with natural exploration around the
 
 ### 1. Prompt And Detail Recovery
 
+Status: completed on 2026-07-05.
+
 Customer goal: Maya wants to recover the prompt, model/context details, and project context for the first paid generated image so she can reuse the look without guessing.
 
 Spend: `0` credits.
@@ -30,6 +32,8 @@ Stop condition:
 - Stop when Maya can either recover the prompt/details visibly or clearly explain which customer-visible surfaces failed to provide them.
 
 ### 2. Second Image Variant
+
+Status: next default scenario.
 
 Customer goal: Maya wants one alternate image for the `Tiny Apartment Reset Kit`, using the first image as inspiration if she can understand how to reuse it safely.
 

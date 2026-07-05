@@ -1,5 +1,6 @@
 import React from "react";
 import { PromptCopyButton } from "./PromptCopyButton";
+import { ComposerPinButton } from "../shared/ComposerPinButton";
 
 type SharedMediaDetailInfoPanelProps = {
   leadingContent?: React.ReactNode;
@@ -11,6 +12,7 @@ type SharedMediaDetailInfoPanelProps = {
   textareaRef?: React.Ref<HTMLTextAreaElement>;
   onChange?: React.ChangeEventHandler<HTMLTextAreaElement>;
   copyText?: string | null;
+  onPinPromptReference?: (text: string) => void;
 };
 
 /**
@@ -27,16 +29,29 @@ export function SharedMediaDetailInfoPanel({
   textareaRef,
   onChange,
   copyText = null,
+  onPinPromptReference,
 }: SharedMediaDetailInfoPanelProps) {
   const shouldRenderCopyButton = label === "PROMPT" && Boolean(copyText?.trim());
+  const shouldRenderPinButton = label === "PROMPT" && Boolean(copyText?.trim());
 
   return (
     <div className="art-prompt-blade">
       {leadingContent}
       <div className="art-blade-header">
         <span className="art-label">{label}</span>
-        {shouldRenderCopyButton ? (
-          <PromptCopyButton text={copyText ?? ""} className="art-copy-prompt-btn--blade" />
+        {shouldRenderCopyButton || shouldRenderPinButton ? (
+          <div className="art-blade-actions">
+            {shouldRenderPinButton ? (
+              <ComposerPinButton
+                text={copyText ?? ""}
+                onPinTextReference={onPinPromptReference}
+                className="art-pin-prompt-btn--blade"
+              />
+            ) : null}
+            {shouldRenderCopyButton ? (
+              <PromptCopyButton text={copyText ?? ""} className="art-copy-prompt-btn--blade" />
+            ) : null}
+          </div>
         ) : null}
       </div>
       <div className="art-blade-scroll-frame">

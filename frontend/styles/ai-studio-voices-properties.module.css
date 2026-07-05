@@ -3840,10 +3840,6 @@
   border-radius: 12px;
   border: 1px solid rgba(201, 205, 214, 0.14);
   background: rgba(201, 205, 214, 0.04);
-}
-
-.bootstrapStyleScope:global(.voices-properties-input),
-.bootstrapStyleScope :global(.voices-properties-input) {
   width: 100%;
   padding: 0 12px;
   color: rgba(245, 249, 252, 0.98);
@@ -4356,10 +4352,7 @@
   .bootstrapStyleScope:global(.voices-properties-voice-changer-intake-grid),
   .bootstrapStyleScope :global(.voices-properties-voice-changer-intake-grid) {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-areas:
-      "dropzone"
-      "divider"
-      "record";
+    grid-template-areas: "dropzone" "divider" "record";
   }
 
   .bootstrapStyleScope:global(.voices-properties-voice-changer-intake-divider),

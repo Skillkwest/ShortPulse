@@ -10,6 +10,7 @@ import { GuestDashboardView } from "../components/GuestDashboardView";
 import type { DashboardTutorial } from "../components/DashboardTutorialGrid";
 import {
   buildDashboardAuthPath,
+  buildDashboardLaunchPath,
   buildDashboardSignupPath,
   buildPricingPath,
 } from "../../pricing/paths";
@@ -113,7 +114,7 @@ export function PublicDashboardRoute({
   const loginHref = buildDashboardAuthPath();
   const signupHref = buildDashboardSignupPath();
   const pricingHref = buildPricingPath();
-  const guestCreateProjectHref = buildDashboardSignupPath();
+  const guestLaunchHref = buildDashboardLaunchPath();
 
   return (
     <>
@@ -169,8 +170,8 @@ export function PublicDashboardRoute({
         />
 
         <GuestDashboardView
-          createProjectHref={guestCreateProjectHref}
           dashboardTutorials={liveDashboardTutorials}
+          launchAppHref={guestLaunchHref}
         />
       </main>
     </>

@@ -70,6 +70,7 @@ type DetailModalProps = {
     output: StudioOutput,
     options?: { mediaKindHint?: WorkflowReloadMediaKindHint | null }
   ) => void;
+  onPinPromptReference?: (text: string) => void;
   isMediaStorageFull?: boolean;
   onSavePrompt?: (promptText: string) => void | boolean | Promise<boolean>;
   refreshCharacterOptions?: () => Promise<
@@ -135,6 +136,7 @@ export function DetailModal({
   onSnapshotVideoFrame,
   onSnapshotVideoFrameError,
   onReloadWorkflowReference,
+  onPinPromptReference,
   isMediaStorageFull = false,
   onSavePrompt,
   refreshCharacterOptions,
@@ -155,6 +157,7 @@ export function DetailModal({
       onSnapshotVideoFrame={onSnapshotVideoFrame}
       onSnapshotVideoFrameError={onSnapshotVideoFrameError}
       onReloadWorkflowReference={onReloadWorkflowReference}
+      onPinPromptReference={onPinPromptReference}
       isMediaStorageFull={isMediaStorageFull}
       onSavePrompt={onSavePrompt}
       refreshCharacterOptions={refreshCharacterOptions}
@@ -180,6 +183,7 @@ function DetailModalContent({
   onSnapshotVideoFrame,
   onSnapshotVideoFrameError,
   onReloadWorkflowReference,
+  onPinPromptReference,
   isMediaStorageFull = false,
   onSavePrompt,
   refreshCharacterOptions,
@@ -1426,6 +1430,7 @@ function DetailModalContent({
                   placeholder={resolveSharedMediaDetailBladePlaceholder(detailModalItem)}
                   onChange={handlePromptChange}
                   copyText={bladeContent.label === "PROMPT" ? bladeContent.value : null}
+                  onPinPromptReference={onPinPromptReference}
                 />
               ) : null
             }

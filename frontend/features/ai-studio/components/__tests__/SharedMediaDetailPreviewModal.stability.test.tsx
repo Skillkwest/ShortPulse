@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SharedMediaDetailItemBase } from "../detail-modal/detailModalPlatformTypes";
 import { SharedMediaDetailPreviewMedia } from "../detail-modal/SharedMediaDetailPreviewMedia";
@@ -200,6 +200,27 @@ describe("SharedMediaDetailPreviewModal layout contract", () => {
     expect(promptScrollFrame).toContainElement(promptTextarea);
     expect(promptTextarea).not.toBeNull();
     expect(promptTextarea).toHaveValue(longPrompt);
+  });
+
+  it("pins prompt text from the shared media prompt blade", () => {
+    const onPinPromptReference = vi.fn();
+
+    render(
+      <SharedMediaDetailPreviewModal
+        item={createImageItem({
+          url: "https://cdn.example.com/preview-city-frame.jpg",
+          previewUrl: "https://cdn.example.com/preview-city-frame.jpg",
+          fullUrl: null,
+          promptText: "  Shared modal prompt  ",
+        })}
+        onClose={vi.fn()}
+        onPinPromptReference={onPinPromptReference}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Pin text reference to reference grid" }));
+
+    expect(onPinPromptReference).toHaveBeenCalledWith("Shared modal prompt");
   });
 });
 

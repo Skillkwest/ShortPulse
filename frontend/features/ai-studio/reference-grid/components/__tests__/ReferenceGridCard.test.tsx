@@ -95,6 +95,28 @@ const createProps = (
 });
 
 describe("ReferenceGridCard", () => {
+  it("notifies when media-card hover starts and stops", () => {
+    const onMediaHoverChange = vi.fn();
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({ taskState: "success" }),
+          cardPreviewUrl: "https://example.com/reference.png",
+          imageSrc: "https://example.com/reference.png",
+          isImagePreview: true,
+          onMediaHoverChange,
+        })}
+      />
+    );
+
+    const card = screen.getByRole("button");
+    fireEvent.pointerEnter(card);
+    fireEvent.pointerLeave(card);
+
+    expect(onMediaHoverChange).toHaveBeenNthCalledWith(1, true);
+    expect(onMediaHoverChange).toHaveBeenNthCalledWith(2, false);
+  });
+
   it("does not render retry status controls on selected failed cards", () => {
     render(
       <ReferenceGridCard

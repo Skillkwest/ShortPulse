@@ -19,8 +19,8 @@ import {
 import { SHORTPULSE_COMMUNITY_URL } from "../communityLinks";
 
 type GuestDashboardViewProps = {
-  createProjectHref: string;
   dashboardTutorials: DashboardTutorial[];
+  launchAppHref: string;
 };
 
 const modelLogos = [
@@ -254,11 +254,8 @@ function usePageScrollSettled() {
 /**
  * Renders the public guest dashboard mode.
  */
-export function GuestDashboardView({
-  createProjectHref,
-  dashboardTutorials,
-}: GuestDashboardViewProps) {
-  const tutorialLaunchHref = buildDashboardSignupPath();
+export function GuestDashboardView({ dashboardTutorials, launchAppHref }: GuestDashboardViewProps) {
+  const tutorialLaunchHref = launchAppHref;
   const footerLoginHref = buildDashboardAuthPath();
   const signupHref = buildDashboardSignupPath();
   const footerPricingHref = buildPricingPath();
@@ -415,7 +412,7 @@ export function GuestDashboardView({
           </h2>
 
           <div className="public-home-hero-actions">
-            <Link href={createProjectHref} className="public-home-launch-button" prefetch={false}>
+            <Link href={launchAppHref} className="public-home-launch-button" prefetch={false}>
               Launch App
             </Link>
             <button
@@ -482,7 +479,7 @@ export function GuestDashboardView({
       />
 
       <PublicHomeFooter
-        createProjectHref={createProjectHref}
+        createProjectHref={signupHref}
         communityHref={SHORTPULSE_COMMUNITY_URL}
         footerLoginHref={footerLoginHref}
         footerPricingHref={footerPricingHref}

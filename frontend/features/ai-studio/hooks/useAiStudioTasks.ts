@@ -41,7 +41,6 @@ import {
   longRunningVideoProviders,
   looksLikeFailureMessage,
   type PollStatus,
-  type ShortPulseLifecycleHint,
   readShortPulseLifecycleHint,
   resolveProviderTerminalFailureCopy,
   resolvePollStatusGenerationId,
@@ -49,6 +48,12 @@ import {
   terminalSuccessStates,
   terminalFailureStates,
 } from "./taskPolling/providerStatusPolicy";
+import {
+  areStringArraysEqual,
+  asTrimmedString,
+  normalizeLifecycleQueueState,
+  resolveLifecycleTaskState,
+} from "./taskPolling/taskOutputUpdatePolicy";
 import { useAiStudioTaskRecoveryController } from "./taskPolling/useAiStudioTaskRecoveryController";
 import { resolveVisibleGenerationSettle } from "./taskPolling/visibleGenerationSettle";
 import {
@@ -127,47 +132,8 @@ type StartPollingTaskOptions = {
   initialDelayMs?: number;
 };
 
-const areStringArraysEqual = (left: string[] | undefined, right: string[]) => {
-  if (!left) return right.length === 0;
-  if (left.length !== right.length) return false;
-  return left.every((value, index) => value === right[index]);
-};
-
-const asTrimmedString = (value: string | null | undefined): string | null => {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-};
-
-const resolveLifecycleTaskState = (
-  lifecycleHint: ShortPulseLifecycleHint | null
-): StudioOutput["taskState"] | null => {
-  switch (lifecycleHint?.taskState) {
-    case "pending":
-    case "running":
-    case "success":
-    case "fail":
-      return lifecycleHint.taskState;
-    default:
-      return null;
-  }
-};
-
 const stringifyLifecycleErrorDetail = (value: unknown): string | null => {
   return extractCustomerFacingProviderError(value);
-};
-
-const normalizeLifecycleQueueState = (
-  queueState: string | null | undefined
-): StudioOutput["queueState"] => {
-  switch (queueState) {
-    case "queued":
-      return "queued";
-    case "dispatching":
-      return "dispatching";
-    default:
-      return undefined;
-  }
 };
 
 const isRecognizedSaveState = (

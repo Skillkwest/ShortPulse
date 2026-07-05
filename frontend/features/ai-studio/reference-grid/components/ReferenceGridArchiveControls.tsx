@@ -15,6 +15,7 @@ type ReferenceGridArchiveControlsProps = {
   isArchivePanelOpen: boolean;
   archivedOutputs: StudioOutput[];
   hideUploadActions?: boolean;
+  showHoverHelper?: boolean;
   onToggleArchivePanel: () => void;
   onTriggerFileSelect?: () => void;
   onRestoreArchivedOutput?: (id: string) => void;
@@ -33,6 +34,7 @@ export function ReferenceGridArchiveControls({
   isArchivePanelOpen,
   archivedOutputs,
   hideUploadActions = false,
+  showHoverHelper = false,
   onToggleArchivePanel,
   onTriggerFileSelect,
   onRestoreArchivedOutput,
@@ -61,6 +63,14 @@ export function ReferenceGridArchiveControls({
             >
               Media: {visibleItemCount}/{REFERENCE_GRID_MAX_VISIBLE_ITEMS}
             </p>
+            <p
+              className={`tiny subdued reference-grid-hover-helper${
+                showHoverHelper ? " is-visible" : ""
+              }`}
+              aria-hidden="true"
+            >
+              Double-click a reference to view details.
+            </p>
             <div
               className={`reference-all-refs-title-wrap${
                 showTopTitleDivider && showTitle ? " is-top-section-header" : ""
@@ -69,11 +79,6 @@ export function ReferenceGridArchiveControls({
               {showTitle ? <p className="eyebrow">Reference Grid</p> : null}
               {showTopTitleDivider && showTitle ? (
                 <span className="reference-section-title-divider" aria-hidden="true" />
-              ) : null}
-              {showTitle ? (
-                <p className="tiny subdued reference-grid-hover-helper" aria-hidden="true">
-                  Double-click a reference to view details.
-                </p>
               ) : null}
             </div>
           </div>

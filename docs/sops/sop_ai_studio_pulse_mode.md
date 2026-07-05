@@ -235,6 +235,13 @@ Built-in guided workflows may carry richer workflow metadata internally, but the
 - it guides,
 - it produces a final artifact.
 
+Admin-published built-ins must have runtime-safe preset ids and a non-empty
+starter assistant message. Preset ids are encoded into Pulse session
+namespaces, so they must use only lowercase letters, numbers, underscores, and
+hyphens. The starter message is the deterministic kickoff fallback when a model
+turn is blank or malformed, so newly added built-ins should never rely only on
+freeform system instructions for the first visible step.
+
 Built-in Pulse artifact targets should be explicit when they diverge from image
 generation. For example, video-prompt Pulses should produce artifacts intended
 for video generation rather than being implicitly treated as image prompts.

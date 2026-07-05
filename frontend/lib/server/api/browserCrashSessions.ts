@@ -131,7 +131,28 @@ const ALLOWED_METADATA_KEYS = new Set([
   "viewport_height",
   "viewport_width",
   "visibility_state",
+  "abandonment_detected_build_id",
+  "abandonment_detected_client_release",
+  "abandonment_detected_client_environment",
+  "abandonment_detected_visibility_state",
+  "abandonment_detected_document_hidden",
+  "abandonment_detected_document_was_discarded",
 ]);
+
+const PREVIOUS_SESSION_ABANDONED_METADATA_KEYS = [
+  "last_heartbeat_age_ms",
+  "previous_last_seen_at",
+  "status_reason",
+] as const;
+
+const ABANDONMENT_DETECTOR_METADATA_KEYS = [
+  ["build_id", "abandonment_detected_build_id"],
+  ["client_release", "abandonment_detected_client_release"],
+  ["client_environment", "abandonment_detected_client_environment"],
+  ["visibility_state", "abandonment_detected_visibility_state"],
+  ["document_hidden", "abandonment_detected_document_hidden"],
+  ["document_was_discarded", "abandonment_detected_document_was_discarded"],
+] as const;
 
 const sanitizeText = (value: unknown, maxLength = MAX_TEXT_LENGTH): string | null => {
   if (typeof value !== "string") return null;
@@ -189,6 +210,34 @@ const sanitizeMetadata = (value: unknown): JsonObject => {
     output[key] = sanitized;
   }
   return output;
+};
+
+const assignSanitizedMetadataValue = (output: JsonObject, key: string, value: unknown): void => {
+  if (!ALLOWED_METADATA_KEYS.has(key)) return;
+  const sanitized = sanitizeMetadataValue(value);
+  if (sanitized === undefined) return;
+  output[key] = sanitized;
+};
+
+const mergePreviousSessionAbandonedMetadata = (
+  previousMetadata: unknown,
+  abandonmentMetadata: JsonObject
+): JsonObject => {
+  const evidence: JsonObject = {};
+  for (const key of PREVIOUS_SESSION_ABANDONED_METADATA_KEYS) {
+    assignSanitizedMetadataValue(evidence, key, abandonmentMetadata[key]);
+  }
+  for (const [sourceKey, targetKey] of ABANDONMENT_DETECTOR_METADATA_KEYS) {
+    assignSanitizedMetadataValue(evidence, targetKey, abandonmentMetadata[sourceKey]);
+  }
+
+  const preserved = sanitizeMetadata(previousMetadata);
+  for (const [key, value] of Object.entries(preserved)) {
+    if (Object.prototype.hasOwnProperty.call(evidence, key)) continue;
+    if (Object.keys(evidence).length >= MAX_METADATA_KEYS) break;
+    evidence[key] = value;
+  }
+  return evidence;
 };
 
 const metadataNumber = (metadata: JsonObject, key: string): number | null => {
@@ -314,19 +363,28 @@ const markPreviousSessionAbandoned = async (params: {
   metadata: JsonObject;
 }): Promise<string | null> => {
   if (!params.previousSessionId) return null;
-  const confidence = hasSevereFreezeEvidence(params.metadata) ? "high" : "medium";
+  const { data: existing, error: selectError } = await params.supabaseAdmin
+    .from("browser_crash_sessions")
+    .select("id, metadata")
+    .eq("browser_session_id", params.previousSessionId)
+    .eq("user_id", params.user.id)
+    .maybeSingle();
+  if (selectError) throw new Error(selectError.message);
+  if (!existing || typeof existing.id !== "string") return null;
+
+  const metadata = mergePreviousSessionAbandonedMetadata(existing.metadata, params.metadata);
+  const confidence = hasSevereFreezeEvidence(metadata) ? "high" : "medium";
   const { data, error } = await params.supabaseAdmin
     .from("browser_crash_sessions")
     .update({
       status: "probable_freeze_or_crash",
       confidence,
       last_event: "previous_session_abandoned",
-      metadata: params.metadata,
+      metadata,
       suspected_at: params.occurredAt,
       updated_at: params.occurredAt,
     })
-    .eq("browser_session_id", params.previousSessionId)
-    .eq("user_id", params.user.id)
+    .eq("id", existing.id)
     .select("id")
     .maybeSingle();
   if (error) throw new Error(error.message);

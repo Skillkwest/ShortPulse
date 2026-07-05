@@ -1,0 +1,78 @@
+/* Responsive adjustments */
+@media (max-width: 1000px) {
+  .art-modal-top-controls {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .art-modal-title.is-centered {
+    position: static;
+    left: auto;
+    top: auto;
+    transform: none;
+    max-width: 100%;
+    text-align: left;
+  }
+
+  .art-modal-action-row {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .art-modal-main-content {
+    flex-direction: column;
+  }
+
+  .art-prompt-blade {
+    width: 100%;
+    min-width: 0;
+    height: 300px;
+    border-left: none;
+  }
+
+  .truncate-model {
+    max-width: 120px;
+  }
+}
+
+@media (max-width: 720px) {
+  .art-modal-main-content {
+    padding: 14px;
+    gap: 14px;
+  }
+
+  .art-image-vessel {
+    padding: 16px;
+  }
+
+  .art-modal-title {
+    font-size: 18px;
+  }
+
+  .art-modal-meta-pill {
+    gap: 6px;
+  }
+
+  .art-meta-chip {
+    max-width: 100%;
+  }
+
+  .art-action-btn {
+    padding: 0 14px;
+    font-size: 12px;
+  }
+
+  .motion-recorder-modal {
+    width: min(94vw, 720px);
+    max-height: min(88vh, calc(100vh - 32px));
+  }
+
+  .motion-recorder-modal-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .motion-recorder-modal-preview,
+  .motion-recorder-modal-preview-shell {
+    min-height: 320px;
+  }
+}

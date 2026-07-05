@@ -390,6 +390,7 @@ export type StudioOutput = {
   errorPayload?: unknown | null;
   resultUrls?: string[];
   previewUrl?: string;
+  fullUrl?: string | null;
   previewPosterUrl?: string | null;
   previewPosterStoragePath?: string | null;
   companionArtUrl?: string | null;

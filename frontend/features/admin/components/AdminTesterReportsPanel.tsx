@@ -107,7 +107,7 @@ export function AdminTesterReportsPanel({
     <section className={styles.adminSection}>
       <div className={styles.adminSectionHead}>
         <div>
-          <p className={styles.adminSectionEyebrow}>Tester Reports</p>
+          <p className={styles.adminSectionEyebrow}>Agent Tester Reports</p>
           <h2 className={styles.adminSectionTitle}>Automated run log</h2>
         </div>
         <div className={styles.adminReportsHeaderActions}>

@@ -2513,6 +2513,11 @@ button.hero-onboarding {
 }
 
 .authenticated-home-hero-copy .hero-announcement {
+  position: static;
+  width: min(100%, 520px);
+  max-width: none;
+  transform: none;
+  text-align: left;
   gap: 14px;
 }
 

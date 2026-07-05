@@ -87,8 +87,8 @@ describe("AdminTesterReportsPage", () => {
   it("renders the tester reports admin route and active nav tab", () => {
     render(<AdminTesterReportsPage />);
 
-    expect(screen.getByRole("heading", { name: "Tester reports" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Tester Reports" })).toHaveAttribute(
+    expect(screen.getByRole("heading", { name: "Agent Tester Reports" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Agent Tester Reports" })).toHaveAttribute(
       "aria-current",
       "page"
     );

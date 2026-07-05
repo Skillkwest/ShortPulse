@@ -43,9 +43,9 @@ export default function AdminTesterReportsPage() {
       adminAccessStatus={adminAccessStatus}
       adminAccessError={adminAccessError}
       onRetryAccessCheck={refreshAdminAccess}
-      documentTitle="ShortPulse · Admin Tester Reports"
+      documentTitle="ShortPulse · Agent Tester Reports"
       metaDescription="Admin tester-agent run report log for persona reports and engineering handoffs."
-      pageTitle="Tester reports"
+      pageTitle="Agent Tester Reports"
       pageDescription="Review automated tester runs, the short pulse account tested, and both reports produced by each run."
       userEmail={user?.email}
       currentPath="/admin/tester-reports"

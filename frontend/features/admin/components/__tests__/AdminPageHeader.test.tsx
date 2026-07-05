@@ -23,7 +23,7 @@ vi.mock("next/link", () => ({
 }));
 
 describe("AdminPageHeader", () => {
-  it("renders Product Catalog as the fourth admin nav item", () => {
+  it("renders Storage after Model Pricing in the admin nav", () => {
     render(
       <AdminPageHeader
         title="Dashboard"
@@ -43,20 +43,22 @@ describe("AdminPageHeader", () => {
     expect(links[1]).toHaveAttribute("href", "/admin/agent-instructions");
     expect(links[2]).toHaveTextContent("Model Pricing");
     expect(links[2]).toHaveAttribute("href", "/admin/pricing");
-    expect(links[3]).toHaveTextContent("Product Catalog");
-    expect(links[3]).toHaveAttribute("href", "/admin/catalog");
-    expect(links[4]).toHaveTextContent("Offers");
-    expect(links[4]).toHaveAttribute("href", "/admin/offers");
-    expect(links[5]).toHaveTextContent("Customer Support");
-    expect(links[5]).toHaveAttribute("href", "/admin");
-    expect(links[6]).toHaveTextContent("Analytics");
-    expect(links[6]).toHaveAttribute("href", "/admin/stats");
-    expect(links[7]).toHaveTextContent("Tester Reports");
-    expect(links[7]).toHaveAttribute("href", "/admin/tester-reports");
-    expect(links[8]).toHaveTextContent("Legal");
-    expect(links[8]).toHaveAttribute("href", "/admin/legal");
-    expect(links[10]).toHaveTextContent("Errors");
-    expect(links[10]).toHaveAttribute("href", "/admin/errors");
+    expect(links[3]).toHaveTextContent("Storage");
+    expect(links[3]).toHaveAttribute("href", "/admin/storage");
+    expect(links[4]).toHaveTextContent("Product Catalog");
+    expect(links[4]).toHaveAttribute("href", "/admin/catalog");
+    expect(links[5]).toHaveTextContent("Offers");
+    expect(links[5]).toHaveAttribute("href", "/admin/offers");
+    expect(links[6]).toHaveTextContent("Customer Support");
+    expect(links[6]).toHaveAttribute("href", "/admin");
+    expect(links[7]).toHaveTextContent("Analytics");
+    expect(links[7]).toHaveAttribute("href", "/admin/stats");
+    expect(links[8]).toHaveTextContent("Agent Tester Reports");
+    expect(links[8]).toHaveAttribute("href", "/admin/tester-reports");
+    expect(links[9]).toHaveTextContent("Errors");
+    expect(links[9]).toHaveAttribute("href", "/admin/errors");
+    expect(links[10]).toHaveTextContent("Legal");
+    expect(links[10]).toHaveAttribute("href", "/admin/legal");
     expect(links).toHaveLength(11);
     expect(within(nav).queryByRole("link", { name: "Generation health" })).not.toBeInTheDocument();
     expect(within(nav).queryByRole("link", { name: "Reports" })).not.toBeInTheDocument();
@@ -68,7 +70,7 @@ describe("AdminPageHeader", () => {
   it("marks the tester reports tab as active", () => {
     render(
       <AdminPageHeader
-        title="Tester reports"
+        title="Agent Tester Reports"
         description="Read automated tester reports."
         userEmail="admin@example.com"
         currentPath="/admin/tester-reports"
@@ -76,7 +78,7 @@ describe("AdminPageHeader", () => {
     );
 
     const nav = screen.getByRole("navigation", { name: "Admin pages" });
-    expect(within(nav).getByRole("link", { name: "Tester Reports" })).toHaveAttribute(
+    expect(within(nav).getByRole("link", { name: "Agent Tester Reports" })).toHaveAttribute(
       "aria-current",
       "page"
     );

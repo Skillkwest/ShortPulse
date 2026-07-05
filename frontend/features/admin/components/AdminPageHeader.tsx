@@ -18,15 +18,11 @@ const ADMIN_NAV_ITEMS = [
   { href: "/admin/stats", label: "Analytics" },
   { href: "/admin/storage", label: "Storage" },
   { href: "/admin/errors", label: "Errors" },
-  { href: "/admin/user-health", label: "Generation health" },
 ] as const;
 
 const CUSTOMER_SUPPORT_NAV_ITEMS = [
   { href: "/admin", label: "Support" },
   { href: "/admin/reports", label: "Reports" },
-] as const;
-
-const GENERATION_HEALTH_NAV_ITEMS = [
   { href: "/admin/user-health", label: "User health" },
   { href: "/admin/user-health-fleet", label: "Fleet health" },
   { href: "/admin/generation-trace", label: "Generation trace" },
@@ -59,9 +55,6 @@ export function AdminPageHeader({
   const isCustomerSupportPath = CUSTOMER_SUPPORT_NAV_ITEMS.some(
     (item) => item.href === currentPath
   );
-  const isGenerationHealthPath = GENERATION_HEALTH_NAV_ITEMS.some(
-    (item) => item.href === currentPath
-  );
   const isErrorsPath = ERRORS_NAV_ITEMS.some((item) => item.href === currentPath);
   const activeSubNav = isCustomerSupportPath
     ? {
@@ -75,13 +68,7 @@ export function AdminPageHeader({
           ariaLabel: "Error management pages",
           items: ERRORS_NAV_ITEMS,
         }
-      : isGenerationHealthPath
-        ? {
-            label: "Generation health",
-            ariaLabel: "Generation health pages",
-            items: GENERATION_HEALTH_NAV_ITEMS,
-          }
-        : null;
+      : null;
 
   const navContent = (
     <>
@@ -94,8 +81,7 @@ export function AdminPageHeader({
           const active =
             item.href === currentPath ||
             (item.href === "/admin" && isCustomerSupportPath) ||
-            (item.href === "/admin/errors" && isErrorsPath) ||
-            (item.href === "/admin/user-health" && isGenerationHealthPath);
+            (item.href === "/admin/errors" && isErrorsPath);
           return (
             <Link
               key={item.href}

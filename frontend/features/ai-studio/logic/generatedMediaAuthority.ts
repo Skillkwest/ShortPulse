@@ -1197,21 +1197,31 @@ export const resolveGenerationIdForRequestId = async ({
   const resolvedUserId = asTrimmedString(userId) ?? (await readSupabaseUserId());
   if (!resolvedUserId) return null;
 
-  const { data: projectionData, error: projectionError } = await supabase
-    .from("generation_projection")
-    .select("generation_id")
-    .eq("user_id", resolvedUserId)
-    .eq("request_id", normalizedRequestId)
-    .limit(1)
-    .maybeSingle();
-  if (projectionError) return null;
+  const readProjectionGenerationId = async (
+    column: "request_id" | "provider_request_id"
+  ): Promise<string | null> => {
+    let query = supabase
+      .from("generation_projection")
+      .select("generation_id")
+      .eq("user_id", resolvedUserId)
+      .eq(column, normalizedRequestId);
+    if (column === "provider_request_id") {
+      query = query.order("updated_at", { ascending: false });
+    }
+    const { data, error } = await query.limit(1).maybeSingle();
+    if (error) return null;
+    return asTrimmedString((data as Record<string, unknown> | null)?.generation_id);
+  };
+
+  const projectionGenerationId =
+    (await readProjectionGenerationId("request_id")) ??
+    (await readProjectionGenerationId("provider_request_id"));
+
   return await resolveCanonicalGenerationId({
     supabase,
     userId: resolvedUserId,
     projectId,
-    generationId: asTrimmedString(
-      (projectionData as Record<string, unknown> | null)?.generation_id
-    ),
+    generationId: projectionGenerationId,
   });
 };
 

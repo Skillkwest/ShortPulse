@@ -53,8 +53,8 @@ describe("AdminPageHeader", () => {
     expect(links[6]).toHaveAttribute("href", "/admin/legal");
     expect(links[10]).toHaveTextContent("Errors");
     expect(links[10]).toHaveAttribute("href", "/admin/errors");
-    expect(links[11]).toHaveTextContent("Generation health");
-    expect(links[11]).toHaveAttribute("href", "/admin/user-health");
+    expect(links).toHaveLength(11);
+    expect(within(nav).queryByRole("link", { name: "Generation health" })).not.toBeInTheDocument();
     expect(within(nav).queryByRole("link", { name: "Reports" })).not.toBeInTheDocument();
     expect(within(nav).queryByRole("link", { name: "Fleet health" })).not.toBeInTheDocument();
     expect(within(nav).queryByRole("link", { name: "Ophestivus" })).not.toBeInTheDocument();
@@ -102,9 +102,16 @@ describe("AdminPageHeader", () => {
     expect(subLinks[1]).toHaveTextContent("Reports");
     expect(subLinks[1]).toHaveAttribute("href", "/admin/reports");
     expect(subLinks[1]).toHaveAttribute("aria-current", "page");
+    expect(subLinks[2]).toHaveTextContent("User health");
+    expect(subLinks[2]).toHaveAttribute("href", "/admin/user-health");
+    expect(subLinks[3]).toHaveTextContent("Fleet health");
+    expect(subLinks[3]).toHaveAttribute("href", "/admin/user-health-fleet");
+    expect(subLinks[4]).toHaveTextContent("Generation trace");
+    expect(subLinks[4]).toHaveAttribute("href", "/admin/generation-trace");
+    expect(subLinks).toHaveLength(5);
   });
 
-  it("renders generation health pages as secondary tabs", () => {
+  it("renders generation diagnostic routes as customer support secondary tabs", () => {
     render(
       <AdminPageHeader
         title="Generation trace"
@@ -115,21 +122,24 @@ describe("AdminPageHeader", () => {
     );
 
     const nav = screen.getByRole("navigation", { name: "Admin pages" });
-    expect(within(nav).getByRole("link", { name: "Generation health" })).toHaveAttribute(
+    expect(within(nav).getByRole("link", { name: "Customer Support" })).toHaveAttribute(
       "aria-current",
       "page"
     );
+    expect(within(nav).queryByRole("link", { name: "Generation health" })).not.toBeInTheDocument();
 
-    const subNav = screen.getByRole("navigation", { name: "Generation health pages" });
+    const subNav = screen.getByRole("navigation", { name: "Customer support pages" });
     const subLinks = within(subNav).getAllByRole("link");
 
-    expect(subLinks[0]).toHaveTextContent("User health");
-    expect(subLinks[0]).toHaveAttribute("href", "/admin/user-health");
-    expect(subLinks[1]).toHaveTextContent("Fleet health");
-    expect(subLinks[1]).toHaveAttribute("href", "/admin/user-health-fleet");
-    expect(subLinks[2]).toHaveTextContent("Generation trace");
-    expect(subLinks[2]).toHaveAttribute("href", "/admin/generation-trace");
-    expect(subLinks[2]).toHaveAttribute("aria-current", "page");
+    expect(subLinks.map((link) => link.textContent)).toEqual([
+      "Support",
+      "Reports",
+      "User health",
+      "Fleet health",
+      "Generation trace",
+    ]);
+    expect(subLinks[4]).toHaveAttribute("href", "/admin/generation-trace");
+    expect(subLinks[4]).toHaveAttribute("aria-current", "page");
   });
 
   it("renders error management pages as secondary tabs", () => {

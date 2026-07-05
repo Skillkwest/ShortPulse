@@ -783,6 +783,51 @@ describe("generatedMediaAuthority", () => {
     expect(supabase.from).not.toHaveBeenCalledWith("ai_generations");
   });
 
+  it("falls back to provider request id when request id projection is missing", async () => {
+    const requestIdentityBuilder = createAwaitableSelectBuilder({
+      data: null,
+      error: null,
+    });
+    const providerRequestIdentityBuilder = createAwaitableSelectBuilder({
+      data: {
+        generation_id: "gen-provider-request-1",
+      },
+      error: null,
+    });
+    const projectionBuilders = [requestIdentityBuilder, providerRequestIdentityBuilder];
+
+    const supabase = {
+      from: vi.fn((table: string) => {
+        if (table === "generation_projection") {
+          return {
+            select: vi.fn(() => {
+              const builder = projectionBuilders.shift();
+              if (!builder) throw new Error("Unexpected generation_projection lookup");
+              return builder;
+            }),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    };
+
+    await expect(
+      resolveGenerationIdForRequestId({
+        supabase: supabase as never,
+        requestId: "provider-task-1",
+        userId: "user-1",
+      })
+    ).resolves.toBe("gen-provider-request-1");
+    expect(requestIdentityBuilder.eq).toHaveBeenCalledWith("request_id", "provider-task-1");
+    expect(providerRequestIdentityBuilder.eq).toHaveBeenCalledWith(
+      "provider_request_id",
+      "provider-task-1"
+    );
+    expect(providerRequestIdentityBuilder.order).toHaveBeenCalledWith("updated_at", {
+      ascending: false,
+    });
+  });
+
   it("returns null when a request-backed generation is not associated to the active project", async () => {
     const projectionIdentityBuilder = createAwaitableSelectBuilder({
       data: {

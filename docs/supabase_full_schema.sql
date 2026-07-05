@@ -2161,7 +2161,7 @@ begin
 
   if old.snapshot_updated_at is not null
       and new.snapshot_updated_at is not null
-      and new.snapshot_updated_at <= old.snapshot_updated_at then
+      and new.snapshot_updated_at < old.snapshot_updated_at then
     new.user_id := old.user_id;
     new.schema_version := old.schema_version;
     new.snapshot := old.snapshot;

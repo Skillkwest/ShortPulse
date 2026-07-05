@@ -1047,6 +1047,21 @@ describe("MediaLibraryPanelPreviewModal", () => {
 
     expect(screen.queryByAltText("portrait.png")).not.toBeInTheDocument();
     expect(screen.getByText("Preview unavailable.")).toBeInTheDocument();
+
+    rerender(
+      <MediaLibraryPanelPreviewModal
+        item={createPreviewItem(
+          imageFile,
+          "https://www.shortpulse.ai/_next/image?url=https%3A%2F%2Fcdn.example.com%2Fsmall.jpg&w=384&q=28"
+        )}
+        isLoading={false}
+        error={null}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByAltText("portrait.png")).not.toBeInTheDocument();
+    expect(screen.getByText("Preview unavailable.")).toBeInTheDocument();
   });
 
   it("renders and routes richer detail actions for library media", () => {

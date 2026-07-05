@@ -196,10 +196,9 @@ export function useAdminPricingPageState({
       const restoredCustomRowsDraft = restoredWorkspace.customRowsDraft ?? activeCustomRowsDocument;
       const nextModelPolicyDraft = compactModelPricingPolicyDocument(restoredPolicyDraft);
       const nextCustomRowsDraft = compactAdminPricingCustomRowsDocument(restoredCustomRowsDraft);
-      const nextModelPolicyDirty = !modelPricingPolicyDocumentsEqual(
-        nextModelPolicyDraft,
-        activeModelPolicyDocument
-      );
+      const nextModelPolicyDirty =
+        !modelPricingPolicyDocumentsEqual(nextModelPolicyDraft, activeModelPolicyDocument) ||
+        !adminPricingCustomRowsDocumentsEqual(nextCustomRowsDraft, activeCustomRowsDocument);
 
       setDurationDrafts(restoredWorkspace.durationDrafts);
       setAspectDrafts(restoredWorkspace.aspectDrafts);

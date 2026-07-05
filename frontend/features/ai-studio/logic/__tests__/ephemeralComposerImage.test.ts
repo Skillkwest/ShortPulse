@@ -30,10 +30,10 @@ const restoreDescriptor = (
 };
 
 describe("ephemeralComposerImage", () => {
-  let readAsDataURL: ReturnType<typeof vi.fn>;
+  let readAsDataURL: (blob: Blob) => void;
 
   beforeEach(() => {
-    readAsDataURL = vi.fn();
+    readAsDataURL = vi.fn<(blob: Blob) => void>();
     Object.defineProperty(URL, "createObjectURL", {
       configurable: true,
       value: vi.fn(() => "blob:ephemeral-composer-image"),

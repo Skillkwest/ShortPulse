@@ -142,6 +142,35 @@ describe("useAiStudioCreateModeRuntime", () => {
     expect(result.current.pulseWorkflowSession).toBeNull();
   });
 
+  it("honors a saved-chat session override for the currently active Pulse preset", () => {
+    const currentWorkflowSession = buildWorkflowSession(NEXT_PULSE_ID);
+    const savedWorkflowSession = {
+      ...buildWorkflowSession(NEXT_PULSE_ID),
+      currentStepLabel: "Saved step",
+      currentStepPrompt: "Continue the saved chat.",
+    };
+    const { result } = renderHook(() =>
+      useAiStudioCreateModeRuntime({
+        initialExpertCreateMode: "pulse",
+        initialActiveCreatePulsePresetId: NEXT_PULSE_ID,
+        initialPulseSessionInstanceId: "pulse-session-current",
+        initialPulseWorkflowSession: currentWorkflowSession,
+      })
+    );
+
+    act(() => {
+      result.current.handleActiveCreatePulsePresetIdChange(NEXT_PULSE_ID, {
+        sessionInstanceIdOverride: "pulse-session-saved-chat",
+        workflowSessionOverride: savedWorkflowSession,
+      });
+    });
+
+    expect(result.current.expertCreateMode).toBe("pulse");
+    expect(result.current.activeCreatePulsePresetId).toBe(NEXT_PULSE_ID);
+    expect(result.current.pulseSessionInstanceId).toBe("pulse-session-saved-chat");
+    expect(result.current.pulseWorkflowSession).toEqual(savedWorkflowSession);
+  });
+
   it("preserves workflow state when the same Pulse remains active", () => {
     const workflowSession = buildWorkflowSession(ACTIVE_PULSE_ID);
     const { result } = renderHook(() =>

@@ -66,6 +66,7 @@ const createSupabaseAdminForEventClaim = (insertResult: { error: unknown }) => (
 const createSupabaseAdminForWebhook = (params?: {
   eventClaimError?: unknown;
   eventClaimDeleteError?: unknown;
+  eventClaimDeleteThrows?: Error;
   billingProfile?: Record<string, unknown> | null;
   billingPlan?: Record<string, unknown> | null;
   billingOffer?: Record<string, unknown> | null;
@@ -87,6 +88,9 @@ const createSupabaseAdminForWebhook = (params?: {
         delete: () => ({
           eq: async (_column: string, eventId: string) => {
             params?.onEventClaimDelete?.(eventId);
+            if (params?.eventClaimDeleteThrows) {
+              throw params.eventClaimDeleteThrows;
+            }
             return { error: params?.eventClaimDeleteError ?? null };
           },
         }),
@@ -522,6 +526,65 @@ describe("POST /api/billing/stripe/webhook", () => {
           stripe_event_type: "checkout.session.completed",
           claim_released_for_retry: true,
           claim_release_error: null,
+        }),
+      })
+    );
+  });
+
+  it("logs claim release exceptions when retry cleanup cannot delete the Stripe event claim", async () => {
+    verifyStripeWebhookSignatureMock.mockReturnValue(true);
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminForWebhook({
+        eventClaimDeleteThrows: new Error("network dropped during claim release"),
+      })
+    );
+    insertCreditLedgerEntryMock.mockResolvedValueOnce({
+      error: {
+        code: "57014",
+        message: "statement timeout",
+      },
+    });
+
+    const { res, promise } = createWebhookRequest(
+      JSON.stringify({
+        id: "evt_checkout_claim_release_throw",
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            id: "cs_claim_release_throw",
+            customer: "cus_123",
+            payment_status: "paid",
+            metadata: {
+              user_id: "user_123",
+              credit_amount_cents: "1500",
+            },
+          },
+        },
+      })
+    );
+    await promise;
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(writeAppErrorLogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "api.exception",
+        severity: "high",
+        route: "billing/stripe/webhook",
+        message: "network dropped during claim release",
+        metadata: expect.objectContaining({
+          route_label: "billing/stripe/webhook",
+          stripe_event_id: "evt_checkout_claim_release_throw",
+          stripe_event_type: "checkout.session.completed",
+          claim_release_failed: true,
+          exception_name: "Error",
+        }),
+      })
+    );
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "billing/stripe/webhook",
+        metadata: expect.objectContaining({
+          claim_release_error: "network dropped during claim release",
         }),
       })
     );

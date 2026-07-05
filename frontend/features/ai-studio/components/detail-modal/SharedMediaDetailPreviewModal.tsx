@@ -27,8 +27,17 @@ const normalizePreviewCandidate = (value: string | null | undefined): string | n
   return trimmed ? trimmed : null;
 };
 
+const isNextImageOptimizerUrl = (value: string): boolean => {
+  if (value.startsWith("/_next/image")) return true;
+  try {
+    return new URL(value).pathname.startsWith("/_next/image");
+  } catch {
+    return false;
+  }
+};
+
 const isForbiddenImagePreviewUrl = (value: string): boolean =>
-  value.startsWith("/_next/image") || isSupabaseRenderImageUrl(value);
+  isNextImageOptimizerUrl(value) || isSupabaseRenderImageUrl(value);
 
 const resolveSharedMediaDetailAspectStyle = (
   item: SharedMediaDetailItemBase | null

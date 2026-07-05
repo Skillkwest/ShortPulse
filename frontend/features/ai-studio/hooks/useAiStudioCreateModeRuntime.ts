@@ -135,16 +135,17 @@ export const useAiStudioCreateModeRuntime = ({
         deactivatePulse();
         return null;
       }
-      if (
-        !options?.forceNewSession &&
-        activeCreatePulsePresetIdState === normalizedNextPresetId &&
-        normalizePulseSessionInstanceId(pulseSessionInstanceIdState)
-      ) {
-        return null;
-      }
       const sessionInstanceIdOverride = normalizePulseSessionInstanceId(
         options?.sessionInstanceIdOverride ?? null
       );
+      if (
+        !options?.forceNewSession &&
+        activeCreatePulsePresetIdState === normalizedNextPresetId &&
+        normalizePulseSessionInstanceId(pulseSessionInstanceIdState) &&
+        (!sessionInstanceIdOverride || sessionInstanceIdOverride === pulseSessionInstanceIdState)
+      ) {
+        return null;
+      }
       if (sessionInstanceIdOverride) {
         setExpertCreateModeState("pulse");
         setActiveCreatePulsePresetIdState(normalizedNextPresetId);

@@ -181,7 +181,26 @@ const releaseStripeEventClaim = async (event: StripeEvent): Promise<{ error: str
     const { error } = await supabaseAdmin.from("stripe_event_log").delete().eq("id", event.id);
     return { error: error?.message ?? null };
   } catch (error) {
-    return { error: error instanceof Error ? error.message : "Stripe event claim release failed." };
+    const message = error instanceof Error ? error.message : "Stripe event claim release failed.";
+    try {
+      await writeAppErrorLog({
+        source: "api.exception",
+        severity: "high",
+        message,
+        stack: error instanceof Error ? (error.stack ?? null) : null,
+        route: "billing/stripe/webhook",
+        metadata: {
+          route_label: "billing/stripe/webhook",
+          stripe_event_id: event.id,
+          stripe_event_type: event.type,
+          claim_release_failed: true,
+          exception_name: error instanceof Error ? error.name : undefined,
+        },
+      });
+    } catch (loggingError) {
+      console.error("[billing/stripe/webhook] claim release log write failed", loggingError);
+    }
+    return { error: message };
   }
 };
 

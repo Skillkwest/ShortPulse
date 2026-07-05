@@ -94,6 +94,12 @@ export const resolveStandardCreatePrimaryCostCredits = ({
 }): number | null =>
   mode === "text" ? (promptReferenceGenerateCostCredits ?? currentCostCredits) : currentCostCredits;
 
+export const SAVED_PULSE_CHAT_RESTORE_ERROR_MESSAGE = "Saved Pulse chat could not be restored.";
+
+export const shouldRejectSavedPulseChatRestoreActivation = (
+  activationResult: string | null | void
+): boolean => activationResult === null;
+
 /**
  * Builds the discriminated create-panel props for Standard and Pulse mode using the active create agent runtime.
  */
@@ -279,13 +285,25 @@ export const useAiStudioCreatePanelRuntime = ({
           if (pendingPulseChatOpenRef.current?.snapshot !== snapshot) return;
           pendingPulseChatOpenRef.current = null;
           pendingPulseChatOpenTimerRef.current = null;
-          reject(new Error("Saved Pulse chat could not be restored."));
+          reject(new Error(SAVED_PULSE_CHAT_RESTORE_ERROR_MESSAGE));
         }, 8000);
+        const activationResult = handleActiveCreatePulsePresetIdChangeForPage(
+          snapshot.workspace.activePulsePresetId,
+          {
+            sessionInstanceIdOverride: snapshot.workspace.pulseSessionInstanceId,
+            workflowSessionOverride: snapshot.runtime.pulseWorkflowSession ?? null,
+          }
+        );
+        if (shouldRejectSavedPulseChatRestoreActivation(activationResult)) {
+          pendingPulseChatOpenRef.current = null;
+          if (pendingPulseChatOpenTimerRef.current) {
+            globalThis.clearTimeout(pendingPulseChatOpenTimerRef.current);
+            pendingPulseChatOpenTimerRef.current = null;
+          }
+          reject(new Error(SAVED_PULSE_CHAT_RESTORE_ERROR_MESSAGE));
+          return;
+        }
         base.setPulseCreatePrompt(snapshot.workspace.pulsePrompt);
-        handleActiveCreatePulsePresetIdChangeForPage(snapshot.workspace.activePulsePresetId, {
-          sessionInstanceIdOverride: snapshot.workspace.pulseSessionInstanceId,
-          workflowSessionOverride: snapshot.runtime.pulseWorkflowSession ?? null,
-        });
       });
     },
     [
